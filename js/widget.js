@@ -1,5 +1,10 @@
 import "./widget.css";
 
+import { Deck, ScatterplotLayer } from 'deck.gl';
+
+console.log('here!!!')
+console.log('deck.gl', Deck);
+
 function render({ model, el }) {
 	let btn = document.createElement("button");
 	btn.classList.add("celldega-counter-button");

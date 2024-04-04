@@ -3,7 +3,9 @@
 		"dev": "npm run build -- --sourcemap=inline --watch",
 		"build": "node build.js"
 	},
-	"dependencies": {},
+	"dependencies": {
+		"deck.gl": "^9.0.5"
+	},
 	"devDependencies": {
 		"esbuild": "^0.20.0"
 	}

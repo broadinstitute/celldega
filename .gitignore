@@ -1,0 +1,26 @@
+# reference: https://github.com/developmentseed/lonboard/blob/main/.gitignore
+*.html
+*.zip
+*.arrow
+*.parquet
+*.feather
+.ruff_cache
+dist
+.DS_Store
+# So that notebooks are only included _intentionally_
+*.ipynb
+.cache
+site
+
+# pixi environments
+.pixi
+.ipynb_checkpoints
+.yarn
+.venv
+*.wasm
+__pycache__
+static
+.pnp.cjs
+.pnp.loader.mjs
+node_modules
+*.h5

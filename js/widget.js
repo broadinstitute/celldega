@@ -2,6 +2,9 @@ import "./widget.css";
 
 import { Deck, ScatterplotLayer } from 'deck.gl';
 
+// import parquet-wasm 
+import _initParquetWasm, { readParquet } from "parquet-wasm/esm/arrow2";
+
 console.log('here!!!')
 console.log('deck.gl', Deck);
 

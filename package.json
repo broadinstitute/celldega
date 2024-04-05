@@ -4,7 +4,8 @@
 		"build": "node build.js"
 	},
 	"dependencies": {
-		"deck.gl": "^9.0.5"
+		"deck.gl": "^9.0.5",
+		"parquet-wasm": "0.5.0"
 	},
 	"devDependencies": {
 		"esbuild": "^0.20.0"

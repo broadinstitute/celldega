@@ -1,21 +1,23 @@
 import "./widget.css";
 
 import { Deck, ScatterplotLayer, TileLayer, BitmapLayer, OrthographicView, PathLayer } from 'deck.gl';
+import * as arrow from "apache-arrow";
 
 import * as pq from "https://unpkg.com/parquet-wasm@0.4.0-beta.5/esm/arrow2.js";
-
-// // import parquet-wasm 
+// import * as pq2 from "https://unpkg.com/parquet-wasm/esm/arrow2.js";
+// import * as pq from "parquet-wasm/esm/arrow2";
+// reference https://github.com/kylebarron/parquet-wasm/issues/471
+// import * as parquet from "parquet-wasm/node/arrow1";
 // import _initParquetWasm, { readParquet } from "parquet-wasm/esm/arrow2";
 
-// import * as pq from "parquet-wasm/esm/arrow2";
 
-// console.log('------------------------------------')
-// console.log('pq', pq)
-// console.log('------------------------------------')
 
-import * as arrow from "https://esm.sh/@apache-arrow/es5-cjs";
 
-import * as mathGl from 'https://cdn.skypack.dev/math.gl@2.3.3';
+
+// import * as mathGl from 'https://cdn.skypack.dev/math.gl@2.3.3';
+import * as mathGl from 'math.gl';
+console.log('importing mathGL from node')
+
 import { load } from 'https://esm.sh/@loaders.gl/core@4.1.1'; // 4.1.2 is not working???
 
 // // NOTE: this version must be synced exactly with the parquet-wasm version in

@@ -8,8 +8,12 @@ import * as mathGl from 'math.gl';
 
 
 
-import * as pq from "https://unpkg.com/parquet-wasm@0.4.0-beta.5/esm/arrow2.js";
+// import * as pq from "https://unpkg.com/parquet-wasm@0.4.0-beta.5/esm/arrow2.js";
 
+import * as pq from "parquet-wasm/bundler/arrow2_bg";
+
+console.log('import * as pq from "parquet-wasm/bundler/arrow2_bg";')
+console.log('pq', pq)
 
 
 // import * as pq2 from "https://unpkg.com/parquet-wasm/esm/arrow2.js";
@@ -23,10 +27,6 @@ import * as pq from "https://unpkg.com/parquet-wasm@0.4.0-beta.5/esm/arrow2.js";
 
 
 // import * as mathGl from 'https://cdn.skypack.dev/math.gl@2.3.3';
-
-console.log('importing mathGL from node')
-
-
 
 
 // // NOTE: this version must be synced exactly with the parquet-wasm version in

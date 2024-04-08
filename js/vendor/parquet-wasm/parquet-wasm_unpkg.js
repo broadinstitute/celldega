@@ -1882,6 +1882,8 @@ function initSync(bytes) {
 }
 
 async function init(input) {
+
+    console.log('here in the parquet-wasm source code')
     if (typeof input === 'undefined') {
         input = new URL('arrow2_bg.wasm', import.meta.url);
     }

@@ -1,4 +1,6 @@
-
+// reference 
+// https://unpkg.com/parquet-wasm@0.4.0-beta.5/esm/arrow2.js
+// https://github.com/kylebarron/parquet-wasm
 let wasm;
 
 const cachedTextDecoder = new TextDecoder('utf-8', { ignoreBOM: true, fatal: true });
@@ -1881,12 +1883,45 @@ function initSync(bytes) {
     return finalizeInit(instance, module);
 }
 
-async function init(input) {
+// async function init(input) {
 
-    console.log('here in the parquet-wasm source code')
+
+//     // https://unpkg.com/parquet-wasm@0.4.0-beta.5/esm/arrow2_bg.wasm
+//     console.log('here in the parquet-wasm source code')
+//     console.log('import.meta.url')
+//     console.log(import.meta.url)
+//     if (typeof input === 'undefined') {
+//         input = new URL('arrow2_bg.wasm', import.meta.url);
+//     }
+//     const imports = getImports();
+
+//     if (typeof input === 'string' || (typeof Request === 'function' && input instanceof Request) || (typeof URL === 'function' && input instanceof URL)) {
+//         input = fetch(input);
+//     }
+
+//     initMemory(imports);
+
+//     const { instance, module } = await load(await input, imports);
+
+//     return finalizeInit(instance, module);
+// }
+
+async function init(input) {
+    // console.log('here in the parquet-wasm source code');
+    
+    // Use a fixed path for development. You may need to adjust this path based on your project's structure and where it's served from.
+    // For example, if your server serves the `vendor` directory at the root, and `arrow2_bg.wasm` is within `vendor/parquet-wasm/`,
+    // the path should reflect that.
+    const fixedPath = 'files/js/vendor/parquet-wasm/arrow2_bg.wasm'; // Adjust this path as necessary.
+
+    // js/vendor/parquet-wasm
+
     if (typeof input === 'undefined') {
-        input = new URL('arrow2_bg.wasm', import.meta.url);
+        // Assume we're in a browser environment and construct the URL relative to the server's root.
+        input = new URL(fixedPath, window.location.origin);
     }
+    // console.log('WASM module will be loaded from:', input);
+
     const imports = getImports();
 
     if (typeof input === 'string' || (typeof Request === 'function' && input instanceof Request) || (typeof URL === 'function' && input instanceof URL)) {
@@ -1899,6 +1934,7 @@ async function init(input) {
 
     return finalizeInit(instance, module);
 }
+
 
 export { initSync }
 export default init;

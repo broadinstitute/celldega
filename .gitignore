@@ -18,7 +18,7 @@ secret_notebook.ipynb
 .ipynb_checkpoints
 .yarn
 .venv
-*.wasm
+# *.wasm
 __pycache__
 static
 .pnp.cjs

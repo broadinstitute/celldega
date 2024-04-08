@@ -7,7 +7,8 @@
 		"deck.gl": "^9.0.5",
 		"parquet-wasm": "0.4.0-beta.5",
 		"apache-arrow": "15.0.2",
-		"math.gl": "2.3.3"
+		"math.gl": "2.3.3",
+		"@loaders.gl/core": "4.1.1"
 	},
 	"devDependencies": {
 		"esbuild": "^0.20.0"

@@ -6,88 +6,26 @@ import * as arrow from "apache-arrow";
 import { load } from '@loaders.gl/core';
 import * as mathGl from 'math.gl';
 
+// // import from unpkg
+// import * as pq_unpkg from "https://unpkg.com/parquet-wasm@0.4.0-beta.5/esm/arrow2.js";
 
+// local file from unpkg
+console.log('using local version of unpng parquet-wasm')
+import * as pq from "./vendor/parquet-wasm/parquet-wasm_unpkg.js";
 
-import * as pq from "https://unpkg.com/parquet-wasm@0.4.0-beta.5/esm/arrow2.js";
+// // In your consumer file
+// import { pq_wrapped } from './vendor/parquet-wasm/wrapper.js';
 
+// console.log('pq', pq);
+// console.log('pq_wrapped', pq_wrapped);
+// console.log('pq_unpkg', pq_unpkg)
 
+// // bundler build
+// import * as pq from "parquet-wasm/bundler/arrow2_bg";
 
-// import * as pq2 from "https://unpkg.com/parquet-wasm/esm/arrow2.js";
+// // esm build
 // import * as pq from "parquet-wasm/esm/arrow2";
-// reference https://github.com/kylebarron/parquet-wasm/issues/471
-// import * as parquet from "parquet-wasm/node/arrow1";
-// import _initParquetWasm, { readParquet } from "parquet-wasm/esm/arrow2";
 
-
-
-
-
-// import * as mathGl from 'https://cdn.skypack.dev/math.gl@2.3.3';
-
-console.log('importing mathGL from node')
-
-
-
-
-// // NOTE: this version must be synced exactly with the parquet-wasm version in
-// // use.
-// const PARQUET_WASM_VERSION = "0.5.0";
-// const PARQUET_WASM_CDN_URL = 'https://cdn.jsdelivr.net/npm/parquet-wasm@' + PARQUET_WASM_VERSION + '/esm/arrow2_bg.wasm';
-// let WASM_READY = false;
-
-// export async function initParquetWasm() {
-//   if (WASM_READY) {
-//     return;
-//   }
-
-//   await _initParquetWasm(PARQUET_WASM_CDN_URL);
-//   WASM_READY = true;
-// }
-
-// var pq = readParquet
-
-// console.log('initializing parquet-wasm using CDN url')
-
-
-// // counter
-// //////////////////////////////
-// function render({ model, el }) {
-// 	let btn = document.createElement("button");
-// 	btn.classList.add("celldega-counter-button");
-// 	btn.innerHTML = `count is ${model.get("value")}`;
-// 	btn.addEventListener("click", () => {
-// 		model.set("value", model.get("value") + 1);
-// 		model.save_changes();
-// 	});
-// 	model.on("change:value", () => {
-// 		btn.innerHTML = `count is ${model.get("value")}`;
-// 	});
-// 	el.appendChild(btn);
-// }
-
-
-// // simple deck.gl dot
-// ///////////////////////////////////////
-// export function render({ model, el }) {
-// 	let root = document.createElement("div");
-// 	root.style.height = "800px";
-// 	let deck = new Deck({
-// 	  parent: root,
-// 	  controller: true,
-// 	  initialViewState: { longitude: -122.45, latitude: 37.8, zoom: 15 },
-// 	  layers: [
-// 		new ScatterplotLayer({
-// 		  data: [{ position: [-122.45, 37.8], color: [0, 255, 255], radius: 100}],
-// 		  getFillColor: d => d.color,
-// 		  getRadius: d => d.radius,
-// 		  pickable: true,
-// 		  onClick: d => console.log('hi hi hi', d)
-// 		})
-// 	  ],
-// 	});
-// 	el.appendChild(root);
-// 	return () => deck.finalize();
-// }
 
 
 export async function render({ model, el }) {
@@ -199,13 +137,9 @@ export async function render({ model, el }) {
 
 		// console.log('about to use readParquet')
 		// console.log(pq.readParquet)
+		// console.log(pq.readParquet())
 		// console.log('***********************************')
         const arrowIPC = pq.readParquet(arr);
-		// console.log('arrowIPC', arrowIPC)
-
-		// const arrowIPC = readParquet(arr);
-
-		
 		// console.log('readParquet done!!!')
 		// console.log(arrowIPC)
 
@@ -646,14 +580,13 @@ export async function render({ model, el }) {
     const max_tiles_to_view = 15
 
     const debounced_calc_viewport = debounce(calc_viewport, bounce_time);
-    // await pq.default();
+
+    await pq.default();
 
 	// console.log('pq', pq)
 
 
     // console.log('pq pre-default', pq)
-
-    await pq.default();
 
     // console.log('pq post-default', pq)	
 

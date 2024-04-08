@@ -1906,34 +1906,57 @@ function initSync(bytes) {
 //     return finalizeInit(instance, module);
 // }
 
-async function init(input) {
-    // console.log('here in the parquet-wasm source code');
+// async function init(input) {
+//     // console.log('here in the parquet-wasm source code');
     
-    // Use a fixed path for development. You may need to adjust this path based on your project's structure and where it's served from.
-    // For example, if your server serves the `vendor` directory at the root, and `arrow2_bg.wasm` is within `vendor/parquet-wasm/`,
-    // the path should reflect that.
-    const fixedPath = 'files/js/vendor/parquet-wasm/arrow2_bg.wasm'; // Adjust this path as necessary.
+//     // Use a fixed path for development. You may need to adjust this path based on your project's structure and where it's served from.
+//     // For example, if your server serves the `vendor` directory at the root, and `arrow2_bg.wasm` is within `vendor/parquet-wasm/`,
+//     // the path should reflect that.
+//     const fixedPath = 'files/js/vendor/parquet-wasm/arrow2_bg.wasm'; // Adjust this path as necessary.
 
-    // js/vendor/parquet-wasm
+//     // js/vendor/parquet-wasm
 
-    if (typeof input === 'undefined') {
-        // Assume we're in a browser environment and construct the URL relative to the server's root.
-        input = new URL(fixedPath, window.location.origin);
-    }
-    // console.log('WASM module will be loaded from:', input);
+//     if (typeof input === 'undefined') {
+//         // Assume we're in a browser environment and construct the URL relative to the server's root.
+//         input = new URL(fixedPath, window.location.origin);
+//     }
+//     // console.log('WASM module will be loaded from:', input);
 
+//     const imports = getImports();
+
+//     if (typeof input === 'string' || (typeof Request === 'function' && input instanceof Request) || (typeof URL === 'function' && input instanceof URL)) {
+//         input = fetch(input);
+//     }
+
+//     initMemory(imports);
+
+//     const { instance, module } = await load(await input, imports);
+
+//     return finalizeInit(instance, module);
+// }
+
+
+import { wasmBase64 } from './wasmModuleBase64.js'; // Assuming you've exported the Base64 string here
+
+async function init(input) {
+    // No need to adjust the path, as we'll be loading the WASM from a Base64 string
     const imports = getImports();
 
-    if (typeof input === 'string' || (typeof Request === 'function' && input instanceof Request) || (typeof URL === 'function' && input instanceof URL)) {
-        input = fetch(input);
+    // Decode the Base64 string to get the binary representation
+    const binaryString = window.atob(wasmBase64);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
     }
 
     initMemory(imports);
 
-    const { instance, module } = await load(await input, imports);
+    // Use the binary bytes to instantiate the WebAssembly module
+    const { instance, module } = await WebAssembly.instantiate(bytes, imports);
 
     return finalizeInit(instance, module);
 }
+
 
 
 export { initSync }

@@ -6,14 +6,11 @@ import * as arrow from "apache-arrow";
 import { load } from '@loaders.gl/core';
 import * as mathGl from 'math.gl';
 
-
-// "parquet-wasm": "0.4.0-beta.5",
-
-
 // // import from unpkg
 // import * as pq_unpkg from "https://unpkg.com/parquet-wasm@0.4.0-beta.5/esm/arrow2.js";
 
 // local file from unpkg
+console.log('using local version of unpng parquet-wasm')
 import * as pq from "./vendor/parquet-wasm/parquet-wasm_unpkg.js";
 
 // // In your consumer file
@@ -584,7 +581,6 @@ export async function render({ model, el }) {
 
     const debounced_calc_viewport = debounce(calc_viewport, bounce_time);
 
-	console.log('about to default pq')
     await pq.default();
 
 	// console.log('pq', pq)

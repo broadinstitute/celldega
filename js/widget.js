@@ -653,7 +653,7 @@ export async function render({ model, el }) {
 
     // console.log('pq pre-default', pq)
 
-    await pq.default();
+    // await pq.default();
 
     // console.log('pq post-default', pq)	
 

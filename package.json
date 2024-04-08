@@ -1,4 +1,5 @@
 {
+	"type": "module",
 	"scripts": {
 		"dev": "npm run build -- --sourcemap=inline --watch",
 		"build": "node build.js"

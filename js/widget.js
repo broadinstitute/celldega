@@ -10,6 +10,9 @@ import * as mathGl from 'math.gl';
 console.log('using local version of unpng parquet-wasm')
 import * as pq from "./vendor/parquet-wasm/parquet-wasm_unpkg.js";
 
+import { visibleTiles } from "./visibleTiles.js";
+
+console.log('here!!')
 
 export async function render({ model, el }) {
 
@@ -181,20 +184,20 @@ export async function render({ model, el }) {
         };
     };
 
-    const visibleTiles = (minX, maxX, minY, maxY, tileSize) => {
-        const startTileX = Math.floor(minX / tileSize);
-        const endTileX = Math.floor(maxX / tileSize);
-        const startTileY = Math.floor(minY / tileSize);
-        const endTileY = Math.floor(maxY / tileSize);
+    // const visibleTiles = (minX, maxX, minY, maxY, tileSize) => {
+    //     const startTileX = Math.floor(minX / tileSize);
+    //     const endTileX = Math.floor(maxX / tileSize);
+    //     const startTileY = Math.floor(minY / tileSize);
+    //     const endTileY = Math.floor(maxY / tileSize);
 
-        const tiles = [];
-        for (let x = startTileX; x <= endTileX; x++) {
-            for (let y = startTileY; y <= endTileY; y++) {
-                tiles.push({ tileX: x, tileY: y, name: x + '_' + y });
-            }
-        }
-        return tiles;
-    }
+    //     const tiles = [];
+    //     for (let x = startTileX; x <= endTileX; x++) {
+    //         for (let y = startTileY; y <= endTileY; y++) {
+    //             tiles.push({ tileX: x, tileY: y, name: x + '_' + y });
+    //         }
+    //     }
+    //     return tiles;
+    // }
 
     const concatenate_polygon_data = (dataObjects) => {
         // Initialize concatenated data structure

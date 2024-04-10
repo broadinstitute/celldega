@@ -1,5 +1,4 @@
 // reference https://github.com/manzt/anywidget/issues/369
-// const esbuild = require('esbuild');
 import esbuild from 'esbuild';
 import wasmPlugin from './wasm-plugin.mjs';
 

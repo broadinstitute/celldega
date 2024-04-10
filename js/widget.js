@@ -6,26 +6,9 @@ import * as arrow from "apache-arrow";
 import { load } from '@loaders.gl/core';
 import * as mathGl from 'math.gl';
 
-// // import from unpkg
-// import * as pq_unpkg from "https://unpkg.com/parquet-wasm@0.4.0-beta.5/esm/arrow2.js";
-
 // local file from unpkg
 console.log('using local version of unpng parquet-wasm')
 import * as pq from "./vendor/parquet-wasm/parquet-wasm_unpkg.js";
-
-// // In your consumer file
-// import { pq_wrapped } from './vendor/parquet-wasm/wrapper.js';
-
-// console.log('pq', pq);
-// console.log('pq_wrapped', pq_wrapped);
-// console.log('pq_unpkg', pq_unpkg)
-
-// // bundler build
-// import * as pq from "parquet-wasm/bundler/arrow2_bg";
-
-// // esm build
-// import * as pq from "parquet-wasm/esm/arrow2";
-
 
 
 export async function render({ model, el }) {

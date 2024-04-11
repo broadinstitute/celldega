@@ -1,16 +1,20 @@
 import "./widget.css";
 
 import { Deck, ScatterplotLayer, TileLayer, BitmapLayer, OrthographicView, PathLayer } from 'deck.gl';
-import * as arrow from "apache-arrow";
-// import { load } from 'https://esm.sh/@loaders.gl/core@4.1.1'; // 4.1.2 is not working???
+// import * as arrow from "apache-arrow";
 import { load } from '@loaders.gl/core';
 import * as mathGl from 'math.gl';
 
-// local file from unpkg
-import * as pq from "./vendor/parquet-wasm/parquet-wasm_unpkg.js";
+// // local file from unpkg
+// import * as pq from "./vendor/parquet-wasm/parquet-wasm_unpkg.js";
 
 import { visibleTiles } from "./vector_tile/visibleTiles.js";
 import { concatenate_polygon_data } from "./vector_tile/concatenate_polygon_data.js";
+
+// import { getPq } from './read_parquet/pqInitializer.js';
+import { arrayBufferToArrowTable } from "./read_parquet/arrayBufferToArrowTable.js";
+
+console.log('getPq')
 
 export async function render({ model, el }) {
 
@@ -21,15 +25,13 @@ export async function render({ model, el }) {
     // functions
     ////////////////
 
-	// console.log('function definitions')
-
     const grab_trx_tiles_in_view = async (tiles_in_view) => {
 
         const tile_trx_urls = tiles_in_view.map(tile => {
             return `${base_url}/real_transcript_tiles_mosaic/transcripts_tile_${tile.tileX}_${tile.tileY}.parquet`;
         });
 
-        var tile_trx_tables = await fetch_all_tables_v2(cache_trx, tile_trx_urls)
+        var tile_trx_tables = await fetch_all_tables(cache_trx, tile_trx_urls)
         var trx_arrow_table = concatenate_arrow_tables(tile_trx_tables)
         trx_names_array = trx_arrow_table.getChild("name").toArray();
         var trx_scatter_data = get_scatter_data(trx_arrow_table)
@@ -43,7 +45,7 @@ export async function render({ model, el }) {
             return `${base_url}/cell_segmentation_v2/cell_tile_${tile.tileX}_${tile.tileY}.parquet`;
         });
 
-        var tile_cell_tables = await fetch_all_tables_v2(cache_cell, tile_cell_urls)
+        var tile_cell_tables = await fetch_all_tables(cache_cell, tile_cell_urls)
 
         var polygon_datas = tile_cell_tables.map(x => get_data(x))
 
@@ -112,25 +114,20 @@ export async function render({ model, el }) {
         }
     };
 
-    const arrayBufferToArrowTable = (arrayBuffer) => {
+    // const arrayBufferToArrowTable = (arrayBuffer) => {
+    //     const arr = new Uint8Array(arrayBuffer);
+    //     const arrowIPC = pq.readParquet(arr);
+    //     return arrow.tableFromIPC(arrowIPC);
+    // };
 
-		// console.log('arrayBufferToArrowTable: starting')
-        const arr = new Uint8Array(arrayBuffer);
+	// const arrayBufferToArrowTable = async (arrayBuffer) => {
+	// 	const pq = await getPq(); 
+	// 	const arr = new Uint8Array(arrayBuffer);
+	// 	const arrowIPC = pq.readParquet(arr);
+	// 	return arrow.tableFromIPC(arrowIPC);
+	// };	
 
-		// console.log('arr', arr.byteLength)
-
-		// console.log('about to use readParquet')
-		// console.log(pq.readParquet)
-		// console.log(pq.readParquet())
-		// console.log('***********************************')
-        const arrowIPC = pq.readParquet(arr);
-		// console.log('readParquet done!!!')
-		// console.log(arrowIPC)
-
-        return arrow.tableFromIPC(arrowIPC);
-    };
-
-    const fetch_all_tables_v2 = async (cache_trx, urls) => {
+    const fetch_all_tables = async (cache_trx, urls) => {
         return Promise.all(urls.map(url => get_arrow_table_and_cache(cache_trx, url)));
     };
 
@@ -320,9 +317,7 @@ export async function render({ model, el }) {
 	const base_url = model.get('base_url')
 
 	// console.log('getting traitlets done')
-	// console.log('token', token)
-
-    
+	// console.log('token', token)    
 
     // authorization token for bucket
     const options = ({
@@ -512,16 +507,8 @@ export async function render({ model, el }) {
 
     const debounced_calc_viewport = debounce(calc_viewport, bounce_time);
 
-    await pq.default();
+    // await pq.default();
 
-	// console.log('pq', pq)
-
-
-    // console.log('pq pre-default', pq)
-
-    // console.log('pq post-default', pq)	
-
-	// console.log('reading cell data as parquet file')
     const cell_url = base_url + `/real_cells_mosaic.parquet`;
     var cell_arrow_table = await get_arrow_table(cell_url, options.fetch)
 

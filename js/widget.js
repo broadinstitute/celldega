@@ -265,8 +265,6 @@ export async function render({ model, el }) {
       // Check if there's a valid index
       if (info.index === -1 || !info.layer) return null;
 
-      const dataIndex = info.index;
-
       let inst_name
 
       if (info.layer.id === 'cell-layer'){
@@ -281,7 +279,6 @@ export async function render({ model, el }) {
         html: `<div>${inst_name}</div?`,
       };
 
-      return null;
     }
 
    var get_data = (arrowTable) => {
@@ -619,7 +616,7 @@ export async function render({ model, el }) {
       widthScale: 3,
       widthMinPixels: 1,
       getPath: d => d,
-      getColor: d => [255, 255, 255, 150], // white outline
+      getColor: [255, 255, 255, 150], // white outline
       widthUnits: 'pixels',
     })
 

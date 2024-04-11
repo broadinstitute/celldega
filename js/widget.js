@@ -10,7 +10,7 @@ import * as mathGl from 'math.gl';
 import * as pq from "./vendor/parquet-wasm/parquet-wasm_unpkg.js";
 
 import { visibleTiles } from "./vector_tile/visibleTiles.js";
-
+import { concatenate_polygon_data } from "./vector_tile/concatenate_polygon_data.js";
 
 export async function render({ model, el }) {
 
@@ -182,57 +182,7 @@ export async function render({ model, el }) {
         };
     };
 
-    // const visibleTiles = (minX, maxX, minY, maxY, tileSize) => {
-    //     const startTileX = Math.floor(minX / tileSize);
-    //     const endTileX = Math.floor(maxX / tileSize);
-    //     const startTileY = Math.floor(minY / tileSize);
-    //     const endTileY = Math.floor(maxY / tileSize);
 
-    //     const tiles = [];
-    //     for (let x = startTileX; x <= endTileX; x++) {
-    //         for (let y = startTileY; y <= endTileY; y++) {
-    //             tiles.push({ tileX: x, tileY: y, name: x + '_' + y });
-    //         }
-    //     }
-    //     return tiles;
-    // }
-
-    const concatenate_polygon_data = (dataObjects) => {
-        // Initialize concatenated data structure
-        let concatenatedData = {
-            length: 0,
-            startIndices: new Int32Array(),
-            attributes: {
-                getPolygon: {
-                    value: new Float64Array(),
-                    size: 2 // Assuming 'size' remains constant
-                }
-            }
-        };
-
-        // Iterate over each data object to combine them
-        dataObjects.forEach((data, index) => {
-            concatenatedData.length += data.length;
-
-            // Handle startIndices
-            let lastValue = concatenatedData.attributes.getPolygon.value.length/2;
-            let adjustedStartIndices = data.startIndices;
-
-            if (index > 0) {
-                // Adjust startIndices (except for the first data object)
-                adjustedStartIndices = new Int32Array(data.startIndices.length);
-                for (let i = 0; i < data.startIndices.length; i++) {
-                    adjustedStartIndices[i] = data.startIndices[i] + lastValue;
-                }
-            }
-
-            // Combine startIndices and coordinate values
-            concatenatedData.startIndices = new Int32Array([...concatenatedData.startIndices, ...adjustedStartIndices.slice(index > 0 ? 1 : 0)]);
-            concatenatedData.attributes.getPolygon.value = new Float64Array([...concatenatedData.attributes.getPolygon.value, ...data.attributes.getPolygon.value]);
-        });
-
-        return concatenatedData;
-    }
 
     const concatenate_arrow_tables = (tables) => {
         if (tables.length === 0) return null; // No tables to concatenate

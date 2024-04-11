@@ -5,23 +5,27 @@
 	"scripts": {
 		"dev": "npm run build -- --sourcemap=inline --watch",
 		"build": "node build.js",
-		"watch": "node build.js --watch"
+		"watch": "node build.js --watch",
+		"lint": "eslint js/ --ignore-pattern js/vendor/"
 	},
 	"dependencies": {
-		"deck.gl": "^9.0.5",
+		"@loaders.gl/core": "4.1.1",
 		"apache-arrow": "15.0.2",
-		"math.gl": "2.3.3",
-		"@loaders.gl/core": "4.1.1"
+		"deck.gl": "^9.0.5",
+		"math.gl": "2.3.3"
 	},
 	"devDependencies": {
-		"esbuild": "^0.20.0"
+		"@eslint/js": "^9.0.0",
+		"esbuild": "^0.20.0",
+		"eslint": "^9.0.0",
+		"globals": "^15.0.0"
 	},
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/yourusername/your-repo.git"
+		"url": "https://github.com/broadinstitute/celldega.git"
 	},
 	"files": [
 		"src/celldega/static/*"
-	  ],	
-	"main": "src/celldega/static/widget.js"	 
+	],
+	"main": "src/celldega/static/widget.js"
 }

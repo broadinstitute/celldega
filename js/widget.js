@@ -7,15 +7,10 @@ import { load } from '@loaders.gl/core';
 import * as mathGl from 'math.gl';
 
 // local file from unpkg
-console.log('using local version of unpng parquet-wasm')
 import * as pq from "./vendor/parquet-wasm/parquet-wasm_unpkg.js";
 
 import { visibleTiles } from "./vector_tile/visibleTiles.js";
 
-console.log('moving JS to separate files!!!!!!!!')
-console.log('watch is actually working now!!!')
-
-console.log('something is happening')
 
 export async function render({ model, el }) {
 

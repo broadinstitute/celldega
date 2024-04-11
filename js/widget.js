@@ -7,7 +7,7 @@ import * as mathGl from 'math.gl';
 import { visibleTiles } from "./vector_tile/visibleTiles.js";
 import { concatenate_polygon_data } from "./vector_tile/concatenate_polygon_data.js";
 import { arrayBufferToArrowTable } from "./read_parquet/arrayBufferToArrowTable.js";
-import { get_arrow_table_and_cache } from "./read_parquet/get_arrow_table_and_cache.js";
+import { fetch_all_tables } from "./read_parquet/fetch_all_tables.js";
 
 export async function render({ model, el }) {
 
@@ -17,13 +17,13 @@ export async function render({ model, el }) {
     // functions
     ////////////////
 
-    const grab_trx_tiles_in_view = async (tiles_in_view) => {
+    const grab_trx_tiles_in_view = async (tiles_in_view, options) => {
 
         const tile_trx_urls = tiles_in_view.map(tile => {
             return `${base_url}/real_transcript_tiles_mosaic/transcripts_tile_${tile.tileX}_${tile.tileY}.parquet`;
         });
 
-        var tile_trx_tables = await fetch_all_tables(cache_trx, tile_trx_urls)
+        var tile_trx_tables = await fetch_all_tables(cache_trx, tile_trx_urls, options)
         var trx_arrow_table = concatenate_arrow_tables(tile_trx_tables)
         trx_names_array = trx_arrow_table.getChild("name").toArray();
         var trx_scatter_data = get_scatter_data(trx_arrow_table)
@@ -37,7 +37,7 @@ export async function render({ model, el }) {
             return `${base_url}/cell_segmentation_v2/cell_tile_${tile.tileX}_${tile.tileY}.parquet`;
         });
 
-        var tile_cell_tables = await fetch_all_tables(cache_cell, tile_cell_urls)
+        var tile_cell_tables = await fetch_all_tables(cache_cell, tile_cell_urls, options)
 
         var polygon_datas = tile_cell_tables.map(x => get_data(x))
 
@@ -49,7 +49,9 @@ export async function render({ model, el }) {
         return polygonPathsConcat
     }
 
-    const calc_viewport = async ({ height, width, zoom, target }) => {
+    const calc_viewport = async ({ height, width, zoom, target }, options) => {
+
+		console.log('calculating viewport', options)
 
         const zoomFactor = Math.pow(2, zoom);
         const [targetX, targetY] = target;
@@ -69,7 +71,7 @@ export async function render({ model, el }) {
 
             // trx tiles
             ////////////////////////////////
-            const trx_scatter_data = grab_trx_tiles_in_view(tiles_in_view)
+            const trx_scatter_data = grab_trx_tiles_in_view(tiles_in_view, options)
 
             const trx_layer_new = new ScatterplotLayer({
                 // Re-use existing layer props
@@ -80,7 +82,7 @@ export async function render({ model, el }) {
             // cell tiles
             ////////////////////////////////
 
-            const polygonPathsConcat = grab_cell_tiles_in_view(tiles_in_view)
+            const polygonPathsConcat = grab_cell_tiles_in_view(tiles_in_view, options)
 
             const polygon_layer_new = new PathLayer({
                 // Re-use existing layer props
@@ -106,9 +108,7 @@ export async function render({ model, el }) {
         }
     };
 
-    const fetch_all_tables = async (cache_trx, urls) => {
-        return Promise.all(urls.map(url => get_arrow_table_and_cache(cache_trx, url, options)));
-    };
+
 
 
     const debounce = (func, wait, immediate) => {
@@ -564,7 +564,7 @@ export async function render({ model, el }) {
         // layers: [tile_layer, cell_layer],
 
         onViewStateChange: ({viewState}) => {
-          debounced_calc_viewport(viewState)
+          debounced_calc_viewport(viewState, options)
           return viewState
         },
         getTooltip: make_tooltip,

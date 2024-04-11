@@ -4,7 +4,8 @@
 	"type": "module",
 	"scripts": {
 		"dev": "npm run build -- --sourcemap=inline --watch",
-		"build": "node build.js"
+		"build": "node build.js",
+		"watch": "node build.js --watch"
 	},
 	"dependencies": {
 		"deck.gl": "^9.0.5",

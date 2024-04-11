@@ -10,15 +10,18 @@ import * as mathGl from 'math.gl';
 console.log('using local version of unpng parquet-wasm')
 import * as pq from "./vendor/parquet-wasm/parquet-wasm_unpkg.js";
 
-import { visibleTiles } from "./visibleTiles.js";
+import { visibleTiles } from "./vector_tile/visibleTiles.js";
 
-console.log('here!!')
+console.log('moving JS to separate files!!!!!!!!')
+console.log('watch is actually working now!!!')
+
+console.log('something is happening')
 
 export async function render({ model, el }) {
 
     const cache_trx = new Map();
     const cache_cell = new Map();
-    const MAX_CACHE_SIZE = 20; // Example size
+    const MAX_CACHE_SIZE = 20; //' Example size
 
     // functions
     ////////////////

@@ -34,3 +34,12 @@ export const concatenate_polygon_data = (dataObjects) => {
 
     return concatenatedData;
 }
+
+export const concatenate_arrow_tables = (tables) => {
+    if (tables.length === 0) return null; // No tables to concatenate
+    let baseTable = tables[0]; // Use the first table as the base
+    for (let i = 1; i < tables.length; i++) { // Start from the second table
+        baseTable = baseTable.concat(tables[i]); // Concatenate each table to the base table
+    }
+    return baseTable;
+};

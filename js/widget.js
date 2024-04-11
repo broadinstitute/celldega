@@ -5,7 +5,7 @@ import { load } from '@loaders.gl/core';
 import * as mathGl from 'math.gl';
 
 import { visibleTiles } from "./vector_tile/visibleTiles.js";
-import { concatenate_polygon_data } from "./vector_tile/concatenate_polygon_data.js";
+import { concatenate_polygon_data, concatenate_arrow_tables } from "./vector_tile/concatenate_functions.js";
 import { arrayBufferToArrowTable } from "./read_parquet/arrayBufferToArrowTable.js";
 import { fetch_all_tables } from "./read_parquet/fetch_all_tables.js";
 
@@ -50,8 +50,6 @@ export async function render({ model, el }) {
     }
 
     const calc_viewport = async ({ height, width, zoom, target }, options) => {
-
-		console.log('calculating viewport', options)
 
         const zoomFactor = Math.pow(2, zoom);
         const [targetX, targetY] = target;
@@ -128,14 +126,7 @@ export async function render({ model, el }) {
 
 
 
-    const concatenate_arrow_tables = (tables) => {
-        if (tables.length === 0) return null; // No tables to concatenate
-        let baseTable = tables[0]; // Use the first table as the base
-        for (let i = 1; i < tables.length; i++) { // Start from the second table
-            baseTable = baseTable.concat(tables[i]); // Concatenate each table to the base table
-        }
-        return baseTable;
-    };
+
 
     const extractPolygonPaths = (data) => {
       const paths = [];

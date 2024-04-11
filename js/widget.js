@@ -8,6 +8,8 @@ import { visibleTiles } from "./vector_tile/visibleTiles.js";
 import { concatenate_polygon_data, concatenate_arrow_tables } from "./vector_tile/concatenate_functions.js";
 import { arrayBufferToArrowTable } from "./read_parquet/arrayBufferToArrowTable.js";
 import { fetch_all_tables } from "./read_parquet/fetch_all_tables.js";
+import { debounce } from "./utils/debounce.js";
+import { extractPolygonPaths } from "./vector_tile/polygons/extractPolygonPaths.js";
 
 export async function render({ model, el }) {
 
@@ -107,51 +109,6 @@ export async function render({ model, el }) {
     };
 
 
-
-
-    const debounce = (func, wait, immediate) => {
-        let timeout;
-        return (...args) => {
-            const context = this;
-            const later = () => {
-                timeout = null;
-                if (!immediate) func.apply(context, args);
-            };
-            const callNow = immediate && !timeout;
-            clearTimeout(timeout);
-            timeout = setTimeout(later, wait);
-            if (callNow) func.apply(context, args);
-        };
-    };
-
-
-
-
-
-    const extractPolygonPaths = (data) => {
-      const paths = [];
-      const { startIndices, attributes } = data;
-      const coordinates = attributes.getPolygon.value;
-      const numPolygons = startIndices.length - 1;
-
-      for (let i = 0; i < numPolygons; ++i) {
-        // Multiply by 2 because each coordinate is a pair of values (x, y)
-        const startIndex = startIndices[i] * 2;
-        // The next start index marks the end of the current polygon
-        const endIndex = startIndices[i + 1] * 2;
-        const path = [];
-
-        for (let j = startIndex; j < endIndex; j += 2) {
-          const x = coordinates[j];
-          const y = coordinates[j + 1];
-          path.push([x, y]);
-        }
-
-        paths.push(path);
-      }
-
-      return paths;
-    }
 
     const get_arrow_table = async (url, fetch_options) => {
         try {

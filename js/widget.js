@@ -7,6 +7,8 @@ import * as mathGl from 'math.gl';
 import { visibleTiles } from "./vector_tile/visibleTiles.js";
 import { concatenate_polygon_data, concatenate_arrow_tables } from "./vector_tile/concatenate_functions.js";
 import { fetch_all_tables } from "./read_parquet/fetch_all_tables.js";
+import { get_scatter_data } from "./read_parquet/get_scatter_data.js";
+import { get_polygon_data } from "./read_parquet/get_polygon_data.js";
 import { debounce } from "./utils/debounce.js";
 import { extractPolygonPaths } from "./vector_tile/polygons/extractPolygonPaths.js";
 import { hexToRgb } from "./utils/hexToRgb.js";
@@ -43,7 +45,7 @@ export async function render({ model, el }) {
 
         var tile_cell_tables = await fetch_all_tables(cache_cell, tile_cell_urls, options)
 
-        var polygon_datas = tile_cell_tables.map(x => get_data(x))
+        var polygon_datas = tile_cell_tables.map(x => get_polygon_data(x))
 
         // this can be used directly in the SolidPolygonLayer
         var polygon_data = concatenate_polygon_data(polygon_datas);
@@ -114,31 +116,6 @@ export async function render({ model, el }) {
 
 
 
-    const get_scatter_data = (arrow_table) => {
-        try {
-
-            const flatCoordinateArray = arrow_table.getChild("geometry").getChildAt(0).data
-              .map(x => x.values)
-              .reduce((acc, val) => {
-                const combined = new Float64Array(acc.length + val.length);
-                combined.set(acc);
-                combined.set(val, acc.length);
-                return combined;
-              }, new Float64Array(0));
-
-            const scatter_data = {
-                length: arrow_table.numRows,
-                attributes: {
-                    getPosition: { value: flatCoordinateArray, size: 2 },
-                }
-            };
-
-            return scatter_data
-        } catch (error) {
-            console.error("Error loading data:", error);
-            return [];
-        }
-    };
 
     const make_tooltip = (info) => {
 
@@ -161,32 +138,7 @@ export async function render({ model, el }) {
 
     }
 
-   var get_data = (arrowTable) => {
 
-      var geometryColumn = arrowTable.getChildAt(0)
-      var polygonIndices = geometryColumn.data[0].valueOffsets
-      var ringIndices = geometryColumn.getChildAt(0).data[0].valueOffsets
-      var flatCoordinateVector = geometryColumn.getChildAt(0).getChildAt(0).getChildAt(0)
-      var flatCoordinateArray = flatCoordinateVector.data[0].values
-      const resolvedIndices = new Int32Array(polygonIndices.length);
-
-      for (let i = 0; i < resolvedIndices.length; ++i) {
-        // Perform the lookup into the ringIndices array using the polygonIndices array
-        resolvedIndices[i] = ringIndices[polygonIndices[i]]
-      }
-
-      var data = {
-        // Number of geometries
-        length: arrowTable.numRows,
-        // Indices into coordinateArray where each polygon starts
-        startIndices: resolvedIndices,
-        // Flat coordinates array
-        attributes: {
-          getPolygon: { value: flatCoordinateArray, size: 2 }
-        }
-      }
-      return data
-    }
 
 	// console.log('getting traitlets')
 

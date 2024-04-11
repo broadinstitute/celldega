@@ -1,26 +1,18 @@
 import "./widget.css";
 
 import { Deck, ScatterplotLayer, TileLayer, BitmapLayer, OrthographicView, PathLayer } from 'deck.gl';
-// import * as arrow from "apache-arrow";
 import { load } from '@loaders.gl/core';
 import * as mathGl from 'math.gl';
 
-// // local file from unpkg
-// import * as pq from "./vendor/parquet-wasm/parquet-wasm_unpkg.js";
-
 import { visibleTiles } from "./vector_tile/visibleTiles.js";
 import { concatenate_polygon_data } from "./vector_tile/concatenate_polygon_data.js";
-
-// import { getPq } from './read_parquet/pqInitializer.js';
 import { arrayBufferToArrowTable } from "./read_parquet/arrayBufferToArrowTable.js";
-
-console.log('getPq')
+import { get_arrow_table_and_cache } from "./read_parquet/get_arrow_table_and_cache.js";
 
 export async function render({ model, el }) {
 
     const cache_trx = new Map();
     const cache_cell = new Map();
-    const MAX_CACHE_SIZE = 20; //' Example size
 
     // functions
     ////////////////
@@ -114,55 +106,10 @@ export async function render({ model, el }) {
         }
     };
 
-    // const arrayBufferToArrowTable = (arrayBuffer) => {
-    //     const arr = new Uint8Array(arrayBuffer);
-    //     const arrowIPC = pq.readParquet(arr);
-    //     return arrow.tableFromIPC(arrowIPC);
-    // };
-
-	// const arrayBufferToArrowTable = async (arrayBuffer) => {
-	// 	const pq = await getPq(); 
-	// 	const arr = new Uint8Array(arrayBuffer);
-	// 	const arrowIPC = pq.readParquet(arr);
-	// 	return arrow.tableFromIPC(arrowIPC);
-	// };	
-
     const fetch_all_tables = async (cache_trx, urls) => {
-        return Promise.all(urls.map(url => get_arrow_table_and_cache(cache_trx, url)));
+        return Promise.all(urls.map(url => get_arrow_table_and_cache(cache_trx, url, options)));
     };
 
-
-    // Function to access (fetch or retrieve from cache) and cache the table
-    const get_arrow_table_and_cache = async (cache, url) => {
-        let data;
-
-        if (cache.has(url)) {
-            // console.log('Using cached data for:', url);
-            // Accessing the item, so move it to the end to mark it as most recently used
-            data = cache.get(url);
-            cache.delete(url); // Remove the item
-            cache.set(url, data); // Re-insert to update its position
-        } else {
-            // Item is not in the cache, fetch it
-            const response = await fetch(url, options.fetch);
-            const arrayBuffer = await response.arrayBuffer();
-            data = arrayBufferToArrowTable(arrayBuffer);
-
-            // Check if the cache is exceeding the size limit before adding the new item
-            if (cache.size >= MAX_CACHE_SIZE) {
-                // Evict the least recently used item, which is the first item in the Map
-                const leastRecentlyUsedKey = cache.keys().next().value;
-                cache.delete(leastRecentlyUsedKey);
-                // console.log(`Evicted ${leastRecentlyUsedKey}`);
-            }
-
-            // Add the new item to the cache
-            cache.set(url, data);
-        }
-
-        // console.log(`Cache size: ${cache.size}`);
-        return data;
-    };
 
     const debounce = (func, wait, immediate) => {
         let timeout;
@@ -315,9 +262,6 @@ export async function render({ model, el }) {
     const max_image_zoom = model.get('max_image_zoom')
     const bounce_time = model.get('bounce_time')
 	const base_url = model.get('base_url')
-
-	// console.log('getting traitlets done')
-	// console.log('token', token)    
 
     // authorization token for bucket
     const options = ({

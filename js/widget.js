@@ -6,10 +6,12 @@ import * as mathGl from 'math.gl';
 
 import { visibleTiles } from "./vector_tile/visibleTiles.js";
 import { concatenate_polygon_data, concatenate_arrow_tables } from "./vector_tile/concatenate_functions.js";
-import { arrayBufferToArrowTable } from "./read_parquet/arrayBufferToArrowTable.js";
 import { fetch_all_tables } from "./read_parquet/fetch_all_tables.js";
 import { debounce } from "./utils/debounce.js";
 import { extractPolygonPaths } from "./vector_tile/polygons/extractPolygonPaths.js";
+import { hexToRgb } from "./utils/hexToRgb.js";
+
+import { get_arrow_table } from "./read_parquet/get_arrow_table.js";
 
 export async function render({ model, el }) {
 
@@ -110,21 +112,7 @@ export async function render({ model, el }) {
 
 
 
-    const get_arrow_table = async (url, fetch_options) => {
-        try {
-			// console.log('get_arrow_table: starting')
-            const response = await fetch(url, fetch_options);
-			// console.log('got response', response)
-            const arrayBuffer = await response.arrayBuffer();
-			// console.log('got array buffer', arrayBuffer.byteLength)
-            const arrowTable = arrayBufferToArrowTable(arrayBuffer)
-			// console.log('got arrow table', arrowTable.numRows)
-            return arrowTable
-        } catch (error) {
-            console.error("Error loading data:", error);
-            return [];
-        }
-    }
+
 
     const get_scatter_data = (arrow_table) => {
         try {
@@ -234,26 +222,6 @@ export async function render({ model, el }) {
       width: Number(dziXML.getElementsByTagName('Size')[0].attributes.Width.value),
       tileSize: Number(dziXML.getElementsByTagName('Image')[0].attributes.TileSize.value)
     };
-
-
-	// console.log(dimensions)
-
-
-
-    // class CustomBitmapLayer extends BitmapLayer {
-    //   getShaders() {
-    //     const shaders = super.getShaders();
-    //     shaders.inject = {
-    //       'fs:DECKGL_FILTER_COLOR': `
-    //         // Convert color to grayscale
-    //         float grayscale = (color.r + color.g + color.b) / 2.5;
-    //         // Map grayscale to blue color, varying alpha with intensity
-    //         color = vec4(0.0, 1.0, 0.0, grayscale);   `
-    //     };
-    //     return shaders;
-    //   }
-    // }
-
 
     class CustomBitmapLayer extends BitmapLayer {
       getShaders() {
@@ -399,12 +367,8 @@ export async function render({ model, el }) {
 
     const debounced_calc_viewport = debounce(calc_viewport, bounce_time);
 
-    // await pq.default();
-
     const cell_url = base_url + `/real_cells_mosaic.parquet`;
     var cell_arrow_table = await get_arrow_table(cell_url, options.fetch)
-
-	// console.log('finished reading and have cell_arrow_table', cell_arrow_table)
 
     var cell_scatter_data = get_scatter_data(cell_arrow_table)
 
@@ -427,25 +391,7 @@ export async function render({ model, el }) {
 
     let color_dict = {};
 
-    function hexToRgb(hex) {
-        // Remove the hash at the start if it's there
-        hex = hex.replace(/^#/, '');
-        let r = 0, g = 0, b = 0;
-        // 3 digits
-        if (hex.length === 3) {
-            r = parseInt(hex.charAt(0) + hex.charAt(0), 16);
-            g = parseInt(hex.charAt(1) + hex.charAt(1), 16);
-            b = parseInt(hex.charAt(2) + hex.charAt(2), 16);
-        }
-        // 6 digits
-        else if (hex.length === 6) {
-            r = parseInt(hex.substring(0, 2), 16);
-            g = parseInt(hex.substring(2, 4), 16);
-            b = parseInt(hex.substring(4, 6), 16);
-        }
-        // return `rgb(${r}, ${g}, ${b})`;
-        return [r, g, b];
-    }
+
 
     geneNames.forEach((geneName, index) => {
         color_dict[geneName] = hexToRgb(colors[index]);

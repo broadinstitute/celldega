@@ -23,19 +23,21 @@ export async function render({ model, el }) {
     // functions
     ////////////////
 
-    const grab_trx_tiles_in_view = async (tiles_in_view, options) => {
+	const grab_trx_tiles_in_view = async (tiles_in_view, options) => {
 
-        const tile_trx_urls = tiles_in_view.map(tile => {
-            return `${base_url}/real_transcript_tiles_mosaic/transcripts_tile_${tile.tileX}_${tile.tileY}.parquet`;
-        });
+		const tile_trx_urls = tiles_in_view.map(tile => {
+			return `${base_url}/real_transcript_tiles_mosaic/transcripts_tile_${tile.tileX}_${tile.tileY}.parquet`;
+		});
+	
+		var tile_trx_tables = await fetch_all_tables(cache_trx, tile_trx_urls, options)
+		var trx_arrow_table = concatenate_arrow_tables(tile_trx_tables)
+		trx_names_array = trx_arrow_table.getChild("name").toArray();
+		var trx_scatter_data = get_scatter_data(trx_arrow_table)
+	
+		return trx_scatter_data
+	}
 
-        var tile_trx_tables = await fetch_all_tables(cache_trx, tile_trx_urls, options)
-        var trx_arrow_table = concatenate_arrow_tables(tile_trx_tables)
-        trx_names_array = trx_arrow_table.getChild("name").toArray();
-        var trx_scatter_data = get_scatter_data(trx_arrow_table)
 
-        return trx_scatter_data
-    }
 
     const grab_cell_tiles_in_view = async (tiles_in_view) => {
 
@@ -75,7 +77,12 @@ export async function render({ model, el }) {
 
             // trx tiles
             ////////////////////////////////
-            const trx_scatter_data = grab_trx_tiles_in_view(tiles_in_view, options)
+            const trx_scatter_data = grab_trx_tiles_in_view(
+				tiles_in_view, 
+				options, 
+				base_url, 
+				cache_trx, 
+				)
 
             const trx_layer_new = new ScatterplotLayer({
                 // Re-use existing layer props
@@ -111,10 +118,6 @@ export async function render({ model, el }) {
             });
         }
     };
-
-
-
-
 
 
     const make_tooltip = (info) => {
@@ -222,7 +225,6 @@ export async function render({ model, el }) {
       }
     }
 
-	// console.log('creating tile layer')
     const tile_layer = new TileLayer({
         tileSize: dimensions.tileSize,
         refinementStrategy: 'no-overlap',
@@ -266,8 +268,6 @@ export async function render({ model, el }) {
     });
 
     const image_name_2 = 'dapi'
-
-	// console.log('creating tile layer 2')
 
     const tile_layer_2 = new TileLayer({
         id: 'tile_layer_2',
@@ -343,8 +343,6 @@ export async function render({ model, el }) {
 
     let color_dict = {};
 
-
-
     geneNames.forEach((geneName, index) => {
         color_dict[geneName] = hexToRgb(colors[index]);
     });
@@ -368,8 +366,6 @@ export async function render({ model, el }) {
 
     // mutable transcript data is initialized as an empty array
     var trx_data = []
-
-	// console.log('creating trx layer')
 
     const trx_layer = new ScatterplotLayer({
         id: 'trx-layer',

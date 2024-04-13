@@ -5,12 +5,12 @@ import { Deck, ScatterplotLayer, TileLayer, BitmapLayer, OrthographicView, PathL
 import * as mathGl from 'math.gl';
 
 import { visibleTiles } from "./vector_tile/visibleTiles.js";
-import { concatenate_polygon_data, concatenate_arrow_tables } from "./vector_tile/concatenate_functions.js";
+import { concatenate_arrow_tables } from "./vector_tile/concatenate_functions.js";
 import { fetch_all_tables } from "./read_parquet/fetch_all_tables.js";
 import { get_scatter_data } from "./read_parquet/get_scatter_data.js";
-import { get_polygon_data } from "./read_parquet/get_polygon_data.js";
+// import { get_polygon_data } from "./read_parquet/get_polygon_data.js";
 import { debounce } from "./utils/debounce.js";
-import { extractPolygonPaths } from "./vector_tile/polygons/extractPolygonPaths.js";
+// import { extractPolygonPaths } from "./vector_tile/polygons/extractPolygonPaths.js";
 import { hexToRgb } from "./utils/hexToRgb.js";
 import { get_arrow_table } from "./read_parquet/get_arrow_table.js";
 import { create_get_tile_data } from "./deck-gl/create_get_tile_data.js";
@@ -19,6 +19,8 @@ import { create_render_tile_sublayers } from "./deck-gl/create_render_tile_subla
 import { make_polygon_layer } from "./deck-gl/make_polygon_layer.js";
 
 import { get_image_dimensions } from "./image_tile/get_image_dimensions.js";
+
+import { grab_cell_tiles_in_view } from "./vector_tile/grab_cell_tiles_in_view.js";
 
 console.log('get image dim outside ')
 
@@ -59,23 +61,7 @@ export async function render({ model, el }) {
     }
   
 
-    const grab_cell_tiles_in_view = async (base_url, tiles_in_view, options, cache_cell) => {
 
-        const tile_cell_urls = tiles_in_view.map(tile => {
-            return `${base_url}/cell_segmentation_v2/cell_tile_${tile.tileX}_${tile.tileY}.parquet`;
-        });
-
-        var tile_cell_tables = await fetch_all_tables(cache_cell, tile_cell_urls, options)
-
-        var polygon_datas = tile_cell_tables.map(x => get_polygon_data(x))
-
-        // this can be used directly in the SolidPolygonLayer
-        var polygon_data = concatenate_polygon_data(polygon_datas);
-
-        var polygonPathsConcat = extractPolygonPaths(polygon_data)
-
-        return polygonPathsConcat
-    }
 
 
     const make_trx_layer_new = async (

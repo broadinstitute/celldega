@@ -15,9 +15,10 @@ import { hexToRgb } from "./utils/hexToRgb.js";
 
 import { get_arrow_table } from "./read_parquet/get_arrow_table.js";
 
-import { CustomBitmapLayer } from "./deck-gl/CustomBitmapLayer.js";
+// import { CustomBitmapLayer } from "./deck-gl/CustomBitmapLayer.js";
 
 import { create_get_tile_data } from "./deck-gl/create_get_tile_data.js";
+import { create_render_tile_sublayers } from "./deck-gl/create_render_tile_sublayer.js";
 
 export async function render({ model, el }) {
 
@@ -194,28 +195,7 @@ export async function render({ model, el }) {
       tileSize: Number(dziXML.getElementsByTagName('Image')[0].attributes.TileSize.value)
     };
 
-    const create_render_tile_sublayers = ( dimensions ) => (props) => {
-        const {
-            bbox: {left, bottom, right, top}
-        } = props.tile;
-        const {width, height} = dimensions;
 
-        return new CustomBitmapLayer(props, {
-            data: null,
-            image: props.data,
-            bounds: [
-                mathGl.clamp(left, 0, width),
-                mathGl.clamp(bottom, 0, height),
-                mathGl.clamp(right, 0, width),
-                mathGl.clamp(top, 0, height)
-            ],
-            color: [255, 0, 0], // Custom color
-            opacityScale: 3.0, // Custom opacity scale
-        });
-
-    }
-
-    const render_tile_sublayers = create_render_tile_sublayers(dimensions)
 
     const tile_layer = new TileLayer({
         tileSize: dimensions.tileSize,
@@ -225,7 +205,7 @@ export async function render({ model, el }) {
         maxCacheSize: 20, // 5
         extent: [0, 0, dimensions.width, dimensions.height],
         getTileData: create_get_tile_data(base_url, image_name, max_image_zoom, options),
-        renderSubLayers: render_tile_sublayers
+        renderSubLayers: create_render_tile_sublayers(dimensions)
     });
 
     const image_name_2 = 'dapi'
@@ -246,7 +226,6 @@ export async function render({ model, el }) {
             const {width, height} = dimensions;
 
             return new BitmapLayer(props, {
-            // return new CustomBitmapLayer(props, {
                 data: null,
                 image: props.data,
                 bounds: [

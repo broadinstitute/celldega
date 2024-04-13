@@ -79,12 +79,12 @@ export async function render({ model, el }) {
 
 
     const make_trx_layer_new = async (
-            tiles_in_view, 
-            options, 
-            base_url, 
-            cache_trx, 
-            trx_names_array
-        ) => {
+        tiles_in_view, 
+        options, 
+        base_url, 
+        cache_trx, 
+        trx_names_array
+    ) => {
 
         let trx_scatter_data = grab_trx_tiles_in_view(
             tiles_in_view, 
@@ -102,7 +102,7 @@ export async function render({ model, el }) {
 
         return trx_layer_new
             
-    }            
+    }
   
 
     const calc_viewport = async ({ height, width, zoom, target }, options) => {

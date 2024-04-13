@@ -15,31 +15,27 @@ import { hexToRgb } from "./utils/hexToRgb.js";
 
 import { get_arrow_table } from "./read_parquet/get_arrow_table.js";
 
-// import { grab_trx_tiles_in_view } from "./vector_tile/transcripts/grab_trx_tiles_in_view.js";
-
 export async function render({ model, el }) {
+
+    // // pattern for closure and factory
+    // const def_real_fun = ( test_variable ) => () => {
+    //   console.log('real_fun', test_variable);
+    // };    
+
+    // // A test variable to be used in the function
+    // const test_variable = 'something with closures!!!!! and skipping create_real_fun';
+
+    // // Create a function using the factory
+    // const real_fun = def_real_fun(test_variable);
+
+    // // Execute the function created by the factory
+    // real_fun();
 
     const cache_trx = new Map();
     const cache_cell = new Map();
     const base_url = model.get('base_url')
     
 
-    // functions
-    ////////////////
-
-    // pattern for closure and factory
-    const def_real_fun = ( test_variable ) => () => {
-      console.log('real_fun', test_variable);
-    };    
-
-    // A test variable to be used in the function
-    const test_variable = 'something with closures!!!!! and skipping create_real_fun';
-
-    // Create a function using the factory
-    const real_fun = def_real_fun(test_variable);
-
-    // Execute the function created by the factory
-    real_fun();
 
     let trx_names_array = [];
 
@@ -56,10 +52,6 @@ export async function render({ model, el }) {
       trx_names_array = trx_arrow_table.getChild("name").toArray();
       var trx_scatter_data = get_scatter_data(trx_arrow_table)
     
-      // return  {
-      //   trx_scatter_data, 
-      //   trx_names_array
-      // }
       return trx_scatter_data
     }
 

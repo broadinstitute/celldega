@@ -15,46 +15,19 @@ import { hexToRgb } from "./utils/hexToRgb.js";
 
 import { get_arrow_table } from "./read_parquet/get_arrow_table.js";
 
+// import { grab_trx_tiles_in_view } from "./vector_tile/transcripts/grab_trx_tiles_in_view.js";
+
 export async function render({ model, el }) {
 
     const cache_trx = new Map();
     const cache_cell = new Map();
+    const base_url = model.get('base_url')
+    
 
     // functions
     ////////////////
 
-    const grab_trx_tiles_in_view = async (tiles_in_view, options) => {
-
-      const tile_trx_urls = tiles_in_view.map(tile => {
-        return `${base_url}/real_transcript_tiles_mosaic/transcripts_tile_${tile.tileX}_${tile.tileY}.parquet`;
-      });
-    
-      var tile_trx_tables = await fetch_all_tables(cache_trx, tile_trx_urls, options)
-      var trx_arrow_table = concatenate_arrow_tables(tile_trx_tables)
-      trx_names_array = trx_arrow_table.getChild("name").toArray();
-      var trx_scatter_data = get_scatter_data(trx_arrow_table)
-    
-      return trx_scatter_data
-    }
-
-    // const createGrabTrxTilesInView = (base_url, cache_trx, trx_names_array) => async (tiles_in_view, options) => {
-    //     const tile_trx_urls = tiles_in_view.map(tile => `${base_url}/real_transcript_tiles_mosaic/transcripts_tile_${tile.tileX}_${tile.tileY}.parquet`);
-    //     var tile_trx_tables = await fetch_all_tables(cache_trx, tile_trx_urls, options);
-    //     var trx_arrow_table = concatenate_arrow_tables(tile_trx_tables);
-    //     trx_names_array = trx_arrow_table.getChild("name").toArray();
-    //     var trx_scatter_data = get_scatter_data(trx_arrow_table);
-    //     return trx_scatter_data;
-    // };
-
-    // const create_grab_cell_tiles_in_view = (base_url, cache_trx, trx_names_array) => grab_trx_tiles_in_view
-
-    // // Factory function that returns a new function
-    // const create_real_fun = (test_variable) => {
-    //   return () => {
-    //       console.log('real_fun', test_variable);
-    //   };
-    // };
-
+    // pattern for closure and factory
     const def_real_fun = ( test_variable ) => () => {
       console.log('real_fun', test_variable);
     };    
@@ -67,6 +40,49 @@ export async function render({ model, el }) {
 
     // Execute the function created by the factory
     real_fun();
+
+    let trx_names_array = [];
+
+    const grab_trx_tiles_in_view = async (tiles_in_view, options) => {
+
+      console.log('grab_trx_tiles_in_view')
+
+      const tile_trx_urls = tiles_in_view.map(tile => {
+        return `${base_url}/real_transcript_tiles_mosaic/transcripts_tile_${tile.tileX}_${tile.tileY}.parquet`;
+      });
+    
+      var tile_trx_tables = await fetch_all_tables(cache_trx, tile_trx_urls, options)
+      var trx_arrow_table = concatenate_arrow_tables(tile_trx_tables)
+      trx_names_array = trx_arrow_table.getChild("name").toArray();
+      var trx_scatter_data = get_scatter_data(trx_arrow_table)
+    
+      // return  {
+      //   trx_scatter_data, 
+      //   trx_names_array
+      // }
+      return trx_scatter_data
+    }
+
+
+    // // Define a factory function that returns an async function
+    // const def_grab_trx_tiles_in_view = (base_url, cache_trx, trx_names_array) => async (tiles_in_view, options) => {
+
+    //   console.log('new grab_trx_ties_in_view')
+
+    //   const tile_trx_urls = tiles_in_view.map(tile => `${base_url}/real_transcript_tiles_mosaic/transcripts_tile_${tile.tileX}_${tile.tileY}.parquet`);
+  
+    //   var tile_trx_tables = await fetch_all_tables(cache_trx, tile_trx_urls, options);
+    //   var trx_arrow_table = concatenate_arrow_tables(tile_trx_tables);
+    //   trx_names_array.length = 0;
+    //   trx_names_array.push(...trx_arrow_table.getChild("name").toArray());
+    //   var trx_scatter_data = get_scatter_data(trx_arrow_table);
+  
+    //   return trx_scatter_data;
+    // };
+  
+
+    // const new_grab_trx_tiles_in_view = def_grab_trx_tiles_in_view(base_url, cache_trx, trx_names_array);
+
 
   
 
@@ -88,6 +104,8 @@ export async function render({ model, el }) {
         return polygonPathsConcat
     }
 
+  
+
     const calc_viewport = async ({ height, width, zoom, target }, options) => {
 
         const zoomFactor = Math.pow(2, zoom);
@@ -108,12 +126,13 @@ export async function render({ model, el }) {
 
             // trx tiles
             ////////////////////////////////
-            const trx_scatter_data = grab_trx_tiles_in_view(
-				tiles_in_view, 
-				options, 
-				base_url, 
-				cache_trx, 
-				)
+            let trx_scatter_data = grab_trx_tiles_in_view(
+              tiles_in_view, 
+              options, 
+              base_url, 
+              cache_trx, 
+              trx_names_array
+            )
 
             const trx_layer_new = new ScatterplotLayer({
                 // Re-use existing layer props
@@ -174,7 +193,7 @@ export async function render({ model, el }) {
 
 
 
-	// console.log('getting traitlets')
+	
 
     // Deck.gl Viz
     const token = model.get('token_traitlet')
@@ -183,7 +202,7 @@ export async function render({ model, el }) {
     const ini_zoom = model.get('ini_zoom');
     const max_image_zoom = model.get('max_image_zoom')
     const bounce_time = model.get('bounce_time')
-	const base_url = model.get('base_url')
+	  
 
     // authorization token for bucket
     const options = ({
@@ -380,7 +399,6 @@ export async function render({ model, el }) {
 
     const cell_names_array = cell_arrow_table.getChild("name").toArray();
 
-    let trx_names_array;
 
     const cell_layer = new ScatterplotLayer({
         id: 'cell-layer',

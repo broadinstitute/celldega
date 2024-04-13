@@ -1,7 +1,7 @@
-import { fetch_all_tables } from '../read_parquet/fetch_all_tables.js'
-import { get_polygon_data } from '../read_parquet/get_polygon_data.js'
-import { concatenate_polygon_data } from '../vector_tile/concatenate_functions.js'
-import { extractPolygonPaths } from '../vector_tile/polygons/extractPolygonPaths.js'
+import { fetch_all_tables } from '../../read_parquet/fetch_all_tables.js'
+import { get_polygon_data } from '../../read_parquet/get_polygon_data.js'
+import { concatenate_polygon_data } from '../concatenate_functions.js'
+import { extractPolygonPaths } from './extractPolygonPaths.js'
 
 export const grab_cell_tiles_in_view = async (base_url, tiles_in_view, options, cache_cell) => {
 

@@ -1,44 +1,26 @@
 import "./widget.css";
 
-import { Deck, ScatterplotLayer, TileLayer, BitmapLayer, OrthographicView, PathLayer } from 'deck.gl';
-// import { load } from '@loaders.gl/core';
+import { Deck, ScatterplotLayer, TileLayer, BitmapLayer, OrthographicView } from 'deck.gl';
 import * as mathGl from 'math.gl';
 
 import { visibleTiles } from "./vector_tile/visibleTiles.js";
 import { concatenate_arrow_tables } from "./vector_tile/concatenate_functions.js";
 import { fetch_all_tables } from "./read_parquet/fetch_all_tables.js";
 import { get_scatter_data } from "./read_parquet/get_scatter_data.js";
-// import { get_polygon_data } from "./read_parquet/get_polygon_data.js";
 import { debounce } from "./utils/debounce.js";
-// import { extractPolygonPaths } from "./vector_tile/polygons/extractPolygonPaths.js";
 import { hexToRgb } from "./utils/hexToRgb.js";
 import { get_arrow_table } from "./read_parquet/get_arrow_table.js";
 import { create_get_tile_data } from "./deck-gl/create_get_tile_data.js";
 import { create_render_tile_sublayers } from "./deck-gl/create_render_tile_sublayer.js";
 
 import { make_polygon_layer } from "./deck-gl/make_polygon_layer.js";
+import { make_polygon_layer_new } from "./deck-gl/make_polygon_layer_new.js";
 
 import { get_image_dimensions } from "./image_tile/get_image_dimensions.js";
 
-import { grab_cell_tiles_in_view } from "./vector_tile/grab_cell_tiles_in_view.js";
-
-console.log('get image dim outside ')
+console.log('make_polygon_layer_new ')
 
 export async function render({ model, el }) {
-
-    // // pattern for closure and factory
-    // const def_real_fun = ( test_variable ) => () => {
-    //   console.log('real_fun', test_variable);
-    // };    
-
-    // // A test variable to be used in the function
-    // const test_variable = 'something with closures!!!!! and skipping create_real_fun';
-
-    // // Create a function using the factory
-    // const real_fun = def_real_fun(test_variable);
-
-    // // Execute the function created by the factory
-    // real_fun();
 
     const cache_trx = new Map();
     const cache_cell = new Map();
@@ -59,10 +41,6 @@ export async function render({ model, el }) {
     
       return trx_scatter_data
     }
-  
-
-
-
 
     const make_trx_layer_new = async (
         tiles_in_view, 
@@ -90,24 +68,7 @@ export async function render({ model, el }) {
             
     }
   
-    const make_polygon_layer_new = async (
-        tiles_in_view, 
-        options, 
-        base_url,
-        cache_cell
-    ) => {
 
-        const polygonPathsConcat = grab_cell_tiles_in_view(base_url, tiles_in_view, options, cache_cell)
-
-        const polygon_layer_new = new PathLayer({
-            // Re-use existing layer props
-            ...polygon_layer.props,
-            data: polygonPathsConcat,
-        });
-
-        return polygon_layer_new
-
-    }
 
     const calc_viewport = async ({ height, width, zoom, target }, options) => {
 
@@ -141,7 +102,8 @@ export async function render({ model, el }) {
                 tiles_in_view, 
                 options, 
                 base_url, 
-                cache_cell
+                cache_cell, 
+                polygon_layer
             )
 
             // update layer

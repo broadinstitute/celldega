@@ -18,6 +18,10 @@ import { create_render_tile_sublayers } from "./deck-gl/create_render_tile_subla
 
 import { make_polygon_layer } from "./deck-gl/make_polygon_layer.js";
 
+import { get_image_dimensions } from "./image_tile/get_image_dimensions.js";
+
+console.log('get image dim outside ')
+
 export async function render({ model, el }) {
 
     // // pattern for closure and factory
@@ -176,24 +180,9 @@ export async function render({ model, el }) {
     const image_name = 'cellbound' 
 
 
-    const get_image_dimensions = async (base_url, image_name) => {
 
-        const dzi_url = `${base_url}/pyramid_images/${image_name}.image.dzi`
-        const response = await fetch(dzi_url, options.fetch)
-        const xmlText = await response.text()
-        const dziXML = new DOMParser().parseFromString(xmlText, 'text/xml')
-    
-        const dimensions = {
-          height: Number(dziXML.getElementsByTagName('Size')[0].attributes.Height.value),
-          width: Number(dziXML.getElementsByTagName('Size')[0].attributes.Width.value),
-          tileSize: Number(dziXML.getElementsByTagName('Image')[0].attributes.TileSize.value)
-        };        
 
-        return dimensions
-
-    }
-
-    const dimensions = await get_image_dimensions(base_url, image_name)
+    const dimensions = await get_image_dimensions(base_url, image_name, options)
 
     const tile_layer = new TileLayer({
         tileSize: dimensions.tileSize,

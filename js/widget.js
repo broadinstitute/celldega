@@ -1,7 +1,7 @@
 import "./widget.css";
 
 import { Deck, ScatterplotLayer, TileLayer, BitmapLayer, OrthographicView, PathLayer } from 'deck.gl';
-import { load } from '@loaders.gl/core';
+// import { load } from '@loaders.gl/core';
 import * as mathGl from 'math.gl';
 
 import { visibleTiles } from "./vector_tile/visibleTiles.js";
@@ -16,6 +16,8 @@ import { hexToRgb } from "./utils/hexToRgb.js";
 import { get_arrow_table } from "./read_parquet/get_arrow_table.js";
 
 import { CustomBitmapLayer } from "./deck-gl/CustomBitmapLayer.js";
+
+import { create_get_tile_data } from "./deck-gl/create_get_tile_data.js";
 
 console.log('bringing in CustomBitmapLayer')
 
@@ -194,52 +196,7 @@ export async function render({ model, el }) {
       tileSize: Number(dziXML.getElementsByTagName('Image')[0].attributes.TileSize.value)
     };
 
-    // class CustomBitmapLayer extends BitmapLayer {
-    //   getShaders() {
-    //     const shaders = super.getShaders();
-    //     // Directly injecting shader code
-    //     shaders.inject = {
-    //       'fs:#decl': `uniform vec3 uColor; uniform float uOpacityScale;`,
-    //       'fs:DECKGL_FILTER_COLOR': `
-    //         // Convert color to grayscale and apply opacity scale
-    //         float grayscale = ((color.r + color.g + color.b) / 3.0) * uOpacityScale;
-    //         // Clamp grayscale to valid range
-    //         grayscale = clamp(grayscale, 0.0, 1.0);
-    //         // Apply custom color and scaled opacity
-    //         color = vec4(uColor, grayscale);
-    //       `
-    //     };
-    //     return shaders;
-    //   }
-
-    //   // Properly passing uniforms through updateState lifecycle hook
-    //   updateState(params) {
-    //     super.updateState(params);
-    //     // Extracting custom props
-    //     const {props, oldProps} = params;
-    //     if (props.color !== oldProps.color || props.opacityScale !== oldProps.opacityScale) {
-    //       // Update uniforms when props change
-    //       this.setState({
-    //         uniforms: {
-    //           uColor: props.color.map(c => c / 255), // Normalize RGB to [0, 1] range
-    //           uOpacityScale: props.opacityScale
-    //         }
-    //       });
-    //     }
-    //   }
-
-    //   draw(opts) {
-    //     // Ensuring custom uniforms are passed to the shader program
-    //     const {uniforms} = this.state;
-    //     super.draw({
-    //       ...opts,
-    //       uniforms: {
-    //         ...opts.uniforms,
-    //         ...uniforms, // Spread in custom uniforms
-    //       },
-    //     });
-    //   }
-    // }
+  
 
     const render_tile_sublayers = (props) => {
         const {
@@ -262,19 +219,19 @@ export async function render({ model, el }) {
 
     }
 
-    const create_get_tile_data = (base_url, image_name, max_image_zoom, options) => {
-        return ({ index }) => {
-            const { x, y, z } = index;
-            const full_url = `${base_url}/pyramid_images/${image_name}.image_files/${max_image_zoom + z}/${x}_${y}.jpeg`;
+    // const create_get_tile_data = (base_url, image_name, max_image_zoom, options) => {
+    //     return ({ index }) => {
+    //         const { x, y, z } = index;
+    //         const full_url = `${base_url}/pyramid_images/${image_name}.image_files/${max_image_zoom + z}/${x}_${y}.jpeg`;
     
-            return load(full_url, options).then(data => {
-                return data;
-            }).catch(error => {
-                console.error('Failed to load tile:', error);
-                return null;
-            });
-        };
-    };
+    //         return load(full_url, options).then(data => {
+    //             return data;
+    //         }).catch(error => {
+    //             console.error('Failed to load tile:', error);
+    //             return null;
+    //         });
+    //     };
+    // };
 
     const tile_layer = new TileLayer({
         tileSize: dimensions.tileSize,

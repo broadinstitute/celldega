@@ -175,7 +175,7 @@ export async function render({ model, el }) {
         }
       })
 
-    const image_name = 'cellbound' // 'dapi' // 'brain';
+    const image_name = 'cellbound' 
 
     const dzi_url = `${base_url}/pyramid_images/${image_name}.image.dzi`
     const response = await fetch(dzi_url, options.fetch)
@@ -243,7 +243,6 @@ export async function render({ model, el }) {
         } = props.tile;
         const {width, height} = dimensions;
 
-        // return new BitmapLayer(props, {
         return new CustomBitmapLayer(props, {
             data: null,
             image: props.data,
@@ -258,7 +257,7 @@ export async function render({ model, el }) {
         });
 
     }
-    
+
     const get_tile_data = ({index}) => {
         const {x, y, z} = index;
         const full_url = `${base_url}/pyramid_images/${image_name}.image_files/${max_image_zoom + z}/${x}_${y}.jpeg`;
@@ -272,6 +271,20 @@ export async function render({ model, el }) {
         });
     }
 
+    const createGetTileData = (base_url, image_name, max_image_zoom, options) => {
+        return ({ index }) => {
+            const { x, y, z } = index;
+            const full_url = `${base_url}/pyramid_images/${image_name}.image_files/${max_image_zoom + z}/${x}_${y}.jpeg`;
+    
+            return load(full_url, options).then(data => {
+                return data;
+            }).catch(error => {
+                console.error('Failed to load tile:', error);
+                return null;
+            });
+        };
+    };
+
     const tile_layer = new TileLayer({
         tileSize: dimensions.tileSize,
         refinementStrategy: 'no-overlap',
@@ -279,8 +292,7 @@ export async function render({ model, el }) {
         maxZoom: 0,
         maxCacheSize: 20, // 5
         extent: [0, 0, dimensions.width, dimensions.height],
-        getTileData: get_tile_data,
-
+        getTileData: createGetTileData(base_url, image_name, max_image_zoom, options),
         renderSubLayers: render_tile_sublayers
     });
 
@@ -294,19 +306,7 @@ export async function render({ model, el }) {
         maxZoom: 0,
         maxCacheSize: 20, // 5
         extent: [0, 0, dimensions.width, dimensions.height],
-        getTileData: ({index}) => {
-            const {x, y, z} = index;
-            const full_url = `${base_url}/pyramid_images/${image_name_2}.image_files/${max_image_zoom + z}/${x}_${y}.jpeg`;
-
-            return load(full_url, options).then(data => {
-                return data; // Successfully loaded the tile data
-            }).catch(error => {
-                console.error('Failed to load tile:', error);
-                // Handle the error, e.g., return a fallback value or null
-                return null;
-            });
-        },
-
+        getTileData: createGetTileData(base_url, image_name_2, max_image_zoom, options),
         renderSubLayers: props => {
             const {
                 bbox: {left, bottom, right, top}
@@ -428,8 +428,6 @@ export async function render({ model, el }) {
         getTooltip: make_tooltip,
     });
     el.appendChild(root);
-
-	// console.log('returning deck')
 
     return () => deck.finalize();
 

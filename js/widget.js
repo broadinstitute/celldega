@@ -35,8 +35,6 @@ export async function render({ model, el }) {
     const cache_cell = new Map();
     const base_url = model.get('base_url')
     
-
-
     let trx_names_array = [];
 
     const grab_trx_tiles_in_view = async (tiles_in_view, options) => {
@@ -54,28 +52,6 @@ export async function render({ model, el }) {
     
       return trx_scatter_data
     }
-
-
-    // // Define a factory function that returns an async function
-    // const def_grab_trx_tiles_in_view = (base_url, cache_trx, trx_names_array) => async (tiles_in_view, options) => {
-
-    //   console.log('new grab_trx_ties_in_view')
-
-    //   const tile_trx_urls = tiles_in_view.map(tile => `${base_url}/real_transcript_tiles_mosaic/transcripts_tile_${tile.tileX}_${tile.tileY}.parquet`);
-  
-    //   var tile_trx_tables = await fetch_all_tables(cache_trx, tile_trx_urls, options);
-    //   var trx_arrow_table = concatenate_arrow_tables(tile_trx_tables);
-    //   trx_names_array.length = 0;
-    //   trx_names_array.push(...trx_arrow_table.getChild("name").toArray());
-    //   var trx_scatter_data = get_scatter_data(trx_arrow_table);
-  
-    //   return trx_scatter_data;
-    // };
-  
-
-    // const new_grab_trx_tiles_in_view = def_grab_trx_tiles_in_view(base_url, cache_trx, trx_names_array);
-
-
   
 
     const grab_cell_tiles_in_view = async (tiles_in_view) => {
@@ -143,20 +119,14 @@ export async function render({ model, el }) {
                 data: polygonPathsConcat,
             });
 
-            // console.log('cache_trx size', cache_trx.size)
-
             // update layer
             deck.setProps({
-                // layers: [tile_layer, polygon_layer_new, cell_layer, trx_layer_new]
                 layers: [tile_layer_2, tile_layer, polygon_layer_new, cell_layer, trx_layer_new]
-                // layers: [tile_layer_2, tile_layer] // , trx_layer_new]
             });
 
         } else {
             deck.setProps({
-                // layers: [tile_layer, cell_layer]
                 layers: [tile_layer_2, tile_layer, cell_layer]
-                // layers: [tile_layer_2, tile_layer]
             });
         }
     };
@@ -267,6 +237,41 @@ export async function render({ model, el }) {
       }
     }
 
+    const render_tile_sublayers = (props) => {
+        const {
+            bbox: {left, bottom, right, top}
+        } = props.tile;
+        const {width, height} = dimensions;
+
+        // return new BitmapLayer(props, {
+        return new CustomBitmapLayer(props, {
+            data: null,
+            image: props.data,
+            bounds: [
+                mathGl.clamp(left, 0, width),
+                mathGl.clamp(bottom, 0, height),
+                mathGl.clamp(right, 0, width),
+                mathGl.clamp(top, 0, height)
+            ],
+            color: [255, 0, 0], // Custom color
+            opacityScale: 3.0, // Custom opacity scale
+        });
+
+    }
+    
+    const get_tile_data = ({index}) => {
+        const {x, y, z} = index;
+        const full_url = `${base_url}/pyramid_images/${image_name}.image_files/${max_image_zoom + z}/${x}_${y}.jpeg`;
+
+        return load(full_url, options).then(data => {
+            return data; 
+        }).catch(error => {
+            console.error('Failed to load tile:', error);
+            // Handle the error, e.g., return a fallback value or null
+            return null;
+        });
+    }
+
     const tile_layer = new TileLayer({
         tileSize: dimensions.tileSize,
         refinementStrategy: 'no-overlap',
@@ -274,39 +279,9 @@ export async function render({ model, el }) {
         maxZoom: 0,
         maxCacheSize: 20, // 5
         extent: [0, 0, dimensions.width, dimensions.height],
-        getTileData: ({index}) => {
-            const {x, y, z} = index;
-            const full_url = `${base_url}/pyramid_images/${image_name}.image_files/${max_image_zoom + z}/${x}_${y}.jpeg`;
+        getTileData: get_tile_data,
 
-            return load(full_url, options).then(data => {
-                return data; // Successfully loaded the tile data
-            }).catch(error => {
-                console.error('Failed to load tile:', error);
-                // Handle the error, e.g., return a fallback value or null
-                return null;
-            });
-        },
-
-        renderSubLayers: props => {
-            const {
-                bbox: {left, bottom, right, top}
-            } = props.tile;
-            const {width, height} = dimensions;
-
-            // return new BitmapLayer(props, {
-            return new CustomBitmapLayer(props, {
-                data: null,
-                image: props.data,
-                bounds: [
-                    mathGl.clamp(left, 0, width),
-                    mathGl.clamp(bottom, 0, height),
-                    mathGl.clamp(right, 0, width),
-                    mathGl.clamp(top, 0, height)
-                ],
-                color: [255, 0, 0], // Custom color
-                opacityScale: 3.0, // Custom opacity scale
-            });
-        },
+        renderSubLayers: render_tile_sublayers
     });
 
     const image_name_2 = 'dapi'

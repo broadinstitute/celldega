@@ -59,7 +59,7 @@ export async function render({ model, el }) {
     }
   
 
-    const grab_cell_tiles_in_view = async (base_url, tiles_in_view, options) => {
+    const grab_cell_tiles_in_view = async (base_url, tiles_in_view, options, cache_cell) => {
 
         const tile_cell_urls = tiles_in_view.map(tile => {
             return `${base_url}/cell_segmentation_v2/cell_tile_${tile.tileX}_${tile.tileY}.parquet`;
@@ -111,7 +111,7 @@ export async function render({ model, el }) {
         cache_cell
     ) => {
 
-        const polygonPathsConcat = grab_cell_tiles_in_view(base_url, tiles_in_view, options)
+        const polygonPathsConcat = grab_cell_tiles_in_view(base_url, tiles_in_view, options, cache_cell)
 
         const polygon_layer_new = new PathLayer({
             // Re-use existing layer props

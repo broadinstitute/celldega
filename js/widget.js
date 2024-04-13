@@ -46,8 +46,6 @@ export async function render({ model, el }) {
 
     const grab_trx_tiles_in_view = async (tiles_in_view, options) => {
 
-      console.log('grab_trx_tiles_in_view')
-
       const tile_trx_urls = tiles_in_view.map(tile => {
         return `${base_url}/real_transcript_tiles_mosaic/transcripts_tile_${tile.tileX}_${tile.tileY}.parquet`;
       });
@@ -79,6 +77,32 @@ export async function render({ model, el }) {
         return polygonPathsConcat
     }
 
+
+    const make_trx_layer_new = async (
+            tiles_in_view, 
+            options, 
+            base_url, 
+            cache_trx, 
+            trx_names_array
+        ) => {
+
+        let trx_scatter_data = grab_trx_tiles_in_view(
+            tiles_in_view, 
+            options, 
+            base_url, 
+            cache_trx, 
+            trx_names_array
+        )
+
+        const trx_layer_new = new ScatterplotLayer({
+            // Re-use existing layer props
+            ...trx_layer.props,
+            data: trx_scatter_data,
+        });
+
+        return trx_layer_new
+            
+    }            
   
 
     const calc_viewport = async ({ height, width, zoom, target }, options) => {
@@ -99,21 +123,29 @@ export async function render({ model, el }) {
 
         if (num_tiles_to_viz < max_tiles_to_view) {
 
-            // trx tiles
-            ////////////////////////////////
-            let trx_scatter_data = grab_trx_tiles_in_view(
-              tiles_in_view, 
-              options, 
-              base_url, 
-              cache_trx, 
-              trx_names_array
-            )
+            // // trx tiles
+            // ////////////////////////////////
+            // let trx_scatter_data = grab_trx_tiles_in_view(
+            //   tiles_in_view, 
+            //   options, 
+            //   base_url, 
+            //   cache_trx, 
+            //   trx_names_array
+            // )
 
-            const trx_layer_new = new ScatterplotLayer({
-                // Re-use existing layer props
-                ...trx_layer.props,
-                data: trx_scatter_data,
-            });
+            // const trx_layer_new = new ScatterplotLayer({
+            //     // Re-use existing layer props
+            //     ...trx_layer.props,
+            //     data: trx_scatter_data,
+            // });
+
+            const trx_layer_new = await make_trx_layer_new(
+                tiles_in_view, 
+                options, 
+                base_url, 
+                cache_trx, 
+                trx_names_array
+            )
 
             // cell tiles
             ////////////////////////////////
@@ -127,7 +159,12 @@ export async function render({ model, el }) {
 
             // update layer
             deck.setProps({
-                layers: [tile_layer_2, tile_layer, polygon_layer_new, cell_layer, trx_layer_new]
+                layers: [
+                    tile_layer_2, 
+                    tile_layer, 
+                    polygon_layer_new, 
+                    cell_layer, 
+                    trx_layer_new]
             });
 
         } else {

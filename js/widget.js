@@ -19,8 +19,6 @@ import { CustomBitmapLayer } from "./deck-gl/CustomBitmapLayer.js";
 
 import { create_get_tile_data } from "./deck-gl/create_get_tile_data.js";
 
-console.log('bringing in CustomBitmapLayer')
-
 export async function render({ model, el }) {
 
     // // pattern for closure and factory
@@ -196,9 +194,7 @@ export async function render({ model, el }) {
       tileSize: Number(dziXML.getElementsByTagName('Image')[0].attributes.TileSize.value)
     };
 
-  
-
-    const render_tile_sublayers = (props) => {
+    const create_render_tile_sublayers = ( dimensions ) => (props) => {
         const {
             bbox: {left, bottom, right, top}
         } = props.tile;
@@ -219,19 +215,7 @@ export async function render({ model, el }) {
 
     }
 
-    // const create_get_tile_data = (base_url, image_name, max_image_zoom, options) => {
-    //     return ({ index }) => {
-    //         const { x, y, z } = index;
-    //         const full_url = `${base_url}/pyramid_images/${image_name}.image_files/${max_image_zoom + z}/${x}_${y}.jpeg`;
-    
-    //         return load(full_url, options).then(data => {
-    //             return data;
-    //         }).catch(error => {
-    //             console.error('Failed to load tile:', error);
-    //             return null;
-    //         });
-    //     };
-    // };
+    const render_tile_sublayers = create_render_tile_sublayers(dimensions)
 
     const tile_layer = new TileLayer({
         tileSize: dimensions.tileSize,

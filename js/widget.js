@@ -12,13 +12,11 @@ import { get_polygon_data } from "./read_parquet/get_polygon_data.js";
 import { debounce } from "./utils/debounce.js";
 import { extractPolygonPaths } from "./vector_tile/polygons/extractPolygonPaths.js";
 import { hexToRgb } from "./utils/hexToRgb.js";
-
 import { get_arrow_table } from "./read_parquet/get_arrow_table.js";
-
-// import { CustomBitmapLayer } from "./deck-gl/CustomBitmapLayer.js";
-
 import { create_get_tile_data } from "./deck-gl/create_get_tile_data.js";
 import { create_render_tile_sublayers } from "./deck-gl/create_render_tile_sublayer.js";
+
+import { make_polygon_layer } from "./deck-gl/make_polygon_layer.js";
 
 export async function render({ model, el }) {
 
@@ -159,9 +157,6 @@ export async function render({ model, el }) {
     }
 
 
-
-	
-
     // Deck.gl Viz
     const token = model.get('token_traitlet')
     const ini_x = model.get('ini_x');
@@ -299,26 +294,27 @@ export async function render({ model, el }) {
         data: trx_data,
         getRadius: 0.5,
         pickable: true,
-        // getColor: [200, 0, 0, 150],
         getColor: (i, d) => {
           var inst_gene = trx_names_array[d.index]
           var inst_color = color_dict[inst_gene]
           return [inst_color[0], inst_color[1], inst_color[2], 255]
         },
+    });    
 
-    });
+    // const polygon_layer = new PathLayer({
+    //   id: 'path_layer',
+    //   data: [],
+    //   pickable: true,
+    //   widthScale: 3,
+    //   widthMinPixels: 1,
+    //   getPath: d => d,
+    //   getColor: [255, 255, 255, 150], // white outline
+    //   widthUnits: 'pixels',
+    // })
 
-	// console.log('creating polygonlayer')
-    const polygon_layer = new PathLayer({
-      id: 'path_layer',
-      data: [],
-      pickable: true,
-      widthScale: 3,
-      widthMinPixels: 1,
-      getPath: d => d,
-      getColor: [255, 255, 255, 150], // white outline
-      widthUnits: 'pixels',
-    })
+
+
+    const polygon_layer = make_polygon_layer()    
 
     // Create and append the visualization.
     let root = document.createElement("div");

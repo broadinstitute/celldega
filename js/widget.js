@@ -250,19 +250,24 @@ export async function render({ model, el }) {
 
     const cell_names_array = cell_arrow_table.getChild("name").toArray();
 
+    const make_cell_layer = (cell_scatter_data, cell_names_array) => {
+        const cell_layer = new ScatterplotLayer({
+            id: 'cell-layer',
+            data: cell_scatter_data,
+            getRadius: 5.0,
+            pickable: true,
+            getColor: [0, 0, 255, 240],
+            onClick: info => {
+                console.log('click!!')
+                console.log(info.index)
+                console.log(cell_names_array[info.index])
+            },
+        });
 
-    const cell_layer = new ScatterplotLayer({
-        id: 'cell-layer',
-        data: cell_scatter_data,
-        getRadius: 5.0,
-        pickable: true,
-        getColor: [0, 0, 255, 240],
-        onClick: info => {
-          console.log('click!!')
-          console.log(info.index)
-          console.log(cell_names_array[info.index])
-        },
-    });
+        return cell_layer
+    }
+
+    const cell_layer = make_cell_layer(cell_scatter_data, cell_names_array)
 
     // mutable transcript data is initialized as an empty array
     var trx_data = []

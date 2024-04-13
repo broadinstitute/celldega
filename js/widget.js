@@ -59,7 +59,7 @@ export async function render({ model, el }) {
     }
   
 
-    const grab_cell_tiles_in_view = async (tiles_in_view) => {
+    const grab_cell_tiles_in_view = async (base_url, tiles_in_view, options) => {
 
         const tile_cell_urls = tiles_in_view.map(tile => {
             return `${base_url}/cell_segmentation_v2/cell_tile_${tile.tileX}_${tile.tileY}.parquet`;
@@ -104,6 +104,24 @@ export async function render({ model, el }) {
             
     }
   
+    const make_polygon_layer_new = async (
+        tiles_in_view, 
+        options, 
+        base_url,
+        cache_cell
+    ) => {
+
+        const polygonPathsConcat = grab_cell_tiles_in_view(base_url, tiles_in_view, options)
+
+        const polygon_layer_new = new PathLayer({
+            // Re-use existing layer props
+            ...polygon_layer.props,
+            data: polygonPathsConcat,
+        });
+
+        return polygon_layer_new
+
+    }
 
     const calc_viewport = async ({ height, width, zoom, target }, options) => {
 
@@ -123,22 +141,6 @@ export async function render({ model, el }) {
 
         if (num_tiles_to_viz < max_tiles_to_view) {
 
-            // // trx tiles
-            // ////////////////////////////////
-            // let trx_scatter_data = grab_trx_tiles_in_view(
-            //   tiles_in_view, 
-            //   options, 
-            //   base_url, 
-            //   cache_trx, 
-            //   trx_names_array
-            // )
-
-            // const trx_layer_new = new ScatterplotLayer({
-            //     // Re-use existing layer props
-            //     ...trx_layer.props,
-            //     data: trx_scatter_data,
-            // });
-
             const trx_layer_new = await make_trx_layer_new(
                 tiles_in_view, 
                 options, 
@@ -149,13 +151,12 @@ export async function render({ model, el }) {
 
             // cell tiles
             ////////////////////////////////
-            const polygonPathsConcat = grab_cell_tiles_in_view(tiles_in_view, options)
-
-            const polygon_layer_new = new PathLayer({
-                // Re-use existing layer props
-                ...polygon_layer.props,
-                data: polygonPathsConcat,
-            });
+            const polygon_layer_new = await make_polygon_layer_new(
+                tiles_in_view, 
+                options, 
+                base_url, 
+                cache_cell
+            )
 
             // update layer
             deck.setProps({

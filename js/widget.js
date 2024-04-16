@@ -70,8 +70,6 @@ export async function render({ model, el }) {
             
     }
   
-
-
     const calc_viewport = async ({ height, width, zoom, target }, options) => {
 
         const zoomFactor = Math.pow(2, zoom);
@@ -128,22 +126,19 @@ export async function render({ model, el }) {
 
     const make_tooltip = (info) => {
 
-      // Check if there's a valid index
-      if (info.index === -1 || !info.layer) return null;
+        let inst_name
 
-      let inst_name
+        if (info.index === -1 || !info.layer) return null;
 
-      if (info.layer.id === 'cell-layer'){
-          inst_name = cell_names_array[info.index]
+        if (info.layer.id === 'cell-layer'){
+            inst_name = cell_names_array[info.index]
+        } else if (info.layer.id === 'trx-layer') {
+            inst_name = trx_names_array[info.index]
+        }
 
-      } else if (info.layer.id === 'trx-layer') {
-         inst_name = trx_names_array[info.index]
-      }
-
-      // Make sure to check that `dataItem` and the property you want to display exist
-      return {
-        html: `<div>${inst_name}</div?`,
-      };
+        return {
+            html: `<div>${inst_name}</div?`,
+        };
 
     }
 
@@ -252,12 +247,11 @@ export async function render({ model, el }) {
 
     const cell_names_array = cell_arrow_table.getChild("name").toArray();
 
-
-
     const cell_layer = make_cell_layer(cell_scatter_data, cell_names_array)
 
     // mutable transcript data is initialized as an empty array
     var trx_data = []
+
 
     const trx_layer = new ScatterplotLayer({
         id: 'trx-layer',
@@ -265,11 +259,25 @@ export async function render({ model, el }) {
         getRadius: 0.5,
         pickable: true,
         getColor: (i, d) => {
-          var inst_gene = trx_names_array[d.index]
-          var inst_color = color_dict[inst_gene]
-          return [inst_color[0], inst_color[1], inst_color[2], 255]
+            var inst_gene = trx_names_array[d.index]
+            var inst_color = color_dict[inst_gene]
+            return [inst_color[0], inst_color[1], inst_color[2], 255]
         },
-    });    
+    });       
+
+    // const make_trx_layer = (trx_data, trx_names_array, color_dict) => () => {
+    //     return new ScatterplotLayer({
+    //         id: 'trx-layer',
+    //         data: trx_data,
+    //         getRadius: 0.5,
+    //         pickable: true,
+    //         getColor: (i, d) => {
+    //             var inst_gene = trx_names_array[d.index]
+    //             var inst_color = color_dict[inst_gene]
+    //             return [inst_color[0], inst_color[1], inst_color[2], 255]
+    //         },
+    //     });
+    // }
 
     const polygon_layer = make_polygon_layer()    
 

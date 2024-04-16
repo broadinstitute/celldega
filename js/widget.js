@@ -24,9 +24,23 @@ console.log('make_polygon_layer_new ')
 
 export async function render({ model, el }) {
 
+    const token = model.get('token_traitlet')
+    const ini_x = model.get('ini_x');
+    const ini_y = model.get('ini_y');
+    const ini_zoom = model.get('ini_zoom');
+    const max_image_zoom = model.get('max_image_zoom')
+    const bounce_time = model.get('bounce_time')    
+    const base_url = model.get('base_url')
+
+    // Create and append the visualization.
+    let root = document.createElement("div");
+    root.style.height = "800px";
+    el.appendChild(root);    
+
+
+
     const cache_trx = new Map();
     const cache_cell = new Map();
-    const base_url = model.get('base_url')
     
     let trx_names_array = [];
 
@@ -141,29 +155,17 @@ export async function render({ model, el }) {
         };
 
     }
-
-
-    // Deck.gl Viz
-    const token = model.get('token_traitlet')
-    const ini_x = model.get('ini_x');
-    const ini_y = model.get('ini_y');
-    const ini_zoom = model.get('ini_zoom');
-    const max_image_zoom = model.get('max_image_zoom')
-    const bounce_time = model.get('bounce_time')
 	  
     // authorization token for bucket
     const options = ({
         fetch: {
-          headers: {
+            headers: {
             'Authorization': `Bearer ${token}` // Use the token in the Authorization header
-          }
+            }
         }
       })
 
     const image_name = 'cellbound' 
-
-
-
 
     const dimensions = await get_image_dimensions(base_url, image_name, options)
 
@@ -208,10 +210,6 @@ export async function render({ model, el }) {
         },
     });
 
-    //////////////////////////////////////////
-    // Cell/Trx Code
-    //////////////////////////////////////////
-
     const tileSize = 1000;
     const max_tiles_to_view = 15
 
@@ -228,8 +226,6 @@ export async function render({ model, el }) {
     let geneNames = [];
     let colors = [];
 
-    // Assuming 'cell_arrow_table' is your ArrowTable
-    // And it has columns named '__index_level_0__' for gene names and 'color' for colors
     const geneNameColumn = meta_gene.getChild('__index_level_0__');
     const colorColumn = meta_gene.getChild('color');
 
@@ -252,7 +248,6 @@ export async function render({ model, el }) {
     // mutable transcript data is initialized as an empty array
     var trx_data = []
 
-
     const trx_layer = new ScatterplotLayer({
         id: 'trx-layer',
         data: trx_data,
@@ -265,25 +260,8 @@ export async function render({ model, el }) {
         },
     });       
 
-    // const make_trx_layer = (trx_data, trx_names_array, color_dict) => () => {
-    //     return new ScatterplotLayer({
-    //         id: 'trx-layer',
-    //         data: trx_data,
-    //         getRadius: 0.5,
-    //         pickable: true,
-    //         getColor: (i, d) => {
-    //             var inst_gene = trx_names_array[d.index]
-    //             var inst_color = color_dict[inst_gene]
-    //             return [inst_color[0], inst_color[1], inst_color[2], 255]
-    //         },
-    //     });
-    // }
-
     const polygon_layer = make_polygon_layer()    
 
-    // Create and append the visualization.
-    let root = document.createElement("div");
-    root.style.height = "800px";
     let deck = new Deck({
         parent: root,
         controller: {doubleClickZoom: false},
@@ -295,8 +273,7 @@ export async function render({ model, el }) {
           return viewState
         },
         getTooltip: make_tooltip,
-    });
-    el.appendChild(root);
+    });    
 
     return () => deck.finalize();
 

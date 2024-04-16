@@ -22,4 +22,4 @@ export const render = async ({ model, el }) => {
 
 }
 
-export default { render };
+export default { render, make_landscape };

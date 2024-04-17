@@ -1,7 +1,7 @@
 import "./widget.css";
 import { make_landscape } from "./viz/make_landscape";
 
-export const render = async ({ model, el }) => {    
+export const render = async ({ model, el }) => {
 
     const token = model.get('token_traitlet')
     const ini_x = model.get('ini_x');
@@ -21,7 +21,5 @@ export const render = async ({ model, el }) => {
     )
 
 }
-
-console.log('render and make_landscape')
 
 export default { render, make_landscape };

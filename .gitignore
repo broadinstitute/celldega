@@ -1,5 +1,5 @@
 # reference: https://github.com/developmentseed/lonboard/blob/main/.gitignore
-*.html
+# *.html
 *.zip
 *.arrow
 *.parquet
@@ -12,6 +12,7 @@ dist
 .cache
 site
 secret_notebook.ipynb
+secret_index.html
 
 # pixi environments
 .pixi

@@ -15,6 +15,9 @@ import { make_polygon_layer_new } from "../deck-gl/make_polygon_layer_new.js";
 import { get_image_dimensions } from "../image_tile/get_image_dimensions.js";
 import { make_cell_layer } from "../deck-gl/make_cell_layer.js";
 
+console.log('testing rebuild for front-end')
+
+
 export const make_landscape = async (
     token, ini_x, ini_y, ini_zoom, max_image_zoom, bounce_time, base_url, root
 ) => {

@@ -17,7 +17,14 @@ export const render = async ({ model, el }) => {
     el.appendChild(root);
 
     return make_landscape(
-        token, ini_x, ini_y, ini_zoom, max_image_zoom, bounce_time, base_url, root
+        token, 
+        ini_x, 
+        ini_y, 
+        ini_zoom, 
+        max_image_zoom, 
+        bounce_time, 
+        base_url, 
+        root
     )
 
 }

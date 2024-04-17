@@ -1,7 +1,7 @@
 import "./widget.css";
 import { make_landscape } from "./viz/make_landscape";
 
-export const render = async ({ model, el }) => {
+export const render_landscape = async ({ model, el }) => {
 
     const token = model.get('token_traitlet')
     const ini_x = model.get('ini_x');
@@ -28,5 +28,42 @@ export const render = async ({ model, el }) => {
     )
 
 }
+
+export const render_toy = ({ model, el }) => {
+    let button = document.createElement("button");
+    button.innerHTML = `count is ${model.get("value")}`;
+    button.addEventListener("click", () => {
+      model.set("value", model.get("value") + 1);
+      model.save_changes();
+    });
+    model.on("change:value", () => {
+      button.innerHTML = `count is ${model.get("value")}`;
+    });
+    el.appendChild(button);
+  }
+
+  export const render = async ({ model, el }) => {
+
+    console.log('trying to make generic render function')
+    console.log(model)
+    const componentType = model.get("component");
+
+    console.log('componentType', componentType)
+    // const root = document.createElement("div");
+    // root.style.height = "800px";
+    // el.appendChild(root);
+
+    switch (componentType) {
+        case "Landscape":
+            render_landscape({ model, el });
+            break;
+        case "Toy":
+            render_toy({ model, el });
+            break;
+        default:
+            throw new Error(`Unknown component type: ${componentType}`);
+    }
+};
+  
 
 export default { render, make_landscape };

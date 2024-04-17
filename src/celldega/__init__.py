@@ -14,7 +14,7 @@ except importlib.metadata.PackageNotFoundError:
 class Landscape(anywidget.AnyWidget):
     _esm = pathlib.Path(__file__).parent / "static" / "widget.js"
     _css = pathlib.Path(__file__).parent / "static" / "widget.css"
-    # component = traitlets.Unicode("Counter").tag(sync=True)
+    component = traitlets.Unicode("Landscape").tag(sync=True)
 
     ini_x = Float(4500).tag(sync=True)
     ini_y = Float(3200).tag(sync=True)
@@ -23,3 +23,10 @@ class Landscape(anywidget.AnyWidget):
     bounce_time = Int(200).tag(sync=True)
     token_traitlet = Unicode('token').tag(sync=True)
     base_url = Unicode('').tag(sync=True)    
+
+
+class Toy(anywidget.AnyWidget):
+    _esm = pathlib.Path(__file__).parent / "static" / "widget.js"
+    _css = pathlib.Path(__file__).parent / "static" / "widget.css"
+    value = traitlets.Int(0).tag(sync=True)
+    component = traitlets.Unicode("Toy").tag(sync=True)

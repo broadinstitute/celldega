@@ -11,8 +11,7 @@ dist
 *.ipynb
 .cache
 site
-secret_notebook.ipynb
-secret_index.html
+secret_*
 
 # pixi environments
 .pixi

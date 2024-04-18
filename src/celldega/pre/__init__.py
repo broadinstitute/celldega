@@ -1,4 +1,5 @@
 import pyvips
+from pathlib import Path    
 
 # function for pre-processing landscape data
 def landscape(data):
@@ -63,6 +64,39 @@ def convert_to_jpeg(image_path, quality=80):
     return new_image_path
 
 
+def make_deepzoom_pyramid(image_path, output_path, pyramid_name, tile_size=512, overlap=0):
+    """
+    Create a DeepZoom image pyramid from a JPEG image
+
+    Parameters
+    ----------
+    image_path : str
+        Path to the JPEG image file
+    tile_size : int (default=512)
+        Tile size for the DeepZoom pyramid
+    overlap : int (default=0)
+        Overlap size for the DeepZoom pyramid
+
+    Returns
+    -------
+    None
+
+    """
+
+    # Define the output path
+    output_path = Path(output_path)    
+
+    # Load the JPEG image
+    image = pyvips.Image.new_from_file(image_path, access="sequential")
+
+    # check if the output path exists and create it if it does not
+    output_path.mkdir(parents=True, exist_ok=True)
+
+    # append the pyramid name to the output path
+    output_path = output_path / pyramid_name
+
+    # Save the image as a DeepZoom image pyramid
+    image.dzsave(output_path, tile_size=tile_size, overlap=overlap)
 
 
 

@@ -6,6 +6,19 @@
 pip install celldega
 ```
 
+### Note on VIPS Installation
+If running on a new Terra.bio workspace you will need to install vips in a startup script (e.g., startup_script.sh) with the following
+
+```
+#!/bin/bash
+apt update
+apt install -y libvips
+apt install -y libvips-tools
+apt install -y libvips-dev
+```
+
+Please see Terra.bio [documentation](https://support.terra.bio/hc/en-us/articles/360058193872-Preconfigure-a-Cloud-Environment-with-a-startup-script) for more information.
+
 ## Development installation
 
 Create a virtual environment and and install celldega in *editable* mode with the
@@ -27,3 +40,4 @@ npm run dev
 Open `example.ipynb` in JupyterLab, VS Code, or your favorite editor
 to start developing. Changes made in `js/` will be reflected
 in the notebook.
+

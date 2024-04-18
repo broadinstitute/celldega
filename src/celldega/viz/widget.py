@@ -3,6 +3,40 @@ import anywidget
 import traitlets
 
 class Landscape(anywidget.AnyWidget):
+
+    """
+    A widget for visualizing a 'landscape' view of spatial omics data. 
+
+    Parameters
+    ----------
+    ini_x : float
+        The initial x-coordinate of the view.
+    ini_y : float
+        The initial y-coordinate of the view.
+    ini_zoom : float
+        The initial zoom level of the view.
+    max_image_zoom : int
+        The maximum zoom level of the image.
+    bounce_time : int
+        The time taken for the view to bounce back after panning.
+    token_traitlet : str
+        The token traitlet.
+    base_url : str
+        The base URL for the widget.
+
+    Returns
+    -------
+    Landscape
+        A widget for visualizing a 'landscape' view of spatial omics data.
+
+    Examples
+    --------
+    >>> from celldega.viz import Landscape
+    >>> Landscape(ini_x=4500, ini_y=3200, ini_zoom=0, max_image_zoom=16, bounce_time=200, token_traitlet='token', base_url='')
+
+    
+    """
+
     _esm = pathlib.Path(__file__).parent / "../static" / "widget.js"
     _css = pathlib.Path(__file__).parent / "../static" / "widget.css"
     component = traitlets.Unicode("Landscape").tag(sync=True)

@@ -19,7 +19,7 @@ console.log('testing rebuild for front-end')
 
 
 export const make_landscape = async (
-    token, ini_x, ini_y, ini_zoom, max_image_zoom, bounce_time, base_url, root
+    token, ini_x, ini_y, ini_zoom, bounce_time, base_url, root
 ) => {
 
     console.log('moved the bulk of the code to make_landscape')
@@ -153,6 +153,23 @@ export const make_landscape = async (
 
     const dimensions = await get_image_dimensions(base_url, image_name, options)
 
+    const get_landscape_parameters = async (base_url) => {
+
+        const landscape_parameters_url = base_url + '/landscape_parameters.json'
+        const response = await fetch(landscape_parameters_url, options.fetch)
+        const landscape_parameters = await response.json()
+
+        return landscape_parameters
+    }
+
+    const landscape_parameters = await get_landscape_parameters(base_url)
+
+    console.log('landscape_parameters', landscape_parameters)   
+
+    const max_pyramid_zoom = landscape_parameters.max_pyramid_zoom
+
+    console.log('here!!!!!!!!!!!!!!!!!!!!!!!')
+
     const tile_layer = new TileLayer({
         tileSize: dimensions.tileSize,
         refinementStrategy: 'no-overlap',
@@ -160,7 +177,7 @@ export const make_landscape = async (
         maxZoom: 0,
         maxCacheSize: 20, // 5
         extent: [0, 0, dimensions.width, dimensions.height],
-        getTileData: create_get_tile_data(base_url, image_name, max_image_zoom, options),
+        getTileData: create_get_tile_data(base_url, image_name, max_pyramid_zoom, options),
         renderSubLayers: create_render_tile_sublayers(dimensions)
     });
 
@@ -174,7 +191,7 @@ export const make_landscape = async (
         maxZoom: 0,
         maxCacheSize: 20, // 5
         extent: [0, 0, dimensions.width, dimensions.height],
-        getTileData: create_get_tile_data(base_url, image_name_2, max_image_zoom, options),
+        getTileData: create_get_tile_data(base_url, image_name_2, max_pyramid_zoom, options),
         renderSubLayers: props => {
             const {
                 bbox: {left, bottom, right, top}

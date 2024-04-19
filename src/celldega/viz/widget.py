@@ -15,8 +15,6 @@ class Landscape(anywidget.AnyWidget):
         The initial y-coordinate of the view.
     ini_zoom : float
         The initial zoom level of the view.
-    max_image_zoom : int
-        The maximum zoom level of the image.
     bounce_time : int
         The time taken for the view to bounce back after panning.
     token_traitlet : str
@@ -44,7 +42,6 @@ class Landscape(anywidget.AnyWidget):
     ini_x = traitlets.Float(4500).tag(sync=True)
     ini_y = traitlets.Float(3200).tag(sync=True)
     ini_zoom = traitlets.Float(0).tag(sync=True)
-    max_image_zoom = traitlets.Int(16).tag(sync=True)
     bounce_time = traitlets.Int(200).tag(sync=True)
     token_traitlet = traitlets.Unicode('token').tag(sync=True)
     base_url = traitlets.Unicode('').tag(sync=True)    

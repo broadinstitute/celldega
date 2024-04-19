@@ -6,7 +6,8 @@ dependencies = [
     "pandas~=2.2.2",
     "pyvips~=2.2.2",
     "geopandas~=0.14.3",
-    "pyarrow~=15.0.2"
+    "pyarrow~=15.0.2",
+    "matplotlib~=3.8.4"
 ]
 readme = "README.md"
 

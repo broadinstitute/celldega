@@ -8,6 +8,9 @@ from copy import deepcopy
 from shapely.affinity import affine_transform
 from shapely import Point, Polygon, MultiPolygon
 
+import matplotlib.pyplot as plt
+from matplotlib.colors import to_hex
+
 # function for pre-processing landscape data
 def landscape(data):
 
@@ -347,5 +350,49 @@ def make_cell_boundary_tiles(path_cell_boundaries, path_meta_cell_micron, path_t
 
             # Save the filtered DataFrame to a Parquet file
             inst_geo[['GEOMETRY', 'name']].to_parquet(filename)
+
+
+def make_meta_gene(path_cbg, path_output):
+    """
+    Create a DataFrame with genes and their assigned colors
+
+    Parameters
+    ----------
+    path_cbg : str
+        Path to the cell-by-gene matrix file
+    path_output : str
+        Path to save the meta gene file
+
+    Returns
+    -------
+    None
+
+    Examples
+    --------
+    >>> make_meta_gene(
+    ...     path_cbg='data/cbg.parquet',
+    ...     path_output='data/meta_gene.parquet'
+    ... )
+    """
+
+
+    cbg = pd.read_csv(path_cbg, index_col=0)
+    genes = cbg.columns.tolist()
+
+    # Get all categorical color palettes from Matplotlib and flatten them into a single list of colors
+    palettes = [plt.get_cmap(name).colors for name in plt.colormaps() if "tab" in name]
+    flat_colors = [color for palette in palettes for color in palette]
+
+    # Convert RGB tuples to hex codes
+    flat_colors_hex = [to_hex(color) for color in flat_colors]
+
+    # Use modular arithmetic to assign a color to each gene, white for genes with "Blank"
+    colors = [flat_colors_hex[i % len(flat_colors_hex)] if "Blank" not in gene else "#FFFFFF" for i, gene in enumerate(genes)]
+
+    # Create a DataFrame with genes and their assigned colors
+    meta_gene = pd.DataFrame({'color': colors}, index=genes)
+
+
+    meta_gene.to_parquet(path_output)                
 
 __all__ = ["landscape"]

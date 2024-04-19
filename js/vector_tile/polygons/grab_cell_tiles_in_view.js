@@ -6,7 +6,7 @@ import { extractPolygonPaths } from './extractPolygonPaths.js'
 export const grab_cell_tiles_in_view = async (base_url, tiles_in_view, options, cache_cell) => {
 
     const tile_cell_urls = tiles_in_view.map(tile => {
-        return `${base_url}/cell_segmentation_v2/cell_tile_${tile.tileX}_${tile.tileY}.parquet`;
+        return `${base_url}/cell_segmentation/cell_tile_${tile.tileX}_${tile.tileY}.parquet`;
     });
 
     var tile_cell_tables = await fetch_all_tables(cache_cell, tile_cell_urls, options)

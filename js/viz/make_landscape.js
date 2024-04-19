@@ -32,7 +32,7 @@ export const make_landscape = async (
     const grab_trx_tiles_in_view = async (tiles_in_view, options) => {
 
       const tile_trx_urls = tiles_in_view.map(tile => {
-        return `${base_url}/real_transcript_tiles_mosaic/transcripts_tile_${tile.tileX}_${tile.tileY}.parquet`;
+        return `${base_url}/transcript_tiles/transcripts_tile_${tile.tileX}_${tile.tileY}.parquet`;
       });
     
       var tile_trx_tables = await fetch_all_tables(cache_trx, tile_trx_urls, options)
@@ -216,12 +216,12 @@ export const make_landscape = async (
 
     const debounced_calc_viewport = debounce(calc_viewport, bounce_time);
 
-    const cell_url = base_url + `/real_cells_mosaic.parquet`;
+    const cell_url = base_url + `/cell_metadata.parquet`;
     var cell_arrow_table = await get_arrow_table(cell_url, options.fetch)
 
     var cell_scatter_data = get_scatter_data(cell_arrow_table)
 
-    const meta_gene_url = base_url + `/meta_gene.parquet`;
+    const meta_gene_url = base_url + `/gene_metadata.parquet`;
     var meta_gene = await get_arrow_table(meta_gene_url, options.fetch)
 
     let geneNames = [];

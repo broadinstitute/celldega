@@ -1,6 +1,6 @@
 export const get_image_dimensions = async (base_url, image_name, options) => {
 
-    const dzi_url = `${base_url}/pyramid_images/${image_name}.image.dzi`
+    const dzi_url = `${base_url}/pyramid_images/${image_name}.dzi`
     const response = await fetch(dzi_url, options.fetch)
     const xmlText = await response.text()
     const dziXML = new DOMParser().parseFromString(xmlText, 'text/xml')

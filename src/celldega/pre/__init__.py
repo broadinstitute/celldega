@@ -373,7 +373,7 @@ def make_meta_gene(path_cbg, path_output):
     --------
     >>> make_meta_gene(
     ...     path_cbg='data/cbg.parquet',
-    ...     path_output='data/meta_gene.parquet'
+    ...     path_output='data/gene_metadata.parquet'
     ... )
     """
 
@@ -419,7 +419,7 @@ def get_max_zoom_level(path_image_pyramid):
     return max_pyramid_zoom
 
 
-def save_landscape_parameters(technology, path_landscape_files, image_name='dapi.image_files'):
+def save_landscape_parameters(technology, path_landscape_files, image_name='dapi_files'):
 
     path_image_pyramid = path_landscape_files + 'pyramid_images/' +  image_name + '/' 
 

@@ -1,5 +1,7 @@
 import pyvips
-from pathlib import Path    
+from pathlib import Path
+import numpy as np
+import pandas as pd
 
 # function for pre-processing landscape data
 def landscape(data):
@@ -99,5 +101,66 @@ def make_deepzoom_pyramid(image_path, output_path, pyramid_name, tile_size=512, 
     image.dzsave(output_path, tile_size=tile_size, overlap=overlap)
 
 
+def make_meta_cell_image_coord( 
+        path_transformation_matrix,  
+        path_meta_cell_micron,
+        path_meta_cell_image
+    ):
+    """
+    Apply an affine transformation to the cell coordinates in microns and save 
+    the transformed coordinates in pixels
+
+    Parameters
+    ----------
+    path_transformation_matrix : str
+        Path to the transformation matrix file    
+    path_meta_cell_micron : str
+        Path to the meta cell file with coordinates in microns
+    path_meta_cell_image : str
+        Path to save the meta cell file with coordinates in pixels
+
+    Returns
+    -------
+    None
+
+    Examples
+    --------
+    >>> make_meta_cell_image_coord(
+    ...     path_transformation_matrix='data/transformation_matrix.txt',
+    ...     path_meta_cell_micron='data/meta_cell_micron.csv',
+    ...     path_meta_cell_image='data/meta_cell_image.parquet'
+    ... )
+
+    """
+    
+    transformation_matrix = pd.read_csv(path_transformation_matrix, header=None, sep=' ').values
+    transformation_matrix
+
+    meta_cell = pd.read_csv(path_meta_cell_micron, usecols=['center_x', 'center_y'])
+    meta_cell['name'] = pd.Series(meta_cell.index, index=meta_cell.index)
+
+
+    # Adding a ones column to accommodate for affine transformation
+    meta_cell['ones'] = 1
+
+    # Preparing the data for matrix multiplication
+    points = meta_cell[['center_x', 'center_y', 'ones']].values
+
+    # Applying the transformation matrix
+    transformed_points = np.dot(transformation_matrix, points.T).T
+
+    # Updating the DataFrame with transformed coordinates
+    meta_cell['center_x'] = transformed_points[:, 0]
+    meta_cell['center_y'] = transformed_points[:, 1]
+
+    # Dropping the ones column as it's no longer needed
+    meta_cell.drop(columns=['ones'], inplace=True)
+
+    meta_cell['center_x'] = meta_cell['center_x'] / 2
+    meta_cell['center_y'] = meta_cell['center_y'] / 2
+
+    meta_cell['geometry'] = meta_cell.apply(lambda row: [row['center_x'], row['center_y']], axis=1)
+
+    meta_cell[['name', 'geometry']].to_parquet(path_meta_cell_image)    
 
 __all__ = ["landscape"]

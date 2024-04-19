@@ -2,6 +2,7 @@ import pyvips
 from pathlib import Path
 import numpy as np
 import pandas as pd
+import os
 
 # function for pre-processing landscape data
 def landscape(data):
@@ -134,7 +135,6 @@ def make_meta_cell_image_coord(
     """
     
     transformation_matrix = pd.read_csv(path_transformation_matrix, header=None, sep=' ').values
-    transformation_matrix
 
     meta_cell = pd.read_csv(path_meta_cell_micron, usecols=['center_x', 'center_y'])
     meta_cell['name'] = pd.Series(meta_cell.index, index=meta_cell.index)
@@ -161,6 +161,80 @@ def make_meta_cell_image_coord(
 
     meta_cell['geometry'] = meta_cell.apply(lambda row: [row['center_x'], row['center_y']], axis=1)
 
-    meta_cell[['name', 'geometry']].to_parquet(path_meta_cell_image)    
+    meta_cell[['name', 'geometry']].to_parquet(path_meta_cell_image)   
+
+
+def make_trx_tiles(path_trx, path_transformation_matrix, path_trx_tiles):
+
+
+    transformation_matrix = pd.read_csv(path_transformation_matrix, header=None, sep=' ').values
+
+    trx_ini = pd.read_csv(
+        path_trx, 
+        usecols=['gene', 'global_x', 'global_y']
+    )
+
+    trx_ini.columns = [x.replace('global_','') for x in trx_ini.columns.tolist()]
+    trx_ini.rename(columns={'gene':'name'}, inplace=True)
+    trx_ini.head()
+
+    chunk_size = 1000000
+
+    trx = pd.DataFrame()  # Initialize empty DataFrame for results
+
+    for start_row in range(0, trx_ini.shape[0], chunk_size):
+        # print(start_row/1e6)
+        chunk = trx_ini.iloc[start_row:start_row + chunk_size].copy()
+        points = np.hstack((chunk[['x', 'y']], np.ones((chunk.shape[0], 1))))
+        transformed_points = np.dot(points, transformation_matrix.T)[:, :2]
+        chunk[['x', 'y']] = transformed_points  # Update chunk with transformed coordinates
+        chunk['x'] = chunk['x'] / 2  # Adjust for downsampling
+        chunk['y'] = chunk['y'] / 2
+
+        chunk['x'] = chunk['x'].round(2)
+        chunk['y'] = chunk['y'].round(2)
+        trx = pd.concat([trx, chunk], ignore_index=True)    
+
+
+    if not os.path.exists(path_trx_tiles):
+        os.mkdir(path_trx_tiles)
+
+    tile_size_x = 1000
+    tile_size_y = 1000
+
+    x_min = 0
+    x_max = trx['x'].max()
+    y_min = 0
+    y_max = trx['y'].max()
+
+    # Calculate the number of tiles needed
+    n_tiles_x = int(np.ceil((x_max - x_min) / tile_size_x))
+    n_tiles_y = int(np.ceil((y_max - y_min) / tile_size_y))
+
+    for i in range(n_tiles_x):
+
+        if i % 2 == 0:
+            print('row', i)
+        
+        for j in range(n_tiles_y):
+            tile_x_min = x_min + i * tile_size_x
+            tile_x_max = tile_x_min + tile_size_x
+            tile_y_min = y_min + j * tile_size_y
+            tile_y_max = tile_y_min + tile_size_y
+            
+            # Filter trx to get only the data within the current tile's bounds
+            tile_trx = trx[(trx.x >= tile_x_min) & (trx.x < tile_x_max) & 
+                        (trx.y >= tile_y_min) & (trx.y < tile_y_max)].copy()
+
+
+            # make 'geometry' column
+            tile_trx = tile_trx.assign(geometry=tile_trx.apply(lambda row: [row['x'], row['y']], axis=1))
+
+            # Define the filename based on the tile's coordinates
+            filename = f'{path_trx_tiles}/transcripts_tile_{i}_{j}.parquet'        
+
+            # Save the filtered DataFrame to a Parquet file
+            tile_trx[['name', 'geometry']].to_parquet(filename)
+
 
 __all__ = ["landscape"]

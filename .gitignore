@@ -25,3 +25,4 @@ static
 .pnp.loader.mjs
 node_modules
 *.h5
+*egg-info

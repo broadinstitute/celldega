@@ -1,6 +1,6 @@
 import importlib.metadata
 
-from celldega.viz.widget import Landscape, Toy
+from celldega.viz import Landscape, Toy
 from celldega.pre import landscape
 
 try:

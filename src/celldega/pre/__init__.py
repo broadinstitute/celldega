@@ -11,6 +11,8 @@ from shapely import Point, Polygon, MultiPolygon
 import matplotlib.pyplot as plt
 from matplotlib.colors import to_hex
 
+import json
+
 # function for pre-processing landscape data
 def landscape(data):
 
@@ -394,5 +396,45 @@ def make_meta_gene(path_cbg, path_output):
 
 
     meta_gene.to_parquet(path_output)                
+
+
+def get_max_zoom_level(path_image_pyramid):
+    """
+    Returns the maximum zoom level based on the highest-numbered directory
+    in the specified path_image_pyramid.
+    
+    Parameters:
+        path_image_pyramid (str): The path to the directory containing zoom level directories.
+    
+    Returns:
+        max_pyramid_zoom (int): The maximum zoom level.
+    """
+    # List all entries in the path_image_pyramid that are directories and can be converted to integers
+    zoom_levels = [entry for entry in os.listdir(path_image_pyramid)
+                   if os.path.isdir(os.path.join(path_image_pyramid, entry)) and entry.isdigit()]
+
+    # Convert to integer and find the maximum value
+    max_pyramid_zoom = max(map(int, zoom_levels)) if zoom_levels else None
+
+    return max_pyramid_zoom
+
+
+def save_landscape_params(technology, path_landscape_files, image_name='dapi.image_files'):
+
+    path_image_pyramid = path_landscape_files + 'pyramid_images/' +  image_name + '/' 
+
+    print(path_image_pyramid)
+
+    max_pyramid_zoom = get_max_zoom_level(path_image_pyramid)
+
+    landscape_parameters = {
+        'technology': technology,
+        'max_pyramid_zoom': max_pyramid_zoom
+    }
+
+    path_landscape_parameters = path_landscape_files + 'landscape_parameters.json'
+    
+    with open(path_landscape_parameters, 'w') as file:
+        json.dump(landscape_parameters, file, indent=4)
 
 __all__ = ["landscape"]

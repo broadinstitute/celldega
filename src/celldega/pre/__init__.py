@@ -3,6 +3,10 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import os
+import geopandas as gpd
+from copy import deepcopy
+from shapely.affinity import affine_transform
+from shapely import Point, Polygon, MultiPolygon
 
 # function for pre-processing landscape data
 def landscape(data):
@@ -12,7 +16,7 @@ def landscape(data):
     return data
 
 
-def reduce_image_size(image_path, scale_image=0.5):
+def reduce_image_size(image_path, scale_image=0.5, path_landscape_files=''):
     """
     Reduce the size of an image by a factor of 0.5
 
@@ -33,7 +37,8 @@ def reduce_image_size(image_path, scale_image=0.5):
 
     resized_image = image.resize(scale_image)
 
-    new_image_path = image_path.replace(".tif", "_downsize.tif")
+    new_image_name = image_path.split('/')[-1].replace(".tif", "_downsize.tif")
+    new_image_path = path_landscape_files +  new_image_name
     resized_image.write_to_file(new_image_path)
 
     return new_image_path
@@ -236,5 +241,111 @@ def make_trx_tiles(path_trx, path_transformation_matrix, path_trx_tiles):
             # Save the filtered DataFrame to a Parquet file
             tile_trx[['name', 'geometry']].to_parquet(filename)
 
+
+# Function to apply transformation to a polygon
+def transform_polygon(polygon, matrix):
+    # Extracting the affine transformation components from the matrix
+    a, b, d, e, xoff, yoff = matrix[0,0], matrix[0,1], matrix[1,0], matrix[1,1], matrix[0,2], matrix[1,2]
+    # Constructing the affine transformation formula for shapely
+    affine_params = [a, b, d, e, xoff, yoff]
+    # Applying the transformation
+    transformed_polygon = affine_transform(polygon, affine_params)
+
+    exterior_coords = transformed_polygon.exterior.coords
+    
+    # Creating the original structure by directly using numpy array for each coordinate pair
+    original_format_coords = np.array([np.array(coord) for coord in exterior_coords])
+    
+    return np.array([original_format_coords], dtype=object)
+
+
+def simple_format(geometry):
+    # factor in scaling
+    return [[[coord[0]/2, coord[1]/2] for coord in polygon] for polygon in geometry]
+
+
+
+def make_cell_boundary_tiles(path_cell_boundaries, path_meta_cell_micron, path_transformation_matrix, path_output):
+    """
+    """
+    transformation_matrix = pd.read_csv(path_transformation_matrix, header=None, sep=' ').values
+        
+    cells_orig = gpd.read_parquet(path_cell_boundaries)
+    cells_orig.shape
+
+    z_index = 1
+    cells_orig = cells_orig[cells_orig['ZIndex'] == z_index]
+
+    # fix the id issue with the cell bounary parquet files (probably can be dropped)
+    meta_cell = pd.read_csv(path_meta_cell_micron)
+    meta_cell
+
+    fixed_names = []
+    for inst_cell in cells_orig.index.tolist():
+        inst_id = cells_orig.loc[inst_cell, 'EntityID']
+        new_id = meta_cell[meta_cell['EntityID'] == inst_id].index.tolist()[0]
+        fixed_names.append(new_id)
+        
+
+    cells = deepcopy(cells_orig)
+    cells.index = fixed_names
+
+    # Corrected approach to convert 'MultiPolygon' to 'Polygon'
+    cells['geometry'] = cells['Geometry'].apply(lambda x: list(x.geoms)[0] if isinstance(x, MultiPolygon) else x)
+
+    # Apply the transformation to each polygon
+    cells['NEW_GEOMETRY'] = cells['geometry'].apply(lambda poly: transform_polygon(poly, transformation_matrix))
+
+    cells['GEOMETRY'] = cells['NEW_GEOMETRY'].apply(lambda x: simple_format(x))
+
+    cells['polygon'] = cells['GEOMETRY'].apply(lambda x: Polygon(x[0]))
+
+    gdf_cells = gpd.GeoDataFrame(geometry=cells['polygon'])
+
+    gdf_cells['center_x'] = gdf_cells.centroid.x
+    gdf_cells['center_y'] = gdf_cells.centroid.y
+
+    if not os.path.exists(path_output):
+        os.mkdir(path_output)
+
+    tile_size_x = 1000
+    tile_size_y = 1000
+
+    # hardwired from previvous transcript calculation
+    x_min = 0
+    x_max = 55192.07
+    y_min = 0
+    y_max = 47352.5
+
+    # Calculate the number of tiles needed
+    n_tiles_x = int(np.ceil((x_max - x_min) / tile_size_x))
+    n_tiles_y = int(np.ceil((y_max - y_min) / tile_size_y))
+
+    for i in range(n_tiles_x):
+
+        # if i % 2 == 0:
+        #     print('row', i)
+        
+        for j in range(n_tiles_y):
+            tile_x_min = x_min + i * tile_size_x
+            tile_x_max = tile_x_min + tile_size_x
+            tile_y_min = y_min + j * tile_size_y
+            tile_y_max = tile_y_min + tile_size_y
+            
+            # find cell polygons with centroids in the tile
+            keep_cells = gdf_cells[(gdf_cells.center_x >= tile_x_min) & (gdf_cells.center_x < tile_x_max) & 
+                                (gdf_cells.center_y >= tile_y_min) & (gdf_cells.center_y < tile_y_max)].index.tolist()
+
+            
+
+            inst_geo = cells.loc[keep_cells, ['GEOMETRY']]
+
+            # try adding cell name to geometry
+            inst_geo['name'] = pd.Series(inst_geo.index.tolist(), index=inst_geo.index.tolist())
+
+            filename = f'{path_output}/cell_tile_{i}_{j}.parquet'        
+
+            # Save the filtered DataFrame to a Parquet file
+            inst_geo[['GEOMETRY', 'name']].to_parquet(filename)
 
 __all__ = ["landscape"]

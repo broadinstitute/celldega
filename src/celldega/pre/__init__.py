@@ -113,9 +113,10 @@ def make_deepzoom_pyramid(image_path, output_path, pyramid_name, tile_size=512, 
 
 
 def make_meta_cell_image_coord( 
+        technology,
         path_transformation_matrix,  
         path_meta_cell_micron,
-        path_meta_cell_image
+        path_meta_cell_image,  
     ):
     """
     Apply an affine transformation to the cell coordinates in microns and save 
@@ -123,6 +124,8 @@ def make_meta_cell_image_coord(
 
     Parameters
     ----------
+    technology : str
+        The technology used to generate the data, Xenium and MERSCOPE are supported.    
     path_transformation_matrix : str
         Path to the transformation matrix file    
     path_meta_cell_micron : str
@@ -137,6 +140,7 @@ def make_meta_cell_image_coord(
     Examples
     --------
     >>> make_meta_cell_image_coord(
+    ...     technology='Xenium',
     ...     path_transformation_matrix='data/transformation_matrix.txt',
     ...     path_meta_cell_micron='data/meta_cell_micron.csv',
     ...     path_meta_cell_image='data/meta_cell_image.parquet'
@@ -146,9 +150,15 @@ def make_meta_cell_image_coord(
     
     transformation_matrix = pd.read_csv(path_transformation_matrix, header=None, sep=' ').values
 
-    meta_cell = pd.read_csv(path_meta_cell_micron, usecols=['center_x', 'center_y'])
-    meta_cell['name'] = pd.Series(meta_cell.index, index=meta_cell.index)
-
+    if technology == 'MERSCOPE':
+        meta_cell = pd.read_csv(path_meta_cell_micron, usecols=['center_x', 'center_y'])
+        meta_cell['name'] = pd.Series(meta_cell.index, index=meta_cell.index)
+    elif technology == 'Xenium':
+        usecols = ['cell_id', 'x_centroid', 'y_centroid']
+        meta_cell = pd.read_csv(path_meta_cell_micron, index_col=0, usecols=usecols)
+        meta_cell.columns = ['center_x', 'center_y']
+        meta_cell['name'] = pd.Series(meta_cell.index, index=meta_cell.index)
+        
 
     # Adding a ones column to accommodate for affine transformation
     meta_cell['ones'] = 1

@@ -184,19 +184,36 @@ def make_meta_cell_image_coord(
     meta_cell[['name', 'geometry']].to_parquet(path_meta_cell_image)   
 
 
-def make_trx_tiles(path_trx, path_transformation_matrix, path_trx_tiles):
+def make_trx_tiles(
+        technology,
+        path_trx, 
+        path_transformation_matrix, 
+        path_trx_tiles
+    ):
 
 
     transformation_matrix = pd.read_csv(path_transformation_matrix, header=None, sep=' ').values
 
-    trx_ini = pd.read_csv(
-        path_trx, 
-        usecols=['gene', 'global_x', 'global_y']
-    )
+    if technology == 'MERSCOPE':
+        trx_ini = pd.read_csv(
+            path_trx, 
+            usecols=['gene', 'global_x', 'global_y']
+        )
 
-    trx_ini.columns = [x.replace('global_','') for x in trx_ini.columns.tolist()]
-    trx_ini.rename(columns={'gene':'name'}, inplace=True)
-    trx_ini.head()
+        trx_ini.columns = [x.replace('global_','') for x in trx_ini.columns.tolist()]
+        trx_ini.rename(columns={'gene':'name'}, inplace=True)
+        
+    elif technology == 'Xenium':
+        trx_ini = pd.read_parquet(
+            path_trx, 
+            columns=['feature_name', 'x_location', 'y_location']
+        )        
+
+        trx_ini['feature_name'] = trx_ini['feature_name'].apply(lambda x: x.decode('utf-8'))
+        trx_ini.columns = [x.replace('_location','') for x in trx_ini.columns.tolist()]
+        trx_ini.rename(columns={'feature_name':'name'}, inplace=True)
+        
+
 
     chunk_size = 1000000
 

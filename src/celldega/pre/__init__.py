@@ -404,12 +404,18 @@ def make_cell_boundary_tiles(
             inst_geo[['GEOMETRY', 'name']].to_parquet(filename)
 
 
-def make_meta_gene(path_cbg, path_output):
+def make_meta_gene(
+        technology,
+        path_cbg, 
+        path_output
+    ):
     """
     Create a DataFrame with genes and their assigned colors
 
     Parameters
     ----------
+    technology : str
+        The technology used to generate the data, Xenium and MERSCOPE are supported.
     path_cbg : str
         Path to the cell-by-gene matrix file
     path_output : str
@@ -422,14 +428,17 @@ def make_meta_gene(path_cbg, path_output):
     Examples
     --------
     >>> make_meta_gene(
+    ...     technology='Xenium',
     ...     path_cbg='data/cbg.parquet',
     ...     path_output='data/gene_metadata.parquet'
     ... )
     """
 
-
-    cbg = pd.read_csv(path_cbg, index_col=0)
-    genes = cbg.columns.tolist()
+    if technology == 'MERSCOPE':
+        cbg = pd.read_csv(path_cbg, index_col=0)
+        genes = cbg.columns.tolist()
+    elif technology == 'Xenium':
+        genes = pd.read_csv(path_cbg + 'features.tsv.gz', sep='\t', header=None)[1].values.tolist()
 
     # Get all categorical color palettes from Matplotlib and flatten them into a single list of colors
     palettes = [plt.get_cmap(name).colors for name in plt.colormaps() if "tab" in name]

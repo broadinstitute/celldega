@@ -297,33 +297,56 @@ def simple_format(geometry):
 
 
 
-def make_cell_boundary_tiles(path_cell_boundaries, path_meta_cell_micron, path_transformation_matrix, path_output):
+def make_cell_boundary_tiles(
+        technology, 
+        path_cell_boundaries, 
+        path_meta_cell_micron, 
+        path_transformation_matrix, 
+        path_output
+    ):
     """
     """
     transformation_matrix = pd.read_csv(path_transformation_matrix, header=None, sep=' ').values
+
+    if technology == 'MERSCOPE':
+        cells_orig = gpd.read_parquet(path_cell_boundaries)
+        cells_orig.shape
+
+        z_index = 1
+        cells_orig = cells_orig[cells_orig['ZIndex'] == z_index]
+
+        # fix the id issue with the cell bounary parquet files (probably can be dropped)
+        meta_cell = pd.read_csv(path_meta_cell_micron)
+        meta_cell
+
+        fixed_names = []
+        for inst_cell in cells_orig.index.tolist():
+            inst_id = cells_orig.loc[inst_cell, 'EntityID']
+            new_id = meta_cell[meta_cell['EntityID'] == inst_id].index.tolist()[0]
+            fixed_names.append(new_id)
+            
+
+        cells = deepcopy(cells_orig)
+        cells.index = fixed_names
+
+        # Corrected approach to convert 'MultiPolygon' to 'Polygon'
+        cells['geometry'] = cells['Geometry'].apply(lambda x: list(x.geoms)[0] if isinstance(x, MultiPolygon) else x)
+
+    elif technology == 'Xenium':
+        xenium_cells = pd.read_parquet(path_cell_boundaries)
+
+        from shapely.geometry import Polygon
+        import geopandas as gpd
+
+        # Group by 'cell_id' and aggregate the coordinates into lists
+        grouped = xenium_cells.groupby('cell_id').agg(list)
+
+        # Create a new column for polygons
+        grouped['geometry'] = grouped.apply(lambda row: Polygon(zip(row['vertex_x'], row['vertex_y'])), axis=1)
+
+        # Convert the DataFrame with polygon data into a GeoDataFrame
+        cells = gpd.GeoDataFrame(grouped, geometry='geometry')[['geometry']]
         
-    cells_orig = gpd.read_parquet(path_cell_boundaries)
-    cells_orig.shape
-
-    z_index = 1
-    cells_orig = cells_orig[cells_orig['ZIndex'] == z_index]
-
-    # fix the id issue with the cell bounary parquet files (probably can be dropped)
-    meta_cell = pd.read_csv(path_meta_cell_micron)
-    meta_cell
-
-    fixed_names = []
-    for inst_cell in cells_orig.index.tolist():
-        inst_id = cells_orig.loc[inst_cell, 'EntityID']
-        new_id = meta_cell[meta_cell['EntityID'] == inst_id].index.tolist()[0]
-        fixed_names.append(new_id)
-        
-
-    cells = deepcopy(cells_orig)
-    cells.index = fixed_names
-
-    # Corrected approach to convert 'MultiPolygon' to 'Polygon'
-    cells['geometry'] = cells['Geometry'].apply(lambda x: list(x.geoms)[0] if isinstance(x, MultiPolygon) else x)
 
     # Apply the transformation to each polygon
     cells['NEW_GEOMETRY'] = cells['geometry'].apply(lambda poly: transform_polygon(poly, transformation_matrix))

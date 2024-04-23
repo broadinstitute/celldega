@@ -15,6 +15,8 @@ import { make_cell_layer } from "../deck-gl/make_cell_layer.js";
 import { trx_names_array } from '../global_variables/trx_names_array.js';
 import { set_options } from '../global_variables/fetch_options.js';
 import { make_trx_layer_new } from '../deck-gl/make_trx_layer_new.js';
+import { cell_names_array, set_cell_names_array } from '../global_variables/cell_names_array.js';   
+import { make_tooltip } from '../deck-gl/make_tooltip.js';
 
 console.log('testing rebuild for front-end')
 
@@ -23,7 +25,7 @@ export const make_landscape = async (
     token, ini_x, ini_y, ini_zoom, bounce_time, base_url, root
 ) => {
 
-    console.log('working on global variables')
+    console.log('moved tooltip')
   
     const calc_viewport = async ({ height, width, zoom, target }) => {
 
@@ -49,15 +51,12 @@ export const make_landscape = async (
                 trx_layer
             )
 
-            // cell tiles
-            ////////////////////////////////
             const polygon_layer_new = await make_polygon_layer_new(
                 base_url, 
                 tiles_in_view, 
                 polygon_layer
             )
 
-            // update layer
             deck.setProps({
                 layers: [
                     tile_layer_2, 
@@ -73,24 +72,6 @@ export const make_landscape = async (
             });
         }
     };
-
-    const make_tooltip = (info) => {
-
-        let inst_name
-
-        if (info.index === -1 || !info.layer) return null;
-
-        if (info.layer.id === 'cell-layer'){
-            inst_name = cell_names_array[info.index]
-        } else if (info.layer.id === 'trx-layer') {
-            inst_name = trx_names_array[info.index]
-        }
-
-        return {
-            html: `<div>${inst_name}</div?`,
-        };
-
-    }
 
     var options = set_options(token)
 
@@ -187,7 +168,7 @@ export const make_landscape = async (
         color_dict[geneName] = hexToRgb(colors[index]);
     });
 
-    const cell_names_array = cell_arrow_table.getChild("name").toArray();
+    set_cell_names_array(cell_arrow_table)
 
     const cell_layer = make_cell_layer(cell_scatter_data, cell_names_array)
 

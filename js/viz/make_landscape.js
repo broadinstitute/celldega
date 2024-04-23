@@ -2,8 +2,6 @@ import { Deck, ScatterplotLayer, TileLayer, BitmapLayer, OrthographicView } from
 import * as mathGl from 'math.gl';
 
 import { visibleTiles } from "../vector_tile/visibleTiles.js";
-// import { concatenate_arrow_tables } from "../vector_tile/concatenate_functions.js";
-// import { fetch_all_tables } from "../read_parquet/fetch_all_tables.js";
 import { get_scatter_data } from "../read_parquet/get_scatter_data.js";
 import { debounce } from "../utils/debounce.js";
 import { hexToRgb } from "../utils/hexToRgb.js";
@@ -16,7 +14,8 @@ import { get_image_dimensions } from "../image_tile/get_image_dimensions.js";
 import { make_cell_layer } from "../deck-gl/make_cell_layer.js";
 import { trx_names_array } from '../global_variables/trx_names_array.js';
 import { set_options } from '../global_variables/fetch_options.js';
-import { grab_trx_tiles_in_view } from '../vector_tile/transcripts/grab_trx_tiles_in_view.js';
+// import { grab_trx_tiles_in_view } from '../vector_tile/transcripts/grab_trx_tiles_in_view.js';
+import { make_trx_layer_new } from '../deck-gl/make_trx_layer_new.js';
 
 console.log('testing rebuild for front-end')
 
@@ -27,43 +26,27 @@ export const make_landscape = async (
 
     console.log('working on global variables')
 
-    // const grab_trx_tiles_in_view = async (base_url, tiles_in_view, options) => {
+    // const make_trx_layer_new = async (
+    //     base_url,
+    //     tiles_in_view, 
+    //     options, 
+    // ) => {
 
-    //     const tile_trx_urls = tiles_in_view.map(tile => {
-    //         return `${base_url}/transcript_tiles/transcripts_tile_${tile.tileX}_${tile.tileY}.parquet`;
+    //     let trx_scatter_data = grab_trx_tiles_in_view(
+    //         base_url,
+    //         tiles_in_view, 
+    //         options, 
+    //     )
+
+    //     const trx_layer_new = new ScatterplotLayer({
+    //         // Re-use existing layer props
+    //         ...trx_layer.props,
+    //         data: trx_scatter_data,
     //     });
-    
-    //     var tile_trx_tables = await fetch_all_tables('trx', tile_trx_urls, options)
 
-    //     var trx_arrow_table = concatenate_arrow_tables(tile_trx_tables)
-    //     var new_trx_names_array = trx_arrow_table.getChild("name").toArray();
-    //     set_trx_names_array(new_trx_names_array)
-    //     var trx_scatter_data = get_scatter_data(trx_arrow_table)
-    
-    //     return trx_scatter_data
-    // }
-
-    const make_trx_layer_new = async (
-        base_url,
-        tiles_in_view, 
-        options, 
-    ) => {
-
-        let trx_scatter_data = grab_trx_tiles_in_view(
-            base_url,
-            tiles_in_view, 
-            options, 
-        )
-
-        const trx_layer_new = new ScatterplotLayer({
-            // Re-use existing layer props
-            ...trx_layer.props,
-            data: trx_scatter_data,
-        });
-
-        return trx_layer_new
+    //     return trx_layer_new
             
-    }
+    // }
   
     const calc_viewport = async ({ height, width, zoom, target }, options) => {
 
@@ -87,6 +70,7 @@ export const make_landscape = async (
                 base_url,
                 tiles_in_view, 
                 options, 
+                trx_layer
             )
 
             // cell tiles

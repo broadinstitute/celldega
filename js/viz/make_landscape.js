@@ -14,8 +14,8 @@ import { make_polygon_layer } from "../deck-gl/make_polygon_layer.js";
 import { make_polygon_layer_new } from "../deck-gl/make_polygon_layer_new.js";
 import { get_image_dimensions } from "../image_tile/get_image_dimensions.js";
 import { make_cell_layer } from "../deck-gl/make_cell_layer.js";
-import { set_trx_names_array, trx_names_array } from '../utils/trx_names_array.js';
-
+import { set_trx_names_array, trx_names_array } from '../global_variables/trx_names_array.js';
+import { set_options } from '../global_variables/fetch_options.js';
 
 console.log('testing rebuild for front-end')
 
@@ -89,7 +89,6 @@ export const make_landscape = async (
             ////////////////////////////////
             const polygon_layer_new = await make_polygon_layer_new(
                 tiles_in_view, 
-                options, 
                 base_url, 
                 polygon_layer
             )
@@ -128,15 +127,8 @@ export const make_landscape = async (
         };
 
     }
-      
-    // authorization token for bucket
-    const options = ({
-        fetch: {
-            headers: {
-            'Authorization': `Bearer ${token}` // Use the token in the Authorization header
-            }
-        }
-    })
+
+    var options = set_options(token)
 
     const image_name = 'cellbound' 
 

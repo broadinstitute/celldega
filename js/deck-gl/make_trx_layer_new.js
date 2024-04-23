@@ -4,7 +4,6 @@ import { grab_trx_tiles_in_view } from '../vector_tile/transcripts/grab_trx_tile
 export const make_trx_layer_new = async (
     base_url,
     tiles_in_view, 
-    options, 
     trx_layer
 ) => {
 

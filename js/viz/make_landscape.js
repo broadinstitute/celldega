@@ -25,7 +25,7 @@ export const make_landscape = async (
 
     console.log('working on global variables')
   
-    const calc_viewport = async ({ height, width, zoom, target }, options) => {
+    const calc_viewport = async ({ height, width, zoom, target }) => {
 
         const zoomFactor = Math.pow(2, zoom);
         const [targetX, targetY] = target;
@@ -46,7 +46,6 @@ export const make_landscape = async (
             const trx_layer_new = await make_trx_layer_new(
                 base_url,
                 tiles_in_view, 
-                options, 
                 trx_layer
             )
 
@@ -216,7 +215,7 @@ export const make_landscape = async (
         views: [new OrthographicView({id: 'ortho'})],
         layers: [tile_layer_2, tile_layer, cell_layer],
         onViewStateChange: ({viewState}) => {
-            debounced_calc_viewport(viewState, options)
+            debounced_calc_viewport(viewState)
             return viewState
         },
         getTooltip: make_tooltip,

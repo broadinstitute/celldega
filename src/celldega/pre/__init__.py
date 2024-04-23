@@ -209,7 +209,7 @@ def make_trx_tiles(
             columns=['feature_name', 'x_location', 'y_location']
         )        
 
-        trx_ini['feature_name'] = trx_ini['feature_name'].apply(lambda x: x.decode('utf-8'))
+        # trx_ini['feature_name'] = trx_ini['feature_name'].apply(lambda x: x.decode('utf-8'))
         trx_ini.columns = [x.replace('_location','') for x in trx_ini.columns.tolist()]
         trx_ini.rename(columns={'feature_name':'name'}, inplace=True)
         

@@ -11,7 +11,6 @@ export const make_trx_layer_new = async (
     let trx_scatter_data = grab_trx_tiles_in_view(
         base_url,
         tiles_in_view, 
-        options, 
     )
 
     const trx_layer_new = new ScatterplotLayer({

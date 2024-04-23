@@ -14,7 +14,6 @@ import { get_image_dimensions } from "../image_tile/get_image_dimensions.js";
 import { make_cell_layer } from "../deck-gl/make_cell_layer.js";
 import { trx_names_array } from '../global_variables/trx_names_array.js';
 import { set_options } from '../global_variables/fetch_options.js';
-// import { grab_trx_tiles_in_view } from '../vector_tile/transcripts/grab_trx_tiles_in_view.js';
 import { make_trx_layer_new } from '../deck-gl/make_trx_layer_new.js';
 
 console.log('testing rebuild for front-end')
@@ -25,28 +24,6 @@ export const make_landscape = async (
 ) => {
 
     console.log('working on global variables')
-
-    // const make_trx_layer_new = async (
-    //     base_url,
-    //     tiles_in_view, 
-    //     options, 
-    // ) => {
-
-    //     let trx_scatter_data = grab_trx_tiles_in_view(
-    //         base_url,
-    //         tiles_in_view, 
-    //         options, 
-    //     )
-
-    //     const trx_layer_new = new ScatterplotLayer({
-    //         // Re-use existing layer props
-    //         ...trx_layer.props,
-    //         data: trx_scatter_data,
-    //     });
-
-    //     return trx_layer_new
-            
-    // }
   
     const calc_viewport = async ({ height, width, zoom, target }, options) => {
 

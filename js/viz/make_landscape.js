@@ -16,6 +16,7 @@ import { get_image_dimensions } from "../image_tile/get_image_dimensions.js";
 import { make_cell_layer } from "../deck-gl/make_cell_layer.js";
 import { set_trx_names_array, trx_names_array } from '../utils/trx_names_array.js';
 
+
 console.log('testing rebuild for front-end')
 
 
@@ -25,16 +26,14 @@ export const make_landscape = async (
 
     console.log('working on global variables')
 
-    const cache_trx = new Map();
-    const cache_cell = new Map();
-    
     const grab_trx_tiles_in_view = async (tiles_in_view, options) => {
 
         const tile_trx_urls = tiles_in_view.map(tile => {
             return `${base_url}/transcript_tiles/transcripts_tile_${tile.tileX}_${tile.tileY}.parquet`;
         });
     
-        var tile_trx_tables = await fetch_all_tables(cache_trx, tile_trx_urls, options)
+        var tile_trx_tables = await fetch_all_tables('trx', tile_trx_urls, options)
+
         var trx_arrow_table = concatenate_arrow_tables(tile_trx_tables)
         var new_trx_names_array = trx_arrow_table.getChild("name").toArray();
         set_trx_names_array(new_trx_names_array)
@@ -46,17 +45,11 @@ export const make_landscape = async (
     const make_trx_layer_new = async (
         tiles_in_view, 
         options, 
-        base_url, 
-        cache_trx, 
-        trx_names_array
     ) => {
 
         let trx_scatter_data = grab_trx_tiles_in_view(
             tiles_in_view, 
             options, 
-            base_url, 
-            cache_trx, 
-            trx_names_array
         )
 
         const trx_layer_new = new ScatterplotLayer({
@@ -90,9 +83,6 @@ export const make_landscape = async (
             const trx_layer_new = await make_trx_layer_new(
                 tiles_in_view, 
                 options, 
-                base_url, 
-                cache_trx, 
-                trx_names_array
             )
 
             // cell tiles
@@ -101,7 +91,6 @@ export const make_landscape = async (
                 tiles_in_view, 
                 options, 
                 base_url, 
-                cache_cell, 
                 polygon_layer
             )
 

@@ -4,7 +4,6 @@ import * as mathGl from 'math.gl';
 import { visibleTiles } from "../vector_tile/visibleTiles.js";
 import { get_scatter_data } from "../read_parquet/get_scatter_data.js";
 import { debounce } from "../utils/debounce.js";
-// import { hexToRgb } from "../utils/hexToRgb.js";
 import { get_arrow_table } from "../read_parquet/get_arrow_table.js";
 import { create_get_tile_data } from "../deck-gl/create_get_tile_data.js";
 import { create_render_tile_sublayers } from "../deck-gl/create_render_tile_sublayer.js";
@@ -19,6 +18,7 @@ import { make_tooltip } from '../deck-gl/make_tooltip.js';
 import { landscape_parameters, set_landscape_parameters } from '../global_variables/landscape_parameters.js';
 import { dimensions, set_dimensions } from '../global_variables/image_dimensions.js';
 import { color_dict, set_color_dict } from '../global_variables/color_dict.js';
+import { trx_data } from '../vector_tile/transcripts/trx_data.js';
 
 console.log('testing rebuild for front-end')
 
@@ -139,34 +139,11 @@ export const landscape = async (
 
     var cell_scatter_data = get_scatter_data(cell_arrow_table)
 
-    // const meta_gene_url = base_url + `/gene_metadata.parquet`;
-    // var meta_gene = await get_arrow_table(meta_gene_url, options.fetch)
-
-    // let geneNames = [];
-    // let colors = [];
-
-    // const geneNameColumn = meta_gene.getChild('__index_level_0__');
-    // const colorColumn = meta_gene.getChild('color');
-
-    // if (geneNameColumn && colorColumn) {
-    //     geneNames = geneNameColumn.toArray();
-    //     colors = colorColumn.toArray();
-    // }
-
-    // let color_dict = {};
-
-    // geneNames.forEach((geneName, index) => {
-    //     color_dict[geneName] = hexToRgb(colors[index]);
-    // });
-
     await set_color_dict(base_url)
 
     set_cell_names_array(cell_arrow_table)
 
     const cell_layer = make_cell_layer(cell_scatter_data, cell_names_array)
-
-    // mutable transcript data is initialized as an empty array
-    var trx_data = []
 
     const trx_layer = new ScatterplotLayer({
         id: 'trx-layer',

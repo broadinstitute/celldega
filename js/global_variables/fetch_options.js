@@ -1,4 +1,4 @@
-export var options = {}
+export let options = {}
 
 export const set_options = (token) => {
     options = {

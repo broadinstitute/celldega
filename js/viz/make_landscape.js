@@ -17,6 +17,7 @@ import { set_options } from '../global_variables/fetch_options.js';
 import { make_trx_layer_new } from '../deck-gl/make_trx_layer_new.js';
 import { cell_names_array, set_cell_names_array } from '../global_variables/cell_names_array.js';   
 import { make_tooltip } from '../deck-gl/make_tooltip.js';
+import { landscape_parameters, set_landscape_parameters } from '../global_variables/landscape_parameters.js';
 
 console.log('testing rebuild for front-end')
 
@@ -26,7 +27,6 @@ export const make_landscape = async (
 ) => {
 
     console.log('moved tooltip')
-  
     const calc_viewport = async ({ height, width, zoom, target }) => {
 
         const zoomFactor = Math.pow(2, zoom);
@@ -79,18 +79,7 @@ export const make_landscape = async (
 
     const dimensions = await get_image_dimensions(base_url, image_name, options)
 
-    const get_landscape_parameters = async (base_url) => {
-
-        const landscape_parameters_url = base_url + '/landscape_parameters.json'
-        const response = await fetch(landscape_parameters_url, options.fetch)
-        const landscape_parameters = await response.json()
-
-        return landscape_parameters
-    }
-
-    const landscape_parameters = await get_landscape_parameters(base_url)
-
-    console.log('landscape_parameters', landscape_parameters)   
+    await set_landscape_parameters(base_url)
 
     const max_pyramid_zoom = landscape_parameters.max_pyramid_zoom
 

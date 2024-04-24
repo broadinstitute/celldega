@@ -44,8 +44,7 @@ export const landscape = async (
             await update_path_layer(base_url, tiles_in_view)
 
             new_layers = [
-                tile_layer_1, 
-                tile_layer_2, 
+                ...tile_layers, 
                 path_layer, 
                 cell_layer, 
                 trx_layer]
@@ -54,7 +53,7 @@ export const landscape = async (
 
         } else {
 
-            new_layers = [tile_layer_1, tile_layer_2, cell_layer]
+            new_layers = [...tile_layers, cell_layer]
             update_layers(new_layers)
 
         }
@@ -72,24 +71,57 @@ export const landscape = async (
 
     const max_pyramid_zoom = landscape_parameters.max_pyramid_zoom
 
-    const image_name_1 = 'dapi'
-    const color_1 = [0, 255, 0]
-    const tile_layer_1 = new TileLayer({
-        id: 'tile_layer_1',
-        tileSize: dimensions.tileSize,
-        refinementStrategy: 'no-overlap',
-        minZoom: -7,
-        maxZoom: 0,
-        maxCacheSize: 20, // 5
-        extent: [0, 0, dimensions.width, dimensions.height],
-        getTileData: create_get_tile_data(base_url, image_name_1, max_pyramid_zoom, options),
-        renderSubLayers: create_render_tile_sublayers(dimensions, color_1)
-    });    
+    const image_info = [
+        { 
+            name: 'dapi', 
+            color: [0, 255, 0]
+        },
+        {   
+            name: 'cellbound', 
+            color: [255, 0, 0]
+        }
+    ]
+
+    const make_image_layer = (info) => {
+        const image_name = info.name
+        const color = info.color
+        const tile_layer = new TileLayer({
+            id: info.name,
+            tileSize: dimensions.tileSize,
+            refinementStrategy: 'no-overlap',
+            minZoom: -7,
+            maxZoom: 0,
+            maxCacheSize: 20,
+            extent: [0, 0, dimensions.width, dimensions.height],
+            getTileData: create_get_tile_data(base_url, info.name, max_pyramid_zoom, options),
+            renderSubLayers: create_render_tile_sublayers(dimensions, info.color)
+        }); 
+        return tile_layer
+    }
+
+    // const tile_layer_1 = make_image_layer(image_info[0])
+
+    const tile_layers = image_info.map(make_image_layer);
+
+
+    // const image_name_1 = 'dapi'
+    // const color_1 = [0, 255, 0]
+    // const tile_layer_1 = new TileLayer({
+    //     id: image_name_1,
+    //     tileSize: dimensions.tileSize,
+    //     refinementStrategy: 'no-overlap',
+    //     minZoom: -7,
+    //     maxZoom: 0,
+    //     maxCacheSize: 20, // 5
+    //     extent: [0, 0, dimensions.width, dimensions.height],
+    //     getTileData: create_get_tile_data(base_url, image_name_1, max_pyramid_zoom, options),
+    //     renderSubLayers: create_render_tile_sublayers(dimensions, color_1)
+    // });    
 
     const image_name_2 = 'cellbound' 
     const color_2 = [255, 0, 0]
     const tile_layer_2 = new TileLayer({
-        id: 'tile_layer_2',
+        id: image_name_2,
         tileSize: dimensions.tileSize,
         refinementStrategy: 'no-overlap',
         minZoom: -7,
@@ -114,7 +146,8 @@ export const landscape = async (
 
     const cell_layer = make_cell_layer(cell_scatter_data, cell_names_array)
 
-    update_layers([tile_layer_1, tile_layer_2, cell_layer])
+    // update_layers([tile_layer_1, tile_layer_2, cell_layer])
+    update_layers([...tile_layers, cell_layer])
 
     const initial_view_state = {
         target: [ini_x, ini_y, 0], 

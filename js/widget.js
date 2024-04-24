@@ -1,5 +1,5 @@
 import "./widget.css";
-import { make_landscape } from "./viz/make_landscape";
+import { landscape } from "./viz/landscape";
 
 export const render_landscape = async ({ model, el }) => {
 
@@ -16,7 +16,7 @@ export const render_landscape = async ({ model, el }) => {
     root.style.height = "800px";
     el.appendChild(root);
 
-    return make_landscape(
+    return landscape(
         token, 
         ini_x, 
         ini_y, 
@@ -66,4 +66,4 @@ export const render_toy = ({ model, el }) => {
 };
   
 
-export default { render, make_landscape };
+export default { render, landscape };

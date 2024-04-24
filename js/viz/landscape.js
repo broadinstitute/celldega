@@ -23,7 +23,7 @@ import { dimensions, set_dimensions } from '../global_variables/image_dimensions
 console.log('testing rebuild for front-end')
 
 
-export const make_landscape = async (
+export const landscape = async (
     token, ini_x, ini_y, ini_zoom, bounce_time, base_url, root
 ) => {
 

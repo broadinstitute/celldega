@@ -20,6 +20,6 @@ export const getTrxCache = (url) => {
     return item;
 }
 
-export const clearTrxCache = () => {
+export const clearTrxCache = () =>  {
     cache_trx.clear();
 }

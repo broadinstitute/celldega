@@ -10,7 +10,7 @@ import { create_get_tile_data } from "../deck-gl/create_get_tile_data.js";
 import { create_render_tile_sublayers } from "../deck-gl/create_render_tile_sublayer.js";
 import { make_polygon_layer } from "../deck-gl/make_polygon_layer.js";
 import { make_polygon_layer_new } from "../deck-gl/make_polygon_layer_new.js";
-import { get_image_dimensions } from "../image_tile/get_image_dimensions.js";
+// import { get_image_dimensions } from "../image_tile/get_image_dimensions.js";
 import { make_cell_layer } from "../deck-gl/make_cell_layer.js";
 import { trx_names_array } from '../global_variables/trx_names_array.js';
 import { set_options } from '../global_variables/fetch_options.js';
@@ -18,6 +18,7 @@ import { make_trx_layer_new } from '../deck-gl/make_trx_layer_new.js';
 import { cell_names_array, set_cell_names_array } from '../global_variables/cell_names_array.js';   
 import { make_tooltip } from '../deck-gl/make_tooltip.js';
 import { landscape_parameters, set_landscape_parameters } from '../global_variables/landscape_parameters.js';
+import { dimensions, set_dimensions } from '../global_variables/image_dimensions.js';
 
 console.log('testing rebuild for front-end')
 
@@ -77,15 +78,17 @@ export const make_landscape = async (
 
     const image_name = 'cellbound' 
 
-    const dimensions = await get_image_dimensions(base_url, image_name, options)
+    const imgage_name_for_dim = 'dapi'
+
+    // const dimensions = await get_image_dimensions(base_url, imgage_name_for_dim, options)
+    await set_dimensions(base_url, imgage_name_for_dim )
 
     await set_landscape_parameters(base_url)
 
     const max_pyramid_zoom = landscape_parameters.max_pyramid_zoom
 
-    console.log('here!!!!!!!!!!!!!!!!!!!!!!!')
-
     const tile_layer = new TileLayer({
+        id: 'tile_layer',
         tileSize: dimensions.tileSize,
         refinementStrategy: 'no-overlap',
         minZoom: -7,

@@ -1,6 +1,5 @@
 import { Deck, TileLayer, BitmapLayer, OrthographicView } from 'deck.gl';
 import * as mathGl from 'math.gl';
-
 import { visibleTiles } from "../vector_tile/visibleTiles.js";
 import { get_scatter_data } from "../read_parquet/get_scatter_data.js";
 import { debounce } from "../utils/debounce.js";
@@ -16,17 +15,16 @@ import { make_tooltip } from '../deck-gl/make_tooltip.js';
 import { landscape_parameters, set_landscape_parameters } from '../global_variables/landscape_parameters.js';
 import { dimensions, set_dimensions } from '../global_variables/image_dimensions.js';
 import { set_color_dict } from '../global_variables/color_dict.js';
-
-
-console.log('testing rebuild for front-end')
-
+import { layers, update_layers } from '../deck-gl/layers.js';
+// import { calc_viewport } from '../deck-gl/calc_viewport.js';
 
 export const landscape = async (
     token, ini_x, ini_y, ini_zoom, bounce_time, base_url, root
 ) => {
 
-    console.log('moved tooltip')
     const calc_viewport = async ({ height, width, zoom, target }) => {
+
+        let new_layers = []
 
         const zoomFactor = Math.pow(2, zoom);
         const [targetX, targetY] = target;
@@ -40,56 +38,56 @@ export const landscape = async (
 
         const tiles_in_view = visibleTiles(minX, maxX, minY, maxY, tileSize);
 
-        var num_tiles_to_viz = tiles_in_view.length
-
-        if (num_tiles_to_viz < max_tiles_to_view) {
+        if (tiles_in_view.length < max_tiles_to_view) {
 
             await update_trx_layer(base_url, tiles_in_view)
             await update_path_layer(base_url, tiles_in_view)
 
-            deck.setProps({
-                layers: [
-                    tile_layer_2, 
-                    tile_layer, 
-                    path_layer, 
-                    cell_layer, 
-                    trx_layer]
-            });
+            new_layers = [
+                tile_layer_1, 
+                tile_layer_2, 
+                path_layer, 
+                cell_layer, 
+                trx_layer]
+
+            update_layers(new_layers)            
 
         } else {
-            deck.setProps({
-                layers: [tile_layer_2, tile_layer, cell_layer]
-            });
+
+            new_layers = [tile_layer_1, tile_layer_2, cell_layer]
+            update_layers(new_layers)
+
         }
-    };
+
+        deck.setProps({layers});
+    }
 
     var options = set_options(token)
 
-    const image_name = 'cellbound' 
 
     const imgage_name_for_dim = 'dapi'
 
-    // const dimensions = await get_image_dimensions(base_url, imgage_name_for_dim, options)
     await set_dimensions(base_url, imgage_name_for_dim )
-
     await set_landscape_parameters(base_url)
 
     const max_pyramid_zoom = landscape_parameters.max_pyramid_zoom
 
-    const tile_layer = new TileLayer({
-        id: 'tile_layer',
+    const image_name_1 = 'dapi'
+    const color_1 = [0, 255, 0]
+    const tile_layer_1 = new TileLayer({
+        id: 'tile_layer_1',
         tileSize: dimensions.tileSize,
         refinementStrategy: 'no-overlap',
         minZoom: -7,
         maxZoom: 0,
         maxCacheSize: 20, // 5
         extent: [0, 0, dimensions.width, dimensions.height],
-        getTileData: create_get_tile_data(base_url, image_name, max_pyramid_zoom, options),
-        renderSubLayers: create_render_tile_sublayers(dimensions)
-    });
+        getTileData: create_get_tile_data(base_url, image_name_1, max_pyramid_zoom, options),
+        renderSubLayers: create_render_tile_sublayers(dimensions, color_1)
+    });    
 
-    const image_name_2 = 'dapi'
-
+    const image_name_2 = 'cellbound' 
+    const color_2 = [255, 0, 0]
     const tile_layer_2 = new TileLayer({
         id: 'tile_layer_2',
         tileSize: dimensions.tileSize,
@@ -99,29 +97,11 @@ export const landscape = async (
         maxCacheSize: 20, // 5
         extent: [0, 0, dimensions.width, dimensions.height],
         getTileData: create_get_tile_data(base_url, image_name_2, max_pyramid_zoom, options),
-        renderSubLayers: props => {
-            const {
-                bbox: {left, bottom, right, top}
-            } = props.tile;
-            const {width, height} = dimensions;
-
-            return new BitmapLayer(props, {
-                data: null,
-                image: props.data,
-                bounds: [
-                    mathGl.clamp(left, 0, width),
-                    mathGl.clamp(bottom, 0, height),
-                    mathGl.clamp(right, 0, width),
-                    mathGl.clamp(top, 0, height)
-                ]
-            });
-        },
+        renderSubLayers: create_render_tile_sublayers(dimensions, color_2)
     });
 
     const tileSize = 1000;
     const max_tiles_to_view = 15
-
-    const debounced_calc_viewport = debounce(calc_viewport, bounce_time);
 
     const cell_url = base_url + `/cell_metadata.parquet`;
     var cell_arrow_table = await get_arrow_table(cell_url, options.fetch)
@@ -134,22 +114,32 @@ export const landscape = async (
 
     const cell_layer = make_cell_layer(cell_scatter_data, cell_names_array)
 
-    // const polygon_layer = make_polygon_layer()    
+    update_layers([tile_layer_1, tile_layer_2, cell_layer])
+
+    const initial_view_state = {
+        target: [ini_x, ini_y, 0], 
+        zoom: ini_zoom
+    }
+
+    const view = new OrthographicView({id: 'ortho'})
+
+    const debounced_calc_viewport = debounce(calc_viewport, bounce_time);
+
+    const on_view_state_change = ({viewState}) => {
+        debounced_calc_viewport(viewState)
+        return viewState
+    }        
 
     let deck = new Deck({
         parent: root,
         controller: {doubleClickZoom: false},
-        initialViewState: {target: [ini_x, ini_y, 0], zoom: ini_zoom},
-        views: [new OrthographicView({id: 'ortho'})],
-        layers: [tile_layer_2, tile_layer, cell_layer],
-        onViewStateChange: ({viewState}) => {
-            debounced_calc_viewport(viewState)
-            return viewState
-        },
+        initialViewState: initial_view_state,
+        views: [view],
+        layers: layers,
+        onViewStateChange: on_view_state_change,
         getTooltip: make_tooltip,
     });    
 
     return () => deck.finalize();        
-
 
 }

@@ -44,14 +44,7 @@ export const render_toy = ({ model, el }) => {
 
   export const render = async ({ model, el }) => {
 
-    console.log('trying to make generic render function')
-    console.log(model)
     const componentType = model.get("component");
-
-    console.log('componentType', componentType)
-    // const root = document.createElement("div");
-    // root.style.height = "800px";
-    // el.appendChild(root);
 
     switch (componentType) {
         case "Landscape":

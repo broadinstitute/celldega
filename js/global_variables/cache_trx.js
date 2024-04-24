@@ -1,7 +1,7 @@
 const cache_trx = new Map();
 const MAX_CACHE_SIZE = 20;
 
-export function setTrxCache(url, data) {
+export const setTrxCache = (url, data) => {
     // Evict the least recently used (LRU) item if necessary
     if (cache_trx.size >= MAX_CACHE_SIZE) {
         const firstKey = cache_trx.keys().next().value;
@@ -10,7 +10,7 @@ export function setTrxCache(url, data) {
     cache_trx.set(url, data);
 }
 
-export function getTrxCache(url) {
+export const getTrxCache = (url) => {
     const item = cache_trx.get(url);
     if (item) {
         // Move the accessed item to the end to mark it as most recently used
@@ -20,6 +20,6 @@ export function getTrxCache(url) {
     return item;
 }
 
-export function clearTrxCache() {
+export const clearTrxCache = () => {
     cache_trx.clear();
 }

@@ -45,7 +45,6 @@ export const landscape = async (
         if (num_tiles_to_viz < max_tiles_to_view) {
 
             await update_trx_layer(base_url, tiles_in_view)
-
             await update_path_layer(base_url, tiles_in_view)
 
             deck.setProps({

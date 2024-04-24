@@ -10,7 +10,6 @@ import { create_render_tile_sublayers } from "../deck-gl/create_render_tile_subl
 import { make_polygon_layer } from "../deck-gl/make_polygon_layer.js";
 import { make_polygon_layer_new } from "../deck-gl/make_polygon_layer_new.js";
 import { make_cell_layer } from "../deck-gl/make_cell_layer.js";
-// import { trx_names_array } from '../global_variables/trx_names_array.js';
 import { set_options } from '../global_variables/fetch_options.js';
 import { trx_layer, update_trx_layer } from '../deck-gl/trx_layer.js';
 import { cell_names_array, set_cell_names_array } from '../global_variables/cell_names_array.js';   
@@ -18,7 +17,6 @@ import { make_tooltip } from '../deck-gl/make_tooltip.js';
 import { landscape_parameters, set_landscape_parameters } from '../global_variables/landscape_parameters.js';
 import { dimensions, set_dimensions } from '../global_variables/image_dimensions.js';
 import { set_color_dict } from '../global_variables/color_dict.js';
-// import { trx_data } from '../vector_tile/transcripts/trx_data.js';
 
 
 console.log('testing rebuild for front-end')
@@ -144,18 +142,6 @@ export const landscape = async (
     set_cell_names_array(cell_arrow_table)
 
     const cell_layer = make_cell_layer(cell_scatter_data, cell_names_array)
-
-    // const trx_layer = new ScatterplotLayer({
-    //     id: 'trx-layer',
-    //     data: trx_data,
-    //     getRadius: 0.5,
-    //     pickable: true,
-    //     getColor: (i, d) => {
-    //         var inst_gene = trx_names_array[d.index]
-    //         var inst_color = color_dict[inst_gene]
-    //         return [inst_color[0], inst_color[1], inst_color[2], 255]
-    //     },
-    // });       
 
     const polygon_layer = make_polygon_layer()    
 

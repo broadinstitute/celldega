@@ -1,4 +1,4 @@
-import { Deck, ScatterplotLayer, TileLayer, BitmapLayer, OrthographicView } from 'deck.gl';
+import { Deck, TileLayer, BitmapLayer, OrthographicView } from 'deck.gl';
 import * as mathGl from 'math.gl';
 
 import { visibleTiles } from "../vector_tile/visibleTiles.js";
@@ -10,15 +10,16 @@ import { create_render_tile_sublayers } from "../deck-gl/create_render_tile_subl
 import { make_polygon_layer } from "../deck-gl/make_polygon_layer.js";
 import { make_polygon_layer_new } from "../deck-gl/make_polygon_layer_new.js";
 import { make_cell_layer } from "../deck-gl/make_cell_layer.js";
-import { trx_names_array } from '../global_variables/trx_names_array.js';
+// import { trx_names_array } from '../global_variables/trx_names_array.js';
 import { set_options } from '../global_variables/fetch_options.js';
-import { make_trx_layer_new } from '../deck-gl/make_trx_layer_new.js';
+import { trx_layer, update_trx_layer } from '../deck-gl/trx_layer.js';
 import { cell_names_array, set_cell_names_array } from '../global_variables/cell_names_array.js';   
 import { make_tooltip } from '../deck-gl/make_tooltip.js';
 import { landscape_parameters, set_landscape_parameters } from '../global_variables/landscape_parameters.js';
 import { dimensions, set_dimensions } from '../global_variables/image_dimensions.js';
-import { color_dict, set_color_dict } from '../global_variables/color_dict.js';
-import { trx_data } from '../vector_tile/transcripts/trx_data.js';
+import { set_color_dict } from '../global_variables/color_dict.js';
+// import { trx_data } from '../vector_tile/transcripts/trx_data.js';
+
 
 console.log('testing rebuild for front-end')
 
@@ -46,10 +47,9 @@ export const landscape = async (
 
         if (num_tiles_to_viz < max_tiles_to_view) {
 
-            const trx_layer_new = await make_trx_layer_new(
+            await update_trx_layer(
                 base_url,
                 tiles_in_view, 
-                trx_layer
             )
 
             const polygon_layer_new = await make_polygon_layer_new(
@@ -64,7 +64,7 @@ export const landscape = async (
                     tile_layer, 
                     polygon_layer_new, 
                     cell_layer, 
-                    trx_layer_new]
+                    trx_layer]
             });
 
         } else {
@@ -145,17 +145,17 @@ export const landscape = async (
 
     const cell_layer = make_cell_layer(cell_scatter_data, cell_names_array)
 
-    const trx_layer = new ScatterplotLayer({
-        id: 'trx-layer',
-        data: trx_data,
-        getRadius: 0.5,
-        pickable: true,
-        getColor: (i, d) => {
-            var inst_gene = trx_names_array[d.index]
-            var inst_color = color_dict[inst_gene]
-            return [inst_color[0], inst_color[1], inst_color[2], 255]
-        },
-    });       
+    // const trx_layer = new ScatterplotLayer({
+    //     id: 'trx-layer',
+    //     data: trx_data,
+    //     getRadius: 0.5,
+    //     pickable: true,
+    //     getColor: (i, d) => {
+    //         var inst_gene = trx_names_array[d.index]
+    //         var inst_color = color_dict[inst_gene]
+    //         return [inst_color[0], inst_color[1], inst_color[2], 255]
+    //     },
+    // });       
 
     const polygon_layer = make_polygon_layer()    
 

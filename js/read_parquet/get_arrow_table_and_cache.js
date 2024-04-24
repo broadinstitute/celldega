@@ -2,10 +2,9 @@ import { arrayBufferToArrowTable } from "./arrayBufferToArrowTable.js";
 import { getTrxCache, setTrxCache } from '../global_variables/cache_trx.js';
 import { getCellCache, setCellCache } from '../global_variables/cache_cell.js';
 
-export async function get_arrow_table_and_cache(cacheType, url, options) {
+export const get_arrow_table_and_cache = async (cacheType, url, options) => {
 
     let data;
-    // let cache = cacheType === 'trx' ? { get: getTrxCache, set: setTrxCache } : { get: getCellCache, set: setCellCache };
 
     let cache;
     if (cacheType === 'trx') {

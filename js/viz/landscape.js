@@ -7,8 +7,7 @@ import { debounce } from "../utils/debounce.js";
 import { get_arrow_table } from "../read_parquet/get_arrow_table.js";
 import { create_get_tile_data } from "../deck-gl/create_get_tile_data.js";
 import { create_render_tile_sublayers } from "../deck-gl/create_render_tile_sublayer.js";
-import { make_polygon_layer } from "../deck-gl/make_polygon_layer.js";
-import { make_polygon_layer_new } from "../deck-gl/make_polygon_layer_new.js";
+import { path_layer, update_path_layer } from "../deck-gl/path_layer.js";
 import { make_cell_layer } from "../deck-gl/make_cell_layer.js";
 import { set_options } from '../global_variables/fetch_options.js';
 import { trx_layer, update_trx_layer } from '../deck-gl/trx_layer.js';
@@ -45,22 +44,15 @@ export const landscape = async (
 
         if (num_tiles_to_viz < max_tiles_to_view) {
 
-            await update_trx_layer(
-                base_url,
-                tiles_in_view, 
-            )
+            await update_trx_layer(base_url, tiles_in_view)
 
-            const polygon_layer_new = await make_polygon_layer_new(
-                base_url, 
-                tiles_in_view, 
-                polygon_layer
-            )
+            await update_path_layer(base_url, tiles_in_view)
 
             deck.setProps({
                 layers: [
                     tile_layer_2, 
                     tile_layer, 
-                    polygon_layer_new, 
+                    path_layer, 
                     cell_layer, 
                     trx_layer]
             });
@@ -143,7 +135,7 @@ export const landscape = async (
 
     const cell_layer = make_cell_layer(cell_scatter_data, cell_names_array)
 
-    const polygon_layer = make_polygon_layer()    
+    // const polygon_layer = make_polygon_layer()    
 
     let deck = new Deck({
         parent: root,

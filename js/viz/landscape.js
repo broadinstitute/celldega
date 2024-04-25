@@ -1,11 +1,8 @@
-import { Deck, OrthographicView } from 'deck.gl';
-// import * as mathGl from 'math.gl';
+import { Deck } from 'deck.gl';
 import { visibleTiles } from "../vector_tile/visibleTiles.js";
 import { get_scatter_data } from "../read_parquet/get_scatter_data.js";
 import { debounce } from "../utils/debounce.js";
 import { get_arrow_table } from "../read_parquet/get_arrow_table.js";
-// import { create_get_tile_data } from "../deck-gl/create_get_tile_data.js";
-// import { create_render_tile_sublayers } from "../deck-gl/create_render_tile_sublayer.js";
 import { path_layer, update_path_layer } from "../deck-gl/path_layer.js";
 import { make_cell_layer } from "../deck-gl/make_cell_layer.js";
 import { set_options } from '../global_variables/fetch_options.js';
@@ -18,6 +15,7 @@ import { set_color_dict } from '../global_variables/color_dict.js';
 import { layers, update_layers } from '../deck-gl/layers.js';
 import { image_layers, update_image_layers } from '../deck-gl/image_layers.js';
 import { set_global_base_url } from '../global_variables/global_base_url.js';
+import { view, update_view } from '../deck-gl/view.js';
 
 // import { calc_viewport } from '../deck-gl/calc_viewport.js';
 
@@ -74,8 +72,6 @@ export const landscape = async (
     await set_dimensions(base_url, imgage_name_for_dim )
     await set_landscape_parameters(base_url)
 
-    // const max_pyramid_zoom = landscape_parameters.max_pyramid_zoom
-
     const image_info = [
         { 
             name: 'dapi', 
@@ -87,29 +83,7 @@ export const landscape = async (
         }
     ]
 
-    // const make_image_layer = (info) => {
-
-    //     const image_name = info.name
-    //     const color = info.color
-    //     const image_layer = new TileLayer({
-    //         id: info.name,
-    //         tileSize: dimensions.tileSize,
-    //         refinementStrategy: 'no-overlap',
-    //         minZoom: -7,
-    //         maxZoom: 0,
-    //         maxCacheSize: 20,
-    //         extent: [0, 0, dimensions.width, dimensions.height],
-    //         getTileData: create_get_tile_data(base_url, info.name, max_pyramid_zoom, options),
-    //         renderSubLayers: create_render_tile_sublayers(dimensions, info.color)
-    //     }); 
-    //     return image_layer
-    // }
-
-    // const image_layers = image_info.map(make_image_layer);
-
     update_image_layers(base_url, image_info)
-
-    console.log(image_layers)
 
     const tileSize = 1000;
     const max_tiles_to_view = 15
@@ -132,7 +106,9 @@ export const landscape = async (
         zoom: ini_zoom
     }
 
-    const view = new OrthographicView({id: 'ortho'})
+    // const view = new OrthographicView({id: 'ortho'})
+
+    update_view()
 
     const debounced_calc_viewport = debounce(calc_viewport, bounce_time);
 

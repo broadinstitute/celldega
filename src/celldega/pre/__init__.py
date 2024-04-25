@@ -189,11 +189,12 @@ def make_trx_tiles(
         path_trx, 
         path_transformation_matrix, 
         path_trx_tiles, 
-        tile_size_x=1000,
-        tile_size_y=1000,
+        tile_size=1000,
         chunk_size = 1000000
     ):
 
+    tile_size_x = tile_size
+    tile_size_y = tile_size
 
     transformation_matrix = pd.read_csv(path_transformation_matrix, header=None, sep=' ').values
 
@@ -300,11 +301,14 @@ def make_cell_boundary_tiles(
         path_meta_cell_micron, 
         path_transformation_matrix, 
         path_output,
-        tile_size_x=1000,
-        tile_size_y=1000
+        tile_size=1000,
     ):
     """
     """
+
+    tile_size_x = tile_size
+    tile_size_y = tile_size
+
     transformation_matrix = pd.read_csv(path_transformation_matrix, header=None, sep=' ').values
 
     if technology == 'MERSCOPE':

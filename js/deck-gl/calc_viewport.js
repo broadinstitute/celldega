@@ -6,13 +6,17 @@ import { cell_layer } from './cell_layer.js'
 import { path_layer, update_path_layer } from './path_layer.js'
 import { trx_layer, update_trx_layer } from './trx_layer.js'
 import { layers, update_layers } from './layers.js'
+import { landscape_parameters } from '../global_variables/landscape_parameters.js'
 
 export const calc_viewport = async ({ height, width, zoom, target }) => {
 
     // console.log('calc_viewport')
 
-    const tile_size = 1000;
-    const max_tiles_to_view = 15
+    // const tile_size = 1000;
+
+    const tile_size = landscape_parameters.tile_size
+
+    const max_tiles_to_view = 50 // 15
 
     let new_layers = []
 
@@ -29,6 +33,8 @@ export const calc_viewport = async ({ height, width, zoom, target }) => {
     const tiles_in_view = visibleTiles(minX, maxX, minY, maxY, tile_size);
 
     if (tiles_in_view.length < max_tiles_to_view) {
+
+        console.log('number_of_tiles', tiles_in_view.length)
 
         await update_trx_layer(global_base_url, tiles_in_view)
         await update_path_layer(global_base_url, tiles_in_view)

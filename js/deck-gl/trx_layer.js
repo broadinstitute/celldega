@@ -6,7 +6,7 @@ import { trx_names_array } from '../global_variables/trx_names_array';
 export let trx_layer = new ScatterplotLayer({
     id: 'trx-layer',
     data: trx_data,
-    getRadius: 0.5,
+    getRadius: 0.2,// 0.5,
     pickable: true,
     getColor: (i, d) => {
         var inst_gene = trx_names_array[d.index]

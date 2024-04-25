@@ -188,7 +188,10 @@ def make_trx_tiles(
         technology,
         path_trx, 
         path_transformation_matrix, 
-        path_trx_tiles
+        path_trx_tiles, 
+        tile_size_x=1000,
+        tile_size_y=1000,
+        chunk_size = 1000000
     ):
 
 
@@ -213,10 +216,6 @@ def make_trx_tiles(
         trx_ini.columns = [x.replace('_location','') for x in trx_ini.columns.tolist()]
         trx_ini.rename(columns={'feature_name':'name'}, inplace=True)
         
-
-
-    chunk_size = 1000000
-
     trx = pd.DataFrame()  # Initialize empty DataFrame for results
 
     for start_row in range(0, trx_ini.shape[0], chunk_size):
@@ -236,8 +235,6 @@ def make_trx_tiles(
     if not os.path.exists(path_trx_tiles):
         os.mkdir(path_trx_tiles)
 
-    tile_size_x = 1000
-    tile_size_y = 1000
 
     x_min = 0
     x_max = trx['x'].max()
@@ -302,7 +299,9 @@ def make_cell_boundary_tiles(
         path_cell_boundaries, 
         path_meta_cell_micron, 
         path_transformation_matrix, 
-        path_output
+        path_output,
+        tile_size_x=1000,
+        tile_size_y=1000
     ):
     """
     """
@@ -362,9 +361,6 @@ def make_cell_boundary_tiles(
 
     if not os.path.exists(path_output):
         os.mkdir(path_output)
-
-    tile_size_x = 1000
-    tile_size_y = 1000
 
     # hardwired from previvous transcript calculation
     x_min = 0
@@ -478,7 +474,12 @@ def get_max_zoom_level(path_image_pyramid):
     return max_pyramid_zoom
 
 
-def save_landscape_parameters(technology, path_landscape_files, image_name='dapi_files'):
+def save_landscape_parameters(
+        technology, 
+        path_landscape_files, 
+        image_name='dapi_files',
+        tile_size=1000
+    ):
 
     path_image_pyramid = path_landscape_files + 'pyramid_images/' +  image_name + '/' 
 
@@ -488,7 +489,8 @@ def save_landscape_parameters(technology, path_landscape_files, image_name='dapi
 
     landscape_parameters = {
         'technology': technology,
-        'max_pyramid_zoom': max_pyramid_zoom
+        'max_pyramid_zoom': max_pyramid_zoom,
+        'tile_size': tile_size
     }
 
     path_landscape_parameters = path_landscape_files + 'landscape_parameters.json'

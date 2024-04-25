@@ -43,7 +43,6 @@ class Landscape(anywidget.AnyWidget):
     ini_y = traitlets.Float(3200).tag(sync=True)
     ini_z = traitlets.Float(0).tag(sync=True)
     ini_zoom = traitlets.Float(0).tag(sync=True)
-    bounce_time = traitlets.Int(200).tag(sync=True)
     token_traitlet = traitlets.Unicode('token').tag(sync=True)
     base_url = traitlets.Unicode('').tag(sync=True)    
 

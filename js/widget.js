@@ -8,8 +8,6 @@ export const render_landscape = async ({ model, el }) => {
     const ini_y = model.get('ini_y');    
     const ini_z = model.get('ini_z');    
     const ini_zoom = model.get('ini_zoom');
-    // const max_image_zoom = model.get('max_image_zoom')
-    const bounce_time = model.get('bounce_time')    
     const base_url = model.get('base_url')
 
     // Create and append the visualization.
@@ -23,8 +21,6 @@ export const render_landscape = async ({ model, el }) => {
         ini_y, 
         ini_z,
         ini_zoom, 
-        // max_image_zoom, 
-        bounce_time, 
         base_url, 
         root
     )

@@ -3,7 +3,6 @@ import { set_global_base_url } from '../global_variables/global_base_url.js';
 import { set_landscape_parameters } from '../global_variables/landscape_parameters.js';
 import { set_dimensions } from '../global_variables/image_dimensions.js';
 import { set_initial_view_state } from '../deck-gl/initial_view_state.js';
-import { set_bounce_time } from '../global_variables/bounce_time.js';
 import { cell_layer, update_cell_layer } from "../deck-gl/cell_layer.js";
 import { update_layers } from '../deck-gl/layers.js';
 import { image_layers, update_image_layers } from '../deck-gl/image_layers.js';
@@ -16,7 +15,6 @@ export const landscape = async (
     ini_y, 
     ini_z, 
     ini_zoom, 
-    local_bounce_time, 
     base_url, 
     root
 ) => {
@@ -36,7 +34,7 @@ export const landscape = async (
 
     // set global variables
     set_global_base_url(base_url)
-    set_bounce_time(local_bounce_time)
+    
     set_options(token)
     set_initial_view_state(ini_x, ini_y, ini_z, ini_zoom)
     await set_dimensions(base_url, imgage_name_for_dim )

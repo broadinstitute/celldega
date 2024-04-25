@@ -9,6 +9,8 @@ import { layers, update_layers } from './layers.js'
 
 export const calc_viewport = async ({ height, width, zoom, target }) => {
 
+    // console.log('calc_viewport')
+
     const tile_size = 1000;
     const max_tiles_to_view = 15
 

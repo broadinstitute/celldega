@@ -14,7 +14,9 @@ import { set_global_base_url } from '../global_variables/global_base_url.js';
 import { views, update_views } from '../deck-gl/views.js';
 import { initial_view_state, set_initial_view_state } from '../deck-gl/initial_view_state.js';
 
-// import { calc_viewport } from '../deck-gl/calc_viewport.js';
+import { deck, set_deck } from '../deck-gl/deck.js';
+
+import { calc_viewport } from '../deck-gl/calc_viewport.js';
 
 export const landscape = async (
     token, ini_x, ini_y, ini_z, ini_zoom, bounce_time, base_url, root
@@ -100,15 +102,17 @@ export const landscape = async (
 
     set_initial_view_state(ini_x, ini_y, ini_z, ini_zoom)
 
-    let deck = new Deck({
-        parent: root,
-        controller: {doubleClickZoom: false},
-        initialViewState: initial_view_state,
-        views: views,
-        layers: layers,
-        onViewStateChange: on_view_state_change,
-        getTooltip: make_tooltip,
-    });    
+    // let deck = new Deck({
+    //     parent: root,
+    //     controller: {doubleClickZoom: false},
+    //     initialViewState: initial_view_state,
+    //     views: views,
+    //     layers: layers,
+    //     onViewStateChange: on_view_state_change,
+    //     getTooltip: make_tooltip,
+    // });    
+
+    set_deck(root, on_view_state_change)
 
     return () => deck.finalize();        
 

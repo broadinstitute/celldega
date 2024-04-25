@@ -26,7 +26,7 @@ const make_image_layer = (info) => {
     return image_layer
 }
 
-export const update_image_layers = (global_base_url, image_info) => {
+export const update_image_layers = async (global_base_url, image_info) => {
     console.log('update image_layers', global_base_url) 
     image_layers = image_info.map(make_image_layer);
 }

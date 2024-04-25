@@ -1,18 +1,17 @@
 import { Deck } from 'deck.gl';
 import { visibleTiles } from "../vector_tile/visibleTiles.js";
-import { get_scatter_data } from "../read_parquet/get_scatter_data.js";
+// import { get_scatter_data } from "../read_parquet/get_scatter_data.js";
 import { debounce } from "../utils/debounce.js";
-import { get_arrow_table } from "../read_parquet/get_arrow_table.js";
+// import { get_arrow_table } from "../read_parquet/get_arrow_table.js";
 import { path_layer, update_path_layer } from "../deck-gl/path_layer.js";
-// import { make_cell_layer } from "../deck-gl/cell_layer.js";
 import { cell_layer, update_cell_layer } from "../deck-gl/cell_layer.js";
 import { set_options } from '../global_variables/fetch_options.js';
 import { trx_layer, update_trx_layer } from '../deck-gl/trx_layer.js';
-import { cell_names_array, set_cell_names_array } from '../global_variables/cell_names_array.js';   
+// import { cell_names_array, set_cell_names_array } from '../global_variables/cell_names_array.js'
 import { make_tooltip } from '../deck-gl/make_tooltip.js';
 import { set_landscape_parameters } from '../global_variables/landscape_parameters.js';
 import { set_dimensions } from '../global_variables/image_dimensions.js';
-import { set_color_dict } from '../global_variables/color_dict.js';
+// import { set_color_dict } from '../global_variables/color_dict.js';
 import { layers, update_layers } from '../deck-gl/layers.js';
 import { image_layers, update_image_layers } from '../deck-gl/image_layers.js';
 import { set_global_base_url } from '../global_variables/global_base_url.js';
@@ -84,23 +83,12 @@ export const landscape = async (
         }
     ]
 
-    update_image_layers(base_url, image_info)
+    await update_image_layers(base_url, image_info)
 
     const tileSize = 1000;
     const max_tiles_to_view = 15
 
-    const cell_url = base_url + `/cell_metadata.parquet`;
-    var cell_arrow_table = await get_arrow_table(cell_url, options.fetch)
-
-    var cell_scatter_data = get_scatter_data(cell_arrow_table)
-
-    await set_color_dict(base_url)
-
-    set_cell_names_array(cell_arrow_table)
-
-    // const cell_layer = make_cell_layer(cell_scatter_data, cell_names_array)
-
-    update_cell_layer(cell_scatter_data, cell_names_array)
+    await update_cell_layer(base_url)
 
     update_layers([...image_layers, cell_layer])
 

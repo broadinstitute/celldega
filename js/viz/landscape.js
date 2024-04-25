@@ -4,7 +4,8 @@ import { get_scatter_data } from "../read_parquet/get_scatter_data.js";
 import { debounce } from "../utils/debounce.js";
 import { get_arrow_table } from "../read_parquet/get_arrow_table.js";
 import { path_layer, update_path_layer } from "../deck-gl/path_layer.js";
-import { make_cell_layer } from "../deck-gl/make_cell_layer.js";
+// import { make_cell_layer } from "../deck-gl/cell_layer.js";
+import { cell_layer, update_cell_layer } from "../deck-gl/cell_layer.js";
 import { set_options } from '../global_variables/fetch_options.js';
 import { trx_layer, update_trx_layer } from '../deck-gl/trx_layer.js';
 import { cell_names_array, set_cell_names_array } from '../global_variables/cell_names_array.js';   
@@ -15,7 +16,7 @@ import { set_color_dict } from '../global_variables/color_dict.js';
 import { layers, update_layers } from '../deck-gl/layers.js';
 import { image_layers, update_image_layers } from '../deck-gl/image_layers.js';
 import { set_global_base_url } from '../global_variables/global_base_url.js';
-import { view, update_view } from '../deck-gl/view.js';
+import { views, update_views } from '../deck-gl/views.js';
 
 // import { calc_viewport } from '../deck-gl/calc_viewport.js';
 
@@ -97,7 +98,9 @@ export const landscape = async (
 
     set_cell_names_array(cell_arrow_table)
 
-    const cell_layer = make_cell_layer(cell_scatter_data, cell_names_array)
+    // const cell_layer = make_cell_layer(cell_scatter_data, cell_names_array)
+
+    update_cell_layer(cell_scatter_data, cell_names_array)
 
     update_layers([...image_layers, cell_layer])
 
@@ -106,9 +109,7 @@ export const landscape = async (
         zoom: ini_zoom
     }
 
-    // const view = new OrthographicView({id: 'ortho'})
-
-    update_view()
+    update_views()
 
     const debounced_calc_viewport = debounce(calc_viewport, bounce_time);
 
@@ -121,7 +122,7 @@ export const landscape = async (
         parent: root,
         controller: {doubleClickZoom: false},
         initialViewState: initial_view_state,
-        views: [view],
+        views: views,
         layers: layers,
         onViewStateChange: on_view_state_change,
         getTooltip: make_tooltip,

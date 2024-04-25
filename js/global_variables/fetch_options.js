@@ -8,6 +8,4 @@ export const set_options = (token) => {
             }
         }
     }
-    
-    return options
 }

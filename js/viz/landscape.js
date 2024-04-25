@@ -1,22 +1,20 @@
-import { Deck } from 'deck.gl';
 import { visibleTiles } from "../vector_tile/visibleTiles.js";
 import { debounce } from "../utils/debounce.js";
 import { path_layer, update_path_layer } from "../deck-gl/path_layer.js";
 import { cell_layer, update_cell_layer } from "../deck-gl/cell_layer.js";
 import { set_options } from '../global_variables/fetch_options.js';
 import { trx_layer, update_trx_layer } from '../deck-gl/trx_layer.js';
-import { make_tooltip } from '../deck-gl/make_tooltip.js';
 import { set_landscape_parameters } from '../global_variables/landscape_parameters.js';
 import { set_dimensions } from '../global_variables/image_dimensions.js';
 import { layers, update_layers } from '../deck-gl/layers.js';
 import { image_layers, update_image_layers } from '../deck-gl/image_layers.js';
 import { set_global_base_url } from '../global_variables/global_base_url.js';
-import { views, update_views } from '../deck-gl/views.js';
-import { initial_view_state, set_initial_view_state } from '../deck-gl/initial_view_state.js';
+import { update_views } from '../deck-gl/views.js';
+import { set_initial_view_state } from '../deck-gl/initial_view_state.js';
 
 import { deck, set_deck } from '../deck-gl/deck.js';
 
-import { calc_viewport } from '../deck-gl/calc_viewport.js';
+// import { calc_viewport } from '../deck-gl/calc_viewport.js';
 
 export const landscape = async (
     token, ini_x, ini_y, ini_z, ini_zoom, bounce_time, base_url, root
@@ -63,7 +61,7 @@ export const landscape = async (
         deck.setProps({layers});
     }
 
-    var options = set_options(token)
+    set_options(token)
 
 
     const imgage_name_for_dim = 'dapi'
@@ -101,16 +99,6 @@ export const landscape = async (
     }        
 
     set_initial_view_state(ini_x, ini_y, ini_z, ini_zoom)
-
-    // let deck = new Deck({
-    //     parent: root,
-    //     controller: {doubleClickZoom: false},
-    //     initialViewState: initial_view_state,
-    //     views: views,
-    //     layers: layers,
-    //     onViewStateChange: on_view_state_change,
-    //     getTooltip: make_tooltip,
-    // });    
 
     set_deck(root, on_view_state_change)
 

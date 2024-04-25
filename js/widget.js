@@ -5,7 +5,8 @@ export const render_landscape = async ({ model, el }) => {
 
     const token = model.get('token_traitlet')
     const ini_x = model.get('ini_x');
-    const ini_y = model.get('ini_y');
+    const ini_y = model.get('ini_y');    
+    const ini_z = model.get('ini_z');    
     const ini_zoom = model.get('ini_zoom');
     // const max_image_zoom = model.get('max_image_zoom')
     const bounce_time = model.get('bounce_time')    
@@ -14,12 +15,13 @@ export const render_landscape = async ({ model, el }) => {
     // Create and append the visualization.
     let root = document.createElement("div");
     root.style.height = "800px";
-    el.appendChild(root);
+    el.appendChild(root); 
 
     return landscape(
         token, 
         ini_x, 
         ini_y, 
+        ini_z,
         ini_zoom, 
         // max_image_zoom, 
         bounce_time, 

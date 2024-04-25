@@ -8,7 +8,7 @@ export let path_layer = new PathLayer({
         widthScale: 3,
         widthMinPixels: 1,
         getPath: d => d,
-        getColor: [255, 255, 255, 150], // white outline
+        getColor: [0, 0, 255, 150], // white outline
         widthUnits: 'pixels',
     })
 

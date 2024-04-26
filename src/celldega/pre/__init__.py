@@ -1,4 +1,8 @@
-import pyvips
+try:
+    import pyvips
+except ImportError:
+    pyvips = None
+
 from pathlib import Path
 import numpy as np
 import pandas as pd

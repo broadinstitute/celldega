@@ -8,6 +8,7 @@ import { update_layers } from '../deck-gl/layers.js';
 import { image_layers, update_image_layers } from '../deck-gl/image_layers.js';
 import { update_views } from '../deck-gl/views.js';
 import { deck, set_deck } from '../deck-gl/deck.js';
+import { background_layer, update_background_layer } from '../deck-gl/background_layer.js';
 
 export const landscape = async (
     token, 
@@ -43,7 +44,10 @@ export const landscape = async (
     // update layers
     await update_image_layers(base_url, image_info)
     await update_cell_layer(base_url)
-    update_layers([...image_layers, cell_layer])
+
+    update_background_layer()
+
+    update_layers([background_layer, ...image_layers, cell_layer])
     update_views()        
 
     set_deck(root)

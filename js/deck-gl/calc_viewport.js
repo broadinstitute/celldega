@@ -7,6 +7,7 @@ import { path_layer, update_path_layer } from './path_layer.js'
 import { trx_layer, update_trx_layer } from './trx_layer.js'
 import { layers, update_layers } from './layers.js'
 import { landscape_parameters } from '../global_variables/landscape_parameters.js'
+import { background_layer } from './background_layer.js'
 
 export const calc_viewport = async ({ height, width, zoom, target }) => {
 
@@ -34,22 +35,29 @@ export const calc_viewport = async ({ height, width, zoom, target }) => {
 
     if (tiles_in_view.length < max_tiles_to_view) {
 
-        console.log('number_of_tiles', tiles_in_view.length)
+        // console.log('number_of_tiles', tiles_in_view.length)
 
         await update_trx_layer(global_base_url, tiles_in_view)
         await update_path_layer(global_base_url, tiles_in_view)
 
         new_layers = [
+            background_layer,
             ...image_layers, 
             path_layer, 
             cell_layer, 
-            trx_layer]
+            trx_layer
+        ]
 
         update_layers(new_layers)            
 
     } else {
 
-        new_layers = [...image_layers, cell_layer]
+        new_layers = [
+            background_layer,
+            ...image_layers, 
+            cell_layer
+        ]
+
         update_layers(new_layers)
 
     }

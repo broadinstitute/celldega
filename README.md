@@ -41,3 +41,18 @@ Open `example.ipynb` in JupyterLab, VS Code, or your favorite editor
 to start developing. Changes made in `js/` will be reflected
 in the notebook.
 
+### PyPI
+Increment version in `project.toml` and
+
+```
+$ hatch build
+$ hatch publish
+```
+
+### NPM
+Increment version in `package.json` and
+
+```
+$ npm build
+$ npm publish
+```

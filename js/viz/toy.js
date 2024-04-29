@@ -45,14 +45,21 @@ export const toy = async ( root, base_url ) => {
     //     getColor: [0, 0, 255, 240],
     // })
 
+    const response = await fetch(base_url + 'meta_tile.json')
+
+    const meta_tile = await response.json()
+
+    // console.log(meta_tile)    
+    
+
     let custom_scatter_layer = new CustomScatterplotLayer({
         // data: [{ position: [-122.45, 37.8], color: [0, 0, 255], radius: 100}],
         data: tile_scatter_data,
         getFillColor: [255, 0, 0, 255],
         // getRadius: d => d.radius,
         // getRadius: 24.0, // 16
-        // getRadius: 12.0, // 8um
-        getRadius: 3.0, // 2um
+        getRadius: 12.0, // 8um
+        // getRadius: 3.0, // 2um
 
         pickable: true,
         onClick: d => console.log('Clicked on:', d)

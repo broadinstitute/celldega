@@ -48,7 +48,7 @@ export const landscape = async (
     update_background_layer()
 
     update_layers([background_layer, ...image_layers, cell_layer])
-    update_views()        
+    update_views()
 
     set_deck(root)
 

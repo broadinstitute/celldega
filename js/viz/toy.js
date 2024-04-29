@@ -4,6 +4,7 @@ import { Deck, ScatterplotLayer } from 'deck.gl';
 import { options, set_options } from '../global_variables/fetch_options.js';
 import { views, update_views } from '../deck-gl/views.js';
 import { initial_view_state, set_initial_view_state } from "../deck-gl/initial_view_state.js";
+import { hexToRgb } from '../utils/hexToRgb.js'
 
 export const toy = async ( root, base_url ) => {
 
@@ -45,12 +46,29 @@ export const toy = async ( root, base_url ) => {
     //     getColor: [0, 0, 255, 240],
     // })
 
-    const response = await fetch(base_url + 'meta_tile.json')
-
-    const meta_tile = await response.json()
-
+    // const response = await fetch(base_url + 'meta_tile.json')
+    // const meta_tile = await response.json()
     // console.log(meta_tile)    
-    
+
+    let color_dict = {}
+
+    const df_colors_url = base_url + `/df_colors.parquet`;
+    var df_colors = await get_arrow_table(df_colors_url, options.fetch)
+
+    let names = [];
+    let colors = [];
+
+    const nameColumn = df_colors.getChild('__index_level_0__');
+    const colorColumn = df_colors.getChild('color');
+
+    if (nameColumn && colorColumn) {
+        names = nameColumn.toArray();
+        colors = colorColumn.toArray();
+    }    
+
+    names.forEach((geneName, index) => {
+        color_dict[geneName] = hexToRgb(colors[index]);
+    });
 
     let custom_scatter_layer = new CustomScatterplotLayer({
         // data: [{ position: [-122.45, 37.8], color: [0, 0, 255], radius: 100}],

@@ -52,3 +52,5 @@ class Toy(anywidget.AnyWidget):
     _css = pathlib.Path(__file__).parent / "../static" / "widget.css"
     value = traitlets.Int(0).tag(sync=True)
     component = traitlets.Unicode("Toy").tag(sync=True)
+
+    base_url = traitlets.Unicode('').tag(sync=True)    

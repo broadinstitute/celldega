@@ -50,7 +50,9 @@ export const toy = async ( root, base_url ) => {
         data: tile_scatter_data,
         getFillColor: [255, 0, 0, 255],
         // getRadius: d => d.radius,
-        getRadius: 24.0,
+        // getRadius: 24.0, // 16
+        // getRadius: 12.0, // 8um
+        getRadius: 3.0, // 2um
 
         pickable: true,
         onClick: d => console.log('Clicked on:', d)

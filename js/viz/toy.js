@@ -1,8 +1,14 @@
-import { cell_layer, update_cell_layer } from "../deck-gl/cell_layer";
 import { get_arrow_table } from "../read_parquet/get_arrow_table";
+import { get_scatter_data } from "../read_parquet/get_scatter_data.js";
 import { Deck, ScatterplotLayer } from 'deck.gl';
+import { options, set_options } from '../global_variables/fetch_options.js';
+import { views, update_views } from '../deck-gl/views.js';
+import { initial_view_state, set_initial_view_state } from "../deck-gl/initial_view_state.js";
 
-export const toy = async ( root, base_url) => {
+export const toy = async ( root, base_url ) => {
+
+
+    set_options('')
 
     class CustomScatterplotLayer extends ScatterplotLayer {
         getShaders() {
@@ -26,27 +32,46 @@ export const toy = async ( root, base_url) => {
     console.log(base_url)
 
     const tile_url = base_url + 'tile_geometries.parquet'
-    // await update_cell_layer(base_url)  
-
-    // var cell_arrow_table = await get_arrow_table(cell_url, options.fetch)
 
 
+    var tile_arrow_table = await get_arrow_table(tile_url, options.fetch)
+    var tile_scatter_data = get_scatter_data(tile_arrow_table)
 
+    // let tile_layer = new ScatterplotLayer({
+    //     id: 'tile-layer',
+    //     data: tile_scatter_data,
+    //     getRadius: 5.0,
+    //     pickable: true,
+    //     getColor: [0, 0, 255, 240],
+    // })
 
+    let custom_scatter_layer = new CustomScatterplotLayer({
+        // data: [{ position: [-122.45, 37.8], color: [0, 0, 255], radius: 100}],
+        data: tile_scatter_data,
+        getFillColor: [255, 0, 0, 255],
+        // getRadius: d => d.radius,
+        getRadius: 24.0,
 
-    let deck = new Deck({
-    parent: root,
-    controller: true,
-    initialViewState: { longitude: -122.45, latitude: 37.8, zoom: 15 },
-    layers: [
-        new CustomScatterplotLayer({
-        data: [{ position: [-122.45, 37.8], color: [0, 0, 255], radius: 100}],
-        getFillColor: d => d.color,
-        getRadius: d => d.radius,
         pickable: true,
         onClick: d => console.log('Clicked on:', d)
-        })
-    ],    
+    })
+
+    let layers = [custom_scatter_layer]
+
+    const ini_x = 10000
+    const ini_y = 10000
+    const ini_z = 0
+    const ini_zoom = 0
+
+    set_initial_view_state(ini_x, ini_y, ini_z, ini_zoom)    
+    update_views()
+
+    let deck = new Deck({
+        parent: root,
+        controller: true,
+        initialViewState: initial_view_state,
+        layers: layers,    
+        views: views
     });
     return () => deck.finalize();  
 

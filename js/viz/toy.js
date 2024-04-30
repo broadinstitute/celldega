@@ -32,6 +32,63 @@ export const toy = async ( root, base_url ) => {
     //     }
     // }
 
+    // // appears to be working
+    // /////////////////////////////////
+    // class CustomScatterplotLayer extends ScatterplotLayer {
+    //     getShaders() {
+    //         // Get the default shaders from the ScatterplotLayer
+    //         const shaders = super.getShaders();
+
+    //         console.log('here!!!')
+    
+    //         // Redefine the fragment shader using template literals for multi-line text
+    //         shaders.fs = `#version 300 es
+    //         #define SHADER_NAME scatterplot-layer-fragment-shader
+    //         precision highp float;
+    //         uniform bool filled;
+    //         uniform float stroked;
+    //         uniform bool antialiasing;
+    //         in vec4 vFillColor;
+    //         in vec4 vLineColor;
+    //         in vec2 unitPosition;
+    //         in float innerUnitRadius;
+    //         in float outerRadiusPixels;
+    //         out vec4 fragColor;
+    //         void main(void) {
+    //             geometry.uv = unitPosition;
+    //             float distToCenter = max(abs(unitPosition.x), abs(unitPosition.y));
+    //             float inCircle = antialiasing ?
+    //                 smoothedge(distToCenter, outerRadiusPixels) :
+    //                 step(distToCenter, outerRadiusPixels);
+    //             if (inCircle == 0.0) {
+    //                 discard;
+    //             }
+    //             if (stroked > 0.5) {
+    //                 float isLine = antialiasing ?
+    //                     smoothedge(innerUnitRadius * outerRadiusPixels, distToCenter) :
+    //                     step(innerUnitRadius * outerRadiusPixels, distToCenter);
+    //                 if (filled) {
+    //                     fragColor = mix(vFillColor, vLineColor, isLine);
+    //                 } else {
+    //                     if (isLine == 0.0) {
+    //                         discard;
+    //                     }
+    //                     fragColor = vec4(vLineColor.rgb, vLineColor.a * isLine);
+    //                 }
+    //             } else if (!filled) {
+    //                 discard;
+    //             } else {
+    //                 fragColor = vFillColor;
+    //             }
+    //             fragColor.a *= inCircle;
+    //             DECKGL_FILTER_COLOR(fragColor, geometry);
+    //         }`;
+    
+    //         return shaders;
+    //     }
+    // }
+
+
     class CustomScatterplotLayer extends ScatterplotLayer {
         getShaders() {
             // Get the default shaders from the ScatterplotLayer
@@ -54,37 +111,38 @@ export const toy = async ( root, base_url ) => {
             out vec4 fragColor;
             void main(void) {
                 geometry.uv = unitPosition;
-                float distToCenter = max(abs(unitPosition.x), abs(unitPosition.y));
-                float inCircle = antialiasing ?
-                    smoothedge(distToCenter, outerRadiusPixels) :
-                    step(distToCenter, outerRadiusPixels);
-                if (inCircle == 0.0) {
-                    discard;
-                }
-                if (stroked > 0.5) {
-                    float isLine = antialiasing ?
-                        smoothedge(innerUnitRadius * outerRadiusPixels, distToCenter) :
-                        step(innerUnitRadius * outerRadiusPixels, distToCenter);
-                    if (filled) {
-                        fragColor = mix(vFillColor, vLineColor, isLine);
-                    } else {
-                        if (isLine == 0.0) {
-                            discard;
-                        }
-                        fragColor = vec4(vLineColor.rgb, vLineColor.a * isLine);
-                    }
-                } else if (!filled) {
-                    discard;
-                } else {
-                    fragColor = vFillColor;
-                }
-                fragColor.a *= inCircle;
+                fragColor = vFillColor;
                 DECKGL_FILTER_COLOR(fragColor, geometry);
             }`;
     
             return shaders;
         }
-    }
+    }    
+
+    // class CustomScatterplotLayer extends ScatterplotLayer {
+    //     getShaders() {
+    //         const shaders = super.getShaders();
+    //         shaders.fs = `#version 300 es
+    //         #define SHADER_NAME custom-scatterplot-layer-fragment-shader
+    //         precision highp float;
+    
+    //         uniform bool filled;
+    //         uniform vec4 vFillColor;
+    //         uniform vec4 vLineColor;
+    //         in vec2 unitPosition;
+    //         out vec4 fragColor;
+    
+    //         void main(void) {
+    //             fragColor = filled ? vFillColor : vLineColor;
+    
+    //             // Apply the picking filter which is essential for interaction
+    //             fragColor = picking_filterPickingColor(fragColor);
+    //         }`;
+    
+    //         return shaders;
+    //     }
+    // }
+    
     
 
     console.log(base_url)

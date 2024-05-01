@@ -44,7 +44,7 @@ export const toy = async ( root, base_url ) => {
         color_dict[String(geneName)] = hexToRgb(colors[index]);
     });
 
-    update_square_scatter_layer(tile_scatter_data, tile_cats_array, color_dict)
+    update_square_scatter_layer(tile_cats_array, color_dict)
 
     const new_layers = [square_scatter_layer]
 

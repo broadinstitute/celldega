@@ -26,7 +26,7 @@ class SquareScatterplotLayer extends ScatterplotLayer {
 
 export let square_scatter_layer
 
-export const update_square_scatter_layer = ( tile_scatter_data, tile_cats_array, color_dict ) => {
+export const update_square_scatter_layer = ( tile_cats_array, color_dict ) => {
 
     let inst_color
 

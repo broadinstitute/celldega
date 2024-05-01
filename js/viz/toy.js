@@ -6,7 +6,7 @@ import { set_initial_view_state } from "../deck-gl/initial_view_state.js";
 
 import { deck, set_deck } from '../deck-gl/toy_deck.js'
 import { update_layers } from "../deck-gl/toy_layers.js";
-import { square_scatter_layer, update_square_scatter_layer } from "../deck-gl/square_scatter_layer.js";  
+import { square_scatter_layer, ini_square_scatter_layer } from "../deck-gl/square_scatter_layer.js";  
 
 import { update_tile_scatter_data } from "../global_variables/tile_scatter_data.js";
 import { update_tile_cats_array } from "../global_variables/tile_cats_array.js";
@@ -24,7 +24,7 @@ export const toy = async ( root, base_url ) => {
 
     await update_tile_color_dict(base_url)
 
-    update_square_scatter_layer()
+    ini_square_scatter_layer()
 
     const new_layers = [square_scatter_layer]
 

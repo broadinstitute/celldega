@@ -28,7 +28,7 @@ class SquareScatterplotLayer extends ScatterplotLayer {
 
 export let square_scatter_layer
 
-export const update_square_scatter_layer = () => {
+export const ini_square_scatter_layer = () => {
 
     let inst_color
 
@@ -54,5 +54,20 @@ export const update_square_scatter_layer = () => {
             getFillColor: [tile_cat]  // This line ensures getFillColor is recalculated when tile_cat changes
         }        
     })
+
+}
+
+export const update_square_scatter_layer = async ( base_url, tiles_in_view ) => {
+
+    square_scatter_layer = new SquareScatterplotLayer({
+        // Re-use existing layer props
+        ...square_scatter_layer.props,
+        id: `tile-layer-${Date.now()}`, // unique ID
+        data: tile_scatter_data,
+        getFillColor: [0, 0, 255], 
+        updateTriggers: {
+            getFillColor: [tile_cat]  // This line ensures getFillColor is recalculated when tile_cat changes
+        }        
+    });
 
 }

@@ -1,4 +1,6 @@
+import { square_scatter_layer, update_square_scatter_layer } from "../deck-gl/square_scatter_layer";
 import { update_tile_cat } from "../global_variables/tile_cat"; 
+import { deck } from "../deck-gl/toy_deck";
 
 export let dropdown = document.createElement("div");
 
@@ -27,12 +29,17 @@ export const update_dropdown = (options) => {
     dropdown.appendChild(select);
 
     // Handle dropdown change
-    select.onchange = function() {
+    select.onchange = async function() {
         console.log('Selected:', select.value);
 
-        // You can also invoke some function here to update other parts of your visualization
-        // based on the selection, for example:
-        // updateVisualization(select.value, root, base_url);
+        await update_square_scatter_layer()
+
+        console.log(square_scatter_layer)
+
+        deck.setProps({layers: [square_scatter_layer]});
+
+        console.log('trying to update deck.setProps')
+
     };
 
 }

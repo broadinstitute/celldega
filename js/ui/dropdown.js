@@ -1,4 +1,4 @@
-import { update_tile_cat } from "../global_variables/tile_cat";
+import { update_tile_cat } from "../global_variables/tile_cat"; 
 
 export let dropdown = document.createElement("div");
 
@@ -30,7 +30,6 @@ export const update_dropdown = (options) => {
     select.onchange = function() {
         console.log('Selected:', select.value);
 
-        
         // You can also invoke some function here to update other parts of your visualization
         // based on the selection, for example:
         // updateVisualization(select.value, root, base_url);

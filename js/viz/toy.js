@@ -7,6 +7,10 @@ import { initial_view_state, set_initial_view_state } from "../deck-gl/initial_v
 import { hexToRgb } from '../utils/hexToRgb.js'
 import { tile_cat } from "../global_variables/tile_cat.js"; 
 
+import { deck, set_deck } from '../deck-gl/toy_deck.js'
+import { update_layers } from "../deck-gl/toy_layers.js";
+
+
 export const toy = async ( root, base_url ) => {
 
     set_options('')
@@ -83,7 +87,9 @@ export const toy = async ( root, base_url ) => {
         onClick: d => console.log('Clicked on:', d)
     })
 
-    let layers = [custom_scatter_layer]
+    const new_layers = [custom_scatter_layer]
+
+    await update_layers(new_layers)
 
     const ini_x = 500
     const ini_y = 500
@@ -92,14 +98,19 @@ export const toy = async ( root, base_url ) => {
 
     set_initial_view_state(ini_x, ini_y, ini_z, ini_zoom)    
     update_views()
+    
+    // deck = new Deck({
+    //     parent: root,
+    //     controller: true,
+    //     initialViewState: initial_view_state,
+    //     layers: layers,    
+    //     views: views
+    // });
 
-    let deck = new Deck({
-        parent: root,
-        controller: true,
-        initialViewState: initial_view_state,
-        layers: layers,    
-        views: views
-    });
+    
+
+    set_deck(root)
+
     return () => deck.finalize();  
 
 }

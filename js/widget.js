@@ -31,8 +31,8 @@ export const render_landscape = async ({ model, el }) => {
 }
 
 export const render_toy = ({ model, el }) => {
+    
     const base_url = model.get('base_url')
-
 
     const options = ["cluster", "B2M", "CPE", "TTR"];
 

@@ -9,8 +9,9 @@ import { update_layers } from "../deck-gl/toy_layers.js";
 import { square_scatter_layer, ini_square_scatter_layer } from "../deck-gl/square_scatter_layer.js";  
 
 import { update_tile_scatter_data } from "../global_variables/tile_scatter_data.js";
-import { update_tile_cats_array } from "../global_variables/tile_cats_array.js";
-import { color_dict, update_tile_color_dict } from "../global_variables/tile_color_dict.js";
+import { tile_cats_array, update_tile_cats_array } from "../global_variables/tile_cats_array.js";
+import { update_tile_color_dict } from "../global_variables/tile_color_dict.js";
+import { update_tile_exp_array } from "../global_variables/tile_exp_array.js"; 
 
 export const toy = async ( root, base_url ) => {
 
@@ -21,6 +22,9 @@ export const toy = async ( root, base_url ) => {
     var tile_arrow_table = await get_arrow_table(tile_url, options.fetch)
     update_tile_scatter_data(get_scatter_data(tile_arrow_table))
     update_tile_cats_array(tile_arrow_table.getChild("cluster").toArray())
+
+    const new_tile_exp_array = new Array(tile_cats_array.length).fill(0);
+    update_tile_exp_array(new_tile_exp_array)
 
     await update_tile_color_dict(base_url)
 

@@ -3,6 +3,7 @@ import { tile_cat } from "../global_variables/tile_cat.js";
 import { tile_scatter_data } from "../global_variables/tile_scatter_data.js";
 import { tile_cats_array } from "../global_variables/tile_cats_array.js";
 import { color_dict } from '../global_variables/tile_color_dict.js';
+import { tile_exp_array } from '../global_variables/tile_exp_array.js'; 
 
 class SquareScatterplotLayer extends ScatterplotLayer {
     getShaders() {
@@ -39,12 +40,13 @@ export const ini_square_scatter_layer = () => {
 
             if (tile_cat === 'cluster') {   
                 var inst_name = tile_cats_array[d.index]
-                inst_color = color_dict[inst_name]
+                inst_color = [...color_dict[inst_name], 255]
             } else {
-                inst_color = [0, 0, 255]
+                inst_color = [255, 0, 0, tile_exp_array[d.index]]
+                // inst_color = [255, 0, 0, d.index % 255]
             }
 
-            return [inst_color[0], inst_color[1], inst_color[2], 255]
+            return inst_color
         },
         filled: true,
         getRadius: 0.5, // 8um: 12 with border

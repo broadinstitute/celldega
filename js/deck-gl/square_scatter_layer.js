@@ -1,6 +1,7 @@
 import { Deck, ScatterplotLayer } from 'deck.gl';
 import { tile_cat } from "../global_variables/tile_cat.js"; 
 import { tile_scatter_data } from "../global_variables/tile_scatter_data.js";
+import { tile_cats_array } from "../global_variables/tile_cats_array.js";
 
 class SquareScatterplotLayer extends ScatterplotLayer {
     getShaders() {
@@ -26,7 +27,7 @@ class SquareScatterplotLayer extends ScatterplotLayer {
 
 export let square_scatter_layer
 
-export const update_square_scatter_layer = ( tile_cats_array, color_dict ) => {
+export const update_square_scatter_layer = ( color_dict ) => {
 
     let inst_color
 

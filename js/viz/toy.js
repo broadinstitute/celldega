@@ -10,6 +10,7 @@ import { square_scatter_layer, ini_square_scatter_layer } from "../deck-gl/squar
 
 import { update_tile_scatter_data } from "../global_variables/tile_scatter_data.js";
 import { tile_cats_array, update_tile_cats_array } from "../global_variables/tile_cats_array.js";
+import { tile_names_array, update_tile_names_array } from "../global_variables/tile_names_array.js";
 import { update_tile_color_dict } from "../global_variables/tile_color_dict.js";
 import { update_tile_exp_array } from "../global_variables/tile_exp_array.js"; 
 
@@ -20,11 +21,58 @@ export const toy = async ( root, base_url ) => {
     const tile_url = base_url + 'tile_geometries.parquet'
 
     var tile_arrow_table = await get_arrow_table(tile_url, options.fetch)
+
+
     update_tile_scatter_data(get_scatter_data(tile_arrow_table))
     update_tile_cats_array(tile_arrow_table.getChild("cluster").toArray())
 
+    update_tile_names_array(tile_arrow_table.getChild("name").toArray())
+
+    // console.log('tile_names_array')
+    // console.log(tile_names_array)
+
+    let inst_gene = 'TSPAN3'
+
+    var trx_table = await get_arrow_table(base_url + 'tbg/' + inst_gene + '.parquet', options.fetch)
+
+    let trx_names = trx_table.getChild('__index_level_0__').toArray()
+    let trx_exp = trx_table.getChild(inst_gene).toArray()
+
+    // const maxExp = Math.max(...trx_exp);
+    // const maxExp = trx_exp.reduce((max, value) => Math.max(max, value), -Infinity);
+
+
+    // function scaleExpressionLevels(expArray) {
+    //     // const maxExp = expArray.reduce((max, value) => (max > value ? max : value), BigInt(-Infinity));
+    //     // if (maxExp === 0) return expArray; // Handle case where all values are 0 to avoid division by zero
+    //     const maxExp = 100
+    //     return expArray.map(value => (value / maxExp) * 255);
+    // }
+    
+    // let trx_exp = scaleExpressionLevels(ini_trx_exp);
+
+    // console.log(trx_table)
+    // console.log(trx_names)
+    // console.log(trx_exp)
+    
+    // Create a map from tile category names to their indices
+    const nameToIndexMap = new Map();
+    tile_names_array.forEach((name, index) => {
+        nameToIndexMap.set(name, index);
+    });
+
     const new_tile_exp_array = new Array(tile_cats_array.length).fill(0);
+
+    trx_names.forEach((name, i) => {
+        if (nameToIndexMap.has(name)) {
+            const index = nameToIndexMap.get(name);
+            new_tile_exp_array[index] = trx_exp[i];
+        }
+    });
+
     update_tile_exp_array(new_tile_exp_array)
+    
+    // update_tile_exp_array(new_tile_exp_array)
 
     await update_tile_color_dict(base_url)
 

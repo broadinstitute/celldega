@@ -33,10 +33,8 @@ export const update_dropdown = (options) => {
         console.log('Selected:', select.value);
 
         update_tile_cat(select.value)
-        
-        await update_square_scatter_layer()
 
-        console.log(square_scatter_layer)
+        update_square_scatter_layer()
 
         deck.setProps({layers: [square_scatter_layer]});
 

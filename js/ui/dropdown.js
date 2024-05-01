@@ -32,6 +32,8 @@ export const update_dropdown = (options) => {
     select.onchange = async function() {
         console.log('Selected:', select.value);
 
+        update_tile_cat(select.value)
+        
         await update_square_scatter_layer()
 
         console.log(square_scatter_layer)

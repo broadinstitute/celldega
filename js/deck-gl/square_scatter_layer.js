@@ -51,7 +51,7 @@ export const ini_square_scatter_layer = () => {
         pickable: true,
         onClick: d => console.log('Clicked on:', d),
         updateTriggers: {
-            getFillColor: [tile_cat]  // This line ensures getFillColor is recalculated when tile_cat changes
+            getFillColor: [tile_cat]  
         }        
     })
 
@@ -64,25 +64,8 @@ export const update_square_scatter_layer = async ( base_url, tiles_in_view ) => 
     square_scatter_layer = new SquareScatterplotLayer({
         // Re-use existing layer props
         ...square_scatter_layer.props,
-        id: `tile-layer-${Date.now()}`, // unique ID
+        id: `tile-layer-${tile_cat}`,
         data: tile_scatter_data,
-        // getFillColor: [0, 0, 255], 
-        // getFillColor: (i, d) => {
-
-        //     let inst_color
-
-        //     if (tile_cat === 'cluster') {   
-        //         var inst_name = tile_cats_array[d.index]
-        //         inst_color = color_dict[inst_name]
-        //     } else {
-        //         inst_color = [0, 0, 255]
-        //     }
-
-        //     return [inst_color[0], inst_color[1], inst_color[2], 255]
-        // },        
-        updateTriggers: {
-            getFillColor: [tile_cat]  // This line ensures getFillColor is recalculated when tile_cat changes
-        }        
     });
 
 }

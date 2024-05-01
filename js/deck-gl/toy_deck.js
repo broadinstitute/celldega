@@ -7,11 +7,6 @@ export let deck
 
 export const set_deck = ( root ) => {
 
-    console.log('root', root)
-    console.log('initial_view_state', initial_view_state)
-    console.log('layers', layers)
-    console.log('views', views)
-
     deck = new Deck({
         parent: root,
         controller: true,

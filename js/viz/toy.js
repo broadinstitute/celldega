@@ -9,40 +9,19 @@ import { tile_cat } from "../global_variables/tile_cat.js";
 
 import { deck, set_deck } from '../deck-gl/toy_deck.js'
 import { update_layers } from "../deck-gl/toy_layers.js";
+import { square_scatter_layer, update_square_scatter_layer } from "../deck-gl/square_scatter_layer.js";  
+
+import { tile_scatter_data, update_tile_scatter_data } from "../global_variables/tile_scatter_data.js";
 
 
 export const toy = async ( root, base_url ) => {
 
     set_options('')
 
-    class CustomScatterplotLayer extends ScatterplotLayer {
-        getShaders() {
-            // Get the default shaders from the ScatterplotLayer
-            const shaders = super.getShaders();
-
-            // Redefine the fragment shader using template literals for multi-line text
-            shaders.fs = `#version 300 es
-            #define SHADER_NAME scatterplot-layer-fragment-shader
-            precision highp float;
-            in vec4 vFillColor;
-            in vec2 unitPosition;
-            out vec4 fragColor;
-            void main(void) {
-                geometry.uv = unitPosition;
-                fragColor = vFillColor;
-                DECKGL_FILTER_COLOR(fragColor, geometry);
-            }`;
-    
-            return shaders;
-        }
-    }    
-
     const tile_url = base_url + 'tile_geometries.parquet'
 
     var tile_arrow_table = await get_arrow_table(tile_url, options.fetch)
-    var tile_scatter_data = get_scatter_data(tile_arrow_table)
-    var tile_names_array = tile_arrow_table.getChild("name").toArray();
-
+    update_tile_scatter_data(get_scatter_data(tile_arrow_table))
     var tile_cats_array = tile_arrow_table.getChild("cluster").toArray();
 
     let color_dict = {}
@@ -65,29 +44,9 @@ export const toy = async ( root, base_url ) => {
         color_dict[String(geneName)] = hexToRgb(colors[index]);
     });
 
-    let inst_color
+    update_square_scatter_layer(tile_scatter_data, tile_cats_array, color_dict)
 
-    let custom_scatter_layer = new CustomScatterplotLayer({
-        id: 'tile-layer',
-        data: tile_scatter_data,
-        getFillColor: (i, d) => {
-
-            if (tile_cat === 'cluster') {   
-                var inst_name = tile_cats_array[d.index]
-                inst_color = color_dict[inst_name]
-            } else {
-                inst_color = [0, 0, 255]
-            }
-
-            return [inst_color[0], inst_color[1], inst_color[2], 255]
-        },
-        filled: true,
-        getRadius: 0.5, // 8um: 12 with border
-        pickable: true,
-        onClick: d => console.log('Clicked on:', d)
-    })
-
-    const new_layers = [custom_scatter_layer]
+    const new_layers = [square_scatter_layer]
 
     await update_layers(new_layers)
 
@@ -98,16 +57,6 @@ export const toy = async ( root, base_url ) => {
 
     set_initial_view_state(ini_x, ini_y, ini_z, ini_zoom)    
     update_views()
-    
-    // deck = new Deck({
-    //     parent: root,
-    //     controller: true,
-    //     initialViewState: initial_view_state,
-    //     layers: layers,    
-    //     views: views
-    // });
-
-    
 
     set_deck(root)
 

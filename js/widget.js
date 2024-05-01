@@ -2,6 +2,7 @@ import "./widget.css";
 import { landscape } from "./viz/landscape";
 import { toy } from "./viz/toy";
 
+import { dropdown, update_dropdown } from "./ui/dropdown";
 
 export const render_landscape = async ({ model, el }) => {
 
@@ -30,17 +31,23 @@ export const render_landscape = async ({ model, el }) => {
 }
 
 export const render_toy = ({ model, el }) => {
-
     const base_url = model.get('base_url')
 
-    // Create and append the visualization.
+
+    const options = ["cluster", "B2M", "CPE", "TTR"];
+
+    update_dropdown(options);
+
+    // Create and append the visualization container
     let root = document.createElement("div");
     root.style.height = "800px";
-    el.appendChild(root);     
 
-    return toy(root, base_url)
+    el.appendChild(dropdown);
+    el.appendChild(root);
 
+    return toy(root, base_url);  // Assuming toy is a function that initializes the visualization
 }
+
 
   export const render = async ({ model, el }) => {
 

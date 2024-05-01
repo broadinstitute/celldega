@@ -5,6 +5,7 @@ import { options, set_options } from '../global_variables/fetch_options.js';
 import { views, update_views } from '../deck-gl/views.js';
 import { initial_view_state, set_initial_view_state } from "../deck-gl/initial_view_state.js";
 import { hexToRgb } from '../utils/hexToRgb.js'
+import { tile_cat } from "../global_variables/tile_cat.js"; 
 
 export const toy = async ( root, base_url ) => {
 
@@ -15,8 +16,6 @@ export const toy = async ( root, base_url ) => {
             // Get the default shaders from the ScatterplotLayer
             const shaders = super.getShaders();
 
-            console.log('here!!!')
-    
             // Redefine the fragment shader using template literals for multi-line text
             shaders.fs = `#version 300 es
             #define SHADER_NAME scatterplot-layer-fragment-shader
@@ -42,8 +41,6 @@ export const toy = async ( root, base_url ) => {
 
     var tile_cats_array = tile_arrow_table.getChild("cluster").toArray();
 
-    console.log(tile_cats_array)
-
     let color_dict = {}
 
     const df_colors_url = base_url + `/df_colors.parquet`;
@@ -64,25 +61,32 @@ export const toy = async ( root, base_url ) => {
         color_dict[String(geneName)] = hexToRgb(colors[index]);
     });
 
+    let inst_color
+
     let custom_scatter_layer = new CustomScatterplotLayer({
         id: 'tile-layer',
         data: tile_scatter_data,
         getFillColor: (i, d) => {
-            var inst_name = tile_cats_array[d.index]
-            var inst_color = color_dict[inst_name]
+
+            if (tile_cat === 'cluster') {   
+                var inst_name = tile_cats_array[d.index]
+                inst_color = color_dict[inst_name]
+            } else {
+                inst_color = [0, 0, 255]
+            }
+
             return [inst_color[0], inst_color[1], inst_color[2], 255]
         },
         filled: true,
         getRadius: 0.5, // 8um: 12 with border
-        antialiasing: true,
         pickable: true,
         onClick: d => console.log('Clicked on:', d)
     })
 
     let layers = [custom_scatter_layer]
 
-    const ini_x = 100
-    const ini_y = 100
+    const ini_x = 500
+    const ini_y = 500
     const ini_z = 0
     const ini_zoom = 0
 

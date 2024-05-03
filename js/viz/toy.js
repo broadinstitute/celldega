@@ -51,7 +51,7 @@ export const toy = async ( root, base_url ) => {
     gene_names.forEach((name, index) => {
         meta_gene[name] = {
             mean: gene_mean[index],
-            std: gene_std[index]
+            std: gene_std[index],
             max: gene_max[index],
         };
     });
@@ -81,8 +81,6 @@ export const toy = async ( root, base_url ) => {
     });
 
     const new_tile_exp_array = new Array(tile_cats_array.length).fill(0);
-
-    // let gene_max = gene_max[]
 
     trx_names.forEach((name, i) => {
         if (name_to_index_map.has(name)) {

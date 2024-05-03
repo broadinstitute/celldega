@@ -42,8 +42,15 @@ export const ini_square_scatter_layer = () => {
                 var inst_name = tile_cats_array[d.index]
                 inst_color = [...color_dict[inst_name], 255]
             } else {
-                inst_color = [255, 0, 0, tile_exp_array[d.index]]
-                // inst_color = [255, 0, 0, d.index % 255]
+
+                let inst_exp = tile_exp_array[d.index]
+                if (inst_exp > 0) {
+                    inst_color = [255, 0, 0, inst_exp]
+                }
+                else {
+                    inst_color = [0, 0, 255, inst_exp]
+                }
+                
             }
 
             return inst_color

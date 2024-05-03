@@ -30,13 +30,11 @@ export const render_landscape = async ({ model, el }) => {
 
 }
 
-export const render_toy = ({ model, el }) => {
+export const render_toy = async ({ model, el }) => {
     
     const base_url = model.get('base_url')
 
-    const options = ["cluster", "B2M", "CPE", "TTR"];
-
-    update_dropdown(options);
+    await update_dropdown(base_url);
 
     // Create and append the visualization container
     let root = document.createElement("div");

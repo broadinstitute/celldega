@@ -12,7 +12,9 @@ export const update_dropdown = async (base_url) => {
 
     let meta_gene_table = await get_arrow_table(base_url + 'meta_gene.parquet', options.fetch)
 
-    const dropdown_options = meta_gene_table.getChild('__index_level_0__').toArray()
+    let all_genes = meta_gene_table.getChild('__index_level_0__').toArray().sort()
+    // all_genes.sort();
+    const dropdown_options = ['cluster', ...all_genes];
 
     // Create a dropdown container
     

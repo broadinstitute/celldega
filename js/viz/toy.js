@@ -12,7 +12,7 @@ import { update_tile_scatter_data } from "../global_variables/tile_scatter_data.
 import { update_tile_cats_array } from "../global_variables/tile_cats_array.js";
 import { update_tile_names_array } from "../global_variables/tile_names_array.js";
 import { update_tile_color_dict } from "../global_variables/tile_color_dict.js";
-import { update_tile_exp_array } from "../global_variables/tile_exp_array.js"; 
+// import { update_tile_exp_array } from "../global_variables/tile_exp_array.js"; 
 import { set_meta_gene } from "../global_variables/meta_gene.js";
 
 export const toy = async ( root, base_url ) => {
@@ -29,9 +29,7 @@ export const toy = async ( root, base_url ) => {
 
     await set_meta_gene(base_url)
 
-    // let new_tile_exp_array = await get_new_tile_exp_array(base_url, 'TSPAN3')
-
-    await update_tile_exp_array(base_url, 'TSPAN3')
+    // await update_tile_exp_array(base_url, 'TSPAN3')
     
     await update_tile_color_dict(base_url)
 

@@ -66,7 +66,7 @@ export const ini_square_scatter_layer = () => {
 
 }
 
-export const update_square_scatter_layer = ( base_url, tiles_in_view ) => {
+export const update_square_scatter_layer = () => {
 
     console.log('in update_square_scatter_layer', tile_cat)
 

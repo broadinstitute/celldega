@@ -38,9 +38,28 @@ export const toy = async ( root, base_url ) => {
     let trx_names = trx_table.getChild('__index_level_0__').toArray()
     let trx_exp = trx_table.getChild(inst_gene).toArray()
 
+
+    let meta_gene_table = await get_arrow_table(base_url + 'meta_gene.parquet', options.fetch)
+    let gene_names = meta_gene_table.getChild('__index_level_0__').toArray()
+    let gene_mean = meta_gene_table.getChild('mean').toArray()
+    let gene_std = meta_gene_table.getChild('std').toArray()
+    let gene_max = meta_gene_table.getChild('max').toArray()
+
+    // Assuming the lengths of all arrays are the same and correctly aligned
+    let meta_gene = {};
+
+    gene_names.forEach((name, index) => {
+        meta_gene[name] = {
+            mean: gene_mean[index],
+            std: gene_std[index]
+            max: gene_max[index],
+        };
+    });
+
+    // console.log(meta_gene)
+
     // const maxExp = Math.max(...trx_exp);
     // const maxExp = trx_exp.reduce((max, value) => Math.max(max, value), -Infinity);
-
 
     // function scaleExpressionLevels(expArray) {
     //     // const maxExp = expArray.reduce((max, value) => (max > value ? max : value), BigInt(-Infinity));
@@ -56,17 +75,21 @@ export const toy = async ( root, base_url ) => {
     // console.log(trx_exp)
     
     // Create a map from tile category names to their indices
-    const nameToIndexMap = new Map();
+    const name_to_index_map = new Map();
     tile_names_array.forEach((name, index) => {
-        nameToIndexMap.set(name, index);
+        name_to_index_map.set(name, index);
     });
 
     const new_tile_exp_array = new Array(tile_cats_array.length).fill(0);
 
+    // let gene_max = gene_max[]
+
     trx_names.forEach((name, i) => {
-        if (nameToIndexMap.has(name)) {
-            const index = nameToIndexMap.get(name);
-            new_tile_exp_array[index] = trx_exp[i];
+        if (name_to_index_map.has(name)) {
+            const index = name_to_index_map.get(name);
+            const exp_value = Number(trx_exp[i]);
+            const max_exp = Number(meta_gene[inst_gene].max); // Ensure this is also a Number
+            new_tile_exp_array[index] = (exp_value / max_exp) * 255;
         }
     });
 

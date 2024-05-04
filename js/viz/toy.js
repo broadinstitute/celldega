@@ -39,10 +39,10 @@ export const toy = async ( root, base_url ) => {
 
     await update_layers(new_layers)
 
-    const ini_x = 500
-    const ini_y = 500
+    const ini_x = 10000
+    const ini_y = 14000
     const ini_z = 0
-    const ini_zoom = 0
+    const ini_zoom = -5
 
     set_initial_view_state(ini_x, ini_y, ini_z, ini_zoom)    
     update_views()

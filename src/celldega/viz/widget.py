@@ -54,3 +54,11 @@ class Toy(anywidget.AnyWidget):
     component = traitlets.Unicode("Toy").tag(sync=True)
 
     base_url = traitlets.Unicode('').tag(sync=True)    
+
+class Matrix(anywidget.AnyWidget):
+    _esm = pathlib.Path(__file__).parent / "../static" / "widget.js"
+    _css = pathlib.Path(__file__).parent / "../static" / "widget.css"
+    value = traitlets.Int(0).tag(sync=True)
+    component = traitlets.Unicode("Matrix").tag(sync=True)
+
+    network = traitlets.Dict({}).tag(sync=True)

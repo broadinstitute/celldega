@@ -1,6 +1,6 @@
 import importlib.metadata
 
-from celldega.viz import Landscape, Toy
+from celldega.viz import Landscape, Toy, Matrix
 from celldega.pre import landscape
 
 try:
@@ -8,4 +8,4 @@ try:
 except importlib.metadata.PackageNotFoundError:
     __version__ = "unknown"
 
-__all__ = ["Landscape", "Toy", "landscape"]
+__all__ = ["Landscape", "Toy", "landscape", "Matrix"]

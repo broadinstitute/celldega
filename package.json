@@ -12,7 +12,10 @@
 		"@loaders.gl/core": "4.1.1",
 		"apache-arrow": "15.0.2",
 		"deck.gl": "^9.0.5",
-		"math.gl": "2.3.3"
+		"math.gl": "2.3.3",
+		"d3":"^7.9.0",
+		"underscore": "1.9.1",
+		"clustergrammer-gl":"0.25.0"
 	},
 	"devDependencies": {
 		"@eslint/js": "^9.0.0",

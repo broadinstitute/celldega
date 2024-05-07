@@ -62,3 +62,4 @@ class Matrix(anywidget.AnyWidget):
     component = traitlets.Unicode("Matrix").tag(sync=True)
 
     network = traitlets.Dict({}).tag(sync=True)
+    click_info = traitlets.Dict({}).tag(sync=True)

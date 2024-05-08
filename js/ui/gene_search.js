@@ -4,6 +4,7 @@ import { options, set_options } from '../global_variables/fetch_options.js';
 import { update_tile_cat } from "../global_variables/tile_cat.js" 
 import { deck } from "../deck-gl/toy_deck.js";
 import { update_tile_exp_array } from "../global_variables/tile_exp_array.js"; 
+import { input, set_input } from "./input.js";
 
 export let gene_search = document.createElement("div");
 
@@ -17,19 +18,21 @@ export const update_gene_search = async (base_url) => {
 
     gene_search.style.height = "50px";
 
-    // Create an input field with a datalist for autocomplete
-    let input = document.createElement("input");
-    input.setAttribute('type', 'text');
-    input.setAttribute('placeholder', 'Search gene');
-    input.style.width = "500px";
-    input.style.height = "20px"; // Adjusted for input size
-    input.style.marginTop = "5px";
-    input.style.display = "inline-block";
-    input.style.padding = "1pt 2pt";
+    set_input()
+
+    // // Create an input field with a datalist for autocomplete
+    // let input = document.createElement("input");
+    // input.setAttribute('type', 'text');
+    // input.setAttribute('placeholder', 'Search gene');
+    // input.style.width = "500px";
+    // input.style.height = "20px"; 
+    // input.style.marginTop = "5px";
+    // input.style.display = "inline-block";
+    // input.style.padding = "1pt 2pt";
 
     let dataList = document.createElement("datalist");
-    dataList.id = 'genes_datalist'; // Unique ID for datalist
-    input.setAttribute('list', dataList.id); // Link datalist to input
+    dataList.id = 'genes_datalist'; 
+    input.setAttribute('list', dataList.id); 
 
     // Populate the datalist with gene names
     gene_search_options.forEach(optionText => {
@@ -53,6 +56,8 @@ export const update_gene_search = async (base_url) => {
             // If the input is empty, set it to 'cluster' and update
             update_tile_cat('cluster')
         } else if (gene_search_options.includes(selected_gene)) {
+
+            console.log('updating becuase of new gene search')
             update_tile_cat(selected_gene)
             await update_tile_exp_array(base_url, selected_gene)
         }

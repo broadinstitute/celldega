@@ -6,8 +6,6 @@ import { make_tile_tooltip } from './make_tlie_tooltip.js';
 
 export let deck
 
-console.log('toy_deck!!!!!!!!!!!') 
-
 export const set_deck = ( root ) => {
 
     deck = new Deck({

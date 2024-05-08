@@ -62,8 +62,6 @@ export const ini_square_scatter_layer = () => {
 
 export const update_square_scatter_layer = () => {
 
-    console.log('in update_square_scatter_layer', tile_cat)
-
     square_scatter_layer = new SquareScatterplotLayer({
         // Re-use existing layer props
         ...square_scatter_layer.props,

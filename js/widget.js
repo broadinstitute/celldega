@@ -81,7 +81,7 @@ export const render_matrix = async ({ model, el }) => {
         'click_type': click_type,
         'click_value': click_value
         }
-        console.log('clustergrammer-gl: click_info', click_info, 'then save changes to model')
+        // console.log('clustergrammer-gl: click_info', click_info, 'then save changes to model')
 
         // Update the click_info trait in the model with the new value
         model.set('click_info', click_info);
@@ -89,7 +89,7 @@ export const render_matrix = async ({ model, el }) => {
         
     }      
 
-    console.log(model.get('network'))
+    // console.log(model.get('network'))
 
     var network = model.get('network')
     let container = document.createElement("div")
@@ -118,7 +118,6 @@ export const render_matrix = async ({ model, el }) => {
             viz_width: 900,
             viz_height: 900,
             widget_callback: my_widget_callback,
-            // widget_callback: my_widget_callback.bind(this), // Bind the correct context
             is_widget: true,
             container: container,
             use_hzome: true

@@ -17,6 +17,8 @@ import { update_tile_exp_array } from "../global_variables/tile_exp_array.js";
 
 import { set_meta_gene } from "../global_variables/meta_gene.js";
 
+import { input } from "../ui/input.js";
+
 
 export const toy = async ( model, root, base_url ) => {
 
@@ -68,7 +70,8 @@ export const toy = async ( model, root, base_url ) => {
             selected_gene = 'cluster'
             update_tile_cat(selected_gene)
         }
-        console.log('selected_gene', selected_gene)
+
+        input.value = selected_gene
         
         update_square_scatter_layer()
         deck.setProps({layers: [square_scatter_layer]})

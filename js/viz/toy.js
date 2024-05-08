@@ -36,7 +36,7 @@ export const toy = async ( model, root, base_url ) => {
 
     await update_tile_color_dict(base_url)
 
-    ini_square_scatter_layer()
+    ini_square_scatter_layer(base_url)
 
     const new_layers = [square_scatter_layer]
 
@@ -55,14 +55,13 @@ export const toy = async ( model, root, base_url ) => {
     model.on('change:update_trigger', async () => {
 
         const click_info = model.get('update_trigger');
-        console.log("*** Landscape: update triggered by cgm click_info:");
-
-        console.log('click_info')
-        console.log(click_info)
+        // console.log("*** Landscape: update triggered by cgm click_info:");
+        // console.log('click_info')
+        // console.log(click_info)
 
         let selected_gene
         if (click_info.click_type === 'row-label') {
-            console.log('row-label')
+            // console.log('row-label')
             selected_gene = click_info.click_value 
             update_tile_cat(selected_gene)
             await update_tile_exp_array(base_url, selected_gene)

@@ -11,7 +11,8 @@ import _ from 'underscore';
 const globalVariables =
   ['mat_data', 'manual_category', 'control_svg', 'run_cluster_container', 
   'link_options_container', 'selected_label_container', 'network', 
-  'max_clust_id', 'new_clust_id', 'ini_value_color', '_'];
+  'max_clust_id', 'new_clust_id', 'ini_value_color', '_', 'organism', 
+  'num_matches'];
 
 globalVariables.forEach((variableName) => {
     window[variableName] = window[variableName] || {};
@@ -119,7 +120,8 @@ export const render_matrix = async ({ model, el }) => {
             widget_callback: my_widget_callback,
             // widget_callback: my_widget_callback.bind(this), // Bind the correct context
             is_widget: true,
-            container: container
+            container: container,
+            use_hzome: true
         }, 
         'yes this is a widget'
         );

@@ -1,7 +1,7 @@
 import { get_arrow_table } from "../read_parquet/get_arrow_table.js";
 import { square_scatter_layer, update_square_scatter_layer } from "../deck-gl/square_scatter_layer.js";
 import { options, set_options } from '../global_variables/fetch_options.js';
-import { update_tile_cat } from "../global_variables/tile_cat.js"; 
+import { update_tile_cat } from "../global_variables/tile_cat.js" 
 import { deck } from "../deck-gl/toy_deck.js";
 import { update_tile_exp_array } from "../global_variables/tile_exp_array.js"; 
 
@@ -48,17 +48,15 @@ export const update_gene_search = async (base_url) => {
 
     // Event listener when an option is selected or the input is cleared
     input.addEventListener('input', async function() {
-        const selectedGene = input.value;
-        if (selectedGene === '') {
+        const selected_gene = input.value;
+        if (selected_gene === '') {
             // If the input is empty, set it to 'cluster' and update
-            update_tile_cat('cluster');
-            update_square_scatter_layer();
-            deck.setProps({layers: [square_scatter_layer]});
-        } else if (gene_search_options.includes(selectedGene)) {
-            update_tile_cat(selectedGene);
-            await update_tile_exp_array(base_url, selectedGene);
-            update_square_scatter_layer();
-            deck.setProps({layers: [square_scatter_layer]});
+            update_tile_cat('cluster')
+        } else if (gene_search_options.includes(selected_gene)) {
+            update_tile_cat(selected_gene)
+            await update_tile_exp_array(base_url, selected_gene)
         }
+        update_square_scatter_layer()
+        deck.setProps({layers: [square_scatter_layer]})        
     });
 };

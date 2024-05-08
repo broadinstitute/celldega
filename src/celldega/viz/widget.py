@@ -55,6 +55,15 @@ class Toy(anywidget.AnyWidget):
 
     base_url = traitlets.Unicode('').tag(sync=True)    
 
+    # Add a traitlet for triggering updates in the frontend
+    # update_trigger = Unicode().tag(sync=True)
+    update_trigger = traitlets.Dict().tag(sync=True)
+
+    def trigger_update(self, new_value):
+        # This method updates the update_trigger traitlet with a new value
+        # You can pass any information necessary for the update, or just a timestamp
+        self.update_trigger = new_value        
+
 class Matrix(anywidget.AnyWidget):
     _esm = pathlib.Path(__file__).parent / "../static" / "widget.js"
     _css = pathlib.Path(__file__).parent / "../static" / "widget.css"

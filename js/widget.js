@@ -4,14 +4,14 @@ import { toy } from "./viz/toy";
 import { gene_search, update_gene_search } from "./ui/gene_search";
 // import * as d3 from 'd3';
 import cgm from 'clustergrammer-gl';
-// import _ from 'underscore';
+import _ from 'underscore';
 
 
 // Ensure these variables are defined globally
 const globalVariables =
   ['mat_data', 'manual_category', 'control_svg', 'run_cluster_container', 
   'link_options_container', 'selected_label_container', 'network', 
-  'max_clust_id', 'new_clust_id', 'ini_value_color'];
+  'max_clust_id', 'new_clust_id', 'ini_value_color', '_'];
 
 globalVariables.forEach((variableName) => {
     window[variableName] = window[variableName] || {};
@@ -56,7 +56,7 @@ export const render_toy = async ({ model, el }) => {
     el.appendChild(gene_search);
     el.appendChild(root);
 
-    return toy(root, base_url);  // Assuming toy is a function that initializes the visualization
+    return toy(model, root, base_url)
 }
 
 export const render_matrix = async ({ model, el }) => {
@@ -80,7 +80,7 @@ export const render_matrix = async ({ model, el }) => {
         'click_type': click_type,
         'click_value': click_value
         }
-        console.log(click_info)
+        console.log('clustergrammer-gl: click_info', click_info, 'then save changes to model')
 
         // Update the click_info trait in the model with the new value
         model.set('click_info', click_info);

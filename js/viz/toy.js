@@ -13,6 +13,7 @@ import { update_tile_cat } from "../global_variables/tile_cat.js"
 import { update_tile_cats_array } from "../global_variables/tile_cats_array.js";
 import { update_tile_names_array } from "../global_variables/tile_names_array.js";
 import { update_tile_color_dict } from "../global_variables/tile_color_dict.js";
+import { update_tile_exp_array } from "../global_variables/tile_exp_array.js"; 
 
 import { set_meta_gene } from "../global_variables/meta_gene.js";
 
@@ -31,8 +32,6 @@ export const toy = async ( model, root, base_url ) => {
 
     await set_meta_gene(base_url)
 
-    // await update_tile_exp_array(base_url, 'TSPAN3')
-    
     await update_tile_color_dict(base_url)
 
     ini_square_scatter_layer()
@@ -51,7 +50,7 @@ export const toy = async ( model, root, base_url ) => {
 
     set_deck(root)
 
-    model.on('change:update_trigger', () => {
+    model.on('change:update_trigger', async () => {
 
         const click_info = model.get('update_trigger');
         console.log("*** Landscape: update triggered by cgm click_info:");
@@ -62,14 +61,15 @@ export const toy = async ( model, root, base_url ) => {
         let selected_gene
         if (click_info.click_type === 'row-label') {
             console.log('row-label')
-            // selected_gene = click_info.click_value 
-            selected_gene = 'IGKC'
+            selected_gene = click_info.click_value 
+            update_tile_cat(selected_gene)
+            await update_tile_exp_array(base_url, selected_gene)
         } else {
             selected_gene = 'cluster'
+            update_tile_cat(selected_gene)
         }
         console.log('selected_gene', selected_gene)
-
-        update_tile_cat(selected_gene)
+        
         update_square_scatter_layer()
         deck.setProps({layers: [square_scatter_layer]})
 

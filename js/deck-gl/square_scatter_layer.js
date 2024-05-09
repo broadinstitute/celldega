@@ -6,7 +6,6 @@ import { color_dict } from '../global_variables/tile_color_dict.js';
 import { tile_exp_array } from '../global_variables/tile_exp_array.js'; 
 import { selected_cats, update_selected_cats } from '../global_variables/selected_cats.js';
 import { update_tile_cat } from "../global_variables/tile_cat.js" 
-import { update_tile_exp_array } from "../global_variables/tile_exp_array.js"; 
 import { deck } from "../deck-gl/toy_deck.js";
 
 class SquareScatterplotLayer extends ScatterplotLayer {
@@ -51,8 +50,7 @@ export const ini_square_scatter_layer = (base_url) => {
                     if (selected_cats.includes(inst_cat)) {
                         inst_color = [...color_dict[inst_cat], 255]
                     } else {
-                        inst_color = [0, 0, 0, 20]
-                    
+                        inst_color = [...color_dict[inst_cat], 25]
                     }
                 }
             } else {
@@ -65,15 +63,12 @@ export const ini_square_scatter_layer = (base_url) => {
         filled: true,
         getRadius: 12.2, // 8um: 12 with border
         pickable: true,
-        onClick: async (d) => {
+        onClick: (d) => {
             console.log('Clicked on:', d)
             let new_selected_cats = [tile_cats_array[d.index]]
 
-            console.log('selected_cats', selected_cats)
-
             update_selected_cats(new_selected_cats)
             update_tile_cat('cluster')
-            // await update_tile_exp_array(base_url, selected_gene)
             update_square_scatter_layer()
             deck.setProps({layers: [square_scatter_layer]})        
 
@@ -87,10 +82,19 @@ export const ini_square_scatter_layer = (base_url) => {
 
 export const update_square_scatter_layer = () => {
 
+    // need to set up something to update the id of the layer
+    let layer_id
+
+    if (selected_cats.length === 0) {
+        layer_id = `tile-layer-${tile_cat}`
+    } else {
+        layer_id = `tile-layer-${tile_cat}-${selected_cats.join('-')}`
+    }
+
     square_scatter_layer = new SquareScatterplotLayer({
         // Re-use existing layer props
         ...square_scatter_layer.props,
-        id: `tile-layer-${tile_cat}`,
+        id: layer_id,
         data: tile_scatter_data,
     });
 

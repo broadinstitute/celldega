@@ -34,13 +34,9 @@ export const toy = async ( model, root, base_url ) => {
     update_tile_names_array(tile_arrow_table.getChild("name").toArray())
 
     await set_meta_gene(base_url)
-
     await update_tile_color_dict(base_url)
-
     ini_square_scatter_layer(base_url)
-
     const new_layers = [square_scatter_layer]
-
     await update_layers(new_layers)
 
     const ini_x = 10000
@@ -56,9 +52,6 @@ export const toy = async ( model, root, base_url ) => {
     model.on('change:update_trigger', async () => {
 
         const click_info = model.get('update_trigger');
-        // console.log("*** Landscape: update triggered by cgm click_info:");
-        // console.log('click_info')
-        // console.log(click_info)
 
         let selected_gene
         if (click_info.click_type === 'row-label') {
@@ -87,32 +80,6 @@ export const toy = async ( model, root, base_url ) => {
         
         update_square_scatter_layer()
         deck.setProps({layers: [square_scatter_layer]})
-
-        // selected_cats = []
-        // if (click_info.click_type === 'col-label'){
-        //     selected_cats = [click_info.click_value]
-        // } else if (click_info.click_type === 'col-dendro') {
-        //     selected_cats = click_info.click_value
-        // }
-
-        // console.log('selected_cats')
-        // console.log(selected_cats)
-
-        // cell_layer = new ScatterplotLayer({
-        //     ...cell_layer.props,
-        //     id: 'new-cell-layer-' + new Date().getTime(),
-        //     data: cell_scatter_data,
-        //     updateTriggers: {
-        //         getColor: selected_cats
-        //     }
-        // });  
-
-        // console.log('here!!!')
-
-        // deck.setProps({
-        //     layers: [tile_layer, cell_layer]
-            
-        // })
 
     });        
 

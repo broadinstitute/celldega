@@ -72,6 +72,12 @@ export const toy = async ( model, root, base_url ) => {
             update_tile_cat(selected_gene)
             update_selected_cats([click_info.click_value])
         
+        } else if (click_info.click_type === 'col-dendro') {
+            
+            selected_gene = 'cluster'
+            update_tile_cat(selected_gene)
+            update_selected_cats(click_info.click_value)        
+        
         } else {
             selected_gene = 'cluster'
             update_tile_cat(selected_gene)

@@ -18,6 +18,7 @@ import { update_tile_exp_array } from "../global_variables/tile_exp_array.js";
 import { set_meta_gene } from "../global_variables/meta_gene.js";
 
 import { input } from "../ui/input.js";
+import { update_selected_cats } from "../global_variables/selected_cats.js";
 
 
 export const toy = async ( model, root, base_url ) => {
@@ -61,10 +62,16 @@ export const toy = async ( model, root, base_url ) => {
 
         let selected_gene
         if (click_info.click_type === 'row-label') {
-            // console.log('row-label')
+
             selected_gene = click_info.click_value 
             update_tile_cat(selected_gene)
             await update_tile_exp_array(base_url, selected_gene)
+        } else if (click_info.click_type === 'col-label') {
+
+            selected_gene = 'cluster'
+            update_tile_cat(selected_gene)
+            update_selected_cats([click_info.click_value])
+        
         } else {
             selected_gene = 'cluster'
             update_tile_cat(selected_gene)

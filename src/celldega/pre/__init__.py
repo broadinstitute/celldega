@@ -81,7 +81,7 @@ def convert_to_jpeg(image_path, quality=80):
     return new_image_path
 
 
-def make_deepzoom_pyramid(image_path, output_path, pyramid_name, tile_size=512, overlap=0):
+def make_deepzoom_pyramid(image_path, output_path, pyramid_name, tile_size=512, overlap=0, suffix='jpeg'):
     """
     Create a DeepZoom image pyramid from a JPEG image
 
@@ -93,6 +93,8 @@ def make_deepzoom_pyramid(image_path, output_path, pyramid_name, tile_size=512, 
         Tile size for the DeepZoom pyramid
     overlap : int (default=0)
         Overlap size for the DeepZoom pyramid
+    suffix : str (default='jpeg')
+        Suffix for the DeepZoom pyramid tiles
 
     Returns
     -------
@@ -113,7 +115,7 @@ def make_deepzoom_pyramid(image_path, output_path, pyramid_name, tile_size=512, 
     output_path = output_path / pyramid_name
 
     # Save the image as a DeepZoom image pyramid
-    image.dzsave(output_path, tile_size=tile_size, overlap=overlap)
+    image.dzsave(output_path, tile_size=tile_size, overlap=overlap, suffix=suffix)
 
 
 def make_meta_cell_image_coord( 

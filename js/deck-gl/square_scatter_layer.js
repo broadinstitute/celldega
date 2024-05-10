@@ -61,7 +61,7 @@ export const ini_square_scatter_layer = (base_url) => {
             return inst_color
         },
         filled: true,
-        getRadius: 12.2, // 8um: 12 with border
+        getRadius: 3, // 8um: 12 with border
         pickable: true,
         onClick: (d) => {
             console.log('Clicked on:', d)

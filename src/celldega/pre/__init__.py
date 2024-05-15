@@ -199,6 +199,11 @@ def make_trx_tiles(
         chunk_size = 1000000
     ):
 
+    """
+    
+
+    """
+
     tile_size_x = tile_size
     tile_size_y = tile_size
 
@@ -231,8 +236,11 @@ def make_trx_tiles(
         points = np.hstack((chunk[['x', 'y']], np.ones((chunk.shape[0], 1))))
         transformed_points = np.dot(points, transformation_matrix.T)[:, :2]
         chunk[['x', 'y']] = transformed_points  # Update chunk with transformed coordinates
-        chunk['x'] = chunk['x'] / 2  # Adjust for downsampling
-        chunk['y'] = chunk['y'] / 2
+        
+        # add this as an argument that can be modified
+        image_downsample_factor = 2
+        chunk['x'] = chunk['x'] / image_downsample_factor
+        chunk['y'] = chunk['y'] / image_downsample_factor
 
         chunk['x'] = chunk['x'].round(2)
         chunk['y'] = chunk['y'].round(2)
@@ -257,19 +265,25 @@ def make_trx_tiles(
         if i % 2 == 0:
             print('row', i)
         
+        
         for j in range(n_tiles_y):
+            # calculate polygon from these bounds
             tile_x_min = x_min + i * tile_size_x
             tile_x_max = tile_x_min + tile_size_x
             tile_y_min = y_min + j * tile_size_y
             tile_y_max = tile_y_min + tile_size_y
             
             # Filter trx to get only the data within the current tile's bounds
+            # We need to make this more efficient
+            # option 1: make a GeoDataFrame and filter using sindex and the tile polygon
+            # option 2: remove transcripts that have been assigned to a tile from the DataFrame
             tile_trx = trx[(trx.x >= tile_x_min) & (trx.x < tile_x_max) & 
                         (trx.y >= tile_y_min) & (trx.y < tile_y_max)].copy()
 
-
             # make 'geometry' column
             tile_trx = tile_trx.assign(geometry=tile_trx.apply(lambda row: [row['x'], row['y']], axis=1))
+
+            # add some logic to skip tiles where there are no transcripts
 
             # Define the filename based on the tile's coordinates
             filename = f'{path_trx_tiles}/transcripts_tile_{i}_{j}.parquet'        

@@ -32,7 +32,7 @@ class SquareScatterplotLayer extends ScatterplotLayer {
 
 export let square_scatter_layer
 
-export const ini_square_scatter_layer = (base_url) => {
+export const ini_square_scatter_layer = () => {
 
     square_scatter_layer = new SquareScatterplotLayer({
         id: 'tile-layer',

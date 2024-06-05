@@ -22,19 +22,11 @@ import { update_selected_cats } from "../global_variables/selected_cats.js";
 
 import { set_dimensions } from '../global_variables/image_dimensions.js';
 
-import { set_landscape_parameters, landscape_parameters } from "../global_variables/landscape_parameters.js";
-import { TileLayer } from 'deck.gl' 
-
-import { create_get_tile_data } from '../deck-gl/create_get_tile_data.js'
-import { create_simple_render_tile_sublayers } from '../deck-gl/create_simple_render_tile_sublayer'
-
-
-import { global_base_url } from '../global_variables/global_base_url'
+import { set_landscape_parameters } from "../global_variables/landscape_parameters.js";
 
 import { simple_image_layer, make_simple_image_layer } from "../deck-gl/simple_image_layer.js";
 
 import { set_global_base_url } from "../global_variables/global_base_url.js";
-import { local } from "d3";
 
 
 export const toy = async ( model, root, base_url ) => {
@@ -63,7 +55,7 @@ export const toy = async ( model, root, base_url ) => {
 
     await set_meta_gene(base_url)
     await update_tile_color_dict(base_url)
-    ini_square_scatter_layer(base_url)
+    ini_square_scatter_layer()
     const new_layers = [simple_image_layer, square_scatter_layer]
     await update_layers(new_layers)
 

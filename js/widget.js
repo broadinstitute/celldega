@@ -1,3 +1,5 @@
+/* eslint-disable no-unused-vars */
+
 import "./widget.css";
 import { landscape } from "./viz/landscape";
 import { toy } from "./viz/toy";

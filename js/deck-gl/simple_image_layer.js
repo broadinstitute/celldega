@@ -19,7 +19,7 @@ export const make_simple_image_layer = async (info) => {
         maxCacheSize: 20,
         extent: [0, 0, dimensions.width, dimensions.height],
         getTileData: create_get_tile_data(global_base_url, info.name, landscape_parameters.max_pyramid_zoom, options),
-        renderSubLayers: create_simple_render_tile_sublayers(dimensions, info.color)
+        renderSubLayers: create_simple_render_tile_sublayers(dimensions)
     });     
 
 }

@@ -6,19 +6,19 @@ import { set_initial_view_state } from "../deck-gl/initial_view_state.js";
 
 import { deck, set_deck } from '../deck-gl/toy_deck.js'
 import { update_layers } from "../deck-gl/toy_layers.js";
-import { square_scatter_layer, ini_square_scatter_layer, update_square_scatter_layer } from "../deck-gl/square_scatter_layer.js";  
+import { square_scatter_layer, ini_square_scatter_layer } from "../deck-gl/square_scatter_layer.js";  
 
 import { update_tile_scatter_data } from "../global_variables/tile_scatter_data.js";
-import { update_tile_cat } from "../global_variables/tile_cat.js"
+// import { update_tile_cat } from "../global_variables/tile_cat.js"
 import { update_tile_cats_array } from "../global_variables/tile_cats_array.js";
 import { update_tile_names_array } from "../global_variables/tile_names_array.js";
 import { update_tile_color_dict } from "../global_variables/tile_color_dict.js";
-import { update_tile_exp_array } from "../global_variables/tile_exp_array.js"; 
+// import { update_tile_exp_array } from "../global_variables/tile_exp_array.js"; 
 
 import { set_meta_gene } from "../global_variables/meta_gene.js";
 
-import { input } from "../ui/input.js";
-import { update_selected_cats } from "../global_variables/selected_cats.js";
+// import { input } from "../ui/input.js";
+// import { update_selected_cats } from "../global_variables/selected_cats.js";
 
 import { set_dimensions } from '../global_variables/image_dimensions.js';
 
@@ -28,8 +28,13 @@ import { simple_image_layer, make_simple_image_layer } from "../deck-gl/simple_i
 
 import { set_global_base_url } from "../global_variables/global_base_url.js";
 
+import { set_model, model } from "../global_variables/model.js";
 
-export const toy = async ( model, root, base_url ) => {
+import { update_tile_landscape_from_cgm } from "../widget_interactions/update_tile_landscape_from_cgm.js";
+
+export const toy = async ( ini_model, root, base_url ) => {
+
+    set_model(ini_model)
 
     set_options('')
     set_global_base_url(base_url)
@@ -59,50 +64,52 @@ export const toy = async ( model, root, base_url ) => {
     const new_layers = [simple_image_layer, square_scatter_layer]
     await update_layers(new_layers)
 
-    const ini_x = 10000
-    const ini_y = 14000
+    const ini_x = 1000
+    const ini_y = 1000
     const ini_z = 0
-    const ini_zoom = -5
+    const ini_zoom = -3
 
     set_initial_view_state(ini_x, ini_y, ini_z, ini_zoom)    
     update_views()
 
     set_deck(root)
 
-    model.on('change:update_trigger', async () => {
+    // const update_tile_landscape_from_cgm = async () => {
 
-        const click_info = model.get('update_trigger');
+    //     const click_info = model.get('update_trigger');
 
-        let selected_gene
-        if (click_info.click_type === 'row-label') {
+    //     let selected_gene
+    //     if (click_info.click_type === 'row-label') {
 
-            selected_gene = click_info.click_value 
-            update_tile_cat(selected_gene)
-            await update_tile_exp_array(base_url, selected_gene)
+    //         selected_gene = click_info.click_value 
+    //         update_tile_cat(selected_gene)
+    //         await update_tile_exp_array(base_url, selected_gene)
 
-        } else if (click_info.click_type === 'col-label') {
+    //     } else if (click_info.click_type === 'col-label') {
 
-            selected_gene = 'cluster'
-            update_tile_cat(selected_gene)
-            update_selected_cats([click_info.click_value])
+    //         selected_gene = 'cluster'
+    //         update_tile_cat(selected_gene)
+    //         update_selected_cats([click_info.click_value])
         
-        } else if (click_info.click_type === 'col-dendro') {
+    //     } else if (click_info.click_type === 'col-dendro') {
             
-            selected_gene = 'cluster'
-            update_tile_cat(selected_gene)
-            update_selected_cats(click_info.click_value)        
+    //         selected_gene = 'cluster'
+    //         update_tile_cat(selected_gene)
+    //         update_selected_cats(click_info.click_value)        
         
-        } else {
-            selected_gene = 'cluster'
-            update_tile_cat(selected_gene)
-        }
+    //     } else {
+    //         selected_gene = 'cluster'
+    //         update_tile_cat(selected_gene)
+    //     }
 
-        input.value = selected_gene
+    //     input.value = selected_gene
         
-        update_square_scatter_layer()
-        deck.setProps({layers: [simple_image_layer, square_scatter_layer]})
+    //     update_square_scatter_layer()
+    //     deck.setProps({layers: [simple_image_layer, square_scatter_layer]})
 
-    });        
+    // }    
+
+    model.on('change:update_trigger', update_tile_landscape_from_cgm);
 
     return () => deck.finalize();  
 

@@ -20,7 +20,7 @@ import { set_meta_gene } from "../global_variables/meta_gene.js";
 import { input } from "../ui/input.js";
 import { update_selected_cats } from "../global_variables/selected_cats.js";
 
-import { get_image_dimensions } from "../image_tile/get_image_dimensions.js"; 
+import { set_dimensions } from '../global_variables/image_dimensions.js';
 
 import { set_landscape_parameters, landscape_parameters } from "../global_variables/landscape_parameters.js";
 import { TileLayer } from 'deck.gl' 
@@ -40,42 +40,9 @@ import { local } from "d3";
 export const toy = async ( model, root, base_url ) => {
 
     set_options('')
-
-
     set_global_base_url(base_url)
-
     await set_landscape_parameters(base_url)
-
-    const dimensions = await get_image_dimensions(base_url, 'cells', options)
-
-    console.log('dimensions')
-    console.log(dimensions)
-
-
-    const max_pyramid_zoom = landscape_parameters.max_pyramid_zoom
-
-    console.log('max_pyramid_zoom', max_pyramid_zoom)
-
-
-    // // move this to landscape_parameters
-    // // const imgage_name_for_dim = 'dapi'
-    // const info = { 
-    //     name: 'cells', 
-    //     color: [0, 0, 255]
-    // }
-
-    // const simple_image_layer = new TileLayer({
-    //     id: info.name,
-    //     tileSize: dimensions.tileSize,
-    //     refinementStrategy: 'no-overlap',
-    //     minZoom: -7,
-    //     maxZoom: 0,
-    //     maxCacheSize: 20,
-    //     extent: [0, 0, dimensions.width, dimensions.height],
-    //     getTileData: create_get_tile_data(base_url, info.name, max_pyramid_zoom, options),
-    //     renderSubLayers: create_simple_render_tile_sublayers(dimensions, info.color)
-    // });     
-
+    await set_dimensions(base_url, 'cells' )
 
     // move this to landscape_parameters
     // const imgage_name_for_dim = 'dapi'
@@ -84,37 +51,7 @@ export const toy = async ( model, root, base_url ) => {
         color: [0, 0, 255]
     }    
 
-    // let local_simple_image_layer = null
-
-    // const make_local_simple_image_layer = async (info) => {
-    //     console.log('here!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
-    //     local_simple_image_layer = new TileLayer({
-    //         id: info.name,
-    //         tileSize: dimensions.tileSize,
-    //         refinementStrategy: 'no-overlap',
-    //         minZoom: -7,
-    //         maxZoom: 0,
-    //         maxCacheSize: 20,
-    //         extent: [0, 0, dimensions.width, dimensions.height],
-    //         getTileData: create_get_tile_data(global_base_url, info.name, landscape_parameters.max_pyramid_zoom, options),
-    //         renderSubLayers: create_simple_render_tile_sublayers(dimensions, info.color)
-    //     });     
-    // }    
-
-    // // move this to landscape_parameters
-    // // const imgage_name_for_dim = 'dapi'
-    // const info = { 
-    //     name: 'cells', 
-    //     color: [0, 0, 255]
-    // }
-
-    // await make_local_simple_image_layer(info, base_url, options, max_pyramid_zoom)
-
     await make_simple_image_layer(info)
-
-    // console.log('compare local and global simple_image_layer')
-    // console.log(simple_image_layer)
-    // console.log(local_simple_image_layer)
 
     const tile_url = base_url + 'tile_geometries.parquet'
 

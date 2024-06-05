@@ -1,7 +1,7 @@
 import * as mathGl from 'math.gl';
 import { BitmapLayer } from 'deck.gl';
 
-export const create_simple_render_tile_sublayers = ( dimensions, color ) => (props) => {
+export const create_simple_render_tile_sublayers = ( dimensions ) => (props) => {
     
     const {
         bbox: {left, bottom, right, top}

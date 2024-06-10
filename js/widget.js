@@ -149,7 +149,7 @@ export const render = async ({ model, el }) => {
         case "Landscape":
             render_landscape({ model, el });
             break;
-        case "Toy":
+        case "Landscape_sst":
             render_landscape_sst({ model, el });
             break;
         case "Matrix":

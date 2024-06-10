@@ -1,3 +1,3 @@
-from .widget import Landscape, Toy, Matrix
+from .widget import Landscape, Landscape_sst, Matrix
 
-__all__ = ["Landscape", "Toy", "Matrix"]
+__all__ = ["Landscape", "Landscape_sst", "Matrix"]    

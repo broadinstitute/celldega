@@ -47,11 +47,11 @@ class Landscape(anywidget.AnyWidget):
     base_url = traitlets.Unicode('').tag(sync=True)    
 
 
-class Toy(anywidget.AnyWidget):
+class Landscape_sst(anywidget.AnyWidget):
     _esm = pathlib.Path(__file__).parent / "../static" / "widget.js"
     _css = pathlib.Path(__file__).parent / "../static" / "widget.css"
     value = traitlets.Int(0).tag(sync=True)
-    component = traitlets.Unicode("Toy").tag(sync=True)
+    component = traitlets.Unicode("Landscape_sst").tag(sync=True)
 
     base_url = traitlets.Unicode('').tag(sync=True)    
 

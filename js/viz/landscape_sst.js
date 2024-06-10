@@ -3,8 +3,8 @@ import { get_scatter_data } from "../read_parquet/get_scatter_data.js";
 import { options, set_options } from '../global_variables/fetch_options.js';
 import { update_views } from '../deck-gl/views.js';
 import { set_initial_view_state } from "../deck-gl/initial_view_state.js";
-import { deck, set_deck } from '../deck-gl/toy_deck.js'
-import { update_layers } from "../deck-gl/toy_layers.js";
+import { deck, set_deck } from '../deck-gl/deck_sst.js'
+import { update_layers } from "../deck-gl/layers_sst.js";
 import { square_scatter_layer, ini_square_scatter_layer } from "../deck-gl/square_scatter_layer.js";  
 import { update_tile_scatter_data } from "../global_variables/tile_scatter_data.js";
 import { update_tile_cats_array } from "../global_variables/tile_cats_array.js";

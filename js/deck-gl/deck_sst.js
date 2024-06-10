@@ -1,8 +1,8 @@
 import { Deck } from 'deck.gl';
 import { views } from './views.js';
 import { initial_view_state } from "./initial_view_state.js";
-import { layers } from './toy_layers.js';
-import { make_tile_tooltip } from './make_tlie_tooltip.js';
+import { layers } from './layers_sst.js';
+import { make_tile_tooltip } from './make_tile_tooltip.js';
 
 export let deck
 

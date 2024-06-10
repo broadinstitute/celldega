@@ -46,7 +46,7 @@ export const render_landscape = async ({ model, el }) => {
 
 }
 
-export const render_toy = async ({ model, el }) => {
+export const render_landscape_sst = async ({ model, el }) => {
     
     const base_url = model.get('base_url')
 
@@ -139,10 +139,7 @@ export const render_matrix = async ({ model, el }) => {
         element.parentNode.removeChild(element);
     });
 
-
-
 }
-
 
 export const render = async ({ model, el }) => {
 
@@ -153,7 +150,7 @@ export const render = async ({ model, el }) => {
             render_landscape({ model, el });
             break;
         case "Toy":
-            render_toy({ model, el });
+            render_landscape_sst({ model, el });
             break;
         case "Matrix":
             render_matrix({ model, el });

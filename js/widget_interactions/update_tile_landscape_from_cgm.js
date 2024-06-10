@@ -5,7 +5,7 @@ import { global_base_url } from '../global_variables/global_base_url.js';
 import { update_selected_cats } from "../global_variables/selected_cats.js";
 import { input } from "../ui/input.js";
 import { square_scatter_layer, update_square_scatter_layer } from "../deck-gl/square_scatter_layer.js";  
-import { deck } from "../deck-gl/toy_deck.js";
+import { deck } from "../deck-gl/deck_sst.js";
 import { simple_image_layer } from "../deck-gl/simple_image_layer.js";
 
 export const update_tile_landscape_from_cgm = async () => {

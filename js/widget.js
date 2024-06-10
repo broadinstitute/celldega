@@ -2,7 +2,7 @@
 
 import "./widget.css";
 import { landscape } from "./viz/landscape";
-import { toy } from "./viz/landscape_sst";
+import { landscape_sst } from "./viz/landscape_sst";
 import { gene_search, update_gene_search } from "./ui/gene_search";
 // import * as d3 from 'd3';
 import cgm from 'clustergrammer-gl';
@@ -60,7 +60,7 @@ export const render_toy = async ({ model, el }) => {
     el.appendChild(root);
 
 
-    return toy(model, root, base_url)
+    return landscape_sst(model, root, base_url)
 }
 
 export const render_matrix = async ({ model, el }) => {

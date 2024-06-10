@@ -18,7 +18,7 @@ import { set_global_base_url } from "../global_variables/global_base_url.js";
 import { set_model, model } from "../global_variables/model.js";
 import { update_tile_landscape_from_cgm } from "../widget_interactions/update_tile_landscape_from_cgm.js";
 
-export const toy = async ( ini_model, root, base_url ) => {
+export const landscape_sst = async ( ini_model, root, base_url ) => {
 
     set_model(ini_model)
 

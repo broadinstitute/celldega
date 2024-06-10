@@ -1,4 +1,4 @@
-import { get_arrow_table } from "../read_parquet/get_arrow_table";
+import { get_arrow_table } from "../read_parquet/get_arrow_table.js";
 import { get_scatter_data } from "../read_parquet/get_scatter_data.js";
 import { options, set_options } from '../global_variables/fetch_options.js';
 import { update_views } from '../deck-gl/views.js';

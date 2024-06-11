@@ -66,8 +66,19 @@ export const render_landscape_sst = async ({ model, el }) => {
     const ini_zoom = model.get('ini_zoom');
     const base_url = model.get('base_url')
 
-    await update_gene_search(base_url);
-    el.appendChild(gene_search);
+    // Create a container for the gene search box and additional elements
+    let ui_container = document.createElement("div");
+    ui_container.style.display = "flex";
+    ui_container.style.flexDirection = "column";
+    ui_container.style.width = "700px";
+    // ui_container.style.padding = "10px";
+    ui_container.style.border = "1px solid #ccc";
+    // ui_container.style.marginBottom = "20px";    
+
+    await update_gene_search(base_url, token);
+    ui_container.appendChild(gene_search);
+
+    el.appendChild(ui_container);
 
     // Create and append the visualization container
     let root = document.createElement("div");

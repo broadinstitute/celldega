@@ -9,8 +9,8 @@ import { simple_image_layer } from "../deck-gl/simple_image_layer.js";
 
 export let gene_search = document.createElement("div");
 
-export const update_gene_search = async (base_url) => {
-    set_options('');
+export const update_gene_search = async (base_url, token) => {
+    set_options(token);
 
     let meta_gene_table = await get_arrow_table(base_url + 'meta_gene.parquet', options.fetch);
 
@@ -18,6 +18,7 @@ export const update_gene_search = async (base_url) => {
     const gene_search_options = ['cluster', ...all_genes];
 
     gene_search.style.height = "50px";
+    gene_search.style.width = "250px";
 
     set_input()
 
@@ -41,6 +42,14 @@ export const update_gene_search = async (base_url) => {
         option.value = optionText;
         dataList.appendChild(option);
     });
+
+    // Apply styles to the input element
+    input.style.width = "100%";
+    input.style.maxWidth = "250px"; 
+    input.style.height = "20px"; 
+    input.style.marginTop = "5px";
+    input.style.display = "inline-block";
+    input.style.padding = "1pt 2pt";    
 
     // Append elements
     gene_search.appendChild(input);

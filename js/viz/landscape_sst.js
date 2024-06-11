@@ -18,7 +18,16 @@ import { set_global_base_url } from "../global_variables/global_base_url.js";
 import { set_model, model } from "../global_variables/model.js";
 import { update_tile_landscape_from_cgm } from "../widget_interactions/update_tile_landscape_from_cgm.js";
 
-export const landscape_sst = async ( ini_model, root, base_url ) => {
+export const landscape_sst = async ( 
+    ini_model, 
+    root, 
+    base_url,
+    token, 
+    ini_x, 
+    ini_y, 
+    ini_z,
+    ini_zoom 
+) => {
 
     set_model(ini_model)
 
@@ -50,10 +59,10 @@ export const landscape_sst = async ( ini_model, root, base_url ) => {
     const new_layers = [simple_image_layer, square_scatter_layer]
     await update_layers(new_layers)
 
-    const ini_x = 1000
-    const ini_y = 1000
-    const ini_z = 0
-    const ini_zoom = -3
+    // const ini_x = 1000
+    // const ini_y = 1000
+    // const ini_z = 0
+    // const ini_zoom = -3
 
     set_initial_view_state(ini_x, ini_y, ini_z, ini_zoom)    
     update_views()

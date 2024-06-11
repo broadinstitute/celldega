@@ -48,6 +48,11 @@ export const render_landscape = async ({ model, el }) => {
 
 export const render_landscape_sst = async ({ model, el }) => {
     
+    const token = model.get('token_traitlet')
+    const ini_x = model.get('ini_x');
+    const ini_y = model.get('ini_y');    
+    const ini_z = model.get('ini_z');    
+    const ini_zoom = model.get('ini_zoom');
     const base_url = model.get('base_url')
 
     await update_gene_search(base_url);
@@ -60,7 +65,16 @@ export const render_landscape_sst = async ({ model, el }) => {
     el.appendChild(root);
 
 
-    return landscape_sst(model, root, base_url)
+    return landscape_sst(
+        model, 
+        root,         
+        base_url,
+        token, 
+        ini_x, 
+        ini_y, 
+        ini_z,
+        ini_zoom,
+    )
 }
 
 export const render_matrix = async ({ model, el }) => {

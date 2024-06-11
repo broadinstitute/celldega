@@ -39,24 +39,28 @@ class Landscape(anywidget.AnyWidget):
     _css = pathlib.Path(__file__).parent / "../static" / "widget.css"
     component = traitlets.Unicode("Landscape").tag(sync=True)
 
+    token_traitlet = traitlets.Unicode('token').tag(sync=True)
     ini_x = traitlets.Float(4500).tag(sync=True)
     ini_y = traitlets.Float(3200).tag(sync=True)
     ini_z = traitlets.Float(0).tag(sync=True)
     ini_zoom = traitlets.Float(0).tag(sync=True)
-    token_traitlet = traitlets.Unicode('token').tag(sync=True)
     base_url = traitlets.Unicode('').tag(sync=True)    
 
 
 class Landscape_sst(anywidget.AnyWidget):
     _esm = pathlib.Path(__file__).parent / "../static" / "widget.js"
-    _css = pathlib.Path(__file__).parent / "../static" / "widget.css"
-    value = traitlets.Int(0).tag(sync=True)
+    _css = pathlib.Path(__file__).parent / "../static" / "widget.css"    
     component = traitlets.Unicode("Landscape_sst").tag(sync=True)
 
+    token_traitlet = traitlets.Unicode('token').tag(sync=True)
+    ini_x = traitlets.Float(1000).tag(sync=True)
+    ini_y = traitlets.Float(1000).tag(sync=True)
+    ini_z = traitlets.Float(0).tag(sync=True)
+    ini_zoom = traitlets.Float(0).tag(sync=True)
     base_url = traitlets.Unicode('').tag(sync=True)    
+    value = traitlets.Int(0).tag(sync=True)
 
     # Add a traitlet for triggering updates in the frontend
-    # update_trigger = Unicode().tag(sync=True)
     update_trigger = traitlets.Dict().tag(sync=True)
 
     def trigger_update(self, new_value):

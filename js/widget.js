@@ -120,8 +120,6 @@ export const render_landscape_sst = async ({ model, el }) => {
 
     el.appendChild(ui_container);
 
-    console.log(d3)
-
     // Create and append the visualization container
     let root = document.createElement("div");
     root.style.height = "800px";    
@@ -167,14 +165,11 @@ export const render_matrix = async ({ model, el }) => {
         
     }      
 
-    // console.log(model.get('network'))
-
     var network = model.get('network')
     let container = document.createElement("div")
     container.style.height = "1000px";
     container.id = "cgm-container";
     el.appendChild(container)
-
 
     setTimeout(function() {
 
@@ -224,9 +219,6 @@ export const render = async ({ model, el }) => {
         case "Landscape":
             render_landscape({ model, el });
             break;
-        // case "Landscape_sst":
-        //     render_landscape_sst({ model, el });
-        //     break;
         case "Matrix":
             render_matrix({ model, el });
             break;            

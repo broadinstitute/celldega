@@ -1,6 +1,6 @@
 import importlib.metadata
 
-from celldega.viz import Landscape, Landscape_sst, Matrix
+from celldega.viz import Landscape, Matrix
 from celldega.pre import landscape
 
 try:
@@ -8,4 +8,4 @@ try:
 except importlib.metadata.PackageNotFoundError:
     __version__ = "unknown"
 
-__all__ = ["Landscape", "Landscape_sst", "landscape", "Matrix"]
+__all__ = ["Landscape", "landscape", "Matrix"]

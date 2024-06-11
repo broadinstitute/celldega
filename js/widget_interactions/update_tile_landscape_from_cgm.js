@@ -12,6 +12,8 @@ export const update_tile_landscape_from_cgm = async () => {
 
     const click_info = model.get('update_trigger');
 
+    console.log('update_tile_landscape_from_cgm:', click_info)
+
     let selected_gene
     if (click_info.click_type === 'row-label') {
 

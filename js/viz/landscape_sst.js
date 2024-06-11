@@ -64,6 +64,8 @@ export const landscape_sst = async (
 
     set_deck(root)
 
+    console.log('here!!!')
+
     model.on('change:update_trigger', update_tile_landscape_from_cgm);
 
     return () => deck.finalize();  

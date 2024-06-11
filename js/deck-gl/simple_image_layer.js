@@ -27,21 +27,6 @@ export const make_simple_image_layer = async (info) => {
 
 export const simple_image_layer_visibility = (visible) => {
 
-    // let layer_id
-
-    // if (visible === true) {
-    //     layer_id = 'global-simple-image-layer'
-    // } else {
-    //     layer_id = 'global-simple-image-layer-not-visible'
-    // }
-
-    // simple_image_layer = new TileLayer({
-    //     // Re-use existing layer props
-    //     ...simple_image_layer.props,
-    //     // id: layer_id,
-    //     visible: visible
-    // });
-
     simple_image_layer = simple_image_layer.clone({
         visible: visible,
     });

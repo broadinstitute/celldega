@@ -93,21 +93,29 @@ export const landscape_sst = async (
         .style('color', 'blue')
         .style('margin', '5px')
         .style('user-select', 'none')
-        .on('click', async function () {
-            const current = d3.select(this);
+        .on('click', async (event) => {
+            // const current = d3.select(this);
+
+            const current = d3.select(event.currentTarget);
+
+
             console.log('clicking IMG')
 
             // Toggle the class between blue and gray
+            let isVisible;
+
             if (current.style('color') === 'blue') {
-                current.style('color', 'gray');
-                simple_image_layer_visibility(false)
+                current.style('color', 'gray')
+                isVisible = false
                 console.log('toggle visibility off')
             } else {
-                current.style('color', 'blue');
-                simple_image_layer_visibility(true)
+                current.style('color', 'blue')
+                // simple_image_layer_visibility(true)
+                isVisible = true
                 console.log('toggle visibility on')
             }
 
+            simple_image_layer_visibility(isVisible)
             await update_layers([simple_image_layer, square_scatter_layer])
             deck.setProps({layers});
 

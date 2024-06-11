@@ -6,7 +6,7 @@ import { landscape_sst } from "./viz/landscape_sst";
 import { gene_search, update_gene_search } from "./ui/gene_search";
 import cgm from 'clustergrammer-gl';
 import _ from 'underscore';
-import * as d3 from 'd3';
+// import * as d3 from 'd3';
 
 // Ensure these variables are defined globally
 const globalVariables =
@@ -74,60 +74,59 @@ export const render_landscape_sst = async ({ model, el }) => {
     ui_container.style.width = "700px";
     ui_container.style.border = "1px solid #ccc";
 
-    d3.select(ui_container)
-        .append('div')
-        .attr('class', 'button blue')
-        .text('IMG')
-        .style('cursor', 'pointer')
-        .style('font-size', '16px')
-        .style('font-weight', 'bold')
-        .style('color', 'blue')
-        .style('margin', '5px')
-        .style('user-select', 'none')
-        .on('click', function() {
-            const current = d3.select(this);
-            // Toggle the class between blue and gray
-            if (current.style('color') === 'blue') {
-                current.style('color', 'gray');
-            } else {
-                current.style('color', 'blue');
-            }
-            // You can add additional logic here to handle layer toggling
-        }); 
+    // d3.select(ui_container)
+    //     .append('div')
+    //     .attr('class', 'button blue')
+    //     .text('IMG')
+    //     .style('cursor', 'pointer')
+    //     .style('font-size', '16px')
+    //     .style('font-weight', 'bold')
+    //     .style('color', 'blue')
+    //     .style('margin', '5px')
+    //     .style('user-select', 'none')
+    //     .on('click', function() {
+    //         const current = d3.select(this);
+    //         // Toggle the class between blue and gray
+    //         if (current.style('color') === 'blue') {
+    //             current.style('color', 'gray');
+    //         } else {
+    //             current.style('color', 'blue');
+    //         }
+    //         // You can add additional logic here to handle layer toggling
+    //     }); 
 
-        d3.select(ui_container)
-        .append('div')
-        .attr('class', 'button blue')
-        .text('TILE')
-        .style('cursor', 'pointer')
-        .style('font-size', '16px')
-        .style('font-weight', 'bold')
-        .style('color', 'blue')
-        .style('margin', '5px')
-        .on('click', function() {
-            const current = d3.select(this);
-            // Toggle the class between blue and gray
-            if (current.style('color') === 'blue') {
-                current.style('color', 'gray');
-            } else {
-                current.style('color', 'blue');
-            }
-            // You can add additional logic here to handle layer toggling
-        });         
+    // d3.select(ui_container)
+    //     .append('div')
+    //     .attr('class', 'button blue')
+    //     .text('TILE')
+    //     .style('cursor', 'pointer')
+    //     .style('font-size', '16px')
+    //     .style('font-weight', 'bold')
+    //     .style('color', 'blue')
+    //     .style('margin', '5px')
+    //     .on('click', function() {
+    //         const current = d3.select(this);
+    //         // Toggle the class between blue and gray
+    //         if (current.style('color') === 'blue') {
+    //             current.style('color', 'gray');
+    //         } else {
+    //             current.style('color', 'blue');
+    //         }
+    //         // You can add additional logic here to handle layer toggling
+    //     });         
 
-    await update_gene_search(base_url, token);
-    ui_container.appendChild(gene_search);        
+    
+    
 
-    el.appendChild(ui_container);
 
     // Create and append the visualization container
     let root = document.createElement("div");
     root.style.height = "800px";    
-    el.appendChild(root);
-
-    return landscape_sst(
+    
+    landscape_sst(
         model, 
-        root,         
+        root,  
+        ui_container,       
         base_url,
         token, 
         ini_x, 
@@ -135,6 +134,14 @@ export const render_landscape_sst = async ({ model, el }) => {
         ini_z,
         ini_zoom,
     )
+
+    await update_gene_search(base_url, token)
+    ui_container.appendChild(gene_search)
+
+    el.appendChild(ui_container)
+    el.appendChild(root);
+
+    return
 }
 
 export const render_matrix = async ({ model, el }) => {

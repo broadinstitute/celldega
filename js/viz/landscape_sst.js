@@ -17,10 +17,12 @@ import { simple_image_layer, make_simple_image_layer } from "../deck-gl/simple_i
 import { set_global_base_url } from "../global_variables/global_base_url.js";
 import { set_model, model } from "../global_variables/model.js";
 import { update_tile_landscape_from_cgm } from "../widget_interactions/update_tile_landscape_from_cgm.js";
+import * as d3 from 'd3';
 
 export const landscape_sst = async ( 
     ini_model, 
     root, 
+    ui_container,
     base_url,
     token, 
     ini_x, 
@@ -67,6 +69,49 @@ export const landscape_sst = async (
     console.log('here!!!')
 
     model.on('change:update_trigger', update_tile_landscape_from_cgm);
+
+    d3.select(ui_container)
+        .append('div')
+        .attr('class', 'button blue')
+        .text('IMG')
+        .style('cursor', 'pointer')
+        .style('font-size', '16px')
+        .style('font-weight', 'bold')
+        .style('color', 'blue')
+        .style('margin', '5px')
+        .style('user-select', 'none')
+        .on('click', function() {
+            const current = d3.select(this);
+            // Toggle the class between blue and gray
+            if (current.style('color') === 'blue') {
+                current.style('color', 'gray');
+            } else {
+                current.style('color', 'blue');
+            }
+            // You can add additional logic here to handle layer toggling
+        }); 
+
+    d3.select(ui_container)
+        .append('div')
+        .attr('class', 'button blue')
+        .text('TILE')
+        .style('cursor', 'pointer')
+        .style('font-size', '16px')
+        .style('font-weight', 'bold')
+        .style('color', 'blue')
+        .style('margin', '5px')
+        .on('click', function() {
+            const current = d3.select(this);
+            // Toggle the class between blue and gray
+            if (current.style('color') === 'blue') {
+                current.style('color', 'gray');
+            } else {
+                current.style('color', 'blue');
+            }
+            // You can add additional logic here to handle layer toggling
+        });         
+
+    
 
     return () => deck.finalize();  
 

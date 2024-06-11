@@ -21,6 +21,7 @@ import * as d3 from 'd3';
 
 export const landscape_sst = async ( 
     ini_model, 
+    el,
     root, 
     ui_container,
     base_url,
@@ -111,7 +112,8 @@ export const landscape_sst = async (
             // You can add additional logic here to handle layer toggling
         });         
 
-    
+    el.appendChild(ui_container)
+    el.appendChild(root);
 
     return () => deck.finalize();  
 

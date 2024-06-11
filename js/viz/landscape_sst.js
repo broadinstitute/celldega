@@ -6,7 +6,7 @@ import { update_views } from '../deck-gl/views.js';
 import { set_initial_view_state } from "../deck-gl/initial_view_state.js";
 import { deck, set_deck } from '../deck-gl/deck_sst.js'
 import { layers, update_layers } from "../deck-gl/layers_sst.js";
-import { square_scatter_layer, ini_square_scatter_layer } from "../deck-gl/square_scatter_layer.js";  
+import { square_scatter_layer, ini_square_scatter_layer, square_scatter_layer_visibility } from "../deck-gl/square_scatter_layer.js";  
 import { update_tile_scatter_data } from "../global_variables/tile_scatter_data.js";
 import { update_tile_cats_array } from "../global_variables/tile_cats_array.js";
 import { update_tile_names_array } from "../global_variables/tile_names_array.js";
@@ -94,25 +94,16 @@ export const landscape_sst = async (
         .style('margin', '5px')
         .style('user-select', 'none')
         .on('click', async (event) => {
-            // const current = d3.select(this);
 
             const current = d3.select(event.currentTarget);
 
-
-            console.log('clicking IMG')
-
-            // Toggle the class between blue and gray
             let isVisible;
-
             if (current.style('color') === 'blue') {
                 current.style('color', 'gray')
                 isVisible = false
-                console.log('toggle visibility off')
             } else {
                 current.style('color', 'blue')
-                // simple_image_layer_visibility(true)
                 isVisible = true
-                console.log('toggle visibility on')
             }
 
             simple_image_layer_visibility(isVisible)
@@ -130,18 +121,24 @@ export const landscape_sst = async (
         .style('font-weight', 'bold')
         .style('color', 'blue')
         .style('margin', '5px')
-    
-    tile_button
-        .on('click', function () {
-            const current = d3.select(this);
-            // Toggle the class between blue and gray
+        .on('click', async (event) => {
+
+            const current = d3.select(event.currentTarget);
+
+            let isVisible;
             if (current.style('color') === 'blue') {
-                current.style('color', 'gray');
+                current.style('color', 'gray')
+                isVisible = false
             } else {
-                current.style('color', 'blue');
+                current.style('color', 'blue')
+                isVisible = true
             }
-            // You can add additional logic here to handle layer toggling
-        });         
+
+            square_scatter_layer_visibility(isVisible)
+            await update_layers([simple_image_layer, square_scatter_layer])
+            deck.setProps({layers});
+
+        });  
 
     
     ui_container.appendChild(gene_search)

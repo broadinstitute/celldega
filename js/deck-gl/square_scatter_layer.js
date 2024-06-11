@@ -82,21 +82,23 @@ export const ini_square_scatter_layer = () => {
 }
 
 export const update_square_scatter_layer = () => {
+    // Determine the new layer ID based on the selected categories
+    const layer_id = selected_cats.length === 0 
+        ? `tile-layer-${tile_cat}`
+        : `tile-layer-${tile_cat}-${selected_cats.join('-')}`;
 
-    // need to set up something to update the id of the layer
-    let layer_id
-
-    if (selected_cats.length === 0) {
-        layer_id = `tile-layer-${tile_cat}`
-    } else {
-        layer_id = `tile-layer-${tile_cat}-${selected_cats.join('-')}`
-    }
-
-    square_scatter_layer = new SquareScatterplotLayer({
-        // Re-use existing layer props
-        ...square_scatter_layer.props,
+    // Clone the existing layer and update the ID and data
+    square_scatter_layer = square_scatter_layer.clone({
         id: layer_id,
         data: tile_scatter_data,
+    });
+};
+
+
+export const square_scatter_layer_visibility = (visible) => {
+
+    square_scatter_layer = square_scatter_layer.clone({
+        visible: visible,
     });
 
 }

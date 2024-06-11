@@ -11,7 +11,7 @@ export let simple_image_layer
 export const make_simple_image_layer = async (info) => {
 
     simple_image_layer = new TileLayer({
-        id: 'global-simple-image-layer',// info.name,
+        id: 'global-simple-image-layer',
         tileSize: dimensions.tileSize,
         refinementStrategy: 'no-overlap',
         minZoom: -7,
@@ -19,7 +19,32 @@ export const make_simple_image_layer = async (info) => {
         maxCacheSize: 20,
         extent: [0, 0, dimensions.width, dimensions.height],
         getTileData: create_get_tile_data(global_base_url, info.name, landscape_parameters.max_pyramid_zoom, options),
-        renderSubLayers: create_simple_render_tile_sublayers(dimensions)
+        renderSubLayers: create_simple_render_tile_sublayers(dimensions),
+        visible: true
     });     
 
 }
+
+export const simple_image_layer_visibility = (visible) => {
+
+    // let layer_id
+
+    // if (visible === true) {
+    //     layer_id = 'global-simple-image-layer'
+    // } else {
+    //     layer_id = 'global-simple-image-layer-not-visible'
+    // }
+
+    // simple_image_layer = new TileLayer({
+    //     // Re-use existing layer props
+    //     ...simple_image_layer.props,
+    //     // id: layer_id,
+    //     visible: visible
+    // });
+
+    simple_image_layer = simple_image_layer.clone({
+        visible: visible,
+    });
+
+}
+

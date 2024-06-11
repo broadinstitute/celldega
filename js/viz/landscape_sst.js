@@ -5,7 +5,7 @@ import { options, set_options } from '../global_variables/fetch_options.js';
 import { update_views } from '../deck-gl/views.js';
 import { set_initial_view_state } from "../deck-gl/initial_view_state.js";
 import { deck, set_deck } from '../deck-gl/deck_sst.js'
-import { update_layers } from "../deck-gl/layers_sst.js";
+import { layers, update_layers } from "../deck-gl/layers_sst.js";
 import { square_scatter_layer, ini_square_scatter_layer } from "../deck-gl/square_scatter_layer.js";  
 import { update_tile_scatter_data } from "../global_variables/tile_scatter_data.js";
 import { update_tile_cats_array } from "../global_variables/tile_cats_array.js";
@@ -14,7 +14,7 @@ import { update_tile_color_dict } from "../global_variables/tile_color_dict.js";
 import { set_meta_gene } from "../global_variables/meta_gene.js";
 import { set_dimensions } from '../global_variables/image_dimensions.js';
 import { set_landscape_parameters } from "../global_variables/landscape_parameters.js";
-import { simple_image_layer, make_simple_image_layer } from "../deck-gl/simple_image_layer.js";
+import { simple_image_layer, make_simple_image_layer, simple_image_layer_visibility } from "../deck-gl/simple_image_layer.js";
 import { set_global_base_url } from "../global_variables/global_base_url.js";
 import { set_model, model } from "../global_variables/model.js";
 import { update_tile_landscape_from_cgm } from "../widget_interactions/update_tile_landscape_from_cgm.js";
@@ -81,9 +81,9 @@ export const landscape_sst = async (
 
     console.log('here!!!')
 
-    model.on('change:update_trigger', update_tile_landscape_from_cgm);
+    model.on('change:update_trigger', update_tile_landscape_from_cgm); 
 
-    d3.select(ui_container)
+    let img_button = d3.select(ui_container)
         .append('div')
         .attr('class', 'button blue')
         .text('IMG')
@@ -93,18 +93,27 @@ export const landscape_sst = async (
         .style('color', 'blue')
         .style('margin', '5px')
         .style('user-select', 'none')
-        .on('click', function() {
+        .on('click', async function () {
             const current = d3.select(this);
+            console.log('clicking IMG')
+
             // Toggle the class between blue and gray
             if (current.style('color') === 'blue') {
                 current.style('color', 'gray');
+                simple_image_layer_visibility(false)
+                console.log('toggle visibility off')
             } else {
                 current.style('color', 'blue');
+                simple_image_layer_visibility(true)
+                console.log('toggle visibility on')
             }
-            // You can add additional logic here to handle layer toggling
+
+            await update_layers([simple_image_layer, square_scatter_layer])
+            deck.setProps({layers});
+
         }); 
 
-    d3.select(ui_container)
+    let tile_button = d3.select(ui_container)
         .append('div')
         .attr('class', 'button blue')
         .text('TILE')
@@ -113,7 +122,9 @@ export const landscape_sst = async (
         .style('font-weight', 'bold')
         .style('color', 'blue')
         .style('margin', '5px')
-        .on('click', function() {
+    
+    tile_button
+        .on('click', function () {
             const current = d3.select(this);
             // Toggle the class between blue and gray
             if (current.style('color') === 'blue') {

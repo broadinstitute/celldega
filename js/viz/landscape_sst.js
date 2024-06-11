@@ -31,7 +31,7 @@ export const landscape_sst = async (
 
     set_model(ini_model)
 
-    set_options('')
+    set_options(token)
     set_global_base_url(base_url)
     await set_landscape_parameters(base_url)
     await set_dimensions(base_url, 'cells' )
@@ -58,11 +58,6 @@ export const landscape_sst = async (
     ini_square_scatter_layer()
     const new_layers = [simple_image_layer, square_scatter_layer]
     await update_layers(new_layers)
-
-    // const ini_x = 1000
-    // const ini_y = 1000
-    // const ini_z = 0
-    // const ini_zoom = -3
 
     set_initial_view_state(ini_x, ini_y, ini_z, ini_zoom)    
     update_views()

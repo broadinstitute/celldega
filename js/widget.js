@@ -4,10 +4,8 @@ import "./widget.css";
 import { landscape } from "./viz/landscape";
 import { landscape_sst } from "./viz/landscape_sst";
 import { gene_search, update_gene_search } from "./ui/gene_search";
-// import * as d3 from 'd3';
 import cgm from 'clustergrammer-gl';
 import _ from 'underscore';
-
 
 // Ensure these variables are defined globally
 const globalVariables =
@@ -21,6 +19,19 @@ globalVariables.forEach((variableName) => {
 });
 
 export const render_landscape = async ({ model, el }) => {
+
+    const technology = model.get('technology')
+
+    if (['MERSCOPE', 'Xenium'].includes(technology)){
+        return render_landscape_ist({ model, el });
+    } else if (['Visium-HD'].includes(technology)){
+        console.log('rendering Visium-HD')
+        return render_landscape_sst({ model, el });
+    }
+
+}
+
+export const render_landscape_ist = async ({ model, el }) => {
 
     const token = model.get('token_traitlet')
     const ini_x = model.get('ini_x');
@@ -56,14 +67,12 @@ export const render_landscape_sst = async ({ model, el }) => {
     const base_url = model.get('base_url')
 
     await update_gene_search(base_url);
+    el.appendChild(gene_search);
 
     // Create and append the visualization container
     let root = document.createElement("div");
-    root.style.height = "800px";
-
-    el.appendChild(gene_search);
+    root.style.height = "800px";    
     el.appendChild(root);
-
 
     return landscape_sst(
         model, 
@@ -95,10 +104,9 @@ export const render_matrix = async ({ model, el }) => {
         } 
 
         var click_info = {
-        'click_type': click_type,
-        'click_value': click_value
+            'click_type': click_type,
+            'click_value': click_value
         }
-        // console.log('clustergrammer-gl: click_info', click_info, 'then save changes to model')
 
         // Update the click_info trait in the model with the new value
         model.set('click_info', click_info);
@@ -163,9 +171,9 @@ export const render = async ({ model, el }) => {
         case "Landscape":
             render_landscape({ model, el });
             break;
-        case "Landscape_sst":
-            render_landscape_sst({ model, el });
-            break;
+        // case "Landscape_sst":
+        //     render_landscape_sst({ model, el });
+        //     break;
         case "Matrix":
             render_matrix({ model, el });
             break;            

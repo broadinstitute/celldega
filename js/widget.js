@@ -3,7 +3,7 @@
 import "./widget.css";
 import { landscape } from "./viz/landscape";
 import { landscape_sst } from "./viz/landscape_sst";
-import { gene_search, update_gene_search } from "./ui/gene_search";
+// import { gene_search, update_gene_search } from "./ui/gene_search";
 import cgm from 'clustergrammer-gl';
 import _ from 'underscore';
 // import * as d3 from 'd3';
@@ -67,26 +67,9 @@ export const render_landscape_sst = async ({ model, el }) => {
     const ini_zoom = model.get('ini_zoom');
     const base_url = model.get('base_url')
 
-    // Create a container for the gene search box and additional elements
-    let ui_container = document.createElement("div");
-    ui_container.style.display = "flex";
-    ui_container.style.flexDirection = "row";
-    ui_container.style.width = "700px";
-    ui_container.style.border = "1px solid #ccc";
-
-    // Create and append the visualization container
-    let root = document.createElement("div");
-    root.style.height = "800px";    
-
-
-    await update_gene_search(base_url, token)
-    ui_container.appendChild(gene_search)
-
-    return landscape_sst(
+    landscape_sst(
         model, 
         el,
-        root,  
-        ui_container,       
         base_url,
         token, 
         ini_x, 
@@ -95,7 +78,6 @@ export const render_landscape_sst = async ({ model, el }) => {
         ini_zoom,
     )
 
-    
 }
 
 export const render_matrix = async ({ model, el }) => {

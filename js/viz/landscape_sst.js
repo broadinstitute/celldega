@@ -1,3 +1,4 @@
+import * as d3 from 'd3';
 import { get_arrow_table } from "../read_parquet/get_arrow_table.js";
 import { get_scatter_data } from "../read_parquet/get_scatter_data.js";
 import { options, set_options } from '../global_variables/fetch_options.js';
@@ -17,13 +18,11 @@ import { simple_image_layer, make_simple_image_layer } from "../deck-gl/simple_i
 import { set_global_base_url } from "../global_variables/global_base_url.js";
 import { set_model, model } from "../global_variables/model.js";
 import { update_tile_landscape_from_cgm } from "../widget_interactions/update_tile_landscape_from_cgm.js";
-import * as d3 from 'd3';
+import { gene_search, update_gene_search } from '../ui/gene_search.js';
 
 export const landscape_sst = async ( 
     ini_model, 
     el,
-    root, 
-    ui_container,
     base_url,
     token, 
     ini_x, 
@@ -32,12 +31,25 @@ export const landscape_sst = async (
     ini_zoom 
 ) => {
 
+    // Create a container for the gene search box and additional elements
+    let ui_container = document.createElement("div");
+    ui_container.style.display = "flex";
+    ui_container.style.flexDirection = "row";
+    ui_container.style.width = "700px";
+    ui_container.style.border = "1px solid #ccc";
+
+    // Create and append the visualization container
+    let root = document.createElement("div");
+    root.style.height = "800px";        
+
     set_model(ini_model)
 
     set_options(token)
     set_global_base_url(base_url)
     await set_landscape_parameters(base_url)
     await set_dimensions(base_url, 'cells' )
+
+    await update_gene_search(base_url, token)
 
     // move this to landscape_parameters
     // const imgage_name_for_dim = 'dapi'
@@ -111,6 +123,9 @@ export const landscape_sst = async (
             }
             // You can add additional logic here to handle layer toggling
         });         
+
+    
+    ui_container.appendChild(gene_search)
 
     el.appendChild(ui_container)
     el.appendChild(root);

@@ -143,6 +143,36 @@ export const landscape_sst = async (
     
     ui_container.appendChild(gene_search)
 
+    // Add a container for the slider within the UI container
+    let slider_container = document.createElement("div");
+    slider_container.className = "slidecontainer";
+    slider_container.style.width = "100%";
+    slider_container.style.margin = "5px";
+    ui_container.appendChild(slider_container);
+
+    // Add slider input element
+    let slider = document.createElement("input");
+    slider.type = "range";
+    slider.min = "0";
+    slider.max = "100";
+    slider.value = "50";
+    slider.className = "slider";
+    slider_container.appendChild(slider);
+
+    // Add slider value display
+    let slider_value = document.createElement("span");
+    slider_value.className = "slider-value";
+    slider_value.innerText = slider.value + "%";
+    slider_container.appendChild(slider_value);
+
+    // Update slider value and layer transparency on input
+    slider.addEventListener("input", function() {
+        slider_value.innerText = slider.value + "%";
+        // Here you can call a function to update the deck.gl layer transparency
+        // updateLayerTransparency(slider.value);
+        console.log('slider.value:', slider.value)
+    });
+    
     el.appendChild(ui_container)
     el.appendChild(root);
 

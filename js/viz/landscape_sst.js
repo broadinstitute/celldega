@@ -83,7 +83,33 @@ export const landscape_sst = async (
 
     model.on('change:update_trigger', update_tile_landscape_from_cgm); 
 
-    let img_button = d3.select(ui_container)
+    // Add a container for the slider within the UI container
+    let ctrl_container = document.createElement("div");
+    ctrl_container.className = "slidecontainer";
+    ctrl_container.style.width = "100%";
+    ctrl_container.style.margin = "10px";
+    ui_container.appendChild(ctrl_container); 
+
+    // // Add a control container for buttons and slider
+    // let ctrl_container = document.createElement("div");
+    // ctrl_container.style.display = "flex";
+    // ctrl_container.style.flexDirection = "row";
+    // ctrl_container.style.alignItems = "center";
+    // ctrl_container.style.width = "100%";
+    // ctrl_container.style.margin = "10px 0";
+    // ui_container.appendChild(ctrl_container); 
+
+
+    // Add a container for the slider within the UI container
+    let img_container = document.createElement("div");
+    img_container.className = "slidecontainer";
+    img_container.style.width = "100%";
+    img_container.style.margin = "0px";
+    img_container.style.display = "flex";
+    img_container.style.flexDirection = "row";    
+    ctrl_container.appendChild(img_container); 
+
+    let img_button = d3.select(img_container)
         .append('div')
         .attr('class', 'button blue')
         .text('IMG')
@@ -112,7 +138,7 @@ export const landscape_sst = async (
 
         }); 
 
-    let tile_button = d3.select(ui_container)
+    let tile_button = d3.select(ctrl_container)
         .append('div')
         .attr('class', 'button blue')
         .text('TILE')
@@ -121,6 +147,7 @@ export const landscape_sst = async (
         .style('font-weight', 'bold')
         .style('color', 'blue')
         .style('margin', '5px')
+        .style('user-select', 'none')
         .on('click', async (event) => {
 
             const current = d3.select(event.currentTarget);
@@ -147,8 +174,8 @@ export const landscape_sst = async (
     let slider_container = document.createElement("div");
     slider_container.className = "slidecontainer";
     slider_container.style.width = "100%";
-    slider_container.style.margin = "5px";
-    ui_container.appendChild(slider_container);
+    slider_container.style.margin = "10px";
+    img_container.appendChild(slider_container);
 
     // Add slider input element
     let slider = document.createElement("input");

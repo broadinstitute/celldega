@@ -85,8 +85,8 @@ export const landscape_sst = async (
 
     // Add a container for the slider within the UI container
     let ctrl_container = document.createElement("div");
-    ctrl_container.className = "slidecontainer";
-    ctrl_container.style.width = "100%";
+    ctrl_container.className = "ctrl_container";
+    ctrl_container.style.width = "250px"
     ctrl_container.style.margin = "10px";
     ui_container.appendChild(ctrl_container); 
 
@@ -183,36 +183,60 @@ export const landscape_sst = async (
     
     ui_container.appendChild(gene_search)
 
-    // Add a container for the slider within the UI container
-    let slider_container = document.createElement("div");
-    slider_container.className = "slidecontainer";
-    slider_container.style.width = "100%";
-    slider_container.style.marginLeft = "5px"
-    slider_container.style.marginTop = "5px"
-    img_container.appendChild(slider_container);
+    // Add a container for the img slider within the UI container
+    let img_slider_container = document.createElement("div");
+    img_slider_container.className = "slidecontainer";
+    img_slider_container.style.width = "100%";
+    img_slider_container.style.marginLeft = "5px"
+    img_slider_container.style.marginTop = "5px"
+    img_container.appendChild(img_slider_container);
 
     // Add slider input element
-    let slider = document.createElement("input");
-    slider.type = "range";
-    slider.min = "0";
-    slider.max = "100";
-    slider.value = "50";
-    slider.className = "slider";
-    slider_container.appendChild(slider);
+    let img_slider = document.createElement("input");
+    img_slider.type = "range";
+    img_slider.min = "0";
+    img_slider.max = "100";
+    img_slider.value = "50";
+    img_slider.className = "slider";
+    img_slider_container.appendChild(img_slider);
+
+    // Add a container for the tile slider within the UI container
+    let tile_slider_container = document.createElement("div");
+    tile_slider_container.className = "slidecontainer";
+    tile_slider_container.style.width = "100%";
+    tile_slider_container.style.marginLeft = "5px"
+    tile_slider_container.style.marginTop = "5px"
+    tile_container.appendChild(tile_slider_container);
+
+    // Add slider input element
+    let tile_slider = document.createElement("input");
+    tile_slider.type = "range";
+    tile_slider.min = "0";
+    tile_slider.max = "100";
+    tile_slider.value = "50";
+    tile_slider.className = "slider";
+    tile_slider_container.appendChild(tile_slider);    
 
     // // Add slider value display
     // let slider_value = document.createElement("span");
     // slider_value.className = "slider-value";
     // slider_value.innerText = slider.value + "%";
-    // slider_container.appendChild(slider_value);
+    // img_slider_container.appendChild(slider_value);
 
     // Update slider value and layer transparency on input
-    slider.addEventListener("input", function() {
+    img_slider.addEventListener("input", function() {
         slider_value.innerText = slider.value + "%";
         // Here you can call a function to update the deck.gl layer transparency
         // updateLayerTransparency(slider.value);
         console.log('slider.value:', slider.value)
     });
+
+    tile_slider.addEventListener("input", function() {
+        slider_value.innerText = slider.value + "%";
+        // Here you can call a function to update the deck.gl layer transparency
+        // updateLayerTransparency(slider.value);
+        console.log('slider.value:', slider.value)
+    });    
     
     el.appendChild(ui_container)
     el.appendChild(root);

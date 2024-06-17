@@ -6,7 +6,7 @@ import { update_views } from '../deck-gl/views.js';
 import { set_initial_view_state } from "../deck-gl/initial_view_state.js";
 import { deck, set_deck } from '../deck-gl/deck_sst.js'
 import { layers, update_layers } from "../deck-gl/layers_sst.js";
-import { square_scatter_layer, ini_square_scatter_layer, square_scatter_layer_visibility } from "../deck-gl/square_scatter_layer.js";  
+import { square_scatter_layer, ini_square_scatter_layer, square_scatter_layer_visibility, square_scatter_layer_opacity } from "../deck-gl/square_scatter_layer.js";  
 import { update_tile_scatter_data } from "../global_variables/tile_scatter_data.js";
 import { update_tile_cats_array } from "../global_variables/tile_cats_array.js";
 import { update_tile_names_array } from "../global_variables/tile_names_array.js";
@@ -14,7 +14,7 @@ import { update_tile_color_dict } from "../global_variables/tile_color_dict.js";
 import { set_meta_gene } from "../global_variables/meta_gene.js";
 import { set_dimensions } from '../global_variables/image_dimensions.js';
 import { set_landscape_parameters } from "../global_variables/landscape_parameters.js";
-import { simple_image_layer, make_simple_image_layer, simple_image_layer_visibility } from "../deck-gl/simple_image_layer.js";
+import { simple_image_layer, make_simple_image_layer, simple_image_layer_visibility, simple_image_layer_opacity } from "../deck-gl/simple_image_layer.js";
 import { set_global_base_url } from "../global_variables/global_base_url.js";
 import { set_model, model } from "../global_variables/model.js";
 import { update_tile_landscape_from_cgm } from "../widget_interactions/update_tile_landscape_from_cgm.js";
@@ -196,9 +196,9 @@ export const landscape_sst = async (
     img_slider.type = "range";
     img_slider.min = "0";
     img_slider.max = "100";
-    img_slider.value = "50";
+    img_slider.value = "100";
     img_slider.className = "slider";
-    img_slider_container.appendChild(img_slider);
+    // img_slider_container.appendChild(img_slider);
 
     // Add a container for the tile slider within the UI container
     let tile_slider_container = document.createElement("div");
@@ -213,7 +213,7 @@ export const landscape_sst = async (
     tile_slider.type = "range";
     tile_slider.min = "0";
     tile_slider.max = "100";
-    tile_slider.value = "50";
+    tile_slider.value = "100";
     tile_slider.className = "slider";
     tile_slider_container.appendChild(tile_slider);    
 
@@ -224,18 +224,16 @@ export const landscape_sst = async (
     // img_slider_container.appendChild(slider_value);
 
     // Update slider value and layer transparency on input
-    img_slider.addEventListener("input", function() {
-        slider_value.innerText = slider.value + "%";
-        // Here you can call a function to update the deck.gl layer transparency
-        // updateLayerTransparency(slider.value);
-        console.log('slider.value:', slider.value)
+    img_slider.addEventListener("input", async function() {
+        simple_image_layer_opacity(img_slider.value / 100)
+        await update_layers([simple_image_layer, square_scatter_layer])
+        deck.setProps({layers});        
     });
 
-    tile_slider.addEventListener("input", function() {
-        slider_value.innerText = slider.value + "%";
-        // Here you can call a function to update the deck.gl layer transparency
-        // updateLayerTransparency(slider.value);
-        console.log('slider.value:', slider.value)
+    tile_slider.addEventListener("input", async function() {
+        square_scatter_layer_opacity(tile_slider.value / 100)
+        await update_layers([simple_image_layer, square_scatter_layer])
+        deck.setProps({layers});        
     });    
     
     el.appendChild(ui_container)

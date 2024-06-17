@@ -29,7 +29,17 @@ export const simple_image_layer_visibility = (visible) => {
 
     simple_image_layer = simple_image_layer.clone({
         visible: visible,
+        // opacity: 0.1
     });
 
 }
 
+export const simple_image_layer_opacity = (opacity) => {
+
+    console.log(opacity)
+    
+    simple_image_layer = simple_image_layer.clone({
+        opacity: opacity
+    });
+
+}

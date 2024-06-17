@@ -102,3 +102,12 @@ export const square_scatter_layer_visibility = (visible) => {
     });
 
 }
+
+export const square_scatter_layer_opacity = (opacity) => {
+
+    square_scatter_layer = square_scatter_layer.clone({
+        opacity: opacity
+    });
+
+}
+

@@ -102,7 +102,7 @@ export const landscape_sst = async (
 
     // Add a container for the slider within the UI container
     let img_container = document.createElement("div");
-    img_container.className = "slidecontainer";
+    img_container.className = 'image_container'
     img_container.style.width = "100%";
     img_container.style.margin = "0px";
     img_container.style.display = "flex";
@@ -113,11 +113,13 @@ export const landscape_sst = async (
         .append('div')
         .attr('class', 'button blue')
         .text('IMG')
+        .style('width', '50px')
+        .style('text-align', 'center')        
         .style('cursor', 'pointer')
         .style('font-size', '16px')
         .style('font-weight', 'bold')
         .style('color', 'blue')
-        .style('margin', '5px')
+        .style('margin-top', '5px')
         .style('user-select', 'none')
         .on('click', async (event) => {
 
@@ -138,15 +140,26 @@ export const landscape_sst = async (
 
         }); 
 
-    let tile_button = d3.select(ctrl_container)
+    // Add a container for the slider within the UI container
+    let tile_container = document.createElement("div");
+    tile_container.className = 'tile_container'
+    tile_container.style.width = "100%";
+    tile_container.style.margin = "0px";
+    tile_container.style.display = "flex";
+    tile_container.style.flexDirection = "row";    
+    ctrl_container.appendChild(tile_container);         
+
+    let tile_button = d3.select(tile_container)
         .append('div')
         .attr('class', 'button blue')
         .text('TILE')
+        .style('width', '50px')
+        .style('text-align', 'center')
         .style('cursor', 'pointer')
         .style('font-size', '16px')
         .style('font-weight', 'bold')
         .style('color', 'blue')
-        .style('margin', '5px')
+        .style('margin-top', '5px')
         .style('user-select', 'none')
         .on('click', async (event) => {
 
@@ -174,7 +187,8 @@ export const landscape_sst = async (
     let slider_container = document.createElement("div");
     slider_container.className = "slidecontainer";
     slider_container.style.width = "100%";
-    slider_container.style.margin = "10px";
+    slider_container.style.marginLeft = "5px"
+    slider_container.style.marginTop = "5px"
     img_container.appendChild(slider_container);
 
     // Add slider input element
@@ -186,11 +200,11 @@ export const landscape_sst = async (
     slider.className = "slider";
     slider_container.appendChild(slider);
 
-    // Add slider value display
-    let slider_value = document.createElement("span");
-    slider_value.className = "slider-value";
-    slider_value.innerText = slider.value + "%";
-    slider_container.appendChild(slider_value);
+    // // Add slider value display
+    // let slider_value = document.createElement("span");
+    // slider_value.className = "slider-value";
+    // slider_value.innerText = slider.value + "%";
+    // slider_container.appendChild(slider_value);
 
     // Update slider value and layer transparency on input
     slider.addEventListener("input", function() {

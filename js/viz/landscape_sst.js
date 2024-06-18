@@ -20,6 +20,8 @@ import { set_model, model } from "../global_variables/model.js";
 import { update_tile_landscape_from_cgm } from "../widget_interactions/update_tile_landscape_from_cgm.js";
 import { gene_search, update_gene_search } from '../ui/gene_search.js';
 import { ui_container, ini_ui_container } from '../ui/ui_container.js';
+import { ctrl_container, ini_ctrl_container } from '../ui/ui_container.js';
+import { img_container, ini_img_container } from '../ui/ui_container.js';
 
 export const landscape_sst = async ( 
     ini_model, 
@@ -77,27 +79,12 @@ export const landscape_sst = async (
 
     model.on('change:update_trigger', update_tile_landscape_from_cgm); 
 
-    // Create a container for the gene search box and additional elements
-    // ui_container.style.display = "flex";
-    // ui_container.style.flexDirection = "row";
-    // ui_container.style.border = "1px solid #d3d3d3";
-
     ini_ui_container()
+    ini_ctrl_container()
+    ini_img_container()
 
-    // Add a container for the slider within the UI container
-    let ctrl_container = document.createElement("div");
-    ctrl_container.className = "ctrl_container";
-    ctrl_container.style.width = "250px"
-    ctrl_container.style.margin = "10px";
     ui_container.appendChild(ctrl_container); 
-
-    // Add a container for the slider within the UI container
-    let img_container = document.createElement("div");
-    img_container.className = 'image_container'
-    img_container.style.width = "100%";
-    img_container.style.margin = "0px";
-    img_container.style.display = "flex";
-    img_container.style.flexDirection = "row";    
+    
     ctrl_container.appendChild(img_container); 
 
     let img_button = d3.select(img_container)

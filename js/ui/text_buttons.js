@@ -4,70 +4,66 @@ import { square_scatter_layer, square_scatter_layer_visibility } from '../deck-g
 import { layers, update_layers } from '../deck-gl/layers_sst';
 import { deck } from '../deck-gl/deck_sst';
 
-export const make_img_button = (container) => {
-
+const make_button = (container, text, color, callback) => {
+    
     d3.select(container)
         .append('div')
-        .attr('class', 'button blue')
-        .text('IMG')
-        .style('width', '50px')
-        .style('text-align', 'center')        
-        .style('cursor', 'pointer')
-        .style('font-size', '16px')
-        .style('font-weight', 'bold')
-        .style('color', 'blue')
-        .style('margin-top', '5px')
-        .style('user-select', 'none')
-        .on('click', async (event) => {
-
-            const current = d3.select(event.currentTarget);
-
-            let isVisible;
-            if (current.style('color') === 'blue') {
-                current.style('color', 'gray')
-                isVisible = false
-            } else {
-                current.style('color', 'blue')
-                isVisible = true
-            }
-
-            simple_image_layer_visibility(isVisible)
-            await update_layers([simple_image_layer, square_scatter_layer])
-            deck.setProps({layers});
-
-        }); 
-}
-
-export const make_tile_button = (container) => {
-
-    d3.select(container)
-        .append('div')
-        .attr('class', 'button blue')
-        .text('TILE')
+        .attr('class', 'button')
+        .text(text)
         .style('width', '50px')
         .style('text-align', 'center')
         .style('cursor', 'pointer')
         .style('font-size', '16px')
         .style('font-weight', 'bold')
-        .style('color', 'blue')
+        .style('color', color)
         .style('margin-top', '5px')
         .style('user-select', 'none')
-        .on('click', async (event) => {
+        .on('click', callback);  
+        
+}
 
-            const current = d3.select(event.currentTarget);
+const img_button_callback = async (event) => {
 
-            let isVisible;
-            if (current.style('color') === 'blue') {
-                current.style('color', 'gray')
-                isVisible = false
-            } else {
-                current.style('color', 'blue')
-                isVisible = true
-            }
+    const current = d3.select(event.currentTarget);
 
-            square_scatter_layer_visibility(isVisible)
-            await update_layers([simple_image_layer, square_scatter_layer])
-            deck.setProps({layers});
+    let isVisible;
+    if (current.style('color') === 'blue') {
+        current.style('color', 'gray')
+        isVisible = false
+    } else {
+        current.style('color', 'blue')
+        isVisible = true
+    }
 
-        });  
+    simple_image_layer_visibility(isVisible)
+    await update_layers([simple_image_layer, square_scatter_layer])
+    deck.setProps({layers});
+
+}
+
+const tile_button_callback = async (event) => {
+
+    const current = d3.select(event.currentTarget);
+
+    let isVisible;
+    if (current.style('color') === 'blue') {
+        current.style('color', 'gray')
+        isVisible = false
+    } else {
+        current.style('color', 'blue')
+        isVisible = true
+    }
+
+    square_scatter_layer_visibility(isVisible)
+    await update_layers([simple_image_layer, square_scatter_layer])
+    deck.setProps({layers});
+
+}    
+
+export const make_img_button = (container) => {
+    make_button(container, 'IMG', 'blue', img_button_callback)
+}
+
+export const make_tile_button = (container) => {
+    make_button(container, 'TILE', 'blue', tile_button_callback)
 }

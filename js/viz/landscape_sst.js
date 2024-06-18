@@ -22,6 +22,7 @@ import { gene_search, update_gene_search } from '../ui/gene_search.js';
 import { ui_container, ini_ui_container } from '../ui/ui_container.js';
 import { ctrl_container, ini_ctrl_container } from '../ui/ui_container.js';
 import { img_container, ini_img_container } from '../ui/ui_container.js';
+import { tile_container, ini_tile_container } from '../ui/ui_container.js';
 
 export const landscape_sst = async ( 
     ini_model, 
@@ -75,17 +76,16 @@ export const landscape_sst = async (
 
     set_deck(root)
 
-    console.log('here!!!')
-
     model.on('change:update_trigger', update_tile_landscape_from_cgm); 
 
     ini_ui_container()
     ini_ctrl_container()
     ini_img_container()
+    ini_tile_container()
 
     ui_container.appendChild(ctrl_container); 
-    
     ctrl_container.appendChild(img_container); 
+    ctrl_container.appendChild(tile_container);         
 
     let img_button = d3.select(img_container)
         .append('div')
@@ -117,15 +117,6 @@ export const landscape_sst = async (
             deck.setProps({layers});
 
         }); 
-
-    // Add a container for the slider within the UI container
-    let tile_container = document.createElement("div");
-    tile_container.className = 'tile_container'
-    tile_container.style.width = "100%";
-    tile_container.style.margin = "0px";
-    tile_container.style.display = "flex";
-    tile_container.style.flexDirection = "row";    
-    ctrl_container.appendChild(tile_container);         
 
     let tile_button = d3.select(tile_container)
         .append('div')

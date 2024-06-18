@@ -65,6 +65,7 @@ export const landscape_sst = async (
     await set_meta_gene(base_url)
     await update_tile_color_dict(base_url)
     ini_square_scatter_layer()
+    
     const new_layers = [simple_image_layer, square_scatter_layer]
     await update_layers(new_layers)
 
@@ -76,26 +77,6 @@ export const landscape_sst = async (
     model.on('change:update_trigger', update_tile_landscape_from_cgm); 
 
     make_sst_ui_container()
-    // // UI elements
-    // ini_ui_container()
-    // ini_ctrl_container()
-    // ini_img_container()
-    // ini_tile_container()
-    // ini_tile_slider_container()
-
-    // make_img_button(img_container)
-    // make_tile_button(tile_container)
-
-    // make_tile_slider(tile_slider_container)    
-
-    // // this needs to be done after making the button
-    // tile_container.appendChild(tile_slider_container);
-
-    // ctrl_container.appendChild(img_container) 
-    // ctrl_container.appendChild(tile_container)         
-
-    // ui_container.appendChild(ctrl_container)
-    // ui_container.appendChild(gene_search)
     
     // UI and Viz Container
     el.appendChild(ui_container)

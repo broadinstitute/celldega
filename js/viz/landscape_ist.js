@@ -10,7 +10,7 @@ import { update_views } from '../deck-gl/views.js';
 import { deck, set_deck } from '../deck-gl/deck.js';
 import { background_layer, update_background_layer } from '../deck-gl/background_layer.js';
 
-export const landscape = async (
+export const landscape_ist = async (
     token, 
     ini_x, 
     ini_y, 

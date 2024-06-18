@@ -62,7 +62,7 @@ export const make_sst_ui_container = () => {
     make_tile_slider(tile_slider_container)    
 
     // this needs to be done after making the button
-    tile_container.appendChild(tile_slider_container);
+    tile_container.appendChild(tile_slider_container)
 
     ctrl_container.appendChild(img_container) 
     ctrl_container.appendChild(tile_container)         

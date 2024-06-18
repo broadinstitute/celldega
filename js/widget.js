@@ -1,12 +1,10 @@
 /* eslint-disable no-unused-vars */
 
 import "./widget.css";
-import { landscape } from "./viz/landscape";
+import { landscape_ist } from "./viz/landscape_ist";
 import { landscape_sst } from "./viz/landscape_sst";
-// import { gene_search, update_gene_search } from "./ui/gene_search";
 import cgm from 'clustergrammer-gl';
 import _ from 'underscore';
-// import * as d3 from 'd3';
 
 // Ensure these variables are defined globally
 const globalVariables =
@@ -46,7 +44,7 @@ export const render_landscape_ist = async ({ model, el }) => {
     root.style.height = "800px";
     el.appendChild(root); 
 
-    return landscape(
+    return landscape_ist(
         token, 
         ini_x, 
         ini_y, 
@@ -171,4 +169,4 @@ export const render = async ({ model, el }) => {
 };
   
 
-export default { render, landscape };
+export default { render, landscape_ist, landscape_sst };

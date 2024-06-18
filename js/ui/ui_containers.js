@@ -1,3 +1,7 @@
+import { make_img_button, make_tile_button } from "./text_buttons"
+import { gene_search } from "./gene_search"
+import { make_tile_slider } from "./sliders"
+
 export let ui_container = document.createElement("div")
 
 export const ini_ui_container = () => {
@@ -5,7 +9,6 @@ export const ini_ui_container = () => {
     ui_container.style.flexDirection = "row"
     ui_container.style.border = "1px solid #d3d3d3"    
 }
-
 
 export let ctrl_container = document.createElement("div")
 
@@ -15,7 +18,6 @@ export const ini_ctrl_container = () => {
     ctrl_container.style.margin = "10px"
 }
 
-    
 export let img_container = document.createElement("div")
 
 export const ini_img_container = () => {
@@ -36,14 +38,6 @@ export const ini_tile_container = () => {
     tile_container.style.flexDirection = "row"    
 }
 
-// export let img_slider_container = document.createElement("div");
-// export const ini_img_slider_container = () => {
-//     img_slider_container.className = "slidecontainer";
-//     img_slider_container.style.width = "100%";
-//     img_slider_container.style.marginLeft = "5px"
-//     img_slider_container.style.marginTop = "5px"
-// }
-
 export let tile_slider_container = document.createElement("div");
 
 export const ini_tile_slider_container = () => {
@@ -51,4 +45,29 @@ export const ini_tile_slider_container = () => {
     tile_slider_container.style.width = "100%";
     tile_slider_container.style.marginLeft = "5px"
     tile_slider_container.style.marginTop = "5px"
+}
+
+export const make_sst_ui_container = () => {
+
+    // UI elements
+    ini_ui_container()
+    ini_ctrl_container()
+    ini_img_container()
+    ini_tile_container()
+    ini_tile_slider_container()
+
+    make_img_button(img_container)
+    make_tile_button(tile_container)
+
+    make_tile_slider(tile_slider_container)    
+
+    // this needs to be done after making the button
+    tile_container.appendChild(tile_slider_container);
+
+    ctrl_container.appendChild(img_container) 
+    ctrl_container.appendChild(tile_container)         
+
+    ui_container.appendChild(ctrl_container)
+    ui_container.appendChild(gene_search)    
+
 }

@@ -19,10 +19,12 @@ import { set_global_base_url } from "../global_variables/global_base_url.js";
 import { set_model, model } from "../global_variables/model.js";
 import { update_tile_landscape_from_cgm } from "../widget_interactions/update_tile_landscape_from_cgm.js";
 import { gene_search, update_gene_search } from '../ui/gene_search.js';
-import { ui_container, ini_ui_container } from '../ui/ui_container.js';
-import { ctrl_container, ini_ctrl_container } from '../ui/ui_container.js';
-import { img_container, ini_img_container } from '../ui/ui_container.js';
-import { tile_container, ini_tile_container } from '../ui/ui_container.js';
+import { ui_container, ini_ui_container } from '../ui/ui_containers.js';
+import { ctrl_container, ini_ctrl_container } from '../ui/ui_containers.js';
+import { img_container, ini_img_container } from '../ui/ui_containers.js';
+import { tile_container, ini_tile_container } from '../ui/ui_containers.js';
+import { img_slider_container, ini_img_slider_container } from '../ui/ui_containers.js';
+import { tile_slider_container, ini_tile_slider_container } from '../ui/ui_containers.js';
 
 export const landscape_sst = async ( 
     ini_model, 
@@ -82,12 +84,14 @@ export const landscape_sst = async (
     ini_ctrl_container()
     ini_img_container()
     ini_tile_container()
+    ini_img_slider_container()
+    ini_tile_slider_container()
 
     ui_container.appendChild(ctrl_container); 
     ctrl_container.appendChild(img_container); 
     ctrl_container.appendChild(tile_container);         
 
-    let img_button = d3.select(img_container)
+    d3.select(img_container)
         .append('div')
         .attr('class', 'button blue')
         .text('IMG')
@@ -118,7 +122,7 @@ export const landscape_sst = async (
 
         }); 
 
-    let tile_button = d3.select(tile_container)
+    d3.select(tile_container)
         .append('div')
         .attr('class', 'button blue')
         .text('TILE')
@@ -152,12 +156,7 @@ export const landscape_sst = async (
     
     ui_container.appendChild(gene_search)
 
-    // Add a container for the img slider within the UI container
-    let img_slider_container = document.createElement("div");
-    img_slider_container.className = "slidecontainer";
-    img_slider_container.style.width = "100%";
-    img_slider_container.style.marginLeft = "5px"
-    img_slider_container.style.marginTop = "5px"
+
     img_container.appendChild(img_slider_container);
 
     // Add slider input element
@@ -167,14 +166,9 @@ export const landscape_sst = async (
     img_slider.max = "100";
     img_slider.value = "100";
     img_slider.className = "slider";
-    // img_slider_container.appendChild(img_slider);
 
-    // Add a container for the tile slider within the UI container
-    let tile_slider_container = document.createElement("div");
-    tile_slider_container.className = "slidecontainer";
-    tile_slider_container.style.width = "100%";
-    tile_slider_container.style.marginLeft = "5px"
-    tile_slider_container.style.marginTop = "5px"
+    
+
     tile_container.appendChild(tile_slider_container);
 
     // Add slider input element

@@ -19,6 +19,7 @@ import { set_global_base_url } from "../global_variables/global_base_url.js";
 import { set_model, model } from "../global_variables/model.js";
 import { update_tile_landscape_from_cgm } from "../widget_interactions/update_tile_landscape_from_cgm.js";
 import { gene_search, update_gene_search } from '../ui/gene_search.js';
+import { ui_container, ini_ui_container } from '../ui/ui_container.js';
 
 export const landscape_sst = async ( 
     ini_model, 
@@ -30,13 +31,6 @@ export const landscape_sst = async (
     ini_z,
     ini_zoom 
 ) => {
-
-    // Create a container for the gene search box and additional elements
-    let ui_container = document.createElement("div");
-    ui_container.style.display = "flex";
-    ui_container.style.flexDirection = "row";
-    ui_container.style.width = "700px";
-    ui_container.style.border = "1px solid #ccc";
 
     // Create and append the visualization container
     let root = document.createElement("div");
@@ -83,22 +77,19 @@ export const landscape_sst = async (
 
     model.on('change:update_trigger', update_tile_landscape_from_cgm); 
 
+    // Create a container for the gene search box and additional elements
+    // ui_container.style.display = "flex";
+    // ui_container.style.flexDirection = "row";
+    // ui_container.style.border = "1px solid #d3d3d3";
+
+    ini_ui_container()
+
     // Add a container for the slider within the UI container
     let ctrl_container = document.createElement("div");
     ctrl_container.className = "ctrl_container";
     ctrl_container.style.width = "250px"
     ctrl_container.style.margin = "10px";
     ui_container.appendChild(ctrl_container); 
-
-    // // Add a control container for buttons and slider
-    // let ctrl_container = document.createElement("div");
-    // ctrl_container.style.display = "flex";
-    // ctrl_container.style.flexDirection = "row";
-    // ctrl_container.style.alignItems = "center";
-    // ctrl_container.style.width = "100%";
-    // ctrl_container.style.margin = "10px 0";
-    // ui_container.appendChild(ctrl_container); 
-
 
     // Add a container for the slider within the UI container
     let img_container = document.createElement("div");
@@ -216,12 +207,6 @@ export const landscape_sst = async (
     tile_slider.value = "100";
     tile_slider.className = "slider";
     tile_slider_container.appendChild(tile_slider);    
-
-    // // Add slider value display
-    // let slider_value = document.createElement("span");
-    // slider_value.className = "slider-value";
-    // slider_value.innerText = slider.value + "%";
-    // img_slider_container.appendChild(slider_value);
 
     // Update slider value and layer transparency on input
     img_slider.addEventListener("input", async function() {

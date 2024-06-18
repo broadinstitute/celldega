@@ -22,16 +22,6 @@ export const update_gene_search = async (base_url, token) => {
 
     set_input()
 
-    // // Create an input field with a datalist for autocomplete
-    // let input = document.createElement("input");
-    // input.setAttribute('type', 'text');
-    // input.setAttribute('placeholder', 'Search gene');
-    // input.style.width = "500px";
-    // input.style.height = "20px"; 
-    // input.style.marginTop = "5px";
-    // input.style.display = "inline-block";
-    // input.style.padding = "1pt 2pt";
-
     let dataList = document.createElement("datalist");
     dataList.id = 'genes_datalist'; 
     input.setAttribute('list', dataList.id); 
@@ -47,7 +37,7 @@ export const update_gene_search = async (base_url, token) => {
     input.style.width = "100%";
     input.style.maxWidth = "250px"; 
     input.style.height = "20px"; 
-    input.style.marginTop = "5px";
+    input.style.marginTop = "10px";
     input.style.display = "inline-block";
     input.style.padding = "1pt 2pt";    
 

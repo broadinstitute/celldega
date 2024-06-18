@@ -8,6 +8,7 @@ export const ini_ui_container = () => {
     ui_container.style.display = "flex"
     ui_container.style.flexDirection = "row"
     ui_container.style.border = "1px solid #d3d3d3"    
+    ui_container.className = "ui_container"
 }
 
 export let ctrl_container = document.createElement("div")
@@ -75,7 +76,18 @@ export const make_sst_ui_container = () => {
 export const make_ist_ui_container = () => {
 
     ini_ui_container()
+    ini_ctrl_container()
+    ini_img_container()
+    // ini_tile_container()
 
-    console.log('making IST UI container')
+
+    make_img_button(img_container)
+    // make_tile_button(tile_container)    
+
+    ctrl_container.appendChild(img_container) 
+    // ctrl_container.appendChild(tile_container)         
+
+    ui_container.appendChild(ctrl_container)
+    // ui_container.appendChild(gene_search)        
 
 }

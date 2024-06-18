@@ -10,9 +10,11 @@ import { update_views } from '../deck-gl/views.js';
 import { deck, set_deck } from '../deck-gl/deck.js';
 import { background_layer, update_background_layer } from '../deck-gl/background_layer.js';
 import { ui_container, make_ist_ui_container } from '../ui/ui_containers.js';
+import { set_model } from '../global_variables/model.js';
 
 export const landscape_ist = async (
     el,
+    ini_model,
     token, 
     ini_x, 
     ini_y, 
@@ -24,7 +26,9 @@ export const landscape_ist = async (
     // Create and append the visualization.
     let root = document.createElement("div");
     root.style.height = "800px";
-    el.appendChild(root);     
+
+
+    set_model(ini_model)
 
     // move this to landscape_parameters
     const imgage_name_for_dim = 'dapi'
@@ -59,6 +63,10 @@ export const landscape_ist = async (
     set_deck(root)
 
     make_ist_ui_container()
+
+    // UI and Viz Container
+    el.appendChild(ui_container)
+    el.appendChild(root);     
 
     return () => deck.finalize();        
 

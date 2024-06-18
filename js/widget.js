@@ -43,6 +43,7 @@ export const render_landscape_ist = async ({ model, el }) => {
 
     return landscape_ist(
         el,
+        model,
         token, 
         ini_x, 
         ini_y, 

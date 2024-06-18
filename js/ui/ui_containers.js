@@ -57,7 +57,7 @@ export const make_sst_ui_container = () => {
     ini_tile_container()
     ini_tile_slider_container()
 
-    make_img_button(img_container)
+    make_img_button(img_container, 'sst')
     make_tile_button(tile_container)
 
     make_tile_slider(tile_slider_container)    
@@ -81,7 +81,7 @@ export const make_ist_ui_container = () => {
     // ini_tile_container()
 
 
-    make_img_button(img_container)
+    make_img_button(img_container, 'ist')
     // make_tile_button(tile_container)    
 
     ctrl_container.appendChild(img_container) 

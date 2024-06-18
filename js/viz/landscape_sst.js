@@ -65,7 +65,6 @@ export const landscape_sst = async (
     await set_meta_gene(base_url)
     await update_tile_color_dict(base_url)
     ini_square_scatter_layer()
-    
     const new_layers = [simple_image_layer, square_scatter_layer]
     await update_layers(new_layers)
 

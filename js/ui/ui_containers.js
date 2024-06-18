@@ -71,3 +71,11 @@ export const make_sst_ui_container = () => {
     ui_container.appendChild(gene_search)    
 
 }
+
+export const make_ist_ui_container = () => {
+
+    ini_ui_container()
+
+    console.log('making IST UI container')
+
+}

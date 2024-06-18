@@ -39,19 +39,16 @@ export const render_landscape_ist = async ({ model, el }) => {
     const ini_zoom = model.get('ini_zoom');
     const base_url = model.get('base_url')
 
-    // Create and append the visualization.
-    let root = document.createElement("div");
-    root.style.height = "800px";
-    el.appendChild(root); 
+
 
     return landscape_ist(
+        el,
         token, 
         ini_x, 
         ini_y, 
         ini_z,
         ini_zoom, 
         base_url, 
-        root
     )
 
 }

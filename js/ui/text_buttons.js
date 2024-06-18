@@ -1,13 +1,12 @@
 import * as d3 from 'd3';
-import { img_container, tile_container } from "./ui_containers";
 import { simple_image_layer, simple_image_layer_visibility } from '../deck-gl/simple_image_layer';
 import { square_scatter_layer, square_scatter_layer_visibility } from '../deck-gl/square_scatter_layer';
 import { layers, update_layers } from '../deck-gl/layers_sst';
 import { deck } from '../deck-gl/deck_sst';
 
-export const make_img_button = () => {
+export const make_img_button = (container) => {
 
-    d3.select(img_container)
+    d3.select(container)
         .append('div')
         .attr('class', 'button blue')
         .text('IMG')
@@ -39,9 +38,9 @@ export const make_img_button = () => {
         }); 
 }
 
-export const make_tile_button = () => {
+export const make_tile_button = (container) => {
 
-    d3.select(tile_container)
+    d3.select(container)
         .append('div')
         .attr('class', 'button blue')
         .text('TILE')

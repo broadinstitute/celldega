@@ -36,13 +36,13 @@ export const ini_tile_container = () => {
     tile_container.style.flexDirection = "row"    
 }
 
-export let img_slider_container = document.createElement("div");
-export const ini_img_slider_container = () => {
-    img_slider_container.className = "slidecontainer";
-    img_slider_container.style.width = "100%";
-    img_slider_container.style.marginLeft = "5px"
-    img_slider_container.style.marginTop = "5px"
-}
+// export let img_slider_container = document.createElement("div");
+// export const ini_img_slider_container = () => {
+//     img_slider_container.className = "slidecontainer";
+//     img_slider_container.style.width = "100%";
+//     img_slider_container.style.marginLeft = "5px"
+//     img_slider_container.style.marginTop = "5px"
+// }
 
 export let tile_slider_container = document.createElement("div");
 

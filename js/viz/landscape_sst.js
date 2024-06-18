@@ -4,8 +4,8 @@ import { options, set_options } from '../global_variables/fetch_options.js';
 import { update_views } from '../deck-gl/views.js';
 import { set_initial_view_state } from "../deck-gl/initial_view_state.js";
 import { deck, set_deck } from '../deck-gl/deck_sst.js'
-import { layers, update_layers } from "../deck-gl/layers_sst.js";
-import { square_scatter_layer, ini_square_scatter_layer, square_scatter_layer_opacity } from "../deck-gl/square_scatter_layer.js";  
+import { update_layers } from "../deck-gl/layers_sst.js";
+import { square_scatter_layer, ini_square_scatter_layer } from "../deck-gl/square_scatter_layer.js";  
 import { update_tile_scatter_data } from "../global_variables/tile_scatter_data.js";
 import { update_tile_cats_array } from "../global_variables/tile_cats_array.js";
 import { update_tile_names_array } from "../global_variables/tile_names_array.js";
@@ -13,7 +13,7 @@ import { update_tile_color_dict } from "../global_variables/tile_color_dict.js";
 import { set_meta_gene } from "../global_variables/meta_gene.js";
 import { set_dimensions } from '../global_variables/image_dimensions.js';
 import { set_landscape_parameters } from "../global_variables/landscape_parameters.js";
-import { simple_image_layer, make_simple_image_layer, simple_image_layer_opacity } from "../deck-gl/simple_image_layer.js";
+import { simple_image_layer, make_simple_image_layer } from "../deck-gl/simple_image_layer.js";
 import { set_global_base_url } from "../global_variables/global_base_url.js";
 import { set_model, model } from "../global_variables/model.js";
 import { update_tile_landscape_from_cgm } from "../widget_interactions/update_tile_landscape_from_cgm.js";
@@ -22,9 +22,9 @@ import { ui_container, ini_ui_container } from '../ui/ui_containers.js';
 import { ctrl_container, ini_ctrl_container } from '../ui/ui_containers.js';
 import { img_container, ini_img_container } from '../ui/ui_containers.js';
 import { tile_container, ini_tile_container } from '../ui/ui_containers.js';
-import { img_slider_container, ini_img_slider_container } from '../ui/ui_containers.js';
 import { tile_slider_container, ini_tile_slider_container } from '../ui/ui_containers.js';
 import { make_img_button, make_tile_button } from '../ui/text_buttons.js';
+import { make_tile_slider } from "../ui/sliders.js";
 
 export const landscape_sst = async ( 
     ini_model, 
@@ -84,55 +84,37 @@ export const landscape_sst = async (
     ini_ctrl_container()
     ini_img_container()
     ini_tile_container()
-    ini_img_slider_container()
     ini_tile_slider_container()
 
-    ui_container.appendChild(ctrl_container); 
-    ctrl_container.appendChild(img_container); 
-    ctrl_container.appendChild(tile_container);         
+    make_img_button(img_container)
 
-    make_img_button()
-    make_tile_button()
+    make_tile_slider(tile_slider_container)
 
+    // let tile_slider = document.createElement("input");
+    // tile_slider.type = "range";
+    // tile_slider.min = "0";
+    // tile_slider.max = "100";
+    // tile_slider.value = "100";
+    // tile_slider.className = "slider";
+
+    // tile_slider.addEventListener("input", async function() {
+    //     square_scatter_layer_opacity(tile_slider.value / 100)
+    //     await update_layers([simple_image_layer, square_scatter_layer])
+    //     deck.setProps({layers});        
+    // });        
     
-    ui_container.appendChild(gene_search)
+    // tile_slider_container.appendChild(tile_slider);        
 
-
-    img_container.appendChild(img_slider_container);
-
-    // Add slider input element
-    let img_slider = document.createElement("input");
-    img_slider.type = "range";
-    img_slider.min = "0";
-    img_slider.max = "100";
-    img_slider.value = "100";
-    img_slider.className = "slider";
-
-    
-
+    // the order of these two lines is important and affects the position of the ui elements
+    make_tile_button(tile_container)
     tile_container.appendChild(tile_slider_container);
 
-    // Add slider input element
-    let tile_slider = document.createElement("input");
-    tile_slider.type = "range";
-    tile_slider.min = "0";
-    tile_slider.max = "100";
-    tile_slider.value = "100";
-    tile_slider.className = "slider";
-    tile_slider_container.appendChild(tile_slider);    
+    ctrl_container.appendChild(img_container) 
+    ctrl_container.appendChild(tile_container)         
 
-    // Update slider value and layer transparency on input
-    img_slider.addEventListener("input", async function() {
-        simple_image_layer_opacity(img_slider.value / 100)
-        await update_layers([simple_image_layer, square_scatter_layer])
-        deck.setProps({layers});        
-    });
+    ui_container.appendChild(ctrl_container)
+    ui_container.appendChild(gene_search)
 
-    tile_slider.addEventListener("input", async function() {
-        square_scatter_layer_opacity(tile_slider.value / 100)
-        await update_layers([simple_image_layer, square_scatter_layer])
-        deck.setProps({layers});        
-    });    
     
     el.appendChild(ui_container)
     el.appendChild(root);

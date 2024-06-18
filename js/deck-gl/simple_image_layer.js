@@ -33,13 +33,3 @@ export const simple_image_layer_visibility = (visible) => {
     });
 
 }
-
-export const simple_image_layer_opacity = (opacity) => {
-
-    console.log(opacity)
-    
-    simple_image_layer = simple_image_layer.clone({
-        opacity: opacity
-    });
-
-}

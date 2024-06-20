@@ -7,7 +7,7 @@ import { image_layers, toggle_visibility_image_layers } from '../deck-gl/image_l
 import { deck_sst } from '../deck-gl/deck_sst';
 import { deck } from '../deck-gl/deck';
 
-import { background_layer } from '../deck-gl/background_layer';
+import { background_layer, toggle_background_layer_visibility } from '../deck-gl/background_layer';
 import { path_layer } from '../deck-gl/path_layer';
 import { cell_layer } from '../deck-gl/cell_layer';
 import { trx_layer } from '../deck-gl/trx_layer';
@@ -65,6 +65,7 @@ const ist_img_button_callback = async (event) => {
     }
 
     toggle_visibility_image_layers(isVisible)
+    toggle_background_layer_visibility(isVisible)
 
     let new_layers = [
         background_layer,
@@ -76,11 +77,6 @@ const ist_img_button_callback = async (event) => {
 
     update_layers(new_layers)
     deck.setProps({layers});
-
-
-    // simple_image_layer_visibility(isVisible)
-    // await update_layers([simple_image_layer, square_scatter_layer])
-    // deck.setProps({layers});
 
 }
 

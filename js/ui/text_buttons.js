@@ -1,7 +1,7 @@
 import * as d3 from 'd3';
 import { simple_image_layer, simple_image_layer_visibility } from '../deck-gl/simple_image_layer';
 import { square_scatter_layer, square_scatter_layer_visibility } from '../deck-gl/square_scatter_layer';
-import { layers, update_layers } from '../deck-gl/layers_sst';
+import { layers_sst, update_layers } from '../deck-gl/layers_sst';
 import { deck } from '../deck-gl/deck_sst';
 
 const make_button = (container, text, color, callback) => {
@@ -37,7 +37,7 @@ const sst_img_button_callback = async (event) => {
 
     simple_image_layer_visibility(isVisible)
     await update_layers([simple_image_layer, square_scatter_layer])
-    deck.setProps({layers});
+    deck.setProps({layers: layers_sst});
 
 }
 
@@ -78,7 +78,7 @@ const tile_button_callback = async (event) => {
 
     square_scatter_layer_visibility(isVisible)
     await update_layers([simple_image_layer, square_scatter_layer])
-    deck.setProps({layers});
+    deck.setProps({layers_sst});
 
 }    
 

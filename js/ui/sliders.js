@@ -1,6 +1,6 @@
 import { simple_image_layer } from "../deck-gl/simple_image_layer";
 import { square_scatter_layer, square_scatter_layer_opacity } from "../deck-gl/square_scatter_layer";
-import { layers, update_layers } from "../deck-gl/layers_sst";
+import { layers_sst, update_layers } from "../deck-gl/layers_sst";
 import { deck } from "../deck-gl/deck_sst";
 
 export const make_tile_slider = (container) => {
@@ -12,9 +12,10 @@ export const make_tile_slider = (container) => {
     tile_slider.className = "slider";
 
     tile_slider.addEventListener("input", async function() {
+        console.log('here!!')
         square_scatter_layer_opacity(tile_slider.value / 100)
         await update_layers([simple_image_layer, square_scatter_layer])
-        deck.setProps({layers});        
+        deck.setProps({layers: layers_sst})
     });        
     
     container.appendChild(tile_slider);            

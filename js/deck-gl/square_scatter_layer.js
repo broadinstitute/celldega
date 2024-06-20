@@ -6,7 +6,7 @@ import { color_dict } from '../global_variables/tile_color_dict.js';
 import { tile_exp_array } from '../global_variables/tile_exp_array.js'; 
 import { selected_cats, update_selected_cats } from '../global_variables/selected_cats.js';
 import { update_tile_cat } from "../global_variables/tile_cat.js" 
-import { deck } from "./deck_sst.js";
+import { deck_sst } from "./deck_sst.js";
 import { simple_image_layer } from "../deck-gl/simple_image_layer.js";
 
 class SquareScatterplotLayer extends ScatterplotLayer {
@@ -71,7 +71,7 @@ export const ini_square_scatter_layer = () => {
             update_selected_cats(new_selected_cats)
             update_tile_cat('cluster')
             update_square_scatter_layer()
-            deck.setProps({layers: [simple_image_layer, square_scatter_layer]})        
+            deck_sst.setProps({layers: [simple_image_layer, square_scatter_layer]})        
 
         },
         updateTriggers: {

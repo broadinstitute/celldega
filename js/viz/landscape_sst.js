@@ -3,8 +3,8 @@ import { get_scatter_data } from "../read_parquet/get_scatter_data.js";
 import { options, set_options } from '../global_variables/fetch_options.js';
 import { update_views } from '../deck-gl/views.js';
 import { set_initial_view_state } from "../deck-gl/initial_view_state.js";
-import { deck, set_deck } from '../deck-gl/deck_sst.js'
-import { update_layers } from "../deck-gl/layers_sst.js";
+import { deck_sst, set_deck } from '../deck-gl/deck_sst.js'
+import { update_layers_sst } from "../deck-gl/layers_sst.js";
 import { square_scatter_layer, ini_square_scatter_layer } from "../deck-gl/square_scatter_layer.js";  
 import { update_tile_scatter_data } from "../global_variables/tile_scatter_data.js";
 import { update_tile_cats_array } from "../global_variables/tile_cats_array.js";
@@ -66,7 +66,7 @@ export const landscape_sst = async (
     await update_tile_color_dict(base_url)
     ini_square_scatter_layer()
     const new_layers = [simple_image_layer, square_scatter_layer]
-    await update_layers(new_layers)
+    await update_layers_sst(new_layers)
 
     set_initial_view_state(ini_x, ini_y, ini_z, ini_zoom)    
     update_views()
@@ -81,6 +81,6 @@ export const landscape_sst = async (
     el.appendChild(ui_container)
     el.appendChild(root);
 
-    return () => deck.finalize();  
+    return () => deck_sst.finalize();  
 
 }

@@ -29,3 +29,11 @@ const make_image_layer = (info) => {
 export const update_image_layers = async (global_base_url, image_info) => {
     image_layers = image_info.map(make_image_layer);
 }
+
+export const toggle_visibility_image_layers = (visible) => {
+    image_layers = image_layers.map(layer => 
+        layer.clone({
+            visible: visible
+        })
+    );
+};

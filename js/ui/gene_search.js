@@ -2,7 +2,7 @@ import { get_arrow_table } from "../read_parquet/get_arrow_table.js";
 import { square_scatter_layer, update_square_scatter_layer } from "../deck-gl/square_scatter_layer.js";
 import { options, set_options } from '../global_variables/fetch_options.js';
 import { update_tile_cat } from "../global_variables/tile_cat.js" 
-import { deck } from "../deck-gl/deck_sst.js";
+import { deck_sst } from "../deck-gl/deck_sst.js";
 import { update_tile_exp_array } from "../global_variables/tile_exp_array.js"; 
 import { input, set_input } from "./input.js";
 import { simple_image_layer } from "../deck-gl/simple_image_layer.js";
@@ -62,6 +62,6 @@ export const update_gene_search = async (base_url, token) => {
             await update_tile_exp_array(base_url, selected_gene)
         }
         update_square_scatter_layer()
-        deck.setProps({layers: [simple_image_layer, square_scatter_layer]})        
+        deck_sst.setProps({layers: [simple_image_layer, square_scatter_layer]})        
     });
 };

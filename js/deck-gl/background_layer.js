@@ -22,9 +22,7 @@ export const update_background_layer = () => {
 }
 
 export const toggle_background_layer_visibility = (visible) => {
-
   background_layer = background_layer.clone({
       visible: visible,
   });
-
 }

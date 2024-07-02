@@ -10,7 +10,7 @@ import { deck } from '../deck-gl/deck';
 import { background_layer, toggle_background_layer_visibility } from '../deck-gl/background_layer';
 import { path_layer } from '../deck-gl/path_layer';
 import { cell_layer } from '../deck-gl/cell_layer';
-import { trx_layer } from '../deck-gl/trx_layer';
+import { trx_layer, toggle_trx_layer_visibility } from '../deck-gl/trx_layer';
 import { layers, update_layers } from '../deck-gl/layers';
 
 let isVisible;
@@ -35,7 +35,7 @@ const make_button = (container, text, color, callback) => {
         .append('div')
         .attr('class', 'button')
         .text(text)
-        .style('width', '50px')
+        .style('width', '40px')
         .style('text-align', 'center')
         .style('cursor', 'pointer')
         .style('font-size', '16px')
@@ -80,6 +80,20 @@ const ist_img_button_callback = async (event) => {
 
 const trx_button_callback_ist = async (event) => {
     toggle_visible_button(event)
+
+    toggle_trx_layer_visibility(isVisible)
+
+    let new_layers = [
+        background_layer,
+        ...image_layers, 
+        path_layer, 
+        cell_layer, 
+        trx_layer
+    ]
+
+    update_layers(new_layers)
+    deck.setProps({layers});    
+
 }
 
 const tile_button_callback = async (event) => {

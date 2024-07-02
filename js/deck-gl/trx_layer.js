@@ -26,3 +26,9 @@ export const update_trx_layer = async ( base_url, tiles_in_view, ) => {
     });
         
 }
+
+export const toggle_trx_layer_visibility = (visible) => {
+    trx_layer = trx_layer.clone({
+        visible: visible,
+    });
+}

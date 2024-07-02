@@ -13,6 +13,22 @@ import { cell_layer } from '../deck-gl/cell_layer';
 import { trx_layer } from '../deck-gl/trx_layer';
 import { layers, update_layers } from '../deck-gl/layers';
 
+let isVisible;
+
+const toggle_visible_button = (event) => {
+    const current = d3.select(event.currentTarget);
+
+    if (current.style('color') === 'blue') {
+        current.style('color', 'gray')
+        isVisible = false
+    } else {
+        current.style('color', 'blue')
+        isVisible = true
+    }
+
+    return isVisible
+}
+
 const make_button = (container, text, color, callback) => {
     
     d3.select(container)
@@ -33,16 +49,7 @@ const make_button = (container, text, color, callback) => {
 
 const sst_img_button_callback = async (event) => {
 
-    const current = d3.select(event.currentTarget);
-
-    let isVisible;
-    if (current.style('color') === 'blue') {
-        current.style('color', 'gray')
-        isVisible = false
-    } else {
-        current.style('color', 'blue')
-        isVisible = true
-    }
+    toggle_visible_button(event)
 
     simple_image_layer_visibility(isVisible)
     await update_layers_sst([simple_image_layer, square_scatter_layer])
@@ -53,16 +60,7 @@ const sst_img_button_callback = async (event) => {
 
 const ist_img_button_callback = async (event) => {
 
-    const current = d3.select(event.currentTarget);
-
-    let isVisible;
-    if (current.style('color') === 'blue') {
-        current.style('color', 'gray')
-        isVisible = false
-    } else {
-        current.style('color', 'blue')
-        isVisible = true
-    }
+    toggle_visible_button(event)
 
     toggle_visibility_image_layers(isVisible)
     toggle_background_layer_visibility(isVisible)
@@ -80,18 +78,13 @@ const ist_img_button_callback = async (event) => {
 
 }
 
+const trx_button_callback_ist = async (event) => {
+    toggle_visible_button(event)
+}
+
 const tile_button_callback = async (event) => {
 
-    const current = d3.select(event.currentTarget);
-
-    let isVisible;
-    if (current.style('color') === 'blue') {
-        current.style('color', 'gray')
-        isVisible = false
-    } else {
-        current.style('color', 'blue')
-        isVisible = true
-    }
+    toggle_visible_button(event)
 
     square_scatter_layer_visibility(isVisible)
     await update_layers_sst([simple_image_layer, square_scatter_layer])
@@ -109,4 +102,11 @@ export const make_img_button = (container, type_st) => {
 
 export const make_tile_button = (container) => {
     make_button(container, 'TILE', 'blue', tile_button_callback)
+}
+
+export const make_trx_button = (container, type_st) => {
+
+    console.log(type_st)
+    make_button(container, 'TRX', 'blue', trx_button_callback_ist)
+
 }

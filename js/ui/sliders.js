@@ -12,11 +12,28 @@ export const make_tile_slider = (container) => {
     tile_slider.className = "slider";
 
     tile_slider.addEventListener("input", async function() {
-        console.log('here!!')
         square_scatter_layer_opacity(tile_slider.value / 100)
         await update_layers_sst([simple_image_layer, square_scatter_layer])
         deck_sst.setProps({layers: layers_sst})
     });        
     
     container.appendChild(tile_slider);            
+}
+
+export const make_trx_slider = (container) => {
+    let trx_slider = document.createElement("input");
+    trx_slider.type = "range";
+    trx_slider.min = "0";
+    trx_slider.max = "100";
+    trx_slider.value = "100";
+    trx_slider.className = "slider";
+
+    trx_slider.addEventListener("input", async function() {
+        console.log('trx_slider')
+        // square_scatter_layer_opacity(trx_slider.value / 100)
+        // await update_layers_sst([simple_image_layer, square_scatter_layer])
+        // deck_sst.setProps({layers: layers_sst})
+    });        
+    
+    container.appendChild(trx_slider);            
 }

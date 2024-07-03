@@ -8,6 +8,7 @@ import { cell_layer } from "../deck-gl/cell_layer"
 import { deck_sst } from "../deck-gl/deck_sst"
 import { deck_ist } from "../deck-gl/deck_ist"
 import { background_layer } from "../deck-gl/background_layer"
+import { trx_ini_raidus } from "../global_variables/trx_ini_raidus"
 
 export const make_tile_slider = (container) => {
     let tile_slider = document.createElement("input");
@@ -27,15 +28,15 @@ export const make_tile_slider = (container) => {
 }
 
 export const make_trx_slider = (container) => {
-    let trx_slider = document.createElement("input");
-    trx_slider.type = "range";
-    trx_slider.min = "0";
-    trx_slider.max = "100";
-    trx_slider.value = "100";
-    trx_slider.className = "slider";
+
+    let trx_slider = document.createElement("input")
+    trx_slider.type = "range"
+    trx_slider.min = "0"
+    trx_slider.max = "100"
+    trx_slider.value = trx_ini_raidus * 100
+    trx_slider.className = "slider"
 
     trx_slider.addEventListener("input", async function() {
-        console.log('trx_slider')
         update_trx_layer_radius(trx_slider.value/100)
         let new_layers = [
             background_layer,

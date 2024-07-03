@@ -1,12 +1,11 @@
-import { ScatterplotLayer } from 'deck.gl';
-import { trx_data, set_trx_data } from '../vector_tile/transcripts/trx_data';
-import { color_dict } from '../global_variables/color_dict';
-import { trx_names_array } from '../global_variables/trx_names_array';
+import { ScatterplotLayer } from 'deck.gl'
+import { trx_data, set_trx_data } from '../vector_tile/transcripts/trx_data'
+import { color_dict } from '../global_variables/color_dict'
+import { trx_names_array } from '../global_variables/trx_names_array'
 
 export let trx_layer = new ScatterplotLayer({
     id: 'trx-layer',
     data: trx_data,
-    getRadius: 0.2,// 0.5,
     pickable: true,
     getColor: (i, d) => {
         var inst_gene = trx_names_array[d.index]
@@ -34,9 +33,6 @@ export const toggle_trx_layer_visibility = (visible) => {
 }
 
 export const update_trx_layer_radius = (radius) => {
-    console.log('updating trx layer radius')
-    console.log(trx_layer)
-    console.log('radius', radius)
     trx_layer = trx_layer.clone({
         getRadius: radius,
     });

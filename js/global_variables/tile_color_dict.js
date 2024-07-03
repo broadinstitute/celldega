@@ -6,8 +6,6 @@ export let color_dict = {}
 
 export const update_tile_color_dict = async (base_url) => {
 
-    console.log('udpate_tile_color_dict')
-
     const df_colors_url = base_url + `/df_colors.parquet`;
     var df_colors = await get_arrow_table(df_colors_url, options.fetch)
 

@@ -1,3 +1,4 @@
+import { set_trx_ini_raidus } from '../global_variables/trx_ini_raidus.js';
 import { set_options } from '../global_variables/fetch_options.js';
 import { set_global_base_url } from '../global_variables/global_base_url.js';
 import { set_landscape_parameters } from '../global_variables/landscape_parameters.js';
@@ -11,6 +12,7 @@ import { deck_ist, set_deck } from '../deck-gl/deck_ist.js';
 import { background_layer, update_background_layer } from '../deck-gl/background_layer.js';
 import { make_ist_ui_container } from '../ui/ui_containers.js';
 import { set_model } from '../global_variables/model.js';
+import { update_trx_layer_radius } from '../deck-gl/trx_layer.js';
 
 export const landscape_ist = async (
     el,
@@ -21,12 +23,13 @@ export const landscape_ist = async (
     ini_z, 
     ini_zoom, 
     base_url, 
+    trx_radius=0.5
 ) => {
 
     // Create and append the visualization.
+    set_trx_ini_raidus(trx_radius)
     let root = document.createElement("div");
     root.style.height = "800px";
-
 
     set_model(ini_model)
 
@@ -44,6 +47,7 @@ export const landscape_ist = async (
     ]    
 
     // set global variables
+    
     set_global_base_url(base_url)
     
     set_options(token)
@@ -56,6 +60,8 @@ export const landscape_ist = async (
     await update_cell_layer(base_url)
 
     update_background_layer()
+
+    update_trx_layer_radius(trx_radius)
 
     update_layers([background_layer, ...image_layers, cell_layer])
     update_views()

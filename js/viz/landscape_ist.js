@@ -23,7 +23,7 @@ export const landscape_ist = async (
     ini_z, 
     ini_zoom, 
     base_url, 
-    trx_radius=0.5
+    trx_radius=0.25
 ) => {
 
     // Create and append the visualization.

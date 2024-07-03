@@ -1,7 +1,8 @@
 import { make_cell_button, make_img_button, make_tile_button, make_trx_button } from "./text_buttons"
 import { gene_search } from "./gene_search"
 import { tile_slider, ini_tile_slider } from './sliders'
-import { make_cell_slider, make_trx_slider } from "./sliders"
+import { cell_slider, ini_cell_slider } from "./sliders"
+import { trx_slider, ini_trx_slider } from "./sliders"
 
 export const make_ui_container = () => {
     const ui_container = document.createElement("div")
@@ -51,9 +52,9 @@ export const make_sst_ui_container = () => {
     const tile_slider_container = make_slider_container('tile_slider_container')
 
     make_img_button(img_container, 'sst')
-    make_tile_button(tile_container)  
-    ini_tile_slider()
+    make_tile_button(tile_container)
 
+    ini_tile_slider()
     tile_slider_container.appendChild(tile_slider);
 
     ui_container.appendChild(ctrl_container)
@@ -82,11 +83,13 @@ export const make_ist_ui_container = () => {
     make_cell_button(cell_container, 'ist')
     make_trx_button(trx_container, 'ist')
 
-    make_cell_slider(cell_slider_container)
+    ini_cell_slider()
     cell_container.appendChild(cell_slider_container)
+    cell_slider_container.appendChild(cell_slider)
 
-    make_trx_slider(trx_slider_container) 
+    ini_trx_slider()
     trx_container.appendChild(trx_slider_container)
+    trx_slider_container.appendChild(trx_slider) 
 
     ui_container.appendChild(ctrl_container)
 

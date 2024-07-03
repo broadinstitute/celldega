@@ -10,7 +10,9 @@ import { deck_ist } from "../deck-gl/deck_ist"
 import { background_layer } from "../deck-gl/background_layer"
 import { trx_ini_raidus } from "../global_variables/trx_ini_raidus"
 
-export let tile_slider = document.createElement("input");
+export let tile_slider = document.createElement("input")
+export let cell_slider = document.createElement("input")
+export let trx_slider = document.createElement("input")
 
 export const ini_tile_slider = () => {
     
@@ -28,9 +30,8 @@ export const ini_tile_slider = () => {
     
 }
 
-export const make_cell_slider = (container) => {
+export const ini_cell_slider = () => {
 
-    let cell_slider = document.createElement("input")
     cell_slider.type = "range"
     cell_slider.min = "0"
     cell_slider.max = "100"
@@ -51,13 +52,11 @@ export const make_cell_slider = (container) => {
         
         deck_ist.setProps({layers: new_layers})
     });        
-    
-    container.appendChild(cell_slider);            
+          
 }
 
-export const make_trx_slider = (container) => {
+export const ini_trx_slider = () => {
 
-    let trx_slider = document.createElement("input")
     trx_slider.type = "range"
     trx_slider.min = "0"
     trx_slider.max = "100"
@@ -77,7 +76,6 @@ export const make_trx_slider = (container) => {
         deck_ist.setProps({layers: new_layers})
     });        
     
-    container.appendChild(trx_slider);            
 }
 
 export const toggle_slider = (slider, state) => {

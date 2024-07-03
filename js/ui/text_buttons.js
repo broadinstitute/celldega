@@ -13,7 +13,7 @@ import { cell_layer, toggle_cell_layer_visibility } from '../deck-gl/cell_layer'
 import { trx_layer, toggle_trx_layer_visibility } from '../deck-gl/trx_layer';
 import { layers, update_layers } from '../deck-gl/layers';
 
-import { tile_slider, toggle_slider} from './sliders'
+import { tile_slider, cell_slider, trx_slider, toggle_slider} from './sliders'
 
 let isVisible;
 
@@ -82,6 +82,9 @@ const ist_img_button_callback = async (event) => {
 const trx_button_callback_ist = async (event) => {
 
     toggle_visible_button(event)
+
+    toggle_slider(trx_slider, isVisible)
+
     toggle_trx_layer_visibility(isVisible)
 
     let new_layers = [
@@ -111,6 +114,8 @@ const tile_button_callback = async (event) => {
 
 const cell_button_callback = async (event) => {
     toggle_visible_button(event)
+
+    toggle_slider(cell_slider, isVisible)
 
     toggle_cell_layer_visibility(isVisible)
     toggle_path_layer_visibility(isVisible)    

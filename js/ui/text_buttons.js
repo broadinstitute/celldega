@@ -8,15 +8,15 @@ import { deck_sst } from '../deck-gl/deck_sst';
 import { deck } from '../deck-gl/deck';
 
 import { background_layer, toggle_background_layer_visibility } from '../deck-gl/background_layer';
-import { path_layer } from '../deck-gl/path_layer';
-import { cell_layer } from '../deck-gl/cell_layer';
+import { path_layer, toggle_path_layer_visibility } from '../deck-gl/path_layer';
+import { cell_layer, toggle_cell_layer_visibility } from '../deck-gl/cell_layer';
 import { trx_layer, toggle_trx_layer_visibility } from '../deck-gl/trx_layer';
 import { layers, update_layers } from '../deck-gl/layers';
 
 let isVisible;
 
 const toggle_visible_button = (event) => {
-    const current = d3.select(event.currentTarget);
+    const current = d3.select(event.currentTarget)
 
     if (current.style('color') === 'blue') {
         current.style('color', 'gray')
@@ -61,7 +61,6 @@ const sst_img_button_callback = async (event) => {
 const ist_img_button_callback = async (event) => {
 
     toggle_visible_button(event)
-
     toggle_visibility_image_layers(isVisible)
     toggle_background_layer_visibility(isVisible)
 
@@ -79,8 +78,8 @@ const ist_img_button_callback = async (event) => {
 }
 
 const trx_button_callback_ist = async (event) => {
-    toggle_visible_button(event)
 
+    toggle_visible_button(event)
     toggle_trx_layer_visibility(isVisible)
 
     let new_layers = [
@@ -92,7 +91,7 @@ const trx_button_callback_ist = async (event) => {
     ]
 
     update_layers(new_layers)
-    deck.setProps({layers});    
+    deck.setProps({layers})   
 
 }
 
@@ -106,6 +105,24 @@ const tile_button_callback = async (event) => {
 
 }    
 
+const cell_button_callback = async (event) => {
+    toggle_visible_button(event)
+
+    toggle_cell_layer_visibility(isVisible)
+    toggle_path_layer_visibility(isVisible)    
+
+    let new_layers = [
+        background_layer,
+        ...image_layers, 
+        path_layer, 
+        cell_layer, 
+        trx_layer
+    ]
+
+    update_layers(new_layers)
+    deck.setProps({layers})    
+}
+
 export const make_img_button = (container, type_st) => {
     if (type_st === 'sst') {
         make_button(container, 'IMG', 'blue', sst_img_button_callback)
@@ -118,9 +135,10 @@ export const make_tile_button = (container) => {
     make_button(container, 'TILE', 'blue', tile_button_callback)
 }
 
-export const make_trx_button = (container, type_st) => {
-
-    console.log(type_st)
+export const make_trx_button = (container) => {
     make_button(container, 'TRX', 'blue', trx_button_callback_ist)
+}
 
+export const make_cell_button = (container) => {
+    make_button(container, 'CELL', 'blue', cell_button_callback)
 }

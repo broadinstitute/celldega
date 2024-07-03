@@ -16,8 +16,6 @@ export let cell_layer = new ScatterplotLayer({
 
 export const update_cell_layer = async (base_url) => {
 
-    // console.log('here!!!!')
-
     const cell_url = base_url + `/cell_metadata.parquet`;
     var cell_arrow_table = await get_arrow_table(cell_url, options.fetch)
 
@@ -36,5 +34,11 @@ export const update_cell_layer = async (base_url) => {
             console.log(info.index)
             console.log(cell_names_array[info.index])
         },        
+    });
+}
+
+export const toggle_cell_layer_visibility = (visible) => {
+    cell_layer = cell_layer.clone({
+        visible: visible,
     });
 }

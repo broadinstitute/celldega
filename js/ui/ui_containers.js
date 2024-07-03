@@ -1,4 +1,4 @@
-import { make_img_button, make_tile_button, make_trx_button } from "./text_buttons"
+import { make_cell_button, make_img_button, make_tile_button, make_trx_button } from "./text_buttons"
 import { gene_search } from "./gene_search"
 import { make_tile_slider } from "./sliders"
 
@@ -58,7 +58,7 @@ export const make_sst_ui_container = () => {
     ini_tile_slider_container()
 
     make_img_button(img_container, 'sst')
-    make_tile_button(tile_container)
+    make_tile_button(tile_container)  
 
     make_tile_slider(tile_slider_container)    
 
@@ -83,7 +83,7 @@ export const make_ist_ui_container = () => {
 
     make_img_button(img_container, 'ist')
     make_trx_button(img_container, 'ist')
-    // make_tile_button(tile_container)    
+    make_cell_button(img_container, 'ist')
 
     ctrl_container.appendChild(img_container) 
     // ctrl_container.appendChild(tile_container)         

@@ -23,3 +23,9 @@ export const update_path_layer = async (base_url, tiles_in_view) => {
     });
 
 }
+
+export const toggle_path_layer_visibility = (visible) => {
+    path_layer = path_layer.clone({
+        visible: visible,
+    });
+}

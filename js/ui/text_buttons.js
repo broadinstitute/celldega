@@ -13,6 +13,8 @@ import { cell_layer, toggle_cell_layer_visibility } from '../deck-gl/cell_layer'
 import { trx_layer, toggle_trx_layer_visibility } from '../deck-gl/trx_layer';
 import { layers, update_layers } from '../deck-gl/layers';
 
+import { tile_slider, toggle_slider} from './sliders'
+
 let isVisible;
 
 const toggle_visible_button = (event) => {
@@ -98,6 +100,8 @@ const trx_button_callback_ist = async (event) => {
 const tile_button_callback = async (event) => {
 
     toggle_visible_button(event)
+
+    toggle_slider(tile_slider, isVisible)
 
     square_scatter_layer_visibility(isVisible)
     await update_layers_sst([simple_image_layer, square_scatter_layer])

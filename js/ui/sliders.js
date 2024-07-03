@@ -10,8 +10,10 @@ import { deck_ist } from "../deck-gl/deck_ist"
 import { background_layer } from "../deck-gl/background_layer"
 import { trx_ini_raidus } from "../global_variables/trx_ini_raidus"
 
-export const make_tile_slider = (container) => {
-    let tile_slider = document.createElement("input");
+export let tile_slider = document.createElement("input");
+
+export const ini_tile_slider = () => {
+    
     tile_slider.type = "range";
     tile_slider.min = "0";
     tile_slider.max = "100";
@@ -24,7 +26,6 @@ export const make_tile_slider = (container) => {
         deck_sst.setProps({layers: layers_sst})
     });        
     
-    container.appendChild(tile_slider);            
 }
 
 export const make_cell_slider = (container) => {
@@ -77,4 +78,8 @@ export const make_trx_slider = (container) => {
     });        
     
     container.appendChild(trx_slider);            
+}
+
+export const toggle_slider = (slider, state) => {
+    slider.disabled = !state
 }

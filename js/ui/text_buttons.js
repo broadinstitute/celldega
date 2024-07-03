@@ -5,7 +5,7 @@ import { layers_sst, update_layers_sst } from '../deck-gl/layers_sst';
 
 import { image_layers, toggle_visibility_image_layers } from '../deck-gl/image_layers';
 import { deck_sst } from '../deck-gl/deck_sst';
-import { deck } from '../deck-gl/deck';
+import { deck_ist } from '../deck-gl/deck_ist';
 
 import { background_layer, toggle_background_layer_visibility } from '../deck-gl/background_layer';
 import { path_layer, toggle_path_layer_visibility } from '../deck-gl/path_layer';
@@ -73,7 +73,7 @@ const ist_img_button_callback = async (event) => {
     ]
 
     update_layers(new_layers)
-    deck.setProps({layers});
+    deck_ist.setProps({layers});
 
 }
 
@@ -91,7 +91,7 @@ const trx_button_callback_ist = async (event) => {
     ]
 
     update_layers(new_layers)
-    deck.setProps({layers})   
+    deck_ist.setProps({layers})   
 
 }
 
@@ -120,7 +120,7 @@ const cell_button_callback = async (event) => {
     ]
 
     update_layers(new_layers)
-    deck.setProps({layers})    
+    deck_ist.setProps({layers})    
 }
 
 export const make_img_button = (container, type_st) => {

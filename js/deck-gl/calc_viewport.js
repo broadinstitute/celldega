@@ -1,6 +1,6 @@
 import { visibleTiles } from '../vector_tile/visibleTiles.js'
 import { global_base_url } from '../global_variables/global_base_url.js'
-import { deck } from './deck.js'
+import { deck_ist } from './deck_ist.js'
 import { image_layers } from './image_layers.js'
 import { cell_layer } from './cell_layer.js'
 import { path_layer, update_path_layer } from './path_layer.js'
@@ -62,5 +62,5 @@ export const calc_viewport = async ({ height, width, zoom, target }) => {
 
     }
 
-    deck.setProps({layers});
+    deck_ist.setProps({layers});
 }

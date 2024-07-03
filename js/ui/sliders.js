@@ -6,7 +6,7 @@ import { image_layers } from "../deck-gl/image_layers"
 import { path_layer } from "../deck-gl/path_layer"
 import { cell_layer } from "../deck-gl/cell_layer"
 import { deck_sst } from "../deck-gl/deck_sst"
-import { deck } from "../deck-gl/deck"
+import { deck_ist } from "../deck-gl/deck_ist"
 import { background_layer } from "../deck-gl/background_layer"
 
 export const make_tile_slider = (container) => {
@@ -45,7 +45,7 @@ export const make_trx_slider = (container) => {
             trx_layer
         ]
         
-        deck.setProps({layers: new_layers})
+        deck_ist.setProps({layers: new_layers})
     });        
     
     container.appendChild(trx_slider);            

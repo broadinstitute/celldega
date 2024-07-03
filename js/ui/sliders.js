@@ -21,6 +21,7 @@ export const ini_tile_slider = () => {
     tile_slider.max = "100";
     tile_slider.value = "100";
     tile_slider.className = "slider";
+    tile_slider.style.width = "100px"
 
     tile_slider.addEventListener("input", async function() {
         square_scatter_layer_opacity(tile_slider.value / 100)
@@ -37,6 +38,7 @@ export const ini_cell_slider = () => {
     cell_slider.max = "100"
     cell_slider.value = trx_ini_raidus * 100
     cell_slider.className = "slider"
+    cell_slider.style.width = "100px"
 
     cell_slider.addEventListener("input", async function() {
 
@@ -62,6 +64,7 @@ export const ini_trx_slider = () => {
     trx_slider.max = "100"
     trx_slider.value = trx_ini_raidus * 100
     trx_slider.className = "slider"
+    trx_slider.style.width = "100px"
 
     trx_slider.addEventListener("input", async function() {
         update_trx_layer_radius(trx_slider.value/100)

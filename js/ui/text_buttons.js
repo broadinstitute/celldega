@@ -1,21 +1,21 @@
-import * as d3 from 'd3';
-import { simple_image_layer, simple_image_layer_visibility } from '../deck-gl/simple_image_layer';
-import { square_scatter_layer, square_scatter_layer_visibility } from '../deck-gl/square_scatter_layer';
-import { layers_sst, update_layers_sst } from '../deck-gl/layers_sst';
+import * as d3 from 'd3'
+import { simple_image_layer, simple_image_layer_visibility } from '../deck-gl/simple_image_layer'
+import { square_scatter_layer, square_scatter_layer_visibility } from '../deck-gl/square_scatter_layer'
+import { layers_sst, update_layers_sst } from '../deck-gl/layers_sst'
 
-import { image_layers, toggle_visibility_image_layers } from '../deck-gl/image_layers';
-import { deck_sst } from '../deck-gl/deck_sst';
-import { deck_ist } from '../deck-gl/deck_ist';
+import { image_layers, toggle_visibility_image_layers } from '../deck-gl/image_layers'
+import { deck_sst } from '../deck-gl/deck_sst'
+import { deck_ist } from '../deck-gl/deck_ist'
 
-import { background_layer, toggle_background_layer_visibility } from '../deck-gl/background_layer';
-import { path_layer, toggle_path_layer_visibility } from '../deck-gl/path_layer';
-import { cell_layer, toggle_cell_layer_visibility } from '../deck-gl/cell_layer';
-import { trx_layer, toggle_trx_layer_visibility } from '../deck-gl/trx_layer';
-import { layers, update_layers } from '../deck-gl/layers';
+import { background_layer, toggle_background_layer_visibility } from '../deck-gl/background_layer'
+import { path_layer, toggle_path_layer_visibility } from '../deck-gl/path_layer'
+import { cell_layer, toggle_cell_layer_visibility } from '../deck-gl/cell_layer'
+import { trx_layer, toggle_trx_layer_visibility } from '../deck-gl/trx_layer'
+import { layers, update_layers } from '../deck-gl/layers'
 
 import { tile_slider, cell_slider, trx_slider, toggle_slider} from './sliders'
 
-let isVisible;
+let isVisible
 
 const toggle_visible_button = (event) => {
     const current = d3.select(event.currentTarget)
@@ -45,7 +45,7 @@ const make_button = (container, text, color, callback) => {
         .style('color', color)
         .style('margin-top', '5px')
         .style('user-select', 'none')
-        .on('click', callback);  
+        .on('click', callback)  
         
 }
 
@@ -55,10 +55,9 @@ const sst_img_button_callback = async (event) => {
 
     simple_image_layer_visibility(isVisible)
     await update_layers_sst([simple_image_layer, square_scatter_layer])
-    deck_sst.setProps({layers: layers_sst});
+    deck_sst.setProps({layers: layers_sst})
 
 }
-
 
 const ist_img_button_callback = async (event) => {
 
@@ -75,7 +74,7 @@ const ist_img_button_callback = async (event) => {
     ]
 
     update_layers(new_layers)
-    deck_ist.setProps({layers});
+    deck_ist.setProps({layers})
 
 }
 
@@ -108,11 +107,12 @@ const tile_button_callback = async (event) => {
 
     square_scatter_layer_visibility(isVisible)
     await update_layers_sst([simple_image_layer, square_scatter_layer])
-    deck_sst.setProps({layers: layers_sst});
+    deck_sst.setProps({layers: layers_sst})
 
 }    
 
 const cell_button_callback = async (event) => {
+
     toggle_visible_button(event)
 
     toggle_slider(cell_slider, isVisible)

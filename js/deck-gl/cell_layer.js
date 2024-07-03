@@ -7,7 +7,6 @@ import { options } from '../global_variables/fetch_options.js';
 
 export let cell_layer = new ScatterplotLayer({
     id: 'cell-layer',
-    // data: cell_scatter_data,
     getRadius: 5.0,
     pickable: true,
     getColor: [0, 0, 255, 240],
@@ -40,5 +39,11 @@ export const update_cell_layer = async (base_url) => {
 export const toggle_cell_layer_visibility = (visible) => {
     cell_layer = cell_layer.clone({
         visible: visible,
+    });
+}
+
+export const update_cell_layer_radius = (radius) => {
+    cell_layer = cell_layer.clone({
+        getRadius: radius,
     });
 }

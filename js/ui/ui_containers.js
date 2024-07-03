@@ -1,6 +1,6 @@
 import { make_cell_button, make_img_button, make_tile_button, make_trx_button } from "./text_buttons"
 import { gene_search } from "./gene_search"
-import { make_tile_slider, make_trx_slider } from "./sliders"
+import { make_cell_slider, make_tile_slider, make_trx_slider } from "./sliders"
 
 export const make_ui_container = () => {
     const ui_container = document.createElement("div")
@@ -17,7 +17,7 @@ export const make_ctrl_container = () => {
     ctrl_container.style.flexDirection = "row"
     ctrl_container.className = "ctrl_container"
     ctrl_container.style.width = "250px"
-    ctrl_container.style.margin = "10px"
+    ctrl_container.style.margin = "5px"
     return ctrl_container
 }
 
@@ -25,15 +25,16 @@ export const flex_row_container = (class_name) => {
     const container = document.createElement("div")
     container.className = class_name
     container.style.width = "100%"
-    container.style.margin = "0px"
+    container.style.marginLeft = "5px"
+    container.style.marginRight = "5px"
     container.style.display = "flex"
     container.style.flexDirection = "row" 
     return container
 }
 
-export const slider_container = () => {
+export const make_slider_container = (class_name) => {
     const slider_container = document.createElement("div")
-    slider_container.className = "slidecontainer"
+    slider_container.className = class_name
     slider_container.style.width = "100%"
     slider_container.style.marginLeft = "5px"
     slider_container.style.marginTop = "5px"
@@ -46,7 +47,7 @@ export const make_sst_ui_container = () => {
     const ctrl_container = make_ctrl_container()
     const img_container = flex_row_container('image_container')
     const tile_container = flex_row_container('tile_container')
-    const tile_slider_container = slider_container()
+    const tile_slider_container = make_slider_container('tile_slider_container')
 
     make_img_button(img_container, 'sst')
     make_tile_button(tile_container)  
@@ -71,11 +72,16 @@ export const make_ist_ui_container = () => {
     const img_container = flex_row_container('img_container')
     const cell_container = flex_row_container('cell_container')
     const trx_container = flex_row_container('trx_container')
-    const trx_slider_container = slider_container()
+    const cell_slider_container = make_slider_container('cell_slider_container')
+    const trx_slider_container = make_slider_container('trx_slider_container')
 
     make_img_button(img_container, 'ist')
     make_cell_button(cell_container, 'ist')
     make_trx_button(trx_container, 'ist')
+
+    make_cell_slider(cell_slider_container)
+    cell_container.appendChild(cell_slider_container)
+
     make_trx_slider(trx_slider_container) 
     trx_container.appendChild(trx_slider_container)
 

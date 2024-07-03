@@ -4,7 +4,7 @@ import { layers_sst, update_layers_sst } from "../deck-gl/layers_sst"
 import { trx_layer, update_trx_layer_radius } from "../deck-gl/trx_layer"
 import { image_layers } from "../deck-gl/image_layers"
 import { path_layer } from "../deck-gl/path_layer"
-import { cell_layer } from "../deck-gl/cell_layer"
+import { cell_layer, update_cell_layer_radius } from "../deck-gl/cell_layer"
 import { deck_sst } from "../deck-gl/deck_sst"
 import { deck_ist } from "../deck-gl/deck_ist"
 import { background_layer } from "../deck-gl/background_layer"
@@ -25,6 +25,33 @@ export const make_tile_slider = (container) => {
     });        
     
     container.appendChild(tile_slider);            
+}
+
+export const make_cell_slider = (container) => {
+
+    let cell_slider = document.createElement("input")
+    cell_slider.type = "range"
+    cell_slider.min = "0"
+    cell_slider.max = "100"
+    cell_slider.value = trx_ini_raidus * 100
+    cell_slider.className = "slider"
+
+    cell_slider.addEventListener("input", async function() {
+
+        update_cell_layer_radius(cell_slider.value/10)
+
+        let new_layers = [
+            background_layer,
+            ...image_layers, 
+            path_layer, 
+            cell_layer, 
+            trx_layer
+        ]
+        
+        deck_ist.setProps({layers: new_layers})
+    });        
+    
+    container.appendChild(cell_slider);            
 }
 
 export const make_trx_slider = (container) => {

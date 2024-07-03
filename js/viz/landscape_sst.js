@@ -18,7 +18,7 @@ import { set_global_base_url } from "../global_variables/global_base_url.js";
 import { set_model, model } from "../global_variables/model.js";
 import { update_tile_landscape_from_cgm } from "../widget_interactions/update_tile_landscape_from_cgm.js";
 import { update_gene_search } from '../ui/gene_search.js';
-import { ui_container, make_sst_ui_container } from '../ui/ui_containers.js';
+import { make_sst_ui_container } from '../ui/ui_containers.js';
 
 
 export const landscape_sst = async ( 
@@ -75,7 +75,7 @@ export const landscape_sst = async (
 
     model.on('change:update_trigger', update_tile_landscape_from_cgm); 
 
-    make_sst_ui_container()
+    const ui_container = make_sst_ui_container()
     
     // UI and Viz Container
     el.appendChild(ui_container)

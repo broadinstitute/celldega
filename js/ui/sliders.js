@@ -1,6 +1,7 @@
 import { simple_image_layer } from "../deck-gl/simple_image_layer";
 import { square_scatter_layer, square_scatter_layer_opacity } from "../deck-gl/square_scatter_layer";
 import { layers_sst, update_layers_sst } from "../deck-gl/layers_sst";
+import { trx_layer, update_trx_layer_radius } from "../deck-gl/trx_layer";
 import { deck_sst } from "../deck-gl/deck_sst";
 
 export const make_tile_slider = (container) => {
@@ -30,9 +31,10 @@ export const make_trx_slider = (container) => {
 
     trx_slider.addEventListener("input", async function() {
         console.log('trx_slider')
-        // square_scatter_layer_opacity(trx_slider.value / 100)
+        update_trx_layer_radius(trx_slider.value/100)
+        const new_layers = [trx_layer]
         // await update_layers_sst([simple_image_layer, square_scatter_layer])
-        // deck_sst.setProps({layers: layers_sst})
+        deck_sst.setProps({layers: new_layers})
     });        
     
     container.appendChild(trx_slider);            

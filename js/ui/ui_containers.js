@@ -71,6 +71,8 @@ export const make_sst_ui_container = () => {
     ctrl_container.appendChild(img_container) 
     ctrl_container.appendChild(tile_container)             
 
+    return ui_container
+
 }
 
 export const make_ist_ui_container = () => {
@@ -88,5 +90,7 @@ export const make_ist_ui_container = () => {
     ui_container.appendChild(ctrl_container)
     ctrl_container.appendChild(img_container) 
     ctrl_container.appendChild(tile_slider_container)
+
+    return ui_container
 
 }

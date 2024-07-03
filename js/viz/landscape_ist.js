@@ -9,7 +9,7 @@ import { image_layers, update_image_layers } from '../deck-gl/image_layers.js';
 import { update_views } from '../deck-gl/views.js';
 import { deck, set_deck } from '../deck-gl/deck.js';
 import { background_layer, update_background_layer } from '../deck-gl/background_layer.js';
-import { ui_container, make_ist_ui_container } from '../ui/ui_containers.js';
+import { make_ist_ui_container } from '../ui/ui_containers.js';
 import { set_model } from '../global_variables/model.js';
 
 export const landscape_ist = async (
@@ -62,7 +62,7 @@ export const landscape_ist = async (
 
     set_deck(root)
 
-    make_ist_ui_container()
+    const ui_container = make_ist_ui_container()
 
     // UI and Viz Container
     el.appendChild(ui_container)

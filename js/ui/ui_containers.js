@@ -23,21 +23,32 @@ export const make_ctrl_container = () => {
     return ctrl_container
 }
 
-export const flex_container = (class_name, flex_direction) => {
+export const flex_container = (class_name, flex_direction, margin=5, height=null) => {
     const container = document.createElement("div")
     container.className = class_name
     container.style.width = "100%"
 
     if (flex_direction === 'row'){
-        container.style.marginLeft = "5px"
-        container.style.marginRight = "5px"
+        container.style.marginLeft = margin + "px"
+        container.style.marginRight = margin + "px"
     } else {
-        container.style.marginTop = "5px"
-        container.style.marginBottom = "5px"        
+        container.style.marginTop = margin + "px"
+        container.style.marginBottom = margin + "px"        
     }
 
     container.style.display = "flex"
     container.style.flexDirection = flex_direction
+    
+    if (height !== null){
+        console.log('setting height', height)
+        container.style.marginLeft = '5px'
+        container.style.height = height + 'px'
+        container.style.overflow = 'scroll'
+        container.style.border = "1px solid #d3d3d3"    
+    }
+    
+    console.log(container)
+
     return container
 }
 
@@ -58,8 +69,8 @@ export const make_sst_ui_container = () => {
     const tile_container = flex_container('tile_container', 'row')
     const tile_slider_container = make_slider_container('tile_slider_container')
 
-    make_button(img_container, 'sst', 'IMG', 'blue')
-    make_button(tile_container, 'sst', 'TILE', 'blue')
+    make_button(img_container, 'sst', 'IMG')
+    make_button(tile_container, 'sst', 'TILE')
 
     ini_tile_slider()
     tile_slider_container.appendChild(tile_slider);
@@ -76,22 +87,34 @@ export const make_sst_ui_container = () => {
 
 }
 
-export const make_ist_ui_container = () => {
+export const make_ist_ui_container = (image_info) => {
 
     const ui_container = make_ui_container()
     const ctrl_container = make_ctrl_container()
     const img_container = flex_container('img_container', 'row')
 
-    const img_layer_container = flex_container('img_layers_container', 'col')
+    const img_layer_container = flex_container('img_layers_container', 'column', 0, 65)
 
     const cell_container = flex_container('cell_container', 'row')
     const trx_container = flex_container('trx_container', 'row')
     const cell_slider_container = make_slider_container('cell_slider_container')
     const trx_slider_container = make_slider_container('trx_slider_container')
 
-    make_button(img_container, 'ist', 'IMG', 'blue')
-    make_button(cell_container, 'ist', 'CELL', 'blue')
-    make_button(trx_container, 'ist', 'TRX', 'blue')
+    make_button(img_container, 'ist', 'IMG')
+
+    // make_button(img_layer_container, 'ist', 'IMG')
+    // make_button(img_layer_container, 'ist', 'IMG')
+    // make_button(img_layer_container, 'ist', 'IMG')
+    // make_button(img_layer_container, 'ist', 'IMG')
+    // make_button(img_layer_container, 'ist', 'IMG')
+
+    
+    image_info.map((inst_image) => make_button(img_layer_container, 'ist', inst_image.name))
+
+
+
+    make_button(cell_container, 'ist', 'CELL')
+    make_button(trx_container, 'ist', 'TRX')
 
     img_container.appendChild(img_layer_container)
 
@@ -109,7 +132,6 @@ export const make_ist_ui_container = () => {
     ctrl_container.appendChild(cell_container) 
     ctrl_container.appendChild(trx_container) 
     
-
     return ui_container
 
 }

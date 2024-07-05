@@ -46,8 +46,6 @@ export const landscape_ist = async (
         }
     ]
 
-    image_info.map((inst_image) => console.log(inst_image.name))
-
 
     // set global variables
     
@@ -71,7 +69,7 @@ export const landscape_ist = async (
 
     set_deck(root)
 
-    const ui_container = make_ist_ui_container()
+    const ui_container = make_ist_ui_container(image_info)
 
     // UI and Viz Container
     el.appendChild(ui_container)

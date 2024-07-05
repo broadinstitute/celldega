@@ -1,5 +1,6 @@
 import { cell_names_array } from "../global_variables/cell_names_array";
 import { trx_names_array } from "../global_variables/trx_names_array";
+import * as d3 from 'd3'
 
 export const make_tooltip = (info) => {
 
@@ -13,8 +14,12 @@ export const make_tooltip = (info) => {
         inst_name = trx_names_array[info.index]
     }
 
+
+    d3.selectAll('.deck-tooltip')
+      .style('margin-top', '75px')    
+
     return {
-        html: `<div>${inst_name}</div?`,
-    };
+        html: `<div>something!!! ${inst_name}</div>`,
+    }
 
 }

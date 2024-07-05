@@ -31,7 +31,7 @@ const toggle_visible_button = (event) => {
     return isVisible
 }
 
-export const make_button = (container, technology, text, color) => {
+export const make_button = (container, technology, text, color='blue') => {
 
     let callback
 

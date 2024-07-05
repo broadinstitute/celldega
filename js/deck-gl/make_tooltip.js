@@ -19,7 +19,7 @@ export const make_tooltip = (info) => {
       .style('margin-top', '75px')    
 
     return {
-        html: `<div>something!!! ${inst_name}</div>`,
+        html: `<div>${inst_name}</div>`,
     }
 
 }

@@ -40,15 +40,12 @@ export const flex_container = (class_name, flex_direction, margin=5, height=null
     container.style.flexDirection = flex_direction
     
     if (height !== null){
-        console.log('setting height', height)
         container.style.marginLeft = '5px'
         container.style.height = height + 'px'
         container.style.overflow = 'scroll'
         container.style.border = "1px solid #d3d3d3"    
     }
     
-    console.log(container)
-
     return container
 }
 
@@ -109,7 +106,7 @@ export const make_ist_ui_container = (image_info) => {
     // make_button(img_layer_container, 'ist', 'IMG')
 
     
-    image_info.map((inst_image) => make_button(img_layer_container, 'ist', inst_image.name))
+    image_info.map((inst_image) => make_button(img_layer_container, 'ist', inst_image.button_name))
 
 
 

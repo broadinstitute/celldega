@@ -38,10 +38,12 @@ export const landscape_ist = async (
     const image_info = [
         { 
             name: 'dapi', 
+            button_name: 'DAPI',
             color: [0, 0, 255]
         },
         {   
             name: 'cellbound', 
+            button_name: 'CB',
             color: [255, 0, 0]
         }
     ]

@@ -1,6 +1,6 @@
 import { make_button } from "./text_buttons"
 import { gene_search } from "./gene_search"
-import { tile_slider, cell_slider, trx_slider, ini_slider } from './sliders'
+import { tile_slider, cell_slider, trx_slider, ini_slider, dapi_slider, bound_slider } from './sliders'
 
 export const make_ui_container = () => {
     const ui_container = document.createElement("div")
@@ -93,21 +93,42 @@ export const make_ist_ui_container = (image_info) => {
 
     const cell_container = flex_container('cell_container', 'row')
     const trx_container = flex_container('trx_container', 'row')
+
     const cell_slider_container = make_slider_container('cell_slider_container')
     const trx_slider_container = make_slider_container('trx_slider_container')
 
     make_button(img_container, 'ist', 'IMG')
 
-    // make_button(img_layer_container, 'ist', 'IMG')
-    // make_button(img_layer_container, 'ist', 'IMG')
-    // make_button(img_layer_container, 'ist', 'IMG')
-    // make_button(img_layer_container, 'ist', 'IMG')
-    // make_button(img_layer_container, 'ist', 'IMG')
+    const make_img_layer_ctrl = (inst_image, index) => {
 
+        console.log(inst_image)
+
+        make_button(img_layer_container, 'ist', inst_image.button_name)
+
+        // const inst_slider_container = make_slider_container('cell')
+
+        // img_layer_container.appendChild(inst_slider_container)
+
+        // if (inst_image.button_name === 'DAPI'){
+        //     ini_slider('dapi')
+        //     inst_slider_container.append(dapi_slider)
+
+        //     console.log(inst_slider_container)
+        // } else {
+        //     ini_slider('bound')
+        //     inst_slider_container.append(bound_slider)
+        // }
+
+        // inst_slider_container.append(trx_slider)
+
+        // console.log(inst_slider_container)
+        // console.log(trx_slider)
+
+    }
     
-    image_info.map((inst_image) => make_button(img_layer_container, 'ist', inst_image.button_name))
-
-
+    image_info.map(
+        make_img_layer_ctrl
+    )
 
     make_button(cell_container, 'ist', 'CELL')
     make_button(trx_container, 'ist', 'TRX')
@@ -129,5 +150,7 @@ export const make_ist_ui_container = (image_info) => {
     ctrl_container.appendChild(trx_container) 
     
     return ui_container
+
+
 
 }

@@ -13,7 +13,7 @@ const make_image_layer = (info) => {
     const max_pyramid_zoom = landscape_parameters.max_pyramid_zoom
 
     const image_layer = new TileLayer({
-        id: info.name,
+        id: info.button_name,
         tileSize: dimensions.tileSize,
         refinementStrategy: 'no-overlap',
         minZoom: -7,
@@ -35,5 +35,15 @@ export const toggle_visibility_image_layers = (visible) => {
         layer.clone({
             visible: visible
         })
-    );
-};
+    )
+}
+
+export const toggle_visibility_single_image_layer = (name, visible) => {
+
+    image_layers = image_layers.map(layer => 
+        layer.id === name ? 
+        layer.clone({ visible: visible }) : 
+        layer
+    );    
+
+}

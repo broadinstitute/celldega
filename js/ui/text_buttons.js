@@ -3,7 +3,7 @@ import { simple_image_layer, simple_image_layer_visibility } from '../deck-gl/si
 import { square_scatter_layer, square_scatter_layer_visibility } from '../deck-gl/square_scatter_layer'
 import { layers_sst, update_layers_sst } from '../deck-gl/layers_sst'
 
-import { image_layers, toggle_visibility_image_layers } from '../deck-gl/image_layers'
+import { image_layers, toggle_visibility_image_layers, toggle_visibility_single_image_layer } from '../deck-gl/image_layers'
 import { deck_sst } from '../deck-gl/deck_sst'
 import { deck_ist } from '../deck-gl/deck_ist'
 
@@ -15,20 +15,20 @@ import { layers, update_layers } from '../deck-gl/layers'
 
 import { tile_slider, cell_slider, trx_slider, toggle_slider} from './sliders'
 
-let isVisible
+let is_visible
 
 const toggle_visible_button = (event) => {
     const current = d3.select(event.currentTarget)
 
     if (current.style('color') === 'blue') {
         current.style('color', 'gray')
-        isVisible = false
+        is_visible = false
     } else {
         current.style('color', 'blue')
-        isVisible = true
+        is_visible = true
     }
 
-    return isVisible
+    return is_visible
 }
 
 export const make_button = (container, technology, text, color='blue') => {
@@ -47,6 +47,8 @@ export const make_button = (container, technology, text, color='blue') => {
         callback = trx_button_callback_ist
     } else if (text === 'CELL'){
         callback = cell_button_callback
+    } else {
+        callback = make_ist_img_layer_button_callback(text)
     }
     
     d3.select(container)
@@ -66,11 +68,43 @@ export const make_button = (container, technology, text, color='blue') => {
         
 }
 
+
+const make_ist_img_layer_button_callback = (text) => {
+    return async (event) => {
+
+        toggle_visible_button(event)
+
+        toggle_visibility_single_image_layer(text, is_visible)
+
+        let new_layers = [
+            background_layer,
+            ...image_layers, 
+            path_layer, 
+            cell_layer, 
+            trx_layer
+        ]
+    
+        update_layers(new_layers)
+        deck_ist.setProps({layers})   
+
+        console.log('Button clicked:', text)
+    }
+}
+
+const ist_img_layer_button_callback = async (event) => {
+    toggle_visible_button(event)
+
+    console.log(image_layers.map(x => x.id))
+
+    console.log('here')
+}
+
+
 const sst_img_button_callback = async (event) => {
 
     toggle_visible_button(event)
 
-    simple_image_layer_visibility(isVisible)
+    simple_image_layer_visibility(is_visible)
     await update_layers_sst([simple_image_layer, square_scatter_layer])
     deck_sst.setProps({layers: layers_sst})
 
@@ -79,8 +113,8 @@ const sst_img_button_callback = async (event) => {
 const ist_img_button_callback = async (event) => {
 
     toggle_visible_button(event)
-    toggle_visibility_image_layers(isVisible)
-    toggle_background_layer_visibility(isVisible)
+    toggle_visibility_image_layers(is_visible)
+    toggle_background_layer_visibility(is_visible)
 
     let new_layers = [
         background_layer,
@@ -99,9 +133,9 @@ const trx_button_callback_ist = async (event) => {
 
     toggle_visible_button(event)
 
-    toggle_slider(trx_slider, isVisible)
+    toggle_slider(trx_slider, is_visible)
 
-    toggle_trx_layer_visibility(isVisible)
+    toggle_trx_layer_visibility(is_visible)
 
     let new_layers = [
         background_layer,
@@ -120,9 +154,9 @@ const tile_button_callback = async (event) => {
 
     toggle_visible_button(event)
 
-    toggle_slider(tile_slider, isVisible)
+    toggle_slider(tile_slider, is_visible)
 
-    square_scatter_layer_visibility(isVisible)
+    square_scatter_layer_visibility(is_visible)
     await update_layers_sst([simple_image_layer, square_scatter_layer])
     deck_sst.setProps({layers: layers_sst})
 
@@ -132,10 +166,10 @@ const cell_button_callback = async (event) => {
 
     toggle_visible_button(event)
 
-    toggle_slider(cell_slider, isVisible)
+    toggle_slider(cell_slider, is_visible)
 
-    toggle_cell_layer_visibility(isVisible)
-    toggle_path_layer_visibility(isVisible)    
+    toggle_cell_layer_visibility(is_visible)
+    toggle_path_layer_visibility(is_visible)    
 
     let new_layers = [
         background_layer,

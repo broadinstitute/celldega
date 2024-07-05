@@ -14,6 +14,9 @@ export let tile_slider = document.createElement("input")
 export let cell_slider = document.createElement("input")
 export let trx_slider = document.createElement("input")
 
+export let dapi_slider = document.createElement("input")
+export let bound_slider = document.createElement("input")
+
 const tile_slider_callback = async () => {
     square_scatter_layer_opacity(tile_slider.value / 100)
     await update_layers_sst([simple_image_layer, square_scatter_layer])
@@ -51,6 +54,10 @@ const trx_slider_callback = async () => {
     deck_ist.setProps({layers: new_layers})
 }
 
+const img_layer_slider_callback = async () => {
+    console.log('something')
+}
+
 const ini_slider_params = (slider, ini_value, callback) =>{
 
     slider.type = "range"
@@ -69,7 +76,7 @@ export const ini_slider = (slider_type) => {
     let ini_value
     let callback
 
-    console.log(slider_type)
+    console.log('slider_type', slider_type)
 
     switch (slider_type) {
         case 'tile':
@@ -87,12 +94,22 @@ export const ini_slider = (slider_type) => {
             ini_value = trx_ini_raidus * 100
             callback = trx_slider_callback
             break
+        // case 'dapi':
+        //     console.log('case dapi')
+        //     slider = dapi_slider
+        //     console.log('select slider')
+        //     ini_value = 100
+        //     callback = () => {console.log('dapi slider')}
+        //     console.log('define callback')
+        // case 'bound':
+        //     slider = bound_slider
+        //     ini_value = 100
+        //     callback = () => {console.log('bound slider')}
         default:
-            console.error('Unknown slider type')
-            return
+            console.log('no match', slider_type)
     }
 
-
+    console.log('initializing slider', slider_type)
     ini_slider_params(slider, ini_value, callback)
 }
 

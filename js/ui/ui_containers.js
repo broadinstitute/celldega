@@ -1,8 +1,6 @@
 import { make_button } from "./text_buttons"
 import { gene_search } from "./gene_search"
-import { tile_slider, ini_tile_slider } from './sliders'
-import { cell_slider, ini_cell_slider } from "./sliders"
-import { trx_slider, ini_trx_slider } from "./sliders"
+import { tile_slider, cell_slider, trx_slider, ini_slider } from './sliders'
 
 export const make_ui_container = () => {
     const ui_container = document.createElement("div")
@@ -69,7 +67,7 @@ export const make_sst_ui_container = () => {
     make_button(img_container, 'sst', 'IMG')
     make_button(tile_container, 'sst', 'TILE')
 
-    ini_tile_slider()
+    ini_slider('tile')
     tile_slider_container.appendChild(tile_slider);
 
     ui_container.appendChild(ctrl_container)
@@ -91,6 +89,7 @@ export const make_ist_ui_container = (image_info) => {
     const img_container = flex_container('img_container', 'row')
 
     const img_layer_container = flex_container('img_layers_container', 'column', 0, 65)
+    img_layer_container.style.width = '200px'
 
     const cell_container = flex_container('cell_container', 'row')
     const trx_container = flex_container('trx_container', 'row')
@@ -115,11 +114,11 @@ export const make_ist_ui_container = (image_info) => {
 
     img_container.appendChild(img_layer_container)
 
-    ini_cell_slider()
+    ini_slider('cell')
     cell_container.appendChild(cell_slider_container)
     cell_slider_container.appendChild(cell_slider)
 
-    ini_trx_slider()
+    ini_slider('trx')
     trx_container.appendChild(trx_slider_container)
     trx_slider_container.appendChild(trx_slider) 
 

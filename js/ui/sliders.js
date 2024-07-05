@@ -14,72 +14,88 @@ export let tile_slider = document.createElement("input")
 export let cell_slider = document.createElement("input")
 export let trx_slider = document.createElement("input")
 
-export const ini_tile_slider = () => {
-    
-    tile_slider.type = "range";
-    tile_slider.min = "0";
-    tile_slider.max = "100";
-    tile_slider.value = "100";
-    tile_slider.className = "slider";
-    tile_slider.style.width = "100px"
-
-    tile_slider.addEventListener("input", async function() {
-        square_scatter_layer_opacity(tile_slider.value / 100)
-        await update_layers_sst([simple_image_layer, square_scatter_layer])
-        deck_sst.setProps({layers: layers_sst})
-    });        
-    
+const tile_slider_callback = async () => {
+    square_scatter_layer_opacity(tile_slider.value / 100)
+    await update_layers_sst([simple_image_layer, square_scatter_layer])
+    deck_sst.setProps({layers: layers_sst})
 }
 
-export const ini_cell_slider = () => {
+const cell_slider_callback = async () => {
 
-    cell_slider.type = "range"
-    cell_slider.min = "0"
-    cell_slider.max = "100"
-    cell_slider.value = trx_ini_raidus * 100
-    cell_slider.className = "slider"
-    cell_slider.style.width = "100px"
+    update_cell_layer_radius(cell_slider.value/10)
 
-    cell_slider.addEventListener("input", async function() {
-
-        update_cell_layer_radius(cell_slider.value/10)
-
-        let new_layers = [
-            background_layer,
-            ...image_layers, 
-            path_layer, 
-            cell_layer, 
-            trx_layer
-        ]
-        
-        deck_ist.setProps({layers: new_layers})
-    });        
-          
-}
-
-export const ini_trx_slider = () => {
-
-    trx_slider.type = "range"
-    trx_slider.min = "0"
-    trx_slider.max = "100"
-    trx_slider.value = trx_ini_raidus * 100
-    trx_slider.className = "slider"
-    trx_slider.style.width = "100px"
-
-    trx_slider.addEventListener("input", async function() {
-        update_trx_layer_radius(trx_slider.value/100)
-        let new_layers = [
-            background_layer,
-            ...image_layers, 
-            path_layer, 
-            cell_layer, 
-            trx_layer
-        ]
-        
-        deck_ist.setProps({layers: new_layers})
-    });        
+    let new_layers = [
+        background_layer,
+        ...image_layers, 
+        path_layer, 
+        cell_layer, 
+        trx_layer
+    ]
     
+    deck_ist.setProps({layers: new_layers})
+
 }
+
+const trx_slider_callback = async () => {
+
+    update_trx_layer_radius(trx_slider.value/100)
+    
+    let new_layers = [
+        background_layer,
+        ...image_layers, 
+        path_layer, 
+        cell_layer, 
+        trx_layer
+    ]
+    
+    deck_ist.setProps({layers: new_layers})
+}
+
+const ini_slider_params = (slider, ini_value, callback) =>{
+
+    slider.type = "range"
+    slider.min = "0"
+    slider.max = "100"
+    slider.value = ini_value
+    slider.className = "slider"
+    slider.style.width = "75px"
+    slider.addEventListener("input", callback)
+
+}
+
+export const ini_slider = (slider_type) => {
+
+    let slider
+    let ini_value
+    let callback
+
+    console.log(slider_type)
+
+    switch (slider_type) {
+        case 'tile':
+            slider = tile_slider
+            ini_value = 100
+            callback = tile_slider_callback
+            break
+        case 'cell':
+            slider = cell_slider
+            ini_value = trx_ini_raidus * 100
+            callback = cell_slider_callback
+            break
+        case 'trx':
+            slider = trx_slider
+            ini_value = trx_ini_raidus * 100
+            callback = trx_slider_callback
+            break
+        default:
+            console.error('Unknown slider type')
+            return
+    }
+
+
+    ini_slider_params(slider, ini_value, callback)
+}
+
 
 export const toggle_slider = (slider, state) => {
     slider.disabled = !state

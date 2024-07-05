@@ -43,7 +43,7 @@ export const landscape_ist = async (
         },
         {   
             name: 'cellbound', 
-            button_name: 'CB',
+            button_name: 'BOUND',
             color: [255, 0, 0]
         }
     ]

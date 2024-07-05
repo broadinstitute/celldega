@@ -58,7 +58,7 @@ const img_layer_slider_callback = async () => {
     console.log('something')
 }
 
-const ini_slider_params = (slider, ini_value, callback) =>{
+export const ini_slider_params = (slider, ini_value, callback) =>{
 
     slider.type = "range"
     slider.min = "0"
@@ -75,8 +75,6 @@ export const ini_slider = (slider_type) => {
     let slider
     let ini_value
     let callback
-
-    console.log('slider_type', slider_type)
 
     switch (slider_type) {
         case 'tile':
@@ -109,10 +107,9 @@ export const ini_slider = (slider_type) => {
             console.log('no match', slider_type)
     }
 
-    console.log('initializing slider', slider_type)
+    console.log('initializing the slider', slider_type)
     ini_slider_params(slider, ini_value, callback)
 }
-
 
 export const toggle_slider = (slider, state) => {
     slider.disabled = !state

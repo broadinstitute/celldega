@@ -1,6 +1,6 @@
 import { make_button } from "./text_buttons"
 import { gene_search } from "./gene_search"
-import { tile_slider, cell_slider, trx_slider, ini_slider, dapi_slider, bound_slider } from './sliders'
+import { tile_slider, cell_slider, trx_slider, ini_slider, dapi_slider, bound_slider, ini_slider_params } from './sliders'
 
 export const make_ui_container = () => {
     const ui_container = document.createElement("div")
@@ -88,8 +88,8 @@ export const make_ist_ui_container = (image_info) => {
     const ctrl_container = make_ctrl_container()
     const img_container = flex_container('img_container', 'row')
 
-    const img_layer_container = flex_container('img_layers_container', 'column', 0, 65)
-    img_layer_container.style.width = '200px'
+    const img_layers_container = flex_container('img_layers_container', 'column', 0, 65)
+    img_layers_container.style.width = '200px'
 
     const cell_container = flex_container('cell_container', 'row')
     const trx_container = flex_container('trx_container', 'row')
@@ -101,13 +101,28 @@ export const make_ist_ui_container = (image_info) => {
 
     const make_img_layer_ctrl = (inst_image, index) => {
 
+        const inst_name = inst_image.button_name
+
         console.log(inst_image)
 
-        make_button(img_layer_container, 'ist', inst_image.button_name)
+        make_button(img_layers_container, 'ist', inst_name)
 
-        // const inst_slider_container = make_slider_container('cell')
+        const inst_slider_container = make_slider_container(inst_name)
 
-        // img_layer_container.appendChild(inst_slider_container)
+        let slider
+        if (inst_name === 'DAPI'){
+            slider = dapi_slider
+        } else {
+            slider = bound_slider
+        }
+
+        ini_slider_params(slider, 100, () => {console.log('something!!!!')})
+        
+        inst_slider_container.appendChild(slider)
+
+        console.log(inst_slider_container)
+
+        img_layers_container.appendChild(inst_slider_container)
 
         // if (inst_image.button_name === 'DAPI'){
         //     ini_slider('dapi')
@@ -133,7 +148,7 @@ export const make_ist_ui_container = (image_info) => {
     make_button(cell_container, 'ist', 'CELL')
     make_button(trx_container, 'ist', 'TRX')
 
-    img_container.appendChild(img_layer_container)
+    img_container.appendChild(img_layers_container)
 
     ini_slider('cell')
     cell_container.appendChild(cell_slider_container)

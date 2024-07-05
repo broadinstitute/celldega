@@ -44,7 +44,10 @@ export const landscape_ist = async (
             name: 'cellbound', 
             color: [255, 0, 0]
         }
-    ]    
+    ]
+
+    image_info.map((inst_image) => console.log(inst_image.name))
+
 
     // set global variables
     

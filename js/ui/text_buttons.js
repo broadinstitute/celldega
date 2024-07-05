@@ -31,7 +31,23 @@ const toggle_visible_button = (event) => {
     return isVisible
 }
 
-const make_button = (container, text, color, callback) => {
+export const make_button = (container, technology, text, color) => {
+
+    let callback
+
+    if (text === 'IMG') {
+        if (technology === 'sst'){
+            callback = sst_img_button_callback
+        } else {
+            callback = ist_img_button_callback
+        }
+    } else if (text === 'TILE') {
+        callback =  tile_button_callback
+    } else if (text === 'TRX'){
+        callback = trx_button_callback_ist
+    } else if (text === 'CELL'){
+        callback = cell_button_callback
+    }
     
     d3.select(container)
         .append('div')
@@ -130,24 +146,4 @@ const cell_button_callback = async (event) => {
 
     update_layers(new_layers)
     deck_ist.setProps({layers})    
-}
-
-export const make_img_button = (container, type_st) => {
-    if (type_st === 'sst') {
-        make_button(container, 'IMG', 'blue', sst_img_button_callback)
-    } else {
-        make_button(container, 'IMG', 'blue', ist_img_button_callback)
-    }
-}
-
-export const make_tile_button = (container) => {
-    make_button(container, 'TILE', 'blue', tile_button_callback)
-}
-
-export const make_trx_button = (container) => {
-    make_button(container, 'TRX', 'blue', trx_button_callback_ist)
-}
-
-export const make_cell_button = (container) => {
-    make_button(container, 'CELL', 'blue', cell_button_callback)
 }

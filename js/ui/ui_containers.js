@@ -1,6 +1,10 @@
 import { make_button } from "./text_buttons"
 import { gene_search } from "./gene_search"
 import { tile_slider, cell_slider, trx_slider, ini_slider, dapi_slider, bound_slider, ini_slider_params } from './sliders'
+import { image_info } from "../global_variables/image_info"
+import { image_layer_sliders } from "./sliders"
+
+console.log('ui_containers')
 
 export const make_ui_container = () => {
     const ui_container = document.createElement("div")
@@ -82,7 +86,7 @@ export const make_sst_ui_container = () => {
 
 }
 
-export const make_ist_ui_container = (image_info) => {
+export const make_ist_ui_container = () => {
 
     const ui_container = make_ui_container()
     const ctrl_container = make_ctrl_container()
@@ -99,7 +103,11 @@ export const make_ist_ui_container = (image_info) => {
 
     make_button(img_container, 'ist', 'IMG')
 
-    const make_img_layer_ctrl = (inst_image, index) => {
+    console.log('ui_containers')
+
+    console.log(image_layer_sliders)
+
+    const make_img_layer_ctrl = (inst_image) => {
 
         const inst_name = inst_image.button_name
 

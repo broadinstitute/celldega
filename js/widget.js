@@ -31,6 +31,8 @@ export const render_landscape = async ({ model, el }) => {
 
 export const render_landscape_ist = async ({ model, el }) => {
 
+    console.log('render_landscape_ist')
+
     const token = model.get('token_traitlet')
     const ini_x = model.get('ini_x');
     const ini_y = model.get('ini_y');    

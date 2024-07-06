@@ -17,6 +17,35 @@ export let trx_slider = document.createElement("input")
 export let dapi_slider = document.createElement("input")
 export let bound_slider = document.createElement("input")
 
+export let image_layer_sliders
+
+export const set_image_layer_sliders = (image_info) => {
+
+    console.log('set_image_layer_sliders')
+
+    image_layer_sliders = image_info.map( info => {
+
+        console.log('info.button_mame', info.button_name)
+
+        let input = document.createElement("input")
+        input.name = info.button_name 
+
+        return input
+    })
+
+    console.log('sliders: image_layer_sliders', image_layer_sliders)
+
+}
+
+// console.log('image_info', image_info)
+
+// export let image_layer_sliders = image_info.map( info => {
+//     document.createElement("input")
+//     document.className = info.button_name   
+// })
+
+// console.log(image_layer_sliders)
+
 const tile_slider_callback = async () => {
     square_scatter_layer_opacity(tile_slider.value / 100)
     await update_layers_sst([simple_image_layer, square_scatter_layer])

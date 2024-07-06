@@ -13,6 +13,8 @@ import { background_layer, update_background_layer } from '../deck-gl/background
 import { make_ist_ui_container } from '../ui/ui_containers.js';
 import { set_model } from '../global_variables/model.js';
 import { update_trx_layer_radius } from '../deck-gl/trx_layer.js';
+import { image_info, set_image_info } from '../global_variables/image_info.js';
+import { image_layer_sliders, set_image_layer_sliders } from "../ui/sliders"
 
 export const landscape_ist = async (
     el,
@@ -26,16 +28,11 @@ export const landscape_ist = async (
     trx_radius=0.25
 ) => {
 
-    // Create and append the visualization.
-    set_trx_ini_raidus(trx_radius)
-    let root = document.createElement("div");
-    root.style.height = "800px";
-
-    set_model(ini_model)
+    console.log('landscape_ist')
 
     // move this to landscape_parameters
     const imgage_name_for_dim = 'dapi'
-    const image_info = [
+    const tmp_image_info = [
         { 
             name: 'dapi', 
             button_name: 'DAPI',
@@ -48,9 +45,18 @@ export const landscape_ist = async (
         }
     ]
 
+    set_image_info(tmp_image_info)
+    set_image_layer_sliders(image_info)
 
-    // set global variables
-    
+    console.log('landscape_ist: image_layer_sliders', image_layer_sliders)
+
+    // Create and append the visualization.
+    set_trx_ini_raidus(trx_radius)
+    let root = document.createElement("div");
+    root.style.height = "800px";
+
+    set_model(ini_model)
+
     set_global_base_url(base_url)
     
     set_options(token)
@@ -59,7 +65,7 @@ export const landscape_ist = async (
     await set_landscape_parameters(base_url)
 
     // update layers
-    await make_image_layers(base_url, image_info)
+    await make_image_layers(base_url)
     await update_cell_layer(base_url)
 
     update_background_layer()
@@ -71,7 +77,7 @@ export const landscape_ist = async (
 
     set_deck(root)
 
-    const ui_container = make_ist_ui_container(image_info)
+    const ui_container = make_ist_ui_container()
 
     // UI and Viz Container
     el.appendChild(ui_container)

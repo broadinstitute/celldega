@@ -5,6 +5,7 @@ import { dimensions } from '../global_variables/image_dimensions'
 import { options } from '../global_variables/fetch_options'
 import { landscape_parameters } from '../global_variables/landscape_parameters' 
 import { global_base_url } from '../global_variables/global_base_url'
+import { image_info } from '../global_variables/image_info'
 
 export let image_layers = []
 
@@ -26,7 +27,7 @@ const make_image_layer = (info) => {
     return image_layer
 }
 
-export const make_image_layers = async (global_base_url, image_info) => {
+export const make_image_layers = async (global_base_url) => {
     image_layers = image_info.map(make_image_layer);
 }
 

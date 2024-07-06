@@ -15,6 +15,8 @@ import { layers, update_layers } from '../deck-gl/layers'
 
 import { tile_slider, cell_slider, trx_slider, toggle_slider} from './sliders'
 
+console.log('text_buttons')
+
 let is_visible
 
 const toggle_visible_button = (event) => {

@@ -18,8 +18,8 @@ export const create_render_tile_sublayers = ( color, opacity) => (props) => {
             mathGl.clamp(right, 0, width),
             mathGl.clamp(top, 0, height)
         ],
-        color: color, // Custom color
-        opacityScale: opacity, // Custom opacity scale
+        color: color,
+        opacityScale: opacity,
     });
 
 }

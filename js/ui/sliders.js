@@ -2,7 +2,7 @@ import { simple_image_layer } from "../deck-gl/simple_image_layer"
 import { square_scatter_layer, square_scatter_layer_opacity } from "../deck-gl/square_scatter_layer"
 import { layers_sst, update_layers_sst } from "../deck-gl/layers_sst"
 import { trx_layer, update_trx_layer_radius } from "../deck-gl/trx_layer"
-import { image_layers } from "../deck-gl/image_layers"
+import { image_layers, update_opacity_single_image_layer } from "../deck-gl/image_layers"
 import { path_layer } from "../deck-gl/path_layer"
 import { cell_layer, update_cell_layer_radius } from "../deck-gl/cell_layer"
 import { deck_sst } from "../deck-gl/deck_sst"
@@ -66,8 +66,20 @@ const trx_slider_callback = async () => {
     deck_ist.setProps({layers: new_layers})
 }
 
-const img_layer_slider_callback = async () => {
-    console.log('something')
+export const img_layer_slider_callback = async () => {
+    console.log('img_layer_slider_callback function')
+
+    update_opacity_single_image_layer('DAPI', 15)
+
+    let new_layers = [
+        background_layer,
+        ...image_layers, 
+        path_layer, 
+        cell_layer, 
+        trx_layer
+    ]
+    
+    deck_ist.setProps({layers: new_layers})
 }
 
 export const ini_slider_params = (slider, ini_value, callback) =>{

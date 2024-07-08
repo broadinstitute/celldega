@@ -44,9 +44,24 @@ export const toggle_visibility_image_layers = (visible) => {
 export const toggle_visibility_single_image_layer = (name, visible) => {
 
     image_layers = image_layers.map(layer => 
-        layer.id === name ? 
+        layer.id.startsWith(name) ? 
         layer.clone({ visible: visible }) : 
         layer
-    );    
+    )
+
+}
+
+export const update_opacity_single_image_layer = (name, opacity) => {
+
+    let color = [0, 255, 0]
+
+    image_layers = image_layers.map(layer => 
+        layer.id.startsWith(name) ? 
+        layer.clone({
+            renderSubLayers: create_render_tile_sublayers(color, opacity),
+            id: name + '-' + opacity
+        }) : 
+        layer
+    )
 
 }

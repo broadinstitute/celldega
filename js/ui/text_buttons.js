@@ -13,11 +13,11 @@ import { cell_layer, toggle_cell_layer_visibility } from '../deck-gl/cell_layer'
 import { trx_layer, toggle_trx_layer_visibility } from '../deck-gl/trx_layer'
 import { layers, update_layers } from '../deck-gl/layers'
 
-import { tile_slider, cell_slider, trx_slider, toggle_slider} from './sliders'
+import { tile_slider, cell_slider, trx_slider, toggle_slider, image_layer_sliders } from './sliders'
 
 let is_visible
 
-let img_layer_visible
+let img_layer_visible = true
 
 const set_img_layer_visible = (visible) => {
     img_layer_visible = visible
@@ -93,6 +93,10 @@ const make_ist_img_layer_button_callback = (text) => {
 
             toggle_visibility_single_image_layer(text, is_visible)
 
+            let inst_slider = image_layer_sliders.filter(slider => slider.name === text)[0]
+
+            toggle_slider(inst_slider, is_visible)
+
             let new_layers = [
                 background_layer,
                 ...image_layers, 
@@ -159,6 +163,9 @@ const ist_img_button_callback = async (event) => {
     deck_ist.setProps({layers})
 
     set_img_layer_visible(is_visible)
+
+    image_layer_sliders.map(slider => toggle_slider(slider, is_visible))
+
 
 }
 

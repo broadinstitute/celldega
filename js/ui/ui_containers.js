@@ -101,7 +101,7 @@ export const make_ist_ui_container = () => {
     const cell_slider_container = make_slider_container('cell_slider_container')
     const trx_slider_container = make_slider_container('trx_slider_container')
 
-    make_button(img_container, 'ist', 'IMG')
+    make_button(img_container, 'ist', 'IMG', 'blue', 30)
 
     console.log('ui_containers')
 

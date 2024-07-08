@@ -22,10 +22,8 @@ export let image_layer_sliders
 export const set_image_layer_sliders = (image_info) => {
 
     image_layer_sliders = image_info.map( info => {
-
         let input = document.createElement("input")
         input.name = info.button_name 
-
         return input
     })
 

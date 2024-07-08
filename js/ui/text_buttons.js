@@ -15,9 +15,13 @@ import { layers, update_layers } from '../deck-gl/layers'
 
 import { tile_slider, cell_slider, trx_slider, toggle_slider} from './sliders'
 
-console.log('text_buttons')
-
 let is_visible
+
+let img_layer_visible
+
+const set_img_layer_visible = (visible) => {
+    img_layer_visible = visible
+}
 
 const toggle_visible_button = (event) => {
     const current = d3.select(event.currentTarget)
@@ -33,7 +37,15 @@ const toggle_visible_button = (event) => {
     return is_visible
 }
 
-export const make_button = (container, technology, text, color='blue', width=40) => {
+// export let img_layer_buttons
+
+// export const set_img_layer_buttons = (image_info) => {
+//     img_layer_buttons = image_info.map( info => {
+//         make_button
+//     })
+// }
+
+export const make_button = (container, technology, text, color='blue', width=40, button_class='button') => {
 
     let callback
 
@@ -55,7 +67,7 @@ export const make_button = (container, technology, text, color='blue', width=40)
     
     d3.select(container)
         .append('div')
-        .attr('class', 'button')
+        .attr('class', button_class)
         .text(text)
         .style('width', width + 'px')
         .style('text-align', 'left')
@@ -74,22 +86,28 @@ export const make_button = (container, technology, text, color='blue', width=40)
 const make_ist_img_layer_button_callback = (text) => {
     return async (event) => {
 
-        toggle_visible_button(event)
+        if (img_layer_visible){
 
-        toggle_visibility_single_image_layer(text, is_visible)
 
-        let new_layers = [
-            background_layer,
-            ...image_layers, 
-            path_layer, 
-            cell_layer, 
-            trx_layer
-        ]
-    
-        update_layers(new_layers)
-        deck_ist.setProps({layers})   
+            toggle_visible_button(event)
 
-        console.log('Button clicked:', text)
+            toggle_visibility_single_image_layer(text, is_visible)
+
+            let new_layers = [
+                background_layer,
+                ...image_layers, 
+                path_layer, 
+                cell_layer, 
+                trx_layer
+            ]
+        
+            update_layers(new_layers)
+            deck_ist.setProps({layers})   
+
+            console.log('img_layer_button clicked:', text)    
+
+        }
+
     }
 }
 
@@ -118,6 +136,17 @@ const ist_img_button_callback = async (event) => {
     toggle_visibility_image_layers(is_visible)
     toggle_background_layer_visibility(is_visible)
 
+    const current_button = d3.select(event.currentTarget);
+
+    // Select the parent container of the clicked button
+    const parent_container = current_button.node().parentNode;
+
+    // disable all img_layer_buttons with the class img_layer_button
+    d3.select(parent_container)
+        .selectAll('.img_layer_button')
+        .style('color', is_visible ? 'blue' : 'gray');
+
+
     let new_layers = [
         background_layer,
         ...image_layers, 
@@ -128,6 +157,8 @@ const ist_img_button_callback = async (event) => {
 
     update_layers(new_layers)
     deck_ist.setProps({layers})
+
+    set_img_layer_visible(is_visible)
 
 }
 

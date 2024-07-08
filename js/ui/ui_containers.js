@@ -42,10 +42,10 @@ export const flex_container = (class_name, flex_direction, margin=5, height=null
     container.style.flexDirection = flex_direction
     
     if (height !== null){
-        container.style.marginLeft = '5px'
+        // container.style.marginLeft = '5px'
         container.style.height = height + 'px'
         container.style.overflow = 'scroll'
-        container.style.border = "1px solid #d3d3d3"    
+        // container.style.border = "1px solid #d3d3d3"    
     }
     
     return container
@@ -68,7 +68,7 @@ export const make_sst_ui_container = () => {
     const tile_container = flex_container('tile_container', 'row')
     const tile_slider_container = make_slider_container('tile_slider_container')
 
-    make_button(img_container, 'sst', 'IMG')
+    make_button(img_container, 'sst', 'IMG', 'blue', 50)
     make_button(tile_container, 'sst', 'TILE')
 
     ini_slider('tile')
@@ -128,7 +128,7 @@ export const make_ist_ui_container = () => {
 
         let inst_container = flex_container('img_layer_container', 'row')
 
-        make_button(inst_container, 'ist', inst_name, 'blue', 100)
+        make_button(inst_container, 'ist', inst_name, 'blue', 100, 'img_layer_button')
 
         const inst_slider_container = make_slider_container(inst_name)
 

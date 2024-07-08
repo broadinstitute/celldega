@@ -13,8 +13,9 @@ import { background_layer, update_background_layer } from '../deck-gl/background
 import { make_ist_ui_container } from '../ui/ui_containers.js';
 import { set_model } from '../global_variables/model.js';
 import { update_trx_layer_radius } from '../deck-gl/trx_layer.js';
-import { image_info, set_image_info } from '../global_variables/image_info.js';
+import { image_info, image_layer_colors, set_image_info, set_image_layer_colors } from '../global_variables/image_info.js';
 import { image_layer_sliders, set_image_layer_sliders } from "../ui/sliders"
+import { image } from 'd3';
 
 export const landscape_ist = async (
     el,
@@ -47,6 +48,11 @@ export const landscape_ist = async (
 
     set_image_info(tmp_image_info)
     set_image_layer_sliders(image_info)
+    set_image_layer_colors(image_info)
+
+    console.log('image_layer_colors')
+    console.log('-------------------------')
+    console.log(image_layer_colors)
 
     console.log('landscape_ist: image_layer_sliders', image_layer_sliders)
 

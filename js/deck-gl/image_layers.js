@@ -5,7 +5,7 @@ import { dimensions } from '../global_variables/image_dimensions'
 import { options } from '../global_variables/fetch_options'
 import { landscape_parameters } from '../global_variables/landscape_parameters' 
 import { global_base_url } from '../global_variables/global_base_url'
-import { image_info } from '../global_variables/image_info'
+import { image_info, image_layer_colors } from '../global_variables/image_info'
 
 export let image_layers = []
 
@@ -53,7 +53,7 @@ export const toggle_visibility_single_image_layer = (name, visible) => {
 
 export const update_opacity_single_image_layer = (name, opacity) => {
 
-    let color = [0, 255, 0]
+    let color = image_layer_colors[name]
 
     image_layers = image_layers.map(layer => 
         layer.id.startsWith(name) ? 

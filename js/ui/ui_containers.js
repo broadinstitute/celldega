@@ -145,7 +145,7 @@ export const make_ist_ui_container = () => {
         // ini_slider_params(slider, 100, () => {console.log('placeholder slider callback function')})
         let img_layer_slider_callback = make_img_layer_slider_callback(inst_name)
 
-        const debounce_time = 50
+        const debounce_time = 100
         let img_layer_slider_callback_debounced = debounce(img_layer_slider_callback, debounce_time)
         const ini_img_slider_value = 50
         ini_slider_params(slider, ini_img_slider_value, img_layer_slider_callback_debounced)

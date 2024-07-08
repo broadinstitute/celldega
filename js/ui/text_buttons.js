@@ -33,7 +33,7 @@ const toggle_visible_button = (event) => {
     return is_visible
 }
 
-export const make_button = (container, technology, text, color='blue') => {
+export const make_button = (container, technology, text, color='blue', width=40) => {
 
     let callback
 
@@ -57,7 +57,7 @@ export const make_button = (container, technology, text, color='blue') => {
         .append('div')
         .attr('class', 'button')
         .text(text)
-        .style('width', '40px')
+        .style('width', width + 'px')
         .style('text-align', 'left')
         .style('cursor', 'pointer')
         .style('font-size', '16px')

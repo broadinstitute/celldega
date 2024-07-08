@@ -93,7 +93,7 @@ export const make_ist_ui_container = () => {
     const img_container = flex_container('img_container', 'row')
 
     const img_layers_container = flex_container('img_layers_container', 'column', 0, 65)
-    img_layers_container.style.width = '200px'
+    img_layers_container.style.width = '165px'
 
     const cell_container = flex_container('cell_container', 'row')
     const trx_container = flex_container('trx_container', 'row')
@@ -126,7 +126,9 @@ export const make_ist_ui_container = () => {
 
         console.log(inst_image)
 
-        make_button(img_layers_container, 'ist', inst_name)
+        let inst_container = flex_container('img_layer_container', 'row')
+
+        make_button(inst_container, 'ist', inst_name, 'blue', 100)
 
         const inst_slider_container = make_slider_container(inst_name)
 
@@ -146,9 +148,10 @@ export const make_ist_ui_container = () => {
         
         inst_slider_container.appendChild(slider)
 
-        console.log(inst_slider_container)
+        inst_container.appendChild(inst_slider_container)
 
-        img_layers_container.appendChild(inst_slider_container)
+        img_layers_container.appendChild(inst_container)
+        
 
         // if (inst_image.button_name === 'DAPI'){
         //     ini_slider('dapi')

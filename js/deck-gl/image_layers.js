@@ -13,7 +13,7 @@ const make_image_layer = (info) => {
 
     const max_pyramid_zoom = landscape_parameters.max_pyramid_zoom
 
-    const opacity = 6
+    const opacity = 5
 
     const image_layer = new TileLayer({
         id: info.button_name,

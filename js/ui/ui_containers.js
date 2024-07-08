@@ -3,6 +3,7 @@ import { gene_search } from "./gene_search"
 import { tile_slider, cell_slider, trx_slider, ini_slider, dapi_slider, bound_slider, ini_slider_params } from './sliders'
 import { image_info } from "../global_variables/image_info"
 import { image_layer_sliders, make_img_layer_slider_callback } from "./sliders"
+import { debounce } from '../utils/debounce'
 
 console.log('ui_containers')
 
@@ -143,7 +144,11 @@ export const make_ist_ui_container = () => {
 
         // ini_slider_params(slider, 100, () => {console.log('placeholder slider callback function')})
         let img_layer_slider_callback = make_img_layer_slider_callback(inst_name)
-        ini_slider_params(slider, 100, img_layer_slider_callback)
+
+        const debounce_time = 50
+        let img_layer_slider_callback_debounced = debounce(img_layer_slider_callback, debounce_time)
+        const ini_img_slider_value = 50
+        ini_slider_params(slider, ini_img_slider_value, img_layer_slider_callback_debounced)
         
         inst_slider_container.appendChild(slider)
 

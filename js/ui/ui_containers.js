@@ -2,7 +2,7 @@ import { make_button } from "./text_buttons"
 import { gene_search } from "./gene_search"
 import { tile_slider, cell_slider, trx_slider, ini_slider, dapi_slider, bound_slider, ini_slider_params } from './sliders'
 import { image_info } from "../global_variables/image_info"
-import { image_layer_sliders, img_layer_slider_callback } from "./sliders"
+import { image_layer_sliders, make_img_layer_slider_callback } from "./sliders"
 
 console.log('ui_containers')
 
@@ -141,10 +141,8 @@ export const make_ist_ui_container = () => {
             slider = get_slider_by_name('BOUND')[0]
         }
 
-        console.log('found slider')
-        console.log(slider)
-
         // ini_slider_params(slider, 100, () => {console.log('placeholder slider callback function')})
+        let img_layer_slider_callback = make_img_layer_slider_callback(inst_name)
         ini_slider_params(slider, 100, img_layer_slider_callback)
         
         inst_slider_container.appendChild(slider)
@@ -153,22 +151,6 @@ export const make_ist_ui_container = () => {
 
         img_layers_container.appendChild(inst_container)
         
-
-        // if (inst_image.button_name === 'DAPI'){
-        //     ini_slider('dapi')
-        //     inst_slider_container.append(dapi_slider)
-
-        //     console.log(inst_slider_container)
-        // } else {
-        //     ini_slider('bound')
-        //     inst_slider_container.append(bound_slider)
-        // }
-
-        // inst_slider_container.append(trx_slider)
-
-        // console.log(inst_slider_container)
-        // console.log(trx_slider)
-
     }
     
     image_info.map(

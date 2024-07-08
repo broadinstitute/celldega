@@ -66,21 +66,47 @@ const trx_slider_callback = async () => {
     deck_ist.setProps({layers: new_layers})
 }
 
-export const img_layer_slider_callback = async () => {
-    console.log('img_layer_slider_callback function')
+// export const img_layer_slider_callback = async () => {
+//     console.log('img_layer_slider_callback function')
 
-    update_opacity_single_image_layer('DAPI', 15)
+//     update_opacity_single_image_layer('DAPI', 15)
 
-    let new_layers = [
-        background_layer,
-        ...image_layers, 
-        path_layer, 
-        cell_layer, 
-        trx_layer
-    ]
+//     let new_layers = [
+//         background_layer,
+//         ...image_layers, 
+//         path_layer, 
+//         cell_layer, 
+//         trx_layer
+//     ]
     
-    deck_ist.setProps({layers: new_layers})
-}
+//     deck_ist.setProps({layers: new_layers})
+// }
+
+export const make_img_layer_slider_callback = (name) => {
+    return async () => {
+
+        console.log('img_layer_slider_callback function: ', name);
+
+        let inst_slider = image_layer_sliders.filter(slider => slider.name === name)[0]
+
+
+        // Get the slider value from the event
+        const opacity = inst_slider.value/10
+
+        // Use the slider value to update the opacity
+        update_opacity_single_image_layer(name, opacity);
+
+        let new_layers = [
+            background_layer,
+            ...image_layers, 
+            path_layer, 
+            cell_layer, 
+            trx_layer
+        ];
+        
+        deck_ist.setProps({layers: new_layers});
+    };
+};
 
 export const ini_slider_params = (slider, ini_value, callback) =>{
 

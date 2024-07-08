@@ -1,7 +1,8 @@
 import * as mathGl from 'math.gl';
 import { CustomBitmapLayer } from './CustomBitmapLayer';
+import { dimensions } from '../global_variables/image_dimensions';
 
-export const create_render_tile_sublayers = ( dimensions, color ) => (props) => {
+export const create_render_tile_sublayers = ( color, opacity) => (props) => {
     
     const {
         bbox: {left, bottom, right, top}
@@ -17,8 +18,8 @@ export const create_render_tile_sublayers = ( dimensions, color ) => (props) => 
             mathGl.clamp(right, 0, width),
             mathGl.clamp(top, 0, height)
         ],
-        color: color, // Custom color
-        opacityScale: 3.0, // Custom opacity scale
+        color: color,
+        opacityScale: opacity,
     });
 
 }

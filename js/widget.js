@@ -1,12 +1,10 @@
 /* eslint-disable no-unused-vars */
 
 import "./widget.css";
-import { landscape } from "./viz/landscape";
+import { landscape_ist } from "./viz/landscape_ist";
 import { landscape_sst } from "./viz/landscape_sst";
-// import { gene_search, update_gene_search } from "./ui/gene_search";
 import cgm from 'clustergrammer-gl';
 import _ from 'underscore';
-// import * as d3 from 'd3';
 
 // Ensure these variables are defined globally
 const globalVariables =
@@ -26,13 +24,14 @@ export const render_landscape = async ({ model, el }) => {
     if (['MERSCOPE', 'Xenium'].includes(technology)){
         return render_landscape_ist({ model, el });
     } else if (['Visium-HD'].includes(technology)){
-        console.log('rendering Visium-HD')
         return render_landscape_sst({ model, el });
     }
 
 }
 
 export const render_landscape_ist = async ({ model, el }) => {
+
+    console.log('render_landscape_ist')
 
     const token = model.get('token_traitlet')
     const ini_x = model.get('ini_x');
@@ -41,19 +40,15 @@ export const render_landscape_ist = async ({ model, el }) => {
     const ini_zoom = model.get('ini_zoom');
     const base_url = model.get('base_url')
 
-    // Create and append the visualization.
-    let root = document.createElement("div");
-    root.style.height = "800px";
-    el.appendChild(root); 
-
-    return landscape(
+    return landscape_ist(
+        el,
+        model,
         token, 
         ini_x, 
         ini_y, 
         ini_z,
         ini_zoom, 
         base_url, 
-        root
     )
 
 }
@@ -171,4 +166,4 @@ export const render = async ({ model, el }) => {
 };
   
 
-export default { render, landscape };
+export default { render, landscape_ist, landscape_sst };

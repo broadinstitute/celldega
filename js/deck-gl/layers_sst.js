@@ -1,5 +1,5 @@
-export let layers
+export let layers_sst
 
-export const update_layers = (new_layers) => {
-    layers = new_layers
+export const update_layers_sst = (new_layers) => {
+    layers_sst = new_layers
 }

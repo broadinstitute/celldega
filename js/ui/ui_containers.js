@@ -105,7 +105,20 @@ export const make_ist_ui_container = () => {
 
     console.log('ui_containers')
 
-    console.log(image_layer_sliders)
+    console.log('image_layer_sliders', image_layer_sliders)
+
+
+    const get_slider_by_name = (name) => {
+        return image_layer_sliders.filter(slider => slider.name === name);
+    };
+    
+    // Example usage:
+    // const specific_slider = get_slider_by_name('desired_button_name');
+    
+
+    console.log('DAPI slider', get_slider_by_name('DAPI'))
+    console.log('BOUND slider', get_slider_by_name('BOUND'))
+    
 
     const make_img_layer_ctrl = (inst_image) => {
 
@@ -119,10 +132,15 @@ export const make_ist_ui_container = () => {
 
         let slider
         if (inst_name === 'DAPI'){
-            slider = dapi_slider
+            // slider = dapi_slider
+            slider = get_slider_by_name('DAPI')[0]
         } else {
-            slider = bound_slider
+            // slider = bound_slider
+            slider = get_slider_by_name('BOUND')[0]
         }
+
+        console.log('found slider')
+        console.log(slider)
 
         ini_slider_params(slider, 100, () => {console.log('something!!!!')})
         

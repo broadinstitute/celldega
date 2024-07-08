@@ -13,6 +13,8 @@ const make_image_layer = (info) => {
 
     const max_pyramid_zoom = landscape_parameters.max_pyramid_zoom
 
+    const opacity = 6
+
     const image_layer = new TileLayer({
         id: info.button_name,
         tileSize: dimensions.tileSize,
@@ -22,7 +24,7 @@ const make_image_layer = (info) => {
         maxCacheSize: 20,
         extent: [0, 0, dimensions.width, dimensions.height],
         getTileData: create_get_tile_data(global_base_url, info.name, max_pyramid_zoom, options),
-        renderSubLayers: create_render_tile_sublayers(dimensions, info.color)
+        renderSubLayers: create_render_tile_sublayers(info.color, opacity)
     }); 
     return image_layer
 }

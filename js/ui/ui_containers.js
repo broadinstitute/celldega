@@ -1,5 +1,5 @@
 import { make_button } from "./text_buttons"
-import { gene_search } from "./gene_search"
+import { gene_search, set_gene_search } from "./gene_search"
 import { tile_slider, cell_slider, trx_slider, ini_slider, ini_slider_params } from './sliders'
 import { image_info } from "../global_variables/image_info"
 import { image_layer_sliders, make_img_layer_slider_callback } from "./sliders"
@@ -180,6 +180,10 @@ export const make_ist_ui_container = () => {
     ctrl_container.appendChild(img_container) 
     ctrl_container.appendChild(cell_container) 
     ctrl_container.appendChild(trx_container) 
+
+    set_gene_search('ist')
+
+    ctrl_container.appendChild(gene_search)    
     
     return ui_container
 

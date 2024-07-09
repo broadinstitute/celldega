@@ -1,6 +1,6 @@
 import { make_button } from "./text_buttons"
 import { gene_search } from "./gene_search"
-import { tile_slider, cell_slider, trx_slider, ini_slider, dapi_slider, bound_slider, ini_slider_params } from './sliders'
+import { tile_slider, cell_slider, trx_slider, ini_slider, ini_slider_params } from './sliders'
 import { image_info } from "../global_variables/image_info"
 import { image_layer_sliders, make_img_layer_slider_callback } from "./sliders"
 import { debounce } from '../utils/debounce'

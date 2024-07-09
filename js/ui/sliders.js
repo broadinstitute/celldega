@@ -14,8 +14,8 @@ export let tile_slider = document.createElement("input")
 export let cell_slider = document.createElement("input")
 export let trx_slider = document.createElement("input")
 
-export let dapi_slider = document.createElement("input")
-export let bound_slider = document.createElement("input")
+// export let dapi_slider = document.createElement("input")
+// export let bound_slider = document.createElement("input")
 
 export let image_layer_sliders
 
@@ -142,17 +142,7 @@ export const ini_slider = (slider_type) => {
             ini_value = trx_ini_raidus * 100
             callback = trx_slider_callback
             break
-        // case 'dapi':
-        //     console.log('case dapi')
-        //     slider = dapi_slider
-        //     console.log('select slider')
-        //     ini_value = 100
-        //     callback = () => {console.log('dapi slider')}
-        //     console.log('define callback')
-        // case 'bound':
-        //     slider = bound_slider
-        //     ini_value = 100
-        //     callback = () => {console.log('bound slider')}
+
         default:
             console.log('no match', slider_type)
     }

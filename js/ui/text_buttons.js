@@ -115,13 +115,13 @@ const make_ist_img_layer_button_callback = (text) => {
     }
 }
 
-const ist_img_layer_button_callback = async (event) => {
-    toggle_visible_button(event)
+// const ist_img_layer_button_callback = async (event) => {
+//     toggle_visible_button(event)
 
-    console.log(image_layers.map(x => x.id))
+//     console.log(image_layers.map(x => x.id))
 
-    console.log('here')
-}
+//     console.log('here')
+// }
 
 
 const sst_img_button_callback = async (event) => {

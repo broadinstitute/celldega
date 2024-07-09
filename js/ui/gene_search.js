@@ -3,7 +3,7 @@ import { update_tile_cat } from "../global_variables/tile_cat.js"
 import { deck_sst } from "../deck-gl/deck_sst.js"
 import { deck_ist } from "../deck-gl/deck_ist.js"
 import { update_tile_exp_array } from "../global_variables/tile_exp_array.js" 
-import { input, set_input } from "./gene_search_input.js"
+import { gene_search_input, set_gene_search_input } from "./gene_search_input.js"
 import { simple_image_layer } from "../deck-gl/simple_image_layer.js"
 import { gene_names } from "../global_variables/gene_names.js"
 import { global_base_url } from "../global_variables/global_base_url.js"
@@ -20,7 +20,7 @@ export let gene_search = document.createElement("div")
 let gene_search_options = []
 
 const sst_gene_search_callback = async () => {
-    const inst_gene = input.value
+    const inst_gene = gene_search_input.value
     if (inst_gene === '') {
         // If the input is empty, set it to 'cluster' and update
         update_tile_cat('cluster')
@@ -36,7 +36,7 @@ const sst_gene_search_callback = async () => {
 
 const ist_gene_search_callback = async () => {
 
-    const inst_gene = input.value
+    const inst_gene = gene_search_input.value
     if (inst_gene === '') {
         // If the input is empty, set it to 'cluster' and update
         update_selected_cats([])
@@ -74,11 +74,11 @@ export const set_gene_search = async (tech_type) => {
     gene_search.style.height = "50px"
     gene_search.style.width = "250px"
 
-    set_input()
+    set_gene_search_input()
 
     let dataList = document.createElement("datalist")
     dataList.id = 'genes_datalist' 
-    input.setAttribute('list', dataList.id) 
+    gene_search_input.setAttribute('list', dataList.id) 
 
     // Populate the datalist with gene names
     gene_search_options.forEach(optionText => {
@@ -88,19 +88,19 @@ export const set_gene_search = async (tech_type) => {
     })
 
     // Apply styles to the input element
-    input.style.width = '100px' // "100%"
-    input.style.maxWidth = "250px" 
-    input.style.height = "20px" 
-    input.style.marginTop = "10px"
-    input.style.display = "inline-block"
-    input.style.padding = "1pt 2pt"    
+    gene_search_input.style.width = '100px' // "100%"
+    gene_search_input.style.maxWidth = "250px" 
+    gene_search_input.style.height = "20px" 
+    gene_search_input.style.marginTop = "10px"
+    gene_search_input.style.display = "inline-block"
+    gene_search_input.style.padding = "1pt 2pt"    
 
     // Append elements
-    gene_search.appendChild(input)
+    gene_search.appendChild(gene_search_input)
     gene_search.appendChild(dataList)
 
     // Set initial default value to "cluster"
-    input.value = ''
+    gene_search_input.value = ''
     update_tile_cat('cluster')
 
     // Event listener when an option is selected or the input is cleared
@@ -111,5 +111,5 @@ export const set_gene_search = async (tech_type) => {
         callback = ist_gene_search_callback
     }
     
-    input.addEventListener('input', callback)
+    gene_search_input.addEventListener('input', callback)
 }

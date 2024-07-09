@@ -9,7 +9,7 @@ import { image_layers } from './image_layers'
 import { path_layer } from './path_layer'
 import { cell_layer } from './cell_layer'
 import { gene_search } from '../ui/gene_search'
-import { input } from '../ui/gene_search_input'
+import { gene_search_input } from '../ui/gene_search_input'
 
 
 export let trx_layer = new ScatterplotLayer({
@@ -45,12 +45,7 @@ export let trx_layer = new ScatterplotLayer({
 
         deck_ist.setProps({layers: new_layers})
 
-        if (input.value !== inst_gene){
-            input.value = inst_gene
-        } else {
-            input.value = ''
-        }
-            
+        gene_search_input.value = (gene_search_input.value !== inst_gene) ? inst_gene : '';
         
     }
 });       

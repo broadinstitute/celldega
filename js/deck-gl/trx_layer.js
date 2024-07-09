@@ -15,26 +15,15 @@ export let trx_layer = new ScatterplotLayer({
     data: trx_data,
     pickable: true,
     getColor: (i, d) => {
-        var inst_gene = trx_names_array[d.index]
-        var inst_color = color_dict[inst_gene]
-
-        var inst_opacity
-
-        if (selected_cats.length === 0){
-            inst_opacity = 255
-        } else {
-            inst_opacity = 5
-            if (selected_cats.includes(inst_gene)) { 
-                inst_opacity = 255
-            }
-        }
+        const inst_gene = trx_names_array[d.index];
+        const inst_color = color_dict[inst_gene];
+        const inst_opacity = selected_cats.length === 0 || selected_cats.includes(inst_gene) ? 255 : 5;
         
-        return [inst_color[0], inst_color[1], inst_color[2], inst_opacity]
+        return [...inst_color, inst_opacity];
     },
     onClick: info => {
-        console.log('trx click')
 
-        let inst_gene = trx_names_array[info.index]
+        const inst_gene = trx_names_array[info.index]
         update_selected_cats([inst_gene])
 
         update_trx_layer_filter()

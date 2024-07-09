@@ -29,7 +29,7 @@ const make_image_layer = (info) => {
     return image_layer
 }
 
-export const make_image_layers = async (global_base_url) => {
+export const make_image_layers = async () => {
     image_layers = image_info.map(make_image_layer);
 }
 

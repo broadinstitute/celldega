@@ -180,6 +180,8 @@ export const make_ist_ui_container = () => {
     ctrl_container.appendChild(img_container) 
     ctrl_container.appendChild(cell_container) 
     ctrl_container.appendChild(trx_container) 
+
+    ctrl_container.appendChild(gene_search)    
     
     return ui_container
 

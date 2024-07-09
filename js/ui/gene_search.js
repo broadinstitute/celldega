@@ -9,13 +9,13 @@ import { simple_image_layer } from "../deck-gl/simple_image_layer.js";
 
 export let gene_search = document.createElement("div");
 
-export const update_gene_search = async (base_url, token) => {
+export const set_gene_search = async (base_url, token) => {
     set_options(token);
 
     let meta_gene_table = await get_arrow_table(base_url + 'meta_gene.parquet', options.fetch);
 
-    let all_genes = meta_gene_table.getChild('__index_level_0__').toArray().sort();
-    const gene_search_options = ['cluster', ...all_genes];
+    let gene_names = meta_gene_table.getChild('__index_level_0__').toArray().sort();
+    const gene_search_options = ['cluster', ...gene_names];
 
     gene_search.style.height = "50px";
     gene_search.style.width = "250px";

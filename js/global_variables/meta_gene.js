@@ -1,5 +1,6 @@
 import { get_arrow_table } from "../read_parquet/get_arrow_table"
 import { options } from '../global_variables/fetch_options.js';
+import { set_gene_names } from "./gene_names.js";
 
 export let meta_gene = {}
 
@@ -18,4 +19,6 @@ export const set_meta_gene = async (base_url) => {
             max: gene_max[index],
         }
     })
+    
+    set_gene_names(gene_names)
 }    

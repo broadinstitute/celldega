@@ -43,7 +43,9 @@ export const landscape_sst = async (
     await set_landscape_parameters(base_url)
     await set_dimensions(base_url, 'cells' )
 
-    await set_gene_search(base_url, token)
+    await set_meta_gene(base_url)   
+
+    await set_gene_search('sst')
 
     // move this to landscape_parameters
     // const imgage_name_for_dim = 'dapi'
@@ -62,7 +64,7 @@ export const landscape_sst = async (
     update_tile_cats_array(tile_arrow_table.getChild("cluster").toArray())
     update_tile_names_array(tile_arrow_table.getChild("name").toArray())
 
-    await set_meta_gene(base_url)
+
     await update_tile_color_dict(base_url)
     ini_square_scatter_layer()
     const new_layers = [simple_image_layer, square_scatter_layer]

@@ -10,7 +10,7 @@ export const make_tooltip = (info) => {
 
     if (info.layer.id === 'cell-layer'){
         inst_name = cell_names_array[info.index]
-    } else if (info.layer.id === 'trx-layer') {
+    } else if (info.layer.id.startsWith('trx-layer')) {
         inst_name = trx_names_array[info.index]
     }
 

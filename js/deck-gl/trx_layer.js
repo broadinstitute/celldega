@@ -23,7 +23,10 @@ export let trx_layer = new ScatterplotLayer({
         if (selected_cats.length === 0){
             inst_opacity = 255
         } else {
-            inst_opacity = 25
+            inst_opacity = 5
+            if (selected_cats.includes(inst_gene)) { 
+                inst_opacity = 255
+            }
         }
         
         return [inst_color[0], inst_color[1], inst_color[2], inst_opacity]
@@ -75,6 +78,6 @@ export const update_trx_layer_radius = (radius) => {
 
 export const update_trx_layer_filter = () => {
     trx_layer = trx_layer.clone({
-        id: 'something',
+        id: 'trx-layer-' + selected_cats.join('-'),
     });    
 }

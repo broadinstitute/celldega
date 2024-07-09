@@ -4,7 +4,11 @@ import { color_dict } from '../global_variables/color_dict'
 import { trx_names_array } from '../global_variables/trx_names_array'
 import { selected_cats, update_selected_cats } from '../global_variables/selected_cats'
 import { deck_ist } from './deck_ist'
-import { layers } from './layers'
+import { background_layer } from './background_layer'
+import { image_layers } from './image_layers'
+import { path_layer } from './path_layer'
+import { cell_layer } from './cell_layer'
+
 
 export let trx_layer = new ScatterplotLayer({
     id: 'trx-layer',
@@ -32,7 +36,15 @@ export let trx_layer = new ScatterplotLayer({
 
         update_trx_layer_filter()
 
-        deck_ist.setProps({layers: [trx_layer]})
+        let new_layers = [
+            background_layer,
+            ...image_layers, 
+            path_layer, 
+            cell_layer,             
+            trx_layer
+        ]
+
+        deck_ist.setProps({layers: new_layers})
         
     }
 });       

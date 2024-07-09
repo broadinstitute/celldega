@@ -45,6 +45,7 @@ export const landscape_sst = async (
 
     await set_meta_gene(base_url)   
 
+    console.log('set_gene_search sst')
     await set_gene_search('sst')
 
     // move this to landscape_parameters

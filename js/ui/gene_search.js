@@ -16,10 +16,10 @@ import { trx_layer, update_trx_layer_filter } from "../deck-gl/trx_layer.js"
 
 export let gene_search = document.createElement("div")
 
-
 let gene_search_options = []
 
 const sst_gene_search_callback = async () => {
+
     const inst_gene = gene_search_input.value
     if (inst_gene === '') {
         // If the input is empty, set it to 'cluster' and update
@@ -46,8 +46,6 @@ const ist_gene_search_callback = async () => {
         update_selected_cats([inst_gene])
     }
 
-
-
     update_trx_layer_filter()
 
     console.log('ist_gene_search_callback')
@@ -61,13 +59,13 @@ const ist_gene_search_callback = async () => {
         trx_layer
     ]
 
-    
-
     deck_ist.setProps({layers: new_layers})
 
 }
 
 export const set_gene_search = async (tech_type) => {
+
+    console.log('gene_names', gene_names.length)
 
     gene_search_options = ['cluster', ...gene_names]
 

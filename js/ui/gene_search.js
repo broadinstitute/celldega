@@ -26,7 +26,6 @@ const sst_gene_search_callback = async () => {
         update_tile_cat('cluster')
     } else if (gene_search_options.includes(inst_gene)) {
 
-        console.log('updating becuase of new gene search')
         update_tile_cat(inst_gene)
         await update_tile_exp_array(global_base_url, inst_gene)
     }
@@ -42,14 +41,10 @@ const ist_gene_search_callback = async () => {
         update_selected_cats([])
     } else if (gene_search_options.includes(inst_gene)) {
 
-        console.log('updating becuase of new gene search')
         update_selected_cats([inst_gene])
     }
 
     update_trx_layer_filter()
-
-    console.log('ist_gene_search_callback')
-    console.log(inst_gene)    
 
     let new_layers = [
         background_layer,
@@ -65,11 +60,8 @@ const ist_gene_search_callback = async () => {
 
 export const set_gene_search = async (tech_type) => {
 
-    console.log('gene_names', gene_names.length)
-
     gene_search_options = ['cluster', ...gene_names]
 
-    gene_search.style.height = "50px"
     gene_search.style.width = "250px"
 
     set_gene_search_input()
@@ -89,7 +81,8 @@ export const set_gene_search = async (tech_type) => {
     gene_search_input.style.width = '100px' // "100%"
     gene_search_input.style.maxWidth = "250px" 
     gene_search_input.style.height = "20px" 
-    gene_search_input.style.marginTop = "10px"
+
+    
     gene_search_input.style.display = "inline-block"
     gene_search_input.style.padding = "1pt 2pt"    
 
@@ -105,8 +98,12 @@ export const set_gene_search = async (tech_type) => {
     let callback
     if (tech_type === 'sst'){
         callback = sst_gene_search_callback
+        gene_search_input.style.marginTop = "10px"
+        gene_search.style.height = "50px"
     } else {
         callback = ist_gene_search_callback
+        gene_search_input.style.marginTop = "5px"
+        // gene_search.style.height = "25px"
     }
     
     gene_search_input.addEventListener('input', callback)

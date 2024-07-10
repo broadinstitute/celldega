@@ -25,10 +25,9 @@ export const landscape_ist = async (
     ini_z, 
     ini_zoom, 
     base_url, 
-    trx_radius=0.25
+    dataset_name='',
+    trx_radius=0.25,
 ) => {
-
-    console.log('landscape_ist')
 
     // move this to landscape_parameters
     const imgage_name_for_dim = 'dapi'
@@ -48,12 +47,6 @@ export const landscape_ist = async (
     set_image_info(tmp_image_info)
     set_image_layer_sliders(image_info)
     set_image_layer_colors(image_info)
-
-    console.log('image_layer_colors')
-    console.log('-------------------------')
-    console.log(image_layer_colors)
-
-    console.log('landscape_ist: image_layer_sliders', image_layer_sliders)
 
     // Create and append the visualization.
     set_trx_ini_raidus(trx_radius)
@@ -82,7 +75,7 @@ export const landscape_ist = async (
 
     set_deck(root)
 
-    const ui_container = make_ist_ui_container()
+    const ui_container = make_ist_ui_container(dataset_name)
 
     // UI and Viz Container
     el.appendChild(ui_container)

@@ -1,3 +1,4 @@
+import * as d3 from 'd3'
 import { make_button } from "./text_buttons"
 import { gene_search, set_gene_search } from "./gene_search"
 import { tile_slider, cell_slider, trx_slider, ini_slider, ini_slider_params } from './sliders'
@@ -5,14 +6,13 @@ import { image_info } from "../global_variables/image_info"
 import { image_layer_sliders, make_img_layer_slider_callback } from "./sliders"
 import { debounce } from '../utils/debounce'
 
-console.log('ui_containers')
-
 export const make_ui_container = () => {
     const ui_container = document.createElement("div")
     ui_container.style.display = "flex"
     ui_container.style.flexDirection = "row"
     ui_container.style.border = "1px solid #d3d3d3"    
     ui_container.className = "ui_container"
+    ui_container.style.justifyContent = 'space-between'
     return ui_container
 }
 
@@ -21,8 +21,8 @@ export const make_ctrl_container = () => {
     ctrl_container.style.display = "flex"
     ctrl_container.style.flexDirection = "row"
     ctrl_container.className = "ctrl_container"
-    ctrl_container.style.width = "250px"
-    ctrl_container.style.margin = "5px"
+    ctrl_container.style.width = "190px"
+    // ctrl_container.style.margin = "5px"
     return ctrl_container
 }
 
@@ -61,7 +61,7 @@ export const make_slider_container = (class_name) => {
     return slider_container
 }
 
-export const make_sst_ui_container = () => {
+export const make_sst_ui_container = (dataset_name) => {
 
     const ui_container = make_ui_container()
     const ctrl_container = make_ctrl_container()
@@ -87,16 +87,21 @@ export const make_sst_ui_container = () => {
 
 }
 
-export const make_ist_ui_container = () => {
+export const make_ist_ui_container = (dataset_name) => {
 
     const ui_container = make_ui_container()
     const ctrl_container = make_ctrl_container()
     const img_container = flex_container('img_container', 'row')
 
     const img_layers_container = flex_container('img_layers_container', 'column', 0, 65)
-    img_layers_container.style.width = '165px'
+    img_layers_container.style.width = '155px'
 
     const cell_container = flex_container('cell_container', 'row')
+    cell_container.style.marginLeft = '0px'
+
+    // gene container will contain trx button/slider and gene search
+    const gene_container = flex_container('gene_container', 'column')
+    gene_container.style.marginTop = '0px'
     const trx_container = flex_container('trx_container', 'row')
 
     const cell_slider_container = make_slider_container('cell_slider_container')
@@ -104,28 +109,14 @@ export const make_ist_ui_container = () => {
 
     make_button(img_container, 'ist', 'IMG', 'blue', 30)
 
-    console.log('ui_containers')
-
-    console.log('image_layer_sliders', image_layer_sliders)
-
-
     const get_slider_by_name = (name) => {
         return image_layer_sliders.filter(slider => slider.name === name);
     };
-    
-    // Example usage:
-    // const specific_slider = get_slider_by_name('desired_button_name');
-    
-
-    console.log('DAPI slider', get_slider_by_name('DAPI'))
-    console.log('BOUND slider', get_slider_by_name('BOUND'))
     
 
     const make_img_layer_ctrl = (inst_image) => {
 
         const inst_name = inst_image.button_name
-
-        console.log(inst_image)
 
         let inst_container = flex_container('img_layer_container', 'row')
 
@@ -142,7 +133,6 @@ export const make_ist_ui_container = () => {
             slider = get_slider_by_name('BOUND')[0]
         }
 
-        // ini_slider_params(slider, 100, () => {console.log('placeholder slider callback function')})
         let img_layer_slider_callback = make_img_layer_slider_callback(inst_name)
 
         const debounce_time = 100
@@ -175,15 +165,43 @@ export const make_ist_ui_container = () => {
     trx_container.appendChild(trx_slider_container)
     trx_slider_container.appendChild(trx_slider) 
 
-    ui_container.appendChild(ctrl_container)
-
-    ctrl_container.appendChild(img_container) 
-    ctrl_container.appendChild(cell_container) 
-    ctrl_container.appendChild(trx_container) 
+    gene_container.appendChild(trx_container)
 
     set_gene_search('ist')
 
-    ctrl_container.appendChild(gene_search)    
+    gene_search.style.marginLeft = '10px'
+
+    gene_container.appendChild(gene_search)    
+
+    ui_container.appendChild(ctrl_container)
+
+
+    ctrl_container.appendChild(img_container) 
+    ctrl_container.appendChild(cell_container) 
+    ctrl_container.appendChild(gene_container) 
+
+    // if dataset_name is not an empty string make the name container
+    if (dataset_name.trim !== ''){
+
+        let name_container = document.createElement("div")
+
+        d3.select(name_container)
+            .classed('name_container', true)
+            .style('width', '100px')
+            .style('text-align', 'right')
+            .style('cursor', 'pointer')
+            .style('font-size', '14px')
+            .style('font-weight', 'bold')
+            .style('color', '#222222')
+            .style('margin-top', '5px')
+            .style('margin-right', '5px')
+            .style('user-select', 'none')
+            .text(dataset_name.toUpperCase())
+
+        ui_container.appendChild(name_container)
+
+        
+    }
     
     return ui_container
 

@@ -38,11 +38,6 @@ export let trx_layer = new ScatterplotLayer({
             trx_layer
         ]
 
-        console.log('trx click ')
-        console.log(gene_search)
-
-        console.log(gene_search.value)
-
         deck_ist.setProps({layers: new_layers})
 
         gene_search_input.value = (gene_search_input.value !== inst_gene) ? inst_gene : '';

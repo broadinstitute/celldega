@@ -17,12 +17,7 @@ from matplotlib.colors import to_hex
 
 import json
 
-# function for pre-processing landscape data
-def landscape(data):
-
-    print('landscape: ' + data) 
-
-    return data
+from .landscape import landscape
 
 
 def reduce_image_size(image_path, scale_image=0.5, path_landscape_files=''):

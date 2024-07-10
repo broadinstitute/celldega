@@ -66,26 +66,8 @@ const trx_slider_callback = async () => {
     deck_ist.setProps({layers: new_layers})
 }
 
-// export const img_layer_slider_callback = async () => {
-//     console.log('img_layer_slider_callback function')
-
-//     update_opacity_single_image_layer('DAPI', 15)
-
-//     let new_layers = [
-//         background_layer,
-//         ...image_layers, 
-//         path_layer, 
-//         cell_layer, 
-//         trx_layer
-//     ]
-    
-//     deck_ist.setProps({layers: new_layers})
-// }
-
 export const make_img_layer_slider_callback = (name) => {
     return async () => {
-
-        console.log('img_layer_slider_callback function: ', name);
 
         let inst_slider = image_layer_sliders.filter(slider => slider.name === name)[0]
 
@@ -147,7 +129,6 @@ export const ini_slider = (slider_type) => {
             console.log('no match', slider_type)
     }
 
-    console.log('initializing the slider', slider_type)
     ini_slider_params(slider, ini_value, callback)
 }
 

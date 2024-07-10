@@ -5,7 +5,6 @@ let initialized = false;
 
 async function initPq() {
     if (!initialized) {
-        // console.log('initialized pq');
         await pq.default();
         initialized = true;
     }

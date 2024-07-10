@@ -31,8 +31,6 @@ export const render_landscape = async ({ model, el }) => {
 
 export const render_landscape_ist = async ({ model, el }) => {
 
-    console.log('render_landscape_ist')
-
     const token = model.get('token_traitlet')
     const ini_x = model.get('ini_x');
     const ini_y = model.get('ini_y');    
@@ -40,10 +38,6 @@ export const render_landscape_ist = async ({ model, el }) => {
     const ini_zoom = model.get('ini_zoom');
     const base_url = model.get('base_url')
     const dataset_name = model.get('dataset_name')
-
-    console.log('dataset_name')
-    console.log(dataset_name)
-
 
     return landscape_ist(
         el,

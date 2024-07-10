@@ -26,7 +26,6 @@ const sst_gene_search_callback = async () => {
         update_tile_cat('cluster')
     } else if (gene_search_options.includes(inst_gene)) {
 
-        console.log('updating becuase of new gene search')
         update_tile_cat(inst_gene)
         await update_tile_exp_array(global_base_url, inst_gene)
     }
@@ -42,14 +41,10 @@ const ist_gene_search_callback = async () => {
         update_selected_cats([])
     } else if (gene_search_options.includes(inst_gene)) {
 
-        console.log('updating becuase of new gene search')
         update_selected_cats([inst_gene])
     }
 
     update_trx_layer_filter()
-
-    console.log('ist_gene_search_callback')
-    console.log(inst_gene)    
 
     let new_layers = [
         background_layer,
@@ -64,8 +59,6 @@ const ist_gene_search_callback = async () => {
 }
 
 export const set_gene_search = async (tech_type) => {
-
-    console.log('gene_names', gene_names.length)
 
     gene_search_options = ['cluster', ...gene_names]
 

@@ -29,8 +29,6 @@ export const landscape_ist = async (
     trx_radius=0.25,
 ) => {
 
-    console.log('landscape_ist', dataset_name)
-
     // move this to landscape_parameters
     const imgage_name_for_dim = 'dapi'
     const tmp_image_info = [
@@ -49,12 +47,6 @@ export const landscape_ist = async (
     set_image_info(tmp_image_info)
     set_image_layer_sliders(image_info)
     set_image_layer_colors(image_info)
-
-    console.log('image_layer_colors')
-    console.log('-------------------------')
-    console.log(image_layer_colors)
-
-    console.log('landscape_ist: image_layer_sliders', image_layer_sliders)
 
     // Create and append the visualization.
     set_trx_ini_raidus(trx_radius)

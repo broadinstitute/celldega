@@ -65,7 +65,6 @@ export const ini_square_scatter_layer = () => {
         getRadius: 3, // 8um: 12 with border
         pickable: true,
         onClick: (d) => {
-            console.log('Clicked on:', d)
             let new_selected_cats = [tile_cats_array[d.index]]
 
             update_selected_cats(new_selected_cats)

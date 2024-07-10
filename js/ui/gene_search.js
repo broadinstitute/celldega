@@ -69,7 +69,6 @@ export const set_gene_search = async (tech_type) => {
 
     gene_search_options = ['cluster', ...gene_names]
 
-    gene_search.style.height = "50px"
     gene_search.style.width = "250px"
 
     set_gene_search_input()
@@ -89,7 +88,8 @@ export const set_gene_search = async (tech_type) => {
     gene_search_input.style.width = '100px' // "100%"
     gene_search_input.style.maxWidth = "250px" 
     gene_search_input.style.height = "20px" 
-    gene_search_input.style.marginTop = "10px"
+
+    
     gene_search_input.style.display = "inline-block"
     gene_search_input.style.padding = "1pt 2pt"    
 
@@ -105,8 +105,12 @@ export const set_gene_search = async (tech_type) => {
     let callback
     if (tech_type === 'sst'){
         callback = sst_gene_search_callback
+        gene_search_input.style.marginTop = "10px"
+        gene_search.style.height = "50px"
     } else {
         callback = ist_gene_search_callback
+        gene_search_input.style.marginTop = "5px"
+        // gene_search.style.height = "25px"
     }
     
     gene_search_input.addEventListener('input', callback)

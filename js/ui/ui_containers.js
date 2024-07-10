@@ -97,6 +97,9 @@ export const make_ist_ui_container = () => {
     img_layers_container.style.width = '165px'
 
     const cell_container = flex_container('cell_container', 'row')
+
+    // gene container will contain trx button/slider and gene search
+    const gene_container = flex_container('gene_container', 'column')
     const trx_container = flex_container('trx_container', 'row')
 
     const cell_slider_container = make_slider_container('cell_slider_container')
@@ -175,15 +178,21 @@ export const make_ist_ui_container = () => {
     trx_container.appendChild(trx_slider_container)
     trx_slider_container.appendChild(trx_slider) 
 
+    gene_container.appendChild(trx_container)
+
+    set_gene_search('ist')
+
+    gene_search.style.marginLeft = '10px'
+
+    gene_container.appendChild(gene_search)    
+
     ui_container.appendChild(ctrl_container)
 
     ctrl_container.appendChild(img_container) 
     ctrl_container.appendChild(cell_container) 
-    ctrl_container.appendChild(trx_container) 
+    ctrl_container.appendChild(gene_container) 
 
-    set_gene_search('ist')
 
-    ctrl_container.appendChild(gene_search)    
     
     return ui_container
 

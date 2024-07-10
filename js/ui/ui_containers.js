@@ -21,7 +21,7 @@ export const make_ctrl_container = () => {
     ctrl_container.style.display = "flex"
     ctrl_container.style.flexDirection = "row"
     ctrl_container.className = "ctrl_container"
-    ctrl_container.style.width = "250px"
+    // ctrl_container.style.width = "250px"
     ctrl_container.style.margin = "5px"
     return ctrl_container
 }
@@ -94,12 +94,14 @@ export const make_ist_ui_container = () => {
     const img_container = flex_container('img_container', 'row')
 
     const img_layers_container = flex_container('img_layers_container', 'column', 0, 65)
-    img_layers_container.style.width = '165px'
+    img_layers_container.style.width = '155px'
 
     const cell_container = flex_container('cell_container', 'row')
+    cell_container.style.marginLeft = '0px'
 
     // gene container will contain trx button/slider and gene search
     const gene_container = flex_container('gene_container', 'column')
+    gene_container.style.marginTop = '0px'
     const trx_container = flex_container('trx_container', 'row')
 
     const cell_slider_container = make_slider_container('cell_slider_container')

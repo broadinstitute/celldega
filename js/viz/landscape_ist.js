@@ -25,10 +25,11 @@ export const landscape_ist = async (
     ini_z, 
     ini_zoom, 
     base_url, 
-    trx_radius=0.25
+    dataset_name='',
+    trx_radius=0.25,
 ) => {
 
-    console.log('landscape_ist')
+    console.log('landscape_ist', dataset_name)
 
     // move this to landscape_parameters
     const imgage_name_for_dim = 'dapi'
@@ -82,7 +83,7 @@ export const landscape_ist = async (
 
     set_deck(root)
 
-    const ui_container = make_ist_ui_container()
+    const ui_container = make_ist_ui_container(dataset_name)
 
     // UI and Viz Container
     el.appendChild(ui_container)

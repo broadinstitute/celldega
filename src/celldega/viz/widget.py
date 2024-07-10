@@ -21,6 +21,8 @@ class Landscape(anywidget.AnyWidget):
         The token traitlet.
     base_url : str
         The base URL for the widget.
+    dataset_name : str (optional)
+        The name of the dataset to visualize. This will show up in the user interface bar.
 
     Returns
     -------
@@ -44,6 +46,7 @@ class Landscape(anywidget.AnyWidget):
     ini_y = traitlets.Float(1000).tag(sync=True)
     ini_z = traitlets.Float(0).tag(sync=True)
     ini_zoom = traitlets.Float(0).tag(sync=True)    
+    dataset_name = traitlets.Unicode('').tag(sync=True)    
 
     update_trigger = traitlets.Dict().tag(sync=True)
 

@@ -2,8 +2,8 @@ import pathlib
 import anywidget
 import traitlets
 
-class Landscape(anywidget.AnyWidget):
 
+class Landscape(anywidget.AnyWidget):
     """
     A widget for visualizing a 'landscape' view of spatial omics data.
 
@@ -35,18 +35,19 @@ class Landscape(anywidget.AnyWidget):
     >>> Landscape(ini_x=4500, ini_y=3200, ini_zoom=0, max_image_zoom=16, bounce_time=200, token_traitlet='token', base_url='')
 
     """
+
     _esm = pathlib.Path(__file__).parent / "../static" / "widget.js"
     _css = pathlib.Path(__file__).parent / "../static" / "widget.css"
     component = traitlets.Unicode("Landscape").tag(sync=True)
 
-    technology = traitlets.Unicode('sst').tag(sync=True)
-    base_url = traitlets.Unicode('').tag(sync=True)
-    token_traitlet = traitlets.Unicode('token').tag(sync=True)
+    technology = traitlets.Unicode("sst").tag(sync=True)
+    base_url = traitlets.Unicode("").tag(sync=True)
+    token_traitlet = traitlets.Unicode("token").tag(sync=True)
     ini_x = traitlets.Float(1000).tag(sync=True)
     ini_y = traitlets.Float(1000).tag(sync=True)
     ini_z = traitlets.Float(0).tag(sync=True)
     ini_zoom = traitlets.Float(0).tag(sync=True)
-    dataset_name = traitlets.Unicode('').tag(sync=True)
+    dataset_name = traitlets.Unicode("").tag(sync=True)
 
     update_trigger = traitlets.Dict().tag(sync=True)
 
@@ -54,6 +55,7 @@ class Landscape(anywidget.AnyWidget):
         # This method updates the update_trigger traitlet with a new value
         # You can pass any information necessary for the update, or just a timestamp
         self.update_trigger = new_value
+
 
 class Matrix(anywidget.AnyWidget):
     _esm = pathlib.Path(__file__).parent / "../static" / "widget.js"

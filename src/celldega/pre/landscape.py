@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import pandas as pd
 from scipy.io import mmread
@@ -82,3 +83,46 @@ def calc_meta_gene_data(cbg):
     })
 
     return meta_gene
+
+def save_cbg_gene_parquets(base_path, cbg, verbose=False):
+    """
+    Save the cell-by-gene matrix as gene specific Parquet files
+
+    Parameters
+    ----------
+    base_path : str
+        The base path to the parent directory containing the landscape_files directory
+    cbg : pandas.DataFrame
+        A sparse DataFrame with genes as columns and barcodes as rows
+    verbose : bool
+        Whether to print progress information
+
+    Returns
+    -------
+    None
+
+    """
+
+    output_dir = base_path + 'landscape_files/cbg/'
+    os.makedirs(output_dir, exist_ok=True)  
+
+    for index, gene in enumerate(cbg.columns):
+            
+        if verbose:
+            if index % 100 == 0:
+                print(index)
+            
+        # Extract the column as a DataFrame as a copy
+        col_df = cbg[[gene]].copy()
+
+        col_df = col_df.sparse.to_dense()
+        col_df = col_df.astype(int)
+
+        # necessary to prevent error in to_parquet
+        inst_df = pd.DataFrame(col_df.values, columns=[gene], index=col_df.index.tolist())    
+
+        inst_df.replace(0, pd.NA, inplace=True)
+        inst_df.dropna(how='all', inplace=True)    
+
+        if inst_df.shape[0] > 0:
+            inst_df.to_parquet(os.path.join(output_dir, f'{gene}.parquet'))

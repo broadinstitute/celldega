@@ -17,7 +17,7 @@ from matplotlib.colors import to_hex
 
 import json
 
-from .landscape import read_cbg_mtx, calc_meta_gene_data
+from .landscape import *
 
 
 def reduce_image_size(image_path, scale_image=0.5, path_landscape_files=''):

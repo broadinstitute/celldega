@@ -17,7 +17,7 @@ from matplotlib.colors import to_hex
 
 import json
 
-from .landscape import landscape
+from .landscape import read_cbg_mtx, calc_meta_gene_data
 
 
 def reduce_image_size(image_path, scale_image=0.5, path_landscape_files=''):
@@ -432,7 +432,7 @@ def make_meta_gene(
     technology : str
         The technology used to generate the data, Xenium and MERSCOPE are supported.
     path_cbg : str
-        Path to the cell-by-gene matrix file
+        Path to the cell-by-gene matrix data (the data format can vary based on technology)
     path_output : str
         Path to save the meta gene file
 
@@ -444,7 +444,7 @@ def make_meta_gene(
     --------
     >>> make_meta_gene(
     ...     technology='Xenium',
-    ...     path_cbg='data/cbg.parquet',
+    ...     path_cbg='data/',
     ...     path_output='data/gene_metadata.parquet'
     ... )
     """
@@ -453,7 +453,8 @@ def make_meta_gene(
         cbg = pd.read_csv(path_cbg, index_col=0)
         genes = cbg.columns.tolist()
     elif technology == 'Xenium':
-        genes = pd.read_csv(path_cbg + 'features.tsv.gz', sep='\t', header=None)[1].values.tolist()
+        # genes = pd.read_csv(path_cbg + 'features.tsv.gz', sep='\t', header=None)[1].values.tolist()
+        cbg = read_cbg_mtx
 
     # Get all categorical color palettes from Matplotlib and flatten them into a single list of colors
     palettes = [plt.get_cmap(name).colors for name in plt.colormaps() if "tab" in name]

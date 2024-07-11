@@ -1,8 +1,8 @@
 import { square_scatter_layer, update_square_scatter_layer } from "../deck-gl/square_scatter_layer.js"
-import { update_tile_cat } from "../global_variables/tile_cat.js" 
+import { update_tile_cat } from "../global_variables/tile_cat.js"
 import { deck_sst } from "../deck-gl/deck_sst.js"
 import { deck_ist } from "../deck-gl/deck_ist.js"
-import { update_tile_exp_array } from "../global_variables/tile_exp_array.js" 
+import { update_tile_exp_array } from "../global_variables/tile_exp_array.js"
 import { gene_search_input, set_gene_search_input } from "./gene_search_input.js"
 import { simple_image_layer } from "../deck-gl/simple_image_layer.js"
 import { gene_names } from "../global_variables/gene_names.js"
@@ -39,18 +39,19 @@ const ist_gene_search_callback = async () => {
     if (inst_gene === '') {
         // If the input is empty, set it to 'cluster' and update
         update_selected_cats([])
-    } else if (gene_search_options.includes(inst_gene)) {
-
+    } else if (gene_names.includes(inst_gene)) {
         update_selected_cats([inst_gene])
+
+        console.log('here', inst_gene)
     }
 
     update_trx_layer_filter()
 
     let new_layers = [
         background_layer,
-        ...image_layers, 
-        path_layer, 
-        cell_layer,             
+        ...image_layers,
+        path_layer,
+        cell_layer,
         trx_layer
     ]
 
@@ -67,8 +68,8 @@ export const set_gene_search = async (tech_type) => {
     set_gene_search_input()
 
     let dataList = document.createElement("datalist")
-    dataList.id = 'genes_datalist' 
-    gene_search_input.setAttribute('list', dataList.id) 
+    dataList.id = 'genes_datalist'
+    gene_search_input.setAttribute('list', dataList.id)
 
     // Populate the datalist with gene names
     gene_search_options.forEach(optionText => {
@@ -79,12 +80,12 @@ export const set_gene_search = async (tech_type) => {
 
     // Apply styles to the input element
     gene_search_input.style.width = '100px' // "100%"
-    gene_search_input.style.maxWidth = "250px" 
-    gene_search_input.style.height = "20px" 
+    gene_search_input.style.maxWidth = "250px"
+    gene_search_input.style.height = "20px"
 
-    
+
     gene_search_input.style.display = "inline-block"
-    gene_search_input.style.padding = "1pt 2pt"    
+    gene_search_input.style.padding = "1pt 2pt"
 
     // Append elements
     gene_search.appendChild(gene_search_input)
@@ -105,6 +106,6 @@ export const set_gene_search = async (tech_type) => {
         gene_search_input.style.marginTop = "5px"
         // gene_search.style.height = "25px"
     }
-    
+
     gene_search_input.addEventListener('input', callback)
 }

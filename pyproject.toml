@@ -19,7 +19,11 @@ dependencies = [
 readme = "README.md"
 
 [project.optional-dependencies]
-dev = ["watchfiles", "jupyterlab"]
+dev = [   "watchfiles", 
+    "jupyterlab",
+    "pylint",
+    "black"
+]
 pre = ["pyvips~=2.2.2"] # optional dependencies for pre-processing
 
 # automatically add the dev feature to the default env (e.g., hatch shell)

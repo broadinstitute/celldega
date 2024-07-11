@@ -18,10 +18,10 @@ def read_cbg_mtx(base_path):
     -------
     cbg : pandas.DataFrame
         A sparse DataFrame with genes as columns and barcodes as rows
-    
+
     """
 
-    print('read mtx file from ', base_path) 
+    print('read mtx file from ', base_path)
 
     # File paths
     barcodes_path = base_path + 'cell_feature_matrix/barcodes.tsv.gz'
@@ -33,8 +33,8 @@ def read_cbg_mtx(base_path):
     features = pd.read_csv(features_path, header=None, compression='gzip', sep='\t')
 
     # Read the gene expression matrix and transpose it
-    # Transpose and convert to CSC format for fast column slicing   
-    matrix = mmread(matrix_path).transpose().tocsc()  
+    # Transpose and convert to CSC format for fast column slicing
+    matrix = mmread(matrix_path).transpose().tocsc()
 
     # Create a sparse DataFrame with genes as columns and barcodes as rows
     cbg = pd.DataFrame.sparse.from_spmatrix(matrix, index=barcodes[0], columns=features[1])
@@ -104,14 +104,14 @@ def save_cbg_gene_parquets(base_path, cbg, verbose=False):
     """
 
     output_dir = base_path + 'landscape_files/cbg/'
-    os.makedirs(output_dir, exist_ok=True)  
+    os.makedirs(output_dir, exist_ok=True)
 
     for index, gene in enumerate(cbg.columns):
-            
+
         if verbose:
             if index % 100 == 0:
                 print(index)
-            
+
         # Extract the column as a DataFrame as a copy
         col_df = cbg[[gene]].copy()
 
@@ -119,10 +119,10 @@ def save_cbg_gene_parquets(base_path, cbg, verbose=False):
         col_df = col_df.astype(int)
 
         # necessary to prevent error in to_parquet
-        inst_df = pd.DataFrame(col_df.values, columns=[gene], index=col_df.index.tolist())    
+        inst_df = pd.DataFrame(col_df.values, columns=[gene], index=col_df.index.tolist())
 
         inst_df.replace(0, pd.NA, inplace=True)
-        inst_df.dropna(how='all', inplace=True)    
+        inst_df.dropna(how='all', inplace=True)
 
         if inst_df.shape[0] > 0:
             inst_df.to_parquet(os.path.join(output_dir, f'{gene}.parquet'))

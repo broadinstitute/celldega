@@ -8,9 +8,9 @@ import _ from 'underscore';
 
 // Ensure these variables are defined globally
 const globalVariables =
-  ['mat_data', 'manual_category', 'control_svg', 'run_cluster_container', 
-  'link_options_container', 'selected_label_container', 'network', 
-  'max_clust_id', 'new_clust_id', 'ini_value_color', '_', 'organism', 
+  ['mat_data', 'manual_category', 'control_svg', 'run_cluster_container',
+  'link_options_container', 'selected_label_container', 'network',
+  'max_clust_id', 'new_clust_id', 'ini_value_color', '_', 'organism',
   'num_matches'];
 
 globalVariables.forEach((variableName) => {
@@ -33,8 +33,8 @@ export const render_landscape_ist = async ({ model, el }) => {
 
     const token = model.get('token_traitlet')
     const ini_x = model.get('ini_x');
-    const ini_y = model.get('ini_y');    
-    const ini_z = model.get('ini_z');    
+    const ini_y = model.get('ini_y');
+    const ini_z = model.get('ini_z');
     const ini_zoom = model.get('ini_zoom');
     const base_url = model.get('base_url')
     const dataset_name = model.get('dataset_name')
@@ -42,12 +42,12 @@ export const render_landscape_ist = async ({ model, el }) => {
     return landscape_ist(
         el,
         model,
-        token, 
-        ini_x, 
-        ini_y, 
+        token,
+        ini_x,
+        ini_y,
         ini_z,
-        ini_zoom, 
-        base_url, 
+        ini_zoom,
+        base_url,
         dataset_name,
         0.25
     )
@@ -55,22 +55,22 @@ export const render_landscape_ist = async ({ model, el }) => {
 }
 
 export const render_landscape_sst = async ({ model, el }) => {
-    
+
     const token = model.get('token_traitlet')
     const ini_x = model.get('ini_x');
-    const ini_y = model.get('ini_y');    
-    const ini_z = model.get('ini_z');    
+    const ini_y = model.get('ini_y');
+    const ini_z = model.get('ini_z');
     const ini_zoom = model.get('ini_zoom');
     const base_url = model.get('base_url')
     const dataset_name = model.get('dataset_name')
 
     landscape_sst(
-        model, 
+        model,
         el,
         base_url,
-        token, 
-        ini_x, 
-        ini_y, 
+        token,
+        ini_x,
+        ini_y,
         ini_z,
         ini_zoom,
         dataset_name
@@ -81,7 +81,7 @@ export const render_landscape_sst = async ({ model, el }) => {
 export const render_matrix = async ({ model, el }) => {
 
     var my_widget_callback = function(external_model){
-        
+
         const click_type = this.params.tooltip.tooltip_type
         var click_value = null
 
@@ -93,7 +93,7 @@ export const render_matrix = async ({ model, el }) => {
             click_value = this.params.dendro.selected_clust_names
         } else if (click_type === 'row-dendro'){
             click_value = this.params.dendro.selected_clust_names
-        } 
+        }
 
         var click_info = {
             'click_type': click_type,
@@ -102,9 +102,9 @@ export const render_matrix = async ({ model, el }) => {
 
         // Update the click_info trait in the model with the new value
         model.set('click_info', click_info);
-        model.save_changes();      
-        
-    }      
+        model.save_changes();
+
+    }
 
     var network = model.get('network')
     let container = document.createElement("div")
@@ -114,18 +114,18 @@ export const render_matrix = async ({ model, el }) => {
 
     setTimeout(function() {
 
-        // fix the row search container
-        ///////////////////////////////
-        // Function to apply the margin left style
-        function applyMarginLeftStyle() {
-            var elements = document.querySelectorAll('.row_search_container');
-            elements.forEach(function(el) {
-                el.style.marginLeft = '800px';
-            });
-        }
-    
-        setTimeout(applyMarginLeftStyle, 3000); 
-        ///////////////////////////////////        
+        // // fix the row search container
+        // ///////////////////////////////
+        // // Function to apply the margin left style
+        // function applyMarginLeftStyle() {
+        //     var elements = document.querySelectorAll('.row_search_container');
+        //     elements.forEach(function(el) {
+        //         el.style.marginLeft = '800px';
+        //     });
+        // }
+
+        // setTimeout(applyMarginLeftStyle, 3000);
+        ///////////////////////////////////
 
         cgm({
             network: network,
@@ -135,20 +135,32 @@ export const render_matrix = async ({ model, el }) => {
             is_widget: true,
             container: container,
             use_hzome: true
-        }, 
+        },
         'yes this is a widget'
         );
+
+
+        // // row_search_container
+        // var elements = document.querySelectorAll('.row_search_container');
+        // // Loop through the NodeList and remove each element
+        // elements.forEach(function(element) {
+        //     element.parentNode.removeChild(element);
+        // });
+
     }, 1000)
 
 
     // trying to remove old tooltips
     // Select all elements with the class 'cgm-tooltip'
     var elements = document.querySelectorAll('.cgm-tooltip');
-    
+
     // Loop through the NodeList and remove each element
     elements.forEach(function(element) {
         element.parentNode.removeChild(element);
     });
+
+
+
 
 }
 
@@ -162,11 +174,11 @@ export const render = async ({ model, el }) => {
             break;
         case "Matrix":
             render_matrix({ model, el });
-            break;            
+            break;
         default:
             throw new Error(`Unknown component type: ${componentType}`);
     }
 };
-  
+
 
 export default { render, landscape_ist, landscape_sst };

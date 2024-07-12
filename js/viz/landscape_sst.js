@@ -8,7 +8,7 @@ import { update_layers_sst } from "../deck-gl/layers_sst.js"
 import { square_scatter_layer, ini_square_scatter_layer } from "../deck-gl/square_scatter_layer.js"
 import { set_tile_scatter_data } from "../global_variables/tile_scatter_data.js"
 import { update_tile_cats_array } from "../global_variables/tile_cats_array.js"
-import { update_tile_names_array } from "../global_variables/tile_names_array.js"
+import { set_tile_names_array, set_tile_name_to_index_map } from "../global_variables/tile_names_array.js"
 import { update_tile_color_dict } from "../global_variables/tile_color_dict.js"
 import { set_meta_gene } from "../global_variables/meta_gene.js"
 import { set_dimensions } from '../global_variables/image_dimensions.js'
@@ -63,8 +63,8 @@ export const landscape_sst = async (
 
     set_tile_scatter_data(get_scatter_data(tile_arrow_table))
     update_tile_cats_array(tile_arrow_table.getChild("cluster").toArray())
-    update_tile_names_array(tile_arrow_table.getChild("name").toArray())
-
+    set_tile_names_array(tile_arrow_table.getChild("name").toArray())
+    set_tile_name_to_index_map()
 
     await update_tile_color_dict(base_url)
     ini_square_scatter_layer()

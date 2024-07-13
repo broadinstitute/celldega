@@ -34,28 +34,16 @@ class SquareScatterplotLayer extends ScatterplotLayer {
 export let square_scatter_layer
 
 const square_scatter_layer_color = (i, d) => {
-
-    let inst_color
-
     if (tile_cat === 'cluster') {
-        var inst_cat = tile_cats_array[d.index]
-
-        if (selected_cats.length === 0){
-            inst_color = [...color_dict[inst_cat], 255]
-        } else {
-            if (selected_cats.includes(inst_cat)) {
-                inst_color = [...color_dict[inst_cat], 255]
-            } else {
-                inst_color = [...color_dict[inst_cat], 25]
-            }
-        }
+        const inst_cat = tile_cats_array[d.index];
+        const opacity = (selected_cats.length === 0 || selected_cats.includes(inst_cat)) ? 255 : 25;
+        return [...color_dict[inst_cat], opacity];
     } else {
-        let inst_exp = tile_exp_array[d.index]
-        inst_color = [255, 0, 0, inst_exp]
+        const inst_exp = tile_exp_array[d.index];
+        return [255, 0, 0, inst_exp];
     }
+};
 
-    return inst_color
-}
 
 export const ini_square_scatter_layer = () => {
 

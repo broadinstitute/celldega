@@ -1,5 +1,5 @@
 import { square_scatter_layer, update_square_scatter_layer } from "../deck-gl/square_scatter_layer.js"
-import { update_tile_cat } from "../global_variables/tile_cat.js"
+import { update_cat } from "../global_variables/cat.js"
 import { deck_sst } from "../deck-gl/deck_sst.js"
 import { deck_ist } from "../deck-gl/deck_ist.js"
 import { update_tile_exp_array } from "../global_variables/tile_exp_array.js"
@@ -24,10 +24,10 @@ const sst_gene_search_callback = async () => {
     const inst_gene = gene_search_input.value
     if (inst_gene === '') {
         // If the input is empty, set it to 'cluster' and update
-        update_tile_cat('cluster')
+        update_cat('cluster')
     } else if (gene_search_options.includes(inst_gene)) {
 
-        update_tile_cat(inst_gene)
+        update_cat(inst_gene)
 
         await update_tile_exp_array(global_base_url, inst_gene)
     }
@@ -99,7 +99,7 @@ export const set_gene_search = async (tech_type) => {
 
     // Set initial default value to "cluster"
     gene_search_input.value = ''
-    update_tile_cat('cluster')
+    update_cat('cluster')
 
     // Event listener when an option is selected or the input is cleared
     let callback

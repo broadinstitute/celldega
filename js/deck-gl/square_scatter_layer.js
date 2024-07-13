@@ -1,11 +1,10 @@
 import { ScatterplotLayer } from 'deck.gl';
-import { tile_cat } from "../global_variables/tile_cat.js";
+import { cat, update_cat } from "../global_variables/cat.js";
 import { tile_scatter_data } from "../global_variables/tile_scatter_data.js";
 import { tile_cats_array } from "../global_variables/tile_cats_array.js";
 import { color_dict } from '../global_variables/tile_color_dict.js';
 import { tile_exp_array } from '../global_variables/tile_exp_array.js';
 import { selected_cats, update_selected_cats } from '../global_variables/selected_cats.js';
-import { update_tile_cat } from "../global_variables/tile_cat.js"
 import { deck_sst } from "./deck_sst.js";
 import { simple_image_layer } from "../deck-gl/simple_image_layer.js";
 
@@ -34,7 +33,7 @@ class SquareScatterplotLayer extends ScatterplotLayer {
 export let square_scatter_layer
 
 const square_scatter_layer_color = (i, d) => {
-    if (tile_cat === 'cluster') {
+    if (cat === 'cluster') {
         const inst_cat = tile_cats_array[d.index];
         const opacity = (selected_cats.length === 0 || selected_cats.includes(inst_cat)) ? 255 : 25;
         return [...color_dict[inst_cat], opacity];
@@ -42,7 +41,7 @@ const square_scatter_layer_color = (i, d) => {
         const inst_exp = tile_exp_array[d.index];
         return [255, 0, 0, inst_exp];
     }
-};
+}
 
 
 export const ini_square_scatter_layer = () => {
@@ -58,13 +57,13 @@ export const ini_square_scatter_layer = () => {
             let new_selected_cats = [tile_cats_array[d.index]]
 
             update_selected_cats(new_selected_cats)
-            update_tile_cat('cluster')
+            update_cat('cluster')
             update_square_scatter_layer()
             deck_sst.setProps({layers: [simple_image_layer, square_scatter_layer]})
 
         },
         updateTriggers: {
-            getFillColor: [tile_cat]
+            getFillColor: [cat]
         }
     })
 
@@ -73,15 +72,15 @@ export const ini_square_scatter_layer = () => {
 export const update_square_scatter_layer = () => {
     // Determine the new layer ID based on the selected categories
     const layer_id = selected_cats.length === 0
-        ? `tile-layer-${tile_cat}`
-        : `tile-layer-${tile_cat}-${selected_cats.join('-')}`;
+        ? `tile-layer-${cat}`
+        : `tile-layer-${cat}-${selected_cats.join('-')}`;
 
     // Clone the existing layer and update the ID and data
     square_scatter_layer = square_scatter_layer.clone({
         id: layer_id,
         data: tile_scatter_data,
     });
-};
+}
 
 
 export const square_scatter_layer_visibility = (visible) => {

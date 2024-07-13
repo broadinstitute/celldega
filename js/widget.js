@@ -114,19 +114,6 @@ export const render_matrix = async ({ model, el }) => {
 
     setTimeout(function() {
 
-        // // fix the row search container
-        // ///////////////////////////////
-        // // Function to apply the margin left style
-        // function applyMarginLeftStyle() {
-        //     var elements = document.querySelectorAll('.row_search_container');
-        //     elements.forEach(function(el) {
-        //         el.style.marginLeft = '800px';
-        //     });
-        // }
-
-        // setTimeout(applyMarginLeftStyle, 3000);
-        ///////////////////////////////////
-
         cgm({
             network: network,
             viz_width: 900,
@@ -138,14 +125,6 @@ export const render_matrix = async ({ model, el }) => {
         },
         'yes this is a widget'
         );
-
-
-        // // row_search_container
-        // var elements = document.querySelectorAll('.row_search_container');
-        // // Loop through the NodeList and remove each element
-        // elements.forEach(function(element) {
-        //     element.parentNode.removeChild(element);
-        // });
 
     }, 1000)
 

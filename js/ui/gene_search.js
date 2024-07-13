@@ -13,6 +13,7 @@ import { image_layers } from "../deck-gl/image_layers.js"
 import { path_layer } from "../deck-gl/path_layer.js"
 import { cell_layer } from "../deck-gl/cell_layer.js"
 import { trx_layer, update_trx_layer_filter } from "../deck-gl/trx_layer.js"
+import { update_cell_exp_array } from "../global_variables/cell_exp_array.js"
 
 export let gene_search = document.createElement("div")
 
@@ -27,6 +28,7 @@ const sst_gene_search_callback = async () => {
     } else if (gene_search_options.includes(inst_gene)) {
 
         update_tile_cat(inst_gene)
+
         await update_tile_exp_array(global_base_url, inst_gene)
     }
     update_square_scatter_layer()
@@ -37,12 +39,16 @@ const ist_gene_search_callback = async () => {
 
     const inst_gene = gene_search_input.value
     if (inst_gene === '') {
-        // If the input is empty, set it to 'cluster' and update
+
         update_selected_cats([])
+
     } else if (gene_names.includes(inst_gene)) {
+
         update_selected_cats([inst_gene])
 
-        console.log('here', inst_gene)
+        update_cell_exp_array(global_base_url, inst_gene)
+
+        console.log('ist gene_search', inst_gene)
     }
 
     update_trx_layer_filter()

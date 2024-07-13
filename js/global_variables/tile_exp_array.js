@@ -12,16 +12,17 @@ export const update_tile_exp_array = async (base_url, inst_gene) => {
     let tile_names = exp_table.getChild('__index_level_0__').toArray()
     let tile_exp = exp_table.getChild(inst_gene).toArray()
 
-    const new_tile_exp_array = new Array(tile_names_array.length).fill(0)
+    const new_exp_array = new Array(tile_names_array.length).fill(0)
 
     tile_names.forEach((name, i) => {
         if (tile_name_to_index_map.has(name)) {
             const index = tile_name_to_index_map.get(name)
             const exp_value = Number(tile_exp[i])
             const max_exp = Number(meta_gene[inst_gene].max)
-            new_tile_exp_array[index] = (exp_value / max_exp) * 255
+            new_exp_array[index] = (exp_value / max_exp) * 255
         }
     })
 
-    tile_exp_array = new_tile_exp_array
+    tile_exp_array = new_exp_array
+
 }

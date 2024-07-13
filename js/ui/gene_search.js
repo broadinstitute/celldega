@@ -7,7 +7,8 @@ import { gene_search_input, set_gene_search_input } from "./gene_search_input.js
 import { simple_image_layer } from "../deck-gl/simple_image_layer.js"
 import { gene_names } from "../global_variables/gene_names.js"
 import { global_base_url } from "../global_variables/global_base_url.js"
-import { update_selected_cats } from "../global_variables/selected_cats.js"
+// import { update_selected_cats } from "../global_variables/selected_cats.js"
+import { update_selected_genes } from "../global_variables/selected_genes.js"
 import { background_layer } from "../deck-gl/background_layer.js"
 import { image_layers } from "../deck-gl/image_layers.js"
 import { path_layer } from "../deck-gl/path_layer.js"
@@ -21,30 +22,34 @@ let gene_search_options = []
 
 const sst_gene_search_callback = async () => {
 
-    const inst_gene = gene_search_input.value
-    if (inst_gene === '') {
-        // If the input is empty, set it to 'cluster' and update
-        update_cat('cluster')
-    } else if (gene_search_options.includes(inst_gene)) {
+    const inst_gene = gene_search_input.value;
+    const cat_to_update = inst_gene === '' ? 'cluster' : inst_gene;
+    update_cat(cat_to_update);
 
-        update_cat(inst_gene)
-
-        await update_tile_exp_array(global_base_url, inst_gene)
+    if (inst_gene !== '' && gene_search_options.includes(inst_gene)) {
+        await update_tile_exp_array(global_base_url, inst_gene);
     }
-    update_square_scatter_layer()
-    deck_sst.setProps({layers: [simple_image_layer, square_scatter_layer]})
-}
+
+    update_square_scatter_layer();
+    deck_sst.setProps({layers: [simple_image_layer, square_scatter_layer]});
+};
+
 
 const ist_gene_search_callback = async () => {
 
+    // selecting a gene does
+    // 1. switch cells out of the cluster category
+    // 2. switch transcripts to filter for a specific category
+
     const inst_gene = gene_search_input.value
+
     if (inst_gene === '') {
 
-        update_selected_cats([])
+        update_selected_genes([])
 
     } else if (gene_names.includes(inst_gene)) {
 
-        update_selected_cats([inst_gene])
+        update_selected_genes([inst_gene])
 
         update_cell_exp_array(global_base_url, inst_gene)
 

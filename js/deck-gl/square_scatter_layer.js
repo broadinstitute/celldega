@@ -1,11 +1,11 @@
 import { ScatterplotLayer } from 'deck.gl';
-import { tile_cat } from "../global_variables/tile_cat.js"; 
+import { tile_cat } from "../global_variables/tile_cat.js";
 import { tile_scatter_data } from "../global_variables/tile_scatter_data.js";
 import { tile_cats_array } from "../global_variables/tile_cats_array.js";
 import { color_dict } from '../global_variables/tile_color_dict.js';
-import { tile_exp_array } from '../global_variables/tile_exp_array.js'; 
+import { tile_exp_array } from '../global_variables/tile_exp_array.js';
 import { selected_cats, update_selected_cats } from '../global_variables/selected_cats.js';
-import { update_tile_cat } from "../global_variables/tile_cat.js" 
+import { update_tile_cat } from "../global_variables/tile_cat.js"
 import { deck_sst } from "./deck_sst.js";
 import { simple_image_layer } from "../deck-gl/simple_image_layer.js";
 
@@ -29,38 +29,40 @@ class SquareScatterplotLayer extends ScatterplotLayer {
 
         return shaders;
     }
-}    
+}
 
 export let square_scatter_layer
+
+const square_scatter_layer_color = (i, d) => {
+
+    let inst_color
+
+    if (tile_cat === 'cluster') {
+        var inst_cat = tile_cats_array[d.index]
+
+        if (selected_cats.length === 0){
+            inst_color = [...color_dict[inst_cat], 255]
+        } else {
+            if (selected_cats.includes(inst_cat)) {
+                inst_color = [...color_dict[inst_cat], 255]
+            } else {
+                inst_color = [...color_dict[inst_cat], 25]
+            }
+        }
+    } else {
+        let inst_exp = tile_exp_array[d.index]
+        inst_color = [255, 0, 0, inst_exp]
+    }
+
+    return inst_color
+}
 
 export const ini_square_scatter_layer = () => {
 
     square_scatter_layer = new SquareScatterplotLayer({
         id: 'tile-layer',
         data: tile_scatter_data,
-        getFillColor: (i, d) => {
-
-            let inst_color
-
-            if (tile_cat === 'cluster') {   
-                var inst_cat = tile_cats_array[d.index]
-
-                if (selected_cats.length === 0){
-                    inst_color = [...color_dict[inst_cat], 255]
-                } else {
-                    if (selected_cats.includes(inst_cat)) {
-                        inst_color = [...color_dict[inst_cat], 255]
-                    } else {
-                        inst_color = [...color_dict[inst_cat], 25]
-                    }
-                }
-            } else {
-                let inst_exp = tile_exp_array[d.index]
-                inst_color = [255, 0, 0, inst_exp]
-            }
-
-            return inst_color
-        },
+        getFillColor: square_scatter_layer_color,
         filled: true,
         getRadius: 3, // 8um: 12 with border
         pickable: true,
@@ -70,19 +72,19 @@ export const ini_square_scatter_layer = () => {
             update_selected_cats(new_selected_cats)
             update_tile_cat('cluster')
             update_square_scatter_layer()
-            deck_sst.setProps({layers: [simple_image_layer, square_scatter_layer]})        
+            deck_sst.setProps({layers: [simple_image_layer, square_scatter_layer]})
 
         },
         updateTriggers: {
-            getFillColor: [tile_cat]  
-        }        
+            getFillColor: [tile_cat]
+        }
     })
 
 }
 
 export const update_square_scatter_layer = () => {
     // Determine the new layer ID based on the selected categories
-    const layer_id = selected_cats.length === 0 
+    const layer_id = selected_cats.length === 0
         ? `tile-layer-${tile_cat}`
         : `tile-layer-${tile_cat}-${selected_cats.join('-')}`;
 

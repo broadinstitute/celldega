@@ -9,7 +9,7 @@ export let cell_layer = new ScatterplotLayer({
     id: 'cell-layer',
     getRadius: 5.0,
     pickable: true,
-    getColor: [0, 0, 255, 240],
+    getColor: [0, 255, 0, 255],
 })
 
 
@@ -32,7 +32,7 @@ export const update_cell_layer = async (base_url) => {
             console.log('click!!')
             console.log(info.index)
             console.log(cell_names_array[info.index])
-        },        
+        },
     });
 }
 

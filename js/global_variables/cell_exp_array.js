@@ -17,10 +17,7 @@ export const update_cell_exp_array = async (base_url, inst_gene) => {
 
     cell_names.forEach((name, i) => {
 
-        // console.log(name)
-
         cell_name_to_index_map.get(name)
-
 
         if (cell_name_to_index_map.has(name)) {
             const index = cell_name_to_index_map.get(name)

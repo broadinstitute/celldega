@@ -4,25 +4,41 @@ import { get_scatter_data } from "../read_parquet/get_scatter_data.js"
 import { set_color_dict } from '../global_variables/color_dict.js'
 import { cell_names_array, set_cell_names_array, set_cell_name_to_index_map } from '../global_variables/cell_names_array.js'
 import { options } from '../global_variables/fetch_options.js'
-import { selected_cats } from '../global_variables/selected_cats.js'
+// import { selected_cats } from '../global_variables/selected_cats.js'
 import { cat } from '../global_variables/cat.js'
 import { cell_exp_array } from '../global_variables/cell_exp_array.js'
 
+// const cell_layer_color = (i, d) => {
+//     if (cat === 'cluster') {
+//         // const inst_cat = tile_cats_array[d.index];
+//         // const opacity = (selected_cats.length === 0 || selected_cats.includes(inst_cat)) ? 255 : 25;
+//         // return [...color_dict[inst_cat], opacity];
+
+//         return [0, 0, 255, 255]
+//     } else {
+
+//         const inst_exp = cell_exp_array[d.index]
+
+//         return [255, 0, 0, inst_exp]
+
+//     }
+// }
+
 const cell_layer_color = (i, d) => {
     if (cat === 'cluster') {
-        // const inst_cat = tile_cats_array[d.index];
-        // const opacity = (selected_cats.length === 0 || selected_cats.includes(inst_cat)) ? 255 : 25;
-        // return [...color_dict[inst_cat], opacity];
-
-        return [0, 0, 255, 255]
+        return [0, 0, 255, 255]; // Use blue for cluster category
     } else {
+        const inst_exp = cell_exp_array[d.index];
 
-        const inst_exp = cell_exp_array[d.index]
+        // Interpolate between white and red based on the expression value
+        const red = Math.floor((inst_exp / 255) * 255);
+        const green = Math.floor((inst_exp / 255) * 255); // To blend from white to red, green and blue components also change
+        const blue = Math.floor((inst_exp / 255) * 255);  // To blend from white to red, green and blue components also change
 
-        return [255, 0, 0, inst_exp]
-
+        return [255, 255 - green, 255 - blue, 255]; // Full opacity
     }
-}
+};
+
 
 export let cell_layer = new ScatterplotLayer({
     id: 'cell-layer',

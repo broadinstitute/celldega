@@ -16,18 +16,21 @@ export const update_cell_exp_array = async (base_url, inst_gene) => {
     const new_exp_array = new Array(cell_names_array.length).fill(0)
 
     cell_names.forEach((name, i) => {
-
-        cell_name_to_index_map.get(name)
-
         if (cell_name_to_index_map.has(name)) {
-            const index = cell_name_to_index_map.get(name)
-            const exp_value = Number(cell_exp[i])
-            const max_exp = Number(meta_gene[inst_gene].max)
-            new_exp_array[index] = (exp_value / max_exp) * 255
+            const index = cell_name_to_index_map.get(name);
+            const exp_value = Number(cell_exp[i]);
+            const max_exp = Number(meta_gene[inst_gene].max);
+
+            // Apply logarithmic transformation
+            const log_exp_value = Math.log1p(exp_value); // log1p(x) = log(1 + x)
+
+            // Scale to 0-255 range using the log of the max expression value
+            const log_max_exp = Math.log1p(max_exp); // log1p(x) = log(1 + x)
+            new_exp_array[index] = (log_exp_value / log_max_exp) * 255;
         } else {
             console.log('Cell name not found in cell_name_to_index_map');
         }
-    })
+    });
 
 
     cell_exp_array = new_exp_array

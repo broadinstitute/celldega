@@ -8,22 +8,22 @@ import { options } from '../global_variables/fetch_options.js'
 import { cat } from '../global_variables/cat.js'
 import { cell_exp_array } from '../global_variables/cell_exp_array.js'
 
-// // transparent to red
-// const cell_layer_color = (i, d) => {
-//     if (cat === 'cluster') {
-//         // const inst_cat = tile_cats_array[d.index];
-//         // const opacity = (selected_cats.length === 0 || selected_cats.includes(inst_cat)) ? 255 : 25;
-//         // return [...color_dict[inst_cat], opacity];
+// transparent to red
+const cell_layer_color = (i, d) => {
+    if (cat === 'cluster') {
+        // const inst_cat = tile_cats_array[d.index];
+        // const opacity = (selected_cats.length === 0 || selected_cats.includes(inst_cat)) ? 255 : 25;
+        // return [...color_dict[inst_cat], opacity];
 
-//         return [0, 0, 255, 255]
-//     } else {
+        return [0, 0, 255, 255]
+    } else {
 
-//         const inst_exp = cell_exp_array[d.index]
+        const inst_exp = cell_exp_array[d.index]
 
-//         return [255, 0, 0, inst_exp]
+        return [255, 0, 0, inst_exp]
 
-//     }
-// }
+    }
+}
 
 // // opaque white to red
 // /////////////////////////////////////
@@ -42,32 +42,30 @@ import { cell_exp_array } from '../global_variables/cell_exp_array.js'
 //     }
 // };
 
-// Function to generate cell layer color
-const cell_layer_color = (i, d) => {
+// // Function to generate cell layer color
+// const cell_layer_color = (i, d) => {
 
-    const color_scheme = 'black_to_red'
-    if (cat === 'cluster') {
-        return [0, 0, 255, 255]; // Use blue for cluster category
-    } else {
-        const inst_exp = cell_exp_array[d.index];
-        const red = Math.floor((inst_exp / 255) * 255);
-        let color;
+//     const color_scheme = 'black_to_red'
+//     if (cat === 'cluster') {
+//         return [0, 0, 255, 255]; // Use blue for cluster category
+//     } else {
+//         const inst_exp = cell_exp_array[d.index];
+//         const red = Math.floor((inst_exp / 255) * 255);
+//         let color;
 
-        if (color_scheme === 'white_to_red') {
-            const green = 255 - red; // Green decreases as red increases
-            const blue = 255 - red; // Blue decreases as red increases
-            color = [255, green, blue, 255]; // Full opacity
-        } else if (color_scheme === 'black_to_red') {
-            color = [red, 0, 0, 255]; // From black to red with full opacity
-        }
+//         if (color_scheme === 'white_to_red') {
+//             const green = 255 - red; // Green decreases as red increases
+//             const blue = 255 - red; // Blue decreases as red increases
+//             // const opacity = inst_exp > 50 ? 255 : 0; // Full opacity for expression > 50
+//             color = [255, green, blue, 255]; // Full opacity
+//         } else if (color_scheme === 'black_to_red') {
+//             // const opacity = inst_exp > 50 ? 255 : 0; // Full opacity for expression > 50
+//             color = [red, 0, 0, 255]; // From black to red with full opacity
+//         }
 
-        return color;
-    }
-};
-
-// // Example usage:
-// const color_white_to_red = cell_layer_color(i, d, 'white_to_red');
-// const color_black_to_red = cell_layer_color(i, d, 'black_to_red');
+//         return color;
+//     }
+// };
 
 
 // // blue to white to red
@@ -113,8 +111,6 @@ const cell_layer_color = (i, d) => {
 export let cell_layer = new ScatterplotLayer({
     id: 'cell-layer',
     getRadius: 5.0,
-    radiusMinPixels: 1,
-    // radiusMaxPixels: 10,
     pickable: true,
     getColor: cell_layer_color,
 })

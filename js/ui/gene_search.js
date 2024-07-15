@@ -7,7 +7,6 @@ import { gene_search_input, set_gene_search_input } from "./gene_search_input.js
 import { simple_image_layer } from "../deck-gl/simple_image_layer.js"
 import { gene_names } from "../global_variables/gene_names.js"
 import { global_base_url } from "../global_variables/global_base_url.js"
-// import { update_selected_cats } from "../global_variables/selected_cats.js"
 import { update_selected_genes } from "../global_variables/selected_genes.js"
 import { background_layer } from "../deck-gl/background_layer.js"
 import { image_layers } from "../deck-gl/image_layers.js"
@@ -44,7 +43,6 @@ const ist_gene_search_callback = async () => {
     const new_cat = inst_gene === '' ? 'cluster' : inst_gene;
     update_cat(new_cat)
 
-
     if (inst_gene === '') {
 
         update_selected_genes([])
@@ -52,14 +50,11 @@ const ist_gene_search_callback = async () => {
     } else if (gene_names.includes(inst_gene)) {
 
         update_selected_genes([inst_gene])
-
         update_cell_exp_array(global_base_url, inst_gene)
 
-        console.log('ist gene_search', inst_gene)
     }
 
     update_cell_layer_id(new_cat)
-
     update_trx_layer_filter()
 
     let new_layers = [

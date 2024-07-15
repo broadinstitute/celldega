@@ -469,7 +469,8 @@ def make_meta_gene(technology, path_cbg, path_output):
         genes = cbg.columns.tolist()
     elif technology == "Xenium":
         # genes = pd.read_csv(path_cbg + 'features.tsv.gz', sep='\t', header=None)[1].values.tolist()
-        cbg = read_cbg_mtx
+        cbg = read_cbg_mtx(path_cbg)
+        genes = cbg.columns.tolist()
 
     # Get all categorical color palettes from Matplotlib and flatten them into a single list of colors
     palettes = [plt.get_cmap(name).colors for name in plt.colormaps() if "tab" in name]
@@ -485,7 +486,13 @@ def make_meta_gene(technology, path_cbg, path_output):
     ]
 
     # Create a DataFrame with genes and their assigned colors
-    meta_gene = pd.DataFrame({"color": colors}, index=genes)
+    ser_color = pd.Series(colors, index=genes)
+
+    # calculate gene expression metadata
+    meta_gene = calc_meta_gene_data(cbg)
+    meta_gene['color'] = ser_color
+
+    type(meta_gene)
 
     meta_gene.to_parquet(path_output)
 

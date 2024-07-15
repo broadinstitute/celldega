@@ -38,16 +38,16 @@ const ist_gene_search_callback = async () => {
     const new_cat = inst_gene === '' ? 'cluster' : inst_gene;
 
     if (inst_gene === '' || gene_names.includes(inst_gene)) {
-        update_cat(new_cat);
 
+        update_cat(new_cat);
         update_selected_genes(inst_gene === '' ? [] : [inst_gene]);
 
         if (gene_names.includes(inst_gene)) {
             await update_cell_exp_array(global_base_url, inst_gene);
         }
 
-        update_cell_layer_id(new_cat);
-        update_trx_layer_filter();
+        update_cell_layer_id(new_cat)
+        update_trx_layer_filter()
 
         deck_ist.setProps({
             layers: [

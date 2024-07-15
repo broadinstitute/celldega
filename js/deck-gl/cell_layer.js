@@ -27,6 +27,8 @@ const cell_layer_color = (i, d) => {
 export let cell_layer = new ScatterplotLayer({
     id: 'cell-layer',
     getRadius: 5.0,
+    radiusMinPixels: 1,
+    // radiusMaxPixels: 10,
     pickable: true,
     getColor: cell_layer_color,
 })
@@ -65,6 +67,7 @@ export const toggle_cell_layer_visibility = (visible) => {
 export const update_cell_layer_radius = (radius) => {
     cell_layer = cell_layer.clone({
         getRadius: radius,
+        // radiusMinPixels: radius,
     });
 }
 

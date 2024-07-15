@@ -12,7 +12,7 @@ import { update_selected_genes } from "../global_variables/selected_genes.js"
 import { background_layer } from "../deck-gl/background_layer.js"
 import { image_layers } from "../deck-gl/image_layers.js"
 import { path_layer } from "../deck-gl/path_layer.js"
-import { cell_layer } from "../deck-gl/cell_layer.js"
+import { cell_layer, update_cell_layer_id } from "../deck-gl/cell_layer.js"
 import { trx_layer, update_trx_layer_filter } from "../deck-gl/trx_layer.js"
 import { update_cell_exp_array } from "../global_variables/cell_exp_array.js"
 
@@ -23,8 +23,8 @@ let gene_search_options = []
 const sst_gene_search_callback = async () => {
 
     const inst_gene = gene_search_input.value;
-    const cat_to_update = inst_gene === '' ? 'cluster' : inst_gene;
-    update_cat(cat_to_update);
+    const new_cat = inst_gene === '' ? 'cluster' : inst_gene;
+    update_cat(new_cat);
 
     if (inst_gene !== '' && gene_search_options.includes(inst_gene)) {
         await update_tile_exp_array(global_base_url, inst_gene);
@@ -34,7 +34,6 @@ const sst_gene_search_callback = async () => {
     deck_sst.setProps({layers: [simple_image_layer, square_scatter_layer]});
 };
 
-
 const ist_gene_search_callback = async () => {
 
     // selecting a gene does
@@ -42,6 +41,9 @@ const ist_gene_search_callback = async () => {
     // 2. switch transcripts to filter for a specific category
 
     const inst_gene = gene_search_input.value
+    const new_cat = inst_gene === '' ? 'cluster' : inst_gene;
+    update_cat(new_cat)
+
 
     if (inst_gene === '') {
 
@@ -55,6 +57,8 @@ const ist_gene_search_callback = async () => {
 
         console.log('ist gene_search', inst_gene)
     }
+
+    update_cell_layer_id(new_cat)
 
     update_trx_layer_filter()
 

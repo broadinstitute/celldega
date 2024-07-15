@@ -34,40 +34,33 @@ const sst_gene_search_callback = async () => {
 };
 
 const ist_gene_search_callback = async () => {
-
-    // selecting a gene does
-    // 1. switch cells out of the cluster category
-    // 2. switch transcripts to filter for a specific category
-
-    const inst_gene = gene_search_input.value
+    const inst_gene = gene_search_input.value;
     const new_cat = inst_gene === '' ? 'cluster' : inst_gene;
-    update_cat(new_cat)
 
-    if (inst_gene === '') {
+    if (inst_gene === '' || gene_names.includes(inst_gene)) {
+        update_cat(new_cat);
 
-        update_selected_genes([])
+        update_selected_genes(inst_gene === '' ? [] : [inst_gene]);
 
-    } else if (gene_names.includes(inst_gene)) {
+        if (gene_names.includes(inst_gene)) {
+            await update_cell_exp_array(global_base_url, inst_gene);
+        }
 
-        update_selected_genes([inst_gene])
-        await update_cell_exp_array(global_base_url, inst_gene)
+        update_cell_layer_id(new_cat);
+        update_trx_layer_filter();
 
+        deck_ist.setProps({
+            layers: [
+                background_layer,
+                ...image_layers,
+                path_layer,
+                cell_layer,
+                trx_layer
+            ]
+        });
     }
+};
 
-    update_cell_layer_id(new_cat)
-    update_trx_layer_filter()
-
-    let new_layers = [
-        background_layer,
-        ...image_layers,
-        path_layer,
-        cell_layer,
-        trx_layer
-    ]
-
-    deck_ist.setProps({layers: new_layers})
-
-}
 
 export const set_gene_search = async (tech_type) => {
 

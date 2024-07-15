@@ -72,6 +72,6 @@ export const update_cell_layer_id = (new_cat) => {
 
     console.log('update cell layer id')
     cell_layer = cell_layer.clone({
-        id: 'cell-layer' + new_cat,
+        id: 'cell-layer-' + new_cat,
     });
 }

@@ -7,9 +7,12 @@ import { deck_ist } from './deck_ist'
 import { background_layer } from './background_layer'
 import { image_layers } from './image_layers'
 import { path_layer } from './path_layer'
-import { cell_layer } from './cell_layer'
+import { cell_layer, update_cell_layer_id } from './cell_layer'
 import { gene_search } from '../ui/gene_search'
 import { gene_search_input } from '../ui/gene_search_input'
+import { update_cat } from '../global_variables/cat'
+import { update_cell_exp_array } from '../global_variables/cell_exp_array'
+import { global_base_url } from '../global_variables/global_base_url'
 
 
 export let trx_layer = new ScatterplotLayer({
@@ -23,11 +26,16 @@ export let trx_layer = new ScatterplotLayer({
 
         return [...inst_color, inst_opacity];
     },
-    onClick: info => {
+    onClick: async (info) => {
 
         const inst_gene = trx_names_array[info.index]
+
+        update_cat(inst_gene)
         update_selected_genes([inst_gene])
 
+        await update_cell_exp_array(global_base_url, inst_gene);
+
+        update_cell_layer_id(inst_gene)
         update_trx_layer_filter()
 
         let new_layers = [

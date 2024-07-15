@@ -19,7 +19,7 @@ export const update_tile_exp_array = async (base_url, inst_gene) => {
             const index = tile_name_to_index_map.get(name)
             const exp_value = Number(tile_exp[i])
             const max_exp = Number(meta_gene[inst_gene].max)
-            new_exp_array[index] = (exp_value / max_exp) * 255
+            new_exp_array[index] = exp_value //     (exp_value / max_exp) * 255
         }
     })
 

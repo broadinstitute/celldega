@@ -7,7 +7,7 @@ export let color_dict = {}
 
 export const set_color_dict = async ( base_url ) => {
 
-    const meta_gene_url = base_url + `/gene_metadata.parquet`;
+    const meta_gene_url = base_url + `/meta_gene.parquet`;
     var meta_gene = await get_arrow_table(meta_gene_url, options.fetch)
 
     let gene_names = [];
@@ -19,7 +19,7 @@ export const set_color_dict = async ( base_url ) => {
     if (geneNameColumn && colorColumn) {
         gene_names = geneNameColumn.toArray();
         colors = colorColumn.toArray();
-    }    
+    }
 
     gene_names.forEach((geneName, index) => {
         color_dict[geneName] = hexToRgb(colors[index]);

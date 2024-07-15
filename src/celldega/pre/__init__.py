@@ -460,7 +460,7 @@ def make_meta_gene(technology, path_cbg, path_output):
     >>> make_meta_gene(
     ...     technology='Xenium',
     ...     path_cbg='data/',
-    ...     path_output='data/gene_metadata.parquet'
+    ...     path_output='data/meta_gene.parquet'
     ... )
     """
 
@@ -491,8 +491,6 @@ def make_meta_gene(technology, path_cbg, path_output):
     # calculate gene expression metadata
     meta_gene = calc_meta_gene_data(cbg)
     meta_gene['color'] = ser_color
-
-    type(meta_gene)
 
     meta_gene.to_parquet(path_output)
 

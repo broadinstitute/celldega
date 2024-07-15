@@ -50,7 +50,7 @@ const ist_gene_search_callback = async () => {
     } else if (gene_names.includes(inst_gene)) {
 
         update_selected_genes([inst_gene])
-        update_cell_exp_array(global_base_url, inst_gene)
+        await update_cell_exp_array(global_base_url, inst_gene)
 
     }
 

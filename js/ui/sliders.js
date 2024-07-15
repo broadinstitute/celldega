@@ -23,7 +23,7 @@ export const set_image_layer_sliders = (image_info) => {
 
     image_layer_sliders = image_info.map( info => {
         let input = document.createElement("input")
-        input.name = info.button_name 
+        input.name = info.button_name
         return input
     })
 
@@ -37,32 +37,36 @@ const tile_slider_callback = async () => {
 
 const cell_slider_callback = async () => {
 
-    update_cell_layer_radius(cell_slider.value/10)
+    const scale_down_cell_radius = 5
+
+    update_cell_layer_radius(cell_slider.value / scale_down_cell_radius)
 
     let new_layers = [
         background_layer,
-        ...image_layers, 
-        path_layer, 
-        cell_layer, 
+        ...image_layers,
+        path_layer,
+        cell_layer,
         trx_layer
     ]
-    
+
     deck_ist.setProps({layers: new_layers})
 
 }
 
 const trx_slider_callback = async () => {
 
-    update_trx_layer_radius(trx_slider.value/100)
-    
+    const scale_down_trx_radius = 100
+
+    update_trx_layer_radius(trx_slider.value/scale_down_trx_radius)
+
     let new_layers = [
         background_layer,
-        ...image_layers, 
-        path_layer, 
-        cell_layer, 
+        ...image_layers,
+        path_layer,
+        cell_layer,
         trx_layer
     ]
-    
+
     deck_ist.setProps({layers: new_layers})
 }
 
@@ -80,12 +84,12 @@ export const make_img_layer_slider_callback = (name) => {
 
         let new_layers = [
             background_layer,
-            ...image_layers, 
-            path_layer, 
-            cell_layer, 
+            ...image_layers,
+            path_layer,
+            cell_layer,
             trx_layer
         ];
-        
+
         deck_ist.setProps({layers: new_layers});
     };
 };

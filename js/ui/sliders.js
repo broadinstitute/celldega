@@ -9,13 +9,17 @@ import { deck_sst } from "../deck-gl/deck_sst"
 import { deck_ist } from "../deck-gl/deck_ist"
 import { background_layer } from "../deck-gl/background_layer"
 import { trx_ini_raidus } from "../global_variables/trx_ini_raidus"
+import { close_up } from "../global_variables/close_up"
 
 export let tile_slider = document.createElement("input")
 export let cell_slider = document.createElement("input")
 export let trx_slider = document.createElement("input")
 
+
 // export let dapi_slider = document.createElement("input")
 // export let bound_slider = document.createElement("input")
+
+let new_layers = []
 
 export let image_layer_sliders
 
@@ -41,13 +45,22 @@ const cell_slider_callback = async () => {
 
     update_cell_layer_radius(cell_slider.value / scale_down_cell_radius)
 
-    let new_layers = [
-        background_layer,
-        ...image_layers,
-        path_layer,
-        cell_layer,
-        trx_layer
-    ]
+    if (close_up){
+        new_layers = [
+            background_layer,
+            ...image_layers,
+            path_layer,
+            cell_layer,
+            trx_layer
+        ]
+    } else {
+        new_layers = [
+            background_layer,
+            ...image_layers,
+            cell_layer,
+        ]
+    }
+
 
     deck_ist.setProps({layers: new_layers})
 
@@ -59,13 +72,29 @@ const trx_slider_callback = async () => {
 
     update_trx_layer_radius(trx_slider.value/scale_down_trx_radius)
 
-    let new_layers = [
-        background_layer,
-        ...image_layers,
-        path_layer,
-        cell_layer,
-        trx_layer
-    ]
+    // let new_layers = [
+    //     background_layer,
+    //     ...image_layers,
+    //     path_layer,
+    //     cell_layer,
+    //     trx_layer
+    // ]
+
+    if (close_up){
+        new_layers = [
+            background_layer,
+            ...image_layers,
+            path_layer,
+            cell_layer,
+            trx_layer
+        ]
+    } else {
+        new_layers = [
+            background_layer,
+            ...image_layers,
+            cell_layer,
+        ]
+    }
 
     deck_ist.setProps({layers: new_layers})
 }
@@ -82,13 +111,28 @@ export const make_img_layer_slider_callback = (name) => {
         // Use the slider value to update the opacity
         update_opacity_single_image_layer(name, opacity);
 
-        let new_layers = [
-            background_layer,
-            ...image_layers,
-            path_layer,
-            cell_layer,
-            trx_layer
-        ];
+        // let new_layers = [
+        //     background_layer,
+        //     ...image_layers,
+        //     path_layer,
+        //     cell_layer,
+        //     trx_layer
+        // ];
+        if (close_up){
+            new_layers = [
+                background_layer,
+                ...image_layers,
+                path_layer,
+                cell_layer,
+                trx_layer
+            ]
+        } else {
+            new_layers = [
+                background_layer,
+                ...image_layers,
+                cell_layer,
+            ]
+        }
 
         deck_ist.setProps({layers: new_layers});
     };

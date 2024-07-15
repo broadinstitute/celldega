@@ -14,8 +14,6 @@ export const grab_cell_tiles_in_view = async (base_url, tiles_in_view) => {
 
     var polygon_datas = tile_cell_tables.map(x => get_polygon_data(x))
 
-    console.log('polygon_datas', polygon_datas)
-
     var polygon_data = concatenate_polygon_data(polygon_datas);
 
     var polygonPathsConcat = extractPolygonPaths(polygon_data)

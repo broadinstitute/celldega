@@ -8,6 +8,7 @@ import { trx_layer, update_trx_layer } from './trx_layer.js'
 import { layers, update_layers } from './layers.js'
 import { landscape_parameters } from '../global_variables/landscape_parameters.js'
 import { background_layer } from './background_layer.js'
+import { set_close_up } from '../global_variables/close_up.js'
 
 export const calc_viewport = async ({ height, width, zoom, target }) => {
 
@@ -36,23 +37,27 @@ export const calc_viewport = async ({ height, width, zoom, target }) => {
 
         new_layers = [
             background_layer,
-            ...image_layers, 
-            path_layer, 
-            cell_layer, 
+            ...image_layers,
+            path_layer,
+            cell_layer,
             trx_layer
         ]
 
-        update_layers(new_layers)            
+        update_layers(new_layers)
+
+        set_close_up(true)
 
     } else {
 
         new_layers = [
             background_layer,
-            ...image_layers, 
+            ...image_layers,
             cell_layer
         ]
 
         update_layers(new_layers)
+
+        set_close_up(false)
 
     }
 

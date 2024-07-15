@@ -14,10 +14,13 @@ import { path_layer } from "../deck-gl/path_layer.js"
 import { cell_layer, update_cell_layer_id } from "../deck-gl/cell_layer.js"
 import { trx_layer, update_trx_layer_filter } from "../deck-gl/trx_layer.js"
 import { update_cell_exp_array } from "../global_variables/cell_exp_array.js"
+import { close_up } from "../global_variables/close_up.js"
 
 export let gene_search = document.createElement("div")
 
 let gene_search_options = []
+
+let new_layers = []
 
 const sst_gene_search_callback = async () => {
 
@@ -49,14 +52,24 @@ const ist_gene_search_callback = async () => {
         update_cell_layer_id(new_cat)
         update_trx_layer_filter()
 
-        deck_ist.setProps({
-            layers: [
+        if (close_up){
+            new_layers = [
                 background_layer,
                 ...image_layers,
                 path_layer,
                 cell_layer,
                 trx_layer
             ]
+        } else {
+            new_layers = [
+                background_layer,
+                ...image_layers,
+                cell_layer,
+            ]
+        }
+
+        deck_ist.setProps({
+            layers: new_layers
         });
     }
 };

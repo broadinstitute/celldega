@@ -1,14 +1,6 @@
 export const get_polygon_data = (arrowTable) => {
 
-  console.log('arrowTable', arrowTable)
-
   var geometryColumn = arrowTable.getChildAt(0)
-
-  console.log('geometryColumn data', geometryColumn.data)
-  console.log('data[0]', geometryColumn.data[0])
-  console.log('type:', geometryColumn.data[0].type)
-  console.log('type:', geometryColumn.data[0].type.typeId)
-  console.log('-------------')
 
   if (geometryColumn.data[0].type.typeId === 12){
 
@@ -35,7 +27,6 @@ export const get_polygon_data = (arrowTable) => {
     }
     return data
   } else {
-    console.error('NULL!!!')
-    // return []
+    return null
   }
 }

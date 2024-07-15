@@ -13,9 +13,13 @@ import { cell_layer, toggle_cell_layer_visibility } from '../deck-gl/cell_layer'
 import { trx_layer, toggle_trx_layer_visibility } from '../deck-gl/trx_layer'
 import { layers, update_layers } from '../deck-gl/layers'
 
+import { close_up } from '../global_variables/close_up'
+
 import { tile_slider, cell_slider, trx_slider, toggle_slider, image_layer_sliders } from './sliders'
 
 let is_visible
+
+let new_layers = []
 
 let img_layer_visible = true
 
@@ -64,7 +68,7 @@ export const make_button = (container, technology, text, color='blue', width=40,
     } else {
         callback = make_ist_img_layer_button_callback(text)
     }
-    
+
     d3.select(container)
         .append('div')
         .attr('class', button_class)
@@ -79,8 +83,8 @@ export const make_button = (container, technology, text, color='blue', width=40,
         .style('margin-left', '5px')
         .style('user-select', 'none')
         // .style('font-family', '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif;')
-        .on('click', callback)  
-        
+        .on('click', callback)
+
 }
 
 
@@ -98,18 +102,34 @@ const make_ist_img_layer_button_callback = (text) => {
 
             toggle_slider(inst_slider, is_visible)
 
-            let new_layers = [
-                background_layer,
-                ...image_layers, 
-                path_layer, 
-                cell_layer, 
-                trx_layer
-            ]
-        
-            update_layers(new_layers)
-            deck_ist.setProps({layers})   
+            // let new_layers = [
+            //     background_layer,
+            //     ...image_layers,
+            //     path_layer,
+            //     cell_layer,
+            //     trx_layer
+            // ]
 
-            console.log('img_layer_button clicked:', text)    
+            if (close_up){
+                new_layers = [
+                    background_layer,
+                    ...image_layers,
+                    path_layer,
+                    cell_layer,
+                    trx_layer
+                ]
+            } else {
+                new_layers = [
+                    background_layer,
+                    ...image_layers,
+                    cell_layer,
+                ]
+            }
+
+            update_layers(new_layers)
+            deck_ist.setProps({layers})
+
+            console.log('img_layer_button clicked:', text)
 
         }
 
@@ -152,13 +172,29 @@ const ist_img_button_callback = async (event) => {
         .style('color', is_visible ? 'blue' : 'gray');
 
 
-    let new_layers = [
-        background_layer,
-        ...image_layers, 
-        path_layer, 
-        cell_layer, 
-        trx_layer
-    ]
+    // let new_layers = [
+    //     background_layer,
+    //     ...image_layers,
+    //     path_layer,
+    //     cell_layer,
+    //     trx_layer
+    // ]
+
+    if (close_up){
+        new_layers = [
+            background_layer,
+            ...image_layers,
+            path_layer,
+            cell_layer,
+            trx_layer
+        ]
+    } else {
+        new_layers = [
+            background_layer,
+            ...image_layers,
+            cell_layer,
+        ]
+    }
 
     update_layers(new_layers)
     deck_ist.setProps({layers})
@@ -178,16 +214,32 @@ const trx_button_callback_ist = async (event) => {
 
     toggle_trx_layer_visibility(is_visible)
 
-    let new_layers = [
-        background_layer,
-        ...image_layers, 
-        path_layer, 
-        cell_layer, 
-        trx_layer
-    ]
+    // let new_layers = [
+    //     background_layer,
+    //     ...image_layers,
+    //     path_layer,
+    //     cell_layer,
+    //     trx_layer
+    // ]
+
+    if (close_up){
+        new_layers = [
+            background_layer,
+            ...image_layers,
+            path_layer,
+            cell_layer,
+            trx_layer
+        ]
+    } else {
+        new_layers = [
+            background_layer,
+            ...image_layers,
+            cell_layer,
+        ]
+    }
 
     update_layers(new_layers)
-    deck_ist.setProps({layers})   
+    deck_ist.setProps({layers})
 
 }
 
@@ -201,7 +253,7 @@ const tile_button_callback = async (event) => {
     await update_layers_sst([simple_image_layer, square_scatter_layer])
     deck_sst.setProps({layers: layers_sst})
 
-}    
+}
 
 const cell_button_callback = async (event) => {
 
@@ -210,16 +262,32 @@ const cell_button_callback = async (event) => {
     toggle_slider(cell_slider, is_visible)
 
     toggle_cell_layer_visibility(is_visible)
-    toggle_path_layer_visibility(is_visible)    
+    toggle_path_layer_visibility(is_visible)
 
-    let new_layers = [
-        background_layer,
-        ...image_layers, 
-        path_layer, 
-        cell_layer, 
-        trx_layer
-    ]
+    // let new_layers = [
+    //     background_layer,
+    //     ...image_layers,
+    //     path_layer,
+    //     cell_layer,
+    //     trx_layer
+    // ]
+
+    if (close_up){
+        new_layers = [
+            background_layer,
+            ...image_layers,
+            path_layer,
+            cell_layer,
+            trx_layer
+        ]
+    } else {
+        new_layers = [
+            background_layer,
+            ...image_layers,
+            cell_layer,
+        ]
+    }
 
     update_layers(new_layers)
-    deck_ist.setProps({layers})    
+    deck_ist.setProps({layers})
 }

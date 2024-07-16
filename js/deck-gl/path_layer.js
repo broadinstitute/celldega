@@ -6,23 +6,15 @@ import { cell_color_dict } from '../global_variables/cell_color_dict';
 
 export const get_path_color = (i, d) => {
 
-    console.log('d', d.index)
-    // console.log(polygon_cell_names)
-
     const inst_cell_id = polygon_cell_names[d.index]
 
-    console.log('inst_cell_id', inst_cell_id)
-
     const inst_cat = dict_cell_cats[inst_cell_id]
-
-    console.log(inst_cat)
 
     let inst_color = cell_color_dict[inst_cat]
     const inst_opacity = 255
 
     // Check if inst_color is an array and log an error if it's not
     if (!Array.isArray(inst_color)) {
-        // console.error('inst_color is not an array:', inst_color)
         inst_color = [0, 0, 0]
     }
 
@@ -44,8 +36,6 @@ export let path_layer = new PathLayer({
 export const update_path_layer = async (base_url, tiles_in_view) => {
 
     const polygonPathsConcat = await grab_cell_tiles_in_view(base_url, tiles_in_view)
-
-    console.log('polygonPathsConcat', polygonPathsConcat)
 
     path_layer = new PathLayer({
         // Re-use existing layer props

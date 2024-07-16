@@ -2,7 +2,7 @@ import { ScatterplotLayer } from 'deck.gl';
 import { cat, update_cat } from "../global_variables/cat.js";
 import { tile_scatter_data } from "../global_variables/tile_scatter_data.js";
 import { tile_cats_array } from "../global_variables/tile_cats_array.js";
-import { color_dict } from '../global_variables/tile_color_dict.js';
+import {tile_color_dict } from '../global_variables/tile_color_dict.js';
 import { tile_exp_array } from '../global_variables/tile_exp_array.js';
 import { selected_cats, update_selected_cats } from '../global_variables/selected_cats.js';
 import { deck_sst } from "./deck_sst.js";
@@ -36,7 +36,7 @@ const square_scatter_layer_color = (i, d) => {
     if (cat === 'cluster') {
         const inst_cat = tile_cats_array[d.index];
         const opacity = (selected_cats.length === 0 || selected_cats.includes(inst_cat)) ? 255 : 25;
-        return [...color_dict[inst_cat], opacity];
+        return [...tile_color_dict[inst_cat], opacity];
     } else {
         const inst_exp = tile_exp_array[d.index];
         return [255, 0, 0, inst_exp];

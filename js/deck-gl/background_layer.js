@@ -6,7 +6,7 @@ export let background_layer
 const background_color = [0, 0, 0, 255]
 
 // Function to create a background layer
-export const update_background_layer = () => {
+export const set_background_layer = () => {
   const { width, height } = dimensions;
   background_layer = new SolidPolygonLayer({
     id: 'background-layer',
@@ -16,7 +16,7 @@ export const update_background_layer = () => {
       // Optionally, you can add more attributes here if needed
     }],
     getPolygon: d => d.polygon,
-    getFillColor: background_color, 
+    getFillColor: background_color,
     pickable: false
   });
 }

@@ -4,7 +4,7 @@ import { set_global_base_url } from '../global_variables/global_base_url.js';
 import { set_landscape_parameters } from '../global_variables/landscape_parameters.js';
 import { set_dimensions } from '../global_variables/image_dimensions.js';
 import { set_initial_view_state } from '../deck-gl/initial_view_state.js';
-import { update_cell_layer } from "../deck-gl/cell_layer.js";
+import { set_cell_layer } from "../deck-gl/cell_layer.js";
 import { update_layers_ist } from '../deck-gl/layers_ist.js';
 import { make_image_layers } from '../deck-gl/image_layers.js';
 import { update_views } from '../deck-gl/views.js';
@@ -66,7 +66,7 @@ export const landscape_ist = async (
 
     // update layers
     await make_image_layers(base_url)
-    await update_cell_layer(base_url)
+    await set_cell_layer(base_url)
 
     set_background_layer()
 

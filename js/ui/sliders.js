@@ -15,10 +15,6 @@ export let tile_slider = document.createElement("input")
 export let cell_slider = document.createElement("input")
 export let trx_slider = document.createElement("input")
 
-
-// export let dapi_slider = document.createElement("input")
-// export let bound_slider = document.createElement("input")
-
 let new_layers = []
 
 export let image_layer_sliders
@@ -61,7 +57,6 @@ const cell_slider_callback = async () => {
         ]
     }
 
-
     deck_ist.setProps({layers: new_layers})
 
 }
@@ -71,14 +66,6 @@ const trx_slider_callback = async () => {
     const scale_down_trx_radius = 100
 
     update_trx_layer_radius(trx_slider.value/scale_down_trx_radius)
-
-    // let new_layers = [
-    //     background_layer,
-    //     ...image_layers,
-    //     path_layer,
-    //     cell_layer,
-    //     trx_layer
-    // ]
 
     if (close_up){
         new_layers = [
@@ -111,13 +98,6 @@ export const make_img_layer_slider_callback = (name) => {
         // Use the slider value to update the opacity
         update_opacity_single_image_layer(name, opacity);
 
-        // let new_layers = [
-        //     background_layer,
-        //     ...image_layers,
-        //     path_layer,
-        //     cell_layer,
-        //     trx_layer
-        // ];
         if (close_up){
             new_layers = [
                 background_layer,

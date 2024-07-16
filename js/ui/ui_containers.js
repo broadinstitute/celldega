@@ -6,11 +6,13 @@ import { image_info } from "../global_variables/image_info"
 import { image_layer_sliders, make_img_layer_slider_callback } from "./sliders"
 import { debounce } from '../utils/debounce'
 
+export let image_container
+
 export const make_ui_container = () => {
     const ui_container = document.createElement("div")
     ui_container.style.display = "flex"
     ui_container.style.flexDirection = "row"
-    ui_container.style.border = "1px solid #d3d3d3"    
+    ui_container.style.border = "1px solid #d3d3d3"
     ui_container.className = "ui_container"
     ui_container.style.justifyContent = 'space-between'
     return ui_container
@@ -36,19 +38,19 @@ export const flex_container = (class_name, flex_direction, margin=5, height=null
         container.style.marginRight = margin + "px"
     } else {
         container.style.marginTop = margin + "px"
-        container.style.marginBottom = margin + "px"        
+        container.style.marginBottom = margin + "px"
     }
 
     container.style.display = "flex"
     container.style.flexDirection = flex_direction
-    
+
     if (height !== null){
         // container.style.marginLeft = '5px'
         container.style.height = height + 'px'
         container.style.overflow = 'scroll'
-        // container.style.border = "1px solid #d3d3d3"    
+        // container.style.border = "1px solid #d3d3d3"
     }
-    
+
     return container
 }
 
@@ -65,23 +67,23 @@ export const make_sst_ui_container = (dataset_name) => {
 
     const ui_container = make_ui_container()
     const ctrl_container = make_ctrl_container()
-    const img_container = flex_container('image_container', 'row')
+    const image_container = flex_container('image_container', 'row')
     const tile_container = flex_container('tile_container', 'row')
     const tile_slider_container = make_slider_container('tile_slider_container')
 
-    make_button(img_container, 'sst', 'IMG', 'blue', 50)
+    make_button(image_container, 'sst', 'IMG', 'blue', 50)
     make_button(tile_container, 'sst', 'TILE')
 
     ini_slider('tile')
     tile_slider_container.appendChild(tile_slider);
 
     ui_container.appendChild(ctrl_container)
-    ui_container.appendChild(gene_search)    
+    ui_container.appendChild(gene_search)
 
     tile_container.appendChild(tile_slider_container)
 
-    ctrl_container.appendChild(img_container) 
-    ctrl_container.appendChild(tile_container)             
+    ctrl_container.appendChild(image_container)
+    ctrl_container.appendChild(tile_container)
 
     return ui_container
 
@@ -91,7 +93,7 @@ export const make_ist_ui_container = (dataset_name) => {
 
     const ui_container = make_ui_container()
     const ctrl_container = make_ctrl_container()
-    const img_container = flex_container('img_container', 'row')
+    image_container = flex_container('image_container', 'row')
 
     const img_layers_container = flex_container('img_layers_container', 'column', 0, 65)
     img_layers_container.style.width = '155px'
@@ -107,12 +109,12 @@ export const make_ist_ui_container = (dataset_name) => {
     const cell_slider_container = make_slider_container('cell_slider_container')
     const trx_slider_container = make_slider_container('trx_slider_container')
 
-    make_button(img_container, 'ist', 'IMG', 'blue', 30)
+    make_button(image_container, 'ist', 'IMG', 'blue', 30)
 
     const get_slider_by_name = (name) => {
         return image_layer_sliders.filter(slider => slider.name === name);
     };
-    
+
 
     const make_img_layer_ctrl = (inst_image) => {
 
@@ -139,15 +141,15 @@ export const make_ist_ui_container = (dataset_name) => {
         let img_layer_slider_callback_debounced = debounce(img_layer_slider_callback, debounce_time)
         const ini_img_slider_value = 50
         ini_slider_params(slider, ini_img_slider_value, img_layer_slider_callback_debounced)
-        
+
         inst_slider_container.appendChild(slider)
 
         inst_container.appendChild(inst_slider_container)
 
         img_layers_container.appendChild(inst_container)
-        
+
     }
-    
+
     image_info.map(
         make_img_layer_ctrl
     )
@@ -155,7 +157,7 @@ export const make_ist_ui_container = (dataset_name) => {
     make_button(cell_container, 'ist', 'CELL')
     make_button(trx_container, 'ist', 'TRX')
 
-    img_container.appendChild(img_layers_container)
+    image_container.appendChild(img_layers_container)
 
     ini_slider('cell')
     cell_container.appendChild(cell_slider_container)
@@ -163,7 +165,7 @@ export const make_ist_ui_container = (dataset_name) => {
 
     ini_slider('trx')
     trx_container.appendChild(trx_slider_container)
-    trx_slider_container.appendChild(trx_slider) 
+    trx_slider_container.appendChild(trx_slider)
 
     gene_container.appendChild(trx_container)
 
@@ -171,14 +173,13 @@ export const make_ist_ui_container = (dataset_name) => {
 
     gene_search.style.marginLeft = '10px'
 
-    gene_container.appendChild(gene_search)    
+    gene_container.appendChild(gene_search)
 
     ui_container.appendChild(ctrl_container)
 
-
-    ctrl_container.appendChild(img_container) 
-    ctrl_container.appendChild(cell_container) 
-    ctrl_container.appendChild(gene_container) 
+    ctrl_container.appendChild(image_container)
+    ctrl_container.appendChild(cell_container)
+    ctrl_container.appendChild(gene_container)
 
     // if dataset_name is not an empty string make the name container
     if (dataset_name.trim !== ''){
@@ -200,11 +201,8 @@ export const make_ist_ui_container = (dataset_name) => {
 
         ui_container.appendChild(name_container)
 
-        
     }
-    
+
     return ui_container
-
-
 
 }

@@ -18,8 +18,6 @@ export const grab_cell_tiles_in_view = async (base_url, tiles_in_view) => {
         Array.from(table.getChild('name').toArray())
     )
 
-    console.log('polygon_cell_names', polygon_cell_names.slice(0, 5))
-
     var polygon_datas = tile_cell_tables.map(x => get_polygon_data(x))
 
     var polygon_data = concatenate_polygon_data(polygon_datas);

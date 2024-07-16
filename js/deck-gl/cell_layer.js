@@ -1,39 +1,12 @@
 import { ScatterplotLayer } from 'deck.gl'
 import { get_arrow_table } from "../read_parquet/get_arrow_table.js"
 import { get_scatter_data } from "../read_parquet/get_scatter_data.js"
-import { gene_color_dict, set_gene_color_dict } from '../global_variables/gene_color_dict.js'
+import { set_gene_color_dict } from '../global_variables/gene_color_dict.js'
 import { cell_names_array, set_cell_names_array, set_cell_name_to_index_map } from '../global_variables/cell_names_array.js'
 import { options } from '../global_variables/fetch_options.js'
-import { cat, cell_cats, set_cell_cats } from '../global_variables/cat.js'
-import { cell_exp_array } from '../global_variables/cell_exp_array.js'
+import { cell_cats, set_cell_cats, set_dict_cell_cats, dict_cell_cats } from '../global_variables/cat.js'
 import { Table } from 'apache-arrow';
-import { cell_color_dict } from '../global_variables/cell_color_dict.js'
-
-// transparent to red
-const cell_layer_color = (i, d) => {
-
-    if (cat === 'cluster') {
-
-        const inst_cat = cell_cats[d.index]
-        let inst_color = cell_color_dict[inst_cat]
-        const inst_opacity = 255
-
-        // Check if inst_color is an array and log an error if it's not
-        if (!Array.isArray(inst_color)) {
-            // console.error('inst_color is not an array:', inst_color)
-            inst_color = [0, 0, 0]
-        }
-
-
-        return [...inst_color, inst_opacity] //  [0, 0, 255, 255]
-    } else {
-
-        const inst_exp = cell_exp_array[d.index]
-
-        return [255, 0, 0, inst_exp]
-
-    }
-}
+import { get_cell_color } from './cell_color.js'
 
 const get_column_names = (arrowTable) => {
 
@@ -59,7 +32,7 @@ export let cell_layer = new ScatterplotLayer({
     radiusMinPixels: 1,
     getRadius: 5.0,
     pickable: true,
-    getColor: cell_layer_color,
+    getColor: get_cell_color,
 })
 
 
@@ -70,10 +43,7 @@ export const set_cell_layer = async (base_url) => {
 
     const column_names = get_column_names(cell_arrow_table)
 
-    // setting a single cell category for now
-    set_cell_cats(cell_arrow_table, column_names[0])
 
-    console.log('cell_cats', cell_cats.slice(0, 5))
 
     var cell_scatter_data = get_scatter_data(cell_arrow_table)
 
@@ -81,6 +51,13 @@ export const set_cell_layer = async (base_url) => {
 
     set_cell_names_array(cell_arrow_table)
     set_cell_name_to_index_map()
+
+    // setting a single cell category for now
+    set_cell_cats(cell_arrow_table, column_names[0])
+
+    set_dict_cell_cats()
+    console.log('dict_cell_cats', dict_cell_cats)
+    console.log('cell_cats', cell_cats.slice(0, 5))
 
     cell_layer = new ScatterplotLayer({
         // Re-use existing layer props

@@ -16,7 +16,7 @@ import { update_trx_layer_radius } from '../deck-gl/trx_layer.js';
 import { image_info, set_image_info, set_image_layer_colors } from '../global_variables/image_info.js';
 import { set_image_layer_sliders } from "../ui/sliders"
 import { set_meta_gene } from '../global_variables/meta_gene.js';
-import { cell_color_dict, set_cell_color_dict } from '../global_variables/cell_color_dict.js';
+import { set_cell_color_dict } from '../global_variables/cell_color_dict.js';
 
 export const landscape_ist = async (
     el,
@@ -67,8 +67,6 @@ export const landscape_ist = async (
     await set_meta_gene(base_url)
 
     await set_cell_color_dict()
-
-    console.log(cell_color_dict)
 
     // update layers
     await make_image_layers(base_url)

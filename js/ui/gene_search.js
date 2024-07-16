@@ -1,5 +1,5 @@
 import { square_scatter_layer, update_square_scatter_layer } from "../deck-gl/square_scatter_layer.js"
-import { update_cat } from "../global_variables/cat.js"
+import { cat, update_cat } from "../global_variables/cat.js"
 import { deck_sst } from "../deck-gl/deck_sst.js"
 import { deck_ist } from "../deck-gl/deck_ist.js"
 import { update_tile_exp_array } from "../global_variables/tile_exp_array.js"
@@ -56,7 +56,7 @@ const ist_gene_search_callback = async () => {
 
         toggle_image_layers_and_ctrls(!inst_gene_in_gene_names)
 
-        update_cell_layer_id(new_cat)
+        update_cell_layer_id(cat)
         update_trx_layer_filter()
 
         if (close_up){

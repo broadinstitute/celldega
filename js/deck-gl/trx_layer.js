@@ -29,14 +29,17 @@ export let trx_layer = new ScatterplotLayer({
 
         const inst_gene = trx_names_array[info.index]
 
+        const new_cat = inst_gene === cat ? 'cluster' : inst_gene;
+
         toggle_image_layers_and_ctrls(cat === inst_gene);
 
-        update_cat(inst_gene)
+        update_cat(new_cat)
         update_selected_genes([inst_gene])
 
         await update_cell_exp_array(global_base_url, inst_gene);
 
-        update_cell_layer_id(inst_gene)
+        console.log('new_cat', new_cat)
+        update_cell_layer_id(new_cat)
         update_trx_layer_filter()
 
         let new_layers = [

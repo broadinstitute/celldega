@@ -5,7 +5,7 @@ import { set_landscape_parameters } from '../global_variables/landscape_paramete
 import { set_dimensions } from '../global_variables/image_dimensions.js';
 import { set_initial_view_state } from '../deck-gl/initial_view_state.js';
 import { cell_layer, update_cell_layer } from "../deck-gl/cell_layer.js";
-import { update_layers } from '../deck-gl/layers.js';
+import { update_layers } from '../deck-gl/layers_ist.js';
 import { image_layers, make_image_layers } from '../deck-gl/image_layers.js';
 import { update_views } from '../deck-gl/views.js';
 import { deck_ist, set_deck } from '../deck-gl/deck_ist.js';

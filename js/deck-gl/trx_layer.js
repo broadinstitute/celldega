@@ -38,7 +38,6 @@ export let trx_layer = new ScatterplotLayer({
 
         await update_cell_exp_array(global_base_url, inst_gene);
 
-        console.log('new_cat', new_cat)
         update_cell_layer_id(new_cat)
         update_trx_layer_filter()
 

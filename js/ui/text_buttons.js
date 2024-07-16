@@ -9,7 +9,7 @@ import { background_layer, toggle_background_layer_visibility } from '../deck-gl
 import { path_layer, toggle_path_layer_visibility } from '../deck-gl/path_layer'
 import { cell_layer, toggle_cell_layer_visibility } from '../deck-gl/cell_layer'
 import { trx_layer, toggle_trx_layer_visibility } from '../deck-gl/trx_layer'
-import { layers, update_layers } from '../deck-gl/layers'
+import { layers, update_layers } from '../deck-gl/layers_ist'
 import { close_up } from '../global_variables/close_up'
 import { tile_slider, cell_slider, trx_slider, toggle_slider, image_layer_sliders } from './sliders'
 import { image_container } from './ui_containers'

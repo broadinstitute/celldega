@@ -2,20 +2,21 @@ import * as d3 from 'd3'
 import { simple_image_layer, simple_image_layer_visibility } from '../deck-gl/simple_image_layer'
 import { square_scatter_layer, square_scatter_layer_visibility } from '../deck-gl/square_scatter_layer'
 import { layers_sst, update_layers_sst } from '../deck-gl/layers_sst'
-
 import { image_layers, toggle_visibility_image_layers, toggle_visibility_single_image_layer } from '../deck-gl/image_layers'
 import { deck_sst } from '../deck-gl/deck_sst'
 import { deck_ist } from '../deck-gl/deck_ist'
-
 import { background_layer, toggle_background_layer_visibility } from '../deck-gl/background_layer'
 import { path_layer, toggle_path_layer_visibility } from '../deck-gl/path_layer'
 import { cell_layer, toggle_cell_layer_visibility } from '../deck-gl/cell_layer'
 import { trx_layer, toggle_trx_layer_visibility } from '../deck-gl/trx_layer'
 import { layers, update_layers } from '../deck-gl/layers'
-
+import { close_up } from '../global_variables/close_up'
 import { tile_slider, cell_slider, trx_slider, toggle_slider, image_layer_sliders } from './sliders'
+import { image_container } from './ui_containers'
 
 let is_visible
+
+let new_layers = []
 
 let img_layer_visible = true
 
@@ -37,13 +38,6 @@ const toggle_visible_button = (event) => {
     return is_visible
 }
 
-// export let img_layer_buttons
-
-// export const set_img_layer_buttons = (image_info) => {
-//     img_layer_buttons = image_info.map( info => {
-//         make_button
-//     })
-// }
 
 export const make_button = (container, technology, text, color='blue', width=40, button_class='button') => {
 
@@ -64,7 +58,7 @@ export const make_button = (container, technology, text, color='blue', width=40,
     } else {
         callback = make_ist_img_layer_button_callback(text)
     }
-    
+
     d3.select(container)
         .append('div')
         .attr('class', button_class)
@@ -79,8 +73,8 @@ export const make_button = (container, technology, text, color='blue', width=40,
         .style('margin-left', '5px')
         .style('user-select', 'none')
         // .style('font-family', '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif;')
-        .on('click', callback)  
-        
+        .on('click', callback)
+
 }
 
 
@@ -98,32 +92,32 @@ const make_ist_img_layer_button_callback = (text) => {
 
             toggle_slider(inst_slider, is_visible)
 
-            let new_layers = [
-                background_layer,
-                ...image_layers, 
-                path_layer, 
-                cell_layer, 
-                trx_layer
-            ]
-        
-            update_layers(new_layers)
-            deck_ist.setProps({layers})   
 
-            console.log('img_layer_button clicked:', text)    
+            if (close_up){
+                new_layers = [
+                    background_layer,
+                    ...image_layers,
+                    path_layer,
+                    cell_layer,
+                    trx_layer
+                ]
+            } else {
+                new_layers = [
+                    background_layer,
+                    ...image_layers,
+                    cell_layer,
+                ]
+            }
+
+            update_layers(new_layers)
+            deck_ist.setProps({layers})
+
+            console.log('img_layer_button clicked:', text)
 
         }
 
     }
 }
-
-// const ist_img_layer_button_callback = async (event) => {
-//     toggle_visible_button(event)
-
-//     console.log(image_layers.map(x => x.id))
-
-//     console.log('here')
-// }
-
 
 const sst_img_button_callback = async (event) => {
 
@@ -141,24 +135,25 @@ const ist_img_button_callback = async (event) => {
     toggle_visibility_image_layers(is_visible)
     toggle_background_layer_visibility(is_visible)
 
-    const current_button = d3.select(event.currentTarget);
-
-    // Select the parent container of the clicked button
-    const parent_container = current_button.node().parentNode;
-
-    // disable all img_layer_buttons with the class img_layer_button
-    d3.select(parent_container)
+    d3.select(image_container)
         .selectAll('.img_layer_button')
         .style('color', is_visible ? 'blue' : 'gray');
 
-
-    let new_layers = [
-        background_layer,
-        ...image_layers, 
-        path_layer, 
-        cell_layer, 
-        trx_layer
-    ]
+    if (close_up){
+        new_layers = [
+            background_layer,
+            ...image_layers,
+            path_layer,
+            cell_layer,
+            trx_layer
+        ]
+    } else {
+        new_layers = [
+            background_layer,
+            ...image_layers,
+            cell_layer,
+        ]
+    }
 
     update_layers(new_layers)
     deck_ist.setProps({layers})
@@ -166,7 +161,6 @@ const ist_img_button_callback = async (event) => {
     set_img_layer_visible(is_visible)
 
     image_layer_sliders.map(slider => toggle_slider(slider, is_visible))
-
 
 }
 
@@ -178,16 +172,24 @@ const trx_button_callback_ist = async (event) => {
 
     toggle_trx_layer_visibility(is_visible)
 
-    let new_layers = [
-        background_layer,
-        ...image_layers, 
-        path_layer, 
-        cell_layer, 
-        trx_layer
-    ]
+    if (close_up){
+        new_layers = [
+            background_layer,
+            ...image_layers,
+            path_layer,
+            cell_layer,
+            trx_layer
+        ]
+    } else {
+        new_layers = [
+            background_layer,
+            ...image_layers,
+            cell_layer,
+        ]
+    }
 
     update_layers(new_layers)
-    deck_ist.setProps({layers})   
+    deck_ist.setProps({layers})
 
 }
 
@@ -201,7 +203,7 @@ const tile_button_callback = async (event) => {
     await update_layers_sst([simple_image_layer, square_scatter_layer])
     deck_sst.setProps({layers: layers_sst})
 
-}    
+}
 
 const cell_button_callback = async (event) => {
 
@@ -210,16 +212,24 @@ const cell_button_callback = async (event) => {
     toggle_slider(cell_slider, is_visible)
 
     toggle_cell_layer_visibility(is_visible)
-    toggle_path_layer_visibility(is_visible)    
+    toggle_path_layer_visibility(is_visible)
 
-    let new_layers = [
-        background_layer,
-        ...image_layers, 
-        path_layer, 
-        cell_layer, 
-        trx_layer
-    ]
+    if (close_up){
+        new_layers = [
+            background_layer,
+            ...image_layers,
+            path_layer,
+            cell_layer,
+            trx_layer
+        ]
+    } else {
+        new_layers = [
+            background_layer,
+            ...image_layers,
+            cell_layer,
+        ]
+    }
 
     update_layers(new_layers)
-    deck_ist.setProps({layers})    
+    deck_ist.setProps({layers})
 }

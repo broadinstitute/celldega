@@ -25,9 +25,9 @@ def read_cbg_mtx(base_path):
     print("read mtx file from ", base_path)
 
     # File paths
-    barcodes_path = base_path + "cell_feature_matrix/barcodes.tsv.gz"
-    features_path = base_path + "cell_feature_matrix/features.tsv.gz"
-    matrix_path = base_path + "cell_feature_matrix/matrix.mtx.gz"
+    barcodes_path = base_path + "barcodes.tsv.gz"
+    features_path = base_path + "features.tsv.gz"
+    matrix_path = base_path + "matrix.mtx.gz"
 
     # Read barcodes and features
     barcodes = pd.read_csv(barcodes_path, header=None, compression="gzip")
@@ -81,14 +81,17 @@ def calc_meta_gene_data(cbg):
     # Create a DataFrame to hold all these metrics
     meta_gene = pd.DataFrame(
         {
-            "mean": mean_expression,
+            "mean": mean_expression.sparse.to_dense(),
             "std": std_deviation,
-            "max": max_expression,
-            "non-zero": proportion_nonzero,
+            "max": max_expression.sparse.to_dense(),
+            "non-zero": proportion_nonzero.sparse.to_dense(),
         }
+
     )
 
-    return meta_gene
+    meta_gene_clean = pd.DataFrame(meta_gene.values, index=meta_gene.index.tolist(), columns=meta_gene.columns)
+
+    return meta_gene_clean
 
 
 def save_cbg_gene_parquets(base_path, cbg, verbose=False):

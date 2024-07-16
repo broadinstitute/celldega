@@ -1,4 +1,8 @@
 export const concatenate_polygon_data = (dataObjects) => {
+
+    // Filter out undefined or null elements
+    dataObjects = dataObjects.filter(data => data !== undefined && data !== null);
+
     // Initialize concatenated data structure
     let concatenatedData = {
         length: 0,

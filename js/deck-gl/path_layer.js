@@ -14,7 +14,7 @@ export let path_layer = new PathLayer({
 
 export const update_path_layer = async (base_url, tiles_in_view) => {
 
-    const polygonPathsConcat = grab_cell_tiles_in_view(base_url, tiles_in_view)
+    const polygonPathsConcat = await grab_cell_tiles_in_view(base_url, tiles_in_view)
 
     path_layer = new PathLayer({
         // Re-use existing layer props

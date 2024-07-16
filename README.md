@@ -49,6 +49,13 @@ $ hatch build
 $ hatch publish
 ```
 
+#### Hatch Development
+```
+$ hatch env prune      # Remove old environments
+$ hatch env create     # Create a new environment based on pyproject.toml
+$ hatch shell          # Activate the new environment
+```
+
 ### NPM
 Increment version in `package.json` and
 
@@ -58,4 +65,4 @@ $ npm publish
 ```
 
 #### Development Notes
-May use older version of deck.gl 8.9.1 until bug with instanced layer is resolved using newer versions "^9.0.5".
+May use older version of deck.gl 8.9.1 until bug with instanced layer is resolved using newer versions "^9.0.5".;

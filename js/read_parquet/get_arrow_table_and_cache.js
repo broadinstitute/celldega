@@ -14,7 +14,6 @@ export const get_arrow_table_and_cache = async (cacheType, url, options) => {
     } else {
         throw new Error("Invalid cache type specified");
     }
-        
 
     if (cache.get(url)) {
         data = cache.get(url);

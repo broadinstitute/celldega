@@ -11,15 +11,18 @@ dependencies = [
     "geopandas~=0.14.3",
     "pyarrow~=15.0.2",
     "matplotlib~=3.8.4",
-    "geopandas~=0.14.3",    
+    "geopandas~=0.14.3",
     "zarr~=2.17.2",
     "tifffile~=2024.4.18",
-    "imagecodecs~=2024.1.1"
+    "imagecodecs~=2024.1.1",
+    "scanpy~=1.10.2",
+    "squidpy~=1.5.0",
+    "clustergrammer2==0.18.0"
 ]
 readme = "README.md"
 
 [project.optional-dependencies]
-dev = [   "watchfiles", 
+dev = [   "watchfiles",
     "jupyterlab",
     "pylint",
     "black"

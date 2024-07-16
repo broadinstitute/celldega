@@ -8,12 +8,11 @@ import { background_layer } from './background_layer'
 import { image_layers } from './image_layers'
 import { path_layer } from './path_layer'
 import { cell_layer, update_cell_layer_id } from './cell_layer'
-// import { gene_search } from '../ui/gene_search'
 import { gene_search_input } from '../ui/gene_search_input'
-import { update_cat } from '../global_variables/cat'
+import { cat, update_cat } from '../global_variables/cat'
 import { update_cell_exp_array } from '../global_variables/cell_exp_array'
 import { global_base_url } from '../global_variables/global_base_url'
-
+import { toggle_image_layers_and_ctrls } from '../ui/ui_containers'
 
 export let trx_layer = new ScatterplotLayer({
     id: 'trx-layer',
@@ -29,6 +28,8 @@ export let trx_layer = new ScatterplotLayer({
     onClick: async (info) => {
 
         const inst_gene = trx_names_array[info.index]
+
+        toggle_image_layers_and_ctrls(cat === inst_gene);
 
         update_cat(inst_gene)
         update_selected_genes([inst_gene])

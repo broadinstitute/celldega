@@ -135,7 +135,6 @@ const ist_img_button_callback = async (event) => {
     toggle_visibility_image_layers(is_visible)
     toggle_background_layer_visibility(is_visible)
 
-    // disable all img_layer_buttons with the class img_layer_button
     d3.select(image_container)
         .selectAll('.img_layer_button')
         .style('color', is_visible ? 'blue' : 'gray');

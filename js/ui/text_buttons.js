@@ -2,21 +2,18 @@ import * as d3 from 'd3'
 import { simple_image_layer, simple_image_layer_visibility } from '../deck-gl/simple_image_layer'
 import { square_scatter_layer, square_scatter_layer_visibility } from '../deck-gl/square_scatter_layer'
 import { layers_sst, update_layers_sst } from '../deck-gl/layers_sst'
-import { image_layers, toggle_visibility_image_layers, toggle_visibility_single_image_layer } from '../deck-gl/image_layers'
+import { toggle_visibility_image_layers, toggle_visibility_single_image_layer } from '../deck-gl/image_layers'
 import { deck_sst } from '../deck-gl/deck_sst'
 import { deck_ist } from '../deck-gl/deck_ist'
-import { background_layer, toggle_background_layer_visibility } from '../deck-gl/background_layer'
-import { path_layer, toggle_path_layer_visibility } from '../deck-gl/path_layer'
-import { cell_layer, toggle_cell_layer_visibility } from '../deck-gl/cell_layer'
-import { trx_layer, toggle_trx_layer_visibility } from '../deck-gl/trx_layer'
-import { layers_ist, update_layers } from '../deck-gl/layers_ist'
-import { close_up } from '../global_variables/close_up'
+import { toggle_background_layer_visibility } from '../deck-gl/background_layer'
+import { toggle_path_layer_visibility } from '../deck-gl/path_layer'
+import { toggle_cell_layer_visibility } from '../deck-gl/cell_layer'
+import { toggle_trx_layer_visibility } from '../deck-gl/trx_layer'
+import { layers_ist, update_layers_ist } from '../deck-gl/layers_ist'
 import { tile_slider, cell_slider, trx_slider, toggle_slider, image_layer_sliders } from './sliders'
 import { image_container } from './ui_containers'
 
 let is_visible
-
-let new_layers = []
 
 let img_layer_visible = true
 
@@ -92,29 +89,11 @@ const make_ist_img_layer_button_callback = (text) => {
 
             toggle_slider(inst_slider, is_visible)
 
+            update_layers_ist()
 
-            if (close_up){
-                new_layers = [
-                    background_layer,
-                    ...image_layers,
-                    path_layer,
-                    cell_layer,
-                    trx_layer
-                ]
-            } else {
-                new_layers = [
-                    background_layer,
-                    ...image_layers,
-                    cell_layer,
-                ]
-            }
-
-            update_layers(new_layers)
             deck_ist.setProps({
                 layers: layers_ist
             })
-
-            console.log('img_layer_button clicked:', text)
 
         }
 
@@ -143,23 +122,7 @@ const ist_img_button_callback = async (event) => {
         .selectAll('.img_layer_button')
         .style('color', is_visible ? 'blue' : 'gray');
 
-    if (close_up){
-        new_layers = [
-            background_layer,
-            ...image_layers,
-            path_layer,
-            cell_layer,
-            trx_layer
-        ]
-    } else {
-        new_layers = [
-            background_layer,
-            ...image_layers,
-            cell_layer,
-        ]
-    }
-
-    update_layers(new_layers)
+    update_layers_ist()
     deck_ist.setProps({
         layers: layers_ist
     })
@@ -178,23 +141,7 @@ const trx_button_callback_ist = async (event) => {
 
     toggle_trx_layer_visibility(is_visible)
 
-    if (close_up){
-        new_layers = [
-            background_layer,
-            ...image_layers,
-            path_layer,
-            cell_layer,
-            trx_layer
-        ]
-    } else {
-        new_layers = [
-            background_layer,
-            ...image_layers,
-            cell_layer,
-        ]
-    }
-
-    update_layers(new_layers)
+    update_layers_ist()
     deck_ist.setProps({
         layers: layers_ist
     })
@@ -224,23 +171,7 @@ const cell_button_callback = async (event) => {
     toggle_cell_layer_visibility(is_visible)
     toggle_path_layer_visibility(is_visible)
 
-    if (close_up){
-        new_layers = [
-            background_layer,
-            ...image_layers,
-            path_layer,
-            cell_layer,
-            trx_layer
-        ]
-    } else {
-        new_layers = [
-            background_layer,
-            ...image_layers,
-            cell_layer,
-        ]
-    }
-
-    update_layers(new_layers)
+    update_layers_ist()
     deck_ist.setProps({
         layers: layers_ist
     })

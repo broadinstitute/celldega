@@ -1,12 +1,13 @@
 import { ScatterplotLayer } from 'deck.gl'
 import { get_arrow_table } from "../read_parquet/get_arrow_table.js"
 import { get_scatter_data } from "../read_parquet/get_scatter_data.js"
-import { set_gene_color_dict } from '../global_variables/gene_color_dict.js'
+import { gene_color_dict, set_gene_color_dict } from '../global_variables/gene_color_dict.js'
 import { cell_names_array, set_cell_names_array, set_cell_name_to_index_map } from '../global_variables/cell_names_array.js'
 import { options } from '../global_variables/fetch_options.js'
 import { cat, cell_cats, set_cell_cats } from '../global_variables/cat.js'
 import { cell_exp_array } from '../global_variables/cell_exp_array.js'
 import { Table } from 'apache-arrow';
+import { cell_color_dict } from '../global_variables/cell_color_dict.js'
 
 // transparent to red
 const cell_layer_color = (i, d) => {
@@ -16,7 +17,10 @@ const cell_layer_color = (i, d) => {
         // const opacity = (selected_cats.length === 0 || selected_cats.includes(inst_cat)) ? 255 : 25;
         // return [...color_dict[inst_cat], opacity];
 
-        return [0, 0, 255, 255]
+        let inst_cat = cell_cats[d.index]
+        let inst_color = cell_color_dict[inst_cat]
+
+        return inst_color //  [0, 0, 255, 255]
     } else {
 
         const inst_exp = cell_exp_array[d.index]
@@ -47,7 +51,7 @@ const get_column_names = (arrowTable) => {
 
 export let cell_layer = new ScatterplotLayer({
     id: 'cell-layer',
-    radiusMinPixels: 1.25,
+    radiusMinPixels: 1,
     getRadius: 5.0,
     pickable: true,
     getColor: cell_layer_color,

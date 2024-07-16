@@ -8,7 +8,7 @@ export let cell_color_dict = {}
 export const set_cell_color_dict = async  () => {
 
     // will improve this file naming later
-    const cell_colors_url = global_base_url + `/meta_Cluster.parquet`;
+    const cell_colors_url = global_base_url + `/meta_cluster.parquet`;
     var cell_colors = await get_arrow_table(cell_colors_url, options.fetch)
 
     let cell_names = [];

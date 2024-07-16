@@ -27,7 +27,7 @@ const cell_layer_color = (i, d) => {
 
 export let cell_layer = new ScatterplotLayer({
     id: 'cell-layer',
-    radiusMinPixels: 1,
+    radiusMinPixels: 1.25,
     getRadius: 5.0,
     pickable: true,
     getColor: cell_layer_color,

@@ -5,7 +5,7 @@ import { image_layers } from './image_layers.js'
 import { cell_layer } from './cell_layer.js'
 import { path_layer, update_path_layer } from './path_layer.js'
 import { trx_layer, update_trx_layer } from './trx_layer.js'
-import { layers, update_layers } from './layers_ist.js'
+import { layers_ist, update_layers } from './layers_ist.js'
 import { landscape_parameters } from '../global_variables/landscape_parameters.js'
 import { background_layer } from './background_layer.js'
 import { set_close_up } from '../global_variables/close_up.js'
@@ -61,5 +61,7 @@ export const calc_viewport = async ({ height, width, zoom, target }) => {
 
     }
 
-    deck_ist.setProps({layers});
+    deck_ist.setProps({
+        'layers': layers_ist
+    });
 }

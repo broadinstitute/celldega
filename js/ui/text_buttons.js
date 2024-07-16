@@ -9,7 +9,7 @@ import { background_layer, toggle_background_layer_visibility } from '../deck-gl
 import { path_layer, toggle_path_layer_visibility } from '../deck-gl/path_layer'
 import { cell_layer, toggle_cell_layer_visibility } from '../deck-gl/cell_layer'
 import { trx_layer, toggle_trx_layer_visibility } from '../deck-gl/trx_layer'
-import { layers, update_layers } from '../deck-gl/layers_ist'
+import { layers_ist, update_layers } from '../deck-gl/layers_ist'
 import { close_up } from '../global_variables/close_up'
 import { tile_slider, cell_slider, trx_slider, toggle_slider, image_layer_sliders } from './sliders'
 import { image_container } from './ui_containers'
@@ -110,7 +110,9 @@ const make_ist_img_layer_button_callback = (text) => {
             }
 
             update_layers(new_layers)
-            deck_ist.setProps({layers})
+            deck_ist.setProps({
+                layers: layers_ist
+            })
 
             console.log('img_layer_button clicked:', text)
 
@@ -125,7 +127,9 @@ const sst_img_button_callback = async (event) => {
 
     simple_image_layer_visibility(is_visible)
     await update_layers_sst([simple_image_layer, square_scatter_layer])
-    deck_sst.setProps({layers: layers_sst})
+    deck_sst.setProps({
+        layers: layers_sst
+    })
 
 }
 
@@ -156,7 +160,9 @@ const ist_img_button_callback = async (event) => {
     }
 
     update_layers(new_layers)
-    deck_ist.setProps({layers})
+    deck_ist.setProps({
+        layers: layers_ist
+    })
 
     set_img_layer_visible(is_visible)
 
@@ -189,7 +195,9 @@ const trx_button_callback_ist = async (event) => {
     }
 
     update_layers(new_layers)
-    deck_ist.setProps({layers})
+    deck_ist.setProps({
+        layers: layers_ist
+    })
 
 }
 
@@ -201,7 +209,9 @@ const tile_button_callback = async (event) => {
 
     square_scatter_layer_visibility(is_visible)
     await update_layers_sst([simple_image_layer, square_scatter_layer])
-    deck_sst.setProps({layers: layers_sst})
+    deck_sst.setProps({
+        layers: layers_sst
+    })
 
 }
 
@@ -231,5 +241,7 @@ const cell_button_callback = async (event) => {
     }
 
     update_layers(new_layers)
-    deck_ist.setProps({layers})
+    deck_ist.setProps({
+        layers: layers_ist
+    })
 }

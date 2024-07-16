@@ -1,4 +1,3 @@
-import * as d3 from 'd3'
 import { square_scatter_layer, update_square_scatter_layer } from "../deck-gl/square_scatter_layer.js"
 import { update_cat } from "../global_variables/cat.js"
 import { deck_sst } from "../deck-gl/deck_sst.js"
@@ -10,14 +9,14 @@ import { gene_names } from "../global_variables/gene_names.js"
 import { global_base_url } from "../global_variables/global_base_url.js"
 import { update_selected_genes } from "../global_variables/selected_genes.js"
 import { background_layer } from "../deck-gl/background_layer.js"
-import { image_layers, toggle_visibility_image_layers } from "../deck-gl/image_layers.js"
+import { image_layers} from "../deck-gl/image_layers.js"
 import { path_layer } from "../deck-gl/path_layer.js"
 import { cell_layer, update_cell_layer_id } from "../deck-gl/cell_layer.js"
 import { trx_layer, update_trx_layer_filter } from "../deck-gl/trx_layer.js"
 import { update_cell_exp_array } from "../global_variables/cell_exp_array.js"
 import { close_up } from "../global_variables/close_up.js"
-import { image_container } from "./ui_containers.js"
-import { image_layer_sliders, toggle_slider } from './sliders.js'
+import { toggle_image_layers_and_ctrls } from "./ui_containers.js"
+// import { image_layer_sliders, toggle_slider } from './sliders.js'
 
 export let gene_search = document.createElement("div")
 
@@ -25,14 +24,7 @@ let gene_search_options = []
 
 let new_layers = []
 
-const toggle_image_layers_and_ctrls = (is_visible) => {
-    d3.select(image_container)
-        .selectAll('.img_layer_button')
-        .style('color', is_visible ? 'blue' : 'gray');
 
-    image_layer_sliders.map(slider => toggle_slider(slider, is_visible))
-    toggle_visibility_image_layers(is_visible)
-}
 
 const sst_gene_search_callback = async () => {
 

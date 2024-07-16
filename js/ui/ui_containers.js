@@ -3,10 +3,20 @@ import { make_button } from "./text_buttons"
 import { gene_search, set_gene_search } from "./gene_search"
 import { tile_slider, cell_slider, trx_slider, ini_slider, ini_slider_params } from './sliders'
 import { image_info } from "../global_variables/image_info"
-import { image_layer_sliders, make_img_layer_slider_callback } from "./sliders"
+import { image_layer_sliders, make_img_layer_slider_callback, toggle_slider } from "./sliders"
 import { debounce } from '../utils/debounce'
+import { toggle_visibility_image_layers } from '../deck-gl/image_layers'
 
 export let image_container
+
+export const toggle_image_layers_and_ctrls = (is_visible) => {
+    d3.select(image_container)
+        .selectAll('.img_layer_button')
+        .style('color', is_visible ? 'blue' : 'gray');
+
+    image_layer_sliders.map(slider => toggle_slider(slider, is_visible))
+    toggle_visibility_image_layers(is_visible)
+}
 
 export const make_ui_container = () => {
     const ui_container = document.createElement("div")
@@ -63,7 +73,7 @@ export const make_slider_container = (class_name) => {
     return slider_container
 }
 
-export const make_sst_ui_container = (dataset_name) => {
+export const make_sst_ui_container = () => {
 
     const ui_container = make_ui_container()
     const ctrl_container = make_ctrl_container()

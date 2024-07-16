@@ -30,7 +30,7 @@ export const landscape_sst = async (
     ini_y,
     ini_z,
     ini_zoom,
-    dataset_name=''
+    // dataset_name=''
 ) => {
 
     // Create and append the visualization container

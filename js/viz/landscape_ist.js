@@ -13,8 +13,8 @@ import { background_layer, update_background_layer } from '../deck-gl/background
 import { make_ist_ui_container } from '../ui/ui_containers.js';
 import { set_model } from '../global_variables/model.js';
 import { update_trx_layer_radius } from '../deck-gl/trx_layer.js';
-import { image_info, image_layer_colors, set_image_info, set_image_layer_colors } from '../global_variables/image_info.js';
-import { image_layer_sliders, set_image_layer_sliders } from "../ui/sliders"
+import { image_info, set_image_info, set_image_layer_colors } from '../global_variables/image_info.js';
+import { set_image_layer_sliders } from "../ui/sliders"
 import { set_meta_gene } from '../global_variables/meta_gene.js';
 
 export const landscape_ist = async (

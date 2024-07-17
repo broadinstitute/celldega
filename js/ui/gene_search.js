@@ -1,5 +1,5 @@
 import { square_scatter_layer, update_square_scatter_layer } from "../deck-gl/square_scatter_layer.js"
-import { cat, update_cat } from "../global_variables/cat.js"
+import { cat, update_cat, update_selected_cats } from "../global_variables/cat.js"
 import { deck_sst } from "../deck-gl/deck_sst.js"
 import { deck_ist } from "../deck-gl/deck_ist.js"
 import { update_tile_exp_array } from "../global_variables/tile_exp_array.js"
@@ -8,22 +8,18 @@ import { simple_image_layer } from "../deck-gl/simple_image_layer.js"
 import { gene_names } from "../global_variables/gene_names.js"
 import { global_base_url } from "../global_variables/global_base_url.js"
 import { update_selected_genes } from "../global_variables/selected_genes.js"
-import { background_layer } from "../deck-gl/background_layer.js"
-import { image_layers} from "../deck-gl/image_layers.js"
-import { path_layer } from "../deck-gl/path_layer.js"
-import { cell_layer, update_cell_layer_id } from "../deck-gl/cell_layer.js"
-import { trx_layer, update_trx_layer_filter } from "../deck-gl/trx_layer.js"
+import { update_path_layer_id } from "../deck-gl/path_layer.js"
+import { update_cell_layer_id } from "../deck-gl/cell_layer.js"
+import { update_trx_layer_filter } from "../deck-gl/trx_layer.js"
 import { update_cell_exp_array } from "../global_variables/cell_exp_array.js"
-import { close_up } from "../global_variables/close_up.js"
 import { toggle_image_layers_and_ctrls } from "./ui_containers.js"
+import { layers_ist, update_layers_ist } from "../deck-gl/layers_ist.js"
 
 export let gene_search = document.createElement("div")
 
 let gene_search_options = []
 
 let new_layers = []
-
-
 
 const sst_gene_search_callback = async () => {
 
@@ -40,6 +36,7 @@ const sst_gene_search_callback = async () => {
 };
 
 const ist_gene_search_callback = async () => {
+
     const inst_gene = gene_search_input.value;
     const new_cat = inst_gene === '' ? 'cluster' : inst_gene;
 
@@ -47,6 +44,7 @@ const ist_gene_search_callback = async () => {
 
         update_cat(new_cat);
         update_selected_genes(inst_gene === '' ? [] : [inst_gene])
+        update_selected_cats([])
 
         const inst_gene_in_gene_names = gene_names.includes(inst_gene)
 
@@ -57,26 +55,13 @@ const ist_gene_search_callback = async () => {
         toggle_image_layers_and_ctrls(!inst_gene_in_gene_names)
 
         update_cell_layer_id(cat)
+        update_path_layer_id(cat)
         update_trx_layer_filter()
 
-        if (close_up){
-            new_layers = [
-                background_layer,
-                ...image_layers,
-                path_layer,
-                cell_layer,
-                trx_layer
-            ]
-        } else {
-            new_layers = [
-                background_layer,
-                ...image_layers,
-                cell_layer,
-            ]
-        }
+        update_layers_ist()
 
         deck_ist.setProps({
-            layers: new_layers
+            layers: layers_ist
         });
     }
 };

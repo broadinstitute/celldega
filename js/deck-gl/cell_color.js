@@ -16,7 +16,7 @@ export const get_cell_color = (i, d) => {
         }
 
         // if selected_cats is empty all cells are visible
-        const inst_opacity = selected_cats.length === 0 || selected_cats.includes(inst_cat) ? 255 : 50
+        const inst_opacity = selected_cats.length === 0 || selected_cats.includes(inst_cat) ? 255 : 10
 
         return [...inst_color, inst_opacity]
 

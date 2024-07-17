@@ -4,7 +4,7 @@ import { get_scatter_data } from "../read_parquet/get_scatter_data.js"
 import { set_gene_color_dict } from '../global_variables/gene_color_dict.js'
 import { cell_names_array, set_cell_names_array, set_cell_name_to_index_map } from '../global_variables/cell_names_array.js'
 import { options } from '../global_variables/fetch_options.js'
-import { cell_cats, set_cell_cats, set_dict_cell_cats, dict_cell_cats } from '../global_variables/cat.js'
+import { cell_cats, set_cell_cats, set_dict_cell_cats, update_selected_cats, selected_cats } from '../global_variables/cat.js'
 import { Table } from 'apache-arrow';
 import { get_cell_color } from './cell_color.js'
 
@@ -35,6 +35,18 @@ export let cell_layer = new ScatterplotLayer({
     getColor: get_cell_color,
 })
 
+const cell_layer_onclick = info => {
+
+    const inst_name = cell_names_array[info.index]
+    const inst_cat = cell_cats[info.index]
+
+    console.log(inst_name, inst_cat)
+
+    update_selected_cats([inst_cat])
+
+    console.log('selected_cats', selected_cats)
+
+}
 
 export const set_cell_layer = async (base_url) => {
 
@@ -42,8 +54,6 @@ export const set_cell_layer = async (base_url) => {
     var cell_arrow_table = await get_arrow_table(cell_url, options.fetch)
 
     const column_names = get_column_names(cell_arrow_table)
-
-
 
     var cell_scatter_data = get_scatter_data(cell_arrow_table)
 
@@ -56,18 +66,14 @@ export const set_cell_layer = async (base_url) => {
     set_cell_cats(cell_arrow_table, column_names[0])
 
     set_dict_cell_cats()
-    console.log('dict_cell_cats', dict_cell_cats)
-    console.log('cell_cats', cell_cats.slice(0, 5))
+    // console.log('dict_cell_cats', dict_cell_cats)
+    // console.log('cell_cats', cell_cats.slice(0, 5))
 
     cell_layer = new ScatterplotLayer({
         // Re-use existing layer props
         ...cell_layer.props,
         data: cell_scatter_data,
-        onClick: info => {
-            console.log('click!!')
-            console.log(info.index)
-            console.log(cell_names_array[info.index])
-        },
+        onClick: cell_layer_onclick,
     });
 }
 

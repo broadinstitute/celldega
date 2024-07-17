@@ -7,6 +7,8 @@ import { options } from '../global_variables/fetch_options.js'
 import { cell_cats, set_cell_cats, set_dict_cell_cats, update_selected_cats, selected_cats } from '../global_variables/cat.js'
 import { Table } from 'apache-arrow';
 import { get_cell_color } from './cell_color.js'
+import { layers_ist, update_layers_ist } from './layers_ist.js'
+import { deck_ist } from './deck_ist.js'
 
 const get_column_names = (arrowTable) => {
 
@@ -33,6 +35,9 @@ export let cell_layer = new ScatterplotLayer({
     getRadius: 5.0,
     pickable: true,
     getColor: get_cell_color,
+    // updateTriggers: {
+        // getColor: [selected_cats]
+    // }
 })
 
 const cell_layer_onclick = info => {
@@ -45,6 +50,14 @@ const cell_layer_onclick = info => {
     update_selected_cats([inst_cat])
 
     console.log('selected_cats', selected_cats)
+
+    update_cell_layer_id(selected_cats.join('-'))
+
+    update_layers_ist()
+
+    deck_ist.setProps({layers: layers_ist})
+
+    console.log('cell_layer_onclick')
 
 }
 
@@ -64,10 +77,7 @@ export const set_cell_layer = async (base_url) => {
 
     // setting a single cell category for now
     set_cell_cats(cell_arrow_table, column_names[0])
-
     set_dict_cell_cats()
-    // console.log('dict_cell_cats', dict_cell_cats)
-    // console.log('cell_cats', cell_cats.slice(0, 5))
 
     cell_layer = new ScatterplotLayer({
         // Re-use existing layer props

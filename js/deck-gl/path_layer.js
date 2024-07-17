@@ -6,6 +6,7 @@ import { cell_color_dict } from '../global_variables/cell_color_dict'
 import { update_cell_layer_id } from './cell_layer'
 import { layers_ist, update_layers_ist } from './layers_ist'
 import { deck_ist } from './deck_ist'
+import { toggle_image_layers_and_ctrls } from '../ui/ui_containers'
 
 export const get_path_color = (i, d) => {
 
@@ -43,10 +44,9 @@ const path_layer_onclick = info => {
         const inst_cat = dict_cell_cats[inst_cell_id]
 
         update_selected_cats([inst_cat])
+        toggle_image_layers_and_ctrls(!selected_cats.length > 0)
 
         const inst_cat_name = selected_cats.join('-')
-
-        console.log('inst_cat_name', inst_cat_name)
 
         update_cell_layer_id(inst_cat_name)
         update_path_layer_id(inst_cat_name)

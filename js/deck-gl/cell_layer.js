@@ -10,6 +10,7 @@ import { get_cell_color } from './cell_color.js'
 import { layers_ist, update_layers_ist } from './layers_ist.js'
 import { deck_ist } from './deck_ist.js'
 import { update_path_layer_id } from './path_layer.js'
+import { toggle_image_layers_and_ctrls } from '../ui/ui_containers.js'
 
 const get_column_names = (arrowTable) => {
 
@@ -43,6 +44,8 @@ const cell_layer_onclick = info => {
     const inst_cat = cell_cats[info.index]
 
     update_selected_cats([inst_cat])
+
+    toggle_image_layers_and_ctrls(!selected_cats.length > 0)
 
     const inst_cat_name = selected_cats.join('-')
 

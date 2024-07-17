@@ -80,7 +80,6 @@ const make_ist_img_layer_button_callback = (text) => {
 
         if (img_layer_visible){
 
-
             toggle_visible_button(event)
 
             toggle_visibility_single_image_layer(text, is_visible)

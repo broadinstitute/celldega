@@ -9,7 +9,6 @@ export const get_cell_color = (i, d) => {
 
         const inst_cat = cell_cats[d.index]
         let inst_color = cell_color_dict[inst_cat]
-        // const inst_opacity = 255
 
         // Check if inst_color is an array and log an error if it's not
         if (!Array.isArray(inst_color)) {
@@ -17,7 +16,7 @@ export const get_cell_color = (i, d) => {
         }
 
         // if selected_cats is empty all cells are visible
-        const inst_opacity = selected_cats.length === 0 || selected_cats.includes(inst_cat) ? 255 : 5;
+        const inst_opacity = selected_cats.length === 0 || selected_cats.includes(inst_cat) ? 255 : 50
 
         return [...inst_color, inst_opacity]
 

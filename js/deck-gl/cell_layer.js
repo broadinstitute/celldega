@@ -9,6 +9,7 @@ import { Table } from 'apache-arrow';
 import { get_cell_color } from './cell_color.js'
 import { layers_ist, update_layers_ist } from './layers_ist.js'
 import { deck_ist } from './deck_ist.js'
+import { update_path_layer_id } from './path_layer.js'
 
 const get_column_names = (arrowTable) => {
 
@@ -39,11 +40,14 @@ export let cell_layer = new ScatterplotLayer({
 
 const cell_layer_onclick = info => {
 
-    // const inst_name = cell_names_array[info.index]
     const inst_cat = cell_cats[info.index]
 
     update_selected_cats([inst_cat])
-    update_cell_layer_id(selected_cats.join('-'))
+
+    const inst_cat_name = selected_cats.join('-')
+
+    update_cell_layer_id(inst_cat_name)
+    update_path_layer_id(inst_cat_name)
     update_layers_ist()
 
     deck_ist.setProps({layers: layers_ist})
@@ -89,7 +93,6 @@ export const update_cell_layer_radius = (radius) => {
 }
 
 export const update_cell_layer_id = (new_cat) => {
-
     cell_layer = cell_layer.clone({
         id: 'cell-layer-' + new_cat,
     });

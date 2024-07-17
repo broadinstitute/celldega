@@ -13,12 +13,14 @@ export const get_path_color = (i, d) => {
     const inst_cat = dict_cell_cats[inst_cell_id]
 
     let inst_color = cell_color_dict[inst_cat]
-    const inst_opacity = 255
 
     // Check if inst_color is an array and log an error if it's not
     if (!Array.isArray(inst_color)) {
         inst_color = [0, 0, 0]
     }
+
+    // if selected_cats is empty all cells are visible
+    const inst_opacity = selected_cats.length === 0 || selected_cats.includes(inst_cat) ? 255 : 50
 
     return [...inst_color, inst_opacity]
 
@@ -41,7 +43,13 @@ const path_layer_onclick = info => {
         const inst_cat = dict_cell_cats[inst_cell_id]
 
         update_selected_cats([inst_cat])
-        update_cell_layer_id(selected_cats.join('-'))
+
+        const inst_cat_name = selected_cats.join('-')
+
+        console.log('inst_cat_name', inst_cat_name)
+
+        update_cell_layer_id(inst_cat_name)
+        update_path_layer_id(inst_cat_name)
         update_layers_ist()
 
         deck_ist.setProps({layers: layers_ist})
@@ -64,5 +72,11 @@ export const update_path_layer = async (base_url, tiles_in_view) => {
 export const toggle_path_layer_visibility = (visible) => {
     path_layer = path_layer.clone({
         visible: visible,
+    });
+}
+
+export const update_path_layer_id = (new_cat) => {
+    path_layer = path_layer.clone({
+        id: 'path-layer-' + new_cat,
     });
 }

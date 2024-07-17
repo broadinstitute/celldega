@@ -5,7 +5,7 @@ import { polygon_cell_names } from "../vector_tile/polygons/grab_cell_tiles_in_v
 import { dict_cell_cats } from '../global_variables/cat'
 
 export const make_tooltip = (info) => {
-    console.log('here')
+
     if (info.index === -1 || !info.layer) return null;
 
     let inst_html = ''

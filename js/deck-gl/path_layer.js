@@ -1,12 +1,14 @@
 import { PathLayer } from 'deck.gl'
 import { grab_cell_tiles_in_view } from '../vector_tile/polygons/grab_cell_tiles_in_view'
 import { polygon_cell_names } from '../vector_tile/polygons/grab_cell_tiles_in_view'
-import { dict_cell_cats, update_selected_cats, selected_cats } from '../global_variables/cat'
+import { dict_cell_cats, update_selected_cats, selected_cats, update_cat } from '../global_variables/cat'
 import { cell_color_dict } from '../global_variables/cell_color_dict'
 import { update_cell_layer_id } from './cell_layer'
 import { layers_ist, update_layers_ist } from './layers_ist'
 import { deck_ist } from './deck_ist'
 import { toggle_image_layers_and_ctrls } from '../ui/ui_containers'
+import { update_selected_genes } from '../global_variables/selected_genes'
+import { update_trx_layer_filter } from './trx_layer'
 
 export const get_path_color = (i, d) => {
 
@@ -40,19 +42,24 @@ export let path_layer = new PathLayer({
 
 const path_layer_onclick = info => {
 
-        const inst_cell_id = polygon_cell_names[info.index]
-        const inst_cat = dict_cell_cats[inst_cell_id]
+    const inst_cell_id = polygon_cell_names[info.index]
+    const inst_cat = dict_cell_cats[inst_cell_id]
 
-        update_selected_cats([inst_cat])
-        toggle_image_layers_and_ctrls(!selected_cats.length > 0)
+    update_cat('cluster')
+    update_selected_cats([inst_cat])
+    update_selected_genes
 
-        const inst_cat_name = selected_cats.join('-')
+    toggle_image_layers_and_ctrls(!selected_cats.length > 0)
 
-        update_cell_layer_id(inst_cat_name)
-        update_path_layer_id(inst_cat_name)
-        update_layers_ist()
+    const inst_cat_name = selected_cats.join('-')
 
-        deck_ist.setProps({layers: layers_ist})
+    update_cell_layer_id(inst_cat_name)
+    update_path_layer_id(inst_cat_name)
+    update_trx_layer_filter()
+
+    update_layers_ist()
+
+    deck_ist.setProps({layers: layers_ist})
 
 }
 

@@ -4,13 +4,15 @@ import { get_scatter_data } from "../read_parquet/get_scatter_data.js"
 import { set_gene_color_dict } from '../global_variables/gene_color_dict.js'
 import { set_cell_names_array, set_cell_name_to_index_map } from '../global_variables/cell_names_array.js'
 import { options } from '../global_variables/fetch_options.js'
-import { cell_cats, set_cell_cats, set_dict_cell_cats, update_selected_cats, selected_cats } from '../global_variables/cat.js'
+import { cell_cats, set_cell_cats, set_dict_cell_cats, update_selected_cats, selected_cats, update_cat } from '../global_variables/cat.js'
 import { Table } from 'apache-arrow';
 import { get_cell_color } from './cell_color.js'
 import { layers_ist, update_layers_ist } from './layers_ist.js'
 import { deck_ist } from './deck_ist.js'
 import { update_path_layer_id } from './path_layer.js'
 import { toggle_image_layers_and_ctrls } from '../ui/ui_containers.js'
+import { update_selected_genes } from '../global_variables/selected_genes.js'
+import { update_trx_layer_filter } from './trx_layer.js'
 
 const get_column_names = (arrowTable) => {
 
@@ -43,7 +45,9 @@ const cell_layer_onclick = info => {
 
     const inst_cat = cell_cats[info.index]
 
+    update_cat('cluster')
     update_selected_cats([inst_cat])
+    update_selected_genes([])
 
     toggle_image_layers_and_ctrls(!selected_cats.length > 0)
 
@@ -51,6 +55,8 @@ const cell_layer_onclick = info => {
 
     update_cell_layer_id(inst_cat_name)
     update_path_layer_id(inst_cat_name)
+    update_trx_layer_filter()
+
     update_layers_ist()
 
     deck_ist.setProps({layers: layers_ist})

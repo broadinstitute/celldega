@@ -19,8 +19,6 @@ export let gene_search = document.createElement("div")
 
 let gene_search_options = []
 
-let new_layers = []
-
 const sst_gene_search_callback = async () => {
 
     const inst_gene = gene_search_input.value;

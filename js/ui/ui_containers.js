@@ -34,7 +34,7 @@ export const make_ctrl_container = () => {
     ctrl_container.style.display = "flex"
     ctrl_container.style.flexDirection = "row"
     ctrl_container.className = "ctrl_container"
-    ctrl_container.style.width = "190px"
+    // ctrl_container.style.width = "190px"
     // ctrl_container.style.margin = "5px"
     return ctrl_container
 }
@@ -193,7 +193,8 @@ export const make_ist_ui_container = (dataset_name) => {
     ctrl_container.appendChild(gene_container)
 
     make_bar_plot()
-    // ctrl_container.appendChild(bar_plot_container)
+    console.log('appending bar plot container')
+    ctrl_container.appendChild(bar_plot_container)
 
     // if dataset_name is not an empty string make the name container
     if (dataset_name.trim !== ''){

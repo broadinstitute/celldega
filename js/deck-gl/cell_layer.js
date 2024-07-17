@@ -2,7 +2,7 @@ import { ScatterplotLayer } from 'deck.gl'
 import { get_arrow_table } from "../read_parquet/get_arrow_table.js"
 import { get_scatter_data } from "../read_parquet/get_scatter_data.js"
 import { set_gene_color_dict } from '../global_variables/gene_color_dict.js'
-import { cell_names_array, set_cell_names_array, set_cell_name_to_index_map } from '../global_variables/cell_names_array.js'
+import { set_cell_names_array, set_cell_name_to_index_map } from '../global_variables/cell_names_array.js'
 import { options } from '../global_variables/fetch_options.js'
 import { cell_cats, set_cell_cats, set_dict_cell_cats, update_selected_cats, selected_cats } from '../global_variables/cat.js'
 import { Table } from 'apache-arrow';
@@ -35,29 +35,18 @@ export let cell_layer = new ScatterplotLayer({
     getRadius: 5.0,
     pickable: true,
     getColor: get_cell_color,
-    // updateTriggers: {
-        // getColor: [selected_cats]
-    // }
 })
 
 const cell_layer_onclick = info => {
 
-    const inst_name = cell_names_array[info.index]
+    // const inst_name = cell_names_array[info.index]
     const inst_cat = cell_cats[info.index]
 
-    console.log(inst_name, inst_cat)
-
     update_selected_cats([inst_cat])
-
-    console.log('selected_cats', selected_cats)
-
     update_cell_layer_id(selected_cats.join('-'))
-
     update_layers_ist()
 
     deck_ist.setProps({layers: layers_ist})
-
-    console.log('cell_layer_onclick')
 
 }
 

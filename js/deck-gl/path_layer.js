@@ -1,13 +1,15 @@
-import { PathLayer } from 'deck.gl';
-import { grab_cell_tiles_in_view } from '../vector_tile/polygons/grab_cell_tiles_in_view';
-import { polygon_cell_names } from '../vector_tile/polygons/grab_cell_tiles_in_view';
-import { dict_cell_cats } from '../global_variables/cat';
-import { cell_color_dict } from '../global_variables/cell_color_dict';
+import { PathLayer } from 'deck.gl'
+import { grab_cell_tiles_in_view } from '../vector_tile/polygons/grab_cell_tiles_in_view'
+import { polygon_cell_names } from '../vector_tile/polygons/grab_cell_tiles_in_view'
+import { dict_cell_cats, update_selected_cats, selected_cats } from '../global_variables/cat'
+import { cell_color_dict } from '../global_variables/cell_color_dict'
+import { update_cell_layer_id } from './cell_layer'
+import { layers_ist, update_layers_ist } from './layers_ist'
+import { deck_ist } from './deck_ist'
 
 export const get_path_color = (i, d) => {
 
     const inst_cell_id = polygon_cell_names[d.index]
-
     const inst_cat = dict_cell_cats[inst_cell_id]
 
     let inst_color = cell_color_dict[inst_cat]
@@ -33,6 +35,19 @@ export let path_layer = new PathLayer({
         widthUnits: 'pixels',
     })
 
+const path_layer_onclick = info => {
+
+        const inst_cell_id = polygon_cell_names[info.index]
+        const inst_cat = dict_cell_cats[inst_cell_id]
+
+        update_selected_cats([inst_cat])
+        update_cell_layer_id(selected_cats.join('-'))
+        update_layers_ist()
+
+        deck_ist.setProps({layers: layers_ist})
+
+}
+
 export const update_path_layer = async (base_url, tiles_in_view) => {
 
     const polygonPathsConcat = await grab_cell_tiles_in_view(base_url, tiles_in_view)
@@ -41,6 +56,7 @@ export const update_path_layer = async (base_url, tiles_in_view) => {
         // Re-use existing layer props
         ...path_layer.props,
         data: polygonPathsConcat,
+        onClick: path_layer_onclick,
     });
 
 }

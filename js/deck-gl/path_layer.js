@@ -18,12 +18,12 @@ export const get_path_color = (i, d) => {
         inst_color = [0, 0, 0]
     }
 
-    return [...inst_color, inst_opacity] //  [0, 0, 255, 255]
+    return [...inst_color, inst_opacity]
 
 }
 
 export let path_layer = new PathLayer({
-        id: 'path_layer',
+        id: 'path-layer',
         data: [],
         pickable: true,
         widthScale: 3,

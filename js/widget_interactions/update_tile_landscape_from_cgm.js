@@ -2,7 +2,7 @@ import { model } from '../global_variables/model.js'
 import { update_cat } from "../global_variables/cat.js"
 import { update_tile_exp_array } from "../global_variables/tile_exp_array.js";
 import { global_base_url } from '../global_variables/global_base_url.js';
-import { update_selected_cats } from "../global_variables/selected_cats.js";
+import { update_selected_cats } from "../global_variables/cat";
 import { gene_search_input } from "../ui/gene_search_input.js";
 import { square_scatter_layer, update_square_scatter_layer } from "../deck-gl/square_scatter_layer.js";
 import { deck_sst } from "../deck-gl/deck_sst.js";

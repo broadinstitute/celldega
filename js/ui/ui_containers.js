@@ -6,6 +6,7 @@ import { image_info } from "../global_variables/image_info"
 import { image_layer_sliders, make_img_layer_slider_callback, toggle_slider } from "./sliders"
 import { debounce } from '../utils/debounce'
 import { toggle_visibility_image_layers } from '../deck-gl/image_layers'
+import { bar_plot_container, make_bar_plot } from './bar_plot'
 
 export let image_container
 
@@ -190,6 +191,9 @@ export const make_ist_ui_container = (dataset_name) => {
     ctrl_container.appendChild(image_container)
     ctrl_container.appendChild(cell_container)
     ctrl_container.appendChild(gene_container)
+
+    make_bar_plot()
+    // ctrl_container.appendChild(bar_plot_container)
 
     // if dataset_name is not an empty string make the name container
     if (dataset_name.trim !== ''){

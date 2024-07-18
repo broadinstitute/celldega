@@ -3,9 +3,9 @@ import { get_arrow_table } from "../read_parquet/get_arrow_table.js";
 import { options } from './fetch_options.js';
 import { hexToRgb } from '../utils/hexToRgb.js'
 
-export let cell_color_dict = {}
+export let cluster_color_dict = {}
 
-export let cluster_counts = {}
+export let cluster_counts = []
 
 export const set_cluster_metadata = async  () => {
 
@@ -18,31 +18,34 @@ export const set_cluster_metadata = async  () => {
     let colors = []
     let counts = []
 
-    const cellNameColumn = meta_cell_arrow_table.getChild('__index_level_0__')
-    const colorColumn = meta_cell_arrow_table.getChild('color')
-    const countsColumn = meta_cell_arrow_table.getChild('count')
+    const cluster_name_column = meta_cell_arrow_table.getChild('__index_level_0__')
+    const color_column = meta_cell_arrow_table.getChild('color')
+    const counts_column = meta_cell_arrow_table.getChild('count')
 
     let column_names = []
     for (const field of meta_cell_arrow_table.schema.fields) {
         column_names.push(field.name)
     }
 
-    console.log(column_names)
-
-    console.log(countsColumn)
-
-    if (cellNameColumn && colorColumn) {
-        cluster_names = cellNameColumn.toArray()
-        colors = colorColumn.toArray()
-        counts = countsColumn.toArray()
+    if (cluster_name_column && color_column) {
+        cluster_names = cluster_name_column.toArray()
+        colors = color_column.toArray()
+        counts = counts_column.toArray()
     }
 
-    console.log('cluster_names', cluster_names.length, cluster_names)
-    console.log('colors', colors.length, colors)
-    console.log('counts', counts)
+    cluster_names.forEach((cluster_name, index) => {
+        cluster_color_dict[cluster_name] = hexToRgb(colors[index])
 
-    cluster_names.forEach((cellName, index) => {
-        cell_color_dict[cellName] = hexToRgb(colors[index])
+        // cluster_counts[cluster_name] = Number(counts[index])
+
+        cluster_counts.push({
+            name: cluster_name,
+            value: Number(counts[index])
+        })
+
     })
+
+    console.log(cluster_counts)
+    console.log('here here')
 
 }

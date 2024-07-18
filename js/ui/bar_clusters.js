@@ -1,5 +1,5 @@
 import * as d3 from 'd3'
-import { cluster_counts, cluster_color_dict } from '../global_variables/meta_cluster'
+import { cluster_color_dict } from '../global_variables/meta_cluster'
 import { update_cat, selected_cats, update_selected_cats } from '../global_variables/cat'
 import { update_selected_genes } from '../global_variables/selected_genes'
 import { toggle_image_layers_and_ctrls } from './ui_containers'
@@ -9,11 +9,15 @@ import { update_trx_layer_filter } from '../deck-gl/trx_layer'
 import { layers_ist, update_layers_ist } from '../deck-gl/layers_ist'
 import { deck_ist } from '../deck-gl/deck_ist'
 
-export let bar_clusters_container
+// export let bar_clusters_container
+export let bar_clusters_container = document.createElement("div")
 
-export let svg_bar_cluster
+export let svg_bar_cluster = d3.create("svg")
 
-const bar_click_callback = (event, d) => {
+export const bar_cluster_callback = (event, d) => {
+
+    console.log('bar_cluster_callback ... ')
+
     const currentTarget = d3.select(event.currentTarget)
     const isBold = currentTarget.attr('font-weight') === 'bold'
 
@@ -50,15 +54,16 @@ const bar_click_callback = (event, d) => {
     deck_ist.setProps({layers: layers_ist})
 }
 
-export const make_bar_clusters = () => {
+export const make_bar_clusters = (click_callback, svg_bar, bar_data) => {
 
-    bar_clusters_container = document.createElement("div")
+    console.log('making bar clusters ... ')
+
     bar_clusters_container.className = "bar_clusters_container"
-    bar_clusters_container.style.width = "107px" // Set a fixed width for the container
-    bar_clusters_container.style.height = "55px" // Set a fixed height for the container
+    bar_clusters_container.style.width = "107px"
+    bar_clusters_container.style.height = "55px"
     bar_clusters_container.style.marginLeft = '5px'
-    bar_clusters_container.style.overflowY = "auto" // Enable vertical scrolling
-    bar_clusters_container.style.border = "1px solid #d3d3d3" // Optional: Add a border for better visualization
+    bar_clusters_container.style.overflowY = "auto"
+    bar_clusters_container.style.border = "1px solid #d3d3d3"
 
     // Prevent page scrolling when reaching the top/bottom of the scrollable container
     bar_clusters_container.addEventListener('wheel', (event) => {
@@ -74,9 +79,9 @@ export const make_bar_clusters = () => {
 
     // Calculate the total height needed for the SVG based on data length
     const bar_height = 15
-    const svg_height = bar_height * (cluster_counts.length + 1)
+    const svg_height = bar_height * (bar_data.length + 1)
 
-    svg_bar_cluster = d3.create("svg")
+    svg_bar
         .attr("width", 100)
         .attr("height", svg_height)
         .attr("font-family", "sans-serif")
@@ -84,25 +89,25 @@ export const make_bar_clusters = () => {
         .attr("text-anchor", "end")
         .style("user-select", "none")
 
-    bar_clusters_container.appendChild(svg_bar_cluster.node())
+    bar_clusters_container.appendChild(svg_bar.node())
 
     let max_bar_width = 90
 
-    let cluster_counts_values = cluster_counts.map(x => x.value)
+    let bar_data_values = bar_data.map(x => x.value)
 
     let y_new = d3.scaleBand()
-        .domain(d3.range(cluster_counts_values.length))
-        .range([0, (bar_height + 1) * cluster_counts_values.length])
+        .domain(d3.range(bar_data_values.length))
+        .range([0, (bar_height + 1) * bar_data_values.length])
 
     let x_new = d3.scaleLinear()
-        .domain([0, d3.max(cluster_counts_values)])
+        .domain([0, d3.max(bar_data_values)])
         .range([0, max_bar_width])
 
-    const bar = svg_bar_cluster.selectAll("g")
-        .data(cluster_counts)
+    const bar = svg_bar.selectAll("g")
+        .data(bar_data)
         .join("g")
         .attr("transform", (d, i) => `translate(2,${y_new(i) + 2})`)
-        .on('click', bar_click_callback)
+        .on('click', click_callback)
 
     bar.append("rect")
         .attr("fill", (d) => {

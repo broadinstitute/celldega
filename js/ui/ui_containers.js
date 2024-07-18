@@ -6,7 +6,8 @@ import { image_info } from "../global_variables/image_info"
 import { image_layer_sliders, make_img_layer_slider_callback, toggle_slider } from "./sliders"
 import { debounce } from '../utils/debounce'
 import { toggle_visibility_image_layers } from '../deck-gl/image_layers'
-import { bar_clusters_container, make_bar_clusters } from './bar_clusters'
+import { bar_clusters_container, make_bar_clusters, bar_cluster_callback, svg_bar_cluster } from './bar_clusters'
+import { cluster_counts } from '../global_variables/meta_cluster'
 
 export let image_container
 
@@ -35,32 +36,19 @@ export const make_ctrl_container = () => {
     ctrl_container.style.display = "flex"
     ctrl_container.style.flexDirection = "row"
     ctrl_container.className = "ctrl_container"
-    // ctrl_container.style.width = "190px"
-    // ctrl_container.style.margin = "5px"
     return ctrl_container
 }
 
 export const flex_container = (class_name, flex_direction, margin=5, height=null) => {
     const container = document.createElement("div")
     container.className = class_name
-    // container.style.width = "100%"
-
-    // if (flex_direction === 'row'){
-    //     // container.style.marginLeft = margin + "px"
-    //     // container.style.marginRight = margin + "px"
-    // } else {
-    //     // container.style.marginTop = margin + "px"
-    //     // container.style.marginBottom = margin + "px"
-    // }
 
     container.style.display = "flex"
     container.style.flexDirection = flex_direction
 
     if (height !== null){
-        // container.style.marginLeft = '5px'
         container.style.height = height + 'px'
         container.style.overflow = 'scroll'
-        // container.style.border = "1px solid #d3d3d3"
     }
 
     return container
@@ -95,7 +83,6 @@ export const make_sst_ui_container = () => {
 
     ctrl_container.appendChild(image_container)
     ctrl_container.appendChild(tile_container)
-    // ctrl_container.appendChild(gene_search)
 
     return ui_container
 
@@ -125,7 +112,6 @@ export const make_ist_ui_container = (dataset_name) => {
     const cell_slider_container = make_slider_container('cell_slider_container')
     const trx_slider_container = make_slider_container('trx_slider_container')
 
-    // make_button(image_container, 'ist', 'IMG', 'blue', 30)
     make_button(img_layers_container, 'ist', 'IMG', 'blue', 30)
 
     const get_slider_by_name = (name) => {
@@ -180,7 +166,7 @@ export const make_ist_ui_container = (dataset_name) => {
     cell_slider_container.appendChild(cell_slider)
     cell_ctrl_container.appendChild(cell_slider_container)
 
-    make_bar_clusters()
+    make_bar_clusters(bar_cluster_callback, svg_bar_cluster, cluster_counts)
     cell_container.appendChild(cell_ctrl_container)
     cell_container.appendChild(bar_clusters_container)
 
@@ -194,15 +180,12 @@ export const make_ist_ui_container = (dataset_name) => {
 
     gene_search.style.marginLeft = '10px'
 
-
     ui_container.appendChild(ctrl_container)
 
     ctrl_container.appendChild(image_container)
     ctrl_container.appendChild(cell_container)
     ctrl_container.appendChild(gene_container)
 
-
-    console.log('appending bar plot container')
     ctrl_container.appendChild(gene_search)
 
     // if dataset_name is not an empty string make the name container

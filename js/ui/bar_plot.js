@@ -1,27 +1,19 @@
 import * as d3 from 'd3'
 import { cluster_counts, cluster_color_dict } from '../global_variables/meta_cluster'
+import { update_cat, selected_cats, update_selected_cats } from '../global_variables/cat'
+import { update_selected_genes } from '../global_variables/selected_genes'
+import { toggle_image_layers_and_ctrls } from './ui_containers'
+import { update_cell_layer_id } from '../deck-gl/cell_layer'
+import { update_path_layer_id } from '../deck-gl/path_layer'
+import { update_trx_layer_filter } from '../deck-gl/trx_layer'
+import { layers_ist, update_layers_ist } from '../deck-gl/layers_ist'
+import { deck_ist } from '../deck-gl/deck_ist'
 
 export let bar_plot_container
-
-// const cluster_counts = [
-//     {name: 'one', value: 10},
-//     {name: 'two', value: 20},
-//     {name: 'three', value: 30},
-//     {name: 'four', value: 40},
-//     {name: 'five', value: 50},
-//     {name: 'six', value: 60},
-//     {name: 'seven', value: 70},
-//     {name: 'eight', value: 80},
-//     {name: 'nine', value: 90},
-//     {name: 'ten', value: 100}
-// ]
-
-
 
 cluster_counts.sort((a, b) => b.value - a.value)
 
 export const make_bar_plot = () => {
-    console.log('here!!!')
 
     bar_plot_container = document.createElement("div")
     bar_plot_container.className = "bar_plot_container"
@@ -69,24 +61,40 @@ export const make_bar_plot = () => {
         .domain([0, d3.max(cluster_counts_values)])
         .range([0, max_bar_width])
 
+    const bar_plot_click_callback = (event, d) => {
+        const currentTarget = d3.select(event.currentTarget)
+        const isBold = currentTarget.attr('font-weight') === 'bold'
+
+        svg.selectAll("g").attr('font-weight', 'normal')
+
+        if (!isBold) {
+            currentTarget.attr('font-weight', 'bold')
+        } else {
+            currentTarget.attr('font-weight', 'normal')
+        }
+
+        update_cat('cluster')
+        update_selected_cats([d.name])
+        update_selected_genes([])
+
+        toggle_image_layers_and_ctrls(!selected_cats.length > 0)
+
+        const inst_cat_name = selected_cats.join('-')
+
+        update_cell_layer_id(inst_cat_name)
+        update_path_layer_id(inst_cat_name)
+        update_trx_layer_filter()
+
+        update_layers_ist()
+
+        deck_ist.setProps({layers: layers_ist})
+    }
+
     const bar = svg.selectAll("g")
         .data(cluster_counts)
         .join("g")
         .attr("transform", (d, i) => `translate(0,${y_new(i)})`)
-        .on('click', (event, d) => {
-            const currentTarget = d3.select(event.currentTarget)
-            const isBold = currentTarget.attr('font-weight') === 'bold'
-
-            // Reset all bars to normal weight
-            svg.selectAll("g").attr('font-weight', 'normal')
-
-            // Toggle the clicked bar
-            if (!isBold) {
-                currentTarget.attr('font-weight', 'bold')
-            } else {
-                currentTarget.attr('font-weight', 'normal')
-            }
-        })
+        .on('click', bar_plot_click_callback)
 
     bar.append("rect")
         .attr("fill", (d) => {
@@ -96,8 +104,6 @@ export const make_bar_plot = () => {
 
             return inst_color
         })
-        // .attr('fill', 'red')
-        // .attr('opacity', 0.25)
         .attr("width", d => x_new(d.value))
         .attr("height", y_new.bandwidth() - 1)
 

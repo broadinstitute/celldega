@@ -6,8 +6,6 @@ export let meta_gene = {}
 
 export const set_meta_gene = async (base_url) => {
 
-    console.log('meta_gene', base_url + 'meta_gene.parquet')
-
     let meta_gene_table = await get_arrow_table(base_url + '/meta_gene.parquet', options.fetch)
     let gene_names = meta_gene_table.getChild('__index_level_0__').toArray()
     let gene_mean = meta_gene_table.getChild('mean').toArray()

@@ -1,19 +1,20 @@
+import * as d3 from 'd3'
 import { ScatterplotLayer } from 'deck.gl'
-import { get_arrow_table } from "../read_parquet/get_arrow_table.js"
-import { get_scatter_data } from "../read_parquet/get_scatter_data.js"
-import { set_gene_color_dict } from '../global_variables/gene_color_dict.js'
-import { set_cell_names_array, set_cell_name_to_index_map } from '../global_variables/cell_names_array.js'
-import { options } from '../global_variables/fetch_options.js'
-import { cell_cats, set_cell_cats, set_dict_cell_cats, update_selected_cats, selected_cats, update_cat } from '../global_variables/cat.js'
-import { Table } from 'apache-arrow';
-import { get_cell_color } from './cell_color.js'
-import { layers_ist, update_layers_ist } from './layers_ist.js'
-import { deck_ist } from './deck_ist.js'
-import { update_path_layer_id } from './path_layer.js'
-import { toggle_image_layers_and_ctrls } from '../ui/ui_containers.js'
-import { update_selected_genes } from '../global_variables/selected_genes.js'
-import { update_trx_layer_filter } from './trx_layer.js'
-// import { bar_clusters_container } from '../ui/bar_clusters.js'
+import { get_arrow_table } from "../read_parquet/get_arrow_table"
+import { get_scatter_data } from "../read_parquet/get_scatter_data"
+import { set_gene_color_dict } from '../global_variables/gene_color_dict'
+import { set_cell_names_array, set_cell_name_to_index_map } from '../global_variables/cell_names_array'
+import { options } from '../global_variables/fetch_options'
+import { cell_cats, set_cell_cats, set_dict_cell_cats, update_selected_cats, selected_cats, update_cat, reset_cat } from '../global_variables/cat'
+import { Table } from 'apache-arrow'
+import { get_cell_color } from './cell_color'
+import { layers_ist, update_layers_ist } from './layers_ist'
+import { deck_ist } from './deck_ist'
+import { update_path_layer_id } from './path_layer'
+import { toggle_image_layers_and_ctrls } from '../ui/ui_containers'
+import { update_selected_genes } from '../global_variables/selected_genes'
+import { update_trx_layer_filter } from './trx_layer'
+import { svg_bar_cluster } from '../ui/bar_plot'
 
 const get_column_names = (arrowTable) => {
 
@@ -54,6 +55,17 @@ const cell_layer_onclick = info => {
 
     const inst_cat_name = selected_cats.join('-')
 
+    svg_bar_cluster.selectAll("g")
+        .attr('font-weight', 'normal')
+        .attr('opacity', reset_cat ? 1.0 : 0.25)
+
+    if (!reset_cat) {
+        svg_bar_cluster.selectAll("g")
+            .filter(function() {
+                return d3.select(this).select("text").text() === inst_cat
+            })
+            .attr('opacity', 1.0)
+    }
 
 
     update_cell_layer_id(inst_cat_name)

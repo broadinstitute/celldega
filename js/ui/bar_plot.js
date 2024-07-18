@@ -1,5 +1,4 @@
 import * as d3 from 'd3'
-import { cluster_color_dict } from '../global_variables/meta_cluster'
 import { update_cat, selected_cats, update_selected_cats } from '../global_variables/cat'
 import { update_selected_genes } from '../global_variables/selected_genes'
 import { toggle_image_layers_and_ctrls } from './ui_containers'
@@ -9,9 +8,7 @@ import { update_trx_layer_filter } from '../deck-gl/trx_layer'
 import { layers_ist, update_layers_ist } from '../deck-gl/layers_ist'
 import { deck_ist } from '../deck-gl/deck_ist'
 
-// export let bar_clusters_container
 export let bar_clusters_container = document.createElement("div")
-
 export let svg_bar_cluster = d3.create("svg")
 
 export const bar_cluster_callback = (event, d) => {
@@ -54,21 +51,19 @@ export const bar_cluster_callback = (event, d) => {
     deck_ist.setProps({layers: layers_ist})
 }
 
-export const make_bar_clusters = (click_callback, svg_bar, bar_data) => {
+export const make_bar_clusters = (bar_container, click_callback, svg_bar, bar_data, cluster_color_dict) => {
 
-    console.log('making bar clusters ... ')
-
-    bar_clusters_container.className = "bar_clusters_container"
-    bar_clusters_container.style.width = "107px"
-    bar_clusters_container.style.height = "55px"
-    bar_clusters_container.style.marginLeft = '5px'
-    bar_clusters_container.style.overflowY = "auto"
-    bar_clusters_container.style.border = "1px solid #d3d3d3"
+    bar_container.className = "bar_container"
+    bar_container.style.width = "107px"
+    bar_container.style.height = "55px"
+    bar_container.style.marginLeft = '5px'
+    bar_container.style.overflowY = "auto"
+    bar_container.style.border = "1px solid #d3d3d3"
 
     // Prevent page scrolling when reaching the top/bottom of the scrollable container
-    bar_clusters_container.addEventListener('wheel', (event) => {
-        const { scrollTop, scrollHeight, clientHeight } = bar_clusters_container
+    bar_container.addEventListener('wheel', (event) => {
 
+        const { scrollTop, scrollHeight, clientHeight } = bar_container
         const atTop = scrollTop === 0
         const atBottom = scrollTop + clientHeight === scrollHeight
 
@@ -89,7 +84,7 @@ export const make_bar_clusters = (click_callback, svg_bar, bar_data) => {
         .attr("text-anchor", "end")
         .style("user-select", "none")
 
-    bar_clusters_container.appendChild(svg_bar.node())
+    bar_container.appendChild(svg_bar.node())
 
     let max_bar_width = 90
 
@@ -112,9 +107,7 @@ export const make_bar_clusters = (click_callback, svg_bar, bar_data) => {
     bar.append("rect")
         .attr("fill", (d) => {
             const inst_rgb = cluster_color_dict[d.name]
-
             const inst_color = `rgb(${inst_rgb[0]}, ${inst_rgb[1]}, ${inst_rgb[2]})`
-
             return inst_color
         })
         .attr("width", d => x_new(d.value))
@@ -128,6 +121,4 @@ export const make_bar_clusters = (click_callback, svg_bar, bar_data) => {
         .attr('text-anchor', 'start')
         .text(d => d.name)
 
-    // Ensure the container is appended to the DOM
-    document.body.appendChild(bar_clusters_container) // Or append it to your desired parent container
 }

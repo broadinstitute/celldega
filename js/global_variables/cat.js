@@ -7,6 +7,8 @@ import { cell_names_array } from "./cell_names_array"
 // for a subset of cell cluster categories.
 export let cat
 
+export let reset_cat = false
+
 export const update_cat = (new_cat) => {
     cat = new_cat
 }
@@ -33,6 +35,8 @@ export const update_selected_cats = (new_selected_cats) => {
     // Check if the arrays are equal
     const areArraysEqual = new_selected_cats.length === selected_cats.length &&
                            new_selected_cats.every((value, index) => value === selected_cats[index])
+
+    reset_cat = areArraysEqual
 
     // Use the ternary operator to update selected_cats
     selected_cats = areArraysEqual ? [] : new_selected_cats

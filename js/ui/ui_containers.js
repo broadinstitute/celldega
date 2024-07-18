@@ -6,8 +6,9 @@ import { image_info } from "../global_variables/image_info"
 import { image_layer_sliders, make_img_layer_slider_callback, toggle_slider } from "./sliders"
 import { debounce } from '../utils/debounce'
 import { toggle_visibility_image_layers } from '../deck-gl/image_layers'
-import { bar_clusters_container, make_bar_clusters, bar_cluster_callback, svg_bar_cluster } from './bar_clusters'
+import { bar_clusters_container, make_bar_clusters, bar_cluster_callback, svg_bar_cluster } from './bar_plot'
 import { cluster_counts } from '../global_variables/meta_cluster'
+import { cluster_color_dict } from '../global_variables/meta_cluster'
 
 export let image_container
 
@@ -166,7 +167,14 @@ export const make_ist_ui_container = (dataset_name) => {
     cell_slider_container.appendChild(cell_slider)
     cell_ctrl_container.appendChild(cell_slider_container)
 
-    make_bar_clusters(bar_cluster_callback, svg_bar_cluster, cluster_counts)
+    make_bar_clusters(
+        bar_clusters_container,
+        bar_cluster_callback,
+        svg_bar_cluster,
+        cluster_counts,
+        cluster_color_dict
+    )
+
     cell_container.appendChild(cell_ctrl_container)
     cell_container.appendChild(bar_clusters_container)
 

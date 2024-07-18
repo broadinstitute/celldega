@@ -6,7 +6,7 @@ import { image_info } from "../global_variables/image_info"
 import { image_layer_sliders, make_img_layer_slider_callback, toggle_slider } from "./sliders"
 import { debounce } from '../utils/debounce'
 import { toggle_visibility_image_layers } from '../deck-gl/image_layers'
-import { bar_plot_container, make_bar_plot } from './bar_plot'
+import { bar_clusters_container, make_bar_clusters } from './bar_clusters'
 
 export let image_container
 
@@ -180,9 +180,9 @@ export const make_ist_ui_container = (dataset_name) => {
     cell_slider_container.appendChild(cell_slider)
     cell_ctrl_container.appendChild(cell_slider_container)
 
-    make_bar_plot()
+    make_bar_clusters()
     cell_container.appendChild(cell_ctrl_container)
-    cell_container.appendChild(bar_plot_container)
+    cell_container.appendChild(bar_clusters_container)
 
     ini_slider('trx')
     trx_container.appendChild(trx_slider_container)

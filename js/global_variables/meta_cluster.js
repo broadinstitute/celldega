@@ -45,7 +45,7 @@ export const set_cluster_metadata = async  () => {
 
     })
 
-    console.log(cluster_counts)
-    console.log('here here')
+
+    cluster_counts.sort((a, b) => b.value - a.value)
 
 }

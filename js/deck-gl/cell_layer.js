@@ -13,6 +13,7 @@ import { update_path_layer_id } from './path_layer.js'
 import { toggle_image_layers_and_ctrls } from '../ui/ui_containers.js'
 import { update_selected_genes } from '../global_variables/selected_genes.js'
 import { update_trx_layer_filter } from './trx_layer.js'
+import { bar_clusters_container } from '../ui/bar_clusters.js'
 
 const get_column_names = (arrowTable) => {
 
@@ -52,6 +53,8 @@ const cell_layer_onclick = info => {
     toggle_image_layers_and_ctrls(!selected_cats.length > 0)
 
     const inst_cat_name = selected_cats.join('-')
+
+
 
     update_cell_layer_id(inst_cat_name)
     update_path_layer_id(inst_cat_name)

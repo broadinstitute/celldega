@@ -9,23 +9,22 @@ import { update_trx_layer_filter } from '../deck-gl/trx_layer'
 import { layers_ist, update_layers_ist } from '../deck-gl/layers_ist'
 import { deck_ist } from '../deck-gl/deck_ist'
 
-export let bar_plot_container
+export let bar_clusters_container
 
-cluster_counts.sort((a, b) => b.value - a.value)
 
-export const make_bar_plot = () => {
+export const make_bar_clusters = () => {
 
-    bar_plot_container = document.createElement("div")
-    bar_plot_container.className = "bar_plot_container"
-    bar_plot_container.style.width = "107px" // Set a fixed width for the container
-    bar_plot_container.style.height = "55px" // Set a fixed height for the container
-    bar_plot_container.style.marginLeft = '5px'
-    bar_plot_container.style.overflowY = "auto" // Enable vertical scrolling
-    bar_plot_container.style.border = "1px solid #d3d3d3" // Optional: Add a border for better visualization
+    bar_clusters_container = document.createElement("div")
+    bar_clusters_container.className = "bar_clusters_container"
+    bar_clusters_container.style.width = "107px" // Set a fixed width for the container
+    bar_clusters_container.style.height = "55px" // Set a fixed height for the container
+    bar_clusters_container.style.marginLeft = '5px'
+    bar_clusters_container.style.overflowY = "auto" // Enable vertical scrolling
+    bar_clusters_container.style.border = "1px solid #d3d3d3" // Optional: Add a border for better visualization
 
     // Prevent page scrolling when reaching the top/bottom of the scrollable container
-    bar_plot_container.addEventListener('wheel', (event) => {
-        const { scrollTop, scrollHeight, clientHeight } = bar_plot_container
+    bar_clusters_container.addEventListener('wheel', (event) => {
+        const { scrollTop, scrollHeight, clientHeight } = bar_clusters_container
 
         const atTop = scrollTop === 0
         const atBottom = scrollTop + clientHeight === scrollHeight
@@ -36,18 +35,18 @@ export const make_bar_plot = () => {
     })
 
     // Calculate the total height needed for the SVG based on data length
-    const bar_height = 14
+    const bar_height = 15
     const svg_height = bar_height * (cluster_counts.length + 1)
 
     const svg = d3.create("svg")
         .attr("width", 100) // Slightly larger width to accommodate text
         .attr("height", svg_height)
         .attr("font-family", "sans-serif")
-        .attr("font-size", "12")
+        .attr("font-size", "13")
         .attr("text-anchor", "end")
         .style("user-select", "none")
 
-    bar_plot_container.appendChild(svg.node())
+    bar_clusters_container.appendChild(svg.node())
 
     let max_bar_width = 90
 
@@ -61,7 +60,7 @@ export const make_bar_plot = () => {
         .domain([0, d3.max(cluster_counts_values)])
         .range([0, max_bar_width])
 
-    const bar_plot_click_callback = (event, d) => {
+    const bar_click_callback = (event, d) => {
         const currentTarget = d3.select(event.currentTarget)
         const isBold = currentTarget.attr('font-weight') === 'bold'
 
@@ -93,8 +92,8 @@ export const make_bar_plot = () => {
     const bar = svg.selectAll("g")
         .data(cluster_counts)
         .join("g")
-        .attr("transform", (d, i) => `translate(0,${y_new(i)})`)
-        .on('click', bar_plot_click_callback)
+        .attr("transform", (d, i) => `translate(2,${y_new(i) + 2})`)
+        .on('click', bar_click_callback)
 
     bar.append("rect")
         .attr("fill", (d) => {
@@ -116,5 +115,5 @@ export const make_bar_plot = () => {
         .text(d => d.name)
 
     // Ensure the container is appended to the DOM
-    document.body.appendChild(bar_plot_container) // Or append it to your desired parent container
+    document.body.appendChild(bar_clusters_container) // Or append it to your desired parent container
 }

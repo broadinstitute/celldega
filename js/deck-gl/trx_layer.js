@@ -13,42 +13,44 @@ import { toggle_image_layers_and_ctrls } from '../ui/ui_containers'
 import { layers_ist, update_layers_ist } from './layers_ist'
 import { update_path_layer_id } from './path_layer'
 
+const trx_layer_callback = async (info) => {
+
+    const inst_gene = trx_names_array[info.index]
+
+    const new_cat = inst_gene === cat ? 'cluster' : inst_gene
+
+    toggle_image_layers_and_ctrls(cat === inst_gene)
+
+    update_cat(new_cat)
+    update_selected_genes([inst_gene])
+    update_selected_cats([])
+
+    await update_cell_exp_array(global_base_url, inst_gene)
+
+    update_cell_layer_id(new_cat)
+    update_path_layer_id(new_cat)
+    update_trx_layer_filter()
+
+    update_layers_ist()
+
+    deck_ist.setProps({layers: layers_ist})
+
+    gene_search_input.value = (gene_search_input.value !== inst_gene) ? inst_gene : ''
+
+}
+
 export let trx_layer = new ScatterplotLayer({
     id: 'trx-layer',
     data: trx_data,
     pickable: true,
     getColor: (i, d) => {
-        const inst_gene = trx_names_array[d.index];
-        const inst_color = gene_color_dict[inst_gene];
-        const inst_opacity = selected_genes.length === 0 || selected_genes.includes(inst_gene) ? 255 : 5;
+        const inst_gene = trx_names_array[d.index]
+        const inst_color = gene_color_dict[inst_gene]
+        const inst_opacity = selected_genes.length === 0 || selected_genes.includes(inst_gene) ? 255 : 5
 
-        return [...inst_color, inst_opacity];
+        return [...inst_color, inst_opacity]
     },
-    onClick: async (info) => {
-
-        const inst_gene = trx_names_array[info.index]
-
-        const new_cat = inst_gene === cat ? 'cluster' : inst_gene;
-
-        toggle_image_layers_and_ctrls(cat === inst_gene);
-
-        update_cat(new_cat)
-        update_selected_genes([inst_gene])
-        update_selected_cats([])
-
-        await update_cell_exp_array(global_base_url, inst_gene);
-
-        update_cell_layer_id(new_cat)
-        update_path_layer_id(new_cat)
-        update_trx_layer_filter()
-
-        update_layers_ist()
-
-        deck_ist.setProps({layers: layers_ist})
-
-        gene_search_input.value = (gene_search_input.value !== inst_gene) ? inst_gene : '';
-
-    }
+    onClick: trx_layer_callback
 });
 
 export const update_trx_layer = async ( base_url, tiles_in_view, ) => {

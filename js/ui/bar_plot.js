@@ -8,12 +8,13 @@ import { update_trx_layer_filter } from '../deck-gl/trx_layer'
 import { layers_ist, update_layers_ist } from '../deck-gl/layers_ist'
 import { deck_ist } from '../deck-gl/deck_ist'
 
-export let bar_clusters_container = document.createElement("div")
+export let bar_cluster_container = document.createElement("div")
+export let bar_gene_container = document.createElement("div")
+
 export let svg_bar_cluster = d3.create("svg")
+export let svg_bar_gene = d3.create("svg")
 
 export const bar_cluster_callback = (event, d) => {
-
-    console.log('bar_cluster_callback ... ')
 
     const currentTarget = d3.select(event.currentTarget)
     const isBold = currentTarget.attr('font-weight') === 'bold'
@@ -51,7 +52,48 @@ export const bar_cluster_callback = (event, d) => {
     deck_ist.setProps({layers: layers_ist})
 }
 
-export const make_bar_clusters = (bar_container, click_callback, svg_bar, bar_data, cluster_color_dict) => {
+
+export const bar_gene_callback = (event, d) => {
+
+    console.log('bar_gene_callback', d)
+
+    const currentTarget = d3.select(event.currentTarget)
+    const isBold = currentTarget.attr('font-weight') === 'bold'
+
+    svg_bar_gene
+        .selectAll("g")
+        .attr('font-weight', 'normal')
+        .attr('opacity', 0.25)
+
+    if (!isBold) {
+        currentTarget.attr('font-weight', 'bold')
+        currentTarget.attr('opacity', 1.0)
+    } else {
+        currentTarget.attr('font-weight', 'normal')
+
+        svg_bar_gene
+            .selectAll("g")
+            .attr('opacity', 1.0)
+    }
+
+    // update_cat('cluster')
+    // update_selected_cats([d.name])
+    // update_selected_genes([])
+
+    // toggle_image_layers_and_ctrls(!selected_cats.length > 0)
+
+    // const inst_cat_name = selected_cats.join('-')
+
+    // update_cell_layer_id(inst_cat_name)
+    // update_path_layer_id(inst_cat_name)
+    // update_trx_layer_filter()
+
+    // update_layers_ist()
+
+    // deck_ist.setProps({layers: layers_ist})
+}
+
+export const make_bar_cluster = (bar_container, click_callback, svg_bar, bar_data, cluster_color_dict) => {
 
     bar_container.className = "bar_container"
     bar_container.style.width = "107px"

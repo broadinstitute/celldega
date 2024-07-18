@@ -1,6 +1,6 @@
 import { cat, cell_cats, selected_cats } from '../global_variables/cat'
 import { cell_exp_array } from '../global_variables/cell_exp_array'
-import { cell_color_dict } from '../global_variables/cell_color_dict'
+import { cell_color_dict } from '../global_variables/meta_cluster'
 
 // transparent to red
 export const get_cell_color = (i, d) => {

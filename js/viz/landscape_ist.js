@@ -1,22 +1,22 @@
-import { set_trx_ini_raidus } from '../global_variables/trx_ini_raidus.js';
-import { set_options } from '../global_variables/fetch_options.js';
-import { set_global_base_url } from '../global_variables/global_base_url.js';
-import { set_landscape_parameters } from '../global_variables/landscape_parameters.js';
-import { set_dimensions } from '../global_variables/image_dimensions.js';
-import { set_initial_view_state } from '../deck-gl/initial_view_state.js';
-import { set_cell_layer } from "../deck-gl/cell_layer.js";
-import { update_layers_ist } from '../deck-gl/layers_ist.js';
-import { make_image_layers } from '../deck-gl/image_layers.js';
-import { update_views } from '../deck-gl/views.js';
-import { deck_ist, set_deck } from '../deck-gl/deck_ist.js';
-import { set_background_layer } from '../deck-gl/background_layer.js';
-import { make_ist_ui_container } from '../ui/ui_containers.js';
-import { set_model } from '../global_variables/model.js';
-import { update_trx_layer_radius } from '../deck-gl/trx_layer.js';
-import { image_info, set_image_info, set_image_layer_colors } from '../global_variables/image_info.js';
+import { set_trx_ini_raidus } from '../global_variables/trx_ini_raidus'
+import { set_options } from '../global_variables/fetch_options'
+import { set_global_base_url } from '../global_variables/global_base_url'
+import { set_landscape_parameters } from '../global_variables/landscape_parameters'
+import { set_dimensions } from '../global_variables/image_dimensions'
+import { set_initial_view_state } from '../deck-gl/initial_view_state'
+import { set_cell_layer } from "../deck-gl/cell_layer"
+import { update_layers_ist } from '../deck-gl/layers_ist'
+import { make_image_layers } from '../deck-gl/image_layers'
+import { update_views } from '../deck-gl/views'
+import { deck_ist, set_deck } from '../deck-gl/deck_ist'
+import { set_background_layer } from '../deck-gl/background_layer'
+import { make_ist_ui_container } from '../ui/ui_containers'
+import { set_model } from '../global_variables/model'
+import { update_trx_layer_radius } from '../deck-gl/trx_layer'
+import { image_info, set_image_info, set_image_layer_colors } from '../global_variables/image_info'
 import { set_image_layer_sliders } from "../ui/sliders"
-import { set_meta_gene } from '../global_variables/meta_gene.js';
-import { set_cell_color_dict } from '../global_variables/cell_color_dict.js';
+import { set_meta_gene } from '../global_variables/meta_gene'
+import { set_cluster_metadata } from '../global_variables/meta_cluster'
 
 export const landscape_ist = async (
     el,
@@ -66,7 +66,7 @@ export const landscape_ist = async (
     await set_landscape_parameters(base_url)
     await set_meta_gene(base_url)
 
-    await set_cell_color_dict()
+    await set_cluster_metadata()
 
     // update layers
     await make_image_layers(base_url)

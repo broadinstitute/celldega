@@ -45,13 +45,13 @@ export const flex_container = (class_name, flex_direction, margin=5, height=null
     container.className = class_name
     // container.style.width = "100%"
 
-    if (flex_direction === 'row'){
-        // container.style.marginLeft = margin + "px"
-        // container.style.marginRight = margin + "px"
-    } else {
-        // container.style.marginTop = margin + "px"
-        // container.style.marginBottom = margin + "px"
-    }
+    // if (flex_direction === 'row'){
+    //     // container.style.marginLeft = margin + "px"
+    //     // container.style.marginRight = margin + "px"
+    // } else {
+    //     // container.style.marginTop = margin + "px"
+    //     // container.style.marginBottom = margin + "px"
+    // }
 
     container.style.display = "flex"
     container.style.flexDirection = flex_direction

@@ -85,6 +85,8 @@ export const make_bar_plot = () => {
         .attr("y", y_new.bandwidth() / 2)
         .attr("dy", "0.35em")
         .attr('text-anchor', 'start')
+        .attr("y", y_new.bandwidth() / 2 - 1)
+        .style('font-family', '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif;')
         .text(d => d.name)
 
     // Ensure the container is appended to the DOM

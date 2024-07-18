@@ -28,9 +28,21 @@ export const make_bar_plot = () => {
     bar_plot_container.style.overflowY = "auto" // Enable vertical scrolling
     bar_plot_container.style.border = "1px solid #d3d3d3" // Optional: Add a border for better visualization
 
+    // Prevent page scrolling when reaching the top/bottom of the scrollable container
+    bar_plot_container.addEventListener('wheel', (event) => {
+        const { scrollTop, scrollHeight, clientHeight } = bar_plot_container
+
+        const atTop = scrollTop === 0
+        const atBottom = scrollTop + clientHeight === scrollHeight
+
+        if ((atTop && event.deltaY < 0) || (atBottom && event.deltaY > 0)) {
+            event.preventDefault()
+        }
+    })
+
     // Calculate the total height needed for the SVG based on data length
     const bar_height = 14
-    const svg_height = bar_height * ( bar_data.length + 1)
+    const svg_height = bar_height * (bar_data.length + 1)
 
     const svg = d3.create("svg")
         .attr("width", 120) // Slightly larger width to accommodate text
@@ -82,11 +94,9 @@ export const make_bar_plot = () => {
     bar.append("text")
         .attr("fill", 'black')
         .attr("x", '5px')
-        .attr("y", y_new.bandwidth() / 2)
+        .attr("y", y_new.bandwidth() / 2 - 1) // Adjust this value to push the text up
         .attr("dy", "0.35em")
         .attr('text-anchor', 'start')
-        .attr("y", y_new.bandwidth() / 2 - 1)
-        .style('font-family', '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif;')
         .text(d => d.name)
 
     // Ensure the container is appended to the DOM

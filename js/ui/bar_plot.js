@@ -22,8 +22,9 @@ export const make_bar_plot = () => {
 
     bar_plot_container = document.createElement("div")
     bar_plot_container.className = "bar_plot_container"
-    bar_plot_container.style.width = "120px" // Set a fixed width for the container
-    bar_plot_container.style.height = "55px" // Set a fixed height for the container
+    bar_plot_container.style.width = "107px" // Set a fixed width for the container
+    bar_plot_container.style.height = "50px" // Set a fixed height for the container
+    bar_plot_container.style.marginLeft = '5px'
     bar_plot_container.style.overflowY = "auto" // Enable vertical scrolling
     bar_plot_container.style.border = "1px solid #d3d3d3" // Optional: Add a border for better visualization
 

@@ -89,12 +89,12 @@ export const make_sst_ui_container = () => {
     tile_slider_container.appendChild(tile_slider);
 
     ui_container.appendChild(ctrl_container)
-    ui_container.appendChild(gene_search)
 
     tile_container.appendChild(tile_slider_container)
 
     ctrl_container.appendChild(image_container)
     ctrl_container.appendChild(tile_container)
+    // ctrl_container.appendChild(gene_search)
 
     return ui_container
 
@@ -109,8 +109,9 @@ export const make_ist_ui_container = (dataset_name) => {
     const img_layers_container = flex_container('img_layers_container', 'column', 0, 75)
     img_layers_container.style.width = '155px'
 
-    const cell_container = flex_container('cell_container', 'row')
-    cell_container.style.marginLeft = '0px'
+    const cell_container = flex_container('cell_container', 'column')
+    const cell_ctrl_container = flex_container('cell_ctrl_container', 'row')
+    cell_ctrl_container.style.marginLeft = '0px'
 
     // gene container will contain trx button/slider and gene search
     const gene_container = flex_container('gene_container', 'column')
@@ -166,14 +167,18 @@ export const make_ist_ui_container = (dataset_name) => {
         make_img_layer_ctrl
     )
 
-    make_button(cell_container, 'ist', 'CELL')
+    make_button(cell_ctrl_container, 'ist', 'CELL')
     make_button(trx_container, 'ist', 'TRX')
 
     image_container.appendChild(img_layers_container)
 
     ini_slider('cell')
-    cell_container.appendChild(cell_slider_container)
     cell_slider_container.appendChild(cell_slider)
+    cell_ctrl_container.appendChild(cell_slider_container)
+
+    make_bar_plot()
+    cell_container.appendChild(cell_ctrl_container)
+    cell_container.appendChild(bar_plot_container)
 
     ini_slider('trx')
     trx_container.appendChild(trx_slider_container)
@@ -185,7 +190,6 @@ export const make_ist_ui_container = (dataset_name) => {
 
     gene_search.style.marginLeft = '10px'
 
-    gene_container.appendChild(gene_search)
 
     ui_container.appendChild(ctrl_container)
 
@@ -193,9 +197,9 @@ export const make_ist_ui_container = (dataset_name) => {
     ctrl_container.appendChild(cell_container)
     ctrl_container.appendChild(gene_container)
 
-    make_bar_plot()
+
     console.log('appending bar plot container')
-    ctrl_container.appendChild(bar_plot_container)
+    ctrl_container.appendChild(gene_search)
 
     // if dataset_name is not an empty string make the name container
     if (dataset_name.trim !== ''){

@@ -26,6 +26,7 @@ export const make_ui_container = () => {
     ui_container.style.border = "1px solid #d3d3d3"
     ui_container.className = "ui_container"
     ui_container.style.justifyContent = 'space-between'
+    ui_container.style.height = '85px'
     return ui_container
 }
 
@@ -48,8 +49,8 @@ export const flex_container = (class_name, flex_direction, margin=5, height=null
         // container.style.marginLeft = margin + "px"
         // container.style.marginRight = margin + "px"
     } else {
-        container.style.marginTop = margin + "px"
-        container.style.marginBottom = margin + "px"
+        // container.style.marginTop = margin + "px"
+        // container.style.marginBottom = margin + "px"
     }
 
     container.style.display = "flex"
@@ -107,15 +108,18 @@ export const make_ist_ui_container = (dataset_name) => {
     image_container = flex_container('image_container', 'row')
 
     const img_layers_container = flex_container('img_layers_container', 'column', 0, 75)
-    img_layers_container.style.width = '155px'
+    img_layers_container.style.width = '135px'
 
     const cell_container = flex_container('cell_container', 'column')
+    // widths are custom because of the length of the text buttons varies
+    cell_container.style.width = '120px'
     const cell_ctrl_container = flex_container('cell_ctrl_container', 'row')
     cell_ctrl_container.style.marginLeft = '0px'
 
     // gene container will contain trx button/slider and gene search
     const gene_container = flex_container('gene_container', 'column')
     gene_container.style.marginTop = '0px'
+    gene_container.style.width = '105px'
     const trx_container = flex_container('trx_container', 'row')
 
     const cell_slider_container = make_slider_container('cell_slider_container')
@@ -135,7 +139,7 @@ export const make_ist_ui_container = (dataset_name) => {
 
         let inst_container = flex_container('img_layer_container', 'row')
 
-        make_button(inst_container, 'ist', inst_name, 'blue', 100, 'img_layer_button')
+        make_button(inst_container, 'ist', inst_name, 'blue', 75, 'img_layer_button')
 
         const inst_slider_container = make_slider_container(inst_name)
 

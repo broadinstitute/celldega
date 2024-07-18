@@ -69,7 +69,7 @@ export const set_gene_search = async (tech_type) => {
 
     gene_search_options = ['cluster', ...gene_names]
 
-    gene_search.style.width = "250px"
+    gene_search.style.width = "115px"
 
     set_gene_search_input()
 

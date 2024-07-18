@@ -23,19 +23,19 @@ export const make_bar_plot = () => {
     bar_plot_container = document.createElement("div")
     bar_plot_container.className = "bar_plot_container"
     bar_plot_container.style.width = "120px" // Set a fixed width for the container
-    bar_plot_container.style.height = "100px" // Set a fixed height for the container
+    bar_plot_container.style.height = "55px" // Set a fixed height for the container
     bar_plot_container.style.overflowY = "auto" // Enable vertical scrolling
     bar_plot_container.style.border = "1px solid #d3d3d3" // Optional: Add a border for better visualization
 
     // Calculate the total height needed for the SVG based on data length
-    const bar_height = 22
-    const svg_height = bar_height * bar_data.length
+    const bar_height = 14
+    const svg_height = bar_height * ( bar_data.length + 1)
 
     const svg = d3.create("svg")
         .attr("width", 120) // Slightly larger width to accommodate text
         .attr("height", svg_height)
         .attr("font-family", "sans-serif")
-        .attr("font-size", "16")
+        .attr("font-size", "12")
         .attr("text-anchor", "end")
         .style("user-select", "none")
 
@@ -47,7 +47,7 @@ export const make_bar_plot = () => {
 
     let y_new = d3.scaleBand()
         .domain(d3.range(bar_data_values.length))
-        .range([0, bar_height * bar_data_values.length])
+        .range([0, (bar_height + 1) * bar_data_values.length])
 
     let x_new = d3.scaleLinear()
         .domain([0, d3.max(bar_data_values)])

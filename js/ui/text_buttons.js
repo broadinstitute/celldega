@@ -63,7 +63,7 @@ export const make_button = (container, technology, text, color='blue', width=40,
         .style('width', width + 'px')
         .style('text-align', 'left')
         .style('cursor', 'pointer')
-        .style('font-size', '14px')
+        .style('font-size', '12px')
         .style('font-weight', 'bold')
         .style('color', color)
         .style('margin-top', '5px')

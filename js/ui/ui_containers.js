@@ -42,11 +42,11 @@ export const make_ctrl_container = () => {
 export const flex_container = (class_name, flex_direction, margin=5, height=null) => {
     const container = document.createElement("div")
     container.className = class_name
-    container.style.width = "100%"
+    // container.style.width = "100%"
 
     if (flex_direction === 'row'){
-        container.style.marginLeft = margin + "px"
-        container.style.marginRight = margin + "px"
+        // container.style.marginLeft = margin + "px"
+        // container.style.marginRight = margin + "px"
     } else {
         container.style.marginTop = margin + "px"
         container.style.marginBottom = margin + "px"
@@ -69,8 +69,8 @@ export const make_slider_container = (class_name) => {
     const slider_container = document.createElement("div")
     slider_container.className = class_name
     slider_container.style.width = "100%"
-    slider_container.style.marginLeft = "5px"
-    slider_container.style.marginTop = "5px"
+    slider_container.style.marginLeft = "2px"
+    slider_container.style.marginTop = "2px"
     return slider_container
 }
 
@@ -106,7 +106,7 @@ export const make_ist_ui_container = (dataset_name) => {
     const ctrl_container = make_ctrl_container()
     image_container = flex_container('image_container', 'row')
 
-    const img_layers_container = flex_container('img_layers_container', 'column', 0, 65)
+    const img_layers_container = flex_container('img_layers_container', 'column', 0, 75)
     img_layers_container.style.width = '155px'
 
     const cell_container = flex_container('cell_container', 'row')
@@ -120,7 +120,8 @@ export const make_ist_ui_container = (dataset_name) => {
     const cell_slider_container = make_slider_container('cell_slider_container')
     const trx_slider_container = make_slider_container('trx_slider_container')
 
-    make_button(image_container, 'ist', 'IMG', 'blue', 30)
+    // make_button(image_container, 'ist', 'IMG', 'blue', 30)
+    make_button(img_layers_container, 'ist', 'IMG', 'blue', 30)
 
     const get_slider_by_name = (name) => {
         return image_layer_sliders.filter(slider => slider.name === name);

@@ -36,8 +36,6 @@ export const set_cluster_metadata = async  () => {
     cluster_names.forEach((cluster_name, index) => {
         cluster_color_dict[cluster_name] = hexToRgb(colors[index])
 
-        // cluster_counts[cluster_name] = Number(counts[index])
-
         cluster_counts.push({
             name: cluster_name,
             value: Number(counts[index])

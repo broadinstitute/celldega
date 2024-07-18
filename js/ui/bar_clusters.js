@@ -11,6 +11,44 @@ import { deck_ist } from '../deck-gl/deck_ist'
 
 export let bar_clusters_container
 
+export let svg_bar_cluster
+
+const bar_click_callback = (event, d) => {
+    const currentTarget = d3.select(event.currentTarget)
+    const isBold = currentTarget.attr('font-weight') === 'bold'
+
+    svg_bar_cluster
+        .selectAll("g")
+        .attr('font-weight', 'normal')
+        .attr('opacity', 0.25)
+
+    if (!isBold) {
+        currentTarget.attr('font-weight', 'bold')
+        currentTarget.attr('opacity', 1.0)
+    } else {
+        currentTarget.attr('font-weight', 'normal')
+
+        svg_bar_cluster
+            .selectAll("g")
+            .attr('opacity', 1.0)
+    }
+
+    update_cat('cluster')
+    update_selected_cats([d.name])
+    update_selected_genes([])
+
+    toggle_image_layers_and_ctrls(!selected_cats.length > 0)
+
+    const inst_cat_name = selected_cats.join('-')
+
+    update_cell_layer_id(inst_cat_name)
+    update_path_layer_id(inst_cat_name)
+    update_trx_layer_filter()
+
+    update_layers_ist()
+
+    deck_ist.setProps({layers: layers_ist})
+}
 
 export const make_bar_clusters = () => {
 
@@ -38,15 +76,15 @@ export const make_bar_clusters = () => {
     const bar_height = 15
     const svg_height = bar_height * (cluster_counts.length + 1)
 
-    const svg = d3.create("svg")
-        .attr("width", 100) // Slightly larger width to accommodate text
+    svg_bar_cluster = d3.create("svg")
+        .attr("width", 100)
         .attr("height", svg_height)
         .attr("font-family", "sans-serif")
         .attr("font-size", "13")
         .attr("text-anchor", "end")
         .style("user-select", "none")
 
-    bar_clusters_container.appendChild(svg.node())
+    bar_clusters_container.appendChild(svg_bar_cluster.node())
 
     let max_bar_width = 90
 
@@ -60,36 +98,7 @@ export const make_bar_clusters = () => {
         .domain([0, d3.max(cluster_counts_values)])
         .range([0, max_bar_width])
 
-    const bar_click_callback = (event, d) => {
-        const currentTarget = d3.select(event.currentTarget)
-        const isBold = currentTarget.attr('font-weight') === 'bold'
-
-        svg.selectAll("g").attr('font-weight', 'normal')
-
-        if (!isBold) {
-            currentTarget.attr('font-weight', 'bold')
-        } else {
-            currentTarget.attr('font-weight', 'normal')
-        }
-
-        update_cat('cluster')
-        update_selected_cats([d.name])
-        update_selected_genes([])
-
-        toggle_image_layers_and_ctrls(!selected_cats.length > 0)
-
-        const inst_cat_name = selected_cats.join('-')
-
-        update_cell_layer_id(inst_cat_name)
-        update_path_layer_id(inst_cat_name)
-        update_trx_layer_filter()
-
-        update_layers_ist()
-
-        deck_ist.setProps({layers: layers_ist})
-    }
-
-    const bar = svg.selectAll("g")
+    const bar = svg_bar_cluster.selectAll("g")
         .data(cluster_counts)
         .join("g")
         .attr("transform", (d, i) => `translate(2,${y_new(i) + 2})`)

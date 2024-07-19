@@ -1,5 +1,5 @@
 import * as d3 from 'd3'
-import { update_cat, selected_cats, update_selected_cats } from '../global_variables/cat'
+import { cat, update_cat, selected_cats, update_selected_cats } from '../global_variables/cat'
 import { update_selected_genes } from '../global_variables/selected_genes'
 import { toggle_image_layers_and_ctrls } from './ui_containers'
 import { update_cell_layer_id } from '../deck-gl/cell_layer'
@@ -7,6 +7,10 @@ import { update_path_layer_id } from '../deck-gl/path_layer'
 import { update_trx_layer_filter } from '../deck-gl/trx_layer'
 import { layers_ist, update_layers_ist } from '../deck-gl/layers_ist'
 import { deck_ist } from '../deck-gl/deck_ist'
+import { update_cell_exp_array } from '../global_variables/cell_exp_array'
+import { global_base_url } from '../global_variables/global_base_url'
+import { gene_search_input } from './gene_search_input'
+
 
 export let bar_cluster_container = document.createElement("div")
 export let bar_gene_container = document.createElement("div")
@@ -53,9 +57,7 @@ export const bar_cluster_callback = (event, d) => {
 }
 
 
-export const bar_gene_callback = (event, d) => {
-
-    console.log('bar_gene_callback', d)
+export const bar_gene_callback = async (event, d) => {
 
     const currentTarget = d3.select(event.currentTarget)
     const isBold = currentTarget.attr('font-weight') === 'bold'
@@ -76,21 +78,31 @@ export const bar_gene_callback = (event, d) => {
             .attr('opacity', 1.0)
     }
 
-    // update_cat('cluster')
-    // update_selected_cats([d.name])
-    // update_selected_genes([])
+    const inst_gene = d.name
 
-    // toggle_image_layers_and_ctrls(!selected_cats.length > 0)
+    console.log('inst_gene:', inst_gene)
 
-    // const inst_cat_name = selected_cats.join('-')
+    const new_cat = inst_gene === cat ? 'cluster' : inst_gene
 
-    // update_cell_layer_id(inst_cat_name)
-    // update_path_layer_id(inst_cat_name)
-    // update_trx_layer_filter()
+    toggle_image_layers_and_ctrls(cat === inst_gene)
 
-    // update_layers_ist()
+    update_cat(new_cat)
+    update_selected_genes([inst_gene])
+    update_selected_cats([])
 
-    // deck_ist.setProps({layers: layers_ist})
+    await update_cell_exp_array(global_base_url, inst_gene)
+
+    update_cell_layer_id(new_cat)
+    update_path_layer_id(new_cat)
+    update_trx_layer_filter()
+
+    update_layers_ist()
+
+    deck_ist.setProps({layers: layers_ist})
+
+    gene_search_input.value = (gene_search_input.value !== inst_gene) ? inst_gene : ''
+
+
 }
 
 export const make_bar_cluster = (bar_container, click_callback, svg_bar, bar_data, cluster_color_dict) => {

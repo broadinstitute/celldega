@@ -202,7 +202,7 @@ export const make_ist_ui_container = (dataset_name) => {
 
     set_gene_search('ist')
 
-    gene_search.style.marginLeft = '10px'
+    gene_search.style.marginLeft = '15px'
 
     ui_container.appendChild(ctrl_container)
 

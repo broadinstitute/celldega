@@ -11,7 +11,6 @@ import { update_cell_exp_array } from '../global_variables/cell_exp_array'
 import { global_base_url } from '../global_variables/global_base_url'
 import { gene_search_input } from './gene_search_input'
 
-
 export let bar_cluster_container = document.createElement("div")
 export let bar_gene_container = document.createElement("div")
 

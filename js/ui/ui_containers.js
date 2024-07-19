@@ -44,7 +44,7 @@ export const make_ctrl_container = () => {
     return ctrl_container
 }
 
-export const flex_container = (class_name, flex_direction, margin=5, height=null) => {
+export const flex_container = (class_name, flex_direction, height=null) => {
     const container = document.createElement("div")
     container.className = class_name
 
@@ -99,7 +99,7 @@ export const make_ist_ui_container = (dataset_name) => {
     const ctrl_container = make_ctrl_container()
     image_container = flex_container('image_container', 'row')
 
-    const img_layers_container = flex_container('img_layers_container', 'column', 0, 75)
+    const img_layers_container = flex_container('img_layers_container', 'column', 75)
     img_layers_container.style.width = '135px'
 
     const cell_container = flex_container('cell_container', 'column')

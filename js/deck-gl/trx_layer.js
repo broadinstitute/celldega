@@ -1,3 +1,4 @@
+import * as d3 from 'd3'
 import { ScatterplotLayer } from 'deck.gl'
 import { trx_data, set_trx_data } from '../vector_tile/transcripts/trx_data'
 import { gene_color_dict } from '../global_variables/gene_color_dict'
@@ -12,12 +13,16 @@ import { global_base_url } from '../global_variables/global_base_url'
 import { toggle_image_layers_and_ctrls } from '../ui/ui_containers'
 import { layers_ist, update_layers_ist } from './layers_ist'
 import { update_path_layer_id } from './path_layer'
+import { svg_bar_gene } from '../ui/bar_plot'
+import { bar_gene_container } from '../ui/bar_plot'
 
 const trx_layer_callback = async (info) => {
 
     const inst_gene = trx_names_array[info.index]
 
-    const new_cat = inst_gene === cat ? 'cluster' : inst_gene
+    const reset_gene = inst_gene === cat
+
+    const new_cat = reset_gene ? 'cluster' : inst_gene
 
     toggle_image_layers_and_ctrls(cat === inst_gene)
 
@@ -32,6 +37,29 @@ const trx_layer_callback = async (info) => {
     update_trx_layer_filter()
 
     update_layers_ist()
+
+    svg_bar_gene.selectAll("g")
+        .attr('font-weight', 'normal')
+        .attr('opacity', reset_gene ? 1.0 : 0.25)
+
+    if (!reset_gene) {
+        const selectedBar = svg_bar_gene.selectAll("g")
+            .filter(function() {
+                return d3.select(this).select("text").text() === inst_gene
+            })
+            .attr('opacity', 1.0)
+
+        if (!selectedBar.empty()) {
+            const barPosition = selectedBar.node().getBoundingClientRect().top
+            const containerPosition = bar_gene_container.getBoundingClientRect().top
+            const scrollPosition = barPosition - containerPosition + bar_gene_container.scrollTop
+
+            bar_gene_container.scrollTo({
+                top: scrollPosition,
+                behavior: 'smooth'
+            })
+        }
+    }
 
     deck_ist.setProps({layers: layers_ist})
 

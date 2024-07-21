@@ -14,7 +14,7 @@ import { toggle_image_layers_and_ctrls } from '../ui/ui_containers'
 import { layers_ist, update_layers_ist } from './layers_ist'
 import { update_path_layer_id } from './path_layer'
 import { svg_bar_gene } from '../ui/bar_plot'
-import { bar_gene_container } from '../ui/bar_plot'
+import { bar_container_gene } from '../ui/bar_plot'
 
 const trx_layer_callback = async (info) => {
 
@@ -51,10 +51,10 @@ const trx_layer_callback = async (info) => {
 
         if (!selectedBar.empty()) {
             const barPosition = selectedBar.node().getBoundingClientRect().top
-            const containerPosition = bar_gene_container.getBoundingClientRect().top
-            const scrollPosition = barPosition - containerPosition + bar_gene_container.scrollTop
+            const containerPosition = bar_container_gene.getBoundingClientRect().top
+            const scrollPosition = barPosition - containerPosition + bar_container_gene.scrollTop
 
-            bar_gene_container.scrollTo({
+            bar_container_gene.scrollTo({
                 top: scrollPosition,
                 behavior: 'smooth'
             })

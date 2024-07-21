@@ -14,7 +14,7 @@ import { update_path_layer_id } from './path_layer'
 import { toggle_image_layers_and_ctrls } from '../ui/ui_containers'
 import { update_selected_genes } from '../global_variables/selected_genes'
 import { update_trx_layer_filter } from './trx_layer'
-import { svg_bar_cluster, bar_cluster_container } from '../ui/bar_plot'
+import { svg_bar_cluster, bar_container_cluster } from '../ui/bar_plot'
 
 const get_column_names = (arrowTable) => {
 
@@ -68,10 +68,10 @@ const cell_layer_onclick = info => {
 
         if (!selectedBar.empty()) {
             const barPosition = selectedBar.node().getBoundingClientRect().top
-            const containerPosition = bar_cluster_container.getBoundingClientRect().top
-            const scrollPosition = barPosition - containerPosition + bar_cluster_container.scrollTop
+            const containerPosition = bar_container_cluster.getBoundingClientRect().top
+            const scrollPosition = barPosition - containerPosition + bar_container_cluster.scrollTop
 
-            bar_cluster_container.scrollTo({
+            bar_container_cluster.scrollTo({
                 top: scrollPosition,
                 behavior: 'smooth'
             })

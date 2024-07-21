@@ -6,6 +6,9 @@ import { update_trx_layer } from './trx_layer.js'
 import { layers_ist, update_layers_ist } from './layers_ist.js'
 import { landscape_parameters } from '../global_variables/landscape_parameters.js'
 import { set_close_up } from '../global_variables/close_up.js'
+import { trx_names_array } from '../global_variables/trx_names_array.js'
+import { svg_bar_gene, update_bar_cluster } from '../ui/bar_plot.js'
+import { gene_color_dict } from '../global_variables/gene_color_dict.js'
 
 export const calc_viewport = async ({ height, width, zoom, target }) => {
 
@@ -32,6 +35,29 @@ export const calc_viewport = async ({ height, width, zoom, target }) => {
 
         set_close_up(true)
         update_layers_ist()
+
+        console.log(trx_names_array)
+
+        const geneCounts = trx_names_array.reduce((acc, gene) => {
+            acc[gene] = (acc[gene] || 0) + 1
+            return acc
+          }, {})
+
+        // geneCounts.sort((a, b) => b.value - a.value)
+
+        console.log(geneCounts)
+
+        const new_bar_data = [
+            {name: 'MMP2', value: 40},
+            {name: 'SUMO1', value: 50},
+            {name: 'IL3', value: 60}
+        ]
+
+        new_bar_data.sort((a, b) => b.value - a.value)
+
+        update_bar_cluster(svg_bar_gene, new_bar_data, gene_color_dict)
+
+
 
     } else {
 

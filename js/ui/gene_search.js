@@ -16,7 +16,7 @@ import { update_cell_exp_array } from "../global_variables/cell_exp_array.js"
 import { toggle_image_layers_and_ctrls } from "./ui_containers.js"
 import { layers_ist, update_layers_ist } from "../deck-gl/layers_ist.js"
 import { svg_bar_gene } from "./bar_plot.js"
-import { bar_gene_container } from "./bar_plot.js"
+import { bar_container_gene } from "./bar_plot.js"
 
 
 export let gene_search = document.createElement("div")
@@ -78,10 +78,10 @@ const ist_gene_search_callback = async () => {
 
             if (!selectedBar.empty()) {
                 const barPosition = selectedBar.node().getBoundingClientRect().top
-                const containerPosition = bar_gene_container.getBoundingClientRect().top
-                const scrollPosition = barPosition - containerPosition + bar_gene_container.scrollTop
+                const containerPosition = bar_container_gene.getBoundingClientRect().top
+                const scrollPosition = barPosition - containerPosition + bar_container_gene.scrollTop
 
-                bar_gene_container.scrollTo({
+                bar_container_gene.scrollTo({
                     top: scrollPosition,
                     behavior: 'smooth'
                 })

@@ -11,8 +11,8 @@ import { update_cell_exp_array } from '../global_variables/cell_exp_array'
 import { global_base_url } from '../global_variables/global_base_url'
 import { gene_search_input } from './gene_search_input'
 
-export let bar_cluster_container = document.createElement("div")
-export let bar_gene_container = document.createElement("div")
+export let bar_container_cluster = document.createElement("div")
+export let bar_container_gene = document.createElement("div")
 
 export let svg_bar_cluster = d3.create("svg")
 export let svg_bar_gene = d3.create("svg")
@@ -101,10 +101,9 @@ export const bar_gene_callback = async (event, d) => {
 
     gene_search_input.value = (gene_search_input.value !== inst_gene) ? inst_gene : ''
 
-
 }
 
-export const make_bar_cluster = (bar_container, click_callback, svg_bar, bar_data, cluster_color_dict) => {
+export const make_bar_cluster = (bar_container, click_callback, svg_bar, bar_data, color_dict) => {
 
     bar_container.className = "bar_container"
     bar_container.style.width = "107px"
@@ -159,7 +158,7 @@ export const make_bar_cluster = (bar_container, click_callback, svg_bar, bar_dat
 
     bar.append("rect")
         .attr("fill", (d) => {
-            const inst_rgb = cluster_color_dict[d.name]
+            const inst_rgb = color_dict[d.name]
             const inst_color = `rgb(${inst_rgb[0]}, ${inst_rgb[1]}, ${inst_rgb[2]})`
             return inst_color
         })
@@ -174,4 +173,76 @@ export const make_bar_cluster = (bar_container, click_callback, svg_bar, bar_dat
         .attr('text-anchor', 'start')
         .text(d => d.name)
 
+}
+
+export const update_bar_cluster = (svg_bar, bar_data, color_dict) => {
+
+    console.log('update_bar_cluster:', bar_data)
+
+    const bar_height = 15;
+    const svg_height = bar_height * (bar_data.length + 1);
+
+    svg_bar.attr("height", svg_height);
+
+    let max_bar_width = 90;
+    let bar_data_values = bar_data.map(x => x.value);
+
+    let y_new = d3.scaleBand()
+        .domain(d3.range(bar_data_values.length))
+        .range([0, (bar_height + 1) * bar_data_values.length]);
+
+    let x_new = d3.scaleLinear()
+        .domain([0, d3.max(bar_data_values)])
+        .range([0, max_bar_width]);
+
+    const bars = svg_bar.selectAll("g")
+        .data(bar_data, d => d.name); // Use 'name' as the key
+
+    // Enter new bars
+    const bars_enter = bars.enter()
+        .append("g")
+        .attr("transform", (d, i) => `translate(2,${y_new(i) + 2})`);
+
+    bars_enter.append("rect")
+        // .attr("fill", (d) => {
+        //     const inst_rgb = color_dict[d.name];
+        //     const inst_color = `rgb(${inst_rgb[0]}, ${inst_rgb[1]}, ${inst_rgb[2]})`;
+        //     return inst_color;
+        // })
+        .attr("width", 0) // Initial width set to 0 for transition effect
+        .attr("height", y_new.bandwidth() - 1)
+        .transition() // Transition for entering elements
+        .duration(750)
+        .attr("width", d => x_new(d.value));
+
+    bars_enter.append("text")
+        .attr("fill", 'black')
+        .attr("x", '5px')
+        .attr("y", y_new.bandwidth() / 2 - 1) // Adjust this value to push the text up
+        .attr("dy", "0.35em")
+        .attr('text-anchor', 'start')
+        .text(d => d.name)
+        .attr("opacity", 0) // Initial opacity set to 0 for transition effect
+        .transition() // Transition for entering elements
+        .duration(750)
+        .attr("opacity", 1);
+
+    // Update existing bars
+    bars.transition() // Transition for updating elements
+        .duration(750)
+        .attr("transform", (d, i) => `translate(2,${y_new(i) + 2})`);
+
+    bars.select("rect").transition() // Transition for updating elements
+        .duration(750)
+        .attr("width", d => x_new(d.value));
+
+    bars.select("text").transition() // Transition for updating elements
+        .duration(750)
+        .text(d => d.name);
+
+    // Remove old bars
+    bars.exit().transition() // Transition for exiting elements
+        .duration(750)
+        .attr("opacity", 0)
+        .remove();
 }

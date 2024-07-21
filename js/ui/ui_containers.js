@@ -7,8 +7,8 @@ import { image_layer_sliders, make_img_layer_slider_callback, toggle_slider } fr
 import { debounce } from '../utils/debounce'
 import { toggle_visibility_image_layers } from '../deck-gl/image_layers'
 import { make_bar_cluster } from './bar_plot'
-import { bar_cluster_container, bar_cluster_callback, svg_bar_cluster } from './bar_plot'
-import { bar_gene_container, bar_gene_callback, svg_bar_gene } from './bar_plot'
+import { bar_container_cluster, bar_cluster_callback, svg_bar_cluster } from './bar_plot'
+import { bar_container_gene, bar_gene_callback, svg_bar_gene } from './bar_plot'
 import { cluster_counts } from '../global_variables/meta_cluster'
 import { cluster_color_dict } from '../global_variables/meta_cluster'
 import { gene_color_dict } from '../global_variables/gene_color_dict'
@@ -171,9 +171,10 @@ export const make_ist_ui_container = (dataset_name) => {
     cell_slider_container.appendChild(cell_slider)
     cell_ctrl_container.appendChild(cell_slider_container)
 
+    console.log('cluster_counts', cluster_counts)
 
     make_bar_cluster(
-        bar_cluster_container,
+        bar_container_cluster,
         bar_cluster_callback,
         svg_bar_cluster,
         cluster_counts,
@@ -183,7 +184,7 @@ export const make_ist_ui_container = (dataset_name) => {
     console.log('make gene bar cluster')
 
     make_bar_cluster(
-        bar_gene_container,
+        bar_container_gene,
         bar_gene_callback,
         svg_bar_gene,
         gene_counts,
@@ -191,14 +192,14 @@ export const make_ist_ui_container = (dataset_name) => {
     )
 
     cell_container.appendChild(cell_ctrl_container)
-    cell_container.appendChild(bar_cluster_container)
+    cell_container.appendChild(bar_container_cluster)
 
     ini_slider('trx')
     trx_container.appendChild(trx_slider_container)
     trx_slider_container.appendChild(trx_slider)
 
     gene_container.appendChild(trx_container)
-    gene_container.appendChild(bar_gene_container)
+    gene_container.appendChild(bar_container_gene)
 
     set_gene_search('ist')
 

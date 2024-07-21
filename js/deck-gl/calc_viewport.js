@@ -76,6 +76,26 @@ export const calc_viewport = async ({ height, width, zoom, target }) => {
 
         update_bar_cluster(svg_bar_gene, new_bar_data, gene_color_dict)
 
+        // // Filter transcripts based on viewport
+        // const filtered_transcripts = trx_names_array.filter((_, index) => {
+        //     const [x, y] = trx_coords_array[index]
+        //     return x >= minX && x <= maxX && y >= minY && y <= maxY
+        // })
+
+        // // Calculate gene counts
+        // const new_bar_data = filtered_transcripts.reduce((acc, gene) => {
+        //     const existing_gene = acc.find(item => item.name === gene)
+        //     if (existing_gene) {
+        //         existing_gene.value += 1
+        //     } else {
+        //         acc.push({ name: gene, value: 1 })
+        //     }
+        //     return acc
+        // }, []).sort((a, b) => b.value - a.value)
+
+        // // Update bar plot
+        // update_bar_cluster(svg_bar_gene, new_bar_data, gene_color_dict)
+
 
 
     } else {

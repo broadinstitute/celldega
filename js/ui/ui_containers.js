@@ -171,8 +171,6 @@ export const make_ist_ui_container = (dataset_name) => {
     cell_slider_container.appendChild(cell_slider)
     cell_ctrl_container.appendChild(cell_slider_container)
 
-    console.log('cluster_counts', cluster_counts)
-
     make_bar_cluster(
         bar_container_cluster,
         bar_cluster_callback,
@@ -180,8 +178,6 @@ export const make_ist_ui_container = (dataset_name) => {
         cluster_counts,
         cluster_color_dict
     )
-
-    console.log('make gene bar cluster')
 
     make_bar_cluster(
         bar_container_gene,

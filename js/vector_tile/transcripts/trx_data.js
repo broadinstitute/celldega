@@ -9,8 +9,4 @@ export const set_trx_data = async (base_url, tiles_in_view) => {
         tiles_in_view,
     )
 
-    console.log('trx_data:')
-
-    console.log(trx_data)
-
 }

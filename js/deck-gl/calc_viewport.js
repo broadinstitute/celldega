@@ -10,6 +10,11 @@ import { trx_names_array } from '../global_variables/trx_names_array.js'
 import { svg_bar_gene, update_bar_cluster } from '../ui/bar_plot.js'
 import { gene_color_dict } from '../global_variables/gene_color_dict.js'
 
+export let minX
+export let maxX
+export let minY
+export let maxY
+
 export const calc_viewport = async ({ height, width, zoom, target }) => {
 
     const tile_size = landscape_parameters.tile_size
@@ -21,10 +26,10 @@ export const calc_viewport = async ({ height, width, zoom, target }) => {
     const halfWidthZoomed = width / (2 * zoomFactor);
     const halfHeightZoomed = height / (2 * zoomFactor);
 
-    const minX = targetX - halfWidthZoomed;
-    const maxX = targetX + halfWidthZoomed;
-    const minY = targetY - halfHeightZoomed;
-    const maxY = targetY + halfHeightZoomed;
+    minX = targetX - halfWidthZoomed;
+    maxX = targetX + halfWidthZoomed;
+    minY = targetY - halfHeightZoomed;
+    maxY = targetY + halfHeightZoomed;
 
     const tiles_in_view = visibleTiles(minX, maxX, minY, maxY, tile_size);
 
@@ -36,7 +41,7 @@ export const calc_viewport = async ({ height, width, zoom, target }) => {
         set_close_up(true)
         update_layers_ist()
 
-        console.log(trx_names_array)
+        // console.log(trx_names_array)
 
         // const geneCounts = trx_names_array.reduce((acc, gene) => {
         //     acc[gene] = (acc[gene] || 0) + 1

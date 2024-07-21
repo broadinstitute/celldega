@@ -79,8 +79,6 @@ export const bar_gene_callback = async (event, d) => {
 
     const inst_gene = d.name
 
-    console.log('inst_gene:', inst_gene)
-
     const new_cat = inst_gene === cat ? 'cluster' : inst_gene
 
     toggle_image_layers_and_ctrls(cat === inst_gene)
@@ -176,8 +174,6 @@ export const make_bar_cluster = (bar_container, click_callback, svg_bar, bar_dat
 }
 
 export const update_bar_cluster = (svg_bar, bar_data, color_dict) => {
-
-    console.log('update_bar_cluster:', bar_data)
 
     const bar_height = 15;
     const svg_height = bar_height * (bar_data.length + 1);

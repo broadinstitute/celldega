@@ -38,22 +38,36 @@ export const calc_viewport = async ({ height, width, zoom, target }) => {
 
         console.log(trx_names_array)
 
-        const geneCounts = trx_names_array.reduce((acc, gene) => {
-            acc[gene] = (acc[gene] || 0) + 1
+        // const geneCounts = trx_names_array.reduce((acc, gene) => {
+        //     acc[gene] = (acc[gene] || 0) + 1
+        //     return acc
+        //   }, {}
+
+        // // geneCounts.sort((a, b) => b.value - a.value)
+
+        // console.log(geneCounts)
+
+        // const new_bar_data = [
+        //     {name: 'MMP2', value: 40},
+        //     {name: 'SUMO1', value: 50},
+        //     {name: 'IL3', value: 60}
+        // ]
+
+        // new_bar_data.sort((a, b) => b.value - a.value)
+
+
+        const new_bar_data = trx_names_array.reduce((acc, gene) => {
+            // Check if the gene is already in the accumulator
+            const existingGene = acc.find(item => item.name === gene)
+            if (existingGene) {
+                // If the gene is found, increment its value
+                existingGene.value += 1
+            } else {
+                // If the gene is not found, add a new object with name and value
+                acc.push({ name: gene, value: 1 })
+            }
             return acc
-          }, {})
-
-        // geneCounts.sort((a, b) => b.value - a.value)
-
-        console.log(geneCounts)
-
-        const new_bar_data = [
-            {name: 'MMP2', value: 40},
-            {name: 'SUMO1', value: 50},
-            {name: 'IL3', value: 60}
-        ]
-
-        new_bar_data.sort((a, b) => b.value - a.value)
+        }, []).sort((a, b) => b.value - a.value)
 
         update_bar_cluster(svg_bar_gene, new_bar_data, gene_color_dict)
 

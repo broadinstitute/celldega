@@ -17,55 +17,64 @@ import { svg_bar_gene } from '../ui/bar_plot'
 import { bar_container_gene } from '../ui/bar_plot'
 
 const trx_layer_callback = async (info) => {
+    try {
+        const inst_gene = trx_names_array[info.index];
 
-    const inst_gene = trx_names_array[info.index]
-
-    const reset_gene = inst_gene === cat
-
-    const new_cat = reset_gene ? 'cluster' : inst_gene
-
-    toggle_image_layers_and_ctrls(cat === inst_gene)
-
-    update_cat(new_cat)
-    update_selected_genes([inst_gene])
-    update_selected_cats([])
-
-    await update_cell_exp_array(global_base_url, inst_gene)
-
-    update_cell_layer_id(new_cat)
-    update_path_layer_id(new_cat)
-    update_trx_layer_filter()
-
-    update_layers_ist()
-
-    svg_bar_gene.selectAll("g")
-        .attr('font-weight', 'normal')
-        .attr('opacity', reset_gene ? 1.0 : 0.25)
-
-    if (!reset_gene) {
-        const selectedBar = svg_bar_gene.selectAll("g")
-            .filter(function() {
-                return d3.select(this).select("text").text() === inst_gene
-            })
-            .attr('opacity', 1.0)
-
-        if (!selectedBar.empty()) {
-            const barPosition = selectedBar.node().getBoundingClientRect().top
-            const containerPosition = bar_container_gene.getBoundingClientRect().top
-            const scrollPosition = barPosition - containerPosition + bar_container_gene.scrollTop
-
-            bar_container_gene.scrollTo({
-                top: scrollPosition,
-                behavior: 'smooth'
-            })
+        if (!inst_gene) {
+            console.error("Invalid gene name at index:", info.index);
+            return;
         }
+
+        const reset_gene = inst_gene === cat;
+
+        const new_cat = reset_gene ? 'cluster' : inst_gene;
+
+        toggle_image_layers_and_ctrls(cat === inst_gene);
+
+        update_cat(new_cat);
+        update_selected_genes([inst_gene]);
+        update_selected_cats([]);
+
+        await update_cell_exp_array(global_base_url, inst_gene);
+
+        update_cell_layer_id(new_cat);
+        update_path_layer_id(new_cat);
+        update_trx_layer_filter();
+
+        update_layers_ist();
+
+        svg_bar_gene.selectAll("g")
+            .attr('font-weight', 'normal')
+            .attr('opacity', reset_gene ? 1.0 : 0.25);
+
+        if (!reset_gene) {
+            const selectedBar = svg_bar_gene.selectAll("g")
+                .filter(function() {
+                    const textElement = d3.select(this).select("text").node();
+                    return textElement && textElement.textContent === inst_gene;
+                })
+                .attr('opacity', 1.0);
+
+            if (!selectedBar.empty()) {
+                const barPosition = selectedBar.node().getBoundingClientRect().top;
+                const containerPosition = bar_container_gene.getBoundingClientRect().top;
+                const scrollPosition = barPosition - containerPosition + bar_container_gene.scrollTop;
+
+                bar_container_gene.scrollTo({
+                    top: scrollPosition,
+                    behavior: 'smooth'
+                });
+            }
+        }
+
+        deck_ist.setProps({layers: layers_ist});
+
+        gene_search_input.value = (gene_search_input.value !== inst_gene) ? inst_gene : '';
+    } catch (error) {
+        console.error("Error in trx_layer_callback:", error);
     }
+};
 
-    deck_ist.setProps({layers: layers_ist})
-
-    gene_search_input.value = (gene_search_input.value !== inst_gene) ? inst_gene : ''
-
-}
 
 export let trx_layer = new ScatterplotLayer({
     id: 'trx-layer',

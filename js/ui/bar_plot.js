@@ -56,7 +56,7 @@ export const bar_cluster_callback = (event, d) => {
 
 export const bar_gene_callback = async (event, d) => {
 
-    console.log('bar_gene_callback', d.name)
+    // console.log('bar_gene_callback', d.name)
     const currentTarget = d3.select(event.currentTarget)
     const isBold = currentTarget.attr('font-weight') === 'bold'
 
@@ -90,8 +90,8 @@ export const bar_gene_callback = async (event, d) => {
     update_cell_layer_id(new_cat)
     update_path_layer_id(new_cat)
 
-    console.log('new_cat', new_cat)
-    console.log('selected_genes', selected_genes)
+    // console.log('new_cat', new_cat)
+    // console.log('selected_genes', selected_genes)
 
     update_trx_layer_filter()
 
@@ -235,37 +235,108 @@ export const make_bar_cluster = (bar_container, click_callback, svg_bar, bar_dat
 //         .remove()
 // }
 
-export const update_bar_cluster = (svg_bar, bar_data, color_dict) => {
 
+// // old version
+// export const update_bar_cluster = (svg_bar, bar_data, color_dict) => {
+
+//     const bar_height = 15;
+//     const svg_height = bar_height * (bar_data.length + 1);
+
+//     svg_bar.attr("height", svg_height);
+
+//     let max_bar_width = 90;
+//     let bar_data_values = bar_data.map(x => x.value);
+
+//     let y_new = d3.scaleBand()
+//         .domain(d3.range(bar_data_values.length))
+//         .range([0, (bar_height + 1) * bar_data_values.length]);
+
+//     let x_new = d3.scaleLinear()
+//         .domain([0, d3.max(bar_data_values)])
+//         .range([0, max_bar_width]);
+
+//     const bars = svg_bar.selectAll("g")
+//         .data(bar_data, d => d.name); // Use 'name' as the key
+
+//     // Enter new bars
+//     const bars_enter = bars.enter()
+//         .append("g")
+//         .attr("transform", (d, i) => `translate(2,${y_new(i) + 2})`);
+
+//     bars_enter.append("rect")
+//         .attr("fill", (d) => {
+//             const inst_rgb = color_dict[d.name];
+//             const inst_color = `rgb(${inst_rgb[0]}, ${inst_rgb[1]}, ${inst_rgb[2]})`;
+//             return inst_color;
+//         })
+//         .attr("width", 0) // Initial width set to 0 for transition effect
+//         .attr("height", y_new.bandwidth() - 1)
+//         .transition() // Transition for entering elements
+//         .duration(750)
+//         .attr("width", d => x_new(d.value));
+
+//     bars_enter.append("text")
+//         .attr("fill", 'black')
+//         .attr("x", '5px')
+//         .attr("y", y_new.bandwidth() / 2 - 1) // Adjust this value to push the text up
+//         .attr("dy", "0.35em")
+//         .attr('text-anchor', 'start')
+//         .text(d => d.name)
+//         .attr("opacity", 0) // Initial opacity set to 0 for transition effect
+//         .transition() // Transition for entering elements
+//         .duration(750)
+//         .attr("opacity", 1);
+
+//     // Update existing bars
+//     bars.transition() // Transition for updating elements
+//         .duration(750)
+//         .attr("transform", (d, i) => `translate(2,${y_new(i) + 2})`);
+
+//     bars.select("rect").transition() // Transition for updating elements
+//         .duration(750)
+//         .attr("width", d => x_new(d.value));
+
+//     bars.select("text").transition() // Transition for updating elements
+//         .duration(750)
+//         .text(d => d.name);
+
+//     // Remove old bars
+//     bars.exit().transition() // Transition for exiting elements
+//         .duration(750)
+//         .attr("opacity", 0)
+//         .remove();
+// }
+
+
+export const update_bar_cluster = (svg_bar, bar_data, color_dict, click_callback) => {
     const bar_height = 15;
     const svg_height = bar_height * (bar_data.length + 1);
 
     svg_bar.attr("height", svg_height);
 
-    let max_bar_width = 90;
-    let bar_data_values = bar_data.map(x => x.value);
+    const max_bar_width = 90;
+    const bar_data_values = bar_data.map(x => x.value);
 
-    let y_new = d3.scaleBand()
+    const y_new = d3.scaleBand()
         .domain(d3.range(bar_data_values.length))
         .range([0, (bar_height + 1) * bar_data_values.length]);
 
-    let x_new = d3.scaleLinear()
+    const x_new = d3.scaleLinear()
         .domain([0, d3.max(bar_data_values)])
         .range([0, max_bar_width]);
 
     const bars = svg_bar.selectAll("g")
-        .data(bar_data, d => d.name); // Use 'name' as the key
+        .data(bar_data, d => d.name);
 
     // Enter new bars
-    const bars_enter = bars.enter()
-        .append("g")
-        .attr("transform", (d, i) => `translate(2,${y_new(i) + 2})`);
+    const bars_enter = bars.enter().append("g")
+        .attr("transform", (d, i) => `translate(2,${y_new(i) + 2})`)
+        .on('click', click_callback); // Adjust click handler if needed
 
     bars_enter.append("rect")
-        .attr("fill", (d) => {
+        .attr("fill", d => {
             const inst_rgb = color_dict[d.name];
-            const inst_color = `rgb(${inst_rgb[0]}, ${inst_rgb[1]}, ${inst_rgb[2]})`;
-            return inst_color;
+            return `rgb(${inst_rgb[0]}, ${inst_rgb[1]}, ${inst_rgb[2]})`;
         })
         .attr("width", 0) // Initial width set to 0 for transition effect
         .attr("height", y_new.bandwidth() - 1)
@@ -286,16 +357,14 @@ export const update_bar_cluster = (svg_bar, bar_data, color_dict) => {
         .attr("opacity", 1);
 
     // Update existing bars
-    bars.transition() // Transition for updating elements
+    const bars_update = bars.transition() // Transition for updating elements
         .duration(750)
         .attr("transform", (d, i) => `translate(2,${y_new(i) + 2})`);
 
-    bars.select("rect").transition() // Transition for updating elements
-        .duration(750)
+    bars_update.select("rect")
         .attr("width", d => x_new(d.value));
 
-    bars.select("text").transition() // Transition for updating elements
-        .duration(750)
+    bars_update.select("text")
         .text(d => d.name);
 
     // Remove old bars
@@ -303,4 +372,4 @@ export const update_bar_cluster = (svg_bar, bar_data, color_dict) => {
         .duration(750)
         .attr("opacity", 0)
         .remove();
-}
+};

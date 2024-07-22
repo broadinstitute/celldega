@@ -11,6 +11,7 @@ import { svg_bar_gene, update_bar_cluster } from '../ui/bar_plot.js'
 import { gene_color_dict } from '../global_variables/gene_color_dict.js'
 import { trx_data } from '../vector_tile/transcripts/trx_data.js'
 import { gene_counts } from '../global_variables/meta_gene.js'
+import { bar_gene_callback } from '../ui/bar_plot.js'
 
 export let minX
 export let maxX
@@ -69,19 +70,22 @@ export const calc_viewport = async ({ height, width, zoom, target }) => {
         // console.log('close up')
 
         if (trx_data && trx_data.attributes?.getPosition?.value) {
-            // const positionsArray = Float64Array.from(trx_data.attributes.getPosition.value)
-            // const positions = []
-            // for (let i = 0; i < positionsArray.length; i += 2) {
-            //     positions.push({ x: positionsArray[i], y: positionsArray[i + 1] })
-            // }
+            const positionsArray = Float64Array.from(trx_data.attributes.getPosition.value)
+            const positions = []
+            for (let i = 0; i < positionsArray.length; i += 2) {
+                positions.push({ x: positionsArray[i], y: positionsArray[i + 1] })
+            }
 
-            // // Filter transcripts based on viewport
-            // const filtered_transcripts = positions.filter(pos =>
-            //     pos.x >= minX && pos.x <= maxX && pos.y >= minY && pos.y <= maxY
-            // )
+            // Filter transcripts based on viewport
+            const filtered_transcripts = positions.filter(pos =>
+                pos.x >= minX && pos.x <= maxX && pos.y >= minY && pos.y <= maxY
+            )
 
             // Calculate gene counts for filtered transcripts
-            const filtered_gene_names = trx_names_array // filtered_transcripts.map((_, index) => trx_names_array[index])
+            const filtered_gene_names = filtered_transcripts.map((_, index) => trx_names_array[index])
+
+
+            // const filtered_gene_names = trx_names_array // filtered_transcripts.map((_, index) => trx_names_array[index])
 
             const new_bar_data = filtered_gene_names.reduce((acc, gene) => {
                 const existingGene = acc.find(item => item.name === gene)
@@ -96,7 +100,7 @@ export const calc_viewport = async ({ height, width, zoom, target }) => {
 
             // console.log(new_bar_data)
 
-            update_bar_cluster(svg_bar_gene, new_bar_data, gene_color_dict)
+            update_bar_cluster(svg_bar_gene, new_bar_data, gene_color_dict, bar_gene_callback)
         } else {
             // console.error("trx_data.attributes.getPosition.value is undefined or not iterable")
         }
@@ -105,7 +109,7 @@ export const calc_viewport = async ({ height, width, zoom, target }) => {
         update_layers_ist()
 
         // console.log('not close up')
-        update_bar_cluster(svg_bar_gene, gene_counts, gene_color_dict)
+        update_bar_cluster(svg_bar_gene, gene_counts, gene_color_dict, bar_gene_callback)
     }
 
     deck_ist.setProps({ layers: layers_ist })

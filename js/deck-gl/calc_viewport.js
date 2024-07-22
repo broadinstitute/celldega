@@ -91,7 +91,8 @@ export const calc_viewport = async ({ height, width, zoom, target }) => {
                     acc.push({ name: gene, value: 1 })
                 }
                 return acc
-            }, []).sort((a, b) => b.value - a.value)
+            }, []).filter(item => item.value > 0)
+            .sort((a, b) => b.value - a.value)
 
             // console.log(new_bar_data)
 

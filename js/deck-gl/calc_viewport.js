@@ -5,11 +5,9 @@ import { update_path_layer } from './path_layer.js'
 import { update_trx_layer } from './trx_layer.js'
 import { layers_ist, update_layers_ist } from './layers_ist.js'
 import { landscape_parameters } from '../global_variables/landscape_parameters.js'
-import { close_up, set_close_up } from '../global_variables/close_up.js'
-import { trx_names_array } from '../global_variables/trx_names_array.js'
-import { svg_bar_gene, update_bar_cluster } from '../ui/bar_plot.js'
+import { set_close_up } from '../global_variables/close_up.js'
+import { svg_bar_gene, update_bar_graph } from '../ui/bar_plot.js'
 import { gene_color_dict } from '../global_variables/gene_color_dict.js'
-import { trx_data } from '../vector_tile/transcripts/trx_data.js'
 import { gene_counts } from '../global_variables/meta_gene.js'
 import { bar_gene_callback } from '../ui/bar_plot.js'
 import { trx_combo_data } from '../vector_tile/transcripts/grab_trx_tiles_in_view.js'
@@ -47,11 +45,11 @@ export const calc_viewport = async ({ height, width, zoom, target }) => {
         // console.error('No viewports available')
         return
     }
-    const viewport = viewports[0]
 
-    // Get the bounding box in world coordinates (note that Y is swapped because of screen coordinate convention)
-    const [tmp_minX, tmp_maxY] = viewport.unproject([0, viewport.height])
-    const [tmp_maxX, tmp_minY] = viewport.unproject([viewport.width, 0])
+    // // Get the bounding box in world coordinates (note that Y is swapped because of screen coordinate convention)
+    // const viewport = viewports[0]
+    // const [tmp_minX, tmp_maxY] = viewport.unproject([0, viewport.height])
+    // const [tmp_maxX, tmp_minY] = viewport.unproject([viewport.width, 0])
 
 
     // console.log('compare!!!')
@@ -88,14 +86,14 @@ export const calc_viewport = async ({ height, width, zoom, target }) => {
 
         // console.log(new_bar_data)
 
-        update_bar_cluster(svg_bar_gene, new_bar_data, gene_color_dict, bar_gene_callback)
+        update_bar_graph(svg_bar_gene, new_bar_data, gene_color_dict, bar_gene_callback)
 
     } else {
         set_close_up(false)
         update_layers_ist()
 
         // console.log('not close up')
-        update_bar_cluster(svg_bar_gene, gene_counts, gene_color_dict, bar_gene_callback)
+        update_bar_graph(svg_bar_gene, gene_counts, gene_color_dict, bar_gene_callback)
     }
 
     deck_ist.setProps({ layers: layers_ist })

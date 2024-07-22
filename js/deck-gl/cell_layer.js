@@ -5,7 +5,7 @@ import { get_scatter_data } from "../read_parquet/get_scatter_data"
 import { set_gene_color_dict } from '../global_variables/gene_color_dict'
 import { set_cell_names_array, set_cell_name_to_index_map } from '../global_variables/cell_names_array'
 import { options } from '../global_variables/fetch_options'
-import { cell_cats, set_cell_cats, set_dict_cell_cats, update_selected_cats, selected_cats, update_cat, reset_cat } from '../global_variables/cat'
+import { cell_cats, set_cell_cats, dict_cell_cats, set_dict_cell_cats, update_selected_cats, selected_cats, update_cat, reset_cat } from '../global_variables/cat'
 import { Table } from 'apache-arrow'
 import { get_cell_color } from './cell_color'
 import { layers_ist, update_layers_ist } from './layers_ist'
@@ -15,6 +15,10 @@ import { toggle_image_layers_and_ctrls } from '../ui/ui_containers'
 import { update_selected_genes } from '../global_variables/selected_genes'
 import { update_trx_layer_filter } from './trx_layer'
 import { svg_bar_cluster, bar_container_cluster } from '../ui/bar_plot'
+
+export let cell_scatter_data
+
+export let cell_combo_data
 
 const get_column_names = (arrowTable) => {
 
@@ -96,7 +100,8 @@ export const set_cell_layer = async (base_url) => {
 
     const column_names = get_column_names(cell_arrow_table)
 
-    var cell_scatter_data = get_scatter_data(cell_arrow_table)
+    cell_scatter_data = get_scatter_data(cell_arrow_table)
+
 
     await set_gene_color_dict(base_url)
 
@@ -106,6 +111,22 @@ export const set_cell_layer = async (base_url) => {
     // setting a single cell category for now
     set_cell_cats(cell_arrow_table, column_names[0])
     set_dict_cell_cats()
+
+    // console.log('cell_arrow_table', cell_arrow_table)
+
+    // Combine names and positions into a single array of objects
+    // const new_cell_names_array = cell_arrow_table.getColumn('name').toArray();
+    const new_cell_names_array = cell_arrow_table.getChild("name").toArray()
+
+    // need to save the cell category
+    const flatCoordinateArray = cell_scatter_data.attributes.getPosition.value;
+    cell_combo_data = new_cell_names_array.map((name, index) => ({
+        name: dict_cell_cats[name],
+        x: flatCoordinateArray[index * 2],
+        y: flatCoordinateArray[index * 2 + 1]
+    }))
+
+    // console.log(cell_combo_data)
 
     cell_layer = new ScatterplotLayer({
         // Re-use existing layer props

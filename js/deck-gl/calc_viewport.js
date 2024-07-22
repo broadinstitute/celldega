@@ -9,8 +9,10 @@ import { set_close_up } from '../global_variables/close_up.js'
 import { svg_bar_gene, update_bar_graph } from '../ui/bar_plot.js'
 import { gene_color_dict } from '../global_variables/gene_color_dict.js'
 import { gene_counts } from '../global_variables/meta_gene.js'
-import { bar_gene_callback } from '../ui/bar_plot.js'
+import { bar_gene_callback, svg_bar_cluster, bar_cluster_callback } from '../ui/bar_plot.js'
 import { trx_combo_data } from '../vector_tile/transcripts/grab_trx_tiles_in_view.js'
+import { cell_combo_data } from './cell_layer.js'
+import { cluster_color_dict, cluster_counts } from '../global_variables/meta_cluster.js'
 
 export let minX
 export let maxX
@@ -30,32 +32,12 @@ export const calc_viewport = async ({ height, width, zoom, target }) => {
     minY = targetY - halfHeightZoomed
     maxY = targetY + halfHeightZoomed
 
-    // const viewport = deck_ist.viewports[0]
-
-    // console.log('deck_ist.viewports', deck_ist.viewports)
-    // console.log(deck_ist.viewManager.getViewports())
-    // console.log(deck_ist.viewManager.getViewports())
-    // console.log(deck_ist.viewManager.getViewports()[0])
-
-    // console.log(targetX, targetY, halfWidthZoomed, halfHeightZoomed)
-
     // Get the current viewport from Deck.gl
     const viewports = deck_ist.viewManager.getViewports()
     if (!viewports || viewports.length === 0) {
         // console.error('No viewports available')
         return
     }
-
-    // // Get the bounding box in world coordinates (note that Y is swapped because of screen coordinate convention)
-    // const viewport = viewports[0]
-    // const [tmp_minX, tmp_maxY] = viewport.unproject([0, viewport.height])
-    // const [tmp_maxX, tmp_minY] = viewport.unproject([viewport.width, 0])
-
-
-    // console.log('compare!!!')
-    // console.log(minX, maxX, minY, maxY)
-    // console.log(tmp_minX, tmp_maxX, tmp_minY, tmp_maxY)
-
 
     const tiles_in_view = visibleTiles(minX, maxX, minY, maxY, tile_size)
 
@@ -66,7 +48,7 @@ export const calc_viewport = async ({ height, width, zoom, target }) => {
         set_close_up(true)
         update_layers_ist()
 
-
+        // gene bar graph update
         const filtered_transcripts = trx_combo_data.filter(pos =>
             pos.x >= minX && pos.x <= maxX && pos.y >= minY && pos.y <= maxY
         );
@@ -84,16 +66,38 @@ export const calc_viewport = async ({ height, width, zoom, target }) => {
         }, []).filter(item => item.value > 0)
         .sort((a, b) => b.value - a.value)
 
-        // console.log(new_bar_data)
-
         update_bar_graph(svg_bar_gene, new_bar_data, gene_color_dict, bar_gene_callback)
+
+        // console.log('cell_scatter_data', cell_scatter_data)
+
+        // cell bar graph update
+        const filtered_cells = cell_combo_data.filter(pos =>
+            pos.x >= minX && pos.x <= maxX && pos.y >= minY && pos.y <= maxY
+        );
+
+        const filtered_cell_names = filtered_cells.map(cell => cell.name);
+
+        const new_bar_data_cell = filtered_cell_names.reduce((acc, gene) => {
+            const existingGene = acc.find(item => item.name === gene)
+            if (existingGene) {
+                existingGene.value += 1
+            } else {
+                acc.push({ name: gene, value: 1 })
+            }
+            return acc
+        }, []).filter(item => item.value > 0)
+        .sort((a, b) => b.value - a.value)
+
+        // console.log(new_bar_data_cell)
+
+        update_bar_graph(svg_bar_cluster, new_bar_data_cell, cluster_color_dict, bar_cluster_callback)
+
 
     } else {
         set_close_up(false)
         update_layers_ist()
-
-        // console.log('not close up')
         update_bar_graph(svg_bar_gene, gene_counts, gene_color_dict, bar_gene_callback)
+        update_bar_graph(svg_bar_cluster, cluster_counts, cluster_color_dict, bar_cluster_callback)
     }
 
     deck_ist.setProps({ layers: layers_ist })

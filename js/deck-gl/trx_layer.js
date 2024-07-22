@@ -1,7 +1,7 @@
 import * as d3 from 'd3'
 import { ScatterplotLayer } from 'deck.gl'
 import { trx_data, set_trx_data } from '../vector_tile/transcripts/trx_data'
-import { gene_color_dict } from '../global_variables/gene_color_dict'
+import { color_dict_gene } from '../global_variables/color_dict_gene'
 import { trx_names_array } from '../global_variables/trx_names_array'
 import { selected_genes, update_selected_genes } from '../global_variables/selected_genes'
 import { deck_ist } from './deck_ist'
@@ -82,7 +82,7 @@ export let trx_layer = new ScatterplotLayer({
     pickable: true,
     getColor: (i, d) => {
         const inst_gene = trx_names_array[d.index]
-        const inst_color = gene_color_dict[inst_gene]
+        const inst_color = color_dict_gene[inst_gene]
         const inst_opacity = selected_genes.length === 0 || selected_genes.includes(inst_gene) ? 255 : 5
 
         return [...inst_color, inst_opacity]

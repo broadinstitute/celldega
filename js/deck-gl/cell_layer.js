@@ -2,7 +2,7 @@ import * as d3 from 'd3'
 import { ScatterplotLayer } from 'deck.gl'
 import { get_arrow_table } from "../read_parquet/get_arrow_table"
 import { get_scatter_data } from "../read_parquet/get_scatter_data"
-import { set_gene_color_dict } from '../global_variables/gene_color_dict'
+import { set_color_dict_gene } from '../global_variables/color_dict_gene'
 import { set_cell_names_array, set_cell_name_to_index_map } from '../global_variables/cell_names_array'
 import { options } from '../global_variables/fetch_options'
 import { cell_cats, set_cell_cats, dict_cell_cats, set_dict_cell_cats, update_selected_cats, selected_cats, update_cat, reset_cat } from '../global_variables/cat'
@@ -103,7 +103,7 @@ export const set_cell_layer = async (base_url) => {
     cell_scatter_data = get_scatter_data(cell_arrow_table)
 
 
-    await set_gene_color_dict(base_url)
+    await set_color_dict_gene(base_url)
 
     set_cell_names_array(cell_arrow_table)
     set_cell_name_to_index_map()

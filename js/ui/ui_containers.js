@@ -11,7 +11,7 @@ import { bar_container_cluster, bar_cluster_callback, svg_bar_cluster } from './
 import { bar_container_gene, bar_gene_callback, svg_bar_gene } from './bar_plot'
 import { cluster_counts } from '../global_variables/meta_cluster'
 import { cluster_color_dict } from '../global_variables/meta_cluster'
-import { gene_color_dict } from '../global_variables/gene_color_dict'
+import { color_dict_gene } from '../global_variables/color_dict_gene'
 import { gene_counts } from '../global_variables/meta_gene'
 
 export let image_container
@@ -184,7 +184,7 @@ export const make_ist_ui_container = (dataset_name) => {
         bar_gene_callback,
         svg_bar_gene,
         gene_counts,
-        gene_color_dict
+        color_dict_gene
     )
 
     cell_container.appendChild(cell_ctrl_container)

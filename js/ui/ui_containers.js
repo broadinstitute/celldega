@@ -10,7 +10,7 @@ import { make_bar_graph } from './bar_plot'
 import { bar_container_cluster, bar_cluster_callback, svg_bar_cluster } from './bar_plot'
 import { bar_container_gene, bar_gene_callback, svg_bar_gene } from './bar_plot'
 import { cluster_counts } from '../global_variables/meta_cluster'
-import { cluster_color_dict } from '../global_variables/meta_cluster'
+import { color_dict_cluster } from '../global_variables/meta_cluster'
 import { color_dict_gene } from '../global_variables/color_dict_gene'
 import { gene_counts } from '../global_variables/meta_gene'
 
@@ -176,7 +176,7 @@ export const make_ist_ui_container = (dataset_name) => {
         bar_cluster_callback,
         svg_bar_cluster,
         cluster_counts,
-        cluster_color_dict
+        color_dict_cluster
     )
 
     make_bar_graph(

@@ -2,7 +2,7 @@ import { PathLayer } from 'deck.gl'
 import { grab_cell_tiles_in_view } from '../vector_tile/polygons/grab_cell_tiles_in_view'
 import { polygon_cell_names } from '../vector_tile/polygons/grab_cell_tiles_in_view'
 import { dict_cell_cats, update_selected_cats, selected_cats, update_cat } from '../global_variables/cat'
-import { cluster_color_dict } from '../global_variables/meta_cluster'
+import { color_dict_cluster } from '../global_variables/meta_cluster'
 import { update_cell_layer_id } from './cell_layer'
 import { layers_ist, update_layers_ist } from './layers_ist'
 import { deck_ist } from './deck_ist'
@@ -15,7 +15,7 @@ export const get_path_color = (i, d) => {
     const inst_cell_id = polygon_cell_names[d.index]
     const inst_cat = dict_cell_cats[inst_cell_id]
 
-    let inst_color = cluster_color_dict[inst_cat]
+    let inst_color = color_dict_cluster[inst_cat]
 
     // Check if inst_color is an array and log an error if it's not
     if (!Array.isArray(inst_color)) {

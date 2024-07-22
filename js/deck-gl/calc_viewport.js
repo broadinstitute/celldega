@@ -12,7 +12,7 @@ import { gene_counts } from '../global_variables/meta_gene.js'
 import { bar_gene_callback, svg_bar_cluster, bar_cluster_callback } from '../ui/bar_plot.js'
 import { trx_combo_data } from '../vector_tile/transcripts/grab_trx_tiles_in_view.js'
 import { cell_combo_data } from './cell_layer.js'
-import { cluster_color_dict, cluster_counts } from '../global_variables/meta_cluster.js'
+import { color_dict_cluster, cluster_counts } from '../global_variables/meta_cluster.js'
 
 export let minX
 export let maxX
@@ -90,14 +90,14 @@ export const calc_viewport = async ({ height, width, zoom, target }) => {
 
         // console.log(new_bar_data_cell)
 
-        update_bar_graph(svg_bar_cluster, new_bar_data_cell, cluster_color_dict, bar_cluster_callback)
+        update_bar_graph(svg_bar_cluster, new_bar_data_cell, color_dict_cluster, bar_cluster_callback)
 
 
     } else {
         set_close_up(false)
         update_layers_ist()
         update_bar_graph(svg_bar_gene, gene_counts, color_dict_gene, bar_gene_callback)
-        update_bar_graph(svg_bar_cluster, cluster_counts, cluster_color_dict, bar_cluster_callback)
+        update_bar_graph(svg_bar_cluster, cluster_counts, color_dict_cluster, bar_cluster_callback)
     }
 
     deck_ist.setProps({ layers: layers_ist })

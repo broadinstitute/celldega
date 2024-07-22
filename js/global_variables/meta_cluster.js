@@ -3,7 +3,7 @@ import { get_arrow_table } from "../read_parquet/get_arrow_table.js";
 import { options } from './fetch_options.js';
 import { hexToRgb } from '../utils/hexToRgb.js'
 
-export let cluster_color_dict = {}
+export let color_dict_cluster = {}
 
 export let cluster_counts = []
 
@@ -34,7 +34,7 @@ export const set_cluster_metadata = async  () => {
     }
 
     cluster_names.forEach((cluster_name, index) => {
-        cluster_color_dict[cluster_name] = hexToRgb(colors[index])
+        color_dict_cluster[cluster_name] = hexToRgb(colors[index])
 
         cluster_counts.push({
             name: cluster_name,

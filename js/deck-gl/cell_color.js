@@ -1,6 +1,6 @@
 import { cat, cell_cats, selected_cats } from '../global_variables/cat'
 import { cell_exp_array } from '../global_variables/cell_exp_array'
-import { cluster_color_dict } from '../global_variables/meta_cluster'
+import { color_dict_cluster } from '../global_variables/meta_cluster'
 
 // transparent to red
 export const get_cell_color = (i, d) => {
@@ -8,7 +8,7 @@ export const get_cell_color = (i, d) => {
     if (cat === 'cluster') {
 
         const inst_cat = cell_cats[d.index]
-        let inst_color = cluster_color_dict[inst_cat]
+        let inst_color = color_dict_cluster[inst_cat]
 
         // Check if inst_color is an array and log an error if it's not
         if (!Array.isArray(inst_color)) {

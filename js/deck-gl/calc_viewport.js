@@ -30,6 +30,33 @@ export const calc_viewport = async ({ height, width, zoom, target }) => {
     minY = targetY - halfHeightZoomed
     maxY = targetY + halfHeightZoomed
 
+    // const viewport = deck_ist.viewports[0]
+
+    // console.log('deck_ist.viewports', deck_ist.viewports)
+    // console.log(deck_ist.viewManager.getViewports())
+    // console.log(deck_ist.viewManager.getViewports())
+    // console.log(deck_ist.viewManager.getViewports()[0])
+
+    // console.log(targetX, targetY, halfWidthZoomed, halfHeightZoomed)
+
+    // Get the current viewport from Deck.gl
+    const viewports = deck_ist.viewManager.getViewports()
+    if (!viewports || viewports.length === 0) {
+        // console.error('No viewports available')
+        return
+    }
+    const viewport = viewports[0]
+
+    // Get the bounding box in world coordinates (note that Y is swapped because of screen coordinate convention)
+    const [tmp_minX, tmp_maxY] = viewport.unproject([0, viewport.height])
+    const [tmp_maxX, tmp_minY] = viewport.unproject([viewport.width, 0])
+
+
+    // console.log('compare!!!')
+    // console.log(minX, maxX, minY, maxY)
+    // console.log(tmp_minX, tmp_maxX, tmp_minY, tmp_maxY)
+
+
     const tiles_in_view = visibleTiles(minX, maxX, minY, maxY, tile_size)
 
     if (tiles_in_view.length < max_tiles_to_view) {
@@ -39,22 +66,22 @@ export const calc_viewport = async ({ height, width, zoom, target }) => {
         set_close_up(true)
         update_layers_ist()
 
-        console.log('close up')
+        // console.log('close up')
 
         if (trx_data && trx_data.attributes?.getPosition?.value) {
-            const positionsArray = Float64Array.from(trx_data.attributes.getPosition.value)
-            const positions = []
-            for (let i = 0; i < positionsArray.length; i += 2) {
-                positions.push({ x: positionsArray[i], y: positionsArray[i + 1] })
-            }
+            // const positionsArray = Float64Array.from(trx_data.attributes.getPosition.value)
+            // const positions = []
+            // for (let i = 0; i < positionsArray.length; i += 2) {
+            //     positions.push({ x: positionsArray[i], y: positionsArray[i + 1] })
+            // }
 
-            // Filter transcripts based on viewport
-            const filtered_transcripts = positions.filter(pos =>
-                pos.x >= minX && pos.x <= maxX && pos.y >= minY && pos.y <= maxY
-            )
+            // // Filter transcripts based on viewport
+            // const filtered_transcripts = positions.filter(pos =>
+            //     pos.x >= minX && pos.x <= maxX && pos.y >= minY && pos.y <= maxY
+            // )
 
             // Calculate gene counts for filtered transcripts
-            const filtered_gene_names = filtered_transcripts.map((_, index) => trx_names_array[index])
+            const filtered_gene_names = trx_names_array // filtered_transcripts.map((_, index) => trx_names_array[index])
 
             const new_bar_data = filtered_gene_names.reduce((acc, gene) => {
                 const existingGene = acc.find(item => item.name === gene)
@@ -66,17 +93,17 @@ export const calc_viewport = async ({ height, width, zoom, target }) => {
                 return acc
             }, []).sort((a, b) => b.value - a.value)
 
-            console.log(new_bar_data)
+            // console.log(new_bar_data)
 
             update_bar_cluster(svg_bar_gene, new_bar_data, gene_color_dict)
         } else {
-            console.error("trx_data.attributes.getPosition.value is undefined or not iterable")
+            // console.error("trx_data.attributes.getPosition.value is undefined or not iterable")
         }
     } else {
         set_close_up(false)
         update_layers_ist()
 
-        console.log('not close up')
+        // console.log('not close up')
         update_bar_cluster(svg_bar_gene, gene_counts, gene_color_dict)
     }
 

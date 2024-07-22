@@ -328,6 +328,9 @@ export const update_bar_cluster = (svg_bar, bar_data, color_dict, click_callback
     const bars = svg_bar.selectAll("g")
         .data(bar_data, d => d.name);
 
+    // // Remove old event listeners
+    // bars.on('click', null);
+
     // Enter new bars
     const bars_enter = bars.enter().append("g")
         .attr("transform", (d, i) => `translate(2,${y_new(i) + 2})`)

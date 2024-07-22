@@ -12,6 +12,7 @@ import { gene_color_dict } from '../global_variables/gene_color_dict.js'
 import { trx_data } from '../vector_tile/transcripts/trx_data.js'
 import { gene_counts } from '../global_variables/meta_gene.js'
 import { bar_gene_callback } from '../ui/bar_plot.js'
+import { trx_combo_data } from '../vector_tile/transcripts/grab_trx_tiles_in_view.js'
 
 export let minX
 export let maxX
@@ -67,43 +68,28 @@ export const calc_viewport = async ({ height, width, zoom, target }) => {
         set_close_up(true)
         update_layers_ist()
 
-        // console.log('close up')
 
-        if (trx_data && trx_data.attributes?.getPosition?.value) {
-            const positionsArray = Float64Array.from(trx_data.attributes.getPosition.value)
-            const positions = []
-            for (let i = 0; i < positionsArray.length; i += 2) {
-                positions.push({ x: positionsArray[i], y: positionsArray[i + 1] })
+        const filtered_transcripts = trx_combo_data.filter(pos =>
+            pos.x >= minX && pos.x <= maxX && pos.y >= minY && pos.y <= maxY
+        );
+
+        const filtered_gene_names = filtered_transcripts.map(transcript => transcript.name);
+
+        const new_bar_data = filtered_gene_names.reduce((acc, gene) => {
+            const existingGene = acc.find(item => item.name === gene)
+            if (existingGene) {
+                existingGene.value += 1
+            } else {
+                acc.push({ name: gene, value: 1 })
             }
+            return acc
+        }, []).filter(item => item.value > 0)
+        .sort((a, b) => b.value - a.value)
 
-            // Filter transcripts based on viewport
-            const filtered_transcripts = positions.filter(pos =>
-                pos.x >= minX && pos.x <= maxX && pos.y >= minY && pos.y <= maxY
-            )
+        // console.log(new_bar_data)
 
-            // Calculate gene counts for filtered transcripts
-            const filtered_gene_names = filtered_transcripts.map((_, index) => trx_names_array[index])
+        update_bar_cluster(svg_bar_gene, new_bar_data, gene_color_dict, bar_gene_callback)
 
-
-            // const filtered_gene_names = trx_names_array // filtered_transcripts.map((_, index) => trx_names_array[index])
-
-            const new_bar_data = filtered_gene_names.reduce((acc, gene) => {
-                const existingGene = acc.find(item => item.name === gene)
-                if (existingGene) {
-                    existingGene.value += 1
-                } else {
-                    acc.push({ name: gene, value: 1 })
-                }
-                return acc
-            }, []).filter(item => item.value > 0)
-            .sort((a, b) => b.value - a.value)
-
-            // console.log(new_bar_data)
-
-            update_bar_cluster(svg_bar_gene, new_bar_data, gene_color_dict, bar_gene_callback)
-        } else {
-            // console.error("trx_data.attributes.getPosition.value is undefined or not iterable")
-        }
     } else {
         set_close_up(false)
         update_layers_ist()

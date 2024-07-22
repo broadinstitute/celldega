@@ -5,10 +5,12 @@ import { update_path_layer } from './path_layer.js'
 import { update_trx_layer } from './trx_layer.js'
 import { layers_ist, update_layers_ist } from './layers_ist.js'
 import { landscape_parameters } from '../global_variables/landscape_parameters.js'
-import { set_close_up } from '../global_variables/close_up.js'
+import { close_up, set_close_up } from '../global_variables/close_up.js'
 import { trx_names_array } from '../global_variables/trx_names_array.js'
 import { svg_bar_gene, update_bar_cluster } from '../ui/bar_plot.js'
 import { gene_color_dict } from '../global_variables/gene_color_dict.js'
+import { trx_data } from '../vector_tile/transcripts/trx_data.js'
+import { gene_counts } from '../global_variables/meta_gene.js'
 
 export let minX
 export let maxX
@@ -26,6 +28,8 @@ export const calc_viewport = async ({ height, width, zoom, target }) => {
     const halfWidthZoomed = width / (2 * zoomFactor);
     const halfHeightZoomed = height / (2 * zoomFactor);
 
+
+
     minX = targetX - halfWidthZoomed;
     maxX = targetX + halfWidthZoomed;
     minY = targetY - halfHeightZoomed;
@@ -41,68 +45,49 @@ export const calc_viewport = async ({ height, width, zoom, target }) => {
         set_close_up(true)
         update_layers_ist()
 
-        // console.log(trx_names_array)
+        console.log('close up')
 
-        // const geneCounts = trx_names_array.reduce((acc, gene) => {
-        //     acc[gene] = (acc[gene] || 0) + 1
-        //     return acc
-        //   }, {}
-
-        // // geneCounts.sort((a, b) => b.value - a.value)
-
-        // console.log(geneCounts)
-
-        // const new_bar_data = [
-        //     {name: 'MMP2', value: 40},
-        //     {name: 'SUMO1', value: 50},
-        //     {name: 'IL3', value: 60}
-        // ]
-
-        // new_bar_data.sort((a, b) => b.value - a.value)
-
-
-        const new_bar_data = trx_names_array.reduce((acc, gene) => {
-            // Check if the gene is already in the accumulator
-            const existingGene = acc.find(item => item.name === gene)
-            if (existingGene) {
-                // If the gene is found, increment its value
-                existingGene.value += 1
-            } else {
-                // If the gene is not found, add a new object with name and value
-                acc.push({ name: gene, value: 1 })
+        if (trx_data && trx_data.attributes && trx_data.attributes.getPosition && trx_data.attributes.getPosition.value) {
+            const positionsArray = Float64Array.from(trx_data.attributes.getPosition.value)
+            const positions = []
+            for (let i = 0; i < positionsArray.length; i += 2) {
+                positions.push({ x: positionsArray[i], y: positionsArray[i + 1] })
             }
-            return acc
-        }, []).sort((a, b) => b.value - a.value)
 
-        update_bar_cluster(svg_bar_gene, new_bar_data, gene_color_dict)
+            // Filter transcripts based on viewport
+            const filtered_transcripts = positions.filter(pos =>
+                pos.x >= minX && pos.x <= maxX && pos.y >= minY && pos.y <= maxY
+            )
 
-        // // Filter transcripts based on viewport
-        // const filtered_transcripts = trx_names_array.filter((_, index) => {
-        //     const [x, y] = trx_coords_array[index]
-        //     return x >= minX && x <= maxX && y >= minY && y <= maxY
-        // })
+            // Calculate gene counts for filtered transcripts
+            const filtered_gene_names = filtered_transcripts.map((_, index) => trx_names_array[index])
 
-        // // Calculate gene counts
-        // const new_bar_data = filtered_transcripts.reduce((acc, gene) => {
-        //     const existing_gene = acc.find(item => item.name === gene)
-        //     if (existing_gene) {
-        //         existing_gene.value += 1
-        //     } else {
-        //         acc.push({ name: gene, value: 1 })
-        //     }
-        //     return acc
-        // }, []).sort((a, b) => b.value - a.value)
+            const new_bar_data = filtered_gene_names.reduce((acc, gene) => {
+                // Check if the gene is already in the accumulator
+                const existingGene = acc.find(item => item.name === gene)
+                if (existingGene) {
+                    // If the gene is found, increment its value
+                    existingGene.value += 1
+                } else {
+                    // If the gene is not found, add a new object with name and value
+                    acc.push({ name: gene, value: 1 })
+                }
+                return acc
+            }, []).sort((a, b) => b.value - a.value)
 
-        // // Update bar plot
-        // update_bar_cluster(svg_bar_gene, new_bar_data, gene_color_dict)
-
+            update_bar_cluster(svg_bar_gene, new_bar_data, gene_color_dict)
+        } else {
+            console.error("trx_data.attributes.getPosition.value is undefined or not iterable")
+        }
 
 
     } else {
-
         set_close_up(false)
         update_layers_ist()
 
+        console.log('not close up')
+        update_bar_cluster(svg_bar_gene, gene_counts, gene_color_dict)
+        // console.log(gene_color_dict)
     }
 
     deck_ist.setProps({

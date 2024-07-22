@@ -18,27 +18,21 @@ export let minY
 export let maxY
 
 export const calc_viewport = async ({ height, width, zoom, target }) => {
-
     const tile_size = landscape_parameters.tile_size
+    const max_tiles_to_view = 50
+    const zoomFactor = Math.pow(2, zoom)
+    const [targetX, targetY] = target
+    const halfWidthZoomed = width / (2 * zoomFactor)
+    const halfHeightZoomed = height / (2 * zoomFactor)
 
-    const max_tiles_to_view = 50 // 15
+    minX = targetX - halfWidthZoomed
+    maxX = targetX + halfWidthZoomed
+    minY = targetY - halfHeightZoomed
+    maxY = targetY + halfHeightZoomed
 
-    const zoomFactor = Math.pow(2, zoom);
-    const [targetX, targetY] = target;
-    const halfWidthZoomed = width / (2 * zoomFactor);
-    const halfHeightZoomed = height / (2 * zoomFactor);
-
-
-
-    minX = targetX - halfWidthZoomed;
-    maxX = targetX + halfWidthZoomed;
-    minY = targetY - halfHeightZoomed;
-    maxY = targetY + halfHeightZoomed;
-
-    const tiles_in_view = visibleTiles(minX, maxX, minY, maxY, tile_size);
+    const tiles_in_view = visibleTiles(minX, maxX, minY, maxY, tile_size)
 
     if (tiles_in_view.length < max_tiles_to_view) {
-
         await update_trx_layer(global_base_url, tiles_in_view)
         await update_path_layer(global_base_url, tiles_in_view)
 
@@ -47,7 +41,7 @@ export const calc_viewport = async ({ height, width, zoom, target }) => {
 
         console.log('close up')
 
-        if (trx_data && trx_data.attributes && trx_data.attributes.getPosition && trx_data.attributes.getPosition.value) {
+        if (trx_data && trx_data.attributes?.getPosition?.value) {
             const positionsArray = Float64Array.from(trx_data.attributes.getPosition.value)
             const positions = []
             for (let i = 0; i < positionsArray.length; i += 2) {
@@ -63,34 +57,28 @@ export const calc_viewport = async ({ height, width, zoom, target }) => {
             const filtered_gene_names = filtered_transcripts.map((_, index) => trx_names_array[index])
 
             const new_bar_data = filtered_gene_names.reduce((acc, gene) => {
-                // Check if the gene is already in the accumulator
                 const existingGene = acc.find(item => item.name === gene)
                 if (existingGene) {
-                    // If the gene is found, increment its value
                     existingGene.value += 1
                 } else {
-                    // If the gene is not found, add a new object with name and value
                     acc.push({ name: gene, value: 1 })
                 }
                 return acc
             }, []).sort((a, b) => b.value - a.value)
 
+            console.log(new_bar_data)
+
             update_bar_cluster(svg_bar_gene, new_bar_data, gene_color_dict)
         } else {
             console.error("trx_data.attributes.getPosition.value is undefined or not iterable")
         }
-
-
     } else {
         set_close_up(false)
         update_layers_ist()
 
         console.log('not close up')
         update_bar_cluster(svg_bar_gene, gene_counts, gene_color_dict)
-        // console.log(gene_color_dict)
     }
 
-    deck_ist.setProps({
-        'layers': layers_ist
-    });
+    deck_ist.setProps({ layers: layers_ist })
 }

@@ -199,12 +199,13 @@ export const update_bar_cluster = (svg_bar, bar_data, color_dict) => {
         .append("g")
         .attr("transform", (d, i) => `translate(2,${y_new(i) + 2})`);
 
+    console.log('here')
     bars_enter.append("rect")
-        // .attr("fill", (d) => {
-        //     const inst_rgb = color_dict[d.name];
-        //     const inst_color = `rgb(${inst_rgb[0]}, ${inst_rgb[1]}, ${inst_rgb[2]})`;
-        //     return inst_color;
-        // })
+        .attr("fill", (d) => {
+            const inst_rgb = color_dict[d.name];
+            const inst_color = `rgb(${inst_rgb[0]}, ${inst_rgb[1]}, ${inst_rgb[2]})`;
+            return inst_color;
+        })
         .attr("width", 0) // Initial width set to 0 for transition effect
         .attr("height", y_new.bandwidth() - 1)
         .transition() // Transition for entering elements

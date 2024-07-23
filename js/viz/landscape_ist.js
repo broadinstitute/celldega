@@ -5,7 +5,7 @@ import { set_landscape_parameters } from '../global_variables/landscape_paramete
 import { set_dimensions } from '../global_variables/image_dimensions'
 import { set_initial_view_state } from '../deck-gl/initial_view_state'
 import { set_cell_layer } from "../deck-gl/cell_layer"
-import { update_layers_ist } from '../deck-gl/layers_ist'
+import { layers_ist, update_layers_ist } from '../deck-gl/layers_ist'
 import { make_image_layers } from '../deck-gl/image_layers'
 import { update_views } from '../deck-gl/views'
 import { deck_ist, set_deck } from '../deck-gl/deck_ist'
@@ -17,6 +17,15 @@ import { image_info, set_image_info, set_image_layer_colors } from '../global_va
 import { set_image_layer_sliders } from "../ui/sliders"
 import { set_meta_gene } from '../global_variables/meta_gene'
 import { set_cluster_metadata } from '../global_variables/meta_cluster'
+import { toggle_image_layers_and_ctrls } from '../ui/ui_containers'
+import { cat, update_cat, update_selected_cats } from '../global_variables/cat'
+import { update_selected_genes } from '../global_variables/selected_genes'
+import { update_cell_exp_array } from '../global_variables/cell_exp_array'
+import { update_cell_layer_id } from '../deck-gl/cell_layer'
+import { update_path_layer_id } from '../deck-gl/path_layer'
+import { update_trx_layer_filter } from '../deck-gl/trx_layer'
+import { gene_search_input } from '../ui/gene_search_input'
+import { global_base_url } from '../global_variables/global_base_url'
 
 export const landscape_ist = async (
     el,
@@ -83,31 +92,51 @@ export const landscape_ist = async (
 
     set_deck(root)
 
-    const update_ist_landscape_from_cgm = () => {
+    const update_ist_landscape_from_cgm = async () => {
         const click_info = model.get('update_trigger')
 
+        let inst_gene
 
         if (click_info.click_type === 'row-label') {
 
-            selected_gene = click_info.click_value
+            inst_gene = click_info.click_value
+
+            const new_cat = inst_gene === cat ? 'cluster' : inst_gene
+
+            toggle_image_layers_and_ctrls(cat === inst_gene)
+
+            update_cat(new_cat)
+            update_selected_genes([inst_gene])
+            update_selected_cats([])
+            await update_cell_exp_array(global_base_url, inst_gene)
+            update_cell_layer_id(new_cat)
+            update_path_layer_id(new_cat)
+            update_trx_layer_filter()
+            update_layers_ist()
+
+            deck_ist.setProps({layers: layers_ist})
+
+            gene_search_input.value = (gene_search_input.value !== inst_gene) ? inst_gene : ''
+
+            console.log('clicking row-label and updated landscape_ist')
 
             // update_cat(selected_gene)
             // await update_tile_exp_array(global_base_url, selected_gene)
 
         } else if (click_info.click_type === 'col-label') {
 
-            selected_gene = 'cluster'
+            inst_gene = 'cluster'
             // update_cat(selected_gene)
             // update_selected_cats([click_info.click_value])
 
         } else if (click_info.click_type === 'col-dendro') {
 
-            selected_gene = 'cluster'
+            inst_gene = 'cluster'
             // update_cat(selected_gene)
             // update_selected_cats(click_info.click_value)
 
         } else {
-            selected_gene = 'cluster'
+            inst_gene = 'cluster'
             // update_cat(selected_gene)
         }
 

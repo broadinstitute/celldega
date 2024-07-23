@@ -7,8 +7,8 @@ import { image_layer_sliders, make_img_layer_slider_callback, toggle_slider } fr
 import { debounce } from '../utils/debounce'
 import { toggle_visibility_image_layers } from '../deck-gl/image_layers'
 import { make_bar_graph } from './bar_plot'
-import { bar_container_cluster, bar_cluster_callback, svg_bar_cluster } from './bar_plot'
-import { bar_container_gene, bar_gene_callback, svg_bar_gene } from './bar_plot'
+import { bar_container_cluster, bar_callback_cluster, svg_bar_cluster } from './bar_plot'
+import { bar_container_gene, bar_callback_gene, svg_bar_gene } from './bar_plot'
 import { cluster_counts } from '../global_variables/meta_cluster'
 import { color_dict_cluster } from '../global_variables/meta_cluster'
 import { color_dict_gene } from '../global_variables/color_dict_gene'
@@ -173,7 +173,7 @@ export const make_ist_ui_container = (dataset_name) => {
 
     make_bar_graph(
         bar_container_cluster,
-        bar_cluster_callback,
+        bar_callback_cluster,
         svg_bar_cluster,
         cluster_counts,
         color_dict_cluster
@@ -181,7 +181,7 @@ export const make_ist_ui_container = (dataset_name) => {
 
     make_bar_graph(
         bar_container_gene,
-        bar_gene_callback,
+        bar_callback_gene,
         svg_bar_gene,
         gene_counts,
         color_dict_gene

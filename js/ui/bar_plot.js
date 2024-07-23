@@ -17,7 +17,7 @@ export let bar_container_gene = document.createElement("div")
 export let svg_bar_cluster = d3.create("svg")
 export let svg_bar_gene = d3.create("svg")
 
-export const bar_cluster_callback = (event, d) => {
+export const bar_callback_cluster = (event, d) => {
     const currentTarget = d3.select(event.currentTarget)
     const isBold = currentTarget.attr('font-weight') === 'bold'
 
@@ -54,9 +54,9 @@ export const bar_cluster_callback = (event, d) => {
     deck_ist.setProps({layers: layers_ist})
 }
 
-export const bar_gene_callback = async (event, d) => {
+export const bar_callback_gene = async (event, d) => {
 
-    // console.log('bar_gene_callback', d.name)
+    // console.log('bar_callback_gene', d.name)
     const currentTarget = d3.select(event.currentTarget)
     const isBold = currentTarget.attr('font-weight') === 'bold'
 

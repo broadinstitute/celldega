@@ -9,7 +9,7 @@ import { set_close_up } from '../global_variables/close_up.js'
 import { svg_bar_gene, update_bar_graph } from '../ui/bar_plot.js'
 import { color_dict_gene } from '../global_variables/color_dict_gene.js'
 import { gene_counts } from '../global_variables/meta_gene.js'
-import { bar_gene_callback, svg_bar_cluster, bar_cluster_callback } from '../ui/bar_plot.js'
+import { bar_callback_gene, svg_bar_cluster, bar_callback_cluster } from '../ui/bar_plot.js'
 import { trx_combo_data } from '../vector_tile/transcripts/grab_trx_tiles_in_view.js'
 import { cell_combo_data } from './cell_layer.js'
 import { color_dict_cluster, cluster_counts } from '../global_variables/meta_cluster.js'
@@ -66,7 +66,7 @@ export const calc_viewport = async ({ height, width, zoom, target }) => {
         }, []).filter(item => item.value > 0)
         .sort((a, b) => b.value - a.value)
 
-        update_bar_graph(svg_bar_gene, new_bar_data, color_dict_gene, bar_gene_callback)
+        update_bar_graph(svg_bar_gene, new_bar_data, color_dict_gene, bar_callback_gene)
 
         // console.log('cell_scatter_data', cell_scatter_data)
 
@@ -90,14 +90,14 @@ export const calc_viewport = async ({ height, width, zoom, target }) => {
 
         // console.log(new_bar_data_cell)
 
-        update_bar_graph(svg_bar_cluster, new_bar_data_cell, color_dict_cluster, bar_cluster_callback)
+        update_bar_graph(svg_bar_cluster, new_bar_data_cell, color_dict_cluster, bar_callback_cluster)
 
 
     } else {
         set_close_up(false)
         update_layers_ist()
-        update_bar_graph(svg_bar_gene, gene_counts, color_dict_gene, bar_gene_callback)
-        update_bar_graph(svg_bar_cluster, cluster_counts, color_dict_cluster, bar_cluster_callback)
+        update_bar_graph(svg_bar_gene, gene_counts, color_dict_gene, bar_callback_gene)
+        update_bar_graph(svg_bar_cluster, cluster_counts, color_dict_cluster, bar_callback_cluster)
     }
 
     deck_ist.setProps({ layers: layers_ist })

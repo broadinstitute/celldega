@@ -40,15 +40,11 @@ export const bar_callback_cluster = (event, d) => {
     update_cat('cluster')
     update_selected_cats([d.name])
     update_selected_genes([])
-
     toggle_image_layers_and_ctrls(!selected_cats.length > 0)
-
     const inst_cat_name = selected_cats.join('-')
-
     update_cell_layer_id(inst_cat_name)
     update_path_layer_id(inst_cat_name)
     update_trx_layer_filter()
-
     update_layers_ist()
 
     deck_ist.setProps({layers: layers_ist})

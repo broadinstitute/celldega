@@ -18,7 +18,7 @@ import { set_image_layer_sliders } from "../ui/sliders"
 import { set_meta_gene } from '../global_variables/meta_gene'
 import { set_cluster_metadata } from '../global_variables/meta_cluster'
 import { toggle_image_layers_and_ctrls } from '../ui/ui_containers'
-import { cat, update_cat, update_selected_cats } from '../global_variables/cat'
+import { cat, update_cat, update_selected_cats, selected_cats } from '../global_variables/cat'
 import { update_selected_genes } from '../global_variables/selected_genes'
 import { update_cell_exp_array } from '../global_variables/cell_exp_array'
 import { update_cell_layer_id } from '../deck-gl/cell_layer'
@@ -96,6 +96,7 @@ export const landscape_ist = async (
         const click_info = model.get('update_trigger')
 
         let inst_gene
+        let new_cat
 
         if (click_info.click_type === 'row-label') {
 
@@ -118,14 +119,38 @@ export const landscape_ist = async (
 
             gene_search_input.value = (gene_search_input.value !== inst_gene) ? inst_gene : ''
 
-            console.log('clicking row-label and updated landscape_ist')
-
-            // update_cat(selected_gene)
-            // await update_tile_exp_array(global_base_url, selected_gene)
-
         } else if (click_info.click_type === 'col-label') {
 
+            console.log('here step 1!!!!!!!!!!!!!')
+
             inst_gene = 'cluster'
+
+            new_cat = click_info.click_value
+
+            update_cat('cluster')
+            console.log('update_cat')
+
+            update_selected_cats([new_cat])
+            console.log('update_selected_cats')
+
+            update_selected_genes([])
+            toggle_image_layers_and_ctrls(!selected_cats.length > 0)
+
+            console.log('selected_cats', selected_cats)
+
+            const inst_cat_name = selected_cats.join('-')
+            update_cell_layer_id(inst_cat_name)
+            update_path_layer_id(inst_cat_name)
+            update_trx_layer_filter()
+            update_layers_ist()
+
+            console.log('here!!!!')
+
+            deck_ist.setProps({layers: layers_ist})
+
+            // gene_search_input.value = (gene_search_input.value !== inst_gene) ? inst_gene : ''
+
+
             // update_cat(selected_gene)
             // update_selected_cats([click_info.click_value])
 

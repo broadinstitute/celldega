@@ -11,7 +11,7 @@ import { update_views } from '../deck-gl/views'
 import { deck_ist, set_deck } from '../deck-gl/deck_ist'
 import { set_background_layer } from '../deck-gl/background_layer'
 import { make_ist_ui_container } from '../ui/ui_containers'
-import { set_model } from '../global_variables/model'
+import { model, set_model } from '../global_variables/model'
 import { update_trx_layer_radius } from '../deck-gl/trx_layer'
 import { image_info, set_image_info, set_image_layer_colors } from '../global_variables/image_info'
 import { set_image_layer_sliders } from "../ui/sliders"
@@ -82,6 +82,38 @@ export const landscape_ist = async (
     update_views()
 
     set_deck(root)
+
+    const update_ist_landscape_from_cgm = () => {
+        const click_info = model.get('update_trigger')
+
+
+        if (click_info.click_type === 'row-label') {
+
+            selected_gene = click_info.click_value
+
+            // update_cat(selected_gene)
+            // await update_tile_exp_array(global_base_url, selected_gene)
+
+        } else if (click_info.click_type === 'col-label') {
+
+            selected_gene = 'cluster'
+            // update_cat(selected_gene)
+            // update_selected_cats([click_info.click_value])
+
+        } else if (click_info.click_type === 'col-dendro') {
+
+            selected_gene = 'cluster'
+            // update_cat(selected_gene)
+            // update_selected_cats(click_info.click_value)
+
+        } else {
+            selected_gene = 'cluster'
+            // update_cat(selected_gene)
+        }
+
+    }
+
+    model.on('change:update_trigger', update_ist_landscape_from_cgm)
 
     const ui_container = make_ist_ui_container(dataset_name)
 

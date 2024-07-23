@@ -4,9 +4,9 @@ import { set_gene_names } from "./gene_names.js";
 
 export let meta_gene = {}
 
-export const set_meta_gene = async (base_url) => {
+export let gene_counts = []
 
-    console.log('meta_gene', base_url + 'meta_gene.parquet')
+export const set_meta_gene = async (base_url) => {
 
     let meta_gene_table = await get_arrow_table(base_url + '/meta_gene.parquet', options.fetch)
     let gene_names = meta_gene_table.getChild('__index_level_0__').toArray()
@@ -20,7 +20,14 @@ export const set_meta_gene = async (base_url) => {
             std: gene_std[index],
             max: gene_max[index],
         }
+
+        gene_counts.push({
+            name: name,
+            value: Number(gene_mean[index])
+        })
     })
+
+    gene_counts.sort((a, b) => b.value - a.value)
 
     set_gene_names(gene_names)
 }

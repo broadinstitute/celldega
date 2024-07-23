@@ -4,6 +4,8 @@ import { concatenate_polygon_data } from '../concatenate_functions.js'
 import { extractPolygonPaths } from './extractPolygonPaths.js'
 import { options } from '../../global_variables/fetch_options.js'
 
+export let polygon_cell_names = []
+
 export const grab_cell_tiles_in_view = async (base_url, tiles_in_view) => {
 
     const tile_cell_urls = tiles_in_view.map(tile => {
@@ -11,6 +13,10 @@ export const grab_cell_tiles_in_view = async (base_url, tiles_in_view) => {
     });
 
     var tile_cell_tables = await fetch_all_tables('cell', tile_cell_urls, options)
+
+    polygon_cell_names = tile_cell_tables.flatMap(table =>
+        Array.from(table.getChild('name').toArray())
+    )
 
     var polygon_datas = tile_cell_tables.map(x => get_polygon_data(x))
 

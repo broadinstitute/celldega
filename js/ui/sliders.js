@@ -10,6 +10,7 @@ import { deck_ist } from "../deck-gl/deck_ist"
 import { background_layer } from "../deck-gl/background_layer"
 import { trx_ini_raidus } from "../global_variables/trx_ini_raidus"
 import { close_up } from "../global_variables/close_up"
+import { layers_ist, update_layers_ist } from "../deck-gl/layers_ist"
 
 export let tile_slider = document.createElement("input")
 export let cell_slider = document.createElement("input")
@@ -41,23 +42,9 @@ const cell_slider_callback = async () => {
 
     update_cell_layer_radius(cell_slider.value / scale_down_cell_radius)
 
-    if (close_up){
-        new_layers = [
-            background_layer,
-            ...image_layers,
-            path_layer,
-            cell_layer,
-            trx_layer
-        ]
-    } else {
-        new_layers = [
-            background_layer,
-            ...image_layers,
-            cell_layer,
-        ]
-    }
+    update_layers_ist()
 
-    deck_ist.setProps({layers: new_layers})
+    deck_ist.setProps({layers: layers_ist})
 
 }
 

@@ -6,6 +6,13 @@ import { image_info } from "../global_variables/image_info"
 import { image_layer_sliders, make_img_layer_slider_callback, toggle_slider } from "./sliders"
 import { debounce } from '../utils/debounce'
 import { toggle_visibility_image_layers } from '../deck-gl/image_layers'
+import { make_bar_graph } from './bar_plot'
+import { bar_container_cluster, bar_callback_cluster, svg_bar_cluster } from './bar_plot'
+import { bar_container_gene, bar_callback_gene, svg_bar_gene } from './bar_plot'
+import { cluster_counts } from '../global_variables/meta_cluster'
+import { color_dict_cluster } from '../global_variables/meta_cluster'
+import { color_dict_gene } from '../global_variables/color_dict_gene'
+import { gene_counts } from '../global_variables/meta_gene'
 
 export let image_container
 
@@ -25,6 +32,7 @@ export const make_ui_container = () => {
     ui_container.style.border = "1px solid #d3d3d3"
     ui_container.className = "ui_container"
     ui_container.style.justifyContent = 'space-between'
+    ui_container.style.height = '85px'
     return ui_container
 }
 
@@ -33,32 +41,19 @@ export const make_ctrl_container = () => {
     ctrl_container.style.display = "flex"
     ctrl_container.style.flexDirection = "row"
     ctrl_container.className = "ctrl_container"
-    ctrl_container.style.width = "190px"
-    // ctrl_container.style.margin = "5px"
     return ctrl_container
 }
 
-export const flex_container = (class_name, flex_direction, margin=5, height=null) => {
+export const flex_container = (class_name, flex_direction, height=null) => {
     const container = document.createElement("div")
     container.className = class_name
-    container.style.width = "100%"
-
-    if (flex_direction === 'row'){
-        container.style.marginLeft = margin + "px"
-        container.style.marginRight = margin + "px"
-    } else {
-        container.style.marginTop = margin + "px"
-        container.style.marginBottom = margin + "px"
-    }
 
     container.style.display = "flex"
     container.style.flexDirection = flex_direction
 
     if (height !== null){
-        // container.style.marginLeft = '5px'
         container.style.height = height + 'px'
         container.style.overflow = 'scroll'
-        // container.style.border = "1px solid #d3d3d3"
     }
 
     return container
@@ -68,8 +63,8 @@ export const make_slider_container = (class_name) => {
     const slider_container = document.createElement("div")
     slider_container.className = class_name
     slider_container.style.width = "100%"
-    slider_container.style.marginLeft = "5px"
-    slider_container.style.marginTop = "5px"
+    slider_container.style.marginLeft = "2px"
+    slider_container.style.marginTop = "2px"
     return slider_container
 }
 
@@ -88,7 +83,6 @@ export const make_sst_ui_container = () => {
     tile_slider_container.appendChild(tile_slider);
 
     ui_container.appendChild(ctrl_container)
-    ui_container.appendChild(gene_search)
 
     tile_container.appendChild(tile_slider_container)
 
@@ -105,21 +99,25 @@ export const make_ist_ui_container = (dataset_name) => {
     const ctrl_container = make_ctrl_container()
     image_container = flex_container('image_container', 'row')
 
-    const img_layers_container = flex_container('img_layers_container', 'column', 0, 65)
-    img_layers_container.style.width = '155px'
+    const img_layers_container = flex_container('img_layers_container', 'column', 75)
+    img_layers_container.style.width = '135px'
 
-    const cell_container = flex_container('cell_container', 'row')
-    cell_container.style.marginLeft = '0px'
+    const cell_container = flex_container('cell_container', 'column')
+    // widths are custom because of the length of the text buttons varies
+    cell_container.style.width = '120px'
+    const cell_ctrl_container = flex_container('cell_ctrl_container', 'row')
+    cell_ctrl_container.style.marginLeft = '0px'
 
     // gene container will contain trx button/slider and gene search
     const gene_container = flex_container('gene_container', 'column')
     gene_container.style.marginTop = '0px'
+    gene_container.style.width = '105px'
     const trx_container = flex_container('trx_container', 'row')
 
     const cell_slider_container = make_slider_container('cell_slider_container')
     const trx_slider_container = make_slider_container('trx_slider_container')
 
-    make_button(image_container, 'ist', 'IMG', 'blue', 30)
+    make_button(img_layers_container, 'ist', 'IMG', 'blue', 30)
 
     const get_slider_by_name = (name) => {
         return image_layer_sliders.filter(slider => slider.name === name);
@@ -132,7 +130,7 @@ export const make_ist_ui_container = (dataset_name) => {
 
         let inst_container = flex_container('img_layer_container', 'row')
 
-        make_button(inst_container, 'ist', inst_name, 'blue', 100, 'img_layer_button')
+        make_button(inst_container, 'ist', inst_name, 'blue', 75, 'img_layer_button')
 
         const inst_slider_container = make_slider_container(inst_name)
 
@@ -164,32 +162,52 @@ export const make_ist_ui_container = (dataset_name) => {
         make_img_layer_ctrl
     )
 
-    make_button(cell_container, 'ist', 'CELL')
+    make_button(cell_ctrl_container, 'ist', 'CELL')
     make_button(trx_container, 'ist', 'TRX')
 
     image_container.appendChild(img_layers_container)
 
     ini_slider('cell')
-    cell_container.appendChild(cell_slider_container)
     cell_slider_container.appendChild(cell_slider)
+    cell_ctrl_container.appendChild(cell_slider_container)
+
+    make_bar_graph(
+        bar_container_cluster,
+        bar_callback_cluster,
+        svg_bar_cluster,
+        cluster_counts,
+        color_dict_cluster
+    )
+
+    make_bar_graph(
+        bar_container_gene,
+        bar_callback_gene,
+        svg_bar_gene,
+        gene_counts,
+        color_dict_gene
+    )
+
+    cell_container.appendChild(cell_ctrl_container)
+    cell_container.appendChild(bar_container_cluster)
 
     ini_slider('trx')
     trx_container.appendChild(trx_slider_container)
     trx_slider_container.appendChild(trx_slider)
 
     gene_container.appendChild(trx_container)
+    gene_container.appendChild(bar_container_gene)
 
     set_gene_search('ist')
 
-    gene_search.style.marginLeft = '10px'
-
-    gene_container.appendChild(gene_search)
+    gene_search.style.marginLeft = '15px'
 
     ui_container.appendChild(ctrl_container)
 
     ctrl_container.appendChild(image_container)
     ctrl_container.appendChild(cell_container)
     ctrl_container.appendChild(gene_container)
+
+    ctrl_container.appendChild(gene_search)
 
     // if dataset_name is not an empty string make the name container
     if (dataset_name.trim !== ''){

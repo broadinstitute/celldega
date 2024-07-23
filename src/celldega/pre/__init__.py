@@ -120,6 +120,7 @@ def make_meta_cell_image_coord(
     path_transformation_matrix,
     path_meta_cell_micron,
     path_meta_cell_image,
+    df_meta = None
 ):
     """
     Apply an affine transformation to the cell coordinates in microns and save
@@ -135,6 +136,8 @@ def make_meta_cell_image_coord(
         Path to the meta cell file with coordinates in microns
     path_meta_cell_image : str
         Path to save the meta cell file with coordinates in pixels
+    df_meta : pd.DataFrame (default=None)
+        DataFrame with additional cell metadata to be pre-loaded into the landscape visualization
 
     Returns
     -------
@@ -187,7 +190,23 @@ def make_meta_cell_image_coord(
         lambda row: [row["center_x"], row["center_y"]], axis=1
     )
 
-    meta_cell[["name", "geometry"]].to_parquet(path_meta_cell_image)
+    meta_cell = meta_cell[["name", "geometry"]]
+
+    # Add df_meta to the meta_cell DataFrame
+    if df_meta is not None:
+        try:
+            # # make sure that df_meta has the same index as meta_cell
+            # keep_cells = meta_cell.index.tolist()
+            # df_meta = df_meta.loc[keep_cells]
+
+            meta_cell = pd.concat([meta_cell, df_meta], axis=1)
+
+        except:
+            print("Error: df_meta must have the same index as meta_cell")
+            print(meta_cell.head())
+            print(df_meta.head())
+
+    meta_cell.to_parquet(path_meta_cell_image)
 
 
 def make_trx_tiles(

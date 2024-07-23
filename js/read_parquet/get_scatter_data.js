@@ -4,10 +4,10 @@ export const get_scatter_data = (arrow_table) => {
         const flatCoordinateArray = arrow_table.getChild("geometry").getChildAt(0).data
             .map(x => x.values)
             .reduce((acc, val) => {
-            const combined = new Float64Array(acc.length + val.length);
-            combined.set(acc);
-            combined.set(val, acc.length);
-            return combined;
+                const combined = new Float64Array(acc.length + val.length);
+                combined.set(acc);
+                combined.set(val, acc.length);
+                return combined;
             }, new Float64Array(0));
 
         const scatter_data = {

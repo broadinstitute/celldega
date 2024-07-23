@@ -199,6 +199,48 @@ export const landscape_ist = async (
 
             console.log(click_info.click_value)
 
+
+            inst_gene = 'cluster'
+            const new_cats = click_info.click_value
+
+            update_cat('cluster')
+            update_selected_cats(new_cats)
+            update_selected_genes([])
+            toggle_image_layers_and_ctrls(!selected_cats.length > 0)
+
+            const inst_cat_name = selected_cats.join('-')
+            update_cell_layer_id(inst_cat_name)
+            update_path_layer_id(inst_cat_name)
+            update_trx_layer_filter()
+            update_layers_ist()
+
+            svg_bar_cluster.selectAll("g")
+            .attr('font-weight', 'normal')
+            .attr('opacity', reset_cat ? 1.0 : 0.25)
+
+            // const inst_cat = new_cats
+
+            // if (!reset_cat) {
+            //     const selectedBar = svg_bar_cluster.selectAll("g")
+            //         .filter(function() {
+            //             return d3.select(this).select("text").text() === inst_cat
+            //         })
+            //         .attr('opacity', 1.0)
+
+            //     if (!selectedBar.empty()) {
+            //         const barPosition = selectedBar.node().getBoundingClientRect().top
+            //         const containerPosition = bar_container_cluster.getBoundingClientRect().top
+            //         const scrollPosition = barPosition - containerPosition + bar_container_cluster.scrollTop
+
+            //         bar_container_cluster.scrollTo({
+            //             top: scrollPosition,
+            //             behavior: 'smooth'
+            //         })
+            //     }
+            // }
+
+            deck_ist.setProps({layers: layers_ist})
+
             // update_cat(selected_gene)
             // update_selected_cats(click_info.click_value)
 

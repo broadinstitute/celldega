@@ -121,7 +121,7 @@ export const render_matrix = async ({ model, el }) => {
             widget_callback: my_widget_callback,
             is_widget: true,
             container: container,
-            use_hzome: true
+            use_hzome: false, // true
         },
         'yes this is a widget'
         );

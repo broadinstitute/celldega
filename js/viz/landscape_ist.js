@@ -11,12 +11,14 @@ import { update_views } from '../deck-gl/views'
 import { deck_ist, set_deck } from '../deck-gl/deck_ist'
 import { set_background_layer } from '../deck-gl/background_layer'
 import { make_ist_ui_container } from '../ui/ui_containers'
-import { set_model } from '../global_variables/model'
+import { model, set_model } from '../global_variables/model'
 import { update_trx_layer_radius } from '../deck-gl/trx_layer'
 import { image_info, set_image_info, set_image_layer_colors } from '../global_variables/image_info'
 import { set_image_layer_sliders } from "../ui/sliders"
 import { set_meta_gene } from '../global_variables/meta_gene'
 import { set_cluster_metadata } from '../global_variables/meta_cluster'
+import { update_ist_landscape_from_cgm } from '../widget_interactions/update_ist_landscape_from_cgm'
+
 
 export const landscape_ist = async (
     el,
@@ -82,6 +84,13 @@ export const landscape_ist = async (
     update_views()
 
     set_deck(root)
+
+
+
+    // check if ini_model is not equal to {}
+    if (Object.keys(ini_model).length > 0) {
+        model.on('change:update_trigger', update_ist_landscape_from_cgm)
+    }
 
     const ui_container = make_ist_ui_container(dataset_name)
 

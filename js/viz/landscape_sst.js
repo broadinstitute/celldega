@@ -15,7 +15,7 @@ import { set_dimensions } from '../global_variables/image_dimensions.js'
 import { set_landscape_parameters } from "../global_variables/landscape_parameters.js"
 import { simple_image_layer, make_simple_image_layer } from "../deck-gl/simple_image_layer.js"
 import { set_global_base_url } from "../global_variables/global_base_url.js"
-import { set_model, model } from "../global_variables/model.js"
+import { model, set_model} from "../global_variables/model.js"
 import { update_tile_landscape_from_cgm } from "../widget_interactions/update_tile_landscape_from_cgm.js"
 import { set_gene_search } from '../ui/gene_search.js'
 import { make_sst_ui_container } from '../ui/ui_containers.js'

@@ -18,6 +18,7 @@ import { set_image_layer_sliders } from "../ui/sliders"
 import { set_meta_gene } from '../global_variables/meta_gene'
 import { set_cluster_metadata } from '../global_variables/meta_cluster'
 import { update_ist_landscape_from_cgm } from '../widget_interactions/update_ist_landscape_from_cgm'
+import { hexToRgb } from '../utils/hexToRgb'
 
 
 export const landscape_ist = async (
@@ -39,12 +40,22 @@ export const landscape_ist = async (
         {
             name: 'dapi',
             button_name: 'DAPI',
-            color: [0, 0, 255]
+            color: hexToRgb('#0072B2')
         },
         {
-            name: 'cellbound',
+            name: 'bound',
             button_name: 'BOUND',
-            color: [255, 0, 0]
+            color: hexToRgb('#56B4E9')
+        },
+        {
+            name: 'rna',
+            button_name: 'RNA',
+            color: hexToRgb('#E69F00')
+        },
+        {
+            name: 'prot',
+            button_name: 'PROT',
+            color: hexToRgb('#CC79A7')
         }
     ]
 

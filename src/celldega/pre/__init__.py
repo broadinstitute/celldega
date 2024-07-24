@@ -77,7 +77,7 @@ def convert_to_jpeg(image_path, quality=80):
 
 
 def make_deepzoom_pyramid(
-    image_path, output_path, pyramid_name, tile_size=512, overlap=0, suffix="jpeg"
+    image_path, output_path, pyramid_name, tile_size=512, overlap=0, suffix=".jpeg"
 ):
     """
     Create a DeepZoom image pyramid from a JPEG image

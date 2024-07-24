@@ -74,7 +74,7 @@ export const calc_viewport = async ({ height, width, zoom, target }) => {
         bar_container_gene.scrollTo({
             top: 0,
             behavior: 'smooth'
-        });
+        })
 
         // cell bar graph update
         const filtered_cells = cell_combo_data.filter(pos =>
@@ -99,7 +99,7 @@ export const calc_viewport = async ({ height, width, zoom, target }) => {
         bar_container_cluster.scrollTo({
             top: 0,
             behavior: 'smooth'
-        });
+        })
 
 
     } else {
@@ -109,6 +109,17 @@ export const calc_viewport = async ({ height, width, zoom, target }) => {
             update_layers_ist()
             update_bar_graph(svg_bar_gene, gene_counts, color_dict_gene, bar_callback_gene, selected_genes)
             update_bar_graph(svg_bar_cluster, cluster_counts, color_dict_cluster, bar_callback_cluster, selected_cats)
+
+            bar_container_gene.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            })
+
+            bar_container_cluster.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            })
+
         }
     }
 

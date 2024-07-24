@@ -80,6 +80,11 @@ const cell_layer_onclick = info => {
                 behavior: 'smooth'
             })
         }
+    } else {
+        bar_container_cluster.scrollTo({
+            top: 0,
+            behavior: 'smooth'
+        })
     }
 
 

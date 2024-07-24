@@ -105,6 +105,7 @@ export const bar_callback_gene = async (event, d) => {
 }
 
 export const make_bar_graph = (bar_container, click_callback, svg_bar, bar_data, color_dict) => {
+
     bar_container.className = "bar_container"
     bar_container.style.width = "107px"
     bar_container.style.height = "72px"
@@ -198,15 +199,16 @@ export const update_bar_graph = (svg_bar, bar_data, color_dict, click_callback, 
 
     bars_enter.append("rect")
         .attr("fill", d => {
-            const inst_rgb = color_dict[d.name];
-            const inst_opacity = selected_array.length === 0 || selected_array.includes(d.name) ? 1 : 0.1
-            return `rgb(${inst_rgb[0]}, ${inst_rgb[1]}, ${inst_rgb[2]}, ${inst_opacity})`;
+            const inst_rgb = color_dict[d.name] || [0, 0, 0]; // Default to black if not in color_dict
+            const inst_opacity = selected_array.length === 0 || selected_array.includes(d.name) ? 1 : 0.1;
+            return `rgba(${inst_rgb[0]}, ${inst_rgb[1]}, ${inst_rgb[2]}, ${inst_opacity})`;
         })
         .attr("width", 0) // Initial width set to 0 for transition effect
         .attr("height", y_new.bandwidth() - 1)
         .transition() // Transition for entering elements
         .duration(750)
         .attr("width", d => x_new(d.value));
+
 
     bars_enter.append("text")
         .attr("fill", 'black')

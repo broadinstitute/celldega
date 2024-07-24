@@ -68,6 +68,11 @@ const trx_layer_callback = async (info) => {
                     behavior: 'smooth'
                 });
             }
+        } else {
+            bar_container_gene.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            })
         }
 
         // reset cluster bar plot

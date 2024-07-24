@@ -5,7 +5,7 @@ import { update_path_layer } from './path_layer.js'
 import { update_trx_layer } from './trx_layer.js'
 import { layers_ist, update_layers_ist } from './layers_ist.js'
 import { landscape_parameters } from '../global_variables/landscape_parameters.js'
-import { set_close_up } from '../global_variables/close_up.js'
+import { close_up, set_close_up } from '../global_variables/close_up.js'
 import { svg_bar_gene, update_bar_graph } from '../ui/bar_plot.js'
 import { color_dict_gene } from '../global_variables/color_dict_gene.js'
 import { gene_counts } from '../global_variables/meta_gene.js'
@@ -20,6 +20,7 @@ export let minY
 export let maxY
 
 export const calc_viewport = async ({ height, width, zoom, target }) => {
+
     const tile_size = landscape_parameters.tile_size
     const max_tiles_to_view = 50
     const zoomFactor = Math.pow(2, zoom)
@@ -94,10 +95,14 @@ export const calc_viewport = async ({ height, width, zoom, target }) => {
 
 
     } else {
-        set_close_up(false)
-        update_layers_ist()
-        update_bar_graph(svg_bar_gene, gene_counts, color_dict_gene, bar_callback_gene)
-        update_bar_graph(svg_bar_cluster, cluster_counts, color_dict_cluster, bar_callback_cluster)
+
+        if (close_up) {
+            console.log('not close up')
+            set_close_up(false)
+            update_layers_ist()
+            update_bar_graph(svg_bar_gene, gene_counts, color_dict_gene, bar_callback_gene)
+            update_bar_graph(svg_bar_cluster, cluster_counts, color_dict_cluster, bar_callback_cluster)
+        }
     }
 
     deck_ist.setProps({ layers: layers_ist })

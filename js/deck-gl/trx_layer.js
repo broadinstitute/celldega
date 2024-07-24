@@ -73,7 +73,7 @@ const trx_layer_callback = async (info) => {
     } catch (error) {
         console.error("Error in trx_layer_callback:", error);
     }
-};
+}
 
 
 export let trx_layer = new ScatterplotLayer({

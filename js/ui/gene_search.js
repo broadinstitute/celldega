@@ -117,7 +117,11 @@ export const set_gene_search = async (tech_type) => {
     // Apply styles to the input element
     gene_search_input.style.width = '100px' // "100%"
     gene_search_input.style.maxWidth = "250px"
-    gene_search_input.style.height = "15px"
+    gene_search_input.style.height = '12px'
+    gene_search_input.style.fontSize = '12px'
+    gene_search_input.style.border = '1px solid #d3d3d3'
+    gene_search_input.style.borderRadius = '0'
+
 
 
     gene_search_input.style.display = "inline-block"

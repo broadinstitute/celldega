@@ -6,13 +6,15 @@ import { update_trx_layer } from './trx_layer.js'
 import { layers_ist, update_layers_ist } from './layers_ist.js'
 import { landscape_parameters } from '../global_variables/landscape_parameters.js'
 import { close_up, set_close_up } from '../global_variables/close_up.js'
-import { svg_bar_gene, update_bar_graph } from '../ui/bar_plot.js'
+import { svg_bar_gene, update_bar_graph, bar_container_gene, bar_container_cluster } from '../ui/bar_plot.js'
 import { color_dict_gene } from '../global_variables/color_dict_gene.js'
 import { gene_counts } from '../global_variables/meta_gene.js'
 import { bar_callback_gene, svg_bar_cluster, bar_callback_cluster } from '../ui/bar_plot.js'
 import { trx_combo_data } from '../vector_tile/transcripts/grab_trx_tiles_in_view.js'
 import { cell_combo_data } from './cell_layer.js'
 import { color_dict_cluster, cluster_counts } from '../global_variables/meta_cluster.js'
+import { selected_cats } from '../global_variables/cat.js'
+import { selected_genes } from '../global_variables/selected_genes.js'
 
 export let minX
 export let maxX
@@ -67,9 +69,12 @@ export const calc_viewport = async ({ height, width, zoom, target }) => {
         }, []).filter(item => item.value > 0)
         .sort((a, b) => b.value - a.value)
 
-        update_bar_graph(svg_bar_gene, new_bar_data, color_dict_gene, bar_callback_gene)
+        update_bar_graph(svg_bar_gene, new_bar_data, color_dict_gene, bar_callback_gene, selected_genes)
 
-        // console.log('cell_scatter_data', cell_scatter_data)
+        bar_container_gene.scrollTo({
+            top: 0,
+            behavior: 'smooth'
+        });
 
         // cell bar graph update
         const filtered_cells = cell_combo_data.filter(pos =>
@@ -89,19 +94,21 @@ export const calc_viewport = async ({ height, width, zoom, target }) => {
         }, []).filter(item => item.value > 0)
         .sort((a, b) => b.value - a.value)
 
-        // console.log(new_bar_data_cell)
+        update_bar_graph(svg_bar_cluster, new_bar_data_cell, color_dict_cluster, bar_callback_cluster, selected_cats)
 
-        update_bar_graph(svg_bar_cluster, new_bar_data_cell, color_dict_cluster, bar_callback_cluster)
+        bar_container_cluster.scrollTo({
+            top: 0,
+            behavior: 'smooth'
+        });
 
 
     } else {
 
         if (close_up) {
-            console.log('not close up')
             set_close_up(false)
             update_layers_ist()
-            update_bar_graph(svg_bar_gene, gene_counts, color_dict_gene, bar_callback_gene)
-            update_bar_graph(svg_bar_cluster, cluster_counts, color_dict_cluster, bar_callback_cluster)
+            update_bar_graph(svg_bar_gene, gene_counts, color_dict_gene, bar_callback_gene, selected_genes)
+            update_bar_graph(svg_bar_cluster, cluster_counts, color_dict_cluster, bar_callback_cluster, selected_cats)
         }
     }
 

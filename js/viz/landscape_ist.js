@@ -40,22 +40,22 @@ export const landscape_ist = async (
         {
             name: 'dapi',
             button_name: 'DAPI',
-            color: hexToRgb('#0072B2')
+            color: hexToRgb('#0000FF')
         },
         {
             name: 'bound',
             button_name: 'BOUND',
-            color: hexToRgb('#56B4E9')
+            color: hexToRgb('#00FF00')
         },
         {
             name: 'rna',
             button_name: 'RNA',
-            color: hexToRgb('#E69F00')
+            color: hexToRgb('#FF0000')
         },
         {
             name: 'prot',
             button_name: 'PROT',
-            color: hexToRgb('#CC79A7')
+            color: hexToRgb('#FFFF00') // '#CC79A7'
         }
     ]
 

@@ -32,7 +32,7 @@ export const make_ui_container = () => {
     ui_container.style.border = "1px solid #d3d3d3"
     ui_container.className = "ui_container"
     ui_container.style.justifyContent = 'space-between'
-    ui_container.style.height = '85px'
+    ui_container.style.height = '100px' // '85px'
     return ui_container
 }
 
@@ -134,14 +134,17 @@ export const make_ist_ui_container = (dataset_name) => {
 
         const inst_slider_container = make_slider_container(inst_name)
 
-        let slider
-        if (inst_name === 'DAPI'){
-            // slider = dapi_slider
-            slider = get_slider_by_name('DAPI')[0]
-        } else {
-            // slider = bound_slider
-            slider = get_slider_by_name('BOUND')[0]
-        }
+        // let slider
+        // if (inst_name === 'DAPI'){
+        //     // slider = dapi_slider
+        //     slider = get_slider_by_name('DAPI')[0]
+        // } else {
+        //     // slider = bound_slider
+        //     slider = get_slider_by_name('BOUND')[0]
+        // }
+
+        console.log(inst_name)
+        let slider = get_slider_by_name(inst_name)[0]
 
         let img_layer_slider_callback = make_img_layer_slider_callback(inst_name)
 

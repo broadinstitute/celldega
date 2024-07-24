@@ -101,9 +101,11 @@ export const make_ist_ui_container = (dataset_name) => {
     // image_container = flex_container('image_container', 'row')
     image_container = flex_container('image_container', 'column')
 
-    const img_layers_container = flex_container('img_layers_container', 'column', 75) // 75
+    const img_layers_container = flex_container('img_layers_container', 'column', 72) // 75
     img_layers_container.style.width = '135px'
     img_layers_container.style.border = "1px solid #d3d3d3"
+    img_layers_container.style.marginTop = '3px'
+    img_layers_container.style.marginLeft = '2px'
 
     const cell_container = flex_container('cell_container', 'column')
     // widths are custom because of the length of the text buttons varies
@@ -132,7 +134,9 @@ export const make_ist_ui_container = (dataset_name) => {
 
         const inst_name = inst_image.button_name
 
-        let inst_container = flex_container('img_layer_container', 'row')
+        let inst_container = flex_container('image_layer_container', 'row')
+        inst_container.style.height = '21px'
+        // inst_container.style.overflow = 'hidden'
 
         make_button(inst_container, 'ist', inst_name, 'blue', 75, 'img_layer_button')
 

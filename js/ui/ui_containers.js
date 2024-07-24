@@ -97,10 +97,13 @@ export const make_ist_ui_container = (dataset_name) => {
 
     const ui_container = make_ui_container()
     const ctrl_container = make_ctrl_container()
-    image_container = flex_container('image_container', 'row')
 
-    const img_layers_container = flex_container('img_layers_container', 'column', 75)
+    // image_container = flex_container('image_container', 'row')
+    image_container = flex_container('image_container', 'column')
+
+    const img_layers_container = flex_container('img_layers_container', 'column', 75) // 75
     img_layers_container.style.width = '135px'
+    img_layers_container.style.border = "1px solid #d3d3d3"
 
     const cell_container = flex_container('cell_container', 'column')
     // widths are custom because of the length of the text buttons varies
@@ -117,7 +120,8 @@ export const make_ist_ui_container = (dataset_name) => {
     const cell_slider_container = make_slider_container('cell_slider_container')
     const trx_slider_container = make_slider_container('trx_slider_container')
 
-    make_button(img_layers_container, 'ist', 'IMG', 'blue', 30)
+    // make_button(img_layers_container, 'ist', 'IMG', 'blue', 30)
+    make_button(image_container, 'ist', 'IMG', 'blue', 30)
 
     const get_slider_by_name = (name) => {
         return image_layer_sliders.filter(slider => slider.name === name);
@@ -134,16 +138,6 @@ export const make_ist_ui_container = (dataset_name) => {
 
         const inst_slider_container = make_slider_container(inst_name)
 
-        // let slider
-        // if (inst_name === 'DAPI'){
-        //     // slider = dapi_slider
-        //     slider = get_slider_by_name('DAPI')[0]
-        // } else {
-        //     // slider = bound_slider
-        //     slider = get_slider_by_name('BOUND')[0]
-        // }
-
-        console.log(inst_name)
         let slider = get_slider_by_name(inst_name)[0]
 
         let img_layer_slider_callback = make_img_layer_slider_callback(inst_name)

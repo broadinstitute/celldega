@@ -539,7 +539,7 @@ def get_max_zoom_level(path_image_pyramid):
 
 
 def save_landscape_parameters(
-    technology, path_landscape_files, image_name="dapi_files", tile_size=1000
+    technology, path_landscape_files, image_name="dapi_files", tile_size=1000, image_info={}
 ):
 
     path_image_pyramid = path_landscape_files + "pyramid_images/" + image_name + "/"
@@ -552,6 +552,7 @@ def save_landscape_parameters(
         "technology": technology,
         "max_pyramid_zoom": max_pyramid_zoom,
         "tile_size": tile_size,
+        "image_info": image_info
     }
 
     path_landscape_parameters = path_landscape_files + "landscape_parameters.json"

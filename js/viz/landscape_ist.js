@@ -1,7 +1,7 @@
 import { set_trx_ini_raidus } from '../global_variables/trx_ini_raidus'
 import { set_options } from '../global_variables/fetch_options'
 import { set_global_base_url } from '../global_variables/global_base_url'
-import { set_landscape_parameters } from '../global_variables/landscape_parameters'
+import { landscape_parameters, set_landscape_parameters } from '../global_variables/landscape_parameters'
 import { set_dimensions } from '../global_variables/image_dimensions'
 import { set_initial_view_state } from '../deck-gl/initial_view_state'
 import { set_cell_layer } from "../deck-gl/cell_layer"
@@ -35,18 +35,35 @@ export const landscape_ist = async (
 
     // move this to landscape_parameters
     const imgage_name_for_dim = 'dapi'
-    const tmp_image_info = [
-        {
-            name: 'dapi',
-            button_name: 'DAPI',
-            color: [0, 0, 255]
-        },
-        {
-            name: 'cellbound',
-            button_name: 'BOUND',
-            color: [255, 0, 0]
-        }
-    ]
+
+    await set_landscape_parameters(base_url)
+
+    // const tmp_image_info = [
+    //     {
+    //         name: 'dapi',
+    //         button_name: 'DAPI',
+    //         color: hexToRgb('#0000FF')
+    //     },
+    //     {
+    //         name: 'bound',
+    //         button_name: 'BOUND',
+    //         color: hexToRgb('#00FF00')
+    //     },
+    //     {
+    //         name: 'rna',
+    //         button_name: 'RNA',
+    //         color: hexToRgb('#FF0000')
+    //     },
+    //     {
+    //         name: 'prot',
+    //         button_name: 'PROT',
+    //         color: hexToRgb('#FFFF00') // '#CC79A7'
+    //     }
+    // ]
+
+    const tmp_image_info = landscape_parameters.image_info
+
+    console.log(landscape_parameters)
 
     set_image_info(tmp_image_info)
     set_image_layer_sliders(image_info)
@@ -65,7 +82,7 @@ export const landscape_ist = async (
     set_options(token)
     set_initial_view_state(ini_x, ini_y, ini_z, ini_zoom)
     await set_dimensions(base_url, imgage_name_for_dim )
-    await set_landscape_parameters(base_url)
+
     await set_meta_gene(base_url)
 
     await set_cluster_metadata()

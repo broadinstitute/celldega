@@ -13,7 +13,7 @@ import { global_base_url } from '../global_variables/global_base_url'
 import { toggle_image_layers_and_ctrls } from '../ui/ui_containers'
 import { layers_ist, update_layers_ist } from './layers_ist'
 import { update_path_layer_id } from './path_layer'
-import { svg_bar_gene } from '../ui/bar_plot'
+import { svg_bar_gene, svg_bar_cluster } from '../ui/bar_plot'
 import { bar_container_gene } from '../ui/bar_plot'
 
 const trx_layer_callback = async (info) => {
@@ -60,12 +60,27 @@ const trx_layer_callback = async (info) => {
                 const containerPosition = bar_container_gene.getBoundingClientRect().top;
                 const scrollPosition = barPosition - containerPosition + bar_container_gene.scrollTop;
 
+                svg_bar_gene
+                    .attr('opacity', 1.0);
+
                 bar_container_gene.scrollTo({
                     top: scrollPosition,
                     behavior: 'smooth'
                 });
             }
+        } else {
+            bar_container_gene.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            })
         }
+
+        // reset cluster bar plot
+        svg_bar_cluster
+            .selectAll("g")
+            .attr('font-weight', 'normal')
+            .attr('opacity', 1.0)
+
 
         deck_ist.setProps({layers: layers_ist});
 
@@ -73,7 +88,7 @@ const trx_layer_callback = async (info) => {
     } catch (error) {
         console.error("Error in trx_layer_callback:", error);
     }
-};
+}
 
 
 export let trx_layer = new ScatterplotLayer({

@@ -1,5 +1,3 @@
-import { hexToRgb } from "../utils/hexToRgb"
-
 export let image_info
 
 export let image_layer_colors = {}

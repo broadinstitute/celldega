@@ -18,7 +18,6 @@ import { set_image_layer_sliders } from "../ui/sliders"
 import { set_meta_gene } from '../global_variables/meta_gene'
 import { set_cluster_metadata } from '../global_variables/meta_cluster'
 import { update_ist_landscape_from_cgm } from '../widget_interactions/update_ist_landscape_from_cgm'
-import { hexToRgb } from '../utils/hexToRgb'
 
 
 export const landscape_ist = async (

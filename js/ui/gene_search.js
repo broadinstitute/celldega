@@ -27,17 +27,18 @@ let gene_search_options = []
 
 const sst_gene_search_callback = async () => {
 
-    const inst_gene = gene_search_input.value;
-    const new_cat = inst_gene === '' ? 'cluster' : inst_gene;
-    update_cat(new_cat);
+    const inst_gene = gene_search_input.value
+    const new_cat = inst_gene === '' ? 'cluster' : inst_gene
+    update_cat(new_cat)
 
     if (inst_gene !== '' && gene_search_options.includes(inst_gene)) {
-        await update_tile_exp_array(global_base_url, inst_gene);
+        await update_tile_exp_array(global_base_url, inst_gene)
     }
 
-    update_square_scatter_layer();
-    deck_sst.setProps({layers: [simple_image_layer, square_scatter_layer]});
-};
+    update_square_scatter_layer()
+    deck_sst.setProps({layers: [simple_image_layer, square_scatter_layer]})
+
+}
 
 const ist_gene_search_callback = async () => {
 
@@ -90,11 +91,7 @@ const ist_gene_search_callback = async () => {
                 })
             }
 
-            await uniprot_get_request(inst_gene)
-            console.log('gene data', uniprot_data[inst_gene])
-            update_gene_text_box(uniprot_data[inst_gene])
-
-
+            await update_gene_text_box(inst_gene)
 
         }
 
@@ -125,7 +122,7 @@ export const set_gene_search = async (tech_type) => {
     })
 
     // Apply styles to the input element
-    gene_search_input.style.width = '109px' // "100%"
+    gene_search_input.style.width = '140px', // '109px'
     gene_search_input.style.maxWidth = "250px"
     gene_search_input.style.height = '12px'
     gene_search_input.style.fontSize = '12px'
@@ -148,6 +145,8 @@ export const set_gene_search = async (tech_type) => {
     gene_text_box.style.height = '71px'
     gene_text_box.style.overflow = 'scroll'
     gene_text_box.style.fontSize = '12px'
+    gene_text_box.style.cursor = 'default'
+    gene_text_box.style.width = '145px'
 
     gene_search.appendChild(gene_text_box); // Append the new div with text
 
@@ -170,11 +169,26 @@ export const set_gene_search = async (tech_type) => {
     gene_search_input.addEventListener('input', callback)
 }
 
-export const update_gene_text_box = (gene_data) => {
-    if (gene_data && gene_data.name && gene_data.description) {
-    //   gene_text_box.innerHTML = `<strong>${gene_data.name}</strong><br>${gene_data.description}`
-    gene_text_box.innerHTML = `<span style="color: blue;">${gene_data.name}</span><br>${gene_data.description}`;
+export const update_gene_text_box = async (inst_gene) => {
+
+    if (inst_gene !== ''){
+        gene_text_box.textContent = 'loading'
+
+        await uniprot_get_request(inst_gene)
+
+        const gene_data = uniprot_data[inst_gene]
+
+        if (gene_data && gene_data.name && gene_data.description) {
+            gene_text_box.innerHTML = `<span style="color: blue;">${gene_data.name}</span><br>${gene_data.description}`;
+        } else {
+            gene_text_box.textContent = ''
+        }
     } else {
-      gene_text_box.textContent = ''
+        gene_text_box.textContent = ''
     }
+
+    gene_text_box.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+    })
   };

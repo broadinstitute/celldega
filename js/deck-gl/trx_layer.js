@@ -15,6 +15,7 @@ import { layers_ist, update_layers_ist } from './layers_ist'
 import { update_path_layer_id } from './path_layer'
 import { svg_bar_gene, svg_bar_cluster } from '../ui/bar_plot'
 import { bar_container_gene } from '../ui/bar_plot'
+import { update_gene_text_box } from '../ui/gene_search'
 
 const trx_layer_callback = async (info) => {
     try {
@@ -81,10 +82,13 @@ const trx_layer_callback = async (info) => {
             .attr('font-weight', 'normal')
             .attr('opacity', 1.0)
 
-
         deck_ist.setProps({layers: layers_ist});
 
         gene_search_input.value = (gene_search_input.value !== inst_gene) ? inst_gene : '';
+
+        // update_gene_text_box(inst_gene)
+        update_gene_text_box(reset_gene ? '' : inst_gene)
+
     } catch (error) {
         console.error("Error in trx_layer_callback:", error);
     }

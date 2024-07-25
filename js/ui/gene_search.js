@@ -17,7 +17,7 @@ import { toggle_image_layers_and_ctrls } from "./ui_containers.js"
 import { layers_ist, update_layers_ist } from "../deck-gl/layers_ist.js"
 import { svg_bar_gene } from "./bar_plot.js"
 import { bar_container_gene } from "./bar_plot.js"
-import { uniprot_get_request } from '../external_apis/uniprot_api.js'
+import { uniprot_data, uniprot_get_request } from '../external_apis/uniprot_api.js'
 
 export let gene_search = document.createElement("div")
 
@@ -77,8 +77,6 @@ const ist_gene_search_callback = async () => {
                 })
                 .attr('opacity', 1.0)
 
-            uniprot_get_request(inst_gene)
-
             if (!selectedBar.empty()) {
                 const barPosition = selectedBar.node().getBoundingClientRect().top
                 const containerPosition = bar_container_gene.getBoundingClientRect().top
@@ -89,6 +87,10 @@ const ist_gene_search_callback = async () => {
                     behavior: 'smooth'
                 })
             }
+
+            await uniprot_get_request(inst_gene)
+            console.log('gene data', uniprot_data[inst_gene])
+
         }
 
         deck_ist.setProps({

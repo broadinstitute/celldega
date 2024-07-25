@@ -14,7 +14,9 @@ import { update_path_layer_id } from './path_layer'
 import { toggle_image_layers_and_ctrls } from '../ui/ui_containers'
 import { update_selected_genes } from '../global_variables/selected_genes'
 import { update_trx_layer_filter } from './trx_layer'
-import { svg_bar_cluster, bar_container_cluster } from '../ui/bar_plot'
+import { svg_bar_cluster, bar_container_cluster, svg_bar_gene } from '../ui/bar_plot'
+import { gene_search_input } from '../ui/gene_search_input'
+import { update_gene_text_box } from '../ui/gene_search'
 
 export let cell_scatter_data
 
@@ -59,6 +61,12 @@ const cell_layer_onclick = info => {
 
     const inst_cat_name = selected_cats.join('-')
 
+    // reset gene
+    svg_bar_gene
+        .selectAll("g")
+        .attr('font-weight', 'normal')
+        .attr('opacity', 1.0)
+
     svg_bar_cluster.selectAll("g")
         .attr('font-weight', 'normal')
         .attr('opacity', reset_cat ? 1.0 : 0.25)
@@ -95,6 +103,9 @@ const cell_layer_onclick = info => {
     update_layers_ist()
 
     deck_ist.setProps({layers: layers_ist})
+
+    gene_search_input.value = ''
+    update_gene_text_box('')
 
 }
 

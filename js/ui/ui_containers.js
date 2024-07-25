@@ -31,7 +31,7 @@ export const make_ui_container = () => {
     ui_container.style.flexDirection = "row"
     ui_container.style.border = "1px solid #d3d3d3"
     ui_container.className = "ui_container"
-    ui_container.style.justifyContent = 'space-between'
+    // ui_container.style.justifyContent = 'space-between'
     ui_container.style.height = '100px' // '85px'
     return ui_container
 }
@@ -41,6 +41,7 @@ export const make_ctrl_container = () => {
     ctrl_container.style.display = "flex"
     ctrl_container.style.flexDirection = "row"
     ctrl_container.className = "ctrl_container"
+    ctrl_container.style.width = '535px'
     return ctrl_container
 }
 
@@ -116,7 +117,7 @@ export const make_ist_ui_container = (dataset_name) => {
     // gene container will contain trx button/slider and gene search
     const gene_container = flex_container('gene_container', 'column')
     gene_container.style.marginTop = '0px'
-    gene_container.style.width = '105px'
+    gene_container.style.width = '125px'
     const trx_container = flex_container('trx_container', 'row')
 
     const cell_slider_container = make_slider_container('cell_slider_container')
@@ -200,7 +201,7 @@ export const make_ist_ui_container = (dataset_name) => {
 
     set_gene_search('ist')
 
-    gene_search.style.marginLeft = '15px'
+    gene_search.style.marginLeft = '0px'
 
     ui_container.appendChild(ctrl_container)
 
@@ -210,6 +211,7 @@ export const make_ist_ui_container = (dataset_name) => {
 
     ctrl_container.appendChild(gene_search)
 
+
     // if dataset_name is not an empty string make the name container
     if (dataset_name.trim !== ''){
 
@@ -217,13 +219,14 @@ export const make_ist_ui_container = (dataset_name) => {
 
         d3.select(name_container)
             .classed('name_container', true)
-            .style('width', '100px')
-            .style('text-align', 'right')
+            // .style('width', '100px')
+            .style('text-align', 'left')
             .style('cursor', 'pointer')
-            .style('font-size', '14px')
+            .style('font-size', '22px')
             .style('font-weight', 'bold')
             .style('color', '#222222')
-            .style('margin-top', '5px')
+            .style('margin-top', '0px')
+            .style('margin-left', '15px')
             .style('margin-right', '5px')
             .style('user-select', 'none')
             .text(dataset_name.toUpperCase())

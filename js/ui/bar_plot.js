@@ -10,6 +10,7 @@ import { deck_ist } from '../deck-gl/deck_ist'
 import { update_cell_exp_array } from '../global_variables/cell_exp_array'
 import { global_base_url } from '../global_variables/global_base_url'
 import { gene_search_input } from './gene_search_input'
+import { update_gene_text_box } from './gene_search'
 
 export let bar_container_cluster = document.createElement("div")
 export let bar_container_gene = document.createElement("div")
@@ -55,6 +56,9 @@ export const bar_callback_cluster = (event, d) => {
     update_layers_ist()
 
     deck_ist.setProps({layers: layers_ist})
+
+    gene_search_input.value = ''
+    update_gene_text_box('')
 }
 
 export const bar_callback_gene = async (event, d) => {
@@ -86,7 +90,8 @@ export const bar_callback_gene = async (event, d) => {
     }
 
     const inst_gene = d.name
-    const new_cat = inst_gene === cat ? 'cluster' : inst_gene
+    const reset_gene = inst_gene === cat;
+    const new_cat = reset_gene ? 'cluster' : inst_gene
 
     toggle_image_layers_and_ctrls(cat === inst_gene)
 
@@ -101,7 +106,8 @@ export const bar_callback_gene = async (event, d) => {
 
     deck_ist.setProps({layers: layers_ist})
 
-    gene_search_input.value = (gene_search_input.value !== inst_gene) ? inst_gene : ''
+    gene_search_input.value = gene_search_input.value !== inst_gene ? inst_gene : ''
+    update_gene_text_box(reset_gene ? '' : inst_gene)
 }
 
 export const make_bar_graph = (bar_container, click_callback, svg_bar, bar_data, color_dict) => {

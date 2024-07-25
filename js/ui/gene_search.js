@@ -146,7 +146,8 @@ export const set_gene_search = async (tech_type) => {
     gene_text_box.style.overflow = 'scroll'
     gene_text_box.style.fontSize = '12px'
     gene_text_box.style.cursor = 'default'
-    gene_text_box.style.width = '145px'
+    gene_text_box.style.width = '142px'
+    gene_text_box.style.padding = '2px'
 
     gene_search.appendChild(gene_text_box); // Append the new div with text
 

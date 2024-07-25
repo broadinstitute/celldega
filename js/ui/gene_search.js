@@ -17,7 +17,7 @@ import { toggle_image_layers_and_ctrls } from "./ui_containers.js"
 import { layers_ist, update_layers_ist } from "../deck-gl/layers_ist.js"
 import { svg_bar_gene } from "./bar_plot.js"
 import { bar_container_gene } from "./bar_plot.js"
-
+import { uniprot_get_request } from '../external_apis/uniprot_api.js'
 
 export let gene_search = document.createElement("div")
 
@@ -70,11 +70,14 @@ const ist_gene_search_callback = async () => {
             .attr('opacity', reset_gene ? 1.0 : 0.25)
 
         if (!reset_gene) {
+
             const selectedBar = svg_bar_gene.selectAll("g")
                 .filter(function() {
                     return d3.select(this).select("text").text() === inst_gene
                 })
                 .attr('opacity', 1.0)
+
+            uniprot_get_request(inst_gene)
 
             if (!selectedBar.empty()) {
                 const barPosition = selectedBar.node().getBoundingClientRect().top

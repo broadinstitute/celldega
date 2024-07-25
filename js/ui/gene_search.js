@@ -21,6 +21,8 @@ import { uniprot_data, uniprot_get_request } from '../external_apis/uniprot_api.
 
 export let gene_search = document.createElement("div")
 
+export let gene_text_box
+
 let gene_search_options = []
 
 const sst_gene_search_callback = async () => {
@@ -90,6 +92,9 @@ const ist_gene_search_callback = async () => {
 
             await uniprot_get_request(inst_gene)
             console.log('gene data', uniprot_data[inst_gene])
+            update_gene_text_box(uniprot_data[inst_gene])
+
+
 
         }
 
@@ -120,14 +125,12 @@ export const set_gene_search = async (tech_type) => {
     })
 
     // Apply styles to the input element
-    gene_search_input.style.width = '100px' // "100%"
+    gene_search_input.style.width = '109px' // "100%"
     gene_search_input.style.maxWidth = "250px"
     gene_search_input.style.height = '12px'
     gene_search_input.style.fontSize = '12px'
     gene_search_input.style.border = '1px solid #d3d3d3'
     gene_search_input.style.borderRadius = '0'
-
-
 
     gene_search_input.style.display = "inline-block"
     gene_search_input.style.padding = "1pt 2pt"
@@ -135,6 +138,18 @@ export const set_gene_search = async (tech_type) => {
     // Append elements
     gene_search.appendChild(gene_search_input)
     gene_search.appendChild(dataList)
+
+    // Create a div element with some text
+    gene_text_box = document.createElement('div');
+    gene_text_box.textContent = ''
+    gene_text_box.style.marginTop = '3px'
+    gene_text_box.style.color = '#222222'
+    gene_text_box.style.border = "1px solid #d3d3d3"
+    gene_text_box.style.height = '71px'
+    gene_text_box.style.overflow = 'scroll'
+    gene_text_box.style.fontSize = '12px'
+
+    gene_search.appendChild(gene_text_box); // Append the new div with text
 
     // Set initial default value to "cluster"
     gene_search_input.value = ''
@@ -154,3 +169,12 @@ export const set_gene_search = async (tech_type) => {
 
     gene_search_input.addEventListener('input', callback)
 }
+
+export const update_gene_text_box = (gene_data) => {
+    if (gene_data && gene_data.name && gene_data.description) {
+    //   gene_text_box.innerHTML = `<strong>${gene_data.name}</strong><br>${gene_data.description}`
+    gene_text_box.innerHTML = `<span style="color: blue;">${gene_data.name}</span><br>${gene_data.description}`;
+    } else {
+      gene_text_box.textContent = ''
+    }
+  };

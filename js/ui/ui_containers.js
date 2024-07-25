@@ -210,6 +210,7 @@ export const make_ist_ui_container = (dataset_name) => {
 
     ctrl_container.appendChild(gene_search)
 
+
     // if dataset_name is not an empty string make the name container
     if (dataset_name.trim !== ''){
 

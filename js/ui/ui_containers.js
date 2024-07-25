@@ -41,6 +41,7 @@ export const make_ctrl_container = () => {
     ctrl_container.style.display = "flex"
     ctrl_container.style.flexDirection = "row"
     ctrl_container.className = "ctrl_container"
+    ctrl_container.style.width = '535px'
     return ctrl_container
 }
 

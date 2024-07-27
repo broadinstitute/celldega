@@ -113,7 +113,7 @@ def save_cbg_gene_parquets(base_path, cbg, verbose=False):
 
     """
 
-    output_dir = base_path + "landscape_files/cbg/"
+    output_dir = base_path + "cbg/"
     os.makedirs(output_dir, exist_ok=True)
 
     for index, gene in enumerate(cbg.columns):

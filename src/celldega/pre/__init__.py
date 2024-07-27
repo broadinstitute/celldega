@@ -469,7 +469,8 @@ def make_cell_boundary_tiles(
             filename = f"{path_output}/cell_tile_{i}_{j}.parquet"
 
             # Save the filtered DataFrame to a Parquet file
-            inst_geo[["GEOMETRY", "name"]].to_parquet(filename)
+            if inst_geo.shape[0] > 0:
+                inst_geo[["GEOMETRY", "name"]].to_parquet(filename)
 
 
 def make_meta_gene(technology, path_cbg, path_output):

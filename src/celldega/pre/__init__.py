@@ -216,6 +216,7 @@ def make_trx_tiles(
     path_trx_tiles,
     tile_size=1000,
     chunk_size=1000000,
+    verbose=False,
 ):
     """ """
 
@@ -275,7 +276,7 @@ def make_trx_tiles(
 
     for i in range(n_tiles_x):
 
-        if i % 2 == 0:
+        if i % 2 == 0 and verbose:
             print("row", i)
 
         for j in range(n_tiles_y):
@@ -296,6 +297,10 @@ def make_trx_tiles(
                 & (trx.y < tile_y_max)
             ].copy()
 
+            # this actually slows things down - will try to move to Polars later
+            # # drop trx that have been assigned to a tile from the original trx DataFrame
+            # trx = trx[~trx.index.isin(tile_trx.index)]
+
             # make 'geometry' column
             tile_trx = tile_trx.assign(
                 geometry=tile_trx.apply(lambda row: [row["x"], row["y"]], axis=1)
@@ -307,7 +312,18 @@ def make_trx_tiles(
             filename = f"{path_trx_tiles}/transcripts_tile_{i}_{j}.parquet"
 
             # Save the filtered DataFrame to a Parquet file
-            tile_trx[["name", "geometry"]].to_parquet(filename)
+            if tile_trx.shape[0] > 0:
+                tile_trx[["name", "geometry"]].to_parquet(filename)
+
+    tile_bonds = {
+        "x_min": x_min,
+        "x_max": x_max,
+        "y_min": y_min,
+        "y_max": y_max,
+    }
+
+    return tile_bonds
+
 
 
 # Function to apply transformation to a polygon
@@ -346,6 +362,7 @@ def make_cell_boundary_tiles(
     path_transformation_matrix,
     path_output,
     tile_size=1000,
+    tile_bounds=None,
 ):
     """ """
 
@@ -365,7 +382,6 @@ def make_cell_boundary_tiles(
 
         # fix the id issue with the cell bounary parquet files (probably can be dropped)
         meta_cell = pd.read_csv(path_meta_cell_micron)
-        meta_cell
 
         fixed_names = []
         for inst_cell in cells_orig.index.tolist():
@@ -415,11 +431,10 @@ def make_cell_boundary_tiles(
     if not os.path.exists(path_output):
         os.mkdir(path_output)
 
-    # hardwired from previvous transcript calculation
-    x_min = 0
-    x_max = 55192.07
-    y_min = 0
-    y_max = 47352.5
+    x_min = tile_bounds["x_min"]
+    x_max = tile_bounds["x_max"]
+    y_min = tile_bounds["y_min"]
+    y_max = tile_bounds["y_max"]
 
     # Calculate the number of tiles needed
     n_tiles_x = int(np.ceil((x_max - x_min) / tile_size_x))

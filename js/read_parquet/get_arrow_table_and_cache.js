@@ -3,7 +3,6 @@ import { getTrxCache, setTrxCache } from '../global_variables/cache_trx.js';
 import { getCellCache, setCellCache } from '../global_variables/cache_cell.js';
 
 export const get_arrow_table_and_cache = async (cacheType, url, options) => {
-
     let data;
 
     let cache;
@@ -18,10 +17,19 @@ export const get_arrow_table_and_cache = async (cacheType, url, options) => {
     if (cache.get(url)) {
         data = cache.get(url);
     } else {
-        const response = await fetch(url, options.fetch);
-        const arrayBuffer = await response.arrayBuffer();
-        data = arrayBufferToArrowTable(arrayBuffer);
-        cache.set(url, data);
+        try {
+            const response = await fetch(url, options.fetch);
+            // if (!response.ok) {
+                // throw new Error(`Network response was not ok: ${response.statusText}`);
+            // }
+            const arrayBuffer = await response.arrayBuffer();
+            data = arrayBufferToArrowTable(arrayBuffer);
+            cache.set(url, data);
+        } catch (error) {
+            // console.error(`Failed to fetch or parse Parquet file from ${url}: ${error.message}`);
+            // Handle missing or corrupt file error
+            data = null; // You can return null or some default value or handle the error differently
+        }
     }
     return data;
 }

@@ -12,7 +12,9 @@ export const grab_cell_tiles_in_view = async (base_url, tiles_in_view) => {
         return `${base_url}/cell_segmentation/cell_tile_${tile.tileX}_${tile.tileY}.parquet`;
     });
 
-    var tile_cell_tables = await fetch_all_tables('cell', tile_cell_urls, options)
+    var tile_cell_tables_ini = await fetch_all_tables('cell', tile_cell_urls, options)
+
+    var tile_cell_tables = tile_cell_tables_ini.filter(table => table !== null);
 
     polygon_cell_names = tile_cell_tables.flatMap(table =>
         Array.from(table.getChild('name').toArray())

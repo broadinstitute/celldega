@@ -14,7 +14,6 @@ export let options = {}
 // }
 
 export const set_options = (token) => {
-    console.log('token', token)
 
     // Initialize fetch options
     options = {

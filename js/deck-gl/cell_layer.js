@@ -17,6 +17,7 @@ import { update_trx_layer_filter } from './trx_layer'
 import { svg_bar_cluster, bar_container_cluster, svg_bar_gene } from '../ui/bar_plot'
 import { gene_search_input } from '../ui/gene_search_input'
 import { update_gene_text_box } from '../ui/gene_search'
+import { tooltip_cat_cell } from './make_tooltip'
 
 export let cell_scatter_data
 
@@ -51,7 +52,8 @@ export let cell_layer = new ScatterplotLayer({
 
 const cell_layer_onclick = info => {
 
-    const inst_cat = cell_cats[info.index]
+    // const inst_cat = cell_cats[info.index]
+    const inst_cat = tooltip_cat_cell
 
     update_cat('cluster')
     update_selected_cats([inst_cat])
@@ -128,8 +130,6 @@ export const set_cell_layer = async (base_url) => {
     set_cell_cats(cell_arrow_table, column_names[0])
     set_dict_cell_cats()
 
-    // console.log('cell_arrow_table', cell_arrow_table)
-
     // Combine names and positions into a single array of objects
     // const new_cell_names_array = cell_arrow_table.getColumn('name').toArray();
     const new_cell_names_array = cell_arrow_table.getChild("name").toArray()
@@ -141,8 +141,6 @@ export const set_cell_layer = async (base_url) => {
         x: flatCoordinateArray[index * 2],
         y: flatCoordinateArray[index * 2 + 1]
     }))
-
-    // console.log(cell_combo_data)
 
     cell_layer = new ScatterplotLayer({
         // Re-use existing layer props

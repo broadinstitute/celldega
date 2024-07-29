@@ -19,9 +19,9 @@ export const get_arrow_table_and_cache = async (cacheType, url, options) => {
     } else {
         try {
             const response = await fetch(url, options.fetch);
-            // if (!response.ok) {
-                // throw new Error(`Network response was not ok: ${response.statusText}`);
-            // }
+            if (!response.ok) {
+                throw new Error(`Network response was not ok: ${response.statusText}`);
+            }
             const arrayBuffer = await response.arrayBuffer();
             data = arrayBufferToArrowTable(arrayBuffer);
             cache.set(url, data);

@@ -10,13 +10,14 @@ export const get_cell_color = (i, d) => {
         const inst_cat = cell_cats[d.index]
         let inst_color = color_dict_cluster[inst_cat]
 
+        // if selected_cats is empty all cells are visible
+        let inst_opacity = selected_cats.length === 0 || selected_cats.includes(inst_cat) ? 255 : 10
+
         // Check if inst_color is an array and log an error if it's not
         if (!Array.isArray(inst_color)) {
             inst_color = [0, 0, 0]
+            inst_opacity = 50
         }
-
-        // if selected_cats is empty all cells are visible
-        const inst_opacity = selected_cats.length === 0 || selected_cats.includes(inst_cat) ? 255 : 10
 
         return [...inst_color, inst_opacity]
 

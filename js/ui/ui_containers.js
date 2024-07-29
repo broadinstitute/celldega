@@ -108,6 +108,17 @@ export const make_ist_ui_container = (dataset_name) => {
     img_layers_container.style.marginTop = '3px'
     img_layers_container.style.marginLeft = '2px'
 
+
+    img_layers_container.addEventListener('wheel', (event) => {
+        const { scrollTop, scrollHeight, clientHeight } = img_layers_container
+        const atTop = scrollTop === 0
+        const atBottom = scrollTop + clientHeight === scrollHeight
+
+        if ((atTop && event.deltaY < 0) || (atBottom && event.deltaY > 0)) {
+            event.preventDefault()
+        }
+    })
+
     const cell_container = flex_container('cell_container', 'column')
     // widths are custom because of the length of the text buttons varies
     cell_container.style.width = '120px'
@@ -137,7 +148,6 @@ export const make_ist_ui_container = (dataset_name) => {
 
         let inst_container = flex_container('image_layer_container', 'row')
         inst_container.style.height = '21px'
-        // inst_container.style.overflow = 'hidden'
 
         make_button(inst_container, 'ist', inst_name, 'blue', 75, 'img_layer_button')
 

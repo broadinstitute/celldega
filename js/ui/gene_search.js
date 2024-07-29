@@ -122,7 +122,7 @@ export const set_gene_search = async (tech_type) => {
     })
 
     // Apply styles to the input element
-    gene_search_input.style.width = '140px', // '109px'
+    gene_search_input.style.width = '156px', // '109px'
     gene_search_input.style.maxWidth = "250px"
     gene_search_input.style.height = '12px'
     gene_search_input.style.fontSize = '12px'
@@ -142,11 +142,23 @@ export const set_gene_search = async (tech_type) => {
     gene_text_box.style.marginTop = '3px'
     gene_text_box.style.color = '#222222'
     gene_text_box.style.border = "1px solid #d3d3d3"
-    gene_text_box.style.height = '71px'
+    gene_text_box.style.height = '69px' //'71px'
     gene_text_box.style.overflow = 'scroll'
     gene_text_box.style.fontSize = '12px'
     gene_text_box.style.cursor = 'default'
-    gene_text_box.style.width = '145px'
+    gene_text_box.style.width = '142px'
+    gene_text_box.style.paddingLeft = '2px'
+    gene_text_box.style.paddingRight = '17px'
+
+    gene_text_box.addEventListener('wheel', (event) => {
+        const { scrollTop, scrollHeight, clientHeight } = gene_text_box
+        const atTop = scrollTop === 0
+        const atBottom = scrollTop + clientHeight === scrollHeight
+
+        if ((atTop && event.deltaY < 0) || (atBottom && event.deltaY > 0)) {
+            event.preventDefault()
+        }
+    })
 
     gene_search.appendChild(gene_text_box); // Append the new div with text
 

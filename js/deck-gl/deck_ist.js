@@ -11,7 +11,8 @@ const getCursor = ({ isDragging, isHovering }) => {
     if (isDragging) {
         return 'grabbing';
     }
-    return 'pointer'; // Always use pointer cursor when hovering
+    // return 'pointer'; // Always use pointer cursor when hovering
+    return 'pointer';
 }
 
 export const set_deck = ( root ) => {
@@ -22,7 +23,7 @@ export const set_deck = ( root ) => {
         initialViewState: initial_view_state,
         views: views,
         layers: layers_ist,
-        // getCursor: getCursor,
+        getCursor: getCursor,
         onViewStateChange: on_view_state_change,
         getTooltip: make_tooltip,
     })

@@ -7,6 +7,14 @@ import { make_tooltip } from './make_tooltip.js'
 
 export let deck_ist
 
+const getCursor = ({ isDragging, isHovering }) => {
+    if (isDragging) {
+        return 'grabbing';
+    }
+    // return 'pointer'; // Always use pointer cursor when hovering
+    return 'pointer';
+}
+
 export const set_deck = ( root ) => {
 
     deck_ist = new Deck({
@@ -15,8 +23,9 @@ export const set_deck = ( root ) => {
         initialViewState: initial_view_state,
         views: views,
         layers: layers_ist,
+        getCursor: getCursor,
         onViewStateChange: on_view_state_change,
         getTooltip: make_tooltip,
-    });
+    })
 
 }

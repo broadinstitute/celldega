@@ -12,12 +12,11 @@ export const grab_trx_tiles_in_view = async (base_url, tiles_in_view) => {
         return `${base_url}/transcript_tiles/transcripts_tile_${tile.tileX}_${tile.tileY}.parquet`;
     });
 
-    var tile_trx_tables = await fetch_all_tables('trx', tile_trx_urls, options)
+    var tile_trx_tables_ini = await fetch_all_tables('trx', tile_trx_urls, options)
+
+    var tile_trx_tables = tile_trx_tables_ini.filter(table => table !== null);
 
     var trx_arrow_table = concatenate_arrow_tables(tile_trx_tables)
-
-    // console.log('trx_arrow_table')
-    // console.log(trx_arrow_table)
 
     var new_trx_names_array = trx_arrow_table.getChild("name").toArray();
     set_trx_names_array(new_trx_names_array)

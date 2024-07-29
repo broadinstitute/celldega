@@ -25,7 +25,7 @@ export const get_arrow_table_and_cache = async (cacheType, url, options) => {
             const arrayBuffer = await response.arrayBuffer();
             data = arrayBufferToArrowTable(arrayBuffer);
             cache.set(url, data);
-        } catch (error) {
+        } catch {
             // console.error(`Failed to fetch or parse Parquet file from ${url}: ${error.message}`);
             // Handle missing or corrupt file error
             data = null; // You can return null or some default value or handle the error differently

@@ -5,8 +5,9 @@ import { get_scatter_data } from "../read_parquet/get_scatter_data"
 import { set_color_dict_gene } from '../global_variables/color_dict_gene'
 import { set_cell_names_array, set_cell_name_to_index_map } from '../global_variables/cell_names_array'
 import { options } from '../global_variables/fetch_options'
-import { cell_cats, set_cell_cats, dict_cell_cats, set_dict_cell_cats, update_selected_cats, selected_cats, update_cat, reset_cat } from '../global_variables/cat'
-import { Table } from 'apache-arrow'
+import { set_cell_cats, dict_cell_cats, set_dict_cell_cats} from '../global_variables/cat'
+import { update_selected_cats, selected_cats, update_cat, reset_cat } from '../global_variables/cat'
+// import { Table } from 'apache-arrow'
 import { get_cell_color } from './cell_color'
 import { layers_ist, update_layers_ist } from './layers_ist'
 import { deck_ist } from './deck_ist'
@@ -23,24 +24,24 @@ export let cell_scatter_data
 
 export let cell_combo_data
 
-const get_column_names = (arrowTable) => {
+// const get_column_names = (arrowTable) => {
 
-    const columns_to_drop = ['name', 'geometry', '__index_level_0__']
+//     const columns_to_drop = ['name', 'geometry', '__index_level_0__']
 
-    if (!arrowTable || !(arrowTable instanceof Table)) {
-        console.error("Invalid Arrow table")
-        return []
-    }
+//     if (!arrowTable || !(arrowTable instanceof Table)) {
+//         console.error("Invalid Arrow table")
+//         return []
+//     }
 
-    let column_names = []
-    for (const field of arrowTable.schema.fields) {
-        column_names.push(field.name)
-    }
+//     let column_names = []
+//     for (const field of arrowTable.schema.fields) {
+//         column_names.push(field.name)
+//     }
 
-    column_names = column_names.filter(column => !columns_to_drop.includes(column))
+//     column_names = column_names.filter(column => !columns_to_drop.includes(column))
 
-    return column_names
-}
+//     return column_names
+// }
 
 export let cell_layer = new ScatterplotLayer({
     id: 'cell-layer',
@@ -50,7 +51,8 @@ export let cell_layer = new ScatterplotLayer({
     getColor: get_cell_color,
 })
 
-const cell_layer_onclick = info => {
+const cell_layer_onclick = () => {
+    // used to have info as an argument
 
     // const inst_cat = cell_cats[info.index]
     const inst_cat = tooltip_cat_cell
@@ -116,22 +118,23 @@ export const set_cell_layer = async (base_url) => {
     const cell_url = base_url + `/cell_metadata.parquet`;
     var cell_arrow_table = await get_arrow_table(cell_url, options.fetch)
 
-    const column_names = get_column_names(cell_arrow_table)
+    // const column_names = get_column_names(cell_arrow_table)
 
     cell_scatter_data = get_scatter_data(cell_arrow_table)
-
 
     await set_color_dict_gene(base_url)
 
     set_cell_names_array(cell_arrow_table)
     set_cell_name_to_index_map()
 
+    // default clustering
+    var cluster_arrow_table = await get_arrow_table(base_url + `/cell_clusters/cluster.parquet`, options.fetch)
+
     // setting a single cell category for now
-    set_cell_cats(cell_arrow_table, column_names[0])
+    set_cell_cats(cluster_arrow_table, 'cluster')
     set_dict_cell_cats()
 
     // Combine names and positions into a single array of objects
-    // const new_cell_names_array = cell_arrow_table.getColumn('name').toArray();
     const new_cell_names_array = cell_arrow_table.getChild("name").toArray()
 
     // need to save the cell category

@@ -7,7 +7,7 @@ import { make_tooltip } from './make_tooltip.js'
 
 export let deck_ist
 
-const getCursor = ({ isDragging, isHovering }) => {
+const getCursor = ({ isDragging }) => {
     if (isDragging) {
         return 'grabbing';
     }

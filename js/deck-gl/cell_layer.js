@@ -24,25 +24,6 @@ export let cell_scatter_data
 
 export let cell_combo_data
 
-// const get_column_names = (arrowTable) => {
-
-//     const columns_to_drop = ['name', 'geometry', '__index_level_0__']
-
-//     if (!arrowTable || !(arrowTable instanceof Table)) {
-//         console.error("Invalid Arrow table")
-//         return []
-//     }
-
-//     let column_names = []
-//     for (const field of arrowTable.schema.fields) {
-//         column_names.push(field.name)
-//     }
-
-//     column_names = column_names.filter(column => !columns_to_drop.includes(column))
-
-//     return column_names
-// }
-
 export let cell_layer = new ScatterplotLayer({
     id: 'cell-layer',
     radiusMinPixels: 1,
@@ -117,8 +98,6 @@ export const set_cell_layer = async (base_url) => {
 
     const cell_url = base_url + `/cell_metadata.parquet`;
     var cell_arrow_table = await get_arrow_table(cell_url, options.fetch)
-
-    // const column_names = get_column_names(cell_arrow_table)
 
     cell_scatter_data = get_scatter_data(cell_arrow_table)
 

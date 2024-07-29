@@ -13,6 +13,7 @@ import { bar_container_gene, bar_container_cluster } from '../ui/bar_plot'
 import { layers_ist, update_layers_ist } from '../deck-gl/layers_ist'
 import { model } from '../global_variables/model.js'
 import { deck_ist } from '../deck-gl/deck_ist'
+import { update_gene_text_box } from '../ui/gene_search.js'
 
 export const update_ist_landscape_from_cgm = async () => {
     const click_info = model.get('update_trigger')
@@ -66,6 +67,7 @@ export const update_ist_landscape_from_cgm = async () => {
         }
 
         gene_search_input.value = (gene_search_input.value !== inst_gene) ? inst_gene : ''
+        update_gene_text_box(inst_gene)
 
     } else if (click_info.click_type === 'col-label') {
 

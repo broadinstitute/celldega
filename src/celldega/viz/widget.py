@@ -42,7 +42,7 @@ class Landscape(anywidget.AnyWidget):
 
     technology = traitlets.Unicode("sst").tag(sync=True)
     base_url = traitlets.Unicode("").tag(sync=True)
-    token_traitlet = traitlets.Unicode("token").tag(sync=True)
+    token_traitlet = traitlets.Unicode("").tag(sync=True)
     ini_x = traitlets.Float(1000).tag(sync=True)
     ini_y = traitlets.Float(1000).tag(sync=True)
     ini_z = traitlets.Float(0).tag(sync=True)

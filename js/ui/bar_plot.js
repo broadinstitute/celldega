@@ -177,6 +177,7 @@ export const make_bar_graph = (bar_container, click_callback, svg_bar, bar_data,
 }
 
 export const update_bar_graph = (svg_bar, bar_data, color_dict, click_callback, selected_array) => {
+    console.log('update_bar_graph: color_dict', color_dict)
 
     const bar_height = 15;
     const svg_height = bar_height * (bar_data.length + 1);
@@ -203,17 +204,11 @@ export const update_bar_graph = (svg_bar, bar_data, color_dict, click_callback, 
         .on('click', click_callback); // Adjust click handler if needed
 
     bars_enter.append("rect")
-        .attr("fill", d => {
-            const inst_rgb = color_dict[d.name] || [0, 0, 0]; // Default to black if not in color_dict
-            const inst_opacity = selected_array.length === 0 || selected_array.includes(d.name) ? 1 : 0.1;
-            return `rgba(${inst_rgb[0]}, ${inst_rgb[1]}, ${inst_rgb[2]}, ${inst_opacity})`;
-        })
         .attr("width", 0) // Initial width set to 0 for transition effect
         .attr("height", y_new.bandwidth() - 1)
         .transition() // Transition for entering elements
         .duration(750)
         .attr("width", d => x_new(d.value));
-
 
     bars_enter.append("text")
         .attr("fill", 'black')
@@ -227,15 +222,23 @@ export const update_bar_graph = (svg_bar, bar_data, color_dict, click_callback, 
         .duration(750)
         .attr("opacity", 1);
 
+    // Merge the enter and update selections
+    const bars_merged = bars.merge(bars_enter);
+
     // Update existing bars
-    const bars_update = bars.transition() // Transition for updating elements
+    bars_merged.transition() // Transition for updating elements
         .duration(750)
         .attr("transform", (d, i) => `translate(2,${y_new(i) + 2})`);
 
-    bars_update.select("rect")
-        .attr("width", d => x_new(d.value));
+    bars_merged.select("rect")
+        .attr("width", d => x_new(d.value))
+        .attr("fill", d => {
+            const inst_rgb = color_dict[d.name] || [0, 0, 0]; // Default to black if not in color_dict
+            const inst_opacity = selected_array.length === 0 || selected_array.includes(d.name) ? 1 : 0.1;
+            return `rgba(${inst_rgb[0]}, ${inst_rgb[1]}, ${inst_rgb[2]}, ${inst_opacity})`;
+        });
 
-    bars_update.select("text")
+    bars_merged.select("text")
         .text(d => d.name);
 
     // Remove old bars

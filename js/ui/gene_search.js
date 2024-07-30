@@ -97,7 +97,7 @@ const ist_gene_search_callback = async () => {
 
         deck_ist.setProps({
             layers: layers_ist
-        });
+        })
     }
 };
 

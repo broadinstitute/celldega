@@ -145,6 +145,9 @@ export const update_cell_layer_radius = (radius) => {
 }
 
 export const update_cell_layer_id = (new_cat) => {
+
+    console.log('update_cell_layer_id', new_cat)
+
     cell_layer = cell_layer.clone({
         id: 'cell-layer-' + new_cat,
     });

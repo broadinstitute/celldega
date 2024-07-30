@@ -9,9 +9,11 @@ export let cluster_counts = []
 
 export const update_meta_cluster = (new_meta_cluster) => {
 
-    console.log('update_meta_cluster')
+    console.log('update_meta_cluster: new_meta_cluster', new_meta_cluster)
 
-    color_dict_cluster = new_meta_cluster.color_dict_cluster
+    color_dict_cluster = new_meta_cluster.color
+
+    console.log('update_meta_cluster: color_dict_cluster', color_dict_cluster)
 
     // convert each hexcode color value to rgb
     for (const cluster_name in color_dict_cluster) {

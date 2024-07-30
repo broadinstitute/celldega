@@ -1,6 +1,9 @@
 import { model } from '../global_variables/model'
 import { update_meta_cluster } from '../global_variables/meta_cluster'
 import { update_cell_cats } from '../global_variables/cat'
+import { update_cell_layer_id } from '../deck-gl/cell_layer'
+import { layers_ist, update_layers_ist } from '../deck-gl/layers_ist'
+import { deck_ist } from '../deck-gl/deck_ist'
 
 export const update_cell_clusters = () => {
     const new_cluster_info = model.get('cell_clusters')
@@ -9,6 +12,13 @@ export const update_cell_clusters = () => {
     update_meta_cluster(new_cluster_info['meta_cluster'])
 
     update_cell_cats(new_cluster_info['new_clusters'])
+
+    update_cell_layer_id('cluster')
+    update_layers_ist()
+
+    deck_ist.setProps({
+        layers: layers_ist
+    })
 
     // Process the newClusters JSON blob as needed
     // Update the visualization with the new cluster data

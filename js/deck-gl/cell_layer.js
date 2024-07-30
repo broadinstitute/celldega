@@ -3,7 +3,7 @@ import { ScatterplotLayer } from 'deck.gl'
 import { get_arrow_table } from "../read_parquet/get_arrow_table"
 import { get_scatter_data } from "../read_parquet/get_scatter_data"
 import { set_color_dict_gene } from '../global_variables/color_dict_gene'
-import { set_cell_names_array, set_cell_name_to_index_map, cell_names_array } from '../global_variables/cell_names_array'
+import { set_cell_names_array, set_cell_name_to_index_map } from '../global_variables/cell_names_array'
 import { options } from '../global_variables/fetch_options'
 import { set_cell_cats, dict_cell_cats, set_dict_cell_cats} from '../global_variables/cat'
 import { update_selected_cats, selected_cats, update_cat, reset_cat } from '../global_variables/cat'
@@ -137,7 +137,7 @@ export const set_cell_layer = async (base_url) => {
 
 export const update_cell_combo_data = () => {
 
-    cell_combo_data = cell_combo_data.map((cell, index) => ({
+    cell_combo_data = cell_combo_data.map((cell) => ({
       ...cell,
       cat: dict_cell_cats[cell.name]
     }))

@@ -38,6 +38,7 @@ export const calc_viewport = async ({ height, width, zoom, target }) => {
     // Get the current viewport from Deck.gl
     const viewports = deck_ist.viewManager.getViewports()
     if (!viewports || viewports.length === 0) {
+        console.error('No viewports available')
         return
     }
 
@@ -83,12 +84,12 @@ export const calc_viewport = async ({ height, width, zoom, target }) => {
 
         const filtered_cell_names = filtered_cells.map(cell => cell.cat);
 
-        const new_bar_data_cell = filtered_cell_names.reduce((acc, gene) => {
-                const existingGene = acc.find(item => item.name === gene)
-                if (existingGene) {
-                    existingGene.value += 1
+        const new_bar_data_cell = filtered_cell_names.reduce((acc, cat) => {
+                const existing_cat = acc.find(item => item.name === cat)
+                if (existing_cat) {
+                    existing_cat.value += 1
                 } else {
-                    acc.push({ name: gene, value: 1 })
+                    acc.push({ name: cat, value: 1 })
                 }
                 return acc
             }, []).filter(item => item.value > 0)

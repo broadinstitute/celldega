@@ -19,7 +19,6 @@ import { set_meta_gene } from '../global_variables/meta_gene'
 import { set_cluster_metadata } from '../global_variables/meta_cluster'
 import { update_ist_landscape_from_cgm } from '../widget_interactions/update_ist_landscape_from_cgm'
 
-
 export const landscape_ist = async (
     el,
     ini_model,
@@ -38,29 +37,6 @@ export const landscape_ist = async (
 
     await set_landscape_parameters(base_url)
 
-    // const tmp_image_info = [
-    //     {
-    //         name: 'dapi',
-    //         button_name: 'DAPI',
-    //         color: hexToRgb('#0000FF')
-    //     },
-    //     {
-    //         name: 'bound',
-    //         button_name: 'BOUND',
-    //         color: hexToRgb('#00FF00')
-    //     },
-    //     {
-    //         name: 'rna',
-    //         button_name: 'RNA',
-    //         color: hexToRgb('#FF0000')
-    //     },
-    //     {
-    //         name: 'prot',
-    //         button_name: 'PROT',
-    //         color: hexToRgb('#FFFF00') // '#CC79A7'
-    //     }
-    // ]
-
     const tmp_image_info = landscape_parameters.image_info
 
     console.log(landscape_parameters)
@@ -69,11 +45,10 @@ export const landscape_ist = async (
     set_image_layer_sliders(image_info)
     set_image_layer_colors(image_info)
 
-
     // Create and append the visualization.
     set_trx_ini_raidus(trx_radius)
-    let root = document.createElement("div");
-    root.style.height = "800px";
+    let root = document.createElement("div")
+    root.style.height = "800px"
 
     set_model(ini_model)
 
@@ -81,7 +56,7 @@ export const landscape_ist = async (
 
     set_options(token)
     set_initial_view_state(ini_x, ini_y, ini_z, ini_zoom)
-    await set_dimensions(base_url, imgage_name_for_dim )
+    await set_dimensions(base_url, imgage_name_for_dim)
 
     await set_meta_gene(base_url)
 
@@ -95,26 +70,30 @@ export const landscape_ist = async (
 
     update_trx_layer_radius(trx_radius)
 
-    // update_layers_ist([background_layer, ...image_layers, cell_layer])
     update_layers_ist()
 
     update_views()
 
     set_deck(root)
 
-
-
     // check if ini_model is not equal to {}
     if (Object.keys(ini_model).length > 0) {
         model.on('change:update_trigger', update_ist_landscape_from_cgm)
+        model.on('change:cell_clusters', update_clusters)
     }
 
     const ui_container = make_ist_ui_container(dataset_name)
 
     // UI and Viz Container
     el.appendChild(ui_container)
-    el.appendChild(root);
+    el.appendChild(root)
 
-    return () => deck_ist.finalize();
+    return () => deck_ist.finalize()
+}
 
+const update_clusters = () => {
+    const newClusters = model.get('cell_clusters')
+    console.log('New cell clusters received:', newClusters)
+    // Process the newClusters JSON blob as needed
+    // Update the visualization with the new cluster data
 }

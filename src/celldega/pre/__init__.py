@@ -22,7 +22,6 @@ from .landscape import *
 
 def reduce_image_size(image_path, scale_image=0.5, path_landscape_files=""):
     """
-    Reduce the size of an image by a factor of 0.5
 
     Parameters
     ----------
@@ -120,6 +119,7 @@ def make_meta_cell_image_coord(
     path_transformation_matrix,
     path_meta_cell_micron,
     path_meta_cell_image,
+    image_scale
 ):
     """
     Apply an affine transformation to the cell coordinates in microns and save
@@ -180,8 +180,8 @@ def make_meta_cell_image_coord(
     # Dropping the ones column as it's no longer needed
     meta_cell.drop(columns=["ones"], inplace=True)
 
-    meta_cell["center_x"] = meta_cell["center_x"] / 2
-    meta_cell["center_y"] = meta_cell["center_y"] / 2
+    meta_cell["center_x"] = meta_cell["center_x"] / image_scale
+    meta_cell["center_y"] = meta_cell["center_y"] / image_scale
 
     meta_cell["geometry"] = meta_cell.apply(
         lambda row: [row["center_x"], row["center_y"]], axis=1
@@ -201,6 +201,7 @@ def make_trx_tiles(
     tile_size=1000,
     chunk_size=1000000,
     verbose=False,
+    image_scale = 0.5
 ):
     """ """
 
@@ -238,9 +239,8 @@ def make_trx_tiles(
         )
 
         # add this as an argument that can be modified
-        image_downsample_factor = 2
-        chunk["x"] = chunk["x"] / image_downsample_factor
-        chunk["y"] = chunk["y"] / image_downsample_factor
+        chunk["x"] = chunk["x"] * image_scale
+        chunk["y"] = chunk["y"] * image_scale
 
         chunk["x"] = chunk["x"].round(2)
         chunk["y"] = chunk["y"].round(2)
@@ -334,9 +334,9 @@ def transform_polygon(polygon, matrix):
     return np.array([original_format_coords], dtype=object)
 
 
-def simple_format(geometry):
+def simple_format(geometry, image_scale):
     # factor in scaling
-    return [[[coord[0] / 2, coord[1] / 2] for coord in polygon] for polygon in geometry]
+    return [[[coord[0] / image_scale, coord[1] / image_scale] for coord in polygon] for polygon in geometry]
 
 
 def make_cell_boundary_tiles(
@@ -347,6 +347,7 @@ def make_cell_boundary_tiles(
     path_output,
     tile_size=1000,
     tile_bounds=None,
+    image_scale=0.5
 ):
     """ """
 
@@ -403,7 +404,7 @@ def make_cell_boundary_tiles(
         lambda poly: transform_polygon(poly, transformation_matrix)
     )
 
-    cells["GEOMETRY"] = cells["NEW_GEOMETRY"].apply(lambda x: simple_format(x))
+    cells["GEOMETRY"] = cells["NEW_GEOMETRY"].apply(lambda x: simple_format(x, image_scale))
 
     cells["polygon"] = cells["GEOMETRY"].apply(lambda x: Polygon(x[0]))
 

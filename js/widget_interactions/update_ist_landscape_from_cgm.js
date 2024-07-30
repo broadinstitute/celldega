@@ -116,9 +116,6 @@ export const update_ist_landscape_from_cgm = async () => {
 
         inst_gene = 'cluster'
 
-        console.log(click_info.click_value)
-
-
         inst_gene = 'cluster'
         const new_cats = click_info.click_value
 

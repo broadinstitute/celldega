@@ -7,10 +7,34 @@ export let color_dict_cluster = {}
 
 export let cluster_counts = []
 
+export const update_meta_cluster = (new_meta_cluster) => {
+
+    color_dict_cluster = new_meta_cluster.color
+
+    // convert each hexcode color value to rgb
+    for (const cluster_name in color_dict_cluster) {
+        color_dict_cluster[cluster_name] = hexToRgb(color_dict_cluster[cluster_name])
+    }
+
+    var cluster_counts_ini = new_meta_cluster.count
+
+    // convert cluster_counts_ini into an array of objects with values name and value
+    cluster_counts = []
+    for (const cluster_name in cluster_counts_ini) {
+        cluster_counts.push({
+            name: cluster_name,
+            value: cluster_counts_ini[cluster_name]
+        })
+    }
+
+    cluster_counts.sort((a, b) => b.value - a.value)
+
+}
+
 export const set_cluster_metadata = async  () => {
 
     // will improve this file naming later
-    const meta_cell_url = global_base_url + `/meta_cluster.parquet`
+    const meta_cell_url = global_base_url + `/cell_clusters/meta_cluster.parquet`
 
     var meta_cell_arrow_table = await get_arrow_table(meta_cell_url, options.fetch)
 
@@ -42,7 +66,6 @@ export const set_cluster_metadata = async  () => {
         })
 
     })
-
 
     cluster_counts.sort((a, b) => b.value - a.value)
 

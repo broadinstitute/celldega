@@ -22,7 +22,6 @@ from .landscape import *
 
 def reduce_image_size(image_path, scale_image=0.5, path_landscape_files=""):
     """
-    Reduce the size of an image by a factor of 0.5
 
     Parameters
     ----------
@@ -75,6 +74,61 @@ def convert_to_jpeg(image_path, quality=80):
 
     return new_image_path
 
+def convert_to_png(image_path):
+    """
+    Convert a TIFF image to a JPEG image with a quality of score
+
+    Parameters
+    ----------
+    image_path : str
+        Path to the image file
+    quality : int (default=80)
+        Quality score for the JPEG image
+
+    Returns
+    -------
+    new_image_path : str
+        Path to the JPEG image file
+
+    """
+
+    # Load the TIFF image
+    image = pyvips.Image.new_from_file(image_path, access="sequential")
+
+    # Save the image as a JPEG with a quality of 80
+    new_image_path = image_path.replace(".tif", ".png")
+    image.pngsave(new_image_path, Q=quality)
+
+    return new_image_path
+
+
+
+def convert_to_webp(image_path, quality=100):
+    """
+    Convert a TIFF image to a WEBP image with a specified quality score.
+
+    Parameters
+    ----------
+    image_path : str
+        Path to the image file
+    quality : int (default=100)
+        Quality score for the WEBP image (higher is better quality)
+
+    Returns
+    -------
+    new_image_path : str
+        Path to the WEBP image file
+    """
+    # Load the TIFF image
+    image = pyvips.Image.new_from_file(image_path, access="sequential")
+
+    # Save the image as a WEBP with specified quality
+    new_image_path = image_path.replace(".tif", ".webp")
+    image.webpsave(new_image_path, Q=quality)
+
+    return new_image_path
+
+
 
 def make_deepzoom_pyramid(
     image_path, output_path, pyramid_name, tile_size=512, overlap=0, suffix=".jpeg"
@@ -120,7 +174,7 @@ def make_meta_cell_image_coord(
     path_transformation_matrix,
     path_meta_cell_micron,
     path_meta_cell_image,
-    df_meta = None
+    image_scale
 ):
     """
     Apply an affine transformation to the cell coordinates in microns and save
@@ -136,8 +190,6 @@ def make_meta_cell_image_coord(
         Path to the meta cell file with coordinates in microns
     path_meta_cell_image : str
         Path to save the meta cell file with coordinates in pixels
-    df_meta : pd.DataFrame (default=None)
-        DataFrame with additional cell metadata to be pre-loaded into the landscape visualization
 
     Returns
     -------
@@ -183,8 +235,8 @@ def make_meta_cell_image_coord(
     # Dropping the ones column as it's no longer needed
     meta_cell.drop(columns=["ones"], inplace=True)
 
-    meta_cell["center_x"] = meta_cell["center_x"] / 2
-    meta_cell["center_y"] = meta_cell["center_y"] / 2
+    meta_cell["center_x"] = meta_cell["center_x"] / image_scale
+    meta_cell["center_y"] = meta_cell["center_y"] / image_scale
 
     meta_cell["geometry"] = meta_cell.apply(
         lambda row: [row["center_x"], row["center_y"]], axis=1
@@ -192,19 +244,6 @@ def make_meta_cell_image_coord(
 
     meta_cell = meta_cell[["name", "geometry"]]
 
-    # Add df_meta to the meta_cell DataFrame
-    if df_meta is not None:
-        try:
-            # # make sure that df_meta has the same index as meta_cell
-            # keep_cells = meta_cell.index.tolist()
-            # df_meta = df_meta.loc[keep_cells]
-
-            meta_cell = pd.concat([meta_cell, df_meta], axis=1)
-
-        except:
-            print("Error: df_meta must have the same index as meta_cell")
-            print(meta_cell.head())
-            print(df_meta.head())
 
     meta_cell.to_parquet(path_meta_cell_image)
 
@@ -217,6 +256,7 @@ def make_trx_tiles(
     tile_size=1000,
     chunk_size=1000000,
     verbose=False,
+    image_scale = 0.5
 ):
     """ """
 
@@ -254,9 +294,8 @@ def make_trx_tiles(
         )
 
         # add this as an argument that can be modified
-        image_downsample_factor = 2
-        chunk["x"] = chunk["x"] / image_downsample_factor
-        chunk["y"] = chunk["y"] / image_downsample_factor
+        chunk["x"] = chunk["x"] * image_scale
+        chunk["y"] = chunk["y"] * image_scale
 
         chunk["x"] = chunk["x"].round(2)
         chunk["y"] = chunk["y"].round(2)
@@ -350,9 +389,9 @@ def transform_polygon(polygon, matrix):
     return np.array([original_format_coords], dtype=object)
 
 
-def simple_format(geometry):
+def simple_format(geometry, image_scale):
     # factor in scaling
-    return [[[coord[0] / 2, coord[1] / 2] for coord in polygon] for polygon in geometry]
+    return [[[coord[0] / image_scale, coord[1] / image_scale] for coord in polygon] for polygon in geometry]
 
 
 def make_cell_boundary_tiles(
@@ -363,6 +402,7 @@ def make_cell_boundary_tiles(
     path_output,
     tile_size=1000,
     tile_bounds=None,
+    image_scale=0.5
 ):
     """ """
 
@@ -419,7 +459,7 @@ def make_cell_boundary_tiles(
         lambda poly: transform_polygon(poly, transformation_matrix)
     )
 
-    cells["GEOMETRY"] = cells["NEW_GEOMETRY"].apply(lambda x: simple_format(x))
+    cells["GEOMETRY"] = cells["NEW_GEOMETRY"].apply(lambda x: simple_format(x, image_scale))
 
     cells["polygon"] = cells["GEOMETRY"].apply(lambda x: Polygon(x[0]))
 

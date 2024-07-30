@@ -1,6 +1,7 @@
 import pathlib
 import anywidget
 import traitlets
+import json
 
 
 class Landscape(anywidget.AnyWidget):
@@ -28,12 +29,6 @@ class Landscape(anywidget.AnyWidget):
     -------
     Landscape
         A widget for visualizing a 'landscape' view of spatial omics data.
-
-    Examples
-    --------
-    >>> from celldega.viz import Landscape
-    >>> Landscape(ini_x=4500, ini_y=3200, ini_zoom=0, max_image_zoom=16, bounce_time=200, token_traitlet='token', base_url='')
-
     """
 
     _esm = pathlib.Path(__file__).parent / "../static" / "widget.js"
@@ -50,11 +45,16 @@ class Landscape(anywidget.AnyWidget):
     dataset_name = traitlets.Unicode("").tag(sync=True)
 
     update_trigger = traitlets.Dict().tag(sync=True)
+    cell_clusters = traitlets.Dict().tag(sync=True)
 
     def trigger_update(self, new_value):
         # This method updates the update_trigger traitlet with a new value
         # You can pass any information necessary for the update, or just a timestamp
         self.update_trigger = new_value
+
+    def update_cell_clusters(self, new_clusters):
+        # Convert the new_clusters to a JSON serializable format if necessary
+        self.cell_clusters = new_clusters
 
 
 class Matrix(anywidget.AnyWidget):

@@ -9,9 +9,6 @@ export const get_cell_color = (i, d) => {
         try {
             const inst_cat = cell_cats[d.index]
 
-            // console.log('inst_cat', inst_cat)
-            // console.log('color_dict_cluster', color_dict_cluster)
-
             let inst_color = color_dict_cluster[inst_cat]
 
             // if selected_cats is empty all cells are visible
@@ -19,7 +16,6 @@ export const get_cell_color = (i, d) => {
 
             // Check if inst_color is an array and log an error if it's not
             if (!Array.isArray(inst_color)) {
-                // console.error('inst_color is not an array:', inst_color, 'inst_cat:', inst_cat, 'color_dict_cluster:', color_dict_cluster)
                 inst_color = [0, 0, 0]
                 inst_opacity = 50
             }
@@ -27,8 +23,6 @@ export const get_cell_color = (i, d) => {
             return [...inst_color, inst_opacity]
 
         } catch {
-            // const inst_cat = cell_cats[d.index]
-            // console.error('Error in get_cell_color:', error, 'inst_cat:', inst_cat, 'color_dict_cluster:', color_dict_cluster)
             return [0, 0, 0, 50] // Return a default color with some opacity to handle the error gracefully
         }
 
@@ -40,7 +34,6 @@ export const get_cell_color = (i, d) => {
             return [255, 0, 0, inst_exp]
 
         } catch {
-            // console.error('Error in get_cell_color:', error, 'cell_exp_array:', cell_exp_array, 'd.index:', d.index)
             return [255, 0, 0, 50] // Return a default color with some opacity to handle the error gracefully
         }
     }

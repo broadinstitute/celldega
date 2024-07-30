@@ -137,14 +137,10 @@ export const set_cell_layer = async (base_url) => {
 
 export const update_cell_combo_data = () => {
 
-    console.log('update_cell_combo_data')
-
     cell_combo_data = cell_combo_data.map((cell, index) => ({
       ...cell,
       cat: dict_cell_cats[cell.name]
     }))
-
-    // console.log('new cell_combo_data', cell_combo_data)
 
   }
 
@@ -162,9 +158,6 @@ export const update_cell_layer_radius = (radius) => {
 }
 
 export const update_cell_layer_id = (new_cat) => {
-
-    // console.log('update_cell_layer_id', new_cat)
-
     cell_layer = cell_layer.clone({
         id: 'cell-layer-' + new_cat,
     });

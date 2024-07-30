@@ -111,7 +111,6 @@ export let trx_layer = new ScatterplotLayer({
 
 export const update_trx_layer = async ( base_url, tiles_in_view, ) => {
 
-    // console.log('update_trx_layer')
     await set_trx_data(base_url, tiles_in_view)
 
     trx_layer = new ScatterplotLayer({

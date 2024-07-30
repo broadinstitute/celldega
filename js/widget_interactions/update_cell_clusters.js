@@ -11,7 +11,6 @@ import { color_dict_cluster, cluster_counts } from '../global_variables/meta_clu
 export const update_cell_clusters = () => {
 
     const new_cluster_info = model.get('cell_clusters')
-    console.log('New cell clusters just received:', new_cluster_info)
 
     update_meta_cluster(new_cluster_info['meta_cluster'])
     update_cell_cats(new_cluster_info['new_clusters'])

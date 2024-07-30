@@ -40,8 +40,6 @@ export const landscape_ist = async (
 
     const tmp_image_info = landscape_parameters.image_info
 
-    console.log(landscape_parameters)
-
     set_image_info(tmp_image_info)
     set_image_layer_sliders(image_info)
     set_image_layer_colors(image_info)

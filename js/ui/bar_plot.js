@@ -69,7 +69,6 @@ export const bar_callback_gene = async (event, d) => {
         .attr('font-weight', 'normal')
         .attr('opacity', 1.0)
 
-    // console.log('bar_callback_gene', d.name)
     const currentTarget = d3.select(event.currentTarget)
     const isBold = currentTarget.attr('font-weight') === 'bold'
 
@@ -178,10 +177,6 @@ export const make_bar_graph = (bar_container, click_callback, svg_bar, bar_data,
 }
 
 export const update_bar_graph = (svg_bar, bar_data, color_dict, click_callback, selected_array) => {
-
-    console.log('update_bar_graph')
-
-    console.log('bar_data', bar_data)
 
     const bar_height = 15;
     const svg_height = bar_height * (bar_data.length + 1);

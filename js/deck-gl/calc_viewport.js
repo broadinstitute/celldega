@@ -38,7 +38,6 @@ export const calc_viewport = async ({ height, width, zoom, target }) => {
     // Get the current viewport from Deck.gl
     const viewports = deck_ist.viewManager.getViewports()
     if (!viewports || viewports.length === 0) {
-        // console.error('No viewports available')
         return
     }
 
@@ -94,8 +93,6 @@ export const calc_viewport = async ({ height, width, zoom, target }) => {
                 return acc
             }, []).filter(item => item.value > 0)
             .sort((a, b) => b.value - a.value)
-
-        console.log('new_bar_data_cell', new_bar_data_cell)
 
         update_bar_graph(svg_bar_cluster, new_bar_data_cell, color_dict_cluster, bar_callback_cluster, selected_cats)
 

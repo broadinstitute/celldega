@@ -60,7 +60,7 @@ $ hatch shell          # Activate the new environment
 Increment version in `package.json` and
 
 ```
-$ npm build
+$ npm run build
 $ npm publish
 ```
 

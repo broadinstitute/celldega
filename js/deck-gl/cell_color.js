@@ -8,6 +8,10 @@ export const get_cell_color = (i, d) => {
     if (cat === 'cluster') {
 
         const inst_cat = cell_cats[d.index]
+
+        // console.log('inst_cat', inst_cat)
+        // console.log('color_dict_cluster', color_dict_cluster)
+
         let inst_color = color_dict_cluster[inst_cat]
 
         // if selected_cats is empty all cells are visible

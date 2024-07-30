@@ -18,6 +18,7 @@ import { set_image_layer_sliders } from "../ui/sliders"
 import { set_meta_gene } from '../global_variables/meta_gene'
 import { set_cluster_metadata } from '../global_variables/meta_cluster'
 import { update_ist_landscape_from_cgm } from '../widget_interactions/update_ist_landscape_from_cgm'
+import { update_cell_clusters } from '../widget_interactions/update_cell_clusters'
 
 export const landscape_ist = async (
     el,
@@ -79,7 +80,7 @@ export const landscape_ist = async (
     // check if ini_model is not equal to {}
     if (Object.keys(ini_model).length > 0) {
         model.on('change:update_trigger', update_ist_landscape_from_cgm)
-        model.on('change:cell_clusters', update_clusters)
+        model.on('change:cell_clusters', update_cell_clusters)
     }
 
     const ui_container = make_ist_ui_container(dataset_name)
@@ -91,9 +92,3 @@ export const landscape_ist = async (
     return () => deck_ist.finalize()
 }
 
-const update_clusters = () => {
-    const newClusters = model.get('cell_clusters')
-    console.log('New cell clusters received:', newClusters)
-    // Process the newClusters JSON blob as needed
-    // Update the visualization with the new cluster data
-}

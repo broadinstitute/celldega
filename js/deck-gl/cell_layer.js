@@ -3,7 +3,7 @@ import { ScatterplotLayer } from 'deck.gl'
 import { get_arrow_table } from "../read_parquet/get_arrow_table"
 import { get_scatter_data } from "../read_parquet/get_scatter_data"
 import { set_color_dict_gene } from '../global_variables/color_dict_gene'
-import { set_cell_names_array, set_cell_name_to_index_map } from '../global_variables/cell_names_array'
+import { set_cell_names_array, set_cell_name_to_index_map, cell_names_array } from '../global_variables/cell_names_array'
 import { options } from '../global_variables/fetch_options'
 import { set_cell_cats, dict_cell_cats, set_dict_cell_cats} from '../global_variables/cat'
 import { update_selected_cats, selected_cats, update_cat, reset_cat } from '../global_variables/cat'
@@ -135,12 +135,19 @@ export const set_cell_layer = async (base_url) => {
 }
 
 export const update_cell_combo_data = () => {
-    // update the name key in the cell_combo_data array
-    cell_combo_data = cell_combo_data.map((name, index) => ({
-        x: cell_combo_data[index].x,
-        y: cell_combo_data[index].y
-        name: dict_cell_cats[name]
-    }))
+
+    cell_combo_data = cell_combo_data.map((cell, index) => {
+        // console.log('Original cell:', cell); // Log original cell
+
+        const cell_name = cell_names_array[index];
+        const updatedCell = {
+          ...cell,
+          name: dict_cell_cats[cell.name] !== undefined ? dict_cell_cats[cell.name] : cell.name
+        };
+        // console.log('Updated cell:', updatedCell); // Log updated cell
+        return updatedCell;
+      });
+
 }
 
 export const toggle_cell_layer_visibility = (visible) => {
@@ -157,7 +164,7 @@ export const update_cell_layer_radius = (radius) => {
 
 export const update_cell_layer_id = (new_cat) => {
 
-    console.log('update_cell_layer_id', new_cat)
+    // console.log('update_cell_layer_id', new_cat)
 
     cell_layer = cell_layer.clone({
         id: 'cell-layer-' + new_cat,

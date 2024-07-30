@@ -79,20 +79,23 @@ export const calc_viewport = async ({ height, width, zoom, target }) => {
         // cell bar graph update
         const filtered_cells = cell_combo_data.filter(pos =>
             pos.x >= minX && pos.x <= maxX && pos.y >= minY && pos.y <= maxY
-        );
+        )
+
 
         const filtered_cell_names = filtered_cells.map(cell => cell.name);
 
         const new_bar_data_cell = filtered_cell_names.reduce((acc, gene) => {
-            const existingGene = acc.find(item => item.name === gene)
-            if (existingGene) {
-                existingGene.value += 1
-            } else {
-                acc.push({ name: gene, value: 1 })
-            }
-            return acc
-        }, []).filter(item => item.value > 0)
-        .sort((a, b) => b.value - a.value)
+                const existingGene = acc.find(item => item.name === gene)
+                if (existingGene) {
+                    existingGene.value += 1
+                } else {
+                    acc.push({ name: gene, value: 1 })
+                }
+                return acc
+            }, []).filter(item => item.value > 0)
+            .sort((a, b) => b.value - a.value)
+
+        console.log('new_bar_data_cell', new_bar_data_cell)
 
         update_bar_graph(svg_bar_cluster, new_bar_data_cell, color_dict_cluster, bar_callback_cluster, selected_cats)
 

@@ -17,7 +17,7 @@ export let cell_cats
 
 export const set_cell_cats = (cell_arrow_table, column_name) => {
     cell_cats = cell_arrow_table.getChild(column_name).toArray()
-    console.log(cell_cats)
+    // console.log(cell_cats)
 }
 
 export const update_cell_cats = (new_cell_cats) => {
@@ -25,7 +25,7 @@ export const update_cell_cats = (new_cell_cats) => {
     new_cell_cats = new_cell_cats.map(cat => cat === 'nan' ? null : cat)
 
     cell_cats = new_cell_cats
-    console.log('new_cell_cats', new_cell_cats)
+    // console.log('new_cell_cats', new_cell_cats)
 
     set_dict_cell_cats()
 }

@@ -16,26 +16,12 @@ export const update_cell_clusters = () => {
     update_meta_cluster(new_cluster_info['meta_cluster'])
     update_cell_cats(new_cluster_info['new_clusters'])
 
-    // cell_combo_data = new_cell_names_array.map((name, index) => ({
-    //     name: dict_cell_cats[name],
-    //     x: flatCoordinateArray[index * 2],
-    //     y: flatCoordinateArray[index * 2 + 1]
-    // }))
-
     update_cell_layer_id('cluster')
     update_layers_ist()
 
     deck_ist.setProps({
         layers: layers_ist
     })
-
-    // make_bar_graph(
-    //     bar_container_cluster,
-    //     bar_callback_cluster,
-    //     svg_bar_cluster,
-    //     cluster_counts,
-    //     color_dict_cluster
-    // )
 
     update_cell_combo_data()
 
@@ -45,10 +31,6 @@ export const update_cell_clusters = () => {
         color_dict_cluster,
         bar_callback_cluster,
         []
-        // seleacted_cats
     )
 
-
-    // Process the newClusters JSON blob as needed
-    // Update the visualization with the new cluster data
 }

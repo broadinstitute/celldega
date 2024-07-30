@@ -75,8 +75,8 @@ export const set_cluster_metadata = async  () => {
 
     })
 
-    console.log('color_dict_cluster', color_dict_cluster)
-    console.log('cluster_counts', cluster_counts)
+    // console.log('color_dict_cluster', color_dict_cluster)
+    // console.log('cluster_counts', cluster_counts)
 
 
     cluster_counts.sort((a, b) => b.value - a.value)

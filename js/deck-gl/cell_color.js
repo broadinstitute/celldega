@@ -26,8 +26,8 @@ export const get_cell_color = (i, d) => {
 
             return [...inst_color, inst_opacity]
 
-        } catch (error) {
-            const inst_cat = cell_cats[d.index]
+        } catch {
+            // const inst_cat = cell_cats[d.index]
             // console.error('Error in get_cell_color:', error, 'inst_cat:', inst_cat, 'color_dict_cluster:', color_dict_cluster)
             return [0, 0, 0, 50] // Return a default color with some opacity to handle the error gracefully
         }
@@ -39,7 +39,7 @@ export const get_cell_color = (i, d) => {
             const inst_exp = cell_exp_array[d.index]
             return [255, 0, 0, inst_exp]
 
-        } catch (error) {
+        } catch {
             // console.error('Error in get_cell_color:', error, 'cell_exp_array:', cell_exp_array, 'd.index:', d.index)
             return [255, 0, 0, 50] // Return a default color with some opacity to handle the error gracefully
         }

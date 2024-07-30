@@ -20,7 +20,9 @@ export const update_meta_cluster = (new_meta_cluster) => {
         color_dict_cluster[cluster_name] = hexToRgb(color_dict_cluster[cluster_name])
     }
 
-    var cluster_counts_ini = new_meta_cluster.cluster_counts
+    var cluster_counts_ini = new_meta_cluster.count
+    console.log('counts!!!!!!!!!!!!!!!!!!!!')
+
 
     // convert cluster_counts_ini into an array of objects with values name and value
     cluster_counts = []
@@ -30,6 +32,11 @@ export const update_meta_cluster = (new_meta_cluster) => {
             value: cluster_counts_ini[cluster_name]
         })
     }
+
+    cluster_counts.sort((a, b) => b.value - a.value)
+
+    console.log('cluster_counts_ini', cluster_counts_ini)
+    console.log('cluster_counts', cluster_counts)
 }
 
 export const set_cluster_metadata = async  () => {

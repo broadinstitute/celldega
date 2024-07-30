@@ -82,7 +82,7 @@ export const calc_viewport = async ({ height, width, zoom, target }) => {
         )
 
 
-        const filtered_cell_names = filtered_cells.map(cell => cell.name);
+        const filtered_cell_names = filtered_cells.map(cell => cell.cat);
 
         const new_bar_data_cell = filtered_cell_names.reduce((acc, gene) => {
                 const existingGene = acc.find(item => item.name === gene)

@@ -121,7 +121,8 @@ export const set_cell_layer = async (base_url) => {
 
     // save cell positions and categories in one place for updating cluster bar plot
     cell_combo_data = new_cell_names_array.map((name, index) => ({
-        name: dict_cell_cats[name],
+        name: name,
+        cat: dict_cell_cats[name],
         x: flatCoordinateArray[index * 2],
         y: flatCoordinateArray[index * 2 + 1]
     }))
@@ -136,19 +137,17 @@ export const set_cell_layer = async (base_url) => {
 
 export const update_cell_combo_data = () => {
 
-    cell_combo_data = cell_combo_data.map((cell, index) => {
-        // console.log('Original cell:', cell); // Log original cell
+    console.log('update_cell_combo_data')
 
-        const cell_name = cell_names_array[index];
-        const updatedCell = {
-          ...cell,
-          name: dict_cell_cats[cell.name] !== undefined ? dict_cell_cats[cell.name] : cell.name
-        };
-        // console.log('Updated cell:', updatedCell); // Log updated cell
-        return updatedCell;
-      });
+    cell_combo_data = cell_combo_data.map((cell, index) => ({
+      ...cell,
+      cat: dict_cell_cats[cell.name]
+    }))
 
-}
+    // console.log('new cell_combo_data', cell_combo_data)
+
+  }
+
 
 export const toggle_cell_layer_visibility = (visible) => {
     cell_layer = cell_layer.clone({

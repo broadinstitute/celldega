@@ -118,6 +118,8 @@ export const set_cell_layer = async (base_url) => {
 
     // need to save the cell category
     const flatCoordinateArray = cell_scatter_data.attributes.getPosition.value;
+
+    // save cell positions and categories in one place for updating cluster bar plot
     cell_combo_data = new_cell_names_array.map((name, index) => ({
         name: dict_cell_cats[name],
         x: flatCoordinateArray[index * 2],
@@ -130,6 +132,15 @@ export const set_cell_layer = async (base_url) => {
         data: cell_scatter_data,
         onClick: cell_layer_onclick,
     });
+}
+
+export const update_cell_combo_data = () => {
+    // update the name key in the cell_combo_data array
+    cell_combo_data = cell_combo_data.map((name, index) => ({
+        x: cell_combo_data[index].x,
+        y: cell_combo_data[index].y
+        name: dict_cell_cats[name]
+    }))
 }
 
 export const toggle_cell_layer_visibility = (visible) => {

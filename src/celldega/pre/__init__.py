@@ -74,6 +74,61 @@ def convert_to_jpeg(image_path, quality=80):
 
     return new_image_path
 
+def convert_to_png(image_path):
+    """
+    Convert a TIFF image to a JPEG image with a quality of score
+
+    Parameters
+    ----------
+    image_path : str
+        Path to the image file
+    quality : int (default=80)
+        Quality score for the JPEG image
+
+    Returns
+    -------
+    new_image_path : str
+        Path to the JPEG image file
+
+    """
+
+    # Load the TIFF image
+    image = pyvips.Image.new_from_file(image_path, access="sequential")
+
+    # Save the image as a JPEG with a quality of 80
+    new_image_path = image_path.replace(".tif", ".png")
+    image.pngsave(new_image_path, Q=quality)
+
+    return new_image_path
+
+
+
+def convert_to_webp(image_path, quality=100):
+    """
+    Convert a TIFF image to a WEBP image with a specified quality score.
+
+    Parameters
+    ----------
+    image_path : str
+        Path to the image file
+    quality : int (default=100)
+        Quality score for the WEBP image (higher is better quality)
+
+    Returns
+    -------
+    new_image_path : str
+        Path to the WEBP image file
+    """
+    # Load the TIFF image
+    image = pyvips.Image.new_from_file(image_path, access="sequential")
+
+    # Save the image as a WEBP with specified quality
+    new_image_path = image_path.replace(".tif", ".webp")
+    image.webpsave(new_image_path, Q=quality)
+
+    return new_image_path
+
+
 
 def make_deepzoom_pyramid(
     image_path, output_path, pyramid_name, tile_size=512, overlap=0, suffix=".jpeg"

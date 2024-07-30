@@ -43,6 +43,8 @@ export const set_cluster_metadata = async  () => {
 
     })
 
+    console.log(color_dict_cluster)
+
 
     cluster_counts.sort((a, b) => b.value - a.value)
 

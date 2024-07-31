@@ -3,7 +3,7 @@
 import "./widget.css";
 import { landscape_ist } from "./viz/landscape_ist";
 import { landscape_sst } from "./viz/landscape_sst";
-import cgm from 'clustergrammer-gl';
+import cgm, { type } from 'clustergrammer-gl';
 import _ from 'underscore';
 
 // Ensure these variables are defined globally
@@ -31,7 +31,7 @@ export const render_landscape = async ({ model, el }) => {
 
 export const render_landscape_ist = async ({ model, el }) => {
 
-    const token = model.get('token_traitlet')
+    const token = model.get('token')
     const ini_x = model.get('ini_x');
     const ini_y = model.get('ini_y');
     const ini_z = model.get('ini_z');
@@ -56,7 +56,7 @@ export const render_landscape_ist = async ({ model, el }) => {
 
 export const render_landscape_sst = async ({ model, el }) => {
 
-    const token = model.get('token_traitlet')
+    const token = model.get('token')
     const ini_x = model.get('ini_x');
     const ini_y = model.get('ini_y');
     const ini_z = model.get('ini_z');

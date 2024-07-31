@@ -5,7 +5,7 @@ import { get_scatter_data } from "../read_parquet/get_scatter_data"
 import { set_color_dict_gene } from '../global_variables/color_dict_gene'
 import { set_cell_names_array, set_cell_name_to_index_map } from '../global_variables/cell_names_array'
 import { options } from '../global_variables/fetch_options'
-import { set_cell_cats, dict_cell_cats, set_dict_cell_cats} from '../global_variables/cat'
+import { cell_cats, set_cell_cats, dict_cell_cats, set_dict_cell_cats} from '../global_variables/cat'
 import { update_selected_cats, selected_cats, update_cat, reset_cat } from '../global_variables/cat'
 // import { Table } from 'apache-arrow'
 import { get_cell_color } from './cell_color'
@@ -32,11 +32,25 @@ export let cell_layer = new ScatterplotLayer({
     getColor: get_cell_color,
 })
 
-const cell_layer_onclick = () => {
+const cell_layer_onclick = (info) => {
     // used to have info as an argument
 
     // const inst_cat = cell_cats[info.index]
-    const inst_cat = tooltip_cat_cell
+    // const inst_cat = tooltip_cat_cell
+
+    // Check if the device is a touch device
+    const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
+    let inst_cat;
+
+    if (isTouchDevice) {
+        // Fallback on the previous method for touch devices
+        inst_cat = cell_cats[info.index];
+    } else {
+        // Use the tooltip category for non-touch devices
+        inst_cat = tooltip_cat_cell;
+    }
+
 
     update_cat('cluster')
     update_selected_cats([inst_cat])

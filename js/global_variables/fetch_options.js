@@ -13,4 +13,5 @@ export const set_options = (token) => {
     if (token) {
         options.fetch.headers['Authorization'] = `Bearer ${token}`;
     }
+
 };

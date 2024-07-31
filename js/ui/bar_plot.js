@@ -177,7 +177,6 @@ export const make_bar_graph = (bar_container, click_callback, svg_bar, bar_data,
 }
 
 export const update_bar_graph = (svg_bar, bar_data, color_dict, click_callback, selected_array) => {
-    console.log('update_bar_graph: color_dict', color_dict)
 
     const bar_height = 15;
     const svg_height = bar_height * (bar_data.length + 1);

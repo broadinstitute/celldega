@@ -33,6 +33,8 @@ export const landscape_ist = async (
     trx_radius=0.25,
 ) => {
 
+    set_options(token)
+
     // move this to landscape_parameters
     const imgage_name_for_dim = 'dapi'
 
@@ -53,7 +55,6 @@ export const landscape_ist = async (
 
     set_global_base_url(base_url)
 
-    set_options(token)
     set_initial_view_state(ini_x, ini_y, ini_z, ini_zoom)
     await set_dimensions(base_url, imgage_name_for_dim)
 

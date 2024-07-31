@@ -18,7 +18,7 @@ class Landscape(anywidget.AnyWidget):
         The initial zoom level of the view.
     bounce_time : int
         The time taken for the view to bounce back after panning.
-    token_traitlet : str
+    token : str
         The token traitlet.
     base_url : str
         The base URL for the widget.
@@ -37,7 +37,7 @@ class Landscape(anywidget.AnyWidget):
 
     technology = traitlets.Unicode("sst").tag(sync=True)
     base_url = traitlets.Unicode("").tag(sync=True)
-    token_traitlet = traitlets.Unicode("").tag(sync=True)
+    token = traitlets.Unicode("").tag(sync=True)
     ini_x = traitlets.Float(1000).tag(sync=True)
     ini_y = traitlets.Float(1000).tag(sync=True)
     ini_z = traitlets.Float(0).tag(sync=True)

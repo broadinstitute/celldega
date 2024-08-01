@@ -1,3 +1,7 @@
+"""
+Module for pre-processing data
+"""
+
 try:
     import pyvips
 except ImportError:

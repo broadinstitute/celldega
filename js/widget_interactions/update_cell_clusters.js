@@ -24,8 +24,6 @@ export const update_cell_clusters = () => {
 
     update_cell_combo_data()
 
-
-
     update_bar_graph(
         svg_bar_cluster,
         cluster_counts,

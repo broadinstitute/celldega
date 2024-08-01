@@ -8,27 +8,30 @@ class Landscape(anywidget.AnyWidget):
     """
     A widget for visualizing a 'landscape' view of spatial omics data.
 
-    Parameters
-    ----------
-    ini_x : float
-        The initial x-coordinate of the view.
-    ini_y : float
-        The initial y-coordinate of the view.
-    ini_zoom : float
-        The initial zoom level of the view.
-    bounce_time : int
-        The time taken for the view to bounce back after panning.
-    token : str
-        The token traitlet.
-    base_url : str
-        The base URL for the widget.
-    dataset_name : str (optional)
-        The name of the dataset to visualize. This will show up in the user interface bar.
+    Args:
+        ini_x (float): The initial x-coordinate of the view.
+        ini_y (float): The initial y-coordinate of the view.
+        ini_zoom (float): The initial zoom level of the view.
+        bounce_time (int): The time taken for the view to bounce back after panning.
+        token (str): The token traitlet.
+        base_url (str): The base URL for the widget.
+        dataset_name (str, optional): The name of the dataset to visualize. This will show up in the user interface bar.
 
-    Returns
-    -------
-    Landscape
-        A widget for visualizing a 'landscape' view of spatial omics data.
+    Attributes:
+        component (str): The name of the component.
+        technology (str): The technology used.
+        base_url (str): The base URL for the widget.
+        token (str): The token traitlet.
+        ini_x (float): The initial x-coordinate of the view.
+        ini_y (float): The initial y-coordinate of the view.
+        ini_z (float): The initial z-coordinate of the view.
+        ini_zoom (float): The initial zoom level of the view.
+        dataset_name (str): The name of the dataset to visualize.
+        update_trigger (dict): The dictionary to trigger updates.
+        cell_clusters (dict): The dictionary containing cell cluster information.
+
+    Returns:
+        Landscape: A widget for visualizing a 'landscape' view of spatial omics data.
     """
 
     _esm = pathlib.Path(__file__).parent / "../static" / "widget.js"

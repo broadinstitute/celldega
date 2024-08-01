@@ -1,0 +1,31 @@
+site_name: Celldega Documentation
+theme:
+  name: material
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Introduction: introduction.md
+      - Installation: installation.md
+      - Usage: usage.md
+  - Python API:
+      - pre:
+          - Overview: python/pre/overview.md
+          - API Reference: python/pre/api.md
+      - viz:
+          - Overview: python/viz/overview.md
+          - API Reference: python/viz/api.md
+
+markdown_extensions:
+  - toc
+  - tables
+  - admonition
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: google
+            show_root_toc_entry: true

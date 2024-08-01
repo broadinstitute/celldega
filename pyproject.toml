@@ -18,17 +18,27 @@ dependencies = [
     "scanpy~=1.10.2",
     "squidpy~=1.5.0",
     "clustergrammer2==0.18.0",
-    "shapely==2.0.5"
+    "shapely~=2.0.5"
 ]
 readme = "README.md"
 
 [project.optional-dependencies]
-dev = [   "watchfiles",
+dev = [
+    "watchfiles",
     "jupyterlab",
     "pylint",
     "black"
 ]
-pre = ["pyvips~=2.2.2"] # optional dependencies for pre-processing
+pre = [
+    "pyvips~=2.2.2"
+] # optional dependencies for pre-processing
+
+docs = [
+    "mkdocs",
+    "mkdocs-material",
+    "mkdocstrings[python]",
+    "mkdocstrings[javascript]"
+] # optional dependencies for documentation
 
 # automatically add the dev feature to the default env (e.g., hatch shell)
 [tool.hatch.envs.default]

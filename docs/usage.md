@@ -6,8 +6,8 @@ Welcome to the Celldega documentation! Here you will find information on how to 
 
 Below is an embedded Celldega visualization:
 
-<iframe width="100%" height="1076.359375" frameborder="0"
-  src="https://observablehq.com/embed/@cornhundred/celldega-xenium-bone-marrow-example@34?cells=root"></iframe>
+<iframe width="100%" height="575" frameborder="0"
+  src="https://observablehq.com/embed/@cornhundred/celldega-xenium-bone-marrow-example?cells=root"></iframe>
 
 <!-- <div id="app" style="width: 800px; height: 800px; overflow: hidden;"></div>
 

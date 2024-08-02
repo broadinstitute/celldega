@@ -101,7 +101,7 @@ def convert_to_png(image_path):
 
     # Save the image as a JPEG with a quality of 80
     new_image_path = image_path.replace(".tif", ".png")
-    image.pngsave(new_image_path, Q=quality)
+    image.pngsave(new_image_path)
 
     return new_image_path
 
@@ -486,8 +486,8 @@ def make_cell_boundary_tiles(
 
     for i in range(n_tiles_x):
 
-        # if i % 2 == 0:
-        #     print('row', i)
+        if i % 2 == 0:
+            print('row', i)
 
         for j in range(n_tiles_y):
             tile_x_min = x_min + i * tile_size_x
@@ -599,7 +599,7 @@ def get_max_zoom_level(path_image_pyramid):
 
 
 def save_landscape_parameters(
-    technology, path_landscape_files, image_name="dapi_files", tile_size=1000, image_info={}
+    technology, path_landscape_files, image_name="dapi_files", tile_size=1000, image_info={}, image_format='.webp'
 ):
 
     path_image_pyramid = path_landscape_files + "pyramid_images/" + image_name + "/"
@@ -612,7 +612,8 @@ def save_landscape_parameters(
         "technology": technology,
         "max_pyramid_zoom": max_pyramid_zoom,
         "tile_size": tile_size,
-        "image_info": image_info
+        "image_info": image_info,
+        "image_format": image_format
     }
 
     path_landscape_parameters = path_landscape_files + "landscape_parameters.json"

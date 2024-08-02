@@ -14,6 +14,7 @@ import { make_ist_ui_container } from '../ui/ui_containers'
 import { model, set_model } from '../global_variables/model'
 import { update_trx_layer_radius } from '../deck-gl/trx_layer'
 import { image_info, set_image_info, set_image_layer_colors } from '../global_variables/image_info'
+import { set_image_format } from '../global_variables/image_info'
 import { set_image_layer_sliders } from "../ui/sliders"
 import { set_meta_gene } from '../global_variables/meta_gene'
 import { set_cluster_metadata } from '../global_variables/meta_cluster'
@@ -42,6 +43,7 @@ export const landscape_ist = async (
 
     const tmp_image_info = landscape_parameters.image_info
 
+    set_image_format(landscape_parameters.image_format)
     set_image_info(tmp_image_info)
     set_image_layer_sliders(image_info)
     set_image_layer_colors(image_info)

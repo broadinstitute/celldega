@@ -4,8 +4,10 @@
 
 This is the official documentation for the Celldega library.
 
-## Getting Started
+## Overview
 
-- [Introduction](introduction.md)
+- [Getting Started](getting_started.md)
 - [Installation](installation.md)
 - [Usage](usage.md)
+
+## Gallery

@@ -1,5 +1,8 @@
 # celldega
 
+## Documentation
+https://broadinstitute.github.io/celldega/
+
 ## Installation
 
 ```sh

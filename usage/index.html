@@ -12,7 +12,7 @@
         <link rel="prev" href="../installation/">
       
       
-        <link rel="next" href="../python/pre/overview/">
+        <link rel="next" href="../gallery_xenium/">
       
       
       <link rel="icon" href="../assets/images/favicon.png">
@@ -229,7 +229,7 @@
             
   
   <span class="md-ellipsis">
-    Getting Started
+    Overview
   </span>
   
 
@@ -239,7 +239,7 @@
         <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_2">
             <span class="md-nav__icon md-icon"></span>
-            Getting Started
+            Overview
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
@@ -250,11 +250,11 @@
   
   
     <li class="md-nav__item">
-      <a href="../introduction/" class="md-nav__link">
+      <a href="../getting_started/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
-    Introduction
+    Getting Started
   </span>
   
 
@@ -383,7 +383,7 @@
             
   
   <span class="md-ellipsis">
-    Python API
+    Gallery
   </span>
   
 
@@ -392,6 +392,69 @@
         
         <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Gallery
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../gallery_xenium/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Gallery Xenium
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Python API
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
             <span class="md-nav__icon md-icon"></span>
             Python API
           </label>
@@ -411,10 +474,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_1" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_1" >
         
           
-          <label class="md-nav__link" for="__nav_3_1" id="__nav_3_1_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_4_1" id="__nav_4_1_label" tabindex="0">
             
   
   <span class="md-ellipsis">
@@ -425,8 +488,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_1_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3_1">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_1">
             <span class="md-nav__icon md-icon"></span>
             pre
           </label>
@@ -496,10 +559,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_2" >
         
           
-          <label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_4_2" id="__nav_4_2_label" tabindex="0">
             
   
   <span class="md-ellipsis">
@@ -510,8 +573,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3_2">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_2">
             <span class="md-nav__icon md-icon"></span>
             viz
           </label>
@@ -628,55 +691,6 @@
 <p>Welcome to the Celldega documentation! Here you will find information on how to get started with using Celldega.</p>
 <h2 id="visualization-example">Visualization Example</h2>
 <p>Below is an embedded Celldega visualization:</p>
-<iframe width="100%" height="575" frameborder="0"
-  src="https://observablehq.com/embed/@cornhundred/celldega-xenium-bone-marrow-example?cells=root"></iframe>
-
-<!-- <div id="app" style="width: 800px; height: 800px; overflow: hidden;"></div>
-
-<script type="module">
-    import('https://unpkg.com/celldega@0.2.2/src/celldega/static/widget.js?module').then(celldega => {
-        // use the imported functions
-        const token = '';
-        const ini_x = 4500;
-        const ini_y = 3200;
-        const ini_z = 0;
-        const ini_zoom = -2.5;
-
-        const base_url = 'https://raw.githubusercontent.com/broadinstitute/celldega_data_human-bone-and-bone-marrow/main/Xenium_V1_hBoneMarrow_nondiseased_section_outs_landscape_files';
-
-        // create and append the visualization.
-        let el = document.querySelector("#app");
-
-        // Add container styles to ensure it respects the parent size
-        const containerStyles = `
-            #app * {
-                max-width: 100%;
-                max-height: 100%;
-                box-sizing: border-box;
-                overflow: hidden;
-            }
-        `;
-        const styleSheet = document.createElement("style");
-        styleSheet.type = "text/css";
-        styleSheet.innerText = containerStyles;
-        document.head.appendChild(styleSheet);
-
-        celldega.default.landscape_ist(
-            el,
-            {},
-            token,
-            ini_x,
-            ini_y,
-            ini_z,
-            ini_zoom,
-            base_url,
-            'Xenium_Prime_Human_Lymph_Node_Reactive_FFPE_outs',
-            0.25
-        );
-    }).catch(error => {
-        console.error('Error loading module:', error);
-    });
-</script> -->
 
 
 

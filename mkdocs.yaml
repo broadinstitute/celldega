@@ -4,10 +4,12 @@ theme:
 
 nav:
   - Home: index.md
-  - Getting Started:
-      - Introduction: introduction.md
+  - Overview:
+      - Getting Started: getting_started.md
       - Installation: installation.md
       - Usage: usage.md
+  - Gallery:
+      - Gallery Xenium: gallery_xenium.md
   - Python API:
       - pre:
           - Overview: python/pre/overview.md

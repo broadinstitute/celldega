@@ -9,7 +9,10 @@ nav:
       - Installation: installation.md
       - Usage: usage.md
   - Gallery:
-      - Gallery Xenium: gallery_xenium.md
+      - Gallery Xenium:
+          - Xenium Prime Mouse Brain: gallery_xenium_mouse_brain.md
+          - Xenium Prime Human Skin: gallery_xenium_human_skin.md
+          - Xenium Multi Dataset: gallery_xenium_multi.md
   - Python API:
       - pre:
           - Overview: python/pre/overview.md

@@ -180,7 +180,7 @@ export const make_ist_ui_container = (dataset_name) => {
 
     image_container.appendChild(img_layers_container)
 
-    ini_slider('cell')
+    ini_slider('cell', deck_ist)
     cell_slider_container.appendChild(cell_slider)
     cell_ctrl_container.appendChild(cell_slider_container)
 
@@ -205,7 +205,7 @@ export const make_ist_ui_container = (dataset_name) => {
     cell_container.appendChild(cell_ctrl_container)
     cell_container.appendChild(bar_container_cluster)
 
-    ini_slider('trx')
+    ini_slider('trx', deck_ist)
     trx_container.appendChild(trx_slider_container)
     trx_slider_container.appendChild(trx_slider)
 

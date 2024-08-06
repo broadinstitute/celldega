@@ -36,7 +36,7 @@ const tile_slider_callback = async () => {
     deck_sst.setProps({layers: layers_sst})
 }
 
-const cell_slider_callback = async () => {
+const cell_slider_callback = async (deck_ist) => {
 
     const scale_down_cell_radius = 5
 
@@ -48,7 +48,7 @@ const cell_slider_callback = async () => {
 
 }
 
-const trx_slider_callback = async () => {
+const trx_slider_callback = async (deck_ist) => {
 
     const scale_down_trx_radius = 100
 
@@ -117,7 +117,7 @@ export const ini_slider_params = (slider, ini_value, callback) =>{
 
 }
 
-export const ini_slider = (slider_type) => {
+export const ini_slider = (slider_type, deck_ist) => {
 
     let slider
     let ini_value
@@ -132,12 +132,12 @@ export const ini_slider = (slider_type) => {
         case 'cell':
             slider = cell_slider
             ini_value = trx_ini_raidus * 100
-            callback = cell_slider_callback
+            callback = () => cell_slider_callback(deck_ist)
             break
         case 'trx':
             slider = trx_slider
             ini_value = trx_ini_raidus * 100
-            callback = trx_slider_callback
+            callback = () => trx_slider_callback(deck_ist)
             break
 
         default:

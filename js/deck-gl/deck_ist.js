@@ -5,7 +5,7 @@ import { layers_ist } from './layers_ist.js'
 import { on_view_state_change } from './on_view_state_change.js'
 import { make_tooltip } from './make_tooltip.js'
 
-export let deck_ist
+// export let deck_ist
 
 const getCursor = ({ isDragging }) => {
     if (isDragging) {
@@ -16,7 +16,7 @@ const getCursor = ({ isDragging }) => {
 
 export const set_deck = ( root ) => {
 
-    deck_ist = new Deck({
+    let deck_ist = new Deck({
         parent: root,
         controller: {doubleClickZoom: false},
         initialViewState: initial_view_state,
@@ -31,6 +31,8 @@ export const set_deck = ( root ) => {
         onViewStateChange: (params) => {
             on_view_state_change(params, deck_ist);
         }
-    });
+    })
+
+    return deck_ist
 
 }

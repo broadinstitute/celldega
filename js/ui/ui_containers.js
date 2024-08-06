@@ -13,7 +13,6 @@ import { cluster_counts } from '../global_variables/meta_cluster'
 import { color_dict_cluster } from '../global_variables/meta_cluster'
 import { color_dict_gene } from '../global_variables/color_dict_gene'
 import { gene_counts } from '../global_variables/meta_gene'
-import { deck_ist } from '../deck-gl/deck_ist'
 
 export let image_container
 
@@ -95,7 +94,7 @@ export const make_sst_ui_container = () => {
 
 }
 
-export const make_ist_ui_container = (dataset_name) => {
+export const make_ist_ui_container = (dataset_name, deck_ist) => {
 
     const ui_container = make_ui_container()
     const ctrl_container = make_ctrl_container()

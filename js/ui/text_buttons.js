@@ -146,7 +146,7 @@ const trx_button_callback_ist = async (event, deck_ist) => {
 
 }
 
-const tile_button_callback = async (event, deck_ist) => {
+const tile_button_callback = async (event) => {
 
     toggle_visible_button(event)
 

@@ -8,7 +8,7 @@ import { set_cell_layer } from "../deck-gl/cell_layer"
 import { layers_ist, update_layers_ist } from '../deck-gl/layers_ist'
 import { make_image_layers } from '../deck-gl/image_layers'
 import { update_views } from '../deck-gl/views'
-import { deck_ist, set_deck } from '../deck-gl/deck_ist'
+import { set_deck } from '../deck-gl/deck_ist'
 import { set_background_layer } from '../deck-gl/background_layer'
 import { make_ist_ui_container } from '../ui/ui_containers'
 import { model, set_model } from '../global_variables/model'
@@ -72,7 +72,9 @@ export const landscape_ist = async (
 
     update_views()
 
-    await set_deck(root)
+    let deck_ist = await set_deck(root)
+
+    console.log('exporting deck_ist from set_deck')
 
     await set_cell_layer(base_url, deck_ist)
 
@@ -90,7 +92,7 @@ export const landscape_ist = async (
         model.on('change:cell_clusters', () => update_cell_clusters(deck_ist))
     }
 
-    const ui_container = make_ist_ui_container(dataset_name)
+    const ui_container = make_ist_ui_container(dataset_name, deck_ist)
 
     // UI and Viz Container
     el.appendChild(ui_container)

@@ -29,7 +29,8 @@ export const update_cell_clusters = () => {
         cluster_counts,
         color_dict_cluster,
         bar_callback_cluster,
-        []
+        [],
+        deck_ist
     )
 
 }

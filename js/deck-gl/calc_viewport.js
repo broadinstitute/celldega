@@ -68,7 +68,7 @@ export const calc_viewport = async ({ height, width, zoom, target }, deck_ist) =
         }, []).filter(item => item.value > 0)
         .sort((a, b) => b.value - a.value)
 
-        update_bar_graph(svg_bar_gene, new_bar_data, color_dict_gene, bar_callback_gene, selected_genes)
+        update_bar_graph(svg_bar_gene, new_bar_data, color_dict_gene, bar_callback_gene, selected_genes, deck_ist)
 
         bar_container_gene.scrollTo({
             top: 0,
@@ -94,7 +94,7 @@ export const calc_viewport = async ({ height, width, zoom, target }, deck_ist) =
             }, []).filter(item => item.value > 0)
             .sort((a, b) => b.value - a.value)
 
-        update_bar_graph(svg_bar_cluster, new_bar_data_cell, color_dict_cluster, bar_callback_cluster, selected_cats)
+        update_bar_graph(svg_bar_cluster, new_bar_data_cell, color_dict_cluster, bar_callback_cluster, selected_cats, deck_ist)
 
         bar_container_cluster.scrollTo({
             top: 0,
@@ -107,8 +107,8 @@ export const calc_viewport = async ({ height, width, zoom, target }, deck_ist) =
         if (close_up) {
             set_close_up(false)
             update_layers_ist()
-            update_bar_graph(svg_bar_gene, gene_counts, color_dict_gene, bar_callback_gene, selected_genes)
-            update_bar_graph(svg_bar_cluster, cluster_counts, color_dict_cluster, bar_callback_cluster, selected_cats)
+            update_bar_graph(svg_bar_gene, gene_counts, color_dict_gene, bar_callback_gene, selected_genes, deck_ist)
+            update_bar_graph(svg_bar_cluster, cluster_counts, color_dict_cluster, bar_callback_cluster, selected_cats, deck_ist)
 
             bar_container_gene.scrollTo({
                 top: 0,

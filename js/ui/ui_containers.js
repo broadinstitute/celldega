@@ -13,6 +13,7 @@ import { cluster_counts } from '../global_variables/meta_cluster'
 import { color_dict_cluster } from '../global_variables/meta_cluster'
 import { color_dict_gene } from '../global_variables/color_dict_gene'
 import { gene_counts } from '../global_variables/meta_gene'
+import { deck_ist } from '../deck-gl/deck_ist'
 
 export let image_container
 
@@ -188,7 +189,8 @@ export const make_ist_ui_container = (dataset_name) => {
         bar_callback_cluster,
         svg_bar_cluster,
         cluster_counts,
-        color_dict_cluster
+        color_dict_cluster,
+        deck_ist,
     )
 
     make_bar_graph(
@@ -196,7 +198,8 @@ export const make_ist_ui_container = (dataset_name) => {
         bar_callback_gene,
         svg_bar_gene,
         gene_counts,
-        color_dict_gene
+        color_dict_gene,
+        deck_ist
     )
 
     cell_container.appendChild(cell_ctrl_container)

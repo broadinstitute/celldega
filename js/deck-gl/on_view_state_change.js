@@ -3,8 +3,11 @@ import { calc_viewport } from './calc_viewport.js';
 
 const bounce_time = 200
 
-export const on_view_state_change = debounce(({ viewState }) => {
+export const on_view_state_change = debounce(({ viewState }, deck_ist) => {
 
-    calc_viewport(viewState);
+    console.log('on_view_state_change')
+
+    calc_viewport(viewState, deck_ist);
     return viewState;
+
 }, bounce_time);

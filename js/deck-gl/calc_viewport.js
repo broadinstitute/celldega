@@ -1,6 +1,5 @@
 import { visibleTiles } from '../vector_tile/visibleTiles.js'
 import { global_base_url } from '../global_variables/global_base_url.js'
-import { deck_ist } from './deck_ist.js'
 import { update_path_layer } from './path_layer.js'
 import { update_trx_layer } from './trx_layer.js'
 import { layers_ist, update_layers_ist } from './layers_ist.js'
@@ -21,7 +20,7 @@ export let maxX
 export let minY
 export let maxY
 
-export const calc_viewport = async ({ height, width, zoom, target }) => {
+export const calc_viewport = async ({ height, width, zoom, target }, deck_ist) => {
 
     const tile_size = landscape_parameters.tile_size
     const max_tiles_to_view = 50

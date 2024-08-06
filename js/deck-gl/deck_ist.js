@@ -24,8 +24,14 @@ export const set_deck = ( root ) => {
         views: views,
         layers: layers_ist,
         getCursor: getCursor,
-        onViewStateChange: on_view_state_change,
+        onViewStateChange: () => console.log('this', this),
         getTooltip: make_tooltip,
     })
+
+    deck_ist.setProps({
+        onViewStateChange: (params) => {
+            on_view_state_change(params, deck_ist);
+        }
+    });
 
 }

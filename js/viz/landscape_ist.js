@@ -87,7 +87,7 @@ export const landscape_ist = async (
     // check if ini_model is not equal to {}
     if (Object.keys(ini_model).length > 0) {
         model.on('change:update_trigger', () => update_ist_landscape_from_cgm(deck_ist))
-        model.on('change:cell_clusters', update_cell_clusters)
+        model.on('change:cell_clusters', () => update_cell_clusters(deck_ist))
     }
 
     const ui_container = make_ist_ui_container(dataset_name)

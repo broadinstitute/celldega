@@ -4,7 +4,6 @@ import { square_scatter_layer, square_scatter_layer_visibility } from '../deck-g
 import { layers_sst, update_layers_sst } from '../deck-gl/layers_sst'
 import { toggle_visibility_image_layers, toggle_visibility_single_image_layer } from '../deck-gl/image_layers'
 import { deck_sst } from '../deck-gl/deck_sst'
-// import { deck_ist } from '../deck-gl/deck_ist'
 import { toggle_background_layer_visibility } from '../deck-gl/background_layer'
 import { toggle_path_layer_visibility } from '../deck-gl/path_layer'
 import { toggle_cell_layer_visibility } from '../deck-gl/cell_layer'

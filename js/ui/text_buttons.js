@@ -36,7 +36,7 @@ const toggle_visible_button = (event) => {
 }
 
 
-export const make_button = (container, technology, text, color='blue', width=40, button_class='button') => {
+export const make_button = (container, technology, text, color='blue', width=40, button_class='button', deck_ist) => {
 
     let callback
 
@@ -53,7 +53,7 @@ export const make_button = (container, technology, text, color='blue', width=40,
     } else if (text === 'CELL'){
         callback = cell_button_callback
     } else {
-        callback = make_ist_img_layer_button_callback(text)
+        callback = make_ist_img_layer_button_callback(text, deck_ist)
     }
 
     d3.select(container)
@@ -75,7 +75,7 @@ export const make_button = (container, technology, text, color='blue', width=40,
 }
 
 
-const make_ist_img_layer_button_callback = (text) => {
+const make_ist_img_layer_button_callback = (text, deck_ist) => {
     return async (event) => {
 
         if (img_layer_visible){

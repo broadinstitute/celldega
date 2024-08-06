@@ -86,7 +86,7 @@ export const landscape_ist = async (
 
     // check if ini_model is not equal to {}
     if (Object.keys(ini_model).length > 0) {
-        model.on('change:update_trigger', update_ist_landscape_from_cgm)
+        model.on('change:update_trigger', () => update_ist_landscape_from_cgm(deck_ist))
         model.on('change:cell_clusters', update_cell_clusters)
     }
 

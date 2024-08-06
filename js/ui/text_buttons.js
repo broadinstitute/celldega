@@ -4,7 +4,7 @@ import { square_scatter_layer, square_scatter_layer_visibility } from '../deck-g
 import { layers_sst, update_layers_sst } from '../deck-gl/layers_sst'
 import { toggle_visibility_image_layers, toggle_visibility_single_image_layer } from '../deck-gl/image_layers'
 import { deck_sst } from '../deck-gl/deck_sst'
-import { deck_ist } from '../deck-gl/deck_ist'
+// import { deck_ist } from '../deck-gl/deck_ist'
 import { toggle_background_layer_visibility } from '../deck-gl/background_layer'
 import { toggle_path_layer_visibility } from '../deck-gl/path_layer'
 import { toggle_cell_layer_visibility } from '../deck-gl/cell_layer'
@@ -44,14 +44,14 @@ export const make_button = (container, technology, text, color='blue', width=40,
         if (technology === 'sst'){
             callback = sst_img_button_callback
         } else {
-            callback = ist_img_button_callback
+            callback = () => ist_img_button_callback(event, deck_ist)
         }
     } else if (text === 'TILE') {
-        callback =  tile_button_callback
+        callback = () => tile_button_callback(event, deck_ist)
     } else if (text === 'TRX'){
-        callback = trx_button_callback_ist
+        callback = () => trx_button_callback_ist(event, deck_ist)
     } else if (text === 'CELL'){
-        callback = cell_button_callback
+        callback = () => cell_button_callback(event, deck_ist)
     } else {
         callback = make_ist_img_layer_button_callback(text, deck_ist)
     }
@@ -111,7 +111,7 @@ const sst_img_button_callback = async (event) => {
 
 }
 
-const ist_img_button_callback = async (event) => {
+const ist_img_button_callback = async (event, deck_ist) => {
 
     toggle_visible_button(event)
     toggle_visibility_image_layers(is_visible)
@@ -132,7 +132,7 @@ const ist_img_button_callback = async (event) => {
 
 }
 
-const trx_button_callback_ist = async (event) => {
+const trx_button_callback_ist = async (event, deck_ist) => {
 
     toggle_visible_button(event)
 
@@ -147,7 +147,7 @@ const trx_button_callback_ist = async (event) => {
 
 }
 
-const tile_button_callback = async (event) => {
+const tile_button_callback = async (event, deck_ist) => {
 
     toggle_visible_button(event)
 
@@ -161,7 +161,7 @@ const tile_button_callback = async (event) => {
 
 }
 
-const cell_button_callback = async (event) => {
+const cell_button_callback = async (event, deck_ist) => {
 
     toggle_visible_button(event)
 

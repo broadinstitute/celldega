@@ -143,8 +143,6 @@ export const make_ist_ui_container = (dataset_name, deck_ist) => {
 
     const make_img_layer_ctrl = (inst_image) => {
 
-        console.log('make_img_layer_ctrl')
-
         const inst_name = inst_image.button_name
 
         let inst_container = flex_container('image_layer_container', 'row')
@@ -247,10 +245,6 @@ export const make_ist_ui_container = (dataset_name, deck_ist) => {
         ui_container.appendChild(name_container)
 
     }
-
-    console.log(ui_container)
-
-    console.log('returning ui_container')
 
     return ui_container
 

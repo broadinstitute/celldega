@@ -74,8 +74,6 @@ export const landscape_ist = async (
 
     let deck_ist = await set_deck(root)
 
-    console.log('exporting deck_ist from set_deck')
-
     await set_cell_layer(base_url, deck_ist)
 
     await set_trx_layer(deck_ist)
@@ -98,11 +96,8 @@ export const landscape_ist = async (
     el.appendChild(ui_container)
     el.appendChild(root)
 
-    console.log('return landscape!')
-
     const landscape = {
         update_view_state: () => {
-
             console.log('updating view state!!!')
         },
         update_layers: () => {

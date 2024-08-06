@@ -23,7 +23,6 @@ export const set_deck = ( root ) => {
         views: views,
         layers: layers_ist,
         getCursor: getCursor,
-        onViewStateChange: () => console.log('this', this),
         getTooltip: make_tooltip,
     })
 

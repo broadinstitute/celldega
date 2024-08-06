@@ -110,8 +110,6 @@ export const bar_callback_gene = async (event, d, deck_ist) => {
 
 export const make_bar_graph = (bar_container, click_callback, svg_bar, bar_data, color_dict, deck_ist) => {
 
-    console.log('make_bar_graph')
-
     bar_container.className = "bar_container"
     bar_container.style.width = "107px"
     bar_container.style.height = "72px"
@@ -178,9 +176,6 @@ export const make_bar_graph = (bar_container, click_callback, svg_bar, bar_data,
 }
 
 export const update_bar_graph = (svg_bar, bar_data, color_dict, click_callback, selected_array, deck_ist) => {
-
-
-    console.log('update_bar_graph')
 
     const bar_height = 15;
     const svg_height = bar_height * (bar_data.length + 1);

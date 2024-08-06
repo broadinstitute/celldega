@@ -18,81 +18,76 @@ import { update_gene_text_box } from '../ui/gene_search'
 
 const trx_layer_callback = async (info, d, deck_ist) => {
 
-    console.log('trx layer callback', deck_ist)
-    // try {
-        const inst_gene = trx_names_array[info.index];
+    const inst_gene = trx_names_array[info.index];
 
-        if (!inst_gene) {
-            console.error("Invalid gene name at index:", info.index);
-            return;
-        }
+    if (!inst_gene) {
+        console.error("Invalid gene name at index:", info.index);
+        return;
+    }
 
-        const reset_gene = inst_gene === cat;
+    const reset_gene = inst_gene === cat;
 
-        const new_cat = reset_gene ? 'cluster' : inst_gene;
+    const new_cat = reset_gene ? 'cluster' : inst_gene;
 
-        toggle_image_layers_and_ctrls(cat === inst_gene);
+    toggle_image_layers_and_ctrls(cat === inst_gene);
 
-        update_cat(new_cat);
-        update_selected_genes([inst_gene]);
-        update_selected_cats([]);
+    update_cat(new_cat);
+    update_selected_genes([inst_gene]);
+    update_selected_cats([]);
 
-        await update_cell_exp_array(global_base_url, inst_gene);
+    await update_cell_exp_array(global_base_url, inst_gene);
 
-        update_cell_layer_id(new_cat);
-        update_path_layer_id(new_cat);
-        update_trx_layer_filter();
+    update_cell_layer_id(new_cat);
+    update_path_layer_id(new_cat);
+    update_trx_layer_filter();
 
-        update_layers_ist();
+    update_layers_ist();
 
-        svg_bar_gene.selectAll("g")
-            .attr('font-weight', 'normal')
-            .attr('opacity', reset_gene ? 1.0 : 0.25);
+    svg_bar_gene.selectAll("g")
+        .attr('font-weight', 'normal')
+        .attr('opacity', reset_gene ? 1.0 : 0.25);
 
-        if (!reset_gene) {
-            const selectedBar = svg_bar_gene.selectAll("g")
-                .filter(function() {
-                    const textElement = d3.select(this).select("text").node();
-                    return textElement && textElement.textContent === inst_gene;
-                })
+    if (!reset_gene) {
+        const selectedBar = svg_bar_gene.selectAll("g")
+            .filter(function() {
+                const textElement = d3.select(this).select("text").node();
+                return textElement && textElement.textContent === inst_gene;
+            })
+            .attr('opacity', 1.0);
+
+        if (!selectedBar.empty()) {
+            const barPosition = selectedBar.node().getBoundingClientRect().top;
+            const containerPosition = bar_container_gene.getBoundingClientRect().top;
+            const scrollPosition = barPosition - containerPosition + bar_container_gene.scrollTop;
+
+            svg_bar_gene
                 .attr('opacity', 1.0);
 
-            if (!selectedBar.empty()) {
-                const barPosition = selectedBar.node().getBoundingClientRect().top;
-                const containerPosition = bar_container_gene.getBoundingClientRect().top;
-                const scrollPosition = barPosition - containerPosition + bar_container_gene.scrollTop;
-
-                svg_bar_gene
-                    .attr('opacity', 1.0);
-
-                bar_container_gene.scrollTo({
-                    top: scrollPosition,
-                    behavior: 'smooth'
-                });
-            }
-        } else {
             bar_container_gene.scrollTo({
-                top: 0,
+                top: scrollPosition,
                 behavior: 'smooth'
-            })
+            });
         }
+    } else {
+        bar_container_gene.scrollTo({
+            top: 0,
+            behavior: 'smooth'
+        })
+    }
 
-        // reset cluster bar plot
-        svg_bar_cluster
-            .selectAll("g")
-            .attr('font-weight', 'normal')
-            .attr('opacity', 1.0)
+    // reset cluster bar plot
+    svg_bar_cluster
+        .selectAll("g")
+        .attr('font-weight', 'normal')
+        .attr('opacity', 1.0)
 
-        deck_ist.setProps({layers: layers_ist});
+    deck_ist.setProps({layers: layers_ist});
 
-        gene_search_input.value = (gene_search_input.value !== inst_gene) ? inst_gene : '';
+    gene_search_input.value = (gene_search_input.value !== inst_gene) ? inst_gene : '';
 
-        // update_gene_text_box(inst_gene)
-        update_gene_text_box(reset_gene ? '' : inst_gene)
+    // update_gene_text_box(inst_gene)
+    update_gene_text_box(reset_gene ? '' : inst_gene)
 
-    // } catch (error) {
-    //     console.error("Error in trx_layer_callback:", error);
-    // }
 }
 
 

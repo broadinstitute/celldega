@@ -107,8 +107,5 @@ export const landscape_ist = async (
 
     return landscape;
 
-    // return () => deck_ist.finalize()
-
-    // return () =>
 }
 

@@ -7,7 +7,8 @@
 <body>
 
     <div id="app-1" style="width: 600px; height: 500px; position: relative; margin-bottom: 100px;"></div>
-    <div id="app-2" style="width: 600px; height: 500px; position: relative;"></div>
+    <div id="app-2" style="width: 600px; height: 500px; position: relative; margin-bottom: 100px;"></div>
+    <div id="app-3" style="width: 600px; height: 500px; position: relative; margin-bottom: 100px;"></div>
 
     <script type="module">
         import celldega from './src/celldega/static/widget.js';
@@ -35,24 +36,61 @@
             0.25
         );
 
-        let el_2 = document.querySelector("#app-2");
-        base_url = 'http://127.0.0.1:8080/notebooks/data/output-XETG00323__0023080__7B__20240715__212840';
-        const ls_2 = await celldega.landscape_ist(
-            el_2,
-            {},
-            token,
-            ini_x,
-            ini_y,
-            ini_z,
-            ini_zoom,
-            base_url,
-            '',
-            0.25
-        );
+
+        // Initialize the second visualization with a delay
+        setTimeout(async () => {
+            const base_url_2 = 'http://127.0.0.1:8080/data/xenium_landscapes/Landscape_Xenium_V1_human_Pancreas_FFPE_outs_webp';
+            let el_2 = document.querySelector("#app-2");
+            const ls_2 = await celldega.landscape_ist(
+                el_2,
+                {},
+                token,
+                ini_x,
+                ini_y,
+                ini_z,
+                ini_zoom,
+                base_url_2,
+                'Visualization 2',
+                0.25
+            );
+
+            console.log('ls_2', ls_2);
+        }, 2000); // Adjust the delay as needed (1000ms = 1 second)
+
+        // let el_2 = document.querySelector("#app-2");
+        // // base_url = 'http://127.0.0.1:8080/notebooks/data/output-XETG00323__0023080__7B__20240715__212840';
+        // base_url = 'http://127.0.0.1:8080/data/xenium_landscapes/Landscape_Xenium_V1_human_Pancreas_FFPE_outs_webp';
+        // const ls_2 = await celldega.landscape_ist(
+        //     el_2,
+        //     {},
+        //     token,
+        //     ini_x,
+        //     ini_y,
+        //     ini_z,
+        //     ini_zoom,
+        //     base_url,
+        //     '',
+        //     0.25
+        // );
+
+        // let el_3 = document.querySelector("#app-3");
+        // base_url = 'http://127.0.0.1:8080/data/xenium_landscapes/Landscape_Xenium_V1_human_Pancreas_FFPE_outs_webp';
+        // const ls_3 = await celldega.landscape_ist(
+        //     el_3,
+        //     {},
+        //     token,
+        //     ini_x,
+        //     ini_y,
+        //     ini_z,
+        //     ini_zoom,
+        //     base_url,
+        //     '',
+        //     0.25
+        // );
 
 
-        console.log('ls_1', ls_1)
-        console.log('ls_2', ls_2)
+        // console.log('ls_1', ls_1)
+        // console.log('ls_2', ls_2)
 
     </script>
 </body>

@@ -245,6 +245,10 @@ export const make_ist_ui_container = (dataset_name) => {
 
     }
 
+    console.log(ui_container)
+
+    console.log('returning ui_container')
+
     return ui_container
 
 }

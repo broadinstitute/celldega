@@ -36,8 +36,6 @@ const cell_layer_onclick = (info, d, deck_ist) => {
     // const inst_cat = cell_cats[info.index]
     // const inst_cat = tooltip_cat_cell
 
-    console.log('bring in deck_ist', deck_ist)
-
     // Check if the device is a touch device
     const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 

@@ -5,7 +5,7 @@ import { dict_cell_cats, update_selected_cats, selected_cats, update_cat } from 
 import { color_dict_cluster } from '../global_variables/meta_cluster'
 import { update_cell_layer_id } from './cell_layer'
 import { layers_ist, update_layers_ist } from './layers_ist'
-import { deck_ist } from './deck_ist'
+// import { deck_ist } from './deck_ist'
 import { toggle_image_layers_and_ctrls } from '../ui/ui_containers'
 import { update_selected_genes } from '../global_variables/selected_genes'
 import { update_trx_layer_filter } from './trx_layer'
@@ -40,7 +40,7 @@ export let path_layer = new PathLayer({
         widthUnits: 'pixels',
     })
 
-const path_layer_onclick = info => {
+const path_layer_onclick = (info, d, deck_ist) => {
 
     const inst_cell_id = polygon_cell_names[info.index]
     const inst_cat = dict_cell_cats[inst_cell_id]
@@ -63,7 +63,7 @@ const path_layer_onclick = info => {
 
 }
 
-export const update_path_layer = async (base_url, tiles_in_view) => {
+export const update_path_layer = async (base_url, tiles_in_view, deck_ist) => {
 
     const polygonPathsConcat = await grab_cell_tiles_in_view(base_url, tiles_in_view)
 
@@ -71,7 +71,7 @@ export const update_path_layer = async (base_url, tiles_in_view) => {
         // Re-use existing layer props
         ...path_layer.props,
         data: polygonPathsConcat,
-        onClick: path_layer_onclick,
+        onClick: (event, d) => path_layer_onclick(event, d, deck_ist),
     });
 
 }

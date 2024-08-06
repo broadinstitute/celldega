@@ -5,8 +5,6 @@ const bounce_time = 200
 
 export const on_view_state_change = debounce(({ viewState }, deck_ist) => {
 
-    console.log('on_view_state_change')
-
     calc_viewport(viewState, deck_ist);
     return viewState;
 

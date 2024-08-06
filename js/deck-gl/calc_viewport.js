@@ -45,7 +45,7 @@ export const calc_viewport = async ({ height, width, zoom, target }, deck_ist) =
 
     if (tiles_in_view.length < max_tiles_to_view) {
         await update_trx_layer(global_base_url, tiles_in_view)
-        await update_path_layer(global_base_url, tiles_in_view)
+        await update_path_layer(global_base_url, tiles_in_view, deck_ist)
 
         set_close_up(true)
         update_layers_ist()

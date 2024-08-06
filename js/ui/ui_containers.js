@@ -145,6 +145,8 @@ export const make_ist_ui_container = (dataset_name) => {
 
     const make_img_layer_ctrl = (inst_image) => {
 
+        console.log('make_img_layer_ctrl')
+
         const inst_name = inst_image.button_name
 
         let inst_container = flex_container('image_layer_container', 'row')
@@ -156,7 +158,7 @@ export const make_ist_ui_container = (dataset_name) => {
 
         let slider = get_slider_by_name(inst_name)[0]
 
-        let img_layer_slider_callback = make_img_layer_slider_callback(inst_name)
+        let img_layer_slider_callback = make_img_layer_slider_callback(inst_name, deck_ist)
 
         const debounce_time = 100
         let img_layer_slider_callback_debounced = debounce(img_layer_slider_callback, debounce_time)

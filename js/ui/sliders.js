@@ -6,7 +6,6 @@ import { image_layers, update_opacity_single_image_layer } from "../deck-gl/imag
 import { path_layer } from "../deck-gl/path_layer"
 import { cell_layer, update_cell_layer_radius } from "../deck-gl/cell_layer"
 import { deck_sst } from "../deck-gl/deck_sst"
-import { deck_ist } from "../deck-gl/deck_ist"
 import { background_layer } from "../deck-gl/background_layer"
 import { trx_ini_raidus } from "../global_variables/trx_ini_raidus"
 import { close_up } from "../global_variables/close_up"
@@ -73,7 +72,7 @@ const trx_slider_callback = async (deck_ist) => {
     deck_ist.setProps({layers: new_layers})
 }
 
-export const make_img_layer_slider_callback = (name) => {
+export const make_img_layer_slider_callback = (name, deck_ist) => {
     return async () => {
 
         let inst_slider = image_layer_sliders.filter(slider => slider.name === name)[0]

@@ -20,7 +20,7 @@
         // Create and append the visualization.
         let el = document.querySelector("#app");
 
-        const dega = await celldega.landscape_ist(
+        const landscape = await celldega.landscape_ist(
             el,
             {},
             token,
@@ -33,7 +33,11 @@
             0.25
         );
 
-        console.log(dega);
+        console.log(landscape);
+
+        console.log('trying to updateViewState')
+
+        landscape.update_view_state();
     </script>
 </body>
 </html>

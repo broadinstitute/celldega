@@ -90,6 +90,25 @@ export const landscape_ist = async (
     el.appendChild(ui_container)
     el.appendChild(root)
 
-    return () => deck_ist.finalize()
+    console.log('return landscape!')
+
+    const landscape = {
+        update_view_state: () => {
+
+            console.log('updating view state!!!')
+        },
+        update_layers: () => {
+            console.log('update_layers')
+        },
+        finalize: () => {
+            deck_ist.finalize();
+        }
+    };
+
+    return landscape;
+
+    // return () => deck_ist.finalize()
+
+    // return () =>
 }
 

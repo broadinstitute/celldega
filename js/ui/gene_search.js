@@ -2,7 +2,6 @@ import * as d3 from 'd3'
 import { square_scatter_layer, update_square_scatter_layer } from "../deck-gl/square_scatter_layer.js"
 import { cat, update_cat, update_selected_cats } from "../global_variables/cat.js"
 import { deck_sst } from "../deck-gl/deck_sst.js"
-import { deck_ist } from "../deck-gl/deck_ist.js"
 import { update_tile_exp_array } from "../global_variables/tile_exp_array.js"
 import { gene_search_input, set_gene_search_input } from "./gene_search_input.js"
 import { simple_image_layer } from "../deck-gl/simple_image_layer.js"
@@ -40,7 +39,7 @@ const sst_gene_search_callback = async () => {
 
 }
 
-const ist_gene_search_callback = async () => {
+const ist_gene_search_callback = async (deck_ist) => {
 
     const inst_gene = gene_search_input.value;
 
@@ -102,7 +101,7 @@ const ist_gene_search_callback = async () => {
 };
 
 
-export const set_gene_search = async (tech_type) => {
+export const set_gene_search = async (tech_type, deck_ist) => {
 
     gene_search_options = ['cluster', ...gene_names]
 
@@ -173,7 +172,7 @@ export const set_gene_search = async (tech_type) => {
         gene_search_input.style.marginTop = "10px"
         gene_search.style.height = "50px"
     } else {
-        callback = ist_gene_search_callback
+        callback = () => ist_gene_search_callback(deck_ist)
         gene_search_input.style.marginTop = "5px"
         // gene_search.style.height = "25px"
     }

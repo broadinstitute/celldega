@@ -7,10 +7,8 @@ import { set_cell_names_array, set_cell_name_to_index_map } from '../global_vari
 import { options } from '../global_variables/fetch_options'
 import { cell_cats, set_cell_cats, dict_cell_cats, set_dict_cell_cats} from '../global_variables/cat'
 import { update_selected_cats, selected_cats, update_cat, reset_cat } from '../global_variables/cat'
-// import { Table } from 'apache-arrow'
 import { get_cell_color } from './cell_color'
 import { layers_ist, update_layers_ist } from './layers_ist'
-import { deck_ist } from './deck_ist'
 import { update_path_layer_id } from './path_layer'
 import { toggle_image_layers_and_ctrls } from '../ui/ui_containers'
 import { update_selected_genes } from '../global_variables/selected_genes'
@@ -32,11 +30,13 @@ export let cell_layer = new ScatterplotLayer({
     getColor: get_cell_color,
 })
 
-const cell_layer_onclick = (info) => {
+const cell_layer_onclick = (info, d, deck_ist) => {
     // used to have info as an argument
 
     // const inst_cat = cell_cats[info.index]
     // const inst_cat = tooltip_cat_cell
+
+    console.log('bring in deck_ist', deck_ist)
 
     // Check if the device is a touch device
     const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
@@ -108,7 +108,7 @@ const cell_layer_onclick = (info) => {
 
 }
 
-export const set_cell_layer = async (base_url) => {
+export const set_cell_layer = async (base_url, deck_ist) => {
 
     const cell_url = base_url + `/cell_metadata.parquet`;
     var cell_arrow_table = await get_arrow_table(cell_url, options.fetch)
@@ -145,7 +145,7 @@ export const set_cell_layer = async (base_url) => {
         // Re-use existing layer props
         ...cell_layer.props,
         data: cell_scatter_data,
-        onClick: cell_layer_onclick,
+        onClick: (event, d) => cell_layer_onclick(event, d, deck_ist),
     });
 }
 

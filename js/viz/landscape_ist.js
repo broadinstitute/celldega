@@ -5,7 +5,7 @@ import { landscape_parameters, set_landscape_parameters } from '../global_variab
 import { set_dimensions } from '../global_variables/image_dimensions'
 import { set_initial_view_state } from '../deck-gl/initial_view_state'
 import { set_cell_layer } from "../deck-gl/cell_layer"
-import { update_layers_ist } from '../deck-gl/layers_ist'
+import { layers_ist, update_layers_ist } from '../deck-gl/layers_ist'
 import { make_image_layers } from '../deck-gl/image_layers'
 import { update_views } from '../deck-gl/views'
 import { deck_ist, set_deck } from '../deck-gl/deck_ist'
@@ -66,17 +66,20 @@ export const landscape_ist = async (
 
     // update layers
     await make_image_layers(base_url)
-    await set_cell_layer(base_url)
 
     set_background_layer()
 
     update_trx_layer_radius(trx_radius)
 
-    update_layers_ist()
-
     update_views()
 
-    set_deck(root)
+    await set_deck(root)
+
+    await set_cell_layer(base_url, deck_ist)
+
+    update_layers_ist()
+
+    deck_ist.setProps({layers: layers_ist})
 
     // check if ini_model is not equal to {}
     if (Object.keys(ini_model).length > 0) {

@@ -10,29 +10,53 @@ import { close_up } from '../global_variables/close_up.js';
 let new_layers;
 export let layers_ist = [];
 
-export const initUpdateLayers = () => {
-    // Function to update layers_ist based on the close_up variable
-    const update_layers_ist = () => {
-        if (close_up) {
-            new_layers = [
-                background_layer,
-                ...image_layers,
-                path_layer,
-                cell_layer,
-                trx_layer
-            ];
-        } else {
-            new_layers = [
-                background_layer,
-                ...image_layers,
-                cell_layer,
-            ];
-        }
-        layers_ist = new_layers;
-    };
-
-    return update_layers_ist;
+// Function to update layers_ist based on the close_up variable
+export const update_layers_ist = () => {
+    if (close_up) {
+        new_layers = [
+            background_layer,
+            ...image_layers,
+            path_layer,
+            cell_layer,
+            trx_layer
+        ];
+    } else {
+        new_layers = [
+            background_layer,
+            ...image_layers,
+            cell_layer,
+        ];
+    }
+    layers_ist = new_layers;
 };
 
-// Initialize the update_layers_ist function and export it
-export const update_layers_ist = initUpdateLayers();
+// // export const init_update_layers = (background_layer, image_layers, path_layer, cell_layer, trx_layer) => {
+// export const init_update_layers = () => {
+
+//     console.log('init_update_layers');
+
+//     // Function to update layers_ist based on the close_up variable
+//     const update_layers_ist = () => {
+//         if (close_up) {
+//             new_layers = [
+//                 background_layer,
+//                 ...image_layers,
+//                 path_layer,
+//                 cell_layer,
+//                 trx_layer
+//             ];
+//         } else {
+//             new_layers = [
+//                 background_layer,
+//                 ...image_layers,
+//                 cell_layer,
+//             ];
+//         }
+//         layers_ist = new_layers;
+//     };
+
+//     return update_layers_ist;
+// };
+
+// // Initialize the update_layers_ist function and export it
+// export const update_layers_ist = init_update_layers(background_layer, image_layers, path_layer, cell_layer, trx_layer);

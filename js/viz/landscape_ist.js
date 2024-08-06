@@ -9,7 +9,7 @@ import { layers_ist, update_layers_ist } from '../deck-gl/layers_ist'
 import { make_image_layers } from '../deck-gl/image_layers'
 import { update_views } from '../deck-gl/views'
 import { set_deck } from '../deck-gl/deck_ist'
-import { set_background_layer } from '../deck-gl/background_layer'
+import { background_layer, set_background_layer } from '../deck-gl/background_layer'
 import { make_ist_ui_container } from '../ui/ui_containers'
 import { model, set_model } from '../global_variables/model'
 import { set_trx_layer, update_trx_layer_radius } from '../deck-gl/trx_layer'
@@ -79,6 +79,10 @@ export const landscape_ist = async (
     await set_trx_layer(deck_ist)
 
     update_trx_layer_radius(trx_radius)
+
+    // const update_layers_ist = init_update_layers()
+
+    // const new_update_layers_ist = init_update_layers()
 
     update_layers_ist()
 

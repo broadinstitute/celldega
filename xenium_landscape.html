@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+    <div id="app" style="width: 600px; height: 500px; position: relative;"></div>
+    <script type="module">
+        import celldega from './src/celldega/static/widget.js';
+
+        // Use the imported functions
+        const token = '';
+        const ini_x = 15500;
+        const ini_y = 12200;
+        const ini_z = 0;
+        const ini_zoom = -6;
+        const base_url = 'http://127.0.0.1:8080/data/xenium_landscapes/Landscape_Xenium_V1_human_Pancreas_FFPE_outs_webp';
+
+        // Create and append the visualization.
+        let el = document.querySelector("#app");
+
+        const dega = await celldega.landscape_ist(
+            el,
+            {},
+            token,
+            ini_x,
+            ini_y,
+            ini_z,
+            ini_zoom,
+            base_url,
+            '',
+            0.25
+        );
+
+        console.log(dega);
+    </script>
+</body>
+</html>

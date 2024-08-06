@@ -4,7 +4,6 @@ import { trx_data, set_trx_data } from '../vector_tile/transcripts/trx_data'
 import { color_dict_gene } from '../global_variables/color_dict_gene'
 import { trx_names_array } from '../global_variables/trx_names_array'
 import { selected_genes, update_selected_genes } from '../global_variables/selected_genes'
-import { deck_ist } from './deck_ist'
 import { update_cell_layer_id } from './cell_layer'
 import { gene_search_input } from '../ui/gene_search_input'
 import { cat, update_cat, update_selected_cats } from '../global_variables/cat'
@@ -17,8 +16,10 @@ import { svg_bar_gene, svg_bar_cluster } from '../ui/bar_plot'
 import { bar_container_gene } from '../ui/bar_plot'
 import { update_gene_text_box } from '../ui/gene_search'
 
-const trx_layer_callback = async (info) => {
-    try {
+const trx_layer_callback = async (info, d, deck_ist) => {
+
+    console.log('trx layer callback', deck_ist)
+    // try {
         const inst_gene = trx_names_array[info.index];
 
         if (!inst_gene) {
@@ -89,25 +90,33 @@ const trx_layer_callback = async (info) => {
         // update_gene_text_box(inst_gene)
         update_gene_text_box(reset_gene ? '' : inst_gene)
 
-    } catch (error) {
-        console.error("Error in trx_layer_callback:", error);
-    }
+    // } catch (error) {
+    //     console.error("Error in trx_layer_callback:", error);
+    // }
 }
 
 
-export let trx_layer = new ScatterplotLayer({
-    id: 'trx-layer',
-    data: trx_data,
-    pickable: true,
-    getColor: (i, d) => {
-        const inst_gene = trx_names_array[d.index]
-        const inst_color = color_dict_gene[inst_gene]
-        const inst_opacity = selected_genes.length === 0 || selected_genes.includes(inst_gene) ? 255 : 5
+export let trx_layer
 
-        return [...inst_color, inst_opacity]
-    },
-    onClick: trx_layer_callback
-});
+export const set_trx_layer = (deck_ist) => {
+
+    console.log('trx layer')
+
+
+    trx_layer = new ScatterplotLayer({
+        id: 'trx-layer',
+        data: trx_data,
+        pickable: true,
+        getColor: (i, d) => {
+            const inst_gene = trx_names_array[d.index]
+            const inst_color = color_dict_gene[inst_gene]
+            const inst_opacity = selected_genes.length === 0 || selected_genes.includes(inst_gene) ? 255 : 5
+
+            return [...inst_color, inst_opacity]
+        },
+        onClick: (event, d) => trx_layer_callback(event, d, deck_ist)
+    })
+}
 
 export const update_trx_layer = async ( base_url, tiles_in_view ) => {
 

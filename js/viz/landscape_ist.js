@@ -12,7 +12,7 @@ import { deck_ist, set_deck } from '../deck-gl/deck_ist'
 import { set_background_layer } from '../deck-gl/background_layer'
 import { make_ist_ui_container } from '../ui/ui_containers'
 import { model, set_model } from '../global_variables/model'
-import { update_trx_layer_radius } from '../deck-gl/trx_layer'
+import { set_trx_layer, update_trx_layer_radius } from '../deck-gl/trx_layer'
 import { image_info, set_image_info, set_image_layer_colors } from '../global_variables/image_info'
 import { set_image_format } from '../global_variables/image_info'
 import { set_image_layer_sliders } from "../ui/sliders"
@@ -69,13 +69,16 @@ export const landscape_ist = async (
 
     set_background_layer()
 
-    update_trx_layer_radius(trx_radius)
 
     update_views()
 
     await set_deck(root)
 
     await set_cell_layer(base_url, deck_ist)
+
+    await set_trx_layer(deck_ist)
+
+    update_trx_layer_radius(trx_radius)
 
     update_layers_ist()
 

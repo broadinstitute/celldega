@@ -5,7 +5,6 @@ import { dict_cell_cats, update_selected_cats, selected_cats, update_cat } from 
 import { color_dict_cluster } from '../global_variables/meta_cluster'
 import { update_cell_layer_id } from './cell_layer'
 import { layers_ist, update_layers_ist } from './layers_ist'
-// import { deck_ist } from './deck_ist'
 import { toggle_image_layers_and_ctrls } from '../ui/ui_containers'
 import { update_selected_genes } from '../global_variables/selected_genes'
 import { update_trx_layer_filter } from './trx_layer'

@@ -11,7 +11,6 @@ const getCursor = ({ isDragging }) => {
     if (isDragging) {
         return 'grabbing';
     }
-    // return 'pointer'; // Always use pointer cursor when hovering
     return 'pointer';
 }
 

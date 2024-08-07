@@ -5,7 +5,7 @@ import { landscape_parameters, set_landscape_parameters } from '../global_variab
 import { set_dimensions } from '../global_variables/image_dimensions'
 import { set_initial_view_state } from '../deck-gl/initial_view_state'
 import { cell_layer, ini_cell_layer, set_cell_layer_onclick } from "../deck-gl/cell_layer"
-import { layers_ist, update_layers_ist, init_update_layers } from '../deck-gl/layers_ist'
+import { layers_ist, update_layers_ist, init_new_update_layers_ist, get_layers_list } from '../deck-gl/layers_ist'
 import { image_layers, make_image_layers } from '../deck-gl/image_layers'
 import { update_views } from '../deck-gl/views'
 import { set_deck } from '../deck-gl/deck_ist'
@@ -74,21 +74,35 @@ export const landscape_ist = async (
 
     let deck_ist = await set_deck(root)
 
-    await ini_cell_layer(base_url, deck_ist)
+    let cell_layer = await ini_cell_layer(base_url, deck_ist)
+
+    // make layers object
+    let layers_obj = {
+        'background_layer': background_layer,
+        'image_layers': image_layers,
+        'path_layer': path_layer,
+        'cell_layer': cell_layer,
+        'trx_layer': trx_layer
+    }
+
+    set_cell_layer_onclick(deck_ist, layers_obj)
+
+    // Check if the layer has an onClick event
+    if (layers_obj.cell_layer.props.onClick) {
+        console.log('onClick event is set on layers_obj.cell_layer:', layers_obj.cell_layer.props.onClick);
+    } else {
+        console.log('onClick event is not set on layers_obj.cell_layer.');
+    }
 
     await set_trx_layer(deck_ist)
-
     update_trx_layer_radius(trx_radius)
 
-    // const update_layers_ist = init_update_layers()
 
-    const new_update_layers_ist = init_update_layers()
+    // deck_ist.setProps({layers: layers_ist})
 
-    const new_update_layers_ist = init_update_layers()
+    let layers_list = get_layers_list(layers_obj)
 
-    update_layers_ist(background_layer, image_layers, path_layer, cell_layer, trx_layer)
-
-    deck_ist.setProps({layers: layers_ist})
+    deck_ist.setProps({layers: layers_list})
 
     // check if ini_model is not equal to {}
     if (Object.keys(ini_model).length > 0) {

@@ -8,7 +8,7 @@ import { options } from '../global_variables/fetch_options'
 import { cell_cats, set_cell_cats, dict_cell_cats, set_dict_cell_cats} from '../global_variables/cat'
 import { update_selected_cats, selected_cats, update_cat, reset_cat } from '../global_variables/cat'
 import { get_cell_color } from './cell_color'
-import { layers_ist, update_layers_ist } from './layers_ist'
+import { layers_ist, update_layers_ist, get_layers_list } from './layers_ist'
 import { update_path_layer_id } from './path_layer'
 import { toggle_image_layers_and_ctrls } from '../ui/ui_containers'
 import { update_selected_genes } from '../global_variables/selected_genes'
@@ -30,11 +30,9 @@ export let cell_layer = new ScatterplotLayer({
     getColor: get_cell_color,
 })
 
-const cell_layer_onclick = (info, d, deck_ist) => {
-    // used to have info as an argument
+const cell_layer_onclick = async (info, d, deck_ist, layers_obj) => {
 
-    // const inst_cat = cell_cats[info.index]
-    // const inst_cat = tooltip_cat_cell
+    console.log('cell_layer_onclick!! actual function')
 
     // Check if the device is a touch device
     const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
@@ -48,7 +46,6 @@ const cell_layer_onclick = (info, d, deck_ist) => {
         // Use the tooltip category for non-touch devices
         inst_cat = tooltip_cat_cell;
     }
-
 
     update_cat('cluster')
     update_selected_cats([inst_cat])
@@ -92,14 +89,18 @@ const cell_layer_onclick = (info, d, deck_ist) => {
         })
     }
 
+    // update_cell_layer_id(inst_cat_name)
+    new_update_cell_layer_id(layers_obj, inst_cat_name)
 
-    update_cell_layer_id(inst_cat_name)
     update_path_layer_id(inst_cat_name)
     update_trx_layer_filter()
 
-    update_layers_ist()
+    let layers_list = get_layers_list(layers_obj)
 
-    deck_ist.setProps({layers: layers_ist})
+    // update_layers_ist()
+
+    // deck_ist.setProps({layers: layers_ist})
+    deck_ist.setProps({layers: layers_list})
 
     gene_search_input.value = ''
     update_gene_text_box('')
@@ -146,15 +147,16 @@ export const ini_cell_layer = async (base_url, deck_ist) => {
         // onClick: (event, d) => cell_layer_onclick(event, d, deck_ist),
     })
 
-
+    return cell_layer
 
 }
 
-export const set_cell_layer_onclick = (deck_ist) => {
+export const set_cell_layer_onclick = (deck_ist, layers_obj) => {
 
     // add onclick event after layer is created
-    cell_layer = cell_layer.clone({
-        onClick: (event, d) => cell_layer_onclick(event, d, deck_ist)
+    layers_obj.cell_layer = layers_obj.cell_layer.clone({
+        onClick: (event, d) => cell_layer_onclick(event, d, deck_ist, layers_obj)
+        // onClick: (event, d) => console.log('click click'),
     })
 
 }
@@ -185,4 +187,11 @@ export const update_cell_layer_id = (new_cat) => {
     cell_layer = cell_layer.clone({
         id: 'cell-layer-' + new_cat,
     });
+}
+
+export const new_update_cell_layer_id = (layers_obj, new_cat) => {
+    console.log('new_update_cell_layer_id')
+    layers_obj.cell_layer = layers_obj.cell_layer.clone({
+        id: 'cell-layer-' + new_cat,
+    })
 }

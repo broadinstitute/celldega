@@ -94,10 +94,32 @@ const trx_layer_callback = async (info, d, deck_ist) => {
 
 export let trx_layer
 
+export const ini_trx_layer = () => {
+    trx_layer = new ScatterplotLayer({
+        id: 'trx-layer',
+        data: trx_data,
+        pickable: true,
+        getColor: (i, d) => {
+            const inst_gene = trx_names_array[d.index]
+            const inst_color = color_dict_gene[inst_gene]
+            const inst_opacity = selected_genes.length === 0 || selected_genes.includes(inst_gene) ? 255 : 5
+
+            return [...inst_color, inst_opacity]
+        },
+        // onClick: (event, d) => trx_layer_callback(event, d, deck_ist)
+    })
+
+    return trx_layer
+}
+
+export const set_trx_layer_onclick = (deck_ist, layers_obj) => {
+    layers_obj.trx_layer = layers_obj.trx_layer.clone({
+        // onClick: (event, d) => trx_layer_callback(event, d, deck_ist, layers_obj)
+        onClick: (event, d) => console.log('trx_layer_onclick!!!!!')
+    });
+}
+
 export const set_trx_layer = (deck_ist) => {
-
-    console.log('trx layer')
-
 
     trx_layer = new ScatterplotLayer({
         id: 'trx-layer',
@@ -124,6 +146,16 @@ export const update_trx_layer = async ( base_url, tiles_in_view ) => {
         data: trx_data,
     });
 
+}
+
+export const update_trx_layer_data = async (base_url, tiles_in_view, layers_obj) => {
+    await set_trx_data(base_url, tiles_in_view)
+
+    console.log(layers_obj)
+
+    layers_obj.trx_layer = layers_obj.trx_layer.clone({
+        data: trx_data,
+    });
 }
 
 export const toggle_trx_layer_visibility = (visible) => {

@@ -92,7 +92,6 @@ export const update_path_layer_data = async (base_url, tiles_in_view, layers_obj
 }
 
 export const set_path_layer_onclick = (deck_ist, layers_obj) => {
-    console.log('set_path_layer_onclick')
     layers_obj.path_layer = layers_obj.path_layer.clone({
         onClick: (info, d) => path_layer_onclick(info, d, deck_ist, layers_obj),
     })

@@ -13,7 +13,7 @@ import { background_layer, set_background_layer } from '../deck-gl/background_la
 import { ini_path_layer, set_path_layer_onclick } from '../deck-gl/path_layer'
 import { make_ist_ui_container } from '../ui/ui_containers'
 import { model, set_model } from '../global_variables/model'
-import { trx_layer, set_trx_layer, update_trx_layer_radius } from '../deck-gl/trx_layer'
+import { ini_trx_layer, set_trx_layer, set_trx_layer_onclick, update_trx_layer_radius } from '../deck-gl/trx_layer'
 import { image_info, set_image_info, set_image_layer_colors } from '../global_variables/image_info'
 import { set_image_format } from '../global_variables/image_info'
 import { set_image_layer_sliders } from "../ui/sliders"
@@ -77,6 +77,7 @@ export const landscape_ist = async (
 
     let cell_layer = await ini_cell_layer(base_url)
     let path_layer = await ini_path_layer()
+    let trx_layer = ini_trx_layer()
 
     // make layers object
     let layers_obj = {
@@ -89,6 +90,7 @@ export const landscape_ist = async (
 
     set_cell_layer_onclick(deck_ist, layers_obj)
     set_path_layer_onclick(deck_ist, layers_obj)
+    set_trx_layer_onclick(deck_ist, layers_obj)
 
     await set_trx_layer(deck_ist)
     update_trx_layer_radius(trx_radius)

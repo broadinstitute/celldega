@@ -58,7 +58,7 @@ const path_layer_onclick = (info, d, deck_ist, layers_obj) => {
     // update_cell_layer_id(inst_cat_name)
     new_update_cell_layer_id(layers_obj, inst_cat_name)
 
-    update_path_layer_id(inst_cat_name)
+    new_update_path_layer_id(layers_obj, inst_cat_name)
     update_trx_layer_filter()
 
     // update_layers_ist()
@@ -117,6 +117,12 @@ export const toggle_path_layer_visibility = (visible) => {
 
 export const update_path_layer_id = (new_cat) => {
     path_layer = path_layer.clone({
+        id: 'path-layer-' + new_cat,
+    });
+}
+
+export const new_update_path_layer_id = (layers_obj, new_cat) => {
+    layers_obj.path_layer = layers_obj.path_layer.clone({
         id: 'path-layer-' + new_cat,
     });
 }

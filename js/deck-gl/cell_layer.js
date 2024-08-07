@@ -17,6 +17,7 @@ import { svg_bar_cluster, bar_container_cluster, svg_bar_gene } from '../ui/bar_
 import { gene_search_input } from '../ui/gene_search_input'
 import { update_gene_text_box } from '../ui/gene_search'
 import { tooltip_cat_cell } from './make_tooltip'
+import { close_up } from '../global_variables/close_up'
 
 export let cell_scatter_data
 
@@ -92,10 +93,8 @@ const cell_layer_onclick = async (info, d, deck_ist, layers_obj) => {
     update_path_layer_id(inst_cat_name)
     update_trx_layer_filter()
 
-    // let layers_list = get_layers_list(layers_obj)
-    // deck_ist.setProps({layers: layers_list})
-
-    deck_ist.setProps({layers: get_layers_list(layers_obj)})
+    const layers_list = get_layers_list(layers_obj, close_up)
+    deck_ist.setProps({layers: layers_list})
 
     gene_search_input.value = ''
     update_gene_text_box('')

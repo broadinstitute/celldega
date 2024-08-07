@@ -21,6 +21,7 @@ import { set_meta_gene } from '../global_variables/meta_gene'
 import { set_cluster_metadata } from '../global_variables/meta_cluster'
 import { update_ist_landscape_from_cgm } from '../widget_interactions/update_ist_landscape_from_cgm'
 import { update_cell_clusters } from '../widget_interactions/update_cell_clusters'
+import { close_up } from '../global_variables/close_up'
 
 export const landscape_ist = async (
     el,
@@ -92,8 +93,7 @@ export const landscape_ist = async (
     await set_trx_layer(deck_ist)
     update_trx_layer_radius(trx_radius)
 
-    let layers_list = get_layers_list(layers_obj)
-
+    const layers_list = get_layers_list(layers_obj, close_up)
     deck_ist.setProps({layers: layers_list})
 
     set_deck_on_view_state_change(deck_ist, layers_obj)

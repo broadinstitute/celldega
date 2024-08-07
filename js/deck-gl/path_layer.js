@@ -63,7 +63,7 @@ const path_layer_onclick = (info, d, deck_ist, layers_obj) => {
     // turning off update for now
     // deck_ist.setProps({layers: layers_ist})
 
-    let layers_list = get_layers_list(layers_obj)
+    const layers_list = get_layers_list(layers_obj, close_up)
     deck_ist.setProps({layers: layers_list})
 
 }

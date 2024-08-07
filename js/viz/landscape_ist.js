@@ -4,15 +4,16 @@ import { set_global_base_url } from '../global_variables/global_base_url'
 import { landscape_parameters, set_landscape_parameters } from '../global_variables/landscape_parameters'
 import { set_dimensions } from '../global_variables/image_dimensions'
 import { set_initial_view_state } from '../deck-gl/initial_view_state'
-import { set_cell_layer } from "../deck-gl/cell_layer"
-import { layers_ist, update_layers_ist } from '../deck-gl/layers_ist'
-import { make_image_layers } from '../deck-gl/image_layers'
+import { cell_layer, ini_cell_layer, set_cell_layer_onclick } from "../deck-gl/cell_layer"
+import { layers_ist, update_layers_ist, init_update_layers } from '../deck-gl/layers_ist'
+import { image_layers, make_image_layers } from '../deck-gl/image_layers'
 import { update_views } from '../deck-gl/views'
 import { set_deck } from '../deck-gl/deck_ist'
 import { background_layer, set_background_layer } from '../deck-gl/background_layer'
+import { path_layer } from '../deck-gl/path_layer'
 import { make_ist_ui_container } from '../ui/ui_containers'
 import { model, set_model } from '../global_variables/model'
-import { set_trx_layer, update_trx_layer_radius } from '../deck-gl/trx_layer'
+import { trx_layer, set_trx_layer, update_trx_layer_radius } from '../deck-gl/trx_layer'
 import { image_info, set_image_info, set_image_layer_colors } from '../global_variables/image_info'
 import { set_image_format } from '../global_variables/image_info'
 import { set_image_layer_sliders } from "../ui/sliders"
@@ -69,12 +70,11 @@ export const landscape_ist = async (
 
     set_background_layer()
 
-
     update_views()
 
     let deck_ist = await set_deck(root)
 
-    await set_cell_layer(base_url, deck_ist)
+    await ini_cell_layer(base_url, deck_ist)
 
     await set_trx_layer(deck_ist)
 
@@ -82,9 +82,11 @@ export const landscape_ist = async (
 
     // const update_layers_ist = init_update_layers()
 
-    // const new_update_layers_ist = init_update_layers()
+    const new_update_layers_ist = init_update_layers()
 
-    update_layers_ist()
+    const new_update_layers_ist = init_update_layers()
+
+    update_layers_ist(background_layer, image_layers, path_layer, cell_layer, trx_layer)
 
     deck_ist.setProps({layers: layers_ist})
 

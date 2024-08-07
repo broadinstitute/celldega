@@ -106,7 +106,7 @@ const cell_layer_onclick = (info, d, deck_ist) => {
 
 }
 
-export const set_cell_layer = async (base_url, deck_ist) => {
+export const ini_cell_layer = async (base_url, deck_ist) => {
 
     const cell_url = base_url + `/cell_metadata.parquet`;
     var cell_arrow_table = await get_arrow_table(cell_url, options.fetch)
@@ -143,8 +143,20 @@ export const set_cell_layer = async (base_url, deck_ist) => {
         // Re-use existing layer props
         ...cell_layer.props,
         data: cell_scatter_data,
-        onClick: (event, d) => cell_layer_onclick(event, d, deck_ist),
-    });
+        // onClick: (event, d) => cell_layer_onclick(event, d, deck_ist),
+    })
+
+
+
+}
+
+export const set_cell_layer_onclick = (deck_ist) => {
+
+    // add onclick event after layer is created
+    cell_layer = cell_layer.clone({
+        onClick: (event, d) => cell_layer_onclick(event, d, deck_ist)
+    })
+
 }
 
 export const update_cell_combo_data = () => {

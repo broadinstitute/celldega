@@ -30,33 +30,33 @@ export const update_layers_ist = () => {
     layers_ist = new_layers;
 };
 
-// // export const init_update_layers = (background_layer, image_layers, path_layer, cell_layer, trx_layer) => {
-// export const init_update_layers = () => {
+export const init_update_layers = (background_layer, image_layers, path_layer, cell_layer, trx_layer) => {
 
-//     console.log('init_update_layers');
+    console.log('making new_update_layers_ist function with closured variables')
 
-//     // Function to update layers_ist based on the close_up variable
-//     const update_layers_ist = () => {
-//         if (close_up) {
-//             new_layers = [
-//                 background_layer,
-//                 ...image_layers,
-//                 path_layer,
-//                 cell_layer,
-//                 trx_layer
-//             ];
-//         } else {
-//             new_layers = [
-//                 background_layer,
-//                 ...image_layers,
-//                 cell_layer,
-//             ];
-//         }
-//         layers_ist = new_layers;
-//     };
+    // Function to update layers_ist based on the close_up variable
+    const new_update_layers_ist = () => {
 
-//     return update_layers_ist;
-// };
+        if (close_up) {
+            new_layers = [
+                background_layer,
+                ...image_layers,
+                path_layer,
+                cell_layer,
+                trx_layer
+            ];
+        } else {
+            new_layers = [
+                background_layer,
+                ...image_layers,
+                cell_layer,
+            ];
+        }
+        layers_ist = new_layers;
+    };
+
+    return new_update_layers_ist;
+};
 
 // // Initialize the update_layers_ist function and export it
 // export const update_layers_ist = init_update_layers(background_layer, image_layers, path_layer, cell_layer, trx_layer);

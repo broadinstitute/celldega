@@ -123,5 +123,6 @@ export const calc_viewport = async ({ height, width, zoom, target }, deck_ist) =
         }
     }
 
-    deck_ist.setProps({ layers: layers_ist })
+    // turning off update for now
+    // deck_ist.setProps({ layers: layers_ist })
 }

@@ -54,7 +54,8 @@ export const bar_callback_cluster = (event, d, deck_ist) => {
     update_trx_layer_filter()
     update_layers_ist()
 
-    deck_ist.setProps({layers: layers_ist})
+    // turning off update for now
+    // deck_ist.setProps({layers: layers_ist})
 
     gene_search_input.value = ''
     update_gene_text_box('')
@@ -102,7 +103,8 @@ export const bar_callback_gene = async (event, d, deck_ist) => {
     update_trx_layer_filter()
     update_layers_ist()
 
-    deck_ist.setProps({layers: layers_ist})
+    // turning off update for now
+    // deck_ist.setProps({layers: layers_ist})
 
     gene_search_input.value = gene_search_input.value !== inst_gene ? inst_gene : ''
     update_gene_text_box(reset_gene ? '' : inst_gene)

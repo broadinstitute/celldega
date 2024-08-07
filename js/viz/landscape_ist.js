@@ -97,9 +97,6 @@ export const landscape_ist = async (
     await set_trx_layer(deck_ist)
     update_trx_layer_radius(trx_radius)
 
-
-    // deck_ist.setProps({layers: layers_ist})
-
     let layers_list = get_layers_list(layers_obj)
 
     deck_ist.setProps({layers: layers_list})

@@ -43,7 +43,8 @@ const cell_slider_callback = async (deck_ist) => {
 
     update_layers_ist()
 
-    deck_ist.setProps({layers: layers_ist})
+    // turning off update for now
+    // deck_ist.setProps({layers: layers_ist})
 
 }
 
@@ -69,7 +70,8 @@ const trx_slider_callback = async (deck_ist) => {
         ]
     }
 
-    deck_ist.setProps({layers: new_layers})
+    // turning off update for now
+    // deck_ist.setProps({layers: new_layers})
 }
 
 export const make_img_layer_slider_callback = (name, deck_ist) => {
@@ -100,7 +102,8 @@ export const make_img_layer_slider_callback = (name, deck_ist) => {
             ]
         }
 
-        deck_ist.setProps({layers: new_layers});
+        // turning off update for now
+        // deck_ist.setProps({layers: new_layers});
     };
 };
 

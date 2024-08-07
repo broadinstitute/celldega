@@ -81,7 +81,8 @@ const trx_layer_callback = async (info, d, deck_ist) => {
         .attr('font-weight', 'normal')
         .attr('opacity', 1.0)
 
-    deck_ist.setProps({layers: layers_ist});
+    // turning off update for now
+    // deck_ist.setProps({layers: layers_ist});
 
     gene_search_input.value = (gene_search_input.value !== inst_gene) ? inst_gene : '';
 

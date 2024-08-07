@@ -97,9 +97,6 @@ const cell_layer_onclick = async (info, d, deck_ist, layers_obj) => {
 
     let layers_list = get_layers_list(layers_obj)
 
-    // update_layers_ist()
-
-    // deck_ist.setProps({layers: layers_ist})
     deck_ist.setProps({layers: layers_list})
 
     gene_search_input.value = ''

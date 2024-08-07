@@ -38,8 +38,8 @@ export const update_ist_landscape_from_cgm = async (deck_ist) => {
         update_trx_layer_filter()
         update_layers_ist()
 
-        deck_ist.setProps({layers: layers_ist})
-
+        // turning off update for now
+        // deck_ist.setProps({layers: layers_ist})
 
         const reset_gene = false
 
@@ -110,7 +110,8 @@ export const update_ist_landscape_from_cgm = async (deck_ist) => {
             }
         }
 
-        deck_ist.setProps({layers: layers_ist})
+        // turning off update for now
+        // deck_ist.setProps({layers: layers_ist})
 
     } else if (click_info.click_type === 'col-dendro') {
 
@@ -155,7 +156,8 @@ export const update_ist_landscape_from_cgm = async (deck_ist) => {
         //     }
         // }
 
-        deck_ist.setProps({layers: layers_ist})
+        // turning off update for now
+        // deck_ist.setProps({layers: layers_ist})
 
         // update_cat(selected_gene)
         // update_selected_cats(click_info.click_value)

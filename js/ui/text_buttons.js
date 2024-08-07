@@ -89,9 +89,10 @@ const make_ist_img_layer_button_callback = (text, deck_ist) => {
 
             update_layers_ist()
 
-            deck_ist.setProps({
-                layers: layers_ist
-            })
+            // turning off update for now
+            // deck_ist.setProps({
+            //     layers: layers_ist
+            // })
 
         }
 
@@ -121,9 +122,11 @@ const ist_img_button_callback = async (event, deck_ist) => {
         .style('color', is_visible ? 'blue' : 'gray');
 
     update_layers_ist()
-    deck_ist.setProps({
-        layers: layers_ist
-    })
+
+    // turning off update for now
+    // deck_ist.setProps({
+    //     layers: layers_ist
+    // })
 
     set_img_layer_visible(is_visible)
 
@@ -140,9 +143,11 @@ const trx_button_callback_ist = async (event, deck_ist) => {
     toggle_trx_layer_visibility(is_visible)
 
     update_layers_ist()
-    deck_ist.setProps({
-        layers: layers_ist
-    })
+
+    // turning off update for now
+    // deck_ist.setProps({
+    //     layers: layers_ist
+    // })
 
 }
 
@@ -170,7 +175,9 @@ const cell_button_callback = async (event, deck_ist) => {
     toggle_path_layer_visibility(is_visible)
 
     update_layers_ist()
-    deck_ist.setProps({
-        layers: layers_ist
-    })
+
+    // turning off update for now
+    // deck_ist.setProps({
+    //     layers: layers_ist
+    // })
 }

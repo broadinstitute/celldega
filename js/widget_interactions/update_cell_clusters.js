@@ -17,9 +17,10 @@ export const update_cell_clusters = (deck_ist) => {
     update_cell_layer_id('cluster')
     update_layers_ist()
 
-    deck_ist.setProps({
-        layers: layers_ist
-    })
+    // turning off update for now
+    // deck_ist.setProps({
+    //     layers: layers_ist
+    // })
 
     update_cell_combo_data()
 

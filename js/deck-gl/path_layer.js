@@ -8,6 +8,7 @@ import { layers_ist, update_layers_ist, get_layers_list } from './layers_ist'
 import { toggle_image_layers_and_ctrls } from '../ui/ui_containers'
 import { update_selected_genes } from '../global_variables/selected_genes'
 import { update_trx_layer_filter } from './trx_layer'
+import { close_up } from '../global_variables/close_up'
 
 export const get_path_color = (i, d) => {
 
@@ -41,6 +42,8 @@ export let path_layer = new PathLayer({
 
 const path_layer_onclick = (info, d, deck_ist, layers_obj) => {
 
+    console.log('path_layer_onclick')
+
     const inst_cell_id = polygon_cell_names[info.index]
     const inst_cat = dict_cell_cats[inst_cell_id]
 
@@ -68,7 +71,7 @@ const path_layer_onclick = (info, d, deck_ist, layers_obj) => {
 
 }
 
-export const update_path_layer = async (base_url, tiles_in_view, deck_ist) => {
+export const update_path_layer_data = async (base_url, tiles_in_view, deck_ist) => {
 
     const polygonPathsConcat = await grab_cell_tiles_in_view(base_url, tiles_in_view)
 
@@ -80,9 +83,28 @@ export const update_path_layer = async (base_url, tiles_in_view, deck_ist) => {
 
 }
 
+
+export const new_update_path_layer_data = async (base_url, tiles_in_view, deck_ist, layers_obj) => {
+
+    console.log('new_update_path_layer_data')
+
+    const polygonPathsConcat = await grab_cell_tiles_in_view(base_url, tiles_in_view)
+
+    // layers_obj.path_layer = new PathLayer({
+    //     // Re-use existing layer props
+    //     ...path_layer.props,
+    //     data: polygonPathsConcat,
+    // })
+
+    layers_obj.path_layer = layers_obj.path_layer.clone({
+        data: polygonPathsConcat,
+    })
+
+}
+
 export const set_path_layer_onclick = (deck_ist, layers_obj) => {
     console.log('set_path_layer_onclick')
-    path_layer = path_layer.clone({
+    layers_obj.path_layer = layers_obj.path_layer.clone({
         onClick: (info, d) => path_layer_onclick(info, d, deck_ist, layers_obj),
     })
 }

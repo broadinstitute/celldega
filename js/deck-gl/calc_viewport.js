@@ -22,6 +22,8 @@ export let maxY
 
 export const calc_viewport = async ({ height, width, zoom, target }, deck_ist) => {
 
+    console.log('calc_viewport')
+
     const tile_size = landscape_parameters.tile_size
     const max_tiles_to_view = 50
     const zoomFactor = Math.pow(2, zoom)

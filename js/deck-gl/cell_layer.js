@@ -32,8 +32,6 @@ export let cell_layer = new ScatterplotLayer({
 
 const cell_layer_onclick = async (info, d, deck_ist, layers_obj) => {
 
-    console.log('cell_layer_onclick!! actual function')
-
     // Check if the device is a touch device
     const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
@@ -89,7 +87,6 @@ const cell_layer_onclick = async (info, d, deck_ist, layers_obj) => {
         })
     }
 
-    // update_cell_layer_id(inst_cat_name)
     new_update_cell_layer_id(layers_obj, inst_cat_name)
 
     update_path_layer_id(inst_cat_name)
@@ -141,7 +138,6 @@ export const ini_cell_layer = async (base_url, deck_ist) => {
         // Re-use existing layer props
         ...cell_layer.props,
         data: cell_scatter_data,
-        // onClick: (event, d) => cell_layer_onclick(event, d, deck_ist),
     })
 
     return cell_layer
@@ -149,13 +145,9 @@ export const ini_cell_layer = async (base_url, deck_ist) => {
 }
 
 export const set_cell_layer_onclick = (deck_ist, layers_obj) => {
-
-    // add onclick event after layer is created
     layers_obj.cell_layer = layers_obj.cell_layer.clone({
         onClick: (event, d) => cell_layer_onclick(event, d, deck_ist, layers_obj)
-        // onClick: (event, d) => console.log('click click'),
     })
-
 }
 
 export const update_cell_combo_data = () => {
@@ -187,7 +179,6 @@ export const update_cell_layer_id = (new_cat) => {
 }
 
 export const new_update_cell_layer_id = (layers_obj, new_cat) => {
-    console.log('new_update_cell_layer_id')
     layers_obj.cell_layer = layers_obj.cell_layer.clone({
         id: 'cell-layer-' + new_cat,
     })

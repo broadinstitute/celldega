@@ -14,7 +14,7 @@ const getCursor = ({ isDragging }) => {
     return 'pointer';
 }
 
-export const set_deck = ( root ) => {
+export const ini_deck = ( root ) => {
 
     let deck_ist = new Deck({
         parent: root,
@@ -26,12 +26,20 @@ export const set_deck = ( root ) => {
         getTooltip: make_tooltip,
     })
 
+
+
+    return deck_ist
+
+}
+
+export const set_deck_on_view_state_change = ( deck_ist ) => {
+
     deck_ist.setProps({
         onViewStateChange: (params) => {
             on_view_state_change(params, deck_ist);
         }
     })
 
-    return deck_ist
+
 
 }

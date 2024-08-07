@@ -8,9 +8,9 @@ import { cell_layer, ini_cell_layer, set_cell_layer_onclick } from "../deck-gl/c
 import { layers_ist, update_layers_ist, init_new_update_layers_ist, get_layers_list } from '../deck-gl/layers_ist'
 import { image_layers, make_image_layers } from '../deck-gl/image_layers'
 import { update_views } from '../deck-gl/views'
-import { set_deck } from '../deck-gl/deck_ist'
+import { ini_deck, set_deck_on_view_state_change } from '../deck-gl/deck_ist'
 import { background_layer, set_background_layer } from '../deck-gl/background_layer'
-import { path_layer } from '../deck-gl/path_layer'
+import { path_layer, set_path_layer_onclick } from '../deck-gl/path_layer'
 import { make_ist_ui_container } from '../ui/ui_containers'
 import { model, set_model } from '../global_variables/model'
 import { trx_layer, set_trx_layer, update_trx_layer_radius } from '../deck-gl/trx_layer'
@@ -72,7 +72,8 @@ export const landscape_ist = async (
 
     update_views()
 
-    let deck_ist = await set_deck(root)
+    let deck_ist = await ini_deck(root)
+    set_deck_on_view_state_change(deck_ist)
 
     let cell_layer = await ini_cell_layer(base_url, deck_ist)
 
@@ -86,13 +87,7 @@ export const landscape_ist = async (
     }
 
     set_cell_layer_onclick(deck_ist, layers_obj)
-
-    // Check if the layer has an onClick event
-    if (layers_obj.cell_layer.props.onClick) {
-        console.log('onClick event is set on layers_obj.cell_layer:', layers_obj.cell_layer.props.onClick);
-    } else {
-        console.log('onClick event is not set on layers_obj.cell_layer.');
-    }
+    set_path_layer_onclick(deck_ist, layers_obj)
 
     await set_trx_layer(deck_ist)
     update_trx_layer_radius(trx_radius)

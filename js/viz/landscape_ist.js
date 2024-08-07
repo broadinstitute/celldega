@@ -4,8 +4,8 @@ import { set_global_base_url } from '../global_variables/global_base_url'
 import { landscape_parameters, set_landscape_parameters } from '../global_variables/landscape_parameters'
 import { set_dimensions } from '../global_variables/image_dimensions'
 import { set_initial_view_state } from '../deck-gl/initial_view_state'
-import { cell_layer, ini_cell_layer, set_cell_layer_onclick } from "../deck-gl/cell_layer"
-import { layers_ist, update_layers_ist, init_new_update_layers_ist, get_layers_list } from '../deck-gl/layers_ist'
+import { ini_cell_layer, set_cell_layer_onclick } from "../deck-gl/cell_layer"
+import { get_layers_list } from '../deck-gl/layers_ist'
 import { image_layers, make_image_layers } from '../deck-gl/image_layers'
 import { update_views } from '../deck-gl/views'
 import { ini_deck, set_deck_on_view_state_change } from '../deck-gl/deck_ist'
@@ -76,7 +76,7 @@ export const landscape_ist = async (
     let deck_ist = await ini_deck(root)
 
 
-    let cell_layer = await ini_cell_layer(base_url, deck_ist)
+    let cell_layer = await ini_cell_layer(base_url)
 
     // make layers object
     let layers_obj = {

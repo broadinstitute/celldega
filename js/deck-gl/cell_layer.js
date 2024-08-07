@@ -8,7 +8,7 @@ import { options } from '../global_variables/fetch_options'
 import { cell_cats, set_cell_cats, dict_cell_cats, set_dict_cell_cats} from '../global_variables/cat'
 import { update_selected_cats, selected_cats, update_cat, reset_cat } from '../global_variables/cat'
 import { get_cell_color } from './cell_color'
-import { layers_ist, update_layers_ist, get_layers_list } from './layers_ist'
+import { get_layers_list } from './layers_ist'
 import { update_path_layer_id } from './path_layer'
 import { toggle_image_layers_and_ctrls } from '../ui/ui_containers'
 import { update_selected_genes } from '../global_variables/selected_genes'
@@ -101,7 +101,7 @@ const cell_layer_onclick = async (info, d, deck_ist, layers_obj) => {
 
 }
 
-export const ini_cell_layer = async (base_url, deck_ist) => {
+export const ini_cell_layer = async (base_url) => {
 
     const cell_url = base_url + `/cell_metadata.parquet`;
     var cell_arrow_table = await get_arrow_table(cell_url, options.fetch)

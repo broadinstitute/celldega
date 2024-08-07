@@ -92,9 +92,10 @@ const cell_layer_onclick = async (info, d, deck_ist, layers_obj) => {
     update_path_layer_id(inst_cat_name)
     update_trx_layer_filter()
 
-    let layers_list = get_layers_list(layers_obj)
+    // let layers_list = get_layers_list(layers_obj)
+    // deck_ist.setProps({layers: layers_list})
 
-    deck_ist.setProps({layers: layers_list})
+    deck_ist.setProps({layers: get_layers_list(layers_obj)})
 
     gene_search_input.value = ''
     update_gene_text_box('')

@@ -2,7 +2,7 @@ import { visibleTiles } from '../vector_tile/visibleTiles.js'
 import { global_base_url } from '../global_variables/global_base_url.js'
 import { update_path_layer } from './path_layer.js'
 import { update_trx_layer } from './trx_layer.js'
-import { layers_ist, update_layers_ist } from './layers_ist.js'
+import { layers_ist, update_layers_ist, get_layers_list } from './layers_ist.js'
 import { landscape_parameters } from '../global_variables/landscape_parameters.js'
 import { close_up, set_close_up } from '../global_variables/close_up.js'
 import { svg_bar_gene, update_bar_graph, bar_container_gene, bar_container_cluster } from '../ui/bar_plot.js'
@@ -51,6 +51,7 @@ export const calc_viewport = async ({ height, width, zoom, target }, deck_ist, l
         await update_path_layer(global_base_url, tiles_in_view, deck_ist)
 
         set_close_up(true)
+
         update_layers_ist()
 
         // gene bar graph update
@@ -82,7 +83,6 @@ export const calc_viewport = async ({ height, width, zoom, target }, deck_ist, l
         const filtered_cells = cell_combo_data.filter(pos =>
             pos.x >= minX && pos.x <= maxX && pos.y >= minY && pos.y <= maxY
         )
-
 
         const filtered_cell_names = filtered_cells.map(cell => cell.cat);
 
@@ -128,4 +128,7 @@ export const calc_viewport = async ({ height, width, zoom, target }, deck_ist, l
 
     // turning off update for now
     // deck_ist.setProps({ layers: layers_ist })
+
+    deck_ist.setProps({layers: get_layers_list(layers_obj)})
+
 }

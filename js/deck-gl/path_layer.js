@@ -9,6 +9,7 @@ import { toggle_image_layers_and_ctrls } from '../ui/ui_containers'
 import { update_selected_genes } from '../global_variables/selected_genes'
 import { update_trx_layer_filter } from './trx_layer'
 import { close_up } from '../global_variables/close_up'
+import { path } from 'd3'
 
 export const get_path_color = (i, d) => {
 
@@ -39,6 +40,20 @@ export let path_layer = new PathLayer({
         getColor: get_path_color, // white outline
         widthUnits: 'pixels',
     })
+
+export const ini_path_layer = () => {
+    let path_layer = new PathLayer({
+        id: 'path-layer',
+        data: [],
+        pickable: true,
+        widthScale: 3,
+        widthMinPixels: 1,
+        getPath: d => d,
+        getColor: get_path_color, // white outline
+        widthUnits: 'pixels',
+    })
+    return path_layer
+}
 
 const path_layer_onclick = (info, d, deck_ist, layers_obj) => {
 

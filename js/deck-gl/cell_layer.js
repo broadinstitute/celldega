@@ -9,7 +9,7 @@ import { cell_cats, set_cell_cats, dict_cell_cats, set_dict_cell_cats} from '../
 import { update_selected_cats, selected_cats, update_cat, reset_cat } from '../global_variables/cat'
 import { get_cell_color } from './cell_color'
 import { get_layers_list } from './layers_ist'
-import { update_path_layer_id } from './path_layer'
+import { new_update_path_layer_id } from './path_layer'
 import { toggle_image_layers_and_ctrls } from '../ui/ui_containers'
 import { update_selected_genes } from '../global_variables/selected_genes'
 import { update_trx_layer_filter } from './trx_layer'
@@ -89,8 +89,8 @@ const cell_layer_onclick = async (info, d, deck_ist, layers_obj) => {
     }
 
     new_update_cell_layer_id(layers_obj, inst_cat_name)
+    new_update_path_layer_id(layers_obj, inst_cat_name)
 
-    update_path_layer_id(inst_cat_name)
     update_trx_layer_filter()
 
     const layers_list = get_layers_list(layers_obj, close_up)

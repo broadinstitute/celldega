@@ -73,7 +73,7 @@ export const landscape_ist = async (
     update_views()
 
     let deck_ist = await ini_deck(root)
-    set_deck_on_view_state_change(deck_ist)
+
 
     let cell_layer = await ini_cell_layer(base_url, deck_ist)
 
@@ -95,6 +95,8 @@ export const landscape_ist = async (
     let layers_list = get_layers_list(layers_obj)
 
     deck_ist.setProps({layers: layers_list})
+
+    set_deck_on_view_state_change(deck_ist, layers_obj)
 
     // check if ini_model is not equal to {}
     if (Object.keys(ini_model).length > 0) {

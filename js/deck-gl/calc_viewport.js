@@ -20,9 +20,10 @@ export let maxX
 export let minY
 export let maxY
 
-export const calc_viewport = async ({ height, width, zoom, target }, deck_ist) => {
+export const calc_viewport = async ({ height, width, zoom, target }, deck_ist, layers_obj) => {
 
     console.log('calc_viewport')
+    console.log('layers_obj', layers_obj)
 
     const tile_size = landscape_parameters.tile_size
     const max_tiles_to_view = 50

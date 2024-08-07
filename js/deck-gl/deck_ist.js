@@ -32,11 +32,11 @@ export const ini_deck = ( root ) => {
 
 }
 
-export const set_deck_on_view_state_change = ( deck_ist ) => {
+export const set_deck_on_view_state_change = ( deck_ist, layers_obj ) => {
 
     deck_ist.setProps({
         onViewStateChange: (params) => {
-            on_view_state_change(params, deck_ist);
+            on_view_state_change(params, deck_ist, layers_obj)
         }
     })
 

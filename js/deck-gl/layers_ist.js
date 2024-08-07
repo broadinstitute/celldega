@@ -13,14 +13,14 @@ export let layers_ist = [];
 // Function to update layers_ist based on the close_up variable
 export const update_layers_ist = () => {
 
-    console.log('--------------------')
-    console.log('running origial update_layers_ist')
-    console.log('background_layer', background_layer)
-    console.log('image_layers', image_layers)
-    console.log('path_layer', path_layer)
-    console.log('cell_layer', cell_layer)
-    console.log('trx_layer', trx_layer)
-    console.log('--------------------')
+    // console.log('--------------------')
+    // console.log('running origial update_layers_ist')
+    // console.log('background_layer', background_layer)
+    // console.log('image_layers', image_layers)
+    // console.log('path_layer', path_layer)
+    // console.log('cell_layer', cell_layer)
+    // console.log('trx_layer', trx_layer)
+    // console.log('--------------------')
 
     if (close_up) {
         new_layers = [
@@ -40,7 +40,6 @@ export const update_layers_ist = () => {
 
     layers_ist = new_layers;
 
-    console.log(layers_ist)
 };
 
 

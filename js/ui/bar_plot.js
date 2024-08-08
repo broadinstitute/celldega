@@ -17,6 +17,9 @@ export let bar_container_gene = document.createElement("div")
 export let svg_bar_cluster = d3.create("svg")
 export let svg_bar_gene = d3.create("svg")
 
+export const make_bar_container = () => {
+    return document.createElement("div")
+}
 
 export const bar_callback_cluster = (event, d, deck_ist, layers_obj, viz_state) => {
 

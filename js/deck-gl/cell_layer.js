@@ -172,12 +172,6 @@ export const update_cell_layer_radius = (radius) => {
     });
 }
 
-export const update_cell_layer_id = (new_cat) => {
-    cell_layer = cell_layer.clone({
-        id: 'cell-layer-' + new_cat,
-    })
-}
-
 export const new_update_cell_layer_id = (layers_obj, new_cat) => {
     layers_obj.cell_layer = layers_obj.cell_layer.clone({
         id: 'cell-layer-' + new_cat,

@@ -35,17 +35,9 @@ export const update_ist_landscape_from_cgm = async (deck_ist, layers_obj) => {
         update_selected_cats([])
         await update_cell_exp_array(global_base_url, inst_gene)
 
-        // update_cell_layer_id(new_cat)
-        // update_path_layer_id(new_cat)
-        // update_trx_layer_filter()
-
         new_update_cell_layer_id(layers_obj, new_cat)
         new_update_path_layer_id(layers_obj, new_cat)
         new_update_trx_layer_id(layers_obj)
-
-        // update_layers_ist()
-        // turning off update for now
-        // deck_ist.setProps({layers: layers_ist})
 
         console.log('here!!!!!!!!!!!!!!!!!!!!!!!!!')
 
@@ -92,24 +84,16 @@ export const update_ist_landscape_from_cgm = async (deck_ist, layers_obj) => {
 
         const inst_cat_name = selected_cats.join('-')
 
-        // update_cell_layer_id(inst_cat_name)
-        // update_path_layer_id(inst_cat_name)
-        // update_trx_layer_filter()
-
         new_update_cell_layer_id(layers_obj, inst_cat_name)
         new_update_path_layer_id(layers_obj, inst_cat_name)
         new_update_trx_layer_id(layers_obj)
-
-        // update_layers_ist()
-        // turning off update for now
-        // deck_ist.setProps({layers: layers_ist})
 
         const layers_list = get_layers_list(layers_obj, close_up)
         deck_ist.setProps({layers: layers_list})
 
         svg_bar_cluster.selectAll("g")
-        .attr('font-weight', 'normal')
-        .attr('opacity', reset_cat ? 1.0 : 0.25)
+            .attr('font-weight', 'normal')
+            .attr('opacity', reset_cat ? 1.0 : 0.25)
 
         const inst_cat = new_cat
 
@@ -146,24 +130,16 @@ export const update_ist_landscape_from_cgm = async (deck_ist, layers_obj) => {
 
         const inst_cat_name = selected_cats.join('-')
 
-        // update_cell_layer_id(inst_cat_name)
-        // update_path_layer_id(inst_cat_name)
-        // update_trx_layer_filter()
-
         new_update_cell_layer_id(layers_obj, inst_cat_name)
         new_update_path_layer_id(layers_obj, inst_cat_name)
         new_update_trx_layer_id(layers_obj)
-
-        // update_layers_ist()
-        // // turning off update for now
-        // deck_ist.setProps({layers: layers_ist})
 
         const layers_list = get_layers_list(layers_obj, close_up)
         deck_ist.setProps({layers: layers_list})
 
         svg_bar_cluster.selectAll("g")
-        .attr('font-weight', 'normal')
-        .attr('opacity', reset_cat ? 1.0 : 0.25)
+            .attr('font-weight', 'normal')
+            .attr('opacity', reset_cat ? 1.0 : 0.25)
 
         const inst_cat = new_cats
 
@@ -185,8 +161,6 @@ export const update_ist_landscape_from_cgm = async (deck_ist, layers_obj) => {
                 })
             }
         }
-
-
 
         update_cat(inst_gene)
         update_selected_cats(click_info.click_value)

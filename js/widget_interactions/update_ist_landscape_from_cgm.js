@@ -13,9 +13,8 @@ import { bar_container_gene, bar_container_cluster } from '../ui/bar_plot'
 import { get_layers_list } from '../deck-gl/layers_ist'
 import { model } from '../global_variables/model.js'
 import { update_gene_text_box } from '../ui/gene_search.js'
-import { close_up } from '../global_variables/close_up.js'
 
-export const update_ist_landscape_from_cgm = async (deck_ist, layers_obj) => {
+export const update_ist_landscape_from_cgm = async (deck_ist, layers_obj, viz_state) => {
 
     const click_info = model.get('update_trigger')
 
@@ -41,7 +40,7 @@ export const update_ist_landscape_from_cgm = async (deck_ist, layers_obj) => {
 
         console.log('here!!!!!!!!!!!!!!!!!!!!!!!!!')
 
-        const layers_list = get_layers_list(layers_obj, close_up)
+        const layers_list = get_layers_list(layers_obj, viz_state.close_up)
         deck_ist.setProps({layers: layers_list})
 
         const reset_gene = false
@@ -88,7 +87,7 @@ export const update_ist_landscape_from_cgm = async (deck_ist, layers_obj) => {
         update_path_layer_id(layers_obj, inst_cat_name)
         update_trx_layer_id(layers_obj)
 
-        const layers_list = get_layers_list(layers_obj, close_up)
+        const layers_list = get_layers_list(layers_obj, viz_state.close_up)
         deck_ist.setProps({layers: layers_list})
 
         svg_bar_cluster.selectAll("g")
@@ -134,7 +133,7 @@ export const update_ist_landscape_from_cgm = async (deck_ist, layers_obj) => {
         update_path_layer_id(layers_obj, inst_cat_name)
         update_trx_layer_id(layers_obj)
 
-        const layers_list = get_layers_list(layers_obj, close_up)
+        const layers_list = get_layers_list(layers_obj, viz_state.close_up)
         deck_ist.setProps({layers: layers_list})
 
         svg_bar_cluster.selectAll("g")

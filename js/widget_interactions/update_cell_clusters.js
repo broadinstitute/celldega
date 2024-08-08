@@ -6,9 +6,8 @@ import { get_layers_list } from '../deck-gl/layers_ist'
 import { update_bar_graph } from '../ui/bar_plot'
 import { svg_bar_cluster, bar_callback_cluster } from '../ui/bar_plot'
 import { color_dict_cluster, cluster_counts } from '../global_variables/meta_cluster'
-import { close_up } from '../global_variables/close_up'
 
-export const update_cell_clusters = (deck_ist, layers_obj) => {
+export const update_cell_clusters = (deck_ist, layers_obj, viz_state) => {
 
     const new_cluster_info = model.get('cell_clusters')
 
@@ -17,7 +16,7 @@ export const update_cell_clusters = (deck_ist, layers_obj) => {
 
     update_cell_layer_id(layers_obj, 'cluster')
 
-    const layers_list = get_layers_list(layers_obj, close_up)
+    const layers_list = get_layers_list(layers_obj, viz_state.close_up)
     deck_ist.setProps({layers: layers_list})
 
     update_cell_combo_data()

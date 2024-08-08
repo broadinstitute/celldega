@@ -34,7 +34,6 @@ const toggle_visible_button = (event) => {
     return is_visible
 }
 
-
 export const make_button = (container, technology, text, color='blue', width=40, button_class='button', deck_ist, layers_obj, viz_state) => {
 
     let callback

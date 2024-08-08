@@ -46,7 +46,7 @@ export const ini_path_layer = () => {
 
 }
 
-const path_layer_onclick = (info, d, deck_ist, layers_obj) => {
+const path_layer_onclick = (info, d, deck_ist, layers_obj, viz_state) => {
 
     const inst_cell_id = polygon_cell_names[info.index]
     const inst_cat = dict_cell_cats[inst_cell_id]
@@ -63,7 +63,7 @@ const path_layer_onclick = (info, d, deck_ist, layers_obj) => {
     update_path_layer_id(layers_obj, inst_cat_name)
     update_trx_layer_id(layers_obj)
 
-    const layers_list = get_layers_list(layers_obj, close_up)
+    const layers_list = get_layers_list(layers_obj, viz_state.close_up)
     deck_ist.setProps({layers: layers_list})
 
 }
@@ -79,9 +79,9 @@ export const update_path_layer_data = async (base_url, tiles_in_view, layers_obj
 
 }
 
-export const set_path_layer_onclick = (deck_ist, layers_obj) => {
+export const set_path_layer_onclick = (deck_ist, layers_obj, viz_state) => {
     layers_obj.path_layer = layers_obj.path_layer.clone({
-        onClick: (info, d) => path_layer_onclick(info, d, deck_ist, layers_obj),
+        onClick: (info, d) => path_layer_onclick(info, d, deck_ist, layers_obj, viz_state),
     })
 }
 

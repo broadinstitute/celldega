@@ -96,7 +96,7 @@ export const make_sst_ui_container = () => {
 
 }
 
-export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj) => {
+export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_state) => {
 
     const ui_container = make_ui_container()
     const ctrl_container = make_ctrl_container()
@@ -191,7 +191,8 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj) => {
         cluster_counts,
         color_dict_cluster,
         deck_ist,
-        layers_obj
+        layers_obj,
+        viz_state
     )
 
     make_bar_graph(
@@ -201,7 +202,8 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj) => {
         gene_counts,
         color_dict_gene,
         deck_ist,
-        layers_obj
+        layers_obj,
+        viz_state
     )
 
     cell_container.appendChild(cell_ctrl_container)

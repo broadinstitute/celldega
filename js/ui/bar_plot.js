@@ -19,7 +19,7 @@ export let svg_bar_cluster = d3.create("svg")
 export let svg_bar_gene = d3.create("svg")
 
 
-export const bar_callback_cluster = (event, d, deck_ist, layers_obj) => {
+export const bar_callback_cluster = (event, d, deck_ist, layers_obj, viz_state) => {
 
     // reset gene
     svg_bar_gene
@@ -56,14 +56,14 @@ export const bar_callback_cluster = (event, d, deck_ist, layers_obj) => {
     update_path_layer_id(layers_obj, inst_cat_name)
     update_trx_layer_id(layers_obj)
 
-    const layers_list = get_layers_list(layers_obj, close_up)
+    const layers_list = get_layers_list(layers_obj, viz_state.close_up)
     deck_ist.setProps({layers: layers_list})
 
     gene_search_input.value = ''
     update_gene_text_box('')
 }
 
-export const bar_callback_gene = async (event, d, deck_ist, layers_obj) => {
+export const bar_callback_gene = async (event, d, deck_ist, layers_obj, viz_state) => {
 
     // reset cluster bar plot
     svg_bar_cluster
@@ -105,14 +105,14 @@ export const bar_callback_gene = async (event, d, deck_ist, layers_obj) => {
     update_path_layer_id(layers_obj, new_cat)
     update_trx_layer_id(layers_obj)
 
-    const layers_list = get_layers_list(layers_obj, close_up)
+    const layers_list = get_layers_list(layers_obj, viz_state.close_up)
     deck_ist.setProps({layers: layers_list})
 
     gene_search_input.value = gene_search_input.value !== inst_gene ? inst_gene : ''
     update_gene_text_box(reset_gene ? '' : inst_gene)
 }
 
-export const make_bar_graph = (bar_container, click_callback, svg_bar, bar_data, color_dict, deck_ist, layers_obj) => {
+export const make_bar_graph = (bar_container, click_callback, svg_bar, bar_data, color_dict, deck_ist, layers_obj, viz_state) => {
 
     bar_container.className = "bar_container"
     bar_container.style.width = "107px"
@@ -159,7 +159,7 @@ export const make_bar_graph = (bar_container, click_callback, svg_bar, bar_data,
         .data(bar_data)
         .join("g")
         .attr("transform", (d, i) => `translate(2,${y_new(i) + 2})`)
-        .on('click', (event, d) => click_callback(event, d, deck_ist, layers_obj))
+        .on('click', (event, d) => click_callback(event, d, deck_ist, layers_obj, viz_state))
 
     bar.append("rect")
         .attr("fill", (d) => {
@@ -248,4 +248,4 @@ export const update_bar_graph = (svg_bar, bar_data, color_dict, click_callback, 
         .duration(750)
         .attr("opacity", 0)
         .remove();
-};
+}

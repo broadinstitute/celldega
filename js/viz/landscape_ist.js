@@ -89,7 +89,7 @@ export const landscape_ist = async (
     }
 
     set_cell_layer_onclick(deck_ist, layers_obj, viz_state)
-    set_path_layer_onclick(deck_ist, layers_obj)
+    set_path_layer_onclick(deck_ist, layers_obj, viz_state)
     set_trx_layer_onclick(deck_ist, layers_obj)
 
     update_trx_layer_radius(layers_obj, trx_radius)
@@ -105,7 +105,7 @@ export const landscape_ist = async (
         model.on('change:cell_clusters', () => update_cell_clusters(deck_ist, layers_obj))
     }
 
-    const ui_container = make_ist_ui_container(dataset_name, deck_ist, layers_obj)
+    const ui_container = make_ist_ui_container(dataset_name, deck_ist, layers_obj, viz_state)
 
     // UI and Viz Container
     el.appendChild(ui_container)

@@ -2,7 +2,7 @@ import { visibleTiles } from '../vector_tile/visibleTiles.js'
 import { global_base_url } from '../global_variables/global_base_url.js'
 import { update_path_layer_data } from './path_layer.js'
 import { update_trx_layer_data } from './trx_layer.js'
-import { update_layers_ist, get_layers_list } from './layers_ist.js'
+import { get_layers_list } from './layers_ist.js'
 import { landscape_parameters } from '../global_variables/landscape_parameters.js'
 import { close_up, set_close_up } from '../global_variables/close_up.js'
 import { svg_bar_gene, update_bar_graph, bar_container_gene, bar_container_cluster } from '../ui/bar_plot.js'
@@ -53,8 +53,6 @@ export const calc_viewport = async ({ height, width, zoom, target }, deck_ist, l
         await update_path_layer_data(global_base_url, tiles_in_view, layers_obj)
 
         set_close_up(true)
-
-        update_layers_ist()
 
         // gene bar graph update
         const filtered_transcripts = trx_combo_data.filter(pos =>
@@ -111,7 +109,6 @@ export const calc_viewport = async ({ height, width, zoom, target }, deck_ist, l
 
         if (close_up) {
             set_close_up(false)
-            update_layers_ist()
             update_bar_graph(svg_bar_gene, gene_counts, color_dict_gene, bar_callback_gene, selected_genes, deck_ist, layers_obj)
             update_bar_graph(svg_bar_cluster, cluster_counts, color_dict_cluster, bar_callback_cluster, selected_cats, deck_ist, layers_obj)
 

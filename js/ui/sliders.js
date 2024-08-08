@@ -41,10 +41,6 @@ const cell_slider_callback = async (deck_ist, layers_obj) => {
 
     update_cell_layer_radius(layers_obj, cell_slider.value / scale_down_cell_radius)
 
-    // update_layers_ist()
-    // turning off update for now
-    // deck_ist.setProps({layers: layers_ist})
-
     const layers_list = get_layers_list(layers_obj, close_up)
     deck_ist.setProps({layers: layers_list})
 

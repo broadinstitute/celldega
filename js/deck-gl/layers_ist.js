@@ -10,39 +10,6 @@ import { close_up } from '../global_variables/close_up.js';
 let new_layers;
 export let layers_ist = [];
 
-// Function to update layers_ist based on the close_up variable
-export const update_layers_ist = () => {
-
-    // console.log('--------------------')
-    // console.log('running origial update_layers_ist')
-    // console.log('background_layer', background_layer)
-    // console.log('image_layers', image_layers)
-    // console.log('path_layer', path_layer)
-    // console.log('cell_layer', cell_layer)
-    // console.log('trx_layer', trx_layer)
-    // console.log('--------------------')
-
-    if (close_up) {
-        new_layers = [
-            background_layer,
-            ...image_layers,
-            path_layer,
-            cell_layer,
-            trx_layer
-        ];
-    } else {
-        new_layers = [
-            background_layer,
-            ...image_layers,
-            cell_layer,
-        ];
-    }
-
-    layers_ist = new_layers;
-
-};
-
-
 export const get_layers_list = (layers_obj, close_up) => {
 
     let layers_list

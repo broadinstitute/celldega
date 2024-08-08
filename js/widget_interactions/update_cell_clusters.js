@@ -17,7 +17,6 @@ export const update_cell_clusters = (deck_ist, layers_obj) => {
 
     new_update_cell_layer_id(layers_obj, 'cluster')
 
-    // update_layers_ist()
     // turning off update for now
     // deck_ist.setProps({
     //     layers: layers_ist

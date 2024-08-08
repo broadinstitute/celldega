@@ -56,11 +56,6 @@ export const bar_callback_cluster = (event, d, deck_ist, layers_obj) => {
     new_update_path_layer_id(layers_obj, inst_cat_name)
     new_update_trx_layer_id(layers_obj)
 
-    // update_layers_ist()
-
-    // turning off update for now
-    // deck_ist.setProps({layers: layers_ist})
-
     const layers_list = get_layers_list(layers_obj, close_up)
     deck_ist.setProps({layers: layers_list})
 

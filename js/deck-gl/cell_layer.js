@@ -17,7 +17,6 @@ import { svg_bar_cluster, bar_container_cluster, svg_bar_gene } from '../ui/bar_
 import { gene_search_input } from '../ui/gene_search_input'
 import { update_gene_text_box } from '../ui/gene_search'
 import { tooltip_cat_cell } from './make_tooltip'
-import { close_up } from '../global_variables/close_up'
 
 export let cell_scatter_data
 export let cell_combo_data

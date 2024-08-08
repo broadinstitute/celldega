@@ -10,7 +10,6 @@ import { update_cell_exp_array } from '../global_variables/cell_exp_array'
 import { global_base_url } from '../global_variables/global_base_url'
 import { gene_search_input } from './gene_search_input'
 import { update_gene_text_box } from './gene_search'
-import { close_up } from '../global_variables/close_up'
 
 export let bar_container_cluster = document.createElement("div")
 export let bar_container_gene = document.createElement("div")

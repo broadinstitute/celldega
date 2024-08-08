@@ -8,7 +8,6 @@ import { get_layers_list } from './layers_ist'
 import { toggle_image_layers_and_ctrls } from '../ui/ui_containers'
 import { update_selected_genes } from '../global_variables/selected_genes'
 import { update_trx_layer_id } from './trx_layer'
-import { close_up } from '../global_variables/close_up'
 
 export const get_path_color = (i, d) => {
 

@@ -6,7 +6,7 @@ import { set_dimensions } from '../global_variables/image_dimensions'
 import { set_initial_view_state } from '../deck-gl/initial_view_state'
 import { ini_cell_layer, set_cell_layer_onclick } from "../deck-gl/cell_layer"
 import { get_layers_list } from '../deck-gl/layers_ist'
-import { image_layers, make_image_layers } from '../deck-gl/image_layers'
+import { make_image_layers } from '../deck-gl/image_layers'
 import { update_views } from '../deck-gl/views'
 import { ini_deck, set_deck_on_view_state_change } from '../deck-gl/deck_ist'
 import { ini_background_layer } from '../deck-gl/background_layer'
@@ -66,14 +66,12 @@ export const landscape_ist = async (
 
     await set_cluster_metadata()
 
-    // update layers
-    await make_image_layers(base_url)
-
     update_views()
 
     let deck_ist = await ini_deck(root)
 
     let background_layer = ini_background_layer()
+    let image_layers = await make_image_layers(base_url)
     let cell_layer = await ini_cell_layer(base_url)
     let path_layer = await ini_path_layer()
     let trx_layer = ini_trx_layer()

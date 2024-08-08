@@ -13,8 +13,6 @@ export let tile_slider = document.createElement("input")
 export let cell_slider = document.createElement("input")
 export let trx_slider = document.createElement("input")
 
-let new_layers = []
-
 export let image_layer_sliders
 
 export const set_image_layer_sliders = (image_info) => {
@@ -54,7 +52,7 @@ const trx_slider_callback = async (deck_ist, layers_obj) => {
     deck_ist.setProps({layers: layers_list})
 }
 
-export const make_img_layer_slider_callback = (name, deck_ist) => {
+export const make_img_layer_slider_callback = (name, deck_ist, layers_obj) => {
     return async () => {
 
         let inst_slider = image_layer_sliders.filter(slider => slider.name === name)[0]
@@ -63,10 +61,10 @@ export const make_img_layer_slider_callback = (name, deck_ist) => {
         const opacity = inst_slider.value/10
 
         // Use the slider value to update the opacity
-        update_opacity_single_image_layer(name, opacity);
+        update_opacity_single_image_layer(layers_obj, name, opacity);
 
-        // turning off update for now
-        // deck_ist.setProps({layers: new_layers});
+        const layers_list = get_layers_list(layers_obj, close_up)
+        deck_ist.setProps({layers: layers_list})
     };
 };
 

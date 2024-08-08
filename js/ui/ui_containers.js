@@ -156,7 +156,7 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj) => {
 
         let slider = get_slider_by_name(inst_name)[0]
 
-        let img_layer_slider_callback = make_img_layer_slider_callback(inst_name, deck_ist)
+        let img_layer_slider_callback = make_img_layer_slider_callback(inst_name, deck_ist, layers_obj)
 
         const debounce_time = 100
         let img_layer_slider_callback_debounced = debounce(img_layer_slider_callback, debounce_time)

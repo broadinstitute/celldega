@@ -30,7 +30,8 @@ const make_image_layer = (info) => {
 }
 
 export const make_image_layers = async () => {
-    image_layers = image_info.map(make_image_layer);
+    let image_layers = image_info.map(make_image_layer);
+    return image_layers
 }
 
 export const toggle_visibility_image_layers = (layers_obj, visible) => {
@@ -51,11 +52,11 @@ export const toggle_visibility_single_image_layer = (layers_obj, name, visible) 
 
 }
 
-export const update_opacity_single_image_layer = (name, opacity) => {
+export const update_opacity_single_image_layer = (layers_obj, name, opacity) => {
 
     let color = image_layer_colors[name]
 
-    image_layers = image_layers.map(layer =>
+    layers_obj.image_layers = layers_obj.image_layers.map(layer =>
         layer.id.startsWith(name) ?
         layer.clone({
             renderSubLayers: create_render_tile_sublayers(color, opacity),

@@ -89,11 +89,6 @@ const make_ist_img_layer_button_callback = (text, deck_ist, layers_obj) => {
 
             toggle_slider(inst_slider, is_visible)
 
-            // turning off update for now
-            // deck_ist.setProps({
-            //     layers: layers_ist
-            // })
-
             const layers_list = get_layers_list(layers_obj, close_up)
             deck_ist.setProps({layers: layers_list})
 
@@ -162,13 +157,12 @@ const tile_button_callback = async (event) => {
 
 const cell_button_callback = async (event, deck_ist, layers_obj) => {
 
-
     toggle_visible_button(event)
 
     toggle_slider(cell_slider, is_visible)
 
     new_toggle_cell_layer_visibility(layers_obj, is_visible)
-    toggle_path_layer_visibility(is_visible)
+    toggle_path_layer_visibility(layers_obj, is_visible)
 
     const layers_list = get_layers_list(layers_obj, close_up)
     deck_ist.setProps({layers: layers_list})

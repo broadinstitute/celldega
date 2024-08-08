@@ -29,18 +29,8 @@ export const get_path_color = (i, d) => {
 
 }
 
-export let path_layer = new PathLayer({
-        id: 'path-layer',
-        data: [],
-        pickable: true,
-        widthScale: 3,
-        widthMinPixels: 1,
-        getPath: d => d,
-        getColor: get_path_color, // white outline
-        widthUnits: 'pixels',
-    })
-
 export const ini_path_layer = () => {
+
     let path_layer = new PathLayer({
         id: 'path-layer',
         data: [],
@@ -48,10 +38,12 @@ export const ini_path_layer = () => {
         widthScale: 3,
         widthMinPixels: 1,
         getPath: d => d,
-        getColor: get_path_color, // white outline
+        getColor: get_path_color,
         widthUnits: 'pixels',
     })
+
     return path_layer
+
 }
 
 const path_layer_onclick = (info, d, deck_ist, layers_obj) => {
@@ -93,15 +85,9 @@ export const set_path_layer_onclick = (deck_ist, layers_obj) => {
     })
 }
 
-export const toggle_path_layer_visibility = (visible) => {
-    path_layer = path_layer.clone({
+export const toggle_path_layer_visibility = (layers_obj, visible) => {
+    layers_obj.path_layer = layers_obj.path_layer.clone({
         visible: visible,
-    });
-}
-
-export const update_path_layer_id = (new_cat) => {
-    path_layer = path_layer.clone({
-        id: 'path-layer-' + new_cat,
     });
 }
 

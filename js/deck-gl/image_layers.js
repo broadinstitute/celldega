@@ -7,8 +7,6 @@ import { landscape_parameters } from '../global_variables/landscape_parameters'
 import { global_base_url } from '../global_variables/global_base_url'
 import { image_info, image_layer_colors } from '../global_variables/image_info'
 
-export let image_layers = []
-
 const make_image_layer = (info) => {
 
     const max_pyramid_zoom = landscape_parameters.max_pyramid_zoom

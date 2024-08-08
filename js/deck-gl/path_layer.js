@@ -9,7 +9,6 @@ import { toggle_image_layers_and_ctrls } from '../ui/ui_containers'
 import { update_selected_genes } from '../global_variables/selected_genes'
 import { update_trx_layer_filter } from './trx_layer'
 import { close_up } from '../global_variables/close_up'
-import { path } from 'd3'
 
 export const get_path_color = (i, d) => {
 
@@ -110,6 +109,7 @@ export const update_path_layer_id = (new_cat) => {
 }
 
 export const new_update_path_layer_id = (layers_obj, new_cat) => {
+    console.log('new_update_path_layer_id')
     layers_obj.path_layer = layers_obj.path_layer.clone({
         id: 'path-layer-' + new_cat,
     });

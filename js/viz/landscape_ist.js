@@ -13,7 +13,7 @@ import { background_layer, set_background_layer } from '../deck-gl/background_la
 import { ini_path_layer, set_path_layer_onclick } from '../deck-gl/path_layer'
 import { make_ist_ui_container } from '../ui/ui_containers'
 import { model, set_model } from '../global_variables/model'
-import { ini_trx_layer, set_trx_layer, set_trx_layer_onclick, update_trx_layer_radius } from '../deck-gl/trx_layer'
+import { ini_trx_layer, set_trx_layer_old, set_trx_layer_onclick, update_trx_layer_radius } from '../deck-gl/trx_layer'
 import { image_info, set_image_info, set_image_layer_colors } from '../global_variables/image_info'
 import { set_image_format } from '../global_variables/image_info'
 import { set_image_layer_sliders } from "../ui/sliders"
@@ -92,7 +92,7 @@ export const landscape_ist = async (
     set_path_layer_onclick(deck_ist, layers_obj)
     set_trx_layer_onclick(deck_ist, layers_obj)
 
-    await set_trx_layer(deck_ist)
+    await set_trx_layer_old(deck_ist)
     update_trx_layer_radius(trx_radius)
 
     const layers_list = get_layers_list(layers_obj, close_up)

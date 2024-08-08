@@ -50,7 +50,7 @@ const trx_slider_callback = async (deck_ist, layers_obj, viz_state) => {
 
     const scale_down_trx_radius = 100
 
-    update_trx_layer_radius(layers_obj, trx_slider.value/scale_down_trx_radius)
+    update_trx_layer_radius(layers_obj, viz_state.sliders.trx.value/scale_down_trx_radius)
 
     const layers_list = get_layers_list(layers_obj, viz_state.close_up)
     deck_ist.setProps({layers: layers_list})

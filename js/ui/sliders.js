@@ -31,24 +31,24 @@ const tile_slider_callback = async () => {
     deck_sst.setProps({layers: layers_sst})
 }
 
-const cell_slider_callback = async (deck_ist, layers_obj) => {
+const cell_slider_callback = async (deck_ist, layers_obj, viz_state) => {
 
     const scale_down_cell_radius = 5
 
     update_cell_layer_radius(layers_obj, cell_slider.value / scale_down_cell_radius)
 
-    const layers_list = get_layers_list(layers_obj, close_up)
+    const layers_list = get_layers_list(layers_obj, viz_state.close_up)
     deck_ist.setProps({layers: layers_list})
 
 }
 
-const trx_slider_callback = async (deck_ist, layers_obj) => {
+const trx_slider_callback = async (deck_ist, layers_obj, viz_state) => {
 
     const scale_down_trx_radius = 100
 
     update_trx_layer_radius(layers_obj, trx_slider.value/scale_down_trx_radius)
 
-    const layers_list = get_layers_list(layers_obj, close_up)
+    const layers_list = get_layers_list(layers_obj, viz_state.close_up)
     deck_ist.setProps({layers: layers_list})
 }
 
@@ -80,7 +80,7 @@ export const ini_slider_params = (slider, ini_value, callback) =>{
 
 }
 
-export const ini_slider = (slider_type, deck_ist, layers_obj) => {
+export const ini_slider = (slider_type, deck_ist, layers_obj, viz_state) => {
 
     let slider
     let ini_value
@@ -95,7 +95,7 @@ export const ini_slider = (slider_type, deck_ist, layers_obj) => {
         case 'cell':
             slider = cell_slider
             ini_value = trx_ini_raidus * 100
-            callback = () => cell_slider_callback(deck_ist, layers_obj)
+            callback = () => cell_slider_callback(deck_ist, layers_obj, viz_state)
             break
         case 'trx':
             slider = trx_slider

@@ -93,7 +93,6 @@ const trx_layer_callback = async (info, d, deck_ist, layers_obj) => {
 
 }
 
-
 export let trx_layer
 
 export const ini_trx_layer = () => {
@@ -116,23 +115,6 @@ export const ini_trx_layer = () => {
 export const set_trx_layer_onclick = (deck_ist, layers_obj) => {
     layers_obj.trx_layer = layers_obj.trx_layer.clone({
         onClick: (event, d) => trx_layer_callback(event, d, deck_ist, layers_obj)
-    })
-}
-
-export const set_trx_layer_old = (deck_ist) => {
-
-    trx_layer = new ScatterplotLayer({
-        id: 'trx-layer',
-        data: trx_data,
-        pickable: true,
-        getColor: (i, d) => {
-            const inst_gene = trx_names_array[d.index]
-            const inst_color = color_dict_gene[inst_gene]
-            const inst_opacity = selected_genes.length === 0 || selected_genes.includes(inst_gene) ? 255 : 5
-
-            return [...inst_color, inst_opacity]
-        },
-        onClick: (event, d) => trx_layer_callback(event, d, deck_ist)
     })
 }
 
@@ -167,12 +149,6 @@ export const toggle_trx_layer_visibility = (visible) => {
 export const update_trx_layer_radius = (radius) => {
     trx_layer = trx_layer.clone({
         getRadius: radius,
-    })
-}
-
-export const update_trx_layer_filter = () => {
-    trx_layer = trx_layer.clone({
-        id: 'trx-layer-' + selected_genes.join('-'),
     })
 }
 

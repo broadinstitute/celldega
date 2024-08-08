@@ -12,7 +12,7 @@ import { get_layers_list } from './layers_ist'
 import { new_update_path_layer_id } from './path_layer'
 import { toggle_image_layers_and_ctrls } from '../ui/ui_containers'
 import { update_selected_genes } from '../global_variables/selected_genes'
-import { update_trx_layer_filter } from './trx_layer'
+import { new_update_trx_layer_id } from './trx_layer'
 import { svg_bar_cluster, bar_container_cluster, svg_bar_gene } from '../ui/bar_plot'
 import { gene_search_input } from '../ui/gene_search_input'
 import { update_gene_text_box } from '../ui/gene_search'
@@ -89,8 +89,7 @@ const cell_layer_onclick = async (info, d, deck_ist, layers_obj) => {
 
     new_update_cell_layer_id(layers_obj, inst_cat_name)
     new_update_path_layer_id(layers_obj, inst_cat_name)
-
-    update_trx_layer_filter()
+    new_update_trx_layer_id(layers_obj)
 
     const layers_list = get_layers_list(layers_obj, close_up)
     deck_ist.setProps({layers: layers_list})

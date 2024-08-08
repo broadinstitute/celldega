@@ -7,7 +7,7 @@ import { new_update_cell_layer_id } from './cell_layer'
 import { get_layers_list } from './layers_ist'
 import { toggle_image_layers_and_ctrls } from '../ui/ui_containers'
 import { update_selected_genes } from '../global_variables/selected_genes'
-import { update_trx_layer_filter } from './trx_layer'
+import { new_update_trx_layer_id } from './trx_layer'
 import { close_up } from '../global_variables/close_up'
 
 export const get_path_color = (i, d) => {
@@ -56,8 +56,6 @@ export const ini_path_layer = () => {
 
 const path_layer_onclick = (info, d, deck_ist, layers_obj) => {
 
-    console.log('path_layer_onclick')
-
     const inst_cell_id = polygon_cell_names[info.index]
     const inst_cat = dict_cell_cats[inst_cell_id]
 
@@ -71,8 +69,7 @@ const path_layer_onclick = (info, d, deck_ist, layers_obj) => {
 
     new_update_cell_layer_id(layers_obj, inst_cat_name)
     new_update_path_layer_id(layers_obj, inst_cat_name)
-
-    update_trx_layer_filter()
+    new_update_trx_layer_id(layers_obj)
 
     const layers_list = get_layers_list(layers_obj, close_up)
     deck_ist.setProps({layers: layers_list})
@@ -109,7 +106,6 @@ export const update_path_layer_id = (new_cat) => {
 }
 
 export const new_update_path_layer_id = (layers_obj, new_cat) => {
-    console.log('new_update_path_layer_id')
     layers_obj.path_layer = layers_obj.path_layer.clone({
         id: 'path-layer-' + new_cat,
     });

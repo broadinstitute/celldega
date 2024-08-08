@@ -95,7 +95,7 @@ export const calc_viewport = async ({ height, width, zoom, target }, deck_ist, l
 
         update_bar_graph(svg_bar_cluster, new_bar_data_cell, color_dict_cluster, bar_callback_cluster, selected_cats, deck_ist, layers_obj)
 
-        bar_container_cluster.scrollTo({
+        viz_state.containers.bar_cluster.scrollTo({
             top: 0,
             behavior: 'smooth'
         })
@@ -116,7 +116,7 @@ export const calc_viewport = async ({ height, width, zoom, target }, deck_ist, l
                 behavior: 'smooth'
             })
 
-            bar_container_cluster.scrollTo({
+            viz_state.containers.bar_cluster.scrollTo({
                 top: 0,
                 behavior: 'smooth'
             })

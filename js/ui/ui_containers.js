@@ -185,10 +185,11 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
     cell_slider_container.appendChild(viz_state.sliders.cell)
     cell_ctrl_container.appendChild(cell_slider_container)
 
-    let bar_container_cluster = make_bar_container()
+    // let bar_container_cluster = make_bar_container()
+    viz_state.containers.bar_cluster = make_bar_container()
 
     make_bar_graph(
-        bar_container_cluster,
+        viz_state.containers.bar_cluster,
         bar_callback_cluster,
         svg_bar_cluster,
         cluster_counts,
@@ -198,10 +199,11 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
         viz_state
     )
 
-    let bar_container_gene = make_bar_container()
+    // let bar_container_gene = make_bar_container()
+    viz_state.containers.bar_gene = make_bar_container()
 
     make_bar_graph(
-        bar_container_gene,
+        viz_state.containers.bar_gene,
         bar_callback_gene,
         svg_bar_gene,
         gene_counts,
@@ -212,14 +214,14 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
     )
 
     cell_container.appendChild(cell_ctrl_container)
-    cell_container.appendChild(bar_container_cluster)
+    cell_container.appendChild(viz_state.containers.bar_cluster)
 
     ini_slider('trx', deck_ist, layers_obj, viz_state)
     trx_container.appendChild(trx_slider_container)
     trx_slider_container.appendChild(viz_state.sliders.trx)
 
     gene_container.appendChild(trx_container)
-    gene_container.appendChild(bar_container_gene)
+    gene_container.appendChild(viz_state.containers.bar_gene)
 
     set_gene_search('ist', deck_ist, layers_obj, viz_state)
 

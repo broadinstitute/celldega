@@ -4,14 +4,14 @@ import { trx_data, set_trx_data } from '../vector_tile/transcripts/trx_data'
 import { color_dict_gene } from '../global_variables/color_dict_gene'
 import { trx_names_array } from '../global_variables/trx_names_array'
 import { selected_genes, update_selected_genes } from '../global_variables/selected_genes'
-import { new_update_cell_layer_id } from './cell_layer'
+import { update_cell_layer_id } from './cell_layer'
 import { gene_search_input } from '../ui/gene_search_input'
 import { cat, update_cat, update_selected_cats } from '../global_variables/cat'
 import { update_cell_exp_array } from '../global_variables/cell_exp_array'
 import { global_base_url } from '../global_variables/global_base_url'
 import { toggle_image_layers_and_ctrls } from '../ui/ui_containers'
 import { get_layers_list } from './layers_ist'
-import { new_update_path_layer_id } from './path_layer'
+import { update_path_layer_id } from './path_layer'
 import { svg_bar_gene, svg_bar_cluster } from '../ui/bar_plot'
 import { bar_container_gene } from '../ui/bar_plot'
 import { update_gene_text_box } from '../ui/gene_search'
@@ -38,11 +38,11 @@ const trx_layer_callback = async (info, d, deck_ist, layers_obj) => {
 
     await update_cell_exp_array(global_base_url, inst_gene)
 
-    new_update_cell_layer_id(layers_obj, new_cat)
+    update_cell_layer_id(layers_obj, new_cat)
 
-    new_update_path_layer_id(layers_obj, new_cat)
+    update_path_layer_id(layers_obj, new_cat)
 
-    new_update_trx_layer_id(layers_obj)
+    update_trx_layer_id(layers_obj)
 
     const layers_list = get_layers_list(layers_obj, close_up)
     deck_ist.setProps({layers: layers_list})
@@ -137,7 +137,7 @@ export const update_trx_layer_radius = (layers_obj, radius) => {
     })
 }
 
-export const new_update_trx_layer_id = (layers_obj) => {
+export const update_trx_layer_id = (layers_obj) => {
     layers_obj.trx_layer = layers_obj.trx_layer.clone({
         id: 'trx-layer-' + selected_genes.join('-'),
     })

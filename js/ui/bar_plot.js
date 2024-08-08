@@ -2,9 +2,9 @@ import * as d3 from 'd3'
 import { cat, update_cat, selected_cats, update_selected_cats } from '../global_variables/cat'
 import { update_selected_genes } from '../global_variables/selected_genes'
 import { toggle_image_layers_and_ctrls } from './ui_containers'
-import { new_update_cell_layer_id } from '../deck-gl/cell_layer'
-import { new_update_path_layer_id } from '../deck-gl/path_layer'
-import { new_update_trx_layer_id } from '../deck-gl/trx_layer'
+import { update_cell_layer_id } from '../deck-gl/cell_layer'
+import { update_path_layer_id } from '../deck-gl/path_layer'
+import { update_trx_layer_id } from '../deck-gl/trx_layer'
 import { get_layers_list } from '../deck-gl/layers_ist'
 import { update_cell_exp_array } from '../global_variables/cell_exp_array'
 import { global_base_url } from '../global_variables/global_base_url'
@@ -52,9 +52,9 @@ export const bar_callback_cluster = (event, d, deck_ist, layers_obj) => {
     toggle_image_layers_and_ctrls(layers_obj, !selected_cats.length > 0)
 
     const inst_cat_name = selected_cats.join('-')
-    new_update_cell_layer_id(layers_obj, inst_cat_name)
-    new_update_path_layer_id(layers_obj, inst_cat_name)
-    new_update_trx_layer_id(layers_obj)
+    update_cell_layer_id(layers_obj, inst_cat_name)
+    update_path_layer_id(layers_obj, inst_cat_name)
+    update_trx_layer_id(layers_obj)
 
     const layers_list = get_layers_list(layers_obj, close_up)
     deck_ist.setProps({layers: layers_list})
@@ -101,9 +101,9 @@ export const bar_callback_gene = async (event, d, deck_ist, layers_obj) => {
     update_selected_cats([])
     await update_cell_exp_array(global_base_url, inst_gene)
 
-    new_update_cell_layer_id(layers_obj, new_cat)
-    new_update_path_layer_id(layers_obj, new_cat)
-    new_update_trx_layer_id(layers_obj)
+    update_cell_layer_id(layers_obj, new_cat)
+    update_path_layer_id(layers_obj, new_cat)
+    update_trx_layer_id(layers_obj)
 
     const layers_list = get_layers_list(layers_obj, close_up)
     deck_ist.setProps({layers: layers_list})

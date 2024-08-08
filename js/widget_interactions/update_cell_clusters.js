@@ -1,7 +1,7 @@
 import { model } from '../global_variables/model'
 import { update_meta_cluster } from '../global_variables/meta_cluster'
 import { update_cell_cats } from '../global_variables/cat'
-import { new_update_cell_layer_id, update_cell_combo_data } from '../deck-gl/cell_layer'
+import { update_cell_layer_id, update_cell_combo_data } from '../deck-gl/cell_layer'
 import { get_layers_list } from '../deck-gl/layers_ist'
 import { update_bar_graph } from '../ui/bar_plot'
 import { svg_bar_cluster, bar_callback_cluster } from '../ui/bar_plot'
@@ -15,7 +15,7 @@ export const update_cell_clusters = (deck_ist, layers_obj) => {
     update_meta_cluster(new_cluster_info['meta_cluster'])
     update_cell_cats(new_cluster_info['new_clusters'])
 
-    new_update_cell_layer_id(layers_obj, 'cluster')
+    update_cell_layer_id(layers_obj, 'cluster')
 
     const layers_list = get_layers_list(layers_obj, close_up)
     deck_ist.setProps({layers: layers_list})

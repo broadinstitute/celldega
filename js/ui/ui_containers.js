@@ -7,8 +7,8 @@ import { image_layer_sliders, make_img_layer_slider_callback, toggle_slider } fr
 import { debounce } from '../utils/debounce'
 import { toggle_visibility_image_layers } from '../deck-gl/image_layers'
 import { make_bar_graph } from './bar_plot'
-import { bar_container_cluster, bar_callback_cluster, svg_bar_cluster, make_bar_container } from './bar_plot'
-import { bar_container_gene, bar_callback_gene, svg_bar_gene } from './bar_plot'
+import { bar_callback_cluster, svg_bar_cluster, make_bar_container } from './bar_plot'
+import { bar_callback_gene, svg_bar_gene } from './bar_plot'
 import { cluster_counts } from '../global_variables/meta_cluster'
 import { color_dict_cluster } from '../global_variables/meta_cluster'
 import { color_dict_gene } from '../global_variables/color_dict_gene'
@@ -185,7 +185,6 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
     cell_slider_container.appendChild(viz_state.sliders.cell)
     cell_ctrl_container.appendChild(cell_slider_container)
 
-    // let bar_container_cluster = make_bar_container()
     viz_state.containers.bar_cluster = make_bar_container()
 
     make_bar_graph(
@@ -199,7 +198,6 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
         viz_state
     )
 
-    // let bar_container_gene = make_bar_container()
     viz_state.containers.bar_gene = make_bar_container()
 
     make_bar_graph(

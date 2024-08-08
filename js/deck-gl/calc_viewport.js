@@ -4,7 +4,7 @@ import { update_path_layer_data } from './path_layer.js'
 import { update_trx_layer_data } from './trx_layer.js'
 import { get_layers_list } from './layers_ist.js'
 import { landscape_parameters } from '../global_variables/landscape_parameters.js'
-import { svg_bar_gene, update_bar_graph, bar_container_gene, bar_container_cluster } from '../ui/bar_plot.js'
+import { svg_bar_gene, update_bar_graph } from '../ui/bar_plot.js'
 import { color_dict_gene } from '../global_variables/color_dict_gene.js'
 import { gene_counts } from '../global_variables/meta_gene.js'
 import { bar_callback_gene, svg_bar_cluster, bar_callback_cluster } from '../ui/bar_plot.js'
@@ -70,7 +70,7 @@ export const calc_viewport = async ({ height, width, zoom, target }, deck_ist, l
 
         update_bar_graph(svg_bar_gene, new_bar_data, color_dict_gene, bar_callback_gene, selected_genes, deck_ist, layers_obj)
 
-        bar_container_gene.scrollTo({
+        viz_state.containers.bar_gene.scrollTo({
             top: 0,
             behavior: 'smooth'
         })
@@ -111,7 +111,7 @@ export const calc_viewport = async ({ height, width, zoom, target }, deck_ist, l
             update_bar_graph(svg_bar_gene, gene_counts, color_dict_gene, bar_callback_gene, selected_genes, deck_ist, layers_obj)
             update_bar_graph(svg_bar_cluster, cluster_counts, color_dict_cluster, bar_callback_cluster, selected_cats, deck_ist, layers_obj)
 
-            bar_container_gene.scrollTo({
+            viz_state.containers.bar_gene.scrollTo({
                 top: 0,
                 behavior: 'smooth'
             })

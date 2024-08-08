@@ -13,7 +13,7 @@ import { update_path_layer_id } from './path_layer'
 import { toggle_image_layers_and_ctrls } from '../ui/ui_containers'
 import { update_selected_genes } from '../global_variables/selected_genes'
 import { update_trx_layer_id } from './trx_layer'
-import { svg_bar_cluster, bar_container_cluster, svg_bar_gene } from '../ui/bar_plot'
+import { svg_bar_cluster, svg_bar_gene } from '../ui/bar_plot'
 import { gene_search_input } from '../ui/gene_search_input'
 import { update_gene_text_box } from '../ui/gene_search'
 import { tooltip_cat_cell } from './make_tooltip'
@@ -63,16 +63,16 @@ const cell_layer_onclick = async (info, d, deck_ist, layers_obj, viz_state) => {
 
         if (!selectedBar.empty()) {
             const barPosition = selectedBar.node().getBoundingClientRect().top
-            const containerPosition = bar_container_cluster.getBoundingClientRect().top
-            const scrollPosition = barPosition - containerPosition + bar_container_cluster.scrollTop
+            const containerPosition = viz_state.containers.bar_cluster.getBoundingClientRect().top
+            const scrollPosition = barPosition - containerPosition + viz_state.containers.bar_cluster.scrollTop
 
-            bar_container_cluster.scrollTo({
+            viz_state.containers.bar_cluster.scrollTo({
                 top: scrollPosition,
                 behavior: 'smooth'
             })
         }
     } else {
-        bar_container_cluster.scrollTo({
+        viz_state.containers.bar_cluster.scrollTo({
             top: 0,
             behavior: 'smooth'
         })

@@ -7,7 +7,7 @@ import { set_initial_view_state } from '../deck-gl/initial_view_state'
 import { ini_cell_layer, set_cell_layer_onclick } from "../deck-gl/cell_layer"
 import { get_layers_list } from '../deck-gl/layers_ist'
 import { make_image_layers } from '../deck-gl/image_layers'
-import { update_views } from '../deck-gl/views'
+import { update_views, ini_viz_state } from '../deck-gl/views'
 import { ini_deck, set_deck_on_view_state_change } from '../deck-gl/deck_ist'
 import { ini_background_layer } from '../deck-gl/background_layer'
 import { ini_path_layer, set_path_layer_onclick } from '../deck-gl/path_layer'
@@ -67,6 +67,9 @@ export const landscape_ist = async (
     await set_cluster_metadata()
 
     update_views()
+    let viz_state = ini_viz_state()
+
+    console.log(viz_state)
 
     let deck_ist = await ini_deck(root)
 
@@ -85,7 +88,7 @@ export const landscape_ist = async (
         'trx_layer': trx_layer
     }
 
-    set_cell_layer_onclick(deck_ist, layers_obj)
+    set_cell_layer_onclick(deck_ist, layers_obj, viz_state)
     set_path_layer_onclick(deck_ist, layers_obj)
     set_trx_layer_onclick(deck_ist, layers_obj)
 
@@ -94,7 +97,7 @@ export const landscape_ist = async (
     const layers_list = get_layers_list(layers_obj, close_up)
     deck_ist.setProps({layers: layers_list})
 
-    set_deck_on_view_state_change(deck_ist, layers_obj)
+    set_deck_on_view_state_change(deck_ist, layers_obj, viz_state)
 
     // check if ini_model is not equal to {}
     if (Object.keys(ini_model).length > 0) {

@@ -22,7 +22,7 @@ import { close_up } from '../global_variables/close_up'
 export let cell_scatter_data
 export let cell_combo_data
 
-const cell_layer_onclick = async (info, d, deck_ist, layers_obj) => {
+const cell_layer_onclick = async (info, d, deck_ist, layers_obj, viz_state) => {
 
     // Check if the device is a touch device
     const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
@@ -83,7 +83,7 @@ const cell_layer_onclick = async (info, d, deck_ist, layers_obj) => {
     update_path_layer_id(layers_obj, inst_cat_name)
     update_trx_layer_id(layers_obj)
 
-    const layers_list = get_layers_list(layers_obj, close_up)
+    const layers_list = get_layers_list(layers_obj, viz_state.close_up)
     deck_ist.setProps({layers: layers_list})
 
     gene_search_input.value = ''
@@ -137,9 +137,9 @@ export const ini_cell_layer = async (base_url) => {
 
 }
 
-export const set_cell_layer_onclick = (deck_ist, layers_obj) => {
+export const set_cell_layer_onclick = (deck_ist, layers_obj, viz_state) => {
     layers_obj.cell_layer = layers_obj.cell_layer.clone({
-        onClick: (event, d) => cell_layer_onclick(event, d, deck_ist, layers_obj)
+        onClick: (event, d) => cell_layer_onclick(event, d, deck_ist, layers_obj, viz_state)
     })
 }
 

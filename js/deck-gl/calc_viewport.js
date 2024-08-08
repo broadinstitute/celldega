@@ -20,7 +20,7 @@ export let maxX
 export let minY
 export let maxY
 
-export const calc_viewport = async ({ height, width, zoom, target }, deck_ist, layers_obj) => {
+export const calc_viewport = async ({ height, width, zoom, target }, deck_ist, layers_obj, viz_state) => {
 
     const tile_size = landscape_parameters.tile_size
     const max_tiles_to_view = 50
@@ -50,6 +50,7 @@ export const calc_viewport = async ({ height, width, zoom, target }, deck_ist, l
         await update_path_layer_data(global_base_url, tiles_in_view, layers_obj)
 
         set_close_up(true)
+        viz_state.close_up = true
 
         // gene bar graph update
         const filtered_transcripts = trx_combo_data.filter(pos =>
@@ -105,7 +106,10 @@ export const calc_viewport = async ({ height, width, zoom, target }, deck_ist, l
     } else {
 
         if (close_up) {
+
             set_close_up(false)
+            viz_state.setProps({close_up: false})
+
             update_bar_graph(svg_bar_gene, gene_counts, color_dict_gene, bar_callback_gene, selected_genes, deck_ist, layers_obj)
             update_bar_graph(svg_bar_cluster, cluster_counts, color_dict_cluster, bar_callback_cluster, selected_cats, deck_ist, layers_obj)
 
@@ -122,7 +126,7 @@ export const calc_viewport = async ({ height, width, zoom, target }, deck_ist, l
         }
     }
 
-    const layers_list = get_layers_list(layers_obj, close_up)
+    const layers_list = get_layers_list(layers_obj, viz_state.close_up)
     deck_ist.setProps({layers: layers_list})
 
 }

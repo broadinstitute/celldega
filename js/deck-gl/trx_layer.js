@@ -93,11 +93,9 @@ const trx_layer_callback = async (info, d, deck_ist, layers_obj) => {
 
 }
 
-export let trx_layer
-
 export const ini_trx_layer = () => {
 
-    trx_layer = new ScatterplotLayer({
+    let trx_layer = new ScatterplotLayer({
         id: 'trx-layer',
         data: trx_data,
         pickable: true,

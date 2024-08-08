@@ -1,9 +1,9 @@
-import { TileLayer } from 'deck.gl' 
+import { TileLayer } from 'deck.gl'
 import { create_get_tile_data } from './create_get_tile_data'
 import { create_render_tile_sublayers } from './create_render_tile_sublayer'
 import { dimensions } from '../global_variables/image_dimensions'
 import { options } from '../global_variables/fetch_options'
-import { landscape_parameters } from '../global_variables/landscape_parameters' 
+import { landscape_parameters } from '../global_variables/landscape_parameters'
 import { global_base_url } from '../global_variables/global_base_url'
 import { image_info, image_layer_colors } from '../global_variables/image_info'
 
@@ -25,7 +25,7 @@ const make_image_layer = (info) => {
         extent: [0, 0, dimensions.width, dimensions.height],
         getTileData: create_get_tile_data(global_base_url, info.name, max_pyramid_zoom, options),
         renderSubLayers: create_render_tile_sublayers(info.color, opacity)
-    }); 
+    });
     return image_layer
 }
 
@@ -34,18 +34,18 @@ export const make_image_layers = async () => {
 }
 
 export const toggle_visibility_image_layers = (visible) => {
-    image_layers = image_layers.map(layer => 
+    image_layers = image_layers.map(layer =>
         layer.clone({
             visible: visible
         })
     )
 }
 
-export const toggle_visibility_single_image_layer = (name, visible) => {
+export const toggle_visibility_single_image_layer = (layers_obj, name, visible) => {
 
-    image_layers = image_layers.map(layer => 
-        layer.id.startsWith(name) ? 
-        layer.clone({ visible: visible }) : 
+    layers_obj.image_layers = layers_obj.image_layers.map(layer =>
+        layer.id.startsWith(name) ?
+        layer.clone({ visible: visible }) :
         layer
     )
 
@@ -55,12 +55,12 @@ export const update_opacity_single_image_layer = (name, opacity) => {
 
     let color = image_layer_colors[name]
 
-    image_layers = image_layers.map(layer => 
-        layer.id.startsWith(name) ? 
+    image_layers = image_layers.map(layer =>
+        layer.id.startsWith(name) ?
         layer.clone({
             renderSubLayers: create_render_tile_sublayers(color, opacity),
             id: name + '-' + opacity
-        }) : 
+        }) :
         layer
     )
 

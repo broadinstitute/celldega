@@ -53,7 +53,7 @@ export const make_button = (container, technology, text, color='blue', width=40,
     } else if (text === 'CELL'){
         callback = () => cell_button_callback(event, deck_ist, layers_obj)
     } else {
-        callback = make_ist_img_layer_button_callback(text, deck_ist)
+        callback = make_ist_img_layer_button_callback(text, deck_ist, layers_obj)
     }
 
     d3.select(container)
@@ -75,14 +75,15 @@ export const make_button = (container, technology, text, color='blue', width=40,
 }
 
 
-const make_ist_img_layer_button_callback = (text, deck_ist) => {
+const make_ist_img_layer_button_callback = (text, deck_ist, layers_obj) => {
+
     return async (event) => {
 
         if (img_layer_visible){
 
             toggle_visible_button(event)
 
-            toggle_visibility_single_image_layer(text, is_visible)
+            toggle_visibility_single_image_layer(layers_obj, text, is_visible)
 
             let inst_slider = image_layer_sliders.filter(slider => slider.name === text)[0]
 
@@ -92,6 +93,9 @@ const make_ist_img_layer_button_callback = (text, deck_ist) => {
             // deck_ist.setProps({
             //     layers: layers_ist
             // })
+
+            const layers_list = get_layers_list(layers_obj, close_up)
+            deck_ist.setProps({layers: layers_list})
 
         }
 

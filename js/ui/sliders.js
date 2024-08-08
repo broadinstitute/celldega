@@ -1,7 +1,7 @@
 import { simple_image_layer } from "../deck-gl/simple_image_layer"
 import { square_scatter_layer, square_scatter_layer_opacity } from "../deck-gl/square_scatter_layer"
 import { layers_sst, update_layers_sst } from "../deck-gl/layers_sst"
-import { trx_layer, update_trx_layer_radius } from "../deck-gl/trx_layer"
+import { update_trx_layer_radius } from "../deck-gl/trx_layer"
 import { image_layers, update_opacity_single_image_layer } from "../deck-gl/image_layers"
 import { path_layer } from "../deck-gl/path_layer"
 import { cell_layer, update_cell_layer_radius } from "../deck-gl/cell_layer"
@@ -52,25 +52,6 @@ const trx_slider_callback = async (deck_ist, layers_obj) => {
 
     update_trx_layer_radius(layers_obj, trx_slider.value/scale_down_trx_radius)
 
-    // if (close_up){
-    //     new_layers = [
-    //         background_layer,
-    //         ...image_layers,
-    //         path_layer,
-    //         cell_layer,
-    //         trx_layer
-    //     ]
-    // } else {
-    //     new_layers = [
-    //         background_layer,
-    //         ...image_layers,
-    //         cell_layer,
-    //     ]
-    // }
-
-    // turning off update for now
-    // deck_ist.setProps({layers: new_layers})
-
     const layers_list = get_layers_list(layers_obj, close_up)
     deck_ist.setProps({layers: layers_list})
 }
@@ -80,28 +61,11 @@ export const make_img_layer_slider_callback = (name, deck_ist) => {
 
         let inst_slider = image_layer_sliders.filter(slider => slider.name === name)[0]
 
-
         // Get the slider value from the event
         const opacity = inst_slider.value/10
 
         // Use the slider value to update the opacity
         update_opacity_single_image_layer(name, opacity);
-
-        if (close_up){
-            new_layers = [
-                background_layer,
-                ...image_layers,
-                path_layer,
-                cell_layer,
-                trx_layer
-            ]
-        } else {
-            new_layers = [
-                background_layer,
-                ...image_layers,
-                cell_layer,
-            ]
-        }
 
         // turning off update for now
         // deck_ist.setProps({layers: new_layers});

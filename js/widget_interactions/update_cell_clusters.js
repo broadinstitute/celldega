@@ -7,7 +7,7 @@ import { update_bar_graph } from '../ui/bar_plot'
 import { svg_bar_cluster, bar_callback_cluster } from '../ui/bar_plot'
 import { color_dict_cluster, cluster_counts } from '../global_variables/meta_cluster'
 
-export const update_cell_clusters = (deck_ist) => {
+export const update_cell_clusters = (deck_ist, layers_obj) => {
 
     const new_cluster_info = model.get('cell_clusters')
 
@@ -30,7 +30,8 @@ export const update_cell_clusters = (deck_ist) => {
         color_dict_cluster,
         bar_callback_cluster,
         [],
-        deck_ist
+        deck_ist,
+        layers_obj
     )
 
 }

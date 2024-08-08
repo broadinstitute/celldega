@@ -22,6 +22,7 @@ import { set_cluster_metadata } from '../global_variables/meta_cluster'
 import { update_ist_landscape_from_cgm } from '../widget_interactions/update_ist_landscape_from_cgm'
 import { update_cell_clusters } from '../widget_interactions/update_cell_clusters'
 import { close_up } from '../global_variables/close_up'
+import { layers_sst } from '../deck-gl/layers_sst'
 
 export const landscape_ist = async (
     el,
@@ -102,11 +103,11 @@ export const landscape_ist = async (
 
     // check if ini_model is not equal to {}
     if (Object.keys(ini_model).length > 0) {
-        model.on('change:update_trigger', () => update_ist_landscape_from_cgm(deck_ist))
-        model.on('change:cell_clusters', () => update_cell_clusters(deck_ist))
+        model.on('change:update_trigger', () => update_ist_landscape_from_cgm(deck_ist, layers_obj))
+        model.on('change:cell_clusters', () => update_cell_clusters(deck_ist, layers_obj))
     }
 
-    const ui_container = make_ist_ui_container(dataset_name, deck_ist)
+    const ui_container = make_ist_ui_container(dataset_name, deck_ist, layers_obj)
 
     // UI and Viz Container
     el.appendChild(ui_container)

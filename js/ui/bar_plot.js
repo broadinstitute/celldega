@@ -2,14 +2,15 @@ import * as d3 from 'd3'
 import { cat, update_cat, selected_cats, update_selected_cats } from '../global_variables/cat'
 import { update_selected_genes } from '../global_variables/selected_genes'
 import { toggle_image_layers_and_ctrls } from './ui_containers'
-import { update_cell_layer_id } from '../deck-gl/cell_layer'
-import { update_path_layer_id } from '../deck-gl/path_layer'
-import { update_trx_layer_filter } from '../deck-gl/trx_layer'
-import { layers_ist, update_layers_ist } from '../deck-gl/layers_ist'
+import { new_update_cell_layer_id } from '../deck-gl/cell_layer'
+import { new_update_path_layer_id } from '../deck-gl/path_layer'
+import { new_update_trx_layer_id } from '../deck-gl/trx_layer'
+import { layers_ist, update_layers_ist, get_layers_list } from '../deck-gl/layers_ist'
 import { update_cell_exp_array } from '../global_variables/cell_exp_array'
 import { global_base_url } from '../global_variables/global_base_url'
 import { gene_search_input } from './gene_search_input'
 import { update_gene_text_box } from './gene_search'
+import { close_up } from '../global_variables/close_up'
 
 export let bar_container_cluster = document.createElement("div")
 export let bar_container_gene = document.createElement("div")
@@ -17,7 +18,8 @@ export let bar_container_gene = document.createElement("div")
 export let svg_bar_cluster = d3.create("svg")
 export let svg_bar_gene = d3.create("svg")
 
-export const bar_callback_cluster = (event, d, deck_ist) => {
+
+export const bar_callback_cluster = (event, d, deck_ist, layers_obj) => {
 
     // reset gene
     svg_bar_gene
@@ -48,20 +50,25 @@ export const bar_callback_cluster = (event, d, deck_ist) => {
     update_selected_cats([d.name])
     update_selected_genes([])
     toggle_image_layers_and_ctrls(!selected_cats.length > 0)
+
     const inst_cat_name = selected_cats.join('-')
-    update_cell_layer_id(inst_cat_name)
-    update_path_layer_id(inst_cat_name)
-    update_trx_layer_filter()
-    update_layers_ist()
+    new_update_cell_layer_id(layers_obj, inst_cat_name)
+    new_update_path_layer_id(layers_obj, inst_cat_name)
+    new_update_trx_layer_id(layers_obj)
+
+    // update_layers_ist()
 
     // turning off update for now
     // deck_ist.setProps({layers: layers_ist})
+
+    const layers_list = get_layers_list(layers_obj, close_up)
+    deck_ist.setProps({layers: layers_list})
 
     gene_search_input.value = ''
     update_gene_text_box('')
 }
 
-export const bar_callback_gene = async (event, d, deck_ist) => {
+export const bar_callback_gene = async (event, d, deck_ist, layers_obj) => {
 
     // reset cluster bar plot
     svg_bar_cluster
@@ -98,19 +105,28 @@ export const bar_callback_gene = async (event, d, deck_ist) => {
     update_selected_genes([inst_gene])
     update_selected_cats([])
     await update_cell_exp_array(global_base_url, inst_gene)
-    update_cell_layer_id(new_cat)
-    update_path_layer_id(new_cat)
-    update_trx_layer_filter()
-    update_layers_ist()
+
+    // update_cell_layer_id(new_cat)
+    // update_path_layer_id(new_cat)
+    // update_trx_layer_filter()
+
+    new_update_cell_layer_id(layers_obj, new_cat)
+    new_update_path_layer_id(layers_obj, new_cat)
+    new_update_trx_layer_id(layers_obj)
+
+    // update_layers_ist()
 
     // turning off update for now
     // deck_ist.setProps({layers: layers_ist})
+
+    const layers_list = get_layers_list(layers_obj, close_up)
+    deck_ist.setProps({layers: layers_list})
 
     gene_search_input.value = gene_search_input.value !== inst_gene ? inst_gene : ''
     update_gene_text_box(reset_gene ? '' : inst_gene)
 }
 
-export const make_bar_graph = (bar_container, click_callback, svg_bar, bar_data, color_dict, deck_ist) => {
+export const make_bar_graph = (bar_container, click_callback, svg_bar, bar_data, color_dict, deck_ist, layers_obj) => {
 
     bar_container.className = "bar_container"
     bar_container.style.width = "107px"
@@ -157,7 +173,7 @@ export const make_bar_graph = (bar_container, click_callback, svg_bar, bar_data,
         .data(bar_data)
         .join("g")
         .attr("transform", (d, i) => `translate(2,${y_new(i) + 2})`)
-        .on('click', (event, d) => click_callback(event, d, deck_ist))
+        .on('click', (event, d) => click_callback(event, d, deck_ist, layers_obj))
 
     bar.append("rect")
         .attr("fill", (d) => {
@@ -177,7 +193,7 @@ export const make_bar_graph = (bar_container, click_callback, svg_bar, bar_data,
         .text(d => d.name)
 }
 
-export const update_bar_graph = (svg_bar, bar_data, color_dict, click_callback, selected_array, deck_ist) => {
+export const update_bar_graph = (svg_bar, bar_data, color_dict, click_callback, selected_array, deck_ist, layers_obj) => {
 
     const bar_height = 15;
     const svg_height = bar_height * (bar_data.length + 1);
@@ -201,7 +217,7 @@ export const update_bar_graph = (svg_bar, bar_data, color_dict, click_callback, 
     // Enter new bars
     const bars_enter = bars.enter().append("g")
         .attr("transform", (d, i) => `translate(2,${y_new(i) + 2})`)
-        .on('click', (event, d) => click_callback(event, d, deck_ist))
+        .on('click', (event, d) => click_callback(event, d, deck_ist, layers_obj))
 
     bars_enter.append("rect")
         .attr("width", 0) // Initial width set to 0 for transition effect

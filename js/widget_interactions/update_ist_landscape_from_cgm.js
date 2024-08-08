@@ -14,7 +14,7 @@ import { layers_ist, update_layers_ist } from '../deck-gl/layers_ist'
 import { model } from '../global_variables/model.js'
 import { update_gene_text_box } from '../ui/gene_search.js'
 
-export const update_ist_landscape_from_cgm = async (deck_ist) => {
+export const update_ist_landscape_from_cgm = async (deck_ist, layers_obj) => {
 
     const click_info = model.get('update_trigger')
 

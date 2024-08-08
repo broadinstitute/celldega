@@ -16,13 +16,15 @@ import { gene_counts } from '../global_variables/meta_gene'
 
 export let image_container
 
-export const toggle_image_layers_and_ctrls = (is_visible) => {
+export const toggle_image_layers_and_ctrls = (layers_obj, is_visible) => {
+
+    console.log('toggle_image_layers_and_ctrls')
     d3.select(image_container)
         .selectAll('.img_layer_button')
         .style('color', is_visible ? 'blue' : 'gray');
 
     image_layer_sliders.map(slider => toggle_slider(slider, is_visible))
-    toggle_visibility_image_layers(is_visible)
+    toggle_visibility_image_layers(layers_obj, is_visible)
 }
 
 export const make_ui_container = () => {

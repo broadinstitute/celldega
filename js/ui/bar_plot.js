@@ -49,7 +49,7 @@ export const bar_callback_cluster = (event, d, deck_ist, layers_obj) => {
     update_cat('cluster')
     update_selected_cats([d.name])
     update_selected_genes([])
-    toggle_image_layers_and_ctrls(!selected_cats.length > 0)
+    toggle_image_layers_and_ctrls(layers_obj, !selected_cats.length > 0)
 
     const inst_cat_name = selected_cats.join('-')
     new_update_cell_layer_id(layers_obj, inst_cat_name)
@@ -94,7 +94,7 @@ export const bar_callback_gene = async (event, d, deck_ist, layers_obj) => {
     const reset_gene = inst_gene === cat;
     const new_cat = reset_gene ? 'cluster' : inst_gene
 
-    toggle_image_layers_and_ctrls(cat === inst_gene)
+    toggle_image_layers_and_ctrls(layers_obj, cat === inst_gene)
 
     update_cat(new_cat)
     update_selected_genes([inst_gene])

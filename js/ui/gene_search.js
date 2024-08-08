@@ -58,7 +58,7 @@ const ist_gene_search_callback = async (deck_ist, layers_obj) => {
             await update_cell_exp_array(global_base_url, inst_gene)
         }
 
-        toggle_image_layers_and_ctrls(!inst_gene_in_gene_names)
+        toggle_image_layers_and_ctrls(layers_obj, !inst_gene_in_gene_names)
 
         new_update_cell_layer_id(layers_obj, new_cat)
         new_update_path_layer_id(layers_obj, new_cat)

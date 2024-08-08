@@ -44,7 +44,7 @@ export const make_button = (container, technology, text, color='blue', width=40,
         if (technology === 'sst'){
             callback = sst_img_button_callback
         } else {
-            callback = () => ist_img_button_callback(event, deck_ist)
+            callback = () => ist_img_button_callback(event, deck_ist, layers_obj)
         }
     } else if (text === 'TILE') {
         callback = () => tile_button_callback(event, deck_ist)
@@ -114,24 +114,22 @@ const sst_img_button_callback = async (event) => {
 
 }
 
-const ist_img_button_callback = async (event, deck_ist) => {
+const ist_img_button_callback = async (event, deck_ist, layers_obj) => {
 
     toggle_visible_button(event)
-    toggle_visibility_image_layers(is_visible)
+    toggle_visibility_image_layers(layers_obj, is_visible)
     toggle_background_layer_visibility(is_visible)
 
     d3.select(image_container)
         .selectAll('.img_layer_button')
         .style('color', is_visible ? 'blue' : 'gray');
 
-    // turning off update for now
-    // deck_ist.setProps({
-    //     layers: layers_ist
-    // })
-
     set_img_layer_visible(is_visible)
 
     image_layer_sliders.map(slider => toggle_slider(slider, is_visible))
+
+    const layers_list = get_layers_list(layers_obj, close_up)
+    deck_ist.setProps({layers: layers_list})
 
 }
 

@@ -33,8 +33,8 @@ export const make_image_layers = async () => {
     image_layers = image_info.map(make_image_layer);
 }
 
-export const toggle_visibility_image_layers = (visible) => {
-    image_layers = image_layers.map(layer =>
+export const toggle_visibility_image_layers = (layers_obj, visible) => {
+    layers_obj.image_layers = layers_obj.image_layers.map(layer =>
         layer.clone({
             visible: visible
         })

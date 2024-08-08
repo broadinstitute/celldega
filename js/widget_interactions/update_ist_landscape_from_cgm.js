@@ -28,7 +28,7 @@ export const update_ist_landscape_from_cgm = async (deck_ist, layers_obj) => {
 
         const new_cat = inst_gene === cat ? 'cluster' : inst_gene
 
-        toggle_image_layers_and_ctrls(cat === inst_gene)
+        toggle_image_layers_and_ctrls(layers_obj, cat === inst_gene)
 
         update_cat(new_cat)
         update_selected_genes([inst_gene])
@@ -80,7 +80,7 @@ export const update_ist_landscape_from_cgm = async (deck_ist, layers_obj) => {
         update_cat('cluster')
         update_selected_cats([new_cat])
         update_selected_genes([])
-        toggle_image_layers_and_ctrls(!selected_cats.length > 0)
+        toggle_image_layers_and_ctrls(layers_obj, !selected_cats.length > 0)
 
         const inst_cat_name = selected_cats.join('-')
 
@@ -126,7 +126,7 @@ export const update_ist_landscape_from_cgm = async (deck_ist, layers_obj) => {
         update_cat('cluster')
         update_selected_cats(new_cats)
         update_selected_genes([])
-        toggle_image_layers_and_ctrls(!selected_cats.length > 0)
+        toggle_image_layers_and_ctrls(layers_obj, !selected_cats.length > 0)
 
         const inst_cat_name = selected_cats.join('-')
 

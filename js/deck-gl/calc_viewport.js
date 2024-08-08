@@ -4,7 +4,6 @@ import { update_path_layer_data } from './path_layer.js'
 import { update_trx_layer_data } from './trx_layer.js'
 import { get_layers_list } from './layers_ist.js'
 import { landscape_parameters } from '../global_variables/landscape_parameters.js'
-import { close_up, set_close_up } from '../global_variables/close_up.js'
 import { svg_bar_gene, update_bar_graph, bar_container_gene, bar_container_cluster } from '../ui/bar_plot.js'
 import { color_dict_gene } from '../global_variables/color_dict_gene.js'
 import { gene_counts } from '../global_variables/meta_gene.js'
@@ -49,7 +48,6 @@ export const calc_viewport = async ({ height, width, zoom, target }, deck_ist, l
 
         await update_path_layer_data(global_base_url, tiles_in_view, layers_obj)
 
-        set_close_up(true)
         viz_state.close_up = true
 
         // gene bar graph update
@@ -105,10 +103,10 @@ export const calc_viewport = async ({ height, width, zoom, target }, deck_ist, l
 
     } else {
 
-        if (close_up) {
+        if (viz_state.close_up) {
 
-            set_close_up(false)
-            viz_state.setProps({close_up: false})
+            // set_close_up(false)
+            viz_state.close_up = false
 
             update_bar_graph(svg_bar_gene, gene_counts, color_dict_gene, bar_callback_gene, selected_genes, deck_ist, layers_obj)
             update_bar_graph(svg_bar_cluster, cluster_counts, color_dict_cluster, bar_callback_cluster, selected_cats, deck_ist, layers_obj)

@@ -15,9 +15,8 @@ import { update_path_layer_id } from './path_layer'
 import { svg_bar_gene, svg_bar_cluster } from '../ui/bar_plot'
 import { bar_container_gene } from '../ui/bar_plot'
 import { update_gene_text_box } from '../ui/gene_search'
-import { close_up } from '../global_variables/close_up'
 
-const trx_layer_callback = async (info, d, deck_ist, layers_obj) => {
+const trx_layer_callback = async (info, d, deck_ist, layers_obj, viz_state) => {
 
     const inst_gene = trx_names_array[info.index]
 
@@ -44,7 +43,7 @@ const trx_layer_callback = async (info, d, deck_ist, layers_obj) => {
 
     update_trx_layer_id(layers_obj)
 
-    const layers_list = get_layers_list(layers_obj, close_up)
+    const layers_list = get_layers_list(layers_obj, viz_state.close_up)
     deck_ist.setProps({layers: layers_list})
 
     svg_bar_gene.selectAll("g")
@@ -111,9 +110,9 @@ export const ini_trx_layer = () => {
     return trx_layer
 }
 
-export const set_trx_layer_onclick = (deck_ist, layers_obj) => {
+export const set_trx_layer_onclick = (deck_ist, layers_obj, viz_state) => {
     layers_obj.trx_layer = layers_obj.trx_layer.clone({
-        onClick: (event, d) => trx_layer_callback(event, d, deck_ist, layers_obj)
+        onClick: (event, d) => trx_layer_callback(event, d, deck_ist, layers_obj, viz_state)
     })
 }
 

@@ -90,11 +90,11 @@ export const landscape_ist = async (
 
     set_cell_layer_onclick(deck_ist, layers_obj, viz_state)
     set_path_layer_onclick(deck_ist, layers_obj, viz_state)
-    set_trx_layer_onclick(deck_ist, layers_obj)
+    set_trx_layer_onclick(deck_ist, layers_obj, viz_state)
 
     update_trx_layer_radius(layers_obj, trx_radius)
 
-    const layers_list = get_layers_list(layers_obj, close_up)
+    const layers_list = get_layers_list(layers_obj, viz_state.close_up)
     deck_ist.setProps({layers: layers_list})
 
     set_deck_on_view_state_change(deck_ist, layers_obj, viz_state)

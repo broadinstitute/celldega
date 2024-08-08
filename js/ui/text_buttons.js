@@ -139,11 +139,6 @@ const trx_button_callback_ist = async (event, deck_ist, layers_obj) => {
 
     toggle_trx_layer_visibility(layers_obj, is_visible)
 
-    // turning off update for now
-    // deck_ist.setProps({
-    //     layers: layers_ist
-    // })
-
     const layers_list = get_layers_list(layers_obj, close_up)
     deck_ist.setProps({layers: layers_list})
 

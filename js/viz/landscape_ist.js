@@ -93,7 +93,7 @@ export const landscape_ist = async (
     set_path_layer_onclick(deck_ist, layers_obj)
     set_trx_layer_onclick(deck_ist, layers_obj)
 
-    update_trx_layer_radius(trx_radius)
+    update_trx_layer_radius(layers_obj, trx_radius)
 
     const layers_list = get_layers_list(layers_obj, close_up)
     deck_ist.setProps({layers: layers_list})

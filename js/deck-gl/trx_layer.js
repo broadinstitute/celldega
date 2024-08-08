@@ -133,8 +133,8 @@ export const toggle_trx_layer_visibility = (layers_obj, visible) => {
     })
 }
 
-export const update_trx_layer_radius = (radius) => {
-    trx_layer = trx_layer.clone({
+export const update_trx_layer_radius = (layers_obj, radius) => {
+    layers_obj.trx_layer = layers_obj.trx_layer.clone({
         getRadius: radius,
     })
 }

@@ -46,30 +46,33 @@ const cell_slider_callback = async (deck_ist, layers_obj) => {
 
 }
 
-const trx_slider_callback = async (deck_ist) => {
+const trx_slider_callback = async (deck_ist, layers_obj) => {
 
     const scale_down_trx_radius = 100
 
-    update_trx_layer_radius(trx_slider.value/scale_down_trx_radius)
+    update_trx_layer_radius(layers_obj, trx_slider.value/scale_down_trx_radius)
 
-    if (close_up){
-        new_layers = [
-            background_layer,
-            ...image_layers,
-            path_layer,
-            cell_layer,
-            trx_layer
-        ]
-    } else {
-        new_layers = [
-            background_layer,
-            ...image_layers,
-            cell_layer,
-        ]
-    }
+    // if (close_up){
+    //     new_layers = [
+    //         background_layer,
+    //         ...image_layers,
+    //         path_layer,
+    //         cell_layer,
+    //         trx_layer
+    //     ]
+    // } else {
+    //     new_layers = [
+    //         background_layer,
+    //         ...image_layers,
+    //         cell_layer,
+    //     ]
+    // }
 
     // turning off update for now
     // deck_ist.setProps({layers: new_layers})
+
+    const layers_list = get_layers_list(layers_obj, close_up)
+    deck_ist.setProps({layers: layers_list})
 }
 
 export const make_img_layer_slider_callback = (name, deck_ist) => {
@@ -137,7 +140,7 @@ export const ini_slider = (slider_type, deck_ist, layers_obj) => {
         case 'trx':
             slider = trx_slider
             ini_value = trx_ini_raidus * 100
-            callback = () => trx_slider_callback(deck_ist)
+            callback = () => trx_slider_callback(deck_ist, layers_obj)
             break
 
         default:

@@ -22,14 +22,6 @@ import { close_up } from '../global_variables/close_up'
 export let cell_scatter_data
 export let cell_combo_data
 
-export let cell_layer = new ScatterplotLayer({
-    id: 'cell-layer',
-    radiusMinPixels: 1,
-    getRadius: 5.0,
-    pickable: true,
-    getColor: get_cell_color,
-})
-
 const cell_layer_onclick = async (info, d, deck_ist, layers_obj) => {
 
     // Check if the device is a touch device
@@ -132,9 +124,12 @@ export const ini_cell_layer = async (base_url) => {
         y: flatCoordinateArray[index * 2 + 1]
     }))
 
-    cell_layer = new ScatterplotLayer({
-        // Re-use existing layer props
-        ...cell_layer.props,
+    let cell_layer = new ScatterplotLayer({
+        id: 'cell-layer',
+        radiusMinPixels: 1,
+        getRadius: 5.0,
+        pickable: true,
+        getColor: get_cell_color,
         data: cell_scatter_data,
     })
 

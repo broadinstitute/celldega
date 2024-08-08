@@ -80,8 +80,8 @@ export const landscape_ist = async (
     let layers_obj = {
         'background_layer': background_layer,
         'image_layers': image_layers,
-        'path_layer': path_layer,
         'cell_layer': cell_layer,
+        'path_layer': path_layer,
         'trx_layer': trx_layer
     }
 

@@ -46,7 +46,7 @@ export const landscape_sst = async (
 
     await set_meta_gene(base_url)
 
-    await set_gene_search('sst')
+    await set_gene_search('sst', deck_sst, layers_obj)
 
     // move this to landscape_parameters
     // const imgage_name_for_dim = 'dapi'

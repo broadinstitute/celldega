@@ -212,7 +212,7 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj) => {
     gene_container.appendChild(trx_container)
     gene_container.appendChild(bar_container_gene)
 
-    set_gene_search('ist', deck_ist)
+    set_gene_search('ist', deck_ist, layers_obj)
 
     gene_search.style.marginLeft = '0px'
 

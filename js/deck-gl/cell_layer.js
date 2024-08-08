@@ -20,7 +20,6 @@ import { tooltip_cat_cell } from './make_tooltip'
 import { close_up } from '../global_variables/close_up'
 
 export let cell_scatter_data
-
 export let cell_combo_data
 
 export let cell_layer = new ScatterplotLayer({
@@ -162,6 +161,12 @@ export const update_cell_combo_data = () => {
 
 export const toggle_cell_layer_visibility = (visible) => {
     cell_layer = cell_layer.clone({
+        visible: visible,
+    });
+}
+
+export const new_toggle_cell_layer_visibility = (layers_obj, visible) => {
+    layers_obj.cell_layer = layers_obj.cell_layer.clone({
         visible: visible,
     });
 }

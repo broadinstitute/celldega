@@ -6,11 +6,12 @@ import { toggle_visibility_image_layers, toggle_visibility_single_image_layer } 
 import { deck_sst } from '../deck-gl/deck_sst'
 import { toggle_background_layer_visibility } from '../deck-gl/background_layer'
 import { toggle_path_layer_visibility } from '../deck-gl/path_layer'
-import { toggle_cell_layer_visibility } from '../deck-gl/cell_layer'
+import { new_toggle_cell_layer_visibility } from '../deck-gl/cell_layer'
 import { toggle_trx_layer_visibility } from '../deck-gl/trx_layer'
-import { layers_ist, update_layers_ist } from '../deck-gl/layers_ist'
+import { get_layers_list } from '../deck-gl/layers_ist'
 import { tile_slider, cell_slider, trx_slider, toggle_slider, image_layer_sliders } from './sliders'
 import { image_container } from './ui_containers'
+import { close_up } from '../global_variables/close_up'
 
 let is_visible
 
@@ -35,7 +36,7 @@ const toggle_visible_button = (event) => {
 }
 
 
-export const make_button = (container, technology, text, color='blue', width=40, button_class='button', deck_ist) => {
+export const make_button = (container, technology, text, color='blue', width=40, button_class='button', deck_ist, layers_obj) => {
 
     let callback
 
@@ -50,7 +51,7 @@ export const make_button = (container, technology, text, color='blue', width=40,
     } else if (text === 'TRX'){
         callback = () => trx_button_callback_ist(event, deck_ist)
     } else if (text === 'CELL'){
-        callback = () => cell_button_callback(event, deck_ist)
+        callback = () => cell_button_callback(event, deck_ist, layers_obj)
     } else {
         callback = make_ist_img_layer_button_callback(text, deck_ist)
     }
@@ -87,8 +88,7 @@ const make_ist_img_layer_button_callback = (text, deck_ist) => {
 
             toggle_slider(inst_slider, is_visible)
 
-            update_layers_ist()
-
+            // update_layers_ist()
             // turning off update for now
             // deck_ist.setProps({
             //     layers: layers_ist
@@ -121,8 +121,7 @@ const ist_img_button_callback = async (event, deck_ist) => {
         .selectAll('.img_layer_button')
         .style('color', is_visible ? 'blue' : 'gray');
 
-    update_layers_ist()
-
+    // update_layers_ist()
     // turning off update for now
     // deck_ist.setProps({
     //     layers: layers_ist
@@ -142,8 +141,7 @@ const trx_button_callback_ist = async (event, deck_ist) => {
 
     toggle_trx_layer_visibility(is_visible)
 
-    update_layers_ist()
-
+    // update_layers_ist()
     // turning off update for now
     // deck_ist.setProps({
     //     layers: layers_ist
@@ -165,19 +163,22 @@ const tile_button_callback = async (event) => {
 
 }
 
-const cell_button_callback = async (event, deck_ist) => {
+const cell_button_callback = async (event, deck_ist, layers_obj) => {
+
 
     toggle_visible_button(event)
 
     toggle_slider(cell_slider, is_visible)
 
-    toggle_cell_layer_visibility(is_visible)
+    new_toggle_cell_layer_visibility(layers_obj, is_visible)
     toggle_path_layer_visibility(is_visible)
 
-    update_layers_ist()
-
+    // update_layers_ist()
     // turning off update for now
     // deck_ist.setProps({
     //     layers: layers_ist
     // })
+
+    const layers_list = get_layers_list(layers_obj, close_up)
+    deck_ist.setProps({layers: layers_list})
 }

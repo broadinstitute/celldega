@@ -134,7 +134,7 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj) => {
     const cell_slider_container = make_slider_container('cell_slider_container')
     const trx_slider_container = make_slider_container('trx_slider_container')
 
-    make_button(image_container, 'ist', 'IMG', 'blue', 30, 'button', deck_ist)
+    make_button(image_container, 'ist', 'IMG', 'blue', 30, 'button', deck_ist, layers_obj)
 
     const get_slider_by_name = (name) => {
         return image_layer_sliders.filter(slider => slider.name === name);
@@ -148,7 +148,7 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj) => {
         let inst_container = flex_container('image_layer_container', 'row')
         inst_container.style.height = '21px'
 
-        make_button(inst_container, 'ist', inst_name, 'blue', 75, 'img_layer_button', deck_ist)
+        make_button(inst_container, 'ist', inst_name, 'blue', 75, 'img_layer_button', deck_ist, layers_obj)
 
         const inst_slider_container = make_slider_container(inst_name)
 
@@ -173,8 +173,8 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj) => {
         make_img_layer_ctrl
     )
 
-    make_button(cell_ctrl_container, 'ist', 'CELL', 'blue', 40, 'button', deck_ist)
-    make_button(      trx_container, 'ist', 'TRX',  'blue', 40, 'button', deck_ist)
+    make_button(cell_ctrl_container, 'ist', 'CELL', 'blue', 40, 'button', deck_ist, layers_obj)
+    make_button(      trx_container, 'ist', 'TRX',  'blue', 40, 'button', deck_ist, layers_obj)
 
     image_container.appendChild(img_layers_container)
 

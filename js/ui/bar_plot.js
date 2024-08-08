@@ -5,7 +5,7 @@ import { toggle_image_layers_and_ctrls } from './ui_containers'
 import { new_update_cell_layer_id } from '../deck-gl/cell_layer'
 import { new_update_path_layer_id } from '../deck-gl/path_layer'
 import { new_update_trx_layer_id } from '../deck-gl/trx_layer'
-import { layers_ist, update_layers_ist, get_layers_list } from '../deck-gl/layers_ist'
+import { get_layers_list } from '../deck-gl/layers_ist'
 import { update_cell_exp_array } from '../global_variables/cell_exp_array'
 import { global_base_url } from '../global_variables/global_base_url'
 import { gene_search_input } from './gene_search_input'
@@ -106,18 +106,9 @@ export const bar_callback_gene = async (event, d, deck_ist, layers_obj) => {
     update_selected_cats([])
     await update_cell_exp_array(global_base_url, inst_gene)
 
-    // update_cell_layer_id(new_cat)
-    // update_path_layer_id(new_cat)
-    // update_trx_layer_filter()
-
     new_update_cell_layer_id(layers_obj, new_cat)
     new_update_path_layer_id(layers_obj, new_cat)
     new_update_trx_layer_id(layers_obj)
-
-    // update_layers_ist()
-
-    // turning off update for now
-    // deck_ist.setProps({layers: layers_ist})
 
     const layers_list = get_layers_list(layers_obj, close_up)
     deck_ist.setProps({layers: layers_list})

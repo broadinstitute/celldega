@@ -2,6 +2,7 @@ import * as d3 from 'd3'
 import { square_scatter_layer, update_square_scatter_layer } from "../deck-gl/square_scatter_layer.js"
 import { cat, update_cat, update_selected_cats } from "../global_variables/cat.js"
 import { deck_sst } from "../deck-gl/deck_sst.js"
+// import { deck_ist } from "../deck-gl/deck_ist.js"
 import { update_tile_exp_array } from "../global_variables/tile_exp_array.js"
 import { gene_search_input, set_gene_search_input } from "./gene_search_input.js"
 import { simple_image_layer } from "../deck-gl/simple_image_layer.js"
@@ -94,9 +95,9 @@ const ist_gene_search_callback = async (deck_ist) => {
 
         }
 
-        deck_ist.setProps({
-            layers: layers_ist
-        })
+        // deck_ist.setProps({
+        //     layers: layers_ist
+        // }
     }
 };
 

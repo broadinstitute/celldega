@@ -12,6 +12,11 @@ export let tile_slider = document.createElement("input")
 export let cell_slider = document.createElement("input")
 export let trx_slider = document.createElement("input")
 
+export const make_slider = () => {
+    console.log('make_slider')
+    return  document.createElement("input")
+}
+
 export let image_layer_sliders
 
 export const set_image_layer_sliders = (image_info) => {
@@ -34,7 +39,7 @@ const cell_slider_callback = async (deck_ist, layers_obj, viz_state) => {
 
     const scale_down_cell_radius = 5
 
-    update_cell_layer_radius(layers_obj, cell_slider.value / scale_down_cell_radius)
+    update_cell_layer_radius(layers_obj, viz_state.sliders.cell.value / scale_down_cell_radius)
 
     const layers_list = get_layers_list(layers_obj, viz_state.close_up)
     deck_ist.setProps({layers: layers_list})
@@ -81,23 +86,24 @@ export const ini_slider_params = (slider, ini_value, callback) =>{
 
 export const ini_slider = (slider_type, deck_ist, layers_obj, viz_state) => {
 
-    let slider
     let ini_value
     let callback
 
+    let slider = make_slider()
+
     switch (slider_type) {
         case 'tile':
-            slider = tile_slider
+            // slider = tile_slider
             ini_value = 100
             callback = tile_slider_callback
             break
         case 'cell':
-            slider = cell_slider
+            // slider = cell_slider
             ini_value = trx_ini_raidus * 100
             callback = () => cell_slider_callback(deck_ist, layers_obj, viz_state)
             break
         case 'trx':
-            slider = trx_slider
+            // slider = trx_slider
             ini_value = trx_ini_raidus * 100
             callback = () => trx_slider_callback(deck_ist, layers_obj, viz_state)
             break
@@ -107,6 +113,10 @@ export const ini_slider = (slider_type, deck_ist, layers_obj, viz_state) => {
     }
 
     ini_slider_params(slider, ini_value, callback)
+
+    // save the slider to viz_state with a property name of slider_type
+    viz_state.sliders[slider_type] = slider
+
 }
 
 export const toggle_slider = (slider, state) => {

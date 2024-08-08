@@ -1,7 +1,7 @@
 import * as d3 from 'd3'
 import { make_button } from "./text_buttons"
 import { gene_search, set_gene_search } from "./gene_search"
-import { tile_slider, cell_slider, trx_slider, ini_slider, ini_slider_params } from './sliders'
+import { tile_slider, ini_slider, ini_slider_params } from './sliders'
 import { image_info } from "../global_variables/image_info"
 import { image_layer_sliders, make_img_layer_slider_callback, toggle_slider } from "./sliders"
 import { debounce } from '../utils/debounce'
@@ -13,8 +13,6 @@ import { cluster_counts } from '../global_variables/meta_cluster'
 import { color_dict_cluster } from '../global_variables/meta_cluster'
 import { color_dict_gene } from '../global_variables/color_dict_gene'
 import { gene_counts } from '../global_variables/meta_gene'
-
-// export let image_container
 
 export const toggle_image_layers_and_ctrls = (layers_obj, is_visible) => {
 
@@ -33,7 +31,6 @@ export const make_ui_container = () => {
     ui_container.style.flexDirection = "row"
     ui_container.style.border = "1px solid #d3d3d3"
     ui_container.className = "ui_container"
-    // ui_container.style.justifyContent = 'space-between'
     ui_container.style.height = '100px' // '85px'
     return ui_container
 }
@@ -179,11 +176,15 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
     make_button(cell_ctrl_container, 'ist', 'CELL', 'blue', 40, 'button', deck_ist, layers_obj, viz_state)
     make_button(      trx_container, 'ist', 'TRX',  'blue', 40, 'button', deck_ist, layers_obj, viz_state)
 
-    console.log(viz_state.image_container)
     viz_state.image_container.appendChild(img_layers_container)
 
+    viz_state.sliders = {}
+
     ini_slider('cell', deck_ist, layers_obj, viz_state)
-    cell_slider_container.appendChild(cell_slider)
+
+    console.log('viz_state.sliders.cell_slider', viz_state.sliders.cell instanceof Node)
+
+    cell_slider_container.appendChild(viz_state.sliders.cell)
     cell_ctrl_container.appendChild(cell_slider_container)
 
     make_bar_graph(
@@ -213,7 +214,7 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
 
     ini_slider('trx', deck_ist, layers_obj, viz_state)
     trx_container.appendChild(trx_slider_container)
-    trx_slider_container.appendChild(trx_slider)
+    trx_slider_container.appendChild(viz_state.sliders.trx)
 
     gene_container.appendChild(trx_container)
     gene_container.appendChild(bar_container_gene)
@@ -229,7 +230,6 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
     ctrl_container.appendChild(gene_container)
 
     ctrl_container.appendChild(gene_search)
-
 
     // if dataset_name is not an empty string make the name container
     if (dataset_name.trim !== ''){

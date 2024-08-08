@@ -118,7 +118,7 @@ const ist_img_button_callback = async (event, deck_ist, layers_obj) => {
 
     toggle_visible_button(event)
     toggle_visibility_image_layers(layers_obj, is_visible)
-    toggle_background_layer_visibility(is_visible)
+    toggle_background_layer_visibility(layers_obj, is_visible)
 
     d3.select(image_container)
         .selectAll('.img_layer_button')

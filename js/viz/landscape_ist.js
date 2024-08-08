@@ -9,7 +9,7 @@ import { get_layers_list } from '../deck-gl/layers_ist'
 import { image_layers, make_image_layers } from '../deck-gl/image_layers'
 import { update_views } from '../deck-gl/views'
 import { ini_deck, set_deck_on_view_state_change } from '../deck-gl/deck_ist'
-import { background_layer, set_background_layer } from '../deck-gl/background_layer'
+import { ini_background_layer } from '../deck-gl/background_layer'
 import { ini_path_layer, set_path_layer_onclick } from '../deck-gl/path_layer'
 import { make_ist_ui_container } from '../ui/ui_containers'
 import { model, set_model } from '../global_variables/model'
@@ -22,7 +22,6 @@ import { set_cluster_metadata } from '../global_variables/meta_cluster'
 import { update_ist_landscape_from_cgm } from '../widget_interactions/update_ist_landscape_from_cgm'
 import { update_cell_clusters } from '../widget_interactions/update_cell_clusters'
 import { close_up } from '../global_variables/close_up'
-import { layers_sst } from '../deck-gl/layers_sst'
 
 export const landscape_ist = async (
     el,
@@ -70,12 +69,11 @@ export const landscape_ist = async (
     // update layers
     await make_image_layers(base_url)
 
-    set_background_layer()
-
     update_views()
 
     let deck_ist = await ini_deck(root)
 
+    let background_layer = ini_background_layer()
     let cell_layer = await ini_cell_layer(base_url)
     let path_layer = await ini_path_layer()
     let trx_layer = ini_trx_layer()

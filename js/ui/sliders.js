@@ -9,7 +9,7 @@ import { deck_sst } from "../deck-gl/deck_sst"
 import { background_layer } from "../deck-gl/background_layer"
 import { trx_ini_raidus } from "../global_variables/trx_ini_raidus"
 import { close_up } from "../global_variables/close_up"
-import { layers_ist, update_layers_ist } from "../deck-gl/layers_ist"
+import { get_layers_list } from "../deck-gl/layers_ist"
 
 export let tile_slider = document.createElement("input")
 export let cell_slider = document.createElement("input")
@@ -35,16 +35,18 @@ const tile_slider_callback = async () => {
     deck_sst.setProps({layers: layers_sst})
 }
 
-const cell_slider_callback = async (deck_ist) => {
+const cell_slider_callback = async (deck_ist, layers_obj) => {
 
     const scale_down_cell_radius = 5
 
-    update_cell_layer_radius(cell_slider.value / scale_down_cell_radius)
+    update_cell_layer_radius(layers_obj, cell_slider.value / scale_down_cell_radius)
 
-    update_layers_ist()
-
+    // update_layers_ist()
     // turning off update for now
     // deck_ist.setProps({layers: layers_ist})
+
+    const layers_list = get_layers_list(layers_obj, close_up)
+    deck_ist.setProps({layers: layers_list})
 
 }
 
@@ -119,7 +121,7 @@ export const ini_slider_params = (slider, ini_value, callback) =>{
 
 }
 
-export const ini_slider = (slider_type, deck_ist) => {
+export const ini_slider = (slider_type, deck_ist, layers_obj) => {
 
     let slider
     let ini_value
@@ -134,7 +136,7 @@ export const ini_slider = (slider_type, deck_ist) => {
         case 'cell':
             slider = cell_slider
             ini_value = trx_ini_raidus * 100
-            callback = () => cell_slider_callback(deck_ist)
+            callback = () => cell_slider_callback(deck_ist, layers_obj)
             break
         case 'trx':
             slider = trx_slider

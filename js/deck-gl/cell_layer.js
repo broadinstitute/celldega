@@ -156,13 +156,6 @@ export const update_cell_combo_data = () => {
       cat: dict_cell_cats[cell.name]
     }))
 
-  }
-
-
-export const toggle_cell_layer_visibility = (visible) => {
-    cell_layer = cell_layer.clone({
-        visible: visible,
-    });
 }
 
 export const new_toggle_cell_layer_visibility = (layers_obj, visible) => {
@@ -171,8 +164,8 @@ export const new_toggle_cell_layer_visibility = (layers_obj, visible) => {
     });
 }
 
-export const update_cell_layer_radius = (radius) => {
-    cell_layer = cell_layer.clone({
+export const update_cell_layer_radius = (layers_obj, radius) => {
+    layers_obj.cell_layer = layers_obj.cell_layer.clone({
         getRadius: radius,
     });
 }

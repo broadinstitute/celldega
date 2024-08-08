@@ -49,7 +49,7 @@ export const make_button = (container, technology, text, color='blue', width=40,
     } else if (text === 'TILE') {
         callback = () => tile_button_callback(event, deck_ist)
     } else if (text === 'TRX'){
-        callback = () => trx_button_callback_ist(event, deck_ist)
+        callback = () => trx_button_callback_ist(event, deck_ist, layers_obj)
     } else if (text === 'CELL'){
         callback = () => cell_button_callback(event, deck_ist, layers_obj)
     } else {
@@ -131,18 +131,21 @@ const ist_img_button_callback = async (event, deck_ist) => {
 
 }
 
-const trx_button_callback_ist = async (event, deck_ist) => {
+const trx_button_callback_ist = async (event, deck_ist, layers_obj) => {
 
     toggle_visible_button(event)
 
     toggle_slider(trx_slider, is_visible)
 
-    toggle_trx_layer_visibility(is_visible)
+    toggle_trx_layer_visibility(layers_obj, is_visible)
 
     // turning off update for now
     // deck_ist.setProps({
     //     layers: layers_ist
     // })
+
+    const layers_list = get_layers_list(layers_obj, close_up)
+    deck_ist.setProps({layers: layers_list})
 
 }
 
@@ -169,11 +172,6 @@ const cell_button_callback = async (event, deck_ist, layers_obj) => {
 
     new_toggle_cell_layer_visibility(layers_obj, is_visible)
     toggle_path_layer_visibility(is_visible)
-
-    // turning off update for now
-    // deck_ist.setProps({
-    //     layers: layers_ist
-    // })
 
     const layers_list = get_layers_list(layers_obj, close_up)
     deck_ist.setProps({layers: layers_list})

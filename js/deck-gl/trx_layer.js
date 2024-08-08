@@ -96,6 +96,7 @@ const trx_layer_callback = async (info, d, deck_ist, layers_obj) => {
 export let trx_layer
 
 export const ini_trx_layer = () => {
+
     trx_layer = new ScatterplotLayer({
         id: 'trx-layer',
         data: trx_data,
@@ -118,30 +119,16 @@ export const set_trx_layer_onclick = (deck_ist, layers_obj) => {
     })
 }
 
-export const update_trx_layer = async ( base_url, tiles_in_view ) => {
-
-    await set_trx_data(base_url, tiles_in_view)
-
-    trx_layer = new ScatterplotLayer({
-        // Re-use existing layer props
-        ...trx_layer.props,
-        data: trx_data,
-    })
-
-}
-
 export const update_trx_layer_data = async (base_url, tiles_in_view, layers_obj) => {
     await set_trx_data(base_url, tiles_in_view)
-
-    console.log(layers_obj)
 
     layers_obj.trx_layer = layers_obj.trx_layer.clone({
         data: trx_data,
     })
 }
 
-export const toggle_trx_layer_visibility = (visible) => {
-    trx_layer = trx_layer.clone({
+export const toggle_trx_layer_visibility = (layers_obj, visible) => {
+    layers_obj.trx_layer = layers_obj.trx_layer.clone({
         visible: visible,
     })
 }

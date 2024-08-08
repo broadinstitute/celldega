@@ -6,7 +6,6 @@ import { update_opacity_single_image_layer } from "../deck-gl/image_layers"
 import { update_cell_layer_radius } from "../deck-gl/cell_layer"
 import { deck_sst } from "../deck-gl/deck_sst"
 import { trx_ini_raidus } from "../global_variables/trx_ini_raidus"
-import { close_up } from "../global_variables/close_up"
 import { get_layers_list } from "../deck-gl/layers_ist"
 
 export let tile_slider = document.createElement("input")
@@ -52,7 +51,7 @@ const trx_slider_callback = async (deck_ist, layers_obj, viz_state) => {
     deck_ist.setProps({layers: layers_list})
 }
 
-export const make_img_layer_slider_callback = (name, deck_ist, layers_obj) => {
+export const make_img_layer_slider_callback = (name, deck_ist, layers_obj, viz_state) => {
     return async () => {
 
         let inst_slider = image_layer_sliders.filter(slider => slider.name === name)[0]
@@ -63,7 +62,7 @@ export const make_img_layer_slider_callback = (name, deck_ist, layers_obj) => {
         // Use the slider value to update the opacity
         update_opacity_single_image_layer(layers_obj, name, opacity);
 
-        const layers_list = get_layers_list(layers_obj, close_up)
+        const layers_list = get_layers_list(layers_obj, viz_state.close_up)
         deck_ist.setProps({layers: layers_list})
     };
 };
@@ -100,7 +99,7 @@ export const ini_slider = (slider_type, deck_ist, layers_obj, viz_state) => {
         case 'trx':
             slider = trx_slider
             ini_value = trx_ini_raidus * 100
-            callback = () => trx_slider_callback(deck_ist, layers_obj)
+            callback = () => trx_slider_callback(deck_ist, layers_obj, viz_state)
             break
 
         default:

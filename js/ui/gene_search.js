@@ -17,7 +17,6 @@ import { get_layers_list } from "../deck-gl/layers_ist.js"
 import { svg_bar_gene } from "./bar_plot.js"
 import { bar_container_gene } from "./bar_plot.js"
 import { uniprot_data, uniprot_get_request } from '../external_apis/uniprot_api.js'
-import { close_up } from '../global_variables/close_up.js'
 
 export let gene_search = document.createElement("div")
 
@@ -40,7 +39,7 @@ const sst_gene_search_callback = async () => {
 
 }
 
-const ist_gene_search_callback = async (deck_ist, layers_obj) => {
+const ist_gene_search_callback = async (deck_ist, layers_obj, viz_state) => {
 
     const inst_gene = gene_search_input.value;
 
@@ -64,7 +63,7 @@ const ist_gene_search_callback = async (deck_ist, layers_obj) => {
         update_path_layer_id(layers_obj, new_cat)
         update_trx_layer_id(layers_obj)
 
-        const layers_list = get_layers_list(layers_obj, close_up)
+        const layers_list = get_layers_list(layers_obj, viz_state.close_up)
         deck_ist.setProps({layers: layers_list})
 
         const reset_gene = false
@@ -100,7 +99,7 @@ const ist_gene_search_callback = async (deck_ist, layers_obj) => {
 };
 
 
-export const set_gene_search = async (tech_type, deck_ist, layers_obj) => {
+export const set_gene_search = async (tech_type, deck_ist, layers_obj, viz_state) => {
 
     gene_search_options = ['cluster', ...gene_names]
 
@@ -171,7 +170,7 @@ export const set_gene_search = async (tech_type, deck_ist, layers_obj) => {
         gene_search_input.style.marginTop = "10px"
         gene_search.style.height = "50px"
     } else {
-        callback = () => ist_gene_search_callback(deck_ist, layers_obj)
+        callback = () => ist_gene_search_callback(deck_ist, layers_obj, viz_state)
         gene_search_input.style.marginTop = "5px"
     }
 

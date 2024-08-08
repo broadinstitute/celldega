@@ -21,7 +21,6 @@ import { set_meta_gene } from '../global_variables/meta_gene'
 import { set_cluster_metadata } from '../global_variables/meta_cluster'
 import { update_ist_landscape_from_cgm } from '../widget_interactions/update_ist_landscape_from_cgm'
 import { update_cell_clusters } from '../widget_interactions/update_cell_clusters'
-import { close_up } from '../global_variables/close_up'
 
 export const landscape_ist = async (
     el,

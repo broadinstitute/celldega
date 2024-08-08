@@ -29,7 +29,7 @@ const trx_layer_callback = async (info, d, deck_ist, layers_obj, viz_state) => {
 
     const new_cat = reset_gene ? 'cluster' : inst_gene
 
-    toggle_image_layers_and_ctrls(layers_obj, cat === inst_gene)
+    toggle_image_layers_and_ctrls(layers_obj, viz_state, cat === inst_gene)
 
     update_cat(new_cat)
     update_selected_genes([inst_gene])

@@ -9,7 +9,7 @@ import { trx_ini_raidus } from "../global_variables/trx_ini_raidus"
 import { get_layers_list } from "../deck-gl/layers_ist"
 
 export let tile_slider = document.createElement("input")
-export let cell_slider = document.createElement("input")
+// export let cell_slider = document.createElement("input")
 export let trx_slider = document.createElement("input")
 
 export const make_slider = () => {
@@ -93,17 +93,14 @@ export const ini_slider = (slider_type, deck_ist, layers_obj, viz_state) => {
 
     switch (slider_type) {
         case 'tile':
-            // slider = tile_slider
             ini_value = 100
             callback = tile_slider_callback
             break
         case 'cell':
-            // slider = cell_slider
             ini_value = trx_ini_raidus * 100
             callback = () => cell_slider_callback(deck_ist, layers_obj, viz_state)
             break
         case 'trx':
-            // slider = trx_slider
             ini_value = trx_ini_raidus * 100
             callback = () => trx_slider_callback(deck_ist, layers_obj, viz_state)
             break

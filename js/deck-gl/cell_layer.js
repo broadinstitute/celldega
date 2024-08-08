@@ -40,7 +40,7 @@ const cell_layer_onclick = async (info, d, deck_ist, layers_obj, viz_state) => {
     update_selected_cats([inst_cat])
     update_selected_genes([])
 
-    toggle_image_layers_and_ctrls(layers_obj, !selected_cats.length > 0)
+    toggle_image_layers_and_ctrls(layers_obj, viz_state, !selected_cats.length > 0)
 
     const inst_cat_name = selected_cats.join('-')
 

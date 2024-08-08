@@ -14,10 +14,10 @@ import { color_dict_cluster } from '../global_variables/meta_cluster'
 import { color_dict_gene } from '../global_variables/color_dict_gene'
 import { gene_counts } from '../global_variables/meta_gene'
 
-export const toggle_image_layers_and_ctrls = (layers_obj, is_visible) => {
+export const toggle_image_layers_and_ctrls = (layers_obj, viz_state, is_visible) => {
 
     console.log('toggle_image_layers_and_ctrls')
-    d3.select(image_container)
+    d3.select(viz_state.containers.image)
         .selectAll('.img_layer_button')
         .style('color', is_visible ? 'blue' : 'gray');
 
@@ -98,10 +98,9 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
     const ui_container = make_ui_container()
     const ctrl_container = make_ctrl_container()
 
-    viz_state.image_container = flex_container('image_container', 'column')
-
-    console.log('viz_state.image_container')
-    console.log(viz_state.image_container)
+    // viz_state.image_container = flex_container('image_container', 'column')
+    viz_state.containers = {}
+    viz_state.containers.image = flex_container('image_container', 'column')
 
     const img_layers_container = flex_container('img_layers_container', 'column', 72) // 75
     img_layers_container.style.width = '135px'
@@ -135,7 +134,7 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
     const cell_slider_container = make_slider_container('cell_slider_container')
     const trx_slider_container = make_slider_container('trx_slider_container')
 
-    make_button(viz_state.image_container, 'ist', 'IMG', 'blue', 30, 'button', deck_ist, layers_obj, viz_state)
+    make_button(viz_state.containers.image, 'ist', 'IMG', 'blue', 30, 'button', deck_ist, layers_obj, viz_state)
 
     const get_slider_by_name = (name) => {
         return image_layer_sliders.filter(slider => slider.name === name);
@@ -176,7 +175,7 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
     make_button(cell_ctrl_container, 'ist', 'CELL', 'blue', 40, 'button', deck_ist, layers_obj, viz_state)
     make_button(      trx_container, 'ist', 'TRX',  'blue', 40, 'button', deck_ist, layers_obj, viz_state)
 
-    viz_state.image_container.appendChild(img_layers_container)
+    viz_state.containers.image.appendChild(img_layers_container)
 
     viz_state.sliders = {}
 
@@ -225,7 +224,7 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
 
     ui_container.appendChild(ctrl_container)
 
-    ctrl_container.appendChild(viz_state.image_container)
+    ctrl_container.appendChild(viz_state.containers.image)
     ctrl_container.appendChild(cell_container)
     ctrl_container.appendChild(gene_container)
 

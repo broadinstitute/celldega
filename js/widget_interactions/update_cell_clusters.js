@@ -32,7 +32,8 @@ export const update_cell_clusters = (deck_ist, layers_obj, viz_state) => {
         bar_callback_cluster,
         [],
         deck_ist,
-        layers_obj
+        layers_obj,
+        viz_state
     )
 
 }

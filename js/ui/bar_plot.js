@@ -178,7 +178,7 @@ export const make_bar_graph = (bar_container, click_callback, svg_bar, bar_data,
         .text(d => d.name)
 }
 
-export const update_bar_graph = (svg_bar, bar_data, color_dict, click_callback, selected_array, deck_ist, layers_obj) => {
+export const update_bar_graph = (svg_bar, bar_data, color_dict, click_callback, selected_array, deck_ist, layers_obj, viz_state) => {
 
     const bar_height = 15;
     const svg_height = bar_height * (bar_data.length + 1);
@@ -202,7 +202,7 @@ export const update_bar_graph = (svg_bar, bar_data, color_dict, click_callback, 
     // Enter new bars
     const bars_enter = bars.enter().append("g")
         .attr("transform", (d, i) => `translate(2,${y_new(i) + 2})`)
-        .on('click', (event, d) => click_callback(event, d, deck_ist, layers_obj))
+        .on('click', (event, d) => click_callback(event, d, deck_ist, layers_obj, viz_state))
 
     bars_enter.append("rect")
         .attr("width", 0) // Initial width set to 0 for transition effect

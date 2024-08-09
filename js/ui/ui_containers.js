@@ -17,6 +17,9 @@ import { gene_counts } from '../global_variables/meta_gene'
 export const toggle_image_layers_and_ctrls = (layers_obj, viz_state, is_visible) => {
 
     console.log('toggle_image_layers_and_ctrls')
+
+    console.log(viz_state)
+
     d3.select(viz_state.containers.image)
         .selectAll('.img_layer_button')
         .style('color', is_visible ? 'blue' : 'gray');

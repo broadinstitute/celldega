@@ -1,5 +1,3 @@
-
-
 export const set_cache = (cache, url, data) => {
     const MAX_CACHE_SIZE = 20
     if (cache.size >= MAX_CACHE_SIZE) {

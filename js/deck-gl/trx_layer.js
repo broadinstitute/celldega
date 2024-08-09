@@ -117,7 +117,7 @@ export const set_trx_layer_onclick = (deck_ist, layers_obj, viz_state) => {
 }
 
 export const update_trx_layer_data = async (base_url, tiles_in_view, layers_obj, viz_state) => {
-    await set_trx_data(base_url, tiles_in_view)
+    await set_trx_data(base_url, tiles_in_view, viz_state)
 
     layers_obj.trx_layer = layers_obj.trx_layer.clone({
         data: trx_data,

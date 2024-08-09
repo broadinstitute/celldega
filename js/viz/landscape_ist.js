@@ -21,7 +21,7 @@ import { set_meta_gene } from '../global_variables/meta_gene'
 import { set_cluster_metadata } from '../global_variables/meta_cluster'
 import { update_ist_landscape_from_cgm } from '../widget_interactions/update_ist_landscape_from_cgm'
 import { update_cell_clusters } from '../widget_interactions/update_cell_clusters'
-import { ini_cache_cell_new } from '../global_variables/cache_cell'
+import { ini_cache } from '../global_variables/cache'
 
 export const landscape_ist = async (
     el,
@@ -99,8 +99,9 @@ export const landscape_ist = async (
 
     // initialize cell and trx caches
     viz_state.cache = {}
-    viz_state.cache.cell = await ini_cache_cell_new(base_url)
-    // const cell_cache = await ini_cache_cell_new(base_url)
+    viz_state.cache.cell = await ini_cache()
+    // we will try to reuse cell functions to make trx cache
+    viz_state.cache.trx  = await ini_cache()
 
     set_deck_on_view_state_change(deck_ist, layers_obj, viz_state)
 

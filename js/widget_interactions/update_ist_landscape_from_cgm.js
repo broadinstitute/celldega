@@ -37,8 +37,6 @@ export const update_ist_landscape_from_cgm = async (deck_ist, layers_obj, viz_st
         update_path_layer_id(layers_obj, new_cat)
         update_trx_layer_id(layers_obj)
 
-        console.log('here!!!!!!!!!!!!!!!!!!!!!!!!!')
-
         const layers_list = get_layers_list(layers_obj, viz_state.close_up)
         deck_ist.setProps({layers: layers_list})
 

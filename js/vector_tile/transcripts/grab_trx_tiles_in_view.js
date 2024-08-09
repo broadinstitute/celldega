@@ -1,4 +1,4 @@
-import { fetch_all_tables } from '../../read_parquet/fetch_all_tables.js';
+import { fetch_all_tables_new } from '../../read_parquet/fetch_all_tables.js';
 import { get_scatter_data } from '../../read_parquet/get_scatter_data.js';
 import { concatenate_arrow_tables } from '../../vector_tile/concatenate_functions.js';
 import { set_trx_names_array } from '../../global_variables/trx_names_array.js';
@@ -6,13 +6,13 @@ import { options } from '../../global_variables/fetch_options.js';
 
 export let trx_combo_data
 
-export const grab_trx_tiles_in_view = async (base_url, tiles_in_view) => {
+export const grab_trx_tiles_in_view = async (base_url, tiles_in_view, viz_state) => {
 
     const tile_trx_urls = tiles_in_view.map(tile => {
         return `${base_url}/transcript_tiles/transcripts_tile_${tile.tileX}_${tile.tileY}.parquet`;
     });
 
-    var tile_trx_tables_ini = await fetch_all_tables('trx', tile_trx_urls, options)
+    var tile_trx_tables_ini = await fetch_all_tables_new(viz_state.cache.trx, tile_trx_urls, options)
 
     var tile_trx_tables = tile_trx_tables_ini.filter(table => table !== null);
 

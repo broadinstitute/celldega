@@ -103,6 +103,8 @@ export const landscape_ist = async (
     // we will try to reuse cell functions to make trx cache
     viz_state.cache.trx  = await ini_cache()
 
+    viz_state.combo_data = {}
+
     set_deck_on_view_state_change(deck_ist, layers_obj, viz_state)
 
     // check if ini_model is not equal to {}

@@ -8,7 +8,6 @@ import { svg_bar_gene, update_bar_graph } from '../ui/bar_plot.js'
 import { color_dict_gene } from '../global_variables/color_dict_gene.js'
 import { gene_counts } from '../global_variables/meta_gene.js'
 import { bar_callback_gene, svg_bar_cluster, bar_callback_cluster } from '../ui/bar_plot.js'
-import { trx_combo_data } from '../vector_tile/transcripts/grab_trx_tiles_in_view.js'
 import { cell_combo_data } from './cell_layer.js'
 import { color_dict_cluster, cluster_counts } from '../global_variables/meta_cluster.js'
 import { selected_cats } from '../global_variables/cat.js'
@@ -51,11 +50,11 @@ export const calc_viewport = async ({ height, width, zoom, target }, deck_ist, l
         viz_state.close_up = true
 
         // gene bar graph update
-        const filtered_transcripts = trx_combo_data.filter(pos =>
+        const filtered_transcripts = viz_state.combo_data.trx.filter(pos =>
             pos.x >= minX && pos.x <= maxX && pos.y >= minY && pos.y <= maxY
-        );
+        )
 
-        const filtered_gene_names = filtered_transcripts.map(transcript => transcript.name);
+        const filtered_gene_names = filtered_transcripts.map(transcript => transcript.name)
 
         const new_bar_data = filtered_gene_names.reduce((acc, gene) => {
             const existingGene = acc.find(item => item.name === gene)
@@ -80,7 +79,7 @@ export const calc_viewport = async ({ height, width, zoom, target }, deck_ist, l
             pos.x >= minX && pos.x <= maxX && pos.y >= minY && pos.y <= maxY
         )
 
-        const filtered_cell_names = filtered_cells.map(cell => cell.cat);
+        const filtered_cell_names = filtered_cells.map(cell => cell.cat)
 
         const new_bar_data_cell = filtered_cell_names.reduce((acc, cat) => {
                 const existing_cat = acc.find(item => item.name === cat)

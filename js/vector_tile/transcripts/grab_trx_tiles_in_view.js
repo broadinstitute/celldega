@@ -4,7 +4,6 @@ import { concatenate_arrow_tables } from '../../vector_tile/concatenate_function
 import { set_trx_names_array } from '../../global_variables/trx_names_array.js';
 import { options } from '../../global_variables/fetch_options.js';
 
-export let trx_combo_data
 
 export const grab_trx_tiles_in_view = async (base_url, tiles_in_view, viz_state) => {
 
@@ -24,7 +23,7 @@ export const grab_trx_tiles_in_view = async (base_url, tiles_in_view, viz_state)
 
     // Combine names and positions into a single array of objects
     const flatCoordinateArray = trx_scatter_data.attributes.getPosition.value;
-    trx_combo_data = new_trx_names_array.map((name, index) => ({
+    viz_state.combo_data.trx = new_trx_names_array.map((name, index) => ({
         name,
         x: flatCoordinateArray[index * 2],
         y: flatCoordinateArray[index * 2 + 1]

@@ -44,9 +44,9 @@ export const calc_viewport = async ({ height, width, zoom, target }, deck_ist, l
 
     if (tiles_in_view.length < max_tiles_to_view) {
 
-        await update_trx_layer_data(global_base_url, tiles_in_view, layers_obj)
+        await update_trx_layer_data(global_base_url, tiles_in_view, layers_obj, viz_state)
 
-        await update_path_layer_data(global_base_url, tiles_in_view, layers_obj)
+        await update_path_layer_data(global_base_url, tiles_in_view, layers_obj, viz_state)
 
         viz_state.close_up = true
 

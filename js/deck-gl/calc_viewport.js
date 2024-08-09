@@ -8,7 +8,6 @@ import { svg_bar_gene, update_bar_graph } from '../ui/bar_plot.js'
 import { color_dict_gene } from '../global_variables/color_dict_gene.js'
 import { gene_counts } from '../global_variables/meta_gene.js'
 import { bar_callback_gene, svg_bar_cluster, bar_callback_cluster } from '../ui/bar_plot.js'
-import { cell_combo_data } from './cell_layer.js'
 import { color_dict_cluster, cluster_counts } from '../global_variables/meta_cluster.js'
 import { selected_cats } from '../global_variables/cat.js'
 import { selected_genes } from '../global_variables/selected_genes.js'
@@ -75,7 +74,7 @@ export const calc_viewport = async ({ height, width, zoom, target }, deck_ist, l
         })
 
         // cell bar graph update
-        const filtered_cells = cell_combo_data.filter(pos =>
+        const filtered_cells = viz_state.combo_data.cell.filter(pos =>
             pos.x >= minX && pos.x <= maxX && pos.y >= minY && pos.y <= maxY
         )
 

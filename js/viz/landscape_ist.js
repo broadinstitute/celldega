@@ -73,9 +73,17 @@ export const landscape_ist = async (
 
     let deck_ist = await ini_deck(root)
 
+    // initialize cell and trx caches
+    viz_state.cache = {}
+    viz_state.cache.cell = await ini_cache()
+    // we will try to reuse cell functions to make trx cache
+    viz_state.cache.trx  = await ini_cache()
+
+    viz_state.combo_data = {}
+
     let background_layer = ini_background_layer()
     let image_layers = await make_image_layers(base_url)
-    let cell_layer = await ini_cell_layer(base_url)
+    let cell_layer = await ini_cell_layer(base_url, viz_state)
     let path_layer = await ini_path_layer()
     let trx_layer = ini_trx_layer()
 
@@ -97,13 +105,7 @@ export const landscape_ist = async (
     const layers_list = get_layers_list(layers_obj, viz_state.close_up)
     deck_ist.setProps({layers: layers_list})
 
-    // initialize cell and trx caches
-    viz_state.cache = {}
-    viz_state.cache.cell = await ini_cache()
-    // we will try to reuse cell functions to make trx cache
-    viz_state.cache.trx  = await ini_cache()
 
-    viz_state.combo_data = {}
 
     set_deck_on_view_state_change(deck_ist, layers_obj, viz_state)
 

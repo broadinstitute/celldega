@@ -19,7 +19,6 @@ import { update_gene_text_box } from '../ui/gene_search'
 import { tooltip_cat_cell } from './make_tooltip'
 
 export let cell_scatter_data
-export let cell_combo_data
 
 const cell_layer_onclick = async (info, d, deck_ist, layers_obj, viz_state) => {
 
@@ -90,7 +89,7 @@ const cell_layer_onclick = async (info, d, deck_ist, layers_obj, viz_state) => {
 
 }
 
-export const ini_cell_layer = async (base_url) => {
+export const ini_cell_layer = async (base_url, viz_state) => {
 
     const cell_url = base_url + `/cell_metadata.parquet`;
     var cell_arrow_table = await get_arrow_table(cell_url, options.fetch)
@@ -116,7 +115,7 @@ export const ini_cell_layer = async (base_url) => {
     const flatCoordinateArray = cell_scatter_data.attributes.getPosition.value;
 
     // save cell positions and categories in one place for updating cluster bar plot
-    cell_combo_data = new_cell_names_array.map((name, index) => ({
+    viz_state.combo_data.cell = new_cell_names_array.map((name, index) => ({
         name: name,
         cat: dict_cell_cats[name],
         x: flatCoordinateArray[index * 2],
@@ -140,15 +139,6 @@ export const set_cell_layer_onclick = (deck_ist, layers_obj, viz_state) => {
     layers_obj.cell_layer = layers_obj.cell_layer.clone({
         onClick: (event, d) => cell_layer_onclick(event, d, deck_ist, layers_obj, viz_state)
     })
-}
-
-export const update_cell_combo_data = () => {
-
-    cell_combo_data = cell_combo_data.map((cell) => ({
-      ...cell,
-      cat: dict_cell_cats[cell.name]
-    }))
-
 }
 
 export const new_toggle_cell_layer_visibility = (layers_obj, visible) => {

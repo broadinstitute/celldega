@@ -9,7 +9,6 @@ import { update_trx_layer_id } from '../deck-gl/trx_layer'
 import { gene_search_input } from '../ui/gene_search_input'
 import { global_base_url } from '../global_variables/global_base_url'
 import { svg_bar_gene, svg_bar_cluster } from '../ui/bar_plot'
-import { bar_container_gene } from '../ui/bar_plot'
 import { get_layers_list } from '../deck-gl/layers_ist'
 import { model } from '../global_variables/model.js'
 import { update_gene_text_box } from '../ui/gene_search.js'
@@ -58,10 +57,10 @@ export const update_ist_landscape_from_cgm = async (deck_ist, layers_obj, viz_st
 
             if (!selectedBar.empty()) {
                 const barPosition = selectedBar.node().getBoundingClientRect().top
-                const containerPosition = bar_container_gene.getBoundingClientRect().top
-                const scrollPosition = barPosition - containerPosition + bar_container_gene.scrollTop
+                const containerPosition = viz_state.cotainers.bar_gene.getBoundingClientRect().top
+                const scrollPosition = barPosition - containerPosition + viz_state.cotainers.bar_gene.scrollTop
 
-                bar_container_gene.scrollTo({
+                viz_state.cotainers.bar_gene.scrollTo({
                     top: scrollPosition,
                     behavior: 'smooth'
                 })

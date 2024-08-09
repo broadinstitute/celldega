@@ -15,7 +15,6 @@ import { update_cell_exp_array } from "../global_variables/cell_exp_array.js"
 import { toggle_image_layers_and_ctrls } from "./ui_containers.js"
 import { get_layers_list } from "../deck-gl/layers_ist.js"
 import { svg_bar_gene } from "./bar_plot.js"
-import { bar_container_gene } from "./bar_plot.js"
 import { uniprot_data, uniprot_get_request } from '../external_apis/uniprot_api.js'
 
 export let gene_search = document.createElement("div")
@@ -82,10 +81,10 @@ const ist_gene_search_callback = async (deck_ist, layers_obj, viz_state) => {
 
             if (!selectedBar.empty()) {
                 const barPosition = selectedBar.node().getBoundingClientRect().top
-                const containerPosition = bar_container_gene.getBoundingClientRect().top
-                const scrollPosition = barPosition - containerPosition + bar_container_gene.scrollTop
+                const containerPosition = viz_state.cotainers.bar_gene.getBoundingClientRect().top
+                const scrollPosition = barPosition - containerPosition + viz_state.cotainers.bar_gene.scrollTop
 
-                bar_container_gene.scrollTo({
+                viz_state.cotainers.bar_gene.scrollTo({
                     top: scrollPosition,
                     behavior: 'smooth'
                 })

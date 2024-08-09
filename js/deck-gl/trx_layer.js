@@ -13,7 +13,6 @@ import { toggle_image_layers_and_ctrls } from '../ui/ui_containers'
 import { get_layers_list } from './layers_ist'
 import { update_path_layer_id } from './path_layer'
 import { svg_bar_gene, svg_bar_cluster } from '../ui/bar_plot'
-import { bar_container_gene } from '../ui/bar_plot'
 import { update_gene_text_box } from '../ui/gene_search'
 
 const trx_layer_callback = async (info, d, deck_ist, layers_obj, viz_state) => {
@@ -60,19 +59,20 @@ const trx_layer_callback = async (info, d, deck_ist, layers_obj, viz_state) => {
 
         if (!selectedBar.empty()) {
             const barPosition = selectedBar.node().getBoundingClientRect().top
-            const containerPosition = bar_container_gene.getBoundingClientRect().top
-            const scrollPosition = barPosition - containerPosition + bar_container_gene.scrollTop
+
+            const containerPosition = viz_state.cotainers.bar_gene.getBoundingClientRect().top
+            const scrollPosition = barPosition - containerPosition + viz_state.cotainers.bar_gene.scrollTop
 
             svg_bar_gene
                 .attr('opacity', 1.0)
 
-            bar_container_gene.scrollTo({
+                viz_state.cotainers.bar_gene.scrollTo({
                 top: scrollPosition,
                 behavior: 'smooth'
             })
         }
     } else {
-        bar_container_gene.scrollTo({
+        viz_state.cotainers.bar_gene.scrollTo({
             top: 0,
             behavior: 'smooth'
         })

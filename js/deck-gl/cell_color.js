@@ -3,7 +3,10 @@ import { cell_exp_array } from '../global_variables/cell_exp_array'
 import { color_dict_cluster } from '../global_variables/meta_cluster'
 
 // transparent to red
-export const get_cell_color = (i, d) => {
+export const get_cell_color = (cats, i, d) => {
+
+    // console.log('cats', cats)
+    // console.log('***********************************')
 
     if (cat === 'cluster') {
         try {

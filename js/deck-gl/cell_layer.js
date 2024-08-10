@@ -127,7 +127,7 @@ export const ini_cell_layer = async (base_url, viz_state) => {
         radiusMinPixels: 1,
         getRadius: 5.0,
         pickable: true,
-        getColor: get_cell_color,
+        getColor: (i, d) => get_cell_color(viz_state.cats, i, d),
         data: cell_scatter_data,
     })
 

@@ -36,6 +36,11 @@ export const landscape_ist = async (
     trx_radius=0.25,
 ) => {
 
+    console.log('testing!!!!!!!!!!!!!!!!')
+    console.log('testing!!!!!!!!!!!!!!!!')
+    console.log('testing!!!!!!!!!!!!!!!!')
+    console.log('testing!!!!!!!!!!!!!!!!')
+
     set_options(token)
 
     // move this to landscape_parameters
@@ -72,6 +77,9 @@ export const landscape_ist = async (
     console.log(viz_state)
 
     let deck_ist = await ini_deck(root)
+
+    viz_state.cats = {}
+    viz_state.cats.cat = 'cluster'
 
     // initialize cell and trx caches
     viz_state.cache = {}

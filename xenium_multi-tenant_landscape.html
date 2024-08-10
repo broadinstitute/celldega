@@ -20,7 +20,8 @@
         const ini_z = 0;
         const ini_zoom = -6;
         let base_url
-        base_url = 'http://127.0.0.1:8080/data/xenium_landscapes/Landscape_Xenium_V1_human_Pancreas_FFPE_outs_webp';
+        // base_url = 'http://127.0.0.1:8080/data/xenium_landscapes/Landscape_Xenium_V1_human_Pancreas_FFPE_outs_webp';
+        base_url = 'https://raw.githubusercontent.com/broadinstitute/celldega_Xenium_Prime_Human_Skin_FFPE_outs/main/Xenium_Prime_Human_Skin_FFPE_outs'
 
         let el_1 = document.querySelector("#app-1");
         const ls_1 = await celldega.landscape_ist(
@@ -39,7 +40,8 @@
 
         // Initialize the second visualization with a delay
 
-        const base_url_2 = 'http://127.0.0.1:8080/data/xenium_landscapes/Landscape_Xenium_V1_human_Pancreas_FFPE_outs_webp';
+        // const base_url_2 = 'http://127.0.0.1:8080/data/xenium_landscapes/Landscape_Xenium_V1_human_Pancreas_FFPE_outs_webp';
+        base_url_2 = 'https://raw.githubusercontent.com/broadinstitute/celldega_Xenium_Prime_Human_Skin_FFPE_outs/main/Xenium_Prime_Human_Skin_FFPE_outs'
         let el_2 = document.querySelector("#app-2");
         const ls_2 = await celldega.landscape_ist(
             el_2,

@@ -18,8 +18,6 @@ import { gene_search_input } from '../ui/gene_search_input'
 import { update_gene_text_box } from '../ui/gene_search'
 import { tooltip_cat_cell } from './make_tooltip'
 
-export let cell_scatter_data
-
 const cell_layer_onclick = async (info, d, deck_ist, layers_obj, viz_state) => {
 
     // Check if the device is a touch device
@@ -94,7 +92,7 @@ export const ini_cell_layer = async (base_url, viz_state) => {
     const cell_url = base_url + `/cell_metadata.parquet`;
     var cell_arrow_table = await get_arrow_table(cell_url, options.fetch)
 
-    cell_scatter_data = get_scatter_data(cell_arrow_table)
+    const cell_scatter_data = get_scatter_data(cell_arrow_table)
 
     await set_color_dict_gene(base_url)
 

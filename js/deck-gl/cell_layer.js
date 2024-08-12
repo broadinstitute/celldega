@@ -16,7 +16,6 @@ import { update_trx_layer_id } from './trx_layer'
 import { svg_bar_cluster, svg_bar_gene } from '../ui/bar_plot'
 import { gene_search_input } from '../ui/gene_search_input'
 import { update_gene_text_box } from '../ui/gene_search'
-import { tooltip_cat_cell } from './make_tooltip'
 
 const cell_layer_onclick = async (info, d, deck_ist, layers_obj, viz_state) => {
 
@@ -30,7 +29,7 @@ const cell_layer_onclick = async (info, d, deck_ist, layers_obj, viz_state) => {
         inst_cat = cell_cats[info.index];
     } else {
         // Use the tooltip category for non-touch devices
-        inst_cat = tooltip_cat_cell;
+        inst_cat = viz_state.tooltip_cat_cell;
     }
 
     update_cat('cluster')

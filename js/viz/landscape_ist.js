@@ -7,7 +7,7 @@ import { ini_cell_layer, set_cell_layer_onclick } from "../deck-gl/cell_layer"
 import { get_layers_list } from '../deck-gl/layers_ist'
 import { make_image_layers } from '../deck-gl/image_layers'
 import { update_views, ini_viz_state } from '../deck-gl/views'
-import { ini_deck, set_deck_on_view_state_change, set_initial_view_state } from '../deck-gl/deck_ist'
+import { ini_deck, set_deck_on_view_state_change, set_initial_view_state, set_get_tooltip } from '../deck-gl/deck_ist'
 import { ini_background_layer } from '../deck-gl/background_layer'
 import { ini_path_layer, set_path_layer_onclick } from '../deck-gl/path_layer'
 import { make_ist_ui_container } from '../ui/ui_containers'
@@ -81,6 +81,10 @@ export const landscape_ist = async (
     viz_state.cache.trx  = await ini_cache()
 
     viz_state.combo_data = {}
+
+    viz_state.tooltip_cat_cell = ''
+
+    set_get_tooltip(deck_ist, viz_state)
 
     let background_layer = ini_background_layer()
     let image_layers = await make_image_layers(base_url)

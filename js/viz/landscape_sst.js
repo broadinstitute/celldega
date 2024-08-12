@@ -26,10 +26,10 @@ export const landscape_sst = async (
     el,
     base_url,
     token,
-    ini_x,
-    ini_y,
-    ini_z,
-    ini_zoom,
+    // ini_x,
+    // ini_y,
+    // ini_z,
+    // ini_zoom,
     // dataset_name=''
 ) => {
 

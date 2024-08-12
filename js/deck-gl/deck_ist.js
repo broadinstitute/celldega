@@ -17,14 +17,20 @@ export const ini_deck = ( root ) => {
         controller: {doubleClickZoom: false},
         views: views,
         getCursor: getCursor,
-        getTooltip: make_tooltip,
+        // getTooltip: (info) => make_tooltip(info),
     })
-
-
 
     return deck_ist
 
 }
+
+export const set_get_tooltip = (deck_ist, viz_state) => {
+
+        deck_ist.setProps({
+            getTooltip: (info) => make_tooltip(viz_state, info)
+        })
+
+    }
 
 export const set_deck_on_view_state_change = (deck_ist, layers_obj, viz_state) => {
 

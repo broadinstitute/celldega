@@ -2,7 +2,7 @@ import { get_arrow_table } from "../read_parquet/get_arrow_table.js"
 import { get_scatter_data } from "../read_parquet/get_scatter_data.js"
 import { options, set_options } from '../global_variables/fetch_options.js'
 import { update_views } from '../deck-gl/views.js'
-import { set_initial_view_state } from "../deck-gl/initial_view_state.js"
+// import { set_initial_view_state } from "../deck-gl/initial_view_state.js"
 import { deck_sst, set_deck } from '../deck-gl/deck_sst.js'
 import { update_layers_sst } from "../deck-gl/layers_sst.js"
 import { square_scatter_layer, ini_square_scatter_layer } from "../deck-gl/square_scatter_layer.js"
@@ -71,7 +71,8 @@ export const landscape_sst = async (
     const new_layers = [simple_image_layer, square_scatter_layer]
     await update_layers_sst(new_layers)
 
-    set_initial_view_state(ini_x, ini_y, ini_z, ini_zoom)
+    // commenting out for now
+    // set_initial_view_state(ini_x, ini_y, ini_z, ini_zoom)
     update_views()
 
     set_deck(root)

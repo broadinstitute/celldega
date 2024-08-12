@@ -3,12 +3,11 @@ import { set_options } from '../global_variables/fetch_options'
 import { set_global_base_url } from '../global_variables/global_base_url'
 import { landscape_parameters, set_landscape_parameters } from '../global_variables/landscape_parameters'
 import { set_dimensions } from '../global_variables/image_dimensions'
-import { set_initial_view_state } from '../deck-gl/initial_view_state'
 import { ini_cell_layer, set_cell_layer_onclick } from "../deck-gl/cell_layer"
 import { get_layers_list } from '../deck-gl/layers_ist'
 import { make_image_layers } from '../deck-gl/image_layers'
 import { update_views, ini_viz_state } from '../deck-gl/views'
-import { ini_deck, set_deck_on_view_state_change } from '../deck-gl/deck_ist'
+import { ini_deck, set_deck_on_view_state_change, set_initial_view_state } from '../deck-gl/deck_ist'
 import { ini_background_layer } from '../deck-gl/background_layer'
 import { ini_path_layer, set_path_layer_onclick } from '../deck-gl/path_layer'
 import { make_ist_ui_container } from '../ui/ui_containers'
@@ -60,7 +59,6 @@ export const landscape_ist = async (
 
     set_global_base_url(base_url)
 
-    set_initial_view_state(ini_x, ini_y, ini_z, ini_zoom)
     await set_dimensions(base_url, imgage_name_for_dim)
 
     await set_meta_gene(base_url)
@@ -70,9 +68,8 @@ export const landscape_ist = async (
     update_views()
     let viz_state = ini_viz_state()
 
-    console.log(viz_state)
-
     let deck_ist = await ini_deck(root)
+    set_initial_view_state(deck_ist, ini_x, ini_y, ini_z, ini_zoom)
 
     viz_state.cats = {}
     viz_state.cats.cat = 'cluster'

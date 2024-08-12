@@ -52,7 +52,10 @@ export const calc_viewport = async ({ height, width, zoom, target }, deck_ist, l
 
         // gene bar graph update
         const filtered_transcripts = viz_state.combo_data.trx.filter(pos =>
-            pos.x >= viz_state.bounds.min_x && pos.x <= viz_state.bounds.max_x && pos.y >= viz_state.bounds.min_y && pos.y <= viz_state.bounds.max_y
+            pos.x >= viz_state.bounds.min_x &&
+            pos.x <= viz_state.bounds.max_x &&
+            pos.y >= viz_state.bounds.min_y &&
+            pos.y <= viz_state.bounds.max_y
         )
 
         const filtered_gene_names = filtered_transcripts.map(transcript => transcript.name)
@@ -77,7 +80,10 @@ export const calc_viewport = async ({ height, width, zoom, target }, deck_ist, l
 
         // cell bar graph update
         const filtered_cells = viz_state.combo_data.cell.filter(pos =>
-            pos.x >= viz_state.bounds.min_x && pos.x <= viz_state.bounds.max_x && pos.y >= viz_state.bounds.min_y && pos.y <= viz_state.bounds.max_y
+            pos.x >= viz_state.bounds.min_x &&
+            pos.x <= viz_state.bounds.max_x &&
+            pos.y >= viz_state.bounds.min_y &&
+            pos.y <= viz_state.bounds.max_y
         )
 
         const filtered_cell_names = filtered_cells.map(cell => cell.cat)

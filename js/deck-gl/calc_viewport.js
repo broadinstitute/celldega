@@ -12,11 +12,6 @@ import { color_dict_cluster, cluster_counts } from '../global_variables/meta_clu
 import { selected_cats } from '../global_variables/cat.js'
 import { selected_genes } from '../global_variables/selected_genes.js'
 
-export let minX
-export let maxX
-export let minY
-export let maxY
-
 export const calc_viewport = async ({ height, width, zoom, target }, deck_ist, layers_obj, viz_state) => {
 
     const tile_size = landscape_parameters.tile_size
@@ -26,10 +21,11 @@ export const calc_viewport = async ({ height, width, zoom, target }, deck_ist, l
     const halfWidthZoomed = width / (2 * zoomFactor)
     const halfHeightZoomed = height / (2 * zoomFactor)
 
-    minX = targetX - halfWidthZoomed
-    maxX = targetX + halfWidthZoomed
-    minY = targetY - halfHeightZoomed
-    maxY = targetY + halfHeightZoomed
+    viz_state.bounds = {}
+    viz_state.bounds.min_x = targetX - halfWidthZoomed
+    viz_state.bounds.max_x = targetX + halfWidthZoomed
+    viz_state.bounds.min_y = targetY - halfHeightZoomed
+    viz_state.bounds.max_y = targetY + halfHeightZoomed
 
     // Get the current viewport from Deck.gl
     const viewports = deck_ist.viewManager.getViewports()
@@ -38,7 +34,13 @@ export const calc_viewport = async ({ height, width, zoom, target }, deck_ist, l
         return
     }
 
-    const tiles_in_view = visibleTiles(minX, maxX, minY, maxY, tile_size)
+    const tiles_in_view = visibleTiles(
+        viz_state.bounds.min_x,
+        viz_state.bounds.max_x,
+        viz_state.bounds.min_y,
+        viz_state.bounds.max_y,
+        tile_size
+    )
 
     if (tiles_in_view.length < max_tiles_to_view) {
 
@@ -50,7 +52,7 @@ export const calc_viewport = async ({ height, width, zoom, target }, deck_ist, l
 
         // gene bar graph update
         const filtered_transcripts = viz_state.combo_data.trx.filter(pos =>
-            pos.x >= minX && pos.x <= maxX && pos.y >= minY && pos.y <= maxY
+            pos.x >= viz_state.bounds.min_x && pos.x <= viz_state.bounds.max_x && pos.y >= viz_state.bounds.min_y && pos.y <= viz_state.bounds.max_y
         )
 
         const filtered_gene_names = filtered_transcripts.map(transcript => transcript.name)
@@ -75,7 +77,7 @@ export const calc_viewport = async ({ height, width, zoom, target }, deck_ist, l
 
         // cell bar graph update
         const filtered_cells = viz_state.combo_data.cell.filter(pos =>
-            pos.x >= minX && pos.x <= maxX && pos.y >= minY && pos.y <= maxY
+            pos.x >= viz_state.bounds.min_x && pos.x <= viz_state.bounds.max_x && pos.y >= viz_state.bounds.min_y && pos.y <= viz_state.bounds.max_y
         )
 
         const filtered_cell_names = filtered_cells.map(cell => cell.cat)

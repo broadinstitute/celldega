@@ -1,5 +1,4 @@
 import { Deck } from 'deck.gl'
-import { views } from './views.js'
 import { on_view_state_change } from './on_view_state_change.js'
 import { make_tooltip } from './make_tooltip.js'
 
@@ -15,12 +14,18 @@ export const ini_deck = ( root ) => {
     let deck_ist = new Deck({
         parent: root,
         controller: {doubleClickZoom: false},
-        views: views,
         getCursor: getCursor,
-        // getTooltip: (info) => make_tooltip(info),
     })
 
     return deck_ist
+
+}
+
+export const set_views_prop = (deck_ist, views) => {
+
+    deck_ist.setProps({
+        views: views
+    })
 
 }
 

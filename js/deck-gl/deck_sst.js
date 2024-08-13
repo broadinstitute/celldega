@@ -1,12 +1,13 @@
 import { Deck } from 'deck.gl';
-import { views } from './views.js';
-// import { initial_view_state } from "./initial_view_state.js";
 import { layers_sst } from './layers_sst.js';
 import { make_tile_tooltip } from './make_tile_tooltip.js';
+import { OrthographicView } from 'deck.gl';
 
 export let deck_sst
 
 export const set_deck = ( root ) => {
+
+    views = [ new OrthographicView({id: 'ortho'})]
 
     let initial_view_state = {}
 

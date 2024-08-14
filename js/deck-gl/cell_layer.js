@@ -6,7 +6,7 @@ import { set_color_dict_gene } from '../global_variables/color_dict_gene'
 import { set_cell_names_array, set_cell_name_to_index_map } from '../global_variables/cell_names_array'
 import { options } from '../global_variables/fetch_options'
 import { cell_cats, set_cell_cats, dict_cell_cats, set_dict_cell_cats} from '../global_variables/cat'
-import { update_selected_cats, selected_cats, update_cat, reset_cat } from '../global_variables/cat'
+import { update_selected_cats, selected_cats, update_cat } from '../global_variables/cat'
 import { get_cell_color } from './cell_color'
 import { get_layers_list } from './layers_ist'
 import { update_path_layer_id } from './path_layer'
@@ -48,9 +48,9 @@ const cell_layer_onclick = async (info, d, deck_ist, layers_obj, viz_state) => {
 
     svg_bar_cluster.selectAll("g")
         .attr('font-weight', 'normal')
-        .attr('opacity', reset_cat ? 1.0 : 0.25)
+        .attr('opacity', viz_state.cats.reset_cat ? 1.0 : 0.25)
 
-    if (!reset_cat) {
+    if (!viz_state.cats.reset_cat) {
         const selectedBar = svg_bar_cluster.selectAll("g")
             .filter(function() {
                 return d3.select(this).select("text").text() === inst_cat

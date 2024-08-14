@@ -1,5 +1,5 @@
 import * as d3 from 'd3'
-import { cat, update_cat, selected_cats, update_selected_cats } from '../global_variables/cat'
+import { cat, update_cat, update_selected_cats } from '../global_variables/cat'
 import { update_selected_genes } from '../global_variables/selected_genes'
 import { toggle_image_layers_and_ctrls } from './ui_containers'
 import { update_cell_layer_id } from '../deck-gl/cell_layer'
@@ -48,9 +48,9 @@ export const bar_callback_cluster = (event, d, deck_ist, layers_obj, viz_state) 
     update_cat('cluster')
     update_selected_cats(viz_state.cats, [d.name])
     update_selected_genes([])
-    toggle_image_layers_and_ctrls(layers_obj, viz_state, !selected_cats.length > 0)
+    toggle_image_layers_and_ctrls(layers_obj, viz_state, !viz_state.cats.selected_cats.length > 0)
 
-    const inst_cat_name = selected_cats.join('-')
+    const inst_cat_name = viz_state.cats.selected_cats.join('-')
     update_cell_layer_id(layers_obj, inst_cat_name)
     update_path_layer_id(layers_obj, inst_cat_name)
     update_trx_layer_id(layers_obj)

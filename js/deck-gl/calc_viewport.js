@@ -9,7 +9,6 @@ import { color_dict_gene } from '../global_variables/color_dict_gene.js'
 import { gene_counts } from '../global_variables/meta_gene.js'
 import { bar_callback_gene, svg_bar_cluster, bar_callback_cluster } from '../ui/bar_plot.js'
 import { color_dict_cluster, cluster_counts } from '../global_variables/meta_cluster.js'
-import { selected_cats } from '../global_variables/cat.js'
 import { selected_genes } from '../global_variables/selected_genes.js'
 
 export const calc_viewport = async ({ height, width, zoom, target }, deck_ist, layers_obj, viz_state) => {
@@ -99,7 +98,7 @@ export const calc_viewport = async ({ height, width, zoom, target }, deck_ist, l
             }, []).filter(item => item.value > 0)
             .sort((a, b) => b.value - a.value)
 
-        update_bar_graph(svg_bar_cluster, new_bar_data_cell, color_dict_cluster, bar_callback_cluster, selected_cats, deck_ist, layers_obj, viz_state)
+        update_bar_graph(svg_bar_cluster, new_bar_data_cell, color_dict_cluster, bar_callback_cluster, viz_state.cats.selected_cats, deck_ist, layers_obj, viz_state)
 
         viz_state.containers.bar_cluster.scrollTo({
             top: 0,
@@ -115,7 +114,7 @@ export const calc_viewport = async ({ height, width, zoom, target }, deck_ist, l
             viz_state.close_up = false
 
             update_bar_graph(svg_bar_gene, gene_counts, color_dict_gene, bar_callback_gene, selected_genes, deck_ist, layers_obj, viz_state)
-            update_bar_graph(svg_bar_cluster, cluster_counts, color_dict_cluster, bar_callback_cluster, selected_cats, deck_ist, layers_obj, viz_state)
+            update_bar_graph(svg_bar_cluster, cluster_counts, color_dict_cluster, bar_callback_cluster, viz_state.cats.selected_cats, deck_ist, layers_obj, viz_state)
 
             viz_state.containers.bar_gene.scrollTo({
                 top: 0,

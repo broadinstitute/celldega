@@ -6,7 +6,7 @@ import { set_color_dict_gene } from '../global_variables/color_dict_gene'
 import { set_cell_names_array, set_cell_name_to_index_map } from '../global_variables/cell_names_array'
 import { options } from '../global_variables/fetch_options'
 import { cell_cats, set_cell_cats, dict_cell_cats, set_dict_cell_cats} from '../global_variables/cat'
-import { update_selected_cats, selected_cats, update_cat } from '../global_variables/cat'
+import { update_selected_cats, update_cat } from '../global_variables/cat'
 import { get_cell_color } from './cell_color'
 import { get_layers_list } from './layers_ist'
 import { update_path_layer_id } from './path_layer'
@@ -36,9 +36,9 @@ const cell_layer_onclick = async (info, d, deck_ist, layers_obj, viz_state) => {
     update_selected_cats(viz_state.cats, [inst_cat])
     update_selected_genes([])
 
-    toggle_image_layers_and_ctrls(layers_obj, viz_state, !selected_cats.length > 0)
+    toggle_image_layers_and_ctrls(layers_obj, viz_state, !viz_state.cats.selected_cats.length > 0)
 
-    const inst_cat_name = selected_cats.join('-')
+    const inst_cat_name = viz_state.cats.selected_cats.join('-')
 
     // reset gene
     svg_bar_gene

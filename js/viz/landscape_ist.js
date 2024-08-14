@@ -74,8 +74,8 @@ export const landscape_ist = async (
     set_views_prop(deck_ist, viz_state.views)
 
     viz_state.cats = {}
-    // viz_state.cats.cat = 'cluster'
     viz_state.cats.reset_cat = false
+    viz_state.cats.selected_cats = []
 
     // initialize cell and trx caches
     viz_state.cache = {}
@@ -92,7 +92,7 @@ export const landscape_ist = async (
     let background_layer = ini_background_layer()
     let image_layers = await make_image_layers(base_url)
     let cell_layer = await ini_cell_layer(base_url, viz_state)
-    let path_layer = await ini_path_layer()
+    let path_layer = await ini_path_layer(viz_state)
     let trx_layer = ini_trx_layer()
 
     // make layers object

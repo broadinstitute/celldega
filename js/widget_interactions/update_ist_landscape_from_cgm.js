@@ -30,7 +30,7 @@ export const update_ist_landscape_from_cgm = async (deck_ist, layers_obj, viz_st
 
         update_cat(new_cat)
         update_selected_genes([inst_gene])
-        update_selected_cats([])
+        update_selected_cats(viz_state.cats, [])
         await update_cell_exp_array(global_base_url, inst_gene)
 
         update_cell_layer_id(layers_obj, new_cat)
@@ -74,7 +74,7 @@ export const update_ist_landscape_from_cgm = async (deck_ist, layers_obj, viz_st
         new_cat = click_info.click_value
 
         update_cat('cluster')
-        update_selected_cats([new_cat])
+        update_selected_cats(viz_state.cats, [new_cat])
         update_selected_genes([])
         toggle_image_layers_and_ctrls(layers_obj, viz_state, !selected_cats.length > 0)
 
@@ -120,7 +120,7 @@ export const update_ist_landscape_from_cgm = async (deck_ist, layers_obj, viz_st
         const new_cats = click_info.click_value
 
         update_cat('cluster')
-        update_selected_cats(new_cats)
+        update_selected_cats(viz_state.cats, new_cats)
         update_selected_genes([])
         toggle_image_layers_and_ctrls(layers_obj, viz_state, !selected_cats.length > 0)
 
@@ -159,7 +159,7 @@ export const update_ist_landscape_from_cgm = async (deck_ist, layers_obj, viz_st
         }
 
         update_cat(inst_gene)
-        update_selected_cats(click_info.click_value)
+        update_selected_cats(viz_state.cats, click_info.click_value)
 
     } else {
         inst_gene = 'cluster'

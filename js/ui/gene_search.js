@@ -48,7 +48,7 @@ const ist_gene_search_callback = async (deck_ist, layers_obj, viz_state) => {
 
         update_cat(new_cat);
         update_selected_genes(inst_gene === '' ? [] : [inst_gene])
-        update_selected_cats([])
+        update_selected_cats(viz_state.cats, [])
 
         const inst_gene_in_gene_names = gene_names.includes(inst_gene)
 

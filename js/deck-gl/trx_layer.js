@@ -32,7 +32,7 @@ const trx_layer_callback = async (info, d, deck_ist, layers_obj, viz_state) => {
 
     update_cat(new_cat)
     update_selected_genes([inst_gene])
-    update_selected_cats([])
+    update_selected_cats(viz_state.cats, [])
 
     await update_cell_exp_array(global_base_url, inst_gene)
 

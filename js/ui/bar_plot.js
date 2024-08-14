@@ -46,7 +46,7 @@ export const bar_callback_cluster = (event, d, deck_ist, layers_obj, viz_state) 
     }
 
     update_cat('cluster')
-    update_selected_cats([d.name])
+    update_selected_cats(viz_state.cats, [d.name])
     update_selected_genes([])
     toggle_image_layers_and_ctrls(layers_obj, viz_state, !selected_cats.length > 0)
 
@@ -97,7 +97,7 @@ export const bar_callback_gene = async (event, d, deck_ist, layers_obj, viz_stat
 
     update_cat(new_cat)
     update_selected_genes([inst_gene])
-    update_selected_cats([])
+    update_selected_cats(viz_state.cats, [])
     await update_cell_exp_array(global_base_url, inst_gene)
 
     update_cell_layer_id(layers_obj, new_cat)

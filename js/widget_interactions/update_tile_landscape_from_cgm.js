@@ -23,13 +23,13 @@ export const update_tile_landscape_from_cgm = async () => {
 
         selected_gene = 'cluster'
         update_cat(selected_gene)
-        update_selected_cats([click_info.click_value])
+        update_selected_cats(viz_state.cats, [click_info.click_value])
 
     } else if (click_info.click_type === 'col-dendro') {
 
         selected_gene = 'cluster'
         update_cat(selected_gene)
-        update_selected_cats(click_info.click_value)
+        update_selected_cats(viz_state.cats, click_info.click_value)
 
     } else {
         selected_gene = 'cluster'

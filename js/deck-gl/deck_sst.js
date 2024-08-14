@@ -7,7 +7,7 @@ export let deck_sst
 
 export const set_deck = ( root ) => {
 
-    views = [ new OrthographicView({id: 'ortho'})]
+    const views = [ new OrthographicView({id: 'ortho'})]
 
     let initial_view_state = {}
 

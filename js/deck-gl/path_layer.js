@@ -51,7 +51,7 @@ const path_layer_onclick = (info, d, deck_ist, layers_obj, viz_state) => {
     const inst_cat = dict_cell_cats[inst_cell_id]
 
     update_cat('cluster')
-    update_selected_cats([inst_cat])
+    update_selected_cats(viz_state.cats, [inst_cat])
     update_selected_genes
 
     toggle_image_layers_and_ctrls(layers_obj, viz_state, !selected_cats.length > 0)

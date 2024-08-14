@@ -74,7 +74,8 @@ export const landscape_ist = async (
     set_views_prop(deck_ist, viz_state.views)
 
     viz_state.cats = {}
-    viz_state.cats.cat = 'cluster'
+    // viz_state.cats.cat = 'cluster'
+    viz_state.cats.reset_cat = false
 
     // initialize cell and trx caches
     viz_state.cache = {}

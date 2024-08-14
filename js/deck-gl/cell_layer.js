@@ -33,7 +33,7 @@ const cell_layer_onclick = async (info, d, deck_ist, layers_obj, viz_state) => {
     }
 
     update_cat('cluster')
-    update_selected_cats([inst_cat])
+    update_selected_cats(viz_state.cats, [inst_cat])
     update_selected_genes([])
 
     toggle_image_layers_and_ctrls(layers_obj, viz_state, !selected_cats.length > 0)

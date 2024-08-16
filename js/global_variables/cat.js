@@ -11,27 +11,23 @@ export const update_cat = (new_cat) => {
     cat = new_cat
 }
 
-export let cell_cats
-
-export const set_cell_cats = (cell_arrow_table, column_name) => {
-    cell_cats = cell_arrow_table.getChild(column_name).toArray()
+export const set_cell_cats_new = (cats, cell_arrow_table, column_name) => {
+    cats.cell_cats = cell_arrow_table.getChild(column_name).toArray()
 }
 
-export const update_cell_cats = (new_cell_cats) => {
+export const update_cell_cats_new = (cats, new_cell_cats) => {
 
-    // swap 'nan' for null in new_cell_cats
-    new_cell_cats = new_cell_cats.map(cat => cat === 'nan' ? null : cat)
-    cell_cats = new_cell_cats
-
-    set_dict_cell_cats()
+    // swap 'nan' for null in new cats
+    cats.cell_cats = new_cell_cats.map(cat => cat === 'nan' ? null : cat)
 }
+
 
 export let dict_cell_cats = {}
 
-export const set_dict_cell_cats = () => {
+export const set_dict_cell_cats = (cats) => {
 
     cell_names_array.forEach((name, index) => {
-        dict_cell_cats[name] = cell_cats[index]
+        dict_cell_cats[name] = cats.cell_cats[index]
     })
 
 }

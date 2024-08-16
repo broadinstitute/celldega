@@ -35,8 +35,8 @@ export let square_scatter_layer
 const square_scatter_layer_color = (i, d) => {
     if (cat === 'cluster') {
         const inst_cat = tile_cats_array[d.index];
-        const opacity = (selected_cats.length === 0 || selected_cats.includes(inst_cat)) ? 255 : 25;
-        return [...tile_color_dict[inst_cat], opacity];
+        // const opacity = (selected_cats.length === 0 || selected_cats.includes(inst_cat)) ? 255 : 25;
+        // return [...tile_color_dict[inst_cat], opacity];
     } else {
         const inst_exp = tile_exp_array[d.index];
         return [255, 0, 0, inst_exp];
@@ -54,12 +54,12 @@ export const ini_square_scatter_layer = () => {
         getRadius: 3, // 8um: 12 with border
         pickable: true,
         onClick: (d) => {
-            let new_selected_cats = [tile_cats_array[d.index]]
+            // let new_selected_cats = [tile_cats_array[d.index]]
 
-            update_selected_cats(new_selected_cats)
-            update_cat('cluster')
-            update_square_scatter_layer()
-            deck_sst.setProps({layers: [simple_image_layer, square_scatter_layer]})
+            // update_selected_cats(new_selected_cats)
+            // update_cat('cluster')
+            // update_square_scatter_layer()
+            // deck_sst.setProps({layers: [simple_image_layer, square_scatter_layer]})
 
         },
         updateTriggers: {
@@ -70,16 +70,16 @@ export const ini_square_scatter_layer = () => {
 }
 
 export const update_square_scatter_layer = () => {
-    // Determine the new layer ID based on the selected categories
-    const layer_id = selected_cats.length === 0
-        ? `tile-layer-${cat}`
-        : `tile-layer-${cat}-${selected_cats.join('-')}`;
+    // // Determine the new layer ID based on the selected categories
+    // const layer_id = selected_cats.length === 0
+    //     ? `tile-layer-${cat}`
+    //     : `tile-layer-${cat}-${selected_cats.join('-')}`;
 
-    // Clone the existing layer and update the ID and data
-    square_scatter_layer = square_scatter_layer.clone({
-        id: layer_id,
-        data: tile_scatter_data,
-    });
+    // // Clone the existing layer and update the ID and data
+    // square_scatter_layer = square_scatter_layer.clone({
+    //     id: layer_id,
+    //     data: tile_scatter_data,
+    // });
 }
 
 

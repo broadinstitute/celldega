@@ -5,7 +5,7 @@ import { get_scatter_data } from "../read_parquet/get_scatter_data"
 import { set_color_dict_gene } from '../global_variables/color_dict_gene'
 import { set_cell_names_array, set_cell_name_to_index_map } from '../global_variables/cell_names_array'
 import { options } from '../global_variables/fetch_options'
-import { cell_cats, set_cell_cats, dict_cell_cats, set_dict_cell_cats} from '../global_variables/cat'
+import { set_cell_cats_new, dict_cell_cats, set_dict_cell_cats} from '../global_variables/cat'
 import { update_selected_cats, update_cat } from '../global_variables/cat'
 import { get_cell_color } from './cell_color'
 import { get_layers_list } from './layers_ist'
@@ -26,7 +26,7 @@ const cell_layer_onclick = async (info, d, deck_ist, layers_obj, viz_state) => {
 
     if (isTouchDevice) {
         // Fallback on the previous method for touch devices
-        inst_cat = cell_cats[info.index];
+        inst_cat = viz_state.cats.cell_cats[info.index];
     } else {
         // Use the tooltip category for non-touch devices
         inst_cat = viz_state.tooltip_cat_cell;
@@ -102,8 +102,9 @@ export const ini_cell_layer = async (base_url, viz_state) => {
     var cluster_arrow_table = await get_arrow_table(base_url + `/cell_clusters/cluster.parquet`, options.fetch)
 
     // setting a single cell category for now
-    set_cell_cats(cluster_arrow_table, 'cluster')
-    set_dict_cell_cats()
+    // set_cell_cats(cluster_arrow_table, 'cluster')
+    set_cell_cats_new(viz_state.cats, cluster_arrow_table, 'cluster')
+    set_dict_cell_cats(viz_state.cats)
 
     // Combine names and positions into a single array of objects
     const new_cell_names_array = cell_arrow_table.getChild("name").toArray()

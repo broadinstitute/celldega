@@ -5,7 +5,7 @@ import { get_scatter_data } from "../read_parquet/get_scatter_data"
 import { set_color_dict_gene } from '../global_variables/color_dict_gene'
 import { set_cell_names_array, set_cell_name_to_index_map } from '../global_variables/cell_names_array'
 import { options } from '../global_variables/fetch_options'
-import { set_cell_cats_new, dict_cell_cats, set_dict_cell_cats} from '../global_variables/cat'
+import { set_cell_cats, set_dict_cell_cats} from '../global_variables/cat'
 import { update_selected_cats, update_cat } from '../global_variables/cat'
 import { get_cell_color } from './cell_color'
 import { get_layers_list } from './layers_ist'
@@ -103,7 +103,7 @@ export const ini_cell_layer = async (base_url, viz_state) => {
 
     // setting a single cell category for now
     // set_cell_cats(cluster_arrow_table, 'cluster')
-    set_cell_cats_new(viz_state.cats, cluster_arrow_table, 'cluster')
+    set_cell_cats(viz_state.cats, cluster_arrow_table, 'cluster')
     set_dict_cell_cats(viz_state.cats)
 
     // Combine names and positions into a single array of objects
@@ -115,7 +115,7 @@ export const ini_cell_layer = async (base_url, viz_state) => {
     // save cell positions and categories in one place for updating cluster bar plot
     viz_state.combo_data.cell = new_cell_names_array.map((name, index) => ({
         name: name,
-        cat: dict_cell_cats[name],
+        cat: viz_state.cats.dict_cell_cats[name],
         x: flatCoordinateArray[index * 2],
         y: flatCoordinateArray[index * 2 + 1]
     }))

@@ -77,6 +77,7 @@ export const landscape_ist = async (
     viz_state.cats.reset_cat = false
     viz_state.cats.selected_cats = []
     viz_state.cats.cell_cats = []
+    viz_state.cats.dict_cell_cats = {}
 
     // initialize cell and trx caches
     viz_state.cache = {}

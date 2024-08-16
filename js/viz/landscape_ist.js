@@ -74,6 +74,7 @@ export const landscape_ist = async (
     set_views_prop(deck_ist, viz_state.views)
 
     viz_state.cats = {}
+    viz_state.cats.cat
     viz_state.cats.reset_cat = false
     viz_state.cats.selected_cats = []
     viz_state.cats.cell_cats = []

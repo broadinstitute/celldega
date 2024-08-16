@@ -1,6 +1,6 @@
 import * as d3 from 'd3'
 import { square_scatter_layer, update_square_scatter_layer } from "../deck-gl/square_scatter_layer.js"
-import { update_cat, update_selected_cats } from "../global_variables/cat.js"
+import { update_cat_new, update_selected_cats } from "../global_variables/cat.js"
 import { deck_sst } from "../deck-gl/deck_sst.js"
 import { update_tile_exp_array } from "../global_variables/tile_exp_array.js"
 import { gene_search_input, set_gene_search_input } from "./gene_search_input.js"
@@ -27,7 +27,7 @@ const sst_gene_search_callback = async () => {
 
     const inst_gene = gene_search_input.value
     const new_cat = inst_gene === '' ? 'cluster' : inst_gene
-    update_cat(new_cat)
+    // update_cat(new_cat)
 
     if (inst_gene !== '' && gene_search_options.includes(inst_gene)) {
         await update_tile_exp_array(global_base_url, inst_gene)
@@ -46,7 +46,7 @@ const ist_gene_search_callback = async (deck_ist, layers_obj, viz_state) => {
 
     if (inst_gene === '' || gene_names.includes(inst_gene)) {
 
-        update_cat(new_cat);
+        update_cat_new(viz_state.cats, new_cat);
         update_selected_genes(inst_gene === '' ? [] : [inst_gene])
         update_selected_cats(viz_state.cats, [])
 
@@ -160,7 +160,7 @@ export const set_gene_search = async (tech_type, deck_ist, layers_obj, viz_state
 
     // Set initial default value to "cluster"
     gene_search_input.value = ''
-    update_cat('cluster')
+    update_cat_new(viz_state.cats, 'cluster')
 
     // Event listener when an option is selected or the input is cleared
     let callback

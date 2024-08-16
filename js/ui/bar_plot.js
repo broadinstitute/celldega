@@ -1,5 +1,5 @@
 import * as d3 from 'd3'
-import { cat, update_cat, update_selected_cats } from '../global_variables/cat'
+import { cat, update_cat_new, update_selected_cats } from '../global_variables/cat'
 import { update_selected_genes } from '../global_variables/selected_genes'
 import { toggle_image_layers_and_ctrls } from './ui_containers'
 import { update_cell_layer_id } from '../deck-gl/cell_layer'
@@ -45,7 +45,7 @@ export const bar_callback_cluster = (event, d, deck_ist, layers_obj, viz_state) 
             .attr('opacity', 1.0)
     }
 
-    update_cat('cluster')
+    update_cat_new(viz_state.cats, 'cluster')
     update_selected_cats(viz_state.cats, [d.name])
     update_selected_genes([])
     toggle_image_layers_and_ctrls(layers_obj, viz_state, !viz_state.cats.selected_cats.length > 0)
@@ -95,7 +95,7 @@ export const bar_callback_gene = async (event, d, deck_ist, layers_obj, viz_stat
 
     toggle_image_layers_and_ctrls(layers_obj, viz_state, cat === inst_gene)
 
-    update_cat(new_cat)
+    update_cat_new(viz_state.cats, new_cat)
     update_selected_genes([inst_gene])
     update_selected_cats(viz_state.cats, [])
     await update_cell_exp_array(global_base_url, inst_gene)

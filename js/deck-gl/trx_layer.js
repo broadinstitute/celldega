@@ -6,7 +6,7 @@ import { trx_names_array } from '../global_variables/trx_names_array'
 import { selected_genes, update_selected_genes } from '../global_variables/selected_genes'
 import { update_cell_layer_id } from './cell_layer'
 import { gene_search_input } from '../ui/gene_search_input'
-import { cat, update_cat, update_selected_cats } from '../global_variables/cat'
+import { cat, update_cat_new, update_selected_cats } from '../global_variables/cat'
 import { update_cell_exp_array } from '../global_variables/cell_exp_array'
 import { global_base_url } from '../global_variables/global_base_url'
 import { toggle_image_layers_and_ctrls } from '../ui/ui_containers'
@@ -30,7 +30,7 @@ const trx_layer_callback = async (info, d, deck_ist, layers_obj, viz_state) => {
 
     toggle_image_layers_and_ctrls(layers_obj, viz_state, cat === inst_gene)
 
-    update_cat(new_cat)
+    update_cat_new(viz_state.cats.new_cat)
     update_selected_genes([inst_gene])
     update_selected_cats(viz_state.cats, [])
 

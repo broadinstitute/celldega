@@ -1,5 +1,5 @@
 import * as d3 from 'd3'
-import { cat, update_cat_new, update_selected_cats } from '../global_variables/cat'
+import { update_cat_new, update_selected_cats } from '../global_variables/cat'
 import { update_selected_genes } from '../global_variables/selected_genes'
 import { toggle_image_layers_and_ctrls } from './ui_containers'
 import { update_cell_layer_id } from '../deck-gl/cell_layer'
@@ -90,10 +90,10 @@ export const bar_callback_gene = async (event, d, deck_ist, layers_obj, viz_stat
     }
 
     const inst_gene = d.name
-    const reset_gene = inst_gene === cat;
+    const reset_gene = inst_gene === viz_state.cats.cat;
     const new_cat = reset_gene ? 'cluster' : inst_gene
 
-    toggle_image_layers_and_ctrls(layers_obj, viz_state, cat === inst_gene)
+    toggle_image_layers_and_ctrls(layers_obj, viz_state, viz_state.cats.cat === inst_gene)
 
     update_cat_new(viz_state.cats, new_cat)
     update_selected_genes([inst_gene])

@@ -35,7 +35,7 @@ export const landscape_ist = async (
     trx_radius=0.25,
 ) => {
 
-    console.log('something')
+    console.log('hi!')
     set_options(token)
 
     // move this to landscape_parameters

@@ -1,6 +1,6 @@
  /* eslint-disable */
 import { ScatterplotLayer } from 'deck.gl';
-import { cat, update_cat } from "../global_variables/cat.js";
+// import { cat, update_cat } from "../global_variables/cat.js";
 import { tile_scatter_data } from "../global_variables/tile_scatter_data.js";
 import { tile_cats_array } from "../global_variables/tile_cats_array.js";
 import {tile_color_dict } from '../global_variables/tile_color_dict.js';

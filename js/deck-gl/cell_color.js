@@ -1,11 +1,10 @@
-import { cat } from '../global_variables/cat'
 import { cell_exp_array } from '../global_variables/cell_exp_array'
 import { color_dict_cluster } from '../global_variables/meta_cluster'
 
 // transparent to red
 export const get_cell_color = (cats, i, d) => {
 
-    if (cat === 'cluster') {
+    if (cats.cat === 'cluster') {
         try {
             const inst_cat = cats.cell_cats[d.index]
 

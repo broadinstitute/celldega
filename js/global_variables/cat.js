@@ -1,15 +1,11 @@
 import { cell_names_array } from "./cell_names_array"
 
-// cat can be 'cluster' or a gene name
-// if cat is a gene name then the cells will be colored based on gene expression
-// if cat is 'cluster' then the cells will be colored based on the cell category
-// and 'cluster' can be filtered using selected_cats. This can be used to filter
-// for a subset of cell cluster categories.
-export let cat
-
-export const update_cat = (new_cat) => {
-    cat = new_cat
-}
+// // cat can be 'cluster' or a gene name
+// // if cat is a gene name then the cells will be colored based on gene expression
+// // if cat is 'cluster' then the cells will be colored based on the cell category
+// // and 'cluster' can be filtered using selected_cats. This can be used to filter
+// // for a subset of cell cluster categories.
+// export let cat
 
 export const update_cat_new = (cats, new_cat) => {
     cats.cat = new_cat

@@ -1,6 +1,6 @@
 import * as d3 from 'd3'
 import { toggle_image_layers_and_ctrls } from '../ui/ui_containers'
-import { update_cat_new, update_selected_cats } from '../global_variables/cat'
+import { update_cat, update_selected_cats } from '../global_variables/cat'
 import { update_selected_genes } from '../global_variables/selected_genes'
 import { update_cell_exp_array } from '../global_variables/cell_exp_array'
 import { update_cell_layer_id } from '../deck-gl/cell_layer'
@@ -28,7 +28,7 @@ export const update_ist_landscape_from_cgm = async (deck_ist, layers_obj, viz_st
 
         toggle_image_layers_and_ctrls(layers_obj, viz_state, viz_state.cats.cat === inst_gene)
 
-        update_cat_new(viz_state.cats, new_cat)
+        update_cat(viz_state.cats, new_cat)
         update_selected_genes([inst_gene])
         update_selected_cats(viz_state.cats, [])
         await update_cell_exp_array(global_base_url, inst_gene)
@@ -73,7 +73,7 @@ export const update_ist_landscape_from_cgm = async (deck_ist, layers_obj, viz_st
         inst_gene = 'cluster'
         new_cat = click_info.click_value
 
-        update_cat_new(viz_state.cats, 'cluster')
+        update_cat(viz_state.cats, 'cluster')
         update_selected_cats(viz_state.cats, [new_cat])
         update_selected_genes([])
         toggle_image_layers_and_ctrls(layers_obj, viz_state, !viz_state.cats.selected_cats.length > 0)
@@ -119,7 +119,7 @@ export const update_ist_landscape_from_cgm = async (deck_ist, layers_obj, viz_st
         inst_gene = 'cluster'
         const new_cats = click_info.click_value
 
-        update_cat_new(viz_state.cats, 'cluster')
+        update_cat(viz_state.cats, 'cluster')
         update_selected_cats(viz_state.cats, new_cats)
         update_selected_genes([])
         toggle_image_layers_and_ctrls(layers_obj, viz_state, !viz_state.cats.selected_cats.length > 0)
@@ -158,7 +158,7 @@ export const update_ist_landscape_from_cgm = async (deck_ist, layers_obj, viz_st
             }
         }
 
-        update_cat_new(viz_state.cats, inst_gene)
+        update_cat(viz_state.cats, inst_gene)
         update_selected_cats(viz_state.cats, click_info.click_value)
 
     } else {

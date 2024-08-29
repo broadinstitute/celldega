@@ -110,7 +110,6 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
     img_layers_container.style.marginTop = '3px'
     img_layers_container.style.marginLeft = '2px'
 
-
     img_layers_container.addEventListener('wheel', (event) => {
         const { scrollTop, scrollHeight, clientHeight } = img_layers_container
         const atTop = scrollTop === 0
@@ -202,6 +201,8 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
     )
 
     viz_state.containers.bar_gene = make_bar_container()
+
+    console.log('viz_state.containers.bar_gene', viz_state.containers.bar_gene)
 
     make_bar_graph(
         viz_state.containers.bar_gene,

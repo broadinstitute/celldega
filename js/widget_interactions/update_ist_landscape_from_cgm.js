@@ -55,10 +55,10 @@ export const update_ist_landscape_from_cgm = async (deck_ist, layers_obj, viz_st
 
             if (!selectedBar.empty()) {
                 const barPosition = selectedBar.node().getBoundingClientRect().top
-                const containerPosition = viz_state.cotainers.bar_gene.getBoundingClientRect().top
-                const scrollPosition = barPosition - containerPosition + viz_state.cotainers.bar_gene.scrollTop
+                const containerPosition = viz_state.containers.bar_gene.getBoundingClientRect().top
+                const scrollPosition = barPosition - containerPosition + viz_state.containers.bar_gene.scrollTop
 
-                viz_state.cotainers.bar_gene.scrollTo({
+                viz_state.containers.bar_gene.scrollTo({
                     top: scrollPosition,
                     behavior: 'smooth'
                 })

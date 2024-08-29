@@ -58,21 +58,24 @@ const trx_layer_callback = async (info, d, deck_ist, layers_obj, viz_state) => {
             .attr('opacity', 1.0)
 
         if (!selectedBar.empty()) {
+
+            console.log('trx_layer: viz_state.containers.bar_gene', viz_state.containers.bar_gene)
+
             const barPosition = selectedBar.node().getBoundingClientRect().top
 
-            const containerPosition = viz_state.cotainers.bar_gene.getBoundingClientRect().top
-            const scrollPosition = barPosition - containerPosition + viz_state.cotainers.bar_gene.scrollTop
+            const containerPosition = viz_state.containers.bar_gene.getBoundingClientRect().top
+            const scrollPosition = barPosition - containerPosition + viz_state.containers.bar_gene.scrollTop
 
             svg_bar_gene
                 .attr('opacity', 1.0)
 
-                viz_state.cotainers.bar_gene.scrollTo({
+                viz_state.containers.bar_gene.scrollTo({
                 top: scrollPosition,
                 behavior: 'smooth'
             })
         }
     } else {
-        viz_state.cotainers.bar_gene.scrollTo({
+        viz_state.containers.bar_gene.scrollTo({
             top: 0,
             behavior: 'smooth'
         })

@@ -80,6 +80,8 @@ export const landscape_ist = async (
     viz_state.cats.dict_cell_cats = {}
 
     viz_state.cats.cell_exp_array = []
+    viz_state.cats.cell_names_array = []
+    viz_state.cats.cell_name_to_index_map = new Map()
 
     // initialize cell and trx caches
     viz_state.cache = {}

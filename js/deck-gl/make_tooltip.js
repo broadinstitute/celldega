@@ -1,5 +1,4 @@
 import * as d3 from 'd3'
-import { cell_names_array } from "../global_variables/cell_names_array"
 import { trx_names_array } from "../global_variables/trx_names_array"
 import { polygon_cell_names } from "../vector_tile/polygons/grab_cell_tiles_in_view"
 
@@ -12,7 +11,7 @@ export const make_tooltip = (viz_state, info) => {
     let inst_cat = ''
 
     if (info.layer.id.startsWith('cell-layer') || info.layer.id.startsWith('path-layer')) {
-        inst_name = info.layer.id.startsWith('cell-layer') ? cell_names_array[info.index] : polygon_cell_names[info.index]
+        inst_name = info.layer.id.startsWith('cell-layer') ? viz_state.cats.cell_names_array[info.index] : polygon_cell_names[info.index]
         inst_cat = viz_state.cats.dict_cell_cats[inst_name]
         inst_html = `<div>cell: ${inst_name}</div><div>cluster: ${inst_cat}</div>`
 

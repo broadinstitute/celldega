@@ -1,5 +1,3 @@
-import { cell_names_array } from "./cell_names_array"
-
 // // cat can be 'cluster' or a gene name
 // // if cat is a gene name then the cells will be colored based on gene expression
 // // if cat is 'cluster' then the cells will be colored based on the cell category
@@ -21,7 +19,7 @@ export const update_cell_cats = (cats, new_cell_cats) => {
 
 export const set_dict_cell_cats = (cats) => {
 
-    cell_names_array.forEach((name, index) => {
+    cats.cell_names_array.forEach((name, index) => {
         cats.dict_cell_cats[name] = cats.cell_cats[index]
     })
 

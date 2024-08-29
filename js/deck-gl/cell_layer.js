@@ -95,8 +95,9 @@ export const ini_cell_layer = async (base_url, viz_state) => {
 
     await set_color_dict_gene(base_url)
 
-    set_cell_names_array(cell_arrow_table)
-    set_cell_name_to_index_map()
+    set_cell_names_array(viz_state.cats, cell_arrow_table)
+
+    set_cell_name_to_index_map(viz_state.cats)
 
     // default clustering
     var cluster_arrow_table = await get_arrow_table(base_url + `/cell_clusters/cluster.parquet`, options.fetch)

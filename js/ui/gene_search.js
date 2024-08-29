@@ -5,7 +5,6 @@ import { deck_sst } from "../deck-gl/deck_sst.js"
 import { update_tile_exp_array } from "../global_variables/tile_exp_array.js"
 import { gene_search_input, set_gene_search_input } from "./gene_search_input.js"
 import { simple_image_layer } from "../deck-gl/simple_image_layer.js"
-import { gene_names } from "../global_variables/gene_names.js"
 import { global_base_url } from "../global_variables/global_base_url.js"
 import { update_selected_genes } from "../global_variables/selected_genes.js"
 import { update_path_layer_id } from "../deck-gl/path_layer.js"
@@ -43,13 +42,13 @@ const ist_gene_search_callback = async (deck_ist, layers_obj, viz_state) => {
 
     const new_cat = inst_gene === '' ? 'cluster' : inst_gene;
 
-    if (inst_gene === '' || gene_names.includes(inst_gene)) {
+    if (inst_gene === '' || viz_state.genes.gene_names.includes(inst_gene)) {
 
         update_cat(viz_state.cats, new_cat);
         update_selected_genes(inst_gene === '' ? [] : [inst_gene])
         update_selected_cats(viz_state.cats, [])
 
-        const inst_gene_in_gene_names = gene_names.includes(inst_gene)
+        const inst_gene_in_gene_names = viz_state.genes.gene_names.includes(inst_gene)
 
         if (inst_gene_in_gene_names) {
             await update_cell_exp_array(viz_state.cats, global_base_url, inst_gene)
@@ -99,7 +98,7 @@ const ist_gene_search_callback = async (deck_ist, layers_obj, viz_state) => {
 
 export const set_gene_search = async (tech_type, deck_ist, layers_obj, viz_state) => {
 
-    gene_search_options = ['cluster', ...gene_names]
+    gene_search_options = ['cluster', ...viz_state.genes.gene_names]
 
     gene_search.style.width = "115px"
 

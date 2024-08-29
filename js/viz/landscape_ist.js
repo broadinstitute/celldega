@@ -60,18 +60,7 @@ export const landscape_ist = async (
 
     await set_dimensions(base_url, imgage_name_for_dim)
 
-    await set_meta_gene(base_url)
-
-    await set_cluster_metadata()
-
     let viz_state = ini_viz_state()
-
-    viz_state.views = set_views()
-
-    let deck_ist = await ini_deck(root)
-    set_initial_view_state(deck_ist, ini_x, ini_y, ini_z, ini_zoom)
-    set_views_prop(deck_ist, viz_state.views)
-
     viz_state.cats = {}
     viz_state.cats.cat
     viz_state.cats.reset_cat = false
@@ -81,10 +70,25 @@ export const landscape_ist = async (
 
     viz_state.genes = {}
     viz_state.genes.color_dict_gene = {}
+    viz_state.genes.gene_names = []
 
     viz_state.cats.cell_exp_array = []
     viz_state.cats.cell_names_array = []
     viz_state.cats.cell_name_to_index_map = new Map()
+
+    await set_meta_gene(viz_state.genes, base_url)
+
+    await set_cluster_metadata()
+
+
+
+    viz_state.views = set_views()
+
+    let deck_ist = await ini_deck(root)
+    set_initial_view_state(deck_ist, ini_x, ini_y, ini_z, ini_zoom)
+    set_views_prop(deck_ist, viz_state.views)
+
+
 
     // initialize cell and trx caches
     viz_state.cache = {}

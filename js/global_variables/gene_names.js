@@ -1,5 +1,5 @@
-export let gene_names = []
+// export let gene_names = []
 
-export const set_gene_names = (gene_names_new) => {
-    gene_names = gene_names_new
+export const set_gene_names = (genes, gene_names_new) => {
+    genes.gene_names = gene_names_new
 }

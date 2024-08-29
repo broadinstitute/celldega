@@ -37,7 +37,9 @@ export const update_cell_exp_array = async (base_url, inst_gene) => {
 
 }
 
-export const new_update_cell_exp_array = async (base_url, inst_gene) => {
+export const new_update_cell_exp_array = async (cats, base_url, inst_gene) => {
+
+    console.log('new_update_cell_exp_array inst_gene', inst_gene)
 
     var file_path = base_url + '/cbg/' + inst_gene + '.parquet'
     var exp_table = await get_arrow_table(file_path, options.fetch)

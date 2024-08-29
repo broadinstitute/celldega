@@ -6,7 +6,7 @@ import { update_cell_layer_id } from '../deck-gl/cell_layer'
 import { update_path_layer_id } from '../deck-gl/path_layer'
 import { update_trx_layer_id } from '../deck-gl/trx_layer'
 import { get_layers_list } from '../deck-gl/layers_ist'
-import { update_cell_exp_array } from '../global_variables/cell_exp_array'
+import { update_cell_exp_array, new_update_cell_exp_array } from '../global_variables/cell_exp_array'
 import { global_base_url } from '../global_variables/global_base_url'
 import { gene_search_input } from './gene_search_input'
 import { update_gene_text_box } from './gene_search'
@@ -98,7 +98,7 @@ export const bar_callback_gene = async (event, d, deck_ist, layers_obj, viz_stat
     update_cat(viz_state.cats, new_cat)
     update_selected_genes([inst_gene])
     update_selected_cats(viz_state.cats, [])
-    await update_cell_exp_array(global_base_url, inst_gene)
+    await new_update_cell_exp_array(viz_state.cats, global_base_url, inst_gene)
 
     update_cell_layer_id(layers_obj, new_cat)
     update_path_layer_id(layers_obj, new_cat)

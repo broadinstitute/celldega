@@ -11,7 +11,7 @@ import { update_selected_genes } from "../global_variables/selected_genes.js"
 import { update_path_layer_id } from "../deck-gl/path_layer.js"
 import { update_cell_layer_id } from "../deck-gl/cell_layer.js"
 import { update_trx_layer_id } from "../deck-gl/trx_layer.js"
-import { update_cell_exp_array } from "../global_variables/cell_exp_array.js"
+import { update_cell_exp_array, new_update_cell_exp_array } from "../global_variables/cell_exp_array.js"
 import { toggle_image_layers_and_ctrls } from "./ui_containers.js"
 import { get_layers_list } from "../deck-gl/layers_ist.js"
 import { svg_bar_gene } from "./bar_plot.js"
@@ -53,7 +53,7 @@ const ist_gene_search_callback = async (deck_ist, layers_obj, viz_state) => {
         const inst_gene_in_gene_names = gene_names.includes(inst_gene)
 
         if (inst_gene_in_gene_names) {
-            await update_cell_exp_array(global_base_url, inst_gene)
+            await new_update_cell_exp_array(viz_state.cats, global_base_url, inst_gene)
         }
 
         toggle_image_layers_and_ctrls(layers_obj, viz_state, !inst_gene_in_gene_names)

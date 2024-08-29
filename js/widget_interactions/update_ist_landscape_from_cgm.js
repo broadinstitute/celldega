@@ -2,7 +2,7 @@ import * as d3 from 'd3'
 import { toggle_image_layers_and_ctrls } from '../ui/ui_containers'
 import { update_cat, update_selected_cats } from '../global_variables/cat'
 import { update_selected_genes } from '../global_variables/selected_genes'
-import { update_cell_exp_array } from '../global_variables/cell_exp_array'
+import { update_cell_exp_array, new_update_cell_exp_array } from '../global_variables/cell_exp_array'
 import { update_cell_layer_id } from '../deck-gl/cell_layer'
 import { update_path_layer_id } from '../deck-gl/path_layer'
 import { update_trx_layer_id } from '../deck-gl/trx_layer'
@@ -31,7 +31,7 @@ export const update_ist_landscape_from_cgm = async (deck_ist, layers_obj, viz_st
         update_cat(viz_state.cats, new_cat)
         update_selected_genes([inst_gene])
         update_selected_cats(viz_state.cats, [])
-        await update_cell_exp_array(global_base_url, inst_gene)
+        await new_update_cell_exp_array(viz_state.cats, global_base_url, inst_gene)
 
         update_cell_layer_id(layers_obj, new_cat)
         update_path_layer_id(layers_obj, new_cat)

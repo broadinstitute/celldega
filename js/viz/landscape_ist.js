@@ -6,7 +6,7 @@ import { set_dimensions } from '../global_variables/image_dimensions'
 import { ini_cell_layer, set_cell_layer_onclick } from "../deck-gl/cell_layer"
 import { get_layers_list } from '../deck-gl/layers_ist'
 import { make_image_layers } from '../deck-gl/image_layers'
-import { set_views, ini_viz_state } from '../deck-gl/views'
+import { set_views } from '../deck-gl/views'
 import { ini_deck, set_deck_on_view_state_change, set_initial_view_state, set_get_tooltip, set_views_prop } from '../deck-gl/deck_ist'
 import { ini_background_layer } from '../deck-gl/background_layer'
 import { ini_path_layer, set_path_layer_onclick } from '../deck-gl/path_layer'
@@ -60,7 +60,11 @@ export const landscape_ist = async (
 
     await set_dimensions(base_url, imgage_name_for_dim)
 
-    let viz_state = ini_viz_state()
+    let viz_state = {}
+
+    viz_state.close_up = false
+
+    // let viz_state = ini_viz_state()
     viz_state.cats = {}
     viz_state.cats.cat
     viz_state.cats.reset_cat = false

@@ -16,10 +16,6 @@ import { gene_counts } from '../global_variables/meta_gene'
 
 export const toggle_image_layers_and_ctrls = (layers_obj, viz_state, is_visible) => {
 
-    console.log('toggle_image_layers_and_ctrls')
-
-    console.log(viz_state)
-
     d3.select(viz_state.containers.image)
         .selectAll('.img_layer_button')
         .style('color', is_visible ? 'blue' : 'gray');
@@ -182,8 +178,6 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
 
     ini_slider('cell', deck_ist, layers_obj, viz_state)
 
-    console.log('viz_state.sliders.cell_slider', viz_state.sliders.cell instanceof Node)
-
     cell_slider_container.appendChild(viz_state.sliders.cell)
     cell_ctrl_container.appendChild(cell_slider_container)
 
@@ -201,8 +195,6 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
     )
 
     viz_state.containers.bar_gene = make_bar_container()
-
-    console.log('viz_state.containers.bar_gene', viz_state.containers.bar_gene)
 
     make_bar_graph(
         viz_state.containers.bar_gene,

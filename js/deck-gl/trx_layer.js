@@ -7,7 +7,7 @@ import { selected_genes, update_selected_genes } from '../global_variables/selec
 import { update_cell_layer_id } from './cell_layer'
 import { gene_search_input } from '../ui/gene_search_input'
 import { update_cat, update_selected_cats } from '../global_variables/cat'
-import { update_cell_exp_array, new_update_cell_exp_array } from '../global_variables/cell_exp_array'
+import { update_cell_exp_array } from '../global_variables/cell_exp_array'
 import { global_base_url } from '../global_variables/global_base_url'
 import { toggle_image_layers_and_ctrls } from '../ui/ui_containers'
 import { get_layers_list } from './layers_ist'
@@ -26,21 +26,16 @@ const trx_layer_callback = async (info, d, deck_ist, layers_obj, viz_state) => {
 
     const reset_gene = inst_gene === viz_state.cats.cat
 
-    console.log('inst_gene', inst_gene)
-    console.log('viz_state.cats.cat', viz_state.cats.cat)
-    console.log('reset_gene', reset_gene)
-
     const new_cat = reset_gene ? 'cluster' : inst_gene
 
     toggle_image_layers_and_ctrls(layers_obj, viz_state, viz_state.cats.cat === inst_gene)
 
     update_cat(viz_state.cats, new_cat)
 
-    console.log('viz_state.cats.cat after update_cat', viz_state.cats.cat)
     update_selected_genes([inst_gene])
     update_selected_cats(viz_state.cats, [])
 
-    await new_update_cell_exp_array(viz_state.cats, global_base_url, inst_gene)
+    await update_cell_exp_array(viz_state.cats, global_base_url, inst_gene)
 
     update_cell_layer_id(layers_obj, new_cat)
 

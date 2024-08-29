@@ -29,8 +29,6 @@ export const get_path_color = (cats, i, d) => {
 
 export const ini_path_layer = (viz_state) => {
 
-    console.log('ini_path_layer', viz_state)
-
     let path_layer = new PathLayer({
         id: 'path-layer',
         data: [],

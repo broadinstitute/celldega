@@ -93,7 +93,7 @@ export const ini_cell_layer = async (base_url, viz_state) => {
 
     const cell_scatter_data = get_scatter_data(cell_arrow_table)
 
-    await set_color_dict_gene(base_url)
+    await set_color_dict_gene(viz_state.genes, base_url)
 
     set_cell_names_array(viz_state.cats, cell_arrow_table)
 

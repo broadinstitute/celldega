@@ -79,6 +79,9 @@ export const landscape_ist = async (
     viz_state.cats.cell_cats = []
     viz_state.cats.dict_cell_cats = {}
 
+    viz_state.genes = {}
+    viz_state.genes.color_dict_gene = {}
+
     viz_state.cats.cell_exp_array = []
     viz_state.cats.cell_names_array = []
     viz_state.cats.cell_name_to_index_map = new Map()
@@ -99,7 +102,7 @@ export const landscape_ist = async (
     let image_layers = await make_image_layers(base_url)
     let cell_layer = await ini_cell_layer(base_url, viz_state)
     let path_layer = await ini_path_layer(viz_state)
-    let trx_layer = ini_trx_layer()
+    let trx_layer = ini_trx_layer(viz_state.genes)
 
     // make layers object
     let layers_obj = {

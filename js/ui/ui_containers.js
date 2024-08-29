@@ -11,7 +11,6 @@ import { bar_callback_cluster, svg_bar_cluster, make_bar_container } from './bar
 import { bar_callback_gene, svg_bar_gene } from './bar_plot'
 import { cluster_counts } from '../global_variables/meta_cluster'
 import { color_dict_cluster } from '../global_variables/meta_cluster'
-import { color_dict_gene } from '../global_variables/color_dict_gene'
 import { gene_counts } from '../global_variables/meta_gene'
 
 export const toggle_image_layers_and_ctrls = (layers_obj, viz_state, is_visible) => {
@@ -201,7 +200,7 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
         bar_callback_gene,
         svg_bar_gene,
         gene_counts,
-        color_dict_gene,
+        viz_state.genes.color_dict_gene,
         deck_ist,
         layers_obj,
         viz_state

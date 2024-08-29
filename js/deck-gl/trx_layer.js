@@ -30,7 +30,7 @@ const trx_layer_callback = async (info, d, deck_ist, layers_obj, viz_state) => {
 
     toggle_image_layers_and_ctrls(layers_obj, viz_state, viz_state.cats.cat === inst_gene)
 
-    update_cat(viz_state.cats.new_cat)
+    update_cat(viz_state.cats, viz_state.cats.new_cat)
     update_selected_genes([inst_gene])
     update_selected_cats(viz_state.cats, [])
 

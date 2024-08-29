@@ -78,6 +78,7 @@ export const landscape_ist = async (
     viz_state.cats.selected_cats = []
     viz_state.cats.cell_cats = []
     viz_state.cats.dict_cell_cats = {}
+
     viz_state.cats.cell_exp_array = []
 
     // initialize cell and trx caches
@@ -115,8 +116,6 @@ export const landscape_ist = async (
 
     const layers_list = get_layers_list(layers_obj, viz_state.close_up)
     deck_ist.setProps({layers: layers_list})
-
-
 
     set_deck_on_view_state_change(deck_ist, layers_obj, viz_state)
 

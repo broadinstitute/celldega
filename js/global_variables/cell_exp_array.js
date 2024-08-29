@@ -4,8 +4,6 @@ import { cell_names_array } from './cell_names_array.js'
 import { cell_name_to_index_map } from './cell_names_array.js'
 import { meta_gene } from './meta_gene.js'
 
-export let cell_exp_array
-
 export const update_cell_exp_array = async (cats, base_url, inst_gene) => {
 
     var file_path = base_url + '/cbg/' + inst_gene + '.parquet'
@@ -32,7 +30,6 @@ export const update_cell_exp_array = async (cats, base_url, inst_gene) => {
         }
     });
 
-
-    cell_exp_array = new_exp_array
+    cats.cell_exp_array = new_exp_array
 
 }

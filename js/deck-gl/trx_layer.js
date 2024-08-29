@@ -26,11 +26,17 @@ const trx_layer_callback = async (info, d, deck_ist, layers_obj, viz_state) => {
 
     const reset_gene = inst_gene === viz_state.cats.cat
 
+    console.log('inst_gene', inst_gene)
+    console.log('viz_state.cats.cat', viz_state.cats.cat)
+    console.log('reset_gene', reset_gene)
+
     const new_cat = reset_gene ? 'cluster' : inst_gene
 
     toggle_image_layers_and_ctrls(layers_obj, viz_state, viz_state.cats.cat === inst_gene)
 
-    update_cat(viz_state.cats, viz_state.cats.new_cat)
+    update_cat(viz_state.cats, new_cat)
+
+    console.log('viz_state.cats.cat after update_cat', viz_state.cats.cat)
     update_selected_genes([inst_gene])
     update_selected_cats(viz_state.cats, [])
 
@@ -58,8 +64,6 @@ const trx_layer_callback = async (info, d, deck_ist, layers_obj, viz_state) => {
             .attr('opacity', 1.0)
 
         if (!selectedBar.empty()) {
-
-            console.log('trx_layer: viz_state.containers.bar_gene', viz_state.containers.bar_gene)
 
             const barPosition = selectedBar.node().getBoundingClientRect().top
 

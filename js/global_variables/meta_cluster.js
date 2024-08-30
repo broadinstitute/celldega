@@ -1,4 +1,3 @@
-import { global_base_url } from "./global_base_url.js";
 import { get_arrow_table } from "../read_parquet/get_arrow_table.js";
 import { options } from './fetch_options.js';
 import { hexToRgb } from '../utils/hexToRgb.js'
@@ -31,10 +30,10 @@ export const update_meta_cluster = (new_meta_cluster) => {
 
 }
 
-export const set_cluster_metadata = async  () => {
+export const set_cluster_metadata = async (viz_state) => {
 
     // will improve this file naming later
-    const meta_cell_url = global_base_url + `/cell_clusters/meta_cluster.parquet`
+    const meta_cell_url = viz_state.global_base_url + `/cell_clusters/meta_cluster.parquet`
 
     var meta_cell_arrow_table = await get_arrow_table(meta_cell_url, options.fetch)
 

@@ -4,10 +4,9 @@ import { create_render_tile_sublayers } from './create_render_tile_sublayer'
 import { dimensions } from '../global_variables/image_dimensions'
 import { options } from '../global_variables/fetch_options'
 import { landscape_parameters } from '../global_variables/landscape_parameters'
-import { global_base_url } from '../global_variables/global_base_url'
 import { image_info, image_layer_colors } from '../global_variables/image_info'
 
-const make_image_layer = (info) => {
+const make_image_layer = (viz_state, info) => {
 
     const max_pyramid_zoom = landscape_parameters.max_pyramid_zoom
 
@@ -21,14 +20,14 @@ const make_image_layer = (info) => {
         maxZoom: 0,
         maxCacheSize: 20,
         extent: [0, 0, dimensions.width, dimensions.height],
-        getTileData: create_get_tile_data(global_base_url, info.name, max_pyramid_zoom, options),
+        getTileData: create_get_tile_data(viz_state.global_base_url, info.name, max_pyramid_zoom, options),
         renderSubLayers: create_render_tile_sublayers(info.color, opacity)
     });
     return image_layer
 }
 
-export const make_image_layers = async () => {
-    let image_layers = image_info.map(make_image_layer);
+export const make_image_layers = async (viz_state) => {
+    let image_layers = image_info.map( (info) => make_image_layer(viz_state, info) );
     return image_layers
 }
 

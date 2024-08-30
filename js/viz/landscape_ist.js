@@ -37,6 +37,8 @@ export const landscape_ist = async (
 
     let viz_state = {}
 
+    set_global_base_url(viz_state, base_url)
+
     viz_state.close_up = false
 
     viz_state.cats = {}
@@ -75,17 +77,11 @@ export const landscape_ist = async (
 
     set_model(ini_model)
 
-    set_global_base_url(base_url)
-
     await set_dimensions(base_url, imgage_name_for_dim)
-
-
 
     await set_meta_gene(viz_state.genes, base_url)
 
-    await set_cluster_metadata()
-
-
+    await set_cluster_metadata(viz_state)
 
     viz_state.views = set_views()
 
@@ -108,7 +104,7 @@ export const landscape_ist = async (
     set_get_tooltip(deck_ist, viz_state)
 
     let background_layer = ini_background_layer()
-    let image_layers = await make_image_layers(base_url)
+    let image_layers = await make_image_layers(viz_state)
     let cell_layer = await ini_cell_layer(base_url, viz_state)
     let path_layer = await ini_path_layer(viz_state)
     let trx_layer = ini_trx_layer(viz_state.genes)

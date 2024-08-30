@@ -7,7 +7,6 @@ import { update_cell_layer_id } from '../deck-gl/cell_layer'
 import { update_path_layer_id } from '../deck-gl/path_layer'
 import { update_trx_layer_id } from '../deck-gl/trx_layer'
 import { gene_search_input } from '../ui/gene_search_input'
-import { global_base_url } from '../global_variables/global_base_url'
 import { svg_bar_gene, svg_bar_cluster } from '../ui/bar_plot'
 import { get_layers_list } from '../deck-gl/layers_ist'
 import { model } from '../global_variables/model.js'
@@ -31,7 +30,7 @@ export const update_ist_landscape_from_cgm = async (deck_ist, layers_obj, viz_st
         update_cat(viz_state.cats, new_cat)
         update_selected_genes([inst_gene])
         update_selected_cats(viz_state.cats, [])
-        await update_cell_exp_array(viz_state.cats, global_base_url, inst_gene)
+        await update_cell_exp_array(viz_state.cats, viz_state.global_base_url, inst_gene)
 
         update_cell_layer_id(layers_obj, new_cat)
         update_path_layer_id(layers_obj, new_cat)

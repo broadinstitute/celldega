@@ -35,6 +35,25 @@ export const landscape_ist = async (
     trx_radius=0.25,
 ) => {
 
+    let viz_state = {}
+
+    viz_state.close_up = false
+
+    viz_state.cats = {}
+    viz_state.cats.cat
+    viz_state.cats.reset_cat = false
+    viz_state.cats.selected_cats = []
+    viz_state.cats.cell_cats = []
+    viz_state.cats.dict_cell_cats = {}
+
+    viz_state.genes = {}
+    viz_state.genes.color_dict_gene = {}
+    viz_state.genes.gene_names = []
+
+    viz_state.cats.cell_exp_array = []
+    viz_state.cats.cell_names_array = []
+    viz_state.cats.cell_name_to_index_map = new Map()
+
     set_options(token)
 
     // move this to landscape_parameters
@@ -60,25 +79,7 @@ export const landscape_ist = async (
 
     await set_dimensions(base_url, imgage_name_for_dim)
 
-    let viz_state = {}
 
-    viz_state.close_up = false
-
-    // let viz_state = ini_viz_state()
-    viz_state.cats = {}
-    viz_state.cats.cat
-    viz_state.cats.reset_cat = false
-    viz_state.cats.selected_cats = []
-    viz_state.cats.cell_cats = []
-    viz_state.cats.dict_cell_cats = {}
-
-    viz_state.genes = {}
-    viz_state.genes.color_dict_gene = {}
-    viz_state.genes.gene_names = []
-
-    viz_state.cats.cell_exp_array = []
-    viz_state.cats.cell_names_array = []
-    viz_state.cats.cell_name_to_index_map = new Map()
 
     await set_meta_gene(viz_state.genes, base_url)
 

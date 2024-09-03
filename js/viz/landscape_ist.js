@@ -56,6 +56,8 @@ export const landscape_ist = async (
     viz_state.cats.cell_names_array = []
     viz_state.cats.cell_name_to_index_map = new Map()
 
+    viz_state.img = {}
+
     set_options(token)
 
 
@@ -66,7 +68,7 @@ export const landscape_ist = async (
 
     const tmp_image_info = landscape_parameters.image_info
 
-    set_image_format(landscape_parameters.image_format)
+    set_image_format(viz_state.img, landscape_parameters.image_format)
     set_image_info(tmp_image_info)
     set_image_layer_sliders(image_info)
     set_image_layer_colors(image_info)

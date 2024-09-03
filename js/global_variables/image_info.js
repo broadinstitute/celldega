@@ -1,11 +1,10 @@
-export let image_format
 
 export let image_info
 
 export let image_layer_colors = {}
 
-export const set_image_format = (format) => {
-    image_format = format
+export const set_image_format = (img, format) => {
+    img.image_format = format
 }
 
 export const set_image_info = (info) => {

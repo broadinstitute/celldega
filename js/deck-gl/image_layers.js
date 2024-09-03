@@ -19,7 +19,7 @@ const make_image_layer = (viz_state, info) => {
         maxZoom: 0,
         maxCacheSize: 20,
         extent: [0, 0, viz_state.dimensions.width, viz_state.dimensions.height],
-        getTileData: create_get_tile_data(viz_state.global_base_url, info.name, max_pyramid_zoom, options),
+        getTileData: create_get_tile_data(viz_state.global_base_url, info.name, viz_state.img.image_format, max_pyramid_zoom, options),
         renderSubLayers: create_render_tile_sublayers(viz_state, info.color, opacity)
     });
     return image_layer

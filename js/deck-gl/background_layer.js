@@ -1,12 +1,11 @@
 import { SolidPolygonLayer } from 'deck.gl';
-import { dimensions } from '../global_variables/image_dimensions'
 
 
 // Function to create a background layer
-export const ini_background_layer = () => {
+export const ini_background_layer = (viz_state) => {
 
   const background_color = [0, 0, 0, 255]
-  const { width, height } = dimensions;
+  const { width, height } = viz_state.dimensions;
   let background_layer = new SolidPolygonLayer({
     id: 'background-layer',
     data: [{

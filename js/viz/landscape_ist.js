@@ -58,6 +58,7 @@ export const landscape_ist = async (
 
     set_options(token)
 
+
     // move this to landscape_parameters
     const imgage_name_for_dim = 'dapi'
 
@@ -77,7 +78,7 @@ export const landscape_ist = async (
 
     set_model(ini_model)
 
-    await set_dimensions(base_url, imgage_name_for_dim)
+    await set_dimensions(viz_state, base_url, imgage_name_for_dim)
 
     await set_meta_gene(viz_state.genes, base_url)
 
@@ -103,7 +104,7 @@ export const landscape_ist = async (
 
     set_get_tooltip(deck_ist, viz_state)
 
-    let background_layer = ini_background_layer()
+    let background_layer = ini_background_layer(viz_state)
     let image_layers = await make_image_layers(viz_state)
     let cell_layer = await ini_cell_layer(base_url, viz_state)
     let path_layer = await ini_path_layer(viz_state)

@@ -2,7 +2,6 @@ import { visibleTiles } from '../vector_tile/visibleTiles.js'
 import { update_path_layer_data } from './path_layer.js'
 import { update_trx_layer_data } from './trx_layer.js'
 import { get_layers_list } from './layers_ist.js'
-import { landscape_parameters } from '../global_variables/landscape_parameters.js'
 import { svg_bar_gene, update_bar_graph } from '../ui/bar_plot.js'
 import { gene_counts } from '../global_variables/meta_gene.js'
 import { bar_callback_gene, svg_bar_cluster, bar_callback_cluster } from '../ui/bar_plot.js'
@@ -11,7 +10,7 @@ import { selected_genes } from '../global_variables/selected_genes.js'
 
 export const calc_viewport = async ({ height, width, zoom, target }, deck_ist, layers_obj, viz_state) => {
 
-    const tile_size = landscape_parameters.tile_size
+    const tile_size = viz_state.img.landscape_parameters.tile_size
     const max_tiles_to_view = 50
     const zoomFactor = Math.pow(2, zoom)
     const [targetX, targetY] = target

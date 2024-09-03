@@ -2,11 +2,10 @@ import { TileLayer } from 'deck.gl'
 import { create_get_tile_data } from './create_get_tile_data'
 import { create_render_tile_sublayers } from './create_render_tile_sublayer'
 import { options } from '../global_variables/fetch_options'
-import { landscape_parameters } from '../global_variables/landscape_parameters'
 
 const make_image_layer = (viz_state, info) => {
 
-    const max_pyramid_zoom = landscape_parameters.max_pyramid_zoom
+    const max_pyramid_zoom = viz_state.img.landscape_parameters.max_pyramid_zoom
 
     const opacity = 5
 

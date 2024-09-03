@@ -1,7 +1,7 @@
 import { set_trx_ini_raidus } from '../global_variables/trx_ini_raidus'
 import { set_options } from '../global_variables/fetch_options'
 import { set_global_base_url } from '../global_variables/global_base_url'
-import { landscape_parameters, set_landscape_parameters } from '../global_variables/landscape_parameters'
+import { set_landscape_parameters } from '../global_variables/landscape_parameters'
 import { set_dimensions } from '../global_variables/image_dimensions'
 import { ini_cell_layer, set_cell_layer_onclick } from "../deck-gl/cell_layer"
 import { get_layers_list } from '../deck-gl/layers_ist'
@@ -64,11 +64,11 @@ export const landscape_ist = async (
     // move this to landscape_parameters
     const imgage_name_for_dim = 'dapi'
 
-    await set_landscape_parameters(base_url)
+    await set_landscape_parameters(viz_state.img, base_url)
 
-    const tmp_image_info = landscape_parameters.image_info
+    const tmp_image_info = viz_state.img.landscape_parameters.image_info
 
-    set_image_format(viz_state.img, landscape_parameters.image_format)
+    set_image_format(viz_state.img, viz_state.img.landscape_parameters.image_format)
     set_image_info(viz_state.img, tmp_image_info)
     set_image_layer_sliders(viz_state.img.image_info)
     set_image_layer_colors(viz_state.img.image_layer_colors, viz_state.img.image_info)

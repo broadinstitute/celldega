@@ -13,7 +13,6 @@ export let tile_slider = document.createElement("input")
 export let trx_slider = document.createElement("input")
 
 export const make_slider = () => {
-    console.log('make_slider')
     return  document.createElement("input")
 }
 
@@ -65,7 +64,7 @@ export const make_img_layer_slider_callback = (name, deck_ist, layers_obj, viz_s
         const opacity = inst_slider.value/10
 
         // Use the slider value to update the opacity
-        update_opacity_single_image_layer(layers_obj, name, opacity);
+        update_opacity_single_image_layer(viz_state, layers_obj, name, opacity, viz_state.img.image_layer_colors);
 
         const layers_list = get_layers_list(layers_obj, viz_state.close_up)
         deck_ist.setProps({layers: layers_list})

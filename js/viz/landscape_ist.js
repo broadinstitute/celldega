@@ -13,8 +13,7 @@ import { ini_path_layer, set_path_layer_onclick } from '../deck-gl/path_layer'
 import { make_ist_ui_container } from '../ui/ui_containers'
 import { model, set_model } from '../global_variables/model'
 import { ini_trx_layer, set_trx_layer_onclick, update_trx_layer_radius } from '../deck-gl/trx_layer'
-import { image_info, set_image_info, set_image_layer_colors } from '../global_variables/image_info'
-import { set_image_format } from '../global_variables/image_info'
+import { set_image_info, set_image_layer_colors, set_image_format } from '../global_variables/image_info'
 import { set_image_layer_sliders } from "../ui/sliders"
 import { set_meta_gene } from '../global_variables/meta_gene'
 import { set_cluster_metadata } from '../global_variables/meta_cluster'
@@ -69,9 +68,9 @@ export const landscape_ist = async (
     const tmp_image_info = landscape_parameters.image_info
 
     set_image_format(viz_state.img, landscape_parameters.image_format)
-    set_image_info(tmp_image_info)
-    set_image_layer_sliders(image_info)
-    set_image_layer_colors(image_info)
+    set_image_info(viz_state.img, tmp_image_info)
+    set_image_layer_sliders(viz_state.img.image_info)
+    set_image_layer_colors(viz_state.img.image_info)
 
     // Create and append the visualization.
     set_trx_ini_raidus(trx_radius)

@@ -2,7 +2,6 @@ import * as d3 from 'd3'
 import { make_button } from "./text_buttons"
 import { gene_search, set_gene_search } from "./gene_search"
 import { tile_slider, ini_slider, ini_slider_params } from './sliders'
-import { image_info } from "../global_variables/image_info"
 import { image_layer_sliders, make_img_layer_slider_callback, toggle_slider } from "./sliders"
 import { debounce } from '../utils/debounce'
 import { toggle_visibility_image_layers } from '../deck-gl/image_layers'
@@ -164,7 +163,7 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
 
     }
 
-    image_info.map(
+    viz_state.img.image_info.map(
         make_img_layer_ctrl
     )
 

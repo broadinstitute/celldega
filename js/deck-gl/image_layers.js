@@ -3,7 +3,7 @@ import { create_get_tile_data } from './create_get_tile_data'
 import { create_render_tile_sublayers } from './create_render_tile_sublayer'
 import { options } from '../global_variables/fetch_options'
 import { landscape_parameters } from '../global_variables/landscape_parameters'
-import { image_info, image_layer_colors } from '../global_variables/image_info'
+import { image_layer_colors } from '../global_variables/image_info'
 
 const make_image_layer = (viz_state, info) => {
 
@@ -26,7 +26,7 @@ const make_image_layer = (viz_state, info) => {
 }
 
 export const make_image_layers = async (viz_state) => {
-    let image_layers = image_info.map( (info) => make_image_layer(viz_state, info) );
+    let image_layers = viz_state.img.image_info.map( (info) => make_image_layer(viz_state, info) );
     return image_layers
 }
 

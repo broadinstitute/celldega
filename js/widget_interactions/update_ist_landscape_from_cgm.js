@@ -9,12 +9,11 @@ import { update_trx_layer_id } from '../deck-gl/trx_layer'
 import { gene_search_input } from '../ui/gene_search_input'
 import { svg_bar_gene, svg_bar_cluster } from '../ui/bar_plot'
 import { get_layers_list } from '../deck-gl/layers_ist'
-import { model } from '../global_variables/model.js'
 import { update_gene_text_box } from '../ui/gene_search.js'
 
 export const update_ist_landscape_from_cgm = async (deck_ist, layers_obj, viz_state) => {
 
-    const click_info = model.get('update_trigger')
+    const click_info = viz_state.model.get('update_trigger')
 
     let inst_gene
     let new_cat

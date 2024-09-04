@@ -11,7 +11,6 @@ import { ini_deck, set_deck_on_view_state_change, set_initial_view_state, set_ge
 import { ini_background_layer } from '../deck-gl/background_layer'
 import { ini_path_layer, set_path_layer_onclick } from '../deck-gl/path_layer'
 import { make_ist_ui_container } from '../ui/ui_containers'
-import { model, set_model } from '../global_variables/model'
 import { ini_trx_layer, set_trx_layer_onclick, update_trx_layer_radius } from '../deck-gl/trx_layer'
 import { set_image_info, set_image_layer_colors, set_image_format } from '../global_variables/image_info'
 import { set_image_layer_sliders } from "../ui/sliders"
@@ -39,6 +38,7 @@ export const landscape_ist = async (
     set_global_base_url(viz_state, base_url)
 
     viz_state.close_up = false
+    viz_state.model = ini_model
 
     viz_state.cats = {}
     viz_state.cats.cat
@@ -83,8 +83,6 @@ export const landscape_ist = async (
     set_trx_ini_raidus(trx_radius)
     let root = document.createElement("div")
     root.style.height = "800px"
-
-    set_model(ini_model)
 
     await set_dimensions(viz_state, base_url, imgage_name_for_dim)
 
@@ -139,9 +137,9 @@ export const landscape_ist = async (
     set_deck_on_view_state_change(deck_ist, layers_obj, viz_state)
 
     // check if ini_model is not equal to {}
-    if (Object.keys(ini_model).length > 0) {
-        model.on('change:update_trigger', () => update_ist_landscape_from_cgm(deck_ist, layers_obj, viz_state))
-        model.on('change:cell_clusters', () => update_cell_clusters(deck_ist, layers_obj, viz_state))
+    if (Object.keys(viz_state.model).length > 0) {
+        viz_state.model.on('change:update_trigger', () => update_ist_landscape_from_cgm(deck_ist, layers_obj, viz_state))
+        viz_state.model.on('change:cell_clusters', () => update_cell_clusters(deck_ist, layers_obj, viz_state))
     }
 
     const ui_container = make_ist_ui_container(dataset_name, deck_ist, layers_obj, viz_state)

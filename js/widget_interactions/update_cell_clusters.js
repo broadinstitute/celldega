@@ -1,4 +1,3 @@
-import { model } from '../global_variables/model'
 import { update_meta_cluster } from '../global_variables/meta_cluster'
 import { update_cell_cats } from '../global_variables/cat'
 import { update_cell_layer_id } from '../deck-gl/cell_layer'
@@ -8,7 +7,7 @@ import { svg_bar_cluster, bar_callback_cluster } from '../ui/bar_plot'
 
 export const update_cell_clusters = (deck_ist, layers_obj, viz_state) => {
 
-    const new_cluster_info = model.get('cell_clusters')
+    const new_cluster_info = viz_state.model.get('cell_clusters')
 
     update_meta_cluster(viz_state.cats, new_cluster_info['meta_cluster'])
     update_cell_cats(viz_state.cats, new_cluster_info['new_clusters'])

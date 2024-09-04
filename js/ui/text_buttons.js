@@ -9,7 +9,7 @@ import { toggle_path_layer_visibility } from '../deck-gl/path_layer'
 import { new_toggle_cell_layer_visibility } from '../deck-gl/cell_layer'
 import { toggle_trx_layer_visibility } from '../deck-gl/trx_layer'
 import { get_layers_list } from '../deck-gl/layers_ist'
-import { tile_slider, trx_slider, toggle_slider, image_layer_sliders } from './sliders'
+import { tile_slider, trx_slider, toggle_slider } from './sliders'
 
 let is_visible
 
@@ -82,7 +82,7 @@ const make_ist_img_layer_button_callback = (text, deck_ist, layers_obj, viz_stat
 
             toggle_visibility_single_image_layer(layers_obj, text, is_visible)
 
-            let inst_slider = image_layer_sliders.filter(slider => slider.name === text)[0]
+            let inst_slider = viz_state.img.image_layer_sliders.filter(slider => slider.name === text)[0]
 
             toggle_slider(inst_slider, is_visible)
 
@@ -118,7 +118,7 @@ const ist_img_button_callback = async (event, deck_ist, layers_obj, viz_state) =
 
     set_img_layer_visible(is_visible)
 
-    image_layer_sliders.map(slider => toggle_slider(slider, is_visible))
+    viz_state.img.image_layer_sliders.map(slider => toggle_slider(slider, is_visible))
 
     const layers_list = get_layers_list(layers_obj, viz_state.close_up)
     deck_ist.setProps({layers: layers_list})

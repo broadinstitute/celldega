@@ -14,11 +14,9 @@ export const make_slider = () => {
     return  document.createElement("input")
 }
 
-export let image_layer_sliders
+export const set_image_layer_sliders = (img) => {
 
-export const set_image_layer_sliders = (image_info) => {
-
-    image_layer_sliders = image_info.map( info => {
+    img.image_layer_sliders = img.image_info.map( info => {
         let input = document.createElement("input")
         input.name = info.button_name
         return input
@@ -56,7 +54,7 @@ const trx_slider_callback = async (deck_ist, layers_obj, viz_state) => {
 export const make_img_layer_slider_callback = (name, deck_ist, layers_obj, viz_state) => {
     return async () => {
 
-        let inst_slider = image_layer_sliders.filter(slider => slider.name === name)[0]
+        let inst_slider = viz_state.img.image_layer_sliders.filter(slider => slider.name === name)[0]
 
         // Get the slider value from the event
         const opacity = inst_slider.value/10

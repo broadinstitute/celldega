@@ -2,7 +2,7 @@ import * as d3 from 'd3'
 import { make_button } from "./text_buttons"
 import { gene_search, set_gene_search } from "./gene_search"
 import { tile_slider, ini_slider, ini_slider_params } from './sliders'
-import { image_layer_sliders, make_img_layer_slider_callback, toggle_slider } from "./sliders"
+import { make_img_layer_slider_callback, toggle_slider } from "./sliders"
 import { debounce } from '../utils/debounce'
 import { toggle_visibility_image_layers } from '../deck-gl/image_layers'
 import { make_bar_graph } from './bar_plot'
@@ -15,7 +15,7 @@ export const toggle_image_layers_and_ctrls = (layers_obj, viz_state, is_visible)
         .selectAll('.img_layer_button')
         .style('color', is_visible ? 'blue' : 'gray');
 
-    image_layer_sliders.map(slider => toggle_slider(slider, is_visible))
+    viz_state.img.image_layer_sliders.map(slider => toggle_slider(slider, is_visible))
     toggle_visibility_image_layers(layers_obj, is_visible)
 }
 
@@ -92,7 +92,6 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
     const ui_container = make_ui_container()
     const ctrl_container = make_ctrl_container()
 
-    viz_state.containers = {}
     viz_state.containers.image = flex_container('image_container', 'column')
 
     const img_layers_container = flex_container('img_layers_container', 'column', 72) // 75
@@ -128,11 +127,11 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
 
     make_button(viz_state.containers.image, 'ist', 'IMG', 'blue', 30, 'button', deck_ist, layers_obj, viz_state)
 
-    const get_slider_by_name = (name) => {
-        return image_layer_sliders.filter(slider => slider.name === name);
+    const get_slider_by_name = (img, name) => {
+        return img.image_layer_sliders.filter(slider => slider.name === name);
     };
 
-    const make_img_layer_ctrl = (inst_image) => {
+    const make_img_layer_ctrl = (img, inst_image) => {
 
         const inst_name = inst_image.button_name
 
@@ -143,7 +142,7 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
 
         const inst_slider_container = make_slider_container(inst_name)
 
-        let slider = get_slider_by_name(inst_name)[0]
+        let slider = get_slider_by_name(img, inst_name)[0]
 
         let img_layer_slider_callback = make_img_layer_slider_callback(inst_name, deck_ist, layers_obj, viz_state)
 
@@ -160,9 +159,7 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
 
     }
 
-    viz_state.img.image_info.map(
-        make_img_layer_ctrl
-    )
+    viz_state.img.image_info.map(inst_image => make_img_layer_ctrl(viz_state.img, inst_image))
 
     make_button(cell_ctrl_container, 'ist', 'CELL', 'blue', 40, 'button', deck_ist, layers_obj, viz_state)
     make_button(      trx_container, 'ist', 'TRX',  'blue', 40, 'button', deck_ist, layers_obj, viz_state)

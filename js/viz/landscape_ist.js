@@ -39,6 +39,8 @@ export const landscape_ist = async (
     viz_state.close_up = false
     viz_state.model = ini_model
 
+    viz_state.containers = {}
+
     viz_state.cats = {}
     viz_state.cats.cat
     viz_state.cats.reset_cat = false
@@ -65,6 +67,7 @@ export const landscape_ist = async (
 
     viz_state.img = {}
     viz_state.img.image_layer_colors = {}
+    viz_state.img.image_layer_sliders = {}
 
     set_options(token)
 
@@ -77,7 +80,7 @@ export const landscape_ist = async (
 
     set_image_format(viz_state.img, viz_state.img.landscape_parameters.image_format)
     set_image_info(viz_state.img, tmp_image_info)
-    set_image_layer_sliders(viz_state.img.image_info)
+    set_image_layer_sliders(viz_state.img)
     set_image_layer_colors(viz_state.img.image_layer_colors, viz_state.img.image_info)
 
     // Create and append the visualization.

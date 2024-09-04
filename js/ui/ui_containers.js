@@ -8,7 +8,6 @@ import { toggle_visibility_image_layers } from '../deck-gl/image_layers'
 import { make_bar_graph } from './bar_plot'
 import { bar_callback_cluster, svg_bar_cluster, make_bar_container } from './bar_plot'
 import { bar_callback_gene, svg_bar_gene } from './bar_plot'
-import { gene_counts } from '../global_variables/meta_gene'
 
 export const toggle_image_layers_and_ctrls = (layers_obj, viz_state, is_visible) => {
 
@@ -196,7 +195,7 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
         viz_state.containers.bar_gene,
         bar_callback_gene,
         svg_bar_gene,
-        gene_counts,
+        viz_state.genes.gene_counts,
         viz_state.genes.color_dict_gene,
         deck_ist,
         layers_obj,

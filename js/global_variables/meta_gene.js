@@ -2,8 +2,6 @@ import { get_arrow_table } from "../read_parquet/get_arrow_table"
 import { options } from '../global_variables/fetch_options.js';
 import { set_gene_names } from "./gene_names.js";
 
-export let gene_counts = []
-
 export const set_meta_gene = async (genes, base_url) => {
 
     let meta_gene_table = await get_arrow_table(base_url + '/meta_gene.parquet', options.fetch)
@@ -19,13 +17,13 @@ export const set_meta_gene = async (genes, base_url) => {
             max: gene_max[index],
         }
 
-        gene_counts.push({
+        genes.gene_counts.push({
             name: name,
             value: Number(gene_mean[index])
         })
     })
 
-    gene_counts.sort((a, b) => b.value - a.value)
+    genes.gene_counts.sort((a, b) => b.value - a.value)
 
     set_gene_names(gene_names)
 }

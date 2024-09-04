@@ -47,6 +47,7 @@ export const landscape_ist = async (
     viz_state.cats.dict_cell_cats = {}
     viz_state.cats.color_dict_cluster = {}
     viz_state.cats.cluster_counts = []
+    viz_state.cats.polygon_cell_names = []
 
     viz_state.genes = {}
     viz_state.genes.color_dict_gene = {}
@@ -66,7 +67,6 @@ export const landscape_ist = async (
     viz_state.img.image_layer_colors = {}
 
     set_options(token)
-
 
     // move this to landscape_parameters
     const imgage_name_for_dim = 'dapi'
@@ -95,8 +95,6 @@ export const landscape_ist = async (
     let deck_ist = await ini_deck(root)
     set_initial_view_state(deck_ist, ini_x, ini_y, ini_z, ini_zoom)
     set_views_prop(deck_ist, viz_state.views)
-
-
 
     // initialize cell and trx caches
     viz_state.cache = {}

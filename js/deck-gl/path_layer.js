@@ -1,6 +1,5 @@
 import { PathLayer } from 'deck.gl'
 import { grab_cell_tiles_in_view } from '../vector_tile/polygons/grab_cell_tiles_in_view'
-import { polygon_cell_names } from '../vector_tile/polygons/grab_cell_tiles_in_view'
 import { update_selected_cats, update_cat } from '../global_variables/cat'
 import { update_cell_layer_id } from './cell_layer'
 import { get_layers_list } from './layers_ist'
@@ -10,7 +9,7 @@ import { update_trx_layer_id } from './trx_layer'
 
 export const get_path_color = (cats, i, d) => {
 
-    const inst_cell_id = polygon_cell_names[d.index]
+    const inst_cell_id = cats.polygon_cell_names[d.index]
     const inst_cat = cats.dict_cell_cats[inst_cell_id]
 
     let inst_color = cats.color_dict_cluster[inst_cat]
@@ -45,7 +44,7 @@ export const ini_path_layer = (viz_state) => {
 
 const path_layer_onclick = (info, d, deck_ist, layers_obj, viz_state) => {
 
-    const inst_cell_id = polygon_cell_names[info.index]
+    const inst_cell_id = viz_state.cats.polygon_cell_names[info.index]
     const inst_cat = viz_state.cats.dict_cell_cats[inst_cell_id]
 
     update_cat(viz_state.cats, 'cluster')

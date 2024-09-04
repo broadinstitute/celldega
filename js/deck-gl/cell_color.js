@@ -1,5 +1,3 @@
-import { color_dict_cluster } from '../global_variables/meta_cluster'
-
 // transparent to red
 export const get_cell_color = (cats, i, d) => {
 
@@ -7,7 +5,7 @@ export const get_cell_color = (cats, i, d) => {
         try {
             const inst_cat = cats.cell_cats[d.index]
 
-            let inst_color = color_dict_cluster[inst_cat]
+            let inst_color = cats.color_dict_cluster[inst_cat]
 
             let inst_opacity = cats.selected_cats.length === 0 || cats.selected_cats.includes(inst_cat) ? 255 : 10
 

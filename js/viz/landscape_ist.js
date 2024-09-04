@@ -46,6 +46,7 @@ export const landscape_ist = async (
     viz_state.cats.selected_cats = []
     viz_state.cats.cell_cats = []
     viz_state.cats.dict_cell_cats = {}
+    viz_state.cats.color_dict_cluster = {}
 
     viz_state.genes = {}
     viz_state.genes.color_dict_gene = {}

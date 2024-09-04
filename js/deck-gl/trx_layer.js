@@ -1,6 +1,5 @@
 import * as d3 from 'd3'
 import { ScatterplotLayer } from 'deck.gl'
-import { trx_data, set_trx_data } from '../vector_tile/transcripts/trx_data'
 import { update_selected_genes } from '../global_variables/selected_genes'
 import { update_cell_layer_id } from './cell_layer'
 import { gene_search_input } from '../ui/gene_search_input'
@@ -11,6 +10,7 @@ import { get_layers_list } from './layers_ist'
 import { update_path_layer_id } from './path_layer'
 import { svg_bar_gene, svg_bar_cluster } from '../ui/bar_plot'
 import { update_gene_text_box } from '../ui/gene_search'
+import { grab_trx_tiles_in_view } from '../vector_tile/transcripts/grab_trx_tiles_in_view'
 
 const trx_layer_callback = async (info, d, deck_ist, layers_obj, viz_state) => {
 
@@ -95,7 +95,7 @@ export const ini_trx_layer = (genes) => {
 
     let trx_layer = new ScatterplotLayer({
         id: 'trx-layer',
-        data: trx_data,
+        data: genes.trx_data,
         pickable: true,
         getColor: (i, d) => {
             const inst_gene = genes.trx_names_array[d.index]
@@ -116,10 +116,15 @@ export const set_trx_layer_onclick = (deck_ist, layers_obj, viz_state) => {
 }
 
 export const update_trx_layer_data = async (base_url, tiles_in_view, layers_obj, viz_state) => {
-    await set_trx_data(base_url, tiles_in_view, viz_state)
+
+    viz_state.genes.trx_data = await grab_trx_tiles_in_view(
+        base_url,
+        tiles_in_view,
+        viz_state
+    )
 
     layers_obj.trx_layer = layers_obj.trx_layer.clone({
-        data: trx_data,
+        data: viz_state.genes.trx_data,
     })
 }
 

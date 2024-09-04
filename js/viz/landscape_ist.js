@@ -56,6 +56,7 @@ export const landscape_ist = async (
     viz_state.genes.selected_genes = []
     viz_state.genes.trx_ini_radius = trx_radius
     viz_state.genes.trx_names_array = []
+    viz_state.genes.trx_data = []
 
     viz_state.cats.cell_exp_array = []
     viz_state.cats.cell_names_array = []

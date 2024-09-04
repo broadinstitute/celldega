@@ -15,8 +15,6 @@ import { get_layers_list } from "../deck-gl/layers_ist.js"
 import { svg_bar_gene } from "./bar_plot.js"
 import { uniprot_data, uniprot_get_request } from '../external_apis/uniprot_api.js'
 
-export let gene_search = document.createElement("div")
-
 let gene_search_options = []
 
 const sst_gene_search_callback = async () => {
@@ -88,7 +86,7 @@ const ist_gene_search_callback = async (deck_ist, layers_obj, viz_state) => {
                 })
             }
 
-            await update_gene_text_box(inst_gene)
+            await update_gene_text_box(viz_state.genes, inst_gene)
 
         }
 
@@ -98,9 +96,12 @@ const ist_gene_search_callback = async (deck_ist, layers_obj, viz_state) => {
 
 export const set_gene_search = async (tech_type, deck_ist, layers_obj, viz_state) => {
 
+    console.log('viz_state.genes.gene_names')
+    console.log(viz_state.genes.gene_names)
+
     gene_search_options = ['cluster', ...viz_state.genes.gene_names]
 
-    gene_search.style.width = "115px"
+    viz_state.genes.gene_search.style.width = "115px"
 
     set_gene_search_input()
 
@@ -127,8 +128,11 @@ export const set_gene_search = async (tech_type, deck_ist, layers_obj, viz_state
     gene_search_input.style.padding = "1pt 2pt"
 
     // Append elements
-    gene_search.appendChild(gene_search_input)
-    gene_search.appendChild(dataList)
+    viz_state.genes.gene_search.appendChild(gene_search_input)
+    viz_state.genes.gene_search.appendChild(dataList)
+
+    console.log('dataList')
+    console.log(dataList)
 
     // Create a div element with some text
     viz_state.genes.gene_text_box = document.createElement('div');
@@ -154,7 +158,7 @@ export const set_gene_search = async (tech_type, deck_ist, layers_obj, viz_state
         }
     })
 
-    gene_search.appendChild(viz_state.genes.gene_text_box); // Append the new div with text
+    viz_state.genes.gene_search.appendChild(viz_state.genes.gene_text_box); // Append the new div with text
 
     // Set initial default value to "cluster"
     gene_search_input.value = ''
@@ -165,7 +169,7 @@ export const set_gene_search = async (tech_type, deck_ist, layers_obj, viz_state
     if (tech_type === 'sst'){
         callback = sst_gene_search_callback
         gene_search_input.style.marginTop = "10px"
-        gene_search.style.height = "50px"
+        viz_state.genes.gene_search.style.height = "50px"
     } else {
         callback = () => ist_gene_search_callback(deck_ist, layers_obj, viz_state)
         gene_search_input.style.marginTop = "5px"
@@ -175,6 +179,8 @@ export const set_gene_search = async (tech_type, deck_ist, layers_obj, viz_state
 }
 
 export const update_gene_text_box = async (genes, inst_gene) => {
+
+    console.log('update_gene_text_box', genes, inst_gene)
 
     if (inst_gene !== ''){
         genes.gene_text_box.textContent = 'loading'

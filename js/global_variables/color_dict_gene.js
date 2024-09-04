@@ -23,6 +23,6 @@ export const set_color_dict_gene = async (genes, base_url) => {
         genes.color_dict_gene[geneName] = hexToRgb(colors[index]);
     })
 
-    set_gene_names(genes.gene_names)
+    set_gene_names(genes, gene_names)
 
 }

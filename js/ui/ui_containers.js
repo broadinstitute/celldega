@@ -1,6 +1,6 @@
 import * as d3 from 'd3'
 import { make_button } from "./text_buttons"
-import { gene_search, set_gene_search } from "./gene_search"
+import { set_gene_search } from "./gene_search"
 import { tile_slider, ini_slider, ini_slider_params } from './sliders'
 import { make_img_layer_slider_callback, toggle_slider } from "./sliders"
 import { debounce } from '../utils/debounce'
@@ -211,7 +211,7 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
 
     set_gene_search('ist', deck_ist, layers_obj, viz_state)
 
-    gene_search.style.marginLeft = '0px'
+    viz_state.genes.gene_search.style.marginLeft = '0px'
 
     ui_container.appendChild(ctrl_container)
 
@@ -219,7 +219,7 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
     ctrl_container.appendChild(cell_container)
     ctrl_container.appendChild(gene_container)
 
-    ctrl_container.appendChild(gene_search)
+    ctrl_container.appendChild(viz_state.genes.gene_search)
 
     // if dataset_name is not an empty string make the name container
     if (dataset_name.trim !== ''){

@@ -5,7 +5,6 @@ import { update_trx_layer_radius } from "../deck-gl/trx_layer"
 import { update_opacity_single_image_layer } from "../deck-gl/image_layers"
 import { update_cell_layer_radius } from "../deck-gl/cell_layer"
 import { deck_sst } from "../deck-gl/deck_sst"
-import { trx_ini_raidus } from "../global_variables/trx_ini_raidus"
 import { get_layers_list } from "../deck-gl/layers_ist"
 
 export let tile_slider = document.createElement("input")
@@ -96,11 +95,11 @@ export const ini_slider = (slider_type, deck_ist, layers_obj, viz_state) => {
             callback = tile_slider_callback
             break
         case 'cell':
-            ini_value = trx_ini_raidus * 100
+            ini_value = viz_state.genes.trx_ini_raidus * 100
             callback = () => cell_slider_callback(deck_ist, layers_obj, viz_state)
             break
         case 'trx':
-            ini_value = trx_ini_raidus * 100
+            ini_value = viz_state.genes.trx_ini_raidus * 100
             callback = () => trx_slider_callback(deck_ist, layers_obj, viz_state)
             break
 

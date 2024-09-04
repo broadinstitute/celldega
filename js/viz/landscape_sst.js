@@ -38,6 +38,8 @@ export const landscape_sst = async (
     root.style.height = "800px"
 
     // set_model(ini_model)
+    // tmp
+    let model = ''
 
     set_options(token)
     set_global_base_url(base_url)

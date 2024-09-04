@@ -8,7 +8,6 @@ import { deck_sst } from "../deck-gl/deck_sst"
 import { get_layers_list } from "../deck-gl/layers_ist"
 
 export let tile_slider = document.createElement("input")
-export let trx_slider = document.createElement("input")
 
 export const make_slider = () => {
     return  document.createElement("input")

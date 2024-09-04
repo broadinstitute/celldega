@@ -9,7 +9,7 @@ import { toggle_path_layer_visibility } from '../deck-gl/path_layer'
 import { new_toggle_cell_layer_visibility } from '../deck-gl/cell_layer'
 import { toggle_trx_layer_visibility } from '../deck-gl/trx_layer'
 import { get_layers_list } from '../deck-gl/layers_ist'
-import { tile_slider, trx_slider, toggle_slider } from './sliders'
+import { tile_slider, toggle_slider } from './sliders'
 
 let is_visible
 
@@ -129,7 +129,7 @@ const trx_button_callback_ist = async (event, deck_ist, layers_obj, viz_state) =
 
     toggle_visible_button(event)
 
-    toggle_slider(trx_slider, is_visible)
+    toggle_slider(viz_state.genes.trx_slider, is_visible)
 
     toggle_trx_layer_visibility(layers_obj, is_visible)
 

@@ -2,9 +2,6 @@ import { get_arrow_table } from "../read_parquet/get_arrow_table.js";
 import { options } from './fetch_options.js';
 import { hexToRgb } from '../utils/hexToRgb.js'
 
-
-export let cluster_counts = []
-
 export const update_meta_cluster = (cats, new_meta_cluster) => {
 
     cats.color_dict_cluster = new_meta_cluster.color
@@ -17,15 +14,15 @@ export const update_meta_cluster = (cats, new_meta_cluster) => {
     var cluster_counts_ini = new_meta_cluster.count
 
     // convert cluster_counts_ini into an array of objects with values name and value
-    cluster_counts = []
+    cats.cluster_counts = []
     for (const cluster_name in cluster_counts_ini) {
-        cluster_counts.push({
+        cats.cluster_counts.push({
             name: cluster_name,
             value: cluster_counts_ini[cluster_name]
         })
     }
 
-    cluster_counts.sort((a, b) => b.value - a.value)
+    cats.cluster_counts.sort((a, b) => b.value - a.value)
 
 }
 
@@ -58,13 +55,13 @@ export const set_cluster_metadata = async (viz_state) => {
     cluster_names.forEach((cluster_name, index) => {
         viz_state.cats.color_dict_cluster[cluster_name] = hexToRgb(colors[index])
 
-        cluster_counts.push({
+        viz_state.cats.cluster_counts.push({
             name: cluster_name,
             value: Number(counts[index])
         })
 
     })
 
-    cluster_counts.sort((a, b) => b.value - a.value)
+    viz_state.cats.cluster_counts.sort((a, b) => b.value - a.value)
 
 }

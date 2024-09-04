@@ -30,7 +30,7 @@ const trx_layer_callback = async (info, d, deck_ist, layers_obj, viz_state) => {
 
     update_cat(viz_state.cats, new_cat)
 
-    update_selected_genes([inst_gene])
+    update_selected_genes(viz_state.genes, [inst_gene])
     update_selected_cats(viz_state.cats, [])
 
     await update_cell_exp_array(viz_state.cats, viz_state.genes, viz_state.global_base_url, inst_gene)
@@ -39,7 +39,7 @@ const trx_layer_callback = async (info, d, deck_ist, layers_obj, viz_state) => {
 
     update_path_layer_id(layers_obj, new_cat)
 
-    update_trx_layer_id(layers_obj)
+    update_trx_layer_id(viz_state.genes, layers_obj)
 
     const layers_list = get_layers_list(layers_obj, viz_state.close_up)
     deck_ist.setProps({layers: layers_list})

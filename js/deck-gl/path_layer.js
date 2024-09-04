@@ -58,7 +58,7 @@ const path_layer_onclick = (info, d, deck_ist, layers_obj, viz_state) => {
 
     update_cell_layer_id(layers_obj, inst_cat_name)
     update_path_layer_id(layers_obj, inst_cat_name)
-    update_trx_layer_id(viz_state.genes.layers_obj)
+    update_trx_layer_id(viz_state.genes, layers_obj)
 
     const layers_list = get_layers_list(layers_obj, viz_state.close_up)
     deck_ist.setProps({layers: layers_list})

@@ -58,7 +58,7 @@ export const bar_callback_cluster = (event, d, deck_ist, layers_obj, viz_state) 
     deck_ist.setProps({layers: layers_list})
 
     gene_search_input.value = ''
-    update_gene_text_box('')
+    update_gene_text_box(viz_state.genes, '')
 }
 
 export const bar_callback_gene = async (event, d, deck_ist, layers_obj, viz_state) => {
@@ -107,7 +107,7 @@ export const bar_callback_gene = async (event, d, deck_ist, layers_obj, viz_stat
     deck_ist.setProps({layers: layers_list})
 
     gene_search_input.value = gene_search_input.value !== inst_gene ? inst_gene : ''
-    update_gene_text_box(reset_gene ? '' : inst_gene)
+    update_gene_text_box(viz_state.genes, reset_gene ? '' : inst_gene)
 }
 
 export const make_bar_graph = (bar_container, click_callback, svg_bar, bar_data, color_dict, deck_ist, layers_obj, viz_state) => {

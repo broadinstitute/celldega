@@ -86,8 +86,7 @@ const trx_layer_callback = async (info, d, deck_ist, layers_obj, viz_state) => {
 
     gene_search_input.value = (gene_search_input.value !== inst_gene) ? inst_gene : ''
 
-    // update_gene_text_box(inst_gene)
-    update_gene_text_box(reset_gene ? '' : inst_gene)
+    update_gene_text_box(viz_state.genes, reset_gene ? '' : inst_gene)
 
 }
 

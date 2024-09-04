@@ -61,6 +61,7 @@ export const landscape_ist = async (
     viz_state.genes.trx_names_array = []
     viz_state.genes.trx_data = []
     viz_state.genes.trx_slider = document.createElement("input")
+    viz_state.genes.gene_text_box = ''
 
     viz_state.cats.cell_exp_array = []
     viz_state.cats.cell_names_array = []

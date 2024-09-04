@@ -64,7 +64,8 @@ export const update_ist_landscape_from_cgm = async (deck_ist, layers_obj, viz_st
         }
 
         gene_search_input.value = (gene_search_input.value !== inst_gene) ? inst_gene : ''
-        update_gene_text_box(inst_gene)
+
+        update_gene_text_box(viz_state.genes, inst_gene)
 
     } else if (click_info.click_type === 'col-label') {
 

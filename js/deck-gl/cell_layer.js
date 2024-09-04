@@ -82,7 +82,7 @@ const cell_layer_onclick = async (info, d, deck_ist, layers_obj, viz_state) => {
     deck_ist.setProps({layers: layers_list})
 
     gene_search_input.value = ''
-    update_gene_text_box('')
+    update_gene_text_box(viz_state.genes, '')
 
 }
 

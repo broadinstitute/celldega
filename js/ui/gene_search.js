@@ -17,8 +17,6 @@ import { uniprot_data, uniprot_get_request } from '../external_apis/uniprot_api.
 
 export let gene_search = document.createElement("div")
 
-export let gene_text_box
-
 let gene_search_options = []
 
 const sst_gene_search_callback = async () => {
@@ -133,21 +131,21 @@ export const set_gene_search = async (tech_type, deck_ist, layers_obj, viz_state
     gene_search.appendChild(dataList)
 
     // Create a div element with some text
-    gene_text_box = document.createElement('div');
-    gene_text_box.textContent = ''
-    gene_text_box.style.marginTop = '3px'
-    gene_text_box.style.color = '#222222'
-    gene_text_box.style.border = "1px solid #d3d3d3"
-    gene_text_box.style.height = '69px' //'71px'
-    gene_text_box.style.overflow = 'scroll'
-    gene_text_box.style.fontSize = '12px'
-    gene_text_box.style.cursor = 'default'
-    gene_text_box.style.width = '142px'
-    gene_text_box.style.paddingLeft = '2px'
-    gene_text_box.style.paddingRight = '17px'
+    viz_state.genes.gene_text_box = document.createElement('div');
+    viz_state.genes.gene_text_box.textContent = ''
+    viz_state.genes.gene_text_box.style.marginTop = '3px'
+    viz_state.genes.gene_text_box.style.color = '#222222'
+    viz_state.genes.gene_text_box.style.border = "1px solid #d3d3d3"
+    viz_state.genes.gene_text_box.style.height = '69px' //'71px'
+    viz_state.genes.gene_text_box.style.overflow = 'scroll'
+    viz_state.genes.gene_text_box.style.fontSize = '12px'
+    viz_state.genes.gene_text_box.style.cursor = 'default'
+    viz_state.genes.gene_text_box.style.width = '142px'
+    viz_state.genes.gene_text_box.style.paddingLeft = '2px'
+    viz_state.genes.gene_text_box.style.paddingRight = '17px'
 
-    gene_text_box.addEventListener('wheel', (event) => {
-        const { scrollTop, scrollHeight, clientHeight } = gene_text_box
+    viz_state.genes.gene_text_box.addEventListener('wheel', (event) => {
+        const { scrollTop, scrollHeight, clientHeight } = viz_state.genes.gene_text_box
         const atTop = scrollTop === 0
         const atBottom = scrollTop + clientHeight === scrollHeight
 
@@ -156,7 +154,7 @@ export const set_gene_search = async (tech_type, deck_ist, layers_obj, viz_state
         }
     })
 
-    gene_search.appendChild(gene_text_box); // Append the new div with text
+    gene_search.appendChild(viz_state.genes.gene_text_box); // Append the new div with text
 
     // Set initial default value to "cluster"
     gene_search_input.value = ''
@@ -176,25 +174,25 @@ export const set_gene_search = async (tech_type, deck_ist, layers_obj, viz_state
     gene_search_input.addEventListener('input', callback)
 }
 
-export const update_gene_text_box = async (inst_gene) => {
+export const update_gene_text_box = async (genes, inst_gene) => {
 
     if (inst_gene !== ''){
-        gene_text_box.textContent = 'loading'
+        genes.gene_text_box.textContent = 'loading'
 
         await uniprot_get_request(inst_gene)
 
         const gene_data = uniprot_data[inst_gene]
 
         if (gene_data && gene_data.name && gene_data.description) {
-            gene_text_box.innerHTML = `<span style="color: blue;">${gene_data.name}</span><br>${gene_data.description}`;
+            genes.gene_text_box.innerHTML = `<span style="color: blue;">${gene_data.name}</span><br>${gene_data.description}`;
         } else {
-            gene_text_box.textContent = ''
+            genes.gene_text_box.textContent = ''
         }
     } else {
-        gene_text_box.textContent = ''
+        genes.gene_text_box.textContent = ''
     }
 
-    gene_text_box.scrollTo({
+    genes.gene_text_box.scrollTo({
         top: 0,
         behavior: 'smooth'
     })

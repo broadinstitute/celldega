@@ -53,7 +53,7 @@ const ist_gene_search_callback = async (deck_ist, layers_obj, viz_state) => {
         const inst_gene_in_gene_names = viz_state.genes.gene_names.includes(inst_gene)
 
         if (inst_gene_in_gene_names) {
-            await update_cell_exp_array(viz_state.cats, viz_state.global_base_url, inst_gene)
+            await update_cell_exp_array(viz_state.cats, viz_state.genes, viz_state.global_base_url, inst_gene)
         }
 
         toggle_image_layers_and_ctrls(layers_obj, viz_state, !inst_gene_in_gene_names)

@@ -2,8 +2,6 @@ import { get_arrow_table } from "../read_parquet/get_arrow_table"
 import { options } from '../global_variables/fetch_options.js';
 import { set_gene_names } from "./gene_names.js";
 
-export let meta_gene = {}
-
 export let gene_counts = []
 
 export const set_meta_gene = async (genes, base_url) => {
@@ -15,7 +13,7 @@ export const set_meta_gene = async (genes, base_url) => {
     let gene_max = meta_gene_table.getChild('max').toArray()
 
     gene_names.forEach((name, index) => {
-        meta_gene[name] = {
+        genes.meta_gene[name] = {
             mean: gene_mean[index],
             std: gene_std[index],
             max: gene_max[index],

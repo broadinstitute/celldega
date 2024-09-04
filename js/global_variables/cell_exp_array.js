@@ -1,8 +1,7 @@
 import { get_arrow_table } from '../read_parquet/get_arrow_table'
 import { options } from '../global_variables/fetch_options.js'
-import { meta_gene } from './meta_gene.js'
 
-export const update_cell_exp_array = async (cats, base_url, inst_gene) => {
+export const update_cell_exp_array = async (cats, genes, base_url, inst_gene) => {
 
     var file_path = base_url + '/cbg/' + inst_gene + '.parquet'
     var exp_table = await get_arrow_table(file_path, options.fetch)
@@ -15,7 +14,7 @@ export const update_cell_exp_array = async (cats, base_url, inst_gene) => {
         if (cats.cell_name_to_index_map.has(name)) {
             const index = cats.cell_name_to_index_map.get(name);
             const exp_value = Number(cell_exp[i]);
-            const max_exp = Number(meta_gene[inst_gene].max);
+            const max_exp = Number(genes.meta_gene[inst_gene].max);
 
             // Apply logarithmic transformation
             const log_exp_value = Math.log1p(exp_value); // log1p(x) = log(1 + x)

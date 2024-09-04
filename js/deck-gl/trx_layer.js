@@ -2,7 +2,7 @@ import * as d3 from 'd3'
 import { ScatterplotLayer } from 'deck.gl'
 import { trx_data, set_trx_data } from '../vector_tile/transcripts/trx_data'
 import { trx_names_array } from '../global_variables/trx_names_array'
-import { selected_genes, update_selected_genes } from '../global_variables/selected_genes'
+import { update_selected_genes } from '../global_variables/selected_genes'
 import { update_cell_layer_id } from './cell_layer'
 import { gene_search_input } from '../ui/gene_search_input'
 import { update_cat, update_selected_cats } from '../global_variables/cat'
@@ -101,7 +101,7 @@ export const ini_trx_layer = (genes) => {
         getColor: (i, d) => {
             const inst_gene = trx_names_array[d.index]
             const inst_color = genes.color_dict_gene[inst_gene]
-            const inst_opacity = selected_genes.length === 0 || selected_genes.includes(inst_gene) ? 255 : 5
+            const inst_opacity = genes.selected_genes.length === 0 || genes.selected_genes.includes(inst_gene) ? 255 : 5
 
             return [...inst_color, inst_opacity]
         },
@@ -136,8 +136,8 @@ export const update_trx_layer_radius = (layers_obj, radius) => {
     })
 }
 
-export const update_trx_layer_id = (layers_obj) => {
+export const update_trx_layer_id = (genes, layers_obj) => {
     layers_obj.trx_layer = layers_obj.trx_layer.clone({
-        id: 'trx-layer-' + selected_genes.join('-'),
+        id: 'trx-layer-' + genes.selected_genes.join('-'),
     })
 }

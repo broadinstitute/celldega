@@ -46,13 +46,13 @@ export const bar_callback_cluster = (event, d, deck_ist, layers_obj, viz_state) 
 
     update_cat(viz_state.cats, 'cluster')
     update_selected_cats(viz_state.cats, [d.name])
-    update_selected_genes([])
+    update_selected_genes(viz_state.genes, [])
     toggle_image_layers_and_ctrls(layers_obj, viz_state, !viz_state.cats.selected_cats.length > 0)
 
     const inst_cat_name = viz_state.cats.selected_cats.join('-')
     update_cell_layer_id(layers_obj, inst_cat_name)
     update_path_layer_id(layers_obj, inst_cat_name)
-    update_trx_layer_id(layers_obj)
+    update_trx_layer_id(viz_state.genes, layers_obj)
 
     const layers_list = get_layers_list(layers_obj, viz_state.close_up)
     deck_ist.setProps({layers: layers_list})
@@ -95,13 +95,13 @@ export const bar_callback_gene = async (event, d, deck_ist, layers_obj, viz_stat
     toggle_image_layers_and_ctrls(layers_obj, viz_state, viz_state.cats.cat === inst_gene)
 
     update_cat(viz_state.cats, new_cat)
-    update_selected_genes([inst_gene])
+    update_selected_genes(viz_state.genes, [inst_gene])
     update_selected_cats(viz_state.cats, [])
     await update_cell_exp_array(viz_state.cats, viz_state.genes, viz_state.global_base_url, inst_gene)
 
     update_cell_layer_id(layers_obj, new_cat)
     update_path_layer_id(layers_obj, new_cat)
-    update_trx_layer_id(layers_obj)
+    update_trx_layer_id(viz_state.genes, layers_obj)
 
     const layers_list = get_layers_list(layers_obj, viz_state.close_up)
     deck_ist.setProps({layers: layers_list})

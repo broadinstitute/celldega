@@ -54,6 +54,8 @@ export const landscape_ist = async (
     viz_state.genes.gene_names = []
     viz_state.genes.meta_gene = {}
     viz_state.genes.gene_counts = []
+    viz_state.genes.selected_genes = []
+
 
     viz_state.cats.cell_exp_array = []
     viz_state.cats.cell_names_array = []

@@ -47,7 +47,7 @@ const ist_gene_search_callback = async (deck_ist, layers_obj, viz_state) => {
     if (inst_gene === '' || viz_state.genes.gene_names.includes(inst_gene)) {
 
         update_cat(viz_state.cats, new_cat);
-        update_selected_genes(inst_gene === '' ? [] : [inst_gene])
+        update_selected_genes(viz_state.genes, inst_gene === '' ? [] : [inst_gene])
         update_selected_cats(viz_state.cats, [])
 
         const inst_gene_in_gene_names = viz_state.genes.gene_names.includes(inst_gene)
@@ -60,7 +60,7 @@ const ist_gene_search_callback = async (deck_ist, layers_obj, viz_state) => {
 
         update_cell_layer_id(layers_obj, new_cat)
         update_path_layer_id(layers_obj, new_cat)
-        update_trx_layer_id(layers_obj)
+        update_trx_layer_id(viz_state.genes, layers_obj)
 
         const layers_list = get_layers_list(layers_obj, viz_state.close_up)
         deck_ist.setProps({layers: layers_list})

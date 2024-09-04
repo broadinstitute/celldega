@@ -7,7 +7,6 @@ import { update_path_layer_id } from '../deck-gl/path_layer'
 import { update_trx_layer_id } from '../deck-gl/trx_layer'
 import { get_layers_list } from '../deck-gl/layers_ist'
 import { update_cell_exp_array } from '../global_variables/cell_exp_array'
-import { gene_search_input } from './gene_search_input'
 import { update_gene_text_box } from './gene_search'
 
 export let svg_bar_cluster = d3.create("svg")
@@ -57,7 +56,7 @@ export const bar_callback_cluster = (event, d, deck_ist, layers_obj, viz_state) 
     const layers_list = get_layers_list(layers_obj, viz_state.close_up)
     deck_ist.setProps({layers: layers_list})
 
-    gene_search_input.value = ''
+    viz_state.genes.gene_search_input.value = ''
     update_gene_text_box(viz_state.genes, '')
 }
 
@@ -106,7 +105,7 @@ export const bar_callback_gene = async (event, d, deck_ist, layers_obj, viz_stat
     const layers_list = get_layers_list(layers_obj, viz_state.close_up)
     deck_ist.setProps({layers: layers_list})
 
-    gene_search_input.value = gene_search_input.value !== inst_gene ? inst_gene : ''
+    viz_state.genes.gene_search_input.value = viz_state.genes.gene_search_input.value !== inst_gene ? inst_gene : ''
     update_gene_text_box(viz_state.genes, reset_gene ? '' : inst_gene)
 }
 

@@ -14,7 +14,6 @@ import { toggle_image_layers_and_ctrls } from '../ui/ui_containers'
 import { update_selected_genes } from '../global_variables/selected_genes'
 import { update_trx_layer_id } from './trx_layer'
 import { svg_bar_cluster, svg_bar_gene } from '../ui/bar_plot'
-import { gene_search_input } from '../ui/gene_search_input'
 import { update_gene_text_box } from '../ui/gene_search'
 
 const cell_layer_onclick = async (info, d, deck_ist, layers_obj, viz_state) => {
@@ -81,7 +80,7 @@ const cell_layer_onclick = async (info, d, deck_ist, layers_obj, viz_state) => {
     const layers_list = get_layers_list(layers_obj, viz_state.close_up)
     deck_ist.setProps({layers: layers_list})
 
-    gene_search_input.value = ''
+    viz_state.genes.gene_search_input.value = ''
     update_gene_text_box(viz_state.genes, '')
 
 }

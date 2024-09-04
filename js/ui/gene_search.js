@@ -3,7 +3,7 @@ import { square_scatter_layer, update_square_scatter_layer } from "../deck-gl/sq
 import { update_cat, update_selected_cats } from "../global_variables/cat.js"
 import { deck_sst } from "../deck-gl/deck_sst.js"
 import { update_tile_exp_array } from "../global_variables/tile_exp_array.js"
-import { gene_search_input, set_gene_search_input } from "./gene_search_input.js"
+import { set_gene_search_input } from "./gene_search_input.js"
 import { simple_image_layer } from "../deck-gl/simple_image_layer.js"
 import { update_selected_genes } from "../global_variables/selected_genes.js"
 import { update_path_layer_id } from "../deck-gl/path_layer.js"
@@ -18,6 +18,10 @@ import { uniprot_data, uniprot_get_request } from '../external_apis/uniprot_api.
 let gene_search_options = []
 
 const sst_gene_search_callback = async () => {
+
+    // tmp
+    let gene_search_input = {}
+    gene_search_input.value = ''
 
     const inst_gene = gene_search_input.value
     // const new_cat = inst_gene === '' ? 'cluster' : inst_gene
@@ -36,7 +40,7 @@ const sst_gene_search_callback = async () => {
 
 const ist_gene_search_callback = async (deck_ist, layers_obj, viz_state) => {
 
-    const inst_gene = gene_search_input.value;
+    const inst_gene = viz_state.genes.gene_search_input.value;
 
     const new_cat = inst_gene === '' ? 'cluster' : inst_gene;
 
@@ -96,18 +100,15 @@ const ist_gene_search_callback = async (deck_ist, layers_obj, viz_state) => {
 
 export const set_gene_search = async (tech_type, deck_ist, layers_obj, viz_state) => {
 
-    console.log('viz_state.genes.gene_names')
-    console.log(viz_state.genes.gene_names)
-
     gene_search_options = ['cluster', ...viz_state.genes.gene_names]
 
     viz_state.genes.gene_search.style.width = "115px"
 
-    set_gene_search_input()
+    set_gene_search_input(viz_state.genes)
 
     let dataList = document.createElement("datalist")
     dataList.id = 'genes_datalist'
-    gene_search_input.setAttribute('list', dataList.id)
+    viz_state.genes.gene_search_input.setAttribute('list', dataList.id)
 
     // Populate the datalist with gene names
     gene_search_options.forEach(optionText => {
@@ -117,22 +118,19 @@ export const set_gene_search = async (tech_type, deck_ist, layers_obj, viz_state
     })
 
     // Apply styles to the input element
-    gene_search_input.style.width = '156px', // '109px'
-    gene_search_input.style.maxWidth = "250px"
-    gene_search_input.style.height = '12px'
-    gene_search_input.style.fontSize = '12px'
-    gene_search_input.style.border = '1px solid #d3d3d3'
-    gene_search_input.style.borderRadius = '0'
+    viz_state.genes.gene_search_input.style.width = '156px', // '109px'
+    viz_state.genes.gene_search_input.style.maxWidth = "250px"
+    viz_state.genes.gene_search_input.style.height = '12px'
+    viz_state.genes.gene_search_input.style.fontSize = '12px'
+    viz_state.genes.gene_search_input.style.border = '1px solid #d3d3d3'
+    viz_state.genes.gene_search_input.style.borderRadius = '0'
 
-    gene_search_input.style.display = "inline-block"
-    gene_search_input.style.padding = "1pt 2pt"
+    viz_state.genes.gene_search_input.style.display = "inline-block"
+    viz_state.genes.gene_search_input.style.padding = "1pt 2pt"
 
     // Append elements
-    viz_state.genes.gene_search.appendChild(gene_search_input)
+    viz_state.genes.gene_search.appendChild(viz_state.genes.gene_search_input)
     viz_state.genes.gene_search.appendChild(dataList)
-
-    console.log('dataList')
-    console.log(dataList)
 
     // Create a div element with some text
     viz_state.genes.gene_text_box = document.createElement('div');
@@ -161,26 +159,24 @@ export const set_gene_search = async (tech_type, deck_ist, layers_obj, viz_state
     viz_state.genes.gene_search.appendChild(viz_state.genes.gene_text_box); // Append the new div with text
 
     // Set initial default value to "cluster"
-    gene_search_input.value = ''
+    viz_state.genes.gene_search_input.value = ''
     update_cat(viz_state.cats, 'cluster')
 
     // Event listener when an option is selected or the input is cleared
     let callback
     if (tech_type === 'sst'){
         callback = sst_gene_search_callback
-        gene_search_input.style.marginTop = "10px"
+        viz_state.genes.gene_search_input.style.marginTop = "10px"
         viz_state.genes.gene_search.style.height = "50px"
     } else {
         callback = () => ist_gene_search_callback(deck_ist, layers_obj, viz_state)
-        gene_search_input.style.marginTop = "5px"
+        viz_state.genes.gene_search_input.style.marginTop = "5px"
     }
 
-    gene_search_input.addEventListener('input', callback)
+    viz_state.genes.gene_search_input.addEventListener('input', callback)
 }
 
 export const update_gene_text_box = async (genes, inst_gene) => {
-
-    console.log('update_gene_text_box', genes, inst_gene)
 
     if (inst_gene !== ''){
         genes.gene_text_box.textContent = 'loading'

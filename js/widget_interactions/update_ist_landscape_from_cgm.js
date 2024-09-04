@@ -6,7 +6,6 @@ import { update_cell_exp_array } from '../global_variables/cell_exp_array'
 import { update_cell_layer_id } from '../deck-gl/cell_layer'
 import { update_path_layer_id } from '../deck-gl/path_layer'
 import { update_trx_layer_id } from '../deck-gl/trx_layer'
-import { gene_search_input } from '../ui/gene_search_input'
 import { svg_bar_gene, svg_bar_cluster } from '../ui/bar_plot'
 import { get_layers_list } from '../deck-gl/layers_ist'
 import { update_gene_text_box } from '../ui/gene_search.js'
@@ -63,7 +62,7 @@ export const update_ist_landscape_from_cgm = async (deck_ist, layers_obj, viz_st
             }
         }
 
-        gene_search_input.value = (gene_search_input.value !== inst_gene) ? inst_gene : ''
+        viz_state.genes.gene_search_input.value = (viz_state.genes.gene_search_input.value !== inst_gene) ? inst_gene : ''
 
         update_gene_text_box(viz_state.genes, inst_gene)
 

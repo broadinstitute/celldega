@@ -2,7 +2,6 @@ import * as d3 from 'd3'
 import { ScatterplotLayer } from 'deck.gl'
 import { update_selected_genes } from '../global_variables/selected_genes'
 import { update_cell_layer_id } from './cell_layer'
-import { gene_search_input } from '../ui/gene_search_input'
 import { update_cat, update_selected_cats } from '../global_variables/cat'
 import { update_cell_exp_array } from '../global_variables/cell_exp_array'
 import { toggle_image_layers_and_ctrls } from '../ui/ui_containers'
@@ -84,7 +83,7 @@ const trx_layer_callback = async (info, d, deck_ist, layers_obj, viz_state) => {
         .attr('opacity', 1.0)
 
 
-    gene_search_input.value = (gene_search_input.value !== inst_gene) ? inst_gene : ''
+    viz_state.genes.gene_search_input.value = (viz_state.genes.gene_search_input.value !== inst_gene) ? inst_gene : ''
 
     update_gene_text_box(viz_state.genes, reset_gene ? '' : inst_gene)
 

@@ -6,7 +6,6 @@ import { update_cell_exp_array } from '../global_variables/cell_exp_array'
 import { update_cell_layer_id } from '../deck-gl/cell_layer'
 import { update_path_layer_id } from '../deck-gl/path_layer'
 import { update_trx_layer_id } from '../deck-gl/trx_layer'
-import { svg_bar_gene } from '../ui/bar_plot'
 import { get_layers_list } from '../deck-gl/layers_ist'
 import { update_gene_text_box } from '../ui/gene_search.js'
 
@@ -39,12 +38,12 @@ export const update_ist_landscape_from_cgm = async (deck_ist, layers_obj, viz_st
 
         const reset_gene = false
 
-        svg_bar_gene.selectAll("g")
+        viz_state.genes.svg_bar_gene.selectAll("g")
             .attr('font-weight', 'normal')
             .attr('opacity', reset_gene ? 1.0 : 0.25)
 
         if (!reset_gene) {
-            const selectedBar = svg_bar_gene.selectAll("g")
+            const selectedBar = viz_state.genes.svg_bar_gene.selectAll("g")
                 .filter(function() {
                     return d3.select(this).select("text").text() === inst_gene
                 })

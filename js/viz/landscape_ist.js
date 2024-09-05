@@ -53,7 +53,6 @@ export const landscape_ist = async (
     viz_state.cats.polygon_cell_names = []
     viz_state.cats.svg_bar_cluster = d3.create("svg")
 
-
     viz_state.genes = {}
     viz_state.genes.color_dict_gene = {}
     viz_state.genes.gene_names = []
@@ -66,6 +65,7 @@ export const landscape_ist = async (
     viz_state.genes.gene_text_box = ''
     viz_state.genes.trx_slider = document.createElement("input")
     viz_state.genes.gene_search = document.createElement("div")
+    viz_state.genes.svg_bar_gene = d3.create("svg")
 
     viz_state.cats.cell_exp_array = []
     viz_state.cats.cell_names_array = []

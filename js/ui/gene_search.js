@@ -12,7 +12,6 @@ import { update_trx_layer_id } from "../deck-gl/trx_layer.js"
 import { update_cell_exp_array } from "../global_variables/cell_exp_array.js"
 import { toggle_image_layers_and_ctrls } from "./ui_containers.js"
 import { get_layers_list } from "../deck-gl/layers_ist.js"
-import { svg_bar_gene } from "./bar_plot.js"
 import { uniprot_data, uniprot_get_request } from '../external_apis/uniprot_api.js'
 
 let gene_search_options = []
@@ -67,13 +66,13 @@ const ist_gene_search_callback = async (deck_ist, layers_obj, viz_state) => {
 
         const reset_gene = false
 
-        svg_bar_gene.selectAll("g")
+        viz_state.genes.svg_bar_gene.selectAll("g")
             .attr('font-weight', 'normal')
             .attr('opacity', reset_gene ? 1.0 : 0.25)
 
         if (!reset_gene) {
 
-            const selectedBar = svg_bar_gene.selectAll("g")
+            const selectedBar = viz_state.genes.svg_bar_gene.selectAll("g")
                 .filter(function() {
                     return d3.select(this).select("text").text() === inst_gene
                 })

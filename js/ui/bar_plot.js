@@ -9,8 +9,6 @@ import { get_layers_list } from '../deck-gl/layers_ist'
 import { update_cell_exp_array } from '../global_variables/cell_exp_array'
 import { update_gene_text_box } from './gene_search'
 
-export let svg_bar_gene = d3.create("svg")
-
 export const make_bar_container = () => {
     return document.createElement("div")
 }
@@ -18,7 +16,7 @@ export const make_bar_container = () => {
 export const bar_callback_cluster = (event, d, deck_ist, layers_obj, viz_state) => {
 
     // reset gene
-    svg_bar_gene
+    viz_state.genes.svg_bar_gene
         .selectAll("g")
         .attr('font-weight', 'normal')
         .attr('opacity', 1.0)
@@ -70,7 +68,7 @@ export const bar_callback_gene = async (event, d, deck_ist, layers_obj, viz_stat
     const currentTarget = d3.select(event.currentTarget)
     const isBold = currentTarget.attr('font-weight') === 'bold'
 
-    svg_bar_gene
+    viz_state.genes.svg_bar_gene
         .selectAll("g")
         .attr('font-weight', 'normal')
         .attr('opacity', 0.25)
@@ -81,7 +79,7 @@ export const bar_callback_gene = async (event, d, deck_ist, layers_obj, viz_stat
     } else {
         currentTarget.attr('font-weight', 'normal')
 
-        svg_bar_gene
+        viz_state.genes.svg_bar_gene
             .selectAll("g")
             .attr('opacity', 1.0)
     }

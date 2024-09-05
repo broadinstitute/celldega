@@ -7,7 +7,6 @@ import { update_cell_exp_array } from '../global_variables/cell_exp_array'
 import { toggle_image_layers_and_ctrls } from '../ui/ui_containers'
 import { get_layers_list } from './layers_ist'
 import { update_path_layer_id } from './path_layer'
-import { svg_bar_gene } from '../ui/bar_plot'
 import { update_gene_text_box } from '../ui/gene_search'
 import { grab_trx_tiles_in_view } from '../vector_tile/transcripts/grab_trx_tiles_in_view'
 
@@ -42,12 +41,12 @@ const trx_layer_callback = async (info, d, deck_ist, layers_obj, viz_state) => {
     const layers_list = get_layers_list(layers_obj, viz_state.close_up)
     deck_ist.setProps({layers: layers_list})
 
-    svg_bar_gene.selectAll("g")
+    viz_state.genes.svg_bar_gene.selectAll("g")
         .attr('font-weight', 'normal')
         .attr('opacity', reset_gene ? 1.0 : 0.25)
 
     if (!reset_gene) {
-        const selectedBar = svg_bar_gene.selectAll("g")
+        const selectedBar = viz_state.genes.svg_bar_gene.selectAll("g")
             .filter(function() {
                 const textElement = d3.select(this).select("text").node()
                 return textElement && textElement.textContent === inst_gene
@@ -61,7 +60,7 @@ const trx_layer_callback = async (info, d, deck_ist, layers_obj, viz_state) => {
             const containerPosition = viz_state.containers.bar_gene.getBoundingClientRect().top
             const scrollPosition = barPosition - containerPosition + viz_state.containers.bar_gene.scrollTop
 
-            svg_bar_gene
+            viz_state.genes.svg_bar_gene
                 .attr('opacity', 1.0)
 
                 viz_state.containers.bar_gene.scrollTo({

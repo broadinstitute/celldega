@@ -2,7 +2,7 @@ import { visibleTiles } from '../vector_tile/visibleTiles.js'
 import { update_path_layer_data } from './path_layer.js'
 import { update_trx_layer_data } from './trx_layer.js'
 import { get_layers_list } from './layers_ist.js'
-import { svg_bar_gene, update_bar_graph } from '../ui/bar_plot.js'
+import { update_bar_graph } from '../ui/bar_plot.js'
 import { bar_callback_gene, bar_callback_cluster } from '../ui/bar_plot.js'
 
 export const calc_viewport = async ({ height, width, zoom, target }, deck_ist, layers_obj, viz_state) => {
@@ -64,7 +64,7 @@ export const calc_viewport = async ({ height, width, zoom, target }, deck_ist, l
         }, []).filter(item => item.value > 0)
         .sort((a, b) => b.value - a.value)
 
-        update_bar_graph(svg_bar_gene, new_bar_data, viz_state.genes.color_dict_gene, bar_callback_gene, viz_state.genes.selected_genes, deck_ist, layers_obj, viz_state)
+        update_bar_graph(viz_state.genes.svg_bar_gene, new_bar_data, viz_state.genes.color_dict_gene, bar_callback_gene, viz_state.genes.selected_genes, deck_ist, layers_obj, viz_state)
 
         viz_state.containers.bar_gene.scrollTo({
             top: 0,
@@ -107,7 +107,7 @@ export const calc_viewport = async ({ height, width, zoom, target }, deck_ist, l
             // set_close_up(false)
             viz_state.close_up = false
 
-            update_bar_graph(svg_bar_gene, viz_state.genes.gene_counts, viz_state.genes.color_dict_gene, bar_callback_gene, viz_state.genes.selected_genes, deck_ist, layers_obj, viz_state)
+            update_bar_graph(viz_state.genes.svg_bar_gene, viz_state.genes.gene_counts, viz_state.genes.color_dict_gene, bar_callback_gene, viz_state.genes.selected_genes, deck_ist, layers_obj, viz_state)
             update_bar_graph(viz_state.cats.svg_bar_cluster, viz_state.cats.cluster_counts, viz_state.cats.color_dict_cluster, bar_callback_cluster, viz_state.cats.selected_cats, deck_ist, layers_obj, viz_state)
 
             viz_state.containers.bar_gene.scrollTo({

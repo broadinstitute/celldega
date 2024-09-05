@@ -11,15 +11,16 @@
 	"dependencies": {
 		"@loaders.gl/core": "4.1.1",
 		"apache-arrow": "15.0.2",
+		"clustergrammer-gl": "0.25.0",
+		"d3": "^7.9.0",
 		"deck.gl": "^9.0.5",
 		"math.gl": "2.3.3",
-		"d3":"^7.9.0",
-		"underscore": "1.9.1",
-		"clustergrammer-gl":"0.25.0"
+		"underscore": "1.9.1"
 	},
 	"devDependencies": {
 		"@eslint/js": "^9.0.0",
 		"esbuild": "^0.20.0",
+		"esbuild-plugin-wasm": "^1.1.0",
 		"eslint": "^9.0.0",
 		"globals": "^15.0.0"
 	},

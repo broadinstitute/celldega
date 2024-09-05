@@ -3,9 +3,7 @@ import { options } from './fetch_options.js'
 import { hexToRgb } from '../utils/hexToRgb.js'
 import { set_gene_names } from './gene_names.js'
 
-export let color_dict_gene = {}
-
-export const set_color_dict_gene = async ( base_url ) => {
+export const set_color_dict_gene = async (genes, base_url) => {
 
     const meta_gene_url = base_url + `/meta_gene.parquet`;
     var meta_gene = await get_arrow_table(meta_gene_url, options.fetch)
@@ -22,9 +20,9 @@ export const set_color_dict_gene = async ( base_url ) => {
     }
 
     gene_names.forEach((geneName, index) => {
-        color_dict_gene[geneName] = hexToRgb(colors[index]);
+        genes.color_dict_gene[geneName] = hexToRgb(colors[index]);
     })
 
-    set_gene_names(gene_names)
+    set_gene_names(genes, gene_names)
 
 }

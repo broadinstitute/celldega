@@ -1,27 +1,22 @@
 import * as d3 from 'd3'
-import { cat, update_cat, selected_cats, update_selected_cats } from '../global_variables/cat'
+import { update_cat, update_selected_cats } from '../global_variables/cat'
 import { update_selected_genes } from '../global_variables/selected_genes'
 import { toggle_image_layers_and_ctrls } from './ui_containers'
 import { update_cell_layer_id } from '../deck-gl/cell_layer'
 import { update_path_layer_id } from '../deck-gl/path_layer'
-import { update_trx_layer_filter } from '../deck-gl/trx_layer'
-import { layers_ist, update_layers_ist } from '../deck-gl/layers_ist'
-import { deck_ist } from '../deck-gl/deck_ist'
+import { update_trx_layer_id } from '../deck-gl/trx_layer'
+import { get_layers_list } from '../deck-gl/layers_ist'
 import { update_cell_exp_array } from '../global_variables/cell_exp_array'
-import { global_base_url } from '../global_variables/global_base_url'
-import { gene_search_input } from './gene_search_input'
 import { update_gene_text_box } from './gene_search'
 
-export let bar_container_cluster = document.createElement("div")
-export let bar_container_gene = document.createElement("div")
+export const make_bar_container = () => {
+    return document.createElement("div")
+}
 
-export let svg_bar_cluster = d3.create("svg")
-export let svg_bar_gene = d3.create("svg")
-
-export const bar_callback_cluster = (event, d) => {
+export const bar_callback_cluster = (event, d, deck_ist, layers_obj, viz_state) => {
 
     // reset gene
-    svg_bar_gene
+    viz_state.genes.svg_bar_gene
         .selectAll("g")
         .attr('font-weight', 'normal')
         .attr('opacity', 1.0)
@@ -29,7 +24,7 @@ export const bar_callback_cluster = (event, d) => {
     const currentTarget = d3.select(event.currentTarget)
     const isBold = currentTarget.attr('font-weight') === 'bold'
 
-    svg_bar_cluster
+    viz_state.cats.svg_bar_cluster
         .selectAll("g")
         .attr('font-weight', 'normal')
         .attr('opacity', 0.25)
@@ -40,31 +35,32 @@ export const bar_callback_cluster = (event, d) => {
     } else {
         currentTarget.attr('font-weight', 'normal')
 
-        svg_bar_cluster
+        viz_state.cats.svg_bar_cluster
             .selectAll("g")
             .attr('opacity', 1.0)
     }
 
-    update_cat('cluster')
-    update_selected_cats([d.name])
-    update_selected_genes([])
-    toggle_image_layers_and_ctrls(!selected_cats.length > 0)
-    const inst_cat_name = selected_cats.join('-')
-    update_cell_layer_id(inst_cat_name)
-    update_path_layer_id(inst_cat_name)
-    update_trx_layer_filter()
-    update_layers_ist()
+    update_cat(viz_state.cats, 'cluster')
+    update_selected_cats(viz_state.cats, [d.name])
+    update_selected_genes(viz_state.genes, [])
+    toggle_image_layers_and_ctrls(layers_obj, viz_state, !viz_state.cats.selected_cats.length > 0)
 
-    deck_ist.setProps({layers: layers_ist})
+    const inst_cat_name = viz_state.cats.selected_cats.join('-')
+    update_cell_layer_id(layers_obj, inst_cat_name)
+    update_path_layer_id(layers_obj, inst_cat_name)
+    update_trx_layer_id(viz_state.genes, layers_obj)
 
-    gene_search_input.value = ''
-    update_gene_text_box('')
+    const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+    deck_ist.setProps({layers: layers_list})
+
+    viz_state.genes.gene_search_input.value = ''
+    update_gene_text_box(viz_state.genes, '')
 }
 
-export const bar_callback_gene = async (event, d) => {
+export const bar_callback_gene = async (event, d, deck_ist, layers_obj, viz_state) => {
 
     // reset cluster bar plot
-    svg_bar_cluster
+    viz_state.cats.svg_bar_cluster
         .selectAll("g")
         .attr('font-weight', 'normal')
         .attr('opacity', 1.0)
@@ -72,7 +68,7 @@ export const bar_callback_gene = async (event, d) => {
     const currentTarget = d3.select(event.currentTarget)
     const isBold = currentTarget.attr('font-weight') === 'bold'
 
-    svg_bar_gene
+    viz_state.genes.svg_bar_gene
         .selectAll("g")
         .attr('font-weight', 'normal')
         .attr('opacity', 0.25)
@@ -83,33 +79,34 @@ export const bar_callback_gene = async (event, d) => {
     } else {
         currentTarget.attr('font-weight', 'normal')
 
-        svg_bar_gene
+        viz_state.genes.svg_bar_gene
             .selectAll("g")
             .attr('opacity', 1.0)
     }
 
     const inst_gene = d.name
-    const reset_gene = inst_gene === cat;
+    const reset_gene = inst_gene === viz_state.cats.cat;
     const new_cat = reset_gene ? 'cluster' : inst_gene
 
-    toggle_image_layers_and_ctrls(cat === inst_gene)
+    toggle_image_layers_and_ctrls(layers_obj, viz_state, viz_state.cats.cat === inst_gene)
 
-    update_cat(new_cat)
-    update_selected_genes([inst_gene])
-    update_selected_cats([])
-    await update_cell_exp_array(global_base_url, inst_gene)
-    update_cell_layer_id(new_cat)
-    update_path_layer_id(new_cat)
-    update_trx_layer_filter()
-    update_layers_ist()
+    update_cat(viz_state.cats, new_cat)
+    update_selected_genes(viz_state.genes, [inst_gene])
+    update_selected_cats(viz_state.cats, [])
+    await update_cell_exp_array(viz_state.cats, viz_state.genes, viz_state.global_base_url, inst_gene)
 
-    deck_ist.setProps({layers: layers_ist})
+    update_cell_layer_id(layers_obj, new_cat)
+    update_path_layer_id(layers_obj, new_cat)
+    update_trx_layer_id(viz_state.genes, layers_obj)
 
-    gene_search_input.value = gene_search_input.value !== inst_gene ? inst_gene : ''
-    update_gene_text_box(reset_gene ? '' : inst_gene)
+    const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+    deck_ist.setProps({layers: layers_list})
+
+    viz_state.genes.gene_search_input.value = viz_state.genes.gene_search_input.value !== inst_gene ? inst_gene : ''
+    update_gene_text_box(viz_state.genes, reset_gene ? '' : inst_gene)
 }
 
-export const make_bar_graph = (bar_container, click_callback, svg_bar, bar_data, color_dict) => {
+export const make_bar_graph = (bar_container, click_callback, svg_bar, bar_data, color_dict, deck_ist, layers_obj, viz_state) => {
 
     bar_container.className = "bar_container"
     bar_container.style.width = "107px"
@@ -156,7 +153,7 @@ export const make_bar_graph = (bar_container, click_callback, svg_bar, bar_data,
         .data(bar_data)
         .join("g")
         .attr("transform", (d, i) => `translate(2,${y_new(i) + 2})`)
-        .on('click', click_callback)
+        .on('click', (event, d) => click_callback(event, d, deck_ist, layers_obj, viz_state))
 
     bar.append("rect")
         .attr("fill", (d) => {
@@ -176,7 +173,7 @@ export const make_bar_graph = (bar_container, click_callback, svg_bar, bar_data,
         .text(d => d.name)
 }
 
-export const update_bar_graph = (svg_bar, bar_data, color_dict, click_callback, selected_array) => {
+export const update_bar_graph = (svg_bar, bar_data, color_dict, click_callback, selected_array, deck_ist, layers_obj, viz_state) => {
 
     const bar_height = 15;
     const svg_height = bar_height * (bar_data.length + 1);
@@ -200,7 +197,7 @@ export const update_bar_graph = (svg_bar, bar_data, color_dict, click_callback, 
     // Enter new bars
     const bars_enter = bars.enter().append("g")
         .attr("transform", (d, i) => `translate(2,${y_new(i) + 2})`)
-        .on('click', click_callback); // Adjust click handler if needed
+        .on('click', (event, d) => click_callback(event, d, deck_ist, layers_obj, viz_state))
 
     bars_enter.append("rect")
         .attr("width", 0) // Initial width set to 0 for transition effect
@@ -245,4 +242,4 @@ export const update_bar_graph = (svg_bar, bar_data, color_dict, click_callback, 
         .duration(750)
         .attr("opacity", 0)
         .remove();
-};
+}

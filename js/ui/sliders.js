@@ -1,28 +1,21 @@
 import { simple_image_layer } from "../deck-gl/simple_image_layer"
 import { square_scatter_layer, square_scatter_layer_opacity } from "../deck-gl/square_scatter_layer"
 import { layers_sst, update_layers_sst } from "../deck-gl/layers_sst"
-import { trx_layer, update_trx_layer_radius } from "../deck-gl/trx_layer"
-import { image_layers, update_opacity_single_image_layer } from "../deck-gl/image_layers"
-import { path_layer } from "../deck-gl/path_layer"
-import { cell_layer, update_cell_layer_radius } from "../deck-gl/cell_layer"
+import { update_trx_layer_radius } from "../deck-gl/trx_layer"
+import { update_opacity_single_image_layer } from "../deck-gl/image_layers"
+import { update_cell_layer_radius } from "../deck-gl/cell_layer"
 import { deck_sst } from "../deck-gl/deck_sst"
-import { deck_ist } from "../deck-gl/deck_ist"
-import { background_layer } from "../deck-gl/background_layer"
-import { trx_ini_raidus } from "../global_variables/trx_ini_raidus"
-import { close_up } from "../global_variables/close_up"
-import { layers_ist, update_layers_ist } from "../deck-gl/layers_ist"
+import { get_layers_list } from "../deck-gl/layers_ist"
 
 export let tile_slider = document.createElement("input")
-export let cell_slider = document.createElement("input")
-export let trx_slider = document.createElement("input")
 
-let new_layers = []
+export const make_slider = () => {
+    return  document.createElement("input")
+}
 
-export let image_layer_sliders
+export const set_image_layer_sliders = (img) => {
 
-export const set_image_layer_sliders = (image_info) => {
-
-    image_layer_sliders = image_info.map( info => {
+    img.image_layer_sliders = img.image_info.map( info => {
         let input = document.createElement("input")
         input.name = info.button_name
         return input
@@ -36,72 +29,40 @@ const tile_slider_callback = async () => {
     deck_sst.setProps({layers: layers_sst})
 }
 
-const cell_slider_callback = async () => {
+const cell_slider_callback = async (deck_ist, layers_obj, viz_state) => {
 
     const scale_down_cell_radius = 5
 
-    update_cell_layer_radius(cell_slider.value / scale_down_cell_radius)
+    update_cell_layer_radius(layers_obj, viz_state.sliders.cell.value / scale_down_cell_radius)
 
-    update_layers_ist()
-
-    deck_ist.setProps({layers: layers_ist})
+    const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+    deck_ist.setProps({layers: layers_list})
 
 }
 
-const trx_slider_callback = async () => {
+const trx_slider_callback = async (deck_ist, layers_obj, viz_state) => {
 
     const scale_down_trx_radius = 100
 
-    update_trx_layer_radius(trx_slider.value/scale_down_trx_radius)
+    update_trx_layer_radius(layers_obj, viz_state.sliders.trx.value/scale_down_trx_radius)
 
-    if (close_up){
-        new_layers = [
-            background_layer,
-            ...image_layers,
-            path_layer,
-            cell_layer,
-            trx_layer
-        ]
-    } else {
-        new_layers = [
-            background_layer,
-            ...image_layers,
-            cell_layer,
-        ]
-    }
-
-    deck_ist.setProps({layers: new_layers})
+    const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+    deck_ist.setProps({layers: layers_list})
 }
 
-export const make_img_layer_slider_callback = (name) => {
+export const make_img_layer_slider_callback = (name, deck_ist, layers_obj, viz_state) => {
     return async () => {
 
-        let inst_slider = image_layer_sliders.filter(slider => slider.name === name)[0]
-
+        let inst_slider = viz_state.img.image_layer_sliders.filter(slider => slider.name === name)[0]
 
         // Get the slider value from the event
         const opacity = inst_slider.value/10
 
         // Use the slider value to update the opacity
-        update_opacity_single_image_layer(name, opacity);
+        update_opacity_single_image_layer(viz_state, layers_obj, name, opacity, viz_state.img.image_layer_colors);
 
-        if (close_up){
-            new_layers = [
-                background_layer,
-                ...image_layers,
-                path_layer,
-                cell_layer,
-                trx_layer
-            ]
-        } else {
-            new_layers = [
-                background_layer,
-                ...image_layers,
-                cell_layer,
-            ]
-        }
-
-        deck_ist.setProps({layers: new_layers});
+        const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+        deck_ist.setProps({layers: layers_list})
     };
 };
 
@@ -117,27 +78,25 @@ export const ini_slider_params = (slider, ini_value, callback) =>{
 
 }
 
-export const ini_slider = (slider_type) => {
+export const ini_slider = (slider_type, deck_ist, layers_obj, viz_state) => {
 
-    let slider
     let ini_value
     let callback
 
+    let slider = make_slider()
+
     switch (slider_type) {
         case 'tile':
-            slider = tile_slider
             ini_value = 100
             callback = tile_slider_callback
             break
         case 'cell':
-            slider = cell_slider
-            ini_value = trx_ini_raidus * 100
-            callback = cell_slider_callback
+            ini_value = viz_state.genes.trx_ini_raidus * 100
+            callback = () => cell_slider_callback(deck_ist, layers_obj, viz_state)
             break
         case 'trx':
-            slider = trx_slider
-            ini_value = trx_ini_raidus * 100
-            callback = trx_slider_callback
+            ini_value = viz_state.genes.trx_ini_raidus * 100
+            callback = () => trx_slider_callback(deck_ist, layers_obj, viz_state)
             break
 
         default:
@@ -145,6 +104,10 @@ export const ini_slider = (slider_type) => {
     }
 
     ini_slider_params(slider, ini_value, callback)
+
+    // save the slider to viz_state with a property name of slider_type
+    viz_state.sliders[slider_type] = slider
+
 }
 
 export const toggle_slider = (slider, state) => {

@@ -12,3 +12,6 @@ This is the official documentation for the Celldega library.
 - [Usage](usage.md)
 
 ## Gallery
+
+
+## Embedded Jupyter Notebook

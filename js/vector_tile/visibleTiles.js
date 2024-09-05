@@ -1,8 +1,8 @@
-export const visibleTiles = (minX, maxX, minY, maxY, tileSize) => {
-	const startTileX = Math.floor(minX / tileSize);
-	const endTileX = Math.floor(maxX / tileSize);
-	const startTileY = Math.floor(minY / tileSize);
-	const endTileY = Math.floor(maxY / tileSize);
+export const visibleTiles = (min_x, max_x, min_y, max_y, tileSize) => {
+	const startTileX = Math.floor(min_x / tileSize);
+	const endTileX = Math.floor(max_x / tileSize);
+	const startTileY = Math.floor(min_y / tileSize);
+	const endTileY = Math.floor(max_y / tileSize);
 
 	const tiles = [];
 	for (let x = startTileX; x <= endTileX; x++) {

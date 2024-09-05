@@ -1,28 +1,22 @@
 import * as d3 from 'd3'
 import { make_button } from "./text_buttons"
-import { gene_search, set_gene_search } from "./gene_search"
-import { tile_slider, cell_slider, trx_slider, ini_slider, ini_slider_params } from './sliders'
-import { image_info } from "../global_variables/image_info"
-import { image_layer_sliders, make_img_layer_slider_callback, toggle_slider } from "./sliders"
+import { set_gene_search } from "./gene_search"
+import { tile_slider, ini_slider, ini_slider_params } from './sliders'
+import { make_img_layer_slider_callback, toggle_slider } from "./sliders"
 import { debounce } from '../utils/debounce'
 import { toggle_visibility_image_layers } from '../deck-gl/image_layers'
 import { make_bar_graph } from './bar_plot'
-import { bar_container_cluster, bar_callback_cluster, svg_bar_cluster } from './bar_plot'
-import { bar_container_gene, bar_callback_gene, svg_bar_gene } from './bar_plot'
-import { cluster_counts } from '../global_variables/meta_cluster'
-import { color_dict_cluster } from '../global_variables/meta_cluster'
-import { color_dict_gene } from '../global_variables/color_dict_gene'
-import { gene_counts } from '../global_variables/meta_gene'
+import { bar_callback_cluster, make_bar_container } from './bar_plot'
+import { bar_callback_gene } from './bar_plot'
 
-export let image_container
+export const toggle_image_layers_and_ctrls = (layers_obj, viz_state, is_visible) => {
 
-export const toggle_image_layers_and_ctrls = (is_visible) => {
-    d3.select(image_container)
+    d3.select(viz_state.containers.image)
         .selectAll('.img_layer_button')
         .style('color', is_visible ? 'blue' : 'gray');
 
-    image_layer_sliders.map(slider => toggle_slider(slider, is_visible))
-    toggle_visibility_image_layers(is_visible)
+    viz_state.img.image_layer_sliders.map(slider => toggle_slider(slider, is_visible))
+    toggle_visibility_image_layers(layers_obj, is_visible)
 }
 
 export const make_ui_container = () => {
@@ -31,7 +25,6 @@ export const make_ui_container = () => {
     ui_container.style.flexDirection = "row"
     ui_container.style.border = "1px solid #d3d3d3"
     ui_container.className = "ui_container"
-    // ui_container.style.justifyContent = 'space-between'
     ui_container.style.height = '100px' // '85px'
     return ui_container
 }
@@ -94,20 +87,18 @@ export const make_sst_ui_container = () => {
 
 }
 
-export const make_ist_ui_container = (dataset_name) => {
+export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_state) => {
 
     const ui_container = make_ui_container()
     const ctrl_container = make_ctrl_container()
 
-    // image_container = flex_container('image_container', 'row')
-    image_container = flex_container('image_container', 'column')
+    viz_state.containers.image = flex_container('image_container', 'column')
 
     const img_layers_container = flex_container('img_layers_container', 'column', 72) // 75
     img_layers_container.style.width = '135px'
     img_layers_container.style.border = "1px solid #d3d3d3"
     img_layers_container.style.marginTop = '3px'
     img_layers_container.style.marginLeft = '2px'
-
 
     img_layers_container.addEventListener('wheel', (event) => {
         const { scrollTop, scrollHeight, clientHeight } = img_layers_container
@@ -134,28 +125,26 @@ export const make_ist_ui_container = (dataset_name) => {
     const cell_slider_container = make_slider_container('cell_slider_container')
     const trx_slider_container = make_slider_container('trx_slider_container')
 
-    // make_button(img_layers_container, 'ist', 'IMG', 'blue', 30)
-    make_button(image_container, 'ist', 'IMG', 'blue', 30)
+    make_button(viz_state.containers.image, 'ist', 'IMG', 'blue', 30, 'button', deck_ist, layers_obj, viz_state)
 
-    const get_slider_by_name = (name) => {
-        return image_layer_sliders.filter(slider => slider.name === name);
+    const get_slider_by_name = (img, name) => {
+        return img.image_layer_sliders.filter(slider => slider.name === name);
     };
 
-
-    const make_img_layer_ctrl = (inst_image) => {
+    const make_img_layer_ctrl = (img, inst_image) => {
 
         const inst_name = inst_image.button_name
 
         let inst_container = flex_container('image_layer_container', 'row')
         inst_container.style.height = '21px'
 
-        make_button(inst_container, 'ist', inst_name, 'blue', 75, 'img_layer_button')
+        make_button(inst_container, 'ist', inst_name, 'blue', 75, 'img_layer_button', deck_ist, layers_obj, viz_state)
 
         const inst_slider_container = make_slider_container(inst_name)
 
-        let slider = get_slider_by_name(inst_name)[0]
+        let slider = get_slider_by_name(img, inst_name)[0]
 
-        let img_layer_slider_callback = make_img_layer_slider_callback(inst_name)
+        let img_layer_slider_callback = make_img_layer_slider_callback(inst_name, deck_ist, layers_obj, viz_state)
 
         const debounce_time = 100
         let img_layer_slider_callback_debounced = debounce(img_layer_slider_callback, debounce_time)
@@ -170,57 +159,67 @@ export const make_ist_ui_container = (dataset_name) => {
 
     }
 
-    image_info.map(
-        make_img_layer_ctrl
-    )
+    viz_state.img.image_info.map(inst_image => make_img_layer_ctrl(viz_state.img, inst_image))
 
-    make_button(cell_ctrl_container, 'ist', 'CELL')
-    make_button(trx_container, 'ist', 'TRX')
+    make_button(cell_ctrl_container, 'ist', 'CELL', 'blue', 40, 'button', deck_ist, layers_obj, viz_state)
+    make_button(      trx_container, 'ist', 'TRX',  'blue', 40, 'button', deck_ist, layers_obj, viz_state)
 
-    image_container.appendChild(img_layers_container)
+    viz_state.containers.image.appendChild(img_layers_container)
 
-    ini_slider('cell')
-    cell_slider_container.appendChild(cell_slider)
+    viz_state.sliders = {}
+
+    ini_slider('cell', deck_ist, layers_obj, viz_state)
+
+    cell_slider_container.appendChild(viz_state.sliders.cell)
     cell_ctrl_container.appendChild(cell_slider_container)
 
-    make_bar_graph(
-        bar_container_cluster,
-        bar_callback_cluster,
-        svg_bar_cluster,
-        cluster_counts,
-        color_dict_cluster
-    )
+    viz_state.containers.bar_cluster = make_bar_container()
 
     make_bar_graph(
-        bar_container_gene,
+        viz_state.containers.bar_cluster,
+        bar_callback_cluster,
+        viz_state.cats.svg_bar_cluster,
+        viz_state.cats.cluster_counts,
+        viz_state.cats.color_dict_cluster,
+        deck_ist,
+        layers_obj,
+        viz_state
+    )
+
+    viz_state.containers.bar_gene = make_bar_container()
+
+    make_bar_graph(
+        viz_state.containers.bar_gene,
         bar_callback_gene,
-        svg_bar_gene,
-        gene_counts,
-        color_dict_gene
+        viz_state.genes.svg_bar_gene,
+        viz_state.genes.gene_counts,
+        viz_state.genes.color_dict_gene,
+        deck_ist,
+        layers_obj,
+        viz_state
     )
 
     cell_container.appendChild(cell_ctrl_container)
-    cell_container.appendChild(bar_container_cluster)
+    cell_container.appendChild(viz_state.containers.bar_cluster)
 
-    ini_slider('trx')
+    ini_slider('trx', deck_ist, layers_obj, viz_state)
     trx_container.appendChild(trx_slider_container)
-    trx_slider_container.appendChild(trx_slider)
+    trx_slider_container.appendChild(viz_state.sliders.trx)
 
     gene_container.appendChild(trx_container)
-    gene_container.appendChild(bar_container_gene)
+    gene_container.appendChild(viz_state.containers.bar_gene)
 
-    set_gene_search('ist')
+    set_gene_search('ist', deck_ist, layers_obj, viz_state)
 
-    gene_search.style.marginLeft = '0px'
+    viz_state.genes.gene_search.style.marginLeft = '0px'
 
     ui_container.appendChild(ctrl_container)
 
-    ctrl_container.appendChild(image_container)
+    ctrl_container.appendChild(viz_state.containers.image)
     ctrl_container.appendChild(cell_container)
     ctrl_container.appendChild(gene_container)
 
-    ctrl_container.appendChild(gene_search)
-
+    ctrl_container.appendChild(viz_state.genes.gene_search)
 
     // if dataset_name is not an empty string make the name container
     if (dataset_name.trim !== ''){

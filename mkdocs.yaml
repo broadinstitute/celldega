@@ -20,6 +20,8 @@ nav:
       - viz:
           - Overview: python/viz/overview.md
           - API Reference: python/viz/api.md
+  - Examples:
+      - examples/Landscape_View_Xenium.ipynb
 
 markdown_extensions:
   - toc
@@ -34,3 +36,7 @@ plugins:
           options:
             docstring_style: google
             show_root_toc_entry: true
+  - mkdocs-jupyter:
+      include_source: true
+      ignore: ["**/.ipynb_checkpoints/*.ipynb"]
+

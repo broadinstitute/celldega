@@ -4,14 +4,12 @@ import { square_scatter_layer, square_scatter_layer_visibility } from '../deck-g
 import { layers_sst, update_layers_sst } from '../deck-gl/layers_sst'
 import { toggle_visibility_image_layers, toggle_visibility_single_image_layer } from '../deck-gl/image_layers'
 import { deck_sst } from '../deck-gl/deck_sst'
-import { deck_ist } from '../deck-gl/deck_ist'
 import { toggle_background_layer_visibility } from '../deck-gl/background_layer'
 import { toggle_path_layer_visibility } from '../deck-gl/path_layer'
-import { toggle_cell_layer_visibility } from '../deck-gl/cell_layer'
+import { new_toggle_cell_layer_visibility } from '../deck-gl/cell_layer'
 import { toggle_trx_layer_visibility } from '../deck-gl/trx_layer'
-import { layers_ist, update_layers_ist } from '../deck-gl/layers_ist'
-import { tile_slider, cell_slider, trx_slider, toggle_slider, image_layer_sliders } from './sliders'
-import { image_container } from './ui_containers'
+import { get_layers_list } from '../deck-gl/layers_ist'
+import { tile_slider, toggle_slider } from './sliders'
 
 let is_visible
 
@@ -35,8 +33,7 @@ const toggle_visible_button = (event) => {
     return is_visible
 }
 
-
-export const make_button = (container, technology, text, color='blue', width=40, button_class='button') => {
+export const make_button = (container, technology, text, color='blue', width=40, button_class='button', deck_ist, layers_obj, viz_state) => {
 
     let callback
 
@@ -44,16 +41,16 @@ export const make_button = (container, technology, text, color='blue', width=40,
         if (technology === 'sst'){
             callback = sst_img_button_callback
         } else {
-            callback = ist_img_button_callback
+            callback = () => ist_img_button_callback(event, deck_ist, layers_obj, viz_state)
         }
     } else if (text === 'TILE') {
-        callback =  tile_button_callback
+        callback = () => tile_button_callback(event, deck_ist)
     } else if (text === 'TRX'){
-        callback = trx_button_callback_ist
+        callback = () => trx_button_callback_ist(event, deck_ist, layers_obj, viz_state)
     } else if (text === 'CELL'){
-        callback = cell_button_callback
+        callback = () => cell_button_callback(event, deck_ist, layers_obj, viz_state)
     } else {
-        callback = make_ist_img_layer_button_callback(text)
+        callback = make_ist_img_layer_button_callback(text, deck_ist, layers_obj, viz_state)
     }
 
     d3.select(container)
@@ -75,24 +72,22 @@ export const make_button = (container, technology, text, color='blue', width=40,
 }
 
 
-const make_ist_img_layer_button_callback = (text) => {
+const make_ist_img_layer_button_callback = (text, deck_ist, layers_obj, viz_state) => {
+
     return async (event) => {
 
         if (img_layer_visible){
 
             toggle_visible_button(event)
 
-            toggle_visibility_single_image_layer(text, is_visible)
+            toggle_visibility_single_image_layer(layers_obj, text, is_visible)
 
-            let inst_slider = image_layer_sliders.filter(slider => slider.name === text)[0]
+            let inst_slider = viz_state.img.image_layer_sliders.filter(slider => slider.name === text)[0]
 
             toggle_slider(inst_slider, is_visible)
 
-            update_layers_ist()
-
-            deck_ist.setProps({
-                layers: layers_ist
-            })
+            const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+            deck_ist.setProps({layers: layers_list})
 
         }
 
@@ -111,39 +106,35 @@ const sst_img_button_callback = async (event) => {
 
 }
 
-const ist_img_button_callback = async (event) => {
+const ist_img_button_callback = async (event, deck_ist, layers_obj, viz_state) => {
 
     toggle_visible_button(event)
-    toggle_visibility_image_layers(is_visible)
-    toggle_background_layer_visibility(is_visible)
+    toggle_visibility_image_layers(layers_obj, is_visible)
+    toggle_background_layer_visibility(layers_obj, is_visible)
 
-    d3.select(image_container)
+    d3.select(viz_state.containers.image)
         .selectAll('.img_layer_button')
         .style('color', is_visible ? 'blue' : 'gray');
 
-    update_layers_ist()
-    deck_ist.setProps({
-        layers: layers_ist
-    })
-
     set_img_layer_visible(is_visible)
 
-    image_layer_sliders.map(slider => toggle_slider(slider, is_visible))
+    viz_state.img.image_layer_sliders.map(slider => toggle_slider(slider, is_visible))
+
+    const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+    deck_ist.setProps({layers: layers_list})
 
 }
 
-const trx_button_callback_ist = async (event) => {
+const trx_button_callback_ist = async (event, deck_ist, layers_obj, viz_state) => {
 
     toggle_visible_button(event)
 
-    toggle_slider(trx_slider, is_visible)
+    toggle_slider(viz_state.genes.trx_slider, is_visible)
 
-    toggle_trx_layer_visibility(is_visible)
+    toggle_trx_layer_visibility(layers_obj, is_visible)
 
-    update_layers_ist()
-    deck_ist.setProps({
-        layers: layers_ist
-    })
+    const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+    deck_ist.setProps({layers: layers_list})
 
 }
 
@@ -161,17 +152,15 @@ const tile_button_callback = async (event) => {
 
 }
 
-const cell_button_callback = async (event) => {
+const cell_button_callback = async (event, deck_ist, layers_obj, viz_state) => {
 
     toggle_visible_button(event)
 
-    toggle_slider(cell_slider, is_visible)
+    toggle_slider(viz_state.sliders.cell, is_visible)
 
-    toggle_cell_layer_visibility(is_visible)
-    toggle_path_layer_visibility(is_visible)
+    new_toggle_cell_layer_visibility(layers_obj, is_visible)
+    toggle_path_layer_visibility(layers_obj, is_visible)
 
-    update_layers_ist()
-    deck_ist.setProps({
-        layers: layers_ist
-    })
+    const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+    deck_ist.setProps({layers: layers_list})
 }

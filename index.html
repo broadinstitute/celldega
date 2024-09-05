@@ -9,9 +9,9 @@
 <body>
     <h1>ES Module Test</h1>
     <script type="module">
-        
+
         import celldega from './src/celldega/static/widget.js'
-        
+
         // Use the imported functions
 
         const token = ''
@@ -20,25 +20,23 @@
         const ini_z = 0
         const ini_zoom = -6.5
         const max_image_zoom = 16
-        // const bounce_time = 150
         const base_url = 'https://storage.googleapis.com/nick-cors-test-bucket/test_human_ffpe'
 
         // Create and append the visualization.
         let root = document.createElement("div");
         root.style.width = "800px";
         root.style.height = "800px";
-        let el = document.querySelector("#app");    
+        let el = document.querySelector("#app");
         el.appendChild(root);
 
         celldega.landscape(
-            token, 
-            ini_x, 
-            ini_y, 
+            token,
+            ini_x,
+            ini_y,
             ini_z,
-            ini_zoom, 
-            max_image_zoom, 
-            // bounce_time, 
-            base_url, 
+            ini_zoom,
+            max_image_zoom,
+            base_url,
             root
         )
 

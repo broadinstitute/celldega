@@ -1,66 +1,61 @@
-import { TileLayer } from 'deck.gl' 
+import { TileLayer } from 'deck.gl'
 import { create_get_tile_data } from './create_get_tile_data'
 import { create_render_tile_sublayers } from './create_render_tile_sublayer'
-import { dimensions } from '../global_variables/image_dimensions'
 import { options } from '../global_variables/fetch_options'
-import { landscape_parameters } from '../global_variables/landscape_parameters' 
-import { global_base_url } from '../global_variables/global_base_url'
-import { image_info, image_layer_colors } from '../global_variables/image_info'
 
-export let image_layers = []
+const make_image_layer = (viz_state, info) => {
 
-const make_image_layer = (info) => {
-
-    const max_pyramid_zoom = landscape_parameters.max_pyramid_zoom
+    const max_pyramid_zoom = viz_state.img.landscape_parameters.max_pyramid_zoom
 
     const opacity = 5
 
     const image_layer = new TileLayer({
         id: info.button_name,
-        tileSize: dimensions.tileSize,
+        tileSize: viz_state.dimensions.tileSize,
         refinementStrategy: 'no-overlap',
         minZoom: -7,
         maxZoom: 0,
         maxCacheSize: 20,
-        extent: [0, 0, dimensions.width, dimensions.height],
-        getTileData: create_get_tile_data(global_base_url, info.name, max_pyramid_zoom, options),
-        renderSubLayers: create_render_tile_sublayers(info.color, opacity)
-    }); 
+        extent: [0, 0, viz_state.dimensions.width, viz_state.dimensions.height],
+        getTileData: create_get_tile_data(viz_state.global_base_url, info.name, viz_state.img.image_format, max_pyramid_zoom, options),
+        renderSubLayers: create_render_tile_sublayers(viz_state.dimensions, info.color, opacity)
+    });
     return image_layer
 }
 
-export const make_image_layers = async () => {
-    image_layers = image_info.map(make_image_layer);
+export const make_image_layers = async (viz_state) => {
+    let image_layers = viz_state.img.image_info.map( (info) => make_image_layer(viz_state, info) );
+    return image_layers
 }
 
-export const toggle_visibility_image_layers = (visible) => {
-    image_layers = image_layers.map(layer => 
+export const toggle_visibility_image_layers = (layers_obj, visible) => {
+    layers_obj.image_layers = layers_obj.image_layers.map(layer =>
         layer.clone({
             visible: visible
         })
     )
 }
 
-export const toggle_visibility_single_image_layer = (name, visible) => {
+export const toggle_visibility_single_image_layer = (layers_obj, name, visible) => {
 
-    image_layers = image_layers.map(layer => 
-        layer.id.startsWith(name) ? 
-        layer.clone({ visible: visible }) : 
+    layers_obj.image_layers = layers_obj.image_layers.map(layer =>
+        layer.id.startsWith(name) ?
+        layer.clone({ visible: visible }) :
         layer
     )
 
 }
 
-export const update_opacity_single_image_layer = (name, opacity) => {
+export const update_opacity_single_image_layer = (viz_state, layers_obj, name, opacity, image_layer_colors) => {
 
     let color = image_layer_colors[name]
 
-    image_layers = image_layers.map(layer => 
-        layer.id.startsWith(name) ? 
+    layers_obj.image_layers = layers_obj.image_layers.map(layer =>
+        layer.id.startsWith(name) ?
         layer.clone({
-            renderSubLayers: create_render_tile_sublayers(color, opacity),
+            renderSubLayers: create_render_tile_sublayers(viz_state.dimensions, color, opacity),
             id: name + '-' + opacity
-        }) : 
+        }) :
         layer
     )
 

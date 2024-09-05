@@ -1,31 +1,61 @@
 import { Deck } from 'deck.gl'
-import { initial_view_state } from './initial_view_state.js'
-import { views } from './views.js'
-import { layers_ist } from './layers_ist.js'
 import { on_view_state_change } from './on_view_state_change.js'
 import { make_tooltip } from './make_tooltip.js'
-
-export let deck_ist
 
 const getCursor = ({ isDragging }) => {
     if (isDragging) {
         return 'grabbing';
     }
-    // return 'pointer'; // Always use pointer cursor when hovering
     return 'pointer';
 }
 
-export const set_deck = ( root ) => {
+export const ini_deck = ( root ) => {
 
-    deck_ist = new Deck({
+    let deck_ist = new Deck({
         parent: root,
         controller: {doubleClickZoom: false},
-        initialViewState: initial_view_state,
-        views: views,
-        layers: layers_ist,
         getCursor: getCursor,
-        onViewStateChange: on_view_state_change,
-        getTooltip: make_tooltip,
     })
 
+    return deck_ist
+
+}
+
+export const set_views_prop = (deck_ist, views) => {
+
+    deck_ist.setProps({
+        views: views
+    })
+
+}
+
+export const set_get_tooltip = (deck_ist, viz_state) => {
+
+        deck_ist.setProps({
+            getTooltip: (info) => make_tooltip(viz_state, info)
+        })
+
+    }
+
+export const set_deck_on_view_state_change = (deck_ist, layers_obj, viz_state) => {
+
+    deck_ist.setProps({
+        onViewStateChange: (params) => {
+            on_view_state_change(params, deck_ist, layers_obj, viz_state)
+        }
+    })
+
+}
+
+
+export const set_initial_view_state = (deck_ist, ini_x, ini_y, ini_z, ini_zoom) => {
+
+    const initial_view_state = {
+        target: [ini_x, ini_y, ini_z],
+        zoom: ini_zoom
+    }
+
+    deck_ist.setProps({
+        initialViewState: initial_view_state
+    })
 }

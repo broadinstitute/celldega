@@ -1,8 +1,8 @@
 import { get_arrow_table } from "../read_parquet/get_arrow_table.js"
 import { get_scatter_data } from "../read_parquet/get_scatter_data.js"
 import { options, set_options } from '../global_variables/fetch_options.js'
-import { update_views } from '../deck-gl/views.js'
-import { set_initial_view_state } from "../deck-gl/initial_view_state.js"
+// import { update_views } from '../deck-gl/views.js'
+// import { set_initial_view_state } from "../deck-gl/initial_view_state.js"
 import { deck_sst, set_deck } from '../deck-gl/deck_sst.js'
 import { update_layers_sst } from "../deck-gl/layers_sst.js"
 import { square_scatter_layer, ini_square_scatter_layer } from "../deck-gl/square_scatter_layer.js"
@@ -15,7 +15,7 @@ import { set_dimensions } from '../global_variables/image_dimensions.js'
 import { set_landscape_parameters } from "../global_variables/landscape_parameters.js"
 import { simple_image_layer, make_simple_image_layer } from "../deck-gl/simple_image_layer.js"
 import { set_global_base_url } from "../global_variables/global_base_url.js"
-import { model, set_model} from "../global_variables/model.js"
+// import { model, set_model} from "../global_variables/model.js"
 import { update_tile_landscape_from_cgm } from "../widget_interactions/update_tile_landscape_from_cgm.js"
 import { set_gene_search } from '../ui/gene_search.js'
 import { make_sst_ui_container } from '../ui/ui_containers.js'
@@ -26,10 +26,10 @@ export const landscape_sst = async (
     el,
     base_url,
     token,
-    ini_x,
-    ini_y,
-    ini_z,
-    ini_zoom,
+    // ini_x,
+    // ini_y,
+    // ini_z,
+    // ini_zoom,
     // dataset_name=''
 ) => {
 
@@ -37,7 +37,9 @@ export const landscape_sst = async (
     let root = document.createElement("div")
     root.style.height = "800px"
 
-    set_model(ini_model)
+    // set_model(ini_model)
+    // tmp
+    let model = ''
 
     set_options(token)
     set_global_base_url(base_url)
@@ -46,7 +48,7 @@ export const landscape_sst = async (
 
     await set_meta_gene(base_url)
 
-    await set_gene_search('sst')
+    await set_gene_search('sst', deck_sst, {})
 
     // move this to landscape_parameters
     // const imgage_name_for_dim = 'dapi'
@@ -71,8 +73,9 @@ export const landscape_sst = async (
     const new_layers = [simple_image_layer, square_scatter_layer]
     await update_layers_sst(new_layers)
 
-    set_initial_view_state(ini_x, ini_y, ini_z, ini_zoom)
-    update_views()
+    // commenting out for now
+    // set_initial_view_state(ini_x, ini_y, ini_z, ini_zoom)
+    // update_views()
 
     set_deck(root)
 

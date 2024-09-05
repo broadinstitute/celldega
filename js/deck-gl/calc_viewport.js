@@ -1,39 +1,24 @@
 import { visibleTiles } from '../vector_tile/visibleTiles.js'
-import { global_base_url } from '../global_variables/global_base_url.js'
-import { deck_ist } from './deck_ist.js'
-import { update_path_layer } from './path_layer.js'
-import { update_trx_layer } from './trx_layer.js'
-import { layers_ist, update_layers_ist } from './layers_ist.js'
-import { landscape_parameters } from '../global_variables/landscape_parameters.js'
-import { close_up, set_close_up } from '../global_variables/close_up.js'
-import { svg_bar_gene, update_bar_graph, bar_container_gene, bar_container_cluster } from '../ui/bar_plot.js'
-import { color_dict_gene } from '../global_variables/color_dict_gene.js'
-import { gene_counts } from '../global_variables/meta_gene.js'
-import { bar_callback_gene, svg_bar_cluster, bar_callback_cluster } from '../ui/bar_plot.js'
-import { trx_combo_data } from '../vector_tile/transcripts/grab_trx_tiles_in_view.js'
-import { cell_combo_data } from './cell_layer.js'
-import { color_dict_cluster, cluster_counts } from '../global_variables/meta_cluster.js'
-import { selected_cats } from '../global_variables/cat.js'
-import { selected_genes } from '../global_variables/selected_genes.js'
+import { update_path_layer_data } from './path_layer.js'
+import { update_trx_layer_data } from './trx_layer.js'
+import { get_layers_list } from './layers_ist.js'
+import { update_bar_graph } from '../ui/bar_plot.js'
+import { bar_callback_gene, bar_callback_cluster } from '../ui/bar_plot.js'
 
-export let minX
-export let maxX
-export let minY
-export let maxY
+export const calc_viewport = async ({ height, width, zoom, target }, deck_ist, layers_obj, viz_state) => {
 
-export const calc_viewport = async ({ height, width, zoom, target }) => {
-
-    const tile_size = landscape_parameters.tile_size
+    const tile_size = viz_state.img.landscape_parameters.tile_size
     const max_tiles_to_view = 50
     const zoomFactor = Math.pow(2, zoom)
     const [targetX, targetY] = target
     const halfWidthZoomed = width / (2 * zoomFactor)
     const halfHeightZoomed = height / (2 * zoomFactor)
 
-    minX = targetX - halfWidthZoomed
-    maxX = targetX + halfWidthZoomed
-    minY = targetY - halfHeightZoomed
-    maxY = targetY + halfHeightZoomed
+    viz_state.bounds = {}
+    viz_state.bounds.min_x = targetX - halfWidthZoomed
+    viz_state.bounds.max_x = targetX + halfWidthZoomed
+    viz_state.bounds.min_y = targetY - halfHeightZoomed
+    viz_state.bounds.max_y = targetY + halfHeightZoomed
 
     // Get the current viewport from Deck.gl
     const viewports = deck_ist.viewManager.getViewports()
@@ -42,21 +27,31 @@ export const calc_viewport = async ({ height, width, zoom, target }) => {
         return
     }
 
-    const tiles_in_view = visibleTiles(minX, maxX, minY, maxY, tile_size)
+    const tiles_in_view = visibleTiles(
+        viz_state.bounds.min_x,
+        viz_state.bounds.max_x,
+        viz_state.bounds.min_y,
+        viz_state.bounds.max_y,
+        tile_size
+    )
 
     if (tiles_in_view.length < max_tiles_to_view) {
-        await update_trx_layer(global_base_url, tiles_in_view)
-        await update_path_layer(global_base_url, tiles_in_view)
 
-        set_close_up(true)
-        update_layers_ist()
+        await update_trx_layer_data(viz_state.global_base_url, tiles_in_view, layers_obj, viz_state)
+
+        await update_path_layer_data(viz_state.global_base_url, tiles_in_view, layers_obj, viz_state)
+
+        viz_state.close_up = true
 
         // gene bar graph update
-        const filtered_transcripts = trx_combo_data.filter(pos =>
-            pos.x >= minX && pos.x <= maxX && pos.y >= minY && pos.y <= maxY
-        );
+        const filtered_transcripts = viz_state.combo_data.trx.filter(pos =>
+            pos.x >= viz_state.bounds.min_x &&
+            pos.x <= viz_state.bounds.max_x &&
+            pos.y >= viz_state.bounds.min_y &&
+            pos.y <= viz_state.bounds.max_y
+        )
 
-        const filtered_gene_names = filtered_transcripts.map(transcript => transcript.name);
+        const filtered_gene_names = filtered_transcripts.map(transcript => transcript.name)
 
         const new_bar_data = filtered_gene_names.reduce((acc, gene) => {
             const existingGene = acc.find(item => item.name === gene)
@@ -69,20 +64,22 @@ export const calc_viewport = async ({ height, width, zoom, target }) => {
         }, []).filter(item => item.value > 0)
         .sort((a, b) => b.value - a.value)
 
-        update_bar_graph(svg_bar_gene, new_bar_data, color_dict_gene, bar_callback_gene, selected_genes)
+        update_bar_graph(viz_state.genes.svg_bar_gene, new_bar_data, viz_state.genes.color_dict_gene, bar_callback_gene, viz_state.genes.selected_genes, deck_ist, layers_obj, viz_state)
 
-        bar_container_gene.scrollTo({
+        viz_state.containers.bar_gene.scrollTo({
             top: 0,
             behavior: 'smooth'
         })
 
         // cell bar graph update
-        const filtered_cells = cell_combo_data.filter(pos =>
-            pos.x >= minX && pos.x <= maxX && pos.y >= minY && pos.y <= maxY
+        const filtered_cells = viz_state.combo_data.cell.filter(pos =>
+            pos.x >= viz_state.bounds.min_x &&
+            pos.x <= viz_state.bounds.max_x &&
+            pos.y >= viz_state.bounds.min_y &&
+            pos.y <= viz_state.bounds.max_y
         )
 
-
-        const filtered_cell_names = filtered_cells.map(cell => cell.cat);
+        const filtered_cell_names = filtered_cells.map(cell => cell.cat)
 
         const new_bar_data_cell = filtered_cell_names.reduce((acc, cat) => {
                 const existing_cat = acc.find(item => item.name === cat)
@@ -95,9 +92,9 @@ export const calc_viewport = async ({ height, width, zoom, target }) => {
             }, []).filter(item => item.value > 0)
             .sort((a, b) => b.value - a.value)
 
-        update_bar_graph(svg_bar_cluster, new_bar_data_cell, color_dict_cluster, bar_callback_cluster, selected_cats)
+        update_bar_graph(viz_state.cats.svg_bar_cluster, new_bar_data_cell, viz_state.cats.color_dict_cluster, bar_callback_cluster, viz_state.cats.selected_cats, deck_ist, layers_obj, viz_state)
 
-        bar_container_cluster.scrollTo({
+        viz_state.containers.bar_cluster.scrollTo({
             top: 0,
             behavior: 'smooth'
         })
@@ -105,18 +102,20 @@ export const calc_viewport = async ({ height, width, zoom, target }) => {
 
     } else {
 
-        if (close_up) {
-            set_close_up(false)
-            update_layers_ist()
-            update_bar_graph(svg_bar_gene, gene_counts, color_dict_gene, bar_callback_gene, selected_genes)
-            update_bar_graph(svg_bar_cluster, cluster_counts, color_dict_cluster, bar_callback_cluster, selected_cats)
+        if (viz_state.close_up) {
 
-            bar_container_gene.scrollTo({
+            // set_close_up(false)
+            viz_state.close_up = false
+
+            update_bar_graph(viz_state.genes.svg_bar_gene, viz_state.genes.gene_counts, viz_state.genes.color_dict_gene, bar_callback_gene, viz_state.genes.selected_genes, deck_ist, layers_obj, viz_state)
+            update_bar_graph(viz_state.cats.svg_bar_cluster, viz_state.cats.cluster_counts, viz_state.cats.color_dict_cluster, bar_callback_cluster, viz_state.cats.selected_cats, deck_ist, layers_obj, viz_state)
+
+            viz_state.containers.bar_gene.scrollTo({
                 top: 0,
                 behavior: 'smooth'
             })
 
-            bar_container_cluster.scrollTo({
+            viz_state.containers.bar_cluster.scrollTo({
                 top: 0,
                 behavior: 'smooth'
             })
@@ -124,5 +123,7 @@ export const calc_viewport = async ({ height, width, zoom, target }) => {
         }
     }
 
-    deck_ist.setProps({ layers: layers_ist })
+    const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+    deck_ist.setProps({layers: layers_list})
+
 }

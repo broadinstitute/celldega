@@ -1,32 +1,23 @@
-import { background_layer } from './background_layer.js'
-import { image_layers } from './image_layers.js'
-import { path_layer } from './path_layer.js'
-import { cell_layer } from './cell_layer.js'
-import { trx_layer } from './trx_layer.js'
-import { close_up } from '../global_variables/close_up.js'
+export const get_layers_list = (layers_obj, close_up) => {
 
-let new_layers
+    let layers_list
 
-export let layers_ist = []
-
-export const update_layers_ist = () => {
-
-    if (close_up){
-        new_layers = [
-            background_layer,
-            ...image_layers,
-            path_layer,
-            cell_layer,
-            trx_layer
+    if (close_up) {
+        layers_list = [
+            layers_obj.background_layer,
+            ...layers_obj.image_layers,
+            layers_obj.path_layer,
+            layers_obj.cell_layer,
+            layers_obj.trx_layer
         ]
     } else {
-        new_layers = [
-            background_layer,
-            ...image_layers,
-            cell_layer,
+        layers_list = [
+            layers_obj.background_layer,
+            ...layers_obj.image_layers,
+            layers_obj.cell_layer,
         ]
     }
-    layers_ist = new_layers
+
+    return layers_list
+
 }
-
-

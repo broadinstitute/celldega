@@ -1,12 +1,12 @@
 import * as mathGl from 'math.gl';
 import { CustomBitmapLayer } from './CustomBitmapLayer';
-import { dimensions } from '../global_variables/image_dimensions';
 
-export const create_render_tile_sublayers = ( color, opacity) => (props) => {
-    
+export const create_render_tile_sublayers = (dimensions, color, opacity) => (props) => {
+
     const {
         bbox: {left, bottom, right, top}
     } = props.tile;
+
     const {width, height} = dimensions;
 
     return new CustomBitmapLayer(props, {

@@ -3,25 +3,40 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        /* Use flexbox to arrange the divs side by side */
+        .visualization-container {
+            display: flex;
+            justify-content: space-between; /* Distribute the space between the elements */
+            margin-bottom: 100px;
+        }
+
+        .visualization {
+            width: 48%; /* Adjust the width of each visualization to fit in a row */
+            height: 500px;
+            position: relative;
+        }
+    </style>
 </head>
 <body>
 
-    <div id="app-1" style="width: 600px; height: 500px; position: relative; margin-bottom: 100px;"></div>
-    <div id="app-2" style="width: 600px; height: 500px; position: relative; margin-bottom: 100px;"></div>
-    <div id="app-3" style="width: 600px; height: 500px; position: relative; margin-bottom: 100px;"></div>
+    <div class="visualization-container">
+        <div id="app-1" class="visualization"></div>
+        <div id="app-2" class="visualization"></div>
+    </div>
 
     <script type="module">
         import celldega from './src/celldega/static/widget.js';
 
-        // Use the imported functions
         const token = '';
         const ini_x = 15500;
         const ini_y = 12200;
         const ini_z = 0;
         const ini_zoom = -6;
 
-        let base_url = 'https://raw.githubusercontent.com/broadinstitute/celldega_Xenium_Prime_Human_Skin_FFPE_outs/main/Xenium_Prime_Human_Skin_FFPE_outs'
+        let base_url = 'https://raw.githubusercontent.com/broadinstitute/celldega_Xenium_Prime_Human_Skin_FFPE_outs/main/Xenium_Prime_Human_Skin_FFPE_outs';
 
+        // Initialize the first visualization
         let el_1 = document.querySelector("#app-1");
         const ls_1 = await celldega.landscape_ist(
             el_1,
@@ -36,9 +51,7 @@
             0.25
         );
 
-
-        // Initialize the second visualization with a delay
-
+        // Initialize the second visualization
         let base_url_2 = 'https://raw.githubusercontent.com/broadinstitute/celldega_Xenium_Prime_Mouse_Brain_Coronal_FF_outs/main/Xenium_Prime_Mouse_Brain_Coronal_FF_outs'
         let el_2 = document.querySelector("#app-2");
         const ls_2 = await celldega.landscape_ist(
@@ -55,7 +68,6 @@
         );
 
         console.log('ls_2', ls_2);
-
 
     </script>
 </body>

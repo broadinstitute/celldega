@@ -6,7 +6,7 @@ import { update_cell_exp_array } from '../global_variables/cell_exp_array'
 import { update_cell_layer_id } from '../deck-gl/cell_layer'
 import { update_path_layer_id } from '../deck-gl/path_layer'
 import { update_trx_layer_id } from '../deck-gl/trx_layer'
-import { svg_bar_gene, svg_bar_cluster } from '../ui/bar_plot'
+import { svg_bar_gene } from '../ui/bar_plot'
 import { get_layers_list } from '../deck-gl/layers_ist'
 import { update_gene_text_box } from '../ui/gene_search.js'
 
@@ -85,14 +85,14 @@ export const update_ist_landscape_from_cgm = async (deck_ist, layers_obj, viz_st
         const layers_list = get_layers_list(layers_obj, viz_state.close_up)
         deck_ist.setProps({layers: layers_list})
 
-        svg_bar_cluster.selectAll("g")
+        viz_state.cats.svg_bar_cluster.selectAll("g")
             .attr('font-weight', 'normal')
             .attr('opacity', viz_state.cats.reset_cat ? 1.0 : 0.25)
 
         const inst_cat = new_cat
 
         if (!viz_state.cats.reset_cat) {
-            const selectedBar = svg_bar_cluster.selectAll("g")
+            const selectedBar = viz_state.cats.svg_bar_cluster.selectAll("g")
                 .filter(function() {
                     return d3.select(this).select("text").text() === inst_cat
                 })
@@ -131,14 +131,14 @@ export const update_ist_landscape_from_cgm = async (deck_ist, layers_obj, viz_st
         const layers_list = get_layers_list(layers_obj, viz_state.close_up)
         deck_ist.setProps({layers: layers_list})
 
-        svg_bar_cluster.selectAll("g")
+        viz_state.cats.svg_bar_cluster.selectAll("g")
             .attr('font-weight', 'normal')
             .attr('opacity', viz_state.cats.reset_cat ? 1.0 : 0.25)
 
         const inst_cat = new_cats
 
         if (!viz_state.cats.reset_cat) {
-            const selectedBar = svg_bar_cluster.selectAll("g")
+            const selectedBar = viz_state.cats.svg_bar_cluster.selectAll("g")
                 .filter(function() {
                     return d3.select(this).select("text").text() === inst_cat
                 })

@@ -7,7 +7,7 @@ import { update_cell_exp_array } from '../global_variables/cell_exp_array'
 import { toggle_image_layers_and_ctrls } from '../ui/ui_containers'
 import { get_layers_list } from './layers_ist'
 import { update_path_layer_id } from './path_layer'
-import { svg_bar_gene, svg_bar_cluster } from '../ui/bar_plot'
+import { svg_bar_gene } from '../ui/bar_plot'
 import { update_gene_text_box } from '../ui/gene_search'
 import { grab_trx_tiles_in_view } from '../vector_tile/transcripts/grab_trx_tiles_in_view'
 
@@ -77,7 +77,7 @@ const trx_layer_callback = async (info, d, deck_ist, layers_obj, viz_state) => {
     }
 
     // reset cluster bar plot
-    svg_bar_cluster
+    viz_state.cats.svg_bar_cluster
         .selectAll("g")
         .attr('font-weight', 'normal')
         .attr('opacity', 1.0)

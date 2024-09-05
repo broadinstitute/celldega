@@ -3,7 +3,7 @@ import { update_cell_cats } from '../global_variables/cat'
 import { update_cell_layer_id } from '../deck-gl/cell_layer'
 import { get_layers_list } from '../deck-gl/layers_ist'
 import { update_bar_graph } from '../ui/bar_plot'
-import { svg_bar_cluster, bar_callback_cluster } from '../ui/bar_plot'
+import { bar_callback_cluster } from '../ui/bar_plot'
 
 export const update_cell_clusters = (deck_ist, layers_obj, viz_state) => {
 
@@ -23,7 +23,7 @@ export const update_cell_clusters = (deck_ist, layers_obj, viz_state) => {
       }))
 
     update_bar_graph(
-        svg_bar_cluster,
+        viz_state.cats.svg_bar_cluster,
         viz_state.cats.cluster_counts,
         viz_state.cats.color_dict_cluster,
         bar_callback_cluster,

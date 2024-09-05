@@ -1,3 +1,4 @@
+import * as d3 from 'd3'
 import { set_options } from '../global_variables/fetch_options'
 import { set_global_base_url } from '../global_variables/global_base_url'
 import { set_landscape_parameters } from '../global_variables/landscape_parameters'
@@ -50,6 +51,8 @@ export const landscape_ist = async (
     viz_state.cats.color_dict_cluster = {}
     viz_state.cats.cluster_counts = []
     viz_state.cats.polygon_cell_names = []
+    viz_state.cats.svg_bar_cluster = d3.create("svg")
+
 
     viz_state.genes = {}
     viz_state.genes.color_dict_gene = {}

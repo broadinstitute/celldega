@@ -14,7 +14,8 @@ import os
 import geopandas as gpd
 from copy import deepcopy
 from shapely.affinity import affine_transform
-from shapely import Point, Polygon, MultiPolygon
+# from shapely import Point, Polygon, MultiPolygon
+from shapely.geometry import Polygon, MultiPolygon
 
 import matplotlib.pyplot as plt
 from matplotlib.colors import to_hex
@@ -358,14 +359,14 @@ def make_trx_tiles(
             if tile_trx.shape[0] > 0:
                 tile_trx[["name", "geometry"]].to_parquet(filename)
 
-    tile_bonds = {
+    tile_bounds = {
         "x_min": x_min,
         "x_max": x_max,
         "y_min": y_min,
         "y_max": y_max,
     }
 
-    return tile_bonds
+    return tile_bounds
 
 
 
@@ -382,6 +383,11 @@ def transform_polygon(polygon, matrix):
     )
     # Constructing the affine transformation formula for shapely
     affine_params = [a, b, d, e, xoff, yoff]
+
+    # if the polygon is a MultiPolygon, we only take the first polygon
+    if isinstance(polygon, MultiPolygon):
+        polygon = list(polygon.geoms)[0]
+
     # Applying the transformation
     transformed_polygon = affine_transform(polygon, affine_params)
 
@@ -458,12 +464,21 @@ def make_cell_boundary_tiles(
         # Convert the DataFrame with polygon data into a GeoDataFrame
         cells = gpd.GeoDataFrame(grouped, geometry="geometry")[["geometry"]]
 
+    elif technology == "custom":
+        import geopandas as gpd
+        cells = gpd.read_parquet(path_cell_boundaries)
+
+
     # Apply the transformation to each polygon
     cells["NEW_GEOMETRY"] = cells["geometry"].apply(
+
         lambda poly: transform_polygon(poly, transformation_matrix)
     )
 
     cells["GEOMETRY"] = cells["NEW_GEOMETRY"].apply(lambda x: simple_format(x, image_scale))
+
+
+    from shapely.geometry import Polygon
 
     cells["polygon"] = cells["GEOMETRY"].apply(lambda x: Polygon(x[0]))
 

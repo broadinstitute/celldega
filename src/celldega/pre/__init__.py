@@ -444,9 +444,6 @@ def make_cell_boundary_tiles(
     elif technology == "Xenium":
         xenium_cells = pd.read_parquet(path_cell_boundaries)
 
-        from shapely.geometry import Polygon
-        import geopandas as gpd
-
         # Group by 'cell_id' and aggregate the coordinates into lists
         grouped = xenium_cells.groupby("cell_id").agg(list)
 

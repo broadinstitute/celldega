@@ -47,50 +47,70 @@ def read_cbg_mtx(base_path):
 
 def calc_meta_gene_data(cbg):
     """
-    Calculate gene metadata from the cell-by-gene matrix
+    Calculate gene metadata from the cell-by-gene matrix.
 
     Parameters
     ----------
     cbg : pandas.DataFrame
-        A sparse DataFrame with genes as columns and barcodes as rows
+        A DataFrame with genes as columns and barcodes as rows. It can be either
+        sparse or dense.
 
     Returns
     -------
     meta_gene : pandas.DataFrame
-
+        A DataFrame containing metadata for each gene, including mean expression,
+        standard deviation, maximum expression, and proportion of non-zero expressions.
     """
 
-    # Calculate mean expression across tiles with float precision
-    print("calculating mean expression from sparse float data")
-    mean_expression = cbg.astype(pd.SparseDtype("float", 0)).mean(axis=0)
-
-    # Calculate the variance as the average of the squared deviations
-    print("calculating variance by looping over rows")
+    # Helper function to convert to dense if sparse
+    def convert_to_dense(series):
+        if pd.api.types.is_sparse(series):
+            return series.sparse.to_dense()
+        return series
+    
+    # Ensure cbg is a DataFrame
+    if not isinstance(cbg, pd.DataFrame):
+        raise TypeError("cbg must be a pandas DataFrame")
+    
+    # Determine if cbg is sparse
+    is_sparse = pd.api.types.is_sparse(cbg)
+    
+    if is_sparse:
+        # Ensure cbg has SparseDtype with float and fill_value=0
+        cbg = cbg.astype(pd.SparseDtype("float", fill_value=0))
+        print("cbg is a sparse DataFrame. Proceeding with sparse operations.")
+    else:
+        print("cbg is a dense DataFrame. Proceeding with dense operations.")
+    
+    # Calculate mean expression across tiles
+    print("Calculating mean expression")
+    mean_expression = cbg.mean(axis=0)
+    
+    # Calculate variance as the average of the squared deviations
+    print("Calculating variance")
     num_tiles = cbg.shape[1]
-    variance = cbg.apply(
-        lambda x: ((x - mean_expression[x.name]) ** 2).sum() / num_tiles, axis=0
-    )
+    # Vectorized computation for variance
+    variance = ((cbg - mean_expression) ** 2).sum(axis=0) / num_tiles
     std_deviation = np.sqrt(variance)
-
+    
     # Calculate maximum expression
+    print("Calculating maximum expression")
     max_expression = cbg.max(axis=0)
-
+    
     # Calculate proportion of tiles with non-zero expression
+    print("Calculating proportion of non-zero expression")
     proportion_nonzero = (cbg != 0).sum(axis=0) / len(cbg)
+    
 
     # Create a DataFrame to hold all these metrics
-    meta_gene = pd.DataFrame(
-        {
-            "mean": mean_expression.sparse.to_dense(),
-            "std": std_deviation,
-            "max": max_expression.sparse.to_dense(),
-            "non-zero": proportion_nonzero.sparse.to_dense(),
-        }
-
-    )
-
+    meta_gene = pd.DataFrame({
+        "mean": convert_to_dense(mean_expression),
+        "std": std_deviation,
+        "max": convert_to_dense(max_expression),
+        "non-zero": convert_to_dense(proportion_nonzero)
+    })
+    
     meta_gene_clean = pd.DataFrame(meta_gene.values, index=meta_gene.index.tolist(), columns=meta_gene.columns)
-
     return meta_gene_clean
 
 

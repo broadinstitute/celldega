@@ -39,16 +39,28 @@ export const landscape_sst = async (
 
     // set_model(ini_model)
     // tmp
+
     let model = ''
 
+    let viz_state = {}
     set_options(token)
-    set_global_base_url(base_url)
-    await set_landscape_parameters(base_url)
+    set_global_base_url(viz_state, base_url)
+    console.log('after set_global_base_url')
+
+    viz_state.img = {}
+    viz_state.img.image_layer_colors = {}
+    viz_state.img.image_layer_sliders = {}
+
+    await set_landscape_parameters(viz_state.img, base_url)
+
+    console.log('after set_landcape_parameters')
     await set_dimensions(base_url, 'cells' )
 
     await set_meta_gene(base_url)
 
     await set_gene_search('sst', deck_sst, {})
+
+    console.log('after set_gene_search')
 
     // move this to landscape_parameters
     // const imgage_name_for_dim = 'dapi'

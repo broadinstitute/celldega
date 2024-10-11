@@ -37,9 +37,6 @@ export const landscape_sst = async (
     let root = document.createElement("div")
     root.style.height = "800px"
 
-    // set_model(ini_model)
-    // tmp
-
     let model = ''
 
     let viz_state = {}
@@ -53,10 +50,24 @@ export const landscape_sst = async (
 
     await set_landscape_parameters(viz_state.img, base_url)
 
-    console.log('after set_landcape_parameters')
-    await set_dimensions(base_url, 'cells' )
+    await set_dimensions(viz_state, base_url, 'cells')
 
-    await set_meta_gene(base_url)
+    viz_state.genes = {}
+    viz_state.genes.color_dict_gene = {}
+    viz_state.genes.gene_names = []
+    viz_state.genes.meta_gene = {}
+    viz_state.genes.gene_counts = []
+    viz_state.genes.selected_genes = []
+    viz_state.genes.trx_ini_radius = 1
+    viz_state.genes.trx_names_array = []
+    viz_state.genes.trx_data = []
+    viz_state.genes.gene_text_box = ''
+    viz_state.genes.trx_slider = document.createElement("input")
+    viz_state.genes.gene_search = document.createElement("div")
+    viz_state.genes.svg_bar_gene = d3.create("svg")
+
+    await set_meta_gene(viz_state.genes, base_url)
+    console.log('after set_meta_gene')
 
     await set_gene_search('sst', deck_sst, {})
 

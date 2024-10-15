@@ -26,13 +26,12 @@ import json
 
 from .landscape import *
 
-def convert_long_id_to_short(df, fname_dict):
+def convert_long_id_to_short(df):
     """
     Converts a column of long integer cell IDs in a DataFrame to a shorter, hash-based representation.
     
     Args:
         df (pd.DataFrame): The DataFrame containing the EntityID.
-        path_dict: path of the dictionary
     Returns:
         pd.DataFrame: The original DataFrame with an additional column named `cell_id`
                       containing the shortened cell IDs.
@@ -53,10 +52,6 @@ def convert_long_id_to_short(df, fname_dict):
     
     # Apply the hash_and_shorten_id function to each cell ID in the specified column
     df['cell_id'] = df['EntityID'].apply(hash_and_shorten_id)
-    entity_to_cell_id_dict = pd.Series(df.cell_id.values,index=df.EntityID).to_dict()
-    # Save dictionary using pickle
-    with open(fname_dict, 'wb') as f:
-        pickle.dump(entity_to_cell_id_dict, f)
 
     return df
 
@@ -253,7 +248,7 @@ def make_meta_cell_image_coord(
 
     if technology == "MERSCOPE":
         meta_cell = pd.read_csv(path_meta_cell_micron, usecols=["EntityID", "center_x", "center_y"])
-        meta_cell = convert_long_id_to_short(meta_cell, path_meta_cell_image.replace('cell_metadata.parquet','long_to_short_id.pkl'))
+        meta_cell = convert_long_id_to_short(meta_cell)
         meta_cell["name"] =  meta_cell["cell_id"]
         meta_cell = meta_cell.set_index('cell_id')
     elif technology == "Xenium":
@@ -285,7 +280,10 @@ def make_meta_cell_image_coord(
         lambda row: [row["center_x"], row["center_y"]], axis=1
     )
 
-    meta_cell = meta_cell[["name", "geometry"]]
+    if technology == "MERSCOPE":
+        meta_cell = meta_cell[["name", "geometry", "EntityID"]]
+    else:
+        meta_cell = meta_cell[["name", "geometry"]]
 
 
     meta_cell.to_parquet(path_meta_cell_image)
@@ -449,8 +447,8 @@ def make_cell_boundary_tiles(
 ):
     """ """
 
-    with open(f"{path_output.replace('cell_segmentation','long_to_short_id.pkl')}", 'rb') as f:
-        loaded_dict = pickle.load(f)
+    df_meta = pd.read_parquet(f"{path_output.replace('cell_segmentation','cell_metadata.parquet')}")
+    entity_to_cell_id_dict = pd.Series(df_meta.index.values,index=df_meta.EntityID).to_dict()
 
     tile_size_x = tile_size
     tile_size_y = tile_size

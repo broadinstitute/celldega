@@ -13,6 +13,9 @@ import pandas as pd
 import os
 import geopandas as gpd
 from copy import deepcopy
+import hashlib
+import base64
+import pickle
 from shapely.affinity import affine_transform
 from shapely import Point, Polygon, MultiPolygon
 
@@ -22,6 +25,40 @@ from matplotlib.colors import to_hex
 import json
 
 from .landscape import *
+
+def convert_long_id_to_short(df, fname_dict):
+    """
+    Converts a column of long integer cell IDs in a DataFrame to a shorter, hash-based representation.
+    
+    Args:
+        df (pd.DataFrame): The DataFrame containing the EntityID.
+        path_dict: path of the dictionary
+    Returns:
+        pd.DataFrame: The original DataFrame with an additional column named `cell_id`
+                      containing the shortened cell IDs.
+    
+    The function applies a SHA-256 hash to each cell ID, encodes the hash using base64, and truncates
+    it to create a shorter identifier that is added as a new column to the DataFrame.
+    """
+    # Function to hash and encode the cell ID
+    def hash_and_shorten_id(cell_id):
+        # Create a hash of the cell ID
+        cell_id_bytes = str(cell_id).encode('utf-8')
+        hash_object = hashlib.sha256(cell_id_bytes)
+        hash_digest = hash_object.digest()
+        
+        # Encode the hash to a base64 string to mix letters and numbers, truncate to 9 characters
+        short_id = base64.urlsafe_b64encode(hash_digest).decode('utf-8')[:9]
+        return short_id
+    
+    # Apply the hash_and_shorten_id function to each cell ID in the specified column
+    df['cell_id'] = df['EntityID'].apply(hash_and_shorten_id)
+    entity_to_cell_id_dict = pd.Series(df.cell_id.values,index=df.EntityID).to_dict()
+    # Save dictionary using pickle
+    with open(fname_dict, 'wb') as f:
+        pickle.dump(entity_to_cell_id_dict, f)
+
+    return df
 
 
 def reduce_image_size(image_path, scale_image=0.5, path_landscape_files=""):
@@ -216,7 +253,7 @@ def make_meta_cell_image_coord(
 
     if technology == "MERSCOPE":
         meta_cell = pd.read_csv(path_meta_cell_micron, usecols=["EntityID", "center_x", "center_y"])
-        meta_cell.rename(columns={'EntityID': 'cell_id'}, inplace=True)
+        meta_cell = convert_long_id_to_short(meta_cell, path_meta_cell_image.replace('cell_metadata.parquet','long_to_short_id.pkl'))
         meta_cell["name"] =  meta_cell["cell_id"]
         meta_cell = meta_cell.set_index('cell_id')
     elif technology == "Xenium":
@@ -412,6 +449,9 @@ def make_cell_boundary_tiles(
 ):
     """ """
 
+    with open(f"{path_output.replace('cell_segmentation','long_to_short_id.pkl')}", 'rb') as f:
+        loaded_dict = pickle.load(f)
+
     tile_size_x = tile_size
     tile_size_y = tile_size
 
@@ -421,14 +461,14 @@ def make_cell_boundary_tiles(
 
     if technology == "MERSCOPE":
         cells_orig = gpd.read_parquet(path_cell_boundaries)
-        cells_orig.rename(columns={'EntityID': 'cell_id'}, inplace=True)
+        cells_orig['cell_id'] = cells_orig['EntityID'].apply(lambda x: loaded_dict[x])
 
         z_index = 1
         cells_orig = cells_orig[cells_orig["ZIndex"] == z_index]
 
         # fix the id issue with the cell bounary parquet files (probably can be dropped)
         meta_cell = pd.read_csv(path_meta_cell_micron)
-        meta_cell.rename(columns={'EntityID': 'cell_id'}, inplace=True)
+        meta_cell['cell_id'] = meta_cell['EntityID'].apply(lambda x: loaded_dict[x])
 
         fixed_names = []
         for inst_cell in cells_orig.index.tolist():

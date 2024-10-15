@@ -1,3 +1,4 @@
+import * as d3 from 'd3'
 import { get_arrow_table } from "../read_parquet/get_arrow_table.js"
 import { get_scatter_data } from "../read_parquet/get_scatter_data.js"
 import { options, set_options } from '../global_variables/fetch_options.js'
@@ -66,10 +67,21 @@ export const landscape_sst = async (
     viz_state.genes.gene_search = document.createElement("div")
     viz_state.genes.svg_bar_gene = d3.create("svg")
 
-    await set_meta_gene(viz_state.genes, base_url)
-    console.log('after set_meta_gene')
+    viz_state.cats = {}
+    viz_state.cats.cat
+    viz_state.cats.reset_cat = false
+    viz_state.cats.selected_cats = []
+    viz_state.cats.cell_cats = []
+    viz_state.cats.dict_cell_cats = {}
+    viz_state.cats.color_dict_cluster = {}
+    viz_state.cats.cluster_counts = []
+    viz_state.cats.polygon_cell_names = []
+    viz_state.cats.svg_bar_cluster = d3.create("svg")
 
-    await set_gene_search('sst', deck_sst, {})
+
+    await set_meta_gene(viz_state.genes, base_url)
+
+    await set_gene_search('sst', deck_sst, {}, viz_state)
 
     console.log('after set_gene_search')
 
@@ -82,7 +94,7 @@ export const landscape_sst = async (
 
     await make_simple_image_layer(info)
 
-    const tile_url = base_url + 'tile_geometries.parquet'
+    const tile_url = base_url + '/tile_geometries.parquet'
 
     var tile_arrow_table = await get_arrow_table(tile_url, options.fetch)
 

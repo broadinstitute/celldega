@@ -164,6 +164,7 @@ export const set_gene_search = async (tech_type, deck_ist, layers_obj, viz_state
     // Event listener when an option is selected or the input is cleared
     let callback
     if (tech_type === 'sst'){
+
         callback = sst_gene_search_callback
         viz_state.genes.gene_search_input.style.marginTop = "10px"
         viz_state.genes.gene_search.style.height = "50px"

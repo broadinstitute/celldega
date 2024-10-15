@@ -421,18 +421,19 @@ def make_cell_boundary_tiles(
 
     if technology == "MERSCOPE":
         cells_orig = gpd.read_parquet(path_cell_boundaries)
-        cells_orig.shape
+        cells_orig.rename(columns={'EntityID': 'cell_id'}, inplace=True)
 
         z_index = 1
         cells_orig = cells_orig[cells_orig["ZIndex"] == z_index]
 
         # fix the id issue with the cell bounary parquet files (probably can be dropped)
         meta_cell = pd.read_csv(path_meta_cell_micron)
+        meta_cell.rename(columns={'EntityID': 'cell_id'}, inplace=True)
 
         fixed_names = []
         for inst_cell in cells_orig.index.tolist():
-            inst_id = cells_orig.loc[inst_cell, "EntityID"]
-            new_id = meta_cell[meta_cell["EntityID"] == inst_id].index.tolist()[0]
+            inst_id = cells_orig.loc[inst_cell, "cell_id"]
+            new_id = meta_cell[meta_cell["cell_id"] == inst_id].index.tolist()[0]
             fixed_names.append(new_id)
 
         cells = deepcopy(cells_orig)

@@ -45,7 +45,7 @@ def reduce_image_size(image_path, scale_image=0.5, path_landscape_files=""):
     resized_image = image.resize(scale_image)
 
     new_image_name = image_path.split("/")[-1].replace(".tif", "_downsize.tif")
-    new_image_path = path_landscape_files + new_image_name
+    new_image_path = f"{path_landscape_files}/{new_image_name}"
     resized_image.write_to_file(new_image_path)
 
     return new_image_path
@@ -215,8 +215,10 @@ def make_meta_cell_image_coord(
     ).values
 
     if technology == "MERSCOPE":
-        meta_cell = pd.read_csv(path_meta_cell_micron, usecols=["center_x", "center_y"])
-        meta_cell["name"] = pd.Series(meta_cell.index, index=meta_cell.index)
+        meta_cell = pd.read_csv(path_meta_cell_micron, usecols=["EntityID", "center_x", "center_y"])
+        meta_cell.rename(columns={'EntityID': 'cell_id'}, inplace=True)
+        meta_cell["name"] =  meta_cell["cell_id"]
+        meta_cell = meta_cell.set_index('cell_id')
     elif technology == "Xenium":
         usecols = ["cell_id", "x_centroid", "y_centroid"]
         meta_cell = pd.read_csv(path_meta_cell_micron, index_col=0, usecols=usecols)
@@ -599,7 +601,7 @@ def save_landscape_parameters(
     technology, path_landscape_files, image_name="dapi_files", tile_size=1000, image_info={}, image_format='.webp'
 ):
 
-    path_image_pyramid = path_landscape_files + "pyramid_images/" + image_name + "/"
+    path_image_pyramid = f"{path_landscape_files}/pyramid_images/{image_name}"
 
     print(path_image_pyramid)
 
@@ -613,7 +615,7 @@ def save_landscape_parameters(
         "image_format": image_format
     }
 
-    path_landscape_parameters = path_landscape_files + "landscape_parameters.json"
+    path_landscape_parameters = f"{path_landscape_files}/landscape_parameters.json"
 
     with open(path_landscape_parameters, "w") as file:
         json.dump(landscape_parameters, file, indent=4)

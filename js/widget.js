@@ -22,14 +22,36 @@ export const render_landscape = async ({ model, el }) => {
     const technology = model.get('technology')
 
     if (['MERSCOPE', 'Xenium'].includes(technology)){
-        return render_landscape_ist({ model, el });
+        console.log('---------------------')
+        console.log('ist')
+        console.log('---------------------')
+
+        const tmp_ist = render_landscape_ist({ model, el });
+
+        console.log('tmp_ist')
+        console.log(tmp_ist)
+
+        return tmp_ist
+
     } else if (['Visium-HD'].includes(technology)){
-        return render_landscape_sst({ model, el });
+
+        console.log('---------------------')
+        console.log('render_landscape sst!!!!!!!!!')
+        console.log('---------------------')
+
+        const tmp_sst = render_landscape_sst({ model, el });
+
+        console.log('tmp_sst')
+        console.log(tmp_sst)
+
+        return tmp_sst
     }
 
 }
 
 export const render_landscape_ist = async ({ model, el }) => {
+
+    console.log('render_landscape_ist')
 
     const token = model.get('token')
     const ini_x = model.get('ini_x');
@@ -55,6 +77,8 @@ export const render_landscape_ist = async ({ model, el }) => {
 }
 
 export const render_landscape_sst = async ({ model, el }) => {
+
+    console.log('render_landscape_sst')
 
     const token = model.get('token')
     const ini_x = model.get('ini_x');
@@ -149,6 +173,7 @@ export const render = async ({ model, el }) => {
 
     switch (componentType) {
         case "Landscape":
+            console.log('main render function')
             render_landscape({ model, el });
             break;
         case "Matrix":

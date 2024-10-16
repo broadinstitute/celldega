@@ -2,10 +2,8 @@ import * as d3 from 'd3'
 import { get_arrow_table } from "../read_parquet/get_arrow_table.js"
 import { get_scatter_data } from "../read_parquet/get_scatter_data.js"
 import { options, set_options } from '../global_variables/fetch_options.js'
-// import { update_views } from '../deck-gl/views.js'
-// import { set_initial_view_state } from "../deck-gl/initial_view_state.js"
-import { deck_sst, set_deck } from '../deck-gl/deck_sst.js'
-import { update_layers_sst } from "../deck-gl/layers_sst.js"
+import { ini_deck_sst } from '../deck-gl/deck_sst.js'
+import { update_layers_sst, layers_sst } from "../deck-gl/layers_sst.js"
 import { square_scatter_layer, ini_square_scatter_layer } from "../deck-gl/square_scatter_layer.js"
 import { set_tile_scatter_data } from "../global_variables/tile_scatter_data.js"
 import { update_tile_cats_array } from "../global_variables/tile_cats_array.js"
@@ -16,10 +14,10 @@ import { set_dimensions } from '../global_variables/image_dimensions.js'
 import { set_landscape_parameters } from "../global_variables/landscape_parameters.js"
 import { simple_image_layer, make_simple_image_layer } from "../deck-gl/simple_image_layer.js"
 import { set_global_base_url } from "../global_variables/global_base_url.js"
-// import { model, set_model} from "../global_variables/model.js"
 import { update_tile_landscape_from_cgm } from "../widget_interactions/update_tile_landscape_from_cgm.js"
 import { set_gene_search } from '../ui/gene_search.js'
 import { make_sst_ui_container } from '../ui/ui_containers.js'
+import { set_views } from '../deck-gl/views.js'
 
 
 export const landscape_sst = async (
@@ -37,6 +35,9 @@ export const landscape_sst = async (
     // Create and append the visualization container
     let root = document.createElement("div")
     root.style.height = "800px"
+
+    console.log('before ini_deck_sst')
+    console.log('after ini_deck_sst')
 
     let model = ''
 
@@ -81,9 +82,7 @@ export const landscape_sst = async (
 
     await set_meta_gene(viz_state.genes, base_url)
 
-    await set_gene_search('sst', deck_sst, {}, viz_state)
-
-    console.log('after set_gene_search')
+    // await set_gene_search('sst', deck_sst, {}, viz_state)
 
     // move this to landscape_parameters
     // const imgage_name_for_dim = 'dapi'
@@ -104,22 +103,45 @@ export const landscape_sst = async (
     set_tile_name_to_index_map()
 
     await set_tile_color_dict(base_url)
-    ini_square_scatter_layer()
+    ini_square_scatter_layer(viz_state.cats)
     const new_layers = [simple_image_layer, square_scatter_layer]
     await update_layers_sst(new_layers)
 
-    // commenting out for now
-    // set_initial_view_state(ini_x, ini_y, ini_z, ini_zoom)
-    // update_views()
+    // const ini_x = 0
+    // const ini_y = 0
+    // const ini_z = 0
+    // const ini_zoom = 1
 
-    set_deck(root)
+    // const initial_view_state = {
+    //     target: [ini_x, ini_y, ini_z],
+    //     zoom: ini_zoom
+    // }
 
-    model.on('change:update_trigger', update_tile_landscape_from_cgm)
+    // deck_sst.setProps({
+    //     initialViewState: initial_view_state
+    // })
 
-    const ui_container = make_sst_ui_container()
+    viz_state.views = set_views()
 
-    // UI and Viz Container
-    el.appendChild(ui_container)
+    console.log('viz_state.views', viz_state.views)
+
+    // deck_sst.setProps({
+    //     views: viz_state.views,
+    //     layers: layers_sst
+    // })
+
+    console.log('layers_sst', layers_sst)
+
+
+    let deck_sst = ini_deck_sst(root)
+
+    // disable for now
+    // model.on('change:update_trigger', update_tile_landscape_from_cgm)
+
+    // const ui_container = make_sst_ui_container()
+
+    // // UI and Viz Container
+    // el.appendChild(ui_container)
     el.appendChild(root)
 
     return () => deck_sst.finalize()

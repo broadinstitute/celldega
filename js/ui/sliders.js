@@ -4,7 +4,7 @@ import { layers_sst, update_layers_sst } from "../deck-gl/layers_sst"
 import { update_trx_layer_radius } from "../deck-gl/trx_layer"
 import { update_opacity_single_image_layer } from "../deck-gl/image_layers"
 import { update_cell_layer_radius } from "../deck-gl/cell_layer"
-import { deck_sst } from "../deck-gl/deck_sst"
+// import { deck_sst } from "../deck-gl/deck_sst"
 import { get_layers_list } from "../deck-gl/layers_ist"
 
 export let tile_slider = document.createElement("input")
@@ -26,7 +26,7 @@ export const set_image_layer_sliders = (img) => {
 const tile_slider_callback = async () => {
     square_scatter_layer_opacity(tile_slider.value / 100)
     await update_layers_sst([simple_image_layer, square_scatter_layer])
-    deck_sst.setProps({layers: layers_sst})
+    // deck_sst.setProps({layers: layers_sst})
 }
 
 const cell_slider_callback = async (deck_ist, layers_obj, viz_state) => {

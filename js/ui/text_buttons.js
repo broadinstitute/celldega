@@ -3,7 +3,7 @@ import { simple_image_layer, simple_image_layer_visibility } from '../deck-gl/si
 import { square_scatter_layer, square_scatter_layer_visibility } from '../deck-gl/square_scatter_layer'
 import { layers_sst, update_layers_sst } from '../deck-gl/layers_sst'
 import { toggle_visibility_image_layers, toggle_visibility_single_image_layer } from '../deck-gl/image_layers'
-import { deck_sst } from '../deck-gl/deck_sst'
+// import { deck_sst } from '../deck-gl/deck_sst'
 import { toggle_background_layer_visibility } from '../deck-gl/background_layer'
 import { toggle_path_layer_visibility } from '../deck-gl/path_layer'
 import { new_toggle_cell_layer_visibility } from '../deck-gl/cell_layer'
@@ -100,9 +100,9 @@ const sst_img_button_callback = async (event) => {
 
     simple_image_layer_visibility(is_visible)
     await update_layers_sst([simple_image_layer, square_scatter_layer])
-    deck_sst.setProps({
-        layers: layers_sst
-    })
+    // deck_sst.setProps({
+    //     layers: layers_sst
+    // })
 
 }
 
@@ -146,9 +146,9 @@ const tile_button_callback = async (event) => {
 
     square_scatter_layer_visibility(is_visible)
     await update_layers_sst([simple_image_layer, square_scatter_layer])
-    deck_sst.setProps({
-        layers: layers_sst
-    })
+    // deck_sst.setProps({
+    //     layers: layers_sst
+    // })
 
 }
 

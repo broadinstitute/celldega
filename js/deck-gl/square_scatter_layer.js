@@ -33,8 +33,9 @@ class SquareScatterplotLayer extends ScatterplotLayer {
 
 export let square_scatter_layer
 
-const square_scatter_layer_color = (i, d) => {
-    if (cat === 'cluster') {
+const square_scatter_layer_color = (i, d, cats) => {
+
+    if (cats.cat === 'cluster') {
         const inst_cat = tile_cats_array[d.index];
         // const opacity = (selected_cats.length === 0 || selected_cats.includes(inst_cat)) ? 255 : 25;
         // return [...tile_color_dict[inst_cat], opacity];
@@ -45,16 +46,22 @@ const square_scatter_layer_color = (i, d) => {
 }
 
 
-export const ini_square_scatter_layer = () => {
+export const ini_square_scatter_layer = (cats) => {
+
+    console.log(cats)
 
     square_scatter_layer = new SquareScatterplotLayer({
         id: 'tile-layer',
         data: tile_scatter_data,
-        getFillColor: square_scatter_layer_color,
+        // getFillColor: (i, d) => square_scatter_layer_color(i, d, cats),
+        getFillColor: [255, 0, 0],
         filled: true,
         getRadius: 3, // 8um: 12 with border
         pickable: true,
         onClick: (d) => {
+
+            console.log('clicking!!!!!!!!')
+
             // let new_selected_cats = [tile_cats_array[d.index]]
 
             // update_selected_cats(new_selected_cats)
@@ -64,7 +71,7 @@ export const ini_square_scatter_layer = () => {
 
         },
         updateTriggers: {
-            getFillColor: [cat]
+            getFillColor: [cats.cat]
         }
     })
 

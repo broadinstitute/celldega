@@ -15,7 +15,6 @@ import geopandas as gpd
 from copy import deepcopy
 import hashlib
 import base64
-import pickle
 from shapely.affinity import affine_transform
 from shapely import Point, Polygon, MultiPolygon
 

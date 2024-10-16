@@ -13,6 +13,8 @@ import pandas as pd
 import os
 import geopandas as gpd
 from copy import deepcopy
+import hashlib
+import base64
 from shapely.affinity import affine_transform
 # from shapely import Point, Polygon, MultiPolygon
 from shapely.geometry import Polygon, MultiPolygon
@@ -23,6 +25,35 @@ from matplotlib.colors import to_hex
 import json
 
 from .landscape import *
+
+def convert_long_id_to_short(df):
+    """
+    Converts a column of long integer cell IDs in a DataFrame to a shorter, hash-based representation.
+    
+    Args:
+        df (pd.DataFrame): The DataFrame containing the EntityID.
+    Returns:
+        pd.DataFrame: The original DataFrame with an additional column named `cell_id`
+                      containing the shortened cell IDs.
+    
+    The function applies a SHA-256 hash to each cell ID, encodes the hash using base64, and truncates
+    it to create a shorter identifier that is added as a new column to the DataFrame.
+    """
+    # Function to hash and encode the cell ID
+    def hash_and_shorten_id(cell_id):
+        # Create a hash of the cell ID
+        cell_id_bytes = str(cell_id).encode('utf-8')
+        hash_object = hashlib.sha256(cell_id_bytes)
+        hash_digest = hash_object.digest()
+        
+        # Encode the hash to a base64 string to mix letters and numbers, truncate to 9 characters
+        short_id = base64.urlsafe_b64encode(hash_digest).decode('utf-8')[:9]
+        return short_id
+    
+    # Apply the hash_and_shorten_id function to each cell ID in the specified column
+    df['cell_id'] = df['EntityID'].apply(hash_and_shorten_id)
+
+    return df
 
 
 def reduce_image_size(image_path, scale_image=0.5, path_landscape_files=""):
@@ -46,7 +77,7 @@ def reduce_image_size(image_path, scale_image=0.5, path_landscape_files=""):
     resized_image = image.resize(scale_image)
 
     new_image_name = image_path.split("/")[-1].replace(".tif", "_downsize.tif")
-    new_image_path = path_landscape_files + new_image_name
+    new_image_path = f"{path_landscape_files}/{new_image_name}"
     resized_image.write_to_file(new_image_path)
 
     return new_image_path
@@ -216,8 +247,10 @@ def make_meta_cell_image_coord(
     ).values
 
     if technology == "MERSCOPE":
-        meta_cell = pd.read_csv(path_meta_cell_micron, usecols=["center_x", "center_y"])
-        meta_cell["name"] = pd.Series(meta_cell.index, index=meta_cell.index)
+        meta_cell = pd.read_csv(path_meta_cell_micron, usecols=["EntityID", "center_x", "center_y"])
+        meta_cell = convert_long_id_to_short(meta_cell)
+        meta_cell["name"] =  meta_cell["cell_id"]
+        meta_cell = meta_cell.set_index('cell_id')
     elif technology == "Xenium":
         usecols = ["cell_id", "x_centroid", "y_centroid"]
         meta_cell = pd.read_csv(path_meta_cell_micron, index_col=0, usecols=usecols)
@@ -247,7 +280,10 @@ def make_meta_cell_image_coord(
         lambda row: [row["center_x"], row["center_y"]], axis=1
     )
 
-    meta_cell = meta_cell[["name", "geometry"]]
+    if technology == "MERSCOPE":
+        meta_cell = meta_cell[["name", "geometry", "EntityID"]]
+    else:
+        meta_cell = meta_cell[["name", "geometry"]]
 
 
     meta_cell.to_parquet(path_meta_cell_image)
@@ -416,6 +452,9 @@ def make_cell_boundary_tiles(
 ):
     """ """
 
+    df_meta = pd.read_parquet(f"{path_output.replace('cell_segmentation','cell_metadata.parquet')}")
+    entity_to_cell_id_dict = pd.Series(df_meta.index.values,index=df_meta.EntityID).to_dict()
+
     tile_size_x = tile_size
     tile_size_y = tile_size
 
@@ -425,18 +464,19 @@ def make_cell_boundary_tiles(
 
     if technology == "MERSCOPE":
         cells_orig = gpd.read_parquet(path_cell_boundaries)
-        cells_orig.shape
+        cells_orig['cell_id'] = cells_orig['EntityID'].apply(lambda x: loaded_dict[x])
 
         z_index = 1
         cells_orig = cells_orig[cells_orig["ZIndex"] == z_index]
 
         # fix the id issue with the cell bounary parquet files (probably can be dropped)
         meta_cell = pd.read_csv(path_meta_cell_micron)
+        meta_cell['cell_id'] = meta_cell['EntityID'].apply(lambda x: loaded_dict[x])
 
         fixed_names = []
         for inst_cell in cells_orig.index.tolist():
-            inst_id = cells_orig.loc[inst_cell, "EntityID"]
-            new_id = meta_cell[meta_cell["EntityID"] == inst_id].index.tolist()[0]
+            inst_id = cells_orig.loc[inst_cell, "cell_id"]
+            new_id = meta_cell[meta_cell["cell_id"] == inst_id].index.tolist()[0]
             fixed_names.append(new_id)
 
         cells = deepcopy(cells_orig)
@@ -449,9 +489,6 @@ def make_cell_boundary_tiles(
 
     elif technology == "Xenium":
         xenium_cells = pd.read_parquet(path_cell_boundaries)
-
-        from shapely.geometry import Polygon
-        import geopandas as gpd
 
         # Group by 'cell_id' and aggregate the coordinates into lists
         grouped = xenium_cells.groupby("cell_id").agg(list)
@@ -481,6 +518,7 @@ def make_cell_boundary_tiles(
     from shapely.geometry import Polygon
 
     cells["polygon"] = cells["GEOMETRY"].apply(lambda x: Polygon(x[0]))
+    cells = cells.set_index('cell_id')
 
     gdf_cells = gpd.GeoDataFrame(geometry=cells["polygon"])
 
@@ -617,7 +655,7 @@ def save_landscape_parameters(
     technology, path_landscape_files, image_name="dapi_files", tile_size=1000, image_info={}, image_format='.webp'
 ):
 
-    path_image_pyramid = path_landscape_files + "pyramid_images/" + image_name + "/"
+    path_image_pyramid = f"{path_landscape_files}/pyramid_images/{image_name}"
 
     print(path_image_pyramid)
 
@@ -631,7 +669,7 @@ def save_landscape_parameters(
         "image_format": image_format
     }
 
-    path_landscape_parameters = path_landscape_files + "landscape_parameters.json"
+    path_landscape_parameters = f"{path_landscape_files}/landscape_parameters.json"
 
     with open(path_landscape_parameters, "w") as file:
         json.dump(landscape_parameters, file, indent=4)

@@ -447,7 +447,7 @@ def make_cell_boundary_tiles(
     image_scale=0.5
 ):
     """ """
-    
+
     tile_size_x = tile_size
     tile_size_y = tile_size
 
@@ -497,7 +497,6 @@ def make_cell_boundary_tiles(
         cells = gpd.GeoDataFrame(grouped, geometry="geometry")[["geometry"]]
 
     elif technology == "custom":
-        import geopandas as gpd
         cells = gpd.read_parquet(path_cell_boundaries)
 
 

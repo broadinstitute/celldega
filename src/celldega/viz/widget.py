@@ -34,8 +34,8 @@ class Landscape(anywidget.AnyWidget):
         Landscape: A widget for visualizing a 'landscape' view of spatial omics data.
     """
 
-    _esm = pathlib.Path(__file__).parent / "../static" / "widget.js"
-    _css = pathlib.Path(__file__).parent / "../static" / "widget.css"
+    _esm = pathlib.Path(__file__).parent / "../../../js" / "widget.js"
+    _css = pathlib.Path(__file__).parent / "../../../js" / "widget.css"
     component = traitlets.Unicode("Landscape").tag(sync=True)
 
     technology = traitlets.Unicode("sst").tag(sync=True)
@@ -61,8 +61,8 @@ class Landscape(anywidget.AnyWidget):
 
 
 class Matrix(anywidget.AnyWidget):
-    _esm = pathlib.Path(__file__).parent / "../static" / "widget.js"
-    _css = pathlib.Path(__file__).parent / "../static" / "widget.css"
+    _esm = pathlib.Path(__file__).parent / "../../../js" / "widget.js"
+    _css = pathlib.Path(__file__).parent / "../../../js" / "widget.css"
     value = traitlets.Int(0).tag(sync=True)
     component = traitlets.Unicode("Matrix").tag(sync=True)
 

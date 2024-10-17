@@ -507,9 +507,6 @@ def make_cell_boundary_tiles(
 
     cells["GEOMETRY"] = cells["NEW_GEOMETRY"].apply(lambda x: simple_format(x, image_scale))
 
-
-    from shapely.geometry import Polygon
-
     cells["polygon"] = cells["GEOMETRY"].apply(lambda x: Polygon(x[0]))
     cells = cells.set_index('cell_id')
 

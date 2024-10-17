@@ -17,7 +17,6 @@ from copy import deepcopy
 import hashlib
 import base64
 from shapely.affinity import affine_transform
-# from shapely import Point, Polygon, MultiPolygon
 from shapely.geometry import Polygon, MultiPolygon
 
 import matplotlib.pyplot as plt

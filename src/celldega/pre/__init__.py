@@ -481,6 +481,8 @@ def make_cell_boundary_tiles(
             lambda x: list(x.geoms)[0] if isinstance(x, MultiPolygon) else x
         )
 
+        cells = cells.set_index('cell_id')
+
     elif technology == "Xenium":
         xenium_cells = pd.read_parquet(path_cell_boundaries)
 
@@ -508,7 +510,6 @@ def make_cell_boundary_tiles(
     cells["GEOMETRY"] = cells["NEW_GEOMETRY"].apply(lambda x: simple_format(x, image_scale))
 
     cells["polygon"] = cells["GEOMETRY"].apply(lambda x: Polygon(x[0]))
-    cells = cells.set_index('cell_id')
 
     gdf_cells = gpd.GeoDataFrame(geometry=cells["polygon"])
 

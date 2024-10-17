@@ -355,11 +355,11 @@ def make_trx_tiles(
     n_tiles_y = int(np.ceil((y_max - y_min) / tile_size))
 
     # Iterate over tiles and process the data
-    for i in tqdm(range(n_tiles_x)[:10], desc="Processing rows", unit="row"):
+    for i in tqdm(range(n_tiles_x), desc="Processing rows", unit="row"):
         tile_x_min = x_min + i * tile_size
         tile_x_max = tile_x_min + tile_size
 
-        for j in tqdm(range(n_tiles_y)[:10], desc="Processing tiles", unit="tile", leave=False):
+        for j in tqdm(range(n_tiles_y), desc="Processing tiles", unit="tile", leave=False):
             tile_y_min = y_min + j * tile_size
             tile_y_max = tile_y_min + tile_size
 

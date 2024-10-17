@@ -445,120 +445,140 @@ def make_cell_boundary_tiles(
     tile_bounds=None,
     image_scale=0.5
 ):
-    """ """
+    """
+    Processes cell boundary data and divides it into spatial tiles based on the provided technology.
+    
+    This function reads cell boundary data, applies transformations to the geometries, and divides the 
+    processed data into spatial tiles. The resulting tiles are saved as Parquet files, each containing 
+    the geometries of cells in that tile.
+
+    Parameters:
+    ----------
+    technology : str
+        The technology used for generating the cell boundary data. It can be "MERSCOPE", "Xenium", or "custom".
+    path_cell_boundaries : str
+        Path to the file containing the cell boundaries (input file in Parquet format).
+    path_meta_cell_micron : str
+        Path to the file containing cell metadata (CSV file).
+    path_transformation_matrix : str
+        Path to the file containing the transformation matrix (CSV file).
+    path_output : str
+        Path where the output files (Parquet files) for each tile will be saved.
+    tile_size : int, optional, default=1000
+        Size of each tile in microns.
+    tile_bounds : dict, optional
+        Dictionary containing the minimum and maximum bounds for the x and y coordinates (keys: "x_min", "x_max", "y_min", "y_max").
+    image_scale : float, optional, default=0.5
+        Scale factor to apply to the geometry data.
+
+    Returns:
+    --------
+    None
+        This function saves the results to Parquet files and doesn't return any data.
+    
+    """
+    def batch_transform_geometries(geometries, transformation_matrix, scale):
+        transformed_geometries = []
+        for poly in geometries:
+            transformed = transform_polygon(poly, transformation_matrix)
+            scaled = simple_format(transformed, scale)
+            transformed_geometries.append(scaled)
+        return transformed_geometries
 
     tile_size_x = tile_size
     tile_size_y = tile_size
 
-    transformation_matrix = pd.read_csv(
-        path_transformation_matrix, header=None, sep=" "
-    ).values
+    # Load the transformation matrix
+    transformation_matrix = pd.read_csv(path_transformation_matrix, header=None, sep=" ").values
 
+    # Load cell boundary data based on the technology
     if technology == "MERSCOPE":
         df_meta = pd.read_parquet(f"{path_output.replace('cell_segmentation','cell_metadata.parquet')}")
-        loaded_dict = pd.Series(df_meta.index.values,index=df_meta.EntityID).to_dict()
+        entity_to_cell_id_dict = pd.Series(df_meta.index.values, index=df_meta.EntityID).to_dict()
         cells_orig = gpd.read_parquet(path_cell_boundaries)
-        cells_orig['cell_id'] = cells_orig['EntityID'].apply(lambda x: loaded_dict[x])
+        cells_orig['cell_id'] = cells_orig['EntityID'].map(entity_to_cell_id_dict)
+        cells_orig = cells_orig[cells_orig["ZIndex"] == 1]
 
-        z_index = 1
-        cells_orig = cells_orig[cells_orig["ZIndex"] == z_index]
-
-        # fix the id issue with the cell bounary parquet files (probably can be dropped)
+        # Correct cell_id issues with meta_cell
         meta_cell = pd.read_csv(path_meta_cell_micron)
-        meta_cell['cell_id'] = meta_cell['EntityID'].apply(lambda x: loaded_dict[x])
+        meta_cell['cell_id'] = meta_cell['EntityID'].map(entity_to_cell_id_dict)
+        cells_orig.index = meta_cell[meta_cell["cell_id"].isin(cells_orig['cell_id'])].index
 
-        fixed_names = []
-        for inst_cell in cells_orig.index.tolist():
-            inst_id = cells_orig.loc[inst_cell, "cell_id"]
-            new_id = meta_cell[meta_cell["cell_id"] == inst_id].index.tolist()[0]
-            fixed_names.append(new_id)
-
-        cells = deepcopy(cells_orig)
-        cells.index = fixed_names
-
-        # Corrected approach to convert 'MultiPolygon' to 'Polygon'
-        cells["geometry"] = cells["Geometry"].apply(
+        # Correct 'MultiPolygon' to 'Polygon'
+        cells_orig["geometry"] = cells_orig["Geometry"].apply(
             lambda x: list(x.geoms)[0] if isinstance(x, MultiPolygon) else x
         )
 
-        cells = cells.set_index('cell_id')
+        cells_orig.set_index('cell_id', inplace=True)
 
     elif technology == "Xenium":
         xenium_cells = pd.read_parquet(path_cell_boundaries)
-
-        # Group by 'cell_id' and aggregate the coordinates into lists
-        grouped = xenium_cells.groupby("cell_id").agg(list)
-
-        # Create a new column for polygons
-        grouped["geometry"] = grouped.apply(
-            lambda row: Polygon(zip(row["vertex_x"], row["vertex_y"])), axis=1
-        )
-
-        # Convert the DataFrame with polygon data into a GeoDataFrame
-        cells = gpd.GeoDataFrame(grouped, geometry="geometry")[["geometry"]]
+        grouped = xenium_cells.groupby("cell_id")[["vertex_x", "vertex_y"]].agg(lambda x: x.tolist())
+        grouped["geometry"] = grouped.apply(lambda row: Polygon(zip(row["vertex_x"], row["vertex_y"])), axis=1)
+        cells_orig = gpd.GeoDataFrame(grouped, geometry="geometry")[["geometry"]]
 
     elif technology == "custom":
-        cells = gpd.read_parquet(path_cell_boundaries)
+        cells_orig = gpd.read_parquet(path_cell_boundaries)
 
+    cells_orig["Geometry"] = batch_transform_geometries(cells_orig["geometry"], transformation_matrix, image_scale)
 
-    # Apply the transformation to each polygon
-    cells["NEW_GEOMETRY"] = cells["geometry"].apply(
+    # Create polygons from transformed coordinates
+    cells_orig["polygon"] = cells_orig["Geometry"].apply(lambda x: Polygon(x[0]))
 
-        lambda poly: transform_polygon(poly, transformation_matrix)
-    )
+    # Create a GeoDataFrame with polygons and centroids
+    gdf_cells = gpd.GeoDataFrame(geometry=cells_orig["polygon"])
+    gdf_cells["center_x"] = gdf_cells.geometry.centroid.x
+    gdf_cells["center_y"] = gdf_cells.geometry.centroid.y
 
-    cells["GEOMETRY"] = cells["NEW_GEOMETRY"].apply(lambda x: simple_format(x, image_scale))
-
-    cells["polygon"] = cells["GEOMETRY"].apply(lambda x: Polygon(x[0]))
-
-    gdf_cells = gpd.GeoDataFrame(geometry=cells["polygon"])
-
-    gdf_cells["center_x"] = gdf_cells.centroid.x
-    gdf_cells["center_y"] = gdf_cells.centroid.y
-
+    # Ensure the output directory exists
     if not os.path.exists(path_output):
-        os.mkdir(path_output)
+        os.makedirs(path_output)
 
-    x_min = tile_bounds["x_min"]
-    x_max = tile_bounds["x_max"]
-    y_min = tile_bounds["y_min"]
-    y_max = tile_bounds["y_max"]
+    # Get tile bounds
+    x_min, x_max = tile_bounds["x_min"], tile_bounds["x_max"]
+    y_min, y_max = tile_bounds["y_min"], tile_bounds["y_max"]
 
     # Calculate the number of tiles needed
     n_tiles_x = int(np.ceil((x_max - x_min) / tile_size_x))
     n_tiles_y = int(np.ceil((y_max - y_min) / tile_size_y))
 
-    for i in range(n_tiles_x):
+    # Convert centroids to numpy arrays for faster filtering
+    center_x = gdf_cells["center_x"].values
+    center_y = gdf_cells["center_y"].values
+    cell_ids = gdf_cells.index.values
 
-        if i % 2 == 0:
-            print('row', i)
+    # Iterate over tiles and filter data
+    for i in tqdm(range(n_tiles_x), desc="Processing rows"):
+        tile_x_min = x_min + i * tile_size_x
+        tile_x_max = tile_x_min + tile_size_x
 
-        for j in range(n_tiles_y):
-            tile_x_min = x_min + i * tile_size_x
-            tile_x_max = tile_x_min + tile_size_x
+        for j in tqdm(range(n_tiles_y), desc="Processing tiles", leave=False):
             tile_y_min = y_min + j * tile_size_y
             tile_y_max = tile_y_min + tile_size_y
 
-            # find cell polygons with centroids in the tile
-            keep_cells = gdf_cells[
-                (gdf_cells.center_x >= tile_x_min)
-                & (gdf_cells.center_x < tile_x_max)
-                & (gdf_cells.center_y >= tile_y_min)
-                & (gdf_cells.center_y < tile_y_max)
-            ].index.tolist()
-
-            inst_geo = cells.loc[keep_cells, ["GEOMETRY"]]
-
-            # try adding cell name to geometry
-            inst_geo["name"] = pd.Series(
-                inst_geo.index.tolist(), index=inst_geo.index.tolist()
+            # Combine x and y filters into one numpy filter for faster filtering
+            tile_filter = (
+                (center_x >= tile_x_min) & (center_x < tile_x_max) &
+                (center_y >= tile_y_min) & (center_y < tile_y_max)
             )
+            filtered_indices = np.where(tile_filter)[0]
 
+            # Skip empty tiles
+            if len(filtered_indices) == 0:
+                continue
+
+            # Filter the GeoDataFrame based on the filtered indices
+            keep_cells = cell_ids[filtered_indices]
+            inst_geo = cells_orig.loc[keep_cells, ["GEOMETRY"]]
+
+            # Add cell names to the geometry
+            inst_geo["name"] = pd.Series(keep_cells, index=keep_cells)
+
+            # Define the filename based on tile coordinates
             filename = f"{path_output}/cell_tile_{i}_{j}.parquet"
 
             # Save the filtered DataFrame to a Parquet file
-            if inst_geo.shape[0] > 0:
-                inst_geo[["GEOMETRY", "name"]].to_parquet(filename)
+            inst_geo.to_parquet(filename)
 
 
 def make_meta_gene(technology, path_cbg, path_output):

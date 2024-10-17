@@ -300,7 +300,36 @@ def make_trx_tiles(
     verbose=False,
     image_scale=0.5
 ):
-    """Function to process transcript data and divide into spatial tiles."""
+    """
+    Processes transcript data and divides it into spatial tiles based on the provided technology.
+    
+    This function reads transcript data, applies a transformation matrix to adjust the coordinates, 
+    scales the data based on the provided image scale, and divides the processed data into spatial tiles. 
+    The resulting tiles are saved as Parquet files, each containing the transcript information within 
+    that tile.
+
+    Parameters
+    ----------
+    technology : str
+        The technology used for generating the transcript data. It can be "MERSCOPE" or "Xenium".
+    path_trx : str
+        Path to the file containing the transcript data.
+    path_transformation_matrix : str
+        Path to the file containing the transformation matrix (CSV file).
+    path_trx_tiles : str
+        Path where the output files (Parquet files) for each tile will be saved.
+    tile_size : int, optional, default=1000
+        Size of each tile in microns.
+    chunk_size : int, optional, default=1000000
+        Number of rows to process per chunk. Larger values may use more memory but reduce processing time.
+    image_scale : float, optional, default=0.5
+        Scale factor to apply to the transcript coordinates.
+
+    Returns
+    -------
+    dict
+
+    """
     
     # Load transformation matrix
     transformation_matrix = pd.read_csv(path_transformation_matrix, header=None, sep=" ").values

@@ -447,10 +447,7 @@ def make_cell_boundary_tiles(
     image_scale=0.5
 ):
     """ """
-
-    df_meta = pd.read_parquet(f"{path_output.replace('cell_segmentation','cell_metadata.parquet')}")
-    entity_to_cell_id_dict = pd.Series(df_meta.index.values,index=df_meta.EntityID).to_dict()
-
+    
     tile_size_x = tile_size
     tile_size_y = tile_size
 
@@ -459,6 +456,8 @@ def make_cell_boundary_tiles(
     ).values
 
     if technology == "MERSCOPE":
+        df_meta = pd.read_parquet(f"{path_output.replace('cell_segmentation','cell_metadata.parquet')}")
+        loaded_dict = pd.Series(df_meta.index.values,index=df_meta.EntityID).to_dict()
         cells_orig = gpd.read_parquet(path_cell_boundaries)
         cells_orig['cell_id'] = cells_orig['EntityID'].apply(lambda x: loaded_dict[x])
 

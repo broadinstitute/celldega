@@ -11,6 +11,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import os
+from tqdm import tqdm
 import geopandas as gpd
 from copy import deepcopy
 import hashlib
@@ -289,6 +290,7 @@ def make_meta_cell_image_coord(
     meta_cell.to_parquet(path_meta_cell_image)
 
 
+
 def make_trx_tiles(
     technology,
     path_trx,
@@ -297,104 +299,98 @@ def make_trx_tiles(
     tile_size=1000,
     chunk_size=1000000,
     verbose=False,
-    image_scale = 0.5
+    image_scale=0.5
 ):
-    """ """
+    """Function to process transcript data and divide into spatial tiles."""
+    
+    # Load transformation matrix
+    transformation_matrix = pd.read_csv(path_transformation_matrix, header=None, sep=" ").values
 
-    tile_size_x = tile_size
-    tile_size_y = tile_size
-
-    transformation_matrix = pd.read_csv(
-        path_transformation_matrix, header=None, sep=" "
-    ).values
-
+    # Load the transcript data based on the technology
     if technology == "MERSCOPE":
-        trx_ini = pd.read_csv(path_trx, usecols=["gene", "global_x", "global_y"])
-
+        trx_ini = pd.read_csv(path_trx, usecols=["gene", "global_x", "global_y"], engine='pyarrow')
         trx_ini.columns = [x.replace("global_", "") for x in trx_ini.columns.tolist()]
         trx_ini.rename(columns={"gene": "name"}, inplace=True)
 
     elif technology == "Xenium":
-        trx_ini = pd.read_parquet(
-            path_trx, columns=["feature_name", "x_location", "y_location"]
-        )
-
-        # trx_ini['feature_name'] = trx_ini['feature_name'].apply(lambda x: x.decode('utf-8'))
+        trx_ini = pd.read_parquet(path_trx, columns=["feature_name", "x_location", "y_location"], engine='pyarrow')
         trx_ini.columns = [x.replace("_location", "") for x in trx_ini.columns.tolist()]
         trx_ini.rename(columns={"feature_name": "name"}, inplace=True)
 
-    trx = pd.DataFrame()  # Initialize empty DataFrame for results
+    # Initialize a list to store transformed chunks (avoiding pd.concat inside the loop)
+    all_chunks = []
 
-    for start_row in range(0, trx_ini.shape[0], chunk_size):
-        # print(start_row/1e6)
-        chunk = trx_ini.iloc[start_row : start_row + chunk_size].copy()
+    # Process the data in chunks
+    for start_row in tqdm(range(0, trx_ini.shape[0], chunk_size), desc="Processing chunks"):
+        chunk = trx_ini.iloc[start_row:start_row + chunk_size].copy()
+
+        # Apply transformation matrix to the coordinates in a vectorized way
         points = np.hstack((chunk[["x", "y"]], np.ones((chunk.shape[0], 1))))
         transformed_points = np.dot(points, transformation_matrix.T)[:, :2]
-        chunk[["x", "y"]] = (
-            transformed_points  # Update chunk with transformed coordinates
-        )
+        chunk[["x", "y"]] = transformed_points
 
-        # add this as an argument that can be modified
-        chunk["x"] = chunk["x"] * image_scale
-        chunk["y"] = chunk["y"] * image_scale
+        # Apply image scaling and rounding in one step
+        chunk[["x", "y"]] = (chunk[["x", "y"]] * image_scale).round(2)
 
-        chunk["x"] = chunk["x"].round(2)
-        chunk["y"] = chunk["y"].round(2)
-        trx = pd.concat([trx, chunk], ignore_index=True)
+        all_chunks.append(chunk)
 
+    # Concatenate all chunks after processing
+    trx = pd.concat(all_chunks, ignore_index=True)
+
+    # Ensure the output directory exists
     if not os.path.exists(path_trx_tiles):
-        os.mkdir(path_trx_tiles)
+        os.makedirs(path_trx_tiles)
 
-    x_min = 0
-    x_max = trx["x"].max()
-    y_min = 0
-    y_max = trx["y"].max()
+    # Get min and max x, y values
+    x_min, x_max = 0, trx["x"].max()
+    y_min, y_max = 0, trx["y"].max()
 
-    # Calculate the number of tiles needed
-    n_tiles_x = int(np.ceil((x_max - x_min) / tile_size_x))
-    n_tiles_y = int(np.ceil((y_max - y_min) / tile_size_y))
+    # Convert pandas DataFrame to numpy arrays for faster filtering
+    x_values = trx["x"].values
+    y_values = trx["y"].values
+    gene_values = trx["name"].values
 
-    for i in range(n_tiles_x):
+    # Calculate the number of tiles
+    n_tiles_x = int(np.ceil((x_max - x_min) / tile_size))
+    n_tiles_y = int(np.ceil((y_max - y_min) / tile_size))
 
-        if i % 2 == 0 and verbose:
-            print("row", i)
+    # Iterate over tiles and process the data
+    for i in tqdm(range(n_tiles_x)[:10], desc="Processing rows", unit="row"):
+        tile_x_min = x_min + i * tile_size
+        tile_x_max = tile_x_min + tile_size
 
-        for j in range(n_tiles_y):
-            # calculate polygon from these bounds
-            tile_x_min = x_min + i * tile_size_x
-            tile_x_max = tile_x_min + tile_size_x
-            tile_y_min = y_min + j * tile_size_y
-            tile_y_max = tile_y_min + tile_size_y
+        for j in tqdm(range(n_tiles_y)[:10], desc="Processing tiles", unit="tile", leave=False):
+            tile_y_min = y_min + j * tile_size
+            tile_y_max = tile_y_min + tile_size
 
-            # Filter trx to get only the data within the current tile's bounds
-            # We need to make this more efficient
-            # option 1: make a GeoDataFrame and filter using sindex and the tile polygon
-            # option 2: remove transcripts that have been assigned to a tile from the DataFrame
-            tile_trx = trx[
-                (trx.x >= tile_x_min)
-                & (trx.x < tile_x_max)
-                & (trx.y >= tile_y_min)
-                & (trx.y < tile_y_max)
-            ].copy()
-
-            # this actually slows things down - will try to move to Polars later
-            # # drop trx that have been assigned to a tile from the original trx DataFrame
-            # trx = trx[~trx.index.isin(tile_trx.index)]
-
-            # make 'geometry' column
-            tile_trx = tile_trx.assign(
-                geometry=tile_trx.apply(lambda row: [row["x"], row["y"]], axis=1)
+            # Combine the x and y filters into a single boolean filter
+            tile_filter = (
+                (x_values >= tile_x_min) & (x_values < tile_x_max) &
+                (y_values >= tile_y_min) & (y_values < tile_y_max)
             )
+            filtered_indices = np.where(tile_filter)[0]
 
-            # add some logic to skip tiles where there are no transcripts
+            # Skip empty tiles
+            if len(filtered_indices) == 0:
+                continue
 
-            # Define the filename based on the tile's coordinates
+            # Create the filtered DataFrame
+            tile_trx = pd.DataFrame({
+                "name": gene_values[filtered_indices],
+                "x": x_values[filtered_indices],
+                "y": y_values[filtered_indices]
+            })
+
+            # Create the 'geometry' column
+            tile_trx["geometry"] = [[x, y] for x, y in zip(tile_trx["x"], tile_trx["y"])]
+
+            # Define the filename based on the tile coordinates
             filename = f"{path_trx_tiles}/transcripts_tile_{i}_{j}.parquet"
 
             # Save the filtered DataFrame to a Parquet file
-            if tile_trx.shape[0] > 0:
-                tile_trx[["name", "geometry"]].to_parquet(filename)
+            tile_trx[["name", "geometry"]].to_parquet(filename)
 
+    # Return the tile bounds
     tile_bounds = {
         "x_min": x_min,
         "x_max": x_max,

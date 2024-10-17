@@ -520,10 +520,10 @@ def make_cell_boundary_tiles(
     elif technology == "custom":
         cells_orig = gpd.read_parquet(path_cell_boundaries)
 
-    cells_orig["Geometry"] = batch_transform_geometries(cells_orig["geometry"], transformation_matrix, image_scale)
+    cells_orig["GEOMETRY"] = batch_transform_geometries(cells_orig["geometry"], transformation_matrix, image_scale)
 
     # Create polygons from transformed coordinates
-    cells_orig["polygon"] = cells_orig["Geometry"].apply(lambda x: Polygon(x[0]))
+    cells_orig["polygon"] = cells_orig["GEOMETRY"].apply(lambda x: Polygon(x[0]))
 
     # Create a GeoDataFrame with polygons and centroids
     gdf_cells = gpd.GeoDataFrame(geometry=cells_orig["polygon"])
@@ -581,6 +581,7 @@ def make_cell_boundary_tiles(
             inst_geo.to_parquet(filename)
 
 
+
 def make_meta_gene(technology, path_cbg, path_output):
     """
     Create a DataFrame with genes and their assigned colors
@@ -634,6 +635,13 @@ def make_meta_gene(technology, path_cbg, path_output):
     # calculate gene expression metadata
     meta_gene = calc_meta_gene_data(cbg)
     meta_gene['color'] = ser_color
+
+    # Identify sparse columns
+    sparse_cols = [col for col in meta_gene.columns if pd.api.types.is_sparse(meta_gene[col])]
+
+    # Convert sparse columns to dense
+    for col in sparse_cols:
+        meta_gene[col] = meta_gene[col].sparse.to_dense()
 
     meta_gene.to_parquet(path_output)
 

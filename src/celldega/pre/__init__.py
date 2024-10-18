@@ -452,8 +452,10 @@ def make_cell_boundary_tiles(
 ):
     """ """
 
+    print('here')
+
     df_meta = pd.read_parquet(f"{path_output.replace('cell_segmentation','cell_metadata.parquet')}")
-    entity_to_cell_id_dict = pd.Series(df_meta.index.values,index=df_meta.EntityID).to_dict()
+    #entity_to_cell_id_dict = pd.Series(df_meta.index.values,index=df_meta.EntityID).to_dict()
 
     tile_size_x = tile_size
     tile_size_y = tile_size
@@ -502,11 +504,13 @@ def make_cell_boundary_tiles(
         cells = gpd.GeoDataFrame(grouped, geometry="geometry")[["geometry"]]
 
     elif technology == "custom":
+        print('in custom')
         import geopandas as gpd
         cells = gpd.read_parquet(path_cell_boundaries)
 
 
     # Apply the transformation to each polygon
+    print('apply transformation matrix')
     cells["NEW_GEOMETRY"] = cells["geometry"].apply(
 
         lambda poly: transform_polygon(poly, transformation_matrix)
@@ -518,7 +522,7 @@ def make_cell_boundary_tiles(
     from shapely.geometry import Polygon
 
     cells["polygon"] = cells["GEOMETRY"].apply(lambda x: Polygon(x[0]))
-    cells = cells.set_index('cell_id')
+    #cells = cells.set_index('cell_id')
 
     gdf_cells = gpd.GeoDataFrame(geometry=cells["polygon"])
 
@@ -537,6 +541,7 @@ def make_cell_boundary_tiles(
     n_tiles_x = int(np.ceil((x_max - x_min) / tile_size_x))
     n_tiles_y = int(np.ceil((y_max - y_min) / tile_size_y))
 
+    print('looping over tiles')
     for i in range(n_tiles_x):
 
         if i % 2 == 0:

@@ -1,4 +1,4 @@
-import { tile_cats_array } from "../global_variables/tile_cats_array";
+// import { tile_cats_array } from "../global_variables/tile_cats_array";
 
 export const make_tile_tooltip = (info) => {
 
@@ -6,10 +6,10 @@ export const make_tile_tooltip = (info) => {
 
     if (info.index === -1 || !info.layer) return null;
 
-    inst_name = tile_cats_array[info.index]
+    // inst_name = tile_cats_array[info.index]
 
-    return {
-        html: `<div>${inst_name}</div?`,
-    };
+    // return {
+    //     html: `<div>${inst_name}</div?`,
+    // };
 
 }

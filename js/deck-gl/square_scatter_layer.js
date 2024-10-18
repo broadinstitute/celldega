@@ -2,7 +2,6 @@
 import { ScatterplotLayer } from 'deck.gl';
 // import { cat, update_cat } from "../global_variables/cat.js";
 import { tile_scatter_data } from "../global_variables/tile_scatter_data.js";
-import { tile_cats_array } from "../global_variables/tile_cats_array.js";
 import {tile_color_dict } from '../global_variables/tile_color_dict.js';
 import { tile_exp_array } from '../global_variables/tile_exp_array.js';
 // import { selected_cats, update_selected_cats } from '../global_variables/cat'
@@ -36,9 +35,10 @@ export let square_scatter_layer
 const square_scatter_layer_color = (i, d, cats) => {
 
     if (cats.cat === 'cluster') {
-        const inst_cat = tile_cats_array[d.index];
-        // const opacity = (selected_cats.length === 0 || selected_cats.includes(inst_cat)) ? 255 : 25;
-        // return [...tile_color_dict[inst_cat], opacity];
+        const inst_cat = cats.tile_cats_array[d.index];
+        const opacity = (selected_cats.length === 0 || selected_cats.includes(inst_cat)) ? 255 : 25;
+        return [...tile_color_dict[inst_cat], opacity];
+        // return [255, 0, 0, 255]
     } else {
         const inst_exp = tile_exp_array[d.index];
         return [255, 0, 0, inst_exp];
@@ -53,8 +53,8 @@ export const ini_square_scatter_layer = (cats) => {
     square_scatter_layer = new SquareScatterplotLayer({
         id: 'tile-layer',
         data: tile_scatter_data,
-        // getFillColor: (i, d) => square_scatter_layer_color(i, d, cats),
-        getFillColor: [255, 0, 0],
+        getFillColor: (i, d) => square_scatter_layer_color(i, d, cats),
+        // getFillColor: [255, 0, 0],
         filled: true,
         getRadius: 3, // 8um: 12 with border
         pickable: true,

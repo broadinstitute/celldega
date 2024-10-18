@@ -36,7 +36,7 @@ const square_scatter_layer_color = (i, d, cats) => {
 
     if (cats.cat === 'cluster') {
         const inst_cat = cats.tile_cats_array[d.index];
-        const opacity = (selected_cats.length === 0 || selected_cats.includes(inst_cat)) ? 255 : 25;
+        const opacity = (cats.selected_cats.length === 0 || cats.selected_cats.includes(inst_cat)) ? 255 : 25;
         return [...tile_color_dict[inst_cat], opacity];
         // return [255, 0, 0, 255]
     } else {

@@ -453,7 +453,7 @@ def make_cell_boundary_tiles(
     """ """
 
     df_meta = pd.read_parquet(f"{path_output.replace('cell_segmentation','cell_metadata.parquet')}")
-    entity_to_cell_id_dict = pd.Series(df_meta.index.values,index=df_meta.EntityID).to_dict()
+    #entity_to_cell_id_dict = pd.Series(df_meta.index.values,index=df_meta.EntityID).to_dict()
 
     tile_size_x = tile_size
     tile_size_y = tile_size
@@ -518,7 +518,7 @@ def make_cell_boundary_tiles(
     from shapely.geometry import Polygon
 
     cells["polygon"] = cells["GEOMETRY"].apply(lambda x: Polygon(x[0]))
-    cells = cells.set_index('cell_id')
+    #cells = cells.set_index('cell_id')
 
     gdf_cells = gpd.GeoDataFrame(geometry=cells["polygon"])
 

@@ -123,8 +123,8 @@ def read_cbg_mtx(base_path):
     cbg = pd.DataFrame.sparse.from_spmatrix(
         matrix, index=barcodes[0], columns=features[1]
     )
-
-    cbg = cbg.rename_axis('cell', axis='index').rename_axis('', axis='columns')
+    cbg = cbg.rename_axis('__index_level_0__', axis='columns')
+    
     return cbg
 
 def save_cbg_gene_parquets(base_path, cbg, verbose=False):

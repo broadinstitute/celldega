@@ -124,6 +124,7 @@ def read_cbg_mtx(base_path):
         matrix, index=barcodes[0], columns=features[1]
     )
 
+    cbg = cbg.rename_axis('cell', axis='index').rename_axis('', axis='columns')
     return cbg
 
 def save_cbg_gene_parquets(base_path, cbg, verbose=False):

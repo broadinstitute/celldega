@@ -1,6 +1,6 @@
  /* eslint-disable */
 import { ScatterplotLayer } from 'deck.gl';
-// import { cat, update_cat } from "../global_variables/cat.js";
+import { update_cat, update_selected_cats } from "../global_variables/cat.js";
 import { tile_scatter_data } from "../global_variables/tile_scatter_data.js";
 import {tile_color_dict } from '../global_variables/tile_color_dict.js';
 import { tile_exp_array } from '../global_variables/tile_exp_array.js';
@@ -38,7 +38,6 @@ const square_scatter_layer_color = (i, d, cats) => {
         const inst_cat = cats.tile_cats_array[d.index];
         const opacity = (cats.selected_cats.length === 0 || cats.selected_cats.includes(inst_cat)) ? 255 : 25;
         return [...tile_color_dict[inst_cat], opacity];
-        // return [255, 0, 0, 255]
     } else {
         const inst_exp = tile_exp_array[d.index];
         return [255, 0, 0, inst_exp];
@@ -62,10 +61,13 @@ export const ini_square_scatter_layer = (cats) => {
 
             console.log('clicking!!!!!!!!')
 
-            // let new_selected_cats = [tile_cats_array[d.index]]
+            let new_selected_cats = [cats.tile_cats_array[d.index]]
 
-            // update_selected_cats(new_selected_cats)
-            // update_cat('cluster')
+            console.log('new_selected_cats', new_selected_cats)
+
+            update_selected_cats(cats, new_selected_cats)
+            update_cat(cats, 'cluster')
+
             // update_square_scatter_layer()
             // deck_sst.setProps({layers: [simple_image_layer, square_scatter_layer]})
 
@@ -78,16 +80,16 @@ export const ini_square_scatter_layer = (cats) => {
 }
 
 export const update_square_scatter_layer = () => {
-    // // Determine the new layer ID based on the selected categories
-    // const layer_id = selected_cats.length === 0
-    //     ? `tile-layer-${cat}`
-    //     : `tile-layer-${cat}-${selected_cats.join('-')}`;
+    // Determine the new layer ID based on the selected categories
+    const layer_id = selected_cats.length === 0
+        ? `tile-layer-${cat}`
+        : `tile-layer-${cat}-${selected_cats.join('-')}`;
 
-    // // Clone the existing layer and update the ID and data
-    // square_scatter_layer = square_scatter_layer.clone({
-    //     id: layer_id,
-    //     data: tile_scatter_data,
-    // });
+    // Clone the existing layer and update the ID and data
+    square_scatter_layer = square_scatter_layer.clone({
+        id: layer_id,
+        data: tile_scatter_data,
+    });
 }
 
 

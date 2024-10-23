@@ -2,9 +2,9 @@
 
 export const make_tile_tooltip = (info) => {
 
-    let inst_name
+    // let inst_name
 
-    if (info.index === -1 || !info.layer) return null;
+    // if (info.index === -1 || !info.layer) return null;
 
     // inst_name = tile_cats_array[info.index]
 

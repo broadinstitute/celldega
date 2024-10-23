@@ -3,7 +3,7 @@ import { get_arrow_table } from "../read_parquet/get_arrow_table.js"
 import { get_scatter_data } from "../read_parquet/get_scatter_data.js"
 import { options, set_options } from '../global_variables/fetch_options.js'
 import { ini_deck_sst } from '../deck-gl/deck_sst.js'
-import { update_layers_sst, layers_sst } from "../deck-gl/layers_sst.js"
+// import { update_layers_sst, layers_sst } from "../deck-gl/layers_sst.js"
 import { square_scatter_layer, ini_square_scatter_layer } from "../deck-gl/square_scatter_layer.js"
 import { set_tile_scatter_data } from "../global_variables/tile_scatter_data.js"
 import { set_tile_names_array, set_tile_name_to_index_map } from "../global_variables/tile_names_array.js"
@@ -30,6 +30,8 @@ export const landscape_sst = async (
     // ini_zoom,
     // dataset_name=''
 ) => {
+
+    console.log('here!!!!!!!!!!!!!!!')
 
     // Create and append the visualization container
     let root = document.createElement("div")
@@ -79,6 +81,14 @@ export const landscape_sst = async (
     viz_state.cats.svg_bar_cluster = d3.create("svg")
 
 
+
+    // export const update_layers_sst = (new_layers) => {
+    //     layers_sst = new_layers
+    // }
+
+    let layers_obj = {}
+
+
     await set_meta_gene(viz_state.genes, base_url)
 
     // await set_gene_search('sst', deck_sst, {}, viz_state)
@@ -105,8 +115,8 @@ export const landscape_sst = async (
 
     await set_tile_color_dict(base_url)
     ini_square_scatter_layer(viz_state.cats)
-    const new_layers = [simple_image_layer, square_scatter_layer]
-    await update_layers_sst(new_layers)
+    let layers_sst = [simple_image_layer, square_scatter_layer]
+    // await update_layers_sst(new_layers)
 
     // const ini_x = 0
     // const ini_y = 0
@@ -133,8 +143,11 @@ export const landscape_sst = async (
 
     console.log('layers_sst', layers_sst)
 
-
     let deck_sst = ini_deck_sst(root)
+
+    deck_sst.setProps({
+        layers: layers_sst
+    })
 
     // disable for now
     // model.on('change:update_trigger', update_tile_landscape_from_cgm)

@@ -22,7 +22,7 @@ export const ini_deck_sst = ( root ) => {
         parent: root,
         controller: {doubleClickZoom: false},
         initialViewState: initial_view_state,
-        views: views,
+        // views: views,
         getTooltip: make_tile_tooltip,
     })
 

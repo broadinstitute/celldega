@@ -4,7 +4,7 @@ import { get_scatter_data } from "../read_parquet/get_scatter_data.js"
 import { options, set_options } from '../global_variables/fetch_options.js'
 import { ini_deck_sst } from '../deck-gl/deck_sst.js'
 // import { update_layers_sst, layers_sst } from "../deck-gl/layers_sst.js"
-import { square_scatter_layer, ini_square_scatter_layer } from "../deck-gl/square_scatter_layer.js"
+import { ini_square_scatter_layer } from "../deck-gl/square_scatter_layer.js"
 import { set_tile_scatter_data } from "../global_variables/tile_scatter_data.js"
 import { set_tile_names_array, set_tile_name_to_index_map } from "../global_variables/tile_names_array.js"
 import { set_tile_color_dict } from "../global_variables/tile_color_dict.js"
@@ -114,8 +114,13 @@ export const landscape_sst = async (
     set_tile_name_to_index_map()
 
     await set_tile_color_dict(base_url)
-    ini_square_scatter_layer(viz_state.cats)
-    let layers_sst = [simple_image_layer, square_scatter_layer]
+    let square_scatter_layer = ini_square_scatter_layer(viz_state.cats)
+
+    let layers_sst = {
+        'simple_image_layer': simple_image_layer,
+        'square_scatter_layer': square_scatter_layer
+    }
+
     // await update_layers_sst(new_layers)
 
     // const ini_x = 0
@@ -134,19 +139,11 @@ export const landscape_sst = async (
 
     viz_state.views = set_views()
 
-    console.log('viz_state.views', viz_state.views)
-
-    // deck_sst.setProps({
-    //     views: viz_state.views,
-    //     layers: layers_sst
-    // })
-
-    console.log('layers_sst', layers_sst)
-
     let deck_sst = ini_deck_sst(root)
 
     deck_sst.setProps({
-        layers: layers_sst
+        views: viz_state.views,
+        layers: [layers_sst.simple_image_layer, layers_sst.square_scatter_layer]
     })
 
     // disable for now

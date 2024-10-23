@@ -30,7 +30,7 @@ class SquareScatterplotLayer extends ScatterplotLayer {
     }
 }
 
-export let square_scatter_layer
+// export let square_scatter_layer
 
 const square_scatter_layer_color = (i, d, cats) => {
 
@@ -47,13 +47,10 @@ const square_scatter_layer_color = (i, d, cats) => {
 
 export const ini_square_scatter_layer = (cats) => {
 
-    console.log(cats)
-
-    square_scatter_layer = new SquareScatterplotLayer({
+    let square_scatter_layer = new SquareScatterplotLayer({
         id: 'tile-layer',
         data: tile_scatter_data,
         getFillColor: (i, d) => square_scatter_layer_color(i, d, cats),
-        // getFillColor: [255, 0, 0],
         filled: true,
         getRadius: 3, // 8um: 12 with border
         pickable: true,
@@ -76,6 +73,8 @@ export const ini_square_scatter_layer = (cats) => {
             getFillColor: [cats.cat]
         }
     })
+
+    return square_scatter_layer
 
 }
 

@@ -3,12 +3,10 @@ import { options } from '../global_variables/fetch_options.js'
 import { tile_names_array } from "../global_variables/tile_names_array.js"
 import { tile_name_to_index_map } from "../global_variables/tile_names_array.js"
 
-export let tile_exp_array
+export const update_tile_exp_array = async (viz_state, inst_gene) => {
 
-export const update_tile_exp_array = async (base_url, inst_gene) => {
-
-    // tmp
     let meta_gene = ''
+    let base_url = viz_state.global_base_url
 
     var exp_table = await get_arrow_table(base_url + 'tbg/' + inst_gene + '.parquet', options.fetch)
     let tile_names = exp_table.getChild('__index_level_0__').toArray()
@@ -25,6 +23,6 @@ export const update_tile_exp_array = async (base_url, inst_gene) => {
         }
     })
 
-    tile_exp_array = new_exp_array
+    viz_state.cats.tile_exp_array = new_exp_array
 
 }

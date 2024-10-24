@@ -2,9 +2,6 @@
 import { ScatterplotLayer } from 'deck.gl';
 import { update_cat, update_selected_cats } from "../global_variables/cat.js";
 import { tile_scatter_data } from "../global_variables/tile_scatter_data.js";
-import {tile_color_dict } from '../global_variables/tile_color_dict.js';
-import { tile_exp_array } from '../global_variables/tile_exp_array.js';
-// import { selected_cats, update_selected_cats } from '../global_variables/cat'
 import { deck_sst } from "./deck_sst.js";
 
 class SquareScatterplotLayer extends ScatterplotLayer {
@@ -38,7 +35,7 @@ const square_scatter_layer_color = (i, d, cats) => {
         const opacity = (cats.selected_cats.length === 0 || cats.selected_cats.includes(inst_cat)) ? 255 : 25;
         return [...tile_color_dict[inst_cat], opacity];
     } else {
-        const inst_exp = tile_exp_array[d.index];
+        const inst_exp = cats.tile_exp_array[d.index];
         return [255, 0, 0, inst_exp];
     }
 }

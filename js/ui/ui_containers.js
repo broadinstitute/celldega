@@ -62,7 +62,9 @@ export const make_slider_container = (class_name) => {
     return slider_container
 }
 
-export const make_sst_ui_container = () => {
+export const make_sst_ui_container = (deck_sst, layers_sst, viz_state) => {
+
+    console.log('make_sst_ui_container')
 
     const ui_container = make_ui_container()
     const ctrl_container = make_ctrl_container()
@@ -73,7 +75,11 @@ export const make_sst_ui_container = () => {
     make_button(image_container, 'sst', 'IMG', 'blue', 50)
     make_button(tile_container, 'sst', 'TILE')
 
-    ini_slider('tile')
+    viz_state.sliders = {}
+
+    console.log('making slider')
+    ini_slider('tile', deck_sst, layers_sst, viz_state)
+
     tile_slider_container.appendChild(tile_slider);
 
     ui_container.appendChild(ctrl_container)

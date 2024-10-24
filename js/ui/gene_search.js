@@ -16,7 +16,7 @@ import { uniprot_data, uniprot_get_request } from '../external_apis/uniprot_api.
 
 let gene_search_options = []
 
-const sst_gene_search_callback = async () => {
+const sst_gene_search_callback = async (viz_state, cats) => {
 
     // tmp
     let gene_search_input = {}
@@ -29,7 +29,7 @@ const sst_gene_search_callback = async () => {
     const global_base_url = ''
 
     if (inst_gene !== '' && gene_search_options.includes(inst_gene)) {
-        await update_tile_exp_array(global_base_url, inst_gene)
+        await update_tile_exp_array(global_base_url, cats, inst_gene)
     }
 
     // update_square_scatter_layer()
@@ -97,7 +97,7 @@ const ist_gene_search_callback = async (deck_ist, layers_obj, viz_state) => {
 };
 
 
-export const set_gene_search = async (tech_type, deck_ist, layers_obj, viz_state) => {
+export const set_gene_search = async (tech_type, inst_deck, layers_obj, viz_state) => {
 
     gene_search_options = ['cluster', ...viz_state.genes.gene_names]
 
@@ -165,11 +165,11 @@ export const set_gene_search = async (tech_type, deck_ist, layers_obj, viz_state
     let callback
     if (tech_type === 'sst'){
 
-        callback = sst_gene_search_callback
+        callback = () => sst_gene_search_callback(viz_state)
         viz_state.genes.gene_search_input.style.marginTop = "10px"
         viz_state.genes.gene_search.style.height = "50px"
     } else {
-        callback = () => ist_gene_search_callback(deck_ist, layers_obj, viz_state)
+        callback = () => ist_gene_search_callback(inst_deck, layers_obj, viz_state)
         viz_state.genes.gene_search_input.style.marginTop = "5px"
     }
 

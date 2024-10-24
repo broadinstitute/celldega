@@ -14,8 +14,8 @@ import { set_landscape_parameters } from "../global_variables/landscape_paramete
 import { make_simple_image_layer } from "../deck-gl/simple_image_layer.js"
 import { set_global_base_url } from "../global_variables/global_base_url.js"
 // import { update_tile_landscape_from_cgm } from "../widget_interactions/update_tile_landscape_from_cgm.js"
-// import { set_gene_search } from '../ui/gene_search.js'
-// import { make_sst_ui_container } from '../ui/ui_containers.js'
+import { set_gene_search } from '../ui/gene_search.js'
+import { make_sst_ui_container } from '../ui/ui_containers.js'
 import { set_views } from '../deck-gl/views.js'
 import { make_tile_tooltip } from '../deck-gl/make_tile_tooltip.js';
 
@@ -76,7 +76,6 @@ export const landscape_sst = async (
 
     await set_meta_gene(viz_state.genes, base_url)
 
-    // await set_gene_search('sst', deck_sst, {}, viz_state)
 
     // move this to landscape_parameters
     // const imgage_name_for_dim = 'dapi'
@@ -92,7 +91,7 @@ export const landscape_sst = async (
     set_tile_scatter_data(get_scatter_data(tile_arrow_table))
 
     viz_state.cats.tile_cats_array = tile_arrow_table.getChild("cluster").toArray()
-
+    viz_state.cats.tile_exp_array = []
 
     set_tile_names_array(tile_arrow_table.getChild("name").toArray())
     set_tile_name_to_index_map()
@@ -107,12 +106,12 @@ export const landscape_sst = async (
         'square_scatter_layer': square_scatter_layer
     }
 
-    // await update_layers_sst(new_layers)
-
-
     viz_state.views = set_views()
 
     let deck_sst = ini_deck_sst(root)
+
+    await set_gene_search('sst', deck_sst, layers_sst, viz_state)
+
 
     const initial_view_state = {
         target: [ini_x, ini_y, ini_z],
@@ -129,10 +128,10 @@ export const landscape_sst = async (
     // disable for now
     // model.on('change:update_trigger', update_tile_landscape_from_cgm)
 
-    // const ui_container = make_sst_ui_container()
+    const ui_container = make_sst_ui_container(deck_sst, layers_sst, viz_state)
 
-    // // UI and Viz Container
-    // el.appendChild(ui_container)
+    // UI and Viz Container
+    el.appendChild(ui_container)
     el.appendChild(root)
 
     return () => deck_sst.finalize()

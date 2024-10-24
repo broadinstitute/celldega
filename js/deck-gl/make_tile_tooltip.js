@@ -2,6 +2,8 @@
 
 export const make_tile_tooltip = (info) => {
 
+    console.log(info)
+
     // let inst_name
 
     // if (info.index === -1 || !info.layer) return null;

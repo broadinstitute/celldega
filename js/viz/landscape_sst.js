@@ -11,11 +11,11 @@ import { set_tile_color_dict } from "../global_variables/tile_color_dict.js"
 import { set_meta_gene } from "../global_variables/meta_gene.js"
 import { set_dimensions } from '../global_variables/image_dimensions.js'
 import { set_landscape_parameters } from "../global_variables/landscape_parameters.js"
-import { simple_image_layer, make_simple_image_layer } from "../deck-gl/simple_image_layer.js"
+import { make_simple_image_layer } from "../deck-gl/simple_image_layer.js"
 import { set_global_base_url } from "../global_variables/global_base_url.js"
-import { update_tile_landscape_from_cgm } from "../widget_interactions/update_tile_landscape_from_cgm.js"
-import { set_gene_search } from '../ui/gene_search.js'
-import { make_sst_ui_container } from '../ui/ui_containers.js'
+// import { update_tile_landscape_from_cgm } from "../widget_interactions/update_tile_landscape_from_cgm.js"
+// import { set_gene_search } from '../ui/gene_search.js'
+// import { make_sst_ui_container } from '../ui/ui_containers.js'
 import { set_views } from '../deck-gl/views.js'
 
 
@@ -31,16 +31,14 @@ export const landscape_sst = async (
     // dataset_name=''
 ) => {
 
-    console.log('here!!!!!!!!!!!!!!!')
-
     // Create and append the visualization container
     let root = document.createElement("div")
-    root.style.height = "800px"
+    root.style.height = "   800px"
 
     console.log('before ini_deck_sst')
     console.log('after ini_deck_sst')
 
-    let model = ''
+    // let model = ''
 
     let viz_state = {}
     set_options(token)
@@ -54,6 +52,10 @@ export const landscape_sst = async (
     await set_landscape_parameters(viz_state.img, base_url)
 
     await set_dimensions(viz_state, base_url, 'cells')
+
+    console.log('after setting dimensions')
+    console.log(viz_state)
+
 
     viz_state.genes = {}
     viz_state.genes.color_dict_gene = {}
@@ -80,15 +82,6 @@ export const landscape_sst = async (
     viz_state.cats.polygon_cell_names = []
     viz_state.cats.svg_bar_cluster = d3.create("svg")
 
-
-
-    // export const update_layers_sst = (new_layers) => {
-    //     layers_sst = new_layers
-    // }
-
-    let layers_obj = {}
-
-
     await set_meta_gene(viz_state.genes, base_url)
 
     // await set_gene_search('sst', deck_sst, {}, viz_state)
@@ -99,8 +92,6 @@ export const landscape_sst = async (
         name: 'cells',
         color: [0, 0, 255]
     }
-
-    await make_simple_image_layer(info)
 
     const tile_url = base_url + '/tile_geometries.parquet'
 
@@ -114,6 +105,7 @@ export const landscape_sst = async (
     set_tile_name_to_index_map()
 
     await set_tile_color_dict(base_url)
+    let simple_image_layer = await make_simple_image_layer(viz_state, info)
     let square_scatter_layer = ini_square_scatter_layer(viz_state.cats)
 
     let layers_sst = {
@@ -143,8 +135,11 @@ export const landscape_sst = async (
 
     deck_sst.setProps({
         views: viz_state.views,
-        layers: [layers_sst.simple_image_layer, layers_sst.square_scatter_layer]
+        // layers: [layers_sst.simple_image_layer, layers_sst.square_scatter_layer]
+        layers: [ layers_sst.simple_image_layer, layers_sst.square_scatter_layer]
     })
+
+    console.log(layers_sst.simple_image_layer)
 
     // disable for now
     // model.on('change:update_trigger', update_tile_landscape_from_cgm)

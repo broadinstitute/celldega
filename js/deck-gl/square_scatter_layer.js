@@ -6,7 +6,6 @@ import {tile_color_dict } from '../global_variables/tile_color_dict.js';
 import { tile_exp_array } from '../global_variables/tile_exp_array.js';
 // import { selected_cats, update_selected_cats } from '../global_variables/cat'
 import { deck_sst } from "./deck_sst.js";
-import { simple_image_layer } from "../deck-gl/simple_image_layer.js";
 
 class SquareScatterplotLayer extends ScatterplotLayer {
     getShaders() {
@@ -29,8 +28,6 @@ class SquareScatterplotLayer extends ScatterplotLayer {
         return shaders;
     }
 }
-
-// export let square_scatter_layer
 
 const square_scatter_layer_color = (i, d, cats) => {
 

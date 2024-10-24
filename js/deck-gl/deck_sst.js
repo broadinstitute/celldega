@@ -1,12 +1,7 @@
 import { Deck } from 'deck.gl';
 import { make_tile_tooltip } from './make_tile_tooltip.js';
-import { OrthographicView } from 'deck.gl';
 
 export const ini_deck_sst = ( root ) => {
-
-    console.log('ini_deck_sst')
-
-    const views = [ new OrthographicView({id: 'ortho'})]
 
     const ini_x = 1000
     const ini_y = 5000
@@ -22,7 +17,6 @@ export const ini_deck_sst = ( root ) => {
         parent: root,
         controller: {doubleClickZoom: false},
         initialViewState: initial_view_state,
-        // views: views,
         getTooltip: make_tile_tooltip,
     })
 

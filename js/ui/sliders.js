@@ -1,5 +1,5 @@
-import { simple_image_layer } from "../deck-gl/simple_image_layer"
-import { square_scatter_layer, square_scatter_layer_opacity } from "../deck-gl/square_scatter_layer"
+// import { simple_image_layer } from "../deck-gl/simple_image_layer"
+import { square_scatter_layer_opacity } from "../deck-gl/square_scatter_layer"
 // import { layers_sst, update_layers_sst } from "../deck-gl/layers_sst"
 import { update_trx_layer_radius } from "../deck-gl/trx_layer"
 import { update_opacity_single_image_layer } from "../deck-gl/image_layers"

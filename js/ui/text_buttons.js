@@ -1,5 +1,5 @@
 import * as d3 from 'd3'
-import { simple_image_layer, simple_image_layer_visibility } from '../deck-gl/simple_image_layer'
+// import { simple_image_layer, simple_image_layer_visibility } from '../deck-gl/simple_image_layer'
 // import { square_scatter_layer, square_scatter_layer_visibility } from '../deck-gl/square_scatter_layer'
 // import { layers_sst, update_layers_sst } from '../deck-gl/layers_sst'
 import { toggle_visibility_image_layers, toggle_visibility_single_image_layer } from '../deck-gl/image_layers'
@@ -98,7 +98,7 @@ const sst_img_button_callback = async (event) => {
 
     toggle_visible_button(event)
 
-    simple_image_layer_visibility(is_visible)
+    // simple_image_layer_visibility(is_visible)
     // await update_layers_sst([simple_image_layer, square_scatter_layer])
     // deck_sst.setProps({
     //     layers: layers_sst
@@ -144,8 +144,8 @@ const tile_button_callback = async (event) => {
 
     toggle_slider(tile_slider, is_visible)
 
-    square_scatter_layer_visibility(is_visible)
-    await update_layers_sst([simple_image_layer, square_scatter_layer])
+    // square_scatter_layer_visibility(is_visible)
+    // await update_layers_sst([simple_image_layer, square_scatter_layer])
     // deck_sst.setProps({
     //     layers: layers_sst
     // })

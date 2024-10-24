@@ -24,10 +24,10 @@ export const landscape_sst = async (
     el,
     base_url,
     token,
-    // ini_x,
-    // ini_y,
-    // ini_z,
-    // ini_zoom,
+    ini_x,
+    ini_y,
+    ini_z,
+    ini_zoom,
     // dataset_name=''
 ) => {
 
@@ -107,29 +107,22 @@ export const landscape_sst = async (
 
     // await update_layers_sst(new_layers)
 
-    // const ini_x = 0
-    // const ini_y = 0
-    // const ini_z = 0
-    // const ini_zoom = 1
-
-    // const initial_view_state = {
-    //     target: [ini_x, ini_y, ini_z],
-    //     zoom: ini_zoom
-    // }
-
-    // deck_sst.setProps({
-    //     initialViewState: initial_view_state
-    // })
 
     viz_state.views = set_views()
 
     let deck_sst = ini_deck_sst(root)
+
+    const initial_view_state = {
+        target: [ini_x, ini_y, ini_z],
+        zoom: ini_zoom
+    }
 
     deck_sst.setProps({
         views: viz_state.views,
         // layers: [layers_sst.simple_image_layer, layers_sst.square_scatter_layer]
         layers: [ layers_sst.simple_image_layer, layers_sst.square_scatter_layer],
         getTooltip: (info) => make_tile_tooltip(info, viz_state.cats),
+        initialViewState: initial_view_state,
     })
 
     // disable for now

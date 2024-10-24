@@ -22,29 +22,13 @@ export const render_landscape = async ({ model, el }) => {
     const technology = model.get('technology')
 
     if (['MERSCOPE', 'Xenium'].includes(technology)){
-        console.log('---------------------')
-        console.log('ist')
-        console.log('---------------------')
 
-        const tmp_ist = render_landscape_ist({ model, el });
-
-        console.log('tmp_ist')
-        console.log(tmp_ist)
-
-        return tmp_ist
+        return render_landscape_ist({ model, el });
 
     } else if (['Visium-HD'].includes(technology)){
 
-        console.log('---------------------')
-        console.log('render_landscape sst!!!!!!!!!')
-        console.log('---------------------')
+        return render_landscape_sst({ model, el });
 
-        const tmp_sst = render_landscape_sst({ model, el });
-
-        console.log('tmp_sst')
-        console.log(tmp_sst)
-
-        return tmp_sst
     }
 
 }

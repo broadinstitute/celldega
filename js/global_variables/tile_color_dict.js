@@ -2,9 +2,11 @@ import { get_arrow_table } from "../read_parquet/get_arrow_table";
 import { options } from '../global_variables/fetch_options.js';
 import { hexToRgb } from '../utils/hexToRgb.js'
 
-export let tile_color_dict = {}
+
 
 export const set_tile_color_dict = async (base_url) => {
+
+    let tile_color_dict = {}
 
     const df_colors_url = base_url + `/df_colors.parquet`;
     var df_colors = await get_arrow_table(df_colors_url, options.fetch)
@@ -23,5 +25,7 @@ export const set_tile_color_dict = async (base_url) => {
     names.forEach((geneName, index) => {
         tile_color_dict[String(geneName)] = hexToRgb(colors[index]);
     });
+
+    return tile_color_dict
 
 }

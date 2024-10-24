@@ -31,6 +31,8 @@ class SquareScatterplotLayer extends ScatterplotLayer {
 
 const square_scatter_layer_color = (i, d, cats) => {
 
+    let tile_color_dict = cats.tile_color_dict
+
     if (cats.cat === 'cluster') {
         const inst_cat = cats.tile_cats_array[d.index];
         const opacity = (cats.selected_cats.length === 0 || cats.selected_cats.includes(inst_cat)) ? 255 : 25;

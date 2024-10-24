@@ -93,10 +93,12 @@ export const landscape_sst = async (
 
     viz_state.cats.tile_cats_array = tile_arrow_table.getChild("cluster").toArray()
 
+
     set_tile_names_array(tile_arrow_table.getChild("name").toArray())
     set_tile_name_to_index_map()
 
-    await set_tile_color_dict(base_url)
+    viz_state.cats.tile_color_dict = await set_tile_color_dict(base_url)
+
     let simple_image_layer = await make_simple_image_layer(viz_state, info)
     let square_scatter_layer = ini_square_scatter_layer(viz_state.cats)
 
@@ -119,7 +121,6 @@ export const landscape_sst = async (
 
     deck_sst.setProps({
         views: viz_state.views,
-        // layers: [layers_sst.simple_image_layer, layers_sst.square_scatter_layer]
         layers: [ layers_sst.simple_image_layer, layers_sst.square_scatter_layer],
         getTooltip: (info) => make_tile_tooltip(info, viz_state.cats),
         initialViewState: initial_view_state,

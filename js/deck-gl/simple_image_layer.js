@@ -5,8 +5,6 @@ import { options } from '../global_variables/fetch_options'
 
 export const make_simple_image_layer = async (viz_state, info) => {
 
-    console.log('make_simple_image_layer: viz_state', viz_state)
-
     let global_base_url = viz_state.global_base_url
     let dimensions = viz_state.dimensions
     let landscape_parameters = viz_state.img.landscape_parameters

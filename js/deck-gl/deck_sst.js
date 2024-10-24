@@ -1,5 +1,5 @@
 import { Deck } from 'deck.gl';
-import { make_tile_tooltip } from './make_tile_tooltip.js';
+
 
 export const ini_deck_sst = ( root ) => {
 
@@ -17,7 +17,7 @@ export const ini_deck_sst = ( root ) => {
         parent: root,
         controller: {doubleClickZoom: false},
         initialViewState: initial_view_state,
-        getTooltip: make_tile_tooltip,
+        // getTooltip: make_tile_tooltip,
     })
 
     return deck_sst

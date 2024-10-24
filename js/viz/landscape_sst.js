@@ -17,7 +17,7 @@ import { set_global_base_url } from "../global_variables/global_base_url.js"
 // import { set_gene_search } from '../ui/gene_search.js'
 // import { make_sst_ui_container } from '../ui/ui_containers.js'
 import { set_views } from '../deck-gl/views.js'
-
+import { make_tile_tooltip } from '../deck-gl/make_tile_tooltip.js';
 
 export const landscape_sst = async (
     ini_model,
@@ -35,15 +35,11 @@ export const landscape_sst = async (
     let root = document.createElement("div")
     root.style.height = "   800px"
 
-    console.log('before ini_deck_sst')
-    console.log('after ini_deck_sst')
-
     // let model = ''
 
     let viz_state = {}
     set_options(token)
     set_global_base_url(viz_state, base_url)
-    console.log('after set_global_base_url')
 
     viz_state.img = {}
     viz_state.img.image_layer_colors = {}
@@ -52,10 +48,6 @@ export const landscape_sst = async (
     await set_landscape_parameters(viz_state.img, base_url)
 
     await set_dimensions(viz_state, base_url, 'cells')
-
-    console.log('after setting dimensions')
-    console.log(viz_state)
-
 
     viz_state.genes = {}
     viz_state.genes.color_dict_gene = {}
@@ -136,10 +128,9 @@ export const landscape_sst = async (
     deck_sst.setProps({
         views: viz_state.views,
         // layers: [layers_sst.simple_image_layer, layers_sst.square_scatter_layer]
-        layers: [ layers_sst.simple_image_layer, layers_sst.square_scatter_layer]
+        layers: [ layers_sst.simple_image_layer, layers_sst.square_scatter_layer],
+        getTooltip: (info) => make_tile_tooltip(info, viz_state.cats),
     })
-
-    console.log(layers_sst.simple_image_layer)
 
     // disable for now
     // model.on('change:update_trigger', update_tile_landscape_from_cgm)

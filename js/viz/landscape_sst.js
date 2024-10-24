@@ -92,9 +92,10 @@ export const landscape_sst = async (
 
     viz_state.cats.tile_cats_array = tile_arrow_table.getChild("cluster").toArray()
     viz_state.cats.tile_exp_array = []
+    viz_state.cats.tile_names_array = []
 
-    set_tile_names_array(tile_arrow_table.getChild("name").toArray())
-    set_tile_name_to_index_map()
+    set_tile_names_array(viz_state.cats, tile_arrow_table.getChild("name").toArray())
+    set_tile_name_to_index_map(viz_state.cats)
 
     viz_state.cats.tile_color_dict = await set_tile_color_dict(base_url)
 

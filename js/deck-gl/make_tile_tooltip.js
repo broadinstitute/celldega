@@ -1,3 +1,5 @@
+import * as d3 from 'd3'
+
 export const make_tile_tooltip = (info, cats) => {
 
     let inst_name
@@ -6,6 +8,8 @@ export const make_tile_tooltip = (info, cats) => {
 
     inst_name = cats.tile_cats_array[info.index]
 
+    d3.selectAll('.deck-tooltip')
+      .style('margin-top', '75px')
     return {
         html: `<div>${inst_name}</div?`,
     };

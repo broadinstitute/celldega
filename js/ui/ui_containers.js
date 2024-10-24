@@ -100,7 +100,7 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
 
     viz_state.containers.image = flex_container('image_container', 'column')
 
-    const img_layers_container = flex_container('img_layers_container', 'column', 72) // 75
+    const img_layers_container = flex_container('img_layers_container', 'column', 72)
     img_layers_container.style.width = '135px'
     img_layers_container.style.border = "1px solid #d3d3d3"
     img_layers_container.style.marginTop = '3px'

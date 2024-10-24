@@ -88,11 +88,13 @@ export const landscape_sst = async (
 
     var tile_arrow_table = await get_arrow_table(tile_url, options.fetch)
 
-    set_tile_scatter_data(get_scatter_data(tile_arrow_table))
 
     viz_state.cats.tile_cats_array = tile_arrow_table.getChild("cluster").toArray()
     viz_state.cats.tile_exp_array = []
     viz_state.cats.tile_names_array = []
+    viz_state.cats.tile_scatter_data = []
+
+    set_tile_scatter_data(viz_state.cats, get_scatter_data(tile_arrow_table))
 
     set_tile_names_array(viz_state.cats, tile_arrow_table.getChild("name").toArray())
     set_tile_name_to_index_map(viz_state.cats)

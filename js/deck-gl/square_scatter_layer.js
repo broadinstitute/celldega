@@ -1,7 +1,6 @@
  /* eslint-disable */
 import { ScatterplotLayer } from 'deck.gl';
 import { update_cat, update_selected_cats } from "../global_variables/cat.js";
-import { tile_scatter_data } from "../global_variables/tile_scatter_data.js";
 import { deck_sst } from "./deck_sst.js";
 
 class SquareScatterplotLayer extends ScatterplotLayer {
@@ -45,7 +44,7 @@ export const ini_square_scatter_layer = (cats) => {
 
     let square_scatter_layer = new SquareScatterplotLayer({
         id: 'tile-layer',
-        data: tile_scatter_data,
+        data: cats.tile_scatter_data,
         getFillColor: (i, d) => square_scatter_layer_color(i, d, cats),
         filled: true,
         getRadius: 3, // 8um: 12 with border
@@ -75,16 +74,19 @@ export const ini_square_scatter_layer = (cats) => {
 }
 
 export const update_square_scatter_layer = () => {
-    // Determine the new layer ID based on the selected categories
-    const layer_id = selected_cats.length === 0
-        ? `tile-layer-${cat}`
-        : `tile-layer-${cat}-${selected_cats.join('-')}`;
 
-    // Clone the existing layer and update the ID and data
-    square_scatter_layer = square_scatter_layer.clone({
-        id: layer_id,
-        data: tile_scatter_data,
-    });
+    console.log('need to add this functionality back')
+
+    // // Determine the new layer ID based on the selected categories
+    // const layer_id = selected_cats.length === 0
+    //     ? `tile-layer-${cat}`
+    //     : `tile-layer-${cat}-${selected_cats.join('-')}`;
+
+    // // Clone the existing layer and update the ID and data
+    // square_scatter_layer = square_scatter_layer.clone({
+    //     id: layer_id,
+    //     data: tile_scatter_data,
+    // });
 }
 
 

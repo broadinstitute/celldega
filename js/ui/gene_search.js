@@ -1,5 +1,5 @@
 import * as d3 from 'd3'
-// import { square_scatter_layer, update_square_scatter_layer } from "../deck-gl/square_scatter_layer.js"
+import { update_square_scatter_layer } from "../deck-gl/square_scatter_layer.js"
 import { update_cat, update_selected_cats } from "../global_variables/cat.js"
 // import { deck_sst } from "../deck-gl/deck_sst.js"
 import { update_tile_exp_array } from "../global_variables/tile_exp_array.js"
@@ -25,14 +25,13 @@ const sst_gene_search_callback = async (viz_state, cats) => {
     const inst_gene = gene_search_input.value
     // const new_cat = inst_gene === '' ? 'cluster' : inst_gene
 
-    // tmp
     const global_base_url = ''
 
     if (inst_gene !== '' && gene_search_options.includes(inst_gene)) {
         await update_tile_exp_array(global_base_url, cats, inst_gene)
     }
 
-    // update_square_scatter_layer()
+    update_square_scatter_layer()
     // deck_sst.setProps({layers: [simple_image_layer, square_scatter_layer]})
 
 }

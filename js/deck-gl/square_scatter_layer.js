@@ -73,22 +73,24 @@ export const ini_square_scatter_layer = (cats) => {
 
 }
 
-export const update_square_scatter_layer = (viz_state) => {
+export const update_square_scatter_layer = (viz_state, layers_sst) => {
 
     console.log('need to add this functionality back')
 
     console.log(viz_state.cats)
 
-    // // Determine the new layer ID based on the selected categories
-    // const layer_id = selected_cats.length === 0
-    //     ? `tile-layer-${cat}`
-    //     : `tile-layer-${cat}-${selected_cats.join('-')}`;
+    // Determine the new layer ID based on the selected categories
+    const layer_id = viz_state.cats.selected_cats.length === 0
+        ? `tile-layer-${viz_state.cats.cat}`
+        : `tile-layer-${viz_state.cats.cat}-${viz_state.cats.selected_cats.join('-')}`;
 
-    // // Clone the existing layer and update the ID and data
-    // square_scatter_layer = square_scatter_layer.clone({
-    //     id: layer_id,
-    //     data: tile_scatter_data,
-    // });
+    console.log(layer_id)
+
+    // Clone the existing layer and update the ID and data
+    layers_sst.square_scatter_layer = layers_sst.square_scatter_layer.clone({
+        id: layer_id,
+        data: viz_state.cats.tile_scatter_data,
+    });
 }
 
 

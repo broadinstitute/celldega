@@ -98,14 +98,7 @@ const ist_gene_search_callback = async (deck_ist, layers_obj, viz_state) => {
 
 export const set_gene_search = async (tech_type, inst_deck, layers_obj, viz_state) => {
 
-    console.log('setting gene search')
-
-    console.log('viz_state.genes.gene_names')
-    console.log(viz_state.genes.gene_names)
-
     gene_search_options = ['cluster', ...viz_state.genes.gene_names]
-
-    console.log(viz_state.genes.gene_names)
 
     viz_state.genes.gene_search.style.width = "115px"
 

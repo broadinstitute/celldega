@@ -73,9 +73,11 @@ export const ini_square_scatter_layer = (cats) => {
 
 }
 
-export const update_square_scatter_layer = () => {
+export const update_square_scatter_layer = (viz_state) => {
 
     console.log('need to add this functionality back')
+
+    console.log(viz_state.cats)
 
     // // Determine the new layer ID based on the selected categories
     // const layer_id = selected_cats.length === 0

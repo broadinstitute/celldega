@@ -18,21 +18,36 @@ let gene_search_options = []
 
 const sst_gene_search_callback = async (viz_state, cats) => {
 
-    // tmp
-    let gene_search_input = {}
-    gene_search_input.value = ''
+    // // tmp
+    // let gene_search_input = {}
+    // gene_search_input.value = ''
 
-    const inst_gene = gene_search_input.value
+    // const inst_gene = gene_search_input.value
+    const inst_gene = viz_state.genes.gene_search_input.value
+
     // const new_cat = inst_gene === '' ? 'cluster' : inst_gene
 
-    const global_base_url = ''
+    // const global_base_url = ''
 
-    if (inst_gene !== '' && gene_search_options.includes(inst_gene)) {
-        await update_tile_exp_array(global_base_url, cats, inst_gene)
+    // if (inst_gene !== '' && gene_search_options.includes(inst_gene)) {
+    //     await update_tile_exp_array(global_base_url, cats, inst_gene)
+    // }
+
+    if (inst_gene === '' || viz_state.genes.gene_names.includes(inst_gene)) {
+
+        console.log('sst: updating gene: ', inst_gene)
+
+        update_cat(viz_state.cats, inst_gene);
+        update_selected_genes(viz_state.genes, inst_gene === '' ? [] : [inst_gene])
+        update_selected_cats(viz_state.cats, [])
+
+        console.log(viz_state.cats)
+
+        update_square_scatter_layer(viz_state)
+        // deck_sst.setProps({layers: [simple_image_layer, square_scatter_layer]})
+
     }
 
-    update_square_scatter_layer()
-    // deck_sst.setProps({layers: [simple_image_layer, square_scatter_layer]})
 
 }
 

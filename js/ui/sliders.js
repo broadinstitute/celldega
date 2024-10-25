@@ -30,7 +30,7 @@ const tile_slider_callback = async (deck_sst, viz_state, layers_sst) => {
     console.log('setting props')
 }
 
-const cell_slider_callback = async (tile_slider_callbackdeck_ist, layers_obj, viz_state) => {
+const cell_slider_callback = async (deck_ist, layers_obj, viz_state) => {
 
     const scale_down_cell_radius = 5
 

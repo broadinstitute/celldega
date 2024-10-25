@@ -1,7 +1,6 @@
 import { get_arrow_table } from '../read_parquet/get_arrow_table.js'
 import { options } from './fetch_options.js'
 import { hexToRgb } from '../utils/hexToRgb.js'
-import { set_gene_names } from './gene_names.js'
 
 export const set_color_dict_gene = async (genes, base_url) => {
 
@@ -23,7 +22,6 @@ export const set_color_dict_gene = async (genes, base_url) => {
         genes.color_dict_gene[geneName] = hexToRgb(colors[index]);
     })
 
-    console.log('color_dict_gene: set_gene_names')
-    set_gene_names(genes, gene_names)
+    genes.gene_names = gene_names
 
 }

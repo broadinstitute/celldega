@@ -36,8 +36,6 @@ const sst_gene_search_callback = async (deck_sst, viz_state, layers_sst) => {
 
     if (inst_gene === '' || viz_state.genes.gene_names.includes(inst_gene)) {
 
-        console.log('sst: updating gene: ', inst_gene)
-
         update_cat(viz_state.cats, new_cat);
         update_selected_genes(viz_state.genes, inst_gene === '' ? [] : [inst_gene])
         update_selected_cats(viz_state.cats, [])

@@ -26,7 +26,6 @@ const tile_slider_callback = async (deck_sst, viz_state, layers_sst) => {
     square_scatter_layer_opacity(layers_sst, viz_state.sliders.tile.value / 100)
     deck_sst.setProps({layers: [layers_sst.simple_image_layer, layers_sst.square_scatter_layer]})
 
-    console.log('setting props')
 }
 
 const cell_slider_callback = async (deck_ist, layers_obj, viz_state) => {

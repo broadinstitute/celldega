@@ -64,8 +64,6 @@ export const make_slider_container = (class_name) => {
 
 export const make_sst_ui_container = (deck_sst, layers_sst, viz_state) => {
 
-    console.log('make_sst_ui_container')
-
     const ui_container = make_ui_container()
     const ctrl_container = make_ctrl_container()
     const image_container = flex_container('image_container', 'row')
@@ -85,7 +83,6 @@ export const make_sst_ui_container = (deck_sst, layers_sst, viz_state) => {
 
     tile_container.appendChild(tile_slider_container)
 
-    console.log('sst: set_gene_search')
     set_gene_search('sst', deck_sst, layers_sst, viz_state)
 
     ctrl_container.appendChild(image_container)

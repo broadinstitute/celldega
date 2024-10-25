@@ -25,7 +25,8 @@ const sst_gene_search_callback = async (viz_state, cats) => {
     // const inst_gene = gene_search_input.value
     const inst_gene = viz_state.genes.gene_search_input.value
 
-    // const new_cat = inst_gene === '' ? 'cluster' : inst_gene
+    const new_cat = inst_gene === '' ? 'cluster' : inst_gene;
+
 
     // const global_base_url = ''
 
@@ -37,11 +38,9 @@ const sst_gene_search_callback = async (viz_state, cats) => {
 
         console.log('sst: updating gene: ', inst_gene)
 
-        update_cat(viz_state.cats, inst_gene);
+        update_cat(viz_state.cats, new_cat);
         update_selected_genes(viz_state.genes, inst_gene === '' ? [] : [inst_gene])
         update_selected_cats(viz_state.cats, [])
-
-        console.log(viz_state.cats)
 
         update_square_scatter_layer(viz_state)
         // deck_sst.setProps({layers: [simple_image_layer, square_scatter_layer]})

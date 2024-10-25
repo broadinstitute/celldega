@@ -100,8 +100,6 @@ export const square_scatter_layer_visibility = (visible) => {
 
 export const square_scatter_layer_opacity = (layers_sst, opacity) => {
 
-    console.log('updating square scatter layer opacity', opacity)
-
     layers_sst.square_scatter_layer = layers_sst.square_scatter_layer.clone({
         opacity: opacity
     });

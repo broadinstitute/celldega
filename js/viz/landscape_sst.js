@@ -3,7 +3,6 @@ import { get_arrow_table } from "../read_parquet/get_arrow_table.js"
 import { get_scatter_data } from "../read_parquet/get_scatter_data.js"
 import { options, set_options } from '../global_variables/fetch_options.js'
 import { ini_deck_sst } from '../deck-gl/deck_sst.js'
-// import { update_layers_sst, layers_sst } from "../deck-gl/layers_sst.js"
 import { ini_square_scatter_layer } from "../deck-gl/square_scatter_layer.js"
 import { set_tile_scatter_data } from "../global_variables/tile_scatter_data.js"
 import { set_tile_names_array, set_tile_name_to_index_map } from "../global_variables/tile_names_array.js"
@@ -14,7 +13,6 @@ import { set_landscape_parameters } from "../global_variables/landscape_paramete
 import { make_simple_image_layer } from "../deck-gl/simple_image_layer.js"
 import { set_global_base_url } from "../global_variables/global_base_url.js"
 // import { update_tile_landscape_from_cgm } from "../widget_interactions/update_tile_landscape_from_cgm.js"
-import { set_gene_search } from '../ui/gene_search.js'
 import { make_sst_ui_container } from '../ui/ui_containers.js'
 import { set_views } from '../deck-gl/views.js'
 import { make_tile_tooltip } from '../deck-gl/make_tile_tooltip.js';
@@ -112,8 +110,6 @@ export const landscape_sst = async (
     viz_state.views = set_views()
 
     let deck_sst = ini_deck_sst(root)
-
-    await set_gene_search('sst', deck_sst, layers_sst, viz_state)
 
 
     const initial_view_state = {

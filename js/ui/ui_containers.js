@@ -77,8 +77,6 @@ export const make_sst_ui_container = (deck_sst, layers_sst, viz_state) => {
 
     viz_state.sliders = {}
 
-    console.log('making slider')
-
     ini_slider('tile', deck_sst, layers_sst, viz_state)
 
     tile_slider_container.appendChild(viz_state.sliders.tile);
@@ -87,8 +85,12 @@ export const make_sst_ui_container = (deck_sst, layers_sst, viz_state) => {
 
     tile_container.appendChild(tile_slider_container)
 
+    console.log('sst: set_gene_search')
+    set_gene_search('sst', deck_sst, layers_sst, viz_state)
+
     ctrl_container.appendChild(image_container)
     ctrl_container.appendChild(tile_container)
+    ctrl_container.appendChild(viz_state.genes.gene_search)
 
     return ui_container
 

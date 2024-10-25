@@ -29,5 +29,8 @@ export const set_meta_gene = async (genes, base_url) => {
 
     genes.gene_counts.sort((a, b) => b.value - a.value)
 
-    set_gene_names(gene_names)
+    console.log('set_meta_gene: set_gene_names')
+    console.log('gene_names', gene_names)
+
+    set_gene_names(genes, gene_names)
 }

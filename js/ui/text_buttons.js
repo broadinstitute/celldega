@@ -33,7 +33,7 @@ const toggle_visible_button = (event) => {
     return is_visible
 }
 
-export const make_button = (container, technology, text, color='blue', width=40, button_class='button', deck_ist, layers_obj, viz_state) => {
+export const make_button = (container, technology, text, color='blue', width=40, button_class='button', inst_deck, layers_obj, viz_state) => {
 
     let callback
 
@@ -41,16 +41,18 @@ export const make_button = (container, technology, text, color='blue', width=40,
         if (technology === 'sst'){
             callback = sst_img_button_callback
         } else {
-            callback = () => ist_img_button_callback(event, deck_ist, layers_obj, viz_state)
+            callback = (event) => ist_img_button_callback(event, inst_deck, layers_obj, viz_state)
         }
     } else if (text === 'TILE') {
-        callback = () => tile_button_callback(event, deck_ist)
+        console.log('make_button: tile')
+        console.log(inst_deck, layers_obj, viz_state)
+        callback = (event) => tile_button_callback(event, inst_deck, layers_obj, viz_state)
     } else if (text === 'TRX'){
-        callback = () => trx_button_callback_ist(event, deck_ist, layers_obj, viz_state)
+        callback = (event) => trx_button_callback_ist(event, inst_deck, layers_obj, viz_state)
     } else if (text === 'CELL'){
-        callback = () => cell_button_callback(event, deck_ist, layers_obj, viz_state)
+        callback = (event) => cell_button_callback(event, inst_deck, layers_obj, viz_state)
     } else {
-        callback = make_ist_img_layer_button_callback(text, deck_ist, layers_obj, viz_state)
+        callback = make_ist_img_layer_button_callback(text, inst_deck, layers_obj, viz_state)
     }
 
     d3.select(container)
@@ -138,11 +140,18 @@ const trx_button_callback_ist = async (event, deck_ist, layers_obj, viz_state) =
 
 }
 
-const tile_button_callback = async (event) => {
+const tile_button_callback = async (event, deck_sst, layers_sst, viz_state) => {
 
     toggle_visible_button(event)
 
-    // toggle_slider(tile_slider, is_visible)
+    console.log(event)
+    console.log(deck_sst)
+    console.log(layers_sst)
+
+
+    console.log(viz_state)
+
+    toggle_slider(viz_state.sliders.tile, is_visible)
 
     // square_scatter_layer_visibility(is_visible)
     // await update_layers_sst([simple_image_layer, square_scatter_layer])

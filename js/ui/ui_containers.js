@@ -70,8 +70,8 @@ export const make_sst_ui_container = (deck_sst, layers_sst, viz_state) => {
     const tile_container = flex_container('tile_container', 'row')
     const tile_slider_container = make_slider_container('tile_slider_container')
 
-    make_button(image_container, 'sst', 'IMG', 'blue', 50)
-    make_button(tile_container, 'sst', 'TILE')
+    make_button(image_container, 'sst', 'IMG', 'blue', 50, 'button', deck_sst, layers_sst, viz_state)
+    make_button(tile_container, 'sst', 'TILE', 'blue', 50, 'button', deck_sst, layers_sst, viz_state)
 
     viz_state.sliders = {}
 

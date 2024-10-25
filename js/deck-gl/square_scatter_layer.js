@@ -94,9 +94,9 @@ export const update_square_scatter_layer = (viz_state, layers_sst) => {
 }
 
 
-export const square_scatter_layer_visibility = (visible) => {
+export const square_scatter_layer_visibility = (layser_sst, visible) => {
 
-    square_scatter_layer = square_scatter_layer.clone({
+    layser_sst.square_scatter_layer = layser_sst.square_scatter_layer.clone({
         visible: visible,
     });
 

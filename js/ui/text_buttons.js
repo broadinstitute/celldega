@@ -1,6 +1,6 @@
 import * as d3 from 'd3'
 // import { simple_image_layer, simple_image_layer_visibility } from '../deck-gl/simple_image_layer'
-// import { square_scatter_layer, square_scatter_layer_visibility } from '../deck-gl/square_scatter_layer'
+import { square_scatter_layer_visibility } from '../deck-gl/square_scatter_layer'
 // import { layers_sst, update_layers_sst } from '../deck-gl/layers_sst'
 import { toggle_visibility_image_layers, toggle_visibility_single_image_layer } from '../deck-gl/image_layers'
 // import { deck_sst } from '../deck-gl/deck_sst'
@@ -144,16 +144,12 @@ const tile_button_callback = async (event, deck_sst, layers_sst, viz_state) => {
 
     toggle_visible_button(event)
 
-    console.log(event)
-    console.log(deck_sst)
-    console.log(layers_sst)
-
-
-    console.log(viz_state)
-
     toggle_slider(viz_state.sliders.tile, is_visible)
 
-    // square_scatter_layer_visibility(is_visible)
+    square_scatter_layer_visibility(layers_sst, is_visible)
+
+    deck_sst.setProps({layers: [layers_sst.simple_image_layer, layers_sst.square_scatter_layer]})
+
     // await update_layers_sst([simple_image_layer, square_scatter_layer])
     // deck_sst.setProps({
     //     layers: layers_sst

@@ -1,7 +1,7 @@
 import * as d3 from 'd3'
 import { make_button } from "./text_buttons"
 import { set_gene_search } from "./gene_search"
-import { tile_slider, ini_slider, ini_slider_params } from './sliders'
+import { ini_slider, ini_slider_params } from './sliders'
 import { make_img_layer_slider_callback, toggle_slider } from "./sliders"
 import { debounce } from '../utils/debounce'
 import { toggle_visibility_image_layers } from '../deck-gl/image_layers'
@@ -78,9 +78,10 @@ export const make_sst_ui_container = (deck_sst, layers_sst, viz_state) => {
     viz_state.sliders = {}
 
     console.log('making slider')
+
     ini_slider('tile', deck_sst, layers_sst, viz_state)
 
-    tile_slider_container.appendChild(tile_slider);
+    tile_slider_container.appendChild(viz_state.sliders.tile);
 
     ui_container.appendChild(ctrl_container)
 

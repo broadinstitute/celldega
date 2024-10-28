@@ -27,11 +27,12 @@ export const make_simple_image_layer = async (viz_state, info) => {
 
 }
 
-// export const simple_image_layer_visibility = (visible) => {
+export const simple_image_layer_visibility = (layers_sst, visible) => {
 
-//     simple_image_layer = simple_image_layer.clone({
-//         visible: visible,
-//         // opacity: 0.1
-//     });
+    console.log('simple_image_layer_visibility: visible', visible)
 
-// }
+    layers_sst.simple_image_layer = layers_sst.simple_image_layer.clone({
+        visible: visible,
+    });
+
+}

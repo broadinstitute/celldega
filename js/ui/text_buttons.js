@@ -1,5 +1,5 @@
 import * as d3 from 'd3'
-// import { simple_image_layer, simple_image_layer_visibility } from '../deck-gl/simple_image_layer'
+import { simple_image_layer_visibility } from '../deck-gl/simple_image_layer'
 import { square_scatter_layer_visibility } from '../deck-gl/square_scatter_layer'
 // import { layers_sst, update_layers_sst } from '../deck-gl/layers_sst'
 import { toggle_visibility_image_layers, toggle_visibility_single_image_layer } from '../deck-gl/image_layers'
@@ -39,7 +39,7 @@ export const make_button = (container, technology, text, color='blue', width=40,
 
     if (text === 'IMG') {
         if (technology === 'sst'){
-            callback = sst_img_button_callback
+            callback = (event) => sst_img_button_callback(event, inst_deck, layers_obj)
         } else {
             callback = (event) => ist_img_button_callback(event, inst_deck, layers_obj, viz_state)
         }
@@ -96,15 +96,13 @@ const make_ist_img_layer_button_callback = (text, deck_ist, layers_obj, viz_stat
     }
 }
 
-const sst_img_button_callback = async (event) => {
+const sst_img_button_callback = async (event, deck_sst, layers_sst) => {
 
     toggle_visible_button(event)
 
-    // simple_image_layer_visibility(is_visible)
-    // await update_layers_sst([simple_image_layer, square_scatter_layer])
-    // deck_sst.setProps({
-    //     layers: layers_sst
-    // })
+    simple_image_layer_visibility(layers_sst, is_visible)
+
+    deck_sst.setProps({layers: [layers_sst.simple_image_layer, layers_sst.square_scatter_layer]})
 
 }
 
@@ -149,11 +147,6 @@ const tile_button_callback = async (event, deck_sst, layers_sst, viz_state) => {
     square_scatter_layer_visibility(layers_sst, is_visible)
 
     deck_sst.setProps({layers: [layers_sst.simple_image_layer, layers_sst.square_scatter_layer]})
-
-    // await update_layers_sst([simple_image_layer, square_scatter_layer])
-    // deck_sst.setProps({
-    //     layers: layers_sst
-    // })
 
 }
 

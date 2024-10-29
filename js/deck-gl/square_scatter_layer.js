@@ -126,13 +126,15 @@ const tile_layer_onclick = (event, d, deck_sst, layers_sst, viz_state) => {
     console.log('tile layer onclick')
     console.log(layers_sst)
 
-    // let new_selected_cats = [cats.tile_cats_array[d.index]]
+    console.log('d', event)
 
-    // console.log('new_selected_cats', new_selected_cats)
+    let new_selected_cats = [viz_state.cats.tile_cats_array[event.index]]
 
-    // update_selected_cats(cats, new_selected_cats)
-    // update_cat(cats, 'cluster')
+    console.log('new_selected_cats', new_selected_cats)
 
-    // update_square_scatter_layer()
-    // deck_sst.setProps({layers: [simple_image_layer, square_scatter_layer]})
+    update_selected_cats(viz_state.cats, new_selected_cats)
+    update_cat(viz_state.cats, 'cluster')
+
+    update_square_scatter_layer(viz_state, layers_sst)
+    deck_sst.setProps({layers: [layers_sst.simple_image_layer, layers_sst.square_scatter_layer]})
 }

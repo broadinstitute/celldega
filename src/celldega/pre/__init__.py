@@ -581,6 +581,7 @@ def make_cell_boundary_tiles(
             transformed_geometries.append(scaled)
         return transformed_geometries
 
+
     tile_size_x = tile_size
     tile_size_y = tile_size
 

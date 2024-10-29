@@ -10,7 +10,6 @@ except ImportError:
 from pathlib import Path
 import numpy as np
 import pandas as pd
-import polars as pl
 import os
 import polars as pl
 from tqdm import tqdm
@@ -301,7 +300,7 @@ def make_trx_tiles(
     fine_tile_size=250,
     chunk_size=1000000,
     verbose=False,
-    image_scale=0.5,
+    image_scale=1,
     max_workers=8
 ):
     """

@@ -3,7 +3,7 @@ import { get_arrow_table } from "../read_parquet/get_arrow_table.js"
 import { get_scatter_data } from "../read_parquet/get_scatter_data.js"
 import { options, set_options } from '../global_variables/fetch_options.js'
 import { ini_deck_sst } from '../deck-gl/deck_sst.js'
-import { ini_square_scatter_layer } from "../deck-gl/square_scatter_layer.js"
+import { ini_square_scatter_layer, set_tile_layer_onclick } from "../deck-gl/square_scatter_layer.js"
 import { set_tile_scatter_data } from "../global_variables/tile_scatter_data.js"
 import { set_tile_names_array, set_tile_name_to_index_map } from "../global_variables/tile_names_array.js"
 import { set_tile_color_dict } from "../global_variables/tile_color_dict.js"
@@ -74,7 +74,6 @@ export const landscape_sst = async (
 
     await set_meta_gene(viz_state.genes, base_url)
 
-
     // move this to landscape_parameters
     // const imgage_name_for_dim = 'dapi'
     const info = {
@@ -85,7 +84,6 @@ export const landscape_sst = async (
     const tile_url = base_url + '/tile_geometries.parquet'
 
     var tile_arrow_table = await get_arrow_table(tile_url, options.fetch)
-
 
     viz_state.cats.tile_cats_array = tile_arrow_table.getChild("cluster").toArray()
     viz_state.cats.tile_exp_array = []
@@ -111,7 +109,6 @@ export const landscape_sst = async (
 
     let deck_sst = ini_deck_sst(root)
 
-
     const initial_view_state = {
         target: [ini_x, ini_y, ini_z],
         zoom: ini_zoom
@@ -126,6 +123,10 @@ export const landscape_sst = async (
 
     // disable for now
     // model.on('change:update_trigger', update_tile_landscape_from_cgm)
+
+    set_tile_layer_onclick(deck_sst, layers_sst, viz_state)
+    console.log(layers_sst)
+    console.log(layers_sst.square_scatter_layer.onClick)
 
     const ui_container = make_sst_ui_container(deck_sst, layers_sst, viz_state)
 

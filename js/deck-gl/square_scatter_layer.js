@@ -49,21 +49,21 @@ export const ini_square_scatter_layer = (cats) => {
         filled: true,
         getRadius: 3, // 8um: 12 with border
         pickable: true,
-        onClick: (d) => {
+        // onClick: (d) => {
 
-            console.log('clicking!!!!!!!!')
+        //     console.log('clicking!!!!!!!!')
 
-            let new_selected_cats = [cats.tile_cats_array[d.index]]
+        // //     let new_selected_cats = [cats.tile_cats_array[d.index]]
 
-            console.log('new_selected_cats', new_selected_cats)
+        // //     console.log('new_selected_cats', new_selected_cats)
 
-            update_selected_cats(cats, new_selected_cats)
-            update_cat(cats, 'cluster')
+        // //     update_selected_cats(cats, new_selected_cats)
+        // //     update_cat(cats, 'cluster')
 
-            // update_square_scatter_layer()
-            // deck_sst.setProps({layers: [simple_image_layer, square_scatter_layer]})
+        // //     // update_square_scatter_layer()
+        // //     // deck_sst.setProps({layers: [simple_image_layer, square_scatter_layer]})
 
-        },
+        // },
         updateTriggers: {
             getFillColor: [cats.cat]
         }
@@ -110,3 +110,29 @@ export const square_scatter_layer_opacity = (layers_sst, opacity) => {
 
 }
 
+export const set_tile_layer_onclick = (deck_sst, layers_sst, viz_state) => {
+
+    console.log('trying to set onclick!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+    layers_sst.square_scatter_layer = layers_sst.square_scatter_layer.clone({
+        onClick: (event, d) => tile_layer_onclick(event, d, deck_sst, layers_sst, viz_state)
+    })
+
+    deck_sst.setProps({layers: [layers_sst.simple_image_layer, layers_sst.square_scatter_layer]})
+
+    console.log('after setting onclick')
+}
+
+const tile_layer_onclick = (event, d, deck_sst, layers_sst, viz_state) => {
+    console.log('tile layer onclick')
+    console.log(layers_sst)
+
+    // let new_selected_cats = [cats.tile_cats_array[d.index]]
+
+    // console.log('new_selected_cats', new_selected_cats)
+
+    // update_selected_cats(cats, new_selected_cats)
+    // update_cat(cats, 'cluster')
+
+    // update_square_scatter_layer()
+    // deck_sst.setProps({layers: [simple_image_layer, square_scatter_layer]})
+}

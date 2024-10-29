@@ -18,21 +18,9 @@ let gene_search_options = []
 
 const sst_gene_search_callback = async (deck_sst, viz_state, layers_sst) => {
 
-    // // tmp
-    // let gene_search_input = {}
-    // gene_search_input.value = ''
-
-    // const inst_gene = gene_search_input.value
     const inst_gene = viz_state.genes.gene_search_input.value
 
     const new_cat = inst_gene === '' ? 'cluster' : inst_gene;
-
-
-    // const global_base_url = ''
-
-    // if (inst_gene !== '' && gene_search_options.includes(inst_gene)) {
-    //     await update_tile_exp_array(global_base_url, cats, inst_gene)
-    // }
 
     if (inst_gene === '' || viz_state.genes.gene_names.includes(inst_gene)) {
 
@@ -47,8 +35,9 @@ const sst_gene_search_callback = async (deck_sst, viz_state, layers_sst) => {
         update_square_scatter_layer(viz_state, layers_sst)
         deck_sst.setProps({layers: [layers_sst.simple_image_layer, layers_sst.square_scatter_layer]})
 
-    }
+        await update_gene_text_box(viz_state.genes, inst_gene)
 
+    }
 
 }
 

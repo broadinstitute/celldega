@@ -12,7 +12,7 @@ import { set_dimensions } from '../global_variables/image_dimensions.js'
 import { set_landscape_parameters } from "../global_variables/landscape_parameters.js"
 import { make_simple_image_layer } from "../deck-gl/simple_image_layer.js"
 import { set_global_base_url } from "../global_variables/global_base_url.js"
-// import { update_tile_landscape_from_cgm } from "../widget_interactions/update_tile_landscape_from_cgm.js"
+import { update_tile_landscape_from_cgm } from "../widget_interactions/update_tile_landscape_from_cgm.js"
 import { make_sst_ui_container } from '../ui/ui_containers.js'
 import { set_views } from '../deck-gl/views.js'
 import { make_tile_tooltip } from '../deck-gl/make_tile_tooltip.js';
@@ -33,11 +33,11 @@ export const landscape_sst = async (
     let root = document.createElement("div")
     root.style.height = "   800px"
 
-    // let model = ''
-
     let viz_state = {}
     set_options(token)
     set_global_base_url(viz_state, base_url)
+
+    viz_state.model = ini_model
 
     viz_state.img = {}
     viz_state.img.image_layer_colors = {}
@@ -123,6 +123,14 @@ export const landscape_sst = async (
 
     // disable for now
     // model.on('change:update_trigger', update_tile_landscape_from_cgm)
+
+    if (Object.keys(viz_state.model).length > 0) {
+
+        // ist version
+        // viz_state.model.on('change:update_trigger', () => update_ist_landscape_from_cgm(deck_ist, layers_obj, viz_state))
+
+        viz_state.model.on('change:update_trigger', () => update_tile_landscape_from_cgm(deck_sst, layers_sst, viz_state))
+    }
 
     set_tile_layer_onclick(deck_sst, layers_sst, viz_state)
     console.log(layers_sst)

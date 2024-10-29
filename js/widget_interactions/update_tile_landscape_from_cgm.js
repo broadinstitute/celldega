@@ -8,9 +8,13 @@
 // import { deck_sst } from "../deck-gl/deck_sst.js";
 // import { simple_image_layer } from "../deck-gl/simple_image_layer.js";
 
-export const update_tile_landscape_from_cgm = async () => {
+export const update_tile_landscape_from_cgm = async (deck_sst, layers_sst, viz_state) => {
 
-    // const click_info = model.get('update_trigger');
+    console.log('update_tile_landscape_from_cgm!!!!!!!!!!!!!!!!!')
+
+    const click_info = viz_state.model.get('update_trigger');
+
+    console.log('click_info', click_info)
 
     // let selected_gene
     // if (click_info.click_type === 'row-label') {

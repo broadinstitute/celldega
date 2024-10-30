@@ -1,8 +1,7 @@
 // import { model } from '../global_variables/model.js'
-import { update_cat } from "../global_variables/cat.js"
+import { update_cat, update_selected_cats } from "../global_variables/cat.js"
 import { update_tile_exp_array } from "../global_variables/tile_exp_array.js";
 // import { global_base_url } from '../global_variables/global_base_url.js';
-// // import { update_selected_cats } from "../global_variables/cat";
 // import { set_gene_search_input } from "../ui/gene_search_input.js";
 import { update_square_scatter_layer } from "../deck-gl/square_scatter_layer.js";
 // import { deck_sst } from "../deck-gl/deck_sst.js";
@@ -22,13 +21,11 @@ export const update_tile_landscape_from_cgm = async (deck_sst, layers_sst, viz_s
         inst_gene = click_info.click_value
         update_cat(viz_state.cats, inst_gene)
         await update_tile_exp_array(viz_state, inst_gene)
-        //
 
     } else if (click_info.click_type === 'col-label') {
 
-        // inst_gene = 'cluster'
-        // update_cat(inst_gene)
-        // // update_selected_cats(viz_state.cats, [click_info.click_value])
+        update_cat(viz_state.cats, 'cluster')
+        update_selected_cats(viz_state.cats, [click_info.click_value])
 
     } else if (click_info.click_type === 'col-dendro') {
 

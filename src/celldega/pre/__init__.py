@@ -11,12 +11,14 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import os
+import polars as pl
+from tqdm import tqdm
+import concurrent.futures
 import geopandas as gpd
 from copy import deepcopy
 import hashlib
 import base64
 from shapely.affinity import affine_transform
-# from shapely import Point, Polygon, MultiPolygon
 from shapely.geometry import Polygon, MultiPolygon
 
 import matplotlib.pyplot as plt
@@ -294,107 +296,196 @@ def make_trx_tiles(
     path_trx,
     path_transformation_matrix,
     path_trx_tiles,
-    tile_size=1000,
+    coarse_tile_size=2500,
+    fine_tile_size=250,
     chunk_size=1000000,
     verbose=False,
-    image_scale = 0.5
+    image_scale=1,
+    max_workers=8
 ):
-    """ """
+    """
+    Processes transcript data by dividing it into coarse-grain and fine-grain tiles,
+    applying transformations, and saving the results in a parallelized manner.
 
-    tile_size_x = tile_size
-    tile_size_y = tile_size
+    Parameters
+    ----------
+    technology : str
+        The technology used for generating the transcript data (e.g., "MERSCOPE" or "Xenium").
+    path_trx : str
+        Path to the file containing the transcript data.
+    path_transformation_matrix : str
+        Path to the file containing the transformation matrix (CSV file).
+    path_trx_tiles : str
+        Directory path where the output files (Parquet files) for each tile will be saved.
+    coarse_tile_size : int, optional
+        Size of each coarse-grain tile in microns (default is 2500).
+    fine_tile_size : int, optional
+        Size of each fine-grain tile in microns (default is 250).
+    chunk_size : int, optional
+        Number of rows to process per chunk for memory efficiency (default is 1000000).
+    verbose : bool, optional
+        Flag to enable verbose output (default is False).
+    image_scale : float, optional
+        Scale factor to apply to the transcript coordinates (default is 0.5).
+    max_workers : int, optional
+        Maximum number of parallel workers for processing tiles (default is 8).
 
-    transformation_matrix = pd.read_csv(
-        path_transformation_matrix, header=None, sep=" "
-    ).values
+    Returns
+    -------
+    dict
+        A dictionary containing the bounds of the processed data in both x and y directions.
+    """
 
+    def process_coarse_tile(trx, i, j, coarse_tile_x_min, coarse_tile_x_max, coarse_tile_y_min, coarse_tile_y_max, fine_tile_size, path_trx_tiles, x_min, y_min, n_fine_tiles_x, n_fine_tiles_y, max_workers):
+        # Filter the entire dataset for the current coarse tile
+        coarse_tile = trx.filter(
+            (pl.col("transformed_x") >= coarse_tile_x_min) & (pl.col("transformed_x") < coarse_tile_x_max) &
+            (pl.col("transformed_y") >= coarse_tile_y_min) & (pl.col("transformed_y") < coarse_tile_y_max)
+        )
+    
+        if not coarse_tile.is_empty():
+            # Now process fine tiles using global fine tile indices
+            process_fine_tiles(coarse_tile, i, j, coarse_tile_x_min, coarse_tile_x_max, coarse_tile_y_min, coarse_tile_y_max, fine_tile_size, path_trx_tiles, x_min, y_min, n_fine_tiles_x, n_fine_tiles_y, max_workers)   
+
+
+    def process_fine_tiles(coarse_tile, coarse_i, coarse_j, coarse_tile_x_min, coarse_tile_x_max, coarse_tile_y_min, coarse_tile_y_max, fine_tile_size, path_trx_tiles, x_min, y_min, n_fine_tiles_x, n_fine_tiles_y, max_workers=8):
+
+        # Use ThreadPoolExecutor for parallel processing of fine-grain tiles within the coarse tile
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = []
+            
+            # Iterate over fine-grain tiles within the global bounds
+            for fine_i in range(n_fine_tiles_x):
+                fine_tile_x_min = x_min + fine_i * fine_tile_size
+                fine_tile_x_max = fine_tile_x_min + fine_tile_size
+
+                # Process only if the fine tile falls within the current coarse tile's bounds
+                if not (fine_tile_x_min >= coarse_tile_x_min and fine_tile_x_max <= coarse_tile_x_max):
+                    continue
+
+                for fine_j in range(n_fine_tiles_y):
+                    fine_tile_y_min = y_min + fine_j * fine_tile_size
+                    fine_tile_y_max = fine_tile_y_min + fine_tile_size
+
+                    # Process only if the fine tile falls within the current coarse tile's bounds
+                    if not (fine_tile_y_min >= coarse_tile_y_min and fine_tile_y_max <= coarse_tile_y_max):
+                        continue
+
+                    # Submit the task for each fine tile to process in parallel
+                    futures.append(executor.submit(
+                        filter_and_save_fine_tile, coarse_tile, coarse_i, coarse_j, fine_i, fine_j, 
+                        fine_tile_x_min, fine_tile_x_max, fine_tile_y_min, fine_tile_y_max, path_trx_tiles
+                    ))
+
+            # Wait for all futures to complete
+            for future in concurrent.futures.as_completed(futures):
+                future.result()  # Raise exceptions if any occurred during execution
+
+
+    def filter_and_save_fine_tile(coarse_tile, coarse_i, coarse_j, fine_i, fine_j, fine_tile_x_min, fine_tile_x_max, fine_tile_y_min, fine_tile_y_max, path_trx_tiles):
+    
+        # Filter the coarse tile for the current fine tile's boundaries
+        fine_tile_trx = coarse_tile.filter(
+            (pl.col("transformed_x") >= fine_tile_x_min) & (pl.col("transformed_x") < fine_tile_x_max) &
+            (pl.col("transformed_y") >= fine_tile_y_min) & (pl.col("transformed_y") < fine_tile_y_max)
+        )
+        
+        if not fine_tile_trx.is_empty():
+            # Add geometry column as a list of [x, y] pairs
+            fine_tile_trx = fine_tile_trx.with_columns(
+                pl.concat_list([pl.col("transformed_x"), pl.col("transformed_y")]).alias("geometry")
+            ).drop(['transformed_x', 'transformed_y'])
+    
+            # Define the filename based on fine tile coordinates
+            filename = f"{path_trx_tiles}/transcripts_tile_{fine_i}_{fine_j}.parquet"
+    
+            # Save the filtered DataFrame to a Parquet file
+            fine_tile_trx.to_pandas().to_parquet(filename)
+
+
+    # Load transformation matrix
+    transformation_matrix = np.loadtxt(path_transformation_matrix)
+
+    # Load the transcript data based on the technology using Polars
     if technology == "MERSCOPE":
-        trx_ini = pd.read_csv(path_trx, usecols=["gene", "global_x", "global_y"])
-
-        trx_ini.columns = [x.replace("global_", "") for x in trx_ini.columns.tolist()]
-        trx_ini.rename(columns={"gene": "name"}, inplace=True)
+        trx_ini = pl.read_csv(path_trx, columns=["gene", "global_x", "global_y"])
+        trx_ini = trx_ini.with_columns([
+            pl.col("global_x").alias("x"),
+            pl.col("global_y").alias("y"),
+            pl.col("gene").alias("name")
+        ]).select(["name", "x", "y"])
 
     elif technology == "Xenium":
-        trx_ini = pd.read_parquet(
-            path_trx, columns=["feature_name", "x_location", "y_location"]
-        )
+        trx_ini = pl.read_parquet(path_trx).select([
+            pl.col("feature_name").alias("name"),
+            pl.col("x_location").alias("x"),
+            pl.col("y_location").alias("y")
+        ])
 
-        # trx_ini['feature_name'] = trx_ini['feature_name'].apply(lambda x: x.decode('utf-8'))
-        trx_ini.columns = [x.replace("_location", "") for x in trx_ini.columns.tolist()]
-        trx_ini.rename(columns={"feature_name": "name"}, inplace=True)
+    # Process the data in chunks and apply transformations
+    all_chunks = []
 
-    trx = pd.DataFrame()  # Initialize empty DataFrame for results
+    for start_row in tqdm(range(0, trx_ini.height, chunk_size), desc="Processing chunks"):
+        chunk = trx_ini.slice(start_row, chunk_size)
 
-    for start_row in range(0, trx_ini.shape[0], chunk_size):
-        # print(start_row/1e6)
-        chunk = trx_ini.iloc[start_row : start_row + chunk_size].copy()
-        points = np.hstack((chunk[["x", "y"]], np.ones((chunk.shape[0], 1))))
+        # Apply transformation matrix to the coordinates
+        points = np.hstack([chunk.select(["x", "y"]).to_numpy(), np.ones((chunk.height, 1))])
         transformed_points = np.dot(points, transformation_matrix.T)[:, :2]
-        chunk[["x", "y"]] = (
-            transformed_points  # Update chunk with transformed coordinates
-        )
 
-        # add this as an argument that can be modified
-        chunk["x"] = chunk["x"] * image_scale
-        chunk["y"] = chunk["y"] * image_scale
+        # Create new transformed columns and drop original x, y columns
+        transformed_chunk = chunk.with_columns([
+            (pl.Series(transformed_points[:, 0]) * image_scale).round(2).alias("transformed_x"),
+            (pl.Series(transformed_points[:, 1]) * image_scale).round(2).alias("transformed_y")
+        ]).drop(["x", "y"])
+        all_chunks.append(transformed_chunk)
 
-        chunk["x"] = chunk["x"].round(2)
-        chunk["y"] = chunk["y"].round(2)
-        trx = pd.concat([trx, chunk], ignore_index=True)
+    # Concatenate all chunks after processing
+    trx = pl.concat(all_chunks)
 
+    # Ensure the output directory exists
     if not os.path.exists(path_trx_tiles):
-        os.mkdir(path_trx_tiles)
+        os.makedirs(path_trx_tiles)
 
-    x_min = 0
-    x_max = trx["x"].max()
-    y_min = 0
-    y_max = trx["y"].max()
+    # Get min and max x, y values
+    x_min, x_max = trx.select([
+        pl.col("transformed_x").min().alias("x_min"),
+        pl.col("transformed_x").max().alias("x_max")
+    ]).row(0)
 
-    # Calculate the number of tiles needed
-    n_tiles_x = int(np.ceil((x_max - x_min) / tile_size_x))
-    n_tiles_y = int(np.ceil((y_max - y_min) / tile_size_y))
+    y_min, y_max = trx.select([
+        pl.col("transformed_y").min().alias("y_min"),
+        pl.col("transformed_y").max().alias("y_max")
+    ]).row(0)
 
-    for i in range(n_tiles_x):
+    # Calculate the number of fine-grain tiles globally
+    n_fine_tiles_x = int(np.ceil((x_max - x_min) / fine_tile_size))
+    n_fine_tiles_y = int(np.ceil((y_max - y_min) / fine_tile_size))
 
-        if i % 2 == 0 and verbose:
-            print("row", i)
+    # Calculate the number of coarse-grain tiles
+    n_coarse_tiles_x = int(np.ceil((x_max - x_min) / coarse_tile_size))
+    n_coarse_tiles_y = int(np.ceil((y_max - y_min) / coarse_tile_size))
 
-        for j in range(n_tiles_y):
-            # calculate polygon from these bounds
-            tile_x_min = x_min + i * tile_size_x
-            tile_x_max = tile_x_min + tile_size_x
-            tile_y_min = y_min + j * tile_size_y
-            tile_y_max = tile_y_min + tile_size_y
+    # Use ThreadPoolExecutor for parallel processing of coarse-grain tiles
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = []
+        for i in range(n_coarse_tiles_x):
+            coarse_tile_x_min = x_min + i * coarse_tile_size
+            coarse_tile_x_max = coarse_tile_x_min + coarse_tile_size
 
-            # Filter trx to get only the data within the current tile's bounds
-            # We need to make this more efficient
-            # option 1: make a GeoDataFrame and filter using sindex and the tile polygon
-            # option 2: remove transcripts that have been assigned to a tile from the DataFrame
-            tile_trx = trx[
-                (trx.x >= tile_x_min)
-                & (trx.x < tile_x_max)
-                & (trx.y >= tile_y_min)
-                & (trx.y < tile_y_max)
-            ].copy()
+            for j in range(n_coarse_tiles_y):
+                coarse_tile_y_min = y_min + j * coarse_tile_size
+                coarse_tile_y_max = coarse_tile_y_min + coarse_tile_size
 
-            # this actually slows things down - will try to move to Polars later
-            # # drop trx that have been assigned to a tile from the original trx DataFrame
-            # trx = trx[~trx.index.isin(tile_trx.index)]
+                # Submit each coarse tile for parallel processing
+                futures.append(executor.submit(
+                    process_coarse_tile, trx, i, j, coarse_tile_x_min, coarse_tile_x_max, coarse_tile_y_min, coarse_tile_y_max, fine_tile_size, path_trx_tiles, x_min, y_min, n_fine_tiles_x, n_fine_tiles_y, max_workers
+                ))
 
-            # make 'geometry' column
-            tile_trx = tile_trx.assign(
-                geometry=tile_trx.apply(lambda row: [row["x"], row["y"]], axis=1)
-            )
+        # Wait for all coarse tiles to complete
+        for future in tqdm(concurrent.futures.as_completed(futures), desc="Processing coarse tiles", unit="tile"):
+            future.result()  # Raise exceptions if any occurred during execution
 
-            # add some logic to skip tiles where there are no transcripts
-
-            # Define the filename based on the tile's coordinates
-            filename = f"{path_trx_tiles}/transcripts_tile_{i}_{j}.parquet"
-
-            # Save the filtered DataFrame to a Parquet file
-            if tile_trx.shape[0] > 0:
-                tile_trx[["name", "geometry"]].to_parquet(filename)
-
+    # Return the tile bounds
     tile_bounds = {
         "x_min": x_min,
         "x_max": x_max,
@@ -450,124 +541,142 @@ def make_cell_boundary_tiles(
     tile_bounds=None,
     image_scale=0.5
 ):
-    """ """
+    """
+    Processes cell boundary data and divides it into spatial tiles based on the provided technology.
+    
+    This function reads cell boundary data, applies transformations to the geometries, and divides the 
+    processed data into spatial tiles. The resulting tiles are saved as Parquet files, each containing 
+    the geometries of cells in that tile.
 
-    df_meta = pd.read_parquet(f"{path_output.replace('cell_segmentation','cell_metadata.parquet')}")
-    #entity_to_cell_id_dict = pd.Series(df_meta.index.values,index=df_meta.EntityID).to_dict()
+    Parameters:
+    ----------
+    technology : str
+        The technology used for generating the cell boundary data. It can be "MERSCOPE", "Xenium", or "custom".
+    path_cell_boundaries : str
+        Path to the file containing the cell boundaries (input file in Parquet format).
+    path_meta_cell_micron : str
+        Path to the file containing cell metadata (CSV file).
+    path_transformation_matrix : str
+        Path to the file containing the transformation matrix (CSV file).
+    path_output : str
+        Path where the output files (Parquet files) for each tile will be saved.
+    tile_size : int, optional, default=1000
+        Size of each tile in microns.
+    tile_bounds : dict, optional
+        Dictionary containing the minimum and maximum bounds for the x and y coordinates (keys: "x_min", "x_max", "y_min", "y_max").
+    image_scale : float, optional, default=0.5
+        Scale factor to apply to the geometry data.
+
+    Returns:
+    --------
+    None
+        This function saves the results to Parquet files and doesn't return any data.
+    
+    """
+    def batch_transform_geometries(geometries, transformation_matrix, scale):
+        transformed_geometries = []
+        for poly in geometries:
+            transformed = transform_polygon(poly, transformation_matrix)
+            scaled = simple_format(transformed, scale)
+            transformed_geometries.append(scaled)
+        return transformed_geometries
+
 
     tile_size_x = tile_size
     tile_size_y = tile_size
 
-    transformation_matrix = pd.read_csv(
-        path_transformation_matrix, header=None, sep=" "
-    ).values
+    # Load the transformation matrix
+    transformation_matrix = pd.read_csv(path_transformation_matrix, header=None, sep=" ").values
 
+    # Load cell boundary data based on the technology
     if technology == "MERSCOPE":
+        df_meta = pd.read_parquet(f"{path_output.replace('cell_segmentation','cell_metadata.parquet')}")
+        entity_to_cell_id_dict = pd.Series(df_meta.index.values, index=df_meta.EntityID).to_dict()
         cells_orig = gpd.read_parquet(path_cell_boundaries)
-        cells_orig['cell_id'] = cells_orig['EntityID'].apply(lambda x: loaded_dict[x])
+        cells_orig['cell_id'] = cells_orig['EntityID'].map(entity_to_cell_id_dict)
+        cells_orig = cells_orig[cells_orig["ZIndex"] == 1]
 
-        z_index = 1
-        cells_orig = cells_orig[cells_orig["ZIndex"] == z_index]
-
-        # fix the id issue with the cell bounary parquet files (probably can be dropped)
+        # Correct cell_id issues with meta_cell
         meta_cell = pd.read_csv(path_meta_cell_micron)
-        meta_cell['cell_id'] = meta_cell['EntityID'].apply(lambda x: loaded_dict[x])
+        meta_cell['cell_id'] = meta_cell['EntityID'].map(entity_to_cell_id_dict)
+        cells_orig.index = meta_cell[meta_cell["cell_id"].isin(cells_orig['cell_id'])].index
 
-        fixed_names = []
-        for inst_cell in cells_orig.index.tolist():
-            inst_id = cells_orig.loc[inst_cell, "cell_id"]
-            new_id = meta_cell[meta_cell["cell_id"] == inst_id].index.tolist()[0]
-            fixed_names.append(new_id)
-
-        cells = deepcopy(cells_orig)
-        cells.index = fixed_names
-
-        # Corrected approach to convert 'MultiPolygon' to 'Polygon'
-        cells["geometry"] = cells["Geometry"].apply(
+        # Correct 'MultiPolygon' to 'Polygon'
+        cells_orig["geometry"] = cells_orig["Geometry"].apply(
             lambda x: list(x.geoms)[0] if isinstance(x, MultiPolygon) else x
         )
 
+        cells_orig.set_index('cell_id', inplace=True)
+
     elif technology == "Xenium":
         xenium_cells = pd.read_parquet(path_cell_boundaries)
-
-        # Group by 'cell_id' and aggregate the coordinates into lists
-        grouped = xenium_cells.groupby("cell_id").agg(list)
-
-        # Create a new column for polygons
-        grouped["geometry"] = grouped.apply(
-            lambda row: Polygon(zip(row["vertex_x"], row["vertex_y"])), axis=1
-        )
-
-        # Convert the DataFrame with polygon data into a GeoDataFrame
-        cells = gpd.GeoDataFrame(grouped, geometry="geometry")[["geometry"]]
+        grouped = xenium_cells.groupby("cell_id")[["vertex_x", "vertex_y"]].agg(lambda x: x.tolist())
+        grouped["geometry"] = grouped.apply(lambda row: Polygon(zip(row["vertex_x"], row["vertex_y"])), axis=1)
+        cells_orig = gpd.GeoDataFrame(grouped, geometry="geometry")[["geometry"]]
 
     elif technology == "custom":
-        import geopandas as gpd
-        cells = gpd.read_parquet(path_cell_boundaries)
+        cells_orig = gpd.read_parquet(path_cell_boundaries)
 
+    cells_orig["GEOMETRY"] = batch_transform_geometries(cells_orig["geometry"], transformation_matrix, image_scale)
 
-    # Apply the transformation to each polygon
-    cells["NEW_GEOMETRY"] = cells["geometry"].apply(
+    # Create polygons from transformed coordinates
+    cells_orig["polygon"] = cells_orig["GEOMETRY"].apply(lambda x: Polygon(x[0]))
 
-        lambda poly: transform_polygon(poly, transformation_matrix)
-    )
+    # Create a GeoDataFrame with polygons and centroids
+    gdf_cells = gpd.GeoDataFrame(geometry=cells_orig["polygon"])
+    gdf_cells["center_x"] = gdf_cells.geometry.centroid.x
+    gdf_cells["center_y"] = gdf_cells.geometry.centroid.y
 
-    cells["GEOMETRY"] = cells["NEW_GEOMETRY"].apply(lambda x: simple_format(x, image_scale))
-
-
-    from shapely.geometry import Polygon
-
-    cells["polygon"] = cells["GEOMETRY"].apply(lambda x: Polygon(x[0]))
-    #cells = cells.set_index('cell_id')
-
-    gdf_cells = gpd.GeoDataFrame(geometry=cells["polygon"])
-
-    gdf_cells["center_x"] = gdf_cells.centroid.x
-    gdf_cells["center_y"] = gdf_cells.centroid.y
-
+    # Ensure the output directory exists
     if not os.path.exists(path_output):
-        os.mkdir(path_output)
+        os.makedirs(path_output)
 
-    x_min = tile_bounds["x_min"]
-    x_max = tile_bounds["x_max"]
-    y_min = tile_bounds["y_min"]
-    y_max = tile_bounds["y_max"]
+    # Get tile bounds
+    x_min, x_max = tile_bounds["x_min"], tile_bounds["x_max"]
+    y_min, y_max = tile_bounds["y_min"], tile_bounds["y_max"]
 
     # Calculate the number of tiles needed
     n_tiles_x = int(np.ceil((x_max - x_min) / tile_size_x))
     n_tiles_y = int(np.ceil((y_max - y_min) / tile_size_y))
 
-    for i in range(n_tiles_x):
+    # Convert centroids to numpy arrays for faster filtering
+    center_x = gdf_cells["center_x"].values
+    center_y = gdf_cells["center_y"].values
+    cell_ids = gdf_cells.index.values
 
-        if i % 2 == 0:
-            print('row', i)
+    # Iterate over tiles and filter data
+    for i in tqdm(range(n_tiles_x), desc="Processing rows"):
+        tile_x_min = x_min + i * tile_size_x
+        tile_x_max = tile_x_min + tile_size_x
 
-        for j in range(n_tiles_y):
-            tile_x_min = x_min + i * tile_size_x
-            tile_x_max = tile_x_min + tile_size_x
+        for j in tqdm(range(n_tiles_y), desc="Processing tiles", leave=False):
             tile_y_min = y_min + j * tile_size_y
             tile_y_max = tile_y_min + tile_size_y
 
-            # find cell polygons with centroids in the tile
-            keep_cells = gdf_cells[
-                (gdf_cells.center_x >= tile_x_min)
-                & (gdf_cells.center_x < tile_x_max)
-                & (gdf_cells.center_y >= tile_y_min)
-                & (gdf_cells.center_y < tile_y_max)
-            ].index.tolist()
-
-            inst_geo = cells.loc[keep_cells, ["GEOMETRY"]]
-
-            # try adding cell name to geometry
-            inst_geo["name"] = pd.Series(
-                inst_geo.index.tolist(), index=inst_geo.index.tolist()
+            # Combine x and y filters into one numpy filter for faster filtering
+            tile_filter = (
+                (center_x >= tile_x_min) & (center_x < tile_x_max) &
+                (center_y >= tile_y_min) & (center_y < tile_y_max)
             )
+            filtered_indices = np.where(tile_filter)[0]
 
+            # Skip empty tiles
+            if len(filtered_indices) == 0:
+                continue
+
+            # Filter the GeoDataFrame based on the filtered indices
+            keep_cells = cell_ids[filtered_indices]
+            inst_geo = cells_orig.loc[keep_cells, ["GEOMETRY"]]
+
+            # Add cell names to the geometry
+            inst_geo["name"] = pd.Series(keep_cells, index=keep_cells)
+
+            # Define the filename based on tile coordinates
             filename = f"{path_output}/cell_tile_{i}_{j}.parquet"
 
             # Save the filtered DataFrame to a Parquet file
-            if inst_geo.shape[0] > 0:
-                inst_geo[["GEOMETRY", "name"]].to_parquet(filename)
+            inst_geo.to_parquet(filename)
+
 
 
 def make_meta_gene(technology, path_cbg, path_output):
@@ -623,6 +732,13 @@ def make_meta_gene(technology, path_cbg, path_output):
     # calculate gene expression metadata
     meta_gene = calc_meta_gene_data(cbg)
     meta_gene['color'] = ser_color
+
+    # Identify sparse columns
+    sparse_cols = [col for col in meta_gene.columns if pd.api.types.is_sparse(meta_gene[col])]
+
+    # Convert sparse columns to dense
+    for col in sparse_cols:
+        meta_gene[col] = meta_gene[col].sparse.to_dense()
 
     meta_gene.to_parquet(path_output)
 

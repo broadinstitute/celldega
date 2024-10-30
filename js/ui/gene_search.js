@@ -1,10 +1,10 @@
 import * as d3 from 'd3'
-import { square_scatter_layer, update_square_scatter_layer } from "../deck-gl/square_scatter_layer.js"
+import { update_square_scatter_layer } from "../deck-gl/square_scatter_layer.js"
 import { update_cat, update_selected_cats } from "../global_variables/cat.js"
-import { deck_sst } from "../deck-gl/deck_sst.js"
+// import { deck_sst } from "../deck-gl/deck_sst.js"
 import { update_tile_exp_array } from "../global_variables/tile_exp_array.js"
 import { set_gene_search_input } from "./gene_search_input.js"
-import { simple_image_layer } from "../deck-gl/simple_image_layer.js"
+// import { simple_image_layer } from "../deck-gl/simple_image_layer.js"
 import { update_selected_genes } from "../global_variables/selected_genes.js"
 import { update_path_layer_id } from "../deck-gl/path_layer.js"
 import { update_cell_layer_id } from "../deck-gl/cell_layer.js"
@@ -16,24 +16,28 @@ import { uniprot_data, uniprot_get_request } from '../external_apis/uniprot_api.
 
 let gene_search_options = []
 
-const sst_gene_search_callback = async () => {
+const sst_gene_search_callback = async (deck_sst, viz_state, layers_sst) => {
 
-    // tmp
-    let gene_search_input = {}
-    gene_search_input.value = ''
+    const inst_gene = viz_state.genes.gene_search_input.value
 
-    const inst_gene = gene_search_input.value
-    // const new_cat = inst_gene === '' ? 'cluster' : inst_gene
+    const new_cat = inst_gene === '' ? 'cluster' : inst_gene;
 
-    // tmp
-    const global_base_url = ''
+    if (inst_gene === '' || viz_state.genes.gene_names.includes(inst_gene)) {
 
-    if (inst_gene !== '' && gene_search_options.includes(inst_gene)) {
-        await update_tile_exp_array(global_base_url, inst_gene)
+        update_cat(viz_state.cats, new_cat);
+        update_selected_genes(viz_state.genes, inst_gene === '' ? [] : [inst_gene])
+        update_selected_cats(viz_state.cats, [])
+
+        if (inst_gene !== '' && gene_search_options.includes(inst_gene)) {
+            await update_tile_exp_array(viz_state, inst_gene)
+        }
+
+        update_square_scatter_layer(viz_state, layers_sst)
+        deck_sst.setProps({layers: [layers_sst.simple_image_layer, layers_sst.square_scatter_layer]})
+
+        await update_gene_text_box(viz_state.genes, inst_gene)
+
     }
-
-    update_square_scatter_layer()
-    deck_sst.setProps({layers: [simple_image_layer, square_scatter_layer]})
 
 }
 
@@ -97,7 +101,7 @@ const ist_gene_search_callback = async (deck_ist, layers_obj, viz_state) => {
 };
 
 
-export const set_gene_search = async (tech_type, deck_ist, layers_obj, viz_state) => {
+export const set_gene_search = async (tech_type, inst_deck, layers_obj, viz_state) => {
 
     gene_search_options = ['cluster', ...viz_state.genes.gene_names]
 
@@ -164,11 +168,12 @@ export const set_gene_search = async (tech_type, deck_ist, layers_obj, viz_state
     // Event listener when an option is selected or the input is cleared
     let callback
     if (tech_type === 'sst'){
-        callback = sst_gene_search_callback
+
+        callback = () => sst_gene_search_callback(inst_deck, viz_state, layers_obj)
         viz_state.genes.gene_search_input.style.marginTop = "10px"
         viz_state.genes.gene_search.style.height = "50px"
     } else {
-        callback = () => ist_gene_search_callback(deck_ist, layers_obj, viz_state)
+        callback = () => ist_gene_search_callback(inst_deck, layers_obj, viz_state)
         viz_state.genes.gene_search_input.style.marginTop = "5px"
     }
 

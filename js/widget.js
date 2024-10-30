@@ -22,9 +22,13 @@ export const render_landscape = async ({ model, el }) => {
     const technology = model.get('technology')
 
     if (['MERSCOPE', 'Xenium'].includes(technology)){
+
         return render_landscape_ist({ model, el });
+
     } else if (['Visium-HD'].includes(technology)){
+
         return render_landscape_sst({ model, el });
+
     }
 
 }
@@ -63,6 +67,7 @@ export const render_landscape_sst = async ({ model, el }) => {
     const ini_zoom = model.get('ini_zoom');
     const base_url = model.get('base_url')
     const dataset_name = model.get('dataset_name')
+    const square_tile_size = model.get('square_tile_size')
 
     landscape_sst(
         model,
@@ -73,7 +78,9 @@ export const render_landscape_sst = async ({ model, el }) => {
         ini_y,
         ini_z,
         ini_zoom,
-        dataset_name
+        square_tile_size,
+        dataset_name,
+
     )
 
 }

@@ -26,6 +26,7 @@ export const set_dict_cell_cats = (cats) => {
 }
 
 export const update_selected_cats = (cats, new_selected_cats) => {
+
     // Check if the arrays are equal
     cats.reset_cat = new_selected_cats.length === cats.selected_cats.length &&
                            new_selected_cats.every((value, index) => value === cats.selected_cats[index])

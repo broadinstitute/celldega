@@ -132,6 +132,7 @@ export const landscape_ist = async (
         'trx_layer': trx_layer
     }
 
+    // set onclicks after all layers are made
     set_cell_layer_onclick(deck_ist, layers_obj, viz_state)
     set_path_layer_onclick(deck_ist, layers_obj, viz_state)
     set_trx_layer_onclick(deck_ist, layers_obj, viz_state)

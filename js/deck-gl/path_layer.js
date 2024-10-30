@@ -12,7 +12,6 @@ export const get_path_color = (cats, i, d) => {
     const inst_cell_id = cats.polygon_cell_names[d.index]
     const inst_cat = cats.dict_cell_cats[inst_cell_id]
 
-
     let inst_color
 
     // check if inst_cat is not in cats.color_dict_cluster
@@ -23,8 +22,6 @@ export const get_path_color = (cats, i, d) => {
     }
 
     const inst_opacity = cats.selected_cats.length === 0 || cats.selected_cats.includes(inst_cat) ? 255 : 50
-
-    inst_color = [0, 0, 255]
 
     return [...inst_color, inst_opacity]
 

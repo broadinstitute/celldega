@@ -1,13 +1,7 @@
  /* eslint-disable */
 import { ScatterplotLayer } from 'deck.gl';
-// import { cat, update_cat } from "../global_variables/cat.js";
-import { tile_scatter_data } from "../global_variables/tile_scatter_data.js";
-import { tile_cats_array } from "../global_variables/tile_cats_array.js";
-import {tile_color_dict } from '../global_variables/tile_color_dict.js';
-import { tile_exp_array } from '../global_variables/tile_exp_array.js';
-// import { selected_cats, update_selected_cats } from '../global_variables/cat'
+import { update_cat, update_selected_cats } from "../global_variables/cat.js";
 import { deck_sst } from "./deck_sst.js";
-import { simple_image_layer } from "../deck-gl/simple_image_layer.js";
 
 class SquareScatterplotLayer extends ScatterplotLayer {
     getShaders() {
@@ -31,72 +25,101 @@ class SquareScatterplotLayer extends ScatterplotLayer {
     }
 }
 
-export let square_scatter_layer
+const square_scatter_layer_color = (i, d, cats) => {
 
-const square_scatter_layer_color = (i, d) => {
-    if (cat === 'cluster') {
-        const inst_cat = tile_cats_array[d.index];
-        // const opacity = (selected_cats.length === 0 || selected_cats.includes(inst_cat)) ? 255 : 25;
-        // return [...tile_color_dict[inst_cat], opacity];
+    let tile_color_dict = cats.tile_color_dict
+
+    if (cats.cat === 'cluster') {
+        const inst_cat = cats.tile_cats_array[d.index];
+        const opacity = (cats.selected_cats.length === 0 || cats.selected_cats.includes(inst_cat)) ? 255 : 5;
+        return [...tile_color_dict[inst_cat], opacity];
     } else {
-        const inst_exp = tile_exp_array[d.index];
+        const inst_exp = cats.tile_exp_array[d.index];
         return [255, 0, 0, inst_exp];
     }
 }
 
 
-export const ini_square_scatter_layer = () => {
+export const ini_square_scatter_layer = (cats) => {
 
-    square_scatter_layer = new SquareScatterplotLayer({
+    let square_scatter_layer = new SquareScatterplotLayer({
         id: 'tile-layer',
-        data: tile_scatter_data,
-        getFillColor: square_scatter_layer_color,
+        data: cats.tile_scatter_data,
+        getFillColor: (i, d) => square_scatter_layer_color(i, d, cats),
         filled: true,
-        getRadius: 3, // 8um: 12 with border
+        // getRadius: 3, // 8um: 12 with border
+        getRadius: cats.square_tile_size, // 8um: 12 with border
         pickable: true,
-        onClick: (d) => {
-            // let new_selected_cats = [tile_cats_array[d.index]]
-
-            // update_selected_cats(new_selected_cats)
-            // update_cat('cluster')
-            // update_square_scatter_layer()
-            // deck_sst.setProps({layers: [simple_image_layer, square_scatter_layer]})
-
-        },
         updateTriggers: {
-            getFillColor: [cat]
+            getFillColor: [cats.cat]
         }
     })
 
+    return square_scatter_layer
+
 }
 
-export const update_square_scatter_layer = () => {
-    // // Determine the new layer ID based on the selected categories
-    // const layer_id = selected_cats.length === 0
-    //     ? `tile-layer-${cat}`
-    //     : `tile-layer-${cat}-${selected_cats.join('-')}`;
+export const update_square_scatter_layer = (viz_state, layers_sst) => {
 
-    // // Clone the existing layer and update the ID and data
-    // square_scatter_layer = square_scatter_layer.clone({
-    //     id: layer_id,
-    //     data: tile_scatter_data,
-    // });
+    // Determine the new layer ID based on the selected categories
+    const layer_id = viz_state.cats.selected_cats.length === 0
+        ? `tile-layer-${viz_state.cats.cat}`
+        : `tile-layer-${viz_state.cats.cat}-${viz_state.cats.selected_cats.join('-')}`;
+
+    // Clone the existing layer and update the ID and data
+    layers_sst.square_scatter_layer = layers_sst.square_scatter_layer.clone({
+        id: layer_id,
+        data: viz_state.cats.tile_scatter_data,
+    });
 }
 
 
-export const square_scatter_layer_visibility = (visible) => {
+export const square_scatter_layer_visibility = (layser_sst, visible) => {
 
-    square_scatter_layer = square_scatter_layer.clone({
+    layser_sst.square_scatter_layer = layser_sst.square_scatter_layer.clone({
         visible: visible,
     });
 
 }
 
-export const square_scatter_layer_opacity = (opacity) => {
+export const square_scatter_layer_opacity = (layers_sst, opacity) => {
 
-    square_scatter_layer = square_scatter_layer.clone({
+    layers_sst.square_scatter_layer = layers_sst.square_scatter_layer.clone({
         opacity: opacity
     });
 
 }
 
+export const set_tile_layer_onclick = (deck_sst, layers_sst, viz_state) => {
+
+    layers_sst.square_scatter_layer = layers_sst.square_scatter_layer.clone({
+        onClick: (event, d) => tile_layer_onclick(event, d, deck_sst, layers_sst, viz_state)
+    })
+
+    deck_sst.setProps({layers: [layers_sst.simple_image_layer, layers_sst.square_scatter_layer]})
+
+}
+
+const tile_layer_onclick = (event, d, deck_sst, layers_sst, viz_state) => {
+
+    // Check if the device is a touch device
+    const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
+    let inst_cat;
+
+    if (isTouchDevice) {
+        // Fallback on the previous method for touch devices
+        inst_cat = viz_state.cats.tile_cats_array[event.index]
+    } else {
+        // Use the tooltip category for non-touch devices
+        inst_cat = viz_state.tooltip_cat_cell;
+    }
+
+    let new_selected_cats = [inst_cat]
+
+    update_selected_cats(viz_state.cats, new_selected_cats)
+    update_cat(viz_state.cats, 'cluster')
+
+    update_square_scatter_layer(viz_state, layers_sst)
+    deck_sst.setProps({layers: [layers_sst.simple_image_layer, layers_sst.square_scatter_layer]})
+}

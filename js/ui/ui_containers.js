@@ -1,7 +1,7 @@
 import * as d3 from 'd3'
 import { make_button } from "./text_buttons"
 import { set_gene_search } from "./gene_search"
-import { tile_slider, ini_slider, ini_slider_params } from './sliders'
+import { ini_slider, ini_slider_params } from './sliders'
 import { make_img_layer_slider_callback, toggle_slider } from "./sliders"
 import { debounce } from '../utils/debounce'
 import { toggle_visibility_image_layers } from '../deck-gl/image_layers'
@@ -62,7 +62,7 @@ export const make_slider_container = (class_name) => {
     return slider_container
 }
 
-export const make_sst_ui_container = () => {
+export const make_sst_ui_container = (deck_sst, layers_sst, viz_state) => {
 
     const ui_container = make_ui_container()
     const ctrl_container = make_ctrl_container()
@@ -70,18 +70,24 @@ export const make_sst_ui_container = () => {
     const tile_container = flex_container('tile_container', 'row')
     const tile_slider_container = make_slider_container('tile_slider_container')
 
-    make_button(image_container, 'sst', 'IMG', 'blue', 50)
-    make_button(tile_container, 'sst', 'TILE')
+    make_button(image_container, 'sst', 'IMG', 'blue', 50, 'button', deck_sst, layers_sst, viz_state)
+    make_button(tile_container, 'sst', 'TILE', 'blue', 50, 'button', deck_sst, layers_sst, viz_state)
 
-    ini_slider('tile')
-    tile_slider_container.appendChild(tile_slider);
+    viz_state.sliders = {}
+
+    ini_slider('tile', deck_sst, layers_sst, viz_state)
+
+    tile_slider_container.appendChild(viz_state.sliders.tile);
 
     ui_container.appendChild(ctrl_container)
 
     tile_container.appendChild(tile_slider_container)
 
+    set_gene_search('sst', deck_sst, layers_sst, viz_state)
+
     ctrl_container.appendChild(image_container)
     ctrl_container.appendChild(tile_container)
+    ctrl_container.appendChild(viz_state.genes.gene_search)
 
     return ui_container
 
@@ -94,7 +100,7 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
 
     viz_state.containers.image = flex_container('image_container', 'column')
 
-    const img_layers_container = flex_container('img_layers_container', 'column', 72) // 75
+    const img_layers_container = flex_container('img_layers_container', 'column', 72)
     img_layers_container.style.width = '135px'
     img_layers_container.style.border = "1px solid #d3d3d3"
     img_layers_container.style.marginTop = '3px'

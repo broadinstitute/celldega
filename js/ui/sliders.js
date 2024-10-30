@@ -1,13 +1,11 @@
-import { simple_image_layer } from "../deck-gl/simple_image_layer"
-import { square_scatter_layer, square_scatter_layer_opacity } from "../deck-gl/square_scatter_layer"
-import { layers_sst, update_layers_sst } from "../deck-gl/layers_sst"
+// import { simple_image_layer } from "../deck-gl/simple_image_layer"
+import { square_scatter_layer_opacity } from "../deck-gl/square_scatter_layer"
+// import { layers_sst, update_layers_sst } from "../deck-gl/layers_sst"
 import { update_trx_layer_radius } from "../deck-gl/trx_layer"
 import { update_opacity_single_image_layer } from "../deck-gl/image_layers"
 import { update_cell_layer_radius } from "../deck-gl/cell_layer"
-import { deck_sst } from "../deck-gl/deck_sst"
+// import { deck_sst } from "../deck-gl/deck_sst"
 import { get_layers_list } from "../deck-gl/layers_ist"
-
-export let tile_slider = document.createElement("input")
 
 export const make_slider = () => {
     return  document.createElement("input")
@@ -23,10 +21,11 @@ export const set_image_layer_sliders = (img) => {
 
 }
 
-const tile_slider_callback = async () => {
-    square_scatter_layer_opacity(tile_slider.value / 100)
-    await update_layers_sst([simple_image_layer, square_scatter_layer])
-    deck_sst.setProps({layers: layers_sst})
+const tile_slider_callback = async (deck_sst, viz_state, layers_sst) => {
+
+    square_scatter_layer_opacity(layers_sst, viz_state.sliders.tile.value / 100)
+    deck_sst.setProps({layers: [layers_sst.simple_image_layer, layers_sst.square_scatter_layer]})
+
 }
 
 const cell_slider_callback = async (deck_ist, layers_obj, viz_state) => {
@@ -78,7 +77,7 @@ export const ini_slider_params = (slider, ini_value, callback) =>{
 
 }
 
-export const ini_slider = (slider_type, deck_ist, layers_obj, viz_state) => {
+export const ini_slider = (slider_type, inst_deck, layers_obj, viz_state) => {
 
     let ini_value
     let callback
@@ -88,15 +87,16 @@ export const ini_slider = (slider_type, deck_ist, layers_obj, viz_state) => {
     switch (slider_type) {
         case 'tile':
             ini_value = 100
-            callback = tile_slider_callback
+            // may want to debouce later
+            callback = () => tile_slider_callback(inst_deck, viz_state, layers_obj)
             break
         case 'cell':
             ini_value = viz_state.genes.trx_ini_raidus * 100
-            callback = () => cell_slider_callback(deck_ist, layers_obj, viz_state)
+            callback = () => cell_slider_callback(inst_deck, layers_obj, viz_state)
             break
         case 'trx':
             ini_value = viz_state.genes.trx_ini_raidus * 100
-            callback = () => trx_slider_callback(deck_ist, layers_obj, viz_state)
+            callback = () => trx_slider_callback(inst_deck, layers_obj, viz_state)
             break
 
         default:

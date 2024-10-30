@@ -35,8 +35,6 @@ export const render_landscape = async ({ model, el }) => {
 
 export const render_landscape_ist = async ({ model, el }) => {
 
-    console.log('render_landscape_ist')
-
     const token = model.get('token')
     const ini_x = model.get('ini_x');
     const ini_y = model.get('ini_y');
@@ -61,8 +59,6 @@ export const render_landscape_ist = async ({ model, el }) => {
 }
 
 export const render_landscape_sst = async ({ model, el }) => {
-
-    console.log('render_landscape_sst')
 
     const token = model.get('token')
     const ini_x = model.get('ini_x');
@@ -157,7 +153,6 @@ export const render = async ({ model, el }) => {
 
     switch (componentType) {
         case "Landscape":
-            console.log('main render function')
             render_landscape({ model, el });
             break;
         case "Matrix":

@@ -44,8 +44,6 @@ export const make_button = (container, technology, text, color='blue', width=40,
             callback = (event) => ist_img_button_callback(event, inst_deck, layers_obj, viz_state)
         }
     } else if (text === 'TILE') {
-        console.log('make_button: tile')
-        console.log(inst_deck, layers_obj, viz_state)
         callback = (event) => tile_button_callback(event, inst_deck, layers_obj, viz_state)
     } else if (text === 'TRX'){
         callback = (event) => trx_button_callback_ist(event, inst_deck, layers_obj, viz_state)

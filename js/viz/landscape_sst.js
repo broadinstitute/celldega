@@ -133,8 +133,6 @@ export const landscape_sst = async (
     }
 
     set_tile_layer_onclick(deck_sst, layers_sst, viz_state)
-    console.log(layers_sst)
-    console.log(layers_sst.square_scatter_layer.onClick)
 
     const ui_container = make_sst_ui_container(deck_sst, layers_sst, viz_state)
 

@@ -10,9 +10,6 @@ export const update_cell_exp_array = async (cats, genes, base_url, inst_gene) =>
 
     const new_exp_array = new Array(cats.cell_names_array.length).fill(0)
 
-    console.log(genes)
-    console.log(genes.meta_gene)
-
     cell_names.forEach((name, i) => {
         if (cats.cell_name_to_index_map.has(name)) {
             const index = cats.cell_name_to_index_map.get(name);

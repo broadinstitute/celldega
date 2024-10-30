@@ -72,6 +72,8 @@ export const landscape_sst = async (
     viz_state.cats.polygon_cell_names = []
     viz_state.cats.svg_bar_cluster = d3.create("svg")
 
+    viz_state.tooltip_cat_tile = ''
+
     await set_meta_gene(viz_state.genes, base_url)
 
     // move this to landscape_parameters
@@ -117,7 +119,7 @@ export const landscape_sst = async (
     deck_sst.setProps({
         views: viz_state.views,
         layers: [ layers_sst.simple_image_layer, layers_sst.square_scatter_layer],
-        getTooltip: (info) => make_tile_tooltip(info, viz_state.cats),
+        getTooltip: (info) => make_tile_tooltip(info, viz_state),
         initialViewState: initial_view_state,
     })
 

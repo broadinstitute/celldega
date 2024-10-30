@@ -101,7 +101,20 @@ export const set_tile_layer_onclick = (deck_sst, layers_sst, viz_state) => {
 
 const tile_layer_onclick = (event, d, deck_sst, layers_sst, viz_state) => {
 
-    let new_selected_cats = [viz_state.cats.tile_cats_array[event.index]]
+    // Check if the device is a touch device
+    const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
+    let inst_cat;
+
+    if (isTouchDevice) {
+        // Fallback on the previous method for touch devices
+        inst_cat = viz_state.cats.tile_cats_array[event.index]
+    } else {
+        // Use the tooltip category for non-touch devices
+        inst_cat = viz_state.tooltip_cat_cell;
+    }
+
+    let new_selected_cats = [inst_cat]
 
     update_selected_cats(viz_state.cats, new_selected_cats)
     update_cat(viz_state.cats, 'cluster')

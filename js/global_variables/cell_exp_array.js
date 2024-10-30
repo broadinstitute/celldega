@@ -14,6 +14,7 @@ export const update_cell_exp_array = async (cats, genes, base_url, inst_gene) =>
         if (cats.cell_name_to_index_map.has(name)) {
             const index = cats.cell_name_to_index_map.get(name);
             const exp_value = Number(cell_exp[i]);
+
             const max_exp = Number(genes.meta_gene[inst_gene].max);
 
             // Apply logarithmic transformation

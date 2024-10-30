@@ -31,7 +31,7 @@ const square_scatter_layer_color = (i, d, cats) => {
 
     if (cats.cat === 'cluster') {
         const inst_cat = cats.tile_cats_array[d.index];
-        const opacity = (cats.selected_cats.length === 0 || cats.selected_cats.includes(inst_cat)) ? 255 : 25;
+        const opacity = (cats.selected_cats.length === 0 || cats.selected_cats.includes(inst_cat)) ? 255 : 5;
         return [...tile_color_dict[inst_cat], opacity];
     } else {
         const inst_exp = cats.tile_exp_array[d.index];
@@ -47,7 +47,8 @@ export const ini_square_scatter_layer = (cats) => {
         data: cats.tile_scatter_data,
         getFillColor: (i, d) => square_scatter_layer_color(i, d, cats),
         filled: true,
-        getRadius: 3, // 8um: 12 with border
+        // getRadius: 3, // 8um: 12 with border
+        getRadius: cats.square_tile_size, // 8um: 12 with border
         pickable: true,
         updateTriggers: {
             getFillColor: [cats.cat]

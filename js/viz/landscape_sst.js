@@ -26,6 +26,7 @@ export const landscape_sst = async (
     ini_y,
     ini_z,
     ini_zoom,
+    square_tile_size = 1.4
     // dataset_name=''
 ) => {
 
@@ -73,6 +74,8 @@ export const landscape_sst = async (
     viz_state.cats.svg_bar_cluster = d3.create("svg")
 
     viz_state.tooltip_cat_tile = ''
+
+    viz_state.cats.square_tile_size = square_tile_size
 
     await set_meta_gene(viz_state.genes, base_url)
 

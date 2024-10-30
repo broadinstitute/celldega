@@ -3,8 +3,6 @@ export let uniprot_data = {}
 
 export const uniprot_get_request = async (gene_symbol) => {
 
-    console.log('uniprot_get_request', gene_symbol)
-
     if (!(gene_symbol in uniprot_data)) {
 
         let gene_data

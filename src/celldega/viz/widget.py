@@ -44,6 +44,7 @@ class Landscape(anywidget.AnyWidget):
     ini_y = traitlets.Float(1000).tag(sync=True)
     ini_z = traitlets.Float(0).tag(sync=True)
     ini_zoom = traitlets.Float(0).tag(sync=True)
+    square_tile_size = traitlets.Float(1.4).tag(sync=True)
     dataset_name = traitlets.Unicode("").tag(sync=True)
 
     update_trigger = traitlets.Dict().tag(sync=True)

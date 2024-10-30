@@ -2,8 +2,6 @@ import * as d3 from 'd3'
 
 export const make_tile_tooltip = (info, viz_state) => {
 
-    let inst_name
-
     if (info.index === -1 || !info.layer) return null;
 
     let inst_cat = viz_state.cats.tile_cats_array[info.index]

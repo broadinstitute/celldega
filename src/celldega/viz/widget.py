@@ -33,7 +33,6 @@ class Landscape(anywidget.AnyWidget):
     Returns:
         Landscape: A widget for visualizing a 'landscape' view of spatial omics data.
     """
-
     _esm = pathlib.Path(__file__).parent / "../static" / "widget.js"
     _css = pathlib.Path(__file__).parent / "../static" / "widget.css"
     component = traitlets.Unicode("Landscape").tag(sync=True)

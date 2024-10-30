@@ -18,7 +18,8 @@ dependencies = [
     "scanpy~=1.10.2",
     "squidpy~=1.5.0",
     "clustergrammer2==0.18.0",
-    "shapely~=2.0.5"
+    "shapely~=2.0.5",
+    "polars~=1.10.0"
 ]
 readme = "README.md"
 

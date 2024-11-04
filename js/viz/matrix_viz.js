@@ -115,12 +115,13 @@ export const matrix_viz = async (
 
         var inst_color
         if (index_col >= index_row){
-        inst_color = [0, 0, 255]
+            inst_color = [0, 0, 255]
         } else {
-        inst_color = [255, 0, 0]
+            inst_color = [255, 0, 0]
         }
 
         var inst_opacity = parseInt(255 * matrix_index/num_points)
+        // var inst_opacity = 255 // parseInt(255 * matrix_index/num_points)
 
         const p = {
         position: [col_offset * index_col + col_offset/2, row_offset * index_row + row_offset/2],
@@ -272,9 +273,10 @@ export const matrix_viz = async (
         data: mat_data,
         getPosition: d => d.position, // Position of each point
         getFillColor: d => d.color,   // Color of each point
-        getRadius: d => mat_height/(2*num_rows),           // Radius of each point (adjust as needed)
+        getRadius: d => 1 * (mat_height/(2 * num_rows)),           // Radius of each point (adjust as needed)
         pickable: true,               // Enable picking for interactivity
-        opacity: 0.8                  // Set the opacity of the points
+        opacity: 0.8,                  // Set the opacity of the points
+        antialiasing: false
     });
 
 

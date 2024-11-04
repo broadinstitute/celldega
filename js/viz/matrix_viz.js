@@ -1,5 +1,7 @@
 import { ini_deck } from '../deck-gl/deck_mat.js'
 
+import { ScatterplotLayer } from 'deck.gl';
+
 export const matrix_viz = async (
     model,
     el,
@@ -99,6 +101,7 @@ export const matrix_viz = async (
 
     var num_points = num_rows * num_cols
 
+    // mat data
     const mat_data =  new Array(num_points).fill(0).map( _ => {
 
         var index_col = matrix_index % num_cols
@@ -133,15 +136,14 @@ export const matrix_viz = async (
         return p;
     });
 
-
-
+    // col label data
     matrix_index = 0;
 
     var index_col = 0
 
     var num_points = num_rows * 1
 
-    col_label_data =  new Array(num_points).fill(0).map( _ => {
+    const col_label_data =  new Array(num_points).fill(0).map( _ => {
 
         var index_col = matrix_index % num_cols
 
@@ -158,6 +160,112 @@ export const matrix_viz = async (
 
         return p;
     });
+
+
+    // row label data
+
+    matrix_index = 0;
+
+    var index_row = 0
+    // const num_row_cats = 1
+
+    var num_points = num_rows// * num_row_cats
+
+    const row_label_data = new Array(num_points).fill(0).map( _ => {
+
+        var index_col = matrix_index % 1 // num_row_cats
+
+        if (matrix_index % 1 == 0){ // num_row_cats =
+        index_row += 1;
+        }
+
+        const p = {
+        position: [row_label_width , row_offset * index_row + row_offset/2],
+        name: 'row-' + index_row
+        };
+
+        matrix_index += 1;
+
+        return p;
+    });
+
+
+    // row cat data
+    matrix_index = 0;
+
+    var index_row = 0
+    const num_row_cats = 3
+
+    var num_points = num_rows * num_row_cats
+
+    const row_cat_data =  new Array(num_points).fill(0).map( _ => {
+
+        var index_col = matrix_index % num_row_cats
+
+        if (matrix_index % num_row_cats === 0){
+        index_row += 1;
+        }
+
+        const p = {
+        position: [row_cat_offset * index_col, row_offset * index_row],
+        color: [0, 255, 0, 255],
+        name: 'something'
+        };
+
+        matrix_index += 1;
+
+        return p;
+    });
+
+    // col cat data
+
+    matrix_index = 0;
+
+    var index_row = 0
+
+    var num_points = num_cats_col * num_cols
+
+    const col_cat_data = new Array(num_points).fill(0).map( _ => {
+
+        var index_col = matrix_index % num_cols
+
+        if (matrix_index % num_cols === 0){
+        index_row += 1;
+        }
+
+        const p = {
+        position: [col_offset * index_col, col_cat_offset * index_row],
+        color: [0, 255, 0, 150],
+        name: 'some column',
+        };
+
+        matrix_index += 1;
+
+        return p;
+    });
+
+    class SquareScatterplotLayer extends ScatterplotLayer {
+        getShaders() {
+          // Get the default shaders from ScatterplotLayer
+          const shaders = super.getShaders();
+
+          // Customize the fragment shader to create square-shaped points
+          shaders.fs = `#version 300 es
+          #define SHADER_NAME scatterplot-layer-fragment-shader
+          precision highp float;
+          in vec4 vFillColor;
+          in vec2 unitPosition;
+          out vec4 fragColor;
+          void main(void) {
+              geometry.uv = unitPosition;
+              fragColor = vFillColor;
+              DECKGL_FILTER_COLOR(fragColor, geometry);
+          }`;
+
+          return shaders;
+        }
+      }
+
 
 
 

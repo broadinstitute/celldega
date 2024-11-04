@@ -1,6 +1,6 @@
 import { ini_deck } from '../deck-gl/deck_mat.js'
 
-import { ScatterplotLayer } from 'deck.gl';
+import { ScatterplotLayer, TextLayer, OrthographicView } from 'deck.gl';
 
 export const matrix_viz = async (
     model,
@@ -266,7 +266,112 @@ export const matrix_viz = async (
         }
       }
 
+    // Create a new ScatterplotLayer using the input data
+    const mat_layer = new SquareScatterplotLayer({
+        id: 'matrix-layer',
+        data: mat_data,
+        getPosition: d => d.position, // Position of each point
+        getFillColor: d => d.color,   // Color of each point
+        getRadius: d => mat_height/(2*num_rows),           // Radius of each point (adjust as needed)
+        pickable: true,               // Enable picking for interactivity
+        opacity: 0.8                  // Set the opacity of the points
+    });
 
 
+    const row_label_layer  = new TextLayer({
+        id: 'row-label-layer',
+        data: row_label_data, // This should be the same data source you used for your other layers
+        getPosition: d => d.position,
+        getText: d => d.name, // Replace 'label' with the property in your data that contains the text you want to display
+        getSize: d => inst_font_size,
+        getColor: [0, 0, 0], // Text color as an RGBA array
+        getAngle: 0, // Optional: Text angle in degrees
+        getTextAnchor: 'end', // middle
+        getAlignmentBaseline: 'center',
+        fontFamily: 'Arial',
+        sizeUnits: 'pixels',
+        updateTriggers: {
+          getSize: inst_font_size
+        },
+        pickable: true,
+        // onHover: (info, event) => console.log('Hovered:', info), // , event
+      })
+
+
+    const col_label_layer  = new TextLayer({
+        id: 'col-label-layer',
+        data: col_label_data, // This should be the same data source you used for your other layers
+        getPosition: d => d.position,
+        getText: d => d.name,
+        getSize: inst_font_size,
+        getColor: [0, 0, 0], // Text color as an RGBA array
+        getAngle: 45, // Optional: Text angle in degrees
+        getTextAnchor: 'start', // middle
+        getAlignmentBaseline: 'bottom',
+        fontFamily: 'Arial',
+        sizeUnits: 'pixels',
+        updateTriggers: {
+          getSize: inst_font_size
+        },
+        pickable: true,
+        // onHover: (info, event) => console.log('Hovered:', info), // , event
+      })
+
+    // Create a new ScatterplotLayer using the input data
+    const row_cat_layer = new SquareScatterplotLayer({
+        id: 'row-layer',
+        data: row_cat_data,
+        // getPosition: d => d.position, // Position of each point
+        getPosition: d => [d.position[0] + cat_shift_row, d.position[1]],
+        getFillColor: d => d.color,   // Color of each point
+        getRadius: d => 1,           // Radius of each point (adjust as needed)
+        pickable: true,               // Enable picking for interactivity
+        opacity: 0.8                  // Set the opacity of the points
+    });
+
+    // Create a new ScatterplotLayer using the input data
+    const col_cat_layer = new SquareScatterplotLayer({
+        id: 'col-layer',
+        data: col_cat_data,
+        getPosition: d => [d.position[0], d.position[1] + cat_shift_col],
+        getFillColor: d => d.color,   // Color of each point
+        getRadius: d => 1,           // Radius of each point (adjust as needed)
+        pickable: true,               // Enable picking for interactivity
+        opacity: 0.8                  // Set the opacity of the points
+    });
+
+
+    const layers = [mat_layer, row_cat_layer, col_cat_layer, row_label_layer, col_label_layer]
+
+    const views = [
+
+        new OrthographicView({
+          id: 'matrix',
+          x: ( row_region_width + label_buffer)+ 'px',
+          y: ( col_region_height + label_buffer) + 'px',
+          width: mat_width + 'px',
+          height: mat_height + 'px',
+          controller: {scrollZoom: true, inertia: false, zoomAxis: 'all'},
+        }),
+
+        new OrthographicView({
+          id: 'rows',
+          x: '0px',
+          y: (col_region_height + label_buffer) + 'px',
+          width: row_region_width + 'px',
+          height: mat_height + 'px',
+          controller: {scrollZoom: true, inertia: false, zoomAxis: 'Y'},
+        }),
+
+        new OrthographicView({
+          id: 'cols',
+          x: (row_region_width + label_buffer) + 'px',
+          y: '0px',
+          width: mat_width + 'px',
+          height: col_region_height + 'px',
+          controller: {scrollZoom: true, inertia: false, zoomAxis: 'X'},
+        }),
+
+  ]
 
 }

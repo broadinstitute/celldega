@@ -3,6 +3,7 @@
 import "./widget.css";
 import { landscape_ist } from "./viz/landscape_ist";
 import { landscape_sst } from "./viz/landscape_sst";
+import { matrix_viz } from "./viz/matrix_viz";
 import cgm, { type } from 'clustergrammer-gl';
 import _ from 'underscore';
 
@@ -85,6 +86,13 @@ export const render_landscape_sst = async ({ model, el }) => {
 
 }
 
+export const render_matrix_new = async ({ model, el }) => {
+    const network = model.get('network')
+
+    matrix_viz(model, el)
+
+}
+
 export const render_matrix = async ({ model, el }) => {
 
     var my_widget_callback = function(external_model){
@@ -145,9 +153,6 @@ export const render_matrix = async ({ model, el }) => {
         element.parentNode.removeChild(element);
     });
 
-
-
-
 }
 
 export const render = async ({ model, el }) => {
@@ -160,6 +165,9 @@ export const render = async ({ model, el }) => {
             break;
         case "Matrix":
             render_matrix({ model, el });
+            break;
+        case "MatrixNew":
+            render_matrix_new({ model, el });
             break;
         default:
             throw new Error(`Unknown component type: ${componentType}`);

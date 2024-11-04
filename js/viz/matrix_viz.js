@@ -659,5 +659,41 @@ export const matrix_viz = async (
     }
 
 
+    const on_view_state_change = ({viewState, viewId}) => {
+
+        const {zoom, target, offset} = viewState;
+
+        // this takes the latest non-mutable zoom_data since it does
+        // not update zoom_data
+        var global_view_state = redefine_global_view_state(zoom_data, viewId, zoom, target)
+
+        var zoom_factor_x = Math.pow(2, zoom_data.zoom_x)
+
+        inst_font_size = ini_font_size * zoom_factor_x
+
+        // this takes mutable zoom_data since it updates zoom_data's state
+        update_zoom_data(zoom_data, viewId, zoom, target)
+
+        var updated_view_state = {...global_view_state}
+
+        // this will only update the zoom state for the current layer
+        // return updated_view_state
+
+        // use setProps to update viewState with updated_view_state
+        deck_mat.setProps({viewState: updated_view_state});
+
+    }
+
+    deck_mat.setProps({
+        onViewStateChange: on_view_state_change,
+        views: views,
+        initialViewState: ini_view_state,
+        getTooltip: getTooltip,
+        layerFilter: layerFilter,
+        layers: layers,
+    })
+
+    el.appendChild(root)
+
 
 }

@@ -374,4 +374,290 @@ export const matrix_viz = async (
 
   ]
 
+
+    // update zoom_data inplace
+    // this takes as an input the mutable zoom_data
+    const update_zoom_data = (zoom_data, viewId, zoom, target) => {
+        if (viewId === 'matrix') {
+
+        // update pans
+        zoom_data.pan_x = target[0];
+        zoom_data.pan_y = target[1];
+
+        // update zooms
+        zoom_data.zoom_x = zoom[0]
+        zoom_data.zoom_y = zoom[1]
+
+        } else if (viewId === 'cols') {
+
+        // update pan_x
+        zoom_data.pan_x = target[0]
+
+        // update zooms
+        zoom_data.zoom_x = zoom[0]
+
+        // // switch to y zoom
+        // ////////////////////////
+        // // update pan_x
+        // zoom_data.pan_x = target[0]
+
+        // // update zooms
+        // zoom_data.zoom_y = zoom[1]
+
+        } else if (viewId === 'rows') {
+
+        // update pan_y
+        zoom_data.pan_y = target[1];
+
+        // update zooms
+        zoom_data.zoom_y = zoom[1]
+
+        }
+    }
+
+    const ini_global_view_state = () => {
+
+        let globalViewState = {
+          matrix: {
+            // target: target,
+            target: [ini_pan_x, ini_pan_y],
+            zoom: [ini_zoom_x, ini_zoom_y],
+          },
+          rows: {
+            target: [label_row_x, ini_pan_y],
+            zoom: [ini_zoom_x, ini_zoom_y],
+          },
+          cols: {
+            target: [ini_pan_x, label_col_y],
+            zoom: [ini_zoom_x, ini_zoom_y],
+          },
+        }
+
+        return globalViewState
+
+      }
+
+
+    const layerFilter = ({layer, viewport}) => {
+
+        // console.log(viewport.id, layer.id)
+        if (viewport.id === 'matrix' && layer.id === 'matrix-layer'){
+            return true
+        } else if (viewport.id === 'rows' && layer.id === 'row-layer'){
+            return true
+        } else if (viewport.id === 'cols' && layer.id === 'col-layer'){
+            return true
+        } else if (viewport.id === 'rows' && layer.id === 'row-label-layer'){
+            return true
+        } else if (viewport.id === 'cols' && layer.id === 'col-label-layer'){
+            return true
+        }
+
+        return false
+    }
+
+    const getTooltip = ({object, layer}) => {
+        if (object) {
+          // Check which layer the tooltip is currently over
+          if (layer.id === 'row-label-layer') {
+            // Display the row label when hovering over the row_label_layer
+            return {
+              html: `Row Label: ${object.name}`,
+              style: {color: "white"},
+            };
+          }
+          else if (layer.id === 'col-label-layer') {
+            // Display the row label when hovering over the row_label_layer
+            return {
+              html: `Col Label: ${object.name}`,
+              style: {color: "white"},
+            };
+          }
+          else if (layer.id === 'row-layer') {
+            // Display the row label when hovering over the row_label_layer
+            return {
+              html: `Row Label: ${object.name}`,
+              style: {color: "white"},
+            };
+          }
+          else if (layer.id === 'col-layer') {
+            // Display the row label when hovering over the row_label_layer
+            return {
+              html: `Col Label: ${object.name}`,
+              style: {color: "white"},
+            };
+          }
+          else if (layer.id === 'matrix-layer') {
+            // Display the default tooltip for other layers
+            return {
+              html: `Row: ${object.row} <br> Column: ${object.col}`,
+              style: {color: "white"},
+            };
+          }
+        }
+      }
+
+
+    // trying to define a mutable zoom_data outside of the deckgl cell
+    let zoom_data = ({
+        pan_x: ini_pan_x,
+        pan_y: ini_pan_y,
+        zoom_x: ini_zoom_x,
+        zoom_y: ini_zoom_y,
+    })
+
+
+    const ini_view_state = ini_global_view_state()
+
+    const curate_pan_y = (target_y, zoom_curated_y, ini_pan_y) => {
+
+        // ini_pan_y = ini_pan_y// - row_offset
+
+        var pan_curated_y
+
+        var zoom_factor_y = Math.pow(2, zoom_curated_y)
+
+        // var min_pan_y = ini_pan_y/zoom_factor_y
+        var min_pan_y = (ini_pan_y - row_offset)/zoom_factor_y + row_offset
+
+        // calculating the shift to the min, to re-use for the max
+        var min_diff = ini_pan_y - min_pan_y
+
+        var max_pan_y = ini_pan_y + min_diff
+
+        if (target_y <= min_pan_y){
+          // console.log('below min')
+          pan_curated_y = min_pan_y
+        } else if (target_y > max_pan_y) {
+          pan_curated_y = max_pan_y
+          // console.log('above min')
+        } else {
+          pan_curated_y = target_y
+          // console.log('within bounds')
+        }
+
+        return pan_curated_y// + row_offset
+      }
+
+    const curate_pan_x = (target_x, zoom_curated_x, ini_pan_x) => {
+
+        var pan_curated_x
+
+        var zoom_factor_x = Math.pow(2, zoom_curated_x)
+
+        var min_pan_x = ini_pan_x/zoom_factor_x
+
+        // calculating the shift to the min, to re-use for the max
+        var min_diff = ini_pan_x - min_pan_x
+
+        var max_pan_x = ini_pan_x + min_diff
+
+        if (target_x <= min_pan_x){
+            // console.log('below min')
+            pan_curated_x = min_pan_x
+        } else if (target_x > max_pan_x) {
+            pan_curated_x = max_pan_x
+            // console.log('above min')
+        } else {
+            pan_curated_x = target_x
+            // console.log('within bounds')
+        }
+
+        return pan_curated_x
+
+    }
+
+
+    // new version with fewer arguments
+    // this does not need the mutable zoom_data since it
+    // is not going to be modifying zoom_data
+    const redefine_global_view_state = (zoom_data, viewId, zoom, target) => {
+
+        var globalViewState
+
+        var min_zoom_x = 0
+        var min_zoom_y = 0
+        var zoom_curated_x = Math.max(min_zoom_x, zoom[0])
+        var zoom_curated_y = Math.max(min_zoom_x, zoom[1])
+
+        var pan_curated_x = curate_pan_x(target[0], zoom_curated_x, ini_pan_x)
+        // var pan_curated_y = ini_pan_y // target[1]
+        var pan_curated_y = curate_pan_y(target[1], zoom_curated_y, ini_pan_y)
+
+        if (viewId === 'matrix') {
+
+        globalViewState = {
+            matrix: {
+            // zoom: [zoom[0], zoom[1]],
+            zoom: [zoom_curated_x, zoom_curated_y],
+            // target: [target[0], target[1]]
+            target: [pan_curated_x, pan_curated_y]
+            },
+            rows:   {
+            // zoom: [ini_zoom_x, zoom[1]],
+            zoom: [ini_zoom_x, zoom_curated_y],
+            // target: [label_row_x, target[1]]
+            target: [label_row_x, pan_curated_y]
+            },
+            cols:   {
+            // zoom: [zoom[0], ini_zoom_y],
+            zoom: [zoom_curated_x, ini_zoom_y],
+            // target: [target[0], label_col_y]
+            target: [pan_curated_x, label_col_y]
+            },
+        }
+
+        } else if (viewId === 'cols'){
+
+        globalViewState = {
+            matrix: {
+            // zoom: [zoom[0], zoom_data.zoom_y],
+            zoom: [zoom_curated_x, zoom_data.zoom_y],
+            // target: [target[0], zoom_data.pan_y]
+            target: [pan_curated_x, zoom_data.pan_y]
+            },
+            rows:   {
+            // zoom: [ini_zoom_x, zoom_data.zoom_y],
+            zoom: [ini_zoom_x, zoom_data.zoom_y],
+            // target: [label_row_x, zoom_data.pan_y]
+            target: [label_row_x, zoom_data.pan_y]
+            },
+            cols:   {
+            // zoom: [zoom[0], ini_zoom_y],
+            zoom: [zoom_curated_x, ini_zoom_y],
+            // target: [target[0], label_col_y]
+            target: [pan_curated_x, label_col_y]
+            },
+        }
+
+        } else if (viewId === 'rows'){
+
+        globalViewState = {
+            matrix: {
+            // zoom: [zoom_data.zoom_x, zoom[1]],
+            zoom: [zoom_data.zoom_x, zoom_curated_y],
+            // target: [zoom_data.pan_x, target[1]]
+            target: [zoom_data.pan_x, pan_curated_y]
+            },
+            rows:   {
+            // zoom: [ini_zoom_x, zoom[1]],
+            zoom: [ini_zoom_x, zoom_curated_y],
+            // target: [label_row_x, target[1]]
+            target: [label_row_x, pan_curated_y]
+            },
+            cols:   {
+            // zoom: [zoom_data.zoom_x, ini_zoom_y],
+            zoom: [zoom_data.zoom_x, ini_zoom_y],
+            // target: [zoom_data.pan_x, label_col_y]
+            target: [zoom_data.pan_x, label_col_y]
+            },
+        }
+
+        }
+
+        return globalViewState
+    }
+
+
+
 }

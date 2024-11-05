@@ -258,700 +258,190 @@ export const matrix_viz = async (
     //////////////////////////////
 
 
-    // // Four corners of the quad
-    // const positions = new Float32Array([
-    //     0,         0,
-    //     0,         row_height,
-    //     col_width, row_height,
-    //     col_width, 0
-    // ]);
+    // Four corners of the quad
+    const positions = new Float32Array([
+        0,         0,
+        0,         row_height,
+        col_width, row_height,
+        col_width, 0
+    ]);
 
-    // console.log('positions', positions)
+    console.log('positions', positions)
 
 
 
-    // const vertexShader = `
+    const vertexShader = `
 
-    // attribute vec3 positions;
-    // attribute vec3 instancePositions;
-    // attribute vec3 instancePositions64Low;
-    // attribute vec4 instanceColors;
+    attribute vec3 positions;
+    attribute vec3 instancePositions;
+    attribute vec3 instancePositions64Low;
+    attribute vec4 instanceColors;
 
-    // varying vec4 vColor;
-    // varying vec2 vPosition;
+    varying vec4 vColor;
+    varying vec2 vPosition;
 
-    // attribute vec3 customPickingColors;
+    attribute vec3 customPickingColors;
 
-    // void main(void) {
-    //   vec3 positionCommon = project_position(instancePositions + positions , instancePositions64Low);
-    //   gl_Position = project_common_position_to_clipspace(vec4(positionCommon, 1.0));
+    void main(void) {
+      vec3 positionCommon = project_position(instancePositions + positions , instancePositions64Low);
+      gl_Position = project_common_position_to_clipspace(vec4(positionCommon, 1.0));
 
-    //   vPosition = positions.xy;
-    //   vColor = instanceColors;
+      vPosition = positions.xy;
+      vColor = instanceColors;
 
-    //   picking_setPickingColor(customPickingColors);
-    // }
+      picking_setPickingColor(customPickingColors);
+    }
 
-    // `
+    `
 
-    // const fragmentShader = `
+    const fragmentShader = `
 
-    // precision highp float;
+    precision highp float;
 
-    // varying vec4 vColor;
-    // varying vec2 vPosition;
+    varying vec4 vColor;
+    varying vec2 vPosition;
 
-    // void main(void) {
+    void main(void) {
 
-    //   gl_FragColor = vec4(vColor.rgb, vColor.a);
+      gl_FragColor = vec4(vColor.rgb, vColor.a);
 
-    //   // Should be the last Fragment shader instruction that updates gl_FragColor
-    //   gl_FragColor = picking_filterPickingColor(gl_FragColor);
+      // Should be the last Fragment shader instruction that updates gl_FragColor
+      gl_FragColor = picking_filterPickingColor(gl_FragColor);
 
-    // }
+    }
 
-    // `
+    `
 
 
-    // const getMatrixModel = (gl) => {
+    const getMatrixModel = (gl) => {
 
-    //     const geometry = new Geometry({
+        const geometry = new Geometry({
 
-    //       drawMode: gl.TRIANGLE_FAN,
+          drawMode: gl.TRIANGLE_FAN,
 
-    //       vertexCount: 4,
-    //       attributes: {
-    //         positions: {
-    //           size: 2,
-    //           value: positions
-    //         }
-    //       }
-    //     });
+          vertexCount: 4,
+          attributes: {
+            positions: {
+              size: 2,
+              value: positions
+            }
+          }
+        });
 
-    //     return new Model(gl, {
-    //       vs: vertexShader,
-    //       fs: fragmentShader,
-    //       geometry,
-    //       isInstanced: true,
-    //       // required for tooltip
-    //       modules: [picking]
-    //     });
+        return new Model(gl, {
+          vs: vertexShader,
+          fs: fragmentShader,
+          geometry,
+          isInstanced: true,
+          // required for tooltip
+          modules: [picking]
+        });
 
-    //   }
+      }
 
 
-    //   class MatrixLayer extends Layer {
+      class MatrixLayer extends Layer {
 
-    //     initializeState() {
+        initializeState() {
 
-    //       const {gl} = this.context;
+          const {gl} = this.context;
 
-    //       // Register attributes
-    //       this.getAttributeManager().addInstanced({
-    //         instancePositions: {
-    //           size: 3,
-    //           type: gl.FLOAT,  // Changed from gl.DOUBLE to gl.FLOAT
-    //           accessor: 'getPosition'
-    //         },
-    //         instanceColors: {
-    //           size: 4,
-    //           normalized: true,
-    //           type: gl.UNSIGNED_BYTE,
-    //           accessor: 'getColor',
-    //           defaultValue: [0, 0, 0, 255]
-    //         },
-    //         // createing a picking color attribute
-    //         customPickingColors: {
-    //           size: 3,
-    //           type: gl.UNSIGNED_BYTE,
-    //           update: this.calculatePickingColors
-    //           // update: calculatePickingColors
-    //         }
-    //       });
-
-    //       // Save the model in layer state
-    //       this.setState({
-    //         model: getMatrixModel(gl)
-    //       });
-    //     }
-
-    //     updateState() {
-    //       // Retrieve the model from layer state
-    //       this.state.model.setUniforms({
-    //         // smoothRadius: this.props.smoothRadius
-    //       });
-    //     }
-
-    //     //////////////////////////////////////////////////
-    //     calculatePickingColors(attribute) {
-    //       const {data} = this.props;
-    //       const {value, size} = attribute;
-    //       let i = 0;
-
-    //       let index = 0;
-    //       for (const object of data) {
-    //         // console.log(index)
-
-    //         // Use the index index instead of object.id
-    //         const pickingColor = this.encodePickingColor(index);
-
-    //         value[index * 3] = pickingColor[0];
-    //         value[index * 3 + 1] = pickingColor[1];
-    //         value[index * 3 + 2] = pickingColor[2];
-    //         index++;
-    //       }
-
-    //     }
-    //     //////////////////////////////////////////////////
-
-    //   }
-
-    // const defaultProps = {
-
-    //       // Center of each circle, in [longitude, latitude, (z)]
-    //       getPosition: {type: 'accessor', value: x => x.position},
-
-    //       // Color of each circle, in [R, G, B, (A)]
-    //       // getColor: {type: 'accessor', value: [0, 0, 0, 255]},
-    //       getColor: {type: 'accessor', value: [0, 0, 0, 50]},
-
-    //   }
-
-
-    //   MatrixLayer.layerName = 'MatrixLayer';
-    //   MatrixLayer.defaultProps = defaultProps;
-
-    //   const custom_layer = new MatrixLayer({
-    //     id: 'matrix-layer',
-    //     data: mat_data,
-    //     getPosition: d => d.position,
-    //     getColor: d => d.color,
-    //     // getColor: d => [255, 0, 0, 50]
-
-    //     // required for tooltip
-    //     pickable: true,
-
-    //     // onHover: (info, event) => console.log('Hovered:', info, event),
-    //   });
-
-
-
-
-    // // first try
-    // //////////////////////////////////////////////////////////
-
-    // // Vertex Shader
-    // const vertexShader = `#version 300 es
-    // attribute vec3 positions;
-    // attribute vec3 instancePositions;
-    // attribute vec4 instanceColors;
-    // varying vec4 vColor;
-    // attribute vec3 customPickingColors;
-
-    // void main(void) {
-    // vec3 positionCommon = project_position(instancePositions + positions);
-    // gl_Position = project_common_position_to_clipspace(vec4(positionCommon, 1.0));
-    // vColor = instanceColors;
-    // picking_setPickingColor(customPickingColors);
-    // }`;
-
-    // // Fragment Shader
-    // const fragmentShader = `#version 300 es
-    // precision highp float;
-    // varying vec4 vColor;
-    // void main(void) {
-    // gl_FragColor = vColor;
-    // gl_FragColor = picking_filterPickingColor(gl_FragColor);
-    // }`;
-
-    // // Function to create the model
-    // const getMatrixModel = (gl) => {
-    // if (!gl) {
-    //     console.error('WebGL context is not available.');
-    //     return null;
-    // }
-
-    // const geometry = new Geometry({
-    //     drawMode: gl.TRIANGLE_FAN,
-    //     vertexCount: 4,
-    //     attributes: {
-    //     positions: {
-    //         size: 2,
-    //         value: new Float32Array([0, 0, 0, row_height, col_width, row_height, col_width, 0])
-    //     }
-    //     }
-    // });
-
-    // try {
-    //     return new Model(gl, {
-    //     vs: vertexShader,
-    //     fs: fragmentShader,
-    //     geometry,
-    //     isInstanced: true,
-    //     modules: [picking]
-    //     });
-    // } catch (e) {
-    //     console.error('Error creating the model:', e);
-    //     return null;
-    // }
-    // };
-
-    // // Custom Layer Definition
-    // class MatrixLayer extends Layer {
-    // initializeState() {
-    //     const { gl } = this.context;
-    //     if (!gl) {
-    //     console.error('WebGL context is not available.');
-    //     return;
-    //     }
-
-    //     // Register attributes
-    //     this.getAttributeManager().addInstanced({
-    //     instancePositions: { size: 3, type: gl.FLOAT, accessor: 'getPosition' },
-    //     instanceColors: { size: 4, normalized: true, type: gl.UNSIGNED_BYTE, accessor: 'getColor', defaultValue: [0, 0, 0, 255] },
-    //     customPickingColors: { size: 3, type: gl.UNSIGNED_BYTE, update: this.calculatePickingColors }
-    //     });
-
-    //     // Create and set the model
-    //     const model = getMatrixModel(gl);
-    //     if (model) {
-    //     this.setState({ model });
-    //     } else {
-    //     console.error('Failed to initialize the model.');
-    //     }
-    // }
-
-    // updateState() {
-    //     const { model } = this.state;
-    //     if (model) {
-    //     model.setUniforms({ /* Add any uniforms you need here */ });
-    //     } else {
-    //     console.error('Model is not available for updating uniforms.');
-    //     }
-    // }
-
-    // calculatePickingColors(attribute) {
-    //     const { data } = this.props;
-    //     const { value } = attribute;
-    //     let index = 0;
-    //     for (const object of data) {
-    //     const pickingColor = this.encodePickingColor(index);
-    //     value.set(pickingColor, index * 3);
-    //     index++;
-    //     }
-    // }
-    // }
-
-    // MatrixLayer.layerName = 'MatrixLayer';
-    // MatrixLayer.defaultProps = {
-    // getPosition: { type: 'accessor', value: d => d.position },
-    // getColor: { type: 'accessor', value: d => d.color }
-    // };
-
-    //   const custom_layer = new MatrixLayer({
-    //     id: 'matrix-layer',
-    //     data: mat_data,
-    //     getPosition: d => d.position,
-    //     getColor: d => d.color,
-    //     // getColor: d => [255, 0, 0, 50]
-
-    //     // required for tooltip
-    //     pickable: true,
-
-    //     // onHover: (info, event) => console.log('Hovered:', info, event),
-    //   });
-
-
-    // //////////////////////////////////////////////////////////
-
-
-
-    // // second try
-    // ////////////////////////////////////////////////////////////
-
-    // // Vertex Shader
-    // const vertexShader = `#version 300 es
-    // attribute vec3 positions;
-    // attribute vec3 instancePositions;
-    // attribute vec4 instanceColors;
-    // varying vec4 vColor;
-    // attribute vec3 customPickingColors;
-
-    // void main(void) {
-    // vec3 positionCommon = project_position(instancePositions + positions);
-    // gl_Position = project_common_position_to_clipspace(vec4(positionCommon, 1.0));
-    // vColor = instanceColors;
-    // picking_setPickingColor(customPickingColors);
-    // }`;
-
-    // // Fragment Shader
-    // const fragmentShader = `#version 300 es
-    // precision highp float;
-    // varying vec4 vColor;
-    // void main(void) {
-    // gl_FragColor = vColor;
-    // gl_FragColor = picking_filterPickingColor(gl_FragColor);
-    // }`;
-
-    // // Function to create the model
-    // const getMatrixModel = (gl) => {
-    // if (!gl) {
-    //     console.error('WebGL context is not available.');
-    //     return null;
-    // }
-
-    // const geometry = new Geometry({
-    //     drawMode: gl.TRIANGLE_FAN,
-    //     vertexCount: 4,
-    //     attributes: {
-    //     positions: {
-    //         size: 2,
-    //         value: new Float32Array([
-    //         0, 0,
-    //         0, row_height,
-    //         col_width, row_height,
-    //         col_width, 0
-    //         ])
-    //     }
-    //     }
-    // });
-
-    // try {
-    //     return new Model(gl, {
-    //     vs: vertexShader,
-    //     fs: fragmentShader,
-    //     geometry,
-    //     isInstanced: true,
-    //     modules: [picking]
-    //     });
-    // } catch (e) {
-    //     console.error('Error creating the model:', e);
-    //     return null;
-    // }
-    // };
-
-    // // Custom Layer Definition
-    // class MatrixLayer extends Layer {
-    // initializeState() {
-    //     const { gl } = this.context;
-    //     if (!gl) {
-    //     console.error('WebGL context is not available.');
-    //     return;
-    //     }
-
-    //     // Register attributes
-    //     this.getAttributeManager().addInstanced({
-    //     instancePositions: {
-    //         size: 3,
-    //         type: gl.FLOAT,
-    //         accessor: 'getPosition'
-    //     },
-    //     instanceColors: {
-    //         size: 4,
-    //         normalized: true,
-    //         type: gl.UNSIGNED_BYTE,
-    //         accessor: 'getColor',
-    //         defaultValue: [0, 0, 0, 255]
-    //     },
-    //     customPickingColors: {
-    //         size: 3,
-    //         type: gl.UNSIGNED_BYTE,
-    //         update: this.calculatePickingColors
-    //     }
-    //     });
-
-    //     // Create and set the model
-    //     const model = getMatrixModel(gl);
-    //     if (model) {
-    //     this.setState({ model });
-    //     } else {
-    //     console.error('Failed to initialize the model.');
-    //     }
-    // }
-
-    // updateState() {
-    //     const { model } = this.state;
-    //     if (model) {
-    //     model.setUniforms({ /* Add any uniforms you need here */ });
-    //     } else {
-    //     console.error('Model is not available for updating uniforms.');
-    //     }
-    // }
-
-    // calculatePickingColors(attribute) {
-    //     const { data } = this.props;
-    //     const { value } = attribute;
-    //     let index = 0;
-    //     for (const object of data) {
-    //     const pickingColor = this.encodePickingColor(index);
-    //     value.set(pickingColor, index * 3);
-    //     index++;
-    //     }
-    // }
-    // }
-
-    // // Set layer name and default properties
-    // MatrixLayer.layerName = 'MatrixLayer';
-    // MatrixLayer.defaultProps = {
-    // getPosition: { type: 'accessor', value: d => d.position },
-    // getColor: { type: 'accessor', value: d => d.color }
-    // };
-
-    // // Instantiate the custom layer
-    // const custom_layer = new MatrixLayer({
-    // id: 'matrix-layer',
-    // data: mat_data,
-    // getPosition: d => d.position,
-    // getColor: d => d.color,
-    // pickable: true,
-    // // onHover: (info, event) => console.log('Hovered:', info, event),
-    // });
-
-    // ////////////////////////////////////////////////////////////
-
-
-
-
-    // // third try
-    // ////////////////////////////////////////////////////////////
-    // // Vertex Shader
-    // const vertexShader = `#version 300 es
-    // in vec3 positions; // 'attribute' changed to 'in'
-    // in vec3 instancePositions;
-    // in vec4 instanceColors;
-    // in vec3 customPickingColors;
-    // out vec4 vColor; // 'varying' changed to 'out'
-
-    // void main(void) {
-    // vec3 positionCommon = project_position(instancePositions + positions);
-    // gl_Position = project_common_position_to_clipspace(vec4(positionCommon, 1.0));
-    // vColor = instanceColors;
-    // picking_setPickingColor(customPickingColors);
-    // }`;
-
-    // // Fragment Shader
-    // const fragmentShader = `#version 300 es
-    // precision highp float;
-    // in vec4 vColor; // 'varying' changed to 'in'
-    // out vec4 fragColor; // Use 'out' for the fragment shader output
-
-    // void main(void) {
-    // fragColor = vColor;
-    // fragColor = picking_filterPickingColor(fragColor);
-    // }`;
-
-    // // Function to create the model
-    // const getMatrixModel = (gl) => {
-    // if (!gl) {
-    //     console.error('WebGL context is not available.');
-    //     return null;
-    // }
-
-    // const geometry = new Geometry({
-    //     drawMode: gl.TRIANGLE_FAN,
-    //     vertexCount: 4,
-    //     attributes: {
-    //     positions: {
-    //         size: 2,
-    //         value: new Float32Array([
-    //         0, 0,
-    //         0, row_height,
-    //         col_width, row_height,
-    //         col_width, 0
-    //         ])
-    //     }
-    //     }
-    // });
-
-    // try {
-    //     return new Model(gl, {
-    //     vs: vertexShader,
-    //     fs: fragmentShader,
-    //     geometry,
-    //     isInstanced: true,
-    //     modules: [picking]
-    //     });
-    // } catch (e) {
-    //     console.error('Error creating the model:', e);
-    //     return null;
-    // }
-    // };
-
-    // // Custom Layer Definition
-    // class MatrixLayer extends Layer {
-    // initializeState() {
-    //     const { gl } = this.context;
-    //     if (!gl) {
-    //     console.error('WebGL context is not available.');
-    //     return;
-    //     }
-
-    //     // Register attributes
-    //     this.getAttributeManager().addInstanced({
-    //     instancePositions: {
-    //         size: 3,
-    //         type: gl.FLOAT,
-    //         accessor: 'getPosition'
-    //     },
-    //     instanceColors: {
-    //         size: 4,
-    //         normalized: true,
-    //         type: gl.UNSIGNED_BYTE,
-    //         accessor: 'getColor',
-    //         defaultValue: [0, 0, 0, 255]
-    //     },
-    //     customPickingColors: {
-    //         size: 3,
-    //         type: gl.UNSIGNED_BYTE,
-    //         update: this.calculatePickingColors
-    //     }
-    //     });
-
-    //     // Create and set the model
-    //     const model = getMatrixModel(gl);
-    //     if (model) {
-    //     this.setState({ model });
-    //     } else {
-    //     console.error('Failed to initialize the model.');
-    //     }
-    // }
-
-    // updateState() {
-    //     const { model } = this.state;
-    //     if (model) {
-    //     model.setUniforms({ /* Add any uniforms you need here */ });
-    //     } else {
-    //     console.error('Model is not available for updating uniforms.');
-    //     }
-    // }
-
-    // calculatePickingColors(attribute) {
-    //     const { data } = this.props;
-    //     const { value } = attribute;
-    //     let index = 0;
-    //     for (const object of data) {
-    //     const pickingColor = this.encodePickingColor(index);
-    //     value.set(pickingColor, index * 3);
-    //     index++;
-    //     }
-    // }
-    // }
-
-    // // Set layer name and default properties
-    // MatrixLayer.layerName = 'MatrixLayer';
-    // MatrixLayer.defaultProps = {
-    // getPosition: { type: 'accessor', value: d => d.position },
-    // getColor: { type: 'accessor', value: d => d.color }
-    // };
-
-    // // Instantiate the custom layer
-    // const custom_layer = new MatrixLayer({
-    // id: 'matrix-layer',
-    // data: mat_data,
-    // getPosition: d => d.position,
-    // getColor: d => d.color,
-    // pickable: true
-    // });
-
-    // ////////////////////////////////////////////////////////////
-
-
-
-//     // luma instancing
-//     ////////////////////////////////////////////////////////////
-
-//     const colorShaderModule = {
-//         name: 'color',
-//         vs: `
-//           out vec3 color_vColor;
-
-//           void color_setColor(vec3 color) {
-//             color_vColor = color;
-//           }
-//         `,
-//         fs: `
-//           in vec3 color_vColor;
-
-//           vec3 color_getColor() {
-//             return color_vColor;
-//           }
-//         `
-//       };
-
-//     const vs = `
-//     attribute vec2 position;
-//     attribute vec3 color;
-//     attribute vec2 offset;
-
-//     void main() {
-//       color_setColor(color);
-//       gl_Position = vec4(position + offset, 0.0, 1.0);
-//     }
-//   `;
-
-//     const fs = `
-//       void main() {
-//         gl_FragColor = vec4(color_getColor(), 1.0);
-//       }
-//     `;
-
-
-//     //   const positionBuffer = device.createBuffer(new Float32Array([-0.2, -0.2, 0.2, -0.2, 0.0, 0.2]));
-//     //   const colorBuffer = device.createBuffer(new Float32Array([1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0]));
-//     //   const offsetBuffer = device.createBuffer(new Float32Array([0.5, 0.5, -0.5, 0.5, 0.5, -0.5, -0.5, -0.5]));
-
-//     // Create buffers using luma.gl
-//     const positionBuffer = new Buffer(gl, new Float32Array([
-//         -0.2, -0.2,
-//         0.2, -0.2,
-//         0.0,  0.2
-//     ]));
-
-//     const colorBuffer = new Buffer(gl, new Float32Array([
-//         1.0, 0.0, 0.0,
-//         0.0, 1.0, 0.0,
-//         0.0, 0.0, 1.0,
-//         1.0, 1.0, 0.0
-//     ]));
-
-//     const offsetBuffer = new Buffer(gl, new Float32Array([
-//         0.5,  0.5,
-//     -0.5,  0.5,
-//         0.5, -0.5,
-//     -0.5, -0.5
-//     ]));
-
-
-//       const custom_model = new Model(gl, {
-//         vs,
-//         fs,
-//         modules: [colorShaderModule],
-//         attributes: {
-//           position: positionBuffer,
-//           color: [colorBuffer, {divisor: 1}],
-//           offset: [offsetBuffer, {divisor: 1}]
-//         },
-//         vertexCount: 3,
-//         instanceCount: 4
-//       });
-
-
-//     ////////////////////////////////////////////////////////////
-
-
-
-
-
-
-
-
-
-
-
-
-
-    //   console.log('custom_layer')
-    //   console.log(custom_layer)
+          // Register attributes
+          this.getAttributeManager().addInstanced({
+            instancePositions: {
+              size: 3,
+              type: gl.FLOAT,  // Changed from gl.DOUBLE to gl.FLOAT
+              accessor: 'getPosition'
+            },
+            instanceColors: {
+              size: 4,
+              normalized: true,
+              type: gl.UNSIGNED_BYTE,
+              accessor: 'getColor',
+              defaultValue: [0, 0, 0, 255]
+            },
+            // createing a picking color attribute
+            customPickingColors: {
+              size: 3,
+              type: gl.UNSIGNED_BYTE,
+              update: this.calculatePickingColors
+              // update: calculatePickingColors
+            }
+          });
+
+          // Save the model in layer state
+          this.setState({
+            model: getMatrixModel(gl)
+          });
+        }
+
+        updateState() {
+          // Retrieve the model from layer state
+          this.state.model.setUniforms({
+            // smoothRadius: this.props.smoothRadius
+          });
+        }
+
+        //////////////////////////////////////////////////
+        calculatePickingColors(attribute) {
+          const {data} = this.props;
+          const {value, size} = attribute;
+          let i = 0;
+
+          let index = 0;
+          for (const object of data) {
+            // console.log(index)
+
+            // Use the index index instead of object.id
+            const pickingColor = this.encodePickingColor(index);
+
+            value[index * 3] = pickingColor[0];
+            value[index * 3 + 1] = pickingColor[1];
+            value[index * 3 + 2] = pickingColor[2];
+            index++;
+          }
+
+        }
+        //////////////////////////////////////////////////
+
+      }
+
+    const defaultProps = {
+
+          // Center of each circle, in [longitude, latitude, (z)]
+          getPosition: {type: 'accessor', value: x => x.position},
+
+          // Color of each circle, in [R, G, B, (A)]
+          // getColor: {type: 'accessor', value: [0, 0, 0, 255]},
+          getColor: {type: 'accessor', value: [0, 0, 0, 50]},
+
+      }
+
+
+      MatrixLayer.layerName = 'MatrixLayer';
+      MatrixLayer.defaultProps = defaultProps;
+
+      const custom_layer = new MatrixLayer({
+        id: 'matrix-layer',
+        data: mat_data,
+        getPosition: d => d.position,
+        getColor: d => d.color,
+        // getColor: d => [255, 0, 0, 50]
+
+        // required for tooltip
+        pickable: true,
+
+        // onHover: (info, event) => console.log('Hovered:', info, event),
+      });
+
+
+
+
+
+
+
+      console.log('custom_layer')
+      console.log(custom_layer)
 
 
     //////////////////////////////
@@ -1120,8 +610,8 @@ export const matrix_viz = async (
     });
 
 
-    const layers = [mat_layer, row_cat_layer, col_cat_layer, row_label_layer, col_label_layer]
-    // const layers = [row_cat_layer, col_cat_layer, row_label_layer, col_label_layer]
+    // const layers = [mat_layer, row_cat_layer, col_cat_layer, row_label_layer, col_label_layer]
+    const layers = [row_cat_layer, col_cat_layer, row_label_layer, col_label_layer]
 
     const views = [
 

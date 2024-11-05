@@ -41,6 +41,7 @@ export const matrix_viz = async (
     const extra_height_col = 20
 
     const ini_zoom_x = 0
+    const ini_zoom_y = 0
 
     const row_label_width = 30
 
@@ -65,7 +66,6 @@ export const matrix_viz = async (
 
     const label_buffer = 1
 
-    const ini_zoom_y = 0
 
     //////////////////////////////
     // Variables
@@ -274,6 +274,7 @@ export const matrix_viz = async (
         getPosition: d => d.position, // Position of each point
         getFillColor: d => d.color,   // Color of each point
         getRadius: d => 1 * (mat_height/(2 * num_rows)),           // Radius of each point (adjust as needed)
+        // radiusUnits: 'pixels',
         pickable: true,               // Enable picking for interactivity
         opacity: 0.8,                  // Set the opacity of the points
         antialiasing: false
@@ -380,39 +381,46 @@ export const matrix_viz = async (
     // update zoom_data inplace
     // this takes as an input the mutable zoom_data
     const update_zoom_data = (zoom_data, viewId, zoom, target) => {
+
         if (viewId === 'matrix') {
 
-        // update pans
-        zoom_data.pan_x = target[0];
-        zoom_data.pan_y = target[1];
+            console.log('matrix')
 
-        // update zooms
-        zoom_data.zoom_x = zoom[0]
-        zoom_data.zoom_y = zoom[1]
+            // update pans
+            zoom_data.pan_x = target[0];
+            zoom_data.pan_y = target[1];
+
+            // update zooms
+            zoom_data.zoom_x = zoom[0]
+            zoom_data.zoom_y = zoom[1]
 
         } else if (viewId === 'cols') {
 
-        // update pan_x
-        zoom_data.pan_x = target[0]
+            console.log('cols')
 
-        // update zooms
-        zoom_data.zoom_x = zoom[0]
+            // update pan_x
+            zoom_data.pan_x = target[0]
 
-        // // switch to y zoom
-        // ////////////////////////
-        // // update pan_x
-        // zoom_data.pan_x = target[0]
+            // update zooms
+            zoom_data.zoom_x = zoom[0]
 
-        // // update zooms
-        // zoom_data.zoom_y = zoom[1]
+            // // switch to y zoom
+            // ////////////////////////
+            // // update pan_x
+            // zoom_data.pan_x = target[0]
+
+            // // update zooms
+            // zoom_data.zoom_y = zoom[1]
 
         } else if (viewId === 'rows') {
 
-        // update pan_y
-        zoom_data.pan_y = target[1];
+            console.log('rows')
 
-        // update zooms
-        zoom_data.zoom_y = zoom[1]
+            // update pan_y
+            zoom_data.pan_y = target[1];
+
+            // update zooms
+            zoom_data.zoom_y = zoom[1]
 
         }
     }
@@ -423,6 +431,7 @@ export const matrix_viz = async (
           matrix: {
             // target: target,
             target: [ini_pan_x, ini_pan_y],
+            // zoom: [ini_zoom_x, ini_zoom_y],
             zoom: [ini_zoom_x, ini_zoom_y],
           },
           rows: {

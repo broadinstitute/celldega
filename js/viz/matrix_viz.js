@@ -1,4 +1,7 @@
 import { ini_deck } from '../deck-gl/deck_mat.js'
+import {picking} from 'deck.gl'
+
+console.log(picking)
 
 // Import Model from @luma.gl/engine
 import { Model, Geometry } from '@luma.gl/engine';
@@ -6,7 +9,7 @@ import { Model, Geometry } from '@luma.gl/engine';
 console.log('Model')
 console.log(Model)
 
-import { ScatterplotLayer, TextLayer, OrthographicView } from 'deck.gl';
+import { ScatterplotLayer, TextLayer, OrthographicView, Layer } from 'deck.gl';
 
 export const matrix_viz = async (
     model,
@@ -250,6 +253,197 @@ export const matrix_viz = async (
 
         return p;
     });
+
+
+    //////////////////////////////
+    // Custom Layer
+    //////////////////////////////
+
+
+    // Four corners of the quad
+    const positions = new Float32Array([
+        0,         0,
+        0,         row_height,
+        col_width, row_height,
+        col_width, 0
+    ]);
+
+    console.log('positions', positions)
+
+
+
+    const vertexShader = `
+
+    attribute vec3 positions;
+    attribute vec3 instancePositions;
+    attribute vec3 instancePositions64Low;
+    attribute vec4 instanceColors;
+
+    varying vec4 vColor;
+    varying vec2 vPosition;
+
+    attribute vec3 customPickingColors;
+
+    void main(void) {
+      vec3 positionCommon = project_position(instancePositions + positions , instancePositions64Low);
+      gl_Position = project_common_position_to_clipspace(vec4(positionCommon, 1.0));
+
+      vPosition = positions.xy;
+      vColor = instanceColors;
+
+      picking_setPickingColor(customPickingColors);
+    }
+
+    `
+
+    const fragmentShader = `
+
+    precision highp float;
+
+    varying vec4 vColor;
+    varying vec2 vPosition;
+
+    void main(void) {
+
+      gl_FragColor = vec4(vColor.rgb, vColor.a);
+
+      // Should be the last Fragment shader instruction that updates gl_FragColor
+      gl_FragColor = picking_filterPickingColor(gl_FragColor);
+
+    }
+
+    `
+
+
+    const getMatrixModel = (gl) => {
+
+        const geometry = new Geometry({
+
+          drawMode: gl.TRIANGLE_FAN,
+
+          vertexCount: 4,
+          attributes: {
+            positions: {
+              size: 2,
+              value: positions
+            }
+          }
+        });
+
+        return new Model(gl, {
+          vs: vertexShader,
+          fs: fragmentShader,
+          geometry,
+          isInstanced: true,
+          // required for tooltip
+          modules: [picking]
+        });
+
+      }
+
+
+      class MatrixLayer extends Layer {
+
+        initializeState() {
+
+          const {gl} = this.context;
+
+          // Register attributes
+          this.getAttributeManager().addInstanced({
+            instancePositions: {
+              size: 3,
+              type: gl.FLOAT,  // Changed from gl.DOUBLE to gl.FLOAT
+              accessor: 'getPosition'
+            },
+            instanceColors: {
+              size: 4,
+              normalized: true,
+              type: gl.UNSIGNED_BYTE,
+              accessor: 'getColor',
+              defaultValue: [0, 0, 0, 255]
+            },
+            // createing a picking color attribute
+            customPickingColors: {
+              size: 3,
+              type: gl.UNSIGNED_BYTE,
+              update: this.calculatePickingColors
+              // update: calculatePickingColors
+            }
+          });
+
+          // Save the model in layer state
+          this.setState({
+            model: getMatrixModel(gl)
+          });
+        }
+
+        updateState() {
+          // Retrieve the model from layer state
+          this.state.model.setUniforms({
+            // smoothRadius: this.props.smoothRadius
+          });
+        }
+
+        //////////////////////////////////////////////////
+        calculatePickingColors(attribute) {
+          const {data} = this.props;
+          const {value, size} = attribute;
+          let i = 0;
+
+          let index = 0;
+          for (const object of data) {
+            // console.log(index)
+
+            // Use the index index instead of object.id
+            const pickingColor = this.encodePickingColor(index);
+
+            value[index * 3] = pickingColor[0];
+            value[index * 3 + 1] = pickingColor[1];
+            value[index * 3 + 2] = pickingColor[2];
+            index++;
+          }
+
+        }
+        //////////////////////////////////////////////////
+
+      }
+
+    const defaultProps = {
+
+          // Center of each circle, in [longitude, latitude, (z)]
+          getPosition: {type: 'accessor', value: x => x.position},
+
+          // Color of each circle, in [R, G, B, (A)]
+          // getColor: {type: 'accessor', value: [0, 0, 0, 255]},
+          getColor: {type: 'accessor', value: [0, 0, 0, 50]},
+
+      }
+
+
+      MatrixLayer.layerName = 'MatrixLayer';
+      MatrixLayer.defaultProps = defaultProps;
+
+      const custom_layer = new MatrixLayer({
+        id: 'matrix-layer',
+        data: mat_data,
+        getPosition: d => d.position,
+        getColor: d => d.color,
+        // getColor: d => [255, 0, 0, 50]
+
+        // required for tooltip
+        pickable: true,
+
+        // onHover: (info, event) => console.log('Hovered:', info, event),
+      });
+
+
+      console.log('custom_layer')
+      console.log(custom_layer)
+
+
+    //////////////////////////////
+    // Layers
+    //////////////////////////////
 
     class SquareScatterplotLayer extends ScatterplotLayer {
         getShaders() {

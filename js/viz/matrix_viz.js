@@ -1,20 +1,9 @@
 import { ini_deck } from '../deck-gl/deck_mat.js'
 
-// const {Model, Geometry} = luma;
-
-// import Model and Geometry from luma
-// import {Model, Geometry} from '@luma.gl/core';
-
 // Import Model from @luma.gl/engine
 import { Model, Geometry } from '@luma.gl/engine';
 
-// // Import Geometry from @luma.gl/geometry
-// import { Geometry } from '@luma.gl/geometry';
-
-// // If you need any shadertools (like GLSL utilities), use @luma.gl/shadertools
-// import { assembleShaders } from '@luma.gl/shadertools';
-
-
+console.log('Model')
 console.log(Model)
 
 import { ScatterplotLayer, TextLayer, OrthographicView } from 'deck.gl';

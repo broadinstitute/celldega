@@ -370,95 +370,94 @@ export const matrix_viz = async (
     const getMatrixModel = (gl) => {
 
         const geometry = new Geometry({
-
-          drawMode: gl.TRIANGLE_FAN,
-
-          vertexCount: 4,
-          attributes: {
-            positions: {
-              size: 2,
-              value: positions
+            drawMode: gl.TRIANGLE_FAN,
+            vertexCount: 4,
+            attributes: {
+                positions: {
+                    size: 2,
+                    value: positions
+                }
             }
-          }
         });
 
         return new Model(gl, {
-          vs: vertexShader,
-          fs: fragmentShader,
-          geometry,
-          isInstanced: true,
-          // required for tooltip
-          modules: [picking]
+            vs: vertexShader,
+            fs: fragmentShader,
+            geometry,
+            isInstanced: true,
+            // required for tooltip
+            modules: [picking]
         });
 
-      }
+    }
 
 
-      class MatrixLayer extends Layer {
+    class MatrixLayer extends Layer {
 
         initializeState() {
 
-          const {gl} = this.context;
+            const {gl} = this.context;
 
-          // Register attributes
-          this.getAttributeManager().addInstanced({
-            instancePositions: {
-              size: 3,
-              type: gl.FLOAT,  // Changed from gl.DOUBLE to gl.FLOAT
-              accessor: 'getPosition'
-            },
-            instanceColors: {
-              size: 4,
-              normalized: true,
-              type: gl.UNSIGNED_BYTE,
-              accessor: 'getColor',
-              defaultValue: [0, 0, 0, 255]
-            },
-            // createing a picking color attribute
-            customPickingColors: {
-              size: 3,
-              type: gl.UNSIGNED_BYTE,
-              update: this.calculatePickingColors
-              // update: calculatePickingColors
-            }
-          });
+            // Register attributes
+            this.getAttributeManager().addInstanced({
+                instancePositions: {
+                    size: 3,
+                    type: gl.FLOAT,  // Changed from gl.DOUBLE to gl.FLOAT
+                    accessor: 'getPosition'
+                },
+                instanceColors: {
+                    size: 4,
+                    normalized: true,
+                    type: gl.UNSIGNED_BYTE,
+                    accessor: 'getColor',
+                    defaultValue: [0, 0, 0, 255]
+                },
+                // createing a picking color attribute
+                customPickingColors: {
+                    size: 3,
+                    type: gl.UNSIGNED_BYTE,
+                    update: this.calculatePickingColors
+                    // update: calculatePickingColors
+                }
+            });
 
-          // Save the model in layer state
-          this.setState({
-            model: getMatrixModel(gl)
-          });
+            // Save the model in layer state
+            this.setState({
+                model: getMatrixModel(gl)
+            });
         }
 
         updateState() {
-          // Retrieve the model from layer state
-          this.state.model.setUniforms({
-            // smoothRadius: this.props.smoothRadius
-          });
+            // Retrieve the model from layer state
+            this.state.model.setUniforms({
+                // smoothRadius: this.props.smoothRadius
+            });
         }
 
         //////////////////////////////////////////////////
         calculatePickingColors(attribute) {
-          const {data} = this.props;
-          const {value, size} = attribute;
-          let i = 0;
 
-          let index = 0;
-          for (const object of data) {
-            // console.log(index)
+            const {data} = this.props;
+            const {value, size} = attribute;
+            let i = 0;
 
-            // Use the index index instead of object.id
-            const pickingColor = this.encodePickingColor(index);
+            let index = 0;
+            for (const object of data) {
+                // console.log(index)
 
-            value[index * 3] = pickingColor[0];
-            value[index * 3 + 1] = pickingColor[1];
-            value[index * 3 + 2] = pickingColor[2];
-            index++;
-          }
+                // Use the index index instead of object.id
+                const pickingColor = this.encodePickingColor(index);
+
+                value[index * 3] = pickingColor[0];
+                value[index * 3 + 1] = pickingColor[1];
+                value[index * 3 + 2] = pickingColor[2];
+                index++;
+            }
 
         }
         //////////////////////////////////////////////////
 
-      }
+    }
 
     const defaultProps = {
 
@@ -533,32 +532,32 @@ export const matrix_viz = async (
         getModel() {
             const { device } = this.context; // access device instead of gl context
 
-            console.log('here!!!!')
-
             const geometry = new Geometry({
+                drawMode: device.TRIANGLE_FAN,
+                vertexCount: 3,
                 attributes: {
                     positions: new Float32Array([
                         -0.5, -0.5, 0,
                         0.5, -0.5, 0,
                         0.0,  0.5, 0
                     ])
-                },
-                vertexCount: 3
+                }
             })
 
             return new Model(device, {
                 vs,
                 fs,
-                geometry: geometry,
+                geometry,
+                // isInstanced: true,
                 topology: 'triangle-list' // replaces GL.TRIANGLES
             });
         }
 
         draw({ uniforms }) {
-        const { model } = this.state;
-        model.draw({
-            uniforms
-        });
+            const { model } = this.state;
+            model.draw({
+                uniforms
+            });
         }
     }
 

@@ -269,44 +269,98 @@ export const matrix_viz = async (
     console.log('positions', positions)
 
 
+    // attribute vec3 positions;
+    // attribute vec3 instancePositions;
+    // attribute vec3 instancePositions64Low;
+    // attribute vec4 instanceColors;
+
+    // varying vec4 vColor;
+    // varying vec2 vPosition;
+
+    // attribute vec3 customPickingColors;
+
+    // void main(void) {
+    //   vec3 positionCommon = project_position(instancePositions + positions , instancePositions64Low);
+    //   gl_Position = project_common_position_to_clipspace(vec4(positionCommon, 1.0));
+
+    //   vPosition = positions.xy;
+    //   vColor = instanceColors;
+
+    //   picking_setPickingColor(customPickingColors);
+    // }
+
 
     const vertexShader = `
 
-    attribute vec3 positions;
-    attribute vec3 instancePositions;
-    attribute vec3 instancePositions64Low;
-    attribute vec4 instanceColors;
 
-    varying vec4 vColor;
-    varying vec2 vPosition;
+    #version 300 es
+    #define SHADER_NAME custom-layer-vertex-shader
 
-    attribute vec3 customPickingColors;
+    in vec3 positions;
+    in vec3 instancePositions;
+    in vec3 instancePositions64Low;
+    in vec4 instanceColors;
+    in vec3 customPickingColors;
+
+    uniform float opacity;
+
+    out vec4 vColor;
+    out vec2 vPosition;
 
     void main(void) {
-      vec3 positionCommon = project_position(instancePositions + positions , instancePositions64Low);
-      gl_Position = project_common_position_to_clipspace(vec4(positionCommon, 1.0));
+    geometry.worldPosition = instancePositions;
 
-      vPosition = positions.xy;
-      vColor = instanceColors;
+    // Use the updated function for projecting to clipspace
+    gl_Position = project_position_to_clipspace(instancePositions, instancePositions64Low, positions, geometry.position);
+    DECKGL_FILTER_GL_POSITION(gl_Position, geometry);
 
-      picking_setPickingColor(customPickingColors);
+    // Pass the positions and colors to the fragment shader
+    vPosition = positions.xy;
+    vColor = vec4(instanceColors.rgb, instanceColors.a * opacity);
+    DECKGL_FILTER_COLOR(vColor, geometry);
+
+    // Set picking color
+    geometry.pickingColor = customPickingColors;
+    picking_setPickingColor(customPickingColors);
     }
 
     `
 
+    // precision highp float;
+
+    // varying vec4 vColor;
+    // varying vec2 vPosition;
+
+    // void main(void) {
+
+    //   gl_FragColor = vec4(vColor.rgb, vColor.a);
+
+    //   // Should be the last Fragment shader instruction that updates gl_FragColor
+    //   gl_FragColor = picking_filterPickingColor(gl_FragColor);
+
+
     const fragmentShader = `
+
+
+
+    #version 300 es
+    #define SHADER_NAME custom-layer-fragment-shader
 
     precision highp float;
 
-    varying vec4 vColor;
-    varying vec2 vPosition;
+    in vec4 vColor;
+    in vec2 vPosition;
+
+    out vec4 fragColor;
 
     void main(void) {
+    // Set the fragment color
+    fragColor = vColor;
 
-      gl_FragColor = vec4(vColor.rgb, vColor.a);
+    // Apply picking filter
+    fragColor = picking_filterPickingColor(fragColor);
+    }
 
-      // Should be the last Fragment shader instruction that updates gl_FragColor
-      gl_FragColor = picking_filterPickingColor(gl_FragColor);
 
     }
 
@@ -440,8 +494,77 @@ export const matrix_viz = async (
 
 
 
-      console.log('custom_layer')
-      console.log(custom_layer)
+    console.log('custom_layer')
+    console.log(custom_layer)
+
+
+
+
+    /////////////////////////////////////////////
+    // very simple layer 9.0 compliant
+    /////////////////////////////////////////////
+
+    // Define a minimal vertex and fragment shader
+    const vs = `#version 300 es
+    in vec3 positions;
+    void main(void) {
+        gl_Position = vec4(positions, 1.0);
+    }
+    `;
+
+    const fs = `#version 300 es
+    precision highp float;
+    out vec4 color;
+    void main(void) {
+        color = vec4(1.0, 0.0, 0.0, 1.0); // red color
+    }
+    `;
+
+    // Define a custom TriangleLayer extending Layer
+    class TriangleLayer extends Layer {
+
+        // Initialize model using the new API
+        initializeState() {
+            this.state = {
+                model: this.getModel()
+            };
+        }
+
+        getModel() {
+        const { device } = this.context; // access device instead of gl context
+        return new Model(device, {
+            vs,
+            fs,
+            geometry: new Geometry({
+            attributes: {
+                positions: new Float32Array([
+                    -0.5, -0.5, 0,
+                    0.5, -0.5, 0,
+                    0.0,  0.5, 0
+                ])
+            },
+            vertexCount: 3
+            }),
+            topology: 'triangle-list' // replaces GL.TRIANGLES
+        });
+        }
+
+        draw({ uniforms }) {
+        const { model } = this.state;
+        model.draw({
+            uniforms
+        });
+        }
+    }
+
+    console.log('TriangleLayer')
+    console.log(TriangleLayer)
+
+    TriangleLayer.layerName = 'MatrixLayer';
+
+    const triangle_layer = new TriangleLayer({id: 'triangle-layer'})
+
+    console.log('triangle_layer', triangle_layer)
 
 
     //////////////////////////////
@@ -611,7 +734,7 @@ export const matrix_viz = async (
 
 
     // const layers = [mat_layer, row_cat_layer, col_cat_layer, row_label_layer, col_label_layer]
-    const layers = [row_cat_layer, col_cat_layer, row_label_layer, col_label_layer]
+    const layers = [triangle_layer, row_cat_layer, col_cat_layer, row_label_layer, col_label_layer]
 
     const views = [
 

@@ -562,7 +562,7 @@ export const matrix_viz = async (
 
     TriangleLayer.layerName = 'MatrixLayer';
 
-    const triangle_layer = new TriangleLayer({id: 'triangle-layer'})
+    const triangle_layer = new TriangleLayer({id: 'matrix-layer'});
 
     console.log('triangle_layer', triangle_layer)
 
@@ -855,6 +855,8 @@ export const matrix_viz = async (
         }
 
         return false
+
+        // return true
     }
 
     const getTooltip = ({object, layer}) => {

@@ -1,7 +1,7 @@
 import { ini_deck } from '../deck-gl/deck_mat.js'
 
 
-import {picking} from 'deck.gl'
+import {picking, COORDINATE_SYSTEM} from 'deck.gl'
 import { Model, Geometry, Buffer } from '@luma.gl/engine';
 
 console.log('Model')
@@ -498,8 +498,6 @@ export const matrix_viz = async (
     console.log(custom_layer)
 
 
-
-
     /////////////////////////////////////////////
     // very simple layer 9.0 compliant
     /////////////////////////////////////////////
@@ -526,27 +524,34 @@ export const matrix_viz = async (
         // Initialize model using the new API
         initializeState() {
             this.state = {
-                model: this.getModel()
+                model: this.getModel({
+                    isInstanced: true
+                })
             };
         }
 
         getModel() {
-        const { device } = this.context; // access device instead of gl context
-        return new Model(device, {
-            vs,
-            fs,
-            geometry: new Geometry({
-            attributes: {
-                positions: new Float32Array([
-                    -0.5, -0.5, 0,
-                    0.5, -0.5, 0,
-                    0.0,  0.5, 0
-                ])
-            },
-            vertexCount: 3
-            }),
-            topology: 'triangle-list' // replaces GL.TRIANGLES
-        });
+            const { device } = this.context; // access device instead of gl context
+
+            console.log('here!!!!')
+
+            const geometry = new Geometry({
+                attributes: {
+                    positions: new Float32Array([
+                        -0.5, -0.5, 0,
+                        0.5, -0.5, 0,
+                        0.0,  0.5, 0
+                    ])
+                },
+                vertexCount: 3
+            })
+
+            return new Model(device, {
+                vs,
+                fs,
+                geometry: geometry,
+                topology: 'triangle-list' // replaces GL.TRIANGLES
+            });
         }
 
         draw({ uniforms }) {
@@ -562,7 +567,10 @@ export const matrix_viz = async (
 
     TriangleLayer.layerName = 'MatrixLayer';
 
-    const triangle_layer = new TriangleLayer({id: 'matrix-layer'});
+    const triangle_layer = new TriangleLayer({
+        id: 'matrix-layer',
+        coordinateSystem: COORDINATE_SYSTEM.CARTESIAN
+    });
 
     console.log('triangle_layer', triangle_layer)
 
@@ -1097,6 +1105,5 @@ export const matrix_viz = async (
     })
 
     el.appendChild(root)
-
 
 }

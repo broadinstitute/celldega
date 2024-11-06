@@ -291,8 +291,6 @@ export const matrix_viz = async (
 
 
     const vertexShader = `
-
-
     #version 300 es
     #define SHADER_NAME custom-layer-vertex-shader
 
@@ -308,20 +306,20 @@ export const matrix_viz = async (
     out vec2 vPosition;
 
     void main(void) {
-    geometry.worldPosition = instancePositions;
+        geometry.worldPosition = instancePositions;
 
-    // Use the updated function for projecting to clipspace
-    gl_Position = project_position_to_clipspace(instancePositions, instancePositions64Low, positions, geometry.position);
-    DECKGL_FILTER_GL_POSITION(gl_Position, geometry);
+        // Use the updated function for projecting to clipspace
+        gl_Position = project_position_to_clipspace(instancePositions, instancePositions64Low, positions, geometry.position);
+        DECKGL_FILTER_GL_POSITION(gl_Position, geometry);
 
-    // Pass the positions and colors to the fragment shader
-    vPosition = positions.xy;
-    vColor = vec4(instanceColors.rgb, instanceColors.a * opacity);
-    DECKGL_FILTER_COLOR(vColor, geometry);
+        // Pass the positions and colors to the fragment shader
+        vPosition = positions.xy;
+        vColor = vec4(instanceColors.rgb, instanceColors.a * opacity);
+        DECKGL_FILTER_COLOR(vColor, geometry);
 
-    // Set picking color
-    geometry.pickingColor = customPickingColors;
-    picking_setPickingColor(customPickingColors);
+        // Set picking color
+        geometry.pickingColor = customPickingColors;
+        picking_setPickingColor(customPickingColors);
     }
 
     `
@@ -340,9 +338,6 @@ export const matrix_viz = async (
 
 
     const fragmentShader = `
-
-
-
     #version 300 es
     #define SHADER_NAME custom-layer-fragment-shader
 
@@ -354,11 +349,11 @@ export const matrix_viz = async (
     out vec4 fragColor;
 
     void main(void) {
-    // Set the fragment color
-    fragColor = vColor;
+        // Set the fragment color
+        fragColor = vColor;
 
-    // Apply picking filter
-    fragColor = picking_filterPickingColor(fragColor);
+        // Apply picking filter
+        fragColor = picking_filterPickingColor(fragColor);
     }
 
 

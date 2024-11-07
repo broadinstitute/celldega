@@ -3,6 +3,7 @@ import { CustomMatrixLayer } from '../deck-gl/matrix/custom_matrix_layer.js'
 import { mat_layer } from '../deck-gl/matrix/matrix_layers.js';
 
 import { TextLayer, OrthographicView, Layer } from 'deck.gl';
+import { index } from 'd3';
 
 export const matrix_viz = async (
     model,
@@ -102,11 +103,7 @@ export const matrix_viz = async (
     num_rows = network.mat.length;
     num_cols = network.mat[0].length;
 
-    console.log(num_rows, num_cols)
-
     // Define offsets and color parameters
-    // const col_offset = 50; // Example value
-    // const row_offset = 50; // Example value
     const inst_opacity = 255; // Example value
     let inst_color
 
@@ -159,8 +156,8 @@ export const matrix_viz = async (
         }
 
         const p = {
-        position: [col_width * index_col - col_offset/2, col_label_height],
-        name: 'col-' + index_col
+            position: [col_width * index_col - col_offset/2, col_label_height],
+            name: 'col-' + index_col
         };
 
         matrix_index += 1;
@@ -187,8 +184,8 @@ export const matrix_viz = async (
         }
 
         const p = {
-        position: [row_label_width , row_offset * index_row + row_offset/2],
-        name: 'row-' + index_row
+            position: [row_label_width , row_offset * index_row + row_offset/2],
+            name: 'row-' + index_row
         };
 
         matrix_index += 1;
@@ -214,9 +211,9 @@ export const matrix_viz = async (
         }
 
         const p = {
-        position: [row_cat_offset * index_col, row_offset * index_row],
-        color: [0, 255, 0, 255],
-        name: 'something'
+            position: [row_cat_offset * (index_col + 0.5), row_offset * (index_row + 0.5)],
+            color: [0, 255, 0, 255],
+            name: 'something ' + index_row
         };
 
         matrix_index += 1;
@@ -241,9 +238,9 @@ export const matrix_viz = async (
         }
 
         const p = {
-        position: [col_offset * index_col, col_cat_offset * index_row],
-        color: [0, 255, 0, 150],
-        name: 'some column',
+            position: [col_offset * (index_col + 0.5), col_cat_offset * (index_row + 0.5)],
+            color: [0, 255, 0, 150],
+            name: 'some column ' + index_col,
         };
 
         matrix_index += 1;

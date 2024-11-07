@@ -1,5 +1,6 @@
-import { ini_deck } from '../deck-gl/deck_mat.js'
-import { CustomMatrixLayer } from '../deck-gl/custom_matrix_layer.js'
+import { ini_deck } from '../deck-gl/matrix/deck_mat.js'
+import { CustomMatrixLayer } from '../deck-gl/matrix/custom_matrix_layer.js'
+import { mat_layer } from '../deck-gl/matrix/matrix_layers.js';
 
 import { TextLayer, OrthographicView, Layer } from 'deck.gl';
 
@@ -10,6 +11,8 @@ export const matrix_viz = async (
 ) => {
 
     let viz_state = {}
+
+    console.log(viz_state)
 
     // Create and append the visualization.
     let root = document.createElement("div")
@@ -243,8 +246,6 @@ export const matrix_viz = async (
         data: mat_data,
         getPosition: d => d.position, // Position of each point
         getFillColor: d => d.color,   // Color of each point
-        // getRadius: d => 1 * (mat_height/(2 * num_rows)),           // Radius of each point (adjust as needed)
-        // radiusUnits: 'pixels',
         pickable: true,               // Enable picking for interactivity
         opacity: 0.8,                  // Set the opacity of the points
         antialiasing: false,
@@ -299,7 +300,6 @@ export const matrix_viz = async (
         // getPosition: d => d.position, // Position of each point
         getPosition: d => [d.position[0] + cat_shift_row, d.position[1]],
         getFillColor: d => d.color,   // Color of each point
-        getRadius: d => 1,           // Radius of each point (adjust as needed)
         pickable: true,               // Enable picking for interactivity
         opacity: 0.8,                  // Set the opacity of the points
         tile_width: row_cat_width/2,
@@ -359,8 +359,6 @@ export const matrix_viz = async (
     const update_zoom_data = (zoom_data, viewId, zoom, target) => {
 
         if (viewId === 'matrix') {
-
-            console.log('matrix')
 
             // update pans
             zoom_data.pan_x = target[0];
@@ -575,72 +573,72 @@ export const matrix_viz = async (
 
         if (viewId === 'matrix') {
 
-        globalViewState = {
-            matrix: {
-            // zoom: [zoom[0], zoom[1]],
-            zoom: [zoom_curated_x, zoom_curated_y],
-            // target: [target[0], target[1]]
-            target: [pan_curated_x, pan_curated_y]
-            },
-            rows:   {
-            // zoom: [ini_zoom_x, zoom[1]],
-            zoom: [ini_zoom_x, zoom_curated_y],
-            // target: [label_row_x, target[1]]
-            target: [label_row_x, pan_curated_y]
-            },
-            cols:   {
-            // zoom: [zoom[0], ini_zoom_y],
-            zoom: [zoom_curated_x, ini_zoom_y],
-            // target: [target[0], label_col_y]
-            target: [pan_curated_x, label_col_y]
-            },
-        }
+            globalViewState = {
+                matrix: {
+                // zoom: [zoom[0], zoom[1]],
+                zoom: [zoom_curated_x, zoom_curated_y],
+                // target: [target[0], target[1]]
+                target: [pan_curated_x, pan_curated_y]
+                },
+                rows:   {
+                // zoom: [ini_zoom_x, zoom[1]],
+                zoom: [ini_zoom_x, zoom_curated_y],
+                // target: [label_row_x, target[1]]
+                target: [label_row_x, pan_curated_y]
+                },
+                cols:   {
+                // zoom: [zoom[0], ini_zoom_y],
+                zoom: [zoom_curated_x, ini_zoom_y],
+                // target: [target[0], label_col_y]
+                target: [pan_curated_x, label_col_y]
+                },
+            }
 
         } else if (viewId === 'cols'){
 
-        globalViewState = {
-            matrix: {
-            // zoom: [zoom[0], zoom_data.zoom_y],
-            zoom: [zoom_curated_x, zoom_data.zoom_y],
-            // target: [target[0], zoom_data.pan_y]
-            target: [pan_curated_x, zoom_data.pan_y]
-            },
-            rows:   {
-            // zoom: [ini_zoom_x, zoom_data.zoom_y],
-            zoom: [ini_zoom_x, zoom_data.zoom_y],
-            // target: [label_row_x, zoom_data.pan_y]
-            target: [label_row_x, zoom_data.pan_y]
-            },
-            cols:   {
-            // zoom: [zoom[0], ini_zoom_y],
-            zoom: [zoom_curated_x, ini_zoom_y],
-            // target: [target[0], label_col_y]
-            target: [pan_curated_x, label_col_y]
-            },
-        }
+            globalViewState = {
+                matrix: {
+                // zoom: [zoom[0], zoom_data.zoom_y],
+                zoom: [zoom_curated_x, zoom_data.zoom_y],
+                // target: [target[0], zoom_data.pan_y]
+                target: [pan_curated_x, zoom_data.pan_y]
+                },
+                rows:   {
+                // zoom: [ini_zoom_x, zoom_data.zoom_y],
+                zoom: [ini_zoom_x, zoom_data.zoom_y],
+                // target: [label_row_x, zoom_data.pan_y]
+                target: [label_row_x, zoom_data.pan_y]
+                },
+                cols:   {
+                // zoom: [zoom[0], ini_zoom_y],
+                zoom: [zoom_curated_x, ini_zoom_y],
+                // target: [target[0], label_col_y]
+                target: [pan_curated_x, label_col_y]
+                },
+            }
 
         } else if (viewId === 'rows'){
 
-        globalViewState = {
-            matrix: {
-            // zoom: [zoom_data.zoom_x, zoom[1]],
-            zoom: [zoom_data.zoom_x, zoom_curated_y],
-            // target: [zoom_data.pan_x, target[1]]
-            target: [zoom_data.pan_x, pan_curated_y]
-            },
-            rows:   {
-            // zoom: [ini_zoom_x, zoom[1]],
-            zoom: [ini_zoom_x, zoom_curated_y],
-            // target: [label_row_x, target[1]]
-            target: [label_row_x, pan_curated_y]
-            },
-            cols:   {
-            // zoom: [zoom_data.zoom_x, ini_zoom_y],
-            zoom: [zoom_data.zoom_x, ini_zoom_y],
-            // target: [zoom_data.pan_x, label_col_y]
-            target: [zoom_data.pan_x, label_col_y]
-            },
-        }
+            globalViewState = {
+                matrix: {
+                // zoom: [zoom_data.zoom_x, zoom[1]],
+                zoom: [zoom_data.zoom_x, zoom_curated_y],
+                // target: [zoom_data.pan_x, target[1]]
+                target: [zoom_data.pan_x, pan_curated_y]
+                },
+                rows:   {
+                // zoom: [ini_zoom_x, zoom[1]],
+                zoom: [ini_zoom_x, zoom_curated_y],
+                // target: [label_row_x, target[1]]
+                target: [label_row_x, pan_curated_y]
+                },
+                cols:   {
+                // zoom: [zoom_data.zoom_x, ini_zoom_y],
+                zoom: [zoom_data.zoom_x, ini_zoom_y],
+                // target: [zoom_data.pan_x, label_col_y]
+                target: [zoom_data.pan_x, label_col_y]
+                },
+            }
 
         }
 
@@ -660,7 +658,7 @@ export const matrix_viz = async (
 
         inst_font_size = ini_font_size * zoom_factor_x
 
-        console.log('inst_font_size', inst_font_size)
+        // console.log('inst_font_size', inst_font_size)
 
         // this takes mutable zoom_data since it updates zoom_data's state
         update_zoom_data(zoom_data, viewId, zoom, target)

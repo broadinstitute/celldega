@@ -3,20 +3,22 @@ import { CustomMatrixLayer } from '../deck-gl/matrix/custom_matrix_layer.js'
 import { mat_layer } from '../deck-gl/matrix/matrix_layers.js';
 
 import { TextLayer, OrthographicView, Layer } from 'deck.gl';
-import { hi } from 'clustergrammer-gl';
 
 export const matrix_viz = async (
     model,
     el,
+    network,
     width,
     height
     // token,
 ) => {
 
+    console.log(network)
+
 
     let viz_state = {}
 
-    console.log(viz_state)
+    console.log('viz_state', viz_state)
 
     // Create and append the visualization.
     let root = document.createElement("div")

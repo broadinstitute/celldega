@@ -538,7 +538,7 @@ def make_cell_boundary_tiles(
     path_transformation_matrix,
     path_output,
     coarse_tile_size=5000,
-    fine_tile_size=500,
+    fine_tile_size=250,
     tile_bounds=None,
     image_scale=1,
     max_workers=8

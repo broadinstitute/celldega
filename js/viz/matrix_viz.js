@@ -128,71 +128,44 @@ export const matrix_viz = async (
                 ],
                 color: [inst_color[0], inst_color[1], inst_color[2], 255 * tile_value / max_abs_value],
                 value: tile_value,
-                row: index_row + 1,
-                col: index_col + 1,
+                row: index_row,
+                col: index_col,
             };
             // Add the object to mat_data
             mat_data.push(p);
         });
     });
 
-    console.log('new mat_data')
-    console.log(mat_data[0])
-    console.log(mat_data.length)
+
 
     // col label data
     let matrix_index = 0;
 
-    var index_col = 0
 
-    var num_points = num_rows * 1
-
-    const col_label_data =  new Array(num_points).fill(0).map( _ => {
-
-        var index_col = matrix_index % num_cols
-
-        if (matrix_index % 1  === 0){
-        index_col += 1;
-        }
-
+    let col_label_data = []
+    network.col_nodes.forEach((node, index) => {
         const p = {
-            position: [col_width * index_col - col_offset/2, col_label_height],
-            name: 'col-' + index_col
+            position: [col_width * index + col_width/2, col_label_height/2],
+            name: node.name
         };
+        col_label_data.push(p);
+    })
 
-        matrix_index += 1;
+    console.log(col_label_data)
 
-        return p;
-    });
+    console.log('here')
 
-
-    // row label data
-
-    matrix_index = 0;
-
-    var index_row = 0
-    // const num_row_cats = 1
-
-    var num_points = num_rows// * num_row_cats
-
-    const row_label_data = new Array(num_points).fill(0).map( _ => {
-
-        var index_col = matrix_index % 1 // num_row_cats
-
-        if (matrix_index % 1 == 0){ // num_row_cats =
-        index_row += 1;
-        }
-
+    let row_label_data = []
+    network.row_nodes.forEach((node, index) => {
         const p = {
-            position: [row_label_width , row_offset * index_row + row_offset/2],
-            name: 'row-' + index_row
+            position: [
+                row_label_width / 2,
+                row_offset * (index + 1.5)
+              ],
+            name: node.name
         };
-
-        matrix_index += 1;
-
-        return p;
-    });
-
+        row_label_data.push(p);
+    })
 
     // row cat data
     matrix_index = 0;

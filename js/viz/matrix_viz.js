@@ -32,8 +32,8 @@ export const matrix_viz = async (
     const mat_width = width
     const mat_height = height
 
-    const num_rows = 10
-    const num_cols = 10
+    let num_rows = 10
+    let num_cols = 10
 
     const base_font_size = 100
 
@@ -124,18 +124,67 @@ export const matrix_viz = async (
         var inst_opacity = parseInt(255 * matrix_index/num_points)
 
         const p = {
-        position: [col_offset * index_col + col_offset/2, row_offset * index_row + row_offset/2],
-        color: [inst_color[0], inst_color[1], inst_color[2], inst_opacity],
-        value: ((index_row/num_rows) + (index_col/num_cols))/2,
-        row: index_row,
-        // seem to need to add index to col
-        col: index_col + 1,
+            position: [
+                col_offset * (index_col + 0.5),
+                row_offset * (index_row + 0.5)
+            ],
+            color: [255, 0, 0, inst_opacity], // [inst_color[0], inst_color[1], inst_color[2], inst_opacity],
+            // value: ((index_row/num_rows) + (index_col/num_cols))/2,
+            row: index_row,
+            col: index_col + 1,
         };
 
         matrix_index += 1;
 
         return p;
     });
+
+    console.log('mat_data')
+    console.log(mat_data[0])
+    console.log(mat_data.length)
+
+
+    // make mat_data from network_data
+    //////////////////////////////////////
+
+    // Assuming network.mat is an array of arrays
+    mat_data = [];
+    num_rows = network.mat.length;
+    num_cols = network.mat[0].length;
+
+    console.log(num_rows, num_cols)
+
+    // Define offsets and color parameters
+    // const col_offset = 50; // Example value
+    // const row_offset = 50; // Example value
+    const inst_opacity = 255; // Example value
+    const inst_color = [255, 0, 0]; // Example color
+
+    const max_abs_value = Math.max(...network.mat.flat().map(Math.abs));
+
+    // Iterate over each row and column in network.mat
+    network.mat.forEach((rowArray, index_row) => {
+        rowArray.forEach((tile_value, index_col) => {
+
+            // Construct the object for each cell
+            const p = {
+                position: [
+                    col_offset * (index_col + 0.5),
+                    row_offset * (index_row + 1.5)
+                ],
+                color: [inst_color[0], inst_color[1], inst_color[2], 255 * tile_value / max_abs_value],
+                value: tile_value,
+                row: index_row + 1,
+                col: index_col + 1,
+            };
+            // Add the object to mat_data
+            mat_data.push(p);
+        });
+    });
+
+    console.log('new mat_data')
+    console.log(mat_data[0])
+    console.log(mat_data.length)
 
     // col label data
     matrix_index = 0;

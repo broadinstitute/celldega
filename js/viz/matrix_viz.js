@@ -32,8 +32,8 @@ export const matrix_viz = async (
     const mat_width = width
     const mat_height = height
 
-    let num_rows = 10
-    let num_cols = 10
+    let num_rows = network.mat.length
+    let num_cols = network.mat[0].length
 
     const base_font_size = 100
 
@@ -158,13 +158,20 @@ export const matrix_viz = async (
     // const col_offset = 50; // Example value
     // const row_offset = 50; // Example value
     const inst_opacity = 255; // Example value
-    const inst_color = [255, 0, 0]; // Example color
+    let inst_color
 
     const max_abs_value = Math.max(...network.mat.flat().map(Math.abs));
+
 
     // Iterate over each row and column in network.mat
     network.mat.forEach((rowArray, index_row) => {
         rowArray.forEach((tile_value, index_col) => {
+
+            if (tile_value >= 0){
+                inst_color = [255, 0, 0]
+            } else {
+                inst_color = [0, 0, 255]
+            }
 
             // Construct the object for each cell
             const p = {

@@ -94,56 +94,6 @@ export const matrix_viz = async (
 
     const viz_height = mat_height + col_region_height
 
-    //////////////////////////////
-    // Data
-    //////////////////////////////
-    let matrix_index = 0;
-
-    var index_row = 0
-
-    var num_points = num_rows * num_cols
-
-    let mat_data = new Array(num_points).fill(0).map( _ => {
-
-        var index_col = matrix_index % num_cols
-
-        if (matrix_index % num_cols === 0){
-        index_row += 1;
-        }
-
-        var inst_red = parseInt(255 * (index_row/num_rows))
-        var inst_blue = parseInt(255 * (index_col/num_cols))
-
-        var inst_color
-        if (index_col >= index_row){
-            inst_color = [0, 0, 255]
-        } else {
-            inst_color = [255, 0, 0]
-        }
-
-        var inst_opacity = parseInt(255 * matrix_index/num_points)
-
-        const p = {
-            position: [
-                col_offset * (index_col + 0.5),
-                row_offset * (index_row + 0.5)
-            ],
-            color: [255, 0, 0, inst_opacity], // [inst_color[0], inst_color[1], inst_color[2], inst_opacity],
-            // value: ((index_row/num_rows) + (index_col/num_cols))/2,
-            row: index_row,
-            col: index_col + 1,
-        };
-
-        matrix_index += 1;
-
-        return p;
-    });
-
-    console.log('mat_data')
-    console.log(mat_data[0])
-    console.log(mat_data.length)
-
-
     // make mat_data from network_data
     //////////////////////////////////////
 
@@ -194,7 +144,7 @@ export const matrix_viz = async (
     console.log(mat_data.length)
 
     // col label data
-    matrix_index = 0;
+    let matrix_index = 0;
 
     var index_col = 0
 

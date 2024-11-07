@@ -537,55 +537,128 @@ def make_cell_boundary_tiles(
     path_meta_cell_micron,
     path_transformation_matrix,
     path_output,
-    tile_size=1000,
+    coarse_tile_size=5000,
+    fine_tile_size=500,
     tile_bounds=None,
-    image_scale=0.5
+    image_scale=1,
+    max_workers=8
 ):
+    
+
     """
     Processes cell boundary data and divides it into spatial tiles based on the provided technology.
-    
-    This function reads cell boundary data, applies transformations to the geometries, and divides the 
-    processed data into spatial tiles. The resulting tiles are saved as Parquet files, each containing 
-    the geometries of cells in that tile.
+    Reads cell boundary data, applies affine transformations, and divides the data into coarse and fine tiles.
+    The resulting tiles are saved as Parquet files, each containing the geometries of cells in that tile.
 
-    Parameters:
+    Parameters
     ----------
     technology : str
-        The technology used for generating the cell boundary data. It can be "MERSCOPE", "Xenium", or "custom".
+        The technology used to generate the cell boundary data, e.g., "MERSCOPE", "Xenium", or "custom".
     path_cell_boundaries : str
-        Path to the file containing the cell boundaries (input file in Parquet format).
+        Path to the file containing the cell boundaries (Parquet format).
     path_meta_cell_micron : str
-        Path to the file containing cell metadata (CSV file).
+        Path to the file containing cell metadata (CSV format).
     path_transformation_matrix : str
-        Path to the file containing the transformation matrix (CSV file).
+        Path to the file containing the transformation matrix (CSV format).
     path_output : str
-        Path where the output files (Parquet files) for each tile will be saved.
-    tile_size : int, optional, default=1000
-        Size of each tile in microns.
+        Directory path where the output files (Parquet files) for each tile will be saved.
+    coarse_tile_size : int, optional, default=5000
+        Size of each coarse-grain tile in microns.
+    fine_tile_size : int, optional, default=500
+        Size of each fine-grain tile in microns.
     tile_bounds : dict, optional
-        Dictionary containing the minimum and maximum bounds for the x and y coordinates (keys: "x_min", "x_max", "y_min", "y_max").
-    image_scale : float, optional, default=0.5
+        Dictionary containing the minimum and maximum bounds for x and y coordinates.
+    image_scale : float, optional, default=1
         Scale factor to apply to the geometry data.
+    max_workers : int, optional, default=8
+        Maximum number of parallel workers for processing tiles.
 
-    Returns:
-    --------
+    Returns
+    -------
     None
-        This function saves the results to Parquet files and doesn't return any data.
-    
     """
+
+    def numpy_affine_transform(coords, matrix):
+        """Apply affine transformation to numpy coordinates."""
+        # Homogeneous coordinates for affine transformation
+        coords = np.hstack([coords, np.ones((coords.shape[0], 1))])
+        transformed_coords = coords @ matrix.T
+        return transformed_coords[:, :2]  # Drop the homogeneous coordinate
+    
     def batch_transform_geometries(geometries, transformation_matrix, scale):
+        """
+        Batch transform geometries using numpy for optimized performance.
+        """
+        # Extract affine transformation parameters into a 3x3 matrix for numpy
+        affine_matrix = np.array([
+            [transformation_matrix[0, 0], transformation_matrix[0, 1], transformation_matrix[0, 2]],
+            [transformation_matrix[1, 0], transformation_matrix[1, 1], transformation_matrix[1, 2]],
+            [0, 0, 1]
+        ])
+        
         transformed_geometries = []
-        for poly in geometries:
-            transformed = transform_polygon(poly, transformation_matrix)
-            scaled = simple_format(transformed, scale)
-            transformed_geometries.append(scaled)
+        
+        for polygon in geometries:
+            # Extract coordinates and transform them
+            if isinstance(polygon, MultiPolygon):
+                polygon = next(polygon.geoms)  # Use the first geometry
+            
+            # Transform the exterior of the polygon
+            exterior_coords = np.array(polygon.exterior.coords)
+            
+            # Apply the affine transformation and scale
+            transformed_coords = numpy_affine_transform(exterior_coords, affine_matrix) / scale
+            
+            # Append the result to the transformed_geometries list
+            transformed_geometries.append([transformed_coords.tolist()])
+        
         return transformed_geometries
 
 
-    tile_size_x = tile_size
-    tile_size_y = tile_size
+    def filter_and_save_fine_boundary(coarse_tile, fine_i, fine_j, fine_tile_x_min, fine_tile_x_max, fine_tile_y_min, fine_tile_y_max, path_output):
+        cell_ids = coarse_tile.index.values
+        
+        tile_filter = (
+            (coarse_tile["center_x"] >= fine_tile_x_min) & (coarse_tile["center_x"] < fine_tile_x_max) &
+            (coarse_tile["center_y"] >= fine_tile_y_min) & (coarse_tile["center_y"] < fine_tile_y_max)
+        )
+        filtered_indices = np.where(tile_filter)[0]
 
-    # Load the transformation matrix
+        keep_cells = cell_ids[filtered_indices]
+        fine_tile_cells = coarse_tile.loc[keep_cells, ["GEOMETRY"]]
+        fine_tile_cells = fine_tile_cells.assign(name=fine_tile_cells.index)
+  
+        if not fine_tile_cells.empty:
+            filename = f"{path_output}/cell_tile_{fine_i}_{fine_j}.parquet"
+            fine_tile_cells.to_parquet(filename)
+
+    def process_fine_boundaries(coarse_tile, i, j, coarse_tile_x_min, coarse_tile_x_max, coarse_tile_y_min, coarse_tile_y_max, fine_tile_size, path_output, x_min, y_min, n_fine_tiles_x, n_fine_tiles_y):
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = []
+            for fine_i in range(n_fine_tiles_x):
+                fine_tile_x_min = x_min + fine_i * fine_tile_size
+                fine_tile_x_max = fine_tile_x_min + fine_tile_size
+
+                if not (fine_tile_x_min >= coarse_tile_x_min and fine_tile_x_max <= coarse_tile_x_max):
+                    continue
+
+                for fine_j in range(n_fine_tiles_y):
+                    fine_tile_y_min = y_min + fine_j * fine_tile_size
+                    fine_tile_y_max = fine_tile_y_min + fine_tile_size
+
+                    if not (fine_tile_y_min >= coarse_tile_y_min and fine_tile_y_max <= coarse_tile_y_max):
+                        continue
+
+                    futures.append(executor.submit(
+                        filter_and_save_fine_boundary, coarse_tile, fine_i, fine_j, fine_tile_x_min, fine_tile_x_max, fine_tile_y_min, fine_tile_y_max, path_output
+                    ))
+
+            for future in futures:
+                future.result()
+
+    tile_size_x = fine_tile_size
+    tile_size_y = fine_tile_size
+
     transformation_matrix = pd.read_csv(path_transformation_matrix, header=None, sep=" ").values
 
     # Load cell boundary data based on the technology
@@ -617,65 +690,43 @@ def make_cell_boundary_tiles(
     elif technology == "custom":
         cells_orig = gpd.read_parquet(path_cell_boundaries)
 
+    # Transform geometries
     cells_orig["GEOMETRY"] = batch_transform_geometries(cells_orig["geometry"], transformation_matrix, image_scale)
 
-    # Create polygons from transformed coordinates
+    # Convert transformed geometries to polygons and calculate centroids
     cells_orig["polygon"] = cells_orig["GEOMETRY"].apply(lambda x: Polygon(x[0]))
-
-    # Create a GeoDataFrame with polygons and centroids
     gdf_cells = gpd.GeoDataFrame(geometry=cells_orig["polygon"])
     gdf_cells["center_x"] = gdf_cells.geometry.centroid.x
     gdf_cells["center_y"] = gdf_cells.geometry.centroid.y
+    gdf_cells["GEOMETRY"] = cells_orig["GEOMETRY"]
 
     # Ensure the output directory exists
     if not os.path.exists(path_output):
         os.makedirs(path_output)
 
-    # Get tile bounds
+    # Calculate tile bounds and fine/coarse tiles
     x_min, x_max = tile_bounds["x_min"], tile_bounds["x_max"]
     y_min, y_max = tile_bounds["y_min"], tile_bounds["y_max"]
+    n_fine_tiles_x = int(np.ceil((x_max - x_min) / fine_tile_size))
+    n_fine_tiles_y = int(np.ceil((y_max - y_min) / fine_tile_size))
+    n_coarse_tiles_x = int(np.ceil((x_max - x_min) / coarse_tile_size))
+    n_coarse_tiles_y = int(np.ceil((y_max - y_min) / coarse_tile_size))
 
-    # Calculate the number of tiles needed
-    n_tiles_x = int(np.ceil((x_max - x_min) / tile_size_x))
-    n_tiles_y = int(np.ceil((y_max - y_min) / tile_size_y))
+    # Process coarse tiles in parallel
+    for i in tqdm(range(n_coarse_tiles_x), desc="Processing coarse tiles"):
+        coarse_tile_x_min = x_min + i * coarse_tile_size
+        coarse_tile_x_max = coarse_tile_x_min + coarse_tile_size
 
-    # Convert centroids to numpy arrays for faster filtering
-    center_x = gdf_cells["center_x"].values
-    center_y = gdf_cells["center_y"].values
-    cell_ids = gdf_cells.index.values
+        for j in range(n_coarse_tiles_y):
+            coarse_tile_y_min = y_min + j * coarse_tile_size
+            coarse_tile_y_max = coarse_tile_y_min + coarse_tile_size
 
-    # Iterate over tiles and filter data
-    for i in tqdm(range(n_tiles_x), desc="Processing rows"):
-        tile_x_min = x_min + i * tile_size_x
-        tile_x_max = tile_x_min + tile_size_x
-
-        for j in tqdm(range(n_tiles_y), desc="Processing tiles", leave=False):
-            tile_y_min = y_min + j * tile_size_y
-            tile_y_max = tile_y_min + tile_size_y
-
-            # Combine x and y filters into one numpy filter for faster filtering
-            tile_filter = (
-                (center_x >= tile_x_min) & (center_x < tile_x_max) &
-                (center_y >= tile_y_min) & (center_y < tile_y_max)
-            )
-            filtered_indices = np.where(tile_filter)[0]
-
-            # Skip empty tiles
-            if len(filtered_indices) == 0:
-                continue
-
-            # Filter the GeoDataFrame based on the filtered indices
-            keep_cells = cell_ids[filtered_indices]
-            inst_geo = cells_orig.loc[keep_cells, ["GEOMETRY"]]
-
-            # Add cell names to the geometry
-            inst_geo["name"] = pd.Series(keep_cells, index=keep_cells)
-
-            # Define the filename based on tile coordinates
-            filename = f"{path_output}/cell_tile_{i}_{j}.parquet"
-
-            # Save the filtered DataFrame to a Parquet file
-            inst_geo.to_parquet(filename)
+            coarse_tile = gdf_cells[
+                (gdf_cells["center_x"] >= coarse_tile_x_min) & (gdf_cells["center_x"] < coarse_tile_x_max) &
+                (gdf_cells["center_y"] >= coarse_tile_y_min) & (gdf_cells["center_y"] < coarse_tile_y_max)
+            ]
+            if not coarse_tile.empty:
+                process_fine_boundaries(coarse_tile, i, j, coarse_tile_x_min, coarse_tile_x_max, coarse_tile_y_min, coarse_tile_y_max, fine_tile_size, path_output, x_min, y_min, n_fine_tiles_x, n_fine_tiles_y)
 
 
 

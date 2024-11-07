@@ -356,7 +356,6 @@ export const matrix_viz = async (
         fragColor = picking_filterPickingColor(fragColor);
     }
 
-
     }
 
     `
@@ -492,170 +491,166 @@ export const matrix_viz = async (
     console.log(custom_layer)
 
 
-    /////////////////////////////////////////////
-    // very simple layer 9.0 compliant
-    /////////////////////////////////////////////
+    // /////////////////////////////////////////////
+    // // very simple layer 9.0 compliant
+    // /////////////////////////////////////////////
 
-    // Define a minimal vertex and fragment shader
-    const vs = `#version 300 es
-    in vec3 positions;
-    void main(void) {
-        gl_Position = vec4(positions, 1.0);
-    }
-    `;
+    // // Define a minimal vertex and fragment shader
+    // const vs = `#version 300 es
+    // in vec3 positions;
+    // void main(void) {
+    //     gl_Position = vec4(positions, 1.0);
+    // }
+    // `;
 
-    const fs = `#version 300 es
-    precision highp float;
-    out vec4 color;
-    void main(void) {
-        color = vec4(1.0, 0.0, 0.0, 1.0); // red color
-    }
-    `;
+    // const fs = `#version 300 es
+    // precision highp float;
+    // out vec4 color;
+    // void main(void) {
+    //     color = vec4(1.0, 0.0, 0.0, 1.0); // red color
+    // }
+    // `;
 
-    // Define a custom TriangleLayer extending Layer
-    class TriangleLayer extends Layer {
+    // // Define a custom TriangleLayer extending Layer
+    // class TriangleLayer extends Layer {
 
-        // Initialize model using the new API
-        initializeState() {
-            this.state = {
-                model: this.getModel({
-                    isInstanced: true
-                })
-            };
-        }
+    //     // Initialize model using the new API
+    //     initializeState() {
+    //         this.state = {
+    //             model: this.getModel({
+    //                 isInstanced: true
+    //             })
+    //         };
+    //     }
 
-        getModel() {
-            const { device } = this.context; // access device instead of gl context
+    //     getModel() {
+    //         const { device } = this.context; // access device instead of gl context
 
-            const geometry = new Geometry({
-                drawMode: device.TRIANGLE_FAN,
-                vertexCount: 3,
-                attributes: {
-                    positions: new Float32Array([
-                        -0.5, -0.5, 0,
-                        0.5, -0.5, 0,
-                        0.0,  0.5, 0
-                    ])
-                }
-            })
+    //         const geometry = new Geometry({
+    //             drawMode: device.TRIANGLE_FAN,
+    //             vertexCount: 3,
+    //             attributes: {
+    //                 positions: new Float32Array([
+    //                     -0.5, -0.5, 0,
+    //                     0.5, -0.5, 0,
+    //                     0.0,  0.5, 0
+    //                 ])
+    //             }
+    //         })
 
-            return new Model(device, {
-                vs,
-                fs,
-                geometry,
-                // isInstanced: true,
-                topology: 'triangle-list' // replaces GL.TRIANGLES
-            });
-        }
+    //         return new Model(device, {
+    //             vs,
+    //             fs,
+    //             geometry,
+    //             // isInstanced: true,
+    //             topology: 'triangle-list' // replaces GL.TRIANGLES
+    //         });
+    //     }
 
-        draw({ uniforms }) {
-            const { model } = this.state;
-            model.draw({
-                uniforms
-            });
-        }
-    }
+    //     draw({ uniforms }) {
+    //         const { model } = this.state;
+    //         model.draw({
+    //             uniforms
+    //         });
+    //     }
+    // }
 
-    console.log('TriangleLayer')
-    console.log(TriangleLayer)
+    // console.log('TriangleLayer')
+    // console.log(TriangleLayer)
 
-    TriangleLayer.layerName = 'MatrixLayer';
+    // TriangleLayer.layerName = 'MatrixLayer';
 
-    const triangle_layer = new TriangleLayer({
-        id: 'matrix-layer',
-        coordinateSystem: COORDINATE_SYSTEM.CARTESIAN
-    });
+    // const triangle_layer = new TriangleLayer({
+    //     id: 'matrix-layer',
+    //     coordinateSystem: COORDINATE_SYSTEM.CARTESIAN
+    // });
 
-    console.log('triangle_layer', triangle_layer)
+    // console.log('triangle_layer', triangle_layer)
+
+
+
 
 
     //////////////////////////////
     // Layers
     //////////////////////////////
 
+    const vs = `#version 300 es
+    #define SHADER_NAME scatterplot-layer-vertex-shader
+
+    // customize the vertex shader to allow for x and y scaling and zooming
+
+    in vec3 positions;
+    in vec3 instancePositions;
+    in vec3 instancePositions64Low;
+    in vec3 instancePickingColors;
+    in vec4 instanceFillColors;
+
+    uniform float opacity;
+    uniform float tile_height;
+    uniform float tile_width;
+
+    out vec4 vFillColor;
+    out vec2 unitPosition;
+
+    void main(void) {
+
+      vec3 scaled_positions = vec3(tile_width * positions.x, tile_height * positions.y, positions.z);
+
+      vec3 positionCommon = project_position(instancePositions + scaled_positions , instancePositions64Low);
+
+      gl_Position = project_common_position_to_clipspace(vec4(positionCommon, 1.0));
+
+      gl_PointSize = 100.0;
+
+      geometry.pickingColor = instancePickingColors;
+
+      vFillColor = vec4(instanceFillColors.rgb, instanceFillColors.a * opacity);
+      DECKGL_FILTER_COLOR(vFillColor, geometry);
+
+    }
+
+    `
+
+    const fs = `#version 300 es
+    #define SHADER_NAME scatterplot-layer-fragment-shader
+
+    // Customize the fragment shader to create square-shaped points
+
+    precision highp float;
+    in vec4 vFillColor;
+    in vec2 unitPosition;
+    out vec4 fragColor;
+
+    void main(void) {
+        geometry.uv = unitPosition;
+        fragColor = vFillColor;
+        DECKGL_FILTER_COLOR(fragColor, geometry);
+    }`
+
     class SquareScatterplotLayer extends ScatterplotLayer {
+
         getShaders() {
+
           // Get the default shaders from ScatterplotLayer
           const shaders = super.getShaders();
-
-          // Customize the fragment shader to create square-shaped points
-          shaders.fs = `#version 300 es
-          #define SHADER_NAME scatterplot-layer-fragment-shader
-          precision highp float;
-          in vec4 vFillColor;
-          in vec2 unitPosition;
-          out vec4 fragColor;
-          void main(void) {
-              geometry.uv = unitPosition;
-              fragColor = vFillColor;
-              DECKGL_FILTER_COLOR(fragColor, geometry);
-          }`;
-
-          shaders.vs = `#version 300 es
-            #define SHADER_NAME scatterplot-layer-vertex-shader
-
-            in vec3 positions;
-
-            in vec3 instancePositions;
-            in vec3 instancePositions64Low;
-            in float instanceRadius;
-            in float instanceLineWidths;
-            in vec4 instanceFillColors;
-            in vec4 instanceLineColors;
-            in vec3 instancePickingColors;
-
-            uniform float opacity;
-            uniform int radiusUnits;
-            uniform int lineWidthUnits;
-
-            out vec4 vFillColor;
-            out vec4 vLineColor;
-            out vec2 unitPosition;
-            out float outerRadiusPixels;
-
-            void main(void) {
-            geometry.worldPosition = instancePositions;
-
-            // // Multiply out radius and clamp to limits
-            // outerRadiusPixels = project_size_to_pixel( instanceRadius, radiusUnits);
-
-            // fixed size scatterplot
-            outerRadiusPixels = 10.0;
-
-            // position on the containing square in [-1, 1] space
-            unitPosition = positions.xy;
-
-            geometry.uv = unitPosition;
-            geometry.pickingColor = instancePickingColors;
-
-            // vec3 offset = positions * project_pixel_size(outerRadiusPixels);
-            // vec3 offset = positions;
-
-            // // Adjust the offset to use scaleX and scaleY
-            // vec3 offset = vec3(
-            //     positions.x * project_pixel_size(outerRadiusPixels),
-            //     positions.y * 3.0,
-            //     positions.z * project_pixel_size(outerRadiusPixels)
-            // );
-
-            // Compute the offset, applying scaling only to the x-axis
-            vec3 offset = vec3(
-                positions.x * project_pixel_size(outerRadiusPixels), // Scale x component
-                positions.y * outerRadiusPixels,                    // Keep y component fixed
-                positions.z * project_pixel_size(outerRadiusPixels) // Scale z component if needed
-            );
-
-            gl_Position = project_position_to_clipspace(instancePositions, instancePositions64Low, offset, geometry.position);
-
-            vFillColor = vec4(instanceFillColors.rgb, instanceFillColors.a * opacity);
-            DECKGL_FILTER_COLOR(vFillColor, geometry);
-
-            vLineColor = vec4(instanceLineColors.rgb, instanceLineColors.a * opacity);
-            DECKGL_FILTER_COLOR(vLineColor, geometry);
-            }`
+          shaders.vs = vs
+          shaders.fs = fs
 
           return shaders;
         }
+
+        // Add custom uniforms
+        draw({ uniforms }) {
+            super.draw({
+            uniforms: {
+                ...uniforms,
+                tile_height: this.props.tile_height,
+                tile_width: this.props.tile_width,
+            }
+            });
+        }
+
       }
 
     // Create a new ScatterplotLayer using the input data
@@ -668,7 +663,10 @@ export const matrix_viz = async (
         // radiusUnits: 'pixels',
         pickable: true,               // Enable picking for interactivity
         opacity: 0.8,                  // Set the opacity of the points
-        antialiasing: false
+        antialiasing: false,
+        tile_height: mat_height/num_rows * 0.5,
+        tile_width: mat_height/num_cols * 0.5
+
     });
 
 
@@ -735,8 +733,8 @@ export const matrix_viz = async (
     });
 
 
-    // const layers = [mat_layer, row_cat_layer, col_cat_layer, row_label_layer, col_label_layer]
-    const layers = [triangle_layer, row_cat_layer, col_cat_layer, row_label_layer, col_label_layer]
+    const layers = [mat_layer, row_cat_layer, col_cat_layer, row_label_layer, col_label_layer]
+    // const layers = [triangle_layer, row_cat_layer, col_cat_layer, row_label_layer, col_label_layer]
 
     const views = [
 

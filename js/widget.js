@@ -89,7 +89,10 @@ export const render_landscape_sst = async ({ model, el }) => {
 export const render_matrix_new = async ({ model, el }) => {
     const network = model.get('network')
 
-    matrix_viz(model, el)
+    const width = model.get('width')
+    const height = model.get('height')
+
+    matrix_viz(model, el, width, height)
 
 }
 

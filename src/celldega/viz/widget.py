@@ -76,4 +76,7 @@ class MatrixNew(anywidget.AnyWidget):
     component = traitlets.Unicode("MatrixNew").tag(sync=True)
 
     network = traitlets.Dict({}).tag(sync=True)
+    width = traitlets.Int(600).tag(sync=True)
+    height = traitlets.Int(600).tag(sync=True)
+
     click_info = traitlets.Dict({}).tag(sync=True)

@@ -3,12 +3,16 @@ import { CustomMatrixLayer } from '../deck-gl/matrix/custom_matrix_layer.js'
 import { mat_layer } from '../deck-gl/matrix/matrix_layers.js';
 
 import { TextLayer, OrthographicView, Layer } from 'deck.gl';
+import { hi } from 'clustergrammer-gl';
 
 export const matrix_viz = async (
     model,
     el,
+    width,
+    height
     // token,
 ) => {
+
 
     let viz_state = {}
 
@@ -23,8 +27,8 @@ export const matrix_viz = async (
     /////////////////////////////
     // Constants
     //////////////////////////////
-    const mat_width = 600
-    const mat_height = 600
+    const mat_width = width
+    const mat_height = height
 
     const num_rows = 10
     const num_cols = 10
@@ -302,7 +306,7 @@ export const matrix_viz = async (
         getFillColor: d => d.color,   // Color of each point
         pickable: true,               // Enable picking for interactivity
         opacity: 0.8,                  // Set the opacity of the points
-        tile_width: row_cat_width/2,
+        tile_width: row_cat_width/2 * 0.9,
         tile_height: mat_height/num_rows * 0.5,
     });
 
@@ -314,7 +318,7 @@ export const matrix_viz = async (
         getFillColor: d => d.color,   // Color of each point
         pickable: true,               // Enable picking for interactivity
         opacity: 0.8,                  // Set the opacity of the points
-        tile_width: mat_height/num_cols * 0.5,
+        tile_width: mat_height/num_cols * 0.5 ,
         tile_height: col_cat_height/2,
 
     });
@@ -326,7 +330,7 @@ export const matrix_viz = async (
 
         new OrthographicView({
           id: 'matrix',
-          x: ( row_region_width + label_buffer)+ 'px',
+          x: ( row_region_width + label_buffer) + 'px',
           y: ( col_region_height + label_buffer) + 'px',
           width: mat_width + 'px',
           height: mat_height + 'px',

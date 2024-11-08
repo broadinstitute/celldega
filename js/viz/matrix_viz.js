@@ -6,8 +6,9 @@ import { set_row_cat_data, set_col_cat_data } from '../matrix/cat_data.js';
 import { ini_mat_layer } from '../deck-gl/matrix/mat_layer.js';
 import { ini_row_label_layer, ini_col_label_layer } from '../deck-gl/matrix/label_layers.js';
 import { ini_row_cat_layer, ini_col_cat_layer } from '../deck-gl/matrix/cat_layers.js';
-import { get_layers_list } from '../deck-gl/matrix/matrix_layers.js'
-import { ini_views } from '../deck-gl/matrix/views.js'
+import { get_layers_list, layer_filter } from '../deck-gl/matrix/matrix_layers.js'
+import { ini_views, ini_global_view_state } from '../deck-gl/matrix/views.js'
+import { update_zoom_data } from '../deck-gl/matrix/zoom.js'
 
 export const matrix_viz = async (
     model,
@@ -43,110 +44,17 @@ export const matrix_viz = async (
     //     }
     // })
 
-    const mat_layer = ini_mat_layer(viz_state)
-
-    const row_label_layer = ini_row_label_layer(viz_state)
-    const col_label_layer = ini_col_label_layer(viz_state)
-
-    const row_cat_layer = ini_row_cat_layer(viz_state)
-    const col_cat_layer = ini_col_cat_layer(viz_state)
-
-    let layers_mat = {
-        mat_layer: mat_layer,
-        row_label_layer: row_label_layer,
-        col_label_layer: col_label_layer,
-        row_cat_layer: row_cat_layer,
-        col_cat_layer: col_cat_layer,
-    }
-
+    let layers_mat = {}
+    layers_mat.mat_layer = ini_mat_layer(viz_state)
+    layers_mat.row_label_layer = ini_row_label_layer(viz_state)
+    layers_mat.col_label_layer = ini_col_label_layer(viz_state)
+    layers_mat.row_cat_layer = ini_row_cat_layer(viz_state)
+    layers_mat.col_cat_layer = ini_col_cat_layer(viz_state)
 
     const views = ini_views(viz_state)
 
 
-    // update zoom_data inplace
-    // this takes as an input the mutable zoom_data
-    const update_zoom_data = (zoom_data, viewId, zoom, target) => {
 
-        if (viewId === 'matrix') {
-
-            // update pans
-            zoom_data.pan_x = target[0];
-            zoom_data.pan_y = target[1];
-
-            // update zooms
-            zoom_data.zoom_x = zoom[0]
-            zoom_data.zoom_y = zoom[1]
-
-        } else if (viewId === 'cols') {
-
-            console.log('cols')
-
-            // update pan_x
-            zoom_data.pan_x = target[0]
-
-            // update zooms
-            zoom_data.zoom_x = zoom[0]
-
-            // // switch to y zoom
-            // ////////////////////////
-            // // update pan_x
-            // zoom_data.pan_x = target[0]
-
-            // // update zooms
-            // zoom_data.zoom_y = zoom[1]
-
-        } else if (viewId === 'rows') {
-
-            console.log('rows')
-
-            // update pan_y
-            zoom_data.pan_y = target[1];
-
-            // update zooms
-            zoom_data.zoom_y = zoom[1]
-
-        }
-    }
-
-    const ini_global_view_state = () => {
-
-        let globalViewState = {
-          matrix: {
-            target: [viz_state.zoom.ini_pan_x, viz_state.zoom.ini_pan_y],
-            zoom: [viz_state.zoom.ini_zoom_x, viz_state.zoom.ini_zoom_y],
-          },
-          rows: {
-            target: [viz_state.viz.label_row_x, viz_state.zoom.ini_pan_y],
-            zoom: [viz_state.zoom.ini_zoom_x, viz_state.zoom.ini_zoom_y],
-          },
-          cols: {
-            target: [viz_state.zoom.ini_pan_x, viz_state.viz.label_col_y],
-            zoom: [viz_state.zoom.ini_zoom_x, viz_state.zoom.ini_zoom_y],
-          },
-        }
-
-        return globalViewState
-
-      }
-
-
-    const layerFilter = ({layer, viewport}) => {
-
-        if (viewport.id === 'matrix' && layer.id === 'mat-layer'){
-            return true
-        } else if (viewport.id === 'rows' && layer.id === 'row-layer'){
-            return true
-        } else if (viewport.id === 'cols' && layer.id === 'col-layer'){
-            return true
-        } else if (viewport.id === 'rows' && layer.id === 'row-label-layer'){
-            return true
-        } else if (viewport.id === 'cols' && layer.id === 'col-label-layer'){
-            return true
-        }
-
-        return false
-
-    }
 
     const getTooltip = ({object, layer}) => {
         if (object) {
@@ -199,7 +107,7 @@ export const matrix_viz = async (
     })
 
 
-    const ini_view_state = ini_global_view_state()
+    const ini_view_state = ini_global_view_state(viz_state)
 
     const curate_pan_y = (target_y, zoom_curated_y, ini_pan_y) => {
 
@@ -361,7 +269,7 @@ export const matrix_viz = async (
         views: views,
         initialViewState: ini_view_state,
         getTooltip: getTooltip,
-        layerFilter: layerFilter,
+        layerFilter: layer_filter,
         layers: get_layers_list(layers_mat),
     })
 

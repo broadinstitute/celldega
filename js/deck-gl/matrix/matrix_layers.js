@@ -11,3 +11,21 @@ export const get_layers_list = (layers_mat) => {
     return layers_list
 
 }
+
+export const layer_filter = ({layer, viewport}) => {
+
+    if (viewport.id === 'matrix' && layer.id === 'mat-layer'){
+        return true
+    } else if (viewport.id === 'rows' && layer.id === 'row-layer'){
+        return true
+    } else if (viewport.id === 'cols' && layer.id === 'col-layer'){
+        return true
+    } else if (viewport.id === 'rows' && layer.id === 'row-label-layer'){
+        return true
+    } else if (viewport.id === 'cols' && layer.id === 'col-label-layer'){
+        return true
+    }
+
+    return false
+
+}

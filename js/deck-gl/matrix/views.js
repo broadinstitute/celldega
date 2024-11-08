@@ -1,6 +1,7 @@
 import { OrthographicView } from 'deck.gl'
 
 export const ini_views = (viz_state) => {
+
     const views = [
 
         new OrthographicView({
@@ -33,3 +34,25 @@ export const ini_views = (viz_state) => {
   ]
   return views
 }
+
+
+export const ini_global_view_state = (viz_state) => {
+
+    let globalViewState = {
+      matrix: {
+        target: [viz_state.zoom.ini_pan_x, viz_state.zoom.ini_pan_y],
+        zoom: [viz_state.zoom.ini_zoom_x, viz_state.zoom.ini_zoom_y],
+      },
+      rows: {
+        target: [viz_state.viz.label_row_x, viz_state.zoom.ini_pan_y],
+        zoom: [viz_state.zoom.ini_zoom_x, viz_state.zoom.ini_zoom_y],
+      },
+      cols: {
+        target: [viz_state.zoom.ini_pan_x, viz_state.viz.label_col_y],
+        zoom: [viz_state.zoom.ini_zoom_x, viz_state.zoom.ini_zoom_y],
+      },
+    }
+
+    return globalViewState
+
+  }

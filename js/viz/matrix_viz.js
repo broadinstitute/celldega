@@ -1,11 +1,5 @@
 import { ini_deck } from '../deck-gl/matrix/deck_mat.js'
-import { CustomMatrixLayer } from '../deck-gl/matrix/custom_matrix_layer.js'
-// import { mat_layer } from '../deck-gl/matrix/matrix_layers.js';
 import { set_mat_data } from '../matrix/mat_data.js';
-
-import { TextLayer, OrthographicView, Layer } from 'deck.gl';
-// import { index } from 'd3';
-import * as d3 from 'd3'
 import { set_mat_constants } from '../matrix/set_constants.js';
 import { set_row_label_data, set_col_label_data } from '../matrix/label_data.js';
 import { set_row_cat_data, set_col_cat_data } from '../matrix/cat_data.js';
@@ -23,6 +17,8 @@ export const matrix_viz = async (
     height
     // token,
 ) => {
+
+    console.log('here!!!!!!')
 
     const root = document.createElement("div")
     let deck_mat = ini_deck(root)
@@ -268,7 +264,7 @@ export const matrix_viz = async (
         var globalViewState
 
         var min_zoom_x = 0
-        var min_zoom_y = 0
+        // var min_zoom_y = 0
         var zoom_curated_x = Math.max(min_zoom_x, zoom[0])
         var zoom_curated_y = Math.max(min_zoom_x, zoom[1])
 
@@ -334,7 +330,8 @@ export const matrix_viz = async (
 
     const on_view_state_change = ({viewState, viewId}) => {
 
-        const {zoom, target, offset} = viewState;
+        // const {zoom, target, offset} = viewState;
+        const {zoom, target} = viewState;
 
         // this takes the latest non-mutable zoom_data since it does
         // not update zoom_data

@@ -7,7 +7,7 @@ export const set_row_cat_data = (network, viz_state) => {
 
     var num_points = viz_state.mat.num_rows * num_row_cats
 
-    const row_cat_data =  new Array(num_points).fill(0).map( _ => {
+    const row_cat_data =  new Array(num_points).fill(0).map( () => {
 
         var index_col = matrix_index % num_row_cats
 
@@ -37,7 +37,7 @@ export const set_col_cat_data = (network, viz_state) => {
     var index_row = 0
     let matrix_index = 0;
 
-    const col_cat_data = new Array(num_points).fill(0).map( _ => {
+    const col_cat_data = new Array(num_points).fill(0).map( () => {
 
         var index_col = matrix_index % viz_state.mat.num_cols
 

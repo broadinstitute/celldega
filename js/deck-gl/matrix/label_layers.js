@@ -7,7 +7,7 @@ export const ini_row_label_layer = (viz_state) => {
         data: viz_state.labels.row_label_data,
         getPosition: d => d.position,
         getText: d => d.name,
-        getSize: d => viz_state.viz.inst_font_size,
+        getSize: viz_state.viz.inst_font_size,
         getColor: [0, 0, 0],
         getAngle: 0,
         getTextAnchor: 'end',

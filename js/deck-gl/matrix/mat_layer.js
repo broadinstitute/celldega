@@ -3,7 +3,7 @@ import { CustomMatrixLayer } from "./custom_matrix_layer";
 export const ini_mat_layer = (viz_state) => {
 
     const mat_layer = new CustomMatrixLayer({
-        id: 'matrix-layer',
+        id: 'mat-layer',
         data: viz_state.mat.mat_data,
         getPosition: d => d.position,
         getFillColor: d => d.color,

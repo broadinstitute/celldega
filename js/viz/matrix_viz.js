@@ -9,9 +9,10 @@ import * as d3 from 'd3'
 import { set_mat_constants } from '../matrix/set_constants.js';
 import { set_row_label_data, set_col_label_data } from '../matrix/label_data.js';
 import { set_row_cat_data, set_col_cat_data } from '../matrix/cat_data.js';
-import { ini_mat_layer } from '../deck-gl/matrix/matrix_layer.js';
+import { ini_mat_layer } from '../deck-gl/matrix/mat_layer.js';
 import { ini_row_label_layer, ini_col_label_layer } from '../deck-gl/matrix/label_layers.js';
 import { ini_row_cat_layer, ini_col_cat_layer } from '../deck-gl/matrix/cat_layers.js';
+import { get_layers_list } from '../deck-gl/matrix/matrix_layers.js'
 
 export const matrix_viz = async (
     model,
@@ -53,13 +54,16 @@ export const matrix_viz = async (
     const row_cat_layer = ini_row_cat_layer(viz_state)
     const col_cat_layer = ini_col_cat_layer(viz_state)
 
-    // Create a new ScatterplotLayer using the input data
+    let layers_mat = {
+        mat_layer: mat_layer,
+        row_label_layer: row_label_layer,
+        col_label_layer: col_label_layer,
+        row_cat_layer: row_cat_layer,
+        col_cat_layer: col_cat_layer,
+    }
 
 
-    let layers_mat = {}
-
-
-    const layers = [mat_layer, row_cat_layer, col_cat_layer, row_label_layer, col_label_layer]
+    // const layers = [mat_layer, row_cat_layer, col_cat_layer, row_label_layer, col_label_layer]
 
     const views = [
 
@@ -162,7 +166,7 @@ export const matrix_viz = async (
 
     const layerFilter = ({layer, viewport}) => {
 
-        if (viewport.id === 'matrix' && layer.id === 'matrix-layer'){
+        if (viewport.id === 'matrix' && layer.id === 'mat-layer'){
             return true
         } else if (viewport.id === 'rows' && layer.id === 'row-layer'){
             return true
@@ -209,7 +213,7 @@ export const matrix_viz = async (
               style: {color: "white"},
             };
           }
-          else if (layer.id === 'matrix-layer') {
+          else if (layer.id === 'mat-layer') {
             // Display the default tooltip for other layers
             return {
               html: `Row: ${object.row} <br> Column: ${object.col}`,
@@ -391,7 +395,7 @@ export const matrix_viz = async (
         initialViewState: ini_view_state,
         getTooltip: getTooltip,
         layerFilter: layerFilter,
-        layers: layers,
+        layers: get_layers_list(layers_mat),
     })
 
     el.appendChild(viz_state.root)

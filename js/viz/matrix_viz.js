@@ -7,6 +7,7 @@ import { TextLayer, OrthographicView, Layer } from 'deck.gl';
 // import { index } from 'd3';
 import * as d3 from 'd3'
 import { set_mat_constants } from '../matrix/set_constants.js';
+import { set_col_label_data } from '../matrix/label_data.js';
 
 export const matrix_viz = async (
     model,
@@ -17,62 +18,13 @@ export const matrix_viz = async (
     // token,
 ) => {
 
-    let viz_state = {}
-
     const root = document.createElement("div")
     let deck_mat = ini_deck(root)
 
-    set_mat_constants(network, viz_state, root, width, height)
-
-    //////////////////////////////
-    // Variables
-    //////////////////////////////
-    viz_state.viz.ini_font_size = viz_state.viz.base_font_size / viz_state.mat.num_rows
-
-    viz_state.viz.inst_font_size = viz_state.viz.ini_font_size
-
-    // const row_height = viz_state.viz.mat_height/viz_state.mat.num_rows
-    viz_state.viz.col_region_height = viz_state.viz.col_cat_height * viz_state.cat.num_cats_col + viz_state.viz.col_label_height + viz_state.viz.extra_height_col
-    viz_state.viz.col_width = viz_state.viz.mat_width/viz_state.mat.num_cols
-    viz_state.viz.row_offset = viz_state.viz.mat_height/viz_state.mat.num_rows
-    viz_state.viz.col_offset = viz_state.viz.mat_width/viz_state.mat.num_cols
-
-
-    // column category positioning
-    viz_state.viz.cat_shift_col = viz_state.viz.col_label_height // + viz_state.viz.extra_height_col
-    viz_state.zoom.ini_pan_x = viz_state.viz.mat_width/2
-
-    // not sure why I need to add row_offset?
-    viz_state.zoom.ini_pan_y = viz_state.viz.mat_height/2 + viz_state.viz.row_offset
-
-    // make mat_data from network_data
-    //////////////////////////////////////
-
-    // Assuming network.mat is an array of arrays
-    viz_state.mat.mat_data = [];
-    viz_state.mat.num_rows = network.mat.length;
-    viz_state.mat.num_cols = network.mat[0].length;
-
-    viz_state.mat.max_abs_value = network.mat.flat().reduce((max, num) => Math.max(max, Math.abs(num)), -Infinity);
-
+    let viz_state = set_mat_constants(network, root, width, height)
     set_mat_data(network, viz_state)
 
-
-    // col label data
-    let matrix_index = 0;
-
-    let col_label_data = []
-    network.col_nodes.forEach((node, index) => {
-        const p = {
-            position: [viz_state.viz.col_width * (index + 3/4), viz_state.viz.col_label_height/2],
-            name: node.name
-        };
-        col_label_data.push(p);
-    })
-
-    console.log(col_label_data)
-
-    console.log('here')
+    let col_label_data = set_col_label_data(network, viz_state)
 
     let row_label_data = []
     network.row_nodes.forEach((node, index) => {
@@ -87,7 +39,7 @@ export const matrix_viz = async (
     })
 
     // row cat data
-    matrix_index = 0;
+    let matrix_index = 0;
 
     var index_row = 0
     const num_row_cats = 3

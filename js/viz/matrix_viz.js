@@ -10,7 +10,8 @@ import { set_mat_constants } from '../matrix/set_constants.js';
 import { set_row_label_data, set_col_label_data } from '../matrix/label_data.js';
 import { set_row_cat_data, set_col_cat_data } from '../matrix/cat_data.js';
 import { ini_mat_layer } from '../deck-gl/matrix/matrix_layer.js';
-import { ini_row_label_layer } from '../deck-gl/matrix/label_layers.js';
+import { ini_row_label_layer, ini_col_label_layer } from '../deck-gl/matrix/label_layers.js';
+import { ini_row_cat_layer, ini_col_cat_layer } from '../deck-gl/matrix/cat_layers.js';
 
 export const matrix_viz = async (
     model,
@@ -30,12 +31,10 @@ export const matrix_viz = async (
     viz_state.labels = {}
 
     viz_state.labels.row_label_data = set_row_label_data(network, viz_state)
-    let col_label_data = set_col_label_data(network, viz_state)
+    viz_state.labels.col_label_data = set_col_label_data(network, viz_state)
 
-
-    const row_cat_data = set_row_cat_data(network, viz_state)
-    const col_cat_data = set_col_cat_data(network, viz_state)
-
+    viz_state.cats.row_cat_data = set_row_cat_data(network, viz_state)
+    viz_state.cats.col_cat_data = set_col_cat_data(network, viz_state)
 
     // // animation transition function
     // // https://observablehq.com/@cornhundred/deck-gl-instanced-scatter-test
@@ -46,72 +45,16 @@ export const matrix_viz = async (
     //     }
     // })
 
-
     const mat_layer = ini_mat_layer(viz_state)
 
     const row_label_layer = ini_row_label_layer(viz_state)
+    const col_label_layer = ini_col_label_layer(viz_state)
 
-    // const row_label_layer  = new TextLayer({
-    //     id: 'row-label-layer',
-    //     data: row_label_data,
-    //     getPosition: d => d.position,
-    //     getText: d => d.name,
-    //     getSize: d => viz_state.viz.inst_font_size,
-    //     getColor: [0, 0, 0],
-    //     getAngle: 0,
-    //     getTextAnchor: 'end',
-    //     getAlignmentBaseline: 'center',
-    //     fontFamily: 'Arial',
-    //     sizeUnits: 'pixels',
-    //     updateTriggers: {
-    //       getSize: viz_state.viz.inst_font_size
-    //     },
-    //     pickable: true,
-    //   })
-
-
-    const col_label_layer  = new TextLayer({
-        id: 'col-label-layer',
-        data: col_label_data,
-        getPosition: d => d.position,
-        getText: d => d.name,
-        getSize: viz_state.viz.inst_font_size,
-        getColor: [0, 0, 0],
-        getAngle: 45, // Optional: Text angle in degrees
-        getTextAnchor: 'start', // middle
-        getAlignmentBaseline: 'bottom',
-        fontFamily: 'Arial',
-        sizeUnits: 'pixels',
-        updateTriggers: {
-          getSize: viz_state.viz.inst_font_size
-        },
-        pickable: true,
-      })
+    const row_cat_layer = ini_row_cat_layer(viz_state)
+    const col_cat_layer = ini_col_cat_layer(viz_state)
 
     // Create a new ScatterplotLayer using the input data
-    const row_cat_layer = new CustomMatrixLayer({
-        id: 'row-layer',
-        data: row_cat_data,
-        getPosition: d => [d.position[0] + viz_state.viz.cat_shift_row, d.position[1]],
-        getFillColor: d => d.color,
-        pickable: true,
-        opacity: 0.8,
-        tile_width: viz_state.viz.row_cat_width/2 * 0.9,
-        tile_height: viz_state.viz.mat_height/viz_state.mat.num_rows * 0.5,
-    });
 
-    // Create a new ScatterplotLayer using the input data
-    const col_cat_layer = new CustomMatrixLayer({
-        id: 'col-layer',
-        data: col_cat_data,
-        getPosition: d => [d.position[0], d.position[1] + viz_state.viz.cat_shift_col],
-        getFillColor: d => d.color,
-        pickable: true,
-        opacity: 0.8,
-        tile_width: viz_state.viz.mat_height/viz_state.mat.num_cols * 0.5 ,
-        tile_height: viz_state.viz.col_cat_height/2,
-
-    });
 
     let layers_mat = {}
 

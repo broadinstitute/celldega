@@ -13,6 +13,7 @@ import { ini_mat_layer } from '../deck-gl/matrix/mat_layer.js';
 import { ini_row_label_layer, ini_col_label_layer } from '../deck-gl/matrix/label_layers.js';
 import { ini_row_cat_layer, ini_col_cat_layer } from '../deck-gl/matrix/cat_layers.js';
 import { get_layers_list } from '../deck-gl/matrix/matrix_layers.js'
+import { ini_views } from '../deck-gl/matrix/views.js'
 
 export const matrix_viz = async (
     model,
@@ -63,38 +64,7 @@ export const matrix_viz = async (
     }
 
 
-    // const layers = [mat_layer, row_cat_layer, col_cat_layer, row_label_layer, col_label_layer]
-
-    const views = [
-
-        new OrthographicView({
-          id: 'matrix',
-          x: ( viz_state.viz.row_region_width + viz_state.viz.label_buffer) + 'px',
-          y: ( viz_state.viz.col_region_height + viz_state.viz.label_buffer) + 'px',
-          width: viz_state.viz.mat_width + 'px',
-          height: viz_state.viz.mat_height + 'px',
-          controller: {scrollZoom: true, inertia: false, zoomAxis: 'all'},
-        }),
-
-        new OrthographicView({
-          id: 'rows',
-          x: '0px',
-          y: (viz_state.viz.col_region_height + viz_state.viz.label_buffer) + 'px',
-          width: viz_state.viz.row_region_width + 'px',
-          height: viz_state.viz.mat_height + 'px',
-          controller: {scrollZoom: true, inertia: false, zoomAxis: 'Y'},
-        }),
-
-        new OrthographicView({
-          id: 'cols',
-          x: (viz_state.viz.row_region_width + viz_state.viz.label_buffer) + 'px',
-          y: '0px',
-          width: viz_state.viz.mat_width + 'px',
-          height: viz_state.viz.col_region_height + 'px',
-          controller: {scrollZoom: true, inertia: false, zoomAxis: 'X'},
-        }),
-
-  ]
+    const views = ini_views(viz_state)
 
 
     // update zoom_data inplace

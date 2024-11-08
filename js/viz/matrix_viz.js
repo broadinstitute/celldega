@@ -33,15 +33,16 @@ export const matrix_viz = async (
     viz_state.viz.mat_width = width
     viz_state.viz.mat_height = height
 
-    let num_rows = network.mat.length
-    let num_cols = network.mat[0].length
+    viz_state.mat = {}
+    viz_state.mat.num_rows = network.mat.length
+    viz_state.mat.num_cols = network.mat[0].length
 
-    const base_font_size = 100
+    viz_state.viz.base_font_size = 100
 
-    const col_label_height = 20
-    const row_region_width = 90
+    viz_state.viz.col_label_height = 20
+    viz_state.viz.row_region_width = 90
 
-    const extra_height_col = 20
+    viz_state.viz.extra_height_col = 20
 
     const ini_zoom_x = 0
     const ini_zoom_y = 0
@@ -73,25 +74,25 @@ export const matrix_viz = async (
     //////////////////////////////
     // Variables
     //////////////////////////////
-    const ini_font_size = base_font_size / num_rows
+    const ini_font_size = viz_state.viz.base_font_size / viz_state.mat.num_rows
 
     let inst_font_size = ini_font_size
 
-    const row_height = viz_state.viz.mat_height/num_rows
-    const col_region_height = col_cat_height * num_cats_col + col_label_height + extra_height_col
-    const col_width = viz_state.viz.mat_width/num_cols
-    const row_offset = viz_state.viz.mat_height/num_rows
-    const col_offset = viz_state.viz.mat_width/num_cols
+    const row_height = viz_state.viz.mat_height/viz_state.mat.num_rows
+    const col_region_height = col_cat_height * num_cats_col + viz_state.viz.col_label_height + viz_state.viz.extra_height_col
+    const col_width = viz_state.viz.mat_width/viz_state.mat.num_cols
+    const row_offset = viz_state.viz.mat_height/viz_state.mat.num_rows
+    const col_offset = viz_state.viz.mat_width/viz_state.mat.num_cols
 
 
     // column category positioning
-    const cat_shift_col = col_label_height // + extra_height_col
+    const cat_shift_col = viz_state.viz.col_label_height // + viz_state.viz.extra_height_col
     const ini_pan_x = viz_state.viz.mat_width/2
 
     // not sure why I need to add row_offset?
     const ini_pan_y = viz_state.viz.mat_height/2 + row_offset
 
-    const viz_width = viz_state.viz.mat_width + row_region_width
+    const viz_width = viz_state.viz.mat_width + viz_state.viz.row_region_width
 
     const viz_height = viz_state.viz.mat_height + col_region_height
 
@@ -100,8 +101,8 @@ export const matrix_viz = async (
 
     // Assuming network.mat is an array of arrays
     mat_data = [];
-    num_rows = network.mat.length;
-    num_cols = network.mat[0].length;
+    viz_state.mat.num_rows = network.mat.length;
+    viz_state.mat.num_cols = network.mat[0].length;
 
     // Define offsets and color parameters
     const inst_opacity = 255; // Example value
@@ -145,7 +146,7 @@ export const matrix_viz = async (
     let col_label_data = []
     network.col_nodes.forEach((node, index) => {
         const p = {
-            position: [col_width * index + col_width/2, col_label_height/2],
+            position: [col_width * index + col_width/2, viz_state.viz.col_label_height/2],
             name: node.name
         };
         col_label_data.push(p);
@@ -173,7 +174,7 @@ export const matrix_viz = async (
     var index_row = 0
     const num_row_cats = 3
 
-    var num_points = num_rows * num_row_cats
+    var num_points = viz_state.mat.num_rows * num_row_cats
 
     const row_cat_data =  new Array(num_points).fill(0).map( _ => {
 
@@ -200,13 +201,13 @@ export const matrix_viz = async (
 
     var index_row = 0
 
-    var num_points = num_cats_col * num_cols
+    var num_points = num_cats_col * viz_state.mat.num_cols
 
     const col_cat_data = new Array(num_points).fill(0).map( _ => {
 
-        var index_col = matrix_index % num_cols
+        var index_col = matrix_index % viz_state.mat.num_cols
 
-        if (matrix_index % num_cols === 0){
+        if (matrix_index % viz_state.mat.num_cols === 0){
         index_row += 1;
         }
 
@@ -240,8 +241,8 @@ export const matrix_viz = async (
         pickable: true,               // Enable picking for interactivity
         opacity: 0.8,                  // Set the opacity of the points
         antialiasing: false,
-        tile_height: viz_state.viz.mat_height/num_rows * 0.5,
-        tile_width: viz_state.viz.mat_height/num_cols * 0.5
+        tile_height: viz_state.viz.mat_height/viz_state.mat.num_rows * 0.5,
+        tile_width: viz_state.viz.mat_height/viz_state.mat.num_cols * 0.5
 
     });
 
@@ -294,7 +295,7 @@ export const matrix_viz = async (
         pickable: true,               // Enable picking for interactivity
         opacity: 0.8,                  // Set the opacity of the points
         tile_width: row_cat_width/2 * 0.9,
-        tile_height: viz_state.viz.mat_height/num_rows * 0.5,
+        tile_height: viz_state.viz.mat_height/viz_state.mat.num_rows * 0.5,
     });
 
     // Create a new ScatterplotLayer using the input data
@@ -305,7 +306,7 @@ export const matrix_viz = async (
         getFillColor: d => d.color,   // Color of each point
         pickable: true,               // Enable picking for interactivity
         opacity: 0.8,                  // Set the opacity of the points
-        tile_width: viz_state.viz.mat_height/num_cols * 0.5 ,
+        tile_width: viz_state.viz.mat_height/viz_state.mat.num_cols * 0.5 ,
         tile_height: col_cat_height/2,
 
     });
@@ -317,7 +318,7 @@ export const matrix_viz = async (
 
         new OrthographicView({
           id: 'matrix',
-          x: ( row_region_width + label_buffer) + 'px',
+          x: ( viz_state.viz.row_region_width + label_buffer) + 'px',
           y: ( col_region_height + label_buffer) + 'px',
           width: viz_state.viz.mat_width + 'px',
           height: viz_state.viz.mat_height + 'px',
@@ -328,7 +329,7 @@ export const matrix_viz = async (
           id: 'rows',
           x: '0px',
           y: (col_region_height + label_buffer) + 'px',
-          width: row_region_width + 'px',
+          width: viz_state.viz.row_region_width + 'px',
           height: viz_state.viz.mat_height + 'px',
           controller: {scrollZoom: true, inertia: false, zoomAxis: 'Y'},
         }),
@@ -394,9 +395,7 @@ export const matrix_viz = async (
 
         let globalViewState = {
           matrix: {
-            // target: target,
             target: [ini_pan_x, ini_pan_y],
-            // zoom: [ini_zoom_x, ini_zoom_y],
             zoom: [ini_zoom_x, ini_zoom_y],
           },
           rows: {
@@ -559,29 +558,22 @@ export const matrix_viz = async (
         var zoom_curated_y = Math.max(min_zoom_x, zoom[1])
 
         var pan_curated_x = curate_pan_x(target[0], zoom_curated_x, ini_pan_x)
-        // var pan_curated_y = ini_pan_y // target[1]
         var pan_curated_y = curate_pan_y(target[1], zoom_curated_y, ini_pan_y)
 
         if (viewId === 'matrix') {
 
             globalViewState = {
                 matrix: {
-                // zoom: [zoom[0], zoom[1]],
-                zoom: [zoom_curated_x, zoom_curated_y],
-                // target: [target[0], target[1]]
-                target: [pan_curated_x, pan_curated_y]
+                    zoom: [zoom_curated_x, zoom_curated_y],
+                    target: [pan_curated_x, pan_curated_y]
                 },
                 rows:   {
-                // zoom: [ini_zoom_x, zoom[1]],
-                zoom: [ini_zoom_x, zoom_curated_y],
-                // target: [label_row_x, target[1]]
-                target: [label_row_x, pan_curated_y]
+                    zoom: [ini_zoom_x, zoom_curated_y],
+                    target: [label_row_x, pan_curated_y]
                 },
                 cols:   {
-                // zoom: [zoom[0], ini_zoom_y],
-                zoom: [zoom_curated_x, ini_zoom_y],
-                // target: [target[0], label_col_y]
-                target: [pan_curated_x, label_col_y]
+                    zoom: [zoom_curated_x, ini_zoom_y],
+                    target: [pan_curated_x, label_col_y]
                 },
             }
 
@@ -589,22 +581,16 @@ export const matrix_viz = async (
 
             globalViewState = {
                 matrix: {
-                // zoom: [zoom[0], zoom_data.zoom_y],
-                zoom: [zoom_curated_x, zoom_data.zoom_y],
-                // target: [target[0], zoom_data.pan_y]
-                target: [pan_curated_x, zoom_data.pan_y]
+                    zoom: [zoom_curated_x, zoom_data.zoom_y],
+                    target: [pan_curated_x, zoom_data.pan_y]
                 },
                 rows:   {
-                // zoom: [ini_zoom_x, zoom_data.zoom_y],
-                zoom: [ini_zoom_x, zoom_data.zoom_y],
-                // target: [label_row_x, zoom_data.pan_y]
-                target: [label_row_x, zoom_data.pan_y]
+                    zoom: [ini_zoom_x, zoom_data.zoom_y],
+                    target: [label_row_x, zoom_data.pan_y]
                 },
                 cols:   {
-                // zoom: [zoom[0], ini_zoom_y],
-                zoom: [zoom_curated_x, ini_zoom_y],
-                // target: [target[0], label_col_y]
-                target: [pan_curated_x, label_col_y]
+                    zoom: [zoom_curated_x, ini_zoom_y],
+                    target: [pan_curated_x, label_col_y]
                 },
             }
 
@@ -612,22 +598,16 @@ export const matrix_viz = async (
 
             globalViewState = {
                 matrix: {
-                // zoom: [zoom_data.zoom_x, zoom[1]],
-                zoom: [zoom_data.zoom_x, zoom_curated_y],
-                // target: [zoom_data.pan_x, target[1]]
-                target: [zoom_data.pan_x, pan_curated_y]
+                    zoom: [zoom_data.zoom_x, zoom_curated_y],
+                    target: [zoom_data.pan_x, pan_curated_y]
                 },
                 rows:   {
-                // zoom: [ini_zoom_x, zoom[1]],
-                zoom: [ini_zoom_x, zoom_curated_y],
-                // target: [label_row_x, target[1]]
-                target: [label_row_x, pan_curated_y]
+                    zoom: [ini_zoom_x, zoom_curated_y],
+                    target: [label_row_x, pan_curated_y]
                 },
                 cols:   {
-                // zoom: [zoom_data.zoom_x, ini_zoom_y],
-                zoom: [zoom_data.zoom_x, ini_zoom_y],
-                // target: [zoom_data.pan_x, label_col_y]
-                target: [zoom_data.pan_x, label_col_y]
+                    zoom: [zoom_data.zoom_x, ini_zoom_y],
+                    target: [zoom_data.pan_x, label_col_y]
                 },
             }
 

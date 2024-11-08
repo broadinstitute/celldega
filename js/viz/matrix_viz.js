@@ -3,7 +3,8 @@ import { CustomMatrixLayer } from '../deck-gl/matrix/custom_matrix_layer.js'
 import { mat_layer } from '../deck-gl/matrix/matrix_layers.js';
 
 import { TextLayer, OrthographicView, Layer } from 'deck.gl';
-import { index } from 'd3';
+// import { index } from 'd3';
+import * as d3 from 'd3'
 
 export const matrix_viz = async (
     model,
@@ -14,24 +15,23 @@ export const matrix_viz = async (
     // token,
 ) => {
 
-    console.log(network)
-
-
     let viz_state = {}
 
-    console.log('viz_state', viz_state)
+    viz_state.root = document.createElement("div")
 
-    // Create and append the visualization.
-    let root = document.createElement("div")
-    root.style.height = "800px"
+    viz_state.viz = {}
+    viz_state.viz.height_margin = 100
 
-    let deck_mat = ini_deck(root)
+    const viz_total_height = height + viz_state.viz.height_margin
+    viz_state.root.style.height =  viz_total_height + "px"
+
+    let deck_mat = ini_deck(viz_state.root)
 
     /////////////////////////////
     // Constants
     //////////////////////////////
-    const mat_width = width
-    const mat_height = height
+    viz_state.viz.mat_width = width
+    viz_state.viz.mat_height = height
 
     let num_rows = network.mat.length
     let num_cols = network.mat[0].length
@@ -77,23 +77,23 @@ export const matrix_viz = async (
 
     let inst_font_size = ini_font_size
 
-    const row_height = mat_height/num_rows
+    const row_height = viz_state.viz.mat_height/num_rows
     const col_region_height = col_cat_height * num_cats_col + col_label_height + extra_height_col
-    const col_width = mat_width/num_cols
-    const row_offset = mat_height/num_rows
-    const col_offset = mat_width/num_cols
+    const col_width = viz_state.viz.mat_width/num_cols
+    const row_offset = viz_state.viz.mat_height/num_rows
+    const col_offset = viz_state.viz.mat_width/num_cols
 
 
     // column category positioning
     const cat_shift_col = col_label_height // + extra_height_col
-    const ini_pan_x = mat_width/2
+    const ini_pan_x = viz_state.viz.mat_width/2
 
     // not sure why I need to add row_offset?
-    const ini_pan_y = mat_height/2 + row_offset
+    const ini_pan_y = viz_state.viz.mat_height/2 + row_offset
 
-    const viz_width = mat_width + row_region_width
+    const viz_width = viz_state.viz.mat_width + row_region_width
 
-    const viz_height = mat_height + col_region_height
+    const viz_height = viz_state.viz.mat_height + col_region_height
 
     // make mat_data from network_data
     //////////////////////////////////////
@@ -107,7 +107,7 @@ export const matrix_viz = async (
     const inst_opacity = 255; // Example value
     let inst_color
 
-    const max_abs_value = Math.max(...network.mat.flat().map(Math.abs));
+    const max_abs_value = 1 //  Math.max(...network.mat.flat().map(Math.abs));
 
 
     // Iterate over each row and column in network.mat
@@ -221,6 +221,15 @@ export const matrix_viz = async (
         return p;
     });
 
+    // // animation transition function
+    // // https://observablehq.com/@cornhundred/deck-gl-instanced-scatter-test
+    // const transitions = ({
+    //     getPosition: {
+    //       duration: 3000,
+    //       easing: d3.easeCubic
+    //     }
+    // })
+
 
     // Create a new ScatterplotLayer using the input data
     const mat_layer = new CustomMatrixLayer({
@@ -231,8 +240,8 @@ export const matrix_viz = async (
         pickable: true,               // Enable picking for interactivity
         opacity: 0.8,                  // Set the opacity of the points
         antialiasing: false,
-        tile_height: mat_height/num_rows * 0.5,
-        tile_width: mat_height/num_cols * 0.5
+        tile_height: viz_state.viz.mat_height/num_rows * 0.5,
+        tile_width: viz_state.viz.mat_height/num_cols * 0.5
 
     });
 
@@ -285,7 +294,7 @@ export const matrix_viz = async (
         pickable: true,               // Enable picking for interactivity
         opacity: 0.8,                  // Set the opacity of the points
         tile_width: row_cat_width/2 * 0.9,
-        tile_height: mat_height/num_rows * 0.5,
+        tile_height: viz_state.viz.mat_height/num_rows * 0.5,
     });
 
     // Create a new ScatterplotLayer using the input data
@@ -296,7 +305,7 @@ export const matrix_viz = async (
         getFillColor: d => d.color,   // Color of each point
         pickable: true,               // Enable picking for interactivity
         opacity: 0.8,                  // Set the opacity of the points
-        tile_width: mat_height/num_cols * 0.5 ,
+        tile_width: viz_state.viz.mat_height/num_cols * 0.5 ,
         tile_height: col_cat_height/2,
 
     });
@@ -310,8 +319,8 @@ export const matrix_viz = async (
           id: 'matrix',
           x: ( row_region_width + label_buffer) + 'px',
           y: ( col_region_height + label_buffer) + 'px',
-          width: mat_width + 'px',
-          height: mat_height + 'px',
+          width: viz_state.viz.mat_width + 'px',
+          height: viz_state.viz.mat_height + 'px',
           controller: {scrollZoom: true, inertia: false, zoomAxis: 'all'},
         }),
 
@@ -320,7 +329,7 @@ export const matrix_viz = async (
           x: '0px',
           y: (col_region_height + label_buffer) + 'px',
           width: row_region_width + 'px',
-          height: mat_height + 'px',
+          height: viz_state.viz.mat_height + 'px',
           controller: {scrollZoom: true, inertia: false, zoomAxis: 'Y'},
         }),
 
@@ -328,7 +337,7 @@ export const matrix_viz = async (
           id: 'cols',
           x: (row_region_width + label_buffer) + 'px',
           y: '0px',
-          width: mat_width + 'px',
+          width: viz_state.viz.mat_width + 'px',
           height: col_region_height + 'px',
           controller: {scrollZoom: true, inertia: false, zoomAxis: 'X'},
         }),
@@ -664,6 +673,6 @@ export const matrix_viz = async (
         layers: layers,
     })
 
-    el.appendChild(root)
+    el.appendChild(viz_state.root)
 
 }

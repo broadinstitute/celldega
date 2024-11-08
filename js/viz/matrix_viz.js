@@ -6,6 +6,7 @@ import { set_mat_data } from '../matrix/mat_data.js';
 import { TextLayer, OrthographicView, Layer } from 'deck.gl';
 // import { index } from 'd3';
 import * as d3 from 'd3'
+import { set_mat_constants } from '../matrix/set_constants.js';
 
 export const matrix_viz = async (
     model,
@@ -18,59 +19,10 @@ export const matrix_viz = async (
 
     let viz_state = {}
 
-    viz_state.root = document.createElement("div")
+    const root = document.createElement("div")
+    let deck_mat = ini_deck(root)
 
-    viz_state.viz = {}
-    viz_state.viz.height_margin = 100
-
-    viz_state.root.style.height =  ( height + viz_state.viz.height_margin ) + "px"
-
-    let deck_mat = ini_deck(viz_state.root)
-
-    console.log('hello')
-
-    /////////////////////////////
-    // Constants
-    //////////////////////////////
-    viz_state.viz.mat_width = width
-    viz_state.viz.mat_height = height
-
-    viz_state.mat = {}
-    viz_state.mat.num_rows = network.mat.length
-    viz_state.mat.num_cols = network.mat[0].length
-
-    viz_state.viz.base_font_size = 100
-
-    viz_state.viz.col_label_height = 20
-    viz_state.viz.row_region_width = 90
-
-    viz_state.viz.extra_height_col = 20
-
-    viz_state.zoom = {}
-    viz_state.zoom.ini_zoom_x = 0
-    viz_state.zoom.ini_zoom_y = 0
-
-    viz_state.viz.row_label_width = 30
-
-    viz_state.viz.row_cat_width = 9
-    viz_state.viz.col_cat_height = 9
-
-    // width of row category bars
-    viz_state.viz.row_cat_offset = 10
-
-    viz_state.cat = {}
-    viz_state.cat.num_cats_col = 2
-
-    // height of column category bars
-    viz_state.viz.col_cat_offset = 10
-
-    // position the cats
-    viz_state.viz.label_row_x = 15
-    viz_state.viz.label_col_y = 25
-
-    viz_state.viz.cat_shift_row = 30
-
-    viz_state.viz.label_buffer = 1
+    set_mat_constants(network, viz_state, root, width, height)
 
     //////////////////////////////
     // Variables
@@ -102,8 +54,6 @@ export const matrix_viz = async (
     viz_state.mat.num_cols = network.mat[0].length;
 
     viz_state.mat.max_abs_value = network.mat.flat().reduce((max, num) => Math.max(max, Math.abs(num)), -Infinity);
-
-
 
     set_mat_data(network, viz_state)
 

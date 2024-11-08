@@ -1,6 +1,7 @@
 import { ini_deck } from '../deck-gl/matrix/deck_mat.js'
 import { CustomMatrixLayer } from '../deck-gl/matrix/custom_matrix_layer.js'
 import { mat_layer } from '../deck-gl/matrix/matrix_layers.js';
+import { get_mat_data } from '../deck-gl/matrix/mat_data.js';
 
 import { TextLayer, OrthographicView, Layer } from 'deck.gl';
 // import { index } from 'd3';
@@ -57,7 +58,7 @@ export const matrix_viz = async (
     viz_state.viz.row_cat_offset = 10
 
     viz_state.cat = {}
-    viz_state.cat.num_cats_col = 3
+    viz_state.cat.num_cats_col = 2
 
     // height of column category bars
     viz_state.viz.col_cat_offset = 10
@@ -77,75 +78,42 @@ export const matrix_viz = async (
 
     viz_state.viz.inst_font_size = viz_state.viz.ini_font_size
 
-    const row_height = viz_state.viz.mat_height/viz_state.mat.num_rows
-    const col_region_height = viz_state.viz.col_cat_height * viz_state.cat.num_cats_col + viz_state.viz.col_label_height + viz_state.viz.extra_height_col
-    const col_width = viz_state.viz.mat_width/viz_state.mat.num_cols
-    const row_offset = viz_state.viz.mat_height/viz_state.mat.num_rows
-    const col_offset = viz_state.viz.mat_width/viz_state.mat.num_cols
+    // const row_height = viz_state.viz.mat_height/viz_state.mat.num_rows
+    viz_state.viz.col_region_height = viz_state.viz.col_cat_height * viz_state.cat.num_cats_col + viz_state.viz.col_label_height + viz_state.viz.extra_height_col
+    viz_state.viz.col_width = viz_state.viz.mat_width/viz_state.mat.num_cols
+    viz_state.viz.row_offset = viz_state.viz.mat_height/viz_state.mat.num_rows
+    viz_state.viz.col_offset = viz_state.viz.mat_width/viz_state.mat.num_cols
 
 
     // column category positioning
-    const cat_shift_col = viz_state.viz.col_label_height // + viz_state.viz.extra_height_col
-    const ini_pan_x = viz_state.viz.mat_width/2
+    viz_state.viz.cat_shift_col = viz_state.viz.col_label_height // + viz_state.viz.extra_height_col
+    viz_state.zoom.ini_pan_x = viz_state.viz.mat_width/2
 
     // not sure why I need to add row_offset?
-    const ini_pan_y = viz_state.viz.mat_height/2 + row_offset
-
-    const viz_width = viz_state.viz.mat_width + viz_state.viz.row_region_width
-
-    const viz_height = viz_state.viz.mat_height + col_region_height
+    viz_state.zoom.ini_pan_y = viz_state.viz.mat_height/2 + viz_state.viz.row_offset
 
     // make mat_data from network_data
     //////////////////////////////////////
 
     // Assuming network.mat is an array of arrays
-    mat_data = [];
+    viz_state.mat.mat_data = [];
     viz_state.mat.num_rows = network.mat.length;
     viz_state.mat.num_cols = network.mat[0].length;
 
-    // Define offsets and color parameters
-    const inst_opacity = 255; // Example value
-    let inst_color
-
-    const max_abs_value = 1 //  Math.max(...network.mat.flat().map(Math.abs));
+    viz_state.mat.max_abs_value = network.mat.flat().reduce((max, num) => Math.max(max, Math.abs(num)), -Infinity);
 
 
-    // Iterate over each row and column in network.mat
-    network.mat.forEach((rowArray, index_row) => {
-        rowArray.forEach((tile_value, index_col) => {
 
-            if (tile_value >= 0){
-                inst_color = [255, 0, 0]
-            } else {
-                inst_color = [0, 0, 255]
-            }
-
-            // Construct the object for each cell
-            const p = {
-                position: [
-                    col_offset * (index_col + 0.5),
-                    row_offset * (index_row + 1.5)
-                ],
-                color: [inst_color[0], inst_color[1], inst_color[2], 255 * tile_value / max_abs_value],
-                value: tile_value,
-                row: index_row,
-                col: index_col,
-            };
-            // Add the object to mat_data
-            mat_data.push(p);
-        });
-    });
-
+    get_mat_data(network, viz_state)
 
 
     // col label data
     let matrix_index = 0;
 
-
     let col_label_data = []
     network.col_nodes.forEach((node, index) => {
         const p = {
-            position: [col_width * index + col_width/2, viz_state.viz.col_label_height/2],
+            position: [viz_state.viz.col_width * (index + 3/4), viz_state.viz.col_label_height/2],
             name: node.name
         };
         col_label_data.push(p);
@@ -160,7 +128,7 @@ export const matrix_viz = async (
         const p = {
             position: [
                 viz_state.viz.row_label_width / 2,
-                row_offset * (index + 1.5)
+                viz_state.viz.row_offset * (index + 1.5)
               ],
             name: node.name
         };
@@ -184,7 +152,7 @@ export const matrix_viz = async (
         }
 
         const p = {
-            position: [viz_state.viz.row_cat_offset * (index_col + 0.5), row_offset * (index_row + 0.5)],
+            position: [viz_state.viz.row_cat_offset * (index_col + 0.5), viz_state.viz.row_offset * (index_row + 0.5)],
             color: [0, 255, 0, 255],
             name: 'something ' + index_row
         };
@@ -211,7 +179,7 @@ export const matrix_viz = async (
         }
 
         const p = {
-            position: [col_offset * (index_col + 0.5), viz_state.viz.col_cat_offset * (index_row + 0.5)],
+            position: [viz_state.viz.col_offset * (index_col + 0.5), viz_state.viz.col_cat_offset * (index_row + 0.5)],
             color: [0, 255, 0, 150],
             name: 'some column ' + index_col,
         };
@@ -234,7 +202,7 @@ export const matrix_viz = async (
     // Create a new ScatterplotLayer using the input data
     const mat_layer = new CustomMatrixLayer({
         id: 'matrix-layer',
-        data: mat_data,
+        data: viz_state.mat.mat_data,
         getPosition: d => d.position, // Position of each point
         getFillColor: d => d.color,   // Color of each point
         pickable: true,               // Enable picking for interactivity
@@ -301,7 +269,7 @@ export const matrix_viz = async (
     const col_cat_layer = new CustomMatrixLayer({
         id: 'col-layer',
         data: col_cat_data,
-        getPosition: d => [d.position[0], d.position[1] + cat_shift_col],
+        getPosition: d => [d.position[0], d.position[1] + viz_state.viz.cat_shift_col],
         getFillColor: d => d.color,   // Color of each point
         pickable: true,               // Enable picking for interactivity
         opacity: 0.8,                  // Set the opacity of the points
@@ -318,7 +286,7 @@ export const matrix_viz = async (
         new OrthographicView({
           id: 'matrix',
           x: ( viz_state.viz.row_region_width + viz_state.viz.label_buffer) + 'px',
-          y: ( col_region_height + viz_state.viz.label_buffer) + 'px',
+          y: ( viz_state.viz.col_region_height + viz_state.viz.label_buffer) + 'px',
           width: viz_state.viz.mat_width + 'px',
           height: viz_state.viz.mat_height + 'px',
           controller: {scrollZoom: true, inertia: false, zoomAxis: 'all'},
@@ -327,7 +295,7 @@ export const matrix_viz = async (
         new OrthographicView({
           id: 'rows',
           x: '0px',
-          y: (col_region_height + viz_state.viz.label_buffer) + 'px',
+          y: (viz_state.viz.col_region_height + viz_state.viz.label_buffer) + 'px',
           width: viz_state.viz.row_region_width + 'px',
           height: viz_state.viz.mat_height + 'px',
           controller: {scrollZoom: true, inertia: false, zoomAxis: 'Y'},
@@ -338,7 +306,7 @@ export const matrix_viz = async (
           x: (viz_state.viz.row_region_width + viz_state.viz.label_buffer) + 'px',
           y: '0px',
           width: viz_state.viz.mat_width + 'px',
-          height: col_region_height + 'px',
+          height: viz_state.viz.col_region_height + 'px',
           controller: {scrollZoom: true, inertia: false, zoomAxis: 'X'},
         }),
 
@@ -394,15 +362,15 @@ export const matrix_viz = async (
 
         let globalViewState = {
           matrix: {
-            target: [ini_pan_x, ini_pan_y],
+            target: [viz_state.zoom.ini_pan_x, viz_state.zoom.ini_pan_y],
             zoom: [viz_state.zoom.ini_zoom_x, viz_state.zoom.ini_zoom_y],
           },
           rows: {
-            target: [viz_state.viz.label_row_x, ini_pan_y],
+            target: [viz_state.viz.label_row_x, viz_state.zoom.ini_pan_y],
             zoom: [viz_state.zoom.ini_zoom_x, viz_state.zoom.ini_zoom_y],
           },
           cols: {
-            target: [ini_pan_x, viz_state.viz.label_col_y],
+            target: [viz_state.zoom.ini_pan_x, viz_state.viz.label_col_y],
             zoom: [viz_state.zoom.ini_zoom_x, viz_state.zoom.ini_zoom_y],
           },
         }
@@ -476,8 +444,8 @@ export const matrix_viz = async (
 
     // trying to define a mutable zoom_data outside of the deckgl cell
     let zoom_data = ({
-        pan_x: ini_pan_x,
-        pan_y: ini_pan_y,
+        pan_x: viz_state.zoom.ini_pan_x,
+        pan_y: viz_state.zoom.ini_pan_y,
         zoom_x: viz_state.zoom.ini_zoom_x,
         zoom_y: viz_state.zoom.ini_zoom_y,
     })
@@ -487,14 +455,11 @@ export const matrix_viz = async (
 
     const curate_pan_y = (target_y, zoom_curated_y, ini_pan_y) => {
 
-        // ini_pan_y = ini_pan_y// - row_offset
-
         var pan_curated_y
 
         var zoom_factor_y = Math.pow(2, zoom_curated_y)
 
-        // var min_pan_y = ini_pan_y/zoom_factor_y
-        var min_pan_y = (ini_pan_y - row_offset)/zoom_factor_y + row_offset
+        var min_pan_y = (ini_pan_y - viz_state.viz.row_offset)/zoom_factor_y + viz_state.viz.row_offset
 
         // calculating the shift to the min, to re-use for the max
         var min_diff = ini_pan_y - min_pan_y
@@ -512,7 +477,7 @@ export const matrix_viz = async (
           // console.log('within bounds')
         }
 
-        return pan_curated_y// + row_offset
+        return pan_curated_y
       }
 
     const curate_pan_x = (target_x, zoom_curated_x, ini_pan_x) => {
@@ -556,8 +521,8 @@ export const matrix_viz = async (
         var zoom_curated_x = Math.max(min_zoom_x, zoom[0])
         var zoom_curated_y = Math.max(min_zoom_x, zoom[1])
 
-        var pan_curated_x = curate_pan_x(target[0], zoom_curated_x, ini_pan_x)
-        var pan_curated_y = curate_pan_y(target[1], zoom_curated_y, ini_pan_y)
+        var pan_curated_x = curate_pan_x(target[0], zoom_curated_x, viz_state.zoom.ini_pan_x)
+        var pan_curated_y = curate_pan_y(target[1], zoom_curated_y, viz_state.zoom.ini_pan_y)
 
         if (viewId === 'matrix') {
 

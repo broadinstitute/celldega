@@ -32,8 +32,12 @@ export const ini_views = (viz_state) => {
           controller: {scrollZoom: true, inertia: false, zoomAxis: 'X'},
         }),
 
-  ]
-  return views
+    ]
+
+    viz_state.views = {}
+
+    viz_state.views.views = views
+
 }
 
 
@@ -203,16 +207,12 @@ export const on_view_state_change = (params, deck_mat, viz_state) => {
 
     viz_state.viz.inst_font_size = viz_state.viz.ini_font_size * zoom_factor_x
 
-    // console.log('viz_state.viz.inst_font_size', viz_state.viz.inst_font_size)
-
     update_zoom_data(viz_state.zoom.zoom_data, viewId, zoom, target)
 
     var updated_view_state = {...global_view_state}
 
-    // this will only update the zoom state for the current layer
-    // return updated_view_state
-
-    // use setProps to update viewState with updated_view_state
-    deck_mat.setProps({viewState: updated_view_state});
+    deck_mat.setProps({
+        viewState: updated_view_state
+    })
 
 }

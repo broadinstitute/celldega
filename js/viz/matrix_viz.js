@@ -46,41 +46,39 @@ export const matrix_viz = async (
 
     viz_state.zoom = {}
     viz_state.zoom.ini_zoom_x = 0
-    const ini_zoom_y = 0
+    viz_state.zoom.ini_zoom_y = 0
 
-    const row_label_width = 30
+    viz_state.viz.row_label_width = 30
 
-    const row_cat_width = 9
-    const col_cat_height = 9
+    viz_state.viz.row_cat_width = 9
+    viz_state.viz.col_cat_height = 9
 
     // width of row category bars
-    const row_cat_offset = 10
+    viz_state.viz.row_cat_offset = 10
 
-    const num_cats_col = 3
+    viz_state.cat = {}
+    viz_state.cat.num_cats_col = 3
 
     // height of column category bars
-    const col_cat_offset = 10
+    viz_state.viz.col_cat_offset = 10
 
     // position the cats
-    const label_row_x = 15
+    viz_state.viz.label_row_x = 15
+    viz_state.viz.label_col_y = 25
 
-    // position the cats
-    const label_col_y = 25
+    viz_state.viz.cat_shift_row = 30
 
-    const cat_shift_row = 30
-
-    const label_buffer = 1
-
+    viz_state.viz.label_buffer = 1
 
     //////////////////////////////
     // Variables
     //////////////////////////////
-    const ini_font_size = viz_state.viz.base_font_size / viz_state.mat.num_rows
+    viz_state.viz.ini_font_size = viz_state.viz.base_font_size / viz_state.mat.num_rows
 
-    let inst_font_size = ini_font_size
+    viz_state.viz.inst_font_size = viz_state.viz.ini_font_size
 
     const row_height = viz_state.viz.mat_height/viz_state.mat.num_rows
-    const col_region_height = col_cat_height * num_cats_col + viz_state.viz.col_label_height + viz_state.viz.extra_height_col
+    const col_region_height = viz_state.viz.col_cat_height * viz_state.cat.num_cats_col + viz_state.viz.col_label_height + viz_state.viz.extra_height_col
     const col_width = viz_state.viz.mat_width/viz_state.mat.num_cols
     const row_offset = viz_state.viz.mat_height/viz_state.mat.num_rows
     const col_offset = viz_state.viz.mat_width/viz_state.mat.num_cols
@@ -161,7 +159,7 @@ export const matrix_viz = async (
     network.row_nodes.forEach((node, index) => {
         const p = {
             position: [
-                row_label_width / 2,
+                viz_state.viz.row_label_width / 2,
                 row_offset * (index + 1.5)
               ],
             name: node.name
@@ -186,7 +184,7 @@ export const matrix_viz = async (
         }
 
         const p = {
-            position: [row_cat_offset * (index_col + 0.5), row_offset * (index_row + 0.5)],
+            position: [viz_state.viz.row_cat_offset * (index_col + 0.5), row_offset * (index_row + 0.5)],
             color: [0, 255, 0, 255],
             name: 'something ' + index_row
         };
@@ -202,7 +200,7 @@ export const matrix_viz = async (
 
     var index_row = 0
 
-    var num_points = num_cats_col * viz_state.mat.num_cols
+    var num_points = viz_state.cat.num_cats_col * viz_state.mat.num_cols
 
     const col_cat_data = new Array(num_points).fill(0).map( _ => {
 
@@ -213,7 +211,7 @@ export const matrix_viz = async (
         }
 
         const p = {
-            position: [col_offset * (index_col + 0.5), col_cat_offset * (index_row + 0.5)],
+            position: [col_offset * (index_col + 0.5), viz_state.viz.col_cat_offset * (index_row + 0.5)],
             color: [0, 255, 0, 150],
             name: 'some column ' + index_col,
         };
@@ -252,7 +250,7 @@ export const matrix_viz = async (
         data: row_label_data, // This should be the same data source you used for your other layers
         getPosition: d => d.position,
         getText: d => d.name, // Replace 'label' with the property in your data that contains the text you want to display
-        getSize: d => inst_font_size,
+        getSize: d => viz_state.viz.inst_font_size,
         getColor: [0, 0, 0], // Text color as an RGBA array
         getAngle: 0, // Optional: Text angle in degrees
         getTextAnchor: 'end', // middle
@@ -260,7 +258,7 @@ export const matrix_viz = async (
         fontFamily: 'Arial',
         sizeUnits: 'pixels',
         updateTriggers: {
-          getSize: inst_font_size
+          getSize: viz_state.viz.inst_font_size
         },
         pickable: true,
         // onHover: (info, event) => console.log('Hovered:', info), // , event
@@ -272,7 +270,7 @@ export const matrix_viz = async (
         data: col_label_data, // This should be the same data source you used for your other layers
         getPosition: d => d.position,
         getText: d => d.name,
-        getSize: inst_font_size,
+        getSize: viz_state.viz.inst_font_size,
         getColor: [0, 0, 0], // Text color as an RGBA array
         getAngle: 45, // Optional: Text angle in degrees
         getTextAnchor: 'start', // middle
@@ -280,7 +278,7 @@ export const matrix_viz = async (
         fontFamily: 'Arial',
         sizeUnits: 'pixels',
         updateTriggers: {
-          getSize: inst_font_size
+          getSize: viz_state.viz.inst_font_size
         },
         pickable: true,
         // onHover: (info, event) => console.log('Hovered:', info), // , event
@@ -291,11 +289,11 @@ export const matrix_viz = async (
         id: 'row-layer',
         data: row_cat_data,
         // getPosition: d => d.position, // Position of each point
-        getPosition: d => [d.position[0] + cat_shift_row, d.position[1]],
+        getPosition: d => [d.position[0] + viz_state.viz.cat_shift_row, d.position[1]],
         getFillColor: d => d.color,   // Color of each point
         pickable: true,               // Enable picking for interactivity
         opacity: 0.8,                  // Set the opacity of the points
-        tile_width: row_cat_width/2 * 0.9,
+        tile_width: viz_state.viz.row_cat_width/2 * 0.9,
         tile_height: viz_state.viz.mat_height/viz_state.mat.num_rows * 0.5,
     });
 
@@ -308,7 +306,7 @@ export const matrix_viz = async (
         pickable: true,               // Enable picking for interactivity
         opacity: 0.8,                  // Set the opacity of the points
         tile_width: viz_state.viz.mat_height/viz_state.mat.num_cols * 0.5 ,
-        tile_height: col_cat_height/2,
+        tile_height: viz_state.viz.col_cat_height/2,
 
     });
 
@@ -319,8 +317,8 @@ export const matrix_viz = async (
 
         new OrthographicView({
           id: 'matrix',
-          x: ( viz_state.viz.row_region_width + label_buffer) + 'px',
-          y: ( col_region_height + label_buffer) + 'px',
+          x: ( viz_state.viz.row_region_width + viz_state.viz.label_buffer) + 'px',
+          y: ( col_region_height + viz_state.viz.label_buffer) + 'px',
           width: viz_state.viz.mat_width + 'px',
           height: viz_state.viz.mat_height + 'px',
           controller: {scrollZoom: true, inertia: false, zoomAxis: 'all'},
@@ -329,7 +327,7 @@ export const matrix_viz = async (
         new OrthographicView({
           id: 'rows',
           x: '0px',
-          y: (col_region_height + label_buffer) + 'px',
+          y: (col_region_height + viz_state.viz.label_buffer) + 'px',
           width: viz_state.viz.row_region_width + 'px',
           height: viz_state.viz.mat_height + 'px',
           controller: {scrollZoom: true, inertia: false, zoomAxis: 'Y'},
@@ -337,7 +335,7 @@ export const matrix_viz = async (
 
         new OrthographicView({
           id: 'cols',
-          x: (viz_state.viz.row_region_width + label_buffer) + 'px',
+          x: (viz_state.viz.row_region_width + viz_state.viz.label_buffer) + 'px',
           y: '0px',
           width: viz_state.viz.mat_width + 'px',
           height: col_region_height + 'px',
@@ -397,15 +395,15 @@ export const matrix_viz = async (
         let globalViewState = {
           matrix: {
             target: [ini_pan_x, ini_pan_y],
-            zoom: [viz_state.zoom.ini_zoom_x, ini_zoom_y],
+            zoom: [viz_state.zoom.ini_zoom_x, viz_state.zoom.ini_zoom_y],
           },
           rows: {
-            target: [label_row_x, ini_pan_y],
-            zoom: [viz_state.zoom.ini_zoom_x, ini_zoom_y],
+            target: [viz_state.viz.label_row_x, ini_pan_y],
+            zoom: [viz_state.zoom.ini_zoom_x, viz_state.zoom.ini_zoom_y],
           },
           cols: {
-            target: [ini_pan_x, label_col_y],
-            zoom: [viz_state.zoom.ini_zoom_x, ini_zoom_y],
+            target: [ini_pan_x, viz_state.viz.label_col_y],
+            zoom: [viz_state.zoom.ini_zoom_x, viz_state.zoom.ini_zoom_y],
           },
         }
 
@@ -481,7 +479,7 @@ export const matrix_viz = async (
         pan_x: ini_pan_x,
         pan_y: ini_pan_y,
         zoom_x: viz_state.zoom.ini_zoom_x,
-        zoom_y: ini_zoom_y,
+        zoom_y: viz_state.zoom.ini_zoom_y,
     })
 
 
@@ -570,11 +568,11 @@ export const matrix_viz = async (
                 },
                 rows:   {
                     zoom: [viz_state.zoom.ini_zoom_x, zoom_curated_y],
-                    target: [label_row_x, pan_curated_y]
+                    target: [viz_state.viz.label_row_x, pan_curated_y]
                 },
                 cols:   {
-                    zoom: [zoom_curated_x, ini_zoom_y],
-                    target: [pan_curated_x, label_col_y]
+                    zoom: [zoom_curated_x, viz_state.zoom.ini_zoom_y],
+                    target: [pan_curated_x, viz_state.viz.label_col_y]
                 },
             }
 
@@ -587,11 +585,11 @@ export const matrix_viz = async (
                 },
                 rows:   {
                     zoom: [viz_state.zoom.ini_zoom_x, zoom_data.zoom_y],
-                    target: [label_row_x, zoom_data.pan_y]
+                    target: [viz_state.viz.label_row_x, zoom_data.pan_y]
                 },
                 cols:   {
-                    zoom: [zoom_curated_x, ini_zoom_y],
-                    target: [pan_curated_x, label_col_y]
+                    zoom: [zoom_curated_x, viz_state.zoom.ini_zoom_y],
+                    target: [pan_curated_x, viz_state.viz.label_col_y]
                 },
             }
 
@@ -604,11 +602,11 @@ export const matrix_viz = async (
                 },
                 rows:   {
                     zoom: [viz_state.zoom.ini_zoom_x, zoom_curated_y],
-                    target: [label_row_x, pan_curated_y]
+                    target: [viz_state.viz.label_row_x, pan_curated_y]
                 },
                 cols:   {
-                    zoom: [zoom_data.zoom_x, ini_zoom_y],
-                    target: [zoom_data.pan_x, label_col_y]
+                    zoom: [zoom_data.zoom_x, viz_state.zoom.ini_zoom_y],
+                    target: [zoom_data.pan_x, viz_state.viz.label_col_y]
                 },
             }
 
@@ -628,9 +626,9 @@ export const matrix_viz = async (
 
         var zoom_factor_x = Math.pow(2, zoom_data.zoom_x)
 
-        inst_font_size = ini_font_size * zoom_factor_x
+        viz_state.viz.inst_font_size = viz_state.viz.ini_font_size * zoom_factor_x
 
-        // console.log('inst_font_size', inst_font_size)
+        // console.log('viz_state.viz.inst_font_size', viz_state.viz.inst_font_size)
 
         // this takes mutable zoom_data since it updates zoom_data's state
         update_zoom_data(zoom_data, viewId, zoom, target)

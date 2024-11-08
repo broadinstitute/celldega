@@ -8,7 +8,7 @@ import { ini_row_label_layer, ini_col_label_layer } from '../deck-gl/matrix/labe
 import { ini_row_cat_layer, ini_col_cat_layer } from '../deck-gl/matrix/cat_layers.js';
 import { get_layers_list, layer_filter } from '../deck-gl/matrix/matrix_layers.js'
 import { ini_views, ini_global_view_state } from '../deck-gl/matrix/views.js'
-import { update_zoom_data } from '../deck-gl/matrix/zoom.js'
+import { ini_zoom_data, update_zoom_data } from '../deck-gl/matrix/zoom.js'
 import { get_tooltip } from '../deck-gl/matrix/matrix_tooltip.js'
 
 export const matrix_viz = async (
@@ -54,13 +54,7 @@ export const matrix_viz = async (
 
     const views = ini_views(viz_state)
 
-    viz_state.zoom.zoom_data = ({
-        pan_x: viz_state.zoom.ini_pan_x,
-        pan_y: viz_state.zoom.ini_pan_y,
-        zoom_x: viz_state.zoom.ini_zoom_x,
-        zoom_y: viz_state.zoom.ini_zoom_y,
-    })
-
+    ini_zoom_data(viz_state)
 
     const ini_view_state = ini_global_view_state(viz_state)
 

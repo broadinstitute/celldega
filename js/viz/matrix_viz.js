@@ -9,6 +9,7 @@ import { ini_row_cat_layer, ini_col_cat_layer } from '../deck-gl/matrix/cat_laye
 import { get_layers_list, layer_filter } from '../deck-gl/matrix/matrix_layers.js'
 import { ini_views, ini_global_view_state } from '../deck-gl/matrix/views.js'
 import { update_zoom_data } from '../deck-gl/matrix/zoom.js'
+import { get_tooltip } from '../deck-gl/matrix/matrix_tooltip.js'
 
 export const matrix_viz = async (
     model,
@@ -54,48 +55,6 @@ export const matrix_viz = async (
     const views = ini_views(viz_state)
 
 
-
-
-    const getTooltip = ({object, layer}) => {
-        if (object) {
-          // Check which layer the tooltip is currently over
-          if (layer.id === 'row-label-layer') {
-            // Display the row label when hovering over the row_label_layer
-            return {
-              html: `Row Label: ${object.name}`,
-              style: {color: "white"},
-            };
-          }
-          else if (layer.id === 'col-label-layer') {
-            // Display the row label when hovering over the row_label_layer
-            return {
-              html: `Col Label: ${object.name}`,
-              style: {color: "white"},
-            };
-          }
-          else if (layer.id === 'row-layer') {
-            // Display the row label when hovering over the row_label_layer
-            return {
-              html: `Row Label: ${object.name}`,
-              style: {color: "white"},
-            };
-          }
-          else if (layer.id === 'col-layer') {
-            // Display the row label when hovering over the row_label_layer
-            return {
-              html: `Col Label: ${object.name}`,
-              style: {color: "white"},
-            };
-          }
-          else if (layer.id === 'mat-layer') {
-            // Display the default tooltip for other layers
-            return {
-              html: `Row: ${object.row} <br> Column: ${object.col}`,
-              style: {color: "white"},
-            };
-          }
-        }
-      }
 
 
     // trying to define a mutable zoom_data outside of the deckgl cell
@@ -268,7 +227,7 @@ export const matrix_viz = async (
         onViewStateChange: on_view_state_change,
         views: views,
         initialViewState: ini_view_state,
-        getTooltip: getTooltip,
+        getTooltip: get_tooltip,
         layerFilter: layer_filter,
         layers: get_layers_list(layers_mat),
     })

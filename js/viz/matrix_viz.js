@@ -44,7 +44,8 @@ export const matrix_viz = async (
 
     viz_state.viz.extra_height_col = 20
 
-    const ini_zoom_x = 0
+    viz_state.zoom = {}
+    viz_state.zoom.ini_zoom_x = 0
     const ini_zoom_y = 0
 
     const row_label_width = 30
@@ -336,7 +337,7 @@ export const matrix_viz = async (
 
         new OrthographicView({
           id: 'cols',
-          x: (row_region_width + label_buffer) + 'px',
+          x: (viz_state.viz.row_region_width + label_buffer) + 'px',
           y: '0px',
           width: viz_state.viz.mat_width + 'px',
           height: col_region_height + 'px',
@@ -396,15 +397,15 @@ export const matrix_viz = async (
         let globalViewState = {
           matrix: {
             target: [ini_pan_x, ini_pan_y],
-            zoom: [ini_zoom_x, ini_zoom_y],
+            zoom: [viz_state.zoom.ini_zoom_x, ini_zoom_y],
           },
           rows: {
             target: [label_row_x, ini_pan_y],
-            zoom: [ini_zoom_x, ini_zoom_y],
+            zoom: [viz_state.zoom.ini_zoom_x, ini_zoom_y],
           },
           cols: {
             target: [ini_pan_x, label_col_y],
-            zoom: [ini_zoom_x, ini_zoom_y],
+            zoom: [viz_state.zoom.ini_zoom_x, ini_zoom_y],
           },
         }
 
@@ -479,7 +480,7 @@ export const matrix_viz = async (
     let zoom_data = ({
         pan_x: ini_pan_x,
         pan_y: ini_pan_y,
-        zoom_x: ini_zoom_x,
+        zoom_x: viz_state.zoom.ini_zoom_x,
         zoom_y: ini_zoom_y,
     })
 
@@ -568,7 +569,7 @@ export const matrix_viz = async (
                     target: [pan_curated_x, pan_curated_y]
                 },
                 rows:   {
-                    zoom: [ini_zoom_x, zoom_curated_y],
+                    zoom: [viz_state.zoom.ini_zoom_x, zoom_curated_y],
                     target: [label_row_x, pan_curated_y]
                 },
                 cols:   {
@@ -585,7 +586,7 @@ export const matrix_viz = async (
                     target: [pan_curated_x, zoom_data.pan_y]
                 },
                 rows:   {
-                    zoom: [ini_zoom_x, zoom_data.zoom_y],
+                    zoom: [viz_state.zoom.ini_zoom_x, zoom_data.zoom_y],
                     target: [label_row_x, zoom_data.pan_y]
                 },
                 cols:   {
@@ -602,7 +603,7 @@ export const matrix_viz = async (
                     target: [zoom_data.pan_x, pan_curated_y]
                 },
                 rows:   {
-                    zoom: [ini_zoom_x, zoom_curated_y],
+                    zoom: [viz_state.zoom.ini_zoom_x, zoom_curated_y],
                     target: [label_row_x, pan_curated_y]
                 },
                 cols:   {

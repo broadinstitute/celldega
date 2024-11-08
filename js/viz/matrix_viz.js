@@ -10,6 +10,7 @@ import { set_mat_constants } from '../matrix/set_constants.js';
 import { set_row_label_data, set_col_label_data } from '../matrix/label_data.js';
 import { set_row_cat_data, set_col_cat_data } from '../matrix/cat_data.js';
 import { ini_mat_layer } from '../deck-gl/matrix/matrix_layer.js';
+import { ini_row_label_layer } from '../deck-gl/matrix/label_layers.js';
 
 export const matrix_viz = async (
     model,
@@ -26,9 +27,11 @@ export const matrix_viz = async (
     let viz_state = set_mat_constants(network, root, width, height)
     set_mat_data(network, viz_state)
 
+    viz_state.labels = {}
+
+    viz_state.labels.row_label_data = set_row_label_data(network, viz_state)
     let col_label_data = set_col_label_data(network, viz_state)
 
-    let row_label_data = set_row_label_data(network, viz_state)
 
     const row_cat_data = set_row_cat_data(network, viz_state)
     const col_cat_data = set_col_cat_data(network, viz_state)
@@ -44,39 +47,27 @@ export const matrix_viz = async (
     // })
 
 
-    // // Create a new ScatterplotLayer using the input data
-    // const mat_layer = new CustomMatrixLayer({
-    //     id: 'matrix-layer',
-    //     data: viz_state.mat.mat_data,
-    //     getPosition: d => d.position,
-    //     getFillColor: d => d.color,
-    //     pickable: true,
-    //     opacity: 0.8,
-    //     antialiasing: false,
-    //     tile_height: viz_state.viz.mat_height/viz_state.mat.num_rows * 0.5,
-    //     tile_width: viz_state.viz.mat_height/viz_state.mat.num_cols * 0.5
-
-    // });
-
     const mat_layer = ini_mat_layer(viz_state)
 
-    const row_label_layer  = new TextLayer({
-        id: 'row-label-layer',
-        data: row_label_data,
-        getPosition: d => d.position,
-        getText: d => d.name,
-        getSize: d => viz_state.viz.inst_font_size,
-        getColor: [0, 0, 0],
-        getAngle: 0,
-        getTextAnchor: 'end',
-        getAlignmentBaseline: 'center',
-        fontFamily: 'Arial',
-        sizeUnits: 'pixels',
-        updateTriggers: {
-          getSize: viz_state.viz.inst_font_size
-        },
-        pickable: true,
-      })
+    const row_label_layer = ini_row_label_layer(viz_state)
+
+    // const row_label_layer  = new TextLayer({
+    //     id: 'row-label-layer',
+    //     data: row_label_data,
+    //     getPosition: d => d.position,
+    //     getText: d => d.name,
+    //     getSize: d => viz_state.viz.inst_font_size,
+    //     getColor: [0, 0, 0],
+    //     getAngle: 0,
+    //     getTextAnchor: 'end',
+    //     getAlignmentBaseline: 'center',
+    //     fontFamily: 'Arial',
+    //     sizeUnits: 'pixels',
+    //     updateTriggers: {
+    //       getSize: viz_state.viz.inst_font_size
+    //     },
+    //     pickable: true,
+    //   })
 
 
     const col_label_layer  = new TextLayer({
@@ -121,6 +112,8 @@ export const matrix_viz = async (
         tile_height: viz_state.viz.col_cat_height/2,
 
     });
+
+    let layers_mat = {}
 
 
     const layers = [mat_layer, row_cat_layer, col_cat_layer, row_label_layer, col_label_layer]

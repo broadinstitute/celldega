@@ -1,7 +1,7 @@
 import { ini_deck } from '../deck-gl/matrix/deck_mat.js'
 import { CustomMatrixLayer } from '../deck-gl/matrix/custom_matrix_layer.js'
-import { mat_layer } from '../deck-gl/matrix/matrix_layers.js';
-import { get_mat_data } from '../deck-gl/matrix/mat_data.js';
+// import { mat_layer } from '../deck-gl/matrix/matrix_layers.js';
+import { set_mat_data } from '../matrix/mat_data.js';
 
 import { TextLayer, OrthographicView, Layer } from 'deck.gl';
 // import { index } from 'd3';
@@ -23,10 +23,11 @@ export const matrix_viz = async (
     viz_state.viz = {}
     viz_state.viz.height_margin = 100
 
-    const viz_total_height = height + viz_state.viz.height_margin
-    viz_state.root.style.height =  viz_total_height + "px"
+    viz_state.root.style.height =  ( height + viz_state.viz.height_margin ) + "px"
 
     let deck_mat = ini_deck(viz_state.root)
+
+    console.log('hello')
 
     /////////////////////////////
     // Constants
@@ -104,7 +105,7 @@ export const matrix_viz = async (
 
 
 
-    get_mat_data(network, viz_state)
+    set_mat_data(network, viz_state)
 
 
     // col label data

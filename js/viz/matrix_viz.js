@@ -8,7 +8,7 @@ import { TextLayer, OrthographicView, Layer } from 'deck.gl';
 import * as d3 from 'd3'
 import { set_mat_constants } from '../matrix/set_constants.js';
 import { set_row_label_data, set_col_label_data } from '../matrix/label_data.js';
-import { set_row_cat_data } from '../matrix/cat_data.js';
+import { set_row_cat_data, set_col_cat_data } from '../matrix/cat_data.js';
 
 export const matrix_viz = async (
     model,
@@ -29,42 +29,9 @@ export const matrix_viz = async (
 
     let row_label_data = set_row_label_data(network, viz_state)
 
-    // row cat data
-    let matrix_index = 0;
-
-    var index_row = 0
-    const num_row_cats = 3
-
-    var num_points = viz_state.mat.num_rows * num_row_cats
-
     const row_cat_data = set_row_cat_data(network, viz_state)
+    const col_cat_data = set_col_cat_data(network, viz_state)
 
-    // col cat data
-
-    matrix_index = 0;
-
-    var index_row = 0
-
-    var num_points = viz_state.cat.num_cats_col * viz_state.mat.num_cols
-
-    const col_cat_data = new Array(num_points).fill(0).map( _ => {
-
-        var index_col = matrix_index % viz_state.mat.num_cols
-
-        if (matrix_index % viz_state.mat.num_cols === 0){
-        index_row += 1;
-        }
-
-        const p = {
-            position: [viz_state.viz.col_offset * (index_col + 0.5), viz_state.viz.col_cat_offset * (index_row + 0.5)],
-            color: [0, 255, 0, 150],
-            name: 'some column ' + index_col,
-        };
-
-        matrix_index += 1;
-
-        return p;
-    });
 
     // // animation transition function
     // // https://observablehq.com/@cornhundred/deck-gl-instanced-scatter-test

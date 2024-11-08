@@ -54,11 +54,7 @@ export const matrix_viz = async (
 
     const views = ini_views(viz_state)
 
-
-
-
-    // trying to define a mutable zoom_data outside of the deckgl cell
-    let zoom_data = ({
+    viz_state.zoom.zoom_data = ({
         pan_x: viz_state.zoom.ini_pan_x,
         pan_y: viz_state.zoom.ini_pan_y,
         zoom_x: viz_state.zoom.ini_zoom_x,
@@ -123,9 +119,6 @@ export const matrix_viz = async (
 
     }
 
-    // new version with fewer arguments
-    // this does not need the mutable zoom_data since it
-    // is not going to be modifying zoom_data
     const redefine_global_view_state = (zoom_data, viewId, zoom, target) => {
 
         var globalViewState
@@ -195,23 +188,23 @@ export const matrix_viz = async (
     }
 
 
-    const on_view_state_change = ({viewState, viewId}) => {
+    const on_view_state_change = (params, viz_state) => {
+
+        const viewState = params.viewState
+        const viewId = params.viewId
 
         // const {zoom, target, offset} = viewState;
         const {zoom, target} = viewState;
 
-        // this takes the latest non-mutable zoom_data since it does
-        // not update zoom_data
-        var global_view_state = redefine_global_view_state(zoom_data, viewId, zoom, target)
+        var global_view_state = redefine_global_view_state(viz_state.zoom.zoom_data, viewId, zoom, target)
 
-        var zoom_factor_x = Math.pow(2, zoom_data.zoom_x)
+        var zoom_factor_x = Math.pow(2, viz_state.zoom.zoom_data.zoom_x)
 
         viz_state.viz.inst_font_size = viz_state.viz.ini_font_size * zoom_factor_x
 
         // console.log('viz_state.viz.inst_font_size', viz_state.viz.inst_font_size)
 
-        // this takes mutable zoom_data since it updates zoom_data's state
-        update_zoom_data(zoom_data, viewId, zoom, target)
+        update_zoom_data(viz_state.zoom.zoom_data, viewId, zoom, target)
 
         var updated_view_state = {...global_view_state}
 
@@ -224,7 +217,7 @@ export const matrix_viz = async (
     }
 
     deck_mat.setProps({
-        onViewStateChange: on_view_state_change,
+        onViewStateChange: (params) => on_view_state_change(params, viz_state),
         views: views,
         initialViewState: ini_view_state,
         getTooltip: get_tooltip,

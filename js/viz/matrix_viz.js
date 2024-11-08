@@ -7,7 +7,8 @@ import { TextLayer, OrthographicView, Layer } from 'deck.gl';
 // import { index } from 'd3';
 import * as d3 from 'd3'
 import { set_mat_constants } from '../matrix/set_constants.js';
-import { set_col_label_data } from '../matrix/label_data.js';
+import { set_row_label_data, set_col_label_data } from '../matrix/label_data.js';
+import { set_row_cat_data } from '../matrix/cat_data.js';
 
 export const matrix_viz = async (
     model,
@@ -26,17 +27,7 @@ export const matrix_viz = async (
 
     let col_label_data = set_col_label_data(network, viz_state)
 
-    let row_label_data = []
-    network.row_nodes.forEach((node, index) => {
-        const p = {
-            position: [
-                viz_state.viz.row_label_width / 2,
-                viz_state.viz.row_offset * (index + 1.5)
-              ],
-            name: node.name
-        };
-        row_label_data.push(p);
-    })
+    let row_label_data = set_row_label_data(network, viz_state)
 
     // row cat data
     let matrix_index = 0;
@@ -46,24 +37,7 @@ export const matrix_viz = async (
 
     var num_points = viz_state.mat.num_rows * num_row_cats
 
-    const row_cat_data =  new Array(num_points).fill(0).map( _ => {
-
-        var index_col = matrix_index % num_row_cats
-
-        if (matrix_index % num_row_cats === 0){
-        index_row += 1;
-        }
-
-        const p = {
-            position: [viz_state.viz.row_cat_offset * (index_col + 0.5), viz_state.viz.row_offset * (index_row + 0.5)],
-            color: [0, 255, 0, 255],
-            name: 'something ' + index_row
-        };
-
-        matrix_index += 1;
-
-        return p;
-    });
+    const row_cat_data = set_row_cat_data(network, viz_state)
 
     // col cat data
 

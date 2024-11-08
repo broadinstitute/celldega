@@ -15,3 +15,19 @@ export const set_col_label_data = (network, viz_state) => {
     return col_label_data
 
 }
+
+export const set_row_label_data = (network, viz_state) => {
+    let row_label_data = []
+    network.row_nodes.forEach((node, index) => {
+        const p = {
+            position: [
+                viz_state.viz.row_label_width / 2,
+                viz_state.viz.row_offset * (index + 1.5)
+              ],
+            name: node.name
+        };
+        row_label_data.push(p);
+    })
+
+    return row_label_data
+}

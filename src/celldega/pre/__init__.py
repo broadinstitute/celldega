@@ -288,39 +288,6 @@ def make_meta_cell_image_coord(
     meta_cell.to_parquet(path_meta_cell_image)
 
 
-# Function to apply transformation to a polygon
-def transform_polygon(polygon, matrix):
-    # Extracting the affine transformation components from the matrix
-    a, b, d, e, xoff, yoff = (
-        matrix[0, 0],
-        matrix[0, 1],
-        matrix[1, 0],
-        matrix[1, 1],
-        matrix[0, 2],
-        matrix[1, 2],
-    )
-    # Constructing the affine transformation formula for shapely
-    affine_params = [a, b, d, e, xoff, yoff]
-
-    # if the polygon is a MultiPolygon, we only take the first polygon
-    if isinstance(polygon, MultiPolygon):
-        polygon = list(polygon.geoms)[0]
-
-    # Applying the transformation
-    transformed_polygon = affine_transform(polygon, affine_params)
-
-    exterior_coords = transformed_polygon.exterior.coords
-
-    # Creating the original structure by directly using numpy array for each coordinate pair
-    original_format_coords = np.array([np.array(coord) for coord in exterior_coords])
-
-    return np.array([original_format_coords], dtype=object)
-
-
-def simple_format(geometry, image_scale):
-    # factor in scaling
-    return [[[coord[0] / image_scale, coord[1] / image_scale] for coord in polygon] for polygon in geometry]
-
 
 def make_meta_gene(technology, path_cbg, path_output):
     """

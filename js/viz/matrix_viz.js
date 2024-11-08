@@ -9,6 +9,7 @@ import * as d3 from 'd3'
 import { set_mat_constants } from '../matrix/set_constants.js';
 import { set_row_label_data, set_col_label_data } from '../matrix/label_data.js';
 import { set_row_cat_data, set_col_cat_data } from '../matrix/cat_data.js';
+import { ini_mat_layer } from '../deck-gl/matrix/matrix_layer.js';
 
 export const matrix_viz = async (
     model,
@@ -43,29 +44,31 @@ export const matrix_viz = async (
     // })
 
 
-    // Create a new ScatterplotLayer using the input data
-    const mat_layer = new CustomMatrixLayer({
-        id: 'matrix-layer',
-        data: viz_state.mat.mat_data,
-        getPosition: d => d.position, // Position of each point
-        getFillColor: d => d.color,   // Color of each point
-        pickable: true,               // Enable picking for interactivity
-        opacity: 0.8,                  // Set the opacity of the points
-        antialiasing: false,
-        tile_height: viz_state.viz.mat_height/viz_state.mat.num_rows * 0.5,
-        tile_width: viz_state.viz.mat_height/viz_state.mat.num_cols * 0.5
+    // // Create a new ScatterplotLayer using the input data
+    // const mat_layer = new CustomMatrixLayer({
+    //     id: 'matrix-layer',
+    //     data: viz_state.mat.mat_data,
+    //     getPosition: d => d.position,
+    //     getFillColor: d => d.color,
+    //     pickable: true,
+    //     opacity: 0.8,
+    //     antialiasing: false,
+    //     tile_height: viz_state.viz.mat_height/viz_state.mat.num_rows * 0.5,
+    //     tile_width: viz_state.viz.mat_height/viz_state.mat.num_cols * 0.5
 
-    });
+    // });
+
+    const mat_layer = ini_mat_layer(viz_state)
 
     const row_label_layer  = new TextLayer({
         id: 'row-label-layer',
-        data: row_label_data, // This should be the same data source you used for your other layers
+        data: row_label_data,
         getPosition: d => d.position,
-        getText: d => d.name, // Replace 'label' with the property in your data that contains the text you want to display
+        getText: d => d.name,
         getSize: d => viz_state.viz.inst_font_size,
-        getColor: [0, 0, 0], // Text color as an RGBA array
-        getAngle: 0, // Optional: Text angle in degrees
-        getTextAnchor: 'end', // middle
+        getColor: [0, 0, 0],
+        getAngle: 0,
+        getTextAnchor: 'end',
         getAlignmentBaseline: 'center',
         fontFamily: 'Arial',
         sizeUnits: 'pixels',
@@ -73,17 +76,16 @@ export const matrix_viz = async (
           getSize: viz_state.viz.inst_font_size
         },
         pickable: true,
-        // onHover: (info, event) => console.log('Hovered:', info), // , event
       })
 
 
     const col_label_layer  = new TextLayer({
         id: 'col-label-layer',
-        data: col_label_data, // This should be the same data source you used for your other layers
+        data: col_label_data,
         getPosition: d => d.position,
         getText: d => d.name,
         getSize: viz_state.viz.inst_font_size,
-        getColor: [0, 0, 0], // Text color as an RGBA array
+        getColor: [0, 0, 0],
         getAngle: 45, // Optional: Text angle in degrees
         getTextAnchor: 'start', // middle
         getAlignmentBaseline: 'bottom',
@@ -93,18 +95,16 @@ export const matrix_viz = async (
           getSize: viz_state.viz.inst_font_size
         },
         pickable: true,
-        // onHover: (info, event) => console.log('Hovered:', info), // , event
       })
 
     // Create a new ScatterplotLayer using the input data
     const row_cat_layer = new CustomMatrixLayer({
         id: 'row-layer',
         data: row_cat_data,
-        // getPosition: d => d.position, // Position of each point
         getPosition: d => [d.position[0] + viz_state.viz.cat_shift_row, d.position[1]],
-        getFillColor: d => d.color,   // Color of each point
-        pickable: true,               // Enable picking for interactivity
-        opacity: 0.8,                  // Set the opacity of the points
+        getFillColor: d => d.color,
+        pickable: true,
+        opacity: 0.8,
         tile_width: viz_state.viz.row_cat_width/2 * 0.9,
         tile_height: viz_state.viz.mat_height/viz_state.mat.num_rows * 0.5,
     });
@@ -114,9 +114,9 @@ export const matrix_viz = async (
         id: 'col-layer',
         data: col_cat_data,
         getPosition: d => [d.position[0], d.position[1] + viz_state.viz.cat_shift_col],
-        getFillColor: d => d.color,   // Color of each point
-        pickable: true,               // Enable picking for interactivity
-        opacity: 0.8,                  // Set the opacity of the points
+        getFillColor: d => d.color,
+        pickable: true,
+        opacity: 0.8,
         tile_width: viz_state.viz.mat_height/viz_state.mat.num_cols * 0.5 ,
         tile_height: viz_state.viz.col_cat_height/2,
 
@@ -226,7 +226,6 @@ export const matrix_viz = async (
 
     const layerFilter = ({layer, viewport}) => {
 
-        // console.log(viewport.id, layer.id)
         if (viewport.id === 'matrix' && layer.id === 'matrix-layer'){
             return true
         } else if (viewport.id === 'rows' && layer.id === 'row-layer'){
@@ -241,7 +240,6 @@ export const matrix_viz = async (
 
         return false
 
-        // return true
     }
 
     const getTooltip = ({object, layer}) => {
@@ -351,7 +349,6 @@ export const matrix_viz = async (
         return pan_curated_x
 
     }
-
 
     // new version with fewer arguments
     // this does not need the mutable zoom_data since it

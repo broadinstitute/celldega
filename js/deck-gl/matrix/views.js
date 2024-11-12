@@ -1,5 +1,6 @@
 import { OrthographicView } from 'deck.gl'
 import { update_zoom_data } from './zoom.js'
+import { get_layers_list } from './matrix_layers.js'
 
 export const ini_views = (viz_state) => {
 
@@ -193,12 +194,11 @@ const redefine_global_view_state = (viz_state, viewId, zoom, target) => {
 }
 
 
-export const on_view_state_change = (params, deck_mat, viz_state) => {
+export const on_view_state_change = (params, deck_mat, layers_mat, viz_state) => {
 
     const viewState = params.viewState
     const viewId = params.viewId
 
-    // const {zoom, target, offset} = viewState;
     const {zoom, target} = viewState;
 
     var global_view_state = redefine_global_view_state(viz_state, viewId, zoom, target)
@@ -211,8 +211,17 @@ export const on_view_state_change = (params, deck_mat, viz_state) => {
 
     var updated_view_state = {...global_view_state}
 
+    layers_mat.row_label_layer = layers_mat.row_label_layer.clone({
+        getSize: viz_state.viz.inst_font_size,
+    })
+
+    layers_mat.col_label_layer = layers_mat.col_label_layer.clone({
+        getSize: viz_state.viz.inst_font_size,
+    })
+
     deck_mat.setProps({
-        viewState: updated_view_state
+        viewState: updated_view_state,
+        layers: get_layers_list(layers_mat),
     })
 
 }

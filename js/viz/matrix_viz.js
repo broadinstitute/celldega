@@ -20,7 +20,7 @@ export const matrix_viz = async (
     // token,
 ) => {
 
-    console.log('here!!!!!!')
+    console.log('here??????????????')
 
     const root = document.createElement("div")
     let deck_mat = ini_deck(root)
@@ -60,8 +60,11 @@ export const matrix_viz = async (
 
     console.log(viz_state)
 
+    console.log('layers_mat', layers_mat)
+
+
     deck_mat.setProps({
-        onViewStateChange: (params) => on_view_state_change(params, deck_mat, viz_state),
+        onViewStateChange: (params) => on_view_state_change(params, deck_mat, layers_mat, viz_state),
         views: viz_state.views.views,
         initialViewState: global_view_state,
         getTooltip: get_tooltip,

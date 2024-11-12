@@ -14,9 +14,10 @@ export const ini_row_label_layer = (viz_state) => {
         getAlignmentBaseline: 'center',
         fontFamily: 'Arial',
         sizeUnits: 'pixels',
-        updateTriggers: {
-          getSize: viz_state.viz.inst_font_size
-        },
+        sizeScale: 2,
+        // updateTriggers: {
+        //   getSize: viz_state.viz.inst_font_size
+        // },
         pickable: true,
     })
 

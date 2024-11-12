@@ -20,7 +20,7 @@ export const layer_filter = ({layer, viewport}) => {
         return true
     } else if (viewport.id === 'cols' && layer.id === 'col-layer'){
         return true
-    } else if (viewport.id === 'rows' && layer.id === 'row-label-layer'){
+    } else if (viewport.id === 'rows' && layer.id.includes('row-label-layer')){
         return true
     } else if (viewport.id === 'cols' && layer.id === 'col-label-layer'){
         return true

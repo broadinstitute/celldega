@@ -1,8 +1,26 @@
 import { OrthographicView } from 'deck.gl'
 import { update_zoom_data } from './zoom.js'
 import { get_layers_list } from './matrix_layers.js'
+import { zoom } from 'd3'
 
 export const ini_views = (viz_state) => {
+
+    let zoom_axis
+    let switch_ratio
+
+    if (viz_state.mat.num_rows > viz_state.mat.num_cols){
+        zoom_axis = 'Y'
+        switch_ratio = viz_state.mat.num_rows/viz_state.mat.num_cols
+    } else if (viz_state.mat.num_rows < viz_state.mat.num_cols){
+        zoom_axis = 'X'
+        switch_ratio = viz_state.mat.num_cols/viz_state.mat.num_rows
+    } else if (viz_state.mat.num_rows === viz_state.mat.num_cols){
+        zoom_axis = 'all'
+        switch_ratio = 1
+    }
+
+    viz_state.zoom.switch_ratio = switch_ratio
+    viz_state.zoom.zoom_axis = zoom_axis
 
     const views_list = [
 
@@ -12,8 +30,7 @@ export const ini_views = (viz_state) => {
           y: ( viz_state.viz.col_region_height + viz_state.viz.label_buffer) + 'px',
           width: viz_state.viz.mat_width + 'px',
           height: viz_state.viz.mat_height + 'px',
-        //   controller: {scrollZoom: true, inertia: false, zoomAxis: 'all'},
-          controller: {scrollZoom: true, inertia: false, zoomAxis: 'Y'},
+          controller: {scrollZoom: true, inertia: false, zoomAxis: zoom_axis},
         }),
 
         new OrthographicView({
@@ -22,8 +39,7 @@ export const ini_views = (viz_state) => {
           y: (viz_state.viz.col_region_height + viz_state.viz.label_buffer) + 'px',
           width: viz_state.viz.row_region_width + 'px',
           height: viz_state.viz.mat_height + 'px',
-        //   controller: {scrollZoom: true, inertia: false, zoomAxis: 'Y'},
-          controller: {scrollZoom: true, inertia: false, zoomAxis: 'all'},
+          controller: {scrollZoom: true, inertia: false, zoomAxis: zoom_axis},
         }),
 
         new OrthographicView({
@@ -32,8 +48,7 @@ export const ini_views = (viz_state) => {
           y: '0px',
           width: viz_state.viz.mat_width + 'px',
           height: viz_state.viz.col_region_height + 'px',
-        //   controller: {scrollZoom: true, inertia: false, zoomAxis: 'X'},
-          controller: {scrollZoom: true, inertia: false, zoomAxis: 'all'},
+          controller: {scrollZoom: true, inertia: false, zoomAxis: zoom_axis},
         }),
 
     ]
@@ -132,6 +147,16 @@ const redefine_global_view_state = (viz_state, viewId, zoom, target) => {
 
     const zoom_data = viz_state.zoom.zoom_data
 
+    // console.log(zoom_data)
+
+    console.log({
+        pan_x: zoom_data.pan_x.toFixed(2),
+        pan_y: zoom_data.pan_y.toFixed(2),
+        zoom_x: zoom_data.zoom_x.toFixed(2),
+        zoom_y: zoom_data.zoom_y.toFixed(2),
+    });
+
+
     var globalViewState
 
     var min_zoom_x = 0
@@ -183,21 +208,39 @@ const redefine_global_view_state = (viz_state, viewId, zoom, target) => {
 
     } else if (viewId === 'rows'){
 
+        // globalViewState = {
+        //     matrix: {
+        //         zoom: [zoom_data.zoom_x, zoom_curated_y],
+        //         target: [zoom_data.pan_x, pan_curated_y]
+
+        //         // zoom: [zoom_curated_x, zoom_curated_y],
+        //         // target: [pan_curated_x, pan_curated_y]
+        //     },
+        //     rows:   {
+        //         zoom: [viz_state.zoom.ini_zoom_x, zoom_curated_y],
+        //         target: [viz_state.viz.label_row_x, pan_curated_y]
+        //     },
+        //     cols:   {
+        //         zoom: [zoom_data.zoom_x, viz_state.zoom.ini_zoom_y],
+        //         target: [zoom_data.pan_x, viz_state.viz.label_col_y]
+        //     },
+        // }
+
         globalViewState = {
             matrix: {
-                zoom: [zoom_data.zoom_x, zoom_curated_y],
-                target: [zoom_data.pan_x, pan_curated_y]
-
-                // zoom: [zoom_curated_x, zoom_curated_y],
-                // target: [pan_curated_x, pan_curated_y]
+                zoom: [zoom_curated_x, zoom_curated_y],
+                target: [pan_curated_x, pan_curated_y]
             },
             rows:   {
-                zoom: [viz_state.zoom.ini_zoom_x, zoom_curated_y],
+                // zoom: [viz_state.zoom.ini_zoom_x, zoom_curated_y],
+                // target: [viz_state.viz.label_row_x, pan_curated_y]
+
+                zoom: [zoom_curated_x, zoom_curated_y],
                 target: [viz_state.viz.label_row_x, pan_curated_y]
             },
             cols:   {
-                zoom: [zoom_data.zoom_x, viz_state.zoom.ini_zoom_y],
-                target: [zoom_data.pan_x, viz_state.viz.label_col_y]
+                // zoom: [zoom_curated_x, viz_state.zoom.ini_zoom_y],
+                // target: [pan_curated_x, viz_state.viz.label_col_y]
             },
         }
 
@@ -213,17 +256,20 @@ export const on_view_state_change = (params, deck_mat, layers_mat, viz_state) =>
 
     const {zoom, target} = viewState;
 
+    console.log('zoom', zoom)
+
     var global_view_state = redefine_global_view_state(viz_state, viewId, zoom, target)
 
-    var zoom_factor_x = Math.pow(2, viz_state.zoom.zoom_data.zoom_x)
+    let zoom_factor
+    if (viz_state.zoom.zoom_axis === 'X'){
+        zoom_factor = Math.pow(2, viz_state.zoom.zoom_data.zoom_x)
+    } else if (viz_state.zoom.zoom_axis === 'Y'){
+        zoom_factor = Math.pow(2, viz_state.zoom.zoom_data.zoom_y)
+    } else if (viz_state.zoom.zoom_axis === 'all'){
+        zoom_factor = Math.pow(2, viz_state.zoom.zoom_data.zoom_x)
+    }
 
-    var zoom_factor_y = Math.pow(2, viz_state.zoom.zoom_data.zoom_y)
-
-    console.log(zoom_factor_y)
-
-    let row_to_col = viz_state.mat.num_rows/viz_state.mat.num_cols
-
-    viz_state.viz.inst_font_size = viz_state.viz.ini_font_size * zoom_factor_x
+    viz_state.viz.inst_font_size = viz_state.viz.ini_font_size * zoom_factor
 
     update_zoom_data(viz_state.zoom.zoom_data, viewId, zoom, target)
 
@@ -235,8 +281,13 @@ export const on_view_state_change = (params, deck_mat, layers_mat, viz_state) =>
         getSize: viz_state.viz.inst_font_size,
     })
 
-    let zoom_mode = zoom_factor_y < row_to_col ? 'Y' : 'all'
 
+    let zoom_mode
+    if (viz_state.zoom.zoom_axis !== 'all'){
+        zoom_mode = zoom_factor < viz_state.zoom.switch_ratio ? viz_state.zoom.zoom_axis : 'all'
+    } else {
+        zoom_mode = 'all'
+    }
 
     // Recreate each view with updated zoomAxis in controller
     viz_state.views.views_list = viz_state.views.views_list.map(view => {

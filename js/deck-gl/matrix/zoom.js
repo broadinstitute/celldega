@@ -30,13 +30,23 @@ export const update_zoom_data = (zoom_data, viewId, zoom, target) => {
 
     } else if (viewId === 'rows') {
 
-        console.log('rows')
+        // console.log('update zoom data rows')
 
-        // update pan_y
+        // // update pan_y
+        // zoom_data.pan_y = target[1];
+
+        // // update zooms
+        // zoom_data.zoom_y = zoom[1]
+
+
+        // update pans
+        zoom_data.pan_x = target[0];
         zoom_data.pan_y = target[1];
 
         // update zooms
+        zoom_data.zoom_x = zoom[0]
         zoom_data.zoom_y = zoom[1]
+
 
     }
 }

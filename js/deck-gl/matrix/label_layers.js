@@ -38,9 +38,9 @@ export const ini_col_label_layer = (viz_state) => {
         getAlignmentBaseline: 'bottom',
         fontFamily: 'Arial',
         sizeUnits: 'pixels',
-        updateTriggers: {
-          getSize: viz_state.viz.inst_font_size
-        },
+        // updateTriggers: {
+        //   getSize: viz_state.viz.inst_font_size
+        // },
         pickable: true,
     })
 

@@ -12,7 +12,8 @@ export const ini_views = (viz_state) => {
           y: ( viz_state.viz.col_region_height + viz_state.viz.label_buffer) + 'px',
           width: viz_state.viz.mat_width + 'px',
           height: viz_state.viz.mat_height + 'px',
-          controller: {scrollZoom: true, inertia: false, zoomAxis: 'all'},
+        //   controller: {scrollZoom: true, inertia: false, zoomAxis: 'all'},
+          controller: {scrollZoom: true, inertia: false, zoomAxis: 'Y'},
         }),
 
         new OrthographicView({
@@ -21,7 +22,8 @@ export const ini_views = (viz_state) => {
           y: (viz_state.viz.col_region_height + viz_state.viz.label_buffer) + 'px',
           width: viz_state.viz.row_region_width + 'px',
           height: viz_state.viz.mat_height + 'px',
-          controller: {scrollZoom: true, inertia: false, zoomAxis: 'Y'},
+        //   controller: {scrollZoom: true, inertia: false, zoomAxis: 'Y'},
+          controller: {scrollZoom: true, inertia: false, zoomAxis: 'all'},
         }),
 
         new OrthographicView({
@@ -30,7 +32,8 @@ export const ini_views = (viz_state) => {
           y: '0px',
           width: viz_state.viz.mat_width + 'px',
           height: viz_state.viz.col_region_height + 'px',
-          controller: {scrollZoom: true, inertia: false, zoomAxis: 'X'},
+        //   controller: {scrollZoom: true, inertia: false, zoomAxis: 'X'},
+          controller: {scrollZoom: true, inertia: false, zoomAxis: 'all'},
         }),
 
     ]
@@ -52,10 +55,12 @@ export const ini_view_state = (viz_state) => {
       rows: {
         target: [viz_state.viz.label_row_x, viz_state.zoom.ini_pan_y],
         zoom: [viz_state.zoom.ini_zoom_x, viz_state.zoom.ini_zoom_y],
+        // zoom: [viz_state.zoom.ini_zoom_x, viz_state.zoom.ini_zoom_y],
       },
       cols: {
         target: [viz_state.zoom.ini_pan_x, viz_state.viz.label_col_y],
         zoom: [viz_state.zoom.ini_zoom_x, viz_state.zoom.ini_zoom_y],
+        // zoom: [viz_state.zoom.ini_zoom_x, viz_state.zoom.ini_zoom_y],
       },
     }
 
@@ -193,7 +198,6 @@ const redefine_global_view_state = (viz_state, viewId, zoom, target) => {
     return globalViewState
 }
 
-
 export const on_view_state_change = (params, deck_mat, layers_mat, viz_state) => {
 
     const viewState = params.viewState
@@ -204,6 +208,13 @@ export const on_view_state_change = (params, deck_mat, layers_mat, viz_state) =>
     var global_view_state = redefine_global_view_state(viz_state, viewId, zoom, target)
 
     var zoom_factor_x = Math.pow(2, viz_state.zoom.zoom_data.zoom_x)
+
+    var zoom_factor_y = Math.pow(2, viz_state.zoom.zoom_data.zoom_y)
+
+    console.log('zoom_factor_x', zoom_factor_x)
+    console.log('zoom_factor_y', zoom_factor_y)
+
+    let row_to_col = viz_state.mat.num_rows/viz_state.mat.num_cols
 
     viz_state.viz.inst_font_size = viz_state.viz.ini_font_size * zoom_factor_x
 
@@ -219,9 +230,20 @@ export const on_view_state_change = (params, deck_mat, layers_mat, viz_state) =>
         getSize: viz_state.viz.inst_font_size,
     })
 
+    let zoom_mode = zoom_factor_y < row_to_col ? 'Y' : 'all'
+
+    console.log(viewState.zoom)
+
+
     deck_mat.setProps({
         viewState: updated_view_state,
         layers: get_layers_list(layers_mat),
+        controller: {
+            doubleClickZoom: false,
+            scrollZoom: true,
+            inertia: true,
+            zoomAxis: zoom_mode
+        },
     })
 
 }

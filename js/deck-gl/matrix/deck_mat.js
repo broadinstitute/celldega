@@ -11,7 +11,12 @@ export const ini_deck = ( root ) => {
 
     let deck_ist = new Deck({
         parent: root,
-        controller: {doubleClickZoom: false},
+        // controller: {
+        //     doubleClickZoom: false,
+        //     scrollZoom: true,
+        //     inertia: true,
+        //     zoomAxis: 'Y'
+        // },
         getCursor: getCursor,
     })
 

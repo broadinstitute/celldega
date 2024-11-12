@@ -52,7 +52,7 @@ export const matrix_viz = async (
     layers_mat.row_cat_layer = ini_row_cat_layer(viz_state)
     layers_mat.col_cat_layer = ini_col_cat_layer(viz_state)
 
-    const views = ini_views(viz_state)
+    ini_views(viz_state)
 
     ini_zoom_data(viz_state)
 
@@ -65,7 +65,7 @@ export const matrix_viz = async (
 
     deck_mat.setProps({
         onViewStateChange: (params) => on_view_state_change(params, deck_mat, layers_mat, viz_state),
-        views: viz_state.views.views,
+        views: viz_state.views.views_list,
         initialViewState: global_view_state,
         getTooltip: get_tooltip,
         layerFilter: layer_filter,

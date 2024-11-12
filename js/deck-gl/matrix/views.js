@@ -4,7 +4,7 @@ import { get_layers_list } from './matrix_layers.js'
 
 export const ini_views = (viz_state) => {
 
-    const views = [
+    const views_list = [
 
         new OrthographicView({
           id: 'matrix',
@@ -40,7 +40,7 @@ export const ini_views = (viz_state) => {
 
     viz_state.views = {}
 
-    viz_state.views.views = views
+    viz_state.views.views_list = views_list
 
 }
 
@@ -165,6 +165,10 @@ const redefine_global_view_state = (viz_state, viewId, zoom, target) => {
             matrix: {
                 zoom: [zoom_curated_x, zoom_data.zoom_y],
                 target: [pan_curated_x, zoom_data.pan_y]
+
+                // zoom: [zoom_curated_x, zoom_curated_y],
+                // target: [pan_curated_x, pan_curated_y]
+
             },
             rows:   {
                 zoom: [viz_state.zoom.ini_zoom_x, zoom_data.zoom_y],
@@ -182,6 +186,9 @@ const redefine_global_view_state = (viz_state, viewId, zoom, target) => {
             matrix: {
                 zoom: [zoom_data.zoom_x, zoom_curated_y],
                 target: [zoom_data.pan_x, pan_curated_y]
+
+                // zoom: [zoom_curated_x, zoom_curated_y],
+                // target: [pan_curated_x, pan_curated_y]
             },
             rows:   {
                 zoom: [viz_state.zoom.ini_zoom_x, zoom_curated_y],
@@ -232,18 +239,46 @@ export const on_view_state_change = (params, deck_mat, layers_mat, viz_state) =>
 
     let zoom_mode = zoom_factor_y < row_to_col ? 'Y' : 'all'
 
-    console.log(viewState.zoom)
+    console.log(viz_state.views.views_list)
 
+    // // Apply zoom mode to each view’s controller settings
+    // viz_state.views.views_list = viz_state.views.views_list.map((view) => {
+    //     return view.clone({
+    //         controller: {
+    //             doubleClickZoom: false,
+    //             scrollZoom: true,
+    //             inertia: true,
+    //             zoomAxis: zoom_mode,  // Set the new zoom axis for each view
+    //         },
+    //     });
+    // });
+
+    console.log('zoom_mode', zoom_mode)
+
+    // Recreate each view with updated zoomAxis in controller
+    viz_state.views.views_list = viz_state.views.views_list.map(view => {
+        return new OrthographicView({
+            ...view.props,  // Retain original properties
+            controller: {
+                ...view.props.controller,
+                doubleClickZoom: false,
+                scrollZoom: true,
+                inertia: true,
+                zoomAxis: zoom_mode,  // Set the new zoom axis for each view
+            },
+        });
+    });
 
     deck_mat.setProps({
         viewState: updated_view_state,
         layers: get_layers_list(layers_mat),
-        controller: {
-            doubleClickZoom: false,
-            scrollZoom: true,
-            inertia: true,
-            zoomAxis: zoom_mode
-        },
+        views: viz_state.views.views_list,
+        // controller: {
+        //     doubleClickZoom: false,
+        //     scrollZoom: true,
+        //     inertia: true,
+        //     zoomAxis: zoom_mode
+        // },
     })
 
 }

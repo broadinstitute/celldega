@@ -205,7 +205,8 @@ export const redefine_global_view_state = (viz_state, viewId, zoom, target) => {
     console.log('raw_zoom', viz_state.zoom.zoom_data.raw_zoom.toFixed(2))
 
     // var pan_curated_x = curate_pan_x(target[0], zoom_curated_x, viz_state)
-    var pan_curated_x = curate_pan_x(target[0], viz_state.zoom.zoom_data.raw_zoom, viz_state)
+    // var pan_curated_x = curate_pan_x(target[0], viz_state.zoom.zoom_data.raw_zoom, viz_state)
+    var pan_curated_x = curate_pan_x(target[0], zoom_curated_x, viz_state)
     var pan_curated_y = curate_pan_y(target[1], viz_state.zoom.zoom_data.raw_zoom, viz_state)
 
 
@@ -285,7 +286,8 @@ export const redefine_global_view_state = (viz_state, viewId, zoom, target) => {
         globalViewState = {
             matrix: {
                 zoom: [
-                    viz_state.zoom.zoom_data.raw_zoom,
+                    // viz_state.zoom.zoom_data.raw_zoom,
+                    zoom_curated_x,
                     zoom_curated_y
                 ],
                 target: [

@@ -68,8 +68,14 @@ export const matrix_viz = async (
             console.log('here!!!!!!!!!!!')
             console.log(event, d)
 
+            console.log(viz_state.mat.mat_data)
+
             layers_mat.mat_layer = layers_mat.mat_layer.clone({
-                opacity: 0.01
+                opacity: 0.5,
+                getPosition: d => [d.position[1], d.position[1]],
+                updateTriggers: {
+                    getPosition: Math.random() // Change to force re-evaluation
+                }
             })
 
             deck_mat.setProps({

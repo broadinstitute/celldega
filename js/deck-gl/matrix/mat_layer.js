@@ -9,13 +9,18 @@ export const ini_mat_layer = (viz_state) => {
         opacity: {
           duration: 500,
           easing: d3.easeCubic
+        },
+        getPosition: {
+          duration: 500,
+          easing: d3.easeCubic
         }
     })
 
     const mat_layer = new CustomMatrixLayer({
         id: 'mat-layer',
         data: viz_state.mat.mat_data,
-        getPosition: d => d.position,
+        getPosition: d => [d.position[0], d.position[1]],
+        // getPosition: d => [10, 10],
         getFillColor: d => d.color,
         pickable: true,
         // opacity: 0.8,

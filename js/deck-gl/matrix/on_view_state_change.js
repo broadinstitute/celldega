@@ -19,7 +19,7 @@ export const on_view_state_change = (params, deck_mat, layers_mat, viz_state) =>
 
         if (viz_state.zoom.minor_zoom_axis === 'X'){
 
-            console.log('stateless zooming')
+            // console.log('stateless zooming')
             zoom_dx = zoom[0]
             zoom_dy = zoom[1]
 
@@ -34,7 +34,7 @@ export const on_view_state_change = (params, deck_mat, layers_mat, viz_state) =>
 
         if (viz_state.zoom.minor_zoom_axis === 'Y'){
 
-            console.log('stateless zooming')
+            // console.log('stateless zooming')
             zoom_dx = zoom[0]
             zoom_dy = zoom[1]
 
@@ -53,6 +53,10 @@ export const on_view_state_change = (params, deck_mat, layers_mat, viz_state) =>
 
     viz_state.zoom.zoom_data.total_zoom.x += zoom_dx
     viz_state.zoom.zoom_data.total_zoom.y += zoom_dy
+
+    // keep zoom within bounds
+    viz_state.zoom.zoom_data.total_zoom.x = Math.max(0, viz_state.zoom.zoom_data.total_zoom.x)
+    viz_state.zoom.zoom_data.total_zoom.y = Math.max(0, viz_state.zoom.zoom_data.total_zoom.y)
 
     // console.log('compare zooms')
 

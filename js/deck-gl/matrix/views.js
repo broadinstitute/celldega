@@ -8,6 +8,7 @@ export const ini_views = (viz_state) => {
     if (viz_state.mat.num_rows > viz_state.mat.num_cols){
         zoom_axis = 'Y'
         switch_ratio = viz_state.mat.num_rows/viz_state.mat.num_cols
+
     } else if (viz_state.mat.num_rows < viz_state.mat.num_cols){
         zoom_axis = 'X'
         switch_ratio = viz_state.mat.num_cols/viz_state.mat.num_rows
@@ -17,7 +18,13 @@ export const ini_views = (viz_state) => {
     }
 
     viz_state.zoom.switch_ratio = switch_ratio
+    viz_state.zoom.zoom_delay = Math.log2(switch_ratio)
     viz_state.zoom.zoom_axis = zoom_axis
+
+    console.log('viz_state.zoom.zoom_delay', viz_state.zoom.zoom_delay)
+
+
+    console.log('viz_state.zoom.zoom_axis', viz_state.zoom.zoom_axis)
 
     const views_list = [
 
@@ -149,19 +156,7 @@ export const redefine_global_view_state = (viz_state, viewId, zoom, target) => {
 
     // console.log(zoom_data)
 
-    console.log('matrix', {
-        pan_x:  zoom_data.mat.pan_x.toFixed(2),
-        pan_y:  zoom_data.mat.pan_y.toFixed(2),
-        zoom_x: zoom_data.mat.zoom_x.toFixed(2),
-        zoom_y: zoom_data.mat.zoom_y.toFixed(2),
-    })
 
-    // console.log('row', {
-    //     pan_x:  zoom_data.row.pan_x.toFixed(2),
-    //     pan_y:  zoom_data.row.pan_y.toFixed(2),
-    //     zoom_x: zoom_data.row.zoom_x.toFixed(2),
-    //     zoom_y: zoom_data.row.zoom_y.toFixed(2),
-    // })
 
     console.log('zoom', zoom[0].toFixed(2), zoom[1].toFixed(2))
 
@@ -176,13 +171,21 @@ export const redefine_global_view_state = (viz_state, viewId, zoom, target) => {
     var zoom_curated_x = Math.max(min_zoom_x, zoom[0])
     var zoom_curated_y = Math.max(min_zoom_y, zoom[1])
 
+    if (viz_state.zoom.zoom_axis === 'X'){
+        zoom_curated_y = zoom_curated_x - viz_state.zoom.zoom_delay
+    } else if (viz_state.zoom.zoom_axis === 'Y'){
+        zoom_curated_x = zoom_curated_y - viz_state.zoom.zoom_delay
+    }
+
+    var zoom_curated_x = Math.max(min_zoom_x, zoom_curated_x)
+    var zoom_curated_y = Math.max(min_zoom_y, zoom_curated_y)
+
     if (viewId === 'rows'){
         // use the other axis to keep track of the raw zoom
         viz_state.zoom.zoom_data.raw_zoom = zoom_curated_y
     } else if (viewId === 'cols'){
         viz_state.zoom.zoom_data.raw_zoom = zoom_curated_x
     } else if (viewId === 'matrix') {
-        // need to update: for asymmetrical zooming
         if (viz_state.zoom.zoom_axis === 'X'){
             viz_state.zoom.zoom_data.raw_zoom = zoom_curated_x
         } else if (viz_state.zoom.zoom_axis === 'Y'){
@@ -192,9 +195,20 @@ export const redefine_global_view_state = (viz_state, viewId, zoom, target) => {
         }
     }
 
+    console.log('matrix', {
+        pan_x:  zoom_data.mat.pan_x.toFixed(2),
+        pan_y:  zoom_data.mat.pan_y.toFixed(2),
+        zoom_x: zoom_data.mat.zoom_x.toFixed(2),
+        zoom_y: zoom_data.mat.zoom_y.toFixed(2),
+    })
+
+    console.log('raw_zoom', viz_state.zoom.zoom_data.raw_zoom.toFixed(2))
+
     // var pan_curated_x = curate_pan_x(target[0], zoom_curated_x, viz_state)
     var pan_curated_x = curate_pan_x(target[0], viz_state.zoom.zoom_data.raw_zoom, viz_state)
     var pan_curated_y = curate_pan_y(target[1], viz_state.zoom.zoom_data.raw_zoom, viz_state)
+
+
 
     if (viewId === 'matrix') {
 

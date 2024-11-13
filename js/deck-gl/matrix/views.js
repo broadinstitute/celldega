@@ -56,7 +56,6 @@ export const ini_views = (viz_state) => {
 
 }
 
-
 export const ini_view_state = (viz_state) => {
 
     let globalViewState = {
@@ -89,18 +88,18 @@ export const ini_view_state = (viz_state) => {
 
     var zoom_factor_y = Math.pow(2, zoom_curated_y)
 
-    var min_pan_y = (ini_pan_y - viz_state.viz.row_offset)/zoom_factor_y + viz_state.viz.row_offset
+    viz_state.zoom.min_pan_y = (ini_pan_y - viz_state.viz.row_offset)/zoom_factor_y + viz_state.viz.row_offset
 
     // calculating the shift to the min, to re-use for the max
-    var min_diff = ini_pan_y - min_pan_y
+    var min_diff = ini_pan_y - viz_state.zoom.min_pan_y
 
-    var max_pan_y = ini_pan_y + min_diff
+    viz_state.zoom.max_pan_y = ini_pan_y + min_diff
 
-    if (target_y <= min_pan_y){
+    if (target_y <= viz_state.zoom.min_pan_y){
       // console.log('below min')
-      pan_curated_y = min_pan_y
-    } else if (target_y > max_pan_y) {
-      pan_curated_y = max_pan_y
+      pan_curated_y = viz_state.zoom.min_pan_y
+    } else if (target_y > viz_state.zoom.max_pan_y) {
+      pan_curated_y = viz_state.zoom.max_pan_y
       // console.log('above min')
     } else {
       pan_curated_y = target_y
@@ -118,22 +117,24 @@ const curate_pan_x = (target_x, zoom_curated_x, viz_state) => {
 
     var zoom_factor_x = Math.pow(2, zoom_curated_x)
 
-    var min_pan_x = ini_pan_x/zoom_factor_x
+    viz_state.zoom.min_pan_x = ini_pan_x/zoom_factor_x
 
     // calculating the shift to the min, to re-use for the max
-    var min_diff = ini_pan_x - min_pan_x
+    var min_diff = ini_pan_x - viz_state.zoom.min_pan_x
 
-    var max_pan_x = ini_pan_x + min_diff
+    viz_state.zoom.max_pan_x = ini_pan_x + min_diff
 
-    if (target_x <= min_pan_x){
-        // console.log('below min')
-        pan_curated_x = min_pan_x
-    } else if (target_x > max_pan_x) {
-        pan_curated_x = max_pan_x
-        // console.log('above min')
+    console.log('pan_bounds', viz_state.zoom.min_pan_x, viz_state.zoom.max_pan_x)
+
+    if (target_x <= viz_state.zoom.min_pan_x){
+        pan_curated_x = viz_state.zoom.min_pan_x
+        console.log('below min', target_x, pan_curated_x)
+    } else if (target_x > viz_state.zoom.max_pan_x) {
+        pan_curated_x = viz_state.zoom.max_pan_x
+        console.log('above min', target_x, pan_curated_x)
     } else {
         pan_curated_x = target_x
-        // console.log('within bounds')
+        console.log('within bounds', target_x)
     }
 
     return pan_curated_x
@@ -146,12 +147,23 @@ export const redefine_global_view_state = (viz_state, viewId, zoom, target) => {
 
     // console.log(zoom_data)
 
-    console.log({
-        pan_x: zoom_data.pan_x.toFixed(2),
-        pan_y: zoom_data.pan_y.toFixed(2),
-        zoom_x: zoom_data.zoom_x.toFixed(2),
-        zoom_y: zoom_data.zoom_y.toFixed(2),
-    });
+    console.log('matrix', {
+        pan_x:  zoom_data.mat.pan_x.toFixed(2),
+        pan_y:  zoom_data.mat.pan_y.toFixed(2),
+        zoom_x: zoom_data.mat.zoom_x.toFixed(2),
+        zoom_y: zoom_data.mat.zoom_y.toFixed(2),
+    })
+
+    // console.log('row', {
+    //     pan_x:  zoom_data.row.pan_x.toFixed(2),
+    //     pan_y:  zoom_data.row.pan_y.toFixed(2),
+    //     zoom_x: zoom_data.row.zoom_x.toFixed(2),
+    //     zoom_y: zoom_data.row.zoom_y.toFixed(2),
+    // })
+
+    console.log('zoom', zoom[0].toFixed(2), zoom[1].toFixed(2))
+
+    console.log('    ')
 
 
     var globalViewState
@@ -186,16 +198,16 @@ export const redefine_global_view_state = (viz_state, viewId, zoom, target) => {
 
         globalViewState = {
             matrix: {
-                zoom: [zoom_curated_x, zoom_data.zoom_y],
-                target: [pan_curated_x, zoom_data.pan_y]
+                zoom: [zoom_curated_x, zoom_data.col.zoom_y],
+                target: [pan_curated_x, zoom_data.col.pan_y]
 
                 // zoom: [zoom_curated_x, zoom_curated_y],
                 // target: [pan_curated_x, pan_curated_y]
 
             },
             rows:   {
-                zoom: [viz_state.zoom.ini_zoom_x, zoom_data.zoom_y],
-                target: [viz_state.viz.label_row_x, zoom_data.pan_y]
+                zoom: [viz_state.zoom.ini_zoom_x, zoom_data.col.zoom_y],
+                target: [viz_state.viz.label_row_x, zoom_data.col.pan_y]
             },
             cols:   {
                 zoom: [zoom_curated_x, viz_state.zoom.ini_zoom_y],
@@ -207,8 +219,8 @@ export const redefine_global_view_state = (viz_state, viewId, zoom, target) => {
 
         // globalViewState = {
         //     matrix: {
-        //         zoom: [zoom_data.zoom_x, zoom_curated_y],
-        //         target: [zoom_data.pan_x, pan_curated_y]
+        //         zoom: [zoom_data.mat.zoom_x, zoom_curated_y],
+        //         target: [zoom_data.row.pan_x, pan_curated_y]
 
         //         // zoom: [zoom_curated_x, zoom_curated_y],
         //         // target: [pan_curated_x, pan_curated_y]
@@ -223,21 +235,46 @@ export const redefine_global_view_state = (viz_state, viewId, zoom, target) => {
         //     },
         // }
 
+        // console.log('ROWS')
+
+        // globalViewState = {
+        //     matrix: {
+        //         zoom: [zoom_curated_x, zoom_curated_y],
+        //         target: [pan_curated_x, pan_curated_y]
+        //     },
+        //     rows:   {
+        //         // zoom: [viz_state.zoom.ini_zoom_x, zoom_curated_y],
+        //         // target: [viz_state.viz.label_row_x, pan_curated_y]
+
+        //         zoom: [zoom_curated_x, zoom_curated_y],
+        //         target: [viz_state.viz.label_row_x, pan_curated_y]
+        //     },
+        //     cols:   {
+        //         // zoom: [zoom_curated_x, viz_state.zoom.ini_zoom_y],
+        //         // target: [pan_curated_x, viz_state.viz.label_col_y]
+        //     },
+        // }
+
+        console.log('pan_curated_x', pan_curated_x)
+
+        console.log('viz_state.zoom.min_pan_x', viz_state.zoom.min_pan_x)
+
+
         globalViewState = {
             matrix: {
-                zoom: [zoom_curated_x, zoom_curated_y],
-                target: [pan_curated_x, pan_curated_y]
+                zoom: [zoom_curated_y, zoom_curated_y],
+                target: [viz_state.zoom.min_pan_x, pan_curated_y]
+
+                // zoom: [zoom_curated_x, zoom_curated_y],
+                // target: [pan_curated_x, pan_curated_y]
             },
             rows:   {
-                // zoom: [viz_state.zoom.ini_zoom_x, zoom_curated_y],
-                // target: [viz_state.viz.label_row_x, pan_curated_y]
-
-                zoom: [zoom_curated_x, zoom_curated_y],
+                zoom: [viz_state.zoom.ini_zoom_x, zoom_curated_y],
                 target: [viz_state.viz.label_row_x, pan_curated_y]
             },
             cols:   {
-                // zoom: [zoom_curated_x, viz_state.zoom.ini_zoom_y],
-                // target: [pan_curated_x, viz_state.viz.label_col_y]
+                zoom: [zoom_data.col.zoom_x, viz_state.zoom.ini_zoom_y],
+                target: [zoom_data.col.pan_x, viz_state.viz.label_col_y]
             },
         }
 

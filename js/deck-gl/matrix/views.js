@@ -181,7 +181,13 @@ export const redefine_global_view_state = (viz_state, viewId, zoom, target) => {
         viz_state.zoom.zoom_data.raw_zoom = zoom_curated_x
     } else if (viewId === 'matrix') {
         // need to update: for asymmetrical zooming
-        viz_state.zoom.zoom_data.raw_zoom = zoom_curated_x
+        if (viz_state.zoom.zoom_axis === 'X'){
+            viz_state.zoom.zoom_data.raw_zoom = zoom_curated_x
+        } else if (viz_state.zoom.zoom_axis === 'Y'){
+            viz_state.zoom.zoom_data.raw_zoom = zoom_curated_y
+        } else if (viz_state.zoom.zoom_axis === 'all'){
+            viz_state.zoom.zoom_data.raw_zoom = zoom_curated_x
+        }
     }
 
     // var pan_curated_x = curate_pan_x(target[0], zoom_curated_x, viz_state)
@@ -192,16 +198,34 @@ export const redefine_global_view_state = (viz_state, viewId, zoom, target) => {
 
         globalViewState = {
             matrix: {
-                zoom: [zoom_curated_x, zoom_curated_y],
-                target: [pan_curated_x, pan_curated_y]
+                zoom: [
+                    zoom_curated_x,
+                    zoom_curated_y
+                ],
+                target: [
+                    pan_curated_x,
+                    pan_curated_y
+                ]
             },
             rows:   {
-                zoom: [viz_state.zoom.ini_zoom_x, zoom_curated_y],
-                target: [viz_state.viz.label_row_x, pan_curated_y]
+                zoom: [
+                    viz_state.zoom.ini_zoom_x,
+                    zoom_curated_y
+                ],
+                target: [
+                    viz_state.viz.label_row_x,
+                    pan_curated_y
+                ]
             },
             cols:   {
-                zoom: [zoom_curated_x, viz_state.zoom.ini_zoom_y],
-                target: [pan_curated_x, viz_state.viz.label_col_y]
+                zoom: [
+                    zoom_curated_x,
+                    viz_state.zoom.ini_zoom_y
+                ],
+                target: [
+                    pan_curated_x,
+                    viz_state.viz.label_col_y
+                ]
             },
         }
 
@@ -209,20 +233,34 @@ export const redefine_global_view_state = (viz_state, viewId, zoom, target) => {
 
         globalViewState = {
             matrix: {
-                zoom: [zoom_curated_x, zoom_data.col.zoom_y],
-                target: [pan_curated_x, zoom_data.col.pan_y]
-
-                // zoom: [zoom_curated_x, zoom_curated_y],
-                // target: [pan_curated_x, pan_curated_y]
-
+                zoom: [
+                    zoom_curated_x,
+                    zoom_data.col.zoom_y
+                ],
+                target: [
+                    pan_curated_x,
+                    zoom_data.col.pan_y
+                ]
             },
             rows:   {
-                zoom: [viz_state.zoom.ini_zoom_x, zoom_data.col.zoom_y],
-                target: [viz_state.viz.label_row_x, zoom_data.col.pan_y]
+                zoom: [
+                    viz_state.zoom.ini_zoom_x,
+                    zoom_data.col.zoom_y
+                ],
+                target: [
+                    viz_state.viz.label_row_x,
+                    zoom_data.col.pan_y
+                ]
             },
             cols:   {
-                zoom: [zoom_curated_x, viz_state.zoom.ini_zoom_y],
-                target: [pan_curated_x, viz_state.viz.label_col_y]
+                zoom: [
+                    zoom_curated_x,
+                    viz_state.zoom.ini_zoom_y
+                ],
+                target: [
+                    pan_curated_x,
+                    viz_state.viz.label_col_y
+                ]
             },
         }
 

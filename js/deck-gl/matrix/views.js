@@ -124,7 +124,7 @@ const curate_pan_x = (target_x, zoom_curated_x, viz_state) => {
 
     viz_state.zoom.max_pan_x = ini_pan_x + min_diff
 
-    console.log('pan_bounds', viz_state.zoom.min_pan_x, viz_state.zoom.max_pan_x)
+    // console.log('pan_bounds', viz_state.zoom.min_pan_x, viz_state.zoom.max_pan_x)
 
     if (target_x <= viz_state.zoom.min_pan_x){
         pan_curated_x = viz_state.zoom.min_pan_x
@@ -134,7 +134,7 @@ const curate_pan_x = (target_x, zoom_curated_x, viz_state) => {
         console.log('above min', target_x, pan_curated_x)
     } else {
         pan_curated_x = target_x
-        console.log('within bounds', target_x)
+        // console.log('within bounds', target_x)
     }
 
     return pan_curated_x
@@ -174,7 +174,18 @@ export const redefine_global_view_state = (viz_state, viewId, zoom, target) => {
     var zoom_curated_x = Math.max(min_zoom_x, zoom[0])
     var zoom_curated_y = Math.max(min_zoom_y, zoom[1])
 
-    var pan_curated_x = curate_pan_x(target[0], zoom_curated_x, viz_state)
+    if (viewId === 'rows'){
+        // use the other axis to keep track of the raw zoom
+        viz_state.zoom.zoom_data.raw_zoom = zoom_curated_y
+    } else if (viewId === 'cols'){
+        viz_state.zoom.zoom_data.raw_zoom = zoom_curated_x
+    } else if (viewId === 'matrix') {
+        // need to update: for asymmetrical zooming
+        viz_state.zoom.zoom_data.raw_zoom = zoom_curated_x
+    }
+
+    // var pan_curated_x = curate_pan_x(target[0], zoom_curated_x, viz_state)
+    var pan_curated_x = curate_pan_x(target[0], viz_state.zoom.zoom_data.raw_zoom, viz_state)
     var pan_curated_y = curate_pan_y(target[1], zoom_curated_y, viz_state)
 
     if (viewId === 'matrix') {
@@ -217,64 +228,37 @@ export const redefine_global_view_state = (viz_state, viewId, zoom, target) => {
 
     } else if (viewId === 'rows'){
 
-        // globalViewState = {
-        //     matrix: {
-        //         zoom: [zoom_data.mat.zoom_x, zoom_curated_y],
-        //         target: [zoom_data.row.pan_x, pan_curated_y]
-
-        //         // zoom: [zoom_curated_x, zoom_curated_y],
-        //         // target: [pan_curated_x, pan_curated_y]
-        //     },
-        //     rows:   {
-        //         zoom: [viz_state.zoom.ini_zoom_x, zoom_curated_y],
-        //         target: [viz_state.viz.label_row_x, pan_curated_y]
-        //     },
-        //     cols:   {
-        //         zoom: [zoom_data.zoom_x, viz_state.zoom.ini_zoom_y],
-        //         target: [zoom_data.pan_x, viz_state.viz.label_col_y]
-        //     },
-        // }
-
-        // console.log('ROWS')
-
-        // globalViewState = {
-        //     matrix: {
-        //         zoom: [zoom_curated_x, zoom_curated_y],
-        //         target: [pan_curated_x, pan_curated_y]
-        //     },
-        //     rows:   {
-        //         // zoom: [viz_state.zoom.ini_zoom_x, zoom_curated_y],
-        //         // target: [viz_state.viz.label_row_x, pan_curated_y]
-
-        //         zoom: [zoom_curated_x, zoom_curated_y],
-        //         target: [viz_state.viz.label_row_x, pan_curated_y]
-        //     },
-        //     cols:   {
-        //         // zoom: [zoom_curated_x, viz_state.zoom.ini_zoom_y],
-        //         // target: [pan_curated_x, viz_state.viz.label_col_y]
-        //     },
-        // }
-
-        console.log('pan_curated_x', pan_curated_x)
-
-        console.log('viz_state.zoom.min_pan_x', viz_state.zoom.min_pan_x)
-
 
         globalViewState = {
             matrix: {
-                zoom: [zoom_curated_y, zoom_curated_y],
-                target: [viz_state.zoom.min_pan_x, pan_curated_y]
-
-                // zoom: [zoom_curated_x, zoom_curated_y],
-                // target: [pan_curated_x, pan_curated_y]
+                zoom: [
+                    viz_state.zoom.zoom_data.raw_zoom,
+                    zoom_curated_y
+                ],
+                target: [
+                    viz_state.zoom.min_pan_x,
+                    pan_curated_y
+                ]
             },
             rows:   {
-                zoom: [viz_state.zoom.ini_zoom_x, zoom_curated_y],
-                target: [viz_state.viz.label_row_x, pan_curated_y]
+                zoom: [
+                    viz_state.zoom.ini_zoom_x,
+                    zoom_curated_y
+                ],
+                target:
+                [viz_state.viz.label_row_x,
+                    pan_curated_y
+                ]
             },
             cols:   {
-                zoom: [zoom_data.col.zoom_x, viz_state.zoom.ini_zoom_y],
-                target: [zoom_data.col.pan_x, viz_state.viz.label_col_y]
+                zoom: [
+                    viz_state.zoom.zoom_data.raw_zoom,
+                    viz_state.zoom.ini_zoom_y
+                ],
+                target: [
+                    viz_state.zoom.min_pan_x,
+                    viz_state.viz.label_col_y
+                ]
             },
         }
 

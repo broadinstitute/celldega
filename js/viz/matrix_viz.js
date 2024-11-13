@@ -7,7 +7,8 @@ import { ini_mat_layer } from '../deck-gl/matrix/mat_layer.js';
 import { ini_row_label_layer, ini_col_label_layer } from '../deck-gl/matrix/label_layers.js';
 import { ini_row_cat_layer, ini_col_cat_layer } from '../deck-gl/matrix/cat_layers.js';
 import { get_layers_list, layer_filter } from '../deck-gl/matrix/matrix_layers.js'
-import { ini_views, ini_view_state, on_view_state_change } from '../deck-gl/matrix/views.js'
+import { ini_views, ini_view_state } from '../deck-gl/matrix/views.js'
+import { on_view_state_change } from '../deck-gl/matrix/on_view_state_change.js'
 import { ini_zoom_data } from '../deck-gl/matrix/zoom.js'
 import { get_tooltip } from '../deck-gl/matrix/matrix_tooltip.js'
 

@@ -21,11 +21,6 @@ export const ini_views = (viz_state) => {
     viz_state.zoom.zoom_delay = Math.log2(switch_ratio)
     viz_state.zoom.zoom_axis = zoom_axis
 
-    console.log('viz_state.zoom.zoom_delay', viz_state.zoom.zoom_delay)
-
-
-    console.log('viz_state.zoom.zoom_axis', viz_state.zoom.zoom_axis)
-
     const views_list = [
 
         new OrthographicView({
@@ -184,7 +179,12 @@ export const redefine_global_view_state = (viz_state, viewId, zoom, target) => {
         // use the other axis to keep track of the raw zoom
         viz_state.zoom.zoom_data.raw_zoom = zoom_curated_y
     } else if (viewId === 'cols'){
+
+        console.log(zoom)
         viz_state.zoom.zoom_data.raw_zoom = zoom_curated_x
+
+        console.log('cols raw zoom', viz_state.zoom.zoom_data.raw_zoom)
+
     } else if (viewId === 'matrix') {
         if (viz_state.zoom.zoom_axis === 'X'){
             viz_state.zoom.zoom_data.raw_zoom = zoom_curated_x
@@ -204,10 +204,8 @@ export const redefine_global_view_state = (viz_state, viewId, zoom, target) => {
 
     console.log('raw_zoom', viz_state.zoom.zoom_data.raw_zoom.toFixed(2))
 
-    // var pan_curated_x = curate_pan_x(target[0], zoom_curated_x, viz_state)
-    // var pan_curated_x = curate_pan_x(target[0], viz_state.zoom.zoom_data.raw_zoom, viz_state)
     var pan_curated_x = curate_pan_x(target[0], zoom_curated_x, viz_state)
-    var pan_curated_y = curate_pan_y(target[1], viz_state.zoom.zoom_data.raw_zoom, viz_state)
+    var pan_curated_y = curate_pan_y(target[1], zoom_curated_y, viz_state)
 
 
 
@@ -252,7 +250,7 @@ export const redefine_global_view_state = (viz_state, viewId, zoom, target) => {
             matrix: {
                 zoom: [
                     zoom_curated_x,
-                    viz_state.zoom.zoom_data.raw_zoom
+                    zoom_curated_y
                 ],
                 target: [
                     pan_curated_x,
@@ -286,7 +284,6 @@ export const redefine_global_view_state = (viz_state, viewId, zoom, target) => {
         globalViewState = {
             matrix: {
                 zoom: [
-                    // viz_state.zoom.zoom_data.raw_zoom,
                     zoom_curated_x,
                     zoom_curated_y
                 ],
@@ -307,11 +304,11 @@ export const redefine_global_view_state = (viz_state, viewId, zoom, target) => {
             },
             cols:   {
                 zoom: [
-                    viz_state.zoom.zoom_data.raw_zoom,
+                    zoom_curated_x,
                     viz_state.zoom.ini_zoom_y
                 ],
                 target: [
-                    viz_state.zoom.min_pan_x,
+                    pan_curated_x,
                     viz_state.viz.label_col_y
                 ]
             },

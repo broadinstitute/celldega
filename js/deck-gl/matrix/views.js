@@ -68,20 +68,13 @@ export const ini_view_state = (viz_state) => {
       rows: {
         target: [viz_state.viz.label_row_x, viz_state.zoom.ini_pan_y],
         zoom: [viz_state.zoom.ini_zoom_x, viz_state.zoom.ini_zoom_y],
-        // zoom: [viz_state.zoom.ini_zoom_x, viz_state.zoom.ini_zoom_y],
       },
       cols: {
         target: [viz_state.zoom.ini_pan_x, viz_state.viz.label_col_y],
         zoom: [viz_state.zoom.ini_zoom_x, viz_state.zoom.ini_zoom_y],
-        // zoom: [viz_state.zoom.ini_zoom_x, viz_state.zoom.ini_zoom_y],
       },
     }
 
     return globalViewState
 
   }
-
-
-
-
-

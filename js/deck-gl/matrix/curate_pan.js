@@ -13,17 +13,12 @@ export const curate_pan_y = (target_y, zoom_curated_y, viz_state) => {
 
     viz_state.zoom.max_pan_y = ini_pan_y + min_diff
 
-    console.log('pan_bounds', viz_state.zoom.min_pan_y, viz_state.zoom.max_pan_y)
-
     if (target_y <= viz_state.zoom.min_pan_y){
-      // console.log('below min')
       pan_curated_y = viz_state.zoom.min_pan_y
     } else if (target_y > viz_state.zoom.max_pan_y) {
       pan_curated_y = viz_state.zoom.max_pan_y
-      // console.log('above min')
     } else {
       pan_curated_y = target_y
-      // console.log('within bounds')
     }
 
     return pan_curated_y
@@ -44,17 +39,12 @@ export const curate_pan_x = (target_x, zoom_curated_x, viz_state) => {
 
     viz_state.zoom.max_pan_x = ini_pan_x + min_diff
 
-    // console.log('pan_bounds', viz_state.zoom.min_pan_x, viz_state.zoom.max_pan_x)
-
     if (target_x <= viz_state.zoom.min_pan_x){
         pan_curated_x = viz_state.zoom.min_pan_x
-        console.log('below min', target_x, pan_curated_x)
     } else if (target_x > viz_state.zoom.max_pan_x) {
         pan_curated_x = viz_state.zoom.max_pan_x
-        console.log('above min', target_x, pan_curated_x)
     } else {
         pan_curated_x = target_x
-        // console.log('within bounds', target_x)
     }
 
     return pan_curated_x

@@ -4,18 +4,10 @@ export const redefine_global_view_state = (viz_state, viewId, zoom, target) => {
 
     const zoom_data = viz_state.zoom.zoom_data
 
-    console.log('zoom', zoom[0].toFixed(2), zoom[1].toFixed(2))
-
-    console.log('    ')
-
-
     var globalViewState
 
-    var min_zoom_x = 0
-    var min_zoom_y = 0
-
-    var zoom_curated_x = Math.max(min_zoom_x, zoom[0])
-    var zoom_curated_y = Math.max(min_zoom_y, zoom[1])
+    var zoom_curated_x = Math.max(0, zoom[0])
+    var zoom_curated_y = Math.max(0, zoom[1])
 
     if (viz_state.zoom.zoom_axis === 'X'){
         zoom_curated_y = zoom_curated_x - viz_state.zoom.zoom_delay
@@ -23,8 +15,8 @@ export const redefine_global_view_state = (viz_state, viewId, zoom, target) => {
         zoom_curated_x = zoom_curated_y - viz_state.zoom.zoom_delay
     }
 
-    zoom_curated_x = Math.max(min_zoom_x, zoom_curated_x)
-    zoom_curated_y = Math.max(min_zoom_y, zoom_curated_y)
+    zoom_curated_x = Math.max(0, zoom_curated_x)
+    zoom_curated_y = Math.max(0, zoom_curated_y)
 
     if (viewId === 'rows'){
         // use the other axis to keep track of the raw zoom
@@ -33,8 +25,6 @@ export const redefine_global_view_state = (viz_state, viewId, zoom, target) => {
 
         console.log(zoom)
         viz_state.zoom.zoom_data.raw_zoom = zoom_curated_x
-
-        console.log('cols raw zoom', viz_state.zoom.zoom_data.raw_zoom)
 
     } else if (viewId === 'matrix') {
         if (viz_state.zoom.zoom_axis === 'X'){
@@ -46,18 +36,9 @@ export const redefine_global_view_state = (viz_state, viewId, zoom, target) => {
         }
     }
 
-    console.log('matrix', {
-        pan_x:  zoom_data.mat.pan_x.toFixed(2),
-        pan_y:  zoom_data.mat.pan_y.toFixed(2),
-        zoom_x: zoom_data.mat.zoom_x.toFixed(2),
-        zoom_y: zoom_data.mat.zoom_y.toFixed(2),
-    })
-
-    console.log('raw_zoom', viz_state.zoom.zoom_data.raw_zoom.toFixed(2))
 
     var pan_curated_x = curate_pan_x(target[0], zoom_curated_x, viz_state)
     var pan_curated_y = curate_pan_y(target[1], zoom_curated_y, viz_state)
-
 
 
     if (viewId === 'matrix') {
@@ -67,6 +48,9 @@ export const redefine_global_view_state = (viz_state, viewId, zoom, target) => {
                 zoom: [
                     zoom_curated_x,
                     zoom_curated_y
+
+                    // viz_state.zoom.zoom_data.total_zoom_x,
+                    // viz_state.zoom.zoom_data.total_zoom_y,
                 ],
                 target: [
                     pan_curated_x,

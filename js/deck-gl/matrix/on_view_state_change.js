@@ -10,15 +10,26 @@ export const on_view_state_change = (params, deck_mat, layers_mat, viz_state) =>
 
     const {zoom, target} = viewState;
 
+    // zoom differentials
+    let zoom_dx = zoom[0] - viz_state.zoom.zoom_data[viewId].zoom_x
+    let zoom_dy = zoom[1] - viz_state.zoom.zoom_data[viewId].zoom_y
+
+    viz_state.zoom.zoom_data.total_zoom_x += zoom_dx
+    viz_state.zoom.zoom_data.total_zoom_y += zoom_dy
+
+    console.log('compare zooms')
+    console.log(viz_state.zoom.zoom_data.total_zoom_x.toFixed(2), viz_state.zoom.zoom_data.total_zoom_y.toFixed(2))
+    console.log(viz_state.zoom.zoom_data.matrix.zoom_x.toFixed(2), viz_state.zoom.zoom_data.matrix.zoom_y.toFixed(2))
+
     var global_view_state = redefine_global_view_state(viz_state, viewId, zoom, target)
 
     let zoom_factor
     if (viz_state.zoom.zoom_axis === 'X'){
-        zoom_factor = Math.pow(2, viz_state.zoom.zoom_data.mat.zoom_x)
+        zoom_factor = Math.pow(2, viz_state.zoom.zoom_data.matrix.zoom_x)
     } else if (viz_state.zoom.zoom_axis === 'Y'){
-        zoom_factor = Math.pow(2, viz_state.zoom.zoom_data.mat.zoom_y)
+        zoom_factor = Math.pow(2, viz_state.zoom.zoom_data.matrix.zoom_y)
     } else if (viz_state.zoom.zoom_axis === 'all'){
-        zoom_factor = Math.pow(2, viz_state.zoom.zoom_data.mat.zoom_x)
+        zoom_factor = Math.pow(2, viz_state.zoom.zoom_data.matrix.zoom_x)
     }
 
     viz_state.viz.inst_font_size = viz_state.viz.ini_font_size * zoom_factor

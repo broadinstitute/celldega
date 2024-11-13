@@ -9,32 +9,34 @@ export const redefine_global_view_state = (viz_state, viewId, zoom, target) => {
     var zoom_curated_x = Math.max(0, zoom[0])
     var zoom_curated_y = Math.max(0, zoom[1])
 
+    // delay zoom based on row/col ratio
     if (viz_state.zoom.zoom_axis === 'X'){
         zoom_curated_y = zoom_curated_x - viz_state.zoom.zoom_delay
     } else if (viz_state.zoom.zoom_axis === 'Y'){
         zoom_curated_x = zoom_curated_y - viz_state.zoom.zoom_delay
     }
 
+    // keep zoom within bounds
     zoom_curated_x = Math.max(0, zoom_curated_x)
     zoom_curated_y = Math.max(0, zoom_curated_y)
 
-    if (viewId === 'rows'){
-        // use the other axis to keep track of the raw zoom
-        viz_state.zoom.zoom_data.raw_zoom = zoom_curated_y
-    } else if (viewId === 'cols'){
+    // if (viewId === 'rows'){
+    //     // use the other axis to keep track of the raw zoom
+    //     viz_state.zoom.zoom_data.raw_zoom = zoom_curated_y
+    // } else if (viewId === 'cols'){
 
-        console.log(zoom)
-        viz_state.zoom.zoom_data.raw_zoom = zoom_curated_x
+    //     console.log(zoom)
+    //     viz_state.zoom.zoom_data.raw_zoom = zoom_curated_x
 
-    } else if (viewId === 'matrix') {
-        if (viz_state.zoom.zoom_axis === 'X'){
-            viz_state.zoom.zoom_data.raw_zoom = zoom_curated_x
-        } else if (viz_state.zoom.zoom_axis === 'Y'){
-            viz_state.zoom.zoom_data.raw_zoom = zoom_curated_y
-        } else if (viz_state.zoom.zoom_axis === 'all'){
-            viz_state.zoom.zoom_data.raw_zoom = zoom_curated_x
-        }
-    }
+    // } else if (viewId === 'matrix') {
+    //     if (viz_state.zoom.zoom_axis === 'X'){
+    //         viz_state.zoom.zoom_data.raw_zoom = zoom_curated_x
+    //     } else if (viz_state.zoom.zoom_axis === 'Y'){
+    //         viz_state.zoom.zoom_data.raw_zoom = zoom_curated_y
+    //     } else if (viz_state.zoom.zoom_axis === 'all'){
+    //         viz_state.zoom.zoom_data.raw_zoom = zoom_curated_x
+    //     }
+    // }
 
 
     var pan_curated_x = curate_pan_x(target[0], zoom_curated_x, viz_state)

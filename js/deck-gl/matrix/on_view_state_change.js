@@ -10,18 +10,20 @@ export const on_view_state_change = (params, deck_mat, layers_mat, viz_state) =>
 
     const {zoom, target} = viewState;
 
-    // zoom differentials
+    // zoom differentials are calculated before the redefine_global_view_state function
     let zoom_dx = zoom[0] - viz_state.zoom.zoom_data[viewId].zoom_x
     let zoom_dy = zoom[1] - viz_state.zoom.zoom_data[viewId].zoom_y
 
-    viz_state.zoom.zoom_data.total_zoom_x += zoom_dx
-    viz_state.zoom.zoom_data.total_zoom_y += zoom_dy
+    viz_state.zoom.zoom_data.total_zoom.x += zoom_dx
+    viz_state.zoom.zoom_data.total_zoom.y += zoom_dy
 
-    console.log('compare zooms')
-    console.log(viz_state.zoom.zoom_data.total_zoom_x.toFixed(2), viz_state.zoom.zoom_data.total_zoom_y.toFixed(2))
-    console.log(viz_state.zoom.zoom_data.matrix.zoom_x.toFixed(2), viz_state.zoom.zoom_data.matrix.zoom_y.toFixed(2))
+    // console.log('compare zooms')
+    // console.log(viz_state.zoom.zoom_data.total_zoom.x.toFixed(2), viz_state.zoom.zoom_data.total_zoom.y.toFixed(2))
+    // console.log(viz_state.zoom.zoom_data.matrix.zoom_x.toFixed(2), viz_state.zoom.zoom_data.matrix.zoom_y.toFixed(2))
 
-    var global_view_state = redefine_global_view_state(viz_state, viewId, zoom, target)
+    let new_zoom = [viz_state.zoom.zoom_data.total_zoom.x, viz_state.zoom.zoom_data.total_zoom.y]
+
+    var global_view_state = redefine_global_view_state(viz_state, viewId, new_zoom, target)
 
     let zoom_factor
     if (viz_state.zoom.zoom_axis === 'X'){

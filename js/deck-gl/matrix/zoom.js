@@ -24,8 +24,9 @@ export const ini_zoom_data = (viz_state) => {
 
     viz_state.zoom.zoom_data.raw_zoom = viz_state.zoom.ini_zoom_x
 
-    viz_state.zoom.zoom_data.total_zoom_x = 0
-    viz_state.zoom.zoom_data.total_zoom_y = 0
+    viz_state.zoom.zoom_data.total_zoom = {}
+    viz_state.zoom.zoom_data.total_zoom.x = 0
+    viz_state.zoom.zoom_data.total_zoom.y = 0
 
     viz_state.zoom.zoom_data.matrix = {
         pan_x: viz_state.zoom.ini_pan_x,

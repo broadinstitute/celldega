@@ -247,11 +247,11 @@ export const redefine_global_view_state = (viz_state, viewId, zoom, target) => {
             rows:   {
                 zoom: [
                     viz_state.zoom.ini_zoom_x,
-                    zoom_data.col.zoom_y
+                    viz_state.zoom.zoom_data.raw_zoom
                 ],
                 target: [
                     viz_state.viz.label_row_x,
-                    zoom_data.col.pan_y
+                    viz_state.zoom.min_pan_y
                 ]
             },
             cols:   {
@@ -284,8 +284,8 @@ export const redefine_global_view_state = (viz_state, viewId, zoom, target) => {
                     viz_state.zoom.ini_zoom_x,
                     zoom_curated_y
                 ],
-                target:
-                [viz_state.viz.label_row_x,
+                target:[
+                    viz_state.viz.label_row_x,
                     pan_curated_y
                 ]
             },

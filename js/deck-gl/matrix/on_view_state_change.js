@@ -11,33 +11,68 @@ export const on_view_state_change = (params, deck_mat, layers_mat, viz_state) =>
     const {zoom, target} = viewState;
 
     // zoom differentials are calculated before the redefine_global_view_state function
-    let zoom_dx = zoom[0] - viz_state.zoom.zoom_data[viewId].zoom_x
 
-    // let zoom_dy = zoom[1] - viz_state.zoom.zoom_data[viewId].zoom_y
-    let zoom_dy = zoom[1] - viz_state.zoom.zoom_data[viewId].zoom_y
+    let zoom_dx
+    let zoom_dy
+
+    if (viewId === 'cols'){
+
+        if (viz_state.zoom.minor_zoom_axis === 'X'){
+
+            console.log('stateless zooming')
+            zoom_dx = zoom[0]
+            zoom_dy = zoom[1]
+
+        } else {
+
+            zoom_dx = zoom[0] - viz_state.zoom.zoom_data[viewId].zoom_x
+            zoom_dy = zoom[1] - viz_state.zoom.zoom_data[viewId].zoom_y
+
+        }
+
+    } else if (viewId === 'rows'){
+
+        if (viz_state.zoom.minor_zoom_axis === 'Y'){
+
+            console.log('stateless zooming')
+            zoom_dx = zoom[0]
+            zoom_dy = zoom[1]
+
+        } else {
+
+            zoom_dx = zoom[0] - viz_state.zoom.zoom_data[viewId].zoom_x
+            zoom_dy = zoom[1] - viz_state.zoom.zoom_data[viewId].zoom_y
+
+        }
+    }  else if (viewId === 'matrix'){
+
+        zoom_dx = zoom[0] - viz_state.zoom.zoom_data[viewId].zoom_x
+        zoom_dy = zoom[1] - viz_state.zoom.zoom_data[viewId].zoom_y
+
+    }
 
     viz_state.zoom.zoom_data.total_zoom.x += zoom_dx
     viz_state.zoom.zoom_data.total_zoom.y += zoom_dy
 
     // console.log('compare zooms')
 
-    // console.log('differential zooms', zoom_dx, zoom_dy)
+    console.log('differential zooms', zoom_dy)
 
     console.log(viewId)
-    console.log('tota', viz_state.zoom.zoom_data.total_zoom.y.toFixed(2))
     console.log('data', viz_state.zoom.zoom_data.matrix.zoom_y.toFixed(2))
-    console.log(' . ')
 
     let new_zoom = [viz_state.zoom.zoom_data.total_zoom.x, viz_state.zoom.zoom_data.total_zoom.y]
+    console.log('new_zoom ', new_zoom)
+    console.log('   ')
 
     var global_view_state = redefine_global_view_state(viz_state, viewId, new_zoom, target)
 
     let zoom_factor
-    if (viz_state.zoom.zoom_axis === 'X'){
+    if (viz_state.zoom.major_zoom_axis === 'X'){
         zoom_factor = Math.pow(2, viz_state.zoom.zoom_data.matrix.zoom_x)
-    } else if (viz_state.zoom.zoom_axis === 'Y'){
+    } else if (viz_state.zoom.major_zoom_axis === 'Y'){
         zoom_factor = Math.pow(2, viz_state.zoom.zoom_data.matrix.zoom_y)
-    } else if (viz_state.zoom.zoom_axis === 'all'){
+    } else if (viz_state.zoom.major_zoom_axis === 'all'){
         zoom_factor = Math.pow(2, viz_state.zoom.zoom_data.matrix.zoom_x)
     }
 
@@ -56,8 +91,8 @@ export const on_view_state_change = (params, deck_mat, layers_mat, viz_state) =>
 
 
     let zoom_mode
-    if (viz_state.zoom.zoom_axis !== 'all'){
-        zoom_mode = zoom_factor < viz_state.zoom.switch_ratio ? viz_state.zoom.zoom_axis : 'all'
+    if (viz_state.zoom.major_zoom_axis !== 'all'){
+        zoom_mode = zoom_factor < viz_state.zoom.switch_ratio ? viz_state.zoom.major_zoom_axis : 'all'
     } else {
         zoom_mode = 'all'
     }

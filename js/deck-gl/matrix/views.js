@@ -2,24 +2,26 @@ import { OrthographicView } from 'deck.gl'
 
 export const ini_views = (viz_state) => {
 
-    let zoom_axis
+
     let switch_ratio
 
     if (viz_state.mat.num_rows > viz_state.mat.num_cols){
-        zoom_axis = 'Y'
+        viz_state.zoom.major_zoom_axis = 'Y'
+        viz_state.zoom.minor_zoom_axis = 'X'
         switch_ratio = viz_state.mat.num_rows/viz_state.mat.num_cols
 
     } else if (viz_state.mat.num_rows < viz_state.mat.num_cols){
-        zoom_axis = 'X'
+        viz_state.zoom.major_zoom_axis = 'X'
+        viz_state.zoom.minor_zoom_axis = 'Y'
         switch_ratio = viz_state.mat.num_cols/viz_state.mat.num_rows
     } else if (viz_state.mat.num_rows === viz_state.mat.num_cols){
-        zoom_axis = 'all'
+        viz_state.zoom.major_zoom_axis = 'all'
+        viz_state.zoom.major_zoom_axis = 'none'
         switch_ratio = 1
     }
 
     viz_state.zoom.switch_ratio = switch_ratio
     viz_state.zoom.zoom_delay = Math.log2(switch_ratio)
-    viz_state.zoom.zoom_axis = zoom_axis
 
     const views_list = [
 
@@ -29,7 +31,7 @@ export const ini_views = (viz_state) => {
           y: ( viz_state.viz.col_region_height + viz_state.viz.label_buffer) + 'px',
           width: viz_state.viz.mat_width + 'px',
           height: viz_state.viz.mat_height + 'px',
-          controller: {scrollZoom: true, inertia: false, zoomAxis: zoom_axis},
+          controller: {scrollZoom: true, inertia: false, zoomAxis: viz_state.zoom.major_zoom_axis},
         }),
 
         new OrthographicView({
@@ -38,7 +40,7 @@ export const ini_views = (viz_state) => {
           y: (viz_state.viz.col_region_height + viz_state.viz.label_buffer) + 'px',
           width: viz_state.viz.row_region_width + 'px',
           height: viz_state.viz.mat_height + 'px',
-          controller: {scrollZoom: true, inertia: false, zoomAxis: zoom_axis},
+          controller: {scrollZoom: true, inertia: false, zoomAxis: viz_state.zoom.major_zoom_axis},
         }),
 
         new OrthographicView({
@@ -47,7 +49,7 @@ export const ini_views = (viz_state) => {
           y: '0px',
           width: viz_state.viz.mat_width + 'px',
           height: viz_state.viz.col_region_height + 'px',
-          controller: {scrollZoom: true, inertia: false, zoomAxis: zoom_axis},
+          controller: {scrollZoom: true, inertia: false, zoomAxis: viz_state.zoom.major_zoom_axis},
         }),
 
     ]

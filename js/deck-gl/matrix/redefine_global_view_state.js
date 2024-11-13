@@ -8,9 +8,9 @@ export const redefine_global_view_state = (viz_state, viewId, zoom, target) => {
     var zoom_curated_y = Math.max(0, zoom[1])
 
     // delay zoom based on row/col ratio
-    if (viz_state.zoom.zoom_axis === 'X'){
+    if (viz_state.zoom.major_zoom_axis === 'X'){
         zoom_curated_y = zoom_curated_x - viz_state.zoom.zoom_delay
-    } else if (viz_state.zoom.zoom_axis === 'Y'){
+    } else if (viz_state.zoom.major_zoom_axis === 'Y'){
         zoom_curated_x = zoom_curated_y - viz_state.zoom.zoom_delay
     }
 

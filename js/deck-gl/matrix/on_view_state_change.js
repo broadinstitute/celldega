@@ -2,6 +2,7 @@ import { OrthographicView } from 'deck.gl'
 import { update_zoom_data } from './zoom.js'
 import { get_layers_list } from './matrix_layers.js'
 import { redefine_global_view_state } from './redefine_global_view_state.js'
+import { curate_pan_x, curate_pan_y } from './curate_pan.js'
 
 export const on_view_state_change = (params, deck_mat, layers_mat, viz_state) => {
 
@@ -58,8 +59,6 @@ export const on_view_state_change = (params, deck_mat, layers_mat, viz_state) =>
     viz_state.zoom.zoom_data.total_zoom.x = Math.max(0, viz_state.zoom.zoom_data.total_zoom.x)
     viz_state.zoom.zoom_data.total_zoom.y = Math.max(0, viz_state.zoom.zoom_data.total_zoom.y)
 
-    // console.log('compare zooms')
-
     console.log('differential zooms', zoom_dy)
 
     console.log(viewId)
@@ -69,7 +68,28 @@ export const on_view_state_change = (params, deck_mat, layers_mat, viz_state) =>
     console.log('new_zoom ', new_zoom)
     console.log('   ')
 
-    var global_view_state = redefine_global_view_state(viz_state, viewId, new_zoom, target)
+
+    var zoom_curated_x = Math.max(0, new_zoom[0])
+    var zoom_curated_y = Math.max(0, new_zoom[1])
+
+    // delay zoom based on row/col ratio
+    if (viz_state.zoom.major_zoom_axis === 'X'){
+        zoom_curated_y = zoom_curated_x - viz_state.zoom.zoom_delay
+    } else if (viz_state.zoom.major_zoom_axis === 'Y'){
+        zoom_curated_x = zoom_curated_y - viz_state.zoom.zoom_delay
+    }
+
+    // keep zoom within bounds
+    zoom_curated_x = Math.max(0, zoom_curated_x)
+    zoom_curated_y = Math.max(0, zoom_curated_y)
+
+    var pan_curated_x = curate_pan_x(target[0], zoom_curated_x, viz_state)
+    var pan_curated_y = curate_pan_y(target[1], zoom_curated_y, viz_state)
+
+    let zoom_curated = [zoom_curated_x, zoom_curated_y]
+    let pan_curated = [pan_curated_x, pan_curated_y]
+
+    var global_view_state = redefine_global_view_state(viz_state, viewId, zoom_curated, pan_curated)
 
     let zoom_factor
     if (viz_state.zoom.major_zoom_axis === 'X'){

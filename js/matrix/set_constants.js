@@ -20,7 +20,7 @@ export const set_mat_constants = (network, root, width, height) => {
     viz_state.mat.num_rows = network.mat.length
     viz_state.mat.num_cols = network.mat[0].length
 
-    viz_state.viz.base_font_size = 100
+    viz_state.viz.base_font_size = 125
 
     viz_state.viz.col_label_height = 20
     viz_state.viz.row_region_width = 90

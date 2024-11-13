@@ -20,19 +20,16 @@ export const on_view_state_change = (params, deck_mat, layers_mat, viz_state) =>
 
         if (viz_state.zoom.minor_zoom_axis === 'X'){
 
-            console.log('stateless zooming')
             zoom_dx = zoom[0]
             zoom_dy = zoom[1]
 
         } else if (viz_state.zoom.minor_zoom_axis === 'Y'){
 
-            console.log('stateful zooming')
             zoom_dx = zoom[0] - viz_state.zoom.zoom_data[viewId].zoom_x
             zoom_dy = zoom[1] - viz_state.zoom.zoom_data[viewId].zoom_y
 
         } else if (viz_state.zoom.minor_zoom_axis === 'none'){
 
-            console.log('stateful zooming')
             zoom_dx = zoom[0] - viz_state.zoom.zoom_data[viewId].zoom_x
             zoom_dy = zoom[1]
 
@@ -42,19 +39,19 @@ export const on_view_state_change = (params, deck_mat, layers_mat, viz_state) =>
 
         if (viz_state.zoom.minor_zoom_axis === 'Y'){
 
-            console.log('stateless zooming')
             zoom_dx = zoom[0]
             zoom_dy = zoom[1]
 
         } else if (viz_state.zoom.minor_zoom_axis === 'X'){
 
-            console.log('stateful zooming')
             zoom_dx = zoom[0] - viz_state.zoom.zoom_data[viewId].zoom_x
             zoom_dy = zoom[1] - viz_state.zoom.zoom_data[viewId].zoom_y
 
         } else if (viz_state.zoom.minor_zoom_axis === 'none'){
+
             zoom_dx = zoom[0]
             zoom_dy = zoom[1] - viz_state.zoom.zoom_data[viewId].zoom_y
+
         }
 
 
@@ -103,6 +100,9 @@ export const on_view_state_change = (params, deck_mat, layers_mat, viz_state) =>
 
     var global_view_state = redefine_global_view_state(viz_state, viewId, zoom_curated, pan_curated)
 
+    // update_zoom_data(viz_state, viewId, new_zoom, target)
+    update_zoom_data(viz_state, viewId, zoom_curated, pan_curated)
+
     let zoom_factor
     if (viz_state.zoom.major_zoom_axis === 'X'){
         zoom_factor = Math.pow(2, viz_state.zoom.zoom_data.matrix.zoom_x)
@@ -114,15 +114,14 @@ export const on_view_state_change = (params, deck_mat, layers_mat, viz_state) =>
 
     viz_state.viz.inst_font_size = viz_state.viz.ini_font_size * zoom_factor
 
-    // update_zoom_data(viz_state, viewId, new_zoom, target)
-    update_zoom_data(viz_state, viewId, zoom_curated, pan_curated)
-
     layers_mat.row_label_layer = layers_mat.row_label_layer.clone({
-        getSize: viz_state.viz.inst_font_size,
+        getSize: viz_state.viz.ini_font_size * Math.pow(2, viz_state.zoom.zoom_data.matrix.zoom_y),
     })
 
     layers_mat.col_label_layer = layers_mat.col_label_layer.clone({
-        getSize: viz_state.viz.inst_font_size,
+        // getSize: viz_state.viz.inst_font_size,
+        getSize: viz_state.viz.ini_font_size * Math.pow(2, viz_state.zoom.zoom_data.matrix.zoom_x),
+
     })
 
 

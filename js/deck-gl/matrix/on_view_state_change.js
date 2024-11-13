@@ -12,14 +12,21 @@ export const on_view_state_change = (params, deck_mat, layers_mat, viz_state) =>
 
     // zoom differentials are calculated before the redefine_global_view_state function
     let zoom_dx = zoom[0] - viz_state.zoom.zoom_data[viewId].zoom_x
+
+    // let zoom_dy = zoom[1] - viz_state.zoom.zoom_data[viewId].zoom_y
     let zoom_dy = zoom[1] - viz_state.zoom.zoom_data[viewId].zoom_y
 
     viz_state.zoom.zoom_data.total_zoom.x += zoom_dx
     viz_state.zoom.zoom_data.total_zoom.y += zoom_dy
 
     // console.log('compare zooms')
-    // console.log(viz_state.zoom.zoom_data.total_zoom.x.toFixed(2), viz_state.zoom.zoom_data.total_zoom.y.toFixed(2))
-    // console.log(viz_state.zoom.zoom_data.matrix.zoom_x.toFixed(2), viz_state.zoom.zoom_data.matrix.zoom_y.toFixed(2))
+
+    // console.log('differential zooms', zoom_dx, zoom_dy)
+
+    console.log(viewId)
+    console.log('tota', viz_state.zoom.zoom_data.total_zoom.y.toFixed(2))
+    console.log('data', viz_state.zoom.zoom_data.matrix.zoom_y.toFixed(2))
+    console.log(' . ')
 
     let new_zoom = [viz_state.zoom.zoom_data.total_zoom.x, viz_state.zoom.zoom_data.total_zoom.y]
 
@@ -36,7 +43,8 @@ export const on_view_state_change = (params, deck_mat, layers_mat, viz_state) =>
 
     viz_state.viz.inst_font_size = viz_state.viz.ini_font_size * zoom_factor
 
-    update_zoom_data(viz_state, viewId, zoom, target)
+    // update_zoom_data(viz_state, viewId, zoom, target)
+    update_zoom_data(viz_state, viewId, new_zoom, target)
 
     layers_mat.row_label_layer = layers_mat.row_label_layer.clone({
         getSize: viz_state.viz.inst_font_size,

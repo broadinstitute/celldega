@@ -63,6 +63,21 @@ export const matrix_viz = async (
 
     console.log('layers_mat', layers_mat)
 
+    layers_mat.mat_layer = layers_mat.mat_layer.clone({
+        onClick: (event, d) => {
+            console.log('here!!!!!!!!!!!')
+            console.log(event, d)
+
+            layers_mat.mat_layer = layers_mat.mat_layer.clone({
+                opacity: 0.01
+            })
+
+            deck_mat.setProps({
+                layers: get_layers_list(layers_mat),
+            })
+        }
+    })
+
 
     deck_mat.setProps({
         onViewStateChange: (params) => on_view_state_change(params, deck_mat, layers_mat, viz_state),

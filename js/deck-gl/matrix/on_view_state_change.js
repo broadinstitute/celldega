@@ -20,14 +20,21 @@ export const on_view_state_change = (params, deck_mat, layers_mat, viz_state) =>
 
         if (viz_state.zoom.minor_zoom_axis === 'X'){
 
-            // console.log('stateless zooming')
+            console.log('stateless zooming')
             zoom_dx = zoom[0]
             zoom_dy = zoom[1]
 
-        } else {
+        } else if (viz_state.zoom.minor_zoom_axis === 'Y'){
 
+            console.log('stateful zooming')
             zoom_dx = zoom[0] - viz_state.zoom.zoom_data[viewId].zoom_x
             zoom_dy = zoom[1] - viz_state.zoom.zoom_data[viewId].zoom_y
+
+        } else if (viz_state.zoom.minor_zoom_axis === 'none'){
+
+            console.log('stateful zooming')
+            zoom_dx = zoom[0] - viz_state.zoom.zoom_data[viewId].zoom_x
+            zoom_dy = zoom[1]
 
         }
 
@@ -35,16 +42,22 @@ export const on_view_state_change = (params, deck_mat, layers_mat, viz_state) =>
 
         if (viz_state.zoom.minor_zoom_axis === 'Y'){
 
-            // console.log('stateless zooming')
+            console.log('stateless zooming')
             zoom_dx = zoom[0]
             zoom_dy = zoom[1]
 
-        } else {
+        } else if (viz_state.zoom.minor_zoom_axis === 'X'){
 
+            console.log('stateful zooming')
             zoom_dx = zoom[0] - viz_state.zoom.zoom_data[viewId].zoom_x
             zoom_dy = zoom[1] - viz_state.zoom.zoom_data[viewId].zoom_y
 
+        } else if (viz_state.zoom.minor_zoom_axis === 'none'){
+            zoom_dx = zoom[0]
+            zoom_dy = zoom[1] - viz_state.zoom.zoom_data[viewId].zoom_y
         }
+
+
     }  else if (viewId === 'matrix'){
 
         zoom_dx = zoom[0] - viz_state.zoom.zoom_data[viewId].zoom_x
@@ -59,14 +72,13 @@ export const on_view_state_change = (params, deck_mat, layers_mat, viz_state) =>
     viz_state.zoom.zoom_data.total_zoom.x = Math.max(0, viz_state.zoom.zoom_data.total_zoom.x)
     viz_state.zoom.zoom_data.total_zoom.y = Math.max(0, viz_state.zoom.zoom_data.total_zoom.y)
 
-    console.log('differential zooms', zoom_dy)
-
-    console.log(viewId)
-    console.log('data', viz_state.zoom.zoom_data.matrix.zoom_y.toFixed(2))
+    // console.log('differential zooms', zoom_dy)
+    // console.log(viewId)
+    // console.log('data', viz_state.zoom.zoom_data.matrix.zoom_y.toFixed(2))
 
     let new_zoom = [viz_state.zoom.zoom_data.total_zoom.x, viz_state.zoom.zoom_data.total_zoom.y]
-    console.log('new_zoom ', new_zoom)
-    console.log('   ')
+    // console.log('new_zoom ', new_zoom)
+    // console.log('   ')
 
 
     var zoom_curated_x = Math.max(0, new_zoom[0])
@@ -102,8 +114,8 @@ export const on_view_state_change = (params, deck_mat, layers_mat, viz_state) =>
 
     viz_state.viz.inst_font_size = viz_state.viz.ini_font_size * zoom_factor
 
-    // update_zoom_data(viz_state, viewId, zoom, target)
-    update_zoom_data(viz_state, viewId, new_zoom, target)
+    // update_zoom_data(viz_state, viewId, new_zoom, target)
+    update_zoom_data(viz_state, viewId, zoom_curated, pan_curated)
 
     layers_mat.row_label_layer = layers_mat.row_label_layer.clone({
         getSize: viz_state.viz.inst_font_size,

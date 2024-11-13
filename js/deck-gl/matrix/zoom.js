@@ -1,21 +1,21 @@
-export const update_zoom_data = (viz_state, viewId, zoom, target) => {
+export const update_zoom_data = (viz_state, viewId, zoom_curated, pan_curated) => {
 
     let zoom_data = viz_state.zoom.zoom_data
 
-    zoom_data.matrix.pan_x = target[0];
-    zoom_data.matrix.pan_y = target[1];
-    zoom_data.matrix.zoom_x = zoom[0]
-    zoom_data.matrix.zoom_y = zoom[1]
+    zoom_data.matrix.pan_x = pan_curated[0];
+    zoom_data.matrix.pan_y = pan_curated[1];
+    zoom_data.matrix.zoom_x = zoom_curated[0]
+    zoom_data.matrix.zoom_y = zoom_curated[1]
 
     zoom_data.rows.pan_x = viz_state.zoom.ini_pan_x
-    zoom_data.rows.pan_y = target[1]
-    zoom_data.rows.zoom_x = zoom[0]
-    zoom_data.rows.zoom_y = zoom[1]
+    zoom_data.rows.pan_y = pan_curated[1]
+    zoom_data.rows.zoom_x = zoom_curated[0]
+    zoom_data.rows.zoom_y = zoom_curated[1]
 
-    zoom_data.cols.pan_x = target[0]
+    zoom_data.cols.pan_x = pan_curated[0]
     zoom_data.cols.pan_y = viz_state.zoom.ini_pan_y
-    zoom_data.cols.zoom_x = zoom[0]
-    zoom_data.cols.zoom_y = zoom[1]
+    zoom_data.cols.zoom_x = zoom_curated[0]
+    zoom_data.cols.zoom_y = zoom_curated[1]
 
 }
 

@@ -16,7 +16,7 @@ export const ini_views = (viz_state) => {
         switch_ratio = viz_state.mat.num_cols/viz_state.mat.num_rows
     } else if (viz_state.mat.num_rows === viz_state.mat.num_cols){
         viz_state.zoom.major_zoom_axis = 'all'
-        viz_state.zoom.major_zoom_axis = 'none'
+        viz_state.zoom.minor_zoom_axis = 'none'
         switch_ratio = 1
     }
 

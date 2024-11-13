@@ -95,6 +95,8 @@ export const ini_view_state = (viz_state) => {
 
     viz_state.zoom.max_pan_y = ini_pan_y + min_diff
 
+    console.log('pan_bounds', viz_state.zoom.min_pan_y, viz_state.zoom.max_pan_y)
+
     if (target_y <= viz_state.zoom.min_pan_y){
       // console.log('below min')
       pan_curated_y = viz_state.zoom.min_pan_y
@@ -192,7 +194,7 @@ export const redefine_global_view_state = (viz_state, viewId, zoom, target) => {
 
     // var pan_curated_x = curate_pan_x(target[0], zoom_curated_x, viz_state)
     var pan_curated_x = curate_pan_x(target[0], viz_state.zoom.zoom_data.raw_zoom, viz_state)
-    var pan_curated_y = curate_pan_y(target[1], zoom_curated_y, viz_state)
+    var pan_curated_y = curate_pan_y(target[1], viz_state.zoom.zoom_data.raw_zoom, viz_state)
 
     if (viewId === 'matrix') {
 
@@ -235,11 +237,11 @@ export const redefine_global_view_state = (viz_state, viewId, zoom, target) => {
             matrix: {
                 zoom: [
                     zoom_curated_x,
-                    zoom_data.col.zoom_y
+                    viz_state.zoom.zoom_data.raw_zoom
                 ],
                 target: [
                     pan_curated_x,
-                    zoom_data.col.pan_y
+                    viz_state.zoom.min_pan_y
                 ]
             },
             rows:   {
@@ -265,7 +267,6 @@ export const redefine_global_view_state = (viz_state, viewId, zoom, target) => {
         }
 
     } else if (viewId === 'rows'){
-
 
         globalViewState = {
             matrix: {

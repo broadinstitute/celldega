@@ -11,7 +11,7 @@ export const ini_mat_layer = (viz_state) => {
           easing: d3.easeCubic
         },
         getPosition: {
-          duration: 500,
+          duration: 1000,
           easing: d3.easeCubic
         }
     })

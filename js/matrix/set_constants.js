@@ -22,7 +22,7 @@ export const set_mat_constants = (network, root, width, height) => {
 
     viz_state.viz.base_font_size = 125
 
-    viz_state.viz.col_label_height = 20
+    viz_state.viz.col_label_height = 40 // 40
     viz_state.viz.row_region_width = 90
 
     viz_state.viz.extra_height_col = 20
@@ -47,7 +47,7 @@ export const set_mat_constants = (network, root, width, height) => {
 
     // position the cats
     viz_state.viz.label_row_x = 15
-    viz_state.viz.label_col_y = 25
+    viz_state.viz.label_col_y = 40 // 25
 
     viz_state.viz.cat_shift_row = 30
 

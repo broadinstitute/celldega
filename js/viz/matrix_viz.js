@@ -29,22 +29,18 @@ export const matrix_viz = async (
     let viz_state = set_mat_constants(network, root, width, height)
     set_mat_data(network, viz_state)
 
+    console.log('here')
+
     viz_state.labels = {}
+
+    console.log('ini_zoom_data')
+    ini_zoom_data(viz_state)
 
     viz_state.labels.row_label_data = set_row_label_data(network, viz_state)
     viz_state.labels.col_label_data = set_col_label_data(network, viz_state)
 
     viz_state.cats.row_cat_data = set_row_cat_data(network, viz_state)
     viz_state.cats.col_cat_data = set_col_cat_data(network, viz_state)
-
-    // // animation transition function
-    // // https://observablehq.com/@cornhundred/deck-gl-instanced-scatter-test
-    // const transitions = ({
-    //     getPosition: {
-    //       duration: 3000,
-    //       easing: d3.easeCubic
-    //     }
-    // })
 
     let layers_mat = {}
     layers_mat.mat_layer = ini_mat_layer(viz_state)
@@ -55,7 +51,6 @@ export const matrix_viz = async (
 
     ini_views(viz_state)
 
-    ini_zoom_data(viz_state)
 
     const global_view_state = ini_view_state(viz_state)
 
@@ -72,9 +67,9 @@ export const matrix_viz = async (
 
             layers_mat.mat_layer = layers_mat.mat_layer.clone({
                 opacity: 0.5,
-                getPosition: d => [d.position[1], d.position[1]],
+                // getPosition: d => [d.position[1], d.position[0]],
                 updateTriggers: {
-                    getPosition: Math.random() // Change to force re-evaluation
+                    getPosition: event // Math.random() // Change to force re-evaluation
                 }
             })
 

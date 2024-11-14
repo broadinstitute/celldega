@@ -17,8 +17,27 @@ const transitions = {
 
 const mat_layer_get_position = (d, viz_state) => {
 
-    let pos_x = viz_state.viz.col_width * (d.col + 0.5)
-    let pos_y = viz_state.viz.row_offset * (d.row + 1.5)
+    const inst_order = 'ini'
+
+    let index_offset
+    if (inst_order === 'ini') {
+        index_offset = 0
+    } else if (inst_order === 'clust') {
+        index_offset = 1
+    }
+
+    // let inst_row_index = d.col
+    let inst_row_index = viz_state.labels.col_label_data.length - viz_state.labels.col_label_data[d.col][inst_order] - index_offset
+
+    // let inst_col_index = d.row
+    let inst_col_index = viz_state.labels.row_label_data.length - viz_state.labels.row_label_data[d.row][inst_order] - index_offset
+
+
+
+    console.log()
+
+    let pos_x = viz_state.viz.col_width * (inst_row_index + 0.5)
+    let pos_y = viz_state.viz.row_offset * (inst_col_index + 1.5)
 
     const position = [pos_x, pos_y]
 

@@ -1,5 +1,6 @@
 import { TextLayer } from "deck.gl"
 import * as d3 from 'd3'
+import { get_layers_list } from "../layers_ist"
 
 const row_label_get_position = (d, index, viz_state) => {
 
@@ -125,5 +126,21 @@ export const ini_col_label_layer = (viz_state) => {
     })
 
     return col_label_layer
+
+}
+
+const row_label_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
+
+    console.log('clicking: ', event.object.name)
+
+    // deck_mat.setProps({layers: get_layers_list(layers_mat)})
+
+}
+
+export const set_row_label_layer_onclick = (deck_mat, layers_mat, viz_state) => {
+
+    layers_mat.row_label_layer = layers_mat.row_label_layer.clone({
+        onClick: (event) => row_label_layer_onclick(event, deck_mat, layers_mat, viz_state)
+    })
 
 }

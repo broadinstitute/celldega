@@ -50,7 +50,7 @@ export const ini_mat_layer = (viz_state) => {
 
 }
 
-const mat_layer_onclick = (event, d, deck_mat, layers_mat, viz_state) => {
+const mat_layer_onclick = (deck_mat, layers_mat, viz_state) => {
 
     if (viz_state.order.current === 'ini') {
         viz_state.order.current = 'clust'
@@ -84,7 +84,8 @@ const mat_layer_onclick = (event, d, deck_mat, layers_mat, viz_state) => {
 export const set_mat_layer_onclick = (deck_mat, layers_mat, viz_state) => {
 
     layers_mat.mat_layer = layers_mat.mat_layer.clone({
-        onClick: (event, d) =>  mat_layer_onclick(event, d, deck_mat, layers_mat, viz_state)
+        // not using event or d
+        onClick: () =>  mat_layer_onclick(deck_mat, layers_mat, viz_state)
     })
 
 }

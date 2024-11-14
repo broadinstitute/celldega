@@ -4,7 +4,7 @@ import { set_mat_constants } from '../matrix/set_constants.js';
 import { set_row_label_data, set_col_label_data } from '../matrix/label_data.js';
 import { set_row_cat_data, set_col_cat_data } from '../matrix/cat_data.js';
 import { ini_mat_layer, set_mat_layer_onclick } from '../deck-gl/matrix/mat_layer.js';
-import { ini_row_label_layer, ini_col_label_layer } from '../deck-gl/matrix/label_layers.js';
+import { ini_row_label_layer, ini_col_label_layer, set_row_label_layer_onclick } from '../deck-gl/matrix/label_layers.js';
 import { ini_row_cat_layer, ini_col_cat_layer } from '../deck-gl/matrix/cat_layers.js';
 import { get_layers_list, layer_filter } from '../deck-gl/matrix/matrix_layers.js'
 import { ini_views, ini_view_state } from '../deck-gl/matrix/views.js'
@@ -52,6 +52,7 @@ export const matrix_viz = async (
     const global_view_state = ini_view_state(viz_state)
 
     set_mat_layer_onclick(deck_mat, layers_mat, viz_state)
+    set_row_label_layer_onclick(deck_mat, layers_mat, viz_state)
 
     deck_mat.setProps({
         onViewStateChange: (params) => on_view_state_change(params, deck_mat, layers_mat, viz_state),

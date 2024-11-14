@@ -2,25 +2,37 @@ import { CustomMatrixLayer } from "./custom_matrix_layer";
 import * as d3 from 'd3'
 import { get_layers_list } from "./matrix_layers";
 
+// animation transition function
+// https://observablehq.com/@cornhundred/deck-gl-instanced-scatter-test
+const transitions = {
+    opacity: {
+        duration: 500,
+        easing: d3.easeCubic
+    },
+    getPosition: {
+        duration: 1000,
+        easing: d3.easeCubic
+    }
+}
+
+const mat_layer_get_position = (d, viz_state) => {
+
+    let pos_x = viz_state.viz.col_width * (d.col + 0.5)
+    let pos_y = viz_state.viz.row_offset * (d.row + 1.5)
+
+    const position = [pos_x, pos_y]
+
+    return position
+
+}
+
 export const ini_mat_layer = (viz_state) => {
 
-    // animation transition function
-    // https://observablehq.com/@cornhundred/deck-gl-instanced-scatter-test
-    const transitions = ({
-        opacity: {
-          duration: 500,
-          easing: d3.easeCubic
-        },
-        getPosition: {
-          duration: 1000,
-          easing: d3.easeCubic
-        }
-    })
 
     const mat_layer = new CustomMatrixLayer({
         id: 'mat-layer',
         data: viz_state.mat.mat_data,
-        getPosition: d => [d.position[0], d.position[1]],
+        getPosition: ( d ) => mat_layer_get_position(d, viz_state),
         // getPosition: d => [10, 10],
         getFillColor: d => d.color,
         pickable: true,

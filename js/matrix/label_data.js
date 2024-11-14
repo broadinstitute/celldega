@@ -1,7 +1,6 @@
 export const set_col_label_data = (network, viz_state) => {
 
     let col_label_data = []
-
     let col_label_offset = 35
 
     console.log(viz_state.zoom)
@@ -14,8 +13,12 @@ export const set_col_label_data = (network, viz_state) => {
         const p = {
             position: [
                 viz_state.viz.col_width * (index + 3/4),
-                (viz_state.viz.col_label_height/2  + col_label_offset + zoom_factor) * zoom_factor],
-            name: node.name
+                viz_state.viz.col_label_height/2  + col_label_offset],
+            name: node.name,
+            ini: node.ini,
+            clust: node.clust,
+            rank: node.rank,
+            rankvar: node.rankvar,
         };
         col_label_data.push(p);
     })
@@ -25,14 +28,21 @@ export const set_col_label_data = (network, viz_state) => {
 }
 
 export const set_row_label_data = (network, viz_state) => {
+
     let row_label_data = []
+    let row_offset = 10
+
     network.row_nodes.forEach((node, index) => {
         const p = {
             position: [
-                viz_state.viz.row_label_width / 2,
+                viz_state.viz.row_label_width / 2 + row_offset,
                 viz_state.viz.row_offset * (index + 1.5)
               ],
-            name: node.name
+            name: node.name,
+            ini: node.ini,
+            clust: node.clust,
+            rank: node.rank,
+            rankvar: node.rankvar,
         };
         row_label_data.push(p);
     })

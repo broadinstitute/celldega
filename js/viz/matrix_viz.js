@@ -21,19 +21,17 @@ export const matrix_viz = async (
     // token,
 ) => {
 
-    console.log('here??????????????')
-
     const root = document.createElement("div")
     let deck_mat = ini_deck(root)
 
     let viz_state = set_mat_constants(network, root, width, height)
-    set_mat_data(network, viz_state)
 
-    console.log('here')
+    console.log(network)
+
+    set_mat_data(network, viz_state)
 
     viz_state.labels = {}
 
-    console.log('ini_zoom_data')
     ini_zoom_data(viz_state)
 
     viz_state.labels.row_label_data = set_row_label_data(network, viz_state)
@@ -51,18 +49,9 @@ export const matrix_viz = async (
 
     ini_views(viz_state)
 
-
     const global_view_state = ini_view_state(viz_state)
 
-    console.log(viz_state)
-
-    console.log('layers_mat', layers_mat)
-
-
-
     set_mat_layer_onclick(deck_mat, layers_mat, viz_state)
-
-
 
     deck_mat.setProps({
         onViewStateChange: (params) => on_view_state_change(params, deck_mat, layers_mat, viz_state),

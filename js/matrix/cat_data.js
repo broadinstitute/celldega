@@ -31,8 +31,8 @@ export const set_row_cat_data = (network, viz_state) => {
 }
 
 export const set_col_cat_data = (network, viz_state) => {
-    const num_row_cats = 3
-    var num_points = viz_state.mat.num_rows * num_row_cats
+    const num_col_cats = 3
+    var num_points = viz_state.mat.num_cols * num_col_cats
 
     var index_row = 0
     let matrix_index = 0;

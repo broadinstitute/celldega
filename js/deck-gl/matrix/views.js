@@ -26,30 +26,45 @@ export const ini_views = (viz_state) => {
     const views_list = [
 
         new OrthographicView({
-          id: 'matrix',
-          x: ( viz_state.viz.row_region + viz_state.viz.label_buffer) + 'px',
-          y: ( viz_state.viz.col_region + viz_state.viz.label_buffer) + 'px',
-          width: viz_state.viz.mat_width + 'px',
-          height: viz_state.viz.mat_height + 'px',
-          controller: {scrollZoom: true, inertia: false, zoomAxis: viz_state.zoom.major_zoom_axis},
+            id: 'matrix',
+            x: ( viz_state.viz.row_region + viz_state.viz.label_buffer) + 'px',
+            y: ( viz_state.viz.col_region + viz_state.viz.label_buffer) + 'px',
+            width: viz_state.viz.mat_width + 'px',
+            height: viz_state.viz.mat_height + 'px',
+            controller: {
+                scrollZoom: true,
+                inertia: true,
+                zoomAxis: viz_state.zoom.major_zoom_axis,
+                doubleClickZoom: false
+            },
         }),
 
         new OrthographicView({
-          id: 'rows',
-          x: '0px',
-          y: (viz_state.viz.col_region + viz_state.viz.label_buffer) + 'px',
-          width: viz_state.viz.row_region + 'px',
-          height: viz_state.viz.mat_height + 'px',
-          controller: {scrollZoom: true, inertia: false, zoomAxis: viz_state.zoom.major_zoom_axis},
+            id: 'rows',
+            x: '0px',
+            y: (viz_state.viz.col_region + viz_state.viz.label_buffer) + 'px',
+            width: viz_state.viz.row_region + 'px',
+            height: viz_state.viz.mat_height + 'px',
+            controller: {
+                scrollZoom: true,
+                inertia: false,
+                zoomAxis: viz_state.zoom.major_zoom_axis,
+                doubleClickZoom: false
+            },
         }),
 
         new OrthographicView({
-          id: 'cols',
-          x: (viz_state.viz.row_region + viz_state.viz.label_buffer) + 'px',
-          y: '0px',
-          width: viz_state.viz.mat_width + 'px',
-          height: viz_state.viz.col_region + 'px',
-          controller: {scrollZoom: true, inertia: false, zoomAxis: viz_state.zoom.major_zoom_axis},
+            id: 'cols',
+            x: (viz_state.viz.row_region + viz_state.viz.label_buffer) + 'px',
+            y: '0px',
+            width: viz_state.viz.mat_width + 'px',
+            height: viz_state.viz.col_region + 'px',
+            controller: {
+                scrollZoom: true,
+                inertia: false,
+                zoomAxis: viz_state.zoom.major_zoom_axis,
+                doubleClickZoom: false
+            },
         }),
 
     ]

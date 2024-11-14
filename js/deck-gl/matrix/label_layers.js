@@ -129,9 +129,24 @@ export const ini_col_label_layer = (viz_state) => {
 
 }
 
+
+const DOUBLE_CLICK_DELAY = 250;
+
 const row_label_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
 
-    console.log('clicking: ', event.object.name)
+    viz_state.labels.clicks.row += 1;
+
+    if (viz_state.labels.clicks.row === 1) {
+        console.log('clicking: ', event.object.name)
+
+        setTimeout(() => {
+            viz_state.labels.clicks.row = 0
+        }, DOUBLE_CLICK_DELAY)
+
+    } else if (viz_state.labels.clicks.row === 2) {
+        console.log('double click!!!!!!!')
+        viz_state.labels.clicks.row = 0
+    }
 
     // deck_mat.setProps({layers: get_layers_list(layers_mat)})
 

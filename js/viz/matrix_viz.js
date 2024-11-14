@@ -32,6 +32,8 @@ export const matrix_viz = async (
 
     viz_state.labels = {}
 
+    viz_state.labels.clicks = {}
+
     ini_zoom_data(viz_state)
 
     set_row_label_data(network, viz_state)

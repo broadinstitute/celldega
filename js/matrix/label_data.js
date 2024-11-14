@@ -19,6 +19,8 @@ export const set_col_label_data = (network, viz_state) => {
 
     viz_state.labels.col_label_data = col_label_data
 
+    viz_state.labels.clicks.col = 0
+
     viz_state.mat.col_orders = {}
     viz_state.mat.col_orders.ini = col_label_data.map(d => d.ini)
     viz_state.mat.col_orders.clust = col_label_data.map(d => d.clust)
@@ -43,6 +45,7 @@ export const set_row_label_data = (network, viz_state) => {
     })
 
     viz_state.labels.row_label_data = row_label_data
+    viz_state.labels.clicks.row = 0
 
     viz_state.mat.row_orders = {}
     viz_state.mat.row_orders.ini = row_label_data.map(d => d.ini)

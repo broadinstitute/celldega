@@ -25,6 +25,8 @@ export const set_mat_constants = (network, root, width, height) => {
     viz_state.mat.num_rows = network.mat.length
     viz_state.mat.num_cols = network.mat[0].length
 
+    viz_state.mat.net_mat = network.mat
+
     viz_state.viz.base_font_size = 125
 
     viz_state.viz.col_label = 75 // 40
@@ -102,6 +104,7 @@ export const set_mat_constants = (network, root, width, height) => {
     viz_state.order.current.cols = 'ini'
 
     viz_state.order.new = 'ini'
+
 
 
     return viz_state

@@ -1,5 +1,6 @@
 export const set_mat_data = (network, viz_state) => {
 
+
     // Iterate over each row and column in network.mat
     let inst_color
     network.mat.forEach((rowArray, index_row) => {

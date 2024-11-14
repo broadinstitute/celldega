@@ -36,6 +36,8 @@ export const matrix_viz = async (
 
     ini_zoom_data(viz_state)
 
+    viz_state.mat.orders = {}
+
     set_row_label_data(network, viz_state)
     set_col_label_data(network, viz_state)
 

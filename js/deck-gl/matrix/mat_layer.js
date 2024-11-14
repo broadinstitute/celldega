@@ -14,8 +14,8 @@ const mat_layer_get_position = (d, viz_state) => {
         index_offset = 1
     }
 
-    let inst_row_index = viz_state.mat.num_cols - viz_state.mat.col_orders[inst_order_rows][d.col] - index_offset
-    let inst_col_index = viz_state.mat.num_rows - viz_state.mat.row_orders[inst_order_cols][d.row] - index_offset
+    let inst_row_index = viz_state.mat.num_cols - viz_state.mat.orders.col[inst_order_rows][d.col] - index_offset
+    let inst_col_index = viz_state.mat.num_rows - viz_state.mat.orders.row[inst_order_cols][d.row] - index_offset
 
     let pos_x = viz_state.viz.col_width * (inst_row_index + 0.5)
     let pos_y = viz_state.viz.row_offset * (inst_col_index + 1.5)

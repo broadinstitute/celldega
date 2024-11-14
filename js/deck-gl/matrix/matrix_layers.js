@@ -14,7 +14,7 @@ export const get_layers_list = (layers_mat) => {
 
 export const layer_filter = ({layer, viewport}) => {
 
-    if (viewport.id === 'matrix' && layer.id === 'mat-layer'){
+    if (viewport.id === 'matrix' && layer.id.includes('mat-layer')){
         return true
     } else if (viewport.id === 'rows' && layer.id === 'row-layer'){
         return true

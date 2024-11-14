@@ -27,13 +27,7 @@ const mat_layer_get_position = (d, viz_state) => {
 
 export const ini_mat_layer = (viz_state) => {
 
-    // animation transition function
-    // https://observablehq.com/@cornhundred/deck-gl-instanced-scatter-test
     const transitions = {
-        // opacity: {
-        //     duration: 500,
-        //     easing: d3.easeCubic
-        // },
         getPosition: {
             duration: viz_state.animate.duration,
             easing: d3.easeCubic
@@ -66,6 +60,18 @@ const mat_layer_onclick = (event, d, deck_mat, layers_mat, viz_state) => {
     }
 
     layers_mat.mat_layer = layers_mat.mat_layer.clone({
+        updateTriggers: {
+            getPosition: viz_state.order.current
+        }
+    })
+
+    layers_mat.row_label_layer = layers_mat.row_label_layer.clone({
+        updateTriggers: {
+            getPosition: viz_state.order.current
+        }
+    })
+
+    layers_mat.col_label_layer = layers_mat.col_label_layer.clone({
         updateTriggers: {
             getPosition: viz_state.order.current
         }

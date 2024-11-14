@@ -3,16 +3,14 @@ export const set_row_cat_data = (network, viz_state) => {
     var index_row = 0
     let matrix_index = 0;
 
-    const num_row_cats = 3
-
-    var num_points = viz_state.mat.num_rows * num_row_cats
+    var num_points = viz_state.mat.num_rows * viz_state.cats.num_cats.row
 
     const row_cat_data =  new Array(num_points).fill(0).map( () => {
 
-        var index_col = matrix_index % num_row_cats
+        var index_col = matrix_index % viz_state.cats.num_cats.row
 
-        if (matrix_index % num_row_cats === 0){
-        index_row += 1;
+        if (matrix_index % viz_state.cats.num_cats.row === 0){
+            index_row += 1;
         }
 
         const p = {
@@ -31,8 +29,8 @@ export const set_row_cat_data = (network, viz_state) => {
 }
 
 export const set_col_cat_data = (network, viz_state) => {
-    const num_col_cats = 3
-    var num_points = viz_state.mat.num_cols * num_col_cats
+
+    var num_points = viz_state.mat.num_cols * viz_state.cats.num_cats.col
 
     var index_row = 0
     let matrix_index = 0;
@@ -42,7 +40,7 @@ export const set_col_cat_data = (network, viz_state) => {
         var index_col = matrix_index % viz_state.mat.num_cols
 
         if (matrix_index % viz_state.mat.num_cols === 0){
-        index_row += 1;
+            index_row += 1;
         }
 
         const p = {

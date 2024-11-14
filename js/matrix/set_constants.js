@@ -40,7 +40,9 @@ export const set_mat_constants = (network, root, width, height) => {
     viz_state.viz.row_cat_offset = 10
 
     viz_state.cats = {}
-    viz_state.cats.num_cats_col = 2
+    viz_state.cats.num_cats = {}
+    viz_state.cats.num_cats.row = 3
+    viz_state.cats.num_cats.col = 3
 
     // height of column category bars
     viz_state.viz.col_cat_offset = 10
@@ -64,7 +66,7 @@ export const set_mat_constants = (network, root, width, height) => {
     viz_state.viz.font_size.rows = viz_state.viz.base_font_size / viz_state.mat.num_rows
     viz_state.viz.font_size.cols = viz_state.viz.base_font_size / viz_state.mat.num_cols
 
-    viz_state.viz.col_region_height = viz_state.viz.col_cat_height * viz_state.cats.num_cats_col + viz_state.viz.col_label_height + viz_state.viz.extra_height_col
+    viz_state.viz.col_region_height = viz_state.viz.col_cat_height * viz_state.cats.num_cats.col + viz_state.viz.col_label_height + viz_state.viz.extra_height_col
     viz_state.viz.col_width = viz_state.viz.mat_width/viz_state.mat.num_cols
     viz_state.viz.row_offset = viz_state.viz.mat_height/viz_state.mat.num_rows
     viz_state.viz.col_offset = viz_state.viz.mat_width/viz_state.mat.num_cols

@@ -34,8 +34,8 @@ export const matrix_viz = async (
 
     ini_zoom_data(viz_state)
 
-    viz_state.labels.row_label_data = set_row_label_data(network, viz_state)
-    viz_state.labels.col_label_data = set_col_label_data(network, viz_state)
+    set_row_label_data(network, viz_state)
+    set_col_label_data(network, viz_state)
 
     viz_state.cats.row_cat_data = set_row_cat_data(network, viz_state)
     viz_state.cats.col_cat_data = set_col_cat_data(network, viz_state)

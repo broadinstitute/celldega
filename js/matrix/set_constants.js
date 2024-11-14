@@ -13,8 +13,8 @@ export const set_mat_constants = (network, root, width, height) => {
 
     viz_state.cats = {}
     viz_state.cats.num_cats = {}
-    viz_state.cats.num_cats.row = 1
-    viz_state.cats.num_cats.col = 1
+    viz_state.cats.num_cats.row = 0
+    viz_state.cats.num_cats.col = 2
 
     viz_state.root.style.height =  ( height + viz_state.viz.height_margin ) + "px"
 
@@ -27,8 +27,8 @@ export const set_mat_constants = (network, root, width, height) => {
 
     viz_state.viz.base_font_size = 125
 
-    viz_state.viz.col_label_height = 35 // 40
-    viz_state.viz.row_label_width = 35
+    viz_state.viz.col_label = 75 // 40
+    viz_state.viz.row_label = 75 // 35
 
     viz_state.viz.extra_space = {}
     viz_state.viz.extra_space.row = 10
@@ -42,17 +42,16 @@ export const set_mat_constants = (network, root, width, height) => {
     viz_state.viz.row_cat_width = 9
     viz_state.viz.col_cat_height = 9
 
-    // width of row category bars
     viz_state.viz.row_cat_offset = 10
-
-
 
     // height of column category bars
     viz_state.viz.col_cat_offset = 10
 
-    // position the cats
-    viz_state.viz.label_row_x = 15
-    viz_state.viz.label_col_y = 40 // 25
+    // move rows labels left
+    viz_state.viz.label_row_x = 15 // 15
+
+    // move col labels up
+    viz_state.viz.label_col_y = 25
 
     viz_state.viz.cat_shift_row = 30
 
@@ -69,18 +68,18 @@ export const set_mat_constants = (network, root, width, height) => {
     viz_state.viz.font_size.rows = viz_state.viz.base_font_size / viz_state.mat.num_rows
     viz_state.viz.font_size.cols = viz_state.viz.base_font_size / viz_state.mat.num_cols
 
-    viz_state.viz.col_region_height = (viz_state.viz.col_cat_height + viz_state.viz.extra_space.col) * viz_state.cats.num_cats.col
-                                      + viz_state.viz.col_label_height
+    viz_state.viz.col_region = (viz_state.viz.col_cat_height + viz_state.viz.extra_space.col) * viz_state.cats.num_cats.col
+                                      + viz_state.viz.col_label
 
-    viz_state.viz.row_region_width = (viz_state.viz.row_cat_width + viz_state.viz.extra_space.row) * viz_state.cats.num_cats.row
-                                     + viz_state.viz.row_label_width
+    viz_state.viz.row_region = (viz_state.viz.row_cat_width + viz_state.viz.extra_space.row) * viz_state.cats.num_cats.row
+                                     + viz_state.viz.row_label
 
     viz_state.viz.col_width = viz_state.viz.mat_width/viz_state.mat.num_cols
     viz_state.viz.row_offset = viz_state.viz.mat_height/viz_state.mat.num_rows
     viz_state.viz.col_offset = viz_state.viz.mat_width/viz_state.mat.num_cols
 
     // column category positioning
-    viz_state.viz.cat_shift_col = viz_state.viz.col_label_height // + viz_state.viz.extra_space.col
+    viz_state.viz.cat_shift_col = viz_state.viz.col_label // + viz_state.viz.extra_space.col
     viz_state.zoom.ini_pan_x = viz_state.viz.mat_width/2
 
     // not sure why I need to add row_offset?

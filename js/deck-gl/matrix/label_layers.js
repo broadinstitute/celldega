@@ -5,7 +5,7 @@ const row_label_get_position = (d, index, viz_state) => {
 
     const inst_index = index.index
     const inst_order = viz_state.order.current
-    const row_offset = 25
+    const row_offset = 50 // 25
 
     let index_offset
     if (inst_order === 'ini') {

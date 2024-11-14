@@ -5,7 +5,7 @@ import { get_layers_list } from "./matrix_layers"
 const row_label_get_position = (d, index, viz_state) => {
 
     const inst_index = index.index
-    const inst_order = viz_state.order.current.rows
+    const inst_order = viz_state.order.current.row
     const row_offset = 50 // 25
 
     let index_offset
@@ -14,6 +14,7 @@ const row_label_get_position = (d, index, viz_state) => {
     } else {
         index_offset = 1
     }
+
 
     let inst_row_index = viz_state.mat.num_rows - viz_state.mat.orders.row[inst_order][inst_index] - index_offset
 
@@ -30,7 +31,7 @@ const row_label_get_position = (d, index, viz_state) => {
 const col_label_get_position = (d, index, viz_state) => {
 
     const inst_index = index.index
-    const inst_order = viz_state.order.current.cols
+    const inst_order = viz_state.order.current.col
     const col_offset = 50
 
     let index_offset
@@ -160,19 +161,19 @@ const custom_label_reorder = (deck_mat, layers_mat, viz_state, axis, index) => {
 
     layers_mat.mat_layer = layers_mat.mat_layer.clone({
         updateTriggers: {
-            getPosition: [viz_state.order.current.rows, viz_state.order.current.cols]
+            getPosition: [viz_state.order.current.row, viz_state.order.current.col]
         }
     })
 
     // layers_mat.row_label_layer = layers_mat.row_label_layer.clone({
     //     updateTriggers: {
-    //         getPosition: viz_state.order.current.rows
+    //         getPosition: viz_state.order.current.row
     //     }
     // })
 
     // layers_mat.col_label_layer = layers_mat.col_label_layer.clone({
     //     updateTriggers: {
-    //         getPosition: viz_state.order.current.cols
+    //         getPosition: viz_state.order.current.col
     //     }
     // })
 

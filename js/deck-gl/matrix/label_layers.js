@@ -64,7 +64,7 @@ export const ini_row_label_layer = (viz_state) => {
         data: viz_state.labels.row_label_data,
         getPosition: (d, index) => row_label_get_position(d, index, viz_state),
         getText: d => d.name,
-        getSize: viz_state.viz.inst_font_size,
+        getSize: viz_state.viz.font_size.rows,
         getColor: [0, 0, 0],
         getAngle: 0,
         getTextAnchor: 'end',
@@ -72,9 +72,9 @@ export const ini_row_label_layer = (viz_state) => {
         fontFamily: 'Arial',
         sizeUnits: 'pixels',
         sizeScale: 2,
-        updateTriggers: {
-          getSize: viz_state.viz.inst_font_size,
-        },
+        // updateTriggers: {
+        //   getSize: viz_state.viz.ini_font_size,
+        // },
         pickable: true,
         transitions: transitions,
     })
@@ -106,7 +106,7 @@ export const ini_col_label_layer = (viz_state) => {
         data: viz_state.labels.col_label_data,
         getPosition: (d, index) => col_label_get_position(d, index, viz_state),
         getText: d => d.name,
-        getSize: viz_state.viz.inst_font_size,
+        getSize: viz_state.viz.font_size.cols,
         getColor: [0, 0, 0],
         getAngle: 45, // Optional: Text angle in degrees
         getTextAnchor: 'start', // middle
@@ -114,11 +114,11 @@ export const ini_col_label_layer = (viz_state) => {
         fontFamily: 'Arial',
         sizeUnits: 'pixels',
         sizeScale: 2,
-        updateTriggers: {
-          getSize: viz_state.viz.inst_font_size,
-          getPosition: viz_state.viz.inst_font_size,
-          getPixelOffset: viz_state.zoom.zoom_data.matrix.zoom_x,
-        },
+        // updateTriggers: {
+        // //   getSize: viz_state.viz.ini_font_size,
+        //   getPosition: viz_state.viz.font_size,
+        //   getPixelOffset: viz_state.zoom.zoom_data.matrix.zoom_x,
+        // },
         pickable: true,
         transitions: transitions,
         getPixelOffset: () => getPixelOffset(viz_state.zoom.zoom_data.matrix.zoom_x, viz_state.mat.num_cols),

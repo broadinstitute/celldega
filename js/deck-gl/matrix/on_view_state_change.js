@@ -112,15 +112,12 @@ export const on_view_state_change = (params, deck_mat, layers_mat, viz_state) =>
         zoom_factor = Math.pow(2, viz_state.zoom.zoom_data.matrix.zoom_x)
     }
 
-    viz_state.viz.inst_font_size = viz_state.viz.ini_font_size * zoom_factor
-
     layers_mat.row_label_layer = layers_mat.row_label_layer.clone({
-        getSize: viz_state.viz.ini_font_size * Math.pow(2, viz_state.zoom.zoom_data.matrix.zoom_y),
+        getSize: viz_state.viz.font_size.rows * Math.pow(2, viz_state.zoom.zoom_data.matrix.zoom_y),
     })
 
     layers_mat.col_label_layer = layers_mat.col_label_layer.clone({
-        // getSize: viz_state.viz.inst_font_size,
-        getSize: viz_state.viz.ini_font_size * Math.pow(2, viz_state.zoom.zoom_data.matrix.zoom_x),
+        getSize: viz_state.viz.font_size.cols * Math.pow(2, viz_state.zoom.zoom_data.matrix.zoom_x),
         updateTriggers: {
             getPixelOffset: viz_state.zoom.zoom_data.matrix.zoom_x
         }

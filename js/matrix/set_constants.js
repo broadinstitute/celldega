@@ -82,6 +82,12 @@ export const set_mat_constants = (network, root, width, height) => {
 
     viz_state.mat.max_abs_value = network.mat.flat().reduce((max, num) => Math.max(max, Math.abs(num)), -Infinity);
 
+    viz_state.order = {}
+
+    viz_state.order.current = 'ini'
+    viz_state.order.new = 'ini'
+
+
     return viz_state
 
 }

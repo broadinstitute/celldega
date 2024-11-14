@@ -11,9 +11,9 @@ export const set_col_label_data = (network, viz_state) => {
 
     network.col_nodes.forEach((node, index) => {
         const p = {
-            position: [
-                viz_state.viz.col_width * (index + 3/4),
-                viz_state.viz.col_label_height/2  + col_label_offset],
+            // position: [
+            //     viz_state.viz.col_width * (index + 3/4),
+            //     viz_state.viz.col_label_height/2  + col_label_offset],
             name: node.name,
             ini: node.ini,
             clust: node.clust,
@@ -40,10 +40,10 @@ export const set_row_label_data = (network, viz_state) => {
 
     network.row_nodes.forEach((node, index) => {
         const p = {
-            position: [
-                viz_state.viz.row_label_width / 2 + row_offset,
-                viz_state.viz.row_offset * (index + 1.5)
-              ],
+            // position: [
+            //     viz_state.viz.row_label_width / 2 + row_offset,
+            //     viz_state.viz.row_offset * (index + 1.5)
+            //   ],
             name: node.name,
             ini: node.ini,
             clust: node.clust,

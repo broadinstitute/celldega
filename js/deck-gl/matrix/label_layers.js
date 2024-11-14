@@ -1,5 +1,6 @@
 import { TextLayer } from "deck.gl"
 import * as d3 from 'd3'
+import { get_layers_list } from "./matrix_layers"
 
 const row_label_get_position = (d, index, viz_state) => {
 
@@ -131,7 +132,7 @@ export const ini_col_label_layer = (viz_state) => {
 
 const DOUBLE_CLICK_DELAY = 250;
 
-const custom_label_reorder = (viz_state, axis, index) => {
+const custom_label_reorder = (deck_mat, layers_mat, viz_state, axis, index) => {
 
     console.log(viz_state.mat.net_mat)
 
@@ -148,7 +149,39 @@ const custom_label_reorder = (viz_state, axis, index) => {
 
     console.log(tmp_sort)
 
-    console.log(viz_state.mat.orders.col.clust)
+    console.log(viz_state.mat.orders[other_axis].clust)
+
+    viz_state.mat.orders[other_axis].custom = tmp_sort
+
+    viz_state.order.current[other_axis] = 'custom'
+
+    console.log(viz_state.order.current)
+
+
+    layers_mat.mat_layer = layers_mat.mat_layer.clone({
+        updateTriggers: {
+            getPosition: [viz_state.order.current.rows, viz_state.order.current.cols]
+        }
+    })
+
+    // layers_mat.row_label_layer = layers_mat.row_label_layer.clone({
+    //     updateTriggers: {
+    //         getPosition: viz_state.order.current.rows
+    //     }
+    // })
+
+    // layers_mat.col_label_layer = layers_mat.col_label_layer.clone({
+    //     updateTriggers: {
+    //         getPosition: viz_state.order.current.cols
+    //     }
+    // })
+
+    deck_mat.setProps({
+        layers: get_layers_list(layers_mat),
+    })
+
+    console.log('here!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+
 
 }
 
@@ -167,7 +200,7 @@ const row_label_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
         console.log('double click!!!!!!!')
         viz_state.labels.clicks.row = 0
 
-        custom_label_reorder(viz_state, 'row', event.object.index)
+        custom_label_reorder(deck_mat, layers_mat, viz_state, 'row', event.object.index)
     }
 
     // deck_mat.setProps({layers: get_layers_list(layers_mat)})

@@ -44,7 +44,7 @@ export const set_col_cat_data = (network, viz_state) => {
         }
 
         const p = {
-            position: [viz_state.viz.col_offset * (index_col + 0.5), viz_state.viz.col_cat_offset * (index_row + 0.5)],
+            position: [viz_state.viz.col_offset * (index_col + 0.5), viz_state.viz.col_cat_offset * (index_row + 1.5) ],
             color: [0, 255, 0, 150],
             name: 'some column ' + index_col,
         };

@@ -1,13 +1,12 @@
 export const set_col_label_data = (network, viz_state) => {
 
     let col_label_data = []
-    let col_label_offset = 35
 
     console.log(viz_state.zoom)
 
     // let zoom_factor = Math.pow(2, viz_state.zoom.zoom_data.rows.zoom_x)
 
-    network.col_nodes.forEach((node, index) => {
+    network.col_nodes.forEach((node) => {
         const p = {
             name: node.name,
             ini: node.ini,
@@ -31,9 +30,8 @@ export const set_col_label_data = (network, viz_state) => {
 export const set_row_label_data = (network, viz_state) => {
 
     let row_label_data = []
-    let row_offset = 10
 
-    network.row_nodes.forEach((node, index) => {
+    network.row_nodes.forEach((node) => {
         const p = {
             name: node.name,
             ini: node.ini,

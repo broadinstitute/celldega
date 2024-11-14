@@ -14,7 +14,7 @@ export const set_mat_constants = (network, root, width, height) => {
     viz_state.cats = {}
     viz_state.cats.num_cats = {}
     viz_state.cats.num_cats.row = 0
-    viz_state.cats.num_cats.col = 2
+    viz_state.cats.num_cats.col = 0
 
     viz_state.root.style.height =  ( height + viz_state.viz.height_margin ) + "px"
 

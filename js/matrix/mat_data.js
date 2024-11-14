@@ -16,7 +16,7 @@ export const set_mat_data = (network, viz_state) => {
                     viz_state.viz.col_offset * (index_col + 0.5),
                     viz_state.viz.row_offset * (index_row + 1.5)
                 ],
-                color: [inst_color[0], inst_color[1], inst_color[2], 255 * tile_value / viz_state.mat.max_abs_value],
+                color: [inst_color[0], inst_color[1], inst_color[2], 255 * Math.abs(tile_value) / viz_state.mat.max_abs_value],
                 value: tile_value,
                 row: index_row,
                 col: index_col,

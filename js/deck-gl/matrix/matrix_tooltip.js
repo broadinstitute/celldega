@@ -33,7 +33,7 @@ export const get_tooltip = ({object, layer}) => {
       else if (layer.id === 'mat-layer') {
         // Display the default tooltip for other layers
         return {
-          html: `Row: ${object.row} <br> Column: ${object.col}`,
+          html: `Row: ${object.row} <br> Column: ${object.col} <br> Value: ${object.value.toFixed(2)}`,
           style: {color: "white"},
         };
       }

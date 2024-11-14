@@ -38,7 +38,6 @@ export const ini_mat_layer = (viz_state) => {
         id: 'mat-layer',
         data: viz_state.mat.mat_data,
         getPosition: ( d ) => mat_layer_get_position(d, viz_state),
-        // getPosition: d => [10, 10],
         getFillColor: d => d.color,
         pickable: true,
         antialiasing: false,

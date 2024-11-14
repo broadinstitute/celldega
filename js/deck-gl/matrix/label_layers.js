@@ -134,7 +134,7 @@ const DOUBLE_CLICK_DELAY = 250;
 
 const row_label_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
 
-    viz_state.labels.clicks.row += 1;
+    viz_state.labels.clicks.row += 1
 
     if (viz_state.labels.clicks.row === 1) {
         console.log('clicking: ', event.object.name)
@@ -153,6 +153,20 @@ const row_label_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
 }
 
 const col_label_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
+
+    viz_state.labels.clicks.col += 1
+
+    if (viz_state.labels.clicks.col === 1) {
+        console.log('clicking: ', event.object.name)
+
+        setTimeout(() => {
+            viz_state.labels.clicks.col = 0
+        }, DOUBLE_CLICK_DELAY)
+
+    } else if (viz_state.labels.clicks.col === 2) {
+        console.log('double click!!!!!!!')
+        viz_state.labels.clicks.col = 0
+    }
 
     console.log('clicking: ', event.object.name)
 

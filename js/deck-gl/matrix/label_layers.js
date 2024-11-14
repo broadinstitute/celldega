@@ -137,10 +137,26 @@ const row_label_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
 
 }
 
+const col_label_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
+
+    console.log('clicking: ', event.object.name)
+
+    // deck_mat.setProps({layers: get_layers_list(layers_mat)})
+
+}
+
 export const set_row_label_layer_onclick = (deck_mat, layers_mat, viz_state) => {
 
     layers_mat.row_label_layer = layers_mat.row_label_layer.clone({
         onClick: (event) => row_label_layer_onclick(event, deck_mat, layers_mat, viz_state)
+    })
+
+}
+
+export const set_col_label_layer_onclick = (deck_mat, layers_mat, viz_state) => {
+
+    layers_mat.col_label_layer = layers_mat.col_label_layer.clone({
+        onClick: (event) => col_label_layer_onclick(event, deck_mat, layers_mat, viz_state)
     })
 
 }

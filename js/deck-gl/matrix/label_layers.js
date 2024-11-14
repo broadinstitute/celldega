@@ -1,11 +1,10 @@
 import { TextLayer } from "deck.gl"
 import * as d3 from 'd3'
-import { get_layers_list } from "../layers_ist"
 
 const row_label_get_position = (d, index, viz_state) => {
 
     const inst_index = index.index
-    const inst_order = viz_state.order.current
+    const inst_order = viz_state.order.current.rows
     const row_offset = 50 // 25
 
     let index_offset
@@ -30,7 +29,7 @@ const row_label_get_position = (d, index, viz_state) => {
 const col_label_get_position = (d, index, viz_state) => {
 
     const inst_index = index.index
-    const inst_order = viz_state.order.current
+    const inst_order = viz_state.order.current.cols
     const col_offset = 50
 
     let index_offset
@@ -167,8 +166,6 @@ const col_label_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
         console.log('double click!!!!!!!')
         viz_state.labels.clicks.col = 0
     }
-
-    console.log('clicking: ', event.object.name)
 
     // deck_mat.setProps({layers: get_layers_list(layers_mat)})
 

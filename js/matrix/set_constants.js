@@ -97,7 +97,10 @@ export const set_mat_constants = (network, root, width, height) => {
 
     viz_state.order = {}
 
-    viz_state.order.current = 'ini'
+    viz_state.order.current = {}
+    viz_state.order.current.rows = 'ini'
+    viz_state.order.current.cols = 'ini'
+
     viz_state.order.new = 'ini'
 
 

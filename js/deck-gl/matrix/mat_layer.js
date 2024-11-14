@@ -1,5 +1,6 @@
 import { CustomMatrixLayer } from "./custom_matrix_layer";
 import * as d3 from 'd3'
+import { get_layers_list } from "./matrix_layers";
 
 export const ini_mat_layer = (viz_state) => {
 
@@ -35,5 +36,35 @@ export const ini_mat_layer = (viz_state) => {
     })
 
     return mat_layer
+
+}
+
+const mat_layer_onclick = (event, d, deck_mat, layers_mat, viz_state) => {
+
+    console.log('here!!!!!!!!!!!')
+    console.log(event, d)
+
+    console.log(viz_state.mat.mat_data)
+
+    layers_mat.mat_layer = layers_mat.mat_layer.clone({
+        opacity: 0.5,
+        getPosition: d => [d.position[1], d.position[0]],
+        updateTriggers: {
+            getPosition: event // Math.random() // Change to force re-evaluation
+        }
+    })
+
+    deck_mat.setProps({
+        layers: get_layers_list(layers_mat),
+    })
+}
+
+export const set_mat_layer_onclick = (deck_mat, layers_mat, viz_state) => {
+
+    console.log('set_mat_layer_onclick')
+
+    layers_mat.mat_layer = layers_mat.mat_layer.clone({
+        onClick: (event, d) =>  mat_layer_onclick(event, d, deck_mat, layers_mat, viz_state)
+    })
 
 }

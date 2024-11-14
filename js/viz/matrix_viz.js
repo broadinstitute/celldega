@@ -3,7 +3,7 @@ import { set_mat_data } from '../matrix/mat_data.js';
 import { set_mat_constants } from '../matrix/set_constants.js';
 import { set_row_label_data, set_col_label_data } from '../matrix/label_data.js';
 import { set_row_cat_data, set_col_cat_data } from '../matrix/cat_data.js';
-import { ini_mat_layer } from '../deck-gl/matrix/mat_layer.js';
+import { ini_mat_layer, set_mat_layer_onclick } from '../deck-gl/matrix/mat_layer.js';
 import { ini_row_label_layer, ini_col_label_layer } from '../deck-gl/matrix/label_layers.js';
 import { ini_row_cat_layer, ini_col_cat_layer } from '../deck-gl/matrix/cat_layers.js';
 import { get_layers_list, layer_filter } from '../deck-gl/matrix/matrix_layers.js'
@@ -58,26 +58,10 @@ export const matrix_viz = async (
 
     console.log('layers_mat', layers_mat)
 
-    layers_mat.mat_layer = layers_mat.mat_layer.clone({
-        onClick: (event, d) => {
-            console.log('here!!!!!!!!!!!')
-            console.log(event, d)
 
-            console.log(viz_state.mat.mat_data)
 
-            layers_mat.mat_layer = layers_mat.mat_layer.clone({
-                opacity: 0.5,
-                // getPosition: d => [d.position[1], d.position[0]],
-                updateTriggers: {
-                    getPosition: event // Math.random() // Change to force re-evaluation
-                }
-            })
+    set_mat_layer_onclick(deck_mat, layers_mat, viz_state)
 
-            deck_mat.setProps({
-                layers: get_layers_list(layers_mat),
-            })
-        }
-    })
 
 
     deck_mat.setProps({

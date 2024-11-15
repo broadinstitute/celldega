@@ -74,13 +74,11 @@ export const make_reorder_button = (container, text, active, width=40, button_cl
         color = viz_state.buttons.gray
     }
 
-
     // make text all caps
     text = text.toUpperCase()
 
     d3.select(container)
         .append('div')
-        // .attr('class', button_class)
         .classed(button_class, true)
         .classed('active', active)
         .text(text)

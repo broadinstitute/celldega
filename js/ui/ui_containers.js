@@ -69,14 +69,43 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
 
     const button_width = 33
 
+    // let axis = 'row'
 
+    const axes = ['row', 'col']
 
-    let axis = 'row'
+    const inst_orders = ['clust', 'sum', 'var', 'ini']
 
-    make_reorder_button(ctrl_container, 'clust', true, button_width, 'button-' + axis, deck_mat, layers_mat, viz_state)
-    make_reorder_button(ctrl_container, 'sum', false, button_width, 'button-' + axis, deck_mat, layers_mat, viz_state)
-    make_reorder_button(ctrl_container, 'var', false, button_width, 'button-' + axis, deck_mat, layers_mat, viz_state)
-    make_reorder_button(ctrl_container, 'ini', false, button_width, 'button-' + axis, deck_mat, layers_mat, viz_state)
+    axes.forEach(axis => {
+
+        console.log(axis)
+
+        d3.select(ctrl_container)
+            .append('div')
+            .text(axis.toUpperCase())
+            .style('width', button_width + 'px')
+            .style('height', '20px')  // Adjust height for button padding
+            .style('display', 'inline-flex')
+            .style('align-items', 'center')
+            .style('justify-content', 'center')
+            .style('text-align', 'center')
+            .style('cursor', 'pointer')
+            .style('font-size', '12px')
+            .style('font-weight', 'bold')
+            .style('color', '#47515b')
+            .style('border', '3px solid')  // Light gray border
+            .style('border-color', 'white')  // Light gray border
+            .style('border-radius', '12px')  // Rounded corners
+            .style('margin-top', '5px')
+            .style('margin-left', '5px')
+            .style('padding', '4px 10px')  // Padding inside the button
+            .style('user-select', 'none')
+            .style('font-family', '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif')
+
+        inst_orders.forEach((label, index) => {
+            const isClust = label === 'clust';
+            make_reorder_button(ctrl_container, label, isClust, button_width, 'button-' + axis, deck_mat, layers_mat, viz_state);
+        });
+    })
 
     ui_container.appendChild(ctrl_container)
 

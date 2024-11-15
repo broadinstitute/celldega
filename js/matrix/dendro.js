@@ -52,7 +52,6 @@ export const alt_slice_linkage = (viz_state, axis, dist_thresh) => {
 
     })
 
-    console.log(group_dict)
 
     // // making dictionary of lists of clusters
     // {
@@ -80,7 +79,7 @@ export const alt_slice_linkage = (viz_state, axis, dist_thresh) => {
         x.group_links = flat_group_dict[i]
     })
 
-    console.log(group_dict)
-    console.log(flat_group_dict)
+    // console.log(group_dict)
+    // console.log(flat_group_dict)
 
 }

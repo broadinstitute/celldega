@@ -8,6 +8,9 @@ export const set_mat_constants = (network, root, width, height) => {
 
     viz_state.root = root
 
+    console.log('root')
+    console.log(root)
+
     viz_state.viz = {}
     viz_state.viz.height_margin = 100
 
@@ -105,6 +108,9 @@ export const set_mat_constants = (network, root, width, height) => {
 
     viz_state.order.new = 'ini'
 
+    viz_state.buttons = {}
+    viz_state.buttons.blue = '#8797ff'
+    viz_state.buttons.gray = '#EEEEEE'
 
 
     return viz_state

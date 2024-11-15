@@ -33,35 +33,56 @@ const toggle_visible_button = (event) => {
     return is_visible
 }
 
-export const make_reorder_button = (container, text, color='blue', width=40, button_class='button', deck_mat, layers_mat, viz_state) => {
+export const make_reorder_button = (container, text, active, width=40, button_class='button', deck_mat, layers_mat, viz_state) => {
+
+
 
     let callback = async (event) => {
-        console.log('reorder button clicked')
+
+        const current = d3.select(event.currentTarget)
+
+        const button_name = current.text().toLowerCase()
+
+        const is_active = current.classed('active')
+
+        if (is_active === false) {
+
+            console.log('switch to new order')
+
+            current.classed('active', true)
+
+            d3.select(viz_state.el)
+              .selectAll('.button-row')
+              .classed('active', false)
+              .style('border-color', viz_state.buttons.gray)
+
+
+            current
+                .style('border-color', viz_state.buttons.blue)
+                .classed('active', true)
+
+            console.log(current.classed('active'))
+
+        }
+
     }
+
+    let color
+    if (active === true) {
+        color = viz_state.buttons.blue
+    } else {
+        color = viz_state.buttons.gray
+    }
+
 
     // make text all caps
     text = text.toUpperCase()
 
-    // d3.select(container)
-    //     .append('div')
-    //     .attr('class', button_class)
-    //     .text(text)
-    //     .style('width', width + 'px')
-    //     .style('text-align', 'center')
-    //     .style('cursor', 'pointer')
-    //     .style('font-size', '12px')
-    //     .style('font-weight', 'bold')
-    //     .style('color', color)
-    //     .style('margin-top', '5px')
-    //     .style('margin-left', '5px')
-    //     .style('user-select', 'none')
-    //     .style('font-family', '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif;')
-    //     .on('click', callback)
-
-
     d3.select(container)
         .append('div')
-        .attr('class', button_class)
+        // .attr('class', button_class)
+        .classed(button_class, true)
+        .classed('active', active)
         .text(text)
         .style('width', width + 'px')
         .style('height', '20px')  // Adjust height for button padding
@@ -72,10 +93,7 @@ export const make_reorder_button = (container, text, color='blue', width=40, but
         .style('cursor', 'pointer')
         .style('font-size', '12px')
         .style('font-weight', 'bold')
-        // .style('color', color)
         .style('color', '#47515b')
-        // .style('background-color', '#f0f0f0')  // Light background color
-        // .style('border', '2px solid #b3b3b3')  // Light gray border
         .style('border', '3px solid')  // Light gray border
         .style('border-color', color)  // Light gray border
         .style('border-radius', '12px')  // Rounded corners

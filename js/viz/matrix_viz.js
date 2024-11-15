@@ -26,6 +26,7 @@ export const matrix_viz = async (
     let deck_mat = ini_deck(root)
 
     let viz_state = set_mat_constants(network, root, width, height)
+    viz_state.el = el
 
     console.log(network)
 

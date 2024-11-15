@@ -69,13 +69,14 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
 
     const button_width = 33
 
-    let blue_color = '#8797ff'
-    let light_gray = '#EEEEEE'
 
-    make_reorder_button(ctrl_container, 'clust', blue_color, button_width, 'button', deck_mat, layers_mat, viz_state)
-    make_reorder_button(ctrl_container, 'sum', light_gray, button_width, 'button', deck_mat, layers_mat, viz_state)
-    make_reorder_button(ctrl_container, 'var', light_gray, button_width, 'button', deck_mat, layers_mat, viz_state)
-    make_reorder_button(ctrl_container, 'ini', light_gray, button_width, 'button', deck_mat, layers_mat, viz_state)
+
+    let axis = 'row'
+
+    make_reorder_button(ctrl_container, 'clust', true, button_width, 'button-' + axis, deck_mat, layers_mat, viz_state)
+    make_reorder_button(ctrl_container, 'sum', false, button_width, 'button-' + axis, deck_mat, layers_mat, viz_state)
+    make_reorder_button(ctrl_container, 'var', false, button_width, 'button-' + axis, deck_mat, layers_mat, viz_state)
+    make_reorder_button(ctrl_container, 'ini', false, button_width, 'button-' + axis, deck_mat, layers_mat, viz_state)
 
     ui_container.appendChild(ctrl_container)
 

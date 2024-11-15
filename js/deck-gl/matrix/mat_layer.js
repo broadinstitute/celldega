@@ -53,9 +53,9 @@ export const ini_mat_layer = (viz_state) => {
 const mat_layer_onclick = (deck_mat, layers_mat, viz_state) => {
 
     if (viz_state.order.current.row === 'ini') {
-        viz_state.order.current.row = 'rank'
-        viz_state.order.current.col = 'rank'
-    } else if (viz_state.order.current.row === 'rank') {
+        viz_state.order.current.row = 'clust'
+        viz_state.order.current.col = 'clust'
+    } else if (viz_state.order.current.row === 'clust') {
         viz_state.order.current.row = 'ini'
         viz_state.order.current.col = 'ini'
     }

@@ -121,8 +121,6 @@ const DOUBLE_CLICK_DELAY = 250;
 
 const custom_label_reorder = (deck_mat, layers_mat, viz_state, axis, name, index) => {
 
-    console.log(viz_state.mat.net_mat)
-
     let tmp_arr = []
     const other_axis = axis === 'col' ? 'row' : 'col'
 
@@ -155,24 +153,23 @@ const custom_label_reorder = (deck_mat, layers_mat, viz_state, axis, name, index
         }
     })
 
-    // layers_mat.row_label_layer = layers_mat.row_label_layer.clone({
-    //     updateTriggers: {
-    //         getPosition: viz_state.order.current.row
-    //     }
-    // })
-
-    // layers_mat.col_label_layer = layers_mat.col_label_layer.clone({
-    //     updateTriggers: {
-    //         getPosition: viz_state.order.current.col
-    //     }
-    // })
+    if (other_axis === 'col') {
+        layers_mat.col_label_layer = layers_mat.col_label_layer.clone({
+            updateTriggers: {
+                getPosition: [viz_state.order.current.col, name]
+            }
+        })
+    } else if (other_axis === 'row') {
+        layers_mat.row_label_layer = layers_mat.row_label_layer.clone({
+            updateTriggers: {
+                getPosition: [viz_state.order.current.row, name]
+            }
+        })
+    }
 
     deck_mat.setProps({
         layers: get_layers_list(layers_mat),
     })
-
-    console.log('here!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
-
 
 }
 
@@ -181,14 +178,12 @@ const row_label_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
     viz_state.labels.clicks.row += 1
 
     if (viz_state.labels.clicks.row === 1) {
-        console.log('clicking: ', event.object.name)
 
         setTimeout(() => {
             viz_state.labels.clicks.row = 0
         }, DOUBLE_CLICK_DELAY)
 
     } else if (viz_state.labels.clicks.row === 2) {
-        console.log('double click!!!!!!!')
         viz_state.labels.clicks.row = 0
 
         custom_label_reorder(deck_mat, layers_mat, viz_state, 'row', event.object.name, event.object.index)
@@ -203,17 +198,16 @@ const col_label_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
     viz_state.labels.clicks.col += 1
 
     if (viz_state.labels.clicks.col === 1) {
-        console.log('clicking: ', event.object.name, event.object.index)
 
         setTimeout(() => {
             viz_state.labels.clicks.col = 0
         }, DOUBLE_CLICK_DELAY)
 
     } else if (viz_state.labels.clicks.col === 2) {
-        console.log('double click!!!!!!!')
         viz_state.labels.clicks.col = 0
 
-        custom_label_reorder(viz_state, 'col', event.object.index)
+        custom_label_reorder(deck_mat, layers_mat, viz_state, 'col', event.object.name, event.object.index)
+
     }
 
     // deck_mat.setProps({layers: get_layers_list(layers_mat)})

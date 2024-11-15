@@ -74,6 +74,20 @@ const reorder_button_callback = (event, axis, deck_mat, layers_mat, viz_state) =
             }
         })
 
+        if (axis === 'row') {
+            layers_mat.row_label_layer = layers_mat.row_label_layer.clone({
+                updateTriggers: {
+                    getPosition: viz_state.order.current.row
+                }
+            })
+        } else {
+            layers_mat.col_label_layer = layers_mat.col_label_layer.clone({
+                updateTriggers: {
+                    getPosition: viz_state.order.current.col
+                }
+            })
+        }
+
         deck_mat.setProps({
             layers: get_mat_layers_list(layers_mat),
         })

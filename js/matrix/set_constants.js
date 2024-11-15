@@ -8,9 +8,6 @@ export const set_mat_constants = (network, root, width, height) => {
 
     viz_state.root = root
 
-    console.log('root')
-    console.log(root)
-
     viz_state.viz = {}
     viz_state.viz.height_margin = 100
 
@@ -103,8 +100,8 @@ export const set_mat_constants = (network, root, width, height) => {
     viz_state.order = {}
 
     viz_state.order.current = {}
-    viz_state.order.current.row = 'ini'
-    viz_state.order.current.col = 'ini'
+    viz_state.order.current.row = 'clust'
+    viz_state.order.current.col = 'clust'
 
     viz_state.order.new = 'ini'
 

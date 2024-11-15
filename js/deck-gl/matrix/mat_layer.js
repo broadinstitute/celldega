@@ -46,37 +46,35 @@ export const ini_mat_layer = (viz_state) => {
 
 const mat_layer_onclick = (deck_mat, layers_mat, viz_state) => {
 
-    if (viz_state.order.current.row === 'ini') {
-        viz_state.order.current.row = 'clust'
-        viz_state.order.current.col = 'clust'
-    } else if (viz_state.order.current.row === 'clust') {
-        viz_state.order.current.row = 'ini'
-        viz_state.order.current.col = 'ini'
-    }
+    // if (viz_state.order.current.row === 'ini') {
+    //     viz_state.order.current.row = 'clust'
+    //     viz_state.order.current.col = 'clust'
+    // } else if (viz_state.order.current.row === 'clust') {
+    //     viz_state.order.current.row = 'ini'
+    //     viz_state.order.current.col = 'ini'
+    // }
 
-    console.log(viz_state.mat.orders.col)
+    // layers_mat.mat_layer = layers_mat.mat_layer.clone({
+    //     updateTriggers: {
+    //         getPosition: [viz_state.order.current.row, viz_state.order.current.col]
+    //     }
+    // })
 
-    layers_mat.mat_layer = layers_mat.mat_layer.clone({
-        updateTriggers: {
-            getPosition: [viz_state.order.current.row, viz_state.order.current.col]
-        }
-    })
+    // layers_mat.row_label_layer = layers_mat.row_label_layer.clone({
+    //     updateTriggers: {
+    //         getPosition: viz_state.order.current.row
+    //     }
+    // })
 
-    layers_mat.row_label_layer = layers_mat.row_label_layer.clone({
-        updateTriggers: {
-            getPosition: viz_state.order.current.row
-        }
-    })
+    // layers_mat.col_label_layer = layers_mat.col_label_layer.clone({
+    //     updateTriggers: {
+    //         getPosition: viz_state.order.current.col
+    //     }
+    // })
 
-    layers_mat.col_label_layer = layers_mat.col_label_layer.clone({
-        updateTriggers: {
-            getPosition: viz_state.order.current.col
-        }
-    })
-
-    deck_mat.setProps({
-        layers: get_mat_layers_list(layers_mat),
-    })
+    // deck_mat.setProps({
+    //     layers: get_mat_layers_list(layers_mat),
+    // })
 }
 
 export const set_mat_layer_onclick = (deck_mat, layers_mat, viz_state) => {

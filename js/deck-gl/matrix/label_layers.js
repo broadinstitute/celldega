@@ -121,8 +121,16 @@ const DOUBLE_CLICK_DELAY = 250;
 
 const custom_label_reorder = (deck_mat, layers_mat, viz_state, axis, name, index) => {
 
+
+
     let tmp_arr = []
     const other_axis = axis === 'col' ? 'row' : 'col'
+
+    // deactivate reordering buttons when setting a custom order
+    d3.select(viz_state.el)
+      .selectAll('.button-' + other_axis)
+      .classed('active', false)
+      .style('border-color', viz_state.buttons.gray)
 
     if (axis === 'col') {
         tmp_arr = viz_state.mat.net_mat.map(inst_row => inst_row[index])

@@ -8,9 +8,6 @@ export const get_mat_layers_list = (layers_mat) => {
         layers_mat.col_label_layer,
     ]
 
-    console.log('get_mat_layers_list')
-    console.log(layers_list)
-
     return layers_list
 
 }

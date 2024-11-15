@@ -5,8 +5,6 @@ export const set_col_label_data = (network, viz_state) => {
 
     let col_label_data = []
 
-    console.log(viz_state.zoom)
-
     network.col_nodes.forEach((node, index) => {
 
         const p = {

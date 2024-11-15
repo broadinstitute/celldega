@@ -69,7 +69,7 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
 
     const button_width = 33
 
-    const axes = ['row', 'col']
+    const axes = ['col', 'row']
 
     const inst_orders = ['clust', 'sum', 'var', 'ini']
 

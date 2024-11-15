@@ -67,6 +67,36 @@ export const ini_views = (viz_state) => {
             },
         }),
 
+        // New Dendrogram Views
+
+        // Dendrogram under the matrix
+        new OrthographicView({
+            id: 'dendrogram_rows',
+            x: (viz_state.viz.row_region + viz_state.viz.label_buffer) + 'px',
+            y: (viz_state.viz.col_region + viz_state.viz.label_buffer + viz_state.viz.mat_height) + 'px',
+            width: viz_state.viz.mat_width + 'px',
+            height: viz_state.viz.dendrogram_width + 'px',
+            controller: {
+                scrollZoom: false,
+                inertia: false,
+                doubleClickZoom: false
+            },
+        }),
+
+        // Dendrogram to the right of the matrix
+        new OrthographicView({
+            id: 'dendrogram_cols',
+            x: (viz_state.viz.row_region + viz_state.viz.label_buffer + viz_state.viz.mat_width) + 'px',
+            y: (viz_state.viz.col_region + viz_state.viz.label_buffer) + 'px',
+            width: viz_state.viz.dendrogram_width + 'px',
+            height: viz_state.viz.mat_height + 'px',
+            controller: {
+                scrollZoom: false,
+                inertia: false,
+                doubleClickZoom: false
+            },
+        }),
+
     ]
 
     viz_state.views = {}

@@ -9,19 +9,12 @@ const mat_layer_get_position = (d, viz_state) => {
 
     // console.log('**************************')
 
-    let index_offset
-    if (inst_order_rows === 'ini') {
-        index_offset = 0
-    } else {
-        index_offset = 1
-    }
-
     // console.log(inst_order_rows, inst_order_cols)
 
     // console.log(viz_state.mat.orders)
 
-    let inst_row_index = viz_state.mat.num_cols - viz_state.mat.orders.col[inst_order_cols][d.col] - index_offset
-    let inst_col_index = viz_state.mat.num_rows - viz_state.mat.orders.row[inst_order_rows][d.row] - index_offset
+    let inst_row_index = viz_state.mat.num_cols - viz_state.mat.orders.col[inst_order_cols][d.col]
+    let inst_col_index = viz_state.mat.num_rows - viz_state.mat.orders.row[inst_order_rows][d.row]
 
     let pos_x = viz_state.viz.col_width * (inst_row_index + 0.5)
     let pos_y = viz_state.viz.row_offset * (inst_col_index + 1.5)
@@ -60,12 +53,15 @@ export const ini_mat_layer = (viz_state) => {
 const mat_layer_onclick = (deck_mat, layers_mat, viz_state) => {
 
     if (viz_state.order.current.row === 'ini') {
-        viz_state.order.current.row = 'clust'
-        viz_state.order.current.col = 'clust'
-    } else if (viz_state.order.current.row === 'clust') {
+        viz_state.order.current.row = 'rank'
+        viz_state.order.current.col = 'rank'
+    } else if (viz_state.order.current.row === 'rank') {
         viz_state.order.current.row = 'ini'
         viz_state.order.current.col = 'ini'
     }
+
+    console.log(viz_state.mat.orders.col)
+
 
     layers_mat.mat_layer = layers_mat.mat_layer.clone({
         updateTriggers: {

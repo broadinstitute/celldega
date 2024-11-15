@@ -8,15 +8,7 @@ const row_label_get_position = (d, index, viz_state) => {
     const inst_order = viz_state.order.current.row
     const row_offset = 50 // 25
 
-    let index_offset
-    if (inst_order === 'ini') {
-        index_offset = 0
-    } else {
-        index_offset = 1
-    }
-
-
-    let inst_row_index = viz_state.mat.num_rows - viz_state.mat.orders.row[inst_order][inst_index] - index_offset
+    let inst_row_index = viz_state.mat.num_rows - viz_state.mat.orders.row[inst_order][inst_index]
 
 
     let pos_x = row_offset
@@ -34,14 +26,8 @@ const col_label_get_position = (d, index, viz_state) => {
     const inst_order = viz_state.order.current.col
     const col_offset = 50
 
-    let index_offset
-    if (inst_order === 'ini') {
-        index_offset = 0
-    } else {
-        index_offset = 1
-    }
 
-    let inst_col_index = viz_state.mat.num_cols - viz_state.mat.orders.col[inst_order][inst_index] - index_offset
+    let inst_col_index = viz_state.mat.num_cols - viz_state.mat.orders.col[inst_order][inst_index]
 
     let pos_x = viz_state.viz.col_offset * (inst_col_index + 0.5)
     let pos_y = col_offset // * zoom_factor
@@ -133,7 +119,7 @@ export const ini_col_label_layer = (viz_state) => {
 
 const DOUBLE_CLICK_DELAY = 250;
 
-const custom_label_reorder = (deck_mat, layers_mat, viz_state, axis, index) => {
+const custom_label_reorder = (deck_mat, layers_mat, viz_state, axis, name, index) => {
 
     console.log(viz_state.mat.net_mat)
 
@@ -146,22 +132,26 @@ const custom_label_reorder = (deck_mat, layers_mat, viz_state, axis, index) => {
         tmp_arr = viz_state.mat.net_mat[index]
     }
 
+    // tmp_sort is an array of the indexes of the other axis that are ranked by the values of the selected index
     const tmp_sort = Array.from(tmp_arr.keys()).sort((a, b) => tmp_arr[b] - tmp_arr[a])
 
-    console.log(tmp_sort)
+    const length_other_axis = tmp_sort.length
+    const ranked_sort = Array(length_other_axis);
 
-    console.log(viz_state.mat.orders[other_axis].clust)
 
-    viz_state.mat.orders[other_axis].custom = tmp_sort
+    // convert tmp_sort into an array of the ranks of each index
+    // Fill the ranks array with the rank of each index
+    tmp_sort.forEach((columnIndex, rank) => {
+        ranked_sort[columnIndex] = length_other_axis - rank ; // Add 1 to make it 1-indexed
+    });
+
+    viz_state.mat.orders[other_axis].custom = ranked_sort
 
     viz_state.order.current[other_axis] = 'custom'
 
-    console.log(viz_state.order.current)
-
-
     layers_mat.mat_layer = layers_mat.mat_layer.clone({
         updateTriggers: {
-            getPosition: [viz_state.order.current.row, viz_state.order.current.col]
+            getPosition: [viz_state.order.current.row, viz_state.order.current.col, name]
         }
     })
 
@@ -201,7 +191,7 @@ const row_label_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
         console.log('double click!!!!!!!')
         viz_state.labels.clicks.row = 0
 
-        custom_label_reorder(deck_mat, layers_mat, viz_state, 'row', event.object.index)
+        custom_label_reorder(deck_mat, layers_mat, viz_state, 'row', event.object.name, event.object.index)
     }
 
     // deck_mat.setProps({layers: get_layers_list(layers_mat)})

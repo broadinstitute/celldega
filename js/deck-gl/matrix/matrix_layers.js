@@ -1,4 +1,4 @@
-export const get_layers_list = (layers_mat) => {
+export const get_mat_layers_list = (layers_mat) => {
 
     let layers_list = [
         layers_mat.mat_layer,
@@ -7,6 +7,9 @@ export const get_layers_list = (layers_mat) => {
         layers_mat.row_label_layer,
         layers_mat.col_label_layer,
     ]
+
+    console.log('get_mat_layers_list')
+    console.log(layers_list)
 
     return layers_list
 

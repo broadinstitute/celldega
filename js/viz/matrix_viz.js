@@ -6,7 +6,7 @@ import { set_row_cat_data, set_col_cat_data } from '../matrix/cat_data.js';
 import { ini_mat_layer, set_mat_layer_onclick } from '../deck-gl/matrix/mat_layer.js';
 import { ini_row_label_layer, ini_col_label_layer, set_row_label_layer_onclick, set_col_label_layer_onclick } from '../deck-gl/matrix/label_layers.js';
 import { ini_row_cat_layer, ini_col_cat_layer } from '../deck-gl/matrix/cat_layers.js';
-import { get_layers_list, layer_filter } from '../deck-gl/matrix/matrix_layers.js'
+import { get_mat_layers_list, layer_filter } from '../deck-gl/matrix/matrix_layers.js'
 import { ini_views, ini_view_state } from '../deck-gl/matrix/views.js'
 import { on_view_state_change } from '../deck-gl/matrix/on_view_state_change.js'
 import { ini_zoom_data } from '../deck-gl/matrix/zoom.js'
@@ -67,7 +67,7 @@ export const matrix_viz = async (
         initialViewState: global_view_state,
         getTooltip: (params) =>  get_tooltip(viz_state, params),
         layerFilter: layer_filter,
-        layers: get_layers_list(layers_mat),
+        layers: get_mat_layers_list(layers_mat),
     })
 
     const ui_container = make_matrix_ui_container(deck_mat, layers_mat, viz_state)

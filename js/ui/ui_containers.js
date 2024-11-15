@@ -77,8 +77,6 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
 
         const inst_container = flex_container(axis, 'row')
 
-        console.log(axis)
-
         d3.select(inst_container)
             .append('div')
             .text(axis.toUpperCase())

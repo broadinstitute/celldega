@@ -10,6 +10,7 @@ import { new_toggle_cell_layer_visibility } from '../deck-gl/cell_layer'
 import { toggle_trx_layer_visibility } from '../deck-gl/trx_layer'
 import { get_layers_list } from '../deck-gl/layers_ist'
 import { toggle_slider } from './sliders'
+import { get_mat_layers_list } from '../deck-gl/matrix/matrix_layers'
 
 let is_visible
 
@@ -33,38 +34,59 @@ const toggle_visible_button = (event) => {
     return is_visible
 }
 
+const reorder_button_callback = (event, axis, deck_mat, layers_mat, viz_state) => {
+
+    console.log('reorder button callback')
+
+    const current = d3.select(event.currentTarget)
+
+    let button_name = current.text().toLowerCase()
+
+    // quick fix for naming mismatch
+    if (button_name === 'var') {
+        button_name = 'rankvar'
+    } else if (button_name === 'sum') {
+        button_name = 'rank'
+    }
+
+    const is_active = current.classed('active')
+
+    if (is_active === false) {
+
+        current.classed('active', true)
+
+        d3.select(viz_state.el)
+          .selectAll('.button-' + axis)
+          .classed('active', false)
+          .style('border-color', viz_state.buttons.gray)
+
+        current
+            .style('border-color', viz_state.buttons.blue)
+            .classed('active', true)
+
+        viz_state.order.current[axis] = button_name
+
+        console.log(button_name)
+
+        layers_mat.mat_layer = layers_mat.mat_layer.clone({
+            updateTriggers: {
+                getPosition: [viz_state.order.current.row, viz_state.order.current.col]
+            }
+        })
+
+        deck_mat.setProps({
+            layers: get_mat_layers_list(layers_mat),
+        })
+
+    }
+
+
+}
+
 export const make_reorder_button = (container, text, active, width=40, axis, deck_mat, layers_mat, viz_state) => {
 
     let button_class = 'button-' + axis
 
-    let callback = async (event) => {
-
-        const current = d3.select(event.currentTarget)
-
-        const button_name = current.text().toLowerCase()
-
-        const is_active = current.classed('active')
-
-        if (is_active === false) {
-
-            console.log('switch to new order')
-
-            current.classed('active', true)
-
-            d3.select(viz_state.el)
-              .selectAll('.button-' + axis)
-              .classed('active', false)
-              .style('border-color', viz_state.buttons.gray)
-
-            current
-                .style('border-color', viz_state.buttons.blue)
-                .classed('active', true)
-
-            console.log(current.classed('active'))
-
-        }
-
-    }
 
     let color
     if (active === true) {
@@ -99,7 +121,7 @@ export const make_reorder_button = (container, text, active, width=40, axis, dec
         .style('padding', '4px 10px')  // Padding inside the button
         .style('user-select', 'none')
         .style('font-family', '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif')
-        .on('click', callback)
+        .on('click', (event) => reorder_button_callback(event, axis, deck_mat, layers_mat, viz_state))
 
 
 }

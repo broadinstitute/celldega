@@ -1,17 +1,11 @@
 import { CustomMatrixLayer } from "./custom_matrix_layer";
 import * as d3 from 'd3'
-import { get_layers_list } from "./matrix_layers";
+import { get_mat_layers_list } from "./matrix_layers";
 
 const mat_layer_get_position = (d, viz_state) => {
 
     const inst_order_rows = viz_state.order.current.row
     const inst_order_cols = viz_state.order.current.col
-
-    // console.log('**************************')
-
-    // console.log(inst_order_rows, inst_order_cols)
-
-    // console.log(viz_state.mat.orders)
 
     let inst_row_index = viz_state.mat.num_cols - viz_state.mat.orders.col[inst_order_cols][d.col]
     let inst_col_index = viz_state.mat.num_rows - viz_state.mat.orders.row[inst_order_rows][d.row]
@@ -62,7 +56,6 @@ const mat_layer_onclick = (deck_mat, layers_mat, viz_state) => {
 
     console.log(viz_state.mat.orders.col)
 
-
     layers_mat.mat_layer = layers_mat.mat_layer.clone({
         updateTriggers: {
             getPosition: [viz_state.order.current.row, viz_state.order.current.col]
@@ -82,7 +75,7 @@ const mat_layer_onclick = (deck_mat, layers_mat, viz_state) => {
     })
 
     deck_mat.setProps({
-        layers: get_layers_list(layers_mat),
+        layers: get_mat_layers_list(layers_mat),
     })
 }
 

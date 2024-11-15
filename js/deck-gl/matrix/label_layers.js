@@ -1,6 +1,6 @@
 import { TextLayer } from "deck.gl"
 import * as d3 from 'd3'
-import { get_layers_list } from "./matrix_layers"
+import { get_mat_layers_list } from "./matrix_layers"
 
 const row_label_get_position = (d, index, viz_state) => {
 
@@ -168,7 +168,7 @@ const custom_label_reorder = (deck_mat, layers_mat, viz_state, axis, name, index
     }
 
     deck_mat.setProps({
-        layers: get_layers_list(layers_mat),
+        layers: get_mat_layers_list(layers_mat),
     })
 
 }
@@ -189,7 +189,7 @@ const row_label_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
         custom_label_reorder(deck_mat, layers_mat, viz_state, 'row', event.object.name, event.object.index)
     }
 
-    // deck_mat.setProps({layers: get_layers_list(layers_mat)})
+    // deck_mat.setProps({layers: get_mat_layers_list(layers_mat)})
 
 }
 
@@ -210,7 +210,7 @@ const col_label_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
 
     }
 
-    // deck_mat.setProps({layers: get_layers_list(layers_mat)})
+    // deck_mat.setProps({layers: get_mat_layers_list(layers_mat)})
 
 }
 

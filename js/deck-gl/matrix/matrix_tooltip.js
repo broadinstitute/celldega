@@ -1,6 +1,11 @@
+import * as d3 from 'd3'
+
 export const get_tooltip = (viz_state, params) => {
 
     const {object, layer} = params;
+
+    d3.selectAll('.deck-tooltip')
+      .style('margin-top', '75px')
 
     if (object) {
       // Check which layer the tooltip is currently over

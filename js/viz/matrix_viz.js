@@ -11,6 +11,7 @@ import { ini_views, ini_view_state } from '../deck-gl/matrix/views.js'
 import { on_view_state_change } from '../deck-gl/matrix/on_view_state_change.js'
 import { ini_zoom_data } from '../deck-gl/matrix/zoom.js'
 import { get_tooltip } from '../deck-gl/matrix/matrix_tooltip.js'
+import { make_matrix_ui_container } from '../ui/ui_containers.js';
 
 export const matrix_viz = async (
     model,
@@ -68,6 +69,9 @@ export const matrix_viz = async (
         layers: get_layers_list(layers_mat),
     })
 
+    const ui_container = make_matrix_ui_container(deck_mat, layers_mat, viz_state)
+
+    el.appendChild(ui_container)
     el.appendChild(viz_state.root)
 
 }

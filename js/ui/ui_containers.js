@@ -62,6 +62,16 @@ export const make_slider_container = (class_name) => {
     return slider_container
 }
 
+export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
+
+    const ui_container = make_ui_container()
+    const ctrl_container = make_ctrl_container()
+
+    return ui_container
+
+
+}
+
 export const make_sst_ui_container = (deck_sst, layers_sst, viz_state) => {
 
     const ui_container = make_ui_container()

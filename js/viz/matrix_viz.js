@@ -63,7 +63,7 @@ export const matrix_viz = async (
         onViewStateChange: (params) => on_view_state_change(params, deck_mat, layers_mat, viz_state),
         views: viz_state.views.views_list,
         initialViewState: global_view_state,
-        getTooltip: get_tooltip,
+        getTooltip: (params) =>  get_tooltip(viz_state, params),
         layerFilter: layer_filter,
         layers: get_layers_list(layers_mat),
     })

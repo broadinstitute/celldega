@@ -1,4 +1,6 @@
-export const get_tooltip = ({object, layer}) => {
+export const get_tooltip = (viz_state, params) => {
+
+    const {object, layer} = params;
 
     if (object) {
       // Check which layer the tooltip is currently over
@@ -32,8 +34,12 @@ export const get_tooltip = ({object, layer}) => {
       }
       else if (layer.id === 'mat-layer') {
         // Display the default tooltip for other layers
+
+        const row_name = viz_state.labels.row_label_data[object.row].name;
+        const col_name = viz_state.labels.col_label_data[object.col].name;
+
         return {
-          html: `Row: ${object.row} <br> Column: ${object.col} <br> Value: ${object.value.toFixed(2)}`,
+          html: `Row: ${row_name} <br> Column: ${col_name} <br> Value: ${object.value.toFixed(2)}`,
           style: {color: "white"},
         };
       }

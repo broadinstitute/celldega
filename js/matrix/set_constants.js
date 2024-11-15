@@ -60,7 +60,7 @@ export const set_mat_constants = (network, root, width, height) => {
     viz_state.viz.label_buffer = 1
 
     viz_state.animate = {}
-    viz_state.animate.duration = 2000
+    viz_state.animate.duration = 2500
 
     //////////////////////////////
     // Variables

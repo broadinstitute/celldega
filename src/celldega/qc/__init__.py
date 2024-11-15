@@ -90,6 +90,3 @@ def ist_segmentation_metrics(transcript_metadata_file, transcript_data_file, cel
     print("segmentation metrics calculation completed")
 
     return dataset_metrics_df
-
-#csv file (table format), 
-#columns: name of the dataset, rows: metrics

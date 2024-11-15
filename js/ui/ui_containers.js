@@ -103,7 +103,7 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
 
         inst_orders.forEach((label, index) => {
             const isClust = label === 'clust';
-            make_reorder_button(inst_container, label, isClust, button_width, 'button-' + axis, deck_mat, layers_mat, viz_state);
+            make_reorder_button(inst_container, label, isClust, button_width, axis, deck_mat, layers_mat, viz_state);
         });
 
         ctrl_container.appendChild(inst_container)

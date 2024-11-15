@@ -12,6 +12,7 @@ import { on_view_state_change } from '../deck-gl/matrix/on_view_state_change.js'
 import { ini_zoom_data } from '../deck-gl/matrix/zoom.js'
 import { get_tooltip } from '../deck-gl/matrix/matrix_tooltip.js'
 import { make_matrix_ui_container } from '../ui/ui_containers.js';
+import { alt_slice_linkage } from '../matrix/dendro.js';
 
 export const matrix_viz = async (
     model,
@@ -47,6 +48,11 @@ export const matrix_viz = async (
     viz_state.cats.row_cat_data = set_row_cat_data(network, viz_state)
     viz_state.cats.col_cat_data = set_col_cat_data(network, viz_state)
 
+    console.log(viz_state.linkage)
+    alt_slice_linkage(viz_state, 'row', 0.1)
+
+    console.log(viz_state.row_nodes)
+
     let layers_mat = {}
     layers_mat.mat_layer = ini_mat_layer(viz_state)
     layers_mat.row_label_layer = ini_row_label_layer(viz_state)
@@ -75,5 +81,6 @@ export const matrix_viz = async (
 
     el.appendChild(ui_container)
     el.appendChild(viz_state.root)
+
 
 }

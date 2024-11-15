@@ -10,12 +10,14 @@ except ImportError:
 from pathlib import Path
 import numpy as np
 import pandas as pd
+import cv2
 import os
 import hashlib
 import base64
 from shapely.affinity import affine_transform
 from shapely.geometry import MultiPolygon
-
+from skimage import exposure, img_as_float
+from skimage.color import rgb2lab, lab2rgb
 import matplotlib.pyplot as plt
 from matplotlib.colors import to_hex
 
@@ -53,6 +55,50 @@ def convert_long_id_to_short(df):
     df['cell_id'] = df['EntityID'].apply(hash_and_shorten_id)
 
     return df
+
+
+def contrast_filter(img, method='clahe', **kwargs):
+    """
+    Apply contrast enhancement filters to an image using OpenCV.
+
+    Parameters:
+    ----------
+    img : np.ndarray
+        Input image (should be in grayscale format for CLAHE).
+    method : str, optional
+        The contrast enhancement method to apply. Options are:
+        'clahe', 'hist_equalization', 'contrast_stretch'.
+    kwargs : dict
+        Additional arguments for specific methods (e.g., 'clip_limit' for CLAHE).
+
+    Returns:
+    -------
+    np.ndarray
+        The processed image with enhanced contrast.
+    """
+
+
+    if method == 'clahe':
+        # CLAHE - Contrast Limited Adaptive Histogram Equalization
+        clip_limit = kwargs.get('clip_limit', 2.0)
+        tile_grid_size = kwargs.get('tile_grid_size', (8, 8))
+        clahe = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=tile_grid_size)
+        return clahe.apply(gray_img)
+
+    elif method == 'hist_equalization':
+        # Histogram Equalization
+        return cv2.equalizeHist(gray_img)
+
+    elif method == 'contrast_stretch':
+        # Contrast Stretching
+        percentile_bound = kwargs.get('percentile_bound', [1, 99])
+        p_low, p_high = np.percentile(gray_img, percentile_bound)
+        stretched_img = np.clip((gray_img - p_low) * 255.0 / (p_high - p_low), 0, 255)
+        return stretched_img.astype(np.uint8)
+
+    else:
+        raise ValueError(f"Unsupported method: {method}. Choose from 'clahe', 'hist_equalization', or 'contrast_stretch'.")
+
 
 
 def reduce_image_size(image_path, scale_image=0.5, path_landscape_files=""):

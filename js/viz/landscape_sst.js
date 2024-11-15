@@ -126,9 +126,6 @@ export const landscape_sst = async (
         initialViewState: initial_view_state,
     })
 
-    // disable for now
-    // model.on('change:update_trigger', update_tile_landscape_from_cgm)
-
     if (Object.keys(viz_state.model).length > 0) {
 
         // ist version

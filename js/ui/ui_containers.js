@@ -1,5 +1,5 @@
 import * as d3 from 'd3'
-import { make_button } from "./text_buttons"
+import { make_button, make_reorder_button } from "./text_buttons"
 import { set_gene_search } from "./gene_search"
 import { ini_slider, ini_slider_params } from './sliders'
 import { make_img_layer_slider_callback, toggle_slider } from "./sliders"
@@ -66,6 +66,18 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
 
     const ui_container = make_ui_container()
     const ctrl_container = make_ctrl_container()
+
+    const button_width = 33
+
+    let blue_color = '#8797ff'
+    let light_gray = '#EEEEEE'
+
+    make_reorder_button(ctrl_container, 'clust', blue_color, button_width, 'button', deck_mat, layers_mat, viz_state)
+    make_reorder_button(ctrl_container, 'sum', light_gray, button_width, 'button', deck_mat, layers_mat, viz_state)
+    make_reorder_button(ctrl_container, 'var', light_gray, button_width, 'button', deck_mat, layers_mat, viz_state)
+    make_reorder_button(ctrl_container, 'ini', light_gray, button_width, 'button', deck_mat, layers_mat, viz_state)
+
+    ui_container.appendChild(ctrl_container)
 
     return ui_container
 

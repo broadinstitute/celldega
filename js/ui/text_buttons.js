@@ -33,9 +33,67 @@ const toggle_visible_button = (event) => {
     return is_visible
 }
 
+export const make_reorder_button = (container, text, color='blue', width=40, button_class='button', deck_mat, layers_mat, viz_state) => {
+
+    let callback = async (event) => {
+        console.log('reorder button clicked')
+    }
+
+    // make text all caps
+    text = text.toUpperCase()
+
+    // d3.select(container)
+    //     .append('div')
+    //     .attr('class', button_class)
+    //     .text(text)
+    //     .style('width', width + 'px')
+    //     .style('text-align', 'center')
+    //     .style('cursor', 'pointer')
+    //     .style('font-size', '12px')
+    //     .style('font-weight', 'bold')
+    //     .style('color', color)
+    //     .style('margin-top', '5px')
+    //     .style('margin-left', '5px')
+    //     .style('user-select', 'none')
+    //     .style('font-family', '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif;')
+    //     .on('click', callback)
+
+
+    d3.select(container)
+        .append('div')
+        .attr('class', button_class)
+        .text(text)
+        .style('width', width + 'px')
+        .style('height', '20px')  // Adjust height for button padding
+        .style('display', 'inline-flex')
+        .style('align-items', 'center')
+        .style('justify-content', 'center')
+        .style('text-align', 'center')
+        .style('cursor', 'pointer')
+        .style('font-size', '12px')
+        .style('font-weight', 'bold')
+        // .style('color', color)
+        .style('color', '#47515b')
+        // .style('background-color', '#f0f0f0')  // Light background color
+        // .style('border', '2px solid #b3b3b3')  // Light gray border
+        .style('border', '3px solid')  // Light gray border
+        .style('border-color', color)  // Light gray border
+        .style('border-radius', '12px')  // Rounded corners
+        .style('margin-top', '5px')
+        .style('margin-left', '5px')
+        .style('padding', '4px 10px')  // Padding inside the button
+        .style('user-select', 'none')
+        .style('font-family', '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif')
+        .on('click', callback)
+
+
+}
+
 export const make_button = (container, technology, text, color='blue', width=40, button_class='button', inst_deck, layers_obj, viz_state) => {
 
     let callback
+
+    // define callback - can be cleaned up to enforce common arguments
 
     if (text === 'IMG') {
         if (technology === 'sst'){

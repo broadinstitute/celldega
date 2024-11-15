@@ -35,8 +35,6 @@ const toggle_visible_button = (event) => {
 
 export const make_reorder_button = (container, text, active, width=40, button_class='button', deck_mat, layers_mat, viz_state) => {
 
-
-
     let callback = async (event) => {
 
         const current = d3.select(event.currentTarget)
@@ -55,7 +53,6 @@ export const make_reorder_button = (container, text, active, width=40, button_cl
               .selectAll('.button-row')
               .classed('active', false)
               .style('border-color', viz_state.buttons.gray)
-
 
             current
                 .style('border-color', viz_state.buttons.blue)

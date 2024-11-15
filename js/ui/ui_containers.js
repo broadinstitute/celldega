@@ -65,11 +65,9 @@ export const make_slider_container = (class_name) => {
 export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
 
     const ui_container = make_ui_container()
-    const ctrl_container = make_ctrl_container()
+    const ctrl_container = flex_container('button_container', 'column')
 
     const button_width = 33
-
-    // let axis = 'row'
 
     const axes = ['row', 'col']
 
@@ -77,9 +75,11 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
 
     axes.forEach(axis => {
 
+        const inst_container = flex_container(axis, 'row')
+
         console.log(axis)
 
-        d3.select(ctrl_container)
+        d3.select(inst_container)
             .append('div')
             .text(axis.toUpperCase())
             .style('width', button_width + 'px')
@@ -103,8 +103,10 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
 
         inst_orders.forEach((label, index) => {
             const isClust = label === 'clust';
-            make_reorder_button(ctrl_container, label, isClust, button_width, 'button-' + axis, deck_mat, layers_mat, viz_state);
+            make_reorder_button(inst_container, label, isClust, button_width, 'button-' + axis, deck_mat, layers_mat, viz_state);
         });
+
+        ctrl_container.appendChild(inst_container)
     })
 
     ui_container.appendChild(ctrl_container)

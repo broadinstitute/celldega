@@ -55,25 +55,18 @@ def processing(transcript_metadata_file, transcript_data_file, cell_polygon_meta
 
     return dataset_metrics
 
-def calculate_proportion_cells_expressing_each_gene(transcript_data, cell_data):
-    gene_cell_count = transcript_data.groupby('gene')['cell_index'].nunique()
+def calculate_proportion_cells_expressing_each_gene(trx_meta, cell_gdf):
+    gene_cell_count = trx_meta.groupby('gene')['cell_index'].nunique()
     total_cells = len(cell_gdf)
     return (gene_cell_count / total_cells) # returns pandas series
 
-def calculate_average_expression_of_each_gene(transcript_data):
-    return transcript_data.groupby('gene')['cell_index'].mean() # returns pandas series
+def calculate_average_expression_of_each_gene(trx_meta):
+    return trx_meta.groupby('gene')['cell_index'].mean() # returns pandas series
 
-def percent_empty_cells(gdf):
-    cells_with_transcripts = gdf[gdf["assigned"] != 'white']["cell_index"].unique()
-    total_cells = gdf["cell_index"].nunique()
-    empty_cells = total_cells - len(cells_with_transcripts)
-    return (empty_cells / total_cells) * 100
-
-def proportion_of_assigned_transcripts_per_gene(gdf):
-    assigned_transcripts = gdf[gdf["assigned"] != "UNASSIGNED"]
-    transcripts_per_gene = assigned_transcripts.groupby("gene")["transcript_index"].count()
-    total_transcripts_per_gene = gdf.groupby("gene")["transcript_index"].count()
-    return (transcripts_per_gene / total_transcripts_per_gene).fillna(0)
+def proportion_of_assigned_transcripts_per_gene(trx_meta, trx):
+    transcripts_per_gene = trx_meta.groupby("gene")["transcript_index"].count()
+    total_transcripts_per_gene = trx.groupby("feature_name")["transcript_id"].count()
+    return (transcripts_per_gene / total_transcripts_per_gene).fillna(0) # returns pandas series
 
 def ist_segmentation_metrics(transcript_metadata_file, transcript_data_file, cell_polygon_metadata_file, cell_polygon_data_file, image_files, subset_interval_y_x, pixel_size, thickness=1):
     """

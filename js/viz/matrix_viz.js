@@ -115,9 +115,11 @@ export const matrix_viz = async (
       // alternate linkage slicing code
       alt_slice_linkage(viz_state, axis, dist_thresh)
 
-      calc_dendro_triangles(viz_state, dendro, axis)
+      dendro.group_info[axis] = calc_dendro_triangles(viz_state, dendro, axis)
 
     })
+
+    console.log(dendro.group_info)
 
     viz_state.dendro = dendro
 

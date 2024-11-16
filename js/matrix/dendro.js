@@ -1,6 +1,6 @@
 export const alt_slice_linkage = (viz_state, axis, dist_thresh) => {
 
-    console.log('alt_slice_linkage')
+    // console.log('alt_slice_linkage')
 
     let clust_a
     let clust_b
@@ -81,33 +81,33 @@ export const alt_slice_linkage = (viz_state, axis, dist_thresh) => {
 
 export const calc_dendro_triangles = (viz_state, dendro, axis) => {
 
-    console.log('calc_dendro_triangles')
+    // console.log('calc_dendro_triangles')
 
-    var triangle_info = {};
+    var triangle_info = {}
 
-    var inst_nodes = viz_state[axis + '_nodes'];
+    var inst_nodes = viz_state[axis + '_nodes']
 
-    var heat_shift;
-    var heat_size;
-    var tri_width;
-    var num_labels = viz_state.mat['num_' + axis + 's'] // params.labels['num_'+axis];
+    var heat_shift
+    var heat_size
+    var tri_width
+    var num_labels = viz_state.mat['num_' + axis + 's'] // params.labels['num_'+axis]
 
     if (axis === 'row'){
-      heat_size = viz_state.viz.mat_width // params.viz_dim.heat_size.y;
+      heat_size = viz_state.viz.mat_width // params.viz_dim.heat_size.y
       tri_width = heat_size/num_labels
     } else {
-      heat_size = viz_state.viz.mat_height // params.viz_dim.heat_size.x;
+      heat_size = viz_state.viz.mat_height // params.viz_dim.heat_size.x
       tri_width  = heat_size/num_labels
     }
 
-    console.log(viz_state.mat)
-    console.log('heat_size', heat_size)
-    console.log('num_labels', num_labels)
-    console.log('tri_width', tri_width)
+    // console.log(viz_state.mat)
+    // console.log('heat_size', heat_size)
+    // console.log('num_labels', num_labels)
+    // console.log('tri_width', tri_width)
 
-    var inst_order = viz_state.order.current[axis] // params.order.inst[axis];
+    var inst_order = viz_state.order.current[axis] // params.order.inst[axis]
 
-    console.log(inst_order)
+    // console.log(inst_order)
 
     inst_nodes.forEach((inst_node, index)=> {
 
@@ -137,51 +137,85 @@ export const calc_dendro_triangles = (viz_state, dendro, axis) => {
             inst_top = viz_state.viz.col_offset * (inst_col_index + 0.5)
         }
 
-        // console.log(inst_top)
+        var inst_bot = inst_top + tri_width
 
-        // var inst_bot = inst_top + tri_width;
+        var inst_name = inst_node.name
 
-        // var inst_name = inst_node.name;
-
-        // if (inst_name.indexOf(': ') >= 0){
-        // inst_name = inst_name.split(': ')[1];
-        // }
+        // not sure if this is still needed
+        if (inst_name.indexOf(': ') >= 0){
+            inst_name = inst_name.split(': ')[1]
+        }
 
         // // initialize triangle info for a new group
         // if ( _.has(triangle_info, inst_group) === false ){
-        // triangle_info[inst_group] = {};
-        // triangle_info[inst_group].name_top = inst_name;
-        // triangle_info[inst_group].name_bot = inst_name;
-        // triangle_info[inst_group].pos_top = inst_top;
-        // triangle_info[inst_group].pos_bot = inst_bot;
-        // triangle_info[inst_group].pos_mid = (inst_top + inst_bot)/2;
-        // triangle_info[inst_group].name = inst_group;
-        // triangle_info[inst_group].all_names = [];
-        // triangle_info[inst_group].axis = axis;
+        //     triangle_info[inst_group] = {}
+        //     triangle_info[inst_group].name_top = inst_name
+        //     triangle_info[inst_group].name_bot = inst_name
+        //     triangle_info[inst_group].pos_top = inst_top
+        //     triangle_info[inst_group].pos_bot = inst_bot
+        //     triangle_info[inst_group].pos_mid = (inst_top + inst_bot)/2
+        //     triangle_info[inst_group].name = inst_group
+        //     triangle_info[inst_group].all_names = []
+        //     triangle_info[inst_group].axis = axis
         // }
 
-        // triangle_info[inst_group].all_names.push(inst_name);
-
-        // if (inst_top < triangle_info[inst_group].pos_top){
-        // triangle_info[inst_group].name_top = inst_name;
-        // triangle_info[inst_group].pos_top = inst_top;
-        // triangle_info[inst_group].pos_mid = (inst_top + triangle_info[inst_group].pos_bot)/2;
+        // // Initialize triangle info for a new group
+        // if (!triangle_info.hasOwnProperty(inst_group)) {
+        //     triangle_info[inst_group] = {
+        //         name_top: inst_name,
+        //         name_bot: inst_name,
+        //         pos_top: inst_top,
+        //         pos_bot: inst_bot,
+        //         pos_mid: (inst_top + inst_bot) / 2,
+        //         name: inst_group,
+        //         all_names: [],
+        //         axis: axis
+        //     }
         // }
 
-        // if (inst_bot > triangle_info[inst_group].pos_bot){
-        // triangle_info[inst_group].name_bot = inst_name;
-        // triangle_info[inst_group].pos_bot = inst_bot;
-        // triangle_info[inst_group].pos_mid = (triangle_info[inst_group].pos_top + inst_bot)/2;
-        // }
+        if (!Object.prototype.hasOwnProperty.call(triangle_info, inst_group)) {
+            triangle_info[inst_group] = {
+                name_top: inst_name,
+                name_bot: inst_name,
+                pos_top: inst_top,
+                pos_bot: inst_bot,
+                pos_mid: (inst_top + inst_bot) / 2,
+                name: inst_group,
+                all_names: [],
+                axis: axis
+            };
+        }
 
-    });
 
-    // var group_info = [];
+
+        triangle_info[inst_group].all_names.push(inst_name)
+
+        // console.log(triangle_info[inst_group])
+
+        if (inst_top < triangle_info[inst_group].pos_top){
+            triangle_info[inst_group].name_top = inst_name
+            triangle_info[inst_group].pos_top = inst_top
+            triangle_info[inst_group].pos_mid = (inst_top + triangle_info[inst_group].pos_bot)/2
+        }
+
+        if (inst_bot > triangle_info[inst_group].pos_bot){
+            triangle_info[inst_group].name_bot = inst_name
+            triangle_info[inst_group].pos_bot = inst_bot
+            triangle_info[inst_group].pos_mid = (triangle_info[inst_group].pos_top + inst_bot)/2
+        }
+
+    })
+
+    var group_info = []
 
     // _.each(triangle_info, function(inst_triangle){
-    //   group_info.push(inst_triangle);
-    // });
+    //   group_info.push(inst_triangle)
+    // })
 
-    // return group_info;
+    Object.values(triangle_info).forEach((inst_triangle) => {
+        group_info.push(inst_triangle);
+    });
 
-  };
+    return group_info
+
+  }

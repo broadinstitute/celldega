@@ -85,21 +85,29 @@ export const calc_dendro_triangles = (viz_state, dendro, axis) => {
 
     var triangle_info = {};
 
-    // var inst_nodes = params.network[inst_axis + '_nodes'];
+    var inst_nodes = viz_state[axis + '_nodes'];
 
-    // var heat_shift;
-    // var heat_size;
-    // var tri_width;
-    // var num_labels = params.labels['num_'+inst_axis];
-    // if (inst_axis === 'row'){
-    //   heat_size = params.viz_dim.heat_size.y;
-    //   tri_width = heat_size/num_labels;
-    // } else {
-    //   heat_size = params.viz_dim.heat_size.x;
-    //   tri_width  = heat_size/num_labels;
-    // }
+    var heat_shift;
+    var heat_size;
+    var tri_width;
+    var num_labels = viz_state.mat['num_' + axis + 's'] // params.labels['num_'+axis];
 
-    // var inst_order = params.order.inst[inst_axis];
+    if (axis === 'row'){
+      heat_size = viz_state.viz.mat_width // params.viz_dim.heat_size.y;
+      tri_width = heat_size/num_labels
+    } else {
+      heat_size = viz_state.viz.mat_height // params.viz_dim.heat_size.x;
+      tri_width  = heat_size/num_labels
+    }
+
+    console.log(viz_state.mat)
+    console.log('heat_size', heat_size)
+    console.log('num_labels', num_labels)
+    console.log('tri_width', tri_width)
+
+    var inst_order = viz_state.order.current[axis] // params.order.inst[axis];
+
+    console.log(inst_order)
 
     // _.each(inst_nodes, function(inst_node){
 
@@ -112,12 +120,12 @@ export const calc_dendro_triangles = (viz_state, dendro, axis) => {
     //   } else {
     //     // original way of getting group
     //     ////////////////////////////////////////////
-    //     var inst_level = params.dendro.group_level[inst_axis];
+    //     var inst_level = params.dendro.group_level[axis];
     //     var inst_group = inst_node.group[inst_level];
     //   }
 
     //   var inst_top;
-    //   if (inst_axis === 'row'){
+    //   if (axis === 'row'){
     //     heat_shift = params.viz_dim.mat_size.y - params.viz_dim.heat_size.y;
     //     inst_top = -params.node_canvas_pos.y_arr[order_index] - 2 * tri_width - 2 * heat_shift;
     //   } else {
@@ -144,7 +152,7 @@ export const calc_dendro_triangles = (viz_state, dendro, axis) => {
     //     triangle_info[inst_group].pos_mid = (inst_top + inst_bot)/2;
     //     triangle_info[inst_group].name = inst_group;
     //     triangle_info[inst_group].all_names = [];
-    //     triangle_info[inst_group].inst_axis = inst_axis;
+    //     triangle_info[inst_group].axis = axis;
     //   }
 
     //   triangle_info[inst_group].all_names.push(inst_name);

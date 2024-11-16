@@ -88,7 +88,7 @@ export const matrix_viz = async (
       // alternate linkage slicing code
       alt_slice_linkage(viz_state, axis, dist_thresh)
 
-      calc_dendro_triangles(viz_state, axis, dendro)
+      calc_dendro_triangles(viz_state, dendro, axis)
 
     })
 

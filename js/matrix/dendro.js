@@ -109,67 +109,72 @@ export const calc_dendro_triangles = (viz_state, dendro, axis) => {
 
     console.log(inst_order)
 
-    // _.each(inst_nodes, function(inst_node){
+    inst_nodes.forEach((inst_node, index)=> {
 
-    //   var order_index = inst_node[inst_order];
+        var order_index = inst_node[inst_order]
 
-    //   if ('linkage' in params.network){
-    //     // new way of getting group
-    //     ////////////////////////////////////////////
-    //     var inst_group = inst_node.group_links;
-    //   } else {
-    //     // original way of getting group
-    //     ////////////////////////////////////////////
-    //     var inst_level = params.dendro.group_level[axis];
-    //     var inst_group = inst_node.group[inst_level];
-    //   }
+        // new way of getting group
+        ////////////////////////////////////////////
+        var inst_group = inst_node.group_links
 
-    //   var inst_top;
-    //   if (axis === 'row'){
-    //     heat_shift = params.viz_dim.mat_size.y - params.viz_dim.heat_size.y;
-    //     inst_top = -params.node_canvas_pos.y_arr[order_index] - 2 * tri_width - 2 * heat_shift;
-    //   } else {
-    //     // emperical rule
-    //     heat_shift = params.viz_dim.mat_size.x - params.viz_dim.heat_size.x;
-    //     inst_top = -params.node_canvas_pos.x_arr[order_index] - 2 * tri_width + 2 * heat_shift;
-    //   }
+        var inst_top
 
-    //   var inst_bot = inst_top + tri_width;
+        if (axis === 'row'){
+            heat_shift = 0 // params.viz_dim.mat_size.y - params.viz_dim.heat_size.y
+            // inst_top = -params.node_canvas_pos.y_arr[order_index] - 2 * tri_width - 2 * heat_shift
 
-    //   var inst_name = inst_node.name;
+            let inst_row_index = viz_state.mat.num_rows - viz_state.mat.orders.row[inst_order][index]
 
-    //   if (inst_name.indexOf(': ') >= 0){
-    //     inst_name = inst_name.split(': ')[1];
-    //   }
+            inst_top = viz_state.viz.row_offset * (inst_row_index + 1.5)
 
-    //   // initialize triangle info for a new group
-    //   if ( _.has(triangle_info, inst_group) === false ){
-    //     triangle_info[inst_group] = {};
-    //     triangle_info[inst_group].name_top = inst_name;
-    //     triangle_info[inst_group].name_bot = inst_name;
-    //     triangle_info[inst_group].pos_top = inst_top;
-    //     triangle_info[inst_group].pos_bot = inst_bot;
-    //     triangle_info[inst_group].pos_mid = (inst_top + inst_bot)/2;
-    //     triangle_info[inst_group].name = inst_group;
-    //     triangle_info[inst_group].all_names = [];
-    //     triangle_info[inst_group].axis = axis;
-    //   }
+        } else {
+            // emperical rule
+            heat_shift = 0 // params.viz_dim.mat_size.x - params.viz_dim.heat_size.x
+            // inst_top = -params.node_canvas_pos.x_arr[order_index] - 2 * tri_width + 2 * heat_shift
 
-    //   triangle_info[inst_group].all_names.push(inst_name);
+            let inst_col_index = viz_state.mat.num_cols - viz_state.mat.orders.col[inst_order][index]
 
-    //   if (inst_top < triangle_info[inst_group].pos_top){
-    //     triangle_info[inst_group].name_top = inst_name;
-    //     triangle_info[inst_group].pos_top = inst_top;
-    //     triangle_info[inst_group].pos_mid = (inst_top + triangle_info[inst_group].pos_bot)/2;
-    //   }
+            inst_top = viz_state.viz.col_offset * (inst_col_index + 0.5)
+        }
 
-    //   if (inst_bot > triangle_info[inst_group].pos_bot){
-    //     triangle_info[inst_group].name_bot = inst_name;
-    //     triangle_info[inst_group].pos_bot = inst_bot;
-    //     triangle_info[inst_group].pos_mid = (triangle_info[inst_group].pos_top + inst_bot)/2;
-    //   }
+        // console.log(inst_top)
 
-    // });
+        // var inst_bot = inst_top + tri_width;
+
+        // var inst_name = inst_node.name;
+
+        // if (inst_name.indexOf(': ') >= 0){
+        // inst_name = inst_name.split(': ')[1];
+        // }
+
+        // // initialize triangle info for a new group
+        // if ( _.has(triangle_info, inst_group) === false ){
+        // triangle_info[inst_group] = {};
+        // triangle_info[inst_group].name_top = inst_name;
+        // triangle_info[inst_group].name_bot = inst_name;
+        // triangle_info[inst_group].pos_top = inst_top;
+        // triangle_info[inst_group].pos_bot = inst_bot;
+        // triangle_info[inst_group].pos_mid = (inst_top + inst_bot)/2;
+        // triangle_info[inst_group].name = inst_group;
+        // triangle_info[inst_group].all_names = [];
+        // triangle_info[inst_group].axis = axis;
+        // }
+
+        // triangle_info[inst_group].all_names.push(inst_name);
+
+        // if (inst_top < triangle_info[inst_group].pos_top){
+        // triangle_info[inst_group].name_top = inst_name;
+        // triangle_info[inst_group].pos_top = inst_top;
+        // triangle_info[inst_group].pos_mid = (inst_top + triangle_info[inst_group].pos_bot)/2;
+        // }
+
+        // if (inst_bot > triangle_info[inst_group].pos_bot){
+        // triangle_info[inst_group].name_bot = inst_name;
+        // triangle_info[inst_group].pos_bot = inst_bot;
+        // triangle_info[inst_group].pos_mid = (triangle_info[inst_group].pos_top + inst_bot)/2;
+        // }
+
+    });
 
     // var group_info = [];
 

@@ -12,7 +12,7 @@ import { on_view_state_change } from '../deck-gl/matrix/on_view_state_change.js'
 import { ini_zoom_data } from '../deck-gl/matrix/zoom.js'
 import { get_tooltip } from '../deck-gl/matrix/matrix_tooltip.js'
 import { make_matrix_ui_container } from '../ui/ui_containers.js';
-import { alt_slice_linkage } from '../matrix/dendro.js';
+import { alt_slice_linkage, calc_dendro_triangles } from '../matrix/dendro.js';
 
 export const matrix_viz = async (
     model,
@@ -88,13 +88,15 @@ export const matrix_viz = async (
       // alternate linkage slicing code
       alt_slice_linkage(viz_state, axis, dist_thresh)
 
+      calc_dendro_triangles(viz_state, axis, dendro)
+
     })
 
     viz_state.dendro = dendro
 
-    console.log('row and col nodes after linkage slicing')
-    console.log(viz_state.row_nodes)
-    console.log(viz_state.col_nodes)
+    // console.log('row and col nodes after linkage slicing')
+    // console.log(viz_state.row_nodes)
+    // console.log(viz_state.col_nodes)
 
     let layers_mat = {}
     layers_mat.mat_layer = ini_mat_layer(viz_state)

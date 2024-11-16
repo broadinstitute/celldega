@@ -1,6 +1,5 @@
 import { CustomMatrixLayer } from "./custom_matrix_layer";
 import * as d3 from 'd3'
-import { get_mat_layers_list } from "./matrix_layers";
 
 const mat_layer_get_position = (d, viz_state) => {
 
@@ -45,6 +44,8 @@ export const ini_mat_layer = (viz_state) => {
 }
 
 const mat_layer_onclick = (deck_mat, layers_mat, viz_state) => {
+
+    console.log(deck_mat, layers_mat, viz_state)
 
     // if (viz_state.order.current.row === 'ini') {
     //     viz_state.order.current.row = 'clust'

@@ -99,7 +99,7 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
             .style('user-select', 'none')
             .style('font-family', '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif')
 
-        inst_orders.forEach((label, index) => {
+        inst_orders.forEach((label) => {
             const isClust = label === 'clust';
             make_reorder_button(inst_container, label, isClust, button_width, axis, deck_mat, layers_mat, viz_state);
         });

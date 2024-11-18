@@ -29,9 +29,7 @@ export const layer_filter = ({layer, viewport}) => {
     } else if (viewport.id === 'dendro_rows' & layer.id === 'row-dendro-layer') {
         return true
     }
-    // else if (viewport.id === 'dendro_cols' && layer.id === 'row-label-layer') {
-    else if (viewport.id === 'dendro_cols' && layer.id === 'row-dendro-layer') {
-
+    else if (viewport.id === 'dendro_cols' && layer.id === 'col-dendro-layer') {
         return true
     }
 

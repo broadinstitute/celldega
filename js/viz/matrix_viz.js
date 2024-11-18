@@ -148,19 +148,16 @@ export const matrix_viz = async (
         dendro.group_info[axis].forEach((group) => {
         const { pos_top, pos_bot, pos_mid } = group;
 
-        // if (axis === 'row') {
+        if (axis === 'row') {
+
             // Row dendrogram - right side of the heatmap, pointing outward (right)
             const height = (pos_bot - pos_top); // Increase width for better visibility
 
             const new_pos_bot = 5
 
-            // if (axis === 'row') {
-            //     console.log('pos_bot-', pos_bot)
-            // }
-
             // Triangle vertices
             const triangle = [
-                [new_pos_bot + 100, pos_mid             ],       // Right vertex (pointing outward)
+                [new_pos_bot + 100, pos_mid             ], // Right vertex (pointing outward)
                 [new_pos_bot      , pos_mid - height / 2], // Top-left of the base
                 [new_pos_bot      , pos_mid + height / 2], // Bottom-left of the base
             ];
@@ -171,7 +168,28 @@ export const matrix_viz = async (
                 coordinates: triangle,
                 properties: { ...group, axis }, // Attach group data and axis
             });
-        // }
+
+        } else if (axis === 'col'){
+
+            // Row dendrogram - right side of the heatmap, pointing outward (right)
+            const height = (pos_bot - pos_top); // Increase width for better visibility
+
+            const new_pos_bot = -1000
+
+            // Triangle vertices
+            const triangle = [
+                [pos_mid             , new_pos_bot + 1000 ], // Right vertex (pointing outward)
+                [pos_mid - height / 2, new_pos_bot       ],  // Top-left of the base
+                [pos_mid + height / 2, new_pos_bot       ] , // Bottom-left of the base
+            ];
+
+            console.log(triangle)
+
+            polygons[axis].push({
+                coordinates: triangle,
+                properties: { ...group, axis }, // Attach group data and axis
+            });
+        }
 
 
         // if (axis === 'col') {
@@ -205,6 +223,7 @@ export const matrix_viz = async (
         //     properties: { ...group, axis }, // Attach group data and axis
         //     });
         // }
+
         });
     });
 
@@ -221,7 +240,7 @@ export const matrix_viz = async (
             lineWidthMinPixels: 1,
             pickable: true, // Enable interactivity
             autoHighlight: true, // Highlight on hover
-            onHover: ({ object }) => console.log(object?.properties.name), // Hover info
+            // onHover: ({ object }) => console.log(object?.properties.name), // Hover info
         });
 
     })

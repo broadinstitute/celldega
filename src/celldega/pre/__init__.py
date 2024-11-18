@@ -27,6 +27,25 @@ from .landscape import *
 from .trx_tile import *
 from .boundary_tile import *
 
+def check_and_convert_16_to_8_bit(img):
+    """
+    Check if an image is already 8-bit and convert it to 8-bit if it is not.
+    Parameters
+    ----------
+    img : np.ndarray
+        Input image as a NumPy array. The image should be either 8-bit or 16-bit.
+
+    Returns
+    -------
+    np.ndarray
+        An 8-bit image as a NumPy array.
+    """
+    if img.dtype.itemsize * 8 == 8:
+        return img
+    else:
+        return (img / 256).astype(np.uint8)
+
+
 def convert_long_id_to_short(df):
     """
     Converts a column of long integer cell IDs in a DataFrame to a shorter, hash-based representation.

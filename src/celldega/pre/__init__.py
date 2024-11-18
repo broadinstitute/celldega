@@ -57,13 +57,13 @@ def convert_long_id_to_short(df):
     return df
 
 
-def contrast_filter(img, method='clahe', **kwargs):
+def contrast_filter(gray_img, method='clahe', **kwargs):
     """
     Apply contrast enhancement filters to an image using OpenCV.
 
     Parameters:
     ----------
-    img : np.ndarray
+    gray_img : np.ndarray
         Input image (should be in grayscale format for CLAHE).
     method : str, optional
         The contrast enhancement method to apply. Options are:
@@ -81,7 +81,7 @@ def contrast_filter(img, method='clahe', **kwargs):
     if method == 'clahe':
         # CLAHE - Contrast Limited Adaptive Histogram Equalization
         clip_limit = kwargs.get('clip_limit', 2.0)
-        tile_grid_size = kwargs.get('tile_grid_size', (8, 8))
+        tile_grid_size = kwargs.get('tile_grid_size', (32, 32))
         clahe = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=tile_grid_size)
         return clahe.apply(gray_img)
 
@@ -90,11 +90,10 @@ def contrast_filter(img, method='clahe', **kwargs):
         return cv2.equalizeHist(gray_img)
 
     elif method == 'contrast_stretch':
-        # Contrast Stretching
-        percentile_bound = kwargs.get('percentile_bound', [1, 99])
-        p_low, p_high = np.percentile(gray_img, percentile_bound)
-        stretched_img = np.clip((gray_img - p_low) * 255.0 / (p_high - p_low), 0, 255)
-        return stretched_img.astype(np.uint8)
+            # Contrast Stretching
+            percentile_bound = kwargs.get('percentile_bound', [0.1,99.9])
+            p_low, p_high = np.percentile(gray_img, (percentile_bound[0],percentile_bound[1]))
+            return exposure.rescale_intensity(gray_img, in_range=(p_low, p_high))
 
     else:
         raise ValueError(f"Unsupported method: {method}. Choose from 'clahe', 'hist_equalization', or 'contrast_stretch'.")
@@ -210,17 +209,17 @@ def convert_to_webp(image_path, quality=100):
     return new_image_path
 
 
-
 def make_deepzoom_pyramid(
-    image_path, output_path, pyramid_name, tile_size=512, overlap=0, suffix=".jpeg"
+    array, output_path, pyramid_name, contrast_limit=50, tile_size=512, overlap=0, suffix=".jpeg"
 ):
     """
     Create a DeepZoom image pyramid from a JPEG image
 
     Parameters
     ----------
-    image_path : str
-        Path to the JPEG image file
+    array : numpy array
+    contrast_limit : integer
+        Maximum slope (CLAHE), 0-100.
     tile_size : int (default=512)
         Tile size for the DeepZoom pyramid
     overlap : int (default=0)
@@ -233,12 +232,13 @@ def make_deepzoom_pyramid(
     None
 
     """
+    width, height = array.shape
 
     # Define the output path
     output_path = Path(output_path)
 
-    # Load the JPEG image
-    image = pyvips.Image.new_from_file(image_path, access="sequential")
+    # Load image from memory
+    image = pyvips.Image.new_from_memory(array, height, width, 1, format="uchar") # 'uchar' if 8-bit, 'ushort' if 16-bit
 
     # check if the output path exists and create it if it does not
     output_path.mkdir(parents=True, exist_ok=True)
@@ -246,8 +246,11 @@ def make_deepzoom_pyramid(
     # append the pyramid name to the output path
     output_path = output_path / pyramid_name
 
+    # Apply CLAHE using hist_local
+    clahe_image = image.hist_local(8, 8, max_slope=int(contrast_limit))
+
     # Save the image as a DeepZoom image pyramid
-    image.dzsave(output_path, tile_size=tile_size, overlap=overlap, suffix=suffix)
+    clahe_image.dzsave(output_path, tile_size=tile_size, overlap=overlap, suffix=suffix)
 
 
 def make_meta_cell_image_coord(

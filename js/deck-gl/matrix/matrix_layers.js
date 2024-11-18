@@ -6,6 +6,8 @@ export const get_mat_layers_list = (layers_mat) => {
         layers_mat.col_cat_layer,
         layers_mat.row_label_layer,
         layers_mat.col_label_layer,
+        layers_mat.row_dendro_layer,
+        layers_mat.col_dendro_layer
     ]
 
     return layers_list
@@ -27,8 +29,9 @@ export const layer_filter = ({layer, viewport}) => {
     } else if (viewport.id === 'dendrogram_rows' & layer.id === 'row-dendro-layer') {
         return true
     }
+    // else if (viewport.id === 'dendrogram_cols' && layer.id === 'row-label-layer') {
+    else if (viewport.id === 'dendrogram_cols' && layer.id === 'row-dendro-layer') {
 
-    else if (viewport.id === 'dendrogram_cols' && layer.id === 'row-label-layer') {
         return true
     }
 

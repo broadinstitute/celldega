@@ -137,7 +137,7 @@ export const matrix_viz = async (
 
 
     // dendrogram triangle layers
-    const triangleHeight = 50; // Uniform height for all triangles
+    const triangleHeight = 500; // Uniform height for all triangles
     const polygons = {};
 
     // Generate polygons for "col" and "row" axes
@@ -148,37 +148,55 @@ export const matrix_viz = async (
         dendro.group_info[axis].forEach((group) => {
         const { pos_top, pos_bot, pos_mid } = group;
 
-        if (axis === 'col') {
-            // Column dendrogram - bottom of the heatmap, pointing down
-            const width = (pos_bot - pos_top) / 2;
-
-            // Triangle vertices
-            const triangle = [
-            [pos_mid, pos_bot + triangleHeight], // Bottom vertex (pointing downward)
-            [pos_mid - width, pos_bot], // Top-left of the base
-            [pos_mid + width, pos_bot], // Top-right of the base
-            ];
-
-            polygons[axis].push({
-            coordinates: triangle,
-            properties: { ...group, axis }, // Attach group data and axis
-            });
-        } else if (axis === 'row') {
+        // if (axis === 'row') {
             // Row dendrogram - right side of the heatmap, pointing outward (right)
-            const height = (pos_bot - pos_top) / 2;
+            const height = (pos_bot - pos_top) * 2; // Increase width for better visibility
 
             // Triangle vertices
             const triangle = [
-            [pos_bot + triangleHeight, pos_mid], // Right vertex (pointing outward)
-            [pos_bot, pos_mid - height], // Top-left of the base
-            [pos_bot, pos_mid + height], // Bottom-left of the base
+                [pos_bot + triangleHeight, pos_mid],       // Right vertex (pointing outward)
+                [pos_bot - triangleHeight / 4, pos_mid - height / 2], // Top-left of the base
+                [pos_bot - triangleHeight / 4, pos_mid + height / 2], // Bottom-left of the base
             ];
 
             polygons[axis].push({
-            coordinates: triangle,
-            properties: { ...group, axis }, // Attach group data and axis
+                coordinates: triangle,
+                properties: { ...group, axis }, // Attach group data and axis
             });
-        }
+        // }
+
+
+        // if (axis === 'col') {
+        //     // Column dendrogram - bottom of the heatmap, pointing down
+        //     const width = (pos_bot - pos_top) / 2;
+
+        //     // Triangle vertices
+        //     const triangle = [
+        //     [pos_mid, pos_bot + triangleHeight], // Bottom vertex (pointing downward)
+        //     [pos_mid - width, pos_bot], // Top-left of the base
+        //     [pos_mid + width, pos_bot], // Top-right of the base
+        //     ];
+
+        //     polygons[axis].push({
+        //     coordinates: triangle,
+        //     properties: { ...group, axis }, // Attach group data and axis
+        //     });
+        // } else if (axis === 'row') {
+        //     // Row dendrogram - right side of the heatmap, pointing outward (right)
+        //     const height = (pos_bot - pos_top) / 2;
+
+        //     // Triangle vertices
+        //     const triangle = [
+        //     [pos_bot + triangleHeight, pos_mid], // Right vertex (pointing outward)
+        //     [pos_bot, pos_mid - height], // Top-left of the base
+        //     [pos_bot, pos_mid + height], // Bottom-left of the base
+        //     ];
+
+        //     polygons[axis].push({
+        //     coordinates: triangle,
+        //     properties: { ...group, axis }, // Attach group data and axis
+        //     });
+        // }
         });
     });
 
@@ -186,7 +204,7 @@ export const matrix_viz = async (
 
     ['col', 'row'].forEach((axis) => {
 
-        layers_mat[axis + '_dendro'] = new PolygonLayer({
+        layers_mat[axis + '_dendro_layer'] = new PolygonLayer({
             id: axis + '-dendro-layer',
             data: polygons[axis],
             getPolygon: (d) => d.coordinates, // Access triangle coordinates
@@ -195,11 +213,12 @@ export const matrix_viz = async (
             lineWidthMinPixels: 1,
             pickable: true, // Enable interactivity
             autoHighlight: true, // Highlight on hover
-            onHover: ({ object }) => console.log(object?.properties), // Hover info
+            // onHover: ({ object }) => console.log(object?.properties), // Hover info
         });
 
     })
 
+    console.log('layers_mat')
     console.log(layers_mat)
 
     ini_views(viz_state)
@@ -209,6 +228,9 @@ export const matrix_viz = async (
     set_mat_layer_onclick(deck_mat, layers_mat, viz_state)
     set_row_label_layer_onclick(deck_mat, layers_mat, viz_state)
     set_col_label_layer_onclick(deck_mat, layers_mat, viz_state)
+
+    console.log('layers_list')
+    console.log(get_mat_layers_list(layers_mat))
 
     deck_mat.setProps({
         onViewStateChange: (params) => on_view_state_change(params, deck_mat, layers_mat, viz_state),

@@ -68,7 +68,7 @@ export const set_mat_constants = (network, root, width, height) => {
     viz_state.animate = {}
     viz_state.animate.duration = 2500
 
-    viz_state.viz.dendrogram_width = 100
+    viz_state.viz.dendrogram_width = 20
 
     //////////////////////////////
     // Variables

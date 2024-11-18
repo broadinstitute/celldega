@@ -152,7 +152,7 @@ export const matrix_viz = async (
             // Row dendrogram - right side of the heatmap, pointing outward (right)
             const height = (pos_bot - pos_top); // Increase width for better visibility
 
-            const new_pos_bot = -35
+            const new_pos_bot = 5
 
             // if (axis === 'row') {
             //     console.log('pos_bot-', pos_bot)

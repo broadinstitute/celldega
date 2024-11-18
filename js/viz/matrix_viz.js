@@ -255,6 +255,9 @@ export const matrix_viz = async (
     // Add event listener to log the slider value
     viz_state.dendro.sliders.row.addEventListener("input", (event) => {
         console.log(`Slider value: ${event.target.value}`);
+        console.log('viz_state', viz_state)
+
+
     });
 
     ui_container.appendChild(viz_state.dendro.sliders.row)

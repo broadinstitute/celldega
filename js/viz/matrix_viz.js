@@ -146,85 +146,53 @@ export const matrix_viz = async (
         polygons[axis] = [];
 
         dendro.group_info[axis].forEach((group) => {
-        const { pos_top, pos_bot, pos_mid } = group;
 
-        if (axis === 'row') {
+            const { pos_top, pos_bot, pos_mid } = group;
 
-            // Row dendrogram - right side of the heatmap, pointing outward (right)
-            const height = (pos_bot - pos_top); // Increase width for better visibility
+            if (axis === 'row') {
 
-            const new_pos_bot = 7
+                // Row dendrogram - right side of the heatmap, pointing outward (right)
+                const height = (pos_bot - pos_top); // Increase width for better visibility
 
-            // Triangle vertices
-            const triangle = [
-                [new_pos_bot + 100, pos_mid             ], // Right vertex (pointing outward)
-                [new_pos_bot      , pos_mid - height / 2], // Top-left of the base
-                [new_pos_bot      , pos_mid + height / 2], // Bottom-left of the base
-            ];
+                const new_pos_bot = 7
 
-            // console.log(triangle)
+                // Triangle vertices
+                const triangle = [
+                    [new_pos_bot + 100, pos_mid             ], // Right vertex (pointing outward)
+                    [new_pos_bot      , pos_mid - height / 2], // Top-left of the base
+                    [new_pos_bot      , pos_mid + height / 2], // Bottom-left of the base
+                ];
 
-            polygons[axis].push({
-                coordinates: triangle,
-                properties: { ...group, axis }, // Attach group data and axis
-            });
+                // console.log(triangle)
 
-        } else if (axis === 'col'){
+                polygons[axis].push({
+                    coordinates: triangle,
+                    properties: { ...group, axis }, // Attach group data and axis
+                });
 
-            // Row dendrogram - right side of the heatmap, pointing outward (right)
-            const height = (pos_bot - pos_top); // Increase width for better visibility
+            } else if (axis === 'col'){
 
-            // const new_pos_bot = -1000
-            const new_pos_bot = 17
+                // Row dendrogram - right side of the heatmap, pointing outward (right)
+                const height = (pos_bot - pos_top); // Increase width for better visibility
 
-            // Triangle vertices
-            // higher y value is lower on the screen
-            const triangle = [
-                [pos_mid             , new_pos_bot + 100 ], // Right vertex (pointing outward)
-                [pos_mid - height / 2, new_pos_bot       ],  // Top-left of the base
-                [pos_mid + height / 2, new_pos_bot       ] , // Bottom-left of the base
-            ];
+                // const new_pos_bot = -1000
+                const new_pos_bot = 17
 
-            console.log(triangle)
+                // Triangle vertices
+                // higher y value is lower on the screen
+                const triangle = [
+                    [pos_mid             , new_pos_bot + 100 ], // Right vertex (pointing outward)
+                    [pos_mid - height / 2, new_pos_bot       ],  // Top-left of the base
+                    [pos_mid + height / 2, new_pos_bot       ] , // Bottom-left of the base
+                ];
 
-            polygons[axis].push({
-                coordinates: triangle,
-                properties: { ...group, axis }, // Attach group data and axis
-            });
-        }
+                console.log(triangle)
 
-
-        // if (axis === 'col') {
-        //     // Column dendrogram - bottom of the heatmap, pointing down
-        //     const width = (pos_bot - pos_top) / 2;
-
-        //     // Triangle vertices
-        //     const triangle = [
-        //     [pos_mid, pos_bot + triangleHeight], // Bottom vertex (pointing downward)
-        //     [pos_mid - width, pos_bot], // Top-left of the base
-        //     [pos_mid + width, pos_bot], // Top-right of the base
-        //     ];
-
-        //     polygons[axis].push({
-        //     coordinates: triangle,
-        //     properties: { ...group, axis }, // Attach group data and axis
-        //     });
-        // } else if (axis === 'row') {
-        //     // Row dendrogram - right side of the heatmap, pointing outward (right)
-        //     const height = (pos_bot - pos_top) / 2;
-
-        //     // Triangle vertices
-        //     const triangle = [
-        //     [pos_bot + triangleHeight, pos_mid], // Right vertex (pointing outward)
-        //     [pos_bot, pos_mid - height], // Top-left of the base
-        //     [pos_bot, pos_mid + height], // Bottom-left of the base
-        //     ];
-
-        //     polygons[axis].push({
-        //     coordinates: triangle,
-        //     properties: { ...group, axis }, // Attach group data and axis
-        //     });
-        // }
+                polygons[axis].push({
+                    coordinates: triangle,
+                    properties: { ...group, axis }, // Attach group data and axis
+                });
+            }
 
         });
     });
@@ -271,6 +239,26 @@ export const matrix_viz = async (
     })
 
     const ui_container = make_matrix_ui_container(deck_mat, layers_mat, viz_state)
+
+
+    // slider
+    viz_state.dendro.sliders = {}
+    viz_state.dendro.sliders.row = document.createElement("input")
+    viz_state.dendro.sliders.row.type = "range"
+    viz_state.dendro.sliders.row.min = "0"
+    viz_state.dendro.sliders.row.max = "100"
+    viz_state.dendro.sliders.row.value = 50
+    viz_state.dendro.sliders.row.className = "slider"
+    viz_state.dendro.sliders.row.style.width = "75px"
+    // viz_state.dendro.sliders.row.addEventListener("input", () => console.log('here'))
+
+    // Add event listener to log the slider value
+    viz_state.dendro.sliders.row.addEventListener("input", (event) => {
+        console.log(`Slider value: ${event.target.value}`);
+    });
+
+    ui_container.appendChild(viz_state.dendro.sliders.row)
+
 
     el.appendChild(ui_container)
     el.appendChild(viz_state.root)

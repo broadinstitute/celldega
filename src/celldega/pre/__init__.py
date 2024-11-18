@@ -210,7 +210,7 @@ def convert_to_webp(image_path, quality=100):
 
 
 def make_deepzoom_pyramid(
-    array, output_path, pyramid_name, contrast_limit=50, tile_size=512, overlap=0, suffix=".jpeg"
+    array, output_path, pyramid_name, tile_size=512, overlap=0, suffix=".jpeg"
 ):
     """
     Create a DeepZoom image pyramid from a JPEG image
@@ -218,8 +218,6 @@ def make_deepzoom_pyramid(
     Parameters
     ----------
     array : numpy array
-    contrast_limit : integer
-        Maximum slope (CLAHE), 0-100.
     tile_size : int (default=512)
         Tile size for the DeepZoom pyramid
     overlap : int (default=0)
@@ -246,11 +244,8 @@ def make_deepzoom_pyramid(
     # append the pyramid name to the output path
     output_path = output_path / pyramid_name
 
-    # Apply CLAHE using hist_local
-    clahe_image = image.hist_local(8, 8, max_slope=int(contrast_limit))
-
     # Save the image as a DeepZoom image pyramid
-    clahe_image.dzsave(output_path, tile_size=tile_size, overlap=overlap, suffix=suffix)
+    image.dzsave(output_path, tile_size=tile_size, overlap=overlap, suffix=suffix)
 
 
 def make_meta_cell_image_coord(

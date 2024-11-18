@@ -216,7 +216,7 @@ export const matrix_viz = async (
             id: axis + '-dendro-layer',
             data: polygons[axis],
             getPolygon: (d) => d.coordinates, // Access triangle coordinates
-            getFillColor: (d) => (d.axis === 'col' ? [0, 0, 255, 128] : [255, 0, 0, 128]), // Different colors for rows/cols
+            getFillColor: (d) => (d.axis === 'col' ? [0, 0, 0, 90] : [0, 0, 0, 90]), // Different colors for rows/cols
             getLineColor: [255, 255, 255, 255], // White outline
             lineWidthMinPixels: 1,
             pickable: true, // Enable interactivity

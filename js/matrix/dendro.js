@@ -120,16 +120,20 @@ export const calc_dendro_triangles = (viz_state, dendro, axis) => {
         var inst_top
 
         if (axis === 'row'){
+
             heat_shift = 0 // params.viz_dim.mat_size.y - params.viz_dim.heat_size.y
+
             // inst_top = -params.node_canvas_pos.y_arr[order_index] - 2 * tri_width - 2 * heat_shift
 
             let inst_row_index = viz_state.mat.num_rows - viz_state.mat.orders.row[inst_order][index]
 
-            inst_top = viz_state.viz.row_offset * (inst_row_index + 1.5)
+            inst_top = viz_state.viz.row_offset * (inst_row_index + 1.0)
 
         } else {
+
             // emperical rule
             heat_shift = 0 // params.viz_dim.mat_size.x - params.viz_dim.heat_size.x
+
             // inst_top = -params.node_canvas_pos.x_arr[order_index] - 2 * tri_width + 2 * heat_shift
 
             let inst_col_index = viz_state.mat.num_cols - viz_state.mat.orders.col[inst_order][index]
@@ -137,7 +141,7 @@ export const calc_dendro_triangles = (viz_state, dendro, axis) => {
             inst_top = viz_state.viz.col_offset * (inst_col_index + 0.5)
         }
 
-        var inst_bot = inst_top + tri_width
+        var inst_bot =  inst_top + tri_width
 
         var inst_name = inst_node.name
 

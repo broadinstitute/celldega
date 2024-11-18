@@ -6,7 +6,7 @@ import { curate_pan_x, curate_pan_y } from './curate_pan.js'
 
 export const on_view_state_change = (params, deck_mat, layers_mat, viz_state) => {
 
-    // console.log('onviewstatechange')
+    console.log('onviewstatechange')
 
     const viewState = params.viewState
     const viewId = params.viewId
@@ -39,7 +39,7 @@ export const on_view_state_change = (params, deck_mat, layers_mat, viz_state) =>
 
     } else if (viewId === 'rows'){
 
-        console.log('checking zoom in rows', zoom)
+        // console.log('checking zoom in rows', zoom)
 
         if (viz_state.zoom.minor_zoom_axis === 'Y'){
 
@@ -61,11 +61,11 @@ export const on_view_state_change = (params, deck_mat, layers_mat, viz_state) =>
 
     }  else if (viewId === 'dendro_rows'){
 
-        console.log('checking zoom in dendro_rows', zoom)
+        // console.log('checking zoom in dendro_rows', zoom)
 
         if (viz_state.zoom.minor_zoom_axis === 'Y'){
 
-            console.log('minor zoom axis is Y')
+            // console.log('minor zoom axis is Y')
 
             zoom_dx = zoom[0]
             zoom_dy = zoom[1]
@@ -83,17 +83,37 @@ export const on_view_state_change = (params, deck_mat, layers_mat, viz_state) =>
             zoom_dx = zoom[0]
             zoom_dy = zoom[1] - viz_state.zoom.zoom_data[viewId].zoom_y
 
-            console.log(zoom)
-            console.log(zoom_dx, zoom_dy)
+            // console.log(zoom)
+            // console.log(zoom_dx, zoom_dy)
 
         }
 
 
     }
+    if (viewId === 'dendro_cols'){
+
+        if (viz_state.zoom.minor_zoom_axis === 'X'){
+
+            zoom_dx = zoom[0]
+            zoom_dy = zoom[1]
+
+        } else if (viz_state.zoom.minor_zoom_axis === 'Y'){
+
+            zoom_dx = zoom[0] - viz_state.zoom.zoom_data[viewId].zoom_x
+            zoom_dy = zoom[1] - viz_state.zoom.zoom_data[viewId].zoom_y
+
+        } else if (viz_state.zoom.minor_zoom_axis === 'none'){
+
+            zoom_dx = zoom[0] - viz_state.zoom.zoom_data[viewId].zoom_x
+            zoom_dy = zoom[1]
+
+        }
+
+    }
 
     else if (viewId === 'matrix'){
 
-        console.log('checking zoom in matrix', zoom)
+        // console.log('checking zoom in matrix', zoom)
 
         zoom_dx = zoom[0] - viz_state.zoom.zoom_data[viewId].zoom_x
         zoom_dy = zoom[1] - viz_state.zoom.zoom_data[viewId].zoom_y

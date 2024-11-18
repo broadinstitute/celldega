@@ -75,7 +75,7 @@ export const ini_views = (viz_state) => {
             width: viz_state.viz.mat_width + 'px',
             height: viz_state.viz.dendrogram_width + 'px',
             controller: {
-                scrollZoom: false,
+                scrollZoom: true,
                 inertia: false,
                 zoomAxis: viz_state.zoom.major_zoom_axis,
                 doubleClickZoom: false
@@ -90,7 +90,7 @@ export const ini_views = (viz_state) => {
             width: viz_state.viz.dendrogram_width + 'px',
             height: viz_state.viz.mat_height + 'px',
             controller: {
-                scrollZoom: false,
+                scrollZoom: true,
                 inertia: false,
                 zoomAxis: viz_state.zoom.major_zoom_axis,
                 doubleClickZoom: false
@@ -106,6 +106,8 @@ export const ini_views = (viz_state) => {
 }
 
 export const ini_view_state = (viz_state) => {
+
+    console.log('ini_view_state')
 
     let globalViewState = {
       matrix: {

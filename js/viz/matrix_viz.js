@@ -153,7 +153,7 @@ export const matrix_viz = async (
             // Row dendrogram - right side of the heatmap, pointing outward (right)
             const height = (pos_bot - pos_top); // Increase width for better visibility
 
-            const new_pos_bot = 5
+            const new_pos_bot = 7
 
             // Triangle vertices
             const triangle = [
@@ -174,11 +174,13 @@ export const matrix_viz = async (
             // Row dendrogram - right side of the heatmap, pointing outward (right)
             const height = (pos_bot - pos_top); // Increase width for better visibility
 
-            const new_pos_bot = -1000
+            // const new_pos_bot = -1000
+            const new_pos_bot = 17
 
             // Triangle vertices
+            // higher y value is lower on the screen
             const triangle = [
-                [pos_mid             , new_pos_bot + 1000 ], // Right vertex (pointing outward)
+                [pos_mid             , new_pos_bot + 100 ], // Right vertex (pointing outward)
                 [pos_mid - height / 2, new_pos_bot       ],  // Top-left of the base
                 [pos_mid + height / 2, new_pos_bot       ] , // Bottom-left of the base
             ];
@@ -239,7 +241,7 @@ export const matrix_viz = async (
             getLineColor: [255, 255, 255, 255], // White outline
             lineWidthMinPixels: 1,
             pickable: true, // Enable interactivity
-            autoHighlight: true, // Highlight on hover
+            // autoHighlight: true, // Highlight on hover
             // onHover: ({ object }) => console.log(object?.properties.name), // Hover info
         });
 

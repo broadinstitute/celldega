@@ -138,7 +138,7 @@ export const calc_dendro_triangles = (viz_state, dendro, axis) => {
 
             let inst_col_index = viz_state.mat.num_cols - viz_state.mat.orders.col[inst_order][index]
 
-            inst_top = viz_state.viz.col_offset * (inst_col_index + 0.5)
+            inst_top = viz_state.viz.col_offset * (inst_col_index + 0.0)
         }
 
         var inst_bot =  inst_top + tri_width

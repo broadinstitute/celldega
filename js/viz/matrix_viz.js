@@ -150,14 +150,22 @@ export const matrix_viz = async (
 
         // if (axis === 'row') {
             // Row dendrogram - right side of the heatmap, pointing outward (right)
-            const height = (pos_bot - pos_top) * 2; // Increase width for better visibility
+            const height = (pos_bot - pos_top); // Increase width for better visibility
+
+            console.log('pos_bot', pos_bot)
+
+            const new_pos_bot = 0
+
+            console.log('pos_bot', pos_bot)
 
             // Triangle vertices
             const triangle = [
-                [pos_bot + triangleHeight, pos_mid],       // Right vertex (pointing outward)
-                [pos_bot - triangleHeight / 4, pos_mid - height / 2], // Top-left of the base
-                [pos_bot - triangleHeight / 4, pos_mid + height / 2], // Bottom-left of the base
+                [new_pos_bot + 100,     pos_mid],       // Right vertex (pointing outward)
+                [new_pos_bot - triangleHeight / 4, pos_mid - height / 2], // Top-left of the base
+                [new_pos_bot - triangleHeight / 4, pos_mid + height / 2], // Bottom-left of the base
             ];
+
+            // console.log(triangle)
 
             polygons[axis].push({
                 coordinates: triangle,

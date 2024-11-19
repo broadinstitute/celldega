@@ -1,6 +1,7 @@
 import { TextLayer } from "deck.gl"
 import * as d3 from 'd3'
 import { get_mat_layers_list } from "./matrix_layers"
+import { toggle_dendro_layer_visibility } from "./dendro_layers"
 
 const row_label_get_position = (d, index, viz_state) => {
 
@@ -121,8 +122,6 @@ const DOUBLE_CLICK_DELAY = 250;
 
 const custom_label_reorder = (deck_mat, layers_mat, viz_state, axis, name, index) => {
 
-
-
     let tmp_arr = []
     const other_axis = axis === 'col' ? 'row' : 'col'
 
@@ -167,12 +166,14 @@ const custom_label_reorder = (deck_mat, layers_mat, viz_state, axis, name, index
                 getPosition: [viz_state.order.current.col, name]
             }
         })
+        toggle_dendro_layer_visibility(layers_mat, viz_state, 'col')
     } else if (other_axis === 'row') {
         layers_mat.row_label_layer = layers_mat.row_label_layer.clone({
             updateTriggers: {
                 getPosition: [viz_state.order.current.row, name]
             }
         })
+        toggle_dendro_layer_visibility(layers_mat, viz_state, 'row')
     }
 
     deck_mat.setProps({
@@ -208,6 +209,7 @@ const row_label_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
     console.log(viz_state.click)
 
     if (Object.keys(viz_state.model).length > 0) {
+        viz_state.model.set('click_info', null);
         viz_state.model.set('click_info', viz_state.click)
         viz_state.model.save_changes()
     }
@@ -240,6 +242,7 @@ const col_label_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
     console.log(viz_state.click)
 
     if (Object.keys(viz_state.model).length > 0) {
+        viz_state.model.set('click_info', null);
         viz_state.model.set('click_info', viz_state.click)
         viz_state.model.save_changes()
     }

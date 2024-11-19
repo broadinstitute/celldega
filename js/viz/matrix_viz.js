@@ -25,22 +25,22 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { ini_deck } from '../deck-gl/matrix/deck_mat.js'
-import { set_mat_data } from '../matrix/mat_data.js';
-import { set_mat_constants } from '../matrix/set_constants.js';
-import { set_row_label_data, set_col_label_data } from '../matrix/label_data.js';
-import { set_row_cat_data, set_col_cat_data } from '../matrix/cat_data.js';
-import { ini_mat_layer, set_mat_layer_onclick } from '../deck-gl/matrix/mat_layer.js';
-import { ini_row_label_layer, ini_col_label_layer, set_row_label_layer_onclick, set_col_label_layer_onclick } from '../deck-gl/matrix/label_layers.js';
-import { ini_row_cat_layer, ini_col_cat_layer } from '../deck-gl/matrix/cat_layers.js';
-import { get_mat_layers_list, layer_filter } from '../deck-gl/matrix/matrix_layers.js'
-import { ini_views, ini_view_state } from '../deck-gl/matrix/views.js'
-import { on_view_state_change } from '../deck-gl/matrix/on_view_state_change.js'
-import { ini_zoom_data } from '../deck-gl/matrix/zoom.js'
-import { get_tooltip } from '../deck-gl/matrix/matrix_tooltip.js'
-import { make_matrix_ui_container } from '../ui/ui_containers.js';
-import { calc_dendro_polygons, ini_dendro } from '../matrix/dendro.js';
-import { PolygonLayer } from 'deck.gl'
+import { ini_deck } from '../deck-gl/matrix/deck_mat'
+import { set_mat_data } from '../matrix/mat_data'
+import { set_mat_constants } from '../matrix/set_constants'
+import { set_row_label_data, set_col_label_data } from '../matrix/label_data'
+import { set_row_cat_data, set_col_cat_data } from '../matrix/cat_data'
+import { ini_mat_layer, set_mat_layer_onclick } from '../deck-gl/matrix/mat_layer'
+import { ini_row_label_layer, ini_col_label_layer, set_row_label_layer_onclick, set_col_label_layer_onclick } from '../deck-gl/matrix/label_layers'
+import { ini_row_cat_layer, ini_col_cat_layer } from '../deck-gl/matrix/cat_layers';
+import { get_mat_layers_list, layer_filter } from '../deck-gl/matrix/matrix_layers'
+import { ini_views, ini_view_state } from '../deck-gl/matrix/views'
+import { on_view_state_change } from '../deck-gl/matrix/on_view_state_change'
+import { ini_zoom_data } from '../deck-gl/matrix/zoom'
+import { get_tooltip } from '../deck-gl/matrix/matrix_tooltip'
+import { make_matrix_ui_container } from '../ui/ui_containers';
+import { calc_dendro_polygons, ini_dendro } from '../matrix/dendro';
+import { ini_dendro_layer } from '../deck-gl/matrix/dendro_layers'
 
 export const matrix_viz = async (
     model,
@@ -95,24 +95,6 @@ export const matrix_viz = async (
     calc_dendro_polygons(viz_state, 'col');
 
 
-
-    const ini_dendro_layer = (layers_mat, viz_state, axis) => {
-
-        const inst_layer = new PolygonLayer({
-            id: axis + '-dendro-layer',
-            data: viz_state.dendro.polygons[axis],
-            getPolygon: (d) => d.coordinates,
-            getFillColor: [0, 0, 0, 90],
-            getLineColor: [255, 255, 255, 255],
-            lineWidthMinPixels: 0,
-            pickable: true,
-            // autoHighlight: true, // Highlight on hover
-            // onHover: ({ object }) => console.log(object?.properties.name), // Hover info
-        })
-
-        return inst_layer
-
-    }
 
     layers_mat['row_dendro_layer'] = ini_dendro_layer(layers_mat, viz_state, 'row')
     layers_mat['col_dendro_layer'] = ini_dendro_layer(layers_mat, viz_state, 'col')

@@ -89,9 +89,6 @@ export const matrix_viz = async (
     layers_mat.row_dendro_layer = ini_dendro_layer(layers_mat, viz_state, 'row')
     layers_mat.col_dendro_layer = ini_dendro_layer(layers_mat, viz_state, 'col')
 
-
-
-
     ini_views(viz_state)
 
     const global_view_state = ini_view_state(viz_state)
@@ -113,17 +110,26 @@ export const matrix_viz = async (
 
 
     // slider
-    viz_state.dendro.sliders = {}
-    viz_state.dendro.sliders.row = document.createElement("input")
-    viz_state.dendro.sliders.row.type = "range"
-    viz_state.dendro.sliders.row.min = "0"
-    viz_state.dendro.sliders.row.max = "100"
-    viz_state.dendro.sliders.row.value = 50
-    viz_state.dendro.sliders.row.className = "slider"
-    viz_state.dendro.sliders.row.style.width = "75px"
-    // viz_state.dendro.sliders.row.addEventListener("input", () => console.log('here'))
+    viz_state.dendro.sliders = {};
+
+
+    ['row', 'col'].forEach(axis => {
+
+        console.log('here!!!!!')
+
+        viz_state.dendro.sliders[axis] = document.createElement("input")
+        viz_state.dendro.sliders[axis].type = "range"
+        viz_state.dendro.sliders[axis].min = "0"
+        viz_state.dendro.sliders[axis].max = "100"
+        viz_state.dendro.sliders[axis].value = 50
+        viz_state.dendro.sliders[axis].className = "slider"
+        viz_state.dendro.sliders[axis].style.width = "75px"
+
+    });
 
     const dendro_slider_callback = (viz_state, axis, event) => {
+
+        console.log(axis)
 
         // Update the dendrogram layer
         viz_state.dendro.sliders[axis + '_value'] = viz_state.dendro.max_linkage_dist[axis] * event.target.value/100
@@ -142,8 +148,11 @@ export const matrix_viz = async (
 
     // Add event listener to log the slider value
     viz_state.dendro.sliders.row.addEventListener("input", (event) => dendro_slider_callback(viz_state, 'row', event));
+    viz_state.dendro.sliders.col.addEventListener("input", (event) => dendro_slider_callback(viz_state, 'col', event));
+
 
     ui_container.appendChild(viz_state.dendro.sliders.row)
+    ui_container.appendChild(viz_state.dendro.sliders.col)
 
 
     el.appendChild(ui_container)

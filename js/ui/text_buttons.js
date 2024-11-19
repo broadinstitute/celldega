@@ -11,6 +11,7 @@ import { toggle_trx_layer_visibility } from '../deck-gl/trx_layer'
 import { get_layers_list } from '../deck-gl/layers_ist'
 import { toggle_slider } from './sliders'
 import { get_mat_layers_list } from '../deck-gl/matrix/matrix_layers'
+import { toggle_dendro_layer_visibility } from '../deck-gl/matrix/dendro_layers'
 
 let is_visible
 
@@ -87,6 +88,8 @@ const reorder_button_callback = (event, axis, deck_mat, layers_mat, viz_state) =
                 }
             })
         }
+
+        toggle_dendro_layer_visibility(layers_mat, viz_state, axis)
 
         deck_mat.setProps({
             layers: get_mat_layers_list(layers_mat),

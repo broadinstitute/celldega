@@ -26,3 +26,21 @@ export const update_dendro_layer_data = (layers_mat, viz_state, axis) => {
     })
 
 }
+
+export const toggle_dendro_layer_visibility = (layers_mat, viz_state, axis) => {
+
+    // if viz_state.order.curent[axis] is 'clust' then the dendrogram is visible
+    let is_visible = false
+    if (viz_state.order.current[axis] === 'clust'){
+        is_visible = true
+    }
+
+    layers_mat[axis + '_dendro_layer'] = layers_mat[axis + '_dendro_layer'].clone({
+        // visible: !layers_mat[axis + '_dendro_layer'].visible,
+        visible: is_visible,
+    })
+
+    // // set the status of the dendrogram slider
+    // viz_state.dendro.sliders[axis].visible = is_visible
+
+}

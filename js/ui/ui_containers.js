@@ -8,6 +8,9 @@ import { toggle_visibility_image_layers } from '../deck-gl/image_layers'
 import { make_bar_graph } from './bar_plot'
 import { bar_callback_cluster, make_bar_container } from './bar_plot'
 import { bar_callback_gene } from './bar_plot'
+import { calc_dendro_triangles, calc_dendro_polygons, alt_slice_linkage } from '../matrix/dendro'
+import { update_dendro_layer_data } from '../deck-gl/matrix/dendro_layers'
+import { get_mat_layers_list } from '../deck-gl/matrix/matrix_layers'
 
 export const toggle_image_layers_and_ctrls = (layers_obj, viz_state, is_visible) => {
 
@@ -107,12 +110,55 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
         ctrl_container.appendChild(inst_container)
     })
 
+    viz_state.dendro.sliders = {};
+
+    axes.forEach(axis => {
+
+        viz_state.dendro.sliders[axis] = document.createElement("input")
+        viz_state.dendro.sliders[axis].type = "range"
+        viz_state.dendro.sliders[axis].min = "0"
+        viz_state.dendro.sliders[axis].max = "100"
+        viz_state.dendro.sliders[axis].value = 50
+        viz_state.dendro.sliders[axis].className = "slider"
+        viz_state.dendro.sliders[axis].style.width = "75px"
+
+    });
+
+
+    const dendro_slider_callback = (deck_mat, viz_state, axis, event) => {
+
+        console.log(axis)
+
+        // Update the dendrogram layer
+        viz_state.dendro.sliders[axis + '_value'] = viz_state.dendro.max_linkage_dist[axis] * event.target.value/100
+
+        alt_slice_linkage(viz_state, axis, viz_state.dendro.sliders[axis + '_value'])
+        calc_dendro_triangles(viz_state, axis);
+        calc_dendro_polygons(viz_state, axis);
+        update_dendro_layer_data(layers_mat, viz_state, axis)
+
+        deck_mat.setProps({
+            layers: get_mat_layers_list(layers_mat),
+        })
+
+    }
+
+
+    // Add event listener to log the slider value
+    viz_state.dendro.sliders.row.addEventListener("input", (event) => dendro_slider_callback(deck_mat, viz_state, 'row', event));
+    viz_state.dendro.sliders.col.addEventListener("input", (event) => dendro_slider_callback(deck_mat, viz_state, 'col', event));
+
     ui_container.appendChild(ctrl_container)
+    ui_container.appendChild(viz_state.dendro.sliders.row)
+    ui_container.appendChild(viz_state.dendro.sliders.col)
 
     return ui_container
 
 
 }
+
+
+
 
 export const make_sst_ui_container = (deck_sst, layers_sst, viz_state) => {
 
@@ -305,3 +351,4 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
     return ui_container
 
 }
+

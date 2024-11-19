@@ -13,154 +13,320 @@ export const update_ist_landscape_from_cgm = async (deck_ist, layers_obj, viz_st
 
     const click_info = viz_state.model.get('update_trigger')
 
+    console.log('**********************************************')
+    console.log('click_info', click_info)
+    console.log('**********************************************')
+
     let inst_gene
     let new_cat
 
-    if (click_info.click_type === 'row-label') {
+    // check if click_info has both keys: type and value
+    if (!('click_type' in click_info) || !('click_value' in click_info)) {
+        console.log('new mat!')
 
-        inst_gene = click_info.click_value
+        if (click_info.type === 'row_label') {
 
-        const new_cat = inst_gene === viz_state.cats.cat ? 'cluster' : inst_gene
+            inst_gene = click_info.value.name
 
-        toggle_image_layers_and_ctrls(layers_obj, viz_state, viz_state.cats.cat === inst_gene)
+            const new_cat = inst_gene === viz_state.cats.cat ? 'cluster' : inst_gene
 
-        update_cat(viz_state.cats, new_cat)
-        update_selected_genes(viz_state.genes, [inst_gene])
-        update_selected_cats(viz_state.cats, [])
-        await update_cell_exp_array(viz_state.cats, viz_state.genes, viz_state.global_base_url, inst_gene)
+            toggle_image_layers_and_ctrls(layers_obj, viz_state, viz_state.cats.cat === inst_gene)
 
-        update_cell_layer_id(layers_obj, new_cat)
-        update_path_layer_id(layers_obj, new_cat)
-        update_trx_layer_id(viz_state.genes, layers_obj)
+            update_cat(viz_state.cats, new_cat)
+            update_selected_genes(viz_state.genes, [inst_gene])
+            update_selected_cats(viz_state.cats, [])
+            await update_cell_exp_array(viz_state.cats, viz_state.genes, viz_state.global_base_url, inst_gene)
 
-        const layers_list = get_layers_list(layers_obj, viz_state.close_up)
-        deck_ist.setProps({layers: layers_list})
+            update_cell_layer_id(layers_obj, new_cat)
+            update_path_layer_id(layers_obj, new_cat)
+            update_trx_layer_id(viz_state.genes, layers_obj)
 
-        const reset_gene = false
+            const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+            deck_ist.setProps({layers: layers_list})
 
-        viz_state.genes.svg_bar_gene.selectAll("g")
-            .attr('font-weight', 'normal')
-            .attr('opacity', reset_gene ? 1.0 : 0.25)
+            const reset_gene = false
 
-        if (!reset_gene) {
-            const selectedBar = viz_state.genes.svg_bar_gene.selectAll("g")
-                .filter(function() {
-                    return d3.select(this).select("text").text() === inst_gene
-                })
-                .attr('opacity', 1.0)
+            viz_state.genes.svg_bar_gene.selectAll("g")
+                .attr('font-weight', 'normal')
+                .attr('opacity', reset_gene ? 1.0 : 0.25)
 
-            if (!selectedBar.empty()) {
-                const barPosition = selectedBar.node().getBoundingClientRect().top
-                const containerPosition = viz_state.containers.bar_gene.getBoundingClientRect().top
-                const scrollPosition = barPosition - containerPosition + viz_state.containers.bar_gene.scrollTop
+            if (!reset_gene) {
+                const selectedBar = viz_state.genes.svg_bar_gene.selectAll("g")
+                    .filter(function() {
+                        return d3.select(this).select("text").text() === inst_gene
+                    })
+                    .attr('opacity', 1.0)
 
-                viz_state.containers.bar_gene.scrollTo({
-                    top: scrollPosition,
-                    behavior: 'smooth'
-                })
+                if (!selectedBar.empty()) {
+                    const barPosition = selectedBar.node().getBoundingClientRect().top
+                    const containerPosition = viz_state.containers.bar_gene.getBoundingClientRect().top
+                    const scrollPosition = barPosition - containerPosition + viz_state.containers.bar_gene.scrollTop
+
+                    viz_state.containers.bar_gene.scrollTo({
+                        top: scrollPosition,
+                        behavior: 'smooth'
+                    })
+                }
             }
+
+            viz_state.genes.gene_search_input.value = (viz_state.genes.gene_search_input.value !== inst_gene) ? inst_gene : ''
+
+            update_gene_text_box(viz_state.genes, inst_gene)
+
+        }
+        else if (click_info.type === 'col_label') {
+
+            inst_gene = 'cluster'
+            new_cat = click_info.value.name
+
+            console.log('new_cat', new_cat)
+
+            update_cat(viz_state.cats, 'cluster')
+            update_selected_cats(viz_state.cats, [new_cat])
+            update_selected_genes(viz_state.genes, [])
+            toggle_image_layers_and_ctrls(layers_obj, viz_state, !viz_state.cats.selected_cats.length > 0)
+
+            const inst_cat_name = viz_state.cats.selected_cats.join('-')
+
+            update_cell_layer_id(layers_obj, inst_cat_name)
+            update_path_layer_id(layers_obj, inst_cat_name)
+            update_trx_layer_id(viz_state.genes, layers_obj)
+
+            const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+            deck_ist.setProps({layers: layers_list})
+
+            viz_state.cats.svg_bar_cluster.selectAll("g")
+                .attr('font-weight', 'normal')
+                .attr('opacity', viz_state.cats.reset_cat ? 1.0 : 0.25)
+
+            const inst_cat = new_cat
+
+            if (!viz_state.cats.reset_cat) {
+                const selectedBar = viz_state.cats.svg_bar_cluster.selectAll("g")
+                    .filter(function() {
+                        return d3.select(this).select("text").text() === inst_cat
+                    })
+                    .attr('opacity', 1.0)
+
+                if (!selectedBar.empty()) {
+                    const barPosition = selectedBar.node().getBoundingClientRect().top
+                    const containerPosition = viz_state.containers.bar_cluster.getBoundingClientRect().top
+                    const scrollPosition = barPosition - containerPosition + viz_state.containers.bar_cluster.scrollTop
+
+                    viz_state.containers.bar_cluster.scrollTo({
+                        top: scrollPosition,
+                        behavior: 'smooth'
+                    })
+                }
+            }
+
         }
 
-        viz_state.genes.gene_search_input.value = (viz_state.genes.gene_search_input.value !== inst_gene) ? inst_gene : ''
+        else if (click_info.type === 'col_dendro') {
 
-        update_gene_text_box(viz_state.genes, inst_gene)
+            inst_gene = 'cluster'
 
-    } else if (click_info.click_type === 'col-label') {
+            inst_gene = 'cluster'
+            const new_cats = click_info.value.selected_names
 
-        inst_gene = 'cluster'
-        new_cat = click_info.click_value
+            update_cat(viz_state.cats, 'cluster')
+            update_selected_cats(viz_state.cats, new_cats)
+            update_selected_genes(viz_state.genes, [])
+            toggle_image_layers_and_ctrls(layers_obj, viz_state, !viz_state.cats.selected_cats.length > 0)
 
-        update_cat(viz_state.cats, 'cluster')
-        update_selected_cats(viz_state.cats, [new_cat])
-        update_selected_genes(viz_state.genes, [])
-        toggle_image_layers_and_ctrls(layers_obj, viz_state, !viz_state.cats.selected_cats.length > 0)
+            const inst_cat_name = viz_state.cats.selected_cats.join('-')
 
-        const inst_cat_name = viz_state.cats.selected_cats.join('-')
+            update_cell_layer_id(layers_obj, inst_cat_name)
+            update_path_layer_id(layers_obj, inst_cat_name)
+            update_trx_layer_id(viz_state.genes, layers_obj)
 
-        update_cell_layer_id(layers_obj, inst_cat_name)
-        update_path_layer_id(layers_obj, inst_cat_name)
-        update_trx_layer_id(viz_state.genes, layers_obj)
+            const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+            deck_ist.setProps({layers: layers_list})
 
-        const layers_list = get_layers_list(layers_obj, viz_state.close_up)
-        deck_ist.setProps({layers: layers_list})
+            viz_state.cats.svg_bar_cluster.selectAll("g")
+                .attr('font-weight', 'normal')
+                .attr('opacity', viz_state.cats.reset_cat ? 1.0 : 0.25)
 
-        viz_state.cats.svg_bar_cluster.selectAll("g")
-            .attr('font-weight', 'normal')
-            .attr('opacity', viz_state.cats.reset_cat ? 1.0 : 0.25)
+            const inst_cat = new_cats
 
-        const inst_cat = new_cat
+            if (!viz_state.cats.reset_cat) {
+                const selectedBar = viz_state.cats.svg_bar_cluster.selectAll("g")
+                    .filter(function() {
+                        return d3.select(this).select("text").text() === inst_cat
+                    })
+                    .attr('opacity', 1.0)
 
-        if (!viz_state.cats.reset_cat) {
-            const selectedBar = viz_state.cats.svg_bar_cluster.selectAll("g")
-                .filter(function() {
-                    return d3.select(this).select("text").text() === inst_cat
-                })
-                .attr('opacity', 1.0)
+                if (!selectedBar.empty()) {
+                    const barPosition = selectedBar.node().getBoundingClientRect().top
+                    const containerPosition = viz_state.containers.bar_cluster.getBoundingClientRect().top
+                    const scrollPosition = barPosition - containerPosition + viz_state.containers.bar_cluster.scrollTop
 
-            if (!selectedBar.empty()) {
-                const barPosition = selectedBar.node().getBoundingClientRect().top
-                const containerPosition = viz_state.containers.bar_cluster.getBoundingClientRect().top
-                const scrollPosition = barPosition - containerPosition + viz_state.containers.bar_cluster.scrollTop
-
-                viz_state.containers.bar_cluster.scrollTo({
-                    top: scrollPosition,
-                    behavior: 'smooth'
-                })
+                    viz_state.containers.bar_cluster.scrollTo({
+                        top: scrollPosition,
+                        behavior: 'smooth'
+                    })
+                }
             }
+
+            update_cat(viz_state.cats, inst_gene)
+            update_selected_cats(viz_state.cats, click_info.click_value)
+
         }
 
-    } else if (click_info.click_type === 'col-dendro') {
+    }
+    /////////////////////////////////////////////////////////////////////
+    // Legacy Clustergrammer2 version
+    /////////////////////////////////////////////////////////////////////
+    else {
 
-        inst_gene = 'cluster'
 
-        inst_gene = 'cluster'
-        const new_cats = click_info.click_value
 
-        update_cat(viz_state.cats, 'cluster')
-        update_selected_cats(viz_state.cats, new_cats)
-        update_selected_genes(viz_state.genes, [])
-        toggle_image_layers_and_ctrls(layers_obj, viz_state, !viz_state.cats.selected_cats.length > 0)
+        if (click_info.click_type === 'row-label') {
 
-        const inst_cat_name = viz_state.cats.selected_cats.join('-')
+            inst_gene = click_info.click_value
 
-        update_cell_layer_id(layers_obj, inst_cat_name)
-        update_path_layer_id(layers_obj, inst_cat_name)
-        update_trx_layer_id(viz_state.genes, layers_obj)
+            const new_cat = inst_gene === viz_state.cats.cat ? 'cluster' : inst_gene
 
-        const layers_list = get_layers_list(layers_obj, viz_state.close_up)
-        deck_ist.setProps({layers: layers_list})
+            toggle_image_layers_and_ctrls(layers_obj, viz_state, viz_state.cats.cat === inst_gene)
 
-        viz_state.cats.svg_bar_cluster.selectAll("g")
-            .attr('font-weight', 'normal')
-            .attr('opacity', viz_state.cats.reset_cat ? 1.0 : 0.25)
+            update_cat(viz_state.cats, new_cat)
+            update_selected_genes(viz_state.genes, [inst_gene])
+            update_selected_cats(viz_state.cats, [])
+            await update_cell_exp_array(viz_state.cats, viz_state.genes, viz_state.global_base_url, inst_gene)
 
-        const inst_cat = new_cats
+            update_cell_layer_id(layers_obj, new_cat)
+            update_path_layer_id(layers_obj, new_cat)
+            update_trx_layer_id(viz_state.genes, layers_obj)
 
-        if (!viz_state.cats.reset_cat) {
-            const selectedBar = viz_state.cats.svg_bar_cluster.selectAll("g")
-                .filter(function() {
-                    return d3.select(this).select("text").text() === inst_cat
-                })
-                .attr('opacity', 1.0)
+            const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+            deck_ist.setProps({layers: layers_list})
 
-            if (!selectedBar.empty()) {
-                const barPosition = selectedBar.node().getBoundingClientRect().top
-                const containerPosition = viz_state.containers.bar_cluster.getBoundingClientRect().top
-                const scrollPosition = barPosition - containerPosition + viz_state.containers.bar_cluster.scrollTop
+            const reset_gene = false
 
-                viz_state.containers.bar_cluster.scrollTo({
-                    top: scrollPosition,
-                    behavior: 'smooth'
-                })
+            viz_state.genes.svg_bar_gene.selectAll("g")
+                .attr('font-weight', 'normal')
+                .attr('opacity', reset_gene ? 1.0 : 0.25)
+
+            if (!reset_gene) {
+                const selectedBar = viz_state.genes.svg_bar_gene.selectAll("g")
+                    .filter(function() {
+                        return d3.select(this).select("text").text() === inst_gene
+                    })
+                    .attr('opacity', 1.0)
+
+                if (!selectedBar.empty()) {
+                    const barPosition = selectedBar.node().getBoundingClientRect().top
+                    const containerPosition = viz_state.containers.bar_gene.getBoundingClientRect().top
+                    const scrollPosition = barPosition - containerPosition + viz_state.containers.bar_gene.scrollTop
+
+                    viz_state.containers.bar_gene.scrollTo({
+                        top: scrollPosition,
+                        behavior: 'smooth'
+                    })
+                }
             }
+
+            viz_state.genes.gene_search_input.value = (viz_state.genes.gene_search_input.value !== inst_gene) ? inst_gene : ''
+
+            update_gene_text_box(viz_state.genes, inst_gene)
+
+        } else if (click_info.click_type === 'col-label') {
+
+            inst_gene = 'cluster'
+            new_cat = click_info.click_value
+
+            update_cat(viz_state.cats, 'cluster')
+            update_selected_cats(viz_state.cats, [new_cat])
+            update_selected_genes(viz_state.genes, [])
+            toggle_image_layers_and_ctrls(layers_obj, viz_state, !viz_state.cats.selected_cats.length > 0)
+
+            const inst_cat_name = viz_state.cats.selected_cats.join('-')
+
+            update_cell_layer_id(layers_obj, inst_cat_name)
+            update_path_layer_id(layers_obj, inst_cat_name)
+            update_trx_layer_id(viz_state.genes, layers_obj)
+
+            const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+            deck_ist.setProps({layers: layers_list})
+
+            viz_state.cats.svg_bar_cluster.selectAll("g")
+                .attr('font-weight', 'normal')
+                .attr('opacity', viz_state.cats.reset_cat ? 1.0 : 0.25)
+
+            const inst_cat = new_cat
+
+            if (!viz_state.cats.reset_cat) {
+                const selectedBar = viz_state.cats.svg_bar_cluster.selectAll("g")
+                    .filter(function() {
+                        return d3.select(this).select("text").text() === inst_cat
+                    })
+                    .attr('opacity', 1.0)
+
+                if (!selectedBar.empty()) {
+                    const barPosition = selectedBar.node().getBoundingClientRect().top
+                    const containerPosition = viz_state.containers.bar_cluster.getBoundingClientRect().top
+                    const scrollPosition = barPosition - containerPosition + viz_state.containers.bar_cluster.scrollTop
+
+                    viz_state.containers.bar_cluster.scrollTo({
+                        top: scrollPosition,
+                        behavior: 'smooth'
+                    })
+                }
+            }
+
+        } else if (click_info.click_type === 'col-dendro') {
+
+            inst_gene = 'cluster'
+
+            inst_gene = 'cluster'
+            const new_cats = click_info.click_value
+
+            update_cat(viz_state.cats, 'cluster')
+            update_selected_cats(viz_state.cats, new_cats)
+            update_selected_genes(viz_state.genes, [])
+            toggle_image_layers_and_ctrls(layers_obj, viz_state, !viz_state.cats.selected_cats.length > 0)
+
+            const inst_cat_name = viz_state.cats.selected_cats.join('-')
+
+            update_cell_layer_id(layers_obj, inst_cat_name)
+            update_path_layer_id(layers_obj, inst_cat_name)
+            update_trx_layer_id(viz_state.genes, layers_obj)
+
+            const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+            deck_ist.setProps({layers: layers_list})
+
+            viz_state.cats.svg_bar_cluster.selectAll("g")
+                .attr('font-weight', 'normal')
+                .attr('opacity', viz_state.cats.reset_cat ? 1.0 : 0.25)
+
+            const inst_cat = new_cats
+
+            if (!viz_state.cats.reset_cat) {
+                const selectedBar = viz_state.cats.svg_bar_cluster.selectAll("g")
+                    .filter(function() {
+                        return d3.select(this).select("text").text() === inst_cat
+                    })
+                    .attr('opacity', 1.0)
+
+                if (!selectedBar.empty()) {
+                    const barPosition = selectedBar.node().getBoundingClientRect().top
+                    const containerPosition = viz_state.containers.bar_cluster.getBoundingClientRect().top
+                    const scrollPosition = barPosition - containerPosition + viz_state.containers.bar_cluster.scrollTop
+
+                    viz_state.containers.bar_cluster.scrollTo({
+                        top: scrollPosition,
+                        behavior: 'smooth'
+                    })
+                }
+            }
+
+            update_cat(viz_state.cats, inst_gene)
+            update_selected_cats(viz_state.cats, click_info.click_value)
+
+        } else {
+            inst_gene = 'cluster'
+            // update_cat(selected_gene)
         }
-
-        update_cat(viz_state.cats, inst_gene)
-        update_selected_cats(viz_state.cats, click_info.click_value)
-
-    } else {
-        inst_gene = 'cluster'
-        // update_cat(selected_gene)
     }
 
 }

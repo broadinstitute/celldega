@@ -2,51 +2,51 @@ export const ini_dendro = (viz_state) => {
 
     console.log('ini_dendro!!!!!!!!!!!!!!!!')
 
-    var dendro = {}
+    viz_state.dendro = {}
 
-    dendro.default_level = 5
-    dendro.tri_height = 0.10
-    dendro.trap_height = 0.03
-    dendro.trap_float = 0.005
+    viz_state.dendro.default_level = 5
+    viz_state.dendro.tri_height = 0.10
+    viz_state.dendro.trap_height = 0.03
+    viz_state.dendro.trap_float = 0.005
 
-    dendro.dendro_args = {}
-    dendro.group_level = {}
-    dendro.polygons = {}
-    dendro.update_dendro = false
+    viz_state.dendro.dendro_args = {}
+    viz_state.dendro.group_level = {}
+    viz_state.dendro.polygons = {}
+    viz_state.dendro.update_dendro = false
 
-    dendro.selected_clust_names = []
+    viz_state.dendro.selected_clust_names = []
 
-    dendro.group_info = {}
+    viz_state.dendro.group_info = {}
 
-    dendro.default_link_level = 0.5
+    viz_state.dendro.default_link_level = 0.5
 
-    dendro.output_label_format = 'list'
+    viz_state.dendro.output_label_format = 'list'
 
-    dendro.min_dist = {}
-    dendro.min_dist.row = 0 // 0.75
-    dendro.min_dist.col = 0 // 0.75
+    viz_state.dendro.min_dist = {}
+    viz_state.dendro.min_dist.row = 0 // 0.75
+    viz_state.dendro.min_dist.col = 0 // 0.75
 
     let axes = ['col', 'row']
 
     let link_mat
-    dendro.max_linkage_dist = {}
+    viz_state.dendro.max_linkage_dist = {}
     let dist_thresh
 
     axes.forEach((axis) => {
       link_mat = viz_state.linkage[axis]
-      dendro.max_linkage_dist[axis] = link_mat[link_mat.length-1][2] + 0.01
-      dist_thresh = dendro.max_linkage_dist[axis] * dendro.default_link_level
+      viz_state.dendro.max_linkage_dist[axis] = link_mat[link_mat.length-1][2] + 0.01
+      dist_thresh = viz_state.dendro.max_linkage_dist[axis] * viz_state.dendro.default_link_level
 
       // alternate linkage slicing code
       alt_slice_linkage(viz_state, axis, dist_thresh)
 
-      dendro.group_info[axis] = calc_dendro_triangles(viz_state, dendro, axis)
+      calc_dendro_triangles(viz_state, axis)
 
     })
 
-    console.log(dendro.group_info)
+    console.log(viz_state.dendro.group_info)
 
-    viz_state.dendro = dendro
+    // viz_state.dendro = dendro
 
 }
 
@@ -131,7 +131,7 @@ export const alt_slice_linkage = (viz_state, axis, dist_thresh) => {
 }
 
 
-export const calc_dendro_triangles = (viz_state, dendro, axis) => {
+export const calc_dendro_triangles = (viz_state, axis) => {
 
     // console.log('calc_dendro_triangles')
 
@@ -272,7 +272,9 @@ export const calc_dendro_triangles = (viz_state, dendro, axis) => {
         group_info.push(inst_triangle)
     })
 
-    return group_info
+    // return group_info
+
+    viz_state.dendro.group_info[axis] = group_info
 
   }
 

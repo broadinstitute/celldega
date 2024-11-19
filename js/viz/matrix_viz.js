@@ -39,8 +39,8 @@ import { on_view_state_change } from '../deck-gl/matrix/on_view_state_change'
 import { ini_zoom_data } from '../deck-gl/matrix/zoom'
 import { get_tooltip } from '../deck-gl/matrix/matrix_tooltip'
 import { make_matrix_ui_container } from '../ui/ui_containers';
-import { calc_dendro_polygons, ini_dendro } from '../matrix/dendro';
-import { ini_dendro_layer } from '../deck-gl/matrix/dendro_layers'
+import { calc_dendro_polygons, calc_dendro_triangles, ini_dendro } from '../matrix/dendro';
+import { ini_dendro_layer, update_dendro_layer_data } from '../deck-gl/matrix/dendro_layers'
 
 export const matrix_viz = async (
     model,
@@ -128,7 +128,22 @@ export const matrix_viz = async (
 
     // Add event listener to log the slider value
     viz_state.dendro.sliders.row.addEventListener("input", (event) => {
-        console.log(`Slider value: ${event.target.value}`);
+        // console.log(`Slider value: ${event.target.value}`);
+
+        // Update the dendrogram layer
+        viz_state.dendro.sliders.row_value = event.target.value
+        calc_dendro_triangles(viz_state, 'row');
+        calc_dendro_polygons(viz_state, 'row');
+
+        console.log('new polygon')
+        console.log(viz_state.dendro.polygons)
+
+        update_dendro_layer_data(layers_mat, viz_state, 'row')
+
+        deck_mat.setProps({
+            layers: get_mat_layers_list(layers_mat),
+        })
+
 
     });
 

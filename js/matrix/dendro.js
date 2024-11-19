@@ -35,8 +35,6 @@ export const ini_dendro = (viz_state) => {
       viz_state.dendro.max_linkage_dist[axis] = link_mat[link_mat.length-1][2] + 0.01
       dist_thresh = viz_state.dendro.max_linkage_dist[axis] * viz_state.dendro.default_link_level
 
-      console.log('dist_thresh', dist_thresh)
-
       // alternate linkage slicing code
       alt_slice_linkage(viz_state, axis, dist_thresh)
 
@@ -47,8 +45,6 @@ export const ini_dendro = (viz_state) => {
 }
 
 export const alt_slice_linkage = (viz_state, axis, dist_thresh) => {
-
-    // console.log('alt_slice_linkage')
 
     let clust_a
     let clust_b
@@ -121,15 +117,11 @@ export const alt_slice_linkage = (viz_state, axis, dist_thresh) => {
         x.group_links = flat_group_dict[i]
     })
 
-    // console.log(group_dict)
-    // console.log(flat_group_dict)
 
 }
 
 
 export const calc_dendro_triangles = (viz_state, axis) => {
-
-    // console.log('calc_dendro_triangles')
 
     var triangle_info = {}
 
@@ -148,14 +140,7 @@ export const calc_dendro_triangles = (viz_state, axis) => {
       tri_width  = heat_size/num_labels
     }
 
-    // console.log(viz_state.mat)
-    // console.log('heat_size', heat_size)
-    // console.log('num_labels', num_labels)
-    // console.log('tri_width', tri_width)
-
     var inst_order = viz_state.order.current[axis] // params.order.inst[axis]
-
-    // console.log(inst_order)
 
     inst_nodes.forEach((inst_node, index)=> {
 
@@ -242,8 +227,6 @@ export const calc_dendro_triangles = (viz_state, axis) => {
 
         triangle_info[inst_group].all_names.push(inst_name)
 
-        // console.log(triangle_info[inst_group])
-
         if (inst_top < triangle_info[inst_group].pos_top){
             triangle_info[inst_group].name_top = inst_name
             triangle_info[inst_group].pos_top = inst_top
@@ -277,8 +260,6 @@ export const calc_dendro_triangles = (viz_state, axis) => {
 
 export const calc_dendro_polygons = (viz_state, axis) => {
 
-    console.log('calc_dendro_polygons', axis)
-
     viz_state.dendro.polygons[axis] = []
 
     viz_state.dendro.group_info[axis].forEach((group) => {
@@ -298,8 +279,6 @@ export const calc_dendro_polygons = (viz_state, axis) => {
                 [new_pos_bot      , pos_mid - height / 2], // Top-left of the base
                 [new_pos_bot      , pos_mid + height / 2], // Bottom-left of the base
             ]
-
-            // console.log(triangle)
 
             viz_state.dendro.polygons[axis].push({
                 coordinates: triangle,
@@ -321,8 +300,6 @@ export const calc_dendro_polygons = (viz_state, axis) => {
                 [pos_mid - height / 2, new_pos_bot       ], // Top-left of the base
                 [pos_mid + height / 2, new_pos_bot       ], // Bottom-left of the base
             ]
-
-            console.log(triangle)
 
             viz_state.dendro.polygons[axis].push({
                 coordinates: triangle,

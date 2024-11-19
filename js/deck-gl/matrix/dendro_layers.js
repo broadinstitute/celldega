@@ -22,8 +22,6 @@ export const ini_dendro_layer = (layers_mat, viz_state, axis) => {
 
 export const update_dendro_layer_data = (layers_mat, viz_state, axis) => {
 
-    console.log(layers_mat)
-
     layers_mat[axis + '_dendro_layer'] = layers_mat[axis + '_dendro_layer'].clone({
         data: viz_state.dendro.polygons[axis],
     })

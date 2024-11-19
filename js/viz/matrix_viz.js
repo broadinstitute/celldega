@@ -100,9 +100,6 @@ export const matrix_viz = async (
     set_row_label_layer_onclick(deck_mat, layers_mat, viz_state)
     set_col_label_layer_onclick(deck_mat, layers_mat, viz_state)
 
-    console.log('layers_list')
-    console.log(get_mat_layers_list(layers_mat))
-
     deck_mat.setProps({
         onViewStateChange: (params) => on_view_state_change(params, deck_mat, layers_mat, viz_state),
         views: viz_state.views.views_list,
@@ -126,14 +123,13 @@ export const matrix_viz = async (
     viz_state.dendro.sliders.row.style.width = "75px"
     // viz_state.dendro.sliders.row.addEventListener("input", () => console.log('here'))
 
-    // Add event listener to log the slider value
-    viz_state.dendro.sliders.row.addEventListener("input", (event) => {
+    const dendro_slider_callback = (event) => {
 
 
         // Update the dendrogram layer
         viz_state.dendro.sliders.row_value = viz_state.dendro.max_linkage_dist.row * event.target.value/100
 
-        console.log(`Slider value: ${viz_state.dendro.sliders.row_value}`);
+        // console.log(`Slider value: ${viz_state.dendro.sliders.row_value}`);
 
 
         alt_slice_linkage(viz_state, 'row', viz_state.dendro.sliders.row_value)
@@ -141,8 +137,8 @@ export const matrix_viz = async (
         calc_dendro_triangles(viz_state, 'row');
         calc_dendro_polygons(viz_state, 'row');
 
-        console.log('new polygon')
-        console.log(viz_state.dendro.polygons)
+        // console.log('new polygon')
+        // console.log(viz_state.dendro.polygons)
 
         update_dendro_layer_data(layers_mat, viz_state, 'row')
 
@@ -151,7 +147,10 @@ export const matrix_viz = async (
         })
 
 
-    });
+    }
+
+    // Add event listener to log the slider value
+    viz_state.dendro.sliders.row.addEventListener("input", dendro_slider_callback);
 
     ui_container.appendChild(viz_state.dendro.sliders.row)
 

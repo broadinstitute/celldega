@@ -55,7 +55,7 @@ export const matrix_viz = async (
     root.style.border = "1px solid #d3d3d3"
     let deck_mat = ini_deck(root)
 
-    let viz_state = set_mat_constants(network, root, width, height)
+    let viz_state = set_mat_constants(model, network, root, width, height)
     viz_state.el = el
 
     set_mat_data(network, viz_state)

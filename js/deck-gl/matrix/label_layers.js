@@ -207,6 +207,11 @@ const row_label_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
     // deck_mat.setProps({layers: get_mat_layers_list(layers_mat)})
     console.log(viz_state.click)
 
+    if (Object.keys(viz_state.model).length > 0) {
+        viz_state.model.set('click_info', viz_state.click)
+        viz_state.model.save_changes()
+    }
+
 }
 
 const col_label_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
@@ -233,6 +238,11 @@ const col_label_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
 
     // deck_mat.setProps({layers: get_mat_layers_list(layers_mat)})
     console.log(viz_state.click)
+
+    if (Object.keys(viz_state.model).length > 0) {
+        viz_state.model.set('click_info', viz_state.click)
+        viz_state.model.save_changes()
+    }
 
 }
 

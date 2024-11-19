@@ -1,4 +1,4 @@
-export const set_mat_constants = (network, root, width, height) => {
+export const set_mat_constants = (model, network, root, width, height) => {
 
     let viz_state = {}
 
@@ -7,6 +7,8 @@ export const set_mat_constants = (network, root, width, height) => {
     //////////////////////////////
 
     viz_state.root = root
+
+    viz_state.model = model
 
     viz_state.viz = {}
     viz_state.viz.height_margin = 100

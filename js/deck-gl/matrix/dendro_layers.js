@@ -11,6 +11,7 @@ export const ini_dendro_layer = (layers_mat, viz_state, axis) => {
         getLineColor: [255, 255, 255, 255],
         lineWidthMinPixels: 0,
         pickable: true,
+        antialiasing: false,
         // autoHighlight: true, // Highlight on hover
         // onHover: ({ object }) => console.log(object?.properties.name), // Hover info
     })

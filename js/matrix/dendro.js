@@ -1,7 +1,5 @@
 export const ini_dendro = (viz_state) => {
 
-    console.log('ini_dendro!!!!!!!!!!!!!!!!')
-
     viz_state.dendro = {}
 
     viz_state.dendro.default_level = 5
@@ -37,16 +35,14 @@ export const ini_dendro = (viz_state) => {
       viz_state.dendro.max_linkage_dist[axis] = link_mat[link_mat.length-1][2] + 0.01
       dist_thresh = viz_state.dendro.max_linkage_dist[axis] * viz_state.dendro.default_link_level
 
+      console.log('dist_thresh', dist_thresh)
+
       // alternate linkage slicing code
       alt_slice_linkage(viz_state, axis, dist_thresh)
 
       calc_dendro_triangles(viz_state, axis)
 
     })
-
-    console.log(viz_state.dendro.group_info)
-
-    // viz_state.dendro = dendro
 
 }
 

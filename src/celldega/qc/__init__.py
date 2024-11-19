@@ -68,6 +68,12 @@ def proportion_of_assigned_transcripts_per_gene(trx_meta, trx):
     total_transcripts_per_gene = trx.groupby("feature_name")["transcript_id"].count()
     return (transcripts_per_gene / total_transcripts_per_gene).fillna(0) # returns pandas series
 
+# Proportion of tissue area that is segmented
+# Cell morphology
+# elongation metric (ratio of longest length to the shortest length)
+# Disjoint marker expression
+# Nearby unassigned transcripts
+
 def ist_segmentation_metrics(transcript_metadata_file, transcript_data_file, cell_polygon_metadata_file, cell_polygon_data_file, image_files, subset_interval_y_x, pixel_size, thickness=1):
     """
     A function to calculate segmentation quality control

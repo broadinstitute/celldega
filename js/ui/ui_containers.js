@@ -70,6 +70,8 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
     const ui_container = make_ui_container()
     const ctrl_container = flex_container('button_container', 'column')
 
+    const slider_container = flex_container('slider_container', 'column')
+
     const button_width = 33
 
     const axes = ['col', 'row']
@@ -124,10 +126,7 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
 
     });
 
-
     const dendro_slider_callback = (deck_mat, viz_state, axis, event) => {
-
-        console.log(axis)
 
         // Update the dendrogram layer
         viz_state.dendro.sliders[axis + '_value'] = viz_state.dendro.max_linkage_dist[axis] * event.target.value/100
@@ -141,19 +140,51 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
             layers: get_mat_layers_list(layers_mat),
         })
 
-    }
-
+    };
 
     // Add event listener to log the slider value
-    viz_state.dendro.sliders.row.addEventListener("input", (event) => dendro_slider_callback(deck_mat, viz_state, 'row', event));
-    viz_state.dendro.sliders.col.addEventListener("input", (event) => dendro_slider_callback(deck_mat, viz_state, 'col', event));
+    axes.forEach(axis => {
+        viz_state.dendro.sliders[axis].addEventListener("input", (event) => dendro_slider_callback(deck_mat, viz_state, axis, event))
+    });
+
+    viz_state.dendro.sliders.col.style.marginTop = '5px'
+    viz_state.dendro.sliders.row.style.marginTop = '20px'
+
+
+    d3.select(slider_container)
+        .append('div')
+        .text('DENDRO')
+        .style('width', button_width + 'px')
+        .style('height', '20px')  // Adjust height for button padding
+        .style('display', 'inline-flex')
+        .style('align-items', 'center')
+        .style('justify-content', 'center')
+        .style('text-align', 'center')
+        .style('cursor', 'pointer')
+        .style('font-size', '12px')
+        .style('font-weight', 'bold')
+        .style('color', '#47515b')
+        .style('border', '3px solid')  // Light gray border
+        .style('border-color', 'white')  // Light gray border
+        .style('border-radius', '12px')  // Rounded corners
+        // .style('margin-top', '5px')
+        .style('margin-left', '20px')
+        // .style('padding', '4px 10px')  // Padding inside the button
+        .style('user-select', 'none')
+        .style('font-family', '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif')
+
+    slider_container.appendChild(viz_state.dendro.sliders.col)
+    slider_container.appendChild(viz_state.dendro.sliders.row)
+
+    // add top margin to ctrl_container and slider_container
+    ctrl_container.style.marginTop = '15px'
+    slider_container.style.marginTop = '0px'
+    slider_container.style.marginLeft = '10px'
 
     ui_container.appendChild(ctrl_container)
-    ui_container.appendChild(viz_state.dendro.sliders.row)
-    ui_container.appendChild(viz_state.dendro.sliders.col)
+    ui_container.appendChild(slider_container)
 
     return ui_container
-
 
 }
 

@@ -229,22 +229,31 @@ def convert_to_webp(image_path, quality=100):
 
 
 def make_deepzoom_pyramid(
-    array, output_path, pyramid_name, tile_size=512, overlap=0, suffix=".jpeg"
+    array, output_path, pyramid_name, clahe_tile_size=64, clahe_contrast_limit=20, tile_size=512, overlap=0, suffix=".jpeg"
 ):
     """
     Create a DeepZoom image pyramid from a JPEG image
 
-    Parameters
+    Parameters:
     ----------
-    array : numpy array
-    tile_size : int (default=512)
-        Tile size for the DeepZoom pyramid
-    overlap : int (default=0)
-        Overlap size for the DeepZoom pyramid
-    suffix : str (default='jpeg')
-        Suffix for the DeepZoom pyramid tiles
+    array : np.ndarray
+        Input image array. Should be in 8-bit format. If the array is 16-bit, it needs to be converted to 8-bit.
+    output_path : str or Path
+        Path to the directory where the DeepZoom pyramid will be saved.
+    pyramid_name : str
+        Name of the output DeepZoom pyramid.
+    clahe_tile_size : int, optional, default=64
+        Size of the tiles used for CLAHE. The image will be divided into these tiles for local contrast enhancement.
+    clahe_contrast_limit : int, optional, default=50
+        The maximum slope for contrast enhancement in CLAHE.
+    tile_size : int, optional, default=512
+        Tile size for the DeepZoom pyramid.
+    overlap : int, optional, default=0
+        Number of overlapping pixels between tiles in the DeepZoom pyramid.
+    suffix : str, optional, default=".jpeg"
+        File format for the tiles in the DeepZoom pyramid (e.g., '.jpeg' or '.png').
 
-    Returns
+    Returns:
     -------
     None
 
@@ -263,8 +272,11 @@ def make_deepzoom_pyramid(
     # append the pyramid name to the output path
     output_path = output_path / pyramid_name
 
+    # Apply CLAHE using hist_local
+    clahe_image = image.hist_local(clahe_tile_size, clahe_tile_size, max_slope=int(clahe_contrast_limit))
+
     # Save the image as a DeepZoom image pyramid
-    image.dzsave(output_path, tile_size=tile_size, overlap=overlap, suffix=suffix)
+    clahe_image.dzsave(output_path, tile_size=tile_size, overlap=overlap, suffix=suffix)
 
 
 def make_meta_cell_image_coord(

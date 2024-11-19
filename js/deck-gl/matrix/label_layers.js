@@ -205,6 +205,7 @@ const row_label_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
     }
 
     // deck_mat.setProps({layers: get_mat_layers_list(layers_mat)})
+    console.log(viz_state.click)
 
 }
 
@@ -231,6 +232,7 @@ const col_label_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
     }
 
     // deck_mat.setProps({layers: get_mat_layers_list(layers_mat)})
+    console.log(viz_state.click)
 
 }
 

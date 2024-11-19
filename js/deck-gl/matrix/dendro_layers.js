@@ -44,3 +44,21 @@ export const toggle_dendro_layer_visibility = (layers_mat, viz_state, axis) => {
     // viz_state.dendro.sliders[axis].visible = is_visible
 
 }
+
+const dendro_layer_onclick = (event, deck_mat, layers_mat, viz_state, axis) => {
+
+    viz_state.click.type = axis + '_dendro'
+
+    viz_state.click.value = {
+        name: event.object.properties.name,
+        selected_names: event.object.properties.all_names
+    }
+
+    console.log(viz_state.click)
+}
+
+export const set_dendro_layer_onclick = (deck_mat, layers_mat, viz_state, axis) => {
+    layers_mat[axis + '_dendro_layer'] = layers_mat[axis + '_dendro_layer'].clone({
+        onClick: (event) => dendro_layer_onclick(event, deck_mat, layers_mat, viz_state, axis)
+    })
+}

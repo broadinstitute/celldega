@@ -39,8 +39,8 @@ import { on_view_state_change } from '../deck-gl/matrix/on_view_state_change'
 import { ini_zoom_data } from '../deck-gl/matrix/zoom'
 import { get_tooltip } from '../deck-gl/matrix/matrix_tooltip'
 import { make_matrix_ui_container } from '../ui/ui_containers';
-import { calc_dendro_polygons, calc_dendro_triangles, ini_dendro, alt_slice_linkage } from '../matrix/dendro';
-import { ini_dendro_layer, update_dendro_layer_data } from '../deck-gl/matrix/dendro_layers'
+import { calc_dendro_polygons, ini_dendro } from '../matrix/dendro';
+import { ini_dendro_layer, set_dendro_layer_onclick } from '../deck-gl/matrix/dendro_layers'
 
 export const matrix_viz = async (
     model,
@@ -96,6 +96,8 @@ export const matrix_viz = async (
     set_mat_layer_onclick(deck_mat, layers_mat, viz_state)
     set_row_label_layer_onclick(deck_mat, layers_mat, viz_state)
     set_col_label_layer_onclick(deck_mat, layers_mat, viz_state)
+    set_dendro_layer_onclick(deck_mat, layers_mat, viz_state, 'row')
+    set_dendro_layer_onclick(deck_mat, layers_mat, viz_state, 'col')
 
     deck_mat.setProps({
         onViewStateChange: (params) => on_view_state_change(params, deck_mat, layers_mat, viz_state),

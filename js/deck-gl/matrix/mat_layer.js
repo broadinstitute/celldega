@@ -45,10 +45,6 @@ export const ini_mat_layer = (viz_state) => {
 
 const mat_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
 
-    // console.log(deck_mat, layers_mat, viz_state)
-
-    console.log(event.object)
-
     const row_name = viz_state.labels.row_label_data[event.object.row].name
     const col_name = viz_state.labels.col_label_data[event.object.col].name
 
@@ -58,6 +54,7 @@ const mat_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
         row: row_name,
         col: col_name
     }
+    console.log(viz_state.click)
 
     // if (viz_state.order.current.row === 'ini') {
     //     viz_state.order.current.row = 'clust'

@@ -6,7 +6,7 @@ import { curate_pan_x, curate_pan_y } from './curate_pan.js'
 
 export const on_view_state_change = (params, deck_mat, layers_mat, viz_state) => {
 
-    console.log('onviewstatechange')
+    // console.log('onviewstatechange')
 
     const viewState = params.viewState
     const viewId = params.viewId

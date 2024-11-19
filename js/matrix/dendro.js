@@ -2,20 +2,21 @@ export const ini_dendro = (viz_state) => {
 
     console.log('ini_dendro!!!!!!!!!!!!!!!!')
 
-    var dendro = {};
+    var dendro = {}
 
-    dendro.default_level = 5;
-    dendro.tri_height = 0.10;
-    dendro.trap_height = 0.03;
-    dendro.trap_float = 0.005;
+    dendro.default_level = 5
+    dendro.tri_height = 0.10
+    dendro.trap_height = 0.03
+    dendro.trap_float = 0.005
 
-    dendro.dendro_args = {};
-    dendro.group_level = {};
-    dendro.update_dendro = false;
+    dendro.dendro_args = {}
+    dendro.group_level = {}
+    dendro.polygons = {}
+    dendro.update_dendro = false
 
     dendro.selected_clust_names = []
 
-    dendro.group_info = {};
+    dendro.group_info = {}
 
     dendro.default_link_level = 0.5
 
@@ -238,7 +239,7 @@ export const calc_dendro_triangles = (viz_state, dendro, axis) => {
                 name: inst_group,
                 all_names: [],
                 axis: axis
-            };
+            }
         }
 
 
@@ -268,9 +269,69 @@ export const calc_dendro_triangles = (viz_state, dendro, axis) => {
     // })
 
     Object.values(triangle_info).forEach((inst_triangle) => {
-        group_info.push(inst_triangle);
-    });
+        group_info.push(inst_triangle)
+    })
 
     return group_info
 
   }
+
+
+export const calc_dendro_polygons = (viz_state, axis) => {
+
+    console.log('calc_dendro_polygons', axis)
+
+    viz_state.dendro.polygons[axis] = []
+
+    viz_state.dendro.group_info[axis].forEach((group) => {
+
+        const { pos_top, pos_bot, pos_mid } = group
+
+        if (axis === 'row') {
+
+            // Row dendrogram - right side of the heatmap, pointing outward (right)
+            const height = (pos_bot - pos_top) // Increase width for better visibility
+
+            const new_pos_bot = 7
+
+            // Triangle vertices
+            const triangle = [
+                [new_pos_bot + 100, pos_mid             ], // Right vertex (pointing outward)
+                [new_pos_bot      , pos_mid - height / 2], // Top-left of the base
+                [new_pos_bot      , pos_mid + height / 2], // Bottom-left of the base
+            ]
+
+            // console.log(triangle)
+
+            viz_state.dendro.polygons[axis].push({
+                coordinates: triangle,
+                properties: { ...group, axis }, // Attach group data and axis
+            })
+
+        } else if (axis === 'col'){
+
+            // Row dendrogram - right side of the heatmap, pointing outward (right)
+            const height = (pos_bot - pos_top) // Increase width for better visibility
+
+            // const new_pos_bot = -1000
+            const new_pos_bot = 17
+
+            // Triangle vertices
+            // higher y value is lower on the screen
+            const triangle = [
+                [pos_mid             , new_pos_bot + 100 ], // Right vertex (pointing outward)
+                [pos_mid - height / 2, new_pos_bot       ], // Top-left of the base
+                [pos_mid + height / 2, new_pos_bot       ], // Bottom-left of the base
+            ]
+
+            console.log(triangle)
+
+            viz_state.dendro.polygons[axis].push({
+                coordinates: triangle,
+                properties: { ...group, axis }, // Attach group data and axis
+            })
+        }
+
+    });
+
+}

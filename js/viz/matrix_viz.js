@@ -39,7 +39,7 @@ import { on_view_state_change } from '../deck-gl/matrix/on_view_state_change.js'
 import { ini_zoom_data } from '../deck-gl/matrix/zoom.js'
 import { get_tooltip } from '../deck-gl/matrix/matrix_tooltip.js'
 import { make_matrix_ui_container } from '../ui/ui_containers.js';
-import { ini_dendro } from '../matrix/dendro.js';
+import { calc_dendro_polygons, ini_dendro } from '../matrix/dendro.js';
 import { PolygonLayer } from 'deck.gl'
 
 export const matrix_viz = async (
@@ -142,70 +142,15 @@ export const matrix_viz = async (
     const triangleHeight = 500; // Uniform height for all triangles
     const polygons = {};
 
-    // Generate polygons for "col" and "row" axes
-    ['col', 'row'].forEach((axis) => {
-
-        polygons[axis] = [];
-
-        viz_state.dendro.group_info[axis].forEach((group) => {
-
-            const { pos_top, pos_bot, pos_mid } = group;
-
-            if (axis === 'row') {
-
-                // Row dendrogram - right side of the heatmap, pointing outward (right)
-                const height = (pos_bot - pos_top); // Increase width for better visibility
-
-                const new_pos_bot = 7
-
-                // Triangle vertices
-                const triangle = [
-                    [new_pos_bot + 100, pos_mid             ], // Right vertex (pointing outward)
-                    [new_pos_bot      , pos_mid - height / 2], // Top-left of the base
-                    [new_pos_bot      , pos_mid + height / 2], // Bottom-left of the base
-                ];
-
-                // console.log(triangle)
-
-                polygons[axis].push({
-                    coordinates: triangle,
-                    properties: { ...group, axis }, // Attach group data and axis
-                });
-
-            } else if (axis === 'col'){
-
-                // Row dendrogram - right side of the heatmap, pointing outward (right)
-                const height = (pos_bot - pos_top); // Increase width for better visibility
-
-                // const new_pos_bot = -1000
-                const new_pos_bot = 17
-
-                // Triangle vertices
-                // higher y value is lower on the screen
-                const triangle = [
-                    [pos_mid             , new_pos_bot + 100 ], // Right vertex (pointing outward)
-                    [pos_mid - height / 2, new_pos_bot       ],  // Top-left of the base
-                    [pos_mid + height / 2, new_pos_bot       ] , // Bottom-left of the base
-                ];
-
-                console.log(triangle)
-
-                polygons[axis].push({
-                    coordinates: triangle,
-                    properties: { ...group, axis }, // Attach group data and axis
-                });
-            }
-
-        });
-    });
-
-    // console.log(polygons)
+    // need semicolon for some reason
+    calc_dendro_polygons(viz_state, 'row');
+    calc_dendro_polygons(viz_state, 'col');
 
     ['col', 'row'].forEach((axis) => {
 
         layers_mat[axis + '_dendro_layer'] = new PolygonLayer({
             id: axis + '-dendro-layer',
-            data: polygons[axis],
+            data: viz_state.dendro.polygons[axis],
             getPolygon: (d) => d.coordinates, // Access triangle coordinates
             getFillColor: (d) => (d.axis === 'col' ? [0, 0, 0, 90] : [0, 0, 0, 90]), // Different colors for rows/cols
             getLineColor: [255, 255, 255, 255], // White outline

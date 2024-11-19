@@ -1,5 +1,5 @@
 import * as d3 from 'd3'
-import { make_button } from "./text_buttons"
+import { make_button, make_reorder_button } from "./text_buttons"
 import { set_gene_search } from "./gene_search"
 import { ini_slider, ini_slider_params } from './sliders'
 import { make_img_layer_slider_callback, toggle_slider } from "./sliders"
@@ -8,6 +8,9 @@ import { toggle_visibility_image_layers } from '../deck-gl/image_layers'
 import { make_bar_graph } from './bar_plot'
 import { bar_callback_cluster, make_bar_container } from './bar_plot'
 import { bar_callback_gene } from './bar_plot'
+import { calc_dendro_triangles, calc_dendro_polygons, alt_slice_linkage } from '../matrix/dendro'
+import { update_dendro_layer_data } from '../deck-gl/matrix/dendro_layers'
+import { get_mat_layers_list } from '../deck-gl/matrix/matrix_layers'
 
 export const toggle_image_layers_and_ctrls = (layers_obj, viz_state, is_visible) => {
 
@@ -61,6 +64,132 @@ export const make_slider_container = (class_name) => {
     slider_container.style.marginTop = "2px"
     return slider_container
 }
+
+export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
+
+    const ui_container = make_ui_container()
+    const ctrl_container = flex_container('button_container', 'column')
+
+    const slider_container = flex_container('slider_container', 'column')
+
+    const button_width = 33
+
+    const axes = ['col', 'row']
+
+    const inst_orders = ['clust', 'sum', 'var', 'ini']
+
+    axes.forEach(axis => {
+
+        const inst_container = flex_container(axis, 'row')
+
+        d3.select(inst_container)
+            .append('div')
+            .text(axis.toUpperCase())
+            .style('width', button_width + 'px')
+            .style('height', '20px')  // Adjust height for button padding
+            .style('display', 'inline-flex')
+            .style('align-items', 'center')
+            .style('justify-content', 'center')
+            .style('text-align', 'center')
+            .style('cursor', 'pointer')
+            .style('font-size', '12px')
+            .style('font-weight', 'bold')
+            .style('color', '#47515b')
+            .style('border', '3px solid')  // Light gray border
+            .style('border-color', 'white')  // Light gray border
+            .style('border-radius', '12px')  // Rounded corners
+            .style('margin-top', '5px')
+            .style('margin-left', '5px')
+            .style('padding', '4px 10px')  // Padding inside the button
+            .style('user-select', 'none')
+            .style('font-family', '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif')
+
+        inst_orders.forEach((label) => {
+            const isClust = label === 'clust';
+            make_reorder_button(inst_container, label, isClust, button_width, axis, deck_mat, layers_mat, viz_state);
+        });
+
+        ctrl_container.appendChild(inst_container)
+    })
+
+    viz_state.dendro.sliders = {};
+
+    axes.forEach(axis => {
+
+        viz_state.dendro.sliders[axis] = document.createElement("input")
+        viz_state.dendro.sliders[axis].type = "range"
+        viz_state.dendro.sliders[axis].min = "0"
+        viz_state.dendro.sliders[axis].max = "100"
+        viz_state.dendro.sliders[axis].value = 50
+        viz_state.dendro.sliders[axis].className = "slider"
+        viz_state.dendro.sliders[axis].style.width = "75px"
+
+    });
+
+    const dendro_slider_callback = (deck_mat, viz_state, axis, event) => {
+
+        // Update the dendrogram layer
+        viz_state.dendro.sliders[axis + '_value'] = viz_state.dendro.max_linkage_dist[axis] * event.target.value/100
+
+        alt_slice_linkage(viz_state, axis, viz_state.dendro.sliders[axis + '_value'])
+        calc_dendro_triangles(viz_state, axis);
+        calc_dendro_polygons(viz_state, axis);
+        update_dendro_layer_data(layers_mat, viz_state, axis)
+
+        deck_mat.setProps({
+            layers: get_mat_layers_list(layers_mat),
+        })
+
+    };
+
+    // Add event listener to log the slider value
+    axes.forEach(axis => {
+        viz_state.dendro.sliders[axis].addEventListener("input", (event) => dendro_slider_callback(deck_mat, viz_state, axis, event))
+    });
+
+    viz_state.dendro.sliders.col.style.marginTop = '5px'
+    viz_state.dendro.sliders.row.style.marginTop = '20px'
+
+
+    d3.select(slider_container)
+        .append('div')
+        .text('DENDRO')
+        .style('width', button_width + 'px')
+        .style('height', '20px')  // Adjust height for button padding
+        .style('display', 'inline-flex')
+        .style('align-items', 'center')
+        .style('justify-content', 'center')
+        .style('text-align', 'center')
+        .style('cursor', 'pointer')
+        .style('font-size', '12px')
+        .style('font-weight', 'bold')
+        .style('color', '#47515b')
+        .style('border', '3px solid')  // Light gray border
+        .style('border-color', 'white')  // Light gray border
+        .style('border-radius', '12px')  // Rounded corners
+        // .style('margin-top', '5px')
+        .style('margin-left', '20px')
+        // .style('padding', '4px 10px')  // Padding inside the button
+        .style('user-select', 'none')
+        .style('font-family', '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif')
+
+    slider_container.appendChild(viz_state.dendro.sliders.col)
+    slider_container.appendChild(viz_state.dendro.sliders.row)
+
+    // add top margin to ctrl_container and slider_container
+    ctrl_container.style.marginTop = '15px'
+    slider_container.style.marginTop = '0px'
+    slider_container.style.marginLeft = '10px'
+
+    ui_container.appendChild(ctrl_container)
+    ui_container.appendChild(slider_container)
+
+    return ui_container
+
+}
+
+
+
 
 export const make_sst_ui_container = (deck_sst, layers_sst, viz_state) => {
 
@@ -253,3 +382,4 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
     return ui_container
 
 }
+

@@ -3,7 +3,6 @@ import anywidget
 import traitlets
 import json
 
-
 class Landscape(anywidget.AnyWidget):
     """
     A widget for visualizing a 'landscape' view of spatial omics data.
@@ -67,4 +66,17 @@ class Matrix(anywidget.AnyWidget):
     component = traitlets.Unicode("Matrix").tag(sync=True)
 
     network = traitlets.Dict({}).tag(sync=True)
+    click_info = traitlets.Dict({}).tag(sync=True)
+
+
+class MatrixNew(anywidget.AnyWidget):
+    _esm = pathlib.Path(__file__).parent / "../static" / "widget.js"
+    _css = pathlib.Path(__file__).parent / "../static" / "widget.css"
+    value = traitlets.Int(0).tag(sync=True)
+    component = traitlets.Unicode("MatrixNew").tag(sync=True)
+
+    network = traitlets.Dict({}).tag(sync=True)
+    width = traitlets.Int(600).tag(sync=True)
+    height = traitlets.Int(600).tag(sync=True)
+
     click_info = traitlets.Dict({}).tag(sync=True)

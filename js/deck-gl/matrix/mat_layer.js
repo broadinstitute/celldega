@@ -43,9 +43,21 @@ export const ini_mat_layer = (viz_state) => {
 
 }
 
-const mat_layer_onclick = (deck_mat, layers_mat, viz_state) => {
+const mat_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
 
-    console.log(deck_mat, layers_mat, viz_state)
+    // console.log(deck_mat, layers_mat, viz_state)
+
+    console.log(event.object)
+
+    const row_name = viz_state.labels.row_label_data[event.object.row].name
+    const col_name = viz_state.labels.col_label_data[event.object.col].name
+
+    viz_state.click.type = 'mat'
+    viz_state.click.value = {
+        name: row_name + '_' + col_name,
+        row: row_name,
+        col: col_name
+    }
 
     // if (viz_state.order.current.row === 'ini') {
     //     viz_state.order.current.row = 'clust'
@@ -82,7 +94,7 @@ export const set_mat_layer_onclick = (deck_mat, layers_mat, viz_state) => {
 
     layers_mat.mat_layer = layers_mat.mat_layer.clone({
         // not using event or d
-        onClick: () =>  mat_layer_onclick(deck_mat, layers_mat, viz_state)
+        onClick: (event) =>  mat_layer_onclick(event, deck_mat, layers_mat, viz_state)
     })
 
 }

@@ -116,6 +116,10 @@ export const set_mat_constants = (network, root, width, height) => {
     viz_state.buttons.blue = '#8797ff'
     viz_state.buttons.gray = '#EEEEEE'
 
+    viz_state.click = {}
+    viz_state.click.type
+    viz_state.click.value
+
 
     return viz_state
 

@@ -187,9 +187,16 @@ const row_label_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
 
     if (viz_state.labels.clicks.row === 1) {
 
+        viz_state.click.type = 'row_label'
+        viz_state.click.value = {
+            'name': event.object.name
+        }
+
+
         setTimeout(() => {
             viz_state.labels.clicks.row = 0
         }, DOUBLE_CLICK_DELAY)
+
 
     } else if (viz_state.labels.clicks.row === 2) {
         viz_state.labels.clicks.row = 0
@@ -206,6 +213,11 @@ const col_label_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
     viz_state.labels.clicks.col += 1
 
     if (viz_state.labels.clicks.col === 1) {
+
+        viz_state.click.type = 'col_label'
+        viz_state.click.value = {
+            'name': event.object.name
+        }
 
         setTimeout(() => {
             viz_state.labels.clicks.col = 0

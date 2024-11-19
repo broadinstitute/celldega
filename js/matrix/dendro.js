@@ -1,3 +1,54 @@
+export const ini_dendro = (viz_state) => {
+
+    console.log('ini_dendro!!!!!!!!!!!!!!!!')
+
+    var dendro = {};
+
+    dendro.default_level = 5;
+    dendro.tri_height = 0.10;
+    dendro.trap_height = 0.03;
+    dendro.trap_float = 0.005;
+
+    dendro.dendro_args = {};
+    dendro.group_level = {};
+    dendro.update_dendro = false;
+
+    dendro.selected_clust_names = []
+
+    dendro.group_info = {};
+
+    dendro.default_link_level = 0.5
+
+    dendro.output_label_format = 'list'
+
+    dendro.min_dist = {}
+    dendro.min_dist.row = 0 // 0.75
+    dendro.min_dist.col = 0 // 0.75
+
+    let axes = ['col', 'row']
+
+    let link_mat
+    dendro.max_linkage_dist = {}
+    let dist_thresh
+
+    axes.forEach((axis) => {
+      link_mat = viz_state.linkage[axis]
+      dendro.max_linkage_dist[axis] = link_mat[link_mat.length-1][2] + 0.01
+      dist_thresh = dendro.max_linkage_dist[axis] * dendro.default_link_level
+
+      // alternate linkage slicing code
+      alt_slice_linkage(viz_state, axis, dist_thresh)
+
+      dendro.group_info[axis] = calc_dendro_triangles(viz_state, dendro, axis)
+
+    })
+
+    console.log(dendro.group_info)
+
+    viz_state.dendro = dendro
+
+}
+
 export const alt_slice_linkage = (viz_state, axis, dist_thresh) => {
 
     // console.log('alt_slice_linkage')

@@ -127,7 +127,7 @@ export const calc_dendro_triangles = (viz_state, axis) => {
 
     var inst_nodes = viz_state[axis + '_nodes']
 
-    var heat_shift
+    // var heat_shift
     var heat_size
     var tri_width
     var num_labels = viz_state.mat['num_' + axis + 's'] // params.labels['num_'+axis]
@@ -144,7 +144,7 @@ export const calc_dendro_triangles = (viz_state, axis) => {
 
     inst_nodes.forEach((inst_node, index)=> {
 
-        var order_index = inst_node[inst_order]
+        // var order_index = inst_node[inst_order]
 
         // new way of getting group
         ////////////////////////////////////////////
@@ -154,7 +154,7 @@ export const calc_dendro_triangles = (viz_state, axis) => {
 
         if (axis === 'row'){
 
-            heat_shift = 0 // params.viz_dim.mat_size.y - params.viz_dim.heat_size.y
+            // heat_shift = 0 // params.viz_dim.mat_size.y - params.viz_dim.heat_size.y
 
             // inst_top = -params.node_canvas_pos.y_arr[order_index] - 2 * tri_width - 2 * heat_shift
 
@@ -165,7 +165,7 @@ export const calc_dendro_triangles = (viz_state, axis) => {
         } else {
 
             // emperical rule
-            heat_shift = 0 // params.viz_dim.mat_size.x - params.viz_dim.heat_size.x
+            // heat_shift = 0 // params.viz_dim.mat_size.x - params.viz_dim.heat_size.x
 
             // inst_top = -params.node_canvas_pos.x_arr[order_index] - 2 * tri_width + 2 * heat_shift
 

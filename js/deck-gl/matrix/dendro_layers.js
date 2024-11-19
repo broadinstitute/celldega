@@ -1,5 +1,4 @@
 import { PolygonLayer } from 'deck.gl'
-import { layer_filter } from './matrix_layers'
 
 export const ini_dendro_layer = (layers_mat, viz_state, axis) => {
 

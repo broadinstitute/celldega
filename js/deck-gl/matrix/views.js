@@ -107,8 +107,6 @@ export const ini_views = (viz_state) => {
 
 export const ini_view_state = (viz_state) => {
 
-    console.log('ini_view_state')
-
     let globalViewState = {
       matrix: {
         target: [viz_state.zoom.ini_pan_x, viz_state.zoom.ini_pan_y],

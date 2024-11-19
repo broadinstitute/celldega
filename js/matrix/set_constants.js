@@ -31,7 +31,6 @@ export const set_mat_constants = (network, root, width, height) => {
     viz_state.mat.net_mat = network.mat
 
     viz_state.linkage = network.linkage
-    console.log(viz_state.linkage)
 
     viz_state.viz.base_font_size = 125
 

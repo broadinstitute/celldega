@@ -39,7 +39,6 @@ export const get_tooltip = (viz_state, params) => {
       }
       else if (layer.id === 'row-dendro-layer') {
 
-        console.log(object)
         // Display the row label when hovering over the row_label_layer
         return {
           html: `row-dendro-${object.properties.name}<br>${object.properties.all_names}`,
@@ -48,7 +47,6 @@ export const get_tooltip = (viz_state, params) => {
       }
       else if (layer.id === 'col-dendro-layer') {
 
-        console.log(object)
         // Display the row label when hovering over the row_label_layer
         return {
           html: `row-dendro-${object.properties.name}<br>${object.properties.all_names}`,

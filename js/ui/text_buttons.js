@@ -37,8 +37,6 @@ const toggle_visible_button = (event) => {
 
 const reorder_button_callback = (event, axis, deck_mat, layers_mat, viz_state) => {
 
-    console.log('reorder button callback')
-
     const current = d3.select(event.currentTarget)
 
     let button_name = current.text().toLowerCase()
@@ -67,7 +65,6 @@ const reorder_button_callback = (event, axis, deck_mat, layers_mat, viz_state) =
 
         viz_state.order.current[axis] = button_name
 
-        console.log(button_name)
 
         layers_mat.mat_layer = layers_mat.mat_layer.clone({
             updateTriggers: {

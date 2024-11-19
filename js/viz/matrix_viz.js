@@ -58,8 +58,6 @@ export const matrix_viz = async (
     let viz_state = set_mat_constants(network, root, width, height)
     viz_state.el = el
 
-    console.log(network)
-
     set_mat_data(network, viz_state)
 
     viz_state.labels = {}
@@ -78,30 +76,21 @@ export const matrix_viz = async (
 
     ini_dendro(viz_state)
 
+    // need semicolon for some reason
+    calc_dendro_polygons(viz_state, 'row');
+    calc_dendro_polygons(viz_state, 'col');
+
     let layers_mat = {}
     layers_mat.mat_layer = ini_mat_layer(viz_state)
     layers_mat.row_label_layer = ini_row_label_layer(viz_state)
     layers_mat.col_label_layer = ini_col_label_layer(viz_state)
     layers_mat.row_cat_layer = ini_row_cat_layer(viz_state)
     layers_mat.col_cat_layer = ini_col_cat_layer(viz_state)
-
-
-    // dendrogram triangle layers
-    const triangleHeight = 500; // Uniform height for all triangles
-    const polygons = {};
-
-    // need semicolon for some reason
-    calc_dendro_polygons(viz_state, 'row');
-    calc_dendro_polygons(viz_state, 'col');
+    layers_mat.row_dendro_layer = ini_dendro_layer(layers_mat, viz_state, 'row')
+    layers_mat.col_dendro_layer = ini_dendro_layer(layers_mat, viz_state, 'col')
 
 
 
-    layers_mat['row_dendro_layer'] = ini_dendro_layer(layers_mat, viz_state, 'row')
-    layers_mat['col_dendro_layer'] = ini_dendro_layer(layers_mat, viz_state, 'col')
-
-
-    console.log('layers_mat')
-    console.log(layers_mat)
 
     ini_views(viz_state)
 
@@ -140,8 +129,6 @@ export const matrix_viz = async (
     // Add event listener to log the slider value
     viz_state.dendro.sliders.row.addEventListener("input", (event) => {
         console.log(`Slider value: ${event.target.value}`);
-        console.log('viz_state', viz_state)
-
 
     });
 

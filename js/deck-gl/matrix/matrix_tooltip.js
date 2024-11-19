@@ -5,7 +5,7 @@ export const get_tooltip = (viz_state, params) => {
     const {object, layer} = params;
 
     d3.selectAll('.deck-tooltip')
-      .style('margin-top', '75px')
+      .style('margin-top', '50px')
 
     if (object) {
       // Check which layer the tooltip is currently over
@@ -34,6 +34,24 @@ export const get_tooltip = (viz_state, params) => {
         // Display the row label when hovering over the row_label_layer
         return {
           html: `Col Label: ${object.name}`,
+          style: {color: "white"},
+        };
+      }
+      else if (layer.id === 'row-dendro-layer') {
+
+        console.log(object)
+        // Display the row label when hovering over the row_label_layer
+        return {
+          html: `row-dendro-${object.properties.name}<br>${object.properties.all_names}`,
+          style: {color: "white"},
+        };
+      }
+      else if (layer.id === 'col-dendro-layer') {
+
+        console.log(object)
+        // Display the row label when hovering over the row_label_layer
+        return {
+          html: `row-dendro-${object.properties.name}<br>${object.properties.all_names}`,
           style: {color: "white"},
         };
       }

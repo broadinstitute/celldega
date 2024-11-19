@@ -76,58 +76,6 @@ export const matrix_viz = async (
     viz_state.cats.row_cat_data = set_row_cat_data(network, viz_state)
     viz_state.cats.col_cat_data = set_col_cat_data(network, viz_state)
 
-    // console.log(viz_state.linkage)
-    // alt_slice_linkage(viz_state, 'row', 0.1)
-
-    // var dendro = {};
-
-    // dendro.default_level = 5;
-    // dendro.tri_height = 0.10;
-    // dendro.trap_height = 0.03;
-    // dendro.trap_float = 0.005;
-
-    // dendro.dendro_args = {};
-    // dendro.group_level = {};
-    // dendro.update_dendro = false;
-
-    // dendro.selected_clust_names = []
-
-    // dendro.group_info = {};
-
-    // dendro.default_link_level = 0.5
-
-    // dendro.output_label_format = 'list'
-
-    // dendro.min_dist = {}
-    // dendro.min_dist.row = 0 // 0.75
-    // dendro.min_dist.col = 0 // 0.75
-
-    // let axes = ['col', 'row']
-
-    // let link_mat
-    // dendro.max_linkage_dist = {}
-    // let dist_thresh
-
-    // axes.forEach((axis) => {
-    //   link_mat = viz_state.linkage[axis]
-    //   dendro.max_linkage_dist[axis] = link_mat[link_mat.length-1][2] + 0.01
-    //   dist_thresh = dendro.max_linkage_dist[axis] * dendro.default_link_level
-
-    //   // alternate linkage slicing code
-    //   alt_slice_linkage(viz_state, axis, dist_thresh)
-
-    //   dendro.group_info[axis] = calc_dendro_triangles(viz_state, dendro, axis)
-
-    // })
-
-    // console.log(dendro.group_info)
-
-    // viz_state.dendro = dendro
-
-    // console.log('row and col nodes after linkage slicing')
-    // console.log(viz_state.row_nodes)
-    // console.log(viz_state.col_nodes)
-
     ini_dendro(viz_state)
 
     let layers_mat = {}
@@ -146,21 +94,29 @@ export const matrix_viz = async (
     calc_dendro_polygons(viz_state, 'row');
     calc_dendro_polygons(viz_state, 'col');
 
-    ['col', 'row'].forEach((axis) => {
 
-        layers_mat[axis + '_dendro_layer'] = new PolygonLayer({
+
+    const ini_dendro_layer = (layers_mat, viz_state, axis) => {
+
+        const inst_layer = new PolygonLayer({
             id: axis + '-dendro-layer',
             data: viz_state.dendro.polygons[axis],
-            getPolygon: (d) => d.coordinates, // Access triangle coordinates
-            getFillColor: (d) => (d.axis === 'col' ? [0, 0, 0, 90] : [0, 0, 0, 90]), // Different colors for rows/cols
-            getLineColor: [255, 255, 255, 255], // White outline
-            lineWidthMinPixels: 1,
-            pickable: true, // Enable interactivity
+            getPolygon: (d) => d.coordinates,
+            getFillColor: [0, 0, 0, 90],
+            getLineColor: [255, 255, 255, 255],
+            lineWidthMinPixels: 0,
+            pickable: true,
             // autoHighlight: true, // Highlight on hover
             // onHover: ({ object }) => console.log(object?.properties.name), // Hover info
-        });
+        })
 
-    })
+        return inst_layer
+
+    }
+
+    layers_mat['row_dendro_layer'] = ini_dendro_layer(layers_mat, viz_state, 'row')
+    layers_mat['col_dendro_layer'] = ini_dendro_layer(layers_mat, viz_state, 'col')
+
 
     console.log('layers_mat')
     console.log(layers_mat)

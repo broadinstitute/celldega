@@ -31,6 +31,7 @@ export const landscape_ist = async (
     base_url,
     dataset_name='',
     trx_radius=0.25,
+    height = 800
 ) => {
 
     let viz_state = {}
@@ -91,7 +92,8 @@ export const landscape_ist = async (
 
     // Create and append the visualization.
     let root = document.createElement("div")
-    root.style.height = "800px"
+    root.style.height = height + "px"
+    root.style.border = "1px solid #d3d3d3"
 
     await set_dimensions(viz_state, base_url, imgage_name_for_dim)
 

@@ -46,7 +46,7 @@ export const matrix_viz = async (
     model,
     el,
     network,
-    width='100%',
+    width='800',
     height='800'
     // token,
 ) => {

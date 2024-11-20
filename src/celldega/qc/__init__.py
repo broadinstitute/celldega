@@ -3,9 +3,13 @@ import numpy as np
 import os
 import geopandas as gpd
 import tifffile as tiff
-from skimage.exposure import equalize_adapthist
 
-def processing(transcript_metadata_file, transcript_data_file, cell_polygon_metadata_file, cell_polygon_data_file, image_files, thickness, subset_interval_y_x, pixel_size, tech_name):
+def processing(transcript_metadata_file, transcript_data_file, cell_polygon_metadata_file, cell_polygon_data_file, thickness, subset_interval_y_x, pixel_size, tech_name):
+
+    """
+    A function to calculate segmentation quality control
+    metrics for imaging spatial transcriptomics data.
+    """
 
     metrics = {}    
     trx_meta = pd.read_parquet(transcript_metadata_file)  
@@ -22,16 +26,6 @@ def processing(transcript_metadata_file, transcript_data_file, cell_polygon_meta
     
     percentage_of_assigned_transcripts = (len(trx_meta) / len(trx)) * 100
     
-    for image_index, image_path in enumerate(image_files):
-        with tiff.TiffFile(image_path, is_ome=False) as image_file:
-
-            series = image_file.series[0]
-            plane = series.pages[0]
-
-            subset_channel_image = equalize_adapthist(plane.asarray()[subset_interval_y_x[0]:subset_interval_y_x[1], subset_interval_y_x[2]:subset_interval_y_x[3]], kernel_size=[100, 100], clip_limit=0.01, nbins=256)
-
-            metrics[f"{image_index}_indexed_image_channel_intensity"] = np.mean(subset_channel_image)
-
     metrics['proportion_transcripts_assigned_to_cells'] = percentage_of_assigned_transcripts
     metrics['total_number_of_cells'] = len(cell_gdf)
     metrics['average_cell_area'] = cell_gdf['geometry'].area.mean()
@@ -65,17 +59,6 @@ def processing(transcript_metadata_file, transcript_data_file, cell_polygon_meta
     }).T
 
     gene_specific_metrics_df.index.name = "metric_name"
-
-    return metrics_df, gene_specific_metrics_df
-
-def ist_segmentation_metrics(transcript_metadata_file, transcript_data_file, cell_polygon_metadata_file, cell_polygon_data_file, image_files, subset_interval_y_x, pixel_size, tech_name, thickness=1):
-    
-    """
-    A function to calculate segmentation quality control
-    metrics for imaging spatial transcriptomics data.
-    """
-
-    metrics_df, gene_specific_metrics_df = processing(transcript_metadata_file, transcript_data_file, cell_polygon_metadata_file, cell_polygon_data_file, image_files, thickness, subset_interval_y_x, pixel_size, tech_name)
 
     print("segmentation metrics calculation completed")
 

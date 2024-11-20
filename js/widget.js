@@ -185,4 +185,4 @@ export const render = async ({ model, el }) => {
 };
 
 
-export default { render, landscape_ist, landscape_sst };
+export default { render, landscape_ist, landscape_sst, matrix_viz };

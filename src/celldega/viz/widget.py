@@ -49,6 +49,9 @@ class Landscape(anywidget.AnyWidget):
     update_trigger = traitlets.Dict().tag(sync=True)
     cell_clusters = traitlets.Dict().tag(sync=True)
 
+    width = traitlets.Int(0).tag(sync=True)
+    height = traitlets.Int(800).tag(sync=True)
+
     def trigger_update(self, new_value):
         # This method updates the update_trigger traitlet with a new value
         # You can pass any information necessary for the update, or just a timestamp

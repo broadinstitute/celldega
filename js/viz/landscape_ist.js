@@ -31,8 +31,14 @@ export const landscape_ist = async (
     base_url,
     dataset_name='',
     trx_radius=0.25,
+    width = 0,
     height = 800
 ) => {
+
+
+    if (width === 0){
+        width = '100%'
+    }
 
     let viz_state = {}
 
@@ -103,7 +109,7 @@ export const landscape_ist = async (
 
     viz_state.views = set_views()
 
-    let deck_ist = await ini_deck(root)
+    let deck_ist = await ini_deck(root, width, height)
     set_initial_view_state(deck_ist, ini_x, ini_y, ini_z, ini_zoom)
     set_views_prop(deck_ist, viz_state.views)
 

@@ -46,14 +46,15 @@ export const matrix_viz = async (
     model,
     el,
     network,
-    width,
-    height
+    width='100%',
+    height='800'
     // token,
 ) => {
 
     const root = document.createElement("div")
     root.style.border = "1px solid #d3d3d3"
-    let deck_mat = ini_deck(root)
+    // root.style.width = width
+    let deck_mat = ini_deck(root, width, height)
 
     let viz_state = set_mat_constants(model, network, root, width, height)
     viz_state.el = el

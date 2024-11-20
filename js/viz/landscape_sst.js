@@ -26,9 +26,15 @@ export const landscape_sst = async (
     ini_y,
     ini_z,
     ini_zoom,
-    square_tile_size = 1.4
-    // dataset_name=''
+    square_tile_size = 1.4,
+    dataset_name='',
+    width = 0,
+    height = 800
 ) => {
+
+    if (width === 0){
+        width = '100%'
+    }
 
     // Create and append the visualization container
     let root = document.createElement("div")
@@ -112,7 +118,7 @@ export const landscape_sst = async (
 
     viz_state.views = set_views()
 
-    let deck_sst = ini_deck_sst(root)
+    let deck_sst = ini_deck_sst(root, width, height)
 
     const initial_view_state = {
         target: [ini_x, ini_y, ini_z],

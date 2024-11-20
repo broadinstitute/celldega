@@ -229,7 +229,7 @@ def convert_to_webp(image_path, quality=100):
 
 
 def make_deepzoom_pyramid(
-    array, output_path, pyramid_name, technology, clahe_tile_size=64, clahe_contrast_limit=20, tile_size=512, overlap=0, suffix=".jpeg"
+    array, output_path, pyramid_name, clahe_tile_size=64, clahe_contrast_limit=20, tile_size=512, overlap=0, suffix=".jpeg"
 ):
     """
     Create a DeepZoom image pyramid from a JPEG image
@@ -242,8 +242,6 @@ def make_deepzoom_pyramid(
         Path to the directory where the DeepZoom pyramid will be saved.
     pyramid_name : str
         Name of the output DeepZoom pyramid.
-    technology : str
-        Spatial technology (e.g., MERSCOPE, Xenium)
     clahe_tile_size : int, optional, default=64
         Size of the tiles used for CLAHE. The image will be divided into these tiles for local contrast enhancement.
     clahe_contrast_limit : int, optional, default=50
@@ -266,7 +264,7 @@ def make_deepzoom_pyramid(
     output_path = Path(output_path)
 
     # Load image from memory
-    image = pyvips.Image.new_from_memory(array, height, width, 1, format="uchar") # 'uchar' if 8-bit, 'ushort' if 16-bit
+    image = pyvips.Image.new_from_memory(array, height, width, 1, format='uchar') # 'uchar' if 8-bit, 'ushort' if 16-bit
 
     # check if the output path exists and create it if it does not
     output_path.mkdir(parents=True, exist_ok=True)
@@ -274,9 +272,9 @@ def make_deepzoom_pyramid(
     # append the pyramid name to the output path
     output_path = output_path / pyramid_name
 
-    if technology.lower() == 'merscope':
-        # Apply CLAHE using hist_local
-        image = image.hist_local(clahe_tile_size, clahe_tile_size, max_slope=int(clahe_contrast_limit))
+    # Apply CLAHE using hist_local
+    # Suggested parameters: MERSCOPE: 64, 20, Xenium: 25, 75
+    image = image.hist_local(clahe_tile_size, clahe_tile_size, max_slope=int(clahe_contrast_limit))
 
     # Save the image as a DeepZoom image pyramid
     image.dzsave(output_path, tile_size=tile_size, overlap=overlap, suffix=suffix)

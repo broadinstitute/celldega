@@ -46,9 +46,6 @@ export const render_landscape_ist = async ({ model, el }) => {
     const width = model.get('width')
     const height = model.get('height')
 
-    console.log('in widget!!!!!!!!!!!!!!!!')
-    console.log(width, height)
-
     return landscape_ist(
         el,
         model,
@@ -78,9 +75,6 @@ export const render_landscape_sst = async ({ model, el }) => {
     const square_tile_size = model.get('square_tile_size')
     const width = model.get('width')
     const height = model.get('height')
-
-    console.log('in widget!!!!!!!!!!!!!!!!')
-    console.log(width, height)
 
     landscape_sst(
         model,

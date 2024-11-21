@@ -19,6 +19,7 @@ import { set_cluster_metadata } from '../global_variables/meta_cluster'
 import { update_ist_landscape_from_cgm } from '../widget_interactions/update_ist_landscape_from_cgm'
 import { update_cell_clusters } from '../widget_interactions/update_cell_clusters'
 import { ini_cache } from '../global_variables/cache'
+import { EditableGeoJsonLayer, DrawPolygonMode } from '@deck.gl-community/editable-layers'
 
 export const landscape_ist = async (
     el,
@@ -34,6 +35,8 @@ export const landscape_ist = async (
     width = 0,
     height = 800
 ) => {
+
+    console.log(EditableGeoJsonLayer)
 
 
     if (width === 0){
@@ -148,6 +151,44 @@ export const landscape_ist = async (
     update_trx_layer_radius(layers_obj, trx_radius)
 
     const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+
+    var myFeatureCollection = {
+        type: "FeatureCollection",
+        features: []
+      };
+
+
+    const edit_layer = new EditableGeoJsonLayer({
+        id: "nebula",
+        data: myFeatureCollection,
+        selectedFeatureIndexes: [],
+        mode: DrawPolygonMode,
+
+        // Styles
+        filled: true,
+        pointRadiusMinPixels: 2,
+        pointRadiusScale: 2000,
+        extruded: true,
+        getElevation: 1000,
+        getFillColor: [200, 0, 80, 180],
+
+        // Interactive props
+        pickable: true,
+        autoHighlight: true,
+
+        onEdit: ({ updatedData, editType, featureIndexes, editContext }) => {
+        //   myFeatureCollection = updatedData;
+        //   deck.setProps({ layers: getLayers() });
+        }
+    })
+
+
+    console.log('layers_list', layers_list)
+
+    layers_list.push(edit_layer)
+
+    console.log('layers_list', layers_list)
+
     deck_ist.setProps({layers: layers_list})
 
     set_deck_on_view_state_change(deck_ist, layers_obj, viz_state)

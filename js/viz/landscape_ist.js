@@ -177,7 +177,9 @@ export const landscape_ist = async (
         autoHighlight: true,
 
         onEdit: ({ updatedData, editType, featureIndexes, editContext }) => {
-        //   myFeatureCollection = updatedData;
+          myFeatureCollection = updatedData;
+
+          console.log(myFeatureCollection)
         //   deck.setProps({ layers: getLayers() });
         }
     })

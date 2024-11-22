@@ -19,7 +19,7 @@ import { set_cluster_metadata } from '../global_variables/meta_cluster'
 import { update_ist_landscape_from_cgm } from '../widget_interactions/update_ist_landscape_from_cgm'
 import { update_cell_clusters } from '../widget_interactions/update_cell_clusters'
 import { ini_cache } from '../global_variables/cache'
-import { EditableGeoJsonLayer, DrawPolygonMode } from '@deck.gl-community/editable-layers'
+import { EditableGeoJsonLayer, DrawPolygonMode,  ModifyMode} from '@deck.gl-community/editable-layers'
 
 export const landscape_ist = async (
     el,
@@ -134,10 +134,71 @@ export const landscape_ist = async (
     set_get_tooltip(deck_ist, viz_state)
 
     viz_state.edit = {}
-    viz_state.edit.feature_collection = {
-        type: "FeatureCollection",
-        features: []
-      };
+    // viz_state.edit.feature_collection = {
+    //     type: "FeatureCollection",
+    //     features: []
+    //   };
+
+
+      viz_state.edit.feature_collection =  {
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "properties": {},
+                "geometry": {
+                    "type": "Polygon",
+                    "coordinates": [
+                        [
+                            [
+                                7770.153438352874,
+                                1916.3184197138892
+                            ],
+                            [
+                                11098.946999136195,
+                                3845.659272181384
+                            ],
+                            [
+                                8169.668769723272,
+                                5034.217383008322
+                            ],
+                            [
+                                7770.153438352874,
+                                1916.3184197138892
+                            ]
+                        ]
+                    ]
+                }
+            },
+            {
+                "type": "Feature",
+                "properties": {},
+                "geometry": {
+                    "type": "Polygon",
+                    "coordinates": [
+                        [
+                            [
+                                9316.949522198447,
+                                7552.13624246597
+                            ],
+                            [
+                                13868.77264939155,
+                                4951.574277957145
+                            ],
+                            [
+                                14118.646508193346,
+                                8538.550202221204
+                            ],
+                            [
+                                9316.949522198447,
+                                7552.13624246597
+                            ]
+                        ]
+                    ]
+                }
+            }
+        ]
+    }
 
     let background_layer = ini_background_layer(viz_state)
     let image_layers = await make_image_layers(viz_state)
@@ -157,19 +218,21 @@ export const landscape_ist = async (
             data: viz_state.edit.feature_collection,
         })
 
+        console.log(viz_state.edit.feature_collection)
+
         const layers_list = get_layers_list(layers_obj, viz_state.close_up)
 
         deck_ist.setProps({layers: layers_list})
 
-        console.log('setProps!!!!!!!!!!!!!!!!!!!!!!')
-
       }
 
     const edit_layer = new EditableGeoJsonLayer({
-        id: "nebula",
+        id: 'edit-layer',
         data: viz_state.edit.feature_collection,
-        selectedFeatureIndexes: [],
-        mode: DrawPolygonMode,
+        // selectedFeatureIndexes: [],
+        selectedFeatureIndexes: [0],
+        // mode: DrawPolygonMode,
+        mode: new ModifyMode(),
 
         // Styles
         filled: true,

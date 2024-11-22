@@ -210,7 +210,7 @@ export const make_edit_button = (deck_ist, layers_obj, viz_state, container, tex
         .style('cursor', 'pointer')
         .style('font-size', '12px')
         .style('font-weight', 'bold')
-        .style('color', color)
+        .style('color', 'gray')
         // .style('border', '3px solid')  // Light gray border
         // .style('border-color', color)  // Light gray border
         // .style('border-radius', '12px')  // Rounded corners

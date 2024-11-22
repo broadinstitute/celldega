@@ -11,6 +11,7 @@ import { bar_callback_gene } from './bar_plot'
 import { calc_dendro_triangles, calc_dendro_polygons, alt_slice_linkage } from '../matrix/dendro'
 import { update_dendro_layer_data } from '../deck-gl/matrix/dendro_layers'
 import { get_mat_layers_list } from '../deck-gl/matrix/matrix_layers'
+import { DrawPolygonMode,  ModifyMode} from '@deck.gl-community/editable-layers'
 
 export const toggle_image_layers_and_ctrls = (layers_obj, viz_state, is_visible) => {
 
@@ -362,6 +363,7 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
 
         const current = d3.select(event.currentTarget)
         const is_active = current.classed('active')
+        let button_name = current.text().toLowerCase()
 
         console.log('edit callback!!!', is_active)
 
@@ -369,6 +371,16 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
 
             current.classed('active', true)
                    .style('color', 'blue')
+
+            if (button_name === 'edit') {
+                console.log('switch to edit mode!!!!!!!!')
+                layers_obj.edit_layer = layers_obj.edit_layer.clone({
+                    mode: new ModifyMode(),
+                })
+            }
+
+            console.log('Current Mode:', layers_obj.edit_layer.props.mode);
+
 
         } else if (is_active === true) {
 
@@ -381,6 +393,7 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
 
 
     make_edit_button(deck_ist, layers_obj, viz_state, ctrl_container, 'SKETCH', 40, edit_callback)
+    make_edit_button(deck_ist, layers_obj, viz_state, ctrl_container, 'EDIT', 40, edit_callback)
 
     // if dataset_name is not an empty string make the name container
     if (dataset_name.trim !== ''){

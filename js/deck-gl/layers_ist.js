@@ -15,6 +15,7 @@ export const get_layers_list = (layers_obj, close_up) => {
             layers_obj.background_layer,
             ...layers_obj.image_layers,
             layers_obj.cell_layer,
+            layers_obj.edit_layer
         ]
     }
 

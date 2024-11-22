@@ -128,39 +128,37 @@ export const landscape_ist = async (
 
     set_get_tooltip(deck_ist, viz_state)
 
+    viz_state.edit = {}
+    viz_state.edit.feature_collection = {
+        type: "FeatureCollection",
+        features: []
+      };
+
     let background_layer = ini_background_layer(viz_state)
     let image_layers = await make_image_layers(viz_state)
     let cell_layer = await ini_cell_layer(base_url, viz_state)
     let path_layer = await ini_path_layer(viz_state)
     let trx_layer = ini_trx_layer(viz_state.genes)
 
-    // make layers object
-    let layers_obj = {
-        'background_layer': background_layer,
-        'image_layers': image_layers,
-        'cell_layer': cell_layer,
-        'path_layer': path_layer,
-        'trx_layer': trx_layer
-    }
+    const on_edit = (deck_ist, layers_obj, viz_state, edit_info) => {
 
-    // set onclicks after all layers are made
-    set_cell_layer_onclick(deck_ist, layers_obj, viz_state)
-    set_path_layer_onclick(deck_ist, layers_obj, viz_state)
-    set_trx_layer_onclick(deck_ist, layers_obj, viz_state)
+        const { updatedData, editType, featureIndexes, editContext } = edit_info;
 
-    update_trx_layer_radius(layers_obj, trx_radius)
+        viz_state.edit.feature_collection = updatedData;
 
-    const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+        console.log(viz_state.edit.feature_collection)
 
-    var myFeatureCollection = {
-        type: "FeatureCollection",
-        features: []
-      };
+        const layers_list = get_layers_list(layers_obj, viz_state.close_up)
 
+        deck_ist.setProps({layers: layers_list})
+
+        console.log('setProps!!!!!!!!!!!!!!!!!!!!!!')
+
+      }
 
     const edit_layer = new EditableGeoJsonLayer({
         id: "nebula",
-        data: myFeatureCollection,
+        data: viz_state.edit.feature_collection,
         selectedFeatureIndexes: [],
         mode: DrawPolygonMode,
 
@@ -176,18 +174,27 @@ export const landscape_ist = async (
         pickable: true,
         autoHighlight: true,
 
-        onEdit: ({ updatedData, editType, featureIndexes, editContext }) => {
-          myFeatureCollection = updatedData;
-
-          console.log(myFeatureCollection)
-        //   deck.setProps({ layers: getLayers() });
-        }
+        onEdit: (edit_info) => on_edit(deck_ist, layers_obj, viz_state, edit_info)
     })
 
+    // make layers object
+    let layers_obj = {
+        'background_layer': background_layer,
+        'image_layers': image_layers,
+        'cell_layer': cell_layer,
+        'path_layer': path_layer,
+        'trx_layer': trx_layer,
+        'edit_layer': edit_layer
+    }
 
-    console.log('layers_list', layers_list)
+    // set onclicks after all layers are made
+    set_cell_layer_onclick(deck_ist, layers_obj, viz_state)
+    set_path_layer_onclick(deck_ist, layers_obj, viz_state)
+    set_trx_layer_onclick(deck_ist, layers_obj, viz_state)
 
-    layers_list.push(edit_layer)
+    update_trx_layer_radius(layers_obj, trx_radius)
+
+    const layers_list = get_layers_list(layers_obj, viz_state.close_up)
 
     console.log('layers_list', layers_list)
 

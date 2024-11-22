@@ -146,7 +146,11 @@ export const landscape_ist = async (
 
         viz_state.edit.feature_collection = updatedData;
 
-        console.log(viz_state.edit.feature_collection)
+        // console.log(viz_state.edit.feature_collection)
+
+        layers_obj.edit_layer = layers_obj.edit_layer.clone({
+            data: viz_state.edit.feature_collection,
+        })
 
         const layers_list = get_layers_list(layers_obj, viz_state.close_up)
 

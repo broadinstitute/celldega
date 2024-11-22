@@ -185,15 +185,13 @@ export const make_edit_button = (deck_ist, layers_obj, viz_state, container, tex
 
     let button_class = 'edit_button'
 
-
-    let color = 'gray'
-
     const active = false
-    // if (active === true) {
-    //     color = viz_state.buttons.blue
-    // } else {
-    //     color = viz_state.buttons.gray
-    // }
+    let color
+    if (active === true) {
+        color = viz_state.buttons.blue
+    } else {
+        color = viz_state.buttons.gray
+    }
 
     // make text all caps
     text = text.toUpperCase()
@@ -212,13 +210,13 @@ export const make_edit_button = (deck_ist, layers_obj, viz_state, container, tex
         .style('cursor', 'pointer')
         .style('font-size', '12px')
         .style('font-weight', 'bold')
-        .style('color', '#47515b')
-        .style('border', '3px solid')  // Light gray border
-        .style('border-color', color)  // Light gray border
-        .style('border-radius', '12px')  // Rounded corners
-        .style('margin-top', '5px')
-        .style('margin-left', '5px')
-        .style('padding', '4px 10px')  // Padding inside the button
+        .style('color', color)
+        // .style('border', '3px solid')  // Light gray border
+        // .style('border-color', color)  // Light gray border
+        // .style('border-radius', '12px')  // Rounded corners
+        // .style('margin-top', '5px')
+        .style('margin-left', '10px')
+        // .style('padding', '4px 10px')  // Padding inside the button
         .style('user-select', 'none')
         .style('font-family', '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif')
         .on('click', (event) => edit_button_callback(event, deck_ist, layers_obj, viz_state))

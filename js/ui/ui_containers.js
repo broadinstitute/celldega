@@ -354,18 +354,33 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
     ctrl_container.appendChild(cell_container)
     ctrl_container.appendChild(gene_container)
 
+    viz_state.genes.gene_search.style.width = '160px'
+
     ctrl_container.appendChild(viz_state.genes.gene_search)
 
     const edit_callback = (event, deck_ist, layers_obj, viz_state) => {
 
-        console.log(event)
-        console.log(deck_ist)
-        console.log(layers_obj)
-        console.log(viz_state)
-        console.log('edit callback!!!')
+        const current = d3.select(event.currentTarget)
+        const is_active = current.classed('active')
+
+        console.log('edit callback!!!', is_active)
+
+        if (is_active === false) {
+
+            current.classed('active', true)
+                   .style('color', 'blue')
+
+        } else if (is_active === true) {
+
+            current.classed('active', false)
+                   .style('color', 'gray')
+
+        }
     }
 
-    make_edit_button(deck_ist, layers_obj, viz_state, ctrl_container, 'EDIT', 40, edit_callback)
+
+
+    make_edit_button(deck_ist, layers_obj, viz_state, ctrl_container, 'SKETCH', 40, edit_callback)
 
     // if dataset_name is not an empty string make the name container
     if (dataset_name.trim !== ''){

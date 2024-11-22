@@ -180,6 +180,52 @@ export const make_button = (container, technology, text, color='blue', width=40,
 
 }
 
+export const make_edit_button = (deck_ist, layers_obj, viz_state, container, text, width, edit_button_callback) => {
+
+
+    let button_class = 'edit_button'
+
+
+    let color = 'gray'
+
+    const active = false
+    // if (active === true) {
+    //     color = viz_state.buttons.blue
+    // } else {
+    //     color = viz_state.buttons.gray
+    // }
+
+    // make text all caps
+    text = text.toUpperCase()
+
+    d3.select(container)
+        .append('div')
+        .classed(button_class, true)
+        .classed('active', active)
+        .text(text)
+        .style('width', width + 'px')
+        .style('height', '20px')  // Adjust height for button padding
+        .style('display', 'inline-flex')
+        .style('align-items', 'center')
+        .style('justify-content', 'center')
+        .style('text-align', 'center')
+        .style('cursor', 'pointer')
+        .style('font-size', '12px')
+        .style('font-weight', 'bold')
+        .style('color', '#47515b')
+        .style('border', '3px solid')  // Light gray border
+        .style('border-color', color)  // Light gray border
+        .style('border-radius', '12px')  // Rounded corners
+        .style('margin-top', '5px')
+        .style('margin-left', '5px')
+        .style('padding', '4px 10px')  // Padding inside the button
+        .style('user-select', 'none')
+        .style('font-family', '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif')
+        .on('click', (event) => edit_button_callback(event, deck_ist, layers_obj, viz_state))
+
+
+}
+
 
 const make_ist_img_layer_button_callback = (text, deck_ist, layers_obj, viz_state) => {
 

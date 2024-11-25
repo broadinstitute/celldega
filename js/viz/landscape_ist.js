@@ -3,15 +3,15 @@ import { set_options } from '../global_variables/fetch_options'
 import { set_global_base_url } from '../global_variables/global_base_url'
 import { set_landscape_parameters } from '../global_variables/landscape_parameters'
 import { set_dimensions } from '../global_variables/image_dimensions'
-import { ini_cell_layer, set_cell_layer_onclick } from "../deck-gl/cell_layer"
+import { ini_cell_layer, set_cell_layer_onclick, update_cell_layer_id } from "../deck-gl/cell_layer"
 import { get_layers_list } from '../deck-gl/layers_ist'
 import { make_image_layers } from '../deck-gl/image_layers'
 import { set_views } from '../deck-gl/views'
 import { ini_deck, set_deck_on_view_state_change, set_initial_view_state, set_get_tooltip, set_views_prop } from '../deck-gl/deck_ist'
 import { ini_background_layer } from '../deck-gl/background_layer'
-import { ini_path_layer, set_path_layer_onclick } from '../deck-gl/path_layer'
+import { ini_path_layer, set_path_layer_onclick, update_path_layer_id } from '../deck-gl/path_layer'
 import { make_ist_ui_container } from '../ui/ui_containers'
-import { ini_trx_layer, set_trx_layer_onclick, update_trx_layer_radius } from '../deck-gl/trx_layer'
+import { ini_trx_layer, set_trx_layer_onclick, update_trx_layer_radius, update_trx_layer_id } from '../deck-gl/trx_layer'
 import { set_image_info, set_image_layer_colors, set_image_format } from '../global_variables/image_info'
 import { set_image_layer_sliders } from "../ui/sliders"
 import { set_meta_gene } from '../global_variables/meta_gene'
@@ -19,6 +19,11 @@ import { set_cluster_metadata } from '../global_variables/meta_cluster'
 import { update_ist_landscape_from_cgm } from '../widget_interactions/update_ist_landscape_from_cgm'
 import { update_cell_clusters } from '../widget_interactions/update_cell_clusters'
 import { ini_cache } from '../global_variables/cache'
+import { toggle_image_layers_and_ctrls } from '../ui/ui_containers'
+import { update_cat, update_selected_cats } from '../global_variables/cat'
+import { update_selected_genes } from '../global_variables/selected_genes'
+import { update_cell_exp_array } from '../global_variables/cell_exp_array'
+import { update_gene_text_box } from '../ui/gene_search'
 
 export const landscape_ist = async (
     el,
@@ -164,8 +169,31 @@ export const landscape_ist = async (
     el.appendChild(root)
 
     const landscape = {
+        update_matrix_gene: async (inst_gene) => {
+            console.log('inst_gene', inst_gene)
+            // const inst_gene = d.name
+            const reset_gene = inst_gene === viz_state.cats.cat;
+            const new_cat = reset_gene ? 'cluster' : inst_gene
+
+            toggle_image_layers_and_ctrls(layers_obj, viz_state, viz_state.cats.cat === inst_gene)
+
+            update_cat(viz_state.cats, new_cat)
+            update_selected_genes(viz_state.genes, [inst_gene])
+            update_selected_cats(viz_state.cats, [])
+            await update_cell_exp_array(viz_state.cats, viz_state.genes, viz_state.global_base_url, inst_gene)
+
+            update_cell_layer_id(layers_obj, new_cat)
+            update_path_layer_id(layers_obj, new_cat)
+            update_trx_layer_id(viz_state.genes, layers_obj)
+
+            const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+            deck_ist.setProps({layers: layers_list})
+
+            viz_state.genes.gene_search_input.value = viz_state.genes.gene_search_input.value !== inst_gene ? inst_gene : ''
+            update_gene_text_box(viz_state.genes, reset_gene ? '' : inst_gene)
+        },
         update_view_state: () => {
-            console.log('updating view state!!!')
+            console.log('updating view state???????')
         },
         update_layers: () => {
             console.log('update_layers')

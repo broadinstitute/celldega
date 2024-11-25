@@ -6,8 +6,11 @@
 </head>
 <body>
     <div id="app" style="width: 600px; height: 500px; position: relative;"></div>
+    <div id="matrix" style="width: 600px; height: 500px; position: relative; margin-top: 100px"></div>
     <script type="module">
         import celldega from './src/celldega/static/widget.js';
+
+        console.log(celldega);
 
         // Use the imported functions
         const token = '';
@@ -36,7 +39,27 @@
         console.log(landscape);
         const inst_gene = 'EEF1G'
 
-        landscape.update_matrix_gene(inst_gene)
+        // landscape.update_matrix_gene(inst_gene)
+
+        // load a json file from this url
+        const net_url = 'http://127.0.0.1:8081/notebooks/data/tmp.json'
+        const network = await fetch(net_url)
+            .then(response => response.json())
+            .then(data => {
+                console.log(data);
+                return data;
+            });
+
+        console.log(network)
+
+        // Matrix
+        ////////////////////////////////////////////
+        let matrix_container = document.querySelector("#matrix");
+        console.log(matrix_container)
+
+        const size = 500;
+        celldega.matrix_viz({}, matrix_container, network, size, size)
+
     </script>
 </body>
 </html>

@@ -54,7 +54,6 @@ const mat_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
         row: row_name,
         col: col_name
     }
-    console.log(viz_state.click)
 
     if (Object.keys(viz_state.model).length > 0) {
         viz_state.model.set('click_info', null);

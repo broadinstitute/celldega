@@ -60,9 +60,6 @@ const dendro_layer_onclick = (event, deck_mat, layers_mat, viz_state, axis) => {
         viz_state.model.save_changes()
     }
 
-    console.log('dendro_layer_onclick', viz_state.click)
-    console.log(typeof viz_state.custom_callbacks[axis + '_dendro'])
-
     if (typeof viz_state.custom_callbacks[axis + '_dendro'] === 'function') {
         viz_state.custom_callbacks[axis + '_dendro'](event.object.properties.all_names)
     }

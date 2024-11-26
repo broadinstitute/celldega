@@ -53,12 +53,6 @@ export const matrix_viz = async (
     col_dendro_callback=null
 ) => {
 
-    console.log('matrix_viz')
-    console.log('callbacks')
-    console.log('row_label_callback', row_label_callback)
-    console.log('col_label_callback', col_label_callback)
-    console.log('col_dendro_callback', col_dendro_callback)
-
     const root = document.createElement("div")
     root.style.border = "1px solid #d3d3d3"
     // root.style.width = width

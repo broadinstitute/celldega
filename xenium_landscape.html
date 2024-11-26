@@ -67,6 +67,10 @@
 
         let el = document.querySelector("#landscape");
 
+        const ist_callback = () => {
+            console.log('custom callback for ist');
+        }
+
         const landscape = await celldega.landscape_ist(
             el,
             {},
@@ -79,7 +83,8 @@
             '',
             0.25,
             '95%',
-            '85%'
+            '85%',
+            ist_callback
         );
 
         // console.log(landscape);
@@ -115,6 +120,15 @@
             landscape.update_matrix_col,
             landscape.update_matrix_dendro_col
         );
+
+
+    const new_view_state = {
+        target: [ini_x, ini_y, 0],
+        zoom: ini_zoom + 4
+    }
+
+    console.log('trying to update the view state from the html')
+    landscape.update_view_state(new_view_state)
 
     </script>
 </body>

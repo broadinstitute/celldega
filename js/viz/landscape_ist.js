@@ -37,7 +37,8 @@ export const landscape_ist = async (
     dataset_name='',
     trx_radius=0.25,
     width = 0,
-    height = 800
+    height = 800,
+    view_change_custom_callback=null
 ) => {
 
 
@@ -53,6 +54,9 @@ export const landscape_ist = async (
     viz_state.model = ini_model
 
     viz_state.containers = {}
+
+    viz_state.custom_callbacks = {}
+    viz_state.custom_callbacks.view_change = view_change_custom_callback
 
     viz_state.cats = {}
     viz_state.cats.cat
@@ -171,10 +175,6 @@ export const landscape_ist = async (
     const landscape = {
         update_matrix_gene: async (inst_gene) => {
 
-            console.log('*************************************')
-            console.log('update_matrix_gene', inst_gene)
-            console.log('*************************************')
-            // const inst_gene = d.name
             const reset_gene = inst_gene === viz_state.cats.cat;
             const new_cat = reset_gene ? 'cluster' : inst_gene
 
@@ -233,10 +233,6 @@ export const landscape_ist = async (
         },
         update_matrix_col: async (inst_col) => {
 
-            console.log('*************************************')
-            console.log('update_matrix_col', inst_col)
-            console.log('*************************************')
-
             // reset bar graphs (will remove duplicate code later)
             //////////////////////////////////////////
             viz_state.genes.svg_bar_gene
@@ -291,21 +287,16 @@ export const landscape_ist = async (
         },
         update_matrix_dendro_col: async (selected_cols) => {
 
-            console.log('landscape_ist, update_matrix_dendro_col', selected_cols)
-
             const inst_gene = 'cluster'
             const new_cats = selected_cols // click_info.value.selected_names
 
             update_cat(viz_state.cats, 'cluster')
             update_selected_cats(viz_state.cats, new_cats)
-            console.log(viz_state.cats.selected_cats)
 
             update_selected_genes(viz_state.genes, [])
             toggle_image_layers_and_ctrls(layers_obj, viz_state, !viz_state.cats.selected_cats.length > 0)
 
             const inst_cat_name = viz_state.cats.selected_cats.join('-')
-
-            console.log(inst_cat_name)
 
             update_cell_layer_id(layers_obj, inst_cat_name)
             update_path_layer_id(layers_obj, inst_cat_name)
@@ -339,13 +330,14 @@ export const landscape_ist = async (
                 }
             }
 
-            // update_cat(viz_state.cats, inst_gene)
-            // update_selected_cats(viz_state.cats, new_cats)
-
-
         },
-        update_view_state: () => {
-            console.log('updating view state???????')
+        update_view_state: (new_view_state) => {
+
+            deck_ist.setProps({
+                controller: {doubleClickZoom: false},
+                initialViewState: new_view_state,
+                views: viz_state.views
+            })
         },
         update_layers: () => {
             console.log('update_layers')

@@ -1,4 +1,4 @@
-export const set_mat_constants = (model, network, root, width, height) => {
+export const set_mat_constants = (model, network, root, width, height, row_label_callback) => {
 
     let viz_state = {}
 
@@ -9,6 +9,9 @@ export const set_mat_constants = (model, network, root, width, height) => {
     viz_state.root = root
 
     viz_state.model = model
+
+    viz_state.custom_callbacks = {}
+    viz_state.custom_callbacks.row = row_label_callback
 
     viz_state.viz = {}
     viz_state.viz.height_margin = 100

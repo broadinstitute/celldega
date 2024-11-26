@@ -207,11 +207,21 @@ const row_label_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
 
     // deck_mat.setProps({layers: get_mat_layers_list(layers_mat)})
     console.log(viz_state.click)
+    console.log('here!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+    console.log(viz_state.custom_callbacks)
+    console.log(typeof viz_state.custom_callbacks.row)
 
     if (Object.keys(viz_state.model).length > 0) {
         viz_state.model.set('click_info', null);
         viz_state.model.set('click_info', viz_state.click)
         viz_state.model.save_changes()
+    }
+
+
+    if (typeof viz_state.custom_callbacks.row === 'function') {
+
+        console.log('running row_callback ')
+        viz_state.custom_callbacks.row(event.object.name)
     }
 
 }

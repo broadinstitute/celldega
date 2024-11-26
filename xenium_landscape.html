@@ -58,7 +58,13 @@
         console.log(matrix_container)
 
         const size = 500;
-        celldega.matrix_viz({}, matrix_container, network, size, size)
+
+        const row_label_callback = (inst_gene) => {
+            console.log(inst_gene)
+            landscape.update_matrix_gene(inst_gene)
+        }
+
+        celldega.matrix_viz({}, matrix_container, network, size, size, row_label_callback);
 
     </script>
 </body>

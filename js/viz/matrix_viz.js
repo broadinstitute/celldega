@@ -47,16 +47,19 @@ export const matrix_viz = async (
     el,
     network,
     width='800',
-    height='800'
+    height='800',
+    row_label_callback=null,
     // token,
 ) => {
+
+    console.log('row_label_callback', row_label_callback)
 
     const root = document.createElement("div")
     root.style.border = "1px solid #d3d3d3"
     // root.style.width = width
     let deck_mat = ini_deck(root, width, height)
 
-    let viz_state = set_mat_constants(model, network, root, width, height)
+    let viz_state = set_mat_constants(model, network, root, width, height, row_label_callback)
     viz_state.el = el
 
     set_mat_data(network, viz_state)

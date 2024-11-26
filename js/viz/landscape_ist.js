@@ -343,9 +343,9 @@ export const landscape_ist = async (
 
             // await update_path_layer_data(viz_state.global_base_url, tiles_in_view, layers_obj, viz_state)
 
-            layers_obj.trx_layer = trx_layer.clone(
-                id: 'trx-layer-clone' + Math.random().toString(36).substring(7),
-            )
+            layers_obj.trx_layer = trx_layer.clone({
+                id: 'trx-layer-clone' + new_view_state.zoom,
+            })
 
             const layers_list = get_layers_list(layers_obj, viz_state.close_up)
             // deck_ist.setProps({layers: layers_list})

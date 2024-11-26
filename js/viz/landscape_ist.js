@@ -178,6 +178,42 @@ export const landscape_ist = async (
             const reset_gene = inst_gene === viz_state.cats.cat;
             const new_cat = reset_gene ? 'cluster' : inst_gene
 
+            if (!reset_gene) {
+                const selectedBar = viz_state.genes.svg_bar_gene.selectAll("g")
+                    .filter(function() {
+                        const textElement = d3.select(this).select("text").node()
+                        return textElement && textElement.textContent === inst_gene
+                    })
+                    .attr('opacity', 1.0)
+
+                if (!selectedBar.empty()) {
+
+                    const barPosition = selectedBar.node().getBoundingClientRect().top
+
+                    const containerPosition = viz_state.containers.bar_gene.getBoundingClientRect().top
+                    const scrollPosition = barPosition - containerPosition + viz_state.containers.bar_gene.scrollTop
+
+                    viz_state.genes.svg_bar_gene
+                        .attr('opacity', 1.0)
+
+                        viz_state.containers.bar_gene.scrollTo({
+                        top: scrollPosition,
+                        behavior: 'smooth'
+                    })
+                }
+            } else {
+                viz_state.containers.bar_gene.scrollTo({
+                    top: 0,
+                    behavior: 'smooth'
+                })
+            }
+
+            // reset cluster bar plot
+            viz_state.cats.svg_bar_cluster
+                .selectAll("g")
+                .attr('font-weight', 'normal')
+                .attr('opacity', 1.0)
+
             toggle_image_layers_and_ctrls(layers_obj, viz_state, viz_state.cats.cat === inst_gene)
 
             update_cat(viz_state.cats, new_cat)
@@ -194,6 +230,64 @@ export const landscape_ist = async (
 
             viz_state.genes.gene_search_input.value = viz_state.genes.gene_search_input.value !== inst_gene ? inst_gene : ''
             update_gene_text_box(viz_state.genes, reset_gene ? '' : inst_gene)
+        },
+        update_matrix_col: async (inst_col) => {
+
+            console.log('*************************************')
+            console.log('update_matrix_col', inst_col)
+            console.log('*************************************')
+
+            // reset bar graphs (will remove duplicate code later)
+            //////////////////////////////////////////
+            viz_state.genes.svg_bar_gene
+                .selectAll("g")
+                .attr('font-weight', 'normal')
+                .attr('opacity', 1.0)
+
+            viz_state.cats.svg_bar_cluster.selectAll("g")
+                .attr('font-weight', 'normal')
+                .attr('opacity', viz_state.cats.reset_cat ? 1.0 : 0.25)
+
+            if (!viz_state.cats.reset_cat) {
+                const selectedBar = viz_state.cats.svg_bar_cluster.selectAll("g")
+                    .filter(function() {
+                        return d3.select(this).select("text").text() === inst_col
+                    })
+                    .attr('opacity', 1.0)
+
+                if (!selectedBar.empty()) {
+                    const barPosition = selectedBar.node().getBoundingClientRect().top
+                    const containerPosition = viz_state.containers.bar_cluster.getBoundingClientRect().top
+                    const scrollPosition = barPosition - containerPosition + viz_state.containers.bar_cluster.scrollTop
+
+                    viz_state.containers.bar_cluster.scrollTo({
+                        top: scrollPosition,
+                        behavior: 'smooth'
+                    })
+                }
+            } else {
+                viz_state.containers.bar_cluster.scrollTo({
+                    top: 0,
+                    behavior: 'smooth'
+                })
+            }
+
+            update_cat(viz_state.cats, 'cluster')
+            update_selected_cats(viz_state.cats, [inst_col])
+            update_selected_genes(viz_state.genes, [])
+            toggle_image_layers_and_ctrls(layers_obj, viz_state, !viz_state.cats.selected_cats.length > 0)
+
+            const inst_cat_name = viz_state.cats.selected_cats.join('-')
+            update_cell_layer_id(layers_obj, inst_cat_name)
+            update_path_layer_id(layers_obj, inst_cat_name)
+            update_trx_layer_id(viz_state.genes, layers_obj)
+
+            const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+            deck_ist.setProps({layers: layers_list})
+
+            viz_state.genes.gene_search_input.value = ''
+            update_gene_text_box(viz_state.genes, '')
+
         },
         update_view_state: () => {
             console.log('updating view state???????')

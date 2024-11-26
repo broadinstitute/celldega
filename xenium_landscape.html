@@ -79,7 +79,7 @@
             '',
             0.25,
             '95%',
-            '95%'
+            '85%'
         );
 
         // console.log(landscape);
@@ -106,11 +106,22 @@
         const size = 500;
 
         const row_label_callback = (inst_gene) => {
-            console.log(inst_gene)
             landscape.update_matrix_gene(inst_gene)
         }
 
-        celldega.matrix_viz({}, matrix_container, network, size, size, row_label_callback);
+        const col_label_callback = (inst_col) => {
+            landscape.update_matrix_col(inst_col)
+        }
+
+        celldega.matrix_viz(
+            {},
+            matrix_container,
+            network,
+            size,
+            size,
+            row_label_callback,
+            col_label_callback
+        );
 
     </script>
 </body>

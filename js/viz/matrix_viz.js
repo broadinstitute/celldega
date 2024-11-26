@@ -49,17 +49,24 @@ export const matrix_viz = async (
     width='800',
     height='800',
     row_label_callback=null,
+    col_label_callback=null,
     // token,
 ) => {
-
-    console.log('row_label_callback', row_label_callback)
 
     const root = document.createElement("div")
     root.style.border = "1px solid #d3d3d3"
     // root.style.width = width
     let deck_mat = ini_deck(root, width, height)
 
-    let viz_state = set_mat_constants(model, network, root, width, height, row_label_callback)
+    let viz_state = set_mat_constants(
+        model,
+        network,
+        root,
+        width,
+        height,
+        row_label_callback,
+        col_label_callback
+    )
     // fix for tooltip positioning
     el.style.position = 'relative'
     viz_state.el = el

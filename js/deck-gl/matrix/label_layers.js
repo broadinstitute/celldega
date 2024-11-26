@@ -198,6 +198,16 @@ const row_label_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
             viz_state.labels.clicks.row = 0
         }, DOUBLE_CLICK_DELAY)
 
+        if (Object.keys(viz_state.model).length > 0) {
+            viz_state.model.set('click_info', null);
+            viz_state.model.set('click_info', viz_state.click)
+            viz_state.model.save_changes()
+        }
+
+        if (typeof viz_state.custom_callbacks.row === 'function') {
+            viz_state.custom_callbacks.row(event.object.name)
+        }
+
 
     } else if (viz_state.labels.clicks.row === 2) {
         viz_state.labels.clicks.row = 0
@@ -205,24 +215,7 @@ const row_label_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
         custom_label_reorder(deck_mat, layers_mat, viz_state, 'row', event.object.name, event.object.index)
     }
 
-    // deck_mat.setProps({layers: get_mat_layers_list(layers_mat)})
-    console.log(viz_state.click)
-    console.log('here!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
-    console.log(viz_state.custom_callbacks)
-    console.log(typeof viz_state.custom_callbacks.row)
 
-    if (Object.keys(viz_state.model).length > 0) {
-        viz_state.model.set('click_info', null);
-        viz_state.model.set('click_info', viz_state.click)
-        viz_state.model.save_changes()
-    }
-
-
-    if (typeof viz_state.custom_callbacks.row === 'function') {
-
-        console.log('running row_callback ')
-        viz_state.custom_callbacks.row(event.object.name)
-    }
 
 }
 
@@ -241,6 +234,16 @@ const col_label_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
             viz_state.labels.clicks.col = 0
         }, DOUBLE_CLICK_DELAY)
 
+        if (Object.keys(viz_state.model).length > 0) {
+            viz_state.model.set('click_info', null);
+            viz_state.model.set('click_info', viz_state.click)
+            viz_state.model.save_changes()
+        }
+
+        if (typeof viz_state.custom_callbacks.col === 'function') {
+            viz_state.custom_callbacks.col(event.object.name)
+        }
+
     } else if (viz_state.labels.clicks.col === 2) {
         viz_state.labels.clicks.col = 0
 
@@ -248,14 +251,7 @@ const col_label_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
 
     }
 
-    // deck_mat.setProps({layers: get_mat_layers_list(layers_mat)})
-    console.log(viz_state.click)
 
-    if (Object.keys(viz_state.model).length > 0) {
-        viz_state.model.set('click_info', null);
-        viz_state.model.set('click_info', viz_state.click)
-        viz_state.model.save_changes()
-    }
 
 }
 

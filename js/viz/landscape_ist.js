@@ -170,7 +170,10 @@ export const landscape_ist = async (
 
     const landscape = {
         update_matrix_gene: async (inst_gene) => {
-            console.log('inst_gene', inst_gene)
+
+            console.log('*************************************')
+            console.log('update_matrix_gene', inst_gene)
+            console.log('*************************************')
             // const inst_gene = d.name
             const reset_gene = inst_gene === viz_state.cats.cat;
             const new_cat = reset_gene ? 'cluster' : inst_gene

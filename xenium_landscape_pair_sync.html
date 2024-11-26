@@ -72,9 +72,6 @@
         const ini_zoom = -6;
         const base_url = 'http://127.0.0.1:8081/notebooks/data/xenium_landscapes/Xenium_Prime_Human_Skin_FFPE_outs';
 
-
-
-
         const landscape_1 = await celldega.landscape_ist(
             document.querySelector("#landscape-1"),
             {},
@@ -90,12 +87,6 @@
             '85%',
         );
 
-        const ist_2_callback = (new_view_state) => {
-            console.log('ist_2_custom_callback for ist', new_view_state);
-            landscape_1.update_view_state(new_view_state)
-
-        }
-
         const landscape_2 = await celldega.landscape_ist(
             document.querySelector("#landscape-2"),
             {},
@@ -109,7 +100,7 @@
             0.25,
             '95%',
             '85%',
-            ist_2_callback
+            landscape_1.update_view_state
         );
 
     //     // console.log(landscape);

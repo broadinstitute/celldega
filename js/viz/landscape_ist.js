@@ -331,12 +331,30 @@ export const landscape_ist = async (
             }
 
         },
-        update_view_state: (new_view_state) => {
+        update_view_state: async (new_view_state, close_up, trx_layer) => {
+
+            console.log('new_view_state', new_view_state)
+            console.log('close_up', close_up)
+            console.log('trx_layer', trx_layer)
+
+            viz_state.close_up = close_up
+
+            // await update_trx_layer_data(viz_state.global_base_url, tiles_in_view, layers_obj, viz_state)
+
+            // await update_path_layer_data(viz_state.global_base_url, tiles_in_view, layers_obj, viz_state)
+
+            layers_obj.trx_layer = trx_layer.clone(
+                id: 'trx-layer-clone' + Math.random().toString(36).substring(7),
+            )
+
+            const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+            // deck_ist.setProps({layers: layers_list})
 
             deck_ist.setProps({
                 controller: {doubleClickZoom: false},
                 initialViewState: new_view_state,
-                views: viz_state.views
+                views: viz_state.views,
+                layers: layers_list
             })
         },
         update_layers: () => {

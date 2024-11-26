@@ -12,7 +12,11 @@ export const on_view_state_change = debounce(({ viewState }, deck_ist, layers_ob
     console.log(viz_state.custom_callbacks)
 
     if (typeof viz_state.custom_callbacks.view_change === 'function') {
-        viz_state.custom_callbacks.view_change(viewState)
+        viz_state.custom_callbacks.view_change(
+            viewState,
+            viz_state.close_up,
+            layers_obj.trx_layer
+        )
     }
 
     return viewState

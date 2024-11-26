@@ -5,7 +5,8 @@ export const set_mat_constants = (
     width,
     height,
     row_label_callback,
-    col_label_callback
+    col_label_callback,
+    col_dendro_callback
 ) => {
 
     let viz_state = {}
@@ -21,6 +22,7 @@ export const set_mat_constants = (
     viz_state.custom_callbacks = {}
     viz_state.custom_callbacks.row = row_label_callback
     viz_state.custom_callbacks.col = col_label_callback
+    viz_state.custom_callbacks.col_dendro = col_dendro_callback
 
     viz_state.viz = {}
     viz_state.viz.height_margin = 100

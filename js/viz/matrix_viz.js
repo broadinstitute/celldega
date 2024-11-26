@@ -50,8 +50,14 @@ export const matrix_viz = async (
     height='800',
     row_label_callback=null,
     col_label_callback=null,
-    // token,
+    col_dendro_callback=null
 ) => {
+
+    console.log('matrix_viz')
+    console.log('callbacks')
+    console.log('row_label_callback', row_label_callback)
+    console.log('col_label_callback', col_label_callback)
+    console.log('col_dendro_callback', col_dendro_callback)
 
     const root = document.createElement("div")
     root.style.border = "1px solid #d3d3d3"
@@ -65,7 +71,8 @@ export const matrix_viz = async (
         width,
         height,
         row_label_callback,
-        col_label_callback
+        col_label_callback,
+        col_dendro_callback
     )
     // fix for tooltip positioning
     el.style.position = 'relative'

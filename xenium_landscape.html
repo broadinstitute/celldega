@@ -96,22 +96,14 @@
                 return data;
             });
 
-        console.log(network)
-
         // Matrix
         ////////////////////////////////////////////
         let matrix_container = document.querySelector("#matrix");
         console.log(matrix_container)
 
+        console.log(landscape)
+
         const size = 500;
-
-        const row_label_callback = (inst_gene) => {
-            landscape.update_matrix_gene(inst_gene)
-        }
-
-        const col_label_callback = (inst_col) => {
-            landscape.update_matrix_col(inst_col)
-        }
 
         celldega.matrix_viz(
             {},
@@ -119,8 +111,9 @@
             network,
             size,
             size,
-            row_label_callback,
-            col_label_callback
+            landscape.update_matrix_gene,
+            landscape.update_matrix_col,
+            landscape.update_matrix_dendro_col
         );
 
     </script>

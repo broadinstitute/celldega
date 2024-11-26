@@ -251,8 +251,6 @@ const col_label_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
 
     }
 
-
-
 }
 
 export const set_row_label_layer_onclick = (deck_mat, layers_mat, viz_state) => {

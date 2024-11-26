@@ -289,6 +289,10 @@ export const landscape_ist = async (
             update_gene_text_box(viz_state.genes, '')
 
         },
+        update_matrix_dendro_col: async (selected_cols) => {
+
+            console.log('landscape_ist, update_matrix_dendro_col', selected_cols)
+        },
         update_view_state: () => {
             console.log('updating view state???????')
         },

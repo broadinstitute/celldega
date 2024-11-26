@@ -18,7 +18,7 @@ def qc_segmentation(transcript_metadata_file, transcript_data_file, cell_polygon
     if transcript_data_file.endswith(".csv"):
         trx = pd.read_csv(transcript_data_file)
     elif transcript_data_file.endswith(".parquet"):
-        trx = gpd.read_parquet(transcript_data_file)
+        trx = pd.read_parquet(transcript_data_file)
     else:
         raise ValueError("Invalid file type. A .csv or .parquet file must be provided.")
     
@@ -62,7 +62,7 @@ def qc_segmentation(transcript_metadata_file, transcript_data_file, cell_polygon
         "assigned_transcripts": (trx_meta.groupby(gene)[transcript_index].count() / trx.groupby("feature_name")["transcript_id"].count()).fillna(0)
     })
 
-    metrics_df.to_csv(f"qc_segmentation_{dataset_name}-{segmentation_approach}.csv")
-    gene_specific_metrics_df.to_parquet(f"gene_specific_qc_segmentation_{dataset_name}-{segmentation_approach}.parquet")
+    metrics_df.to_csv(f"data/segmentation_metrics_data/outputs/qc_segmentation_{dataset_name}-{segmentation_approach}.csv")
+    gene_specific_metrics_df.to_parquet(f"data/segmentation_metrics_data/outputs/gene_specific_qc_segmentation_{dataset_name}-{segmentation_approach}.parquet")
 
     print("segmentation metrics calculation completed")

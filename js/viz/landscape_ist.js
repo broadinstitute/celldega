@@ -292,6 +292,57 @@ export const landscape_ist = async (
         update_matrix_dendro_col: async (selected_cols) => {
 
             console.log('landscape_ist, update_matrix_dendro_col', selected_cols)
+
+            const inst_gene = 'cluster'
+            const new_cats = selected_cols // click_info.value.selected_names
+
+            update_cat(viz_state.cats, 'cluster')
+            update_selected_cats(viz_state.cats, new_cats)
+            console.log(viz_state.cats.selected_cats)
+
+            update_selected_genes(viz_state.genes, [])
+            toggle_image_layers_and_ctrls(layers_obj, viz_state, !viz_state.cats.selected_cats.length > 0)
+
+            const inst_cat_name = viz_state.cats.selected_cats.join('-')
+
+            console.log(inst_cat_name)
+
+            update_cell_layer_id(layers_obj, inst_cat_name)
+            update_path_layer_id(layers_obj, inst_cat_name)
+            update_trx_layer_id(viz_state.genes, layers_obj)
+
+            const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+            deck_ist.setProps({layers: layers_list})
+
+            viz_state.cats.svg_bar_cluster.selectAll("g")
+                .attr('font-weight', 'normal')
+                .attr('opacity', viz_state.cats.reset_cat ? 1.0 : 0.25)
+
+            const inst_cat = new_cats
+
+            if (!viz_state.cats.reset_cat) {
+                const selectedBar = viz_state.cats.svg_bar_cluster.selectAll("g")
+                    .filter(function() {
+                        return d3.select(this).select("text").text() === inst_cat
+                    })
+                    .attr('opacity', 1.0)
+
+                if (!selectedBar.empty()) {
+                    const barPosition = selectedBar.node().getBoundingClientRect().top
+                    const containerPosition = viz_state.containers.bar_cluster.getBoundingClientRect().top
+                    const scrollPosition = barPosition - containerPosition + viz_state.containers.bar_cluster.scrollTop
+
+                    viz_state.containers.bar_cluster.scrollTo({
+                        top: scrollPosition,
+                        behavior: 'smooth'
+                    })
+                }
+            }
+
+            // update_cat(viz_state.cats, inst_gene)
+            // update_selected_cats(viz_state.cats, new_cats)
+
+
         },
         update_view_state: () => {
             console.log('updating view state???????')

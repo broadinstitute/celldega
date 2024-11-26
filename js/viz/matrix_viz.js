@@ -47,8 +47,10 @@ export const matrix_viz = async (
     el,
     network,
     width='800',
-    height='800'
-    // token,
+    height='800',
+    row_label_callback=null,
+    col_label_callback=null,
+    col_dendro_callback=null
 ) => {
 
     const root = document.createElement("div")
@@ -56,7 +58,18 @@ export const matrix_viz = async (
     // root.style.width = width
     let deck_mat = ini_deck(root, width, height)
 
-    let viz_state = set_mat_constants(model, network, root, width, height)
+    let viz_state = set_mat_constants(
+        model,
+        network,
+        root,
+        width,
+        height,
+        row_label_callback,
+        col_label_callback,
+        col_dendro_callback
+    )
+    // fix for tooltip positioning
+    el.style.position = 'relative'
     viz_state.el = el
 
     set_mat_data(network, viz_state)

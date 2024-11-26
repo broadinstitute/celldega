@@ -60,6 +60,8 @@ export const matrix_viz = async (
     let deck_mat = ini_deck(root, width, height)
 
     let viz_state = set_mat_constants(model, network, root, width, height, row_label_callback)
+    // fix for tooltip positioning
+    el.style.position = 'relative'
     viz_state.el = el
 
     set_mat_data(network, viz_state)

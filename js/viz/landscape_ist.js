@@ -24,6 +24,7 @@ import { update_cat, update_selected_cats } from '../global_variables/cat'
 import { update_selected_genes } from '../global_variables/selected_genes'
 import { update_cell_exp_array } from '../global_variables/cell_exp_array'
 import { update_gene_text_box } from '../ui/gene_search'
+import { calc_viewport } from '../deck-gl/calc_viewport'
 
 export const landscape_ist = async (
     el,
@@ -333,9 +334,9 @@ export const landscape_ist = async (
         },
         update_view_state: async (new_view_state, close_up, trx_layer) => {
 
-            console.log('new_view_state', new_view_state)
-            console.log('close_up', close_up)
-            console.log('trx_layer', trx_layer)
+            // console.log('new_view_state', new_view_state)
+            // console.log('close_up', close_up)
+            // console.log('trx_layer', trx_layer)
 
             viz_state.close_up = close_up
 
@@ -343,12 +344,15 @@ export const landscape_ist = async (
 
             // await update_path_layer_data(viz_state.global_base_url, tiles_in_view, layers_obj, viz_state)
 
-            layers_obj.trx_layer = trx_layer.clone({
-                id: 'trx-layer-clone' + new_view_state.zoom,
-            })
+            // layers_obj.trx_layer = trx_layer.clone({
+            //     id: 'trx-layer-clone' + new_view_state.zoom,
+            // })
 
-            const layers_list = get_layers_list(layers_obj, viz_state.close_up)
             // deck_ist.setProps({layers: layers_list})
+
+
+            calc_viewport(new_view_state, deck_ist, layers_obj, viz_state)
+            const layers_list = get_layers_list(layers_obj, viz_state.close_up)
 
             deck_ist.setProps({
                 controller: {doubleClickZoom: false},

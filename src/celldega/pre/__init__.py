@@ -100,8 +100,8 @@ def contrast_filter(gray_img, method='clahe', **kwargs):
     if method == 'clahe':
         # CLAHE - Contrast Limited Adaptive Histogram Equalization
         clip_limit = kwargs.get('clip_limit', 2.0)
-        tile_grid_size = kwargs.get('tile_grid_size', (32, 32))
-        clahe = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=tile_grid_size)
+        tile_grid_size = kwargs.get('tile_grid_size', 32)
+        clahe = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=(tile_grid_size,tile_grid_size))
         return clahe.apply(gray_img)
 
     elif method == 'hist_equalization':

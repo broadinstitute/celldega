@@ -13,16 +13,16 @@ export const update_ist_landscape_from_cgm = async (deck_ist, layers_obj, viz_st
 
     const click_info = viz_state.model.get('update_trigger')
 
-    console.log('**********************************************')
-    console.log('click_info', click_info)
-    console.log('**********************************************')
+    // console.log('**********************************************')
+    // console.log('click_info', click_info)
+    // console.log('**********************************************')
 
     let inst_gene
     let new_cat
 
     // check if click_info has both keys: type and value
     if (!('click_type' in click_info) || !('click_value' in click_info)) {
-        console.log('new mat!')
+        // console.log('new mat!')
 
         if (click_info.type === 'row_label') {
 
@@ -79,7 +79,7 @@ export const update_ist_landscape_from_cgm = async (deck_ist, layers_obj, viz_st
             inst_gene = 'cluster'
             new_cat = click_info.value.name
 
-            console.log('new_cat', new_cat)
+            // console.log('new_cat', new_cat)
 
             update_cat(viz_state.cats, 'cluster')
             update_selected_cats(viz_state.cats, [new_cat])

@@ -96,7 +96,6 @@ def contrast_filter(gray_img, method='clahe', **kwargs):
         The processed image with enhanced contrast.
     """
 
-
     if method == 'clahe':
         # CLAHE - Contrast Limited Adaptive Histogram Equalization
         clip_limit = kwargs.get('clip_limit', 2.0)

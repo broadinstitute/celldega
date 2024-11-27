@@ -9,12 +9,14 @@ const getCursor = ({ isDragging }) => {
     return 'pointer';
 }
 
-export const ini_deck = ( root ) => {
+export const ini_deck = ( root, width, height ) => {
 
     let deck_ist = new Deck({
         parent: root,
         controller: {doubleClickZoom: false},
         getCursor: getCursor,
+        width: width,
+        height: height,
     })
 
     return deck_ist

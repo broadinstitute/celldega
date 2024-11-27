@@ -3,11 +3,59 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        /* Flexbox container for landscape and matrix */
+        #container {
+            display: flex;
+            width: 100%;
+            height: 100vh; /* Full viewport height */
+        }
+
+        /* Landscape (left) */
+        #landscape {
+            flex: 1;
+            width: 50%;
+            height: 100%;
+            border-right: 1px solid #ccc;
+            height: 77%;
+            margin: auto;
+            overflow: hidden;
+            position: relative;
+            line-height: 10px;
+            margin-top: 0em;
+        }
+
+        /* Matrix (right) */
+        #matrix {
+            flex: 1; /* Take up equal space */
+            width: 50%; /* Fallback for older browsers */
+            height: 100%;
+        }
+    </style>
 </head>
+
 <body>
-    <div id="app" style="width: 600px; height: 500px; position: relative;"></div>
+
+    <!-- <div id="landscape" style="width: 600px; height: 500px; position: relative;"></div>
+    <div id="matrix" style="width: 600px; height: 500px; position: relative; margin-top: 100px"></div> -->
+
+    <!-- Flex container -->
+    <div id="container">
+        <!-- Landscape visualization -->
+        <div id="landscape"></div>
+
+        <!-- Matrix visualization -->
+        <div id="matrix"></div>
+    </div>
+
+
+
+
+
     <script type="module">
         import celldega from './src/celldega/static/widget.js';
+
+        console.log(celldega);
 
         // Use the imported functions
         const token = '';
@@ -15,10 +63,13 @@
         const ini_y = 12200;
         const ini_z = 0;
         const ini_zoom = -6;
-        const base_url = 'http://127.0.0.1:8080/notebooks/data/xenium_landscapes/Xenium_Prime_Human_Skin_FFPE_outs';
+        const base_url = 'http://127.0.0.1:8081/notebooks/data/xenium_landscapes/Xenium_Prime_Human_Skin_FFPE_outs';
 
-        // Create and append the visualization.
-        let el = document.querySelector("#app");
+        let el = document.querySelector("#landscape");
+
+        const ist_callback = () => {
+            console.log('custom callback for ist');
+        }
 
         const landscape = await celldega.landscape_ist(
             el,
@@ -30,12 +81,55 @@
             ini_zoom,
             base_url,
             '',
-            0.25
+            0.25,
+            '95%',
+            '85%',
+            ist_callback
         );
 
-        console.log(landscape);
+        // console.log(landscape);
+        // const inst_gene = 'EEF1G'
 
-        landscape.update_view_state();
+        // landscape.update_matrix_gene(inst_gene)
+
+        // load a json file from this url
+        const net_url = 'http://127.0.0.1:8081/notebooks/data/tmp.json'
+        const network = await fetch(net_url)
+            .then(response => response.json())
+            .then(data => {
+                console.log(data);
+                return data;
+            });
+
+        // Matrix
+        ////////////////////////////////////////////
+        let matrix_container = document.querySelector("#matrix");
+        console.log(matrix_container)
+
+        console.log(landscape)
+
+        const size = 500;
+
+        celldega.matrix_viz(
+            {},
+            matrix_container,
+            network,
+            size,
+            size,
+            landscape.update_matrix_gene,
+            landscape.update_matrix_col,
+            landscape.update_matrix_dendro_col
+        );
+
+
+    const new_view_state = {
+        target: [ini_x, ini_y, 0],
+        zoom: ini_zoom + 4
+    }
+
+    console.log('trying to update the view state from the html')
+    landscape.update_view_state(new_view_state)
+
     </script>
 </body>
 </html>

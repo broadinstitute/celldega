@@ -10,6 +10,8 @@ import { new_toggle_cell_layer_visibility } from '../deck-gl/cell_layer'
 import { toggle_trx_layer_visibility } from '../deck-gl/trx_layer'
 import { get_layers_list } from '../deck-gl/layers_ist'
 import { toggle_slider } from './sliders'
+import { get_mat_layers_list } from '../deck-gl/matrix/matrix_layers'
+import { toggle_dendro_layer_visibility } from '../deck-gl/matrix/dendro_layers'
 
 let is_visible
 
@@ -33,9 +35,116 @@ const toggle_visible_button = (event) => {
     return is_visible
 }
 
+const reorder_button_callback = (event, axis, deck_mat, layers_mat, viz_state) => {
+
+    const current = d3.select(event.currentTarget)
+
+    let button_name = current.text().toLowerCase()
+
+    // quick fix for naming mismatch
+    if (button_name === 'var') {
+        button_name = 'rankvar'
+    } else if (button_name === 'sum') {
+        button_name = 'rank'
+    }
+
+    const is_active = current.classed('active')
+
+    if (is_active === false) {
+
+        current.classed('active', true)
+
+        d3.select(viz_state.el)
+          .selectAll('.button-' + axis)
+          .classed('active', false)
+          .style('border-color', viz_state.buttons.gray)
+
+        current
+            .style('border-color', viz_state.buttons.blue)
+            .classed('active', true)
+
+        viz_state.order.current[axis] = button_name
+
+
+        layers_mat.mat_layer = layers_mat.mat_layer.clone({
+            updateTriggers: {
+                getPosition: [viz_state.order.current.row, viz_state.order.current.col]
+            }
+        })
+
+        if (axis === 'row') {
+            layers_mat.row_label_layer = layers_mat.row_label_layer.clone({
+                updateTriggers: {
+                    getPosition: viz_state.order.current.row
+                }
+            })
+        } else {
+            layers_mat.col_label_layer = layers_mat.col_label_layer.clone({
+                updateTriggers: {
+                    getPosition: viz_state.order.current.col
+                }
+            })
+        }
+
+        toggle_dendro_layer_visibility(layers_mat, viz_state, axis)
+
+        deck_mat.setProps({
+            layers: get_mat_layers_list(layers_mat),
+        })
+
+    }
+
+
+}
+
+export const make_reorder_button = (container, text, active, width=40, axis, deck_mat, layers_mat, viz_state) => {
+
+    let button_class = 'button-' + axis
+
+
+    let color
+    if (active === true) {
+        color = viz_state.buttons.blue
+    } else {
+        color = viz_state.buttons.gray
+    }
+
+    // make text all caps
+    text = text.toUpperCase()
+
+    d3.select(container)
+        .append('div')
+        .classed(button_class, true)
+        .classed('active', active)
+        .text(text)
+        .style('width', width + 'px')
+        .style('height', '20px')  // Adjust height for button padding
+        .style('display', 'inline-flex')
+        .style('align-items', 'center')
+        .style('justify-content', 'center')
+        .style('text-align', 'center')
+        .style('cursor', 'pointer')
+        .style('font-size', '12px')
+        .style('font-weight', 'bold')
+        .style('color', '#47515b')
+        .style('border', '3px solid')  // Light gray border
+        .style('border-color', color)  // Light gray border
+        .style('border-radius', '12px')  // Rounded corners
+        .style('margin-top', '5px')
+        .style('margin-left', '5px')
+        .style('padding', '4px 10px')  // Padding inside the button
+        .style('user-select', 'none')
+        .style('font-family', '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif')
+        .on('click', (event) => reorder_button_callback(event, axis, deck_mat, layers_mat, viz_state))
+
+
+}
+
 export const make_button = (container, technology, text, color='blue', width=40, button_class='button', inst_deck, layers_obj, viz_state) => {
 
     let callback
+
+    // define callback - can be cleaned up to enforce common arguments
 
     if (text === 'IMG') {
         if (technology === 'sst'){

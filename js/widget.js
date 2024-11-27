@@ -3,6 +3,7 @@
 import "./widget.css";
 import { landscape_ist } from "./viz/landscape_ist";
 import { landscape_sst } from "./viz/landscape_sst";
+import { matrix_viz } from "./viz/matrix_viz";
 import cgm, { type } from 'clustergrammer-gl';
 import _ from 'underscore';
 
@@ -42,6 +43,8 @@ export const render_landscape_ist = async ({ model, el }) => {
     const ini_zoom = model.get('ini_zoom');
     const base_url = model.get('base_url')
     const dataset_name = model.get('dataset_name')
+    const width = model.get('width')
+    const height = model.get('height')
 
     return landscape_ist(
         el,
@@ -53,7 +56,9 @@ export const render_landscape_ist = async ({ model, el }) => {
         ini_zoom,
         base_url,
         dataset_name,
-        0.25
+        0.25,
+        width,
+        height
     )
 
 }
@@ -68,6 +73,8 @@ export const render_landscape_sst = async ({ model, el }) => {
     const base_url = model.get('base_url')
     const dataset_name = model.get('dataset_name')
     const square_tile_size = model.get('square_tile_size')
+    const width = model.get('width')
+    const height = model.get('height')
 
     landscape_sst(
         model,
@@ -80,8 +87,19 @@ export const render_landscape_sst = async ({ model, el }) => {
         ini_zoom,
         square_tile_size,
         dataset_name,
-
+        width,
+        height
     )
+
+}
+
+export const render_matrix_new = async ({ model, el }) => {
+
+    const network = model.get('network')
+    const width = model.get('width')
+    const height = model.get('height')
+
+    matrix_viz(model, el, network, width, height)
 
 }
 
@@ -145,9 +163,6 @@ export const render_matrix = async ({ model, el }) => {
         element.parentNode.removeChild(element);
     });
 
-
-
-
 }
 
 export const render = async ({ model, el }) => {
@@ -161,10 +176,13 @@ export const render = async ({ model, el }) => {
         case "Matrix":
             render_matrix({ model, el });
             break;
+        case "MatrixNew":
+            render_matrix_new({ model, el });
+            break;
         default:
             throw new Error(`Unknown component type: ${componentType}`);
     }
 };
 
 
-export default { render, landscape_ist, landscape_sst };
+export default { render, landscape_ist, landscape_sst, matrix_viz };

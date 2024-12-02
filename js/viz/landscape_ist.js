@@ -25,7 +25,7 @@ import { update_selected_genes } from '../global_variables/selected_genes'
 import { update_cell_exp_array } from '../global_variables/cell_exp_array'
 import { update_gene_text_box } from '../ui/gene_search'
 import { calc_viewport } from '../deck-gl/calc_viewport'
-import { ini_edit_layer, set_edit_layer_on_edit } from '../deck-gl/edit_layer'
+import { ini_edit_layer, set_edit_layer_on_click, set_edit_layer_on_edit } from '../deck-gl/edit_layer'
 
 export const landscape_ist = async (
     el,
@@ -142,72 +142,75 @@ export const landscape_ist = async (
     set_get_tooltip(deck_ist, viz_state)
 
     viz_state.edit = {}
+
     // viz_state.edit.feature_collection = {
     //     type: "FeatureCollection",
     //     features: []
     //   };
 
-    const features = [
-        {
-            "type": "Feature",
-            "properties": {},
-            "geometry": {
-                "type": "Polygon",
-                "coordinates": [
-                    [
-                        [
-                            7770.153438352874,
-                            1916.3184197138892
-                        ],
-                        [
-                            11098.946999136195,
-                            3845.659272181384
-                        ],
-                        [
-                            8169.668769723272,
-                            5034.217383008322
-                        ],
-                        [
-                            7770.153438352874,
-                            1916.3184197138892
-                        ]
-                    ]
-                ]
-            }
-        },
-        {
-            "type": "Feature",
-            "properties": {},
-            "geometry": {
-                "type": "Polygon",
-                "coordinates": [
-                    [
-                        [
-                            9316.949522198447,
-                            7552.13624246597
-                        ],
-                        [
-                            13868.77264939155,
-                            4951.574277957145
-                        ],
-                        [
-                            14118.646508193346,
-                            8538.550202221204
-                        ],
-                        [
-                            9316.949522198447,
-                            7552.13624246597
-                        ]
-                    ]
-                ]
-            }
-        }
-    ]
+    const features = []
+
+    // const features = [
+    //     {
+    //         "type": "Feature",
+    //         "properties": {},
+    //         "geometry": {
+    //             "type": "Polygon",
+    //             "coordinates": [
+    //                 [
+    //                     [
+    //                         7770.153438352874,
+    //                         1916.3184197138892
+    //                     ],
+    //                     [
+    //                         11098.946999136195,
+    //                         3845.659272181384
+    //                     ],
+    //                     [
+    //                         8169.668769723272,
+    //                         5034.217383008322
+    //                     ],
+    //                     [
+    //                         7770.153438352874,
+    //                         1916.3184197138892
+    //                     ]
+    //                 ]
+    //             ]
+    //         }
+    //     },
+    //     {
+    //         "type": "Feature",
+    //         "properties": {},
+    //         "geometry": {
+    //             "type": "Polygon",
+    //             "coordinates": [
+    //                 [
+    //                     [
+    //                         9316.949522198447,
+    //                         7552.13624246597
+    //                     ],
+    //                     [
+    //                         13868.77264939155,
+    //                         4951.574277957145
+    //                     ],
+    //                     [
+    //                         14118.646508193346,
+    //                         8538.550202221204
+    //                     ],
+    //                     [
+    //                         9316.949522198447,
+    //                         7552.13624246597
+    //                     ]
+    //                 ]
+    //             ]
+    //         }
+    //     }
+    // ]
 
 
     viz_state.edit.feature_collection =  {
         "type": "FeatureCollection",
-        "features": [] // features
+        "features": features
     }
 
     let background_layer = ini_background_layer(viz_state)
@@ -233,6 +236,7 @@ export const landscape_ist = async (
     set_path_layer_onclick(deck_ist, layers_obj, viz_state)
     set_trx_layer_onclick(deck_ist, layers_obj, viz_state)
     set_edit_layer_on_edit(deck_ist, layers_obj, viz_state)
+    set_edit_layer_on_click(deck_ist, layers_obj, viz_state)
 
     update_trx_layer_radius(layers_obj, trx_radius)
 

@@ -196,7 +196,7 @@ export const make_edit_button = (deck_ist, layers_obj, viz_state, container, tex
     // make text all caps
     text = text.toUpperCase()
 
-    d3.select(container)
+    const inst_button = d3.select(container)
         .append('div')
         .classed(button_class, true)
         .classed('active', active)
@@ -220,7 +220,10 @@ export const make_edit_button = (deck_ist, layers_obj, viz_state, container, tex
         .style('user-select', 'none')
         .style('font-family', '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif')
         .on('click', (event) => edit_button_callback(event, deck_ist, layers_obj, viz_state))
+        .node()
 
+    console.log(inst_button)
+    viz_state.edit.buttons[text.toLowerCase()] = inst_button
 
 }
 

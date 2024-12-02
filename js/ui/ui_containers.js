@@ -12,6 +12,9 @@ import { calc_dendro_triangles, calc_dendro_polygons, alt_slice_linkage } from '
 import { update_dendro_layer_data } from '../deck-gl/matrix/dendro_layers'
 import { get_mat_layers_list } from '../deck-gl/matrix/matrix_layers'
 import { DrawPolygonMode,  ModifyMode} from '@deck.gl-community/editable-layers'
+import { update_edit_layer_mode } from '../deck-gl/edit_layer'
+import { get_layers_list } from '../deck-gl/layers_ist'
+
 
 export const toggle_image_layers_and_ctrls = (layers_obj, viz_state, is_visible) => {
 
@@ -372,11 +375,18 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
             current.classed('active', true)
                    .style('color', 'blue')
 
-            if (button_name === 'edit') {
-                console.log('switch to edit mode!!!!!!!!')
-                layers_obj.edit_layer = layers_obj.edit_layer.clone({
-                    mode: new ModifyMode(),
-                })
+            if (button_name === 'sktch') {
+                console.log('switch to draw mode')
+                // layers_obj.edit_layer = layers_obj.edit_layer.clone({
+                //     mode: new ModifyMode,
+                // })
+
+                update_edit_layer_mode(layers_obj, DrawPolygonMode)
+
+                const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+
+                deck_ist.setProps({layers: layers_list})
+
             }
 
             console.log('Current Mode:', layers_obj.edit_layer.props.mode);
@@ -391,9 +401,14 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
     }
 
 
-
+    viz_state.edit.buttons = {}
     make_edit_button(deck_ist, layers_obj, viz_state, ctrl_container, 'RGN', 30, edit_callback)
     make_edit_button(deck_ist, layers_obj, viz_state, ctrl_container, 'SKTCH', 40, edit_callback)
+
+    console.log('edit buttons')
+    console.log(viz_state.edit.buttons)
+
+    // viz_state.edit.buttons.rgn.style.color = 'red'
 
     // if dataset_name is not an empty string make the name container
     if (dataset_name.trim !== ''){

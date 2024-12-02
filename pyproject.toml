@@ -19,7 +19,8 @@ dependencies = [
     "squidpy~=1.5.0",
     "clustergrammer2==0.18.0",
     "shapely~=2.0.5",
-    "polars~=1.10.0"
+    "polars~=1.10.0",
+    "opencv-python~=4.10.0.84"
 ]
 readme = "README.md"
 
@@ -31,7 +32,7 @@ dev = [
     "black"
 ]
 pre = [
-    "pyvips~=2.2.2"
+    "pyvips~=2.2.2",
 ] # optional dependencies for pre-processing
 
 docs = [

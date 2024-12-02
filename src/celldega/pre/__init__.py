@@ -10,12 +10,14 @@ except ImportError:
 from pathlib import Path
 import numpy as np
 import pandas as pd
+import cv2
 import os
 import hashlib
 import base64
 from shapely.affinity import affine_transform
 from shapely.geometry import MultiPolygon
-
+from skimage import exposure, img_as_float
+from skimage.color import rgb2lab, lab2rgb
 import matplotlib.pyplot as plt
 from matplotlib.colors import to_hex
 
@@ -24,6 +26,25 @@ import json
 from .landscape import *
 from .trx_tile import *
 from .boundary_tile import *
+
+def check_and_convert_16_to_8_bit(img):
+    """
+    Check if an image is already 8-bit and convert it to 8-bit if it is not.
+    Parameters
+    ----------
+    img : np.ndarray
+        Input image as a NumPy array. The image should be either 8-bit or 16-bit.
+
+    Returns
+    -------
+    np.ndarray
+        An 8-bit image as a NumPy array.
+    """
+    if img.dtype.itemsize * 8 == 8:
+        return img
+    else:
+        return (img / 256).astype(np.uint8)
+
 
 def convert_long_id_to_short(df):
     """
@@ -53,6 +74,48 @@ def convert_long_id_to_short(df):
     df['cell_id'] = df['EntityID'].apply(hash_and_shorten_id)
 
     return df
+
+
+def contrast_filter(gray_img, method='clahe', **kwargs):
+    """
+    Apply contrast enhancement filters to an image using OpenCV.
+
+    Parameters:
+    ----------
+    gray_img : np.ndarray
+        Input image (should be in grayscale format for CLAHE).
+    method : str, optional
+        The contrast enhancement method to apply. Options are:
+        'clahe', 'hist_equalization', 'contrast_stretch'.
+    kwargs : dict
+        Additional arguments for specific methods (e.g., 'clip_limit' for CLAHE).
+
+    Returns:
+    -------
+    np.ndarray
+        The processed image with enhanced contrast.
+    """
+
+    if method == 'clahe':
+        # CLAHE - Contrast Limited Adaptive Histogram Equalization
+        clip_limit = kwargs.get('clip_limit', 2.0)
+        tile_grid_size = kwargs.get('tile_grid_size', 10)
+        clahe = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=(tile_grid_size,tile_grid_size))
+        return clahe.apply(gray_img)
+
+    elif method == 'hist_equalization':
+        # Histogram Equalization
+        return cv2.equalizeHist(gray_img)
+
+    elif method == 'contrast_stretch':
+            # Contrast Stretching
+            percentile_bound = kwargs.get('percentile_bound', [0.1,99.9])
+            p_low, p_high = np.percentile(gray_img, (percentile_bound[0],percentile_bound[1]))
+            return exposure.rescale_intensity(gray_img, in_range=(p_low, p_high))
+
+    else:
+        raise ValueError(f"Unsupported method: {method}. Choose from 'clahe', 'hist_equalization', or 'contrast_stretch'.")
+
 
 
 def reduce_image_size(image_path, scale_image=0.5, path_landscape_files=""):
@@ -164,35 +227,39 @@ def convert_to_webp(image_path, quality=100):
     return new_image_path
 
 
-
 def make_deepzoom_pyramid(
-    image_path, output_path, pyramid_name, tile_size=512, overlap=0, suffix=".jpeg"
+    array, output_path, pyramid_name, tile_size=512, overlap=0, suffix=".jpeg"
 ):
     """
-    Create a DeepZoom image pyramid from a JPEG image
+    Create a DeepZoom image pyramid from a 2d array
 
-    Parameters
+    Parameters:
     ----------
-    image_path : str
-        Path to the JPEG image file
-    tile_size : int (default=512)
-        Tile size for the DeepZoom pyramid
-    overlap : int (default=0)
-        Overlap size for the DeepZoom pyramid
-    suffix : str (default='jpeg')
-        Suffix for the DeepZoom pyramid tiles
+    array : np.ndarray
+        Input image array. Should be in 8-bit format. If the array is 16-bit, it needs to be converted to 8-bit.
+    output_path : str or Path
+        Path to the directory where the DeepZoom pyramid will be saved.
+    pyramid_name : str
+        Name of the output DeepZoom pyramid.
+    tile_size : int, optional, default=512
+        Tile size for the DeepZoom pyramid.
+    overlap : int, optional, default=0
+        Number of overlapping pixels between tiles in the DeepZoom pyramid.
+    suffix : str, optional, default=".jpeg"
+        File format for the tiles in the DeepZoom pyramid (e.g., '.jpeg' or '.png').
 
-    Returns
+    Returns:
     -------
     None
 
     """
+    width, height = array.shape
 
     # Define the output path
     output_path = Path(output_path)
 
-    # Load the JPEG image
-    image = pyvips.Image.new_from_file(image_path, access="sequential")
+    # Load image from memory
+    image = pyvips.Image.new_from_memory(array, height, width, 1, format='uchar') # 'ushort' if 16-bit but needs to be 8-bit, 
 
     # check if the output path exists and create it if it does not
     output_path.mkdir(parents=True, exist_ok=True)

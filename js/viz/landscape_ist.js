@@ -19,13 +19,13 @@ import { set_cluster_metadata } from '../global_variables/meta_cluster'
 import { update_ist_landscape_from_cgm } from '../widget_interactions/update_ist_landscape_from_cgm'
 import { update_cell_clusters } from '../widget_interactions/update_cell_clusters'
 import { ini_cache } from '../global_variables/cache'
-import { EditableGeoJsonLayer, DrawPolygonMode,  ModifyMode} from '@deck.gl-community/editable-layers'
 import { toggle_image_layers_and_ctrls } from '../ui/ui_containers'
 import { update_cat, update_selected_cats } from '../global_variables/cat'
 import { update_selected_genes } from '../global_variables/selected_genes'
 import { update_cell_exp_array } from '../global_variables/cell_exp_array'
 import { update_gene_text_box } from '../ui/gene_search'
 import { calc_viewport } from '../deck-gl/calc_viewport'
+import { ini_edit_layer, set_edit_layer_on_edit } from '../deck-gl/edit_layer'
 
 export const landscape_ist = async (
     el,
@@ -42,8 +42,6 @@ export const landscape_ist = async (
     height = 800,
     view_change_custom_callback=null
 ) => {
-
-    console.log(EditableGeoJsonLayer)
 
 
     if (width === 0){
@@ -149,65 +147,67 @@ export const landscape_ist = async (
     //     features: []
     //   };
 
-
-      viz_state.edit.feature_collection =  {
-        "type": "FeatureCollection",
-        "features": [
-            {
-                "type": "Feature",
-                "properties": {},
-                "geometry": {
-                    "type": "Polygon",
-                    "coordinates": [
+    const features = [
+        {
+            "type": "Feature",
+            "properties": {},
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [
+                    [
                         [
-                            [
-                                7770.153438352874,
-                                1916.3184197138892
-                            ],
-                            [
-                                11098.946999136195,
-                                3845.659272181384
-                            ],
-                            [
-                                8169.668769723272,
-                                5034.217383008322
-                            ],
-                            [
-                                7770.153438352874,
-                                1916.3184197138892
-                            ]
+                            7770.153438352874,
+                            1916.3184197138892
+                        ],
+                        [
+                            11098.946999136195,
+                            3845.659272181384
+                        ],
+                        [
+                            8169.668769723272,
+                            5034.217383008322
+                        ],
+                        [
+                            7770.153438352874,
+                            1916.3184197138892
                         ]
                     ]
-                }
-            },
-            {
-                "type": "Feature",
-                "properties": {},
-                "geometry": {
-                    "type": "Polygon",
-                    "coordinates": [
-                        [
-                            [
-                                9316.949522198447,
-                                7552.13624246597
-                            ],
-                            [
-                                13868.77264939155,
-                                4951.574277957145
-                            ],
-                            [
-                                14118.646508193346,
-                                8538.550202221204
-                            ],
-                            [
-                                9316.949522198447,
-                                7552.13624246597
-                            ]
-                        ]
-                    ]
-                }
+                ]
             }
-        ]
+        },
+        {
+            "type": "Feature",
+            "properties": {},
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+                        [
+                            9316.949522198447,
+                            7552.13624246597
+                        ],
+                        [
+                            13868.77264939155,
+                            4951.574277957145
+                        ],
+                        [
+                            14118.646508193346,
+                            8538.550202221204
+                        ],
+                        [
+                            9316.949522198447,
+                            7552.13624246597
+                        ]
+                    ]
+                ]
+            }
+        }
+    ]
+
+
+    viz_state.edit.feature_collection =  {
+        "type": "FeatureCollection",
+        "features": [] // features
     }
 
     let background_layer = ini_background_layer(viz_state)
@@ -215,49 +215,8 @@ export const landscape_ist = async (
     let cell_layer = await ini_cell_layer(base_url, viz_state)
     let path_layer = await ini_path_layer(viz_state)
     let trx_layer = ini_trx_layer(viz_state.genes)
+    let edit_layer = ini_edit_layer(viz_state)
 
-    const on_edit = (deck_ist, layers_obj, viz_state, edit_info) => {
-
-        const { updatedData, editType, featureIndexes, editContext } = edit_info;
-
-        viz_state.edit.feature_collection = updatedData;
-
-        // console.log(viz_state.edit.feature_collection)
-
-        layers_obj.edit_layer = layers_obj.edit_layer.clone({
-            data: viz_state.edit.feature_collection,
-        })
-
-        console.log(viz_state.edit.feature_collection)
-
-        const layers_list = get_layers_list(layers_obj, viz_state.close_up)
-
-        deck_ist.setProps({layers: layers_list})
-
-      }
-
-    const edit_layer = new EditableGeoJsonLayer({
-        id: 'edit-layer',
-        data: viz_state.edit.feature_collection,
-        // selectedFeatureIndexes: [],
-        selectedFeatureIndexes: [0],
-        // mode: DrawPolygonMode,
-        mode: new ModifyMode(),
-
-        // Styles
-        filled: true,
-        pointRadiusMinPixels: 2,
-        pointRadiusScale: 2000,
-        extruded: true,
-        getElevation: 1000,
-        getFillColor: [200, 0, 80, 180],
-
-        // Interactive props
-        pickable: true,
-        autoHighlight: true,
-
-        onEdit: (edit_info) => on_edit(deck_ist, layers_obj, viz_state, edit_info)
-    })
 
     // make layers object
     let layers_obj = {
@@ -273,6 +232,7 @@ export const landscape_ist = async (
     set_cell_layer_onclick(deck_ist, layers_obj, viz_state)
     set_path_layer_onclick(deck_ist, layers_obj, viz_state)
     set_trx_layer_onclick(deck_ist, layers_obj, viz_state)
+    set_edit_layer_on_edit(deck_ist, layers_obj, viz_state)
 
     update_trx_layer_radius(layers_obj, trx_radius)
 

@@ -392,8 +392,8 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
 
 
 
-    make_edit_button(deck_ist, layers_obj, viz_state, ctrl_container, 'SKETCH', 40, edit_callback)
-    make_edit_button(deck_ist, layers_obj, viz_state, ctrl_container, 'EDIT', 40, edit_callback)
+    make_edit_button(deck_ist, layers_obj, viz_state, ctrl_container, 'RGN', 30, edit_callback)
+    make_edit_button(deck_ist, layers_obj, viz_state, ctrl_container, 'SKTCH', 40, edit_callback)
 
     // if dataset_name is not an empty string make the name container
     if (dataset_name.trim !== ''){

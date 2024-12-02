@@ -11,7 +11,7 @@ import { bar_callback_gene } from './bar_plot'
 import { calc_dendro_triangles, calc_dendro_polygons, alt_slice_linkage } from '../matrix/dendro'
 import { update_dendro_layer_data } from '../deck-gl/matrix/dendro_layers'
 import { get_mat_layers_list } from '../deck-gl/matrix/matrix_layers'
-import { DrawPolygonMode,  ModifyMode} from '@deck.gl-community/editable-layers'
+import { DrawPolygonMode,  ModifyMode, ViewMode} from '@deck.gl-community/editable-layers'
 import { update_edit_layer_mode } from '../deck-gl/edit_layer'
 import { get_layers_list } from '../deck-gl/layers_ist'
 
@@ -368,40 +368,37 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
         const is_active = current.classed('active')
         let button_name = current.text().toLowerCase()
 
-        console.log('edit callback!!!', is_active)
-
         if (is_active === false) {
 
             current.classed('active', true)
                    .style('color', 'blue')
 
             if (button_name === 'sktch') {
-                console.log('switch to draw mode')
-                // layers_obj.edit_layer = layers_obj.edit_layer.clone({
-                //     mode: new ModifyMode,
-                // })
+                viz_state.edit.mode = 'sktch'
 
                 update_edit_layer_mode(layers_obj, DrawPolygonMode)
-
                 const layers_list = get_layers_list(layers_obj, viz_state.close_up)
-
                 deck_ist.setProps({layers: layers_list})
 
             }
 
-            console.log('Current Mode:', layers_obj.edit_layer.props.mode);
-
-
         } else if (is_active === true) {
+
+            viz_state.edit.mode = 'view'
 
             current.classed('active', false)
                    .style('color', 'gray')
+
+            update_edit_layer_mode(layers_obj, ViewMode)
+            const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+            deck_ist.setProps({layers: layers_list})
 
         }
     }
 
 
     viz_state.edit.buttons = {}
+    viz_state.edit.mode = 'view'
     make_edit_button(deck_ist, layers_obj, viz_state, ctrl_container, 'RGN', 30, edit_callback)
     make_edit_button(deck_ist, layers_obj, viz_state, ctrl_container, 'SKTCH', 40, edit_callback)
 

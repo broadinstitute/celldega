@@ -222,8 +222,8 @@ export const make_edit_button = (deck_ist, layers_obj, viz_state, container, tex
         .on('click', (event) => edit_button_callback(event, deck_ist, layers_obj, viz_state))
         .node()
 
-    console.log(inst_button)
-    viz_state.edit.buttons[text.toLowerCase()] = inst_button
+    const button_name = text.toLowerCase()
+    viz_state.edit.buttons[button_name] = inst_button
 
 }
 

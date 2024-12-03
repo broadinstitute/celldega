@@ -6,6 +6,29 @@ import { update_cell_pickable_state } from './cell_layer'
 import { update_trx_pickable_state } from './trx_layer';
 import { update_path_pickable_state } from './path_layer';
 
+// Function to calculate areas from a FeatureCollection
+const calc_region_areas = (featureCollection) => {
+    featureCollection.features.forEach((feature, index) => {
+      if (feature.geometry.type === "Polygon") {
+        // Extract the outer ring of the polygon
+        const coordinates = feature.geometry.coordinates[0];
+
+        // Calculate the area
+        const area = Math.abs(d3.polygonArea(coordinates));
+
+        // Update the properties
+        feature.properties = {
+          ...feature.properties,
+          area, // Store the calculated area
+          name: feature.properties.name || `Feature ${index + 1}` // Default name if not set
+        };
+      } else {
+        console.warn(`Feature ${index} is not a Polygon.`);
+      }
+    });
+
+    return featureCollection; // Return updated FeatureCollection
+  }
 
 const edit_layer_on_edit = (deck_ist, layers_obj, viz_state, edit_info) => {
 
@@ -30,10 +53,21 @@ const edit_layer_on_edit = (deck_ist, layers_obj, viz_state, edit_info) => {
         update_cell_pickable_state(layers_obj, true)
         update_path_pickable_state(layers_obj, true)
         update_trx_pickable_state(layers_obj, true)
+
+        // Calculate areas
+        // const areas = calculateFeatureCollectionAreas(viz_state.edit.feature_collection);
+        viz_state.edit.feature_collection = calc_region_areas(viz_state.edit.feature_collection)
+
+        // Output results
+        // console.log("Calculated Areas:", areas);
+
+        console.log(viz_state.edit.feature_collection)
     }
 
     const layers_list = get_layers_list(layers_obj, viz_state.close_up)
     deck_ist.setProps({layers: layers_list})
+
+
 
 }
 

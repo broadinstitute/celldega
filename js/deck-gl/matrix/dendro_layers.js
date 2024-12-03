@@ -40,9 +40,6 @@ export const toggle_dendro_layer_visibility = (layers_mat, viz_state, axis) => {
         visible: is_visible,
     })
 
-    // // set the status of the dendrogram slider
-    // viz_state.dendro.sliders[axis].visible = is_visible
-
 }
 
 const dendro_layer_onclick = (event, deck_mat, layers_mat, viz_state, axis) => {

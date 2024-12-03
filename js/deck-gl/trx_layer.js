@@ -142,3 +142,9 @@ export const update_trx_layer_id = (genes, layers_obj) => {
         id: 'trx-layer-' + genes.selected_genes.join('-'),
     })
 }
+
+export const update_trx_pickable_state = (layers_obj, pickable) => {
+    layers_obj.trx_layer = layers_obj.trx_layer.clone({
+        pickable: pickable,
+    })
+}

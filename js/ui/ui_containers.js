@@ -1,16 +1,21 @@
 import * as d3 from 'd3'
-import { make_button, make_reorder_button } from "./text_buttons"
+import { make_button, make_edit_button, make_reorder_button } from "./text_buttons"
 import { set_gene_search } from "./gene_search"
 import { ini_slider, ini_slider_params } from './sliders'
 import { make_img_layer_slider_callback, toggle_slider } from "./sliders"
 import { debounce } from '../utils/debounce'
 import { toggle_visibility_image_layers } from '../deck-gl/image_layers'
-import { make_bar_graph } from './bar_plot'
-import { bar_callback_cluster, make_bar_container } from './bar_plot'
-import { bar_callback_gene } from './bar_plot'
+import { make_bar_graph, bar_callback_rgn, bar_callback_cluster, make_bar_container, bar_callback_gene } from './bar_plot'
 import { calc_dendro_triangles, calc_dendro_polygons, alt_slice_linkage } from '../matrix/dendro'
 import { update_dendro_layer_data } from '../deck-gl/matrix/dendro_layers'
 import { get_mat_layers_list } from '../deck-gl/matrix/matrix_layers'
+import { DrawPolygonMode, ViewMode} from '@deck.gl-community/editable-layers'
+import { update_edit_layer_mode, update_edit_visitility, calc_and_update_rgn_bar_graph, sync_region_to_model } from '../deck-gl/edit_layer'
+import { get_layers_list } from '../deck-gl/layers_ist'
+import { update_cell_pickable_state } from '../deck-gl/cell_layer'
+import { update_trx_pickable_state } from '../deck-gl/trx_layer'
+import { update_path_pickable_state } from '../deck-gl/path_layer'
+
 
 export const toggle_image_layers_and_ctrls = (layers_obj, viz_state, is_visible) => {
 
@@ -257,6 +262,11 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
     gene_container.style.width = '125px'
     const trx_container = flex_container('trx_container', 'row')
 
+    const rgn_container = flex_container('rgn_container', 'column')
+    rgn_container.style.width = '120px'
+    const rgn_ctrl_container = flex_container('rgn_ctrl_container', 'row')
+    rgn_ctrl_container.style.marginLeft = '0px'
+
     const cell_slider_container = make_slider_container('cell_slider_container')
     const trx_slider_container = make_slider_container('trx_slider_container')
 
@@ -341,6 +351,8 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
     trx_container.appendChild(trx_slider_container)
     trx_slider_container.appendChild(viz_state.sliders.trx)
 
+
+
     gene_container.appendChild(trx_container)
     gene_container.appendChild(viz_state.containers.bar_gene)
 
@@ -354,30 +366,195 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
     ctrl_container.appendChild(cell_container)
     ctrl_container.appendChild(gene_container)
 
+    viz_state.genes.gene_search.style.width = '160px'
+
     ctrl_container.appendChild(viz_state.genes.gene_search)
 
-    // if dataset_name is not an empty string make the name container
-    if (dataset_name.trim !== ''){
+    const sketch_callback = (event, deck_ist, layers_obj, viz_state) => {
 
-        let name_container = document.createElement("div")
+        const current = d3.select(event.currentTarget)
+        const is_active = current.classed('active')
+        // let button_name = current.text().toLowerCase()
 
-        d3.select(name_container)
-            .classed('name_container', true)
-            // .style('width', '100px')
-            .style('text-align', 'left')
-            .style('cursor', 'pointer')
-            .style('font-size', '22px')
-            .style('font-weight', 'bold')
-            .style('color', '#222222')
-            .style('margin-top', '0px')
-            .style('margin-left', '15px')
-            .style('margin-right', '5px')
-            .style('user-select', 'none')
-            .text(dataset_name.toUpperCase())
+        // clicking sketch should always return the rgn to visible
+        viz_state.edit.visible = true
+        current.classed('active', viz_state.edit.visible)
+            .style('color', 'blue')
 
-        ui_container.appendChild(name_container)
+        d3.select(viz_state.edit.buttons.rgn)
+            .style('color', 'blue')
+            .classed('active', true)
+
+
+        update_edit_visitility(layers_obj, viz_state.edit.visible)
+
+        if (is_active === false) {
+
+            current.classed('active', true)
+                   .style('color', 'blue')
+
+            viz_state.edit.mode = 'sktch'
+
+            update_edit_layer_mode(layers_obj, DrawPolygonMode)
+            update_cell_pickable_state(layers_obj, false)
+            update_path_pickable_state(layers_obj, false)
+            update_trx_pickable_state(layers_obj, false)
+            const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+            deck_ist.setProps({layers: layers_list})
+
+
+        } else if (is_active === true) {
+
+            viz_state.edit.mode = 'view'
+
+            current.classed('active', false)
+                   .style('color', 'gray')
+
+            update_edit_layer_mode(layers_obj, ViewMode)
+            update_cell_pickable_state(layers_obj, true)
+            update_path_pickable_state(layers_obj, true)
+            update_trx_pickable_state(layers_obj, true)
+
+            const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+            deck_ist.setProps({layers: layers_list})
+
+        }
+    }
+
+    const rgn_callback = (event, deck_ist, layers_obj, viz_state) => {
+        const current = d3.select(event.currentTarget)
+        const is_active = current.classed('active')
+
+        if (is_active === false) {
+            viz_state.edit.visible = true
+
+            current.classed('active', viz_state.edit.visible)
+                .style('color', 'blue')
+
+
+        } else {
+            viz_state.edit.visible = false
+
+            current.classed('active', viz_state.edit.visible)
+                .style('color', 'gray')
+
+        }
+
+        update_edit_visitility(layers_obj, viz_state.edit.visible)
+        const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+        deck_ist.setProps({layers: layers_list})
 
     }
+
+    const delete_polygon_index = (featureCollection, index) => {
+        if (index >= 0 && index < featureCollection.features.length) {
+          featureCollection.features.splice(index, 1); // Remove the feature at the given index
+        //   console.log(`Feature at index ${index} deleted.`);
+        } else {
+        //   console.warn(`Invalid index: ${index}. No feature deleted.`);
+        }
+
+        return featureCollection; // Return the updated FeatureCollection
+      };
+
+
+    const del_callback = (event, deck_ist, layers_obj, viz_state) => {
+
+        viz_state.edit.feature_collection = delete_polygon_index(
+            viz_state.edit.feature_collection,
+            viz_state.edit.modify_index
+        )
+
+        // switch to view mode
+        layers_obj.edit_layer = layers_obj.edit_layer.clone({
+            id: 'edit-layer-delete',
+            data: viz_state.edit.feature_collection,
+            mode: ViewMode,
+            selectedFeatureIndexes: [],
+        })
+
+        const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+        deck_ist.setProps({layers: layers_list})
+
+        // hide the DEL button
+        d3.select(viz_state.edit.buttons.del)
+            .classed('active', false)
+            .style('display', 'none')
+
+        // hide the RGN and SKTCH buttons
+        d3.select(viz_state.edit.buttons.rgn)
+          .style('display', 'inline-flex');
+
+        d3.select(viz_state.edit.buttons.sktch)
+            .style('display', 'inline-flex');
+
+        calc_and_update_rgn_bar_graph(viz_state, deck_ist, layers_obj)
+
+        sync_region_to_model(viz_state)
+
+
+    }
+
+
+    viz_state.edit.buttons = {}
+    viz_state.edit.mode = 'view'
+    make_edit_button(deck_ist, layers_obj, viz_state, rgn_ctrl_container, 'RGN', 30, rgn_callback)
+    make_edit_button(deck_ist, layers_obj, viz_state, rgn_ctrl_container, 'SKTCH', 40, sketch_callback)
+    make_edit_button(deck_ist, layers_obj, viz_state, rgn_ctrl_container, 'DEL', 30, del_callback)
+
+    // // initially do not display the RGN button
+    // d3.select(viz_state.edit.buttons.rgn)
+    //     .style('display', 'none')
+
+    // initially hide the DEL delete button
+    d3.select(viz_state.edit.buttons.del)
+        .style('color', 'red')
+        .style('display', 'none')
+
+    viz_state.containers.bar_rgn = make_bar_container()
+
+    rgn_container.appendChild(rgn_ctrl_container)
+    rgn_container.appendChild(viz_state.containers.bar_rgn)
+
+    ctrl_container.appendChild(rgn_container)
+
+    make_bar_graph(
+        viz_state.containers.bar_rgn,
+        bar_callback_rgn,
+        viz_state.edit.svg_bar_rgn,
+        viz_state.edit.rgn_areas,
+        viz_state.edit.color_dict_rgn,
+        deck_ist,
+        layers_obj,
+        viz_state
+    )
+
+    // ctrl_container.append(viz_state.containers.bar_rgn)
+
+    // viz_state.edit.buttons.rgn.style.color = 'red'
+
+    // // if dataset_name is not an empty string make the name container
+    // if (dataset_name.trim !== ''){
+
+    //     let name_container = document.createElement("div")
+
+    //     d3.select(name_container)
+    //         .classed('name_container', true)
+    //         // .style('width', '100px')
+    //         .style('text-align', 'left')
+    //         .style('cursor', 'pointer')
+    //         .style('font-size', '22px')
+    //         .style('font-weight', 'bold')
+    //         .style('color', '#222222')
+    //         .style('margin-top', '0px')
+    //         .style('margin-left', '15px')
+    //         .style('margin-right', '5px')
+    //         .style('user-select', 'none')
+    //         .text(dataset_name.toUpperCase())
+
+    //     ui_container.appendChild(name_container)
+
+    // }
 
     return ui_container
 

@@ -422,8 +422,6 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
     }
 
     const rgn_callback = (event, deck_ist, layers_obj, viz_state) => {
-        console.log('rgn_callback')
-
         const current = d3.select(event.currentTarget)
         const is_active = current.classed('active')
 
@@ -438,7 +436,7 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
             viz_state.edit.visible = false
 
             current.classed('active', viz_state.edit.visible)
-                .style('color', 'blue')
+                .style('color', 'gray')
 
         }
 
@@ -446,8 +444,58 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
         const layers_list = get_layers_list(layers_obj, viz_state.close_up)
         deck_ist.setProps({layers: layers_list})
 
+    }
+
+    const delete_polygon_index = (featureCollection, index) => {
+        if (index >= 0 && index < featureCollection.features.length) {
+          featureCollection.features.splice(index, 1); // Remove the feature at the given index
+          console.log(`Feature at index ${index} deleted.`);
+        } else {
+          console.warn(`Invalid index: ${index}. No feature deleted.`);
+        }
+
+        return featureCollection; // Return the updated FeatureCollection
+      };
 
 
+    const del_callback = (event, deck_ist, layers_obj, viz_state) => {
+
+        console.log('delete')
+
+        console.log(viz_state.edit.modify_index)
+
+        viz_state.edit.feature_collection = delete_polygon_index(
+            viz_state.edit.feature_collection,
+            viz_state.edit.modify_index
+        )
+
+        console.log(viz_state.edit.feature_collection)
+
+
+        // switch to view mode
+        layers_obj.edit_layer = layers_obj.edit_layer.clone({
+            id: 'edit-layer-delete',
+            data: viz_state.edit.feature_collection,
+            mode: ViewMode,
+            selectedFeatureIndexes: [],
+        })
+
+        console.log('updating visualization!!!!!')
+
+        const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+        deck_ist.setProps({layers: layers_list})
+
+        // hide the DEL button
+        d3.select(viz_state.edit.buttons.del)
+            .classed('active', false)
+            .style('display', 'none')
+
+        // hide the RGN and SKTCH buttons
+        d3.select(viz_state.edit.buttons.rgn)
+          .style('display', 'inline-flex');
+
+        d3.select(viz_state.edit.buttons.sktch)
+            .style('display', 'inline-flex');
     }
 
 
@@ -455,6 +503,16 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
     viz_state.edit.mode = 'view'
     make_edit_button(deck_ist, layers_obj, viz_state, rgn_ctrl_container, 'RGN', 30, rgn_callback)
     make_edit_button(deck_ist, layers_obj, viz_state, rgn_ctrl_container, 'SKTCH', 40, sketch_callback)
+    make_edit_button(deck_ist, layers_obj, viz_state, rgn_ctrl_container, 'DEL', 30, del_callback)
+
+    // // initially do not display the RGN button
+    // d3.select(viz_state.edit.buttons.rgn)
+    //     .style('display', 'none')
+
+    // initially hide the DEL delete button
+    d3.select(viz_state.edit.buttons.del)
+        .style('color', 'red')
+        .style('display', 'none')
 
     console.log('edit buttons')
     console.log(viz_state.edit.buttons)

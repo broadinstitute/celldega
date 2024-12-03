@@ -100,12 +100,11 @@ const edit_layer_on_edit = (deck_ist, layers_obj, viz_state, edit_info) => {
 
 const edit_layer_on_click = (event, deck_ist, layers_obj, viz_state) => {
 
-
     if (event.featureType === 'polygons' && viz_state.edit.mode === 'view') {
 
         // switch to modify mode
-
         layers_obj.edit_layer = layers_obj.edit_layer.clone({
+            id: 'edit-layer-modify',
             mode: ModifyMode,
             selectedFeatureIndexes: [event.index],
             modeConfig: {
@@ -119,10 +118,26 @@ const edit_layer_on_click = (event, deck_ist, layers_obj, viz_state) => {
 
         viz_state.edit.mode = 'modify'
 
+        viz_state.edit.modify_index = event.index
+
+        // make the DEL button red and active
+        d3.select(viz_state.edit.buttons.del)
+          .classed('active', true)
+          .style('display', 'inline-flex')
+
+        // hide the RGN and SKTCH buttons
+        d3.select(viz_state.edit.buttons.rgn)
+          .style('display', 'none');
+
+        d3.select(viz_state.edit.buttons.sktch)
+            .style('display', 'none');
+
+
     } else if (event.featureType === 'polygons' && viz_state.edit.mode === 'modify') {
 
         // switch to view mode
         layers_obj.edit_layer = layers_obj.edit_layer.clone({
+            id: 'edit-layer-view',
             mode: ViewMode,
             selectedFeatureIndexes: [],
         })
@@ -131,6 +146,21 @@ const edit_layer_on_click = (event, deck_ist, layers_obj, viz_state) => {
         deck_ist.setProps({layers: layers_list})
 
         viz_state.edit.mode = 'view'
+
+        viz_state.edit.modify_index = null
+
+        // hide the RGN and SKTCH buttons
+        d3.select(viz_state.edit.buttons.rgn)
+          .style('display', 'inline-flex');
+
+        d3.select(viz_state.edit.buttons.sktch)
+            .style('display', 'inline-flex');
+
+        // make the DEL button not displayed
+        d3.select(viz_state.edit.buttons.del)
+            .classed('active', false)
+            .style('display', 'none')
+
     }
 
     // const { picks, screenCoords } = event;

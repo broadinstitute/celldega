@@ -182,7 +182,6 @@ export const make_button = (container, technology, text, color='blue', width=40,
 
 export const make_edit_button = (deck_ist, layers_obj, viz_state, container, text, width, edit_button_callback) => {
 
-
     let button_class = 'edit_button'
 
     const active = false
@@ -215,7 +214,7 @@ export const make_edit_button = (deck_ist, layers_obj, viz_state, container, tex
         // .style('border-color', color)  // Light gray border
         // .style('border-radius', '12px')  // Rounded corners
         // .style('margin-top', '5px')
-        .style('margin-left', '10px')
+        .style('margin-left', '3px')
         // .style('padding', '4px 10px')  // Padding inside the button
         .style('user-select', 'none')
         .style('font-family', '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif')

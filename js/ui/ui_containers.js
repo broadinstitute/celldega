@@ -262,6 +262,11 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
     gene_container.style.width = '125px'
     const trx_container = flex_container('trx_container', 'row')
 
+    const rgn_container = flex_container('rgn_container', 'column')
+    rgn_container.style.width = '120px'
+    const rgn_ctrl_container = flex_container('rgn_ctrl_container', 'row')
+    rgn_ctrl_container.style.marginLeft = '0px'
+
     const cell_slider_container = make_slider_container('cell_slider_container')
     const trx_slider_container = make_slider_container('trx_slider_container')
 
@@ -346,6 +351,8 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
     trx_container.appendChild(trx_slider_container)
     trx_slider_container.appendChild(viz_state.sliders.trx)
 
+
+
     gene_container.appendChild(trx_container)
     gene_container.appendChild(viz_state.containers.bar_gene)
 
@@ -409,13 +416,19 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
 
     viz_state.edit.buttons = {}
     viz_state.edit.mode = 'view'
-    make_edit_button(deck_ist, layers_obj, viz_state, ctrl_container, 'RGN', 30, rgn_callback)
-    make_edit_button(deck_ist, layers_obj, viz_state, ctrl_container, 'SKTCH', 40, sketch_callback)
+    make_edit_button(deck_ist, layers_obj, viz_state, rgn_ctrl_container, 'RGN', 30, rgn_callback)
+    make_edit_button(deck_ist, layers_obj, viz_state, rgn_ctrl_container, 'SKTCH', 40, sketch_callback)
 
     console.log('edit buttons')
     console.log(viz_state.edit.buttons)
 
     viz_state.containers.bar_rgn = make_bar_container()
+
+
+    rgn_container.appendChild(rgn_ctrl_container)
+    rgn_container.appendChild(viz_state.containers.bar_rgn)
+
+    ctrl_container.appendChild(rgn_container)
 
     console.log(viz_state.cats.cluster_counts)
     console.log(viz_state.cats.color_dict_cluster)
@@ -431,7 +444,7 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
         viz_state
     )
 
-    ctrl_container.append(viz_state.containers.bar_rgn)
+    // ctrl_container.append(viz_state.containers.bar_rgn)
 
     // viz_state.edit.buttons.rgn.style.color = 'red'
 

@@ -14,6 +14,9 @@ import { get_mat_layers_list } from '../deck-gl/matrix/matrix_layers'
 import { DrawPolygonMode,  ModifyMode, ViewMode} from '@deck.gl-community/editable-layers'
 import { update_edit_layer_mode } from '../deck-gl/edit_layer'
 import { get_layers_list } from '../deck-gl/layers_ist'
+import { update_cell_pickable_state } from '../deck-gl/cell_layer'
+import { update_trx_pickable_state } from '../deck-gl/trx_layer'
+import { update_path_pickable_state } from '../deck-gl/path_layer'
 
 
 export const toggle_image_layers_and_ctrls = (layers_obj, viz_state, is_visible) => {
@@ -362,7 +365,7 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
 
     ctrl_container.appendChild(viz_state.genes.gene_search)
 
-    const edit_callback = (event, deck_ist, layers_obj, viz_state) => {
+    const sketch_callback = (event, deck_ist, layers_obj, viz_state) => {
 
         const current = d3.select(event.currentTarget)
         const is_active = current.classed('active')
@@ -373,14 +376,15 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
             current.classed('active', true)
                    .style('color', 'blue')
 
-            if (button_name === 'sktch') {
-                viz_state.edit.mode = 'sktch'
+            viz_state.edit.mode = 'sktch'
 
-                update_edit_layer_mode(layers_obj, DrawPolygonMode)
-                const layers_list = get_layers_list(layers_obj, viz_state.close_up)
-                deck_ist.setProps({layers: layers_list})
+            update_edit_layer_mode(layers_obj, DrawPolygonMode)
+            update_cell_pickable_state(layers_obj, false)
+            update_path_pickable_state(layers_obj, false)
+            update_trx_pickable_state(layers_obj, false)
+            const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+            deck_ist.setProps({layers: layers_list})
 
-            }
 
         } else if (is_active === true) {
 
@@ -390,17 +394,25 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
                    .style('color', 'gray')
 
             update_edit_layer_mode(layers_obj, ViewMode)
+            update_cell_pickable_state(layers_obj, true)
+            update_path_pickable_state(layers_obj, true)
+            update_trx_pickable_state(layers_obj, true)
+
             const layers_list = get_layers_list(layers_obj, viz_state.close_up)
             deck_ist.setProps({layers: layers_list})
 
         }
     }
 
+    const rgn_callback = (event, deck_ist, layers_obj, viz_state) => {
+        console.log('rgn_callback')
+    }
+
 
     viz_state.edit.buttons = {}
     viz_state.edit.mode = 'view'
-    make_edit_button(deck_ist, layers_obj, viz_state, ctrl_container, 'RGN', 30, edit_callback)
-    make_edit_button(deck_ist, layers_obj, viz_state, ctrl_container, 'SKTCH', 40, edit_callback)
+    make_edit_button(deck_ist, layers_obj, viz_state, ctrl_container, 'RGN', 30, rgn_callback)
+    make_edit_button(deck_ist, layers_obj, viz_state, ctrl_container, 'SKTCH', 40, sketch_callback)
 
     console.log('edit buttons')
     console.log(viz_state.edit.buttons)

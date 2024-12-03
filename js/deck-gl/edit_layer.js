@@ -2,7 +2,9 @@ import * as d3 from 'd3'
 import { EditableGeoJsonLayer, DrawPolygonMode,  ModifyMode, ViewMode} from '@deck.gl-community/editable-layers'
 import { get_layers_list } from './layers_ist'
 import { View } from 'deck.gl';
-
+import { update_cell_pickable_state } from './cell_layer'
+import { update_trx_pickable_state } from './trx_layer';
+import { update_path_pickable_state } from './path_layer';
 
 
 const edit_layer_on_edit = (deck_ist, layers_obj, viz_state, edit_info) => {
@@ -24,6 +26,10 @@ const edit_layer_on_edit = (deck_ist, layers_obj, viz_state, edit_info) => {
           .classed('active', false)
 
         viz_state.edit.mode = 'view'
+
+        update_cell_pickable_state(layers_obj, true)
+        update_path_pickable_state(layers_obj, true)
+        update_trx_pickable_state(layers_obj, true)
     }
 
     const layers_list = get_layers_list(layers_obj, viz_state.close_up)
@@ -36,6 +42,8 @@ const edit_layer_on_click = (event, deck_ist, layers_obj, viz_state) => {
 
     if (event.featureType === 'polygons' && viz_state.edit.mode === 'view') {
 
+        // switch to modify mode
+
         layers_obj.edit_layer = layers_obj.edit_layer.clone({
             mode: ModifyMode,
             selectedFeatureIndexes: [event.index],
@@ -44,9 +52,20 @@ const edit_layer_on_click = (event, deck_ist, layers_obj, viz_state) => {
         const layers_list = get_layers_list(layers_obj, viz_state.close_up)
         deck_ist.setProps({layers: layers_list})
 
+        viz_state.edit.mode = 'modify'
 
-    } else {
-        console.log('clicking but in sketch mode')
+    } else if (event.featureType === 'polygons' && viz_state.edit.mode === 'modify') {
+
+        // switch to view mode
+        layers_obj.edit_layer = layers_obj.edit_layer.clone({
+            mode: ViewMode,
+            selectedFeatureIndexes: [],
+        })
+
+        const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+        deck_ist.setProps({layers: layers_list})
+
+        viz_state.edit.mode = 'view'
     }
 
     // const { picks, screenCoords } = event;
@@ -85,6 +104,9 @@ export const ini_edit_layer = (viz_state) => {
         // Interactive props
         pickable: true,
         autoHighlight: true,
+        modeConfig: {
+            preventOverlappingLines: true // Prevent overlapping lines in polygons
+        },
 
         // onEdit: (edit_info) => on_edit(deck_ist, layers_obj, viz_state, edit_info)
     })

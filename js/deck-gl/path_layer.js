@@ -95,3 +95,9 @@ export const update_path_layer_id = (layers_obj, new_cat) => {
         id: 'path-layer-' + new_cat,
     });
 }
+
+export const update_path_pickable_state = (layers_obj, pickable) => {
+    layers_obj.path_layer = layers_obj.path_layer.clone({
+        pickable: pickable,
+    });
+}

@@ -143,7 +143,6 @@ export const landscape_ist = async (
 
     viz_state.edit = {}
     viz_state.edit.svg_bar_rgn = d3.create("svg")
-
     viz_state.edit.rgn_areas = []
     viz_state.edit.color_dict_rgn = {}
 

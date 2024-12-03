@@ -431,32 +431,32 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
         viz_state
     )
 
-    // ctrl_container.append(viz_state.containers.bar_rgn)
+    ctrl_container.append(viz_state.containers.bar_rgn)
 
     // viz_state.edit.buttons.rgn.style.color = 'red'
 
-    // if dataset_name is not an empty string make the name container
-    if (dataset_name.trim !== ''){
+    // // if dataset_name is not an empty string make the name container
+    // if (dataset_name.trim !== ''){
 
-        let name_container = document.createElement("div")
+    //     let name_container = document.createElement("div")
 
-        d3.select(name_container)
-            .classed('name_container', true)
-            // .style('width', '100px')
-            .style('text-align', 'left')
-            .style('cursor', 'pointer')
-            .style('font-size', '22px')
-            .style('font-weight', 'bold')
-            .style('color', '#222222')
-            .style('margin-top', '0px')
-            .style('margin-left', '15px')
-            .style('margin-right', '5px')
-            .style('user-select', 'none')
-            .text(dataset_name.toUpperCase())
+    //     d3.select(name_container)
+    //         .classed('name_container', true)
+    //         // .style('width', '100px')
+    //         .style('text-align', 'left')
+    //         .style('cursor', 'pointer')
+    //         .style('font-size', '22px')
+    //         .style('font-weight', 'bold')
+    //         .style('color', '#222222')
+    //         .style('margin-top', '0px')
+    //         .style('margin-left', '15px')
+    //         .style('margin-right', '5px')
+    //         .style('user-select', 'none')
+    //         .text(dataset_name.toUpperCase())
 
-        ui_container.appendChild(name_container)
+    //     ui_container.appendChild(name_container)
 
-    }
+    // }
 
     return ui_container
 

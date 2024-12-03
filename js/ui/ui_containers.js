@@ -10,7 +10,7 @@ import { calc_dendro_triangles, calc_dendro_polygons, alt_slice_linkage } from '
 import { update_dendro_layer_data } from '../deck-gl/matrix/dendro_layers'
 import { get_mat_layers_list } from '../deck-gl/matrix/matrix_layers'
 import { DrawPolygonMode,  ModifyMode, ViewMode} from '@deck.gl-community/editable-layers'
-import { update_edit_layer_mode } from '../deck-gl/edit_layer'
+import { update_edit_layer_mode, update_edit_visitility } from '../deck-gl/edit_layer'
 import { get_layers_list } from '../deck-gl/layers_ist'
 import { update_cell_pickable_state } from '../deck-gl/cell_layer'
 import { update_trx_pickable_state } from '../deck-gl/trx_layer'
@@ -376,6 +376,18 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
         const is_active = current.classed('active')
         let button_name = current.text().toLowerCase()
 
+        // clicking sketch should always return the rgn to visible
+        viz_state.edit.visible = true
+        current.classed('active', viz_state.edit.visible)
+            .style('color', 'blue')
+
+        d3.select(viz_state.edit.buttons.rgn)
+            .style('color', 'blue')
+            .classed('active', true)
+
+
+        update_edit_visitility(layers_obj, viz_state.edit.visible)
+
         if (is_active === false) {
 
             current.classed('active', true)
@@ -411,6 +423,31 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
 
     const rgn_callback = (event, deck_ist, layers_obj, viz_state) => {
         console.log('rgn_callback')
+
+        const current = d3.select(event.currentTarget)
+        const is_active = current.classed('active')
+
+        if (is_active === false) {
+            viz_state.edit.visible = true
+
+            current.classed('active', viz_state.edit.visible)
+                .style('color', 'blue')
+
+
+        } else {
+            viz_state.edit.visible = false
+
+            current.classed('active', viz_state.edit.visible)
+                .style('color', 'blue')
+
+        }
+
+        update_edit_visitility(layers_obj, viz_state.edit.visible)
+        const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+        deck_ist.setProps({layers: layers_list})
+
+
+
     }
 
 

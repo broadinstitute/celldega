@@ -146,6 +146,7 @@ export const landscape_ist = async (
     viz_state.edit.rgn_areas = []
     viz_state.edit.color_dict_rgn = {}
     viz_state.edit.rgn_opacity = 0.75
+    viz_state.edit.visible = false
 
     // viz_state.edit.feature_collection = {
     //     type: "FeatureCollection",

@@ -173,6 +173,7 @@ export const ini_edit_layer = (viz_state) => {
         modeConfig: {
             preventOverlappingLines: true // Prevent overlapping lines in polygons
         },
+        visible: false
 
         // onEdit: (edit_info) => on_edit(deck_ist, layers_obj, viz_state, edit_info)
     })
@@ -195,5 +196,11 @@ export const set_edit_layer_on_click = (deck_ist, layers_obj, viz_state) => {
 export const update_edit_layer_mode = (layers_obj, mode) => {
     layers_obj.edit_layer = layers_obj.edit_layer.clone({
         mode: mode,
+    })
+}
+
+export const update_edit_visitility = (layers_obj, visible) => {
+    layers_obj.edit_layer = layers_obj.edit_layer.clone({
+        visible: visible,
     })
 }

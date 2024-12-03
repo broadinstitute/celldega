@@ -20,7 +20,8 @@ const calc_region_areas = (featureCollection) => {
         feature.properties = {
           ...feature.properties,
           area, // Store the calculated area
-          name: feature.properties.name || `Feature ${index + 1}` // Default name if not set
+          name: feature.properties.name || `Feature ${index + 1}`, // Default name if not set
+          color: feature.properties.color || [Math.random() * 255, Math.random() * 255, Math.random() * 255] // Default color if not set
         };
       } else {
         console.warn(`Feature ${index} is not a Polygon.`);
@@ -81,6 +82,10 @@ const edit_layer_on_click = (event, deck_ist, layers_obj, viz_state) => {
         layers_obj.edit_layer = layers_obj.edit_layer.clone({
             mode: ModifyMode,
             selectedFeatureIndexes: [event.index],
+            modeConfig: {
+                dragToAddNew: true, // Enable dragging along edges to create new nodes
+                enableSnapping: false // Disable snapping to nearby nodes
+            },
         })
 
         const layers_list = get_layers_list(layers_obj, viz_state.close_up)
@@ -133,7 +138,8 @@ export const ini_edit_layer = (viz_state) => {
         pointRadiusScale: 2000,
         extruded: true,
         getElevation: 1000,
-        getFillColor: [200, 0, 80, 180],
+        // getFillColor: [200, 0, 80, 180],
+        getFillColor: (d) => d.properties.color,
 
         // Interactive props
         pickable: true,

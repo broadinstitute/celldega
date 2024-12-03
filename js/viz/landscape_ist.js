@@ -142,6 +142,10 @@ export const landscape_ist = async (
     set_get_tooltip(deck_ist, viz_state)
 
     viz_state.edit = {}
+    viz_state.edit.svg_bar_rgn = d3.create("svg")
+
+    viz_state.edit.rgn_areas = []
+    viz_state.edit.color_dict_rgn = {}
 
     // viz_state.edit.feature_collection = {
     //     type: "FeatureCollection",

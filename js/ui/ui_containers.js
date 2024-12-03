@@ -5,9 +5,7 @@ import { ini_slider, ini_slider_params } from './sliders'
 import { make_img_layer_slider_callback, toggle_slider } from "./sliders"
 import { debounce } from '../utils/debounce'
 import { toggle_visibility_image_layers } from '../deck-gl/image_layers'
-import { make_bar_graph } from './bar_plot'
-import { bar_callback_cluster, make_bar_container } from './bar_plot'
-import { bar_callback_gene } from './bar_plot'
+import { make_bar_graph, bar_callback_rgn, bar_callback_cluster, make_bar_container, bar_callback_gene } from './bar_plot'
 import { calc_dendro_triangles, calc_dendro_polygons, alt_slice_linkage } from '../matrix/dendro'
 import { update_dendro_layer_data } from '../deck-gl/matrix/dendro_layers'
 import { get_mat_layers_list } from '../deck-gl/matrix/matrix_layers'
@@ -416,6 +414,24 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
 
     console.log('edit buttons')
     console.log(viz_state.edit.buttons)
+
+    viz_state.containers.bar_rgn = make_bar_container()
+
+    console.log(viz_state.cats.cluster_counts)
+    console.log(viz_state.cats.color_dict_cluster)
+
+    make_bar_graph(
+        viz_state.containers.bar_rgn,
+        bar_callback_rgn,
+        viz_state.edit.svg_bar_rgn,
+        viz_state.edit.rgn_areas,
+        viz_state.edit.color_dict_rgn,
+        deck_ist,
+        layers_obj,
+        viz_state
+    )
+
+    // ctrl_container.append(viz_state.containers.bar_rgn)
 
     // viz_state.edit.buttons.rgn.style.color = 'red'
 

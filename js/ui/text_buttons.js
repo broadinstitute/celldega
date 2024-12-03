@@ -185,12 +185,6 @@ export const make_edit_button = (deck_ist, layers_obj, viz_state, container, tex
     let button_class = 'edit_button'
 
     const active = false
-    let color
-    if (active === true) {
-        color = viz_state.buttons.blue
-    } else {
-        color = viz_state.buttons.gray
-    }
 
     // make text all caps
     text = text.toUpperCase()

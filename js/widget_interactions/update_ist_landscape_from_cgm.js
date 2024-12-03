@@ -13,10 +13,6 @@ export const update_ist_landscape_from_cgm = async (deck_ist, layers_obj, viz_st
 
     const click_info = viz_state.model.get('update_trigger')
 
-    // console.log('**********************************************')
-    // console.log('click_info', click_info)
-    // console.log('**********************************************')
-
     let inst_gene
     let new_cat
 

@@ -9,8 +9,8 @@ import { make_bar_graph, bar_callback_rgn, bar_callback_cluster, make_bar_contai
 import { calc_dendro_triangles, calc_dendro_polygons, alt_slice_linkage } from '../matrix/dendro'
 import { update_dendro_layer_data } from '../deck-gl/matrix/dendro_layers'
 import { get_mat_layers_list } from '../deck-gl/matrix/matrix_layers'
-import { DrawPolygonMode,  ModifyMode, ViewMode} from '@deck.gl-community/editable-layers'
-import { update_edit_layer_mode, update_edit_visitility } from '../deck-gl/edit_layer'
+import { DrawPolygonMode, ViewMode} from '@deck.gl-community/editable-layers'
+import { update_edit_layer_mode, update_edit_visitility, calc_and_update_rgn_bar_graph, sync_region_to_model } from '../deck-gl/edit_layer'
 import { get_layers_list } from '../deck-gl/layers_ist'
 import { update_cell_pickable_state } from '../deck-gl/cell_layer'
 import { update_trx_pickable_state } from '../deck-gl/trx_layer'
@@ -374,7 +374,7 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
 
         const current = d3.select(event.currentTarget)
         const is_active = current.classed('active')
-        let button_name = current.text().toLowerCase()
+        // let button_name = current.text().toLowerCase()
 
         // clicking sketch should always return the rgn to visible
         viz_state.edit.visible = true
@@ -449,9 +449,9 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
     const delete_polygon_index = (featureCollection, index) => {
         if (index >= 0 && index < featureCollection.features.length) {
           featureCollection.features.splice(index, 1); // Remove the feature at the given index
-          console.log(`Feature at index ${index} deleted.`);
+        //   console.log(`Feature at index ${index} deleted.`);
         } else {
-          console.warn(`Invalid index: ${index}. No feature deleted.`);
+        //   console.warn(`Invalid index: ${index}. No feature deleted.`);
         }
 
         return featureCollection; // Return the updated FeatureCollection
@@ -460,17 +460,10 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
 
     const del_callback = (event, deck_ist, layers_obj, viz_state) => {
 
-        console.log('delete')
-
-        console.log(viz_state.edit.modify_index)
-
         viz_state.edit.feature_collection = delete_polygon_index(
             viz_state.edit.feature_collection,
             viz_state.edit.modify_index
         )
-
-        console.log(viz_state.edit.feature_collection)
-
 
         // switch to view mode
         layers_obj.edit_layer = layers_obj.edit_layer.clone({
@@ -479,8 +472,6 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
             mode: ViewMode,
             selectedFeatureIndexes: [],
         })
-
-        console.log('updating visualization!!!!!')
 
         const layers_list = get_layers_list(layers_obj, viz_state.close_up)
         deck_ist.setProps({layers: layers_list})
@@ -496,6 +487,12 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
 
         d3.select(viz_state.edit.buttons.sktch)
             .style('display', 'inline-flex');
+
+        calc_and_update_rgn_bar_graph(viz_state, deck_ist, layers_obj)
+
+        sync_region_to_model(viz_state)
+
+
     }
 
 
@@ -514,19 +511,12 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
         .style('color', 'red')
         .style('display', 'none')
 
-    console.log('edit buttons')
-    console.log(viz_state.edit.buttons)
-
     viz_state.containers.bar_rgn = make_bar_container()
-
 
     rgn_container.appendChild(rgn_ctrl_container)
     rgn_container.appendChild(viz_state.containers.bar_rgn)
 
     ctrl_container.appendChild(rgn_container)
-
-    console.log(viz_state.cats.cluster_counts)
-    console.log(viz_state.cats.color_dict_cluster)
 
     make_bar_graph(
         viz_state.containers.bar_rgn,

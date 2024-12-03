@@ -149,70 +149,7 @@ export const landscape_ist = async (
     viz_state.edit.visible = false
     viz_state.edit.modify_index = null
 
-    // viz_state.edit.feature_collection = {
-    //     type: "FeatureCollection",
-    //     features: []
-    //   };
-
     const features = []
-
-    // const features = [
-    //     {
-    //         "type": "Feature",
-    //         "properties": {},
-    //         "geometry": {
-    //             "type": "Polygon",
-    //             "coordinates": [
-    //                 [
-    //                     [
-    //                         7770.153438352874,
-    //                         1916.3184197138892
-    //                     ],
-    //                     [
-    //                         11098.946999136195,
-    //                         3845.659272181384
-    //                     ],
-    //                     [
-    //                         8169.668769723272,
-    //                         5034.217383008322
-    //                     ],
-    //                     [
-    //                         7770.153438352874,
-    //                         1916.3184197138892
-    //                     ]
-    //                 ]
-    //             ]
-    //         }
-    //     },
-    //     {
-    //         "type": "Feature",
-    //         "properties": {},
-    //         "geometry": {
-    //             "type": "Polygon",
-    //             "coordinates": [
-    //                 [
-    //                     [
-    //                         9316.949522198447,
-    //                         7552.13624246597
-    //                     ],
-    //                     [
-    //                         13868.77264939155,
-    //                         4951.574277957145
-    //                     ],
-    //                     [
-    //                         14118.646508193346,
-    //                         8538.550202221204
-    //                     ],
-    //                     [
-    //                         9316.949522198447,
-    //                         7552.13624246597
-    //                     ]
-    //                 ]
-    //             ]
-    //         }
-    //     }
-    // ]
-
 
     viz_state.edit.feature_collection =  {
         "type": "FeatureCollection",
@@ -225,7 +162,6 @@ export const landscape_ist = async (
     let path_layer = await ini_path_layer(viz_state)
     let trx_layer = ini_trx_layer(viz_state.genes)
     let edit_layer = ini_edit_layer(viz_state)
-
 
     // make layers object
     let layers_obj = {
@@ -247,8 +183,6 @@ export const landscape_ist = async (
     update_trx_layer_radius(layers_obj, trx_radius)
 
     const layers_list = get_layers_list(layers_obj, viz_state.close_up)
-
-    console.log('layers_list', layers_list)
 
     deck_ist.setProps({layers: layers_list})
 
@@ -380,7 +314,7 @@ export const landscape_ist = async (
         },
         update_matrix_dendro_col: async (selected_cols) => {
 
-            const inst_gene = 'cluster'
+            // const inst_gene = 'cluster'
             const new_cats = selected_cols // click_info.value.selected_names
 
             update_cat(viz_state.cats, 'cluster')
@@ -426,22 +360,7 @@ export const landscape_ist = async (
         },
         update_view_state: async (new_view_state, close_up, trx_layer) => {
 
-            // console.log('new_view_state', new_view_state)
-            // console.log('close_up', close_up)
-            // console.log('trx_layer', trx_layer)
-
             viz_state.close_up = close_up
-
-            // await update_trx_layer_data(viz_state.global_base_url, tiles_in_view, layers_obj, viz_state)
-
-            // await update_path_layer_data(viz_state.global_base_url, tiles_in_view, layers_obj, viz_state)
-
-            // layers_obj.trx_layer = trx_layer.clone({
-            //     id: 'trx-layer-clone' + new_view_state.zoom,
-            // })
-
-            // deck_ist.setProps({layers: layers_list})
-
 
             calc_viewport(new_view_state, deck_ist, layers_obj, viz_state)
             const layers_list = get_layers_list(layers_obj, viz_state.close_up)

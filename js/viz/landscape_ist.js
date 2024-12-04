@@ -60,6 +60,14 @@ export const landscape_ist = async (
     viz_state.close_up = false
     viz_state.model = ini_model
 
+    // check if nbhd is set
+    if (Object.keys(viz_state.model.get('nbhd')).length === 0){
+        console.log('no neighborhood')
+    } else {
+        console.log('yes neighborhood')
+
+    }
+
     viz_state.containers = {}
 
     viz_state.custom_callbacks = {}

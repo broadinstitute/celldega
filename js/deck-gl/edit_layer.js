@@ -178,31 +178,19 @@ export const ini_edit_layer = (viz_state) => {
         id: 'edit-layer',
         data: viz_state.edit.feature_collection,
         selectedFeatureIndexes: [],
-        // selectedFeatureIndexes: [0],
-
         mode: ViewMode,
-        // mode: DrawPolygonMode,
-
-        // mode: new ModifyMode(),
-
-        // Styles
         filled: true,
         pointRadiusMinPixels: 2,
         pointRadiusScale: 2000,
         extruded: true,
         getElevation: 1000,
-        // getFillColor: [200, 0, 80, 180],
         getFillColor: (d) => d.properties.color,
-
-        // Interactive props
         pickable: true,
         autoHighlight: true,
         modeConfig: {
-            preventOverlappingLines: true // Prevent overlapping lines in polygons
+            preventOverlappingLines: true
         },
         visible: false
-
-        // onEdit: (edit_info) => on_edit(deck_ist, layers_obj, viz_state, edit_info)
     })
 
     return edit_layer

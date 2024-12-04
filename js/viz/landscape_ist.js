@@ -26,6 +26,7 @@ import { update_cell_exp_array } from '../global_variables/cell_exp_array'
 import { update_gene_text_box } from '../ui/gene_search'
 import { calc_viewport } from '../deck-gl/calc_viewport'
 import { ini_edit_layer, set_edit_layer_on_click, set_edit_layer_on_edit } from '../deck-gl/edit_layer'
+import { ini_nbhd_layer } from '../deck-gl/nbhd_layer'
 
 export const landscape_ist = async (
     el,
@@ -60,13 +61,17 @@ export const landscape_ist = async (
     viz_state.close_up = false
     viz_state.model = ini_model
 
-    // check if nbhd is set
-    if (Object.keys(viz_state.model.get('nbhd')).length === 0){
-        console.log('no neighborhood')
-    } else {
-        console.log('yes neighborhood')
+    viz_state.nbhd = {}
 
-    }
+    viz_state.nbhd.feature_collection = viz_state.model.get('nbhd')
+
+    // // check if nbhd is set
+    // if (Object.keys(viz_state.model.get('nbhd')).length === 0){
+    //     console.log('no neighborhood')
+    // } else {
+    //     console.log('yes neighborhood')
+
+    // }
 
     viz_state.containers = {}
 
@@ -170,6 +175,7 @@ export const landscape_ist = async (
     let path_layer = await ini_path_layer(viz_state)
     let trx_layer = ini_trx_layer(viz_state.genes)
     let edit_layer = ini_edit_layer(viz_state)
+    let nbhd_layer = ini_nbhd_layer(viz_state)
 
     // make layers object
     let layers_obj = {
@@ -178,7 +184,8 @@ export const landscape_ist = async (
         'cell_layer': cell_layer,
         'path_layer': path_layer,
         'trx_layer': trx_layer,
-        'edit_layer': edit_layer
+        'edit_layer': edit_layer,
+        'nbhd_layer': nbhd_layer
     }
 
     // set onclicks after all layers are made

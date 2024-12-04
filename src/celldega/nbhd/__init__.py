@@ -65,14 +65,16 @@ def verify_polygons_with_alpha_bulk(polygons, points, alpha, area_tolerance=0.05
         # Recalculate alpha shape for the points
         recalculated_alpha = libpysal_alpha_shape(coords, alpha)
 
-        recalculated_area = recalculated_alpha.area.values[0]
-        original_area = poly.area
+        # check that there is a geometry
+        if recalculated_alpha.shape[0] > 0:
+            recalculated_area = recalculated_alpha.area.values[0]
+            original_area = poly.area
 
-        # Compute fractional difference in area
-        area_difference = abs(recalculated_area - original_area) / original_area
+            # Compute fractional difference in area
+            area_difference = abs(recalculated_area - original_area) / original_area
 
-        if area_difference <= area_tolerance:
-            curated_polygons.append(poly)
+            if area_difference <= area_tolerance:
+                curated_polygons.append(poly)
 
     return gpd.GeoSeries(curated_polygons, crs=polygons.crs)
 

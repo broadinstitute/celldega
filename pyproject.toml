@@ -19,7 +19,8 @@ dependencies = [
     "squidpy~=1.5.0",
     "clustergrammer2==0.18.0",
     "shapely~=2.0.5",
-    "polars~=1.10.0"
+    "polars~=1.10.0",
+    "libpysal~=4.8.1"
 ]
 readme = "README.md"
 

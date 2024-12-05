@@ -10,8 +10,8 @@ def make_trx_tiles(
     path_trx,
     path_transformation_matrix,
     path_trx_tiles,
-    coarse_tile_size=2500,
-    fine_tile_size=250,
+    coarse_tile_factor=2500,
+    tile_size=250,
     chunk_size=1000000,
     verbose=False,
     image_scale=1,
@@ -31,9 +31,9 @@ def make_trx_tiles(
         Path to the file containing the transformation matrix (CSV file).
     path_trx_tiles : str
         Directory path where the output files (Parquet files) for each tile will be saved.
-    coarse_tile_size : int, optional
+    coarse_tile_factor : int, optional
         Size of each coarse-grain tile in microns (default is 2500).
-    fine_tile_size : int, optional
+    tile_size : int, optional
         Size of each fine-grain tile in microns (default is 250).
     chunk_size : int, optional
         Number of rows to process per chunk for memory efficiency (default is 1000000).
@@ -50,7 +50,7 @@ def make_trx_tiles(
         A dictionary containing the bounds of the processed data in both x and y directions.
     """
 
-    def process_coarse_tile(trx, i, j, coarse_tile_x_min, coarse_tile_x_max, coarse_tile_y_min, coarse_tile_y_max, fine_tile_size, path_trx_tiles, x_min, y_min, n_fine_tiles_x, n_fine_tiles_y, max_workers):
+    def process_coarse_tile(trx, i, j, coarse_tile_x_min, coarse_tile_x_max, coarse_tile_y_min, coarse_tile_y_max, tile_size, path_trx_tiles, x_min, y_min, n_fine_tiles_x, n_fine_tiles_y, max_workers):
         # Filter the entire dataset for the current coarse tile
         coarse_tile = trx.filter(
             (pl.col("transformed_x") >= coarse_tile_x_min) & (pl.col("transformed_x") < coarse_tile_x_max) &
@@ -59,10 +59,10 @@ def make_trx_tiles(
     
         if not coarse_tile.is_empty():
             # Now process fine tiles using global fine tile indices
-            process_fine_tiles(coarse_tile, i, j, coarse_tile_x_min, coarse_tile_x_max, coarse_tile_y_min, coarse_tile_y_max, fine_tile_size, path_trx_tiles, x_min, y_min, n_fine_tiles_x, n_fine_tiles_y, max_workers)   
+            process_fine_tiles(coarse_tile, i, j, coarse_tile_x_min, coarse_tile_x_max, coarse_tile_y_min, coarse_tile_y_max, tile_size, path_trx_tiles, x_min, y_min, n_fine_tiles_x, n_fine_tiles_y, max_workers)   
 
 
-    def process_fine_tiles(coarse_tile, coarse_i, coarse_j, coarse_tile_x_min, coarse_tile_x_max, coarse_tile_y_min, coarse_tile_y_max, fine_tile_size, path_trx_tiles, x_min, y_min, n_fine_tiles_x, n_fine_tiles_y, max_workers=8):
+    def process_fine_tiles(coarse_tile, coarse_i, coarse_j, coarse_tile_x_min, coarse_tile_x_max, coarse_tile_y_min, coarse_tile_y_max, tile_size, path_trx_tiles, x_min, y_min, n_fine_tiles_x, n_fine_tiles_y, max_workers=8):
 
         # Use ThreadPoolExecutor for parallel processing of fine-grain tiles within the coarse tile
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -70,16 +70,16 @@ def make_trx_tiles(
             
             # Iterate over fine-grain tiles within the global bounds
             for fine_i in range(n_fine_tiles_x):
-                fine_tile_x_min = x_min + fine_i * fine_tile_size
-                fine_tile_x_max = fine_tile_x_min + fine_tile_size
+                fine_tile_x_min = x_min + fine_i * tile_size
+                fine_tile_x_max = fine_tile_x_min + tile_size
 
                 # Process only if the fine tile falls within the current coarse tile's bounds
                 if not (fine_tile_x_min >= coarse_tile_x_min and fine_tile_x_max <= coarse_tile_x_max):
                     continue
 
                 for fine_j in range(n_fine_tiles_y):
-                    fine_tile_y_min = y_min + fine_j * fine_tile_size
-                    fine_tile_y_max = fine_tile_y_min + fine_tile_size
+                    fine_tile_y_min = y_min + fine_j * tile_size
+                    fine_tile_y_max = fine_tile_y_min + tile_size
 
                     # Process only if the fine tile falls within the current coarse tile's bounds
                     if not (fine_tile_y_min >= coarse_tile_y_min and fine_tile_y_max <= coarse_tile_y_max):
@@ -172,27 +172,27 @@ def make_trx_tiles(
     ]).row(0)
 
     # Calculate the number of fine-grain tiles globally
-    n_fine_tiles_x = int(np.ceil((x_max - x_min) / fine_tile_size))
-    n_fine_tiles_y = int(np.ceil((y_max - y_min) / fine_tile_size))
+    n_fine_tiles_x = int(np.ceil((x_max - x_min) / tile_size))
+    n_fine_tiles_y = int(np.ceil((y_max - y_min) / tile_size))
 
     # Calculate the number of coarse-grain tiles
-    n_coarse_tiles_x = int(np.ceil((x_max - x_min) / coarse_tile_size))
-    n_coarse_tiles_y = int(np.ceil((y_max - y_min) / coarse_tile_size))
+    n_coarse_tiles_x = int(np.ceil((x_max - x_min) / coarse_tile_factor))
+    n_coarse_tiles_y = int(np.ceil((y_max - y_min) / coarse_tile_factor))
 
     # Use ThreadPoolExecutor for parallel processing of coarse-grain tiles
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = []
         for i in range(n_coarse_tiles_x):
-            coarse_tile_x_min = x_min + i * coarse_tile_size
-            coarse_tile_x_max = coarse_tile_x_min + coarse_tile_size
+            coarse_tile_x_min = x_min + i * coarse_tile_factor
+            coarse_tile_x_max = coarse_tile_x_min + coarse_tile_factor
 
             for j in range(n_coarse_tiles_y):
-                coarse_tile_y_min = y_min + j * coarse_tile_size
-                coarse_tile_y_max = coarse_tile_y_min + coarse_tile_size
+                coarse_tile_y_min = y_min + j * coarse_tile_factor
+                coarse_tile_y_max = coarse_tile_y_min + coarse_tile_factor
 
                 # Submit each coarse tile for parallel processing
                 futures.append(executor.submit(
-                    process_coarse_tile, trx, i, j, coarse_tile_x_min, coarse_tile_x_max, coarse_tile_y_min, coarse_tile_y_max, fine_tile_size, path_trx_tiles, x_min, y_min, n_fine_tiles_x, n_fine_tiles_y, max_workers
+                    process_coarse_tile, trx, i, j, coarse_tile_x_min, coarse_tile_x_max, coarse_tile_y_min, coarse_tile_y_max, tile_size, path_trx_tiles, x_min, y_min, n_fine_tiles_x, n_fine_tiles_y, max_workers
                 ))
 
         # Wait for all coarse tiles to complete

@@ -14,8 +14,8 @@ def make_cell_boundary_tiles(
     path_meta_cell_micron,
     path_transformation_matrix,
     path_output,
-    coarse_tile_size=5000,
-    fine_tile_size=250,
+    coarse_tile_factor=5000,
+    tile_size=250,
     tile_bounds=None,
     image_scale=1,
     max_workers=8
@@ -39,9 +39,9 @@ def make_cell_boundary_tiles(
         Path to the file containing the transformation matrix (CSV format).
     path_output : str
         Directory path where the output files (Parquet files) for each tile will be saved.
-    coarse_tile_size : int, optional, default=5000
+    coarse_tile_factor : int, optional, default=5000
         Size of each coarse-grain tile in microns.
-    fine_tile_size : int, optional, default=500
+    tile_size : int, optional, default=500
         Size of each fine-grain tile in microns.
     tile_bounds : dict, optional
         Dictionary containing the minimum and maximum bounds for x and y coordinates.
@@ -109,19 +109,19 @@ def make_cell_boundary_tiles(
             filename = f"{path_output}/cell_tile_{fine_i}_{fine_j}.parquet"
             fine_tile_cells.to_parquet(filename)
 
-    def process_fine_boundaries(coarse_tile, i, j, coarse_tile_x_min, coarse_tile_x_max, coarse_tile_y_min, coarse_tile_y_max, fine_tile_size, path_output, x_min, y_min, n_fine_tiles_x, n_fine_tiles_y):
+    def process_fine_boundaries(coarse_tile, i, j, coarse_tile_x_min, coarse_tile_x_max, coarse_tile_y_min, coarse_tile_y_max, tile_size, path_output, x_min, y_min, n_fine_tiles_x, n_fine_tiles_y):
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = []
             for fine_i in range(n_fine_tiles_x):
-                fine_tile_x_min = x_min + fine_i * fine_tile_size
-                fine_tile_x_max = fine_tile_x_min + fine_tile_size
+                fine_tile_x_min = x_min + fine_i * tile_size
+                fine_tile_x_max = fine_tile_x_min + tile_size
 
                 if not (fine_tile_x_min >= coarse_tile_x_min and fine_tile_x_max <= coarse_tile_x_max):
                     continue
 
                 for fine_j in range(n_fine_tiles_y):
-                    fine_tile_y_min = y_min + fine_j * fine_tile_size
-                    fine_tile_y_max = fine_tile_y_min + fine_tile_size
+                    fine_tile_y_min = y_min + fine_j * tile_size
+                    fine_tile_y_max = fine_tile_y_min + tile_size
 
                     if not (fine_tile_y_min >= coarse_tile_y_min and fine_tile_y_max <= coarse_tile_y_max):
                         continue
@@ -133,8 +133,8 @@ def make_cell_boundary_tiles(
             for future in futures:
                 future.result()
 
-    tile_size_x = fine_tile_size
-    tile_size_y = fine_tile_size
+    tile_size_x = tile_size
+    tile_size_y = tile_size
 
     transformation_matrix = pd.read_csv(path_transformation_matrix, header=None, sep=" ").values
 
@@ -184,23 +184,23 @@ def make_cell_boundary_tiles(
     # Calculate tile bounds and fine/coarse tiles
     x_min, x_max = tile_bounds["x_min"], tile_bounds["x_max"]
     y_min, y_max = tile_bounds["y_min"], tile_bounds["y_max"]
-    n_fine_tiles_x = int(np.ceil((x_max - x_min) / fine_tile_size))
-    n_fine_tiles_y = int(np.ceil((y_max - y_min) / fine_tile_size))
-    n_coarse_tiles_x = int(np.ceil((x_max - x_min) / coarse_tile_size))
-    n_coarse_tiles_y = int(np.ceil((y_max - y_min) / coarse_tile_size))
+    n_fine_tiles_x = int(np.ceil((x_max - x_min) / tile_size))
+    n_fine_tiles_y = int(np.ceil((y_max - y_min) / tile_size))
+    n_coarse_tiles_x = int(np.ceil((x_max - x_min) / coarse_tile_factor))
+    n_coarse_tiles_y = int(np.ceil((y_max - y_min) / coarse_tile_factor))
 
     # Process coarse tiles in parallel
     for i in tqdm(range(n_coarse_tiles_x), desc="Processing coarse tiles"):
-        coarse_tile_x_min = x_min + i * coarse_tile_size
-        coarse_tile_x_max = coarse_tile_x_min + coarse_tile_size
+        coarse_tile_x_min = x_min + i * coarse_tile_factor
+        coarse_tile_x_max = coarse_tile_x_min + coarse_tile_factor
 
         for j in range(n_coarse_tiles_y):
-            coarse_tile_y_min = y_min + j * coarse_tile_size
-            coarse_tile_y_max = coarse_tile_y_min + coarse_tile_size
+            coarse_tile_y_min = y_min + j * coarse_tile_factor
+            coarse_tile_y_max = coarse_tile_y_min + coarse_tile_factor
 
             coarse_tile = gdf_cells[
                 (gdf_cells["center_x"] >= coarse_tile_x_min) & (gdf_cells["center_x"] < coarse_tile_x_max) &
                 (gdf_cells["center_y"] >= coarse_tile_y_min) & (gdf_cells["center_y"] < coarse_tile_y_max)
             ]
             if not coarse_tile.empty:
-                process_fine_boundaries(coarse_tile, i, j, coarse_tile_x_min, coarse_tile_x_max, coarse_tile_y_min, coarse_tile_y_max, fine_tile_size, path_output, x_min, y_min, n_fine_tiles_x, n_fine_tiles_y)
+                process_fine_boundaries(coarse_tile, i, j, coarse_tile_x_min, coarse_tile_x_max, coarse_tile_y_min, coarse_tile_y_max, tile_size, path_output, x_min, y_min, n_fine_tiles_x, n_fine_tiles_y)

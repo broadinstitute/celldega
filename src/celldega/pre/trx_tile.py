@@ -10,7 +10,7 @@ def make_trx_tiles(
     path_trx,
     path_transformation_matrix,
     path_trx_tiles,
-    coarse_tile_factor=2500,
+    coarse_tile_factor=10,
     tile_size=250,
     chunk_size=1000000,
     verbose=False,
@@ -32,7 +32,7 @@ def make_trx_tiles(
     path_trx_tiles : str
         Directory path where the output files (Parquet files) for each tile will be saved.
     coarse_tile_factor : int, optional
-        Size of each coarse-grain tile in microns (default is 2500).
+        Scaling factor of each coarse-grain tile comparing to the fine tile size.
     tile_size : int, optional
         Size of each fine-grain tile in microns (default is 250).
     chunk_size : int, optional
@@ -176,19 +176,19 @@ def make_trx_tiles(
     n_fine_tiles_y = int(np.ceil((y_max - y_min) / tile_size))
 
     # Calculate the number of coarse-grain tiles
-    n_coarse_tiles_x = int(np.ceil((x_max - x_min) / coarse_tile_factor))
-    n_coarse_tiles_y = int(np.ceil((y_max - y_min) / coarse_tile_factor))
+    n_coarse_tiles_x = int(np.ceil((x_max - x_min) / coarse_tile_factor * tile_size))
+    n_coarse_tiles_y = int(np.ceil((y_max - y_min) / coarse_tile_factor * tile_size))
 
     # Use ThreadPoolExecutor for parallel processing of coarse-grain tiles
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = []
         for i in range(n_coarse_tiles_x):
-            coarse_tile_x_min = x_min + i * coarse_tile_factor
-            coarse_tile_x_max = coarse_tile_x_min + coarse_tile_factor
+            coarse_tile_x_min = x_min + i * coarse_tile_factor * tile_size
+            coarse_tile_x_max = coarse_tile_x_min + coarse_tile_factor * tile_size
 
             for j in range(n_coarse_tiles_y):
-                coarse_tile_y_min = y_min + j * coarse_tile_factor
-                coarse_tile_y_max = coarse_tile_y_min + coarse_tile_factor
+                coarse_tile_y_min = y_min + j * coarse_tile_factor * tile_size
+                coarse_tile_y_max = coarse_tile_y_min + coarse_tile_factor * tile_size
 
                 # Submit each coarse tile for parallel processing
                 futures.append(executor.submit(

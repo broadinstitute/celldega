@@ -14,7 +14,7 @@ def make_cell_boundary_tiles(
     path_meta_cell_micron,
     path_transformation_matrix,
     path_output,
-    coarse_tile_factor=5000,
+    coarse_tile_factor=20,
     tile_size=250,
     tile_bounds=None,
     image_scale=1,
@@ -39,8 +39,8 @@ def make_cell_boundary_tiles(
         Path to the file containing the transformation matrix (CSV format).
     path_output : str
         Directory path where the output files (Parquet files) for each tile will be saved.
-    coarse_tile_factor : int, optional, default=5000
-        Size of each coarse-grain tile in microns.
+    coarse_tile_factor  : int, optional, default=20.
+        scaling factor of each coarse-grain tile comparing to the fine tile size.
     tile_size : int, optional, default=500
         Size of each fine-grain tile in microns.
     tile_bounds : dict, optional
@@ -186,17 +186,17 @@ def make_cell_boundary_tiles(
     y_min, y_max = tile_bounds["y_min"], tile_bounds["y_max"]
     n_fine_tiles_x = int(np.ceil((x_max - x_min) / tile_size))
     n_fine_tiles_y = int(np.ceil((y_max - y_min) / tile_size))
-    n_coarse_tiles_x = int(np.ceil((x_max - x_min) / coarse_tile_factor))
-    n_coarse_tiles_y = int(np.ceil((y_max - y_min) / coarse_tile_factor))
+    n_coarse_tiles_x = int(np.ceil((x_max - x_min) / coarse_tile_factor * tile_size))
+    n_coarse_tiles_y = int(np.ceil((y_max - y_min) / coarse_tile_factor * tile_size))
 
     # Process coarse tiles in parallel
     for i in tqdm(range(n_coarse_tiles_x), desc="Processing coarse tiles"):
-        coarse_tile_x_min = x_min + i * coarse_tile_factor
-        coarse_tile_x_max = coarse_tile_x_min + coarse_tile_factor
+        coarse_tile_x_min = x_min + i * coarse_tile_factor * tile_size
+        coarse_tile_x_max = coarse_tile_x_min + coarse_tile_factor * tile_size
 
         for j in range(n_coarse_tiles_y):
-            coarse_tile_y_min = y_min + j * coarse_tile_factor
-            coarse_tile_y_max = coarse_tile_y_min + coarse_tile_factor
+            coarse_tile_y_min = y_min + j * coarse_tile_factor * tile_size
+            coarse_tile_y_max = coarse_tile_y_min + coarse_tile_factor * tile_size
 
             coarse_tile = gdf_cells[
                 (gdf_cells["center_x"] >= coarse_tile_x_min) & (gdf_cells["center_x"] < coarse_tile_x_max) &

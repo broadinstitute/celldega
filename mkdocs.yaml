@@ -40,3 +40,6 @@ plugins:
       include_source: true
       ignore: ["**/.ipynb_checkpoints/*.ipynb"]
 
+extra_javascript:
+  - assets/js/index.js
+  - assets/js/widget.js

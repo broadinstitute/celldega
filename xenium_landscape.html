@@ -63,7 +63,7 @@
         const ini_y = 12200;
         const ini_z = 0;
         const ini_zoom = -6;
-        const base_url = 'http://127.0.0.1:8081/notebooks/data/xenium_landscapes/Xenium_Prime_Human_Skin_FFPE_outs';
+        const base_url = 'http://127.0.0.1:8080/notebooks/data/xenium_landscapes/Xenium_Prime_Human_Skin_FFPE_outs';
 
         let el = document.querySelector("#landscape");
 
@@ -93,7 +93,7 @@
         // landscape.update_matrix_gene(inst_gene)
 
         // load a json file from this url
-        const net_url = 'http://127.0.0.1:8081/notebooks/data/tmp.json'
+        const net_url = 'http://127.0.0.1:8080/notebooks/data/tmp.json'
         const network = await fetch(net_url)
             .then(response => response.json())
             .then(data => {

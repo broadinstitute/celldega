@@ -42,4 +42,8 @@ plugins:
 
 extra_javascript:
   - assets/js/index.js
-  - assets/js/widget.js
+  - assets/js/test.js
+  # - path: assets/js/widget.js
+    # type: module
+  # - path: 'https://unpkg.com/celldega@0.5.0/src/celldega/static/widget.js?module'
+  #   type: module

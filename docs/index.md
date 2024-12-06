@@ -16,5 +16,21 @@ This is the official documentation for the Celldega library.
 
 ## Embedded Jupyter Notebook
 
-<script src="assets/js/widget.js></script>
-<script src="assets/js/index.js"></script>
+<!-- <script src="assets/js/widget.js></script> -->
+<script src="assets/js/index.js" type="module"></script>
+
+
+<!-- <script>
+  document.addEventListener("DOMContentLoaded", () => {
+    console.log('script in the markdown page')
+  }
+</script> -->
+
+<!-- <script type="module">
+
+    console.log('************************************)
+    // import celldega from './assets/js/widget.js';
+
+    console.log("hello!!!!!!");
+
+</script> -->

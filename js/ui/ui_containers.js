@@ -495,10 +495,16 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
 
     }
 
+    const alph_callback = (event, deck_ist, layers_obj, viz_state) => {
+
+        console.log('alph_callback')
+    }
+
 
     viz_state.edit.buttons = {}
     viz_state.edit.mode = 'view'
     make_edit_button(deck_ist, layers_obj, viz_state, rgn_ctrl_container, 'RGN', 30, rgn_callback)
+    make_edit_button(deck_ist, layers_obj, viz_state, rgn_ctrl_container, 'ALPH', 30, alph_callback)
     make_edit_button(deck_ist, layers_obj, viz_state, rgn_ctrl_container, 'SKTCH', 40, sketch_callback)
     make_edit_button(deck_ist, layers_obj, viz_state, rgn_ctrl_container, 'DEL', 30, del_callback)
 

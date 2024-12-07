@@ -41,7 +41,8 @@ plugins:
       ignore: ["**/.ipynb_checkpoints/*.ipynb"]
 
 extra_javascript:
-  - assets/js/index.js
+  - path: assets/js/index.js
+    type: module
   - assets/js/test.js
   # - path: assets/js/widget.js
     # type: module

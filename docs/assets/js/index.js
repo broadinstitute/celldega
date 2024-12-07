@@ -1,7 +1,7 @@
 // import celldega from '.assets/js/widget.js'; // Adjust path as needed
 // import celldega from 'https://unpkg.com/celldega@0.5.0/src/celldega/static/widget.js?module';
-
 // import celldega from './assets/js/widget.js';
+
 import celldega from './widget.js';
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -11,15 +11,10 @@ document.addEventListener("DOMContentLoaded", () => {
     // console.log(celldega)
 
 
-
+    console.log('checking celldega using import in index.js')
     console.log('celldega', celldega)
 
-    console.log('*****************************')
-    console.log('*****************************')
-    console.log('*****************************')
-    console.log('*****************************')
-    console.log('*****************************')
-    console.log('*****************************')
+
 
 
 });

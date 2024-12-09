@@ -2,12 +2,20 @@ import celldega from './widget.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
 
-    console.log("hello hello");
+    // Check if we are on the home page
+    const isHomePage = window.location.pathname === '/' || window.location.pathname.endsWith('/index.html');
 
-    console.log('checking celldega using import in index.js')
-    console.log('celldega', celldega)
+    if (!isHomePage) {
+        console.log('Not on the Home page, skipping visualization initialization.');
+        return;
+    } else {
+        console.log('On the Home page, initializing visualization...');
+    }
 
-    console.log('here!')
+    // console.log("hello hello");
+    // console.log('checking celldega using import in index.js')
+    // console.log('celldega', celldega)
+    // console.log('here!')
 
 
     // Use the imported functions
@@ -18,14 +26,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const ini_zoom = -6;
     const base_url = 'http://127.0.0.1:8080/notebooks/data/xenium_landscapes/Xenium_Prime_Human_Skin_FFPE_outs';
 
-    // // make a DOM element with the id 'landscape'
-    // document.body.innerHTML = '<div id="landscape"></div>';
-
     let el = document.querySelector("#landscape");
-
-    // const ist_callback = () => {
-    //     console.log('custom callback for ist');
-    // }
 
     const landscape = await celldega.landscape_ist(
         el,
@@ -48,10 +49,3 @@ document.addEventListener("DOMContentLoaded", async () => {
 });
 
 
-
-{/* <script type="module">
-  console.log('**************************')
-  console.log('**************************')
-  import celldega from './assets/js/widget.js';
-  console.log(celldega)
-</script> */}

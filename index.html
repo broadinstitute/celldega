@@ -868,8 +868,11 @@
 
 
 <h1 id="welcome-to-celldegas-documentation">Welcome to Celldega's Documentation</h1>
-<iframe width="100%" height="575" frameborder="0"
-  src="https://observablehq.com/embed/@cornhundred/celldega-xenium-bone-marrow-example?cells=root"></iframe>
+<!-- <div id="landscape-container"> -->
+<div id="landscape-container" style="position: relative; display: flex; width: 100%; height: 500px; overflow: hidden; border: 1px solid #ccc;">
+    <!-- The landscape visualization will render here -->
+    <div id="landscape" style="height; 500px;"></div>
+</div>
 
 <p>This is the official documentation for the Celldega library.</p>
 <h2 id="overview">Overview</h2>
@@ -880,6 +883,23 @@
 </ul>
 <h2 id="gallery">Gallery</h2>
 <h2 id="embedded-jupyter-notebook">Embedded Jupyter Notebook</h2>
+<!-- <script src="assets/js/widget.js></script> -->
+<script src="assets/js/index.js" type="module"></script>
+
+<!-- <script>
+  document.addEventListener("DOMContentLoaded", () => {
+    console.log('script in the markdown page')
+  }
+</script> -->
+
+<!-- <script type="module">
+
+    console.log('************************************)
+    // import celldega from './assets/js/widget.js';
+
+    console.log("hello!!!!!!");
+
+</script> -->
 
 
 
@@ -930,6 +950,10 @@
     
     
       <script src="assets/javascripts/bundle.fe8b6f2b.min.js"></script>
+      
+        <script src="assets/js/index.js" type="module"></script>
+      
+        <script src="assets/js/test.js"></script>
       
     
   </body>

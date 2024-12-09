@@ -63,21 +63,21 @@ class Landscape(anywidget.AnyWidget):
         self.cell_clusters = new_clusters
 
 
+# class Matrix(anywidget.AnyWidget):
+#     _esm = pathlib.Path(__file__).parent / "../static" / "widget.js"
+#     _css = pathlib.Path(__file__).parent / "../static" / "widget.css"
+#     value = traitlets.Int(0).tag(sync=True)
+#     component = traitlets.Unicode("Matrix").tag(sync=True)
+
+#     network = traitlets.Dict({}).tag(sync=True)
+#     click_info = traitlets.Dict({}).tag(sync=True)
+
+
 class Matrix(anywidget.AnyWidget):
     _esm = pathlib.Path(__file__).parent / "../static" / "widget.js"
     _css = pathlib.Path(__file__).parent / "../static" / "widget.css"
     value = traitlets.Int(0).tag(sync=True)
     component = traitlets.Unicode("Matrix").tag(sync=True)
-
-    network = traitlets.Dict({}).tag(sync=True)
-    click_info = traitlets.Dict({}).tag(sync=True)
-
-
-class MatrixNew(anywidget.AnyWidget):
-    _esm = pathlib.Path(__file__).parent / "../static" / "widget.js"
-    _css = pathlib.Path(__file__).parent / "../static" / "widget.css"
-    value = traitlets.Int(0).tag(sync=True)
-    component = traitlets.Unicode("MatrixNew").tag(sync=True)
 
     network = traitlets.Dict({}).tag(sync=True)
     width = traitlets.Int(600).tag(sync=True)

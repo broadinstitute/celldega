@@ -28,13 +28,13 @@ from .boundary_tile import *
 def convert_long_id_to_short(df):
     """
     Converts a column of long integer cell IDs in a DataFrame to a shorter, hash-based representation.
-    
+
     Args:
         df (pd.DataFrame): The DataFrame containing the EntityID.
     Returns:
         pd.DataFrame: The original DataFrame with an additional column named `cell_id`
                       containing the shortened cell IDs.
-    
+
     The function applies a SHA-256 hash to each cell ID, encodes the hash using base64, and truncates
     it to create a shorter identifier that is added as a new column to the DataFrame.
     """
@@ -44,11 +44,11 @@ def convert_long_id_to_short(df):
         cell_id_bytes = str(cell_id).encode('utf-8')
         hash_object = hashlib.sha256(cell_id_bytes)
         hash_digest = hash_object.digest()
-        
+
         # Encode the hash to a base64 string to mix letters and numbers, truncate to 9 characters
         short_id = base64.urlsafe_b64encode(hash_digest).decode('utf-8')[:9]
         return short_id
-    
+
     # Apply the hash_and_shorten_id function to each cell ID in the specified column
     df['cell_id'] = df['EntityID'].apply(hash_and_shorten_id)
 
@@ -380,6 +380,9 @@ def get_max_zoom_level(path_image_pyramid):
 def save_landscape_parameters(
     technology, path_landscape_files, image_name="dapi_files", tile_size=1000, image_info={}, image_format='.webp'
 ):
+    """
+    Save the landscape parameters to a JSON file.
+    """
 
     path_image_pyramid = f"{path_landscape_files}/pyramid_images/{image_name}"
 

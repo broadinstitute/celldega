@@ -16,19 +16,14 @@ def calc_meta_gene_data(cbg):
     """
     Calculate gene metadata from the cell-by-gene matrix.
 
-    Parameters
-    ----------
-    cbg : pandas.DataFrame
-        A DataFrame with genes as columns and barcodes as rows. It can be either
-        sparse or dense.
+    Args:
+        cbg (pandas.DataFrame): A sparse DataFrame with genes as columns and barcodes as rows.
 
-    Returns
-    -------
-    meta_gene : pandas.DataFrame
-        A DataFrame containing metadata for each gene, including mean expression,
-        standard deviation, maximum expression, and proportion of non-zero expressions.
+    Returns:
+        pandas.DataFrame: A DataFrame with gene metadata including mean, standard deviation,
+            maximum expression, and proportion of non-zero expression.
     """
-    
+
     # Helper function to convert to dense if sparse
     def convert_to_dense(series):
         """
@@ -50,36 +45,36 @@ def calc_meta_gene_data(cbg):
     # Ensure cbg is a DataFrame
     if not isinstance(cbg, pd.DataFrame):
         raise TypeError("cbg must be a pandas DataFrame")
-    
+
     # Determine if cbg is sparse
     is_sparse = pd.api.types.is_sparse(cbg)
-    
+
     if is_sparse:
         # Ensure cbg has SparseDtype with float and fill_value=0
         cbg = cbg.astype(pd.SparseDtype("float", fill_value=0))
         print("cbg is a sparse DataFrame. Proceeding with sparse operations.")
     else:
         print("cbg is a dense DataFrame. Proceeding with dense operations.")
-    
+
     # Calculate mean expression across tiles
     print("Calculating mean expression")
     mean_expression = cbg.mean(axis=0)
-    
+
     # Calculate variance as the average of the squared deviations
     print("Calculating variance")
     num_tiles = cbg.shape[1]
     # Vectorized computation for variance
     variance = ((cbg - mean_expression) ** 2).sum(axis=0) / num_tiles
     std_deviation = np.sqrt(variance)
-    
+
     # Calculate maximum expression
     print("Calculating maximum expression")
     max_expression = cbg.max(axis=0)
-    
+
     # Calculate proportion of tiles with non-zero expression
     print("Calculating proportion of non-zero expression")
     proportion_nonzero = (cbg != 0).sum(axis=0) / len(cbg)
-    
+
     # Create a DataFrame to hold all these metrics
     meta_gene = pd.DataFrame({
         "mean": convert_to_dense(mean_expression),
@@ -87,7 +82,7 @@ def calc_meta_gene_data(cbg):
         "max": convert_to_dense(max_expression),
         "non-zero": convert_to_dense(proportion_nonzero)
     })
-    
+
     return meta_gene
 
 def read_cbg_mtx(base_path):
@@ -124,7 +119,7 @@ def read_cbg_mtx(base_path):
         matrix, index=barcodes[0], columns=features[1]
     )
     cbg = cbg.rename_axis('__index_level_0__', axis='columns')
-    
+
     return cbg
 
 def save_cbg_gene_parquets(base_path, cbg, verbose=False):

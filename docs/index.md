@@ -1,9 +1,14 @@
 # Welcome to Celldega's Documentation
-<!-- <iframe width="100%" height="575" frameborder="0"
-  src="https://observablehq.com/embed/@cornhundred/celldega-xenium-bone-marrow-example?cells=root"></iframe> -->
 
+
+<!-- <div id="landscape-container"> -->
+<div id="landscape-container" style="position: relative; display: flex; width: 100%; height: 500px; overflow: hidden; border: 1px solid #ccc;">
+    <!-- The landscape visualization will render here -->
+    <div id="landscape" style="height; 500px;"></div>
+</div>
 
 This is the official documentation for the Celldega library.
+
 
 ## Overview
 

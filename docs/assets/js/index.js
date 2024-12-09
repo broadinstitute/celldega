@@ -1,19 +1,45 @@
-// import celldega from '.assets/js/widget.js'; // Adjust path as needed
-// import celldega from 'https://unpkg.com/celldega@0.5.0/src/celldega/static/widget.js?module';
-// import celldega from './assets/js/widget.js';
-
 import celldega from './widget.js';
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
 
     console.log("hello hello");
-
-    // console.log(celldega)
-
 
     console.log('checking celldega using import in index.js')
     console.log('celldega', celldega)
 
+
+    // Use the imported functions
+    const token = '';
+    const ini_x = 15500;
+    const ini_y = 12200;
+    const ini_z = 0;
+    const ini_zoom = -6;
+    const base_url = 'http://127.0.0.1:8080/notebooks/data/xenium_landscapes/Xenium_Prime_Human_Skin_FFPE_outs';
+
+    // // make a DOM element with the id 'landscape'
+    // document.body.innerHTML = '<div id="landscape"></div>';
+
+    let el = document.querySelector("#landscape");
+
+    // const ist_callback = () => {
+    //     console.log('custom callback for ist');
+    // }
+
+    const landscape = await celldega.landscape_ist(
+        el,
+        {},
+        token,
+        ini_x,
+        ini_y,
+        ini_z,
+        ini_zoom,
+        base_url,
+        '',
+        0.25,
+        '100%',
+        '100%',
+        // ist_callback
+    );
 
 
 

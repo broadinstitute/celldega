@@ -43,8 +43,5 @@ plugins:
 extra_javascript:
   - path: assets/js/index.js
     type: module
-  - assets/js/test.js
-  # - path: assets/js/widget.js
-    # type: module
-  # - path: 'https://unpkg.com/celldega@0.5.0/src/celldega/static/widget.js?module'
-  #   type: module
+  - path: assets/js/gallery_mouse_brain.js
+    type: module

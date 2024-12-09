@@ -12,19 +12,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         console.log('On the Home page, initializing visualization...');
     }
 
-    // console.log("hello hello");
-    // console.log('checking celldega using import in index.js')
-    // console.log('celldega', celldega)
-    // console.log('here!')
-
-
     // Use the imported functions
     const token = '';
     const ini_x = 21500;
     const ini_y = 14200;
     const ini_z = 0;
     const ini_zoom = -6;
-    const base_url = 'http://127.0.0.1:8080/notebooks/data/xenium_landscapes/Xenium_Prime_Human_Skin_FFPE_outs';
+    const base_url = 'https://raw.githubusercontent.com/broadinstitute/celldega_Xenium_Prime_Human_Skin_FFPE_outs/main/Xenium_Prime_Human_Skin_FFPE_outs';
 
     let el = document.querySelector("#landscape");
 
@@ -43,8 +37,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         '100%',
         // ist_callback
     );
-
-
 
 });
 

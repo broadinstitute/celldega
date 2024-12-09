@@ -1,10 +1,7 @@
 import celldega from './widget.js';
 document.addEventListener("DOMContentLoaded", async () => {
 
-    console.log("gallery mouse brain");
-
-    console.log(celldega)
-    console.log(window.location.pathname)
+    const landscape_el = document.getElementById('landscape-mouse-brain');
 
     if (window.location.pathname.endsWith('gallery_xenium_mouse_brain/')){
 
@@ -16,10 +13,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         const ini_zoom = -6;
         const base_url = 'https://raw.githubusercontent.com/broadinstitute/celldega_Xenium_Prime_Mouse_Brain_Coronal_FF_outs/main/Xenium_Prime_Mouse_Brain_Coronal_FF_outs';
 
-        let el = document.querySelector("#landscape");
-
         const landscape = await celldega.landscape_ist(
-            el,
+            landscape_el,
             {},
             token,
             ini_x,

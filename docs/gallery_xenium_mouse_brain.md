@@ -3,5 +3,5 @@
 src="https://observablehq.com/embed/c8352eb0ccafef92?cells=root"></iframe> -->
 
 <div id="landscape-container" style="position: relative; display: flex; width: 100%; height: 500px; overflow: hidden; border: 1px solid #ccc;">
-    <div id="landscape" style="height; 500px;"></div>
+    <div id="landscape-mouse-brain" style="height; 500px;"></div>
 </div>

@@ -252,7 +252,7 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
 
     const cell_container = flex_container('cell_container', 'column')
     // widths are custom because of the length of the text buttons varies
-    cell_container.style.width = '120px'
+    cell_container.style.width = '125px'
     const cell_ctrl_container = flex_container('cell_ctrl_container', 'row')
     cell_ctrl_container.style.marginLeft = '0px'
 
@@ -263,9 +263,10 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
     const trx_container = flex_container('trx_container', 'row')
 
     const rgn_container = flex_container('rgn_container', 'column')
-    rgn_container.style.width = '120px'
+    rgn_container.style.width = '125px'
     const rgn_ctrl_container = flex_container('rgn_ctrl_container', 'row')
     rgn_ctrl_container.style.marginLeft = '0px'
+    rgn_ctrl_container.style.height = '22.5px'
 
     const cell_slider_container = make_slider_container('cell_slider_container')
     const trx_slider_container = make_slider_container('trx_slider_container')
@@ -367,8 +368,9 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
     ctrl_container.appendChild(gene_container)
 
     viz_state.genes.gene_search.style.width = '160px'
+    viz_state.genes.gene_search.style.marginLeft = '5px'
 
-    ctrl_container.appendChild(viz_state.genes.gene_search)
+    // ctrl_container.appendChild(viz_state.genes.gene_search)
 
     const sketch_callback = (event, deck_ist, layers_obj, viz_state) => {
 
@@ -518,11 +520,14 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
         .style('display', 'none')
 
     viz_state.containers.bar_rgn = make_bar_container()
+    viz_state.containers.bar_rgn.style.marginLeft = '0px'
 
     rgn_container.appendChild(rgn_ctrl_container)
     rgn_container.appendChild(viz_state.containers.bar_rgn)
 
     ctrl_container.appendChild(rgn_container)
+
+    ctrl_container.appendChild(viz_state.genes.gene_search)
 
     make_bar_graph(
         viz_state.containers.bar_rgn,

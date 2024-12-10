@@ -18,7 +18,7 @@ export const ini_nbhd_layer = (viz_state) => {
         getLineWidth: 1,
         // getLineColor: [0, 0, 0, 255],
         getFillColor: (d) => hexToRgb(d.properties.color),
-        opacity: 0.5
+        opacity: 0.1
         // getElevation: 0,
         // updateTriggers: {
         //     getFillColor: viz_state.nbhd.update_trigger,

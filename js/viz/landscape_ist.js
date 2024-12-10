@@ -149,26 +149,15 @@ export const landscape_ist = async (
     viz_state.edit.visible = false
     viz_state.edit.modify_index = null
 
-    console.log('check ini region')
-    console.log(viz_state.model.get('region'))
-
     // check if viz_state.model.get('region') is equal to {}
     if (Object.keys(viz_state.model.get('region')).length === 0) {
-        console.log('no region passed in initially')
         viz_state.model.set('region', {
             'type': 'FeatureCollection',
             'features': []
         })
     } else {
-        console.log('region passed in initially')
         viz_state.edit.feature_collection = viz_state.model.get('region')
     }
-
-
-    // viz_state.edit.feature_collection =  {
-    //     "type": "FeatureCollection",
-    //     "features": []
-    // }
 
     let background_layer = ini_background_layer(viz_state)
     let image_layers = await make_image_layers(viz_state)

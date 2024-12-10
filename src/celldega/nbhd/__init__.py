@@ -1,7 +1,10 @@
 from libpysal.cg import alpha_shape as libpysal_alpha_shape
 import geopandas as gpd
 from shapely import Point, MultiPoint, MultiPolygon
+from shapely.ops import transform
 import numpy as np
+import json
+from shapely.geometry import shape
 
 def classify_polygons_contains_check(polygons, points):
     """
@@ -95,3 +98,84 @@ def alpha_shape(points, inv_alpha):
     multi_poly = MultiPolygon(validated_poly.values)
 
     return multi_poly
+
+
+
+def round_coordinates(geometry, precision=2):
+    """
+    Round the coordinates of a Shapely geometry to the specified precision.
+
+    Parameters:
+    - geometry: Shapely geometry object (e.g., Polygon, MultiPolygon).
+    - precision: Number of decimal places to round to.
+
+    Returns:
+    - Rounded Shapely geometry.
+    """
+    if geometry is None:
+        return None
+
+    def round_coords(x, y, z=None):
+        if z is not None:
+            return (round(x, precision), round(y, precision), round(z, precision))
+        return (round(x, precision), round(y, precision))
+
+    return transform(round_coords, geometry)
+
+
+def alpha_shape_cell_clusters(meta_cell, cat='cluster', alphas=[100, 150, 200, 250, 300, 350]):
+    gdf_alpha = gpd.GeoDataFrame()
+
+    for inv_alpha in alphas:
+
+        for inst_cluster in meta_cell[cat].unique():
+
+            inst_clust = meta_cell[meta_cell[cat] == inst_cluster]
+
+            if inst_clust.shape[0]> 3:
+
+                nested_array = inst_clust['geometry'].values
+
+                # Convert to a 2D NumPy array
+                flat_array = np.vstack(nested_array)
+
+                inst_shape = alpha_shape(flat_array, inv_alpha)
+
+                inst_name = inst_cluster + '_' + str(inv_alpha)
+
+                gdf_alpha.loc[inst_name, 'geometry'] = inst_shape
+
+    gdf_alpha["geometry"] = gdf_alpha["geometry"].apply(lambda geom: round_coordinates(geom, precision=2))
+
+    gdf_alpha['area'] = gdf_alpha.area
+
+    gdf_alpha = gdf_alpha.loc[gdf_alpha.area.sort_values(ascending=False).index.tolist()]
+
+    return gdf_alpha
+
+def alpha_shape_geojson(gdf_alpha, meta_cluster):
+
+    geojson_dict = json.loads(gdf_alpha.to_json())
+
+    # Step 2: Edit the properties of each feature
+    for feature in geojson_dict["features"]:
+
+        if feature['geometry'] is not None:
+
+            # Parse the geometry with Shapely for additional calculations
+            geometry = shape(feature["geometry"])
+
+            # Add area property
+            feature["properties"]["area"] = geometry.area
+
+            id = feature['id']
+
+            color = meta_cluster.loc[id.split('_')[0], 'color']
+
+            # Add a custom color property (example: based on the area)
+            feature["properties"]["color"] = color # [255, 0, 0, 100]  # RGBA values
+        else:
+            # print('is None')
+            pass
+
+    return geojson_dict

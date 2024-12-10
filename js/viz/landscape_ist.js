@@ -151,10 +151,12 @@ export const landscape_ist = async (
 
     // check if viz_state.model.get('region') is equal to {}
     if (Object.keys(viz_state.model.get('region')).length === 0) {
-        viz_state.model.set('region', {
-            'type': 'FeatureCollection',
-            'features': []
-        })
+
+        viz_state.edit.feature_collection =  {
+            "type": "FeatureCollection",
+            "features": []
+        }
+
     } else {
         viz_state.edit.feature_collection = viz_state.model.get('region')
     }

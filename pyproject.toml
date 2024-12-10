@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "celldega"
-version = "0.5.0"
+version = "0.5.2"
 dependencies = [
     "anywidget==0.9.6",
     "pandas~=2.2.2",

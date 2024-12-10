@@ -2,56 +2,41 @@ import celldega from './widget.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
 
-    console.log("hello hello");
+    // Check if we are on the home page
+    const isHomePage = window.location.pathname === '/' || window.location.pathname.endsWith('/index.html');
 
-    console.log('checking celldega using import in index.js')
-    console.log('celldega', celldega)
+    const landscape_el = document.getElementById('landscape');
 
-    console.log('here!')
+    if (landscape_el) {
 
+        // Use the imported functions
+        const token = '';
+        const ini_x = 21500;
+        const ini_y = 14200;
+        const ini_z = 0;
+        const ini_zoom = -6;
+        const base_url = 'https://raw.githubusercontent.com/broadinstitute/celldega_Xenium_Prime_Human_Skin_FFPE_outs/main/Xenium_Prime_Human_Skin_FFPE_outs';
 
-    // Use the imported functions
-    const token = '';
-    const ini_x = 21500;
-    const ini_y = 14200;
-    const ini_z = 0;
-    const ini_zoom = -6;
-    const base_url = 'http://127.0.0.1:8080/notebooks/data/xenium_landscapes/Xenium_Prime_Human_Skin_FFPE_outs';
+        // let el = document.querySelector("#landscape");
 
-    // // make a DOM element with the id 'landscape'
-    // document.body.innerHTML = '<div id="landscape"></div>';
+        const landscape = await celldega.landscape_ist(
+            landscape_el,
+            {},
+            token,
+            ini_x,
+            ini_y,
+            ini_z,
+            ini_zoom,
+            base_url,
+            '',
+            0.25,
+            '100%',
+            '100%',
+            // ist_callback
+        );
 
-    let el = document.querySelector("#landscape");
-
-    // const ist_callback = () => {
-    //     console.log('custom callback for ist');
-    // }
-
-    const landscape = await celldega.landscape_ist(
-        el,
-        {},
-        token,
-        ini_x,
-        ini_y,
-        ini_z,
-        ini_zoom,
-        base_url,
-        '',
-        0.25,
-        '100%',
-        '100%',
-        // ist_callback
-    );
-
-
+    }
 
 });
 
 
-
-{/* <script type="module">
-  console.log('**************************')
-  console.log('**************************')
-  import celldega from './assets/js/widget.js';
-  console.log(celldega)
-</script> */}

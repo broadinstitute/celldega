@@ -12,7 +12,7 @@
         <link rel="prev" href="../overview/">
       
       
-        <link rel="next" href="../../../examples/Landscape_View_Xenium/">
+        <link rel="next" href="../../../javascript/overview/">
       
       
       <link rel="icon" href="../../../assets/images/favicon.png">
@@ -718,6 +718,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#celldega.viz.widget.Matrix" class="md-nav__link">
+    <span class="md-ellipsis">
+      Matrix
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -763,7 +772,7 @@
             
   
   <span class="md-ellipsis">
-    Examples
+    JavaScript API
   </span>
   
 
@@ -772,6 +781,90 @@
         
         <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            JavaScript API
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../javascript/overview/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Overview
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../javascript/api/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    API Reference
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Examples
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
             <span class="md-nav__icon md-icon"></span>
             Examples
           </label>
@@ -858,6 +951,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#celldega.viz.widget.Matrix" class="md-nav__link">
+    <span class="md-ellipsis">
+      Matrix
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -911,7 +1013,8 @@
               Bases: <code><span title="anywidget.AnyWidget">AnyWidget</span></code></p>
 
 
-      <p>A widget for visualizing a 'landscape' view of spatial omics data.</p>
+      <p>A widget for interactive visualization of spatial omics data. This widget
+currently supports iST (Xenium and MERSCOPE) and sST (Visium HD data)</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
@@ -961,20 +1064,6 @@
             <td>
               <div class="doc-md-description">
                 <p>The initial zoom level of the view.</p>
-              </div>
-            </td>
-            <td>
-                <em>required</em>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td><code>bounce_time</code></td>
-            <td>
-                  <code>int</code>
-            </td>
-            <td>
-              <div class="doc-md-description">
-                <p>The time taken for the view to bounce back after panning.</p>
               </div>
             </td>
             <td>
@@ -1244,13 +1333,13 @@
 <span class="normal">62</span>
 <span class="normal">63</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">Landscape</span><span class="p">(</span><span class="n">anywidget</span><span class="o">.</span><span class="n">AnyWidget</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    A widget for visualizing a &#39;landscape&#39; view of spatial omics data.</span>
+<span class="sd">    A widget for interactive visualization of spatial omics data. This widget</span>
+<span class="sd">    currently supports iST (Xenium and MERSCOPE) and sST (Visium HD data)</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        ini_x (float): The initial x-coordinate of the view.</span>
 <span class="sd">        ini_y (float): The initial y-coordinate of the view.</span>
 <span class="sd">        ini_zoom (float): The initial zoom level of the view.</span>
-<span class="sd">        bounce_time (int): The time taken for the view to bounce back after panning.</span>
 <span class="sd">        token (str): The token traitlet.</span>
 <span class="sd">        base_url (str): The base URL for the widget.</span>
 <span class="sd">        dataset_name (str, optional): The name of the dataset to visualize. This will show up in the user interface bar.</span>
@@ -1300,6 +1389,238 @@
     <span class="k">def</span> <span class="nf">update_cell_clusters</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">new_clusters</span><span class="p">):</span>
         <span class="c1"># Convert the new_clusters to a JSON serializable format if necessary</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">cell_clusters</span> <span class="o">=</span> <span class="n">new_clusters</span>
+</code></pre></div></td></tr></table></div>
+              </details>
+
+
+
+  <div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="celldega.viz.widget.Matrix" class="doc doc-heading">
+            <code>Matrix</code>
+
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="anywidget.AnyWidget">AnyWidget</span></code></p>
+
+
+      <p>A widget for interactive visualization of a hierarchically clustered matrix.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code>value</code></td>
+            <td>
+                  <code>int</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The value traitlet.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>component</code></td>
+            <td>
+                  <code>str</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The component traitlet.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>network</code></td>
+            <td>
+                  <code>dict</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The network traitlet.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>click_info</code></td>
+            <td>
+                  <code>dict</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The click_info traitlet.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Attributes:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code><span title="celldega.viz.widget.Matrix.component">component</span></code></td>
+            <td>
+                  <code>str</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The name of the component.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="celldega.viz.widget.Matrix.network">network</span></code></td>
+            <td>
+                  <code>dict</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The network dictionary.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="celldega.viz.widget.Matrix.click_info">click_info</span></code></td>
+            <td>
+                  <code>dict</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The click_info dictionary.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+<th>Name</th>          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+<td><code>Matrix</code></td>            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A widget for visualizing a hierarchically clustered matrix.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+              <details class="quote">
+                <summary>Source code in <code>src/celldega/viz/widget.py</code></summary>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">66</span>
+<span class="normal">67</span>
+<span class="normal">68</span>
+<span class="normal">69</span>
+<span class="normal">70</span>
+<span class="normal">71</span>
+<span class="normal">72</span>
+<span class="normal">73</span>
+<span class="normal">74</span>
+<span class="normal">75</span>
+<span class="normal">76</span>
+<span class="normal">77</span>
+<span class="normal">78</span>
+<span class="normal">79</span>
+<span class="normal">80</span>
+<span class="normal">81</span>
+<span class="normal">82</span>
+<span class="normal">83</span>
+<span class="normal">84</span>
+<span class="normal">85</span>
+<span class="normal">86</span>
+<span class="normal">87</span>
+<span class="normal">88</span>
+<span class="normal">89</span>
+<span class="normal">90</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">Matrix</span><span class="p">(</span><span class="n">anywidget</span><span class="o">.</span><span class="n">AnyWidget</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A widget for interactive visualization of a hierarchically clustered matrix.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        value (int): The value traitlet.</span>
+<span class="sd">        component (str): The component traitlet.</span>
+<span class="sd">        network (dict): The network traitlet.</span>
+<span class="sd">        click_info (dict): The click_info traitlet.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        component (str): The name of the component.</span>
+<span class="sd">        network (dict): The network dictionary.</span>
+<span class="sd">        click_info (dict): The click_info dictionary.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Matrix: A widget for visualizing a hierarchically clustered matrix.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">_esm</span> <span class="o">=</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span><span class="vm">__file__</span><span class="p">)</span><span class="o">.</span><span class="n">parent</span> <span class="o">/</span> <span class="s2">&quot;../static&quot;</span> <span class="o">/</span> <span class="s2">&quot;widget.js&quot;</span>
+    <span class="n">_css</span> <span class="o">=</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span><span class="vm">__file__</span><span class="p">)</span><span class="o">.</span><span class="n">parent</span> <span class="o">/</span> <span class="s2">&quot;../static&quot;</span> <span class="o">/</span> <span class="s2">&quot;widget.css&quot;</span>
+    <span class="n">value</span> <span class="o">=</span> <span class="n">traitlets</span><span class="o">.</span><span class="n">Int</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">tag</span><span class="p">(</span><span class="n">sync</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">component</span> <span class="o">=</span> <span class="n">traitlets</span><span class="o">.</span><span class="n">Unicode</span><span class="p">(</span><span class="s2">&quot;Matrix&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">tag</span><span class="p">(</span><span class="n">sync</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="n">network</span> <span class="o">=</span> <span class="n">traitlets</span><span class="o">.</span><span class="n">Dict</span><span class="p">({})</span><span class="o">.</span><span class="n">tag</span><span class="p">(</span><span class="n">sync</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">click_info</span> <span class="o">=</span> <span class="n">traitlets</span><span class="o">.</span><span class="n">Dict</span><span class="p">({})</span><span class="o">.</span><span class="n">tag</span><span class="p">(</span><span class="n">sync</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
               </details>
 
@@ -1384,7 +1705,7 @@
       
         <script src="../../../assets/js/index.js" type="module"></script>
       
-        <script src="../../../assets/js/test.js"></script>
+        <script src="../../../assets/js/gallery_mouse_brain.js" type="module"></script>
       
     
   </body>

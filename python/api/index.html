@@ -688,7 +688,7 @@
             
   
   <span class="md-ellipsis">
-    Examples
+    JavaScript API
   </span>
   
 
@@ -697,6 +697,90 @@
         
         <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            JavaScript API
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../javascript/overview/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Overview
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../javascript/api/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    API Reference
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Examples
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
             <span class="md-nav__icon md-icon"></span>
             Examples
           </label>
@@ -771,30 +855,6 @@
       calc_meta_gene_data
     </span>
   </a>
-  
-    <nav class="md-nav" aria-label="calc_meta_gene_data">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#celldega.pre.calc_meta_gene_data--parameters" class="md-nav__link">
-    <span class="md-ellipsis">
-      Parameters
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#celldega.pre.calc_meta_gene_data--returns" class="md-nav__link">
-    <span class="md-ellipsis">
-      Returns
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
@@ -1198,6 +1258,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#celldega.pre.save_landscape_parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      save_landscape_parameters
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#celldega.viz" class="md-nav__link">
     <span class="md-ellipsis">
       viz
@@ -1210,6 +1279,15 @@
   <a href="#celldega.viz.Landscape" class="md-nav__link">
     <span class="md-ellipsis">
       Landscape
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#celldega.viz.Matrix" class="md-nav__link">
+    <span class="md-ellipsis">
+      Matrix
     </span>
   </a>
   
@@ -1240,7 +1318,7 @@
 <a id="celldega.pre"></a>
     <div class="doc doc-contents first">
 
-      <p>Module for pre-processing data</p>
+      <p>Module for pre-processing to generate LandscapeFiles from ST data.</p>
 
 
 
@@ -1266,14 +1344,58 @@
     <div class="doc doc-contents ">
 
       <p>Calculate gene metadata from the cell-by-gene matrix.</p>
-<h4 id="celldega.pre.calc_meta_gene_data--parameters">Parameters</h4>
-<p>cbg : pandas.DataFrame
-    A DataFrame with genes as columns and barcodes as rows. It can be either
-    sparse or dense.</p>
-<h4 id="celldega.pre.calc_meta_gene_data--returns">Returns</h4>
-<p>meta_gene : pandas.DataFrame
-    A DataFrame containing metadata for each gene, including mean expression,
-    standard deviation, maximum expression, and proportion of non-zero expressions.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code>cbg</code></td>
+            <td>
+                  <code><span title="pandas.DataFrame">DataFrame</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A sparse DataFrame with genes as columns and barcodes as rows.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>pandas.DataFrame: A DataFrame with gene metadata including mean, standard deviation,
+maximum expression, and proportion of non-zero expression.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
             <details class="quote">
               <summary>Source code in <code>src/celldega/pre/landscape.py</code></summary>
@@ -1348,26 +1470,16 @@
 <span class="normal">83</span>
 <span class="normal">84</span>
 <span class="normal">85</span>
-<span class="normal">86</span>
-<span class="normal">87</span>
-<span class="normal">88</span>
-<span class="normal">89</span>
-<span class="normal">90</span>
-<span class="normal">91</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">calc_meta_gene_data</span><span class="p">(</span><span class="n">cbg</span><span class="p">):</span>
+<span class="normal">86</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">calc_meta_gene_data</span><span class="p">(</span><span class="n">cbg</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Calculate gene metadata from the cell-by-gene matrix.</span>
 
-<span class="sd">    Parameters</span>
-<span class="sd">    ----------</span>
-<span class="sd">    cbg : pandas.DataFrame</span>
-<span class="sd">        A DataFrame with genes as columns and barcodes as rows. It can be either</span>
-<span class="sd">        sparse or dense.</span>
+<span class="sd">    Args:</span>
+<span class="sd">        cbg (pandas.DataFrame): A sparse DataFrame with genes as columns and barcodes as rows.</span>
 
-<span class="sd">    Returns</span>
-<span class="sd">    -------</span>
-<span class="sd">    meta_gene : pandas.DataFrame</span>
-<span class="sd">        A DataFrame containing metadata for each gene, including mean expression,</span>
-<span class="sd">        standard deviation, maximum expression, and proportion of non-zero expressions.</span>
+<span class="sd">    Returns:</span>
+<span class="sd">        pandas.DataFrame: A DataFrame with gene metadata including mean, standard deviation,</span>
+<span class="sd">            maximum expression, and proportion of non-zero expression.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="c1"># Helper function to convert to dense if sparse</span>
@@ -3287,7 +3399,12 @@ max_workers : int, optional
 
             <details class="quote">
               <summary>Source code in <code>src/celldega/pre/landscape.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 93</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 88</span>
+<span class="normal"> 89</span>
+<span class="normal"> 90</span>
+<span class="normal"> 91</span>
+<span class="normal"> 92</span>
+<span class="normal"> 93</span>
 <span class="normal"> 94</span>
 <span class="normal"> 95</span>
 <span class="normal"> 96</span>
@@ -3317,12 +3434,7 @@ max_workers : int, optional
 <span class="normal">120</span>
 <span class="normal">121</span>
 <span class="normal">122</span>
-<span class="normal">123</span>
-<span class="normal">124</span>
-<span class="normal">125</span>
-<span class="normal">126</span>
-<span class="normal">127</span>
-<span class="normal">128</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">read_cbg_mtx</span><span class="p">(</span><span class="n">base_path</span><span class="p">):</span>
+<span class="normal">123</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">read_cbg_mtx</span><span class="p">(</span><span class="n">base_path</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Read the cell-by-gene matrix from the mtx files.</span>
 
@@ -3465,7 +3577,12 @@ verbose : bool, optional
 
             <details class="quote">
               <summary>Source code in <code>src/celldega/pre/landscape.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">130</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">125</span>
+<span class="normal">126</span>
+<span class="normal">127</span>
+<span class="normal">128</span>
+<span class="normal">129</span>
+<span class="normal">130</span>
 <span class="normal">131</span>
 <span class="normal">132</span>
 <span class="normal">133</span>
@@ -3502,12 +3619,7 @@ verbose : bool, optional
 <span class="normal">164</span>
 <span class="normal">165</span>
 <span class="normal">166</span>
-<span class="normal">167</span>
-<span class="normal">168</span>
-<span class="normal">169</span>
-<span class="normal">170</span>
-<span class="normal">171</span>
-<span class="normal">172</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">save_cbg_gene_parquets</span><span class="p">(</span><span class="n">base_path</span><span class="p">,</span> <span class="n">cbg</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="normal">167</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">save_cbg_gene_parquets</span><span class="p">(</span><span class="n">base_path</span><span class="p">,</span> <span class="n">cbg</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Save the cell-by-gene matrix as gene-specific Parquet files.</span>
 
@@ -3550,6 +3662,76 @@ verbose : bool, optional
         <span class="k">if</span> <span class="ow">not</span> <span class="n">inst_df</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
             <span class="n">output_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">output_dir</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">gene</span><span class="si">}</span><span class="s2">.parquet&quot;</span><span class="p">)</span>
             <span class="n">inst_df</span><span class="o">.</span><span class="n">to_parquet</span><span class="p">(</span><span class="n">output_path</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="celldega.pre.save_landscape_parameters" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">save_landscape_parameters</span><span class="p">(</span><span class="n">technology</span><span class="p">,</span> <span class="n">path_landscape_files</span><span class="p">,</span> <span class="n">image_name</span><span class="o">=</span><span class="s1">&#39;dapi_files&#39;</span><span class="p">,</span> <span class="n">tile_size</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">image_info</span><span class="o">=</span><span class="p">{},</span> <span class="n">image_format</span><span class="o">=</span><span class="s1">&#39;.webp&#39;</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+      <p>Save the landscape parameters to a JSON file.</p>
+
+            <details class="quote">
+              <summary>Source code in <code>src/celldega/pre/__init__.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">380</span>
+<span class="normal">381</span>
+<span class="normal">382</span>
+<span class="normal">383</span>
+<span class="normal">384</span>
+<span class="normal">385</span>
+<span class="normal">386</span>
+<span class="normal">387</span>
+<span class="normal">388</span>
+<span class="normal">389</span>
+<span class="normal">390</span>
+<span class="normal">391</span>
+<span class="normal">392</span>
+<span class="normal">393</span>
+<span class="normal">394</span>
+<span class="normal">395</span>
+<span class="normal">396</span>
+<span class="normal">397</span>
+<span class="normal">398</span>
+<span class="normal">399</span>
+<span class="normal">400</span>
+<span class="normal">401</span>
+<span class="normal">402</span>
+<span class="normal">403</span>
+<span class="normal">404</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">save_landscape_parameters</span><span class="p">(</span>
+    <span class="n">technology</span><span class="p">,</span> <span class="n">path_landscape_files</span><span class="p">,</span> <span class="n">image_name</span><span class="o">=</span><span class="s2">&quot;dapi_files&quot;</span><span class="p">,</span> <span class="n">tile_size</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">image_info</span><span class="o">=</span><span class="p">{},</span> <span class="n">image_format</span><span class="o">=</span><span class="s1">&#39;.webp&#39;</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Save the landscape parameters to a JSON file.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">path_image_pyramid</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">path_landscape_files</span><span class="si">}</span><span class="s2">/pyramid_images/</span><span class="si">{</span><span class="n">image_name</span><span class="si">}</span><span class="s2">&quot;</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="n">path_image_pyramid</span><span class="p">)</span>
+
+    <span class="n">max_pyramid_zoom</span> <span class="o">=</span> <span class="n">get_max_zoom_level</span><span class="p">(</span><span class="n">path_image_pyramid</span><span class="p">)</span>
+
+    <span class="n">landscape_parameters</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;technology&quot;</span><span class="p">:</span> <span class="n">technology</span><span class="p">,</span>
+        <span class="s2">&quot;max_pyramid_zoom&quot;</span><span class="p">:</span> <span class="n">max_pyramid_zoom</span><span class="p">,</span>
+        <span class="s2">&quot;tile_size&quot;</span><span class="p">:</span> <span class="n">tile_size</span><span class="p">,</span>
+        <span class="s2">&quot;image_info&quot;</span><span class="p">:</span> <span class="n">image_info</span><span class="p">,</span>
+        <span class="s2">&quot;image_format&quot;</span><span class="p">:</span> <span class="n">image_format</span>
+    <span class="p">}</span>
+
+    <span class="n">path_landscape_parameters</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">path_landscape_files</span><span class="si">}</span><span class="s2">/landscape_parameters.json&quot;</span>
+
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path_landscape_parameters</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">file</span><span class="p">:</span>
+        <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">landscape_parameters</span><span class="p">,</span> <span class="n">file</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -3600,7 +3782,8 @@ verbose : bool, optional
               Bases: <code><span title="anywidget.AnyWidget">AnyWidget</span></code></p>
 
 
-      <p>A widget for visualizing a 'landscape' view of spatial omics data.</p>
+      <p>A widget for interactive visualization of spatial omics data. This widget
+currently supports iST (Xenium and MERSCOPE) and sST (Visium HD data)</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
@@ -3650,20 +3833,6 @@ verbose : bool, optional
             <td>
               <div class="doc-md-description">
                 <p>The initial zoom level of the view.</p>
-              </div>
-            </td>
-            <td>
-                <em>required</em>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td><code>bounce_time</code></td>
-            <td>
-                  <code>int</code>
-            </td>
-            <td>
-              <div class="doc-md-description">
-                <p>The time taken for the view to bounce back after panning.</p>
               </div>
             </td>
             <td>
@@ -3933,13 +4102,13 @@ verbose : bool, optional
 <span class="normal">62</span>
 <span class="normal">63</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">Landscape</span><span class="p">(</span><span class="n">anywidget</span><span class="o">.</span><span class="n">AnyWidget</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    A widget for visualizing a &#39;landscape&#39; view of spatial omics data.</span>
+<span class="sd">    A widget for interactive visualization of spatial omics data. This widget</span>
+<span class="sd">    currently supports iST (Xenium and MERSCOPE) and sST (Visium HD data)</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        ini_x (float): The initial x-coordinate of the view.</span>
 <span class="sd">        ini_y (float): The initial y-coordinate of the view.</span>
 <span class="sd">        ini_zoom (float): The initial zoom level of the view.</span>
-<span class="sd">        bounce_time (int): The time taken for the view to bounce back after panning.</span>
 <span class="sd">        token (str): The token traitlet.</span>
 <span class="sd">        base_url (str): The base URL for the widget.</span>
 <span class="sd">        dataset_name (str, optional): The name of the dataset to visualize. This will show up in the user interface bar.</span>
@@ -3989,6 +4158,238 @@ verbose : bool, optional
     <span class="k">def</span> <span class="nf">update_cell_clusters</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">new_clusters</span><span class="p">):</span>
         <span class="c1"># Convert the new_clusters to a JSON serializable format if necessary</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">cell_clusters</span> <span class="o">=</span> <span class="n">new_clusters</span>
+</code></pre></div></td></tr></table></div>
+              </details>
+
+
+
+  <div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="celldega.viz.Matrix" class="doc doc-heading">
+            <code>Matrix</code>
+
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="anywidget.AnyWidget">AnyWidget</span></code></p>
+
+
+      <p>A widget for interactive visualization of a hierarchically clustered matrix.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code>value</code></td>
+            <td>
+                  <code>int</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The value traitlet.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>component</code></td>
+            <td>
+                  <code>str</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The component traitlet.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>network</code></td>
+            <td>
+                  <code>dict</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The network traitlet.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>click_info</code></td>
+            <td>
+                  <code>dict</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The click_info traitlet.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Attributes:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code><span title="celldega.viz.Matrix.component">component</span></code></td>
+            <td>
+                  <code>str</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The name of the component.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="celldega.viz.Matrix.network">network</span></code></td>
+            <td>
+                  <code>dict</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The network dictionary.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="celldega.viz.Matrix.click_info">click_info</span></code></td>
+            <td>
+                  <code>dict</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The click_info dictionary.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+<th>Name</th>          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+<td><code>Matrix</code></td>            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A widget for visualizing a hierarchically clustered matrix.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+              <details class="quote">
+                <summary>Source code in <code>src/celldega/viz/widget.py</code></summary>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">66</span>
+<span class="normal">67</span>
+<span class="normal">68</span>
+<span class="normal">69</span>
+<span class="normal">70</span>
+<span class="normal">71</span>
+<span class="normal">72</span>
+<span class="normal">73</span>
+<span class="normal">74</span>
+<span class="normal">75</span>
+<span class="normal">76</span>
+<span class="normal">77</span>
+<span class="normal">78</span>
+<span class="normal">79</span>
+<span class="normal">80</span>
+<span class="normal">81</span>
+<span class="normal">82</span>
+<span class="normal">83</span>
+<span class="normal">84</span>
+<span class="normal">85</span>
+<span class="normal">86</span>
+<span class="normal">87</span>
+<span class="normal">88</span>
+<span class="normal">89</span>
+<span class="normal">90</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">Matrix</span><span class="p">(</span><span class="n">anywidget</span><span class="o">.</span><span class="n">AnyWidget</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A widget for interactive visualization of a hierarchically clustered matrix.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        value (int): The value traitlet.</span>
+<span class="sd">        component (str): The component traitlet.</span>
+<span class="sd">        network (dict): The network traitlet.</span>
+<span class="sd">        click_info (dict): The click_info traitlet.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        component (str): The name of the component.</span>
+<span class="sd">        network (dict): The network dictionary.</span>
+<span class="sd">        click_info (dict): The click_info dictionary.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Matrix: A widget for visualizing a hierarchically clustered matrix.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">_esm</span> <span class="o">=</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span><span class="vm">__file__</span><span class="p">)</span><span class="o">.</span><span class="n">parent</span> <span class="o">/</span> <span class="s2">&quot;../static&quot;</span> <span class="o">/</span> <span class="s2">&quot;widget.js&quot;</span>
+    <span class="n">_css</span> <span class="o">=</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span><span class="vm">__file__</span><span class="p">)</span><span class="o">.</span><span class="n">parent</span> <span class="o">/</span> <span class="s2">&quot;../static&quot;</span> <span class="o">/</span> <span class="s2">&quot;widget.css&quot;</span>
+    <span class="n">value</span> <span class="o">=</span> <span class="n">traitlets</span><span class="o">.</span><span class="n">Int</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">tag</span><span class="p">(</span><span class="n">sync</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">component</span> <span class="o">=</span> <span class="n">traitlets</span><span class="o">.</span><span class="n">Unicode</span><span class="p">(</span><span class="s2">&quot;Matrix&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">tag</span><span class="p">(</span><span class="n">sync</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="n">network</span> <span class="o">=</span> <span class="n">traitlets</span><span class="o">.</span><span class="n">Dict</span><span class="p">({})</span><span class="o">.</span><span class="n">tag</span><span class="p">(</span><span class="n">sync</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">click_info</span> <span class="o">=</span> <span class="n">traitlets</span><span class="o">.</span><span class="n">Dict</span><span class="p">({})</span><span class="o">.</span><span class="n">tag</span><span class="p">(</span><span class="n">sync</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
               </details>
 
@@ -4073,7 +4474,7 @@ verbose : bool, optional
       
         <script src="../../assets/js/index.js" type="module"></script>
       
-        <script src="../../assets/js/test.js"></script>
+        <script src="../../assets/js/gallery_mouse_brain.js" type="module"></script>
       
     
   </body>

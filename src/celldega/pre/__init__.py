@@ -1,5 +1,5 @@
 """
-Module for pre-processing data
+Module for pre-processing to generate LandscapeFiles from ST data.
 """
 
 try:

@@ -20,6 +20,9 @@ nav:
       - viz:
           - Overview: python/viz/overview.md
           - API Reference: python/viz/api.md
+  - JavaScript API:
+      - Overview: javascript/overview.md
+      - API Reference: javascript/api.md
   - Examples:
       - examples/Landscape_View_Xenium.ipynb
 
@@ -36,6 +39,11 @@ plugins:
           options:
             docstring_style: google
             show_root_toc_entry: true
+        javascript:
+          options:
+            source: js/  # Path to JavaScript files
+            recursive: true
+            include: .+\.js$
   - mkdocs-jupyter:
       include_source: true
       ignore: ["**/.ipynb_checkpoints/*.ipynb"]

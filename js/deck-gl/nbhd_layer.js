@@ -30,7 +30,6 @@ export const ini_nbhd_layer = (viz_state) => {
         //     getFillColor: viz_state.nbhd.update_trigger,
         // },
 
-
     })
 
     return nbhd_layer
@@ -89,15 +88,52 @@ const nbhd_layer_onclick = async (info, event, deck_ist, layers_obj, viz_state) 
     update_path_layer_id(layers_obj, inst_cat_name)
     update_trx_layer_id(viz_state.genes, layers_obj)
 
+    // update data for nbhd layer
+
+    filter_cat_nbhd_feature_collection(viz_state, inst_cat)
+    update_nbhd_layer_data(viz_state, layers_obj)
+
+
     const layers_list = get_layers_list(layers_obj, viz_state.close_up)
     deck_ist.setProps({layers: layers_list})
 
     viz_state.genes.gene_search_input.value = ''
     update_gene_text_box(viz_state.genes, '')
+
+
 }
 
 export const set_nbhd_layer_onclick = (deck_ist, layers_obj, viz_state) => {
     layers_obj.nbhd_layer = layers_obj.nbhd_layer.clone({
         onClick: (info, event) => nbhd_layer_onclick(info, event, deck_ist, layers_obj, viz_state)
+    })
+}
+
+export const filter_cat_nbhd_feature_collection = (viz_state, cat) => {
+
+    console.log('selected_cats', viz_state.cats.selected_cats)
+    let filt_features
+
+    if (viz_state.cats.selected_cats.length === 0) {
+        filt_features = viz_state.nbhd.ini_feature_collection.features
+                            // .filter(d => d.properties.cat === cat)
+                            .filter(d => d.properties.inv_alpha === viz_state.nbhd.inst_alpha)
+    } else {
+        filt_features = viz_state.nbhd.ini_feature_collection.features
+                            .filter(d => viz_state.cats.selected_cats.includes(d.properties.cat))
+                            .filter(d => d.properties.inv_alpha === viz_state.nbhd.inst_alpha)
+    }
+    viz_state.nbhd.feature_collection = {
+        "type": "FeatureCollection",
+        "features": filt_features
+    }
+
+}
+
+export const update_nbhd_layer_data = (viz_state, layers_obj) => {
+
+    console.log('update_nbhd_layer_data!!')
+    layers_obj.nbhd_layer = layers_obj.nbhd_layer.clone({
+        data: viz_state.nbhd.feature_collection
     })
 }

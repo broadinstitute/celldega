@@ -250,20 +250,22 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
         }
     })
 
+    const bar_container_width = '115px'
+
     const cell_container = flex_container('cell_container', 'column')
     // widths are custom because of the length of the text buttons varies
-    cell_container.style.width = '125px'
+    cell_container.style.width = bar_container_width
     const cell_ctrl_container = flex_container('cell_ctrl_container', 'row')
     cell_ctrl_container.style.marginLeft = '0px'
 
     // gene container will contain trx button/slider and gene search
     const gene_container = flex_container('gene_container', 'column')
     gene_container.style.marginTop = '0px'
-    gene_container.style.width = '125px'
+    gene_container.style.width = bar_container_width
     const trx_container = flex_container('trx_container', 'row')
 
     const rgn_container = flex_container('rgn_container', 'column')
-    rgn_container.style.width = '125px'
+    rgn_container.style.width = bar_container_width
     const rgn_ctrl_container = flex_container('rgn_ctrl_container', 'row')
     rgn_ctrl_container.style.marginLeft = '0px'
     rgn_ctrl_container.style.height = '22.5px'

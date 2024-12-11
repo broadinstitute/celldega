@@ -145,7 +145,7 @@ def alpha_shape_cell_clusters(meta_cell, cat='cluster', alphas=[100, 150, 200, 2
 
                 gdf_alpha.loc[inst_name, 'name'] = inst_name
 
-                gdf_alpha.loc[inst_name, 'cluster'] = inst_cluster
+                gdf_alpha.loc[inst_name, 'cat'] = inst_cluster
 
                 gdf_alpha.loc[inst_name, 'geometry'] = inst_shape
 

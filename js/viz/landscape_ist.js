@@ -63,24 +63,37 @@ export const landscape_ist = async (
 
     viz_state.nbhd = {}
 
-    // viz_state.nbhd.feature_collection = viz_state.model.get('nbhd')
-
-    // // check if nbhd is set
-    // if (Object.keys(viz_state.model.get('nbhd')).length === 0){
-    //     console.log('no neighborhood')
-    // } else {
-    //     console.log('yes neighborhood')
-    // }
-
     if (Object.keys(viz_state.model.get('nbhd')).length === 0) {
         console.log('no neighborhood')
         viz_state.nbhd.feature_collection =  {
             "type": "FeatureCollection",
             "features": []
         }
+        viz_state.nbhd.filter_feature_collection =  {
+            "type": "FeatureCollection",
+            "features": []
+        }
     } else {
         console.log('yes neighborhood')
         viz_state.nbhd.feature_collection = viz_state.model.get('nbhd')
+
+        console.log('nbhd ini check')
+        console.log(viz_state.nbhd.feature_collection)
+
+        // filter for alpha shapes that have a inv_alpha value of 200
+        viz_state.nbhd.feature_collection = {
+            "type": "FeatureCollection",
+            "features": viz_state.nbhd.feature_collection.features.filter(d => {
+
+                console.log(d.properties)
+                return d.properties.inv_alpha === 200
+            })
+        }
+
+        console.log(viz_state.nbhd.feature_collection)
+
+
+        // viz_state.nbhd.filter_feature_collection =
     }
 
     viz_state.containers = {}

@@ -83,13 +83,15 @@ export const landscape_ist = async (
 
         console.log(viz_state.nbhd.inst_alpha)
 
+
+        const filt_features = viz_state.nbhd.ini_feature_collection.features.filter(d => d.properties.inv_alpha === viz_state.nbhd.inst_alpha)
+
         // filter for alpha shapes that have a inv_alpha value of 200
         viz_state.nbhd.feature_collection = {
             "type": "FeatureCollection",
-            "features": viz_state.nbhd.ini_feature_collection.features.filter(d => d.properties.inv_alpha === viz_state.nbhd.inst_alpha)
+            "features": filt_features
         }
 
-        // viz_state.nbhd.filter_feature_collection =
     }
 
     viz_state.containers = {}

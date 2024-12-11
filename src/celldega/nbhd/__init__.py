@@ -143,6 +143,10 @@ def alpha_shape_cell_clusters(meta_cell, cat='cluster', alphas=[100, 150, 200, 2
 
                 inst_name = inst_cluster + '_' + str(inv_alpha)
 
+                gdf_alpha.loc[inst_name, 'name'] = inst_name
+
+                gdf_alpha.loc[inst_name, 'cluster'] = inst_cluster
+
                 gdf_alpha.loc[inst_name, 'geometry'] = inst_shape
 
                 gdf_alpha.loc[inst_name, 'inv_alpha'] = int(inv_alpha)
@@ -155,12 +159,12 @@ def alpha_shape_cell_clusters(meta_cell, cat='cluster', alphas=[100, 150, 200, 2
 
     return gdf_alpha
 
-def alpha_shape_geojson(gdf_alpha, meta_cluster):
+def alpha_shape_geojson(gdf_alpha, meta_cluster, inst_alpha):
 
-    geojson_dict = json.loads(gdf_alpha.to_json())
+    geojson_alpha = json.loads(gdf_alpha.to_json())
 
     # Step 2: Edit the properties of each feature
-    for feature in geojson_dict["features"]:
+    for feature in geojson_alpha["features"]:
 
         if feature['geometry'] is not None:
 
@@ -180,4 +184,6 @@ def alpha_shape_geojson(gdf_alpha, meta_cluster):
             # print('is None')
             pass
 
-    return geojson_dict
+    geojson_alpha['inst_alpha'] = inst_alpha
+
+    return geojson_alpha

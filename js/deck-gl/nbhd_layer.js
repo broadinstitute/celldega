@@ -18,11 +18,17 @@ export const ini_nbhd_layer = (viz_state) => {
         getLineWidth: 1,
         // getLineColor: [0, 0, 0, 255],
         getFillColor: (d) => hexToRgb(d.properties.color),
-        opacity: 0.1
+        opacity: 0.5,
         // getElevation: 0,
         // updateTriggers: {
         //     getFillColor: viz_state.nbhd.update_trigger,
         // },
+        onClick: (info, event) => {
+            console.log('clicked on nbhd')
+            console.log(info.object.properties)
+            // console.log(event)
+        }
+
     })
 
     return nbhd_layer

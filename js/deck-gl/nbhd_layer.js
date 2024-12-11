@@ -23,14 +23,22 @@ export const ini_nbhd_layer = (viz_state) => {
         // updateTriggers: {
         //     getFillColor: viz_state.nbhd.update_trigger,
         // },
-        onClick: (info, event) => {
-            console.log('clicked on nbhd')
-            console.log(info.object.properties)
-            // console.log(event)
-        }
+
 
     })
 
     return nbhd_layer
 
+}
+
+const nbhd_layer_onclick = async (info, event, deck_ist, layers_obj, viz_state) => {
+    console.log('clicked on nbhd set after all layers')
+    console.log(info.object.properties)
+    // console.log(event)
+}
+
+export const set_nbhd_layer_onclick = (deck_ist, layers_obj, viz_state) => {
+    layers_obj.nbhd_layer = layers_obj.nbhd_layer.clone({
+        onClick: (info, event) => nbhd_layer_onclick(info, event, deck_ist, layers_obj, viz_state)
+    })
 }

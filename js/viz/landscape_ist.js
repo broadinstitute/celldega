@@ -26,7 +26,7 @@ import { update_cell_exp_array } from '../global_variables/cell_exp_array'
 import { update_gene_text_box } from '../ui/gene_search'
 import { calc_viewport } from '../deck-gl/calc_viewport'
 import { ini_edit_layer, set_edit_layer_on_click, set_edit_layer_on_edit } from '../deck-gl/edit_layer'
-import { ini_nbhd_layer } from '../deck-gl/nbhd_layer'
+import { ini_nbhd_layer, set_nbhd_layer_onclick } from '../deck-gl/nbhd_layer'
 
 export const landscape_ist = async (
     el,
@@ -218,6 +218,8 @@ export const landscape_ist = async (
     set_trx_layer_onclick(deck_ist, layers_obj, viz_state)
     set_edit_layer_on_edit(deck_ist, layers_obj, viz_state)
     set_edit_layer_on_click(deck_ist, layers_obj, viz_state)
+    set_nbhd_layer_onclick(deck_ist, layers_obj, viz_state)
+
 
     update_trx_layer_radius(layers_obj, trx_radius)
 

@@ -63,15 +63,25 @@ export const landscape_ist = async (
 
     viz_state.nbhd = {}
 
-    viz_state.nbhd.feature_collection = viz_state.model.get('nbhd')
+    // viz_state.nbhd.feature_collection = viz_state.model.get('nbhd')
 
     // // check if nbhd is set
     // if (Object.keys(viz_state.model.get('nbhd')).length === 0){
     //     console.log('no neighborhood')
     // } else {
     //     console.log('yes neighborhood')
-
     // }
+
+    if (Object.keys(viz_state.model.get('nbhd')).length === 0) {
+        console.log('no neighborhood')
+        viz_state.nbhd.feature_collection =  {
+            "type": "FeatureCollection",
+            "features": []
+        }
+    } else {
+        console.log('yes neighborhood')
+        viz_state.nbhd.feature_collection = viz_state.model.get('nbhd')
+    }
 
     viz_state.containers = {}
 
@@ -164,12 +174,10 @@ export const landscape_ist = async (
 
     // check if viz_state.model.get('region') is equal to {}
     if (Object.keys(viz_state.model.get('region')).length === 0) {
-
         viz_state.edit.feature_collection =  {
             "type": "FeatureCollection",
             "features": []
         }
-
     } else {
         viz_state.edit.feature_collection = viz_state.model.get('region')
     }

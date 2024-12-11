@@ -149,6 +149,8 @@ def alpha_shape_cell_clusters(meta_cell, cat='cluster', alphas=[100, 150, 200, 2
 
     gdf_alpha['area'] = gdf_alpha.area
 
+    gdf_alpha['inv_alpha'] = inv_alpha
+
     gdf_alpha = gdf_alpha.loc[gdf_alpha.area.sort_values(ascending=False).index.tolist()]
 
     return gdf_alpha

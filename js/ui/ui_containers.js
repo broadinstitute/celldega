@@ -625,9 +625,53 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
 
     const alph_slider_container = make_slider_container('alph_slider_container')
 
-    const alph_slider_callback = (event) => {
-        console.log('slider', event.target.value/100)
-    }
+    // const alph_slider_callback = (event) => {
+    //     console.log('slider', event.target.value/100)
+    // }
+
+    const alph_slider_callback = (event, deck_ist, layers_obj, viz_state) => {
+        const sliderValue = event.target.value / 100; // Normalize slider value to [0, 1]
+        const inv_alpha_values = Array.from(
+            new Set(
+                viz_state.nbhd.ini_feature_collection.features
+                    .map(feature => feature.properties.inv_alpha)
+            )
+        ).sort((a, b) => a - b);
+
+        // Map slider value [0, 1] to the range of `inv_alpha_values`
+        const mappedValue = inv_alpha_values[
+            Math.round(sliderValue * (inv_alpha_values.length - 1))
+        ];
+
+
+
+        if (mappedValue !== viz_state.nbhd.inst_alpha){
+            console.log('Mapped inv_alpha:', mappedValue);
+            viz_state.nbhd.inst_alpha = mappedValue
+        }
+
+    };
+
+
+    // parse the values in the viz_state.nbhd.ini_feature_collection and get the possible
+    // inv_alpha levels
+    console.log('parsing nbhd alpha thresholds')
+    console.log(viz_state.nbhd.ini_feature_collection)
+
+    // // Assuming your feature collection is stored in `featureCollection`
+    // const inv_alpha_values = viz_state.nbhd.ini_feature_collection.features
+    //     .map(feature => feature.properties.inv_alpha) // Extract the `inv_alpha` property
+    //     .sort((a, b) => a - b); // Sort the values in ascending order
+
+    // Assuming your feature collection is stored in `viz_state.nbhd.ini_feature_collection`
+    const inv_alpha_values = Array.from(
+        new Set(
+            viz_state.nbhd.ini_feature_collection.features
+                .map(feature => feature.properties.inv_alpha) // Extract the `inv_alpha` property
+        )
+    ).sort((a, b) => a - b); // Sort the unique values in ascending order
+
+    console.log(inv_alpha_values);
 
     viz_state.sliders.alph = document.createElement("input")
     viz_state.sliders.alph.type = 'range'
@@ -636,7 +680,7 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
     viz_state.sliders.alph.value = 50
     viz_state.sliders.alph.className = "slider"
     viz_state.sliders.alph.style.width = "75px"
-    viz_state.sliders.alph.addEventListener('input', alph_slider_callback)
+    viz_state.sliders.alph.addEventListener('input', (event) => alph_slider_callback(event, deck_ist, layers_obj, viz_state))
     viz_state.sliders.alph.style.display = 'none'
 
     rgn_ctrl_container.appendChild(alph_slider_container)

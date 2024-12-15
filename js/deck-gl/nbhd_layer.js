@@ -91,7 +91,7 @@ const nbhd_layer_onclick = async (info, event, deck_ist, layers_obj, viz_state) 
 
     // update data for nbhd layer
 
-    filter_cat_nbhd_feature_collection(viz_state, inst_cat)
+    filter_cat_nbhd_feature_collection(viz_state)
     update_nbhd_layer_data(viz_state, layers_obj)
 
     const layers_list = get_layers_list(layers_obj, viz_state.close_up)
@@ -108,13 +108,12 @@ export const set_nbhd_layer_onclick = (deck_ist, layers_obj, viz_state) => {
     })
 }
 
-export const filter_cat_nbhd_feature_collection = (viz_state, cat) => {
+export const filter_cat_nbhd_feature_collection = (viz_state) => {
 
     let filt_features
 
     if (viz_state.cats.selected_cats.length === 0) {
         filt_features = viz_state.nbhd.ini_feature_collection.features
-                            // .filter(d => d.properties.cat === cat)
                             .filter(d => d.properties.inv_alpha === viz_state.nbhd.inst_alpha)
     } else {
         filt_features = viz_state.nbhd.ini_feature_collection.features

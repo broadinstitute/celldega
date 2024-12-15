@@ -467,8 +467,6 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
         const layers_list = get_layers_list(layers_obj, viz_state.close_up)
         deck_ist.setProps({layers: layers_list})
 
-        console.log('click RGN update bar graph!')
-
         viz_state.edit.rgn_areas = viz_state.edit.feature_collection.features.map((feature, index) => ({
             name: (index + 1).toString(), // Assign numeric names starting from 1
             value: feature.properties.area // Use the "area" property for the bar height
@@ -541,6 +539,10 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
 
     }
 
+    const bar_callback_nbhd = (info) => {
+        console.log('clicking nbhd bar', info)
+    }
+
     const alph_callback = (event, deck_ist, layers_obj, viz_state) => {
 
         // toggle color of the alpha txt button
@@ -582,15 +584,18 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
         const layers_list = get_layers_list(layers_obj, viz_state.close_up, viz_state.nbhd.visible)
         deck_ist.setProps({layers: layers_list})
 
-        // update bar graph with data
-        console.log('*****************')
-        console.log(viz_state.edit.rgn_areas)
+        viz_state.nbhd.nbhd_areas = viz_state.nbhd.feature_collection.features.map((feature, index) => ({
+            name: (index + 1).toString(), // Assign numeric names starting from 1
+            value: feature.properties.area // Use the "area" property for the bar height
+        }))
+
+        console.log(viz_state.nbhd.color_dict_nbhd)
 
         update_bar_graph(
             viz_state.edit.svg_bar_rgn,
-            [],
-            viz_state.edit.color_dict_rgn,
-            bar_callback_rgn,
+            viz_state.nbhd.nbhd_areas,
+            viz_state.cats.color_dict_cluster,
+            bar_callback_nbhd,
             [], // selected_cats
             deck_ist,
             layers_obj,

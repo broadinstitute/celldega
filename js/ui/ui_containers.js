@@ -15,7 +15,7 @@ import { get_layers_list } from '../deck-gl/layers_ist'
 import { update_cell_pickable_state } from '../deck-gl/cell_layer'
 import { toggle_trx_layer_visibility, update_trx_pickable_state } from '../deck-gl/trx_layer'
 import { update_path_pickable_state } from '../deck-gl/path_layer'
-import { toggle_nbhd_layer_visibility } from '../deck-gl/nbhd_layer'
+import { filter_cat_nbhd_feature_collection, toggle_nbhd_layer_visibility, update_nbhd_layer_data } from '../deck-gl/nbhd_layer'
 import { toggle_background_layer_visibility } from '../deck-gl/background_layer'
 import { update_bar_graph } from './bar_plot'
 
@@ -648,6 +648,11 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
         if (mappedValue !== viz_state.nbhd.inst_alpha){
             console.log('Mapped inv_alpha:', mappedValue);
             viz_state.nbhd.inst_alpha = mappedValue
+
+            filter_cat_nbhd_feature_collection(viz_state)
+            update_nbhd_layer_data(viz_state, layers_obj)
+            const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+            deck_ist.setProps({layers: layers_list})
         }
 
     };

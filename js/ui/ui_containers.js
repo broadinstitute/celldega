@@ -17,6 +17,7 @@ import { toggle_trx_layer_visibility, update_trx_pickable_state } from '../deck-
 import { update_path_pickable_state } from '../deck-gl/path_layer'
 import { toggle_nbhd_layer_visibility } from '../deck-gl/nbhd_layer'
 import { toggle_background_layer_visibility } from '../deck-gl/background_layer'
+import { update_bar_graph } from './bar_plot'
 
 
 export const toggle_image_layers_and_ctrls = (layers_obj, viz_state, is_visible) => {
@@ -466,6 +467,29 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
         const layers_list = get_layers_list(layers_obj, viz_state.close_up)
         deck_ist.setProps({layers: layers_list})
 
+        console.log('click RGN update bar graph!')
+
+        viz_state.edit.rgn_areas = viz_state.edit.feature_collection.features.map((feature, index) => ({
+            name: (index + 1).toString(), // Assign numeric names starting from 1
+            value: feature.properties.area // Use the "area" property for the bar height
+        }))
+
+        viz_state.edit.color_dict_rgn = viz_state.edit.feature_collection.features.reduce((acc, feature, index) => {
+            acc[(index + 1).toString()] = feature.properties.color; // Use the "color" property
+            return acc;
+        }, {});
+
+        update_bar_graph(
+            viz_state.edit.svg_bar_rgn,
+            viz_state.edit.rgn_areas,
+            viz_state.edit.color_dict_rgn,
+            bar_callback_rgn,
+            [], // selected_cats
+            deck_ist,
+            layers_obj,
+            viz_state
+        )
+
     }
 
     const delete_polygon_index = (featureCollection, index) => {
@@ -557,6 +581,21 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
 
         const layers_list = get_layers_list(layers_obj, viz_state.close_up, viz_state.nbhd.visible)
         deck_ist.setProps({layers: layers_list})
+
+        // update bar graph with data
+        console.log('*****************')
+        console.log(viz_state.edit.rgn_areas)
+
+        update_bar_graph(
+            viz_state.edit.svg_bar_rgn,
+            [],
+            viz_state.edit.color_dict_rgn,
+            bar_callback_rgn,
+            [], // selected_cats
+            deck_ist,
+            layers_obj,
+            viz_state
+        )
 
 
 

@@ -503,10 +503,21 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
 
     const alph_callback = (event, deck_ist, layers_obj, viz_state) => {
 
+        // toggle color of the alpha txt button
+        const current = d3.select(event.currentTarget)
+
         if (viz_state.nbhd.visible === true){
             viz_state.nbhd.visible = false
+
+            // hacky - need to store these buttons elsewhere
+            d3.select(viz_state.edit.buttons.alph)
+              .style('color', 'gray')
+
+
         } else {
             viz_state.nbhd.visible = true
+            d3.select(viz_state.edit.buttons.alph)
+              .style('color', 'blue')
         }
 
         toggle_nbhd_layer_visibility(layers_obj, viz_state.nbhd.visible)

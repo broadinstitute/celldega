@@ -13,8 +13,10 @@ import { DrawPolygonMode, ViewMode} from '@deck.gl-community/editable-layers'
 import { update_edit_layer_mode, update_edit_visitility, calc_and_update_rgn_bar_graph, sync_region_to_model } from '../deck-gl/edit_layer'
 import { get_layers_list } from '../deck-gl/layers_ist'
 import { update_cell_pickable_state } from '../deck-gl/cell_layer'
-import { update_trx_pickable_state } from '../deck-gl/trx_layer'
+import { toggle_trx_layer_visibility, update_trx_pickable_state } from '../deck-gl/trx_layer'
 import { update_path_pickable_state } from '../deck-gl/path_layer'
+import { toggle_nbhd_layer_visibility } from '../deck-gl/nbhd_layer'
+import { toggle_background_layer_visibility } from '../deck-gl/background_layer'
 
 
 export const toggle_image_layers_and_ctrls = (layers_obj, viz_state, is_visible) => {
@@ -501,11 +503,21 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
 
     const alph_callback = (event, deck_ist, layers_obj, viz_state) => {
 
+        if (viz_state.nbhd.visible === true){
+            viz_state.nbhd.visible = false
+        } else {
+            viz_state.nbhd.visible = true
+        }
 
+        toggle_nbhd_layer_visibility(layers_obj, viz_state.nbhd.visible)
 
-        viz_state.nbhd.visible = true
+        // toggle with the opposite of viz_state.nbhd.visible
+        toggle_trx_layer_visibility(layers_obj, viz_state.nbhd.visible===true ? false : true)
+        toggle_visibility_image_layers(layers_obj, viz_state.nbhd.visible===true ? false : true)
+        toggle_background_layer_visibility(layers_obj, viz_state.nbhd.visible===true ? false : true)
 
-        console.log('alph_callback')
+        const layers_list = get_layers_list(layers_obj, viz_state.close_up, viz_state.nbhd.visible)
+        deck_ist.setProps({layers: layers_list})
 
     }
 

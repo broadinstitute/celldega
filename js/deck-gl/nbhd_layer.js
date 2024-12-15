@@ -137,3 +137,9 @@ export const update_nbhd_layer_data = (viz_state, layers_obj) => {
         data: viz_state.nbhd.feature_collection
     })
 }
+
+export const toggle_nbhd_layer_visibility = (layers_obj, visible) => {
+    layers_obj.nbhd_layer = layers_obj.nbhd_layer.clone({
+        visible: visible
+    })
+}

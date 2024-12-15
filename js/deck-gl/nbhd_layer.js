@@ -37,8 +37,6 @@ export const ini_nbhd_layer = (viz_state) => {
 }
 
 const nbhd_layer_onclick = async (info, event, deck_ist, layers_obj, viz_state) => {
-    console.log('clicked on nbhd set after all layers')
-    console.log(info.object.properties)
 
     let inst_cat = info.object.properties.cat
 
@@ -46,7 +44,7 @@ const nbhd_layer_onclick = async (info, event, deck_ist, layers_obj, viz_state) 
     update_selected_cats(viz_state.cats, [inst_cat])
     update_selected_genes(viz_state.genes, [])
 
-    toggle_image_layers_and_ctrls(layers_obj, viz_state, !viz_state.cats.selected_cats.length > 0)
+    // toggle_image_layers_and_ctrls(layers_obj, viz_state, !viz_state.cats.selected_cats.length > 0)
 
     const inst_cat_name = viz_state.cats.selected_cats.join('-')
 
@@ -86,20 +84,18 @@ const nbhd_layer_onclick = async (info, event, deck_ist, layers_obj, viz_state) 
 
     update_cell_layer_id(layers_obj, inst_cat_name)
     update_path_layer_id(layers_obj, inst_cat_name)
-    update_trx_layer_id(viz_state.genes, layers_obj)
+    // update_trx_layer_id(viz_state.genes, layers_obj)
 
     // update data for nbhd layer
 
     filter_cat_nbhd_feature_collection(viz_state, inst_cat)
     update_nbhd_layer_data(viz_state, layers_obj)
 
-
     const layers_list = get_layers_list(layers_obj, viz_state.close_up)
     deck_ist.setProps({layers: layers_list})
 
-    viz_state.genes.gene_search_input.value = ''
-    update_gene_text_box(viz_state.genes, '')
-
+    // viz_state.genes.gene_search_input.value = ''
+    // update_gene_text_box(viz_state.genes, '')
 
 }
 
@@ -111,7 +107,6 @@ export const set_nbhd_layer_onclick = (deck_ist, layers_obj, viz_state) => {
 
 export const filter_cat_nbhd_feature_collection = (viz_state, cat) => {
 
-    console.log('selected_cats', viz_state.cats.selected_cats)
     let filt_features
 
     if (viz_state.cats.selected_cats.length === 0) {

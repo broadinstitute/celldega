@@ -516,6 +516,10 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
         toggle_visibility_image_layers(layers_obj, viz_state.nbhd.visible===true ? false : true)
         toggle_background_layer_visibility(layers_obj, viz_state.nbhd.visible===true ? false : true)
 
+
+        update_cell_pickable_state(layers_obj, viz_state.nbhd.visible===true ? false : true)
+        update_path_pickable_state(layers_obj, viz_state.nbhd.visible===true ? false : true)
+
         const layers_list = get_layers_list(layers_obj, viz_state.close_up, viz_state.nbhd.visible)
         deck_ist.setProps({layers: layers_list})
 

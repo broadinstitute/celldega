@@ -198,7 +198,7 @@ export const landscape_ist = async (
     let path_layer = await ini_path_layer(viz_state)
     let trx_layer = ini_trx_layer(viz_state.genes)
     let edit_layer = ini_edit_layer(viz_state)
-    let nbhd_layer = ini_nbhd_layer(viz_state)
+    let nbhd_layer = ini_nbhd_layer(viz_state, false)
 
     // make layers object
     let layers_obj = {

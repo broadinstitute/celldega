@@ -10,7 +10,7 @@ import { update_trx_layer_id } from "./trx_layer.js"
 import { get_layers_list } from "./layers_ist.js"
 import * as d3 from 'd3'
 
-export const ini_nbhd_layer = (viz_state) => {
+export const ini_nbhd_layer = (viz_state, visible) => {
 
     const nbhd_layer = new GeoJsonLayer({
         id: 'nbhd-layer',
@@ -29,6 +29,7 @@ export const ini_nbhd_layer = (viz_state) => {
         // updateTriggers: {
         //     getFillColor: viz_state.nbhd.update_trigger,
         // },
+        visible: visible
 
     })
 

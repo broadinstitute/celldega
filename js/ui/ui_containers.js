@@ -437,12 +437,28 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
             current.classed('active', viz_state.edit.visible)
                 .style('color', 'blue')
 
+            // hide alph button
+            d3.select(viz_state.edit.buttons.alph)
+              .style('display', 'none');
+
+            // show sktch button
+            d3.select(viz_state.edit.buttons.sktch)
+              .style('display', 'inline-flex')
+
 
         } else {
             viz_state.edit.visible = false
 
             current.classed('active', viz_state.edit.visible)
                 .style('color', 'gray')
+
+            // show alph button
+            d3.select(viz_state.edit.buttons.alph)
+              .style('display', 'inline-flex');
+
+            // show sktch button
+            d3.select(viz_state.edit.buttons.sktch)
+              .style('display', 'none')
 
         }
 
@@ -513,11 +529,19 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
             d3.select(viz_state.edit.buttons.alph)
               .style('color', 'gray')
 
+            // show rgn button
+            d3.select(viz_state.edit.buttons.rgn)
+              .style('display', 'inline-flex');
+
 
         } else {
             viz_state.nbhd.visible = true
             d3.select(viz_state.edit.buttons.alph)
               .style('color', 'blue')
+
+            // hide rgn button
+            d3.select(viz_state.edit.buttons.rgn)
+              .style('display', 'none');
         }
 
         toggle_nbhd_layer_visibility(layers_obj, viz_state.nbhd.visible)
@@ -534,6 +558,8 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
         const layers_list = get_layers_list(layers_obj, viz_state.close_up, viz_state.nbhd.visible)
         deck_ist.setProps({layers: layers_list})
 
+
+
     }
 
 
@@ -542,6 +568,11 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
     make_edit_button(deck_ist, layers_obj, viz_state, rgn_ctrl_container, 'RGN', 30, rgn_callback)
     make_edit_button(deck_ist, layers_obj, viz_state, rgn_ctrl_container, 'ALPH', 30, alph_callback)
     make_edit_button(deck_ist, layers_obj, viz_state, rgn_ctrl_container, 'SKTCH', 40, sketch_callback)
+
+    // initially hide SKTCH button
+    d3.select(viz_state.edit.buttons.sktch)
+      .style('display', 'none');
+
     make_edit_button(deck_ist, layers_obj, viz_state, rgn_ctrl_container, 'DEL', 30, del_callback)
 
     // // initially do not display the RGN button

@@ -501,7 +501,12 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
 
     const alph_callback = (event, deck_ist, layers_obj, viz_state) => {
 
+
+
+        viz_state.nbhd.visible = true
+
         console.log('alph_callback')
+
     }
 
 

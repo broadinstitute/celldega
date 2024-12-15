@@ -62,8 +62,7 @@ export const landscape_ist = async (
     viz_state.model = ini_model
 
     viz_state.nbhd = {}
-
-
+    viz_state.nbhd.visible = false
 
     if (Object.keys(viz_state.model.get('nbhd')).length === 0) {
         console.log('no neighborhood')

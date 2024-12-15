@@ -559,6 +559,8 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
             d3.select(viz_state.edit.buttons.rgn)
               .style('display', 'inline-flex');
 
+            viz_state.sliders.alph.style.display = 'none'
+
 
         } else {
             viz_state.nbhd.visible = true
@@ -568,6 +570,8 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
             // hide rgn button
             d3.select(viz_state.edit.buttons.rgn)
               .style('display', 'none');
+
+            viz_state.sliders.alph.style.display = 'block'
         }
 
         toggle_nbhd_layer_visibility(layers_obj, viz_state.nbhd.visible)
@@ -618,6 +622,25 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
       .style('display', 'none');
 
     make_edit_button(deck_ist, layers_obj, viz_state, rgn_ctrl_container, 'DEL', 30, del_callback)
+
+    const alph_slider_container = make_slider_container('alph_slider_container')
+
+    const alph_slider_callback = (event) => {
+        console.log('slider', event.target.value/100)
+    }
+
+    viz_state.sliders.alph = document.createElement("input")
+    viz_state.sliders.alph.type = 'range'
+    viz_state.sliders.alph.min = "0"
+    viz_state.sliders.alph.max = "100"
+    viz_state.sliders.alph.value = 50
+    viz_state.sliders.alph.className = "slider"
+    viz_state.sliders.alph.style.width = "75px"
+    viz_state.sliders.alph.addEventListener('input', alph_slider_callback)
+    viz_state.sliders.alph.style.display = 'none'
+
+    rgn_ctrl_container.appendChild(alph_slider_container)
+    alph_slider_container.appendChild(viz_state.sliders.alph)
 
     // // initially do not display the RGN button
     // d3.select(viz_state.edit.buttons.rgn)

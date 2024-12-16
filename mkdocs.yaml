@@ -53,3 +53,4 @@ extra_javascript:
     type: module
   - path: assets/js/gallery_mouse_brain.js
     type: module
+  - path: assets/js/google-analytics.js

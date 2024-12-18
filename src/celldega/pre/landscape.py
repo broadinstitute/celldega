@@ -16,7 +16,6 @@ def calc_meta_gene_data(cbg):
     """
     Calculate gene metadata from the cell-by-gene matrix
 
-<<<<<<< HEAD
     Args:
         cbg (pandas.DataFrame): A sparse DataFrame with genes as columns and barcodes as rows.
 
@@ -63,29 +62,6 @@ def calc_meta_gene_data(cbg):
 
     # Calculate variance as the average of the squared deviations
     print("Calculating variance")
-=======
-    Parameters
-    ----------
-    cbg : pandas.DataFrame
-        A sparse DataFrame with genes as columns and barcodes as rows
-
-    Returns
-    -------
-    meta_gene : pandas.DataFrame
-
-    """
-
-    # Ensure the df is sparse
-    if not isinstance(cbg.dtypes.iloc[0], pd.SparseDtype):
-        cbg = cbg.astype(pd.SparseDtype("float", fill_value=0))
-
-    # Calculate mean expression across tiles with float precision
-    print("calculating mean expression from sparse float data")
-    mean_expression = cbg.astype(pd.SparseDtype("float", 0)).mean(axis=0)
-
-    # Calculate the variance as the average of the squared deviations
-    print("calculating variance by looping over rows")
->>>>>>> main
     num_tiles = cbg.shape[1]
     variance = cbg.apply(
         lambda x: ((x - mean_expression[x.name]) ** 2).sum() / num_tiles, axis=0

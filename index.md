@@ -5,8 +5,7 @@
     <div id="landscape" style="height; 500px;"></div>
 </div>
 
-This is the official documentation for the Celldega library.
-
+Celldega is a spatial analysis and visualization library that is being developed by the [Spatial Technology Platform](https://www.broadinstitute.org/spatial-technology-platform) at the [Broad Institute of MIT and Harvard](https://www.broadinstitute.org).
 
 ## Overview
 

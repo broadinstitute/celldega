@@ -1,9 +1,5 @@
 # Pre Module Overview
 
-The `pre` module contains functions and classes for pre-processing data.
+The `pre` module contains methods for pre-processing LandscapeFiles.
 
-## Submodules
-
-- `landscape`: Functions related to landscape operations.
-- `init`: Initialization functions and utilities.
 

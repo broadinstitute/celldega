@@ -176,19 +176,19 @@ def make_trx_tiles(
     n_fine_tiles_y = int(np.ceil((y_max - y_min) / tile_size))
 
     # Calculate the number of coarse-grain tiles
-    n_coarse_tiles_x = int(np.ceil((x_max - x_min) / coarse_tile_factor * tile_size))
-    n_coarse_tiles_y = int(np.ceil((y_max - y_min) / coarse_tile_factor * tile_size))
+    n_coarse_tiles_x = int(np.ceil((x_max - x_min) / (coarse_tile_factor * tile_size)))
+    n_coarse_tiles_y = int(np.ceil((y_max - y_min) / (coarse_tile_factor * tile_size)))
 
     # Use ThreadPoolExecutor for parallel processing of coarse-grain tiles
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = []
         for i in range(n_coarse_tiles_x):
-            coarse_tile_x_min = x_min + i * coarse_tile_factor * tile_size
-            coarse_tile_x_max = coarse_tile_x_min + coarse_tile_factor * tile_size
+            coarse_tile_x_min = x_min + i * (coarse_tile_factor * tile_size)
+            coarse_tile_x_max = coarse_tile_x_min + (coarse_tile_factor * tile_size)
 
             for j in range(n_coarse_tiles_y):
-                coarse_tile_y_min = y_min + j * coarse_tile_factor * tile_size
-                coarse_tile_y_max = coarse_tile_y_min + coarse_tile_factor * tile_size
+                coarse_tile_y_min = y_min + j * (coarse_tile_factor * tile_size)
+                coarse_tile_y_max = coarse_tile_y_min + (coarse_tile_factor * tile_size)
 
                 # Submit each coarse tile for parallel processing
                 futures.append(executor.submit(

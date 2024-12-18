@@ -186,17 +186,17 @@ def make_cell_boundary_tiles(
     y_min, y_max = tile_bounds["y_min"], tile_bounds["y_max"]
     n_fine_tiles_x = int(np.ceil((x_max - x_min) / tile_size))
     n_fine_tiles_y = int(np.ceil((y_max - y_min) / tile_size))
-    n_coarse_tiles_x = int(np.ceil((x_max - x_min) / coarse_tile_factor * tile_size))
-    n_coarse_tiles_y = int(np.ceil((y_max - y_min) / coarse_tile_factor * tile_size))
+    n_coarse_tiles_x = int(np.ceil((x_max - x_min) / (coarse_tile_factor * tile_size)))
+    n_coarse_tiles_y = int(np.ceil((y_max - y_min) / (coarse_tile_factor * tile_size)))
 
     # Process coarse tiles in parallel
     for i in tqdm(range(n_coarse_tiles_x), desc="Processing coarse tiles"):
-        coarse_tile_x_min = x_min + i * coarse_tile_factor * tile_size
-        coarse_tile_x_max = coarse_tile_x_min + coarse_tile_factor * tile_size
+        coarse_tile_x_min = x_min + i * (coarse_tile_factor * tile_size)
+        coarse_tile_x_max = coarse_tile_x_min + (coarse_tile_factor * tile_size)
 
         for j in range(n_coarse_tiles_y):
-            coarse_tile_y_min = y_min + j * coarse_tile_factor * tile_size
-            coarse_tile_y_max = coarse_tile_y_min + coarse_tile_factor * tile_size
+            coarse_tile_y_min = y_min + j * (coarse_tile_factor * tile_size)
+            coarse_tile_y_max = coarse_tile_y_min + (coarse_tile_factor * tile_size)
 
             coarse_tile = gdf_cells[
                 (gdf_cells["center_x"] >= coarse_tile_x_min) & (gdf_cells["center_x"] < coarse_tile_x_max) &

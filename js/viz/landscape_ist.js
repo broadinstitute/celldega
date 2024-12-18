@@ -149,11 +149,24 @@ export const landscape_ist = async (
     viz_state.edit.visible = false
     viz_state.edit.modify_index = null
 
-    const features = []
+    if (Object.keys(viz_state.model).length !== 0){
 
-    viz_state.edit.feature_collection =  {
-        "type": "FeatureCollection",
-        "features": features
+        if (Object.keys(viz_state.model.get('region')).length === 0) {
+
+            viz_state.edit.feature_collection =  {
+                "type": "FeatureCollection",
+                "features": []
+            }
+
+        } else {
+            viz_state.edit.feature_collection = viz_state.model.get('region')
+        }
+    } else {
+
+        viz_state.edit.feature_collection =  {
+            "type": "FeatureCollection",
+            "features": []
+        }
     }
 
     let background_layer = ini_background_layer(viz_state)

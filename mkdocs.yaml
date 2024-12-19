@@ -30,13 +30,14 @@ nav:
       - technologies/index.md
       - technologies/parquet.md
   - Gallery:
+      - gallery/index.md
       - Overview: gallery/overview.md
       - Gallery Xenium:
           - Xenium Prime Mouse Brain: gallery/gallery_xenium_mouse_brain.md
           - Xenium Prime Human Skin: gallery/gallery_xenium_skin_cancer.md
           - Xenium Multi Dataset: gallery/gallery_xenium_multi.md
   - Example Notebooks:
-    - Overview: examples/overview.md
+    - examples/index.md
     - Short Notebooks:
 
       - Landscape View Xenium: examples/short_notebooks/Landscape_View_Xenium.ipynb

@@ -29,8 +29,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             // ist_callback
         );
 
-    } else {
-        console.log('Not on the mouse brain gallery, skipping visualization initialization.');
     }
 
 });

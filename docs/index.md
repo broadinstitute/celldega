@@ -12,13 +12,11 @@ Celldega is a spatial analysis and visualization library that is being developed
 
 The project enables researchers to easily visualize large ST datasets (e.g., datasets with >100M transcripts) alongside single-cell and spatial analysis workflows (e.g., integrating with <a href='https://scverse.org/' target='_blank'>sverse</a> tools and utilizing novel spatial analysis approaches).
 
-## Overview
 
-Celldega can be used as a Python library in a Jupyter notebook environment or as a stand-alone JavaScript library for creating visualizations.
 
-- [Getting Started](getting_started.md)
-- [Installation](installation.md)
-- [Usage](usage.md)
+- [Getting Started](overview/getting_started.md)
+- [Installation](overview/installation.md)
+- [Usage](overview/usage.md)
 
 ## About
 Celldega is named after a Bodega, a small shop with all the essentials, that is part of the fabric of a neighborhood.

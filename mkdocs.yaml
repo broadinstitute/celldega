@@ -14,16 +14,17 @@ extra:
 nav:
   - Home: index.md
   - Overview:
-      - Getting Started: getting_started.md
-      - Installation: installation.md
-      - Usage: usage.md
+      - overview/index.md
+      - Getting Started: overview/getting_started.md
+      - Installation: overview/installation.md
+      - Usage: overview/usage.md
   - Python API:
-      - Overview: python/overview.md
+      - python/index.md
       - pre: python/pre/api.md
       - viz: python/viz/api.md
 
   - JavaScript API:
-      - Overview: javascript/overview.md
+      - javascript/index.md
       - API: javascript/api.md
   - Technologies:
       - technologies/index.md

@@ -9,12 +9,12 @@ nav:
       - Installation: installation.md
       - Usage: usage.md
   - Python API:
-      - pre:
-          - Overview: python/pre/overview.md
-          - API Reference: python/pre/api.md
-      - viz:
-          - Overview: python/viz/overview.md
-          - API Reference: python/viz/api.md
+      - Overview: python/overview.md
+      - pre: python/pre/api.md
+          # - API Reference:
+      - viz: python/viz/api.md
+          # - Overview: python/viz/overview.md
+          # - API Reference:
   - JavaScript API:
       - Overview: javascript/overview.md
       - API Reference: javascript/api.md

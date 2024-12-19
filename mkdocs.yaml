@@ -17,6 +17,7 @@ nav:
       # - overview/index.md
       - Getting Started: overview/getting_started.md
       - Installation: overview/installation.md
+      - File Formats: overview/file_formats.md
       - Usage: overview/usage.md
   - Python API:
       - python/index.md

@@ -1,4 +1,4 @@
-# Getting Started
+# Celldega Usage
 
 ## Terra.bio
 

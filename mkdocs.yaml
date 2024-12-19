@@ -14,7 +14,7 @@ extra:
 nav:
   - Home: index.md
   - Overview:
-      - overview/index.md
+      # - overview/index.md
       - Getting Started: overview/getting_started.md
       - Installation: overview/installation.md
       - Usage: overview/usage.md
@@ -31,8 +31,7 @@ nav:
       - technologies/parquet.md
   - Gallery:
       - gallery/index.md
-      - Overview: gallery/overview.md
-      - Gallery Xenium:
+      - Xenium:
           - Xenium Prime Mouse Brain: gallery/gallery_xenium_mouse_brain.md
           - Xenium Prime Human Skin: gallery/gallery_xenium_skin_cancer.md
           - Xenium Multi Dataset: gallery/gallery_xenium_multi.md
@@ -48,6 +47,8 @@ markdown_extensions:
   - toc
   - tables
   - admonition
+  - attr_list
+  - md_in_html
 
 
 plugins:

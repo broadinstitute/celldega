@@ -23,8 +23,13 @@ nav:
           - Xenium Prime Mouse Brain: gallery_xenium_mouse_brain.md
           - Xenium Prime Human Skin: gallery_xenium_human_skin.md
           - Xenium Multi Dataset: gallery_xenium_multi.md
-  - Example Notebooks:
-      - examples/Landscape_View_Xenium.ipynb
+  - Examples:
+    - Overview: examples/jupyter_notebooks.md
+    - Short Notebooks:
+
+      - Landscape View Xenium: examples/short_notebooks/Landscape_View_Xenium.ipynb
+    # - Tutorials:
+    #     - examples/Landscape_View_Xenium.ipynb
 
 markdown_extensions:
   - toc

@@ -24,7 +24,7 @@ nav:
           - Xenium Prime Human Skin: gallery_xenium_human_skin.md
           - Xenium Multi Dataset: gallery_xenium_multi.md
   - Examples:
-    - Overview: examples/jupyter_notebooks.md
+    - Overview: examples/overview.md
     - Short Notebooks:
 
       - Landscape View Xenium: examples/short_notebooks/Landscape_View_Xenium.ipynb

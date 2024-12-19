@@ -2,6 +2,13 @@ site_name: Celldega Documentation
 theme:
   name: material
 
+extra:
+  social:
+    - icon: "fontawesome/brands/github"
+      link: "https://github.com/broadinstitute/celldega"
+    - icon: "fontawesome/brands/bluesky"
+      link: "https://bsky.app/profile/stp-broad.bsky.social"
+
 nav:
   - Home: index.md
   - Overview:

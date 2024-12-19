@@ -19,11 +19,12 @@ nav:
       - Overview: javascript/overview.md
       - API Reference: javascript/api.md
   - Gallery:
+      - Overview: gallery/overview.md
       - Gallery Xenium:
-          - Xenium Prime Mouse Brain: gallery_xenium_mouse_brain.md
-          - Xenium Prime Human Skin: gallery_xenium_human_skin.md
-          - Xenium Multi Dataset: gallery_xenium_multi.md
-  - Examples:
+          - Xenium Prime Mouse Brain: gallery/gallery_xenium_mouse_brain.md
+          - Xenium Prime Human Skin: gallery/gallery_xenium_human_skin.md
+          - Xenium Multi Dataset: gallery/gallery_xenium_multi.md
+  - Example Notebooks:
     - Overview: examples/overview.md
     - Short Notebooks:
 

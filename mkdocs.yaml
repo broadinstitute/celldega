@@ -8,11 +8,6 @@ nav:
       - Getting Started: getting_started.md
       - Installation: installation.md
       - Usage: usage.md
-  - Gallery:
-      - Gallery Xenium:
-          - Xenium Prime Mouse Brain: gallery_xenium_mouse_brain.md
-          - Xenium Prime Human Skin: gallery_xenium_human_skin.md
-          - Xenium Multi Dataset: gallery_xenium_multi.md
   - Python API:
       - pre:
           - Overview: python/pre/overview.md
@@ -23,7 +18,12 @@ nav:
   - JavaScript API:
       - Overview: javascript/overview.md
       - API Reference: javascript/api.md
-  - Examples:
+  - Gallery:
+      - Gallery Xenium:
+          - Xenium Prime Mouse Brain: gallery_xenium_mouse_brain.md
+          - Xenium Prime Human Skin: gallery_xenium_human_skin.md
+          - Xenium Multi Dataset: gallery_xenium_multi.md
+  - Example Notebooks:
       - examples/Landscape_View_Xenium.ipynb
 
 markdown_extensions:

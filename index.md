@@ -14,7 +14,6 @@ The project enables researchers to easily visualize large ST datasets (e.g., dat
 
 ## Overview
 
-
 Celldega can be used as a Python library in a Jupyter notebook environment or as a stand-alone JavaScript library for creating visualizations.
 
 - [Getting Started](getting_started.md)
@@ -22,4 +21,4 @@ Celldega can be used as a Python library in a Jupyter notebook environment or as
 - [Usage](usage.md)
 
 ## About
-Celldega is designed to help users
+Celldega is named after a Bodega, a small shop with all the essentials, that is part of the fabric of a neighborhood.

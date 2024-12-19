@@ -1,6 +1,8 @@
 site_name: Celldega Documentation
 theme:
   name: material
+  features:
+    - navigation.indexes
 
 extra:
   social:
@@ -18,13 +20,14 @@ nav:
   - Python API:
       - Overview: python/overview.md
       - pre: python/pre/api.md
-          # - API Reference:
       - viz: python/viz/api.md
-          # - Overview: python/viz/overview.md
-          # - API Reference:
+
   - JavaScript API:
       - Overview: javascript/overview.md
-      - API Reference: javascript/api.md
+      - API: javascript/api.md
+  - Technologies:
+      - technologies/index.md
+      - technologies/parquet.md
   - Gallery:
       - Overview: gallery/overview.md
       - Gallery Xenium:
@@ -43,6 +46,7 @@ markdown_extensions:
   - toc
   - tables
   - admonition
+
 
 plugins:
   - search

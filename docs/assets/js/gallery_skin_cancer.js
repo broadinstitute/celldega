@@ -1,9 +1,9 @@
 import celldega from './widget.js';
 document.addEventListener("DOMContentLoaded", async () => {
 
-    const landscape_el = document.getElementById('landscape-mouse-brain');
+    const landscape_el = document.getElementById('landscape-skin-cancer');
 
-    if (window.location.pathname.endsWith('gallery_xenium_mouse_brain/')){
+    if (window.location.pathname.endsWith('gallery_xenium_skin_cancer/')){
 
         // Use the imported functions
         const token = '';
@@ -11,7 +11,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const ini_y = 14200;
         const ini_z = 0;
         const ini_zoom = -6;
-        const base_url = 'https://raw.githubusercontent.com/broadinstitute/celldega_Xenium_Prime_Mouse_Brain_Coronal_FF_outs/main/Xenium_Prime_Mouse_Brain_Coronal_FF_outs';
+        const base_url = 'https://raw.githubusercontent.com/broadinstitute/celldega_Xenium_Prime_Human_Skin_FFPE_outs/main/Xenium_Prime_Human_Skin_FFPE_outs';
 
         const landscape = await celldega.landscape_ist(
             landscape_el,

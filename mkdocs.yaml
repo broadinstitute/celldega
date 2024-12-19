@@ -22,7 +22,7 @@ nav:
       - Overview: gallery/overview.md
       - Gallery Xenium:
           - Xenium Prime Mouse Brain: gallery/gallery_xenium_mouse_brain.md
-          - Xenium Prime Human Skin: gallery/gallery_xenium_human_skin.md
+          - Xenium Prime Human Skin: gallery/gallery_xenium_skin_cancer.md
           - Xenium Multi Dataset: gallery/gallery_xenium_multi.md
   - Example Notebooks:
     - Overview: examples/overview.md
@@ -58,5 +58,7 @@ extra_javascript:
   - path: assets/js/index.js
     type: module
   - path: assets/js/gallery_mouse_brain.js
+    type: module
+  - path: assets/js/gallery_skin_cancer.js
     type: module
   - path: assets/js/google-analytics.js

@@ -1,5 +1,4 @@
 (function() {
-  console.log('google analytics script');
 
   // Load the GA4 script asynchronously
   const script = document.createElement('script');
@@ -28,6 +27,6 @@
       'analytics_storage': 'denied'
   });
 
-  // Optional: Additional configurations for enhanced privacy
-  console.log('GA4 configured with privacy-first settings');
+  // // Optional: Additional configurations for enhanced privacy
+  // console.log('GA4 configured with privacy-first settings');
 })();

@@ -29,7 +29,6 @@ nav:
       - API: javascript/api.md
   - Technologies:
       - technologies/index.md
-      - technologies/parquet.md
   - Gallery:
       - gallery/index.md
       - Xenium:

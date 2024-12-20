@@ -12,7 +12,7 @@
         <link rel="prev" href="../javascript/api/">
       
       
-        <link rel="next" href="parquet/">
+        <link rel="next" href="../gallery/">
       
       
       <link rel="icon" href="../assets/images/favicon.png">
@@ -20,7 +20,7 @@
     
     
       
-        <title>Technologies Overview - Celldega Documentation</title>
+        <title>Technologies - Celldega Documentation</title>
       
     
     
@@ -64,7 +64,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#technologies-overview" class="md-skip">
+        <a href="#technologies" class="md-skip">
           Skip to content
         </a>
       
@@ -100,7 +100,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Technologies Overview
+              Technologies
             
           </span>
         </div>
@@ -556,8 +556,6 @@
           
         
       
-        
-      
     
     
     
@@ -580,11 +578,6 @@
 
             </a>
             
-              
-              <label class="md-nav__link md-nav__link--active" for="__nav_5" id="__nav_5_label" tabindex="0">
-                <span class="md-nav__icon md-icon"></span>
-              </label>
-            
           </div>
         
         <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
@@ -594,27 +587,6 @@
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="parquet/" class="md-nav__link">
-        
-  
-  <span class="md-ellipsis">
-    Parquet
-  </span>
-  
-
-      </a>
-    </li>
-  
-
               
             
           </ul>
@@ -946,6 +918,143 @@
     
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#visualization-technologies" class="md-nav__link">
+    <span class="md-ellipsis">
+      Visualization Technologies
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Visualization Technologies">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#terrabio" class="md-nav__link">
+    <span class="md-ellipsis">
+      Terra.bio
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#jupyter-widget" class="md-nav__link">
+    <span class="md-ellipsis">
+      Jupyter Widget
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#deckgl" class="md-nav__link">
+    <span class="md-ellipsis">
+      Deck.gl
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#apache-parquet" class="md-nav__link">
+    <span class="md-ellipsis">
+      Apache Parquet
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parquetwasm-and-apache-arrow" class="md-nav__link">
+    <span class="md-ellipsis">
+      ParquetWASM and Apache Arrow
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#webp" class="md-nav__link">
+    <span class="md-ellipsis">
+      WebP
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#deepzoom" class="md-nav__link">
+    <span class="md-ellipsis">
+      DeepZoom
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#clustergrammer-visualization" class="md-nav__link">
+    <span class="md-ellipsis">
+      Clustergrammer Visualization
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#data-analysis-technologies" class="md-nav__link">
+    <span class="md-ellipsis">
+      Data Analysis Technologies
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Data Analysis Technologies">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#geopandas" class="md-nav__link">
+    <span class="md-ellipsis">
+      GeoPandas
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#libpysal-python-spatial-analysis-library-core" class="md-nav__link">
+    <span class="md-ellipsis">
+      LibPySal: Python Spatial Analysis Library Core
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#clustergrammer-data-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      Clustergrammer Data Analysis
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -959,7 +1068,28 @@
                   
 
 
-<h1 id="technologies-overview">Technologies Overview</h1>
+<h1 id="technologies">Technologies</h1>
+<p>Celldega is utilizing a suite of complementary technologies to develop an efficient web-based spatial-omics visualization and analysis toolkit.</p>
+<h2 id="visualization-technologies">Visualization Technologies</h2>
+<p>Spatial transcriptomics (ST) datasets tend to be very large and difficult for researchers to collaboratively analyze and visualize. Closely linking spatial- and data-visualizations to analysis is also key to extracting biological insights from these spatial data. We built the Celldega <a href="../python/viz/"><code>viz</code></a> module to help researchers interactively visualize large ST datasets within notebook-based workflows on the cloud (e.g., Terra.bio).</p>
+<p>The Celldega <a href="../gallery">Landscape</a> visualization method utilizes a novel vector tiling approach to enable interactive visualization of large ST datasets in a notebook environment or as a stand-alone webpage. This approach allows Celldega to visualize much larger datasets than current open-source tools - enabling interactive visualization of datasets with hundreds of millions of transcripts. We also utilize modern and efficient web image data formats (<a href="#webp">WebP</a>) to reduce the data storage burden for interactive visualization. The corresponding <a href="../overview/file_formats/">LandscapeFiles</a> data format is compact enough to store on GitHub for the purposes of building a public gallery.</p>
+<h3 id="terrabio">Terra.bio</h3>
+<p>Terra.bio is a cloud-based compute and data storage platform that is being developed by the <a href='https://www.broadinstitute.org/spatial-technology-platform' target='_blank'>Broad Institute of MIT and Harvard</a>. We are utilizing Terra.bio to help <a href='https://www.broadinstitute.org/spatial-technology-platform' target='_blank'>Spatial Technology Platform</a> clients access, analyze, and visualize their ST data.</p>
+<h3 id="jupyter-widget">Jupyter Widget</h3>
+<p>We utilize the Jupyter Widget ecosystem to build interactive spatial and data visualizations that enable users to perform two way communication between JavaScript (front-end) and Python (back-end). We are utilizing the <a href='https://anywidget.dev/' target='_blank'>AnyWidget</a> implementation to build our custom widgets.</p>
+<h3 id="deckgl">Deck.gl</h3>
+<p>Celldega uses the GPU-powered data visualization library <a href='https://deck.gl/' target='_blank'>deck.gl</a> to create high-performance spatial- and data-visualizations.</p>
+<h3 id="apache-parquet">Apache Parquet</h3>
+<p>Celldega uses the <a href='https://parquet.apache.org/' target='_blank'>Apache Parquet</a> file format for storing spatial data. This file format in combination with the JavaScript library <a href="#parquetwasm-and-apache-arrow">ParquetWASM</a> and Apache Arrow in memory representation is used to build Celldega's high-performance vector tiling spatial visualization functionality (see <a href='https://observablehq.com/@kylebarron/geoarrow-and-geoparquet-in-deck-gl' target='_blank'>GeoArrow and GeoParquet in deck.gl</a>).</p>
+<h3 id="parquetwasm-and-apache-arrow">ParquetWASM and Apache Arrow</h3>
+<p>ParquetWASM is a JavaScript library for reading Parquet files into Apache Arrow memory and utilizes Web Assembly (WASM) to run Rust in a browser environment. The Apache Arrow in-memory format is a complementary columnar in-memory format for storing data from Apache Parquet files. See <a href='https://observablehq.com/@kylebarron/geoarrow-and-geoparquet-in-deck-gl' target='_blank'>GeoArrow and GeoParquet in deck.gl</a> for more information.</p>
+<h3 id="webp">WebP</h3>
+<h3 id="deepzoom">DeepZoom</h3>
+<h3 id="clustergrammer-visualization">Clustergrammer Visualization</h3>
+<h2 id="data-analysis-technologies">Data Analysis Technologies</h2>
+<h3 id="geopandas">GeoPandas</h3>
+<h3 id="libpysal-python-spatial-analysis-library-core"><a href='https://pysal.org/libpysal/' target='_blank'>LibPySal</a>: Python Spatial Analysis Library Core</h3>
+<h3 id="clustergrammer-data-analysis">Clustergrammer Data Analysis</h3>
 
 
 

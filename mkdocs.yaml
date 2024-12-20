@@ -14,7 +14,7 @@ extra:
 nav:
   - Home: index.md
   - Overview:
-      # - overview/index.md
+      - overview/index.md
       - Getting Started: overview/getting_started.md
       - Installation: overview/installation.md
       - File Formats: overview/file_formats.md

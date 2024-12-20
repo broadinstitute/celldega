@@ -10,10 +10,13 @@ The Celldega [Landscape](../gallery) visualization method utilizes a novel vecto
 Terra.bio is a cloud-based compute and data storage platform that is being developed by the <a href='https://www.broadinstitute.org/spatial-technology-platform' target='_blank'>Broad Institute of MIT and Harvard</a>. We are utilizing Terra.bio to help <a href='https://www.broadinstitute.org/spatial-technology-platform' target='_blank'>Spatial Technology Platform</a> clients access, analyze, and visualize their ST data.
 
 ### Jupyter Widget
+We utilize the Jupyter Widget ecosystem to build interactive spatial and data visualizations that enable users to perform two way communication between JavaScript (front-end) and Python (back-end). We are utilizing the <a href='https://anywidget.dev/' target='_blank'>AnyWidget</a> implementation to build our custom widgets.
 
 ### Deck.gl
+Celldega uses the GPU-powered data visualization library <a href='https://deck.gl/' target='_blank'>deck.gl</a> to create high-performance spatial- and data-visualizations.
 
-### Parquet
+### Apache Parquet
+Celldega uses the <a href='https://parquet.apache.org/' target='_blank'>Apache Parquet</a> file format for storing spatial data. This file format in combination with the JavaScript library [ParquetWASM](#parquetwasm-and-apache-arrow) and Apache Arrow in memory representation is used to build Celldega's high-performance vector tiling spatial visualization functionality.
 
 ### ParquetWASM and Apache Arrow
 

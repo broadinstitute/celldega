@@ -18,4 +18,4 @@ Celldega is a spatial analysis and visualization library that is being developed
 - [Usage](overview/usage.md)
 
 ## About
-Celldega is named after a Bodega, a small shop with all the essentials, that is part of the fabric of a neighborhood.
+Celldega is named after a bodega, a small shop with all the essentials that is part of the fabric of a neighborhood.

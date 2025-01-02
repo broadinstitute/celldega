@@ -1013,16 +1013,18 @@
 
 <h2 id="python">Python</h2>
 <p>The Celldega library can be installed using pip</p>
-<pre><code># install Celldega (without vips for visualization pre-processing)
-pip install celldega
-
-# install Celldega with optional pre-processing requirements
-pip install celldega[pre]
-
+<p>Celldega can be installed using pip:</p>
+<pre><code>pip install celldega
+</code></pre>
+<p>Celldega can also be installed with the optional pre-processing requirements (e.g., vips for image pre-processing) using:</p>
+<pre><code>pip install celldega[pre]
 </code></pre>
 <h2 id="javascript">JavaScript</h2>
-<p>Celldega can be used in a JavaScript environment such as ObservableHQ by importing it as a module</p>
-<pre><code>celldega = import('https://unpkg.com/celldega@' + version + '/src/celldega/static/widget.js?module')
+<p>Celldega can be used in a JavaScript environment such as ObservableHQ by importing it as a module from content delivery networks like esm.sh:</p>
+<pre><code>celldega = await import('https://esm.sh/celldega@latest')
+</code></pre>
+<p>Or by importing it from a local file</p>
+<pre><code>import celldega from 'js/widget.js'
 </code></pre>
 
 

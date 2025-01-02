@@ -16,7 +16,7 @@ We utilize the Jupyter Widget ecosystem to build interactive spatial and data vi
 Celldega uses the GPU-powered data visualization library <a href='https://deck.gl/' target='_blank'>deck.gl</a> to create high-performance spatial- and data-visualizations.
 
 ### Apache Parquet
-Celldega uses the <a href='https://parquet.apache.org/' target='_blank'>Apache Parquet</a> file format for storing spatial data. This file format in combination with the JavaScript library [ParquetWASM](#parquetwasm-and-apache-arrow) and Apache Arrow in memory representation is used to build Celldega's high-performance vector tiling spatial visualization functionality (see <a href='https://observablehq.com/@kylebarron/geoarrow-and-geoparquet-in-deck-gl' target='_blank'>GeoArrow and GeoParquet in deck.gl</a>).
+Celldega uses the <a href='https://parquet.apache.org/' target='_blank'>Apache Parquet</a> file format for storing vectorized spatial data and metadata. This file format in combination with the JavaScript library [ParquetWASM](#parquetwasm-and-apache-arrow) and Apache Arrow in memory representation is used to build Celldega's high-performance vector tiling spatial visualization functionality (see <a href='https://observablehq.com/@kylebarron/geoarrow-and-geoparquet-in-deck-gl' target='_blank'>GeoArrow and GeoParquet in deck.gl</a>).
 
 ### ParquetWASM and Apache Arrow
 ParquetWASM is a JavaScript library for reading Parquet files into Apache Arrow memory and utilizes Web Assembly (WASM) to run Rust in a browser environment. The Apache Arrow in-memory format is a columnar in-memory format that is used for storing data from Apache Parquet files and efficiently passing to deck.gl. For more information please see <a href='https://observablehq.com/@kylebarron/geoarrow-and-geoparquet-in-deck-gl' target='_blank'>GeoArrow and GeoParquet in deck.gl</a>.
@@ -28,6 +28,7 @@ A modern image format developed by Google, offering efficient lossless compressi
 We utilize the Deep Zoom image schema, developed by Microsoft, to enable efficient visualization of large multi-channel microscopy image. Deep Zoom tile images are stored using the WebP image format.
 
 ### Clustergrammer Visualization
+
 
 ## Data Analysis Technologies
 

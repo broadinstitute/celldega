@@ -25,7 +25,7 @@ ParquetWASM is a JavaScript library for reading Parquet files into Apache Arrow 
 A modern image format developed by Google, offering efficient lossless compression and designed specifically for the web.
 
 ### Deep Zoom
-We utilize the Deep Zoom image schema, developed by Microsoft, to enable efficient visualization of large multi-channel microscopy image. Deep Zoom tile images are stored using the WebP image format.
+We utilize the Deep Zoom image schema, developed by Microsoft, to enable efficient visualization of large multi-channel microscopy images. Deep Zoom tile images are stored using the WebP image format.
 
 ### Clustergrammer Visualization
 

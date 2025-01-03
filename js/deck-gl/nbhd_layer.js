@@ -12,7 +12,7 @@ import * as d3 from 'd3'
 
 export const ini_nbhd_layer = (viz_state, visible) => {
 
-    console.log(viz_state.nbhd.feature_collection)
+    // console.log(viz_state.nbhd.feature_collection)
 
     const nbhd_layer = new GeoJsonLayer({
         id: 'nbhd-layer',

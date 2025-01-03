@@ -663,8 +663,8 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
 
     // parse the values in the viz_state.nbhd.ini_feature_collection and get the possible
     // inv_alpha levels
-    console.log('parsing nbhd alpha thresholds')
-    console.log(viz_state.nbhd.ini_feature_collection)
+    // console.log('parsing nbhd alpha thresholds')
+    // console.log(viz_state.nbhd.ini_feature_collection)
 
     // // Assuming your feature collection is stored in `featureCollection`
     // const inv_alpha_values = viz_state.nbhd.ini_feature_collection.features
@@ -679,7 +679,7 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
         )
     ).sort((a, b) => a - b); // Sort the unique values in ascending order
 
-    console.log(inv_alpha_values);
+    // console.log(inv_alpha_values);
 
     viz_state.sliders.alph = document.createElement("input")
     viz_state.sliders.alph.type = 'range'

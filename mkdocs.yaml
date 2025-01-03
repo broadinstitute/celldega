@@ -67,6 +67,7 @@ plugins:
             include: .+\.js$
   - mkdocs-jupyter:
       include_source: true
+      include_requirejs: true
       ignore: ["**/.ipynb_checkpoints/*.ipynb"]
 
 extra_javascript:

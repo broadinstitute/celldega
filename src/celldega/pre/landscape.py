@@ -75,16 +75,6 @@ def calc_meta_gene_data(cbg):
     proportion_nonzero = (cbg != 0).sum(axis=0) / len(cbg)
 
     # Create a DataFrame to hold all these metrics
-<<<<<<< HEAD
-    meta_gene = pd.DataFrame({
-        "mean": convert_to_dense(mean_expression),
-        "std": std_deviation,
-        "max": convert_to_dense(max_expression),
-        "non-zero": convert_to_dense(proportion_nonzero)
-    })
-
-    return meta_gene
-=======
     meta_gene = pd.DataFrame(
         {
             "mean": mean_expression.sparse.to_dense(),
@@ -99,7 +89,6 @@ def calc_meta_gene_data(cbg):
 
     return meta_gene_clean
 
->>>>>>> main
 
 def read_cbg_mtx(base_path):
     """

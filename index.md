@@ -22,8 +22,5 @@ The project was recently presented at the Broad Retreat Data Visualization Break
 </a>
 
 
-
 ## About
 Celldega is named after a bodega, a small shop with all the essentials that is part of the fabric of a neighborhood.
-
-[checking link](https://www.nytimes.com/2025/01/03/sports/dukes-mayo-bowl.html)

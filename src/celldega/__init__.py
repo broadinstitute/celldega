@@ -13,4 +13,4 @@ try:
 except importlib.metadata.PackageNotFoundError:
     __version__ = "unknown"
 
-__all__ = ["Landscape", "landscape", "Matrix", "alpha_shape"]
+__all__ = ["Landscape", "landscape", "Matrix"]

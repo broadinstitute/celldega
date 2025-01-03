@@ -13,8 +13,11 @@ import { DrawPolygonMode, ViewMode} from '@deck.gl-community/editable-layers'
 import { update_edit_layer_mode, update_edit_visitility, calc_and_update_rgn_bar_graph, sync_region_to_model } from '../deck-gl/edit_layer'
 import { get_layers_list } from '../deck-gl/layers_ist'
 import { update_cell_pickable_state } from '../deck-gl/cell_layer'
-import { update_trx_pickable_state } from '../deck-gl/trx_layer'
+import { toggle_trx_layer_visibility, update_trx_pickable_state } from '../deck-gl/trx_layer'
 import { update_path_pickable_state } from '../deck-gl/path_layer'
+import { filter_cat_nbhd_feature_collection, toggle_nbhd_layer_visibility, update_nbhd_layer_data } from '../deck-gl/nbhd_layer'
+import { toggle_background_layer_visibility } from '../deck-gl/background_layer'
+import { update_bar_graph } from './bar_plot'
 
 
 export const toggle_image_layers_and_ctrls = (layers_obj, viz_state, is_visible) => {
@@ -250,22 +253,25 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
         }
     })
 
+    const bar_container_width = '115px'
+
     const cell_container = flex_container('cell_container', 'column')
     // widths are custom because of the length of the text buttons varies
-    cell_container.style.width = '120px'
+    cell_container.style.width = bar_container_width
     const cell_ctrl_container = flex_container('cell_ctrl_container', 'row')
     cell_ctrl_container.style.marginLeft = '0px'
 
     // gene container will contain trx button/slider and gene search
     const gene_container = flex_container('gene_container', 'column')
     gene_container.style.marginTop = '0px'
-    gene_container.style.width = '125px'
+    gene_container.style.width = bar_container_width
     const trx_container = flex_container('trx_container', 'row')
 
     const rgn_container = flex_container('rgn_container', 'column')
-    rgn_container.style.width = '120px'
+    rgn_container.style.width = bar_container_width
     const rgn_ctrl_container = flex_container('rgn_ctrl_container', 'row')
     rgn_ctrl_container.style.marginLeft = '0px'
+    rgn_ctrl_container.style.height = '22.5px'
 
     const cell_slider_container = make_slider_container('cell_slider_container')
     const trx_slider_container = make_slider_container('trx_slider_container')
@@ -367,8 +373,9 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
     ctrl_container.appendChild(gene_container)
 
     viz_state.genes.gene_search.style.width = '160px'
+    viz_state.genes.gene_search.style.marginLeft = '5px'
 
-    ctrl_container.appendChild(viz_state.genes.gene_search)
+    // ctrl_container.appendChild(viz_state.genes.gene_search)
 
     const sketch_callback = (event, deck_ist, layers_obj, viz_state) => {
 
@@ -431,6 +438,14 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
             current.classed('active', viz_state.edit.visible)
                 .style('color', 'blue')
 
+            // hide alph button
+            d3.select(viz_state.edit.buttons.alph)
+              .style('display', 'none');
+
+            // show sktch button
+            d3.select(viz_state.edit.buttons.sktch)
+              .style('display', 'inline-flex')
+
 
         } else {
             viz_state.edit.visible = false
@@ -438,11 +453,40 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
             current.classed('active', viz_state.edit.visible)
                 .style('color', 'gray')
 
+            // show alph button
+            d3.select(viz_state.edit.buttons.alph)
+              .style('display', 'inline-flex');
+
+            // show sktch button
+            d3.select(viz_state.edit.buttons.sktch)
+              .style('display', 'none')
+
         }
 
         update_edit_visitility(layers_obj, viz_state.edit.visible)
         const layers_list = get_layers_list(layers_obj, viz_state.close_up)
         deck_ist.setProps({layers: layers_list})
+
+        viz_state.edit.rgn_areas = viz_state.edit.feature_collection.features.map((feature, index) => ({
+            name: (index + 1).toString(), // Assign numeric names starting from 1
+            value: feature.properties.area // Use the "area" property for the bar height
+        }))
+
+        viz_state.edit.color_dict_rgn = viz_state.edit.feature_collection.features.reduce((acc, feature, index) => {
+            acc[(index + 1).toString()] = feature.properties.color; // Use the "color" property
+            return acc;
+        }, {});
+
+        update_bar_graph(
+            viz_state.edit.svg_bar_rgn,
+            viz_state.edit.rgn_areas,
+            viz_state.edit.color_dict_rgn,
+            bar_callback_rgn,
+            [], // selected_cats
+            deck_ist,
+            layers_obj,
+            viz_state
+        )
 
     }
 
@@ -495,12 +539,160 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
 
     }
 
+    const bar_callback_nbhd = (info) => {
+        console.log('clicking nbhd bar', info)
+    }
+
+    const alph_callback = (event, deck_ist, layers_obj, viz_state) => {
+
+        // toggle color of the alpha txt button
+        const current = d3.select(event.currentTarget)
+
+        if (viz_state.nbhd.visible === true){
+            viz_state.nbhd.visible = false
+
+            // hacky - need to store these buttons elsewhere
+            d3.select(viz_state.edit.buttons.alph)
+              .style('color', 'gray')
+
+            // show rgn button
+            d3.select(viz_state.edit.buttons.rgn)
+              .style('display', 'inline-flex');
+
+            viz_state.sliders.alph.style.display = 'none'
+
+
+        } else {
+            viz_state.nbhd.visible = true
+            d3.select(viz_state.edit.buttons.alph)
+              .style('color', 'blue')
+
+            // hide rgn button
+            d3.select(viz_state.edit.buttons.rgn)
+              .style('display', 'none');
+
+            viz_state.sliders.alph.style.display = 'block'
+        }
+
+        toggle_nbhd_layer_visibility(layers_obj, viz_state.nbhd.visible)
+
+        // toggle with the opposite of viz_state.nbhd.visible
+        toggle_trx_layer_visibility(layers_obj, viz_state.nbhd.visible===true ? false : true)
+        toggle_visibility_image_layers(layers_obj, viz_state.nbhd.visible===true ? false : true)
+        toggle_background_layer_visibility(layers_obj, viz_state.nbhd.visible===true ? false : true)
+
+
+        update_cell_pickable_state(layers_obj, viz_state.nbhd.visible===true ? false : true)
+        update_path_pickable_state(layers_obj, viz_state.nbhd.visible===true ? false : true)
+
+        const layers_list = get_layers_list(layers_obj, viz_state.close_up, viz_state.nbhd.visible)
+        deck_ist.setProps({layers: layers_list})
+
+        viz_state.nbhd.nbhd_areas = viz_state.nbhd.feature_collection.features.map((feature, index) => ({
+            name: (index + 1).toString(), // Assign numeric names starting from 1
+            value: feature.properties.area // Use the "area" property for the bar height
+        }))
+
+        console.log(viz_state.nbhd.color_dict_nbhd)
+
+        update_bar_graph(
+            viz_state.edit.svg_bar_rgn,
+            viz_state.nbhd.nbhd_areas,
+            viz_state.cats.color_dict_cluster,
+            bar_callback_nbhd,
+            [], // selected_cats
+            deck_ist,
+            layers_obj,
+            viz_state
+        )
+
+
+
+    }
+
 
     viz_state.edit.buttons = {}
     viz_state.edit.mode = 'view'
     make_edit_button(deck_ist, layers_obj, viz_state, rgn_ctrl_container, 'RGN', 30, rgn_callback)
+    if (viz_state.nbhd.alpha_nbhd === true){
+        make_edit_button(deck_ist, layers_obj, viz_state, rgn_ctrl_container, 'ALPH', 30, alph_callback)
+    }
+
     make_edit_button(deck_ist, layers_obj, viz_state, rgn_ctrl_container, 'SKTCH', 40, sketch_callback)
+
+    // initially hide SKTCH button
+    d3.select(viz_state.edit.buttons.sktch)
+      .style('display', 'none');
+
     make_edit_button(deck_ist, layers_obj, viz_state, rgn_ctrl_container, 'DEL', 30, del_callback)
+
+    const alph_slider_container = make_slider_container('alph_slider_container')
+
+    // const alph_slider_callback = (event) => {
+    //     console.log('slider', event.target.value/100)
+    // }
+
+    const alph_slider_callback = (event, deck_ist, layers_obj, viz_state) => {
+        const sliderValue = event.target.value / 100; // Normalize slider value to [0, 1]
+        const inv_alpha_values = Array.from(
+            new Set(
+                viz_state.nbhd.ini_feature_collection.features
+                    .map(feature => feature.properties.inv_alpha)
+            )
+        ).sort((a, b) => a - b);
+
+        // Map slider value [0, 1] to the range of `inv_alpha_values`
+        const mappedValue = inv_alpha_values[
+            Math.round(sliderValue * (inv_alpha_values.length - 1))
+        ];
+
+
+
+        if (mappedValue !== viz_state.nbhd.inst_alpha){
+            console.log('Mapped inv_alpha:', mappedValue);
+            viz_state.nbhd.inst_alpha = mappedValue
+
+            filter_cat_nbhd_feature_collection(viz_state)
+            update_nbhd_layer_data(viz_state, layers_obj)
+            const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+            deck_ist.setProps({layers: layers_list})
+        }
+
+    };
+
+
+    // parse the values in the viz_state.nbhd.ini_feature_collection and get the possible
+    // inv_alpha levels
+    // console.log('parsing nbhd alpha thresholds')
+    // console.log(viz_state.nbhd.ini_feature_collection)
+
+    // // Assuming your feature collection is stored in `featureCollection`
+    // const inv_alpha_values = viz_state.nbhd.ini_feature_collection.features
+    //     .map(feature => feature.properties.inv_alpha) // Extract the `inv_alpha` property
+    //     .sort((a, b) => a - b); // Sort the values in ascending order
+
+    // Assuming your feature collection is stored in `viz_state.nbhd.ini_feature_collection`
+    const inv_alpha_values = Array.from(
+        new Set(
+            viz_state.nbhd.ini_feature_collection.features
+                .map(feature => feature.properties.inv_alpha) // Extract the `inv_alpha` property
+        )
+    ).sort((a, b) => a - b); // Sort the unique values in ascending order
+
+    // console.log(inv_alpha_values);
+
+    viz_state.sliders.alph = document.createElement("input")
+    viz_state.sliders.alph.type = 'range'
+    viz_state.sliders.alph.min = "0"
+    viz_state.sliders.alph.max = "100"
+    viz_state.sliders.alph.value = 50
+    viz_state.sliders.alph.className = "slider"
+    viz_state.sliders.alph.style.width = "75px"
+    viz_state.sliders.alph.addEventListener('input', (event) => alph_slider_callback(event, deck_ist, layers_obj, viz_state))
+    viz_state.sliders.alph.style.display = 'none'
+
+    rgn_ctrl_container.appendChild(alph_slider_container)
+    alph_slider_container.appendChild(viz_state.sliders.alph)
 
     // // initially do not display the RGN button
     // d3.select(viz_state.edit.buttons.rgn)
@@ -512,11 +704,14 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
         .style('display', 'none')
 
     viz_state.containers.bar_rgn = make_bar_container()
+    viz_state.containers.bar_rgn.style.marginLeft = '0px'
 
     rgn_container.appendChild(rgn_ctrl_container)
     rgn_container.appendChild(viz_state.containers.bar_rgn)
 
     ctrl_container.appendChild(rgn_container)
+
+    ctrl_container.appendChild(viz_state.genes.gene_search)
 
     make_bar_graph(
         viz_state.containers.bar_rgn,

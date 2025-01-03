@@ -2,6 +2,11 @@ import importlib.metadata
 
 from celldega.viz import Landscape, Matrix
 from celldega.pre import landscape
+from celldega.nbhd import alpha_shape
+
+# temporary fix for libpysal warning
+import warnings
+warnings.filterwarnings("ignore", category=FutureWarning)
 
 try:
     __version__ = importlib.metadata.version("celldega")

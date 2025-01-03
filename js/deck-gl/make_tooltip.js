@@ -8,6 +8,8 @@ export const make_tooltip = (viz_state, info) => {
     let inst_name = ''
     let inst_cat = ''
 
+    console.log(info.layer.id)
+
     if (info.layer.id.startsWith('cell-layer') || info.layer.id.startsWith('path-layer')) {
         inst_name = info.layer.id.startsWith('cell-layer') ? viz_state.cats.cell_names_array[info.index] : viz_state.cats.polygon_cell_names[info.index]
         inst_cat = viz_state.cats.dict_cell_cats[inst_name]
@@ -18,6 +20,10 @@ export const make_tooltip = (viz_state, info) => {
     } else if (info.layer.id.startsWith('trx-layer')) {
         inst_name = viz_state.genes.trx_names_array[info.index]
         inst_html = `<div>transcript: ${inst_name}</div>`
+    } else if (info.layer.id.startsWith('nbhd-layer')) {
+        inst_name = viz_state.nbhd.feature_collection.features[info.index].properties.name
+        inst_cat = viz_state.nbhd.feature_collection.features[info.index].properties.cat
+        inst_html = `<div>neighborhood: ${inst_name}</div><div>cluster: ${inst_cat}</div>`
     }
 
     d3.selectAll('.deck-tooltip')

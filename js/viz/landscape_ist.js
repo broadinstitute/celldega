@@ -26,6 +26,7 @@ import { update_cell_exp_array } from '../global_variables/cell_exp_array'
 import { update_gene_text_box } from '../ui/gene_search'
 import { calc_viewport } from '../deck-gl/calc_viewport'
 import { ini_edit_layer, set_edit_layer_on_click, set_edit_layer_on_edit } from '../deck-gl/edit_layer'
+import { ini_nbhd_layer, set_nbhd_layer_onclick } from '../deck-gl/nbhd_layer'
 
 export const landscape_ist = async (
     el,
@@ -59,6 +60,39 @@ export const landscape_ist = async (
 
     viz_state.close_up = false
     viz_state.model = ini_model
+
+    viz_state.nbhd = {}
+    viz_state.nbhd.visible = false
+
+    if (Object.keys(viz_state.model.get('nbhd')).length === 0) {
+
+        viz_state.nbhd.alpha_nbhd = false
+
+        viz_state.nbhd.ini_feature_collection =  {
+            "type": "FeatureCollection",
+            "features": [],
+            "inst_alpha": null
+        }
+        viz_state.nbhd.feature_collection = viz_state.nbhd.ini_feature_collection
+
+
+
+    } else {
+        viz_state.nbhd.alpha_nbhd = true
+
+        viz_state.nbhd.ini_feature_collection = viz_state.model.get('nbhd')
+
+        viz_state.nbhd.inst_alpha = viz_state.nbhd.ini_feature_collection['inst_alpha']
+
+        const filt_features = viz_state.nbhd.ini_feature_collection.features.filter(d => d.properties.inv_alpha === viz_state.nbhd.inst_alpha)
+
+        // filter for alpha shapes that have a inv_alpha value of 200
+        viz_state.nbhd.feature_collection = {
+            "type": "FeatureCollection",
+            "features": filt_features
+        }
+
+    }
 
     viz_state.containers = {}
 
@@ -175,6 +209,7 @@ export const landscape_ist = async (
     let path_layer = await ini_path_layer(viz_state)
     let trx_layer = ini_trx_layer(viz_state.genes)
     let edit_layer = ini_edit_layer(viz_state)
+    let nbhd_layer = ini_nbhd_layer(viz_state, false)
 
     // make layers object
     let layers_obj = {
@@ -183,7 +218,8 @@ export const landscape_ist = async (
         'cell_layer': cell_layer,
         'path_layer': path_layer,
         'trx_layer': trx_layer,
-        'edit_layer': edit_layer
+        'edit_layer': edit_layer,
+        'nbhd_layer': nbhd_layer
     }
 
     // set onclicks after all layers are made
@@ -192,6 +228,8 @@ export const landscape_ist = async (
     set_trx_layer_onclick(deck_ist, layers_obj, viz_state)
     set_edit_layer_on_edit(deck_ist, layers_obj, viz_state)
     set_edit_layer_on_click(deck_ist, layers_obj, viz_state)
+    set_nbhd_layer_onclick(deck_ist, layers_obj, viz_state)
+
 
     update_trx_layer_radius(layers_obj, trx_radius)
 

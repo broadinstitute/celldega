@@ -614,7 +614,10 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
     viz_state.edit.buttons = {}
     viz_state.edit.mode = 'view'
     make_edit_button(deck_ist, layers_obj, viz_state, rgn_ctrl_container, 'RGN', 30, rgn_callback)
-    make_edit_button(deck_ist, layers_obj, viz_state, rgn_ctrl_container, 'ALPH', 30, alph_callback)
+    if (viz_state.nbhd.alpha_nbhd === true){
+        make_edit_button(deck_ist, layers_obj, viz_state, rgn_ctrl_container, 'ALPH', 30, alph_callback)
+    }
+
     make_edit_button(deck_ist, layers_obj, viz_state, rgn_ctrl_container, 'SKTCH', 40, sketch_callback)
 
     // initially hide SKTCH button

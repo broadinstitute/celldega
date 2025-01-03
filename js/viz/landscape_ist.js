@@ -65,23 +65,24 @@ export const landscape_ist = async (
     viz_state.nbhd.visible = false
 
     if (Object.keys(viz_state.model.get('nbhd')).length === 0) {
-        console.log('no neighborhood')
+
+        viz_state.nbhd.alpha_nbhd = false
+
         viz_state.nbhd.ini_feature_collection =  {
             "type": "FeatureCollection",
             "features": [],
             "inst_alpha": null
         }
         viz_state.nbhd.feature_collection = viz_state.nbhd.ini_feature_collection
-    } else {
-        console.log('yes neighborhood')
 
+
+
+    } else {
+        viz_state.nbhd.alpha_nbhd = true
 
         viz_state.nbhd.ini_feature_collection = viz_state.model.get('nbhd')
 
         viz_state.nbhd.inst_alpha = viz_state.nbhd.ini_feature_collection['inst_alpha']
-
-        console.log(viz_state.nbhd.inst_alpha)
-
 
         const filt_features = viz_state.nbhd.ini_feature_collection.features.filter(d => d.properties.inv_alpha === viz_state.nbhd.inst_alpha)
 

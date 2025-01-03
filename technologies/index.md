@@ -25,15 +25,21 @@ ParquetWASM is a JavaScript library for reading Parquet files into Apache Arrow 
 A modern image format developed by Google, offering efficient lossless compression and designed specifically for the web.
 
 ### Deep Zoom
-We utilize the Deep Zoom image schema, developed by Microsoft, to enable efficient visualization of large multi-channel microscopy image. Deep Zoom tile images are stored using the WebP image format.
+We utilize the Deep Zoom image schema, developed by Microsoft, to enable efficient visualization of large multi-channel microscopy images. Deep Zoom tile images are stored using the WebP image format.
 
-### Clustergrammer Visualization
-
+### Clustergrammer Visualization Approaches
+The Celldega Matrix visualization builds upon the visualization approaches developed in the <a href='https://clustergrammer.readthedocs.io/' target='_blank'>Clustergrammer</a> project. This enables users to interactively explore high-dimensional datasets (e.g., single-cell gene expression data) alongside spatial data (e.g., cell distributions within a tissue).
 
 ## Data Analysis Technologies
 
+### Scanpy and Squidpy
+Celldega is built to interface with the AnnData and SpatialData objects, which enables users to easily import analysis results from Scanpy and Squidpy, respectively, into Celldega for downstream analysis and/or visuaization.
+
 ### GeoPandas
+Celldega uses GeoPandas for efficient spatial operations and storing collections of spatial objects (e.g., neighborhood multi-polygons) as GeoDataFrames.
 
 ### <a href='https://pysal.org/libpysal/' target='_blank'>LibPySal</a>: Python Spatial Analysis Library Core
+Celldega uses the Python Spatial Analysis Library (libpysal) for spatial analysis - namely for calculating alpha shape cell type neighborhoods.
 
-### Clustergrammer Data Analysis
+### Clustergrammer Data Analysis Approaches
+The Celldega Cluster module build upon the hierarchical clustering approaches developed in the <a href='https://clustergrammer.readthedocs.io/' target='_blank'>Clustergrammer</a> project. This enables users to perform hierarchical clustering on observations (e.g., single cells) and measurements (e.g., genes) and easily visualize these two orthogonal clustering results interactively using Celldega's Matrix visualization method.

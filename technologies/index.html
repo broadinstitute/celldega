@@ -998,9 +998,9 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#clustergrammer-visualization" class="md-nav__link">
+  <a href="#clustergrammer-visualization-approaches" class="md-nav__link">
     <span class="md-ellipsis">
-      Clustergrammer Visualization
+      Clustergrammer Visualization Approaches
     </span>
   </a>
   
@@ -1022,6 +1022,15 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#scanpy-and-squidpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      Scanpy and Squidpy
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#geopandas" class="md-nav__link">
     <span class="md-ellipsis">
       GeoPandas
@@ -1040,9 +1049,9 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#clustergrammer-data-analysis" class="md-nav__link">
+  <a href="#clustergrammer-data-analysis-approaches" class="md-nav__link">
     <span class="md-ellipsis">
-      Clustergrammer Data Analysis
+      Clustergrammer Data Analysis Approaches
     </span>
   </a>
   
@@ -1086,12 +1095,18 @@
 <h3 id="webp">WebP</h3>
 <p>A modern image format developed by Google, offering efficient lossless compression and designed specifically for the web.</p>
 <h3 id="deep-zoom">Deep Zoom</h3>
-<p>We utilize the Deep Zoom image schema, developed by Microsoft, to enable efficient visualization of large multi-channel microscopy image. Deep Zoom tile images are stored using the WebP image format.</p>
-<h3 id="clustergrammer-visualization">Clustergrammer Visualization</h3>
+<p>We utilize the Deep Zoom image schema, developed by Microsoft, to enable efficient visualization of large multi-channel microscopy images. Deep Zoom tile images are stored using the WebP image format.</p>
+<h3 id="clustergrammer-visualization-approaches">Clustergrammer Visualization Approaches</h3>
+<p>The Celldega Matrix visualization builds upon the visualization approaches developed in the <a href='https://clustergrammer.readthedocs.io/' target='_blank'>Clustergrammer</a> project. This enables users to interactively explore high-dimensional datasets (e.g., single-cell gene expression data) alongside spatial data (e.g., cell distributions within a tissue).</p>
 <h2 id="data-analysis-technologies">Data Analysis Technologies</h2>
+<h3 id="scanpy-and-squidpy">Scanpy and Squidpy</h3>
+<p>Celldega is built to interface with the AnnData and SpatialData objects, which enables users to easily import analysis results from Scanpy and Squidpy, respectively, into Celldega for downstream analysis and/or visuaization.</p>
 <h3 id="geopandas">GeoPandas</h3>
+<p>Celldega uses GeoPandas for efficient spatial operations and storing collections of spatial objects (e.g., neighborhood multi-polygons) as GeoDataFrames.</p>
 <h3 id="libpysal-python-spatial-analysis-library-core"><a href='https://pysal.org/libpysal/' target='_blank'>LibPySal</a>: Python Spatial Analysis Library Core</h3>
-<h3 id="clustergrammer-data-analysis">Clustergrammer Data Analysis</h3>
+<p>Celldega uses the Python Spatial Analysis Library (libpysal) for spatial analysis - namely for calculating alpha shape cell type neighborhoods.</p>
+<h3 id="clustergrammer-data-analysis-approaches">Clustergrammer Data Analysis Approaches</h3>
+<p>The Celldega Cluster module build upon the hierarchical clustering approaches developed in the <a href='https://clustergrammer.readthedocs.io/' target='_blank'>Clustergrammer</a> project. This enables users to perform hierarchical clustering on observations (e.g., single cells) and measurements (e.g., genes) and easily visualize these two orthogonal clustering results interactively using Celldega's Matrix visualization method.</p>
 
 
 

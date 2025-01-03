@@ -1,6 +1,6 @@
 {
 	"name": "celldega",
-	"version": "0.4.5",
+	"version": "0.6.0",
 	"type": "module",
 	"scripts": {
 		"dev": "npm run build -- --sourcemap=inline --watch",
@@ -9,17 +9,16 @@
 		"lint": "eslint js/ --ignore-pattern js/vendor/"
 	},
 	"dependencies": {
-		"@loaders.gl/core": "4.1.1",
-		"@luma.gl/core": "9.0.11",
-		"@luma.gl/engine": "9.0.11",
-		"@luma.gl/shadertools": "9.0.11",
-		"@luma.gl/webgl": "9.0.11",
+		"@loaders.gl/core": "^4.2.0",
+		"@luma.gl/core": "^9.0.12",
+		"@luma.gl/engine": "^9.0.12",
+		"@luma.gl/shadertools": "^9.0.12",
+		"@luma.gl/webgl": "^9.0.12",
 		"apache-arrow": "15.0.2",
-		"clustergrammer-gl": "0.25.0",
 		"d3": "^7.9.0",
-		"deck.gl": "^9.0.5",
-		"math.gl": "2.3.3",
-		"underscore": "1.9.1"
+		"deck.gl": "^9.0.12",
+		"@deck.gl-community/editable-layers": "^9.0.3",
+		"math.gl": "2.3.3"
 	},
 	"devDependencies": {
 		"@eslint/js": "^9.0.0",

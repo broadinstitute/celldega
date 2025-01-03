@@ -18,7 +18,8 @@ export const get_path_color = (cats, i, d) => {
     if (inst_cat in cats.color_dict_cluster) {
         inst_color = cats.color_dict_cluster[inst_cat]
     } else {
-        inst_color = [0, 0, 0]
+        // default segmentation color
+        inst_color = [0, 0, 255]
     }
 
     const inst_opacity = cats.selected_cats.length === 0 || cats.selected_cats.includes(inst_cat) ? 255 : 50
@@ -92,5 +93,11 @@ export const toggle_path_layer_visibility = (layers_obj, visible) => {
 export const update_path_layer_id = (layers_obj, new_cat) => {
     layers_obj.path_layer = layers_obj.path_layer.clone({
         id: 'path-layer-' + new_cat,
+    });
+}
+
+export const update_path_pickable_state = (layers_obj, pickable) => {
+    layers_obj.path_layer = layers_obj.path_layer.clone({
+        pickable: pickable,
     });
 }

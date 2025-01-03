@@ -45,6 +45,8 @@ class Landscape(anywidget.AnyWidget):
     ini_zoom = traitlets.Float(0).tag(sync=True)
     square_tile_size = traitlets.Float(1.4).tag(sync=True)
     dataset_name = traitlets.Unicode("").tag(sync=True)
+    region = traitlets.Dict({}).tag(sync=True)
+    nbhd = traitlets.Dict({}).tag(sync=True)
 
     update_trigger = traitlets.Dict().tag(sync=True)
     cell_clusters = traitlets.Dict().tag(sync=True)
@@ -61,22 +63,11 @@ class Landscape(anywidget.AnyWidget):
         # Convert the new_clusters to a JSON serializable format if necessary
         self.cell_clusters = new_clusters
 
-
 class Matrix(anywidget.AnyWidget):
     _esm = pathlib.Path(__file__).parent / "../static" / "widget.js"
     _css = pathlib.Path(__file__).parent / "../static" / "widget.css"
     value = traitlets.Int(0).tag(sync=True)
     component = traitlets.Unicode("Matrix").tag(sync=True)
-
-    network = traitlets.Dict({}).tag(sync=True)
-    click_info = traitlets.Dict({}).tag(sync=True)
-
-
-class MatrixNew(anywidget.AnyWidget):
-    _esm = pathlib.Path(__file__).parent / "../static" / "widget.js"
-    _css = pathlib.Path(__file__).parent / "../static" / "widget.css"
-    value = traitlets.Int(0).tag(sync=True)
-    component = traitlets.Unicode("MatrixNew").tag(sync=True)
 
     network = traitlets.Dict({}).tag(sync=True)
     width = traitlets.Int(600).tag(sync=True)

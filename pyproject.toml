@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "celldega"
-version = "0.4.5"
+version = "0.6.0"
 dependencies = [
     "anywidget==0.9.6",
     "pandas~=2.2.2",
@@ -19,7 +19,8 @@ dependencies = [
     "squidpy~=1.5.0",
     "clustergrammer2==0.18.0",
     "shapely~=2.0.5",
-    "polars~=1.10.0"
+    "polars~=1.10.0",
+    "libpysal~=4.8.1"
 ]
 readme = "README.md"
 

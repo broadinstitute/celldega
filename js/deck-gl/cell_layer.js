@@ -155,3 +155,9 @@ export const update_cell_layer_id = (layers_obj, new_cat) => {
         id: 'cell-layer-' + new_cat,
     })
 }
+
+export const update_cell_pickable_state = (layers_obj, pickable) => {
+    layers_obj.cell_layer = layers_obj.cell_layer.clone({
+        pickable: pickable,
+    });
+}

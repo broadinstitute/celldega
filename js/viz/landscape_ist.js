@@ -24,6 +24,9 @@ import { update_cat, update_selected_cats } from '../global_variables/cat'
 import { update_selected_genes } from '../global_variables/selected_genes'
 import { update_cell_exp_array } from '../global_variables/cell_exp_array'
 import { update_gene_text_box } from '../ui/gene_search'
+import { calc_viewport } from '../deck-gl/calc_viewport'
+import { ini_edit_layer, set_edit_layer_on_click, set_edit_layer_on_edit } from '../deck-gl/edit_layer'
+import { ini_nbhd_layer, set_nbhd_layer_onclick } from '../deck-gl/nbhd_layer'
 
 export const landscape_ist = async (
     el,
@@ -48,10 +51,48 @@ export const landscape_ist = async (
 
     let viz_state = {}
 
+    viz_state.buttons = {}
+    viz_state.buttons.blue = '#8797ff'
+    viz_state.buttons.gray = 'gray'
+    viz_state.buttons.light_gray = '#EEEEEE'
+
     set_global_base_url(viz_state, base_url)
 
     viz_state.close_up = false
     viz_state.model = ini_model
+
+    viz_state.nbhd = {}
+    viz_state.nbhd.visible = false
+
+    if (Object.keys(viz_state.model.get('nbhd')).length === 0) {
+
+        viz_state.nbhd.alpha_nbhd = false
+
+        viz_state.nbhd.ini_feature_collection =  {
+            "type": "FeatureCollection",
+            "features": [],
+            "inst_alpha": null
+        }
+        viz_state.nbhd.feature_collection = viz_state.nbhd.ini_feature_collection
+
+
+
+    } else {
+        viz_state.nbhd.alpha_nbhd = true
+
+        viz_state.nbhd.ini_feature_collection = viz_state.model.get('nbhd')
+
+        viz_state.nbhd.inst_alpha = viz_state.nbhd.ini_feature_collection['inst_alpha']
+
+        const filt_features = viz_state.nbhd.ini_feature_collection.features.filter(d => d.properties.inv_alpha === viz_state.nbhd.inst_alpha)
+
+        // filter for alpha shapes that have a inv_alpha value of 200
+        viz_state.nbhd.feature_collection = {
+            "type": "FeatureCollection",
+            "features": filt_features
+        }
+
+    }
 
     viz_state.containers = {}
 
@@ -134,11 +175,41 @@ export const landscape_ist = async (
 
     set_get_tooltip(deck_ist, viz_state)
 
+    viz_state.edit = {}
+    viz_state.edit.svg_bar_rgn = d3.create("svg")
+    viz_state.edit.rgn_areas = []
+    viz_state.edit.color_dict_rgn = {}
+    viz_state.edit.rgn_opacity = 0.75
+    viz_state.edit.visible = false
+    viz_state.edit.modify_index = null
+
+    if (Object.keys(viz_state.model).length !== 0){
+
+        if (Object.keys(viz_state.model.get('region')).length === 0) {
+
+            viz_state.edit.feature_collection =  {
+                "type": "FeatureCollection",
+                "features": []
+            }
+
+        } else {
+            viz_state.edit.feature_collection = viz_state.model.get('region')
+        }
+    } else {
+
+        viz_state.edit.feature_collection =  {
+            "type": "FeatureCollection",
+            "features": []
+        }
+    }
+
     let background_layer = ini_background_layer(viz_state)
     let image_layers = await make_image_layers(viz_state)
     let cell_layer = await ini_cell_layer(base_url, viz_state)
     let path_layer = await ini_path_layer(viz_state)
     let trx_layer = ini_trx_layer(viz_state.genes)
+    let edit_layer = ini_edit_layer(viz_state)
+    let nbhd_layer = ini_nbhd_layer(viz_state, false)
 
     // make layers object
     let layers_obj = {
@@ -146,17 +217,24 @@ export const landscape_ist = async (
         'image_layers': image_layers,
         'cell_layer': cell_layer,
         'path_layer': path_layer,
-        'trx_layer': trx_layer
+        'trx_layer': trx_layer,
+        'edit_layer': edit_layer,
+        'nbhd_layer': nbhd_layer
     }
 
     // set onclicks after all layers are made
     set_cell_layer_onclick(deck_ist, layers_obj, viz_state)
     set_path_layer_onclick(deck_ist, layers_obj, viz_state)
     set_trx_layer_onclick(deck_ist, layers_obj, viz_state)
+    set_edit_layer_on_edit(deck_ist, layers_obj, viz_state)
+    set_edit_layer_on_click(deck_ist, layers_obj, viz_state)
+    set_nbhd_layer_onclick(deck_ist, layers_obj, viz_state)
+
 
     update_trx_layer_radius(layers_obj, trx_radius)
 
     const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+
     deck_ist.setProps({layers: layers_list})
 
     set_deck_on_view_state_change(deck_ist, layers_obj, viz_state)
@@ -287,7 +365,7 @@ export const landscape_ist = async (
         },
         update_matrix_dendro_col: async (selected_cols) => {
 
-            const inst_gene = 'cluster'
+            // const inst_gene = 'cluster'
             const new_cats = selected_cols // click_info.value.selected_names
 
             update_cat(viz_state.cats, 'cluster')
@@ -333,22 +411,10 @@ export const landscape_ist = async (
         },
         update_view_state: async (new_view_state, close_up, trx_layer) => {
 
-            console.log('new_view_state', new_view_state)
-            console.log('close_up', close_up)
-            console.log('trx_layer', trx_layer)
-
             viz_state.close_up = close_up
 
-            // await update_trx_layer_data(viz_state.global_base_url, tiles_in_view, layers_obj, viz_state)
-
-            // await update_path_layer_data(viz_state.global_base_url, tiles_in_view, layers_obj, viz_state)
-
-            layers_obj.trx_layer = trx_layer.clone({
-                id: 'trx-layer-clone' + new_view_state.zoom,
-            })
-
+            calc_viewport(new_view_state, deck_ist, layers_obj, viz_state)
             const layers_list = get_layers_list(layers_obj, viz_state.close_up)
-            // deck_ist.setProps({layers: layers_list})
 
             deck_ist.setProps({
                 controller: {doubleClickZoom: false},

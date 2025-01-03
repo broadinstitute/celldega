@@ -180,6 +180,46 @@ export const make_button = (container, technology, text, color='blue', width=40,
 
 }
 
+export const make_edit_button = (deck_ist, layers_obj, viz_state, container, text, width, edit_button_callback) => {
+
+    let button_class = 'edit_button'
+
+    const active = false
+
+    // make text all caps
+    text = text.toUpperCase()
+
+    const inst_button = d3.select(container)
+        .append('div')
+        .classed(button_class, true)
+        .classed('active', active)
+        .text(text)
+        .style('width', width + 'px')
+        .style('height', '20px')  // Adjust height for button padding
+        .style('display', 'inline-flex')
+        .style('align-items', 'center')
+        .style('justify-content', 'center')
+        .style('text-align', 'center')
+        .style('cursor', 'pointer')
+        .style('font-size', '12px')
+        .style('font-weight', 'bold')
+        .style('color', 'gray')
+        // .style('border', '3px solid')  // Light gray border
+        // .style('border-color', color)  // Light gray border
+        // .style('border-radius', '12px')  // Rounded corners
+        // .style('margin-top', '5px')
+        .style('margin-left', '3px')
+        // .style('padding', '4px 10px')  // Padding inside the button
+        .style('user-select', 'none')
+        .style('font-family', '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif')
+        .on('click', (event) => edit_button_callback(event, deck_ist, layers_obj, viz_state))
+        .node()
+
+    const button_name = text.toLowerCase()
+    viz_state.edit.buttons[button_name] = inst_button
+
+}
+
 
 const make_ist_img_layer_button_callback = (text, deck_ist, layers_obj, viz_state) => {
 

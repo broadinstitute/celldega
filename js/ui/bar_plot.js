@@ -106,6 +106,10 @@ export const bar_callback_gene = async (event, d, deck_ist, layers_obj, viz_stat
     update_gene_text_box(viz_state.genes, reset_gene ? '' : inst_gene)
 }
 
+export const bar_callback_rgn = (event, d, deck_ist, layers_obj, viz_state) => {
+    console.log('bar_callback_rgn')
+}
+
 export const make_bar_graph = (bar_container, click_callback, svg_bar, bar_data, color_dict, deck_ist, layers_obj, viz_state) => {
 
     bar_container.className = "bar_container"

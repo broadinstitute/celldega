@@ -1,12 +1,17 @@
 import importlib.metadata
 
-from celldega.viz import Landscape, Matrix, MatrixNew
+from celldega.viz import Landscape, Matrix
 from celldega.pre import landscape
 from celldega.qc import qc_segmentation
+from celldega.nbhd import alpha_shape
+
+# temporary fix for libpysal warning
+import warnings
+warnings.filterwarnings("ignore", category=FutureWarning)
 
 try:
     __version__ = importlib.metadata.version("celldega")
 except importlib.metadata.PackageNotFoundError:
     __version__ = "unknown"
 
-__all__ = ["Landscape", "landscape", "Matrix", "MatrixNew"]
+__all__ = ["Landscape", "landscape", "Matrix"]

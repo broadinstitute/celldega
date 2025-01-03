@@ -8,14 +8,22 @@
     Celldega Landscape visualization of a human skin cancer Xenium dataset obtained from <a href='https://www.10xgenomics.com/datasets' target='_blank'>10X Genomics</a>.
 </div>
 
-Celldega is a spatial analysis and visualization library that is being developed by the <a href='https://www.broadinstitute.org/spatial-technology-platform' target='_blank'>Spatial Technology Platform</a> at the <a href='https://www.broadinstitute.org/spatial-technology-platform' target='_blank'>Broad Institute of MIT and Harvard</a>. This project enables researchers to easily visualize large ST datasets (e.g., datasets with >100M transcripts) alongside single-cell and spatial analysis notebook workflows (e.g., <a href='https://scverse.org/' target='_blank'>sverse</a> tools and novel spatial analysis approaches).
-
-
-
+Celldega is a spatial analysis and visualization library that is being developed by the [Spatial Technology Platform](https://www.broadinstitute.org/spatial-technology-platform) at the [Broad Institute of MIT and Harvard](https://www.broadinstitute.org/spatial-technology-platform). This project enables researchers to easily visualize large ST datasets (e.g., datasets with >100M transcripts) alongside single-cell and spatial analysis notebook workflows (e.g., [sverse](https://scverse.org/) tools and novel spatial analysis approaches).
 
 - [Getting Started](overview/getting_started.md)
 - [Installation](overview/installation.md)
 - [Usage](overview/usage.md)
 
+## What's New
+The project was recently presented at the Broad Retreat Data Visualization Breakout Session -
+
+<a href="https://broadinstitute.github.io/Celldega-Broad-Retreat-2024/" target="_blank" rel="noopener noreferrer">
+    <img src="assets/img/Celldega_Broad-Retreat-2024.png" alt="Celldega Broad Retreat 2024" style="display:block; margin:0 auto; width:75%; border:1px solid lightgray; border-radius:5px;">
+</a>
+
+
+
 ## About
 Celldega is named after a bodega, a small shop with all the essentials that is part of the fabric of a neighborhood.
+
+[checking link](https://www.nytimes.com/2025/01/03/sports/dukes-mayo-bowl.html)

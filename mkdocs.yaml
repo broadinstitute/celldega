@@ -53,6 +53,7 @@ markdown_extensions:
 
 plugins:
   - search
+  - open-in-new-tab
   - mkdocstrings:
       handlers:
         python:

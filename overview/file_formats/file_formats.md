@@ -5,3 +5,45 @@ The Celldega project addresses these challenges with the development of a new ST
 
 
 ## LandscapeFiles
+LandscapeFiles are first generated using the Celldega [pre](../python/pre/api.md) module (see example Google Colab notebook [Celldega-Landscape-Pre-Process_Xenium-Pancreas-Dataset](https://colab.research.google.com/drive/1guUFhXP3nlZ4Es2-tsnraFKlAKHZSCZC?usp=sharing)). LandscapeFiles are read by Celldega's JavaScript front-end to interactively visualize ST data. Users have several options for hosting LandscapeFiles both locally on the cloud (e.g., Terra.bio buckets) or locally (e.g., running a local server to locally host LandscapeFiles).
+
+An example directory structure for a Xenium Prime LandscapeFiles is shown below:
+
+```
+.
+├── cbg
+├── cell_clusters
+├── cell_metadata.parquet
+├── cell_segmentation
+├── df_sig.parquet
+├── landscape_parameters.json
+├── meta_gene.parquet
+├── pyramid_images
+│   ├── bound_files
+│   ├── dapi_files
+│   ├── prot_files
+│   └── rna_files
+│── transcript_tiles
+└── xenium_transform.csv
+
+```
+
+### Cell-by-Gene
+
+### Cell Clusters
+
+### Cell Metadata
+
+### Cell Segmentation
+
+### Cell Cluster Gene Expression Signatures
+
+### Landscape Parameters
+
+### Gene Metadata
+
+### Pyramid Images
+
+### Transcript Tiles
+
+### Image Transformation

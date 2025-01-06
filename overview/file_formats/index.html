@@ -368,6 +368,102 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="LandscapeFiles">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cell-by-gene" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cell-by-Gene
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cell-clusters" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cell Clusters
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cell-metadata" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cell Metadata
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cell-segmentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cell Segmentation
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cell-cluster-gene-expression-signatures" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cell Cluster Gene Expression Signatures
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#landscape-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      Landscape Parameters
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#gene-metadata" class="md-nav__link">
+    <span class="md-ellipsis">
+      Gene Metadata
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pyramid-images" class="md-nav__link">
+    <span class="md-ellipsis">
+      Pyramid Images
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#transcript-tiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      Transcript Tiles
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#image-transformation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Image Transformation
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
     </ul>
@@ -980,6 +1076,102 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="LandscapeFiles">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cell-by-gene" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cell-by-Gene
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cell-clusters" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cell Clusters
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cell-metadata" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cell Metadata
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cell-segmentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cell Segmentation
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cell-cluster-gene-expression-signatures" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cell Cluster Gene Expression Signatures
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#landscape-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      Landscape Parameters
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#gene-metadata" class="md-nav__link">
+    <span class="md-ellipsis">
+      Gene Metadata
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pyramid-images" class="md-nav__link">
+    <span class="md-ellipsis">
+      Pyramid Images
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#transcript-tiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      Transcript Tiles
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#image-transformation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Image Transformation
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
     </ul>
@@ -1001,6 +1193,35 @@
 <p>While there has been tremendous progress in developing standardized data formats and architectures for spatial-omics data, namely <a href="https://spatialdata.scverse.org/en/stable/">SpatialData</a> and the related <a href="https://anndata.readthedocs.io/en/stable/">AnnData</a>, these approaches currently lack support for interactive cloud-based visualization of large (&gt;100M transcripts) Spatial Transcriptomics (ST) data. Furthermore, all-in-one data format approaches preclude the development of more efficient visualization-specific data formats.</p>
 <p>The Celldega project addresses these challenges with the development of a new ST data format called LandscapeFiles, specifically built for cloud-based visualization. LandscapeFiles support Celldega's Landscape visualization method by leveraging compact <a href="../../technologies/#webp">image formats</a> and <a href="../../technologies/#apache-parquet">cloud-native data formats</a> to enable efficient storage and visualization of image (e.g., microscopy images) and vectorized data (e.g., transcript coordinates). This approach is highly scalable, enabling the visualization of very large ST datasets (&gt;400M transcripts), while remaining compact enough that LandscapeFiles for an entire Xenium dataset can be hosted in a <a href="https://github.com/broadinstitute/celldega_Xenium_Prime_Human_Skin_FFPE_outs/">public GitHub repository</a>.</p>
 <h2 id="landscapefiles">LandscapeFiles</h2>
+<p>LandscapeFiles are first generated using the Celldega <a href="../../python/pre/api/">pre</a> module (see example Google Colab notebook <a href="https://colab.research.google.com/drive/1guUFhXP3nlZ4Es2-tsnraFKlAKHZSCZC?usp=sharing">Celldega-Landscape-Pre-Process_Xenium-Pancreas-Dataset</a>). LandscapeFiles are read by Celldega's JavaScript front-end to interactively visualize ST data. Users have several options for hosting LandscapeFiles both locally on the cloud (e.g., Terra.bio buckets) or locally (e.g., running a local server to locally host LandscapeFiles).</p>
+<p>An example directory structure for a Xenium Prime LandscapeFiles is shown below:</p>
+<pre><code>.
+├── cbg
+├── cell_clusters
+├── cell_metadata.parquet
+├── cell_segmentation
+├── df_sig.parquet
+├── landscape_parameters.json
+├── meta_gene.parquet
+├── pyramid_images
+│   ├── bound_files
+│   ├── dapi_files
+│   ├── prot_files
+│   └── rna_files
+│── transcript_tiles
+└── xenium_transform.csv
+
+</code></pre>
+<h3 id="cell-by-gene">Cell-by-Gene</h3>
+<h3 id="cell-clusters">Cell Clusters</h3>
+<h3 id="cell-metadata">Cell Metadata</h3>
+<h3 id="cell-segmentation">Cell Segmentation</h3>
+<h3 id="cell-cluster-gene-expression-signatures">Cell Cluster Gene Expression Signatures</h3>
+<h3 id="landscape-parameters">Landscape Parameters</h3>
+<h3 id="gene-metadata">Gene Metadata</h3>
+<h3 id="pyramid-images">Pyramid Images</h3>
+<h3 id="transcript-tiles">Transcript Tiles</h3>
+<h3 id="image-transformation">Image Transformation</h3>
 
 
 

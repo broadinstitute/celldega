@@ -78,3 +78,8 @@ extra_javascript:
   - path: assets/js/gallery_skin_cancer.js
     type: module
   - path: assets/js/google-analytics.js
+  - path: assets/js/hide_notebook_sidebar.js
+    type: module
+
+extra_css:
+  - assets/css/custom.css

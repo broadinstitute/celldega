@@ -5,9 +5,11 @@ The Celldega project addresses these challenges with the development of a new ST
 
 
 ## LandscapeFiles
-LandscapeFiles are first generated using the Celldega [pre](../python/pre/api.md) module (see example Google Colab notebook [Celldega-Landscape-Pre-Process_Xenium-Pancreas-Dataset](https://colab.research.google.com/drive/1guUFhXP3nlZ4Es2-tsnraFKlAKHZSCZC?usp=sharing)). LandscapeFiles are read by Celldega's JavaScript front-end to interactively visualize ST data. Users have several options for hosting LandscapeFiles both locally on the cloud (e.g., Terra.bio buckets) or locally (e.g., running a local server to locally host LandscapeFiles).
+LandscapeFiles are generated using the Celldega [pre](../python/pre/api.md) module (see example Google Colab notebook [Celldega-Landscape-Pre-Process_Xenium-Pancreas-Dataset](https://colab.research.google.com/drive/1guUFhXP3nlZ4Es2-tsnraFKlAKHZSCZC?usp=sharing)) and are used by Celldega's JavaScript front-end to interactively visualize ST data. Users have several options for hosting LandscapeFiles both locally on the cloud (e.g., Terra.bio buckets) or locally (e.g., running a local server to locally host LandscapeFiles).
 
-An example directory structure for a Xenium Prime LandscapeFiles is shown below:
+### iST LandscapeFiles
+
+The file structure for a Xenium Prime dataset's LandscapeFiles is shown below:
 
 ```
 .
@@ -28,22 +30,61 @@ An example directory structure for a Xenium Prime LandscapeFiles is shown below:
 
 ```
 
-### Cell-by-Gene
+#### Cell-by-Gene
+The `cbg` directory contains parquet files for each gene. Each file has a table of all the non-zero single cell expression counts - see example below
 
-### Cell Clusters
+```
+	A2ML1
+aaaaljij-1	18
+aaabgfcl-1	24
+aaacghkb-1	28
+aaachnfg-1	14
+aaacknep-1	1
 
-### Cell Metadata
+```
 
-### Cell Segmentation
+#### Cell Clusters
+The `cell_clusters` directory contains single-cell clustering data. For Xenium data, these will include the default clustering results stored in two parquet files.
 
-### Cell Cluster Gene Expression Signatures
+##### cluster.parquet
+This file contains the cluster identity of each cell.
+```
+	cluster
+aaaaljij-1	28
+aaabgfcl-1	27
+aaacghkb-1	27
+aaachnfg-1	28
+aaacknep-1	28
 
-### Landscape Parameters
+```
 
-### Gene Metadata
+##### meta_cluster.parquet
+This file contains metadata on the cell clusters, which includes the color and cell count.
+```
+	color	count
+1	#1f77b4	12742
+2	#ff7f0e	10058
+3	#2ca02c	9171
+4	#d62728	8781
+5	#9467bd	7760
 
-### Pyramid Images
+```
 
-### Transcript Tiles
+#### Cell Metadata
 
-### Image Transformation
+#### Cell Segmentation
+
+#### Cell Cluster Gene Expression Signatures
+
+#### Landscape Parameters
+
+#### Gene Metadata
+
+#### Pyramid Images
+
+#### Transcript Tiles
+
+#### Image Transformation
+
+
+### sST LandscapeFiles

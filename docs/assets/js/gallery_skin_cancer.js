@@ -10,7 +10,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const ini_x = 21500;
         const ini_y = 14200;
         const ini_z = 0;
-        const ini_zoom = -6;
+        const ini_zoom = -5;
         const base_url = 'https://raw.githubusercontent.com/broadinstitute/celldega_Xenium_Prime_Human_Skin_FFPE_outs/main/Xenium_Prime_Human_Skin_FFPE_outs';
 
         const landscape = await celldega.landscape_ist(

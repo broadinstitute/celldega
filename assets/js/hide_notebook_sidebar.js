@@ -1,39 +1,33 @@
 document.addEventListener("DOMContentLoaded", async () => {
-    // Check if the URL contains 'notebook'
-    if (window.location.pathname.includes('notebook')) {
-        // Target the sidebar and hide it
-        const sidebar = document.querySelector('.md-sidebar--secondary');
-        if (sidebar) {
-            sidebar.style.display = 'none';
+    // Increase width of notebook and galley pages
+    if (window.location.pathname.includes('notebook') || window.location.pathname.includes('gallery')) {
+
+        // hide primary sidebar
+        const sidebar_primary = document.querySelector('.md-sidebar--primary');
+
+        if (sidebar_primary) {
+            sidebar_primary.style.width = '8.1rem';
         }
+
+        // hide secondary sidebar
+        const sidebar_secondary = document.querySelector('.md-sidebar--secondary');
+
+        if (sidebar_secondary) {
+            sidebar_secondary.style.display = 'none';
+        }
+
+        // remove max width constraint
+        const md_grid = document.querySelector('.md-main__inner');
+
+        if (md_grid) {
+            md_grid.style.marginLeft = 'unset';
+            md_grid.style.marginRight = 'unset';
+            md_grid.style.maxWidth = 'none';
+        }
+
 
         // You can also add additional logic specific to notebook pages here
         console.log("Notebook page detected. Sidebar hidden.");
     }
 
-    // // Example of existing logic for a specific page
-    // const landscape_el = document.getElementById('landscape-skin-cancer');
-    // if (window.location.pathname.endsWith('gallery_xenium_skin_cancer/')) {
-    //     const token = '';
-    //     const ini_x = 21500;
-    //     const ini_y = 14200;
-    //     const ini_z = 0;
-    //     const ini_zoom = -6;
-    //     const base_url = 'https://raw.githubusercontent.com/broadinstitute/celldega_Xenium_Prime_Human_Skin_FFPE_outs/main/Xenium_Prime_Human_Skin_FFPE_outs';
-
-    //     const landscape = await celldega.landscape_ist(
-    //         landscape_el,
-    //         {},
-    //         token,
-    //         ini_x,
-    //         ini_y,
-    //         ini_z,
-    //         ini_zoom,
-    //         base_url,
-    //         '',
-    //         0.25,
-    //         '100%',
-    //         '100%',
-    //     );
-    // }
 });

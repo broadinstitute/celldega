@@ -1,42 +1,85 @@
 site_name: Celldega Documentation
 theme:
   name: material
+  features:
+    - navigation.indexes
+
+extra:
+  social:
+    - icon: "fontawesome/brands/github"
+      link: "https://github.com/broadinstitute/celldega"
+    - icon: "fontawesome/brands/bluesky"
+      link: "https://bsky.app/profile/stp-broad.bsky.social"
 
 nav:
   - Home: index.md
   - Overview:
-      - Getting Started: getting_started.md
-      - Installation: installation.md
-      - Usage: usage.md
-  - Gallery:
-      - Gallery Xenium:
-          - Xenium Prime Mouse Brain: gallery_xenium_mouse_brain.md
-          - Xenium Prime Human Skin: gallery_xenium_human_skin.md
-          - Xenium Multi Dataset: gallery_xenium_multi.md
+      - overview/index.md
+      - Getting Started: overview/getting_started.md
+      - Installation: overview/installation.md
+      - File Formats: overview/file_formats.md
+      - Usage: overview/usage.md
   - Python API:
-      - pre:
-          - Overview: python/pre/overview.md
-          - API Reference: python/pre/api.md
-      - viz:
-          - Overview: python/viz/overview.md
-          - API Reference: python/viz/api.md
-  - Examples:
-      - examples/Landscape_View_Xenium.ipynb
+      - python/index.md
+      - pre: python/pre/api.md
+      - viz: python/viz/api.md
+
+  - JavaScript API:
+      - javascript/index.md
+      - API: javascript/api.md
+  - Technologies:
+      - technologies/index.md
+  - Gallery:
+      - gallery/index.md
+      - Xenium:
+          - Xenium Prime Mouse Brain: gallery/gallery_xenium_mouse_brain.md
+          - Xenium Prime Human Skin: gallery/gallery_xenium_skin_cancer.md
+          - Xenium Multi Dataset: gallery/gallery_xenium_multi.md
+  - Example Notebooks:
+    - examples/index.md
+    - Brief Notebooks:
+      - Landscape View Xenium: examples/brief_notebooks/Landscape_View_Xenium.ipynb
+      - Pre-Process LandscapeFiles: examples/brief_notebooks/Pre-process_Xenium_V1_human_Pancreas_FFPE_outs.ipynb
+    # - Tutorials:
+    #     - examples/Landscape_View_Xenium.ipynb
 
 markdown_extensions:
   - toc
   - tables
   - admonition
+  - attr_list
+  - md_in_html
+
 
 plugins:
   - search
+  - open-in-new-tab
   - mkdocstrings:
       handlers:
         python:
           options:
             docstring_style: google
             show_root_toc_entry: true
+        javascript:
+          options:
+            source: js/  # Path to JavaScript files
+            recursive: true
+            include: .+\.js$
   - mkdocs-jupyter:
       include_source: true
+      include_requirejs: true
       ignore: ["**/.ipynb_checkpoints/*.ipynb"]
 
+extra_javascript:
+  - path: assets/js/index.js
+    type: module
+  - path: assets/js/gallery_mouse_brain.js
+    type: module
+  - path: assets/js/gallery_skin_cancer.js
+    type: module
+  - path: assets/js/google-analytics.js
+  - path: assets/js/hide_notebook_sidebar.js
+    type: module
+
+extra_css:
+  - assets/css/custom.css

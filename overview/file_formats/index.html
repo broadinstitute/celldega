@@ -374,6 +374,16 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#ist-landscapefiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      iST LandscapeFiles
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="iST LandscapeFiles">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
   <a href="#cell-by-gene" class="md-nav__link">
     <span class="md-ellipsis">
       Cell-by-Gene
@@ -388,6 +398,30 @@
       Cell Clusters
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="Cell Clusters">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#clusterparquet" class="md-nav__link">
+    <span class="md-ellipsis">
+      cluster.parquet
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#meta_clusterparquet" class="md-nav__link">
+    <span class="md-ellipsis">
+      meta_cluster.parquet
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
         
@@ -458,6 +492,20 @@
   <a href="#image-transformation" class="md-nav__link">
     <span class="md-ellipsis">
       Image Transformation
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sst-landscapefiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      sST LandscapeFiles
     </span>
   </a>
   
@@ -981,6 +1029,8 @@
       
         
       
+        
+      
     
     
     
@@ -995,7 +1045,7 @@
             
   
   <span class="md-ellipsis">
-    Short Notebooks
+    Brief Notebooks
   </span>
   
 
@@ -1005,7 +1055,7 @@
         <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_2_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_7_2">
             <span class="md-nav__icon md-icon"></span>
-            Short Notebooks
+            Brief Notebooks
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
@@ -1016,11 +1066,32 @@
   
   
     <li class="md-nav__item">
-      <a href="../../examples/short_notebooks/Landscape_View_Xenium/" class="md-nav__link">
+      <a href="../../examples/brief_notebooks/Landscape_View_Xenium/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
     Landscape View Xenium
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/brief_notebooks/Pre-process_Xenium_V1_human_Pancreas_FFPE_outs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Pre-process_Xenium_V1_human_Pancreas_FFPE_outs
   </span>
   
 
@@ -1082,6 +1153,16 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#ist-landscapefiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      iST LandscapeFiles
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="iST LandscapeFiles">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
   <a href="#cell-by-gene" class="md-nav__link">
     <span class="md-ellipsis">
       Cell-by-Gene
@@ -1096,6 +1177,30 @@
       Cell Clusters
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="Cell Clusters">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#clusterparquet" class="md-nav__link">
+    <span class="md-ellipsis">
+      cluster.parquet
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#meta_clusterparquet" class="md-nav__link">
+    <span class="md-ellipsis">
+      meta_cluster.parquet
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
         
@@ -1175,6 +1280,20 @@
     </nav>
   
 </li>
+        
+          <li class="md-nav__item">
+  <a href="#sst-landscapefiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      sST LandscapeFiles
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
       
     </ul>
   
@@ -1192,11 +1311,12 @@
 
 
 <h1 id="celldega-file-formats">Celldega File Formats</h1>
-<p>While there has been tremendous progress in developing standardized data formats and architectures for spatial-omics data, namely <a href="https://spatialdata.scverse.org/en/stable/">SpatialData</a> and the related <a href="https://anndata.readthedocs.io/en/stable/">AnnData</a>, these approaches currently lack support for interactive cloud-based visualization of large (&gt;100M transcripts) Spatial Transcriptomics (ST) data. Furthermore, all-in-one data format approaches preclude the development of more efficient visualization-specific data formats.</p>
-<p>The Celldega project addresses these challenges with the development of a new ST data format called LandscapeFiles, specifically built for cloud-based visualization. LandscapeFiles support Celldega's Landscape visualization method by leveraging compact <a href="../../technologies/#webp">image formats</a> and <a href="../../technologies/#apache-parquet">cloud-native data formats</a> to enable efficient storage and visualization of image (e.g., microscopy images) and vectorized data (e.g., transcript coordinates). This approach is highly scalable, enabling the visualization of very large ST datasets (&gt;400M transcripts), while remaining compact enough that LandscapeFiles for an entire Xenium dataset can be hosted in a <a href="https://github.com/broadinstitute/celldega_Xenium_Prime_Human_Skin_FFPE_outs/">public GitHub repository</a>.</p>
+<p>While there has been tremendous progress in developing standardized data formats and architectures for spatial-omics data, namely <a href="https://spatialdata.scverse.org/en/stable/">SpatialData</a> and the related <a href="https://anndata.readthedocs.io/en/stable/">AnnData</a>, these approaches currently lack support for interactive cloud-based visualization of large (&gt;100M transcripts) Spatial Transcriptomics (ST) data. Furthermore, all-in-one data format approaches preclude the development of compact visualization-specific data formats.</p>
+<p>The Celldega project addresses these challenges with the development of a new ST data format called LandscapeFiles, specifically built for cloud-based visualization. LandscapeFiles support Celldega's Landscape visualization method by leveraging compact <a href="../../technologies/#webp">image formats</a> and <a href="../../technologies/#apache-parquet">cloud-native data formats</a> to enable efficient storage and visualization of image (e.g., microscopy images) and vectorized data (e.g., transcript coordinates). This approach is highly scalable, enabling the visualization of very large ST datasets (&gt;400M transcripts), while remaining compact enough that the  LandscapeFiles for an entire Xenium dataset can be hosted in a <a href="https://github.com/broadinstitute/celldega_Xenium_Prime_Human_Skin_FFPE_outs/">public GitHub repository</a>.</p>
 <h2 id="landscapefiles">LandscapeFiles</h2>
-<p>LandscapeFiles are first generated using the Celldega <a href="../../python/pre/api/">pre</a> module (see example Google Colab notebook <a href="https://colab.research.google.com/drive/1guUFhXP3nlZ4Es2-tsnraFKlAKHZSCZC?usp=sharing">Celldega-Landscape-Pre-Process_Xenium-Pancreas-Dataset</a>). LandscapeFiles are read by Celldega's JavaScript front-end to interactively visualize ST data. Users have several options for hosting LandscapeFiles both locally on the cloud (e.g., Terra.bio buckets) or locally (e.g., running a local server to locally host LandscapeFiles).</p>
-<p>An example directory structure for a Xenium Prime LandscapeFiles is shown below:</p>
+<p>LandscapeFiles are generated using the Celldega <a href="../../python/pre/api/">pre</a> module (see example Google Colab notebook <a href="https://colab.research.google.com/drive/1guUFhXP3nlZ4Es2-tsnraFKlAKHZSCZC?usp=sharing">Celldega-Landscape-Pre-Process_Xenium-Pancreas-Dataset</a>) and are used by Celldega's JavaScript front-end to interactively visualize ST data. Users have several options for hosting LandscapeFiles both locally on the cloud (e.g., Terra.bio buckets) or locally (e.g., running a local server to locally host LandscapeFiles).</p>
+<h3 id="ist-landscapefiles">iST LandscapeFiles</h3>
+<p>The file structure for a Xenium Prime dataset's LandscapeFiles is shown below.</p>
 <pre><code>.
 ├── cbg
 ├── cell_clusters
@@ -1214,16 +1334,225 @@
 └── xenium_transform.csv
 
 </code></pre>
-<h3 id="cell-by-gene">Cell-by-Gene</h3>
-<h3 id="cell-clusters">Cell Clusters</h3>
-<h3 id="cell-metadata">Cell Metadata</h3>
-<h3 id="cell-segmentation">Cell Segmentation</h3>
-<h3 id="cell-cluster-gene-expression-signatures">Cell Cluster Gene Expression Signatures</h3>
-<h3 id="landscape-parameters">Landscape Parameters</h3>
-<h3 id="gene-metadata">Gene Metadata</h3>
-<h3 id="pyramid-images">Pyramid Images</h3>
-<h3 id="transcript-tiles">Transcript Tiles</h3>
-<h3 id="image-transformation">Image Transformation</h3>
+<p>The LandscapeFiles for an an example public 10X Genomics Xenium dataset can be found <a href="https://github.com/broadinstitute/celldega_Xenium_Prime_Human_Skin_FFPE_outs">here</a>.</p>
+<h4 id="cell-by-gene">Cell-by-Gene</h4>
+<p>The <code>cbg</code> directory contains parquet files for each gene. Each file has a table of all the non-zero single cell expression counts. See example below:</p>
+<pre><code>    A2ML1
+aaaaljij-1  18
+aaabgfcl-1  24
+aaacghkb-1  28
+aaachnfg-1  14
+aaacknep-1  1
+
+</code></pre>
+<h4 id="cell-clusters">Cell Clusters</h4>
+<p>The <code>cell_clusters</code> directory contains single-cell clustering data. For Xenium data, these will include the default clustering results stored in two parquet files.</p>
+<h5 id="clusterparquet">cluster.parquet</h5>
+<p>This file contains the cluster identity of each cell. See example below:</p>
+<pre><code>    cluster
+aaaaljij-1  28
+aaabgfcl-1  27
+aaacghkb-1  27
+aaachnfg-1  28
+aaacknep-1  28
+
+</code></pre>
+<h5 id="meta_clusterparquet">meta_cluster.parquet</h5>
+<p>This file contains metadata on the cell clusters, which includes the color and cell count. See example below:</p>
+<pre><code>    color   count
+1   #1f77b4 12742
+2   #ff7f0e 10058
+3   #2ca02c 9171
+4   #d62728 8781
+5   #9467bd 7760
+
+</code></pre>
+<h4 id="cell-metadata">Cell Metadata</h4>
+<p>The <code>cell_metadata.parquet</code> file contains the centroid positions of all cells. See example below:</p>
+<pre><code>cell_id name    geometry
+
+aaaaljij-1  aaaaljij-1  [819.7626194690856, 10819.416697734863]
+aaabgfcl-1  aaabgfcl-1  [861.7377139772034, 10683.254024123535]
+aaacghkb-1  aaacghkb-1  [876.8403955191346, 10627.146491566895]
+aaachnfg-1  aaachnfg-1  [799.6315031020813, 10692.094786328125]
+aaacknep-1  aaacknep-1  [760.0623424668274, 10729.360408533203]
+
+</code></pre>
+<h4 id="cell-segmentation">Cell Segmentation</h4>
+<p>The <code>cell_segmentation</code> directory contains tiled parquet files that contain cell segmentation polygons for the cells within a given tile. See example below:</p>
+<pre><code>cell_id GEOMETRY    name
+
+mnnojdjm-1  [[[35052.998290142576, 2648.999973659546], [35...   mnnojdjm-1
+mnoafgkh-1  [[[35229.99735775, 2654.999800875], [35227.998...   mnoafgkh-1
+mnodjmcf-1  [[[35090.99920641015, 2657.9998580948486], [35...   mnodjmcf-1
+moelbbjj-1  [[[35233.997817008785, 2602.9998622198486], [3...   moelbbjj-1
+moemfhce-1  [[[35242.998275892576, 2539.9998095], [35239.9...   moemfhce-1
+
+</code></pre>
+<h4 id="cell-cluster-gene-expression-signatures">Cell Cluster Gene Expression Signatures</h4>
+<p>The <code>df_sig.parquet</code> file contains the gene expression signatures of the cell clusters - defined as the average gene expression level of a cluster's cells. See example below:</p>
+<pre><code>    1   2   3   4   5   6   7   8   9   10  ... 20  21  22  23  24  25  26  27  28  29
+A2ML1   0.000235    0.000597    0.000109    0.000114    0.002320    0.000823    0.000996    0.000372    0.000760    0.000473    ... 0.018356    0.0000  0.000000    0.000000    0.000000    0.000000    2.593168    8.309091    5.602632    0.000000
+AAMP    0.296029    0.298668    0.032494    0.052727    0.003222    0.515027    0.014938    0.070061    0.395857    0.470894    ... 0.122905    0.0960  0.429596    0.058206    0.128743    0.511224    0.580745    0.456566    0.136842    0.052632
+AAR2    0.075655    0.069994    0.015375    0.023118    0.002964    0.118705    0.006971    0.038840    0.091410    0.117132    ... 0.054270    0.0424  0.129148    0.022901    0.030938    0.130612    0.154244    0.117172    0.057895    0.021053
+AARSD1  0.074557    0.156194    0.013412    0.017880    0.001546    0.200357    0.005477    0.028805    0.121057    0.120208    ... 0.047087    0.0272  0.093274    0.019084    0.028942    0.223469    0.120083    0.024242    0.005263    0.010526
+ABAT    0.004787    0.008053    0.009814    0.015830    0.000902    0.009743    0.004481    0.004832    0.003801    0.006626    ... 0.008779    0.0072  0.004484    0.017176    0.008982    0.002041    0.006211    0.002020    0.000000    0.005263
+</code></pre>
+<h4 id="landscape-parameters">Landscape Parameters</h4>
+<p>This file contains the configuration information about the dataset. See example below:</p>
+<pre><code>{
+    &quot;technology&quot;: &quot;Xenium&quot;,
+    &quot;max_pyramid_zoom&quot;: 16,
+    &quot;tile_size&quot;: 250,
+    &quot;image_info&quot;: [
+        {
+            &quot;name&quot;: &quot;dapi&quot;,
+            &quot;button_name&quot;: &quot;DAPI&quot;,
+            &quot;color&quot;: [
+                0,
+                0,
+                255
+            ]
+        },
+        {
+            &quot;name&quot;: &quot;bound&quot;,
+            &quot;button_name&quot;: &quot;BOUND&quot;,
+            &quot;color&quot;: [
+                0,
+                255,
+                0
+            ]
+        },
+        {
+            &quot;name&quot;: &quot;rna&quot;,
+            &quot;button_name&quot;: &quot;RNA&quot;,
+            &quot;color&quot;: [
+                255,
+                0,
+                0
+            ]
+        },
+        {
+            &quot;name&quot;: &quot;prot&quot;,
+            &quot;button_name&quot;: &quot;PROT&quot;,
+            &quot;color&quot;: [
+                255,
+                255,
+                255
+            ]
+        }
+    ],
+    &quot;image_format&quot;: &quot;.webp&quot;
+}
+</code></pre>
+<h4 id="gene-metadata">Gene Metadata</h4>
+<p>The <code>gene_metadata.parquet</code> file contains gene level metadata including: average expression across all cells, standard deviation, max expression, proportion of cells with non-zero expression, and the color assigned to each gene. See example below:</p>
+<pre><code>    mean    std max non-zero    color
+A2ML1   0.078391    3.128721    46.0    0.000009    #1f77b4
+AAMP    0.175449    1.621841    7.0 0.000009    #ff7f0e
+AAR2    0.048494    0.780702    4.0 0.000009    #2ca02c
+AARSD1  0.060533    0.897824    4.0 0.000009    #d62728
+ABAT    0.006575    0.285613    3.0 0.000009    #9467bd
+
+</code></pre>
+<h4 id="pyramid-images">Pyramid Images</h4>
+<p>The <code>pyramid_images</code> directory contains iST images from all available channels saved  <a href="../../technologies/#deep-zoom">Deep Zoom pyramids</a> using the image file format <a href="../../technologies/#webp">WebP</a>. An example directory structure for a Xenium multi-modal dataset looks like:</p>
+<pre><code>.
+├── bound.dzi
+├── bound_files
+│   ├── 0
+│   ├── 1
+│   ├── 10
+│   ├── 11
+│   ├── 12
+│   ├── 13
+│   ├── 14
+│   ├── 15
+│   ├── 16
+│   ├── 2
+│   ├── 3
+│   ├── 4
+│   ├── 5
+│   ├── 6
+│   ├── 7
+│   ├── 8
+│   ├── 9
+│   └── vips-properties.xml
+├── dapi.dzi
+├── dapi_files
+│   ├── 0
+│   ├── 1
+│   ├── 10
+│   ├── 11
+│   ├── 12
+│   ├── 13
+│   ├── 14
+│   ├── 15
+│   ├── 16
+│   ├── 2
+│   ├── 3
+│   ├── 4
+│   ├── 5
+│   ├── 6
+│   ├── 7
+│   ├── 8
+│   ├── 9
+│   └── vips-properties.xml
+├── prot.dzi
+├── prot_files
+│   ├── 0
+│   ├── 1
+│   ├── 10
+│   ├── 11
+│   ├── 12
+│   ├── 13
+│   ├── 14
+│   ├── 15
+│   ├── 16
+│   ├── 2
+│   ├── 3
+│   ├── 4
+│   ├── 5
+│   ├── 6
+│   ├── 7
+│   ├── 8
+│   ├── 9
+│   └── vips-properties.xml
+├── rna.dzi
+└── rna_files
+    ├── 0
+    ├── 1
+    ├── 10
+    ├── 11
+    ├── 12
+    ├── 13
+    ├── 14
+    ├── 15
+    ├── 16
+    ├── 2
+    ├── 3
+    ├── 4
+    ├── 5
+    ├── 6
+    ├── 7
+    ├── 8
+    ├── 9
+    └── vips-properties.xml
+
+</code></pre>
+<h4 id="transcript-tiles">Transcript Tiles</h4>
+<p>The <code>transcript_tiles</code> directory contains tiled parquet files that contain transcript data for transcripts within a given tile. See example below:</p>
+<pre><code>    name    geometry
+20862147    AARSD1  [25663.38, 11758.09]
+20862230    ABCA1   [25650.44, 11757.28]
+20862780    ABCD1   [25634.19, 11754.12]
+20862819    ABCD1   [25635.51, 11755.29]
+20863051    ABHD6   [25506.54, 11753.75]
+
+</code></pre>
+<h4 id="image-transformation">Image Transformation</h4>
+<p>The <code>xenium_transform.csv</code> file contains the 3x3 image transformation matrix to transition from physical coordinates into image coordinates.</p>
+<h3 id="sst-landscapefiles">sST LandscapeFiles</h3>
 
 
 

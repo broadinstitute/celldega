@@ -1,6 +1,6 @@
 document.addEventListener("DOMContentLoaded", async () => {
     // Increase width of notebook and galley pages
-    if (window.location.pathname.includes('notebook') || window.location.pathname.includes('gallery')) {
+    if (window.location.pathname.includes('notebook') || window.location.pathname.includes('gallery_')) {
 
         // hide primary sidebar
         const sidebar_primary = document.querySelector('.md-sidebar--primary');

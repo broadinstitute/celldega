@@ -1,3 +1,30 @@
+# The Celldega Matrix Vizualization Method is being built using the approaches
+# and code adaptations from the Clustergrammer-GL library, which is available at
+# github.com/ismms-himc/clustergrammer2
+# and being used under the license
+#
+# MIT License
+
+# Copyright (c) 2021 Nicolas Fernandez
+
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
 import numpy as np
 import pandas as pd
 from copy import deepcopy
@@ -26,10 +53,25 @@ import json
 import ipywidgets as widgets
 import statsmodels.stats.multitest as smm
 
-def cluster():
+def hc(df, filter_N_top=None, norm_col='total', norm_row='zscore'):
   net = Network()
 
-  print('**********')
+  net.load_df(df)
+
+  if filter_N_top is not None:
+    net.filter_N_top(axis='row', N_top=5000)
+
+  if norm_col == 'total':
+    net.normalize(axis='col', norm_type='umi')
+
+  if norm_row == 'zscore':
+    net.normalize(axis='row', norm_type='zscore')
+
+  net.cluster()
+
+  network = net.viz
+
+  return network
 
 class Network(object):
   '''

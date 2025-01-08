@@ -8,10 +8,6 @@ export const make_tooltip = (viz_state, info) => {
     let inst_name = ''
     let inst_cat = ''
 
-    // console.log(info.layer.id)
-
-
-
     if (info.layer.id.startsWith('cell-layer') || info.layer.id.startsWith('path-layer')) {
         inst_name = info.layer.id.startsWith('cell-layer') ? viz_state.cats.cell_names_array[info.index] : viz_state.cats.polygon_cell_names[info.index]
         inst_cat = viz_state.cats.dict_cell_cats[inst_name]

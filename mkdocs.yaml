@@ -39,6 +39,7 @@ nav:
     - examples/index.md
     - Brief Notebooks:
       - Landscape View Xenium: examples/brief_notebooks/Landscape_View_Xenium.ipynb
+      - Landscape-Matrix View Xenium: examples/brief_notebooks/Landscape-Matrix_Xenium.ipynb
       - Pre-Process LandscapeFiles: examples/brief_notebooks/Pre-process_Xenium_V1_human_Pancreas_FFPE_outs.ipynb
     # - Tutorials:
     #     - examples/Landscape_View_Xenium.ipynb

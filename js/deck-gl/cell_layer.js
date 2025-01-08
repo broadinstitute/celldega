@@ -119,6 +119,12 @@ export const ini_cell_layer = async (base_url, viz_state) => {
         y: flatCoordinateArray[index * 2 + 1]
     }))
 
+    console.log(viz_state.combo_data.cell)
+
+    // the viz_state.combo_data.cell data structure is fairly simple and can be defined using
+    // the optional meta_cell dictionary that a user can pass in the arguments. We will also include
+    // umap coordinates umap-x and umap-y in the dictionary later when we want to support umap view.
+
     let cell_layer = new ScatterplotLayer({
         id: 'cell-layer',
         radiusMinPixels: 1,

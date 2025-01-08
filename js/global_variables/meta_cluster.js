@@ -28,6 +28,9 @@ export const update_meta_cluster = (cats, new_meta_cluster) => {
 
 export const set_cluster_metadata = async (viz_state) => {
 
+    // I have a fairly simple data structure for cell colors which can be overwritten
+    // if the user provides a meta_cluster dictionary in the arguments (will set this up)
+
     // will improve this file naming later
     const meta_cell_url = viz_state.global_base_url + `/cell_clusters/meta_cluster.parquet`
 
@@ -61,6 +64,8 @@ export const set_cluster_metadata = async (viz_state) => {
         })
 
     })
+
+    console.log('viz_state.cats.color_dict_cluster', viz_state.cats.color_dict_cluster)
 
     viz_state.cats.cluster_counts.sort((a, b) => b.value - a.value)
 

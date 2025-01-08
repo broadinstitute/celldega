@@ -242,7 +242,6 @@ export const landscape_ist = async (
     set_edit_layer_on_click(deck_ist, layers_obj, viz_state)
     set_nbhd_layer_onclick(deck_ist, layers_obj, viz_state)
 
-
     update_trx_layer_radius(layers_obj, trx_radius)
 
     const layers_list = get_layers_list(layers_obj, viz_state.close_up)

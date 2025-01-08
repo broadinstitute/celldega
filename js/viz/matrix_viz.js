@@ -128,14 +128,4 @@ export const matrix_viz = async (
     el.appendChild(viz_state.root)
 
 
-    const tooltipContainer = viz_state.root.querySelector('.deck-tooltip');
-
-
-    console.log(viz_state.root)
-    console.log(tooltipContainer)
-
-    // select canvas element within viz_state.root
-    const canvas = viz_state.root.querySelector('canvas')
-    console.log(canvas)
-
 }

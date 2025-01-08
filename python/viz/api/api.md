@@ -2,5 +2,5 @@
 
 ## Widget Classes
 
-::: celldega.viz.widget
+::: celldega.viz
 

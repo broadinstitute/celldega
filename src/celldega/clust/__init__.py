@@ -1,3 +1,7 @@
+"""
+Module for clustering high-dimensional data.
+"""
+
 # The Celldega Matrix Vizualization Method is being built using the approaches
 # and code adaptations from the Clustergrammer-GL library, which is available at
 # github.com/ismms-himc/clustergrammer2
@@ -54,6 +58,27 @@ import ipywidgets as widgets
 import statsmodels.stats.multitest as smm
 
 def hc(df, filter_N_top=None, norm_col='total', norm_row='zscore'):
+
+  """
+  This function performs hierarchical clustering on the rows and columns of a
+  DataFrame and returns the visualization JSON for the Celldega-Matrix method.
+  This function is developed using the approaches and code adaptations from the
+  Clustergrammer2 project.
+
+  Args:
+    df (pd.DataFrame): A Pandas DataFrame.
+    filter_N_top (int): The number of top dimensions to keep after filtering.
+    norm_col (str): The type of normalization to apply to the columns.
+    norm_row (str): The type of normalization to apply to the rows.
+
+  Returns:
+    dict: The visualization JSON for the Celldega-Matrix method
+
+
+  Example:
+  See [Landscape-Matrix_Xenium](../../../examples/brief_notebooks/Landscape-Matrix_Xenium) notebook.
+  """
+
   net = Network()
 
   net.load_df(df)

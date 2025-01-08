@@ -371,6 +371,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -421,6 +425,48 @@
   
   <span class="md-ellipsis">
     pre
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../clust/api/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    clust
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../nbhd/api/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    nbhd
   </span>
   
 
@@ -1471,6 +1517,8 @@
 <a id="celldega.nbhd"></a>
     <div class="doc doc-contents first">
 
+      <p>Module for performing neighborhood analysis.</p>
+
 
 
   <div class="doc doc-children">
@@ -1504,11 +1552,7 @@
 
             <details class="quote">
               <summary>Source code in <code>src/celldega/nbhd/__init__.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">126</span>
-<span class="normal">127</span>
-<span class="normal">128</span>
-<span class="normal">129</span>
-<span class="normal">130</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">130</span>
 <span class="normal">131</span>
 <span class="normal">132</span>
 <span class="normal">133</span>
@@ -1552,7 +1596,11 @@
 <span class="normal">171</span>
 <span class="normal">172</span>
 <span class="normal">173</span>
-<span class="normal">174</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">alpha_shape_cell_clusters</span><span class="p">(</span><span class="n">meta_cell</span><span class="p">,</span> <span class="n">cat</span><span class="o">=</span><span class="s1">&#39;cluster&#39;</span><span class="p">,</span> <span class="n">alphas</span><span class="o">=</span><span class="p">[</span><span class="mi">100</span><span class="p">,</span> <span class="mi">150</span><span class="p">,</span> <span class="mi">200</span><span class="p">,</span> <span class="mi">250</span><span class="p">,</span> <span class="mi">300</span><span class="p">,</span> <span class="mi">350</span><span class="p">]):</span>
+<span class="normal">174</span>
+<span class="normal">175</span>
+<span class="normal">176</span>
+<span class="normal">177</span>
+<span class="normal">178</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">alpha_shape_cell_clusters</span><span class="p">(</span><span class="n">meta_cell</span><span class="p">,</span> <span class="n">cat</span><span class="o">=</span><span class="s1">&#39;cluster&#39;</span><span class="p">,</span> <span class="n">alphas</span><span class="o">=</span><span class="p">[</span><span class="mi">100</span><span class="p">,</span> <span class="mi">150</span><span class="p">,</span> <span class="mi">200</span><span class="p">,</span> <span class="mi">250</span><span class="p">,</span> <span class="mi">300</span><span class="p">,</span> <span class="mi">350</span><span class="p">]):</span>
 
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Compute alpha shapes for each cluster in the cell metadata.</span>

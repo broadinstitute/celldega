@@ -51,6 +51,8 @@ export const landscape_ist = async (
 
     let viz_state = {}
 
+    viz_state.root = el
+
     viz_state.buttons = {}
     viz_state.buttons.blue = '#8797ff'
     viz_state.buttons.gray = 'gray'

@@ -8,7 +8,9 @@ export const make_tooltip = (viz_state, info) => {
     let inst_name = ''
     let inst_cat = ''
 
-    console.log(info.layer.id)
+    // console.log(info.layer.id)
+
+
 
     if (info.layer.id.startsWith('cell-layer') || info.layer.id.startsWith('path-layer')) {
         inst_name = info.layer.id.startsWith('cell-layer') ? viz_state.cats.cell_names_array[info.index] : viz_state.cats.polygon_cell_names[info.index]
@@ -26,8 +28,16 @@ export const make_tooltip = (viz_state, info) => {
         inst_html = `<div>neighborhood: ${inst_name}</div><div>cluster: ${inst_cat}</div>`
     }
 
-    d3.selectAll('.deck-tooltip')
-      .style('margin-top', '75px')
+    // d3.selectAll('.deck-tooltip')
+    //   .style('margin-top', '75px')
+
+    // console.log(viz_state.root)
+
+    // select the parent element of .deck-tooltip within viz_state.root
+    const tooltipContainer = viz_state.root.querySelector('.deck-tooltip');
+    tooltipContainer.style.marginTop = '50px'
+    const tooltipParent = tooltipContainer.parentElement.parentElement;
+    tooltipParent.style.position = 'unset'
 
     return {
         html: inst_html,

@@ -42,6 +42,7 @@ export const landscape_ist = async (
     width = 0,
     height = 800,
     meta_cell={},
+    meta_cluster={},
     view_change_custom_callback=null
 ) => {
 
@@ -52,8 +53,6 @@ export const landscape_ist = async (
     let viz_state = {}
 
     viz_state.root = el
-
-
 
     viz_state.buttons = {}
     viz_state.buttons.blue = '#8797ff'
@@ -130,6 +129,14 @@ export const landscape_ist = async (
         viz_state.cats.has_meta_cell = true
     }
     viz_state.cats.meta_cell = meta_cell
+
+
+    if (Object.keys(meta_cluster).length === 0) {
+        viz_state.cats.has_meta_cluster = false
+    } else {
+        viz_state.cats.has_meta_cluster = true
+    }
+    viz_state.cats.meta_cluster = meta_cluster
 
     viz_state.genes = {}
     viz_state.genes.color_dict_gene = {}

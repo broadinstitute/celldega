@@ -105,10 +105,6 @@ export const ini_cell_layer = async (base_url, viz_state) => {
         set_cell_cats(viz_state.cats, cluster_arrow_table, 'cluster')
     }
 
-    console.log('viz_state.cats.cell_names_array', viz_state.cats.cell_names_array)
-
-    console.log('viz_state.cats.cell_cats', viz_state.cats.cell_cats)
-
     set_dict_cell_cats(viz_state.cats)
 
     // Combine names and positions into a single array of objects
@@ -120,16 +116,11 @@ export const ini_cell_layer = async (base_url, viz_state) => {
     // save cell positions and categories in one place for updating cluster bar plot
     viz_state.combo_data.cell = new_cell_names_array.map((name, index) => ({
         name: name,
-        cat: viz_state.cats.has_meta_cell ? viz_state.cats.meta_cell[name] : viz_state.cats.dict_cell_cats[name],
+        // cat: viz_state.cats.has_meta_cell ? viz_state.cats.meta_cell[name] : viz_state.cats.dict_cell_cats[name],
+        cat: viz_state.cats.dict_cell_cats[name],
         x: flatCoordinateArray[index * 2],
         y: flatCoordinateArray[index * 2 + 1]
     }))
-
-    console.log(viz_state.combo_data.cell)
-
-    // the viz_state.combo_data.cell data structure is fairly simple and can be defined using
-    // the optional meta_cell dictionary that a user can pass in the arguments. We will also include
-    // umap coordinates umap-x and umap-y in the dictionary later when we want to support umap view.
 
     let cell_layer = new ScatterplotLayer({
         id: 'cell-layer',

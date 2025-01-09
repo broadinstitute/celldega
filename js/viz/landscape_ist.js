@@ -41,8 +41,16 @@ export const landscape_ist = async (
     trx_radius=0.25,
     width = 0,
     height = 800,
+    meta_cell={},
     view_change_custom_callback=null
 ) => {
+
+    // check if meta_cell is an empty object
+    if (Object.keys(meta_cell).length === 0) {
+        console.log('did not find meta_cell')
+    } else {
+        console.log('found meta_cell')
+    }
 
 
     if (width === 0){

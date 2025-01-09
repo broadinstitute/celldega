@@ -72,6 +72,8 @@ const cell_layer_onclick = async (info, d, deck_ist, layers_obj, viz_state) => {
         })
     }
 
+    // toggle_spatial_umap(deck_ist, layers_obj, viz_state)
+
     update_cell_layer_id(layers_obj, inst_cat_name)
     update_path_layer_id(layers_obj, inst_cat_name)
     update_trx_layer_id(viz_state.genes, layers_obj)
@@ -118,13 +120,15 @@ export const ini_cell_layer = async (base_url, viz_state) => {
             }
         };
 
+        viz_state.umap.cell_umap_data = cell_umap_data
+
     }
 
     const cell_scatter_data = get_scatter_data(cell_arrow_table)
 
+    viz_state.umap.cell_scatter_data = cell_scatter_data
+
     await set_color_dict_gene(viz_state.genes, base_url)
-
-
 
     set_cell_name_to_index_map(viz_state.cats)
 
@@ -150,6 +154,24 @@ export const ini_cell_layer = async (base_url, viz_state) => {
         y: flatCoordinateArray[index * 2 + 1]
     }))
 
+    // console.log("Scatter data length:", cell_scatter_data.length);
+    // console.log("Scatter data position size:", cell_scatter_data.attributes.getPosition.size);
+    // console.log("Scatter data value length:", cell_scatter_data.attributes.getPosition.value.length);
+    // console.log("Expected value length:", cell_scatter_data.length * cell_scatter_data.attributes.getPosition.size);
+
+    // console.log("UMAP data length:", cell_umap_data.length);
+    // console.log("UMAP data position size:", cell_umap_data.attributes.getPosition.size);
+    // console.log("UMAP data value length:", cell_umap_data.attributes.getPosition.value.length);
+    // console.log("Expected value length:", cell_umap_data.length * cell_umap_data.attributes.getPosition.size);
+
+
+    const transitions = {
+        getPosition: {
+            duration: 3000,
+            easing: d3.easeCubic
+        }
+    }
+
     let cell_layer = new ScatterplotLayer({
         id: 'cell-layer',
         radiusMinPixels: 1,
@@ -158,7 +180,10 @@ export const ini_cell_layer = async (base_url, viz_state) => {
         getColor: (i, d) => get_cell_color(viz_state.cats, i, d),
         data: cell_scatter_data,
         // data: cell_umap_data,
+        // transitions: transitions,
     })
+
+
 
     return cell_layer
 
@@ -192,4 +217,15 @@ export const update_cell_pickable_state = (layers_obj, pickable) => {
     layers_obj.cell_layer = layers_obj.cell_layer.clone({
         pickable: pickable,
     });
+}
+
+export const toggle_spatial_umap = (deck_ist, layers_obj, viz_state) => {
+
+    layers_obj.cell_layer = layers_obj.cell_layer.clone({
+        data: viz_state.umap.state ? viz_state.umap.cell_umap_data : viz_state.umap.cell_scatter_data,
+    })
+
+    const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+    deck_ist.setProps({layers: layers_list})
+
 }

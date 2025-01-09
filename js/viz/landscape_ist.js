@@ -139,8 +139,6 @@ export const landscape_ist = async (
     }
     viz_state.cats.meta_cluster = meta_cluster
 
-    console.log('umap', umap)
-
     viz_state.umap = {}
     if (Object.keys(umap).length === 0) {
         viz_state.umap.has_umap = false
@@ -148,6 +146,8 @@ export const landscape_ist = async (
         viz_state.umap.has_umap = true
     }
     viz_state.umap.umap = umap
+
+    viz_state.umap.state = false
 
     viz_state.genes = {}
     viz_state.genes.color_dict_gene = {}

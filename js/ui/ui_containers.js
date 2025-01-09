@@ -276,7 +276,19 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
     const cell_slider_container = make_slider_container('cell_slider_container')
     const trx_slider_container = make_slider_container('trx_slider_container')
 
-    make_button(viz_state.containers.image, 'ist', 'IMG', 'blue', 30, 'button', deck_ist, layers_obj, viz_state)
+    let spatial_toggle_container = flex_container('image_layer_container', 'row')
+
+    // make_button(viz_state.containers.image, 'ist', 'IMG', 'blue', 30, 'button', deck_ist, layers_obj, viz_state)
+    // make_button(viz_state.containers.image, 'ist', 'UMAP', 'blue', 30, 'button', deck_ist, layers_obj, viz_state)
+
+    if (viz_state.umap.has_umap === true){
+        make_button(spatial_toggle_container, 'ist', 'UMAP', 'gray', 35, 'button', deck_ist, layers_obj, viz_state)
+        make_button(spatial_toggle_container, 'ist', 'SPATIAL', 'blue', 50, 'button', deck_ist, layers_obj, viz_state)
+    }
+
+    make_button(spatial_toggle_container, 'ist', 'IMG', 'blue', 30, 'button', deck_ist, layers_obj, viz_state)
+
+    viz_state.containers.image.appendChild(spatial_toggle_container)
 
     const get_slider_by_name = (img, name) => {
         return img.image_layer_sliders.filter(slider => slider.name === name);

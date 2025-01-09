@@ -50,6 +50,7 @@ class Landscape(anywidget.AnyWidget):
 
     meta_cell = traitlets.Dict({}).tag(sync=True)
     meta_cluster = traitlets.Dict({}).tag(sync=True)
+    umap = traitlets.Dict({}).tag(sync=True)
 
     update_trigger = traitlets.Dict().tag(sync=True)
     cell_clusters = traitlets.Dict().tag(sync=True)

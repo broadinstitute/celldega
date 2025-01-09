@@ -10,6 +10,8 @@ export const get_scatter_data = (arrow_table) => {
                 return combined;
             }, new Float64Array(0));
 
+        // console.log(flatCoordinateArray/2)
+
         const scatter_data = {
             length: arrow_table.numRows,
             attributes: {

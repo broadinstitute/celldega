@@ -89,11 +89,61 @@ export const ini_cell_layer = async (base_url, viz_state) => {
     const cell_url = base_url + `/cell_metadata.parquet`;
     var cell_arrow_table = await get_arrow_table(cell_url, options.fetch)
 
-    const cell_scatter_data = get_scatter_data(cell_arrow_table)
+    set_cell_names_array(viz_state.cats, cell_arrow_table)
+
+
+
+
+    let coords
+
+    let cell_scatter_data
+    if (viz_state.umap.has_umap){
+
+        console.log('has umap')
+
+        const flatCoordinateArray_umap = new Float64Array(
+            viz_state.cats.cell_names_array.flatMap(cell_id => {
+
+                // chcek if cell_id is in umap_dict
+                if (!viz_state.umap.umap[cell_id]) {
+                    // console.log('cell_id not found in umap_dict')
+                    coords = [0, 0];
+                } else {
+                    coords = viz_state.umap.umap[cell_id];
+                }
+
+                // if (!coords) {
+                //     // throw new Error(`Cell ID "${cell_id}" not found in umap_dict`);
+                //     console.log('no coords')
+                //     coords = [0, 0];
+                // }
+                return coords; // Add UMAP coordinates [x, y]
+            })
+        );
+
+        // Create the scatter_data object
+        cell_scatter_data = {
+            length: viz_state.cats.cell_names_array.length,
+            attributes: {
+                getPosition: { value: flatCoordinateArray_umap, size: 2 },
+            }
+        };
+
+    }
+
+    else {
+        cell_scatter_data = get_scatter_data(cell_arrow_table)
+    }
+
+    // const orig_cell_scatter_data = get_scatter_data(cell_arrow_table)
+
+
+    console.log('cell_scatter_data', cell_scatter_data)
+    // console.log('cell_umap_data', cell_umap_data)
 
     await set_color_dict_gene(viz_state.genes, base_url)
 
-    set_cell_names_array(viz_state.cats, cell_arrow_table)
+
 
     set_cell_name_to_index_map(viz_state.cats)
 
@@ -109,18 +159,17 @@ export const ini_cell_layer = async (base_url, viz_state) => {
 
     // Combine names and positions into a single array of objects
     const new_cell_names_array = cell_arrow_table.getChild("name").toArray()
-
-    // need to save the cell category
     const flatCoordinateArray = cell_scatter_data.attributes.getPosition.value;
 
     // save cell positions and categories in one place for updating cluster bar plot
     viz_state.combo_data.cell = new_cell_names_array.map((name, index) => ({
         name: name,
-        // cat: viz_state.cats.has_meta_cell ? viz_state.cats.meta_cell[name] : viz_state.cats.dict_cell_cats[name],
         cat: viz_state.cats.dict_cell_cats[name],
         x: flatCoordinateArray[index * 2],
         y: flatCoordinateArray[index * 2 + 1]
     }))
+
+    console.log('cell_scatter_data', cell_scatter_data)
 
     let cell_layer = new ScatterplotLayer({
         id: 'cell-layer',

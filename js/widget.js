@@ -32,6 +32,7 @@ export const render_landscape_ist = async ({ model, el }) => {
     const height = model.get('height')
     const meta_cell = model.get('meta_cell')
     const meta_cluster = model.get('meta_cluster')
+    const umap = model.get('umap')
 
     return landscape_ist(
         el,
@@ -47,7 +48,8 @@ export const render_landscape_ist = async ({ model, el }) => {
         width,
         height,
         meta_cell,
-        meta_cluster
+        meta_cluster,
+        umap
     )
 
 }

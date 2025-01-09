@@ -97,12 +97,18 @@ export const ini_cell_layer = async (base_url, viz_state) => {
 
     set_cell_name_to_index_map(viz_state.cats)
 
-    // default clustering
-    var cluster_arrow_table = await get_arrow_table(base_url + `/cell_clusters/cluster.parquet`, options.fetch)
+    if (viz_state.cats.has_meta_cell){
+        viz_state.cats.cell_cats = viz_state.cats.cell_names_array.map(name => viz_state.cats.meta_cell[name])
+    } else {
+        // default clustering
+        var cluster_arrow_table = await get_arrow_table(base_url + `/cell_clusters/cluster.parquet`, options.fetch)
+        set_cell_cats(viz_state.cats, cluster_arrow_table, 'cluster')
+    }
 
-    // setting a single cell category for now
-    // set_cell_cats(cluster_arrow_table, 'cluster')
-    set_cell_cats(viz_state.cats, cluster_arrow_table, 'cluster')
+    console.log('viz_state.cats.cell_names_array', viz_state.cats.cell_names_array)
+
+    console.log('viz_state.cats.cell_cats', viz_state.cats.cell_cats)
+
     set_dict_cell_cats(viz_state.cats)
 
     // Combine names and positions into a single array of objects
@@ -114,7 +120,7 @@ export const ini_cell_layer = async (base_url, viz_state) => {
     // save cell positions and categories in one place for updating cluster bar plot
     viz_state.combo_data.cell = new_cell_names_array.map((name, index) => ({
         name: name,
-        cat: viz_state.cats.dict_cell_cats[name],
+        cat: viz_state.cats.has_meta_cell ? viz_state.cats.meta_cell[name] : viz_state.cats.dict_cell_cats[name],
         x: flatCoordinateArray[index * 2],
         y: flatCoordinateArray[index * 2 + 1]
     }))

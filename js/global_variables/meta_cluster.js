@@ -67,6 +67,8 @@ export const set_cluster_metadata = async (viz_state) => {
 
     console.log('viz_state.cats.color_dict_cluster', viz_state.cats.color_dict_cluster)
 
+
+
     viz_state.cats.cluster_counts.sort((a, b) => b.value - a.value)
 
 }

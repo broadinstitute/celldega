@@ -45,14 +45,6 @@ export const landscape_ist = async (
     view_change_custom_callback=null
 ) => {
 
-    // check if meta_cell is an empty object
-    if (Object.keys(meta_cell).length === 0) {
-        console.log('did not find meta_cell')
-    } else {
-        console.log('found meta_cell')
-    }
-
-
     if (width === 0){
         width = '100%'
     }
@@ -60,6 +52,8 @@ export const landscape_ist = async (
     let viz_state = {}
 
     viz_state.root = el
+
+
 
     viz_state.buttons = {}
     viz_state.buttons.blue = '#8797ff'
@@ -128,6 +122,14 @@ export const landscape_ist = async (
     viz_state.cats.cluster_counts = []
     viz_state.cats.polygon_cell_names = []
     viz_state.cats.svg_bar_cluster = d3.create("svg")
+
+    // check if meta_cell is an empty object
+    if (Object.keys(meta_cell).length === 0) {
+        viz_state.cats.has_meta_cell = false
+    } else {
+        viz_state.cats.has_meta_cell = true
+    }
+    viz_state.cats.meta_cell = meta_cell
 
     viz_state.genes = {}
     viz_state.genes.color_dict_gene = {}

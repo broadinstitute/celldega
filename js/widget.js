@@ -30,6 +30,9 @@ export const render_landscape_ist = async ({ model, el }) => {
     const dataset_name = model.get('dataset_name')
     const width = model.get('width')
     const height = model.get('height')
+    const meta_cell = model.get('meta_cell')
+    const meta_cluster = model.get('meta_cluster')
+    const umap = model.get('umap')
 
     return landscape_ist(
         el,
@@ -43,7 +46,10 @@ export const render_landscape_ist = async ({ model, el }) => {
         dataset_name,
         0.25,
         width,
-        height
+        height,
+        meta_cell,
+        meta_cluster,
+        umap
     )
 
 }

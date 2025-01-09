@@ -72,6 +72,8 @@ const cell_layer_onclick = async (info, d, deck_ist, layers_obj, viz_state) => {
         })
     }
 
+    // toggle_spatial_umap(deck_ist, layers_obj, viz_state)
+
     update_cell_layer_id(layers_obj, inst_cat_name)
     update_path_layer_id(layers_obj, inst_cat_name)
     update_trx_layer_id(viz_state.genes, layers_obj)
@@ -89,26 +91,59 @@ export const ini_cell_layer = async (base_url, viz_state) => {
     const cell_url = base_url + `/cell_metadata.parquet`;
     var cell_arrow_table = await get_arrow_table(cell_url, options.fetch)
 
+    set_cell_names_array(viz_state.cats, cell_arrow_table)
+
+    let coords
+    let cell_umap_data
+
+    // let cell_scatter_data
+    if (viz_state.umap.has_umap){
+
+        const flatCoordinateArray_umap = new Float64Array(
+            viz_state.cats.cell_names_array.flatMap(cell_id => {
+
+                if (!viz_state.umap.umap[cell_id]) {
+                    coords = [0, 0];
+                } else {
+                    coords = viz_state.umap.umap[cell_id];
+                }
+
+                return coords; // Add UMAP coordinates [x, y]
+            })
+        );
+
+        // Create the scatter_data object
+        cell_umap_data = {
+            length: viz_state.cats.cell_names_array.length,
+            attributes: {
+                getPosition: { value: flatCoordinateArray_umap, size: 2 },
+            }
+        };
+
+        viz_state.umap.cell_umap_data = cell_umap_data
+
+    }
+
     const cell_scatter_data = get_scatter_data(cell_arrow_table)
+
+    viz_state.umap.cell_scatter_data = cell_scatter_data
 
     await set_color_dict_gene(viz_state.genes, base_url)
 
-    set_cell_names_array(viz_state.cats, cell_arrow_table)
-
     set_cell_name_to_index_map(viz_state.cats)
 
-    // default clustering
-    var cluster_arrow_table = await get_arrow_table(base_url + `/cell_clusters/cluster.parquet`, options.fetch)
+    if (viz_state.cats.has_meta_cell){
+        viz_state.cats.cell_cats = viz_state.cats.cell_names_array.map(name => viz_state.cats.meta_cell[name])
+    } else {
+        // default clustering
+        var cluster_arrow_table = await get_arrow_table(base_url + `/cell_clusters/cluster.parquet`, options.fetch)
+        set_cell_cats(viz_state.cats, cluster_arrow_table, 'cluster')
+    }
 
-    // setting a single cell category for now
-    // set_cell_cats(cluster_arrow_table, 'cluster')
-    set_cell_cats(viz_state.cats, cluster_arrow_table, 'cluster')
     set_dict_cell_cats(viz_state.cats)
 
     // Combine names and positions into a single array of objects
     const new_cell_names_array = cell_arrow_table.getChild("name").toArray()
-
-    // need to save the cell category
     const flatCoordinateArray = cell_scatter_data.attributes.getPosition.value;
 
     // save cell positions and categories in one place for updating cluster bar plot
@@ -119,6 +154,24 @@ export const ini_cell_layer = async (base_url, viz_state) => {
         y: flatCoordinateArray[index * 2 + 1]
     }))
 
+    // console.log("Scatter data length:", cell_scatter_data.length);
+    // console.log("Scatter data position size:", cell_scatter_data.attributes.getPosition.size);
+    // console.log("Scatter data value length:", cell_scatter_data.attributes.getPosition.value.length);
+    // console.log("Expected value length:", cell_scatter_data.length * cell_scatter_data.attributes.getPosition.size);
+
+    // console.log("UMAP data length:", cell_umap_data.length);
+    // console.log("UMAP data position size:", cell_umap_data.attributes.getPosition.size);
+    // console.log("UMAP data value length:", cell_umap_data.attributes.getPosition.value.length);
+    // console.log("Expected value length:", cell_umap_data.length * cell_umap_data.attributes.getPosition.size);
+
+
+    const transitions = {
+        getPosition: {
+            duration: 3000,
+            easing: d3.easeCubic
+        }
+    }
+
     let cell_layer = new ScatterplotLayer({
         id: 'cell-layer',
         radiusMinPixels: 1,
@@ -126,7 +179,11 @@ export const ini_cell_layer = async (base_url, viz_state) => {
         pickable: true,
         getColor: (i, d) => get_cell_color(viz_state.cats, i, d),
         data: cell_scatter_data,
+        // data: cell_umap_data,
+        // transitions: transitions,
     })
+
+
 
     return cell_layer
 
@@ -160,4 +217,15 @@ export const update_cell_pickable_state = (layers_obj, pickable) => {
     layers_obj.cell_layer = layers_obj.cell_layer.clone({
         pickable: pickable,
     });
+}
+
+export const toggle_spatial_umap = (deck_ist, layers_obj, viz_state) => {
+
+    layers_obj.cell_layer = layers_obj.cell_layer.clone({
+        data: viz_state.umap.state ? viz_state.umap.cell_umap_data : viz_state.umap.cell_scatter_data,
+    })
+
+    const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+    deck_ist.setProps({layers: layers_list})
+
 }

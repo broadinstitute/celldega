@@ -41,9 +41,11 @@ export const landscape_ist = async (
     trx_radius=0.25,
     width = 0,
     height = 800,
+    meta_cell={},
+    meta_cluster={},
+    umap={},
     view_change_custom_callback=null
 ) => {
-
 
     if (width === 0){
         width = '100%'
@@ -57,6 +59,7 @@ export const landscape_ist = async (
     viz_state.buttons.blue = '#8797ff'
     viz_state.buttons.gray = 'gray'
     viz_state.buttons.light_gray = '#EEEEEE'
+    viz_state.buttons.buttons = {}
 
     set_global_base_url(viz_state, base_url)
 
@@ -120,6 +123,32 @@ export const landscape_ist = async (
     viz_state.cats.cluster_counts = []
     viz_state.cats.polygon_cell_names = []
     viz_state.cats.svg_bar_cluster = d3.create("svg")
+
+    // check if meta_cell is an empty object
+    if (Object.keys(meta_cell).length === 0) {
+        viz_state.cats.has_meta_cell = false
+    } else {
+        viz_state.cats.has_meta_cell = true
+    }
+    viz_state.cats.meta_cell = meta_cell
+
+
+    if (Object.keys(meta_cluster).length === 0) {
+        viz_state.cats.has_meta_cluster = false
+    } else {
+        viz_state.cats.has_meta_cluster = true
+    }
+    viz_state.cats.meta_cluster = meta_cluster
+
+    viz_state.umap = {}
+    if (Object.keys(umap).length === 0) {
+        viz_state.umap.has_umap = false
+    } else {
+        viz_state.umap.has_umap = true
+    }
+    viz_state.umap.umap = umap
+
+    viz_state.umap.state = false
 
     viz_state.genes = {}
     viz_state.genes.color_dict_gene = {}
@@ -241,7 +270,6 @@ export const landscape_ist = async (
     set_edit_layer_on_edit(deck_ist, layers_obj, viz_state)
     set_edit_layer_on_click(deck_ist, layers_obj, viz_state)
     set_nbhd_layer_onclick(deck_ist, layers_obj, viz_state)
-
 
     update_trx_layer_radius(layers_obj, trx_radius)
 

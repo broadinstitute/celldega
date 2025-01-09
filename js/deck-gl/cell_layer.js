@@ -91,38 +91,27 @@ export const ini_cell_layer = async (base_url, viz_state) => {
 
     set_cell_names_array(viz_state.cats, cell_arrow_table)
 
-
-
-
     let coords
+    let cell_umap_data
 
-    let cell_scatter_data
+    // let cell_scatter_data
     if (viz_state.umap.has_umap){
-
-        console.log('has umap')
 
         const flatCoordinateArray_umap = new Float64Array(
             viz_state.cats.cell_names_array.flatMap(cell_id => {
 
-                // chcek if cell_id is in umap_dict
                 if (!viz_state.umap.umap[cell_id]) {
-                    // console.log('cell_id not found in umap_dict')
                     coords = [0, 0];
                 } else {
                     coords = viz_state.umap.umap[cell_id];
                 }
 
-                // if (!coords) {
-                //     // throw new Error(`Cell ID "${cell_id}" not found in umap_dict`);
-                //     console.log('no coords')
-                //     coords = [0, 0];
-                // }
                 return coords; // Add UMAP coordinates [x, y]
             })
         );
 
         // Create the scatter_data object
-        cell_scatter_data = {
+        cell_umap_data = {
             length: viz_state.cats.cell_names_array.length,
             attributes: {
                 getPosition: { value: flatCoordinateArray_umap, size: 2 },
@@ -131,15 +120,7 @@ export const ini_cell_layer = async (base_url, viz_state) => {
 
     }
 
-    else {
-        cell_scatter_data = get_scatter_data(cell_arrow_table)
-    }
-
-    // const orig_cell_scatter_data = get_scatter_data(cell_arrow_table)
-
-
-    console.log('cell_scatter_data', cell_scatter_data)
-    // console.log('cell_umap_data', cell_umap_data)
+    const cell_scatter_data = get_scatter_data(cell_arrow_table)
 
     await set_color_dict_gene(viz_state.genes, base_url)
 
@@ -169,8 +150,6 @@ export const ini_cell_layer = async (base_url, viz_state) => {
         y: flatCoordinateArray[index * 2 + 1]
     }))
 
-    console.log('cell_scatter_data', cell_scatter_data)
-
     let cell_layer = new ScatterplotLayer({
         id: 'cell-layer',
         radiusMinPixels: 1,
@@ -178,6 +157,7 @@ export const ini_cell_layer = async (base_url, viz_state) => {
         pickable: true,
         getColor: (i, d) => get_cell_color(viz_state.cats, i, d),
         data: cell_scatter_data,
+        // data: cell_umap_data,
     })
 
     return cell_layer

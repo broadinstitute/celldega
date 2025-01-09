@@ -59,6 +59,7 @@ export const landscape_ist = async (
     viz_state.buttons.blue = '#8797ff'
     viz_state.buttons.gray = 'gray'
     viz_state.buttons.light_gray = '#EEEEEE'
+    viz_state.buttons.buttons = {}
 
     set_global_base_url(viz_state, base_url)
 

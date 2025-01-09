@@ -168,7 +168,7 @@ export const make_button = (container, technology, text, color='blue', width=40,
         callback = make_ist_img_layer_button_callback(text, inst_deck, layers_obj, viz_state)
     }
 
-    d3.select(container)
+    const inst_button = d3.select(container)
         .append('div')
         .attr('class', button_class)
         .text(text)
@@ -183,6 +183,9 @@ export const make_button = (container, technology, text, color='blue', width=40,
         .style('user-select', 'none')
         .style('font-family', '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif;')
         .on('click', callback)
+
+    const button_name = text.toLowerCase()
+    viz_state.buttons.buttons[button_name] = inst_button
 
 }
 
@@ -319,9 +322,22 @@ const cell_button_callback = async (event, deck_ist, layers_obj, viz_state) => {
 const umap_button_callback = async (event, deck_ist, layers_obj, viz_state) => {
     viz_state.umap.state = true
     toggle_spatial_umap(deck_ist, layers_obj, viz_state)
+
+    viz_state.buttons.buttons.umap.style('color', 'blue')
+    viz_state.buttons.buttons.spatial.style('color', 'gray')
+
+    // placeholder for turning off visibility on other layers
+    viz_state.buttons.buttons.img.node().click()
 }
 
 const spatial_button_callback = async (event, deck_ist, layers_obj, viz_state) => {
     viz_state.umap.state = false
     toggle_spatial_umap(deck_ist, layers_obj, viz_state)
+
+    viz_state.buttons.buttons.umap.style('color', 'gray')
+    viz_state.buttons.buttons.spatial.style('color', 'blue')
+
+    // click the img button
+    viz_state.buttons.buttons.img.node().click()
+
 }

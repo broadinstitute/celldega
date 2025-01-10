@@ -28,3 +28,5 @@ static
 node_modules
 *.h5
 *egg-info
+
+EsbuildAnalyzer.html

@@ -166,7 +166,7 @@ export const ini_cell_layer = async (base_url, viz_state) => {
 
 
     const transitions = {
-        getPosition: {
+        getRadius: {
             duration: 3000,
             easing: d3.easeCubic
         }
@@ -180,7 +180,8 @@ export const ini_cell_layer = async (base_url, viz_state) => {
         getColor: (i, d) => get_cell_color(viz_state.cats, i, d),
         data: cell_scatter_data,
         // data: cell_umap_data,
-        // transitions: transitions,
+        transitions: transitions,
+        getPosition: d => d.position
     })
 
 
@@ -222,7 +223,8 @@ export const update_cell_pickable_state = (layers_obj, pickable) => {
 export const toggle_spatial_umap = (deck_ist, layers_obj, viz_state) => {
 
     layers_obj.cell_layer = layers_obj.cell_layer.clone({
-        data: viz_state.umap.state ? viz_state.umap.cell_umap_data : viz_state.umap.cell_scatter_data,
+        // data: viz_state.umap.state ? viz_state.umap.cell_umap_data : viz_state.umap.cell_scatter_data,
+        getRadius: 200
     })
 
     const layers_list = get_layers_list(layers_obj, viz_state.close_up)

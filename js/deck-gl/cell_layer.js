@@ -203,6 +203,65 @@ export const ini_cell_layer = async (base_url, viz_state) => {
       umap: [flatCoordinateArray_umap[i * 2], flatCoordinateArray_umap[i * 2 + 1]]
     }));
 
+    // scale umap values to be centered around the middle of the image x and y positions (max - min / 2)
+    // use d3 to find the min and max of the flatCoordinateArray
+
+    const x_min = d3.min(cell_scatter_data_objects.map(d => d.position[0]))
+    const x_max = d3.max(cell_scatter_data_objects.map(d => d.position[0]))
+    const y_min = d3.min(cell_scatter_data_objects.map(d => d.position[1]))
+    const y_max = d3.max(cell_scatter_data_objects.map(d => d.position[1]))
+
+    const umap_x_min = d3.min(cell_scatter_data_objects.map(d => d.umap[0]))
+    const umap_x_max = d3.max(cell_scatter_data_objects.map(d => d.umap[0]))
+    const umap_y_min = d3.min(cell_scatter_data_objects.map(d => d.umap[1]))
+    const umap_y_max = d3.max(cell_scatter_data_objects.map(d => d.umap[1]))
+
+    const x_mid = (x_max - x_min) / 2;
+    const y_mid = (y_max - y_min) / 2;
+
+    const umap_x_mid = (umap_x_max - umap_x_min) / 2;
+    const umap_y_mid = (umap_y_max - umap_y_min) / 2;
+
+
+    // const umap_x = d3.mean(cell_scatter_data_objects.map(d => d.umap[0]))
+    // const umap_y = d3.mean(cell_scatter_data_objects.map(d => d.umap[1]))
+
+    // const x_diff = mean_x - umap_x
+    // const y_diff = mean_y - umap_y
+
+    // cell_scatter_data_objects.forEach(d => {
+    //     d.umap[0] += x_diff
+    //     d.umap[1] += y_diff
+    // })
+
+
+    // const x_min = Math.min(...flatCoordinateArray.filter((_, i) => i % 2 === 0));
+    // const x_max = Math.max(...flatCoordinateArray.filter((_, i) => i % 2 === 0));
+    // const y_min = Math.min(...flatCoordinateArray.filter((_, i) => i % 2 === 1));
+    // const y_max = Math.max(...flatCoordinateArray.filter((_, i) => i % 2 === 1));
+
+    // const x_mid = (x_max - x_min) / 2;
+    // const y_mid = (y_max - y_min) / 2;
+
+    // const x_umap_min = Math.min(...flatCoordinateArray_umap.filter((_, i) => i % 2 === 0));
+    // const x_umap_max = Math.max(...flatCoordinateArray_umap.filter((_, i) => i % 2 === 0));
+    // const y_umap_min = Math.min(...flatCoordinateArray_umap.filter((_, i) => i % 2 === 1));
+    // const y_umap_max = Math.max(...flatCoordinateArray_umap.filter((_, i) => i % 2 === 1));
+
+    // const x_umap_mid = (x_umap_max - x_umap_min) / 2;
+    // const y_umap_mid = (y_umap_max - y_umap_min) / 2;
+
+    const x_diff = x_mid - umap_x_mid;
+    const y_diff = y_mid - umap_y_mid;
+
+    // apply this to cell_scatter_data_objects
+    cell_scatter_data_objects.forEach((d) => {
+        d.umap[0] = d.umap[0] + x_diff;
+        d.umap[1] = d.umap[1] + y_diff;
+    })
+
+
+
 
     console.log('viz_state.umap.state', viz_state.umap.state)
 

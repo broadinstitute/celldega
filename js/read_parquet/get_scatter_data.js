@@ -16,6 +16,7 @@ export const get_scatter_data = (arrow_table) => {
             length: arrow_table.numRows,
             attributes: {
                 getPosition: { value: flatCoordinateArray, size: 2 },
+                // position: { value: flatCoordinateArray, size: 2 },
             }
         };
 

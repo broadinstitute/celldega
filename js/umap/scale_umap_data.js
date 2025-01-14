@@ -1,13 +1,13 @@
 import * as d3 from 'd3'
 
-export const scale_umap_data = (cell_scatter_data_objects) => {
+export const scale_umap_data = (viz_state, cell_scatter_data_objects) => {
 
     // scale umap values to be centered around the middle of the image x and y positions (max - min / 2)
     // use d3 to find the min and max of the flatCoordinateArray
-    const x_min = d3.min(cell_scatter_data_objects.map(d => d.position[0]))
-    const x_max = d3.max(cell_scatter_data_objects.map(d => d.position[0]))
-    const y_min = d3.min(cell_scatter_data_objects.map(d => d.position[1]))
-    const y_max = d3.max(cell_scatter_data_objects.map(d => d.position[1]))
+    const x_min = viz_state.spatial.x_min // d3.min(cell_scatter_data_objects.map(d => d.position[0]))
+    const x_max = viz_state.spatial.x_max // d3.max(cell_scatter_data_objects.map(d => d.position[0]))
+    const y_min = viz_state.spatial.y_min // d3.min(cell_scatter_data_objects.map(d => d.position[1]))
+    const y_max = viz_state.spatial.y_max // d3.max(cell_scatter_data_objects.map(d => d.position[1]))
 
     // take the smaller of the two ranges for x and y
     const x_range = x_max - x_min

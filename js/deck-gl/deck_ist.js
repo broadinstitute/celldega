@@ -50,7 +50,17 @@ export const set_deck_on_view_state_change = (deck_ist, layers_obj, viz_state) =
 }
 
 
-export const set_initial_view_state = (deck_ist, ini_x, ini_y, ini_z, ini_zoom) => {
+export const set_initial_view_state = (deck_ist, ini_x, ini_y, ini_z, ini_zoom, viz_state) => {
+
+    console.log('checking spatial')
+    console.log(viz_state.spatial)
+
+    if (ini_x === 0 && ini_y === 0 && ini_zoom === 0) {
+        ini_x = viz_state.spatial.center_x
+        ini_y = viz_state.spatial.center_y
+        ini_zoom = viz_state.spatial.ini_zoom
+    }
+
 
     const initial_view_state = {
         target: [ini_x, ini_y, ini_z],

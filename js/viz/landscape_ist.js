@@ -202,7 +202,7 @@ export const landscape_ist = async (
     viz_state.views = set_views()
 
     let deck_ist = await ini_deck(root, width, height)
-    set_initial_view_state(deck_ist, ini_x, ini_y, ini_z, ini_zoom)
+    // set_initial_view_state(deck_ist, ini_x, ini_y, ini_z, ini_zoom)
     set_views_prop(deck_ist, viz_state.views)
 
     // initialize cell and trx caches
@@ -276,6 +276,8 @@ export const landscape_ist = async (
     update_trx_layer_radius(layers_obj, trx_radius)
 
     const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+
+    set_initial_view_state(deck_ist, ini_x, ini_y, ini_z, ini_zoom, viz_state)
 
     deck_ist.setProps({layers: layers_list})
 

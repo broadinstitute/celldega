@@ -147,7 +147,12 @@ export const ini_cell_layer = async (base_url, viz_state) => {
             umap: [flatCoordinateArray_umap[i * 2], flatCoordinateArray_umap[i * 2 + 1]]
         }));
 
-        cell_scatter_data_objects = scale_umap_data(cell_scatter_data_objects)
+        viz_state.spatial.x_min = d3.min(cell_scatter_data_objects.map(d => d.position[0]))
+        viz_state.spatial.x_max = d3.max(cell_scatter_data_objects.map(d => d.position[0]))
+        viz_state.spatial.y_min = d3.min(cell_scatter_data_objects.map(d => d.position[1]))
+        viz_state.spatial.y_max = d3.max(cell_scatter_data_objects.map(d => d.position[1]))
+
+        cell_scatter_data_objects = scale_umap_data(viz_state, cell_scatter_data_objects)
 
 
     } else {
@@ -155,11 +160,49 @@ export const ini_cell_layer = async (base_url, viz_state) => {
         cell_scatter_data_objects = Array.from({ length: numRows }, (_, i) => ({
             position: [flatCoordinateArray[i * 2], flatCoordinateArray[i * 2 + 1]],
         }));
+
+        viz_state.spatial.x_min = d3.min(cell_scatter_data_objects.map(d => d.position[0]))
+        viz_state.spatial.x_max = d3.max(cell_scatter_data_objects.map(d => d.position[0]))
+        viz_state.spatial.y_min = d3.min(cell_scatter_data_objects.map(d => d.position[1]))
+        viz_state.spatial.y_max = d3.max(cell_scatter_data_objects.map(d => d.position[1]))
     }
 
 
+    viz_state.spatial.center_x = (viz_state.spatial.x_max + viz_state.spatial.x_min) / 2
+    viz_state.spatial.center_y = (viz_state.spatial.y_max + viz_state.spatial.y_min) / 2
+
+    viz_state.spatial.data_width = viz_state.spatial.x_max - viz_state.spatial.x_min
+    viz_state.spatial.data_height = viz_state.spatial.y_max - viz_state.spatial.y_min
 
 
+
+    // get the width and height of the canvas element stored in viz_state.root
+    // const canvas_width = viz_state.root.clientWidth
+    // const canvas_height = viz_state.root.clientHeight
+
+    // const canvasElement = viz_state.root.querySelector('#deckgl-overlay');
+
+    // console.log(canvasElement)
+
+    // console.log('root!')
+    // console.log(viz_state.root)
+
+
+    const canvas_width = 1000
+    const canvas_height = 500
+
+
+
+    viz_state.spatial.scale_x = canvas_width / viz_state.spatial.data_width
+    viz_state.spatial.scale_y = canvas_height / viz_state.spatial.data_height
+    viz_state.spatial.scale = Math.min(viz_state.spatial.scale_x, viz_state.spatial.scale_y)
+
+    viz_state.spatial.ini_zoom = Math.log2(viz_state.spatial.scale) * 1.01
+    viz_state.spatial.ini_x = viz_state.spatial.center_x
+    viz_state.spatial.ini_y = viz_state.spatial.center_y
+
+
+    console.log('viz_state.spatial', viz_state.spatial)
 
     viz_state.spatial.cell_scatter_data_objects = cell_scatter_data_objects
 

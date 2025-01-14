@@ -327,7 +327,7 @@ const umap_button_callback = async (event, deck_ist, layers_obj, viz_state) => {
     viz_state.buttons.buttons.spatial.style('color', 'gray')
 
     // placeholder for turning off visibility on other layers
-    viz_state.buttons.buttons.img.node().click()
+    // viz_state.buttons.buttons.img.node().click()
 }
 
 const spatial_button_callback = async (event, deck_ist, layers_obj, viz_state) => {
@@ -337,7 +337,7 @@ const spatial_button_callback = async (event, deck_ist, layers_obj, viz_state) =
     viz_state.buttons.buttons.umap.style('color', 'gray')
     viz_state.buttons.buttons.spatial.style('color', 'blue')
 
-    // click the img button
-    viz_state.buttons.buttons.img.node().click()
+    // // click the img button
+    // viz_state.buttons.buttons.img.node().click()
 
 }

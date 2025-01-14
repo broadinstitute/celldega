@@ -69,6 +69,8 @@ export const landscape_ist = async (
     viz_state.nbhd = {}
     viz_state.nbhd.visible = false
 
+    viz_state.spatial = {}
+
     if (Object.keys(viz_state.model).length !== 0){
         if (Object.keys(viz_state.model.get('nbhd')).length === 0) {
 

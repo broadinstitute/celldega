@@ -14,6 +14,7 @@ import { toggle_image_layers_and_ctrls } from '../ui/ui_containers'
 import { update_selected_genes } from '../global_variables/selected_genes'
 import { update_trx_layer_id } from './trx_layer'
 import { update_gene_text_box } from '../ui/gene_search'
+import { scale_umap_data } from '../umap/scale_umap_data'
 
 const cell_layer_onclick = async (info, d, deck_ist, layers_obj, viz_state) => {
 
@@ -91,39 +92,7 @@ export const ini_cell_layer = async (base_url, viz_state) => {
 
     set_cell_names_array(viz_state.cats, cell_arrow_table)
 
-    const cell_scatter_data = get_scatter_data(cell_arrow_table)
-
-    viz_state.umap.cell_scatter_data = cell_scatter_data
-
-
-    let coords
-    let cell_umap_data
-    let flatCoordinateArray_umap
-
-    if (viz_state.umap.has_umap){
-
-        flatCoordinateArray_umap = new Float64Array(
-            viz_state.cats.cell_names_array.flatMap(cell_id => {
-
-                if (!viz_state.umap.umap[cell_id]) {
-                    coords = [0, 0];
-                } else {
-                    coords = viz_state.umap.umap[cell_id];
-                }
-
-                return coords; // Add UMAP coordinates [x, y]
-            })
-        );
-
-        cell_scatter_data.attributes.getUMAP = {
-            value: flatCoordinateArray_umap,
-            size: 2
-        }
-
-    }
-
-    console.log('checking if additional attribute is available')
-    console.log("cell_scatter_data", cell_scatter_data)
+    viz_state.spatial.cell_scatter_data = get_scatter_data(cell_arrow_table)
 
     await set_color_dict_gene(viz_state.genes, base_url)
 
@@ -142,7 +111,7 @@ export const ini_cell_layer = async (base_url, viz_state) => {
     // Combine names and positions into a single array of objects
     const new_cell_names_array = cell_arrow_table.getChild("name").toArray()
 
-    const flatCoordinateArray = cell_scatter_data.attributes.getPosition.value;
+    const flatCoordinateArray = viz_state.spatial.cell_scatter_data.attributes.getPosition.value;
 
     // save cell positions and categories in one place for updating cluster bar plot
     viz_state.combo_data.cell = new_cell_names_array.map((name, index) => ({
@@ -152,72 +121,54 @@ export const ini_cell_layer = async (base_url, viz_state) => {
         y: flatCoordinateArray[index * 2 + 1]
     }))
 
+
+    let cell_scatter_data_objects
+    if (viz_state.umap.has_umap){
+        let flatCoordinateArray_umap
+
+        flatCoordinateArray_umap = new Float64Array(
+            viz_state.cats.cell_names_array.flatMap(cell_id => {
+
+                let coords
+                if (!viz_state.umap.umap[cell_id]) {
+                    coords = [0, 0];
+                } else {
+                    coords = viz_state.umap.umap[cell_id];
+                }
+
+                return coords;
+            })
+        );
+
+        // convert to easier to use objects
+        const numRows = viz_state.spatial.cell_scatter_data.length; // Replace with arrow_table.numRows
+        cell_scatter_data_objects = Array.from({ length: numRows }, (_, i) => ({
+            position: [flatCoordinateArray[i * 2], flatCoordinateArray[i * 2 + 1]],
+            umap: [flatCoordinateArray_umap[i * 2], flatCoordinateArray_umap[i * 2 + 1]]
+        }));
+
+        cell_scatter_data_objects = scale_umap_data(cell_scatter_data_objects)
+
+
+    } else {
+        const numRows = viz_state.spatial.cell_scatter_data.length; // Replace with arrow_table.numRows
+        cell_scatter_data_objects = Array.from({ length: numRows }, (_, i) => ({
+            position: [flatCoordinateArray[i * 2], flatCoordinateArray[i * 2 + 1]],
+        }));
+    }
+
+
+
+
+
+    viz_state.spatial.cell_scatter_data_objects = cell_scatter_data_objects
+
     const transitions = {
-        getRadius: {
-            duration: 3000,
-            easing: d3.easeCubic
-        },
         getPosition: {
             duration: 3000,
             easing: d3.easeCubic
         }
     }
-
-    // convert to easier to use objects
-    const numRows = cell_scatter_data.length; // Replace with arrow_table.numRows
-
-    const cell_scatter_data_objects = Array.from({ length: numRows }, (_, i) => ({
-      position: [flatCoordinateArray[i * 2], flatCoordinateArray[i * 2 + 1]],
-      umap: [flatCoordinateArray_umap[i * 2], flatCoordinateArray_umap[i * 2 + 1]]
-    }));
-
-    // scale umap values to be centered around the middle of the image x and y positions (max - min / 2)
-    // use d3 to find the min and max of the flatCoordinateArray
-
-    const x_min = d3.min(cell_scatter_data_objects.map(d => d.position[0]))
-    const x_max = d3.max(cell_scatter_data_objects.map(d => d.position[0]))
-    const y_min = d3.min(cell_scatter_data_objects.map(d => d.position[1]))
-    const y_max = d3.max(cell_scatter_data_objects.map(d => d.position[1]))
-
-    // take the smaller of the two ranges for x and y
-    const x_range = x_max - x_min
-    const y_range = y_max - y_min
-
-    const range_min = Math.min(x_range, y_range)
-
-    const x_mid = (x_max - x_min) / 2;
-    const y_mid = (y_max - y_min) / 2;
-
-    let umap_x_min = d3.min(cell_scatter_data_objects.map(d => d.umap[0]))
-    let umap_x_max = d3.max(cell_scatter_data_objects.map(d => d.umap[0]))
-    let umap_y_min = d3.min(cell_scatter_data_objects.map(d => d.umap[1]))
-    let umap_y_max = d3.max(cell_scatter_data_objects.map(d => d.umap[1]))
-
-    const umap_x_range = umap_x_max - umap_x_min
-    const umap_y_range = umap_y_max - umap_y_min
-
-    // scale the umap values to be within range_min and c   entered about x_mid and y_mid
-    cell_scatter_data_objects.forEach(d => {
-        d.umap[0] = (d.umap[0] - umap_x_min) / (umap_x_range) * range_min
-        d.umap[1] = (d.umap[1] - umap_y_min) / (umap_y_range) * range_min
-    })
-
-    umap_x_min = d3.min(cell_scatter_data_objects.map(d => d.umap[0]))
-    umap_x_max = d3.max(cell_scatter_data_objects.map(d => d.umap[0]))
-    umap_y_min = d3.min(cell_scatter_data_objects.map(d => d.umap[1]))
-    umap_y_max = d3.max(cell_scatter_data_objects.map(d => d.umap[1]))
-
-    const umap_x_mid = (umap_x_max - umap_x_min) / 2;
-    const umap_y_mid = (umap_y_max - umap_y_min) / 2;
-
-    const x_diff = x_mid - umap_x_mid;
-    const y_diff = y_mid - umap_y_mid;
-
-    // apply this to cell_scatter_data_objects
-    cell_scatter_data_objects.forEach((d) => {
-        d.umap[0] = d.umap[0] + x_diff;
-        d.umap[1] = d.umap[1] + y_diff;
-    })
 
     let cell_layer = new ScatterplotLayer({
         id: 'cell-layer',
@@ -225,15 +176,13 @@ export const ini_cell_layer = async (base_url, viz_state) => {
         getRadius: 5.0,
         pickable: true,
         getColor: (i, d) => get_cell_color(viz_state.cats, i, d),
-        data: cell_scatter_data_objects,
+        data: viz_state.spatial.cell_scatter_data_objects,
         transitions: transitions,
         getPosition: d => (viz_state.umap.state ? d.umap : d.position),
         updateTriggers: {
             getPosition: [viz_state.umap.state]
         },
     })
-
-
 
     return cell_layer
 

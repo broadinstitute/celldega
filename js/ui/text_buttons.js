@@ -329,6 +329,8 @@ const umap_button_callback = async (event, deck_ist, layers_obj, viz_state) => {
     // placeholder for turning off visibility on other layers
     viz_state.buttons.buttons.img.node().click()
 
+    toggle_background_layer_visibility(layers_obj, false)
+    toggle_visibility_image_layers(layers_obj, false)
     toggle_trx_layer_visibility(layers_obj, false)
     toggle_path_layer_visibility(layers_obj, false)
 
@@ -348,6 +350,8 @@ const spatial_button_callback = async (event, deck_ist, layers_obj, viz_state) =
     setTimeout(() => {
 
         viz_state.buttons.buttons.img.node().click()
+        toggle_background_layer_visibility(layers_obj, true)
+        toggle_visibility_image_layers(layers_obj, true)
         toggle_trx_layer_visibility(layers_obj, true)
         toggle_path_layer_visibility(layers_obj, true)
 

@@ -282,8 +282,20 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
     // make_button(viz_state.containers.image, 'ist', 'UMAP', 'blue', 30, 'button', deck_ist, layers_obj, viz_state)
 
     if (viz_state.umap.has_umap === true){
-        make_button(spatial_toggle_container, 'ist', 'UMAP', 'gray', 35, 'button', deck_ist, layers_obj, viz_state)
-        make_button(spatial_toggle_container, 'ist', 'SPATIAL', 'blue', 50, 'button', deck_ist, layers_obj, viz_state)
+
+        let ini_umap_color
+        let ini_spatial_color
+
+        if (viz_state.umap.state === true){
+            ini_umap_color = 'blue'
+            ini_spatial_color = 'gray'
+        } else {
+            ini_umap_color = 'gray'
+            ini_spatial_color = 'blue'
+        }
+
+        make_button(spatial_toggle_container, 'ist', 'UMAP', ini_umap_color, 35, 'button', deck_ist, layers_obj, viz_state)
+        make_button(spatial_toggle_container, 'ist', 'SPATIAL', ini_spatial_color, 50, 'button', deck_ist, layers_obj, viz_state)
     }
 
     make_button(spatial_toggle_container, 'ist', 'IMG', 'blue', 30, 'button', deck_ist, layers_obj, viz_state)

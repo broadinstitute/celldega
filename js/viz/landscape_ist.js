@@ -111,6 +111,9 @@ export const landscape_ist = async (
     }
 
     viz_state.containers = {}
+    viz_state.containers.root_dim = {}
+    viz_state.containers.root_dim.width = width
+    viz_state.containers.root_dim.height = height
 
     viz_state.custom_callbacks = {}
     viz_state.custom_callbacks.view_change = view_change_custom_callback

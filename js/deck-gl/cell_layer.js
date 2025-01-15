@@ -187,9 +187,18 @@ export const ini_cell_layer = async (base_url, viz_state) => {
     // console.log('root!')
     // console.log(viz_state.root)
 
+    // get the width of viz_state.root
+    const root_width = viz_state.root.clientWidth
+    const root_height = viz_state.root.clientHeight
 
-    const canvas_width = 1000
-    const canvas_height = 500
+    console.log('root_width', root_width)
+    console.log('root_height', root_height)
+
+
+    console.log(viz_state.containers.root_dim.width, viz_state.containers.root_dim.height)
+
+    const canvas_width = viz_state.root.clientWidth // 1000
+    const canvas_height = viz_state.containers.root_dim.height //500
 
 
 

@@ -30,3 +30,4 @@ node_modules
 *egg-info
 
 EsbuildAnalyzer.html
+meta.json

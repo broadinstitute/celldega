@@ -35,7 +35,6 @@ const cell_layer_onclick = async (info, d, deck_ist, layers_obj, viz_state) => {
     update_selected_cats(viz_state.cats, [inst_cat])
     update_selected_genes(viz_state.genes, [])
 
-    toggle_image_layers_and_ctrls(layers_obj, viz_state, !viz_state.cats.selected_cats.length > 0)
 
     const inst_cat_name = viz_state.cats.selected_cats.join('-')
 
@@ -74,8 +73,12 @@ const cell_layer_onclick = async (info, d, deck_ist, layers_obj, viz_state) => {
     }
 
     update_cell_layer_id(layers_obj, inst_cat_name)
-    update_path_layer_id(layers_obj, inst_cat_name)
-    update_trx_layer_id(viz_state.genes, layers_obj)
+
+    if (viz_state.umap.state === false) {
+        toggle_image_layers_and_ctrls(layers_obj, viz_state, !viz_state.cats.selected_cats.length > 0)
+        update_path_layer_id(layers_obj, inst_cat_name)
+        update_trx_layer_id(viz_state.genes, layers_obj)
+    }
 
     const layers_list = get_layers_list(layers_obj, viz_state.close_up)
     deck_ist.setProps({layers: layers_list})

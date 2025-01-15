@@ -23,6 +23,7 @@ async function main() {
       define: {
         'define.amd': 'false',
       },
+      metafile: true,
     });
 
     if (isWatchMode) {
@@ -39,6 +40,11 @@ async function main() {
       await fs.mkdir(path.dirname(destPath), { recursive: true }); // Ensure destination directory exists
       await fs.copyFile(srcPath, destPath);
       console.log('File copied successfully.');
+
+      // Write the metadata to a JSON file
+      const metadataPath = path.resolve('meta.json');
+      await fs.writeFile(metadataPath, JSON.stringify(result.metafile, null, 2));
+      console.log(`Metadata written to ${metadataPath}`);
 
       // Dispose of the context after a successful build to ensure the process exits
       await context.dispose();

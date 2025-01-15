@@ -1,6 +1,6 @@
 {
 	"name": "celldega",
-	"version": "0.8.0",
+	"version": "0.8.1",
 	"type": "module",
 	"scripts": {
 		"dev": "npm run build -- --sourcemap=inline --watch",

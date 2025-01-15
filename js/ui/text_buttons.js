@@ -328,6 +328,15 @@ const umap_button_callback = async (event, deck_ist, layers_obj, viz_state) => {
 
     // placeholder for turning off visibility on other layers
     viz_state.buttons.buttons.img.node().click()
+
+    toggle_background_layer_visibility(layers_obj, false)
+    toggle_visibility_image_layers(layers_obj, false)
+    toggle_trx_layer_visibility(layers_obj, false)
+    toggle_path_layer_visibility(layers_obj, false)
+
+    const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+    deck_ist.setProps({layers: layers_list})
+
 }
 
 const spatial_button_callback = async (event, deck_ist, layers_obj, viz_state) => {
@@ -337,7 +346,18 @@ const spatial_button_callback = async (event, deck_ist, layers_obj, viz_state) =
     viz_state.buttons.buttons.umap.style('color', 'gray')
     viz_state.buttons.buttons.spatial.style('color', 'blue')
 
-    // click the img button
-    viz_state.buttons.buttons.img.node().click()
+    // click the img button after 3 seconds
+    setTimeout(() => {
+
+        viz_state.buttons.buttons.img.node().click()
+        toggle_background_layer_visibility(layers_obj, true)
+        toggle_visibility_image_layers(layers_obj, true)
+        toggle_trx_layer_visibility(layers_obj, true)
+        toggle_path_layer_visibility(layers_obj, true)
+
+        const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+        deck_ist.setProps({layers: layers_list})
+
+    }, 3000)
 
 }

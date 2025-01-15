@@ -113,7 +113,6 @@ export const calc_viewport = async ({ height, width, zoom, target }, deck_ist, l
 
         if (viz_state.close_up) {
 
-            // set_close_up(false)
             viz_state.close_up = false
 
             update_bar_graph(viz_state.genes.svg_bar_gene, viz_state.genes.gene_counts, viz_state.genes.color_dict_gene, bar_callback_gene, viz_state.genes.selected_genes, deck_ist, layers_obj, viz_state)

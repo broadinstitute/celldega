@@ -66,6 +66,3 @@ Increment version in `package.json` and
 $ npm run build
 $ npm publish
 ```
-
-#### Development Notes
-May use older version of deck.gl 8.9.1 until bug with instanced layer is resolved using newer versions "^9.0.5".;

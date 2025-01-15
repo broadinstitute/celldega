@@ -34502,7 +34502,7 @@
       "format": "esm"
     },
     "js/deck-gl/cell_color.js": {
-      "bytes": 1073,
+      "bytes": 1072,
       "imports": [],
       "format": "esm"
     },
@@ -35956,7 +35956,7 @@
       "format": "esm"
     },
     "js/ui/text_buttons.js": {
-      "bytes": 11474,
+      "bytes": 12220,
       "imports": [
         {
           "path": "node_modules/d3/src/index.js",
@@ -41613,7 +41613,7 @@
       "format": "esm"
     },
     "js/ui/ui_containers.js": {
-      "bytes": 28406,
+      "bytes": 28706,
       "imports": [
         {
           "path": "node_modules/d3/src/index.js",
@@ -41764,8 +41764,19 @@
       ],
       "format": "esm"
     },
+    "js/umap/scale_umap_data.js": {
+      "bytes": 2275,
+      "imports": [
+        {
+          "path": "node_modules/d3/src/index.js",
+          "kind": "import-statement",
+          "original": "d3"
+        }
+      ],
+      "format": "esm"
+    },
     "js/deck-gl/cell_layer.js": {
-      "bytes": 8276,
+      "bytes": 9975,
       "imports": [
         {
           "path": "node_modules/d3/src/index.js",
@@ -41846,6 +41857,11 @@
           "path": "js/ui/gene_search.js",
           "kind": "import-statement",
           "original": "../ui/gene_search"
+        },
+        {
+          "path": "js/umap/scale_umap_data.js",
+          "kind": "import-statement",
+          "original": "../umap/scale_umap_data"
         }
       ],
       "format": "esm"
@@ -41867,7 +41883,7 @@
       "format": "esm"
     },
     "js/deck-gl/calc_viewport.js": {
-      "bytes": 5000,
+      "bytes": 4965,
       "imports": [
         {
           "path": "js/vector_tile/visibleTiles.js",
@@ -41903,7 +41919,7 @@
       "format": "esm"
     },
     "js/deck-gl/on_view_state_change.js": {
-      "bytes": 553,
+      "bytes": 604,
       "imports": [
         {
           "path": "js/utils/debounce.js",
@@ -41930,7 +41946,7 @@
       "format": "esm"
     },
     "js/deck-gl/deck_ist.js": {
-      "bytes": 1317,
+      "bytes": 1524,
       "imports": [
         {
           "path": "node_modules/deck.gl/dist/index.js",
@@ -41993,7 +42009,7 @@
       "format": "esm"
     },
     "js/widget_interactions/update_ist_landscape_from_cgm.js": {
-      "bytes": 13535,
+      "bytes": 7483,
       "imports": [
         {
           "path": "node_modules/d3/src/index.js",
@@ -42090,7 +42106,7 @@
       "format": "esm"
     },
     "js/viz/landscape_ist.js": {
-      "bytes": 17789,
+      "bytes": 18867,
       "imports": [
         {
           "path": "node_modules/d3/src/index.js",
@@ -42236,6 +42252,26 @@
           "path": "js/deck-gl/nbhd_layer.js",
           "kind": "import-statement",
           "original": "../deck-gl/nbhd_layer"
+        },
+        {
+          "path": "js/deck-gl/image_layers.js",
+          "kind": "import-statement",
+          "original": "../deck-gl/image_layers"
+        },
+        {
+          "path": "js/deck-gl/trx_layer.js",
+          "kind": "import-statement",
+          "original": "../deck-gl/trx_layer"
+        },
+        {
+          "path": "js/deck-gl/path_layer.js",
+          "kind": "import-statement",
+          "original": "../deck-gl/path_layer"
+        },
+        {
+          "path": "js/deck-gl/background_layer.js",
+          "kind": "import-statement",
+          "original": "../deck-gl/background_layer"
         }
       ],
       "format": "esm"
@@ -42664,7 +42700,7 @@
       "format": "esm"
     },
     "js/widget.js": {
-      "bytes": 2780,
+      "bytes": 2862,
       "imports": [
         {
           "path": "js/widget.css",
@@ -42705,22 +42741,22 @@
       "cssBundle": "src/celldega/static/widget.css",
       "inputs": {
         "node_modules/hammerjs/hammer.js": {
-          "bytesInOutput": 20986
+          "bytesInOutput": 20985
         },
         "node_modules/earcut/src/earcut.js": {
           "bytesInOutput": 6726
         },
         "node_modules/turf-jsts/jsts.min.js": {
-          "bytesInOutput": 337506
+          "bytesInOutput": 337512
         },
         "node_modules/polygon-clipping/dist/polygon-clipping.umd.js": {
-          "bytesInOutput": 29192
+          "bytesInOutput": 29362
         },
         "node_modules/eventemitter3/index.js": {
           "bytesInOutput": 2839
         },
         "node_modules/rbush/rbush.min.js": {
-          "bytesInOutput": 6441
+          "bytesInOutput": 6435
         },
         "node_modules/geojson-rbush/node_modules/@turf/helpers/dist/js/index.js": {
           "bytesInOutput": 5283
@@ -42771,6 +42807,9 @@
           "bytesInOutput": 878
         },
         "node_modules/d3-array/src/max.js": {
+          "bytesInOutput": 183
+        },
+        "node_modules/d3-array/src/min.js": {
           "bytesInOutput": 183
         },
         "node_modules/d3-array/src/range.js": {
@@ -43125,7 +43164,7 @@
           "bytesInOutput": 24
         },
         "node_modules/d3-format/src/locale.js": {
-          "bytesInOutput": 1876
+          "bytesInOutput": 1863
         },
         "node_modules/d3-format/src/defaultLocale.js": {
           "bytesInOutput": 130
@@ -43491,7 +43530,7 @@
           "bytesInOutput": 393
         },
         "node_modules/@luma.gl/shadertools/dist/lib/shader-assembly/assemble-shaders.js": {
-          "bytesInOutput": 2975
+          "bytesInOutput": 2971
         },
         "node_modules/@luma.gl/shadertools/dist/lib/shader-assembler.js": {
           "bytesInOutput": 1332
@@ -43692,7 +43731,7 @@
           "bytesInOutput": 602
         },
         "node_modules/@math.gl/core/dist/gl-matrix/mat4.js": {
-          "bytesInOutput": 16488
+          "bytesInOutput": 16465
         },
         "node_modules/@math.gl/core/dist/gl-matrix/vec4.js": {
           "bytesInOutput": 4586
@@ -43740,10 +43779,10 @@
           "bytesInOutput": 163
         },
         "node_modules/@math.gl/web-mercator/node_modules/@math.gl/core/dist/gl-matrix/vec3.js": {
-          "bytesInOutput": 5506
+          "bytesInOutput": 5508
         },
         "node_modules/@math.gl/web-mercator/node_modules/@math.gl/core/dist/gl-matrix/mat4.js": {
-          "bytesInOutput": 16576
+          "bytesInOutput": 16555
         },
         "node_modules/@math.gl/web-mercator/node_modules/@math.gl/core/dist/gl-matrix/vec4.js": {
           "bytesInOutput": 4652
@@ -43926,7 +43965,7 @@
           "bytesInOutput": 1172
         },
         "node_modules/@deck.gl/core/dist/lib/deck-picker.js": {
-          "bytesInOutput": 4755
+          "bytesInOutput": 4751
         },
         "node_modules/@deck.gl/core/dist/lib/widget-manager.js": {
           "bytesInOutput": 2847
@@ -44304,7 +44343,7 @@
           "bytesInOutput": 354
         },
         "node_modules/@deck.gl/layers/dist/polygon-layer/polygon-layer.js": {
-          "bytesInOutput": 3162
+          "bytesInOutput": 3160
         },
         "node_modules/@deck.gl/layers/dist/geojson-layer/geojson-binary.js": {
           "bytesInOutput": 531
@@ -44337,7 +44376,7 @@
           "bytesInOutput": 2216
         },
         "node_modules/@deck.gl/layers/dist/text-layer/text-layer.js": {
-          "bytesInOutput": 5814
+          "bytesInOutput": 5795
         },
         "node_modules/@deck.gl/layers/dist/geojson-layer/sub-layer-map.js": {
           "bytesInOutput": 2627
@@ -44406,7 +44445,7 @@
           "bytesInOutput": 2086
         },
         "node_modules/@math.gl/culling/node_modules/@math.gl/core/dist/gl-matrix/mat4.js": {
-          "bytesInOutput": 16578
+          "bytesInOutput": 16555
         },
         "node_modules/@math.gl/culling/node_modules/@math.gl/core/dist/gl-matrix/vec4.js": {
           "bytesInOutput": 1214
@@ -44868,7 +44907,7 @@
           "bytesInOutput": 336
         },
         "js/deck-gl/cell_color.js": {
-          "bytesInOutput": 312
+          "bytesInOutput": 311
         },
         "js/deck-gl/layers_ist.js": {
           "bytesInOutput": 223
@@ -44916,7 +44955,7 @@
           "bytesInOutput": 531
         },
         "node_modules/gl-matrix/esm/mat4.js": {
-          "bytesInOutput": 4051
+          "bytesInOutput": 4042
         },
         "node_modules/gl-matrix/esm/vec4.js": {
           "bytesInOutput": 619
@@ -44982,7 +45021,7 @@
           "bytesInOutput": 881
         },
         "js/ui/text_buttons.js": {
-          "bytesInOutput": 4191
+          "bytesInOutput": 4377
         },
         "js/utils/debounce.js": {
           "bytesInOutput": 143
@@ -45099,10 +45138,10 @@
           "bytesInOutput": 149
         },
         "node_modules/@turf/buffer/node_modules/d3-geo/src/clip/extent.js": {
-          "bytesInOutput": 1719
+          "bytesInOutput": 1717
         },
         "node_modules/@turf/buffer/node_modules/d3-geo/src/polygonContains.js": {
-          "bytesInOutput": 527
+          "bytesInOutput": 524
         },
         "node_modules/@turf/buffer/node_modules/d3-geo/src/length.js": {
           "bytesInOutput": 13
@@ -45132,7 +45171,7 @@
           "bytesInOutput": 940
         },
         "node_modules/@turf/buffer/node_modules/d3-geo/src/clip/circle.js": {
-          "bytesInOutput": 1500
+          "bytesInOutput": 1497
         },
         "node_modules/@turf/buffer/node_modules/d3-geo/src/transform.js": {
           "bytesInOutput": 410
@@ -45141,10 +45180,10 @@
           "bytesInOutput": 419
         },
         "node_modules/@turf/buffer/node_modules/d3-geo/src/projection/resample.js": {
-          "bytesInOutput": 1121
+          "bytesInOutput": 1118
         },
         "node_modules/@turf/buffer/node_modules/d3-geo/src/projection/index.js": {
-          "bytesInOutput": 1437
+          "bytesInOutput": 1432
         },
         "node_modules/@turf/buffer/node_modules/d3-geo/src/projection/azimuthal.js": {
           "bytesInOutput": 203
@@ -45255,7 +45294,7 @@
           "bytesInOutput": 456
         },
         "node_modules/viewport-mercator-project/node_modules/@math.gl/web-mercator/dist/esm/web-mercator-viewport.js": {
-          "bytesInOutput": 3301
+          "bytesInOutput": 3299
         },
         "node_modules/viewport-mercator-project/node_modules/@math.gl/web-mercator/dist/esm/index.js": {
           "bytesInOutput": 0
@@ -45306,7 +45345,7 @@
           "bytesInOutput": 1036
         },
         "node_modules/@deck.gl-community/editable-layers/dist/edit-modes/utils.js": {
-          "bytesInOutput": 3841
+          "bytesInOutput": 3833
         },
         "node_modules/@deck.gl-community/editable-layers/dist/edit-modes/immutable-feature-collection.js": {
           "bytesInOutput": 3956
@@ -45567,13 +45606,16 @@
           "bytesInOutput": 1625
         },
         "js/ui/ui_containers.js": {
-          "bytesInOutput": 9919
+          "bytesInOutput": 9949
         },
         "js/deck-gl/path_layer.js": {
           "bytesInOutput": 1009
         },
+        "js/umap/scale_umap_data.js": {
+          "bytesInOutput": 537
+        },
         "js/deck-gl/cell_layer.js": {
-          "bytesInOutput": 2383
+          "bytesInOutput": 3678
         },
         "js/deck-gl/views.js": {
           "bytesInOutput": 34
@@ -45585,13 +45627,13 @@
           "bytesInOutput": 1755
         },
         "js/deck-gl/on_view_state_change.js": {
-          "bytesInOutput": 170
+          "bytesInOutput": 189
         },
         "js/deck-gl/make_tooltip.js": {
           "bytesInOutput": 822
         },
         "js/deck-gl/deck_ist.js": {
-          "bytesInOutput": 369
+          "bytesInOutput": 457
         },
         "js/global_variables/image_info.js": {
           "bytesInOutput": 113
@@ -45603,7 +45645,7 @@
           "bytesInOutput": 966
         },
         "js/widget_interactions/update_ist_landscape_from_cgm.js": {
-          "bytesInOutput": 4777
+          "bytesInOutput": 2469
         },
         "js/widget_interactions/update_cell_clusters.js": {
           "bytesInOutput": 341
@@ -45612,7 +45654,7 @@
           "bytesInOutput": 255
         },
         "js/viz/landscape_ist.js": {
-          "bytesInOutput": 6358
+          "bytesInOutput": 6632
         },
         "js/global_variables/tile_scatter_data.js": {
           "bytesInOutput": 38
@@ -45684,10 +45726,10 @@
           "bytesInOutput": 828
         },
         "js/widget.js": {
-          "bytesInOutput": 1107
+          "bytesInOutput": 1136
         }
       },
-      "bytes": 7588678
+      "bytes": 7589037
     },
     "src/celldega/static/widget.css": {
       "imports": [],

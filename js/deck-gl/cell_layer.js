@@ -174,28 +174,9 @@ export const ini_cell_layer = async (base_url, viz_state) => {
     viz_state.spatial.data_width = viz_state.spatial.x_max - viz_state.spatial.x_min
     viz_state.spatial.data_height = viz_state.spatial.y_max - viz_state.spatial.y_min
 
-
-
-    // get the width and height of the canvas element stored in viz_state.root
-    // const canvas_width = viz_state.root.clientWidth
-    // const canvas_height = viz_state.root.clientHeight
-
-    // const canvasElement = viz_state.root.querySelector('#deckgl-overlay');
-
-    // console.log(canvasElement)
-
-    // console.log('root!')
-    // console.log(viz_state.root)
-
     // get the width of viz_state.root
     const root_width = viz_state.root.clientWidth
     const root_height = viz_state.root.clientHeight
-
-    console.log('root_width', root_width)
-    console.log('root_height', root_height)
-
-
-    console.log(viz_state.containers.root_dim.width, viz_state.containers.root_dim.height)
 
     const canvas_width = viz_state.root.clientWidth // 1000
     const canvas_height = viz_state.containers.root_dim.height //500
@@ -210,8 +191,6 @@ export const ini_cell_layer = async (base_url, viz_state) => {
     viz_state.spatial.ini_x = viz_state.spatial.center_x
     viz_state.spatial.ini_y = viz_state.spatial.center_y
 
-
-    console.log('viz_state.spatial', viz_state.spatial)
 
     viz_state.spatial.cell_scatter_data_objects = cell_scatter_data_objects
 

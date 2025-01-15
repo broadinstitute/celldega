@@ -4,8 +4,11 @@ export const get_tooltip = (viz_state, params) => {
 
     const {object, layer} = params;
 
-    d3.selectAll('.deck-tooltip')
-      .style('margin-top', '50px')
+    // select the parent element of .deck-tooltip within viz_state.root
+    const tooltipContainer = viz_state.root.querySelector('.deck-tooltip');
+    tooltipContainer.style.marginTop = '50px'
+    const tooltipParent = tooltipContainer.parentElement.parentElement;
+    tooltipParent.style.position = 'unset'
 
     if (object) {
       // Check which layer the tooltip is currently over

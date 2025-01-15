@@ -6,12 +6,13 @@ import { toggle_visibility_image_layers, toggle_visibility_single_image_layer } 
 // import { deck_sst } from '../deck-gl/deck_sst'
 import { toggle_background_layer_visibility } from '../deck-gl/background_layer'
 import { toggle_path_layer_visibility } from '../deck-gl/path_layer'
-import { new_toggle_cell_layer_visibility } from '../deck-gl/cell_layer'
+import { new_toggle_cell_layer_visibility, toggle_spatial_umap } from '../deck-gl/cell_layer'
 import { toggle_trx_layer_visibility } from '../deck-gl/trx_layer'
 import { get_layers_list } from '../deck-gl/layers_ist'
 import { toggle_slider } from './sliders'
 import { get_mat_layers_list } from '../deck-gl/matrix/matrix_layers'
 import { toggle_dendro_layer_visibility } from '../deck-gl/matrix/dendro_layers'
+
 
 let is_visible
 
@@ -158,11 +159,16 @@ export const make_button = (container, technology, text, color='blue', width=40,
         callback = (event) => trx_button_callback_ist(event, inst_deck, layers_obj, viz_state)
     } else if (text === 'CELL'){
         callback = (event) => cell_button_callback(event, inst_deck, layers_obj, viz_state)
+    } else if (text === 'UMAP') {
+        callback = (event) => umap_button_callback(event, inst_deck, layers_obj, viz_state)
+
+    } else if (text === 'SPATIAL') {
+        callback = (event) => spatial_button_callback(event, inst_deck, layers_obj, viz_state)
     } else {
         callback = make_ist_img_layer_button_callback(text, inst_deck, layers_obj, viz_state)
     }
 
-    d3.select(container)
+    const inst_button = d3.select(container)
         .append('div')
         .attr('class', button_class)
         .text(text)
@@ -177,6 +183,9 @@ export const make_button = (container, technology, text, color='blue', width=40,
         .style('user-select', 'none')
         .style('font-family', '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif;')
         .on('click', callback)
+
+    const button_name = text.toLowerCase()
+    viz_state.buttons.buttons[button_name] = inst_button
 
 }
 
@@ -308,4 +317,27 @@ const cell_button_callback = async (event, deck_ist, layers_obj, viz_state) => {
 
     const layers_list = get_layers_list(layers_obj, viz_state.close_up)
     deck_ist.setProps({layers: layers_list})
+}
+
+const umap_button_callback = async (event, deck_ist, layers_obj, viz_state) => {
+    viz_state.umap.state = true
+    toggle_spatial_umap(deck_ist, layers_obj, viz_state)
+
+    viz_state.buttons.buttons.umap.style('color', 'blue')
+    viz_state.buttons.buttons.spatial.style('color', 'gray')
+
+    // placeholder for turning off visibility on other layers
+    viz_state.buttons.buttons.img.node().click()
+}
+
+const spatial_button_callback = async (event, deck_ist, layers_obj, viz_state) => {
+    viz_state.umap.state = false
+    toggle_spatial_umap(deck_ist, layers_obj, viz_state)
+
+    viz_state.buttons.buttons.umap.style('color', 'gray')
+    viz_state.buttons.buttons.spatial.style('color', 'blue')
+
+    // click the img button
+    viz_state.buttons.buttons.img.node().click()
+
 }

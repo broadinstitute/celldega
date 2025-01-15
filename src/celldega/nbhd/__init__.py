@@ -1,3 +1,7 @@
+"""
+Module for performing neighborhood analysis.
+"""
+
 from libpysal.cg import alpha_shape as libpysal_alpha_shape
 import geopandas as gpd
 from shapely import Point, MultiPoint, MultiPolygon
@@ -6,7 +10,7 @@ import numpy as np
 import json
 from shapely.geometry import shape
 
-def classify_polygons_contains_check(polygons, points):
+def _classify_polygons_contains_check(polygons, points):
     """
     Classifies polygons as "real" or "fake" based on whether they contain any points inside.
 
@@ -33,7 +37,7 @@ def classify_polygons_contains_check(polygons, points):
     return curated_polygons
 
 
-def verify_polygons_with_alpha_bulk(polygons, points, alpha, area_tolerance=0.05):
+def _verify_polygons_with_alpha_bulk(polygons, points, alpha, area_tolerance=0.05):
     """
     Verifies polygons by recalculating alpha shapes and ensuring agreement, using bulk spatial queries.
 
@@ -87,9 +91,9 @@ def alpha_shape(points, inv_alpha):
 
     poly = libpysal_alpha_shape(points, 1/inv_alpha)
 
-    gdf_curated = classify_polygons_contains_check(poly.values, points)
+    gdf_curated = _classify_polygons_contains_check(poly.values, points)
 
-    validated_poly = verify_polygons_with_alpha_bulk(
+    validated_poly = _verify_polygons_with_alpha_bulk(
         gdf_curated.geometry.values,
         points,
         1/inv_alpha
@@ -101,7 +105,7 @@ def alpha_shape(points, inv_alpha):
 
 
 
-def round_coordinates(geometry, precision=2):
+def _round_coordinates(geometry, precision=2):
     """
     Round the coordinates of a Shapely geometry to the specified precision.
 
@@ -124,6 +128,20 @@ def round_coordinates(geometry, precision=2):
 
 
 def alpha_shape_cell_clusters(meta_cell, cat='cluster', alphas=[100, 150, 200, 250, 300, 350]):
+
+    """
+    Compute alpha shapes for each cluster in the cell metadata.
+
+    Parameters:
+    - meta_cell: GeoDataFrame of cell metadata.
+    - cat: Column name in meta_cell containing the cluster labels.
+    - alphas: List of alpha values to compute shapes for.
+
+    Returns:
+    - GeoDataFrame of alpha shapes.
+
+    """
+
     gdf_alpha = gpd.GeoDataFrame()
 
     for inv_alpha in alphas:
@@ -151,7 +169,7 @@ def alpha_shape_cell_clusters(meta_cell, cat='cluster', alphas=[100, 150, 200, 2
 
                 gdf_alpha.loc[inst_name, 'inv_alpha'] = int(inv_alpha)
 
-    gdf_alpha["geometry"] = gdf_alpha["geometry"].apply(lambda geom: round_coordinates(geom, precision=2))
+    gdf_alpha["geometry"] = gdf_alpha["geometry"].apply(lambda geom: _round_coordinates(geom, precision=2))
 
     gdf_alpha['area'] = gdf_alpha.area
 

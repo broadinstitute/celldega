@@ -5,6 +5,8 @@ from celldega.pre import landscape
 from celldega.qc import qc_segmentation
 from celldega.nbhd import alpha_shape
 
+from celldega.clust import Network
+
 # temporary fix for libpysal warning
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)

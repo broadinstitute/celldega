@@ -16,27 +16,52 @@ def calc_meta_gene_data(cbg):
     """
     Calculate gene metadata from the cell-by-gene matrix
 
-    Parameters
-    ----------
-    cbg : pandas.DataFrame
-        A sparse DataFrame with genes as columns and barcodes as rows
+    Args:
+        cbg (pandas.DataFrame): A sparse DataFrame with genes as columns and barcodes as rows.
 
-    Returns
-    -------
-    meta_gene : pandas.DataFrame
-
+    Returns:
+        pandas.DataFrame: A DataFrame with gene metadata including mean, standard deviation,
+            maximum expression, and proportion of non-zero expression.
     """
 
-    # Ensure the df is sparse
-    if not isinstance(cbg.dtypes.iloc[0], pd.SparseDtype):
+    # Helper function to convert to dense if sparse
+    def convert_to_dense(series):
+        """
+        Convert a pandas Series to dense format if it's sparse.
+
+        Parameters
+        ----------
+        series : pandas.Series
+
+        Returns
+        -------
+        pandas.Series
+            Dense Series if input was sparse; original Series otherwise.
+        """
+        if pd.api.types.is_sparse(series):
+            return series.sparse.to_dense()
+        return series
+
+    # Ensure cbg is a DataFrame
+    if not isinstance(cbg, pd.DataFrame):
+        raise TypeError("cbg must be a pandas DataFrame")
+
+    # Determine if cbg is sparse
+    is_sparse = pd.api.types.is_sparse(cbg)
+
+    if is_sparse:
+        # Ensure cbg has SparseDtype with float and fill_value=0
         cbg = cbg.astype(pd.SparseDtype("float", fill_value=0))
+        print("cbg is a sparse DataFrame. Proceeding with sparse operations.")
+    else:
+        print("cbg is a dense DataFrame. Proceeding with dense operations.")
 
-    # Calculate mean expression across tiles with float precision
-    print("calculating mean expression from sparse float data")
-    mean_expression = cbg.astype(pd.SparseDtype("float", 0)).mean(axis=0)
+    # Calculate mean expression across tiles
+    print("Calculating mean expression")
+    mean_expression = cbg.mean(axis=0)
 
-    # Calculate the variance as the average of the squared deviations
-    print("calculating variance by looping over rows")
+    # Calculate variance as the average of the squared deviations
+    print("Calculating variance")
     num_tiles = cbg.shape[1]
     variance = cbg.apply(
         lambda x: ((x - mean_expression[x.name]) ** 2).sum() / num_tiles, axis=0
@@ -99,7 +124,7 @@ def read_cbg_mtx(base_path):
         matrix, index=barcodes[0], columns=features[1]
     )
     cbg = cbg.rename_axis('__index_level_0__', axis='columns')
-    
+
     return cbg
 
 def save_cbg_gene_parquets(base_path, cbg, verbose=False):

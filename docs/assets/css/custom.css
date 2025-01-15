@@ -1,0 +1,8 @@
+/* .md-header__button{
+    color: red;
+} */
+
+/* Hide the Table of Contents when a Jupyter notebook is present */
+/* .jupyter-wrapper ~ .md-sidebar--secondary {
+    display: none !important;
+} */

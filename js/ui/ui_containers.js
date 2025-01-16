@@ -22,12 +22,14 @@ import { update_bar_graph } from './bar_plot'
 
 export const toggle_image_layers_and_ctrls = (layers_obj, viz_state, is_visible) => {
 
-    d3.select(viz_state.containers.image)
-        .selectAll('.img_layer_button')
-        .style('color', is_visible ? 'blue' : 'gray');
+    if (viz_state.img.state){
+        d3.select(viz_state.containers.image)
+            .selectAll('.img_layer_button')
+            .style('color', is_visible ? 'blue' : 'gray');
 
-    viz_state.img.image_layer_sliders.map(slider => toggle_slider(slider, is_visible))
-    toggle_visibility_image_layers(layers_obj, is_visible)
+        viz_state.img.image_layer_sliders.map(slider => toggle_slider(slider, is_visible))
+        toggle_visibility_image_layers(layers_obj, is_visible)
+    }
 }
 
 export const make_ui_container = () => {
@@ -334,7 +336,9 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
 
     }
 
-    viz_state.img.image_info.map(inst_image => make_img_layer_ctrl(viz_state.img, inst_image))
+    if (viz_state.img.state){
+        viz_state.img.image_info.map(inst_image => make_img_layer_ctrl(viz_state.img, inst_image))
+    }
 
     make_button(cell_ctrl_container, 'ist', 'CELL', 'blue', 40, 'button', deck_ist, layers_obj, viz_state)
     make_button(      trx_container, 'ist', 'TRX',  'blue', 40, 'button', deck_ist, layers_obj, viz_state)
@@ -430,7 +434,7 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
             update_cell_pickable_state(layers_obj, false)
             update_path_pickable_state(layers_obj, false)
             update_trx_pickable_state(layers_obj, false)
-            const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+            const layers_list = get_layers_list(layers_obj, viz_state)
             deck_ist.setProps({layers: layers_list})
 
 
@@ -446,7 +450,7 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
             update_path_pickable_state(layers_obj, true)
             update_trx_pickable_state(layers_obj, true)
 
-            const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+            const layers_list = get_layers_list(layers_obj, viz_state)
             deck_ist.setProps({layers: layers_list})
 
         }
@@ -488,7 +492,7 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
         }
 
         update_edit_visitility(layers_obj, viz_state.edit.visible)
-        const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+        const layers_list = get_layers_list(layers_obj, viz_state)
         deck_ist.setProps({layers: layers_list})
 
         viz_state.edit.rgn_areas = viz_state.edit.feature_collection.features.map((feature, index) => ({
@@ -541,7 +545,7 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
             selectedFeatureIndexes: [],
         })
 
-        const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+        const layers_list = get_layers_list(layers_obj, viz_state)
         deck_ist.setProps({layers: layers_list})
 
         // hide the DEL button
@@ -609,7 +613,7 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
         update_cell_pickable_state(layers_obj, viz_state.nbhd.visible===true ? false : true)
         update_path_pickable_state(layers_obj, viz_state.nbhd.visible===true ? false : true)
 
-        const layers_list = get_layers_list(layers_obj, viz_state.close_up, viz_state.nbhd.visible)
+        const layers_list = get_layers_list(layers_obj, viz_state, viz_state.nbhd.visible)
         deck_ist.setProps({layers: layers_list})
 
         viz_state.nbhd.nbhd_areas = viz_state.nbhd.feature_collection.features.map((feature, index) => ({

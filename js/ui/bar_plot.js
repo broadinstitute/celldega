@@ -50,7 +50,7 @@ export const bar_callback_cluster = (event, d, deck_ist, layers_obj, viz_state) 
     update_path_layer_id(layers_obj, inst_cat_name)
     update_trx_layer_id(viz_state.genes, layers_obj)
 
-    const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+    const layers_list = get_layers_list(layers_obj, viz_state)
     deck_ist.setProps({layers: layers_list})
 
     viz_state.genes.gene_search_input.value = ''
@@ -99,7 +99,7 @@ export const bar_callback_gene = async (event, d, deck_ist, layers_obj, viz_stat
     update_path_layer_id(layers_obj, new_cat)
     update_trx_layer_id(viz_state.genes, layers_obj)
 
-    const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+    const layers_list = get_layers_list(layers_obj, viz_state)
     deck_ist.setProps({layers: layers_list})
 
     viz_state.genes.gene_search_input.value = viz_state.genes.gene_search_input.value !== inst_gene ? inst_gene : ''

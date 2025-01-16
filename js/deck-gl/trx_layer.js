@@ -38,7 +38,7 @@ const trx_layer_callback = async (info, d, deck_ist, layers_obj, viz_state) => {
 
     update_trx_layer_id(viz_state.genes, layers_obj)
 
-    const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+    const layers_list = get_layers_list(layers_obj, viz_state)
     deck_ist.setProps({layers: layers_list})
 
     viz_state.genes.svg_bar_gene.selectAll("g")

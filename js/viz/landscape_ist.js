@@ -164,9 +164,6 @@ export const landscape_ist = async (
         viz_state.umap.state = true
     }
 
-    console.log(landscape_state)
-    console.log('viz_state.umap.state', viz_state.umap.state)
-
     viz_state.genes = {}
     viz_state.genes.color_dict_gene = {}
     viz_state.genes.gene_names = []

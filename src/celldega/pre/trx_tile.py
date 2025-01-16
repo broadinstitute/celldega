@@ -15,7 +15,7 @@ def make_trx_tiles(
     chunk_size=1000000,
     verbose=False,
     image_scale=1,
-    max_workers=8
+    max_workers=1
 ):
     """
     Processes transcript data by dividing it into coarse-grain and fine-grain tiles,
@@ -56,10 +56,10 @@ def make_trx_tiles(
             (pl.col("transformed_x") >= coarse_tile_x_min) & (pl.col("transformed_x") < coarse_tile_x_max) &
             (pl.col("transformed_y") >= coarse_tile_y_min) & (pl.col("transformed_y") < coarse_tile_y_max)
         )
-    
+
         if not coarse_tile.is_empty():
             # Now process fine tiles using global fine tile indices
-            process_fine_tiles(coarse_tile, i, j, coarse_tile_x_min, coarse_tile_x_max, coarse_tile_y_min, coarse_tile_y_max, tile_size, path_trx_tiles, x_min, y_min, n_fine_tiles_x, n_fine_tiles_y, max_workers)   
+            process_fine_tiles(coarse_tile, i, j, coarse_tile_x_min, coarse_tile_x_max, coarse_tile_y_min, coarse_tile_y_max, tile_size, path_trx_tiles, x_min, y_min, n_fine_tiles_x, n_fine_tiles_y, max_workers)
 
 
     def process_fine_tiles(coarse_tile, coarse_i, coarse_j, coarse_tile_x_min, coarse_tile_x_max, coarse_tile_y_min, coarse_tile_y_max, tile_size, path_trx_tiles, x_min, y_min, n_fine_tiles_x, n_fine_tiles_y, max_workers=8):
@@ -67,7 +67,7 @@ def make_trx_tiles(
         # Use ThreadPoolExecutor for parallel processing of fine-grain tiles within the coarse tile
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = []
-            
+
             # Iterate over fine-grain tiles within the global bounds
             for fine_i in range(n_fine_tiles_x):
                 fine_tile_x_min = x_min + fine_i * tile_size
@@ -87,7 +87,7 @@ def make_trx_tiles(
 
                     # Submit the task for each fine tile to process in parallel
                     futures.append(executor.submit(
-                        filter_and_save_fine_tile, coarse_tile, coarse_i, coarse_j, fine_i, fine_j, 
+                        filter_and_save_fine_tile, coarse_tile, coarse_i, coarse_j, fine_i, fine_j,
                         fine_tile_x_min, fine_tile_x_max, fine_tile_y_min, fine_tile_y_max, path_trx_tiles
                     ))
 
@@ -97,22 +97,22 @@ def make_trx_tiles(
 
 
     def filter_and_save_fine_tile(coarse_tile, coarse_i, coarse_j, fine_i, fine_j, fine_tile_x_min, fine_tile_x_max, fine_tile_y_min, fine_tile_y_max, path_trx_tiles):
-    
+
         # Filter the coarse tile for the current fine tile's boundaries
         fine_tile_trx = coarse_tile.filter(
             (pl.col("transformed_x") >= fine_tile_x_min) & (pl.col("transformed_x") < fine_tile_x_max) &
             (pl.col("transformed_y") >= fine_tile_y_min) & (pl.col("transformed_y") < fine_tile_y_max)
         )
-        
+
         if not fine_tile_trx.is_empty():
             # Add geometry column as a list of [x, y] pairs
             fine_tile_trx = fine_tile_trx.with_columns(
                 pl.concat_list([pl.col("transformed_x"), pl.col("transformed_y")]).alias("geometry")
             ).drop(['transformed_x', 'transformed_y'])
-    
+
             # Define the filename based on fine tile coordinates
             filename = f"{path_trx_tiles}/transcripts_tile_{fine_i}_{fine_j}.parquet"
-    
+
             # Save the filtered DataFrame to a Parquet file
             fine_tile_trx.to_pandas().to_parquet(filename)
 

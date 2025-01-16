@@ -12,7 +12,7 @@ export const get_cell_color = (cats, i, d) => {
             // Check if inst_color is an array and log an error if it's not
             if (!Array.isArray(inst_color)) {
                 inst_color = [0, 0, 0]
-                inst_opacity = 50
+                inst_opacity = 0
             }
 
             return [...inst_color, inst_opacity]

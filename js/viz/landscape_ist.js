@@ -27,6 +27,10 @@ import { update_gene_text_box } from '../ui/gene_search'
 import { calc_viewport } from '../deck-gl/calc_viewport'
 import { ini_edit_layer, set_edit_layer_on_click, set_edit_layer_on_edit } from '../deck-gl/edit_layer'
 import { ini_nbhd_layer, set_nbhd_layer_onclick } from '../deck-gl/nbhd_layer'
+import { toggle_visibility_image_layers } from '../deck-gl/image_layers'
+import { toggle_trx_layer_visibility } from '../deck-gl/trx_layer'
+import { toggle_path_layer_visibility } from '../deck-gl/path_layer'
+import { toggle_background_layer_visibility } from '../deck-gl/background_layer'
 
 export const landscape_ist = async (
     el,
@@ -44,6 +48,7 @@ export const landscape_ist = async (
     meta_cell={},
     meta_cluster={},
     umap={},
+    landscape_state='spatial',
     view_change_custom_callback=null
 ) => {
 
@@ -68,6 +73,8 @@ export const landscape_ist = async (
 
     viz_state.nbhd = {}
     viz_state.nbhd.visible = false
+
+    viz_state.spatial = {}
 
     if (Object.keys(viz_state.model).length !== 0){
         if (Object.keys(viz_state.model.get('nbhd')).length === 0) {
@@ -109,6 +116,9 @@ export const landscape_ist = async (
     }
 
     viz_state.containers = {}
+    viz_state.containers.root_dim = {}
+    viz_state.containers.root_dim.width = width
+    viz_state.containers.root_dim.height = height
 
     viz_state.custom_callbacks = {}
     viz_state.custom_callbacks.view_change = view_change_custom_callback
@@ -148,7 +158,14 @@ export const landscape_ist = async (
     }
     viz_state.umap.umap = umap
 
-    viz_state.umap.state = false
+    if (landscape_state === 'spatial') {
+        viz_state.umap.state = false
+    } else if (landscape_state === 'umap') {
+        viz_state.umap.state = true
+    }
+
+    console.log(landscape_state)
+    console.log('viz_state.umap.state', viz_state.umap.state)
 
     viz_state.genes = {}
     viz_state.genes.color_dict_gene = {}
@@ -200,7 +217,7 @@ export const landscape_ist = async (
     viz_state.views = set_views()
 
     let deck_ist = await ini_deck(root, width, height)
-    set_initial_view_state(deck_ist, ini_x, ini_y, ini_z, ini_zoom)
+    // set_initial_view_state(deck_ist, ini_x, ini_y, ini_z, ini_zoom)
     set_views_prop(deck_ist, viz_state.views)
 
     // initialize cell and trx caches
@@ -273,7 +290,18 @@ export const landscape_ist = async (
 
     update_trx_layer_radius(layers_obj, trx_radius)
 
+    if (viz_state.umap.state === true) {
+        toggle_background_layer_visibility(layers_obj, false)
+        toggle_visibility_image_layers(layers_obj, false)
+        toggle_trx_layer_visibility(layers_obj, false)
+        toggle_path_layer_visibility(layers_obj, false)
+    }
+
     const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+
+    set_initial_view_state(deck_ist, ini_x, ini_y, ini_z, ini_zoom, viz_state)
+
+
 
     deck_ist.setProps({layers: layers_list})
 

@@ -329,7 +329,7 @@ export const landscape_ist = async (
         toggle_path_layer_visibility(layers_obj, false)
     }
 
-    const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+    const layers_list = get_layers_list(layers_obj, viz_state)
 
     set_initial_view_state(deck_ist, ini_x, ini_y, ini_z, ini_zoom, viz_state)
 
@@ -403,7 +403,7 @@ export const landscape_ist = async (
             update_path_layer_id(layers_obj, new_cat)
             update_trx_layer_id(viz_state.genes, layers_obj)
 
-            const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+            const layers_list = get_layers_list(layers_obj, viz_state)
             deck_ist.setProps({layers: layers_list})
 
             viz_state.genes.gene_search_input.value = viz_state.genes.gene_search_input.value !== inst_gene ? inst_gene : ''
@@ -456,7 +456,7 @@ export const landscape_ist = async (
             update_path_layer_id(layers_obj, inst_cat_name)
             update_trx_layer_id(viz_state.genes, layers_obj)
 
-            const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+            const layers_list = get_layers_list(layers_obj, viz_state)
             deck_ist.setProps({layers: layers_list})
 
             viz_state.genes.gene_search_input.value = ''
@@ -480,7 +480,7 @@ export const landscape_ist = async (
             update_path_layer_id(layers_obj, inst_cat_name)
             update_trx_layer_id(viz_state.genes, layers_obj)
 
-            const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+            const layers_list = get_layers_list(layers_obj, viz_state)
             deck_ist.setProps({layers: layers_list})
 
             viz_state.cats.svg_bar_cluster.selectAll("g")
@@ -514,7 +514,7 @@ export const landscape_ist = async (
             viz_state.close_up = close_up
 
             calc_viewport(new_view_state, deck_ist, layers_obj, viz_state)
-            const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+            const layers_list = get_layers_list(layers_obj, viz_state)
 
             deck_ist.setProps({
                 controller: {doubleClickZoom: false},

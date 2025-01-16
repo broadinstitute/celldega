@@ -1,4 +1,6 @@
-export const get_layers_list = (layers_obj, close_up, nbhd=false) => {
+export const get_layers_list = (layers_obj, viz_state, nbhd=false) => {
+
+    const close_up = viz_state.close_up
 
     let layers_list
 

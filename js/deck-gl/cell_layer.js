@@ -80,7 +80,7 @@ const cell_layer_onclick = async (info, d, deck_ist, layers_obj, viz_state) => {
         update_trx_layer_id(viz_state.genes, layers_obj)
     }
 
-    const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+    const layers_list = get_layers_list(layers_obj, viz_state)
     deck_ist.setProps({layers: layers_list})
 
     viz_state.genes.gene_search_input.value = ''
@@ -260,7 +260,7 @@ export const toggle_spatial_umap = (deck_ist, layers_obj, viz_state) => {
         }
     })
 
-    const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+    const layers_list = get_layers_list(layers_obj, viz_state)
     deck_ist.setProps({layers: layers_list})
 
 }

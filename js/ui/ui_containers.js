@@ -430,7 +430,7 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
             update_cell_pickable_state(layers_obj, false)
             update_path_pickable_state(layers_obj, false)
             update_trx_pickable_state(layers_obj, false)
-            const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+            const layers_list = get_layers_list(layers_obj, viz_state)
             deck_ist.setProps({layers: layers_list})
 
 
@@ -446,7 +446,7 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
             update_path_pickable_state(layers_obj, true)
             update_trx_pickable_state(layers_obj, true)
 
-            const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+            const layers_list = get_layers_list(layers_obj, viz_state)
             deck_ist.setProps({layers: layers_list})
 
         }
@@ -488,7 +488,7 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
         }
 
         update_edit_visitility(layers_obj, viz_state.edit.visible)
-        const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+        const layers_list = get_layers_list(layers_obj, viz_state)
         deck_ist.setProps({layers: layers_list})
 
         viz_state.edit.rgn_areas = viz_state.edit.feature_collection.features.map((feature, index) => ({
@@ -541,7 +541,7 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
             selectedFeatureIndexes: [],
         })
 
-        const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+        const layers_list = get_layers_list(layers_obj, viz_state)
         deck_ist.setProps({layers: layers_list})
 
         // hide the DEL button
@@ -609,7 +609,7 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
         update_cell_pickable_state(layers_obj, viz_state.nbhd.visible===true ? false : true)
         update_path_pickable_state(layers_obj, viz_state.nbhd.visible===true ? false : true)
 
-        const layers_list = get_layers_list(layers_obj, viz_state.close_up, viz_state.nbhd.visible)
+        const layers_list = get_layers_list(layers_obj, viz_state, viz_state.nbhd.visible)
         deck_ist.setProps({layers: layers_list})
 
         viz_state.nbhd.nbhd_areas = viz_state.nbhd.feature_collection.features.map((feature, index) => ({
@@ -678,7 +678,7 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
 
             filter_cat_nbhd_feature_collection(viz_state)
             update_nbhd_layer_data(viz_state, layers_obj)
-            const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+            const layers_list = get_layers_list(layers_obj, viz_state)
             deck_ist.setProps({layers: layers_list})
         }
 

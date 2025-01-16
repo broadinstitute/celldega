@@ -244,7 +244,7 @@ const make_ist_img_layer_button_callback = (text, deck_ist, layers_obj, viz_stat
 
             toggle_slider(inst_slider, is_visible)
 
-            const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+            const layers_list = get_layers_list(layers_obj, viz_state)
             deck_ist.setProps({layers: layers_list})
 
         }
@@ -276,7 +276,7 @@ const ist_img_button_callback = async (event, deck_ist, layers_obj, viz_state) =
 
     viz_state.img.image_layer_sliders.map(slider => toggle_slider(slider, is_visible))
 
-    const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+    const layers_list = get_layers_list(layers_obj, viz_state)
     deck_ist.setProps({layers: layers_list})
 
 }
@@ -289,7 +289,7 @@ const trx_button_callback_ist = async (event, deck_ist, layers_obj, viz_state) =
 
     toggle_trx_layer_visibility(layers_obj, is_visible)
 
-    const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+    const layers_list = get_layers_list(layers_obj, viz_state)
     deck_ist.setProps({layers: layers_list})
 
 }
@@ -315,7 +315,7 @@ const cell_button_callback = async (event, deck_ist, layers_obj, viz_state) => {
     new_toggle_cell_layer_visibility(layers_obj, is_visible)
     toggle_path_layer_visibility(layers_obj, is_visible)
 
-    const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+    const layers_list = get_layers_list(layers_obj, viz_state)
     deck_ist.setProps({layers: layers_list})
 }
 
@@ -334,7 +334,7 @@ const umap_button_callback = async (event, deck_ist, layers_obj, viz_state) => {
     toggle_trx_layer_visibility(layers_obj, false)
     toggle_path_layer_visibility(layers_obj, false)
 
-    const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+    const layers_list = get_layers_list(layers_obj, viz_state)
     deck_ist.setProps({layers: layers_list})
 
 }
@@ -355,7 +355,7 @@ const spatial_button_callback = async (event, deck_ist, layers_obj, viz_state) =
         toggle_trx_layer_visibility(layers_obj, true)
         toggle_path_layer_visibility(layers_obj, true)
 
-        const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+        const layers_list = get_layers_list(layers_obj, viz_state)
         deck_ist.setProps({layers: layers_list})
 
     }, 3000)

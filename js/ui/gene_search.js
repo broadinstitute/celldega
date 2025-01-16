@@ -65,7 +65,7 @@ const ist_gene_search_callback = async (deck_ist, layers_obj, viz_state) => {
         update_path_layer_id(layers_obj, new_cat)
         update_trx_layer_id(viz_state.genes, layers_obj)
 
-        const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+        const layers_list = get_layers_list(layers_obj, viz_state)
         deck_ist.setProps({layers: layers_list})
 
         const reset_gene = false

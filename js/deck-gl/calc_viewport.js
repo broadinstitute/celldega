@@ -131,7 +131,7 @@ export const calc_viewport = async ({ height, width, zoom, target }, deck_ist, l
         }
     }
 
-    const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+    const layers_list = get_layers_list(layers_obj, viz_state)
     deck_ist.setProps({layers: layers_list})
 
 }

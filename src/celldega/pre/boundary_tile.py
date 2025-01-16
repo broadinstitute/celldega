@@ -20,7 +20,7 @@ def make_cell_boundary_tiles(
     image_scale=1,
     max_workers=8
 ):
-    
+
 
     """
     Processes cell boundary data and divides it into spatial tiles based on the provided technology.
@@ -61,7 +61,7 @@ def make_cell_boundary_tiles(
         coords = np.hstack([coords, np.ones((coords.shape[0], 1))])
         transformed_coords = coords @ matrix.T
         return transformed_coords[:, :2]  # Drop the homogeneous coordinate
-    
+
     def batch_transform_geometries(geometries, transformation_matrix, scale):
         """
         Batch transform geometries using numpy for optimized performance.
@@ -72,29 +72,29 @@ def make_cell_boundary_tiles(
             [transformation_matrix[1, 0], transformation_matrix[1, 1], transformation_matrix[1, 2]],
             [0, 0, 1]
         ])
-        
+
         transformed_geometries = []
-        
+
         for polygon in geometries:
             # Extract coordinates and transform them
             if isinstance(polygon, MultiPolygon):
                 polygon = next(polygon.geoms)  # Use the first geometry
-            
+
             # Transform the exterior of the polygon
             exterior_coords = np.array(polygon.exterior.coords)
-            
+
             # Apply the affine transformation and scale
             transformed_coords = numpy_affine_transform(exterior_coords, affine_matrix) / scale
-            
+
             # Append the result to the transformed_geometries list
             transformed_geometries.append([transformed_coords.tolist()])
-        
+
         return transformed_geometries
 
 
     def filter_and_save_fine_boundary(coarse_tile, fine_i, fine_j, fine_tile_x_min, fine_tile_x_max, fine_tile_y_min, fine_tile_y_max, path_output):
         cell_ids = coarse_tile.index.values
-        
+
         tile_filter = (
             (coarse_tile["center_x"] >= fine_tile_x_min) & (coarse_tile["center_x"] < fine_tile_x_max) &
             (coarse_tile["center_y"] >= fine_tile_y_min) & (coarse_tile["center_y"] < fine_tile_y_max)
@@ -104,7 +104,7 @@ def make_cell_boundary_tiles(
         keep_cells = cell_ids[filtered_indices]
         fine_tile_cells = coarse_tile.loc[keep_cells, ["GEOMETRY"]]
         fine_tile_cells = fine_tile_cells.assign(name=fine_tile_cells.index)
-  
+
         if not fine_tile_cells.empty:
             filename = f"{path_output}/cell_tile_{fine_i}_{fine_j}.parquet"
             fine_tile_cells.to_parquet(filename)
@@ -152,9 +152,64 @@ def make_cell_boundary_tiles(
         cells_orig.index = meta_cell[meta_cell["cell_id"].isin(cells_orig['cell_id'])].index
 
         # Correct 'MultiPolygon' to 'Polygon'
-        cells_orig["geometry"] = cells_orig["Geometry"].apply(
-            lambda x: list(x.geoms)[0] if isinstance(x, MultiPolygon) else x
-        )
+
+        # cells_orig["geometry"] = cells_orig["Geometry"].apply(
+        #     lambda x: list(x.geoms)[0] if isinstance(x, MultiPolygon) else x
+        # )
+
+        # cells_orig["geometry"] = cells_orig["Geometry"].apply(
+        #     lambda x: list(x.geoms)[0] if isinstance(x, MultiPolygon) and len(x.geoms) > 0 else x
+        # )
+
+        def process_geometry(geom):
+            try:
+                # Check if the geometry is a MultiPolygon
+                if isinstance(geom, MultiPolygon) and len(geom.geoms) > 0:
+                    # Return the first geometry
+                    return list(geom.geoms)[0]
+                # Return the geometry as is if it's not a MultiPolygon
+                return geom
+            except Exception as e:
+                # Handle exceptions and optionally log them
+                print(f"Error processing geometry: {e}")
+                return None  # Return None for problematic geometries
+
+        # Apply the function to the 'Geometry' column
+        cells_orig["geometry"] = cells_orig["Geometry"].apply(process_geometry)
+
+        # def batch_transform_geometries(geometries, transformation_matrix, scale):
+        #     transformed_geometries = []
+        #     for i, polygon in enumerate(geometries):
+        #         try:
+        #             # If the geometry is a MultiPolygon
+        #             if isinstance(polygon, MultiPolygon):
+        #                 # Convert geoms to a list and use the first geometry if it exists
+        #                 geoms_list = list(polygon.geoms)
+        #                 if len(geoms_list) > 0:
+        #                     polygon = geoms_list[0]
+        #                 else:
+        #                     # Skip empty MultiPolygon cases
+        #                     continue
+
+        #             # Transform the exterior of the polygon
+        #             exterior_coords = np.array(polygon.exterior.coords)
+        #             transformed_coords = np.dot(
+        #                 transformation_matrix,
+        #                 np.c_[exterior_coords, np.ones(exterior_coords.shape[0])].T
+        #             ).T[:, :2] * scale
+
+        #             # Create a new polygon with transformed coordinates
+        #             transformed_polygon = Polygon(transformed_coords)
+        #             transformed_geometries.append(transformed_polygon)
+
+        #         except Exception as e:
+        #             # Log the error and skip the problematic geometry
+        #             print(f"Error processing geometry at index {i}: {e}")
+        #             continue
+
+        #     return transformed_geometries
+
+        # cells_orig["geometry"] = cells_orig["Geometry"].apply(process_geometry)
 
         cells_orig.set_index('cell_id', inplace=True)
 

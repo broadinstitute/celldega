@@ -75,21 +75,47 @@ def make_cell_boundary_tiles(
 
         transformed_geometries = []
 
-        for polygon in geometries:
-            # Extract coordinates and transform them
-            if isinstance(polygon, MultiPolygon):
-                polygon = next(polygon.geoms)  # Use the first geometry
+        for i, polygon in enumerate(geometries):
+            try:
+                # Handle MultiPolygon: Use the first geometry if available
+                if isinstance(polygon, MultiPolygon):
+                    geoms_list = list(polygon.geoms)
+                    if len(geoms_list) > 0:
+                        polygon = geoms_list[0]
+                    else:
+                        # Add None for empty MultiPolygon and continue
+                        transformed_geometries.append(None)
+                        continue
 
-            # Transform the exterior of the polygon
-            exterior_coords = np.array(polygon.exterior.coords)
+                # Validate geometry
+                if not hasattr(polygon, 'exterior') or not polygon.exterior:
+                    transformed_geometries.append(None)
+                    continue
 
-            # Apply the affine transformation and scale
-            transformed_coords = numpy_affine_transform(exterior_coords, affine_matrix) / scale
+                # Transform the exterior of the polygon
+                exterior_coords = np.array(polygon.exterior.coords)
 
-            # Append the result to the transformed_geometries list
-            transformed_geometries.append([transformed_coords.tolist()])
+                # Apply the affine transformation and scale
+                transformed_coords = numpy_affine_transform(exterior_coords, affine_matrix) / scale
+
+                # Append the result to the transformed_geometries list
+                transformed_geometries.append([transformed_coords.tolist()])
+
+            except Exception as e:
+                # Log the error and append None for problematic geometries
+                print(f"Error transforming geometry at index {i}: {e}")
+                transformed_geometries.append(None)
+
+        # Ensure the output length matches the input length
+        if len(transformed_geometries) != len(geometries):
+            raise ValueError(
+                f"Mismatch in lengths: transformed_geometries ({len(transformed_geometries)}) "
+                f"does not match geometries ({len(geometries)})."
+            )
 
         return transformed_geometries
+
+
 
 
     def filter_and_save_fine_boundary(coarse_tile, fine_i, fine_j, fine_tile_x_min, fine_tile_x_max, fine_tile_y_min, fine_tile_y_max, path_output):
@@ -152,15 +178,6 @@ def make_cell_boundary_tiles(
         cells_orig.index = meta_cell[meta_cell["cell_id"].isin(cells_orig['cell_id'])].index
 
         # Correct 'MultiPolygon' to 'Polygon'
-
-        # cells_orig["geometry"] = cells_orig["Geometry"].apply(
-        #     lambda x: list(x.geoms)[0] if isinstance(x, MultiPolygon) else x
-        # )
-
-        # cells_orig["geometry"] = cells_orig["Geometry"].apply(
-        #     lambda x: list(x.geoms)[0] if isinstance(x, MultiPolygon) and len(x.geoms) > 0 else x
-        # )
-
         def process_geometry(geom):
             try:
                 # Check if the geometry is a MultiPolygon
@@ -177,40 +194,6 @@ def make_cell_boundary_tiles(
         # Apply the function to the 'Geometry' column
         cells_orig["geometry"] = cells_orig["Geometry"].apply(process_geometry)
 
-        # def batch_transform_geometries(geometries, transformation_matrix, scale):
-        #     transformed_geometries = []
-        #     for i, polygon in enumerate(geometries):
-        #         try:
-        #             # If the geometry is a MultiPolygon
-        #             if isinstance(polygon, MultiPolygon):
-        #                 # Convert geoms to a list and use the first geometry if it exists
-        #                 geoms_list = list(polygon.geoms)
-        #                 if len(geoms_list) > 0:
-        #                     polygon = geoms_list[0]
-        #                 else:
-        #                     # Skip empty MultiPolygon cases
-        #                     continue
-
-        #             # Transform the exterior of the polygon
-        #             exterior_coords = np.array(polygon.exterior.coords)
-        #             transformed_coords = np.dot(
-        #                 transformation_matrix,
-        #                 np.c_[exterior_coords, np.ones(exterior_coords.shape[0])].T
-        #             ).T[:, :2] * scale
-
-        #             # Create a new polygon with transformed coordinates
-        #             transformed_polygon = Polygon(transformed_coords)
-        #             transformed_geometries.append(transformed_polygon)
-
-        #         except Exception as e:
-        #             # Log the error and skip the problematic geometry
-        #             print(f"Error processing geometry at index {i}: {e}")
-        #             continue
-
-        #     return transformed_geometries
-
-        # cells_orig["geometry"] = cells_orig["Geometry"].apply(process_geometry)
-
         cells_orig.set_index('cell_id', inplace=True)
 
     elif technology == "Xenium":
@@ -225,8 +208,17 @@ def make_cell_boundary_tiles(
     # Transform geometries
     cells_orig["GEOMETRY"] = batch_transform_geometries(cells_orig["geometry"], transformation_matrix, image_scale)
 
+
+
     # Convert transformed geometries to polygons and calculate centroids
-    cells_orig["polygon"] = cells_orig["GEOMETRY"].apply(lambda x: Polygon(x[0]))
+    # cells_orig["polygon"] = cells_orig["GEOMETRY"].apply(lambda x: Polygon(x[0]))
+
+    # Replace None with an empty Polygon
+    cells_orig["polygon"] = cells_orig["GEOMETRY"].apply(
+        lambda x: Polygon(x[0]) if x is not None and len(x) > 0 else Polygon()
+    )
+
+
     gdf_cells = gpd.GeoDataFrame(geometry=cells_orig["polygon"])
     gdf_cells["center_x"] = gdf_cells.geometry.centroid.x
     gdf_cells["center_y"] = gdf_cells.geometry.centroid.y

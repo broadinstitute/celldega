@@ -14,10 +14,11 @@ from scipy.sparse import csr_matrix
 
 def calc_meta_gene_data(cbg):
     """
-    Calculate gene metadata from the cell-by-gene matrix
+    Calculate gene metadata from the cell-by-gene matrix.
 
     Args:
-        cbg (pandas.DataFrame): A sparse DataFrame with genes as columns and barcodes as rows.
+        cbg (pandas.DataFrame): A DataFrame with genes as columns and barcodes as rows.
+            It can be sparse or dense.
 
     Returns:
         pandas.DataFrame: A DataFrame with gene metadata including mean, standard deviation,
@@ -46,11 +47,11 @@ def calc_meta_gene_data(cbg):
     if not isinstance(cbg, pd.DataFrame):
         raise TypeError("cbg must be a pandas DataFrame")
 
-    # Determine if cbg is sparse
-    is_sparse = pd.api.types.is_sparse(cbg)
+    # Check if cbg is sparse
+    is_sparse = any(pd.api.types.is_sparse(cbg[col]) for col in cbg.columns)
 
     if is_sparse:
-        # Ensure cbg has SparseDtype with float and fill_value=0
+        # Convert the entire DataFrame to SparseDtype if not already consistent
         cbg = cbg.astype(pd.SparseDtype("float", fill_value=0))
         print("cbg is a sparse DataFrame. Proceeding with sparse operations.")
     else:
@@ -74,20 +75,24 @@ def calc_meta_gene_data(cbg):
     # Calculate proportion of tiles with non-zero expression
     proportion_nonzero = (cbg != 0).sum(axis=0) / len(cbg)
 
+    # Convert all series to dense format, if necessary
+    mean_expression = convert_to_dense(mean_expression)
+    std_deviation = convert_to_dense(std_deviation)
+    max_expression = convert_to_dense(max_expression)
+    proportion_nonzero = convert_to_dense(proportion_nonzero)
+
     # Create a DataFrame to hold all these metrics
     meta_gene = pd.DataFrame(
         {
-            "mean": mean_expression.sparse.to_dense(),
+            "mean": mean_expression,
             "std": std_deviation,
-            "max": max_expression.sparse.to_dense(),
-            "non-zero": proportion_nonzero.sparse.to_dense(),
+            "max": max_expression,
+            "non-zero": proportion_nonzero,
         }
-
     )
 
-    meta_gene_clean = pd.DataFrame(meta_gene.values, index=meta_gene.index.tolist(), columns=meta_gene.columns)
+    return meta_gene
 
-    return meta_gene_clean
 
 
 def read_cbg_mtx(base_path):
@@ -155,7 +160,11 @@ def save_cbg_gene_parquets(base_path, cbg, verbose=False):
         col_df = cbg[[gene]].copy()
 
         # Convert to dense and integer type
-        col_df = col_df.sparse.to_dense().astype(int)
+        # check if sparse
+        if pd.api.types.is_sparse(col_df[gene]):
+            col_df = col_df.sparse.to_dense().astype(int)
+        else:
+            col_df = col_df.astype(int)
 
         # Create a DataFrame necessary to prevent error in to_parquet
         inst_df = pd.DataFrame(

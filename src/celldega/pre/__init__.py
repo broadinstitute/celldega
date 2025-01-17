@@ -315,13 +315,18 @@ def make_meta_gene(technology, path_cbg, path_output):
     ... )
     """
 
-    if technology == "MERSCOPE":
-        cbg = pd.read_csv(path_cbg, index_col=0)
+    # check if path_cbg is a path or a DataFrame
+    if isinstance(path_cbg, pd.DataFrame):
+        cbg = path_cbg
         genes = cbg.columns.tolist()
-    elif technology == "Xenium":
-        # genes = pd.read_csv(path_cbg + 'features.tsv.gz', sep='\t', header=None)[1].values.tolist()
-        cbg = read_cbg_mtx(path_cbg)
-        genes = cbg.columns.tolist()
+    else:
+        if technology == "MERSCOPE":
+            cbg = pd.read_csv(path_cbg, index_col=0)
+            genes = cbg.columns.tolist()
+        elif technology == "Xenium":
+            # genes = pd.read_csv(path_cbg + 'features.tsv.gz', sep='\t', header=None)[1].values.tolist()
+            cbg = read_cbg_mtx(path_cbg)
+            genes = cbg.columns.tolist()
 
     # Get all categorical color palettes from Matplotlib and flatten them into a single list of colors
     palettes = [plt.get_cmap(name).colors for name in plt.colormaps() if "tab" in name]
@@ -384,19 +389,23 @@ def save_landscape_parameters(
     Save the landscape parameters to a JSON file.
     """
 
-    path_image_pyramid = f"{path_landscape_files}/pyramid_images/{image_name}"
+    if image_info == {}:
+        landscape_parameters = {
+            "technology": technology,
+        }
+    else:
 
-    print(path_image_pyramid)
+        path_image_pyramid = f"{path_landscape_files}/pyramid_images/{image_name}"
 
-    max_pyramid_zoom = get_max_zoom_level(path_image_pyramid)
+        max_pyramid_zoom = get_max_zoom_level(path_image_pyramid)
 
-    landscape_parameters = {
-        "technology": technology,
-        "max_pyramid_zoom": max_pyramid_zoom,
-        "tile_size": tile_size,
-        "image_info": image_info,
-        "image_format": image_format
-    }
+        landscape_parameters = {
+            "technology": technology,
+            "max_pyramid_zoom": max_pyramid_zoom,
+            "tile_size": tile_size,
+            "image_info": image_info,
+            "image_format": image_format
+        }
 
     path_landscape_parameters = f"{path_landscape_files}/landscape_parameters.json"
 

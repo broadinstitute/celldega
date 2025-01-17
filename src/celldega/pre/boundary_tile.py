@@ -59,7 +59,7 @@ def filter_and_save_fine_boundary(coarse_tile, fine_i, fine_j, fine_tile_x_min, 
         filename = f"{path_output}/cell_tile_{fine_i}_{fine_j}.parquet"
         fine_tile_cells.to_parquet(filename)
 
-def process_fine_boundaries(coarse_tile, i, j, coarse_tile_x_min, coarse_tile_x_max, coarse_tile_y_min, coarse_tile_y_max, tile_size, path_output, x_min, y_min, n_fine_tiles_x, n_fine_tiles_y):
+def process_fine_boundaries(coarse_tile, i, j, coarse_tile_x_min, coarse_tile_x_max, coarse_tile_y_min, coarse_tile_y_max, tile_size, path_output, x_min, y_min, n_fine_tiles_x, n_fine_tiles_y, max_workers):
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = []
         for fine_i in range(n_fine_tiles_x):
@@ -110,8 +110,6 @@ def get_cell_polygons(technology, path_cell_boundaries, transformation_matrix, p
         grouped = xenium_cells.groupby("cell_id")[["vertex_x", "vertex_y"]].agg(lambda x: x.tolist())
         grouped["geometry"] = grouped.apply(lambda row: Polygon(zip(row["vertex_x"], row["vertex_y"])), axis=1)
         cells_orig = gpd.GeoDataFrame(grouped, geometry="geometry")[["geometry"]]
-
-        transformation_matrix = pd.read_csv(transformation_matrix).values[:3,:3]
 
     elif technology == "custom":
         cells_orig = gpd.read_parquet(path_cell_boundaries)
@@ -175,14 +173,14 @@ def make_cell_boundary_tiles(
 
     transformation_matrix = pd.read_csv(path_transformation_matrix, header=None, sep=" ").values
 
-    gdf_cells = get_cell_polygons(technology, path_output, path_cell_boundaries, transformation_matrix, image_scale, path_meta_cell_micron)
-
-    gdf_cells["center_x"] = gdf_cells.geometry.centroid.x
-    gdf_cells["center_y"] = gdf_cells.geometry.centroid.y
-    
     # Ensure the output directory exists
     if not os.path.exists(path_output):
         os.makedirs(path_output)
+
+    gdf_cells = get_cell_polygons(technology, path_cell_boundaries, transformation_matrix, path_output, image_scale, path_meta_cell_micron)
+
+    gdf_cells["center_x"] = gdf_cells.geometry.centroid.x
+    gdf_cells["center_y"] = gdf_cells.geometry.centroid.y
 
     # Calculate tile bounds and fine/coarse tiles
     x_min, x_max = tile_bounds["x_min"], tile_bounds["x_max"]
@@ -206,4 +204,4 @@ def make_cell_boundary_tiles(
                 (gdf_cells["center_y"] >= coarse_tile_y_min) & (gdf_cells["center_y"] < coarse_tile_y_max)
             ]
             if not coarse_tile.empty:
-                process_fine_boundaries(coarse_tile, i, j, coarse_tile_x_min, coarse_tile_x_max, coarse_tile_y_min, coarse_tile_y_max, tile_size, path_output, x_min, y_min, n_fine_tiles_x, n_fine_tiles_y)
+                process_fine_boundaries(coarse_tile, i, j, coarse_tile_x_min, coarse_tile_x_max, coarse_tile_y_min, coarse_tile_y_max, tile_size, path_output, x_min, y_min, n_fine_tiles_x, n_fine_tiles_y, max_workers)

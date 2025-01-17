@@ -71,8 +71,7 @@ def filter_and_save_fine_tile(coarse_tile, coarse_i, coarse_j, fine_i, fine_j, f
 
 def transform_transcript_coordinates(technology, path_trx, chunk_size, path_transformation_matrix, image_scale=1):
 
-    #transformation_matrix = np.loadtxt(path_transformation_matrix)
-    transformation_matrix = pd.read_csv(path_transformation_matrix).values[:3,:3]
+    transformation_matrix = np.loadtxt(path_transformation_matrix)
 
     # Load the transcript data based on the technology using Polars
     if technology == "MERSCOPE":

@@ -85,46 +85,42 @@ def qc_segmentation(transcript_metadata_file, transcript_data_file, cell_polygon
 
     print("segmentation metrics calculation completed")
 
-def mixed_expression_calc(cell_feature_matrix_xenium_directory, cbg_stp_cellpose_default_file, cbg_stp_instanseg_file, cbg_stp_cellpose2_file, t_cell_specific_genes, b_cell_specific_genes):
+def mixed_expression_calc(default_segmentation_segmentation_name, default_segmentation_cell_feature_matrix_path, algorithm_names, algorithm_specific_cbg_files, cell_type_A_specific_genes, cell_type_B_specific_genes, cell_A_name, cell_B_name):
     
-    cbg_stp_cellpose2 = pd.read_parquet(cbg_stp_cellpose2_file)
-    cbg_stp_cellpose_default = pd.read_parquet(cbg_stp_cellpose_default_file)
-    cbg_stp_instanseg = pd.read_parquet(cbg_stp_instanseg_file)
-
-    cbg_xenium = read_cbg_mtx(cell_feature_matrix_xenium_directory)
-
     cbg_dict = {}
-    cbg_dict['xenium_default'] = cbg_xenium
-    cbg_dict['cellpose_default'] = cbg_stp_cellpose_default
-    cbg_dict['instanseg'] = cbg_stp_instanseg
-    cbg_dict['cellpose2'] = cbg_stp_cellpose2
+
+    for cbg_file, algorithm_name in zip(algorithm_specific_cbg_files, algorithm_names):
+        cbg_dict[algorithm_name] = pd.read_parquet(cbg_file)
+
+    cbg_dict[default_segmentation_segmentation_name] = read_cbg_mtx(default_segmentation_cell_feature_matrix_path)
 
     for algorithm_name, cbg in cbg_dict.items():
-        t_cell_overlap = [gene for gene in t_cell_specific_genes if gene in cbg.columns]
-        b_cell_overlap = [gene for gene in b_cell_specific_genes if gene in cbg.columns]
+
+        A_cell_overlap = [gene for gene in cell_type_A_specific_genes if gene in cbg.columns]
+        B_cell_overlap = [gene for gene in cell_type_B_specific_genes if gene in cbg.columns]
         
-        cells_with_t_genes = cbg[t_cell_overlap].sum(axis=1) > 0
-        cells_with_b_genes = cbg[b_cell_overlap].sum(axis=1) > 0
+        cells_with_A_genes = cbg[A_cell_overlap].sum(axis=1) > 0
+        cells_with_B_genes = cbg[B_cell_overlap].sum(axis=1) > 0
         
-        cells_with_both = cbg[cells_with_t_genes & cells_with_b_genes]
+        cells_with_both = cbg[cells_with_A_genes & cells_with_B_genes]
         
-        t_cell_genes_expressed = cells_with_both[t_cell_overlap].apply(
+        A_cell_genes_expressed = cells_with_both[A_cell_overlap].apply(
             lambda row: {gene: int(row[gene]) for gene in row[row > 0].index}, axis=1
         )
         
-        b_cell_genes_expressed = cells_with_both[b_cell_overlap].apply(
+        B_cell_genes_expressed = cells_with_both[B_cell_overlap].apply(
             lambda row: {gene: int(row[gene]) for gene in row[row > 0].index}, axis=1
         )
         
         results = pd.DataFrame({
-            "T-cell genes and transcripts": t_cell_genes_expressed,
-            "B-cell genes and transcripts": b_cell_genes_expressed
+            f"{cell_A_name} genes and transcripts": A_cell_genes_expressed,
+            f"{cell_B_name} genes and transcripts": B_cell_genes_expressed
         }, index=cells_with_both.index)
         
-        results["Total T-cell transcripts"] = t_cell_genes_expressed.apply(lambda x: sum(x.values()))
-        results["Total B-cell transcripts"] = b_cell_genes_expressed.apply(lambda x: sum(x.values()))
+        results[f"Total {cell_A_name} transcripts"] = A_cell_genes_expressed.apply(lambda x: sum(x.values()))
+        results[f"Total {cell_B_name} transcripts"] = B_cell_genes_expressed.apply(lambda x: sum(x.values()))
         
-        results["Total"] = t_cell_genes_expressed.apply(lambda x: sum(x.values())) + b_cell_genes_expressed.apply(lambda x: sum(x.values()))
+        results["Total"] = A_cell_genes_expressed.apply(lambda x: sum(x.values())) + B_cell_genes_expressed.apply(lambda x: sum(x.values()))
         results['Technology'] = algorithm_name
         
         sns.set(style='white', rc={'figure.dpi': 250, 'axes.facecolor': (0, 0, 0, 0), 'figure.facecolor': (0, 0, 0, 0)})
@@ -140,18 +136,18 @@ def mixed_expression_calc(cell_feature_matrix_xenium_directory, cbg_stp_cellpose
         g.map_dataframe(
             lambda data, **kwargs: sns.histplot(
                 data=data,
-                x="Total T-cell transcripts",
-                y="Total B-cell transcripts",
+                x=f"Total {cell_A_name} transcripts",
+                y=f"Total {cell_B_name} transcripts",
                 bins=15,
                 cbar=True,
                 cmap='coolwarm',
                 vmin=1,
-                vmax=data["Total T-cell transcripts"].max(),
+                vmax=data[f"Total {cell_A_name} transcripts"].max(),
                 **kwargs
             )
         )
         
-        g.set_axis_labels("Total T-cell transcripts", "Total B-cell transcripts")
+        g.set_axis_labels(f"Total {cell_A_name} transcripts", f"Total {cell_B_name} transcripts")
         for ax in g.axes.flat:
             ax.xaxis.set_major_locator(plt.MaxNLocator(integer=True))
             ax.yaxis.set_major_locator(plt.MaxNLocator(integer=True))

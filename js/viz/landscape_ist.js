@@ -31,6 +31,7 @@ import { toggle_visibility_image_layers } from '../deck-gl/image_layers'
 import { toggle_trx_layer_visibility } from '../deck-gl/trx_layer'
 import { toggle_path_layer_visibility } from '../deck-gl/path_layer'
 import { toggle_background_layer_visibility } from '../deck-gl/background_layer'
+import { OrthographicView, OrbitView } from 'deck.gl'
 
 export const landscape_ist = async (
     el,
@@ -233,8 +234,15 @@ export const landscape_ist = async (
     viz_state.views = set_views()
 
     let deck_ist = await ini_deck(root, width, height)
+
+
     // set_initial_view_state(deck_ist, ini_x, ini_y, ini_z, ini_zoom)
-    set_views_prop(deck_ist, viz_state.views)
+    // set_views_prop(deck_ist, viz_state.views)
+
+    deck_ist.setProps({
+        // views: [ new OrthographicView({id: 'ortho'})]
+        views: [ new OrbitView({id: 'ortho'})]
+    })
 
     // initialize cell and trx caches
     viz_state.cache = {}

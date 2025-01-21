@@ -1,5 +1,5 @@
 import * as d3 from 'd3'
-import { ScatterplotLayer } from 'deck.gl'
+import { PointCloudLayer, ScatterplotLayer } from 'deck.gl'
 import { get_arrow_table } from "../read_parquet/get_arrow_table"
 import { get_scatter_data } from "../read_parquet/get_scatter_data"
 import { set_color_dict_gene } from '../global_variables/color_dict_gene'
@@ -121,7 +121,8 @@ export const ini_cell_layer = async (base_url, viz_state) => {
         name: name,
         cat: viz_state.cats.dict_cell_cats[name],
         x: flatCoordinateArray[index * 2],
-        y: flatCoordinateArray[index * 2 + 1]
+        y: flatCoordinateArray[index * 2 + 1],
+        z: flatCoordinateArray[index * 2 + 2]
     }))
 
 
@@ -161,7 +162,7 @@ export const ini_cell_layer = async (base_url, viz_state) => {
     } else {
         const numRows = viz_state.spatial.cell_scatter_data.length; // Replace with arrow_table.numRows
         cell_scatter_data_objects = Array.from({ length: numRows }, (_, i) => ({
-            position: [flatCoordinateArray[i * 2], flatCoordinateArray[i * 2 + 1]],
+            position: [flatCoordinateArray[i * 3], flatCoordinateArray[i * 3 + 1], flatCoordinateArray[i * 3 + 2]],
         }));
 
         viz_state.spatial.x_min = d3.min(cell_scatter_data_objects.map(d => d.position[0]))
@@ -204,18 +205,40 @@ export const ini_cell_layer = async (base_url, viz_state) => {
         }
     }
 
-    let cell_layer = new ScatterplotLayer({
+    // let cell_layer = new ScatterplotLayer({
+    let cell_layer = new PointCloudLayer({
         id: 'cell-layer',
-        radiusMinPixels: 1,
-        getRadius: 5.0,
+        // radiusMinPixels: 1,
+        // getRadius: 5.0,
+        pointSize: 0.5,
         pickable: true,
         getColor: (i, d) => get_cell_color(viz_state.cats, i, d),
+        // getColor: (i, d) => {[255, 0, 0, 10]},
         data: viz_state.spatial.cell_scatter_data_objects,
         transitions: transitions,
         getPosition: d => (viz_state.umap.state ? d.umap : d.position),
         updateTriggers: {
             getPosition: [viz_state.umap.state]
         },
+        opacity: 0.5,
+        // parameters: {
+        //     blend: true,
+        //     blendFunc: [1, 1], // WebGL constants: GL_ONE, GL_ONE for additive blending
+        //     blendEquation: 32774, // WebGL constant for FUNC_ADD
+        //     depthTest: true, // Ensure depth testing is enabled
+        //     depthMask: false, // Allow blending with existing fragments
+        //   }
+        // parameters: {
+        //     blend: true,
+        //     blendFunc: [
+        //       'SRC_ALPHA', // Multiply source color by its alpha
+        //       'ONE' // Add the source alpha to the destination alpha
+        //     ],
+        //     blendEquation: 'FUNC_ADD', // Add source and destination components
+        //     depthTest: true, // Ensure correct depth order
+        //     depthMask: false, // Allow overlapping transparency
+        //   }
+
     })
 
     return cell_layer

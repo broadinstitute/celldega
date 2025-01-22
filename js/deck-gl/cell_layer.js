@@ -210,7 +210,7 @@ export const ini_cell_layer = async (base_url, viz_state) => {
         id: 'cell-layer',
         // radiusMinPixels: 1,
         // getRadius: 5.0,
-        pointSize: 0.5,
+        pointSize: 1,
         pickable: true,
         getColor: (i, d) => get_cell_color(viz_state.cats, i, d),
         // getColor: (i, d) => {[255, 0, 0, 10]},
@@ -220,7 +220,7 @@ export const ini_cell_layer = async (base_url, viz_state) => {
         updateTriggers: {
             getPosition: [viz_state.umap.state]
         },
-        opacity: 0.5,
+        opacity: 0.1,
         // parameters: {
         //     blend: true,
         //     blendFunc: [1, 1], // WebGL constants: GL_ONE, GL_ONE for additive blending

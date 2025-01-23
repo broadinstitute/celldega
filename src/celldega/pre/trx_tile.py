@@ -77,6 +77,8 @@ def transform_transcript_coordinates(technology, path_trx, chunk_size, path_tran
     if technology == "MERSCOPE":
         trx_ini = pl.read_csv(path_trx, columns=["gene", "global_x", "global_y"])
         trx_ini = trx_ini.with_columns([
+            pl.col("cell_id"),
+            pl.col("transcript_id"),
             pl.col("global_x").alias("x"),
             pl.col("global_y").alias("y"),
             pl.col("gene").alias("name")

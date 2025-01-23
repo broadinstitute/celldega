@@ -171,7 +171,7 @@ def qc_segmentation(transcript_metadata_file, transcript_data_file, cell_polygon
     gene_specific_metrics_df = pd.DataFrame({
         "proportion_of_cells_expressing": (trx_meta.groupby(gene)[cell_index].nunique()) / len(cell_gdf),
         "average_expression": (trx_meta.groupby(gene)[cell_index].nunique()) / (trx_meta.groupby(gene)[cell_index].nunique().sum()),
-        "assigned_transcripts": (trx_meta.groupby(gene)[transcript_index].count() / trx.groupby("feature_name")["transcript_id"].count()).fillna(0)
+        "assigned_transcripts": (trx_meta.groupby(gene)[transcript_index].count() / trx.groupby(gene)[transcript_index].count()).fillna(0)
     })
 
     metrics_df.to_csv(path_output_cell_metrics)

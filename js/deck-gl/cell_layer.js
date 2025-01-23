@@ -220,7 +220,7 @@ export const ini_cell_layer = async (base_url, viz_state) => {
         updateTriggers: {
             getPosition: [viz_state.umap.state]
         },
-        opacity: 0.1,
+        opacity: 0.5,
         // parameters: {
         //     blend: true,
         //     blendFunc: [1, 1], // WebGL constants: GL_ONE, GL_ONE for additive blending
@@ -258,8 +258,11 @@ export const new_toggle_cell_layer_visibility = (layers_obj, visible) => {
 }
 
 export const update_cell_layer_radius = (layers_obj, radius) => {
+
+    console.log(radius)
     layers_obj.cell_layer = layers_obj.cell_layer.clone({
-        getRadius: radius,
+        // getRadius: radius,
+        pointSize: radius/10,
     });
 }
 

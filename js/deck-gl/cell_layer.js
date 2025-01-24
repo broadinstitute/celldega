@@ -114,6 +114,10 @@ export const ini_cell_layer = async (base_url, viz_state) => {
     // Combine names and positions into a single array of objects
     const new_cell_names_array = cell_arrow_table.getChild("name").toArray()
 
+    // hack batch info
+    const batch_array = cell_arrow_table.getChild('batch').toArray()
+    console.log(batch_array)
+
     const flatCoordinateArray = viz_state.spatial.cell_scatter_data.attributes.getPosition.value;
 
     // save cell positions and categories in one place for updating cluster bar plot
@@ -163,6 +167,7 @@ export const ini_cell_layer = async (base_url, viz_state) => {
         const numRows = viz_state.spatial.cell_scatter_data.length; // Replace with arrow_table.numRows
         cell_scatter_data_objects = Array.from({ length: numRows }, (_, i) => ({
             position: [flatCoordinateArray[i * 3], flatCoordinateArray[i * 3 + 1], flatCoordinateArray[i * 3 + 2]],
+            batch: batch_array[i]
         }));
 
         viz_state.spatial.x_min = d3.min(cell_scatter_data_objects.map(d => d.position[0]))
@@ -213,6 +218,7 @@ export const ini_cell_layer = async (base_url, viz_state) => {
         pointSize: 1,
         pickable: true,
         getColor: (i, d) => get_cell_color(viz_state.cats, i, d),
+        // getColor: [255, 0, 0],
         // getColor: (i, d) => {[255, 0, 0, 10]},
         data: viz_state.spatial.cell_scatter_data_objects,
         transitions: transitions,

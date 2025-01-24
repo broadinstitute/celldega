@@ -82,11 +82,30 @@ def resize_cell_polygons(polygons_df, original_tif, resized_tif, output_path):
 
 def image_contrast_adjustment(image_file, output_path, contrast_factor=5, intensity_threshold=100):
     stain_image = Image.open(image_file).convert("L")
+
+    # Plot the original stain image
+    plt.figure(figsize=(10, 10))
+    plt.imshow(stain_image, cmap='gray')
+    plt.title("Original Stain Image")
+    plt.show()
+
     enhancer = ImageEnhance.Contrast(stain_image)
     stain_image_with_contrast = enhancer.enhance(contrast_factor)
 
+    # Plot the stain image after contrast adjustment
+    plt.figure(figsize=(10, 10))
+    plt.imshow(stain_image_with_contrast, cmap='gray')
+    plt.title(f"Stain Image with Contrast Factor {contrast_factor}")
+    plt.show()
+
     stain_image_with_contrast = np.array(stain_image_with_contrast)
     stain_bright_regions = np.where(stain_image_with_contrast >= intensity_threshold, stain_image_with_contrast, 0)
+
+    # Plot the filtered bright regions
+    plt.figure(figsize=(10, 10))
+    plt.imshow(stain_bright_regions, cmap='hot')
+    plt.title(f"Filtered Bright Regions (Threshold: {intensity_threshold})")
+    plt.show()
 
     tifffile.imwrite(f"{output_path}/contrast_adjusted_stain_image.tif", stain_bright_regions.astype(np.uint8))
 
@@ -116,7 +135,22 @@ def calculate_stain_intensities(stain_image_file, cell_polygons):
 
     cell_polygons["mean_intensity_EdU"] = intensities
     cell_polygons["sum_intensity_EdU"] = sum_intensities
-    return cell_polygons
+
+    log_transformed_EdU_intensities = np.log1p(cell_polygons['sum_intensity_EdU'])
+
+    # Normalize the log-transformed intensities to the range [0, 1]
+    log_normalized_EdU_intensities = (log_transformed_EdU_intensities - log_transformed_EdU_intensities.min()) / \
+                                     (log_transformed_EdU_intensities.max() - log_transformed_EdU_intensities.min())
+
+    # Plot the histogram of log-normalized EdU intensities
+    counts, bin_edges, _ = plt.hist(log_normalized_EdU_intensities, bins=50, edgecolor='black', alpha=0.7)
+
+    plt.title('Distribution of Log-Normalized EdU Intensities')
+    plt.xlabel('Log-Normalized Intensity Values')
+    plt.ylabel('Frequency of Occurrence')
+    plt.show()
+
+    return log_transformed_EdU_intensities, bin_edges
 
 def filtering_stain_positive_cells(highlighted_bins, bin_edges, log_transformed_EdU_intensities, cell_polygons, stain_image, output_path):
     for value in highlighted_bins:
@@ -125,6 +159,15 @@ def filtering_stain_positive_cells(highlighted_bins, bin_edges, log_transformed_
         original_start = np.expm1(bin_start * (log_transformed_EdU_intensities.max() - log_transformed_EdU_intensities.min()) + log_transformed_EdU_intensities.min())
 
         filtered_cells = cell_polygons[cell_polygons['sum_intensity_EdU'] > original_start]
+
+        fig, ax = plt.subplots(figsize=(40, 40))
+        ax.imshow(stain_image)
+        filtered_cells.plot(ax=ax, alpha=0.5, linewidth=0.5, facecolor='none', edgecolor='red')
+        plt.title("Overlay of FILTERED stain-positive cells on Registered stain image", fontsize=40)
+        plt.xticks(fontsize=40)
+        plt.yticks(fontsize=40)
+        plt.show()
+
         filtered_cells.to_csv(f'{output_path}/filtered_cells.csv')
 
     print("Filtering done.")

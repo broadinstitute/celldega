@@ -1,5 +1,13 @@
 // transparent to red
-export const get_cell_color = (cats, i, d) => {
+export const get_cell_color = (viz_state, i, d) => {
+
+
+    // if (d.index === 83753){
+    //     console.log('here!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+    //     console.log(d)
+    // }
+
+    const cats = viz_state.cats
 
     if (cats.cat === 'cluster') {
         try {
@@ -15,6 +23,14 @@ export const get_cell_color = (cats, i, d) => {
                 inst_opacity = 0
             }
 
+            if (viz_state.z_level.inst_level !== 'all'){
+                let inst_level = viz_state.z_level.z_level_array[d.index]
+
+                if (inst_level !== viz_state.z_level.inst_level){
+                    return [0, 0, 0, 0]
+                }
+            }
+
             return [...inst_color, inst_opacity]
 
         } catch {
@@ -27,10 +43,20 @@ export const get_cell_color = (cats, i, d) => {
         try {
 
             const inst_exp = cats.cell_exp_array[d.index]
+
+            if (viz_state.z_level.inst_level !== 'all'){
+                let inst_level = viz_state.z_level.z_level_array[d.index]
+
+                if (inst_level !== viz_state.z_level.inst_level){
+                    return [0, 0, 0, 0]
+                }
+            }
+
             return [255, 0, 0, inst_exp]
 
         } catch {
             return [255, 0, 0, 50] // Return a default color with some opacity to handle the error gracefully
         }
-    }
+    };
+
 }

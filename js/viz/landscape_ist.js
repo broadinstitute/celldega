@@ -138,8 +138,31 @@ export const landscape_ist = async (
     // for Z level data
     viz_state.z_level = {}
     viz_state.z_level.svg_bar_cluster = d3.create('svg')
-    viz_state.z_level.cluster_counts = []
-    viz_state.z_level.color_dict_cluster = {}
+    viz_state.z_level.cluster_counts = [
+        {'name': 0, 'value': 100},
+        {'name': 1, 'value': 100},
+        {'name': 2, 'value': 100},
+        {'name': 3, 'value': 100},
+        {'name': 4, 'value': 100},
+        {'name': 5, 'value': 100},
+        {'name': 6, 'value': 100},
+        {'name': 7, 'value': 100},
+        {'name': 8, 'value': 100},
+        {'name': 9, 'value': 100},
+    ]
+    viz_state.z_level.color_dict_cluster = {
+        0: [150, 150, 255],
+        1: [150, 150, 255],
+        2: [150, 150, 255],
+        3: [150, 150, 255],
+        4: [150, 150, 255],
+        5: [150, 150, 255],
+        6: [150, 150, 255],
+        7: [150, 150, 255],
+        8: [150, 150, 255],
+        9: [150, 150, 255],
+    }
+    viz_state.z_level.inst_level = 'all'
 
     // check if meta_cell is an empty object
     if (Object.keys(meta_cell).length === 0) {

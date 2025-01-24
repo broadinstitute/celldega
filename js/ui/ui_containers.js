@@ -5,7 +5,7 @@ import { ini_slider, ini_slider_params } from './sliders'
 import { make_img_layer_slider_callback, toggle_slider } from "./sliders"
 import { debounce } from '../utils/debounce'
 import { toggle_visibility_image_layers } from '../deck-gl/image_layers'
-import { make_bar_graph, bar_callback_rgn, bar_callback_cluster, make_bar_container, bar_callback_gene } from './bar_plot'
+import { make_bar_graph, bar_callback_rgn, bar_callback_cluster, make_bar_container, bar_callback_gene, bar_callback_z_level } from './bar_plot'
 import { calc_dendro_triangles, calc_dendro_polygons, alt_slice_linkage } from '../matrix/dendro'
 import { update_dendro_layer_data } from '../deck-gl/matrix/dendro_layers'
 import { get_mat_layers_list } from '../deck-gl/matrix/matrix_layers'
@@ -351,7 +351,7 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
 
     make_bar_graph(
         viz_state.containers.z_level,
-        bar_callback_cluster,
+        bar_callback_z_level,
         viz_state.z_level.svg_bar_cluster,
         viz_state.z_level.cluster_counts,
         viz_state.z_level.color_dict_cluster,

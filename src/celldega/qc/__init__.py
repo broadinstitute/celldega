@@ -179,7 +179,7 @@ def qc_segmentation(transcript_metadata_file, transcript_data_file, cell_polygon
 
     print("segmentation metrics calculation completed")
 
-def mixed_expression_calc(default_segmentation_segmentation_name, default_segmentation_cell_feature_matrix_path, algorithm_names, algorithm_specific_cbg_files, cell_type_A_specific_genes, cell_type_B_specific_genes, cell_A_name, cell_B_name):
+def mixed_expression_calc(default_segmentation_segmentation_name, default_segmentation_cell_feature_matrix_path, algorithm_names, algorithm_specific_cbg_files, cell_type_A_specific_genes, cell_type_B_specific_genes, cell_A_name, cell_B_name, cmap='cividis'):
     
     """
     Analyze and visualize mixed expression patterns of cell-type-specific genes across multiple segmentation algorithms.
@@ -291,7 +291,7 @@ def mixed_expression_calc(default_segmentation_segmentation_name, default_segmen
                 y=f"Total {cell_B_name} transcripts",
                 bins=15,
                 cbar=True,
-                cmap='cividis',
+                cmap=cmap,
                 vmin=1,
                 vmax=data[f"Total {cell_A_name} transcripts"].max(),
                 **kwargs

@@ -139,16 +139,16 @@ export const landscape_ist = async (
     viz_state.z_level = {}
     viz_state.z_level.svg_bar_cluster = d3.create('svg')
     viz_state.z_level.cluster_counts = [
-        {'name': 0, 'value': 100},
-        {'name': 1, 'value': 100},
-        {'name': 2, 'value': 100},
-        {'name': 3, 'value': 100},
-        {'name': 4, 'value': 100},
-        {'name': 5, 'value': 100},
-        {'name': 6, 'value': 100},
-        {'name': 7, 'value': 100},
-        {'name': 8, 'value': 100},
         {'name': 9, 'value': 100},
+        {'name': 8, 'value': 100},
+        {'name': 7, 'value': 100},
+        {'name': 6, 'value': 100},
+        {'name': 5, 'value': 100},
+        {'name': 4, 'value': 100},
+        {'name': 3, 'value': 100},
+        {'name': 2, 'value': 100},
+        {'name': 1, 'value': 100},
+        {'name': 0, 'value': 100},
     ]
     viz_state.z_level.color_dict_cluster = {
         0: [150, 150, 255],

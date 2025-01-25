@@ -57,6 +57,10 @@ import json
 import ipywidgets as widgets
 import statsmodels.stats.multitest as smm
 
+
+def enrich(gene_list):
+    print('gene_list', gene_list)
+
 def hc(df, filter_N_top=None, norm_col='total', norm_row='zscore'):
 
   """

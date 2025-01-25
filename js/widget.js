@@ -96,9 +96,17 @@ export const render_matrix_new = async ({ model, el }) => {
 
 }
 
+export const render_enrich = async ({model, el}) => {
+    const gene_list = model.get('gene_list')
+
+    console.log('gene_list', gene_list)
+}
+
 export const render = async ({ model, el }) => {
 
     const componentType = model.get("component");
+
+    console.log('componentType', componentType)
 
     switch (componentType) {
         case "Landscape":
@@ -107,10 +115,12 @@ export const render = async ({ model, el }) => {
         case "Matrix":
             render_matrix_new({ model, el });
             break;
+        case "Enrich":
+            render_enrich({ model, el});
+            break;
         default:
             throw new Error(`Unknown component type: ${componentType}`);
     }
 };
-
 
 export default { render, landscape_ist, landscape_sst, matrix_viz };

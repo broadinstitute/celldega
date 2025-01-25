@@ -99,6 +99,21 @@ class Matrix(anywidget.AnyWidget):
     height = traitlets.Int(600).tag(sync=True)
     click_info = traitlets.Dict({}).tag(sync=True)
 
+class Enrich(anywidget.AnyWidget):
+    """
+
+    """
+
+    _esm = pathlib.Path(__file__).parent / "../static" / "widget.js"
+    _css = pathlib.Path(__file__).parent / "../static" / "widget.css"
+
+    value = traitlets.Int(0).tag(sync=True)
+
+    component = traitlets.Unicode("Enrich").tag(sync=True)
+
+    # gene list
+    gene_list = traitlets.List([]).tag(sync=True)
+
 
 class MatrixNew(anywidget.AnyWidget):
     _esm = pathlib.Path(__file__).parent / "../static" / "widget.js"

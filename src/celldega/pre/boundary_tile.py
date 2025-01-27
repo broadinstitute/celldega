@@ -59,7 +59,7 @@ def filter_and_save_fine_boundary(coarse_tile, fine_i, fine_j, fine_tile_x_min, 
         filename = f"{path_output}/cell_tile_{fine_i}_{fine_j}.parquet"
         fine_tile_cells.to_parquet(filename)
 
-def process_fine_boundaries(coarse_tile, i, j, coarse_tile_x_min, coarse_tile_x_max, coarse_tile_y_min, coarse_tile_y_max, tile_size, path_output, x_min, y_min, n_fine_tiles_x, n_fine_tiles_y, max_workers):
+def process_fine_boundaries(coarse_tile, i, j, coarse_tile_x_min, coarse_tile_x_max, coarse_tile_y_min, coarse_tile_y_max, tile_size, path_output, x_min, y_min, n_fine_tiles_x, n_fine_tiles_y, max_workers=1):
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = []
         for fine_i in range(n_fine_tiles_x):
@@ -134,7 +134,7 @@ def make_cell_boundary_tiles(
     tile_size=250,
     tile_bounds=None,
     image_scale=1,
-    max_workers=8
+    max_workers=1
 ):
     
 
@@ -163,7 +163,7 @@ def make_cell_boundary_tiles(
         Dictionary containing the minimum and maximum bounds for x and y coordinates.
     image_scale : float, optional, default=1
         Scale factor to apply to the geometry data.
-    max_workers : int, optional, default=8
+    max_workers : int, optional, default=1
         Maximum number of parallel workers for processing tiles.
 
     Returns

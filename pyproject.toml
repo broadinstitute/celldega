@@ -21,8 +21,7 @@ dependencies = [
     "polars~=1.10.0",
     "libpysal~=4.8.1",
     "spatialdata~=0.2.6",
-    "spatialdata_io~=0.1.6",
-    "alphashape~=1.3.1"
+    "spatialdata_io~=0.1.6"
 ]
 readme = "README.md"
 

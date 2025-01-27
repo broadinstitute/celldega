@@ -5,7 +5,7 @@ from tqdm import tqdm
 import concurrent.futures
 import pandas as pd
 
-def process_coarse_tile(trx, i, j, coarse_tile_x_min, coarse_tile_x_max, coarse_tile_y_min, coarse_tile_y_max, tile_size, path_trx_tiles, x_min, y_min, n_fine_tiles_x, n_fine_tiles_y, max_workers):
+def process_coarse_tile(trx, i, j, coarse_tile_x_min, coarse_tile_x_max, coarse_tile_y_min, coarse_tile_y_max, tile_size, path_trx_tiles, x_min, y_min, n_fine_tiles_x, n_fine_tiles_y, max_workers=1):
     # Filter the entire dataset for the current coarse tile
     coarse_tile = trx.filter(
         (pl.col("transformed_x") >= coarse_tile_x_min) & (pl.col("transformed_x") < coarse_tile_x_max) &
@@ -16,7 +16,7 @@ def process_coarse_tile(trx, i, j, coarse_tile_x_min, coarse_tile_x_max, coarse_
         # Now process fine tiles using global fine tile indices
         process_fine_tiles(coarse_tile, i, j, coarse_tile_x_min, coarse_tile_x_max, coarse_tile_y_min, coarse_tile_y_max, tile_size, path_trx_tiles, x_min, y_min, n_fine_tiles_x, n_fine_tiles_y, max_workers)   
 
-def process_fine_tiles(coarse_tile, coarse_i, coarse_j, coarse_tile_x_min, coarse_tile_x_max, coarse_tile_y_min, coarse_tile_y_max, tile_size, path_trx_tiles, x_min, y_min, n_fine_tiles_x, n_fine_tiles_y, max_workers=8):
+def process_fine_tiles(coarse_tile, coarse_i, coarse_j, coarse_tile_x_min, coarse_tile_x_max, coarse_tile_y_min, coarse_tile_y_max, tile_size, path_trx_tiles, x_min, y_min, n_fine_tiles_x, n_fine_tiles_y, max_workers=1):
 
     # Use ThreadPoolExecutor for parallel processing of fine-grain tiles within the coarse tile
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -125,7 +125,7 @@ def make_trx_tiles(
     chunk_size=1000000,
     verbose=False,
     image_scale=1,
-    max_workers=8
+    max_workers=1
 ):
     """
     Processes transcript data by dividing it into coarse-grain and fine-grain tiles,
@@ -152,7 +152,7 @@ def make_trx_tiles(
     image_scale : float, optional
         Scale factor to apply to the transcript coordinates (default is 0.5).
     max_workers : int, optional
-        Maximum number of parallel workers for processing tiles (default is 8).
+        Maximum number of parallel workers for processing tiles (default is 1).
 
     Returns
     -------

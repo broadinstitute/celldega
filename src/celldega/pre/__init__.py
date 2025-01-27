@@ -24,6 +24,7 @@ import json
 from .landscape import *
 from .trx_tile import *
 from .boundary_tile import *
+from .image_quantification import *
 
 def convert_long_id_to_short(df):
     """

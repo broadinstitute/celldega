@@ -172,7 +172,7 @@ def filtering_stain_positive_cells(highlighted_bins, bin_edges, log_transformed_
 
     print("Filtering done.")
 
-def main(technology_name, cell_boundary_file, image_file_to_flip, image_file_to_scale, transform_file, output_path, flip_along_axis, highlighted_bins, axis=None):
+def image_quantification(technology_name, cell_boundary_file, image_file_to_flip, image_file_to_scale, transform_file, output_path, flip_along_axis, highlighted_bins, axis=None):
     polygons_df, stain_bright_regions, stain_image_file = process_inputs_for_quantification(
         technology_name, cell_boundary_file, image_file_to_flip, image_file_to_scale, transform_file, output_path, flip_along_axis, axis=axis
     )

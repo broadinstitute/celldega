@@ -4,7 +4,7 @@ import os
 from tqdm import tqdm
 import concurrent.futures
 import geopandas as gpd
-from shapely.geometry import Polygon, MultiPolygon
+from shapely.geometry import Point, Polygon, MultiPolygon
 
 def numpy_affine_transform(coords, matrix):
     """Apply affine transformation to numpy coordinates."""
@@ -15,7 +15,7 @@ def numpy_affine_transform(coords, matrix):
     
 def batch_transform_geometries(geometries, transformation_matrix, scale):
     """
-    Batch transform geometries using numpy for optimized performance.
+    Batch transform geometries (Polygons and Points) using numpy for optimized performance.
     """
     # Extract affine transformation parameters into a 3x3 matrix for numpy
     affine_matrix = np.array([
@@ -24,21 +24,49 @@ def batch_transform_geometries(geometries, transformation_matrix, scale):
         [0, 0, 1]
     ])
     
+    def numpy_affine_transform(coords, matrix):
+        # Convert coordinates to homogeneous format
+        homogeneous_coords = np.hstack([coords, np.ones((coords.shape[0], 1))])
+        # Apply transformation matrix
+        transformed = np.dot(homogeneous_coords, matrix.T)
+        # Return transformed coordinates
+        return transformed[:, :2]
+
     transformed_geometries = []
     
-    for polygon in geometries:
-        # Extract coordinates and transform them
-        if isinstance(polygon, MultiPolygon):
-            polygon = next(polygon.geoms)  # Use the first geometry
+    for geom in geometries:
+        if isinstance(geom, Point):
+            # Transform a single Point geometry
+            point_coords = np.array([[geom.x, geom.y]])
+            transformed_coords = numpy_affine_transform(point_coords, affine_matrix) / scale
+            transformed_geometries.append(Point(transformed_coords[0]))
         
-        # Transform the exterior of the polygon
-        exterior_coords = np.array(polygon.exterior.coords)
+        elif isinstance(geom, Polygon):
+            # Transform a Polygon geometry
+            exterior_coords = np.array(geom.exterior.coords)
+            transformed_exterior = numpy_affine_transform(exterior_coords, affine_matrix) / scale
+            
+            # Handle interior rings (holes) if they exist
+            interiors = [
+                numpy_affine_transform(np.array(interior.coords), affine_matrix) / scale
+                for interior in geom.interiors
+            ]
+            
+            transformed_geometries.append(Polygon(transformed_exterior, interiors))
         
-        # Apply the affine transformation and scale
-        transformed_coords = numpy_affine_transform(exterior_coords, affine_matrix) / scale
-        
-        # Append the result to the transformed_geometries list
-        transformed_geometries.append([transformed_coords.tolist()])
+        elif isinstance(geom, MultiPolygon):
+            # Transform the first geometry in MultiPolygon
+            polygons = [
+                Polygon(
+                    numpy_affine_transform(np.array(p.exterior.coords), affine_matrix) / scale,
+                    [
+                        numpy_affine_transform(np.array(interior.coords), affine_matrix) / scale
+                        for interior in p.interiors
+                    ]
+                )
+                for p in geom.geoms
+            ]
+            transformed_geometries.append(MultiPolygon(polygons))
     
     return transformed_geometries
 

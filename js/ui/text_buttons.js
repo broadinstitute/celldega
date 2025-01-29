@@ -150,6 +150,8 @@ export const make_button = (container, technology, text, color='blue', width=40,
     if (text === 'IMG') {
         if (technology === 'sst'){
             callback = (event) => sst_img_button_callback(event, inst_deck, layers_obj)
+
+            // console.log('here!!!!!!!!!!')
         } else {
             callback = (event) => ist_img_button_callback(event, inst_deck, layers_obj, viz_state)
         }

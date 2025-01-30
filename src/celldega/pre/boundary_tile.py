@@ -111,9 +111,6 @@ def get_cell_polygons(technology, path_cell_boundaries, transformation_matrix, p
         grouped["geometry"] = grouped.apply(lambda row: Polygon(zip(row["vertex_x"], row["vertex_y"])), axis=1)
         cells_orig = gpd.GeoDataFrame(grouped, geometry="geometry")[["geometry"]]
 
-    elif technology == "custom":
-        cells_orig = gpd.read_parquet(path_cell_boundaries)
-
     # Transform geometries
     cells_orig["GEOMETRY"] = batch_transform_geometries(cells_orig["geometry"], transformation_matrix, image_scale)
 

@@ -1,3 +1,5 @@
+import os
+import json
 import pandas as pd
 import geopandas as gpd
 import seaborn as sns
@@ -6,7 +8,7 @@ from ..pre.landscape import read_cbg_mtx
 from ..pre.boundary_tile import get_cell_polygons
 from ..pre.trx_tile import transform_transcript_coordinates
 
-def qc_segmentation(transcript_metadata_file, transcript_data_file, cell_polygon_metadata_file, cell_polygon_data_file, dataset_name, segmentation_approach, technology_name, transform_file, cell_boundaries_file, path_output_cell_metrics, path_output_gene_metrics, path_output=None, path_meta_cell_micron=None):
+def qc_segmentation(base_path, path_output=None, path_meta_cell_micron=None):
 
     """
     Calculate segmentation quality control (QC) metrics for imaging spatial transcriptomics data.
@@ -17,126 +19,76 @@ def qc_segmentation(transcript_metadata_file, transcript_data_file, cell_polygon
 
     Parameters
     ----------
-    transcript_metadata_file : str
-        Path to the transcript metadata file, containing details about transcript assignments.
-
-    transcript_data_file : str
-        Path to the transcript data file, containing raw transcript information.
-
-    cell_polygon_metadata_file : str
-        Path to the cell polygon metadata file, containing cell attributes such as area and centroid.
-
-    cell_polygon_data_file : str
-        Path to the cell polygon data file, containing cell polygon geometries.
-
-    dataset_name : str
-        Name of the dataset being processed.
-
-    segmentation_approach : str
-        Description of the segmentation method used.
-
-    subset_interval_y_x : tuple
-        Tuple defining the spatial subset interval for analysis (y, x).
-
-    transform_file : str
-        Path to the transformation matrix file, required for coordinate transformations (used for MERSCOPE/Xenium data).
-
-    cell_boundaries_file : str
-        Path to the cell boundaries file, required for generating cell polygons (used for MERSCOPE/Xenium data).
-
-    path_output_cell_metrics : str
-        Path to save the output CSV file containing cell-level metrics.
-
-    path_output_gene_metrics : str
-        Path to save the output CSV file containing gene-specific metrics.
+    base_path : str
+        Path to the data directory
 
     Returns
     -------
     None
         Outputs two CSV files containing cell-level and gene-specific QC metrics.
 
-    Notes
-    -----
-    - For data from STP, transcript metadata and cell polygons are read directly from provided files.
-    - For Xenium data, transcripts are transformed and cell polygons are derived using provided transformation files.
-    - Metrics calculated include:
-        * Proportion of assigned transcripts
-        * Number of cells
-        * Mean and median transcripts per cell
-        * Mean and median genes per cell
-        * Proportion of empty cells
-    - Gene-specific metrics include proportion of cells expressing a gene, average expression, and assigned transcripts.
-
     Example
     -------
-    qc_segmentation(
-         transcript_metadata_file="path/to/trx_metadata.parquet",
-         transcript_data_file="path/to/trx_data.csv",
-         cell_polygon_metadata_file="path/to/cell_meta.parquet",
-         cell_polygon_data_file="path/to/cell_data.parquet",
-         dataset_name="Dataset1",
-         segmentation_approach="MethodA",
-         subset_interval_y_x=(0, 1000, 0, 1000),
-         transform_file="path/to/transform.mat",
-         cell_boundaries_file="path/to/cell_boundaries.csv",
-         from_stp=True,
-         path_output_cell_metrics="output/cell_metrics.csv",
-         path_output_gene_metrics="output/gene_metrics.csv"
-         )
+    qc_segmentation(base_path="path/to/data")
 
     """
 
     metrics = {}
-    
-    if technology_name == 'STP':
+
+    with open(os.path.join(base_path, "segmentation_parameters.json"), 'r') as parameter_file:
+        segmentation_parameters = json.load(parameter_file)
+
+    if segmentation_parameters['technology'] == 'custom':
         cell_index = "cell_index"
         gene = "gene"
         transcript_index = "transcript_index"
 
-        trx = pd.read_csv(transcript_data_file)
-        trx_meta = pd.read_parquet(transcript_metadata_file)
-        cell_gdf = gpd.read_parquet(cell_polygon_data_file)
-        cell_meta_gdf = gpd.read_parquet(cell_polygon_metadata_file)
+        trx = pd.read_parquet(os.path.join(base_path, "transcripts.parquet"))
+        trx_meta = trx[trx[cell_index] != -1][[transcript_index, cell_index, gene]]
+        cell_gdf = gpd.read_parquet(os.path.join(base_path, "cell_polygons.parquet"))
+        cell_meta_gdf = gpd.read_parquet(os.path.join(base_path, "cell_metadata.parquet"))
         
-    elif technology_name == 'Xenium':
+    elif segmentation_parameters['technology'] == 'Xenium':
         cell_index = "cell_id"
         gene = "feature_name"
         transcript_index = "transcript_id"
 
-        trx = transform_transcript_coordinates(technology=technology_name, chunk_size=1000000,
-                                 path_trx=transcript_data_file,
-                                 path_transformation_matrix=transform_file)
+        transformation_matrix = pd.read_csv(os.path.join(base_path, "transformation_matrix.csv"), header=None, sep=" ").values
 
-        trx = trx.to_pandas()
+        trx = transform_transcript_coordinates(technology=segmentation_parameters['technology'], chunk_size=1000000,
+                                 path_trx=os.path.join(base_path, "transcripts.parquet"),
+                                 transformation_matrix=transformation_matrix)
+
+        trx = pd.read_parquet(os.path.join(base_path, "transcripts.parquet"))
         trx = trx.rename(columns={'transformed_x': 'x_location', 'transformed_y': 'y_location', 'name': gene})
         trx_meta = trx[trx[cell_index] != 'UNASSIGNED'][[transcript_index, cell_index, gene]]
         
-        transformation_matrix = pd.read_csv(transform_file, header=None, sep=" ").values
-
-        cell_gdf = get_cell_polygons(technology=technology_name, path_cell_boundaries=cell_boundaries_file, transformation_matrix=transformation_matrix)
+        cell_gdf = get_cell_polygons(technology=segmentation_parameters['technology'], 
+                                     path_cell_boundaries=os.path.join(base_path, "cell_boundaries.parquet"), 
+                                     transformation_matrix=transformation_matrix)
+        
         cell_gdf.reset_index(inplace=True)
         cell_gdf['area'] = cell_gdf['geometry'].area
         cell_gdf['centroid'] = cell_gdf['geometry'].centroid
         cell_meta_gdf = cell_gdf[['cell_id', 'area', 'centroid']]
 
-    elif technology_name == 'MERSCOPE':
-        cell_index = 'EntityID' # cell_id
+    elif segmentation_parameters['technology'] == 'MERSCOPE':
+        cell_index = 'EntityID'
         gene = "gene"
         transcript_index = 'transcript_id'
         
-        trx = transform_transcript_coordinates(technology=technology_name, chunk_size=1000000,
-                                 path_trx=transcript_data_file,
-                                 path_transformation_matrix=transform_file,
-                                 )
+        transformation_matrix = pd.read_csv(os.path.join(base_path, "transformation_matrix.csv"), header=None, sep=" ").values
+
+        trx = transform_transcript_coordinates(technology=segmentation_parameters['technology'], chunk_size=1000000,
+                                 path_trx=os.path.join(base_path, "detected_transcripts.csv"),
+                                 transformation_matrix=transformation_matrix)
         
         trx = trx.to_pandas()
         trx = trx.rename(columns={'transformed_x': 'global_x', 'transformed_y': 'global_y', 'name': gene})
         trx_meta = trx[trx[cell_index] != -1][[transcript_index, cell_index, gene]]
 
-        transformation_matrix = pd.read_csv(transform_file, header=None, sep=" ").values
-
-        cell_gdf = get_cell_polygons(technology=technology_name, 
-                                     path_cell_boundaries=cell_boundaries_file, 
+        cell_gdf = get_cell_polygons(technology=segmentation_parameters['technology'], 
+                                     path_cell_boundaries=os.path.join(base_path, "cell_boundaries.parquet"), 
                                      transformation_matrix=transformation_matrix,
                                      path_output=path_output,
                                      path_meta_cell_micron=path_meta_cell_micron)
@@ -148,8 +100,8 @@ def qc_segmentation(transcript_metadata_file, transcript_data_file, cell_polygon
 
     percentage_of_assigned_transcripts = (len(trx_meta) / len(trx))
 
-    metrics['dataset_name'] = dataset_name
-    metrics['segmentation_approach'] = segmentation_approach
+    metrics['dataset_name'] = segmentation_parameters['dataset_name']
+    metrics['segmentation_approach'] = segmentation_parameters['segmentation_approach']
     
     metrics['proportion_assigned_transcripts'] = percentage_of_assigned_transcripts
     metrics['number_cells'] = len(cell_gdf)
@@ -165,7 +117,7 @@ def qc_segmentation(transcript_metadata_file, transcript_data_file, cell_polygon
 
     metrics_df = pd.DataFrame([metrics])
     metrics_df = metrics_df.T
-    metrics_df.columns = [f"{dataset_name}-{segmentation_approach}"]
+    metrics_df.columns = [f"{segmentation_parameters['dataset_name']}_{segmentation_parameters['segmentation_approach']}"]
     metrics_df = metrics_df.T
     
     gene_specific_metrics_df = pd.DataFrame({
@@ -174,12 +126,13 @@ def qc_segmentation(transcript_metadata_file, transcript_data_file, cell_polygon
         "assigned_transcripts": (trx_meta.groupby(gene)[transcript_index].count() / trx.groupby(gene)[transcript_index].count()).fillna(0)
     })
 
-    metrics_df.to_csv(path_output_cell_metrics)
-    gene_specific_metrics_df.to_csv(path_output_gene_metrics)
+    metrics_df.to_csv(os.path.join(base_path, "cell_specific_qc.csv"))
+    gene_specific_metrics_df.to_csv(os.path.join(base_path, "gene_specific_qc.csv"))
 
     print("segmentation metrics calculation completed")
 
-def mixed_expression_calc(default_segmentation_segmentation_name, default_segmentation_cell_feature_matrix_path, algorithm_names, algorithm_specific_cbg_files, cell_type_A_specific_genes, cell_type_B_specific_genes, cell_A_name, cell_B_name, cmap='cividis'):
+def mixed_expression_calc(base_paths, cell_type_A_specific_genes, 
+                          cell_type_B_specific_genes, cell_A_name, cell_B_name, cmap='cividis'):
     
     """
     Analyze and visualize mixed expression patterns of cell-type-specific genes across multiple segmentation algorithms.
@@ -189,17 +142,8 @@ def mixed_expression_calc(default_segmentation_segmentation_name, default_segmen
 
     Parameters
     ----------
-    default_segmentation_segmentation_name : str
-        Name of the default segmentation algorithm.
-
-    default_segmentation_cell_feature_matrix_path : str
-        Path to the cell-by-gene feature matrix for the default segmentation algorithm.
-
-    algorithm_names : list of str
-        Names of the segmentation algorithms being compared.
-
-    algorithm_specific_cbg_files : list of str
-        File paths to cell-by-gene feature matrices for the corresponding segmentation algorithms.
+    base_path : str
+        Path to the data directory
 
     cell_type_A_specific_genes : list of str
         List of genes specific to cell type A.
@@ -213,37 +157,41 @@ def mixed_expression_calc(default_segmentation_segmentation_name, default_segmen
     cell_B_name : str
         Name or label for cell type B (used in plot labeling).
 
+
     Returns
     -------
     None
         Displays histograms comparing total transcripts for cell types A and B, grouped by segmentation algorithm.
 
-    Notes
-    -----
-    - The function reads cell-by-gene matrices, identifies cells expressing genes from both cell types, and calculates the number of transcripts for those genes.
-    - Generates a FacetGrid of histograms showing the relationship between total transcripts for the two cell types, stratified by segmentation algorithm.
-    - Histograms use `sns.histplot` with a `coolwarm` colormap and are displayed for each segmentation algorithm.
-
     Example
     -------
+    
     mixed_expression_calc(
-        default_segmentation_segmentation_name="DefaultAlgo",
-        default_segmentation_cell_feature_matrix_path="path/to/default_algo_cbg.parquet",
-        algorithm_names=["Algo1", "Algo2"],
-        algorithm_specific_cbg_files=["path/to/algo1_cbg.parquet", "path/to/algo2_cbg.parquet"],
+        base_path="path/to/data",
         cell_type_A_specific_genes=["GeneA1", "GeneA2"],
         cell_type_B_specific_genes=["GeneB1", "GeneB2"],
         cell_A_name="CellTypeA",
         cell_B_name="CellTypeB"
     )
+    
     """
         
     cbg_dict = {}
 
-    for cbg_file, algorithm_name in zip(algorithm_specific_cbg_files, algorithm_names):
-        cbg_dict[algorithm_name] = pd.read_parquet(cbg_file)
+    for base_path in base_paths:
 
-    cbg_dict[default_segmentation_segmentation_name] = read_cbg_mtx(default_segmentation_cell_feature_matrix_path)
+        with open(os.path.join(base_path, "segmentation_parameters.json"), 'r') as parameter_file:
+            segmentation_parameters = json.load(parameter_file)
+
+            if segmentation_parameters['technology'] == 'custom':
+                cbg_dict[segmentation_parameters['segmentation_approach']] = pd.read_parquet(os.path.join(base_path, 
+                                                                                                    "cell_by_gene_matrix.parquet"))
+            elif segmentation_parameters['technology'] == 'Xenium':
+                cbg_dict[segmentation_parameters['segmentation_approach']] = read_cbg_mtx(os.path.join(base_path, "cell_feature_matrix"))
+                
+            elif segmentation_parameters['technology'] == 'MERSCOPE':
+                cbg_dict[segmentation_parameters['segmentation_approach']] = pd.read_csv(os.path.join(base_path, 
+                                                                                                    "cell_by_gene_matrix.csv"))
 
     for algorithm_name, cbg in cbg_dict.items():
 

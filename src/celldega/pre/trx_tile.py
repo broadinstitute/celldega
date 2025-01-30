@@ -69,9 +69,7 @@ def filter_and_save_fine_tile(coarse_tile, coarse_i, coarse_j, fine_i, fine_j, f
         # Save the filtered DataFrame to a Parquet file
         fine_tile_trx.to_pandas().to_parquet(filename)
 
-def transform_transcript_coordinates(technology, path_trx, chunk_size, path_transformation_matrix, image_scale=1):
-
-    transformation_matrix = np.loadtxt(path_transformation_matrix)
+def transform_transcript_coordinates(technology, path_trx, chunk_size, transformation_matrix, image_scale=1):
 
     # Load the transcript data based on the technology using Polars
     if technology == "MERSCOPE":
@@ -164,7 +162,9 @@ def make_trx_tiles(
     if not os.path.exists(path_trx_tiles):
         os.makedirs(path_trx_tiles)
 
-    trx = transform_transcript_coordinates(technology, path_trx, chunk_size, path_transformation_matrix, image_scale)
+    transformation_matrix = np.loadtxt(path_transformation_matrix)
+
+    trx = transform_transcript_coordinates(technology, path_trx, chunk_size, transformation_matrix, image_scale)
 
     # Get min and max x, y values
     x_min, x_max = trx.select([

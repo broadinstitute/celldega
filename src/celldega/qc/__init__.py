@@ -1,6 +1,7 @@
 import os
 import json
 import pandas as pd
+import numpy as np
 import geopandas as gpd
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -139,8 +140,26 @@ def qc_segmentation(base_path, path_output=None, path_meta_cell_micron=None):
 
     print("segmentation metrics calculation completed")
 
-def mixed_expression_calc(base_paths, cell_type_A_specific_genes, 
-                          cell_type_B_specific_genes, cell_A_name, cell_B_name, cmap='cividis'):
+def classify_cells(dataframe, cell_A_name, cell_B_name, threshold_for_A_cell_classification, threshold_for_B_cell_classification):
+    dataframe['Classification'] = np.where(
+        dataframe[f'Total {cell_A_name} transcripts'] >= threshold_for_A_cell_classification, cell_A_name,
+        np.where(dataframe[f'Total {cell_B_name} transcripts'] >= threshold_for_B_cell_classification, cell_B_name, 'Orthogonal Expression')
+    )
+    return dataframe
+
+def filter_mixed_expression(dataframe, cell_A_name, cell_B_name, threshold_for_orthogonal_exp):
+    A_cells_with_B_genes = dataframe[
+        (dataframe['Classification'] == cell_A_name) &
+        (dataframe[f'Total {cell_B_name} transcripts'] > threshold_for_orthogonal_exp)
+    ]
+    B_cells_with_A_genes = dataframe[
+        (dataframe['Classification'] == cell_B_name) &
+        (dataframe[f'Total {cell_A_name} transcripts'] > threshold_for_orthogonal_exp)
+    ]
+    return len(A_cells_with_B_genes)/len(dataframe[f'Total {cell_A_name} transcripts']), len(B_cells_with_A_genes)/len(dataframe[f'Total {cell_B_name} transcripts'])
+
+def orthogonal_expression_calc(base_paths, cell_type_A_specific_genes, 
+                          cell_type_B_specific_genes, cell_A_name, cell_B_name, threshold_for_A_cell_classification=3, threshold_for_B_cell_classification=3, threshold_for_orthogonal_exp=3, cmap='cividis'):
     
     """
     Analyze and visualize mixed expression patterns of cell-type-specific genes across multiple segmentation algorithms.
@@ -165,6 +184,9 @@ def mixed_expression_calc(base_paths, cell_type_A_specific_genes,
     cell_B_name : str
         Name or label for cell type B (used in plot labeling).
 
+    threshold : int
+        Threshold to perform orthogonal expression quantification.
+
 
     Returns
     -------
@@ -174,7 +196,7 @@ def mixed_expression_calc(base_paths, cell_type_A_specific_genes,
     Example
     -------
     
-    mixed_expression_calc(
+    orthogonal_expression_calc(
         base_path="path/to/data",
         cell_type_A_specific_genes=["GeneA1", "GeneA2"],
         cell_type_B_specific_genes=["GeneB1", "GeneB2"],
@@ -185,6 +207,9 @@ def mixed_expression_calc(base_paths, cell_type_A_specific_genes,
     """
         
     cbg_dict = {}
+
+    cell_A_with_B_cell_specific_genes = {}
+    cell_B_with_A_cell_specific_genes = {}
 
     for base_path in base_paths:
 
@@ -262,3 +287,29 @@ def mixed_expression_calc(base_paths, cell_type_A_specific_genes,
         
         plt.tight_layout()
         plt.show()
+
+        results = classify_cells(results, cell_A_name, cell_B_name, threshold_for_A_cell_classification, threshold_for_B_cell_classification)
+        cell_A_with_B_cell_specific_genes[algorithm_name], cell_B_with_A_cell_specific_genes[algorithm_name] = filter_mixed_expression(results, cell_A_name, cell_B_name, threshold_for_orthogonal_exp)
+
+    orthogonal_data = pd.DataFrame({
+        'Technology': [i for i in cell_A_with_B_cell_specific_genes.keys() for _ in range(2)],
+        'Category': [f'{cell_A_name} with {cell_B_name} genes', f'{cell_B_name} with {cell_A_name} genes'] * 4,
+        'Count': [gene for pair in zip(cell_A_with_B_cell_specific_genes.values(), 
+                                        cell_B_with_A_cell_specific_genes.values()) 
+                   for gene in pair]
+    })
+
+    fig, ax = plt.subplots(figsize=(16, 10))
+
+    sns.barplot(data=orthogonal_data, x='Technology', y='Count', hue='Category', ax=ax)
+
+    ax.set_title(f'Orthogonal Expression: Classified {cell_A_name} and {cell_B_name} Expressing Opposite Gene Type', fontsize=24)
+    ax.set_xlabel('Technology', fontsize=22, labelpad=15)
+    ax.set_ylabel('Proportion of Cells', fontsize=22, labelpad=15)
+    plt.yticks(fontsize=22)
+    plt.xticks(fontsize=22)
+
+    ax.legend(title='Category', title_fontsize=20, bbox_to_anchor=(1.05, 1), loc='upper left', facecolor="white", edgecolor="black", fontsize=20)
+
+    plt.tight_layout()
+    plt.show()

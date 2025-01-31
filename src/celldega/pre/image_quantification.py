@@ -1,17 +1,15 @@
-import geopandas as gpd
+import os
+import glob
+import tifffile
 import pandas as pd
 import numpy as np
+import geopandas as gpd
 import matplotlib.pyplot as plt
-import tifffile
+from rasterio.mask import mask
+from rasterstats import zonal_stats
 from shapely.geometry import Polygon, MultiPolygon
 from shapely.affinity import scale
 from PIL import Image, ImageEnhance
-from rasterio.mask import mask
-from pathlib import Path
-from rasterstats import zonal_stats
-import statistics
-from matplotlib.lines import Line2D
-
 from ..pre.boundary_tile import numpy_affine_transform, batch_transform_geometries
 
 def process_row(row):
@@ -21,66 +19,7 @@ def process_row(row):
         row['Geometry'] = largest_polygon
     return row
 
-def image_flip(image, axis):
-    return np.flip(image, axis=axis)
-
-def process_inputs_for_quantification(technology_name, cell_boundary_file, image_file_to_flip, image_file_to_scale, transform_file, output_path, flip_along_axis, contrast_factor=5, intensity_threshold=100, axis=None):
-
-    gdf = gpd.read_parquet(cell_boundary_file)
-    transformation_matrix = pd.read_csv(transform_file, header=None, sep=" ").values
-
-    if technology_name == 'MERSCOPE':
-        merged_gdf = gdf.dissolve(by='EntityID').reset_index().rename(columns={'EntityID': 'cell_id'})
-    elif technology_name == 'Xenium':
-        merged_gdf = gdf.dissolve(by='cell_id').reset_index()
-
-    new_df = merged_gdf.apply(process_row, axis=1)
-    new_df["transformed_geometry"] = batch_transform_geometries(new_df["Geometry"], transformation_matrix, scale=1)
-    new_df["polygons"] = new_df["transformed_geometry"].apply(lambda x: Polygon(x[0]))
-
-    gdf_cells = gpd.GeoDataFrame({'cell_id': new_df['cell_id']}, geometry=new_df['polygons'])
-    gdf_cells.to_csv(f"{output_path}/transformed_cell_boundaries.csv")
-
-    resized_tif_path = f"{output_path}/DAPI_reference.tif"
-
-    if flip_along_axis:
-        image_to_flip = tifffile.imread(image_file_to_flip)
-        moving_image = image_flip(image_to_flip, axis)
-        tifffile.imwrite(f"{output_path}/new_moving_image.tif", moving_image.astype(np.float32))
-    else:
-        moving_image = tifffile.imread(image_file_to_flip)
-
-    tif_image = tifffile.imread(image_file_to_scale).astype(np.float32)
-    tif_image = (tif_image - np.min(tif_image)) / (np.max(tif_image) - np.min(tif_image))
-    tif_image = (tif_image * 255).astype(np.uint8)
-
-    tif_image_pil = Image.fromarray(tif_image, mode="L")
-    tif_image_resized = tif_image_pil.resize((moving_image.shape[1], moving_image.shape[0]), Image.LANCZOS)
-
-    tifffile.imwrite(resized_tif_path, tif_image_resized)
-
-    polygons_df = resize_cell_polygons(polygons_df=gdf_cells, original_tif=tif_image, resized_tif=tif_image_resized, output_path=output_path)
-
-    stain_bright_regions, stain_image_file = image_contrast_adjustment(image_file=image_file_to_scale, output_path=output_path, contrast_factor=contrast_factor, intensity_threshold=intensity_threshold)
-
-    return polygons_df, stain_bright_regions, stain_image_file
-
-def resize_polygon(polygon, scale_x, scale_y):
-    return scale(polygon, xfact=scale_x, yfact=scale_y, origin=(0, 0))
-
-def resize_cell_polygons(polygons_df, original_tif, resized_tif, output_path):
-    original_height, original_width = original_tif.shape
-    resized_height, resized_width = resized_tif.shape
-
-    scale_x = resized_width / original_width
-    scale_y = resized_height / original_height
-
-    polygons_df["geometry"] = polygons_df["geometry"].apply(lambda poly: resize_polygon(poly, scale_x, scale_y))
-    polygons_df.to_csv(f"{output_path}/resized_cell_polygons.csv")
-
-    return polygons_df
-
-def image_contrast_adjustment(image_file, output_path, contrast_factor=5, intensity_threshold=100):
+def image_contrast_adjustment(image_file, base_path, contrast_factor=5, intensity_threshold=100):
     stain_image = Image.open(image_file).convert("L")
 
     # Plot the original stain image
@@ -107,12 +46,35 @@ def image_contrast_adjustment(image_file, output_path, contrast_factor=5, intens
     plt.title(f"Filtered Bright Regions (Threshold: {intensity_threshold})")
     plt.show()
 
-    tifffile.imwrite(f"{output_path}/contrast_adjusted_stain_image.tif", stain_bright_regions.astype(np.uint8))
+    tifffile.imwrite(f"{base_path}/contrast_adjusted_stain_image.tif", stain_bright_regions.astype(np.uint8))
 
-    return stain_bright_regions, f"{output_path}/contrast_adjusted_stain_image.tif"
+    return f"{base_path}/contrast_adjusted_stain_image.tif"
 
-def calculate_stain_intensities(stain_image_file, cell_polygons):
-    with rasterio.open(stain_image_file) as src:
+def process_inputs_for_quantification(technology_name, cell_boundary_file, image_file, transform_file, base_path, image_contrast_required=False, contrast_factor=5, intensity_threshold=100):
+
+    gdf = gpd.read_parquet(cell_boundary_file)
+    transformation_matrix = pd.read_csv(transform_file, header=None, sep=" ").values
+
+    if technology_name == 'MERSCOPE':
+        merged_gdf = gdf.dissolve(by='EntityID').reset_index().rename(columns={'EntityID': 'cell_index'})
+    elif technology_name == 'Xenium':
+        merged_gdf = gdf.dissolve(by='cell_index').reset_index()
+
+    merged_gdf = merged_gdf.apply(process_row, axis=1)
+    merged_gdf["transformed_geometry"] = batch_transform_geometries(merged_gdf["Geometry"], transformation_matrix, scale=1)
+    merged_gdf["polygons"] = merged_gdf["transformed_geometry"].apply(lambda x: Polygon(x[0]))
+
+    transformed_cells = gpd.GeoDataFrame({'cell_index': merged_gdf['cell_index']}, geometry=merged_gdf['polygons'])
+    transformed_cells.to_csv(f"{base_path}/transformed_cell_polygons.csv")
+
+    if image_contrast_required:
+        contrast_adjusted_image_file = image_contrast_adjustment(image_file, base_path, contrast_factor, intensity_threshold)
+        return (transformed_cells, contrast_adjusted_image_file)
+    else:
+        return (transformed_cells)
+    
+def calculate_stain_intensities(image_file, cell_polygons):
+    with rasterio.open(image_file) as src:
         image_crs = src.crs
 
         if cell_polygons.crs != image_crs:
@@ -150,44 +112,51 @@ def calculate_stain_intensities(stain_image_file, cell_polygons):
     plt.ylabel('Frequency of Occurrence')
     plt.show()
 
-    return log_transformed_EdU_intensities, bin_edges
+    return cell_polygons_with_metadata, log_transformed_EdU_intensities, bin_edges
 
-def filtering_stain_positive_cells(highlighted_bins, bin_edges, log_transformed_EdU_intensities, cell_polygons, stain_image, output_path):
-    for value in highlighted_bins:
-        bin_index = np.where((bin_edges[:-1] <= value) & (bin_edges[1:] > value))[0][0]
-        bin_start, bin_end = bin_edges[bin_index], bin_edges[bin_index + 1]
-        original_start = np.expm1(bin_start * (log_transformed_EdU_intensities.max() - log_transformed_EdU_intensities.min()) + log_transformed_EdU_intensities.min())
+def filtering_stain_positive_cells(highlighted_bin, bin_edges, log_transformed_EdU_intensities, cell_polygons_with_metadata, base_path, use_contrast_adjusted_image=False):
+    
+    if use_contrast_adjusted_image:
+        stain_image = tifffile.imread(f"{base_path}/contrast_adjusted_stain_image.tif")
+    else:
+        image_file = glob.glob(os.path.join(base_path, "*.tif")) + glob.glob(os.path.join(base_path, "*.tiff"))[0]
+        stain_image = tifffile.imread(image_file)
+    
+    bin_index = np.where((bin_edges[:-1] <= highlighted_bin) & (bin_edges[1:] > highlighted_bin))[0][0]
+    bin_start, bin_end = bin_edges[bin_index], bin_edges[bin_index + 1]
+    original_start = np.expm1(bin_start * (log_transformed_EdU_intensities.max() - log_transformed_EdU_intensities.min()) + log_transformed_EdU_intensities.min())
 
-        filtered_cells = cell_polygons[cell_polygons['sum_intensity_EdU'] > original_start]
+    filtered_cells = cell_polygons_with_metadata[cell_polygons_with_metadata['sum_intensity_EdU'] > original_start]
 
-        fig, ax = plt.subplots(figsize=(40, 40))
-        ax.imshow(stain_image)
-        filtered_cells.plot(ax=ax, alpha=0.5, linewidth=0.5, facecolor='none', edgecolor='red')
-        plt.title("Overlay of FILTERED stain-positive cells on Registered stain image", fontsize=40)
-        plt.xticks(fontsize=40)
-        plt.yticks(fontsize=40)
-        plt.show()
+    fig, ax = plt.subplots(figsize=(40, 40))
+    ax.imshow(stain_image)
+    filtered_cells.plot(ax=ax, alpha=0.5, linewidth=0.5, facecolor='none', edgecolor='red')
+    plt.title("Overlay of filtered stain-positive cells on stain image", fontsize=40)
+    plt.xticks(fontsize=40)
+    plt.yticks(fontsize=40)
+    plt.show()
 
-        filtered_cells.to_csv(f'{output_path}/filtered_cells.csv')
+    filtered_cells.to_csv(f'{base_path}/filtered_stain_positive_cells.csv')
 
-    print("Filtering done.")
+    print("Filtered stain positive cells data (.csv) saved. Filtering done.")
 
-def image_quantification(technology_name, cell_boundary_file, image_file_to_flip, image_file_to_scale, transform_file, output_path, flip_along_axis, highlighted_bins, axis=None):
-    polygons_df, stain_bright_regions, stain_image_file = process_inputs_for_quantification(
-        technology_name, cell_boundary_file, image_file_to_flip, image_file_to_scale, transform_file, output_path, flip_along_axis, axis=axis
-    )
+def image_quantification(base_path, technology_name, image_contrast_required=False):
+    
+    cell_boundary_file = os.path.join(base_path, "cell_boundaries.parquet")
+    image_file = glob.glob(os.path.join(base_path, "*.tif")) + glob.glob(os.path.join(base_path, "*.tiff"))[0]
+    transform_file = os.path.join(base_path, "transformation_matrix.csv")
 
-    log_transformed_EdU_intensities, bin_edges = calculate_stain_intensities(
-        stain_image_file=stain_image_file, cell_polygons=polygons_df
-    )
+    processing_outputs = process_inputs_for_quantification(
+        technology_name, cell_boundary_file, image_file, transform_file, base_path, image_contrast_required)
 
-    filtering_stain_positive_cells(
-        highlighted_bins=highlighted_bins,
-        bin_edges=bin_edges,
-        log_transformed_EdU_intensities=log_transformed_EdU_intensities,
-        cell_polygons=polygons_df,
-        stain_image=stain_bright_regions,
-        output_path=output_path
-    )
-
+    if len(processing_outputs) == 2:
+        cell_polygons_with_metadata, log_transformed_EdU_intensities, bin_edges = calculate_stain_intensities(
+                                        image_file=processing_outputs[1], cell_polygons=processing_outputs[0]
+                                        )
+    else:
+        cell_polygons_with_metadata, log_transformed_EdU_intensities, bin_edges = calculate_stain_intensities(
+                                        image_file=image_file, cell_polygons=processing_outputs[0]
+                                        )
+        
     print("Image quantification and filtering done.")
+    return cell_polygons_with_metadata, log_transformed_EdU_intensities, bin_edges

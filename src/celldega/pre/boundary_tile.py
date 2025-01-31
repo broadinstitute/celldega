@@ -83,7 +83,7 @@ def process_fine_boundaries(coarse_tile, i, j, coarse_tile_x_min, coarse_tile_x_
         for future in futures:
             future.result()
 
-def get_cell_polygons(technology, path_cell_boundaries, transformation_matrix, path_output=None, image_scale=1, path_meta_cell_micron=None):
+def get_cell_polygons(technology, path_cell_boundaries, path_output=None, path_meta_cell_micron=None):
 
     # Load cell boundary data based on the technology
     if technology == "MERSCOPE":
@@ -111,15 +111,7 @@ def get_cell_polygons(technology, path_cell_boundaries, transformation_matrix, p
         grouped["geometry"] = grouped.apply(lambda row: Polygon(zip(row["vertex_x"], row["vertex_y"])), axis=1)
         cells_orig = gpd.GeoDataFrame(grouped, geometry="geometry")[["geometry"]]
 
-    # Transform geometries
-    cells_orig["GEOMETRY"] = batch_transform_geometries(cells_orig["geometry"], transformation_matrix, image_scale)
-
-    # Convert transformed geometries to polygons and calculate centroids
-    cells_orig["polygon"] = cells_orig["GEOMETRY"].apply(lambda x: Polygon(x[0]))
-    gdf_cells = gpd.GeoDataFrame(geometry=cells_orig["polygon"])
-    gdf_cells["GEOMETRY"] = cells_orig["GEOMETRY"]
-
-    return gdf_cells
+    return cells_orig
 
 def make_cell_boundary_tiles(
     technology,
@@ -174,7 +166,15 @@ def make_cell_boundary_tiles(
     if not os.path.exists(path_output):
         os.makedirs(path_output)
 
-    gdf_cells = get_cell_polygons(technology, path_cell_boundaries, transformation_matrix, path_output, image_scale, path_meta_cell_micron)
+    cells_orig = get_cell_polygons(technology, path_cell_boundaries, path_output, path_meta_cell_micron)
+
+    # Transform geometries
+    cells_orig["GEOMETRY"] = batch_transform_geometries(cells_orig["geometry"], transformation_matrix, image_scale)
+
+    # Convert transformed geometries to polygons and calculate centroids
+    cells_orig["polygon"] = cells_orig["GEOMETRY"].apply(lambda x: Polygon(x[0]))
+    gdf_cells = gpd.GeoDataFrame(geometry=cells_orig["polygon"])
+    gdf_cells["GEOMETRY"] = cells_orig["GEOMETRY"]
 
     gdf_cells["center_x"] = gdf_cells.geometry.centroid.x
     gdf_cells["center_y"] = gdf_cells.geometry.centroid.y

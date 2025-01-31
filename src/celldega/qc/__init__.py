@@ -5,9 +5,14 @@ import numpy as np
 import geopandas as gpd
 import seaborn as sns
 import matplotlib.pyplot as plt
+from shapely.geometry import Polygon, MultiPolygon
 from ..pre.landscape import read_cbg_mtx
 from ..pre.boundary_tile import get_cell_polygons
-from ..pre.trx_tile import transform_transcript_coordinates
+
+def get_largest_polygon(geometry):
+    if isinstance(geometry, MultiPolygon):
+        return max(geometry.geoms, key=lambda p: p.area)
+    return geometry
 
 def qc_segmentation(base_path, path_output=None, path_meta_cell_micron=None):
 
@@ -54,24 +59,16 @@ def qc_segmentation(base_path, path_output=None, path_meta_cell_micron=None):
         gene = "feature_name"
         transcript_index = "transcript_id"
 
-        transformation_matrix = pd.read_csv(os.path.join(base_path, "transformation_matrix.csv"), header=None, sep=" ").values
-
-        # transcripts in micron space. converting them to mosaic below. 
-        # let me know if this should be removed
-        trx = transform_transcript_coordinates(technology=segmentation_parameters['technology'], chunk_size=1000000,
-                                 path_trx=os.path.join(base_path, "transcripts.parquet"),
-                                 transformation_matrix=transformation_matrix)
-
         trx = pd.read_parquet(os.path.join(base_path, "transcripts.parquet"))
-        trx = trx.rename(columns={'transformed_x': 'x_location', 'transformed_y': 'y_location', 'name': gene})
+        trx = trx.rename(columns={'name': gene})
         trx_meta = trx[trx[cell_index] != 'UNASSIGNED'][[transcript_index, cell_index, gene]]
         
-        # cells in micron space. converting them to mosaic below. micron and mosaic space could result in different centroids.
-        # let me know if this should be removed
         cell_gdf = get_cell_polygons(technology=segmentation_parameters['technology'], 
-                                     path_cell_boundaries=os.path.join(base_path, "cell_boundaries.parquet"), 
-                                     transformation_matrix=transformation_matrix)
+                                     path_cell_boundaries=os.path.join(base_path, "cell_boundaries.parquet"))
         
+        cell_gdf = gpd.GeoDataFrame(geometry=cell_gdf["geometry"])
+        cell_gdf["geometry"] = cell_gdf["geometry"].apply(get_largest_polygon)
+
         cell_gdf.reset_index(inplace=True)
         cell_gdf['area'] = cell_gdf['geometry'].area
         cell_gdf['centroid'] = cell_gdf['geometry'].centroid
@@ -82,25 +79,18 @@ def qc_segmentation(base_path, path_output=None, path_meta_cell_micron=None):
         gene = "gene"
         transcript_index = 'transcript_id'
         
-        transformation_matrix = pd.read_csv(os.path.join(base_path, "transformation_matrix.csv"), header=None, sep=" ").values
-
-        # transcripts in micron space. converting them to mosaic below. 
-        # let me know if this should be removed
-        trx = transform_transcript_coordinates(technology=segmentation_parameters['technology'], chunk_size=1000000,
-                                 path_trx=os.path.join(base_path, "detected_transcripts.csv"),
-                                 transformation_matrix=transformation_matrix)
-        
-        trx = trx.to_pandas()
-        trx = trx.rename(columns={'transformed_x': 'global_x', 'transformed_y': 'global_y', 'name': gene})
+        trx = pd.read_csv(os.path.join(base_path, "detected_transcripts.csv"))
+        trx = trx.rename(columns={'name': gene})
         trx_meta = trx[trx[cell_index] != -1][[transcript_index, cell_index, gene]]
 
-        # cells in micron space. converting them to mosaic below. micron and mosaic space could result in different centroids.
-        # let me know if this should be removed
         cell_gdf = get_cell_polygons(technology=segmentation_parameters['technology'], 
                                      path_cell_boundaries=os.path.join(base_path, "cell_boundaries.parquet"), 
-                                     transformation_matrix=transformation_matrix,
                                      path_output=path_output,
                                      path_meta_cell_micron=path_meta_cell_micron)
+        
+        cell_gdf["geometry"] = cell_gdf["Geometry"].apply(get_largest_polygon)
+        cell_gdf.drop(['Geometry'], axis=1, inplace=True)
+        cell_gdf = gpd.GeoDataFrame(geometry=cell_gdf["Geometry"])
         
         cell_gdf.reset_index(inplace=True)
         cell_gdf['area'] = cell_gdf['geometry'].area

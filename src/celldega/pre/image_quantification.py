@@ -57,6 +57,9 @@ def process_inputs_for_quantification(technology_name, cell_boundary_file, image
 
     if technology_name == 'MERSCOPE':
         merged_gdf = gdf.dissolve(by='EntityID').reset_index().rename(columns={'EntityID': 'cell_index'})
+   
+    # add creation of polygons from vertices for xenium, after segmentation metrics pull request merge
+   
     elif technology_name == 'Xenium':
         merged_gdf = gdf.dissolve(by='cell_index').reset_index()
 

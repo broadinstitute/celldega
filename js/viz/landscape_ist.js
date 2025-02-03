@@ -191,10 +191,11 @@ export const landscape_ist = async (
 
     set_options(token)
 
-    // move this to landscape_parameters
-    const imgage_name_for_dim = 'dapi'
-
     await set_landscape_parameters(viz_state.img, base_url)
+
+    // move this to landscape_parameters
+    const imgage_name_for_dim = viz_state.img.landscape_parameters.image_info[0].name
+
 
     const tmp_image_info = viz_state.img.landscape_parameters.image_info
 

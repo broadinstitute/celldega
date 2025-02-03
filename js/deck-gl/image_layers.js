@@ -1,6 +1,8 @@
 import { TileLayer } from 'deck.gl'
 import { create_get_tile_data } from './create_get_tile_data'
 import { create_render_tile_sublayers } from './create_render_tile_sublayer'
+import { create_simple_render_tile_sublayers } from './create_simple_render_tile_sublayer'
+
 import { options } from '../global_variables/fetch_options'
 
 const make_image_layer = (viz_state, info) => {
@@ -9,17 +11,36 @@ const make_image_layer = (viz_state, info) => {
 
     const opacity = 5
 
-    const image_layer = new TileLayer({
-        id: info.button_name,
-        tileSize: viz_state.dimensions.tileSize,
-        refinementStrategy: 'no-overlap',
-        minZoom: -7,
-        maxZoom: 0,
-        maxCacheSize: 20,
-        extent: [0, 0, viz_state.dimensions.width, viz_state.dimensions.height],
-        getTileData: create_get_tile_data(viz_state.global_base_url, info.name, viz_state.img.image_format, max_pyramid_zoom, options),
-        renderSubLayers: create_render_tile_sublayers(viz_state.dimensions, info.color, opacity)
-    });
+    let image_layer
+
+    console.log(info.name)
+
+    if (info.name !== 'h&e'){
+        image_layer = new TileLayer({
+            id: info.button_name,
+            tileSize: viz_state.dimensions.tileSize,
+            refinementStrategy: 'no-overlap',
+            minZoom: -7,
+            maxZoom: 0,
+            maxCacheSize: 20,
+            extent: [0, 0, viz_state.dimensions.width, viz_state.dimensions.height],
+            getTileData: create_get_tile_data(viz_state.global_base_url, info.name, viz_state.img.image_format, max_pyramid_zoom, options),
+            renderSubLayers: create_render_tile_sublayers(viz_state.dimensions, info.color, opacity)
+        });
+    } else {
+        image_layer = new TileLayer({
+            id: info.button_name,
+            tileSize: viz_state.dimensions.tileSize,
+            refinementStrategy: 'no-overlap',
+            minZoom: -7,
+            maxZoom: 0,
+            maxCacheSize: 20,
+            extent: [0, 0, viz_state.dimensions.width, viz_state.dimensions.height],
+            getTileData: create_get_tile_data(viz_state.global_base_url, info.name, viz_state.img.image_format, max_pyramid_zoom, options),
+            renderSubLayers: create_simple_render_tile_sublayers(viz_state.dimensions)
+        });
+    }
+
     return image_layer
 }
 

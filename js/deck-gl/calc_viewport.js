@@ -8,7 +8,7 @@ import { bar_callback_gene, bar_callback_cluster } from '../ui/bar_plot.js'
 export const calc_viewport = async ({ height, width, zoom, target }, deck_ist, layers_obj, viz_state) => {
 
     const tile_size = viz_state.img.landscape_parameters.tile_size
-    const max_tiles_to_view = 50
+    const max_tiles_to_view = 10
     const zoomFactor = Math.pow(2, zoom)
     const [targetX, targetY] = target
     const halfWidthZoomed = width / (2 * zoomFactor)

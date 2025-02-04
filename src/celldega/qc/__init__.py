@@ -41,8 +41,14 @@ def qc_segmentation(base_path, path_output=None, path_meta_cell_micron=None):
 
     metrics = {}
 
-    with open(os.path.join(base_path, "segmentation_parameters.json"), 'r') as parameter_file:
-        segmentation_parameters = json.load(parameter_file)
+    try:
+        if os.path.exists(os.path.join(base_path, "segmentation_parameters.json")):
+            with open(os.path.join(base_path, "segmentation_parameters.json"), 'r') as parameter_file:
+                segmentation_parameters = json.load(parameter_file)
+        else:
+            print("segmentation_parameters.json does not exist")
+    except Exception as e:
+        print(f"An error occurred: {e}")
 
     if segmentation_parameters['technology'] == 'custom':
         cell_index = "cell_index"
@@ -137,7 +143,7 @@ def classify_cells(dataframe, cell_A_name, cell_B_name, threshold_for_A_cell_cla
     )
     return dataframe
 
-def filter_mixed_expression(dataframe, cell_A_name, cell_B_name, threshold_for_orthogonal_exp):
+def filter_orthogonal_expression(dataframe, cell_A_name, cell_B_name, threshold_for_orthogonal_exp):
     A_cells_with_B_genes = dataframe[
         (dataframe['Classification'] == cell_A_name) &
         (dataframe[f'Total {cell_B_name} transcripts'] > threshold_for_orthogonal_exp)
@@ -152,7 +158,7 @@ def orthogonal_expression_calc(base_paths, cell_type_A_specific_genes,
                           cell_type_B_specific_genes, cell_A_name, cell_B_name, threshold_for_A_cell_classification=3, threshold_for_B_cell_classification=3, threshold_for_orthogonal_exp=3, cmap='cividis'):
     
     """
-    Analyze and visualize mixed expression patterns of cell-type-specific genes across multiple segmentation algorithms.
+    Analyze and visualize orthogonal expression patterns of cell-type-specific genes across multiple segmentation algorithms.
 
     This function calculates the overlap of specific genes for two cell types (A and B) within cells across multiple segmentation algorithms. 
     It then generates a histogram comparing the total transcripts for each cell type in cells that express genes from both cell types.
@@ -279,7 +285,7 @@ def orthogonal_expression_calc(base_paths, cell_type_A_specific_genes,
         plt.show()
 
         results = classify_cells(results, cell_A_name, cell_B_name, threshold_for_A_cell_classification, threshold_for_B_cell_classification)
-        cell_A_with_B_cell_specific_genes[algorithm_name], cell_B_with_A_cell_specific_genes[algorithm_name] = filter_mixed_expression(results, cell_A_name, cell_B_name, threshold_for_orthogonal_exp)
+        cell_A_with_B_cell_specific_genes[algorithm_name], cell_B_with_A_cell_specific_genes[algorithm_name] = filter_orthogonal_expression(results, cell_A_name, cell_B_name, threshold_for_orthogonal_exp)
 
     orthogonal_data = pd.DataFrame({
         'Technology': [i for i in cell_A_with_B_cell_specific_genes.keys() for _ in range(2)],

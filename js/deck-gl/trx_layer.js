@@ -90,11 +90,19 @@ const trx_layer_callback = async (info, d, deck_ist, layers_obj, viz_state) => {
 
 export const ini_trx_layer = (genes) => {
 
+    console.log(genes.trx_names_array)
+    console.log(genes.color_dict_gene)
+    console.log(genes.selected_genes)
+
     let trx_layer = new ScatterplotLayer({
         id: 'trx-layer',
         data: genes.trx_data,
         pickable: true,
+        // getColor: [255, 255, 255]
         getColor: (i, d) => {
+
+
+
             const inst_gene = genes.trx_names_array[d.index]
             const inst_color = genes.color_dict_gene[inst_gene]
             const inst_opacity = genes.selected_genes.length === 0 || genes.selected_genes.includes(inst_gene) ? 255 : 5

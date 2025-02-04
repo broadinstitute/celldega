@@ -13,8 +13,6 @@ const make_image_layer = (viz_state, info) => {
 
     let image_layer
 
-    console.log(info.name)
-
     if (info.name !== 'h&e'){
         image_layer = new TileLayer({
             id: info.button_name,

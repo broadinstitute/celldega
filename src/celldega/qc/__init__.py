@@ -253,11 +253,11 @@ def orthogonal_expression_calc(base_paths, cell_type_A_specific_genes,
         
         sns.set(style='white', rc={'figure.dpi': 250, 'axes.facecolor': (0, 0, 0, 0), 'figure.facecolor': (0, 0, 0, 0)})
     
-        height_of_each_facet = 3  
-        aspect_ratio_of_each_facet = 1  
+        height_of_each_facet = 3
+        aspect_ratio_of_each_facet = 1
         
         g = sns.FacetGrid(results, col="Technology", sharex=False, sharey=False,
-                        margin_titles=True, despine=True, col_wrap=3,
+                        margin_titles=True, despine=True, col_wrap=4,
                         height=height_of_each_facet, aspect=aspect_ratio_of_each_facet,
                         gridspec_kws={"wspace": 0.01})
         
@@ -295,17 +295,17 @@ def orthogonal_expression_calc(base_paths, cell_type_A_specific_genes,
                    for gene in pair]
     })
 
-    fig, ax = plt.subplots(figsize=(16, 10))
+    fig, ax = plt.subplots(figsize=(10, 6))
 
     sns.barplot(data=orthogonal_data, x='Technology', y='Count', hue='Category', ax=ax)
 
-    ax.set_title(f'Orthogonal Expression: Classified {cell_A_name} and {cell_B_name} Expressing Opposite Gene Type', fontsize=24)
-    ax.set_xlabel('Technology', fontsize=22, labelpad=15)
-    ax.set_ylabel('Proportion of Cells', fontsize=22, labelpad=15)
-    plt.yticks(fontsize=22)
-    plt.xticks(fontsize=22)
+    ax.set_title(f'Orthogonal Expression: Classified {cell_A_name} and {cell_B_name} Expressing Opposite Gene Type', fontsize=15)
+    ax.set_xlabel('Technology', fontsize=15, labelpad=10)
+    ax.set_ylabel('Proportion of Cells', fontsize=15, labelpad=10)
+    plt.yticks(fontsize=15)
+    plt.xticks(fontsize=15)
 
-    ax.legend(title='Category', title_fontsize=20, bbox_to_anchor=(1.05, 1), loc='upper left', facecolor="white", edgecolor="black", fontsize=20)
+    ax.legend(title='Category', title_fontsize=15, bbox_to_anchor=(1.05, 1), loc='upper left', facecolor="white", edgecolor="black", fontsize=15)
 
     plt.tight_layout()
     plt.show()

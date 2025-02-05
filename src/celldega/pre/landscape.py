@@ -127,7 +127,7 @@ def read_cbg_mtx(base_path):
 
     return cbg
 
-def save_cbg_gene_parquets(base_path, cbg, verbose=False):
+def save_cbg_gene_parquets(base_path, cbg, verbose=False, custom_segmentation_approach=""):
     """
     Save the cell-by-gene matrix as gene-specific Parquet files.
 
@@ -144,7 +144,7 @@ def save_cbg_gene_parquets(base_path, cbg, verbose=False):
     -------
     None
     """
-    output_dir = os.path.join(base_path, "cbg")
+    output_dir = os.path.join(base_path, "cbg", custom_segmentation_approach)
     os.makedirs(output_dir, exist_ok=True)
 
     for index, gene in enumerate(cbg.columns):

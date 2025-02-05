@@ -13,6 +13,7 @@ import pandas as pd
 import os
 import hashlib
 import base64
+import tifffile
 from shapely.affinity import affine_transform
 from shapely.geometry import MultiPolygon
 
@@ -20,6 +21,7 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import to_hex
 
 import json
+import shutil
 
 from .landscape import *
 from .trx_tile import *
@@ -289,7 +291,7 @@ def make_meta_cell_image_coord(
 
 
 
-def make_meta_gene(technology, path_cbg, path_output):
+def make_meta_gene(technology, path_cbg, path_output, custom_segmentation=False):
     """
     Create a DataFrame with genes and their assigned colors
 
@@ -315,14 +317,18 @@ def make_meta_gene(technology, path_cbg, path_output):
     ... )
     """
 
-    if technology == "MERSCOPE":
-        cbg = pd.read_csv(path_cbg, index_col=0)
+    if custom_segmentation:
+        cbg = pd.read_parquet(path_cbg)
         genes = cbg.columns.tolist()
-    elif technology == "Xenium":
-        # genes = pd.read_csv(path_cbg + 'features.tsv.gz', sep='\t', header=None)[1].values.tolist()
-        cbg = read_cbg_mtx(path_cbg)
-        genes = cbg.columns.tolist()
-
+    else:
+        if technology == "MERSCOPE":
+            cbg = pd.read_csv(path_cbg, index_col=0)
+            genes = cbg.columns.tolist()
+        elif technology == "Xenium":
+            # genes = pd.read_csv(path_cbg + 'features.tsv.gz', sep='\t', header=None)[1].values.tolist()
+            cbg = read_cbg_mtx(path_cbg)
+            genes = cbg.columns.tolist()
+        
     # Get all categorical color palettes from Matplotlib and flatten them into a single list of colors
     palettes = [plt.get_cmap(name).colors for name in plt.colormaps() if "tab" in name]
     flat_colors = [color for palette in palettes for color in palette]
@@ -378,30 +384,178 @@ def get_max_zoom_level(path_image_pyramid):
 
 
 def save_landscape_parameters(
-    technology, path_landscape_files, image_name="dapi_files", tile_size=1000, image_info={}, image_format='.webp'
+    technology, path_landscape_files, image_name="dapi_files", tile_size=1000, image_info={}, image_format='.webp', segmentation_approach="default"
 ):
     """
     Save the landscape parameters to a JSON file.
     """
 
-    path_image_pyramid = f"{path_landscape_files}/pyramid_images/{image_name}"
+    if os.path.isdir(path_landscape_files):
 
-    print(path_image_pyramid)
+        with open(f"{path_landscape_files}/landscape_parameters.json", "r") as file:
+            landscape_parameters = json.load(file)
 
-    max_pyramid_zoom = get_max_zoom_level(path_image_pyramid)
+        landscape_parameters[segmentation_approach] = {"technology": technology,
+                "max_pyramid_zoom": max_pyramid_zoom,
+                "tile_size": tile_size,
+                "image_info": image_info,
+                "image_format": image_format}
+        
+        path_landscape_parameters = f"{path_landscape_files}/landscape_parameters.json"
 
-    landscape_parameters = {
-        "technology": technology,
-        "max_pyramid_zoom": max_pyramid_zoom,
-        "tile_size": tile_size,
-        "image_info": image_info,
-        "image_format": image_format
-    }
+        with open(path_landscape_parameters, "w") as file:
+            json.dump(landscape_parameters, file, indent=4)
+    
+    else:
+        path_image_pyramid = f"{path_landscape_files}/pyramid_images/{image_name}"
 
-    path_landscape_parameters = f"{path_landscape_files}/landscape_parameters.json"
+        print(path_image_pyramid)
 
-    with open(path_landscape_parameters, "w") as file:
-        json.dump(landscape_parameters, file, indent=4)
+        max_pyramid_zoom = get_max_zoom_level(path_image_pyramid)
+
+        landscape_parameters = {
+                segmentation_approach:
+                {"technology": technology,
+                "max_pyramid_zoom": max_pyramid_zoom,
+                "tile_size": tile_size,
+                "image_info": image_info,
+                "image_format": image_format}
+            }
+
+        path_landscape_parameters = f"{path_landscape_files}/landscape_parameters.json"
+
+        with open(path_landscape_parameters, "w") as file:
+            json.dump(landscape_parameters, file, indent=4)
+
+def add_custom_segmentation(path_landscape_files, path_segmentation_files):
+
+    with open(f"{path_segmentation_files}/segmentation_parameters.json", "r") as file:
+        segmentation_parameters = json.load(file)
+
+    dega.pre.make_meta_gene('Xenium', path_cbg=os.path.join(path_segmentation_files, "cell_by_gene_matrix.parquet"), 
+                            path_output=path_landscape_files + f'meta_gene_{segmentation_parameters['segmentation_approach']}.parquet', 
+                            custom_segmentation=True)
+    
+    cbg_custom = pd.read_parquet(os.path.join(path_segmentation_files, "cell_by_gene_matrix.parquet"))
+
+    dega.pre.save_cbg_gene_parquets(path_landscape_files, cbg=cbg_custom, verbose=True, custom_segmentation_approach=segmentation_parameters['segmentation_approach'])
+
+    path_transformation_matrix = path_landscape_files + 'xenium_transform.csv'
+    path_meta_cell_micron = base_path + 'cells.csv.gz'
+    path_meta_cell_image = path_landscape_files + 'cell_metadata.parquet'
+
+    # meta_gene save that
+
+    dega.pre.make_meta_cell_image_coord(
+    'Xenium', 
+    path_transformation_matrix, 
+    path_meta_cell_micron, 
+    path_meta_cell_image, 
+    image_scale=image_scale
+    )
+
+    technology = 'Xenium'
+    path_trx = base_path + 'transcripts.parquet'
+    path_trx_tiles = path_landscape_files + 'transcript_tiles'
+    tile_bounds = dega.pre.make_trx_tiles(
+        'Xenium', 
+        path_trx, 
+        path_transformation_matrix, 
+        path_trx_tiles,
+        tile_size=tile_size,
+        # verbose=True
+        image_scale=image_scale
+    )
+
+    path_cbg = path_landscape_files + 'cell_feature_matrix/'
+    path_output = path_landscape_files + 'gene_metadata.parquet'
+    dega.pre.make_meta_gene('Xenium', path_cbg, path_output)
+
+
+    shutil.copy(os.path.join(path_segmentation_files, "cell_polygons.parquet"), 
+                os.path.join(path_landscape_files, f"cell_polygons_{segmentation_parameters['segmentation_approach']}.parquet"))
+    
+    make_cell_boundary_tiles(
+        technology,
+        path_cell_boundaries,
+        path_meta_cell_micron,
+        path_transformation_matrix,
+        path_output,
+        coarse_tile_factor=20,
+        tile_size=250,
+        tile_bounds=None,
+        image_scale=1,
+        max_workers=8
+    )
+    
+    image_info =  [
+        {
+            "name": "dapi",
+            "button_name": "DAPI",
+            "color": [
+                0,
+                0,
+                255
+            ]
+        },
+        {
+            "name": "bound",
+            "button_name": "BOUND",
+            "color": [
+                0,
+                255,
+                0
+            ]
+        },
+        {
+            "name": "rna",
+            "button_name": "RNA",
+            "color": [
+                255,
+                0,
+                0
+            ]
+        },
+        {
+            "name": "prot",
+            "button_name": "PROT",
+            "color": [
+                255,
+                255,
+                255
+            ]
+        }
+    ]
+
+    dega.pre.save_landscape_parameters(
+        'Xenium', 
+        path_landscape_files,
+        'dapi_files',
+        tile_size=tile_size,
+        image_info=image_info,
+        image_format='.webp'
+    )
+
+    save_landscape_parameters(technology=segmentation_parameters['technology'], 
+                              path_landscape_files=path_landscape_files, image_name="dapi_files", 
+                              tile_size=1000, image_info={}, image_format='.webp',
+                              segmentation_approach=segmentation_parameters['segmentation_approach'])
 
 
 __all__ = ["landscape", "trx_tile", "boundary_tile"]
+
+
+"""
+This has three checklist items:
+
+1 make a dega.pre method for adding custom segmentation results into the LandscapeFiles 
+(you can decide where to save them - there will be a new cbg file for instance called cbg_some-custom-segmentation-name), 
+
+2 decide on the organization of the LandscapeFiles (just create new adjacent files so we don't break any backwards compatability - 
+we can reorganize this when we do a 1.0 release), and 
+
+3 make an argument in the Landscape method that lets the user select 
+which segmentation approach to visualize (the landscape_parameters.json can also have a default segmentation result set up to 
+establish a default behavior when no argument is given)
+
+"""

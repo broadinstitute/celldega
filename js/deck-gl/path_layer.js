@@ -9,10 +9,18 @@ import { update_trx_layer_id } from './trx_layer'
 
 export const get_path_color = (cats, i, d) => {
 
+    // console.log(i, d)
+
     const inst_cell_id = cats.polygon_cell_names[d.index]
     const inst_cat = cats.dict_cell_cats[inst_cell_id]
 
+    // console.log(cats.dict_cell_cats)
+    // console.log('inst_cell_id', inst_cell_id)
+    // console.log('inst_cat', inst_cat)
+
     let inst_color
+
+    // console.log(inst_cat)
 
     // check if inst_cat is not in cats.color_dict_cluster
     if (inst_cat in cats.color_dict_cluster) {
@@ -22,7 +30,7 @@ export const get_path_color = (cats, i, d) => {
         inst_color = [0, 0, 255]
     }
 
-    const inst_opacity = cats.selected_cats.length === 0 || cats.selected_cats.includes(inst_cat) ? 255 : 50
+    const inst_opacity = cats.selected_cats.length === 0 || cats.selected_cats.includes(inst_cat) ? 50 : 0
 
     return [...inst_color, inst_opacity]
 

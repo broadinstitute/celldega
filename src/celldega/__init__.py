@@ -2,6 +2,7 @@ import importlib.metadata
 
 from celldega.viz import Landscape, Matrix
 from celldega.pre import landscape
+from celldega.qc import qc_segmentation
 from celldega.nbhd import alpha_shape
 
 from celldega.clust import Network

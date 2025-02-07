@@ -144,7 +144,7 @@ def save_cbg_gene_parquets(base_path, cbg, verbose=False, custom_segmentation_ap
     -------
     None
     """
-    output_dir = os.path.join(base_path, "cbg", custom_segmentation_approach)
+    output_dir = os.path.join(base_path, f"cbg{custom_segmentation_approach}")
     os.makedirs(output_dir, exist_ok=True)
 
     for index, gene in enumerate(cbg.columns):

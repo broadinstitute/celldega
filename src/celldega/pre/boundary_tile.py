@@ -166,7 +166,10 @@ def make_cell_boundary_tiles(
     if not os.path.exists(path_output):
         os.makedirs(path_output)
 
-    cells_orig = get_cell_polygons(technology, path_cell_boundaries, path_output, path_meta_cell_micron)
+    if technology == 'custom':
+        cells_orig = gpd.read_parquet(path_cell_boundaries)
+    else:
+        cells_orig = get_cell_polygons(technology, path_cell_boundaries, path_output, path_meta_cell_micron)
 
     # Transform geometries
     cells_orig["GEOMETRY"] = batch_transform_geometries(cells_orig["geometry"], transformation_matrix, image_scale)

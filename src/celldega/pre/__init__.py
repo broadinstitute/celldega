@@ -236,14 +236,14 @@ def make_meta_cell_image_coord(
     --------
     >>> make_meta_cell_image_coord(
     ...     technology='Xenium',
-    ...     path_transformation_matrix='data/transformation_matrix.txt',
+    ...     path_transformation_matrix='data/xenium_transform.txt',
     ...     path_meta_cell_micron='data/meta_cell_micron.csv',
     ...     path_meta_cell_image='data/meta_cell_image.parquet'
     ... )
 
     """
 
-    transformation_matrix = pd.read_csv(
+    xenium_transform = pd.read_csv(
         path_transformation_matrix, header=None, sep=" "
     ).values
 
@@ -264,7 +264,7 @@ def make_meta_cell_image_coord(
         meta_cell['center_x'] = meta_cell.centroid.x
         meta_cell['center_y'] = meta_cell.centroid.y
         meta_cell["name"] = pd.Series(meta_cell.index, index=meta_cell.index)
-        meta_cell.drop(['area', 'centroid'], inplace=True)
+        meta_cell.drop(['area', 'centroid'], axis=1, inplace=True)
 
     # Adding a ones column to accommodate for affine transformation
     meta_cell["ones"] = 1
@@ -273,7 +273,7 @@ def make_meta_cell_image_coord(
     points = meta_cell[["center_x", "center_y", "ones"]].values
 
     # Applying the transformation matrix
-    transformed_points = np.dot(transformation_matrix, points.T).T
+    transformed_points = np.dot(xenium_transform, points.T).T
 
     # Updating the DataFrame with transformed coordinates
     meta_cell["center_x"] = transformed_points[:, 0]
@@ -403,7 +403,7 @@ def clustering(path_landscape_files, segmentation_parameters, cbg):
     meta_cell = pd.read_parquet(path_landscape_files + 'cell_metadata.parquet')
     default_clustering = pd.DataFrame(index=meta_cell.index.tolist())
     default_clustering.loc[default_clustering_ini.index.tolist(), 'cluster'] = default_clustering_ini['cluster']
-    default_clustering.to_parquet(path_landscape_files + f'cell_clusters/cluster_{segmentation_parameters['segmentation_approach']}.parquet')
+    default_clustering.to_parquet(path_landscape_files + f"cell_clusters/cluster_{segmentation_parameters['segmentation_approach']}.parquet")
     ser_counts = default_clustering['cluster'].value_counts()
     clusters = ser_counts.index.tolist()
     palettes = [plt.get_cmap(name).colors for name in plt.colormaps() if "tab" in name]
@@ -418,7 +418,7 @@ def clustering(path_landscape_files, segmentation_parameters, cbg):
     ser_color = pd.Series(colors, index=clusters, name='color')
     meta_cluster = pd.DataFrame(ser_color)
     meta_cluster['count'] = ser_counts
-    meta_cluster.to_parquet(path_landscape_files + f'cell_clusters/meta_cluster_{segmentation_parameters['segmentation_approach']}.parquet')
+    meta_cluster.to_parquet(path_landscape_files + f"cell_clusters/meta_cluster_{segmentation_parameters['segmentation_approach']}.parquet")
 
     df_meta = pd.read_csv(path_landscape_files + 'analysis/clustering/gene_expression_graphclust/clusters.csv', index_col=0)
     df_meta['Cluster'] = df_meta['Cluster'].astype('string')
@@ -448,11 +448,10 @@ def clustering(path_landscape_files, segmentation_parameters, cbg):
 
     df_sig = df_sig.loc[keep_genes, clusters]
 
-    df_sig.sparse.to_dense().to_parquet(path_landscape_files + f'df_sig_{segmentation_parameters['segmentation_approach']}.parquet')
+    df_sig.sparse.to_dense().to_parquet(path_landscape_files + f"df_sig_{segmentation_parameters['segmentation_approach']}.parquet")
 
 def save_landscape_parameters(
-    technology, path_landscape_files, image_name="dapi_files", tile_size=1000, image_info={}, image_format='.webp', segmentation_approach="default"
-):
+    technology, path_landscape_files, image_name="dapi_files", tile_size=1000, image_info={}, image_format='.webp', segmentation_approach="default"):
     """
     Save the landscape parameters to a JSON file.
     """
@@ -501,7 +500,7 @@ def add_custom_segmentation(path_landscape_files, path_segmentation_files, image
 
     make_meta_gene(technology=segmentation_parameters['technology'], 
                    path_cbg=os.path.join(path_segmentation_files, "cell_by_gene_matrix.parquet"), 
-                   path_output=os.path.join(path_landscape_files, f'meta_gene_{segmentation_parameters['segmentation_approach']}.parquet'))
+                   path_output=os.path.join(path_landscape_files, f"meta_gene_{segmentation_parameters['segmentation_approach']}.parquet"))
     
     cbg_custom = pd.read_parquet(os.path.join(path_segmentation_files, "cell_by_gene_matrix.parquet"))
 
@@ -511,27 +510,26 @@ def add_custom_segmentation(path_landscape_files, path_segmentation_files, image
                            custom_segmentation_approach=f"_{segmentation_parameters['segmentation_approach']}")
 
     make_meta_cell_image_coord(technology = segmentation_parameters['technology'], 
-                            path_transformation_matrix = os.path.join(path_landscape_files, 'transformation_matrix.csv'), 
+                            path_transformation_matrix = os.path.join(path_landscape_files, 'xenium_transform.csv'), 
                             path_meta_cell_micron = os.path.join(path_segmentation_files, 'cell_metadata_micron_space.parquet'), 
                             path_meta_cell_image = os.path.join(path_landscape_files, 'cell_metadata.parquet'),
                             image_scale=image_scale)
 
     tile_bounds = make_trx_tiles(technology = segmentation_parameters['technology'], 
                                 path_trx = os.path.join(path_segmentation_files, 'transcripts.parquet'),
-                                path_transformation_matrix = os.path.join(path_landscape_files, 'transformation_matrix.csv'), 
-                                path_trx_tiles = os.path.join(path_landscape_files, 'transcript_tiles')
+                                path_transformation_matrix = os.path.join(path_landscape_files, 'xenium_transform.csv'), 
+                                path_trx_tiles = os.path.join(path_landscape_files, 'transcript_tiles'),
                                 tile_size=tile_size,
                                 image_scale=image_scale)
 
-    make_cell_boundary_tiles(
-        technology = segmentation_parameters['technology'],
-        path_cell_boundaries = os.path.join(path_segmentation_files, "cell_polygons.parquet"),
-        path_meta_cell_micron = os.path.join(path_segmentation_files, 'cell_metadata_micron_space.parquet'),
-        path_transformation_matrix = os.path.join(path_landscape_files, 'transformation_matrix.csv'),
-        path_output = os.path.join(path_landscape_files, f'cell_segmentation_{segmentation_parameters['segmentation_approach']}')
-        tile_size=tile_size,
-        tile_bounds=tile_bounds,
-        image_scale=image_scale)
+    make_cell_boundary_tiles(technology = segmentation_parameters['technology'],
+                path_cell_boundaries = os.path.join(path_segmentation_files, "cell_polygons.parquet"),
+                path_meta_cell_micron = os.path.join(path_segmentation_files, 'cell_metadata_micron_space.parquet'),
+                path_transformation_matrix = os.path.join(path_landscape_files, 'xenium_transform.csv'),
+                path_output = os.path.join(path_landscape_files, f"cell_segmentation_{segmentation_parameters['segmentation_approach']}"),
+                tile_size=tile_size,
+                tile_bounds=tile_bounds,
+                image_scale=image_scale)
     
     clustering(path_landscape_files=path_landscape_files, 
                segmentation_parameters=segmentation_parameters, 

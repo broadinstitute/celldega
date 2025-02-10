@@ -11,6 +11,18 @@ from scipy.sparse import csr_matrix
 # read_cbg_mtx         : Read the cell-by-gene matrix from the mtx files.
 # save_cbg_gene_parquets : Save the cell-by-gene matrix as gene-specific Parquet files.
 # =============================================================================
+def to_dense(series):
+    """Convert sparse Series to dense only if it is sparse"""
+
+    return series.sparse.to_dense() if isinstance(series.dtype, pd.SparseDtype) else series
+
+def to_dense_if_sparse(df):
+    """Convert sparse DataFrame columns to dense only if they are sparse"""
+    
+    for col in df.columns:
+        if isinstance(df[col].dtype, pd.SparseDtype):
+            df[col] = df[col].sparse.to_dense()
+    return df
 
 def calc_meta_gene_data(cbg):
     """
@@ -75,14 +87,14 @@ def calc_meta_gene_data(cbg):
     proportion_nonzero = (cbg != 0).sum(axis=0) / len(cbg)
 
     # Create a DataFrame to hold all these metrics
+    
     meta_gene = pd.DataFrame(
         {
-            "mean": mean_expression.sparse.to_dense(),
+            "mean": to_dense(mean_expression),
             "std": std_deviation,
-            "max": max_expression.sparse.to_dense(),
-            "non-zero": proportion_nonzero.sparse.to_dense(),
+            "max": to_dense(max_expression),
+            "non-zero": to_dense(proportion_nonzero),
         }
-
     )
 
     meta_gene_clean = pd.DataFrame(meta_gene.values, index=meta_gene.index.tolist(), columns=meta_gene.columns)
@@ -155,7 +167,8 @@ def save_cbg_gene_parquets(base_path, cbg, verbose=False, custom_segmentation_ap
         col_df = cbg[[gene]].copy()
 
         # Convert to dense and integer type
-        col_df = col_df.sparse.to_dense().astype(int)
+
+        col_df = to_dense_if_sparse(col_df).astype(int)
 
         # Create a DataFrame necessary to prevent error in to_parquet
         inst_df = pd.DataFrame(

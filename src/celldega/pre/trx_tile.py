@@ -91,10 +91,21 @@ def transform_transcript_coordinates(technology, path_trx, chunk_size, transform
             pl.col("y_location").alias("y")
         ])
 
+    elif technology == "custom":
+        trx_ini = pl.read_parquet(path_trx).select([
+            pl.col("cell_index"),
+            pl.col("transcript_index"),
+            pl.col("gene").alias("name"),
+            pl.col("x"),
+            pl.col("y")
+        ])
+
+    print(trx_ini)
     # Process the data in chunks and apply transformations
     all_chunks = []
-
+    print(trx_ini.height)
     for start_row in tqdm(range(0, trx_ini.height, chunk_size), desc="Processing chunks"):
+        print("in for loop")
         chunk = trx_ini.slice(start_row, chunk_size)
 
         # Apply transformation matrix to the coordinates

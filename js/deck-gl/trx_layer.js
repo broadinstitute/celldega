@@ -105,7 +105,7 @@ export const ini_trx_layer = (genes) => {
 
             const inst_gene = genes.trx_names_array[d.index]
             const inst_color = genes.color_dict_gene[inst_gene]
-            const inst_opacity = genes.selected_genes.length === 0 || genes.selected_genes.includes(inst_gene) ? 255 : 5
+            const inst_opacity = genes.selected_genes.length === 0 || genes.selected_genes.includes(inst_gene) ? 255 : 0
 
             return [...inst_color, inst_opacity]
         },

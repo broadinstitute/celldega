@@ -456,7 +456,7 @@ def save_landscape_parameters(
     Save the landscape parameters to a JSON file.
     """
 
-    if os.path.isdir(path_landscape_files):
+    if os.path.isdir(path_landscape_files) and os.path.exists(f"{path_landscape_files}/landscape_parameters.json"):
 
         with open(f"{path_landscape_files}/landscape_parameters.json", "r") as file:
             landscape_parameters = json.load(file)
@@ -480,13 +480,13 @@ def save_landscape_parameters(
         max_pyramid_zoom = get_max_zoom_level(path_image_pyramid)
 
         landscape_parameters = {
-                segmentation_approach:
-                {"technology": technology,
+              segmentation_approach: {
+                "technology": technology,
                 "max_pyramid_zoom": max_pyramid_zoom,
                 "tile_size": tile_size,
                 "image_info": image_info,
-                "image_format": image_format}
-            }
+                "image_format": image_format
+            }}
 
         path_landscape_parameters = f"{path_landscape_files}/landscape_parameters.json"
 

@@ -100,12 +100,12 @@ def transform_transcript_coordinates(technology, path_trx, chunk_size, transform
             pl.col("y")
         ])
 
-    print(trx_ini)
+
     # Process the data in chunks and apply transformations
     all_chunks = []
-    print(trx_ini.height)
+
     for start_row in tqdm(range(0, trx_ini.height, chunk_size), desc="Processing chunks"):
-        print("in for loop")
+ 
         chunk = trx_ini.slice(start_row, chunk_size)
 
         # Apply transformation matrix to the coordinates
@@ -174,7 +174,7 @@ def make_trx_tiles(
         os.makedirs(path_trx_tiles)
 
     transformation_matrix = np.loadtxt(path_transformation_matrix)
-
+    
     trx = transform_transcript_coordinates(technology, path_trx, chunk_size, transformation_matrix, image_scale)
 
     # Get min and max x, y values

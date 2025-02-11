@@ -1,12 +1,6 @@
 // transparent to red
 export const get_cell_color = (viz_state, i, d) => {
 
-
-    // if (d.index === 83753){
-    //     console.log('here!!!!!!!!!!!!!!!!!!!!!!!!!!!')
-    //     console.log(d)
-    // }
-
     const cats = viz_state.cats
 
     if (cats.cat === 'cluster') {
@@ -69,6 +63,6 @@ export const get_cell_color = (viz_state, i, d) => {
         } catch {
             return [255, 0, 0, 0] // Return a default color with some opacity to handle the error gracefully
         }
-    };
+    }
 
 }

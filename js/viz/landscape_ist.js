@@ -241,10 +241,8 @@ export const landscape_ist = async (
         viz_state.img.state = true
     }
 
-        const tmp_image_info = viz_state.img.landscape_parameters.image_info
-
     if (viz_state.img.state) {
-        console.log('image stuff')
+        const tmp_image_info = viz_state.img.landscape_parameters.image_info
         set_image_format(viz_state.img, viz_state.img.landscape_parameters.image_format)
         set_image_info(viz_state.img, tmp_image_info)
         set_image_layer_sliders(viz_state.img)
@@ -252,10 +250,6 @@ export const landscape_ist = async (
 
         await set_dimensions(viz_state, base_url, imgage_name_for_dim)
     }
-
-
-
-
 
     await set_meta_gene(viz_state.genes, base_url)
 

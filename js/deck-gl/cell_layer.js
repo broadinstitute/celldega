@@ -167,7 +167,6 @@ export const ini_cell_layer = async (base_url, viz_state) => {
         const numRows = viz_state.spatial.cell_scatter_data.length; // Replace with arrow_table.numRows
         cell_scatter_data_objects = Array.from({ length: numRows }, (_, i) => ({
             position: [flatCoordinateArray[i * 3], flatCoordinateArray[i * 3 + 1], flatCoordinateArray[i * 3 + 2]],
-            // z_level: batch_array[i]
         }));
 
         viz_state.spatial.x_min = d3.min(cell_scatter_data_objects.map(d => d.position[0]))

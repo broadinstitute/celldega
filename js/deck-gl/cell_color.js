@@ -51,8 +51,6 @@ export const get_cell_color = (viz_state, i, d) => {
                 // check if the cell is in cats.meta_cell
                 const inst_name = cats.cell_names_array[d.index]
 
-
-
                 if (inst_name in viz_state.cats.meta_cell === false){
                     return [0, 0, 0, 0]
                 }

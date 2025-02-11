@@ -52,10 +52,22 @@ export const get_cell_color = (viz_state, i, d) => {
                 }
             }
 
+            // if a meta_cell is available, only plot these cells
+            if (viz_state.cats.has_meta_cell){
+                // check if the cell is in cats.meta_cell
+                const inst_name = cats.cell_names_array[d.index]
+
+
+
+                if (inst_name in viz_state.cats.meta_cell === false){
+                    return [0, 0, 0, 0]
+                }
+            }
+
             return [255, 0, 0, inst_exp]
 
         } catch {
-            return [255, 0, 0, 50] // Return a default color with some opacity to handle the error gracefully
+            return [255, 0, 0, 0] // Return a default color with some opacity to handle the error gracefully
         }
     };
 

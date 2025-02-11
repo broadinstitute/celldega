@@ -172,6 +172,7 @@ export const landscape_ist = async (
     }
     viz_state.cats.meta_cell = meta_cell
 
+    console.log('meta_cell', viz_state.cats.meta_cell)
 
     if (Object.keys(meta_cluster).length === 0) {
         viz_state.cats.has_meta_cluster = false

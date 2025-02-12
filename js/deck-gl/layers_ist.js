@@ -26,6 +26,7 @@ export const get_layers_list = (layers_obj, viz_state, nbhd=false) => {
         }
     } else {
 
+        // were currently assuming that dataset without images will not have vector tile data
         layers_list = [
             layers_obj.edit_layer,
             layers_obj.cell_layer,

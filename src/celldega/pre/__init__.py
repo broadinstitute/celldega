@@ -26,6 +26,7 @@ import shutil
 from .landscape import *
 from .trx_tile import *
 from .boundary_tile import *
+from ..clust import *
 
 def convert_long_id_to_short(df):
     """
@@ -388,67 +389,6 @@ def get_max_zoom_level(path_image_pyramid):
     max_pyramid_zoom = max(map(int, zoom_levels)) if zoom_levels else None
 
     return max_pyramid_zoom
-
-
-def clustering(path_landscape_files, segmentation_parameters, cbg):
-        
-    default_clustering = pd.read_csv(path_landscape_files + 'analysis/clustering/gene_expression_graphclust/clusters.csv', 
-                                        index_col=0)
-    
-    default_clustering = pd.DataFrame(default_clustering.values, index=default_clustering.index.tolist(), columns=['cluster'])
-    
-    default_clustering_ini = pd.DataFrame(default_clustering.values, index=default_clustering.index.tolist(), columns=['cluster'])
-    default_clustering_ini['cluster'] = default_clustering_ini['cluster'].astype('string')
-    
-    meta_cell = pd.read_parquet(path_landscape_files + 'cell_metadata.parquet')
-    default_clustering = pd.DataFrame(index=meta_cell.index.tolist())
-    default_clustering.loc[default_clustering_ini.index.tolist(), 'cluster'] = default_clustering_ini['cluster']
-    default_clustering.to_parquet(path_landscape_files + f"cell_clusters/cluster_{segmentation_parameters['segmentation_approach']}.parquet")
-    ser_counts = default_clustering['cluster'].value_counts()
-    clusters = ser_counts.index.tolist()
-    palettes = [plt.get_cmap(name).colors for name in plt.colormaps() if "tab" in name]
-    flat_colors = [color for palette in palettes for color in palette]
-    flat_colors_hex = [to_hex(color) for color in flat_colors]
-
-    colors = [
-        flat_colors_hex[i % len(flat_colors_hex)] if "Blank" not in cluster else "#FFFFFF"
-        for i, cluster in enumerate(clusters)
-    ]
-
-    ser_color = pd.Series(colors, index=clusters, name='color')
-    meta_cluster = pd.DataFrame(ser_color)
-    meta_cluster['count'] = ser_counts
-    meta_cluster.to_parquet(path_landscape_files + f"cell_clusters/meta_cluster_{segmentation_parameters['segmentation_approach']}.parquet")
-
-    df_meta = pd.read_csv(path_landscape_files + 'analysis/clustering/gene_expression_graphclust/clusters.csv', index_col=0)
-    df_meta['Cluster'] = df_meta['Cluster'].astype('string')
-    df_meta.columns = ['cluster']
-
-    meta_cell['cluster'] = df_meta['cluster']
-
-    list_ser = []
-    for inst_cat in meta_cell['cluster'].unique().tolist():
-        if inst_cat is not None:
-            inst_cells = meta_cell[meta_cell['cluster'] == inst_cat].index.tolist()
-            inst_ser = cbg.loc[inst_cells].sum()/len(inst_cells)
-            inst_ser.name = inst_cat
-
-            list_ser.append(inst_ser)
-
-    df_sig = pd.concat(list_ser, axis=1)    
-
-    df_sig = pd.concat(list_ser, axis=1)
-    df_sig.columns = df_sig.columns.tolist()
-    df_sig.index = df_sig.index.tolist()
-
-    keep_genes = df_sig.index.tolist()
-    keep_genes = [x for x in keep_genes if 'Unassigned' not in x]
-    keep_genes = [x for x in keep_genes if 'NegControl' not in x]
-    keep_genes = [x for x in keep_genes if 'DeprecatedCodeword' not in x]
-
-    df_sig = df_sig.loc[keep_genes, clusters]
-
-    df_sig.sparse.to_dense().to_parquet(path_landscape_files + f"df_sig_{segmentation_parameters['segmentation_approach']}.parquet")
 
 def save_landscape_parameters(
     technology, path_landscape_files, image_name="dapi_files", tile_size=1000, image_info={}, image_format='.webp', segmentation_approach="default"):

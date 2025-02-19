@@ -144,13 +144,9 @@ def get_cell_polygons(technology, path_cell_boundaries, transformation_matrix, p
 
     # Transform geometries
     cells_orig["GEOMETRY"] = batch_transform_geometries(cells_orig["geometry"], transformation_matrix, image_scale)
+    cells_orig["GEOMETRY"] = cells_orig["GEOMETRY"].apply(lambda x: x.wkt)
 
-    # Convert transformed geometries to polygons and calculate centroids
-    cells_orig["polygon"] = cells_orig["GEOMETRY"].apply(lambda x: Polygon(x[0]))
-    gdf_cells = gpd.GeoDataFrame(geometry=cells_orig["polygon"])
-    gdf_cells["GEOMETRY"] = cells_orig["GEOMETRY"]
-
-    return gdf_cells
+    return cells_orig
 
 def make_cell_boundary_tiles(
     technology,

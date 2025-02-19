@@ -200,10 +200,10 @@ def make_cell_boundary_tiles(
         cells_orig = get_cell_polygons(technology, path_cell_boundaries, path_output, path_meta_cell_micron)
 
     # Transform geometries
-    gdf_cells["GEOMETRY"] = batch_transform_geometries(gdf_cells["geometry"], transformation_matrix, image_scale)
-    gdf_cells["GEOMETRY"] = gdf_cells["GEOMETRY"].apply(lambda x: x.wkt)
-    gdf_cells["center_x"] = gdf_cells.geometry.centroid.x
-    gdf_cells["center_y"] = gdf_cells.geometry.centroid.y
+    cells_orig["GEOMETRY"] = batch_transform_geometries(cells_orig["geometry"], transformation_matrix, image_scale)
+    cells_orig["GEOMETRY"] = cells_orig["GEOMETRY"].apply(lambda x: x.wkt)
+    cells_orig["center_x"] = cells_orig.geometry.centroid.x
+    cells_orig["center_y"] = cells_orig.geometry.centroid.y
 
     # Calculate tile bounds and fine/coarse tiles
     x_min, x_max = tile_bounds["x_min"], tile_bounds["x_max"]
@@ -222,9 +222,9 @@ def make_cell_boundary_tiles(
             coarse_tile_y_min = y_min + j * (coarse_tile_factor * tile_size)
             coarse_tile_y_max = coarse_tile_y_min + (coarse_tile_factor * tile_size)
 
-            coarse_tile = gdf_cells[
-                (gdf_cells["center_x"] >= coarse_tile_x_min) & (gdf_cells["center_x"] < coarse_tile_x_max) &
-                (gdf_cells["center_y"] >= coarse_tile_y_min) & (gdf_cells["center_y"] < coarse_tile_y_max)
+            coarse_tile = cells_orig[
+                (cells_orig["center_x"] >= coarse_tile_x_min) & (cells_orig["center_x"] < coarse_tile_x_max) &
+                (cells_orig["center_y"] >= coarse_tile_y_min) & (cells_orig["center_y"] < coarse_tile_y_max)
             ]
             if not coarse_tile.empty:
                 process_fine_boundaries(coarse_tile, i, j, coarse_tile_x_min, coarse_tile_x_max, coarse_tile_y_min, coarse_tile_y_max, tile_size, path_output, x_min, y_min, n_fine_tiles_x, n_fine_tiles_y, max_workers)

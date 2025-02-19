@@ -181,13 +181,9 @@ def make_trx_tiles(
     trx = transform_transcript_coordinates(technology, path_trx, chunk_size, transformation_matrix, image_scale)
 
     # Get min and max x, y values
-    x_min, x_max = trx.select([
-        pl.col("transformed_x").min().alias("x_min"),
-        pl.col("transformed_x").max().alias("x_max")
-    ]).row(0)
-
-    y_min, y_max = trx.select([
-        pl.col("transformed_y").min().alias("y_min"),
+    x_min, y_min = 0, 0
+    x_max, y_max = trx.select([
+        pl.col("transformed_x").max().alias("x_max"),
         pl.col("transformed_y").max().alias("y_max")
     ]).row(0)
 

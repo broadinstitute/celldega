@@ -13,8 +13,7 @@ import pandas as pd
 import os
 import hashlib
 import base64
-from shapely.affinity import affine_transform
-from shapely.geometry import MultiPolygon
+from shapely.geometry import Point, Polygon
 
 import matplotlib.pyplot as plt
 from matplotlib.colors import to_hex
@@ -476,6 +475,21 @@ def add_custom_segmentation(path_landscape_files, path_segmentation_files, image
                               image_name="dapi_files", 
                               tile_size=1000, image_format='.webp',
                               segmentation_approach=segmentation_parameters['segmentation_approach'])
+
+def to_geometry(coord_list):
+    """
+    Convert coordinates list to shapely geometry used in GeoDataFrame
+    """
+    # If already a Point or Polygon, return it directly
+    if isinstance(coord_list, (Point, Polygon)):
+        return coord_list
+    
+    # If it’s a single coordinate pair, create a Point
+    if isinstance(coord_list[0], (int, float)):  # Single coordinate pair
+        return Point(coord_list)
+    
+    # If it's a list of coordinate pairs, create a Polygon
+    return Polygon(coord_list)
 
 __all__ = ["landscape", "trx_tile", "boundary_tile"]
 

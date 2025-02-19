@@ -4,7 +4,7 @@ import os
 from tqdm import tqdm
 import concurrent.futures
 import geopandas as gpd
-from shapely.geometry import Polygon, MultiPolygon
+from shapely.geometry import Point, Polygon, MultiPolygon
 
 def numpy_affine_transform(coords, matrix):
     """Apply affine transformation to numpy coordinates."""
@@ -12,10 +12,10 @@ def numpy_affine_transform(coords, matrix):
     coords = np.hstack([coords, np.ones((coords.shape[0], 1))])
     transformed_coords = coords @ matrix.T
     return transformed_coords[:, :2]  # Drop the homogeneous coordinate
-    
+
 def batch_transform_geometries(geometries, transformation_matrix, scale):
     """
-    Batch transform geometries using numpy for optimized performance.
+    Batch transform geometries (Polygons and Points) using numpy for optimized performance.
     """
     # Extract affine transformation parameters into a 3x3 matrix for numpy
     affine_matrix = np.array([
@@ -23,28 +23,56 @@ def batch_transform_geometries(geometries, transformation_matrix, scale):
         [transformation_matrix[1, 0], transformation_matrix[1, 1], transformation_matrix[1, 2]],
         [0, 0, 1]
     ])
-    
+
+    def numpy_affine_transform(coords, matrix):
+        # Convert coordinates to homogeneous format
+        homogeneous_coords = np.hstack([coords, np.ones((coords.shape[0], 1))])
+        # Apply transformation matrix
+        transformed = np.dot(homogeneous_coords, matrix.T)
+        # Return transformed coordinates
+        return transformed[:, :2]
+
     transformed_geometries = []
-    
-    for polygon in geometries:
-        # Extract coordinates and transform them
-        if isinstance(polygon, MultiPolygon):
-            polygon = next(polygon.geoms)  # Use the first geometry
-        
-        # Transform the exterior of the polygon
-        exterior_coords = np.array(polygon.exterior.coords)
-        
-        # Apply the affine transformation and scale
-        transformed_coords = numpy_affine_transform(exterior_coords, affine_matrix) / scale
-        
-        # Append the result to the transformed_geometries list
-        transformed_geometries.append([transformed_coords.tolist()])
-    
+
+    for geom in geometries:
+        if isinstance(geom, Point):
+            # Transform a single Point geometry
+            point_coords = np.array([[geom.x, geom.y]])
+            transformed_coords = numpy_affine_transform(point_coords, affine_matrix) / scale
+            transformed_geometries.append(Point(transformed_coords[0]))
+
+        elif isinstance(geom, Polygon):
+            # Transform a Polygon geometry
+            exterior_coords = np.array(geom.exterior.coords)
+            transformed_exterior = numpy_affine_transform(exterior_coords, affine_matrix) / scale
+
+            # Handle interior rings (holes) if they exist
+            interiors = [
+                numpy_affine_transform(np.array(interior.coords), affine_matrix) / scale
+                for interior in geom.interiors
+            ]
+
+            transformed_geometries.append(Polygon(transformed_exterior, interiors))
+
+        elif isinstance(geom, MultiPolygon):
+            # Transform the first geometry in MultiPolygon
+            polygons = [
+                Polygon(
+                    numpy_affine_transform(np.array(p.exterior.coords), affine_matrix) / scale,
+                    [
+                        numpy_affine_transform(np.array(interior.coords), affine_matrix) / scale
+                        for interior in p.interiors
+                    ]
+                )
+                for p in geom.geoms
+            ]
+            transformed_geometries.append(MultiPolygon(polygons))
+
     return transformed_geometries
 
 def filter_and_save_fine_boundary(coarse_tile, fine_i, fine_j, fine_tile_x_min, fine_tile_x_max, fine_tile_y_min, fine_tile_y_max, path_output):
     cell_ids = coarse_tile.index.values
-    
+
     tile_filter = (
         (coarse_tile["center_x"] >= fine_tile_x_min) & (coarse_tile["center_x"] < fine_tile_x_max) &
         (coarse_tile["center_y"] >= fine_tile_y_min) & (coarse_tile["center_y"] < fine_tile_y_max)
@@ -125,7 +153,7 @@ def make_cell_boundary_tiles(
     image_scale=1,
     max_workers=1
 ):
-    
+
 
     """
     Processes cell boundary data and divides it into spatial tiles based on the provided technology.
@@ -172,13 +200,8 @@ def make_cell_boundary_tiles(
         cells_orig = get_cell_polygons(technology, path_cell_boundaries, path_output, path_meta_cell_micron)
 
     # Transform geometries
-    cells_orig["GEOMETRY"] = batch_transform_geometries(cells_orig["geometry"], transformation_matrix, image_scale)
-
-    # Convert transformed geometries to polygons and calculate centroids
-    cells_orig["polygon"] = cells_orig["GEOMETRY"].apply(lambda x: Polygon(x[0]))
-    gdf_cells = gpd.GeoDataFrame(geometry=cells_orig["polygon"])
-    gdf_cells["GEOMETRY"] = cells_orig["GEOMETRY"]
-
+    gdf_cells["GEOMETRY"] = batch_transform_geometries(gdf_cells["geometry"], transformation_matrix, image_scale)
+    gdf_cells["GEOMETRY"] = gdf_cells["GEOMETRY"].apply(lambda x: x.wkt)
     gdf_cells["center_x"] = gdf_cells.geometry.centroid.x
     gdf_cells["center_y"] = gdf_cells.geometry.centroid.y
 

@@ -54,6 +54,12 @@ export const landscape_sst = async (
 
     await set_dimensions(viz_state, base_url, 'cells')
 
+    viz_state.buttons = {}
+    viz_state.buttons.blue = '#8797ff'
+    viz_state.buttons.gray = 'gray'
+    viz_state.buttons.light_gray = '#EEEEEE'
+    viz_state.buttons.buttons = {}
+
     viz_state.genes = {}
     viz_state.genes.color_dict_gene = {}
     viz_state.genes.gene_names = []

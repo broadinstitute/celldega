@@ -87,7 +87,7 @@ def filter_and_save_fine_boundary(coarse_tile, fine_i, fine_j, fine_tile_x_min, 
         filename = f"{path_output}/cell_tile_{fine_i}_{fine_j}.parquet"
         fine_tile_cells.to_parquet(filename)
 
-def process_fine_boundaries(coarse_tile, i, j, coarse_tile_x_min, coarse_tile_x_max, coarse_tile_y_min, coarse_tile_y_max, tile_size, path_output, x_min, y_min, n_fine_tiles_x, n_fine_tiles_y, max_workers):
+def process_fine_boundaries(coarse_tile, i, j, coarse_tile_x_min, coarse_tile_x_max, coarse_tile_y_min, coarse_tile_y_max, tile_size, path_output, x_min, y_min, n_fine_tiles_x, n_fine_tiles_y, max_workers=1):
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = []
         for fine_i in range(n_fine_tiles_x):
@@ -111,7 +111,7 @@ def process_fine_boundaries(coarse_tile, i, j, coarse_tile_x_min, coarse_tile_x_
         for future in futures:
             future.result()
 
-def get_cell_polygons(technology, path_cell_boundaries, transformation_matrix, path_output=None, image_scale=1, path_meta_cell_micron=None):
+def get_cell_polygons(technology, path_cell_boundaries, path_output=None, path_meta_cell_micron=None):
 
     # Load cell boundary data based on the technology
     if technology == "MERSCOPE":
@@ -139,13 +139,6 @@ def get_cell_polygons(technology, path_cell_boundaries, transformation_matrix, p
         grouped["geometry"] = grouped.apply(lambda row: Polygon(zip(row["vertex_x"], row["vertex_y"])), axis=1)
         cells_orig = gpd.GeoDataFrame(grouped, geometry="geometry")[["geometry"]]
 
-    elif technology == "custom":
-        cells_orig = gpd.read_parquet(path_cell_boundaries)
-
-    # Transform geometries
-    cells_orig["GEOMETRY"] = batch_transform_geometries(cells_orig["geometry"], transformation_matrix, image_scale)
-    cells_orig["GEOMETRY"] = cells_orig["GEOMETRY"].apply(lambda x: x.wkt)
-
     return cells_orig
 
 def make_cell_boundary_tiles(
@@ -158,7 +151,7 @@ def make_cell_boundary_tiles(
     tile_size=250,
     tile_bounds=None,
     image_scale=1,
-    max_workers=8
+    max_workers=1
 ):
     
 
@@ -187,7 +180,7 @@ def make_cell_boundary_tiles(
         Dictionary containing the minimum and maximum bounds for x and y coordinates.
     image_scale : float, optional, default=1
         Scale factor to apply to the geometry data.
-    max_workers : int, optional, default=8
+    max_workers : int, optional, default=1
         Maximum number of parallel workers for processing tiles.
 
     Returns
@@ -201,7 +194,15 @@ def make_cell_boundary_tiles(
     if not os.path.exists(path_output):
         os.makedirs(path_output)
 
-    gdf_cells = get_cell_polygons(technology, path_cell_boundaries, transformation_matrix, path_output, image_scale, path_meta_cell_micron)
+    cells_orig = get_cell_polygons(technology, path_cell_boundaries, path_output, path_meta_cell_micron)
+
+    # Transform geometries
+    cells_orig["GEOMETRY"] = batch_transform_geometries(cells_orig["geometry"], transformation_matrix, image_scale)
+
+    # Convert transformed geometries to polygons and calculate centroids
+    cells_orig["polygon"] = cells_orig["GEOMETRY"].apply(lambda x: Polygon(x[0]))
+    gdf_cells = gpd.GeoDataFrame(geometry=cells_orig["polygon"])
+    gdf_cells["GEOMETRY"] = cells_orig["GEOMETRY"]
 
     gdf_cells["center_x"] = gdf_cells.geometry.centroid.x
     gdf_cells["center_y"] = gdf_cells.geometry.centroid.y

@@ -5,7 +5,7 @@ from tqdm import tqdm
 import concurrent.futures
 import pandas as pd
 
-def process_coarse_tile(trx, i, j, coarse_tile_x_min, coarse_tile_x_max, coarse_tile_y_min, coarse_tile_y_max, tile_size, path_trx_tiles, x_min, y_min, n_fine_tiles_x, n_fine_tiles_y, max_workers):
+def process_coarse_tile(trx, i, j, coarse_tile_x_min, coarse_tile_x_max, coarse_tile_y_min, coarse_tile_y_max, tile_size, path_trx_tiles, x_min, y_min, n_fine_tiles_x, n_fine_tiles_y, max_workers=1):
     # Filter the entire dataset for the current coarse tile
     coarse_tile = trx.filter(
         (pl.col("transformed_x") >= coarse_tile_x_min) & (pl.col("transformed_x") < coarse_tile_x_max) &
@@ -16,7 +16,7 @@ def process_coarse_tile(trx, i, j, coarse_tile_x_min, coarse_tile_x_max, coarse_
         # Now process fine tiles using global fine tile indices
         process_fine_tiles(coarse_tile, i, j, coarse_tile_x_min, coarse_tile_x_max, coarse_tile_y_min, coarse_tile_y_max, tile_size, path_trx_tiles, x_min, y_min, n_fine_tiles_x, n_fine_tiles_y, max_workers)   
 
-def process_fine_tiles(coarse_tile, coarse_i, coarse_j, coarse_tile_x_min, coarse_tile_x_max, coarse_tile_y_min, coarse_tile_y_max, tile_size, path_trx_tiles, x_min, y_min, n_fine_tiles_x, n_fine_tiles_y, max_workers=8):
+def process_fine_tiles(coarse_tile, coarse_i, coarse_j, coarse_tile_x_min, coarse_tile_x_max, coarse_tile_y_min, coarse_tile_y_max, tile_size, path_trx_tiles, x_min, y_min, n_fine_tiles_x, n_fine_tiles_y, max_workers=1):
 
     # Use ThreadPoolExecutor for parallel processing of fine-grain tiles within the coarse tile
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -69,14 +69,14 @@ def filter_and_save_fine_tile(coarse_tile, coarse_i, coarse_j, fine_i, fine_j, f
         # Save the filtered DataFrame to a Parquet file
         fine_tile_trx.to_pandas().to_parquet(filename)
 
-def transform_transcript_coordinates(technology, path_trx, chunk_size, path_transformation_matrix, image_scale=1):
-
-    transformation_matrix = np.loadtxt(path_transformation_matrix)
+def transform_transcript_coordinates(technology, path_trx, chunk_size, transformation_matrix, image_scale=1):
 
     # Load the transcript data based on the technology using Polars
     if technology == "MERSCOPE":
         trx_ini = pl.read_csv(path_trx, columns=["gene", "global_x", "global_y"])
         trx_ini = trx_ini.with_columns([
+            pl.col("cell_id"),
+            pl.col("transcript_id"),
             pl.col("global_x").alias("x"),
             pl.col("global_y").alias("y"),
             pl.col("gene").alias("name")
@@ -123,7 +123,7 @@ def make_trx_tiles(
     chunk_size=1000000,
     verbose=False,
     image_scale=1,
-    max_workers=8
+    max_workers=1
 ):
     """
     Processes transcript data by dividing it into coarse-grain and fine-grain tiles,
@@ -150,7 +150,7 @@ def make_trx_tiles(
     image_scale : float, optional
         Scale factor to apply to the transcript coordinates (default is 0.5).
     max_workers : int, optional
-        Maximum number of parallel workers for processing tiles (default is 8).
+        Maximum number of parallel workers for processing tiles (default is 1).
 
     Returns
     -------
@@ -162,7 +162,9 @@ def make_trx_tiles(
     if not os.path.exists(path_trx_tiles):
         os.makedirs(path_trx_tiles)
 
-    trx = transform_transcript_coordinates(technology, path_trx, chunk_size, path_transformation_matrix, image_scale)
+    transformation_matrix = np.loadtxt(path_transformation_matrix)
+
+    trx = transform_transcript_coordinates(technology, path_trx, chunk_size, transformation_matrix, image_scale)
 
     # Get min and max x, y values
     x_min, y_min = 0, 0

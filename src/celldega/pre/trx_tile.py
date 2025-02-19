@@ -4,6 +4,7 @@ import polars as pl
 from tqdm import tqdm
 import concurrent.futures
 import pandas as pd
+from scipy.sparse import csr_matrix
 
 def process_coarse_tile(trx, i, j, coarse_tile_x_min, coarse_tile_x_max, coarse_tile_y_min, coarse_tile_y_max, tile_size, path_trx_tiles, x_min, y_min, n_fine_tiles_x, n_fine_tiles_y, max_workers=1):
     # Filter the entire dataset for the current coarse tile
@@ -100,7 +101,6 @@ def transform_transcript_coordinates(technology, path_trx, chunk_size, transform
             pl.col("y")
         ])
 
-
     # Process the data in chunks and apply transformations
     all_chunks = []
 
@@ -110,7 +110,10 @@ def transform_transcript_coordinates(technology, path_trx, chunk_size, transform
 
         # Apply transformation matrix to the coordinates
         points = np.hstack([chunk.select(["x", "y"]).to_numpy(), np.ones((chunk.height, 1))])
-        transformed_points = np.dot(points, transformation_matrix.T)[:, :2]
+        sparse_matrix = csr_matrix(transformation_matrix)
+        transformed_points = sparse_matrix.dot(points.T).T[:, :2]
+        
+        #transformed_points = np.dot(points, transformation_matrix.T)[:, :2]
 
         # Create new transformed columns and drop original x, y columns
         transformed_chunk = chunk.with_columns([

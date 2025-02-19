@@ -11,10 +11,6 @@ from scipy.sparse import csr_matrix
 # read_cbg_mtx         : Read the cell-by-gene matrix from the mtx files.
 # save_cbg_gene_parquets : Save the cell-by-gene matrix as gene-specific Parquet files.
 # =============================================================================
-def to_dense(series):
-    """Convert sparse Series to dense only if it is sparse"""
-
-    return series.sparse.to_dense() if isinstance(series.dtype, pd.SparseDtype) else series
 
 def to_dense_if_sparse(df):
     """Convert sparse DataFrame columns to dense only if they are sparse"""
@@ -90,10 +86,10 @@ def calc_meta_gene_data(cbg):
     
     meta_gene = pd.DataFrame(
         {
-            "mean": to_dense(mean_expression),
+            "mean": mean_expression.sparse.to_dense() if isinstance(mean_expression.dtype, pd.SparseDtype) else mean_expression,
             "std": std_deviation,
-            "max": to_dense(max_expression),
-            "non-zero": to_dense(proportion_nonzero),
+            "max": max_expression.sparse.to_dense() if isinstance(max_expression.dtype, pd.SparseDtype) else max_expression,
+            "non-zero": proportion_nonzero.sparse.to_dense() if isinstance(proportion_nonzero.dtype, pd.SparseDtype) else proportion_nonzero,
         }
     )
 

@@ -13,7 +13,6 @@ import pandas as pd
 import os
 import hashlib
 import base64
-import tifffile
 from shapely.affinity import affine_transform
 from shapely.geometry import MultiPolygon
 
@@ -21,7 +20,6 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import to_hex
 
 import json
-import shutil
 
 from .landscape import *
 from .trx_tile import *
@@ -237,14 +235,14 @@ def make_meta_cell_image_coord(
     --------
     >>> make_meta_cell_image_coord(
     ...     technology='Xenium',
-    ...     path_transformation_matrix='data/xenium_transform.txt',
+    ...     path_transformation_matrix='data/transformation_matrix.csv',
     ...     path_meta_cell_micron='data/meta_cell_micron.csv',
     ...     path_meta_cell_image='data/meta_cell_image.parquet'
     ... )
 
     """
 
-    xenium_transform = pd.read_csv(
+    transformation_matrix = pd.read_csv(
         path_transformation_matrix, header=None, sep=" "
     ).values
 
@@ -274,7 +272,7 @@ def make_meta_cell_image_coord(
     points = meta_cell[["center_x", "center_y", "ones"]].values
 
     # Applying the transformation matrix
-    transformed_points = np.dot(xenium_transform, points.T).T
+    transformed_points = np.dot(transformation_matrix, points.T).T
 
     # Updating the DataFrame with transformed coordinates
     meta_cell["center_x"] = transformed_points[:, 0]
@@ -401,11 +399,7 @@ def save_landscape_parameters(
         with open(f"{path_landscape_files}/landscape_parameters.json", "r") as file:
             landscape_parameters = json.load(file)
 
-        landscape_parameters[segmentation_approach] = {"technology": technology,
-                "max_pyramid_zoom": max_pyramid_zoom,
-                "tile_size": tile_size,
-                "image_info": image_info,
-                "image_format": image_format}
+        landscape_parameters["segmentation_approach"].append(segmentation_approach)
         
         path_landscape_parameters = f"{path_landscape_files}/landscape_parameters.json"
 
@@ -420,13 +414,13 @@ def save_landscape_parameters(
         max_pyramid_zoom = get_max_zoom_level(path_image_pyramid)
 
         landscape_parameters = {
-              segmentation_approach: {
                 "technology": technology,
+                "segmentation_approach": [segmentation_approach],
                 "max_pyramid_zoom": max_pyramid_zoom,
                 "tile_size": tile_size,
                 "image_info": image_info,
                 "image_format": image_format
-            }}
+            }
 
         path_landscape_parameters = f"{path_landscape_files}/landscape_parameters.json"
 
@@ -444,20 +438,22 @@ def add_custom_segmentation(path_landscape_files, path_segmentation_files, image
     
     cbg_custom = pd.read_parquet(os.path.join(path_segmentation_files, "cell_by_gene_matrix.parquet"))
 
+    cbg = read_cbg_mtx(os.path.join(os.path.dirname(path_landscape_files), "cell_feature_matrix"))
+
     save_cbg_gene_parquets(path_landscape_files, 
                            cbg=cbg_custom, 
                            verbose=True, 
                            custom_segmentation_approach=f"_{segmentation_parameters['segmentation_approach']}")
 
     make_meta_cell_image_coord(technology = segmentation_parameters['technology'], 
-                            path_transformation_matrix = os.path.join(path_landscape_files, 'xenium_transform.csv'), 
+                            path_transformation_matrix = os.path.join(path_landscape_files, 'transformation_matrix.csv'), 
                             path_meta_cell_micron = os.path.join(path_segmentation_files, 'cell_metadata_micron_space.parquet'), 
-                            path_meta_cell_image = os.path.join(path_landscape_files, 'cell_metadata.parquet'),
+                            path_meta_cell_image = os.path.join(path_landscape_files, f"cell_metadata_{segmentation_parameters['segmentation_approach']}.parquet"),
                             image_scale=image_scale)
 
     tile_bounds = make_trx_tiles(technology = segmentation_parameters['technology'], 
                                 path_trx = os.path.join(path_segmentation_files, 'transcripts.parquet'),
-                                path_transformation_matrix = os.path.join(path_landscape_files, 'xenium_transform.csv'), 
+                                path_transformation_matrix = os.path.join(path_landscape_files, 'transformation_matrix.csv'), 
                                 path_trx_tiles = os.path.join(path_landscape_files, 'transcript_tiles'),
                                 tile_size=tile_size,
                                 image_scale=image_scale)
@@ -465,15 +461,15 @@ def add_custom_segmentation(path_landscape_files, path_segmentation_files, image
     make_cell_boundary_tiles(technology = segmentation_parameters['technology'],
                 path_cell_boundaries = os.path.join(path_segmentation_files, "cell_polygons.parquet"),
                 path_meta_cell_micron = os.path.join(path_segmentation_files, 'cell_metadata_micron_space.parquet'),
-                path_transformation_matrix = os.path.join(path_landscape_files, 'xenium_transform.csv'),
+                path_transformation_matrix = os.path.join(path_landscape_files, 'transformation_matrix.csv'),
                 path_output = os.path.join(path_landscape_files, f"cell_segmentation_{segmentation_parameters['segmentation_approach']}"),
                 tile_size=tile_size,
                 tile_bounds=tile_bounds,
                 image_scale=image_scale)
     
-    clustering(path_landscape_files=path_landscape_files, 
+    calc_cluster_signatures(path_landscape_files=path_landscape_files, 
                segmentation_parameters=segmentation_parameters, 
-               cbg=cbg_custom)
+               cbg=cbg)
     
     save_landscape_parameters(technology=segmentation_parameters['technology'], 
                               path_landscape_files=path_landscape_files, 

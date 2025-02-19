@@ -31,6 +31,7 @@ Module for clustering high-dimensional data.
 
 import numpy as np
 import pandas as pd
+import os
 from copy import deepcopy
 
 from . import initialize_net
@@ -47,6 +48,7 @@ from . import downsample_fun
 from . import categories
 
 from scipy.stats import ttest_ind, mannwhitneyu
+from matplotlib.colors import to_hex
 from sklearn.metrics import pairwise_distances, roc_curve, auc
 from scipy.spatial.distance import pdist
 from sklearn.metrics import confusion_matrix
@@ -98,20 +100,24 @@ def hc(df, filter_N_top=None, norm_col='total', norm_row='zscore'):
 
   return network
 
-def clustering(path_landscape_files, segmentation_parameters, cbg):
-        
-    default_clustering = pd.read_csv(path_landscape_files + 'analysis/clustering/gene_expression_graphclust/clusters.csv', 
-                                        index_col=0)
+def calc_cluster_signatures(path_landscape_files, segmentation_parameters, cbg):
+    
+    default_clusters_path = os.path.join(os.path.dirname(path_landscape_files), 'analysis/clustering/gene_expression_graphclust/clusters.csv')
+    default_clustering = pd.read_csv(default_clusters_path, index_col=0)
     
     default_clustering = pd.DataFrame(default_clustering.values, index=default_clustering.index.tolist(), columns=['cluster'])
     
     default_clustering_ini = pd.DataFrame(default_clustering.values, index=default_clustering.index.tolist(), columns=['cluster'])
     default_clustering_ini['cluster'] = default_clustering_ini['cluster'].astype('string')
     
-    meta_cell = pd.read_parquet(path_landscape_files + 'cell_metadata.parquet')
+    meta_cell = pd.read_parquet(os.path.join(path_landscape_files, 'cell_metadata.parquet'))
+
     default_clustering = pd.DataFrame(index=meta_cell.index.tolist())
     default_clustering.loc[default_clustering_ini.index.tolist(), 'cluster'] = default_clustering_ini['cluster']
-    default_clustering.to_parquet(path_landscape_files + f"cell_clusters/cluster_{segmentation_parameters['segmentation_approach']}.parquet")
+
+    os.makedirs(os.path.join(path_landscape_files, f"cell_clusters_{segmentation_parameters['segmentation_approach']}"), exist_ok=True)
+
+    default_clustering.to_parquet(os.path.join(path_landscape_files, f"cell_clusters_{segmentation_parameters['segmentation_approach']}/cluster.parquet"))
     ser_counts = default_clustering['cluster'].value_counts()
     clusters = ser_counts.index.tolist()
     palettes = [plt.get_cmap(name).colors for name in plt.colormaps() if "tab" in name]
@@ -126,9 +132,9 @@ def clustering(path_landscape_files, segmentation_parameters, cbg):
     ser_color = pd.Series(colors, index=clusters, name='color')
     meta_cluster = pd.DataFrame(ser_color)
     meta_cluster['count'] = ser_counts
-    meta_cluster.to_parquet(path_landscape_files + f"cell_clusters/meta_cluster_{segmentation_parameters['segmentation_approach']}.parquet")
+    meta_cluster.to_parquet(os.path.join(path_landscape_files, f"cell_clusters_{segmentation_parameters['segmentation_approach']}/meta_cluster.parquet"))
 
-    df_meta = pd.read_csv(path_landscape_files + 'analysis/clustering/gene_expression_graphclust/clusters.csv', index_col=0)
+    df_meta = pd.read_csv(default_clusters_path, index_col=0)
     df_meta['Cluster'] = df_meta['Cluster'].astype('string')
     df_meta.columns = ['cluster']
 
@@ -156,7 +162,7 @@ def clustering(path_landscape_files, segmentation_parameters, cbg):
 
     df_sig = df_sig.loc[keep_genes, clusters]
 
-    df_sig.sparse.to_dense().to_parquet(path_landscape_files + f"df_sig_{segmentation_parameters['segmentation_approach']}.parquet")
+    df_sig.sparse.to_dense().to_parquet(os.path.join(path_landscape_files, f"df_sig_{segmentation_parameters['segmentation_approach']}.parquet"))
 
 class Network(object):
   '''

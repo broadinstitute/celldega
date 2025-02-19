@@ -194,16 +194,11 @@ def make_cell_boundary_tiles(
     if not os.path.exists(path_output):
         os.makedirs(path_output)
 
-    cells_orig = get_cell_polygons(technology, path_cell_boundaries, path_output, path_meta_cell_micron)
+    gdf_cells = get_cell_polygons(technology, path_cell_boundaries, path_output, path_meta_cell_micron)
 
     # Transform geometries
-    cells_orig["GEOMETRY"] = batch_transform_geometries(cells_orig["geometry"], transformation_matrix, image_scale)
-
-    # Convert transformed geometries to polygons and calculate centroids
-    cells_orig["polygon"] = cells_orig["GEOMETRY"].apply(lambda x: Polygon(x[0]))
-    gdf_cells = gpd.GeoDataFrame(geometry=cells_orig["polygon"])
-    gdf_cells["GEOMETRY"] = cells_orig["GEOMETRY"]
-
+    gdf_cells["GEOMETRY"] = batch_transform_geometries(gdf_cells["geometry"], transformation_matrix, image_scale)
+    gdf_cells["GEOMETRY"] = gdf_cells["GEOMETRY"].apply(lambda x: x.wkt)
     gdf_cells["center_x"] = gdf_cells.geometry.centroid.x
     gdf_cells["center_y"] = gdf_cells.geometry.centroid.y
 

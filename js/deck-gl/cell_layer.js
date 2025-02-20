@@ -90,7 +90,13 @@ const cell_layer_onclick = async (info, d, deck_ist, layers_obj, viz_state) => {
 
 export const ini_cell_layer = async (base_url, viz_state) => {
 
-    const cell_url = base_url + `/cell_metadata.parquet`;
+    let cell_url
+    if (viz_state.seg.version === 'default'){
+        cell_url = base_url + `/cell_metadata.parquet`;
+    } else {
+        cell_url = base_url + '/cell_metadata_' + viz_state.seg.version + '.parquet';
+    }
+
     var cell_arrow_table = await get_arrow_table(cell_url, options.fetch)
 
     set_cell_names_array(viz_state.cats, cell_arrow_table)

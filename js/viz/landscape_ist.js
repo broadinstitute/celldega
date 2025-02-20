@@ -49,8 +49,12 @@ export const landscape_ist = async (
     meta_cluster={},
     umap={},
     landscape_state='spatial',
+    segmentation='default',
     view_change_custom_callback=null
 ) => {
+
+    console.log('checking segmentation', segmentation)
+
 
     if (width === 0){
         width = '100%'
@@ -242,7 +246,7 @@ export const landscape_ist = async (
 
     // starting to set up custom segmentation support
     viz_state.seg = {}
-    viz_state.seg.version = 'default'
+    viz_state.seg.version = segmentation
 
     if (Object.keys(viz_state.model).length !== 0){
 

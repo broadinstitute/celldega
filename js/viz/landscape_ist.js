@@ -240,6 +240,10 @@ export const landscape_ist = async (
     viz_state.edit.visible = false
     viz_state.edit.modify_index = null
 
+    // starting to set up custom segmentation support
+    viz_state.seg = {}
+    viz_state.seg.version = 'default'
+
     if (Object.keys(viz_state.model).length !== 0){
 
         if (Object.keys(viz_state.model.get('region')).length === 0) {

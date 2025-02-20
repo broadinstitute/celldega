@@ -14,7 +14,7 @@ from scipy.sparse import csr_matrix
 
 def to_dense_if_sparse(df):
     """Convert sparse DataFrame columns to dense only if they are sparse"""
-    
+
     for col in df.columns:
         if isinstance(df[col].dtype, pd.SparseDtype):
             df[col] = df[col].sparse.to_dense()
@@ -83,7 +83,7 @@ def calc_meta_gene_data(cbg):
     proportion_nonzero = (cbg != 0).sum(axis=0) / len(cbg)
 
     # Create a DataFrame to hold all these metrics
-    
+
     meta_gene = pd.DataFrame(
         {
             "mean": mean_expression.sparse.to_dense() if isinstance(mean_expression.dtype, pd.SparseDtype) else mean_expression,
@@ -135,7 +135,7 @@ def read_cbg_mtx(base_path):
 
     return cbg
 
-def save_cbg_gene_parquets(base_path, cbg, verbose=False, custom_segmentation_approach=""):
+def save_cbg_gene_parquets(base_path, cbg, verbose=False, custom_segmentation_approach=None):
     """
     Save the cell-by-gene matrix as gene-specific Parquet files.
 
@@ -152,7 +152,7 @@ def save_cbg_gene_parquets(base_path, cbg, verbose=False, custom_segmentation_ap
     -------
     None
     """
-    output_dir = os.path.join(base_path, f"cbg{custom_segmentation_approach}")
+    output_dir = os.path.join(base_path, f"cbg{f'_{custom_segmentation_approach}' if custom_segmentation_approach else ''}")
     os.makedirs(output_dir, exist_ok=True)
 
     for index, gene in enumerate(cbg.columns):

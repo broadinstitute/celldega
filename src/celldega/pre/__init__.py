@@ -333,7 +333,7 @@ def make_meta_gene(technology, path_cbg, path_output):
     elif technology == "custom":
         cbg = pd.read_parquet(path_cbg)
         genes = cbg.columns.tolist()
-        
+
     # Get all categorical color palettes from Matplotlib and flatten them into a single list of colors
     palettes = [plt.get_cmap(name).colors for name in plt.colormaps() if "tab" in name]
     flat_colors = [color for palette in palettes for color in palette]
@@ -399,12 +399,12 @@ def save_landscape_parameters(
             landscape_parameters = json.load(file)
 
         landscape_parameters["segmentation_approach"].append(segmentation_approach)
-        
+
         path_landscape_parameters = f"{path_landscape_files}/landscape_parameters.json"
 
         with open(path_landscape_parameters, "w") as file:
             json.dump(landscape_parameters, file, indent=4)
-    
+
     else:
         path_image_pyramid = f"{path_landscape_files}/pyramid_images/{image_name}"
 
@@ -431,28 +431,28 @@ def add_custom_segmentation(path_landscape_files, path_segmentation_files, image
     with open(f"{path_segmentation_files}/segmentation_parameters.json", "r") as file:
         segmentation_parameters = json.load(file)
 
-    make_meta_gene(technology=segmentation_parameters['technology'], 
-                   path_cbg=os.path.join(path_segmentation_files, "cell_by_gene_matrix.parquet"), 
+    make_meta_gene(technology=segmentation_parameters['technology'],
+                   path_cbg=os.path.join(path_segmentation_files, "cell_by_gene_matrix.parquet"),
                    path_output=os.path.join(path_landscape_files, f"meta_gene_{segmentation_parameters['segmentation_approach']}.parquet"))
-    
+
     cbg_custom = pd.read_parquet(os.path.join(path_segmentation_files, "cell_by_gene_matrix.parquet"))
 
     cbg = read_cbg_mtx(os.path.join(os.path.dirname(path_landscape_files), "cell_feature_matrix"))
 
-    save_cbg_gene_parquets(path_landscape_files, 
-                           cbg=cbg_custom, 
-                           verbose=True, 
-                           custom_segmentation_approach=f"_{segmentation_parameters['segmentation_approach']}")
+    save_cbg_gene_parquets(path_landscape_files,
+                           cbg=cbg_custom,
+                           verbose=True,
+                           custom_segmentation_approach=f"{segmentation_parameters['segmentation_approach']}")
 
-    make_meta_cell_image_coord(technology = segmentation_parameters['technology'], 
-                            path_transformation_matrix = os.path.join(path_landscape_files, 'transformation_matrix.csv'), 
-                            path_meta_cell_micron = os.path.join(path_segmentation_files, 'cell_metadata_micron_space.parquet'), 
+    make_meta_cell_image_coord(technology = segmentation_parameters['technology'],
+                            path_transformation_matrix = os.path.join(path_landscape_files, 'transformation_matrix.csv'),
+                            path_meta_cell_micron = os.path.join(path_segmentation_files, 'cell_metadata_micron_space.parquet'),
                             path_meta_cell_image = os.path.join(path_landscape_files, f"cell_metadata_{segmentation_parameters['segmentation_approach']}.parquet"),
                             image_scale=image_scale)
 
-    tile_bounds = make_trx_tiles(technology = segmentation_parameters['technology'], 
+    tile_bounds = make_trx_tiles(technology = segmentation_parameters['technology'],
                                 path_trx = os.path.join(path_segmentation_files, 'transcripts.parquet'),
-                                path_transformation_matrix = os.path.join(path_landscape_files, 'transformation_matrix.csv'), 
+                                path_transformation_matrix = os.path.join(path_landscape_files, 'transformation_matrix.csv'),
                                 path_trx_tiles = os.path.join(path_landscape_files, 'transcript_tiles'),
                                 tile_size=tile_size,
                                 image_scale=image_scale)
@@ -465,14 +465,14 @@ def add_custom_segmentation(path_landscape_files, path_segmentation_files, image
                 tile_size=tile_size,
                 tile_bounds=tile_bounds,
                 image_scale=image_scale)
-    
-    calc_cluster_signatures(path_landscape_files=path_landscape_files, 
-               segmentation_parameters=segmentation_parameters, 
+
+    calc_cluster_signatures(path_landscape_files=path_landscape_files,
+               segmentation_parameters=segmentation_parameters,
                cbg=cbg)
-    
-    save_landscape_parameters(technology=segmentation_parameters['technology'], 
-                              path_landscape_files=path_landscape_files, 
-                              image_name="dapi_files", 
+
+    save_landscape_parameters(technology=segmentation_parameters['technology'],
+                              path_landscape_files=path_landscape_files,
+                              image_name="dapi_files",
                               tile_size=1000, image_format='.webp',
                               segmentation_approach=segmentation_parameters['segmentation_approach'])
 
@@ -483,11 +483,11 @@ def to_geometry(coord_list):
     # If already a Point or Polygon, return it directly
     if isinstance(coord_list, (Point, Polygon)):
         return coord_list
-    
+
     # If it’s a single coordinate pair, create a Point
     if isinstance(coord_list[0], (int, float)):  # Single coordinate pair
         return Point(coord_list)
-    
+
     # If it's a list of coordinate pairs, create a Polygon
     return Polygon(coord_list)
 
@@ -502,17 +502,17 @@ The files meta_gene.parquet and gene_metadata.parquet are the same and that's a 
 You'll need a new cell_metadata.parquet, df_sig.parquet, meta_gene.parquet, cbg directory (maybe cbg_my-seg-method)
 But not transcript tiles
 
-the cell_clusters directory and files too - 
+the cell_clusters directory and files too -
 I would do something like cell_clusters_my-seg-method and leave the files within the same.
 
-1 make a dega.pre method for adding custom segmentation results into the LandscapeFiles 
-(you can decide where to save them - there will be a new cbg file for instance called cbg_some-custom-segmentation-name), 
+1 make a dega.pre method for adding custom segmentation results into the LandscapeFiles
+(you can decide where to save them - there will be a new cbg file for instance called cbg_some-custom-segmentation-name),
 
-2 decide on the organization of the LandscapeFiles (just create new adjacent files so we don't break any backwards compatability - 
-we can reorganize this when we do a 1.0 release), and 
+2 decide on the organization of the LandscapeFiles (just create new adjacent files so we don't break any backwards compatability -
+we can reorganize this when we do a 1.0 release), and
 
-3 make an argument in the Landscape method that lets the user select 
-which segmentation approach to visualize (the landscape_parameters.json can also have a default segmentation result set up to 
+3 make an argument in the Landscape method that lets the user select
+which segmentation approach to visualize (the landscape_parameters.json can also have a default segmentation result set up to
 establish a default behavior when no argument is given)
 
 """

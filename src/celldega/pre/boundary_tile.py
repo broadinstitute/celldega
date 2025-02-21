@@ -201,6 +201,7 @@ def make_cell_boundary_tiles(
 
     # Transform geometries
     cells_orig["GEOMETRY"] = batch_transform_geometries(cells_orig["geometry"], transformation_matrix, image_scale)
+    cells_orig.set_geometry("GEOMETRY", inplace=True)
     cells_orig["GEOMETRY"] = cells_orig["GEOMETRY"].apply(lambda x: x.wkt)
     cells_orig["center_x"] = cells_orig.geometry.centroid.x
     cells_orig["center_y"] = cells_orig.geometry.centroid.y

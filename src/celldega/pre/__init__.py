@@ -261,7 +261,7 @@ def make_meta_cell_image_coord(
         meta_cell = gpd.read_parquet(path_meta_cell_micron)
         meta_cell['center_x'] = meta_cell.centroid.x
         meta_cell['center_y'] = meta_cell.centroid.y
-        meta_cell["name"] = pd.Series(meta_cell.index, index=meta_cell.index)
+        meta_cell["name"] = pd.Series(meta_cell.index, index=meta_cell.index).astype('str')
         meta_cell.drop(['area', 'centroid'], axis=1, inplace=True)
 
     # Adding a ones column to accommodate for affine transformation

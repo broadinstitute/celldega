@@ -100,69 +100,83 @@ def hc(df, filter_N_top=None, norm_col='total', norm_row='zscore'):
 
   return network
 
-def calc_cluster_signatures(path_landscape_files, segmentation_parameters, cbg):
-    
-    default_clusters_path = os.path.join(os.path.dirname(path_landscape_files), 'analysis/clustering/gene_expression_graphclust/clusters.csv')
-    default_clustering = pd.read_csv(default_clusters_path, index_col=0)
-    
-    default_clustering = pd.DataFrame(default_clustering.values, index=default_clustering.index.tolist(), columns=['cluster'])
-    
-    default_clustering_ini = pd.DataFrame(default_clustering.values, index=default_clustering.index.tolist(), columns=['cluster'])
-    default_clustering_ini['cluster'] = default_clustering_ini['cluster'].astype('string')
-    
-    meta_cell = pd.read_parquet(os.path.join(path_landscape_files, 'cell_metadata.parquet'))
+def calc_cluster_signatures(path_landscape_files, segmentation_parameters, cbg, use_default_clustering=False, use_custom_clustering=False):
 
-    default_clustering = pd.DataFrame(index=meta_cell.index.tolist())
-    default_clustering.loc[default_clustering_ini.index.tolist(), 'cluster'] = default_clustering_ini['cluster']
+    if not use_default_clustering:
+        if use_custom_clustering:
 
-    os.makedirs(os.path.join(path_landscape_files, f"cell_clusters_{segmentation_parameters['segmentation_approach']}"), exist_ok=True)
+        else:
+            inst_cells = cbg.index.tolist()
+            df_cluster = pd.DataFrame(index=inst_cells)
+            df_cluster['cluster'] = pd.Series('0', index=inst_cells)
+            df_cluster.to_parquet(os.path.join(path_landscape_files, f"cell_clusters_{segmentation_parameters['segmentation_approach']}/cluster.parquet"))
+            meta_clust = pd.DataFrame(index=['0'])
+            meta_clust.loc['0', 'color'] = '#1f77b4'
+            meta_clust.loc['0', 'count'] = 100
+            meta_clust.to_parquet(os.path.join(path_landscape_files, f"cell_clusters_{segmentation_parameters['segmentation_approach']}/meta_cluster.parquet"))
 
-    default_clustering.to_parquet(os.path.join(path_landscape_files, f"cell_clusters_{segmentation_parameters['segmentation_approach']}/cluster.parquet"))
-    ser_counts = default_clustering['cluster'].value_counts()
-    clusters = ser_counts.index.tolist()
-    palettes = [plt.get_cmap(name).colors for name in plt.colormaps() if "tab" in name]
-    flat_colors = [color for palette in palettes for color in palette]
-    flat_colors_hex = [to_hex(color) for color in flat_colors]
+    else:
+        default_clusters_path = os.path.join(os.path.dirname(path_landscape_files), 'analysis/clustering/gene_expression_graphclust/clusters.csv')
+        default_clustering = pd.read_csv(default_clusters_path, index_col=0)
 
-    colors = [
-        flat_colors_hex[i % len(flat_colors_hex)] if "Blank" not in cluster else "#FFFFFF"
-        for i, cluster in enumerate(clusters)
-    ]
+        default_clustering = pd.DataFrame(default_clustering.values, index=default_clustering.index.tolist(), columns=['cluster'])
 
-    ser_color = pd.Series(colors, index=clusters, name='color')
-    meta_cluster = pd.DataFrame(ser_color)
-    meta_cluster['count'] = ser_counts
-    meta_cluster.to_parquet(os.path.join(path_landscape_files, f"cell_clusters_{segmentation_parameters['segmentation_approach']}/meta_cluster.parquet"))
+        default_clustering_ini = pd.DataFrame(default_clustering.values, index=default_clustering.index.tolist(), columns=['cluster'])
+        default_clustering_ini['cluster'] = default_clustering_ini['cluster'].astype('string')
 
-    df_meta = pd.read_csv(default_clusters_path, index_col=0)
-    df_meta['Cluster'] = df_meta['Cluster'].astype('string')
-    df_meta.columns = ['cluster']
+        meta_cell = pd.read_parquet(os.path.join(path_landscape_files, 'cell_metadata.parquet'))
 
-    meta_cell['cluster'] = df_meta['cluster']
+        default_clustering = pd.DataFrame(index=meta_cell.index.tolist())
+        default_clustering.loc[default_clustering_ini.index.tolist(), 'cluster'] = default_clustering_ini['cluster']
 
-    list_ser = []
-    for inst_cat in meta_cell['cluster'].unique().tolist():
-        if inst_cat is not None:
-            inst_cells = meta_cell[meta_cell['cluster'] == inst_cat].index.tolist()
-            inst_ser = cbg.loc[inst_cells].sum()/len(inst_cells)
-            inst_ser.name = inst_cat
+        os.makedirs(os.path.join(path_landscape_files, f"cell_clusters_{segmentation_parameters['segmentation_approach']}"), exist_ok=True)
 
-            list_ser.append(inst_ser)
+        default_clustering.to_parquet(os.path.join(path_landscape_files, f"cell_clusters_{segmentation_parameters['segmentation_approach']}/cluster.parquet"))
+        ser_counts = default_clustering['cluster'].value_counts()
+        clusters = ser_counts.index.tolist()
+        palettes = [plt.get_cmap(name).colors for name in plt.colormaps() if "tab" in name]
+        flat_colors = [color for palette in palettes for color in palette]
+        flat_colors_hex = [to_hex(color) for color in flat_colors]
 
-    df_sig = pd.concat(list_ser, axis=1)    
+        colors = [
+            flat_colors_hex[i % len(flat_colors_hex)] if "Blank" not in cluster else "#FFFFFF"
+            for i, cluster in enumerate(clusters)
+        ]
 
-    df_sig = pd.concat(list_ser, axis=1)
-    df_sig.columns = df_sig.columns.tolist()
-    df_sig.index = df_sig.index.tolist()
+        ser_color = pd.Series(colors, index=clusters, name='color')
+        meta_cluster = pd.DataFrame(ser_color)
+        meta_cluster['count'] = ser_counts
+        meta_cluster.to_parquet(os.path.join(path_landscape_files, f"cell_clusters_{segmentation_parameters['segmentation_approach']}/meta_cluster.parquet"))
 
-    keep_genes = df_sig.index.tolist()
-    keep_genes = [x for x in keep_genes if 'Unassigned' not in x]
-    keep_genes = [x for x in keep_genes if 'NegControl' not in x]
-    keep_genes = [x for x in keep_genes if 'DeprecatedCodeword' not in x]
+        df_meta = pd.read_csv(default_clusters_path, index_col=0)
+        df_meta['Cluster'] = df_meta['Cluster'].astype('string')
+        df_meta.columns = ['cluster']
 
-    df_sig = df_sig.loc[keep_genes, clusters]
+        meta_cell['cluster'] = df_meta['cluster']
 
-    df_sig.sparse.to_dense().to_parquet(os.path.join(path_landscape_files, f"df_sig_{segmentation_parameters['segmentation_approach']}.parquet"))
+        list_ser = []
+        for inst_cat in meta_cell['cluster'].unique().tolist():
+            if inst_cat is not None:
+                inst_cells = meta_cell[meta_cell['cluster'] == inst_cat].index.tolist()
+                inst_ser = cbg.loc[inst_cells].sum()/len(inst_cells)
+                inst_ser.name = inst_cat
+
+                list_ser.append(inst_ser)
+
+        df_sig = pd.concat(list_ser, axis=1)
+
+        df_sig = pd.concat(list_ser, axis=1)
+        df_sig.columns = df_sig.columns.tolist()
+        df_sig.index = df_sig.index.tolist()
+
+        keep_genes = df_sig.index.tolist()
+        keep_genes = [x for x in keep_genes if 'Unassigned' not in x]
+        keep_genes = [x for x in keep_genes if 'NegControl' not in x]
+        keep_genes = [x for x in keep_genes if 'DeprecatedCodeword' not in x]
+
+        df_sig = df_sig.loc[keep_genes, clusters]
+
+        df_sig.sparse.to_dense().to_parquet(os.path.join(path_landscape_files, f"df_sig_{segmentation_parameters['segmentation_approach']}.parquet"))
 
 class Network(object):
   '''
@@ -1634,4 +1648,4 @@ class Network(object):
 
     df_meta = pd.DataFrame(data=mat, index=rows, columns=cat_titles)
 
-    return df_meta 
+    return df_meta

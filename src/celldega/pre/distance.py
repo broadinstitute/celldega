@@ -181,7 +181,18 @@ class DistanceToPolygon:
         for gene in gene_list:
             # Plot results
             fig, ax = plt.subplots(figsize=(20, 8))
-            self.gdf_polygons.plot(ax=ax, column="roi", aspect=1, legend=True, cmap="tab10", alpha=0.2)
+
+
+            # Annotate the polygon with the ROI name at its centroid
+            centroid = self.gdf_polygon.geometry.iloc[0].centroid
+            ax.annotate(
+                text=self.roi_name,
+                xy=(centroid.x, centroid.y),
+                ha="center",
+                va="center",
+                fontsize=12,
+                color="black",
+            )
 
             self.gdf_join_all.plot(
                 ax=ax,

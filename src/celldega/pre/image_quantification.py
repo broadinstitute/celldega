@@ -33,7 +33,7 @@ def open_zarr(path: str) -> zarr.Group:
     )
     return zarr.group(store=store)
 
-def load_stain_img(image_file, image_interval):
+def load_stain_img(image_file):
 
     """
     Load a subset of a TIFF image based on the specified coordinates.
@@ -42,12 +42,6 @@ def load_stain_img(image_file, image_interval):
     -----------
     image_file : str
         Path to the TIFF image file.
-    image_interval : tuple or list of four elements (start_y, end_y, start_x, end_x)
-        The coordinates specifying the region of interest (ROI) to extract.
-        - start_y: Starting y-coordinate.
-        - end_y: Ending y-coordinate.
-        - start_x: Starting x-coordinate.
-        - end_x: Ending x-coordinate.
 
     Returns:
     --------
@@ -56,14 +50,12 @@ def load_stain_img(image_file, image_interval):
 
     """
 
-    start_y, end_y, start_x, end_x = int(image_interval[0]), int(image_interval[1]), int(image_interval[2]), int(image_interval[3])
-
     with tifffile.TiffFile(image_file, is_ome=False) as image_file:
 
         series = image_file.series[0]
         plane = series.pages[0]
 
-        subset_image = plane.asarray()[start_y:end_y, start_x:end_x]
+        subset_image = plane.asarray()
 
     return subset_image
 
@@ -87,7 +79,7 @@ def process_row(row):
 
     return row
 
-def image_contrast_adjustment(base_path, image_interval, technology_name, contrast_factor=5, intensity_threshold=100):
+def image_contrast_adjustment(base_path, technology_name, contrast_factor=5, intensity_threshold=100):
 
     """
     Adjusts the contrast of a stain image and filters bright regions based on an intensity threshold.
@@ -96,12 +88,6 @@ def image_contrast_adjustment(base_path, image_interval, technology_name, contra
     -----------
     base_path : str
         Base directory where images are stored.
-    image_interval : tuple or list of four elements (start_y, end_y, start_x, end_x)
-        The coordinates specifying the region of interest (ROI) to extract from the image.
-        - start_y: Starting y-coordinate.
-        - end_y: Ending y-coordinate.
-        - start_x: Starting x-coordinate.
-        - end_x: Ending x-coordinate.
     technology_name : str
         Name of the imaging technology used. Supported values:
         - 'MERSCOPE': Looks for images in the 'images' directory.
@@ -129,12 +115,12 @@ def image_contrast_adjustment(base_path, image_interval, technology_name, contra
 
     if technology_name == 'MERSCOPE':
         image_file = (glob.glob(os.path.join(base_path, "images", "*.tif")) + glob.glob(os.path.join(base_path, "images", "*.tiff")))[0]
-        stain_image_array = load_stain_img(image_file, image_interval)
+        stain_image_array = load_stain_img(image_file)
         stain_image = Image.fromarray(stain_image_array).convert("L")
 
     elif technology_name == 'Xenium':
         image_file = (glob.glob(os.path.join(base_path, "morphology_focus", "*.tif")) + glob.glob(os.path.join(base_path, "morphology_focus", "*.tiff")))[0]
-        stain_image_array = load_stain_img(image_file, image_interval)
+        stain_image_array = load_stain_img(image_file)
         stain_image = Image.fromarray(stain_image_array).convert("L")
 
     # Plot the original stain image
@@ -165,7 +151,7 @@ def image_contrast_adjustment(base_path, image_interval, technology_name, contra
 
     return stain_bright_regions
 
-def process_inputs_for_quantification(technology_name, transformation_matrix, base_path, image_interval, image_contrast_required=False, contrast_factor=5, intensity_threshold=100):
+def process_inputs_for_quantification(technology_name, transformation_matrix, base_path, image_contrast_required=False, contrast_factor=5, intensity_threshold=100):
 
     """
     Processes cell boundary data, applies geometric transformations, and extracts image data for quantification.
@@ -180,12 +166,6 @@ def process_inputs_for_quantification(technology_name, transformation_matrix, ba
         Transformation matrix used to adjust the coordinates of cell boundaries.
     base_path : str
         Base directory where cell boundary and image files are stored.
-    image_interval : tuple or list of four elements (start_y, end_y, start_x, end_x)
-        The coordinates defining the region of interest (ROI) for image extraction.
-        - start_y: Starting y-coordinate.
-        - end_y: Ending y-coordinate.
-        - start_x: Starting x-coordinate.
-        - end_x: Ending x-coordinate.
     image_contrast_required : bool, optional
         If True, applies contrast enhancement to the extracted image. Defaults to False.
     contrast_factor : int, optional
@@ -224,22 +204,14 @@ def process_inputs_for_quantification(technology_name, transformation_matrix, ba
 
     transformed_cells = gpd.GeoDataFrame({'cell_index': merged_gdf['cell_index']}, geometry=merged_gdf['polygons'])
 
-    start_y, end_y, start_x, end_x = int(image_interval[0]), int(image_interval[1]), int(image_interval[2]), int(image_interval[3])
-
-    bbox = box(start_x, start_y, end_x, end_y)
-
-    filtered_transformed_cells = transformed_cells[transformed_cells.geometry.within(bbox)]
-
-    filtered_transformed_cells['geometry'] = filtered_transformed_cells['geometry'].apply(lambda geom: translate(geom, xoff=-start_x, yoff=-start_y))
-
-    filtered_transformed_cells.to_parquet(f"{base_path}/transformed_cell_polygons.parquet")
+    transformed_cells.to_parquet(f"{base_path}/transformed_cell_polygons.parquet")
 
     if image_contrast_required:
-        contrast_adjusted_image = image_contrast_adjustment(base_path=base_path, image_interval=image_interval, technology_name=technology_name, contrast_factor=contrast_factor, intensity_threshold=intensity_threshold)
-        return (filtered_transformed_cells, contrast_adjusted_image)
+        contrast_adjusted_image = image_contrast_adjustment(base_path=base_path, technology_name=technology_name, contrast_factor=contrast_factor, intensity_threshold=intensity_threshold)
+        return (transformed_cells, contrast_adjusted_image)
     else:
-        image_array = load_stain_img(image_file, image_interval)
-        return (filtered_transformed_cells, image_array)
+        image_array = load_stain_img(image_file)
+        return (transformed_cells, image_array)
 
 def img_zonal_stats(image_array, cell_polygons, technology_name):
 
@@ -427,7 +399,7 @@ def calculate_stain_intensities(image_file, cell_polygons, technology_name):
 
     return cell_polygons, image_array, log_transformed_stain_intensities, bin_edges
 
-def filtering_stain_positive_cells(filtering_positive_cells_threshold, bin_edges, log_transformed_stain_intensities, cell_polygons_with_metadata, base_path, image_array, use_contrast_adjusted_image=False):
+def filtering_stain_positive_cells(filtering_positive_cells_threshold, bin_edges, log_transformed_stain_intensities, cell_polygons_with_metadata, base_path, image_array, subset_bounds, use_contrast_adjusted_image=False):
 
     """
     Filters stain-positive cells based on a user-defined stain intensity threshold and overlays them on the stain image.
@@ -446,6 +418,12 @@ def filtering_stain_positive_cells(filtering_positive_cells_threshold, bin_edges
         Base directory where output images and results will be stored.
     image_array : np.ndarray
         The original stain image array used for visualization.
+    subset_bounds : tuple or list of four elements (start_y, end_y, start_x, end_x)
+        The coordinates specifying the region of interest (ROI) to extract.
+        - start_y: Starting y-coordinate.
+        - end_y: Ending y-coordinate.
+        - start_x: Starting x-coordinate.
+        - end_x: Ending x-coordinate.
     use_contrast_adjusted_image : bool, optional
         If True, uses the contrast-adjusted stain image for visualization. Defaults to False.
 
@@ -469,19 +447,24 @@ def filtering_stain_positive_cells(filtering_positive_cells_threshold, bin_edges
     if use_contrast_adjusted_image:
         image_array = tifffile.imread(f"{base_path}/contrast_adjusted_stain_image.tif")
 
+    subset_image_array = image_array[subset_bounds[0]:subset_bounds[1], subset_bounds[2]:subset_bounds[3]]
+
     bin_index = np.where((bin_edges[:-1] <= filtering_positive_cells_threshold) & (bin_edges[1:] > filtering_positive_cells_threshold))[0][0]
     bin_start, bin_end = bin_edges[bin_index], bin_edges[bin_index + 1]
     original_start = np.expm1(bin_start * (log_transformed_stain_intensities.max() - log_transformed_stain_intensities.min()) + log_transformed_stain_intensities.min())
 
-    filtered_cells = cell_polygons_with_metadata[cell_polygons_with_metadata['sum_stain_intensity'] > original_start]
+    bbox = box(subset_bounds[2], subset_bounds[0], subset_bounds[3], subset_bounds[1])
+
+    subset_cells = cell_polygons_with_metadata[cell_polygons_with_metadata.geometry.within(bbox)]
+    filtered_cells = subset_cells[subset_cells['sum_stain_intensity'] > original_start]
 
     print(f"Plotting cells with total stain intensity greater than the selected threshold of {filtering_positive_cells_threshold}:")
     fig, ax = plt.subplots(figsize=(40, 40))
-    ax.imshow(image_array)
+    ax.imshow(subset_image_array, extent=[subset_bounds[2], subset_bounds[3], subset_bounds[1], subset_bounds[0]])
     filtered_cells.plot(ax=ax, alpha=1, linewidth=1, facecolor='none', edgecolor='red')
-    plt.title("Overlay of filtered stain-positive cells on stain image", fontsize=40)
-    plt.xticks(fontsize=40)
-    plt.yticks(fontsize=40)
+    plt.title("Overlay of filtered stain-positive cells on stain image", fontsize=35)
+    plt.xticks(fontsize=35)
+    plt.yticks(fontsize=35)
     plt.show()
     plt.close('all')
 
@@ -489,7 +472,7 @@ def filtering_stain_positive_cells(filtering_positive_cells_threshold, bin_edges
 
     print("Filtered stain positive cells data (.csv) saved. Filtering done.")
 
-def image_quantification(base_path, technology_name, image_interval, image_contrast_required=False, contrast_factor=5, intensity_threshold=100):
+def image_quantification(base_path, technology_name, image_contrast_required=False, contrast_factor=5, intensity_threshold=100):
 
     """
     Performs image quantification by extracting stain intensities and processing cell boundaries.
@@ -502,12 +485,6 @@ def image_quantification(base_path, technology_name, image_interval, image_contr
         The imaging technology used. Supported values:
         - 'MERSCOPE': Uses a transformation matrix from "micron_to_mosaic_pixel_transform.csv".
         - 'Xenium': Extracts a transformation matrix from a Zarr archive ("cells.zarr.zip").
-    image_interval : tuple or list of four elements (start_y, end_y, start_x, end_x)
-        The coordinates defining the region of interest (ROI) for image extraction.
-        - start_y: Starting y-coordinate (row index).
-        - end_y: Ending y-coordinate (row index).
-        - start_x: Starting x-coordinate (column index).
-        - end_x: Ending x-coordinate (column index).
     image_contrast_required : bool, optional
         If True, applies contrast enhancement to the extracted image. Defaults to False.
     contrast_factor : int, optional
@@ -548,7 +525,7 @@ def image_quantification(base_path, technology_name, image_interval, image_contr
         transformation_matrix = root['masks']['homogeneous_transform'][:]
 
     processing_outputs = process_inputs_for_quantification(
-        technology_name, transformation_matrix, base_path, image_interval, image_contrast_required, contrast_factor, intensity_threshold)
+        technology_name, transformation_matrix, base_path, image_contrast_required, contrast_factor, intensity_threshold)
 
     cell_polygons_with_metadata, image_array, log_transformed_stain_intensities, bin_edges = calculate_stain_intensities(
                                         image_file=processing_outputs[1], cell_polygons=processing_outputs[0],

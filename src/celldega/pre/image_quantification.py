@@ -35,6 +35,27 @@ def open_zarr(path: str) -> zarr.Group:
 
 def load_stain_img(image_file, image_interval):
 
+    """
+    Load a subset of a TIFF image based on the specified coordinates.
+
+    Parameters:
+    -----------
+    image_file : str
+        Path to the TIFF image file.
+    image_interval : tuple or list of four elements (start_y, end_y, start_x, end_x)
+        The coordinates specifying the region of interest (ROI) to extract.
+        - start_y: Starting y-coordinate.
+        - end_y: Ending y-coordinate.
+        - start_x: Starting x-coordinate.
+        - end_x: Ending x-coordinate.
+
+    Returns:
+    --------
+    numpy.ndarray
+        A 2D array representing the extracted region of the image.
+
+    """
+
     start_y, end_y, start_x, end_x = int(image_interval[0]), int(image_interval[1]), int(image_interval[2]), int(image_interval[3])
 
     with tifffile.TiffFile(image_file, is_ome=False) as image_file:
@@ -69,16 +90,41 @@ def process_row(row):
 def image_contrast_adjustment(base_path, image_interval, technology_name, contrast_factor=5, intensity_threshold=100):
 
     """
-    Adjusts the contrast of an image and filters bright stain regions.
+    Adjusts the contrast of a stain image and filters bright regions based on an intensity threshold.
 
-    Args:
-        base_path (str): Base directory where images are stored.
-        technology_name (str): Imaging technology name (MERSCOPE or Xenium).
-        contrast_factor (int, optional): Factor by which contrast is enhanced. Defaults to 5.
-        intensity_threshold (int, optional): Threshold for filtering bright stain regions. Defaults to 100.
+    Parameters:
+    -----------
+    base_path : str
+        Base directory where images are stored.
+    image_interval : tuple or list of four elements (start_y, end_y, start_x, end_x)
+        The coordinates specifying the region of interest (ROI) to extract from the image.
+        - start_y: Starting y-coordinate.
+        - end_y: Ending y-coordinate.
+        - start_x: Starting x-coordinate.
+        - end_x: Ending x-coordinate.
+    technology_name : str
+        Name of the imaging technology used. Supported values:
+        - 'MERSCOPE': Looks for images in the 'images' directory.
+        - 'Xenium': Looks for images in the 'morphology_focus' directory.
+    contrast_factor : int, optional
+        Factor by which the image contrast is enhanced. Higher values increase contrast more. Defaults to 5.
+    intensity_threshold : int, optional
+        Pixel intensity threshold for filtering bright regions. Pixels above this threshold are retained;
+        others are set to zero. Defaults to 100.
 
     Returns:
-        str: Path to the contrast-adjusted image file.
+    --------
+    numpy.ndarray
+        A 2D array representing the contrast-adjusted image with bright regions filtered.
+
+    Outputs:
+    --------
+    - Displays three plots:
+        1. The original stain image.
+        2. The contrast-enhanced stain image.
+        3. The filtered bright regions based on the intensity threshold.
+    - Saves the contrast-adjusted image as a TIFF file named 'contrast_adjusted_stain_image.tif' in `base_path`.
+
     """
 
     if technology_name == 'MERSCOPE':
@@ -122,18 +168,43 @@ def image_contrast_adjustment(base_path, image_interval, technology_name, contra
 def process_inputs_for_quantification(technology_name, transformation_matrix, base_path, image_interval, image_contrast_required=False, contrast_factor=5, intensity_threshold=100):
 
     """
-    Processes cell boundary data and applies transformations for quantification.
+    Processes cell boundary data, applies geometric transformations, and extracts image data for quantification.
 
-    Args:
-        technology_name (str): Imaging technology name (MERSCOPE or Xenium).
-        transformation_matrix (np.ndarray): Transformation matrix for coordinate adjustments.
-        base_path (str): Base directory for output files.
-        image_contrast_required (bool, optional): Whether contrast adjustment is required. Defaults to False.
-        contrast_factor (int, optional): Contrast enhancement factor. Defaults to 5.
-        intensity_threshold (int, optional): Brightness threshold for filtering. Defaults to 100.
+    Parameters:
+    -----------
+    technology_name : str
+        Name of the imaging technology used. Supported values:
+        - 'MERSCOPE': Uses cell boundary data from 'cell_boundaries.parquet' and extracts images from the 'images' directory.
+        - 'Xenium': Uses `get_cell_polygons()` to retrieve cell boundaries and extracts images from the 'morphology_focus' directory.
+    transformation_matrix : np.ndarray
+        Transformation matrix used to adjust the coordinates of cell boundaries.
+    base_path : str
+        Base directory where cell boundary and image files are stored.
+    image_interval : tuple or list of four elements (start_y, end_y, start_x, end_x)
+        The coordinates defining the region of interest (ROI) for image extraction.
+        - start_y: Starting y-coordinate.
+        - end_y: Ending y-coordinate.
+        - start_x: Starting x-coordinate.
+        - end_x: Ending x-coordinate.
+    image_contrast_required : bool, optional
+        If True, applies contrast enhancement to the extracted image. Defaults to False.
+    contrast_factor : int, optional
+        Factor by which the image contrast is enhanced. Higher values increase contrast more. Defaults to 5.
+    intensity_threshold : int, optional
+        Pixel intensity threshold for filtering bright regions. Pixels above this threshold are retained; others are set to zero. Defaults to 100.
 
     Returns:
-        gpd.GeoDataFrame or tuple: Processed cell polygons with or without contrast-adjusted image path.
+    --------
+    tuple:
+        - gpd.GeoDataFrame: Processed cell polygons with transformed coordinates, saved as 'transformed_cell_polygons.parquet'.
+        - numpy.ndarray: If `image_contrast_required` is False, returns the extracted stain image as an array.
+        - numpy.ndarray: If `image_contrast_required` is True, returns the contrast-adjusted stain image as an array.
+
+    Outputs:
+    --------
+    - Saves the transformed cell polygons as 'transformed_cell_polygons.parquet' in `base_path`.
+    - If `image_contrast_required` is True, the contrast-adjusted stain image is saved as 'contrast_adjusted_stain_image.tif' in `base_path`.
+
     """
 
     cell_boundary_file = os.path.join(base_path, "cell_boundaries.parquet")
@@ -172,6 +243,31 @@ def process_inputs_for_quantification(technology_name, transformation_matrix, ba
         return (filtered_transformed_cells, image_array)
 
 def img_zonal_stats(image_array, cell_polygons, technology_name):
+
+    """
+    Computes zonal statistics (mean and sum intensity) for each cell polygon based on the provided stain image.
+
+    Parameters:
+    -----------
+    image_array : numpy.ndarray or str
+        - For 'Xenium': A NumPy array representing the stain image.
+        - For 'MERSCOPE': A file path to the TIFF image.
+    cell_polygons : gpd.GeoDataFrame
+        A GeoDataFrame containing cell polygon geometries. It should have a valid coordinate reference system (CRS).
+    technology_name : str
+        Name of the imaging technology used. Supported values:
+        - 'Xenium': The image is provided as a NumPy array and is processed using `rasterio.MemoryFile`.
+        - 'MERSCOPE': The image is read from a file using `rasterio.open()`.
+
+    Returns:
+    --------
+    tuple:
+        - gpd.GeoDataFrame: Updated GeoDataFrame with two new columns:
+            - "mean_stain_intensity": Mean pixel intensity within each cell polygon.
+            - "sum_stain_intensity": Sum of pixel intensities within each cell polygon.
+        - numpy.ndarray or str: The input image array (for 'Xenium') or file path (for 'MERSCOPE').
+
+    """
 
     if technology_name == 'Xenium':
 
@@ -238,6 +334,29 @@ def img_zonal_stats(image_array, cell_polygons, technology_name):
 
 def plot_zonal_stats(image_array, cell_polygons):
 
+    """
+    Plots spatial and statistical distributions of stain intensities across cell polygons.
+
+    Parameters:
+    -----------
+    image_array : numpy.ndarray
+        A 2D or 3D array representing the stain image on which the cell polygons will be overlaid.
+    cell_polygons : gpd.GeoDataFrame
+        A GeoDataFrame containing cell polygon geometries and their corresponding "sum_stain_intensity" values.
+
+    Returns:
+    --------
+    tuple:
+        - numpy.ndarray: Log-transformed sum stain intensities for each cell polygon.
+        - numpy.ndarray: Bin edges of the histogram for log-normalized stain intensities.
+
+    Plots:
+    ------
+    1. An overlay of cell polygons with stain-positive intensities on the stain image.
+    2. A histogram of log-normalized stain intensities, showing their distribution.
+
+    """
+
     log_transformed_stain_intensities = np.log1p(cell_polygons['sum_stain_intensity'])
 
     # Normalize the log-transformed intensities to the range [0, 1]
@@ -265,20 +384,40 @@ def plot_zonal_stats(image_array, cell_polygons):
 
     return log_transformed_stain_intensities, bin_edges
 
-def calculate_stain_intensities(image_file, image_interval, cell_polygons, technology_name, image_contrast_required=False):
+def calculate_stain_intensities(image_file, cell_polygons, technology_name):
 
     """
-    Computes the mean and sum intensity values of a stain image within segmented cell polygons.
+    Computes stain intensity values within segmented cell polygons and visualizes their distribution.
 
-    Args:
-        image_file (str): Path to the stain image file (original image file or a contrast-adjusted image file).
-        cell_polygons (gpd.GeoDataFrame): GeoDataFrame containing segmented cell polygons.
-        technology_name (str): Imaging technology (MERSCOPE or Xenium).
+    Parameters:
+    -----------
+    image_file : str
+        Path to the stain image file. This can be the original image or a contrast-adjusted version.
+    cell_polygons : gpd.GeoDataFrame
+        A GeoDataFrame containing segmented cell polygons.
+    technology_name : str
+        Name of the imaging technology used. Supported values:
+        - 'MERSCOPE': Processes the image from file using raster-based methods.
+        - 'Xenium': Uses a NumPy array for in-memory processing.
 
     Returns:
-        - gpd.GeoDataFrame: Updated cell polygons with computed stain intensity values.
-        - np.ndarray: Log-transformed sum intensities of the stain.
-        - np.ndarray: Bin edges for histogram plotting of log-normalized intensities.
+    --------
+    tuple:
+        - gpd.GeoDataFrame: Updated cell polygons with two new columns:
+            - "mean_stain_intensity": Mean pixel intensity within each cell polygon.
+            - "sum_stain_intensity": Sum of pixel intensities within each cell polygon.
+        - numpy.ndarray: The processed stain image as an array.
+        - numpy.ndarray: Log-transformed sum intensities for each cell polygon.
+        - numpy.ndarray: Bin edges of the histogram for log-normalized stain intensities.
+
+    Workflow:
+    ---------
+    1. Calls `img_zonal_stats()` to compute mean and sum stain intensities for each polygon.
+    2. Calls `plot_zonal_stats()` to generate:
+        - An overlay of segmented cells on the stain image.
+        - A histogram of log-normalized stain intensities.
+    3. Returns updated cell polygons, the processed stain image, and intensity distribution statistics.
+
     """
 
     cell_polygons, image_array = img_zonal_stats(image_array=image_file,
@@ -292,19 +431,40 @@ def calculate_stain_intensities(image_file, image_interval, cell_polygons, techn
 def filtering_stain_positive_cells(filtering_positive_cells_threshold, bin_edges, log_transformed_stain_intensities, cell_polygons_with_metadata, base_path, image_array, use_contrast_adjusted_image=False):
 
     """
-    Filters stain-positive cells based on stain intensity thresholds and overlays them on the stain image.
+    Filters stain-positive cells based on a user-defined stain intensity threshold and overlays them on the stain image.
 
-    Args:
-        highlighted_bin (float): The bin (according to the x-axis) representing the threshold for filtering stain-positive cells.
-        bin_edges (np.ndarray): Bin edges used for histogram binning of intensities.
-        log_transformed_stain_intensities (np.ndarray): Log-transformed stain intensities.
-        cell_polygons_with_metadata (gpd.GeoDataFrame): GeoDataFrame containing cell polygon geometries and stain intensity metadata.
-        base_path (str): Base directory where images and results are stored.
-        technology_name (str): Imaging technology used (MERSCOPE or Xenium).
-        use_contrast_adjusted_image (bool, optional): Whether to use the contrast-adjusted image for visualization. Defaults to False.
+    Parameters:
+    -----------
+    filtering_positive_cells_threshold : float
+        The log-normalized intensity threshold used to filter stain-positive cells.
+    bin_edges : np.ndarray
+        Bin edges from the histogram binning of log-transformed stain intensities.
+    log_transformed_stain_intensities : np.ndarray
+        Log-transformed sum stain intensities of cells.
+    cell_polygons_with_metadata : gpd.GeoDataFrame
+        GeoDataFrame containing segmented cell polygons with stain intensity metadata.
+    base_path : str
+        Base directory where output images and results will be stored.
+    image_array : np.ndarray
+        The original stain image array used for visualization.
+    use_contrast_adjusted_image : bool, optional
+        If True, uses the contrast-adjusted stain image for visualization. Defaults to False.
 
     Returns:
-        None: Saves the filtered stain-positive cells data to a CSV file and displays an overlay plot.
+    --------
+    None
+        - Saves a CSV file containing the filtered stain-positive cells: `filtered_stain_positive_cells.csv`.
+        - Displays an overlay plot of the filtered stain-positive cells on the stain image.
+
+    Workflow:
+    ---------
+    1. If `use_contrast_adjusted_image` is True, loads the contrast-adjusted image.
+    2. Determines the bin corresponding to the threshold intensity.
+    3. Converts the log-normalized threshold back to the original stain intensity scale.
+    4. Filters cells whose sum stain intensity exceeds the threshold.
+    5. Plots the filtered stain-positive cells over the stain image.
+    6. Saves the filtered cell data as a CSV file.
+
     """
 
     if use_contrast_adjusted_image:
@@ -335,17 +495,50 @@ def image_quantification(base_path, technology_name, image_interval, image_contr
     """
     Performs image quantification by extracting stain intensities and processing cell boundaries.
 
-    Args:
-        base_path (str): The base directory containing input images and metadata.
-        technology_name (str): The imaging technology used (MERSCOPE or Xenium).
-        image_contrast_required (bool, optional): Whether contrast adjustment is needed. Defaults to False.
-        contrast_factor (int, optional): Factor by which contrast is enhanced if required. Defaults to 5.
-        intensity_threshold (int, optional): Intensity threshold for filtering bright stain regions. Defaults to 100.
+    Parameters:
+    -----------
+    base_path : str
+        The base directory containing input images, metadata, and transformation matrices.
+    technology_name : str
+        The imaging technology used. Supported values:
+        - 'MERSCOPE': Uses a transformation matrix from "micron_to_mosaic_pixel_transform.csv".
+        - 'Xenium': Extracts a transformation matrix from a Zarr archive ("cells.zarr.zip").
+    image_interval : tuple or list of four elements (start_y, end_y, start_x, end_x)
+        The coordinates defining the region of interest (ROI) for image extraction.
+        - start_y: Starting y-coordinate (row index).
+        - end_y: Ending y-coordinate (row index).
+        - start_x: Starting x-coordinate (column index).
+        - end_x: Ending x-coordinate (column index).
+    image_contrast_required : bool, optional
+        If True, applies contrast enhancement to the extracted image. Defaults to False.
+    contrast_factor : int, optional
+        Factor by which contrast is enhanced if `image_contrast_required` is True. Defaults to 5.
+    intensity_threshold : int, optional
+        Pixel intensity threshold for filtering bright stain regions. Pixels above this threshold are retained;
+        others are set to zero. Defaults to 100.
 
     Returns:
-        - gpd.GeoDataFrame: Processed cell polygons with stain intensity metadata.
-        - np.ndarray: Log-transformed sum intensities of the stain.
-        - np.ndarray: Bin edges for histogram visualization of intensity distribution.
+    --------
+    tuple:
+        - gpd.GeoDataFrame: Processed cell polygons with computed stain intensity metadata.
+        - numpy.ndarray: The processed stain image as an array.
+        - numpy.ndarray: Log-transformed sum stain intensities for each cell polygon.
+        - numpy.ndarray: Bin edges of the histogram for log-normalized stain intensities.
+
+    Workflow:
+    ---------
+    1. Loads the transformation matrix based on `technology_name`:
+        - 'MERSCOPE': Reads from a CSV file.
+        - 'Xenium': Extracts from a Zarr archive.
+    2. Calls `process_inputs_for_quantification()` to:
+        - Extract cell boundaries and transform them.
+        - Load the appropriate stain image (original or contrast-adjusted).
+    3. Calls `calculate_stain_intensities()` to:
+        - Compute stain intensity statistics (mean and sum intensity).
+        - Generate log-transformed intensity values.
+        - Extract bin edges for histogram visualization.
+    4. Returns processed cell polygons, the stain image array, and intensity distribution statistics.
+
     """
 
     if technology_name == 'MERSCOPE':
@@ -359,8 +552,8 @@ def image_quantification(base_path, technology_name, image_interval, image_contr
         technology_name, transformation_matrix, base_path, image_interval, image_contrast_required, contrast_factor, intensity_threshold)
 
     cell_polygons_with_metadata, image_array, log_transformed_stain_intensities, bin_edges = calculate_stain_intensities(
-                                        image_file=processing_outputs[1], image_interval=image_interval, cell_polygons=processing_outputs[0],
-                                        technology_name=technology_name, image_contrast_required=image_contrast_required)
+                                        image_file=processing_outputs[1], cell_polygons=processing_outputs[0],
+                                        technology_name=technology_name)
 
     print("Image quantification and filtering done.")
     return cell_polygons_with_metadata, image_array, log_transformed_stain_intensities, bin_edges

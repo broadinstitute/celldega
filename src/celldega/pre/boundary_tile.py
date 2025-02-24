@@ -4,6 +4,7 @@ import os
 from tqdm import tqdm
 import concurrent.futures
 import geopandas as gpd
+from shapely.wkt import loads
 from shapely.geometry import Point, Polygon, MultiPolygon
 
 def numpy_affine_transform(coords, matrix):
@@ -201,10 +202,11 @@ def make_cell_boundary_tiles(
 
     # Transform geometries
     cells_orig["GEOMETRY"] = batch_transform_geometries(cells_orig["geometry"], transformation_matrix, image_scale)
-    cells_orig.set_geometry("GEOMETRY", inplace=True)
+
+    cells_orig["center_x"] = cells_orig["GEOMETRY"].apply(lambda geom: geom.centroid.x)
+    cells_orig["center_y"] = cells_orig["GEOMETRY"].apply(lambda geom: geom.centroid.y)
+
     cells_orig["GEOMETRY"] = cells_orig["GEOMETRY"].apply(lambda x: x.wkt)
-    cells_orig["center_x"] = cells_orig.geometry.centroid.x
-    cells_orig["center_y"] = cells_orig.geometry.centroid.y
 
     # Calculate tile bounds and fine/coarse tiles
     x_min, x_max = tile_bounds["x_min"], tile_bounds["x_max"]

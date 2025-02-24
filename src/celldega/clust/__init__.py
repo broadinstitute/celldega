@@ -59,6 +59,11 @@ import json
 import ipywidgets as widgets
 import statsmodels.stats.multitest as smm
 
+from spatialdata_io import xenium
+import scanpy as sc
+import squidpy as sq
+import spatialdata as sd
+
 def hc(df, filter_N_top=None, norm_col='total', norm_row='zscore'):
 
   """
@@ -102,18 +107,133 @@ def hc(df, filter_N_top=None, norm_col='total', norm_row='zscore'):
 
 def calc_cluster_signatures(path_landscape_files, segmentation_parameters, cbg, use_default_clustering=False, use_custom_clustering=False):
 
+    os.makedirs(os.path.join(path_landscape_files,
+                             f"cell_clusters{'_' + segmentation_parameters['segmentation_approach'] if segmentation_parameters['segmentation_approach'] else ''}"),
+                             exist_ok=True)
+
     if not use_default_clustering:
         if use_custom_clustering:
+
+            if segmentation_parameters['technology'] == 'Xenium':
+                sdata = xenium(os.path.dirname(path_landscape_files))
+                # could add merscope functionality later on
+
+            adata = sdata.tables["table"]
+
+            sc.pp.calculate_qc_metrics(adata, percent_top=(10, 20, 50, 150), inplace=True)
+            cprobes = (
+            adata.obs["control_probe_counts"].sum() / adata.obs["total_counts"].sum() * 100)
+            cwords = (
+                adata.obs["control_codeword_counts"].sum() / adata.obs["total_counts"].sum() * 100)
+
+            sc.pp.filter_cells(adata, min_counts=10)
+            sc.pp.filter_genes(adata, min_cells=5)
+
+            adata.layers["counts"] = adata.X.copy()
+            sc.pp.normalize_total(adata, inplace=True)
+            sc.pp.log1p(adata)
+            sc.pp.pca(adata)
+            sc.pp.neighbors(adata)
+            sc.tl.umap(adata)
+            sc.tl.leiden(adata)
+
+            adata.obs.set_index('cell_index', inplace=True)
+
+            meta_cell = adata.obs['leiden'].to_dict()
+
+            clusters = adata.obs['leiden'].cat.categories.tolist()
+            colors = adata.uns['leiden_colors']
+            ser_counts = adata.obs['leiden'].value_counts()
+            ser_color = pd.Series(colors, index=clusters, name='color')
+            meta_cluster_df = pd.DataFrame(ser_color)
+            meta_cluster_df['count'] = ser_counts
+
+            meta_cluster_df.index = [str(x) for x in meta_cluster_df.index]
+            meta_cluster = meta_cluster_df.to_dict(orient='index')
+
+            meta_cluster.to_parquet(os.path.join(path_landscape_files, f"cell_clusters_{segmentation_parameters['segmentation_approach']}/meta_cluster.parquet"))
+
+            inst_cells = cbg.index.tolist()
+            df_cluster = pd.DataFrame(index=inst_cells)
+            df_cluster['cluster'] = pd.Series('0', index=inst_cells)
+            df_cluster.to_parquet(os.path.join(path_landscape_files, f"cell_clusters_{segmentation_parameters['segmentation_approach']}/cluster.parquet"))
+
+            adata.obs['leiden'] = adata.obs['leiden'].astype('string')
+
+            list_ser = []
+            for inst_cat in adata.obs['leiden'].unique():
+                if inst_cat is not None:
+                    inst_cells = adata.obs[adata.obs['leiden'] == inst_cat].index.tolist()
+                    inst_ser = pd.Series(adata[inst_cells].X.mean(axis=0).A1, index=adata.var_names)
+                    inst_ser.name = inst_cat
+                    list_ser.append(inst_ser)
+
+            df_sig = pd.concat(list_ser, axis=1)
+            df_sig.columns = df_sig.columns.tolist()
+
+            keep_genes = df_sig.index.tolist()
+            keep_genes = [x for x in keep_genes if 'Unassigned' not in x]
+            keep_genes = [x for x in keep_genes if 'NegControl' not in x]
+            keep_genes = [x for x in keep_genes if 'DeprecatedCodeword' not in x]
+
+            df_sig = df_sig.loc[keep_genes]
+
+            df_sig.to_parquet(
+                os.path.join(
+                    path_landscape_files,
+                    f"df_sig{'_' + segmentation_parameters['segmentation_approach'] if segmentation_parameters['segmentation_approach'] else ''}.parquet"
+                )
+            )
 
         else:
             inst_cells = cbg.index.tolist()
             df_cluster = pd.DataFrame(index=inst_cells)
             df_cluster['cluster'] = pd.Series('0', index=inst_cells)
-            df_cluster.to_parquet(os.path.join(path_landscape_files, f"cell_clusters_{segmentation_parameters['segmentation_approach']}/cluster.parquet"))
+            df_cluster.to_parquet(os.path.join(
+                    path_landscape_files,
+                    f"cell_clusters{'_' + segmentation_parameters['segmentation_approach'] if segmentation_parameters['segmentation_approach'] else ''}",
+                    "cluster.parquet"
+                ))
+
             meta_clust = pd.DataFrame(index=['0'])
             meta_clust.loc['0', 'color'] = '#1f77b4'
             meta_clust.loc['0', 'count'] = 100
-            meta_clust.to_parquet(os.path.join(path_landscape_files, f"cell_clusters_{segmentation_parameters['segmentation_approach']}/meta_cluster.parquet"))
+            meta_clust.to_parquet(os.path.join(
+                    path_landscape_files,
+                    f"cell_clusters{'_' + segmentation_parameters['segmentation_approach'] if segmentation_parameters['segmentation_approach'] else ''}",
+                    "meta_cluster.parquet"
+                ))
+
+            df_cluster['cluster'] = df_cluster['cluster'].astype('string')
+
+            list_ser = []
+            for inst_cat in df_cluster['cluster'].unique():
+                if inst_cat is not None:
+                    inst_cells = df_cluster[df_cluster['cluster'] == inst_cat].index.tolist()
+                    inst_ser = cbg.loc[inst_cells].sum()/len(inst_cells)
+                    inst_ser.name = inst_cat
+                    list_ser.append(inst_ser)
+
+            df_sig = pd.concat(list_ser, axis=1)
+            df_sig.columns = df_sig.columns.tolist()
+
+            keep_genes = df_sig.index.tolist()
+            keep_genes = [x for x in keep_genes if 'Unassigned' not in x]
+            keep_genes = [x for x in keep_genes if 'NegControl' not in x]
+            keep_genes = [x for x in keep_genes if 'DeprecatedCodeword' not in x]
+
+            df_sig = df_sig.loc[keep_genes]
+
+            for col in df_sig.columns:
+              if isinstance(df_sig[col].dtype, pd.SparseDtype):
+                  df_sig[col] = df_sig[col].sparse.to_dense()
+
+            df_sig.to_parquet(
+                os.path.join(
+                    path_landscape_files,
+                    f"df_sig{'_' + segmentation_parameters['segmentation_approach'] if segmentation_parameters['segmentation_approach'] else ''}.parquet"
+                )
+            )
 
     else:
         default_clusters_path = os.path.join(os.path.dirname(path_landscape_files), 'analysis/clustering/gene_expression_graphclust/clusters.csv')
@@ -128,8 +248,6 @@ def calc_cluster_signatures(path_landscape_files, segmentation_parameters, cbg, 
 
         default_clustering = pd.DataFrame(index=meta_cell.index.tolist())
         default_clustering.loc[default_clustering_ini.index.tolist(), 'cluster'] = default_clustering_ini['cluster']
-
-        os.makedirs(os.path.join(path_landscape_files, f"cell_clusters_{segmentation_parameters['segmentation_approach']}"), exist_ok=True)
 
         default_clustering.to_parquet(os.path.join(path_landscape_files, f"cell_clusters_{segmentation_parameters['segmentation_approach']}/cluster.parquet"))
         ser_counts = default_clustering['cluster'].value_counts()

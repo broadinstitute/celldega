@@ -408,8 +408,6 @@ def save_landscape_parameters(
     else:
         path_image_pyramid = f"{path_landscape_files}/pyramid_images/{image_name}"
 
-        print(path_image_pyramid)
-
         max_pyramid_zoom = get_max_zoom_level(path_image_pyramid)
 
         landscape_parameters = {

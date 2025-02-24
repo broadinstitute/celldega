@@ -220,8 +220,7 @@ def process_inputs_for_quantification(technology_name, transformation_matrix, ba
         merged_gdf = merged_gdf.reset_index().rename(columns={'cell_id': 'cell_index'})
 
     merged_gdf = merged_gdf.apply(process_row, axis=1)
-    merged_gdf["transformed_geometry"] = batch_transform_geometries(merged_gdf["geometry"], transformation_matrix, scale=1)
-    merged_gdf["polygons"] = merged_gdf["transformed_geometry"].apply(lambda x: Polygon(x[0]))
+    merged_gdf["polygons"] = batch_transform_geometries(merged_gdf["geometry"], transformation_matrix, scale=1)
 
     transformed_cells = gpd.GeoDataFrame({'cell_index': merged_gdf['cell_index']}, geometry=merged_gdf['polygons'])
 

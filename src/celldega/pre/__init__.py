@@ -424,7 +424,7 @@ def save_landscape_parameters(
         with open(path_landscape_parameters, "w") as file:
             json.dump(landscape_parameters, file, indent=4)
 
-def add_custom_segmentation(path_landscape_files, path_segmentation_files, image_scale=1, tile_size=250):
+def add_custom_segmentation(path_landscape_files, path_segmentation_files, image_scale=1, tile_size=250, use_default_clustering=True, use_custom_clustering=False):
 
     with open(f"{path_segmentation_files}/segmentation_parameters.json", "r") as file:
         segmentation_parameters = json.load(file)
@@ -466,7 +466,9 @@ def add_custom_segmentation(path_landscape_files, path_segmentation_files, image
 
     calc_cluster_signatures(path_landscape_files=path_landscape_files,
                segmentation_parameters=segmentation_parameters,
-               cbg=cbg)
+               cbg=cbg,
+               use_default_clustering=use_default_clustering,
+               use_custom_clustering=use_custom_clustering)
 
     save_landscape_parameters(technology=segmentation_parameters['technology'],
                               path_landscape_files=path_landscape_files,
@@ -490,27 +492,3 @@ def to_geometry(coord_list):
     return Polygon(coord_list)
 
 __all__ = ["landscape", "trx_tile", "boundary_tile"]
-
-
-"""
-This has three checklist items:
-
-The files meta_gene.parquet and gene_metadata.parquet are the same and that's a bug that they're being saved twice
-
-You'll need a new cell_metadata.parquet, df_sig.parquet, meta_gene.parquet, cbg directory (maybe cbg_my-seg-method)
-But not transcript tiles
-
-the cell_clusters directory and files too -
-I would do something like cell_clusters_my-seg-method and leave the files within the same.
-
-1 make a dega.pre method for adding custom segmentation results into the LandscapeFiles
-(you can decide where to save them - there will be a new cbg file for instance called cbg_some-custom-segmentation-name),
-
-2 decide on the organization of the LandscapeFiles (just create new adjacent files so we don't break any backwards compatability -
-we can reorganize this when we do a 1.0 release), and
-
-3 make an argument in the Landscape method that lets the user select
-which segmentation approach to visualize (the landscape_parameters.json can also have a default segmentation result set up to
-establish a default behavior when no argument is given)
-
-"""

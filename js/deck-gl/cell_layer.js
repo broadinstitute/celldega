@@ -111,7 +111,9 @@ export const ini_cell_layer = async (base_url, viz_state) => {
         viz_state.cats.cell_cats = viz_state.cats.cell_names_array.map(name => viz_state.cats.meta_cell[name])
     } else {
         // default clustering
-        var cluster_arrow_table = await get_arrow_table(base_url + `/cell_clusters/cluster.parquet`, options.fetch)
+
+        var cluster_arrow_table = await get_arrow_table(base_url + `/cell_clusters${viz_state.seg.version && viz_state.seg.version !== 'default' ? '_' + viz_state.seg.version : ''}/cluster.parquet`,
+                                                        options.fetch)
         set_cell_cats(viz_state.cats, cluster_arrow_table, 'cluster')
     }
 

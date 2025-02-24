@@ -114,7 +114,7 @@ def calc_cluster_signatures(path_landscape_files, segmentation_parameters, cbg, 
     if not use_default_clustering:
         if use_custom_clustering:
 
-            if segmentation_parameters['technology'] == 'Xenium':
+            if segmentation_parameters['technology'] == 'custom' or segmentation_parameters['technology'] == 'Xenium':
                 sdata = xenium(os.path.dirname(path_landscape_files))
                 # could add merscope functionality later on
 

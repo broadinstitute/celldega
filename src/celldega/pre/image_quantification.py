@@ -399,7 +399,7 @@ def calculate_stain_intensities(image_file, cell_polygons, technology_name):
 
     return cell_polygons, image_array, log_transformed_stain_intensities, bin_edges
 
-def filtering_stain_positive_cells(filtering_positive_cells_threshold, bin_edges, log_transformed_stain_intensities, cell_polygons_with_metadata, base_path, image_array, subset_bounds, use_contrast_adjusted_image=False):
+def filtering_stain_positive_cells(filtering_positive_cells_threshold, bin_edges, log_transformed_stain_intensities, cell_polygons_with_metadata, base_path, image_array, subset_bounds, use_contrast_adjusted_image=False, contrast_limits=None):
 
     """
     Filters stain-positive cells based on a user-defined stain intensity threshold and overlays them on the stain image.
@@ -426,6 +426,8 @@ def filtering_stain_positive_cells(filtering_positive_cells_threshold, bin_edges
         - end_x: Ending x-coordinate.
     use_contrast_adjusted_image : bool, optional
         If True, uses the contrast-adjusted stain image for visualization. Defaults to False.
+    contrast_limits : tuple (vmin, vmax), optional
+        If provided, sets the contrast range for displaying the stain image. If None, it is automatically set using the 1st and 99th percentile of the image intensity.
 
     Returns:
     --------
@@ -449,6 +451,12 @@ def filtering_stain_positive_cells(filtering_positive_cells_threshold, bin_edges
 
     subset_image_array = image_array[subset_bounds[0]:subset_bounds[1], subset_bounds[2]:subset_bounds[3]]
 
+    if contrast_limits is None:
+        vmin = np.quantile(subset_image_array, 0.01)  # 1st percentile (low-intensity cutoff)
+        vmax = np.quantile(subset_image_array, 0.99)  # 99th percentile (high-intensity cutoff)
+    else:
+        vmin, vmax = contrast_limits
+
     bin_index = np.where((bin_edges[:-1] <= filtering_positive_cells_threshold) & (bin_edges[1:] > filtering_positive_cells_threshold))[0][0]
     bin_start, bin_end = bin_edges[bin_index], bin_edges[bin_index + 1]
     original_start = np.expm1(bin_start * (log_transformed_stain_intensities.max() - log_transformed_stain_intensities.min()) + log_transformed_stain_intensities.min())
@@ -460,7 +468,7 @@ def filtering_stain_positive_cells(filtering_positive_cells_threshold, bin_edges
 
     print(f"Plotting cells with total stain intensity greater than the selected threshold of {filtering_positive_cells_threshold}:")
     fig, ax = plt.subplots(figsize=(40, 40))
-    ax.imshow(subset_image_array, extent=[subset_bounds[2], subset_bounds[3], subset_bounds[1], subset_bounds[0]])
+    ax.imshow(subset_image_array, vmin=vmin, vmax=vmax, extent=[subset_bounds[2], subset_bounds[3], subset_bounds[1], subset_bounds[0]])
     filtered_cells.plot(ax=ax, alpha=1, linewidth=1, facecolor='none', edgecolor='red')
     plt.title("Overlay of filtered stain-positive cells on stain image", fontsize=35)
     plt.xticks(fontsize=35)

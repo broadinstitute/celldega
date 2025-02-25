@@ -14,6 +14,7 @@ import os
 import hashlib
 import base64
 from shapely.geometry import Point, Polygon
+from scipy.sparse import csc_matrix, csr_matrix
 
 import matplotlib.pyplot as plt
 from matplotlib.colors import to_hex
@@ -245,6 +246,8 @@ def make_meta_cell_image_coord(
         path_transformation_matrix, header=None, sep=" "
     ).values
 
+    sparse_matrix = csr_matrix(transformation_matrix)
+
     if technology == "MERSCOPE":
         meta_cell = pd.read_csv(path_meta_cell_micron, usecols=["EntityID", "center_x", "center_y"])
         meta_cell = convert_long_id_to_short(meta_cell)
@@ -271,7 +274,8 @@ def make_meta_cell_image_coord(
     points = meta_cell[["center_x", "center_y", "ones"]].values
 
     # Applying the transformation matrix
-    transformed_points = np.dot(transformation_matrix, points.T).T
+    transformed_points = sparse_matrix.dot(points.T).T[:, :2]
+    #transformed_points = np.dot(transformation_matrix, points.T).T
 
     # Updating the DataFrame with transformed coordinates
     meta_cell["center_x"] = transformed_points[:, 0]
@@ -435,7 +439,26 @@ def add_custom_segmentation(path_landscape_files, path_segmentation_files, image
 
     cbg_custom = pd.read_parquet(os.path.join(path_segmentation_files, "cell_by_gene_matrix.parquet"))
 
-    cbg = read_cbg_mtx(os.path.join(os.path.dirname(path_landscape_files), "cell_feature_matrix"))
+    #cbg_custom = cbg_custom.astype(pd.SparseDtype("float", fill_value=0))
+    #cbg_custom = csc_matrix(cbg_custom.sparse.to_coo())  # Convert to CSC
+    #cbg_custom = pd.DataFrame.sparse.from_spmatrix(cbg_custom)
+
+    # debug kernel crashing : convert cbg_custom to sparse, or save cbg_custom as anndata in sparse data format
+    # save cbg in anndata/ mtx later on
+
+    # df_sparse = df.astype(pd.SparseDtype("float", fill_value=0))  # SparseDataFrame
+    # sparse_csc = csc_matrix(df_sparse.sparse.to_coo())  # Convert to CSC
+
+    # import anndata
+    # import numpy as np
+    # import scipy.sparse as sp
+    # # Example dense matrix
+    # X = np.array([[0, 1, 0], [0, 0, 2], [3, 0, 0]])
+    # # Convert to sparse CSC matrix (recommended for AnnData)
+    # X_sparse = sp.csc_matrix(X)
+    # # Create an AnnData object with sparse storage
+    # adata = anndata.AnnData(X_sparse)
+    # print(type(adata.X))  # Should be <class 'scipy.sparse.csc_matrix'>
 
     save_cbg_gene_parquets(path_landscape_files,
                            cbg=cbg_custom,
@@ -466,7 +489,7 @@ def add_custom_segmentation(path_landscape_files, path_segmentation_files, image
 
     calc_cluster_signatures(path_landscape_files=path_landscape_files,
                segmentation_parameters=segmentation_parameters,
-               cbg=cbg,
+               cbg=cbg_custom,
                use_default_clustering=use_default_clustering,
                use_custom_clustering=use_custom_clustering)
 

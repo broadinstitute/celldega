@@ -275,7 +275,6 @@ def make_meta_cell_image_coord(
 
     # Applying the transformation matrix
     transformed_points = sparse_matrix.dot(points.T).T[:, :2]
-    #transformed_points = np.dot(transformation_matrix, points.T).T
 
     # Updating the DataFrame with transformed coordinates
     meta_cell["center_x"] = transformed_points[:, 0]
@@ -428,7 +427,7 @@ def save_landscape_parameters(
         with open(path_landscape_parameters, "w") as file:
             json.dump(landscape_parameters, file, indent=4)
 
-def add_custom_segmentation(path_landscape_files, path_segmentation_files, image_scale=1, tile_size=250, use_default_clustering=True, use_custom_clustering=False):
+def add_custom_segmentation(path_landscape_files, path_segmentation_files, image_scale=1, tile_size=250, use_default_clustering=False, use_custom_clustering=False):
 
     with open(f"{path_segmentation_files}/segmentation_parameters.json", "r") as file:
         segmentation_parameters = json.load(file)
@@ -438,27 +437,6 @@ def add_custom_segmentation(path_landscape_files, path_segmentation_files, image
                    path_output=os.path.join(path_landscape_files, f"meta_gene_{segmentation_parameters['segmentation_approach']}.parquet"))
 
     cbg_custom = pd.read_parquet(os.path.join(path_segmentation_files, "cell_by_gene_matrix.parquet"))
-
-    #cbg_custom = cbg_custom.astype(pd.SparseDtype("float", fill_value=0))
-    #cbg_custom = csc_matrix(cbg_custom.sparse.to_coo())  # Convert to CSC
-    #cbg_custom = pd.DataFrame.sparse.from_spmatrix(cbg_custom)
-
-    # debug kernel crashing : convert cbg_custom to sparse, or save cbg_custom as anndata in sparse data format
-    # save cbg in anndata/ mtx later on
-
-    # df_sparse = df.astype(pd.SparseDtype("float", fill_value=0))  # SparseDataFrame
-    # sparse_csc = csc_matrix(df_sparse.sparse.to_coo())  # Convert to CSC
-
-    # import anndata
-    # import numpy as np
-    # import scipy.sparse as sp
-    # # Example dense matrix
-    # X = np.array([[0, 1, 0], [0, 0, 2], [3, 0, 0]])
-    # # Convert to sparse CSC matrix (recommended for AnnData)
-    # X_sparse = sp.csc_matrix(X)
-    # # Create an AnnData object with sparse storage
-    # adata = anndata.AnnData(X_sparse)
-    # print(type(adata.X))  # Should be <class 'scipy.sparse.csc_matrix'>
 
     save_cbg_gene_parquets(path_landscape_files,
                            cbg=cbg_custom,
@@ -472,16 +450,10 @@ def add_custom_segmentation(path_landscape_files, path_segmentation_files, image
                             image_scale=image_scale)
 
     tile_bounds = make_trx_tiles(technology = segmentation_parameters['technology'],
-                                path_trx = os.path.join(path_segmentation_files, 'transcripts.parquet'),
-                                path_transformation_matrix = os.path.join(path_landscape_files, 'transformation_matrix.csv'),
-                                path_trx_tiles = os.path.join(path_landscape_files, 'transcript_tiles'),
-                                tile_size=tile_size,
-                                image_scale=image_scale)
+                                path_trx = os.path.join(path_segmentation_files, 'transcripts.parquet'))
 
     make_cell_boundary_tiles(technology = segmentation_parameters['technology'],
                 path_cell_boundaries = os.path.join(path_segmentation_files, "cell_polygons.parquet"),
-                path_meta_cell_micron = os.path.join(path_segmentation_files, 'cell_metadata_micron_space.parquet'),
-                path_transformation_matrix = os.path.join(path_landscape_files, 'transformation_matrix.csv'),
                 path_output = os.path.join(path_landscape_files, f"cell_segmentation_{segmentation_parameters['segmentation_approach']}"),
                 tile_size=tile_size,
                 tile_bounds=tile_bounds,

@@ -15,14 +15,14 @@ def process_coarse_tile(trx, i, j, coarse_tile_x_min, coarse_tile_x_max, coarse_
 
     if not coarse_tile.is_empty():
         # Now process fine tiles using global fine tile indices
-        process_fine_tiles(coarse_tile, i, j, coarse_tile_x_min, coarse_tile_x_max, coarse_tile_y_min, coarse_tile_y_max, tile_size, path_trx_tiles, x_min, y_min, n_fine_tiles_x, n_fine_tiles_y, max_workers)   
+        process_fine_tiles(coarse_tile, i, j, coarse_tile_x_min, coarse_tile_x_max, coarse_tile_y_min, coarse_tile_y_max, tile_size, path_trx_tiles, x_min, y_min, n_fine_tiles_x, n_fine_tiles_y, max_workers)
 
 def process_fine_tiles(coarse_tile, coarse_i, coarse_j, coarse_tile_x_min, coarse_tile_x_max, coarse_tile_y_min, coarse_tile_y_max, tile_size, path_trx_tiles, x_min, y_min, n_fine_tiles_x, n_fine_tiles_y, max_workers=1):
 
     # Use ThreadPoolExecutor for parallel processing of fine-grain tiles within the coarse tile
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = []
-        
+
         # Iterate over fine-grain tiles within the global bounds
         for fine_i in range(n_fine_tiles_x):
             fine_tile_x_min = x_min + fine_i * tile_size
@@ -42,7 +42,7 @@ def process_fine_tiles(coarse_tile, coarse_i, coarse_j, coarse_tile_x_min, coars
 
                 # Submit the task for each fine tile to process in parallel
                 futures.append(executor.submit(
-                    filter_and_save_fine_tile, coarse_tile, coarse_i, coarse_j, fine_i, fine_j, 
+                    filter_and_save_fine_tile, coarse_tile, coarse_i, coarse_j, fine_i, fine_j,
                     fine_tile_x_min, fine_tile_x_max, fine_tile_y_min, fine_tile_y_max, path_trx_tiles
                 ))
 
@@ -57,7 +57,7 @@ def filter_and_save_fine_tile(coarse_tile, coarse_i, coarse_j, fine_i, fine_j, f
         (pl.col("transformed_x") >= fine_tile_x_min) & (pl.col("transformed_x") < fine_tile_x_max) &
         (pl.col("transformed_y") >= fine_tile_y_min) & (pl.col("transformed_y") < fine_tile_y_max)
     )
-    
+
     if not fine_tile_trx.is_empty():
         # Add geometry column as a list of [x, y] pairs
         fine_tile_trx = fine_tile_trx.with_columns(
@@ -92,27 +92,18 @@ def transform_transcript_coordinates(technology, path_trx, chunk_size, transform
             pl.col("y_location").alias("y")
         ])
 
-    elif technology == "custom":
-        trx_ini = pl.read_parquet(path_trx).select([
-            pl.col("cell_index"),
-            pl.col("transcript_index"),
-            pl.col("gene").alias("name"),
-            pl.col("x"),
-            pl.col("y")
-        ])
-
     # Process the data in chunks and apply transformations
     all_chunks = []
 
     for start_row in tqdm(range(0, trx_ini.height, chunk_size), desc="Processing chunks"):
- 
+
         chunk = trx_ini.slice(start_row, chunk_size)
 
         # Apply transformation matrix to the coordinates
         points = np.hstack([chunk.select(["x", "y"]).to_numpy(), np.ones((chunk.height, 1))])
         sparse_matrix = csr_matrix(transformation_matrix)
         transformed_points = sparse_matrix.dot(points.T).T[:, :2]
-        
+
         #transformed_points = np.dot(points, transformation_matrix.T)[:, :2]
 
         # Create new transformed columns and drop original x, y columns
@@ -124,14 +115,14 @@ def transform_transcript_coordinates(technology, path_trx, chunk_size, transform
 
     # Concatenate all chunks after processing
     trx = pl.concat(all_chunks)
-    
+
     return trx
 
 def make_trx_tiles(
     technology,
     path_trx,
-    path_transformation_matrix,
-    path_trx_tiles,
+    path_transformation_matrix=None,
+    path_trx_tiles=None,
     coarse_tile_factor=10,
     tile_size=250,
     chunk_size=1000000,
@@ -172,55 +163,75 @@ def make_trx_tiles(
         A dictionary containing the bounds of the processed data in both x and y directions.
     """
 
-    # Ensure the output directory exists
-    if not os.path.exists(path_trx_tiles):
-        os.makedirs(path_trx_tiles)
+    if technology == 'custom':
 
-    transformation_matrix = np.loadtxt(path_transformation_matrix)
-    
-    trx = transform_transcript_coordinates(technology, path_trx, chunk_size, transformation_matrix, image_scale)
+        # Get min and max x, y values
+        x_min, y_min = 0, 0
+        x_max, y_max = pl.read_parquet(path_trx).select([
+            pl.col("x_image_coords").max().alias("x_max"),
+            pl.col("y_image_coords").max().alias("y_max")
+        ]).row(0)
 
-    # Get min and max x, y values
-    x_min, y_min = 0, 0
-    x_max, y_max = trx.select([
-        pl.col("transformed_x").max().alias("x_max"),
-        pl.col("transformed_y").max().alias("y_max")
-    ]).row(0)
+        # Return the tile bounds
+        tile_bounds = {
+            "x_min": x_min,
+            "x_max": x_max,
+            "y_min": y_min,
+            "y_max": y_max,
+        }
 
-    # Calculate the number of fine-grain tiles globally
-    n_fine_tiles_x = int(np.ceil((x_max - x_min) / tile_size))
-    n_fine_tiles_y = int(np.ceil((y_max - y_min) / tile_size))
+        return tile_bounds
 
-    # Calculate the number of coarse-grain tiles
-    n_coarse_tiles_x = int(np.ceil((x_max - x_min) / (coarse_tile_factor * tile_size)))
-    n_coarse_tiles_y = int(np.ceil((y_max - y_min) / (coarse_tile_factor * tile_size)))
+    else:
 
-    # Use ThreadPoolExecutor for parallel processing of coarse-grain tiles
-    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = []
-        for i in range(n_coarse_tiles_x):
-            coarse_tile_x_min = x_min + i * (coarse_tile_factor * tile_size)
-            coarse_tile_x_max = coarse_tile_x_min + (coarse_tile_factor * tile_size)
+        # Ensure the output directory exists
+        if not os.path.exists(path_trx_tiles):
+            os.makedirs(path_trx_tiles)
 
-            for j in range(n_coarse_tiles_y):
-                coarse_tile_y_min = y_min + j * (coarse_tile_factor * tile_size)
-                coarse_tile_y_max = coarse_tile_y_min + (coarse_tile_factor * tile_size)
+        transformation_matrix = np.loadtxt(path_transformation_matrix)
+        trx = transform_transcript_coordinates(technology, path_trx, chunk_size, transformation_matrix, image_scale)
 
-                # Submit each coarse tile for parallel processing
-                futures.append(executor.submit(
-                    process_coarse_tile, trx, i, j, coarse_tile_x_min, coarse_tile_x_max, coarse_tile_y_min, coarse_tile_y_max, tile_size, path_trx_tiles, x_min, y_min, n_fine_tiles_x, n_fine_tiles_y, max_workers
-                ))
+        # Get min and max x, y values
+        x_min, y_min = 0, 0
+        x_max, y_max = trx.select([
+            pl.col("transformed_x").max().alias("x_max"),
+            pl.col("transformed_y").max().alias("y_max")
+        ]).row(0)
 
-        # Wait for all coarse tiles to complete
-        for future in tqdm(concurrent.futures.as_completed(futures), desc="Processing coarse tiles", unit="tile"):
-            future.result()  # Raise exceptions if any occurred during execution
+        # Calculate the number of fine-grain tiles globally
+        n_fine_tiles_x = int(np.ceil((x_max - x_min) / tile_size))
+        n_fine_tiles_y = int(np.ceil((y_max - y_min) / tile_size))
 
-    # Return the tile bounds
-    tile_bounds = {
-        "x_min": x_min,
-        "x_max": x_max,
-        "y_min": y_min,
-        "y_max": y_max,
-    }
+        # Calculate the number of coarse-grain tiles
+        n_coarse_tiles_x = int(np.ceil((x_max - x_min) / (coarse_tile_factor * tile_size)))
+        n_coarse_tiles_y = int(np.ceil((y_max - y_min) / (coarse_tile_factor * tile_size)))
 
-    return tile_bounds
+        # Use ThreadPoolExecutor for parallel processing of coarse-grain tiles
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = []
+            for i in range(n_coarse_tiles_x):
+                coarse_tile_x_min = x_min + i * (coarse_tile_factor * tile_size)
+                coarse_tile_x_max = coarse_tile_x_min + (coarse_tile_factor * tile_size)
+
+                for j in range(n_coarse_tiles_y):
+                    coarse_tile_y_min = y_min + j * (coarse_tile_factor * tile_size)
+                    coarse_tile_y_max = coarse_tile_y_min + (coarse_tile_factor * tile_size)
+
+                    # Submit each coarse tile for parallel processing
+                    futures.append(executor.submit(
+                        process_coarse_tile, trx, i, j, coarse_tile_x_min, coarse_tile_x_max, coarse_tile_y_min, coarse_tile_y_max, tile_size, path_trx_tiles, x_min, y_min, n_fine_tiles_x, n_fine_tiles_y, max_workers
+                    ))
+
+            # Wait for all coarse tiles to complete
+            for future in tqdm(concurrent.futures.as_completed(futures), desc="Processing coarse tiles", unit="tile"):
+                future.result()  # Raise exceptions if any occurred during execution
+
+        # Return the tile bounds
+        tile_bounds = {
+            "x_min": x_min,
+            "x_max": x_max,
+            "y_min": y_min,
+            "y_max": y_max,
+        }
+
+        return tile_bounds

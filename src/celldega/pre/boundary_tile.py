@@ -145,9 +145,9 @@ def get_cell_polygons(technology, path_cell_boundaries, path_output=None, path_m
 def make_cell_boundary_tiles(
     technology,
     path_cell_boundaries,
-    path_meta_cell_micron,
-    path_transformation_matrix,
     path_output,
+    path_meta_cell_micron=None,
+    path_transformation_matrix=None,
     coarse_tile_factor=20,
     tile_size=250,
     tile_bounds=None,
@@ -189,24 +189,29 @@ def make_cell_boundary_tiles(
     None
     """
 
-    transformation_matrix = pd.read_csv(path_transformation_matrix, header=None, sep=" ").values
-
     # Ensure the output directory exists
     if not os.path.exists(path_output):
         os.makedirs(path_output)
 
     if technology == 'custom':
         cells_orig = gpd.read_parquet(path_cell_boundaries)
+        cells_orig.rename(columns={'geometry_image_space': 'GEOMETRY'}, inplace=True)
+
+        cells_orig["center_x"] = cells_orig["GEOMETRY"].apply(lambda geom: geom.centroid.x)
+        cells_orig["center_y"] = cells_orig["GEOMETRY"].apply(lambda geom: geom.centroid.y)
+
     else:
+        transformation_matrix = pd.read_csv(path_transformation_matrix, header=None, sep=" ").values
+
         cells_orig = get_cell_polygons(technology, path_cell_boundaries, path_output, path_meta_cell_micron)
 
-    # Transform geometries
-    cells_orig["GEOMETRY"] = batch_transform_geometries(cells_orig["geometry"], transformation_matrix, image_scale)
+        # Transform geometries
+        cells_orig["GEOMETRY"] = batch_transform_geometries(cells_orig["geometry"], transformation_matrix, image_scale)
 
-    cells_orig["center_x"] = cells_orig["GEOMETRY"].apply(lambda geom: geom.centroid.x)
-    cells_orig["center_y"] = cells_orig["GEOMETRY"].apply(lambda geom: geom.centroid.y)
+        cells_orig["center_x"] = cells_orig["GEOMETRY"].apply(lambda geom: geom.centroid.x)
+        cells_orig["center_y"] = cells_orig["GEOMETRY"].apply(lambda geom: geom.centroid.y)
 
-    cells_orig["GEOMETRY"] = cells_orig["GEOMETRY"].apply(lambda x: x.wkt)
+        cells_orig["GEOMETRY"] = cells_orig["GEOMETRY"].apply(lambda x: x.wkt)
 
     # Calculate tile bounds and fine/coarse tiles
     x_min, x_max = tile_bounds["x_min"], tile_bounds["x_max"]

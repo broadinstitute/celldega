@@ -213,7 +213,7 @@ def process_inputs_for_quantification(technology_name, transformation_matrix, ba
         image_array = load_stain_img(image_file)
         return (transformed_cells, image_array)
 
-def img_zonal_stats(image_array, cell_polygons, technology_name):
+def calc_img_region_stats(image_array, cell_polygons, technology_name):
 
     """
     Computes zonal statistics (mean and sum intensity) for each cell polygon based on the provided stain image.
@@ -303,7 +303,7 @@ def img_zonal_stats(image_array, cell_polygons, technology_name):
 
     return cell_polygons, image_array
 
-def plot_zonal_stats(image_array, cell_polygons):
+def plot_region_stats(image_array, cell_polygons):
 
     """
     Plots spatial and statistical distributions of stain intensities across cell polygons.
@@ -383,19 +383,19 @@ def calculate_stain_intensities(image_file, cell_polygons, technology_name):
 
     Workflow:
     ---------
-    1. Calls `img_zonal_stats()` to compute mean and sum stain intensities for each polygon.
-    2. Calls `plot_zonal_stats()` to generate:
+    1. Calls `calc_img_region_stats()` to compute mean and sum stain intensities for each polygon.
+    2. Calls `plot_region_stats()` to generate:
         - An overlay of segmented cells on the stain image.
         - A histogram of log-normalized stain intensities.
     3. Returns updated cell polygons, the processed stain image, and intensity distribution statistics.
 
     """
 
-    cell_polygons, image_array = img_zonal_stats(image_array=image_file,
+    cell_polygons, image_array = calc_img_region_stats(image_array=image_file,
                                                  cell_polygons=cell_polygons,
                                                  technology_name=technology_name)
 
-    log_transformed_stain_intensities, bin_edges = plot_zonal_stats(image_array, cell_polygons)
+    log_transformed_stain_intensities, bin_edges = plot_region_stats(image_array, cell_polygons)
 
     return cell_polygons, image_array, log_transformed_stain_intensities, bin_edges
 

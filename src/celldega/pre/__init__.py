@@ -42,6 +42,8 @@ def cluster_gene_expression(technology, data_dir, path_landscape_files, cbg):
         ValueError: If the specified technology is not supported.
         FileNotFoundError: If the required input files are not found.
     """
+
+    print ("\n========Create cluster gene expression (df_sig)========")
     if technology != "Xenium":
         raise ValueError(f"Unsupported technology: {technology}. Currently, only 'Xenium' is supported.")
 
@@ -138,6 +140,8 @@ def create_cluster_and_meta_cluster(technology, data_dir, path_landscape_files):
         ValueError: If the specified technology is not supported.
         FileNotFoundError: If the required input files are not found.
     """
+
+    print ("\n========Create clusters and meta clusters files========")
     if technology != "Xenium":
         raise ValueError(f"Unsupported technology: {technology}. Currently, only 'Xenium' is supported.")
 
@@ -302,6 +306,8 @@ def make_meta_cell_image_coord(
     Returns:
         None
     """
+
+    print ("\n========Make meta cells in pixel space========")
     transformation_matrix = pd.read_csv(path_transformation_matrix, header=None, sep=" ").values
 
     if technology == "MERSCOPE":
@@ -334,6 +340,7 @@ def make_meta_cell_image_coord(
         meta_cell = meta_cell[["name", "geometry"]]
 
     meta_cell.to_parquet(path_meta_cell_image)
+    print ('Done.')
 
 
 def make_meta_gene(technology, path_cbg, path_output):
@@ -347,6 +354,8 @@ def make_meta_gene(technology, path_cbg, path_output):
     Returns:
         None
     """
+
+    print ("\n========Write meta gene files========")
     if technology == "MERSCOPE":
         cbg = pd.read_csv(path_cbg, index_col=0)
         genes = cbg.columns.tolist()
@@ -372,6 +381,7 @@ def make_meta_gene(technology, path_cbg, path_output):
         meta_gene[col] = meta_gene[col].sparse.to_dense()
 
     meta_gene.to_parquet(path_output)
+    print ("All meta gene files are succesfully saved.")
 
 
 def get_max_zoom_level(path_image_pyramid):
@@ -408,6 +418,8 @@ def save_landscape_parameters(
     Returns:
         None
     """
+
+    print ("\n========Save landscape parameters========")
     path_image_pyramid = f"{path_landscape_files}/pyramid_images/{image_name}"
     max_pyramid_zoom = get_max_zoom_level(path_image_pyramid)
 
@@ -422,6 +434,7 @@ def save_landscape_parameters(
     path_landscape_parameters = f"{path_landscape_files}/landscape_parameters.json"
     with open(path_landscape_parameters, "w") as file:
         json.dump(landscape_parameters, file, indent=4)
+    print ('Done.')
 
 
 def to_geometry(coord_list):
@@ -457,6 +470,8 @@ def write_xenium_transform(data_dir, path_landscape_files, transform_fname="xeni
         KeyError: If the transformation matrix is not found in the Zarr file under the expected path.
         Exception: If an unexpected error occurs while processing the Zarr file.
     """
+
+    print ("\n========Write xenium transform file from the Zarr folder========")
     # Path to the cells.zarr.zip file
     cells_zarr_path = os.path.join(data_dir, "cells.zarr.zip")
 
@@ -507,6 +522,8 @@ def _xenium_unzipper(target_dir):
         subprocess.CalledProcessError: If any of the commands fail to execute.
         FileNotFoundError: If the target directory does not exist.
     """
+
+    print ("\n========Unzips and extracts Xenium-related files========")
     # Check if the target directory exists
     if not os.path.exists(target_dir):
         raise FileNotFoundError(f"The directory '{target_dir}' does not exist.")
@@ -571,6 +588,8 @@ def _check_required_files(technology, data_dir):
         FileNotFoundError: If any required file or directory is missing.
         ValueError: If the specified technology is not supported.
     """
+
+    print ("\n========Checks if all required files or directories exist========")
     # Define required files or directories for each technology
     if technology == "Xenium":
         required_files_or_dir = [

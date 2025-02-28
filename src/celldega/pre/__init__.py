@@ -15,6 +15,7 @@ import subprocess
 import hashlib
 import base64
 from shapely.geometry import Point, Polygon
+import zarr
 
 import matplotlib.pyplot as plt
 from matplotlib.colors import to_hex
@@ -24,6 +25,74 @@ import json
 from .landscape import *
 from .trx_tile import *
 from .boundary_tile import *
+
+
+def cluster_gene_expression(technology, data_dir, path_landscape_files, cbg):
+    """
+    Calculates cluster-specific gene expression signatures for Xenium data.
+
+    Args:
+        technology (str): The technology used (e.g., "Xenium" or "MERSCOPE"). Currently, only "Xenium" is supported.
+        data_dir (str): Path to the directory containing the Xenium data.
+        path_landscape_files (str): Path to the directory where the gene expression signature file will be saved.
+        cbg (pd.DataFrame): A cell-by-gene matrix where rows represent cells and columns represent genes.
+                            The index of the DataFrame should match the cell IDs in the Xenium metadata.
+
+    Raises:
+        ValueError: If the specified technology is not supported.
+        FileNotFoundError: If the required input files are not found.
+    """
+    if technology != "Xenium":
+        raise ValueError(f"Unsupported technology: {technology}. Currently, only 'Xenium' is supported.")
+
+    cells_csv_path = f'{data_dir}/cells.csv.gz'
+    clusters_csv_path = f'{data_dir}/analysis/clustering/gene_expression_graphclust/clusters.csv'
+
+    # Load the cell metadata
+    usecols = ['cell_id', 'x_centroid', 'y_centroid']
+    meta_cell = pd.read_csv(cells_csv_path, index_col=0, usecols=usecols)
+    meta_cell.columns = ['center_x', 'center_y']
+
+    # Load the clustering data
+    df_meta = pd.read_csv(clusters_csv_path, index_col=0)
+    df_meta['Cluster'] = df_meta['Cluster'].astype('string')
+    df_meta.columns = ['cluster']
+
+    # Add cluster information to the cell metadata
+    meta_cell['cluster'] = df_meta['cluster']
+
+    # Calculate cluster-specific gene expression signatures
+    list_ser = []
+    for inst_cat in meta_cell['cluster'].unique().tolist():
+        if inst_cat is not None:
+            inst_cells = meta_cell[meta_cell['cluster'] == inst_cat].index.tolist()
+            inst_ser = cbg.loc[inst_cells].sum() / len(inst_cells)
+            inst_ser.name = inst_cat
+            list_ser.append(inst_ser)
+
+    # Combine the signatures into a DataFrame
+    df_sig = pd.concat(list_ser, axis=1)
+
+    # Handle potential multiindex issues
+    df_sig.columns = df_sig.columns.tolist()
+    df_sig.index = df_sig.index.tolist()
+
+    # Filter out unwanted genes
+    keep_genes = df_sig.index.tolist()
+    keep_genes = [x for x in keep_genes if 'Unassigned' not in x]
+    keep_genes = [x for x in keep_genes if 'NegControl' not in x]
+    keep_genes = [x for x in keep_genes if 'DeprecatedCodeword' not in x]
+
+    # Subset the DataFrame to keep only relevant genes and clusters
+    clusters = meta_cell['cluster'].unique().tolist()
+    df_sig = df_sig.loc[keep_genes, clusters]
+
+    # Save the gene expression signatures
+    df_sig.sparse.to_dense().to_parquet(f'{path_landscape_files}/df_sig.parquet')
+
+    print("Cluster-specific gene expression signatures saved successfully.")
+
+    return df_sig
 
 
 def convert_long_id_to_short(df):
@@ -53,6 +122,77 @@ def convert_long_id_to_short(df):
     df['cell_id'] = df['EntityID'].apply(hash_and_shorten_id)
 
     return df
+
+
+def create_cluster_and_meta_cluster(technology, data_dir, path_landscape_files):
+    """
+    Creates cell clusters and meta cluster files for visualization.
+    Currently supports only Xenium.
+
+    Args:
+        technology (str): The technology used (e.g., "Xenium" or "MERSCOPE"). Currently, only "Xenium" is supported.
+        data_dir (str): Path to the directory containing the Xenium data.
+        path_landscape_files (str): Path to the directory where the cluster and meta cluster files will be saved.
+
+    Raises:
+        ValueError: If the specified technology is not supported.
+        FileNotFoundError: If the required input files are not found.
+    """
+    if technology != "Xenium":
+        raise ValueError(f"Unsupported technology: {technology}. Currently, only 'Xenium' is supported.")
+
+    # Check if the cell metadata file exists
+    cell_metadata_path = f'{path_landscape_files}/cell_metadata.parquet'
+    if not os.path.exists(cell_metadata_path):
+        raise FileNotFoundError(f"The file 'cell_metadata.parquet' does not exist in directory '{path_landscape_files}'.")
+
+    # Create the cell_clusters directory if it doesn't exist
+    cell_clusters_dir = f'{path_landscape_files}/cell_clusters'
+    if not os.path.exists(cell_clusters_dir):
+        os.mkdir(cell_clusters_dir)
+
+    # Load the default clustering data (replace this with actual data loading logic)
+    default_clustering = pd.read_csv(f'{data_dir}/analysis/clustering/gene_expression_graphclust/clusters.csv', index_col=0)
+    default_clustering.columns =   default_clustering.columns.str.lower()
+    # Prepare the clustering data
+    default_clustering_ini = default_clustering.copy()
+    default_clustering_ini['cluster'] = default_clustering_ini['cluster'].astype('string')
+
+    # Load the cell metadata
+    meta_cell = pd.read_parquet(cell_metadata_path)
+
+    # Align the clustering data with the cell metadata
+    default_clustering = pd.DataFrame(index=meta_cell.index.tolist())
+    default_clustering.loc[default_clustering_ini.index.tolist(), 'cluster'] = default_clustering_ini['cluster']
+
+    # Save the clustering data
+    default_clustering.to_parquet(f'{cell_clusters_dir}/cluster.parquet')
+
+    # Count the number of cells in each cluster
+    ser_counts = default_clustering['cluster'].value_counts()
+    clusters = ser_counts.index.tolist()
+
+    # Assign colors to clusters
+    palettes = [plt.get_cmap(name).colors for name in plt.colormaps() if "tab" in name]
+    flat_colors = [color for palette in palettes for color in palette]
+    flat_colors_hex = [to_hex(color) for color in flat_colors]
+
+    colors = [
+        flat_colors_hex[i % len(flat_colors_hex)] if "Blank" not in cluster else "#FFFFFF"
+        for i, cluster in enumerate(clusters)
+    ]
+
+    # Create the meta cluster DataFrame
+    ser_color = pd.Series(colors, index=clusters, name='color')
+    meta_cluster = pd.DataFrame(ser_color)
+    meta_cluster['count'] = ser_counts
+
+    # Save the meta cluster data
+    meta_cluster.to_parquet(f'{cell_clusters_dir}/meta_cluster.parquet')
+
+    print("Cell clusters and meta cluster files created successfully.")
+
+    return clusters
 
 
 def reduce_image_size(image_path, scale_image=0.5, path_landscape_files=""):
@@ -298,6 +438,61 @@ def to_geometry(coord_list):
     if isinstance(coord_list[0], (int, float)):
         return Point(coord_list)
     return Polygon(coord_list)
+
+
+def write_xenium_transform(data_dir, path_landscape_files, transform_fname="xenium_transform.csv"):
+    """
+    Extracts the transformation matrix from the Xenium cells.zarr.zip file and saves it as a CSV file.
+
+    Args:
+        data_dir (str): Path to the directory containing the Xenium data (e.g., cells.zarr.zip).
+        path_landscape_files (str): Path to the directory where the transformation matrix CSV will be saved.
+        transform_fname (str, optional): Name of the output CSV file. Defaults to "xenium_transform.csv".
+
+    Returns:
+        numpy.ndarray: The full transformation matrix extracted from the Xenium cells.zarr.zip file.
+
+    Raises:
+        FileNotFoundError: If the cells.zarr.zip file does not exist in the specified `data_dir`.
+        KeyError: If the transformation matrix is not found in the Zarr file under the expected path.
+        Exception: If an unexpected error occurs while processing the Zarr file.
+    """
+    # Path to the cells.zarr.zip file
+    cells_zarr_path = os.path.join(data_dir, "cells.zarr.zip")
+
+    # Check if the cells.zarr.zip file exists
+    if not os.path.exists(cells_zarr_path):
+        raise FileNotFoundError(f"The file 'cells.zarr.zip' does not exist in directory '{data_dir}'.")
+
+    # Function to open a Zarr file
+    def open_zarr(path: str) -> zarr.Group:
+        store = (
+            zarr.ZipStore(path, mode="r")
+            if path.endswith(".zip")
+            else zarr.DirectoryStore(path)
+        )
+        return zarr.group(store=store)
+
+    try:
+        # Open the cells Zarr file
+        root = open_zarr(cells_zarr_path)
+
+        # Extract the transformation matrix
+        transformation_matrix = root['masks']['homogeneous_transform'][:]
+
+        # Save the transformation matrix as a CSV file
+        output_path = os.path.join(path_landscape_files, transform_fname)
+        pd.DataFrame(transformation_matrix[:3, :3]).to_csv(
+            output_path, sep=" ", header=False, index=False
+        )
+
+        print(f"Transformation matrix saved to '{output_path}'.")
+    except KeyError as e:
+        raise KeyError(f"Could not find the transformation matrix in the Zarr file: {e}")
+    except Exception as e:
+        raise Exception(f"An error occurred while processing the Zarr file: {e}")
+
+    return transformation_matrix
 
 
 def _xenium_unzipper(target_dir):

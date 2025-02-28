@@ -364,4 +364,58 @@ def _xenium_unzipper(target_dir):
         print(f"Restored working directory to '{original_dir}'.")
 
 
+def _check_required_files(technology, data_dir):
+    """
+    Checks if all required files or directories exist for the specified technology.
+
+    Args:
+        technology (str): The technology to check files for (e.g., "Xenium" or "MERSCOPE").
+        data_dir (str): Path to the directory containing the required files or directories.
+
+    Raises:
+        FileNotFoundError: If any required file or directory is missing.
+        ValueError: If the specified technology is not supported.
+    """
+    # Define required files or directories for each technology
+    if technology == "Xenium":
+        required_files_or_dir = [
+            'morphology_focus/morphology_focus_0000.ome.tif',
+            'cells.zarr',
+            'cells.csv',
+            'cells.csv.gz',
+            'cells.parquet',
+            'transcripts.parquet',
+            'cell_boundaries.parquet',
+            'cell_feature_matrix',  # directory
+            'analysis',  # directory
+        ]
+    elif technology == "MERSCOPE":
+        required_files_or_dir = [
+            'images/mosaic_DAPI_z1.tif',
+            'images/mosaic_Cellbound1_z1.tif',
+            'images/micron_to_mosaic_pixel_transform.csv',
+            'cell_metadata.csv',
+            'detected_transcripts.csv',
+            'cell_boundaries.parquet',
+            'cell_by_gene.csv',
+        ]
+    else:
+        raise ValueError(f"Unsupported technology: {technology}. Supported technologies are 'Xenium' and 'MERSCOPE'.")
+
+    # Check if each file or directory exists
+    missing_files_or_dir = []
+    for file in required_files_or_dir:
+        if not os.path.exists(os.path.join(data_dir, file)):
+            missing_files_or_dir.append(file)
+
+    # Raise an error if any files or directories are missing
+    if missing_files_or_dir:
+        raise FileNotFoundError(
+            f"The following required files or directories are missing in directory '{data_dir}' "
+            f"for technology '{technology}': {', '.join(missing_files_or_dir)}"
+        )
+    else:
+        print(f"All required files or directories for technology '{technology}' are present in '{data_dir}'.")
+
+
 __all__ = ["landscape", "trx_tile", "boundary_tile"]

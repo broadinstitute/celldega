@@ -11,6 +11,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import os
+import subprocess
 import hashlib
 import base64
 from shapely.geometry import Point, Polygon
@@ -297,6 +298,63 @@ def to_geometry(coord_list):
     if isinstance(coord_list[0], (int, float)):
         return Point(coord_list)
     return Polygon(coord_list)
+
+
+def _xenium_unzipper(target_dir):
+    """
+    Unzips and extracts Xenium-related files in the specified directory.
+    If the unzipped files already exist, the function skips those steps.
+
+    Args:
+        target_dir (str): Path to the directory containing the compressed files.
+
+    Raises:
+        subprocess.CalledProcessError: If any of the commands fail to execute.
+        FileNotFoundError: If the target directory does not exist.
+    """
+    # Check if the target directory exists
+    if not os.path.exists(target_dir):
+        raise FileNotFoundError(f"The directory '{target_dir}' does not exist.")
+
+    # Change to the target directory
+    os.chdir(target_dir)
+
+    try:
+        # Check if cells.csv already exists
+        if not os.path.exists("cells.csv"):
+            print("Decompressing cells.csv.gz...")
+            subprocess.run(["gzip", "-dk", "cells.csv.gz"], check=True)
+        else:
+            print("cells.csv already exists. Skipping decompression.")
+
+        # Check if cells.zarr directory already exists
+        if not os.path.exists("cells.zarr"):
+            print("Unzipping cells.zarr.zip...")
+            subprocess.run(["unzip", "cells.zarr.zip", "-d", "cells.zarr"], check=True)
+        else:
+            print("cells.zarr directory already exists. Skipping unzipping.")
+
+        # Check if analysis directory already exists
+        if not os.path.exists("analysis"):
+            print("Extracting analysis.tar.gz...")
+            subprocess.run(["tar", "-xvzf", "analysis.tar.gz"], check=True)
+        else:
+            print("analysis directory already exists. Skipping extraction.")
+
+        # Check if cell_feature_matrix directory already exists
+        if not os.path.exists("cell_feature_matrix"):
+            print("Extracting cell_feature_matrix.tar.gz...")
+            subprocess.run(["tar", "-xvzf", "cell_feature_matrix.tar.gz"], check=True)
+        else:
+            print("cell_feature_matrix directory already exists. Skipping extraction.")
+
+        print("All files have been successfully extracted or skipped.")
+    except subprocess.CalledProcessError as e:
+        print(f"An error occurred while executing a command: {e}")
+        raise
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+        raise
 
 
 __all__ = ["landscape", "trx_tile", "boundary_tile"]

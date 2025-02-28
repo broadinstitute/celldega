@@ -316,10 +316,13 @@ def _xenium_unzipper(target_dir):
     if not os.path.exists(target_dir):
         raise FileNotFoundError(f"The directory '{target_dir}' does not exist.")
 
-    # Change to the target directory
-    os.chdir(target_dir)
+    # Save the current working directory
+    original_dir = os.getcwd()
 
     try:
+        # Change to the target directory
+        os.chdir(target_dir)
+
         # Check if cells.csv already exists
         if not os.path.exists("cells.csv"):
             print("Decompressing cells.csv.gz...")
@@ -355,6 +358,10 @@ def _xenium_unzipper(target_dir):
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
         raise
+    finally:
+        # Restore the original working directory
+        os.chdir(original_dir)
+        print(f"Restored working directory to '{original_dir}'.")
 
 
 __all__ = ["landscape", "trx_tile", "boundary_tile"]

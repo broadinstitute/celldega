@@ -258,16 +258,20 @@ def create_image_tiles(
             f"The file 'morphology_focus_0000.ome.tif' does not exist in directory '{data_dir}'."
         )
 
-    # Load the morphology image
-    img = imread(file_path)
-
     # Process the DAPI channel
     if image_tile_layer == 'dapi' or image_tile_layer == 'all':
         f'generating DAPI image tiles ...'
 
+        # Load the morphology image
+        img = imread(file_path)
+
         if os.path.exists(f'{path_landscape_files}/pyramid_images/dapi_files'):
             pass
         else:
+
+            # Load the morphology image
+            img = imread(file_path)
+
             # Save the DAPI channel to a regular TIFF file
             imsave(f'{path_landscape_files}/dapi_output_regular.tif', img[..., 0])
 

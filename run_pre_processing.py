@@ -115,61 +115,12 @@ def main(sample, data_root_dir, tile_size, image_tile_layer, path_landscape_file
     df_sig = dega.pre.cluster_gene_expression(technology, data_dir, path_landscape_files, cbg)
 
     # Save landscape parameters
-    image_info = [
-        {
-            "name": "dapi",
-            "button_name": "DAPI",
-            "color": [0, 0, 255]
-        }
-    ]
-
-    if image_tile_layer == 'all':
-
-        image_info= [
-            {
-                "name": "dapi",
-                "button_name": "DAPI",
-                "color": [
-                    0,
-                    0,
-                    255
-                ]
-            },
-            {
-                "name": "bound",
-                "button_name": "BOUND",
-                "color": [
-                    0,
-                    255,
-                    0
-                ]
-            },
-            {
-                "name": "rna",
-                "button_name": "RNA",
-                "color": [
-                    255,
-                    0,
-                    0
-                ]
-            },
-            {
-                "name": "prot",
-                "button_name": "PROT",
-                "color": [
-                    255,
-                    255,
-                    255
-                ]
-            },
-            ] 
-
     dega.pre.save_landscape_parameters(
         technology, 
         path_landscape_files,
         'dapi_files',
         tile_size=tile_size,
-        image_info=image_info,
+        image_info=dega.pre.get_image_info(technology, image_tile_layer),
         image_format='.webp'
     )
 

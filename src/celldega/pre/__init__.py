@@ -26,6 +26,7 @@ import json
 from .landscape import *
 from .trx_tile import *
 from .boundary_tile import *
+from .image_info import  *
 
 
 def cluster_gene_expression(technology, data_dir, path_landscape_files, cbg):

@@ -99,7 +99,7 @@ def cluster_gene_expression(technology, data_dir, path_landscape_files, cbg):
     return df_sig
 
 
-def convert_long_id_to_short(df):
+def _convert_long_id_to_short(df):
     """Converts a column of long integer cell IDs in a DataFrame to a shorter, hash-based representation.
 
     Args:
@@ -244,10 +244,10 @@ def create_image_tiles(technology, data_dir, path_landscape_files, image_tile_la
             imsave(f'{path_landscape_files}/dapi_output_regular.tif', img[..., 0])
 
             # Reduce the image size
-            image_ds = reduce_image_size(f'{path_landscape_files}/dapi_output_regular.tif', scale_image=1, path_landscape_files=path_landscape_files)
+            image_ds = _reduce_image_size(f'{path_landscape_files}/dapi_output_regular.tif', scale_image=1, path_landscape_files=path_landscape_files)
 
             # Convert the image to PNG format
-            image_png = convert_to_png(image_ds)
+            image_png = _convert_to_png(image_ds)
 
             # Create a DeepZoom pyramid for the DAPI channel
             make_deepzoom_pyramid(image_png, f'{path_landscape_files}/pyramid_images/', 'dapi', suffix=".webp[Q=100]")
@@ -265,10 +265,10 @@ def create_image_tiles(technology, data_dir, path_landscape_files, image_tile_la
                 imsave(f'{path_landscape_files}/{channel}_output_regular.tif', image_data)
 
                 # Reduce the image size
-                image_ds = reduce_image_size(f'{path_landscape_files}/{channel}_output_regular.tif', scale_image=1, path_landscape_files=path_landscape_files)
+                image_ds = _reduce_image_size(f'{path_landscape_files}/{channel}_output_regular.tif', scale_image=1, path_landscape_files=path_landscape_files)
 
                 # Convert the image to PNG format
-                image_png = convert_to_png(image_ds)
+                image_png = _convert_to_png(image_ds)
 
                 # Create a DeepZoom pyramid for the channel
                 make_deepzoom_pyramid(image_png, f'{path_landscape_files}/pyramid_images/', channel, suffix=".webp[Q=100]")
@@ -276,7 +276,7 @@ def create_image_tiles(technology, data_dir, path_landscape_files, image_tile_la
     print("Image tiles created successfully.")
 
 
-def reduce_image_size(image_path, scale_image=0.5, path_landscape_files=""):
+def _reduce_image_size(image_path, scale_image=0.5, path_landscape_files=""):
     """Reduces the size of an image by a specified scale factor.
 
     Args:
@@ -297,7 +297,7 @@ def reduce_image_size(image_path, scale_image=0.5, path_landscape_files=""):
     return new_image_path
 
 
-def convert_to_jpeg(image_path, quality=80):
+def _convert_to_jpeg(image_path, quality=80):
     """Converts a TIFF image to a JPEG image with a specified quality score.
 
     Args:
@@ -314,7 +314,7 @@ def convert_to_jpeg(image_path, quality=80):
     return new_image_path
 
 
-def convert_to_png(image_path):
+def _convert_to_png(image_path):
     """Converts a TIFF image to a PNG image.
 
     Args:
@@ -330,7 +330,7 @@ def convert_to_png(image_path):
     return new_image_path
 
 
-def convert_to_webp(image_path, quality=100):
+def _convert_to_webp(image_path, quality=100):
     """Converts a TIFF image to a WEBP image with a specified quality score.
 
     Args:
@@ -389,7 +389,7 @@ def make_meta_cell_image_coord(
 
     if technology == "MERSCOPE":
         meta_cell = pd.read_csv(path_meta_cell_micron, usecols=["EntityID", "center_x", "center_y"])
-        meta_cell = convert_long_id_to_short(meta_cell)
+        meta_cell = _convert_long_id_to_short(meta_cell)
         meta_cell["name"] = meta_cell["cell_id"]
         meta_cell = meta_cell.set_index('cell_id')
     elif technology == "Xenium":
@@ -514,7 +514,7 @@ def save_landscape_parameters(
     print ('Done.')
 
 
-def to_geometry(coord_list):
+def _to_geometry(coord_list):
     """Converts a coordinates list to a Shapely geometry object (Point or Polygon).
 
     Args:

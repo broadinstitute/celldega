@@ -1,4 +1,3 @@
-
 def get_image_info(technology: str, image_tile_layer: str = 'dapi') -> list[dict]:
     """Retrieve image information for a given technology and image tile layer.
 
@@ -31,13 +30,7 @@ def get_image_info(technology: str, image_tile_layer: str = 'dapi') -> list[dict
 
     # Handle 'dapi' case for both Xenium and MERSCOPE
     if image_tile_layer == 'dapi':
-        image_info = [
-            {
-                "name": "dapi",
-                "button_name": "DAPI",
-                "color": [0, 0, 255]
-            }
-        ]
+        image_info = [{"name": "dapi", "button_name": "DAPI", "color": [0, 0, 255]}]
     # Handle 'all' case (only for Xenium)
     elif image_tile_layer == 'all':
         if technology != 'Xenium':
@@ -46,26 +39,10 @@ def get_image_info(technology: str, image_tile_layer: str = 'dapi') -> list[dict
                 f"Received technology: {technology}."
             )
         image_info = [
-            {
-                "name": "dapi",
-                "button_name": "DAPI",
-                "color": [0, 0, 255]
-            },
-            {
-                "name": "bound",
-                "button_name": "BOUND",
-                "color": [0, 255, 0]
-            },
-            {
-                "name": "rna",
-                "button_name": "RNA",
-                "color": [255, 0, 0]
-            },
-            {
-                "name": "prot",
-                "button_name": "PROT",
-                "color": [255, 255, 255]
-            }
+            {"name": "dapi", "button_name": "DAPI", "color": [0, 0, 255]},
+            {"name": "bound", "button_name": "BOUND", "color": [0, 255, 0]},
+            {"name": "rna", "button_name": "RNA", "color": [255, 0, 0]},
+            {"name": "prot", "button_name": "PROT", "color": [255, 255, 255]},
         ]
 
     return image_info

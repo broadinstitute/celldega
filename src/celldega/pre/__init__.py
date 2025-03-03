@@ -261,10 +261,7 @@ def create_image_tiles(
     # Process the DAPI channel
     if image_tile_layer == 'dapi' or image_tile_layer == 'all':
         f'generating DAPI image tiles ...'
-
-        # Load the morphology image
-        img = imread(file_path)
-
+        
         if os.path.exists(f'{path_landscape_files}/pyramid_images/dapi_files'):
             pass
         else:

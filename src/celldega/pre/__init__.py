@@ -16,6 +16,7 @@ import hashlib
 import base64
 from shapely.geometry import Point, Polygon
 import zarr
+from skimage.io import imread, imsave
 
 import matplotlib.pyplot as plt
 from matplotlib.colors import to_hex
@@ -197,6 +198,81 @@ def create_cluster_and_meta_cluster(technology, data_dir, path_landscape_files):
     print("Cell clusters and meta cluster files created successfully.")
 
     return clusters
+
+
+def create_image_tiles(technology, data_dir, path_landscape_files, image_tile_layer='dapi'):
+    """
+    Creates image tiles for visualization from the Xenium morphology image.
+
+    Args:
+        technology (str): The technology used (e.g., "Xenium" or "MERSCOPE"). Currently, only "Xenium" is supported.
+        data_dir (str): Path to the directory containing the Xenium data (e.g., morphology_focus_0000.ome.tif).
+        path_landscape_files (str): Path to the directory where the image tiles and pyramid will be saved.
+        image_tile_layer (str, optional): Specifies which image layers to process. Options are 'dapi' (default) or 'all'.
+
+    Raises:
+        ValueError: If the specified technology is not supported or if the image_tile_layer is invalid.
+        FileNotFoundError: If the required input image file is not found.
+    """
+
+    print("\n========Generating image tiles========")
+    if technology != "Xenium":
+        raise ValueError(f"Unsupported technology: {technology}. Currently, only 'Xenium' is supported.")
+
+    if image_tile_layer not in ['dapi', 'all']:
+        raise ValueError(f"Invalid image_tile_layer: {image_tile_layer}. Must be 'dapi' or 'all'.")
+
+    # Define the path to the morphology image
+    file_path = f"{data_dir}/morphology_focus/morphology_focus_0000.ome.tif"
+
+    # Check if the morphology image exists
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"The file 'morphology_focus_0000.ome.tif' does not exist in directory '{data_dir}'.")
+
+    # Load the morphology image
+    img = imread(file_path)
+
+    # Process the DAPI channel
+    if image_tile_layer == 'dapi' or image_tile_layer == 'all':
+        f'generating DAPI image tiles ...'
+
+        if os.path.exists(f'{path_landscape_files}/pyramid_images/dapi_files'):
+            pass
+        else:
+            # Save the DAPI channel to a regular TIFF file
+            imsave(f'{path_landscape_files}/dapi_output_regular.tif', img[..., 0])
+
+            # Reduce the image size
+            image_ds = reduce_image_size(f'{path_landscape_files}/dapi_output_regular.tif', scale_image=1, path_landscape_files=path_landscape_files)
+
+            # Convert the image to PNG format
+            image_png = convert_to_png(image_ds)
+
+            # Create a DeepZoom pyramid for the DAPI channel
+            make_deepzoom_pyramid(image_png, f'{path_landscape_files}/pyramid_images/', 'dapi', suffix=".webp[Q=100]")
+
+    # Process additional channels if image_tile_layer is 'all'
+    if image_tile_layer == 'all':
+        for idx, channel in enumerate(['bound', 'rna', 'prot']):
+            print (f'generating {channel} image tiles ...')
+
+            if os.path.exists(f'{path_landscape_files}/pyramid_images/{channel}_files'):
+                pass
+            else:
+                # Extract and process each channel
+                image_data = img[..., idx + 1] * 2  # Adjust intensity for better visualization
+                imsave(f'{path_landscape_files}/{channel}_output_regular.tif', image_data)
+
+                # Reduce the image size
+                image_ds = reduce_image_size(f'{path_landscape_files}/{channel}_output_regular.tif', scale_image=1, path_landscape_files=path_landscape_files)
+
+                # Convert the image to PNG format
+                image_png = convert_to_png(image_ds)
+
+                # Create a DeepZoom pyramid for the channel
+                make_deepzoom_pyramid(image_png, f'{path_landscape_files}/pyramid_images/', channel, suffix=".webp[Q=100]")
+
+    print("Image tiles created successfully.")
 
 
 def reduce_image_size(image_path, scale_image=0.5, path_landscape_files=""):
@@ -523,7 +599,7 @@ def _xenium_unzipper(target_dir):
         FileNotFoundError: If the target directory does not exist.
     """
 
-    print ("\n========Unzips and extracts Xenium-related files========")
+    print ("\n========Unzip and extract Xenium-related files========")
     # Check if the target directory exists
     if not os.path.exists(target_dir):
         raise FileNotFoundError(f"The directory '{target_dir}' does not exist.")
@@ -589,7 +665,7 @@ def _check_required_files(technology, data_dir):
         ValueError: If the specified technology is not supported.
     """
 
-    print ("\n========Checks if all required files or directories exist========")
+    print ("\n========Check if all required files or directories exist========")
     # Define required files or directories for each technology
     if technology == "Xenium":
         required_files_or_dir = [

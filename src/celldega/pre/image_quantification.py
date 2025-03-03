@@ -33,7 +33,7 @@ def open_zarr(path: str) -> zarr.Group:
     )
     return zarr.group(store=store)
 
-def load_stain_img(image_file):
+def load_stain_img(image_file, technology_name):
 
     """
     Load a subset of a TIFF image based on the specified coordinates.
@@ -42,22 +42,39 @@ def load_stain_img(image_file):
     -----------
     image_file : str
         Path to the TIFF image file.
+    technology_name : str
+        Name of the technology.
 
     Returns:
     --------
     numpy.ndarray
-        A 2D array representing the extracted region of the image.
+        A 2D array or a list containing 2D arrays representing the extracted region of the image.
 
     """
 
-    with tifffile.TiffFile(image_file, is_ome=False) as image_file:
+    if technology_name == 'MERSCOPE':
 
-        series = image_file.series[0]
-        plane = series.pages[0]
+        with tifffile.TiffFile(image_file, is_ome=False) as image_file:
 
-        subset_image = plane.asarray()
+            series = image_file.series[0]
+            plane = series.pages[0]
 
-    return subset_image
+            subset_image = plane.asarray()
+
+        return subset_image
+
+    elif technology_name == 'Xenium':
+
+        subset_image = []
+        with tifffile.TiffFile(image_file, is_ome=True) as image_file:
+
+            series = image_file.series[0]
+            plane = series.pages
+
+        for index in range(4):
+            subset_image.append(plane[index].asarray())
+
+        return subset_image
 
 def process_row(row):
 
@@ -115,41 +132,75 @@ def image_contrast_adjustment(base_path, technology_name, contrast_factor=5, int
 
     if technology_name == 'MERSCOPE':
         image_file = (glob.glob(os.path.join(base_path, "images", "*.tif")) + glob.glob(os.path.join(base_path, "images", "*.tiff")))[0]
-        stain_image_array = load_stain_img(image_file)
+        stain_image_array = load_stain_img(image_file, technology_name)
         stain_image = Image.fromarray(stain_image_array).convert("L")
+
+        # Plot the original stain image
+        plt.figure(figsize=(10, 10))
+        plt.imshow(stain_image, cmap='gray')
+        plt.title("Original Stain Image")
+
+        enhancer = ImageEnhance.Contrast(stain_image)
+        stain_image_with_contrast = enhancer.enhance(contrast_factor)
+
+        # Plot the stain image after contrast adjustment
+        plt.figure(figsize=(10, 10))
+        plt.imshow(stain_image_with_contrast, cmap='gray')
+        plt.title(f"Stain Image with Contrast Factor {contrast_factor}")
+
+        stain_image_with_contrast = np.array(stain_image_with_contrast)
+        stain_bright_regions = np.where(stain_image_with_contrast >= intensity_threshold, stain_image_with_contrast, 0)
+
+        # Plot the filtered bright regions
+        plt.figure(figsize=(10, 10))
+        plt.imshow(stain_bright_regions, cmap='hot')
+        plt.title(f"Filtered Bright Regions (Threshold: {intensity_threshold})")
+        plt.show()
+        plt.close('all')
+
+        tifffile.imwrite(f"{base_path}/contrast_adjusted_stain_image.tif", stain_bright_regions.astype(np.uint8))
+        print("Contrast adjusted image (.tif) saved.")
+
+        return stain_bright_regions
 
     elif technology_name == 'Xenium':
         image_file = (glob.glob(os.path.join(base_path, "morphology_focus", "*.tif")) + glob.glob(os.path.join(base_path, "morphology_focus", "*.tiff")))[0]
-        stain_image_array = load_stain_img(image_file)
-        stain_image = Image.fromarray(stain_image_array).convert("L")
+        stain_image_array = load_stain_img(image_file, technology_name)
 
-    # Plot the original stain image
-    plt.figure(figsize=(10, 10))
-    plt.imshow(stain_image, cmap='gray')
-    plt.title("Original Stain Image")
+        stain_bright_regions_list = []
 
-    enhancer = ImageEnhance.Contrast(stain_image)
-    stain_image_with_contrast = enhancer.enhance(contrast_factor)
+        for index in range(4):
+            stain_image = Image.fromarray(stain_image_array[index]).convert("L")
 
-    # Plot the stain image after contrast adjustment
-    plt.figure(figsize=(10, 10))
-    plt.imshow(stain_image_with_contrast, cmap='gray')
-    plt.title(f"Stain Image with Contrast Factor {contrast_factor}")
+            # Plot the original stain image
+            plt.figure(figsize=(10, 10))
+            plt.imshow(stain_image, cmap='gray')
+            plt.title(f"Original Stain Image - Index {index}")
 
-    stain_image_with_contrast = np.array(stain_image_with_contrast)
-    stain_bright_regions = np.where(stain_image_with_contrast >= intensity_threshold, stain_image_with_contrast, 0)
+            enhancer = ImageEnhance.Contrast(stain_image)
+            stain_image_with_contrast = enhancer.enhance(contrast_factor)
 
-    # Plot the filtered bright regions
-    plt.figure(figsize=(10, 10))
-    plt.imshow(stain_bright_regions, cmap='hot')
-    plt.title(f"Filtered Bright Regions (Threshold: {intensity_threshold})")
-    plt.show()
-    plt.close('all')
+            # Plot the stain image after contrast adjustment
+            plt.figure(figsize=(10, 10))
+            plt.imshow(stain_image_with_contrast, cmap='gray')
+            plt.title(f"Stain Image with Contrast Factor {contrast_factor} - Index {index}")
 
-    tifffile.imwrite(f"{base_path}/contrast_adjusted_stain_image.tif", stain_bright_regions.astype(np.uint8))
-    print("Contrast adjusted image (.tif) saved.")
+            stain_image_with_contrast = np.array(stain_image_with_contrast)
+            stain_bright_regions = np.where(stain_image_with_contrast >= intensity_threshold, stain_image_with_contrast, 0)
 
-    return stain_bright_regions
+            # Plot the filtered bright regions
+            plt.figure(figsize=(10, 10))
+            plt.imshow(stain_bright_regions, cmap='hot')
+            plt.title(f"Filtered Bright Regions (Threshold: {intensity_threshold}) - Index {index}")
+            plt.show()
+            plt.close('all')
+
+            tifffile.imwrite(f"{base_path}/contrast_adjusted_stain_image_{index}.tif", stain_bright_regions.astype(np.uint8))
+            print(f"Contrast adjusted image (.tif) saved - Index {index}")
+
+            stain_bright_regions_list.append(stain_bright_regions)
+
+        return stain_bright_regions_list
 
 def process_inputs_for_quantification(technology_name, transformation_matrix, base_path, image_contrast_required=False, contrast_factor=5, intensity_threshold=100):
 
@@ -210,7 +261,7 @@ def process_inputs_for_quantification(technology_name, transformation_matrix, ba
         contrast_adjusted_image = image_contrast_adjustment(base_path=base_path, technology_name=technology_name, contrast_factor=contrast_factor, intensity_threshold=intensity_threshold)
         return (transformed_cells, contrast_adjusted_image)
     else:
-        image_array = load_stain_img(image_file)
+        image_array = load_stain_img(image_file, technology_name)
         return (transformed_cells, image_array)
 
 def calc_img_region_stats(image_array, cell_polygons, technology_name):
@@ -242,38 +293,43 @@ def calc_img_region_stats(image_array, cell_polygons, technology_name):
 
     if technology_name == 'Xenium':
 
-        meta = {
-                "driver": "GTiff",
-                "dtype": image_array.dtype,
-                "count": 1 if image_array.ndim == 2 else image_array.shape[0],  # Handle single/multi-channel
-                "height": image_array.shape[-2],
-                "width": image_array.shape[-1],
-                "nodata": None,
-        }
+        for index in range(4):
 
-        with MemoryFile() as memfile:
-            with memfile.open(**meta) as src:
-                src.write(image_array if image_array.ndim == 2 else image_array[0], 1)
+            meta = {
+                    "driver": "GTiff",
+                    "dtype": image_array[index].dtype,
+                    "count": 1 if image_array[index].ndim == 2 else image_array[index].shape[0],  # Handle single/multi-channel
+                    "height": image_array[index].shape[-2],
+                    "width": image_array[index].shape[-1],
+                    "nodata": None,
+            }
 
-                image_crs = src.crs
+            with MemoryFile() as memfile:
+                with memfile.open(**meta) as src:
+                    src.write(image_array[index] if image_array[index].ndim == 2 else image_array[index][0], 1)
 
-                if cell_polygons.crs and cell_polygons.crs != image_crs:
-                    cell_polygons = cell_polygons.to_crs(image_crs)
+                    image_crs = src.crs
 
-                intensities, sum_intensities = [], []
-                for polygon in cell_polygons.geometry:
-                    try:
-                        out_image, _ = mask(src, [polygon], crop=True)
-                        pixel_values = out_image[0].flatten()
-                        pixel_values = pixel_values[pixel_values != src.nodata]
+                    if cell_polygons.crs and cell_polygons.crs != image_crs:
+                        cell_polygons = cell_polygons.to_crs(image_crs)
 
-                        mean_intensity = pixel_values.mean() if len(pixel_values) > 0 else 0
-                        sum_intensity = np.sum(pixel_values) if len(pixel_values) > 0 else 0
-                    except ValueError:
-                        mean_intensity, sum_intensity = 0, 0
+                    intensities, sum_intensities = [], []
+                    for polygon in cell_polygons.geometry:
+                        try:
+                            out_image, _ = mask(src, [polygon], crop=True)
+                            pixel_values = out_image[0].flatten()
+                            pixel_values = pixel_values[pixel_values != src.nodata]
 
-                    intensities.append(mean_intensity)
-                    sum_intensities.append(sum_intensity)
+                            mean_intensity = pixel_values.mean() if len(pixel_values) > 0 else 0
+                            sum_intensity = np.sum(pixel_values) if len(pixel_values) > 0 else 0
+                        except ValueError:
+                            mean_intensity, sum_intensity = 0, 0
+
+                        intensities.append(mean_intensity)
+                        sum_intensities.append(sum_intensity)
+
+                    cell_polygons[f"{index} image mean_stain_intensity"] = intensities
+                    cell_polygons[f"{index} image sum_stain_intensity"] = sum_intensities
 
     elif technology_name == 'MERSCOPE':
 
@@ -298,12 +354,12 @@ def calc_img_region_stats(image_array, cell_polygons, technology_name):
                 intensities.append(mean_intensity)
                 sum_intensities.append(sum_intensity)
 
-    cell_polygons["mean_stain_intensity"] = intensities
-    cell_polygons["sum_stain_intensity"] = sum_intensities
+        cell_polygons["mean_stain_intensity"] = intensities
+        cell_polygons["sum_stain_intensity"] = sum_intensities
 
     return cell_polygons, image_array
 
-def plot_region_stats(image_array, cell_polygons):
+def plot_region_stats(image_array, cell_polygons, technology_name):
 
     """
     Plots spatial and statistical distributions of stain intensities across cell polygons.
@@ -328,32 +384,71 @@ def plot_region_stats(image_array, cell_polygons):
 
     """
 
-    log_transformed_stain_intensities = np.log1p(cell_polygons['sum_stain_intensity'])
+    if technology_name == 'Xenium':
 
-    # Normalize the log-transformed intensities to the range [0, 1]
-    log_normalized_stain_intensities = (log_transformed_stain_intensities - log_transformed_stain_intensities.min()) / \
-                                     (log_transformed_stain_intensities.max() - log_transformed_stain_intensities.min())
+        log_transformed_stain_intensities_dict = {}
+        bin_edges_dict = {}
 
-    print("Plotting cells with total stain intensity greater than zero:")
+        for index in range(4):
+            log_transformed_stain_intensities = np.log1p(cell_polygons[f"{index} image sum_stain_intensity"])
 
-    fig, ax = plt.subplots(figsize=(40, 40))
-    ax.imshow(image_array)
-    cell_polygons.plot(ax=ax, alpha=1, linewidth=1, facecolor='none', edgecolor='red')
-    plt.title("Overlay of all stain-positive cells on stain image", fontsize=40)
-    plt.xticks(fontsize=40)
-    plt.yticks(fontsize=40)
+            log_transformed_stain_intensities_dict[index] = log_transformed_stain_intensities
 
-    fig, ax = plt.subplots(figsize=(15, 9))
-    counts, bin_edges, _ = plt.hist(log_normalized_stain_intensities, bins=50, edgecolor='black', alpha=0.7)
-    plt.title('Distribution of Log-Normalized Stain Intensities')
-    plt.xlabel('Log-Normalized Intensity Values')
-    plt.ylabel('Frequency of Occurrence')
-    plt.xticks([min_bin_edge for min_bin_edge in bin_edges], fontsize=10, rotation=45)
-    plt.yticks(fontsize=10)
-    plt.show()
-    plt.close('all')
+            # Normalize the log-transformed intensities to the range [0, 1]
+            log_normalized_stain_intensities = (log_transformed_stain_intensities - log_transformed_stain_intensities.min()) / \
+                                            (log_transformed_stain_intensities.max() - log_transformed_stain_intensities.min())
 
-    return log_transformed_stain_intensities, bin_edges
+            print(f"Plotting cells with total stain intensity (for Image Index {index}) greater than zero:")
+
+            fig, ax = plt.subplots(figsize=(40, 40))
+            ax.imshow(image_array[index])
+            cell_polygons.plot(ax=ax, alpha=1, linewidth=1, facecolor='none', edgecolor='red')
+            plt.title(f"Overlay of all stain-positive cells on stain image - index {index}", fontsize=40)
+            plt.xticks(fontsize=40)
+            plt.yticks(fontsize=40)
+
+            fig, ax = plt.subplots(figsize=(15, 9))
+            counts, bin_edges, _ = plt.hist(log_normalized_stain_intensities, bins=50, edgecolor='black', alpha=0.7)
+            plt.title(f'Distribution of Log-Normalized Stain Intensities of Image Index {index}')
+            plt.xlabel('Log-Normalized Intensity Values')
+            plt.ylabel('Frequency of Occurrence')
+            plt.xticks([min_bin_edge for min_bin_edge in bin_edges], fontsize=10, rotation=45)
+            plt.yticks(fontsize=10)
+            plt.show()
+            plt.close('all')
+
+            bin_edges_dict[index] = bin_edges
+
+        return log_transformed_stain_intensities_dict, bin_edges_dict
+
+    elif technology_name == 'MERSCOPE':
+
+        log_transformed_stain_intensities = np.log1p(cell_polygons["sum_stain_intensity"])
+
+        # Normalize the log-transformed intensities to the range [0, 1]
+        log_normalized_stain_intensities = (log_transformed_stain_intensities - log_transformed_stain_intensities.min()) / \
+                                        (log_transformed_stain_intensities.max() - log_transformed_stain_intensities.min())
+
+        print("Plotting cells with total stain intensity greater than zero:")
+
+        fig, ax = plt.subplots(figsize=(40, 40))
+        ax.imshow(image_array)
+        cell_polygons.plot(ax=ax, alpha=1, linewidth=1, facecolor='none', edgecolor='red')
+        plt.title("Overlay of all stain-positive cells on stain image", fontsize=40)
+        plt.xticks(fontsize=40)
+        plt.yticks(fontsize=40)
+
+        fig, ax = plt.subplots(figsize=(15, 9))
+        counts, bin_edges, _ = plt.hist(log_normalized_stain_intensities, bins=50, edgecolor='black', alpha=0.7)
+        plt.title('Distribution of Log-Normalized Stain Intensities}')
+        plt.xlabel('Log-Normalized Intensity Values')
+        plt.ylabel('Frequency of Occurrence')
+        plt.xticks([min_bin_edge for min_bin_edge in bin_edges], fontsize=10, rotation=45)
+        plt.yticks(fontsize=10)
+        plt.show()
+        plt.close('all')
+
+        return log_transformed_stain_intensities, bin_edges
 
 def calculate_stain_intensities(image_file, cell_polygons, technology_name):
 
@@ -395,19 +490,19 @@ def calculate_stain_intensities(image_file, cell_polygons, technology_name):
                                                  cell_polygons=cell_polygons,
                                                  technology_name=technology_name)
 
-    log_transformed_stain_intensities, bin_edges = plot_region_stats(image_array, cell_polygons)
+    log_transformed_stain_intensities, bin_edges = plot_region_stats(image_array, cell_polygons, technology_name)
 
     return cell_polygons, image_array, log_transformed_stain_intensities, bin_edges
 
-def filtering_stain_positive_cells(filtering_positive_cells_threshold, bin_edges, log_transformed_stain_intensities, cell_polygons_with_metadata, base_path, image_array, subset_bounds, use_contrast_adjusted_image=False, contrast_limits=None):
+def filtering_stain_positive_cells(filtering_positive_cells_threshold, bin_edges, log_transformed_stain_intensities, cell_polygons_with_metadata, base_path, image_array, subset_bounds, technology_name, contrast_limits=None):
 
     """
     Filters stain-positive cells based on a user-defined stain intensity threshold and overlays them on the stain image.
 
     Parameters:
     -----------
-    filtering_positive_cells_threshold : float
-        The log-normalized intensity threshold used to filter stain-positive cells.
+    filtering_positive_cells_threshold : array
+        The log-normalized intensity thresholds used to filter stain-positive cells.
     bin_edges : np.ndarray
         Bin edges from the histogram binning of log-transformed stain intensities.
     log_transformed_stain_intensities : np.ndarray
@@ -446,37 +541,69 @@ def filtering_stain_positive_cells(filtering_positive_cells_threshold, bin_edges
 
     """
 
-    if use_contrast_adjusted_image:
-        image_array = tifffile.imread(f"{base_path}/contrast_adjusted_stain_image.tif")
+    if technology_name == 'MERSCOPE':
 
-    subset_image_array = image_array[subset_bounds[0]:subset_bounds[1], subset_bounds[2]:subset_bounds[3]]
+        subset_image_array = image_array[subset_bounds[0]:subset_bounds[1], subset_bounds[2]:subset_bounds[3]]
 
-    if contrast_limits is None:
-        vmin = np.quantile(subset_image_array, 0.01)  # 1st percentile (low-intensity cutoff)
-        vmax = np.quantile(subset_image_array, 0.99)  # 99th percentile (high-intensity cutoff)
-    else:
-        vmin, vmax = contrast_limits
+        if contrast_limits is None:
+            vmin = np.quantile(subset_image_array, 0.01)  # 1st percentile (low-intensity cutoff)
+            vmax = np.quantile(subset_image_array, 0.99)  # 99th percentile (high-intensity cutoff)
+        else:
+            vmin, vmax = contrast_limits
 
-    bin_index = np.where((bin_edges[:-1] <= filtering_positive_cells_threshold) & (bin_edges[1:] > filtering_positive_cells_threshold))[0][0]
-    bin_start, bin_end = bin_edges[bin_index], bin_edges[bin_index + 1]
-    original_start = np.expm1(bin_start * (log_transformed_stain_intensities.max() - log_transformed_stain_intensities.min()) + log_transformed_stain_intensities.min())
+        bin_index = np.where((bin_edges[:-1] <= filtering_positive_cells_threshold[0]) & (bin_edges[1:] > filtering_positive_cells_threshold[0]))[0][0]
+        bin_start, bin_end = bin_edges[bin_index], bin_edges[bin_index + 1]
+        original_start = np.expm1(bin_start * (log_transformed_stain_intensities.max() - log_transformed_stain_intensities.min()) + log_transformed_stain_intensities.min())
 
-    bbox = box(subset_bounds[2], subset_bounds[0], subset_bounds[3], subset_bounds[1])
+        bbox = box(subset_bounds[2], subset_bounds[0], subset_bounds[3], subset_bounds[1])
 
-    subset_cells = cell_polygons_with_metadata[cell_polygons_with_metadata.geometry.within(bbox)]
-    filtered_cells = subset_cells[subset_cells['sum_stain_intensity'] > original_start]
+        subset_cells = cell_polygons_with_metadata[cell_polygons_with_metadata.geometry.within(bbox)]
+        filtered_cells = subset_cells[subset_cells['sum_stain_intensity'] > original_start]
 
-    print(f"Plotting cells with total stain intensity greater than the selected threshold of {filtering_positive_cells_threshold}:")
-    fig, ax = plt.subplots(figsize=(40, 40))
-    ax.imshow(subset_image_array, vmin=vmin, vmax=vmax, extent=[subset_bounds[2], subset_bounds[3], subset_bounds[1], subset_bounds[0]])
-    filtered_cells.plot(ax=ax, alpha=1, linewidth=1, facecolor='none', edgecolor='red')
-    plt.title("Overlay of filtered stain-positive cells on stain image", fontsize=35)
-    plt.xticks(fontsize=35)
-    plt.yticks(fontsize=35)
-    plt.show()
-    plt.close('all')
+        print(f"Plotting cells with total stain intensity greater than the selected threshold of {filtering_positive_cells_threshold[0]}:")
+        fig, ax = plt.subplots(figsize=(40, 40))
+        ax.imshow(subset_image_array, vmin=vmin, vmax=vmax, extent=[subset_bounds[2], subset_bounds[3], subset_bounds[1], subset_bounds[0]])
+        filtered_cells.plot(ax=ax, alpha=1, linewidth=1, facecolor='none', edgecolor='red')
+        plt.title("Overlay of filtered stain-positive cells on stain image", fontsize=35)
+        plt.xticks(fontsize=35)
+        plt.yticks(fontsize=35)
+        plt.show()
+        plt.close('all')
 
-    filtered_cells.to_csv(f'{base_path}/filtered_stain_positive_cells.csv')
+        filtered_cells.to_csv(f'{base_path}/filtered_stain_positive_cells.csv')
+
+    elif technology_name == 'Xenium':
+
+        bbox = box(subset_bounds[2], subset_bounds[0], subset_bounds[3], subset_bounds[1])
+        subset_cells = cell_polygons_with_metadata[cell_polygons_with_metadata.geometry.within(bbox)]
+
+        for index in range(4):
+
+            subset_image_array = image_array[index][subset_bounds[0]:subset_bounds[1], subset_bounds[2]:subset_bounds[3]]
+
+            bin_index = np.where((bin_edges[index][:-1] <= filtering_positive_cells_threshold[index]) & (bin_edges[index][1:] > filtering_positive_cells_threshold[index]))[0][0]
+            bin_start, bin_end = bin_edges[index][bin_index], bin_edges[index][bin_index + 1]
+            original_start = np.expm1(bin_start * (log_transformed_stain_intensities[index].max() - log_transformed_stain_intensities[index].min()) + log_transformed_stain_intensities[index].min())
+
+            filtered_cells = subset_cells[subset_cells[f"{index} image sum_stain_intensity"] > original_start]
+
+            if contrast_limits is None:
+                vmin = np.quantile(subset_image_array, 0.01)  # 1st percentile (low-intensity cutoff)
+                vmax = np.quantile(subset_image_array, 0.99)  # 99th percentile (high-intensity cutoff)
+            else:
+                vmin, vmax = contrast_limits
+
+            print(f"Plotting cells with total stain intensity in Image index {index} greater than the selected threshold of {filtering_positive_cells_threshold[index]}:")
+            fig, ax = plt.subplots(figsize=(40, 40))
+            ax.imshow(subset_image_array, vmin=vmin, vmax=vmax, extent=[subset_bounds[2], subset_bounds[3], subset_bounds[1], subset_bounds[0]])
+            filtered_cells.plot(ax=ax, alpha=1, linewidth=1, facecolor='none', edgecolor='red')
+            plt.title(f"Overlay of filtered stain-positive cells on stain image - index {index}", fontsize=35)
+            plt.xticks(fontsize=35)
+            plt.yticks(fontsize=35)
+            plt.show()
+            plt.close('all')
+
+            filtered_cells.to_csv(f'{base_path}/filtered_stain_{index}_positive_cells.csv')
 
     print("Filtered stain positive cells data (.csv) saved. Filtering done.")
 
@@ -540,4 +667,5 @@ def image_quantification(base_path, technology_name, image_contrast_required=Fal
                                         technology_name=technology_name)
 
     print("Image quantification and filtering done.")
+
     return cell_polygons_with_metadata, image_array, log_transformed_stain_intensities, bin_edges

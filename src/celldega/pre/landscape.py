@@ -12,6 +12,7 @@ from scipy.sparse import csr_matrix
 # save_cbg_gene_parquets : Save the cell-by-gene matrix as gene-specific Parquet files.
 # =============================================================================
 
+
 def calc_meta_gene_data(cbg):
     """
     Calculate gene metadata from the cell-by-gene matrix
@@ -82,10 +83,11 @@ def calc_meta_gene_data(cbg):
             "max": max_expression.sparse.to_dense(),
             "non-zero": proportion_nonzero.sparse.to_dense(),
         }
-
     )
 
-    meta_gene_clean = pd.DataFrame(meta_gene.values, index=meta_gene.index.tolist(), columns=meta_gene.columns)
+    meta_gene_clean = pd.DataFrame(
+        meta_gene.values, index=meta_gene.index.tolist(), columns=meta_gene.columns
+    )
 
     return meta_gene_clean
 
@@ -127,6 +129,7 @@ def read_cbg_mtx(base_path):
 
     return cbg
 
+
 def save_cbg_gene_parquets(base_path, cbg, verbose=False):
     """
     Save the cell-by-gene matrix as gene-specific Parquet files.
@@ -145,7 +148,7 @@ def save_cbg_gene_parquets(base_path, cbg, verbose=False):
     None
     """
 
-    print ("\n========Save cbg gene parquet========")
+    print("\n========Save cbg gene parquet========")
     output_dir = os.path.join(base_path, "cbg")
     os.makedirs(output_dir, exist_ok=True)
 
@@ -172,4 +175,3 @@ def save_cbg_gene_parquets(base_path, cbg, verbose=False):
         if not inst_df.empty:
             output_path = os.path.join(output_dir, f"{gene}.parquet")
             inst_df.to_parquet(output_path)
-

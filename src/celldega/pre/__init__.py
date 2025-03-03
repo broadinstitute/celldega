@@ -26,7 +26,7 @@ import json
 from .landscape import *
 from .trx_tile import *
 from .boundary_tile import *
-from .image_info import  *
+from .image_info import *
 
 
 def cluster_gene_expression(technology, data_dir, path_landscape_files, cbg):
@@ -45,12 +45,16 @@ def cluster_gene_expression(technology, data_dir, path_landscape_files, cbg):
         FileNotFoundError: If the required input files are not found.
     """
 
-    print ("\n========Create cluster gene expression (df_sig)========")
+    print("\n========Create cluster gene expression (df_sig)========")
     if technology != "Xenium":
-        raise ValueError(f"Unsupported technology: {technology}. Currently, only 'Xenium' is supported.")
+        raise ValueError(
+            f"Unsupported technology: {technology}. Currently, only 'Xenium' is supported."
+        )
 
     cells_csv_path = f'{data_dir}/cells.csv.gz'
-    clusters_csv_path = f'{data_dir}/analysis/clustering/gene_expression_graphclust/clusters.csv'
+    clusters_csv_path = (
+        f'{data_dir}/analysis/clustering/gene_expression_graphclust/clusters.csv'
+    )
 
     # Load the cell metadata
     usecols = ['cell_id', 'x_centroid', 'y_centroid']
@@ -112,6 +116,7 @@ def _convert_long_id_to_short(df):
     The function applies a SHA-256 hash to each cell ID, encodes the hash using base64, and truncates
     it to create a shorter identifier that is added as a new column to the DataFrame.
     """
+
     def hash_and_shorten_id(cell_id):
         # Create a hash of the cell ID
         cell_id_bytes = str(cell_id).encode('utf-8')
@@ -143,14 +148,18 @@ def create_cluster_and_meta_cluster(technology, data_dir, path_landscape_files):
         FileNotFoundError: If the required input files are not found.
     """
 
-    print ("\n========Create clusters and meta clusters files========")
+    print("\n========Create clusters and meta clusters files========")
     if technology != "Xenium":
-        raise ValueError(f"Unsupported technology: {technology}. Currently, only 'Xenium' is supported.")
+        raise ValueError(
+            f"Unsupported technology: {technology}. Currently, only 'Xenium' is supported."
+        )
 
     # Check if the cell metadata file exists
     cell_metadata_path = f'{path_landscape_files}/cell_metadata.parquet'
     if not os.path.exists(cell_metadata_path):
-        raise FileNotFoundError(f"The file 'cell_metadata.parquet' does not exist in directory '{path_landscape_files}'.")
+        raise FileNotFoundError(
+            f"The file 'cell_metadata.parquet' does not exist in directory '{path_landscape_files}'."
+        )
 
     # Create the cell_clusters directory if it doesn't exist
     cell_clusters_dir = f'{path_landscape_files}/cell_clusters'
@@ -158,18 +167,25 @@ def create_cluster_and_meta_cluster(technology, data_dir, path_landscape_files):
         os.mkdir(cell_clusters_dir)
 
     # Load the default clustering data (replace this with actual data loading logic)
-    default_clustering = pd.read_csv(f'{data_dir}/analysis/clustering/gene_expression_graphclust/clusters.csv', index_col=0)
-    default_clustering.columns =   default_clustering.columns.str.lower()
+    default_clustering = pd.read_csv(
+        f'{data_dir}/analysis/clustering/gene_expression_graphclust/clusters.csv',
+        index_col=0,
+    )
+    default_clustering.columns = default_clustering.columns.str.lower()
     # Prepare the clustering data
     default_clustering_ini = default_clustering.copy()
-    default_clustering_ini['cluster'] = default_clustering_ini['cluster'].astype('string')
+    default_clustering_ini['cluster'] = default_clustering_ini['cluster'].astype(
+        'string'
+    )
 
     # Load the cell metadata
     meta_cell = pd.read_parquet(cell_metadata_path)
 
     # Align the clustering data with the cell metadata
     default_clustering = pd.DataFrame(index=meta_cell.index.tolist())
-    default_clustering.loc[default_clustering_ini.index.tolist(), 'cluster'] = default_clustering_ini['cluster']
+    default_clustering.loc[default_clustering_ini.index.tolist(), 'cluster'] = (
+        default_clustering_ini['cluster']
+    )
 
     # Save the clustering data
     default_clustering.to_parquet(f'{cell_clusters_dir}/cluster.parquet')
@@ -184,7 +200,11 @@ def create_cluster_and_meta_cluster(technology, data_dir, path_landscape_files):
     flat_colors_hex = [to_hex(color) for color in flat_colors]
 
     colors = [
-        flat_colors_hex[i % len(flat_colors_hex)] if "Blank" not in cluster else "#FFFFFF"
+        (
+            flat_colors_hex[i % len(flat_colors_hex)]
+            if "Blank" not in cluster
+            else "#FFFFFF"
+        )
         for i, cluster in enumerate(clusters)
     ]
 
@@ -201,7 +221,9 @@ def create_cluster_and_meta_cluster(technology, data_dir, path_landscape_files):
     return clusters
 
 
-def create_image_tiles(technology, data_dir, path_landscape_files, image_tile_layer='dapi'):
+def create_image_tiles(
+    technology, data_dir, path_landscape_files, image_tile_layer='dapi'
+):
     """
     Creates image tiles for visualization from the Xenium morphology image.
 
@@ -218,17 +240,23 @@ def create_image_tiles(technology, data_dir, path_landscape_files, image_tile_la
 
     print("\n========Generating image tiles========")
     if technology != "Xenium":
-        raise ValueError(f"Unsupported technology: {technology}. Currently, only 'Xenium' is supported.")
+        raise ValueError(
+            f"Unsupported technology: {technology}. Currently, only 'Xenium' is supported."
+        )
 
     if image_tile_layer not in ['dapi', 'all']:
-        raise ValueError(f"Invalid image_tile_layer: {image_tile_layer}. Must be 'dapi' or 'all'.")
+        raise ValueError(
+            f"Invalid image_tile_layer: {image_tile_layer}. Must be 'dapi' or 'all'."
+        )
 
     # Define the path to the morphology image
     file_path = f"{data_dir}/morphology_focus/morphology_focus_0000.ome.tif"
 
     # Check if the morphology image exists
     if not os.path.exists(file_path):
-        raise FileNotFoundError(f"The file 'morphology_focus_0000.ome.tif' does not exist in directory '{data_dir}'.")
+        raise FileNotFoundError(
+            f"The file 'morphology_focus_0000.ome.tif' does not exist in directory '{data_dir}'."
+        )
 
     # Load the morphology image
     img = imread(file_path)
@@ -244,34 +272,56 @@ def create_image_tiles(technology, data_dir, path_landscape_files, image_tile_la
             imsave(f'{path_landscape_files}/dapi_output_regular.tif', img[..., 0])
 
             # Reduce the image size
-            image_ds = _reduce_image_size(f'{path_landscape_files}/dapi_output_regular.tif', scale_image=1, path_landscape_files=path_landscape_files)
+            image_ds = _reduce_image_size(
+                f'{path_landscape_files}/dapi_output_regular.tif',
+                scale_image=1,
+                path_landscape_files=path_landscape_files,
+            )
 
             # Convert the image to PNG format
             image_png = _convert_to_png(image_ds)
 
             # Create a DeepZoom pyramid for the DAPI channel
-            make_deepzoom_pyramid(image_png, f'{path_landscape_files}/pyramid_images/', 'dapi', suffix=".webp[Q=100]")
+            make_deepzoom_pyramid(
+                image_png,
+                f'{path_landscape_files}/pyramid_images/',
+                'dapi',
+                suffix=".webp[Q=100]",
+            )
 
     # Process additional channels if image_tile_layer is 'all'
     if image_tile_layer == 'all':
         for idx, channel in enumerate(['bound', 'rna', 'prot']):
-            print (f'generating {channel} image tiles ...')
+            print(f'generating {channel} image tiles ...')
 
             if os.path.exists(f'{path_landscape_files}/pyramid_images/{channel}_files'):
                 pass
             else:
                 # Extract and process each channel
-                image_data = img[..., idx + 1] * 2  # Adjust intensity for better visualization
-                imsave(f'{path_landscape_files}/{channel}_output_regular.tif', image_data)
+                image_data = (
+                    img[..., idx + 1] * 2
+                )  # Adjust intensity for better visualization
+                imsave(
+                    f'{path_landscape_files}/{channel}_output_regular.tif', image_data
+                )
 
                 # Reduce the image size
-                image_ds = _reduce_image_size(f'{path_landscape_files}/{channel}_output_regular.tif', scale_image=1, path_landscape_files=path_landscape_files)
+                image_ds = _reduce_image_size(
+                    f'{path_landscape_files}/{channel}_output_regular.tif',
+                    scale_image=1,
+                    path_landscape_files=path_landscape_files,
+                )
 
                 # Convert the image to PNG format
                 image_png = _convert_to_png(image_ds)
 
                 # Create a DeepZoom pyramid for the channel
-                make_deepzoom_pyramid(image_png, f'{path_landscape_files}/pyramid_images/', channel, suffix=".webp[Q=100]")
+                make_deepzoom_pyramid(
+                    image_png,
+                    f'{path_landscape_files}/pyramid_images/',
+                    channel,
+                    suffix=".webp[Q=100]",
+                )
 
     print("Image tiles created successfully.")
 
@@ -347,7 +397,9 @@ def _convert_to_webp(image_path, quality=100):
     return new_image_path
 
 
-def make_deepzoom_pyramid(image_path, output_path, pyramid_name, tile_size=512, overlap=0, suffix=".jpeg"):
+def make_deepzoom_pyramid(
+    image_path, output_path, pyramid_name, tile_size=512, overlap=0, suffix=".jpeg"
+):
     """Creates a DeepZoom image pyramid from a JPEG image.
 
     Args:
@@ -369,7 +421,11 @@ def make_deepzoom_pyramid(image_path, output_path, pyramid_name, tile_size=512, 
 
 
 def make_meta_cell_image_coord(
-    technology, path_transformation_matrix, path_meta_cell_micron, path_meta_cell_image, image_scale
+    technology,
+    path_transformation_matrix,
+    path_meta_cell_micron,
+    path_meta_cell_image,
+    image_scale,
 ):
     """Applies an affine transformation to cell coordinates in microns and saves the transformed coordinates in pixels.
 
@@ -384,11 +440,15 @@ def make_meta_cell_image_coord(
         None
     """
 
-    print ("\n========Make meta cells in pixel space========")
-    transformation_matrix = pd.read_csv(path_transformation_matrix, header=None, sep=" ").values
+    print("\n========Make meta cells in pixel space========")
+    transformation_matrix = pd.read_csv(
+        path_transformation_matrix, header=None, sep=" "
+    ).values
 
     if technology == "MERSCOPE":
-        meta_cell = pd.read_csv(path_meta_cell_micron, usecols=["EntityID", "center_x", "center_y"])
+        meta_cell = pd.read_csv(
+            path_meta_cell_micron, usecols=["EntityID", "center_x", "center_y"]
+        )
         meta_cell = _convert_long_id_to_short(meta_cell)
         meta_cell["name"] = meta_cell["cell_id"]
         meta_cell = meta_cell.set_index('cell_id')
@@ -409,7 +469,9 @@ def make_meta_cell_image_coord(
     meta_cell["center_x"] = meta_cell["center_x"] / image_scale
     meta_cell["center_y"] = meta_cell["center_y"] / image_scale
 
-    meta_cell["geometry"] = meta_cell.apply(lambda row: [row["center_x"], row["center_y"]], axis=1)
+    meta_cell["geometry"] = meta_cell.apply(
+        lambda row: [row["center_x"], row["center_y"]], axis=1
+    )
 
     if technology == "MERSCOPE":
         meta_cell = meta_cell[["name", "geometry", "EntityID"]]
@@ -417,7 +479,7 @@ def make_meta_cell_image_coord(
         meta_cell = meta_cell[["name", "geometry"]]
 
     meta_cell.to_parquet(path_meta_cell_image)
-    print ('Done.')
+    print('Done.')
 
 
 def make_meta_gene(technology, path_cbg, path_output):
@@ -432,7 +494,7 @@ def make_meta_gene(technology, path_cbg, path_output):
         None
     """
 
-    print ("\n========Write meta gene files========")
+    print("\n========Write meta gene files========")
     if technology == "MERSCOPE":
         cbg = pd.read_csv(path_cbg, index_col=0)
         genes = cbg.columns.tolist()
@@ -453,12 +515,14 @@ def make_meta_gene(technology, path_cbg, path_output):
     meta_gene = calc_meta_gene_data(cbg)
     meta_gene['color'] = ser_color
 
-    sparse_cols = [col for col in meta_gene.columns if pd.api.types.is_sparse(meta_gene[col])]
+    sparse_cols = [
+        col for col in meta_gene.columns if pd.api.types.is_sparse(meta_gene[col])
+    ]
     for col in sparse_cols:
         meta_gene[col] = meta_gene[col].sparse.to_dense()
 
     meta_gene.to_parquet(path_output)
-    print ("All meta gene files are succesfully saved.")
+    print("All meta gene files are succesfully saved.")
 
 
 def get_max_zoom_level(path_image_pyramid):
@@ -480,7 +544,12 @@ def get_max_zoom_level(path_image_pyramid):
 
 
 def save_landscape_parameters(
-    technology, path_landscape_files, image_name="dapi_files", tile_size=1000, image_info={}, image_format='.webp'
+    technology,
+    path_landscape_files,
+    image_name="dapi_files",
+    tile_size=1000,
+    image_info={},
+    image_format='.webp',
 ):
     """Saves the landscape parameters to a JSON file.
 
@@ -496,7 +565,7 @@ def save_landscape_parameters(
         None
     """
 
-    print ("\n========Save landscape parameters========")
+    print("\n========Save landscape parameters========")
     path_image_pyramid = f"{path_landscape_files}/pyramid_images/{image_name}"
     max_pyramid_zoom = get_max_zoom_level(path_image_pyramid)
 
@@ -505,13 +574,13 @@ def save_landscape_parameters(
         "max_pyramid_zoom": max_pyramid_zoom,
         "tile_size": tile_size,
         "image_info": image_info,
-        "image_format": image_format
+        "image_format": image_format,
     }
 
     path_landscape_parameters = f"{path_landscape_files}/landscape_parameters.json"
     with open(path_landscape_parameters, "w") as file:
         json.dump(landscape_parameters, file, indent=4)
-    print ('Done.')
+    print('Done.')
 
 
 def _to_geometry(coord_list):
@@ -530,7 +599,9 @@ def _to_geometry(coord_list):
     return Polygon(coord_list)
 
 
-def write_xenium_transform(data_dir, path_landscape_files, transform_fname="xenium_transform.csv"):
+def write_xenium_transform(
+    data_dir, path_landscape_files, transform_fname="xenium_transform.csv"
+):
     """
     Extracts the transformation matrix from the Xenium cells.zarr.zip file and saves it as a CSV file.
 
@@ -548,13 +619,15 @@ def write_xenium_transform(data_dir, path_landscape_files, transform_fname="xeni
         Exception: If an unexpected error occurs while processing the Zarr file.
     """
 
-    print ("\n========Write xenium transform file from the Zarr folder========")
+    print("\n========Write xenium transform file from the Zarr folder========")
     # Path to the cells.zarr.zip file
     cells_zarr_path = os.path.join(data_dir, "cells.zarr.zip")
 
     # Check if the cells.zarr.zip file exists
     if not os.path.exists(cells_zarr_path):
-        raise FileNotFoundError(f"The file 'cells.zarr.zip' does not exist in directory '{data_dir}'.")
+        raise FileNotFoundError(
+            f"The file 'cells.zarr.zip' does not exist in directory '{data_dir}'."
+        )
 
     # Function to open a Zarr file
     def open_zarr(path: str) -> zarr.Group:
@@ -580,7 +653,9 @@ def write_xenium_transform(data_dir, path_landscape_files, transform_fname="xeni
 
         print(f"Transformation matrix saved to '{output_path}'.")
     except KeyError as e:
-        raise KeyError(f"Could not find the transformation matrix in the Zarr file: {e}")
+        raise KeyError(
+            f"Could not find the transformation matrix in the Zarr file: {e}"
+        )
     except Exception as e:
         raise Exception(f"An error occurred while processing the Zarr file: {e}")
 
@@ -600,7 +675,7 @@ def _xenium_unzipper(target_dir):
         FileNotFoundError: If the target directory does not exist.
     """
 
-    print ("\n========Unzip and extract Xenium-related files========")
+    print("\n========Unzip and extract Xenium-related files========")
     # Check if the target directory exists
     if not os.path.exists(target_dir):
         raise FileNotFoundError(f"The directory '{target_dir}' does not exist.")
@@ -666,7 +741,7 @@ def _check_required_files(technology, data_dir):
         ValueError: If the specified technology is not supported.
     """
 
-    print ("\n========Check if all required files or directories exist========")
+    print("\n========Check if all required files or directories exist========")
     # Define required files or directories for each technology
     if technology == "Xenium":
         required_files_or_dir = [
@@ -691,7 +766,9 @@ def _check_required_files(technology, data_dir):
             'cell_by_gene.csv',
         ]
     else:
-        raise ValueError(f"Unsupported technology: {technology}. Supported technologies are 'Xenium' and 'MERSCOPE'.")
+        raise ValueError(
+            f"Unsupported technology: {technology}. Supported technologies are 'Xenium' and 'MERSCOPE'."
+        )
 
     # Check if each file or directory exists
     missing_files_or_dir = []
@@ -706,7 +783,9 @@ def _check_required_files(technology, data_dir):
             f"for technology '{technology}': {', '.join(missing_files_or_dir)}"
         )
     else:
-        print(f"All required files or directories for technology '{technology}' are present in '{data_dir}'.")
+        print(
+            f"All required files or directories for technology '{technology}' are present in '{data_dir}'."
+        )
 
 
 __all__ = ["landscape", "trx_tile", "boundary_tile"]

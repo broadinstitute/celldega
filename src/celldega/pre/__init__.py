@@ -601,7 +601,7 @@ def _to_geometry(coord_list):
 
 
 def write_xenium_transform(
-    data_dir, path_landscape_files, transform_fname="xenium_transform.csv"
+    data_dir, path_landscape_files, transform_fname="micron_to_image_transform.csv"
 ):
     """
     Extracts the transformation matrix from the Xenium cells.zarr.zip file and saves it as a CSV file.
@@ -609,7 +609,7 @@ def write_xenium_transform(
     Args:
         data_dir (str): Path to the directory containing the Xenium data (e.g., cells.zarr.zip).
         path_landscape_files (str): Path to the directory where the transformation matrix CSV will be saved.
-        transform_fname (str, optional): Name of the output CSV file. Defaults to "xenium_transform.csv".
+        transform_fname (str, optional): Name of the output CSV file. Defaults to "micron_to_image_transform.csv".
 
     Returns:
         numpy.ndarray: The full transformation matrix extracted from the Xenium cells.zarr.zip file.

@@ -60,7 +60,7 @@ def main(sample, data_root_dir, tile_size, image_tile_layer, path_landscape_file
     transformation_matrix = dega.pre.write_xenium_transform(data_dir, path_landscape_files)
 
     # Make cell image coordinates
-    path_transformation_matrix = os.path.join(path_landscape_files, 'xenium_transform.csv')
+    path_transformation_matrix = os.path.join(path_landscape_files, 'micron_to_image_transform.csv')
     path_meta_cell_micron = os.path.join(data_dir, 'cells.csv.gz')
     path_meta_cell_image = os.path.join(path_landscape_files, 'cell_metadata.parquet')
     dega.pre.make_meta_cell_image_coord(

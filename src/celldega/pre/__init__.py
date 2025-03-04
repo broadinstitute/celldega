@@ -27,6 +27,8 @@ from .landscape import *
 from .trx_tile import *
 from .boundary_tile import *
 from .image_info import *
+from .local_server import *
+from .run_pre_processing import main
 
 
 def cluster_gene_expression(technology, data_dir, path_landscape_files, cbg):

@@ -483,12 +483,11 @@ def make_meta_cell_image_coord(
     print('Done.')
 
 
-def make_meta_gene(technology, path_cbg, path_output):
+def make_meta_gene(cbg, path_output):
     """Creates a DataFrame with genes and their assigned colors.
 
     Args:
-        technology (str): The technology used to generate the data (e.g., "Xenium" or "MERSCOPE").
-        path_cbg (str): Path to the cell-by-gene matrix data.
+        cbg (pandas.DataFrame): A sparse DataFrame with genes as columns and barcodes as rows..
         path_output (str): Path to save the meta gene file.
 
     Returns:
@@ -496,12 +495,7 @@ def make_meta_gene(technology, path_cbg, path_output):
     """
 
     print("\n========Write meta gene files========")
-    if technology == "MERSCOPE":
-        cbg = pd.read_csv(path_cbg, index_col=0)
-        genes = cbg.columns.tolist()
-    elif technology == "Xenium":
-        cbg = read_cbg_mtx(path_cbg)
-        genes = cbg.columns.tolist()
+    genes = cbg.columns.tolist()
 
     palettes = [plt.get_cmap(name).colors for name in plt.colormaps() if "tab" in name]
     flat_colors = [color for palette in palettes for color in palette]

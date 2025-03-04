@@ -52,9 +52,8 @@ def main(sample, data_root_dir, tile_size, image_tile_layer, path_landscape_file
     dega.pre.save_cbg_gene_parquets(path_landscape_files, cbg, verbose=True)
 
     # Make meta gene files
-    path_cbg = os.path.join(data_dir, 'cell_feature_matrix')
     path_output = os.path.join(path_landscape_files, 'meta_gene.parquet')
-    dega.pre.make_meta_gene(technology, path_cbg, path_output)
+    dega.pre.make_meta_gene(cbg, path_output)
 
     # Write transform file
     transformation_matrix = dega.pre.write_xenium_transform(data_dir, path_landscape_files)

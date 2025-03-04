@@ -686,19 +686,19 @@ def _xenium_unzipper(target_dir):
 
         # Check if cells.csv already exists
         if not os.path.exists("cells.csv"):
-            subprocess.run(["gzip", "-dk", "cells.csv.gz"], check=True)
+            subprocess.run(["gzip", "-dk", "cells.csv.gz"], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
         # Check if cells.zarr directory already exists
         if not os.path.exists("cells.zarr"):
-            subprocess.run(["unzip", "cells.zarr.zip", "-d", "cells.zarr"], check=True)
+            subprocess.run(["unzip", "cells.zarr.zip", "-d", "cells.zarr"], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
         # Check if analysis directory already exists
         if not os.path.exists("analysis"):
-            subprocess.run(["tar", "-xvzf", "analysis.tar.gz"], check=True)
+            subprocess.run(["tar", "-xvzf", "analysis.tar.gz"], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
         # Check if cell_feature_matrix directory already exists
         if not os.path.exists("cell_feature_matrix"):
-            subprocess.run(["tar", "-xvzf", "cell_feature_matrix.tar.gz"], check=True)
+            subprocess.run(["tar", "-xvzf", "cell_feature_matrix.tar.gz"], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
         print("All files have been successfully extracted or skipped.")
     except subprocess.CalledProcessError as e:

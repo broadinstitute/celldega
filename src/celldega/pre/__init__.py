@@ -261,7 +261,7 @@ def create_image_tiles(
     # Process the DAPI channel
     if image_tile_layer == 'dapi' or image_tile_layer == 'all':
         f'generating DAPI image tiles ...'
-        
+
         if os.path.exists(f'{path_landscape_files}/pyramid_images/dapi_files'):
             pass
         else:
@@ -690,31 +690,19 @@ def _xenium_unzipper(target_dir):
 
         # Check if cells.csv already exists
         if not os.path.exists("cells.csv"):
-            print("Decompressing cells.csv.gz...")
             subprocess.run(["gzip", "-dk", "cells.csv.gz"], check=True)
-        else:
-            print("cells.csv already exists. Skipping decompression.")
 
         # Check if cells.zarr directory already exists
         if not os.path.exists("cells.zarr"):
-            print("Unzipping cells.zarr.zip...")
             subprocess.run(["unzip", "cells.zarr.zip", "-d", "cells.zarr"], check=True)
-        else:
-            print("cells.zarr directory already exists. Skipping unzipping.")
 
         # Check if analysis directory already exists
         if not os.path.exists("analysis"):
-            print("Extracting analysis.tar.gz...")
             subprocess.run(["tar", "-xvzf", "analysis.tar.gz"], check=True)
-        else:
-            print("analysis directory already exists. Skipping extraction.")
 
         # Check if cell_feature_matrix directory already exists
         if not os.path.exists("cell_feature_matrix"):
-            print("Extracting cell_feature_matrix.tar.gz...")
             subprocess.run(["tar", "-xvzf", "cell_feature_matrix.tar.gz"], check=True)
-        else:
-            print("cell_feature_matrix directory already exists. Skipping extraction.")
 
         print("All files have been successfully extracted or skipped.")
     except subprocess.CalledProcessError as e:
@@ -726,7 +714,6 @@ def _xenium_unzipper(target_dir):
     finally:
         # Restore the original working directory
         os.chdir(original_dir)
-        print(f"Restored working directory to '{original_dir}'.")
 
 
 def _check_required_files(technology, data_dir):

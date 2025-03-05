@@ -11,6 +11,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import os
+import glob
 import subprocess
 import hashlib
 import base64
@@ -28,7 +29,7 @@ from .trx_tile import *
 from .boundary_tile import *
 from .image_info import *
 from .local_server import *
-from .run_pre_processing import main
+from .run_pre_processing import *
 
 
 def cluster_gene_expression(technology, data_dir, path_landscape_files, cbg):
@@ -274,15 +275,8 @@ def create_image_tiles(
             # Save the DAPI channel to a regular TIFF file
             imsave(f'{path_landscape_files}/dapi_output_regular.tif', img[..., 0])
 
-            # Reduce the image size
-            image_ds = _reduce_image_size(
-                f'{path_landscape_files}/dapi_output_regular.tif',
-                scale_image=1,
-                path_landscape_files=path_landscape_files,
-            )
-
             # Convert the image to PNG format
-            image_png = _convert_to_png(image_ds)
+            image_png = _convert_to_png(f'{path_landscape_files}/dapi_output_regular.tif')
 
             # Create a DeepZoom pyramid for the DAPI channel
             make_deepzoom_pyramid(
@@ -291,6 +285,7 @@ def create_image_tiles(
                 'dapi',
                 suffix=".webp[Q=100]",
             )
+            
 
     # Process additional channels if image_tile_layer is 'all'
     if image_tile_layer == 'all':
@@ -308,15 +303,8 @@ def create_image_tiles(
                     f'{path_landscape_files}/{channel}_output_regular.tif', image_data
                 )
 
-                # Reduce the image size
-                image_ds = _reduce_image_size(
-                    f'{path_landscape_files}/{channel}_output_regular.tif',
-                    scale_image=1,
-                    path_landscape_files=path_landscape_files,
-                )
-
                 # Convert the image to PNG format
-                image_png = _convert_to_png(image_ds)
+                image_png = _convert_to_png(f'{path_landscape_files}/{channel}_output_regular.tif')
 
                 # Create a DeepZoom pyramid for the channel
                 make_deepzoom_pyramid(
@@ -325,6 +313,9 @@ def create_image_tiles(
                     channel,
                     suffix=".webp[Q=100]",
                 )
+    # Remove intermediate files
+    intermediate_image_files = glob.glob(f"{path_landscape_files}/*output_regular*")
+    if len(intermediate_image_files) != 0: [os.remove(file) for file in intermediate_image_files]
 
     print("Image tiles created successfully.")
 

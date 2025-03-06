@@ -54,7 +54,6 @@ export const landscape_ist = async (
 ) => {
 
     console.log('checking segmentation', segmentation)
-    console.log('checking segmentation', segmentation)
 
     if (width === 0){
         width = '100%'
@@ -62,8 +61,10 @@ export const landscape_ist = async (
 
     let viz_state = {}
 
-    viz_state.root = el
+    viz_state.seg = {}
+    viz_state.seg.version = segmentation
 
+    viz_state.root = el
     viz_state.buttons = {}
     viz_state.buttons.blue = '#8797ff'
     viz_state.buttons.gray = 'gray'
@@ -243,10 +244,6 @@ export const landscape_ist = async (
     viz_state.edit.rgn_opacity = 0.75
     viz_state.edit.visible = false
     viz_state.edit.modify_index = null
-
-    // starting to set up custom segmentation support
-    viz_state.seg = {}
-    viz_state.seg.version = segmentation
 
     if (Object.keys(viz_state.model).length !== 0){
 

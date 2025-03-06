@@ -2,6 +2,11 @@ export const get_polygon_data = (arrowTable) => {
 
   var geometryColumn = arrowTable.getChildAt(0)
 
+  console.log(geometryColumn);
+  console.log(geometryColumn.data[0]);
+  console.log(geometryColumn.data[0].type);
+  console.log(geometryColumn.data[0].type.typeId);
+
   if (geometryColumn.data[0].type.typeId === 12){
 
     var polygonIndices = geometryColumn.data[0].valueOffsets

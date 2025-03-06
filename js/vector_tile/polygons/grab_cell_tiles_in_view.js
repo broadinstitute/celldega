@@ -8,10 +8,10 @@ export const grab_cell_tiles_in_view = async (base_url, tiles_in_view, viz_state
 
     let segmentation_url;
 
-    if (viz_state.seg.seg_version === 'default'){
+    if (viz_state.seg.version === 'default'){
         segmentation_url = base_url + '/cell_segmentation';
     } else {
-        segmentation_url = base_url + '/cell_segmentation_' + viz_state.seg.seg_version;
+        segmentation_url = base_url + '/cell_segmentation_' + viz_state.seg.version;
     }
 
     const tile_cell_urls = tiles_in_view.map(tile => {
@@ -26,6 +26,7 @@ export const grab_cell_tiles_in_view = async (base_url, tiles_in_view, viz_state
         Array.from(table.getChild('name').toArray())
     )
 
+    // below is the issue i think
     var polygon_datas = tile_cell_tables.map(x => get_polygon_data(x))
 
     var polygon_data = concatenate_polygon_data(polygon_datas);

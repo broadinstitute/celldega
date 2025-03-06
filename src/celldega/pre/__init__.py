@@ -575,16 +575,31 @@ def _to_geometry(coord_list):
     """Converts a coordinates list to a Shapely geometry object (Point or Polygon).
 
     Args:
-        coord_list (list or Point or Polygon): Input coordinates or geometry object.
+        coord_list (list, Point, Polygon): Input coordinates or geometry object.
 
     Returns:
         Point or Polygon: Shapely geometry object.
+
+    Raises:
+        TypeError: If the input cannot be converted to a Point or Polygon.
     """
+    # If the input is already a Shapely geometry, return it as is
     if isinstance(coord_list, (Point, Polygon)):
         return coord_list
-    if isinstance(coord_list[0], (int, float)):
+
+    # If it's a list with a single element that is also a list/tuple, flatten it
+    if isinstance(coord_list, (list, tuple)) and len(coord_list) == 1 and isinstance(coord_list[0], (list, tuple)):
+        coord_list = coord_list[0]
+
+    # Handle coordinate pair or list of coordinate pairs
+    if all(isinstance(c, (int, float)) for c in coord_list):
+        # Single coordinate pair (e.g., [x, y])
         return Point(coord_list)
-    return Polygon(coord_list)
+    elif all(isinstance(c, (list, tuple)) for c in coord_list):
+        # List of coordinate pairs (e.g., [[x1, y1], [x2, y2], ...])
+        return Polygon(coord_list)
+    else:
+        raise TypeError(f"Cannot convert {coord_list} to a Shapely geometry. Unexpected structure.")
 
 
 def write_xenium_transform(

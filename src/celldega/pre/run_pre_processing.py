@@ -92,7 +92,8 @@ def main(sample, data_root_dir, tile_size, image_tile_layer, path_landscape_file
         image_scale=1,
         max_workers=2
     )
-
+    print (f"tile bounds: {tile_bounds}")
+    
     # Generate boundary tiles
     print("\n========Generating boundary tiles========")
     path_cell_boundaries = os.path.join(data_dir, 'cell_boundaries.parquet')

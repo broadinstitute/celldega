@@ -575,6 +575,7 @@ def save_landscape_parameters(
     tile_size=1000,
     image_info={},
     image_format='.webp',
+    segmentation_approach='default'
 ):
     """Saves the landscape parameters to a JSON file.
 

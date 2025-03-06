@@ -54,7 +54,7 @@ export const landscape_ist = async (
 ) => {
 
     console.log('checking segmentation', segmentation)
-
+    console.log('checking segmentation', segmentation)
 
     if (width === 0){
         width = '100%'
@@ -214,7 +214,7 @@ export const landscape_ist = async (
 
     await set_dimensions(viz_state, base_url, imgage_name_for_dim)
 
-    await set_meta_gene(viz_state.genes, base_url)
+    await set_meta_gene(viz_state.genes, base_url, viz_state.seg.version)
 
     await set_cluster_metadata(viz_state)
 

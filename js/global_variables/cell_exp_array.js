@@ -21,9 +21,6 @@ export const update_cell_exp_array = async (cats, genes, base_url, inst_gene, ve
         console.log(`${key}: ${value}`);
     });
 
-    console.log(cats.cell_names_array.length)
-    console.log(cats.cell_name_to_index_map.get('127062'))
-
     cell_names.forEach((name, i) => {
         name = String(name)
         //console.log(name, typeof name)

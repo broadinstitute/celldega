@@ -4,7 +4,7 @@ import os
 from tqdm import tqdm
 import concurrent.futures
 import geopandas as gpd
-from shapely.geometry import Polygon, MultiPolygon
+from shapely.geometry import Point, Polygon, MultiPolygon
 
 def numpy_affine_transform(coords, matrix):
     """Apply affine transformation to numpy coordinates."""
@@ -26,20 +26,37 @@ def batch_transform_geometries(geometries, transformation_matrix, scale):
     
     transformed_geometries = []
     
-    for polygon in geometries:
-        # Extract coordinates and transform them
-        if isinstance(polygon, MultiPolygon):
-            polygon = next(polygon.geoms)  # Use the first geometry
+    for geom in geometries:
+
+        if isinstance(geom, Point):
+            # Transform a single Point geometry
+            point_coords = np.array([[geom.x, geom.y]])
+            transformed_coords = numpy_affine_transform(point_coords, affine_matrix) / scale
+            transformed_geometries.append(Point(transformed_coords[0]))
+
+        elif isinstance(geom, Polygon):
+            # Transform a Polygon geometry
+            exterior_coords = np.array(geom.exterior.coords)
+
+            # Apply the affine transformation and scale
+            transformed_coords = numpy_affine_transform(exterior_coords, affine_matrix) / scale
+
+            # Append the result to the transformed_geometries list
+            transformed_geometries.append([transformed_coords.tolist()])
+            
+        elif isinstance(geom, MultiPolygon):
+            geom = next(geom.geoms)  # Use the first geometry
         
-        # Transform the exterior of the polygon
-        exterior_coords = np.array(polygon.exterior.coords)
-        
-        # Apply the affine transformation and scale
-        transformed_coords = numpy_affine_transform(exterior_coords, affine_matrix) / scale
-        
-        # Append the result to the transformed_geometries list
-        transformed_geometries.append([transformed_coords.tolist()])
-    
+            # Transform the exterior of the polygon
+            exterior_coords = np.array(geom.exterior.coords)
+
+            # Apply the affine transformation and scale
+            transformed_coords = numpy_affine_transform(exterior_coords, affine_matrix) / scale
+            
+            # Append the result to the transformed_geometries list
+            transformed_geometries.append([transformed_coords.tolist()])
+
+
     return transformed_geometries
 
 def filter_and_save_fine_boundary(coarse_tile, fine_i, fine_j, fine_tile_x_min, fine_tile_x_max, fine_tile_y_min, fine_tile_y_max, path_output):

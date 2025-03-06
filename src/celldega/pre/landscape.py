@@ -12,13 +12,13 @@ from scipy.sparse import csr_matrix
 # save_cbg_gene_parquets : Save the cell-by-gene matrix as gene-specific Parquet files.
 # =============================================================================
 
-def to_dense_if_sparse(df):
-    """Convert sparse DataFrame columns to dense only if they are sparse"""
+# def to_dense_if_sparse(df):
+#     """Convert sparse DataFrame columns to dense only if they are sparse"""
 
-    for col in df.columns:
-        if isinstance(df[col].dtype, pd.SparseDtype):
-            df[col] = df[col].sparse.to_dense()
-    return df
+#     for col in df.columns:
+#         if isinstance(df[col].dtype, pd.SparseDtype):
+#             df[col] = df[col].sparse.to_dense()
+#     return df
 
 def calc_meta_gene_data(cbg):
     """
@@ -93,7 +93,9 @@ def calc_meta_gene_data(cbg):
         }
     )
 
-    meta_gene_clean = pd.DataFrame(meta_gene.values, index=meta_gene.index.tolist(), columns=meta_gene.columns)
+    meta_gene_clean = pd.DataFrame(
+        meta_gene.values, index=meta_gene.index.tolist(), columns=meta_gene.columns
+    )
 
     return meta_gene_clean
 
@@ -112,7 +114,7 @@ def read_cbg_mtx(base_path):
     cbg : pandas.DataFrame
         A sparse DataFrame with genes as columns and barcodes as rows.
     """
-    print("Reading mtx file from ", base_path)
+    # print("Reading mtx file from ", base_path)
 
     # File paths
     barcodes_path = os.path.join(base_path, "barcodes.tsv.gz")
@@ -164,7 +166,7 @@ def save_cbg_gene_parquets(base_path, cbg, verbose=False, custom_segmentation_ap
 
         # Convert to dense and integer type
 
-        col_df = to_dense_if_sparse(col_df).astype(int)
+        #col_df = to_dense_if_sparse(col_df).astype(int)
 
         # Create a DataFrame necessary to prevent error in to_parquet
         inst_df = pd.DataFrame(
@@ -179,4 +181,3 @@ def save_cbg_gene_parquets(base_path, cbg, verbose=False, custom_segmentation_ap
         if not inst_df.empty:
             output_path = os.path.join(output_dir, f"{gene}.parquet")
             inst_df.to_parquet(output_path)
-

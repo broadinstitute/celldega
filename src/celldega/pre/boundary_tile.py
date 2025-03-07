@@ -99,11 +99,15 @@ def filter_and_save_fine_boundary(
 
     keep_cells = cell_ids[filtered_indices]
     fine_tile_cells = coarse_tile.loc[keep_cells, ["GEOMETRY"]]
-    fine_tile_cells = fine_tile_cells.assign(name=fine_tile_cells.index)
+    fine_tile_cells = (
+        fine_tile_cells.sort_index()
+        .reset_index(drop=True)
+        .assign(name=lambda df: df.index)
+    )
 
     if not fine_tile_cells.empty:
         filename = f"{path_output}/cell_tile_{fine_i}_{fine_j}.parquet"
-        fine_tile_cells.to_parquet(filename)
+        fine_tile_cells.to_parquet(filename, index=False)
 
 
 def process_fine_boundaries(

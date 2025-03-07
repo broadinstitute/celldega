@@ -7,6 +7,25 @@ import geopandas as gpd
 from shapely.geometry import Point, Polygon, MultiPolygon
 
 
+
+def _round_nested_coord_list(value, decimals=2):
+    """Rounds numeric values in nested lists or arrays to a specified number of decimal places.
+
+    Args:
+        value (list, np.ndarray, float, int): The input value, which can be a nested list, array, or numeric value.
+        decimals (int, optional): The number of decimal places to round to. Defaults to 2.
+
+    Returns:
+        list, float: The rounded value. If the input is a nested list or array, returns a nested list with rounded values.
+    """
+    if isinstance(value, (list, np.ndarray)):
+        return [_round_nested_coord_list(item, decimals) for item in value]
+    elif isinstance(value, (float, int)):
+        return round(value, decimals)
+    else:
+        return value
+
+
 def numpy_affine_transform(coords, matrix):
     """Apply affine transformation to numpy coordinates."""
     # Homogeneous coordinates for affine transformation
@@ -104,6 +123,9 @@ def filter_and_save_fine_boundary(
         .reset_index(drop=True)
         .assign(name=lambda df: df.index)
     )
+
+    # Apply rounding to the GEOMETRY column
+    fine_tile_cells['GEOMETRY'] = fine_tile_cells['GEOMETRY'].apply(_round_nested_coord_list)
 
     if not fine_tile_cells.empty:
         filename = f"{path_output}/cell_tile_{fine_i}_{fine_j}.parquet"
@@ -332,3 +354,4 @@ def make_cell_boundary_tiles(
                     n_fine_tiles_y,
                     max_workers,
                 )
+

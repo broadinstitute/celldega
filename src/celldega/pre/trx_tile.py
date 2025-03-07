@@ -143,13 +143,13 @@ def filter_and_save_fine_tile(
             pl.concat_list([pl.col("transformed_x"), pl.col("transformed_y")]).alias(
                 "geometry"
             )
-        ).drop(['transformed_x', 'transformed_y'])
+        ).drop(['transformed_x', 'transformed_y', 'transcript_id', 'cell_id'])
 
         # Define the filename based on fine tile coordinates
         filename = f"{path_trx_tiles}/transcripts_tile_{fine_i}_{fine_j}.parquet"
 
         # Save the filtered DataFrame to a Parquet file
-        fine_tile_trx.to_pandas().to_parquet(filename)
+        fine_tile_trx.to_pandas().to_parquet(filename, index=False)
 
 
 def transform_transcript_coordinates(

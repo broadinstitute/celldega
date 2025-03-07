@@ -98,7 +98,8 @@ def main(sample, data_root_dir, tile_size, image_tile_layer, path_landscape_file
     print("\n========Generating boundary tiles========")
     path_cell_boundaries = os.path.join(data_dir, 'cell_boundaries.parquet')
     path_output = os.path.join(path_landscape_files, 'cell_segmentation')
-    cells_orig = dega.pre.make_cell_boundary_tiles(
+
+    dega.pre.make_cell_boundary_tiles(
             technology,
             path_cell_boundaries,
             path_output,

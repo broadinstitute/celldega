@@ -595,45 +595,40 @@ def save_landscape_parameters(
     path_image_pyramid = f"{path_landscape_files}/pyramid_images/{image_name}"
     max_pyramid_zoom = get_max_zoom_level(path_image_pyramid)
 
-    landscape_parameters = {
-        "technology": technology,
-        "max_pyramid_zoom": max_pyramid_zoom,
-        "tile_size": tile_size,
-        "image_info": image_info,
-        "image_format": image_format,
-    }
-
     path_landscape_parameters = f"{path_landscape_files}/landscape_parameters.json"
+
+    if technology != 'custom':
+
+        landscape_parameters = {
+                "technology": technology,
+                "segmentation_approach": [segmentation_approach],
+                "max_pyramid_zoom": max_pyramid_zoom,
+                "tile_size": tile_size,
+                "image_info": image_info,
+                "image_format": image_format
+            }
+
+    else:
+
+        with open(path_landscape_parameters, "r") as file:
+            landscape_parameters = json.load(file)
+
+        landscape_parameters['segmentation_approach'].append(segmentation_approach)
+
     with open(path_landscape_parameters, "w") as file:
         json.dump(landscape_parameters, file, indent=4)
+
     print('Done.')
-
-    max_pyramid_zoom = get_max_zoom_level(path_image_pyramid)
-
-    landscape_parameters = {
-            "technology": technology,
-            "segmentation_approach": [segmentation_approach],
-            "max_pyramid_zoom": max_pyramid_zoom,
-            "tile_size": tile_size,
-            "image_info": image_info,
-            "image_format": image_format
-        }
-
-    path_landscape_parameters = f"{path_landscape_files}/landscape_parameters.json"
-
-    with open(path_landscape_parameters, "w") as file:
-        json.dump(landscape_parameters, file, indent=4)
 
 def add_custom_segmentation(path_landscape_files, path_segmentation_files, image_scale=1, tile_size=250, use_default_clustering=False, use_custom_clustering=False):
 
     with open(f"{path_segmentation_files}/segmentation_parameters.json", "r") as file:
         segmentation_parameters = json.load(file)
 
-    make_meta_gene(technology=segmentation_parameters['technology'],
-                   path_cbg=os.path.join(path_segmentation_files, "cell_by_gene_matrix.parquet"),
-                   path_output=os.path.join(path_landscape_files, f"meta_gene_{segmentation_parameters['segmentation_approach']}.parquet"))
-
     cbg_custom = pd.read_parquet(os.path.join(path_segmentation_files, "cell_by_gene_matrix.parquet"))
+
+    make_meta_gene(cbg=cbg_custom,
+                   path_output=os.path.join(path_landscape_files, f"meta_gene_{segmentation_parameters['segmentation_approach']}.parquet"))
 
     save_cbg_gene_parquets(path_landscape_files,
                            cbg=cbg_custom,

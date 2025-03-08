@@ -44,7 +44,7 @@ export const update_ist_landscape_from_cgm = async (deck_ist, layers_obj, viz_st
             update_path_layer_id(layers_obj, new_cat)
             update_trx_layer_id(viz_state.genes, layers_obj)
 
-            const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+            const layers_list = get_layers_list(layers_obj, viz_state)
             deck_ist.setProps({layers: layers_list})
 
             const reset_gene = false
@@ -98,7 +98,7 @@ export const update_ist_landscape_from_cgm = async (deck_ist, layers_obj, viz_st
             update_path_layer_id(layers_obj, inst_cat_name)
             update_trx_layer_id(viz_state.genes, layers_obj)
 
-            const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+            const layers_list = get_layers_list(layers_obj, viz_state)
             deck_ist.setProps({layers: layers_list})
 
             viz_state.cats.svg_bar_cluster.selectAll("g")
@@ -149,7 +149,7 @@ export const update_ist_landscape_from_cgm = async (deck_ist, layers_obj, viz_st
             update_path_layer_id(layers_obj, inst_cat_name)
             update_trx_layer_id(viz_state.genes, layers_obj)
 
-            const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+            const layers_list = get_layers_list(layers_obj, viz_state)
             deck_ist.setProps({layers: layers_list})
 
             viz_state.cats.svg_bar_cluster.selectAll("g")

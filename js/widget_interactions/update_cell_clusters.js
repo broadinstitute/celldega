@@ -14,7 +14,7 @@ export const update_cell_clusters = (deck_ist, layers_obj, viz_state) => {
 
     update_cell_layer_id(layers_obj, 'cluster')
 
-    const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+    const layers_list = get_layers_list(layers_obj, viz_state)
     deck_ist.setProps({layers: layers_list})
 
     viz_state.combo_data.cell = viz_state.combo_data.cell.map((cell) => ({

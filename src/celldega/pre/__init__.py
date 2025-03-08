@@ -284,7 +284,7 @@ def create_image_tiles(
                 'dapi',
                 suffix=".webp[Q=100]",
             )
-            
+
 
     # Process additional channels if image_tile_layer is 'all'
     if image_tile_layer == 'all':
@@ -552,17 +552,23 @@ def save_landscape_parameters(
         None
     """
 
-    print("\n========Save landscape parameters========")
-    path_image_pyramid = f"{path_landscape_files}/pyramid_images/{image_name}"
-    max_pyramid_zoom = get_max_zoom_level(path_image_pyramid)
+    if image_info == {}:
+        landscape_parameters = {
+            "technology": technology,
+        }
+    else:
 
-    landscape_parameters = {
-        "technology": technology,
-        "max_pyramid_zoom": max_pyramid_zoom,
-        "tile_size": tile_size,
-        "image_info": image_info,
-        "image_format": image_format,
-    }
+        path_image_pyramid = f"{path_landscape_files}/pyramid_images/{image_name}"
+
+        max_pyramid_zoom = get_max_zoom_level(path_image_pyramid)
+
+        landscape_parameters = {
+            "technology": technology,
+            "max_pyramid_zoom": max_pyramid_zoom,
+            "tile_size": tile_size,
+            "image_info": image_info,
+            "image_format": image_format
+        }
 
     path_landscape_parameters = f"{path_landscape_files}/landscape_parameters.json"
     with open(path_landscape_parameters, "w") as file:

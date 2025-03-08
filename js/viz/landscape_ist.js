@@ -196,19 +196,35 @@ export const landscape_ist = async (
 
     await set_landscape_parameters(viz_state.img, base_url)
 
-    const tmp_image_info = viz_state.img.landscape_parameters.image_info
-
-    set_image_format(viz_state.img, viz_state.img.landscape_parameters.image_format)
-    set_image_info(viz_state.img, tmp_image_info)
-    set_image_layer_sliders(viz_state.img)
-    set_image_layer_colors(viz_state.img.image_layer_colors, viz_state.img.image_info)
+    console.log(viz_state.img.landscape_parameters)
 
     // Create and append the visualization.
     let root = document.createElement("div")
     root.style.height = height + "px"
     root.style.border = "1px solid #d3d3d3"
 
-    await set_dimensions(viz_state, base_url, imgage_name_for_dim)
+    // check if the key "image_info" exists in the landscape_parameters object
+    if (!viz_state.img.landscape_parameters.hasOwnProperty('image_info')) {
+        viz_state.img.state = false
+    } else {
+        viz_state.img.state = true
+    }
+
+        const tmp_image_info = viz_state.img.landscape_parameters.image_info
+
+    if (viz_state.img.state) {
+        console.log('image stuff')
+        set_image_format(viz_state.img, viz_state.img.landscape_parameters.image_format)
+        set_image_info(viz_state.img, tmp_image_info)
+        set_image_layer_sliders(viz_state.img)
+        set_image_layer_colors(viz_state.img.image_layer_colors, viz_state.img.image_info)
+
+        await set_dimensions(viz_state, base_url, imgage_name_for_dim)
+    }
+
+
+
+
 
     await set_meta_gene(viz_state.genes, base_url)
 
@@ -261,23 +277,34 @@ export const landscape_ist = async (
         }
     }
 
-    let background_layer = ini_background_layer(viz_state)
-    let image_layers = await make_image_layers(viz_state)
-    let cell_layer = await ini_cell_layer(base_url, viz_state)
+    let background_layer
+    let image_layers
+    if (viz_state.img.state) {
+        background_layer = ini_background_layer(viz_state)
+        image_layers = await make_image_layers(viz_state)
+    }
+
     let path_layer = await ini_path_layer(viz_state)
     let trx_layer = ini_trx_layer(viz_state.genes)
+
+    let cell_layer = await ini_cell_layer(base_url, viz_state)
     let edit_layer = ini_edit_layer(viz_state)
     let nbhd_layer = ini_nbhd_layer(viz_state, false)
 
     // make layers object
     let layers_obj = {
-        'background_layer': background_layer,
-        'image_layers': image_layers,
+        // 'background_layer': background_layer,
+        // 'image_layers': image_layers,
         'cell_layer': cell_layer,
         'path_layer': path_layer,
         'trx_layer': trx_layer,
         'edit_layer': edit_layer,
         'nbhd_layer': nbhd_layer
+    }
+
+    if (viz_state.img.state) {
+        layers_obj['background_layer'] = background_layer
+        layers_obj['image_layers'] = image_layers
     }
 
     // set onclicks after all layers are made
@@ -291,13 +318,18 @@ export const landscape_ist = async (
     update_trx_layer_radius(layers_obj, trx_radius)
 
     if (viz_state.umap.state === true) {
-        toggle_background_layer_visibility(layers_obj, false)
-        toggle_visibility_image_layers(layers_obj, false)
+
+        if (viz_state.img.state) {
+            toggle_background_layer_visibility(layers_obj, false)
+            toggle_visibility_image_layers(layers_obj, false)
+        }
+
+
         toggle_trx_layer_visibility(layers_obj, false)
         toggle_path_layer_visibility(layers_obj, false)
     }
 
-    const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+    const layers_list = get_layers_list(layers_obj, viz_state)
 
     set_initial_view_state(deck_ist, ini_x, ini_y, ini_z, ini_zoom, viz_state)
 
@@ -371,7 +403,7 @@ export const landscape_ist = async (
             update_path_layer_id(layers_obj, new_cat)
             update_trx_layer_id(viz_state.genes, layers_obj)
 
-            const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+            const layers_list = get_layers_list(layers_obj, viz_state)
             deck_ist.setProps({layers: layers_list})
 
             viz_state.genes.gene_search_input.value = viz_state.genes.gene_search_input.value !== inst_gene ? inst_gene : ''
@@ -424,7 +456,7 @@ export const landscape_ist = async (
             update_path_layer_id(layers_obj, inst_cat_name)
             update_trx_layer_id(viz_state.genes, layers_obj)
 
-            const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+            const layers_list = get_layers_list(layers_obj, viz_state)
             deck_ist.setProps({layers: layers_list})
 
             viz_state.genes.gene_search_input.value = ''
@@ -448,7 +480,7 @@ export const landscape_ist = async (
             update_path_layer_id(layers_obj, inst_cat_name)
             update_trx_layer_id(viz_state.genes, layers_obj)
 
-            const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+            const layers_list = get_layers_list(layers_obj, viz_state)
             deck_ist.setProps({layers: layers_list})
 
             viz_state.cats.svg_bar_cluster.selectAll("g")
@@ -482,7 +514,7 @@ export const landscape_ist = async (
             viz_state.close_up = close_up
 
             calc_viewport(new_view_state, deck_ist, layers_obj, viz_state)
-            const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+            const layers_list = get_layers_list(layers_obj, viz_state)
 
             deck_ist.setProps({
                 controller: {doubleClickZoom: false},

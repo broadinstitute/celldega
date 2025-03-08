@@ -42,9 +42,16 @@ export const get_parquet_metadata = async (url, fetch_options) => {
 
     // console.log(arr)
 
-    const arrowIPC = pq.readParquet(arr, {rowGroups:[0]});
-    console.log('tablefromIPC')
-    console.log(arrow.tableFromIPC(arrowIPC))
+    var ReaderOptions = {
+        rowGroups: [0, 1]
+    }
+
+    const arrowIPC = pq.readParquet(arr, ReaderOptions);
+
+    const arrowTable = arrow.tableFromIPC(arrowIPC)
+
+    console.log('after using ReaderOptions')
+    console.log(arrowTable)
 
     // const parquetFile = pq.ParquetFile.fromBuffer(arr);
 

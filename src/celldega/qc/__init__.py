@@ -54,7 +54,6 @@ def qc_segmentation(base_path, path_output=None, path_meta_cell_micron=None):
         cell_index = "cell_index"
         gene = "gene"
         transcript_index = "transcript_index"
-
         trx = pd.read_parquet(os.path.join(base_path, "transcripts.parquet"))
         trx_meta = trx[trx[cell_index] != -1][[transcript_index, cell_index, gene]]
         cell_gdf = gpd.read_parquet(os.path.join(base_path, "cell_polygons.parquet"))
@@ -64,7 +63,6 @@ def qc_segmentation(base_path, path_output=None, path_meta_cell_micron=None):
         cell_index = "cell_id"
         gene = "feature_name"
         transcript_index = "transcript_id"
-
         trx = pd.read_parquet(os.path.join(base_path, "transcripts.parquet"))
         trx = trx.rename(columns={'name': gene})
         trx_meta = trx[trx[cell_index] != 'UNASSIGNED'][[transcript_index, cell_index, gene]]
@@ -74,7 +72,6 @@ def qc_segmentation(base_path, path_output=None, path_meta_cell_micron=None):
         
         cell_gdf = gpd.GeoDataFrame(geometry=cell_gdf["geometry"])
         cell_gdf["geometry"] = cell_gdf["geometry"].apply(get_largest_polygon)
-
         cell_gdf.reset_index(inplace=True)
         cell_gdf['area'] = cell_gdf['geometry'].area
         cell_gdf['centroid'] = cell_gdf['geometry'].centroid
@@ -107,11 +104,10 @@ def qc_segmentation(base_path, path_output=None, path_meta_cell_micron=None):
 
     metrics['dataset_name'] = segmentation_parameters['dataset_name']
     metrics['segmentation_approach'] = segmentation_parameters['segmentation_approach']
-    
     metrics['proportion_assigned_transcripts'] = percentage_of_assigned_transcripts
     metrics['number_cells'] = len(cell_gdf)
     metrics['mean_cell_area'] = cell_gdf['geometry'].area.mean()
-    
+
     metrics['mean_transcripts_per_cell'] = trx_meta.groupby(cell_index).size().mean()
     metrics['median_transcripts_per_cell'] = trx_meta.groupby(cell_index)[transcript_index].count().median()
 
@@ -124,7 +120,7 @@ def qc_segmentation(base_path, path_output=None, path_meta_cell_micron=None):
     metrics_df = metrics_df.T
     metrics_df.columns = [f"{segmentation_parameters['dataset_name']}_{segmentation_parameters['segmentation_approach']}"]
     metrics_df = metrics_df.T
-    
+
     gene_specific_metrics_df = pd.DataFrame({
         "proportion_of_cells_expressing": (trx_meta.groupby(gene)[cell_index].nunique()) / len(cell_gdf),
         "average_expression": (trx_meta.groupby(gene)[cell_index].nunique()) / (trx_meta.groupby(gene)[cell_index].nunique().sum()),
@@ -136,6 +132,7 @@ def qc_segmentation(base_path, path_output=None, path_meta_cell_micron=None):
 
     print("segmentation metrics calculation completed")
 
+    
 def classify_cells(dataframe, cell_A_name, cell_B_name, threshold_for_A_cell_classification, threshold_for_B_cell_classification):
     dataframe['Classification'] = np.where(
         dataframe[f'Total {cell_A_name} transcripts'] >= threshold_for_A_cell_classification, cell_A_name,
@@ -201,7 +198,7 @@ def orthogonal_expression_calc(base_paths, cell_type_A_specific_genes,
     )
     
     """
-        
+    
     cbg_dict = {}
 
     cell_A_with_B_cell_specific_genes = {}
@@ -226,41 +223,40 @@ def orthogonal_expression_calc(base_paths, cell_type_A_specific_genes,
 
         A_cell_overlap = [gene for gene in cell_type_A_specific_genes if gene in cbg.columns]
         B_cell_overlap = [gene for gene in cell_type_B_specific_genes if gene in cbg.columns]
-        
+
         cells_with_A_genes = cbg[A_cell_overlap].sum(axis=1) > 0
         cells_with_B_genes = cbg[B_cell_overlap].sum(axis=1) > 0
-        
+
         cells_with_both = cbg[cells_with_A_genes & cells_with_B_genes]
-        
+
         A_cell_genes_expressed = cells_with_both[A_cell_overlap].apply(
             lambda row: {gene: int(row[gene]) for gene in row[row > 0].index}, axis=1
         )
-        
+
         B_cell_genes_expressed = cells_with_both[B_cell_overlap].apply(
             lambda row: {gene: int(row[gene]) for gene in row[row > 0].index}, axis=1
         )
-        
+
         results = pd.DataFrame({
             f"{cell_A_name} genes and transcripts": A_cell_genes_expressed,
             f"{cell_B_name} genes and transcripts": B_cell_genes_expressed
         }, index=cells_with_both.index)
-        
+
         results[f"Total {cell_A_name} transcripts"] = A_cell_genes_expressed.apply(lambda x: sum(x.values()))
         results[f"Total {cell_B_name} transcripts"] = B_cell_genes_expressed.apply(lambda x: sum(x.values()))
-        
+
         results["Total"] = A_cell_genes_expressed.apply(lambda x: sum(x.values())) + B_cell_genes_expressed.apply(lambda x: sum(x.values()))
         results['Technology'] = algorithm_name
-        
+
         sns.set(style='white', rc={'figure.dpi': 250, 'axes.facecolor': (0, 0, 0, 0), 'figure.facecolor': (0, 0, 0, 0)})
-    
         height_of_each_facet = 3
         aspect_ratio_of_each_facet = 1
-        
+
         g = sns.FacetGrid(results, col="Technology", sharex=False, sharey=False,
                         margin_titles=True, despine=True, col_wrap=4,
                         height=height_of_each_facet, aspect=aspect_ratio_of_each_facet,
                         gridspec_kws={"wspace": 0.01})
-        
+
         g.map_dataframe(
             lambda data, **kwargs: sns.histplot(
                 data=data,
@@ -274,13 +270,13 @@ def orthogonal_expression_calc(base_paths, cell_type_A_specific_genes,
                 **kwargs
             )
         )
-        
+
         g.set_axis_labels(f"Total {cell_A_name} transcripts", f"Total {cell_B_name} transcripts")
         for ax in g.axes.flat:
             ax.xaxis.set_major_locator(plt.MaxNLocator(integer=True))
             ax.yaxis.set_major_locator(plt.MaxNLocator(integer=True))
             ax.tick_params(axis='both', which='major', labelsize=8)
-        
+
         plt.tight_layout()
         plt.show()
 

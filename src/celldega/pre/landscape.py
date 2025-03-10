@@ -137,7 +137,7 @@ def read_cbg_mtx(base_path):
 
     return cbg
 
-def save_cbg_gene_parquets(base_path, cbg, verbose=False, custom_segmentation_approach=None):
+def save_cbg_gene_parquets(base_path, cbg, verbose=False, segmentation_approach='default'):
     """
     Save the cell-by-gene matrix as gene-specific Parquet files.
 
@@ -154,8 +154,11 @@ def save_cbg_gene_parquets(base_path, cbg, verbose=False, custom_segmentation_ap
     -------
     None
     """
-    output_dir = os.path.join(base_path, f"cbg{f'_{custom_segmentation_approach}' if custom_segmentation_approach else ''}")
+    output_dir = os.path.join(base_path, f"cbg{f'_{segmentation_approach}' if segmentation_approach !='default' else ''}")
+    print(output_dir)
     os.makedirs(output_dir, exist_ok=True)
+
+    print("\n========Write gene-specific parquet files========")
 
     for index, gene in enumerate(cbg.columns):
         if verbose and index % 100 == 0:
@@ -181,3 +184,5 @@ def save_cbg_gene_parquets(base_path, cbg, verbose=False, custom_segmentation_ap
         if not inst_df.empty:
             output_path = os.path.join(output_dir, f"{gene}.parquet")
             inst_df.to_parquet(output_path)
+
+    print("All gene-specific parquet files are succesfully saved.")

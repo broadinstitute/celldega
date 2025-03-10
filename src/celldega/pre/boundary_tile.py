@@ -265,6 +265,8 @@ def make_cell_boundary_tiles(
     None
     """
 
+    print("\n========Create cell boundary spatial tiles========")
+
     if not os.path.exists(path_output):
         os.makedirs(path_output)
 
@@ -352,3 +354,5 @@ def make_cell_boundary_tiles(
                     n_fine_tiles_y,
                     max_workers,
                 )
+
+    print("Done.")

@@ -71,7 +71,7 @@ def main(sample, data_root_dir, tile_size, image_tile_layer, path_landscape_file
     )
 
     # Create cluster and meta cluster files
-    clusters = dega.pre.create_cluster_and_meta_cluster(technology, data_dir, path_landscape_files)
+    clusters = dega.pre.create_cluster_and_meta_cluster(technology, path_landscape_files, data_dir)
 
     # Generate image tiles
     dega.pre.create_image_tiles(technology, data_dir, path_landscape_files, image_tile_layer=image_tile_layer)
@@ -113,7 +113,7 @@ def main(sample, data_root_dir, tile_size, image_tile_layer, path_landscape_file
         )
 
     # Create cluster-based gene expression
-    df_sig = dega.pre.cluster_gene_expression(technology, data_dir, path_landscape_files, cbg)
+    df_sig = dega.pre.cluster_gene_expression(technology, path_landscape_files, cbg, data_dir)
 
     # Save landscape parameters
     dega.pre.save_landscape_parameters(

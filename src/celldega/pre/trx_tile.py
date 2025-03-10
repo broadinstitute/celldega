@@ -144,6 +144,15 @@ def filter_and_save_fine_tile(
                 "geometry"
             )
         ).drop(['transformed_x', 'transformed_y', 'transcript_id', 'cell_id'])
+        
+
+        # Sort by the 'name' column
+        fine_tile_trx = fine_tile_trx.sort("name")
+
+        # Assign unique integers to each unique 'name' value
+        fine_tile_trx = fine_tile_trx.with_columns(
+            pl.col("name").rank(method="dense").cast(pl.Int32).alias("name")
+        )
 
         # Define the filename based on fine tile coordinates
         filename = f"{path_trx_tiles}/transcripts_tile_{fine_i}_{fine_j}.parquet"

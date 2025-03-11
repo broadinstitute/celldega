@@ -3,12 +3,32 @@ import { getPq } from './pqInitializer.js';
 
 export const arrayBufferToArrowTable = async (arrayBuffer) => {
     try {
+
+
+        console.log('^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^')
+        console.log('awaiting getPq')
+
         const pq = await getPq();
+        console.log('^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^')
+
+        // console.log('pq')
+
+        // console.log('make new arr')
         const arr = new Uint8Array(arrayBuffer);
+        // console.log('post make new arr')
+
+        // console.log('readParquet')
         const arrowIPC = pq.readParquet(arr);
-        return arrow.tableFromIPC(arrowIPC);
+        // console.log('post readParquet')
+
+        // console.log('tableFromIPC')
+        const tmp = arrow.tableFromIPC(arrowIPC);
+        // console.log('post tableFromIPC')
+
+        return tmp
+
     } catch (error) {
-        console.error("Failed to convert ArrayBuffer to Arrow Table:", error);
+        // console.error("Failed to convert ArrayBuffer to Arrow Table:", error);
         // Handle the error appropriately
         throw error; // Re-throw or handle differently
     }
@@ -32,12 +52,22 @@ export const arrayBufferToArrowTable = async (arrayBuffer) => {
 
 export const get_parquet_metadata = async (url, fetch_options) => {
     console.log('here!!!!!!!!!!!!!!!!!')
+
+
     const response = await fetch(url, fetch_options);
 
 
     const arrayBuffer = await response.arrayBuffer();
 
     const pq = await getPq();
+
+    console.log('***********')
+    console.log('pq')
+    console.log('***********')
+    console.log(pq)
+
+
+
     const arr = new Uint8Array(arrayBuffer);
 
     // console.log(arr)

@@ -1,7 +1,9 @@
-// reference 
+// reference
 // https://unpkg.com/parquet-wasm@0.4.0-beta.5/esm/arrow2.js
 // https://github.com/kylebarron/parquet-wasm
 let wasm;
+
+console.log('parquet-wasm 0.4.0!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
 
 const cachedTextDecoder = new TextDecoder('utf-8', { ignoreBOM: true, fatal: true });
 
@@ -1060,7 +1062,7 @@ export class FFIArrowArray {
     }
     /**
     */
-    // commented out becuase of 
+    // commented out becuase of
     // [WARNING] Duplicate member "free" in class body [duplicate-class-member]
     // free() {
     //     const ptr = this.__destroy_into_raw();

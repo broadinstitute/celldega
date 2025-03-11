@@ -31,8 +31,16 @@ import { toggle_visibility_image_layers } from '../deck-gl/image_layers'
 import { toggle_trx_layer_visibility } from '../deck-gl/trx_layer'
 import { toggle_path_layer_visibility } from '../deck-gl/path_layer'
 import { toggle_background_layer_visibility } from '../deck-gl/background_layer'
-import { get_arrow_table, get_arrow_table_from_row_group } from '../read_parquet/get_arrow_table'
-import { get_parquet_metadata } from '../read_parquet/arrayBufferToArrowTable'
+// import { get_arrow_table, get_arrow_table_from_row_group } from '../read_parquet/get_arrow_table'
+// import { get_parquet_metadata } from '../read_parquet/arrayBufferToArrowTable'
+// import { getPq } from '../read_parquet/pqInitializer'
+
+// import initParquet, * as pq from "parquet-wasm";
+
+// import wasmInit, {readParquet} from "parquet-wasm";
+// import wasmInit, {readParquet} from "../vendor/parquet-wasm/parquet_wasm_0.6.1";
+
+// import { initSync, readParquet } from "parquet-wasm";
 
 export const landscape_ist = async (
     el,
@@ -193,24 +201,61 @@ export const landscape_ist = async (
 
     set_options(token)
 
-    const cell_url = base_url + `/test_row_groups.parquet`;
+    // console.log('trying in getPq')
 
-    console.log('cell_url', cell_url)
-    var cell_arrow_table = await get_arrow_table(cell_url, options.fetch)
+    // const pq = await getPq();
 
-    console.log('checking row groups')
-    console.log( await get_arrow_table_from_row_group(cell_url, options.fetch, 0))
-    console.log( await get_arrow_table_from_row_group(cell_url, options.fetch, 1))
-    console.log( await get_arrow_table_from_row_group(cell_url, options.fetch, 2))
+    // const cell_url = base_url + `/test_row_groups.parquet`;
 
-    const rowGroupCount = await get_parquet_metadata(cell_url, options.fetch);
-    // console.log("Row Groups Count in parquet-wasm:", rowGroupCount);
+    // console.log('cell_url', cell_url)
+    // var cell_arrow_table = await get_arrow_table(cell_url, options.fetch)
+
+    // console.log('checking row groups')
+    // console.log( await get_arrow_table_from_row_group(cell_url, options.fetch, 0))
+    // console.log( await get_arrow_table_from_row_group(cell_url, options.fetch, 1))
+    // console.log( await get_arrow_table_from_row_group(cell_url, options.fetch, 2))
+
+    // const rowGroupCount = await get_parquet_metadata(cell_url, options.fetch);
+    // // console.log("Row Groups Count in parquet-wasm:", rowGroupCount);
 
 
-    console.log('cell_arrow_table', cell_arrow_table)
+    // console.log('cell_arrow_table', cell_arrow_table)
 
     // console.log('tmp', tmp)
 
+    // const response = await fetch("../vendor/parquet-wasm/parquet_wasm_bg.wasm");
+    // const wasmBuffer = await response.arrayBuffer();
+    // console.log('wasmBuffer', wasmBuffer)
+
+    // console.log('about to run initSync')
+    // initSync(wasmBuffer);
+    // console.log('initSync!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+
+    // console.log('following instructions from readme')
+    // await wasmInit();
+
+    // const wasmUrl = "https://cdn.jsdelivr.net/npm/parquet-wasm@0.6.0/esm/parquet_wasm_bg.wasm";
+    // await wasmInit(wasmUrl);
+
+    // Manually set the path to your local WASM file
+    // const wasmUrl = "/js/vendor/parquet-wasm/parquet_wasm_bg.wasm";
+
+    // const wasmUrl = new URL("../vendor/parquet-wasm/parquet_wasm_bg.wasm", import.meta.url).href;
+    // const wasmUrl = "../vendor/parquet-wasm/parquet_wasm_bg.wasm";
+
+    // console.log("Using manually defined WASM Path:", wasmUrl);
+
+    // Initialize Parquet WASM with the explicit file path
+    // await wasmInit(wasmUrl);
+
+    // console.log('******************************')
+    // console.log('******************************')
+    // console.log('******************************')
+    // console.log('******************************')
+    // console.log('******************************')
+    // await wasmInit();
+
+    // console.log('finished wasmInit()')
 
     // move this to landscape_parameters
     const imgage_name_for_dim = 'dapi'

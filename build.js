@@ -24,6 +24,7 @@ async function main() {
         'define.amd': 'false',
       },
       metafile: true,
+      loader: { '.wasm': 'file'}
     });
 
     if (isWatchMode) {

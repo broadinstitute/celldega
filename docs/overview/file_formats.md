@@ -26,7 +26,7 @@ The file structure for a Xenium Prime dataset's LandscapeFiles is shown below.
 │   ├── prot_files
 │   └── rna_files
 │── transcript_tiles
-└── xenium_transform.csv
+└── micron_to_image_transform.csv
 
 ```
 

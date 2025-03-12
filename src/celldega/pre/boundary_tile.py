@@ -6,6 +6,33 @@ import concurrent.futures
 import geopandas as gpd
 from shapely.geometry import Point, Polygon, MultiPolygon
 
+def _get_name_mapping(path_landscape_files):
+    """
+    Generates mappings from gene and cell names to unique integer identifiers.
+
+    Args:
+        path_landscape_files (str): Path to the directory containing the metadata files.
+            Expected files:
+            - `meta_gene.parquet`: Contains gene metadata with gene names as the index.
+            - `cell_metadata.parquet`: Contains cell metadata with a 'name' column.
+
+    Returns:
+        tuple: A tuple containing two dictionaries:
+            - gene_str_to_int_mapping (dict): Maps gene names (str) to integer ranks (int).
+            - cell_str_to_int_mapping (dict): Maps cell names (str) to integer ranks (int).
+    """
+    # Load gene metadata
+    df_meta_gene = pd.read_parquet(f"{path_landscape_files}/meta_gene.parquet")
+    df_meta_gene['name'] = df_meta_gene.index
+    df_meta_gene = df_meta_gene.reset_index(drop=True)
+    gene_str_to_int_mapping = df_meta_gene.set_index(df_meta_gene.index)['name'].to_dict()
+
+    # Load cell metadata
+    df_meta_cell = pd.read_parquet(f"{path_landscape_files}/cell_metadata.parquet")
+    cell_str_to_int_mapping = df_meta_cell.set_index(df_meta_cell.index)['name'].to_dict()
+
+    return gene_str_to_int_mapping, cell_str_to_int_mapping
+
 
 
 def _round_nested_coord_list(value, decimals=2):
@@ -105,6 +132,7 @@ def filter_and_save_fine_boundary(
     fine_tile_y_min,
     fine_tile_y_max,
     path_output,
+    cell_str_to_int_mapping,
 ):
     cell_ids = coarse_tile.index.values
 
@@ -118,11 +146,8 @@ def filter_and_save_fine_boundary(
 
     keep_cells = cell_ids[filtered_indices]
     fine_tile_cells = coarse_tile.loc[keep_cells, ["GEOMETRY"]]
-    fine_tile_cells = (
-        fine_tile_cells.sort_index()
-        .reset_index(drop=True)
-        .assign(name=lambda df: df.index)
-    )
+
+    fine_tile_cells['name'] = fine_tile_cells.index.map(cell_str_to_int_mapping)
 
     # Apply rounding to the GEOMETRY column
     fine_tile_cells['GEOMETRY'] = fine_tile_cells['GEOMETRY'].apply(_round_nested_coord_list)
@@ -146,6 +171,7 @@ def process_fine_boundaries(
     y_min,
     n_fine_tiles_x,
     n_fine_tiles_y,
+    cell_str_to_int_mapping,
     max_workers,
 ):
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -181,6 +207,7 @@ def process_fine_boundaries(
                         fine_tile_y_min,
                         fine_tile_y_max,
                         path_output,
+                        cell_str_to_int_mapping,
                     )
                 )
 
@@ -298,6 +325,8 @@ def make_cell_boundary_tiles(
         path_transformation_matrix, header=None, sep=" "
     ).values
 
+    gene_str_to_int_mapping, cell_str_to_int_mapping = _get_name_mapping(path_transformation_matrix.replace('/micron_to_image_transform.csv',''))
+
     # Ensure the output directory exists
     if not os.path.exists(path_output):
         os.makedirs(path_output)
@@ -352,6 +381,6 @@ def make_cell_boundary_tiles(
                     y_min,
                     n_fine_tiles_x,
                     n_fine_tiles_y,
+                    cell_str_to_int_mapping,
                     max_workers,
                 )
-

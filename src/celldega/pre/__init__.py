@@ -184,7 +184,7 @@ def create_cluster_and_meta_cluster(technology, data_dir, path_landscape_files):
     meta_cell = pd.read_parquet(cell_metadata_path)
 
     # Align the clustering data with the cell metadata
-    default_clustering = pd.DataFrame(index=meta_cell.index.tolist())
+    default_clustering = pd.DataFrame(index=meta_cell['name'].tolist())
     default_clustering.loc[default_clustering_ini.index.tolist(), 'cluster'] = (
         default_clustering_ini['cluster']
     )
@@ -471,6 +471,10 @@ def make_meta_cell_image_coord(
     else:
         meta_cell = meta_cell[["name", "geometry"]]
 
+    meta_cell = meta_cell.reset_index(drop=True).assign(
+        index=lambda df: df.index
+        )
+    
     meta_cell.to_parquet(path_meta_cell_image)
     print('Done.')
 

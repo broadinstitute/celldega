@@ -47,6 +47,15 @@ import { toggle_background_layer_visibility } from '../deck-gl/background_layer'
 
 import * as pq from 'parquet-wasm/bundler';
 
+// import * as pq from '../vendor/parquet-wasm/bundler/parquet_wasm';
+
+// import initParquetWasm, { ParquetFile, ReaderOptions } from 'parquet-wasm/bundler';
+
+import wasm from '../vendor/parquet-wasm/bundler/parquet_wasm_bg.wasm';
+
+console.log('Loaded WASM:', wasm);
+
+
 
 export const landscape_ist = async (
     el,
@@ -207,80 +216,21 @@ export const landscape_ist = async (
 
     set_options(token)
 
-    // console.log('trying in getPq')
-
-    // const pq = await getPq();
-    // console.log('landscape_ist pq', pq)
-
 
     const cell_url = base_url + `/test_row_groups.parquet`;
 
-    console.log('pq from bundler')
-    console.log(pq)
 
-    // const pq_file = await new pq.ParquetFile();
+    const { ParquetFile } = pq;
+    console.log('ParquetFile', ParquetFile)
 
-    // console.log('pq_file', pq_file)
-    // console.log('pq_file.constructor.fromUrl', pq_file.constructor.fromUrl)
+    const pq_file = new ParquetFile();
 
-    // const something = pq_file.constructor.fromUrl(cell_url)
+    console.log('pq_file', pq_file)
+    console.log('pq_file.read', pq_file.read)
 
-    // // const something = await pq_file.fromUrl(cell_url)
-
-    // console.log('something', something)
-
-    // const inst_read = await pq_file.read()
-    // console.log(inst_read)
-
-    // console.log('cell_url', cell_url)
-    // var cell_arrow_table = await get_arrow_table(cell_url, options.fetch)
-
-    // console.log('checking row groups')
-    // console.log( await get_arrow_table_from_row_group(cell_url, options.fetch, 0))
-    // console.log( await get_arrow_table_from_row_group(cell_url, options.fetch, 1))
-    // console.log( await get_arrow_table_from_row_group(cell_url, options.fetch, 2))
-
-    // const rowGroupCount = await get_parquet_metadata(cell_url, options.fetch);
-    // // console.log("Row Groups Count in parquet-wasm:", rowGroupCount);
+    pq_file.read(cell_url)
 
 
-    // console.log('cell_arrow_table', cell_arrow_table)
-
-    // console.log('tmp', tmp)
-
-    // const response = await fetch("../vendor/parquet-wasm/parquet_wasm_bg.wasm");
-    // const wasmBuffer = await response.arrayBuffer();
-    // console.log('wasmBuffer', wasmBuffer)
-
-    // console.log('about to run initSync')
-    // initSync(wasmBuffer);
-    // console.log('initSync!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
-
-    // console.log('following instructions from readme')
-    // await wasmInit();
-
-    // const wasmUrl = "https://cdn.jsdelivr.net/npm/parquet-wasm@0.6.0/esm/parquet_wasm_bg.wasm";
-    // await wasmInit(wasmUrl);
-
-    // Manually set the path to your local WASM file
-    // const wasmUrl = "/js/vendor/parquet-wasm/parquet_wasm_bg.wasm";
-
-    // const wasmUrl = new URL("../vendor/parquet-wasm/parquet_wasm_bg.wasm", import.meta.url).href;
-    // const wasmUrl = "../vendor/parquet-wasm/parquet_wasm_bg.wasm";
-
-    // console.log("Using manually defined WASM Path:", wasmUrl);
-
-    // Initialize Parquet WASM with the explicit file path
-    // await wasmInit(wasmUrl);
-
-    // console.log('******************************')
-    // console.log('******************************')
-    // console.log('******************************')
-    // console.log('******************************')
-    // console.log('******************************')
-    // await wasmInit();
-
-    // console.log('finished wasmInit()')
 
     // move this to landscape_parameters
     const imgage_name_for_dim = 'dapi'

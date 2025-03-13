@@ -184,7 +184,7 @@ def create_cluster_and_meta_cluster(technology, data_dir, path_landscape_files):
     meta_cell = pd.read_parquet(cell_metadata_path)
 
     # Align the clustering data with the cell metadata
-    default_clustering = pd.DataFrame(index=meta_cell.index.tolist())
+    default_clustering = pd.DataFrame(index=meta_cell['name'].tolist())
     default_clustering.loc[default_clustering_ini.index.tolist(), 'cluster'] = (
         default_clustering_ini['cluster']
     )
@@ -471,7 +471,9 @@ def make_meta_cell_image_coord(
     else:
         meta_cell = meta_cell[["name", "geometry"]]
 
-    meta_cell.to_parquet(path_meta_cell_image)
+    # Force alphabetically sort by 'name'
+    meta_cell = meta_cell.sort_values(by=['name']).reset_index(drop=True)
+    meta_cell.to_parquet(path_meta_cell_image, index=False)
     print('Done.')
 
 
@@ -508,6 +510,8 @@ def make_meta_gene(cbg, path_output):
     for col in sparse_cols:
         meta_gene[col] = meta_gene[col].sparse.to_dense()
 
+    # Force alphabetically sort by index
+    meta_gene.sort_index(inplace=True)
     meta_gene.to_parquet(path_output)
     print("All meta gene files are succesfully saved.")
 
@@ -537,6 +541,7 @@ def save_landscape_parameters(
     tile_size=1000,
     image_info={},
     image_format='.webp',
+    use_int_index=False,
 ):
     """Saves the landscape parameters to a JSON file.
 
@@ -562,6 +567,7 @@ def save_landscape_parameters(
         "tile_size": tile_size,
         "image_info": image_info,
         "image_format": image_format,
+        "use_int_index":use_int_index,
     }
 
     path_landscape_parameters = f"{path_landscape_files}/landscape_parameters.json"

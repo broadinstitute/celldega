@@ -2,7 +2,7 @@ import os
 import argparse
 import celldega as dega
 
-def main(sample, data_root_dir, tile_size, image_tile_layer, path_landscape_files):
+def main(sample, data_root_dir, tile_size, image_tile_layer, path_landscape_files, use_int_index=False):
     """
     Main function to preprocess Xenium data and generate landscape files.
 
@@ -121,7 +121,8 @@ def main(sample, data_root_dir, tile_size, image_tile_layer, path_landscape_file
         'dapi_files',
         tile_size=tile_size,
         image_info=dega.pre.get_image_info(technology, image_tile_layer),
-        image_format='.webp'
+        image_format='.webp',
+        use_int_index=use_int_index,
     )
 
     print("Preprocessing completed successfully.")
@@ -134,9 +135,10 @@ if __name__ == "__main__":
     parser.add_argument("--tile_size", type=int, required=True, help="Size of the tiles for transcript and boundary tiles.")
     parser.add_argument("--image_tile_layer", type=str, required=True, help="Image layers for tilling.")
     parser.add_argument("--path_landscape_files", required=True, help="Directory to save the landscape files.")
+    parser.add_argument("--use_int_index", type=bool, required=False, help="Use integer index for smaller fizes and faster rendering at front end")
 
     # Parse arguments
     args = parser.parse_args()
 
     # Run the main function
-    main(args.sample, args.data_root_dir, args.tile_size, args.image_tile_layer, args.path_landscape_files)
+    main(args.sample, args.data_root_dir, args.tile_size, args.image_tile_layer, args.path_landscape_files, args.use_int_index)

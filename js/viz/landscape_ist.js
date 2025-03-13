@@ -1,5 +1,5 @@
 import * as d3 from 'd3'
-import { set_options } from '../global_variables/fetch_options'
+import { set_options, options } from '../global_variables/fetch_options'
 import { set_global_base_url } from '../global_variables/global_base_url'
 import { set_landscape_parameters } from '../global_variables/landscape_parameters'
 import { set_dimensions } from '../global_variables/image_dimensions'
@@ -31,6 +31,31 @@ import { toggle_visibility_image_layers } from '../deck-gl/image_layers'
 import { toggle_trx_layer_visibility } from '../deck-gl/trx_layer'
 import { toggle_path_layer_visibility } from '../deck-gl/path_layer'
 import { toggle_background_layer_visibility } from '../deck-gl/background_layer'
+// import { get_arrow_table, get_arrow_table_from_row_group } from '../read_parquet/get_arrow_table'
+// import { get_parquet_metadata } from '../read_parquet/arrayBufferToArrowTable'
+// import { getPq } from '../read_parquet/pqInitializer'
+
+// import initParquet, * as pq from "parquet-wasm";
+
+// import wasmInit, {readParquet} from "parquet-wasm";
+// import wasmInit, {readParquet} from "../vendor/parquet-wasm/parquet_wasm_0.6.1";
+
+// import { initSync, readParquet } from "parquet-wasm";
+
+// import { getPq } from './../read_parquet/pqInitializer';
+// import { getPq } from 'parquet-wasm/bundler';
+
+import * as pq from 'parquet-wasm/bundler';
+
+// import * as pq from '../vendor/parquet-wasm/bundler/parquet_wasm';
+
+// import initParquetWasm, { ParquetFile, ReaderOptions } from 'parquet-wasm/bundler';
+
+import wasm from '../vendor/parquet-wasm/bundler/parquet_wasm_bg.wasm';
+
+console.log('Loaded WASM:', wasm);
+
+
 
 export const landscape_ist = async (
     el,
@@ -190,6 +215,22 @@ export const landscape_ist = async (
     viz_state.img.image_layer_sliders = {}
 
     set_options(token)
+
+
+    const cell_url = base_url + `/test_row_groups.parquet`;
+
+
+    const { ParquetFile } = pq;
+    console.log('ParquetFile', ParquetFile)
+
+    const pq_file = new ParquetFile();
+
+    console.log('pq_file', pq_file)
+    console.log('pq_file.read', pq_file.read)
+
+    pq_file.read(cell_url)
+
+
 
     // move this to landscape_parameters
     const imgage_name_for_dim = 'dapi'

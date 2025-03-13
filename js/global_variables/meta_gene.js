@@ -3,7 +3,11 @@ import { options } from '../global_variables/fetch_options.js';
 
 export const set_meta_gene = async (genes, base_url) => {
 
+    console.log('before get_arrow_table')
+
     let meta_gene_table = await get_arrow_table(base_url + '/meta_gene.parquet', options.fetch)
+
+    console.log('after get_arrow_table')
 
     let gene_names = meta_gene_table.getChild('__index_level_0__').toArray()
     let gene_mean = meta_gene_table.getChild('mean').toArray()

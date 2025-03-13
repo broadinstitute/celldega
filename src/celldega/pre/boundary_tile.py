@@ -134,7 +134,6 @@ def filter_and_save_fine_boundary(
     fine_tile_y_min,
     fine_tile_y_max,
     path_output,
-    cell_str_to_int_mapping,
 ):
     cell_ids = coarse_tile.index.values
 
@@ -149,7 +148,7 @@ def filter_and_save_fine_boundary(
     keep_cells = cell_ids[filtered_indices]
     fine_tile_cells = coarse_tile.loc[keep_cells, ["GEOMETRY"]]
 
-    fine_tile_cells['name'] = fine_tile_cells.index.map(cell_str_to_int_mapping)
+    fine_tile_cells['name'] = fine_tile_cells.index
 
     # Apply rounding to the GEOMETRY column
     fine_tile_cells['GEOMETRY'] = fine_tile_cells['GEOMETRY'].apply(_round_nested_coord_list)
@@ -173,7 +172,6 @@ def process_fine_boundaries(
     y_min,
     n_fine_tiles_x,
     n_fine_tiles_y,
-    cell_str_to_int_mapping,
     max_workers,
 ):
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -209,7 +207,6 @@ def process_fine_boundaries(
                         fine_tile_y_min,
                         fine_tile_y_max,
                         path_output,
-                        cell_str_to_int_mapping,
                     )
                 )
 
@@ -342,6 +339,8 @@ def make_cell_boundary_tiles(
         path_meta_cell_micron,
     )
 
+    gdf_cells.index = gdf_cells.index.map(cell_str_to_int_mapping)
+
     gdf_cells["center_x"] = gdf_cells.geometry.centroid.x
     gdf_cells["center_y"] = gdf_cells.geometry.centroid.y
 
@@ -383,6 +382,5 @@ def make_cell_boundary_tiles(
                     y_min,
                     n_fine_tiles_x,
                     n_fine_tiles_y,
-                    cell_str_to_int_mapping,
                     max_workers,
                 )

@@ -1,7 +1,5 @@
 export const set_cell_names_array = (cats, cell_arrow_table) => {
-    cats.cell_names_array = cell_arrow_table.getChild("index").toArray();
-    // cats.cell_names_array = cell_arrow_table.getChild("name").toArray();
-
+    cats.cell_names_array = cell_arrow_table.getChild("name").toArray();
 }
 
 export const set_cell_name_to_index_map = (cats) => {

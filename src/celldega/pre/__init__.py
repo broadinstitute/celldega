@@ -552,6 +552,7 @@ def save_landscape_parameters(
         tile_size (int, optional): Tile size for the image pyramid. Defaults to 1000.
         image_info (dict, optional): Additional image metadata. Defaults to {}.
         image_format (str, optional): Format of the image files. Defaults to ".webp".
+        use_int_index (bool, optional): Use integer name for cell_tile and trx_tile.
 
     Returns:
         None

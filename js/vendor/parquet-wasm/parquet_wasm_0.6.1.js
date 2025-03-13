@@ -2749,13 +2749,13 @@ export class WriterPropertiesBuilder {
     }
 }
 import { wasmBase64 } from './parquet_wasm_bg_base64.js'; // Assuming you've exported the Base64 string here
-console.log('wasmBase64', wasmBase64)
+// console.log('wasmBase64', wasmBase64)
 
 
 async function __wbg_load(module, imports) {
 
-    console.log('in __wbg_load')
-    console.log('wasmBase64', wasmBase64)
+    // console.log('in __wbg_load')
+    // console.log('wasmBase64', wasmBase64)
 
     // Decode the Base64 string to get the binary representation
     const binaryString = window.atob(wasmBase64);
@@ -2764,7 +2764,7 @@ async function __wbg_load(module, imports) {
         bytes[i] = binaryString.charCodeAt(i);
     }
 
-    console.log('bytes', bytes)
+    // console.log('bytes', bytes)
 
     // if (typeof Response === 'function' && module instanceof Response) {
     //     if (typeof WebAssembly.instantiateStreaming === 'function') {
@@ -2797,7 +2797,7 @@ async function __wbg_load(module, imports) {
     //     }
     // }
 
-    console.log('need to pass bytes here')
+    // console.log('need to pass bytes here')
     return await WebAssembly.instantiate(bytes, imports);
 }
 
@@ -3352,13 +3352,13 @@ async function __wbg_init(input) {
 
     __wbg_init_memory(imports);
 
-    console.log('here is where __wbg_load is called and where we will need to pass in bytes')
+    // console.log('here is where __wbg_load is called and where we will need to pass in bytes')
     const { instance, module } = await __wbg_load(await input, imports);
 
-    console.log('after __wbg_load')
+    // console.log('after __wbg_load')
 
-    console.log('instance', instance)
-    console.log('module', module)
+    // console.log('instance', instance)
+    // console.log('module', module)
 
     return __wbg_finalize_init(instance, module);
 

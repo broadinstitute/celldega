@@ -12,19 +12,17 @@ export const arrayBufferToArrowTable = async (arrayBuffer) => {
         console.log('pq', pq)
         console.log('^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^')
 
-        // console.log('pq')
-
-        // console.log('make new arr')
+        console.log('make new arr')
         const arr = new Uint8Array(arrayBuffer);
-        // console.log('post make new arr')
+        console.log('post make new arr')
 
-        // console.log('readParquet')
+        console.log('readParquet')
         const arrowIPC = pq.readParquet(arr);
-        // console.log('post readParquet')
+        console.log('post readParquet')
 
-        // console.log('tableFromIPC')
+        console.log('tableFromIPC')
         const tmp = arrow.tableFromIPC(arrowIPC);
-        // console.log('post tableFromIPC')
+        console.log('post tableFromIPC')
 
         return tmp
 

@@ -42,7 +42,11 @@ import { toggle_background_layer_visibility } from '../deck-gl/background_layer'
 
 // import { initSync, readParquet } from "parquet-wasm";
 
-import { getPq } from './../read_parquet/pqInitializer';
+// import { getPq } from './../read_parquet/pqInitializer';
+// import { getPq } from 'parquet-wasm/bundler';
+
+import * as pq from 'parquet-wasm/bundler';
+
 
 export const landscape_ist = async (
     el,
@@ -205,25 +209,28 @@ export const landscape_ist = async (
 
     // console.log('trying in getPq')
 
-    const pq = await getPq();
-    console.log('landscape_ist pq', pq)
+    // const pq = await getPq();
+    // console.log('landscape_ist pq', pq)
 
 
     const cell_url = base_url + `/test_row_groups.parquet`;
 
-    const pq_file = await new pq.ParquetFile();
+    console.log('pq from bundler')
+    console.log(pq)
 
-    console.log('pq_file', pq_file)
-    console.log('pq_file.constructor.fromUrl', pq_file.constructor.fromUrl)
+    // const pq_file = await new pq.ParquetFile();
 
-    const something = pq_file.constructor.fromUrl(cell_url)
+    // console.log('pq_file', pq_file)
+    // console.log('pq_file.constructor.fromUrl', pq_file.constructor.fromUrl)
 
-    // const something = await pq_file.fromUrl(cell_url)
+    // const something = pq_file.constructor.fromUrl(cell_url)
 
-    console.log('something', something)
+    // // const something = await pq_file.fromUrl(cell_url)
 
-    const inst_read = await pq_file.read()
-    console.log(inst_read)
+    // console.log('something', something)
+
+    // const inst_read = await pq_file.read()
+    // console.log(inst_read)
 
     // console.log('cell_url', cell_url)
     // var cell_arrow_table = await get_arrow_table(cell_url, options.fetch)

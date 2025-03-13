@@ -9,6 +9,7 @@ export const arrayBufferToArrowTable = async (arrayBuffer) => {
         console.log('awaiting getPq')
 
         const pq = await getPq();
+        console.log('pq', pq)
         console.log('^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^')
 
         // console.log('pq')

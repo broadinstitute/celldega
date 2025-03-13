@@ -21,15 +21,17 @@ def _get_name_mapping(path_landscape_files):
             - gene_str_to_int_mapping (dict): Maps gene names (str) to integer ranks (int).
             - cell_str_to_int_mapping (dict): Maps cell names (str) to integer ranks (int).
     """
+    
     # Load gene metadata
     df_meta_gene = pd.read_parquet(f"{path_landscape_files}/meta_gene.parquet")
     df_meta_gene['name'] = df_meta_gene.index
     df_meta_gene = df_meta_gene.reset_index(drop=True)
-    gene_str_to_int_mapping = df_meta_gene.set_index(df_meta_gene.index)['name'].to_dict()
+    gene_str_to_int_mapping = {name: idx for idx, name in df_meta_gene['name'].items()}
 
     # Load cell metadata
     df_meta_cell = pd.read_parquet(f"{path_landscape_files}/cell_metadata.parquet")
-    cell_str_to_int_mapping = df_meta_cell.set_index(df_meta_cell.index)['name'].to_dict()
+    cell_str_to_int_mapping = {name: idx for idx, name in df_meta_cell['name'].items()}
+
 
     return gene_str_to_int_mapping, cell_str_to_int_mapping
 

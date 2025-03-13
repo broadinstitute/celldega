@@ -56,8 +56,8 @@ export const landscape_ist = async (
         width = '100%'
     }
 
-    let viz_state = {}
 
+    let viz_state = {}
     viz_state.root = el
 
     viz_state.buttons = {}
@@ -197,6 +197,10 @@ export const landscape_ist = async (
     await set_landscape_parameters(viz_state.img, base_url)
 
     const tmp_image_info = viz_state.img.landscape_parameters.image_info
+
+    viz_state.cell_name_integer = viz_state.img.landscape_parameters.use_int_index
+
+    console.log('viz_state.cell_name_integer', viz_state.cell_name_integer)
 
     set_image_format(viz_state.img, viz_state.img.landscape_parameters.image_format)
     set_image_info(viz_state.img, tmp_image_info)

@@ -2748,38 +2748,57 @@ export class WriterPropertiesBuilder {
         return WriterPropertiesBuilder.__wrap(ret);
     }
 }
+import { wasmBase64 } from './parquet_wasm_bg_base64.js'; // Assuming you've exported the Base64 string here
+console.log('wasmBase64', wasmBase64)
+
 
 async function __wbg_load(module, imports) {
-    if (typeof Response === 'function' && module instanceof Response) {
-        if (typeof WebAssembly.instantiateStreaming === 'function') {
-            try {
-                return await WebAssembly.instantiateStreaming(module, imports);
 
-            } catch (e) {
-                if (module.headers.get('Content-Type') != 'application/wasm') {
-                    console.warn("`WebAssembly.instantiateStreaming` failed because your server does not serve wasm with `application/wasm` MIME type. Falling back to `WebAssembly.instantiate` which is slower. Original error:\n", e);
+    console.log('in __wbg_load')
+    console.log('wasmBase64', wasmBase64)
 
-                } else {
-                    throw e;
-                }
-            }
-        }
-
-        const bytes = await module.arrayBuffer();
-
-        console.log('need to pass bytes here')
-        return await WebAssembly.instantiate(bytes, imports);
-
-    } else {
-        const instance = await WebAssembly.instantiate(module, imports);
-
-        if (instance instanceof WebAssembly.Instance) {
-            return { instance, module };
-
-        } else {
-            return instance;
-        }
+    // Decode the Base64 string to get the binary representation
+    const binaryString = window.atob(wasmBase64);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
     }
+
+    console.log('bytes', bytes)
+
+    // if (typeof Response === 'function' && module instanceof Response) {
+    //     if (typeof WebAssembly.instantiateStreaming === 'function') {
+    //         try {
+    //             return await WebAssembly.instantiateStreaming(module, imports);
+
+    //         } catch (e) {
+    //             if (module.headers.get('Content-Type') != 'application/wasm') {
+    //                 console.warn("`WebAssembly.instantiateStreaming` failed because your server does not serve wasm with `application/wasm` MIME type. Falling back to `WebAssembly.instantiate` which is slower. Original error:\n", e);
+
+    //             } else {
+    //                 throw e;
+    //             }
+    //         }
+    //     }
+
+    //     const bytes = await module.arrayBuffer();
+
+    //     console.log('need to pass bytes here')
+    //     return await WebAssembly.instantiate(bytes, imports);
+
+    // } else {
+    //     const instance = await WebAssembly.instantiate(module, imports);
+
+    //     if (instance instanceof WebAssembly.Instance) {
+    //         return { instance, module };
+
+    //     } else {
+    //         return instance;
+    //     }
+    // }
+
+    console.log('need to pass bytes here')
+    return await WebAssembly.instantiate(bytes, imports);
 }
 
 function __wbg_get_imports() {
@@ -3309,28 +3328,64 @@ function initSync(module) {
     return __wbg_finalize_init(instance, module);
 }
 
-import { wasmBase64 } from './parquet_wasm_bg_base64.js'; // Assuming you've exported the Base64 string here
-console.log('wasmBase64', wasmBase64)
-
 async function __wbg_init(input) {
+
+
     if (wasm !== undefined) return wasm;
 
-    if (typeof input === 'undefined') {
-        console.log('in 0.6.1 code')
-        input = new URL('parquet_wasm_bg.wasm', import.meta.url);
-    }
-    const imports = __wbg_get_imports();
+    //////////////////////////////////////////////////////////
+    // preventing URL loading
+    //////////////////////////////////////////////////////////
+    // if (typeof input === 'undefined') {
+    //     console.log('in 0.6.1 code')
+    //     input = new URL('parquet_wasm_bg.wasm', import.meta.url);
+    // }
 
-    if (typeof input === 'string' || (typeof Request === 'function' && input instanceof Request) || (typeof URL === 'function' && input instanceof URL)) {
-        input = fetch(input);
-    }
+    // if (typeof input === 'string' || (typeof Request === 'function' && input instanceof Request) || (typeof URL === 'function' && input instanceof URL)) {
+    //     input = fetch(input);
+    // }
+    //////////////////////////////////////////////////////////
+    // preventing URL loading
+    //////////////////////////////////////////////////////////
+
+    const imports = __wbg_get_imports();
 
     __wbg_init_memory(imports);
 
-    // this function passes bytes to web assembly
+    console.log('here is where __wbg_load is called and where we will need to pass in bytes')
     const { instance, module } = await __wbg_load(await input, imports);
 
+    console.log('after __wbg_load')
+
+    console.log('instance', instance)
+    console.log('module', module)
+
     return __wbg_finalize_init(instance, module);
+
+
+    // //////////////////////////////////////////////////////////////////////////
+    // // old version
+    // //////////////////////////////////////////////////////////////////////////
+    // // No need to adjust the path, as we'll be loading the WASM from a Base64 string
+    // // const imports = getImports();
+    // const imports = __wbg_get_imports();
+
+    // // Decode the Base64 string to get the binary representation
+    // const binaryString = window.atob(wasmBase64);
+    // const bytes = new Uint8Array(binaryString.length);
+    // for (let i = 0; i < binaryString.length; i++) {
+    //     bytes[i] = binaryString.charCodeAt(i);
+    // }
+
+    // // initMemory(imports);
+    // __wbg_init_memory(imports);
+
+    // // Use the binary bytes to instantiate the WebAssembly module
+    // const { instance, module } = await WebAssembly.instantiate(bytes, imports);
+
+    // return __wbg_finalize_init(instance, module);
+
+
 }
 
 export { initSync }

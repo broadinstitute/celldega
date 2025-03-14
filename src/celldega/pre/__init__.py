@@ -8,6 +8,7 @@ except ImportError:
     pyvips = None
 
 from pathlib import Path
+import warnings
 import numpy as np
 import pandas as pd
 import os
@@ -470,6 +471,10 @@ def make_meta_cell_image_coord(
         meta_cell = meta_cell[["name", "geometry", "EntityID"]]
     else:
         meta_cell = meta_cell[["name", "geometry"]]
+
+    # Check if the 'name' column is unique
+    if not meta_cell['name'].is_unique:
+        warnings.warn("Duplicate cell names found in meta_cell!", UserWarning)
 
     # Force alphabetically sort by 'name'
     meta_cell = meta_cell.sort_values(by=['name']).reset_index(drop=True)

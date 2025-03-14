@@ -2,7 +2,7 @@ import os
 import argparse
 import celldega as dega
 
-def main(sample, data_root_dir, tile_size, image_tile_layer, path_landscape_files, use_int_index=False):
+def main(sample, data_root_dir, tile_size, image_tile_layer, path_landscape_files, use_int_index=True):
     """
     Main function to preprocess Xenium data and generate landscape files.
 

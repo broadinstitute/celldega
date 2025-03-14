@@ -200,8 +200,6 @@ export const landscape_ist = async (
 
     viz_state.vector_name_integer = viz_state.img.landscape_parameters.use_int_index
 
-    console.log('viz_state.vector_name_integer', viz_state.vector_name_integer)
-
     set_image_format(viz_state.img, viz_state.img.landscape_parameters.image_format)
     set_image_info(viz_state.img, tmp_image_info)
     set_image_layer_sliders(viz_state.img)

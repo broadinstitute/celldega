@@ -27,9 +27,6 @@ export const grab_trx_tiles_in_view = async (base_url, tiles_in_view, viz_state)
           viz_state.genes.g_nameMapping_inv[num]
         );
       }
-
-      console.log('trx_arrow_table.getChild("name").toArray()',trx_arrow_table.getChild("name").toArray())
-      console.log('new_trx_names_array',new_trx_names_array)
       
     viz_state.genes.trx_names_array = new_trx_names_array
 

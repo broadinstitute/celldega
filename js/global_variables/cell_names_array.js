@@ -22,8 +22,6 @@ export const set_cell_names_array = (cats, cell_arrow_table) => {
     cats.nameMapping = nameMapping;
     cats.nameMapping_inv = nameMapping_inv;
 
-    console.log('cats.nameMapping_inv', cats.nameMapping_inv);
-
 }
 
 export const set_cell_name_to_index_map = (cats) => {

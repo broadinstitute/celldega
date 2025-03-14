@@ -46,7 +46,4 @@ export const set_meta_gene = async (genes, base_url) => {
 
     genes.gene_names = genes.gene_counts.map(gene => gene.name);
 
-    console.log('genes.g_nameMapping',genes.g_nameMapping)
-    console.log('genes.g_nameMapping_inv',genes.g_nameMapping_inv)
-
 }

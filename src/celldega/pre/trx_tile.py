@@ -272,7 +272,10 @@ def make_trx_tiles(
 
     transformation_matrix = np.loadtxt(path_transformation_matrix)
 
-    gene_str_to_int_mapping, _ = _get_name_mapping(path_transformation_matrix.replace('/micron_to_image_transform.csv',''))
+    gene_str_to_int_mapping = _get_name_mapping(
+        path_transformation_matrix.replace('/micron_to_image_transform.csv',''),
+        layer='transcript',
+        )
 
     trx = transform_transcript_coordinates(
         technology, path_trx, chunk_size, transformation_matrix, image_scale, gene_str_to_int_mapping=gene_str_to_int_mapping,

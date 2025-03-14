@@ -6,7 +6,7 @@ import concurrent.futures
 import geopandas as gpd
 from shapely.geometry import Point, Polygon, MultiPolygon
 
-def _get_name_mapping(path_landscape_files):
+def _get_name_mapping(path_landscape_files, layer):
     """
     Generates mappings from gene and cell names to unique integer identifiers.
 
@@ -15,27 +15,27 @@ def _get_name_mapping(path_landscape_files):
             Expected files:
             - `meta_gene.parquet`: Contains gene metadata with gene names as the index.
             - `cell_metadata.parquet`: Contains cell metadata with a 'name' column.
+            - `layer`: 'boundary' or 'transcript'
 
     Returns:
-        tuple: A tuple containing two dictionaries:
-            - gene_str_to_int_mapping (dict): Maps gene names (str) to integer ranks (int).
-            - cell_str_to_int_mapping (dict): Maps cell names (str) to integer ranks (int).
+        dict: Maps gene names (str) to integer ranks (int).
     """
+    if layer == 'transcript':
+        # Load gene metadata
+        df_meta_gene = pd.read_parquet(f"{path_landscape_files}/meta_gene.parquet")
+        df_meta_gene['name'] = df_meta_gene.index
+        df_meta_gene = df_meta_gene.reset_index(drop=True)
+        return {name: idx for idx, name in df_meta_gene['name'].items()}
+
+    elif layer == 'boundary':
+        # Load cell metadata
+        df_meta_cell = pd.read_parquet(f"{path_landscape_files}/cell_metadata.parquet")
+        return {name: idx for idx, name in df_meta_cell['name'].items()}
     
-    # Load gene metadata
-    df_meta_gene = pd.read_parquet(f"{path_landscape_files}/meta_gene.parquet")
-    df_meta_gene['name'] = df_meta_gene.index
-    df_meta_gene = df_meta_gene.reset_index(drop=True)
-    gene_str_to_int_mapping = {name: idx for idx, name in df_meta_gene['name'].items()}
-
-    # Load cell metadata
-    df_meta_cell = pd.read_parquet(f"{path_landscape_files}/cell_metadata.parquet")
-    cell_str_to_int_mapping = {name: idx for idx, name in df_meta_cell['name'].items()}
-
-
-    return gene_str_to_int_mapping, cell_str_to_int_mapping
-
-
+    else:
+        raise ValueError(
+            f"Unsupported layer: {layer}. Supported technologies are 'boundary' and 'transcript'."
+        )
 
 def _round_nested_coord_list(value, decimals=2):
     """Rounds numeric values in nested lists or arrays to a specified number of decimal places.
@@ -324,7 +324,10 @@ def make_cell_boundary_tiles(
         path_transformation_matrix, header=None, sep=" "
     ).values
 
-    gene_str_to_int_mapping, cell_str_to_int_mapping = _get_name_mapping(path_transformation_matrix.replace('/micron_to_image_transform.csv',''))
+    cell_str_to_int_mapping = _get_name_mapping(
+        path_transformation_matrix.replace('/micron_to_image_transform.csv',''),
+        layer='boundary',
+        )
 
     # Ensure the output directory exists
     if not os.path.exists(path_output):

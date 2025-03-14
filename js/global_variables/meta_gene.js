@@ -25,6 +25,28 @@ export const set_meta_gene = async (genes, base_url) => {
 
     genes.gene_counts.sort((a, b) => b.value - a.value)
 
+    // Create a set of unique names
+    const g_uniqueNames = [...new Set(gene_names)];
+
+    // Create a mapping from gene name to a unique integer index
+    const g_nameMapping = g_uniqueNames.reduce((acc, name, idx) => {
+    acc[name] = idx;
+    return acc;
+    }, {});
+
+    // Create the reverse mapping: integer index to gene name
+    const g_nameMapping_inv = g_uniqueNames.reduce((acc, name, idx) => {
+        acc[idx] = name;
+        return acc;
+    }, {});
+
+    // Save the mapping and inverse mapping as cats.nameMapping_inv
+    genes.g_nameMapping = g_nameMapping;
+    genes.g_nameMapping_inv = g_nameMapping_inv;
+
     genes.gene_names = genes.gene_counts.map(gene => gene.name);
+
+    console.log('genes.g_nameMapping',genes.g_nameMapping)
+    console.log('genes.g_nameMapping_inv',genes.g_nameMapping_inv)
 
 }

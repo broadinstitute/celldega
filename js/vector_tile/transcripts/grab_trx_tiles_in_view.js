@@ -15,8 +15,22 @@ export const grab_trx_tiles_in_view = async (base_url, tiles_in_view, viz_state)
 
     var trx_arrow_table = concatenate_arrow_tables(tile_trx_tables)
 
-    var new_trx_names_array = trx_arrow_table.getChild("name").toArray();
+    // var new_trx_names_array = trx_arrow_table.getChild("name").toArray();
 
+
+    if (!viz_state.vector_name_integer) {
+        // When viz_state.vector_name_integer is false, extract names directly.
+        var new_trx_names_array = trx_arrow_table.getChild("name").toArray();
+      } else {
+        // When viz_state.vector_name_integer is true, map integer values to strings.
+        var new_trx_names_array = Array.from(trx_arrow_table.getChild("name").toArray()).map(num =>
+          viz_state.genes.g_nameMapping_inv[num]
+        );
+      }
+
+      console.log('trx_arrow_table.getChild("name").toArray()',trx_arrow_table.getChild("name").toArray())
+      console.log('new_trx_names_array',new_trx_names_array)
+      
     viz_state.genes.trx_names_array = new_trx_names_array
 
     var trx_scatter_data = get_scatter_data(trx_arrow_table)

@@ -77,10 +77,13 @@ def calc_meta_gene_data(cbg):
     # Create a DataFrame to hold all these metrics
     meta_gene = pd.DataFrame(
         {
-            "mean": mean_expression.sparse.to_dense(),
+            # "mean": mean_expression.sparse.to_dense(),
+            "mean": mean_expression,
             "std": std_deviation,
-            "max": max_expression.sparse.to_dense(),
-            "non-zero": proportion_nonzero.sparse.to_dense(),
+            # "max": max_expression.sparse.to_dense(),
+            "max": max_expression,
+            # "non-zero": proportion_nonzero.sparse.to_dense(),
+            "non-zero": proportion_nonzero,
         }
 
     )
@@ -155,7 +158,8 @@ def save_cbg_gene_parquets(base_path, cbg, verbose=False):
         col_df = cbg[[gene]].copy()
 
         # Convert to dense and integer type
-        col_df = col_df.sparse.to_dense().astype(int)
+        # col_df = col_df.sparse.to_dense().astype(int)
+        col_df = col_df.astype(int)
 
         # Create a DataFrame necessary to prevent error in to_parquet
         inst_df = pd.DataFrame(

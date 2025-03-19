@@ -1,5 +1,5 @@
 import * as d3 from 'd3'
-import { ScatterplotLayer } from 'deck.gl'
+import { PointCloudLayer, ScatterplotLayer } from 'deck.gl'
 import { get_arrow_table } from "../read_parquet/get_arrow_table"
 import { get_scatter_data } from "../read_parquet/get_scatter_data"
 import { set_color_dict_gene } from '../global_variables/color_dict_gene'
@@ -80,7 +80,7 @@ const cell_layer_onclick = async (info, d, deck_ist, layers_obj, viz_state) => {
         update_trx_layer_id(viz_state.genes, layers_obj)
     }
 
-    const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+    const layers_list = get_layers_list(layers_obj, viz_state)
     deck_ist.setProps({layers: layers_list})
 
     viz_state.genes.gene_search_input.value = ''
@@ -114,6 +114,10 @@ export const ini_cell_layer = async (base_url, viz_state) => {
     // Combine names and positions into a single array of objects
     const new_cell_names_array = cell_arrow_table.getChild("name").toArray()
 
+    // // hack batch info
+    // const batch_array = cell_arrow_table.getChild('batch').toArray()
+    // viz_state.z_level.z_level_array = batch_array
+
     const flatCoordinateArray = viz_state.spatial.cell_scatter_data.attributes.getPosition.value;
 
     // save cell positions and categories in one place for updating cluster bar plot
@@ -121,10 +125,12 @@ export const ini_cell_layer = async (base_url, viz_state) => {
         name: name,
         cat: viz_state.cats.dict_cell_cats[name],
         x: flatCoordinateArray[index * 2],
-        y: flatCoordinateArray[index * 2 + 1]
+        y: flatCoordinateArray[index * 2 + 1],
+        z: flatCoordinateArray[index * 2 + 2]
     }))
 
 
+    // will change so that more efficient data structures are used when here is no umap animation
     let cell_scatter_data_objects
     if (viz_state.umap.has_umap){
         let flatCoordinateArray_umap
@@ -161,7 +167,7 @@ export const ini_cell_layer = async (base_url, viz_state) => {
     } else {
         const numRows = viz_state.spatial.cell_scatter_data.length; // Replace with arrow_table.numRows
         cell_scatter_data_objects = Array.from({ length: numRows }, (_, i) => ({
-            position: [flatCoordinateArray[i * 2], flatCoordinateArray[i * 2 + 1]],
+            position: [flatCoordinateArray[i * 3], flatCoordinateArray[i * 3 + 1], flatCoordinateArray[i * 3 + 2]],
         }));
 
         viz_state.spatial.x_min = d3.min(cell_scatter_data_objects.map(d => d.position[0]))
@@ -205,18 +211,19 @@ export const ini_cell_layer = async (base_url, viz_state) => {
     }
 
     let cell_layer = new ScatterplotLayer({
+    // let cell_layer = new PointCloudLayer({
         id: 'cell-layer',
-        radiusMinPixels: 1,
-        getRadius: 5.0,
+        pointSize: 1,
         pickable: true,
-        getColor: (i, d) => get_cell_color(viz_state.cats, i, d),
-        // getColor: (i, d) => [255, 0, 0],
+        getColor: (i, d) => get_cell_color(viz_state, i, d),
         data: viz_state.spatial.cell_scatter_data_objects,
         transitions: transitions,
         getPosition: d => (viz_state.umap.state ? d.umap : d.position),
         updateTriggers: {
             getPosition: [viz_state.umap.state]
         },
+        opacity: 0.5,
+
     })
 
     return cell_layer
@@ -236,8 +243,11 @@ export const new_toggle_cell_layer_visibility = (layers_obj, visible) => {
 }
 
 export const update_cell_layer_radius = (layers_obj, radius) => {
+
+    console.log(radius)
     layers_obj.cell_layer = layers_obj.cell_layer.clone({
-        getRadius: radius,
+        // getRadius: radius,
+        pointSize: radius/10,
     });
 }
 
@@ -261,7 +271,7 @@ export const toggle_spatial_umap = (deck_ist, layers_obj, viz_state) => {
         }
     })
 
-    const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+    const layers_list = get_layers_list(layers_obj, viz_state)
     deck_ist.setProps({layers: layers_list})
 
 }

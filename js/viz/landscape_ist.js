@@ -136,6 +136,9 @@ export const landscape_ist = async (
     viz_state.cats.polygon_cell_names = []
     viz_state.cats.svg_bar_cluster = d3.create("svg")
 
+    console.log('landscape_ist ----------------------------')
+    console.log('viz_state.cats', viz_state.cats)
+
     // for Z level data
     viz_state.z_level = {}
     viz_state.z_level.svg_bar_cluster = d3.create('svg')
@@ -269,8 +272,8 @@ export const landscape_ist = async (
     // set_views_prop(deck_ist, viz_state.views)
 
     deck_ist.setProps({
-        // views: [ new OrthographicView({id: 'ortho'})]
-        views: [ new OrbitView({id: 'ortho'})]
+        views: [ new OrthographicView({id: 'ortho'})]
+        // views: [ new OrbitView({id: 'ortho'})]
     })
 
     // initialize cell and trx caches
@@ -323,6 +326,9 @@ export const landscape_ist = async (
 
     let path_layer = await ini_path_layer(viz_state)
     let trx_layer = ini_trx_layer(viz_state.genes)
+
+    console.log('right before ini_cell_layer: viz_state.cats')
+    console.log(viz_state.cats)
 
     let cell_layer = await ini_cell_layer(base_url, viz_state)
     let edit_layer = ini_edit_layer(viz_state)

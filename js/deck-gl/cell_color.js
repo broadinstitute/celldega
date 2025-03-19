@@ -1,10 +1,22 @@
 // transparent to red
-export const get_cell_color = (viz_state, i, d) => {
+export const get_cell_color = (cats, i, d) => {
 
-    const cats = viz_state.cats
+    // console.log('get_cell_color!!!')
+
+    // console.log()
+
+    // const cats = viz_state.cats
+
+    // console.log(viz_state)
+    // console.log(viz_state.cats)
+    // console.log('cats', cats)
 
     if (cats.cat === 'cluster') {
+        console.log('cats.cat === cluster')
         try {
+
+            // console.log('coloring by cluster')
+
             const inst_cat = cats.cell_cats[d.index]
 
             let inst_color = cats.color_dict_cluster[inst_cat]

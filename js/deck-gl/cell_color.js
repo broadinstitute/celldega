@@ -36,7 +36,7 @@ export const get_cell_color = (cats, i, d) => {
     } else {
 
         // color cells based on gene expression
-        // try {
+        try {
 
             const inst_exp = cats.cell_exp_array[d.index]
 
@@ -60,9 +60,9 @@ export const get_cell_color = (cats, i, d) => {
 
             return [255, 0, 0, inst_exp]
 
-        // } catch {
-        //     return [255, 0, 0, 0] // Return a default color with some opacity to handle the error gracefully
-        // }
+        } catch {
+            return [255, 0, 0, 0] // Return a default color with some opacity to handle the error gracefully
+        }
     }
 
 }

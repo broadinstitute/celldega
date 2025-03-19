@@ -237,6 +237,14 @@ export const landscape_ist = async (
 
     console.log(viz_state.img.landscape_parameters)
 
+    if (viz_state.img.landscape_parameters.hasOwnProperty('landscape_type')){
+        viz_state.landscape_type = viz_state.img.landscape_parameters.landscape_type
+    } else {
+        viz_state.landscape_type = '2D'
+    }
+
+    console.log(viz_state.landscape_type)
+
     // Create and append the visualization.
     let root = document.createElement("div")
     root.style.height = height + "px"
@@ -263,18 +271,18 @@ export const landscape_ist = async (
 
     await set_cluster_metadata(viz_state)
 
-    viz_state.views = set_views()
+    viz_state.views = set_views(viz_state)
 
     let deck_ist = await ini_deck(root, width, height)
 
 
     // set_initial_view_state(deck_ist, ini_x, ini_y, ini_z, ini_zoom)
-    // set_views_prop(deck_ist, viz_state.views)
+    set_views_prop(deck_ist, viz_state.views)
 
-    deck_ist.setProps({
-        views: [ new OrthographicView({id: 'ortho'})]
-        // views: [ new OrbitView({id: 'ortho'})]
-    })
+    // deck_ist.setProps({
+    //     // views: [ new OrthographicView({id: 'ortho'})]
+    //     views: [ new OrbitView({id: 'ortho'})]
+    // })
 
     // initialize cell and trx caches
     viz_state.cache = {}

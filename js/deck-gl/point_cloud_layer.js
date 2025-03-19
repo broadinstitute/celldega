@@ -190,8 +190,6 @@ export const ini_cell_layer = async (base_url, viz_state) => {
     const canvas_width = viz_state.root.clientWidth // 1000
     const canvas_height = viz_state.containers.root_dim.height //500
 
-
-
     viz_state.spatial.scale_x = canvas_width / viz_state.spatial.data_width
     viz_state.spatial.scale_y = canvas_height / viz_state.spatial.data_height
     viz_state.spatial.scale = Math.min(viz_state.spatial.scale_x, viz_state.spatial.scale_y)
@@ -210,12 +208,11 @@ export const ini_cell_layer = async (base_url, viz_state) => {
         }
     }
 
-    let cell_layer = new ScatterplotLayer({
-    // let cell_layer = new PointCloudLayer({
+    let cell_layer = new PointCloudLayer({
         id: 'cell-layer',
         pointSize: 1,
         pickable: true,
-        getColor: (i, d) => get_cell_color(viz_state, i, d),
+        getColor: (i, d) => get_cell_color(viz_state.cats, i, d),
         data: viz_state.spatial.cell_scatter_data_objects,
         transitions: transitions,
         getPosition: d => (viz_state.umap.state ? d.umap : d.position),

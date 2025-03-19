@@ -346,9 +346,6 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
 
     viz_state.containers.z_level = make_bar_container()
 
-    console.log(viz_state.cats.cluster_counts)
-    console.log(viz_state.cats.color_dict_cluster)
-
     make_bar_graph(
         viz_state.containers.z_level,
         bar_callback_z_level,

@@ -88,7 +88,7 @@ const cell_layer_onclick = async (info, d, deck_ist, layers_obj, viz_state) => {
 
 }
 
-export const ini_cell_layer = async (base_url, viz_state) => {
+export const ini_point_cloud_layer = async (base_url, viz_state) => {
 
     const cell_url = base_url + `/cell_metadata.parquet`;
     var cell_arrow_table = await get_arrow_table(cell_url, options.fetch)
@@ -113,10 +113,6 @@ export const ini_cell_layer = async (base_url, viz_state) => {
 
     // Combine names and positions into a single array of objects
     const new_cell_names_array = cell_arrow_table.getChild("name").toArray()
-
-    // // hack batch info
-    // const batch_array = cell_arrow_table.getChild('batch').toArray()
-    // viz_state.z_level.z_level_array = batch_array
 
     const flatCoordinateArray = viz_state.spatial.cell_scatter_data.attributes.getPosition.value;
 

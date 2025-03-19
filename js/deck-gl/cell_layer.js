@@ -80,7 +80,7 @@ const cell_layer_onclick = async (info, d, deck_ist, layers_obj, viz_state) => {
         update_trx_layer_id(viz_state.genes, layers_obj)
     }
 
-    const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+    const layers_list = get_layers_list(layers_obj, viz_state)
     deck_ist.setProps({layers: layers_list})
 
     viz_state.genes.gene_search_input.value = ''
@@ -210,7 +210,6 @@ export const ini_cell_layer = async (base_url, viz_state) => {
         getRadius: 5.0,
         pickable: true,
         getColor: (i, d) => get_cell_color(viz_state.cats, i, d),
-        // getColor: (i, d) => [255, 0, 0],
         data: viz_state.spatial.cell_scatter_data_objects,
         transitions: transitions,
         getPosition: d => (viz_state.umap.state ? d.umap : d.position),
@@ -261,7 +260,7 @@ export const toggle_spatial_umap = (deck_ist, layers_obj, viz_state) => {
         }
     })
 
-    const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+    const layers_list = get_layers_list(layers_obj, viz_state)
     deck_ist.setProps({layers: layers_list})
 
 }

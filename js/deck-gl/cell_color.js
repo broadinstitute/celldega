@@ -1,21 +1,11 @@
 // transparent to red
 export const get_cell_color = (cats, i, d) => {
 
-    // console.log('get_cell_color!!!')
-
-    // console.log()
-
-    // const cats = viz_state.cats
-
-    // console.log(viz_state)
-    // console.log(viz_state.cats)
-    // console.log('cats', cats)
+    // console.log('cats.cat', cats.cat)
 
     if (cats.cat === 'cluster') {
-        console.log('cats.cat === cluster')
-        try {
 
-            // console.log('coloring by cluster')
+        // try {
 
             const inst_cat = cats.cell_cats[d.index]
 
@@ -29,19 +19,19 @@ export const get_cell_color = (cats, i, d) => {
                 inst_opacity = 0
             }
 
-            if (viz_state.z_level.inst_level !== 'all'){
-                let inst_level = viz_state.z_level.z_level_array[d.index]
+            // if (viz_state.z_level.inst_level !== 'all'){
+            //     let inst_level = viz_state.z_level.z_level_array[d.index]
 
-                if (inst_level !== viz_state.z_level.inst_level){
-                    return [0, 0, 0, 0]
-                }
-            }
+            //     if (inst_level !== viz_state.z_level.inst_level){
+            //         return [0, 0, 0, 0]
+            //     }
+            // }
 
             return [...inst_color, inst_opacity]
 
-        } catch {
-            return [0, 0, 0, 50] // Return a default color with some opacity to handle the error gracefully
-        }
+        // } catch {
+        //     return [0, 0, 0, 50] // Return a default color with some opacity to handle the error gracefully
+        // }
 
     } else {
 
@@ -58,15 +48,15 @@ export const get_cell_color = (cats, i, d) => {
                 }
             }
 
-            // if a meta_cell is available, only plot these cells
-            if (viz_state.cats.has_meta_cell){
-                // check if the cell is in cats.meta_cell
-                const inst_name = cats.cell_names_array[d.index]
+            // // if a meta_cell is available, only plot these cells
+            // if (viz_state.cats.has_meta_cell){
+            //     // check if the cell is in cats.meta_cell
+            //     const inst_name = cats.cell_names_array[d.index]
 
-                if (inst_name in viz_state.cats.meta_cell === false){
-                    return [0, 0, 0, 0]
-                }
-            }
+            //     if (inst_name in viz_state.cats.meta_cell === false){
+            //         return [0, 0, 0, 0]
+            //     }
+            // }
 
             return [255, 0, 0, inst_exp]
 

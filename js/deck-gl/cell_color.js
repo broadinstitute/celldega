@@ -5,7 +5,7 @@ export const get_cell_color = (cats, i, d) => {
 
     if (cats.cat === 'cluster') {
 
-        // try {
+        try {
 
             const inst_cat = cats.cell_cats[d.index]
 
@@ -29,40 +29,40 @@ export const get_cell_color = (cats, i, d) => {
 
             return [...inst_color, inst_opacity]
 
-        // } catch {
-        //     return [0, 0, 0, 50] // Return a default color with some opacity to handle the error gracefully
-        // }
+        } catch {
+            return [0, 0, 0, 50] // Return a default color with some opacity to handle the error gracefully
+        }
 
     } else {
 
         // color cells based on gene expression
-        try {
+        // try {
 
             const inst_exp = cats.cell_exp_array[d.index]
 
-            if (viz_state.z_level.inst_level !== 'all'){
-                let inst_level = viz_state.z_level.z_level_array[d.index]
+            // if (viz_state.z_level.inst_level !== 'all'){
+            //     let inst_level = viz_state.z_level.z_level_array[d.index]
 
-                if (inst_level !== viz_state.z_level.inst_level){
-                    return [0, 0, 0, 0]
-                }
-            }
-
-            // // if a meta_cell is available, only plot these cells
-            // if (viz_state.cats.has_meta_cell){
-            //     // check if the cell is in cats.meta_cell
-            //     const inst_name = cats.cell_names_array[d.index]
-
-            //     if (inst_name in viz_state.cats.meta_cell === false){
+            //     if (inst_level !== viz_state.z_level.inst_level){
             //         return [0, 0, 0, 0]
             //     }
             // }
 
+            // if a meta_cell is available, only plot these cells
+            if (cats.has_meta_cell){
+                // check if the cell is in cats.meta_cell
+                const inst_name = cats.cell_names_array[d.index]
+
+                if (inst_name in cats.meta_cell === false){
+                    return [0, 0, 0, 0]
+                }
+            }
+
             return [255, 0, 0, inst_exp]
 
-        } catch {
-            return [255, 0, 0, 0] // Return a default color with some opacity to handle the error gracefully
-        }
+        // } catch {
+        //     return [255, 0, 0, 0] // Return a default color with some opacity to handle the error gracefully
+        // }
     }
 
 }

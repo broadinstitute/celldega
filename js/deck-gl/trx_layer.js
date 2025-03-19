@@ -114,6 +114,8 @@ export const set_trx_layer_onclick = (deck_ist, layers_obj, viz_state) => {
 
 export const update_trx_layer_data = async (base_url, tiles_in_view, layers_obj, viz_state) => {
 
+    console.log('update_trx_layer_data')
+
     viz_state.genes.trx_data = await grab_trx_tiles_in_view(
         base_url,
         tiles_in_view,

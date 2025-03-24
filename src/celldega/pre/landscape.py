@@ -12,14 +12,6 @@ from scipy.sparse import csr_matrix
 # save_cbg_gene_parquets : Save the cell-by-gene matrix as gene-specific Parquet files.
 # =============================================================================
 
-# def to_dense_if_sparse(df):
-#     """Convert sparse DataFrame columns to dense only if they are sparse"""
-
-#     for col in df.columns:
-#         if isinstance(df[col].dtype, pd.SparseDtype):
-#             df[col] = df[col].sparse.to_dense()
-#     return df
-
 def calc_meta_gene_data(cbg):
     """
     Calculate gene metadata from the cell-by-gene matrix
@@ -166,10 +158,6 @@ def save_cbg_gene_parquets(base_path, cbg, verbose=False, segmentation_approach=
 
         # Extract the column as a DataFrame as a copy
         col_df = cbg[[gene]].copy()
-
-        # Convert to dense and integer type
-
-        #col_df = to_dense_if_sparse(col_df).astype(int)
 
         # Create a DataFrame necessary to prevent error in to_parquet
         inst_df = pd.DataFrame(

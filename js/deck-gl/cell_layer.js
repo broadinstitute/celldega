@@ -122,12 +122,7 @@ export const ini_cell_layer = async (base_url, viz_state) => {
     // Combine names and positions into a single array of objects
     const new_cell_names_array = cell_arrow_table.getChild("name").toArray()
 
-    console.log(cell_arrow_table)
-
     const flatCoordinateArray = viz_state.spatial.cell_scatter_data.attributes.getPosition.value;
-
-    console.log('*********************')
-    console.log(new_cell_names_array)
 
     // save cell positions and categories in one place for updating cluster bar plot
     viz_state.combo_data.cell = new_cell_names_array.map((name, index) => ({

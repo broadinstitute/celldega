@@ -1,11 +1,9 @@
 import { get_arrow_table } from "../read_parquet/get_arrow_table"
 import { options } from '../global_variables/fetch_options.js';
 
-export const set_meta_gene = async (genes, base_url, seg_version) => {
+export const set_meta_gene = async (genes, base_url, seg_version='default') => {
 
     let meta_gene_url
-
-    console.log(seg_version);
 
     if (seg_version === 'default'){
         meta_gene_url = base_url + '/meta_gene.parquet';

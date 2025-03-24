@@ -4,7 +4,6 @@ import os
 from tqdm import tqdm
 import concurrent.futures
 import geopandas as gpd
-from shapely.wkt import loads
 from shapely.geometry import Point, Polygon, MultiPolygon
 
 
@@ -293,14 +292,6 @@ def make_cell_boundary_tiles(
         transformation_matrix = pd.read_csv(
         path_transformation_matrix, header=None, sep=" "
         ).values
-
-        # cells_orig = get_cell_polygons(technology, path_cell_boundaries, path_output, path_meta_cell_micron)
-
-        # # Transform geometries
-        # cells_orig["GEOMETRY"] = batch_transform_geometries(cells_orig["geometry"], transformation_matrix, image_scale)
-
-        # cells_orig["center_x"] = cells_orig["GEOMETRY"].apply(lambda geom: geom.centroid.x)
-        # cells_orig["center_y"] = cells_orig["GEOMETRY"].apply(lambda geom: geom.centroid.y)
 
         gdf_cells = get_cell_polygons(
             technology,

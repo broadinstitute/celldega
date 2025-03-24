@@ -69,11 +69,7 @@ const path_layer_onclick = (info, d, deck_ist, layers_obj, viz_state) => {
 
 export const update_path_layer_data = async (base_url, tiles_in_view, layers_obj, viz_state) => {
 
-    console.log(tiles_in_view);
-
     const polygonPathsConcat = await grab_cell_tiles_in_view(base_url, tiles_in_view, viz_state)
-
-    console.log(polygonPathsConcat);
 
     layers_obj.path_layer = layers_obj.path_layer.clone({
         data: polygonPathsConcat,

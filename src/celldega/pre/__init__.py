@@ -122,7 +122,7 @@ def cluster_gene_expression(technology, path_landscape_files, cbg, data_dir=None
     df_sig = df_sig.loc[keep_genes, clusters]
 
     # Save the gene expression signatures
-    if pd.api.types.is_sparse(df_sig):
+    if any(isinstance(dtype, pd.SparseDtype) for dtype in df_sig.dtypes):
         df_sig.sparse.to_dense().to_parquet(os.path.join(
                 path_landscape_files,
                 f"df_sig{'_' + segmentation_approach if segmentation_approach != 'default' else ''}.parquet"

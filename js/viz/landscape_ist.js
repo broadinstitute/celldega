@@ -53,8 +53,6 @@ export const landscape_ist = async (
     view_change_custom_callback=null
 ) => {
 
-    console.log('checking segmentation', segmentation)
-
     if (width === 0){
         width = '100%'
     }
@@ -305,8 +303,6 @@ export const landscape_ist = async (
     const layers_list = get_layers_list(layers_obj, viz_state.close_up)
 
     set_initial_view_state(deck_ist, ini_x, ini_y, ini_z, ini_zoom, viz_state)
-
-
 
     deck_ist.setProps({layers: layers_list})
 

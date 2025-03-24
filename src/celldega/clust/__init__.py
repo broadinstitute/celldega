@@ -48,7 +48,6 @@ from . import downsample_fun
 from . import categories
 
 from scipy.stats import ttest_ind, mannwhitneyu
-from matplotlib.colors import to_hex
 from sklearn.metrics import pairwise_distances, roc_curve, auc
 from scipy.spatial.distance import pdist
 from sklearn.metrics import confusion_matrix
@@ -58,11 +57,6 @@ import matplotlib.pyplot as plt
 import json
 import ipywidgets as widgets
 import statsmodels.stats.multitest as smm
-
-from spatialdata_io import xenium
-import scanpy as sc
-import squidpy as sq
-import spatialdata as sd
 
 def hc(df, filter_N_top=None, norm_col='total', norm_row='zscore'):
 

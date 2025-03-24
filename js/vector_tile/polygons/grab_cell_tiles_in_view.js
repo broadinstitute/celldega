@@ -26,7 +26,6 @@ export const grab_cell_tiles_in_view = async (base_url, tiles_in_view, viz_state
         Array.from(table.getChild('name').toArray())
     )
 
-    // below is the issue i think
     var polygon_datas = tile_cell_tables.map(x => get_polygon_data(x))
 
     var polygon_data = concatenate_polygon_data(polygon_datas);

@@ -89,7 +89,7 @@ export const landscape_sst = async (
 
     viz_state.cats.square_tile_size = square_tile_size
 
-    await set_meta_gene(viz_state.genes, base_url, viz_state.seg.version)
+    await set_meta_gene(viz_state.genes, base_url)
 
     // move this to landscape_parameters
     // const imgage_name_for_dim = 'dapi'

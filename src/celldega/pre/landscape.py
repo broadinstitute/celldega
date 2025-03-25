@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 from scipy.io import mmread
 from scipy.sparse import csr_matrix
+from .boundary_tile import _get_name_mapping
 
 # =============================================================================
 # Function List:
@@ -151,6 +152,11 @@ def save_cbg_gene_parquets(base_path, cbg, verbose=False):
     print("\n========Save cbg gene parquet========")
     output_dir = os.path.join(base_path, "cbg")
     os.makedirs(output_dir, exist_ok=True)
+
+
+    # convert cell index from string to integer
+    cell_str_to_int_mapping = _get_name_mapping(base_path, layer='boundary')
+    cbg.index = cbg.index.map(cell_str_to_int_mapping)
 
     for index, gene in enumerate(cbg.columns):
         if verbose and index % 100 == 0:

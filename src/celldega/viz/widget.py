@@ -56,6 +56,8 @@ class Landscape(anywidget.AnyWidget):
     update_trigger = traitlets.Dict().tag(sync=True)
     cell_clusters = traitlets.Dict().tag(sync=True)
 
+    segmentation = traitlets.Unicode("default").tag(sync=True)
+
     width = traitlets.Int(0).tag(sync=True)
     height = traitlets.Int(800).tag(sync=True)
 

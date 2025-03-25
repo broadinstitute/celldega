@@ -46,8 +46,13 @@ export const set_cluster_metadata = async (viz_state) => {
 
     } else {
 
-        // will improve this file naming later
-        const meta_cell_url = viz_state.global_base_url + `/cell_clusters/meta_cluster.parquet`
+        let meta_cell_url
+
+        if (viz_state.seg.version === 'default'){
+            meta_cell_url = viz_state.global_base_url + `/cell_clusters/meta_cluster.parquet`;
+        } else {
+            meta_cell_url = viz_state.global_base_url + `/cell_clusters_` + viz_state.seg.version + `/meta_cluster.parquet`;
+        }
 
         var meta_cell_arrow_table = await get_arrow_table(meta_cell_url, options.fetch)
 

@@ -52,6 +52,7 @@ export const landscape_ist = async (
     meta_z={},
     umap={},
     landscape_state='spatial',
+    segmentation='default',
     view_change_custom_callback=null
 ) => {
 
@@ -61,8 +62,10 @@ export const landscape_ist = async (
 
     let viz_state = {}
 
-    viz_state.root = el
+    viz_state.seg = {}
+    viz_state.seg.version = segmentation
 
+    viz_state.root = el
     viz_state.buttons = {}
     viz_state.buttons.blue = '#8797ff'
     viz_state.buttons.gray = 'gray'
@@ -268,7 +271,7 @@ export const landscape_ist = async (
         await set_dimensions(viz_state, base_url, imgage_name_for_dim)
     }
 
-    await set_meta_gene(viz_state.genes, base_url)
+    await set_meta_gene(viz_state.genes, base_url, viz_state.seg.version)
 
     await set_cluster_metadata(viz_state)
 
@@ -391,8 +394,6 @@ export const landscape_ist = async (
 
     set_initial_view_state(deck_ist, ini_x, ini_y, ini_z, ini_zoom, viz_state)
 
-
-
     deck_ist.setProps({layers: layers_list})
 
     set_deck_on_view_state_change(deck_ist, layers_obj, viz_state)
@@ -455,7 +456,7 @@ export const landscape_ist = async (
             update_cat(viz_state.cats, new_cat)
             update_selected_genes(viz_state.genes, [inst_gene])
             update_selected_cats(viz_state.cats, [])
-            await update_cell_exp_array(viz_state.cats, viz_state.genes, viz_state.global_base_url, inst_gene)
+            await update_cell_exp_array(viz_state.cats, viz_state.genes, viz_state.global_base_url, inst_gene, viz_state.seg.version)
 
             update_cell_layer_id(layers_obj, new_cat)
             update_path_layer_id(layers_obj, new_cat)

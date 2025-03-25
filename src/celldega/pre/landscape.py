@@ -75,17 +75,19 @@ def calc_meta_gene_data(cbg):
     proportion_nonzero = (cbg != 0).sum(axis=0) / len(cbg)
 
     # Create a DataFrame to hold all these metrics
+
     meta_gene = pd.DataFrame(
         {
-            "mean": mean_expression.sparse.to_dense(),
+            "mean": mean_expression.sparse.to_dense() if isinstance(mean_expression.dtype, pd.SparseDtype) else mean_expression,
             "std": std_deviation,
-            "max": max_expression.sparse.to_dense(),
-            "non-zero": proportion_nonzero.sparse.to_dense(),
+            "max": max_expression.sparse.to_dense() if isinstance(max_expression.dtype, pd.SparseDtype) else max_expression,
+            "non-zero": proportion_nonzero.sparse.to_dense() if isinstance(proportion_nonzero.dtype, pd.SparseDtype) else proportion_nonzero,
         }
-
     )
 
-    meta_gene_clean = pd.DataFrame(meta_gene.values, index=meta_gene.index.tolist(), columns=meta_gene.columns)
+    meta_gene_clean = pd.DataFrame(
+        meta_gene.values, index=meta_gene.index.tolist(), columns=meta_gene.columns
+    )
 
     return meta_gene_clean
 
@@ -104,7 +106,7 @@ def read_cbg_mtx(base_path):
     cbg : pandas.DataFrame
         A sparse DataFrame with genes as columns and barcodes as rows.
     """
-    print("Reading mtx file from ", base_path)
+    # print("Reading mtx file from ", base_path)
 
     # File paths
     barcodes_path = os.path.join(base_path, "barcodes.tsv.gz")
@@ -127,7 +129,7 @@ def read_cbg_mtx(base_path):
 
     return cbg
 
-def save_cbg_gene_parquets(base_path, cbg, verbose=False):
+def save_cbg_gene_parquets(base_path, cbg, verbose=False, segmentation_approach='default'):
     """
     Save the cell-by-gene matrix as gene-specific Parquet files.
 
@@ -144,8 +146,11 @@ def save_cbg_gene_parquets(base_path, cbg, verbose=False):
     -------
     None
     """
-    output_dir = os.path.join(base_path, "cbg")
+    output_dir = os.path.join(base_path, f"cbg{f'_{segmentation_approach}' if segmentation_approach !='default' else ''}")
+    print(output_dir)
     os.makedirs(output_dir, exist_ok=True)
+
+    print("\n========Write gene-specific parquet files========")
 
     for index, gene in enumerate(cbg.columns):
         if verbose and index % 100 == 0:
@@ -153,9 +158,6 @@ def save_cbg_gene_parquets(base_path, cbg, verbose=False):
 
         # Extract the column as a DataFrame as a copy
         col_df = cbg[[gene]].copy()
-
-        # Convert to dense and integer type
-        col_df = col_df.sparse.to_dense().astype(int)
 
         # Create a DataFrame necessary to prevent error in to_parquet
         inst_df = pd.DataFrame(
@@ -171,3 +173,4 @@ def save_cbg_gene_parquets(base_path, cbg, verbose=False):
             output_path = os.path.join(output_dir, f"{gene}.parquet")
             inst_df.to_parquet(output_path)
 
+    print("All gene-specific parquet files are succesfully saved.")

@@ -31,6 +31,7 @@ Module for clustering high-dimensional data.
 
 import numpy as np
 import pandas as pd
+import os
 from copy import deepcopy
 
 from . import initialize_net

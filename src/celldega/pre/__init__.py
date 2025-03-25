@@ -24,6 +24,7 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import to_hex
 
 import json
+import xml.etree.ElementTree as ET
 
 from .landscape import *
 from .trx_tile import *
@@ -695,8 +696,15 @@ def add_custom_segmentation(path_landscape_files, path_segmentation_files, image
                                                 path_landscape_files=path_landscape_files,
                                                 segmentation_approach=segmentation_parameters['segmentation_approach'])
 
-    tile_bounds = make_trx_tiles(technology = segmentation_parameters['technology'],
-                            path_trx = os.path.join(path_segmentation_files, 'transcripts.parquet'))
+    tree = ET.parse(os.path.join(path_landscape_files, "pyramid_images/bound.dzi"))
+    root = tree.getroot()
+    width = int(root[0].attrib['Width'])
+    height = int(root[0].attrib['Height'])
+
+    tile_bounds = {'x_min': 0,
+                'x_max': width,
+                'y_min': 0,
+                'y_max': height}
 
     make_cell_boundary_tiles(technology = segmentation_parameters['technology'],
                             path_cell_boundaries = os.path.join(path_segmentation_files, "cell_polygons.parquet"),

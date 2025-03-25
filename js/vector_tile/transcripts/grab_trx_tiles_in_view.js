@@ -15,9 +15,6 @@ export const grab_trx_tiles_in_view = async (base_url, tiles_in_view, viz_state)
 
     var trx_arrow_table = concatenate_arrow_tables(tile_trx_tables)
 
-    // var new_trx_names_array = trx_arrow_table.getChild("name").toArray();
-
-
     if (!viz_state.vector_name_integer) {
         // When viz_state.vector_name_integer is false, extract names directly.
         var new_trx_names_array = trx_arrow_table.getChild("name").toArray();

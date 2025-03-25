@@ -318,11 +318,6 @@ def make_cell_boundary_tiles(
 
     print("\n========Create cell boundary spatial tiles========")
 
-    cell_str_to_int_mapping = _get_name_mapping(
-        path_transformation_matrix.replace('/micron_to_image_transform.csv',''),
-        layer='boundary',
-        )
-
     # Ensure the output directory exists
     if not os.path.exists(path_output):
         os.makedirs(path_output)
@@ -360,7 +355,14 @@ def make_cell_boundary_tiles(
             path_meta_cell_micron,
         )
         
+
+        # Convert string index to integer index
+        cell_str_to_int_mapping = _get_name_mapping(
+            path_transformation_matrix.replace('/micron_to_image_transform.csv',''),
+            layer='boundary',
+            )
         gdf_cells.index = gdf_cells.index.map(cell_str_to_int_mapping)
+        
         gdf_cells["center_x"] = gdf_cells.geometry.centroid.x
         gdf_cells["center_y"] = gdf_cells.geometry.centroid.y
 

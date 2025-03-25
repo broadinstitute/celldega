@@ -34,6 +34,7 @@ export const render_landscape_ist = async ({ model, el }) => {
     const meta_cluster = model.get('meta_cluster')
     const umap = model.get('umap')
     const landscape_state = model.get('landscape_state')
+    const segmentation = model.get('segmentation')
 
     return landscape_ist(
         el,
@@ -51,7 +52,8 @@ export const render_landscape_ist = async ({ model, el }) => {
         meta_cell,
         meta_cluster,
         umap,
-        landscape_state
+        landscape_state,
+        segmentation
     )
 
 }

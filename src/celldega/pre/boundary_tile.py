@@ -14,7 +14,6 @@ def numpy_affine_transform(coords, matrix):
     transformed_coords = coords @ matrix.T
     return transformed_coords[:, :2]  # Drop the homogeneous coordinate
 
-
 def batch_transform_geometries(geometries, transformation_matrix, scale):
     """
     Batch transform geometries using numpy for optimized performance.
@@ -207,9 +206,6 @@ def get_cell_polygons(
         )
         cells_orig = gpd.GeoDataFrame(grouped, geometry="geometry")[["geometry"]]
 
-    elif technology == "custom":
-        cells_orig = gpd.read_parquet(path_cell_boundaries)
-
     # Transform geometries
     cells_orig["GEOMETRY"] = batch_transform_geometries(
         cells_orig["geometry"], transformation_matrix, image_scale
@@ -226,9 +222,9 @@ def get_cell_polygons(
 def make_cell_boundary_tiles(
     technology,
     path_cell_boundaries,
-    path_meta_cell_micron,
-    path_transformation_matrix,
     path_output,
+    path_meta_cell_micron=None,
+    path_transformation_matrix=None,
     coarse_tile_factor=20,
     tile_size=250,
     tile_bounds=None,
@@ -268,25 +264,46 @@ def make_cell_boundary_tiles(
     None
     """
 
-    transformation_matrix = pd.read_csv(
-        path_transformation_matrix, header=None, sep=" "
-    ).values
+    print("\n========Create cell boundary spatial tiles========")
 
-    # Ensure the output directory exists
     if not os.path.exists(path_output):
         os.makedirs(path_output)
 
-    gdf_cells = get_cell_polygons(
-        technology,
-        path_cell_boundaries,
-        transformation_matrix,
-        path_output,
-        image_scale,
-        path_meta_cell_micron,
-    )
+    if technology == 'custom':
+        gdf_cells = gpd.read_parquet(path_cell_boundaries)
+        gdf_cells.rename(columns={'geometry_image_space': 'GEOMETRY'}, inplace=True)
 
-    gdf_cells["center_x"] = gdf_cells.geometry.centroid.x
-    gdf_cells["center_y"] = gdf_cells.geometry.centroid.y
+        gdf_cells["center_x"] = gdf_cells["GEOMETRY"].apply(lambda geom: geom.centroid.x)
+        gdf_cells["center_y"] = gdf_cells["GEOMETRY"].apply(lambda geom: geom.centroid.y)
+
+        transformed_geometries = []
+
+        for geom in gdf_cells['GEOMETRY']:
+
+            if isinstance(geom, Polygon):
+
+                exterior_coords = np.array(geom.exterior.coords)
+                transformed_geometries.append([exterior_coords.tolist()])
+
+        gdf_cells["GEOMETRY"] = transformed_geometries
+
+    else:
+
+        transformation_matrix = pd.read_csv(
+        path_transformation_matrix, header=None, sep=" "
+        ).values
+
+        gdf_cells = get_cell_polygons(
+            technology,
+            path_cell_boundaries,
+            transformation_matrix,
+            path_output,
+            image_scale,
+            path_meta_cell_micron,
+        )
+
+        gdf_cells["center_x"] = gdf_cells.geometry.centroid.x
+        gdf_cells["center_y"] = gdf_cells.geometry.centroid.y
 
     # Calculate tile bounds and fine/coarse tiles
     x_min, x_max = tile_bounds["x_min"], tile_bounds["x_max"]
@@ -328,3 +345,5 @@ def make_cell_boundary_tiles(
                     n_fine_tiles_y,
                     max_workers,
                 )
+
+    print("Done.")

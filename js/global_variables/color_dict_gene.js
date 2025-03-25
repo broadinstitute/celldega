@@ -2,9 +2,16 @@ import { get_arrow_table } from '../read_parquet/get_arrow_table.js'
 import { options } from './fetch_options.js'
 import { hexToRgb } from '../utils/hexToRgb.js'
 
-export const set_color_dict_gene = async (genes, base_url) => {
+export const set_color_dict_gene = async (genes, base_url, seg_version) => {
 
-    const meta_gene_url = base_url + `/meta_gene.parquet`;
+    let meta_gene_url
+
+    if (seg_version === 'default'){
+        meta_gene_url = base_url + '/meta_gene.parquet';
+    } else {
+        meta_gene_url = base_url + '/meta_gene_' + seg_version + '.parquet';
+    }
+
     let tmp_meta_gene = await get_arrow_table(meta_gene_url, options.fetch)
 
     let gene_names = [];

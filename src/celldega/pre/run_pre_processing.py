@@ -63,15 +63,15 @@ def main(sample, data_root_dir, tile_size, image_tile_layer, path_landscape_file
     path_meta_cell_micron = os.path.join(data_dir, 'cells.csv.gz')
     path_meta_cell_image = os.path.join(path_landscape_files, 'cell_metadata.parquet')
     dega.pre.make_meta_cell_image_coord(
-        technology, 
-        path_transformation_matrix, 
-        path_meta_cell_micron, 
-        path_meta_cell_image, 
+        technology,
+        path_transformation_matrix,
+        path_meta_cell_micron,
+        path_meta_cell_image,
         image_scale=1
     )
 
     # Create cluster and meta cluster files
-    clusters = dega.pre.create_cluster_and_meta_cluster(technology, data_dir, path_landscape_files)
+    clusters = dega.pre.create_cluster_and_meta_cluster(technology, path_landscape_files, data_dir)
 
     # Generate image tiles
     dega.pre.create_image_tiles(technology, data_dir, path_landscape_files, image_tile_layer=image_tile_layer)
@@ -93,30 +93,31 @@ def main(sample, data_root_dir, tile_size, image_tile_layer, path_landscape_file
         max_workers=2
     )
     print (f"tile bounds: {tile_bounds}")
-    
+
     # Generate boundary tiles
     print("\n========Generating boundary tiles========")
     path_cell_boundaries = os.path.join(data_dir, 'cell_boundaries.parquet')
     path_output = os.path.join(path_landscape_files, 'cell_segmentation')
-    cells_orig = dega.pre.make_cell_boundary_tiles(
-        technology,
-        path_cell_boundaries,
-        path_meta_cell_micron,
-        path_transformation_matrix,
-        path_output,
-        coarse_tile_factor=10,
-        tile_size=tile_size,
-        tile_bounds=tile_bounds,
-        image_scale=1,
-        max_workers=2
-    )
+
+    dega.pre.make_cell_boundary_tiles(
+            technology,
+            path_cell_boundaries,
+            path_output,
+            path_meta_cell_micron,
+            path_transformation_matrix,
+            coarse_tile_factor=10,
+            tile_size=tile_size,
+            tile_bounds=tile_bounds,
+            image_scale=1,
+            max_workers=2
+        )
 
     # Create cluster-based gene expression
-    df_sig = dega.pre.cluster_gene_expression(technology, data_dir, path_landscape_files, cbg)
+    df_sig = dega.pre.cluster_gene_expression(technology, path_landscape_files, cbg, data_dir)
 
     # Save landscape parameters
     dega.pre.save_landscape_parameters(
-        technology, 
+        technology,
         path_landscape_files,
         'dapi_files',
         tile_size=tile_size,

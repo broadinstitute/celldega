@@ -1,9 +1,16 @@
 import { get_arrow_table } from '../read_parquet/get_arrow_table'
 import { options } from '../global_variables/fetch_options.js'
 
-export const update_cell_exp_array = async (cats, genes, base_url, inst_gene) => {
+export const update_cell_exp_array = async (cats, genes, base_url, inst_gene, version) => {
 
-    var file_path = base_url + '/cbg/' + inst_gene + '.parquet'
+    let file_path;
+    if (version === 'default'){
+        file_path = base_url + '/cbg/' + inst_gene + '.parquet';
+    } else {
+        file_path = base_url + '/cbg_' + version + '/' + inst_gene + '.parquet';
+    }
+
+    //var file_path = base_url + '/cbg/' + inst_gene + '.parquet'
     var exp_table = await get_arrow_table(file_path, options.fetch)
     let cell_names = exp_table.getChild('__index_level_0__').toArray()
     let cell_exp = exp_table.getChild(inst_gene).toArray()
@@ -13,7 +20,6 @@ export const update_cell_exp_array = async (cats, genes, base_url, inst_gene) =>
     cell_names.forEach((name, i) => {
         if (name in cats.nameMapping_inv) {
             const exp_value = Number(cell_exp[i]);
-
             const max_exp = Number(genes.meta_gene[inst_gene].max);
 
             // Apply logarithmic transformation

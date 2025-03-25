@@ -122,6 +122,11 @@ def cluster_gene_expression(technology, path_landscape_files, cbg, data_dir=None
     # Subset the DataFrame to keep only relevant genes and clusters
     df_sig = df_sig.loc[keep_genes, clusters]
 
+    # drop columns with Nan values
+    df_sig = df_sig.dropna(axis=1, how='all')
+
+    df_sig = df_sig.loc[sorted(df_sig.index), sorted(df_sig.columns)]
+
     # Save the gene expression signatures
     if any(isinstance(dtype, pd.SparseDtype) for dtype in df_sig.dtypes):
         df_sig.sparse.to_dense().to_parquet(os.path.join(

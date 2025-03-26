@@ -6,7 +6,7 @@ import concurrent.futures
 import geopandas as gpd
 from shapely.geometry import Point, Polygon, MultiPolygon
 
-def _get_name_mapping(path_landscape_files, layer):
+def _get_name_mapping(path_landscape_files, layer, segmentation='default'):
     """
     Generates mappings from gene and cell names to unique integer identifiers.
 
@@ -16,26 +16,47 @@ def _get_name_mapping(path_landscape_files, layer):
             - `meta_gene.parquet`: Contains gene metadata with gene names as the index.
             - `cell_metadata.parquet`: Contains cell metadata with a 'name' column.
             - `layer`: 'boundary' or 'transcript'
+            - `segmentation`: 'default' or 'cellpose2', etc.
 
     Returns:
         dict: Maps gene names (str) to integer ranks (int).
     """
-    if layer == 'transcript':
-        # Load gene metadata
-        df_meta_gene = pd.read_parquet(f"{path_landscape_files}/meta_gene.parquet")
-        df_meta_gene['name'] = df_meta_gene.index
-        df_meta_gene = df_meta_gene.reset_index(drop=True)
-        return {name: idx for idx, name in df_meta_gene['name'].items()}
 
-    elif layer == 'boundary':
-        # Load cell metadata
-        df_meta_cell = pd.read_parquet(f"{path_landscape_files}/cell_metadata.parquet")
-        return {name: idx for idx, name in df_meta_cell['name'].items()}
-    
+    if segmentation == 'default':
+        if layer == 'transcript':
+            # Load gene metadata
+            df_meta_gene = pd.read_parquet(f"{path_landscape_files}/meta_gene.parquet")
+            df_meta_gene['name'] = df_meta_gene.index
+            df_meta_gene = df_meta_gene.reset_index(drop=True)
+            return {name: idx for idx, name in df_meta_gene['name'].items()}
+
+        elif layer == 'boundary':
+            # Load cell metadata
+            df_meta_cell = pd.read_parquet(f"{path_landscape_files}/cell_metadata.parquet")
+            return {name: idx for idx, name in df_meta_cell['name'].items()}
+        
+        else:
+            raise ValueError(
+                f"Unsupported layer: {layer}. Supported technologies are 'boundary' and 'transcript'."
+            )
     else:
-        raise ValueError(
-            f"Unsupported layer: {layer}. Supported technologies are 'boundary' and 'transcript'."
-        )
+        if layer == 'transcript':
+            # Load gene metadata
+            df_meta_gene = pd.read_parquet(f"{path_landscape_files}/meta_gene_{segmentation}.parquet")
+            df_meta_gene['name'] = df_meta_gene.index
+            df_meta_gene = df_meta_gene.reset_index(drop=True)
+            return {name: idx for idx, name in df_meta_gene['name'].items()}
+
+        elif layer == 'boundary':
+            # Load cell metadata
+            df_meta_cell = pd.read_parquet(f"{path_landscape_files}/cell_metadata_{segmentation}.parquet")
+            return {name: idx for idx, name in df_meta_cell['name'].items()}
+        
+        else:
+            raise ValueError(
+                f"Unsupported layer: {layer}. Supported technologies are 'boundary' and 'transcript'."
+            )
+
 
 def _round_nested_coord_list(value, decimals=2):
     """Rounds numeric values in nested lists or arrays to a specified number of decimal places.
@@ -324,6 +345,15 @@ def make_cell_boundary_tiles(
 
     if technology == 'custom':
         gdf_cells = gpd.read_parquet(path_cell_boundaries)
+
+        # Convert string index to integer index
+        cell_str_to_int_mapping = _get_name_mapping(
+            path_output.split('/cell_segmentation')[0],  # get the path of landscape files
+            layer='boundary',
+            segmentation=path_output.split('cell_segmentation_')[1], # get the cell segmentation method, such as cellpose2.
+            )
+        gdf_cells.index = gdf_cells.index.map(cell_str_to_int_mapping)
+
         gdf_cells.rename(columns={'geometry_image_space': 'GEOMETRY'}, inplace=True)
 
         gdf_cells["center_x"] = gdf_cells["GEOMETRY"].apply(lambda geom: geom.centroid.x)
@@ -355,7 +385,6 @@ def make_cell_boundary_tiles(
             path_meta_cell_micron,
         )
         
-
         # Convert string index to integer index
         cell_str_to_int_mapping = _get_name_mapping(
             path_transformation_matrix.replace('/micron_to_image_transform.csv',''),

@@ -22,41 +22,26 @@ def _get_name_mapping(path_landscape_files, layer, segmentation='default'):
         dict: Maps gene names (str) to integer ranks (int).
     """
 
-    if segmentation == 'default':
-        if layer == 'transcript':
-            # Load gene metadata
-            df_meta_gene = pd.read_parquet(f"{path_landscape_files}/meta_gene.parquet")
-            df_meta_gene['name'] = df_meta_gene.index
-            df_meta_gene = df_meta_gene.reset_index(drop=True)
-            return {name: idx for idx, name in df_meta_gene['name'].items()}
-
-        elif layer == 'boundary':
-            # Load cell metadata
-            df_meta_cell = pd.read_parquet(f"{path_landscape_files}/cell_metadata.parquet")
-            return {name: idx for idx, name in df_meta_cell['name'].items()}
-        
-        else:
-            raise ValueError(
-                f"Unsupported layer: {layer}. Supported technologies are 'boundary' and 'transcript'."
-            )
-    else:
-        if layer == 'transcript':
-            # Load gene metadata
+    if layer == 'transcript':
+        # Load gene metadata
+        df_meta_gene = pd.read_parquet(f"{path_landscape_files}/meta_gene.parquet")
+        if segmentation != 'default':
             df_meta_gene = pd.read_parquet(f"{path_landscape_files}/meta_gene_{segmentation}.parquet")
-            df_meta_gene['name'] = df_meta_gene.index
-            df_meta_gene = df_meta_gene.reset_index(drop=True)
-            return {name: idx for idx, name in df_meta_gene['name'].items()}
+        df_meta_gene['name'] = df_meta_gene.index
+        df_meta_gene = df_meta_gene.reset_index(drop=True)
+        return {name: idx for idx, name in df_meta_gene['name'].items()}
 
-        elif layer == 'boundary':
-            # Load cell metadata
+    elif layer == 'boundary':
+        # Load cell metadata
+        df_meta_cell = pd.read_parquet(f"{path_landscape_files}/cell_metadata.parquet")
+        if segmentation != 'default':
             df_meta_cell = pd.read_parquet(f"{path_landscape_files}/cell_metadata_{segmentation}.parquet")
-            return {name: idx for idx, name in df_meta_cell['name'].items()}
-        
-        else:
-            raise ValueError(
-                f"Unsupported layer: {layer}. Supported technologies are 'boundary' and 'transcript'."
-            )
-
+        return {name: idx for idx, name in df_meta_cell['name'].items()}
+    
+    else:
+        raise ValueError(
+            f"Unsupported layer: {layer}. Supported technologies are 'boundary' and 'transcript'."
+        )
 
 def _round_nested_coord_list(value, decimals=2):
     """Rounds numeric values in nested lists or arrays to a specified number of decimal places.

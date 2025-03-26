@@ -1,4 +1,4 @@
-# Celldega Usage on Terra.bio
+# Celldega/ STP Segmentation Usage on Terra.bio
 
 The following guide assumes some familiarity with Terra, WDL, and the basics of running workflows in a cloud environment.
 
@@ -24,11 +24,11 @@ The repository includes:
 
 - Access the GitHub Repository
 
-Visit stp_segmentation_wdl GitHub repository and review the README for specific details about prerequisites and workflow execution.
+Visit stp_segmentation_wdl GitHub repository and review the [README](https://github.com/broadinstitute/stp_segmentation_wdl/blob/main/README.md) for guides, specific details about prerequisites, and local workflow execution.
 
 - Set Up a Terra Workspace
 
-Log in to [Terra](https://terra.bio/). If a dedicated workspace has not been created, create a new workspace by navigating to `Workspaces` tab and clicking the plus sign next to the Workspaces heading.
+Log in to [Terra](https://terra.bio/). If a dedicated workspace does not already exist, create one by navigating to the `Workspaces` tab and clicking the plus (+) icon next to the Workspaces heading. More details can be found [here](https://support.terra.bio/hc/en-us/articles/19844636053019-Intro-to-your-Terra-workspace).
 
 <div class="grid cards" markdown>
 
@@ -38,7 +38,7 @@ Log in to [Terra](https://terra.bio/). If a dedicated workspace has not been cre
 
 - Import the Workflow
 
-In the workspace, go to the Workflows tab. Click `Find a Workflow`, search for `stp_segmentation_wdl`, and import the appropriate version.
+In the workspace, go to the `Workflows` tab. Click `Find a Workflow`, search for `stp_segmentation_wdl`, and import the appropriate version. More details can be found [here](https://support.terra.bio/hc/en-us/articles/17799268537371-How-to-find-a-workflow).
 
 <div class="grid cards" markdown>
 
@@ -48,9 +48,11 @@ In the workspace, go to the Workflows tab. Click `Find a Workflow`, search for `
 
 - Input Configuration
 
-Use the intuitive Terra workflow submission GUI to provide relevant WDL inputs or create an inputs.json file based on your dataset. Key inputs often include:
+Use the intuitive Terra workflow submission GUI to provide relevant WDL inputs or create an inputs.json file based on your dataset. Key inputs include:
 
 * Image Data: Cloud storage paths to the images (e.g., .tif).
+
+* Transcript Data: Cloud storage paths to the transcript data files (e.g., .csv, .parquet).
 
 * Segmentation Parameters: Adjust options like tile size, model type, or thresholds.
 
@@ -95,38 +97,44 @@ To execute the workflow, click `Run Analysis` after setting up inputs.
 
 - Review Outputs
 
-After execution, outputs such as segmented cell boundaries, tiled images, or assigned transcripts will be available in the corresponding submission ID-specific directory within the workspace-associated Cloud Storage Bucket.
+After execution, outputs such as segmented cell boundaries, tiled images, assigned transcripts as well as meta data will be available in the corresponding submission ID-specific directory within the workspace-associated Cloud Storage Bucket.
 
 ### Re-training a Custom Cellpose2 Model
 
-To set-up Cellpose, follow the guidelines [here](https://www.cellpose.org/).
+To set up Cellpose, follow the instructions provided [here](https://cellpose.readthedocs.io/en/latest/).
 
-To re-train a custom Cellpose2 model, select a few tissue regions (e.g., four regions) where the default segmentation results are problematic or not good enough.
+To retrain a custom Cellpose 2 model, select a few tissue regions (e.g., four) where the default segmentation results are suboptimal or inaccurate.
 
 <div class="grid cards" markdown>
 
-- Xenium Human Skin Cancer Dataset: 246 polygons before manual curation ![](../assets/img/xenium_skin_before_cellpose2_curation.png)
+- Region from the Xenium Human Skin Cancer Dataset: 246 polygons before manual curation ![](../assets/img/xenium_skin_before_cellpose2_curation.png)
 
 </div>
 
-These regions will serve as the training data for the custom model. Additionally, choose a different subset of image for testing purposes.
+These selected regions will serve as training data for the custom model. Additionally, choose a separate subset of images to use as a test set.
 
-Next, extract the default segmentation masks and refine them using the Cellpose GUI or Celldega GUI (beta). Train a custom model using the Cellpose GUI by following the instructions below.
+Next, extract the default segmentation masks and refine them using the Cellpose GUI or the Celldega GUI (beta). Then, train a custom model using the Cellpose GUI by following the instructions below.
 
-Upload a region of interest from your dataset into the Cellpose GUI. Upload masks and manually curated wherever needed. Repeat this process for different subsections of the same image and train a custom model.
+* Upload a region of interest from your dataset into the Cellpose GUI.
+* Upload the corresponding segmentation masks and manually curate them as needed.
+* Repeat this process for different subsections of the same image to create a diverse training set.
+* Train a custom model using the curated data. Use either the GUI or the terminal (command below) to retrain the custom model:
 
-Use either the GUI tabs or the terminal (command below) to retrain the custom model:
+`python -m cellpose --train --dir {images_dir} --pretrained_model {base_model_name} --mask_filter _seg.npy --model_name_out {retrained_custom_model} --verbose`
 
-`python -m cellpose --train --dir images/ --pretrained_model models/{custom_model_name} --mask_filter _seg.npy --model_name_out {retrained_custom_model} --verbose`
+Once training is complete, evaluate the model using the designated test set. You may retrain the model multiple times, incorporating additional training images or adjusting model parameters as needed to improve performance.
 
-Once trained, evaluate the model using the test dataset. Retrain the model however many times as needed by including more images in the training set or by testing different model parameter values.
+When the model achieves satisfactory results, upload it to the appropriate Google Bucket linked to your Terra workspace. Then, reference the model in the workflow variable pretrained_model using its full bucket path.
 
-When the model performs sufficiently well, upload it to the relevant Google Bucket associated with a Terra workspace. Finally, reference this model in the workflow variable pretrained_model using its full bucket path.
+Success criteria may include:
 
-The success criteria can be defined as achieved qualitatively better segmentation than the default segmentation results in at least one problematic tissue sub-region, a significantly higher transcript assignment rate, higher cell count, higher average area of cells, etc.
+* Clear qualitative improvement over default segmentation in at least one problematic tissue region
+* Increased transcript assignment rate
+* Higher total cell count
+* Greater average cell area
 
 <div class="grid cards" markdown>
 
-- Xenium Human Skin Cancer Dataset: 312 predicted polygons by custom Cellpose2 model after manual curation ![](../assets/img/xenium_skin_after_cellpose2_curation.png)
+- Region from the Xenium Human Skin Cancer Dataset: 312 predicted polygons by a custom Cellpose2 model after manual curation ![](../assets/img/xenium_skin_after_cellpose2_curation.png)
 
 </div>

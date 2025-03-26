@@ -5,6 +5,7 @@ import numpy as np
 import alphashape
 import json
 from shapely.validation import make_valid
+from ..nbhd import *
 
 def find_containing_polygon(transcript, CELL_POLYGONS_sindex, CELL_POLYGONS_GDF):
     point = transcript.geometry
@@ -60,29 +61,21 @@ def add_or_merge_into_gdf_nc(gdf_nc, default_clustering, clusters_within_cutout_
     merge if necessary
     """
 
-    # check if poly intersects with any polygons in gdf_nc
     possible_intersections = gdf_nc.sindex.query(poly, predicate='intersects')
 
-    # if no intersection then add to gdf_nc
     if len(possible_intersections) == 0:
 
         new_data = {
             'geometry': poly
         }
 
-        # add poly to gdf_nc because there is no conflict
         new_row = gpd.GeoDataFrame([new_data])
         new_row['cell_id'] = ID
         new_row['technology'] = tech
         new_row['centroid'] = poly.centroid
         gdf_nc = gpd.GeoDataFrame(pd.concat([gdf_nc, new_row], ignore_index=True))
 
-    # else poly intersects with one or more gdf_nc polygons
-
     else:
-
-        # Assumption: the polygon we are adding to gdf_nc should only ever have to be
-        # merged with one polygon from gdf_nc.
 
         max_ioa_merged = 0
         max_ioa_merged_index = 0
@@ -103,19 +96,13 @@ def add_or_merge_into_gdf_nc(gdf_nc, default_clustering, clusters_within_cutout_
             else:
                 ioa_merged = 0
 
-            # find the polygon with the highest intersection and calculate ioa_merge
-
             if ioa_merged >= max_ioa_merged:
                 max_ioa_merged = ioa_merged
                 max_ioa_merged_index = index
 
         if max_ioa_merged >= ioa_thresh:
 
-            # If ioa_merge >= threshold, then merged with gdf_nc polygon
-
             poly_intersect = gdf_nc.loc[max_ioa_merged_index, 'geometry']
-
-            # poly_merged = ...
 
             poly_intersect = make_valid(poly_intersect).buffer(0)
             poly_intersect = poly_intersect.simplify(0.001)
@@ -128,7 +115,6 @@ def add_or_merge_into_gdf_nc(gdf_nc, default_clustering, clusters_within_cutout_
 
         else:
 
-            # add poly to gdf_nc becuse there is a small conflict
             new_data = {'geometry': poly}
             new_row = gpd.GeoDataFrame([new_data])
             new_row['cell_id'] = ID
@@ -138,7 +124,7 @@ def add_or_merge_into_gdf_nc(gdf_nc, default_clustering, clusters_within_cutout_
 
     return gdf_nc
 
-def merge_segmentation(default_data_path, custom_data_path, output_path, clusters_within_cutout_region, alpha_value_for_cutout_region, buffer_for_cutout_region_alpha_shape, alpha_value_for_full_tissue, buffer_for_full_tisse_alpha_shape, ioa_small_thresh = 0.5):
+def merge_segmentation(default_data_path, custom_data_path, output_path, clusters_within_cutout_region, inv_alpha_value_for_cutout_region, buffer_for_cutout_region_alpha_shape, inv_alpha_value_for_full_tissue, buffer_for_full_tisse_alpha_shape, ioa_small_thresh = 0.5):
 
     default_clustering = pd.read_csv(f"{default_data_path}/analysis/clustering/gene_expression_graphclust/clusters.csv", index_col=0)
 
@@ -171,7 +157,7 @@ def merge_segmentation(default_data_path, custom_data_path, output_path, cluster
     filtered_cell_centroids_default_within_cutout_region = np.array(list(zip(filtered_cells_default_within_cutout_region['centroid'].x,
                                                                              filtered_cells_default_within_cutout_region['centroid'].y)))
 
-    cutout_region_alpha_shape = alphashape.alphashape(filtered_cell_centroids_default_within_cutout_region, alpha_value_for_cutout_region)
+    cutout_region_alpha_shape = alpha_shape(filtered_cell_centroids_default_within_cutout_region, inv_alpha_value_for_cutout_region)
 
     if len(cutout_region_alpha_shape.geoms) == 1:
         largest_cutout_region_alpha_shape = cutout_region_alpha_shape
@@ -198,7 +184,7 @@ def merge_segmentation(default_data_path, custom_data_path, output_path, cluster
     cell_centroids_before_harmonization = np.array(list(zip(cells_before_harmonization['centroid'].x,
                                                             cells_before_harmonization['centroid'].y)))
 
-    full_tissue_alpha_shape = alphashape.alphashape(cell_centroids_before_harmonization, alpha_value_for_full_tissue)
+    full_tissue_alpha_shape = alpha_shape(cell_centroids_before_harmonization, inv_alpha_value_for_full_tissue)
 
     if len(full_tissue_alpha_shape.geoms) == 1:
         largest_full_tissue_alpha_shape = full_tissue_alpha_shape
@@ -373,6 +359,11 @@ def merge_segmentation(default_data_path, custom_data_path, output_path, cluster
     merged_cells.to_parquet(f'{output_path}/merged_cell_segmentation.parquet')
 
     print("Merged Segmentation saved.")
+
+    ## add cell meta data in micron space (parquet)
+    ## add cell by gene matrix (parquet)
+    ## add segmentation parameters (json)
+    ## add transformation matrix (csv)
 
     transcripts_default = pd.read_parquet(f"{default_data_path}/transcripts.parquet")
 

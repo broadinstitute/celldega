@@ -30,6 +30,7 @@ import xml.etree.ElementTree as ET
 from .landscape import *
 from .trx_tile import *
 from .boundary_tile import *
+from .boundary_tile import _round_nested_coord_list
 from ..clust import *
 from .image_info import *
 from .run_pre_processing import *
@@ -570,6 +571,9 @@ def make_meta_cell_image_coord(
     # Check if the 'name' column is unique
     if not meta_cell['name'].is_unique:
         warnings.warn("Duplicate cell names found in meta_cell!", UserWarning)
+
+     # Apply rounding to the GEOMETRY column
+    meta_cell['geometry'] = meta_cell['geometry'].apply(_round_nested_coord_list)       
 
     # Force alphabetically sort by 'name'
     meta_cell = meta_cell.sort_values(by=['name']).reset_index(drop=True)

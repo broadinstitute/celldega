@@ -266,13 +266,13 @@ def create_cluster_and_meta_cluster(technology, path_landscape_files, data_dir=N
     if technology == 'custom':
 
         df_cluster = pd.DataFrame(index=meta_cell['name'].tolist())
-        df_cluster['cluster'] = pd.Series('0', index=meta_cell.index.tolist())
+        df_cluster['cluster'] = 0
         df_cluster['cluster'] = df_cluster['cluster'].astype('string')
         df_cluster.to_parquet(os.path.join(cell_clusters_dir, "cluster.parquet"))
 
         meta_cluster = pd.DataFrame(index=['0'])
         meta_cluster.loc['0', 'color'] = '#1f77b4'
-        meta_cluster.loc['0', 'count'] = len(meta_cell.index.tolist())
+        meta_cluster.loc['0', 'count'] = len(meta_cell['name'].tolist())
         meta_cluster.to_parquet(os.path.join(cell_clusters_dir, "meta_cluster.parquet"))
 
         ser_counts = df_cluster['cluster'].value_counts()

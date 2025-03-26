@@ -151,7 +151,7 @@ def save_cbg_gene_parquets(base_path, cbg, verbose=False, segmentation_approach=
     os.makedirs(output_dir, exist_ok=True)
 
     # convert cell index from string to integer
-    cell_str_to_int_mapping = _get_name_mapping(base_path, layer='boundary')
+    cell_str_to_int_mapping = _get_name_mapping(base_path, layer='boundary', segmentation=segmentation_approach)
     cbg.index = cbg.index.map(cell_str_to_int_mapping)
 
     for index, gene in enumerate(cbg.columns):

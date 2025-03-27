@@ -138,3 +138,7 @@ Success criteria may include:
 - Region from the Xenium Human Skin Cancer Dataset: 312 predicted polygons by a custom Cellpose2 model after manual curation ![](../assets/img/xenium_skin_after_cellpose2_curation.png)
 
 </div>
+
+### Custom Segmentation Visualization in Celldega
+
+Explore a custom segmentation run on Celldega [here](../examples/brief_notebooks/Custom_Segmentation.ipynb).

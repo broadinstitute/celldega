@@ -343,26 +343,6 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
     make_button(cell_ctrl_container, 'ist', 'CELL', 'blue', 40, 'button', deck_ist, layers_obj, viz_state)
     make_button(      trx_container, 'ist', 'TRX',  'blue', 40, 'button', deck_ist, layers_obj, viz_state)
 
-
-    // viz_state.containers.z_level = make_bar_container()
-
-    // make_bar_graph(
-    //     viz_state.containers.z_level,
-    //     bar_callback_z_level,
-    //     viz_state.z_level.svg_bar_cluster,
-    //     viz_state.z_level.cluster_counts,
-    //     viz_state.z_level.color_dict_cluster,
-    //     deck_ist,
-    //     layers_obj,
-    //     viz_state
-    // )
-
-    // console.log(viz_state.containers.z_level)
-
-    // hacky turn off img container
-    // viz_state.containers.image.appendChild(img_layers_container)
-    // viz_state.containers.image.appendChild(viz_state.containers.z_level)
-
     viz_state.sliders = {}
 
     ini_slider('cell', deck_ist, layers_obj, viz_state)

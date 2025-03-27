@@ -143,39 +143,6 @@ export const landscape_ist = async (
     console.log('landscape_ist ----------------------------')
     console.log('viz_state.cats', viz_state.cats)
 
-    // for Z level data
-    viz_state.z_level = {}
-    viz_state.z_level.svg_bar_cluster = d3.create('svg')
-
-    console.log('meta_z', meta_z)
-
-    viz_state.z_level.cluster_counts = [
-        {'name': 9, 'value': 100},
-        {'name': 8, 'value': 100},
-        {'name': 7, 'value': 100},
-        {'name': 6, 'value': 100},
-        {'name': 5, 'value': 100},
-        {'name': 4, 'value': 100},
-        {'name': 3, 'value': 100},
-        {'name': 2, 'value': 100},
-        {'name': 1, 'value': 100},
-        {'name': 0, 'value': 100},
-    ]
-
-    viz_state.z_level.color_dict_cluster = {
-        0: [150, 150, 255],
-        1: [150, 150, 255],
-        2: [150, 150, 255],
-        3: [150, 150, 255],
-        4: [150, 150, 255],
-        5: [150, 150, 255],
-        6: [150, 150, 255],
-        7: [150, 150, 255],
-        8: [150, 150, 255],
-        9: [150, 150, 255],
-    }
-    viz_state.z_level.inst_level = 'all'
-
     // check if meta_cell is an empty object
     if (Object.keys(meta_cell).length === 0) {
         viz_state.cats.has_meta_cell = false
@@ -183,8 +150,6 @@ export const landscape_ist = async (
         viz_state.cats.has_meta_cell = true
     }
     viz_state.cats.meta_cell = meta_cell
-
-    console.log('meta_cell', viz_state.cats.meta_cell)
 
     if (Object.keys(meta_cluster).length === 0) {
         viz_state.cats.has_meta_cluster = false
@@ -206,9 +171,6 @@ export const landscape_ist = async (
     } else if (landscape_state === 'umap') {
         viz_state.umap.state = true
     }
-
-    console.log(landscape_state)
-    console.log('viz_state.umap.state', viz_state.umap.state)
 
     viz_state.genes = {}
     viz_state.genes.color_dict_gene = {}
@@ -284,11 +246,6 @@ export const landscape_ist = async (
 
     // set_initial_view_state(deck_ist, ini_x, ini_y, ini_z, ini_zoom)
     set_views_prop(deck_ist, viz_state.views)
-
-    // deck_ist.setProps({
-    //     // views: [ new OrthographicView({id: 'ortho'})]
-    //     views: [ new OrbitView({id: 'ortho'})]
-    // })
 
     // initialize cell and trx caches
     viz_state.cache = {}

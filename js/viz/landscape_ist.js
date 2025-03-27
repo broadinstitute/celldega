@@ -60,8 +60,8 @@ export const landscape_ist = async (
         width = '100%'
     }
 
-    let viz_state = {}
 
+    let viz_state = {}
     viz_state.seg = {}
     viz_state.seg.version = segmentation
 
@@ -246,6 +246,8 @@ export const landscape_ist = async (
     } else {
         viz_state.landscape_type = '2D'
     }
+
+    viz_state.vector_name_integer = viz_state.img.landscape_parameters.use_int_index
 
     console.log(viz_state.landscape_type)
 
@@ -456,7 +458,7 @@ export const landscape_ist = async (
             update_cat(viz_state.cats, new_cat)
             update_selected_genes(viz_state.genes, [inst_gene])
             update_selected_cats(viz_state.cats, [])
-            await update_cell_exp_array(viz_state.cats, viz_state.genes, viz_state.global_base_url, inst_gene, viz_state.seg.version)
+            await update_cell_exp_array(viz_state.cats, viz_state.genes, viz_state.global_base_url, inst_gene, viz_state.seg.version, viz_state.vector_name_integer)
 
             update_cell_layer_id(layers_obj, new_cat)
             update_path_layer_id(layers_obj, new_cat)

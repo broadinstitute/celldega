@@ -97,7 +97,7 @@ export const ini_point_cloud_layer = async (base_url, viz_state) => {
 
     viz_state.spatial.cell_scatter_data = get_scatter_data(cell_arrow_table)
 
-    await set_color_dict_gene(viz_state.genes, base_url)
+    await set_color_dict_gene(viz_state.genes, base_url, viz_state.seg.version)
 
     set_cell_name_to_index_map(viz_state.cats)
 

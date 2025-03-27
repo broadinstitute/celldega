@@ -344,10 +344,14 @@ export const landscape_ist = async (
     console.log('right before ini_cell_layer: viz_state.cats')
     console.log(viz_state.cats)
 
+    let cell_layer
+    let point_cloud_layer
+
     if (viz_state.landscape_type === '2D'){
-        let cell_layer = await ini_cell_layer(base_url, viz_state)
+        cell_layer = await ini_cell_layer(base_url, viz_state)
     } else {
-        let point_cloud_layer = await ini_point_cloud_layer(base_url, viz_state)
+        console.log('3D')
+        point_cloud_layer = await ini_point_cloud_layer(base_url, viz_state)
     }
 
     let edit_layer = ini_edit_layer(viz_state)
@@ -358,7 +362,8 @@ export const landscape_ist = async (
 
     // make layers object
     let layers_obj = {
-        'cell_layer': cell_layer,
+        // 'cell_layer': cell_layer,
+        'cell_layer': point_cloud_layer,
         'path_layer': path_layer,
         'trx_layer': trx_layer,
         'edit_layer': edit_layer,

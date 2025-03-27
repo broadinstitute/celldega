@@ -1,7 +1,3 @@
-# Celldega Usage
+# Usage
 
-
-## Terra.bio
-
-** Coming soon **
-
+** coming soon **

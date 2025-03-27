@@ -6,6 +6,60 @@ import concurrent.futures
 import geopandas as gpd
 from shapely.geometry import Point, Polygon, MultiPolygon
 
+def _get_name_mapping(path_landscape_files, layer, segmentation='default'):
+    """
+    Generates mappings from gene and cell names to unique integer identifiers.
+
+    Args:
+        path_landscape_files (str): Path to the directory containing the metadata files.
+            Expected files:
+            - `meta_gene.parquet`: Contains gene metadata with gene names as the index.
+            - `cell_metadata.parquet`: Contains cell metadata with a 'name' column.
+            - `layer`: 'boundary' or 'transcript'
+            - `segmentation`: 'default' or 'cellpose2', etc.
+
+    Returns:
+        dict: Maps gene names (str) to integer ranks (int).
+    """
+
+    if layer == 'transcript':
+        # Load gene metadata
+        df_meta_gene = pd.read_parquet(f"{path_landscape_files}/meta_gene.parquet")
+        if segmentation != 'default':
+            df_meta_gene = pd.read_parquet(f"{path_landscape_files}/meta_gene_{segmentation}.parquet")
+        df_meta_gene['name'] = df_meta_gene.index
+        df_meta_gene = df_meta_gene.reset_index(drop=True)
+        return {name: idx for idx, name in df_meta_gene['name'].items()}
+
+    elif layer == 'boundary':
+        # Load cell metadata
+        df_meta_cell = pd.read_parquet(f"{path_landscape_files}/cell_metadata.parquet")
+        if segmentation != 'default':
+            df_meta_cell = pd.read_parquet(f"{path_landscape_files}/cell_metadata_{segmentation}.parquet")
+        return {name: idx for idx, name in df_meta_cell['name'].items()}
+    
+    else:
+        raise ValueError(
+            f"Unsupported layer: {layer}. Supported technologies are 'boundary' and 'transcript'."
+        )
+
+def _round_nested_coord_list(value, decimals=2):
+    """Rounds numeric values in nested lists or arrays to a specified number of decimal places.
+
+    Args:
+        value (list, np.ndarray, float, int): The input value, which can be a nested list, array, or numeric value.
+        decimals (int, optional): The number of decimal places to round to. Defaults to 2.
+
+    Returns:
+        list, float: The rounded value. If the input is a nested list or array, returns a nested list with rounded values.
+    """
+    if isinstance(value, (list, np.ndarray)):
+        return [_round_nested_coord_list(item, decimals) for item in value]
+    elif isinstance(value, (float, int)):
+        return round(value, decimals)
+    else:
+        return value
+
 
 def numpy_affine_transform(coords, matrix):
     """Apply affine transformation to numpy coordinates."""
@@ -98,11 +152,15 @@ def filter_and_save_fine_boundary(
 
     keep_cells = cell_ids[filtered_indices]
     fine_tile_cells = coarse_tile.loc[keep_cells, ["GEOMETRY"]]
-    fine_tile_cells = fine_tile_cells.assign(name=fine_tile_cells.index)
+
+    fine_tile_cells['name'] = fine_tile_cells.index
+
+    # Apply rounding to the GEOMETRY column
+    fine_tile_cells['GEOMETRY'] = fine_tile_cells['GEOMETRY'].apply(_round_nested_coord_list)
 
     if not fine_tile_cells.empty:
         filename = f"{path_output}/cell_tile_{fine_i}_{fine_j}.parquet"
-        fine_tile_cells.to_parquet(filename)
+        fine_tile_cells.to_parquet(filename, index=False)
 
 
 def process_fine_boundaries(
@@ -266,11 +324,21 @@ def make_cell_boundary_tiles(
 
     print("\n========Create cell boundary spatial tiles========")
 
+    # Ensure the output directory exists
     if not os.path.exists(path_output):
         os.makedirs(path_output)
 
     if technology == 'custom':
         gdf_cells = gpd.read_parquet(path_cell_boundaries)
+
+        # Convert string index to integer index
+        cell_str_to_int_mapping = _get_name_mapping(
+            path_output.split('/cell_segmentation')[0],  # get the path of landscape files
+            layer='boundary',
+            segmentation=path_output.split('cell_segmentation_')[1], # get the cell segmentation method, such as cellpose2.
+            )
+        gdf_cells.index = gdf_cells.index.map(cell_str_to_int_mapping)
+
         gdf_cells.rename(columns={'geometry_image_space': 'GEOMETRY'}, inplace=True)
 
         gdf_cells["center_x"] = gdf_cells["GEOMETRY"].apply(lambda geom: geom.centroid.x)
@@ -301,7 +369,14 @@ def make_cell_boundary_tiles(
             image_scale,
             path_meta_cell_micron,
         )
-
+        
+        # Convert string index to integer index
+        cell_str_to_int_mapping = _get_name_mapping(
+            path_transformation_matrix.replace('/micron_to_image_transform.csv',''),
+            layer='boundary',
+            )
+        gdf_cells.index = gdf_cells.index.map(cell_str_to_int_mapping)
+        
         gdf_cells["center_x"] = gdf_cells.geometry.centroid.x
         gdf_cells["center_y"] = gdf_cells.geometry.centroid.y
 

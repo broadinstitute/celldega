@@ -4,6 +4,7 @@ import polars as pl
 from tqdm import tqdm
 import concurrent.futures
 import pandas as pd
+from .boundary_tile import _get_name_mapping
 from scipy.sparse import csr_matrix
 
 def process_coarse_tile(
@@ -143,17 +144,17 @@ def filter_and_save_fine_tile(
             pl.concat_list([pl.col("transformed_x"), pl.col("transformed_y")]).alias(
                 "geometry"
             )
-        ).drop(['transformed_x', 'transformed_y'])
+        ).drop(['transformed_x', 'transformed_y', 'cell_id', 'transcript_id'])
 
         # Define the filename based on fine tile coordinates
         filename = f"{path_trx_tiles}/transcripts_tile_{fine_i}_{fine_j}.parquet"
 
         # Save the filtered DataFrame to a Parquet file
-        fine_tile_trx.to_pandas().to_parquet(filename)
+        fine_tile_trx.to_pandas().to_parquet(filename, index=False)
 
 
 def transform_transcript_coordinates(
-    technology, path_trx, chunk_size, transformation_matrix, image_scale=1
+    technology, path_trx, chunk_size, transformation_matrix, image_scale=1, gene_str_to_int_mapping={},
 ):
 
     # Load the transcript data based on the technology using Polars
@@ -179,6 +180,13 @@ def transform_transcript_coordinates(
                 pl.col("y_location").alias("y"),
             ]
         )
+
+    # Create a list with the mapped names; if a name isn't in gene_map, keep the original.
+    mapped_names = [gene_str_to_int_mapping.get(name, name) for name in trx_ini["name"]]
+
+    # Replace the "name" column using with_columns.
+    trx_ini = trx_ini.with_columns([pl.Series("name", mapped_names)])
+
 
     # Process the data in chunks and apply transformations
     all_chunks = []
@@ -283,8 +291,13 @@ def make_trx_tiles(
         # sparse_matrix = csr_matrix(transformation_matrix)
         # transformed_points = sparse_matrix.dot(points.T).T[:, :2]
 
+        gene_str_to_int_mapping = _get_name_mapping(
+            path_transformation_matrix.replace('/micron_to_image_transform.csv',''),
+            layer='transcript',
+            )
+
         trx = transform_transcript_coordinates(
-            technology, path_trx, chunk_size, transformation_matrix, image_scale
+            technology, path_trx, chunk_size, transformation_matrix, image_scale, gene_str_to_int_mapping=gene_str_to_int_mapping,
         )
 
         # Get min and max x, y values

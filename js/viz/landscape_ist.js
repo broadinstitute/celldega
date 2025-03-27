@@ -3,8 +3,8 @@ import { set_options } from '../global_variables/fetch_options'
 import { set_global_base_url } from '../global_variables/global_base_url'
 import { set_landscape_parameters } from '../global_variables/landscape_parameters'
 import { set_dimensions } from '../global_variables/image_dimensions'
-// import { ini_cell_layer, set_cell_layer_onclick, update_cell_layer_id } from "../deck-gl/cell_layer"
-import { ini_point_cloud_layer, set_cell_layer_onclick, update_cell_layer_id } from "../deck-gl/point_cloud_layer"
+import { ini_cell_layer, set_cell_layer_onclick, update_cell_layer_id } from "../deck-gl/cell_layer"
+// import { ini_point_cloud_layer, set_cell_layer_onclick, update_cell_layer_id } from "../deck-gl/point_cloud_layer"
 import { get_layers_list } from '../deck-gl/layers_ist'
 import { make_image_layers } from '../deck-gl/image_layers'
 import { set_views } from '../deck-gl/views'
@@ -314,13 +314,15 @@ export const landscape_ist = async (
     let edit_layer = ini_edit_layer(viz_state)
     let nbhd_layer = ini_nbhd_layer(viz_state, false)
 
+    /////////////////////////////////////////////////////////////
     // have to set up something to have layers_obj
-    // reflect the visualization type
+    /////////////////////////////////////////////////////////////
+
 
     // make layers object
     let layers_obj = {
-        // 'cell_layer': cell_layer,
-        'cell_layer': point_cloud_layer,
+        'cell_layer': cell_layer,
+        // 'cell_layer': point_cloud_layer,
         'path_layer': path_layer,
         'trx_layer': trx_layer,
         'edit_layer': edit_layer,

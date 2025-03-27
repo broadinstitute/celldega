@@ -19,14 +19,6 @@ export const get_cell_color = (cats, i, d) => {
                 inst_opacity = 0
             }
 
-            // if (viz_state.z_level.inst_level !== 'all'){
-            //     let inst_level = viz_state.z_level.z_level_array[d.index]
-
-            //     if (inst_level !== viz_state.z_level.inst_level){
-            //         return [0, 0, 0, 0]
-            //     }
-            // }
-
             return [...inst_color, inst_opacity]
 
         } catch {
@@ -39,14 +31,6 @@ export const get_cell_color = (cats, i, d) => {
         try {
 
             const inst_exp = cats.cell_exp_array[d.index]
-
-            // if (viz_state.z_level.inst_level !== 'all'){
-            //     let inst_level = viz_state.z_level.z_level_array[d.index]
-
-            //     if (inst_level !== viz_state.z_level.inst_level){
-            //         return [0, 0, 0, 0]
-            //     }
-            // }
 
             // if a meta_cell is available, only plot these cells
             if (cats.has_meta_cell){

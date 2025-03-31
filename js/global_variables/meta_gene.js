@@ -1,9 +1,17 @@
 import { get_arrow_table } from "../read_parquet/get_arrow_table"
 import { options } from '../global_variables/fetch_options.js';
 
-export const set_meta_gene = async (genes, base_url) => {
+export const set_meta_gene = async (genes, base_url, seg_version='default') => {
 
-    let meta_gene_table = await get_arrow_table(base_url + '/meta_gene.parquet', options.fetch)
+    let meta_gene_url
+
+    if (seg_version === 'default'){
+        meta_gene_url = base_url + '/meta_gene.parquet';
+    } else {
+        meta_gene_url = base_url + '/meta_gene_' + seg_version + '.parquet';
+    }
+
+    let meta_gene_table = await get_arrow_table(meta_gene_url, options.fetch)
 
     let gene_names = meta_gene_table.getChild('__index_level_0__').toArray()
     let gene_mean = meta_gene_table.getChild('mean').toArray()
@@ -24,6 +32,15 @@ export const set_meta_gene = async (genes, base_url) => {
     })
 
     genes.gene_counts.sort((a, b) => b.value - a.value)
+
+    // Create the reverse mapping: integer index to gene name
+    const g_nameMapping_inv = gene_names.reduce((acc, name, idx) => {
+        acc[idx] = name;
+        return acc;
+    }, {});
+
+    // Save the mapping as cats.nameMapping_inv
+    genes.g_nameMapping_inv = g_nameMapping_inv;
 
     genes.gene_names = genes.gene_counts.map(gene => gene.name);
 

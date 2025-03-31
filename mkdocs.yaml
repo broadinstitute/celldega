@@ -31,6 +31,9 @@ nav:
       - API: javascript/api.md
   - Technologies:
       - technologies/index.md
+  - Cloud Environments:
+    - Terra.bio:
+        - cloud_env/Terra-segment.md
   - Gallery:
       - gallery/index.md
       - Xenium:
@@ -65,11 +68,6 @@ plugins:
           options:
             docstring_style: google
             show_root_toc_entry: true
-        javascript:
-          options:
-            source: js/  # Path to JavaScript files
-            recursive: true
-            include: .+\.js$
   - mkdocs-jupyter:
       include_source: true
       include_requirejs: true

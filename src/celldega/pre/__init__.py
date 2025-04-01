@@ -574,7 +574,7 @@ def make_meta_cell_image_coord(
         warnings.warn("Duplicate cell names found in meta_cell!", UserWarning)
 
      # Apply rounding to the GEOMETRY column
-    meta_cell['geometry'] = meta_cell['geometry'].apply(_round_nested_coord_list)       
+    meta_cell['geometry'] = meta_cell['geometry'].apply(_round_nested_coord_list)
 
     # Force alphabetically sort by 'name'
     meta_cell = meta_cell.sort_values(by=['name']).reset_index(drop=True)
@@ -703,16 +703,16 @@ def add_custom_segmentation(path_landscape_files, path_segmentation_files, image
     make_meta_gene(cbg=cbg_custom,
                path_output=os.path.join(path_landscape_files, f"meta_gene_{segmentation_parameters['segmentation_approach']}.parquet"))
 
-    save_cbg_gene_parquets(base_path=path_landscape_files,
-                       cbg=cbg_custom,
-                       verbose=True,
-                       segmentation_approach=segmentation_parameters['segmentation_approach'])
-
     make_meta_cell_image_coord(technology = segmentation_parameters['technology'],
                         path_transformation_matrix = os.path.join(path_landscape_files, 'micron_to_image_transform.csv'),
                         path_meta_cell_micron = os.path.join(path_segmentation_files, 'cell_metadata_micron_space.parquet'),
                         path_meta_cell_image = os.path.join(path_landscape_files, f"cell_metadata_{segmentation_parameters['segmentation_approach']}.parquet"),
                         image_scale=image_scale)
+
+    save_cbg_gene_parquets(base_path=path_landscape_files,
+                       cbg=cbg_custom,
+                       verbose=True,
+                       segmentation_approach=segmentation_parameters['segmentation_approach'])
 
     clusters = create_cluster_and_meta_cluster(technology=segmentation_parameters['technology'],
                                                 path_landscape_files=path_landscape_files,

@@ -2,10 +2,11 @@ import geopandas as gpd
 import pandas as pd
 from shapely.geometry import Polygon
 import numpy as np
-import alphashape
 import json
+import os
 from shapely.validation import make_valid
 from ..nbhd import *
+from shapely.affinity import affine_transform
 
 def find_containing_polygon(transcript, CELL_POLYGONS_sindex, CELL_POLYGONS_GDF):
     point = transcript.geometry
@@ -126,6 +127,8 @@ def add_or_merge_into_gdf_nc(gdf_nc, default_clustering, clusters_within_cutout_
 
 def merge_segmentation(default_data_path, custom_data_path, output_path, clusters_within_cutout_region, inv_alpha_value_for_cutout_region, buffer_for_cutout_region_alpha_shape, inv_alpha_value_for_full_tissue, buffer_for_full_tisse_alpha_shape, ioa_small_thresh = 0.5):
 
+    os.makedirs(output_path, exist_ok=True)
+
     default_clustering = pd.read_csv(f"{default_data_path}/analysis/clustering/gene_expression_graphclust/clusters.csv", index_col=0)
 
     default_cell_boundaries = pd.read_parquet(f"{default_data_path}/cell_boundaries.parquet")
@@ -233,7 +236,6 @@ def merge_segmentation(default_data_path, custom_data_path, output_path, cluster
 
     for inst_row in intersecting_cell_pairs_before_harmonization_DF.index.tolist():
 
-        # look up pair of intersecting polygons
         id_1 = intersecting_cell_pairs_before_harmonization_DF.loc[inst_row, 'cell_id_1']
         id_2 = intersecting_cell_pairs_before_harmonization_DF.loc[inst_row, 'cell_id_2']
 
@@ -356,25 +358,73 @@ def merge_segmentation(default_data_path, custom_data_path, output_path, cluster
 
     merged_cells.drop(['centroid'], axis=1, inplace=True)
 
-    merged_cells.to_parquet(f'{output_path}/merged_cell_segmentation.parquet')
+    transformation_matrix = pd.read_csv(f"{custom_data_path}/transformation_matrix.csv").values[:3,:3]
+
+    merged_cells['geometry_image_space'] = merged_cells['geometry'].apply(lambda geom: affine_transform(geom, [transformation_matrix[0, 0],
+                                                                                           transformation_matrix[0, 1],
+                                                                                           transformation_matrix[1, 0],
+                                                                                           transformation_matrix[1, 1],
+                                                                                           transformation_matrix[0, 2],
+                                                                                           transformation_matrix[1, 2]]))
+
+    merged_cells['area'] = merged_cells['geometry'].area
+    merged_cells['centroid'] = merged_cells['geometry'].centroid
+
+    merged_cells.to_parquet(f'{output_path}/cell_polygons.parquet')
 
     print("Merged Segmentation saved.")
 
-    ## add cell meta data in micron space (parquet)
-    ## add cell by gene matrix (parquet)
-    ## add segmentation parameters (json)
-    ## add transformation matrix (csv)
+    merged_cells[['area', 'centroid']].to_parquet(f'{output_path}/cell_metadata_micron_space.parquet')
+
+    print("Merged Segmentation Meta data saved.")
 
     transcripts_default = pd.read_parquet(f"{default_data_path}/transcripts.parquet")
 
     transcripts_default_GDF = gpd.GeoDataFrame(transcripts_default, geometry=gpd.points_from_xy(transcripts_default['x_location'], transcripts_default['y_location']))
 
     print("Calculating new assignment of transcripts...")
+
+    if default_technology_name == 'Xenium':
+        trx_col = 'transcript_id'
+        cell_id_col = 'cell_id'
+        gene_col = 'feature_name'
+
+    elif default_technology_name == 'MERSCOPE':
+        trx_col = 'transcript_id'
+        cell_id_col = 'cell_id'
+        gene_col = 'gene'
+
     newly_assigned_transcripts = partitioning_transcripts(CELL_POLYGONS_GDF = merged_cells,
-                                                       chunked_transcripts_gdf = transcripts_default_GDF)
+                                                          chunked_transcripts_gdf = transcripts_default_GDF)
 
     newly_assigned_transcripts_GDF = gpd.GeoDataFrame(newly_assigned_transcripts, geometry=gpd.points_from_xy(newly_assigned_transcripts['x_location'], newly_assigned_transcripts['y_location']))
 
-    newly_assigned_transcripts_GDF.to_parquet(f'{output_path}/merged_segmentation_assigned_transcripts.parquet', index=False)
+    newly_assigned_transcripts_GDF.drop([cell_id_col], axis=1, inplace=True)
+    newly_assigned_transcripts_GDF = newly_assigned_transcripts_GDF.rename(columns={trx_col: 'transcript_index', gene_col: 'gene'})
+
+    newly_assigned_transcripts_GDF.to_parquet(f'{output_path}/transcripts.parquet', index=False)
 
     print("New transcript assignment of merged segmentation saved.")
+
+    newly_assigned_transcripts_GDF['new_cell_index'].fillna(-1, inplace=True)
+    newly_assigned_transcripts_GDF = newly_assigned_transcripts_GDF[newly_assigned_transcripts_GDF['new_cell_index'] != 'UNASSIGNED']
+
+    merged_cells = merged_cells[merged_cells.index.isin(newly_assigned_transcripts_GDF['new_cell_index'])]
+
+    partitioned_transcripts_cleaned = newly_assigned_transcripts_GDF.groupby(['gene', 'new_cell_index']).size().reset_index(name='count')
+    cell_by_gene_matrix = partitioned_transcripts_cleaned.pivot_table(index='new_cell_index', columns='gene', values='count', fill_value=0)
+
+    cell_by_gene_matrix.to_parquet(f'{output_path}/cell_by_gene_matrix.parquet')
+
+    print("Cell-by-gene matrix of merged segmentation saved.")
+
+    segmentation_parameters = {
+                "technology": "custom",
+                "segmentation_approach": custom_segmentation_parameters['segmentation_approach'] + "_" + default_technology_name + "_merged",
+                "dataset_name": custom_segmentation_parameters["dataset_name"]
+    }
+
+    with open(f"{output_path}/segmentation_parameters.json", "w") as file:
+        json.dump(segmentation_parameters, file, indent=4)
+
+    print("Segmentation Parameters saved.")

@@ -8,6 +8,7 @@ except ImportError:
     pyvips = None
 
 from pathlib import Path
+import warnings
 import numpy as np
 import pandas as pd
 import os
@@ -29,6 +30,7 @@ import xml.etree.ElementTree as ET
 from .landscape import *
 from .trx_tile import *
 from .boundary_tile import *
+from .boundary_tile import _round_nested_coord_list
 from ..clust import *
 from .image_info import *
 from .run_pre_processing import *
@@ -229,7 +231,7 @@ def create_cluster_and_meta_cluster(technology, path_landscape_files, data_dir=N
         )
 
         # Align the clustering data with the cell metadata
-        default_clustering = pd.DataFrame(index=meta_cell.index.tolist())
+        default_clustering = pd.DataFrame(index=meta_cell['name'].tolist())
         default_clustering.loc[default_clustering_ini.index.tolist(), 'cluster'] = (
             default_clustering_ini['cluster']
         )
@@ -265,14 +267,14 @@ def create_cluster_and_meta_cluster(technology, path_landscape_files, data_dir=N
 
     if technology == 'custom':
 
-        df_cluster = pd.DataFrame(index=meta_cell.index.tolist())
-        df_cluster['cluster'] = pd.Series('0', index=meta_cell.index.tolist())
+        df_cluster = pd.DataFrame(index=meta_cell['name'].tolist())
+        df_cluster['cluster'] = 0
         df_cluster['cluster'] = df_cluster['cluster'].astype('string')
         df_cluster.to_parquet(os.path.join(cell_clusters_dir, "cluster.parquet"))
 
         meta_cluster = pd.DataFrame(index=['0'])
         meta_cluster.loc['0', 'color'] = '#1f77b4'
-        meta_cluster.loc['0', 'count'] = len(meta_cell.index.tolist())
+        meta_cluster.loc['0', 'count'] = len(meta_cell['name'].tolist())
         meta_cluster.to_parquet(os.path.join(cell_clusters_dir, "meta_cluster.parquet"))
 
         ser_counts = df_cluster['cluster'].value_counts()
@@ -567,7 +569,16 @@ def make_meta_cell_image_coord(
     else:
         meta_cell = meta_cell[["name", "geometry"]]
 
-    meta_cell.to_parquet(path_meta_cell_image)
+    # Check if the 'name' column is unique
+    if not meta_cell['name'].is_unique:
+        warnings.warn("Duplicate cell names found in meta_cell!", UserWarning)
+
+     # Apply rounding to the GEOMETRY column
+    meta_cell['geometry'] = meta_cell['geometry'].apply(_round_nested_coord_list)       
+
+    # Force alphabetically sort by 'name'
+    meta_cell = meta_cell.sort_values(by=['name']).reset_index(drop=True)
+    meta_cell.to_parquet(path_meta_cell_image, index=False)
     print('Done.')
 
 
@@ -604,6 +615,8 @@ def make_meta_gene(cbg, path_output):
     for col in sparse_cols:
         meta_gene[col] = meta_gene[col].sparse.to_dense()
 
+    # Force alphabetically sort by index
+    meta_gene.sort_index(inplace=True)
     meta_gene.to_parquet(path_output)
     print("All meta gene files are succesfully saved.")
 
@@ -632,6 +645,7 @@ def save_landscape_parameters(
     tile_size=1000,
     image_info={},
     image_format='.webp',
+    use_int_index=False,
     segmentation_approach='default'
 ):
     """Saves the landscape parameters to a JSON file.
@@ -643,6 +657,7 @@ def save_landscape_parameters(
         tile_size (int, optional): Tile size for the image pyramid. Defaults to 1000.
         image_info (dict, optional): Additional image metadata. Defaults to {}.
         image_format (str, optional): Format of the image files. Defaults to ".webp".
+        use_int_index (bool, optional): Use integer name for cell_tile and trx_tile.
 
     Returns:
         None
@@ -662,7 +677,8 @@ def save_landscape_parameters(
                 "max_pyramid_zoom": max_pyramid_zoom,
                 "tile_size": tile_size,
                 "image_info": image_info,
-                "image_format": image_format
+                "image_format": image_format,
+                "use_int_index":use_int_index,
             }
 
     else:

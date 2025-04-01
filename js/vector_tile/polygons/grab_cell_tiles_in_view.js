@@ -22,9 +22,18 @@ export const grab_cell_tiles_in_view = async (base_url, tiles_in_view, viz_state
 
     var tile_cell_tables = tile_cell_tables_ini_new.filter(table => table !== null);
 
-    viz_state.cats.polygon_cell_names = tile_cell_tables.flatMap(table =>
-        Array.from(table.getChild('name').toArray())
-    )
+    if (!viz_state.vector_name_integer) {
+        // When viz_state.vector_name_integer is false, use the direct extraction.
+        viz_state.cats.polygon_cell_names = tile_cell_tables.flatMap(table =>
+          Array.from(table.getChild('name').toArray())
+        );
+      } else {
+        // When viz_state.vector_name_integer is true, map the integers to their string values.
+        viz_state.cats.polygon_cell_names = tile_cell_tables.flatMap(table => {
+          const intNames = Array.from(table.getChild('name').toArray());
+          return intNames.map(num => viz_state.cats.nameMapping_inv[num]);
+        });
+      }
 
     var polygon_datas = tile_cell_tables.map(x => get_polygon_data(x))
 

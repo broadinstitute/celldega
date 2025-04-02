@@ -414,6 +414,8 @@ def merge_segmentation(default_data_path, custom_data_path, output_path, cluster
     partitioned_transcripts_cleaned = newly_assigned_transcripts_GDF.groupby(['gene', 'new_cell_index']).size().reset_index(name='count')
     cell_by_gene_matrix = partitioned_transcripts_cleaned.pivot_table(index='new_cell_index', columns='gene', values='count', fill_value=0)
 
+    cell_by_gene_matrix = cell_by_gene_matrix.rename_axis('cell_index')
+
     cell_by_gene_matrix.to_parquet(f'{output_path}/cell_by_gene_matrix.parquet')
 
     print("Cell-by-gene matrix of merged segmentation saved.")

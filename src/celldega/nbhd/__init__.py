@@ -10,12 +10,6 @@ import numpy as np
 import json
 from shapely.geometry import shape, Point, Polygon, MultiPoint, LineString
 
-import alphashape
-import matplotlib.pyplot as plt
-from descartes import PolygonPatch
-import pandas as pd
-from skimage.exposure import equalize_adapthist
-import tifffile as tiff
 from libpysal.cg.alpha_shapes import alpha_shape_auto
 from shapely.affinity import translate
 

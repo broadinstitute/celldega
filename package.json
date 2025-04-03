@@ -18,7 +18,8 @@
 		"d3": "^7.9.0",
 		"deck.gl": "^9.0.12",
 		"@deck.gl-community/editable-layers": "^9.0.3",
-		"math.gl": "2.3.3"
+		"math.gl": "2.3.3",
+        "aws4fetch": "^1.0.14"
 	},
 	"devDependencies": {
 		"@eslint/js": "^9.0.0",

@@ -31,6 +31,7 @@ import { toggle_visibility_image_layers } from '../deck-gl/image_layers'
 import { toggle_trx_layer_visibility } from '../deck-gl/trx_layer'
 import { toggle_path_layer_visibility } from '../deck-gl/path_layer'
 import { toggle_background_layer_visibility } from '../deck-gl/background_layer'
+import { AwsClient } from 'aws4fetch'
 
 export const landscape_ist = async (
     el,
@@ -56,6 +57,8 @@ export const landscape_ist = async (
     if (width === 0){
         width = '100%'
     }
+
+    console.log('on manifold with custom changes!!!!')
 
 
     let viz_state = {}

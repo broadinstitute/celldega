@@ -59,7 +59,43 @@ export const landscape_ist = async (
     }
 
     console.log('on manifold with custom changes!!!!')
+    console.log('AwsClient', AwsClient)
 
+    // hardwire some temporary creds
+    let creds = {'accessKeyId': 'something',
+                 'secretAccessKey': 'something',
+                 'sessionToken': 'something'
+                }
+
+    console.log('creds', creds)
+
+      const aws = new AwsClient({
+        accessKeyId: creds.accessKeyId,
+        secretAccessKey: creds.secretAccessKey,
+        sessionToken: creds.sessionToken,
+        region: 'us-east-1',
+        service: 's3'
+      });
+
+    console.log('aws', aws)
+
+      try {
+        const response = await aws.fetch(
+          'https://manifold-ai-sc-broad-prod-platform-storage.s3.us-east-1.amazonaws.com/research/projects/38/data/gene_panel.json'
+        );
+
+        if (!response.ok) {
+          throw new Error(`Fetch failed: ${response.statusText}`);
+        }
+
+        const json = await response.json();
+        console.log("Fetch succeeded! Here's the object: " + JSON.stringify(json, null, 2))
+
+      } catch (err) {
+        // el.textContent = "Error: " + err.message;
+      }    
+
+    
 
     let viz_state = {}
     viz_state.seg = {}

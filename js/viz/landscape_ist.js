@@ -260,9 +260,7 @@ export const landscape_ist = async (
 
     await set_meta_gene(viz_state.genes, base_url, viz_state.seg.version, viz_state.aws)
 
-    console.log('before set_cluster_metadata')
     await set_cluster_metadata(viz_state)
-    console.log('after set_clusteR_metadata')
 
     viz_state.views = set_views()
 

@@ -54,7 +54,7 @@ export const set_cluster_metadata = async (viz_state) => {
             meta_cell_url = viz_state.global_base_url + `/cell_clusters_` + viz_state.seg.version + `/meta_cluster.parquet`;
         }
 
-        var meta_cell_arrow_table = await get_arrow_table(meta_cell_url, options.fetch)
+        var meta_cell_arrow_table = await get_arrow_table(meta_cell_url, options.fetch, viz_state.aws)
 
         let cluster_names = []
         let colors = []

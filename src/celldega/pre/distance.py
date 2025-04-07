@@ -151,7 +151,8 @@ def calc_gene_gradient_to_polygon(
     gdf_bands = gpd.GeoDataFrame(pd.concat(band_list, ignore_index=True)).set_crs('EPSG:4326')
     
     # Spatial join: Assign each cell to the closest buffer
-    gdf_join_all = gdf_points.sjoin(gdf_bands, how="left", predicate="within")
+    gdf_join_all = gdf_points.sjoin(gdf_bands, how="left", predicate="within").drop(
+        columns=['index_right'], errors='ignore')
     
     # Compute mean expression per band
     gdf_join_all["band"] = (

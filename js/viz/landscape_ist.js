@@ -51,6 +51,7 @@ export const landscape_ist = async (
     umap={},
     landscape_state='spatial',
     segmentation='default',
+    creds={},
     view_change_custom_callback=null
 ) => {
 
@@ -58,25 +59,22 @@ export const landscape_ist = async (
         width = '100%'
     }
 
-    console.log('on manifold with custom changes!!!!')
-    console.log('on manifold with custom changes!!!!')
-    console.log('on manifold with custom changes!!!!')
-    console.log('on manifold with custom changes!!!!')
-    console.log('on manifold with custom changes!!!!')
-    console.log('on manifold with custom changes!!!!')
-    console.log('on manifold with custom changes!!!!')
-    console.log('on manifold with custom changes!!!!')
-    console.log('on manifold with custom changes!!!!')
+    console.log('**********************************')
+    console.log('creds')
+    console.log(creds)
+    console.log('**********************************')
     
-    console.log('AwsClient', AwsClient)
+    
+    
+    // console.log('AwsClient', AwsClient)
 
-    // hardwire some temporary creds
-    let creds = {'accessKeyId': 'something',
-                 'secretAccessKey': 'something',
-                 'sessionToken': 'something'
-                }
+    // // hardwire some temporary creds
+    // let creds = {'accessKeyId': 'something',
+    //              'secretAccessKey': 'something',
+    //              'sessionToken': 'something'
+    //             }
 
-    console.log('creds', creds)
+    // console.log('creds', creds)
 
       const aws = new AwsClient({
         accessKeyId: creds.accessKeyId,
@@ -86,7 +84,7 @@ export const landscape_ist = async (
         service: 's3'
       });
 
-    console.log('aws', aws)
+    // console.log('aws', aws)
 
       try {
         const response = await aws.fetch(
@@ -98,28 +96,28 @@ export const landscape_ist = async (
         }
 
         const json = await response.json();
-        console.log("Fetch succeeded! Here's the object: " + JSON.stringify(json, null, 2))
+        console.log("Fetch succeeded! Here's the object: " + JSON.stringify(json, null, 2).slice(0,50))
 
       } catch (err) {
         // el.textContent = "Error: " + err.message;
       }    
 
 
-    // vanilla fetch
-    try {
-      const response = await fetch(
-        'https://manifold-ai-sc-broad-prod-platform-storage.s3.us-east-1.amazonaws.com/research/projects/38/data/gene_panel.json'
-      );
+    // // vanilla fetch
+    // try {
+    //   const response = await fetch(
+    //     'https://manifold-ai-sc-broad-prod-platform-storage.s3.us-east-1.amazonaws.com/research/projects/38/data/gene_panel.json'
+    //   );
     
-      if (!response.ok) {
-        throw new Error(`Regular fetch failed: ${response.statusText}`);
-      }
+    //   if (!response.ok) {
+    //     throw new Error(`Regular fetch failed: ${response.statusText}`);
+    //   }
     
-      const json = await response.json();
-      console.log("Regular fetch succeeded! Here's the object: " + JSON.stringify(json, null, 2));
-    } catch (err) {
-      console.error("Expected error with regular fetch:", err.message);
-    }
+    //   const json = await response.json();
+    //   console.log("Regular fetch succeeded! Here's the object: " + JSON.stringify(json, null, 2));
+    // } catch (err) {
+    //   // console.error("Expected error with regular fetch:", err.message);
+    // }
     
     
 
@@ -232,8 +230,8 @@ export const landscape_ist = async (
         viz_state.umap.state = true
     }
 
-    console.log(landscape_state)
-    console.log('viz_state.umap.state', viz_state.umap.state)
+    // console.log(landscape_state)
+    // console.log('viz_state.umap.state', viz_state.umap.state)
 
     viz_state.genes = {}
     viz_state.genes.color_dict_gene = {}

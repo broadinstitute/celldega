@@ -59,6 +59,15 @@ export const landscape_ist = async (
     }
 
     console.log('on manifold with custom changes!!!!')
+    console.log('on manifold with custom changes!!!!')
+    console.log('on manifold with custom changes!!!!')
+    console.log('on manifold with custom changes!!!!')
+    console.log('on manifold with custom changes!!!!')
+    console.log('on manifold with custom changes!!!!')
+    console.log('on manifold with custom changes!!!!')
+    console.log('on manifold with custom changes!!!!')
+    console.log('on manifold with custom changes!!!!')
+    
     console.log('AwsClient', AwsClient)
 
     // hardwire some temporary creds
@@ -95,6 +104,23 @@ export const landscape_ist = async (
         // el.textContent = "Error: " + err.message;
       }    
 
+
+    // vanilla fetch
+    try {
+      const response = await fetch(
+        'https://manifold-ai-sc-broad-prod-platform-storage.s3.us-east-1.amazonaws.com/research/projects/38/data/gene_panel.json'
+      );
+    
+      if (!response.ok) {
+        throw new Error(`Regular fetch failed: ${response.statusText}`);
+      }
+    
+      const json = await response.json();
+      console.log("Regular fetch succeeded! Here's the object: " + JSON.stringify(json, null, 2));
+    } catch (err) {
+      console.error("Expected error with regular fetch:", err.message);
+    }
+    
     
 
     let viz_state = {}

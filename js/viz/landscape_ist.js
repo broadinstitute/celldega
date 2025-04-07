@@ -57,69 +57,7 @@ export const landscape_ist = async (
 
     if (width === 0){
         width = '100%'
-    }
-
-    console.log('**********************************')
-    console.log('creds')
-    console.log(creds)
-    console.log('**********************************')
-    
-    
-    
-    // console.log('AwsClient', AwsClient)
-
-    // // hardwire some temporary creds
-    // let creds = {'accessKeyId': 'something',
-    //              'secretAccessKey': 'something',
-    //              'sessionToken': 'something'
-    //             }
-
-    // console.log('creds', creds)
-
-      const aws = new AwsClient({
-        accessKeyId: creds.accessKeyId,
-        secretAccessKey: creds.secretAccessKey,
-        sessionToken: creds.sessionToken,
-        region: 'us-east-1',
-        service: 's3'
-      });
-
-    // console.log('aws', aws)
-
-      try {
-        const response = await aws.fetch(
-          'https://manifold-ai-sc-broad-prod-platform-storage.s3.us-east-1.amazonaws.com/research/projects/38/data/gene_panel.json'
-        );
-
-        if (!response.ok) {
-          throw new Error(`Fetch failed: ${response.statusText}`);
-        }
-
-        const json = await response.json();
-        console.log("Fetch succeeded! Here's the object: " + JSON.stringify(json, null, 2).slice(0,50))
-
-      } catch (err) {
-        // el.textContent = "Error: " + err.message;
-      }    
-
-
-    // // vanilla fetch
-    // try {
-    //   const response = await fetch(
-    //     'https://manifold-ai-sc-broad-prod-platform-storage.s3.us-east-1.amazonaws.com/research/projects/38/data/gene_panel.json'
-    //   );
-    
-    //   if (!response.ok) {
-    //     throw new Error(`Regular fetch failed: ${response.statusText}`);
-    //   }
-    
-    //   const json = await response.json();
-    //   console.log("Regular fetch succeeded! Here's the object: " + JSON.stringify(json, null, 2));
-    // } catch (err) {
-    //   // console.error("Expected error with regular fetch:", err.message);
-    // }
-    
-    
+    }    
 
     let viz_state = {}
     viz_state.seg = {}
@@ -141,6 +79,48 @@ export const landscape_ist = async (
     viz_state.nbhd.visible = false
 
     viz_state.spatial = {}
+
+    // later we will parse the region from the s3 url
+
+    if ('accessKeyId' in creds) {
+        console.log('using private AWS bucket')
+        viz_state.aws = new AwsClient({
+            accessKeyId: creds.accessKeyId,
+            secretAccessKey: creds.secretAccessKey,
+            sessionToken: creds.sessionToken,
+            region: 'us-east-1',
+            service: 's3'
+        });        
+
+        const response = await viz_state.aws.fetch(
+          base_url + '/landscape_parameters.json'
+        );
+            
+        const json = await response.json();
+        console.log("Fetch succeeded! Here's the object: " + JSON.stringify(json, null, 2).slice(0,50))        
+        
+    } else {
+        console.log('not using private AWS bucket')
+        viz_state.aws = null
+    }
+
+
+
+
+
+    
+
+
+
+
+
+
+
+    
+
+
+
+    
 
     if (Object.keys(viz_state.model).length !== 0){
         if (Object.keys(viz_state.model.get('nbhd')).length === 0) {
@@ -260,7 +240,7 @@ export const landscape_ist = async (
     // move this to landscape_parameters
     const imgage_name_for_dim = 'dapi'
 
-    await set_landscape_parameters(viz_state.img, base_url)
+    await set_landscape_parameters(viz_state.img, base_url, viz_state.aws)
 
     const tmp_image_info = viz_state.img.landscape_parameters.image_info
 
@@ -278,9 +258,11 @@ export const landscape_ist = async (
 
     await set_dimensions(viz_state, base_url, imgage_name_for_dim)
 
-    await set_meta_gene(viz_state.genes, base_url, viz_state.seg.version)
+    await set_meta_gene(viz_state.genes, base_url, viz_state.seg.version, viz_state.aws)
 
+    console.log('before set_cluster_metadata')
     await set_cluster_metadata(viz_state)
+    console.log('after set_clusteR_metadata')
 
     viz_state.views = set_views()
 

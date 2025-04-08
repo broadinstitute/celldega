@@ -31,7 +31,8 @@ import { toggle_visibility_image_layers } from '../deck-gl/image_layers'
 import { toggle_trx_layer_visibility } from '../deck-gl/trx_layer'
 import { toggle_path_layer_visibility } from '../deck-gl/path_layer'
 import { toggle_background_layer_visibility } from '../deck-gl/background_layer'
-import { AwsClient } from 'aws4fetch'
+// import { AwsClient } from 'aws4fetch'
+import { AwsClient } from 'https://esm.sh/aws4fetch@1'
 
 export const landscape_ist = async (
     el,

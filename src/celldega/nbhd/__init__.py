@@ -12,7 +12,7 @@ from shapely.geometry import shape, Point, Polygon, box
 from shapely.affinity import affine_transform
 from PIL import Image
 import random
-from ..pre.merge_segmentations import assigning_transcripts
+from ..pre.merge_segmentations import *
 import tifffile as tiff
 import os
 import pandas as pd

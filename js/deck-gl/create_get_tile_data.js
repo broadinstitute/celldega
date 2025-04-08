@@ -30,7 +30,6 @@ export const create_get_tile_data = (
     options = {},
     aws = null
 ) => {
-    console.log('create_get_tile_data: aws', aws);
 
     return async ({ index }) => {
         const { x, y, z } = index;
@@ -45,7 +44,7 @@ export const create_get_tile_data = (
                 fetch: fetch_fn
             });
 
-            console.log('Loaded image tile:', image);
+            // console.log('Loaded image tile:', image);
             return image;
         } catch (error) {
             console.error('Failed to load tile:', error);

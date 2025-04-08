@@ -55,6 +55,8 @@ export const landscape_ist = async (
     view_change_custom_callback=null
 ) => {
 
+    console.log('2025-04-08 - updates')
+
     if (width === 0){
         width = '100%'
     }    

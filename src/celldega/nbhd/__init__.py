@@ -8,10 +8,11 @@ from shapely import Point, MultiPoint, MultiPolygon
 from shapely.ops import transform
 import numpy as np
 import json
-from shapely.geometry import shape, Point, Polygon, MultiPoint, LineString
-
+from shapely.geometry import shape, Point, Polygon, MultiPoint, LineString, box
 from libpysal.cg.alpha_shapes import alpha_shape_auto
 from shapely.affinity import translate
+from PIL import Image
+import random
 
 def _classify_polygons_contains_check(polygons, points):
     """
@@ -208,3 +209,71 @@ def alpha_shape_geojson(gdf_alpha, meta_cluster, inst_alpha):
     geojson_alpha['inst_alpha'] = inst_alpha
 
     return geojson_alpha
+
+def create_hexagrid(r, img_width=100, img_height=100):
+    hex_width = 2 * r
+    hex_height = np.sqrt(3) * r
+    horiz_spacing = 3/4 * hex_width  # = 1.5 * r
+    vert_spacing = hex_height
+
+    # Calculate number of hexes
+    n_cols = int(np.ceil(img_width / horiz_spacing)) + 2
+    n_rows = int(np.ceil(img_height / vert_spacing)) + 2
+
+    # Generate hexagons
+    hexagons = []
+
+    for col in range(n_cols):
+        for row in range(n_rows):
+            x = col * horiz_spacing
+            y = row * vert_spacing
+            if col % 2 == 1:
+                y += vert_spacing / 2  # stagger every other column
+
+            # Flat-topped hexagon (aligned horizontally)
+            hexagon = Polygon([
+                (
+                    x + r * np.cos(np.radians(angle)),
+                    y + r * np.sin(np.radians(angle))
+                )
+                for angle in range(0, 360, 60)
+            ])
+
+            hexagons.append(hexagon)
+
+    # Define image boundary as a shapely box (left, bottom, right, top)
+    image_bounds = box(0, 0, img_width, img_height)
+
+    # Clip each hexagon to this box
+    clipped_hexes = [hex.intersection(image_bounds) for hex in hexagons if hex.intersects(image_bounds)]
+
+    # Replace original GeoDataFrame
+    hexagrid_gdf = gpd.GeoDataFrame(geometry=clipped_hexes)
+
+    return hexagrid_gdf
+
+def generate_random_points_gdf(n_points=10, x_range=(0, 100), y_range=(0, 100)):
+    points = [
+        Point(random.uniform(*x_range), random.uniform(*y_range))
+        for _ in range(n_points)
+    ]
+    trx_gdf = gpd.GeoDataFrame(geometry=points)
+    return trx_gdf
+
+def generate_dummy_image(width=100, height=100):
+
+    data = np.random.randint(0, 256, (height, width, 3), dtype=np.uint8)
+    img = Image.fromarray(data, 'RGB')
+    img_np = np.array(img)
+    return img_np
+
+def hexagrid_area(hexagrid_tiles_gdf, tissue_img_shape):
+
+    return round(sum(hexagrid_tiles_gdf.area.tolist())) == round(tissue_img_shape[0] * tissue_img_shape[1])
+
+def hexagrid_trx_assignment(newly_assigned_transcripts_GDF):
+
+    more_than_one_matches = 'more_than_one_matches' in newly_assigned_transcripts_GDF['hexagrid_index'].unique()
+    unassigned = 'UNASSIGNED' in newly_assigned_transcripts_GDF['hexagrid_index'].unique()
+
+    return more_than_one_matches, unassigned

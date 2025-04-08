@@ -8,40 +8,43 @@ from shapely.validation import make_valid
 from ..nbhd import *
 from shapely.affinity import affine_transform
 
-def find_containing_polygon(transcript, CELL_POLYGONS_sindex, CELL_POLYGONS_GDF):
-    point = transcript.geometry
-    possible_matches_index = list(CELL_POLYGONS_sindex.query(point, predicate='intersects'))
+
+def find_containing_polygon(transcript, polygons_sindex, polygons_gdf):
+    point = transcript.geometry_image_space
+    possible_matches_index = list(polygons_sindex.query(point, predicate='within'))
 
     if len(possible_matches_index) == 0:
         return 'UNASSIGNED'
-
-    return CELL_POLYGONS_GDF.iloc[possible_matches_index[0]].name
-
-def transcript_process_chunk(transcript_chunk, CELL_POLYGONS_sindex, CELL_POLYGONS_GDF):
-    if not transcript_chunk.empty:
-        transcript_chunk['new_cell_index'] = transcript_chunk.apply(find_containing_polygon, axis=1, CELL_POLYGONS_sindex=CELL_POLYGONS_sindex, CELL_POLYGONS_GDF=CELL_POLYGONS_GDF)
+    elif len(possible_matches_index) > 1:
+        return 'more_than_one_matches'
     else:
-        transcript_chunk['new_cell_index'] = 'UNASSIGNED'
+        return f"{polygons_gdf.iloc[possible_matches_index[0]].name}_tile"
 
-    return transcript_chunk
+def transcript_process_chunk(transcripts_gdf, polygons_sindex, polygons_gdf):
+    if not transcripts_gdf.empty:
+        transcripts_gdf['hexagrid_index'] = transcripts_gdf.apply(find_containing_polygon,
+                                                                   axis=1,
+                                                                   polygons_sindex=polygons_sindex,
+                                                                   polygons_gdf=polygons_gdf)
+    else:
+        transcripts_gdf['hexagrid_index'] = 'UNASSIGNED'
 
-def partitioning_transcripts(CELL_POLYGONS_GDF, chunked_transcripts_gdf):
+    return transcripts_gdf
 
-    CELL_POLYGONS_sindex = CELL_POLYGONS_GDF.sindex
+def assigning_transcripts(polygons_gdf, transcripts_gdf):
 
-    partitioned_transcripts = gpd.GeoDataFrame()
+    polygons_sindex = polygons_gdf.sindex
 
-    chunk_result = transcript_process_chunk(transcript_chunk = chunked_transcripts_gdf,
-                                CELL_POLYGONS_sindex = CELL_POLYGONS_sindex,
-                                CELL_POLYGONS_GDF = CELL_POLYGONS_GDF)
+    assigned_transcripts = gpd.GeoDataFrame()
 
-    partitioned_transcripts = pd.concat([partitioned_transcripts, chunk_result], ignore_index=True)
+    processed_transcripts = transcript_process_chunk(transcripts_gdf = transcripts_gdf,
+                                polygons_sindex = polygons_sindex,
+                                polygons_gdf = polygons_gdf)
 
-    partitioned_transcripts = gpd.GeoDataFrame(partitioned_transcripts, geometry='geometry')
+    assigned_transcripts = pd.concat([assigned_transcripts, processed_transcripts], ignore_index=True)
+    assigned_transcripts = gpd.GeoDataFrame(assigned_transcripts, geometry='geometry')
 
-    partitioned_transcripts.drop(['geometry'], axis=1, inplace=True)
-
-    return partitioned_transcripts
+    return assigned_transcripts
 
 def get_largest_polygon(geometry):
     if geometry.geom_type == 'MultiPolygon':
@@ -125,7 +128,7 @@ def add_or_merge_into_gdf_nc(gdf_nc, default_clustering, clusters_within_cutout_
 
     return gdf_nc
 
-def merge_segmentation(default_data_path, custom_data_path, output_path, clusters_within_cutout_region, inv_alpha_value_for_cutout_region, buffer_for_cutout_region_alpha_shape, inv_alpha_value_for_full_tissue, buffer_for_full_tisse_alpha_shape, ioa_small_thresh = 0.5):
+def merge_segmentation(default_data_path, custom_data_path, output_path, clusters_within_cutout_region, inv_alpha_value_for_cutout_region=1, buffer_for_cutout_region_alpha_shape=0, ioa_small_thresh = 0.5):
 
     os.makedirs(output_path, exist_ok=True)
 
@@ -151,23 +154,28 @@ def merge_segmentation(default_data_path, custom_data_path, output_path, cluster
         custom_segmentation_parameters = json.load(file_custom)
 
     default_technology_name = default_segmentation_parameters['technology']
-    custom_technology_name = custom_segmentation_parameters['technology']
+    custom_technology_name = custom_segmentation_parameters['segmentation_approach']
 
-    cells_default_within_clusters = default_clustering[default_clustering['Cluster'].isin(clusters_within_cutout_region)]
-    filtered_cells_default_within_cutout_region = cells_default[cells_default.index.isin(cells_default_within_clusters.index.to_list())]
-
-    filtered_cells_default_within_cutout_region['centroid'] = filtered_cells_default_within_cutout_region['geometry'].centroid
-    filtered_cell_centroids_default_within_cutout_region = np.array(list(zip(filtered_cells_default_within_cutout_region['centroid'].x,
-                                                                             filtered_cells_default_within_cutout_region['centroid'].y)))
-
-    cutout_region_alpha_shape = alpha_shape(filtered_cell_centroids_default_within_cutout_region, inv_alpha_value_for_cutout_region)
-
-    if len(cutout_region_alpha_shape.geoms) == 1:
-        largest_cutout_region_alpha_shape = cutout_region_alpha_shape
+    if os.path.exists(f'{custom_data_path}/cutout_region_alpha_shape.parquet'):
+        largest_cutout_region_alpha_shape_gdf = gpd.read_parquet(f'{custom_data_path}/cutout_region_alpha_shape.parquet')
+        largest_cutout_region_alpha_shape = largest_cutout_region_alpha_shape_gdf.loc[0]['geometry']
 
     else:
-        largest_cutout_region_alpha_shape_temp = max(cutout_region_alpha_shape.geoms, key=lambda p: p.area)
-        largest_cutout_region_alpha_shape = largest_cutout_region_alpha_shape_temp.buffer(buffer_for_cutout_region_alpha_shape)
+        cells_default_within_clusters = default_clustering[default_clustering['Cluster'].isin(clusters_within_cutout_region)]
+        filtered_cells_default_within_cutout_region = cells_default[cells_default.index.isin(cells_default_within_clusters.index.to_list())]
+
+        filtered_cells_default_within_cutout_region['centroid'] = filtered_cells_default_within_cutout_region['geometry'].centroid
+        filtered_cell_centroids_default_within_cutout_region = np.array(list(zip(filtered_cells_default_within_cutout_region['centroid'].x,
+                                                                                filtered_cells_default_within_cutout_region['centroid'].y)))
+
+        cutout_region_alpha_shape = alpha_shape(filtered_cell_centroids_default_within_cutout_region, inv_alpha_value_for_cutout_region)
+
+        if len(cutout_region_alpha_shape.geoms) == 1:
+            largest_cutout_region_alpha_shape = cutout_region_alpha_shape
+
+        else:
+            largest_cutout_region_alpha_shape_temp = max(cutout_region_alpha_shape.geoms, key=lambda p: p.area)
+            largest_cutout_region_alpha_shape = largest_cutout_region_alpha_shape_temp.buffer(buffer_for_cutout_region_alpha_shape)
 
     cells_custom_within_cutout_region = cells_custom[cells_custom.geometry.intersects(largest_cutout_region_alpha_shape) == True]
 
@@ -184,22 +192,10 @@ def merge_segmentation(default_data_path, custom_data_path, output_path, cluster
     cells_before_harmonization = pd.concat([cells_default, cells_custom_within_cutout_region], ignore_index=False)
 
     cells_before_harmonization['centroid'] = cells_before_harmonization['geometry'].centroid
-    cell_centroids_before_harmonization = np.array(list(zip(cells_before_harmonization['centroid'].x,
-                                                            cells_before_harmonization['centroid'].y)))
-
-    full_tissue_alpha_shape = alpha_shape(cell_centroids_before_harmonization, inv_alpha_value_for_full_tissue)
-
-    if len(full_tissue_alpha_shape.geoms) == 1:
-        largest_full_tissue_alpha_shape = full_tissue_alpha_shape
-
-    else:
-        largest_full_tissue_alpha_shape_temp = max(full_tissue_alpha_shape.geoms, key=lambda p: p.area)
-        largest_full_tissue_alpha_shape = largest_full_tissue_alpha_shape_temp.buffer(buffer_for_full_tisse_alpha_shape)
 
     print("Default segmented and custom segmented cells within cutout region extracted.")
 
-    gpd.GeoDataFrame(geometry=[largest_full_tissue_alpha_shape]).to_parquet(f'{output_path}/largest_full_tissue_alpha_shape.parquet', index=False)
-    gpd.GeoDataFrame(geometry=[largest_cutout_region_alpha_shape]).to_parquet(f'{output_path}/largest_cutout_region_alpha_shape.parquet', index=False)
+    gpd.GeoDataFrame(geometry=[largest_cutout_region_alpha_shape]).to_parquet(f'{output_path}/cutout_region_alpha_shape.parquet', index=False)
 
     print("Alphashapes saved.")
 
@@ -394,8 +390,8 @@ def merge_segmentation(default_data_path, custom_data_path, output_path, cluster
         cell_id_col = 'cell_id'
         gene_col = 'gene'
 
-    newly_assigned_transcripts = partitioning_transcripts(CELL_POLYGONS_GDF = merged_cells,
-                                                          chunked_transcripts_gdf = transcripts_default_GDF)
+    newly_assigned_transcripts = assigning_transcripts(polygons_gdf=merged_cells,
+                          transcripts_gdf=transcripts_default_GDF)
 
     newly_assigned_transcripts_GDF = gpd.GeoDataFrame(newly_assigned_transcripts, geometry=gpd.points_from_xy(newly_assigned_transcripts['x_location'], newly_assigned_transcripts['y_location']))
 

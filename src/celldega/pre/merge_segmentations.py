@@ -8,9 +8,10 @@ from shapely.validation import make_valid
 from ..nbhd import *
 from shapely.affinity import affine_transform
 
+def find_containing_polygon(transcript, polygons_sindex, gdf_polygons):
 
-def find_containing_polygon(transcript, polygons_sindex, polygons_gdf):
-    point = transcript.geometry_image_space
+    point = getattr(transcript, 'geometry_image_space', None) or getattr(transcript, 'geometry', None)
+    #point = transcript.geometry_image_space
     possible_matches_index = list(polygons_sindex.query(point, predicate='within'))
 
     if len(possible_matches_index) == 0:
@@ -18,28 +19,28 @@ def find_containing_polygon(transcript, polygons_sindex, polygons_gdf):
     elif len(possible_matches_index) > 1:
         return 'more_than_one_matches'
     else:
-        return f"{polygons_gdf.iloc[possible_matches_index[0]].name}_tile"
+        return f"{gdf_polygons.iloc[possible_matches_index[0]].name}_tile"
 
-def transcript_process_chunk(transcripts_gdf, polygons_sindex, polygons_gdf):
-    if not transcripts_gdf.empty:
-        transcripts_gdf['hexagrid_index'] = transcripts_gdf.apply(find_containing_polygon,
+def transcript_process_chunk(gdf_transcripts, polygons_sindex, gdf_polygons):
+    if not gdf_transcripts.empty:
+        gdf_transcripts['polygon_index'] = gdf_transcripts.apply(find_containing_polygon,
                                                                    axis=1,
                                                                    polygons_sindex=polygons_sindex,
-                                                                   polygons_gdf=polygons_gdf)
+                                                                   gdf_polygons=gdf_polygons)
     else:
-        transcripts_gdf['hexagrid_index'] = 'UNASSIGNED'
+        gdf_transcripts['polygon_index'] = 'UNASSIGNED'
 
-    return transcripts_gdf
+    return gdf_transcripts
 
-def assigning_transcripts(polygons_gdf, transcripts_gdf):
+def assigning_transcripts(gdf_polygons, gdf_transcripts):
 
-    polygons_sindex = polygons_gdf.sindex
+    polygons_sindex = gdf_polygons.sindex
 
     assigned_transcripts = gpd.GeoDataFrame()
 
-    processed_transcripts = transcript_process_chunk(transcripts_gdf = transcripts_gdf,
+    processed_transcripts = transcript_process_chunk(gdf_transcripts = gdf_transcripts,
                                 polygons_sindex = polygons_sindex,
-                                polygons_gdf = polygons_gdf)
+                                gdf_polygons = gdf_polygons)
 
     assigned_transcripts = pd.concat([assigned_transcripts, processed_transcripts], ignore_index=True)
     assigned_transcripts = gpd.GeoDataFrame(assigned_transcripts, geometry='geometry')
@@ -390,8 +391,8 @@ def merge_segmentation(default_data_path, custom_data_path, output_path, cluster
         cell_id_col = 'cell_id'
         gene_col = 'gene'
 
-    newly_assigned_transcripts = assigning_transcripts(polygons_gdf=merged_cells,
-                          transcripts_gdf=transcripts_default_GDF)
+    newly_assigned_transcripts = assigning_transcripts(gdf_polygons=merged_cells,
+                          gdf_transcripts=transcripts_default_GDF)
 
     newly_assigned_transcripts_GDF = gpd.GeoDataFrame(newly_assigned_transcripts, geometry=gpd.points_from_xy(newly_assigned_transcripts['x_location'], newly_assigned_transcripts['y_location']))
 

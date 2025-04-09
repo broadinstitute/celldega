@@ -31,6 +31,8 @@ import { toggle_visibility_image_layers } from '../deck-gl/image_layers'
 import { toggle_trx_layer_visibility } from '../deck-gl/trx_layer'
 import { toggle_path_layer_visibility } from '../deck-gl/path_layer'
 import { toggle_background_layer_visibility } from '../deck-gl/background_layer'
+// import { AwsClient } from 'aws4fetch'
+import { AwsClient } from 'https://esm.sh/aws4fetch@1'
 
 export const landscape_ist = async (
     el,
@@ -50,13 +52,13 @@ export const landscape_ist = async (
     umap={},
     landscape_state='spatial',
     segmentation='default',
+    creds={},
     view_change_custom_callback=null
 ) => {
 
     if (width === 0){
         width = '100%'
     }
-
 
     let viz_state = {}
     viz_state.seg = {}
@@ -78,6 +80,41 @@ export const landscape_ist = async (
     viz_state.nbhd.visible = false
 
     viz_state.spatial = {}
+
+    // later we will parse the region from the s3 url
+
+    if ('accessKeyId' in creds) {
+        viz_state.aws = new AwsClient({
+            accessKeyId: creds.accessKeyId,
+            secretAccessKey: creds.secretAccessKey,
+            sessionToken: creds.sessionToken,
+            region: 'us-east-1',
+            service: 's3'
+        });
+
+
+    } else {
+
+        viz_state.aws = null
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     if (Object.keys(viz_state.model).length !== 0){
         if (Object.keys(viz_state.model.get('nbhd')).length === 0) {
@@ -167,9 +204,6 @@ export const landscape_ist = async (
         viz_state.umap.state = true
     }
 
-    console.log(landscape_state)
-    console.log('viz_state.umap.state', viz_state.umap.state)
-
     viz_state.genes = {}
     viz_state.genes.color_dict_gene = {}
     viz_state.genes.gene_names = []
@@ -197,7 +231,7 @@ export const landscape_ist = async (
     // move this to landscape_parameters
     const imgage_name_for_dim = 'dapi'
 
-    await set_landscape_parameters(viz_state.img, base_url)
+    await set_landscape_parameters(viz_state.img, base_url, viz_state.aws)
 
     const tmp_image_info = viz_state.img.landscape_parameters.image_info
 
@@ -215,7 +249,7 @@ export const landscape_ist = async (
 
     await set_dimensions(viz_state, base_url, imgage_name_for_dim)
 
-    await set_meta_gene(viz_state.genes, base_url, viz_state.seg.version)
+    await set_meta_gene(viz_state.genes, base_url, viz_state.seg.version, viz_state.aws)
 
     await set_cluster_metadata(viz_state)
 
@@ -368,7 +402,7 @@ export const landscape_ist = async (
             update_cat(viz_state.cats, new_cat)
             update_selected_genes(viz_state.genes, [inst_gene])
             update_selected_cats(viz_state.cats, [])
-            await update_cell_exp_array(viz_state.cats, viz_state.genes, viz_state.global_base_url, inst_gene, viz_state.seg.version, viz_state.vector_name_integer)
+            await update_cell_exp_array(viz_state.cats, viz_state.genes, viz_state.global_base_url, inst_gene, viz_state.seg.version, viz_state.vector_name_integer, viz_state.aws)
 
             update_cell_layer_id(layers_obj, new_cat)
             update_path_layer_id(layers_obj, new_cat)

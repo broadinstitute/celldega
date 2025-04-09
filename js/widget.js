@@ -22,6 +22,7 @@ export const render_landscape = async ({ model, el }) => {
 export const render_landscape_ist = async ({ model, el }) => {
 
     const token = model.get('token')
+    const creds = model.get('creds')
     const ini_x = model.get('ini_x');
     const ini_y = model.get('ini_y');
     const ini_z = model.get('ini_z');
@@ -53,7 +54,8 @@ export const render_landscape_ist = async ({ model, el }) => {
         meta_cluster,
         umap,
         landscape_state,
-        segmentation
+        segmentation,
+        creds
     )
 
 }

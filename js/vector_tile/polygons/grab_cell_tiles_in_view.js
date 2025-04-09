@@ -18,7 +18,7 @@ export const grab_cell_tiles_in_view = async (base_url, tiles_in_view, viz_state
         return `${segmentation_url}/cell_tile_${tile.tileX}_${tile.tileY}.parquet`;
     });
 
-    var tile_cell_tables_ini_new = await fetch_all_tables_new(viz_state.cache.cell, tile_cell_urls, options)
+    var tile_cell_tables_ini_new = await fetch_all_tables_new(viz_state.cache.cell, tile_cell_urls, options, viz_state.aws)
 
     var tile_cell_tables = tile_cell_tables_ini_new.filter(table => table !== null);
 

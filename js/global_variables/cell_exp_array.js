@@ -8,7 +8,7 @@ function processExpression(exp_value, max_exp) {
 }
 
 
-export const update_cell_exp_array = async (cats, genes, base_url, inst_gene, version, vector_name_integer) => {
+export const update_cell_exp_array = async (cats, genes, base_url, inst_gene, version, vector_name_integer, aws) => {
 
     let file_path;
     if (version === 'default'){
@@ -18,13 +18,13 @@ export const update_cell_exp_array = async (cats, genes, base_url, inst_gene, ve
     }
 
     //var file_path = base_url + '/cbg/' + inst_gene + '.parquet'
-    var exp_table = await get_arrow_table(file_path, options.fetch)
+    var exp_table = await get_arrow_table(file_path, options.fetch, aws)
     let cell_names = exp_table.getChild('__index_level_0__').toArray()
     let cell_exp = exp_table.getChild(inst_gene).toArray()
 
     const new_exp_array = new Array(cats.cell_names_array.length).fill(0)
 
-    console.log('vector_name_integer:',vector_name_integer)
+    // console.log('vector_name_integer:',vector_name_integer)
 
     // Use Sets to track missing names (automatically keeps them unique)
     const missingCellNames1 = new Set(); // For cell_name_to_index_map

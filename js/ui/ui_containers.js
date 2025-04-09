@@ -673,7 +673,7 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
 
 
         if (mappedValue !== viz_state.nbhd.inst_alpha){
-            console.log('Mapped inv_alpha:', mappedValue);
+            // console.log('Mapped inv_alpha:', mappedValue);
             viz_state.nbhd.inst_alpha = mappedValue
 
             filter_cat_nbhd_feature_collection(viz_state)

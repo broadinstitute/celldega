@@ -3,8 +3,6 @@ import matplotlib.colors as mcolors
 import matplotlib.cm as cm
 import geopandas as gpd
 import pandas as pd
-from .boundary_tile import batch_transform_geometries
-from .__init__ import _to_geometry
 
 def calc_distance_to_polygon(
     gdf_polygons: gpd.GeoDataFrame,
@@ -134,20 +132,19 @@ def create_concentric_rings(polygon, num_bands, band_width):
     geopandas.GeoDataFrame: A GeoDataFrame containing the concentric rings as individual
                             geometries with a 'band' identifier for each ring. The GeoDataFrame
                             is set to the EPSG:4326 coordinate reference system.
-
     """
-    # Create buffers at multiple distances
     band_list = []
     for i in range(1, num_bands + 1):
         outer = polygon.buffer(i * band_width)
         inner = polygon.buffer((i - 1) * band_width)
         ring = outer.difference(inner)
 
-        band = {'geometry': ring, 'band': i}
+        band = polygon.copy()
+        band["geometry"] = ring
+        band["band"] = i
         band_list.append(band)
 
-    return gpd.GeoDataFrame(pd.DataFrame(band_list), crs='EPSG:4326')
-
+    return gpd.GeoDataFrame(pd.concat(band_list, ignore_index=True)).set_crs('EPSG:4326')
 
 def calc_gene_gradient_to_polygon(
     gdf_points: gpd.GeoDataFrame,

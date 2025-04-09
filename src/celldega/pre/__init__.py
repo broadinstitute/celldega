@@ -176,7 +176,7 @@ def _convert_long_id_to_short(df):
     return df
 
 
-def create_cluster_and_meta_cluster(technology, path_landscape_files, path_segmentation_files=None, data_dir=None, segmentation_approach='default'):
+def create_cluster_and_meta_cluster(technology, path_landscape_files, data_dir=None, path_segmentation_files=None, segmentation_approach='default'):
     """
     Creates cell clusters and meta cluster files for visualization.
     Currently supports only Xenium.
@@ -267,29 +267,20 @@ def create_cluster_and_meta_cluster(technology, path_landscape_files, path_segme
 
     if technology == 'custom':
 
-        if isinstance(path_segmentation_files, str):
-            cell_polygons_gdf = gpd.read_parquet(os.path.join(path_segmentation_files, "cell_polygons.parquet"))
-            tech_corresponding_to_cells = pd.DataFrame()
-            tech_corresponding_to_cells['cell_index'] = cell_polygons_gdf.index.tolist()
-            tech_corresponding_to_cells['technology'] = cell_polygons_gdf['technology'].tolist()
+        cell_polygons_gdf = gpd.read_parquet(os.path.join(path_segmentation_files, "cell_polygons.parquet"))
+        tech_corresponding_to_cells = pd.DataFrame()
+        tech_corresponding_to_cells['cell_index'] = cell_polygons_gdf.index.tolist()
+        tech_corresponding_to_cells['technology'] = cell_polygons_gdf['technology'].tolist()
 
-            unique_tech_names = tech_corresponding_to_cells['technology'].unique()
-            cluster_types = {val: f"{idx+1}-{val}" for idx, val in enumerate(unique_tech_names)}
-            clusters_list = tech_corresponding_to_cells['technology'].map(cluster_types).tolist()
-            tech_corresponding_to_cells['cluster'] = clusters_list
+        unique_tech_names = tech_corresponding_to_cells['technology'].unique()
+        cluster_types = {val: f"{idx+1}" for idx, val in enumerate(unique_tech_names)}
+        clusters_list = tech_corresponding_to_cells['technology'].map(cluster_types).tolist()
+        tech_corresponding_to_cells['cluster'] = clusters_list
 
-            INDEX = tech_corresponding_to_cells['cell_index'].tolist()
-            amount_of_clusters = tech_corresponding_to_cells['cluster']
-            clusters = amount_of_clusters.unique().tolist()
-
-            ser_counts = tech_corresponding_to_cells['cluster'].value_counts()
-
-        else:
-            INDEX = meta_cell['name'].tolist()
-            amount_of_clusters = '1'
-            clusters = [amount_of_clusters]
-
-            ser_counts = len(INDEX)
+        INDEX = tech_corresponding_to_cells['cell_index'].tolist()
+        clusters = tech_corresponding_to_cells['cluster'].unique().tolist()
+        amount_of_clusters = tech_corresponding_to_cells['cluster'].to_list()
+        ser_counts = tech_corresponding_to_cells['cluster'].value_counts()
 
         palettes = [plt.get_cmap(name).colors for name in plt.colormaps() if "tab" in name]
         flat_colors = [color for palette in palettes for color in palette]

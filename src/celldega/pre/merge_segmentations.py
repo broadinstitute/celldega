@@ -5,7 +5,7 @@ import numpy as np
 import json
 import os
 from shapely.validation import make_valid
-from ..nbhd import *
+from ..nbhd import alpha_shape
 from shapely.affinity import affine_transform
 
 def find_containing_polygon(transcript, polygons_sindex, gdf_polygons):
@@ -19,7 +19,10 @@ def find_containing_polygon(transcript, polygons_sindex, gdf_polygons):
     elif len(possible_matches_index) > 1:
         return 'more_than_one_matches'
     else:
-        return f"{gdf_polygons.iloc[possible_matches_index[0]].name}_tile"
+        if isinstance(gdf_polygons.iloc[possible_matches_index[0]].name, str):
+            return gdf_polygons.iloc[possible_matches_index[0]].name
+        else:
+            return f"{gdf_polygons.iloc[possible_matches_index[0]].name}_polygon"
 
 def transcript_process_chunk(gdf_transcripts, polygons_sindex, gdf_polygons):
     if not gdf_transcripts.empty:
@@ -403,13 +406,13 @@ def merge_segmentation(default_data_path, custom_data_path, output_path, cluster
 
     print("New transcript assignment of merged segmentation saved.")
 
-    newly_assigned_transcripts_GDF['new_cell_index'].fillna(-1, inplace=True)
-    newly_assigned_transcripts_GDF = newly_assigned_transcripts_GDF[newly_assigned_transcripts_GDF['new_cell_index'] != 'UNASSIGNED']
+    newly_assigned_transcripts_GDF['polygon_index'].fillna(-1, inplace=True)
+    newly_assigned_transcripts_GDF = newly_assigned_transcripts_GDF[newly_assigned_transcripts_GDF['polygon_index'] != 'UNASSIGNED']
 
-    merged_cells = merged_cells[merged_cells.index.isin(newly_assigned_transcripts_GDF['new_cell_index'])]
+    merged_cells = merged_cells[merged_cells.index.isin(newly_assigned_transcripts_GDF['polygon_index'])]
 
-    partitioned_transcripts_cleaned = newly_assigned_transcripts_GDF.groupby(['gene', 'new_cell_index']).size().reset_index(name='count')
-    cell_by_gene_matrix = partitioned_transcripts_cleaned.pivot_table(index='new_cell_index', columns='gene', values='count', fill_value=0)
+    partitioned_transcripts_cleaned = newly_assigned_transcripts_GDF.groupby(['gene', 'polygon_index']).size().reset_index(name='count')
+    cell_by_gene_matrix = partitioned_transcripts_cleaned.pivot_table(index='polygon_index', columns='gene', values='count', fill_value=0)
 
     cell_by_gene_matrix = cell_by_gene_matrix.rename_axis('cell_index')
 

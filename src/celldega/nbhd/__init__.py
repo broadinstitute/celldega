@@ -12,7 +12,6 @@ from shapely.geometry import shape, Point, Polygon, box
 from shapely.affinity import affine_transform
 from PIL import Image
 import random
-from ..pre.merge_segmentations import *
 import tifffile as tiff
 import os
 import pandas as pd
@@ -263,7 +262,6 @@ def create_hexatile(radius, path_default_data=None, path_landscape_files=None, i
 
     if isinstance(path_landscape_files, str):
 
-        gdf_hexatile.to_file(os.path.join(path_landscape_files, "hexatile.geojson"), driver="GeoJSON")
         gdf_hexatile.to_parquet(os.path.join(path_landscape_files, "hexatile.parquet"))
 
     return gdf_hexatile
@@ -296,7 +294,7 @@ def hexatile_trx_assignment(hexatile_assigned_trx):
 
 def unassigned_transcripts_tiled_view(gdf_hexatile, path_default_data, path_landscape_files, path_segmentation_files=None):
 
-    print(assigning_transcripts(gdf_polygons = None, gdf_transcripts = None))
+    from ..pre.merge_segmentations import assigning_transcripts
 
     transformation_matrix = pd.read_csv(os.path.join(path_landscape_files, "micron_to_image_transform.csv"), sep=" ", header=None).values[:3,:3]
 
@@ -358,7 +356,7 @@ def unassigned_transcripts_tiled_view(gdf_hexatile, path_default_data, path_land
 
     percentage_unassigned = percentage_unassigned[percentage_unassigned < 75]
 
-    percentage_unassigned.index = percentage_unassigned.index.str.replace('_tile', '', regex=True).astype(int)
+    percentage_unassigned.index = percentage_unassigned.index.str.replace('_polygon', '', regex=True).astype(int)
     percentage_unassigned_df = pd.DataFrame(index=percentage_unassigned.index)
     percentage_unassigned_df['unassigned_trx_percentage'] = percentage_unassigned.to_list()
 

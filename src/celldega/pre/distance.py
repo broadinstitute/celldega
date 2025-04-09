@@ -117,8 +117,25 @@ def plot_distance_to_polygon(
     plt.show()
 
 
-def create_buffer(polygon, num_bands, band_width):
+def create_concentric_rings(polygon, num_bands, band_width):
+    """
+    Create concentric rings (buffers) around a given polygon.
 
+    This function generates multiple concentric rings around a polygon by creating buffers
+    at increasing distances from the original polygon. Each ring is defined by the area
+    between two consecutive buffers.
+
+    Parameters:
+    polygon (shapely.geometry.Polygon): The polygon around which to create concentric rings.
+    num_bands (int): The number of concentric rings to create.
+    band_width (float): The width of each ring in the same units as the polygon.
+
+    Returns:
+    geopandas.GeoDataFrame: A GeoDataFrame containing the concentric rings as individual
+                            geometries with a 'band' identifier for each ring. The GeoDataFrame
+                            is set to the EPSG:4326 coordinate reference system.
+
+    """
     # Create buffers at multiple distances
     band_list = []
     for i in range(1, num_bands + 1):
@@ -126,12 +143,11 @@ def create_buffer(polygon, num_bands, band_width):
         inner = polygon.buffer((i - 1) * band_width)
         ring = outer.difference(inner)
 
-        band = polygon.copy()
-        band["geometry"] = ring
-        band["band"] = i
+        band = {'geometry': ring, 'band': i}
         band_list.append(band)
 
-    return gpd.GeoDataFrame(pd.concat(band_list, ignore_index=True)).set_crs('EPSG:4326')
+    return gpd.GeoDataFrame(pd.DataFrame(band_list), crs='EPSG:4326')
+
 
 def calc_gene_gradient_to_polygon(
     gdf_points: gpd.GeoDataFrame,
@@ -161,7 +177,7 @@ def calc_gene_gradient_to_polygon(
 
 
     # Merge all bands into a single GeoDataFrame
-    gdf_bands = create_buffer(gdf_polygon, num_bands, band_width)
+    gdf_bands = create_concentric_rings(gdf_polygon, num_bands, band_width)
     
     # Spatial join: Assign each cell to the closest buffer
     gdf_join_all = gdf_points.sjoin(gdf_bands, how="left", predicate="within").drop(

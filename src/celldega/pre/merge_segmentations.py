@@ -370,6 +370,11 @@ def merge_segmentation(default_data_path, custom_data_path, output_path, cluster
     merged_cells['area'] = merged_cells['geometry'].area
     merged_cells['centroid'] = merged_cells['geometry'].centroid
 
+    merged_cells.reset_index(inplace=True)
+    merged_cells.rename(columns={"": "cell_index"}, inplace=True)
+    merged_cells = merged_cells.sort_values(by=['cell_index']).reset_index(drop=True)
+    merged_cells.set_index('cell_index', inplace=True)
+
     merged_cells.to_parquet(f'{output_path}/cell_polygons.parquet')
 
     print("Merged Segmentation saved.")

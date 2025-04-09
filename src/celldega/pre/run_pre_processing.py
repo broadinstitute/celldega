@@ -28,7 +28,7 @@ def main(sample, data_root_dir, tile_size, image_tile_layer, path_landscape_file
 
     # Construct data directory
     data_dir = os.path.join(data_root_dir, sample)
-    print(data_dir)
+
     # Create necessary directories if they don't exist
     for folder in [data_dir, path_landscape_files]:
         if not os.path.exists(folder):

@@ -3,6 +3,8 @@ import matplotlib.colors as mcolors
 import matplotlib.cm as cm
 import geopandas as gpd
 import pandas as pd
+from .boundary_tile import batch_transform_geometries
+from .__init__ import _to_geometry
 
 def calc_distance_to_polygon(
     gdf_polygons: gpd.GeoDataFrame,
@@ -114,6 +116,23 @@ def plot_distance_to_polygon(
     plt.ylabel("y (micron)")
     plt.show()
 
+
+def create_buffer(polygon, num_bands, band_width):
+
+    # Create buffers at multiple distances
+    band_list = []
+    for i in range(1, num_bands + 1):
+        outer = polygon.buffer(i * band_width)
+        inner = polygon.buffer((i - 1) * band_width)
+        ring = outer.difference(inner)
+
+        band = polygon.copy()
+        band["geometry"] = ring
+        band["band"] = i
+        band_list.append(band)
+
+    return gpd.GeoDataFrame(pd.concat(band_list, ignore_index=True)).set_crs('EPSG:4326')
+
 def calc_gene_gradient_to_polygon(
     gdf_points: gpd.GeoDataFrame,
     gdf_polygon: gpd.GeoDataFrame,
@@ -128,6 +147,7 @@ def calc_gene_gradient_to_polygon(
     Args:
         gdf_points: GeoDataFrame containing points with distance column.
         gdf_polygon: GeoDataFrame containing the target polygon.
+        path_landscape_files: path to landscaope files
         roi_name: Name of the region of interest.
         band_width: Width of each band (in microns).
         num_bands: Number of bands to create.
@@ -139,16 +159,9 @@ def calc_gene_gradient_to_polygon(
 
     print (f"Complete calculating gene exp. gradient from points to {roi_name} using {band_width} micron rings.")
 
-    # Create buffers at multiple distances
-    band_list = []
-    for i in range(1, num_bands + 1):
-        band = gdf_polygon.copy()
-        band["geometry"] = band["geometry"].buffer(i * band_width)
-        band["band"] = i
-        band_list.append(band)
-    
+
     # Merge all bands into a single GeoDataFrame
-    gdf_bands = gpd.GeoDataFrame(pd.concat(band_list, ignore_index=True)).set_crs('EPSG:4326')
+    gdf_bands = create_buffer(gdf_polygon, num_bands, band_width)
     
     # Spatial join: Assign each cell to the closest buffer
     gdf_join_all = gdf_points.sjoin(gdf_bands, how="left", predicate="within").drop(
@@ -164,7 +177,7 @@ def calc_gene_gradient_to_polygon(
         band_avg_expression = gdf_join_all.groupby("band")[gene].mean().reset_index()
         band_avg_expression.columns = ["band", f"{gene}_mean"]
         gdf_join_all = gdf_join_all.merge(band_avg_expression, on="band")
-    
+
     return gdf_join_all, gdf_bands
 
 def plot_gene_gradient_to_polygon(

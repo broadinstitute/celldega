@@ -10,8 +10,21 @@ from shapely.affinity import affine_transform
 
 def find_containing_polygon(transcript, polygons_sindex, gdf_polygons):
 
+    """
+    Finds which polygon from a set contains a given transcript geometry.
+
+    Args:
+        transcript (GeoSeries): A single transcript row with geometry information.
+        polygons_sindex (rtree.index.Index): Spatial index for efficient spatial querying.
+        gdf_polygons (GeoDataFrame): GeoDataFrame containing reference polygons.
+
+    Returns:
+        str: Identifier of the containing polygon, 'UNASSIGNED' if none found,
+             or 'more_than_one_matches' if multiple polygons contain the transcript.
+    """
+
     point = getattr(transcript, 'geometry_image_space', None) or getattr(transcript, 'geometry', None)
-    #point = transcript.geometry_image_space
+
     possible_matches_index = list(polygons_sindex.query(point, predicate='within'))
 
     if len(possible_matches_index) == 0:
@@ -25,6 +38,19 @@ def find_containing_polygon(transcript, polygons_sindex, gdf_polygons):
             return f"{gdf_polygons.iloc[possible_matches_index[0]].name}_polygon"
 
 def transcript_process_chunk(gdf_transcripts, polygons_sindex, gdf_polygons):
+
+    """
+    Assigns each transcript to a polygon it falls within.
+
+    Args:
+        gdf_transcripts (GeoDataFrame): GeoDataFrame of transcript points.
+        polygons_sindex (rtree.index.Index): Spatial index for the polygons.
+        gdf_polygons (GeoDataFrame): GeoDataFrame of polygons.
+
+    Returns:
+        GeoDataFrame: Updated transcripts with assigned polygon indices.
+    """
+
     if not gdf_transcripts.empty:
         gdf_transcripts['polygon_index'] = gdf_transcripts.apply(find_containing_polygon,
                                                                    axis=1,
@@ -36,6 +62,17 @@ def transcript_process_chunk(gdf_transcripts, polygons_sindex, gdf_polygons):
     return gdf_transcripts
 
 def assigning_transcripts(gdf_polygons, gdf_transcripts):
+
+    """
+    Assigns all transcripts in a dataset to polygons using spatial queries.
+
+    Args:
+        gdf_polygons (GeoDataFrame): Polygons to assign to.
+        gdf_transcripts (GeoDataFrame): Transcripts with point geometries.
+
+    Returns:
+        GeoDataFrame: Transcripts with added column indicating assigned polygon.
+    """
 
     polygons_sindex = gdf_polygons.sindex
 
@@ -51,6 +88,17 @@ def assigning_transcripts(gdf_polygons, gdf_transcripts):
     return assigned_transcripts
 
 def get_largest_polygon(geometry):
+
+    """
+    Extracts the largest polygon from a MultiPolygon geometry.
+
+    Args:
+        geometry (shapely.geometry): Polygon or MultiPolygon.
+
+    Returns:
+        shapely.geometry.Polygon: Largest polygon by area.
+    """
+
     if geometry.geom_type == 'MultiPolygon':
         largest_polygon = max(geometry.geoms, key=lambda p: p.area)
         return largest_polygon
@@ -60,13 +108,19 @@ def get_largest_polygon(geometry):
 def add_or_merge_into_gdf_nc(gdf_nc, default_clustering, clusters_within_cutout_region, poly, ioa_thresh, ID, tech):
 
     """
-    This function allows us to add a new polygon to gdf_nc
-    gdf_nc contains the no conflict polygons. We define conflict to mean
-    a non-trivial intersection between polygons with a ioa_small above
-    our threshold.
+    Adds a polygon to the no-conflict GeoDataFrame or merges if overlap exceeds threshold.
 
-    This function will check for conflicts before adding poly and
-    merge if necessary
+    Args:
+        gdf_nc (GeoDataFrame): GeoDataFrame of non-conflicting polygons.
+        default_clustering (DataFrame): Default clustering information.
+        clusters_within_cutout_region (list): Clusters within the region of interest.
+        poly (Polygon): Polygon to be added or merged.
+        ioa_thresh (float): Threshold for intersection over area.
+        ID (str): Cell ID for the new polygon.
+        tech (str): Technology or source name.
+
+    Returns:
+        GeoDataFrame: Updated gdf_nc with new or merged polygon.
     """
 
     possible_intersections = gdf_nc.sindex.query(poly, predicate='intersects')
@@ -133,6 +187,29 @@ def add_or_merge_into_gdf_nc(gdf_nc, default_clustering, clusters_within_cutout_
     return gdf_nc
 
 def merge_segmentation(default_data_path, custom_data_path, output_path, clusters_within_cutout_region, inv_alpha_value_for_cutout_region=1, buffer_for_cutout_region_alpha_shape=0, ioa_small_thresh = 0.5):
+
+    """
+    Harmonizes and merges default and custom cell segmentations by resolving overlapping cells
+    in a boundary region using alpha shapes and IOA thresholds.
+
+    Args:
+        default_data_path (str): Path to default segmentation data.
+        custom_data_path (str): Path to custom segmentation data.
+        output_path (str): Directory to save outputs.
+        clusters_within_cutout_region (list): Clusters in the region of interest.
+        inv_alpha_value_for_cutout_region (float, optional): Inverse alpha for alpha shape.
+        buffer_for_cutout_region_alpha_shape (float, optional): Buffer applied to alpha shape polygon.
+        ioa_small_thresh (float, optional): IOMA (Intersection over Minimum Area) threshold to resolve conflicts.
+
+    Saves:
+        - `cell_polygons.parquet`: Merged cell boundaries.
+        - `cell_metadata_micron_space.parquet`: Metadata associated with each cell.
+        - `cell_by_gene_matrix.parquet`: Cell x gene expression matrix.
+        - `segmentation_parameters.json`: Parameters used during segmentation.
+        - `transcripts.parquet`: Transcripts with added column indicating assigned cell polygons.
+        - `cutout_region_alpha_shape.parquet`: Alpha shape of the region of interest.
+
+    """
 
     os.makedirs(output_path, exist_ok=True)
 
@@ -371,7 +448,7 @@ def merge_segmentation(default_data_path, custom_data_path, output_path, cluster
     merged_cells['centroid'] = merged_cells['geometry'].centroid
 
     merged_cells.reset_index(inplace=True)
-    merged_cells.rename(columns={"": "cell_index"}, inplace=True)
+    merged_cells.rename(columns={"cell_id": "cell_index"}, inplace=True)
     merged_cells = merged_cells.sort_values(by=['cell_index']).reset_index(drop=True)
     merged_cells.set_index('cell_index', inplace=True)
 

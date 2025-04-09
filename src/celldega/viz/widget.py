@@ -32,7 +32,7 @@ class Landscape(anywidget.AnyWidget):
     Returns:
         Landscape: A widget for visualizing a 'landscape' view of spatial omics data.
     """
-    
+
     _esm = pathlib.Path(__file__).parent / "../static" / "widget.js"
     _css = pathlib.Path(__file__).parent / "../static" / "widget.css"
     component = traitlets.Unicode("Landscape").tag(sync=True)
@@ -49,6 +49,7 @@ class Landscape(anywidget.AnyWidget):
     dataset_name = traitlets.Unicode("").tag(sync=True)
     region = traitlets.Dict({}).tag(sync=True)
     nbhd = traitlets.Dict({}).tag(sync=True)
+
     meta_cell = traitlets.Dict({}).tag(sync=True)
     meta_cluster = traitlets.Dict({}).tag(sync=True)
     umap = traitlets.Dict({}).tag(sync=True)

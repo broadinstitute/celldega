@@ -9,15 +9,15 @@
 		"lint": "eslint js/ --ignore-pattern js/vendor/"
 	},
 	"dependencies": {
-		"@loaders.gl/core": "4.3.2",
-		"@luma.gl/core": "9.0.27",
-		"@luma.gl/engine": "9.0.27",
-		"@luma.gl/shadertools": "9.0.27",
-		"@luma.gl/webgl": "9.0.27",
+		"@loaders.gl/core": "^4.2.0",
+		"@luma.gl/core": "^9.0.12",
+		"@luma.gl/engine": "^9.0.12",
+		"@luma.gl/shadertools": "^9.0.12",
+		"@luma.gl/webgl": "^9.0.12",
 		"apache-arrow": "15.0.2",
-		"d3": "7.9.0",
-		"deck.gl": "9.0.35",
-		"@deck.gl-community/editable-layers": "9.0.3",
+		"d3": "^7.9.0",
+		"deck.gl": "^9.0.12",
+		"@deck.gl-community/editable-layers": "^9.0.3",
 		"math.gl": "2.3.3"
 	},
 	"devDependencies": {

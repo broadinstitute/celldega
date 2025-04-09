@@ -56,11 +56,9 @@ export const landscape_ist = async (
     view_change_custom_callback=null
 ) => {
 
-    console.log('2025-04-08 - updates')
-
     if (width === 0){
         width = '100%'
-    }    
+    }
 
     let viz_state = {}
     viz_state.seg = {}
@@ -86,24 +84,17 @@ export const landscape_ist = async (
     // later we will parse the region from the s3 url
 
     if ('accessKeyId' in creds) {
-        console.log('using private AWS bucket')
         viz_state.aws = new AwsClient({
             accessKeyId: creds.accessKeyId,
             secretAccessKey: creds.secretAccessKey,
             sessionToken: creds.sessionToken,
             region: 'us-east-1',
             service: 's3'
-        });        
+        });
 
-        const response = await viz_state.aws.fetch(
-          base_url + '/landscape_parameters.json'
-        );
-            
-        const json = await response.json();
-        console.log("Fetch succeeded! Here's the object: " + JSON.stringify(json, null, 2).slice(0,50))        
-        
+
     } else {
-        console.log('not using private AWS bucket')
+
         viz_state.aws = null
     }
 
@@ -111,7 +102,6 @@ export const landscape_ist = async (
 
 
 
-    
 
 
 
@@ -119,11 +109,12 @@ export const landscape_ist = async (
 
 
 
-    
 
 
 
-    
+
+
+
 
     if (Object.keys(viz_state.model).length !== 0){
         if (Object.keys(viz_state.model.get('nbhd')).length === 0) {
@@ -212,9 +203,6 @@ export const landscape_ist = async (
     } else if (landscape_state === 'umap') {
         viz_state.umap.state = true
     }
-
-    // console.log(landscape_state)
-    // console.log('viz_state.umap.state', viz_state.umap.state)
 
     viz_state.genes = {}
     viz_state.genes.color_dict_gene = {}

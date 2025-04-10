@@ -97,13 +97,13 @@ export const ini_cell_layer = async (base_url, viz_state) => {
         cell_url = base_url + '/cell_metadata_' + viz_state.seg.version + '.parquet';
     }
 
-    var cell_arrow_table = await get_arrow_table(cell_url, options.fetch)
+    var cell_arrow_table = await get_arrow_table(cell_url, options.fetch, viz_state.aws)
 
     set_cell_names_array(viz_state.cats, cell_arrow_table)
 
     viz_state.spatial.cell_scatter_data = get_scatter_data(cell_arrow_table)
 
-    await set_color_dict_gene(viz_state.genes, base_url, viz_state.seg.version)
+    await set_color_dict_gene(viz_state.genes, base_url, viz_state.seg.version, viz_state.aws)
 
     set_cell_name_to_index_map(viz_state.cats)
 
@@ -113,7 +113,7 @@ export const ini_cell_layer = async (base_url, viz_state) => {
         // default clustering
 
         var cluster_arrow_table = await get_arrow_table(base_url + `/cell_clusters${viz_state.seg.version && viz_state.seg.version !== 'default' ? '_' + viz_state.seg.version : ''}/cluster.parquet`,
-                                                        options.fetch)
+                                                        options.fetch, viz_state.aws)
         set_cell_cats(viz_state.cats, cluster_arrow_table, 'cluster')
     }
 

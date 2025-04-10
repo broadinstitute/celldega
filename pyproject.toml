@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "celldega"
-version = "0.9.0"
+version = "0.11.0"
 dependencies = [
     "anywidget==0.9.6",
     "dask==2024.11.2",
@@ -14,7 +14,7 @@ dependencies = [
     "pyarrow~=15.0.2",
     "matplotlib~=3.8.4",
     "geopandas~=0.14.3",
-    "zarr~=2.17.2",
+    "zarr==2.18.7",
     "tifffile~=2024.4.18",
     "imagecodecs~=2024.1.1",
     "scanpy~=1.10.2",

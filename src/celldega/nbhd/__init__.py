@@ -17,6 +17,7 @@ import os
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
+import xml.etree.ElementTree as ET
 
 def _classify_polygons_contains_check(polygons, points):
     """
@@ -214,12 +215,14 @@ def alpha_shape_geojson(gdf_alpha, meta_cluster, inst_alpha):
 
     return geojson_alpha
 
-def create_hexatile(radius, path_default_data=None, path_landscape_files=None, img_height=100, img_width=100):
+def create_hexatile(radius, path_landscape_files=None, img_height=100, img_width=100):
 
-    if isinstance(path_default_data, str):
+    if isinstance(path_landscape_files, str):
 
-        tissue_img = tiff.imread(os.path.join(path_default_data, "morphology_focus/morphology_focus_0001.ome.tif"), is_ome=False)
-        img_height, img_width = tissue_img.shape[:2]
+        tree = ET.parse(os.path.join(path_landscape_files, "pyramid_images/bound.dzi"))
+        root = tree.getroot()
+        img_width = int(root[0].attrib['Width'])
+        img_height = int(root[0].attrib['Height'])
 
     hex_width = 2 * radius
     hex_height = np.sqrt(3) * radius
@@ -292,45 +295,58 @@ def hexatile_trx_assignment(hexatile_assigned_trx):
 
     return more_than_one_matches, unassigned
 
-def unassigned_transcripts_tiled_view(gdf_hexatile, path_default_data, path_landscape_files, path_segmentation_files=None):
+def unassigned_transcripts_tiled_view(gdf_hexatile, path_data, path_landscape_files):
 
     from ..pre.merge_segmentations import assigning_transcripts
 
     transformation_matrix = pd.read_csv(os.path.join(path_landscape_files, "micron_to_image_transform.csv"), sep=" ", header=None).values[:3,:3]
 
-    with open(os.path.join(path_landscape_files, 'landscape_parameters.json'), 'r') as landscape_parameters_file:
-        landscape_parameters = json.load(landscape_parameters_file)
+    if os.path.isfile(os.path.join(path_data, 'experiment.xenium')):
 
-    if landscape_parameters['technology'] == 'Xenium':
+        with open(os.path.join(path_landscape_files, 'landscape_parameters.json'), 'r') as parameters_file:
+            parameters = json.load(parameters_file)
+
+    else:
+
+        with open(os.path.join(path_data, 'segmentation_parameters.json'), 'r') as parameters_file:
+            parameters = json.load(parameters_file)
+
+    ## only Xenium and Custom Tech supported for now
+
+    if parameters['technology'] == 'Xenium':
         x = 'x_location'
         y = 'y_location'
-
-    elif landscape_parameters['technology'] == 'MERSCOPE':
-        x = 'center_x'
-        y = 'center_y'
+        cell_id_col = 'cell_id'
+        segmentation_approach = 'default'
 
     else:
         x = 'x'
         y = 'y'
+        cell_id_col = 'cell_index'
+        segmentation_approach = parameters['segmentation_approach']
 
     print("Reading transcripts file...")
-    if isinstance(path_segmentation_files, str):
-        trx = pd.read_parquet(os.path.join(path_segmentation_files, "transcripts.parquet"))
 
-    else:
-        trx = pd.read_parquet(os.path.join(path_default_data, "transcripts.parquet"))
+    trx = pd.read_parquet(os.path.join(path_data, "transcripts.parquet"))
 
     print("Transcripts file read.")
 
-    gdf_trx = gpd.GeoDataFrame(trx, geometry=gpd.points_from_xy(trx[x], trx[y]))
-    gdf_trx['geometry_image_space'] = gdf_trx['geometry'].apply(lambda geom: affine_transform(geom, [transformation_matrix[0, 0],
-                                                                                               transformation_matrix[0, 1],
-                                                                                               transformation_matrix[1, 0],
-                                                                                               transformation_matrix[1, 1],
-                                                                                               transformation_matrix[0, 2],
-                                                                                               transformation_matrix[1, 2]]))
+    if parameters['technology'] == 'Xenium' or 'geometry_image_space' not in trx.columns.to_list():
 
-    gdf_trx.set_geometry('geometry_image_space', inplace=True)
+        gdf_trx = gpd.GeoDataFrame(trx, geometry=gpd.points_from_xy(trx[x], trx[y]))
+        gdf_trx['geometry_image_space'] = gdf_trx['geometry'].apply(lambda geom: affine_transform(geom, [transformation_matrix[0, 0],
+                                                                                                transformation_matrix[0, 1],
+                                                                                                transformation_matrix[1, 0],
+                                                                                                transformation_matrix[1, 1],
+                                                                                                transformation_matrix[0, 2],
+                                                                                                transformation_matrix[1, 2]]))
+
+        gdf_trx.set_geometry('geometry_image_space', inplace=True)
+
+    else:
+
+        gdf_trx = gpd.GeoDataFrame(trx, geometry='geometry_image_space')
+        gdf_trx.set_geometry('geometry_image_space', inplace=True)
 
     print("Assignment of transcripts started...")
 
@@ -338,17 +354,17 @@ def unassigned_transcripts_tiled_view(gdf_hexatile, path_default_data, path_land
                                                   gdf_transcripts = gdf_trx)
 
     gdf_hexatile_assigned_trx = gpd.GeoDataFrame(hexatile_assigned_trx,
-                                                      geometry=gpd.points_from_xy(hexatile_assigned_trx[x], hexatile_assigned_trx[y]))
+                                                      geometry='geometry_image_space')
 
     gdf_hexatile_assigned_trx.set_geometry('geometry_image_space', inplace=True)
 
-    gdf_hexatile_assigned_trx.to_parquet(os.path.join(path_landscape_files, "hexatile_assigned_trx.parquet"))
+    gdf_hexatile_assigned_trx.to_parquet(os.path.join(path_landscape_files, f"hexatile_assigned_trx_{parameters['technology']}_{segmentation_approach}.parquet"))
 
     print("Assignment of transcripts done and saved.")
 
     print("Calculating percentage of hexatile-specific unassigned transcripts...")
 
-    unassigned_counts = gdf_hexatile_assigned_trx[gdf_hexatile_assigned_trx['cell_id'] == "UNASSIGNED"].groupby('polygon_index').size()
+    unassigned_counts = gdf_hexatile_assigned_trx[gdf_hexatile_assigned_trx[cell_id_col] == "UNASSIGNED"].groupby('polygon_index').size()
     total_counts = gdf_hexatile_assigned_trx.groupby('polygon_index').size()
 
     percentage_unassigned = (unassigned_counts / total_counts) * 100

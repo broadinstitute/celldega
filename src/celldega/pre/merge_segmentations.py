@@ -470,11 +470,15 @@ def merge_segmentation(default_data_path, custom_data_path, output_path, cluster
         trx_col = 'transcript_id'
         cell_id_col = 'cell_id'
         gene_col = 'feature_name'
+        x_col = 'x_location'
+        y_col = 'y_location'
 
     elif default_technology_name == 'MERSCOPE':
         trx_col = 'transcript_id'
         cell_id_col = 'cell_id'
         gene_col = 'gene'
+        x_col = 'center_x'
+        y_col = 'center_y'
 
     newly_assigned_transcripts = assigning_transcripts(gdf_polygons=merged_cells,
                           gdf_transcripts=transcripts_default_GDF)
@@ -482,19 +486,27 @@ def merge_segmentation(default_data_path, custom_data_path, output_path, cluster
     newly_assigned_transcripts_GDF = gpd.GeoDataFrame(newly_assigned_transcripts, geometry=gpd.points_from_xy(newly_assigned_transcripts['x_location'], newly_assigned_transcripts['y_location']))
 
     newly_assigned_transcripts_GDF.drop([cell_id_col], axis=1, inplace=True)
-    newly_assigned_transcripts_GDF = newly_assigned_transcripts_GDF.rename(columns={trx_col: 'transcript_index', gene_col: 'gene'})
+    newly_assigned_transcripts_GDF = newly_assigned_transcripts_GDF.rename(columns={trx_col: 'transcript_index', gene_col: 'gene', x_col: "x", y_col: "y", "polygon_index": "cell_index"})
+
+    newly_assigned_transcripts_GDF['geometry_image_space'] = newly_assigned_transcripts_GDF['geometry'].apply(lambda geom: affine_transform(geom, [transformation_matrix[0, 0],
+                                                                                                transformation_matrix[0, 1],
+                                                                                                transformation_matrix[1, 0],
+                                                                                                transformation_matrix[1, 1],
+                                                                                                transformation_matrix[0, 2],
+                                                                                                transformation_matrix[1, 2]]))
+
 
     newly_assigned_transcripts_GDF.to_parquet(f'{output_path}/transcripts.parquet', index=False)
 
     print("New transcript assignment of merged segmentation saved.")
 
-    newly_assigned_transcripts_GDF['polygon_index'].fillna(-1, inplace=True)
-    newly_assigned_transcripts_GDF = newly_assigned_transcripts_GDF[newly_assigned_transcripts_GDF['polygon_index'] != 'UNASSIGNED']
+    newly_assigned_transcripts_GDF['cell_index'].fillna(-1, inplace=True)
+    newly_assigned_transcripts_GDF = newly_assigned_transcripts_GDF[newly_assigned_transcripts_GDF['cell_index'] != 'UNASSIGNED']
 
-    merged_cells = merged_cells[merged_cells.index.isin(newly_assigned_transcripts_GDF['polygon_index'])]
+    merged_cells = merged_cells[merged_cells.index.isin(newly_assigned_transcripts_GDF['cell_index'])]
 
-    partitioned_transcripts_cleaned = newly_assigned_transcripts_GDF.groupby(['gene', 'polygon_index']).size().reset_index(name='count')
-    cell_by_gene_matrix = partitioned_transcripts_cleaned.pivot_table(index='polygon_index', columns='gene', values='count', fill_value=0)
+    partitioned_transcripts_cleaned = newly_assigned_transcripts_GDF.groupby(['gene', 'cell_index']).size().reset_index(name='count')
+    cell_by_gene_matrix = partitioned_transcripts_cleaned.pivot_table(index='cell_index', columns='gene', values='count', fill_value=0)
 
     cell_by_gene_matrix = cell_by_gene_matrix.rename_axis('cell_index')
 

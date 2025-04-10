@@ -228,7 +228,7 @@ def merge_segmentation(default_data_path, custom_data_path, output_path, cluster
 
     print("Completed reading cell boundary and default clustering files.")
 
-    with open(f"{default_data_path}/segmentation_parameters.json", 'r') as file_default:
+    with open(f"{default_data_path}/landscape_parameters.json", 'r') as file_default:
         default_segmentation_parameters = json.load(file_default)
 
     with open(f"{custom_data_path}/segmentation_parameters.json", 'r') as file_custom:

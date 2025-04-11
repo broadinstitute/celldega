@@ -92,7 +92,7 @@ export const landscape_ist = async (
             service: 's3'
         });
 
-        // testing whether initial fetch fixes creds issue on Manifold AWS buckets
+        // fetch after initialization of aws client is apparently required?
         const response = await viz_state.aws.fetch(
           base_url + '/landscape_parameters.json'
         );

@@ -92,28 +92,23 @@ export const landscape_ist = async (
             service: 's3'
         });
 
+        // testing whether initial fetch fixes creds issue on Manifold AWS buckets
+        const response = await viz_state.aws.fetch(
+          base_url + '/landscape_parameters.json'
+        );
+
+        if (!response.ok) {
+          throw new Error(`Fetch failed: ${response.statusText}`);
+        }
+
+        // const json = await response.json();
+        // el.textContent = "Fetch succeeded! Here's the object: " + JSON.stringify(json, null, 2).slice(0,50);
+
 
     } else {
 
         viz_state.aws = null
     }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
     if (Object.keys(viz_state.model).length !== 0){

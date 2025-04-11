@@ -3,7 +3,6 @@ Module for spatial operation and analysis
 """
 
 
-
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 import matplotlib.cm as cm
@@ -257,14 +256,3 @@ def plot_gene_gradient_to_polygon(
         plt.tight_layout()
         plt.show()
 
-def save_bands_to_parquet(gdf_bands: gpd.GeoDataFrame, file_path: str):
-    """
-    Save the generated bands to a Parquet file.
-    
-    Args:
-        gdf_bands: GeoDataFrame containing the bands.
-        file_path: Path to save the Parquet file.
-    """
-    # Save to Parquet
-    gdf_bands.to_parquet(file_path, engine="pyarrow")
-    print(f"Gradient bands saved to {file_path}")

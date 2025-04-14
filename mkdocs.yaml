@@ -1,6 +1,7 @@
 site_name: Celldega Documentation
 theme:
   name: material
+  logo: assets/img/Celldega_LOGO_Two-Color_Transparent_Logo Mark.png
   features:
     - navigation.indexes
 

@@ -9,13 +9,13 @@ import matplotlib.cm as cm
 import geopandas as gpd
 import pandas as pd
 
-def calc_distance_to_polygon(
+def calc_distance_to_roi(
     gdf_polygons: gpd.GeoDataFrame,
     gdf_points: gpd.GeoDataFrame,
     roi_name: str
 ) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
     """
-    Calculate the distance of points to the specified polygon.
+    Calculate the distance of points to the specified region of interest.
     
     Args:
         gdf_polygons: GeoDataFrame containing polygons with a 'roi' column.
@@ -38,7 +38,7 @@ def calc_distance_to_polygon(
     print (f"Distances from points to polygon {roi_name} were calculated.")
     return gdf_points, gdf_polygon
 
-def plot_distance_to_polygon(
+def plot_distance_to_roi(
     gdf_points: gpd.GeoDataFrame,
     gdf_polygon: gpd.GeoDataFrame,
     roi_name: str,
@@ -46,7 +46,7 @@ def plot_distance_to_polygon(
     markersize: float = 0.5
 ):
     """
-    Plot the points colored by their distance to the polygon.
+    Plot the points colored by their distance to the region of interest.
     
     Args:
         gdf_points: GeoDataFrame containing points with distance column.
@@ -69,15 +69,15 @@ def plot_distance_to_polygon(
         lambda x: cmap(norm(x))
     )
     
-    # Identify points inside the polygon
-    polygon = gdf_polygon.geometry.iloc[0]  # Assuming one polygon
+    # Identify points inside the roi
+    polygon = gdf_polygon.geometry.iloc[0]  # Assuming one roi
     gdf_points["inside_polygon"] = gdf_points["geometry"].apply(
         lambda x: polygon.contains(x))
     
     # Create the plot
     fig, ax = plt.subplots(figsize=(20, 8))
     
-    # Plot points outside the polygon with gradient color
+    # Plot points outside the roi with gradient color
     gdf_points[~gdf_points["inside_polygon"]].plot(
         ax=ax,
         color=gdf_points[~gdf_points["inside_polygon"]]["color"],
@@ -86,7 +86,7 @@ def plot_distance_to_polygon(
         markersize=markersize,
     )
     
-    # Plot the polygon as a filled area with label
+    # Plot the roi as a filled area with label
     gdf_polygon.plot(
         ax=ax, color="gray", aspect=1, alpha=0.5, edgecolor="black", linewidth=2
     )
@@ -106,12 +106,12 @@ def plot_distance_to_polygon(
     sm = cm.ScalarMappable(cmap=cmap, norm=norm)
     sm.set_array([])
     cbar = plt.colorbar(sm, ax=ax, orientation="vertical", pad=0.01, aspect=40)
-    cbar.set_label(f"Distance to Polygon {roi_name} (micron)")
+    cbar.set_label(f"Distance to ROI {roi_name} (micron)")
     
     # Adjust the plot
     ax.invert_yaxis()
     plt.title(
-        f"Region Selected Cells Colored Based on Distance to the Polygon {roi_name} (micron)"
+        f"Region Selected Cells Colored Based on Distance to the ROI {roi_name} (micron)"
     )
     plt.tight_layout()
     plt.xlabel("x (micron)")
@@ -150,7 +150,7 @@ def create_concentric_rings(polygon, num_bands, band_width):
 
     return gpd.GeoDataFrame(pd.concat(band_list, ignore_index=True)).set_crs('EPSG:4326')
 
-def calc_gene_gradient_to_polygon(
+def calc_gene_expression_by_band(
     gdf_points: gpd.GeoDataFrame,
     gdf_polygon: gpd.GeoDataFrame,
     roi_name: str,
@@ -159,7 +159,7 @@ def calc_gene_gradient_to_polygon(
     gene_list: list
 ) -> gpd.GeoDataFrame:
     """
-    Calculate gene expression gradients relative to the polygon.
+    Calculate gene expression gradients relative to the roi.
     
     Args:
         gdf_points: GeoDataFrame containing points with distance column.
@@ -197,7 +197,7 @@ def calc_gene_gradient_to_polygon(
 
     return gdf_join_all, gdf_bands
 
-def plot_gene_gradient_to_polygon(
+def plot_gene_gradient_to_roi(
     gdf_join_all: gpd.GeoDataFrame,
     gdf_polygon: gpd.GeoDataFrame,
     roi_name: str,
@@ -205,23 +205,23 @@ def plot_gene_gradient_to_polygon(
     markersize: float = 1
 ):
     """
-    Plot gene expression gradients relative to the polygon.
+    Plot gene expression gradients relative to the region of interest.
     
     Args:
         gdf_join_all: GeoDataFrame containing bands and gene expression data.
-        gdf_polygon: GeoDataFrame containing the target polygon.
+        gdf_polygon: GeoDataFrame containing the target roi.
         roi_name: Name of the region of interest.
         gene_list: List of genes to plot gradients for.
         markersize: Size of the points in the plot.
     """
 
-    print (f"Plotting gene expression gradient from points to polygon {roi_name}...")
+    print (f"Plotting gene expression gradient from points to ROI {roi_name}...")
 
     for gene in gene_list:
         # Plot results
         fig, ax = plt.subplots(figsize=(20, 8))
         
-        # Plot points outside the polygon with gradient color
+        # Plot points outside the roi with gradient color
         gdf_join_all.plot(
             ax=ax,
             column=f"{gene}_mean",
@@ -232,7 +232,7 @@ def plot_gene_gradient_to_polygon(
             markersize=markersize,
         )
 
-        # Plot the polygon as a filled area with label
+        # Plot the roi as a filled area with label
         gdf_polygon.plot(
             ax=ax, color="gray", aspect=1, alpha=0.5, edgecolor="black", linewidth=2
         )
@@ -249,7 +249,7 @@ def plot_gene_gradient_to_polygon(
         )         
 
         ax.invert_yaxis()
-        plt.title(f"Gradient of {gene} Expression per Cell Along Distance to Polygon")
+        plt.title(f"Gradient of {gene} Expression per Cell Along Distance to ROI")
         plt.xlabel("x (micron)")
         plt.ylabel("y (micron)")
         plt.tight_layout()

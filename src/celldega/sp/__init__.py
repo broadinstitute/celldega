@@ -33,9 +33,8 @@ def calc_distance_to_polygon(
     gdf_polygon = gdf_polygons.loc[gdf_polygons["roi"] == roi_name].reset_index()
     
     # Calculate distances from points to the polygon
-    gdf_points[f"distance_to_polygon_{roi_name}"] = gdf_points["geometry"].apply(
-        lambda point: gdf_polygon.geometry.iloc[0].distance(point)
-    )
+    polygon_geom = gdf_polygon.geometry.iloc[0]
+    gdf_points[f"distance_to_polygon_{roi_name}"] = gdf_points.distance(polygon_geom)
     print (f"Distances from points to polygon {roi_name} were calculated.")
     return gdf_points, gdf_polygon
 

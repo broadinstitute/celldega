@@ -34,7 +34,6 @@ from .boundary_tile import _round_nested_coord_list
 from ..clust import *
 from .image_info import *
 from .run_pre_processing import *
-from .distance import *
 
 
 def cluster_gene_expression(technology, path_landscape_files, cbg, data_dir=None, segmentation_approach='default'):
@@ -953,4 +952,4 @@ def _check_required_files(technology, data_dir):
         )
 
 
-__all__ = ["landscape", "trx_tile", "boundary_tile", "distance"]
+__all__ = ["landscape", "trx_tile", "boundary_tile"]

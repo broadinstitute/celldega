@@ -5,22 +5,6 @@ import wasmPlugin from './wasm-plugin.mjs';
 
 const isWatchMode = process.argv.includes('--watch');
 
-// // ✅ Copies everything in assets/img to docs/assets/img
-// async function copyAssets() {
-//   const srcDir = path.resolve('assets/img');
-//   const destDir = path.resolve('docs/assets/img');
-
-//   await fs.mkdir(destDir, { recursive: true });
-
-//   const files = await fs.readdir(srcDir);
-//   for (const file of files) {
-//     const src = path.join(srcDir, file);
-//     const dest = path.join(destDir, file);
-//     await fs.copyFile(src, dest);
-//     console.log(`Copied: ${src} → ${dest}`);
-//   }
-// }
-
 async function main() {
   try {
     const srcPath = path.resolve('src/celldega/static/widget.js');
@@ -45,8 +29,6 @@ async function main() {
       await context.watch();
       console.log("Watch mode enabled. Listening for changes...");
 
-      // Copy assets once when watch starts
-      // await copyAssets();
     } else {
       const result = await context.rebuild();
       console.log('Build succeeded:', result);
@@ -56,9 +38,6 @@ async function main() {
       await fs.mkdir(path.dirname(destPath), { recursive: true });
       await fs.copyFile(srcPath, destPath);
       console.log('File copied successfully.');
-
-      // ✅ Copy image assets
-      // await copyAssets();
 
       // Write metadata
       const metadataPath = path.resolve('meta.json');

@@ -26,4 +26,4 @@ The project was recently presented at the Broad Retreat Data Visualization Break
 
 Celldega is named after a bodega, a small shop with all the essentials that is part of the fabric of a neighborhood.
 
-<img src="assets/img/Celldega_LOGO_Full Color_Transparent_Horizontal.png" alt="Celldega Logo" style="margin-top: 1em; margin-bottom:1em; width:25%;">
+<img src="assets/img/Celldega_LOGO_Full Color_Transparent_Stacked.png" alt="Celldega Logo" style="margin-top: 1em; margin-bottom:1em; width:25%;">

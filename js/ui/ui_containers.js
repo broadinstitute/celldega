@@ -31,14 +31,22 @@ export const toggle_image_layers_and_ctrls = (layers_obj, viz_state, is_visible)
 }
 
 export const make_ui_container = () => {
-    const ui_container = document.createElement("div")
-    ui_container.style.display = "flex"
-    ui_container.style.flexDirection = "row"
-    ui_container.style.border = "1px solid #d3d3d3"
-    ui_container.className = "ui_container"
-    ui_container.style.height = '100px' // '85px'
-    return ui_container
+  const ui_container = document.createElement("div")
+  ui_container.style.display = "flex"
+  ui_container.style.flexDirection = "row"
+  ui_container.style.border = "1px solid #d3d3d3"
+  ui_container.className = "ui_container"
+  ui_container.style.height = '100px'
+
+  // ✅ CSS rules to prevent border cutoff
+  ui_container.style.boxSizing = 'border-box'
+  ui_container.style.width = '100%'
+  ui_container.style.maxWidth = '100%'
+  ui_container.style.margin = '0 auto'
+
+  return ui_container
 }
+
 
 export const make_ctrl_container = () => {
     let ctrl_container = document.createElement("div")
@@ -774,6 +782,47 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
     //     ui_container.appendChild(name_container)
 
     // }
+
+
+    // add logo
+    // === Add logo to top right === //
+    const logo_button = document.createElement("div")
+    logo_button.className = "logo_button"
+    logo_button.style.marginLeft = "auto"
+    logo_button.style.marginRight = "10px"
+    logo_button.style.cursor = "pointer"
+    logo_button.style.display = "flex"
+    logo_button.style.alignItems = "center"
+    logo_button.style.justifyContent = "center"
+
+    // Create <img> element
+    const logo_img = document.createElement("img")
+    logo_img.src = "assets/img/Celldega_LOGO_Full Color_Transparent_Logo Mark.png"
+    // logo_img.src = new URL("assets/img/Celldega_LOGO_Full Color_Transparent_Logo Mark.png", import.meta.url).href
+
+    logo_img.alt = "Celldega logo"
+    logo_img.style.height = "40px"
+    logo_img.style.transition = "transform 0.2s ease, filter 0.2s ease"
+
+    // Optional hover effect
+    logo_button.addEventListener("mouseenter", () => {
+    logo_img.style.transform = "scale(1.1)"
+    logo_img.style.filter = "brightness(1.2)"
+    })
+    logo_button.addEventListener("mouseleave", () => {
+    logo_img.style.transform = "scale(1)"
+    logo_img.style.filter = "brightness(1)"
+    })
+
+    // Click to navigate to docs
+    logo_button.onclick = () => {
+    window.open("https://your-docs-url.com", "_blank")  // replace with real URL
+    }
+
+    logo_button.appendChild(logo_img)
+    ui_container.appendChild(logo_button)
+
+
 
     return ui_container
 

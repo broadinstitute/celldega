@@ -18,7 +18,9 @@ import { update_path_pickable_state } from '../deck-gl/path_layer'
 import { filter_cat_nbhd_feature_collection, toggle_nbhd_layer_visibility, update_nbhd_layer_data } from '../deck-gl/nbhd_layer'
 import { toggle_background_layer_visibility } from '../deck-gl/background_layer'
 import { update_bar_graph } from './bar_plot'
+import { logo } from './logo'
 
+const broad_blue = '#006DB6'
 
 export const toggle_image_layers_and_ctrls = (layers_obj, viz_state, is_visible) => {
 
@@ -784,46 +786,32 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
     // }
 
 
-    // add logo
     // === Add logo to top right === //
     const logo_button = document.createElement("div")
     logo_button.className = "logo_button"
-    logo_button.style.marginLeft = "auto"
-    logo_button.style.marginRight = "10px"
+    logo_button.style.marginTop = "5px"
+    logo_button.style.marginRight = "5px"
     logo_button.style.cursor = "pointer"
-    logo_button.style.display = "flex"
-    logo_button.style.alignItems = "center"
-    logo_button.style.justifyContent = "center"
+
 
     // Create <img> element
     const logo_img = document.createElement("img")
-    logo_img.src = "assets/img/Celldega_LOGO_Full Color_Transparent_Logo Mark.png"
+    // logo_img.src = "assets/img/Celldega_LOGO_Full Color_Transparent_Logo Mark.png"
+    logo_img.src = `data:image/png;base64,${logo}`;
     // logo_img.src = new URL("assets/img/Celldega_LOGO_Full Color_Transparent_Logo Mark.png", import.meta.url).href
 
     logo_img.alt = "Celldega logo"
-    logo_img.style.height = "40px"
+    logo_img.style.height = "17px"
     logo_img.style.transition = "transform 0.2s ease, filter 0.2s ease"
 
-    // Optional hover effect
-    logo_button.addEventListener("mouseenter", () => {
-    logo_img.style.transform = "scale(1.1)"
-    logo_img.style.filter = "brightness(1.2)"
-    })
-    logo_button.addEventListener("mouseleave", () => {
-    logo_img.style.transform = "scale(1)"
-    logo_img.style.filter = "brightness(1)"
-    })
 
     // Click to navigate to docs
     logo_button.onclick = () => {
-    window.open("https://your-docs-url.com", "_blank")  // replace with real URL
+        window.open("https://broadinstitute.github.io/celldega/", "_blank")
     }
 
     logo_button.appendChild(logo_img)
     ui_container.appendChild(logo_button)
-
-
-
     return ui_container
 
 }

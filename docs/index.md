@@ -18,11 +18,11 @@ Celldega is a spatial analysis and visualization library that is being developed
 The project was recently presented at the Broad Retreat Data Visualization Breakout Session -
 
 <a href="https://broadinstitute.github.io/Celldega-Broad-Retreat-2024/" target="_blank" rel="noopener noreferrer">
-    <img src="assets/img/Celldega_Broad-Retreat-2024.png" alt="Celldega Broad Retreat 2024" style="display:block; margin:0 auto; width:35%; border:1px solid lightgray; border-radius:5px;">
+    <img src="assets/img/Celldega_Broad-Retreat-2024.png" alt="Celldega Broad Retreat 2024" style="display:block; margin:0 auto; width:75%; border:1px solid lightgray; border-radius:5px;">
 </a>
 
 
 ## About
 
-<img src="assets/img/Celldega_LOGO_Full Color_Transparent_Horizontal.png" alt="Celldega Logo" style="display:block; margin:auto; width:75%;">
+<img src="assets/img/Celldega_LOGO_Full Color_Transparent_Horizontal.png" alt="Celldega Logo" style="display:block; margin-bottom:1em; width:30%;">
 Celldega is named after a bodega, a small shop with all the essentials that is part of the fabric of a neighborhood.

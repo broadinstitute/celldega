@@ -1,14 +1,13 @@
 site_name: Celldega Documentation
 theme:
   name: material
+  favicon: assets/img/celldega_logo_32x32_transparent.png
   logo: assets/img/Celldega_LOGO_Two-Color_Transparent_Logo Mark.png
   # logo: assets/img/assets/img/celldega_logo_32x32_transparent.png
   features:
     - navigation.indexes
 
 extra:
-  favicon: assets/img/celldega_logo_32x32_transparent.png
-  # favicon: celldega_logo_32x32_transparent.png
   social:
     - icon: "fontawesome/brands/github"
       link: "https://github.com/broadinstitute/celldega"

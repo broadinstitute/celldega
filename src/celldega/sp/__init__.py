@@ -255,3 +255,29 @@ def plot_gene_gradient_to_roi(
         plt.tight_layout()
         plt.show()
 
+
+def create_band_pixel(gdf_micron, gdf_pixel, roi_name, n_rings, band_width, json_fname):
+    """
+    Creates concentric bands in pixel space and saves as GeoJSON.
+    
+    Parameters:
+    - gdf_micron: GeoDataFrame in micron coordinates
+    - gdf_pixel: GeoDataFrame in pixel coordinates
+    - roi_name: name of the region of interest
+    - n_rings: number of concentric rings to create
+    - band_width: desired band width in microns
+    - json_fname: output filename for GeoJSON
+    """
+    
+    # 1. Calculate conversion factor
+    micron_poly = gdf_micron[gdf_micron['roi'] == roi_name]['geometry'].iloc[0]
+    pixel_poly = gdf_pixel[gdf_pixel['roi'] == roi_name]['geometry'].iloc[0]
+    conversion_factor = (micron_poly.area / pixel_poly.area) ** 0.5
+
+    # 2. Create bands in pixel space (scaled by conversion factor)
+    gdf_pixel = gdf_pixel.loc[gdf_pixel["roi"] == roi_name].reset_index()
+    gdf_bands_pixel = create_concentric_rings(gdf_pixel, n_rings, band_width/conversion_factor)
+    
+    # 3. Save to GeoJSON
+    gdf_bands_pixel.to_file(json_fname, driver='GeoJSON')
+    return gdf_bands_pixel

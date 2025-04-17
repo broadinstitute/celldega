@@ -1,7 +1,7 @@
 # Welcome to Celldega's Documentation
 
 <div id="landscape-container" style="position: relative; display: flex; width: 100%; height: 500px; overflow: hidden; border: 1px solid #ccc;">
-    <div id="landscape" style="height; 500px;"></div>
+    <div id="landscape" style="height: 500px; width: 100%;"></div>
 </div>
 
 <div style="text-align: justify; font-size: 0.9em; color: gray; margin-top: 10px;">
@@ -23,4 +23,7 @@ The project was recently presented at the Broad Retreat Data Visualization Break
 
 
 ## About
+
 Celldega is named after a bodega, a small shop with all the essentials that is part of the fabric of a neighborhood.
+
+<img src="assets/img/Celldega_LOGO_Full Color_Transparent_Stacked.png" alt="Celldega Logo" style="margin-top: 1em; margin-bottom:1em; width:25%;">

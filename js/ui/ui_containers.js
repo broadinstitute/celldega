@@ -18,7 +18,9 @@ import { update_path_pickable_state } from '../deck-gl/path_layer'
 import { filter_cat_nbhd_feature_collection, toggle_nbhd_layer_visibility, update_nbhd_layer_data } from '../deck-gl/nbhd_layer'
 import { toggle_background_layer_visibility } from '../deck-gl/background_layer'
 import { update_bar_graph } from './bar_plot'
+import { logo } from './logo'
 
+const broad_blue = '#006DB6'
 
 export const toggle_image_layers_and_ctrls = (layers_obj, viz_state, is_visible) => {
 
@@ -31,14 +33,22 @@ export const toggle_image_layers_and_ctrls = (layers_obj, viz_state, is_visible)
 }
 
 export const make_ui_container = () => {
-    const ui_container = document.createElement("div")
-    ui_container.style.display = "flex"
-    ui_container.style.flexDirection = "row"
-    ui_container.style.border = "1px solid #d3d3d3"
-    ui_container.className = "ui_container"
-    ui_container.style.height = '100px' // '85px'
-    return ui_container
+  const ui_container = document.createElement("div")
+  ui_container.style.display = "flex"
+  ui_container.style.flexDirection = "row"
+  ui_container.style.border = "1px solid #d3d3d3"
+  ui_container.className = "ui_container"
+  ui_container.style.height = '100px'
+
+  // ✅ CSS rules to prevent border cutoff
+  ui_container.style.boxSizing = 'border-box'
+  ui_container.style.width = '100%'
+  ui_container.style.maxWidth = '100%'
+  ui_container.style.margin = '0 auto'
+
+  return ui_container
 }
+
 
 export const make_ctrl_container = () => {
     let ctrl_container = document.createElement("div")
@@ -775,6 +785,33 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
 
     // }
 
+
+    // === Add logo to top right === //
+    const logo_button = document.createElement("div")
+    logo_button.className = "logo_button"
+    logo_button.style.marginTop = "5px"
+    logo_button.style.marginRight = "5px"
+    logo_button.style.cursor = "pointer"
+
+
+    // Create <img> element
+    const logo_img = document.createElement("img")
+    // logo_img.src = "assets/img/Celldega_LOGO_Full Color_Transparent_Logo Mark.png"
+    logo_img.src = `data:image/png;base64,${logo}`;
+    // logo_img.src = new URL("assets/img/Celldega_LOGO_Full Color_Transparent_Logo Mark.png", import.meta.url).href
+
+    logo_img.alt = "Celldega logo"
+    logo_img.style.height = "17px"
+    logo_img.style.transition = "transform 0.2s ease, filter 0.2s ease"
+
+
+    // Click to navigate to docs
+    logo_button.onclick = () => {
+        window.open("https://broadinstitute.github.io/celldega/", "_blank")
+    }
+
+    logo_button.appendChild(logo_img)
+    ui_container.appendChild(logo_button)
     return ui_container
 
 }

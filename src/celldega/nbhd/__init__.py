@@ -295,25 +295,56 @@ def hexatile_trx_assignment(hexatile_assigned_trx):
 
     return more_than_one_matches, unassigned
 
-def unassigned_transcripts_tiled_view(gdf_hexatile, path_data, path_landscape_files):
+def unassigned_transcripts_tiled_view(gdf_hexatile, path_data, path_landscape_files=None, percentage_unassigned_threshold=75):
 
-    from ..pre.merge_segmentations import assigning_transcripts
+    """
+    Visualizes the proportion of unassigned transcripts in each hexagonal tile of a spatial transcriptomics dataset.
 
-    transformation_matrix = pd.read_csv(os.path.join(path_landscape_files, "micron_to_image_transform.csv"), sep=" ", header=None).values[:3,:3]
+    This function reads transcript data and transformation parameters from the given directories,
+    applies coordinate transformations if necessary, allots transcripts to hexagonal spatial tiles,
+    and calculates the percentage of unassigned transcripts per tile.
+
+    Tiles with a percentage of unassigned transcripts lower than the specified threshold are visualized.
+
+    Parameters:
+    -----------
+    gdf_hexatile : geopandas.GeoDataFrame
+        A GeoDataFrame containing the hexagonal tiling of the spatial region with associated geometry.
+
+    path_data : str
+        Path to the directory containing transcriptomic data, including `transcripts.parquet`.
+
+    percentage_unassigned_threshold : float, optional (default=75)
+        The threshold (in percent) for including tiles in the visualization. Tiles with a higher
+        percentage of unassigned transcripts are excluded from the plot.
+
+    Returns:
+    --------
+    None
+        This function displays a matplotlib plot showing the percentage of unassigned transcripts
+        in each hexagonal tile and saves the intermediate transcript assignment result as a Parquet file.
+
+    """
+
+    from ..pre.merge_segmentations import assign_transcripts
+    from ..pre.boundary_tile import batch_transform_geometries
+    from ..pre.__init__ import _to_geometry
 
     if os.path.isfile(os.path.join(path_data, 'experiment.xenium')):
-
-        with open(os.path.join(path_landscape_files, 'landscape_parameters.json'), 'r') as parameters_file:
-            parameters = json.load(parameters_file)
+        technology = 'Xenium'
+        transformation_matrix = pd.read_csv(os.path.join(path_landscape_files, "micron_to_image_transform.csv"), sep=" ", header=None).values[:3,:3]
 
     else:
-
         with open(os.path.join(path_data, 'segmentation_parameters.json'), 'r') as parameters_file:
             parameters = json.load(parameters_file)
+            technology = parameters['technology']
+
+        transformation_matrix = pd.read_csv(os.path.join(path_data, "micron_to_image_transform.csv"), sep=" ", header=None).values[:3,:3]
+
 
     ## only Xenium and Custom Tech supported for now
 
-    if parameters['technology'] == 'Xenium':
+    if technology == 'Xenium':
         x = 'x_location'
         y = 'y_location'
         cell_id_col = 'cell_id'
@@ -331,15 +362,12 @@ def unassigned_transcripts_tiled_view(gdf_hexatile, path_data, path_landscape_fi
 
     print("Transcripts file read.")
 
-    if parameters['technology'] == 'Xenium' or 'geometry_image_space' not in trx.columns.to_list():
+    if technology == 'Xenium' or 'geometry_image_space' not in trx.columns.to_list():
 
         gdf_trx = gpd.GeoDataFrame(trx, geometry=gpd.points_from_xy(trx[x], trx[y]))
-        gdf_trx['geometry_image_space'] = gdf_trx['geometry'].apply(lambda geom: affine_transform(geom, [transformation_matrix[0, 0],
-                                                                                                transformation_matrix[0, 1],
-                                                                                                transformation_matrix[1, 0],
-                                                                                                transformation_matrix[1, 1],
-                                                                                                transformation_matrix[0, 2],
-                                                                                                transformation_matrix[1, 2]]))
+
+        gdf_trx["geometry_image_space"] = batch_transform_geometries(gdf_trx["geometry"], transformation_matrix, 1)
+        gdf_trx['geometry_image_space'] = gdf_trx['geometry_image_space'].apply(_to_geometry)
 
         gdf_trx.set_geometry('geometry_image_space', inplace=True)
 
@@ -350,27 +378,30 @@ def unassigned_transcripts_tiled_view(gdf_hexatile, path_data, path_landscape_fi
 
     print("Assignment of transcripts started...")
 
-    hexatile_assigned_trx = assigning_transcripts(gdf_polygons = gdf_hexatile,
-                                                  gdf_transcripts = gdf_trx)
+    hexatile_assigned_trx = gpd.sjoin(gdf_trx, gdf_hexatile, how='left', predicate='within')
+    hexatile_assigned_trx.rename(columns={"index_right": "polygon_index"}, inplace=True)
+    hexatile_assigned_trx['polygon_index'] = hexatile_assigned_trx['polygon_index'].astype(str) + '_polygon'
 
     gdf_hexatile_assigned_trx = gpd.GeoDataFrame(hexatile_assigned_trx,
                                                       geometry='geometry_image_space')
 
     gdf_hexatile_assigned_trx.set_geometry('geometry_image_space', inplace=True)
 
-    gdf_hexatile_assigned_trx.to_parquet(os.path.join(path_landscape_files, f"hexatile_assigned_trx_{parameters['technology']}_{segmentation_approach}.parquet"))
+    gdf_hexatile_assigned_trx.to_parquet(os.path.join(path_landscape_files, f"hexatile_assigned_trx_{technology}_{segmentation_approach}.parquet"))
 
     print("Assignment of transcripts done and saved.")
 
     print("Calculating percentage of hexatile-specific unassigned transcripts...")
 
-    unassigned_counts = gdf_hexatile_assigned_trx[gdf_hexatile_assigned_trx[cell_id_col] == "UNASSIGNED"].groupby('polygon_index').size()
-    total_counts = gdf_hexatile_assigned_trx.groupby('polygon_index').size()
+    counts = gdf_hexatile_assigned_trx.groupby('polygon_index')[cell_id_col].agg(
+                                                                    total='size',
+                                                                    unassigned=lambda x: (x == "UNASSIGNED").sum()
+                                                                    )
+    percentage_unassigned = (counts['unassigned'] / counts['total']) * 100
 
-    percentage_unassigned = (unassigned_counts / total_counts) * 100
     percentage_unassigned = percentage_unassigned.fillna(0)
 
-    percentage_unassigned = percentage_unassigned[percentage_unassigned < 75]
+    percentage_unassigned = percentage_unassigned[percentage_unassigned < percentage_unassigned_threshold]
 
     percentage_unassigned.index = percentage_unassigned.index.str.replace('_polygon', '', regex=True).astype(int)
     percentage_unassigned_df = pd.DataFrame(index=percentage_unassigned.index)

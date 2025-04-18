@@ -8,6 +8,8 @@ import matplotlib.colors as mcolors
 import matplotlib.cm as cm
 import geopandas as gpd
 import pandas as pd
+import colorsys
+import numpy as np
 
 def calc_distance_to_roi(
     gdf_polygons: gpd.GeoDataFrame,
@@ -34,9 +36,11 @@ def calc_distance_to_roi(
     
     # Calculate distances from points to the polygon
     polygon_geom = gdf_polygon.geometry.iloc[0]
-    gdf_points[f"distance_to_polygon_{roi_name}"] = gdf_points.distance(polygon_geom)
+
+    gdf_points_with_dist = gdf_points.copy()
+    gdf_points_with_dist[f"distance_to_polygon_{roi_name}"] = gdf_points_with_dist.distance(polygon_geom)
     print (f"Distances from points to polygon {roi_name} were calculated.")
-    return gdf_points, gdf_polygon
+    return gdf_points_with_dist, gdf_polygon
 
 def plot_distance_to_roi(
     gdf_points: gpd.GeoDataFrame,
@@ -281,3 +285,37 @@ def create_band_pixel(gdf_micron, gdf_pixel, roi_name, n_rings, band_width, json
     # 3. Save to GeoJSON
     gdf_bands_pixel.to_file(json_fname, driver='GeoJSON')
     return gdf_bands_pixel
+
+
+def assign_distinct_colors(spatial_region, color_metric='cat', alpha=100):
+    """
+    Assign perceptually distinct colors to features based on band values
+    Supports >12 distinguishable colors using HSV color space cycling
+    """
+    bands = [f['properties'][color_metric] for f in spatial_region['features']]
+    min_band, max_band = min(bands), max(bands)
+    
+    for feature in spatial_region['features']:
+        band = feature['properties'][color_metric]
+        
+        # Normalize band value (handle NaN/None)
+        try:
+            norm = (float(band) - min_band) / (max_band - min_band) if max_band > min_band else 0.5
+        except (TypeError, ValueError):
+            norm = 0.5  # Fallback for invalid values
+        
+        # Generate distinct color using HSV space
+        hue = norm * 0.9  # 0.9 avoids red-purple wrap which looks similar
+        saturation = 0.8 + (norm * 0.2)  # Vary saturation slightly
+        value = 0.7 + (norm * 0.3)  # Vary brightness
+        
+        # Convert to RGB
+        r, g, b = colorsys.hsv_to_rgb(hue, saturation, value)
+        
+        # Apply to feature (scale 0-255)
+        feature['properties']['color'] = [
+            int(r * 255),
+            int(g * 255),
+            int(b * 255),
+            alpha
+        ]

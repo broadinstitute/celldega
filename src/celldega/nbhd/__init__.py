@@ -349,7 +349,6 @@ def unassigned_transcripts_tiled_view(
 
     """
 
-    from ..pre.merge_segmentations import assign_transcripts
     from ..pre.boundary_tile import batch_transform_geometries
     from ..pre.__init__ import _to_geometry
 

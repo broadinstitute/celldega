@@ -6,8 +6,8 @@ import json
 import os
 from shapely.validation import make_valid
 from ..nbhd import alpha_shape
-from shapely.affinity import affine_transform
-
+from .boundary_tile import batch_transform_geometries
+from .__init__ import _to_geometry
 
 def find_containing_polygon(transcript, polygons_sindex, gdf_polygons):
     """
@@ -694,18 +694,11 @@ def merge_segmentation(
 
     # transfrom cells from micron to image space
 
-    merged_cells["geometry_image_space"] = merged_cells["geometry"].apply(
-        lambda geom: affine_transform(
-            geom,
-            [
-                transformation_matrix[0, 0],
-                transformation_matrix[0, 1],
-                transformation_matrix[1, 0],
-                transformation_matrix[1, 1],
-                transformation_matrix[0, 2],
-                transformation_matrix[1, 2],
-            ],
-        )
+    merged_cells["geometry_image_space"] = batch_transform_geometries(
+        merged_cells["geometry"], transformation_matrix, 1
+    )
+    merged_cells["geometry_image_space"] = merged_cells["geometry_image_space"].apply(
+        _to_geometry
     )
 
     merged_cells["area"] = merged_cells["geometry"].area
@@ -716,15 +709,17 @@ def merge_segmentation(
     merged_cells = merged_cells.sort_values(by=["cell_index"]).reset_index(drop=True)
     merged_cells.set_index("cell_index", inplace=True)
 
-    merged_cells.to_parquet(f"{output_path}/cell_polygons.parquet")
-
-    print("Merged Segmentation saved.")
-
     merged_cells[["area", "centroid"]].to_parquet(
         f"{output_path}/cell_metadata_micron_space.parquet"
     )
 
     print("Merged Segmentation Meta data saved.")
+
+    merged_cells.set_geometry("geometry_image_space", inplace=True)
+
+    merged_cells.to_parquet(f"{output_path}/cell_polygons.parquet", engine="pyarrow")
+
+    print("Merged Segmentation saved.")
 
     if default_technology_name == "Xenium":
         trx_col = "transcript_id"
@@ -751,6 +746,8 @@ def merge_segmentation(
 
     print("Calculating new assignment of transcripts...")
 
+    merged_cells.set_geometry("geometry", inplace=True)
+
     newly_assigned_transcripts = gpd.sjoin(
         transcripts_default_GDF, merged_cells, how="left", predicate="within"
     )
@@ -764,60 +761,39 @@ def merge_segmentation(
         .astype(str)
     )
 
-    newly_assigned_transcripts["cell_index"] = newly_assigned_transcripts["cell_index"].apply(
-        lambda x: x if x == "UNASSIGNED" else f"{x}_cell"
-    )
+    newly_assigned_transcripts.drop([cell_id_col, 'technology',	'geometry_image_space',	'area',	'centroid'], axis=1, inplace=True)
 
-    newly_assigned_transcripts_GDF = gpd.GeoDataFrame(
-        newly_assigned_transcripts,
-        geometry=gpd.points_from_xy(
-            newly_assigned_transcripts[x_col],
-            newly_assigned_transcripts[y_col],
-        ),
-    )
-
-    newly_assigned_transcripts_GDF.drop([cell_id_col], axis=1, inplace=True)
-    newly_assigned_transcripts_GDF = newly_assigned_transcripts_GDF.rename(
+    newly_assigned_transcripts = newly_assigned_transcripts.rename(
         columns={trx_col: "transcript_index", gene_col: "gene", x_col: "x", y_col: "y"}
     )
 
     print("New transcript assignment of merged segmentation calculated.")
     print("Transformation of transcripts to image space started...")
 
-    newly_assigned_transcripts_GDF[
-        "geometry_image_space"
-    ] = newly_assigned_transcripts_GDF["geometry"].apply(
-        lambda geom: affine_transform(
-            geom,
-            [
-                transformation_matrix[0, 0],
-                transformation_matrix[0, 1],
-                transformation_matrix[1, 0],
-                transformation_matrix[1, 1],
-                transformation_matrix[0, 2],
-                transformation_matrix[1, 2],
-            ],
-        )
+    newly_assigned_transcripts["geometry_image_space"] = batch_transform_geometries(
+        newly_assigned_transcripts["geometry"], transformation_matrix, 1
+    )
+    newly_assigned_transcripts["geometry_image_space"] = newly_assigned_transcripts["geometry_image_space"].apply(
+        _to_geometry
     )
 
-    newly_assigned_transcripts_GDF.to_parquet(
+    newly_assigned_transcripts.set_geometry("geometry_image_space", inplace=True)
+
+    newly_assigned_transcripts.to_parquet(
         f"{output_path}/transcripts.parquet", index=False
     )
 
+    transformation_matrix_df = pd.DataFrame(transformation_matrix)
+    transformation_matrix_df.to_csv(f"{output_path}/micron_to_image_transform.csv", sep=" ", index=False, header=None)
+
     print("New transcript assignment of merged segmentation saved.")
 
-    newly_assigned_transcripts_GDF["cell_index"].fillna(-1, inplace=True)
-
-    newly_assigned_transcripts_GDF = newly_assigned_transcripts_GDF[
-        newly_assigned_transcripts_GDF["cell_index"] != "UNASSIGNED"
-    ]
-
-    merged_cells = merged_cells[
-        merged_cells.index.isin(newly_assigned_transcripts_GDF["cell_index"])
+    newly_assigned_transcripts = newly_assigned_transcripts[
+        newly_assigned_transcripts["cell_index"] != "UNASSIGNED"
     ]
 
     partitioned_transcripts_cleaned = (
-        newly_assigned_transcripts_GDF.groupby(["gene", "cell_index"])
+        newly_assigned_transcripts.groupby(["gene", "cell_index"])
         .size()
         .reset_index(name="count")
     )

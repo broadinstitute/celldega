@@ -5,7 +5,7 @@ Module for performing neighborhood analysis.
 from libpysal.cg import alpha_shape as libpysal_alpha_shape
 import pandas as pd
 import geopandas as gpd
-from shapely import Point, MultiPoint, MultiPolygon
+from shapely import Point, MultiPolygon
 from shapely.ops import transform
 import numpy as np
 import json

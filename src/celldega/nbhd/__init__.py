@@ -3,6 +3,7 @@ Module for performing neighborhood analysis.
 """
 
 from libpysal.cg import alpha_shape as libpysal_alpha_shape
+import pandas as pd
 import geopandas as gpd
 from shapely import Point, MultiPoint, MultiPolygon
 from shapely.ops import transform
@@ -205,3 +206,35 @@ def alpha_shape_geojson(gdf_alpha, meta_cluster, inst_alpha):
     geojson_alpha['inst_alpha'] = inst_alpha
 
     return geojson_alpha
+
+
+def calc_grad_nbhd_from_roi(polygon, num_bands, band_width):
+    """
+    Create concentric rings (buffers) around a given polygon.
+
+    This function generates multiple concentric rings around a polygon by creating buffers
+    at increasing distances from the original polygon. Each ring is defined by the area
+    between two consecutive buffers.
+
+    Parameters:
+    polygon (shapely.geometry.Polygon): The polygon around which to create concentric rings.
+    num_bands (int): The number of concentric rings to create.
+    band_width (float): The width of each ring in the same units as the polygon.
+
+    Returns:
+    geopandas.GeoDataFrame: A GeoDataFrame containing the concentric rings as individual
+                            geometries with a 'band' identifier for each ring. The GeoDataFrame
+                            is set to the EPSG:4326 coordinate reference system.
+    """
+    band_list = []
+    for i in range(1, num_bands + 1):
+        outer = polygon.buffer(i * band_width)
+        inner = polygon.buffer((i - 1) * band_width)
+        ring = outer.difference(inner)
+
+        band = polygon.copy()
+        band["geometry"] = ring
+        band["band"] = i
+        band_list.append(band)
+
+    return gpd.GeoDataFrame(pd.concat(band_list, ignore_index=True)).set_crs('EPSG:4326')

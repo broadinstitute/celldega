@@ -19,6 +19,7 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import xml.etree.ElementTree as ET
 
+
 def _classify_polygons_contains_check(polygons, points):
     """
     Classifies polygons as "real" or "fake" based on whether they contain any points inside.
@@ -95,23 +96,19 @@ def _verify_polygons_with_alpha_bulk(polygons, points, alpha, area_tolerance=0.0
     return gpd.GeoSeries(curated_polygons, crs=polygons.crs)
 
 
-
 def alpha_shape(points, inv_alpha):
 
-    poly = libpysal_alpha_shape(points, 1/inv_alpha)
+    poly = libpysal_alpha_shape(points, 1 / inv_alpha)
 
     gdf_curated = _classify_polygons_contains_check(poly.values, points)
 
     validated_poly = _verify_polygons_with_alpha_bulk(
-        gdf_curated.geometry.values,
-        points,
-        1/inv_alpha
+        gdf_curated.geometry.values, points, 1 / inv_alpha
     )
 
     multi_poly = MultiPolygon(validated_poly.values)
 
     return multi_poly
-
 
 
 def _round_coordinates(geometry, precision=2):
@@ -136,8 +133,9 @@ def _round_coordinates(geometry, precision=2):
     return transform(round_coords, geometry)
 
 
-def alpha_shape_cell_clusters(meta_cell, cat='cluster', alphas=[100, 150, 200, 250, 300, 350]):
-
+def alpha_shape_cell_clusters(
+    meta_cell, cat="cluster", alphas=[100, 150, 200, 250, 300, 350]
+):
     """
     Compute alpha shapes for each cluster in the cell metadata.
 
@@ -159,32 +157,37 @@ def alpha_shape_cell_clusters(meta_cell, cat='cluster', alphas=[100, 150, 200, 2
 
             inst_clust = meta_cell[meta_cell[cat] == inst_cluster]
 
-            if inst_clust.shape[0]> 3:
+            if inst_clust.shape[0] > 3:
 
-                nested_array = inst_clust['geometry'].values
+                nested_array = inst_clust["geometry"].values
 
                 # Convert to a 2D NumPy array
                 flat_array = np.vstack(nested_array)
 
                 inst_shape = alpha_shape(flat_array, inv_alpha)
 
-                inst_name = inst_cluster + '_' + str(inv_alpha)
+                inst_name = inst_cluster + "_" + str(inv_alpha)
 
-                gdf_alpha.loc[inst_name, 'name'] = inst_name
+                gdf_alpha.loc[inst_name, "name"] = inst_name
 
-                gdf_alpha.loc[inst_name, 'cat'] = inst_cluster
+                gdf_alpha.loc[inst_name, "cat"] = inst_cluster
 
-                gdf_alpha.loc[inst_name, 'geometry'] = inst_shape
+                gdf_alpha.loc[inst_name, "geometry"] = inst_shape
 
-                gdf_alpha.loc[inst_name, 'inv_alpha'] = int(inv_alpha)
+                gdf_alpha.loc[inst_name, "inv_alpha"] = int(inv_alpha)
 
-    gdf_alpha["geometry"] = gdf_alpha["geometry"].apply(lambda geom: _round_coordinates(geom, precision=2))
+    gdf_alpha["geometry"] = gdf_alpha["geometry"].apply(
+        lambda geom: _round_coordinates(geom, precision=2)
+    )
 
-    gdf_alpha['area'] = gdf_alpha.area
+    gdf_alpha["area"] = gdf_alpha.area
 
-    gdf_alpha = gdf_alpha.loc[gdf_alpha.area.sort_values(ascending=False).index.tolist()]
+    gdf_alpha = gdf_alpha.loc[
+        gdf_alpha.area.sort_values(ascending=False).index.tolist()
+    ]
 
     return gdf_alpha
+
 
 def alpha_shape_geojson(gdf_alpha, meta_cluster, inst_alpha):
 
@@ -193,7 +196,7 @@ def alpha_shape_geojson(gdf_alpha, meta_cluster, inst_alpha):
     # Step 2: Edit the properties of each feature
     for feature in geojson_alpha["features"]:
 
-        if feature['geometry'] is not None:
+        if feature["geometry"] is not None:
 
             # Parse the geometry with Shapely for additional calculations
             geometry = shape(feature["geometry"])
@@ -201,19 +204,20 @@ def alpha_shape_geojson(gdf_alpha, meta_cluster, inst_alpha):
             # Add area property
             feature["properties"]["area"] = geometry.area
 
-            id = feature['id']
+            id = feature["id"]
 
-            color = meta_cluster.loc[id.split('_')[0], 'color']
+            color = meta_cluster.loc[id.split("_")[0], "color"]
 
             # Add a custom color property (example: based on the area)
-            feature["properties"]["color"] = color # [255, 0, 0, 100]  # RGBA values
+            feature["properties"]["color"] = color  # [255, 0, 0, 100]  # RGBA values
         else:
             # print('is None')
             pass
 
-    geojson_alpha['inst_alpha'] = inst_alpha
+    geojson_alpha["inst_alpha"] = inst_alpha
 
     return geojson_alpha
+
 
 def create_hexatile(radius, path_landscape_files=None, img_height=100, img_width=100):
 
@@ -221,12 +225,12 @@ def create_hexatile(radius, path_landscape_files=None, img_height=100, img_width
 
         tree = ET.parse(os.path.join(path_landscape_files, "pyramid_images/bound.dzi"))
         root = tree.getroot()
-        img_width = int(root[0].attrib['Width'])
-        img_height = int(root[0].attrib['Height'])
+        img_width = int(root[0].attrib["Width"])
+        img_height = int(root[0].attrib["Height"])
 
     hex_width = 2 * radius
     hex_height = np.sqrt(3) * radius
-    horiz_spacing = 3/4 * hex_width  # = 1.5 * r
+    horiz_spacing = 3 / 4 * hex_width  # = 1.5 * r
     vert_spacing = hex_height
 
     # Calculate number of hexes
@@ -244,13 +248,15 @@ def create_hexatile(radius, path_landscape_files=None, img_height=100, img_width
                 y += vert_spacing / 2  # stagger every other column
 
             # Flat-topped hexagon (aligned horizontally)
-            hexagon = Polygon([
-                (
-                    x + radius * np.cos(np.radians(angle)),
-                    y + radius * np.sin(np.radians(angle))
-                )
-                for angle in range(0, 360, 60)
-            ])
+            hexagon = Polygon(
+                [
+                    (
+                        x + radius * np.cos(np.radians(angle)),
+                        y + radius * np.sin(np.radians(angle)),
+                    )
+                    for angle in range(0, 360, 60)
+                ]
+            )
 
             hexagons.append(hexagon)
 
@@ -258,7 +264,11 @@ def create_hexatile(radius, path_landscape_files=None, img_height=100, img_width
     image_bounds = box(0, 0, img_width, img_height)
 
     # Clip each hexagon to this box
-    clipped_hexes = [hex.intersection(image_bounds) for hex in hexagons if hex.intersects(image_bounds)]
+    clipped_hexes = [
+        hex.intersection(image_bounds)
+        for hex in hexagons
+        if hex.intersects(image_bounds)
+    ]
 
     # Replace original GeoDataFrame
     gdf_hexatile = gpd.GeoDataFrame(geometry=clipped_hexes)
@@ -269,6 +279,7 @@ def create_hexatile(radius, path_landscape_files=None, img_height=100, img_width
 
     return gdf_hexatile
 
+
 def generate_random_points_gdf(n_points=10, x_range=(0, 100), y_range=(0, 100)):
     points = [
         Point(random.uniform(*x_range), random.uniform(*y_range))
@@ -277,26 +288,38 @@ def generate_random_points_gdf(n_points=10, x_range=(0, 100), y_range=(0, 100)):
     gdf_trx = gpd.GeoDataFrame(geometry=points)
     return gdf_trx
 
+
 def generate_dummy_image(width=100, height=100):
 
     data = np.random.randint(0, 256, (height, width, 3), dtype=np.uint8)
-    img = Image.fromarray(data, 'RGB')
+    img = Image.fromarray(data, "RGB")
     img_np = np.array(img)
     return img_np
 
+
 def hexatile_area(gdf_hexatile, tissue_img_shape):
 
-    return round(sum(gdf_hexatile.area.tolist())) == round(tissue_img_shape[0] * tissue_img_shape[1])
+    return round(sum(gdf_hexatile.area.tolist())) == round(
+        tissue_img_shape[0] * tissue_img_shape[1]
+    )
+
 
 def hexatile_trx_assignment(hexatile_assigned_trx):
 
-    more_than_one_matches = 'more_than_one_matches' in hexatile_assigned_trx['polygon_index'].unique()
-    unassigned = 'UNASSIGNED' in hexatile_assigned_trx['polygon_index'].unique()
+    more_than_one_matches = (
+        "more_than_one_matches" in hexatile_assigned_trx["polygon_index"].unique()
+    )
+    unassigned = "UNASSIGNED" in hexatile_assigned_trx["polygon_index"].unique()
 
     return more_than_one_matches, unassigned
 
-def unassigned_transcripts_tiled_view(gdf_hexatile, path_data, path_landscape_files=None, percentage_unassigned_threshold=75):
 
+def unassigned_transcripts_tiled_view(
+    gdf_hexatile,
+    path_data,
+    path_landscape_files=None,
+    percentage_unassigned_threshold=75,
+):
     """
     Visualizes the proportion of unassigned transcripts in each hexagonal tile of a spatial transcriptomics dataset.
 
@@ -330,31 +353,40 @@ def unassigned_transcripts_tiled_view(gdf_hexatile, path_data, path_landscape_fi
     from ..pre.boundary_tile import batch_transform_geometries
     from ..pre.__init__ import _to_geometry
 
-    if os.path.isfile(os.path.join(path_data, 'experiment.xenium')):
-        technology = 'Xenium'
-        transformation_matrix = pd.read_csv(os.path.join(path_landscape_files, "micron_to_image_transform.csv"), sep=" ", header=None).values[:3,:3]
+    if os.path.isfile(os.path.join(path_data, "experiment.xenium")):
+        technology = "Xenium"
+        transformation_matrix = pd.read_csv(
+            os.path.join(path_landscape_files, "micron_to_image_transform.csv"),
+            sep=" ",
+            header=None,
+        ).values[:3, :3]
 
     else:
-        with open(os.path.join(path_data, 'segmentation_parameters.json'), 'r') as parameters_file:
+        with open(
+            os.path.join(path_data, "segmentation_parameters.json"), "r"
+        ) as parameters_file:
             parameters = json.load(parameters_file)
-            technology = parameters['technology']
+            technology = parameters["technology"]
 
-        transformation_matrix = pd.read_csv(os.path.join(path_data, "micron_to_image_transform.csv"), sep=" ", header=None).values[:3,:3]
-
+        transformation_matrix = pd.read_csv(
+            os.path.join(path_data, "micron_to_image_transform.csv"),
+            sep=" ",
+            header=None,
+        ).values[:3, :3]
 
     ## only Xenium and Custom Tech supported for now
 
-    if technology == 'Xenium':
-        x = 'x_location'
-        y = 'y_location'
-        cell_id_col = 'cell_id'
-        segmentation_approach = 'default'
+    if technology == "Xenium":
+        x = "x_location"
+        y = "y_location"
+        cell_id_col = "cell_id"
+        segmentation_approach = "default"
 
     else:
-        x = 'x'
-        y = 'y'
-        cell_id_col = 'cell_index'
-        segmentation_approach = parameters['segmentation_approach']
+        x = "x"
+        y = "y"
+        cell_id_col = "cell_index"
+        segmentation_approach = parameters["segmentation_approach"]
 
     print("Reading transcripts file...")
 
@@ -362,59 +394,87 @@ def unassigned_transcripts_tiled_view(gdf_hexatile, path_data, path_landscape_fi
 
     print("Transcripts file read.")
 
-    if technology == 'Xenium' or 'geometry_image_space' not in trx.columns.to_list():
+    if technology == "Xenium" or "geometry_image_space" not in trx.columns.to_list():
 
         gdf_trx = gpd.GeoDataFrame(trx, geometry=gpd.points_from_xy(trx[x], trx[y]))
 
-        gdf_trx["geometry_image_space"] = batch_transform_geometries(gdf_trx["geometry"], transformation_matrix, 1)
-        gdf_trx['geometry_image_space'] = gdf_trx['geometry_image_space'].apply(_to_geometry)
+        gdf_trx["geometry_image_space"] = batch_transform_geometries(
+            gdf_trx["geometry"], transformation_matrix, 1
+        )
+        gdf_trx["geometry_image_space"] = gdf_trx["geometry_image_space"].apply(
+            _to_geometry
+        )
 
-        gdf_trx.set_geometry('geometry_image_space', inplace=True)
+        gdf_trx.set_geometry("geometry_image_space", inplace=True)
 
     else:
 
-        gdf_trx = gpd.GeoDataFrame(trx, geometry='geometry_image_space')
-        gdf_trx.set_geometry('geometry_image_space', inplace=True)
+        gdf_trx = gpd.GeoDataFrame(trx, geometry="geometry_image_space")
+        gdf_trx.set_geometry("geometry_image_space", inplace=True)
 
     print("Assignment of transcripts started...")
 
-    hexatile_assigned_trx = gpd.sjoin(gdf_trx, gdf_hexatile, how='left', predicate='within')
+    hexatile_assigned_trx = gpd.sjoin(
+        gdf_trx, gdf_hexatile, how="left", predicate="within"
+    )
     hexatile_assigned_trx.rename(columns={"index_right": "polygon_index"}, inplace=True)
-    hexatile_assigned_trx['polygon_index'] = hexatile_assigned_trx['polygon_index'].astype(str) + '_polygon'
+    hexatile_assigned_trx["polygon_index"] = (
+        hexatile_assigned_trx["polygon_index"].astype(str) + "_polygon"
+    )
 
-    gdf_hexatile_assigned_trx = gpd.GeoDataFrame(hexatile_assigned_trx,
-                                                      geometry='geometry_image_space')
+    gdf_hexatile_assigned_trx = gpd.GeoDataFrame(
+        hexatile_assigned_trx, geometry="geometry_image_space"
+    )
 
-    gdf_hexatile_assigned_trx.set_geometry('geometry_image_space', inplace=True)
+    gdf_hexatile_assigned_trx.set_geometry("geometry_image_space", inplace=True)
 
-    gdf_hexatile_assigned_trx.to_parquet(os.path.join(path_landscape_files, f"hexatile_assigned_trx_{technology}_{segmentation_approach}.parquet"))
+    gdf_hexatile_assigned_trx.to_parquet(
+        os.path.join(
+            path_landscape_files,
+            f"hexatile_assigned_trx_{technology}_{segmentation_approach}.parquet",
+        )
+    )
 
     print("Assignment of transcripts done and saved.")
 
     print("Calculating percentage of hexatile-specific unassigned transcripts...")
 
-    counts = gdf_hexatile_assigned_trx.groupby('polygon_index')[cell_id_col].agg(
-                                                                    total='size',
-                                                                    unassigned=lambda x: (x == "UNASSIGNED").sum()
-                                                                    )
-    percentage_unassigned = (counts['unassigned'] / counts['total']) * 100
+    counts = gdf_hexatile_assigned_trx.groupby("polygon_index")[cell_id_col].agg(
+        total="size", unassigned=lambda x: (x == "UNASSIGNED").sum()
+    )
+    percentage_unassigned = (counts["unassigned"] / counts["total"]) * 100
 
     percentage_unassigned = percentage_unassigned.fillna(0)
 
-    percentage_unassigned = percentage_unassigned[percentage_unassigned < percentage_unassigned_threshold]
+    percentage_unassigned = percentage_unassigned[
+        percentage_unassigned < percentage_unassigned_threshold
+    ]
 
-    percentage_unassigned.index = percentage_unassigned.index.str.replace('_polygon', '', regex=True).astype(int)
+    percentage_unassigned.index = percentage_unassigned.index.str.replace(
+        "_polygon", "", regex=True
+    ).astype(int)
     percentage_unassigned_df = pd.DataFrame(index=percentage_unassigned.index)
-    percentage_unassigned_df['unassigned_trx_percentage'] = percentage_unassigned.to_list()
+    percentage_unassigned_df["unassigned_trx_percentage"] = (
+        percentage_unassigned.to_list()
+    )
 
     tile_mapping = percentage_unassigned_df.to_dict()
-    gdf_hexatile['unassigned_trx_percentage'] = gdf_hexatile.index.map(tile_mapping['unassigned_trx_percentage']).fillna(0)
+    gdf_hexatile["unassigned_trx_percentage"] = gdf_hexatile.index.map(
+        tile_mapping["unassigned_trx_percentage"]
+    ).fillna(0)
 
-    print("Calculation done, plotting a tiled view of hexatile-specific unassigned transcripts...")
+    print(
+        "Calculation done, plotting a tiled view of hexatile-specific unassigned transcripts..."
+    )
 
     # Normalize the assigned_percentage values between 0 and 1
-    norm = (gdf_hexatile['unassigned_trx_percentage'] - gdf_hexatile['unassigned_trx_percentage'].min()) / \
-           (gdf_hexatile['unassigned_trx_percentage'].max() - gdf_hexatile['unassigned_trx_percentage'].min())
+    norm = (
+        gdf_hexatile["unassigned_trx_percentage"]
+        - gdf_hexatile["unassigned_trx_percentage"].min()
+    ) / (
+        gdf_hexatile["unassigned_trx_percentage"].max()
+        - gdf_hexatile["unassigned_trx_percentage"].min()
+    )
 
     # Map normalized values to a color in the Reds colormap
     colors = cm.Reds(norm)
@@ -426,20 +486,23 @@ def unassigned_transcripts_tiled_view(gdf_hexatile, path_data, path_landscape_fi
     plt.gca().invert_yaxis()
 
     # Add titles and labels
-    ax.set_title('Percentage of Unassigned Trx in Each Hexagrid Tile', fontsize=30)
-    ax.set_xlabel('Hexagrid Tiles', fontsize=25)
-    ax.set_ylabel('Percentage of Unassigned Trx (%)', fontsize=25)
+    ax.set_title("Percentage of Unassigned Trx in Each Hexagrid Tile", fontsize=30)
+    ax.set_xlabel("Hexagrid Tiles", fontsize=25)
+    ax.set_ylabel("Percentage of Unassigned Trx (%)", fontsize=25)
     plt.xticks(fontsize=20)
     plt.yticks(fontsize=20)
 
     # Create colorbar
-    sm = plt.cm.ScalarMappable(cmap=cm.Reds, norm=plt.Normalize(
-        vmin=gdf_hexatile['unassigned_trx_percentage'].min(),
-        vmax=gdf_hexatile['unassigned_trx_percentage'].max()
-    ))
+    sm = plt.cm.ScalarMappable(
+        cmap=cm.Reds,
+        norm=plt.Normalize(
+            vmin=gdf_hexatile["unassigned_trx_percentage"].min(),
+            vmax=gdf_hexatile["unassigned_trx_percentage"].max(),
+        ),
+    )
     sm._A = []  # required for some versions of matplotlib
     cbar = fig.colorbar(sm, ax=ax, shrink=0.5)
-    cbar.set_label('Unassigned Trx Percentage', fontsize=20)
+    cbar.set_label("Unassigned Trx Percentage", fontsize=20)
     cbar.ax.tick_params(labelsize=16)
 
     # Show and close

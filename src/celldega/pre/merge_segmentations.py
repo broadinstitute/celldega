@@ -67,7 +67,6 @@ def transcript_process_chunk(gdf_transcripts, polygons_sindex, gdf_polygons):
 
 
 def assign_transcripts(gdf_polygons, gdf_transcripts):
-
     """
     Assigns all transcripts in a dataset to polygons using spatial queries.
 
@@ -83,14 +82,19 @@ def assign_transcripts(gdf_polygons, gdf_transcripts):
 
     assigned_transcripts = gpd.GeoDataFrame()
 
-    processed_transcripts = transcript_process_chunk(gdf_transcripts = gdf_transcripts,
-                                polygons_sindex = polygons_sindex,
-                                gdf_polygons = gdf_polygons)
+    processed_transcripts = transcript_process_chunk(
+        gdf_transcripts=gdf_transcripts,
+        polygons_sindex=polygons_sindex,
+        gdf_polygons=gdf_polygons,
+    )
 
-    assigned_transcripts = pd.concat([assigned_transcripts, processed_transcripts], ignore_index=True)
-    assigned_transcripts = gpd.GeoDataFrame(assigned_transcripts, geometry='geometry')
+    assigned_transcripts = pd.concat(
+        [assigned_transcripts, processed_transcripts], ignore_index=True
+    )
+    assigned_transcripts = gpd.GeoDataFrame(assigned_transcripts, geometry="geometry")
 
     return assigned_transcripts
+
 
 def get_largest_polygon(geometry):
     """
@@ -238,27 +242,31 @@ def merge_segmentation(
 
     os.makedirs(output_path, exist_ok=True)
 
-    if os.path.isfile(os.path.join(default_data_path, 'experiment.xenium')):
-        default_technology_name = 'Xenium'
+    # get default clustering
+
+    if os.path.isfile(os.path.join(default_data_path, "experiment.xenium")):
+        default_technology_name = "Xenium"
 
         default_clustering = pd.read_csv(
-        f"{default_data_path}/analysis/clustering/gene_expression_graphclust/clusters.csv",
-        index_col=0,
+            f"{default_data_path}/analysis/clustering/gene_expression_graphclust/clusters.csv",
+            index_col=0,
         )
 
         default_cell_boundaries = pd.read_parquet(
             f"{default_data_path}/cell_boundaries.parquet"
         )
-        grouped = default_cell_boundaries.groupby("cell_id")[["vertex_x", "vertex_y"]].agg(
-            lambda x: x.tolist()
-        )
+        grouped = default_cell_boundaries.groupby("cell_id")[
+            ["vertex_x", "vertex_y"]
+        ].agg(lambda x: x.tolist())
         grouped["geometry"] = grouped.apply(
             lambda row: Polygon(zip(row["vertex_x"], row["vertex_y"])), axis=1
         )
         cells_default = gpd.GeoDataFrame(grouped, geometry="geometry")[["geometry"]]
 
     else:
-        raise ValueError("Unsupported technology. Only Xenium and Custom technology is supported in this script.")
+        raise ValueError(
+            "Unsupported technology. Only Xenium and Custom technology is supported in this script."
+        )
 
     cells_custom = gpd.read_parquet(f"{custom_data_path}/cell_polygons.parquet")
 
@@ -274,6 +282,9 @@ def merge_segmentation(
     ).values[:3, :3]
 
     if os.path.exists(f"{custom_data_path}/cutout_region_alpha_shape.parquet"):
+
+        # read alphashape, if already provided
+
         largest_cutout_region_alpha_shape_gdf = gpd.read_parquet(
             f"{custom_data_path}/cutout_region_alpha_shape.parquet"
         )
@@ -282,6 +293,8 @@ def merge_segmentation(
         ]["geometry"]
 
     else:
+        # if not provided, create relevant alphashape using cell clusters
+
         cells_default_within_clusters = default_clustering[
             default_clustering["Cluster"].isin(clusters_within_cutout_region)
         ]
@@ -319,6 +332,8 @@ def merge_segmentation(
                 )
             )
 
+    # extract custom-technology-segmented-cells present within the alphashape
+
     cells_custom_within_cutout_region = cells_custom[
         cells_custom.geometry.intersects(largest_cutout_region_alpha_shape) == True
     ]
@@ -333,6 +348,8 @@ def merge_segmentation(
         custom_technology_name for i in range(len(cells_custom_within_cutout_region))
     ]
 
+    # extract default-technology-segmented-cells present within the alphashape
+
     cells_default_within_cutout_region = cells_default[
         cells_default.geometry.intersects(largest_cutout_region_alpha_shape) == True
     ]
@@ -344,6 +361,8 @@ def merge_segmentation(
     cells_default["technology"] = [
         default_technology_name for i in range(len(cells_default))
     ]
+
+    # concatenate default and custom-segmented-cells together
 
     cells_before_harmonization = pd.concat(
         [cells_default, cells_custom_within_cutout_region], ignore_index=False
@@ -363,7 +382,11 @@ def merge_segmentation(
 
     print("Alphashapes saved.")
 
+    # get the boundary region where default and custom-segmented cells intersect
+
     intersecting_boundary = largest_cutout_region_alpha_shape.boundary.buffer(50)
+
+    # find cells which intersect with the boundary region
 
     intersecting_cells_before_harmonization = cells_before_harmonization[
         cells_before_harmonization["geometry"].intersects(intersecting_boundary)
@@ -460,6 +483,8 @@ def merge_segmentation(
             )
         )
     )
+
+    # calculate the metric "intersection over area (IoA)" for every intersecting pair of cells
 
     for inst_row in intersecting_cell_pairs_before_harmonization_DF.index.tolist():
 
@@ -567,6 +592,8 @@ def merge_segmentation(
 
     print("Resolving boundary region cell conflicts...")
 
+    # resolve boundary region conflicts based on the metric "intersection over minimum area (IoMA)"
+
     for inst_row in intersecting_cell_pairs_before_harmonization_DF.index.tolist():
 
         inst_ioa_small = intersecting_cell_pairs_before_harmonization_DF.loc[
@@ -665,6 +692,8 @@ def merge_segmentation(
 
     merged_cells.drop(["centroid"], axis=1, inplace=True)
 
+    # transfrom cells from micron to image space
+
     merged_cells["geometry_image_space"] = merged_cells["geometry"].apply(
         lambda geom: affine_transform(
             geom,
@@ -697,17 +726,6 @@ def merge_segmentation(
 
     print("Merged Segmentation Meta data saved.")
 
-    transcripts_default = pd.read_parquet(f"{default_data_path}/transcripts.parquet")
-
-    transcripts_default_GDF = gpd.GeoDataFrame(
-        transcripts_default,
-        geometry=gpd.points_from_xy(
-            transcripts_default["x_location"], transcripts_default["y_location"]
-        ),
-    )
-
-    print("Calculating new assignment of transcripts...")
-
     if default_technology_name == "Xenium":
         trx_col = "transcript_id"
         cell_id_col = "cell_id"
@@ -722,30 +740,45 @@ def merge_segmentation(
         x_col = "center_x"
         y_col = "center_y"
 
-    # newly_assigned_transcripts = assign_transcripts(
-    #     gdf_polygons=merged_cells, gdf_transcripts=transcripts_default_GDF
-    # )
+    transcripts_default = pd.read_parquet(f"{default_data_path}/transcripts.parquet")
 
-    newly_assigned_transcripts = gpd.sjoin(transcripts_default_GDF, merged_cells, how='left', predicate='within')
-    newly_assigned_transcripts.rename(columns={"index_right": "cell_index"}, inplace=True)
-    newly_assigned_transcripts['cell_index'] = newly_assigned_transcripts['cell_index'].astype(str) + '_cell'
+    transcripts_default_GDF = gpd.GeoDataFrame(
+        transcripts_default,
+        geometry=gpd.points_from_xy(
+            transcripts_default[x_col], transcripts_default[y_col]
+        ),
+    )
+
+    print("Calculating new assignment of transcripts...")
+
+    newly_assigned_transcripts = gpd.sjoin(
+        transcripts_default_GDF, merged_cells, how="left", predicate="within"
+    )
+    newly_assigned_transcripts.rename(
+        columns={"index_right": "cell_index"}, inplace=True
+    )
+
+    newly_assigned_transcripts["cell_index"] = (
+        newly_assigned_transcripts["cell_index"]
+        .fillna("UNASSIGNED")
+        .astype(str)
+    )
+
+    newly_assigned_transcripts["cell_index"] = newly_assigned_transcripts["cell_index"].apply(
+        lambda x: x if x == "UNASSIGNED" else f"{x}_cell"
+    )
 
     newly_assigned_transcripts_GDF = gpd.GeoDataFrame(
         newly_assigned_transcripts,
         geometry=gpd.points_from_xy(
-            newly_assigned_transcripts["x_location"],
-            newly_assigned_transcripts["y_location"],
+            newly_assigned_transcripts[x_col],
+            newly_assigned_transcripts[y_col],
         ),
     )
 
     newly_assigned_transcripts_GDF.drop([cell_id_col], axis=1, inplace=True)
     newly_assigned_transcripts_GDF = newly_assigned_transcripts_GDF.rename(
-        columns={
-            trx_col: "transcript_index",
-            gene_col: "gene",
-            x_col: "x",
-            y_col: "y"
-        }
+        columns={trx_col: "transcript_index", gene_col: "gene", x_col: "x", y_col: "y"}
     )
 
     print("New transcript assignment of merged segmentation calculated.")
@@ -774,6 +807,7 @@ def merge_segmentation(
     print("New transcript assignment of merged segmentation saved.")
 
     newly_assigned_transcripts_GDF["cell_index"].fillna(-1, inplace=True)
+
     newly_assigned_transcripts_GDF = newly_assigned_transcripts_GDF[
         newly_assigned_transcripts_GDF["cell_index"] != "UNASSIGNED"
     ]
@@ -787,6 +821,7 @@ def merge_segmentation(
         .size()
         .reset_index(name="count")
     )
+
     cell_by_gene_matrix = partitioned_transcripts_cleaned.pivot_table(
         index="cell_index", columns="gene", values="count", fill_value=0
     )

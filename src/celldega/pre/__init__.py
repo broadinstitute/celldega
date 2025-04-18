@@ -964,6 +964,12 @@ def coordinate_transform(gdf, path_landscape_files, direction='micron_to_pixel')
 
     gdf_new = gdf.copy()
 
+    # check if geometry is multipolygon
+    multi_polygon =  any(gdf_new.geometry.geom_type == 'MultiPolygon')
+    if multi_polygon:
+        gdf_new = gdf_new.explode(index_parts=True)
+        gdf_new = gdf_new.reset_index(drop=True)
+
     # Load the transformation matrix
     path_transformation_matrix = f'{path_landscape_files}/micron_to_image_transform.csv'
     transformation_matrix = pd.read_csv(
@@ -979,9 +985,14 @@ def coordinate_transform(gdf, path_landscape_files, direction='micron_to_pixel')
     else:
         raise ValueError("Invalid direction. Use 'micron_to_pixel' or 'pixel_to_micron'.")
     
-    # if  geometry is a list of coordinates, convert to Shapely Point or Polygon
+    # if geometry is a list of coordinates, convert to Shapely Point or Polygon
     if gdf_new['geometry'].dtype == 'object':
         gdf_new['geometry'] = gdf_new['geometry'].apply(_to_geometry)
+
+    # if multi_polygon, convert back to multipolygon
+    if multi_polygon:
+        gdf_new = gdf_new.dissolve(by='name', as_index=False)
+        gdf_new = gdf_new.reset_index(drop=True)
 
     return gdf_new
 

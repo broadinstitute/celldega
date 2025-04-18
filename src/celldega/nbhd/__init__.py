@@ -175,10 +175,6 @@ def alpha_shape_cell_clusters(meta_cell, cat='cluster', alphas=[100, 150, 200, 2
 
     gdf_alpha = gdf_alpha.loc[gdf_alpha.area.sort_values(ascending=False).index.tolist()]
 
-    # Explode MultiPolygon geometries into individual Polygons
-    gdf_alpha = gdf_alpha.explode(index_parts=True)
-    gdf_alpha = gdf_alpha.reset_index(drop=True)
-
     return gdf_alpha
 
 def alpha_shape_geojson(gdf_alpha, meta_cluster, inst_alpha):

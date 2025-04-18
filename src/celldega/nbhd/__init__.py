@@ -219,7 +219,6 @@ def calc_grad_nbhd_from_roi(polygon, gdf_reference, band_width):
     Parameters:
     polygon (shapely.geometry.Polygon): The polygon around which to create concentric rings.
     gdf_reference (geopandas.GeoDataFrame): A reference GeoDataFrame indicating the boudnary.
-    num_bands (int): The number of concentric rings to create.
     band_width (float): The width of each ring in the same units as the polygon.
 
     Returns:

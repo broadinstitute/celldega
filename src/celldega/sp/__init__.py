@@ -158,10 +158,9 @@ def create_concentric_rings(polygon, num_bands, band_width):
 
 def calc_gene_expression_by_band(
     gdf_points: gpd.GeoDataFrame,
-    gdf_polygon: gpd.GeoDataFrame,
+    gdf_bands: gpd.GeoDataFrame,
     roi_name: str,
     band_width: float,
-    num_bands: int,
     gene_list: list
 ) -> gpd.GeoDataFrame:
     """
@@ -169,39 +168,27 @@ def calc_gene_expression_by_band(
     
     Args:
         gdf_points: GeoDataFrame containing points with distance column.
-        gdf_polygon: GeoDataFrame containing the target polygon.
-        path_landscape_files: path to landscaope files
+        gdf_bands: GeoDataFrame containing bands (concentric rings).
         roi_name: Name of the region of interest.
-        band_width: Width of each band (in microns).
-        num_bands: Number of bands to create.
         gene_list: List of genes to calculate gradients for.
     
     Returns:
         A GeoDataFrame containing the bands and mean gene expression.
     """
 
-    print (f"Complete calculating gene exp. gradient from points to {roi_name} using {band_width} micron rings.")
-
-
-    # Merge all bands into a single GeoDataFrame
-    gdf_bands = create_concentric_rings(gdf_polygon, num_bands, band_width)
+    print (f"Complete calculating gene exp. gradient from points to {roi_name}.")
     
     # Spatial join: Assign each cell to the closest buffer
     gdf_join_all = gdf_points.sjoin(gdf_bands, how="left", predicate="within").drop(
         columns=['index_right'], errors='ignore')
-    
-    # Compute mean expression per band
-    gdf_join_all["band"] = (
-        gdf_join_all[f"distance_to_polygon_{roi_name}"] // band_width
-    ).astype(int)
-    
+
     # Compute mean expression for each gene
     for gene in gene_list:
         band_avg_expression = gdf_join_all.groupby("band")[gene].mean().reset_index()
         band_avg_expression.columns = ["band", f"{gene}_mean"]
         gdf_join_all = gdf_join_all.merge(band_avg_expression, on="band")
 
-    return gdf_join_all, gdf_bands
+    return gdf_join_all
 
 def plot_gene_gradient_to_roi(
     gdf_join_all: gpd.GeoDataFrame,
@@ -262,7 +249,7 @@ def plot_gene_gradient_to_roi(
         plt.show()
 
 
-def create_band_pixel(gdf_micron, gdf_pixel, roi_name, n_rings, band_width, json_fname):
+def _create_band_pixel(gdf_micron, gdf_pixel, roi_name, n_rings, band_width, json_fname):
     """
     Creates concentric bands in pixel space and saves as GeoJSON.
     
@@ -289,71 +276,3 @@ def create_band_pixel(gdf_micron, gdf_pixel, roi_name, n_rings, band_width, json
     return gdf_bands_pixel
 
 
-def assign_distinct_colors(spatial_region, color_metric='cat', alpha=100):
-    """
-    Assign perceptually distinct colors to features based on band values
-    Supports >12 distinguishable colors using HSV color space cycling
-    """
-    bands = [f['properties'][color_metric] for f in spatial_region['features']]
-    min_band, max_band = min(bands), max(bands)
-    
-    for feature in spatial_region['features']:
-        band = feature['properties'][color_metric]
-        
-        # Normalize band value (handle NaN/None)
-        try:
-            norm = (float(band) - min_band) / (max_band - min_band) if max_band > min_band else 0.5
-        except (TypeError, ValueError):
-            norm = 0.5  # Fallback for invalid values
-        
-        # Generate distinct color using HSV space
-        hue = norm * 0.9  # 0.9 avoids red-purple wrap which looks similar
-        saturation = 0.8 + (norm * 0.2)  # Vary saturation slightly
-        value = 0.7 + (norm * 0.3)  # Vary brightness
-        
-        # Convert to RGB
-        r, g, b = colorsys.hsv_to_rgb(hue, saturation, value)
-        
-        # Apply to feature (scale 0-255)
-        feature['properties']['color'] = [
-            int(r * 255),
-            int(g * 255),
-            int(b * 255),
-            alpha
-        ]
-
-def landscape_ist_with_spatial_region(gdf_pixel, path_landscape_files, spatial_region_json_fname, color_metric, tech='Xenium', alpha=50):
-    """
-    Create a landscape object with a spatial region and assign colors based on a metric.
-    Args:
-        gdf_pixel: GeoDataFrame containing pixel data.
-        path_landscape_files: Path to landscape files.
-        spatial_region_json_fname: Filename for the spatial region GeoJSON.
-        color_metric: Metric for color assignment.
-        tech: Technology used (default is 'Xenium').
-        alpha: Alpha value for color transparency (default is 50).
-    Returns:
-        landscape_ist: A Landscape object with the spatial region and assigned colors.
-    """
-
-    # save alphashape json
-    gdf_pixel[color_metric] = gdf_pixel[color_metric].astype(int)
-    gdf_pixel.to_file(spatial_region_json_fname, driver='GeoJSON')
-
-    # Load GeoJSON and add color
-    with open(spatial_region_json_fname, 'r') as file:
-        spatial_region = json.load(file)
-
-    # Assign shades of white
-    assign_distinct_colors(spatial_region, color_metric=color_metric, alpha=alpha)
-
-    server_address = dega.viz.get_local_server()
-    base_url = f"http://localhost:{server_address}/{path_landscape_files}/"
-
-    landscape_ist = dega.Landscape(
-        technology=tech,
-        base_url = base_url,
-        region=spatial_region,
-        nbhd={},
-    )
-    return landscape_ist

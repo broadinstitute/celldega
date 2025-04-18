@@ -10,6 +10,8 @@ import geopandas as gpd
 import pandas as pd
 import colorsys
 import numpy as np
+import json
+import celldega as dega
 
 def calc_distance_to_roi(
     gdf_polygons: gpd.GeoDataFrame,
@@ -319,3 +321,39 @@ def assign_distinct_colors(spatial_region, color_metric='cat', alpha=100):
             int(b * 255),
             alpha
         ]
+
+def landscape_ist_with_spatial_region(gdf_pixel, path_landscape_files, spatial_region_json_fname, color_metric, tech='Xenium', alpha=50):
+    """
+    Create a landscape object with a spatial region and assign colors based on a metric.
+    Args:
+        gdf_pixel: GeoDataFrame containing pixel data.
+        path_landscape_files: Path to landscape files.
+        spatial_region_json_fname: Filename for the spatial region GeoJSON.
+        color_metric: Metric for color assignment.
+        tech: Technology used (default is 'Xenium').
+        alpha: Alpha value for color transparency (default is 50).
+    Returns:
+        landscape_ist: A Landscape object with the spatial region and assigned colors.
+    """
+
+    # save alphashape json
+    gdf_pixel[color_metric] = gdf_pixel[color_metric].astype(int)
+    gdf_pixel.to_file(spatial_region_json_fname, driver='GeoJSON')
+
+    # Load GeoJSON and add color
+    with open(spatial_region_json_fname, 'r') as file:
+        spatial_region = json.load(file)
+
+    # Assign shades of white
+    assign_distinct_colors(spatial_region, color_metric=color_metric, alpha=alpha)
+
+    server_address = dega.viz.get_local_server()
+    base_url = f"http://localhost:{server_address}/{path_landscape_files}/"
+
+    landscape_ist = dega.Landscape(
+        technology=tech,
+        base_url = base_url,
+        region=spatial_region,
+        nbhd={},
+    )
+    return landscape_ist

@@ -4,7 +4,6 @@ Module for spatial operation and analysis
 
 
 import geopandas as gpd
-import celldega as dega
 from ..nbhd import *
 
 def calc_distance_to_roi(
@@ -42,8 +41,6 @@ def calc_distance_to_roi(
 def calc_gene_expression_by_band(
     gdf_points: gpd.GeoDataFrame,
     gdf_bands: gpd.GeoDataFrame,
-    roi_name: str,
-    band_width: float,
     gene_list: list
 ) -> gpd.GeoDataFrame:
     """
@@ -52,14 +49,11 @@ def calc_gene_expression_by_band(
     Args:
         gdf_points: GeoDataFrame containing points with distance column.
         gdf_bands: GeoDataFrame containing bands (concentric rings).
-        roi_name: Name of the region of interest.
         gene_list: List of genes to calculate gradients for.
     
     Returns:
         A GeoDataFrame containing the bands and mean gene expression.
     """
-
-    print (f"Complete calculating gene exp. gradient from points to {roi_name}.")
     
     # Spatial join: Assign each cell to the closest buffer
     gdf_join_all = gdf_points.sjoin(gdf_bands, how="left", predicate="within").drop(

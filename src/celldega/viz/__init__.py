@@ -5,6 +5,7 @@ Module for visualization
 from .widget import Landscape, Matrix
 from ipywidgets import jslink, HBox, Layout
 from .local_server import *
+from .plot import *
 
 def landscape_matrix(landscape, mat, width='600px', height='700px'):
     """
@@ -35,4 +36,4 @@ def landscape_matrix(landscape, mat, width='600px', height='700px'):
 
     display(widgets_side_by_side)
 
-__all__ = ["Landscape", "Matrix", 'landscape_matrix']
+__all__ = ["Landscape", "Matrix", 'landscape_matrix', 'plot']

@@ -952,4 +952,49 @@ def _check_required_files(technology, data_dir):
         )
 
 
+def coordinate_transform(gdf, path_landscape_files, direction='micron_to_pixel'):
+    """ArithmeticError: Transform coordinates between pixel and micron space.
+    Args:
+        gdf (GeoDataFrame): Input GeoDataFrame with geometries to transform.
+        path_landscape_files (str): Path to the landscape files directory.
+        direction (str): Direction of transformation ('micron_to_pixel' or 'pixel_to_micron').
+    Returns:
+        GeoDataFrame: Transformed GeoDataFrame with updated geometries.
+    """
+
+    gdf_new = gdf.copy()
+
+    # check if geometry is multipolygon
+    multi_polygon =  any(gdf_new.geometry.geom_type == 'MultiPolygon')
+    if multi_polygon:
+        gdf_new = gdf_new.explode(index_parts=True)
+        gdf_new = gdf_new.reset_index(drop=True)
+
+    # Load the transformation matrix
+    path_transformation_matrix = f'{path_landscape_files}/micron_to_image_transform.csv'
+    transformation_matrix = pd.read_csv(
+        path_transformation_matrix, header=None, sep=" "
+    ).values
+
+    if direction == 'micron_to_pixel':
+        gdf_new["geometry"] = batch_transform_geometries(gdf_new["geometry"], transformation_matrix, 1)
+
+    elif direction == 'pixel_to_micron':
+        inverse_matrix = np.linalg.inv(transformation_matrix)
+        gdf_new["geometry"] = batch_transform_geometries(gdf_new["geometry"], inverse_matrix, 1)
+    else:
+        raise ValueError("Invalid direction. Use 'micron_to_pixel' or 'pixel_to_micron'.")
+    
+    # if geometry is a list of coordinates, convert to Shapely Point or Polygon
+    if gdf_new['geometry'].dtype == 'object':
+        gdf_new['geometry'] = gdf_new['geometry'].apply(_to_geometry)
+
+    # if multi_polygon, convert back to multipolygon
+    if multi_polygon:
+        gdf_new = gdf_new.dissolve(by='name', as_index=False)
+        gdf_new = gdf_new.reset_index(drop=True)
+
+    return gdf_new
+
+
 __all__ = ["landscape", "trx_tile", "boundary_tile"]

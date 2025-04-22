@@ -2,68 +2,91 @@
 Module for spatial operation and analysis
 """
 
-
+import pandas as pd
 import geopandas as gpd
 from ..nbhd import *
+from shapely.geometry import Point
 
-def calc_distance_to_roi(
-    gdf_polygons: gpd.GeoDataFrame,
-    gdf_points: gpd.GeoDataFrame,
-    roi_name: str
-) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
+
+def calc_distance_to_roi(adata, gdf_polygon):
     """
-    Calculate the distance of points to the specified region of interest.
+    Calculate distance from each cell in adata to the specified ROI polygon
+    and store the result in adata.obs.
     
-    Args:
-        gdf_polygons: GeoDataFrame containing polygons with a 'roi' column.
-        gdf_points: GeoDataFrame containing points to calculate distances for.
-        roi_name: Name of the region of interest (ROI) to calculate distances to.
-    
-    Returns:
-        A tuple containing:
-            - gdf_points: The input gdf_points with added distance column.
-            - gdf_polygon: The extracted polygon for the specified ROI.
+    Parameters:
+    - adata: AnnData object with .obsm['spatial'] for coordinates
+    - gdf_polygon: GeoDataFrame with 'roi' and 'geometry' columns
+    - roi_name: Name of the ROI polygon to measure distance to
     """
 
-    print (f"Extract the polygon for the specified ROI: {roi_name}")
-    # Extract the polygon for the specified ROI
-    gdf_polygon = gdf_polygons.loc[gdf_polygons["roi"] == roi_name].reset_index()
-    
-    # Calculate distances from points to the polygon
     polygon_geom = gdf_polygon.geometry.iloc[0]
+    roi_name = gdf_polygon.roi.iloc[0]
+    print(f"Extracting polygon for ROI: {roi_name}")
 
-    gdf_points_with_dist = gdf_points.copy()
-    gdf_points_with_dist[f"distance_to_polygon_{roi_name}"] = gdf_points_with_dist.distance(polygon_geom)
-    print (f"Distances from points to polygon {roi_name} were calculated.")
-    return gdf_points_with_dist, gdf_polygon
+    if gdf_polygon.empty:
+        raise ValueError(f"ROI '{roi_name}' not found in gdf_polygons.")
+
+    # Get spatial coordinates
+    spatial_coords = adata.obsm['spatial'][:, :2]
+    points = [Point(xy) for xy in spatial_coords]
+
+    # Compute distances
+    distances = [pt.distance(polygon_geom) for pt in points]
+
+    # Add to adata.obs
+    dist_col = f"distance_to_roi_{roi_name}"
+    adata.obs[dist_col] = distances
+
+    print(f"Distance column '{dist_col}' added to adata.obs.")
+    return adata
 
 
 def calc_gene_expression_by_band(
-    gdf_points: gpd.GeoDataFrame,
+    adata,
     gdf_bands: gpd.GeoDataFrame,
-    gene_list: list
+    nbhd_col: str = "band"
 ) -> gpd.GeoDataFrame:
     """
-    Calculate gene expression gradients relative to the roi.
-    
+    Calculate mean gene expression per band from adata and band GeoDataFrame.
+
     Args:
-        gdf_points: GeoDataFrame containing points with distance column.
-        gdf_bands: GeoDataFrame containing bands (concentric rings).
-        gene_list: List of genes to calculate gradients for.
-    
+        adata: AnnData object with spatial info in .obsm['spatial'] and gene data in .X.
+        gdf_bands: GeoDataFrame with band polygons, must contain a 'band' column.
+        nbhd_col: Neighborhood column in gdf_bands that labels each nbhd.
+
     Returns:
-        A GeoDataFrame containing the bands and mean gene expression.
+        GeoDataFrame with band geometries and mean gene expression values
+        as columns named like 'GENE_mean'.
     """
-    
+
+    # Get gene list
+    gene_list = adata.var.index
+
+    gene_exp = pd.DataFrame(
+        data=adata[:, gene_list].X.toarray() if hasattr(adata.X, 'toarray') else adata[:, gene_list].X,
+        columns=gene_list,
+        index=adata.obs_names
+    )
+
+    # Create combined DataFrame with geometry
+    gdf_cell = gpd.GeoDataFrame(
+        data={
+            'cluster': adata.obs['leiden'],
+            **gene_exp  # Unpacks all gene columns
+        },
+        geometry=[Point(xy) for xy in adata.obsm['spatial'][:, :2]],
+        crs="EPSG:4326"  # Set your coordinate system here
+    )
+
     # Spatial join: Assign each cell to the closest buffer
-    gdf_join_all = gdf_points.sjoin(gdf_bands, how="left", predicate="within").drop(
+    gdf_join_all = gdf_cell.sjoin(gdf_bands, how="left", predicate="within").drop(
         columns=['index_right'], errors='ignore')
 
     # Compute mean expression for each gene
     for gene in gene_list:
-        band_avg_expression = gdf_join_all.groupby("band")[gene].mean().reset_index()
-        band_avg_expression.columns = ["band", f"{gene}_mean"]
-        gdf_join_all = gdf_join_all.merge(band_avg_expression, on="band")
+        band_avg_expression = gdf_join_all.groupby(nbhd_col)[gene].mean().reset_index()
+        band_avg_expression.columns = [nbhd_col, f"{gene}_mean"]
+        gdf_join_all = gdf_join_all.merge(band_avg_expression, on=nbhd_col)
 
     return gdf_join_all
 

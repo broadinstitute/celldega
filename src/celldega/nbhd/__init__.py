@@ -268,16 +268,17 @@ def create_hextile(radius, path_landscape_files=None, img_height=100, img_width=
 
         gdf_hextile.to_parquet(os.path.join(path_landscape_files, "hextile.parquet"))
 
+        print(f"Hextiles saved at {path_landscape_files} as 'hextiles.parquet'")
 
-    fig, ax = plt.subplots(1, 1, figsize=(60, 80))
-    gdf_hextile.plot(ax=ax, alpha=1, linewidth=1, facecolor='none', edgecolor='black')
-    ax.set_title(f"Hexgrid (hexagon radius: {radius} pixels)", fontsize=50)
-    ax.set_xlabel("x (pixels)", fontsize=25)
-    ax.set_ylabel("y (pixels)", fontsize=25)
-    plt.xticks(fontsize=20)
-    plt.yticks(fontsize=20)
-    plt.show()
-    plt.close()
+        fig, ax = plt.subplots(1, 1, figsize=(60, 80))
+        gdf_hextile.plot(ax=ax, alpha=1, linewidth=1, facecolor='none', edgecolor='black')
+        ax.set_title(f"Hextiles (hexagon radius: {radius} pixels)", fontsize=50)
+        ax.set_xlabel("x (pixels)", fontsize=25)
+        ax.set_ylabel("y (pixels)", fontsize=25)
+        plt.xticks(fontsize=20)
+        plt.yticks(fontsize=20)
+        plt.show()
+        plt.close()
 
     return gdf_hextile
 

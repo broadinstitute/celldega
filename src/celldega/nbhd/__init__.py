@@ -266,9 +266,9 @@ def create_hextile(radius, path_landscape_files=None, img_height=100, img_width=
 
     if isinstance(path_landscape_files, str):
 
-        gdf_hextile.to_parquet(os.path.join(path_landscape_files, "hextile.parquet"))
+        gdf_hextile.to_parquet(os.path.join(path_landscape_files, "hextiles.parquet"))
 
-        print(f"Hextiles saved at {path_landscape_files} as 'hextiles.parquet'")
+        print(f"Hextiles saved at '{path_landscape_files}' as 'hextiles.parquet'\n")
 
         fig, ax = plt.subplots(1, 1, figsize=(60, 80))
         gdf_hextile.plot(ax=ax, alpha=1, linewidth=1, facecolor='none', edgecolor='black')

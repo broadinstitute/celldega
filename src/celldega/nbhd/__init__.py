@@ -9,6 +9,10 @@ from shapely.ops import transform
 import numpy as np
 import json
 from shapely.geometry import shape
+import random
+import pandas as pd
+import matplotlib.cm as cm
+import os
 
 def _classify_polygons_contains_check(polygons, points):
     """
@@ -205,3 +209,224 @@ def alpha_shape_geojson(gdf_alpha, meta_cluster, inst_alpha):
     geojson_alpha['inst_alpha'] = inst_alpha
 
     return geojson_alpha
+
+def generate_random_points_gdf(n_points=10, x_range=(0, 100), y_range=(0, 100)):
+    points = [
+        Point(random.uniform(*x_range), random.uniform(*y_range))
+        for _ in range(n_points)
+    ]
+    gdf_trx = gpd.GeoDataFrame(geometry=points)
+    return gdf_trx
+
+def hextile_trx_assignment_check(hextile_assigned_trx):
+
+    more_than_one_matches = (
+        "more_than_one_matches" in hextile_assigned_trx["polygon_index"].unique()
+    )
+    unassigned = "UNASSIGNED" in hextile_assigned_trx["polygon_index"].unique()
+
+    return more_than_one_matches, unassigned
+
+def smart_read_parquet(path):
+    try:
+        return gpd.read_parquet(path)
+    except ValueError as e:
+        if "Missing geo metadata" in str(e):
+            return pd.read_parquet(path)
+        else:
+            raise
+
+def unassigned_transcripts_tiled_view(
+    gdf_hextile,
+    path_data,
+    path_landscape_files=None,
+    percentage_unassigned_threshold=75,
+):
+    """
+    Visualizes the proportion of unassigned transcripts in each hexagonal tile of a spatial transcriptomics dataset.
+
+    This function reads transcript data and transformation parameters from the given directories,
+    applies coordinate transformations if necessary, allots transcripts to hexagonal spatial tiles,
+    and calculates the percentage of unassigned transcripts per tile.
+
+    Tiles with a percentage of unassigned transcripts lower than the specified threshold are visualized.
+
+    Parameters:
+    -----------
+    gdf_hextile : geopandas.GeoDataFrame
+        A GeoDataFrame containing the hexagonal tiling of the spatial region with associated geometry.
+
+    path_data : str
+        Path to the directory containing transcriptomic data, including `transcripts.parquet`.
+
+    percentage_unassigned_threshold : float, optional (default=75)
+        The threshold (in percent) for including tiles in the visualization. Tiles with a higher
+        percentage of unassigned transcripts are excluded from the plot.
+
+    Returns:
+    --------
+    None
+        This function displays a matplotlib plot showing the percentage of unassigned transcripts
+        in each hexagonal tile and saves the intermediate transcript assignment result as a Parquet file.
+
+    """
+
+    from ..pre.boundary_tile import batch_transform_geometries
+    from ..pre.__init__ import _to_geometry
+
+    if os.path.isfile(os.path.join(path_data, "experiment.xenium")):
+        technology = "Xenium"
+        transformation_matrix = pd.read_csv(
+            os.path.join(path_landscape_files, "micron_to_image_transform.csv"),
+            sep=" ",
+            header=None,
+        ).values[:3, :3]
+
+    else:
+        with open(
+            os.path.join(path_data, "segmentation_parameters.json"), "r"
+        ) as parameters_file:
+            parameters = json.load(parameters_file)
+            technology = parameters["technology"]
+
+        transformation_matrix = pd.read_csv(
+            os.path.join(path_data, "micron_to_image_transform.csv"),
+            sep=" ",
+            header=None,
+        ).values[:3, :3]
+
+    ## only Xenium and Custom Tech supported for now
+
+    if technology == "Xenium":
+        x = "x_location"
+        y = "y_location"
+        cell_id_col = "cell_id"
+        segmentation_approach = "default"
+
+    else:
+        x = "x"
+        y = "y"
+        cell_id_col = "cell_index"
+        segmentation_approach = parameters["segmentation_approach"]
+
+    print("Reading transcripts file...")
+
+    trx = smart_read_parquet(os.path.join(path_data, "transcripts.parquet"))
+
+    if technology == "Xenium" or "geometry_image_space" not in trx.columns.to_list():
+
+        gdf_trx = gpd.GeoDataFrame(trx, geometry=gpd.points_from_xy(trx[x], trx[y]))
+
+        gdf_trx["geometry_image_space"] = batch_transform_geometries(
+            gdf_trx["geometry"], transformation_matrix, 1
+        )
+        gdf_trx["geometry_image_space"] = gdf_trx["geometry_image_space"].apply(
+            _to_geometry
+        )
+
+        gdf_trx.set_geometry("geometry_image_space", inplace=True)
+
+    else:
+
+        gdf_trx = gpd.GeoDataFrame(trx, geometry="geometry_image_space")
+        gdf_trx.set_geometry("geometry_image_space", inplace=True)
+
+    print("Transcripts file read.")
+    print("Assignment of transcripts started...")
+
+    hextile_assigned_trx = gpd.sjoin(
+        gdf_trx, gdf_hextile, how="left", predicate="within"
+    )
+    hextile_assigned_trx.rename(columns={"index_right": "polygon_index"}, inplace=True)
+    hextile_assigned_trx["polygon_index"] = (
+        hextile_assigned_trx["polygon_index"].astype(str) + "_polygon"
+    )
+
+    gdf_hextile_assigned_trx = gpd.GeoDataFrame(
+        hextile_assigned_trx, geometry="geometry_image_space"
+    )
+
+    gdf_hextile_assigned_trx.set_geometry("geometry_image_space", inplace=True)
+
+    gdf_hextile_assigned_trx.to_parquet(
+        os.path.join(
+            path_landscape_files,
+            f"hextile_assigned_trx_{technology}_{segmentation_approach}.parquet",
+        )
+    )
+
+    print("Assignment of transcripts done and saved.")
+
+    print("Calculating percentage of hextile-specific unassigned transcripts...")
+
+    counts = gdf_hextile_assigned_trx.groupby("polygon_index")[cell_id_col].agg(
+        total="size", unassigned=lambda x: (x == "UNASSIGNED").sum()
+    )
+    percentage_unassigned = (counts["unassigned"] / counts["total"]) * 100
+
+    percentage_unassigned = percentage_unassigned.fillna(0)
+
+    percentage_unassigned = percentage_unassigned[
+        percentage_unassigned < percentage_unassigned_threshold
+    ]
+
+    percentage_unassigned.index = percentage_unassigned.index.str.replace(
+        "_polygon", "", regex=True
+    ).astype(int)
+    percentage_unassigned_df = pd.DataFrame(index=percentage_unassigned.index)
+    percentage_unassigned_df["unassigned_trx_percentage"] = (
+        percentage_unassigned.to_list()
+    )
+
+    tile_mapping = percentage_unassigned_df.to_dict()
+    gdf_hextile["unassigned_trx_percentage"] = gdf_hextile.index.map(
+        tile_mapping["unassigned_trx_percentage"]
+    ).fillna(0)
+
+    print(
+        "Calculation done, plotting a tiled view of hextile-specific unassigned transcripts..."
+    )
+
+    # Normalize the assigned_percentage values between 0 and 1
+    norm = (
+        gdf_hextile["unassigned_trx_percentage"]
+        - gdf_hextile["unassigned_trx_percentage"].min()
+    ) / (
+        gdf_hextile["unassigned_trx_percentage"].max()
+        - gdf_hextile["unassigned_trx_percentage"].min()
+    )
+
+    # Map normalized values to a color in the Reds colormap
+    colors = cm.Reds(norm)
+
+    fig, ax = plt.subplots(1, 1, figsize=(40, 40))
+    gdf_hextile.plot(ax=ax, alpha=1, linewidth=1, color=colors)
+
+    # Invert y-axis if needed
+    plt.gca().invert_yaxis()
+
+    # Add titles and labels
+    ax.set_title("Percentage of Unassigned Trx in Each Hextile", fontsize=30)
+    ax.set_xlabel("Hextiles", fontsize=25)
+    ax.set_ylabel("Percentage of Unassigned Trx (%)", fontsize=25)
+    plt.xticks(fontsize=20)
+    plt.yticks(fontsize=20)
+
+    # Create colorbar
+    sm = plt.cm.ScalarMappable(
+        cmap=cm.Reds,
+        norm=plt.Normalize(
+            vmin=gdf_hextile["unassigned_trx_percentage"].min(),
+            vmax=gdf_hextile["unassigned_trx_percentage"].max(),
+        ),
+    )
+    sm._A = []  # required for some versions of matplotlib
+    cbar = fig.colorbar(sm, ax=ax, shrink=0.5)
+    cbar.set_label("Unassigned Trx Percentage", fontsize=20)
+    cbar.ax.tick_params(labelsize=16)
+
+    # Show and close
+    plt.show()
+    plt.close()
+
+    print("Done.")

@@ -220,6 +220,13 @@ def create_hextile(radius, path_landscape_files=None, img_height=100, img_width=
         img_width = int(root[0].attrib["Width"])
         img_height = int(root[0].attrib["Height"])
 
+        transformation_matrix = pd.read_csv(
+            f"{path_landscape_files}/micron_to_image_transform.csv", sep=" ", header=None
+        ).values[:3, :3]
+
+    else:
+        transformation_matrix = np.eye(3)
+
     hex_height = 2 * radius
     hex_width = np.sqrt(3) * radius
     vert_spacing = 3 / 4 * hex_height  # = 1.5 * r for pointy-topped hexagons
@@ -268,10 +275,6 @@ def create_hextile(radius, path_landscape_files=None, img_height=100, img_width=
     gdf_hextile.rename(columns={"geometry": "geometry_image_space"}, inplace=True)
     gdf_hextile.set_geometry("geometry_image_space", inplace=True)
 
-    transformation_matrix = pd.read_csv(
-        f"{path_landscape_files}/micron_to_image_transform.csv", sep=" ", header=None
-    ).values[:3, :3]
-
     transformation_matrix_inv = np.linalg.inv(transformation_matrix)
 
     a = transformation_matrix_inv[0, 0]
@@ -295,16 +298,16 @@ def create_hextile(radius, path_landscape_files=None, img_height=100, img_width=
         gdf_hextile.to_parquet(os.path.join(path_landscape_files, "hextiles.parquet"))
         print(f"Hextiles saved at '{path_landscape_files}' as 'hextiles.parquet'\n")
 
-    fig, ax = plt.subplots(1, 1, figsize=(60, 80))
-    gdf_hextile.plot(ax=ax, alpha=1, linewidth=1, facecolor='none', edgecolor='black')
-    ax.set_title(f"Hextiles (hexagon radius: {radius_in_microns} microns)", fontsize=50)
-    ax.set_xlabel("x (pixels)", fontsize=25)
-    ax.set_ylabel("y (pixels)", fontsize=25)
-    plt.xticks(fontsize=20)
-    plt.yticks(fontsize=20)
-    plt.gca().invert_yaxis()
-    plt.show()
-    plt.close()
+        fig, ax = plt.subplots(1, 1, figsize=(60, 80))
+        gdf_hextile.plot(ax=ax, alpha=1, linewidth=1, facecolor='none', edgecolor='black')
+        ax.set_title(f"Hextiles (hexagon radius: {radius_in_microns} microns)", fontsize=50)
+        ax.set_xlabel("x (pixels)", fontsize=25)
+        ax.set_ylabel("y (pixels)", fontsize=25)
+        plt.xticks(fontsize=20)
+        plt.yticks(fontsize=20)
+        plt.gca().invert_yaxis()
+        plt.show()
+        plt.close()
 
     return gdf_hextile
 

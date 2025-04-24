@@ -34,6 +34,7 @@ from .boundary_tile import _round_nested_coord_list
 from ..clust import *
 from .image_info import *
 from .run_pre_processing import *
+from .merge_segmentations import *
 
 
 def cluster_gene_expression(technology, path_landscape_files, cbg, data_dir=None, segmentation_approach='default'):
@@ -175,7 +176,7 @@ def _convert_long_id_to_short(df):
     return df
 
 
-def create_cluster_and_meta_cluster(technology, path_landscape_files, data_dir=None, segmentation_approach='default'):
+def create_cluster_and_meta_cluster(technology, path_landscape_files, data_dir=None, path_segmentation_files=None, segmentation_approach='default'):
     """
     Creates cell clusters and meta cluster files for visualization.
     Currently supports only Xenium.
@@ -266,18 +267,43 @@ def create_cluster_and_meta_cluster(technology, path_landscape_files, data_dir=N
 
     if technology == 'custom':
 
-        df_cluster = pd.DataFrame(index=meta_cell['name'].tolist())
-        df_cluster['cluster'] = 0
+        cell_polygons_gdf = gpd.read_parquet(os.path.join(path_segmentation_files, "cell_polygons.parquet"))
+        tech_corresponding_to_cells = pd.DataFrame()
+        tech_corresponding_to_cells['cell_index'] = cell_polygons_gdf.index.tolist()
+        tech_corresponding_to_cells['technology'] = cell_polygons_gdf['technology'].tolist()
+
+        unique_tech_names = tech_corresponding_to_cells['technology'].unique()
+        cluster_types = {val: f"{idx+1}" for idx, val in enumerate(unique_tech_names)}
+        clusters_list = tech_corresponding_to_cells['technology'].map(cluster_types).tolist()
+        tech_corresponding_to_cells['cluster'] = clusters_list
+
+        INDEX = tech_corresponding_to_cells['cell_index'].tolist()
+        clusters = tech_corresponding_to_cells['cluster'].unique().tolist()
+        amount_of_clusters = tech_corresponding_to_cells['cluster'].to_list()
+        ser_counts = tech_corresponding_to_cells['cluster'].value_counts()
+
+        palettes = [plt.get_cmap(name).colors for name in plt.colormaps() if "tab" in name]
+        flat_colors = [color for palette in palettes for color in palette]
+        flat_colors_hex = [to_hex(color) for color in flat_colors]
+
+        colors = [
+            (
+                flat_colors_hex[i % len(flat_colors_hex)]
+                if "Blank" not in cluster
+                else "#FFFFFF"
+            )
+            for i, cluster in enumerate(clusters)
+        ]
+
+        df_cluster = pd.DataFrame(index=INDEX)
+        df_cluster['cluster'] = amount_of_clusters
         df_cluster['cluster'] = df_cluster['cluster'].astype('string')
-        df_cluster.to_parquet(os.path.join(cell_clusters_dir, "cluster.parquet"))
+        df_cluster.to_parquet(f'{cell_clusters_dir}/cluster.parquet')
 
-        meta_cluster = pd.DataFrame(index=['0'])
-        meta_cluster.loc['0', 'color'] = '#1f77b4'
-        meta_cluster.loc['0', 'count'] = len(meta_cell['name'].tolist())
-        meta_cluster.to_parquet(os.path.join(cell_clusters_dir, "meta_cluster.parquet"))
-
-        ser_counts = df_cluster['cluster'].value_counts()
-        clusters = ser_counts.index.tolist()
+        ser_color = pd.Series(colors, index=clusters, name='color')
+        meta_cluster = pd.DataFrame(ser_color)
+        meta_cluster['count'] = ser_counts
+        meta_cluster.to_parquet(f'{cell_clusters_dir}/meta_cluster.parquet')
 
     print("Cell clusters and meta cluster files created successfully.")
 
@@ -573,7 +599,7 @@ def make_meta_cell_image_coord(
         warnings.warn("Duplicate cell names found in meta_cell!", UserWarning)
 
      # Apply rounding to the GEOMETRY column
-    meta_cell['geometry'] = meta_cell['geometry'].apply(_round_nested_coord_list)       
+    meta_cell['geometry'] = meta_cell['geometry'].apply(_round_nested_coord_list)
 
     # Force alphabetically sort by 'name'
     meta_cell = meta_cell.sort_values(by=['name']).reset_index(drop=True)
@@ -702,19 +728,20 @@ def add_custom_segmentation(path_landscape_files, path_segmentation_files, image
     make_meta_gene(cbg=cbg_custom,
                path_output=os.path.join(path_landscape_files, f"meta_gene_{segmentation_parameters['segmentation_approach']}.parquet"))
 
-    save_cbg_gene_parquets(base_path=path_landscape_files,
-                       cbg=cbg_custom,
-                       verbose=True,
-                       segmentation_approach=segmentation_parameters['segmentation_approach'])
-
     make_meta_cell_image_coord(technology = segmentation_parameters['technology'],
                         path_transformation_matrix = os.path.join(path_landscape_files, 'micron_to_image_transform.csv'),
                         path_meta_cell_micron = os.path.join(path_segmentation_files, 'cell_metadata_micron_space.parquet'),
                         path_meta_cell_image = os.path.join(path_landscape_files, f"cell_metadata_{segmentation_parameters['segmentation_approach']}.parquet"),
                         image_scale=image_scale)
 
+    save_cbg_gene_parquets(base_path=path_landscape_files,
+                       cbg=cbg_custom,
+                       verbose=True,
+                       segmentation_approach=segmentation_parameters['segmentation_approach'])
+
     clusters = create_cluster_and_meta_cluster(technology=segmentation_parameters['technology'],
                                                 path_landscape_files=path_landscape_files,
+                                                path_segmentation_files=path_segmentation_files,
                                                 segmentation_approach=segmentation_parameters['segmentation_approach'])
 
     tree = ET.parse(os.path.join(path_landscape_files, "pyramid_images/bound.dzi"))

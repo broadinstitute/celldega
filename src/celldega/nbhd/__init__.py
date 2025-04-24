@@ -4,11 +4,11 @@ Module for performing neighborhood analysis.
 
 from libpysal.cg import alpha_shape as libpysal_alpha_shape
 import geopandas as gpd
-from shapely import Point, MultiPoint, MultiPolygon
+from shapely import Point, MultiPolygon
 from shapely.ops import transform
 import numpy as np
 import json
-from shapely.geometry import shape
+from shapely.geometry import shape, Point
 
 def _classify_polygons_contains_check(polygons, points):
     """
@@ -86,23 +86,19 @@ def _verify_polygons_with_alpha_bulk(polygons, points, alpha, area_tolerance=0.0
     return gpd.GeoSeries(curated_polygons, crs=polygons.crs)
 
 
-
 def alpha_shape(points, inv_alpha):
 
-    poly = libpysal_alpha_shape(points, 1/inv_alpha)
+    poly = libpysal_alpha_shape(points, 1 / inv_alpha)
 
     gdf_curated = _classify_polygons_contains_check(poly.values, points)
 
     validated_poly = _verify_polygons_with_alpha_bulk(
-        gdf_curated.geometry.values,
-        points,
-        1/inv_alpha
+        gdf_curated.geometry.values, points, 1 / inv_alpha
     )
 
     multi_poly = MultiPolygon(validated_poly.values)
 
     return multi_poly
-
 
 
 def _round_coordinates(geometry, precision=2):
@@ -127,8 +123,9 @@ def _round_coordinates(geometry, precision=2):
     return transform(round_coords, geometry)
 
 
-def alpha_shape_cell_clusters(meta_cell, cat='cluster', alphas=[100, 150, 200, 250, 300, 350]):
-
+def alpha_shape_cell_clusters(
+    meta_cell, cat="cluster", alphas=[100, 150, 200, 250, 300, 350]
+):
     """
     Compute alpha shapes for each cluster in the cell metadata.
 
@@ -150,32 +147,37 @@ def alpha_shape_cell_clusters(meta_cell, cat='cluster', alphas=[100, 150, 200, 2
 
             inst_clust = meta_cell[meta_cell[cat] == inst_cluster]
 
-            if inst_clust.shape[0]> 3:
+            if inst_clust.shape[0] > 3:
 
-                nested_array = inst_clust['geometry'].values
+                nested_array = inst_clust["geometry"].values
 
                 # Convert to a 2D NumPy array
                 flat_array = np.vstack(nested_array)
 
                 inst_shape = alpha_shape(flat_array, inv_alpha)
 
-                inst_name = inst_cluster + '_' + str(inv_alpha)
+                inst_name = inst_cluster + "_" + str(inv_alpha)
 
-                gdf_alpha.loc[inst_name, 'name'] = inst_name
+                gdf_alpha.loc[inst_name, "name"] = inst_name
 
-                gdf_alpha.loc[inst_name, 'cat'] = inst_cluster
+                gdf_alpha.loc[inst_name, "cat"] = inst_cluster
 
-                gdf_alpha.loc[inst_name, 'geometry'] = inst_shape
+                gdf_alpha.loc[inst_name, "geometry"] = inst_shape
 
-                gdf_alpha.loc[inst_name, 'inv_alpha'] = int(inv_alpha)
+                gdf_alpha.loc[inst_name, "inv_alpha"] = int(inv_alpha)
 
-    gdf_alpha["geometry"] = gdf_alpha["geometry"].apply(lambda geom: _round_coordinates(geom, precision=2))
+    gdf_alpha["geometry"] = gdf_alpha["geometry"].apply(
+        lambda geom: _round_coordinates(geom, precision=2)
+    )
 
-    gdf_alpha['area'] = gdf_alpha.area
+    gdf_alpha["area"] = gdf_alpha.area
 
-    gdf_alpha = gdf_alpha.loc[gdf_alpha.area.sort_values(ascending=False).index.tolist()]
+    gdf_alpha = gdf_alpha.loc[
+        gdf_alpha.area.sort_values(ascending=False).index.tolist()
+    ]
 
     return gdf_alpha
+
 
 def alpha_shape_geojson(gdf_alpha, meta_cluster, inst_alpha):
 
@@ -184,7 +186,7 @@ def alpha_shape_geojson(gdf_alpha, meta_cluster, inst_alpha):
     # Step 2: Edit the properties of each feature
     for feature in geojson_alpha["features"]:
 
-        if feature['geometry'] is not None:
+        if feature["geometry"] is not None:
 
             # Parse the geometry with Shapely for additional calculations
             geometry = shape(feature["geometry"])
@@ -192,16 +194,16 @@ def alpha_shape_geojson(gdf_alpha, meta_cluster, inst_alpha):
             # Add area property
             feature["properties"]["area"] = geometry.area
 
-            id = feature['id']
+            id = feature["id"]
 
-            color = meta_cluster.loc[id.split('_')[0], 'color']
+            color = meta_cluster.loc[id.split("_")[0], "color"]
 
             # Add a custom color property (example: based on the area)
-            feature["properties"]["color"] = color # [255, 0, 0, 100]  # RGBA values
+            feature["properties"]["color"] = color  # [255, 0, 0, 100]  # RGBA values
         else:
             # print('is None')
             pass
 
-    geojson_alpha['inst_alpha'] = inst_alpha
+    geojson_alpha["inst_alpha"] = inst_alpha
 
     return geojson_alpha

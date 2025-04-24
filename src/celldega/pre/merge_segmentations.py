@@ -9,93 +9,6 @@ from ..nbhd import alpha_shape
 from .boundary_tile import batch_transform_geometries
 from .__init__ import _to_geometry
 
-def find_containing_polygon(transcript, polygons_sindex, gdf_polygons):
-    """
-    Finds which polygon from a set contains a given transcript geometry.
-
-    Args:
-        transcript (GeoSeries): A single transcript row with geometry information.
-        polygons_sindex (rtree.index.Index): Spatial index for efficient spatial querying.
-        gdf_polygons (GeoDataFrame): GeoDataFrame containing reference polygons.
-
-    Returns:
-        str: Identifier of the containing polygon, 'UNASSIGNED' if none found,
-             or 'more_than_one_matches' if multiple polygons contain the transcript.
-    """
-
-    point = getattr(transcript, "geometry_image_space", None) or getattr(
-        transcript, "geometry", None
-    )
-
-    possible_matches_index = list(polygons_sindex.query(point, predicate="within"))
-
-    if len(possible_matches_index) == 0:
-        return "UNASSIGNED"
-    elif len(possible_matches_index) > 1:
-        return "more_than_one_matches"
-    else:
-        if isinstance(gdf_polygons.iloc[possible_matches_index[0]].name, str):
-            return gdf_polygons.iloc[possible_matches_index[0]].name
-        else:
-            return f"{gdf_polygons.iloc[possible_matches_index[0]].name}_polygon"
-
-
-def transcript_process_chunk(gdf_transcripts, polygons_sindex, gdf_polygons):
-    """
-    Assigns each transcript to a polygon it falls within.
-
-    Args:
-        gdf_transcripts (GeoDataFrame): GeoDataFrame of transcript points.
-        polygons_sindex (rtree.index.Index): Spatial index for the polygons.
-        gdf_polygons (GeoDataFrame): GeoDataFrame of polygons.
-
-    Returns:
-        GeoDataFrame: Updated transcripts with assigned polygon indices.
-    """
-
-    if not gdf_transcripts.empty:
-        gdf_transcripts["polygon_index"] = gdf_transcripts.apply(
-            find_containing_polygon,
-            axis=1,
-            polygons_sindex=polygons_sindex,
-            gdf_polygons=gdf_polygons,
-        )
-    else:
-        gdf_transcripts["polygon_index"] = "UNASSIGNED"
-
-    return gdf_transcripts
-
-
-def assign_transcripts(gdf_polygons, gdf_transcripts):
-    """
-    Assigns all transcripts in a dataset to polygons using spatial queries.
-
-    Args:
-        gdf_polygons (GeoDataFrame): Polygons to assign to.
-        gdf_transcripts (GeoDataFrame): Transcripts with point geometries.
-
-    Returns:
-        GeoDataFrame: Transcripts with added column indicating assigned polygon.
-    """
-
-    polygons_sindex = gdf_polygons.sindex
-
-    assigned_transcripts = gpd.GeoDataFrame()
-
-    processed_transcripts = transcript_process_chunk(
-        gdf_transcripts=gdf_transcripts,
-        polygons_sindex=polygons_sindex,
-        gdf_polygons=gdf_polygons,
-    )
-
-    assigned_transcripts = pd.concat(
-        [assigned_transcripts, processed_transcripts], ignore_index=True
-    )
-    assigned_transcripts = gpd.GeoDataFrame(assigned_transcripts, geometry="geometry")
-
-    return assigned_transcripts
-
-
 def get_largest_polygon(geometry):
     """
     Extracts the largest polygon from a MultiPolygon geometry.
@@ -113,136 +26,7 @@ def get_largest_polygon(geometry):
     else:
         return geometry
 
-
-def add_or_merge_into_gdf_nc(
-    gdf_nc,
-    default_clustering,
-    clusters_within_cutout_region,
-    poly,
-    ioa_thresh,
-    ID,
-    tech,
-):
-    """
-    Adds a polygon to the no-conflict GeoDataFrame or merges if overlap exceeds threshold.
-
-    Args:
-        gdf_nc (GeoDataFrame): GeoDataFrame of non-conflicting polygons.
-        default_clustering (DataFrame): Default clustering information.
-        clusters_within_cutout_region (list): Clusters within the region of interest.
-        poly (Polygon): Polygon to be added or merged.
-        ioa_thresh (float): Threshold for intersection over area.
-        ID (str): Cell ID for the new polygon.
-        tech (str): Technology or source name.
-
-    Returns:
-        GeoDataFrame: Updated gdf_nc with new or merged polygon.
-    """
-
-    possible_intersections = gdf_nc.sindex.query(poly, predicate="intersects")
-
-    if len(possible_intersections) == 0:
-
-        new_data = {"geometry": poly}
-
-        new_row = gpd.GeoDataFrame([new_data])
-        new_row["cell_id"] = ID
-        new_row["technology"] = tech
-        new_row["centroid"] = poly.centroid
-        gdf_nc = gpd.GeoDataFrame(pd.concat([gdf_nc, new_row], ignore_index=True))
-
-    else:
-
-        max_ioa_merged = 0
-        max_ioa_merged_index = 0
-
-        if not poly.is_valid:
-            poly = make_valid(poly)
-
-        for index in possible_intersections:
-
-            poly_intersect = gdf_nc.iloc[index]["geometry"]
-
-            if not poly_intersect.is_valid:
-                poly_intersect = make_valid(poly_intersect).buffer(0)
-                poly_intersect = poly_intersect.simplify(0.001)
-
-            if min(poly.area, poly_intersect.area) > 0:
-                ioa_merged = poly_intersect.intersection(poly).area / min(
-                    poly.area, poly_intersect.area
-                )
-            else:
-                ioa_merged = 0
-
-            if ioa_merged >= max_ioa_merged:
-                max_ioa_merged = ioa_merged
-                max_ioa_merged_index = index
-
-        if max_ioa_merged >= ioa_thresh:
-
-            poly_intersect = gdf_nc.loc[max_ioa_merged_index, "geometry"]
-
-            poly_intersect = make_valid(poly_intersect).buffer(0)
-            poly_intersect = poly_intersect.simplify(0.001)
-
-            if (
-                gdf_nc.loc[max_ioa_merged_index, "cell_id"]
-                in default_clustering[
-                    ~default_clustering["Cluster"].isin(clusters_within_cutout_region)
-                ].index.to_list()
-            ):
-                return gdf_nc
-
-            else:
-                gdf_nc = gdf_nc.drop(max_ioa_merged_index)
-
-        else:
-
-            new_data = {"geometry": poly}
-            new_row = gpd.GeoDataFrame([new_data])
-            new_row["cell_id"] = ID
-            new_row["technology"] = tech
-            new_row["centroid"] = poly.centroid
-            gdf_nc = gpd.GeoDataFrame(pd.concat([gdf_nc, new_row], ignore_index=True))
-
-    return gdf_nc
-
-
-def merge_segmentation(
-    default_data_path,
-    custom_data_path,
-    output_path,
-    clusters_within_cutout_region,
-    inv_alpha_value_for_cutout_region=1,
-    buffer_for_cutout_region_alpha_shape=0,
-    ioa_small_thresh=0.5,
-):
-    """
-    Harmonizes and merges default and custom cell segmentations by resolving overlapping cells
-    in a boundary region using alpha shapes and IOA thresholds.
-
-    Args:
-        default_data_path (str): Path to default segmentation data.
-        custom_data_path (str): Path to custom segmentation data.
-        output_path (str): Directory to save outputs.
-        clusters_within_cutout_region (list): Clusters in the region of interest.
-        inv_alpha_value_for_cutout_region (float, optional): Inverse alpha for alpha shape.
-        buffer_for_cutout_region_alpha_shape (float, optional): Buffer applied to alpha shape polygon.
-        ioa_small_thresh (float, optional): IOMA (Intersection over Minimum Area) threshold to resolve conflicts.
-
-    Saves:
-        - `cell_polygons.parquet`: Merged cell boundaries.
-        - `cell_metadata_micron_space.parquet`: Metadata associated with each cell.
-        - `cell_by_gene_matrix.parquet`: Cell x gene expression matrix.
-        - `segmentation_parameters.json`: Parameters used during segmentation.
-        - `transcripts.parquet`: Transcripts with added column indicating assigned cell polygons.
-        - `cutout_region_alpha_shape.parquet`: Alpha shape of the region of interest.
-
-    """
-
-    os.makedirs(output_path, exist_ok=True)
-
-    # get default clustering
+def get_default_and_custom_cells_within_cutout_region(default_data_path, custom_data_path, output_path, inv_alpha_value_for_cutout_region, buffer_for_cutout_region_alpha_shape, clusters_within_cutout_region):
 
     if os.path.isfile(os.path.join(default_data_path, "experiment.xenium")):
         default_technology_name = "Xenium"
@@ -382,6 +166,103 @@ def merge_segmentation(
 
     print("Alphashapes saved.")
 
+    return largest_cutout_region_alpha_shape, cells_before_harmonization, transformation_matrix, default_technology_name, default_clustering, custom_segmentation_parameters
+
+def add_or_merge_into_gdf_nc(
+    gdf_nc,
+    default_clustering,
+    clusters_within_cutout_region,
+    poly,
+    ioa_thresh,
+    ID,
+    tech,
+):
+    """
+    Adds a polygon to the no-conflict GeoDataFrame or merges if overlap exceeds threshold.
+
+    Args:
+        gdf_nc (GeoDataFrame): GeoDataFrame of non-conflicting polygons.
+        default_clustering (DataFrame): Default clustering information.
+        clusters_within_cutout_region (list): Clusters within the region of interest.
+        poly (Polygon): Polygon to be added or merged.
+        ioa_thresh (float): Threshold for intersection over area.
+        ID (str): Cell ID for the new polygon.
+        tech (str): Technology or source name.
+
+    Returns:
+        GeoDataFrame: Updated gdf_nc with new or merged polygon.
+    """
+
+    possible_intersections = gdf_nc.sindex.query(poly, predicate="intersects")
+
+    if len(possible_intersections) == 0:
+
+        new_data = {"geometry": poly}
+
+        new_row = gpd.GeoDataFrame([new_data])
+        new_row["cell_id"] = ID
+        new_row["technology"] = tech
+        new_row["centroid"] = poly.centroid
+        gdf_nc = gpd.GeoDataFrame(pd.concat([gdf_nc, new_row], ignore_index=True))
+
+    else:
+
+        max_ioa_merged = 0
+        max_ioa_merged_index = 0
+
+        if not poly.is_valid:
+            poly = make_valid(poly)
+
+        for index in possible_intersections:
+
+            poly_intersect = gdf_nc.iloc[index]["geometry"]
+
+            if not poly_intersect.is_valid:
+                poly_intersect = make_valid(poly_intersect).buffer(0)
+                poly_intersect = poly_intersect.simplify(0.001)
+
+            if min(poly.area, poly_intersect.area) > 0:
+                ioa_merged = poly_intersect.intersection(poly).area / min(
+                    poly.area, poly_intersect.area
+                )
+            else:
+                ioa_merged = 0
+
+            if ioa_merged >= max_ioa_merged:
+                max_ioa_merged = ioa_merged
+                max_ioa_merged_index = index
+
+        if max_ioa_merged >= ioa_thresh:
+
+            poly_intersect = gdf_nc.loc[max_ioa_merged_index, "geometry"]
+
+            poly_intersect = make_valid(poly_intersect).buffer(0)
+            poly_intersect = poly_intersect.simplify(0.001)
+
+            if (
+                gdf_nc.loc[max_ioa_merged_index, "cell_id"]
+                in default_clustering[
+                    ~default_clustering["Cluster"].isin(clusters_within_cutout_region)
+                ].index.to_list()
+            ):
+                return gdf_nc
+
+            else:
+                gdf_nc = gdf_nc.drop(max_ioa_merged_index)
+
+        else:
+
+            new_data = {"geometry": poly}
+            new_row = gpd.GeoDataFrame([new_data])
+            new_row["cell_id"] = ID
+            new_row["technology"] = tech
+            new_row["centroid"] = poly.centroid
+            gdf_nc = gpd.GeoDataFrame(pd.concat([gdf_nc, new_row], ignore_index=True))
+
+    return gdf_nc
+
+def boundary_cell_conflicts(largest_cutout_region_alpha_shape, cells_before_harmonization):
+
     # get the boundary region where default and custom-segmented cells intersect
 
     intersecting_boundary = largest_cutout_region_alpha_shape.boundary.buffer(50)
@@ -484,6 +365,76 @@ def merge_segmentation(
         )
     )
 
+    return intersecting_boundary, intersecting_cells_before_harmonization, intersecting_cell_pairs_before_harmonization_DF, list_no_conflict_cell_ids
+
+def calculate_ioa(poly_1, poly_2):
+
+    if isinstance(poly_1, pd.Series):
+        poly_1 = poly_1.values[0]
+    if isinstance(poly_2, pd.Series):
+        poly_2 = poly_2.values[0]
+
+    poly_1 = make_valid(poly_1).buffer(0)
+    poly_2 = make_valid(poly_2).buffer(0)
+
+    poly_1 = poly_1.simplify(0.001)
+    poly_2 = poly_2.simplify(0.001)
+
+    area_1 = poly_1.area
+    area_2 = poly_2.area
+
+    area_intersection = poly_1.intersection(poly_2).area
+    area_union = poly_1.union(poly_2).area
+
+    if area_union <= 0:
+        iou = 0
+    else:
+        iou = area_intersection / area_union
+
+    return iou, area_1, area_2, area_intersection
+
+def merge_segmentation(
+    default_data_path,
+    custom_data_path,
+    output_path,
+    clusters_within_cutout_region,
+    inv_alpha_value_for_cutout_region=1,
+    buffer_for_cutout_region_alpha_shape=0,
+    ioa_small_thresh=0.5,
+):
+    """
+    Harmonizes and merges default and custom cell segmentations by resolving overlapping cells
+    in a boundary region using alpha shapes and IOA thresholds.
+
+    Args:
+        default_data_path (str): Path to default segmentation data.
+        custom_data_path (str): Path to custom segmentation data.
+        output_path (str): Directory to save outputs.
+        clusters_within_cutout_region (list): Clusters in the region of interest.
+        inv_alpha_value_for_cutout_region (float, optional): Inverse alpha for alpha shape.
+        buffer_for_cutout_region_alpha_shape (float, optional): Buffer applied to alpha shape polygon.
+        ioa_small_thresh (float, optional): IOMA (Intersection over Minimum Area) threshold to resolve conflicts.
+
+    Saves:
+        - `cell_polygons.parquet`: Merged cell boundaries.
+        - `cell_metadata_micron_space.parquet`: Metadata associated with each cell.
+        - `cell_by_gene_matrix.parquet`: Cell x gene expression matrix.
+        - `segmentation_parameters.json`: Parameters used during segmentation.
+        - `transcripts.parquet`: Transcripts with added column indicating assigned cell polygons.
+        - `cutout_region_alpha_shape.parquet`: Alpha shape of the region of interest.
+
+    """
+
+    os.makedirs(output_path, exist_ok=True)
+
+    # get default clustering
+
+    largest_cutout_region_alpha_shape, cells_before_harmonization, transformation_matrix, default_technology_name, default_clustering, custom_segmentation_parameters = get_default_and_custom_cells_within_cutout_region(default_data_path, custom_data_path, output_path, inv_alpha_value_for_cutout_region, buffer_for_cutout_region_alpha_shape, clusters_within_cutout_region)
+
+    # find boundary cell conflicts
+
+    intersecting_boundary, intersecting_cells_before_harmonization, intersecting_cell_pairs_before_harmonization_DF, list_no_conflict_cell_ids = boundary_cell_conflicts(largest_cutout_region_alpha_shape, cells_before_harmonization)
+
     # calculate the metric "intersection over area (IoA)" for every intersecting pair of cells
 
     for inst_row in intersecting_cell_pairs_before_harmonization_DF.index.tolist():
@@ -499,27 +450,7 @@ def merge_segmentation(
 
         poly_2 = intersecting_cells_before_harmonization.loc[id_2, "geometry"]
 
-        if isinstance(poly_1, pd.Series):
-            poly_1 = poly_1.values[0]
-        if isinstance(poly_2, pd.Series):
-            poly_2 = poly_2.values[0]
-
-        poly_1 = make_valid(poly_1).buffer(0)
-        poly_2 = make_valid(poly_2).buffer(0)
-
-        poly_1 = poly_1.simplify(0.001)
-        poly_2 = poly_2.simplify(0.001)
-
-        area_1 = poly_1.area
-        area_2 = poly_2.area
-
-        area_intersection = poly_1.intersection(poly_2).area
-        area_union = poly_1.union(poly_2).area
-
-        if area_union <= 0:
-            iou = 0
-        else:
-            iou = area_intersection / area_union
+        iou, area_1, area_2, area_intersection = calculate_ioa(poly_1, poly_2)
 
         intersecting_cell_pairs_before_harmonization_DF.loc[inst_row, "iou"] = iou
         intersecting_cell_pairs_before_harmonization_DF.loc[inst_row, "area_1"] = area_1

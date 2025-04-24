@@ -10,9 +10,11 @@ import numpy as np
 import json
 from shapely.geometry import shape
 from shapely.geometry import Point, Polygon, box
+from shapely.affinity import affine_transform
 import os
 import xml.etree.ElementTree as ET
 import matplotlib.pyplot as plt
+import pandas as pd
 
 def _classify_polygons_contains_check(polygons, points):
     """
@@ -210,19 +212,18 @@ def alpha_shape_geojson(gdf_alpha, meta_cluster, inst_alpha):
 
     return geojson_alpha
 
-def create_hextile(radius, path_landscape_files=None, img_height=100, img_width=100):
+def create_hextile(radius, path_landscape_files=None, img_height=100, img_width=100, pixel_size=0.2125):
 
     if isinstance(path_landscape_files, str):
-
         tree = ET.parse(os.path.join(path_landscape_files, "pyramid_images/bound.dzi"))
         root = tree.getroot()
         img_width = int(root[0].attrib["Width"])
         img_height = int(root[0].attrib["Height"])
 
-    hex_width = 2 * radius
-    hex_height = np.sqrt(3) * radius
-    horiz_spacing = 3 / 4 * hex_width  # = 1.5 * r
-    vert_spacing = hex_height
+    hex_height = 2 * radius
+    hex_width = np.sqrt(3) * radius
+    vert_spacing = 3 / 4 * hex_height  # = 1.5 * r for pointy-topped hexagons
+    horiz_spacing = hex_width
 
     # Calculate number of hexes
     n_cols = int(np.ceil(img_width / horiz_spacing)) + 2
@@ -231,19 +232,19 @@ def create_hextile(radius, path_landscape_files=None, img_height=100, img_width=
     # Generate hexagons
     hexagons = []
 
-    for col in range(n_cols):
-        for row in range(n_rows):
+    for row in range(n_rows):
+        for col in range(n_cols):
             x = col * horiz_spacing
             y = row * vert_spacing
-            if col % 2 == 1:
-                y += vert_spacing / 2  # stagger every other column
+            if row % 2 == 1:
+                x += horiz_spacing / 2  # stagger every other row for pointy-top hexes
 
-            # Flat-topped hexagon (aligned horizontally)
+            # Pointy-topped hexagon (aligned vertically)
             hexagon = Polygon(
                 [
                     (
-                        x + radius * np.cos(np.radians(angle)),
-                        y + radius * np.sin(np.radians(angle)),
+                        x + radius * np.sin(np.radians(angle)),
+                        y + radius * np.cos(np.radians(angle)),
                     )
                     for angle in range(0, 360, 60)
                 ]
@@ -264,21 +265,46 @@ def create_hextile(radius, path_landscape_files=None, img_height=100, img_width=
     # Replace original GeoDataFrame
     gdf_hextile = gpd.GeoDataFrame(geometry=clipped_hexes)
 
+    gdf_hextile.rename(columns={"geometry": "geometry_image_space"}, inplace=True)
+    gdf_hextile.set_geometry("geometry_image_space", inplace=True)
+
+    transformation_matrix = pd.read_csv(
+        f"{path_landscape_files}/micron_to_image_transform.csv", sep=" ", header=None
+    ).values[:3, :3]
+
+    transformation_matrix_inv = np.linalg.inv(transformation_matrix)
+
+    a = transformation_matrix_inv[0, 0]
+    b = transformation_matrix_inv[0, 1]
+    d = transformation_matrix_inv[1, 0]
+    e = transformation_matrix_inv[1, 1]
+    xoff = transformation_matrix_inv[0, 2]
+    yoff = transformation_matrix_inv[1, 2]
+
+    inverse_affine_params = [a, b, d, e, xoff, yoff]
+
+    gdf_hextile['geometry'] = gdf_hextile['geometry_image_space'].apply(
+    lambda geom: affine_transform(geom, inverse_affine_params)
+    )
+
+    gdf_hextile.set_geometry("geometry", inplace=True)
+
+    radius_in_microns = pixel_size * radius
+
     if isinstance(path_landscape_files, str):
-
         gdf_hextile.to_parquet(os.path.join(path_landscape_files, "hextiles.parquet"))
-
         print(f"Hextiles saved at '{path_landscape_files}' as 'hextiles.parquet'\n")
 
-        fig, ax = plt.subplots(1, 1, figsize=(60, 80))
-        gdf_hextile.plot(ax=ax, alpha=1, linewidth=1, facecolor='none', edgecolor='black')
-        ax.set_title(f"Hextiles (hexagon radius: {radius} pixels)", fontsize=50)
-        ax.set_xlabel("x (pixels)", fontsize=25)
-        ax.set_ylabel("y (pixels)", fontsize=25)
-        plt.xticks(fontsize=20)
-        plt.yticks(fontsize=20)
-        plt.show()
-        plt.close()
+    fig, ax = plt.subplots(1, 1, figsize=(60, 80))
+    gdf_hextile.plot(ax=ax, alpha=1, linewidth=1, facecolor='none', edgecolor='black')
+    ax.set_title(f"Hextiles (hexagon radius: {radius_in_microns} microns)", fontsize=50)
+    ax.set_xlabel("x (pixels)", fontsize=25)
+    ax.set_ylabel("y (pixels)", fontsize=25)
+    plt.xticks(fontsize=20)
+    plt.yticks(fontsize=20)
+    plt.gca().invert_yaxis()
+    plt.show()
+    plt.close()
 
     return gdf_hextile
 

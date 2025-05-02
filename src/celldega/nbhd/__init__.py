@@ -310,9 +310,3 @@ def create_hextile(radius, path_landscape_files=None, img_height=100, img_width=
         plt.close()
 
     return gdf_hextile
-
-def hextile_area(gdf_hextile, img_width, img_height):
-
-    return round(sum(gdf_hextile.area.tolist())) == round(
-        img_width * img_height
-    )

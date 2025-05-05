@@ -8,9 +8,9 @@ from shapely import Point, MultiPolygon
 from shapely.ops import transform
 import numpy as np
 import json
-from shapely.geometry import shape
-from shapely.geometry import Point, Polygon, box
+from shapely.geometry import Point, Polygon, box, shape
 from shapely.affinity import affine_transform
+from shapely.affinity import translate
 import os
 import xml.etree.ElementTree as ET
 import matplotlib.pyplot as plt
@@ -236,28 +236,19 @@ def create_hextile(radius, path_landscape_files=None, img_height=100, img_width=
     n_cols = int(np.ceil(img_width / horiz_spacing)) + 2
     n_rows = int(np.ceil(img_height / vert_spacing)) + 2
 
-    # Generate hexagons
-    hexagons = []
+    # Precompute unit hexagon
+    angles = np.radians(np.arange(0, 360, 60))
+    unit_hex = Polygon([(radius * np.sin(a), radius * np.cos(a)) for a in angles])
 
+    # Generate hexagons by translating the unit hex
+    hexagons = []
     for row in range(n_rows):
         for col in range(n_cols):
             x = col * horiz_spacing
             y = row * vert_spacing
             if row % 2 == 1:
-                x += horiz_spacing / 2  # stagger every other row for pointy-top hexes
-
-            # Pointy-topped hexagon (aligned vertically)
-            hexagon = Polygon(
-                [
-                    (
-                        x + radius * np.sin(np.radians(angle)),
-                        y + radius * np.cos(np.radians(angle)),
-                    )
-                    for angle in range(0, 360, 60)
-                ]
-            )
-
-            hexagons.append(hexagon)
+                x += horiz_spacing / 2
+            hexagons.append(translate(unit_hex, xoff=x, yoff=y))
 
     # Define image boundary as a shapely box (left, bottom, right, top)
     image_bounds = box(0, 0, img_width, img_height)

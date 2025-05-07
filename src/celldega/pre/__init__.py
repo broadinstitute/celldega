@@ -290,8 +290,8 @@ def create_image_tiles(
     Creates image tiles for visualization from the Xenium morphology image.
 
     Args:
-        technology (str): The technology used (e.g., "Xenium" or "MERSCOPE"). Currently, only "Xenium" is supported.
-        data_dir (str): Path to the directory containing the Xenium data (e.g., morphology_focus_0000.ome.tif).
+        technology (str): The technology used (e.g., "Xenium", "MERSCOPE", "VisiumHD", "H&E").
+        data_dir (str): Path to the directory containing the data (e.g., morphology_focus_0000.ome.tif).
         path_landscape_files (str): Path to the directory where the image tiles and pyramid will be saved.
         image_tile_layer (str, optional): Specifies which image layers to process. Options are 'dapi' (default) or 'all'.
 
@@ -301,10 +301,31 @@ def create_image_tiles(
     """
 
     print("\n========Generating image tiles========")
-    if technology != "Xenium":
-        raise ValueError(
-            f"Unsupported technology: {technology}. Currently, only 'Xenium' is supported."
+    if technology == "Xenium":
+        print('------ xenium')
+        create_image_tiles_xenium(
+            data_dir, path_landscape_files, image_tile_layer=image_tile_layer
         )
+
+        # raise ValueError(
+        #     f"Unsupported technology: {technology}. Currently, only 'Xenium' is supported."
+        # )
+
+    print("Image tiles created successfully.")
+
+def create_image_tiles_xenium(
+    data_dir, path_landscape_files, image_tile_layer='dapi'
+):
+    """
+    Creates image tiles for visualization from the Xenium morphology image.
+
+    Args:
+        data_dir (str): Path to the directory containing the data (e.g., morphology_focus_0000.ome.tif).
+        path_landscape_files (str): Path to the directory where the image tiles and pyramid will be saved.
+        image_tile_layer (str, optional): Specifies which image layers to process. Options are 'dapi' (default) or 'all'.
+    Raises:
+        FileNotFoundError: If the required input image file is not found.
+    """
 
     if image_tile_layer not in ['dapi', 'all']:
         raise ValueError(
@@ -345,7 +366,6 @@ def create_image_tiles(
                 suffix=".webp[Q=100]",
             )
 
-
     # Process additional channels if image_tile_layer is 'all'
     if image_tile_layer == 'all':
         for idx, channel in enumerate(['bound', 'rna', 'prot']):
@@ -375,9 +395,6 @@ def create_image_tiles(
     # Remove intermediate files
     intermediate_image_files = glob.glob(f"{path_landscape_files}/*output_regular*")
     if len(intermediate_image_files) != 0: [os.remove(file) for file in intermediate_image_files]
-
-    print("Image tiles created successfully.")
-
 
 def _reduce_image_size(image_path, scale_image=0.5, path_landscape_files=""):
     """Reduces the size of an image by a specified scale factor.
@@ -573,7 +590,7 @@ def make_meta_cell_image_coord(
         warnings.warn("Duplicate cell names found in meta_cell!", UserWarning)
 
      # Apply rounding to the GEOMETRY column
-    meta_cell['geometry'] = meta_cell['geometry'].apply(_round_nested_coord_list)       
+    meta_cell['geometry'] = meta_cell['geometry'].apply(_round_nested_coord_list)
 
     # Force alphabetically sort by 'name'
     meta_cell = meta_cell.sort_values(by=['name']).reset_index(drop=True)

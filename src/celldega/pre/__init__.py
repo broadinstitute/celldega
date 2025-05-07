@@ -20,6 +20,7 @@ from shapely.geometry import Point, Polygon
 from scipy.sparse import csc_matrix, csr_matrix
 import zarr
 from skimage.io import imread, imsave
+import tifffile
 
 import matplotlib.pyplot as plt
 from matplotlib.colors import to_hex
@@ -306,12 +307,39 @@ def create_image_tiles(
         create_image_tiles_xenium(
             data_dir, path_landscape_files, image_tile_layer=image_tile_layer
         )
+    elif technology == 'h&e':
+        print('------ h&e')
+
+        create_image_tiles_h_and_e(
+            data_dir, path_landscape_files, image_tile_layer=image_tile_layer
+        )
 
         # raise ValueError(
         #     f"Unsupported technology: {technology}. Currently, only 'Xenium' is supported."
         # )
 
     print("Image tiles created successfully.")
+
+def create_image_tiles_h_and_e(
+    data_dir, path_landscape_files, image_tile_layer
+):
+
+    """
+    Creates image tiles for visualization from the H&E image.
+
+    Args:
+        data_dir (str): Path to the directory containing the data (e.g., morphology_focus_0000.ome.tif).
+        path_landscape_files (str): Path to the directory where the image tiles and pyramid will be saved.
+        image_tile_layer (str, optional): Specifies which image layers to process. Options are 'dapi' (default) or 'all'.
+    Raises:
+        FileNotFoundError: If the required input image file is not found.
+    """
+
+    with tifffile.TiffFile(data_dir + '/' + image_tile_layer) as tif:
+        print(tif.pages)  # Show available pages
+        image = tif.pages[0].asarray()
+        print(image.shape)  # Check the shape of the image
+
 
 def create_image_tiles_xenium(
     data_dir, path_landscape_files, image_tile_layer='dapi'

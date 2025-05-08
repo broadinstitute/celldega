@@ -16,7 +16,6 @@ import xml.etree.ElementTree as ET
 import matplotlib.pyplot as plt
 import pandas as pd
 from shapely.geometry import shape
-import random
 import pandas as pd
 import matplotlib.cm as cm
 import os
@@ -308,33 +307,7 @@ def create_hextile(radius, path_landscape_files=None, img_height=100, img_width=
 
     return gdf_hextile
 
-def generate_random_points_gdf(n_points=100, x_range=(0, 100), y_range=(0, 100)):
-    points = [
-        Point(random.uniform(*x_range), random.uniform(*y_range))
-        for _ in range(n_points)
-    ]
-    gdf_trx = gpd.GeoDataFrame(geometry=points)
-
-    gdf_trx["x"] = gdf_trx.geometry.x
-    gdf_trx["y"] = gdf_trx.geometry.y
-
-    num_cells = 10
-    cell_names = [f"cell_{i}" for i in range(num_cells)]
-
-    gdf_trx["cell_index"] = np.random.choice(cell_names, size=n_points)
-
-    return gdf_trx
-
-def hextile_trx_assignment_check(hextile_assigned_trx):
-
-    more_than_one_matches = (
-        "more_than_one_matches" in hextile_assigned_trx["polygon_index"].unique()
-    )
-    unassigned = "UNASSIGNED" in hextile_assigned_trx["polygon_index"].unique()
-
-    return more_than_one_matches, unassigned
-
-def smart_read_parquet(path):
+def read_parquet_error_check(path):
     try:
         return gpd.read_parquet(path)
     except ValueError as e:
@@ -343,7 +316,7 @@ def smart_read_parquet(path):
         else:
             raise
 
-def unassigned_transcripts_tiled_view(
+def hexatile_specific_unassigned_transcripts(
     gdf_hextile,
     gdf_transcripts=None,
     path_data=None,
@@ -391,7 +364,7 @@ def unassigned_transcripts_tiled_view(
         if path_data is None:
             raise ValueError("Either gdf_transcripts or path_data must be provided.")
 
-        trx = smart_read_parquet(os.path.join(path_data, "transcripts.parquet"))
+        trx = read_parquet_error_check(os.path.join(path_data, "transcripts.parquet"))
 
         if os.path.isfile(os.path.join(path_data, "experiment.xenium")):
             technology = "Xenium"
@@ -415,7 +388,7 @@ def unassigned_transcripts_tiled_view(
                 _to_geometry
             )
 
-            gdf_trx.set_geometry("geometry_image_space", inplace=True)
+            gdf_trx.set_geometry("geometry", inplace=True)
 
         elif os.path.isfile(os.path.join(path_data, "segmentation_parameters.json")):
 
@@ -434,8 +407,8 @@ def unassigned_transcripts_tiled_view(
             if type(trx['geometry_image_space'].iloc[0]) == str:
                 trx['geometry_image_space'] = trx['geometry_image_space'].apply(wkt.loads)
 
-            gdf_trx = gpd.GeoDataFrame(trx, geometry="geometry_image_space")
-            gdf_trx.set_geometry("geometry_image_space", inplace=True)
+            gdf_trx = gpd.GeoDataFrame(trx, geometry="geometry")
+            gdf_trx.set_geometry("geometry", inplace=True)
 
         else:
             raise ValueError("Unsupported or missing transcriptomics technology files.")
@@ -443,7 +416,7 @@ def unassigned_transcripts_tiled_view(
     else:
         gdf_trx = gdf_transcripts.copy()
         gdf_trx["geometry_image_space"] = gdf_trx["geometry"].copy()
-        gdf_trx.set_geometry("geometry_image_space", inplace=True)
+        gdf_trx.set_geometry("geometry", inplace=True)
 
         technology = "PYTEST"
         cell_id_col = "cell_index"
@@ -453,26 +426,35 @@ def unassigned_transcripts_tiled_view(
     print("Transcripts file read.")
     print("Assignment of transcripts started...")
 
-    gdf_hextile.set_geometry("geometry_image_space", inplace=True)
+    gdf_hextile.set_geometry("geometry", inplace=True)
 
     hextile_assigned_trx = gpd.sjoin(
         gdf_trx, gdf_hextile, how="left", predicate="within"
     )
 
-    hextile_assigned_trx.rename(columns={"index_right": "polygon_index", "geometry_left": "geometry"}, inplace=True)
-    hextile_assigned_trx.drop(["geometry_right"], axis=1, inplace=True)
+    hextile_assigned_trx.rename(columns={"index_right": "polygon_index", "geometry_image_space_left": "geometry_image_space"}, inplace=True)
+    hextile_assigned_trx.drop(["geometry_image_space_right"], axis=1, inplace=True)
 
     hextile_assigned_trx["polygon_index"] = (
         hextile_assigned_trx["polygon_index"].astype(str) + "_polygon"
     )
 
     gdf_hextile_assigned_trx = gpd.GeoDataFrame(
-        hextile_assigned_trx, geometry="geometry_image_space"
+        hextile_assigned_trx, geometry="geometry"
     )
 
-    gdf_hextile_assigned_trx.set_geometry("geometry_image_space", inplace=True)
+    gdf_hextile_assigned_trx.set_geometry("geometry", inplace=True)
 
-    print("Assignment of transcripts done.")
+    if technology != "PYTEST":
+
+        gdf_hextile_assigned_trx.to_parquet(
+        os.path.join(
+            path_landscape_files,
+            f"hextile_assigned_trx_{technology}_{segmentation_approach}.parquet",
+        )
+        )
+
+    print("Assignment of transcripts done and saved.")
 
     print("Calculating percentage of hextile-specific unassigned transcripts...")
 
@@ -500,61 +482,52 @@ def unassigned_transcripts_tiled_view(
         tile_mapping["unassigned_trx_percentage"]
     ).fillna(0)
 
-    print(
-        "Calculation done, plotting a tiled view of hextile-specific unassigned transcripts..."
+    print("Calculation done.")
+
+    return gdf_hextile_assigned_trx, gdf_hextile
+
+def plot_hexatile_specific_unassigned_transcripts(gdf_hextile):
+
+    print("Plotting a tiled view of hextile-specific unassigned transcripts...")
+
+    # Normalize the assigned_percentage values between 0 and 1
+    norm = (
+        gdf_hextile["unassigned_trx_percentage"]
+        - gdf_hextile["unassigned_trx_percentage"].min()
+    ) / (
+        gdf_hextile["unassigned_trx_percentage"].max()
+        - gdf_hextile["unassigned_trx_percentage"].min()
     )
 
-    if technology != "PYTEST":
+    # Map normalized values to a color in the Reds colormap
+    colors = cm.Reds(norm)
 
-        gdf_hextile_assigned_trx.to_parquet(
-        os.path.join(
-            path_landscape_files,
-            f"hextile_assigned_trx_{technology}_{segmentation_approach}.parquet",
-        )
-        )
+    fig, ax = plt.subplots(1, 1, figsize=(40, 40))
+    gdf_hextile.plot(ax=ax, alpha=1, linewidth=1, color=colors)
 
-        # Normalize the assigned_percentage values between 0 and 1
-        norm = (
-            gdf_hextile["unassigned_trx_percentage"]
-            - gdf_hextile["unassigned_trx_percentage"].min()
-        ) / (
-            gdf_hextile["unassigned_trx_percentage"].max()
-            - gdf_hextile["unassigned_trx_percentage"].min()
-        )
+    # Invert y-axis if needed
+    plt.gca().invert_yaxis()
 
-        # Map normalized values to a color in the Reds colormap
-        colors = cm.Reds(norm)
+    # Add titles and labels
+    ax.set_title("Percentage of Unassigned Trx in Each Hextile", fontsize=30)
+    ax.set_xlabel("Hextiles", fontsize=25)
+    ax.set_ylabel("Percentage of Unassigned Trx (%)", fontsize=25)
+    plt.xticks(fontsize=20)
+    plt.yticks(fontsize=20)
 
-        fig, ax = plt.subplots(1, 1, figsize=(40, 40))
-        gdf_hextile.plot(ax=ax, alpha=1, linewidth=1, color=colors)
+    # Create colorbar
+    sm = plt.cm.ScalarMappable(
+        cmap=cm.Reds,
+        norm=plt.Normalize(
+            vmin=gdf_hextile["unassigned_trx_percentage"].min(),
+            vmax=gdf_hextile["unassigned_trx_percentage"].max(),
+        ),
+    )
+    sm._A = []  # required for some versions of matplotlib
+    cbar = fig.colorbar(sm, ax=ax, shrink=0.5)
+    cbar.set_label("Unassigned Trx Percentage", fontsize=20)
+    cbar.ax.tick_params(labelsize=16)
 
-        # Invert y-axis if needed
-        plt.gca().invert_yaxis()
-
-        # Add titles and labels
-        ax.set_title("Percentage of Unassigned Trx in Each Hextile", fontsize=30)
-        ax.set_xlabel("Hextiles", fontsize=25)
-        ax.set_ylabel("Percentage of Unassigned Trx (%)", fontsize=25)
-        plt.xticks(fontsize=20)
-        plt.yticks(fontsize=20)
-
-        # Create colorbar
-        sm = plt.cm.ScalarMappable(
-            cmap=cm.Reds,
-            norm=plt.Normalize(
-                vmin=gdf_hextile["unassigned_trx_percentage"].min(),
-                vmax=gdf_hextile["unassigned_trx_percentage"].max(),
-            ),
-        )
-        sm._A = []  # required for some versions of matplotlib
-        cbar = fig.colorbar(sm, ax=ax, shrink=0.5)
-        cbar.set_label("Unassigned Trx Percentage", fontsize=20)
-        cbar.ax.tick_params(labelsize=16)
-
-        # Show and close
-        plt.show()
-        plt.close()
-
-        print("Done.")
-
-    return gdf_hextile_assigned_trx
+    # Show and close
+    plt.show()
+    plt.close()

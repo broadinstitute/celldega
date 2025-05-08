@@ -338,8 +338,24 @@ def create_image_tiles_h_and_e(
     with tifffile.TiffFile(data_dir + '/' + image_tile_layer) as tif:
         print(tif.pages)  # Show available pages
         image = tif.pages[0].asarray()
-        print(image.shape)  # Check the shape of the image
 
+        # make this directory, path_landscape_files, if it does not exist
+        if not os.path.exists(path_landscape_files):
+            os.makedirs(path_landscape_files)
+
+        temp_tiff_path = path_landscape_files + '/' + image_tile_layer.replace('.scn', '.tif')
+        tifffile.imwrite(temp_tiff_path, image)
+
+        # Convert the image to PNG format
+        image_png = _convert_to_png(temp_tiff_path)
+
+        # Create a DeepZoom pyramid for the DAPI channel
+        make_deepzoom_pyramid(
+            image_png,
+            f'{path_landscape_files}/pyramid_images/',
+            'h_and_e',
+            suffix=".webp[Q=100]",
+        )
 
 def create_image_tiles_xenium(
     data_dir, path_landscape_files, image_tile_layer='dapi'

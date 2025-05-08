@@ -310,7 +310,7 @@ def create_image_tiles(
     elif technology == 'h&e':
         print('------ h&e')
 
-        create_image_tiles_h_and_e(
+        image_shape = create_image_tiles_h_and_e(
             data_dir, path_landscape_files, image_tile_layer=image_tile_layer
         )
 
@@ -343,7 +343,7 @@ def create_image_tiles_h_and_e(
         if not os.path.exists(path_landscape_files):
             os.makedirs(path_landscape_files)
 
-        temp_tiff_path = path_landscape_files + '/' + image_tile_layer.replace('.scn', '.tif')
+        temp_tiff_path = path_landscape_files + '/' + image_tile_layer.replace('.scn', '_output_regular.tif')
         tifffile.imwrite(temp_tiff_path, image)
 
         # Convert the image to PNG format
@@ -356,6 +356,13 @@ def create_image_tiles_h_and_e(
             'h_and_e',
             suffix=".webp[Q=100]",
         )
+
+        remove_intermediate_files(path_landscape_files)
+
+def remove_intermediate_files(path_landscape_files):
+    # Remove intermediate files
+    intermediate_image_files = glob.glob(f"{path_landscape_files}/*output_regular*")
+    if len(intermediate_image_files) != 0: [os.remove(file) for file in intermediate_image_files]
 
 def create_image_tiles_xenium(
     data_dir, path_landscape_files, image_tile_layer='dapi'
@@ -436,9 +443,8 @@ def create_image_tiles_xenium(
                     channel,
                     suffix=".webp[Q=100]",
                 )
-    # Remove intermediate files
-    intermediate_image_files = glob.glob(f"{path_landscape_files}/*output_regular*")
-    if len(intermediate_image_files) != 0: [os.remove(file) for file in intermediate_image_files]
+
+    remove_intermediate_files(path_landscape_files)
 
 def _reduce_image_size(image_path, scale_image=0.5, path_landscape_files=""):
     """Reduces the size of an image by a specified scale factor.
@@ -724,12 +730,28 @@ def save_landscape_parameters(
     """
 
     print("\n========Save landscape parameters========")
+    if technology == 'h&e':
+        image_name = 'h_and_e_files'
+        image_info = [{"name": "h&e", "button_name": "H&E", "color": [0, 0, 255]}]
+
     path_image_pyramid = f"{path_landscape_files}/pyramid_images/{image_name}"
     max_pyramid_zoom = get_max_zoom_level(path_image_pyramid)
 
     path_landscape_parameters = f"{path_landscape_files}/landscape_parameters.json"
 
-    if technology != 'custom':
+    # if technology is 'h&e' set parameters
+    if technology == 'h&e':
+        landscape_parameters = {
+            "technology": technology,
+            "segmentation_approach": ['N.A.'],
+            "max_pyramid_zoom": max_pyramid_zoom,
+            "tile_size": 'N.A.',
+            "image_info": image_info,
+            "image_format": image_format,
+            "use_int_index": 'N.A.',
+        }
+
+    elif technology != 'custom':
 
         landscape_parameters = {
                 "technology": technology,

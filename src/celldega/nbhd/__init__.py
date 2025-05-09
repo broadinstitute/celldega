@@ -450,7 +450,7 @@ def hexatile_specific_unassigned_transcripts(
         gdf_hextile_assigned_trx.to_parquet(
         os.path.join(
             path_landscape_files,
-            f"hextile_assigned_trx_{technology}_{segmentation_approach}.parquet", engine="pyarrow")
+            f"hextile_assigned_trx_{technology}_{segmentation_approach}.parquet"), engine="pyarrow"
         )
 
     print("Assignment of transcripts done and saved.")

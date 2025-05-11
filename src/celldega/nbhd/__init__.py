@@ -368,11 +368,6 @@ def hexatile_specific_unassigned_transcripts(
 
         if os.path.isfile(os.path.join(path_data, "experiment.xenium")):
             technology = "Xenium"
-            transformation_matrix = pd.read_csv(
-                os.path.join(path_landscape_files, "micron_to_image_transform.csv"),
-                sep=" ",
-                header=None,
-            ).values[:3, :3]
 
             x = "x_location"
             y = "y_location"
@@ -380,15 +375,6 @@ def hexatile_specific_unassigned_transcripts(
             segmentation_approach = "default"
 
             gdf_trx = gpd.GeoDataFrame(trx, geometry=gpd.points_from_xy(trx[x], trx[y]))
-
-            gdf_trx["geometry_image_space"] = batch_transform_geometries(
-                gdf_trx["geometry"], transformation_matrix, 1
-            )
-            gdf_trx["geometry_image_space"] = gdf_trx["geometry_image_space"].apply(
-                _to_geometry
-            )
-
-            gdf_trx.set_geometry("geometry", inplace=True)
 
         elif os.path.isfile(os.path.join(path_data, "segmentation_parameters.json")):
 
@@ -404,9 +390,6 @@ def hexatile_specific_unassigned_transcripts(
             if type(trx['geometry'].iloc[0]) == str:
                 trx['geometry'] = trx['geometry'].apply(wkt.loads)
 
-            if type(trx['geometry_image_space'].iloc[0]) == str:
-                trx['geometry_image_space'] = trx['geometry_image_space'].apply(wkt.loads)
-
             gdf_trx = gpd.GeoDataFrame(trx, geometry="geometry")
             gdf_trx.set_geometry("geometry", inplace=True)
 
@@ -415,7 +398,6 @@ def hexatile_specific_unassigned_transcripts(
 
     else:
         gdf_trx = gdf_transcripts.copy()
-        gdf_trx["geometry_image_space"] = gdf_trx["geometry"].copy()
         gdf_trx.set_geometry("geometry", inplace=True)
 
         technology = "PYTEST"
@@ -433,7 +415,7 @@ def hexatile_specific_unassigned_transcripts(
     )
 
     hextile_assigned_trx.rename(columns={"index_right": "polygon_index", "geometry_image_space_left": "geometry_image_space"}, inplace=True)
-    hextile_assigned_trx.drop(["geometry_image_space_right"], axis=1, inplace=True)
+    hextile_assigned_trx.drop(["geometry_image_space"], axis=1, inplace=True)
 
     hextile_assigned_trx["polygon_index"] = (
         hextile_assigned_trx["polygon_index"].astype(str) + "_polygon"
@@ -443,14 +425,12 @@ def hexatile_specific_unassigned_transcripts(
         hextile_assigned_trx, geometry="geometry"
     )
 
-    gdf_hextile_assigned_trx.set_geometry("geometry", inplace=True)
-
     if technology != "PYTEST":
 
         gdf_hextile_assigned_trx.to_parquet(
         os.path.join(
             path_landscape_files,
-            f"hextile_assigned_trx_{technology}_{segmentation_approach}.parquet"), engine="pyarrow"
+            f"hextile_assigned_trx_{technology}_{segmentation_approach}.parquet")
         )
 
     print("Assignment of transcripts done and saved.")

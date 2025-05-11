@@ -122,11 +122,6 @@ def get_default_and_custom_cells_within_cutout_region(default_data_path, custom_
         cells_custom.geometry.intersects(largest_cutout_region_alpha_shape) == True
     ]
 
-    cells_custom_within_cutout_region.drop(
-        ["shard", "job", "color", "geometry_image_space", "area", "centroid"],
-        axis=1,
-        inplace=True,
-    )
     cells_custom_within_cutout_region.index.name = "cell_id"
     cells_custom_within_cutout_region["technology"] = [
         custom_technology_name for i in range(len(cells_custom_within_cutout_region))

@@ -8,6 +8,8 @@ from shapely import Point, MultiPolygon
 from shapely.ops import transform
 import numpy as np
 import json
+import anndata as ad
+import mudata
 from shapely.geometry import Point, Polygon, box, shape
 from shapely.affinity import affine_transform
 from shapely.affinity import translate
@@ -301,3 +303,379 @@ def create_hextile(radius, path_landscape_files=None, img_height=100, img_width=
         plt.close()
 
     return gdf_hextile
+
+
+
+def calc_nbg_cd(
+    adata,
+    gdf_nbhd: gpd.GeoDataFrame,
+    unique_nbhd_col: str = "name"
+) -> gpd.GeoDataFrame:
+    """
+    Calculate mean gene expression per band from adata and band GeoDataFrame.
+    Args:
+        adata: AnnData object with spatial info in .obsm['spatial'] and gene data in .X.
+        gdf_bands: GeoDataFrame with band polygons, must contain a 'band' column.
+        unique_nbhd_col: Neighborhood column in gdf_bands that labels each nbhd.
+    Returns:
+        GeoDataFrame with band geometries and mean gene expression values
+        as columns named like 'GENE_mean'.
+    """
+
+    # Get gene list
+    gene_list = adata.var.index
+
+    gene_exp = pd.DataFrame(
+        data=adata[:, gene_list].X.toarray() if hasattr(adata.X, 'toarray') else adata[:, gene_list].X,
+        columns=gene_list,
+        index=adata.obs_names
+    )
+    
+    # Create combined DataFrame with geometry
+    gdf_cell = gpd.GeoDataFrame(
+        data={
+            'cluster': adata.obs['leiden'],
+            **gene_exp  # Unpacks all gene columns
+        },
+        geometry=[Point(xy) for xy in adata.obsm['spatial'][:, :2]],
+        crs="EPSG:4326"  # Set your coordinate system here
+    )
+
+    nbg_dict = {}
+
+    for cluster in list(gdf_cell['cluster'].unique()) + ['all']:
+            if cluster == 'all':
+                # Use all cells
+                gdf_cell_select = gdf_cell
+            else:
+                # Filter cells by cluster
+                gdf_cell_select = gdf_cell[gdf_cell['cluster'] == cluster]
+
+            gdf_nbhd_join = gdf_nbhd.copy() 
+
+
+            # Spatial join: Assign each cell to the closest buffer
+            gdf_join_all = gdf_cell_select.sjoin(gdf_nbhd, how="left", predicate="within").drop(
+                columns=['index_right', 'cat'], errors='ignore')
+
+            # Compute mean expression for each gene
+            for gene in gene_list:
+                band_avg_expression = gdf_join_all.groupby(unique_nbhd_col)[gene].mean().reset_index()
+                band_avg_expression.columns = [unique_nbhd_col, f"{gene}"]
+                gdf_nbhd_join = gdf_nbhd_join.merge(band_avg_expression, on=unique_nbhd_col)
+
+            # Rename unique_nbhd_col to 'nbhd_id'
+            gdf_nbhd_join.rename(columns={unique_nbhd_col: 'nbhd_id'}, inplace=True)
+
+            df_nbhd_join = pd.DataFrame(gdf_nbhd_join.drop(columns="geometry"))
+
+            # Convert to anndata
+            gdf_nbhd_join.set_index('nbhd_id', inplace=True)
+            obs_cols = ['cat', 'inv_alpha', 'area', 'band_width']
+            obs_cols = [col for col in obs_cols if col in gdf_nbhd_join.columns]
+            obs = gdf_nbhd_join[obs_cols]
+            X = gdf_nbhd_join[gene_list].values
+            var = pd.DataFrame(index=gene_list)
+            adata = ad.AnnData(X=X, obs=obs, var=var)    
+            nbg_dict[cluster] = gdf_nbhd_join
+
+    return nbg_dict
+
+
+
+def generate_hex_grid(gdf_cell, radius=20):
+    """
+    Generate a hexagonal grid over the convex hull of a GeoDataFrame using affine translation.
+    """
+    # 1. Get the convex hull of all points
+    bounding_geom = gdf_cell.unary_union.convex_hull
+    minx, miny, maxx, maxy = bounding_geom.bounds
+
+    # 2. Calculate spacing
+    dx = np.sqrt(3) * radius  # horizontal spacing between centers
+    dy = 1.5 * radius         # vertical spacing
+
+    # 3. Create a unit hexagon centered at (0, 0)
+    angles_deg = [30 + i * 60 for i in range(6)]
+    angles_rad = [np.radians(a) for a in angles_deg]
+    unit_hex = Polygon([(radius * np.cos(a), radius * np.sin(a)) for a in angles_rad])
+
+    # 4. Estimate grid size
+    n_cols = int((maxx - minx) / dx) + 3  # buffer for edge coverage
+    n_rows = int((maxy - miny) / dy) + 3
+
+    # 5. Translate the unit hex to form the grid
+    hexagons = []
+    for row in range(n_rows):
+        for col in range(n_cols):
+            x = col * dx
+            y = row * dy
+            if row % 2 == 1:
+                x += dx / 2
+            hex = translate(unit_hex, xoff=x + minx - dx, yoff=y + miny - dy)
+            if hex.intersects(bounding_geom):
+                hexagons.append(hex)
+
+    return gpd.GeoDataFrame({
+        'name': [f'hex_{i}' for i in range(len(hexagons))],
+        'geometry': hexagons
+    }, crs=gdf_cell.crs)
+
+
+def calc_grad_nbhd_from_roi(polygon, gdf_reference, band_width=300):
+    """
+    Generate concentric rings (neighborhood bands) from a polygon,
+    clipped to the convex hull of a reference GeoDataFrame.
+    
+    Parameters:
+    -----------
+    polygon : GeoDataFrame
+        GeoDataFrame containing a single polygon
+    gdf_reference : GeoDataFrame
+        Reference GeoDataFrame used to calculate the boundary area (convex hull)
+    band_width : float
+        Width of each band in microns (default: 300)
+    
+    Returns:
+    --------
+    GeoDataFrame
+        GeoDataFrame with columns for band (index of ring) and geometry (polygon)
+    """
+    if len(polygon) != 1:
+        raise ValueError("Input polygon GeoDataFrame must contain exactly one polygon")
+    
+    roi_polygon = polygon.geometry.iloc[0]
+    boundary = gdf_reference.unary_union.convex_hull
+
+    bands = []
+    current_polygon = roi_polygon
+    band_idx = 0
+
+    # Add the original polygon as band 0
+    bands.append({'band': band_idx, 'geometry': roi_polygon})
+
+    while True:
+        band_idx += 1
+        # Generate next ring
+        next_buffer = current_polygon.buffer(band_width)
+        ring = next_buffer.difference(current_polygon)
+
+        # Clip the ring to the convex hull boundary
+        ring_clipped = ring.intersection(boundary)
+
+        # Stop if no part of the ring remains within boundary
+        if ring_clipped.is_empty:
+            break
+
+        bands.append({'band': band_idx, 'geometry': ring_clipped})
+        current_polygon = next_buffer
+
+    gdf = gpd.GeoDataFrame(bands, crs=polygon.crs)
+    gdf['band_width'] = band_width
+
+    return gdf
+
+
+def calc_nbg_cf(data_dir, gdf_nbhd, unique_nbhd_col='name'):
+    """
+    Calculates the neighborhood by gene expression.
+
+    Parameters
+    ----------
+    data_dir : str
+        Path to the directory containing the 'transcripts.parquet' file. The file must contain the 
+        columns: 'feature_name', 'x_location', 'y_location', and 'cell_id'.
+
+    gdf_nbhd : geopandas.GeoDataFrame
+        GeoDataFrame of neighborhoods. Must include geometries and a column with unique neighborhood 
+        identifiers (default column name is 'name').
+
+    unique_nbhd_col : str, optional
+        Name of the column in `gdf_nbhd` that uniquely identifies each neighborhood (default is 'name').
+
+    Returns
+    -------
+    geopandas.GeoDataFrame
+        A GeoDataFrame where each row corresponds to a neighborhood, with columns representing the count 
+        of each transcript feature. Includes geometry for each neighborhood.
+
+    """
+    
+    # Load only needed columns from the transcript data
+    df_trx = pd.read_parquet(
+        f'{data_dir}/transcripts.parquet',
+        columns=['feature_name', 'x_location', 'y_location', 'cell_id'],
+        engine='pyarrow'
+    )
+
+    # Convert to GeoDataFrame
+    geometry = gpd.points_from_xy(df_trx['x_location'], df_trx['y_location'])
+    gdf_trx = gpd.GeoDataFrame(df_trx[['feature_name']], geometry=geometry, crs="EPSG:4326")
+
+    # Spatial join: assign transcripts to neighborhoods
+    gdf_trx = gdf_trx.sjoin(gdf_nbhd[[unique_nbhd_col, 'geometry']], how="left", predicate="within")
+    gdf_trx.rename(columns={unique_nbhd_col: 'nbhd_id'}, inplace=True)
+
+    # Count feature occurrences per neighborhood
+    df_counts = gdf_trx.groupby(['nbhd_id', 'feature_name']).size().unstack(fill_value=0)
+
+    # Merge neighborhood geometry
+    gdf_nbhd = gdf_nbhd.rename(columns={unique_nbhd_col: 'nbhd_id'})
+    gdf_result = gdf_nbhd[['nbhd_id', 'geometry']].merge(df_counts, on='nbhd_id', how='left').fillna(0)
+
+    return gpd.GeoDataFrame(gdf_result, geometry='geometry', crs=gdf_nbhd.crs)
+
+class NBHD:
+
+    def __init__(self, gdf, nbhd_type, source=None, name=None, meta=None):
+
+        """
+
+        Parameters
+
+        ----------
+
+        gdf : geopandas.GeoDataFrame
+
+            A GeoDataFrame with one row per neighborhood. Must have a 'geometry' column.
+
+        nbhd_type : str
+
+            One of: 'SKTCH', 'HEX', 'ALPH', 'GRAD'
+
+        source : str or dict, optional
+
+            Optional description of where this neighborhood set came from (e.g., 'B cells', clustering params)
+
+        name : str, optional
+
+            A name or label for this neighborhood set.
+
+        meta : dict, optional
+
+            Any other user-defined metadata to store.
+
+        """
+
+        self.gdf = gdf.copy()
+
+        self.nbhd_type = nbhd_type
+
+        self.source = source
+
+        self.name = name
+
+        self.meta = meta or {}
+
+
+
+        # Store all derived high-dimensional data here
+
+        self.derived = {
+
+            'NBI': None,
+
+            'NBG-CF': None,
+
+            'NBG-CD': None,
+
+            'NBG-LCD': {},  # keyed by cluster name
+
+            'NBP': None,
+
+            'NBN-O': None,
+
+            'NBN-B': None,
+
+        }
+
+
+
+    def set_derived(self, key, data, subkey=None):
+
+        """
+
+        Set a derived data matrix.
+
+
+
+        Parameters
+
+        ----------
+
+        key : str
+
+            One of 'NBI', 'NBG-CF', 'NBG-CD', 'NBG-LCD', 'NBP', 'NBN-O', 'NBN-B'
+
+        data : pd.DataFrame or np.ndarray
+
+            Matrix with shape [n_neighborhoods x n_features]
+
+        subkey : str, optional
+
+            For NBG-LCD or other nested structures, store under a subkey (e.g., cluster name).
+
+        """
+
+        if key == 'NBG-LCD':
+
+            assert subkey is not None, "NBG-LCD requires a subkey (e.g., cluster name)"
+
+            self.derived[key][subkey] = data
+
+        else:
+
+            self.derived[key] = data
+
+
+
+    def get_derived(self, key, subkey=None):
+
+        if key == 'NBG-LCD':
+
+            return self.derived[key].get(subkey)
+
+        return self.derived.get(key)
+
+
+
+    def to_geodataframe(self):
+
+        """Return the underlying GeoDataFrame."""
+
+        return self.gdf
+
+
+
+    def summary(self):
+
+        return {
+
+            "name": self.name,
+
+            "type": self.nbhd_type,
+
+            "n_regions": len(self.gdf),
+
+            "derived": {k: self._derived_summary(k) for k in self.derived},
+
+            "meta": self.meta,
+
+        }
+
+
+
+    def _derived_summary(self, key):
+
+        val = self.derived[key]
+
+        if val is None:
+
+            return None
+
+        if isinstance(val, dict):
+
+            return {k: v.shape for k, v in val.items()}
+
+        return val.shape
+

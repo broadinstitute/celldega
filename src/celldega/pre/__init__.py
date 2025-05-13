@@ -294,7 +294,8 @@ def create_image_tiles(
         technology (str): The technology used (e.g., "Xenium", "MERSCOPE", "VisiumHD", "H&E").
         data_dir (str): Path to the directory containing the data (e.g., morphology_focus_0000.ome.tif).
         path_landscape_files (str): Path to the directory where the image tiles and pyramid will be saved.
-        image_tile_layer (str, optional): Specifies which image layers to process. Options are 'dapi' (default) or 'all'.
+        image_tile_layer (str, optional): Specifies which image layers to process. Options for Xenium are
+        'dapi' (default) or 'all'. Use the filename of the .scn file for h&e Landscapes.
 
     Raises:
         ValueError: If the specified technology is not supported or if the image_tile_layer is invalid.
@@ -330,7 +331,7 @@ def create_image_tiles_h_and_e(
     Args:
         data_dir (str): Path to the directory containing the data (e.g., morphology_focus_0000.ome.tif).
         path_landscape_files (str): Path to the directory where the image tiles and pyramid will be saved.
-        image_tile_layer (str, optional): Specifies which image layers to process. Options are 'dapi' (default) or 'all'.
+        image_tile_layer (str, optional): Specifies the name of the h&e image to process.
     Raises:
         FileNotFoundError: If the required input image file is not found.
     """

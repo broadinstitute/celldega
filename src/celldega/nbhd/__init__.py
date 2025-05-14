@@ -526,158 +526,93 @@ def calc_nbg_cf(data_dir, gdf_nbhd, unique_nbhd_col='name'):
     return gpd.GeoDataFrame(gdf_result, geometry='geometry', crs=gdf_nbhd.crs)
 
 class NBHD:
-
+    """A class representing neighborhoods with associated derived data matrices."""
+    
     def __init__(self, gdf, nbhd_type, source=None, name=None, meta=None):
-
         """
+        Initialize a neighborhood object.
 
         Parameters
-
         ----------
-
         gdf : geopandas.GeoDataFrame
-
             A GeoDataFrame with one row per neighborhood. Must have a 'geometry' column.
-
         nbhd_type : str
-
             One of: 'SKTCH', 'HEX', 'ALPH', 'GRAD'
-
         source : str or dict, optional
-
-            Optional description of where this neighborhood set came from (e.g., 'B cells', clustering params)
-
+            Optional description of where this neighborhood set came from 
+            (e.g., 'B cells', clustering params)
         name : str, optional
-
             A name or label for this neighborhood set.
-
         meta : dict, optional
-
             Any other user-defined metadata to store.
-
         """
-
         self.gdf = gdf.copy()
-
         self.nbhd_type = nbhd_type
-
         self.source = source
-
         self.name = name
-
         self.meta = meta or {}
 
-
-
         # Store all derived high-dimensional data here
-
         self.derived = {
-
             'NBI': None,
-
             'NBG-CF': None,
-
             'NBG-CD': None,
-
             'NBG-LCD': {},  # keyed by cluster name
-
             'NBP': None,
-
             'NBN-O': None,
-
             'NBN-B': None,
-
         }
-
-
 
     def set_derived(self, key, data, subkey=None):
-
         """
-
         Set a derived data matrix.
 
-
-
         Parameters
-
         ----------
-
         key : str
-
             One of 'NBI', 'NBG-CF', 'NBG-CD', 'NBG-LCD', 'NBP', 'NBN-O', 'NBN-B'
-
         data : pd.DataFrame or np.ndarray
-
             Matrix with shape [n_neighborhoods x n_features]
-
         subkey : str, optional
-
-            For NBG-LCD or other nested structures, store under a subkey (e.g., cluster name).
-
+            For NBG-LCD or other nested structures, store under a subkey 
+            (e.g., cluster name).
         """
-
         if key == 'NBG-LCD':
-
-            assert subkey is not None, "NBG-LCD requires a subkey (e.g., cluster name)"
-
+            if subkey is None:
+                raise ValueError("NBG-LCD requires a subkey (e.g., cluster name)")
             self.derived[key][subkey] = data
-
         else:
-
             self.derived[key] = data
 
-
-
     def get_derived(self, key, subkey=None):
-
+        """Retrieve derived data by key and optional subkey."""
         if key == 'NBG-LCD':
-
             return self.derived[key].get(subkey)
-
         return self.derived.get(key)
 
-
-
     def to_geodataframe(self):
-
         """Return the underlying GeoDataFrame."""
-
         return self.gdf
 
-
-
     def summary(self):
-
+        """Return a summary dictionary of the neighborhood properties."""
         return {
-
             "name": self.name,
-
             "type": self.nbhd_type,
-
             "n_regions": len(self.gdf),
-
             "derived": {k: self._derived_summary(k) for k in self.derived},
-
             "meta": self.meta,
-
         }
 
-
-
     def _derived_summary(self, key):
-
+        """Internal method to summarize derived data shapes."""
         val = self.derived[key]
-
         if val is None:
-
             return None
-
         if isinstance(val, dict):
-
             return {k: v.shape for k, v in val.items()}
-
         return val.shape
+    
 
 def calc_nbp(gdf_cell, gdf_nbhd, nbhd_col='name'):
     """

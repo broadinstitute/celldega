@@ -679,3 +679,42 @@ class NBHD:
 
         return val.shape
 
+def calc_nbp(gdf_cell, gdf_nbhd, nbhd_col='name'):
+    """
+    Calculate the number of cells per cluster within each neighborhood.
+
+    Parameters
+    ----------
+    gdf_cell : geopandas.GeoDataFrame
+        GeoDataFrame containing individual cells with geometries and a 'cluster' column.
+
+    gdf_nbhd : geopandas.GeoDataFrame
+        GeoDataFrame containing neighborhood polygons and a unique identifier column (default: 'name').
+
+    nbhd_col : str, optional
+        The column name in `gdf_nbhd` to use as neighborhood ID (default is 'name').
+
+    Returns
+    -------
+    pandas.DataFrame
+        A DataFrame where rows represent neighborhoods and columns represent clusters.
+        Each cell contains the count of cells from a specific cluster within a neighborhood.
+        Column names are strings representing cluster numbers (e.g., '0', '1', '2').
+    """
+    # Spatial join to assign each cell to a neighborhood
+    gdf_joined = gdf_cell.sjoin(gdf_nbhd[[nbhd_col, 'geometry']], how="left", predicate="within")
+    gdf_joined.rename(columns={nbhd_col: 'nbhd_id'}, inplace=True)
+
+    # Count cells per (neighborhood, cluster) and pivot
+    counts = (
+        gdf_joined
+        .groupby(['nbhd_id', 'cluster'])
+        .size()
+        .unstack(fill_value=0)
+    )
+    
+    # Flatten column names and ensure they're strings
+    counts.columns = counts.columns.astype(str)
+    counts.columns.name = None  # Remove the name of the columns index
+    
+    return counts

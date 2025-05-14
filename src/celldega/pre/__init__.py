@@ -20,6 +20,7 @@ from shapely.geometry import Point, Polygon
 from scipy.sparse import csc_matrix, csr_matrix
 import zarr
 from skimage.io import imread, imsave
+import tifffile
 
 import matplotlib.pyplot as plt
 from matplotlib.colors import to_hex
@@ -290,10 +291,11 @@ def create_image_tiles(
     Creates image tiles for visualization from the Xenium morphology image.
 
     Args:
-        technology (str): The technology used (e.g., "Xenium" or "MERSCOPE"). Currently, only "Xenium" is supported.
-        data_dir (str): Path to the directory containing the Xenium data (e.g., morphology_focus_0000.ome.tif).
+        technology (str): The technology used (e.g., "Xenium", "MERSCOPE", "VisiumHD", "H&E").
+        data_dir (str): Path to the directory containing the data (e.g., morphology_focus_0000.ome.tif).
         path_landscape_files (str): Path to the directory where the image tiles and pyramid will be saved.
-        image_tile_layer (str, optional): Specifies which image layers to process. Options are 'dapi' (default) or 'all'.
+        image_tile_layer (str, optional): Specifies which image layers to process. Options for Xenium are
+        'dapi' (default) or 'all'. Use the filename of the .scn file for h&e Landscapes.
 
     Raises:
         ValueError: If the specified technology is not supported or if the image_tile_layer is invalid.
@@ -301,10 +303,81 @@ def create_image_tiles(
     """
 
     print("\n========Generating image tiles========")
-    if technology != "Xenium":
-        raise ValueError(
-            f"Unsupported technology: {technology}. Currently, only 'Xenium' is supported."
+    if technology == "Xenium":
+        print('------ xenium')
+        create_image_tiles_xenium(
+            data_dir, path_landscape_files, image_tile_layer=image_tile_layer
         )
+    elif technology == 'h&e':
+        print('------ h&e')
+
+        image_shape = create_image_tiles_h_and_e(
+            data_dir, path_landscape_files, image_tile_layer=image_tile_layer
+        )
+
+        # raise ValueError(
+        #     f"Unsupported technology: {technology}. Currently, only 'Xenium' is supported."
+        # )
+
+    print("Image tiles created successfully.")
+
+def create_image_tiles_h_and_e(
+    data_dir, path_landscape_files, image_tile_layer
+):
+
+    """
+    Creates image tiles for visualization from the H&E image.
+
+    Args:
+        data_dir (str): Path to the directory containing the data (e.g., morphology_focus_0000.ome.tif).
+        path_landscape_files (str): Path to the directory where the image tiles and pyramid will be saved.
+        image_tile_layer (str, optional): Specifies the name of the h&e image to process.
+    Raises:
+        FileNotFoundError: If the required input image file is not found.
+    """
+
+    with tifffile.TiffFile(data_dir + '/' + image_tile_layer) as tif:
+        print(tif.pages)  # Show available pages
+        image = tif.pages[0].asarray()
+
+        # make this directory, path_landscape_files, if it does not exist
+        if not os.path.exists(path_landscape_files):
+            os.makedirs(path_landscape_files)
+
+        temp_tiff_path = path_landscape_files + '/' + image_tile_layer.replace('.scn', '_output_regular.tif')
+        tifffile.imwrite(temp_tiff_path, image)
+
+        # Convert the image to PNG format
+        image_png = _convert_to_png(temp_tiff_path)
+
+        # Create a DeepZoom pyramid for the DAPI channel
+        make_deepzoom_pyramid(
+            image_png,
+            f'{path_landscape_files}/pyramid_images/',
+            'h_and_e',
+            suffix=".webp[Q=100]",
+        )
+
+        remove_intermediate_files(path_landscape_files)
+
+def remove_intermediate_files(path_landscape_files):
+    # Remove intermediate files
+    intermediate_image_files = glob.glob(f"{path_landscape_files}/*output_regular*")
+    if len(intermediate_image_files) != 0: [os.remove(file) for file in intermediate_image_files]
+
+def create_image_tiles_xenium(
+    data_dir, path_landscape_files, image_tile_layer='dapi'
+):
+    """
+    Creates image tiles for visualization from the Xenium morphology image.
+
+    Args:
+        data_dir (str): Path to the directory containing the data (e.g., morphology_focus_0000.ome.tif).
+        path_landscape_files (str): Path to the directory where the image tiles and pyramid will be saved.
+        image_tile_layer (str, optional): Specifies which image layers to process. Options are 'dapi' (default) or 'all'.
+    Raises:
+        FileNotFoundError: If the required input image file is not found.
+    """
 
     if image_tile_layer not in ['dapi', 'all']:
         raise ValueError(
@@ -345,7 +418,6 @@ def create_image_tiles(
                 suffix=".webp[Q=100]",
             )
 
-
     # Process additional channels if image_tile_layer is 'all'
     if image_tile_layer == 'all':
         for idx, channel in enumerate(['bound', 'rna', 'prot']):
@@ -372,12 +444,8 @@ def create_image_tiles(
                     channel,
                     suffix=".webp[Q=100]",
                 )
-    # Remove intermediate files
-    intermediate_image_files = glob.glob(f"{path_landscape_files}/*output_regular*")
-    if len(intermediate_image_files) != 0: [os.remove(file) for file in intermediate_image_files]
 
-    print("Image tiles created successfully.")
-
+    remove_intermediate_files(path_landscape_files)
 
 def _reduce_image_size(image_path, scale_image=0.5, path_landscape_files=""):
     """Reduces the size of an image by a specified scale factor.
@@ -573,7 +641,7 @@ def make_meta_cell_image_coord(
         warnings.warn("Duplicate cell names found in meta_cell!", UserWarning)
 
      # Apply rounding to the GEOMETRY column
-    meta_cell['geometry'] = meta_cell['geometry'].apply(_round_nested_coord_list)       
+    meta_cell['geometry'] = meta_cell['geometry'].apply(_round_nested_coord_list)
 
     # Force alphabetically sort by 'name'
     meta_cell = meta_cell.sort_values(by=['name']).reset_index(drop=True)
@@ -663,12 +731,28 @@ def save_landscape_parameters(
     """
 
     print("\n========Save landscape parameters========")
+    if technology == 'h&e':
+        image_name = 'h_and_e_files'
+        image_info = [{"name": "h&e", "button_name": "H&E", "color": [0, 0, 255]}]
+
     path_image_pyramid = f"{path_landscape_files}/pyramid_images/{image_name}"
     max_pyramid_zoom = get_max_zoom_level(path_image_pyramid)
 
     path_landscape_parameters = f"{path_landscape_files}/landscape_parameters.json"
 
-    if technology != 'custom':
+    # if technology is 'h&e' set parameters
+    if technology == 'h&e':
+        landscape_parameters = {
+            "technology": technology,
+            "segmentation_approach": ['N.A.'],
+            "max_pyramid_zoom": max_pyramid_zoom,
+            "tile_size": 'N.A.',
+            "image_info": image_info,
+            "image_format": image_format,
+            "use_int_index": 'N.A.',
+        }
+
+    elif technology != 'custom':
 
         landscape_parameters = {
                 "technology": technology,

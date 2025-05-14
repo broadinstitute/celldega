@@ -305,81 +305,77 @@ def create_hextile(radius, path_landscape_files=None, img_height=100, img_width=
     return gdf_hextile
 
 
-
 def calc_nbg_cd(
     adata,
     gdf_nbhd: gpd.GeoDataFrame,
+    cd_mode: str = 'CD/LCD',
     unique_nbhd_col: str = "name"
 ) -> gpd.GeoDataFrame:
     """
-    Calculate mean gene expression per band from adata and band GeoDataFrame.
-    Args:
-        adata: AnnData object with spatial info in .obsm['spatial'] and gene data in .X.
-        gdf_bands: GeoDataFrame with band polygons, must contain a 'band' column.
-        unique_nbhd_col: Neighborhood column in gdf_bands that labels each nbhd.
-    Returns:
-        GeoDataFrame with band geometries and mean gene expression values
-        as columns named like 'GENE_mean'.
-    """
+    Calculate mean gene expression per neighborhood (CD) or per cluster-neighborhood (LCD).
 
-    # Get gene list
+    Parameters
+    ----------
+    adata : AnnData
+        AnnData object with spatial coordinates in `.obsm['spatial']`,
+        gene expression in `.X`, and clustering in `adata.obs['leiden']`.
+
+    gdf_nbhd : GeoDataFrame
+        GeoDataFrame of neighborhood polygons, containing at least one unique ID column.
+
+    cd_mode : str, default "CD/LCD"
+        Mode of calculation: "CD" (all cells) or "LCD" (per cluster).
+
+    unique_nbhd_col : str, default "name"
+        Name of the column in `gdf_nbhd` that uniquely identifies each neighborhood.
+
+    Returns
+    -------
+    GeoDataFrame
+        GeoDataFrame with neighborhood geometries and mean gene expression values per gene.
+        In LCD mode, returns data for the last cluster only (can be modified to return all).
+    """
     gene_list = adata.var.index
 
     gene_exp = pd.DataFrame(
-        data=adata[:, gene_list].X.toarray() if hasattr(adata.X, 'toarray') else adata[:, gene_list].X,
+        adata.X.toarray() if hasattr(adata.X, 'toarray') else adata.X,
         columns=gene_list,
         index=adata.obs_names
     )
-    
-    # Create combined DataFrame with geometry
+
     gdf_cell = gpd.GeoDataFrame(
-        data={
-            'cluster': adata.obs['leiden'],
-            **gene_exp  # Unpacks all gene columns
-        },
-        geometry=[Point(xy) for xy in adata.obsm['spatial'][:, :2]],
-        crs="EPSG:4326"  # Set your coordinate system here
+        data={'cluster': adata.obs['leiden'], **gene_exp},
+        geometry=gpd.points_from_xy(*adata.obsm['spatial'].T[:2]),
+        crs="EPSG:4326"
     )
 
-    nbg_dict = {}
+    def compute_cd(gdf_cell_subset):
+        joined = gdf_cell_subset.sjoin(gdf_nbhd[[unique_nbhd_col, 'geometry']], how="left", predicate="within")
+        joined.drop(columns=['index_right', 'cat'], inplace=True, errors='ignore')
 
-    for cluster in list(gdf_cell['cluster'].unique()) + ['all']:
-            if cluster == 'all':
-                # Use all cells
-                gdf_cell_select = gdf_cell
-            else:
-                # Filter cells by cluster
-                gdf_cell_select = gdf_cell[gdf_cell['cluster'] == cluster]
+        gdf_nbhd_join = gdf_nbhd.copy()
+        for gene in gene_list:
+            avg = joined.groupby(unique_nbhd_col)[gene].mean().reset_index()
+            avg.columns = [unique_nbhd_col, gene]
+            gdf_nbhd_join = gdf_nbhd_join.merge(avg, on=unique_nbhd_col, how='left')
 
-            gdf_nbhd_join = gdf_nbhd.copy() 
+        gdf_nbhd_join.rename(columns={unique_nbhd_col: 'nbhd_id'}, inplace=True)
+        gdf_nbhd_join.set_index('nbhd_id', inplace=True)
 
+        return gdf_nbhd_join
 
-            # Spatial join: Assign each cell to the closest buffer
-            gdf_join_all = gdf_cell_select.sjoin(gdf_nbhd, how="left", predicate="within").drop(
-                columns=['index_right', 'cat'], errors='ignore')
+    if cd_mode == 'LCD':
+        nbhd_by_cluster = {}
+        for cluster in gdf_cell['cluster'].unique():
+            cluster_cells = gdf_cell[gdf_cell['cluster'] == cluster]
+            nbhd_by_cluster[cluster] = compute_cd(cluster_cells)
+        return nbhd_by_cluster
 
-            # Compute mean expression for each gene
-            for gene in gene_list:
-                band_avg_expression = gdf_join_all.groupby(unique_nbhd_col)[gene].mean().reset_index()
-                band_avg_expression.columns = [unique_nbhd_col, f"{gene}"]
-                gdf_nbhd_join = gdf_nbhd_join.merge(band_avg_expression, on=unique_nbhd_col)
+    elif cd_mode == 'CD':
+        return compute_cd(gdf_cell)
 
-            # Rename unique_nbhd_col to 'nbhd_id'
-            gdf_nbhd_join.rename(columns={unique_nbhd_col: 'nbhd_id'}, inplace=True)
-
-            df_nbhd_join = pd.DataFrame(gdf_nbhd_join.drop(columns="geometry"))
-
-            # Convert to anndata
-            gdf_nbhd_join.set_index('nbhd_id', inplace=True)
-            obs_cols = ['cat', 'inv_alpha', 'area', 'band_width']
-            obs_cols = [col for col in obs_cols if col in gdf_nbhd_join.columns]
-            obs = gdf_nbhd_join[obs_cols]
-            X = gdf_nbhd_join[gene_list].values
-            var = pd.DataFrame(index=gene_list)
-            adata = ad.AnnData(X=X, obs=obs, var=var)    
-            nbg_dict[cluster] = gdf_nbhd_join
-
-    return nbg_dict
+    else:
+        raise ValueError("cd_mode must be 'CD' or 'LCD'")
 
 
 

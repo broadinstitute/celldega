@@ -616,40 +616,69 @@ class NBHD:
 
 def calc_nbp(gdf_cell, gdf_nbhd, nbhd_col='name'):
     """
-    Calculate the number of cells per cluster within each neighborhood.
+    Calculate the number of cells per cluster within each neighborhood and return with geometries.
 
     Parameters
     ----------
     gdf_cell : geopandas.GeoDataFrame
         GeoDataFrame containing individual cells with geometries and a 'cluster' column.
-
+        Must contain: 'geometry' column and 'cluster' column.
+        
     gdf_nbhd : geopandas.GeoDataFrame
-        GeoDataFrame containing neighborhood polygons and a unique identifier column (default: 'name').
+        GeoDataFrame containing neighborhood polygons. Must contain:
+        - A geometry column (typically named 'geometry')
+        - The specified neighborhood ID column (default 'name')
 
     nbhd_col : str, optional
         The column name in `gdf_nbhd` to use as neighborhood ID (default is 'name').
 
     Returns
     -------
-    pandas.DataFrame
-        A DataFrame where rows represent neighborhoods and columns represent clusters.
-        Each cell contains the count of cells from a specific cluster within a neighborhood.
-        Column names are strings representing cluster numbers (e.g., '0', '1', '2').
+    geopandas.GeoDataFrame
+        A GeoDataFrame where:
+        - Columns: 'nbhd_id', cluster numbers as strings (e.g., '0', '1', '2'), and 'geometry'
+        - Values: counts of cells from each cluster in each neighborhood
+        - Geometry: original neighborhood polygons from gdf_nbhd
     """
-    # Spatial join to assign each cell to a neighborhood
-    gdf_joined = gdf_cell.sjoin(gdf_nbhd[[nbhd_col, 'geometry']], how="left", predicate="within")
-    gdf_joined.rename(columns={nbhd_col: 'nbhd_id'}, inplace=True)
+    # Validate input geometries
+    if 'geometry' not in gdf_nbhd.columns:
+        raise ValueError("gdf_nbhd must contain a 'geometry' column")
+    if 'geometry' not in gdf_cell.columns:
+        raise ValueError("gdf_cell must contain a 'geometry' column")
+    if 'cluster' not in gdf_cell.columns:
+        raise ValueError("gdf_cell must contain a 'cluster' column")
+    if nbhd_col not in gdf_nbhd.columns:
+        raise ValueError(f"gdf_nbhd must contain the specified neighborhood column '{nbhd_col}'")
 
+    # Spatial join
+    gdf_joined = gdf_cell.sjoin(
+        gdf_nbhd[[nbhd_col, 'geometry']],  # Include both ID and geometry
+        how="left",
+        predicate="within"
+    )
+    
     # Count cells per (neighborhood, cluster) and pivot
     counts = (
         gdf_joined
-        .groupby(['nbhd_id', 'cluster'])
+        .groupby([nbhd_col, 'cluster'])
         .size()
         .unstack(fill_value=0)
     )
     
-    # Flatten column names and ensure they're strings
-    counts.columns = counts.columns.astype(str)
-    counts.columns.name = None  # Remove the name of the columns index
+    # Clean up column names
+    counts.columns = counts.columns.astype(str)  # Ensure columns are strings
+    counts.columns.name = None  # Remove residual column index name
     
-    return counts
+    # Merge counts back with original geometries
+    result_gdf = (
+        gdf_nbhd[[nbhd_col, 'geometry']]
+        .set_index(nbhd_col)
+        .join(counts, how='left')
+        .fillna(0)  # For neighborhoods with no cells
+    )
+    
+    # Reset index to make nbhd_col a column again and rename
+    result_gdf = result_gdf.reset_index()
+    result_gdf.rename(columns={nbhd_col: 'nbhd_id'}, inplace=True)
+    
+    return result_gdf

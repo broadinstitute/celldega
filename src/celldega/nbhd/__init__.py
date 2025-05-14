@@ -558,7 +558,7 @@ class NBHD:
             'NBG-CF': None,
             'NBG-CD': None,
             'NBG-LCD': {},  # keyed by cluster name
-            'NBP': None,
+            'NBP': {},  # keyed by abs/pct
             'NBN-O': None,
             'NBN-B': None,
         }
@@ -577,16 +577,16 @@ class NBHD:
             For NBG-LCD or other nested structures, store under a subkey 
             (e.g., cluster name).
         """
-        if key == 'NBG-LCD':
+        if key in {'NBP', 'NBG-LCD'}:
             if subkey is None:
-                raise ValueError("NBG-LCD requires a subkey (e.g., cluster name)")
+                raise ValueError("NBG-LCD and NBP requires a subkey (e.g., cluster name, abs or pct)")
             self.derived[key][subkey] = data
         else:
             self.derived[key] = data
 
     def get_derived(self, key, subkey=None):
         """Retrieve derived data by key and optional subkey."""
-        if key == 'NBG-LCD':
+        if key in {'NBP', 'NBG-LCD'}:
             return self.derived[key].get(subkey)
         return self.derived.get(key)
 
@@ -616,69 +616,42 @@ class NBHD:
 
 def calc_nbp(gdf_cell, gdf_nbhd, nbhd_col='name'):
     """
-    Calculate the number of cells per cluster within each neighborhood and return with geometries.
-
-    Parameters
-    ----------
-    gdf_cell : geopandas.GeoDataFrame
-        GeoDataFrame containing individual cells with geometries and a 'cluster' column.
-        Must contain: 'geometry' column and 'cluster' column.
-        
-    gdf_nbhd : geopandas.GeoDataFrame
-        GeoDataFrame containing neighborhood polygons. Must contain:
-        - A geometry column (typically named 'geometry')
-        - The specified neighborhood ID column (default 'name')
-
-    nbhd_col : str, optional
-        The column name in `gdf_nbhd` to use as neighborhood ID (default is 'name').
-
-    Returns
-    -------
-    geopandas.GeoDataFrame
-        A GeoDataFrame where:
-        - Columns: 'nbhd_id', cluster numbers as strings (e.g., '0', '1', '2'), and 'geometry'
-        - Values: counts of cells from each cluster in each neighborhood
-        - Geometry: original neighborhood polygons from gdf_nbhd
-    """
-    # Validate input geometries
-    if 'geometry' not in gdf_nbhd.columns:
-        raise ValueError("gdf_nbhd must contain a 'geometry' column")
-    if 'geometry' not in gdf_cell.columns:
-        raise ValueError("gdf_cell must contain a 'geometry' column")
-    if 'cluster' not in gdf_cell.columns:
-        raise ValueError("gdf_cell must contain a 'cluster' column")
-    if nbhd_col not in gdf_nbhd.columns:
-        raise ValueError(f"gdf_nbhd must contain the specified neighborhood column '{nbhd_col}'")
-
-    # Spatial join
-    gdf_joined = gdf_cell.sjoin(
-        gdf_nbhd[[nbhd_col, 'geometry']],  # Include both ID and geometry
-        how="left",
-        predicate="within"
-    )
+    Calculate cell counts and percentages per cluster within neighborhoods.
     
-    # Count cells per (neighborhood, cluster) and pivot
+    Returns two GeoDataFrames:
+    1. Raw counts per neighborhood-cluster combination
+    2. Percentage distribution of clusters within each neighborhood
+    
+    Both retain original neighborhood geometries.
+    """
+    # Validate inputs
+    required = {'geometry', nbhd_col}
+    if not required.issubset(gdf_nbhd.columns):
+        raise ValueError(f"gdf_nbhd missing required columns: {required - set(gdf_nbhd.columns)}")
+    if not {'geometry', 'cluster'}.issubset(gdf_cell.columns):
+        raise ValueError("gdf_cell missing required 'geometry' or 'cluster' column")
+
+    # Spatial join and count
     counts = (
-        gdf_joined
+        gdf_cell.sjoin(gdf_nbhd[[nbhd_col, 'geometry']], how='left', predicate='within')
         .groupby([nbhd_col, 'cluster'])
         .size()
         .unstack(fill_value=0)
+        .pipe(lambda df: df.set_axis(df.columns.astype(str), axis=1))
     )
     
-    # Clean up column names
-    counts.columns = counts.columns.astype(str)  # Ensure columns are strings
-    counts.columns.name = None  # Remove residual column index name
+    # Calculate percentages
+    percentages = counts.div(counts.sum(axis=1), axis=0).fillna(0) * 100
     
-    # Merge counts back with original geometries
-    result_gdf = (
-        gdf_nbhd[[nbhd_col, 'geometry']]
-        .set_index(nbhd_col)
-        .join(counts, how='left')
-        .fillna(0)  # For neighborhoods with no cells
-    )
+    # Merge with geometries helper function
+    def merge_with_geo(count_df):
+        return (
+            gdf_nbhd[[nbhd_col, 'geometry']]
+            .set_index(nbhd_col)
+            .join(count_df, how='left')
+            .fillna(0)
+            .reset_index()
+            .rename(columns={nbhd_col: 'nbhd_id'})
+        )
     
-    # Reset index to make nbhd_col a column again and rename
-    result_gdf = result_gdf.reset_index()
-    result_gdf.rename(columns={nbhd_col: 'nbhd_id'}, inplace=True)
-    
-    return result_gdf
+    return merge_with_geo(counts), merge_with_geo(percentages)

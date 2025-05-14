@@ -651,3 +651,111 @@ def calc_nbp(gdf_cell, gdf_nbhd, nbhd_col='name'):
         )
     
     return merge_with_geo(counts), merge_with_geo(percentages)
+
+
+
+def _get_gdf_trx(data_dir):
+    """
+    Load transcript data as a GeoDataFrame with spatial coordinates.
+    """
+    df_trx = pd.read_parquet(
+        f'{data_dir}/transcripts.parquet',
+        columns=['feature_name', 'x_location', 'y_location', 'cell_id'],
+        engine='pyarrow'
+    )
+    geometry = gpd.points_from_xy(df_trx['x_location'], df_trx['y_location'])
+    return gpd.GeoDataFrame(df_trx[['feature_name', 'cell_id']], geometry=geometry, crs="EPSG:4326")
+
+
+def _get_gdf_cell(adata):
+    """
+    Load cell-level cluster and spatial coordinates from an h5ad file as a GeoDataFrame.
+    """
+
+    return gpd.GeoDataFrame(
+        {'cluster': adata.obs['leiden']},
+        geometry=gpd.points_from_xy(*adata.obsm['spatial'].T[:2]),
+        crs="EPSG:4326"
+    )
+
+
+def _get_df_cell(adata):
+    """
+    Load cell-level cluster and spatial coordinates from an h5ad file as a DataFrame.
+    """
+
+    df_cell = pd.DataFrame({
+        'cluster': adata.obs['leiden'],
+        'x': adata.obsm['spatial'][:, 0],
+        'y': adata.obsm['spatial'][:, 1],
+        }
+    )
+
+    df_cell['geometry'] = df_cell.apply(lambda row: [round(row['x'],3), round(row['y'], 3)], axis=1)
+
+    return df_cell
+
+
+def get_nbhd_meta(gdf_nbhd, unique_nbhd_col, gdf_trx, gdf_cell):
+    """
+    Compute neighborhood-level summary statistics including transcript and cell assignments,
+    along with area and perimeter from geometry.
+
+    Parameters
+    ----------
+    gdf_nbhd : GeoDataFrame
+        GeoDataFrame of neighborhoods with geometries and a unique identifier column.
+
+    unique_nbhd_col : str
+        Column name in `gdf_nbhd` that uniquely identifies each neighborhood (e.g., 'name').
+
+    gdf_trx : GeoDataFrame
+        GeoDataFrame of transcripts with 'cell_id' and point geometries.
+
+    gdf_cell : GeoDataFrame
+        GeoDataFrame of cells with point geometries.
+
+    Returns
+    -------
+    DataFrame
+        Summary DataFrame indexed by neighborhood ID, containing:
+        - total_trx: total number of transcripts
+        - unassigned_trx_count: count of 'UNASSIGNED' transcripts
+        - assigned_trx_count: count of assigned transcripts
+        - assigned_trx_pct: percent of assigned transcripts
+        - unassigned_trx_pct: percent of unassigned transcripts
+        - cell_count: number of cells in the neighborhood
+        - area: area of each neighborhood geometry (in coordinate system units)
+        - perimeter: perimeter (length) of each neighborhood polygon
+    """
+    # Keep the index same as nbhd name/id
+    gdf_nbhd = gdf_nbhd.set_index("name")
+    gdf_nbhd["name"] = gdf_nbhd.index
+    
+    # Assign transcripts to neighborhoods
+    gdf_trx = gdf_trx.sjoin(gdf_nbhd[[unique_nbhd_col, 'geometry']], how="left", predicate="within")
+
+    # Aggregate transcript assignment stats
+    summary = (
+        gdf_trx.groupby(unique_nbhd_col)
+        .agg(
+            total_trx=("cell_id", "size"),
+            unassigned_trx_count=("cell_id", lambda x: (x == "UNASSIGNED").sum()),
+            assigned_trx_count=("cell_id", lambda x: (x != "UNASSIGNED").sum())
+        )
+    )
+    summary["assigned_trx_pct"] = summary["assigned_trx_count"] / summary["total_trx"]
+    summary["unassigned_trx_pct"] = summary["unassigned_trx_count"] / summary["total_trx"]
+
+    # Count cells per neighborhood
+    gdf_c = gdf_cell[['geometry']].sjoin(gdf_nbhd[[unique_nbhd_col, 'geometry']], how="left", predicate="within")
+    cell_counts = gdf_c.groupby(unique_nbhd_col).size().rename("cell_count")
+    summary = summary.join(cell_counts)
+
+    # Compute area and perimeter
+    geom_stats = gdf_nbhd.set_index(unique_nbhd_col)[['geometry']].copy()
+    geom_stats["area"] = geom_stats.geometry.area.round(2)
+    geom_stats["perimeter"] = geom_stats.geometry.length.round(2)
+    summary = summary.join(geom_stats[["area", "perimeter"]])
+
+    return summary

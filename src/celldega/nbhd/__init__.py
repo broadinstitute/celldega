@@ -451,7 +451,7 @@ def calc_grad_nbhd_from_roi(polygon, gdf_reference, band_width=300):
     band_idx = 0
 
     # Add the original polygon as band 0
-    bands.append({'band': band_idx, 'geometry': roi_polygon})
+    bands.append({'band': 'grad_'+ str(band_idx), 'geometry': roi_polygon})
 
     while True:
         band_idx += 1
@@ -466,7 +466,7 @@ def calc_grad_nbhd_from_roi(polygon, gdf_reference, band_width=300):
         if ring_clipped.is_empty:
             break
 
-        bands.append({'band': band_idx, 'geometry': ring_clipped})
+        bands.append({'band': 'grad_'+ str(band_idx), 'geometry': ring_clipped})
         current_polygon = next_buffer
 
     gdf = gpd.GeoDataFrame(bands, crs=polygon.crs)
@@ -729,7 +729,7 @@ def get_nbhd_meta(gdf_nbhd, unique_nbhd_col, gdf_trx, gdf_cell):
         - area: area of each neighborhood geometry (in coordinate system units)
         - perimeter: perimeter (length) of each neighborhood polygon
     """
-    # Keep the index same as nbhd name/id
+    # Keep the index same as nbhd id or name
     gdf_nbhd = gdf_nbhd.set_index("name")
     gdf_nbhd["name"] = gdf_nbhd.index
     
@@ -758,6 +758,7 @@ def get_nbhd_meta(gdf_nbhd, unique_nbhd_col, gdf_trx, gdf_cell):
     geom_stats["area_squm"] = geom_stats.geometry.area.round(2)
     geom_stats["perimeter_um"] = geom_stats.geometry.length.round(2)
     summary = summary.join(geom_stats[["area_squm", "perimeter_um"]])
+    summary.index.name = 'nbhd_id'
 
     return summary
 

@@ -351,18 +351,18 @@ def calc_nbg_cd(
 
     def compute_cd(gdf_cell_subset):
         joined = gdf_cell_subset.sjoin(gdf_nbhd[[unique_nbhd_col, 'geometry']], how="left", predicate="within")
-        joined.drop(columns=['index_right', 'cat'], inplace=True, errors='ignore')
+        joined.drop(columns=['index_right', 'cat', 'geometry'], inplace=True, errors='ignore')
 
-        gdf_nbhd_join = gdf_nbhd.copy()
+        df_nbhd_join = gdf_nbhd[[unique_nbhd_col]]
         for gene in gene_list:
             avg = joined.groupby(unique_nbhd_col)[gene].mean().reset_index()
             avg.columns = [unique_nbhd_col, gene]
-            gdf_nbhd_join = gdf_nbhd_join.merge(avg, on=unique_nbhd_col, how='left')
+            df_nbhd_join = df_nbhd_join.merge(avg, on=unique_nbhd_col, how='left')
 
-        gdf_nbhd_join.rename(columns={unique_nbhd_col: 'nbhd_id'}, inplace=True)
-        gdf_nbhd_join.set_index('nbhd_id', inplace=True)
+        df_nbhd_join.rename(columns={unique_nbhd_col: 'nbhd_id'}, inplace=True)
+        df_nbhd_join.set_index('nbhd_id', inplace=True)
 
-        return gdf_nbhd_join
+        return df_nbhd_join
 
     if cd_mode == 'LCD':
         nbhd_by_cluster = {}
@@ -376,7 +376,6 @@ def calc_nbg_cd(
 
     else:
         raise ValueError("cd_mode must be 'CD' or 'LCD'")
-
 
 
 def generate_hex_grid(gdf_cell, radius=20):
@@ -517,9 +516,9 @@ def calc_nbg_cf(data_dir, gdf_nbhd, unique_nbhd_col='name'):
 
     # Merge neighborhood geometry
     gdf_nbhd = gdf_nbhd.rename(columns={unique_nbhd_col: 'nbhd_id'})
-    gdf_result = gdf_nbhd[['nbhd_id', 'geometry']].merge(df_counts, on='nbhd_id', how='left').fillna(0)
+    df_result = gdf_nbhd[['nbhd_id']].merge(df_counts, on='nbhd_id', how='left').fillna(0)
 
-    return gpd.GeoDataFrame(gdf_result, geometry='geometry', crs=gdf_nbhd.crs)
+    return pd.DataFrame(df_result)
 
 class NBHD:
     """A class representing neighborhoods with associated derived data matrices."""
@@ -579,14 +578,26 @@ class NBHD:
             self.derived[key][subkey] = data
         else:
             self.derived[key] = data
-            
+
+    def _add_geo(self, df):
+        return (
+            self.gdf[['name', 'geometry']]
+            .set_index('name')
+            .join(df, how='left')
+            .fillna(0)
+            .reset_index()
+            .rename(columns={'name': 'nbhd_id'})
+        )
 
     def get_derived(self, key, subkey=None):
         """Retrieve derived data by key and optional subkey."""
         if key in {'NBP', 'NBG-LCD'}:
-            return self.derived[key].get(subkey)
-        return self.derived.get(key)
+            df = self.derived[key].get(subkey)
+            return self._add_geo(df)
+        df = self.derived.get(key)
+        return self._add_geo(df)
 
+    
     def to_geodataframe(self):
         """Return the underlying GeoDataFrame."""
         return self.gdf
@@ -640,19 +651,7 @@ def calc_nbp(gdf_cell, gdf_nbhd, nbhd_col='name'):
     # Calculate percentages
     percentages = counts.div(counts.sum(axis=1), axis=0).fillna(0) * 100
     
-    # Merge with geometries helper function
-    def merge_with_geo(count_df):
-        return (
-            gdf_nbhd[[nbhd_col, 'geometry']]
-            .set_index(nbhd_col)
-            .join(count_df, how='left')
-            .fillna(0)
-            .reset_index()
-            .rename(columns={nbhd_col: 'nbhd_id'})
-        )
-    
-    return merge_with_geo(counts), merge_with_geo(percentages)
-
+    return counts, percentages
 
 
 def _get_gdf_trx(data_dir):

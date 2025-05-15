@@ -566,7 +566,7 @@ class NBHD:
         Parameters
         ----------
         key : str
-            One of 'NBI', 'NBG-CF', 'NBG-CD', 'NBG-LCD', 'NBP', 'NBN-O', 'NBN-B'
+            One of 'NBI', 'NBG-CF', 'NBG-CD', 'NBG-LCD', 'NBP', 'NBN-O', 'NBN-B', 'META'
         data : pd.DataFrame or np.ndarray
             Matrix with shape [n_neighborhoods x n_features]
         subkey : str, optional
@@ -579,6 +579,7 @@ class NBHD:
             self.derived[key][subkey] = data
         else:
             self.derived[key] = data
+            
 
     def get_derived(self, key, subkey=None):
         """Retrieve derived data by key and optional subkey."""

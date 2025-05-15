@@ -356,16 +356,6 @@ def read_parquet_error_check(path):
         else:
             raise
 
-def _handle_py_test(gdf_transcripts):
-    """Handles test mode execution."""
-
-    technology = None
-    segmentation_approach = None
-
-    gdf_trx = gdf_transcripts.copy()
-    gdf_trx.set_geometry("geometry", inplace=True)
-    return gdf_trx, technology, segmentation_approach
-
 def _extract_metadata(path_data, py_test=False):
     """Extracts metadata from file system."""
 
@@ -408,6 +398,9 @@ def create_trx_gdf(gdf_transcripts=None, path_data=None, py_test=False, extract_
     - If py_test: depends on the calling function
     - Else: (GeoDataFrame, technology, segmentation_approach)
     """
+
+    from .test_hextile import _handle_py_test
+
     if py_test:
         return _handle_py_test(gdf_transcripts)
 
@@ -431,7 +424,7 @@ def create_trx_gdf(gdf_transcripts=None, path_data=None, py_test=False, extract_
     print("Transcripts file read.")
     return gdf_trx, technology, segmentation_approach
 
-def hexatile_specific_assigned_transcripts(
+def hextile_assigned_trx(
     gdf_hextile,
     gdf_transcripts=None, path_data=None,
     path_landscape_files=None,
@@ -518,7 +511,7 @@ def hexatile_specific_assigned_transcripts(
 
     return gdf_hextile_assigned_trx
 
-def percentage_hextile_specific_unassigned_transcripts(gdf_hextile_assigned_trx, gdf_hextile, path_data=None, path_landscape_files=None, percentage_unassigned_threshold=75, py_test=False):
+def percentage_hextile_unassigned_trx(gdf_hextile_assigned_trx, gdf_hextile, path_data=None, path_landscape_files=None, percentage_unassigned_threshold=75, py_test=False):
 
     """
     Calculates and annotates each hexagonal tile with the percentage of unassigned transcripts.
@@ -603,7 +596,7 @@ def percentage_hextile_specific_unassigned_transcripts(gdf_hextile_assigned_trx,
 
     return gdf_hextile_assigned_trx, gdf_hextile
 
-def plot_hexatile_specific_unassigned_transcripts(gdf_hextile):
+def plot_hextile_unassigned_trx(gdf_hextile):
 
     """
     Plots a heatmap of the percentage of unassigned transcripts per hexagonal tile.

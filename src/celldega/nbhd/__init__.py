@@ -316,7 +316,8 @@ def calc_nbg_cd(
     unique_nbhd_col: str = "name"
 ) -> gpd.GeoDataFrame:
     """
-    Calculate mean gene expression per neighborhood (CD) or per cluster-neighborhood (LCD).
+    Calculate the mean expression of cells within a neighborhood (CD)
+    or the mean expression of cells from a given Leiden cluster (LCD).
 
     Parameters
     ----------

@@ -4,11 +4,10 @@ Module for performing neighborhood analysis.
 
 from libpysal.cg import alpha_shape as libpysal_alpha_shape
 import geopandas as gpd
-from shapely import Point, MultiPolygon
 from shapely.ops import transform
 import numpy as np
 import json
-from shapely.geometry import Point, Polygon, box, shape
+from shapely.geometry import Point, MultiPolygon, Polygon, box, shape
 from shapely.affinity import affine_transform
 from shapely.affinity import translate
 import os
@@ -20,6 +19,7 @@ import pandas as pd
 import matplotlib.cm as cm
 import os
 from shapely import wkt
+import inspect
 
 def _classify_polygons_contains_check(polygons, points):
     """
@@ -217,7 +217,47 @@ def alpha_shape_geojson(gdf_alpha, meta_cluster, inst_alpha):
 
     return geojson_alpha
 
+def called_function(depth=2):
+    try:
+        return inspect.stack()[depth].function
+    except IndexError:
+        return None
+
 def create_hextile(radius, path_landscape_files=None, img_height=100, img_width=100, pixel_size=0.2125):
+
+    """
+    Generates a hexagonal tiling (hextile) of a spatial region and transforms it from image space to physical coordinates.
+
+    This function constructs a grid of pointy-topped hexagonal polygons that tile a 2D image space. The resulting hextile
+    GeoDataFrame is saved as a Parquet file and visualized.
+
+    Parameters
+    ----------
+    radius : float
+        Radius of each hexagon in pixels (distance from center to corner).
+
+    path_landscape_files : str or None, optional
+        Path to a directory containing:
+            - "pyramid_images/bound.dzi" for image dimensions, and
+            - "micron_to_image_transform.csv" for the affine transformation matrix.
+        If None, defaults to a unit (identity) transform and the default image dimensions.
+
+    img_height : int, optional
+        Height of the image in pixels. Used only if `path_landscape_files` is None. Default is 100.
+
+    img_width : int, optional
+        Width of the image in pixels. Used only if `path_landscape_files` is None. Default is 100.
+
+    pixel_size : float, optional
+        Physical size of one pixel in microns. Used for annotating the plot. Default is 0.2125.
+
+    Returns
+    -------
+    gdf_hextile : geopandas.GeoDataFrame
+        A GeoDataFrame containing hexagonal polygons:
+            - 'geometry_image_space': geometries in image pixel space.
+            - 'geometry': geometries transformed to physical space (microns).
+    """
 
     if isinstance(path_landscape_files, str):
         tree = ET.parse(os.path.join(path_landscape_files, "pyramid_images/bound.dzi"))
@@ -316,96 +356,129 @@ def read_parquet_error_check(path):
         else:
             raise
 
-def hexatile_specific_unassigned_transcripts(
-    gdf_hextile,
-    gdf_transcripts=None,
-    path_data=None,
-    path_landscape_files=None,
-    percentage_unassigned_threshold=75
-):
-    """
-    Visualizes the proportion of unassigned transcripts in each hexagonal tile of a spatial transcriptomics dataset.
+def _handle_py_test(gdf_transcripts):
+    """Handles test mode execution."""
 
-    This function reads transcript data and transformation parameters from the given directories,
-    applies coordinate transformations if necessary, allots transcripts to hexagonal spatial tiles,
-    and calculates the percentage of unassigned transcripts per tile.
+    technology = None
+    segmentation_approach = None
 
-    Tiles with a percentage of unassigned transcripts lower than the specified threshold are visualized.
+    gdf_trx = gdf_transcripts.copy()
+    gdf_trx.set_geometry("geometry", inplace=True)
+    return gdf_trx, technology, segmentation_approach
 
-    Parameters:
-    -----------
-    gdf_hextile : geopandas.GeoDataFrame
-        A GeoDataFrame containing the hexagonal tiling of the spatial region with associated geometry.
+def _extract_metadata(path_data, py_test=False):
+    """Extracts metadata from file system."""
 
-    path_data : str
-        Path to the directory containing transcriptomic data, including `transcripts.parquet`.
+    if py_test:
+        return None, None, "cell_index"
 
-    percentage_unassigned_threshold : float, optional (default=75)
-        The threshold (in percent) for including tiles in the visualization. Tiles with a higher
-        percentage of unassigned transcripts are excluded from the plot.
+    elif os.path.isfile(os.path.join(path_data, "experiment.xenium")):
+        return "Xenium", "default", "cell_id"
 
-    Returns:
-    --------
-    None
-        This function displays a matplotlib plot showing the percentage of unassigned transcripts
-        in each hexagonal tile and saves the intermediate transcript assignment result as a Parquet file.
-
-    """
-
-    from ..pre.boundary_tile import batch_transform_geometries
-    from ..pre.__init__ import _to_geometry
-
-    print("Reading transcripts file...")
-
-    ## only Xenium and Custom Tech supported for now
-
-    if gdf_transcripts is None:
-
-        if path_data is None:
-            raise ValueError("Either gdf_transcripts or path_data must be provided.")
-
-        trx = read_parquet_error_check(os.path.join(path_data, "transcripts.parquet"))
-
-        if os.path.isfile(os.path.join(path_data, "experiment.xenium")):
-            technology = "Xenium"
-
-            x = "x_location"
-            y = "y_location"
-            cell_id_col = "cell_id"
-            segmentation_approach = "default"
-
-            gdf_trx = gpd.GeoDataFrame(trx, geometry=gpd.points_from_xy(trx[x], trx[y]))
-
-        elif os.path.isfile(os.path.join(path_data, "segmentation_parameters.json")):
-
-            with open(os.path.join(path_data, "segmentation_parameters.json"), "r") as parameters_file:
-                parameters = json.load(parameters_file)
-                technology = parameters["technology"]
-
-            x = "x"
-            y = "y"
-            cell_id_col = "cell_index"
-            segmentation_approach = parameters["segmentation_approach"]
-
-            if type(trx['geometry'].iloc[0]) == str:
-                trx['geometry'] = trx['geometry'].apply(wkt.loads)
-
-            gdf_trx = gpd.GeoDataFrame(trx, geometry="geometry")
-            gdf_trx.set_geometry("geometry", inplace=True)
-
-        else:
-            raise ValueError("Unsupported or missing transcriptomics technology files.")
+    elif os.path.isfile(os.path.join(path_data, "segmentation_parameters.json")):
+        with open(os.path.join(path_data, "segmentation_parameters.json"), "r") as f:
+            params = json.load(f)
+        return params["technology"], params["segmentation_approach"], "cell_index"
 
     else:
-        gdf_trx = gdf_transcripts.copy()
+        raise ValueError("Missing required technology metadata files.")
+
+def create_trx_gdf(gdf_transcripts=None, path_data=None, py_test=False, extract_meta_only=False):
+    """
+    Prepares a GeoDataFrame of spatial transcript data based on technology type (Xenium or custom).
+
+    Parameters
+    ----------
+    gdf_transcripts : geopandas.GeoDataFrame, optional
+        Used in test mode. Provided directly without file reads.
+
+    path_data : str, optional
+        Directory path containing 'experiment.xenium', 'segmentation_parameters.json',
+        and 'transcripts.parquet'.
+
+    py_test : bool, optional
+        If True, uses `gdf_transcripts` directly. Default is False.
+
+    extract_meta_only : bool, optional
+        If True, returns metadata only. Default is False.
+
+    Returns
+    -------
+    - If extract_meta_only: (technology, segmentation_approach, cell_id_col)
+    - If py_test: depends on the calling function
+    - Else: (GeoDataFrame, technology, segmentation_approach)
+    """
+    if py_test:
+        return _handle_py_test(gdf_transcripts)
+
+    if path_data is None:
+        raise ValueError("`path_data` must be provided.")
+
+    technology, segmentation_approach, cell_id_col = _extract_metadata(path_data=path_data, py_test=py_test)
+
+    print("Reading transcripts file...")
+    trx = read_parquet_error_check(os.path.join(path_data, "transcripts.parquet"))
+
+    if technology == "Xenium":
+        gdf_trx = gpd.GeoDataFrame(trx, geometry=gpd.points_from_xy(trx["x_location"], trx["y_location"]))
+    else:
+        if isinstance(trx['geometry'].iloc[0], str):
+            trx['geometry'] = trx['geometry'].apply(wkt.loads)
+
+        gdf_trx = trx.copy()
         gdf_trx.set_geometry("geometry", inplace=True)
 
-        technology = "PYTEST"
-        cell_id_col = "cell_index"
-        x = "x"
-        y = "y"
-
     print("Transcripts file read.")
+    return gdf_trx, technology, segmentation_approach
+
+def hexatile_specific_assigned_transcripts(
+    gdf_hextile,
+    gdf_transcripts=None, path_data=None,
+    path_landscape_files=None,
+    py_test=False
+):
+    """
+    Assigns transcripts to hexagonal spatial tiles and returns the resulting GeoDataFrame.
+
+    This function performs a spatial join between transcript coordinates and hexagonal tiles
+    (from `gdf_hextile`), assigning each transcript to the hex tile it falls within.
+    It also appends metadata related to the technology and segmentation approach used.
+
+    Optionally, the result is saved as a Parquet file if `py_test` is False.
+
+    Parameters
+    ----------
+    gdf_hextile : geopandas.GeoDataFrame
+        GeoDataFrame containing the hexagonal tiling of the spatial region. Must include a geometry column
+        (usually in physical coordinates, e.g., microns).
+
+    gdf_transcripts : geopandas.GeoDataFrame, optional
+        Pre-loaded GeoDataFrame of transcripts (used only if `py_test` is True).
+
+    path_data : str, optional
+        Directory path containing spatial transcriptomics data files such as:
+            - `transcripts.parquet` (required if `gdf_transcripts` is not provided),
+            - `experiment.xenium` or `segmentation_parameters.json` for technology metadata.
+
+    path_landscape_files : str, optional
+        Directory path where the output file will be saved (if `py_test` is False).
+
+    py_test : bool, default False
+        If True, uses the provided `gdf_transcripts` directly and skips file reading/saving.
+        Useful for testing or mock scenarios.
+
+    Returns
+    -------
+    gdf_hextile_assigned_trx : geopandas.GeoDataFrame
+        GeoDataFrame of transcripts with an additional `polygon_index` column indicating
+        the hex tile each transcript was assigned to. Includes a `technology` column for reference.
+
+    """
+
+    gdf_trx, technology, segmentation_approach = create_trx_gdf(gdf_transcripts=gdf_transcripts,
+                                                                path_data=path_data, py_test=py_test)
+
+
     print("Assignment of transcripts started...")
 
     gdf_hextile.set_geometry("geometry", inplace=True)
@@ -414,8 +487,14 @@ def hexatile_specific_unassigned_transcripts(
         gdf_trx, gdf_hextile, how="left", predicate="within"
     )
 
-    hextile_assigned_trx.rename(columns={"index_right": "polygon_index", "geometry_image_space_left": "geometry_image_space"}, inplace=True)
-    hextile_assigned_trx.drop(["geometry_image_space"], axis=1, inplace=True)
+    hextile_assigned_trx.rename(columns={"index_right": "polygon_index"}, inplace=True)
+
+    if "geometry_image_space" in gdf_trx.columns.to_list():
+        hextile_assigned_trx.drop(["geometry_image_space_right"], axis=1, inplace=True)
+        hextile_assigned_trx.rename(columns={"geometry_image_space_left": "geometry_image_space"}, inplace=True)
+
+    else:
+        hextile_assigned_trx.drop(["geometry_image_space"], axis=1, inplace=True)
 
     hextile_assigned_trx["polygon_index"] = (
         hextile_assigned_trx["polygon_index"].astype(str) + "_polygon"
@@ -425,7 +504,9 @@ def hexatile_specific_unassigned_transcripts(
         hextile_assigned_trx, geometry="geometry"
     )
 
-    if technology != "PYTEST":
+    gdf_hextile_assigned_trx['technology'] = technology
+
+    if not py_test:
 
         gdf_hextile_assigned_trx.to_parquet(
         os.path.join(
@@ -434,6 +515,55 @@ def hexatile_specific_unassigned_transcripts(
         )
 
     print("Assignment of transcripts done and saved.")
+
+    return gdf_hextile_assigned_trx
+
+def percentage_hextile_specific_unassigned_transcripts(gdf_hextile_assigned_trx, gdf_hextile, path_data=None, path_landscape_files=None, percentage_unassigned_threshold=75, py_test=False):
+
+    """
+    Calculates and annotates each hexagonal tile with the percentage of unassigned transcripts.
+
+    This function computes the proportion of unassigned transcripts per hex tile based on
+    previously spatially joined transcript data. It filters out hex tiles with a percentage
+    of unassigned transcripts greater than or equal to the specified threshold and stores the
+    results as a new column in the hextile GeoDataFrame.
+
+    Optionally, the updated hextile metadata is saved to disk as a Parquet file.
+
+    Parameters
+    ----------
+    gdf_hextile_assigned_trx : geopandas.GeoDataFrame
+        GeoDataFrame of transcripts that have been spatially joined to hexagonal tiles.
+        Must include a `polygon_index` column and a cell assignment column (e.g., `cell_id`).
+
+    gdf_hextile : geopandas.GeoDataFrame
+        GeoDataFrame containing hexagonal tiling. This will be modified to include a new
+        column `unassigned_trx_percentage` representing the proportion of unassigned transcripts.
+
+    path_landscape_files : str, optional
+        Path to the directory where the resulting annotated hextile GeoDataFrame will be saved
+        (only if `py_test` is False).
+
+    percentage_unassigned_threshold : float, default 75
+        Threshold (in percent) above which hex tiles are excluded from the unassigned
+        percentage calculation. Tiles above this threshold will be assigned 0.
+
+    py_test : bool, default False
+        If True, disables file saving and uses placeholder metadata for testing.
+
+    Returns
+    -------
+    gdf_hextile_assigned_trx : geopandas.GeoDataFrame
+        The same input transcript GeoDataFrame, unmodified.
+
+    gdf_hextile : geopandas.GeoDataFrame
+        The input hextile GeoDataFrame with an added `unassigned_trx_percentage` column.
+
+    """
+
+    gdf_hextile.set_geometry("geometry", inplace=True)
+
+    technology, segmentation_approach, cell_id_col = _extract_metadata(path_data=path_data, py_test=py_test)
 
     print("Calculating percentage of hextile-specific unassigned transcripts...")
 
@@ -461,11 +591,40 @@ def hexatile_specific_unassigned_transcripts(
         tile_mapping["unassigned_trx_percentage"]
     ).fillna(0)
 
+    if not py_test:
+
+        gdf_hextile.to_parquet(
+            os.path.join(
+                path_landscape_files,
+                f"hextile_meta_{technology}_{segmentation_approach}.parquet")
+            )
+
     print("Calculation done.")
 
     return gdf_hextile_assigned_trx, gdf_hextile
 
 def plot_hexatile_specific_unassigned_transcripts(gdf_hextile):
+
+    """
+    Plots a heatmap of the percentage of unassigned transcripts per hexagonal tile.
+
+    This function visualizes transcript assignment quality by shading hex tiles according
+    to the percentage of unassigned transcripts. The values are normalized and mapped to
+    the `Reds` colormap for intuitive color representation.
+
+    Parameters
+    ----------
+    gdf_hextile : geopandas.GeoDataFrame
+        GeoDataFrame containing hexagonal tiles with a column `unassigned_trx_percentage`
+        that indicates the percentage of transcripts in each tile not assigned to any cell.
+
+    Returns
+    -------
+    None
+        Displays a matplotlib figure showing the unassigned transcript percentage for each tile.
+        The function does not return or save any output files.
+
+    """
 
     print("Plotting a tiled view of hextile-specific unassigned transcripts...")
 

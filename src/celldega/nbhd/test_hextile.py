@@ -39,8 +39,15 @@ def test_hextile():
 
     gdf_dummy_hextile = create_hextile(radius=5, img_width=img_width, img_height=img_height)
 
-    hextile_assigned_trx, hextile_meta = hexatile_specific_unassigned_transcripts(gdf_hextile = gdf_dummy_hextile,
-                                                    gdf_transcripts = gdf_dummy_trx)
+    hextile_assigned_trx = hexatile_specific_assigned_transcripts(gdf_hextile = gdf_dummy_hextile,
+                                                    gdf_transcripts = gdf_dummy_trx,
+                                                    py_test=True)
+
+    hextile_assigned_trx, gdf_hextile = percentage_hextile_specific_unassigned_transcripts(gdf_hextile_assigned_trx=hextile_assigned_trx,
+                                                       gdf_hextile=gdf_dummy_hextile,
+                                                       percentage_unassigned_threshold=75,
+                                                       py_test=True)
+
 
     assert hextile_trx_assignment_check(hextile_assigned_trx) == (False, False)
     assert round(sum(gdf_dummy_hextile.area.tolist())) == round(img_width * img_height)

@@ -566,7 +566,7 @@ class NBHD:
         Parameters
         ----------
         key : str
-            One of 'NBI', 'NBG-CF', 'NBG-CD', 'NBG-LCD', 'NBP', 'NBN-O', 'NBN-B', 'META'
+            One of 'NBI', 'NBG-CF', 'NBG-CD', 'NBG-LCD', 'NBP', 'NBN-O', 'NBN-B', 'NBM'
         data : pd.DataFrame or np.ndarray
             Matrix with shape [n_neighborhoods x n_features]
         subkey : str, optional

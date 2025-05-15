@@ -10,7 +10,8 @@ import numpy as np
 import json
 import anndata as ad
 import mudata
-from shapely.geometry import Point, Polygon, box, shape
+import rasterio
+from shapely.geometry import Point, Polygon, box, shape, mapping
 from shapely.affinity import affine_transform
 from shapely.affinity import translate
 import os
@@ -18,6 +19,7 @@ import xml.etree.ElementTree as ET
 import matplotlib.pyplot as plt
 import pandas as pd
 from itertools import combinations
+
 
 def _classify_polygons_contains_check(polygons, points):
     """
@@ -830,3 +832,129 @@ def calc_nb_bordering(gdf_nbhd):
     gdf_touches = gdf_touches.drop_duplicates(subset="pair")
 
     return gdf_touches[["name_left", "name_right"]].rename(columns={"name_left": "nbhd_1", "name_right": "nbhd_2"}).reset_index(drop=True)
+
+
+def calc_img_zonal_stats(
+    polygon_src, 
+    img, 
+    unique_polygon_col_name='name', 
+    channel_names=None,
+    stats_func='mean',
+):
+    """
+    Calculate zonal statistics for each polygon from a multi-channel image.
+
+    Parameters:
+    - polygon_src: Either:
+        - GeoDataFrame containing polygon geometries and a unique identifier column
+        - 2D NumPy array mask where each unique value represents a different polygon
+    - img: 3D NumPy array (H, W, C) representing the multi-channel image.
+    - unique_polygon_col_name: Column name in GeoDataFrame containing unique polygon identifiers.
+                              Only used when polygon_src is a GeoDataFrame.
+    - channel_names: dict mapping channel indices to channel names (e.g., {0: 'dapi', 1: 'bound', ...}).
+    - stats_func: String, function, or list of strings/functions specifying statistics to calculate.
+                 Options: 'mean', 'median', 'std', 'min', 'max', 'sum', 'count', 'percentile_<q>',
+                 or any numpy function that takes an array and returns a scalar.
+                 Default: 'mean'.
+    - stats_func_names: Optional names for the statistics when using custom functions.
+                       Should match length of stats_func if provided.
+
+    Returns:
+    - DataFrame with statistics per polygon per channel.
+    """
+
+    # Standard statistics mapping
+    STATS_FUNCS = {
+        'mean': np.nanmean,
+        'median': np.nanmedian,
+        'std': np.nanstd,
+        'min': np.nanmin,
+        'max': np.nanmax,
+        'sum': np.nansum,
+        'count': lambda x: np.sum(~np.isnan(x)),
+    }
+
+    # Process stats_func argument
+    if isinstance(stats_func, (str, callable)):
+        stats_func = [stats_func]
+    
+    # Convert string stats to functions and validate
+    stat_funcs = []
+    stat_names = []
+    
+    for i, stat in enumerate(stats_func):
+        if isinstance(stat, str):
+            # Handle percentile case
+            if stat.startswith('percentile_'):
+                try:
+                    q = float(stat.split('_')[1])
+                    stat_funcs.append(lambda x, q=q: np.nanpercentile(x, q))
+                    stat_names.append(f'p{q}')
+                except (IndexError, ValueError):
+                    raise ValueError(f"Invalid percentile specification: {stat}")
+            else:
+                if stat not in STATS_FUNCS:
+                    raise ValueError(f"Unknown statistic: {stat}. Available: {list(STATS_FUNCS.keys())}")
+                stat_funcs.append(STATS_FUNCS[stat])
+                stat_names.append(stat)
+        elif callable(stat):
+            stat_funcs.append(stat)
+            stat_names.append(name)
+        else:
+            raise ValueError("stats_func must be string, function, or list of these")
+
+    height, width, num_channels = img.shape
+    transform = rasterio.transform.from_origin(0, height, 1, 1)  # Dummy affine transform
+    
+    stats = []
+
+    if isinstance(polygon_src, gpd.GeoDataFrame):
+        # Process as GeoDataFrame
+        for idx, row in polygon_src.iterrows():
+            polygon = row.geometry
+            polygon_name = row[unique_polygon_col_name]
+
+            # Rasterize the polygon to create a mask
+            mask = rasterio.features.rasterize(
+                [(mapping(polygon), 1)],
+                out_shape=(height, width),
+                transform=transform,
+                fill=0,
+                all_touched=True,
+                dtype=np.uint8
+            )
+
+            # Calculate statistics per channel within the masked area
+            polygon_stats = {'polygon_id': polygon_name}
+            
+            for ch in range(num_channels):
+                masked_data = img[:, :, ch][mask == 1]
+                ch_name = channel_names.get(ch, f'channel_{ch}') if channel_names else f'channel_{ch}'
+                
+                for func, name in zip(stat_funcs, stat_names):
+                    stat_value = func(masked_data) if masked_data.size > 0 else np.nan
+                    polygon_stats[f'{ch_name}'] = stat_value
+
+            stats.append(polygon_stats)
+    else:
+        # Process as numpy array mask
+        unique_polygon_ids = np.unique(polygon_src)
+        unique_polygon_ids = unique_polygon_ids[unique_polygon_ids != 0]  # Exclude background (0)
+        
+        for polygon_id in unique_polygon_ids:
+            mask = (polygon_src == polygon_id)
+            
+            # Calculate statistics per channel within the masked area
+            polygon_stats = {'polygon_id': polygon_id}
+            
+            for ch in range(num_channels):
+                masked_data = img[:, :, ch][mask]
+                ch_name = channel_names.get(ch, f'channel_{ch}') if channel_names else f'channel_{ch}'
+                
+                for func, name in zip(stat_funcs, stat_names):
+                    stat_value = func(masked_data) if masked_data.size > 0 else np.nan
+                    polygon_stats[f'{ch_name}'] = stat_value
+
+            stats.append(polygon_stats)
+
+    return pd.DataFrame(stats)

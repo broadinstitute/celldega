@@ -68,64 +68,61 @@ def numpy_affine_transform(coords, matrix):
     transformed_coords = coords @ matrix.T
     return transformed_coords[:, :2]  # Drop the homogeneous coordinate
 
+
 def batch_transform_geometries(geometries, transformation_matrix, scale):
     """
     Batch transform geometries using numpy for optimized performance.
     """
-    # Extract affine transformation parameters into a 3x3 matrix for numpy
-    affine_matrix = np.array(
-        [
-            [
-                transformation_matrix[0, 0],
-                transformation_matrix[0, 1],
-                transformation_matrix[0, 2],
-            ],
-            [
-                transformation_matrix[1, 0],
-                transformation_matrix[1, 1],
-                transformation_matrix[1, 2],
-            ],
-            [0, 0, 1],
-        ]
-    )
+    # Construct full affine matrix
+    affine_matrix = np.array([
+        [transformation_matrix[0, 0], transformation_matrix[0, 1], transformation_matrix[0, 2]],
+        [transformation_matrix[1, 0], transformation_matrix[1, 1], transformation_matrix[1, 2]],
+        [0, 0, 1]
+    ])
 
     transformed_geometries = []
 
     for geom in geometries:
 
         if isinstance(geom, Point):
-            # Transform a single Point geometry
-            point_coords = np.array([[geom.x, geom.y]])
-            transformed_coords = (
-                numpy_affine_transform(point_coords, affine_matrix) / scale
-            )
-            transformed_geometries.append(Point(transformed_coords[0]))
+            coords = np.array([[geom.x, geom.y]])
+            transformed = numpy_affine_transform(coords, affine_matrix) / scale
+            transformed_geometries.append(Point(transformed[0]))
 
         elif isinstance(geom, Polygon):
-            # Transform a Polygon geometry
+            # Transform exterior
             exterior_coords = np.array(geom.exterior.coords)
+            exterior_transformed = numpy_affine_transform(exterior_coords, affine_matrix) / scale
 
-            # Apply the affine transformation and scale
-            transformed_coords = (
-                numpy_affine_transform(exterior_coords, affine_matrix) / scale
-            )
+            # Transform interior rings if present
+            interiors_transformed = []
+            for ring in geom.interiors:
+                ring_coords = np.array(ring.coords)
+                ring_transformed = numpy_affine_transform(ring_coords, affine_matrix) / scale
+                interiors_transformed.append(ring_transformed.tolist())
 
-            # Append the result to the transformed_geometries list
-            transformed_geometries.append([transformed_coords.tolist()])
+            # Create transformed Polygon
+            transformed_geometries.append(Polygon(exterior_transformed, interiors_transformed))
 
         elif isinstance(geom, MultiPolygon):
-            geom = next(geom.geoms)  # Use the first geometry
+            transformed_polys = []
 
-            # Transform the exterior of the polygon
-            exterior_coords = np.array(geom.exterior.coords)
+            for poly in geom.geoms:
+                # Exterior
+                exterior_coords = np.array(poly.exterior.coords)
+                exterior_transformed = numpy_affine_transform(exterior_coords, affine_matrix) / scale
 
-            # Apply the affine transformation and scale
-            transformed_coords = (
-                numpy_affine_transform(exterior_coords, affine_matrix) / scale
-            )
+                # Interiors
+                interiors_transformed = []
+                for ring in poly.interiors:
+                    ring_coords = np.array(ring.coords)
+                    ring_transformed = numpy_affine_transform(ring_coords, affine_matrix) / scale
+                    interiors_transformed.append(ring_transformed.tolist())
 
-            # Append the result to the transformed_geometries list
-            transformed_geometries.append([transformed_coords.tolist()])
+                transformed_polys.append(Polygon(exterior_transformed, interiors_transformed))
+
+            # Combine all polygons
+            transformed_geometries.append(MultiPolygon(transformed_polys))
 
     return transformed_geometries
 

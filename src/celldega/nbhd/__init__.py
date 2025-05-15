@@ -431,7 +431,7 @@ def hextile_assigned_trx(
     py_test=False
 ):
     """
-    Assigns transcripts to hexagonal spatial tiles and returns the resulting GeoDataFrame.
+    Assigns transcripts to hexagonal spatial tiles and returns the resulting transcripts GeoDataFrame.
 
     This function performs a spatial join between transcript coordinates and hexagonal tiles
     (from `gdf_hextile`), assigning each transcript to the hex tile it falls within.

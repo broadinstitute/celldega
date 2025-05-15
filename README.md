@@ -64,5 +64,6 @@ Increment version in `package.json` and
 
 ```
 $ npm run build
+$ npm run watch
 $ npm publish
 ```

@@ -17,6 +17,7 @@ import os
 import xml.etree.ElementTree as ET
 import matplotlib.pyplot as plt
 import pandas as pd
+from itertools import combinations
 
 def _classify_polygons_contains_check(polygons, points):
     """
@@ -759,3 +760,76 @@ def get_nbhd_meta(gdf_nbhd, unique_nbhd_col, gdf_trx, gdf_cell):
     summary = summary.join(geom_stats[["area", "perimeter"]])
 
     return summary
+
+
+def calc_nb_overlap(gdf_nbhd):
+    """
+    Calculate the pairwise overlap between all neighborhoods, including overlap area and geometry.
+    Skips intersections that are empty or have zero area.
+
+    Parameters
+    ----------
+    gdf_nbhd : GeoDataFrame
+        GeoDataFrame with a 'name' column and polygon geometries for neighborhoods.
+
+    Returns
+    -------
+    GeoDataFrame
+        GeoDataFrame with:
+        - 'nbhd_1': Name of the first neighborhood
+        - 'nbhd_2': Name of the second neighborhood
+        - 'overlap_area': Area of the overlapping region (rounded to 2 decimals)
+        - 'geometry': Geometry of the overlapping region
+    """
+    gdf_nbhd = gdf_nbhd.copy()
+    gdf_nbhd["geometry"] = gdf_nbhd["geometry"].buffer(0)  # Ensure valid geometry
+
+    results = []
+    for nb1, nb2 in combinations(gdf_nbhd["name"], 2):
+        geom1 = gdf_nbhd.loc[gdf_nbhd["name"] == nb1, "geometry"].values[0]
+        geom2 = gdf_nbhd.loc[gdf_nbhd["name"] == nb2, "geometry"].values[0]
+        intersection = geom1.intersection(geom2)
+
+        # Skip empty or zero-area geometries
+        if not intersection.is_empty and intersection.area > 0:
+            results.append({
+                "nbhd_1": nb1,
+                "nbhd_2": nb2,
+                "overlap_area": round(intersection.area, 2),
+                "geometry": intersection
+            })
+
+    if results:
+        return gpd.GeoDataFrame(results, geometry="geometry", crs=gdf_nbhd.crs)
+    else:
+        return gpd.GeoDataFrame(columns=["nbhd_1", "nbhd_2", "overlap_area", "geometry"], geometry="geometry", crs=gdf_nbhd.crs)
+    
+
+def calc_nb_bordering(gdf_nbhd):
+    """
+    Identify pairs of neighborhoods that share a border (touch), using spatial indexing for efficiency.
+
+    Parameters
+    ----------
+    gdf_nbhd : GeoDataFrame
+        GeoDataFrame containing neighborhood geometries and a unique 'name' column.
+
+    Returns
+    -------
+    DataFrame
+        A DataFrame with columns: ['nbhd_1', 'nbhd_2'] representing neighborhoods that touch.
+    """
+    gdf_nbhd = gdf_nbhd.copy()
+    gdf_nbhd["geometry"] = gdf_nbhd["geometry"].buffer(0)  # Ensure valid geometry
+
+    # Spatial join on self with 'touches' predicate
+    gdf_touches = gpd.sjoin(gdf_nbhd, gdf_nbhd, how="inner", predicate="touches")
+
+    # Filter out self-matches if they appear
+    gdf_touches = gdf_touches[gdf_touches["name_left"] != gdf_touches["name_right"]]
+
+    # Keep only unique pairs (e.g. A-B but not B-A)
+    gdf_touches["pair"] = gdf_touches.apply(lambda row: tuple(sorted((row["name_left"], row["name_right"]))), axis=1)
+    gdf_touches = gdf_touches.drop_duplicates(subset="pair")
+
+    return gdf_touches[["name_left", "name_right"]].rename(columns={"name_left": "nbhd_1", "name_right": "nbhd_2"}).reset_index(drop=True)

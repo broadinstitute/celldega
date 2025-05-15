@@ -11,6 +11,7 @@ import json
 import anndata as ad
 import mudata
 import rasterio
+from rasterio.features import rasterize
 from shapely.geometry import Point, Polygon, box, shape, mapping
 from shapely.affinity import affine_transform
 from shapely.affinity import translate
@@ -549,7 +550,7 @@ class NBHD:
 
         # Store all derived high-dimensional data here
         self.derived = {
-            'NBI': None,
+            'NBI': {},  # keyed by metric name: mean, median,
             'NBG-CF': None,
             'NBG-CD': None,
             'NBG-LCD': {},  # keyed by cluster name
@@ -572,9 +573,9 @@ class NBHD:
             For NBG-LCD or other nested structures, store under a subkey 
             (e.g., cluster name).
         """
-        if key in {'NBP', 'NBG-LCD'}:
+        if key in {'NBI','NBP', 'NBG-LCD'}:
             if subkey is None:
-                raise ValueError("NBG-LCD and NBP requires a subkey (e.g., cluster name, abs or pct)")
+                raise ValueError("NBI, NBG-LCD, and NBP requires a subkey (e.g., mean or median, cluster name, abs or pct)")
             self.derived[key][subkey] = data
         else:
             self.derived[key] = data
@@ -591,7 +592,7 @@ class NBHD:
 
     def get_derived(self, key, subkey=None):
         """Retrieve derived data by key and optional subkey."""
-        if key in {'NBP', 'NBG-LCD'}:
+        if key in {'NBI','NBP', 'NBG-LCD'}:
             df = self.derived[key].get(subkey)
             return self._add_geo(df)
         df = self.derived.get(key)
@@ -915,7 +916,7 @@ def calc_img_zonal_stats(
             polygon_name = row[unique_polygon_col_name]
 
             # Rasterize the polygon to create a mask
-            mask = rasterio.features.rasterize(
+            mask = rasterize(
                 [(mapping(polygon), 1)],
                 out_shape=(height, width),
                 transform=transform,
@@ -925,7 +926,7 @@ def calc_img_zonal_stats(
             )
 
             # Calculate statistics per channel within the masked area
-            polygon_stats = {'polygon_id': polygon_name}
+            polygon_stats = {'nbhd_id': polygon_name}
             
             for ch in range(num_channels):
                 masked_data = img[:, :, ch][mask == 1]
@@ -945,7 +946,7 @@ def calc_img_zonal_stats(
             mask = (polygon_src == polygon_id)
             
             # Calculate statistics per channel within the masked area
-            polygon_stats = {'polygon_id': polygon_id}
+            polygon_stats = {'nbhd_id': polygon_id}
             
             for ch in range(num_channels):
                 masked_data = img[:, :, ch][mask]

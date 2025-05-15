@@ -514,12 +514,9 @@ def calc_nbg_cf(data_dir, gdf_nbhd, unique_nbhd_col='name'):
 
     # Count feature occurrences per neighborhood
     df_counts = gdf_trx.groupby(['nbhd_id', 'feature_name']).size().unstack(fill_value=0)
+    df_counts = df_counts.rename_axis("nbhd_id").rename_axis(None, axis=1)
 
-    # Merge neighborhood geometry
-    gdf_nbhd = gdf_nbhd.rename(columns={unique_nbhd_col: 'nbhd_id'})
-    df_result = gdf_nbhd[['nbhd_id']].merge(df_counts, on='nbhd_id', how='left').fillna(0)
-
-    return pd.DataFrame(df_result)
+    return df_counts
 
 class NBHD:
     """A class representing neighborhoods with associated derived data matrices."""
@@ -755,9 +752,9 @@ def get_nbhd_meta(gdf_nbhd, unique_nbhd_col, gdf_trx, gdf_cell):
 
     # Compute area and perimeter
     geom_stats = gdf_nbhd.set_index(unique_nbhd_col)[['geometry']].copy()
-    geom_stats["area"] = geom_stats.geometry.area.round(2)
-    geom_stats["perimeter"] = geom_stats.geometry.length.round(2)
-    summary = summary.join(geom_stats[["area", "perimeter"]])
+    geom_stats["area_squm"] = geom_stats.geometry.area.round(2)
+    geom_stats["perimeter_um"] = geom_stats.geometry.length.round(2)
+    summary = summary.join(geom_stats[["area_squm", "perimeter_um"]])
 
     return summary
 

@@ -366,7 +366,6 @@ def calc_nbg_cd(
 
         df_nbhd_join.rename(columns={unique_nbhd_col: 'nbhd_id'}, inplace=True)
         df_nbhd_join.set_index('nbhd_id', inplace=True)
-        df_nbhd_join = df_nbhd_join.fillna(0, inplace=True)
 
         return df_nbhd_join
 
@@ -520,7 +519,6 @@ def calc_nbg_cf(data_dir, gdf_nbhd, unique_nbhd_col='name'):
     # Count feature occurrences per neighborhood
     df_counts = gdf_trx.groupby(['nbhd_id', 'feature_name']).size().unstack(fill_value=0)
     df_counts = df_counts.rename_axis("nbhd_id").rename_axis(None, axis=1)
-    df_counts = df_counts.fillna(0)
 
     return df_counts
 
@@ -762,8 +760,6 @@ def get_nbhd_meta(gdf_nbhd, unique_nbhd_col, gdf_trx, gdf_cell):
     geom_stats["perimeter_um"] = geom_stats.geometry.length.round(2)
     summary = summary.join(geom_stats[["area_squm", "perimeter_um"]])
     summary.index.name = 'nbhd_id'
-    summary = summary.fillna(0, inplace=True)
-
 
     return summary
 

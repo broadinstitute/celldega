@@ -4,15 +4,12 @@ Module for performing neighborhood analysis.
 
 from libpysal.cg import alpha_shape as libpysal_alpha_shape
 import geopandas as gpd
-from shapely import Point, MultiPolygon
 from shapely.ops import transform
 import numpy as np
 import json
-import anndata as ad
-import mudata
 import rasterio
 from rasterio.features import rasterize
-from shapely.geometry import Point, Polygon, box, shape, mapping
+from shapely.geometry import Point, Polygon, MultiPolygon, box, shape, mapping
 from shapely.affinity import affine_transform
 from shapely.affinity import translate
 import os

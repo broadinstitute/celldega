@@ -15,8 +15,10 @@ from shapely.affinity import translate
 import os
 import xml.etree.ElementTree as ET
 import matplotlib.pyplot as plt
+from skimage.io import imread
 import pandas as pd
 from itertools import combinations
+from celldega.pre.boundary_tile import batch_transform_geometries
 
 
 def _classify_polygons_contains_check(polygons, points):
@@ -367,6 +369,7 @@ def calc_nbg_cd(
         return df_nbhd_join
 
     if cd_mode == 'LCD':
+        print ('Calculating NBG-LCD')
         nbhd_by_cluster = {}
         for cluster in gdf_cell['cluster'].unique():
             cluster_cells = gdf_cell[gdf_cell['cluster'] == cluster]
@@ -374,6 +377,7 @@ def calc_nbg_cd(
         return nbhd_by_cluster
 
     elif cd_mode == 'CD':
+        print ('Calculating NBG-CD')
         return compute_cd(gdf_cell)
 
     else:
@@ -497,7 +501,7 @@ def calc_nbg_cf(data_dir, gdf_nbhd, unique_nbhd_col='name'):
         of each transcript feature. Includes geometry for each neighborhood.
 
     """
-    
+    print ('Calculating NBG-CF')
     # Load only needed columns from the transcript data
     df_trx = pd.read_parquet(
         f'{data_dir}/transcripts.parquet',
@@ -522,7 +526,17 @@ def calc_nbg_cf(data_dir, gdf_nbhd, unique_nbhd_col='name'):
 class NBHD:
     """A class representing neighborhoods with associated derived data matrices."""
     
-    def __init__(self, gdf, nbhd_type, source=None, name=None, meta=None):
+    def __init__(
+            self,
+            gdf,
+            nbhd_type,
+            adata,
+            data_dir,
+            path_landscape_files, 
+            source=None,
+            name=None,
+            meta=None
+            ):
         """
         Initialize a neighborhood object.
 
@@ -532,6 +546,9 @@ class NBHD:
             A GeoDataFrame with one row per neighborhood. Must have a 'geometry' column.
         nbhd_type : str
             One of: 'SKTCH', 'HEX', 'ALPH', 'GRAD'
+        adata : Anndata that processed with spatialdata-io and spatialdata from raw Xenium output
+        data_dir : str, path to the raw data directory
+        path_landscape_files : str, path to the landscape files directory
         source : str or dict, optional
             Optional description of where this neighborhood set came from 
             (e.g., 'B cells', clustering params)
@@ -542,6 +559,9 @@ class NBHD:
         """
         self.gdf = gdf.copy()
         self.nbhd_type = nbhd_type
+        self.adata = adata
+        self.data_dir = data_dir
+        self.path_landscape_files = path_landscape_files
         self.source = source
         self.name = name
         self.meta = meta or {}
@@ -557,7 +577,7 @@ class NBHD:
             'NBN-B': None,
         }
 
-    def set_derived(self, key, data, subkey=None):
+    def set_derived(self, key, subkey=None):
         """
         Set a derived data matrix.
 
@@ -565,18 +585,79 @@ class NBHD:
         ----------
         key : str
             One of 'NBI', 'NBG-CF', 'NBG-CD', 'NBG-LCD', 'NBP', 'NBN-O', 'NBN-B', 'NBM'
-        data : pd.DataFrame or np.ndarray
-            Matrix with shape [n_neighborhoods x n_features]
         subkey : str, optional
             For NBG-LCD or other nested structures, store under a subkey 
             (e.g., cluster name).
         """
+
+        if key == 'NBG-CD':
+            data = calc_nbg_cd(self.adata, self.gdf,'CD')
+
+        elif key == 'NBG-LCD':
+            data = calc_nbg_cd(self.adata, self.gdf,'LCD')
+
+        elif key == 'NBG-CF':
+            data = calc_nbg_cf(self.data_dir, self.gdf)
+
+        elif key == 'NBP':
+                data = {}
+                gdf_cell = _get_gdf_cell(self.adata)
+                data['abs'], data['pct'] = calc_nbp(gdf_cell, self.gdf)
+
+        elif key == 'NBM':
+                gdf_trx = _get_gdf_trx(self.data_dir)
+                gdf_cell = _get_gdf_cell(self.adata)
+                data = get_nbhd_meta(self.gdf, 'name', gdf_trx, gdf_cell)
+
+        elif key == 'NBN-O':
+            if self.nbhd_type == 'ALPH':
+                nb = self.gdf[['name','geometry']]
+                print ('Calculating neighborhood overlap')
+                data = calc_nb_overlap(nb)
+            else:
+                raise ValueError("NBN-O can be derived for ALPH only")
+            
+        elif key == 'NBN-B':
+            if self.nbhd_type == 'ALPH':
+                raise ValueError("NBN-B can not be derived for nbhd having overlap")
+            else:
+                nb = self.gdf[['name','geometry']]
+                print ('Calculating neighborhood bordering')
+                data = calc_nb_bordering(nb)
+
+        if key == 'NBI':
+            data = calc_nbg_cd(self.adata, self.gdf,'CD')
+
+            # #### Calculate and attach NBI ####
+            # Load the morphology image
+            file_path = f"{self.data_dir}/morphology_focus/morphology_focus_0000.ome.tif"
+            img = imread(file_path)
+
+            # Convert gdf_nbhd to pixel space
+            path_transformation_matrix = f'{self.path_landscape_files}/micron_to_image_transform.csv'
+
+            transformation_matrix = pd.read_csv(
+                path_transformation_matrix, header=None, sep=" "
+            ).values
+
+            gdf_nbhd_pixel = self.gdf.copy()
+            gdf_nbhd_pixel["geometry"] = batch_transform_geometries(gdf_nbhd_pixel["geometry"], transformation_matrix, 1)
+
+            # Extract zonal stats and attach
+            data = {}
+            channel_name_dict = {0:'dapi',1:'bound', 2:'rna', 3:'prot'}
+            for metric in ['mean', 'median', 'std']:
+                df_stats = calc_img_zonal_stats(gdf_nbhd_pixel, img, channel_names=channel_name_dict, stats_func=metric)
+                df_stats.set_index('nbhd_id', inplace=True)
+                data[metric] = df_stats
+
         if key in {'NBI','NBP', 'NBG-LCD'}:
-            if subkey is None:
-                raise ValueError("NBI, NBG-LCD, and NBP requires a subkey (e.g., mean or median, cluster name, abs or pct)")
-            self.derived[key][subkey] = data
+            for subkey in data.keys():
+                self.derived[key][subkey] = data[subkey]
         else:
             self.derived[key] = data
+
+        print (f'{key} is derived and attached to nbhd' )
 
     def _add_geo(self, df):
         return (
@@ -613,12 +694,28 @@ class NBHD:
 
     def _derived_summary(self, key):
         """Internal method to summarize derived data shapes."""
-        val = self.derived[key]
+
+        val = self.derived.get(key)
+
+        # Skip if top-level key is unset
         if val is None:
             return None
-        if isinstance(val, dict):
-            return {k: v.shape for k, v in val.items()}
-        return val.shape
+
+        if key in ['NBI', 'NBP', 'NBG-LCD']:
+            if key == 'NBI':
+                subkeys = ['mean', 'median', 'std']
+            elif key == 'NBP':
+                subkeys = ['abs', 'pct']
+            elif key == 'NBG-LCD':
+                subkeys = sorted(self.adata.obs['leiden'].unique().tolist())
+
+            summary = {}
+            for subkey in subkeys:
+                subval = val.get(subkey)
+                summary[subkey] = subval.shape if hasattr(subval, "shape") else None
+            return summary
+        else:
+            return val.shape if hasattr(val, "shape") else None
     
 
 def calc_nbp(gdf_cell, gdf_nbhd, nbhd_col='name'):
@@ -631,6 +728,8 @@ def calc_nbp(gdf_cell, gdf_nbhd, nbhd_col='name'):
     
     Both retain original neighborhood geometries.
     """
+
+    print ('Calculating NBP')
     # Validate inputs
     required = {'geometry', nbhd_col}
     if not required.issubset(gdf_nbhd.columns):
@@ -727,6 +826,8 @@ def get_nbhd_meta(gdf_nbhd, unique_nbhd_col, gdf_trx, gdf_cell):
         - area: area of each neighborhood geometry (in coordinate system units)
         - perimeter: perimeter (length) of each neighborhood polygon
     """
+
+    print ('Calculating NBM')
     # Keep the index same as nbhd id or name
     gdf_nbhd = gdf_nbhd.set_index("name")
     gdf_nbhd["name"] = gdf_nbhd.index
@@ -780,6 +881,8 @@ def calc_nb_overlap(gdf_nbhd):
         - 'overlap_area': Area of the overlapping region (rounded to 2 decimals)
         - 'geometry': Geometry of the overlapping region
     """
+
+    print ('Calculating NBN-O')
     gdf_nbhd = gdf_nbhd.copy()
     gdf_nbhd["geometry"] = gdf_nbhd["geometry"].buffer(0)  # Ensure valid geometry
 
@@ -818,6 +921,8 @@ def calc_nb_bordering(gdf_nbhd):
     DataFrame
         A DataFrame with columns: ['nbhd_1', 'nbhd_2'] representing neighborhoods that touch.
     """
+
+    print ('Calculating NBN-B')
     gdf_nbhd = gdf_nbhd.copy()
     gdf_nbhd["geometry"] = gdf_nbhd["geometry"].buffer(0)  # Ensure valid geometry
 
@@ -863,6 +968,7 @@ def calc_img_zonal_stats(
     - DataFrame with statistics per polygon per channel.
     """
 
+    print (f'Calculating zontal stats...{stats_func}')
     # Standard statistics mapping
     STATS_FUNCS = {
         'mean': np.nanmean,

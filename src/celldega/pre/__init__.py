@@ -16,7 +16,7 @@ import glob
 import subprocess
 import hashlib
 import base64
-from shapely.geometry import Point, Polygon
+from shapely.geometry import Point, Polygon, MultiPolygon
 from scipy.sparse import csc_matrix, csr_matrix
 import zarr
 from skimage.io import imread, imsave
@@ -873,6 +873,49 @@ def _to_geometry(coord_data):
         ])
 
     raise TypeError(f"Cannot convert {coord_data} to a Shapely geometry. Unexpected structure.")
+
+
+def _to_coords(geom):
+    """
+    Converts a Shapely geometry object to a serializable coordinate structure.
+
+    Supports:
+      - Point → [x, y]
+      - Polygon → {"exterior": [...], "interiors": [...]}
+      - MultiPolygon → list of {"exterior": [...], "interiors": [...]}
+
+    Args:
+        geom (shapely.geometry): A Shapely Point, Polygon, or MultiPolygon.
+
+    Returns:
+        list or dict: Coordinate representation suitable for serialization.
+
+    Raises:
+        TypeError: If the geometry type is unsupported.
+    """
+    if isinstance(geom, Point):
+        return list(geom.coords[0])
+    elif isinstance(geom, Polygon):
+        return {
+            "exterior": [list(coord) for coord in geom.exterior.coords],
+            "interiors": [
+                [list(coord) for coord in interior.coords]
+                for interior in geom.interiors
+            ]
+        }
+    elif isinstance(geom, MultiPolygon):
+        return [
+            {
+                "exterior": [list(coord) for coord in polygon.exterior.coords],
+                "interiors": [
+                    [list(coord) for coord in interior.coords]
+                    for interior in polygon.interiors
+                ]
+            }
+            for polygon in geom.geoms
+        ]
+    else:
+        raise TypeError(f"Unsupported geometry type: {type(geom)}")
 
 
 def write_xenium_transform(

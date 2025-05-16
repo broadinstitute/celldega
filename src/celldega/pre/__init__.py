@@ -829,35 +829,50 @@ def add_custom_segmentation(path_landscape_files, path_segmentation_files, image
                           tile_size=tile_size, image_format='.webp',
                           segmentation_approach=segmentation_parameters['segmentation_approach'])
 
-def _to_geometry(coord_list):
-    """Converts a coordinates list to a Shapely geometry object (Point or Polygon).
+
+def _to_geometry(coord_data):
+    """
+    Converts a coordinate structure back to a Shapely geometry object.
+
+    Accepts:
+      - [x, y] → Point
+      - {"exterior": [...], "interiors": [...]} → Polygon
+      - list of {"exterior": [...], "interiors": [...]} → MultiPolygon
 
     Args:
-        coord_list (list, Point, Polygon): Input coordinates or geometry object.
+        coord_data (list or dict): Coordinate list or structured dict.
 
     Returns:
-        Point or Polygon: Shapely geometry object.
+        shapely.geometry.Point, Polygon, or MultiPolygon
 
     Raises:
-        TypeError: If the input cannot be converted to a Point or Polygon.
+        TypeError: If the input structure is not recognized.
     """
-    # If the input is already a Shapely geometry, return it as is
-    if isinstance(coord_list, (Point, Polygon)):
-        return coord_list
+    if isinstance(coord_data, (Point, Polygon, MultiPolygon)):
+        return coord_data
 
-    # If it's a list with a single element that is also a list/tuple, flatten it
-    if isinstance(coord_list, (list, tuple)) and len(coord_list) == 1 and isinstance(coord_list[0], (list, tuple)):
-        coord_list = coord_list[0]
+    if (
+        isinstance(coord_data, (list, tuple)) and
+        all(isinstance(x, (int, float)) for x in coord_data) and
+        len(coord_data) == 2
+    ):
+        return Point(coord_data)
 
-    # Handle coordinate pair or list of coordinate pairs
-    if all(isinstance(c, (int, float)) for c in coord_list):
-        # Single coordinate pair (e.g., [x, y])
-        return Point(coord_list)
-    elif all(isinstance(c, (list, tuple)) for c in coord_list):
-        # List of coordinate pairs (e.g., [[x1, y1], [x2, y2], ...])
-        return Polygon(coord_list)
-    else:
-        raise TypeError(f"Cannot convert {coord_list} to a Shapely geometry. Unexpected structure.")
+    if isinstance(coord_data, dict) and "exterior" in coord_data:
+        exterior = coord_data["exterior"]
+        interiors = coord_data.get("interiors", [])
+        return Polygon(exterior, interiors)
+
+    if (
+        isinstance(coord_data, list) and
+        all(isinstance(poly, dict) and "exterior" in poly for poly in coord_data)
+    ):
+        return MultiPolygon([
+            Polygon(poly["exterior"], poly.get("interiors", []))
+            for poly in coord_data
+        ])
+
+    raise TypeError(f"Cannot convert {coord_data} to a Shapely geometry. Unexpected structure.")
 
 
 def write_xenium_transform(

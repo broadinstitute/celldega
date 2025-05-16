@@ -1064,3 +1064,15 @@ def calc_img_zonal_stats(
             stats.append(polygon_stats)
 
     return pd.DataFrame(stats)
+
+
+def _add_centroids_to_obsm(adata, gdf, key="spatial"):
+    """
+    Computes centroid x, y coordinates from a GeoDataFrame and stores them in adata.obsm.
+    """
+    if len(adata) != len(gdf):
+        raise ValueError("Number of rows in adata and gdf must match.")
+
+    centroids = gdf.geometry.centroid
+    spatial_coords = np.vstack([centroids.x.values, centroids.y.values]).T  # shape: (n_obs, 2)
+    adata.obsm[key] = spatial_coords

@@ -568,7 +568,7 @@ class NBHD:
 
         # Store all derived high-dimensional data here
         self.derived = {
-            'NBI': {},  # keyed by metric name: mean, median,
+            'NBI': None, 
             'NBG-CF': None,
             'NBG-CD': None,
             'NBG-LCD': {},  # keyed by cluster name
@@ -626,9 +626,6 @@ class NBHD:
                 data = calc_nb_bordering(nb)
 
         if key == 'NBI':
-            data = calc_nbg_cd(self.adata, self.gdf,'CD')
-
-            # #### Calculate and attach NBI ####
             # Load the morphology image
             file_path = f"{self.data_dir}/morphology_focus/morphology_focus_0000.ome.tif"
             img = imread(file_path)
@@ -644,14 +641,18 @@ class NBHD:
             gdf_nbhd_pixel["geometry"] = batch_transform_geometries(gdf_nbhd_pixel["geometry"], transformation_matrix, 1)
 
             # Extract zonal stats and attach
-            data = {}
-            channel_name_dict = {0:'dapi',1:'bound', 2:'rna', 3:'prot'}
-            for metric in ['mean', 'median', 'std']:
-                df_stats = calc_img_zonal_stats(gdf_nbhd_pixel, img, channel_names=channel_name_dict, stats_func=metric)
-                df_stats.set_index('nbhd_id', inplace=True)
-                data[metric] = df_stats
 
-        if key in {'NBI','NBP', 'NBG-LCD'}:
+            data = calc_img_zonal_stats(
+                gdf_nbhd_pixel,
+                img,
+                unique_polygon_col_name='name',
+                channel_names={0:'dapi',1:'bound', 2:'rna', 3:'prot'},
+                stats_funcs=['mean', 'median', 'std']
+                )
+            
+            data = data.rename(columns={'polygon_id': 'nbhd_id'}).set_index('nbhd_id')
+
+        if key in {'NBP', 'NBG-LCD'}:
             for subkey in data.keys():
                 self.derived[key][subkey] = data[subkey]
         else:
@@ -671,7 +672,7 @@ class NBHD:
 
     def get_derived(self, key, subkey=None):
         """Retrieve derived data by key and optional subkey."""
-        if key in {'NBI','NBP', 'NBG-LCD'}:
+        if key in {'NBP', 'NBG-LCD'}:
             df = self.derived[key].get(subkey)
             return self._add_geo(df)
         df = self.derived.get(key)
@@ -701,10 +702,8 @@ class NBHD:
         if val is None:
             return None
 
-        if key in ['NBI', 'NBP', 'NBG-LCD']:
-            if key == 'NBI':
-                subkeys = ['mean', 'median', 'std']
-            elif key == 'NBP':
+        if key in ['NBP', 'NBG-LCD']:
+            if key == 'NBP':
                 subkeys = ['abs', 'pct']
             elif key == 'NBG-LCD':
                 subkeys = sorted(self.adata.obs['leiden'].unique().tolist())
@@ -944,7 +943,7 @@ def calc_img_zonal_stats(
     img, 
     unique_polygon_col_name='name', 
     channel_names=None,
-    stats_func='mean',
+    stats_funcs=['mean'],
 ):
     """
     Calculate zonal statistics for each polygon from a multi-channel image.
@@ -955,20 +954,13 @@ def calc_img_zonal_stats(
         - 2D NumPy array mask where each unique value represents a different polygon
     - img: 3D NumPy array (H, W, C) representing the multi-channel image.
     - unique_polygon_col_name: Column name in GeoDataFrame containing unique polygon identifiers.
-                              Only used when polygon_src is a GeoDataFrame.
-    - channel_names: dict mapping channel indices to channel names (e.g., {0: 'dapi', 1: 'bound', ...}).
-    - stats_func: String, function, or list of strings/functions specifying statistics to calculate.
-                 Options: 'mean', 'median', 'std', 'min', 'max', 'sum', 'count', 'percentile_<q>',
-                 or any numpy function that takes an array and returns a scalar.
-                 Default: 'mean'.
-    - stats_func_names: Optional names for the statistics when using custom functions.
-                       Should match length of stats_func if provided.
+    - channel_names: dict mapping channel indices to channel names.
+    - stats_funcs: List of strings/functions specifying statistics to calculate.
 
     Returns:
-    - DataFrame with statistics per polygon per channel.
+    - GeoDataFrame (if input was GeoDataFrame) or DataFrame containing all statistics
+      with columns in format: polygon_id, {channel}_{stat}, geometry (if GeoDataFrame)
     """
-
-    print (f'Calculating zontal stats...{stats_func}')
     # Standard statistics mapping
     STATS_FUNCS = {
         'mean': np.nanmean,
@@ -977,50 +969,50 @@ def calc_img_zonal_stats(
         'min': np.nanmin,
         'max': np.nanmax,
         'sum': np.nansum,
-        'count': lambda x: np.sum(~np.isnan(x)),
     }
 
-    # Process stats_func argument
-    if isinstance(stats_func, (str, callable)):
-        stats_func = [stats_func]
+    # Process stats_funcs argument
+    if not isinstance(stats_funcs, list):
+        stats_funcs = [stats_funcs]
+
+    # Prepare functions and names
+    funcs = []
+    metric_names = []
     
-    # Convert string stats to functions and validate
-    stat_funcs = []
-    stat_names = []
-    
-    for i, stat in enumerate(stats_func):
+    for stat in stats_funcs:
         if isinstance(stat, str):
-            # Handle percentile case
             if stat.startswith('percentile_'):
                 try:
                     q = float(stat.split('_')[1])
-                    stat_funcs.append(lambda x, q=q: np.nanpercentile(x, q))
-                    stat_names.append(f'p{q}')
+                    funcs.append(lambda x, q=q: np.nanpercentile(x, q))
+                    metric_names.append(f'p{q}')
                 except (IndexError, ValueError):
                     raise ValueError(f"Invalid percentile specification: {stat}")
             else:
                 if stat not in STATS_FUNCS:
-                    raise ValueError(f"Unknown statistic: {stat}. Available: {list(STATS_FUNCS.keys())}")
-                stat_funcs.append(STATS_FUNCS[stat])
-                stat_names.append(stat)
+                    raise ValueError(f"Unknown statistic: {stat}")
+                funcs.append(STATS_FUNCS[stat])
+                metric_names.append(stat)
         elif callable(stat):
-            stat_funcs.append(stat)
-            stat_names.append(name)
+            funcs.append(stat)
+            metric_names.append(stat.__name__)
         else:
-            raise ValueError("stats_func must be string, function, or list of these")
+            raise ValueError("stats_funcs must contain strings or callables")
 
     height, width, num_channels = img.shape
-    transform = rasterio.transform.from_origin(0, height, 1, 1)  # Dummy affine transform
+    transform = rasterio.transform.from_origin(0, height, 1, 1)
     
-    stats = []
+    # Initialize result collection
+    all_results = []
+    polygon_info = []
 
     if isinstance(polygon_src, gpd.GeoDataFrame):
-        # Process as GeoDataFrame
+        # Process GeoDataFrame
         for idx, row in polygon_src.iterrows():
             polygon = row.geometry
             polygon_name = row[unique_polygon_col_name]
+            polygon_info.append({'polygon_id': polygon_name, 'geometry': polygon})
 
-            # Rasterize the polygon to create a mask
             mask = rasterize(
                 [(mapping(polygon), 1)],
                 out_shape=(height, width),
@@ -1030,40 +1022,42 @@ def calc_img_zonal_stats(
                 dtype=np.uint8
             )
 
-            # Calculate statistics per channel within the masked area
-            polygon_stats = {'nbhd_id': polygon_name}
-            
+            # Compute all stats for all channels
+            channel_results = {}
             for ch in range(num_channels):
                 masked_data = img[:, :, ch][mask == 1]
                 ch_name = channel_names.get(ch, f'channel_{ch}') if channel_names else f'channel_{ch}'
                 
-                for func, name in zip(stat_funcs, stat_names):
+                for func, name in zip(funcs, metric_names):
                     stat_value = func(masked_data) if masked_data.size > 0 else np.nan
-                    polygon_stats[f'{ch_name}'] = stat_value
-
-            stats.append(polygon_stats)
+                    col_name = f"{ch_name}_{name}"
+                    channel_results[col_name] = stat_value
+            
+            channel_results['polygon_id'] = polygon_name
+            all_results.append(channel_results)
     else:
-        # Process as numpy array mask
+        # Process numpy array mask
         unique_polygon_ids = np.unique(polygon_src)
-        unique_polygon_ids = unique_polygon_ids[unique_polygon_ids != 0]  # Exclude background (0)
+        unique_polygon_ids = unique_polygon_ids[unique_polygon_ids != 0]
         
         for polygon_id in unique_polygon_ids:
+            polygon_info.append({'polygon_id': polygon_id})
             mask = (polygon_src == polygon_id)
-            
-            # Calculate statistics per channel within the masked area
-            polygon_stats = {'nbhd_id': polygon_id}
-            
+
+            channel_results = {}
             for ch in range(num_channels):
                 masked_data = img[:, :, ch][mask]
                 ch_name = channel_names.get(ch, f'channel_{ch}') if channel_names else f'channel_{ch}'
                 
-                for func, name in zip(stat_funcs, stat_names):
+                for func, name in zip(funcs, metric_names):
                     stat_value = func(masked_data) if masked_data.size > 0 else np.nan
-                    polygon_stats[f'{ch_name}'] = stat_value
+                    col_name = f"{ch_name}_{name}"
+                    channel_results[col_name] = stat_value
+            
+            channel_results['polygon_id'] = polygon_id
+            all_results.append(channel_results)
 
-            stats.append(polygon_stats)
-
-    return pd.DataFrame(stats)
+    return pd.DataFrame(all_results)
 
 
 def _add_centroids_to_obsm(adata, gdf, key="spatial"):

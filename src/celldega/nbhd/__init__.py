@@ -17,6 +17,7 @@ import pandas as pd
 from shapely.geometry import shape
 import pandas as pd
 import matplotlib.cm as cm
+import matplotlib.colors as mcolors
 import os
 from shapely import wkt
 import inspect
@@ -188,12 +189,43 @@ def alpha_shape_cell_clusters(meta_cell, cat='cluster', alphas=[100, 150, 200, 2
 
     return gdf_alpha
 
-def alpha_shape_geojson(gdf_alpha, meta_cluster, inst_alpha):
+def hex_meta_geojson_processing(gdf):
 
-    geojson_alpha = json.loads(gdf_alpha.to_json())
+    gdf['name'] = gdf.index.astype(str) + '_hex'
+    gdf.set_index('name', inplace=True)
+    gdf.index.name = None
+    gdf['name'] = gdf.index
+    gdf['cat'] = '0'
+
+    norm = (
+        gdf["unassigned_trx_percentage"]
+        - gdf["unassigned_trx_percentage"].min()
+    ) / (
+        gdf["unassigned_trx_percentage"].max()
+        - gdf["unassigned_trx_percentage"].min()
+    )
+
+    rgba_colors = cm.Reds(norm)
+    hex_colors = [mcolors.to_hex(c) for c in rgba_colors]
+    gdf["color"] = hex_colors
+
+    gdf["geometry_image_space"] = gdf["geometry_image_space"].apply(lambda geom: _round_coordinates(geom, precision=2))
+    gdf.drop(["geometry"], axis=1, inplace=True)
+
+    # gdf['area'] = gdf['geometry_image_space'].area
+    gdf.rename(columns={'geometry_image_space': 'geometry'}, inplace=True)
+
+    return gdf
+
+def nbhd_geojson(gdf, nbhd_type, meta_cluster=None, inst_alpha=None):
+
+    if nbhd_type == 'hex':
+        gdf = hex_meta_geojson_processing(gdf)
+
+    geojson_nbhd = json.loads(gdf.to_json())
 
     # Step 2: Edit the properties of each feature
-    for feature in geojson_alpha["features"]:
+    for feature in geojson_nbhd["features"]:
 
         if feature['geometry'] is not None:
 
@@ -205,17 +237,21 @@ def alpha_shape_geojson(gdf_alpha, meta_cluster, inst_alpha):
 
             id = feature['id']
 
-            color = meta_cluster.loc[id.split('_')[0], 'color']
+            if nbhd_type == 'alphashape':
 
-            # Add a custom color property (example: based on the area)
-            feature["properties"]["color"] = color # [255, 0, 0, 100]  # RGBA values
+                color = meta_cluster.loc[id.split('_')[0], 'color']
+
+                # Add a custom color property (example: based on the area)
+                feature["properties"]["color"] = color # [255, 0, 0, 100]  # RGBA values
+
         else:
             # print('is None')
             pass
 
-    geojson_alpha['inst_alpha'] = inst_alpha
+    if nbhd_type == 'alphashape':
+        geojson_nbhd['inst_alpha'] = inst_alpha
 
-    return geojson_alpha
+    return geojson_nbhd
 
 def called_function(depth=2):
     try:

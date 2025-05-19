@@ -521,7 +521,11 @@ def calc_nbg_cf(data_dir, gdf_nbhd, unique_nbhd_col='name'):
     df_counts = gdf_trx.groupby(['nbhd_id', 'feature_name']).size().unstack(fill_value=0)
     df_counts = df_counts.rename_axis("nbhd_id").rename_axis(None, axis=1)
 
+    # Ensure all neighborhoods are represented
+    df_counts = df_counts.reindex(gdf_nbhd[unique_nbhd_col]).fillna(0).astype(int)
+
     return df_counts
+
 
 class NBHD:
     """A class representing neighborhoods with associated derived data matrices."""
@@ -626,6 +630,8 @@ class NBHD:
                 data = calc_nb_bordering(nb)
 
         if key == 'NBI':
+
+            print ("Calculating NBI...")
             # Load the morphology image
             file_path = f"{self.data_dir}/morphology_focus/morphology_focus_0000.ome.tif"
             img = imread(file_path)
@@ -721,14 +727,13 @@ def calc_nbp(gdf_cell, gdf_nbhd, nbhd_col='name'):
     """
     Calculate cell counts and percentages per cluster within neighborhoods.
     
-    Returns two GeoDataFrames:
+    Returns two DataFrames:
     1. Raw counts per neighborhood-cluster combination
     2. Percentage distribution of clusters within each neighborhood
-    
-    Both retain original neighborhood geometries.
     """
 
-    print ('Calculating NBP')
+    print('Calculating NBP')
+
     # Validate inputs
     required = {'geometry', nbhd_col}
     if not required.issubset(gdf_nbhd.columns):
@@ -738,17 +743,22 @@ def calc_nbp(gdf_cell, gdf_nbhd, nbhd_col='name'):
 
     # Spatial join and count
     counts = (
-        gdf_cell.sjoin(gdf_nbhd[[nbhd_col, 'geometry']], how='left', predicate='within')
+        gdf_cell
+        .sjoin(gdf_nbhd[[nbhd_col, 'geometry']], how='left', predicate='within')
         .groupby([nbhd_col, 'cluster'])
         .size()
         .unstack(fill_value=0)
         .pipe(lambda df: df.set_axis(df.columns.astype(str), axis=1))
     )
-    
+
+    # Reindex to include all neighborhoods, even those with zero cells
+    counts = counts.reindex(gdf_nbhd[nbhd_col]).fillna(0).astype(int)
+
     # Calculate percentages
     percentages = counts.div(counts.sum(axis=1), axis=0).fillna(0) * 100
-    
+
     return counts, percentages
+
 
 
 def _get_gdf_trx(data_dir):
@@ -825,17 +835,28 @@ def get_nbhd_meta(gdf_nbhd, unique_nbhd_col, gdf_trx, gdf_cell):
         - area: area of each neighborhood geometry (in coordinate system units)
         - perimeter: perimeter (length) of each neighborhood polygon
     """
-
-    print ('Calculating NBM')
-    # Keep the index same as nbhd id or name
-    gdf_nbhd = gdf_nbhd.set_index("name")
-    gdf_nbhd["name"] = gdf_nbhd.index
+    print('Calculating NBM')
+    
+    # Create a copy to avoid modifying the input
+    gdf_nbhd = gdf_nbhd.copy()
+    
+    # Set index and keep the name column
+    gdf_nbhd = gdf_nbhd.set_index(unique_nbhd_col)
+    gdf_nbhd[unique_nbhd_col] = gdf_nbhd.index
+    
+    # Initialize summary with all neighborhoods
+    summary = pd.DataFrame(index=gdf_nbhd.index)
+    summary.index.name = 'nbhd_id'
+    
+    # Compute area and perimeter for all neighborhoods first
+    summary["area_squm"] = gdf_nbhd.geometry.area.round(2)
+    summary["perimeter_um"] = gdf_nbhd.geometry.length.round(2)
     
     # Assign transcripts to neighborhoods
     gdf_trx = gdf_trx.sjoin(gdf_nbhd[[unique_nbhd_col, 'geometry']], how="left", predicate="within")
-
+    
     # Aggregate transcript assignment stats
-    summary = (
+    trx_summary = (
         gdf_trx.groupby(unique_nbhd_col)
         .agg(
             total_trx=("cell_id", "size"),
@@ -843,21 +864,24 @@ def get_nbhd_meta(gdf_nbhd, unique_nbhd_col, gdf_trx, gdf_cell):
             assigned_trx_count=("cell_id", lambda x: (x != "UNASSIGNED").sum())
         )
     )
-    summary["assigned_trx_pct"] = summary["assigned_trx_count"] / summary["total_trx"]
-    summary["unassigned_trx_pct"] = summary["unassigned_trx_count"] / summary["total_trx"]
-
+    
+    # Fill NA values for neighborhoods with no transcripts
+    trx_summary = trx_summary.reindex(gdf_nbhd.index).fillna(0)
+    trx_summary["assigned_trx_pct"] = (
+        trx_summary["assigned_trx_count"] / trx_summary["total_trx"].replace(0, 1)
+    )
+    trx_summary["unassigned_trx_pct"] = (
+        trx_summary["unassigned_trx_count"] / trx_summary["total_trx"].replace(0, 1)
+    )
+    
     # Count cells per neighborhood
     gdf_c = gdf_cell[['geometry']].sjoin(gdf_nbhd[[unique_nbhd_col, 'geometry']], how="left", predicate="within")
     cell_counts = gdf_c.groupby(unique_nbhd_col).size().rename("cell_count")
-    summary = summary.join(cell_counts)
-
-    # Compute area and perimeter
-    geom_stats = gdf_nbhd.set_index(unique_nbhd_col)[['geometry']].copy()
-    geom_stats["area_squm"] = geom_stats.geometry.area.round(2)
-    geom_stats["perimeter_um"] = geom_stats.geometry.length.round(2)
-    summary = summary.join(geom_stats[["area_squm", "perimeter_um"]])
-    summary.index.name = 'nbhd_id'
-
+    cell_counts = cell_counts.reindex(gdf_nbhd.index).fillna(0)
+    
+    # Combine all results
+    summary = summary.join(trx_summary).join(cell_counts)
+    
     return summary
 
 

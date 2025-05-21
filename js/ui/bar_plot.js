@@ -114,7 +114,7 @@ export const make_bar_graph = (bar_container, click_callback, svg_bar, bar_data,
 
     bar_container.className = "bar_container"
     bar_container.style.width = "107px"
-    bar_container.style.height = "72px"
+    bar_container.style.height = "75px"
     bar_container.style.marginLeft = '5px'
     bar_container.style.overflowY = "auto"
     bar_container.style.border = "1px solid #d3d3d3"

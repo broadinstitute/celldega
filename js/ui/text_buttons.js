@@ -180,7 +180,7 @@ export const make_button = (container, technology, text, color='blue', width=40,
         .style('font-size', '12px')
         .style('font-weight', 'bold')
         .style('color', color)
-        .style('margin-top', '5px')
+        .style('margin-top', '1px')
         .style('margin-left', '5px')
         .style('user-select', 'none')
         .style('font-family', '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif;')

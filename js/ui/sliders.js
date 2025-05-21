@@ -73,6 +73,7 @@ export const ini_slider_params = (slider, ini_value, callback) =>{
     slider.value = ini_value
     slider.className = "slider"
     slider.style.width = "75px"
+    slider.style.height = "15px"
     slider.addEventListener("input", callback)
 
 }

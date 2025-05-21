@@ -26,8 +26,8 @@ export const landscape_sst = async (
     ini_y,
     ini_z,
     ini_zoom,
-    dataset_name='',
     square_tile_size = 1.4,
+    dataset_name='',
     width = 0,
     height = 800
 ) => {

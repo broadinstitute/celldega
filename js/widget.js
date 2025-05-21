@@ -1,6 +1,7 @@
 import "./widget.css";
 import { landscape_ist } from "./viz/landscape_ist";
 import { landscape_sst } from "./viz/landscape_sst";
+import { landscape_h_e } from "./viz/landscape_h_e";
 import { matrix_viz } from "./viz/matrix_viz";
 
 export const render_landscape = async ({ model, el }) => {
@@ -96,6 +97,7 @@ export const render_landscape_sst = async ({ model, el }) => {
 }
 
 export const render_landscape_h_e = async ({ model, el }) => {
+
     const token = model.get('token')
     const ini_x = model.get('ini_x');
     const ini_y = model.get('ini_y');
@@ -105,8 +107,23 @@ export const render_landscape_h_e = async ({ model, el }) => {
     const dataset_name = model.get('dataset_name')
     const width = model.get('width')
     const height = model.get('height')
+    const creds = model.get('creds')
 
-    console.log('render_landscape_h_e')
+
+    landscape_h_e(
+        model,
+        el,
+        base_url,
+        token,
+        ini_x,
+        ini_y,
+        ini_z,
+        ini_zoom,
+        dataset_name,
+        width,
+        height,
+        creds
+    )
 
 }
 

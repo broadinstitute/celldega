@@ -396,8 +396,37 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
 
     var inst_attr = 'leiden'
 
-    console.log('dataset name', dataset_name)
-    text_container.innerHTML = `<span style="font-size: 12px; font-weight: bold; color: #47515b; margin-left: 5px;">${inst_attr}</span>`
+    const selectedValue = inst_attr;
+
+    // add a dropdown with options for leiden and area
+    const dropdown = document.createElement("select")
+
+
+    // text_container.innerHTML = `<span style="font-size: 12px; font-weight: bold; color: #47515b; margin-left: 5px;">${inst_attr}</span>`
+
+    // text_container.innerHTML = `<select style="font-size: 12px; font-weight: bold; color: #47515b; margin-left: 5px;">${inst_attr}
+
+
+    // text_container.innerHTML = selectHTML;
+
+
+    const options = ['leiden', 'area', 'cluster']
+    const selectHTML = `
+    <select style="font-size: 12px; font-weight: bold; color: #47515b; margin-left: 5px; width: 109px; border: 1px solid rgb(211, 211, 211); margin-bottom: -2px; outline: none; box-shadow: none;">
+        ${options.map(opt => `
+        <option value="${opt}" ${opt === selectedValue ? "selected" : ""}>${opt}</option>
+        `).join('')}
+    </select>
+    `;
+
+    // // remove outline and shadow from dropdown
+    // text_container.style.outline = 'none'
+    // text_container.style.boxShadow = 'none'
+
+    // make as wide as the cell container
+    text_container.style.width = '100%'
+
+    text_container.innerHTML = selectHTML;
 
     // append the containers to the cell_container
     cell_container.appendChild(cell_ctrl_container)

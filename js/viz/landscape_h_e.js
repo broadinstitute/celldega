@@ -107,16 +107,6 @@ export const landscape_h_e = async (
         initialViewState: initial_view_state,
     })
 
-    // if (Object.keys(viz_state.model).length > 0) {
-
-    //     // ist version
-    //     // viz_state.model.on('change:update_trigger', () => update_ist_landscape_from_cgm(deck_ist, layers_obj, viz_state))
-
-    //     viz_state.model.on('change:update_trigger', () => update_tile_landscape_from_cgm(deck_sst, layers_sst, viz_state))
-    // }
-
-    // set_tile_layer_onclick(deck_sst, layers_sst, viz_state)
-
     // const ui_container = make_sst_ui_container(deck_sst, layers_sst, viz_state)
 
     // UI and Viz Container

@@ -3,8 +3,6 @@ import { options } from "./fetch_options"
 
 export const set_dimensions = async (viz_state, base_url, image_name_for_dim ) => {
 
-    console.log(image_name_for_dim)
-
     viz_state.dimensions = await get_image_dimensions(base_url, image_name_for_dim, options, viz_state.aws)
 
 }

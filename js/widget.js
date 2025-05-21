@@ -8,8 +8,6 @@ export const render_landscape = async ({ model, el }) => {
 
     const technology = model.get('technology')
 
-    console.log('technology', technology)
-
     if (['MERSCOPE', 'Xenium'].includes(technology)){
 
         return render_landscape_ist({ model, el });

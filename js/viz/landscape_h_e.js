@@ -23,8 +23,6 @@ export const landscape_h_e = async (
     creds={}
 ) => {
 
-    console.log('landscape_h_e')
-
     if (width === 0){
         width = '100%'
     }
@@ -32,9 +30,6 @@ export const landscape_h_e = async (
     // Create and append the visualization container
     let root = document.createElement("div")
     root.style.height = `${height}px`
-
-    console.log('height', height)
-    console.log(root.style.height)
 
     let viz_state = {}
     set_options(token)

@@ -7,6 +7,8 @@ export const render_landscape = async ({ model, el }) => {
 
     const technology = model.get('technology')
 
+    console.log('technology', technology)
+
     if (['MERSCOPE', 'Xenium'].includes(technology)){
 
         return render_landscape_ist({ model, el });
@@ -15,6 +17,9 @@ export const render_landscape = async ({ model, el }) => {
 
         return render_landscape_sst({ model, el });
 
+    } else if (['h&e'].includes(technology)){
+
+        return render_landscape_h_e({ model, el });
     }
 
 }
@@ -87,6 +92,21 @@ export const render_landscape_sst = async ({ model, el }) => {
         width,
         height
     )
+
+}
+
+export const render_landscape_h_e = async ({ model, el }) => {
+    const token = model.get('token')
+    const ini_x = model.get('ini_x');
+    const ini_y = model.get('ini_y');
+    const ini_z = model.get('ini_z');
+    const ini_zoom = model.get('ini_zoom');
+    const base_url = model.get('base_url')
+    const dataset_name = model.get('dataset_name')
+    const width = model.get('width')
+    const height = model.get('height')
+
+    console.log('render_landscape_h_e')
 
 }
 

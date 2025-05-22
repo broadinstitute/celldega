@@ -1036,4 +1036,85 @@ def _check_required_files(technology, data_dir):
         )
 
 
+def prep_landscape_matrix_from_adata(adata):
+    """
+    Prepare landscape matrices from an AnnData object for visualization and analysis.
+
+    This function extracts and processes various data matrices including meta cell data,
+    meta cluster data, UMAP embeddings, and network analysis based on hierarchical clustering.
+
+    Parameters:
+    adata (AnnData): An AnnData object containing:
+        - `.obs['leiden']`: Leiden clustering results.
+        - `.obsm['X_umap']`: UMAP embeddings.
+        - `.uns['leiden_colors']`: Color mapping for Leiden clusters.
+
+    Returns:
+    dict: A dictionary containing:
+        - 'meta_cell': Dictionary of cell metadata based on Leiden clustering.
+        - 'meta_cluster': Dictionary with cluster metadata including colors and counts.
+        - 'umap': Dictionary of UMAP coordinates.
+        - 'network': Result of hierarchical clustering network analysis.
+
+    Raises:
+    KeyError: If required columns or attributes are missing in the AnnData object.
+    """
+
+    # Check for necessary columns and attributes
+    if 'leiden' not in adata.obs:
+        raise KeyError("Leiden cluster data not found in adata.obs['leiden'].")
+    if 'X_umap' not in adata.obsm:
+        raise KeyError("UMAP data not found in adata.obsm['X_umap'].")
+    if 'leiden_colors' not in adata.uns:
+        raise KeyError("Leiden colors not found in adata.uns['leiden_colors'].")
+
+    ################## meta_cell ##################
+    # Get meta_cell
+    meta_cell = adata.obs['leiden'].to_dict()
+
+    ################## meta_cluster ##################
+    clusters = adata.obs['leiden'].cat.categories.tolist()
+    colors = adata.uns['leiden_colors']
+    counts = adata.obs['leiden'].value_counts()
+
+    meta_cluster_df = pd.DataFrame({
+        'color': colors,
+        'count': counts
+    }, index=clusters)
+    meta_cluster_df.index = [str(x) for x in meta_cluster_df.index]  # Adjust the index naming
+    meta_cluster = meta_cluster_df.to_dict(orient='index')  # Convert DataFrame to dictionary
+
+    ################## umap ##################
+    umap_df = pd.DataFrame(adata.obsm['X_umap'], index=adata.obs.index)
+    umap = {idx: row.tolist() for idx, row in umap_df.iterrows()}
+
+    ################## network ##################
+    # Temporarily convert 'leiden' to a string to handle network analysis
+    adata.obs['leiden_str'] = adata.obs['leiden'].astype('string')
+    unique_clusters = adata.obs['leiden_str'].dropna().unique()
+
+    cluster_means = {}
+    for cluster in unique_clusters:
+        indices = adata.obs.index[adata.obs['leiden_str'] == cluster]
+        mean_expression = pd.Series(adata[indices].X.mean(axis=0).A1, index=adata.var_names, name=cluster)
+        cluster_means[cluster] = mean_expression
+
+    df_sig = pd.DataFrame(cluster_means)
+    exclusions = ['Unassigned', 'NegControl', 'DeprecatedCodeword']  # Exclude genes with specific substrings
+    df_sig = df_sig.loc[~df_sig.index.str.contains('|'.join(exclusions))]
+    # df_sig.to_parquet('df_sig_from_leiden.parquet')  # Save new df_sig
+    adata.obs.drop(columns='leiden_str', inplace=True)  # Clean up if 'leiden_str' is no longer needed
+    
+    # Assuming 'dega.clust.hc' is defined somewhere in your environment
+    network = dega.clust.hc(df_sig)  # Compute the hierarchical clustering network
+
+    return {
+        'meta_cell': meta_cell, 
+        'meta_cluster': meta_cluster, 
+        'umap': umap, 
+        'network': network,
+    }
+
+
+
 __all__ = ["landscape", "trx_tile", "boundary_tile"]

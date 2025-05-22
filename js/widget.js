@@ -1,6 +1,7 @@
 import "./widget.css";
 import { landscape_ist } from "./viz/landscape_ist";
 import { landscape_sst } from "./viz/landscape_sst";
+import { landscape_h_e } from "./viz/landscape_h_e";
 import { matrix_viz } from "./viz/matrix_viz";
 
 export const render_landscape = async ({ model, el }) => {
@@ -15,6 +16,9 @@ export const render_landscape = async ({ model, el }) => {
 
         return render_landscape_sst({ model, el });
 
+    } else if (['h&e'].includes(technology)){
+
+        return render_landscape_h_e({ model, el });
     }
 
 }
@@ -86,6 +90,37 @@ export const render_landscape_sst = async ({ model, el }) => {
         dataset_name,
         width,
         height
+    )
+
+}
+
+export const render_landscape_h_e = async ({ model, el }) => {
+
+    const token = model.get('token')
+    const ini_x = model.get('ini_x');
+    const ini_y = model.get('ini_y');
+    const ini_z = model.get('ini_z');
+    const ini_zoom = model.get('ini_zoom');
+    const base_url = model.get('base_url')
+    const dataset_name = model.get('dataset_name')
+    const width = model.get('width')
+    const height = model.get('height')
+    const creds = model.get('creds')
+
+
+    landscape_h_e(
+        model,
+        el,
+        base_url,
+        token,
+        ini_x,
+        ini_y,
+        ini_z,
+        ini_zoom,
+        dataset_name,
+        width,
+        height,
+        creds
     )
 
 }

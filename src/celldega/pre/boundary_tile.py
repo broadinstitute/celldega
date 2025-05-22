@@ -148,12 +148,12 @@ def filter_and_save_fine_boundary(
     filtered_indices = np.where(tile_filter)[0]
 
     keep_cells = cell_ids[filtered_indices]
-    fine_tile_cells = coarse_tile.loc[keep_cells, ["GEOMETRY"]]
+    fine_tile_cells = coarse_tile.loc[keep_cells, ["geometry"]]
 
     fine_tile_cells['name'] = fine_tile_cells.index
 
     # Apply rounding to the GEOMETRY column
-    fine_tile_cells['GEOMETRY'] = fine_tile_cells['GEOMETRY'].apply(_round_nested_coord_list)
+    fine_tile_cells['geometry'] = fine_tile_cells['geometry'].apply(_round_nested_coord_list)
 
     if not fine_tile_cells.empty:
         filename = f"{path_output}/cell_tile_{fine_i}_{fine_j}.parquet"
@@ -262,16 +262,9 @@ def get_cell_polygons(
         cells_orig = gpd.GeoDataFrame(grouped, geometry="geometry")[["geometry"]]
 
     # Transform geometries
-    cells_orig["GEOMETRY"] = batch_transform_geometries(
-        cells_orig["geometry"], transformation_matrix, image_scale
-    )
+    cells_orig["geometry"] = batch_transform_geometries(cells_orig["geometry"], transformation_matrix, 1)
 
-    # Convert transformed geometries to polygons and calculate centroids
-    cells_orig["polygon"] = cells_orig["GEOMETRY"].apply(lambda x: Polygon(x[0]))
-    gdf_cells = gpd.GeoDataFrame(geometry=cells_orig["polygon"])
-    gdf_cells["GEOMETRY"] = cells_orig["GEOMETRY"]
-
-    return gdf_cells
+    return cells_orig
 
 
 def make_cell_boundary_tiles(

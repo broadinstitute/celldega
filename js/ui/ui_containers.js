@@ -38,7 +38,7 @@ export const make_ui_container = () => {
   ui_container.style.flexDirection = "row"
   ui_container.style.border = "1px solid #d3d3d3"
   ui_container.className = "ui_container"
-  ui_container.style.height = '100px'
+  ui_container.style.height = '105px'
 
   // ✅ CSS rules to prevent border cutoff
   ui_container.style.boxSizing = 'border-box'
@@ -79,7 +79,7 @@ export const make_slider_container = (class_name) => {
     slider_container.className = class_name
     slider_container.style.width = "100%"
     slider_container.style.marginLeft = "2px"
-    slider_container.style.marginTop = "2px"
+    slider_container.style.marginTop = "0px"
     return slider_container
 }
 
@@ -360,6 +360,7 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
 
     viz_state.containers.bar_cluster = make_bar_container()
 
+
     make_bar_graph(
         viz_state.containers.bar_cluster,
         bar_callback_cluster,
@@ -384,7 +385,52 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
         viz_state
     )
 
+    // make a new container for holding text
+    const text_container = document.createElement("div")
+    text_container.className = 'text_container'
+    text_container.style.width = '100%'
+    text_container.style.marginLeft = '0px'
+    text_container.style.marginTop = '0px'
+    text_container.style.display = 'flex'
+    // make the text say text
+
+    var inst_attr = 'leiden'
+
+    const selectedValue = inst_attr;
+
+    // add a dropdown with options for leiden and area
+    const dropdown = document.createElement("select")
+
+
+    // text_container.innerHTML = `<span style="font-size: 12px; font-weight: bold; color: #47515b; margin-left: 5px;">${inst_attr}</span>`
+
+    // text_container.innerHTML = `<select style="font-size: 12px; font-weight: bold; color: #47515b; margin-left: 5px;">${inst_attr}
+
+
+    // text_container.innerHTML = selectHTML;
+
+
+    const options = ['leiden', 'area', 'cluster']
+    const selectHTML = `
+    <select style="font-size: 12px; font-weight: bold; color: #47515b; margin-left: 5px; width: 109px; border: 1px solid rgb(211, 211, 211); margin-bottom: -2px; outline: none; box-shadow: none;">
+        ${options.map(opt => `
+        <option value="${opt}" ${opt === selectedValue ? "selected" : ""}>${opt}</option>
+        `).join('')}
+    </select>
+    `;
+
+    // // remove outline and shadow from dropdown
+    // text_container.style.outline = 'none'
+    // text_container.style.boxShadow = 'none'
+
+    // make as wide as the cell container
+    text_container.style.width = '100%'
+
+    text_container.innerHTML = selectHTML;
+
+    // append the containers to the cell_container
     cell_container.appendChild(cell_ctrl_container)
+    cell_container.appendChild(text_container)
     cell_container.appendChild(viz_state.containers.bar_cluster)
 
     ini_slider('trx', deck_ist, layers_obj, viz_state)

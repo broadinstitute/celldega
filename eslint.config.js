@@ -6,10 +6,10 @@ import globals from 'globals';
 export default [
   // Base configuration
   js.configs.recommended,
-  
+
   // Prettier config to disable conflicting rules
   prettierConfig,
-  
+
   // File targeting - only your js/ directory
   {
     files: ['js/**/*.js', 'js/**/*.mjs'],
@@ -70,9 +70,9 @@ export default [
         'js': 'never',
         'mjs': 'never'
       }],
-      
+
       // General code quality rules (no formatting rules - Prettier handles those)
-      'no-unused-vars': ['error', { 
+      'no-unused-vars': ['error', {
         'argsIgnorePattern': '^_',
         'varsIgnorePattern': '^_'
       }],
@@ -83,7 +83,7 @@ export default [
       'prefer-template': 'error',
       'no-undef': 'error',
       'no-duplicate-imports': 'error',
-      
+
       // Additional quality rules for modern JS
       'no-unused-expressions': 'error',
       'no-implicit-globals': 'error',
@@ -94,12 +94,12 @@ export default [
         'array': false,
         'object': true
       }],
-      
+
       // Async/Promise best practices
       'no-async-promise-executor': 'error',
       'no-await-in-loop': 'warn',
       'prefer-promise-reject-errors': 'error',
-      
+
       // ES6+ best practices
       'no-useless-constructor': 'error',
       'no-useless-rename': 'error',
@@ -107,7 +107,23 @@ export default [
       'array-bracket-spacing': 'off' // Handled by Prettier
     }
   },
-  
+
+  // Special configuration for test files
+  {
+    files: ['js/**/*.test.js', 'js/**/*.spec.js'],
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+        ...globals.es2024,
+        ...globals.jest,  // Jest globals (describe, test, expect, etc.)
+      }
+    },
+    rules: {
+      'no-console': 'off', // Allow console in tests
+      'import/no-unresolved': 'off', // Tests might import test utilities
+    }
+  },
+
   // Special configuration for build files (less strict)
   {
     files: ['build.js', 'wasm-plugin.mjs'],
@@ -122,7 +138,7 @@ export default [
       'import/no-unresolved': 'off' // Build files might import dynamic modules
     }
   },
-  
+
   // Ignore patterns
   {
     ignores: [

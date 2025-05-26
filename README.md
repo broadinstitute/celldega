@@ -94,56 +94,51 @@ See Terra's [pre‑configured environment guide](https://support.terra.bio/hc/en
 
 ## 🛠️ Development
 
+> **For detailed contribution guidelines, see our [Contributing Guide](CONTRIBUTING.md)**
+
 ### Prerequisites
 
 * Python 3.10+
 * Node.js 16+
 * npm or yarn
 
-### Setup
+### Quick Setup
 
 1. **Clone the repository**
-
    ```bash
    git clone https://github.com/broadinstitute/celldega.git
    cd celldega
    ```
+
 2. **Create virtual environment**
-
    ```bash
-   python -m venv .venv
-   source .venv/bin/activate  # Windows: .venv\Scripts\activate
+   python -m venv dega
+   source dega/bin/activate  # Windows: dega\Scripts\activate
    ```
-3. **Install dependencies**
 
+3. **Install dependencies**
    ```bash
    pip install -e ".[dev]"
    npm install
    ```
-4. **Start development server (hot‑reloads widget)**
 
+4. **Start development server (hot‑reloads widget)**
    ```bash
    npm run dev
    ```
-5. **Open demo notebook**
 
+5. **Open demo notebook**
    ```bash
    jupyter lab examples/Landscape_View_Xenium.ipynb
    ```
 
-### Testing
+### Testing & Code Quality
 
 ```bash
 npm test                 # Run full JS + Py test suite
 npm run test:js:watch    # JS tests in watch mode
-pytest --cov=src/celldega  # Python tests with coverage
-```
-
-### Code Quality
-
-```bash
-npm run lint    # Ruff + ESLint checks
-npm run format  # Prettier & Ruff formatters
+npm run lint             # Ruff + ESLint checks
+npm run format           # Prettier & Ruff formatters
 ```
 
 Auto‑formatting is enabled on save in VS Code with the recommended extensions.
@@ -151,7 +146,6 @@ Auto‑formatting is enabled on save in VS Code with the recommended extensions.
 ### VS Code Setup
 
 Install these extensions for the best DX:
-
 * **ESLint** – JavaScript/TypeScript linting
 * **Prettier** – code formatter
 * **Ruff** – Python linter & formatter

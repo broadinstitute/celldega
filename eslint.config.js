@@ -70,6 +70,10 @@ export default [
         'js': 'never',
         'mjs': 'never'
       }],
+      'import/no-cycle': 'error', // Prevent circular dependencies
+      'no-restricted-imports': ['error', {
+        'patterns': ['../**/index'] // Prevent deep relative imports
+      }],
 
       // General code quality rules (no formatting rules - Prettier handles those)
       'no-unused-vars': ['error', {

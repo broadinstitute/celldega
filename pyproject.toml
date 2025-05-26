@@ -31,6 +31,8 @@ dev = [
     "watchfiles",
     "jupyterlab",
     "ruff",          # Linting & formatting
+    "pytest",        # Unit testing
+    "pytest-cov",    # Coverage support
 ]
 pre = [
     "pyvips~=2.2.2"
@@ -76,6 +78,7 @@ exclude = [
     ".nox",
     ".pants.d",
     ".pyenv",
+    ".pytest_cache",
     ".pytype",
     ".ruff_cache",
     ".svn",
@@ -175,3 +178,19 @@ docstring-code-format = false
 
 # Set the line length limit for docstring code snippets
 docstring-code-line-length = "dynamic"
+
+# pytest configuration
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "--cov=src/celldega",
+    "--cov-report=html",
+    "--cov-report=term-missing",
+    "--cov-report=xml",
+    "-v",
+    "--tb=short"
+]
+minversion = "6.0"

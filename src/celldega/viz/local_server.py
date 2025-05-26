@@ -1,3 +1,7 @@
+"""
+Local server module for handling HTTP requests with CORS support.
+"""
+
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 import threading as thr
 
@@ -15,18 +19,18 @@ class CORSHTTPRequestHandler(SimpleHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Credentials", "true")
         super().end_headers()
 
-    def do_OPTIONS(self) -> None:
+    def do_options(self) -> None:
         """Handle OPTIONS requests for CORS preflight."""
         self.send_response(200)
         self.end_headers()
 
-    def log_message(self, format: str, *args) -> None:
+    def log_message(self, format_str: str, *args) -> None:
         """Override log_message to prevent logging to the console."""
-        pass
 
 
 def get_local_server() -> int:
-    """Start a local HTTP server with CORS support and return the port number.
+    """
+    Start a local HTTP server with CORS support and return the port number.
 
     Returns:
         int: The port number on which the server is running.

@@ -30,20 +30,26 @@ readme = "README.md"
 dev = [
     "watchfiles",
     "jupyterlab",
-    "ruff",          # Linting & formatting
-    "pytest",        # Unit testing
-    "pytest-cov",    # Coverage support
+    "ruff",              # Linting & formatting
+    "pytest",            # Unit testing
+    "pytest-cov",        # Coverage support
+    "pytest-html",       # HTML coverage reports
+    "pytest-mock",       # Mocking utilities
+    "pre-commit",        # Git hooks automation
+    "build",             # Package building
+    "twine",             # PyPI publishing
 ]
+# optional dependencies for pre-processing
 pre = [
     "pyvips~=2.2.2"
-] # optional dependencies for pre-processing
-
+]
+# optional dependencies for documentation
 docs = [
     "mkdocs",
     "mkdocs-material",
     "mkdocstrings[python]",
     "mkdocstrings[javascript]"
-] # optional dependencies for documentation
+]
 
 # automatically add the dev feature to the default env (e.g., hatch shell)
 [tool.hatch.envs.default]
@@ -121,6 +127,8 @@ select = [
     "Q",               # flake8-quotes
     "RET",             # flake8-return
     "PTH",             # flake8-use-pathlib
+    "PERF",            # Performance anti-patterns
+    "RUF",             # Ruff-specific rules
 ]
 
 # Ignore specific rules

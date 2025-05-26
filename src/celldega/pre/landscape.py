@@ -1,8 +1,11 @@
 import os
+
 import numpy as np
 import pandas as pd
 from scipy.io import mmread
+
 from .boundary_tile import _get_name_mapping
+
 
 # =============================================================================
 # Function List:
@@ -11,6 +14,7 @@ from .boundary_tile import _get_name_mapping
 # read_cbg_mtx         : Read the cell-by-gene matrix from the mtx files.
 # save_cbg_gene_parquets : Save the cell-by-gene matrix as gene-specific Parquet files.
 # =============================================================================
+
 
 def calc_meta_gene_data(cbg):
     """
@@ -63,9 +67,7 @@ def calc_meta_gene_data(cbg):
     # Calculate variance as the average of the squared deviations
     print("Calculating variance")
     num_tiles = cbg.shape[1]
-    variance = cbg.apply(
-        lambda x: ((x - mean_expression[x.name]) ** 2).sum() / num_tiles, axis=0
-    )
+    variance = cbg.apply(lambda x: ((x - mean_expression[x.name]) ** 2).sum() / num_tiles, axis=0)
     std_deviation = np.sqrt(variance)
 
     # Calculate maximum expression
@@ -78,10 +80,16 @@ def calc_meta_gene_data(cbg):
 
     meta_gene = pd.DataFrame(
         {
-            "mean": mean_expression.sparse.to_dense() if isinstance(mean_expression.dtype, pd.SparseDtype) else mean_expression,
+            "mean": mean_expression.sparse.to_dense()
+            if isinstance(mean_expression.dtype, pd.SparseDtype)
+            else mean_expression,
             "std": std_deviation,
-            "max": max_expression.sparse.to_dense() if isinstance(max_expression.dtype, pd.SparseDtype) else max_expression,
-            "non-zero": proportion_nonzero.sparse.to_dense() if isinstance(proportion_nonzero.dtype, pd.SparseDtype) else proportion_nonzero,
+            "max": max_expression.sparse.to_dense()
+            if isinstance(max_expression.dtype, pd.SparseDtype)
+            else max_expression,
+            "non-zero": proportion_nonzero.sparse.to_dense()
+            if isinstance(proportion_nonzero.dtype, pd.SparseDtype)
+            else proportion_nonzero,
         }
     )
 
@@ -122,14 +130,13 @@ def read_cbg_mtx(base_path):
     matrix = mmread(matrix_path).transpose().tocsc()
 
     # Create a sparse DataFrame with genes as columns and barcodes as rows
-    cbg = pd.DataFrame.sparse.from_spmatrix(
-        matrix, index=barcodes[0], columns=features[1]
-    )
-    cbg = cbg.rename_axis('__index_level_0__', axis='columns')
+    cbg = pd.DataFrame.sparse.from_spmatrix(matrix, index=barcodes[0], columns=features[1])
+    cbg = cbg.rename_axis("__index_level_0__", axis="columns")
 
     return cbg
 
-def save_cbg_gene_parquets(base_path, cbg, verbose=False, segmentation_approach='default'):
+
+def save_cbg_gene_parquets(base_path, cbg, verbose=False, segmentation_approach="default"):
     """
     Save the cell-by-gene matrix as gene-specific Parquet files.
 
@@ -146,12 +153,16 @@ def save_cbg_gene_parquets(base_path, cbg, verbose=False, segmentation_approach=
     -------
     None
     """
-    output_dir = os.path.join(base_path, f"cbg{f'_{segmentation_approach}' if segmentation_approach !='default' else ''}")
+    output_dir = os.path.join(
+        base_path, f"cbg{f'_{segmentation_approach}' if segmentation_approach != 'default' else ''}"
+    )
     print(output_dir)
     os.makedirs(output_dir, exist_ok=True)
 
     # convert cell index from string to integer
-    cell_str_to_int_mapping = _get_name_mapping(base_path, layer='boundary', segmentation=segmentation_approach)
+    cell_str_to_int_mapping = _get_name_mapping(
+        base_path, layer="boundary", segmentation=segmentation_approach
+    )
     cbg.index = cbg.index.map(cell_str_to_int_mapping)
 
     for index, gene in enumerate(cbg.columns):
@@ -162,9 +173,7 @@ def save_cbg_gene_parquets(base_path, cbg, verbose=False, segmentation_approach=
         col_df = cbg[[gene]].copy()
 
         # Create a DataFrame necessary to prevent error in to_parquet
-        inst_df = pd.DataFrame(
-            col_df.values, columns=[gene], index=col_df.index.tolist()
-        )
+        inst_df = pd.DataFrame(col_df.values, columns=[gene], index=col_df.index.tolist())
 
         # Replace 0 with NA and drop rows where all values are NA
         inst_df.replace(0, pd.NA, inplace=True)

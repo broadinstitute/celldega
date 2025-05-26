@@ -1,11 +1,13 @@
-import numpy as np
-import os
-import polars as pl
-from tqdm import tqdm
 import concurrent.futures
-import pandas as pd
-from .boundary_tile import _get_name_mapping
+import os
+
+import numpy as np
+import polars as pl
 from scipy.sparse import csr_matrix
+from tqdm import tqdm
+
+from .boundary_tile import _get_name_mapping
+
 
 def process_coarse_tile(
     trx,
@@ -67,7 +69,6 @@ def process_fine_tiles(
     n_fine_tiles_y,
     max_workers=1,
 ):
-
     # Use ThreadPoolExecutor for parallel processing of fine-grain tiles within the coarse tile
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = []
@@ -78,10 +79,7 @@ def process_fine_tiles(
             fine_tile_x_max = fine_tile_x_min + tile_size
 
             # Process only if the fine tile falls within the current coarse tile's bounds
-            if not (
-                fine_tile_x_min >= coarse_tile_x_min
-                and fine_tile_x_max <= coarse_tile_x_max
-            ):
+            if not (fine_tile_x_min >= coarse_tile_x_min and fine_tile_x_max <= coarse_tile_x_max):
                 continue
 
             for fine_j in range(n_fine_tiles_y):
@@ -90,8 +88,7 @@ def process_fine_tiles(
 
                 # Process only if the fine tile falls within the current coarse tile's bounds
                 if not (
-                    fine_tile_y_min >= coarse_tile_y_min
-                    and fine_tile_y_max <= coarse_tile_y_max
+                    fine_tile_y_min >= coarse_tile_y_min and fine_tile_y_max <= coarse_tile_y_max
                 ):
                     continue
 
@@ -129,7 +126,6 @@ def filter_and_save_fine_tile(
     fine_tile_y_max,
     path_trx_tiles,
 ):
-
     # Filter the coarse tile for the current fine tile's boundaries
     fine_tile_trx = coarse_tile.filter(
         (pl.col("transformed_x") >= fine_tile_x_min)
@@ -141,10 +137,8 @@ def filter_and_save_fine_tile(
     if not fine_tile_trx.is_empty():
         # Add geometry column as a list of [x, y] pairs
         fine_tile_trx = fine_tile_trx.with_columns(
-            pl.concat_list([pl.col("transformed_x"), pl.col("transformed_y")]).alias(
-                "geometry"
-            )
-        ).drop(['transformed_x', 'transformed_y', 'cell_id', 'transcript_id'])
+            pl.concat_list([pl.col("transformed_x"), pl.col("transformed_y")]).alias("geometry")
+        ).drop(["transformed_x", "transformed_y", "cell_id", "transcript_id"])
 
         # Define the filename based on fine tile coordinates
         filename = f"{path_trx_tiles}/transcripts_tile_{fine_i}_{fine_j}.parquet"
@@ -154,9 +148,13 @@ def filter_and_save_fine_tile(
 
 
 def transform_transcript_coordinates(
-    technology, path_trx, chunk_size, transformation_matrix, image_scale=1, gene_str_to_int_mapping={},
+    technology,
+    path_trx,
+    chunk_size,
+    transformation_matrix,
+    image_scale=1,
+    gene_str_to_int_mapping={},
 ):
-
     # Load the transcript data based on the technology using Polars
     if technology == "MERSCOPE":
         trx_ini = pl.read_csv(path_trx, columns=["gene", "global_x", "global_y"])
@@ -187,13 +185,10 @@ def transform_transcript_coordinates(
     # Replace the "name" column using with_columns.
     trx_ini = trx_ini.with_columns([pl.Series("name", mapped_names)])
 
-
     # Process the data in chunks and apply transformations
     all_chunks = []
 
-    for start_row in tqdm(
-        range(0, trx_ini.height, chunk_size), desc="Processing chunks"
-    ):
+    for start_row in tqdm(range(0, trx_ini.height, chunk_size), desc="Processing chunks"):
         chunk = trx_ini.slice(start_row, chunk_size)
 
         points = np.hstack([chunk.select(["x", "y"]).to_numpy(), np.ones((chunk.height, 1))])
@@ -209,12 +204,8 @@ def transform_transcript_coordinates(
         # Create new transformed columns and drop original x, y columns
         transformed_chunk = chunk.with_columns(
             [
-                (pl.Series(transformed_points[:, 0]) * image_scale)
-                .round(2)
-                .alias("transformed_x"),
-                (pl.Series(transformed_points[:, 1]) * image_scale)
-                .round(2)
-                .alias("transformed_y"),
+                (pl.Series(transformed_points[:, 0]) * image_scale).round(2).alias("transformed_x"),
+                (pl.Series(transformed_points[:, 1]) * image_scale).round(2).alias("transformed_y"),
             ]
         ).drop(["x", "y"])
         all_chunks.append(transformed_chunk)
@@ -270,18 +261,20 @@ def make_trx_tiles(
         A dictionary containing the bounds of the processed data in both x and y directions.
     """
 
-    if technology == 'custom':
-
+    if technology == "custom":
         x_min, y_min = 0, 0
-        x_max, y_max = pl.read_parquet(path_trx).select(
-            [
-                pl.col("x_image_coords").max().alias("x_max"),
-                pl.col("y_image_coords").max().alias("y_max"),
-            ]
-        ).row(0)
+        x_max, y_max = (
+            pl.read_parquet(path_trx)
+            .select(
+                [
+                    pl.col("x_image_coords").max().alias("x_max"),
+                    pl.col("y_image_coords").max().alias("y_max"),
+                ]
+            )
+            .row(0)
+        )
 
     else:
-
         if not os.path.exists(path_trx_tiles):
             os.makedirs(path_trx_tiles)
 
@@ -292,12 +285,17 @@ def make_trx_tiles(
         # transformed_points = sparse_matrix.dot(points.T).T[:, :2]
 
         gene_str_to_int_mapping = _get_name_mapping(
-            path_transformation_matrix.replace('/micron_to_image_transform.csv',''),
-            layer='transcript',
-            )
+            path_transformation_matrix.replace("/micron_to_image_transform.csv", ""),
+            layer="transcript",
+        )
 
         trx = transform_transcript_coordinates(
-            technology, path_trx, chunk_size, transformation_matrix, image_scale, gene_str_to_int_mapping=gene_str_to_int_mapping,
+            technology,
+            path_trx,
+            chunk_size,
+            transformation_matrix,
+            image_scale,
+            gene_str_to_int_mapping=gene_str_to_int_mapping,
         )
 
         # Get min and max x, y values

@@ -1,0 +1,35 @@
+# =============================================================================
+# Dependabot Configuration for Celldega
+# Automatically creates PRs for dependency updates
+# =============================================================================
+
+version: 2
+
+# Global defaults (applied to all ecosystems where applicable)
+updates:
+  # Python dependencies (pyproject.toml)
+  - package-ecosystem: pip
+    directory: /
+    schedule: {interval: weekly, day: monday, time: "09:00"}
+    open-pull-requests-limit: 5
+    reviewers: [aminbensaad]
+    labels: [dependencies, python]
+    commit-message: {prefix: deps, prefix-development: deps-dev, include: scope}
+
+  # JavaScript dependencies (package.json)
+  - package-ecosystem: npm
+    directory: /
+    schedule: {interval: weekly, day: monday, time: "09:00"}
+    open-pull-requests-limit: 5
+    reviewers: [aminbensaad]
+    labels: [dependencies, javascript]
+    commit-message: {prefix: deps, prefix-development: deps-dev, include: scope}
+
+  # GitHub Actions dependencies (.github/workflows/*.yml)
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: {interval: weekly, day: monday, time: "09:00"}
+    open-pull-requests-limit: 3  # Fewer for Actions (less frequent changes)
+    reviewers: [aminbensaad]
+    labels: [dependencies, github-actions]
+    commit-message: {prefix: ci, include: scope}

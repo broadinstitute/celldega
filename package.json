@@ -6,18 +6,26 @@
 		"dev": "npm run build -- --sourcemap=inline --watch",
 		"build": "node build.js",
 		"watch": "node build.js --watch",
+
+		"test": "npm run test:js && npm run test:py",
+		"test:js": "jest --coverage",
+		"test:js:watch": "jest --watch",
+		"test:py": "pytest --cov=src/celldega --cov-report=term-missing",
+
+		"test:fast": "npm run test:js:fast && npm run test:py:fast",
+		"test:js:fast": "jest",
+		"test:py:fast": "pytest",
+
 		"lint": "npm run lint:js && npm run lint:py",
 		"lint:js": "eslint js/ --ignore-pattern js/vendor/",
 		"lint:js:fix": "eslint js/ --ignore-pattern js/vendor/ --fix",
 		"lint:py": "ruff check src/",
+
 		"format": "npm run format:js && npm run format:py",
 		"format:js": "prettier --write js/ --ignore-path .prettierignore",
 		"format:js:check": "prettier --check js/ --ignore-path .prettierignore",
 		"format:py": "ruff format src/",
-		"test": "npm run test:js && npm run test:py",
-		"test:js": "jest",
-		"test:js:watch": "jest --watch",
-		"test:py": "python -m pytest",
+
 		"check:js": "npm run lint:js && npm run format:js:check",
 		"fix:js": "npm run lint:js:fix && npm run format:js"
 	},

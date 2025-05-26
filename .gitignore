@@ -32,3 +32,89 @@ node_modules
 EsbuildAnalyzer.html
 meta.json
 .vscode
+
+# others
+.history
+repomix-output.txt
+
+# Testing
+*coverage*
+
+# Build artifacts and bundles
+build/
+bundles.json
+*.bundle.js
+*.bundle.mjs
+*.map
+
+# Jest and testing
+coverage/
+.nyc_output/
+junit.xml
+test-results/
+
+# Python testing
+htmlcov/
+.pytest_cache/
+.tox/
+.coverage
+coverage.xml
+
+# Environment and configuration
+.env
+.env.local
+.env.*.local
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+*.log
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Optional npm cache directory
+.npm
+
+# ESLint cache
+.eslintcache
+
+# Prettier cache
+.prettiercache
+
+# Package lock files (keep package-lock.json, ignore others)
+yarn.lock
+pnpm-lock.yaml
+
+# IDE and editors
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Temporary files
+*.tmp
+*.temp
+.temp/
+tmp/
+
+# Python virtual environments
+venv/
+env/
+ENV/
+
+# Hatch environments
+.hatch/
+
+# Conda environments
+.conda/

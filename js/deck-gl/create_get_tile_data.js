@@ -1,6 +1,5 @@
 import { load } from '@loaders.gl/core';
 import { ImageLoader } from '@loaders.gl/images';
-import logger from './logger';
 
 export const create_get_tile_data = (
     base_url,
@@ -25,7 +24,7 @@ export const create_get_tile_data = (
             });
             return image;
         } catch (error) {
-            logger.error('Failed to load tile:', error);
+            console.error('Failed to load tile:', error);
             return null;
         }
     };

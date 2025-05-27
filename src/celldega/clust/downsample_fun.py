@@ -28,12 +28,9 @@ def main(
         net, df, num_samples, axis, random_state, ds_cluster_name
     )
 
-    ds_data = [ds_cluster_name + "-" + str(x + 1) for x in ds_data]
+    ds_data = [f"{ds_cluster_name}-{x + 1}" for x in ds_data]
 
-    if axis == "row":
-        labels = df.index.tolist()
-    else:
-        labels = df.columns.tolist()
+    labels = df.index.tolist() if axis == "row" else df.columns.tolist()
 
     ser_ds = pd.Series(ds_data, index=labels)
 
@@ -79,14 +76,14 @@ def meta_cat_to_tuple(net, axis, orig_labels, inst_cats):
         new_label = [inst_label]
 
         for inst_cat_type in inst_cats:
-            if axis == "col":
-                inst_cat = inst_cat_type + ": " + net.meta_col.loc[inst_label, inst_cat_type]
-            else:
-                inst_cat = inst_cat_type + ": " + net.meta_row.loc[inst_label, inst_cat_type]
+            inst_cat = (
+                f"{inst_cat_type}: {net.meta_col.loc[inst_label, inst_cat_type]}"
+                if axis == "col"
+                else f"{inst_cat_type}: {net.meta_row.loc[inst_label, inst_cat_type]}"
+            )
             new_label.append(inst_cat)
 
-        new_label = tuple(new_label)
-        tuple_labels.append(new_label)
+        tuple_labels.append(tuple(new_label))
 
     return tuple_labels
 
@@ -112,8 +109,6 @@ def run_kmeans_mini_batch(
         if net.meta_cat:
             orig_labels = meta_cat_to_tuple(net, axis, orig_labels, net.col_cats)
 
-    cat_index = 1
-
     # run until the number of returned clusters with data-points is equal to the
     # number of requested clusters
     num_returned_clusters = 0
@@ -125,12 +120,9 @@ def run_kmeans_mini_batch(
         random_state = random_state + random_state
 
     clust_numbers = range(num_returned_clusters)
-    clust_labels = [ds_cluster_name + "-" + str(i + 1) for i in clust_numbers]
+    clust_labels = [f"{ds_cluster_name}-{i + 1}" for i in clust_numbers]
 
-    if type(orig_labels[0]) is tuple:
-        found_cats = True
-    else:
-        found_cats = False
+    found_cats = isinstance(orig_labels[0], tuple)
 
     # Gather categories if necessary
     ########################################
@@ -138,12 +130,12 @@ def run_kmeans_mini_batch(
     if found_cats:
         all_cats = generate_cat_data(cluster_data, orig_labels, num_samples)
 
-    # genrate cluster labels, e.g. add number in each cluster and majority cat
+    # generate cluster labels, e.g. add number in each cluster and majority cat
     # if necessary
     cluster_labels = []
     for i in range(num_returned_clusters):
         inst_name = clust_labels[i]
-        num_in_clust_string = "number in clust: " + str(cluster_pop[i])
+        num_in_clust_string = f"number in clust: {cluster_pop[i]}"
 
         inst_tuple = (inst_name,)
 
@@ -155,11 +147,11 @@ def run_kmeans_mini_batch(
                 max_cat_name = cat_data["types"][max_index]
 
                 # add category title if available
-                cat_name_string = cat_data["title"] + ": " + max_cat_name
+                cat_name_string = f"{cat_data['title']}: {max_cat_name}"
 
-                inst_tuple = inst_tuple + (cat_name_string,)
+                inst_tuple = (*inst_tuple, cat_name_string)
 
-        inst_tuple = inst_tuple + (num_in_clust_string,)
+        inst_tuple = (*inst_tuple, num_in_clust_string)
 
         cluster_labels.append(inst_tuple)
 
@@ -189,11 +181,10 @@ def generate_cat_data(cluster_data, orig_labels, num_samples):
             if super_string in inst_cat:
                 inst_cat = inst_cat.split(super_string)[1]
 
-            string_cat = True
             try:
                 float(inst_cat)
                 string_cat = False
-            except:
+            except Exception:
                 string_cat = True
 
             if string_cat:
@@ -205,16 +196,17 @@ def generate_cat_data(cluster_data, orig_labels, num_samples):
         # index zero is for the names
         cat_index = cat_index + 1
 
-        cat_data = {}
-
-        if super_string in example_label[cat_index]:
-            cat_data["title"] = example_label[cat_index].split(super_string)[0]
-        else:
-            cat_data["title"] = "Category"
+        cat_data = {
+            "title": (
+                example_label[cat_index].split(super_string)[0]
+                if super_string in example_label[cat_index]
+                else "Category"
+            ),
+            "types": [],
+        }
 
         # if there are string categories, then keep track of how many of each category
         # are found in each of the downsampled clusters.
-        cat_data["types"] = []
 
         # gather possible categories
         for inst_label in orig_labels:
@@ -226,22 +218,22 @@ def generate_cat_data(cluster_data, orig_labels, num_samples):
             # get first category
             cat_data["types"].append(inst_cat)
 
-        cat_data["types"] = sorted(list(set(cat_data["types"])))
+        cat_data["types"] = sorted(set(cat_data["types"]))
 
-        num_cats = len(cat_data["types"])
+        num_cats_per_type = len(cat_data["types"])
 
         # initialize cat_data['counts'] dictionary
-        cat_data["counts"] = {}
-        for inst_clust in range(num_samples):
-            cat_data["counts"][inst_clust] = np.zeros([num_cats])
+        cat_data["counts"] = {
+            inst_clust: np.zeros([num_cats_per_type]) for inst_clust in range(num_samples)
+        }
 
         # populate cat_data['counts']
         for inst_clust in range(num_samples):
-            # get the indicies of all original labels that fall in the cluster
+            # get the indices of all original labels that fall in the cluster
             found = np.where(cluster_data == inst_clust)
-            found_indicies = found[0]
+            found_indices = found[0]
 
-            clust_names = orig_array[found_indicies]
+            clust_names = orig_array[found_indices]
 
             for inst_name in clust_names:
                 # get first category name
@@ -284,7 +276,7 @@ def calc_mbk_clusters(X, n_clusters, random_state=1000):
     cluster_data = mbk.labels_
     clusters = mbk.cluster_centers_
 
-    mbk_cluster_names, cluster_pop = np.unique(cluster_data, return_counts=True)
+    _, cluster_pop = np.unique(cluster_data, return_counts=True)
 
     num_returned_clusters = len(cluster_pop)
 

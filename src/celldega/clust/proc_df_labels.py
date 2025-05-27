@@ -7,9 +7,10 @@ def main(df):
 
     import numpy as np
 
-    test = {}
-    test["row"] = df.index.tolist()
-    test["col"] = df.columns.tolist()
+    test = {
+        "row": df.index.tolist(),
+        "col": df.columns.tolist(),
+    }
 
     # if type( test_row ) is not str and type( test_row ) is not tuple:
 
@@ -21,8 +22,8 @@ def main(df):
         found_tuple[inst_rc] = False
         found_number[inst_rc] = False
 
-        if type(inst_name) != tuple:
-            if type(inst_name) is int or type(inst_name) is float or type(inst_name) is np.int64:
+        if not isinstance(inst_name, tuple):
+            if isinstance(inst_name, (int | float | np.int64)):
                 found_number[inst_rc] = True
 
             else:

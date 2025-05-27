@@ -16,14 +16,15 @@ def run_norm(net, df=None, norm_type="zscore", axis="row", z_clip=None):
     if norm_type == "zscore":
         df, ser_mean, ser_std = zscore_df(df, axis, z_clip=z_clip)
 
-        net.dat["pre_zscore"] = {}
-        net.dat["pre_zscore"]["mean"] = ser_mean.values.tolist()
-        net.dat["pre_zscore"]["std"] = ser_std.values.tolist()
+        net.dat["pre_zscore"] = {
+            "mean": ser_mean.values.tolist(),
+            "std": ser_std.values.tolist(),
+        }
 
-    if norm_type == "qn":
+    elif norm_type == "qn":
         df = qn_df(df, axis)
 
-    if norm_type == "umi":
+    elif norm_type == "umi":
         df = umi_norm(df)
 
     net.df_to_dat(df)
@@ -66,9 +67,7 @@ def qn_df(df, axis="row"):
     if axis == "row":
         df = df.transpose()
 
-    df_qn = df
-
-    return df_qn
+    return df
 
 
 def swap_in_common_dist(df, common_dist):
@@ -90,17 +89,12 @@ def swap_in_common_dist(df, common_dist):
             inst_val = common_dist[inst_index]
             qn_vect = np.hstack((qn_vect, inst_val))
 
-        if qn_arr.shape[0] == 0:
-            qn_arr = qn_vect
-        else:
-            qn_arr = np.vstack((qn_arr, qn_vect))
+        qn_arr = qn_vect if qn_arr.shape[0] == 0 else np.vstack((qn_arr, qn_vect))
 
     # transpose (because of vstacking)
     qn_arr = qn_arr.transpose()
 
-    qn_df = pd.DataFrame(data=qn_arr, columns=col_names, index=orig_rows)
-
-    return qn_df
+    return pd.DataFrame(data=qn_arr, columns=col_names, index=orig_rows)
 
 
 def calc_common_dist(df):
@@ -118,16 +112,11 @@ def calc_common_dist(df):
         tmp_vect = df[inst_col].sort_values(ascending=False).values
 
         # stacking rows vertically (will transpose)
-        if tmp_arr.shape[0] == 0:
-            tmp_arr = tmp_vect
-        else:
-            tmp_arr = np.vstack((tmp_arr, tmp_vect))
+        tmp_arr = tmp_vect if tmp_arr.shape[0] == 0 else np.vstack((tmp_arr, tmp_vect))
 
     tmp_arr = tmp_arr.transpose()
 
-    common_dist = tmp_arr.mean(axis=1)
-
-    return common_dist
+    return tmp_arr.mean(axis=1)
 
 
 def zscore_df(df, axis="row", z_clip=None):
@@ -155,14 +144,11 @@ def zscore_df(df, axis="row", z_clip=None):
 def umi_norm(df):
     # umi norm
     barcode_umi_sum = df.sum()
-    df_umi = df.div(barcode_umi_sum)
-    return df_umi
+    return df.div(barcode_umi_sum)
 
 
 def z_clip_fun(df_z, lower=None, upper=None):
     """
     Trim values at input thresholds using pandas function
     """
-    df_z = df_z.clip(lower=lower, upper=upper)
-
-    return df_z
+    return df_z.clip(lower=lower, upper=upper)

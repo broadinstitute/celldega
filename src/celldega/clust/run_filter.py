@@ -6,12 +6,9 @@ def df_filter_row_sum(df, threshold, take_abs=True):
 
     from .__init__ import Network
 
-    net = Network()
+    _ = Network()
 
-    if take_abs is True:
-        df_copy = deepcopy(df.abs())
-    else:
-        df_copy = deepcopy(df)
+    df_copy = deepcopy(df.abs()) if take_abs else deepcopy(df)
 
     ini_rows = df_copy.index.values.tolist()
     df_copy = df_copy.transpose()
@@ -36,19 +33,16 @@ def df_filter_col_sum(df, threshold, take_abs=True):
 
     from .__init__ import Network
 
-    net = Network()
+    _ = Network()
 
-    if take_abs is True:
-        df_copy = deepcopy(df.abs())
-    else:
-        df_copy = deepcopy(df)
+    df_copy = deepcopy(df.abs()) if take_abs else deepcopy(df)
 
     df_copy = df_copy.transpose()
     df_copy = df_copy[df_copy.sum(axis=1) > threshold]
     df_copy = df_copy.transpose()
     df_copy = df_copy[df_copy.sum(axis=1) > 0]
 
-    if take_abs is True:
+    if take_abs:
         inst_rows = df_copy.index.tolist()
         inst_cols = df_copy.columns.tolist()
         df = grab_df_subset(df, inst_rows, inst_cols)
@@ -73,32 +67,25 @@ def get_sorted_rows(df, rank_type="sum"):
     inst_df = deepcopy(df)
     inst_df = inst_df.transpose()
 
-    if rank_type == "sum":
-        tmp_sum = inst_df.sum(axis=0)
-    elif rank_type == "var":
-        tmp_sum = inst_df.var(axis=0)
+    tmp_sum = inst_df.sum(axis=0) if rank_type == "sum" else inst_df.var(axis=0)
 
     tmp_sum = tmp_sum.abs()
     tmp_sum.sort_values(inplace=True, ascending=False)
-    rows_sorted = tmp_sum.index.values.tolist()
-
-    return rows_sorted
+    return tmp_sum.index.values.tolist()
 
 
-def filter_N_top(inst_rc, df, N_top, rank_type="sum"):
+def filter_n_top(inst_rc, df, n_top, rank_type="sum"):
     if inst_rc == "col":
-        for inst_type in df:
-            df[inst_type] = df[inst_type].transpose()
+        df = df.transpose()
 
     rows_sorted = get_sorted_rows(df, rank_type)
 
-    keep_rows = rows_sorted[:N_top]
+    keep_rows = rows_sorted[:n_top]
 
     df = df.loc[keep_rows]
 
     if inst_rc == "col":
-        for inst_type in df:
-            df[inst_type] = df[inst_type].transpose()
+        df = df.transpose()
 
     return df
 
@@ -154,19 +141,17 @@ def filter_cat(net, axis, cat_index, cat_name):
 
         all_names = df.columns.tolist()
 
-        found_names = [i for i in all_names if i[cat_index] == cat_name]
-
-        if len(found_names) > 0:
+        if found_names := [i for i in all_names if i[cat_index] == cat_name]:
             df = df[found_names]
 
             if axis == "row":
                 df = df.transpose()
         else:
-            print("no " + axis + "s were found with this category and filtering was not run")
+            print(f"no {axis}s were found with this category and filtering was not run")
 
         net.load_df(df)
 
-    except:
+    except Exception:
         print(
             "category filtering did not run\n check that your category filtering is set up correctly"
         )
@@ -188,10 +173,7 @@ def filter_names(net, axis, names):
 
         found_names = []
         for inst_name in all_names:
-            if type(inst_name) is tuple:
-                check_name = inst_name[0]
-            else:
-                check_name = inst_name
+            check_name = inst_name[0] if isinstance(inst_name, tuple) else inst_name
 
             if ": " in check_name:
                 check_name = check_name.split(": ")[1]
@@ -199,7 +181,7 @@ def filter_names(net, axis, names):
             if check_name in names:
                 found_names.append(inst_name)
 
-        if len(found_names) > 0:
+        if found_names:
             df = df[found_names]
 
             if axis == "row":
@@ -208,9 +190,9 @@ def filter_names(net, axis, names):
             net.load_df(df)
 
         else:
-            print("no " + axis + "s were found with these names")
+            print(f"no {axis}s were found with these names")
 
-    except:
+    except Exception:
         print("error in filtering names")
 
     print(found_names)

@@ -22,14 +22,14 @@ def df_to_dat(net, df, define_cat_colors=False):
     # print(hasattr(net, 'meta_ds_row'))
 
     # if net.meta_cat == False or net.is_downsampled:
-    if net.meta_cat == False:
+    if not net.meta_cat:
         # tuple cats
         ##################################
 
         for axis in ["row", "col"]:
             inst_nodes = net.dat["nodes"][axis]
 
-            if type(inst_nodes[0]) is tuple:
+            if isinstance(inst_nodes[0], tuple):
                 if axis == "row":
                     net.dat["node_info"][axis]["full_names"] = df.index.tolist()
                 elif axis == "col":
@@ -39,7 +39,7 @@ def df_to_dat(net, df, define_cat_colors=False):
                 # subtract 1 because the name is the first element of the tuple
                 num_cats = len(inst_nodes[0]) - 1
                 for inst_cat in range(num_cats):
-                    cat_name = "cat-" + str(inst_cat)
+                    cat_name = f"cat-{inst_cat}"
                     cat_index = inst_cat + 1
                     cat_values = [x[cat_index] for x in inst_nodes]
                     net.dat["node_info"][axis][cat_name] = cat_values
@@ -78,55 +78,46 @@ def df_to_dat(net, df, define_cat_colors=False):
 
             if num_cats > 0:
                 for inst_cat in range(num_cats):
-                    cat_name = "cat-" + str(inst_cat)
-                    cat_index = inst_cat + 1
+                    cat_name = f"cat-{inst_cat}"
 
                     cat_title = inst_cats[inst_cat]
                     if axis == "row":
                         if net.is_downsampled:
-                            if hasattr(net, "meta_ds_row"):
-                                cat_values = (
-                                    net.meta_ds_row.loc[inst_nodes, cat_title]
-                                    .apply(lambda x: cat_title + ": " + str(x))
-                                    .values.tolist()
-                                )
-                            else:
-                                cat_values = (
-                                    net.meta_row.loc[inst_nodes, cat_title]
-                                    .apply(lambda x: cat_title + ": " + str(x))
-                                    .values.tolist()
-                                )
+                            cat_values = (
+                                net.meta_ds_row.loc[inst_nodes, cat_title]
+                                .apply(lambda x: f"{cat_title}: {x}")
+                                .values.tolist()
+                                if hasattr(net, "meta_ds_row")
+                                else net.meta_row.loc[inst_nodes, cat_title]
+                                .apply(lambda x: f"{cat_title}: {x}")
+                                .values.tolist()
+                            )
 
-                        # detault with no downsampling
+                        # default with no downsampling
                         else:
                             cat_values = (
                                 net.meta_row.loc[inst_nodes, cat_title]
-                                .apply(lambda x: cat_title + ": " + str(x))
+                                .apply(lambda x: f"{cat_title}: {x}")
                                 .values.tolist()
                             )
                     else:
                         # cat_values = net.meta_col.loc[inst_nodes, cat_title].apply(lambda x: cat_title + ': ' + x).values.tolist()
                         if net.is_downsampled:
-                            if hasattr(net, "meta_ds_col"):
-                                # print(inst_nodes)
+                            cat_values = (
+                                net.meta_ds_col.loc[inst_nodes, cat_title]
+                                .apply(lambda x: f"{cat_title}: {x}")
+                                .values.tolist()
+                                if hasattr(net, "meta_ds_col")
+                                else net.meta_col.loc[inst_nodes, cat_title]
+                                .apply(lambda x: f"{cat_title}: {x}")
+                                .values.tolist()
+                            )
 
-                                cat_values = (
-                                    net.meta_ds_col.loc[inst_nodes, cat_title]
-                                    .apply(lambda x: cat_title + ": " + str(x))
-                                    .values.tolist()
-                                )
-                            else:
-                                cat_values = (
-                                    net.meta_col.loc[inst_nodes, cat_title]
-                                    .apply(lambda x: cat_title + ": " + str(x))
-                                    .values.tolist()
-                                )
-
-                        # detault with no downsampling
+                        # default with no downsampling
                         else:
                             cat_values = (
                                 net.meta_col.loc[inst_nodes, cat_title]
-                                .apply(lambda x: cat_title + ": " + str(x))
+                                .apply(lambda x: f"{cat_title}: {x}")
                                 .values.tolist()
                             )
 
@@ -136,16 +127,16 @@ def df_to_dat(net, df, define_cat_colors=False):
 
 
 def dat_to_df(net):
-    nodes = {}
-    for axis in ["row", "col"]:
-        if "full_names" in net.dat["node_info"][axis]:
-            nodes[axis] = net.dat["node_info"][axis]["full_names"]
-        else:
-            nodes[axis] = net.dat["nodes"][axis]
+    nodes = {
+        axis: (
+            net.dat["node_info"][axis]["full_names"]
+            if "full_names" in net.dat["node_info"][axis]
+            else net.dat["nodes"][axis]
+        )
+        for axis in ["row", "col"]
+    }
 
-    df = pd.DataFrame(data=net.dat["mat"], columns=nodes["col"], index=nodes["row"])
-
-    return df
+    return pd.DataFrame(data=net.dat["mat"], columns=nodes["col"], index=nodes["row"])
 
 
 def mat_to_numpy_arr(self):

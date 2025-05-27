@@ -13,14 +13,12 @@ def check_categories(lines):
     # skip first tab
     for inst_string in rcat_line[1:]:
         if inst_string == "":
-            if found_end is False:
+            if not found_end:
                 num_rc = num_rc + 1
         else:
             found_end = True
 
-    max_rcat = 15
-    if max_rcat > len(lines):
-        max_rcat = len(lines) - 1
+    max_rcat = min(15, len(lines) - 1)
 
     num_cc = 0
     for i in range(max_rcat):
@@ -31,11 +29,10 @@ def check_categories(lines):
         if ccat_line[0] == "" and len(ccat_line) > 1:
             num_cc = num_cc + 1
 
-    num_labels = {}
-    num_labels["row"] = num_rc + 1
-    num_labels["col"] = num_cc + 1
-
-    return num_labels
+    return {
+        "row": num_rc + 1,
+        "col": num_cc + 1,
+    }
 
 
 def dict_cat(net, define_cat_colors=False):
@@ -62,13 +59,13 @@ def dict_cat(net, define_cat_colors=False):
 
                 dict_cat[inst_cat].append(inst_node)
 
-            tmp_name = "dict_" + inst_name_cat.replace("-", "_")
+            tmp_name = f"dict_{inst_name_cat.replace('-', '_')}"
             net.dat["node_info"][inst_rc][tmp_name] = dict_cat
 
     # merge with old cat_colors by default
     cat_colors = net.viz["cat_colors"]
 
-    if define_cat_colors == True:
+    if define_cat_colors:
         cat_number = 0
 
         for inst_rc in ["row", "col"]:
@@ -89,13 +86,9 @@ def dict_cat(net, define_cat_colors=False):
                     check_name = tmp_name
 
                     # check if category is string type and non-numeric
-                    try:
-                        float(check_name)
-                        is_string_cat = False
-                    except:
-                        is_string_cat = True
+                    is_string_cat = not is_number(check_name)
 
-                    if is_string_cat == True:
+                    if is_string_cat:
                         # check for default non-color
                         if ": " in check_name:
                             check_name = check_name.split(": ")[1]
@@ -138,11 +131,10 @@ def calc_cat_clust_order(net, inst_rc):
     """
 
     inst_keys = list(net.dat["node_info"][inst_rc].keys())
-    all_cats = [x for x in inst_keys if "cat-" in x]
 
-    if len(all_cats) > 0:
+    if all_cats := [x for x in inst_keys if "cat-" in x]:
         for inst_name_cat in all_cats:
-            tmp_name = "dict_" + inst_name_cat.replace("-", "_")
+            tmp_name = f"dict_{inst_name_cat.replace('-', '_')}"
             dict_cat = net.dat["node_info"][inst_rc][tmp_name]
 
             unordered_cats = dict_cat.keys()
@@ -151,11 +143,9 @@ def calc_cat_clust_order(net, inst_rc):
 
             # this is the ordering of the columns based on their category, not
             # including their clustering ordering within category
-            all_cat_orders = []
             tmp_names_list = []
             for inst_cat in ordered_cats:
                 inst_nodes = dict_cat[inst_cat]
-
                 tmp_names_list.extend(inst_nodes)
 
             names_clust_list = tmp_names_list
@@ -169,7 +159,7 @@ def calc_cat_clust_order(net, inst_rc):
 
                 final_order.append(inst_node_num)
 
-            inst_index_cat = inst_name_cat.replace("-", "_") + "_index"
+            inst_index_cat = f"{inst_name_cat.replace('-', '_')}_index"
 
             net.dat["node_info"][inst_rc][inst_index_cat] = final_order
 
@@ -186,12 +176,11 @@ def order_categories(unordered_cats):
 
     all_are_numbers = check_all_numbers(no_titles)
 
-    if all_are_numbers:
-        ordered_cats = order_cats_based_on_values(unordered_cats, no_titles)
-    else:
-        ordered_cats = sorted(unordered_cats)
-
-    return ordered_cats
+    return (
+        order_cats_based_on_values(unordered_cats, no_titles)
+        if all_are_numbers
+        else sorted(unordered_cats)
+    )
 
 
 def order_cats_based_on_values(unordered_cats, values_list):
@@ -205,46 +194,26 @@ def order_cats_based_on_values(unordered_cats, values_list):
 
         inst_series.sort_values(inplace=True)
 
-        ordered_cats = inst_series.index.tolist()
+        return inst_series.index.tolist()
 
-        # ordered_cats = unordered_cats
-    except:
+    except Exception:
         # keep default ordering if error occurs
         print("error sorting cats based on values ")
-        ordered_cats = unordered_cats
-
-    return ordered_cats
+        return unordered_cats
 
 
 def check_all_numbers(no_titles):
-    all_numbers = True
-    for tmp in no_titles:
-        if is_number(tmp) == False:
-            all_numbers = False
-
-    return all_numbers
+    return all(is_number(tmp) for tmp in no_titles)
 
 
 def remove_titles(cats):
     # check if all have titles
     ###########################
-    all_have_titles = True
+    all_have_titles = all(
+        not is_number(inst_cat) and ": " in inst_cat for inst_cat in cats if not is_number(inst_cat)
+    ) and any(not is_number(inst_cat) for inst_cat in cats)
 
-    for inst_cat in cats:
-        if is_number(inst_cat) == False:
-            if ": " not in inst_cat:
-                all_have_titles = False
-        else:
-            all_have_titles = False
-
-    if all_have_titles:
-        no_titles = cats
-        no_titles = [i.split(": ")[1] for i in no_titles]
-
-    else:
-        no_titles = cats
-
-    return no_titles
+    return [i.split(": ")[1] for i in cats] if all_have_titles else cats
 
 
 def is_number(s):
@@ -294,31 +263,23 @@ def get_cat_color(cat_num):
         "#de9ed6",
     ]
 
-    inst_color = all_colors[cat_num % len(all_colors)]
-
-    return inst_color
+    return all_colors[cat_num % len(all_colors)]
 
 
 def add_cats(net, axis, cat_data):
     try:
         df = net.export_df()
 
-        if axis == "row":
-            labels = df.index.tolist()
-        elif axis == "col":
-            labels = df.columns.tolist()
+        labels = df.index.tolist() if axis == "row" else df.columns.tolist()
 
-        if "title" in cat_data:
-            inst_title = cat_data["title"]
-        else:
-            inst_title = "New Category"
+        inst_title = cat_data.get("title", "New Category")
 
         all_cats = cat_data["cats"]
 
         # loop through all labels
         new_labels = []
         for inst_label in labels:
-            if type(inst_label) is tuple:
+            if isinstance(inst_label, tuple):
                 check_name = inst_label[0]
                 found_tuple = True
             else:
@@ -329,20 +290,17 @@ def add_cats(net, axis, cat_data):
                 check_name = check_name.split(": ")[1]
 
             # default to False for found cat, overwrite if necessary
-            found_cat = inst_title + ": False"
+            found_cat = f"{inst_title}: False"
 
             # check all categories in cats
             for inst_cat in all_cats:
                 inst_names = all_cats[inst_cat]
 
                 if check_name in inst_names:
-                    found_cat = inst_title + ": " + inst_cat
+                    found_cat = f"{inst_title}: {inst_cat}"
 
             # add category to label
-            if found_tuple is True:
-                new_label = inst_label + (found_cat,)
-            else:
-                new_label = (inst_label, found_cat)
+            new_label = (*inst_label, found_cat) if found_tuple else (inst_label, found_cat)
 
             new_labels.append(new_label)
 
@@ -354,5 +312,5 @@ def add_cats(net, axis, cat_data):
 
         net.load_df(df)
 
-    except:
+    except Exception:
         print("error adding new categories")

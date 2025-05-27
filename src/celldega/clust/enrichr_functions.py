@@ -3,12 +3,11 @@ def add_enrichr_cats(df, inst_rc, run_enrichr, num_terms=10):
 
     tmp_gene_list = deepcopy(df.index.tolist())
 
-    gene_list = []
-    if type(tmp_gene_list[0]) is tuple:
-        for inst_tuple in tmp_gene_list:
-            gene_list.append(inst_tuple[0])
-    else:
-        gene_list = tmp_gene_list
+    gene_list = (
+        [inst_tuple[0] for inst_tuple in tmp_gene_list]
+        if isinstance(tmp_gene_list[0], tuple)
+        else tmp_gene_list
+    )
 
     orig_gene_list = deepcopy(gene_list)
 
@@ -38,17 +37,15 @@ def add_enrichr_cats(df, inst_rc, run_enrichr, num_terms=10):
     # tuples
 
     bar_info = []
-    cat_list = []
-    for inst_gene in orig_gene_list:
-        cat_list.append([inst_gene])
+    cat_list = [[inst_gene] for inst_gene in orig_gene_list]
 
-    for inst_enr in response_list[0:num_terms]:
+    for inst_enr in response_list[:num_terms]:
         inst_term = inst_enr[1]
         inst_pval = inst_enr[2]
         inst_cs = inst_enr[4]
         inst_list = inst_enr[5]
 
-        pval_string = "<p> Pval " + str(inst_pval) + "</p>"
+        pval_string = f"<p> Pval {inst_pval}</p>"
 
         bar_info.append(inst_cs)
 
@@ -64,10 +61,12 @@ def add_enrichr_cats(df, inst_rc, run_enrichr, num_terms=10):
             gene_name = gene_name.split(" ")[0]
             gene_name = gene_name.split("-")[0]
 
-            if gene_name in inst_list:
-                inst_info.append(inst_term + ": True" + pval_string)
-            else:
-                inst_info.append(inst_term + ": False" + pval_string)
+            result_str = (
+                f"{inst_term}: True{pval_string}"
+                if gene_name in inst_list
+                else f"{inst_term}: False{pval_string}"
+            )
+            inst_info.append(result_str)
 
     cat_list = [tuple(x) for x in cat_list]
 
@@ -104,12 +103,12 @@ def clust_from_response(response_list):
                 # collect the scores of the enriched terms
                 if score_type == "combined_score":
                     scores[score_type][inst_enr["name"]] = inst_enr[score_type]
-                if score_type == "pval":
+                elif score_type == "pval":
                     scores[score_type][inst_enr["name"]] = -math.log(inst_enr[score_type])
-                if score_type == "zscore":
+                elif score_type == "zscore":
                     scores[score_type][inst_enr["name"]] = -inst_enr[score_type]
 
-            # keep enrichement values
+            # keep enrichment values
             enr.append(inst_enr)
 
     # sort and normalize the scores
@@ -145,10 +144,7 @@ def clust_from_response(response_list):
     keep_terms = list(set(keep_terms))
 
     # keep enriched terms that are at the top 10 based on at least one score
-    keep_enr = []
-    for inst_enr in enr:
-        if inst_enr["name"] in keep_terms:
-            keep_enr.append(inst_enr)
+    keep_enr = [inst_enr for inst_enr in enr if inst_enr["name"] in keep_terms]
 
     # fill in full matrix
     #######################
@@ -163,7 +159,7 @@ def clust_from_response(response_list):
         col_node_names.append(inst_enr["name"])
         row_node_names.extend(inst_enr["int_genes"])
 
-    row_node_names = sorted(list(set(row_node_names)))
+    row_node_names = sorted(set(row_node_names))
 
     net = Network()
     net.dat["nodes"]["row"] = row_node_names
@@ -260,29 +256,27 @@ def post_request(input_genes, meta=""):
 
     # load json
     inst_dict = json.loads(post_response.text)
-    userListId = str(inst_dict["userListId"])
+    # print(user_list_id)
 
-    # print(userListId)
-
-    # return the userListId that is needed to reference the list later
-    return userListId
+    # return the user_list_id that is needed to reference the list later
+    return str(inst_dict["userListId"])
 
 
 # make the get request to enrichr using the requests library
 # this is done after submitting post request with the input gene list
-def get_request(lib, userListId, max_terms=50):
+def get_request(lib, user_list_id, max_terms=50):
     import json
 
     import requests
 
-    # convert userListId to string
-    userListId = str(userListId)
+    # convert user_list_id to string
+    user_list_id = str(user_list_id)
 
     # define the get url
     get_url = "http://amp.pharm.mssm.edu/Enrichr/enrich"
 
     # get parameters
-    params = {"backgroundType": lib, "userListId": userListId}
+    params = {"backgroundType": lib, "userListId": user_list_id}
 
     # try get request until status code is 200
     inst_status_code = 400
@@ -290,10 +284,10 @@ def get_request(lib, userListId, max_terms=50):
     # wait until okay status code is returned
     num_try = 0
 
-    # print(('\tEnrichr enrichment get req userListId: '+str(userListId)))
+    # print(('\tEnrichr enrichment get req user_list_id: '+str(user_list_id)))
 
     while inst_status_code == 400 and num_try < 100:
-        num_try = num_try + 1
+        num_try += 1
         try:
             # make the get request to get the enrichr results
 
@@ -303,17 +297,17 @@ def get_request(lib, userListId, max_terms=50):
                 # get status_code
                 inst_status_code = get_response.status_code
 
-            except:
+            except Exception:
                 print("retry get request")
 
-        except:
+        except Exception:
             print("get requests failed")
 
     # load as dictionary
     resp_json = json.loads(get_response.text)
 
     # get the key
-    only_key = list(resp_json.keys())[0]
+    only_key = next(iter(resp_json.keys()))
 
     # get response_list
     response_list = resp_json[only_key]
@@ -321,7 +315,7 @@ def get_request(lib, userListId, max_terms=50):
     # transfer the response_list to the enr_dict
     enr = transfer_to_enr_dict(response_list, max_terms)
 
-    # return enrichment json and userListId
+    # return enrichment json and user_list_id
     return enr, response_list
 
 
@@ -339,9 +333,7 @@ def transfer_to_enr_dict(response_list, max_terms=50):
     # 5: Genes
     # 6: pval_bh
 
-    num_enr_term = len(response_list)
-    if num_enr_term > max_terms:
-        num_enr_term = max_terms
+    num_enr_term = min(len(response_list), max_terms)
 
     # transfer response_list to enr structure
     # and only keep the top terms
@@ -353,20 +345,14 @@ def transfer_to_enr_dict(response_list, max_terms=50):
         inst_enr = response_list[i]
 
         # initialize dict
-        inst_dict = {}
-
-        # transfer term
-        inst_dict["name"] = inst_enr[1]
-        # transfer pval
-        inst_dict["pval"] = inst_enr[2]
-        # transfer zscore
-        inst_dict["zscore"] = inst_enr[3]
-        # transfer combined_score
-        inst_dict["combined_score"] = inst_enr[4]
-        # transfer int_genes
-        inst_dict["int_genes"] = inst_enr[5]
-        # adjusted pval
-        inst_dict["pval_bh"] = inst_enr[6]
+        inst_dict = {
+            "name": inst_enr[1],  # transfer term
+            "pval": inst_enr[2],  # transfer pval
+            "zscore": inst_enr[3],  # transfer zscore
+            "combined_score": inst_enr[4],  # transfer combined_score
+            "int_genes": inst_enr[5],  # transfer int_genes
+            "pval_bh": inst_enr[6],  # adjusted pval
+        }
 
         # append dict
         enr.append(inst_dict)

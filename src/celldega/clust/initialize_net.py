@@ -1,25 +1,25 @@
 def main(self, widget=None):
-    if hasattr(self, "meta_cat") == False:
+    if not hasattr(self, "meta_cat"):
         self.meta_cat = False
 
-    self.dat = {}
-    self.dat["nodes"] = {}
-    self.dat["nodes"]["row"] = []
-    self.dat["nodes"]["col"] = []
-    self.dat["mat"] = []
+    self.dat = {
+        "nodes": {"row": [], "col": []},
+        "mat": [],
+        "node_info": {},
+    }
 
-    self.dat["node_info"] = {}
     for inst_rc in self.dat["nodes"]:
-        self.dat["node_info"][inst_rc] = {}
-        self.dat["node_info"][inst_rc]["ini"] = []
-        self.dat["node_info"][inst_rc]["clust"] = []
-        self.dat["node_info"][inst_rc]["rank"] = []
-        self.dat["node_info"][inst_rc]["info"] = []
-        self.dat["node_info"][inst_rc]["cat"] = []
-        self.dat["node_info"][inst_rc]["value"] = []
+        self.dat["node_info"][inst_rc] = {
+            "ini": [],
+            "clust": [],
+            "rank": [],
+            "info": [],
+            "cat": [],
+            "value": [],
+        }
 
     # check if net has categories predefined
-    if hasattr(self, "persistent_cat_colors") == False:
+    if not hasattr(self, "persistent_cat_colors"):
         self.persistent_cat_colors = False
         found_cats = False
     else:
@@ -29,43 +29,34 @@ def main(self, widget=None):
 
     # initialize matrix colors
     ###########################
-    has_matrix_colors = False
-    if hasattr(self, "viz"):
-        if "matrix_colors" in self.viz:
-            has_matrix_colors = True
+    has_matrix_colors = hasattr(self, "viz") and "matrix_colors" in self.viz
 
-    if has_matrix_colors:
-        matrix_colors = self.viz["matrix_colors"]
-    else:
-        matrix_colors = {}
-        matrix_colors["pos"] = "red"
-        matrix_colors["neg"] = "blue"
+    matrix_colors = (
+        self.viz["matrix_colors"] if has_matrix_colors else {"pos": "red", "neg": "blue"}
+    )
 
     # add widget if necessary
-    if widget != None:
+    if widget is not None:
         self.widget_class = widget
 
     self.is_downsampled = False
 
-    self.viz = {}
-    self.viz["row_nodes"] = []
-    self.viz["col_nodes"] = []
-    self.viz["links"] = []
-    self.viz["mat"] = []
+    self.viz = {
+        "row_nodes": [],
+        "col_nodes": [],
+        "links": [],
+        "mat": [],
+        "matrix_colors": matrix_colors,
+    }
 
-    if found_cats == False:
-        self.viz["cat_colors"] = {}
-        self.viz["cat_colors"]["row"] = {}
-        self.viz["cat_colors"]["col"] = {}
+    if not found_cats:
+        self.viz["cat_colors"] = {"row": {}, "col": {}}
         self.viz["global_cat_colors"] = {}
     else:
         self.viz["cat_colors"] = inst_cat_colors
         self.viz["global_cat_colors"] = inst_global_cat_colors
 
-    self.viz["matrix_colors"] = matrix_colors
-
     self.sim = {}
-
     self.umap = {}
 
 
@@ -74,22 +65,19 @@ def viz(self, reset_cat_colors=False):
     old_cat_colors = self.viz["cat_colors"]
     old_global_cat_colors = self.viz["global_cat_colors"]
 
-    if "matrix_colors" in self.viz:
-        matrix_colors = self.viz["matrix_colors"]
+    matrix_colors = self.viz.get("matrix_colors", {"pos": "red", "neg": "blue"})
 
-    self.viz = {}
-    self.viz["row_nodes"] = []
-    self.viz["col_nodes"] = []
-    self.viz["links"] = []
-    self.viz["mat"] = []
+    self.viz = {
+        "row_nodes": [],
+        "col_nodes": [],
+        "links": [],
+        "mat": [],
+        "matrix_colors": matrix_colors,
+    }
 
-    if reset_cat_colors == True:
-        self.viz["cat_colors"] = {}
-        self.viz["cat_colors"]["row"] = {}
-        self.viz["cat_colors"]["col"] = {}
+    if reset_cat_colors:
+        self.viz["cat_colors"] = {"row": {}, "col": {}}
         self.viz["global_cat_colors"] = {}
     else:
         self.viz["cat_colors"] = old_cat_colors
         self.viz["global_cat_colors"] = old_global_cat_colors
-
-    self.viz["matrix_colors"] = matrix_colors

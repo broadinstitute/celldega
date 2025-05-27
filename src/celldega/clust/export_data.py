@@ -1,3 +1,6 @@
+from pathlib import Path
+
+
 def export_net_json(net, net_type, indent="no-indent"):
     """export json string of dat"""
     from copy import deepcopy
@@ -18,13 +21,7 @@ def export_net_json(net, net_type, indent="no-indent"):
     elif net_type == "sim_col":
         exp_dict = net.sim["col"]
 
-    # make json
-    if indent == "indent":
-        exp_json = json.dumps(exp_dict, indent=2)
-    else:
-        exp_json = json.dumps(exp_dict)
-
-    return exp_json
+    return json.dumps(exp_dict, indent=2) if indent == "indent" else json.dumps(exp_dict)
 
 
 def write_matrix_to_tsv(net, filename=None, df=None):
@@ -43,17 +40,15 @@ def write_matrix_to_tsv(net, filename=None, df=None):
 def write_json_to_file(net, net_type, filename, indent="no-indent"):
     exp_json = net.export_net_json(net_type, indent)
 
-    fw = open(filename, "w")
-    fw.write(exp_json)
-    fw.close()
+    with Path.open(filename, "w") as fw:
+        fw.write(exp_json)
 
 
 def save_dict_to_json(inst_dict, filename, indent="no-indent"):
     import json
 
-    fw = open(filename, "w")
-    if indent == "indent":
-        fw.write(json.dumps(inst_dict, indent=2))
-    else:
-        fw.write(json.dumps(inst_dict))
-    fw.close()
+    with Path.open(filename, "w") as fw:
+        if indent == "indent":
+            fw.write(json.dumps(inst_dict, indent=2))
+        else:
+            fw.write(json.dumps(inst_dict))

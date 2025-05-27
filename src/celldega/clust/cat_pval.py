@@ -23,10 +23,7 @@ def main(net):
 
         node_infos = list(net.dat["node_info"][inst_rc].keys())
 
-        all_cats = []
-        for inst_info in node_infos:
-            if "dict_cat_" in inst_info:
-                all_cats.append(inst_info)
+        all_cats = [inst_info for inst_info in node_infos if "dict_cat_" in inst_info]
 
         for cat_dict in all_cats:
             tmp_dict = net.dat["node_info"][inst_rc][cat_dict]
@@ -46,9 +43,8 @@ def main(net):
                 for i in range(len(hist["prob"])):
                     if i == 0:
                         pval = hist["prob"][i]
-                    if i >= 1:
-                        if inst_median >= hist["bins"][i]:
-                            pval = pval + hist["prob"][i]
+                    elif inst_median >= hist["bins"][i]:
+                        pval = pval + hist["prob"][i]
 
                 net.dat["node_info"][inst_rc][pval_name][cat_name] = pval
 
@@ -66,9 +62,7 @@ def dist_matrix_lattice(names):
 
     inst_dm = squareform(inst_dm)
 
-    df = pd.DataFrame(data=inst_dm, columns=names, index=names)
-
-    return df
+    return pd.DataFrame(data=inst_dm, columns=names, index=names)
 
 
 def calc_median_dist_subset(dm, subset):
@@ -82,18 +76,15 @@ def calc_hist_distances(dm, subset, inst_nodes):
     num_points = len(subset)
 
     median_dist = []
-    for i in range(num_null):
+    for _ in range(num_null):
         tmp = np.random.choice(inst_nodes, num_points, replace=False)
         median_dist.append(np.median(dm[tmp].loc[tmp].values))
-
-    tmp_dist = sorted(deepcopy(median_dist))
 
     median_dist = np.asarray(median_dist)
     s1 = pd.Series(median_dist)
     hist = np.histogram(s1, bins=30)
 
-    H = {}
-    H["prob"] = hist[0] / np.float(num_null)
-    H["bins"] = hist[1]
-
-    return H
+    return {
+        "prob": hist[0] / float(num_null),
+        "bins": hist[1],
+    }

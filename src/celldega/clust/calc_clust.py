@@ -38,7 +38,7 @@ def cluster_row_and_col(
         # dm[axis] = calc_distance_matrix(tmp_mat, axis, dist_type)
 
         # cluster
-        if run_clustering is True:
+        if run_clustering:
             node_info["clust"], node_info["Y"] = clust_and_group(
                 net,
                 dm[axis],
@@ -55,7 +55,7 @@ def cluster_row_and_col(
             node_info["clust"] = node_info["ini"]
 
         # sorting
-        if run_rank is True:
+        if run_rank:
             node_info["rank"] = sort_rank_nodes(net, axis, "sum")
             node_info["rankvar"] = sort_rank_nodes(net, axis, "var")
         else:
@@ -63,10 +63,10 @@ def cluster_row_and_col(
             node_info["rankvar"] = node_info["ini"]
 
         ##################################
-        if ignore_cat is False:
+        if not ignore_cat:
             categories.calc_cat_clust_order(net, axis)
 
-    if calc_cat_pval is True:
+    if calc_cat_pval:
         cat_pval.main(net)
 
     # make the visualization json
@@ -125,16 +125,18 @@ def clust_and_group(
         # rows are the data points, cols are dimensions
         n_components = 50
         if axis == "row":
-            if mat.shape[1] > n_components:
-                low_d_mat = PCA(n_components=n_components).fit_transform(mat)
-            else:
-                low_d_mat = mat
+            low_d_mat = (
+                PCA(n_components=n_components).fit_transform(mat)
+                if mat.shape[1] > n_components
+                else mat
+            )
 
         elif axis == "col":
-            if mat.shape[0] > n_components:
-                low_d_mat = PCA(n_components=n_components).fit_transform(mat.transpose())
-            else:
-                low_d_mat = mat.transpose()
+            low_d_mat = (
+                PCA(n_components=n_components).fit_transform(mat.transpose())
+                if mat.shape[0] > n_components
+                else mat.transpose()
+            )
 
         # run UMAP on low_d_mat (after PCA)
         # print('running umap!!!!!!!!!!!!!!!!!!!!!!!!!!')
@@ -156,7 +158,6 @@ def clust_and_group(
         clusterer.fit(umap_mat)
 
         Y = clusterer.single_linkage_tree_.to_numpy()
-        Z = hier.dendrogram(Y, no_plot=True)
 
     Z = hier.dendrogram(Y, no_plot=True)
     inst_clust_order = Z["leaves"]
@@ -174,29 +175,22 @@ def sort_rank_nodes(net, rowcol, rank_type):
     inst_mat = deepcopy(net.dat["mat"])
 
     sum_term = []
-    for i in range(len(tmp_nodes)):
-        inst_dict = {}
-        inst_dict["name"] = tmp_nodes[i]
+    for i, node_name in enumerate(tmp_nodes):
+        inst_dict = {"name": node_name}
 
         if rowcol == "row":
-            if rank_type == "sum":
-                inst_dict["rank"] = np.sum(inst_mat[i, :])
-            elif rank_type == "var":
-                inst_dict["rank"] = np.var(inst_mat[i, :])
+            inst_dict["rank"] = (
+                np.sum(inst_mat[i, :]) if rank_type == "sum" else np.var(inst_mat[i, :])
+            )
         else:
-            if rank_type == "sum":
-                inst_dict["rank"] = np.sum(inst_mat[:, i])
-            elif rank_type == "var":
-                inst_dict["rank"] = np.var(inst_mat[:, i])
+            inst_dict["rank"] = (
+                np.sum(inst_mat[:, i]) if rank_type == "sum" else np.var(inst_mat[:, i])
+            )
 
         sum_term.append(inst_dict)
 
     sum_term = sorted(sum_term, key=itemgetter("rank"), reverse=False)
 
-    tmp_sort_nodes = []
-    tmp_sort_nodes.extend(inst_dict["name"] for inst_dict in sum_term)
+    tmp_sort_nodes = [inst_dict["name"] for inst_dict in sum_term]
 
-    sort_index = []
-    sort_index.extend(tmp_sort_nodes.index(inst_node) for inst_node in tmp_nodes)
-
-    return sort_index
+    return [tmp_sort_nodes.index(inst_node) for inst_node in tmp_nodes]

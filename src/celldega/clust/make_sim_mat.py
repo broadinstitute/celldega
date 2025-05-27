@@ -1,13 +1,16 @@
-def main(net, inst_dm, which_sim, filter_sim, sim_mat_views=["N_row_sum"]):
+def main(net, inst_dm, which_sim, filter_sim, sim_mat_views=None):
     from copy import deepcopy
 
     from . import calc_clust
     from .__init__ import Network
 
-    sim_dict = {}
+    if sim_mat_views is None:
+        sim_mat_views = ["N_row_sum"]
 
-    for inst_rc in which_sim:
-        sim_dict[inst_rc] = dm_to_sim(inst_dm[inst_rc], make_squareform=True, filter_sim=filter_sim)
+    sim_dict = {
+        inst_rc: dm_to_sim(inst_dm[inst_rc], make_squareform=True, filter_sim=filter_sim)
+        for inst_rc in which_sim
+    }
 
     sim_net = {}
 
@@ -25,8 +28,7 @@ def main(net, inst_dm, which_sim, filter_sim, sim_mat_views=["N_row_sum"]):
         calc_clust.cluster_row_and_col(sim_net[inst_rc])
 
         all_views = []
-        df = sim_net[inst_rc].dat_to_df()
-        send_df = deepcopy(df)
+        _ = sim_net[inst_rc].dat_to_df()
 
         sim_net[inst_rc].viz["views"] = all_views
 
@@ -37,7 +39,7 @@ def dm_to_sim(inst_dm, make_squareform=False, filter_sim=0):
     import numpy as np
     from scipy.spatial.distance import squareform
 
-    if make_squareform is True:
+    if make_squareform:
         inst_dm = squareform(inst_dm)
 
     inst_sim_mat = 1 - inst_dm

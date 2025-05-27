@@ -20,8 +20,8 @@ def main(real_net, vect_post):
         for inst_row_data in col_data:
             all_rows.append(inst_row_data["row_name"])
 
-    all_rows = sorted(list(set(all_rows)))
-    all_sigs = sorted(list(set(all_sigs)))
+    all_rows = sorted(set(all_rows))
+    all_sigs = sorted(set(all_sigs))
 
     net.dat["nodes"]["row"] = all_rows
     net.dat["nodes"]["col"] = all_sigs

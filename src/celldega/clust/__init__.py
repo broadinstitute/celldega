@@ -35,7 +35,7 @@ import contextlib
 from copy import deepcopy
 from itertools import combinations
 import json
-import os
+from pathlib import Path
 import random
 
 import ipywidgets as widgets
@@ -648,7 +648,7 @@ class Network:
 
         # genes
         filename = f"{inst_path}genes.tsv"
-        with open(filename) as f:
+        with Path.open(filename) as f:
             lines = f.readlines()
 
         # # add unique id to all genes
@@ -692,7 +692,7 @@ class Network:
 
         # barcodes
         filename = f"{inst_path}barcodes.tsv"
-        with open(filename) as f:
+        with Path.open(filename) as f:
             lines = f.readlines()
 
         cell_barcodes = []
@@ -719,8 +719,8 @@ class Network:
     def save_gene_exp_to_mtx_dir(inst_path, df):
         from scipy import io, sparse
 
-        if not os.path.exists(inst_path):
-            os.makedirs(inst_path)
+        if not Path.exists(inst_path):
+            Path.makedirs(inst_path)
 
         genes = df.index.tolist()
         barcodes = df.columns.tolist()
@@ -735,7 +735,7 @@ class Network:
 
     @staticmethod
     def save_list_to_tsv(inst_list, filename):
-        with open(filename, "w") as f:
+        with Path.open(filename, "w") as f:
             for inst_line in inst_list:
                 f.write(f"{inst_line}\n")
 
@@ -859,7 +859,7 @@ class Network:
 
         df = self.row_tuple_to_multiindex(df_t)
 
-        cell_types = sorted(list(set(df.index.get_level_values(category_level).tolist())))
+        cell_types = sorted(set(df.index.get_level_values(category_level).tolist()))
 
         keep_genes = []
         keep_genes_dict = {}
@@ -884,7 +884,7 @@ class Network:
             ser_pval = pd.Series(data=inst_pvals, index=df.columns.tolist()).sort_values()
 
             ser_pval_keep = (
-                ser_pval[ser_pval < pval_cutoff] if not num_top_dims else ser_pval[:num_top_dims]
+                ser_pval[:num_top_dims] if num_top_dims else ser_pval[ser_pval < pval_cutoff]
             )
 
             gene_pval_dict[inst_ct] = ser_pval_keep
@@ -893,7 +893,7 @@ class Network:
             keep_genes.extend(inst_keep)
             keep_genes_dict[inst_ct] = inst_keep
 
-        keep_genes = sorted(list(set(keep_genes)))
+        keep_genes = sorted(set(keep_genes))
 
         df_gbm = df.groupby(level=category_level).mean().transpose()
 
@@ -954,7 +954,7 @@ class Network:
 
         df = self.row_tuple_to_multiindex(df_t)
 
-        cell_types = sorted(list(set(df.index.get_level_values(category_level).tolist())))
+        cell_types = sorted(set(df.index.get_level_values(category_level).tolist()))
 
         keep_genes = []
         keep_genes_dict = {}
@@ -979,7 +979,7 @@ class Network:
             ser_pval = pd.Series(data=inst_pvals, index=df.columns.tolist()).sort_values()
 
             ser_pval_keep = (
-                ser_pval[ser_pval < pval_cutoff] if not num_top_dims else ser_pval[:num_top_dims]
+                ser_pval[:num_top_dims] if num_top_dims else ser_pval[ser_pval < pval_cutoff]
             )
 
             gene_pval_dict[inst_ct] = ser_pval_keep
@@ -988,7 +988,7 @@ class Network:
             keep_genes.extend(inst_keep)
             keep_genes_dict[inst_ct] = inst_keep
 
-        keep_genes = sorted(list(set(keep_genes)))
+        keep_genes = sorted(set(keep_genes))
 
         df_gbm = df.groupby(level=category_level).mean().transpose()
         cols = df_gbm.columns.tolist()
@@ -1096,9 +1096,9 @@ class Network:
         has_truth = isinstance(cols[0], tuple)
 
         new_cols = (
-            [tuple(list(a) + [b]) for a, b in zip(cols, top_list, strict=False)]
+            [(*a, b) for a, b in zip(cols, top_list, strict=False)]
             if has_truth
-            else [tuple([a] + [b]) for a, b in zip(cols, top_list, strict=False)]
+            else list(zip(cols, top_list, strict=False))
         )
 
         # transfer new categories
@@ -1121,7 +1121,7 @@ class Network:
             "pred": df_meta[pred].values.tolist(),
         }
 
-        sorted_cats = sorted(list(set(y_info["true"] + y_info["pred"])))
+        sorted_cats = sorted(set(y_info["true"] + y_info["pred"]))
         conf_mat = confusion_matrix(y_info["true"], y_info["pred"], labels=sorted_cats)
 
         # true columns and pred rows
@@ -1147,12 +1147,12 @@ class Network:
         """Generate confusion matrix from y_info"""
 
         a = deepcopy(y_info["true"])
-        true_count = dict((i, a.count(i)) for i in set(a))
+        true_count = {i: a.count(i) for i in set(a)}
 
         a = deepcopy(y_info["pred"])
-        pred_count = dict((i, a.count(i)) for i in set(a))
+        pred_count = {i: a.count(i) for i in set(a)}
 
-        sorted_cats = sorted(list(set(y_info["true"] + y_info["pred"])))
+        sorted_cats = sorted(set(y_info["true"] + y_info["pred"]))
         conf_mat = confusion_matrix(y_info["true"], y_info["pred"], sorted_cats)
         df_conf = pd.DataFrame(conf_mat, index=sorted_cats, columns=sorted_cats)
 
@@ -1242,7 +1242,7 @@ class Network:
                     perform_list.append(fraction_correct)
                 else:
                     real_performance = fraction_correct
-                    print(f"performance (fraction correct) of unshuffled: {fraction_correct}")
+                    print(f"performance (fraction correct) of unshuffled: {real_performance}")
 
             elif performance_type == "cat_sim_auc":
                 # predict categories from signature
@@ -1310,7 +1310,7 @@ class Network:
 
             column_title = column[0] if isinstance(column, tuple) else column
 
-            for i, (name, subdf) in enumerate(grouped):
+            for name, subdf in grouped:
                 names.append(name)
 
                 inst_ser = subdf[column]
@@ -1391,7 +1391,7 @@ class Network:
 
             column_title = column[0] if isinstance(column, tuple) else column
 
-            for i, (name, subdf) in enumerate(grouped):
+            for name, subdf in grouped:
                 names.append(name)
 
                 inst_ser = subdf[column]
@@ -1576,9 +1576,7 @@ class Network:
 
         clean_cols = []
         for inst_col in cols:
-            inst_clean = []
-            for inst_info in inst_col:
-                inst_clean.append(inst_info.split(": ")[1] if ": " in inst_info else inst_info)
+            inst_clean = [info.split(": ", 1)[1] if ": " in info else info for info in inst_col]
             clean_cols.append(tuple(inst_clean))
 
         df_ini = pd.DataFrame(data=clean_cols).set_index(0)
@@ -1589,7 +1587,7 @@ class Network:
 
 
 def save_list_to_tsv(inst_list, filename):
-    with open(filename, "w") as f:
+    with Path.open(filename, "w") as f:
         for inst_line in inst_list:
             f.write(f"{inst_line}\n")
 

@@ -1,5 +1,6 @@
 import io
 import json
+from pathlib import Path
 import sys
 
 import pandas as pd
@@ -14,35 +15,24 @@ except ImportError:
 
 
 def load_file(net, filename):
-    # reset network when loaing file, prevents errors when loading new file
+    # reset network when loading file, prevents errors when loading new file
     # have persistent categories
 
     net.reset()
 
-    f = open(filename)
-
-    file_string = f.read()
-    f.close()
+    file_string = Path(filename).read_text()
 
     load_file_as_string(net, file_string, filename)
 
 
-def load_file_as_string(net, file_string, filename=""):
-    if sys.version_info > (3, 0):
-        # python 3
-        ####################
-        file_string = str(file_string)
-    else:
-        # python 2
-        ####################
-        file_string = unicode(file_string)
+def load_file_as_string(net, file_content: str | bytes, filename: str = "") -> None:
+    # Decode bytes → str if necessary
+    if isinstance(file_content, bytes):
+        file_content = file_content.decode()
 
-    buff = io.StringIO(file_string)
-
-    if "/" in filename:
-        filename = filename.split("/")[-1]
-
-    net.load_tsv_to_net(buff, filename)
+    # Use StringIO as an in-memory text file; context manager auto-closes it.
+    with io.StringIO(str(file_content)) as buffer:
+        net.load_tsv_to_net(buffer, Path(filename).name)
 
 
 def load_stdin(net):
@@ -76,16 +66,14 @@ def load_tsv_to_net(net, file_buffer, filename=None):
 
 
 def load_json_to_dict(filename):
-    f = open(filename)
-    inst_dict = json.load(f)
-    f.close()
-    return inst_dict
+    with Path.open(filename) as f:
+        return json.load(f)
 
 
 def load_gmt(filename):
-    f = open(filename)
-    lines = f.readlines()
-    f.close()
+    with Path.open(filename) as f:
+        lines = f.readlines()
+
     gmt = {}
     for i in range(len(lines)):
         inst_line = lines[i].rstrip()

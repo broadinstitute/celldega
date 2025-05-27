@@ -14,7 +14,12 @@ from shapely.affinity import translate
 import os
 import xml.etree.ElementTree as ET
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
+from matplotlib.patches import Patch
 import pandas as pd
+import math
+from shapely.affinity import affine_transform
+from shapely.geometry import Point, Polygon, box
 
 def _classify_polygons_contains_check(polygons, points):
     """
@@ -301,3 +306,119 @@ def create_hextile(radius, path_landscape_files=None, img_height=100, img_width=
         plt.close()
 
     return gdf_hextile
+
+def slice_hexagon(hex_poly, center, n_parts, radius):
+
+    wedges = []
+
+    for i in range(n_parts):
+
+        angle1 = 360 * i / n_parts - 90
+        angle2 = 360 * (i + 1) / n_parts - 90
+
+        # Generate a circular wedge polygon (with arc points in between)
+        arc_points = [(
+            center.x + radius * math.cos(math.radians(a)),
+            center.y + radius * math.sin(math.radians(a))
+        ) for a in np.linspace(angle1, angle2, num=10)]
+
+        # Full wedge: center → arc edge 1 → arc points → arc edge 2 → back to center
+        wedge_coords = [center.coords[0]] + arc_points + [center.coords[0]]
+        wedge = Polygon(wedge_coords)
+
+        # Clip the wedge with the hexagon and check if it is not empty
+        clipped = hex_poly.intersection(wedge)
+        if not clipped.is_empty:
+            wedges.append(clipped)
+
+    return wedges
+
+def generate_hex_colors(values):
+    basic_colors = [
+        "red", "blue", "green", "orange", "purple", "cyan", "magenta",
+        "yellow", "brown", "pink", "lime", "teal", "olive", "navy",
+        "gray", "black", "maroon", "gold", "coral", "turquoise"
+    ]
+
+    unique_vals = sorted(set(values))
+    color_map = {}
+
+    for i, val in enumerate(unique_vals):
+        color = basic_colors[i % len(basic_colors)]
+        color_map[val] = mcolors.to_hex(mcolors.CSS4_COLORS[color])
+
+    return color_map
+
+def multi_gene_visualization_processing(path_landscape_files, gene_list, technology, segmentation_approach):
+
+    with open(os.path.join(path_landscape_files,"landscape_parameters.json"), 'r') as file:
+        landscape_parameters = json.load(file)
+
+    transcripts = gpd.read_parquet(os.path.join(path_landscape_files, f"hextile_assigned_trx_{technology}_{segmentation_approach}.parquet"))
+    genes = transcripts['feature_name'].to_list()
+
+    hex_gdf = gpd.read_parquet(os.path.join(path_landscape_files, "hextiles.parquet"))
+    hex_gdf.index = hex_gdf.index.astype(str) + "_polygon"
+    hex_gdf['hex_id'] = hex_gdf.index
+    radius = abs(round(hex_gdf.iloc[int(len(hex_gdf) / 2)]['geometry'].bounds[0] - hex_gdf.iloc[int(len(hex_gdf) / 2)]['geometry'].bounds[2])) / 2
+
+    counts = transcripts.groupby(['polygon_index', 'feature_name']).size().reset_index(name='count')
+    pivot = counts.pivot(index='polygon_index', columns='feature_name', values='count').fillna(0)
+    pivot_subset = pivot[gene_list]
+    colors = generate_hex_colors(pivot_subset.columns.to_list())
+
+    n_parts = len(pivot_subset.columns)  # Number of genes chosen
+    wedge_records = []
+
+    fig, ax = plt.subplots(figsize=(40, 40))
+
+    for idx, row in pivot_subset.iterrows():
+        if row.sum() == 0:
+            continue  # Skip hexagons with no gene expression at all
+
+        hex_poly = hex_gdf.loc[idx, 'geometry']
+        center = hex_poly.centroid
+
+        x, y = hex_poly.exterior.xy
+        ax.plot(x, y, color='black', linewidth=1, alpha=0.5)
+
+        total = row.sum()
+        slices = slice_hexagon(hex_poly, center, n_parts, radius)
+
+        for i, gene in enumerate(pivot_subset.columns):
+            val = row[gene]
+            alpha = val / total if total > 0 else 0
+
+            color = colors.get(gene, "#000000")
+            geom = slices[i]  # i-th wedge for i-th gene
+
+            if geom.geom_type == 'Polygon':
+                ax.fill(*geom.exterior.xy, color=color, alpha=alpha, edgecolor=None)
+            elif geom.geom_type == 'MultiPolygon':
+                for subgeom in geom.geoms:
+                    ax.fill(*subgeom.exterior.xy, color=color, alpha=alpha, edgecolor=None)
+
+            # Save wedge info
+            wedge_records.append({
+                'hex_id': idx,
+                'gene': gene,
+                'intensity': val,
+                'normalized': alpha,
+                'wedge_index': i,
+                'geometry': geom
+            })
+
+    legend_elements = [
+    Patch(facecolor=color, edgecolor='black', label=gene)
+    for gene, color in colors.items()
+    ]
+    ax.legend(handles=legend_elements, title="Genes", loc='upper right', bbox_to_anchor=(1, 1))
+
+    ax.set_aspect('equal')
+    plt.gca().invert_yaxis()
+    plt.title("Gene Expression per Hexagon")
+    plt.show()
+
+    wedges_gdf = gpd.GeoDataFrame(wedge_records, geometry='geometry')
+
+    return wedges_gdf

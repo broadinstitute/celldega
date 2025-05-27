@@ -1,9 +1,7 @@
 /**
  * Lightweight Dependency Resolver
  * Breaks circular dependencies with minimal overhead
- *
- * Save as: js/shared/lazyResolver.js
- */
+*/
 
 class LazyResolver {
   constructor() {

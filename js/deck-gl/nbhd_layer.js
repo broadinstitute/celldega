@@ -1,16 +1,26 @@
-import * as d3 from 'd3'
-import { GeoJsonLayer } from "deck.gl"
+import * as d3 from 'd3';
+import { GeoJsonLayer } from 'deck.gl';
 
-import { update_selected_cats, update_cat } from '../global_variables/cat'
-import { update_selected_genes } from "../global_variables/selected_genes"
-import { update_gene_text_box } from "../ui/gene_search"
-import { toggle_image_layers_and_ctrls } from "../ui/ui_containers"
-import { hexToRgb } from '../utils/hexToRgb'
+import { update_selected_cats, update_cat } from '../global_variables/cat';
+import { update_selected_genes } from '../global_variables/selected_genes';
+// import { update_gene_text_box } from '../ui/gene_search';
+// import { toggle_image_layers_and_ctrls } from '../ui/ui_containers';
 
-import { update_cell_layer_id } from "./cell_layer"
-import { get_layers_list } from "./layers_ist"
-import { update_path_layer_id } from "./path_layer"
-import { update_trx_layer_id } from "./trx_layer"
+import { hexToRgb } from '../utils/hexToRgb';
+
+// import { update_cell_layer_id } from './cell_layer';
+// import { get_layers_list }        from './layers_ist';
+// import { update_path_layer_id }   from './path_layer';
+// import { update_trx_layer_id }    from './trx_layer';
+
+import { deps } from '../temp_utils/deps';
+
+const {
+  update_cell_layer_id,
+  get_layers_list,
+  update_path_layer_id,
+} = deps;
+
 
 export const ini_nbhd_layer = (viz_state, visible) => {
 
@@ -48,8 +58,6 @@ const nbhd_layer_onclick = async (info, event, deck_ist, layers_obj, viz_state) 
     update_cat(viz_state.cats, 'cluster')
     update_selected_cats(viz_state.cats, [inst_cat])
     update_selected_genes(viz_state.genes, [])
-
-    // toggle_image_layers_and_ctrls(layers_obj, viz_state, !viz_state.cats.selected_cats.length > 0)
 
     const inst_cat_name = viz_state.cats.selected_cats.join('-')
 
@@ -89,7 +97,6 @@ const nbhd_layer_onclick = async (info, event, deck_ist, layers_obj, viz_state) 
 
     update_cell_layer_id(layers_obj, inst_cat_name)
     update_path_layer_id(layers_obj, inst_cat_name)
-    // update_trx_layer_id(viz_state.genes, layers_obj)
 
     // update data for nbhd layer
 
@@ -100,7 +107,6 @@ const nbhd_layer_onclick = async (info, event, deck_ist, layers_obj, viz_state) 
     deck_ist.setProps({layers: layers_list})
 
     // viz_state.genes.gene_search_input.value = ''
-    // update_gene_text_box(viz_state.genes, '')
 
 }
 

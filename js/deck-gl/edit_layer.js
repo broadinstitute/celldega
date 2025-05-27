@@ -11,6 +11,15 @@ import * as d3 from 'd3'
 // USE DEPS INSTEAD OF DIRECT IMPORTS
 import { deps } from '../temp_utils/deps';
 
+const {
+  update_bar_graph,
+  bar_callback_rgn,
+  update_cell_pickable_state,
+  update_path_pickable_state,
+  update_trx_pickable_state,
+  get_layers_list
+} = deps;
+
 // Function to calculate areas from a FeatureCollection
 const calc_region_areas = (featureCollection) => {
     featureCollection.features.forEach((feature, index) => {
@@ -60,11 +69,11 @@ export const calc_and_update_rgn_bar_graph = async (viz_state, deck_ist, layers_
         return acc;
     }, {});
 
-    await deps.update_bar_graph(
+    await update_bar_graph(
         viz_state.edit.svg_bar_rgn,
         viz_state.edit.rgn_areas,
         viz_state.edit.color_dict_rgn,
-        await deps.bar_callback_rgn,
+        await bar_callback_rgn,
         [], // selected_cats
         deck_ist,
         layers_obj,
@@ -93,9 +102,9 @@ const edit_layer_on_edit = async (deck_ist, layers_obj, viz_state, edit_info) =>
 
         viz_state.edit.mode = 'view'
 
-        await deps.update_cell_pickable_state(layers_obj, true)
-        await deps.update_path_pickable_state(layers_obj, true)
-        await deps.update_trx_pickable_state(layers_obj, true)
+        await update_cell_pickable_state(layers_obj, true)
+        await update_path_pickable_state(layers_obj, true)
+        await update_trx_pickable_state(layers_obj, true)
 
         await calc_and_update_rgn_bar_graph(viz_state, deck_ist, layers_obj)
 
@@ -103,7 +112,7 @@ const edit_layer_on_edit = async (deck_ist, layers_obj, viz_state, edit_info) =>
 
     }
 
-    const layers_list = await deps.get_layers_list(layers_obj, viz_state.close_up)
+    const layers_list = await get_layers_list(layers_obj, viz_state.close_up)
     deck_ist.setProps({layers: layers_list})
     await calc_and_update_rgn_bar_graph(viz_state, deck_ist, layers_obj)
     sync_region_to_model(viz_state)
@@ -125,7 +134,7 @@ const edit_layer_on_click = async (event, deck_ist, layers_obj, viz_state) => {
             },
         })
 
-        const layers_list = await deps.get_layers_list(layers_obj, viz_state.close_up)
+        const layers_list = await get_layers_list(layers_obj, viz_state.close_up)
         deck_ist.setProps({layers: layers_list})
 
         viz_state.edit.mode = 'modify'
@@ -154,7 +163,7 @@ const edit_layer_on_click = async (event, deck_ist, layers_obj, viz_state) => {
             selectedFeatureIndexes: [],
         })
 
-        const layers_list = await deps.get_layers_list(layers_obj, viz_state.close_up)
+        const layers_list = await get_layers_list(layers_obj, viz_state.close_up)
         deck_ist.setProps({layers: layers_list})
 
         viz_state.edit.mode = 'view'

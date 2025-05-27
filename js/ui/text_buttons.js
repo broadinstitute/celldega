@@ -9,8 +9,6 @@ import { get_mat_layers_list } from '../deck-gl/matrix/matrix_layers'
 import { toggle_path_layer_visibility } from '../deck-gl/path_layer'
 import { simple_image_layer_visibility } from '../deck-gl/simple_image_layer'
 import { square_scatter_layer_visibility } from '../deck-gl/square_scatter_layer'
-// import { layers_sst, update_layers_sst } from '../deck-gl/layers_sst'
-// import { deck_sst } from '../deck-gl/deck_sst'
 import { toggle_trx_layer_visibility } from '../deck-gl/trx_layer'
 
 import { toggle_slider } from './sliders'

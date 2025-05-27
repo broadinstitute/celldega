@@ -2,12 +2,22 @@ import { PathLayer } from 'deck.gl'
 
 import { update_selected_cats, update_cat } from '../global_variables/cat'
 import { update_selected_genes } from '../global_variables/selected_genes'
-import { toggle_image_layers_and_ctrls } from '../ui/ui_containers'
 import { grab_cell_tiles_in_view } from '../vector_tile/polygons/grab_cell_tiles_in_view'
 
-import { update_cell_layer_id } from './cell_layer'
-import { get_layers_list } from './layers_ist'
-import { update_trx_layer_id } from './trx_layer'
+// import { toggle_image_layers_and_ctrls } from '../ui/ui_containers'
+// import { get_layers_list } from './layers_ist'
+// import { update_cell_layer_id } from './cell_layer'
+// import { update_trx_layer_id } from './trx_layer'
+
+import { deps } from '../temp_utils/deps';
+
+const {
+  toggle_image_layers_and_ctrls,
+  get_layers_list,
+  update_cell_layer_id,
+  update_trx_layer_id
+} = deps;
+
 
 export const get_path_color = (cats, i, d) => {
 

@@ -2,7 +2,7 @@
 Module for visualization
 """
 
-from ipywidgets import HBox, Layout, display, jslink
+from ipywidgets import HBox, Layout, jslink
 
 from .local_server import get_local_server
 from .widget import Landscape, Matrix
@@ -31,11 +31,7 @@ def landscape_matrix(landscape, mat, width="600px", height="700px"):
     mat.layout = Layout(width=width)  # Adjust as needed
     landscape.layout = Layout(width=width, height=height)  # Adjust as needed
 
-    # Display widgets side by side
-    widgets_side_by_side = HBox([landscape, mat])
-
-    display(widgets_side_by_side)
-    return widgets_side_by_side
+    return HBox([landscape, mat])
 
 
 __all__ = ["Landscape", "Matrix", "get_local_server", "landscape_matrix"]

@@ -7,13 +7,11 @@ import { update_square_scatter_layer } from "../deck-gl/square_scatter_layer"
 import { update_trx_layer_id } from "../deck-gl/trx_layer"
 import { uniprot_data, uniprot_get_request } from '../external_apis/uniprot_api'
 import { update_cat, update_selected_cats } from "../global_variables/cat"
-// import { deck_sst } from "../deck-gl/deck_sst"
 import { update_cell_exp_array } from "../global_variables/cell_exp_array"
 import { update_selected_genes } from "../global_variables/selected_genes"
 import { update_tile_exp_array } from "../global_variables/tile_exp_array"
 
 import { set_gene_search_input } from "./gene_search_input"
-// import { simple_image_layer } from "../deck-gl/simple_image_layer"
 
 import { toggle_image_layers_and_ctrls } from "./ui_containers"
 

@@ -9,7 +9,7 @@ import * as d3 from 'd3'
 // import { update_trx_pickable_state } from './trx_layer';
 
 // USE DEPS INSTEAD OF DIRECT IMPORTS
-import { deps } from '../shared/deps.js';
+import { deps } from '../temp_utils/deps';
 
 // Function to calculate areas from a FeatureCollection
 const calc_region_areas = (featureCollection) => {

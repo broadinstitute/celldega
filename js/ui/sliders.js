@@ -4,7 +4,7 @@
 // import { update_trx_layer_radius } from "../deck-gl/trx_layer"
 
 // USE DEPS INSTEAD OF DIRECT IMPORTS
-import { deps } from '../shared/deps.js';
+import { deps } from '../temp_utils/deps';
 
 import { update_opacity_single_image_layer } from "../deck-gl/image_layers"
 import { square_scatter_layer_opacity } from "../deck-gl/square_scatter_layer"

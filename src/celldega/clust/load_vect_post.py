@@ -17,8 +17,7 @@ def main(real_net, vect_post):
 
         col_data = inst_sig["data"]
 
-        for inst_row_data in col_data:
-            all_rows.append(inst_row_data["row_name"])
+        all_rows.extend(inst_row_data["row_name"] for inst_row_data in col_data)
 
     all_rows = sorted(set(all_rows))
     all_sigs = sorted(set(all_sigs))

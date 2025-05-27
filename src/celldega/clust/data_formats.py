@@ -85,11 +85,11 @@ def df_to_dat(net, df, define_cat_colors=False):
                         if net.is_downsampled:
                             cat_values = (
                                 net.meta_ds_row.loc[inst_nodes, cat_title]
-                                .apply(lambda x: f"{cat_title}: {x}")
+                                .apply(lambda x, title=cat_title: f"{title}: {x}")
                                 .values.tolist()
                                 if hasattr(net, "meta_ds_row")
                                 else net.meta_row.loc[inst_nodes, cat_title]
-                                .apply(lambda x: f"{cat_title}: {x}")
+                                .apply(lambda x, title=cat_title: f"{title}: {x}")
                                 .values.tolist()
                             )
 
@@ -97,7 +97,7 @@ def df_to_dat(net, df, define_cat_colors=False):
                         else:
                             cat_values = (
                                 net.meta_row.loc[inst_nodes, cat_title]
-                                .apply(lambda x: f"{cat_title}: {x}")
+                                .apply(lambda x, title=cat_title: f"{title}: {x}")
                                 .values.tolist()
                             )
                     else:
@@ -105,11 +105,11 @@ def df_to_dat(net, df, define_cat_colors=False):
                         if net.is_downsampled:
                             cat_values = (
                                 net.meta_ds_col.loc[inst_nodes, cat_title]
-                                .apply(lambda x: f"{cat_title}: {x}")
+                                .apply(lambda x, title=cat_title: f"{title}: {x}")
                                 .values.tolist()
                                 if hasattr(net, "meta_ds_col")
                                 else net.meta_col.loc[inst_nodes, cat_title]
-                                .apply(lambda x: f"{cat_title}: {x}")
+                                .apply(lambda x, title=cat_title: f"{title}: {x}")
                                 .values.tolist()
                             )
 
@@ -117,7 +117,7 @@ def df_to_dat(net, df, define_cat_colors=False):
                         else:
                             cat_values = (
                                 net.meta_col.loc[inst_nodes, cat_title]
-                                .apply(lambda x: f"{cat_title}: {x}")
+                                .apply(lambda x, title=cat_title: f"{title}: {x}")
                                 .values.tolist()
                             )
 

@@ -1,5 +1,5 @@
 import concurrent.futures
-import os
+from pathlib import Path
 
 import geopandas as gpd
 import numpy as np
@@ -59,11 +59,10 @@ def _round_nested_coord_list(value, decimals=2):
     Returns:
         list, float: The rounded value. If the input is a nested list or array, returns a nested list with rounded values.
     """
-    if isinstance(value, (list, np.ndarray)):
+    if isinstance(value, (list | np.ndarray)):
         return [_round_nested_coord_list(item, decimals) for item in value]
-    if isinstance(value, (float, int)):
-        return round(value, decimals)
-    return value
+
+    return round(value, decimals) if isinstance(value, (float | int)) else value
 
 
 def numpy_affine_transform(coords, matrix):
@@ -239,7 +238,7 @@ def get_cell_polygons(
 
         # Correct 'MultiPolygon' to 'Polygon'
         cells_orig["geometry"] = cells_orig["Geometry"].apply(
-            lambda x: list(x.geoms)[0] if isinstance(x, MultiPolygon) else x
+            lambda x: next(iter(x.geoms)) if isinstance(x, MultiPolygon) else x
         )
 
         cells_orig.set_index("cell_id", inplace=True)
@@ -315,8 +314,7 @@ def make_cell_boundary_tiles(
     print("\n========Create cell boundary spatial tiles========")
 
     # Ensure the output directory exists
-    if not os.path.exists(path_output):
-        os.makedirs(path_output)
+    Path(path_output).mkdir(parents=True, exist_ok=True)
 
     if technology == "custom":
         gdf_cells = gpd.read_parquet(path_cell_boundaries)

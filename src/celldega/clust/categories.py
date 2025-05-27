@@ -76,7 +76,7 @@ def dict_cat(net, define_cat_colors=False):
                 if cat_index not in cat_colors[inst_rc]:
                     cat_colors[inst_rc][cat_index] = {}
 
-                cat_names = sorted(list(set(net.dat["node_info"][inst_rc][cat_index])))
+                cat_names = sorted(set(net.dat["node_info"][inst_rc][cat_index]))
 
                 # loop through each category name and assign a color
                 for tmp_name in cat_names:

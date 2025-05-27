@@ -119,9 +119,8 @@ def read_cbg_mtx(base_path):
 
     # Create a sparse DataFrame with genes as columns and barcodes as rows
     cbg = pd.DataFrame.sparse.from_spmatrix(matrix, index=barcodes[0], columns=features[1])
-    cbg = cbg.rename_axis("__index_level_0__", axis="columns")
 
-    return cbg
+    return cbg.rename_axis("__index_level_0__", axis="columns")
 
 
 def save_cbg_gene_parquets(base_path, cbg, verbose=False, segmentation_approach="default"):

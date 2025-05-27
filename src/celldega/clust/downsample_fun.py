@@ -66,8 +66,8 @@ def main(
             net.meta_row[ds_name] = ser_ds
         else:
             net.meta_col[ds_name] = ser_ds
-    else:
-        return ser_ds
+        return None
+    return ser_ds
 
 
 def meta_cat_to_tuple(net, axis, orig_labels, inst_cats):

@@ -1,9 +1,9 @@
 import { OrthographicView } from 'deck.gl'
 
-import { curate_pan_x, curate_pan_y } from './curate_pan.js'
-import { get_mat_layers_list } from './matrix_layers.js'
-import { redefine_global_view_state } from './redefine_global_view_state.js'
-import { update_zoom_data } from './zoom.js'
+import { curate_pan_x, curate_pan_y } from './curate_pan'
+import { get_mat_layers_list } from './matrix_layers'
+import { redefine_global_view_state } from './redefine_global_view_state'
+import { update_zoom_data } from './zoom'
 
 export const on_view_state_change = (params, deck_mat, layers_mat, viz_state) => {
 

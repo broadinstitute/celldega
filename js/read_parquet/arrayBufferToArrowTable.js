@@ -1,6 +1,6 @@
 import * as arrow from "apache-arrow";
 
-import { getPq } from './pqInitializer.js';
+import { getPq } from './pqInitializer';
 
 export const arrayBufferToArrowTable = async (arrayBuffer) => {
     try {

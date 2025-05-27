@@ -1,6 +1,6 @@
 import { ScatterplotLayer } from 'deck.gl';
 
-import { vs, fs } from './mat_shaders.js'
+import { vs, fs } from './mat_shaders'
 
 export class CustomMatrixLayer extends ScatterplotLayer {
 

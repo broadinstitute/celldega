@@ -1,4 +1,4 @@
-import { options } from './fetch_options.js'
+import { options } from './fetch_options'
 
 export const set_landscape_parameters = async (img, base_url, aws) => {
 

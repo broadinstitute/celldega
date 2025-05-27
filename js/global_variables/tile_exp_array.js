@@ -1,7 +1,7 @@
-import { options } from '../global_variables/fetch_options.js'
+import { options } from '../global_variables/fetch_options'
 import { get_arrow_table } from "../read_parquet/get_arrow_table"
-// import { tile_names_array } from "../global_variables/tile_names_array.js"
-// import { tile_name_to_index_map } from "../global_variables/tile_names_array.js"
+// import { tile_names_array } from "../global_variables/tile_names_array"
+// import { tile_name_to_index_map } from "../global_variables/tile_names_array"
 
 export const update_tile_exp_array = async (viz_state, inst_gene) => {
 

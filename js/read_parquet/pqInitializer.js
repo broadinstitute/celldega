@@ -1,5 +1,5 @@
 // local file from unpkg
-import * as pq from "../vendor/parquet-wasm/parquet-wasm_unpkg.js";
+import * as pq from "../vendor/parquet-wasm/parquet-wasm_unpkg";
 
 let initialized = false;
 

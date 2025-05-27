@@ -1,21 +1,21 @@
 import * as d3 from 'd3'
 
-import { update_cell_layer_id } from "../deck-gl/cell_layer.js"
-import { get_layers_list } from "../deck-gl/layers_ist.js"
-import { update_path_layer_id } from "../deck-gl/path_layer.js"
-import { update_square_scatter_layer } from "../deck-gl/square_scatter_layer.js"
-import { update_trx_layer_id } from "../deck-gl/trx_layer.js"
-import { uniprot_data, uniprot_get_request } from '../external_apis/uniprot_api.js'
-import { update_cat, update_selected_cats } from "../global_variables/cat.js"
-// import { deck_sst } from "../deck-gl/deck_sst.js"
-import { update_cell_exp_array } from "../global_variables/cell_exp_array.js"
-import { update_selected_genes } from "../global_variables/selected_genes.js"
-import { update_tile_exp_array } from "../global_variables/tile_exp_array.js"
+import { update_cell_layer_id } from "../deck-gl/cell_layer"
+import { get_layers_list } from "../deck-gl/layers_ist"
+import { update_path_layer_id } from "../deck-gl/path_layer"
+import { update_square_scatter_layer } from "../deck-gl/square_scatter_layer"
+import { update_trx_layer_id } from "../deck-gl/trx_layer"
+import { uniprot_data, uniprot_get_request } from '../external_apis/uniprot_api'
+import { update_cat, update_selected_cats } from "../global_variables/cat"
+// import { deck_sst } from "../deck-gl/deck_sst"
+import { update_cell_exp_array } from "../global_variables/cell_exp_array"
+import { update_selected_genes } from "../global_variables/selected_genes"
+import { update_tile_exp_array } from "../global_variables/tile_exp_array"
 
-import { set_gene_search_input } from "./gene_search_input.js"
-// import { simple_image_layer } from "../deck-gl/simple_image_layer.js"
+import { set_gene_search_input } from "./gene_search_input"
+// import { simple_image_layer } from "../deck-gl/simple_image_layer"
 
-import { toggle_image_layers_and_ctrls } from "./ui_containers.js"
+import { toggle_image_layers_and_ctrls } from "./ui_containers"
 
 
 let gene_search_options = []

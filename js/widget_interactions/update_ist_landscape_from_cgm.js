@@ -7,7 +7,7 @@ import { update_trx_layer_id } from '../deck-gl/trx_layer'
 import { update_cat, update_selected_cats } from '../global_variables/cat'
 import { update_cell_exp_array } from '../global_variables/cell_exp_array'
 import { update_selected_genes } from '../global_variables/selected_genes'
-import { update_gene_text_box } from '../ui/gene_search.js'
+import { update_gene_text_box } from '../ui/gene_search'
 import { toggle_image_layers_and_ctrls } from '../ui/ui_containers'
 
 export const update_ist_landscape_from_cgm = async (deck_ist, layers_obj, viz_state) => {

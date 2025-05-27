@@ -2,15 +2,15 @@ import * as d3 from 'd3'
 import { GeoJsonLayer } from "deck.gl"
 
 import { update_selected_cats, update_cat } from '../global_variables/cat'
-import { update_selected_genes } from "../global_variables/selected_genes.js"
-import { update_gene_text_box } from "../ui/gene_search.js"
-import { toggle_image_layers_and_ctrls } from "../ui/ui_containers.js"
-import { hexToRgb } from '../utils/hexToRgb.js'
+import { update_selected_genes } from "../global_variables/selected_genes"
+import { update_gene_text_box } from "../ui/gene_search"
+import { toggle_image_layers_and_ctrls } from "../ui/ui_containers"
+import { hexToRgb } from '../utils/hexToRgb'
 
-import { update_cell_layer_id } from "./cell_layer.js"
-import { get_layers_list } from "./layers_ist.js"
-import { update_path_layer_id } from "./path_layer.js"
-import { update_trx_layer_id } from "./trx_layer.js"
+import { update_cell_layer_id } from "./cell_layer"
+import { get_layers_list } from "./layers_ist"
+import { update_path_layer_id } from "./path_layer"
+import { update_trx_layer_id } from "./trx_layer"
 
 export const ini_nbhd_layer = (viz_state, visible) => {
 

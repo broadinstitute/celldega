@@ -1,7 +1,7 @@
 import { Deck } from 'deck.gl'
 
-import { make_tooltip } from './make_tooltip.js'
-import { on_view_state_change } from './on_view_state_change.js'
+import { make_tooltip } from './make_tooltip'
+import { on_view_state_change } from './on_view_state_change'
 
 const getCursor = ({ isDragging }) => {
     if (isDragging) {

@@ -1,4 +1,4 @@
-import { arrayBufferToArrowTable } from "./arrayBufferToArrowTable.js";
+import { arrayBufferToArrowTable } from "./arrayBufferToArrowTable";
 
 export const get_arrow_table_and_cache_new = async (cache, url, options, aws = null) => {
     let data;

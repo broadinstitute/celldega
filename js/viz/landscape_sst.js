@@ -1,22 +1,22 @@
 import * as d3 from 'd3'
 
-import { ini_deck_sst } from '../deck-gl/deck_sst.js'
-import { make_tile_tooltip } from '../deck-gl/make_tile_tooltip.js';
-import { make_simple_image_layer } from "../deck-gl/simple_image_layer.js"
-import { ini_square_scatter_layer, set_tile_layer_onclick } from "../deck-gl/square_scatter_layer.js"
-import { set_views } from '../deck-gl/views.js'
-import { options, set_options } from '../global_variables/fetch_options.js'
-import { set_meta_gene } from "../global_variables/meta_gene.js"
-import { set_tile_color_dict } from "../global_variables/tile_color_dict.js"
-import { set_tile_names_array, set_tile_name_to_index_map } from "../global_variables/tile_names_array.js"
-import { set_tile_scatter_data } from "../global_variables/tile_scatter_data.js"
-import { get_arrow_table } from "../read_parquet/get_arrow_table.js"
-import { get_scatter_data } from "../read_parquet/get_scatter_data.js"
-import { set_dimensions } from '../global_variables/image_dimensions.js'
-import { set_landscape_parameters } from "../global_variables/landscape_parameters.js"
-import { set_global_base_url } from "../global_variables/global_base_url.js"
-import { make_sst_ui_container } from '../ui/ui_containers.js'
-import { update_tile_landscape_from_cgm } from "../widget_interactions/update_tile_landscape_from_cgm.js"
+import { ini_deck_sst } from '../deck-gl/deck_sst'
+import { make_tile_tooltip } from '../deck-gl/make_tile_tooltip';
+import { make_simple_image_layer } from "../deck-gl/simple_image_layer"
+import { ini_square_scatter_layer, set_tile_layer_onclick } from "../deck-gl/square_scatter_layer"
+import { set_views } from '../deck-gl/views'
+import { options, set_options } from '../global_variables/fetch_options'
+import { set_meta_gene } from "../global_variables/meta_gene"
+import { set_tile_color_dict } from "../global_variables/tile_color_dict"
+import { set_tile_names_array, set_tile_name_to_index_map } from "../global_variables/tile_names_array"
+import { set_tile_scatter_data } from "../global_variables/tile_scatter_data"
+import { get_arrow_table } from "../read_parquet/get_arrow_table"
+import { get_scatter_data } from "../read_parquet/get_scatter_data"
+import { set_dimensions } from '../global_variables/image_dimensions'
+import { set_landscape_parameters } from "../global_variables/landscape_parameters"
+import { set_global_base_url } from "../global_variables/global_base_url"
+import { make_sst_ui_container } from '../ui/ui_containers'
+import { update_tile_landscape_from_cgm } from "../widget_interactions/update_tile_landscape_from_cgm"
 
 export const landscape_sst = async (
     ini_model,

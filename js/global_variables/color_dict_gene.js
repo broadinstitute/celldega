@@ -1,7 +1,7 @@
-import { get_arrow_table } from '../read_parquet/get_arrow_table.js'
-import { hexToRgb } from '../utils/hexToRgb.js'
+import { get_arrow_table } from '../read_parquet/get_arrow_table'
+import { hexToRgb } from '../utils/hexToRgb'
 
-import { options } from './fetch_options.js'
+import { options } from './fetch_options'
 
 export const set_color_dict_gene = async (genes, base_url, seg_version, aws) => {
 

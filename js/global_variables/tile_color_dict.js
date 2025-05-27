@@ -1,6 +1,6 @@
-import { options } from '../global_variables/fetch_options.js';
+import { options } from '../global_variables/fetch_options';
 import { get_arrow_table } from "../read_parquet/get_arrow_table";
-import { hexToRgb } from '../utils/hexToRgb.js'
+import { hexToRgb } from '../utils/hexToRgb'
 
 
 

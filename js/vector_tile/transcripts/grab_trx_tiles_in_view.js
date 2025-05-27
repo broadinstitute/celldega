@@ -1,7 +1,7 @@
-import { options } from '../../global_variables/fetch_options.js';
-import { fetch_all_tables_new } from '../../read_parquet/fetch_all_tables.js';
-import { get_scatter_data } from '../../read_parquet/get_scatter_data.js';
-import { concatenate_arrow_tables } from '../../vector_tile/concatenate_functions.js';
+import { options } from '../../global_variables/fetch_options';
+import { fetch_all_tables_new } from '../../read_parquet/fetch_all_tables';
+import { get_scatter_data } from '../../read_parquet/get_scatter_data';
+import { concatenate_arrow_tables } from '../../vector_tile/concatenate_functions';
 
 export const grab_trx_tiles_in_view = async (base_url, tiles_in_view, viz_state) => {
 

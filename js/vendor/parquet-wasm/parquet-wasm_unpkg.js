@@ -1,4 +1,4 @@
-// reference 
+// reference
 // https://unpkg.com/parquet-wasm@0.4.0-beta.5/esm/arrow2.js
 // https://github.com/kylebarron/parquet-wasm
 let wasm;
@@ -185,7 +185,7 @@ function makeMutClosure(arg0, arg1, dtor, f) {
         // count. This ensures that the Rust closure environment won't
         // be deallocated while we're invoking it.
         state.cnt++;
-        const a = state.a;
+        const {a} = state;
         state.a = 0;
         try {
             return f(a, state.b, ...args);
@@ -1060,7 +1060,7 @@ export class FFIArrowArray {
     }
     /**
     */
-    // commented out becuase of 
+    // commented out becuase of
     // [WARNING] Duplicate member "free" in class body [duplicate-class-member]
     // free() {
     //     const ptr = this.__destroy_into_raw();
@@ -1884,7 +1884,7 @@ function initSync(bytes) {
 }
 
 
-import { wasmBase64 } from './wasmModuleBase64.js'; // Assuming you've exported the Base64 string here
+import { wasmBase64 } from './wasmModuleBase64'; // Assuming you've exported the Base64 string here
 
 async function init(input) {
     // No need to adjust the path, as we'll be loading the WASM from a Base64 string

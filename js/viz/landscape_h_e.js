@@ -1,13 +1,13 @@
 
 import { AwsClient } from 'https://esm.sh/aws4fetch@1'
 
-import { ini_deck_sst } from '../deck-gl/deck_sst.js'
-import { make_simple_image_layer } from "../deck-gl/simple_image_layer.js"
-import { set_views } from '../deck-gl/views.js'
-import { options, set_options } from '../global_variables/fetch_options.js'
-import { set_global_base_url } from "../global_variables/global_base_url.js"
-import { set_dimensions } from '../global_variables/image_dimensions.js'
-import { set_landscape_parameters } from "../global_variables/landscape_parameters.js"
+import { ini_deck_sst } from '../deck-gl/deck_sst'
+import { make_simple_image_layer } from "../deck-gl/simple_image_layer"
+import { set_views } from '../deck-gl/views'
+import { options, set_options } from '../global_variables/fetch_options'
+import { set_global_base_url } from "../global_variables/global_base_url"
+import { set_dimensions } from '../global_variables/image_dimensions'
+import { set_landscape_parameters } from "../global_variables/landscape_parameters"
 
 
 export const landscape_h_e = async (

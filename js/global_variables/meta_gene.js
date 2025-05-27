@@ -1,4 +1,4 @@
-import { options } from '../global_variables/fetch_options.js';
+import { options } from '../global_variables/fetch_options';
 import { get_arrow_table } from "../read_parquet/get_arrow_table"
 
 export const set_meta_gene = async (genes, base_url, seg_version='default', aws) => {

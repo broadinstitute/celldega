@@ -1,13 +1,15 @@
 import { EditableGeoJsonLayer, ModifyMode, ViewMode} from '@deck.gl-community/editable-layers'
 import * as d3 from 'd3'
 
-import { bar_callback_rgn, update_bar_graph } from '../ui/bar_plot';
+// REMOVED CIRCULAR IMPORTS - using deps instead
+// import { bar_callback_rgn, update_bar_graph } from '../ui/bar_plot';
+// import { update_cell_pickable_state } from './cell_layer'
+// import { get_layers_list } from './layers_ist'
+// import { update_path_pickable_state } from './path_layer';
+// import { update_trx_pickable_state } from './trx_layer';
 
-import { update_cell_pickable_state } from './cell_layer'
-import { get_layers_list } from './layers_ist'
-import { update_path_pickable_state } from './path_layer';
-import { update_trx_pickable_state } from './trx_layer';
-
+// USE DEPS INSTEAD OF DIRECT IMPORTS
+import { deps } from '../shared/deps.js';
 
 // Function to calculate areas from a FeatureCollection
 const calc_region_areas = (featureCollection) => {
@@ -42,7 +44,7 @@ export const sync_region_to_model = (viz_state) => {
     }
 }
 
-export const calc_and_update_rgn_bar_graph = (viz_state, deck_ist, layers_obj) => {
+export const calc_and_update_rgn_bar_graph = async (viz_state, deck_ist, layers_obj) => {
 
     // Calculate areas
     viz_state.edit.feature_collection = calc_region_areas(viz_state.edit.feature_collection)
@@ -58,11 +60,11 @@ export const calc_and_update_rgn_bar_graph = (viz_state, deck_ist, layers_obj) =
         return acc;
     }, {});
 
-    update_bar_graph(
+    await deps.update_bar_graph(
         viz_state.edit.svg_bar_rgn,
         viz_state.edit.rgn_areas,
         viz_state.edit.color_dict_rgn,
-        bar_callback_rgn,
+        await deps.bar_callback_rgn,
         [], // selected_cats
         deck_ist,
         layers_obj,
@@ -70,7 +72,7 @@ export const calc_and_update_rgn_bar_graph = (viz_state, deck_ist, layers_obj) =
     )
 }
 
-const edit_layer_on_edit = (deck_ist, layers_obj, viz_state, edit_info) => {
+const edit_layer_on_edit = async (deck_ist, layers_obj, viz_state, edit_info) => {
 
     // const { updatedData, editType, featureIndexes, editContext } = edit_info;
     const { updatedData, editType } = edit_info;
@@ -91,24 +93,24 @@ const edit_layer_on_edit = (deck_ist, layers_obj, viz_state, edit_info) => {
 
         viz_state.edit.mode = 'view'
 
-        update_cell_pickable_state(layers_obj, true)
-        update_path_pickable_state(layers_obj, true)
-        update_trx_pickable_state(layers_obj, true)
+        await deps.update_cell_pickable_state(layers_obj, true)
+        await deps.update_path_pickable_state(layers_obj, true)
+        await deps.update_trx_pickable_state(layers_obj, true)
 
-        calc_and_update_rgn_bar_graph(viz_state, deck_ist, layers_obj)
+        await calc_and_update_rgn_bar_graph(viz_state, deck_ist, layers_obj)
 
         sync_region_to_model(viz_state)
 
     }
 
-    const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+    const layers_list = await deps.get_layers_list(layers_obj, viz_state.close_up)
     deck_ist.setProps({layers: layers_list})
-    calc_and_update_rgn_bar_graph(viz_state, deck_ist, layers_obj)
+    await calc_and_update_rgn_bar_graph(viz_state, deck_ist, layers_obj)
     sync_region_to_model(viz_state)
 
 }
 
-const edit_layer_on_click = (event, deck_ist, layers_obj, viz_state) => {
+const edit_layer_on_click = async (event, deck_ist, layers_obj, viz_state) => {
 
     if (event.featureType === 'polygons' && viz_state.edit.mode === 'view') {
 
@@ -123,7 +125,7 @@ const edit_layer_on_click = (event, deck_ist, layers_obj, viz_state) => {
             },
         })
 
-        const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+        const layers_list = await deps.get_layers_list(layers_obj, viz_state.close_up)
         deck_ist.setProps({layers: layers_list})
 
         viz_state.edit.mode = 'modify'
@@ -152,7 +154,7 @@ const edit_layer_on_click = (event, deck_ist, layers_obj, viz_state) => {
             selectedFeatureIndexes: [],
         })
 
-        const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+        const layers_list = await deps.get_layers_list(layers_obj, viz_state.close_up)
         deck_ist.setProps({layers: layers_list})
 
         viz_state.edit.mode = 'view'

@@ -1,11 +1,13 @@
-// import { simple_image_layer } from "../deck-gl/simple_image_layer"
-import { update_cell_layer_radius } from "../deck-gl/cell_layer"
+// REMOVED CIRCULAR IMPORTS - using deps instead
+// import { update_cell_layer_radius } from "../deck-gl/cell_layer"
+// import { get_layers_list } from "../deck-gl/layers_ist"
+// import { update_trx_layer_radius } from "../deck-gl/trx_layer"
+
+// USE DEPS INSTEAD OF DIRECT IMPORTS
+import { deps } from '../shared/deps.js';
+
 import { update_opacity_single_image_layer } from "../deck-gl/image_layers"
-import { get_layers_list } from "../deck-gl/layers_ist"
 import { square_scatter_layer_opacity } from "../deck-gl/square_scatter_layer"
-// import { layers_sst, update_layers_sst } from "../deck-gl/layers_sst"
-import { update_trx_layer_radius } from "../deck-gl/trx_layer"
-// import { deck_sst } from "../deck-gl/deck_sst"
 
 export const make_slider = () => {
     return  document.createElement("input")
@@ -32,9 +34,9 @@ const cell_slider_callback = async (deck_ist, layers_obj, viz_state) => {
 
     const scale_down_cell_radius = 5
 
-    update_cell_layer_radius(layers_obj, viz_state.sliders.cell.value / scale_down_cell_radius)
+    await deps.update_cell_layer_radius(layers_obj, viz_state.sliders.cell.value / scale_down_cell_radius)
 
-    const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+    const layers_list = await deps.get_layers_list(layers_obj, viz_state.close_up)
     deck_ist.setProps({layers: layers_list})
 
 }
@@ -43,9 +45,9 @@ const trx_slider_callback = async (deck_ist, layers_obj, viz_state) => {
 
     const scale_down_trx_radius = 100
 
-    update_trx_layer_radius(layers_obj, viz_state.sliders.trx.value/scale_down_trx_radius)
+    await deps.update_trx_layer_radius(layers_obj, viz_state.sliders.trx.value/scale_down_trx_radius)
 
-    const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+    const layers_list = await deps.get_layers_list(layers_obj, viz_state.close_up)
     deck_ist.setProps({layers: layers_list})
 }
 
@@ -60,7 +62,7 @@ export const make_img_layer_slider_callback = (name, deck_ist, layers_obj, viz_s
         // Use the slider value to update the opacity
         update_opacity_single_image_layer(viz_state, layers_obj, name, opacity, viz_state.img.image_layer_colors);
 
-        const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+        const layers_list = await deps.get_layers_list(layers_obj, viz_state.close_up)
         deck_ist.setProps({layers: layers_list})
     };
 };

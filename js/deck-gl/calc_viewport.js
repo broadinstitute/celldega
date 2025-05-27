@@ -1,13 +1,13 @@
+import { update_bar_graph , bar_callback_gene, bar_callback_cluster } from '../ui/bar_plot.js'
 import { visibleTiles } from '../vector_tile/visibleTiles.js'
+
+import { get_layers_list } from './layers_ist.js'
 import { update_path_layer_data } from './path_layer.js'
 import { update_trx_layer_data } from './trx_layer.js'
-import { get_layers_list } from './layers_ist.js'
-import { update_bar_graph } from '../ui/bar_plot.js'
-import { bar_callback_gene, bar_callback_cluster } from '../ui/bar_plot.js'
 
 export const calc_viewport = async ({ height, width, zoom, target }, deck_ist, layers_obj, viz_state) => {
 
-    const tile_size = viz_state.img.landscape_parameters.tile_size
+    const {tile_size} = viz_state.img.landscape_parameters
     const max_tiles_to_view = 50
     const zoomFactor = Math.pow(2, zoom)
     const [targetX, targetY] = target

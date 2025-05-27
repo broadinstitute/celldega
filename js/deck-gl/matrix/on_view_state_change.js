@@ -1,13 +1,14 @@
 import { OrthographicView } from 'deck.gl'
-import { update_zoom_data } from './zoom.js'
+
+import { curate_pan_x, curate_pan_y } from './curate_pan.js'
 import { get_mat_layers_list } from './matrix_layers.js'
 import { redefine_global_view_state } from './redefine_global_view_state.js'
-import { curate_pan_x, curate_pan_y } from './curate_pan.js'
+import { update_zoom_data } from './zoom.js'
 
 export const on_view_state_change = (params, deck_mat, layers_mat, viz_state) => {
 
-    const viewState = params.viewState
-    const viewId = params.viewId
+    const {viewState} = params
+    const {viewId} = params
 
     const {zoom, target} = viewState;
 
@@ -129,13 +130,13 @@ export const on_view_state_change = (params, deck_mat, layers_mat, viz_state) =>
     // console.log(viewId)
     // console.log('data', viz_state.zoom.zoom_data.matrix.zoom_y.toFixed(2))
 
-    let new_zoom = [viz_state.zoom.zoom_data.total_zoom.x, viz_state.zoom.zoom_data.total_zoom.y]
+    const new_zoom = [viz_state.zoom.zoom_data.total_zoom.x, viz_state.zoom.zoom_data.total_zoom.y]
     // console.log('new_zoom ', new_zoom)
     // console.log('   ')
 
 
-    var zoom_curated_x = Math.max(0, new_zoom[0])
-    var zoom_curated_y = Math.max(0, new_zoom[1])
+    let zoom_curated_x = Math.max(0, new_zoom[0])
+    let zoom_curated_y = Math.max(0, new_zoom[1])
 
     // delay zoom based on row/col ratio
     if (viz_state.zoom.major_zoom_axis === 'X'){
@@ -148,13 +149,13 @@ export const on_view_state_change = (params, deck_mat, layers_mat, viz_state) =>
     zoom_curated_x = Math.max(0, zoom_curated_x)
     zoom_curated_y = Math.max(0, zoom_curated_y)
 
-    var pan_curated_x = curate_pan_x(target[0], zoom_curated_x, viz_state)
-    var pan_curated_y = curate_pan_y(target[1], zoom_curated_y, viz_state)
+    const pan_curated_x = curate_pan_x(target[0], zoom_curated_x, viz_state)
+    const pan_curated_y = curate_pan_y(target[1], zoom_curated_y, viz_state)
 
-    let zoom_curated = [zoom_curated_x, zoom_curated_y]
-    let pan_curated = [pan_curated_x, pan_curated_y]
+    const zoom_curated = [zoom_curated_x, zoom_curated_y]
+    const pan_curated = [pan_curated_x, pan_curated_y]
 
-    var global_view_state = redefine_global_view_state(viz_state, viewId, zoom_curated, pan_curated)
+    const global_view_state = redefine_global_view_state(viz_state, viewId, zoom_curated, pan_curated)
 
     // update_zoom_data(viz_state, viewId, new_zoom, target)
     update_zoom_data(viz_state, viewId, zoom_curated, pan_curated)

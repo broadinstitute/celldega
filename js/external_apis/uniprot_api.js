@@ -1,5 +1,5 @@
 
-export let uniprot_data = {}
+export const uniprot_data = {}
 
 export const uniprot_get_request = async (gene_symbol) => {
 
@@ -7,9 +7,9 @@ export const uniprot_get_request = async (gene_symbol) => {
 
         let gene_data
 
-        let organism = 'human';
-        let num_matches = 100;
-        let url_accession = `https://www.ebi.ac.uk/proteins/api/proteins?offset=0&size=${num_matches}&exact_gene=${gene_symbol}&organism=${organism}`;
+        const organism = 'human';
+        const num_matches = 100;
+        const url_accession = `https://www.ebi.ac.uk/proteins/api/proteins?offset=0&size=${num_matches}&exact_gene=${gene_symbol}&organism=${organism}`;
 
         try {
 
@@ -21,7 +21,7 @@ export const uniprot_get_request = async (gene_symbol) => {
 
             const data = await response.json(); // get response as JSON
 
-            let real_protein = data
+            const real_protein = data
                 // has evidence at protein level
                 .filter(d => d.proteinExistence === 'Evidence at protein level')
                 // has a comments section
@@ -34,20 +34,20 @@ export const uniprot_get_request = async (gene_symbol) => {
                 .sort((a, b) => b.comments.length - a.comments.length);
 
             if (real_protein.length > 0) {
-                let inst_accession = real_protein[0].accession;
-                let base_url_info = `https://rest.uniprot.org/uniprotkb/${inst_accession}.json`;
+                const inst_accession = real_protein[0].accession;
+                const base_url_info = `https://rest.uniprot.org/uniprotkb/${inst_accession}.json`;
 
                 try {
                     const response_info = await fetch(base_url_info);
                     const data_info = await response_info.json();
 
                     try {
-                        let full_name = data_info.proteinDescription.recommendedName.fullName.value;
-                        let description = data_info.comments?.[0]?.texts?.[0]?.value || 'Unable to obtain UniProt description.';
+                        const full_name = data_info.proteinDescription.recommendedName.fullName.value;
+                        const description = data_info.comments?.[0]?.texts?.[0]?.value || 'Unable to obtain UniProt description.';
 
                         gene_data = {
                             name: full_name,
-                            description: description
+                            description
                         };
 
                     } catch(error) {

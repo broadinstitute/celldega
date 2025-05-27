@@ -1,16 +1,18 @@
 import { TileLayer } from 'deck.gl'
-import { create_get_tile_data } from './create_get_tile_data'
+
 import { create_simple_render_tile_sublayers } from '../deck-gl/create_simple_render_tile_sublayer'
 import { options } from '../global_variables/fetch_options'
 
+import { create_get_tile_data } from './create_get_tile_data'
+
 export const make_simple_image_layer = async (viz_state, info) => {
 
-    let global_base_url = viz_state.global_base_url
-    let dimensions = viz_state.dimensions
-    let landscape_parameters = viz_state.img.landscape_parameters
-    let image_format = viz_state.img.landscape_parameters.image_format
+    const {global_base_url} = viz_state
+    const {dimensions} = viz_state
+    const {landscape_parameters} = viz_state.img
+    const {image_format} = viz_state.img.landscape_parameters
 
-    let simple_image_layer = new TileLayer({
+    const simple_image_layer = new TileLayer({
         id: 'global-simple-image-layer',
         tileSize: dimensions.tileSize,
         refinementStrategy: 'no-overlap',
@@ -30,7 +32,7 @@ export const make_simple_image_layer = async (viz_state, info) => {
 export const simple_image_layer_visibility = (layers_sst, visible) => {
 
     layers_sst.simple_image_layer = layers_sst.simple_image_layer.clone({
-        visible: visible,
+        visible,
     });
 
 }

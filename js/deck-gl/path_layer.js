@@ -1,10 +1,12 @@
 import { PathLayer } from 'deck.gl'
-import { grab_cell_tiles_in_view } from '../vector_tile/polygons/grab_cell_tiles_in_view'
+
 import { update_selected_cats, update_cat } from '../global_variables/cat'
+import { update_selected_genes } from '../global_variables/selected_genes'
+import { toggle_image_layers_and_ctrls } from '../ui/ui_containers'
+import { grab_cell_tiles_in_view } from '../vector_tile/polygons/grab_cell_tiles_in_view'
+
 import { update_cell_layer_id } from './cell_layer'
 import { get_layers_list } from './layers_ist'
-import { toggle_image_layers_and_ctrls } from '../ui/ui_containers'
-import { update_selected_genes } from '../global_variables/selected_genes'
 import { update_trx_layer_id } from './trx_layer'
 
 export const get_path_color = (cats, i, d) => {
@@ -30,7 +32,7 @@ export const get_path_color = (cats, i, d) => {
 
 export const ini_path_layer = (viz_state) => {
 
-    let path_layer = new PathLayer({
+    const path_layer = new PathLayer({
         id: 'path-layer',
         data: [],
         pickable: true,
@@ -85,18 +87,18 @@ export const set_path_layer_onclick = (deck_ist, layers_obj, viz_state) => {
 
 export const toggle_path_layer_visibility = (layers_obj, visible) => {
     layers_obj.path_layer = layers_obj.path_layer.clone({
-        visible: visible,
+        visible,
     });
 }
 
 export const update_path_layer_id = (layers_obj, new_cat) => {
     layers_obj.path_layer = layers_obj.path_layer.clone({
-        id: 'path-layer-' + new_cat,
+        id: `path-layer-${  new_cat}`,
     });
 }
 
 export const update_path_pickable_state = (layers_obj, pickable) => {
     layers_obj.path_layer = layers_obj.path_layer.clone({
-        pickable: pickable,
+        pickable,
     });
 }

@@ -7,7 +7,7 @@ export const visibleTiles = (min_x, max_x, min_y, max_y, tileSize) => {
 	const tiles = [];
 	for (let x = startTileX; x <= endTileX; x++) {
 		for (let y = startTileY; y <= endTileY; y++) {
-			tiles.push({ tileX: x, tileY: y, name: x + '_' + y });
+			tiles.push({ tileX: x, tileY: y, name: `${x  }_${  y}` });
 		}
 	}
 	return tiles;

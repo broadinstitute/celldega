@@ -16,11 +16,11 @@ export const ini_deck = ( root, width, height ) => {
         height = height + 100
     }
 
-    let deck_ist = new Deck({
+    const deck_ist = new Deck({
         parent: root,
-        getCursor: getCursor,
-        width: width,
-        height: height,
+        getCursor,
+        width,
+        height,
     })
 
     return deck_ist

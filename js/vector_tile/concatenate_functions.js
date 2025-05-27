@@ -4,7 +4,7 @@ export const concatenate_polygon_data = (dataObjects) => {
     dataObjects = dataObjects.filter(data => data !== undefined && data !== null);
 
     // Initialize concatenated data structure
-    let concatenatedData = {
+    const concatenatedData = {
         length: 0,
         startIndices: new Int32Array(),
         attributes: {
@@ -20,7 +20,7 @@ export const concatenate_polygon_data = (dataObjects) => {
         concatenatedData.length += data.length;
 
         // Handle startIndices
-        let lastValue = concatenatedData.attributes.getPolygon.value.length/2;
+        const lastValue = concatenatedData.attributes.getPolygon.value.length/2;
         let adjustedStartIndices = data.startIndices;
 
         if (index > 0) {

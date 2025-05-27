@@ -1,11 +1,11 @@
 // import { simple_image_layer } from "../deck-gl/simple_image_layer"
+import { update_cell_layer_radius } from "../deck-gl/cell_layer"
+import { update_opacity_single_image_layer } from "../deck-gl/image_layers"
+import { get_layers_list } from "../deck-gl/layers_ist"
 import { square_scatter_layer_opacity } from "../deck-gl/square_scatter_layer"
 // import { layers_sst, update_layers_sst } from "../deck-gl/layers_sst"
 import { update_trx_layer_radius } from "../deck-gl/trx_layer"
-import { update_opacity_single_image_layer } from "../deck-gl/image_layers"
-import { update_cell_layer_radius } from "../deck-gl/cell_layer"
 // import { deck_sst } from "../deck-gl/deck_sst"
-import { get_layers_list } from "../deck-gl/layers_ist"
 
 export const make_slider = () => {
     return  document.createElement("input")
@@ -14,7 +14,7 @@ export const make_slider = () => {
 export const set_image_layer_sliders = (img) => {
 
     img.image_layer_sliders = img.image_info.map( info => {
-        let input = document.createElement("input")
+        const input = document.createElement("input")
         input.name = info.button_name
         return input
     })
@@ -52,7 +52,7 @@ const trx_slider_callback = async (deck_ist, layers_obj, viz_state) => {
 export const make_img_layer_slider_callback = (name, deck_ist, layers_obj, viz_state) => {
     return async () => {
 
-        let inst_slider = viz_state.img.image_layer_sliders.filter(slider => slider.name === name)[0]
+        const inst_slider = viz_state.img.image_layer_sliders.filter(slider => slider.name === name)[0]
 
         // Get the slider value from the event
         const opacity = inst_slider.value/10
@@ -82,7 +82,7 @@ export const ini_slider = (slider_type, inst_deck, layers_obj, viz_state) => {
     let ini_value
     let callback
 
-    let slider = make_slider()
+    const slider = make_slider()
 
     switch (slider_type) {
         case 'tile':

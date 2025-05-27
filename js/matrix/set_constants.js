@@ -9,7 +9,7 @@ export const set_mat_constants = (
     col_dendro_callback
 ) => {
 
-    let viz_state = {}
+    const viz_state = {}
 
     /////////////////////////////
     // Constants
@@ -32,7 +32,7 @@ export const set_mat_constants = (
     viz_state.cats.num_cats.row = 0
     viz_state.cats.num_cats.col = 0
 
-    viz_state.root.style.height =  ( height + viz_state.viz.height_margin ) + "px"
+    viz_state.root.style.height =  `${height + viz_state.viz.height_margin   }px`
 
     viz_state.viz.mat_width = width
     viz_state.viz.mat_height = height

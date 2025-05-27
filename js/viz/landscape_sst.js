@@ -1,21 +1,22 @@
 import * as d3 from 'd3'
+
+import { ini_deck_sst } from '../deck-gl/deck_sst.js'
+import { make_tile_tooltip } from '../deck-gl/make_tile_tooltip.js';
+import { make_simple_image_layer } from "../deck-gl/simple_image_layer.js"
+import { ini_square_scatter_layer, set_tile_layer_onclick } from "../deck-gl/square_scatter_layer.js"
+import { set_views } from '../deck-gl/views.js'
+import { options, set_options } from '../global_variables/fetch_options.js'
+import { set_meta_gene } from "../global_variables/meta_gene.js"
+import { set_tile_color_dict } from "../global_variables/tile_color_dict.js"
+import { set_tile_names_array, set_tile_name_to_index_map } from "../global_variables/tile_names_array.js"
+import { set_tile_scatter_data } from "../global_variables/tile_scatter_data.js"
 import { get_arrow_table } from "../read_parquet/get_arrow_table.js"
 import { get_scatter_data } from "../read_parquet/get_scatter_data.js"
-import { options, set_options } from '../global_variables/fetch_options.js'
-import { ini_deck_sst } from '../deck-gl/deck_sst.js'
-import { ini_square_scatter_layer, set_tile_layer_onclick } from "../deck-gl/square_scatter_layer.js"
-import { set_tile_scatter_data } from "../global_variables/tile_scatter_data.js"
-import { set_tile_names_array, set_tile_name_to_index_map } from "../global_variables/tile_names_array.js"
-import { set_tile_color_dict } from "../global_variables/tile_color_dict.js"
-import { set_meta_gene } from "../global_variables/meta_gene.js"
 import { set_dimensions } from '../global_variables/image_dimensions.js'
 import { set_landscape_parameters } from "../global_variables/landscape_parameters.js"
-import { make_simple_image_layer } from "../deck-gl/simple_image_layer.js"
 import { set_global_base_url } from "../global_variables/global_base_url.js"
-import { update_tile_landscape_from_cgm } from "../widget_interactions/update_tile_landscape_from_cgm.js"
 import { make_sst_ui_container } from '../ui/ui_containers.js'
-import { set_views } from '../deck-gl/views.js'
-import { make_tile_tooltip } from '../deck-gl/make_tile_tooltip.js';
+import { update_tile_landscape_from_cgm } from "../widget_interactions/update_tile_landscape_from_cgm.js"
 
 export const landscape_sst = async (
     ini_model,
@@ -37,10 +38,10 @@ export const landscape_sst = async (
     }
 
     // Create and append the visualization container
-    let root = document.createElement("div")
+    const root = document.createElement("div")
     root.style.height = "   800px"
 
-    let viz_state = {}
+    const viz_state = {}
     set_options(token)
     set_global_base_url(viz_state, base_url)
 
@@ -98,9 +99,9 @@ export const landscape_sst = async (
         color: [0, 0, 255]
     }
 
-    const tile_url = base_url + '/tile_geometries.parquet'
+    const tile_url = `${base_url  }/tile_geometries.parquet`
 
-    var tile_arrow_table = await get_arrow_table(tile_url, options.fetch)
+    const tile_arrow_table = await get_arrow_table(tile_url, options.fetch)
 
     viz_state.cats.tile_cats_array = tile_arrow_table.getChild("cluster").toArray()
     viz_state.cats.tile_exp_array = []
@@ -114,17 +115,17 @@ export const landscape_sst = async (
 
     viz_state.cats.tile_color_dict = await set_tile_color_dict(base_url)
 
-    let simple_image_layer = await make_simple_image_layer(viz_state, info)
-    let square_scatter_layer = ini_square_scatter_layer(viz_state.cats)
+    const simple_image_layer = await make_simple_image_layer(viz_state, info)
+    const square_scatter_layer = ini_square_scatter_layer(viz_state.cats)
 
-    let layers_sst = {
-        'simple_image_layer': simple_image_layer,
-        'square_scatter_layer': square_scatter_layer
+    const layers_sst = {
+        simple_image_layer,
+        square_scatter_layer
     }
 
     viz_state.views = set_views()
 
-    let deck_sst = ini_deck_sst(root, width, height)
+    const deck_sst = ini_deck_sst(root, width, height)
 
     const initial_view_state = {
         target: [ini_x, ini_y, ini_z],

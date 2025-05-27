@@ -24,7 +24,7 @@ export const ini_dendro = (viz_state) => {
     viz_state.dendro.min_dist.row = 0 // 0.75
     viz_state.dendro.min_dist.col = 0 // 0.75
 
-    let axes = ['col', 'row']
+    const axes = ['col', 'row']
 
     let link_mat
     viz_state.dendro.max_linkage_dist = {}
@@ -49,10 +49,10 @@ export const alt_slice_linkage = (viz_state, axis, dist_thresh) => {
     let clust_a
     let clust_b
 
-    let group_dict = {}
+    const group_dict = {}
 
     // initialize group_links and dictionary
-    viz_state[axis + '_nodes'].forEach((x, i) => {
+    viz_state[`${axis  }_nodes`].forEach((x, i) => {
 
         group_dict[i] = [i]
         x.group_links = i
@@ -60,7 +60,7 @@ export const alt_slice_linkage = (viz_state, axis, dist_thresh) => {
     })
 
     // the max individual cluster id
-    const max_clust_id = viz_state[axis + '_nodes'].length
+    const max_clust_id = viz_state[`${axis  }_nodes`].length
 
     const min_dist = 0
 
@@ -105,7 +105,7 @@ export const alt_slice_linkage = (viz_state, axis, dist_thresh) => {
     // }
 
     // Make flat dictionary
-    let flat_group_dict = {}
+    const flat_group_dict = {}
     Object.entries(group_dict).forEach(([inst_cluster, nodes]) => {
         nodes.forEach(x => {
             flat_group_dict[x] = inst_cluster
@@ -113,7 +113,7 @@ export const alt_slice_linkage = (viz_state, axis, dist_thresh) => {
     })
 
     // state is being saved to the nodes under the key group_links
-    viz_state[axis + '_nodes'].forEach((x, i) => {
+    viz_state[`${axis  }_nodes`].forEach((x, i) => {
         x.group_links = flat_group_dict[i]
     })
 
@@ -123,14 +123,14 @@ export const alt_slice_linkage = (viz_state, axis, dist_thresh) => {
 
 export const calc_dendro_triangles = (viz_state, axis) => {
 
-    var triangle_info = {}
+    const triangle_info = {}
 
-    var inst_nodes = viz_state[axis + '_nodes']
+    const inst_nodes = viz_state[`${axis  }_nodes`]
 
     // var heat_shift
-    var heat_size
-    var tri_width
-    var num_labels = viz_state.mat['num_' + axis + 's'] // params.labels['num_'+axis]
+    let heat_size
+    let tri_width
+    const num_labels = viz_state.mat[`num_${  axis  }s`] // params.labels['num_'+axis]
 
     if (axis === 'row'){
       heat_size = viz_state.viz.mat_width // params.viz_dim.heat_size.y
@@ -140,7 +140,7 @@ export const calc_dendro_triangles = (viz_state, axis) => {
       tri_width  = heat_size/num_labels
     }
 
-    var inst_order = viz_state.order.current[axis] // params.order.inst[axis]
+    const inst_order = viz_state.order.current[axis] // params.order.inst[axis]
 
     inst_nodes.forEach((inst_node, index)=> {
 
@@ -148,9 +148,9 @@ export const calc_dendro_triangles = (viz_state, axis) => {
 
         // new way of getting group
         ////////////////////////////////////////////
-        var inst_group = inst_node.group_links
+        const inst_group = inst_node.group_links
 
-        var inst_top
+        let inst_top
 
         if (axis === 'row'){
 
@@ -158,7 +158,7 @@ export const calc_dendro_triangles = (viz_state, axis) => {
 
             // inst_top = -params.node_canvas_pos.y_arr[order_index] - 2 * tri_width - 2 * heat_shift
 
-            let inst_row_index = viz_state.mat.num_rows - viz_state.mat.orders.row[inst_order][index]
+            const inst_row_index = viz_state.mat.num_rows - viz_state.mat.orders.row[inst_order][index]
 
             inst_top = viz_state.viz.row_offset * (inst_row_index + 1.0)
 
@@ -169,14 +169,14 @@ export const calc_dendro_triangles = (viz_state, axis) => {
 
             // inst_top = -params.node_canvas_pos.x_arr[order_index] - 2 * tri_width + 2 * heat_shift
 
-            let inst_col_index = viz_state.mat.num_cols - viz_state.mat.orders.col[inst_order][index]
+            const inst_col_index = viz_state.mat.num_cols - viz_state.mat.orders.col[inst_order][index]
 
             inst_top = viz_state.viz.col_offset * (inst_col_index + 0.0)
         }
 
-        var inst_bot =  inst_top + tri_width
+        const inst_bot =  inst_top + tri_width
 
-        var inst_name = inst_node.name
+        let inst_name = inst_node.name
 
         // not sure if this is still needed
         if (inst_name.indexOf(': ') >= 0){
@@ -219,7 +219,7 @@ export const calc_dendro_triangles = (viz_state, axis) => {
                 pos_mid: (inst_top + inst_bot) / 2,
                 name: inst_group,
                 all_names: [],
-                axis: axis
+                axis
             }
         }
 
@@ -241,7 +241,7 @@ export const calc_dendro_triangles = (viz_state, axis) => {
 
     })
 
-    var group_info = []
+    const group_info = []
 
     // _.each(triangle_info, function(inst_triangle){
     //   group_info.push(inst_triangle)

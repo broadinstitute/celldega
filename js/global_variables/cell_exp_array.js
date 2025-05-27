@@ -1,5 +1,5 @@
-import { get_arrow_table } from '../read_parquet/get_arrow_table'
 import { options } from '../global_variables/fetch_options.js'
+import { get_arrow_table } from '../read_parquet/get_arrow_table'
 
 function processExpression(exp_value, max_exp) {
     const log_exp_value = Math.log1p(exp_value);
@@ -12,15 +12,15 @@ export const update_cell_exp_array = async (cats, genes, base_url, inst_gene, ve
 
     let file_path;
     if (version === 'default'){
-        file_path = base_url + '/cbg/' + inst_gene + '.parquet';
+        file_path = `${base_url  }/cbg/${  inst_gene  }.parquet`;
     } else {
-        file_path = base_url + '/cbg_' + version + '/' + inst_gene + '.parquet';
+        file_path = `${base_url  }/cbg_${  version  }/${  inst_gene  }.parquet`;
     }
 
     //var file_path = base_url + '/cbg/' + inst_gene + '.parquet'
-    var exp_table = await get_arrow_table(file_path, options.fetch, aws)
-    let cell_names = exp_table.getChild('__index_level_0__').toArray()
-    let cell_exp = exp_table.getChild(inst_gene).toArray()
+    const exp_table = await get_arrow_table(file_path, options.fetch, aws)
+    const cell_names = exp_table.getChild('__index_level_0__').toArray()
+    const cell_exp = exp_table.getChild(inst_gene).toArray()
 
     const new_exp_array = new Array(cats.cell_names_array.length).fill(0)
 

@@ -1,22 +1,22 @@
-import { get_arrow_table } from "../read_parquet/get_arrow_table"
 import { options } from '../global_variables/fetch_options.js';
+import { get_arrow_table } from "../read_parquet/get_arrow_table"
 
 export const set_meta_gene = async (genes, base_url, seg_version='default', aws) => {
 
     let meta_gene_url
 
     if (seg_version === 'default'){
-        meta_gene_url = base_url + '/meta_gene.parquet';
+        meta_gene_url = `${base_url  }/meta_gene.parquet`;
     } else {
-        meta_gene_url = base_url + '/meta_gene_' + seg_version + '.parquet';
+        meta_gene_url = `${base_url  }/meta_gene_${  seg_version  }.parquet`;
     }
 
-    let meta_gene_table = await get_arrow_table(meta_gene_url, options.fetch, aws)
+    const meta_gene_table = await get_arrow_table(meta_gene_url, options.fetch, aws)
 
-    let gene_names = meta_gene_table.getChild('__index_level_0__').toArray()
-    let gene_mean = meta_gene_table.getChild('mean').toArray()
-    let gene_std = meta_gene_table.getChild('std').toArray()
-    let gene_max = meta_gene_table.getChild('max').toArray()
+    const gene_names = meta_gene_table.getChild('__index_level_0__').toArray()
+    const gene_mean = meta_gene_table.getChild('mean').toArray()
+    const gene_std = meta_gene_table.getChild('std').toArray()
+    const gene_max = meta_gene_table.getChild('max').toArray()
 
     gene_names.forEach((name, index) => {
         genes.meta_gene[name] = {
@@ -26,7 +26,7 @@ export const set_meta_gene = async (genes, base_url, seg_version='default', aws)
         }
 
         genes.gene_counts.push({
-            name: name,
+            name,
             value: Number(gene_mean[index])
         })
     })

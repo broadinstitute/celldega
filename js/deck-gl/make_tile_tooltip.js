@@ -4,7 +4,7 @@ export const make_tile_tooltip = (info, viz_state) => {
 
     if (info.index === -1 || !info.layer) return null;
 
-    let inst_cat = viz_state.cats.tile_cats_array[info.index]
+    const inst_cat = viz_state.cats.tile_cats_array[info.index]
 
     viz_state.tooltip_cat_cell = inst_cat
 

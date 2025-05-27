@@ -1,13 +1,15 @@
 import * as d3 from 'd3'
-import { update_cat, update_selected_cats } from '../global_variables/cat'
-import { update_selected_genes } from '../global_variables/selected_genes'
-import { toggle_image_layers_and_ctrls } from './ui_containers'
+
 import { update_cell_layer_id } from '../deck-gl/cell_layer'
+import { get_layers_list } from '../deck-gl/layers_ist'
 import { update_path_layer_id } from '../deck-gl/path_layer'
 import { update_trx_layer_id } from '../deck-gl/trx_layer'
-import { get_layers_list } from '../deck-gl/layers_ist'
+import { update_cat, update_selected_cats } from '../global_variables/cat'
 import { update_cell_exp_array } from '../global_variables/cell_exp_array'
+import { update_selected_genes } from '../global_variables/selected_genes'
+
 import { update_gene_text_box } from './gene_search'
+import { toggle_image_layers_and_ctrls } from './ui_containers'
 
 export const make_bar_container = () => {
     return document.createElement("div")
@@ -142,14 +144,14 @@ export const make_bar_graph = (bar_container, click_callback, svg_bar, bar_data,
 
     bar_container.appendChild(svg_bar.node())
 
-    let max_bar_width = 90
-    let bar_data_values = bar_data.map(x => x.value)
+    const max_bar_width = 90
+    const bar_data_values = bar_data.map(x => x.value)
 
-    let y_new = d3.scaleBand()
+    const y_new = d3.scaleBand()
         .domain(d3.range(bar_data_values.length))
         .range([0, (bar_height + 1) * bar_data_values.length])
 
-    let x_new = d3.scaleLinear()
+    const x_new = d3.scaleLinear()
         .domain([0, d3.max(bar_data_values)])
         .range([0, max_bar_width])
 

@@ -1,38 +1,37 @@
 import * as d3 from 'd3'
+import { AwsClient } from 'https://esm.sh/aws4fetch@1'
+
+import { ini_background_layer , toggle_background_layer_visibility } from '../deck-gl/background_layer'
+import { calc_viewport } from '../deck-gl/calc_viewport'
+import { ini_cell_layer, set_cell_layer_onclick, update_cell_layer_id } from "../deck-gl/cell_layer"
+import { ini_deck, set_deck_on_view_state_change, set_initial_view_state, set_get_tooltip, set_views_prop } from '../deck-gl/deck_ist'
+import { ini_edit_layer, set_edit_layer_on_click, set_edit_layer_on_edit } from '../deck-gl/edit_layer'
+import { make_image_layers , toggle_visibility_image_layers } from '../deck-gl/image_layers'
+import { get_layers_list } from '../deck-gl/layers_ist'
+import { set_views } from '../deck-gl/views'
 import { set_options } from '../global_variables/fetch_options'
 import { set_global_base_url } from '../global_variables/global_base_url'
 import { set_landscape_parameters } from '../global_variables/landscape_parameters'
 import { set_dimensions } from '../global_variables/image_dimensions'
-import { ini_cell_layer, set_cell_layer_onclick, update_cell_layer_id } from "../deck-gl/cell_layer"
-import { get_layers_list } from '../deck-gl/layers_ist'
-import { make_image_layers } from '../deck-gl/image_layers'
-import { set_views } from '../deck-gl/views'
-import { ini_deck, set_deck_on_view_state_change, set_initial_view_state, set_get_tooltip, set_views_prop } from '../deck-gl/deck_ist'
-import { ini_background_layer } from '../deck-gl/background_layer'
-import { ini_path_layer, set_path_layer_onclick, update_path_layer_id } from '../deck-gl/path_layer'
+import { ini_path_layer, set_path_layer_onclick, update_path_layer_id , toggle_path_layer_visibility } from '../deck-gl/path_layer'
+import { set_cluster_metadata } from '../global_variables/meta_cluster'
+import { set_meta_gene } from '../global_variables/meta_gene'
+import { update_selected_genes } from '../global_variables/selected_genes'
+import { set_image_layer_sliders } from "../ui/sliders"
 import { make_ist_ui_container } from '../ui/ui_containers'
 import { ini_trx_layer, set_trx_layer_onclick, update_trx_layer_radius, update_trx_layer_id } from '../deck-gl/trx_layer'
 import { set_image_info, set_image_layer_colors, set_image_format } from '../global_variables/image_info'
-import { set_image_layer_sliders } from "../ui/sliders"
-import { set_meta_gene } from '../global_variables/meta_gene'
-import { set_cluster_metadata } from '../global_variables/meta_cluster'
-import { update_ist_landscape_from_cgm } from '../widget_interactions/update_ist_landscape_from_cgm'
-import { update_cell_clusters } from '../widget_interactions/update_cell_clusters'
-import { ini_cache } from '../global_variables/cache'
 import { toggle_image_layers_and_ctrls } from '../ui/ui_containers'
+import { update_cell_clusters } from '../widget_interactions/update_cell_clusters'
+import { update_ist_landscape_from_cgm } from '../widget_interactions/update_ist_landscape_from_cgm'
+import { ini_cache } from '../global_variables/cache'
 import { update_cat, update_selected_cats } from '../global_variables/cat'
-import { update_selected_genes } from '../global_variables/selected_genes'
 import { update_cell_exp_array } from '../global_variables/cell_exp_array'
 import { update_gene_text_box } from '../ui/gene_search'
-import { calc_viewport } from '../deck-gl/calc_viewport'
-import { ini_edit_layer, set_edit_layer_on_click, set_edit_layer_on_edit } from '../deck-gl/edit_layer'
 import { ini_nbhd_layer, set_nbhd_layer_onclick } from '../deck-gl/nbhd_layer'
-import { toggle_visibility_image_layers } from '../deck-gl/image_layers'
 import { toggle_trx_layer_visibility } from '../deck-gl/trx_layer'
-import { toggle_path_layer_visibility } from '../deck-gl/path_layer'
-import { toggle_background_layer_visibility } from '../deck-gl/background_layer'
+
 // import { AwsClient } from 'aws4fetch'
-import { AwsClient } from 'https://esm.sh/aws4fetch@1'
 
 export const landscape_ist = async (
     el,
@@ -60,7 +59,7 @@ export const landscape_ist = async (
         width = '100%'
     }
 
-    let viz_state = {}
+    const viz_state = {}
     viz_state.seg = {}
     viz_state.seg.version = segmentation
 
@@ -94,7 +93,7 @@ export const landscape_ist = async (
 
         // fetch after initialization of aws client is apparently required?
         const response = await viz_state.aws.fetch(
-          base_url + '/landscape_parameters.json'
+          `${base_url  }/landscape_parameters.json`
         );
 
         if (!response.ok) {
@@ -238,8 +237,8 @@ export const landscape_ist = async (
     set_image_layer_colors(viz_state.img.image_layer_colors, viz_state.img.image_info)
 
     // Create and append the visualization.
-    let root = document.createElement("div")
-    root.style.height = height + "px"
+    const root = document.createElement("div")
+    root.style.height = `${height  }px`
     root.style.border = "1px solid #d3d3d3"
 
     await set_dimensions(viz_state, base_url, imgage_name_for_dim)
@@ -250,7 +249,7 @@ export const landscape_ist = async (
 
     viz_state.views = set_views()
 
-    let deck_ist = await ini_deck(root, width, height)
+    const deck_ist = await ini_deck(root, width, height)
     // set_initial_view_state(deck_ist, ini_x, ini_y, ini_z, ini_zoom)
     set_views_prop(deck_ist, viz_state.views)
 
@@ -295,23 +294,23 @@ export const landscape_ist = async (
         }
     }
 
-    let background_layer = ini_background_layer(viz_state)
-    let image_layers = await make_image_layers(viz_state)
-    let cell_layer = await ini_cell_layer(base_url, viz_state)
-    let path_layer = await ini_path_layer(viz_state)
-    let trx_layer = ini_trx_layer(viz_state.genes)
-    let edit_layer = ini_edit_layer(viz_state)
-    let nbhd_layer = ini_nbhd_layer(viz_state, false)
+    const background_layer = ini_background_layer(viz_state)
+    const image_layers = await make_image_layers(viz_state)
+    const cell_layer = await ini_cell_layer(base_url, viz_state)
+    const path_layer = await ini_path_layer(viz_state)
+    const trx_layer = ini_trx_layer(viz_state.genes)
+    const edit_layer = ini_edit_layer(viz_state)
+    const nbhd_layer = ini_nbhd_layer(viz_state, false)
 
     // make layers object
-    let layers_obj = {
-        'background_layer': background_layer,
-        'image_layers': image_layers,
-        'cell_layer': cell_layer,
-        'path_layer': path_layer,
-        'trx_layer': trx_layer,
-        'edit_layer': edit_layer,
-        'nbhd_layer': nbhd_layer
+    const layers_obj = {
+        background_layer,
+        image_layers,
+        cell_layer,
+        path_layer,
+        trx_layer,
+        edit_layer,
+        nbhd_layer
     }
 
     // set onclicks after all layers are made

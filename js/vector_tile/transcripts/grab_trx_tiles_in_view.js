@@ -1,7 +1,7 @@
+import { options } from '../../global_variables/fetch_options.js';
 import { fetch_all_tables_new } from '../../read_parquet/fetch_all_tables.js';
 import { get_scatter_data } from '../../read_parquet/get_scatter_data.js';
 import { concatenate_arrow_tables } from '../../vector_tile/concatenate_functions.js';
-import { options } from '../../global_variables/fetch_options.js';
 
 export const grab_trx_tiles_in_view = async (base_url, tiles_in_view, viz_state) => {
 
@@ -9,11 +9,11 @@ export const grab_trx_tiles_in_view = async (base_url, tiles_in_view, viz_state)
         return `${base_url}/transcript_tiles/transcripts_tile_${tile.tileX}_${tile.tileY}.parquet`;
     });
 
-    var tile_trx_tables_ini = await fetch_all_tables_new(viz_state.cache.trx, tile_trx_urls, options, viz_state.aws)
+    const tile_trx_tables_ini = await fetch_all_tables_new(viz_state.cache.trx, tile_trx_urls, options, viz_state.aws)
 
-    var tile_trx_tables = tile_trx_tables_ini.filter(table => table !== null);
+    const tile_trx_tables = tile_trx_tables_ini.filter(table => table !== null);
 
-    var trx_arrow_table = concatenate_arrow_tables(tile_trx_tables)
+    const trx_arrow_table = concatenate_arrow_tables(tile_trx_tables)
 
     if (!viz_state.vector_name_integer) {
         // When viz_state.vector_name_integer is false, extract names directly.
@@ -27,7 +27,7 @@ export const grab_trx_tiles_in_view = async (base_url, tiles_in_view, viz_state)
       
     viz_state.genes.trx_names_array = new_trx_names_array
 
-    var trx_scatter_data = get_scatter_data(trx_arrow_table)
+    const trx_scatter_data = get_scatter_data(trx_arrow_table)
 
     // Combine names and positions into a single array of objects
     const flatCoordinateArray = trx_scatter_data.attributes.getPosition.value;

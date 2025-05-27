@@ -1,26 +1,27 @@
+import { options } from '../../global_variables/fetch_options.js'
 import { fetch_all_tables_new } from '../../read_parquet/fetch_all_tables.js'
 import { get_polygon_data } from '../../read_parquet/get_polygon_data.js'
 import { concatenate_polygon_data } from '../concatenate_functions.js'
+
 import { extractPolygonPaths } from './extractPolygonPaths.js'
-import { options } from '../../global_variables/fetch_options.js'
 
 export const grab_cell_tiles_in_view = async (base_url, tiles_in_view, viz_state) => {
 
     let segmentation_url;
 
     if (viz_state.seg.version === 'default'){
-        segmentation_url = base_url + '/cell_segmentation';
+        segmentation_url = `${base_url  }/cell_segmentation`;
     } else {
-        segmentation_url = base_url + '/cell_segmentation_' + viz_state.seg.version;
+        segmentation_url = `${base_url  }/cell_segmentation_${  viz_state.seg.version}`;
     }
 
     const tile_cell_urls = tiles_in_view.map(tile => {
         return `${segmentation_url}/cell_tile_${tile.tileX}_${tile.tileY}.parquet`;
     });
 
-    var tile_cell_tables_ini_new = await fetch_all_tables_new(viz_state.cache.cell, tile_cell_urls, options, viz_state.aws)
+    const tile_cell_tables_ini_new = await fetch_all_tables_new(viz_state.cache.cell, tile_cell_urls, options, viz_state.aws)
 
-    var tile_cell_tables = tile_cell_tables_ini_new.filter(table => table !== null);
+    const tile_cell_tables = tile_cell_tables_ini_new.filter(table => table !== null);
 
     if (!viz_state.vector_name_integer) {
         // When viz_state.vector_name_integer is false, use the direct extraction.
@@ -35,11 +36,11 @@ export const grab_cell_tiles_in_view = async (base_url, tiles_in_view, viz_state
         });
       }
 
-    var polygon_datas = tile_cell_tables.map(x => get_polygon_data(x))
+    const polygon_datas = tile_cell_tables.map(x => get_polygon_data(x))
 
-    var polygon_data = concatenate_polygon_data(polygon_datas);
+    const polygon_data = concatenate_polygon_data(polygon_datas);
 
-    var polygonPathsConcat = extractPolygonPaths(polygon_data)
+    const polygonPathsConcat = extractPolygonPaths(polygon_data)
 
     return polygonPathsConcat
 }

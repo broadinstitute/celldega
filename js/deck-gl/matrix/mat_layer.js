@@ -1,16 +1,17 @@
-import { CustomMatrixLayer } from "./custom_matrix_layer";
 import * as d3 from 'd3'
+
+import { CustomMatrixLayer } from "./custom_matrix_layer";
 
 const mat_layer_get_position = (d, viz_state) => {
 
     const inst_order_rows = viz_state.order.current.row
     const inst_order_cols = viz_state.order.current.col
 
-    let inst_row_index = viz_state.mat.num_cols - viz_state.mat.orders.col[inst_order_cols][d.col]
-    let inst_col_index = viz_state.mat.num_rows - viz_state.mat.orders.row[inst_order_rows][d.row]
+    const inst_row_index = viz_state.mat.num_cols - viz_state.mat.orders.col[inst_order_cols][d.col]
+    const inst_col_index = viz_state.mat.num_rows - viz_state.mat.orders.row[inst_order_rows][d.row]
 
-    let pos_x = viz_state.viz.col_width * (inst_row_index + 0.5)
-    let pos_y = viz_state.viz.row_offset * (inst_col_index + 1.5)
+    const pos_x = viz_state.viz.col_width * (inst_row_index + 0.5)
+    const pos_y = viz_state.viz.row_offset * (inst_col_index + 1.5)
 
     const position = [pos_x, pos_y]
 
@@ -36,7 +37,7 @@ export const ini_mat_layer = (viz_state) => {
         antialiasing: false,
         tile_height: viz_state.viz.mat_height/viz_state.mat.num_rows * 0.5,
         tile_width: viz_state.viz.mat_height/viz_state.mat.num_cols * 0.5,
-        transitions: transitions,
+        transitions,
     })
 
     return mat_layer
@@ -50,7 +51,7 @@ const mat_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
 
     viz_state.click.type = 'mat'
     viz_state.click.value = {
-        name: row_name + '_' + col_name,
+        name: `${row_name  }_${  col_name}`,
         row: row_name,
         col: col_name
     }

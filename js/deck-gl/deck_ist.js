@@ -1,6 +1,7 @@
 import { Deck } from 'deck.gl'
-import { on_view_state_change } from './on_view_state_change.js'
+
 import { make_tooltip } from './make_tooltip.js'
+import { on_view_state_change } from './on_view_state_change.js'
 
 const getCursor = ({ isDragging }) => {
     if (isDragging) {
@@ -11,12 +12,12 @@ const getCursor = ({ isDragging }) => {
 
 export const ini_deck = ( root, width, height ) => {
 
-    let deck_ist = new Deck({
+    const deck_ist = new Deck({
         parent: root,
         controller: {doubleClickZoom: false},
-        getCursor: getCursor,
-        width: width,
-        height: height,
+        getCursor,
+        width,
+        height,
     })
 
     return deck_ist
@@ -26,7 +27,7 @@ export const ini_deck = ( root, width, height ) => {
 export const set_views_prop = (deck_ist, views) => {
 
     deck_ist.setProps({
-        views: views
+        views
     })
 
 }

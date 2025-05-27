@@ -3,7 +3,7 @@ const index_offset = 1
 
 export const set_col_label_data = (network, viz_state) => {
 
-    let col_label_data = []
+    const col_label_data = []
 
     network.col_nodes.forEach((node, index) => {
 
@@ -13,7 +13,7 @@ export const set_col_label_data = (network, viz_state) => {
             clust: node.clust,
             rank: node.rank,
             rankvar: node.rankvar,
-            index: index
+            index
         };
         col_label_data.push(p);
     })
@@ -32,7 +32,7 @@ export const set_col_label_data = (network, viz_state) => {
 
 export const set_row_label_data = (network, viz_state) => {
 
-    let row_label_data = []
+    const row_label_data = []
 
     network.row_nodes.forEach((node, index) => {
         const p = {
@@ -41,7 +41,7 @@ export const set_row_label_data = (network, viz_state) => {
             clust: node.clust,
             rank: node.rank,
             rankvar: node.rankvar,
-            index: index
+            index
         };
         row_label_data.push(p);
     })

@@ -1,13 +1,13 @@
 export const get_polygon_data = (arrowTable) => {
 
-  var geometryColumn = arrowTable.getChildAt(0)
+  const geometryColumn = arrowTable.getChildAt(0)
 
   if (geometryColumn.data[0].type.typeId === 12){
 
-    var polygonIndices = geometryColumn.data[0].valueOffsets
-    var ringIndices = geometryColumn.getChildAt(0).data[0].valueOffsets
-    var flatCoordinateVector = geometryColumn.getChildAt(0).getChildAt(0).getChildAt(0)
-    var flatCoordinateArray = flatCoordinateVector.data[0].values
+    const polygonIndices = geometryColumn.data[0].valueOffsets
+    const ringIndices = geometryColumn.getChildAt(0).data[0].valueOffsets
+    const flatCoordinateVector = geometryColumn.getChildAt(0).getChildAt(0).getChildAt(0)
+    const flatCoordinateArray = flatCoordinateVector.data[0].values
     const resolvedIndices = new Int32Array(polygonIndices.length);
 
     for (let i = 0; i < resolvedIndices.length; ++i) {
@@ -15,7 +15,7 @@ export const get_polygon_data = (arrowTable) => {
       resolvedIndices[i] = ringIndices[polygonIndices[i]]
     }
 
-    var data = {
+    const data = {
       // Number of geometries
       length: arrowTable.numRows,
       // Indices into coordinateArray where each polygon starts

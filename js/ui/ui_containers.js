@@ -1,24 +1,23 @@
-import * as d3 from 'd3'
-import { make_button, make_edit_button, make_reorder_button } from "./text_buttons"
-import { set_gene_search } from "./gene_search"
-import { ini_slider, ini_slider_params } from './sliders'
-import { make_img_layer_slider_callback, toggle_slider } from "./sliders"
-import { debounce } from '../utils/debounce'
-import { toggle_visibility_image_layers } from '../deck-gl/image_layers'
-import { make_bar_graph, bar_callback_rgn, bar_callback_cluster, make_bar_container, bar_callback_gene } from './bar_plot'
-import { calc_dendro_triangles, calc_dendro_polygons, alt_slice_linkage } from '../matrix/dendro'
-import { update_dendro_layer_data } from '../deck-gl/matrix/dendro_layers'
 import { get_mat_layers_list } from '../deck-gl/matrix/matrix_layers'
 import { DrawPolygonMode, ViewMode} from '@deck.gl-community/editable-layers'
+import * as d3 from 'd3'
 import { update_edit_layer_mode, update_edit_visitility, calc_and_update_rgn_bar_graph, sync_region_to_model } from '../deck-gl/edit_layer'
-import { get_layers_list } from '../deck-gl/layers_ist'
 import { update_cell_pickable_state } from '../deck-gl/cell_layer'
 import { toggle_trx_layer_visibility, update_trx_pickable_state } from '../deck-gl/trx_layer'
 import { update_path_pickable_state } from '../deck-gl/path_layer'
 import { filter_cat_nbhd_feature_collection, toggle_nbhd_layer_visibility, update_nbhd_layer_data } from '../deck-gl/nbhd_layer'
 import { toggle_background_layer_visibility } from '../deck-gl/background_layer'
-import { update_bar_graph } from './bar_plot'
+import { toggle_visibility_image_layers } from '../deck-gl/image_layers'
+import { get_layers_list } from '../deck-gl/layers_ist'
+import { update_dendro_layer_data } from '../deck-gl/matrix/dendro_layers'
+import { calc_dendro_triangles, calc_dendro_polygons, alt_slice_linkage } from '../matrix/dendro'
+import { debounce } from '../utils/debounce'
+
+import { make_bar_graph, bar_callback_rgn, bar_callback_cluster, make_bar_container, bar_callback_gene , update_bar_graph } from './bar_plot'
+import { set_gene_search } from "./gene_search"
 import { logo } from './logo'
+import { make_img_layer_slider_callback, toggle_slider , ini_slider, ini_slider_params } from "./sliders"
+import { make_button, make_edit_button, make_reorder_button } from "./text_buttons"
 
 const broad_blue = '#006DB6'
 
@@ -51,7 +50,7 @@ export const make_ui_container = () => {
 
 
 export const make_ctrl_container = () => {
-    let ctrl_container = document.createElement("div")
+    const ctrl_container = document.createElement("div")
     ctrl_container.style.display = "flex"
     ctrl_container.style.flexDirection = "row"
     ctrl_container.className = "ctrl_container"
@@ -67,7 +66,7 @@ export const flex_container = (class_name, flex_direction, height=null) => {
     container.style.flexDirection = flex_direction
 
     if (height !== null){
-        container.style.height = height + 'px'
+        container.style.height = `${height  }px`
         container.style.overflow = 'scroll'
     }
 
@@ -103,7 +102,7 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
         d3.select(inst_container)
             .append('div')
             .text(axis.toUpperCase())
-            .style('width', button_width + 'px')
+            .style('width', `${button_width  }px`)
             .style('height', '20px')  // Adjust height for button padding
             .style('display', 'inline-flex')
             .style('align-items', 'center')
@@ -147,9 +146,9 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
     const dendro_slider_callback = (deck_mat, viz_state, axis, event) => {
 
         // Update the dendrogram layer
-        viz_state.dendro.sliders[axis + '_value'] = viz_state.dendro.max_linkage_dist[axis] * event.target.value/100
+        viz_state.dendro.sliders[`${axis  }_value`] = viz_state.dendro.max_linkage_dist[axis] * event.target.value/100
 
-        alt_slice_linkage(viz_state, axis, viz_state.dendro.sliders[axis + '_value'])
+        alt_slice_linkage(viz_state, axis, viz_state.dendro.sliders[`${axis  }_value`])
         calc_dendro_triangles(viz_state, axis);
         calc_dendro_polygons(viz_state, axis);
         update_dendro_layer_data(layers_mat, viz_state, axis)
@@ -172,7 +171,7 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
     d3.select(slider_container)
         .append('div')
         .text('DENDRO')
-        .style('width', button_width + 'px')
+        .style('width', `${button_width  }px`)
         .style('height', '20px')  // Adjust height for button padding
         .style('display', 'inline-flex')
         .style('align-items', 'center')
@@ -286,7 +285,7 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
     const cell_slider_container = make_slider_container('cell_slider_container')
     const trx_slider_container = make_slider_container('trx_slider_container')
 
-    let spatial_toggle_container = flex_container('image_layer_container', 'row')
+    const spatial_toggle_container = flex_container('image_layer_container', 'row')
 
     // make_button(viz_state.containers.image, 'ist', 'IMG', 'blue', 30, 'button', deck_ist, layers_obj, viz_state)
     // make_button(viz_state.containers.image, 'ist', 'UMAP', 'blue', 30, 'button', deck_ist, layers_obj, viz_state)
@@ -320,19 +319,19 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
 
         const inst_name = inst_image.button_name
 
-        let inst_container = flex_container('image_layer_container', 'row')
+        const inst_container = flex_container('image_layer_container', 'row')
         inst_container.style.height = '21px'
 
         make_button(inst_container, 'ist', inst_name, 'blue', 75, 'img_layer_button', deck_ist, layers_obj, viz_state)
 
         const inst_slider_container = make_slider_container(inst_name)
 
-        let slider = get_slider_by_name(img, inst_name)[0]
+        const slider = get_slider_by_name(img, inst_name)[0]
 
-        let img_layer_slider_callback = make_img_layer_slider_callback(inst_name, deck_ist, layers_obj, viz_state)
+        const img_layer_slider_callback = make_img_layer_slider_callback(inst_name, deck_ist, layers_obj, viz_state)
 
         const debounce_time = 100
-        let img_layer_slider_callback_debounced = debounce(img_layer_slider_callback, debounce_time)
+        const img_layer_slider_callback_debounced = debounce(img_layer_slider_callback, debounce_time)
         const ini_img_slider_value = 50
         ini_slider_params(slider, ini_img_slider_value, img_layer_slider_callback_debounced)
 

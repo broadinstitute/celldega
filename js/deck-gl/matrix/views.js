@@ -25,10 +25,10 @@ export const ini_views = (viz_state) => {
 
         new OrthographicView({
             id: 'matrix',
-            x: ( viz_state.viz.row_region + viz_state.viz.label_buffer) + 'px',
-            y: ( viz_state.viz.col_region + viz_state.viz.label_buffer) + 'px',
-            width: viz_state.viz.mat_width + 'px',
-            height: viz_state.viz.mat_height + 'px',
+            x: `${viz_state.viz.row_region + viz_state.viz.label_buffer  }px`,
+            y: `${viz_state.viz.col_region + viz_state.viz.label_buffer  }px`,
+            width: `${viz_state.viz.mat_width  }px`,
+            height: `${viz_state.viz.mat_height  }px`,
             controller: {
                 scrollZoom: true,
                 inertia: true,
@@ -40,9 +40,9 @@ export const ini_views = (viz_state) => {
         new OrthographicView({
             id: 'rows',
             x: '0px',
-            y: (viz_state.viz.col_region + viz_state.viz.label_buffer) + 'px',
-            width: viz_state.viz.row_region + 'px',
-            height: viz_state.viz.mat_height + 'px',
+            y: `${viz_state.viz.col_region + viz_state.viz.label_buffer  }px`,
+            width: `${viz_state.viz.row_region  }px`,
+            height: `${viz_state.viz.mat_height  }px`,
             controller: {
                 scrollZoom: true,
                 inertia: false,
@@ -53,10 +53,10 @@ export const ini_views = (viz_state) => {
 
         new OrthographicView({
             id: 'cols',
-            x: (viz_state.viz.row_region + viz_state.viz.label_buffer) + 'px',
+            x: `${viz_state.viz.row_region + viz_state.viz.label_buffer  }px`,
             y: '0px',
-            width: viz_state.viz.mat_width + 'px',
-            height: viz_state.viz.col_region + 'px',
+            width: `${viz_state.viz.mat_width  }px`,
+            height: `${viz_state.viz.col_region  }px`,
             controller: {
                 scrollZoom: true,
                 inertia: false,
@@ -70,10 +70,10 @@ export const ini_views = (viz_state) => {
         // Dendrogram under the matrix
         new OrthographicView({
             id: 'dendro_cols',
-            x: (viz_state.viz.row_region + viz_state.viz.label_buffer) + 'px',
-            y: (viz_state.viz.col_region + viz_state.viz.label_buffer + viz_state.viz.mat_height) + 'px',
-            width: viz_state.viz.mat_width + 'px',
-            height: viz_state.viz.dendrogram_width + 'px',
+            x: `${viz_state.viz.row_region + viz_state.viz.label_buffer  }px`,
+            y: `${viz_state.viz.col_region + viz_state.viz.label_buffer + viz_state.viz.mat_height  }px`,
+            width: `${viz_state.viz.mat_width  }px`,
+            height: `${viz_state.viz.dendrogram_width  }px`,
             controller: {
                 scrollZoom: true,
                 inertia: false,
@@ -85,10 +85,10 @@ export const ini_views = (viz_state) => {
         // Dendrogram to the right of the matrix
         new OrthographicView({
             id: 'dendro_rows',
-            x: (viz_state.viz.row_region + viz_state.viz.label_buffer + viz_state.viz.mat_width) + 'px',
-            y: (viz_state.viz.col_region + viz_state.viz.label_buffer) + 'px',
-            width: viz_state.viz.dendrogram_width + 'px',
-            height: viz_state.viz.mat_height + 'px',
+            x: `${viz_state.viz.row_region + viz_state.viz.label_buffer + viz_state.viz.mat_width  }px`,
+            y: `${viz_state.viz.col_region + viz_state.viz.label_buffer  }px`,
+            width: `${viz_state.viz.dendrogram_width  }px`,
+            height: `${viz_state.viz.mat_height  }px`,
             controller: {
                 scrollZoom: true,
                 inertia: false,
@@ -107,7 +107,7 @@ export const ini_views = (viz_state) => {
 
 export const ini_view_state = (viz_state) => {
 
-    let globalViewState = {
+    const globalViewState = {
       matrix: {
         target: [viz_state.zoom.ini_pan_x, viz_state.zoom.ini_pan_y],
         zoom: [viz_state.zoom.ini_zoom_x, viz_state.zoom.ini_zoom_y],

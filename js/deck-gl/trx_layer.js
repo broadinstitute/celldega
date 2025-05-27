@@ -1,14 +1,17 @@
 import * as d3 from 'd3'
 import { ScatterplotLayer } from 'deck.gl'
-import { update_selected_genes } from '../global_variables/selected_genes'
-import { update_cell_layer_id } from './cell_layer'
+
 import { update_cat, update_selected_cats } from '../global_variables/cat'
 import { update_cell_exp_array } from '../global_variables/cell_exp_array'
+import { update_selected_genes } from '../global_variables/selected_genes'
+import { update_gene_text_box } from '../ui/gene_search'
 import { toggle_image_layers_and_ctrls } from '../ui/ui_containers'
+import { grab_trx_tiles_in_view } from '../vector_tile/transcripts/grab_trx_tiles_in_view'
+
+import { update_cell_layer_id } from './cell_layer'
 import { get_layers_list } from './layers_ist'
 import { update_path_layer_id } from './path_layer'
-import { update_gene_text_box } from '../ui/gene_search'
-import { grab_trx_tiles_in_view } from '../vector_tile/transcripts/grab_trx_tiles_in_view'
+
 
 const trx_layer_callback = async (info, d, deck_ist, layers_obj, viz_state) => {
 
@@ -90,7 +93,7 @@ const trx_layer_callback = async (info, d, deck_ist, layers_obj, viz_state) => {
 
 export const ini_trx_layer = (genes) => {
 
-    let trx_layer = new ScatterplotLayer({
+    const trx_layer = new ScatterplotLayer({
         id: 'trx-layer',
         data: genes.trx_data,
         pickable: true,
@@ -127,7 +130,7 @@ export const update_trx_layer_data = async (base_url, tiles_in_view, layers_obj,
 
 export const toggle_trx_layer_visibility = (layers_obj, visible) => {
     layers_obj.trx_layer = layers_obj.trx_layer.clone({
-        visible: visible,
+        visible,
     })
 }
 
@@ -139,12 +142,12 @@ export const update_trx_layer_radius = (layers_obj, radius) => {
 
 export const update_trx_layer_id = (genes, layers_obj) => {
     layers_obj.trx_layer = layers_obj.trx_layer.clone({
-        id: 'trx-layer-' + genes.selected_genes.join('-'),
+        id: `trx-layer-${  genes.selected_genes.join('-')}`,
     })
 }
 
 export const update_trx_pickable_state = (layers_obj, pickable) => {
     layers_obj.trx_layer = layers_obj.trx_layer.clone({
-        pickable: pickable,
+        pickable,
     })
 }

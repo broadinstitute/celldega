@@ -1,6 +1,6 @@
 export const update_zoom_data = (viz_state, viewId, zoom_curated, pan_curated) => {
 
-    let zoom_data = viz_state.zoom.zoom_data
+    const {zoom_data} = viz_state.zoom
 
     zoom_data.matrix.pan_x = pan_curated[0];
     zoom_data.matrix.pan_y = pan_curated[1];

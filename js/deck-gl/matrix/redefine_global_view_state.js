@@ -1,7 +1,7 @@
 
 export const redefine_global_view_state = (viz_state, viewId, zoom_curated, pan_curated) => {
 
-    var globalViewState
+    let globalViewState
 
 
     if (viewId === 'matrix') {

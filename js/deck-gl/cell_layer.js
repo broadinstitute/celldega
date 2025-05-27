@@ -1,20 +1,22 @@
 import * as d3 from 'd3'
 import { ScatterplotLayer } from 'deck.gl'
+
+import { set_cell_cats, set_dict_cell_cats, update_selected_cats, update_cat } from '../global_variables/cat'
+import { set_cell_names_array, set_cell_name_to_index_map } from '../global_variables/cell_names_array'
+import { set_color_dict_gene } from '../global_variables/color_dict_gene'
+import { options } from '../global_variables/fetch_options'
+import { update_selected_genes } from '../global_variables/selected_genes'
 import { get_arrow_table } from "../read_parquet/get_arrow_table"
 import { get_scatter_data } from "../read_parquet/get_scatter_data"
-import { set_color_dict_gene } from '../global_variables/color_dict_gene'
-import { set_cell_names_array, set_cell_name_to_index_map } from '../global_variables/cell_names_array'
-import { options } from '../global_variables/fetch_options'
-import { set_cell_cats, set_dict_cell_cats} from '../global_variables/cat'
-import { update_selected_cats, update_cat } from '../global_variables/cat'
+import { update_gene_text_box } from '../ui/gene_search'
+import { toggle_image_layers_and_ctrls } from '../ui/ui_containers'
+import { scale_umap_data } from '../umap/scale_umap_data'
+
 import { get_cell_color } from './cell_color'
 import { get_layers_list } from './layers_ist'
 import { update_path_layer_id } from './path_layer'
-import { toggle_image_layers_and_ctrls } from '../ui/ui_containers'
-import { update_selected_genes } from '../global_variables/selected_genes'
 import { update_trx_layer_id } from './trx_layer'
-import { update_gene_text_box } from '../ui/gene_search'
-import { scale_umap_data } from '../umap/scale_umap_data'
+
 
 const cell_layer_onclick = async (info, d, deck_ist, layers_obj, viz_state) => {
 
@@ -92,12 +94,12 @@ export const ini_cell_layer = async (base_url, viz_state) => {
 
     let cell_url
     if (viz_state.seg.version === 'default'){
-        cell_url = base_url + `/cell_metadata.parquet`;
+        cell_url = `${base_url  }/cell_metadata.parquet`;
     } else {
-        cell_url = base_url + '/cell_metadata_' + viz_state.seg.version + '.parquet';
+        cell_url = `${base_url  }/cell_metadata_${  viz_state.seg.version  }.parquet`;
     }
 
-    var cell_arrow_table = await get_arrow_table(cell_url, options.fetch, viz_state.aws)
+    const cell_arrow_table = await get_arrow_table(cell_url, options.fetch, viz_state.aws)
 
     set_cell_names_array(viz_state.cats, cell_arrow_table)
 
@@ -112,7 +114,7 @@ export const ini_cell_layer = async (base_url, viz_state) => {
     } else {
         // default clustering
 
-        var cluster_arrow_table = await get_arrow_table(base_url + `/cell_clusters${viz_state.seg.version && viz_state.seg.version !== 'default' ? '_' + viz_state.seg.version : ''}/cluster.parquet`,
+        const cluster_arrow_table = await get_arrow_table(`${base_url  }/cell_clusters${viz_state.seg.version && viz_state.seg.version !== 'default' ? `_${  viz_state.seg.version}` : ''}/cluster.parquet`,
                                                         options.fetch, viz_state.aws)
         set_cell_cats(viz_state.cats, cluster_arrow_table, 'cluster')
     }
@@ -126,7 +128,7 @@ export const ini_cell_layer = async (base_url, viz_state) => {
 
     // save cell positions and categories in one place for updating cluster bar plot
     viz_state.combo_data.cell = new_cell_names_array.map((name, index) => ({
-        name: name,
+        name,
         cat: viz_state.cats.dict_cell_cats[name],
         x: flatCoordinateArray[index * 2],
         y: flatCoordinateArray[index * 2 + 1]
@@ -212,14 +214,14 @@ export const ini_cell_layer = async (base_url, viz_state) => {
         }
     }
 
-    let cell_layer = new ScatterplotLayer({
+    const cell_layer = new ScatterplotLayer({
         id: 'cell-layer',
         radiusMinPixels: 1,
         getRadius: 5.0,
         pickable: true,
         getColor: (i, d) => get_cell_color(viz_state.cats, i, d),
         data: viz_state.spatial.cell_scatter_data_objects,
-        transitions: transitions,
+        transitions,
         getPosition: d => (viz_state.umap.state ? d.umap : d.position),
         updateTriggers: {
             getPosition: [viz_state.umap.state]
@@ -238,7 +240,7 @@ export const set_cell_layer_onclick = (deck_ist, layers_obj, viz_state) => {
 
 export const new_toggle_cell_layer_visibility = (layers_obj, visible) => {
     layers_obj.cell_layer = layers_obj.cell_layer.clone({
-        visible: visible,
+        visible,
     });
 }
 
@@ -250,13 +252,13 @@ export const update_cell_layer_radius = (layers_obj, radius) => {
 
 export const update_cell_layer_id = (layers_obj, new_cat) => {
     layers_obj.cell_layer = layers_obj.cell_layer.clone({
-        id: 'cell-layer-' + new_cat,
+        id: `cell-layer-${  new_cat}`,
     })
 }
 
 export const update_cell_pickable_state = (layers_obj, pickable) => {
     layers_obj.cell_layer = layers_obj.cell_layer.clone({
-        pickable: pickable,
+        pickable,
     });
 }
 

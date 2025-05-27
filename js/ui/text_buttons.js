@@ -1,17 +1,20 @@
 import * as d3 from 'd3'
+
+import { toggle_background_layer_visibility } from '../deck-gl/background_layer'
+import { new_toggle_cell_layer_visibility, toggle_spatial_umap } from '../deck-gl/cell_layer'
+import { toggle_visibility_image_layers, toggle_visibility_single_image_layer } from '../deck-gl/image_layers'
+import { get_layers_list } from '../deck-gl/layers_ist'
+import { toggle_dendro_layer_visibility } from '../deck-gl/matrix/dendro_layers'
+import { get_mat_layers_list } from '../deck-gl/matrix/matrix_layers'
+import { toggle_path_layer_visibility } from '../deck-gl/path_layer'
 import { simple_image_layer_visibility } from '../deck-gl/simple_image_layer'
 import { square_scatter_layer_visibility } from '../deck-gl/square_scatter_layer'
 // import { layers_sst, update_layers_sst } from '../deck-gl/layers_sst'
-import { toggle_visibility_image_layers, toggle_visibility_single_image_layer } from '../deck-gl/image_layers'
 // import { deck_sst } from '../deck-gl/deck_sst'
-import { toggle_background_layer_visibility } from '../deck-gl/background_layer'
-import { toggle_path_layer_visibility } from '../deck-gl/path_layer'
-import { new_toggle_cell_layer_visibility, toggle_spatial_umap } from '../deck-gl/cell_layer'
 import { toggle_trx_layer_visibility } from '../deck-gl/trx_layer'
-import { get_layers_list } from '../deck-gl/layers_ist'
+
 import { toggle_slider } from './sliders'
-import { get_mat_layers_list } from '../deck-gl/matrix/matrix_layers'
-import { toggle_dendro_layer_visibility } from '../deck-gl/matrix/dendro_layers'
+
 
 
 let is_visible
@@ -56,7 +59,7 @@ const reorder_button_callback = (event, axis, deck_mat, layers_mat, viz_state) =
         current.classed('active', true)
 
         d3.select(viz_state.el)
-          .selectAll('.button-' + axis)
+          .selectAll(`.button-${  axis}`)
           .classed('active', false)
           .style('border-color', viz_state.buttons.gray)
 
@@ -100,7 +103,7 @@ const reorder_button_callback = (event, axis, deck_mat, layers_mat, viz_state) =
 
 export const make_reorder_button = (container, text, active, width=40, axis, deck_mat, layers_mat, viz_state) => {
 
-    let button_class = 'button-' + axis
+    const button_class = `button-${  axis}`
 
 
     let color
@@ -118,7 +121,7 @@ export const make_reorder_button = (container, text, active, width=40, axis, dec
         .classed(button_class, true)
         .classed('active', active)
         .text(text)
-        .style('width', width + 'px')
+        .style('width', `${width  }px`)
         .style('height', '20px')  // Adjust height for button padding
         .style('display', 'inline-flex')
         .style('align-items', 'center')
@@ -174,7 +177,7 @@ export const make_button = (container, technology, text, color='blue', width=40,
         .append('div')
         .attr('class', button_class)
         .text(text)
-        .style('width', width + 'px')
+        .style('width', `${width  }px`)
         .style('text-align', 'left')
         .style('cursor', 'pointer')
         .style('font-size', '12px')
@@ -193,7 +196,7 @@ export const make_button = (container, technology, text, color='blue', width=40,
 
 export const make_edit_button = (deck_ist, layers_obj, viz_state, container, text, width, edit_button_callback) => {
 
-    let button_class = 'edit_button'
+    const button_class = 'edit_button'
 
     const active = false
 
@@ -205,7 +208,7 @@ export const make_edit_button = (deck_ist, layers_obj, viz_state, container, tex
         .classed(button_class, true)
         .classed('active', active)
         .text(text)
-        .style('width', width + 'px')
+        .style('width', `${width  }px`)
         .style('height', '20px')  // Adjust height for button padding
         .style('display', 'inline-flex')
         .style('align-items', 'center')
@@ -242,7 +245,7 @@ const make_ist_img_layer_button_callback = (text, deck_ist, layers_obj, viz_stat
 
             toggle_visibility_single_image_layer(layers_obj, text, is_visible)
 
-            let inst_slider = viz_state.img.image_layer_sliders.filter(slider => slider.name === text)[0]
+            const inst_slider = viz_state.img.image_layer_sliders.filter(slider => slider.name === text)[0]
 
             toggle_slider(inst_slider, is_visible)
 

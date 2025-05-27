@@ -1,12 +1,14 @@
 
-import { set_landscape_parameters } from "../global_variables/landscape_parameters.js"
+import { AwsClient } from 'https://esm.sh/aws4fetch@1'
+
+import { ini_deck_sst } from '../deck-gl/deck_sst.js'
+import { make_simple_image_layer } from "../deck-gl/simple_image_layer.js"
+import { set_views } from '../deck-gl/views.js'
 import { options, set_options } from '../global_variables/fetch_options.js'
 import { set_global_base_url } from "../global_variables/global_base_url.js"
 import { set_dimensions } from '../global_variables/image_dimensions.js'
-import { make_simple_image_layer } from "../deck-gl/simple_image_layer.js"
-import { set_views } from '../deck-gl/views.js'
-import { ini_deck_sst } from '../deck-gl/deck_sst.js'
-import { AwsClient } from 'https://esm.sh/aws4fetch@1'
+import { set_landscape_parameters } from "../global_variables/landscape_parameters.js"
+
 
 export const landscape_h_e = async (
     ini_model,
@@ -28,10 +30,10 @@ export const landscape_h_e = async (
     }
 
     // Create and append the visualization container
-    let root = document.createElement("div")
+    const root = document.createElement("div")
     root.style.height = `${height}px`
 
-    let viz_state = {}
+    const viz_state = {}
     set_options(token)
     set_global_base_url(viz_state, base_url)
 
@@ -46,7 +48,7 @@ export const landscape_h_e = async (
 
         // fetch after initialization of aws client is apparently required?
         const response = await viz_state.aws.fetch(
-          base_url + '/landscape_parameters.json'
+          `${base_url  }/landscape_parameters.json`
         );
 
         if (!response.ok) {
@@ -85,15 +87,15 @@ export const landscape_h_e = async (
         color: [0, 0, 255]
     }
 
-    let simple_image_layer = await make_simple_image_layer(viz_state, info)
+    const simple_image_layer = await make_simple_image_layer(viz_state, info)
 
-    let layers_sst = {
-        'simple_image_layer': simple_image_layer,
+    const layers_sst = {
+        simple_image_layer,
     }
 
     viz_state.views = set_views()
 
-    let deck_sst = ini_deck_sst(root, width, height)
+    const deck_sst = ini_deck_sst(root, width, height)
 
     const initial_view_state = {
         target: [ini_x, ini_y, ini_z],

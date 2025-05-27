@@ -1,7 +1,7 @@
 import "./widget.css";
+import { landscape_h_e } from "./viz/landscape_h_e";
 import { landscape_ist } from "./viz/landscape_ist";
 import { landscape_sst } from "./viz/landscape_sst";
-import { landscape_h_e } from "./viz/landscape_h_e";
 import { matrix_viz } from "./viz/matrix_viz";
 
 export const render_landscape = async ({ model, el }) => {

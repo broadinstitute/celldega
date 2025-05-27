@@ -1,14 +1,16 @@
+import * as d3 from 'd3'
 import { GeoJsonLayer } from "deck.gl"
-import { hexToRgb } from '../utils/hexToRgb.js'
+
 import { update_selected_cats, update_cat } from '../global_variables/cat'
 import { update_selected_genes } from "../global_variables/selected_genes.js"
-import { toggle_image_layers_and_ctrls } from "../ui/ui_containers.js"
 import { update_gene_text_box } from "../ui/gene_search.js"
+import { toggle_image_layers_and_ctrls } from "../ui/ui_containers.js"
+import { hexToRgb } from '../utils/hexToRgb.js'
+
 import { update_cell_layer_id } from "./cell_layer.js"
+import { get_layers_list } from "./layers_ist.js"
 import { update_path_layer_id } from "./path_layer.js"
 import { update_trx_layer_id } from "./trx_layer.js"
-import { get_layers_list } from "./layers_ist.js"
-import * as d3 from 'd3'
 
 export const ini_nbhd_layer = (viz_state, visible) => {
 
@@ -31,7 +33,7 @@ export const ini_nbhd_layer = (viz_state, visible) => {
         // updateTriggers: {
         //     getFillColor: viz_state.nbhd.update_trigger,
         // },
-        visible: visible
+        visible
 
     })
 
@@ -41,7 +43,7 @@ export const ini_nbhd_layer = (viz_state, visible) => {
 
 const nbhd_layer_onclick = async (info, event, deck_ist, layers_obj, viz_state) => {
 
-    let inst_cat = info.object.properties.cat
+    const inst_cat = info.object.properties.cat
 
     update_cat(viz_state.cats, 'cluster')
     update_selected_cats(viz_state.cats, [inst_cat])
@@ -137,6 +139,6 @@ export const update_nbhd_layer_data = (viz_state, layers_obj) => {
 
 export const toggle_nbhd_layer_visibility = (layers_obj, visible) => {
     layers_obj.nbhd_layer = layers_obj.nbhd_layer.clone({
-        visible: visible
+        visible
     })
 }

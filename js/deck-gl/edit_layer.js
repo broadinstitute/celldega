@@ -1,10 +1,13 @@
-import * as d3 from 'd3'
 import { EditableGeoJsonLayer, ModifyMode, ViewMode} from '@deck.gl-community/editable-layers'
-import { get_layers_list } from './layers_ist'
-import { update_cell_pickable_state } from './cell_layer'
-import { update_trx_pickable_state } from './trx_layer';
-import { update_path_pickable_state } from './path_layer';
+import * as d3 from 'd3'
+
 import { bar_callback_rgn, update_bar_graph } from '../ui/bar_plot';
+
+import { update_cell_pickable_state } from './cell_layer'
+import { get_layers_list } from './layers_ist'
+import { update_path_pickable_state } from './path_layer';
+import { update_trx_pickable_state } from './trx_layer';
+
 
 // Function to calculate areas from a FeatureCollection
 const calc_region_areas = (featureCollection) => {
@@ -210,12 +213,12 @@ export const set_edit_layer_on_click = (deck_ist, layers_obj, viz_state) => {
 
 export const update_edit_layer_mode = (layers_obj, mode) => {
     layers_obj.edit_layer = layers_obj.edit_layer.clone({
-        mode: mode,
+        mode,
     })
 }
 
 export const update_edit_visitility = (layers_obj, visible) => {
     layers_obj.edit_layer = layers_obj.edit_layer.clone({
-        visible: visible,
+        visible,
     })
 }

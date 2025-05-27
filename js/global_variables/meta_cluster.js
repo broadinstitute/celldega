@@ -1,6 +1,7 @@
 import { get_arrow_table } from "../read_parquet/get_arrow_table.js";
-import { options } from './fetch_options.js';
 import { hexToRgb } from '../utils/hexToRgb.js'
+
+import { options } from './fetch_options.js';
 
 export const update_meta_cluster = (cats, new_meta_cluster) => {
 
@@ -11,7 +12,7 @@ export const update_meta_cluster = (cats, new_meta_cluster) => {
         cats.color_dict_cluster[cluster_name] = hexToRgb(cats.color_dict_cluster[cluster_name])
     }
 
-    var cluster_counts_ini = new_meta_cluster.count
+    const cluster_counts_ini = new_meta_cluster.count
 
     // convert cluster_counts_ini into an array of objects with values name and value
     cats.cluster_counts = []
@@ -49,12 +50,12 @@ export const set_cluster_metadata = async (viz_state) => {
         let meta_cell_url
 
         if (viz_state.seg.version === 'default'){
-            meta_cell_url = viz_state.global_base_url + `/cell_clusters/meta_cluster.parquet`;
+            meta_cell_url = `${viz_state.global_base_url  }/cell_clusters/meta_cluster.parquet`;
         } else {
-            meta_cell_url = viz_state.global_base_url + `/cell_clusters_` + viz_state.seg.version + `/meta_cluster.parquet`;
+            meta_cell_url = `${viz_state.global_base_url  }/cell_clusters_${  viz_state.seg.version  }/meta_cluster.parquet`;
         }
 
-        var meta_cell_arrow_table = await get_arrow_table(meta_cell_url, options.fetch, viz_state.aws)
+        const meta_cell_arrow_table = await get_arrow_table(meta_cell_url, options.fetch, viz_state.aws)
 
         let cluster_names = []
         let colors = []
@@ -64,7 +65,7 @@ export const set_cluster_metadata = async (viz_state) => {
         const color_column = meta_cell_arrow_table.getChild('color')
         const counts_column = meta_cell_arrow_table.getChild('count')
 
-        let column_names = []
+        const column_names = []
         for (const field of meta_cell_arrow_table.schema.fields) {
             column_names.push(field.name)
         }

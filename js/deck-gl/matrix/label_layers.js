@@ -1,7 +1,8 @@
-import { TextLayer } from "deck.gl"
 import * as d3 from 'd3'
-import { get_mat_layers_list } from "./matrix_layers"
+import { TextLayer } from "deck.gl"
+
 import { toggle_dendro_layer_visibility } from "./dendro_layers"
+import { get_mat_layers_list } from "./matrix_layers"
 
 const row_label_get_position = (d, index, viz_state) => {
 
@@ -9,11 +10,11 @@ const row_label_get_position = (d, index, viz_state) => {
     const inst_order = viz_state.order.current.row
     const row_offset = 50 // 25
 
-    let inst_row_index = viz_state.mat.num_rows - viz_state.mat.orders.row[inst_order][inst_index]
+    const inst_row_index = viz_state.mat.num_rows - viz_state.mat.orders.row[inst_order][inst_index]
 
 
-    let pos_x = row_offset
-    let pos_y = viz_state.viz.row_offset * (inst_row_index + 1.5)
+    const pos_x = row_offset
+    const pos_y = viz_state.viz.row_offset * (inst_row_index + 1.5)
 
     const position = [pos_x, pos_y]
 
@@ -28,10 +29,10 @@ const col_label_get_position = (d, index, viz_state) => {
     const col_offset = 50
 
 
-    let inst_col_index = viz_state.mat.num_cols - viz_state.mat.orders.col[inst_order][inst_index]
+    const inst_col_index = viz_state.mat.num_cols - viz_state.mat.orders.col[inst_order][inst_index]
 
-    let pos_x = viz_state.viz.col_offset * (inst_col_index + 0.5)
-    let pos_y = col_offset // * zoom_factor
+    const pos_x = viz_state.viz.col_offset * (inst_col_index + 0.5)
+    const pos_y = col_offset // * zoom_factor
 
     const position = [pos_x, pos_y]
 
@@ -65,7 +66,7 @@ export const ini_row_label_layer = (viz_state) => {
         //   getSize: viz_state.viz.ini_font_size,
         // },
         pickable: true,
-        transitions: transitions,
+        transitions,
     })
 
     return row_label_layer
@@ -109,7 +110,7 @@ export const ini_col_label_layer = (viz_state) => {
         //   getPixelOffset: viz_state.zoom.zoom_data.matrix.zoom_x,
         // },
         pickable: true,
-        transitions: transitions,
+        transitions,
         getPixelOffset: () => getPixelOffset(viz_state.zoom.zoom_data.matrix.zoom_x, viz_state.mat.num_cols),
     })
 
@@ -127,7 +128,7 @@ const custom_label_reorder = (deck_mat, layers_mat, viz_state, axis, name, index
 
     // deactivate reordering buttons when setting a custom order
     d3.select(viz_state.el)
-      .selectAll('.button-' + other_axis)
+      .selectAll(`.button-${  other_axis}`)
       .classed('active', false)
       .style('border-color', viz_state.buttons.gray)
 

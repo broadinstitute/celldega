@@ -1,6 +1,6 @@
 export const get_mat_layers_list = (layers_mat) => {
 
-    let layers_list = [
+    const layers_list = [
         layers_mat.mat_layer,
         layers_mat.row_cat_layer,
         layers_mat.col_cat_layer,

@@ -1,5 +1,11 @@
-def get_image_info(technology: str, image_tile_layer: str = 'dapi') -> list[dict]:
-    """Retrieve image information for a given technology and image tile layer.
+"""
+Image information utilities for different spatial transcriptomics technologies.
+"""
+
+
+def get_image_info(technology: str, image_tile_layer: str = "dapi") -> list[dict]:
+    """
+    Retrieve image information for a given technology and image tile layer.
 
     Args:
         technology: The technology for which image information is requested.
@@ -16,33 +22,30 @@ def get_image_info(technology: str, image_tile_layer: str = 'dapi') -> list[dict
                    is invalid.
     """
     # Validate technology
-    supported_technologies = ['Xenium', 'MERSCOPE']
+    supported_technologies = ["Xenium", "MERSCOPE"]
     if technology not in supported_technologies:
         raise ValueError(
             f"Unsupported technology: {technology}. Supported technologies are: {supported_technologies}."
         )
 
     # Validate image_tile_layer
-    if image_tile_layer not in ['dapi', 'all']:
-        raise ValueError(
-            f"Invalid image_tile_layer: {image_tile_layer}. Must be 'dapi' or 'all'."
-        )
+    if image_tile_layer not in ["dapi", "all"]:
+        raise ValueError(f"Invalid image_tile_layer: {image_tile_layer}. Must be 'dapi' or 'all'.")
 
     # Handle 'dapi' case for both Xenium and MERSCOPE
-    if image_tile_layer == 'dapi':
-        image_info = [{"name": "dapi", "button_name": "DAPI", "color": [0, 0, 255]}]
-    # Handle 'all' case (only for Xenium)
-    elif image_tile_layer == 'all':
-        if technology != 'Xenium':
-            raise ValueError(
-                f"image_tile_layer='all' is only supported for 'Xenium'. "
-                f"Received technology: {technology}."
-            )
-        image_info = [
-            {"name": "dapi", "button_name": "DAPI", "color": [0, 0, 255]},
-            {"name": "bound", "button_name": "BOUND", "color": [0, 255, 0]},
-            {"name": "rna", "button_name": "RNA", "color": [255, 0, 0]},
-            {"name": "prot", "button_name": "PROT", "color": [255, 255, 255]},
-        ]
+    if image_tile_layer == "dapi":
+        return [{"name": "dapi", "button_name": "DAPI", "color": [0, 0, 255]}]
 
-    return image_info
+    # Handle 'all' case (only for Xenium)
+    if technology != "Xenium":
+        raise ValueError(
+            f"image_tile_layer='all' is only supported for 'Xenium'. "
+            f"Received technology: {technology}."
+        )
+
+    return [
+        {"name": "dapi", "button_name": "DAPI", "color": [0, 0, 255]},
+        {"name": "bound", "button_name": "BOUND", "color": [0, 255, 0]},
+        {"name": "rna", "button_name": "RNA", "color": [255, 0, 0]},
+        {"name": "prot", "button_name": "PROT", "color": [255, 255, 255]},
+    ]

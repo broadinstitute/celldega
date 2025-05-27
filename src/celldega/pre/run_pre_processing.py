@@ -1,7 +1,74 @@
+"""
+Main preprocessing script for Xenium data processing.
+"""
+
 import argparse
-import os
+from pathlib import Path
 
 import celldega as dega
+
+
+def _create_directories(directories):
+    """
+    Create directories if they don't exist.
+
+    Parameters:
+    - directories: List of directory paths to create
+    """
+    for folder in directories:
+        folder_path = Path(folder)
+        if not folder_path.exists():
+            folder_path.mkdir(parents=True, exist_ok=True)
+            print(f"Created directory: {folder}")
+
+
+def _determine_technology(data_dir):
+    """
+    Determine technology based on files present in data directory.
+
+    Parameters:
+    - data_dir: Path to data directory
+
+    Returns:
+    - Technology type string
+
+    Raises:
+    - ValueError: If technology cannot be determined
+    """
+    data_path = Path(data_dir)
+
+    # Determine technology based on the presence of experiment.xenium file
+    if (data_path / "experiment.xenium").exists():
+        return "Xenium"
+
+    raise ValueError("Unsupported technology. Only Xenium is supported in this script.")
+
+
+def _setup_preprocessing_paths(path_landscape_files, data_dir):
+    """
+    Setup preprocessing file paths.
+
+    Parameters:
+    - path_landscape_files: Base landscape files path
+    - data_dir: Data directory path
+
+    Returns:
+    - Dictionary of file paths
+    """
+    landscape_path = Path(path_landscape_files)
+    data_path = Path(data_dir)
+
+    return {
+        "transformation_matrix": landscape_path / "micron_to_image_transform.csv",
+        "meta_cell_micron": data_path / "cells.csv.gz",
+        "meta_cell_image": landscape_path / "cell_metadata.parquet",
+        "meta_gene": landscape_path / "meta_gene.parquet",
+        "transcripts": data_path / "transcripts.parquet",
+        "transcript_tiles": landscape_path / "transcript_tiles",
+        "cell_boundaries": data_path / "cell_boundaries.parquet",
+        "cell_segmentation": landscape_path / "cell_segmentation",
+        "cbg_matrix": data_path / "cell_feature_matrix",
+    }
 
 
 def main(
@@ -16,6 +83,7 @@ def main(
         tile_size (int): Size of the tiles for transcript and boundary tiles.
         image_tile_layer (str): Image layers to be tiled. 'dapi' or 'all'.
         path_landscape_files (str): Directory to save the landscape files.
+        use_int_index (bool): Use integer index for smaller files and faster rendering.
 
     Example:
         change directory to celldega, and run:
@@ -31,71 +99,62 @@ def main(
     print(f"Starting preprocessing for sample: {sample}")
 
     # Construct data directory
-    data_dir = os.path.join(data_root_dir, sample)
+    data_dir = Path(data_root_dir) / sample
 
     # Create necessary directories if they don't exist
-    for folder in [data_dir, path_landscape_files]:
-        if not os.path.exists(folder):
-            os.makedirs(folder)
-            print(f"Created directory: {folder}")
+    _create_directories([data_dir, path_landscape_files])
 
-    # Determine technology based on the presence of experiment.xenium file
-    if os.path.exists(os.path.join(data_dir, "experiment.xenium")):
-        technology = "Xenium"
-    else:
-        raise ValueError("Unsupported technology. Only Xenium is supported in this script.")
+    # Determine technology
+    technology = _determine_technology(data_dir)
+
+    # Setup file paths
+    paths = _setup_preprocessing_paths(path_landscape_files, data_dir)
 
     # Unzip compressed files in Xenium data folder
-    dega.pre._xenium_unzipper(data_dir)
+    dega.pre._xenium_unzipper(str(data_dir))
 
     # Check required files for preprocessing
-    dega.pre._check_required_files(technology, data_dir)
+    dega.pre._check_required_files(technology, str(data_dir))
 
     # Write transform file
-    transformation_matrix = dega.pre.write_xenium_transform(data_dir, path_landscape_files)
+    dega.pre.write_xenium_transform(str(data_dir), path_landscape_files)
 
     # Make cell image coordinates
-    path_transformation_matrix = os.path.join(path_landscape_files, "micron_to_image_transform.csv")
-    path_meta_cell_micron = os.path.join(data_dir, "cells.csv.gz")
-    path_meta_cell_image = os.path.join(path_landscape_files, "cell_metadata.parquet")
     dega.pre.make_meta_cell_image_coord(
         technology,
-        path_transformation_matrix,
-        path_meta_cell_micron,
-        path_meta_cell_image,
+        str(paths["transformation_matrix"]),
+        str(paths["meta_cell_micron"]),
+        str(paths["meta_cell_image"]),
         image_scale=1,
     )
 
     # Calculate CBG
-    cbg = dega.pre.read_cbg_mtx(os.path.join(data_dir, "cell_feature_matrix"))
+    cbg = dega.pre.read_cbg_mtx(str(paths["cbg_matrix"]))
 
     # Create cluster-based gene expression
-    df_sig = dega.pre.cluster_gene_expression(technology, path_landscape_files, cbg, data_dir)
+    dega.pre.cluster_gene_expression(technology, path_landscape_files, cbg, str(data_dir))
 
     # Make meta gene files
-    path_output = os.path.join(path_landscape_files, "meta_gene.parquet")
-    dega.pre.make_meta_gene(cbg, path_output)
+    dega.pre.make_meta_gene(cbg, str(paths["meta_gene"]))
 
     # Save CBG gene parquet files
     dega.pre.save_cbg_gene_parquets(path_landscape_files, cbg, verbose=True)
 
     # Create cluster and meta cluster files
-    clusters = dega.pre.create_cluster_and_meta_cluster(technology, path_landscape_files, data_dir)
+    dega.pre.create_cluster_and_meta_cluster(technology, path_landscape_files, str(data_dir))
 
     # Generate image tiles
     dega.pre.create_image_tiles(
-        technology, data_dir, path_landscape_files, image_tile_layer=image_tile_layer
+        technology, str(data_dir), path_landscape_files, image_tile_layer=image_tile_layer
     )
 
     # Generate transcript tiles
     print("\n========Generating transcript tiles========")
-    path_trx = os.path.join(data_dir, "transcripts.parquet")
-    path_trx_tiles = os.path.join(path_landscape_files, "transcript_tiles")
     tile_bounds = dega.pre.make_trx_tiles(
         technology,
-        path_trx,
-        path_transformation_matrix,
-        path_trx_tiles,
+        str(paths["transcripts"]),
+        str(paths["transformation_matrix"]),
+        str(paths["transcript_tiles"]),
         coarse_tile_factor=10,
         tile_size=tile_size,
         chunk_size=100000,
@@ -107,15 +166,12 @@ def main(
 
     # Generate boundary tiles
     print("\n========Generating boundary tiles========")
-    path_cell_boundaries = os.path.join(data_dir, "cell_boundaries.parquet")
-    path_output = os.path.join(path_landscape_files, "cell_segmentation")
-
     dega.pre.make_cell_boundary_tiles(
         technology,
-        path_cell_boundaries,
-        path_output,
-        path_meta_cell_micron,
-        path_transformation_matrix,
+        str(paths["cell_boundaries"]),
+        str(paths["cell_segmentation"]),
+        str(paths["meta_cell_micron"]),
+        str(paths["transformation_matrix"]),
         coarse_tile_factor=10,
         tile_size=tile_size,
         tile_bounds=tile_bounds,
@@ -137,8 +193,13 @@ def main(
     print("Preprocessing completed successfully.")
 
 
-if __name__ == "__main__":
-    # Set up argument parser
+def _setup_argument_parser():
+    """
+    Setup and return argument parser.
+
+    Returns:
+    - Configured ArgumentParser instance
+    """
     parser = argparse.ArgumentParser(
         description="Preprocess Xenium data and generate landscape files."
     )
@@ -150,7 +211,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--data_root_dir",
         required=True,
-        help="Root directory containing the data for this sample and oher samples.",
+        help="Root directory containing the data for this sample and other samples.",
     )
     parser.add_argument(
         "--tile_size",
@@ -159,7 +220,7 @@ if __name__ == "__main__":
         help="Size of the tiles for transcript and boundary tiles.",
     )
     parser.add_argument(
-        "--image_tile_layer", type=str, required=True, help="Image layers for tilling."
+        "--image_tile_layer", type=str, required=True, help="Image layers for tiling."
     )
     parser.add_argument(
         "--path_landscape_files", required=True, help="Directory to save the landscape files."
@@ -168,8 +229,16 @@ if __name__ == "__main__":
         "--use_int_index",
         type=bool,
         required=False,
-        help="Use integer index for smaller fizes and faster rendering at front end",
+        default=True,
+        help="Use integer index for smaller files and faster rendering at front end",
     )
+
+    return parser
+
+
+if __name__ == "__main__":
+    # Set up argument parser
+    parser = _setup_argument_parser()
 
     # Parse arguments
     args = parser.parse_args()

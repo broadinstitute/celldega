@@ -1,4 +1,8 @@
-import os
+"""
+Landscape processing module for handling gene expression data.
+"""
+
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -16,6 +20,22 @@ from .boundary_tile import _get_name_mapping
 # =============================================================================
 
 
+def _convert_to_dense(series):
+    """
+    Convert a pandas Series to dense format if it's sparse.
+
+    Parameters
+    ----------
+    series : pandas.Series
+
+    Returns
+    -------
+    pandas.Series
+        Dense Series if input was sparse; original Series otherwise.
+    """
+    return series.sparse.to_dense() if pd.api.types.is_sparse(series) else series
+
+
 def calc_meta_gene_data(cbg):
     """
     Calculate gene metadata from the cell-by-gene matrix
@@ -27,33 +47,12 @@ def calc_meta_gene_data(cbg):
         pandas.DataFrame: A DataFrame with gene metadata including mean, standard deviation,
             maximum expression, and proportion of non-zero expression.
     """
-
-    # Helper function to convert to dense if sparse
-    def convert_to_dense(series):
-        """
-        Convert a pandas Series to dense format if it's sparse.
-
-        Parameters
-        ----------
-        series : pandas.Series
-
-        Returns
-        -------
-        pandas.Series
-            Dense Series if input was sparse; original Series otherwise.
-        """
-        if pd.api.types.is_sparse(series):
-            return series.sparse.to_dense()
-        return series
-
     # Ensure cbg is a DataFrame
     if not isinstance(cbg, pd.DataFrame):
         raise TypeError("cbg must be a pandas DataFrame")
 
     # Determine if cbg is sparse
-    is_sparse = pd.api.types.is_sparse(cbg)
-
-    if is_sparse:
+    if pd.api.types.is_sparse(cbg):
         # Ensure cbg has SparseDtype with float and fill_value=0
         cbg = cbg.astype(pd.SparseDtype("float", fill_value=0))
         print("cbg is a sparse DataFrame. Proceeding with sparse operations.")
@@ -77,27 +76,16 @@ def calc_meta_gene_data(cbg):
     proportion_nonzero = (cbg != 0).sum(axis=0) / len(cbg)
 
     # Create a DataFrame to hold all these metrics
-
     meta_gene = pd.DataFrame(
         {
-            "mean": mean_expression.sparse.to_dense()
-            if isinstance(mean_expression.dtype, pd.SparseDtype)
-            else mean_expression,
+            "mean": _convert_to_dense(mean_expression),
             "std": std_deviation,
-            "max": max_expression.sparse.to_dense()
-            if isinstance(max_expression.dtype, pd.SparseDtype)
-            else max_expression,
-            "non-zero": proportion_nonzero.sparse.to_dense()
-            if isinstance(proportion_nonzero.dtype, pd.SparseDtype)
-            else proportion_nonzero,
+            "max": _convert_to_dense(max_expression),
+            "non-zero": _convert_to_dense(proportion_nonzero),
         }
     )
 
-    meta_gene_clean = pd.DataFrame(
-        meta_gene.values, index=meta_gene.index.tolist(), columns=meta_gene.columns
-    )
-
-    return meta_gene_clean
+    return pd.DataFrame(meta_gene.values, index=meta_gene.index.tolist(), columns=meta_gene.columns)
 
 
 def read_cbg_mtx(base_path):
@@ -114,12 +102,12 @@ def read_cbg_mtx(base_path):
     cbg : pandas.DataFrame
         A sparse DataFrame with genes as columns and barcodes as rows.
     """
-    # print("Reading mtx file from ", base_path)
+    base_path = Path(base_path)
 
     # File paths
-    barcodes_path = os.path.join(base_path, "barcodes.tsv.gz")
-    features_path = os.path.join(base_path, "features.tsv.gz")
-    matrix_path = os.path.join(base_path, "matrix.mtx.gz")
+    barcodes_path = base_path / "barcodes.tsv.gz"
+    features_path = base_path / "features.tsv.gz"
+    matrix_path = base_path / "matrix.mtx.gz"
 
     # Read barcodes and features
     barcodes = pd.read_csv(barcodes_path, header=None, compression="gzip")
@@ -148,16 +136,17 @@ def save_cbg_gene_parquets(base_path, cbg, verbose=False, segmentation_approach=
         A sparse DataFrame with genes as columns and barcodes as rows.
     verbose : bool, optional
         Whether to print progress information, by default False.
+    segmentation_approach : str, optional
+        The segmentation approach used, by default "default".
 
     Returns
     -------
     None
     """
-    output_dir = os.path.join(
-        base_path, f"cbg{f'_{segmentation_approach}' if segmentation_approach != 'default' else ''}"
-    )
+    segmentation_suffix = f"_{segmentation_approach}" if segmentation_approach != "default" else ""
+    output_dir = Path(base_path) / f"cbg{segmentation_suffix}"
     print(output_dir)
-    os.makedirs(output_dir, exist_ok=True)
+    output_dir.mkdir(exist_ok=True)
 
     # convert cell index from string to integer
     cell_str_to_int_mapping = _get_name_mapping(
@@ -181,7 +170,7 @@ def save_cbg_gene_parquets(base_path, cbg, verbose=False, segmentation_approach=
 
         # Save to Parquet if DataFrame is not empty
         if not inst_df.empty:
-            output_path = os.path.join(output_dir, f"{gene}.parquet")
+            output_path = output_dir / f"{gene}.parquet"
             inst_df.to_parquet(output_path)
 
     print("All gene-specific parquet files are succesfully saved.")

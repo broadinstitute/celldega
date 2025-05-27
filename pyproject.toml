@@ -23,14 +23,18 @@ dependencies = [
     "polars~=1.10.0",
     "libpysal~=4.8.0",
     "spatialdata~=0.3.0",
-    "spatialdata_io~=0.1.0"
+    "spatialdata_io~=0.1.0",
+    # Jupyter-specific dependencies
+    "ipywidgets>=8.0.0",
+    "jupyterlab>=4.0",
+    "jupyterlab-widgets>=3.0.0",
+    "ipykernel",
+    "watchfiles",
 ]
 readme = "README.md"
 
 [project.optional-dependencies]
 dev = [
-    "watchfiles",
-    "jupyterlab",
     "ruff",              # Linting & formatting
     "pytest",            # Unit testing
     "pytest-cov",        # Coverage support
@@ -110,8 +114,8 @@ exclude = [
 line-length = 100
 indent-width = 4
 
-# Target Python 3.10 (matching your environment)
-target-version = "py310"
+# Target Python 3.11
+target-version = "py311"
 
 [tool.ruff.lint]
 # Enable comprehensive rule sets

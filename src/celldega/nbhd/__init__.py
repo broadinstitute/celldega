@@ -197,27 +197,51 @@ def hex_meta_geojson_processing(gdf):
     gdf['name'] = gdf.index
     gdf['cat'] = '0'
 
-    norm = (
-        gdf["unassigned_trx_percentage"]
-        - gdf["unassigned_trx_percentage"].min()
-    ) / (
-        gdf["unassigned_trx_percentage"].max()
-        - gdf["unassigned_trx_percentage"].min()
-    )
-
-    rgba_colors = cm.Reds(norm)
-    hex_colors = [mcolors.to_hex(c) for c in rgba_colors]
-    gdf["color"] = hex_colors
-
     gdf["geometry_image_space"] = gdf["geometry_image_space"].apply(lambda geom: _round_coordinates(geom, precision=2))
     gdf.drop(["geometry"], axis=1, inplace=True)
 
-    # gdf['area'] = gdf['geometry_image_space'].area
     gdf.rename(columns={'geometry_image_space': 'geometry'}, inplace=True)
+    gdf['area'] = gdf.geometry.area
 
     return gdf
 
-def nbhd_geojson(gdf, nbhd_type, meta_cluster=None, inst_alpha=None):
+def make_geojson(gdf):
+
+    # GeoJSON with only geometries
+    geojson_nbhd = {
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "geometry": feature["geometry"],
+                "properties": {'name': feature["properties"]['name']}  # Empty properties
+            }
+            for feature in json.loads(gdf.to_json())["features"]
+        ]
+    }
+
+    # GeoJSON with properties, no geometry
+    geojson_nbhd_meta = {
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "geometry": None,
+                "properties": feature["properties"]
+            }
+            for feature in json.loads(gdf.to_json())["features"]
+        ]
+    }
+
+    return geojson_nbhd, geojson_nbhd_meta
+
+# {
+#                     'type': 'Polygon',
+#                     'coordinates': [[[0, 0], [1, 0], [0.5, 1]]]
+#                 }
+
+
+def nbhd_geojson(gdf, nbhd_type, meta_cluster=None, inst_alpha=0):
 
     if nbhd_type == 'hex':
         gdf = hex_meta_geojson_processing(gdf)
@@ -248,8 +272,7 @@ def nbhd_geojson(gdf, nbhd_type, meta_cluster=None, inst_alpha=None):
             # print('is None')
             pass
 
-    if nbhd_type == 'alphashape':
-        geojson_nbhd['inst_alpha'] = inst_alpha
+    geojson_nbhd['inst_alpha'] = inst_alpha
 
     return geojson_nbhd
 

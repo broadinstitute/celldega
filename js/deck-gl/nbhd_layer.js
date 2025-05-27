@@ -10,9 +10,53 @@ import { update_trx_layer_id } from "./trx_layer.js"
 import { get_layers_list } from "./layers_ist.js"
 import * as d3 from 'd3'
 
+export let baseFeatures = null;
+
 export const ini_nbhd_layer = (viz_state, visible) => {
 
     // console.log(viz_state.nbhd.feature_collection)
+
+    // console.log(viz_state.cat_meta.feature_collection)
+
+    // console.log("/////")
+
+    // const metaFeatures = viz_state.meta_nbhd.feature_collection.features;
+
+    // const metaMap = new Map(
+    // metaFeatures.map(f => [f.properties.id, f.properties])
+    // );
+
+    // viz_state.nbhd.feature_collection.features.forEach(f => {
+    // const id = f.properties.id;
+    // const metaProps = metaMap.get(id) ?? {};
+    // Object.assign(f.properties, metaProps);
+    // });
+
+    // console.log(viz_state.nbhd.feature_collection)
+
+    const layer_attr = viz_state.nbhd_attr // string
+    console.log(layer_attr)
+
+    function get_nbhd_color(featureName, attributeKey) {
+    const featureCollection = viz_state.cat_meta.feature_collection;
+
+    if (!featureCollection || !Array.isArray(featureCollection.features)) {
+        console.error("Invalid feature collection structure in viz_state.cat_meta");
+        return null;
+    }
+
+    const feature = featureCollection.features.find(f =>
+        f.properties.name === featureName &&
+        f.properties.attribute === attributeKey
+    );
+
+    if (feature && feature.properties.hasOwnProperty("bar_value")) {
+        return feature.properties.bar_value; // no bar plot, but a distribution of numerical values.
+    } else {
+        console.warn(`Feature with name "${featureName}" and target "${attributeKey}" not found or missing bar_value.`);
+        return null;
+    }
+    }
 
     const nbhd_layer = new GeoJsonLayer({
         id: 'nbhd-layer',
@@ -25,7 +69,7 @@ export const ini_nbhd_layer = (viz_state, visible) => {
         // getFillColor: [255, 0, 0, 100],
         getLineWidth: 1,
         // getLineColor: [0, 0, 0, 255],
-        getFillColor: (d) => hexToRgb(d.properties.color),
+        getFillColor: (d) => get_nbhd_color(d.properties.name, layer_attr),
         opacity: 0.5,
         // getElevation: 0,
         // updateTriggers: {

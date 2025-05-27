@@ -19,8 +19,8 @@ export const make_tooltip = (viz_state, info) => {
         inst_name = viz_state.genes.trx_names_array[info.index]
         inst_html = `<div>transcript: ${inst_name}</div>`
     } else if (info.layer.id.startsWith('nbhd-layer')) {
-        inst_name = viz_state.nbhd.feature_collection.features[info.index].properties.name
-        inst_cat = viz_state.nbhd.feature_collection.features[info.index].properties.cat
+        inst_name = viz_state.meta_nbhd.feature_collection.features[info.index].properties.name
+        inst_cat = viz_state.meta_nbhd.feature_collection.features[info.index].properties.cat
         inst_html = `<div>neighborhood: ${inst_name}</div><div>cluster: ${inst_cat}</div>`
     }
 

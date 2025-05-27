@@ -49,6 +49,9 @@ class Landscape(anywidget.AnyWidget):
     dataset_name = traitlets.Unicode("").tag(sync=True)
     region = traitlets.Dict({}).tag(sync=True)
     nbhd = traitlets.Dict({}).tag(sync=True)
+    meta_nbhd = traitlets.Dict({}).tag(sync=True)
+    cat_meta = traitlets.Dict({}).tag(sync=True)
+    nbhd_attr = traitlets.Unicode("").tag(sync=True)
 
     meta_cell = traitlets.Dict({}).tag(sync=True)
     meta_cluster = traitlets.Dict({}).tag(sync=True)

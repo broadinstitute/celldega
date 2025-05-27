@@ -12,7 +12,7 @@ import { get_mat_layers_list } from '../deck-gl/matrix/matrix_layers'
 import { DrawPolygonMode, ViewMode} from '@deck.gl-community/editable-layers'
 import { update_edit_layer_mode, update_edit_visitility, calc_and_update_rgn_bar_graph, sync_region_to_model } from '../deck-gl/edit_layer'
 import { get_layers_list } from '../deck-gl/layers_ist'
-import { update_cell_pickable_state } from '../deck-gl/cell_layer'
+import { update_cell_pickable_state, new_toggle_cell_layer_visibility } from '../deck-gl/cell_layer'
 import { toggle_trx_layer_visibility, update_trx_pickable_state } from '../deck-gl/trx_layer'
 import { update_path_pickable_state } from '../deck-gl/path_layer'
 import { filter_cat_nbhd_feature_collection, toggle_nbhd_layer_visibility, update_nbhd_layer_data } from '../deck-gl/nbhd_layer'
@@ -612,6 +612,7 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
 
         // toggle with the opposite of viz_state.nbhd.visible
         toggle_trx_layer_visibility(layers_obj, viz_state.nbhd.visible===true ? false : true)
+        new_toggle_cell_layer_visibility(layers_obj, viz_state.nbhd.visible===true ? false : true)
         toggle_visibility_image_layers(layers_obj, viz_state.nbhd.visible===true ? false : true)
         toggle_background_layer_visibility(layers_obj, viz_state.nbhd.visible===true ? false : true)
 
@@ -622,16 +623,17 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
         const layers_list = get_layers_list(layers_obj, viz_state.close_up, viz_state.nbhd.visible)
         deck_ist.setProps({layers: layers_list})
 
-        viz_state.nbhd.nbhd_areas = viz_state.nbhd.feature_collection.features.map((feature, index) => ({
+        viz_state.meta_nbhd.nbhd_areas = viz_state.meta_nbhd.feature_collection.features.map((feature, index) => ({
             name: (index + 1).toString(), // Assign numeric names starting from 1
             value: feature.properties.area // Use the "area" property for the bar height
         }))
 
         console.log(viz_state.nbhd.color_dict_nbhd)
+        console.log(viz_state.meta_nbhd.nbhd_areas)
 
         update_bar_graph(
             viz_state.edit.svg_bar_rgn,
-            viz_state.nbhd.nbhd_areas,
+            viz_state.meta_nbhd.nbhd_areas,
             viz_state.cats.color_dict_cluster,
             bar_callback_nbhd,
             [], // selected_cats

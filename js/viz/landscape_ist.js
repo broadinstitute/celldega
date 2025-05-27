@@ -79,6 +79,14 @@ export const landscape_ist = async (
     viz_state.nbhd = {}
     viz_state.nbhd.visible = false
 
+    viz_state.meta_nbhd = {}
+
+    viz_state.cat_meta = {}
+    viz_state.cat_meta.ini_feature_collection = viz_state.model.get('cat_meta')
+    viz_state.cat_meta.feature_collection = viz_state.cat_meta.ini_feature_collection
+
+    viz_state.nbhd_attr = ''
+
     viz_state.spatial = {}
 
     // later we will parse the region from the s3 url
@@ -123,10 +131,21 @@ export const landscape_ist = async (
             }
             viz_state.nbhd.feature_collection = viz_state.nbhd.ini_feature_collection
 
+            viz_state.meta_nbhd.ini_feature_collection =  {
+                "type": "FeatureCollection",
+                "features": [],
+                "inst_alpha": null
+            }
+            viz_state.meta_nbhd.feature_collection = viz_state.meta_nbhd.ini_feature_collection
+
         } else {
             viz_state.nbhd.alpha_nbhd = true
 
             viz_state.nbhd.ini_feature_collection = viz_state.model.get('nbhd')
+
+            viz_state.meta_nbhd.ini_feature_collection = viz_state.model.get('meta_nbhd')
+
+            viz_state.nbhd_attr = viz_state.model.get('nbhd_attr')
 
             viz_state.nbhd.inst_alpha = viz_state.nbhd.ini_feature_collection['inst_alpha']
 
@@ -138,6 +157,8 @@ export const landscape_ist = async (
                 "features": filt_features
             }
 
+            viz_state.meta_nbhd.feature_collection = viz_state.meta_nbhd.ini_feature_collection
+
         }
     } else {
         viz_state.nbhd.alpha_nbhd = false
@@ -148,6 +169,14 @@ export const landscape_ist = async (
             "inst_alpha": null
         }
         viz_state.nbhd.feature_collection = viz_state.nbhd.ini_feature_collection
+
+        viz_state.meta_nbhd.ini_feature_collection =  {
+                "type": "FeatureCollection",
+                "features": [],
+                "inst_alpha": null
+            }
+        viz_state.meta_nbhd.feature_collection = viz_state.meta_nbhd.ini_feature_collection
+
     }
 
     viz_state.containers = {}

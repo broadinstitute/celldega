@@ -6,7 +6,6 @@ import { update_selected_genes } from '../global_variables/selected_genes';
 import { deps } from '../temp_utils/deps';
 import { hexToRgb } from '../utils/hexToRgb';
 
-
 const { update_cell_layer_id, get_layers_list, update_path_layer_id } = deps;
 
 export const ini_nbhd_layer = (viz_state, visible) => {
@@ -25,6 +24,30 @@ export const ini_nbhd_layer = (viz_state, visible) => {
   });
 
   return nbhd_layer;
+};
+
+export const filter_cat_nbhd_feature_collection = (viz_state) => {
+  let filt_features;
+
+  if (viz_state.cats.selected_cats.length === 0) {
+    filt_features = viz_state.nbhd.ini_feature_collection.features.filter(
+      (d) => d.properties.inv_alpha === viz_state.nbhd.inst_alpha
+    );
+  } else {
+    filt_features = viz_state.nbhd.ini_feature_collection.features
+      .filter((d) => viz_state.cats.selected_cats.includes(d.properties.cat))
+      .filter((d) => d.properties.inv_alpha === viz_state.nbhd.inst_alpha);
+  }
+  viz_state.nbhd.feature_collection = {
+    type: 'FeatureCollection',
+    features: filt_features,
+  };
+};
+
+export const update_nbhd_layer_data = (viz_state, layers_obj) => {
+  layers_obj.nbhd_layer = layers_obj.nbhd_layer.clone({
+    data: viz_state.nbhd.feature_collection,
+  });
 };
 
 const nbhd_layer_onclick = async (
@@ -100,30 +123,6 @@ export const set_nbhd_layer_onclick = (deck_ist, layers_obj, viz_state) => {
   layers_obj.nbhd_layer = layers_obj.nbhd_layer.clone({
     onClick: (info, event) =>
       nbhd_layer_onclick(info, event, deck_ist, layers_obj, viz_state),
-  });
-};
-
-export const filter_cat_nbhd_feature_collection = (viz_state) => {
-  let filt_features;
-
-  if (viz_state.cats.selected_cats.length === 0) {
-    filt_features = viz_state.nbhd.ini_feature_collection.features.filter(
-      (d) => d.properties.inv_alpha === viz_state.nbhd.inst_alpha
-    );
-  } else {
-    filt_features = viz_state.nbhd.ini_feature_collection.features
-      .filter((d) => viz_state.cats.selected_cats.includes(d.properties.cat))
-      .filter((d) => d.properties.inv_alpha === viz_state.nbhd.inst_alpha);
-  }
-  viz_state.nbhd.feature_collection = {
-    type: 'FeatureCollection',
-    features: filt_features,
-  };
-};
-
-export const update_nbhd_layer_data = (viz_state, layers_obj) => {
-  layers_obj.nbhd_layer = layers_obj.nbhd_layer.clone({
-    data: viz_state.nbhd.feature_collection,
   });
 };
 

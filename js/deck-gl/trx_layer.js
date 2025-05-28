@@ -7,7 +7,6 @@ import { update_selected_genes } from '../global_variables/selected_genes';
 import { deps } from '../temp_utils/deps';
 import { grab_trx_tiles_in_view } from '../vector_tile/transcripts/grab_trx_tiles_in_view';
 
-
 const {
   update_gene_text_box,
   toggle_image_layers_and_ctrls,
@@ -15,6 +14,12 @@ const {
   get_layers_list,
   update_path_layer_id,
 } = deps;
+
+export const update_trx_layer_id = (genes, layers_obj) => {
+  layers_obj.trx_layer = layers_obj.trx_layer.clone({
+    id: `trx-layer-${genes.selected_genes.join('-')}`,
+  });
+};
 
 const trx_layer_callback = async (
   info,
@@ -168,12 +173,6 @@ export const toggle_trx_layer_visibility = (layers_obj, visible) => {
 export const update_trx_layer_radius = (layers_obj, radius) => {
   layers_obj.trx_layer = layers_obj.trx_layer.clone({
     getRadius: radius,
-  });
-};
-
-export const update_trx_layer_id = (genes, layers_obj) => {
-  layers_obj.trx_layer = layers_obj.trx_layer.clone({
-    id: `trx-layer-${genes.selected_genes.join('-')}`,
   });
 };
 

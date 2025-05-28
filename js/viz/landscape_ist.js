@@ -190,7 +190,7 @@ export const landscape_ist = async (
   viz_state.custom_callbacks.view_change = view_change_custom_callback;
 
   viz_state.cats = {};
-  viz_state.cats.cat;
+  viz_state.cats.cat = null;
   viz_state.cats.reset_cat = false;
   viz_state.cats.selected_cats = [];
   viz_state.cats.cell_cats = [];

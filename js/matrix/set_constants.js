@@ -140,8 +140,8 @@ export const set_mat_constants = (
   viz_state.buttons.gray = '#EEEEEE';
 
   viz_state.click = {};
-  viz_state.click.type;
-  viz_state.click.value;
+  viz_state.click.type = null;
+  viz_state.click.value = null;
 
   return viz_state;
 };

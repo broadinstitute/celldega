@@ -5,7 +5,6 @@ import { update_selected_genes } from '../global_variables/selected_genes';
 import { deps } from '../temp_utils/deps';
 import { grab_cell_tiles_in_view } from '../vector_tile/polygons/grab_cell_tiles_in_view';
 
-
 const {
   toggle_image_layers_and_ctrls,
   get_layers_list,
@@ -48,6 +47,12 @@ export const ini_path_layer = (viz_state) => {
   });
 
   return path_layer;
+};
+
+export const update_path_layer_id = (layers_obj, new_cat) => {
+  layers_obj.path_layer = layers_obj.path_layer.clone({
+    id: `path-layer-${new_cat}`,
+  });
 };
 
 const path_layer_onclick = async (
@@ -107,12 +112,6 @@ export const set_path_layer_onclick = (deck_ist, layers_obj, viz_state) => {
 export const toggle_path_layer_visibility = (layers_obj, visible) => {
   layers_obj.path_layer = layers_obj.path_layer.clone({
     visible,
-  });
-};
-
-export const update_path_layer_id = (layers_obj, new_cat) => {
-  layers_obj.path_layer = layers_obj.path_layer.clone({
-    id: `path-layer-${new_cat}`,
   });
 };
 

@@ -1,49 +1,3 @@
-export const ini_dendro = (viz_state) => {
-  viz_state.dendro = {};
-
-  viz_state.dendro.default_level = 5;
-  viz_state.dendro.tri_height = 0.1;
-  viz_state.dendro.trap_height = 0.03;
-  viz_state.dendro.trap_float = 0.005;
-
-  viz_state.dendro.dendro_args = {};
-  viz_state.dendro.group_level = {};
-  viz_state.dendro.polygons = {};
-  viz_state.dendro.update_dendro = false;
-
-  viz_state.dendro.selected_clust_names = [];
-
-  viz_state.dendro.group_info = {};
-
-  viz_state.dendro.default_link_level = 0.5;
-
-  viz_state.dendro.output_label_format = 'list';
-
-  viz_state.dendro.min_dist = {};
-  viz_state.dendro.min_dist.row = 0; // 0.75
-  viz_state.dendro.min_dist.col = 0; // 0.75
-
-  const axes = ['col', 'row'];
-
-  let link_mat;
-  viz_state.dendro.max_linkage_dist = {};
-  let dist_thresh;
-
-  axes.forEach((axis) => {
-    link_mat = viz_state.linkage[axis];
-    viz_state.dendro.max_linkage_dist[axis] =
-      link_mat[link_mat.length - 1][2] + 0.01;
-    dist_thresh =
-      viz_state.dendro.max_linkage_dist[axis] *
-      viz_state.dendro.default_link_level;
-
-    // alternate linkage slicing code
-    alt_slice_linkage(viz_state, axis, dist_thresh);
-
-    calc_dendro_triangles(viz_state, axis);
-  });
-};
-
 export const alt_slice_linkage = (viz_state, axis, dist_thresh) => {
   let clust_a;
   let clust_b;
@@ -184,6 +138,52 @@ export const calc_dendro_triangles = (viz_state, axis) => {
   });
 
   viz_state.dendro.group_info[axis] = group_info;
+};
+
+export const ini_dendro = (viz_state) => {
+  viz_state.dendro = {};
+
+  viz_state.dendro.default_level = 5;
+  viz_state.dendro.tri_height = 0.1;
+  viz_state.dendro.trap_height = 0.03;
+  viz_state.dendro.trap_float = 0.005;
+
+  viz_state.dendro.dendro_args = {};
+  viz_state.dendro.group_level = {};
+  viz_state.dendro.polygons = {};
+  viz_state.dendro.update_dendro = false;
+
+  viz_state.dendro.selected_clust_names = [];
+
+  viz_state.dendro.group_info = {};
+
+  viz_state.dendro.default_link_level = 0.5;
+
+  viz_state.dendro.output_label_format = 'list';
+
+  viz_state.dendro.min_dist = {};
+  viz_state.dendro.min_dist.row = 0; // 0.75
+  viz_state.dendro.min_dist.col = 0; // 0.75
+
+  const axes = ['col', 'row'];
+
+  let link_mat;
+  viz_state.dendro.max_linkage_dist = {};
+  let dist_thresh;
+
+  axes.forEach((axis) => {
+    link_mat = viz_state.linkage[axis];
+    viz_state.dendro.max_linkage_dist[axis] =
+      link_mat[link_mat.length - 1][2] + 0.01;
+    dist_thresh =
+      viz_state.dendro.max_linkage_dist[axis] *
+      viz_state.dendro.default_link_level;
+
+    // alternate linkage slicing code
+    alt_slice_linkage(viz_state, axis, dist_thresh);
+
+    calc_dendro_triangles(viz_state, axis);
+  });
 };
 
 export const calc_dendro_polygons = (viz_state, axis) => {

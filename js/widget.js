@@ -4,25 +4,6 @@ import { landscape_ist } from "./viz/landscape_ist";
 import { landscape_sst } from "./viz/landscape_sst";
 import { matrix_viz } from "./viz/matrix_viz";
 
-export const render_landscape = async ({ model, el }) => {
-
-    const technology = model.get('technology')
-
-    if (['MERSCOPE', 'Xenium'].includes(technology)){
-
-        return render_landscape_ist({ model, el });
-
-    } else if (['Visium-HD'].includes(technology)){
-
-        return render_landscape_sst({ model, el });
-
-    } else if (['h&e'].includes(technology)){
-
-        return render_landscape_h_e({ model, el });
-    }
-
-}
-
 export const render_landscape_ist = async ({ model, el }) => {
 
     const token = model.get('token')
@@ -122,6 +103,25 @@ export const render_landscape_h_e = async ({ model, el }) => {
         height,
         creds
     )
+
+}
+
+export const render_landscape = async ({ model, el }) => {
+
+    const technology = model.get('technology')
+
+    if (['MERSCOPE', 'Xenium'].includes(technology)){
+
+        return render_landscape_ist({ model, el });
+
+    } else if (['Visium-HD'].includes(technology)){
+
+        return render_landscape_sst({ model, el });
+
+    } else if (['h&e'].includes(technology)){
+
+        return render_landscape_h_e({ model, el });
+    }
 
 }
 

@@ -1,10 +1,9 @@
-
 import { AwsClient } from 'https://esm.sh/aws4fetch@1'
 
 import { ini_deck_sst } from '../deck-gl/deck_sst'
 import { make_simple_image_layer } from "../deck-gl/simple_image_layer"
 import { set_views } from '../deck-gl/views'
-import { options, set_options } from '../global_variables/fetch_options'
+import { set_options } from '../global_variables/fetch_options'
 import { set_global_base_url } from "../global_variables/global_base_url"
 import { set_dimensions } from '../global_variables/image_dimensions'
 import { set_landscape_parameters } from "../global_variables/landscape_parameters"
@@ -19,7 +18,7 @@ export const landscape_h_e = async (
     ini_y,
     ini_z,
     ini_zoom,
-    dataset_name='',
+    _dataset_name='',
     width = 0,
     height = 800,
     creds={}
@@ -48,7 +47,7 @@ export const landscape_h_e = async (
 
         // fetch after initialization of aws client is apparently required?
         const response = await viz_state.aws.fetch(
-          `${base_url  }/landscape_parameters.json`
+          `${base_url}/landscape_parameters.json`
         );
 
         if (!response.ok) {

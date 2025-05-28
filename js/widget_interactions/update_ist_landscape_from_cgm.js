@@ -30,7 +30,7 @@ export const update_ist_landscape_from_cgm = async (deck_ist, layers_obj, viz_st
 
             inst_gene = click_info.value.name
 
-            const new_cat = inst_gene === viz_state.cats.cat ? 'cluster' : inst_gene
+            new_cat = inst_gene === viz_state.cats.cat ? 'cluster' : inst_gene
 
             if (viz_state.umap.state === false) {
                 toggle_image_layers_and_ctrls(layers_obj, viz_state, viz_state.cats.cat === inst_gene)
@@ -183,7 +183,7 @@ export const update_ist_landscape_from_cgm = async (deck_ist, layers_obj, viz_st
 
         }
     } catch (error) {
-        console.error(error)
+        // console.error(error)
     }
 
 

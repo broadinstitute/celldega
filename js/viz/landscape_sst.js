@@ -6,15 +6,15 @@ import { make_simple_image_layer } from "../deck-gl/simple_image_layer"
 import { ini_square_scatter_layer, set_tile_layer_onclick } from "../deck-gl/square_scatter_layer"
 import { set_views } from '../deck-gl/views'
 import { options, set_options } from '../global_variables/fetch_options'
+import { set_global_base_url } from "../global_variables/global_base_url"
+import { set_dimensions } from '../global_variables/image_dimensions'
+import { set_landscape_parameters } from "../global_variables/landscape_parameters"
 import { set_meta_gene } from "../global_variables/meta_gene"
 import { set_tile_color_dict } from "../global_variables/tile_color_dict"
 import { set_tile_names_array, set_tile_name_to_index_map } from "../global_variables/tile_names_array"
 import { set_tile_scatter_data } from "../global_variables/tile_scatter_data"
 import { get_arrow_table } from "../read_parquet/get_arrow_table"
 import { get_scatter_data } from "../read_parquet/get_scatter_data"
-import { set_dimensions } from '../global_variables/image_dimensions'
-import { set_landscape_parameters } from "../global_variables/landscape_parameters"
-import { set_global_base_url } from "../global_variables/global_base_url"
 import { make_sst_ui_container } from '../ui/ui_containers'
 import { update_tile_landscape_from_cgm } from "../widget_interactions/update_tile_landscape_from_cgm"
 
@@ -28,7 +28,7 @@ export const landscape_sst = async (
     ini_z,
     ini_zoom,
     square_tile_size = 1.4,
-    dataset_name='',
+    _dataset_name='',
     width = 0,
     height = 800
 ) => {
@@ -39,7 +39,7 @@ export const landscape_sst = async (
 
     // Create and append the visualization container
     const root = document.createElement("div")
-    root.style.height = "   800px"
+    root.style.height = "800px"
 
     const viz_state = {}
     set_options(token)
@@ -94,12 +94,12 @@ export const landscape_sst = async (
 
     // move this to landscape_parameters
     // const imgage_name_for_dim = 'dapi'
-    const info = {
+    const _info = {
         name: 'cells',
         color: [0, 0, 255]
     }
 
-    const tile_url = `${base_url  }/tile_geometries.parquet`
+    const tile_url = `${base_url}/tile_geometries.parquet`
 
     const tile_arrow_table = await get_arrow_table(tile_url, options.fetch)
 
@@ -115,7 +115,7 @@ export const landscape_sst = async (
 
     viz_state.cats.tile_color_dict = await set_tile_color_dict(base_url)
 
-    const simple_image_layer = await make_simple_image_layer(viz_state, info)
+    const simple_image_layer = await make_simple_image_layer(viz_state, _info)
     const square_scatter_layer = ini_square_scatter_layer(viz_state.cats)
 
     const layers_sst = {

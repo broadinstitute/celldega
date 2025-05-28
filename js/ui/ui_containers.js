@@ -697,7 +697,7 @@ export const make_ist_ui_container = (
   };
 
   const bar_callback_nbhd = (_info) => {
-    // console.log('clicking nbhd bar', info)
+    // console.log('clicking nbhd bar', _info)
   };
 
   const alph_callback = (event, deck_ist, layers_obj, viz_state) => {

@@ -3,7 +3,7 @@
  * Snake_case API to match existing codebase conventions
  */
 
-import { createLazy } from './lazyResolver.js';
+import { createLazy } from './lazyResolver';
 
 // Helper function to create import configs for a module
 const createModuleImports = (modulePath, exports) => {

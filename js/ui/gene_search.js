@@ -162,8 +162,8 @@ export const set_gene_search = async (
   });
 
   // Apply styles to the input element
-  (viz_state.genes.gene_search_input.style.width = '156px'), // '109px'
-    (viz_state.genes.gene_search_input.style.maxWidth = '250px');
+  viz_state.genes.gene_search_input.style.width = '156px'; // '109px'
+  viz_state.genes.gene_search_input.style.maxWidth = '250px';
   viz_state.genes.gene_search_input.style.height = '12px';
   viz_state.genes.gene_search_input.style.fontSize = '12px';
   viz_state.genes.gene_search_input.style.border = '1px solid #d3d3d3';

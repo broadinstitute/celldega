@@ -83,19 +83,6 @@ export const alt_slice_linkage = (viz_state, axis, dist_thresh) => {
     }
   });
 
-  // // making dictionary of lists of clusters
-  // {
-  //   1: ['a', 'b', 'c'],
-  //   2: ['d', 'e'],
-  // }
-
-  // // making flat dictionary of row/col to cluster
-  // {
-  //   'a': 1,
-  //   'b': 1
-  //    ...
-  // }
-
   // Make flat dictionary
   const flat_group_dict = {};
   Object.entries(group_dict).forEach(([inst_cluster, nodes]) => {
@@ -140,20 +127,11 @@ export const calc_dendro_triangles = (viz_state, axis) => {
     let inst_top;
 
     if (axis === 'row') {
-      // heat_shift = 0 // params.viz_dim.mat_size.y - params.viz_dim.heat_size.y
-
-      // inst_top = -params.node_canvas_pos.y_arr[order_index] - 2 * tri_width - 2 * heat_shift
-
       const inst_row_index =
         viz_state.mat.num_rows - viz_state.mat.orders.row[inst_order][index];
 
       inst_top = viz_state.viz.row_offset * (inst_row_index + 1.0);
     } else {
-      // emperical rule
-      // heat_shift = 0 // params.viz_dim.mat_size.x - params.viz_dim.heat_size.x
-
-      // inst_top = -params.node_canvas_pos.x_arr[order_index] - 2 * tri_width + 2 * heat_shift
-
       const inst_col_index =
         viz_state.mat.num_cols - viz_state.mat.orders.col[inst_order][index];
 
@@ -168,33 +146,6 @@ export const calc_dendro_triangles = (viz_state, axis) => {
     if (inst_name.indexOf(': ') >= 0) {
       inst_name = inst_name.split(': ')[1];
     }
-
-    // // initialize triangle info for a new group
-    // if ( _.has(triangle_info, inst_group) === false ){
-    //     triangle_info[inst_group] = {}
-    //     triangle_info[inst_group].name_top = inst_name
-    //     triangle_info[inst_group].name_bot = inst_name
-    //     triangle_info[inst_group].pos_top = inst_top
-    //     triangle_info[inst_group].pos_bot = inst_bot
-    //     triangle_info[inst_group].pos_mid = (inst_top + inst_bot)/2
-    //     triangle_info[inst_group].name = inst_group
-    //     triangle_info[inst_group].all_names = []
-    //     triangle_info[inst_group].axis = axis
-    // }
-
-    // // Initialize triangle info for a new group
-    // if (!triangle_info.hasOwnProperty(inst_group)) {
-    //     triangle_info[inst_group] = {
-    //         name_top: inst_name,
-    //         name_bot: inst_name,
-    //         pos_top: inst_top,
-    //         pos_bot: inst_bot,
-    //         pos_mid: (inst_top + inst_bot) / 2,
-    //         name: inst_group,
-    //         all_names: [],
-    //         axis: axis
-    //     }
-    // }
 
     if (!Object.prototype.hasOwnProperty.call(triangle_info, inst_group)) {
       triangle_info[inst_group] = {
@@ -228,15 +179,9 @@ export const calc_dendro_triangles = (viz_state, axis) => {
 
   const group_info = [];
 
-  // _.each(triangle_info, function(inst_triangle){
-  //   group_info.push(inst_triangle)
-  // })
-
   Object.values(triangle_info).forEach((inst_triangle) => {
     group_info.push(inst_triangle);
   });
-
-  // return group_info
 
   viz_state.dendro.group_info[axis] = group_info;
 };
@@ -265,7 +210,6 @@ export const calc_dendro_polygons = (viz_state, axis) => {
         properties: { ...group, axis }, // Attach group data and axis
       });
     } else if (axis === 'col') {
-      // Row dendrogram - right side of the heatmap, pointing outward (right)
       const height = pos_bot - pos_top; // Increase width for better visibility
 
       // const new_pos_bot = -1000

@@ -15,7 +15,6 @@ import { set_gene_search_input } from "./gene_search_input"
 
 import { toggle_image_layers_and_ctrls } from "./ui_containers"
 
-
 let gene_search_options = []
 
 const sst_gene_search_callback = async (deck_sst, viz_state, layers_sst) => {
@@ -102,6 +101,29 @@ const ist_gene_search_callback = async (deck_ist, layers_obj, viz_state) => {
     }
 };
 
+export const update_gene_text_box = async (genes, inst_gene) => {
+
+    if (inst_gene !== ''){
+        genes.gene_text_box.textContent = 'loading'
+
+        await uniprot_get_request(inst_gene)
+
+        const gene_data = uniprot_data[inst_gene]
+
+        if (gene_data && gene_data.name && gene_data.description) {
+            genes.gene_text_box.innerHTML = `<span style="color: blue;">${gene_data.name}</span><br>${gene_data.description}`;
+        } else {
+            genes.gene_text_box.textContent = ''
+        }
+    } else {
+        genes.gene_text_box.textContent = ''
+    }
+
+    genes.gene_text_box.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+    })
+  };
 
 export const set_gene_search = async (tech_type, inst_deck, layers_obj, viz_state) => {
 
@@ -181,27 +203,3 @@ export const set_gene_search = async (tech_type, inst_deck, layers_obj, viz_stat
 
     viz_state.genes.gene_search_input.addEventListener('input', callback)
 }
-
-export const update_gene_text_box = async (genes, inst_gene) => {
-
-    if (inst_gene !== ''){
-        genes.gene_text_box.textContent = 'loading'
-
-        await uniprot_get_request(inst_gene)
-
-        const gene_data = uniprot_data[inst_gene]
-
-        if (gene_data && gene_data.name && gene_data.description) {
-            genes.gene_text_box.innerHTML = `<span style="color: blue;">${gene_data.name}</span><br>${gene_data.description}`;
-        } else {
-            genes.gene_text_box.textContent = ''
-        }
-    } else {
-        genes.gene_text_box.textContent = ''
-    }
-
-    genes.gene_text_box.scrollTo({
-        top: 0,
-        behavior: 'smooth'
-    })
-  };

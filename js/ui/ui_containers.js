@@ -186,21 +186,21 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
     viz_state.dendro.sliders[axis].style.width = '75px';
   });
 
-  const dendro_slider_callback = (deck_mat, viz_state, axis, event) => {
+  const dendro_slider_callback = (_deck_mat, _viz_state, axis, event) => {
     // Update the dendrogram layer
-    viz_state.dendro.sliders[`${axis}_value`] =
-      (viz_state.dendro.max_linkage_dist[axis] * event.target.value) / 100;
+    _viz_state.dendro.sliders[`${axis}_value`] =
+      (_viz_state.dendro.max_linkage_dist[axis] * event.target.value) / 100;
 
     alt_slice_linkage(
-      viz_state,
+      _viz_state,
       axis,
-      viz_state.dendro.sliders[`${axis}_value`]
+      _viz_state.dendro.sliders[`${axis}_value`]
     );
-    calc_dendro_triangles(viz_state, axis);
-    calc_dendro_polygons(viz_state, axis);
-    update_dendro_layer_data(layers_mat, viz_state, axis);
+    calc_dendro_triangles(_viz_state, axis);
+    calc_dendro_polygons(_viz_state, axis);
+    update_dendro_layer_data(layers_mat, _viz_state, axis);
 
-    deck_mat.setProps({
+    _deck_mat.setProps({
       layers: get_mat_layers_list(layers_mat),
     });
   };
@@ -361,9 +361,6 @@ export const make_ist_ui_container = (
     'image_layer_container',
     'row'
   );
-
-  // make_button(viz_state.containers.image, 'ist', 'IMG', 'blue', 30, 'button', deck_ist, layers_obj, viz_state)
-  // make_button(viz_state.containers.image, 'ist', 'UMAP', 'blue', 30, 'button', deck_ist, layers_obj, viz_state)
 
   if (viz_state.umap.has_umap === true) {
     let ini_umap_color;
@@ -552,88 +549,86 @@ export const make_ist_ui_container = (
   viz_state.genes.gene_search.style.width = '160px';
   viz_state.genes.gene_search.style.marginLeft = '5px';
 
-  // ctrl_container.appendChild(viz_state.genes.gene_search)
-
-  const sketch_callback = (event, deck_ist, layers_obj, viz_state) => {
+  const sketch_callback = (event, _deck_ist, _layers_obj, _viz_state) => {
     const current = d3.select(event.currentTarget);
     const is_active = current.classed('active');
     // let button_name = current.text().toLowerCase()
 
     // clicking sketch should always return the rgn to visible
-    viz_state.edit.visible = true;
-    current.classed('active', viz_state.edit.visible).style('color', 'blue');
+    _viz_state.edit.visible = true;
+    current.classed('active', _viz_state.edit.visible).style('color', 'blue');
 
-    d3.select(viz_state.edit.buttons.rgn)
+    d3.select(_viz_state.edit.buttons.rgn)
       .style('color', 'blue')
       .classed('active', true);
 
-    update_edit_visitility(layers_obj, viz_state.edit.visible);
+    update_edit_visitility(_layers_obj, _viz_state.edit.visible);
 
     if (is_active === false) {
       current.classed('active', true).style('color', 'blue');
 
-      viz_state.edit.mode = 'sktch';
+      _viz_state.edit.mode = 'sktch';
 
-      update_edit_layer_mode(layers_obj, DrawPolygonMode);
-      update_cell_pickable_state(layers_obj, false);
-      update_path_pickable_state(layers_obj, false);
-      update_trx_pickable_state(layers_obj, false);
-      const layers_list = get_layers_list(layers_obj, viz_state.close_up);
-      deck_ist.setProps({ layers: layers_list });
+      update_edit_layer_mode(_layers_obj, DrawPolygonMode);
+      update_cell_pickable_state(_layers_obj, false);
+      update_path_pickable_state(_layers_obj, false);
+      update_trx_pickable_state(_layers_obj, false);
+      const layers_list = get_layers_list(_layers_obj, _viz_state.close_up);
+      _deck_ist.setProps({ layers: layers_list });
     } else if (is_active === true) {
-      viz_state.edit.mode = 'view';
+      _viz_state.edit.mode = 'view';
 
       current.classed('active', false).style('color', 'gray');
 
-      update_edit_layer_mode(layers_obj, ViewMode);
-      update_cell_pickable_state(layers_obj, true);
-      update_path_pickable_state(layers_obj, true);
-      update_trx_pickable_state(layers_obj, true);
+      update_edit_layer_mode(_layers_obj, ViewMode);
+      update_cell_pickable_state(_layers_obj, true);
+      update_path_pickable_state(_layers_obj, true);
+      update_trx_pickable_state(_layers_obj, true);
 
-      const layers_list = get_layers_list(layers_obj, viz_state.close_up);
-      deck_ist.setProps({ layers: layers_list });
+      const layers_list = get_layers_list(_layers_obj, _viz_state.close_up);
+      _deck_ist.setProps({ layers: layers_list });
     }
   };
 
-  const rgn_callback = (event, deck_ist, layers_obj, viz_state) => {
+  const rgn_callback = (event, _deck_ist, _layers_obj, _viz_state) => {
     const current = d3.select(event.currentTarget);
     const is_active = current.classed('active');
 
     if (is_active === false) {
-      viz_state.edit.visible = true;
+      _viz_state.edit.visible = true;
 
-      current.classed('active', viz_state.edit.visible).style('color', 'blue');
+      current.classed('active', _viz_state.edit.visible).style('color', 'blue');
 
       // hide alph button
-      d3.select(viz_state.edit.buttons.alph).style('display', 'none');
+      d3.select(_viz_state.edit.buttons.alph).style('display', 'none');
 
       // show sktch button
-      d3.select(viz_state.edit.buttons.sktch).style('display', 'inline-flex');
+      d3.select(_viz_state.edit.buttons.sktch).style('display', 'inline-flex');
     } else {
-      viz_state.edit.visible = false;
+      _viz_state.edit.visible = false;
 
-      current.classed('active', viz_state.edit.visible).style('color', 'gray');
+      current.classed('active', _viz_state.edit.visible).style('color', 'gray');
 
       // show alph button
-      d3.select(viz_state.edit.buttons.alph).style('display', 'inline-flex');
+      d3.select(_viz_state.edit.buttons.alph).style('display', 'inline-flex');
 
       // show sktch button
-      d3.select(viz_state.edit.buttons.sktch).style('display', 'none');
+      d3.select(_viz_state.edit.buttons.sktch).style('display', 'none');
     }
 
-    update_edit_visitility(layers_obj, viz_state.edit.visible);
-    const layers_list = get_layers_list(layers_obj, viz_state.close_up);
-    deck_ist.setProps({ layers: layers_list });
+    update_edit_visitility(_layers_obj, _viz_state.edit.visible);
+    const layers_list = get_layers_list(_layers_obj, _viz_state.close_up);
+    _deck_ist.setProps({ layers: layers_list });
 
-    viz_state.edit.rgn_areas = viz_state.edit.feature_collection.features.map(
+    _viz_state.edit.rgn_areas = _viz_state.edit.feature_collection.features.map(
       (feature, index) => ({
         name: (index + 1).toString(), // Assign numeric names starting from 1
         value: feature.properties.area, // Use the "area" property for the bar height
       })
     );
 
-    viz_state.edit.color_dict_rgn =
-      viz_state.edit.feature_collection.features.reduce(
+    _viz_state.edit.color_dict_rgn =
+      _viz_state.edit.feature_collection.features.reduce(
         (acc, feature, index) => {
           acc[(index + 1).toString()] = feature.properties.color; // Use the "color" property
           return acc;
@@ -642,14 +637,14 @@ export const make_ist_ui_container = (
       );
 
     update_bar_graph(
-      viz_state.edit.svg_bar_rgn,
-      viz_state.edit.rgn_areas,
-      viz_state.edit.color_dict_rgn,
+      _viz_state.edit.svg_bar_rgn,
+      _viz_state.edit.rgn_areas,
+      _viz_state.edit.color_dict_rgn,
       bar_callback_rgn,
       [], // selected_cats
-      deck_ist,
-      layers_obj,
-      viz_state
+      _deck_ist,
+      _layers_obj,
+      _viz_state
     );
   };
 
@@ -664,116 +659,115 @@ export const make_ist_ui_container = (
     return featureCollection; // Return the updated FeatureCollection
   };
 
-  const del_callback = (event, deck_ist, layers_obj, viz_state) => {
-    viz_state.edit.feature_collection = delete_polygon_index(
-      viz_state.edit.feature_collection,
-      viz_state.edit.modify_index
+  const del_callback = (event, _deck_ist, _layers_obj, _viz_state) => {
+    _viz_state.edit.feature_collection = delete_polygon_index(
+      _viz_state.edit.feature_collection,
+      _viz_state.edit.modify_index
     );
 
     // switch to view mode
-    layers_obj.edit_layer = layers_obj.edit_layer.clone({
+    _layers_obj.edit_layer = _layers_obj.edit_layer.clone({
       id: 'edit-layer-delete',
-      data: viz_state.edit.feature_collection,
+      data: _viz_state.edit.feature_collection,
       mode: ViewMode,
       selectedFeatureIndexes: [],
     });
 
-    const layers_list = get_layers_list(layers_obj, viz_state.close_up);
-    deck_ist.setProps({ layers: layers_list });
+    const layers_list = get_layers_list(_layers_obj, _viz_state.close_up);
+    _deck_ist.setProps({ layers: layers_list });
 
     // hide the DEL button
-    d3.select(viz_state.edit.buttons.del)
+    d3.select(_viz_state.edit.buttons.del)
       .classed('active', false)
       .style('display', 'none');
 
     // hide the RGN and SKTCH buttons
-    d3.select(viz_state.edit.buttons.rgn).style('display', 'inline-flex');
+    d3.select(_viz_state.edit.buttons.rgn).style('display', 'inline-flex');
 
-    d3.select(viz_state.edit.buttons.sktch).style('display', 'inline-flex');
+    d3.select(_viz_state.edit.buttons.sktch).style('display', 'inline-flex');
 
-    calc_and_update_rgn_bar_graph(viz_state, deck_ist, layers_obj);
+    calc_and_update_rgn_bar_graph(_viz_state, _deck_ist, _layers_obj);
 
-    sync_region_to_model(viz_state);
+    sync_region_to_model(_viz_state);
   };
 
   const bar_callback_nbhd = (_info) => {
     // console.log('clicking nbhd bar', _info)
   };
 
-  const alph_callback = (event, deck_ist, layers_obj, viz_state) => {
+  const alph_callback = (event, _deck_ist, _layers_obj, _viz_state) => {
     // toggle color of the alpha txt button
     const _current = d3.select(event.currentTarget);
 
-    if (viz_state.nbhd.visible === true) {
-      viz_state.nbhd.visible = false;
+    if (_viz_state.nbhd.visible === true) {
+      _viz_state.nbhd.visible = false;
 
       // hacky - need to store these buttons elsewhere
-      d3.select(viz_state.edit.buttons.alph).style('color', 'gray');
+      d3.select(_viz_state.edit.buttons.alph).style('color', 'gray');
 
       // show rgn button
-      d3.select(viz_state.edit.buttons.rgn).style('display', 'inline-flex');
+      d3.select(_viz_state.edit.buttons.rgn).style('display', 'inline-flex');
 
-      viz_state.sliders.alph.style.display = 'none';
+      _viz_state.sliders.alph.style.display = 'none';
     } else {
-      viz_state.nbhd.visible = true;
-      d3.select(viz_state.edit.buttons.alph).style('color', 'blue');
+      _viz_state.nbhd.visible = true;
+      d3.select(_viz_state.edit.buttons.alph).style('color', 'blue');
 
       // hide rgn button
-      d3.select(viz_state.edit.buttons.rgn).style('display', 'none');
+      d3.select(_viz_state.edit.buttons.rgn).style('display', 'none');
 
-      viz_state.sliders.alph.style.display = 'block';
+      _viz_state.sliders.alph.style.display = 'block';
     }
 
-    toggle_nbhd_layer_visibility(layers_obj, viz_state.nbhd.visible);
+    toggle_nbhd_layer_visibility(_layers_obj, _viz_state.nbhd.visible);
 
-    // toggle with the opposite of viz_state.nbhd.visible
+    // toggle with the opposite of _viz_state.nbhd.visible
     toggle_trx_layer_visibility(
-      layers_obj,
-      viz_state.nbhd.visible === true ? false : true
+      _layers_obj,
+      _viz_state.nbhd.visible === true ? false : true
     );
     toggle_visibility_image_layers(
-      layers_obj,
-      viz_state.nbhd.visible === true ? false : true
+      _layers_obj,
+      _viz_state.nbhd.visible === true ? false : true
     );
     toggle_background_layer_visibility(
-      layers_obj,
-      viz_state.nbhd.visible === true ? false : true
+      _layers_obj,
+      _viz_state.nbhd.visible === true ? false : true
     );
 
     update_cell_pickable_state(
-      layers_obj,
-      viz_state.nbhd.visible === true ? false : true
+      _layers_obj,
+      _viz_state.nbhd.visible === true ? false : true
     );
     update_path_pickable_state(
-      layers_obj,
-      viz_state.nbhd.visible === true ? false : true
+      _layers_obj,
+      _viz_state.nbhd.visible === true ? false : true
     );
 
     const layers_list = get_layers_list(
-      layers_obj,
-      viz_state.close_up,
-      viz_state.nbhd.visible
+      _layers_obj,
+      _viz_state.close_up,
+      _viz_state.nbhd.visible
     );
-    deck_ist.setProps({ layers: layers_list });
+    _deck_ist.setProps({ layers: layers_list });
 
-    viz_state.nbhd.nbhd_areas = viz_state.nbhd.feature_collection.features.map(
-      (feature, index) => ({
+    _viz_state.nbhd.nbhd_areas =
+      _viz_state.nbhd.feature_collection.features.map((feature, index) => ({
         name: (index + 1).toString(), // Assign numeric names starting from 1
         value: feature.properties.area, // Use the "area" property for the bar height
-      })
-    );
+      }));
 
-    // console.log(viz_state.nbhd.color_dict_nbhd)
+    // console.log(_viz_state.nbhd.color_dict_nbhd)
 
     update_bar_graph(
-      viz_state.edit.svg_bar_rgn,
-      viz_state.nbhd.nbhd_areas,
-      viz_state.cats.color_dict_cluster,
+      _viz_state.edit.svg_bar_rgn,
+      _viz_state.nbhd.nbhd_areas,
+      _viz_state.cats.color_dict_cluster,
       bar_callback_nbhd,
       [], // selected_cats
-      deck_ist,
-      layers_obj,
-      viz_state
+      _deck_ist,
+      _layers_obj,
+      _viz_state
     );
   };
 
@@ -824,10 +818,6 @@ export const make_ist_ui_container = (
   );
 
   const alph_slider_container = make_slider_container('alph_slider_container');
-
-  // const alph_slider_callback = (event) => {
-  //     console.log('slider', event.target.value/100)
-  // }
 
   const alph_slider_callback = (event, _deck_ist, _layers_obj, _viz_state) => {
     const sliderValue = event.target.value / 100; // Normalize slider value to [0, 1]

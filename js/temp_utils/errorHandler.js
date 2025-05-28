@@ -58,6 +58,7 @@ export const handleAsyncError = (error, context = {}) => {
       error: error.message,
       stack: error.stack,
     };
+    // eslint-disable-next-line no-console
     console.error(msgs.unexpected, logContext);
   }
 
@@ -71,6 +72,7 @@ export const handleValidationWarning = (message, context = {}) => {
     shouldLog &&
     (process.env.NODE_ENV === 'development' || context.forceLog)
   ) {
+    // eslint-disable-next-line no-console
     console[logLevel](message, context.data || '');
   }
 };

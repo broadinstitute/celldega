@@ -1,5 +1,7 @@
 import * as arrow from 'apache-arrow';
 
+import { handleAsyncError } from '../temp_utils/errorHandler';
+
 import { getPq } from './pqInitializer';
 
 export const arrayBufferToArrowTable = async (arrayBuffer) => {
@@ -9,8 +11,15 @@ export const arrayBufferToArrowTable = async (arrayBuffer) => {
     const arrowIPC = pq.readParquet(arr);
     return arrow.tableFromIPC(arrowIPC);
   } catch (error) {
-    // console.error("Failed to convert ArrayBuffer to Arrow Table:", error);
-    // Handle the error appropriately
-    throw error; // Re-throw or handle differently
+    const result = handleAsyncError(error, {
+      messages: {
+        unexpected: 'Failed to convert ArrayBuffer to Arrow Table',
+      },
+      logUnexpected: true,
+      throwOnAuth: false,
+    });
+
+    // For data processing errors
+    throw new Error(result.message);
   }
 };

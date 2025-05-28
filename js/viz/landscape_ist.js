@@ -1,5 +1,5 @@
+import { AwsClient } from 'aws4fetch';
 import * as d3 from 'd3';
-import { AwsClient } from aws4fetch;
 
 import {
   ini_background_layer,
@@ -60,7 +60,10 @@ import { set_meta_gene } from '../global_variables/meta_gene';
 import { update_selected_genes } from '../global_variables/selected_genes';
 import { update_gene_text_box } from '../ui/gene_search';
 import { set_image_layer_sliders } from '../ui/sliders';
-import { make_ist_ui_container , toggle_image_layers_and_ctrls } from '../ui/ui_containers';
+import {
+  make_ist_ui_container,
+  toggle_image_layers_and_ctrls,
+} from '../ui/ui_containers';
 import { update_cell_clusters } from '../widget_interactions/update_cell_clusters';
 import { update_ist_landscape_from_cgm } from '../widget_interactions/update_ist_landscape_from_cgm';
 
@@ -460,8 +463,8 @@ export const landscape_ist = async (
       update_path_layer_id(layers_obj, new_cat);
       update_trx_layer_id(viz_state.genes, layers_obj);
 
-      const layers_list = get_layers_list(layers_obj, viz_state.close_up);
-      deck_ist.setProps({ layers: layers_list });
+      const updatedLayersList = get_layers_list(layers_obj, viz_state.close_up);
+      deck_ist.setProps({ layers: updatedLayersList });
 
       viz_state.genes.gene_search_input.value =
         viz_state.genes.gene_search_input.value !== inst_gene ? inst_gene : '';
@@ -523,8 +526,11 @@ export const landscape_ist = async (
       update_path_layer_id(layers_obj, inst_cat_name);
       update_trx_layer_id(viz_state.genes, layers_obj);
 
-      const layers_list = get_layers_list(layers_obj, viz_state.close_up);
-      deck_ist.setProps({ layers: layers_list });
+      const matrixColLayersList = get_layers_list(
+        layers_obj,
+        viz_state.close_up
+      );
+      deck_ist.setProps({ layers: matrixColLayersList });
 
       viz_state.genes.gene_search_input.value = '';
       update_gene_text_box(viz_state.genes, '');
@@ -549,8 +555,11 @@ export const landscape_ist = async (
       update_path_layer_id(layers_obj, inst_cat_name);
       update_trx_layer_id(viz_state.genes, layers_obj);
 
-      const layers_list = get_layers_list(layers_obj, viz_state.close_up);
-      deck_ist.setProps({ layers: layers_list });
+      const dendroColLayersList = get_layers_list(
+        layers_obj,
+        viz_state.close_up
+      );
+      deck_ist.setProps({ layers: dendroColLayersList });
 
       viz_state.cats.svg_bar_cluster
         .selectAll('g')
@@ -587,13 +596,16 @@ export const landscape_ist = async (
       viz_state.close_up = close_up;
 
       calc_viewport(new_view_state, deck_ist, layers_obj, viz_state);
-      const layers_list = get_layers_list(layers_obj, viz_state.close_up);
+      const viewStateLayersList = get_layers_list(
+        layers_obj,
+        viz_state.close_up
+      );
 
       deck_ist.setProps({
         controller: { doubleClickZoom: false },
         initialViewState: new_view_state,
         views: viz_state.views,
-        layers: layers_list,
+        layers: viewStateLayersList,
       });
     },
     update_layers: () => {

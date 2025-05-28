@@ -69,29 +69,29 @@ const imageLayerExports = {
 const singleExports = {
   // === CORE LAYER MANAGEMENT ===
   get_layers_list: {
-    importFn: () => import('../deck-gl/layers_ist.js'),
+    importFn: () => import('../deck-gl/layers_ist'),
     exportName: 'get_layers_list',
   },
 
   // === UI FUNCTIONS ===
   toggle_image_layers_and_ctrls: {
-    importFn: () => import('../ui/ui_containers.js'),
+    importFn: () => import('../ui/ui_containers'),
     exportName: 'toggle_image_layers_and_ctrls',
   },
   update_gene_text_box: {
-    importFn: () => import('../ui/gene_search.js'),
+    importFn: () => import('../ui/gene_search'),
     exportName: 'update_gene_text_box',
   },
 
   // === BACKGROUND & VISIBILITY ===
   toggle_background_layer_visibility: {
-    importFn: () => import('../deck-gl/background_layer.js'),
+    importFn: () => import('../deck-gl/background_layer'),
     exportName: 'toggle_background_layer_visibility',
   },
 
   // === SLIDER FUNCTIONS ===
   toggle_slider: {
-    importFn: () => import('../ui/sliders.js'),
+    importFn: () => import('../ui/sliders'),
     exportName: 'toggle_slider',
   },
 };

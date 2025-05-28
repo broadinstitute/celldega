@@ -1,4 +1,4 @@
-import { AwsClient } from aws4fetch;
+import { AwsClient } from 'aws4fetch';
 
 import { ini_deck_sst } from '../deck-gl/deck_sst';
 import { make_simple_image_layer } from '../deck-gl/simple_image_layer';

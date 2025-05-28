@@ -74,6 +74,7 @@ class LazyResolver {
       if (Date.now() - start > timeout) {
         throw new Error('Timeout waiting for module to load');
       }
+      // eslint-disable-next-line no-await-in-loop
       await new Promise((resolve) => setTimeout(resolve, 10));
     }
   }

@@ -1,7 +1,7 @@
 /**
  * Lightweight Dependency Resolver
  * Breaks circular dependencies with minimal overhead
-*/
+ */
 
 class LazyResolver {
   constructor() {
@@ -33,7 +33,8 @@ class LazyResolver {
 
       try {
         const module = await importFn();
-        const exported = exportName === 'default' ? module.default : module[exportName];
+        const exported =
+          exportName === 'default' ? module.default : module[exportName];
 
         if (!exported) {
           throw new Error(`Export '${exportName}' not found`);
@@ -41,7 +42,6 @@ class LazyResolver {
 
         this.cache.set(key, exported);
         return typeof exported === 'function' ? exported(...args) : exported;
-
       } catch (error) {
         throw new Error(`Failed to load dependency: ${error.message}`);
       } finally {
@@ -74,7 +74,7 @@ class LazyResolver {
       if (Date.now() - start > timeout) {
         throw new Error('Timeout waiting for module to load');
       }
-      await new Promise(resolve => setTimeout(resolve, 10));
+      await new Promise((resolve) => setTimeout(resolve, 10));
     }
   }
 
@@ -92,7 +92,7 @@ class LazyResolver {
   stats() {
     return {
       cached: this.cache.size,
-      loading: this.loading.size
+      loading: this.loading.size,
     };
   }
 }
@@ -101,7 +101,8 @@ class LazyResolver {
 export const resolver = new LazyResolver();
 
 // Convenience function for quick usage
-export const lazy = (importFn, exportName) => resolver.lazy(importFn, exportName);
+export const lazy = (importFn, exportName) =>
+  resolver.lazy(importFn, exportName);
 
 // Batch creation helper
 export const createLazy = (imports) => resolver.createLazy(imports);

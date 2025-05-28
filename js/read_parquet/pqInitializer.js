@@ -1,19 +1,19 @@
 // local file from unpkg
-import * as pq from "../vendor/parquet-wasm/parquet-wasm_unpkg";
+import * as pq from '../vendor/parquet-wasm/parquet-wasm_unpkg';
 
 let initialized = false;
 
 async function initPq() {
-    if (!initialized) {
-        await pq.default();
-        initialized = true;
-    }
-    return pq;
+  if (!initialized) {
+    await pq.default();
+    initialized = true;
+  }
+  return pq;
 }
 
 export async function getPq() {
-    if (!initialized) {
-        await initPq();
-    }
-    return pq;
+  if (!initialized) {
+    await initPq();
+  }
+  return pq;
 }

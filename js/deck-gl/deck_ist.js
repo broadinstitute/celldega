@@ -1,72 +1,73 @@
+import { Deck } from 'deck.gl';
 
-import { Deck } from 'deck.gl'
-
-import { make_tooltip } from './make_tooltip'
-import { on_view_state_change } from './on_view_state_change'
+import { make_tooltip } from './make_tooltip';
+import { on_view_state_change } from './on_view_state_change';
 
 const getCursor = ({ isDragging }) => {
-    if (isDragging) {
-        return 'grabbing';
-    }
-    return 'pointer';
-}
+  if (isDragging) {
+    return 'grabbing';
+  }
+  return 'pointer';
+};
 
-export const ini_deck = ( root, width, height ) => {
+export const ini_deck = (root, width, height) => {
+  const deck_ist = new Deck({
+    parent: root,
+    controller: { doubleClickZoom: false },
+    getCursor,
+    width,
+    height,
+  });
 
-    const deck_ist = new Deck({
-        parent: root,
-        controller: {doubleClickZoom: false},
-        getCursor,
-        width,
-        height,
-    })
-
-    return deck_ist
-
-}
+  return deck_ist;
+};
 
 export const set_views_prop = (deck_ist, views) => {
-
-    deck_ist.setProps({
-        views
-    })
-
-}
+  deck_ist.setProps({
+    views,
+  });
+};
 
 export const set_get_tooltip = (deck_ist, viz_state) => {
+  deck_ist.setProps({
+    getTooltip: (info) => make_tooltip(viz_state, info),
+  });
+};
 
-        deck_ist.setProps({
-            getTooltip: (info) => make_tooltip(viz_state, info)
-        })
+export const set_deck_on_view_state_change = (
+  deck_ist,
+  layers_obj,
+  viz_state
+) => {
+  deck_ist.setProps({
+    onViewStateChange: (params) => {
+      on_view_state_change(params, deck_ist, layers_obj, viz_state);
+    },
+  });
+};
 
-    }
+export const set_initial_view_state = (
+  deck_ist,
+  ini_x,
+  ini_y,
+  ini_z,
+  ini_zoom,
+  viz_state
+) => {
+  let { center_x, center_y, ini_zoom: initial_zoom } = viz_state.spatial;
 
-export const set_deck_on_view_state_change = (deck_ist, layers_obj, viz_state) => {
+  if (ini_x === 0 && ini_y === 0 && ini_zoom === 0) {
+    ini_x = center_x;
+    ini_y = center_y;
+    ini_zoom = initial_zoom;
+  }
 
-    deck_ist.setProps({
-        onViewStateChange: (params) => {
-            on_view_state_change(params, deck_ist, layers_obj, viz_state)
-        }
-    })
+  const initial_view_state = {
+    target: [ini_x, ini_y, ini_z],
+    zoom: ini_zoom,
+  };
 
-}
-
-
-export const set_initial_view_state = (deck_ist, ini_x, ini_y, ini_z, ini_zoom, viz_state) => {
-
-    if (ini_x === 0 && ini_y === 0 && ini_zoom === 0) {
-        ini_x = viz_state.spatial.center_x
-        ini_y = viz_state.spatial.center_y
-        ini_zoom = viz_state.spatial.ini_zoom
-    }
-
-
-    const initial_view_state = {
-        target: [ini_x, ini_y, ini_z],
-        zoom: ini_zoom
-    }
-
-    deck_ist.setProps({
-        initialViewState: initial_view_state
-    })
-}
+  deck_ist.setProps({
+    initialViewState: initial_view_state,
+  });
+};

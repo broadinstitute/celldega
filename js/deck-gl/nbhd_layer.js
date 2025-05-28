@@ -1,4 +1,3 @@
-
 import * as d3 from 'd3';
 import { GeoJsonLayer } from 'deck.gl';
 
@@ -8,134 +7,136 @@ import { hexToRgb } from '../utils/hexToRgb';
 
 import { deps } from '../temp_utils/deps';
 
-const {
-  update_cell_layer_id,
-  get_layers_list,
-  update_path_layer_id,
-} = deps;
-
+const { update_cell_layer_id, get_layers_list, update_path_layer_id } = deps;
 
 export const ini_nbhd_layer = (viz_state, visible) => {
+  // console.log(viz_state.nbhd.feature_collection)
 
-    // console.log(viz_state.nbhd.feature_collection)
+  const nbhd_layer = new GeoJsonLayer({
+    id: 'nbhd-layer',
+    data: viz_state.nbhd.feature_collection,
+    pickable: true,
+    stroked: false,
+    filled: true,
+    // extruded: false,
+    // getPolygon: d => d.geometry.coordinates,
+    // getFillColor: [255, 0, 0, 100],
+    getLineWidth: 1,
+    // getLineColor: [0, 0, 0, 255],
+    getFillColor: (d) => hexToRgb(d.properties.color),
+    opacity: 0.5,
+    // getElevation: 0,
+    // updateTriggers: {
+    //     getFillColor: viz_state.nbhd.update_trigger,
+    // },
+    visible,
+  });
 
-    const nbhd_layer = new GeoJsonLayer({
-        id: 'nbhd-layer',
-        data: viz_state.nbhd.feature_collection,
-        pickable: true,
-        stroked: false,
-        filled: true,
-        // extruded: false,
-        // getPolygon: d => d.geometry.coordinates,
-        // getFillColor: [255, 0, 0, 100],
-        getLineWidth: 1,
-        // getLineColor: [0, 0, 0, 255],
-        getFillColor: (d) => hexToRgb(d.properties.color),
-        opacity: 0.5,
-        // getElevation: 0,
-        // updateTriggers: {
-        //     getFillColor: viz_state.nbhd.update_trigger,
-        // },
-        visible
+  return nbhd_layer;
+};
 
-    })
+const nbhd_layer_onclick = async (
+  info,
+  _event,
+  deck_ist,
+  layers_obj,
+  viz_state
+) => {
+  const inst_cat = info.object.properties.cat;
 
-    return nbhd_layer
+  update_cat(viz_state.cats, 'cluster');
+  update_selected_cats(viz_state.cats, [inst_cat]);
+  update_selected_genes(viz_state.genes, []);
 
-}
+  const inst_cat_name = viz_state.cats.selected_cats.join('-');
 
-const nbhd_layer_onclick = async (info, _event, deck_ist, layers_obj, viz_state) => {
+  // reset gene
+  viz_state.genes.svg_bar_gene
+    .selectAll('g')
+    .attr('font-weight', 'normal')
+    .attr('opacity', 1.0);
 
-    const inst_cat = info.object.properties.cat
+  viz_state.cats.svg_bar_cluster
+    .selectAll('g')
+    .attr('font-weight', 'normal')
+    .attr('opacity', viz_state.cats.reset_cat ? 1.0 : 0.25);
 
-    update_cat(viz_state.cats, 'cluster')
-    update_selected_cats(viz_state.cats, [inst_cat])
-    update_selected_genes(viz_state.genes, [])
+  if (!viz_state.cats.reset_cat) {
+    const selectedBar = viz_state.cats.svg_bar_cluster
+      .selectAll('g')
+      .filter(function () {
+        return d3.select(this).select('text').text() === inst_cat;
+      })
+      .attr('opacity', 1.0);
 
-    const inst_cat_name = viz_state.cats.selected_cats.join('-')
+    if (!selectedBar.empty()) {
+      const barPosition = selectedBar.node().getBoundingClientRect().top;
+      const containerPosition =
+        viz_state.containers.bar_cluster.getBoundingClientRect().top;
+      const scrollPosition =
+        barPosition -
+        containerPosition +
+        viz_state.containers.bar_cluster.scrollTop;
 
-    // reset gene
-    viz_state.genes.svg_bar_gene
-        .selectAll("g")
-        .attr('font-weight', 'normal')
-        .attr('opacity', 1.0)
-
-    viz_state.cats.svg_bar_cluster.selectAll("g")
-        .attr('font-weight', 'normal')
-        .attr('opacity', viz_state.cats.reset_cat ? 1.0 : 0.25)
-
-    if (!viz_state.cats.reset_cat) {
-        const selectedBar = viz_state.cats.svg_bar_cluster.selectAll("g")
-            .filter(function() {
-                return d3.select(this).select("text").text() === inst_cat
-            })
-            .attr('opacity', 1.0)
-
-        if (!selectedBar.empty()) {
-            const barPosition = selectedBar.node().getBoundingClientRect().top
-            const containerPosition = viz_state.containers.bar_cluster.getBoundingClientRect().top
-            const scrollPosition = barPosition - containerPosition + viz_state.containers.bar_cluster.scrollTop
-
-            viz_state.containers.bar_cluster.scrollTo({
-                top: scrollPosition,
-                behavior: 'smooth'
-            })
-        }
-    } else {
-        viz_state.containers.bar_cluster.scrollTo({
-            top: 0,
-            behavior: 'smooth'
-        })
+      viz_state.containers.bar_cluster.scrollTo({
+        top: scrollPosition,
+        behavior: 'smooth',
+      });
     }
+  } else {
+    viz_state.containers.bar_cluster.scrollTo({
+      top: 0,
+      behavior: 'smooth',
+    });
+  }
 
-    await update_cell_layer_id(layers_obj, inst_cat_name)
-    await update_path_layer_id(layers_obj, inst_cat_name)
+  await update_cell_layer_id(layers_obj, inst_cat_name);
+  await update_path_layer_id(layers_obj, inst_cat_name);
 
-    // update data for nbhd layer
+  // update data for nbhd layer
 
-    await filter_cat_nbhd_feature_collection(viz_state)
-    await update_nbhd_layer_data(viz_state, layers_obj)
+  await filter_cat_nbhd_feature_collection(viz_state);
+  await update_nbhd_layer_data(viz_state, layers_obj);
 
-    const layers_list = await get_layers_list(layers_obj, viz_state.close_up)
-    deck_ist.setProps({layers: layers_list})
+  const layers_list = await get_layers_list(layers_obj, viz_state.close_up);
+  deck_ist.setProps({ layers: layers_list });
 
-    // viz_state.genes.gene_search_input.value = ''
-
-}
+  // viz_state.genes.gene_search_input.value = ''
+};
 
 export const set_nbhd_layer_onclick = (deck_ist, layers_obj, viz_state) => {
-    layers_obj.nbhd_layer = layers_obj.nbhd_layer.clone({
-        onClick: (info, event) => nbhd_layer_onclick(info, event, deck_ist, layers_obj, viz_state)
-    })
-}
+  layers_obj.nbhd_layer = layers_obj.nbhd_layer.clone({
+    onClick: (info, event) =>
+      nbhd_layer_onclick(info, event, deck_ist, layers_obj, viz_state),
+  });
+};
 
 export const filter_cat_nbhd_feature_collection = (viz_state) => {
+  let filt_features;
 
-    let filt_features
-
-    if (viz_state.cats.selected_cats.length === 0) {
-        filt_features = viz_state.nbhd.ini_feature_collection.features
-                            .filter(d => d.properties.inv_alpha === viz_state.nbhd.inst_alpha)
-    } else {
-        filt_features = viz_state.nbhd.ini_feature_collection.features
-                            .filter(d => viz_state.cats.selected_cats.includes(d.properties.cat))
-                            .filter(d => d.properties.inv_alpha === viz_state.nbhd.inst_alpha)
-    }
-    viz_state.nbhd.feature_collection = {
-        "type": "FeatureCollection",
-        "features": filt_features
-    }
-
-}
+  if (viz_state.cats.selected_cats.length === 0) {
+    filt_features = viz_state.nbhd.ini_feature_collection.features.filter(
+      (d) => d.properties.inv_alpha === viz_state.nbhd.inst_alpha
+    );
+  } else {
+    filt_features = viz_state.nbhd.ini_feature_collection.features
+      .filter((d) => viz_state.cats.selected_cats.includes(d.properties.cat))
+      .filter((d) => d.properties.inv_alpha === viz_state.nbhd.inst_alpha);
+  }
+  viz_state.nbhd.feature_collection = {
+    type: 'FeatureCollection',
+    features: filt_features,
+  };
+};
 
 export const update_nbhd_layer_data = (viz_state, layers_obj) => {
-    layers_obj.nbhd_layer = layers_obj.nbhd_layer.clone({
-        data: viz_state.nbhd.feature_collection
-    })
-}
+  layers_obj.nbhd_layer = layers_obj.nbhd_layer.clone({
+    data: viz_state.nbhd.feature_collection,
+  });
+};
 
 export const toggle_nbhd_layer_visibility = (layers_obj, visible) => {
-    layers_obj.nbhd_layer = layers_obj.nbhd_layer.clone({
-        visible
-    })
-}
+  layers_obj.nbhd_layer = layers_obj.nbhd_layer.clone({
+    visible,
+  });
+};

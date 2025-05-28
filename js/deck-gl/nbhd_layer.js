@@ -18,17 +18,9 @@ export const ini_nbhd_layer = (viz_state, visible) => {
     pickable: true,
     stroked: false,
     filled: true,
-    // extruded: false,
-    // getPolygon: d => d.geometry.coordinates,
-    // getFillColor: [255, 0, 0, 100],
     getLineWidth: 1,
-    // getLineColor: [0, 0, 0, 255],
     getFillColor: (d) => hexToRgb(d.properties.color),
     opacity: 0.5,
-    // getElevation: 0,
-    // updateTriggers: {
-    //     getFillColor: viz_state.nbhd.update_trigger,
-    // },
     visible,
   });
 

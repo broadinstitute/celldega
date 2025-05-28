@@ -1,3 +1,5 @@
+import { handleAsyncError } from '../temp_utils/errorHandler';
+
 export const get_scatter_data = (arrow_table) => {
   try {
     const flatCoordinateArray = arrow_table
@@ -11,8 +13,6 @@ export const get_scatter_data = (arrow_table) => {
         return combined;
       }, new Float64Array(0));
 
-    // console.log(flatCoordinateArray/2)
-
     const scatter_data = {
       length: arrow_table.numRows,
       attributes: {
@@ -21,8 +21,12 @@ export const get_scatter_data = (arrow_table) => {
     };
 
     return scatter_data;
-  } catch (error) {
-    // console.error("Error loading data:", error);
+  } catch (_error) {
+    handleAsyncError(_error, {
+      context: 'processing scatter data from arrow table',
+      logUnexpected: true,
+      throwOnAuth: false,
+    });
     return [];
   }
 };

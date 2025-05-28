@@ -1,4 +1,3 @@
-
 import { DrawPolygonMode, ViewMode } from '@deck.gl-community/editable-layers';
 import * as d3 from 'd3';
 
@@ -697,7 +696,7 @@ export const make_ist_ui_container = (
     sync_region_to_model(viz_state);
   };
 
-  const bar_callback_nbhd = (info) => {
+  const bar_callback_nbhd = (_info) => {
     // console.log('clicking nbhd bar', info)
   };
 
@@ -857,16 +856,6 @@ export const make_ist_ui_container = (
     }
   };
 
-  // parse the values in the viz_state.nbhd.ini_feature_collection and get the possible
-  // inv_alpha levels
-  // console.log('parsing nbhd alpha thresholds')
-  // console.log(viz_state.nbhd.ini_feature_collection)
-
-  // // Assuming your feature collection is stored in `featureCollection`
-  // const inv_alpha_values = viz_state.nbhd.ini_feature_collection.features
-  //     .map(feature => feature.properties.inv_alpha) // Extract the `inv_alpha` property
-  //     .sort((a, b) => a - b); // Sort the values in ascending order
-
   // Assuming your feature collection is stored in `viz_state.nbhd.ini_feature_collection`
   const _inv_alpha_values = Array.from(
     new Set(
@@ -892,10 +881,6 @@ export const make_ist_ui_container = (
 
   rgn_ctrl_container.appendChild(alph_slider_container);
   alph_slider_container.appendChild(viz_state.sliders.alph);
-
-  // // initially do not display the RGN button
-  // d3.select(viz_state.edit.buttons.rgn)
-  //     .style('display', 'none')
 
   // initially hide the DEL delete button
   d3.select(viz_state.edit.buttons.del)
@@ -923,33 +908,6 @@ export const make_ist_ui_container = (
     viz_state
   );
 
-  // ctrl_container.append(viz_state.containers.bar_rgn)
-
-  // viz_state.edit.buttons.rgn.style.color = 'red'
-
-  // // if dataset_name is not an empty string make the name container
-  // if (dataset_name.trim !== ''){
-
-  //     let name_container = document.createElement("div")
-
-  //     d3.select(name_container)
-  //         .classed('name_container', true)
-  //         // .style('width', '100px')
-  //         .style('text-align', 'left')
-  //         .style('cursor', 'pointer')
-  //         .style('font-size', '22px')
-  //         .style('font-weight', 'bold')
-  //         .style('color', '#222222')
-  //         .style('margin-top', '0px')
-  //         .style('margin-left', '15px')
-  //         .style('margin-right', '5px')
-  //         .style('user-select', 'none')
-  //         .text(dataset_name.toUpperCase())
-
-  //     ui_container.appendChild(name_container)
-
-  // }
-
   // === Add logo to top right === //
   const logo_button = document.createElement('div');
   logo_button.className = 'logo_button';
@@ -959,10 +917,7 @@ export const make_ist_ui_container = (
 
   // Create <img> element
   const logo_img = document.createElement('img');
-  // logo_img.src = "assets/img/Celldega_LOGO_Full Color_Transparent_Logo Mark.png"
   logo_img.src = `data:image/png;base64,${logo}`;
-  // logo_img.src = new URL("assets/img/Celldega_LOGO_Full Color_Transparent_Logo Mark.png", import.meta.url).href
-
   logo_img.alt = 'Celldega logo';
   logo_img.style.height = '17px';
   logo_img.style.transition = 'transform 0.2s ease, filter 0.2s ease';

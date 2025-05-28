@@ -7,6 +7,7 @@ import { update_trx_layer_id } from '../deck-gl/trx_layer';
 import { update_cat, update_selected_cats } from '../global_variables/cat';
 import { update_cell_exp_array } from '../global_variables/cell_exp_array';
 import { update_selected_genes } from '../global_variables/selected_genes';
+import { handleAsyncError } from '../temp_utils/errorHandler';
 import { update_gene_text_box } from '../ui/gene_search';
 import { toggle_image_layers_and_ctrls } from '../ui/ui_containers';
 
@@ -206,7 +207,11 @@ export const update_ist_landscape_from_cgm = async (
       update_cat(viz_state.cats, inst_gene);
       update_selected_cats(viz_state.cats, click_info.click_value);
     }
-  } catch (error) {
-    // console.error(error)
+  } catch (_error) {
+    handleAsyncError(_error, {
+      context: 'updating IST landscape from CGM',
+      logUnexpected: true,
+      throwOnAuth: false,
+    });
   }
 };

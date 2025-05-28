@@ -1,3 +1,5 @@
+import { handleAsyncError } from '../temp_utils/errorHandler';
+
 import { arrayBufferToArrowTable } from './arrayBufferToArrowTable';
 
 export const get_arrow_table = async (url, fetch_options, aws) => {
@@ -8,8 +10,13 @@ export const get_arrow_table = async (url, fetch_options, aws) => {
     const arrayBuffer = await response.arrayBuffer();
     const arrowTable = arrayBufferToArrowTable(arrayBuffer);
     return arrowTable;
-  } catch (error) {
-    // console.error("Error loading data:", error);
+  } catch (_error) {
+    handleAsyncError(_error, {
+      context: 'loading arrow table data',
+      url,
+      logUnexpected: true,
+      throwOnAuth: false,
+    });
     return [];
   }
 };

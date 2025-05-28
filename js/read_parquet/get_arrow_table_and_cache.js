@@ -1,3 +1,5 @@
+import { handleAsyncError } from '../temp_utils/errorHandler';
+
 import { arrayBufferToArrowTable } from './arrayBufferToArrowTable';
 
 export const get_arrow_table_and_cache_new = async (
@@ -22,8 +24,13 @@ export const get_arrow_table_and_cache_new = async (
       const arrayBuffer = await response.arrayBuffer();
       data = arrayBufferToArrowTable(arrayBuffer);
       cache.set(url, data);
-    } catch (error) {
-      // console.error(`Error fetching or parsing Arrow data from ${url}:`, error);
+    } catch (_error) {
+      handleAsyncError(_error, {
+        context: `fetching or parsing Arrow data from ${url}`,
+        url,
+        logUnexpected: true,
+        throwOnAuth: false,
+      });
       data = null;
     }
   }

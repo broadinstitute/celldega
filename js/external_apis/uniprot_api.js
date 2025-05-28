@@ -1,8 +1,13 @@
+import { handleAsyncError } from '../temp_utils/errorHandler';
+
 export const uniprot_data = {};
 
 export const uniprot_get_request = async (gene_symbol) => {
   if (!(gene_symbol in uniprot_data)) {
-    let gene_data;
+    let gene_data = {
+      name: '',
+      description: 'Unable to obtain UniProt description.',
+    };
 
     const organism = 'human';
     const num_matches = 100;
@@ -15,21 +20,16 @@ export const uniprot_get_request = async (gene_symbol) => {
         },
       });
 
-      const data = await response.json(); // get response as JSON
+      const data = await response.json();
 
       const real_protein = data
-        // has evidence at protein level
         .filter((d) => d.proteinExistence === 'Evidence at protein level')
-        // has a comments section
         .filter((d) => 'comments' in d)
-        // has gene
         .filter((d) => 'gene' in d)
-        // matches gene name in first entry (lowercase string)
         .filter(
           (d) =>
             d.gene[0].name.value.toLowerCase() === gene_symbol.toLowerCase()
         )
-        // has a rank by the number of comments
         .sort((a, b) => b.comments.length - a.comments.length);
 
       if (real_protein.length > 0) {
@@ -40,39 +40,33 @@ export const uniprot_get_request = async (gene_symbol) => {
           const response_info = await fetch(base_url_info);
           const data_info = await response_info.json();
 
-          try {
-            const full_name =
-              data_info.proteinDescription.recommendedName.fullName.value;
-            const description =
-              data_info.comments?.[0]?.texts?.[0]?.value ||
-              'Unable to obtain UniProt description.';
+          const full_name =
+            data_info.proteinDescription?.recommendedName?.fullName?.value ||
+            '';
+          const description =
+            data_info.comments?.[0]?.texts?.[0]?.value ||
+            'Unable to obtain UniProt description.';
 
-            gene_data = {
-              name: full_name,
-              description,
-            };
-          } catch (error) {
-            gene_data = {
-              name: '',
-              description: 'Unable to obtain UniProt description.',
-            };
-            // console.log(error)
-          }
-        } catch (error) {
           gene_data = {
-            name: '',
-            description: 'Unable to obtain UniProt description.',
+            name: full_name,
+            description,
           };
-          // console.log(error)
+        } catch (_error) {
+          handleAsyncError(_error, {
+            context: `fetching detailed info for ${gene_symbol}`,
+            url: base_url_info,
+            logUnexpected: true,
+            throwOnAuth: false,
+          });
         }
       }
-    } catch (error) {
-      gene_data = {
-        name: '',
-        description: 'Unable to obtain UniProt description.',
-      };
-
-      // console.log(error)
+    } catch (_error) {
+      handleAsyncError(_error, {
+        context: `searching for gene ${gene_symbol}`,
+        url: url_accession,
+        logUnexpected: true,
+        throwOnAuth: false,
+      });
     }
 
     uniprot_data[gene_symbol] = gene_data;

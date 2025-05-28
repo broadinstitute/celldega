@@ -13,8 +13,6 @@ import { toggle_trx_layer_visibility } from '../deck-gl/trx_layer'
 
 import { toggle_slider } from './sliders'
 
-
-
 let is_visible
 
 let img_layer_visible = true
@@ -57,7 +55,7 @@ const reorder_button_callback = (event, axis, deck_mat, layers_mat, viz_state) =
         current.classed('active', true)
 
         d3.select(viz_state.el)
-          .selectAll(`.button-${  axis}`)
+          .selectAll(`.button-${axis}`)
           .classed('active', false)
           .style('border-color', viz_state.buttons.gray)
 
@@ -101,7 +99,7 @@ const reorder_button_callback = (event, axis, deck_mat, layers_mat, viz_state) =
 
 export const make_reorder_button = (container, text, active, width=40, axis, deck_mat, layers_mat, viz_state) => {
 
-    const button_class = `button-${  axis}`
+    const button_class = `button-${axis}`
 
 
     let color
@@ -119,7 +117,7 @@ export const make_reorder_button = (container, text, active, width=40, axis, dec
         .classed(button_class, true)
         .classed('active', active)
         .text(text)
-        .style('width', `${width  }px`)
+        .style('width', `${width}px`)
         .style('height', '20px')  // Adjust height for button padding
         .style('display', 'inline-flex')
         .style('align-items', 'center')
@@ -140,119 +138,6 @@ export const make_reorder_button = (container, text, active, width=40, axis, dec
         .on('click', (event) => reorder_button_callback(event, axis, deck_mat, layers_mat, viz_state))
 
 
-}
-
-export const make_button = (container, technology, text, color='blue', width=40, button_class='button', inst_deck, layers_obj, viz_state) => {
-
-    let callback
-
-    // define callback - can be cleaned up to enforce common arguments
-
-    if (text === 'IMG') {
-        if (technology === 'sst'){
-            callback = (event) => sst_img_button_callback(event, inst_deck, layers_obj)
-
-            // console.log('here!!!!!!!!!!')
-        } else {
-            callback = (event) => ist_img_button_callback(event, inst_deck, layers_obj, viz_state)
-        }
-    } else if (text === 'TILE') {
-        callback = (event) => tile_button_callback(event, inst_deck, layers_obj, viz_state)
-    } else if (text === 'TRX'){
-        callback = (event) => trx_button_callback_ist(event, inst_deck, layers_obj, viz_state)
-    } else if (text === 'CELL'){
-        callback = (event) => cell_button_callback(event, inst_deck, layers_obj, viz_state)
-    } else if (text === 'UMAP') {
-        callback = (event) => umap_button_callback(event, inst_deck, layers_obj, viz_state)
-
-    } else if (text === 'SPATIAL') {
-        callback = (event) => spatial_button_callback(event, inst_deck, layers_obj, viz_state)
-    } else {
-        callback = make_ist_img_layer_button_callback(text, inst_deck, layers_obj, viz_state)
-    }
-
-    const inst_button = d3.select(container)
-        .append('div')
-        .attr('class', button_class)
-        .text(text)
-        .style('width', `${width  }px`)
-        .style('text-align', 'left')
-        .style('cursor', 'pointer')
-        .style('font-size', '12px')
-        .style('font-weight', 'bold')
-        .style('color', color)
-        .style('margin-top', '5px')
-        .style('margin-left', '5px')
-        .style('user-select', 'none')
-        .style('font-family', '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif;')
-        .on('click', callback)
-
-    const button_name = text.toLowerCase()
-    viz_state.buttons.buttons[button_name] = inst_button
-
-}
-
-export const make_edit_button = (deck_ist, layers_obj, viz_state, container, text, width, edit_button_callback) => {
-
-    const button_class = 'edit_button'
-
-    const active = false
-
-    // make text all caps
-    text = text.toUpperCase()
-
-    const inst_button = d3.select(container)
-        .append('div')
-        .classed(button_class, true)
-        .classed('active', active)
-        .text(text)
-        .style('width', `${width  }px`)
-        .style('height', '20px')  // Adjust height for button padding
-        .style('display', 'inline-flex')
-        .style('align-items', 'center')
-        .style('justify-content', 'center')
-        .style('text-align', 'center')
-        .style('cursor', 'pointer')
-        .style('font-size', '12px')
-        .style('font-weight', 'bold')
-        .style('color', 'gray')
-        // .style('border', '3px solid')  // Light gray border
-        // .style('border-color', color)  // Light gray border
-        // .style('border-radius', '12px')  // Rounded corners
-        // .style('margin-top', '5px')
-        .style('margin-left', '3px')
-        // .style('padding', '4px 10px')  // Padding inside the button
-        .style('user-select', 'none')
-        .style('font-family', '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif')
-        .on('click', (event) => edit_button_callback(event, deck_ist, layers_obj, viz_state))
-        .node()
-
-    const button_name = text.toLowerCase()
-    viz_state.edit.buttons[button_name] = inst_button
-
-}
-
-
-const make_ist_img_layer_button_callback = (text, deck_ist, layers_obj, viz_state) => {
-
-    return async (event) => {
-
-        if (img_layer_visible){
-
-            toggle_visible_button(event)
-
-            toggle_visibility_single_image_layer(layers_obj, text, is_visible)
-
-            const inst_slider = viz_state.img.image_layer_sliders.filter(slider => slider.name === text)[0]
-
-            toggle_slider(inst_slider, is_visible)
-
-            const layers_list = get_layers_list(layers_obj, viz_state.close_up)
-            deck_ist.setProps({layers: layers_list})
-
-        }
-
-    }
 }
 
 const sst_img_button_callback = async (event, deck_sst, layers_sst) => {
@@ -284,6 +169,18 @@ const ist_img_button_callback = async (event, deck_ist, layers_obj, viz_state) =
 
 }
 
+const tile_button_callback = async (event, deck_sst, layers_sst, viz_state) => {
+
+    toggle_visible_button(event)
+
+    toggle_slider(viz_state.sliders.tile, is_visible)
+
+    square_scatter_layer_visibility(layers_sst, is_visible)
+
+    deck_sst.setProps({layers: [layers_sst.simple_image_layer, layers_sst.square_scatter_layer]})
+
+}
+
 const trx_button_callback_ist = async (event, deck_ist, layers_obj, viz_state) => {
 
     toggle_visible_button(event)
@@ -294,18 +191,6 @@ const trx_button_callback_ist = async (event, deck_ist, layers_obj, viz_state) =
 
     const layers_list = get_layers_list(layers_obj, viz_state.close_up)
     deck_ist.setProps({layers: layers_list})
-
-}
-
-const tile_button_callback = async (event, deck_sst, layers_sst, viz_state) => {
-
-    toggle_visible_button(event)
-
-    toggle_slider(viz_state.sliders.tile, is_visible)
-
-    square_scatter_layer_visibility(layers_sst, is_visible)
-
-    deck_sst.setProps({layers: [layers_sst.simple_image_layer, layers_sst.square_scatter_layer]})
 
 }
 
@@ -362,5 +247,117 @@ const spatial_button_callback = async (event, deck_ist, layers_obj, viz_state) =
         deck_ist.setProps({layers: layers_list})
 
     }, 3000)
+
+}
+
+const make_ist_img_layer_button_callback = (text, deck_ist, layers_obj, viz_state) => {
+
+    return async (event) => {
+
+        if (img_layer_visible){
+
+            toggle_visible_button(event)
+
+            toggle_visibility_single_image_layer(layers_obj, text, is_visible)
+
+            const inst_slider = viz_state.img.image_layer_sliders.filter(slider => slider.name === text)[0]
+
+            toggle_slider(inst_slider, is_visible)
+
+            const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+            deck_ist.setProps({layers: layers_list})
+
+        }
+
+    }
+}
+
+export const make_button = (container, technology, text, color='blue', width=40, button_class='button', inst_deck, layers_obj, viz_state) => {
+
+    let callback
+
+    // define callback - can be cleaned up to enforce common arguments
+
+    if (text === 'IMG') {
+        if (technology === 'sst'){
+            callback = (event) => sst_img_button_callback(event, inst_deck, layers_obj)
+
+            // console.log('here!!!!!!!!!!')
+        } else {
+            callback = (event) => ist_img_button_callback(event, inst_deck, layers_obj, viz_state)
+        }
+    } else if (text === 'TILE') {
+        callback = (event) => tile_button_callback(event, inst_deck, layers_obj, viz_state)
+    } else if (text === 'TRX'){
+        callback = (event) => trx_button_callback_ist(event, inst_deck, layers_obj, viz_state)
+    } else if (text === 'CELL'){
+        callback = (event) => cell_button_callback(event, inst_deck, layers_obj, viz_state)
+    } else if (text === 'UMAP') {
+        callback = (event) => umap_button_callback(event, inst_deck, layers_obj, viz_state)
+
+    } else if (text === 'SPATIAL') {
+        callback = (event) => spatial_button_callback(event, inst_deck, layers_obj, viz_state)
+    } else {
+        callback = make_ist_img_layer_button_callback(text, inst_deck, layers_obj, viz_state)
+    }
+
+    const inst_button = d3.select(container)
+        .append('div')
+        .attr('class', button_class)
+        .text(text)
+        .style('width', `${width}px`)
+        .style('text-align', 'left')
+        .style('cursor', 'pointer')
+        .style('font-size', '12px')
+        .style('font-weight', 'bold')
+        .style('color', color)
+        .style('margin-top', '5px')
+        .style('margin-left', '5px')
+        .style('user-select', 'none')
+        .style('font-family', '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif;')
+        .on('click', callback)
+
+    const button_name = text.toLowerCase()
+    viz_state.buttons.buttons[button_name] = inst_button
+
+}
+
+export const make_edit_button = (deck_ist, layers_obj, viz_state, container, text, width, edit_button_callback) => {
+
+    const button_class = 'edit_button'
+
+    const active = false
+
+    // make text all caps
+    text = text.toUpperCase()
+
+    const inst_button = d3.select(container)
+        .append('div')
+        .classed(button_class, true)
+        .classed('active', active)
+        .text(text)
+        .style('width', `${width}px`)
+        .style('height', '20px')  // Adjust height for button padding
+        .style('display', 'inline-flex')
+        .style('align-items', 'center')
+        .style('justify-content', 'center')
+        .style('text-align', 'center')
+        .style('cursor', 'pointer')
+        .style('font-size', '12px')
+        .style('font-weight', 'bold')
+        .style('color', 'gray')
+        // .style('border', '3px solid')  // Light gray border
+        // .style('border-color', color)  // Light gray border
+        // .style('border-radius', '12px')  // Rounded corners
+        // .style('margin-top', '5px')
+        .style('margin-left', '3px')
+        // .style('padding', '4px 10px')  // Padding inside the button
+        .style('user-select', 'none')
+        .style('font-family', '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif')
+        .on('click', (event) => edit_button_callback(event, deck_ist, layers_obj, viz_state))
+        .node()
+
+    const button_name = text.toLowerCase()
+    viz_state.edit.buttons[button_name] = inst_button
 
 }

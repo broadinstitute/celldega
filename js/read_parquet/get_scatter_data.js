@@ -21,7 +21,7 @@ export const get_scatter_data = (arrow_table) => {
 
         return scatter_data
     } catch (error) {
-        console.error("Error loading data:", error);
+        // console.error("Error loading data:", error);
         return [];
     }
 };

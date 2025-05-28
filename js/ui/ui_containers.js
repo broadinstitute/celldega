@@ -1,4 +1,9 @@
 import { get_mat_layers_list } from '../deck-gl/matrix/matrix_layers'
+import { get_layers_list } from '../deck-gl/layers_ist'
+import { update_dendro_layer_data } from '../deck-gl/matrix/dendro_layers'
+import { toggle_background_layer_visibility } from '../deck-gl/background_layer'
+import { toggle_visibility_image_layers } from '../deck-gl/image_layers'
+
 import { DrawPolygonMode, ViewMode} from '@deck.gl-community/editable-layers'
 import * as d3 from 'd3'
 import { update_edit_layer_mode, update_edit_visitility, calc_and_update_rgn_bar_graph, sync_region_to_model } from '../deck-gl/edit_layer'
@@ -6,10 +11,7 @@ import { update_cell_pickable_state } from '../deck-gl/cell_layer'
 import { toggle_trx_layer_visibility, update_trx_pickable_state } from '../deck-gl/trx_layer'
 import { update_path_pickable_state } from '../deck-gl/path_layer'
 import { filter_cat_nbhd_feature_collection, toggle_nbhd_layer_visibility, update_nbhd_layer_data } from '../deck-gl/nbhd_layer'
-import { toggle_background_layer_visibility } from '../deck-gl/background_layer'
-import { toggle_visibility_image_layers } from '../deck-gl/image_layers'
-import { get_layers_list } from '../deck-gl/layers_ist'
-import { update_dendro_layer_data } from '../deck-gl/matrix/dendro_layers'
+
 import { calc_dendro_triangles, calc_dendro_polygons, alt_slice_linkage } from '../matrix/dendro'
 import { debounce } from '../utils/debounce'
 
@@ -18,8 +20,6 @@ import { set_gene_search } from "./gene_search"
 import { logo } from './logo'
 import { make_img_layer_slider_callback, toggle_slider , ini_slider, ini_slider_params } from "./sliders"
 import { make_button, make_edit_button, make_reorder_button } from "./text_buttons"
-
-const broad_blue = '#006DB6'
 
 export const toggle_image_layers_and_ctrls = (layers_obj, viz_state, is_visible) => {
 
@@ -66,7 +66,7 @@ export const flex_container = (class_name, flex_direction, height=null) => {
     container.style.flexDirection = flex_direction
 
     if (height !== null){
-        container.style.height = `${height  }px`
+        container.style.height = `${height}px`
         container.style.overflow = 'scroll'
     }
 
@@ -102,7 +102,7 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
         d3.select(inst_container)
             .append('div')
             .text(axis.toUpperCase())
-            .style('width', `${button_width  }px`)
+            .style('width', `${button_width}px`)
             .style('height', '20px')  // Adjust height for button padding
             .style('display', 'inline-flex')
             .style('align-items', 'center')
@@ -146,9 +146,9 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
     const dendro_slider_callback = (deck_mat, viz_state, axis, event) => {
 
         // Update the dendrogram layer
-        viz_state.dendro.sliders[`${axis  }_value`] = viz_state.dendro.max_linkage_dist[axis] * event.target.value/100
+        viz_state.dendro.sliders[`${axis}_value`] = viz_state.dendro.max_linkage_dist[axis] * event.target.value/100
 
-        alt_slice_linkage(viz_state, axis, viz_state.dendro.sliders[`${axis  }_value`])
+        alt_slice_linkage(viz_state, axis, viz_state.dendro.sliders[`${axis}_value`])
         calc_dendro_triangles(viz_state, axis);
         calc_dendro_polygons(viz_state, axis);
         update_dendro_layer_data(layers_mat, viz_state, axis)
@@ -171,7 +171,7 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
     d3.select(slider_container)
         .append('div')
         .text('DENDRO')
-        .style('width', `${button_width  }px`)
+        .style('width', `${button_width}px`)
         .style('height', '20px')  // Adjust height for button padding
         .style('display', 'inline-flex')
         .style('align-items', 'center')
@@ -573,13 +573,13 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
     }
 
     const bar_callback_nbhd = (info) => {
-        console.log('clicking nbhd bar', info)
+        // console.log('clicking nbhd bar', info)
     }
 
     const alph_callback = (event, deck_ist, layers_obj, viz_state) => {
 
         // toggle color of the alpha txt button
-        const current = d3.select(event.currentTarget)
+        const _current = d3.select(event.currentTarget)
 
         if (viz_state.nbhd.visible === true){
             viz_state.nbhd.visible = false
@@ -626,7 +626,7 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
             value: feature.properties.area // Use the "area" property for the bar height
         }))
 
-        console.log(viz_state.nbhd.color_dict_nbhd)
+        // console.log(viz_state.nbhd.color_dict_nbhd)
 
         update_bar_graph(
             viz_state.edit.svg_bar_rgn,
@@ -665,30 +665,30 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
     //     console.log('slider', event.target.value/100)
     // }
 
-    const alph_slider_callback = (event, deck_ist, layers_obj, viz_state) => {
+    const alph_slider_callback = (event, _deck_ist, _layers_obj, _viz_state) => {
         const sliderValue = event.target.value / 100; // Normalize slider value to [0, 1]
-        const inv_alpha_values = Array.from(
+        const _inv_alpha_values = Array.from(
             new Set(
-                viz_state.nbhd.ini_feature_collection.features
+                _viz_state.nbhd.ini_feature_collection.features
                     .map(feature => feature.properties.inv_alpha)
             )
         ).sort((a, b) => a - b);
 
         // Map slider value [0, 1] to the range of `inv_alpha_values`
-        const mappedValue = inv_alpha_values[
-            Math.round(sliderValue * (inv_alpha_values.length - 1))
+        const mappedValue = _inv_alpha_values[
+            Math.round(sliderValue * (_inv_alpha_values.length - 1))
         ];
 
 
 
-        if (mappedValue !== viz_state.nbhd.inst_alpha){
+        if (mappedValue !== _viz_state.nbhd.inst_alpha){
             // console.log('Mapped inv_alpha:', mappedValue);
-            viz_state.nbhd.inst_alpha = mappedValue
+            _viz_state.nbhd.inst_alpha = mappedValue
 
-            filter_cat_nbhd_feature_collection(viz_state)
-            update_nbhd_layer_data(viz_state, layers_obj)
-            const layers_list = get_layers_list(layers_obj, viz_state.close_up)
-            deck_ist.setProps({layers: layers_list})
+            filter_cat_nbhd_feature_collection(_viz_state)
+            update_nbhd_layer_data(_viz_state, _layers_obj)
+            const layers_list = get_layers_list(_layers_obj, _viz_state.close_up)
+            _deck_ist.setProps({layers: layers_list})
         }
 
     };
@@ -705,7 +705,7 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
     //     .sort((a, b) => a - b); // Sort the values in ascending order
 
     // Assuming your feature collection is stored in `viz_state.nbhd.ini_feature_collection`
-    const inv_alpha_values = Array.from(
+    const _inv_alpha_values = Array.from(
         new Set(
             viz_state.nbhd.ini_feature_collection.features
                 .map(feature => feature.properties.inv_alpha) // Extract the `inv_alpha` property
@@ -814,4 +814,3 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
     return ui_container
 
 }
-

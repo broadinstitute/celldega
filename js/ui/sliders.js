@@ -1,20 +1,13 @@
-// REMOVED CIRCULAR IMPORTS – old direct imports left for reference
-// import { update_cell_layer_radius } from '../deck-gl/cell_layer';
-// import { get_layers_list }          from '../deck-gl/layers_ist';
-// import { update_trx_layer_radius }  from '../deck-gl/trx_layer';
+import { update_opacity_single_image_layer } from '../deck-gl/image_layers';
+import { square_scatter_layer_opacity }      from '../deck-gl/square_scatter_layer';
 
-// USE DEPS INSTEAD OF DIRECT IMPORTS
 import { deps } from '../temp_utils/deps';
 
 const {
   update_cell_layer_radius,
   get_layers_list,
-  update_trx_layer_radius
+  update_trx_layer_radius,
 } = deps;
-
-import { update_opacity_single_image_layer } from '../deck-gl/image_layers';
-import { square_scatter_layer_opacity }      from '../deck-gl/square_scatter_layer';
-
 
 export const make_slider = () => {
     return  document.createElement("input")
@@ -109,7 +102,7 @@ export const ini_slider = (slider_type, inst_deck, layers_obj, viz_state) => {
             break
 
         default:
-            console.log('no match', slider_type)
+            // console.log('no match', slider_type)
     }
 
     ini_slider_params(slider, ini_value, callback)

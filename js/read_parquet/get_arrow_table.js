@@ -10,7 +10,7 @@ export const get_arrow_table = async (url, fetch_options, aws) => {
         const arrowTable = arrayBufferToArrowTable(arrayBuffer);
         return arrowTable;
     } catch (error) {
-        console.error("Error loading data:", error);
+        // console.error("Error loading data:", error);
         return [];
     }
 };

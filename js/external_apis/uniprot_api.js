@@ -1,4 +1,3 @@
-
 export const uniprot_data = {}
 
 export const uniprot_get_request = async (gene_symbol) => {
@@ -55,7 +54,7 @@ export const uniprot_get_request = async (gene_symbol) => {
                             name: '',
                             description: 'Unable to obtain UniProt description.'
                         }
-                        console.log(error)
+                        // console.log(error)
 
                     }
 
@@ -64,7 +63,7 @@ export const uniprot_get_request = async (gene_symbol) => {
                         name: '',
                         description: 'Unable to obtain UniProt description.'
                     }
-                    console.log(error)
+                    // console.log(error)
 
                 }
 
@@ -77,7 +76,7 @@ export const uniprot_get_request = async (gene_symbol) => {
                 description: 'Unable to obtain UniProt description.'
             }
 
-            console.log(error)
+            // console.log(error)
 
         }
 
@@ -85,4 +84,3 @@ export const uniprot_get_request = async (gene_symbol) => {
     }
 
 }
-

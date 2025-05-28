@@ -12,9 +12,9 @@ export const update_cell_exp_array = async (cats, genes, base_url, inst_gene, ve
 
     let file_path;
     if (version === 'default'){
-        file_path = `${base_url  }/cbg/${  inst_gene  }.parquet`;
+        file_path = `${base_url}/cbg/${inst_gene}.parquet`;
     } else {
-        file_path = `${base_url  }/cbg_${  version  }/${  inst_gene  }.parquet`;
+        file_path = `${base_url}/cbg_${version}/${inst_gene}.parquet`;
     }
 
     //var file_path = base_url + '/cbg/' + inst_gene + '.parquet'
@@ -29,7 +29,7 @@ export const update_cell_exp_array = async (cats, genes, base_url, inst_gene, ve
     // Use Sets to track missing names (automatically keeps them unique)
     const missingCellNames1 = new Set(); // For cell_name_to_index_map
     const missingCellNames2 = new Set(); // For nameMapping_inv
-    
+
     cell_names.forEach((name, i) => {
         name = String(name);
         const exp_value = Number(cell_exp[i]);
@@ -53,14 +53,14 @@ export const update_cell_exp_array = async (cats, genes, base_url, inst_gene, ve
 
     // Log missing names (if any) after processing all cells
     if (missingCellNames1.size > 0) {
-        console.log(`Cell names not found in cell_name_to_index_map (${missingCellNames1.size} unique names):`, 
-                    Array.from(missingCellNames1).slice(0, 5), 
-                    missingCellNames1.size > 5 ? '...' : '');
+        // console.log(`Cell names not found in cell_name_to_index_map (${missingCellNames1.size} unique names):`,
+        //             Array.from(missingCellNames1).slice(0, 5),
+        //             missingCellNames1.size > 5 ? '...' : '');
     }
     if (missingCellNames2.size > 0) {
-        console.log(`Cell names not found in cats.nameMapping_inv (${missingCellNames2.size} unique names):`, 
-                    Array.from(missingCellNames2).slice(0, 5), 
-                    missingCellNames2.size > 5 ? '...' : '');
+        // console.log(`Cell names not found in cats.nameMapping_inv (${missingCellNames2.size} unique names):`,
+        //             Array.from(missingCellNames2).slice(0, 5),
+        //             missingCellNames2.size > 5 ? '...' : '');
     }
 
 

@@ -19,7 +19,7 @@ export const get_arrow_table_and_cache_new = async (cache, url, options, aws = n
             data = arrayBufferToArrowTable(arrayBuffer);
             cache.set(url, data);
         } catch (error) {
-            console.error(`Error fetching or parsing Arrow data from ${url}:`, error);
+            // console.error(`Error fetching or parsing Arrow data from ${url}:`, error);
             data = null;
         }
     }

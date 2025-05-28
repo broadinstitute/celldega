@@ -24,8 +24,8 @@ export const get_arrow_table_and_cache_new = async (
       const arrayBuffer = await response.arrayBuffer();
       data = arrayBufferToArrowTable(arrayBuffer);
       cache.set(url, data);
-    } catch (_error) {
-      handleAsyncError(_error, {
+    } catch (error) {
+      handleAsyncError(error, {
         context: `fetching or parsing Arrow data from ${url}`,
         url,
         logUnexpected: true,

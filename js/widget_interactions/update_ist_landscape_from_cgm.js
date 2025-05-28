@@ -207,8 +207,8 @@ export const update_ist_landscape_from_cgm = async (
       update_cat(viz_state.cats, inst_gene);
       update_selected_cats(viz_state.cats, click_info.click_value);
     }
-  } catch (_error) {
-    handleAsyncError(_error, {
+  } catch (error) {
+    handleAsyncError(error, {
       context: 'updating IST landscape from CGM',
       logUnexpected: true,
       throwOnAuth: false,

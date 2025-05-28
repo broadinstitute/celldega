@@ -21,8 +21,8 @@ export const get_scatter_data = (arrow_table) => {
     };
 
     return scatter_data;
-  } catch (_error) {
-    handleAsyncError(_error, {
+  } catch (error) {
+    handleAsyncError(error, {
       context: 'processing scatter data from arrow table',
       logUnexpected: true,
       throwOnAuth: false,

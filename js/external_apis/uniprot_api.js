@@ -51,8 +51,8 @@ export const uniprot_get_request = async (gene_symbol) => {
             name: full_name,
             description,
           };
-        } catch (_error) {
-          handleAsyncError(_error, {
+        } catch (error) {
+          handleAsyncError(error, {
             context: `fetching detailed info for ${gene_symbol}`,
             url: base_url_info,
             logUnexpected: true,
@@ -60,8 +60,8 @@ export const uniprot_get_request = async (gene_symbol) => {
           });
         }
       }
-    } catch (_error) {
-      handleAsyncError(_error, {
+    } catch (error) {
+      handleAsyncError(error, {
         context: `searching for gene ${gene_symbol}`,
         url: url_accession,
         logUnexpected: true,

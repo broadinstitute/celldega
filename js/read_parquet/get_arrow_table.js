@@ -10,8 +10,8 @@ export const get_arrow_table = async (url, fetch_options, aws) => {
     const arrayBuffer = await response.arrayBuffer();
     const arrowTable = arrayBufferToArrowTable(arrayBuffer);
     return arrowTable;
-  } catch (_error) {
-    handleAsyncError(_error, {
+  } catch (error) {
+    handleAsyncError(error, {
       context: 'loading arrow table data',
       url,
       logUnexpected: true,

@@ -1,4 +1,3 @@
-import * as d3 from 'd3'
 
 export const get_tooltip = (viz_state, params) => {
 

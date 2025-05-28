@@ -24,7 +24,7 @@ export const create_get_tile_data = (
             });
             return image;
         } catch (error) {
-            console.error('Failed to load tile:', error);
+            // console.error('Failed to load tile:', error);
             return null;
         }
     };

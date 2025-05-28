@@ -1,17 +1,10 @@
+
 import * as d3 from 'd3';
 import { GeoJsonLayer } from 'deck.gl';
 
 import { update_selected_cats, update_cat } from '../global_variables/cat';
 import { update_selected_genes } from '../global_variables/selected_genes';
-// import { update_gene_text_box } from '../ui/gene_search';
-// import { toggle_image_layers_and_ctrls } from '../ui/ui_containers';
-
 import { hexToRgb } from '../utils/hexToRgb';
-
-// import { update_cell_layer_id } from './cell_layer';
-// import { get_layers_list }        from './layers_ist';
-// import { update_path_layer_id }   from './path_layer';
-// import { update_trx_layer_id }    from './trx_layer';
 
 import { deps } from '../temp_utils/deps';
 
@@ -51,7 +44,7 @@ export const ini_nbhd_layer = (viz_state, visible) => {
 
 }
 
-const nbhd_layer_onclick = async (info, event, deck_ist, layers_obj, viz_state) => {
+const nbhd_layer_onclick = async (info, _event, deck_ist, layers_obj, viz_state) => {
 
     const inst_cat = info.object.properties.cat
 
@@ -95,15 +88,15 @@ const nbhd_layer_onclick = async (info, event, deck_ist, layers_obj, viz_state) 
         })
     }
 
-    update_cell_layer_id(layers_obj, inst_cat_name)
-    update_path_layer_id(layers_obj, inst_cat_name)
+    await update_cell_layer_id(layers_obj, inst_cat_name)
+    await update_path_layer_id(layers_obj, inst_cat_name)
 
     // update data for nbhd layer
 
-    filter_cat_nbhd_feature_collection(viz_state)
-    update_nbhd_layer_data(viz_state, layers_obj)
+    await filter_cat_nbhd_feature_collection(viz_state)
+    await update_nbhd_layer_data(viz_state, layers_obj)
 
-    const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+    const layers_list = await get_layers_list(layers_obj, viz_state.close_up)
     deck_ist.setProps({layers: layers_list})
 
     // viz_state.genes.gene_search_input.value = ''
@@ -136,8 +129,6 @@ export const filter_cat_nbhd_feature_collection = (viz_state) => {
 }
 
 export const update_nbhd_layer_data = (viz_state, layers_obj) => {
-
-    console.log('update_nbhd_layer_data!!')
     layers_obj.nbhd_layer = layers_obj.nbhd_layer.clone({
         data: viz_state.nbhd.feature_collection
     })

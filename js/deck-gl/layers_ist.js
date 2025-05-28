@@ -1,4 +1,4 @@
-export const get_layers_list = (layers_obj, close_up, nbhd=false) => {
+export const get_layers_list = (layers_obj, close_up, _nbhd) => {
 
     let layers_list
 

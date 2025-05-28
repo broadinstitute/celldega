@@ -1,5 +1,3 @@
-import * as d3 from 'd3'
-
 export const make_tooltip = (viz_state, info) => {
 
     if (info.index === -1 || !info.layer) return null;
@@ -23,11 +21,6 @@ export const make_tooltip = (viz_state, info) => {
         inst_cat = viz_state.nbhd.feature_collection.features[info.index].properties.cat
         inst_html = `<div>neighborhood: ${inst_name}</div><div>cluster: ${inst_cat}</div>`
     }
-
-    // d3.selectAll('.deck-tooltip')
-    //   .style('margin-top', '75px')
-
-    // console.log(viz_state.root)
 
     // select the parent element of .deck-tooltip within viz_state.root
     const tooltipContainer = viz_state.root.querySelector('.deck-tooltip');

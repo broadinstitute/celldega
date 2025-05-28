@@ -23,7 +23,7 @@ export const calc_viewport = async ({ height, width, zoom, target }, deck_ist, l
     // Get the current viewport from Deck.gl
     const viewports = deck_ist.viewManager.getViewports()
     if (!viewports || viewports.length === 0) {
-        console.error('No viewports available')
+        // console.error('No viewports available')
         return
     }
 

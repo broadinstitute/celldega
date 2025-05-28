@@ -4,18 +4,13 @@ import { update_selected_cats, update_cat } from '../global_variables/cat'
 import { update_selected_genes } from '../global_variables/selected_genes'
 import { grab_cell_tiles_in_view } from '../vector_tile/polygons/grab_cell_tiles_in_view'
 
-// import { toggle_image_layers_and_ctrls } from '../ui/ui_containers'
-// import { get_layers_list } from './layers_ist'
-// import { update_cell_layer_id } from './cell_layer'
-// import { update_trx_layer_id } from './trx_layer'
-
 import { deps } from '../temp_utils/deps';
 
 const {
   toggle_image_layers_and_ctrls,
   get_layers_list,
   update_cell_layer_id,
-  update_trx_layer_id
+  update_trx_layer_id,
 } = deps;
 
 
@@ -57,7 +52,7 @@ export const ini_path_layer = (viz_state) => {
 
 }
 
-const path_layer_onclick = (info, d, deck_ist, layers_obj, viz_state) => {
+const path_layer_onclick = async (info, _d, deck_ist, layers_obj, viz_state) => {
 
     const inst_cell_id = viz_state.cats.polygon_cell_names[info.index]
     const inst_cat = viz_state.cats.dict_cell_cats[inst_cell_id]
@@ -66,15 +61,15 @@ const path_layer_onclick = (info, d, deck_ist, layers_obj, viz_state) => {
     update_selected_cats(viz_state.cats, [inst_cat])
     update_selected_genes(viz_state.genes, [])
 
-    toggle_image_layers_and_ctrls(layers_obj, viz_state, !viz_state.cats.selected_cats.length > 0)
+    await toggle_image_layers_and_ctrls(layers_obj, viz_state, !viz_state.cats.selected_cats.length > 0)
 
     const inst_cat_name = viz_state.cats.selected_cats.join('-')
 
-    update_cell_layer_id(layers_obj, inst_cat_name)
-    update_path_layer_id(layers_obj, inst_cat_name)
-    update_trx_layer_id(viz_state.genes, layers_obj)
+    await update_cell_layer_id(layers_obj, inst_cat_name)
+    await update_path_layer_id(layers_obj, inst_cat_name)
+    await update_trx_layer_id(viz_state.genes, layers_obj)
 
-    const layers_list = get_layers_list(layers_obj, viz_state.close_up)
+    const layers_list = await get_layers_list(layers_obj, viz_state.close_up)
     deck_ist.setProps({layers: layers_list})
 
 }

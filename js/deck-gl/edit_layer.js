@@ -6,7 +6,7 @@ import {
 import * as d3 from 'd3';
 
 import { deps } from '../temp_utils/deps';
-import { handleValidationWarning } from './temp_utils/errorHandler';
+import { handleValidationWarning } from '../temp_utils/errorHandler';
 
 const {
   update_bar_graph,

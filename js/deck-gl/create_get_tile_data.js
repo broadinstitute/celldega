@@ -1,6 +1,6 @@
 import { load } from '@loaders.gl/core';
 import { ImageLoader } from '@loaders.gl/images';
-import { handleAsyncError } from './temp_utils/errorHandler';
+import { handleAsyncError } from '../temp_utils/errorHandler';
 
 export const create_get_tile_data = (
   base_url,

@@ -1,5 +1,5 @@
 import * as d3 from 'd3';
-import { AwsClient } from 'https://esm.sh/aws4fetch@1';
+import { AwsClient } from aws4fetch;
 
 import {
   ini_background_layer,

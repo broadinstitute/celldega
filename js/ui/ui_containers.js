@@ -15,7 +15,7 @@ import { get_layers_list } from '../deck-gl/layers_ist'
 import { update_cell_pickable_state, new_toggle_cell_layer_visibility } from '../deck-gl/cell_layer'
 import { toggle_trx_layer_visibility, update_trx_pickable_state } from '../deck-gl/trx_layer'
 import { update_path_pickable_state } from '../deck-gl/path_layer'
-import { filter_cat_nbhd_feature_collection, toggle_nbhd_layer_visibility, update_nbhd_layer_data } from '../deck-gl/nbhd_layer'
+import { filter_cat_nbhd_feature_collection, toggle_nbhd_layer_visibility, update_nbhd_layer_data, get_color_dict_by_color_value } from '../deck-gl/nbhd_layer'
 import { toggle_background_layer_visibility } from '../deck-gl/background_layer'
 import { update_bar_graph } from './bar_plot'
 import { logo } from './logo'
@@ -623,18 +623,26 @@ export const make_ist_ui_container = (dataset_name, deck_ist, layers_obj, viz_st
         const layers_list = get_layers_list(layers_obj, viz_state.close_up, viz_state.nbhd.visible)
         deck_ist.setProps({layers: layers_list})
 
-        viz_state.meta_nbhd.nbhd_areas = viz_state.meta_nbhd.feature_collection.features.map((feature, index) => ({
-            name: (index + 1).toString(), // Assign numeric names starting from 1
-            value: feature.properties.area // Use the "area" property for the bar height
-        }))
+        viz_state.meta_nbhd.nbhd_areas = Object.keys(viz_state.meta_nbhd.name).map(nbhd_id => ({
+        name: viz_state.meta_nbhd.name[nbhd_id],          // neighborhood name, e.g., "0_hex"
+        value: viz_state.meta_nbhd["area"][nbhd_id] // value for that attribute, e.g., area size
+        }));
 
-        console.log(viz_state.nbhd.color_dict_nbhd)
-        console.log(viz_state.meta_nbhd.nbhd_areas)
+        // viz_state.meta_nbhd.nbhd_areas = viz_state.meta_nbhd.map((feature, index) => ({
+        //     name: (index + 1).toString(), // Assign numeric names starting from 1
+        //     value: feature.properties.area // Use the "area" property for the bar height
+        // }))
+
+        // console.log(viz_state.nbhd.color_dict_nbhd)
+        // console.log(viz_state.meta_nbhd.nbhd_areas)
+
+        const color_dict_nbhd = get_color_dict_by_color_value(viz_state)
 
         update_bar_graph(
             viz_state.edit.svg_bar_rgn,
             viz_state.meta_nbhd.nbhd_areas,
-            viz_state.cats.color_dict_cluster,
+            color_dict_nbhd,
+            // viz_state.cats.color_dict_cluster,
             bar_callback_nbhd,
             [], // selected_cats
             deck_ist,

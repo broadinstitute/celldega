@@ -221,19 +221,19 @@ def make_geojson(gdf):
     }
 
     # GeoJSON with properties, no geometry
-    geojson_nbhd_meta = {
-        "type": "FeatureCollection",
-        "features": [
-            {
-                "type": "Feature",
-                "geometry": None,
-                "properties": feature["properties"]
-            }
-            for feature in json.loads(gdf.to_json())["features"]
-        ]
-    }
+    # geojson_nbhd_meta = {
+    #     "type": "FeatureCollection",
+    #     "features": [
+    #         {
+    #             "type": "Feature",
+    #             "geometry": None,
+    #             "properties": feature["properties"]
+    #         }
+    #         for feature in json.loads(gdf.to_json())["features"]
+    #     ]
+    # }
 
-    return geojson_nbhd, geojson_nbhd_meta
+    return geojson_nbhd
 
 # {
 #                     'type': 'Polygon',

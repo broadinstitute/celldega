@@ -10,7 +10,68 @@ import { update_trx_layer_id } from "./trx_layer.js"
 import { get_layers_list } from "./layers_ist.js"
 import * as d3 from 'd3'
 
-export let baseFeatures = null;
+// export function get_nbhd_color(viz_state, featureName, attributeKey) {
+//     if (
+//         viz_state.meta_nbhd.name.hasOwnProperty(featureName) &&
+//         viz_state.meta_nbhd.color.hasOwnProperty(featureName)
+//     ) {
+//         return viz_state.meta_nbhd.color[featureName];
+//     }
+
+//     console.warn(`Feature "${featureName}" missing or missing color.`);
+//     return [0, 0, 0, 0]; // transparent fallback
+// }
+
+// export function get_nbhd_color(viz_state, featureName) {
+//     if (
+//         viz_state.meta_nbhd.name.hasOwnProperty(featureName) &&
+//         viz_state.meta_nbhd.color.hasOwnProperty(featureName)
+//     ) {
+//         const hex = viz_state.meta_nbhd.color[featureName];
+//         const [r, g, b] = hexToRgb(hex);
+//         return [r, g, b, 128]; // semi-transparent
+//     }
+
+//     console.warn(`Feature "${featureName}" missing or missing color.`);
+//     return [0, 0, 0, 0]; // fully transparent fallback
+// }
+
+export function get_nbhd_color(viz_state, featureName, attributeKey) {
+  // Get the value for the feature and attribute key
+  const val = viz_state.meta_nbhd[attributeKey]?.[featureName];
+
+  if (val === undefined) {
+    console.warn(`Value missing for feature "${featureName}" and attribute "${attributeKey}"`);
+    return [0, 0, 0, 0]; // transparent fallback
+  }
+
+  // Map val (0 to 1) to shade of red (adjust as needed)
+  const red = 255;
+  const green = Math.floor(230 * (1 - val));
+  const blue = Math.floor(230 * (1 - val));
+  const alpha = 200;
+
+  return [red, green, blue, alpha];
+}
+
+export const get_color_dict_by_color_value = (viz_state) => {
+  const colorDict = {};
+
+  viz_state.nbhd.feature_collection.features.forEach((feature) => {
+    const featureName = feature.properties.name;
+
+    const colorValue = viz_state.meta_nbhd.color[featureName];
+
+    if (colorValue) {
+      colorDict[featureName] = colorValue;
+    } else {
+      console.warn(`Color missing for feature "${featureName}"`);
+      colorDict[featureName] = [0, 0, 0, 0]; // fallback
+    }
+  });
+
+  return colorDict;
+};
 
 export const ini_nbhd_layer = (viz_state, visible) => {
 
@@ -37,27 +98,6 @@ export const ini_nbhd_layer = (viz_state, visible) => {
     const layer_attr = viz_state.nbhd_attr // string
     console.log(layer_attr)
 
-    function get_nbhd_color(featureName, attributeKey) {
-    const featureCollection = viz_state.cat_meta.feature_collection;
-
-    if (!featureCollection || !Array.isArray(featureCollection.features)) {
-        console.error("Invalid feature collection structure in viz_state.cat_meta");
-        return null;
-    }
-
-    const feature = featureCollection.features.find(f =>
-        f.properties.name === featureName &&
-        f.properties.attribute === attributeKey
-    );
-
-    if (feature && feature.properties.hasOwnProperty("bar_value")) {
-        return feature.properties.bar_value; // no bar plot, but a distribution of numerical values.
-    } else {
-        console.warn(`Feature with name "${featureName}" and target "${attributeKey}" not found or missing bar_value.`);
-        return null;
-    }
-    }
-
     const nbhd_layer = new GeoJsonLayer({
         id: 'nbhd-layer',
         data: viz_state.nbhd.feature_collection,
@@ -69,7 +109,7 @@ export const ini_nbhd_layer = (viz_state, visible) => {
         // getFillColor: [255, 0, 0, 100],
         getLineWidth: 1,
         // getLineColor: [0, 0, 0, 255],
-        getFillColor: (d) => get_nbhd_color(d.properties.name, layer_attr),
+        getFillColor: (d) => get_nbhd_color(viz_state, d.properties.name, layer_attr),
         opacity: 0.5,
         // getElevation: 0,
         // updateTriggers: {

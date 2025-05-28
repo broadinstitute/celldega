@@ -19,9 +19,20 @@ export const make_tooltip = (viz_state, info) => {
         inst_name = viz_state.genes.trx_names_array[info.index]
         inst_html = `<div>transcript: ${inst_name}</div>`
     } else if (info.layer.id.startsWith('nbhd-layer')) {
-        inst_name = viz_state.meta_nbhd.feature_collection.features[info.index].properties.name
-        inst_cat = viz_state.meta_nbhd.feature_collection.features[info.index].properties.cat
-        inst_html = `<div>neighborhood: ${inst_name}</div><div>cluster: ${inst_cat}</div>`
+        // inst_name = viz_state.meta_nbhd.name
+        // inst_cat = viz_state.meta_nbhd.cat
+        // inst_html = `<div>neighborhood: ${inst_name}</div><div>cluster: ${inst_cat}</div>`
+
+        const nbhdId = info.object?.properties?.name;
+
+        if (nbhdId && viz_state.meta_nbhd.name.hasOwnProperty(nbhdId)) {
+            inst_name = viz_state.meta_nbhd.name[nbhdId];
+            inst_cat = viz_state.meta_nbhd.cat[nbhdId];
+            inst_html = `<div>neighborhood: ${inst_name}</div><div>cluster: ${inst_cat}</div>`;
+        } else {
+            inst_html = `<div>Neighborhood data not found</div>`;
+
+    }
     }
 
     // d3.selectAll('.deck-tooltip')

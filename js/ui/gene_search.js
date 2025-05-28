@@ -15,7 +15,6 @@ import { update_selected_genes } from '../global_variables/selected_genes';
 import { update_tile_exp_array } from '../global_variables/tile_exp_array';
 
 import { set_gene_search_input } from './gene_search_input';
-
 import { toggle_image_layers_and_ctrls } from './ui_containers';
 
 let gene_search_options = [];

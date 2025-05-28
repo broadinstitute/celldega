@@ -16,6 +16,7 @@ import { options } from '../global_variables/fetch_options';
 import { update_selected_genes } from '../global_variables/selected_genes';
 import { get_arrow_table } from '../read_parquet/get_arrow_table';
 import { get_scatter_data } from '../read_parquet/get_scatter_data';
+import { deps } from '../temp_utils/deps';
 import { update_gene_text_box } from '../ui/gene_search';
 import { toggle_image_layers_and_ctrls } from '../ui/ui_containers';
 import { scale_umap_data } from '../umap/scale_umap_data';
@@ -23,7 +24,6 @@ import { scale_umap_data } from '../umap/scale_umap_data';
 import { get_cell_color } from './cell_color';
 import { get_layers_list } from './layers_ist';
 
-import { deps } from '../temp_utils/deps';
 
 const { update_path_layer_id, update_trx_layer_id } = deps;
 

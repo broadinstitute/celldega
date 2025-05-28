@@ -3,9 +3,9 @@ import { GeoJsonLayer } from 'deck.gl';
 
 import { update_selected_cats, update_cat } from '../global_variables/cat';
 import { update_selected_genes } from '../global_variables/selected_genes';
+import { deps } from '../temp_utils/deps';
 import { hexToRgb } from '../utils/hexToRgb';
 
-import { deps } from '../temp_utils/deps';
 
 const { update_cell_layer_id, get_layers_list, update_path_layer_id } = deps;
 

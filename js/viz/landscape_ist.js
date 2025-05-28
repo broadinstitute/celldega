@@ -43,10 +43,9 @@ import {
   toggle_trx_layer_visibility,
 } from '../deck-gl/trx_layer';
 import { set_views } from '../deck-gl/views';
-
+import { ini_cache } from '../global_variables/cache';
 import { update_cat, update_selected_cats } from '../global_variables/cat';
 import { update_cell_exp_array } from '../global_variables/cell_exp_array';
-import { ini_cache } from '../global_variables/cache';
 import { set_options } from '../global_variables/fetch_options';
 import { set_global_base_url } from '../global_variables/global_base_url';
 import { set_dimensions } from '../global_variables/image_dimensions';
@@ -59,12 +58,9 @@ import { set_landscape_parameters } from '../global_variables/landscape_paramete
 import { set_cluster_metadata } from '../global_variables/meta_cluster';
 import { set_meta_gene } from '../global_variables/meta_gene';
 import { update_selected_genes } from '../global_variables/selected_genes';
-
 import { update_gene_text_box } from '../ui/gene_search';
 import { set_image_layer_sliders } from '../ui/sliders';
-import { make_ist_ui_container } from '../ui/ui_containers';
-import { toggle_image_layers_and_ctrls } from '../ui/ui_containers';
-
+import { make_ist_ui_container , toggle_image_layers_and_ctrls } from '../ui/ui_containers';
 import { update_cell_clusters } from '../widget_interactions/update_cell_clusters';
 import { update_ist_landscape_from_cgm } from '../widget_interactions/update_ist_landscape_from_cgm';
 

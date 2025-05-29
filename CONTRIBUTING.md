@@ -16,7 +16,7 @@ git clone https://github.com/your-username/celldega.git
 cd celldega
 
 # Setup everything: Python venv, install dependencies, pre-commit hooks
-./scripts/setup.sh
+bash ./scripts/setup.sh
 ```
 
 That's it! Your development environment is ready. 🎉
@@ -129,8 +129,6 @@ test('should handle basic case', () => {
 - ✅ Fix linting issues
 - ✅ Check for common mistakes
 
-Just write code and commit - we'll make it pretty.
-
 ### Naming Conventions
 
 - **Python**: `snake_case` functions, `PascalCase` classes
@@ -138,7 +136,8 @@ Just write code and commit - we'll make it pretty.
 - **Files**: `my_module.py`, `myComponent.js`
 - **Type Annotations**: Always add proper typing for better code clarity and IDE support
 
-**Python Typing Example:**
+<details>
+<summary><strong>Python Typing Examples</strong></summary>
 
 ```python
 from typing import List, Optional, Dict, Any
@@ -154,11 +153,10 @@ def process_cell_data(
     return processed_cells
 ```
 
-**JavaScript JSDoc Example:**
+</details>
 
-````
-
-**JavaScript JSDoc Example:**
+<details>
+<summary><strong>JavaScript JSDoc Examples</strong></summary>
 
 ```javascript
 /**
@@ -173,9 +171,12 @@ async function renderCellLayer(cellData, options = {}) {
   // Implementation here
   return layer;
 }
-````
+```
 
-**TypeScript Example (if you prefer strong typing):**
+</details>
+
+<details>
+<summary><strong>TypeScript Examples</strong></summary>
 
 ```typescript
 interface CellData {
@@ -199,6 +200,8 @@ async function renderCellLayer(
   return layer;
 }
 ```
+
+</details>
 
 ## 📝 Commit Message Structure
 
@@ -260,7 +263,8 @@ git commit -m "infra(jest): configure coverage reporting for CI pipeline" # Infr
 ./scripts/setup.sh --verbose   # See detailed output
 ```
 
-### Common Issues
+<details>
+<summary><strong>Common Issues</strong></summary>
 
 **"Permission denied"**
 
@@ -284,6 +288,8 @@ chmod +x scripts/*.sh
 ```bash
 ./scripts/test.sh --verbose    # See detailed error messages
 ```
+
+</details>
 
 ### Still Stuck?
 

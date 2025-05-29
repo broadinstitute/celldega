@@ -1,13 +1,15 @@
+/* eslint-disable import/no-cycle */
+
 import * as d3 from 'd3';
 import { GeoJsonLayer } from 'deck.gl';
 
 import { update_selected_cats, update_cat } from '../global_variables/cat';
 import { update_selected_genes } from '../global_variables/selected_genes';
-/* eslint-disable import/no-cycle */
-import { deps } from '../temp_utils/deps';
 import { hexToRgb } from '../utils/hexToRgb';
 
-const { update_cell_layer_id, get_layers_list, update_path_layer_id } = deps;
+import { update_cell_layer_id } from './cell_layer.js';
+import { get_layers_list } from './layers_ist.js';
+import { update_path_layer_id } from './path_layer.js';
 
 export const ini_nbhd_layer = (viz_state, visible) => {
   // console.log(viz_state.nbhd.feature_collection)
@@ -106,15 +108,15 @@ const nbhd_layer_onclick = async (
     });
   }
 
-  await update_cell_layer_id(layers_obj, inst_cat_name);
-  await update_path_layer_id(layers_obj, inst_cat_name);
+  update_cell_layer_id(layers_obj, inst_cat_name);
+  update_path_layer_id(layers_obj, inst_cat_name);
 
   // update data for nbhd layer
 
   await filter_cat_nbhd_feature_collection(viz_state);
   await update_nbhd_layer_data(viz_state, layers_obj);
 
-  const layers_list = await get_layers_list(layers_obj, viz_state.close_up);
+  const layers_list = get_layers_list(layers_obj, viz_state.close_up);
   deck_ist.setProps({ layers: layers_list });
 
   // viz_state.genes.gene_search_input.value = ''

@@ -1,3 +1,5 @@
+/* eslint-disable import/no-cycle */
+
 import {
   EditableGeoJsonLayer,
   ModifyMode,
@@ -5,18 +7,13 @@ import {
 } from '@deck.gl-community/editable-layers';
 import * as d3 from 'd3';
 
-/* eslint-disable import/no-cycle */
-import { deps } from '../temp_utils/deps';
 import { handleValidationWarning } from '../temp_utils/errorHandler';
+import { bar_callback_rgn, update_bar_graph } from '../ui/bar_plot';
 
-const {
-  update_bar_graph,
-  bar_callback_rgn,
-  update_cell_pickable_state,
-  update_path_pickable_state,
-  update_trx_pickable_state,
-  get_layers_list,
-} = deps;
+import { update_cell_pickable_state } from './cell_layer';
+import { get_layers_list } from './layers_ist';
+import { update_path_pickable_state } from './path_layer';
+import { update_trx_pickable_state } from './trx_layer';
 
 // Forward declaration for function used before definition
 function update_edit_layer_mode(layers_obj, mode) {
@@ -89,11 +86,11 @@ export const calc_and_update_rgn_bar_graph = async (
       return acc;
     }, {});
 
-  await update_bar_graph(
+  update_bar_graph(
     viz_state.edit.svg_bar_rgn,
     viz_state.edit.rgn_areas,
     viz_state.edit.color_dict_rgn,
-    await bar_callback_rgn,
+    bar_callback_rgn,
     [], // selected_cats
     deck_ist,
     layers_obj,
@@ -125,16 +122,16 @@ const edit_layer_on_edit = async (
 
     viz_state.edit.mode = 'view';
 
-    await update_cell_pickable_state(layers_obj, true);
-    await update_path_pickable_state(layers_obj, true);
-    await update_trx_pickable_state(layers_obj, true);
+    update_cell_pickable_state(layers_obj, true);
+    update_path_pickable_state(layers_obj, true);
+    update_trx_pickable_state(layers_obj, true);
 
     await calc_and_update_rgn_bar_graph(viz_state, deck_ist, layers_obj);
 
     sync_region_to_model(viz_state);
   }
 
-  const layers_list = await get_layers_list(layers_obj, viz_state.close_up);
+  const layers_list = get_layers_list(layers_obj, viz_state.close_up);
   deck_ist.setProps({ layers: layers_list });
   await calc_and_update_rgn_bar_graph(viz_state, deck_ist, layers_obj);
   sync_region_to_model(viz_state);

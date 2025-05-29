@@ -1,20 +1,18 @@
+/* eslint-disable import/no-cycle */
+
 import * as d3 from 'd3';
 import { ScatterplotLayer } from 'deck.gl';
 
 import { update_cat, update_selected_cats } from '../global_variables/cat';
 import { update_cell_exp_array } from '../global_variables/cell_exp_array';
 import { update_selected_genes } from '../global_variables/selected_genes';
-/* eslint-disable import/no-cycle */
-import { deps } from '../temp_utils/deps';
+import { update_gene_text_box } from '../ui/gene_search';
+import { toggle_image_layers_and_ctrls } from '../ui/ui_containers';
 import { grab_trx_tiles_in_view } from '../vector_tile/transcripts/grab_trx_tiles_in_view';
 
-const {
-  update_gene_text_box,
-  toggle_image_layers_and_ctrls,
-  update_cell_layer_id,
-  get_layers_list,
-  update_path_layer_id,
-} = deps;
+import { update_cell_layer_id } from './cell_layer';
+import { get_layers_list } from './layers_ist';
+import { update_path_layer_id } from './path_layer';
 
 export const update_trx_layer_id = (genes, layers_obj) => {
   layers_obj.trx_layer = layers_obj.trx_layer.clone({
@@ -40,7 +38,7 @@ const trx_layer_callback = async (
 
   const new_cat = reset_gene ? 'cluster' : inst_gene;
 
-  await toggle_image_layers_and_ctrls(
+  toggle_image_layers_and_ctrls(
     layers_obj,
     viz_state,
     viz_state.cats.cat === inst_gene
@@ -61,13 +59,13 @@ const trx_layer_callback = async (
     viz_state.aws
   );
 
-  await update_cell_layer_id(layers_obj, new_cat);
+  update_cell_layer_id(layers_obj, new_cat);
 
-  await update_path_layer_id(layers_obj, new_cat);
+  update_path_layer_id(layers_obj, new_cat);
 
-  await update_trx_layer_id(viz_state.genes, layers_obj);
+  update_trx_layer_id(viz_state.genes, layers_obj);
 
-  const layers_list = await get_layers_list(layers_obj, viz_state.close_up);
+  const layers_list = get_layers_list(layers_obj, viz_state.close_up);
   deck_ist.setProps({ layers: layers_list });
 
   viz_state.genes.svg_bar_gene
@@ -117,7 +115,7 @@ const trx_layer_callback = async (
   viz_state.genes.gene_search_input.value =
     viz_state.genes.gene_search_input.value !== inst_gene ? inst_gene : '';
 
-  await update_gene_text_box(viz_state.genes, reset_gene ? '' : inst_gene);
+  update_gene_text_box(viz_state.genes, reset_gene ? '' : inst_gene);
 };
 
 export const ini_trx_layer = (genes) => {

@@ -1,3 +1,5 @@
+/* eslint-disable import/no-cycle */
+
 import * as d3 from 'd3';
 import { ScatterplotLayer } from 'deck.gl';
 
@@ -16,16 +18,14 @@ import { options } from '../global_variables/fetch_options';
 import { update_selected_genes } from '../global_variables/selected_genes';
 import { get_arrow_table } from '../read_parquet/get_arrow_table';
 import { get_scatter_data } from '../read_parquet/get_scatter_data';
-/* eslint-disable import/no-cycle */
-import { deps } from '../temp_utils/deps';
 import { update_gene_text_box } from '../ui/gene_search';
 import { toggle_image_layers_and_ctrls } from '../ui/ui_containers';
 import { scale_umap_data } from '../umap/scale_umap_data';
 
 import { get_cell_color } from './cell_color';
 import { get_layers_list } from './layers_ist';
-
-const { update_path_layer_id, update_trx_layer_id } = deps;
+import { update_path_layer_id } from './path_layer';
+import { update_trx_layer_id } from './trx_layer';
 
 // Forward declarations for functions used before definition
 export function update_cell_layer_id(layers_obj, new_cat) {
@@ -103,8 +103,8 @@ const cell_layer_onclick = async (info, d, deck_ist, layers_obj, viz_state) => {
       viz_state,
       !viz_state.cats.selected_cats.length > 0
     );
-    await update_path_layer_id(layers_obj, inst_cat_name);
-    await update_trx_layer_id(viz_state.genes, layers_obj);
+    update_path_layer_id(layers_obj, inst_cat_name);
+    update_trx_layer_id(viz_state.genes, layers_obj);
   }
 
   const layers_list = get_layers_list(layers_obj, viz_state.close_up);

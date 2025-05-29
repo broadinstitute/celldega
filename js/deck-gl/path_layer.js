@@ -1,17 +1,14 @@
+/* eslint-disable import/no-cycle */
 import { PathLayer } from 'deck.gl';
 
 import { update_selected_cats, update_cat } from '../global_variables/cat';
 import { update_selected_genes } from '../global_variables/selected_genes';
-/* eslint-disable import/no-cycle */
-import { deps } from '../temp_utils/deps';
+import { toggle_image_layers_and_ctrls } from '../ui/ui_containers';
 import { grab_cell_tiles_in_view } from '../vector_tile/polygons/grab_cell_tiles_in_view';
 
-const {
-  toggle_image_layers_and_ctrls,
-  get_layers_list,
-  update_cell_layer_id,
-  update_trx_layer_id,
-} = deps;
+import { update_cell_layer_id } from './cell_layer';
+import { get_layers_list } from './layers_ist';
+import { update_trx_layer_id } from './trx_layer';
 
 export const get_path_color = (cats, i, d) => {
   const inst_cell_id = cats.polygon_cell_names[d.index];
@@ -70,7 +67,7 @@ const path_layer_onclick = async (
   update_selected_cats(viz_state.cats, [inst_cat]);
   update_selected_genes(viz_state.genes, []);
 
-  await toggle_image_layers_and_ctrls(
+  toggle_image_layers_and_ctrls(
     layers_obj,
     viz_state,
     !viz_state.cats.selected_cats.length > 0
@@ -78,11 +75,11 @@ const path_layer_onclick = async (
 
   const inst_cat_name = viz_state.cats.selected_cats.join('-');
 
-  await update_cell_layer_id(layers_obj, inst_cat_name);
-  await update_path_layer_id(layers_obj, inst_cat_name);
-  await update_trx_layer_id(viz_state.genes, layers_obj);
+  update_cell_layer_id(layers_obj, inst_cat_name);
+  update_path_layer_id(layers_obj, inst_cat_name);
+  update_trx_layer_id(viz_state.genes, layers_obj);
 
-  const layers_list = await get_layers_list(layers_obj, viz_state.close_up);
+  const layers_list = get_layers_list(layers_obj, viz_state.close_up);
   deck_ist.setProps({ layers: layers_list });
 };
 

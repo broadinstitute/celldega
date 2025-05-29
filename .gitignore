@@ -87,9 +87,10 @@ pids
 # Prettier cache
 .prettiercache
 
-# Package lock files (keep package-lock.json, ignore others)
+# Package lock files (keep pnpm-lock.yaml, ignore others)
 yarn.lock
-pnpm-lock.yaml
+package-lock.json
+# pnpm-lock.yaml
 
 # IDE and editors
 .idea/
@@ -109,6 +110,7 @@ Desktop.ini
 tmp/
 
 # Python virtual environments
+dega/
 venv/
 env/
 ENV/

@@ -31,21 +31,14 @@ jobs:
         with:
           python-version: '3.11'
 
-      # Set up Node.js environment with npm caching
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          cache: 'npm'
+      # Set up Node.js and pnpm with dependencies
+      - name: Setup Node.js and pnpm
+        uses: ./.github/actions/setup-node-pnpm
 
       # Install Python package in development mode
       - name: Install Python dependencies
         run: |
           pip install -e ".[dev]"
-
-      # Install JavaScript dependencies (use ci for faster, reliable installs)
-      - name: Install Node dependencies
-        run: npm ci
 
       # Python linting with Ruff
       - name: Lint Python code
@@ -57,11 +50,11 @@ jobs:
 
       # JavaScript/TypeScript linting with ESLint
       - name: Lint JavaScript code
-        run: npm run lint:js
+        run: pnpm run lint:js
 
       # JavaScript formatting check with Prettier
       - name: Check JavaScript formatting
-        run: npm run format:js:check
+        run: pnpm run format:js:check
 
   # =============================================================================
   # Security Scanning - Dependency security analysis
@@ -140,20 +133,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Set up Node.js with npm caching
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          cache: 'npm'
-
-      # Install JavaScript dependencies
-      - name: Install dependencies
-        run: npm ci
+      # Set up Node.js and pnpm with dependencies
+      - name: Setup Node.js and pnpm
+        uses: ./.github/actions/setup-node-pnpm
 
       # Run JavaScript/TypeScript tests (Jest)
       - name: Run JavaScript tests
-        run: npm run test:js
+        run: pnpm run test:js
 
       # Upload JavaScript test coverage to Codecov
       - name: Upload coverage to Codecov
@@ -181,22 +167,18 @@ jobs:
         with:
           python-version: '3.11'
 
-      # Set up Node.js environment with npm caching
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          cache: 'npm'
+      # Set up Node.js and pnpm with dependencies
+      - name: Setup Node.js and pnpm
+        uses: ./.github/actions/setup-node-pnpm
 
       # Install all dependencies (Python + JavaScript)
-      - name: Install dependencies
+      - name: Install Python dependencies
         run: |
           pip install -e ".[dev]"
-          npm ci
 
       # Build JavaScript bundle
       - name: Build JavaScript bundle
-        run: npm run build
+        run: pnpm run build
 
       # Test Python package building (wheel + sdist)
       - name: Test package build

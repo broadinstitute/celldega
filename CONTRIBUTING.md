@@ -6,13 +6,14 @@ Thank you for your interest in contributing to Celldega! 🧬
 
 - **Python 3.10+** → [Download here](https://python.org/downloads/)
 - **Node.js 16+** → [Download here](https://nodejs.org/)
+- **pnpm 8+** → [Install guide](https://pnpm.io/installation)
 - **Git** → [Download here](https://git-scm.com/)
 
 ## 🚀 Quick Start (one-time!)
 
 ```bash
 # Clone Celldega repo
-git clone https://github.com/your-username/celldega.git
+git clone https://github.com/broadinstitute/celldega.git
 cd celldega
 
 # Setup everything: Python venv, install dependencies, pre-commit hooks
@@ -27,7 +28,7 @@ That's it! Your development environment is ready. 🎉
 
 ```bash
 source dega/bin/activate    # Activate environment
-npm run dev                 # Start development server
+pnpm run dev                # Start development server
 ```
 
 ### 2. Make Your Changes
@@ -49,24 +50,24 @@ git commit -m "feat: your amazing feature"
 
 Understanding the project's tooling helps you contribute more effectively. Here's what's configured where:
 
-| File/Directory                  | Purpose                  | Tools Configured                                         |
-| ------------------------------- | ------------------------ | -------------------------------------------------------- |
+| File/Directory                  | Purpose                  | Tools Configured                                        |
+| ------------------------------- | ------------------------ | ------------------------------------------------------- |
 | **🔄 CI/CD & Automation**       |
-| `.github/workflows/ci.yml`      | Continuous Integration   | pytest, Jest, ESLint, Prettier, Ruff, Safety, Bandit     |
-| `.github/dependabot.yml`        | Dependency updates       | Automated Python, JavaScript, and GitHub Actions updates |
-| `.pre-commit-config.yaml`       | Git hooks                | Ruff (Python), Prettier, ESLint, basic file checks       |
+| `.github/workflows/ci.yml`      | Continuous Integration   | pytest, Jest, ESLint, Prettier, Ruff, Safety, Bandit    |
+| `.github/dependabot.yml`        | Dependency updates       | Automated Python, pnpm, and GitHub Actions updates      |
+| `.pre-commit-config.yaml`       | Git hooks                | Ruff (Python), Prettier, ESLint, basic file checks      |
 | **🐍 Python Configuration**     |
-| `pyproject.toml`                | Python package config    | pytest, Ruff (linting + formatting), build system        |
+| `pyproject.toml`                | Python package config    | pytest, Ruff (linting + formatting), build system       |
 | **🌐 JavaScript Configuration** |
-| `package.json`                  | JavaScript dependencies  | Jest (testing), ESLint (linting), Prettier (formatting)  |
-| `eslint.config.js`              | JavaScript linting rules | ESLint with import ordering, code quality rules          |
-| `jest.setup.js`                 | Test environment setup   | Jest with jsdom, testing-library                         |
+| `package.json`                  | JavaScript dependencies  | Jest (testing), ESLint (linting), Prettier (formatting) |
+| `eslint.config.js`              | JavaScript linting rules | ESLint with import ordering, code quality rules         |
+| `jest.setup.js`                 | Test environment setup   | Jest with jsdom, testing-library                        |
 | **💻 Development Scripts**      |
-| `scripts/setup.sh`              | Environment setup        | Python venv, npm install, pre-commit hooks               |
-| `scripts/test.sh`               | Test runner              | pytest, Jest, linting checks                             |
-| `scripts/utils.sh`              | Shared utilities         | Helper functions for scripts                             |
+| `scripts/setup.sh`              | Environment setup        | Python venv, pnpm install, pre-commit hooks             |
+| `scripts/test.sh`               | Test runner              | pytest, Jest, linting checks                            |
+| `scripts/utils.sh`              | Shared utilities         | Helper functions for scripts                            |
 | **👷🏻 Build & Bundling**         |
-| `build.js`                      | JavaScript bundling      | esbuild with WASM support                                |
+| `build.js`                      | JavaScript bundling      | esbuild with WASM support                               |
 
 ### What Runs Where
 
@@ -120,7 +121,7 @@ test('should handle basic case', () => {
 });
 ```
 
-## 🎨 Code Style (Automatic)
+## 🎨 Code Style
 
 **No need to worry about formatting!** Our pre-commit hooks automatically:
 
@@ -213,7 +214,7 @@ Use these prefixes:
 git commit -m "feat(deck-gl): implement interactive cell selection widget" # New Feature
 git commit -m "optim(deck-gl): optimize WebGL shader compilation for speed" # Optimization
 git commit -m "fix(deck-gl): resolve memory leak in large dataset rendering" # Bug fix
-git commit -m "hotfix(deck-gl): resolve data loading issue"       # Hot bug fix (needs urgent rework)
+git commit -m "hotfix(deck-gl): 🔴 resolve data loading issue"       # Hot bug fix (needs urgent rework -> create GitHub/Jira issue)
 git commit -m "docs(deck-gl): add WebGL troubleshooting guide for users" # Documentation
 git commit -m "test(deck-gl): add integration tests for widget lifecycle" # tests
 git commit -m "infra(jest): configure coverage reporting for CI pipeline" # Infrastructure
@@ -272,10 +273,18 @@ git commit -m "infra(jest): configure coverage reporting for CI pipeline" # Infr
 chmod +x scripts/*.sh
 ```
 
-**"Python/Node.js not found"**
+**"Python/Node.js/pnpm not found"**
 
 - Install from links above
-- Check versions: `python --version`, `node --version`
+- Check versions: `python --version`, `node --version`, `pnpm --version`
+
+**"pnpm: command not found"**
+
+```bash
+npm install -g pnpm
+# or
+corepack enable
+```
 
 **"Import errors"**
 
@@ -287,6 +296,12 @@ chmod +x scripts/*.sh
 
 ```bash
 ./scripts/test.sh --verbose    # See detailed error messages
+```
+
+**"node_modules missing"**
+
+```bash
+pnpm install                   # Reinstall JavaScript dependencies
 ```
 
 </details>
@@ -305,16 +320,16 @@ chmod +x scripts/*.sh
 ### Custom Environment Name
 
 ```bash
-./scripts/setup.sh --env-name my-celldega-env
+bash ./scripts/setup.sh --env-name my-celldega-env
 ```
 
 ### Development Server Options
 
 ```bash
-npm run dev                 # Standard development
-npm run dev:watch          # Watch mode with hot reload
-npm run build              # Production build
-npm run serve              # Serve production build
+pnpm run dev                # Standard development
+pnpm run dev:watch         # Watch mode with hot reload
+pnpm run build             # Production build
+pnpm run serve             # Serve production build
 ```
 
 ### Testing Options
@@ -323,7 +338,19 @@ npm run serve              # Serve production build
 pytest tests/unit/         # Specific test directory
 pytest -k "test_clustering" # Tests matching pattern
 pytest --cov-report=html   # HTML coverage report
-npm run test:js:watch      # JavaScript tests in watch mode
+pnpm run test:js:watch     # JavaScript tests in watch mode
+```
+
+### pnpm Commands
+
+```bash
+pnpm install               # Install all dependencies
+pnpm install --frozen-lockfile  # Install from lockfile (CI)
+pnpm run test:js          # Run JavaScript tests
+pnpm run lint:js          # Lint JavaScript code
+pnpm run format:js        # Format JavaScript code
+pnpm outdated             # Check for outdated packages
+pnpm update               # Update dependencies
 ```
 
 ### VS Code Setup
@@ -354,6 +381,7 @@ Contributors are celebrated in:
 3. **Test thoroughly** - Include edge cases and error conditions
 4. **Document changes** - Help future contributors understand your work
 5. **Be patient** - We review all contributions carefully
+6. **Use pnpm efficiently** - It's faster than npm and saves disk space!
 
 ## 🤝 Code of Conduct
 

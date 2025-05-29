@@ -5,8 +5,13 @@
 
 set -e
 
-# Get script directory and source utilities
+# =============================================================================
+# Load Configuration and Utilities
+# =============================================================================
+
+# Get script directory and source shared configuration and utilities
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/config.sh"
 source "$SCRIPT_DIR/utils.sh"
 
 # =============================================================================
@@ -14,22 +19,22 @@ source "$SCRIPT_DIR/utils.sh"
 # =============================================================================
 
 run_python_tests() {
-    local test_path="${1:-tests/}"
+    local test_path="${1:-$DEFAULT_TEST_PATH}"
     local with_coverage="${2:-false}"
 
-    step "Running Python tests..."
+    step "$MSG_PYTHON_TESTS"
 
     # Ensure we're in the Python environment
-    activate_python_env "dega"
+    activate_python_env "$VENV_PATH"
 
     if ! command_exists pytest; then
-        error "pytest not found. Run ./scripts/setup.sh to install dependencies"
+        error "$ERR_PYTEST_NOT_FOUND"
         exit 1
     fi
 
     if [ "$with_coverage" = "true" ]; then
         pytest "$test_path" \
-            --cov=src/celldega \
+            --cov="$PYTHON_COV_TARGET" \
             --cov-report=html \
             --cov-report=term \
             -v
@@ -37,30 +42,30 @@ run_python_tests() {
         pytest "$test_path" -v
     fi
 
-    success "Python tests passed"
+    success "$MSG_PYTHON_TESTS_PASSED"
 }
 
 run_js_tests() {
-    step "Running JavaScript tests..."
+    step "$MSG_JS_TESTS"
 
     if [ ! -f "package.json" ]; then
-        error "package.json not found"
+        error "$ERR_PACKAGE_JSON_NOT_FOUND"
         exit 1
     fi
 
     # Check if test script exists
-    if npm run | grep -q "test:js"; then
-        npm run test:js
-        success "JavaScript tests passed"
+    if pnpm run | grep -q "$PNPM_TEST_JS_SCRIPT"; then
+        pnpm run "$PNPM_TEST_JS_SCRIPT"
+        success "$MSG_JS_TESTS_PASSED"
     else
         warning "No JavaScript test script found in package.json"
-        info "Available npm scripts:"
-        npm run 2>/dev/null | grep -E "^\s+" || echo "  No scripts found"
+        info "Available pnpm scripts:"
+        pnpm run 2>/dev/null | grep -E "^\s+" || echo "  No scripts found"
     fi
 }
 
 run_linting() {
-    step "Checking code quality..."
+    step "$MSG_CODE_QUALITY"
 
     local issues=0
 
@@ -77,8 +82,8 @@ run_linting() {
     fi
 
     # JavaScript linting
-    if npm run | grep -q "lint:js"; then
-        if npm run lint:js --silent; then
+    if pnpm run | grep -q "$PNPM_LINT_JS_SCRIPT"; then
+        if pnpm run "$PNPM_LINT_JS_SCRIPT" --silent; then
             success "JavaScript code looks good"
         else
             warning "JavaScript linting issues found"
@@ -89,7 +94,7 @@ run_linting() {
     fi
 
     if [ $issues -eq 0 ]; then
-        success "All code quality checks passed"
+        success "$MSG_CODE_QUALITY_PASSED"
     fi
 }
 
@@ -101,25 +106,25 @@ run_all_tests() {
     run_linting
 
     echo
-    success "🎉 All tests passed! Your code is ready"
+    success "$MSG_ALL_TESTS_PASSED"
 }
 
 run_coverage() {
     simple_banner "Running tests with coverage..."
 
-    run_python_tests "tests/" "true"
+    run_python_tests "$DEFAULT_TEST_PATH" "true"
 
-    if [ -f "htmlcov/index.html" ]; then
+    if [ -f "$COVERAGE_REPORT_FILE" ]; then
         echo
-        success "Coverage report generated: htmlcov/index.html"
+        success "Coverage report generated: $COVERAGE_REPORT_FILE"
 
         # Try to open coverage report
         if command_exists open; then
-            open htmlcov/index.html
+            open "$COVERAGE_REPORT_FILE"
         elif command_exists xdg-open; then
-            xdg-open htmlcov/index.html
+            xdg-open "$COVERAGE_REPORT_FILE"
         else
-            info "Open htmlcov/index.html in your browser to view the report"
+            info "Open $COVERAGE_REPORT_FILE in your browser to view the report"
         fi
     fi
 }
@@ -139,9 +144,9 @@ verbose_all_tests() {
     # Check if environment is ready
     if [ -z "${VIRTUAL_ENV:-}" ]; then
         log_warning "No virtual environment detected"
-        if [ -d "dega" ]; then
-            log_info "Activating dega virtual environment..."
-            activate_python_env "dega"
+        if [ -d "$VENV_PATH" ]; then
+            log_info "Activating $VENV_NAME virtual environment..."
+            activate_python_env "$VENV_PATH"
         else
             log_error "No virtual environment found. Please run ./scripts/setup.sh first"
             exit 1
@@ -151,17 +156,17 @@ verbose_all_tests() {
     # Install test dependencies if needed
     if ! command_exists pytest; then
         log_info "Installing test dependencies..."
-        pip install -e ".[dev]"
+        pip install -e "$PYTHON_PACKAGE_SPEC"
     fi
 
     # Run tests with detailed output
     run_command "Running Python tests" \
-        pytest tests/ -v
+        pytest "$DEFAULT_TEST_PATH" -v
 
     # Run JavaScript tests
     log_step "Running JavaScript tests"
-    if npm run | grep -q "test:js"; then
-        npm run test:js
+    if pnpm run | grep -q "$PNPM_TEST_JS_SCRIPT"; then
+        pnpm run "$PNPM_TEST_JS_SCRIPT"
         log_success "JavaScript tests completed"
     else
         log_warning "No JavaScript test script found"
@@ -179,9 +184,9 @@ verbose_all_tests() {
         log_warning "ruff not found, skipping Python linting"
     fi
 
-    if npm run | grep -q "lint:js"; then
+    if pnpm run | grep -q "$PNPM_LINT_JS_SCRIPT"; then
         run_command "Running JavaScript linting" \
-            npm run lint:js
+            pnpm run "$PNPM_LINT_JS_SCRIPT"
     else
         log_warning "No JavaScript linting script found"
     fi

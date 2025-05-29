@@ -44,13 +44,20 @@ command_exists() {
 }
 
 is_project_root() {
-    [ -f "pyproject.toml" ] && [ -f "package.json" ]
+    local all_exist=true
+    for file in "${PROJECT_FILES[@]}"; do
+        if [ ! -f "$file" ]; then
+            all_exist=false
+            break
+        fi
+    done
+    $all_exist
 }
 
 ensure_project_root() {
     if ! is_project_root; then
         error "Please run this script from the project root directory"
-        info "Expected files: pyproject.toml, package.json"
+        info "Expected files: ${PROJECT_FILES[*]}"
         exit 1
     fi
 }
@@ -59,21 +66,21 @@ ensure_project_root() {
 # Environment Management
 # =============================================================================
 activate_python_env() {
-    local venv_name="${1:-dega}"
+    local venv_path="${1:-$VENV_PATH}"
 
     if [ -z "${VIRTUAL_ENV:-}" ]; then
-        if [ -d "$venv_name" ]; then
+        if [ -d "$venv_path" ]; then
             # Try Unix/Linux/macOS path first, then Windows
-            if [ -f "$venv_name/bin/activate" ]; then
-                source "$venv_name/bin/activate"
-            elif [ -f "$venv_name/Scripts/activate" ]; then
-                source "$venv_name/Scripts/activate"
+            if [ -f "$venv_path/bin/activate" ]; then
+                source "$venv_path/bin/activate"
+            elif [ -f "$venv_path/Scripts/activate" ]; then
+                source "$venv_path/Scripts/activate"
             else
-                error "Could not find activation script in $venv_name"
+                error "Could not find activation script in $venv_path"
                 return 1
             fi
         else
-            error "Python environment '$venv_name' not found. Run ./scripts/setup.sh first"
+            error "Python environment '$venv_path' not found. Run ./scripts/setup.sh first"
             return 1
         fi
     fi
@@ -83,7 +90,7 @@ activate_python_env() {
 # Version Checks
 # =============================================================================
 check_python_version() {
-    local required="${1:-3.10}"
+    local required="${1:-$PYTHON_MIN_VERSION}"
 
     # Try python3 first, then python
     local python_cmd=""
@@ -110,13 +117,33 @@ check_python_version() {
 }
 
 check_node_version() {
-    local required="${1:-16}"
+    local required="${1:-$NODE_MIN_VERSION}"
 
     if ! command_exists node; then
         return 1
     fi
 
     local version=$(node --version 2>/dev/null | sed 's/v//' | cut -d. -f1)
+
+    if [ -z "$version" ]; then
+        return 1
+    fi
+
+    if [ "$version" -ge "$required" ]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+check_pnpm_version() {
+    local required="${1:-$PNPM_MIN_VERSION}"
+
+    if ! command_exists pnpm; then
+        return 1
+    fi
+
+    local version=$(pnpm --version 2>/dev/null | cut -d. -f1)
 
     if [ -z "$version" ]; then
         return 1
@@ -156,8 +183,8 @@ next_steps() {
     success "🎉 Celldega is ready to use!"
     echo
     echo "Next steps:"
-    echo "  1. Activate environment:  source dega/bin/activate"
-    echo "  2. Start developing:      npm run dev"
+    echo "  1. Activate environment:  $ACTIVATION_COMMAND"
+    echo "  2. Start developing:      pnpm run dev"
     echo "  3. Open notebooks:        jupyter lab notebooks/"
     echo
     echo "Need help? Run: ./scripts/setup.sh --help"

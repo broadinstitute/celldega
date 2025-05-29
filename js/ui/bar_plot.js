@@ -1,3 +1,4 @@
+/* eslint-disable import/no-cycle */
 import * as d3 from 'd3';
 
 import { update_cell_layer_id } from '../deck-gl/cell_layer';

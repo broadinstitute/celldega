@@ -1,8 +1,9 @@
+/* eslint-disable import/no-cycle */
+
 /**
  * Dependency definitions for breaking circular imports
  * Snake_case API to match existing codebase conventions
  */
-
 import { createLazy } from './lazyResolver';
 
 // Helper function to create import configs for a module

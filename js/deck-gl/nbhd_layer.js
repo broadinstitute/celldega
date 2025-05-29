@@ -3,6 +3,7 @@ import { GeoJsonLayer } from 'deck.gl';
 
 import { update_selected_cats, update_cat } from '../global_variables/cat';
 import { update_selected_genes } from '../global_variables/selected_genes';
+/* eslint-disable import/no-cycle */
 import { deps } from '../temp_utils/deps';
 import { hexToRgb } from '../utils/hexToRgb';
 

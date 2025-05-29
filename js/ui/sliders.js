@@ -1,5 +1,6 @@
 import { update_opacity_single_image_layer } from '../deck-gl/image_layers';
 import { square_scatter_layer_opacity } from '../deck-gl/square_scatter_layer';
+/* eslint-disable import/no-cycle */
 import { deps } from '../temp_utils/deps';
 
 const { update_cell_layer_radius, get_layers_list, update_trx_layer_radius } =

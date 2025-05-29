@@ -1,3 +1,5 @@
+/* eslint-disable import/no-cycle */
+
 import { DrawPolygonMode, ViewMode } from '@deck.gl-community/editable-layers';
 import * as d3 from 'd3';
 

@@ -7,29 +7,38 @@ version: 2
 
 # Global defaults (applied to all ecosystems where applicable)
 updates:
-  # Python dependencies (pyproject.toml)
-  - package-ecosystem: pip
-    directory: /
-    schedule: {interval: weekly, day: monday, time: "09:00"}
-    open-pull-requests-limit: 5
-    reviewers: [aminbensaad]
-    labels: [dependencies, python]
-    commit-message: {prefix: deps, prefix-development: deps-dev, include: scope}
+  # GitHub Actions dependencies (.github/workflows/*.yml)
+  - package-ecosystem: 'github-actions'
+    directory: '/'
+    schedule: { interval: weekly, day: monday, time: '09:00' }
+    reviewers: [cornhundred]
+    labels: [dependencies, github-actions]
+    groups:
+      actions:
+        patterns:
+          - '*'
 
   # JavaScript dependencies (package.json)
-  - package-ecosystem: npm
-    directory: /
-    schedule: {interval: weekly, day: monday, time: "09:00"}
-    open-pull-requests-limit: 5
-    reviewers: [aminbensaad]
+  - package-ecosystem: 'npm'
+    directory: '/'
+    schedule: { interval: weekly, day: monday, time: '09:00' }
+    reviewers: [cornhundred]
     labels: [dependencies, javascript]
-    commit-message: {prefix: deps, prefix-development: deps-dev, include: scope}
+    groups:
+      dev-dependencies:
+        dependency-type: 'development'
+        update-types:
+          - 'patch'
+          - 'minor'
+      prod-dependencies:
+        dependency-type: 'production'
+        update-types:
+          - 'patch'
+          - 'minor'
 
-  # GitHub Actions dependencies (.github/workflows/*.yml)
-  - package-ecosystem: github-actions
-    directory: /
-    schedule: {interval: weekly, day: monday, time: "09:00"}
-    open-pull-requests-limit: 3  # Fewer for Actions (less frequent changes)
-    reviewers: [aminbensaad]
-    labels: [dependencies, github-actions]
-    commit-message: {prefix: ci, include: scope}
+  # Python dependencies (pyproject.toml)
+  - package-ecosystem: 'pip'
+    directory: '/'
+    schedule: { interval: weekly, day: monday, time: '09:00' }
+    reviewers: [cornhundred]
+    labels: [dependencies, python]

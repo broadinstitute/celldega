@@ -70,7 +70,7 @@ ensured-targets = ["src/celldega/static/widget.js"]
 skip-if-exists = ["src/celldega/static/widget.js"]
 
 [tool.hatch.build.hooks.jupyter-builder.build-kwargs]
-npm = "npm"
+npm = "pnpm"
 build_cmd = "build"
 
 # Ruff configuration

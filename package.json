@@ -57,6 +57,7 @@
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^29.7.0",
     "jsdom": "^26.1.0",
+    "only-allow": "^1.2.1",
     "prettier": "^3.5.3"
   },
   "repository": {

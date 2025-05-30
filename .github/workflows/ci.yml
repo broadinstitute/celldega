@@ -31,14 +31,19 @@ jobs:
         with:
           python-version: '3.11'
 
-      # Set up Node.js and pnpm with dependencies
-      - name: Setup Node.js and pnpm
-        uses: ./.github/actions/setup-node-pnpm
+      # Disable jupyter-builder build hook because not needed for linting/formatting, and requires pnpm
+      - name: Disable Jupyter builder for linting
+        run: |
+          sed -i 's/\[tool.hatch.build.hooks.\(.*\)\]/\[_tool.hatch.build.hooks.\1\]/' pyproject.toml
 
-      # Install Python package in development mode
+      # Install Python package in development mode (without jupyter-builder)
       - name: Install Python dependencies
         run: |
           pip install -e ".[dev]"
+
+      # Set up Node.js and pnpm with dependencies (for JavaScript linting)
+      - name: Setup Node.js and pnpm
+        uses: ./.github/actions/setup-node-pnpm
 
       # Python linting with Ruff
       - name: Lint Python code
@@ -69,6 +74,11 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
+
+      # Disable jupyter-builder build hook for security scanning
+      - name: Disable Jupyter builder for security scanning
+        run: |
+          sed -i 's/\[tool.hatch.build.hooks.\(.*\)\]/\[_tool.hatch.build.hooks.\1\]/' pyproject.toml
 
       # Install dependencies for security scanning
       - name: Install Python dependencies
@@ -105,7 +115,11 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      # Install package with development dependencies
+      # Set up Node.js and pnpm (required for full build)
+      - name: Setup Node.js and pnpm
+        uses: ./.github/actions/setup-node-pnpm
+
+      # Install package with development dependencies (full build with jupyter-builder)
       - name: Install dependencies
         run: |
           pip install -e ".[dev]"
@@ -171,7 +185,7 @@ jobs:
       - name: Setup Node.js and pnpm
         uses: ./.github/actions/setup-node-pnpm
 
-      # Install all dependencies (Python + JavaScript)
+      # Install all dependencies (Python + JavaScript) with full build
       - name: Install Python dependencies
         run: |
           pip install -e ".[dev]"

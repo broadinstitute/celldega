@@ -10,6 +10,12 @@ on:
     tags: ['v*']
   pull_request:
     branches: [main, develop]
+  workflow_dispatch:
+
+# Add concurrency control to cancel redundant runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 # Security: Restrict permissions by default
 permissions:
@@ -27,23 +33,23 @@ jobs:
 
       # Set up Python environment
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      # Disable jupyter-builder build hook because not needed for linting/formatting, and requires pnpm
+      # Disable jupyter-builder build hook
       - name: Disable Jupyter builder for linting
         run: |
           sed -i 's/\[tool.hatch.build.hooks.\(.*\)\]/\[_tool.hatch.build.hooks.\1\]/' pyproject.toml
 
-      # Install Python package in development mode (without jupyter-builder)
+      # Install Python package in development mode
       - name: Install Python dependencies
         run: |
           pip install -e ".[dev]"
 
-      # Set up Node.js and pnpm with dependencies (for JavaScript linting)
+      # Set up Node.js and pnpm with dependencies
       - name: Setup pnpm
-        uses: pnpm/action-setup@v2
+        uses: pnpm/action-setup@v4
         with:
           version: '10'
       - name: Set up Node.js
@@ -53,8 +59,6 @@ jobs:
           cache: 'pnpm'
       - name: Install JavaScript dependencies
         run: pnpm install --no-frozen-lockfile
-        with:
-          frozen-lockfile: 'false'
 
       # Python linting with Ruff
       - name: Lint Python code
@@ -82,7 +86,7 @@ jobs:
 
       # Set up Python for security scanning
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
@@ -122,13 +126,13 @@ jobs:
 
       # Set up specific Python version from matrix
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
       # Set up Node.js and pnpm (required for full build)
       - name: Setup pnpm
-        uses: pnpm/action-setup@v2
+        uses: pnpm/action-setup@v4
         with:
           version: '10'
       - name: Set up Node.js
@@ -138,8 +142,6 @@ jobs:
           cache: 'pnpm'
       - name: Install JavaScript dependencies
         run: pnpm install --no-frozen-lockfile
-        with:
-          frozen-lockfile: 'false'
 
       # Install package with development dependencies (full build with jupyter-builder)
       - name: Install dependencies
@@ -153,7 +155,7 @@ jobs:
       # Upload Python test coverage to Codecov (only for main Python version)
       - name: Upload coverage to Codecov
         if: matrix.python-version == '3.11'
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v5
         with:
           file: ./coverage.xml
           flags: python
@@ -171,7 +173,7 @@ jobs:
 
       # Set up Node.js and pnpm with dependencies
       - name: Setup pnpm
-        uses: pnpm/action-setup@v2
+        uses: pnpm/action-setup@v4
         with:
           version: '10'
       - name: Set up Node.js
@@ -181,10 +183,6 @@ jobs:
           cache: 'pnpm'
       - name: Install JavaScript dependencies
         run: pnpm install --no-frozen-lockfile
-        with:
-          frozen-lockfile: 'false'
-        with:
-          frozen-lockfile: 'false'
 
       # Run JavaScript/TypeScript tests (Jest)
       - name: Run JavaScript tests
@@ -192,7 +190,7 @@ jobs:
 
       # Upload JavaScript test coverage to Codecov
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v5
         with:
           file: ./coverage/lcov.info
           flags: javascript
@@ -212,13 +210,13 @@ jobs:
 
       # Set up Python environment
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
       # Set up Node.js and pnpm with dependencies
       - name: Setup pnpm
-        uses: pnpm/action-setup@v2
+        uses: pnpm/action-setup@v4
         with:
           version: '10'
       - name: Set up Node.js
@@ -288,7 +286,7 @@ jobs:
 
       # Create GitHub Release with artifacts
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: |
             dist/*.whl

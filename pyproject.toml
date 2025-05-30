@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling>=1.26.1"]
+requires = ["hatchling>=1.26.1", "hatch-jupyter-builder>=0.5.0"]
 build-backend = "hatchling.build"
 
 [project]
@@ -68,7 +68,6 @@ artifacts = ["src/celldega/static/*"]
 build-function = "hatch_jupyter_builder.npm_builder"
 ensured-targets = ["src/celldega/static/widget.js"]
 skip-if-exists = ["src/celldega/static/widget.js"]
-dependencies = ["hatch-jupyter-builder>=0.5.0"]
 
 [tool.hatch.build.hooks.jupyter-builder.build-kwargs]
 npm = "npm"

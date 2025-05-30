@@ -16,14 +16,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Setup environments using reusable actions
-      - name: Setup Python environment
-        uses: ./.github/actions/setup-python-env
+      # Setup both environments in correct order
+      - name: Setup full environment
+        uses: ./.github/actions/setup-full-env
         with:
           python-version: ${{ matrix.python-version }}
-
-      - name: Setup JavaScript environment
-        uses: ./.github/actions/setup-js-env
 
       # Run Python tests with coverage reporting
       - name: Run Python tests

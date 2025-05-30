@@ -6,8 +6,8 @@ inputs:
     description: 'Python version to use'
     required: false
     default: '3.11'
-  install-dev:
-    description: 'Install dev dependencies'
+  install-deps:
+    description: 'Install dependencies (requires JS environment to be set up first)'
     required: false
     default: 'true'
   disable-jupyter-builder:
@@ -30,10 +30,7 @@ runs:
         sed -i 's/\[tool.hatch.build.hooks.\(.*\)\]/\[_tool.hatch.build.hooks.\1\]/' pyproject.toml
 
     - name: Install Python dependencies
+      if: inputs.install-deps == 'true'
       shell: bash
       run: |
-        if [ "${{ inputs.install-dev }}" == "true" ]; then
-          pip install -e ".[dev]"
-        else
-          pip install -e "."
-        fi
+        pip install -e ".[dev]"

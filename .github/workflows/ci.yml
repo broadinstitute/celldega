@@ -23,48 +23,32 @@ permissions:
 
 jobs:
   # =============================================================================
-  # Code Quality - Linting and Formatting Checks
-  # Ensures code follows style guidelines before running tests
+  # Quality Gate - Code quality, formatting, and security
   # =============================================================================
-  lint-and-format:
-    uses: ./.github/workflows/lint-and-format.yml
+  quality:
+    uses: ./.github/workflows/quality.yml
 
   # =============================================================================
-  # Security Scanning - Dependency security analysis
-  # =============================================================================
-  security:
-    uses: ./.github/workflows/security.yml
-
-  # =============================================================================
-  # Python Testing - Multi-version compatibility testing
-  # Tests Python package across supported Python versions
+  # Testing - Multi-version Python and JavaScript testing
   # =============================================================================
   test-python:
     uses: ./.github/workflows/test-python.yml
 
-  # =============================================================================
-  # JavaScript Testing - Widget and UI component testing
-  # Tests JavaScript/TypeScript components and widgets
-  # =============================================================================
   test-javascript:
     uses: ./.github/workflows/test-javascript.yml
 
   # =============================================================================
   # Integration Testing - Full build and package testing
-  # Verifies complete package can be built and installed
-  # Runs only after code quality and unit tests pass
   # =============================================================================
   build-and-test:
-    needs: [lint-and-format, test-python, test-javascript]
+    needs: [quality, test-python, test-javascript]
     uses: ./.github/workflows/build-and-test.yml
 
   # =============================================================================
   # Automated Release - Triggered on version tags
-  # Publishes to PyPI and creates GitHub releases
   # =============================================================================
   release:
-    needs:
-      [lint-and-format, security, test-python, test-javascript, build-and-test]
+    needs: [quality, test-python, test-javascript, build-and-test]
     if: startsWith(github.ref, 'refs/tags/v')
     uses: ./.github/workflows/release.yml
     secrets: inherit

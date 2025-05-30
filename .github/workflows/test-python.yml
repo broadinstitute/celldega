@@ -16,27 +16,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Set up specific Python version from matrix
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+      # Setup environments using reusable actions
+      - name: Setup Python environment
+        uses: ./.github/actions/setup-python-env
         with:
           python-version: ${{ matrix.python-version }}
 
-      # Set up Node.js and pnpm (required for full build)
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          cache: 'pnpm'
-      - name: Install JavaScript dependencies
-        run: pnpm install --no-frozen-lockfile
-
-      # Install package with development dependencies (full build with jupyter-builder)
-      - name: Install dependencies
-        run: |
-          pip install -e ".[dev]"
+      - name: Setup JavaScript environment
+        uses: ./.github/actions/setup-js-env
 
       # Run Python tests with coverage reporting
       - name: Run Python tests

@@ -1,0 +1,28 @@
+name: 'Build Package'
+description: 'Builds JavaScript bundle and Python package for Celldega'
+
+outputs:
+  artifacts-path:
+    description: 'Path to build artifacts'
+    value: 'dist/'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Build JavaScript bundle
+      shell: bash
+      run: pnpm run build
+
+    - name: Install build tools
+      shell: bash
+      run: pip install build
+
+    - name: Build Python package
+      shell: bash
+      run: python -m build
+
+    - name: Test package installation
+      shell: bash
+      run: |
+        pip install dist/*.whl
+        python -c "import celldega; print('Package installed successfully')"

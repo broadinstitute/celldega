@@ -1,6 +1,6 @@
 # =============================================================================
-# Continuous Integration Pipeline for Celldega
-# Runs on pushes to main/develop and all pull requests
+# Celldega CI/CD Pipeline
+# Principal Engineering: Modular, maintainable, scalable
 # =============================================================================
 name: CI
 
@@ -12,279 +12,36 @@ on:
     branches: [main, develop]
   workflow_dispatch:
 
-# Add concurrency control to cancel redundant runs
+# Prevent redundant runs
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-# Security: Restrict permissions by default
+# Minimal permissions by default
 permissions:
   contents: read
 
 jobs:
   # =============================================================================
-  # Code Quality - Linting and Formatting Checks
-  # Ensures code follows style guidelines before running tests
+  # Quality Gate - Code quality and security checks
   # =============================================================================
-  lint-and-format:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      # Set up Python environment
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      # Disable jupyter-builder build hook
-      - name: Disable Jupyter builder for linting
-        run: |
-          sed -i 's/\[tool.hatch.build.hooks.\(.*\)\]/\[_tool.hatch.build.hooks.\1\]/' pyproject.toml
-
-      # Install Python package in development mode
-      - name: Install Python dependencies
-        run: |
-          pip install -e ".[dev]"
-
-      # Set up Node.js and pnpm with dependencies
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          cache: 'pnpm'
-      - name: Install JavaScript dependencies
-        run: pnpm install --no-frozen-lockfile
-
-      # Python linting with Ruff
-      - name: Lint Python code
-        run: ruff check src/
-
-      # Python formatting check with Ruff
-      - name: Check Python formatting
-        run: ruff format --check src/
-
-      # JavaScript/TypeScript linting with ESLint
-      - name: Lint JavaScript code
-        run: pnpm run lint:js
-
-      # JavaScript formatting check with Prettier
-      - name: Check JavaScript formatting
-        run: pnpm run format:js:check
+  quality-gate:
+    uses: ./.github/workflows/quality-gate.yml
 
   # =============================================================================
-  # Security Scanning - Dependency security analysis
+  # Test Matrix - Comprehensive testing across environments
   # =============================================================================
-  security:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      # Set up Python for security scanning
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      # Disable jupyter-builder build hook for security scanning
-      - name: Disable Jupyter builder for security scanning
-        run: |
-          sed -i 's/\[tool.hatch.build.hooks.\(.*\)\]/\[_tool.hatch.build.hooks.\1\]/' pyproject.toml
-
-      # Install dependencies for security scanning
-      - name: Install Python dependencies
-        run: |
-          pip install -e ".[dev]"
-
-      # Python security scanning with Safety
-      - name: Run Safety Check
-        run: |
-          pip install safety
-          safety check --json --output safety-report.json || true
-
-      # Python security scanning with Bandit
-      - name: Run Bandit Security Scan
-        run: |
-          pip install bandit[toml]
-          bandit -r src/ -f json -o bandit-report.json || true
+  test-matrix:
+    needs: quality-gate
+    uses: ./.github/workflows/test-matrix.yml
 
   # =============================================================================
-  # Python Testing - Multi-version compatibility testing
-  # Tests Python package across supported Python versions
-  # =============================================================================
-  test-python:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ['3.10', '3.11', '3.12']
-    steps:
-      - uses: actions/checkout@v4
-
-      # Set up specific Python version from matrix
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      # Set up Node.js and pnpm (required for full build)
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          cache: 'pnpm'
-      - name: Install JavaScript dependencies
-        run: pnpm install --no-frozen-lockfile
-
-      # Install package with development dependencies (full build with jupyter-builder)
-      - name: Install dependencies
-        run: |
-          pip install -e ".[dev]"
-
-      # Run Python tests with coverage reporting
-      - name: Run Python tests
-        run: pytest --cov=src/celldega --cov-report=xml
-
-      # Upload Python test coverage to Codecov (only for main Python version)
-      - name: Upload coverage to Codecov
-        if: matrix.python-version == '3.11'
-        uses: codecov/codecov-action@v5
-        with:
-          file: ./coverage.xml
-          flags: python
-          name: codecov-python
-          fail_ci_if_error: false
-
-  # =============================================================================
-  # JavaScript Testing - Widget and UI component testing
-  # Tests JavaScript/TypeScript components and widgets
-  # =============================================================================
-  test-javascript:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      # Set up Node.js and pnpm with dependencies
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          cache: 'pnpm'
-      - name: Install JavaScript dependencies
-        run: pnpm install --no-frozen-lockfile
-
-      # Run JavaScript/TypeScript tests (Jest)
-      - name: Run JavaScript tests
-        run: pnpm run test:js
-
-      # Upload JavaScript test coverage to Codecov
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v5
-        with:
-          file: ./coverage/lcov.info
-          flags: javascript
-          name: codecov-javascript
-          fail_ci_if_error: false
-
-  # =============================================================================
-  # Integration Testing - Full build and package testing
-  # Verifies complete package can be built and installed
-  # Runs only after code quality and unit tests pass
-  # =============================================================================
-  build-and-test:
-    runs-on: ubuntu-latest
-    needs: [lint-and-format, test-python, test-javascript]
-    steps:
-      - uses: actions/checkout@v4
-
-      # Set up Python environment
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      # Set up Node.js and pnpm with dependencies
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          cache: 'pnpm'
-      - name: Install JavaScript dependencies
-        run: pnpm install --no-frozen-lockfile
-
-      # Install all dependencies (Python + JavaScript) with full build
-      - name: Install Python dependencies
-        run: |
-          pip install -e ".[dev]"
-
-      # Build JavaScript bundle
-      - name: Build JavaScript bundle
-        run: pnpm run build
-
-      # Test Python package building (wheel + sdist)
-      - name: Test package build
-        run: |
-          pip install build
-          python -m build
-
-      # Test package installation from built wheel
-      - name: Test package installation
-        run: |
-          pip install dist/*.whl
-          python -c "import celldega; print('Package installed successfully')"
-
-      # Store build artifacts for release job
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: python-package-distributions
-          path: dist/
-
-  # =============================================================================
-  # Automated Release - Triggered on version tags
-  # Publishes to PyPI and creates GitHub releases
+  # Release - Automated publishing (tags only)
   # =============================================================================
   release:
-    runs-on: ubuntu-latest
-    needs:
-      [lint-and-format, security, test-python, test-javascript, build-and-test]
+    needs: [quality-gate, test-matrix]
     if: startsWith(github.ref, 'refs/tags/v')
-    permissions:
-      contents: write # For creating releases
-      id-token: write # For trusted PyPI publishing
-    steps:
-      - uses: actions/checkout@v4
-
-      # Download build artifacts from build-and-test job
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: python-package-distributions
-          path: dist/
-
-      # Publish to PyPI using trusted publishing (recommended) or API token
-      - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          # Use trusted publishing if configured, otherwise fallback to token
-          password: ${{ secrets.PYPI_API_TOKEN }}
-
-      # Create GitHub Release with artifacts
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            dist/*.whl
-            dist/*.tar.gz
-          generate_release_notes: true
-          draft: false
-          prerelease: ${{ contains(github.ref, 'alpha') || contains(github.ref, 'beta') || contains(github.ref, 'rc') }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    uses: ./.github/workflows/release.yml
+    with:
+      tag: ${{ github.ref_name }}
+    secrets: inherit

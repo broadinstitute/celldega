@@ -1,0 +1,117 @@
+name: Test Matrix
+
+on:
+  workflow_call:
+    outputs:
+      passed:
+        description: 'Whether all tests passed'
+        value: ${{ jobs.test-summary.outputs.passed }}
+
+jobs:
+  # =============================================================================
+  # Python Testing - Multi-version compatibility
+  # =============================================================================
+  test-python:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.10', '3.11', '3.12']
+    steps:
+      - uses: actions/checkout@v4
+
+      # Setup environments
+      - name: Setup Python environment
+        uses: ./.github/actions/setup-python-env
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Setup JavaScript environment
+        uses: ./.github/actions/setup-js-env
+
+      # Run tests
+      - name: Run Python tests
+        run: pytest --cov=src/celldega --cov-report=xml
+
+      # Upload coverage (only for main Python version)
+      - name: Upload Python coverage
+        if: matrix.python-version == '3.11'
+        uses: codecov/codecov-action@v5
+        with:
+          file: ./coverage.xml
+          flags: python
+          name: codecov-python
+          fail_ci_if_error: false
+
+  # =============================================================================
+  # JavaScript Testing
+  # =============================================================================
+  test-javascript:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Setup environment
+      - name: Setup JavaScript environment
+        uses: ./.github/actions/setup-js-env
+
+      # Run tests
+      - name: Run JavaScript tests
+        run: pnpm run test:js
+
+      # Upload coverage
+      - name: Upload JavaScript coverage
+        uses: codecov/codecov-action@v5
+        with:
+          file: ./coverage/lcov.info
+          flags: javascript
+          name: codecov-javascript
+          fail_ci_if_error: false
+
+  # =============================================================================
+  # Integration Testing
+  # =============================================================================
+  test-integration:
+    runs-on: ubuntu-latest
+    needs: [test-python, test-javascript]
+    steps:
+      - uses: actions/checkout@v4
+
+      # Setup environments
+      - name: Setup Python environment
+        uses: ./.github/actions/setup-python-env
+
+      - name: Setup JavaScript environment
+        uses: ./.github/actions/setup-js-env
+
+      # Build and test package
+      - name: Build package
+        uses: ./.github/actions/build-package
+
+      # Store artifacts for potential release
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-package-distributions
+          path: dist/
+
+  # =============================================================================
+  # Test Summary
+  # =============================================================================
+  test-summary:
+    runs-on: ubuntu-latest
+    needs: [test-python, test-javascript, test-integration]
+    if: always()
+    outputs:
+      passed: ${{ steps.test-result.outputs.passed }}
+    steps:
+      - name: Check test results
+        id: test-result
+        run: |
+          if [ "${{ needs.test-python.result }}" == "success" ] && \
+             [ "${{ needs.test-javascript.result }}" == "success" ] && \
+             [ "${{ needs.test-integration.result }}" == "success" ]; then
+            echo "passed=true" >> $GITHUB_OUTPUT
+          else
+            echo "passed=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi

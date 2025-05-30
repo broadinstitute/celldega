@@ -1,0 +1,38 @@
+name: Test JavaScript
+
+on:
+  workflow_call:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+
+jobs:
+  test-javascript:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Set up Node.js and pnpm with dependencies
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'pnpm'
+      - name: Install JavaScript dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      # Run JavaScript/TypeScript tests (Jest)
+      - name: Run JavaScript tests
+        run: pnpm run test:js
+
+      # Upload JavaScript test coverage to Codecov
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          file: ./coverage/lcov.info
+          flags: javascript
+          name: codecov-javascript
+          fail_ci_if_error: false

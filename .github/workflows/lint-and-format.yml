@@ -1,0 +1,57 @@
+name: Code Quality
+
+on:
+  workflow_call:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+
+jobs:
+  lint-and-format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Set up Python environment
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # Disable jupyter-builder build hook
+      - name: Disable Jupyter builder for linting
+        run: |
+          sed -i 's/\[tool.hatch.build.hooks.\(.*\)\]/\[_tool.hatch.build.hooks.\1\]/' pyproject.toml
+
+      # Install Python package in development mode
+      - name: Install Python dependencies
+        run: |
+          pip install -e ".[dev]"
+
+      # Set up Node.js and pnpm with dependencies
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'pnpm'
+      - name: Install JavaScript dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      # Python linting with Ruff
+      - name: Lint Python code
+        run: ruff check src/
+
+      # Python formatting check with Ruff
+      - name: Check Python formatting
+        run: ruff format --check src/
+
+      # JavaScript/TypeScript linting with ESLint
+      - name: Lint JavaScript code
+        run: pnpm run lint:js
+
+      # JavaScript formatting check with Prettier
+      - name: Check JavaScript formatting
+        run: pnpm run format:js:check

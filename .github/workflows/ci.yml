@@ -1,6 +1,6 @@
 # =============================================================================
-# Celldega CI/CD Pipeline
-# Principal Engineering: Modular, maintainable, scalable
+# Continuous Integration Pipeline for Celldega
+# Runs on pushes to main/develop and all pull requests
 # =============================================================================
 name: CI
 
@@ -12,36 +12,59 @@ on:
     branches: [main, develop]
   workflow_dispatch:
 
-# Prevent redundant runs
+# Add concurrency control to cancel redundant runs
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-# Minimal permissions by default
+# Security: Restrict permissions by default
 permissions:
   contents: read
 
 jobs:
   # =============================================================================
-  # Quality Gate - Code quality and security checks
+  # Code Quality - Linting and Formatting Checks
+  # Ensures code follows style guidelines before running tests
   # =============================================================================
-  quality-gate:
-    uses: ./.github/workflows/quality-gate.yml
+  lint-and-format:
+    uses: ./.github/workflows/lint-and-format.yml
 
   # =============================================================================
-  # Test Matrix - Comprehensive testing across environments
+  # Security Scanning - Dependency security analysis
   # =============================================================================
-  test-matrix:
-    needs: quality-gate
-    uses: ./.github/workflows/test-matrix.yml
+  security:
+    uses: ./.github/workflows/security.yml
 
   # =============================================================================
-  # Release - Automated publishing (tags only)
+  # Python Testing - Multi-version compatibility testing
+  # Tests Python package across supported Python versions
+  # =============================================================================
+  test-python:
+    uses: ./.github/workflows/test-python.yml
+
+  # =============================================================================
+  # JavaScript Testing - Widget and UI component testing
+  # Tests JavaScript/TypeScript components and widgets
+  # =============================================================================
+  test-javascript:
+    uses: ./.github/workflows/test-javascript.yml
+
+  # =============================================================================
+  # Integration Testing - Full build and package testing
+  # Verifies complete package can be built and installed
+  # Runs only after code quality and unit tests pass
+  # =============================================================================
+  build-and-test:
+    needs: [lint-and-format, test-python, test-javascript]
+    uses: ./.github/workflows/build-and-test.yml
+
+  # =============================================================================
+  # Automated Release - Triggered on version tags
+  # Publishes to PyPI and creates GitHub releases
   # =============================================================================
   release:
-    needs: [quality-gate, test-matrix]
+    needs:
+      [lint-and-format, security, test-python, test-javascript, build-and-test]
     if: startsWith(github.ref, 'refs/tags/v')
     uses: ./.github/workflows/release.yml
-    with:
-      tag: ${{ github.ref_name }}
     secrets: inherit

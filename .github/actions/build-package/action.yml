@@ -13,15 +13,13 @@ runs:
       shell: bash
       run: pnpm run build
 
-    - name: Install build tools
+    - name: Test Python package building (wheel + sdist)
       shell: bash
-      run: pip install build
+      run: |
+        pip install build
+        python -m build
 
-    - name: Build Python package
-      shell: bash
-      run: python -m build
-
-    - name: Test package installation
+    - name: Test package installation from built wheel
       shell: bash
       run: |
         pip install dist/*.whl

@@ -1,0 +1,59 @@
+name: Build and Test
+
+on:
+  workflow_call:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Set up Python environment
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # Set up Node.js and pnpm with dependencies
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'pnpm'
+      - name: Install JavaScript dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      # Install all dependencies (Python + JavaScript) with full build
+      - name: Install Python dependencies
+        run: |
+          pip install -e ".[dev]"
+
+      # Build JavaScript bundle
+      - name: Build JavaScript bundle
+        run: pnpm run build
+
+      # Test Python package building (wheel + sdist)
+      - name: Test package build
+        run: |
+          pip install build
+          python -m build
+
+      # Test package installation from built wheel
+      - name: Test package installation
+        run: |
+          pip install dist/*.whl
+          python -c "import celldega; print('Package installed successfully')"
+
+      # Store build artifacts for release job
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-package-distributions
+          path: dist/

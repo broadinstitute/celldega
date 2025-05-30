@@ -42,8 +42,19 @@ jobs:
           pip install -e ".[dev]"
 
       # Set up Node.js and pnpm with dependencies (for JavaScript linting)
-      - name: Setup Node.js and pnpm
-        uses: ./.github/actions/setup-node-pnpm
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: '10'
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'pnpm'
+      - name: Install JavaScript dependencies
+        run: pnpm install --no-frozen-lockfile
+        with:
+          frozen-lockfile: 'false'
 
       # Python linting with Ruff
       - name: Lint Python code
@@ -116,8 +127,19 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       # Set up Node.js and pnpm (required for full build)
-      - name: Setup Node.js and pnpm
-        uses: ./.github/actions/setup-node-pnpm
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: '10'
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'pnpm'
+      - name: Install JavaScript dependencies
+        run: pnpm install --no-frozen-lockfile
+        with:
+          frozen-lockfile: 'false'
 
       # Install package with development dependencies (full build with jupyter-builder)
       - name: Install dependencies
@@ -148,8 +170,21 @@ jobs:
       - uses: actions/checkout@v4
 
       # Set up Node.js and pnpm with dependencies
-      - name: Setup Node.js and pnpm
-        uses: ./.github/actions/setup-node-pnpm
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: '10'
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'pnpm'
+      - name: Install JavaScript dependencies
+        run: pnpm install --no-frozen-lockfile
+        with:
+          frozen-lockfile: 'false'
+        with:
+          frozen-lockfile: 'false'
 
       # Run JavaScript/TypeScript tests (Jest)
       - name: Run JavaScript tests
@@ -182,8 +217,17 @@ jobs:
           python-version: '3.11'
 
       # Set up Node.js and pnpm with dependencies
-      - name: Setup Node.js and pnpm
-        uses: ./.github/actions/setup-node-pnpm
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: '10'
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'pnpm'
+      - name: Install JavaScript dependencies
+        run: pnpm install --no-frozen-lockfile
 
       # Install all dependencies (Python + JavaScript) with full build
       - name: Install Python dependencies

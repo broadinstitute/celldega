@@ -58,36 +58,6 @@ const mat_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
     viz_state.model.set('click_info', viz_state.click);
     viz_state.model.save_changes();
   }
-
-  // if (viz_state.order.current.row === 'ini') {
-  //     viz_state.order.current.row = 'clust'
-  //     viz_state.order.current.col = 'clust'
-  // } else if (viz_state.order.current.row === 'clust') {
-  //     viz_state.order.current.row = 'ini'
-  //     viz_state.order.current.col = 'ini'
-  // }
-
-  // layers_mat.mat_layer = layers_mat.mat_layer.clone({
-  //     updateTriggers: {
-  //         getPosition: [viz_state.order.current.row, viz_state.order.current.col]
-  //     }
-  // })
-
-  // layers_mat.row_label_layer = layers_mat.row_label_layer.clone({
-  //     updateTriggers: {
-  //         getPosition: viz_state.order.current.row
-  //     }
-  // })
-
-  // layers_mat.col_label_layer = layers_mat.col_label_layer.clone({
-  //     updateTriggers: {
-  //         getPosition: viz_state.order.current.col
-  //     }
-  // })
-
-  // deck_mat.setProps({
-  //     layers: get_mat_layers_list(layers_mat),
-  // })
 };
 
 export const set_mat_layer_onclick = (deck_mat, layers_mat, viz_state) => {

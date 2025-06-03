@@ -208,8 +208,7 @@ export const make_bar_graph = (
     .append('rect')
     .attr('fill', (d) => {
       const inst_rgb = color_dict[d.name];
-      const inst_color = `rgb(${inst_rgb[0]}, ${inst_rgb[1]}, ${inst_rgb[2]})`;
-      return inst_color;
+      return `rgb(${inst_rgb[0]}, ${inst_rgb[1]}, ${inst_rgb[2]})`;
     })
     .attr('width', (d) => x_new(d.value))
     .attr('height', y_new.bandwidth() - 1);

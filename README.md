@@ -1,4 +1,4 @@
-![Celldega banner](assets/banner.svg)
+![Celldega banner](public/assets/banner.svg)
 
 [![PyPI version](https://badge.fury.io/py/celldega.svg)](https://badge.fury.io/py/celldega)
 [![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
@@ -49,7 +49,7 @@ mat = dega.viz.Matrix(network=network, width=500, height=500)
 dega.viz.landscape_matrix(landscape_ist, mat)
 ```
 
-![Celldega Demo](assets/celldega-demo.png)
+![Celldega Demo](public/assets/celldega-demo.png)
 
 ## 📖 Documentation & Examples
 

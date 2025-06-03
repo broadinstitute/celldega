@@ -1,0 +1,113 @@
+
+<svg width="100%" height="80" viewBox="0 0 1200 80" xmlns="http://www.w3.org/2000/svg">
+
+  <!-- ADJUSTABLE PARAMETERS - Modify these values to customize the banner -->
+  <defs>
+    <style>
+      :root {
+        /* Banner dimensions */
+        --banner-height: 80px;
+
+        /* Logo settings */
+        --logo-size: 50px;
+        --logo-x: 20px;
+        --logo-y: 15px;
+
+        /* Title settings */
+        --title-font-size: 32px;
+        --title-x: 85px;
+        --title-y: 48px;
+
+        /* Button settings */
+        --button-height: 40px;
+        --button-font-size: 40px;
+        --button-radius: 6px;
+        --button-y: 20px;
+
+        /* Button positions and sizes */
+        --docs-button-width: 100px;
+        --docs-button-x: 960px;
+        --star-button-width: 110px;
+        --star-button-x: 1070px;
+
+        /* Colors */
+        --bg-color: #016DB6;
+        --white: #ffffff;
+        --dark: #24292e;
+      }
+    </style>
+  </defs>
+
+  <!-- Blue background -->
+  <rect width="100%" height="80" fill="#016DB6"/>
+
+  <!-- Logo placeholder - replace this group with your actual SVG logo -->
+  <g transform="translate(20, 15)">
+    <!-- Placeholder: Simple logo representation -->
+    <rect width="50" height="50" rx="8" fill="white" stroke="#016DB6" stroke-width="2"/>
+    <text x="25" y="34" text-anchor="middle" font-family="Arial, sans-serif" font-size="26" fill="#016DB6">🧬</text>
+  </g>
+
+  <!-- Celldega title -->
+  <text x="85" y="48"
+        font-family="Arial, Helvetica, sans-serif"
+        font-size="32"
+        font-weight="bold"
+        fill="white">Celldega</text>
+
+  <!-- Documentation button -->
+  <a href="https://broadinstitute.github.io/celldega/">
+    <rect x="960" y="20" width="100" height="40" rx="6" fill="white"/>
+    <text x="1010" y="43"
+          text-anchor="middle"
+          dominant-baseline="middle"
+          font-family="Arial, Helvetica, sans-serif"
+          font-size="16"
+          font-weight="bold"
+          fill="#016DB6">Docs</text>
+  </a>
+
+  <!-- GitHub Star button -->
+  <a href="https://github.com/broadinstitute/celldega">
+    <rect x="1070" y="20" width="110" height="40" rx="6" fill="#24292e"/>
+    <text x="1125" y="43"
+          text-anchor="middle"
+          dominant-baseline="middle"
+          font-family="Arial, Helvetica, sans-serif"
+          font-size="16"
+          font-weight="bold"
+          fill="white">⭐ Star</text>
+  </a>
+
+  <!--
+  EASY CUSTOMIZATION GUIDE:
+
+  To adjust sizes, modify these values:
+
+  Banner height: Change "height" and "viewBox" height values
+
+  Logo:
+  - Size: Change width/height in logo group
+  - Position: Change translate(x, y) values
+
+  Title:
+  - Size: Change font-size
+  - Position: Change x and y values
+
+  Buttons:
+  - Height: Change height value in rect elements
+  - Width: Change width value in rect elements
+  - Text size: Change font-size in text elements
+  - Position: Change x values (keep y=20 for vertical centering)
+  - Text centering: x should be rect-x + (width/2)
+
+  Button text vertical centering:
+  - y should be button-y + (button-height/2) + 3px
+  - Use dominant-baseline="middle" for perfect centering
+
+  Current button text positions:
+  - Docs: x=1010 (960 + 50), y=43 (20 + 20 + 3)
+  - Star: x=1125 (1070 + 55), y=43 (20 + 20 + 3)
+  -->
+
+</svg>

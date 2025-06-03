@@ -98,7 +98,6 @@ export const landscape_sst = async (
   await set_meta_gene(viz_state.genes, base_url);
 
   // move this to landscape_parameters
-  // const imgage_name_for_dim = 'dapi'
   const _info = {
     name: 'cells',
     color: [0, 0, 255],
@@ -151,8 +150,6 @@ export const landscape_sst = async (
 
   if (Object.keys(viz_state.model).length > 0) {
     // ist version
-    // viz_state.model.on('change:update_trigger', () => update_ist_landscape_from_cgm(deck_ist, layers_obj, viz_state))
-
     viz_state.model.on('change:update_trigger', () =>
       update_tile_landscape_from_cgm(deck_sst, layers_sst, viz_state)
     );

@@ -67,8 +67,6 @@ import {
 import { update_cell_clusters } from '../widget_interactions/update_cell_clusters';
 import { update_ist_landscape_from_cgm } from '../widget_interactions/update_ist_landscape_from_cgm';
 
-// import { AwsClient } from 'aws4fetch'
-
 export const landscape_ist = async (
   el,
   ini_model,

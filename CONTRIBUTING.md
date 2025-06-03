@@ -6,7 +6,7 @@ Thank you for your interest in contributing to Celldega! 🧬
 
 - **Python 3.10+** → [Download here](https://python.org/downloads/)
 - **Node.js 16+** → [Download here](https://nodejs.org/)
-- **pnpm 8+** → [Install guide](https://pnpm.io/installation)
+- **npm 8+** → [Install guide](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm)
 - **Git** → [Download here](https://git-scm.com/)
 
 ## 🚀 Quick Start (one-time!)
@@ -28,7 +28,7 @@ That's it! Your development environment is ready. 🎉
 
 ```bash
 source dega/bin/activate    # Activate environment
-pnpm run dev                # Start development server
+npm run dev                 # Start development server
 ```
 
 ### 2. Make Your Changes
@@ -54,7 +54,7 @@ Understanding the project's tooling helps you contribute more effectively. Here'
 | ------------------------------- | ------------------------ | ------------------------------------------------------- |
 | **🔄 CI/CD & Automation**       |
 | `.github/workflows/ci.yml`      | Continuous Integration   | pytest, Jest, ESLint, Prettier, Ruff, Safety, Bandit    |
-| `.github/dependabot.yml`        | Dependency updates       | Automated Python, pnpm, and GitHub Actions updates      |
+| `.github/dependabot.yml`        | Dependency updates       | Automated Python, npm, and GitHub Actions updates       |
 | `.pre-commit-config.yaml`       | Git hooks                | Ruff (Python), Prettier, ESLint, basic file checks      |
 | **🐍 Python Configuration**     |
 | `pyproject.toml`                | Python package config    | pytest, Ruff (linting + formatting), build system       |
@@ -63,7 +63,7 @@ Understanding the project's tooling helps you contribute more effectively. Here'
 | `eslint.config.js`              | JavaScript linting rules | ESLint with import ordering, code quality rules         |
 | `jest.setup.js`                 | Test environment setup   | Jest with jsdom, testing-library                        |
 | **💻 Development Scripts**      |
-| `scripts/setup.sh`              | Environment setup        | Python venv, pnpm install, pre-commit hooks             |
+| `scripts/setup.sh`              | Environment setup        | Python venv, npm install, pre-commit hooks              |
 | `scripts/test.sh`               | Test runner              | pytest, Jest, linting checks                            |
 | `scripts/utils.sh`              | Shared utilities         | Helper functions for scripts                            |
 | **👷🏻 Build & Bundling**         |
@@ -273,17 +273,16 @@ git commit -m "infra(jest): configure coverage reporting for CI pipeline" # Infr
 chmod +x scripts/*.sh
 ```
 
-**"Python/Node.js/pnpm not found"**
+**"Python/Node.js/npm not found"**
 
 - Install from links above
-- Check versions: `python --version`, `node --version`, `pnpm --version`
+- Check versions: `python --version`, `node --version`, `npm --version`
 
-**"pnpm: command not found"**
+**"npm: command not found"**
 
 ```bash
-npm install -g pnpm
-# or
-corepack enable
+# npm comes with Node.js - install Node.js from nodejs.org
+# or update Node.js to get latest npm
 ```
 
 **"Import errors"**
@@ -301,7 +300,7 @@ corepack enable
 **"node_modules missing"**
 
 ```bash
-pnpm install                   # Reinstall JavaScript dependencies
+npm install                    # Reinstall JavaScript dependencies
 ```
 
 </details>
@@ -326,10 +325,10 @@ bash ./scripts/setup.sh --env-name my-celldega-env
 ### Development Server Options
 
 ```bash
-pnpm run dev                # Standard development
-pnpm run dev:watch         # Watch mode with hot reload
-pnpm run build             # Production build
-pnpm run serve             # Serve production build
+npm run dev                # Standard development
+npm run dev:watch         # Watch mode with hot reload
+npm run build             # Production build
+npm run serve             # Serve production build
 ```
 
 ### Testing Options
@@ -338,19 +337,19 @@ pnpm run serve             # Serve production build
 pytest tests/unit/         # Specific test directory
 pytest -k "test_clustering" # Tests matching pattern
 pytest --cov-report=html   # HTML coverage report
-pnpm run test:js:watch     # JavaScript tests in watch mode
+npm run test:js:watch     # JavaScript tests in watch mode
 ```
 
-### pnpm Commands
+### npm Commands
 
 ```bash
-pnpm install               # Install all dependencies
-pnpm install --frozen-lockfile  # Install from lockfile (CI)
-pnpm run test:js          # Run JavaScript tests
-pnpm run lint:js          # Lint JavaScript code
-pnpm run format:js        # Format JavaScript code
-pnpm outdated             # Check for outdated packages
-pnpm update               # Update dependencies
+npm install               # Install all dependencies
+npm ci                    # Install from lockfile (CI)
+npm run test:js          # Run JavaScript tests
+npm run lint:js          # Lint JavaScript code
+npm run format:js        # Format JavaScript code
+npm outdated             # Check for outdated packages
+npm update               # Update dependencies
 ```
 
 ### VS Code Setup
@@ -381,7 +380,7 @@ Contributors are celebrated in:
 3. **Test thoroughly** - Include edge cases and error conditions
 4. **Document changes** - Help future contributors understand your work
 5. **Be patient** - We review all contributions carefully
-6. **Use pnpm efficiently** - It's faster than npm and saves disk space!
+6. **Use npm efficiently** - It comes with Node.js and handles all dependencies well!
 
 ## 🤝 Code of Conduct
 

@@ -16,21 +16,21 @@ readonly VENV_PATH="${VENV_BASE_DIR}/${VENV_NAME}"
 # =============================================================================
 readonly PYTHON_MIN_VERSION="3.10"
 readonly NODE_MIN_VERSION="16"
-readonly PNPM_MIN_VERSION="8"
+readonly NPM_MIN_VERSION="8"
 
 # =============================================================================
 # Download URLs
 # =============================================================================
 readonly PYTHON_DOWNLOAD_URL="https://python.org/downloads/"
 readonly NODE_DOWNLOAD_URL="https://nodejs.org/"
-readonly PNPM_DOWNLOAD_URL="https://pnpm.io/installation"
+readonly NPM_DOWNLOAD_URL="https://docs.npmjs.com/downloading-and-installing-node-js-and-npm"
 readonly GIT_DOWNLOAD_URL="https://git-scm.com/"
 
 # =============================================================================
 # Package Installation Configuration
 # =============================================================================
 readonly PIP_INSTALL_ARGS="--upgrade pip --quiet"
-readonly PNPM_INSTALL_ARGS="--silent"
+readonly NPM_INSTALL_ARGS="--silent"
 readonly PYTHON_PACKAGE_SPEC=".[dev]"
 
 # =============================================================================
@@ -47,10 +47,10 @@ readonly PROJECT_FILES=("pyproject.toml" "package.json")
 readonly CLEANUP_PATTERNS=("node_modules" ".pytest_cache" "htmlcov" ".coverage")
 
 # =============================================================================
-# PNPM Script Names
+# npm Script Names
 # =============================================================================
-readonly PNPM_TEST_JS_SCRIPT="test:js"
-readonly PNPM_LINT_JS_SCRIPT="lint:js"
+readonly NPM_TEST_JS_SCRIPT="test:js"
+readonly NPM_LINT_JS_SCRIPT="lint:js"
 
 # =============================================================================
 # Common Messages
@@ -69,13 +69,12 @@ readonly MSG_CODE_QUALITY="Checking code quality..."
 # =============================================================================
 readonly ERR_PYTHON_NOT_FOUND="Python not found. Please install Python ${PYTHON_MIN_VERSION}+ from ${PYTHON_DOWNLOAD_URL}"
 readonly ERR_NODE_NOT_FOUND="Node.js not found. Please install Node.js ${NODE_MIN_VERSION}+ from ${NODE_DOWNLOAD_URL}"
-readonly ERR_PNPM_NOT_FOUND="pnpm not found. Please install pnpm:
-  npm install -g pnpm
-  or use: corepack enable && corepack prepare pnpm@latest --activate
-  More info: ${PNPM_DOWNLOAD_URL}"
+readonly ERR_NPM_NOT_FOUND="npm not found. Please install npm:
+  npm comes with Node.js installation
+  More info: ${NPM_DOWNLOAD_URL}"
 readonly ERR_PYTHON_OLD="Python version may be too old. Please ensure you have Python ${PYTHON_MIN_VERSION}+"
 readonly ERR_NODE_OLD="Node.js version may be too old. Please ensure you have Node.js ${NODE_MIN_VERSION}+"
-readonly ERR_PNPM_OLD="pnpm version may be too old. Please ensure you have pnpm ${PNPM_MIN_VERSION}+"
+readonly ERR_NPM_OLD="npm version may be too old. Please ensure you have npm ${NPM_MIN_VERSION}+"
 readonly ERR_PYTEST_NOT_FOUND="pytest not found. Run ./scripts/setup.sh to install dependencies"
 readonly ERR_PACKAGE_JSON_NOT_FOUND="package.json not found"
 
@@ -97,7 +96,7 @@ readonly MSG_ALL_TESTS_PASSED="🎉 All tests passed! Your code is ready"
 # =============================================================================
 readonly HELP_REQUIREMENTS_PYTHON="• Python ${PYTHON_MIN_VERSION}+ (${PYTHON_DOWNLOAD_URL})"
 readonly HELP_REQUIREMENTS_NODE="• Node.js ${NODE_MIN_VERSION}+ (${NODE_DOWNLOAD_URL})"
-readonly HELP_REQUIREMENTS_PNPM="• pnpm ${PNPM_MIN_VERSION}+ (${PNPM_DOWNLOAD_URL})"
+readonly HELP_REQUIREMENTS_NPM="• npm ${NPM_MIN_VERSION}+ (${NPM_DOWNLOAD_URL})"
 readonly HELP_REQUIREMENTS_GIT="• Git (${GIT_DOWNLOAD_URL})"
 
 # =============================================================================

@@ -136,14 +136,14 @@ check_node_version() {
     fi
 }
 
-check_pnpm_version() {
-    local required="${1:-$PNPM_MIN_VERSION}"
+check_npm_version() {
+    local required="${1:-$NPM_MIN_VERSION}"
 
-    if ! command_exists pnpm; then
+    if ! command_exists npm; then
         return 1
     fi
 
-    local version=$(pnpm --version 2>/dev/null | cut -d. -f1)
+    local version=$(npm --version 2>/dev/null | cut -d. -f1)
 
     if [ -z "$version" ]; then
         return 1
@@ -184,7 +184,7 @@ next_steps() {
     echo
     echo "Next steps:"
     echo "  1. Activate environment:  $ACTIVATION_COMMAND"
-    echo "  2. Start developing:      pnpm run dev"
+    echo "  2. Start developing:      npm run dev"
     echo "  3. Open notebooks:        jupyter lab notebooks/"
     echo
     echo "Need help? Run: ./scripts/setup.sh --help"

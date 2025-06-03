@@ -54,13 +54,13 @@ run_js_tests() {
     fi
 
     # Check if test script exists
-    if pnpm run | grep -q "$PNPM_TEST_JS_SCRIPT"; then
-        pnpm run "$PNPM_TEST_JS_SCRIPT"
+    if npm run | grep -q "$NPM_TEST_JS_SCRIPT"; then
+        npm run "$NPM_TEST_JS_SCRIPT"
         success "$MSG_JS_TESTS_PASSED"
     else
         warning "No JavaScript test script found in package.json"
-        info "Available pnpm scripts:"
-        pnpm run 2>/dev/null | grep -E "^\s+" || echo "  No scripts found"
+        info "Available npm scripts:"
+        npm run 2>/dev/null | grep -E "^\s+" || echo "  No scripts found"
     fi
 }
 
@@ -82,8 +82,8 @@ run_linting() {
     fi
 
     # JavaScript linting
-    if pnpm run | grep -q "$PNPM_LINT_JS_SCRIPT"; then
-        if pnpm run "$PNPM_LINT_JS_SCRIPT" --silent; then
+    if npm run | grep -q "$NPM_LINT_JS_SCRIPT"; then
+        if npm run "$NPM_LINT_JS_SCRIPT" --silent; then
             success "JavaScript code looks good"
         else
             warning "JavaScript linting issues found"
@@ -165,8 +165,8 @@ verbose_all_tests() {
 
     # Run JavaScript tests
     log_step "Running JavaScript tests"
-    if pnpm run | grep -q "$PNPM_TEST_JS_SCRIPT"; then
-        pnpm run "$PNPM_TEST_JS_SCRIPT"
+    if npm run | grep -q "$NPM_TEST_JS_SCRIPT"; then
+        npm run "$NPM_TEST_JS_SCRIPT"
         log_success "JavaScript tests completed"
     else
         log_warning "No JavaScript test script found"
@@ -184,9 +184,9 @@ verbose_all_tests() {
         log_warning "ruff not found, skipping Python linting"
     fi
 
-    if pnpm run | grep -q "$PNPM_LINT_JS_SCRIPT"; then
+    if npm run | grep -q "$NPM_LINT_JS_SCRIPT"; then
         run_command "Running JavaScript linting" \
-            pnpm run "$PNPM_LINT_JS_SCRIPT"
+            npm run "$NPM_LINT_JS_SCRIPT"
     else
         log_warning "No JavaScript linting script found"
     fi

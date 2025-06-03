@@ -49,14 +49,14 @@ main_setup() {
         warning "$ERR_NODE_OLD"
     fi
 
-    # Check pnpm
-    if ! command_exists pnpm; then
-        error "$ERR_PNPM_NOT_FOUND"
+    # Check npm
+    if ! command_exists npm; then
+        error "$ERR_NPM_NOT_FOUND"
         exit 1
     fi
 
-    if ! check_pnpm_version "$PNPM_MIN_VERSION"; then
-        warning "$ERR_PNPM_OLD"
+    if ! check_npm_version "$NPM_MIN_VERSION"; then
+        warning "$ERR_NPM_OLD"
     fi
 
     success "$MSG_SYSTEM_OK"
@@ -84,7 +84,7 @@ main_setup() {
 
     # Step 4: Install JavaScript packages
     info "$MSG_JS_PACKAGES"
-    pnpm install $PNPM_INSTALL_ARGS
+    npm install $NPM_INSTALL_ARGS
     success "$MSG_JS_PACKAGES_INSTALLED"
 
     # Step 5: Setup development tools
@@ -134,16 +134,16 @@ show_status() {
         echo "❌ Node.js: Not found"
     fi
 
-    # pnpm check
-    if command_exists pnpm; then
-        echo "✅ pnpm: $(pnpm --version)"
-        if check_pnpm_version "$PNPM_MIN_VERSION"; then
-            echo "✅ Version: Compatible (>= ${PNPM_MIN_VERSION})"
+    # npm check
+    if command_exists npm; then
+        echo "✅ npm: $(npm --version)"
+        if check_npm_version "$NPM_MIN_VERSION"; then
+            echo "✅ Version: Compatible (>= ${NPM_MIN_VERSION})"
         else
-            echo "⚠️  Version: May be too old (< ${PNPM_MIN_VERSION})"
+            echo "⚠️  Version: May be too old (< ${NPM_MIN_VERSION})"
         fi
     else
-        echo "❌ pnpm: Not found"
+        echo "❌ npm: Not found"
     fi
 
     # Environment check
@@ -171,7 +171,7 @@ show_status() {
 
     echo
     if [ -d "$VENV_PATH" ] && [ -d "node_modules" ]; then
-        success "Environment is ready! Run 'pnpm run dev' to start"
+        success "Environment is ready! Run 'npm run dev' to start"
     else
         info "Run './scripts/setup.sh' to complete setup"
     fi
@@ -203,7 +203,7 @@ show_help() {
     echo "Requirements:"
     echo "  $HELP_REQUIREMENTS_PYTHON"
     echo "  $HELP_REQUIREMENTS_NODE"
-    echo "  $HELP_REQUIREMENTS_PNPM"
+    echo "  $HELP_REQUIREMENTS_NPM"
     echo
     echo "Troubleshooting:"
     echo "  • Run from the project root directory"
@@ -255,16 +255,16 @@ verbose_setup() {
         exit 1
     fi
 
-    # Detailed pnpm check
-    if command_exists pnpm; then
-        log_info "Found pnpm: $(pnpm --version)"
-        if check_pnpm_version "$PNPM_MIN_VERSION"; then
-            log_success "pnpm version is compatible"
+    # Detailed npm check
+    if command_exists npm; then
+        log_info "Found npm: $(npm --version)"
+        if check_npm_version "$NPM_MIN_VERSION"; then
+            log_success "npm version is compatible"
         else
-            log_warning "pnpm version may be too old"
+            log_warning "npm version may be too old"
         fi
     else
-        log_error "pnpm not found"
+        log_error "npm not found"
         exit 1
     fi
 
@@ -298,7 +298,7 @@ verbose_setup() {
         pip install -e "$PYTHON_PACKAGE_SPEC"
 
     run_command "Installing JavaScript dependencies" \
-        pnpm install
+        npm install
 
     # Setup development tools
     log_step "Setting up development tools"

@@ -5,7 +5,7 @@
 ```bash
 ./scripts/setup.sh
 source dega/bin/activate
-pnpm run dev
+npm run dev
 ```
 
 That's it! 🎉
@@ -14,7 +14,7 @@ That's it! 🎉
 
 - **Python 3.10+** → [Download here](https://python.org/downloads/)
 - **Node.js 16+** → [Download here](https://nodejs.org/)
-- **pnpm 8+** → [Install guide](https://pnpm.io/installation)
+- **npm 8+** → [Install guide](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm)
 
 ## 🗂️ Scripts Overview
 
@@ -36,7 +36,7 @@ That's it! 🎉
 ```bash
 # Start your work session
 source dega/bin/activate
-pnpm run dev
+npm run dev
 
 # Before committing your work
 ./scripts/test.sh
@@ -52,7 +52,7 @@ chmod +x scripts/*.sh
 
 **"Command not found"?**
 
-- Make sure Python, Node.js, and pnpm are installed
+- Make sure Python, Node.js, and npm are installed
 - Check you're in the right folder (should see `pyproject.toml`)
 
 **Something broken?**
@@ -99,14 +99,14 @@ export VERBOSE=true              # Show detailed output
 export DEBUG=true                # Show debug information
 ```
 
-### pnpm Commands
+### npm Commands
 
 ```bash
-pnpm install                     # Install dependencies
-pnpm run dev                     # Start development server
-pnpm run build                   # Build for production
-pnpm run test:js                 # Run JavaScript tests
-pnpm run lint:js                 # Lint JavaScript code
+npm install                      # Install dependencies
+npm run dev                      # Start development server
+npm run build                    # Build for production
+npm run test:js                  # Run JavaScript tests
+npm run lint:js                  # Lint JavaScript code
 ```
 
 </details>

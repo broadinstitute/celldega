@@ -11,7 +11,7 @@ runs:
   steps:
     - name: Build JavaScript bundle
       shell: bash
-      run: pnpm run build
+      run: npm run build
 
     - name: Test Python package building (wheel + sdist)
       shell: bash

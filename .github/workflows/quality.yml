@@ -29,10 +29,10 @@ jobs:
 
       # JavaScript quality checks
       - name: Lint JavaScript code
-        run: pnpm run lint:js
+        run: npm run lint:js
 
       - name: Check JavaScript formatting
-        run: pnpm run format:js:check
+        run: npm run format:js:check
 
       # Security scanning
       - name: Run Safety Check

@@ -1,5 +1,5 @@
 name: 'Setup JavaScript Environment'
-description: 'Sets up Node.js and pnpm with dependencies for Celldega'
+description: 'Sets up Node.js and npm with dependencies for Celldega'
 
 inputs:
   node-version:
@@ -14,16 +14,13 @@ inputs:
 runs:
   using: 'composite'
   steps:
-    - name: Setup pnpm
-      uses: pnpm/action-setup@v4
-
     - name: Set up Node.js
       uses: actions/setup-node@v4
       with:
         node-version: ${{ inputs.node-version }}
-        cache: 'pnpm'
+        cache: 'npm'
 
     - name: Install JavaScript dependencies
       if: inputs.install-deps == 'true'
       shell: bash
-      run: pnpm install --no-frozen-lockfile
+      run: npm install

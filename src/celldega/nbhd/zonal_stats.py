@@ -1,39 +1,16 @@
-"""
-Module for zonal stats extraction from imagery data 
-using mask (numpy array) or polygons (GeoDataFrame).
-"""
-
 import geopandas as gpd
 import numpy as np
+import pandas as pd
 import rasterio
 from rasterio.features import rasterize
+from shapely.geometry.base import BaseGeometry
 from shapely.geometry import mapping
-import pandas as pd
+from typing import Any, Callable, Dict, List, Optional, Sequence, Union
 
-def calc_img_zonal_stats(
-    polygon_src, 
-    img, 
-    unique_polygon_col_name='name', 
-    channel_names=None,
-    stats_funcs=['mean'],
-):
-    """
-    Calculate zonal statistics for each polygon from a multi-channel image.
-
-    Parameters:
-    - polygon_src: Either:
-        - GeoDataFrame containing polygon geometries and a unique identifier column
-        - 2D NumPy array mask where each unique value represents a different polygon
-    - img: 3D NumPy array (H, W, C) representing the multi-channel image.
-    - unique_polygon_col_name: Column name in GeoDataFrame containing unique polygon identifiers.
-    - channel_names: dict mapping channel indices to channel names.
-    - stats_funcs: List of strings/functions specifying statistics to calculate.
-
-    Returns:
-    - GeoDataFrame (if input was GeoDataFrame) or DataFrame containing all statistics
-      with columns in format: polygon_id, {channel}_{stat}, geometry (if GeoDataFrame)
-    """
-    # Standard statistics mapping
+def _prepare_statistics_functions(
+    stats_funcs: Union[str, Callable, List[Union[str, Callable]]]
+) -> tuple[list[Callable], list[str]]:
+    """Parse stat specs into callables and names."""
     STATS_FUNCS = {
         'mean': np.nanmean,
         'median': np.nanmedian,
@@ -43,14 +20,12 @@ def calc_img_zonal_stats(
         'sum': np.nansum,
     }
 
-    # Process stats_funcs argument
     if not isinstance(stats_funcs, list):
         stats_funcs = [stats_funcs]
 
-    # Prepare functions and names
     funcs = []
     metric_names = []
-    
+
     for stat in stats_funcs:
         if isinstance(stat, str):
             if stat.startswith('percentile_'):
@@ -70,63 +45,119 @@ def calc_img_zonal_stats(
             metric_names.append(stat.__name__)
         else:
             raise ValueError("stats_funcs must contain strings or callables")
+    return funcs, metric_names
 
-    height, width, num_channels = img.shape
-    transform = rasterio.transform.from_origin(0, height, 1, 1)
-    
-    # Initialize result collection
+def _create_polygon_mask(
+    polygon: BaseGeometry, height: int, width: int, transform: Any
+) -> np.ndarray:
+    """Convert geometry to binary mask."""
+    return rasterize(
+        [(mapping(polygon), 1)],
+        out_shape=(height, width),
+        transform=transform,
+        fill=0,
+        all_touched=True,
+        dtype=np.uint8,
+    )
+
+def _calculate_channel_stats(
+    img: np.ndarray,
+    mask: np.ndarray,
+    funcs: Sequence[Callable],
+    metric_names: Sequence[str],
+    channel_names: Optional[Dict[int, str]],
+) -> Dict[str, float]:
+    """Compute stats for all channels given a binary mask."""
+    num_channels = img.shape[2]
+    channel_results = {}
+    for ch in range(num_channels):
+        masked_data = img[:, :, ch][mask == 1]
+        ch_name = channel_names.get(ch, f'channel_{ch}') if channel_names else f'channel_{ch}'
+        for func, name in zip(funcs, metric_names):
+            stat_value = func(masked_data) if masked_data.size > 0 else np.nan
+            col_name = f"{ch_name}_{name}"
+            channel_results[col_name] = stat_value
+    return channel_results
+
+def _process_geodataframe_polygons(
+    polygon_src: gpd.GeoDataFrame,
+    img: np.ndarray,
+    unique_polygon_col_name: str,
+    funcs: Sequence[Callable],
+    metric_names: Sequence[str],
+    channel_names: Optional[Dict[int, str]],
+    transform: Any,
+) -> List[Dict[str, Any]]:
+    """Handle GeoDataFrame workflow."""
+    height, width, _ = img.shape
     all_results = []
-    polygon_info = []
+    for _, row in polygon_src.iterrows():
+        polygon = row.geometry
+        polygon_name = row[unique_polygon_col_name]
+        mask = _create_polygon_mask(polygon, height, width, transform)
+        channel_stats = _calculate_channel_stats(img, mask, funcs, metric_names, channel_names)
+        channel_stats['polygon_id'] = polygon_name
+        all_results.append(channel_stats)
+    return all_results
+
+def _process_mask_array_polygons(
+    polygon_src: np.ndarray,
+    img: np.ndarray,
+    funcs: Sequence[Callable],
+    metric_names: Sequence[str],
+    channel_names: Optional[Dict[int, str]],
+) -> List[Dict[str, Any]]:
+    """Handle mask array workflow."""
+    _, _, num_channels = img.shape
+    unique_polygon_ids = np.unique(polygon_src)
+    unique_polygon_ids = unique_polygon_ids[unique_polygon_ids != 0]
+    all_results = []
+    for polygon_id in unique_polygon_ids:
+        mask = (polygon_src == polygon_id)
+        channel_stats = {}
+        for ch in range(num_channels):
+            masked_data = img[:, :, ch][mask]
+            ch_name = channel_names.get(ch, f'channel_{ch}') if channel_names else f'channel_{ch}'
+            for func, name in zip(funcs, metric_names):
+                stat_value = func(masked_data) if masked_data.size > 0 else np.nan
+                col_name = f"{ch_name}_{name}"
+                channel_stats[col_name] = stat_value
+        channel_stats['polygon_id'] = polygon_id
+        all_results.append(channel_stats)
+    return all_results
+
+def calc_img_zonal_stats(
+    polygon_src: Union[gpd.GeoDataFrame, np.ndarray],
+    img: np.ndarray,
+    unique_polygon_col_name: str = 'name',
+    channel_names: Optional[Dict[int, str]] = None,
+    stats_funcs: Union[str, Callable, List[Union[str, Callable]]] = ['mean'],
+) -> pd.DataFrame:
+    """
+    Calculate zonal statistics for each polygon from a multi-channel image.
+    Returns a DataFrame with columns: polygon_id, {channel}_{stat}, geometry (if GeoDataFrame).
+    """
+    funcs, metric_names = _prepare_statistics_functions(stats_funcs)
+    height, width, _ = img.shape
+    transform = rasterio.transform.from_origin(0, height, 1, 1)
 
     if isinstance(polygon_src, gpd.GeoDataFrame):
-        # Process GeoDataFrame
-        for idx, row in polygon_src.iterrows():
-            polygon = row.geometry
-            polygon_name = row[unique_polygon_col_name]
-            polygon_info.append({'polygon_id': polygon_name, 'geometry': polygon})
-
-            mask = rasterize(
-                [(mapping(polygon), 1)],
-                out_shape=(height, width),
-                transform=transform,
-                fill=0,
-                all_touched=True,
-                dtype=np.uint8
-            )
-
-            # Compute all stats for all channels
-            channel_results = {}
-            for ch in range(num_channels):
-                masked_data = img[:, :, ch][mask == 1]
-                ch_name = channel_names.get(ch, f'channel_{ch}') if channel_names else f'channel_{ch}'
-                
-                for func, name in zip(funcs, metric_names):
-                    stat_value = func(masked_data) if masked_data.size > 0 else np.nan
-                    col_name = f"{ch_name}_{name}"
-                    channel_results[col_name] = stat_value
-            
-            channel_results['polygon_id'] = polygon_name
-            all_results.append(channel_results)
+        results = _process_geodataframe_polygons(
+            polygon_src,
+            img,
+            unique_polygon_col_name,
+            funcs,
+            metric_names,
+            channel_names,
+            transform,
+        )
     else:
-        # Process numpy array mask
-        unique_polygon_ids = np.unique(polygon_src)
-        unique_polygon_ids = unique_polygon_ids[unique_polygon_ids != 0]
-        
-        for polygon_id in unique_polygon_ids:
-            polygon_info.append({'polygon_id': polygon_id})
-            mask = (polygon_src == polygon_id)
+        results = _process_mask_array_polygons(
+            polygon_src,
+            img,
+            funcs,
+            metric_names,
+            channel_names,
+        )
 
-            channel_results = {}
-            for ch in range(num_channels):
-                masked_data = img[:, :, ch][mask]
-                ch_name = channel_names.get(ch, f'channel_{ch}') if channel_names else f'channel_{ch}'
-                
-                for func, name in zip(funcs, metric_names):
-                    stat_value = func(masked_data) if masked_data.size > 0 else np.nan
-                    col_name = f"{ch_name}_{name}"
-                    channel_results[col_name] = stat_value
-            
-            channel_results['polygon_id'] = polygon_id
-            all_results.append(channel_results)
-
-    return pd.DataFrame(all_results)
+    return pd.DataFrame(results)

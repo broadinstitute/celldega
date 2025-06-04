@@ -5,50 +5,48 @@ build-backend = "hatchling.build"
 [project]
 name = "celldega"
 version = "0.12.0"
+readme = "README.md"
 dependencies = [
+    "anndata==0.11.3",
     "anywidget==0.9.6",
     "dask==2024.11.2",
-    "anndata==0.11.3",
-    "pandas~=2.2.2",
     "geopandas~=0.14.3",
-    "pyarrow~=15.0.2",
-    "matplotlib~=3.8.4",
-    "geopandas~=0.14.3",
-    "zarr==2.18.7",
-    "tifffile~=2024.4.18",
     "imagecodecs~=2024.1.1",
-    "scanpy~=1.10.2",
-    "squidpy~=1.6.5",
-    "shapely~=2.0.5",
-    "polars~=1.10.0",
     "libpysal~=4.8.1",
+    "matplotlib~=3.8.4",
+    "mudata==0.3.1",
+    "muon==0.1.7",
+    "pandas~=2.2.2",
+    "polars~=1.10.0",
+    "pyarrow~=15.0.2",
+    "rasterio==1.4.3",
+    "scanpy~=1.10.2",
+    "shapely~=2.0.5",
     "spatialdata~=0.3.0",
     "spatialdata_io~=0.1.7",
-    "rasterio==1.4.3",
-    "mudata==0.3.1",
-    "muon==0.1.7"
+    "squidpy~=1.6.5",
+    "tifffile~=2024.4.18",
+    "zarr==2.18.7"
 ]
-readme = "README.md"
 
 [project.optional-dependencies]
 dev = [
-    "watchfiles",
+    "black",
     "jupyterlab",
     "pylint",
-    "black"
+    "watchfiles"
 ]
 pre = [
     "pyvips~=2.2.2"
-] # optional dependencies for pre-processing
-
+]  # optional dependencies for pre-processing
 docs = [
     "mkdocs",
     "mkdocs-material",
     "mkdocstrings[python]",
     "mkdocstrings[javascript]"
-] # optional dependencies for documentation
+]  # optional dependencies for documentation
 
-# automatically add the dev feature to the default env (e.g., hatch shell)
+# Automatically add the dev feature to the default env (e.g., hatch shell)
 [tool.hatch.envs.default]
 features = ["dev"]
 

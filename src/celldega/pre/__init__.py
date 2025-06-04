@@ -848,22 +848,23 @@ def _to_geometry(coord_data):
     Raises:
         TypeError: If the input structure is not recognized.
     """
+    
     if isinstance(coord_data, (Point, Polygon, MultiPolygon)):
         return coord_data
 
-    if (
+    elif (
         isinstance(coord_data, (list, tuple)) and
         all(isinstance(x, (int, float)) for x in coord_data) and
         len(coord_data) == 2
     ):
         return Point(coord_data)
 
-    if isinstance(coord_data, dict) and "exterior" in coord_data:
+    elif isinstance(coord_data, dict) and "exterior" in coord_data:
         exterior = coord_data["exterior"]
         interiors = coord_data.get("interiors", [])
         return Polygon(exterior, interiors)
 
-    if (
+    elif (
         isinstance(coord_data, list) and
         all(isinstance(poly, dict) and "exterior" in poly for poly in coord_data)
     ):
@@ -872,7 +873,9 @@ def _to_geometry(coord_data):
             for poly in coord_data
         ])
 
-    raise TypeError(f"Cannot convert {coord_data} to a Shapely geometry. Unexpected structure.")
+    else:
+        raise TypeError(f"Cannot convert {coord_data} to a Shapely geometry. Unexpected structure.")
+
 
 
 def _to_coords(geom):

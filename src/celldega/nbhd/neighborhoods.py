@@ -103,6 +103,36 @@ def calc_nbg_cf(
     return df_counts
 
 
+def calc_nbi(
+    file_path: str,
+    path_landscape_files: str,
+    gdf_nbhd: gpd.GeoDataFrame,
+) -> pd.DataFrame:
+    """
+    Calculate neighborhood image-based indices (NBI) given paths and a GeoDataFrame.
+    """
+    print("Calculating NBI...")
+
+    img = imread(file_path)
+    path_transformation_matrix = f"{path_landscape_files}/micron_to_image_transform.csv"
+    transformation_matrix = pd.read_csv(path_transformation_matrix, header=None, sep=" ").values
+
+    gdf_nbhd_pixel = gdf_nbhd.copy()
+    gdf_nbhd_pixel["geometry"] = batch_transform_geometries(
+        gdf_nbhd_pixel["geometry"], transformation_matrix, 1
+    )
+
+    data = calc_img_zonal_stats(
+        gdf_nbhd_pixel,
+        img,
+        unique_polygon_col_name="name",
+        channel_names={0: "dapi", 1: "bound", 2: "rna", 3: "prot"},
+        stats_funcs=["mean", "median", "std"],
+    )
+    data = data.rename(columns={"polygon_id": "nbhd_id"}).set_index("nbhd_id")
+    return data
+
+
 class NBHD:
     """A class representing neighborhoods with associated derived data matrices."""
 
@@ -168,28 +198,14 @@ class NBHD:
             print("Calculating neighborhood bordering")
             data = calc_nb_bordering(nb)
         elif key == "NBI":
-            print("Calculating NBI...")
-            file_path = f"{self.data_dir}/morphology_focus/morphology_focus_0000.ome.tif"
-            img = imread(file_path)
-            path_transformation_matrix = (
-                f"{self.path_landscape_files}/micron_to_image_transform.csv"
-            )
-            transformation_matrix = pd.read_csv(
-                path_transformation_matrix, header=None, sep=" "
-            ).values
-            gdf_nbhd_pixel = self.gdf.copy()
-            gdf_nbhd_pixel["geometry"] = batch_transform_geometries(
-                gdf_nbhd_pixel["geometry"], transformation_matrix, 1
-            )
-            data = calc_img_zonal_stats(
-                gdf_nbhd_pixel,
-                img,
-                unique_polygon_col_name="name",
-                channel_names={0: "dapi", 1: "bound", 2: "rna", 3: "prot"},
-                stats_funcs=["mean", "median", "std"],
-            )
-            data = data.rename(columns={"polygon_id": "nbhd_id"}).set_index("nbhd_id")
-
+            data = calc_nbi(
+                f"{self.data_dir}/morphology_focus/morphology_focus_0000.ome.tif",
+                self.path_landscape_files,
+                self.gdf
+                )
+        else:
+            raise ValueError(f"Unknown derived key: {key}")
+            
         if key in {"NBP", "NBG-LCD"}:
             for subkey in data.keys():
                 self.derived[key][subkey] = data[subkey]

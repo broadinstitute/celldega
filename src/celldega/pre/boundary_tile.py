@@ -37,11 +37,14 @@ def _get_name_mapping(path_landscape_files, layer, segmentation="default"):
 
     if layer == "boundary":
         # Load cell metadata
+        print('_get_name_mapping', path_landscape_files)
         df_meta_cell = pd.read_parquet(f"{path_landscape_files}/cell_metadata.parquet")
         if segmentation != "default":
             df_meta_cell = pd.read_parquet(
                 f"{path_landscape_files}/cell_metadata_{segmentation}.parquet"
             )
+        print('checking df_meta_cell name')
+        print(df_meta_cell['name'])
         return {name: idx for idx, name in df_meta_cell["name"].items()}
 
     raise ValueError(
@@ -312,11 +315,13 @@ def make_cell_boundary_tiles(
     """
 
     print("\n========Create cell boundary spatial tiles========")
+    print('edits')
 
     # Ensure the output directory exists
     Path(path_output).mkdir(parents=True, exist_ok=True)
 
     if technology == "custom":
+        print('custom technology')
         gdf_cells = gpd.read_parquet(path_cell_boundaries)
 
         # Convert string index to integer index
@@ -344,6 +349,7 @@ def make_cell_boundary_tiles(
         gdf_cells["GEOMETRY"] = transformed_geometries
 
     else:
+        print('technology', technology)
         transformation_matrix = pd.read_csv(path_transformation_matrix, header=None, sep=" ").values
 
         gdf_cells = get_cell_polygons(
@@ -355,9 +361,12 @@ def make_cell_boundary_tiles(
             path_meta_cell_micron,
         )
 
+        # path_landscape_files = path_transformation_matrix.replace("/micron_to_image_transform.csv", "")
+        path_landscape_files = path_output.split("/")[0]
+
         # Convert string index to integer index
         cell_str_to_int_mapping = _get_name_mapping(
-            path_transformation_matrix.replace("/micron_to_image_transform.csv", ""),
+            path_landscape_files,
             layer="boundary",
         )
         gdf_cells.index = gdf_cells.index.map(cell_str_to_int_mapping)

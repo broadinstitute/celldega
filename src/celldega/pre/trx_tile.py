@@ -145,7 +145,6 @@ def _process_fine_tiles_transcripts(
         for future in concurrent.futures.as_completed(futures):
             future.result()  # Raise exceptions if any occurred during execution
 
-
 def _filter_and_save_fine_tile(
     coarse_tile,
     coarse_i,
@@ -181,7 +180,12 @@ def _filter_and_save_fine_tile(
         # Add geometry column as a list of [x, y] pairs
         fine_tile_trx = fine_tile_trx.with_columns(
             pl.concat_list([pl.col("transformed_x"), pl.col("transformed_y")]).alias("geometry")
-        ).drop(["transformed_x", "transformed_y", "cell_id", "transcript_id"])
+        )
+
+        # Drop columns if they exist
+        columns_to_drop = [col for col in ["transformed_x", "transformed_y", "cell_id", "transcript_id"]
+                           if col in fine_tile_trx.columns]
+        fine_tile_trx = fine_tile_trx.drop(columns_to_drop)
 
         # Define the filename based on fine tile coordinates
         filename = Path(path_trx_tiles) / f"transcripts_tile_{fine_i}_{fine_j}.parquet"
@@ -202,7 +206,7 @@ def _load_transcript_data_by_technology(technology, path_trx):
     - Polars DataFrame with transcript data
     """
     if technology == "MERSCOPE":
-        trx_ini = pl.read_csv(path_trx, columns=["gene", "global_x", "global_y"])
+        trx_ini = pl.read_csv(path_trx, columns=["gene", "global_x", "global_y", "cell_id", "transcript_id"])
         return trx_ini.with_columns(
             [
                 pl.col("cell_id"),

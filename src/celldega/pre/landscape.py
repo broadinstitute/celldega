@@ -151,7 +151,11 @@ def save_cbg_gene_parquets(base_path, cbg, verbose=False, segmentation_approach=
     cell_str_to_int_mapping = _get_name_mapping(
         base_path, layer="boundary", segmentation=segmentation_approach
     )
+
+
     cbg.index = cbg.index.map(cell_str_to_int_mapping)
+
+    # print(cbg.head())  # Print first 10 indices for debugging
 
     for index, gene in enumerate(cbg.columns):
         if verbose and index % 100 == 0:
@@ -171,5 +175,7 @@ def save_cbg_gene_parquets(base_path, cbg, verbose=False, segmentation_approach=
         if not inst_df.empty:
             output_path = output_dir / f"{gene}.parquet"
             inst_df.to_parquet(output_path)
+
+            # print(inst_df.head)
 
     print("All gene-specific parquet files are succesfully saved.")

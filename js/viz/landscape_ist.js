@@ -88,6 +88,8 @@ export const landscape_ist = async (
   creds = {},
   view_change_custom_callback = null
 ) => {
+
+  console.log('here')
   if (width === 0) {
     width = '100%';
   }

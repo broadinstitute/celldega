@@ -40,7 +40,7 @@ npm run dev                 # Start development server
 ### 3. Before Committing
 
 ```bash
-./scripts/test.sh           # Run all tests
+bash ./scripts/test.sh           # Run all tests
 git commit -m "feat: your amazing feature"
 ```
 
@@ -91,10 +91,10 @@ Understanding the project's tooling helps you contribute more effectively. Here'
 ### 1. Run Tests
 
 ```bash
-./scripts/test.sh           # Run everything
-./scripts/test.sh python    # Python tests only
-./scripts/test.sh js        # JavaScript tests only
-./scripts/test.sh coverage  # Generate coverage report
+bash ./scripts/test.sh           # Run everything
+bash ./scripts/test.sh python    # Python tests only
+bash ./scripts/test.sh js        # JavaScript tests only
+bash ./scripts/test.sh coverage  # Generate coverage report
 ```
 
 ### 2. Writing Tests
@@ -294,7 +294,7 @@ chmod +x scripts/*.sh
 **"Tests failing"**
 
 ```bash
-./scripts/test.sh --verbose    # See detailed error messages
+bash ./scripts/test.sh --verbose    # See detailed error messages
 ```
 
 **"node_modules missing"**

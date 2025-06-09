@@ -26,9 +26,9 @@ That's it! 🎉
 ## Quick Commands
 
 ```bash
-./scripts/setup.sh              # Set up everything
-./scripts/setup.sh --status     # Check what's installed
-./scripts/test.sh               # Run all tests
+bash ./scripts/setup.sh              # Set up everything
+bash ./scripts/setup.sh --status     # Check what's installed
+bash ./scripts/test.sh               # Run all tests
 ```
 
 ## Daily Workflow
@@ -39,7 +39,7 @@ source dega/bin/activate
 npm run dev
 
 # Before committing your work
-./scripts/test.sh
+bash ./scripts/test.sh
 ```
 
 ## ❤️‍🩹 Common Issues & Solutions
@@ -65,8 +65,8 @@ chmod +x scripts/*.sh
 **Need more details?**
 
 ```bash
-./scripts/setup.sh --verbose   # See everything that happens
-./scripts/test.sh --verbose    # Detailed test output
+bash ./scripts/setup.sh --verbose   # See everything that happens
+bash ./scripts/test.sh --verbose    # Detailed test output
 ```
 
 ## 😎 For Advanced Users
@@ -77,11 +77,11 @@ chmod +x scripts/*.sh
 ### Full Test Options
 
 ```bash
-./scripts/test.sh python          # Python tests only
-./scripts/test.sh js              # JavaScript tests only
-./scripts/test.sh lint            # Code quality checks
-./scripts/test.sh coverage       # Generate coverage report
-./scripts/test.sh python tests/unit/  # Run specific directory
+bash ./scripts/test.sh python          # Python tests only
+bash ./scripts/test.sh js              # JavaScript tests only
+bash ./scripts/test.sh lint            # Code quality checks
+bash ./scripts/test.sh coverage       # Generate coverage report
+bash ./scripts/test.sh python tests/unit/  # Run specific directory
 ```
 
 ### Setup Options

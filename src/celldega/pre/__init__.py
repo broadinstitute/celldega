@@ -30,6 +30,7 @@ from .boundary_tile import (
 )
 from .image_info import get_image_info
 from .landscape import calc_meta_gene_data, read_cbg_mtx, save_cbg_gene_parquets
+from .run_pre_processing import main
 from .trx_tile import make_trx_tiles
 
 
@@ -1116,6 +1117,7 @@ __all__ = [
     "boundary_tile",
     "get_image_info",
     "landscape",
+    "main",
     "make_trx_tiles",
     "read_cbg_mtx",
     "trx_tile",

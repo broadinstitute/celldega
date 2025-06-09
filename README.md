@@ -19,7 +19,7 @@ pip install celldega
 
 ### For Terra.bio Users
 
-Add this to your startup script for image processing features:
+Add this to your startup script for image processing features ([more info](https://support.terra.bio/hc/en-us/articles/360058193872-Preconfigure-a-Cloud-Environment-with-a-startup-script)):
 
 ```bash
 apt update && apt install -y libvips libvips-tools libvips-dev
@@ -54,10 +54,10 @@ dega.viz.landscape_matrix(landscape_ist, mat)
 ## 📖 Documentation & Examples
 
 - **[📚 Documentation](https://broadinstitute.github.io/celldega/)** - Complete guides and API reference
-- **[🎯 Tutorials](https://broadinstitute.github.io/celldega/tutorials/)** - Step-by-step analysis workflows
 - **[🖼️ Gallery](https://broadinstitute.github.io/celldega/gallery/)** - Interactive visualization demos
-- **[📓 Examples](examples/)** - Jupyter notebooks you can run locally
-- **[🔧 API Reference](https://broadinstitute.github.io/celldega/python/)** - Complete Python API
+- **[📓 Examples](https://github.com/broadinstitute/celldega/tree/refactor-v0/notebooks)** - Jupyter notebooks you can run locally
+- **[🐍 Python API](https://broadinstitute.github.io/celldega/python/)** - Complete Python API
+- **[🌐 JavaScript API](https://broadinstitute.github.io/celldega/javascript/api/)** - Complete JavaScript API
 
 ## 🛠️ Development Setup (for Contributors)
 
@@ -89,9 +89,9 @@ See our [Contributing Guide](CONTRIBUTING.md) for detailed instructions.
 
 ## 🤝 Contributing
 
-We welcome contributions from the spatial omics community! Whether you're a:
+We welcome contributions from the bio community! Whether you're a:
 
-- 🧬 **Biology Researcher** - Share datasets, create tutorials, improve documentation
+- 🧬 **Researcher** - Share datasets, create tutorials, improve documentation
 - 👩‍💻 **Developer** - Add features, fix bugs, optimize performance
 - 📚 **Educator** - Create educational content, examples, workshops
 - 🎨 **Designer** - Improve visualizations, user experience, documentation
@@ -106,7 +106,7 @@ We welcome contributions from the spatial omics community! Whether you're a:
 
 **Questions about using Celldega?**
 
-- 💬 [GitHub Discussions](https://github.com/broadinstitute/celldega/discussions) - Ask the community
+- 💬 [Discussions](https://github.com/broadinstitute/celldega/discussions) - Ask the community
 - 📖 [Documentation](https://broadinstitute.github.io/celldega/) - Comprehensive guides
 - 📓 [Examples](examples/) - Working code you can adapt
 
@@ -131,7 +131,7 @@ If Celldega helps your research, please cite us:
 
 ## 🏛️ About
 
-**Celldega** is developed at the [Broad Institute](https://broadinstitute.org/) with the spatial omics research community. Our mission is to make spatial transcriptomics analysis accessible, interactive, and beautiful.
+**Celldega** is developed at the [Broad Institute](https://broadinstitute.org/) together with the biology research community. Our mission is to make spatial transcriptomics analysis accessible, interactive, and beautiful.
 
 Built on amazing open source tools:
 
@@ -142,9 +142,7 @@ Built on amazing open source tools:
 
 ---
 
-<div align="center">
-
-**[📚 Docs](https://broadinstitute.github.io/celldega/)** • **[📓 Examples](examples/)** • **[🔧 API](https://broadinstitute.github.io/celldega/python/)** • **[🤝 Contributing](CONTRIBUTING.md)**
+<div align="center" style="padding: 20px;">
 
 Made with 🧬 by the [Spatial Technology Platform](https://www.broadinstitute.org/spatial-technology-platform) at the [Broad Institute](https://broadinstitute.org/)
 

@@ -28,7 +28,9 @@ from .boundary_tile import (
     _round_nested_coord_list,
     make_cell_boundary_tiles,
 )
-from .landscape import calc_meta_gene_data, save_cbg_gene_parquets
+from .image_info import get_image_info
+from .landscape import calc_meta_gene_data, read_cbg_mtx, save_cbg_gene_parquets
+from .trx_tile import make_trx_tiles
 
 
 def _load_xenium_cluster_data(data_dir, meta_cell):
@@ -1110,4 +1112,11 @@ def _check_required_files(technology, data_dir):
     )
 
 
-__all__ = ["boundary_tile", "landscape", "trx_tile"]
+__all__ = [
+    "boundary_tile",
+    "get_image_info",
+    "landscape",
+    "make_trx_tiles",
+    "read_cbg_mtx",
+    "trx_tile",
+]

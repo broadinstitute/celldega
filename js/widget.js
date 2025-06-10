@@ -1,4 +1,8 @@
 import './widget.css';
+import {
+  handleAsyncError,
+  handleValidationWarning,
+} from './temp_utils/errorHandler';
 import { landscape_h_e } from './viz/landscape_h_e';
 import { landscape_ist } from './viz/landscape_ist';
 import { landscape_sst } from './viz/landscape_sst';
@@ -127,7 +131,9 @@ function render({ model, el }) {
 
     // Add null/undefined checks
     if (!componentType) {
-      console.error('Component type is not defined');
+      handleValidationWarning('Component type is not defined', {
+        data: { model: model?.id || 'unknown', el: el?.id || 'unknown' },
+      });
       return;
     }
 
@@ -137,13 +143,22 @@ function render({ model, el }) {
       case 'Matrix':
         return render_matrix_new({ model, el });
       default:
-        console.error(`Unknown component type: ${componentType}`);
+        handleValidationWarning(`Unknown component type: ${componentType}`, {
+          data: { componentType, model: model?.id || 'unknown' },
+        });
         return;
     }
   } catch (error) {
-    console.error('Error in render function:', error);
+    const errorResult = handleAsyncError(error, {
+      context: 'render function',
+      logUnexpected: true,
+      messages: {
+        unexpected: 'Error in render function',
+      },
+    });
+
     // Create error display in the element
-    el.innerHTML = `<div style="color: red; padding: 10px;">Error: ${error.message}</div>`;
+    el.innerHTML = `<div style="color: red; padding: 10px;">Error: ${errorResult.message}</div>`;
   }
 }
 

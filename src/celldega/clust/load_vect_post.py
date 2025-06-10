@@ -1,46 +1,47 @@
 def main(real_net, vect_post):
-  import numpy as np
-  from copy import deepcopy
-  from .__init__ import Network
-  from . import proc_df_labels
+    from copy import deepcopy
 
-  net = deepcopy(Network())
+    import numpy as np
 
-  sigs = vect_post['columns']
+    from . import proc_df_labels
+    from .__init__ import Network
 
-  all_rows = []
-  all_sigs = []
-  for inst_sig in sigs:
-    all_sigs.append(inst_sig['col_name'])
+    net = deepcopy(Network())
 
-    col_data = inst_sig['data']
+    sigs = vect_post["columns"]
 
-    for inst_row_data in col_data:
-      all_rows.append(inst_row_data['row_name'])
+    all_rows = []
+    all_sigs = []
+    for inst_sig in sigs:
+        all_sigs.append(inst_sig["col_name"])
 
-  all_rows = sorted(list(set(all_rows)))
-  all_sigs = sorted(list(set(all_sigs)))
+        col_data = inst_sig["data"]
 
-  net.dat['nodes']['row'] = all_rows
-  net.dat['nodes']['col'] = all_sigs
+        all_rows.extend(inst_row_data["row_name"] for inst_row_data in col_data)
 
-  net.dat['mat'] = np.empty((len(all_rows), len(all_sigs)))
-  net.dat['mat'][:] = np.nan
+    all_rows = sorted(set(all_rows))
+    all_sigs = sorted(set(all_sigs))
 
-  for inst_sig in sigs:
-    inst_sig_name = inst_sig['col_name']
-    col_data = inst_sig['data']
+    net.dat["nodes"]["row"] = all_rows
+    net.dat["nodes"]["col"] = all_sigs
 
-    for inst_row_data in col_data:
-      inst_row = inst_row_data['row_name']
-      inst_value = inst_row_data['val']
+    net.dat["mat"] = np.empty((len(all_rows), len(all_sigs)))
+    net.dat["mat"][:] = np.nan
 
-      row_index = all_rows.index(inst_row)
-      col_index = all_sigs.index(inst_sig_name)
+    for inst_sig in sigs:
+        inst_sig_name = inst_sig["col_name"]
+        col_data = inst_sig["data"]
 
-      net.dat['mat'][row_index, col_index] = inst_value
+        for inst_row_data in col_data:
+            inst_row = inst_row_data["row_name"]
+            inst_value = inst_row_data["val"]
 
-  tmp_df = net.dat_to_df()
-  tmp_df = proc_df_labels.main(tmp_df)
+            row_index = all_rows.index(inst_row)
+            col_index = all_sigs.index(inst_sig_name)
 
-  real_net.df_to_dat(tmp_df)
+            net.dat["mat"][row_index, col_index] = inst_value
+
+    tmp_df = net.dat_to_df()
+    tmp_df = proc_df_labels.main(tmp_df)
+
+    real_net.df_to_dat(tmp_df)

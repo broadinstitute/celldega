@@ -1,38 +1,100 @@
 {
-	"name": "celldega",
-	"version": "0.12.0",
-	"type": "module",
-	"scripts": {
-		"dev": "npm run build -- --sourcemap=inline --watch",
-		"build": "node build.js",
-		"watch": "node build.js --watch",
-		"lint": "eslint js/ --ignore-pattern js/vendor/"
-	},
-	"dependencies": {
-		"@loaders.gl/core": "^4.2.0",
-		"@luma.gl/core": "^9.0.12",
-		"@luma.gl/engine": "^9.0.12",
-		"@luma.gl/shadertools": "^9.0.12",
-		"@luma.gl/webgl": "^9.0.12",
-		"apache-arrow": "15.0.2",
-		"d3": "^7.9.0",
-		"deck.gl": "^9.0.12",
-		"@deck.gl-community/editable-layers": "^9.0.3",
-		"math.gl": "2.3.3"
-	},
-	"devDependencies": {
-		"@eslint/js": "^9.0.0",
-		"esbuild": "^0.20.0",
-		"esbuild-plugin-wasm": "^1.1.0",
-		"eslint": "^9.0.0",
-		"globals": "^15.0.0"
-	},
-	"repository": {
-		"type": "git",
-		"url": "https://github.com/broadinstitute/celldega.git"
-	},
-	"files": [
-		"src/celldega/static/*"
-	],
-	"main": "src/celldega/static/widget.js"
+  "name": "celldega",
+  "version": "0.12.0",
+  "type": "module",
+  "engines": {
+    "node": ">=16",
+    "npm": ">=8.0.0"
+  },
+  "scripts": {
+    "dev": "npm run build -- --sourcemap=inline --watch",
+    "build": "node build.js",
+    "watch": "node build.js --watch",
+    "test": "npm run test:js && npm run test:py",
+    "test:js": "jest --coverage",
+    "test:js:watch": "jest --watch",
+    "test:py": "pytest --cov=src/celldega --cov-report=term-missing",
+    "test:fast": "npm run test:js:fast && npm run test:py:fast",
+    "test:js:fast": "jest",
+    "test:py:fast": "pytest",
+    "lint": "npm run lint:js && npm run lint:py",
+    "lint:js": "eslint js/ --ignore-pattern js/vendor/",
+    "lint:js:fix": "eslint js/ --ignore-pattern js/vendor/ --fix",
+    "lint:py": "ruff check src/",
+    "format": "npm run format:js && npm run format:py",
+    "format:js": "prettier --write js/ --ignore-path .prettierignore",
+    "format:js:check": "prettier --check js/ --ignore-path .prettierignore",
+    "format:py": "ruff format src/",
+    "check:js": "npm run lint:js && npm run format:js:check",
+    "fix:js": "npm run lint:js:fix && npm run format:js"
+  },
+  "dependencies": {
+    "@deck.gl-community/editable-layers": "^9.0.3",
+    "@loaders.gl/core": "^4.2.0",
+    "@luma.gl/core": "^9.0.12",
+    "@luma.gl/engine": "^9.0.12",
+    "@luma.gl/shadertools": "^9.0.12",
+    "@luma.gl/webgl": "^9.0.12",
+    "apache-arrow": "15.0.2",
+    "aws4fetch": "^1.0.20",
+    "d3": "^7.9.0",
+    "deck.gl": "^9.0.12",
+    "math.gl": "2.3.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "@testing-library/jest-dom": "^6.6.3",
+    "esbuild": "^0.20.0",
+    "esbuild-plugin-wasm": "^1.1.0",
+    "eslint": "^9.27.0",
+    "eslint-config-prettier": "^10.1.5",
+    "eslint-plugin-import": "^2.31.0",
+    "eslint-plugin-prettier": "^5.4.0",
+    "globals": "^15.0.0",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0",
+    "jsdom": "^26.1.0",
+    "prettier": "^3.5.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/broadinstitute/celldega.git"
+  },
+  "files": [
+    "src/celldega/static/*"
+  ],
+  "main": "src/celldega/static/widget.js",
+  "prettier": {
+    "semi": true,
+    "trailingComma": "es5",
+    "singleQuote": true,
+    "printWidth": 80,
+    "tabWidth": 2,
+    "useTabs": false,
+    "bracketSpacing": true,
+    "arrowParens": "always",
+    "endOfLine": "lf"
+  },
+  "jest": {
+    "testEnvironment": "jest-environment-jsdom",
+    "testMatch": [
+      "**/js/**/*.test.js",
+      "**/js/**/*.spec.js"
+    ],
+    "collectCoverageFrom": [
+      "js/**/*.js",
+      "!js/vendor/**",
+      "!js/**/*.test.js",
+      "!js/**/*.spec.js"
+    ],
+    "coverageDirectory": "coverage",
+    "coverageReporters": [
+      "text",
+      "lcov",
+      "html"
+    ],
+    "setupFilesAfterEnv": [
+      "<rootDir>/jest.setup.js"
+    ]
+  }
 }

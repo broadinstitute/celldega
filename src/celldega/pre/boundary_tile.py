@@ -1,12 +1,14 @@
+import concurrent.futures
+from pathlib import Path
+
+import geopandas as gpd
 import numpy as np
 import pandas as pd
-import os
+from shapely.geometry import MultiPolygon, Point, Polygon
 from tqdm import tqdm
-import concurrent.futures
-import geopandas as gpd
-from shapely.geometry import Point, Polygon, MultiPolygon
 
-def _get_name_mapping(path_landscape_files, layer, segmentation='default'):
+
+def _get_name_mapping(path_landscape_files, layer, segmentation="default"):
     """
     Generates mappings from gene and cell names to unique integer identifiers.
 
@@ -22,26 +24,30 @@ def _get_name_mapping(path_landscape_files, layer, segmentation='default'):
         dict: Maps gene names (str) to integer ranks (int).
     """
 
-    if layer == 'transcript':
+    if layer == "transcript":
         # Load gene metadata
         df_meta_gene = pd.read_parquet(f"{path_landscape_files}/meta_gene.parquet")
-        if segmentation != 'default':
-            df_meta_gene = pd.read_parquet(f"{path_landscape_files}/meta_gene_{segmentation}.parquet")
-        df_meta_gene['name'] = df_meta_gene.index
+        if segmentation != "default":
+            df_meta_gene = pd.read_parquet(
+                f"{path_landscape_files}/meta_gene_{segmentation}.parquet"
+            )
+        df_meta_gene["name"] = df_meta_gene.index
         df_meta_gene = df_meta_gene.reset_index(drop=True)
-        return {name: idx for idx, name in df_meta_gene['name'].items()}
+        return {name: idx for idx, name in df_meta_gene["name"].items()}
 
-    elif layer == 'boundary':
+    if layer == "boundary":
         # Load cell metadata
         df_meta_cell = pd.read_parquet(f"{path_landscape_files}/cell_metadata.parquet")
-        if segmentation != 'default':
-            df_meta_cell = pd.read_parquet(f"{path_landscape_files}/cell_metadata_{segmentation}.parquet")
-        return {name: idx for idx, name in df_meta_cell['name'].items()}
-    
-    else:
-        raise ValueError(
-            f"Unsupported layer: {layer}. Supported technologies are 'boundary' and 'transcript'."
-        )
+        if segmentation != "default":
+            df_meta_cell = pd.read_parquet(
+                f"{path_landscape_files}/cell_metadata_{segmentation}.parquet"
+            )
+        return {name: idx for idx, name in df_meta_cell["name"].items()}
+
+    raise ValueError(
+        f"Unsupported layer: {layer}. Supported technologies are 'boundary' and 'transcript'."
+    )
+
 
 def _round_nested_coord_list(value, decimals=2):
     """Rounds numeric values in nested lists or arrays to a specified number of decimal places.
@@ -53,12 +59,10 @@ def _round_nested_coord_list(value, decimals=2):
     Returns:
         list, float: The rounded value. If the input is a nested list or array, returns a nested list with rounded values.
     """
-    if isinstance(value, (list, np.ndarray)):
+    if isinstance(value, (list | np.ndarray)):
         return [_round_nested_coord_list(item, decimals) for item in value]
-    elif isinstance(value, (float, int)):
-        return round(value, decimals)
-    else:
-        return value
+
+    return round(value, decimals) if isinstance(value, (float | int)) else value
 
 
 def numpy_affine_transform(coords, matrix):
@@ -83,7 +87,6 @@ def batch_transform_geometries(geometries, transformation_matrix, scale):
     transformed_geometries = []
 
     for geom in geometries:
-
         if isinstance(geom, Point):
             coords = np.array([[geom.x, geom.y]])
             transformed = numpy_affine_transform(coords, affine_matrix) / scale
@@ -150,10 +153,10 @@ def filter_and_save_fine_boundary(
     keep_cells = cell_ids[filtered_indices]
     fine_tile_cells = coarse_tile.loc[keep_cells, ["GEOMETRY"]]
 
-    fine_tile_cells['name'] = fine_tile_cells.index
+    fine_tile_cells["name"] = fine_tile_cells.index
 
     # Apply rounding to the GEOMETRY column
-    fine_tile_cells['GEOMETRY'] = fine_tile_cells['GEOMETRY'].apply(_round_nested_coord_list)
+    fine_tile_cells["GEOMETRY"] = fine_tile_cells["GEOMETRY"].apply(_round_nested_coord_list)
 
     if not fine_tile_cells.empty:
         filename = f"{path_output}/cell_tile_{fine_i}_{fine_j}.parquet"
@@ -182,10 +185,7 @@ def process_fine_boundaries(
             fine_tile_x_min = x_min + fine_i * tile_size
             fine_tile_x_max = fine_tile_x_min + tile_size
 
-            if not (
-                fine_tile_x_min >= coarse_tile_x_min
-                and fine_tile_x_max <= coarse_tile_x_max
-            ):
+            if not (fine_tile_x_min >= coarse_tile_x_min and fine_tile_x_max <= coarse_tile_x_max):
                 continue
 
             for fine_j in range(n_fine_tiles_y):
@@ -193,8 +193,7 @@ def process_fine_boundaries(
                 fine_tile_y_max = fine_tile_y_min + tile_size
 
                 if not (
-                    fine_tile_y_min >= coarse_tile_y_min
-                    and fine_tile_y_max <= coarse_tile_y_max
+                    fine_tile_y_min >= coarse_tile_y_min and fine_tile_y_max <= coarse_tile_y_max
                 ):
                     continue
 
@@ -224,32 +223,27 @@ def get_cell_polygons(
     image_scale=1,
     path_meta_cell_micron=None,
 ):
-
     # Load cell boundary data based on the technology
     if technology == "MERSCOPE":
         df_meta = pd.read_parquet(
-            f"{path_output.replace('cell_segmentation','cell_metadata.parquet')}"
+            f"{path_output.replace('cell_segmentation', 'cell_metadata.parquet')}"
         )
-        entity_to_cell_id_dict = pd.Series(
-            df_meta.index.values, index=df_meta.EntityID
-        ).to_dict()
+        entity_to_cell_id_dict = pd.Series(df_meta.index.values, index=df_meta.EntityID).to_dict()
         cells_orig = gpd.read_parquet(path_cell_boundaries)
-        cells_orig['cell_id'] = cells_orig['EntityID'].map(entity_to_cell_id_dict)
+        cells_orig["cell_id"] = cells_orig["EntityID"].map(entity_to_cell_id_dict)
         cells_orig = cells_orig[cells_orig["ZIndex"] == 1]
 
         # Correct cell_id issues with meta_cell
         meta_cell = pd.read_csv(path_meta_cell_micron)
-        meta_cell['cell_id'] = meta_cell['EntityID'].map(entity_to_cell_id_dict)
-        cells_orig.index = meta_cell[
-            meta_cell["cell_id"].isin(cells_orig['cell_id'])
-        ].index
+        meta_cell["cell_id"] = meta_cell["EntityID"].map(entity_to_cell_id_dict)
+        cells_orig.index = meta_cell[meta_cell["cell_id"].isin(cells_orig["cell_id"])].index
 
         # Correct 'MultiPolygon' to 'Polygon'
         cells_orig["geometry"] = cells_orig["Geometry"].apply(
-            lambda x: list(x.geoms)[0] if isinstance(x, MultiPolygon) else x
+            lambda x: next(iter(x.geoms)) if isinstance(x, MultiPolygon) else x
         )
 
-        cells_orig.set_index('cell_id', inplace=True)
+        cells_orig.set_index("cell_id", inplace=True)
 
     elif technology == "Xenium":
         xenium_cells = pd.read_parquet(path_cell_boundaries)
@@ -257,7 +251,7 @@ def get_cell_polygons(
             lambda x: x.tolist()
         )
         grouped["geometry"] = grouped.apply(
-            lambda row: Polygon(zip(row["vertex_x"], row["vertex_y"])), axis=1
+            lambda row: Polygon(zip(row["vertex_x"], row["vertex_y"], strict=False)), axis=1
         )
         cells_orig = gpd.GeoDataFrame(grouped, geometry="geometry")[["geometry"]]
 
@@ -318,41 +312,37 @@ def make_cell_boundary_tiles(
     print("\n========Create cell boundary spatial tiles========")
 
     # Ensure the output directory exists
-    if not os.path.exists(path_output):
-        os.makedirs(path_output)
+    Path(path_output).mkdir(parents=True, exist_ok=True)
 
-    if technology == 'custom':
+    if technology == "custom":
         gdf_cells = gpd.read_parquet(path_cell_boundaries)
 
         # Convert string index to integer index
         cell_str_to_int_mapping = _get_name_mapping(
-            path_output.split('/cell_segmentation')[0],  # get the path of landscape files
-            layer='boundary',
-            segmentation=path_output.split('cell_segmentation_')[1], # get the cell segmentation method, such as cellpose2.
-            )
+            path_output.split("/cell_segmentation")[0],  # get the path of landscape files
+            layer="boundary",
+            segmentation=path_output.split("cell_segmentation_")[
+                1
+            ],  # get the cell segmentation method, such as cellpose2.
+        )
         gdf_cells.index = gdf_cells.index.map(cell_str_to_int_mapping)
 
-        gdf_cells.rename(columns={'geometry_image_space': 'GEOMETRY'}, inplace=True)
+        gdf_cells.rename(columns={"geometry_image_space": "GEOMETRY"}, inplace=True)
 
         gdf_cells["center_x"] = gdf_cells["GEOMETRY"].apply(lambda geom: geom.centroid.x)
         gdf_cells["center_y"] = gdf_cells["GEOMETRY"].apply(lambda geom: geom.centroid.y)
 
         transformed_geometries = []
 
-        for geom in gdf_cells['GEOMETRY']:
-
+        for geom in gdf_cells["GEOMETRY"]:
             if isinstance(geom, Polygon):
-
                 exterior_coords = np.array(geom.exterior.coords)
                 transformed_geometries.append([exterior_coords.tolist()])
 
         gdf_cells["GEOMETRY"] = transformed_geometries
 
     else:
-
-        transformation_matrix = pd.read_csv(
-        path_transformation_matrix, header=None, sep=" "
-        ).values
+        transformation_matrix = pd.read_csv(path_transformation_matrix, header=None, sep=" ").values
 
         gdf_cells = get_cell_polygons(
             technology,
@@ -362,14 +352,14 @@ def make_cell_boundary_tiles(
             image_scale,
             path_meta_cell_micron,
         )
-        
+
         # Convert string index to integer index
         cell_str_to_int_mapping = _get_name_mapping(
-            path_transformation_matrix.replace('/micron_to_image_transform.csv',''),
-            layer='boundary',
-            )
+            path_transformation_matrix.replace("/micron_to_image_transform.csv", ""),
+            layer="boundary",
+        )
         gdf_cells.index = gdf_cells.index.map(cell_str_to_int_mapping)
-        
+
         gdf_cells["center_x"] = gdf_cells.geometry.centroid.x
         gdf_cells["center_y"] = gdf_cells.geometry.centroid.y
 

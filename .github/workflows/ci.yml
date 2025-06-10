@@ -1,0 +1,54 @@
+# =============================================================================
+# Continuous Integration Pipeline for Celldega
+# Runs on pushes to main/develop and all pull requests
+# =============================================================================
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+    tags: ['v*']
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+# Add concurrency control to cancel redundant runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Security: Restrict permissions by default
+permissions:
+  contents: read
+
+jobs:
+  # =============================================================================
+  # Quality Gate - Code quality, formatting, and security
+  # =============================================================================
+  quality:
+    uses: ./.github/workflows/quality.yml
+
+  # =============================================================================
+  # Testing - Multi-version Python and JavaScript testing
+  # =============================================================================
+  test-python:
+    uses: ./.github/workflows/test-python.yml
+
+  test-javascript:
+    uses: ./.github/workflows/test-javascript.yml
+
+  # =============================================================================
+  # Integration Testing - Full build and package testing
+  # =============================================================================
+  build-and-test:
+    needs: [quality, test-python, test-javascript]
+    uses: ./.github/workflows/build-and-test.yml
+
+  # =============================================================================
+  # Automated Release - Triggered on version tags
+  # =============================================================================
+  release:
+    needs: [quality, test-python, test-javascript, build-and-test]
+    if: startsWith(github.ref, 'refs/tags/v')
+    uses: ./.github/workflows/release.yml
+    secrets: inherit

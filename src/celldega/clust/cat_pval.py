@@ -1,98 +1,90 @@
-import numpy as np
-import pandas as pd
 from copy import deepcopy
 
+import numpy as np
+import pandas as pd
+
+
 def main(net):
-  '''
-  calculate pvalue of category closeness
-  '''
-  # calculate the distance between the data points within the same category and
-  # compare to null distribution
-  for inst_rc in ['row', 'col']:
+    """
+    calculate pvalue of category closeness
+    """
+    # calculate the distance between the data points within the same category and
+    # compare to null distribution
+    for inst_rc in ["row", "col"]:
+        inst_nodes = deepcopy(net.dat["nodes"][inst_rc])
 
-    inst_nodes = deepcopy(net.dat['nodes'][inst_rc])
+        inst_index = deepcopy(net.dat["node_info"][inst_rc]["clust"])
 
-    inst_index = deepcopy(net.dat['node_info'][inst_rc]['clust'])
+        # reorder based on clustered order
+        inst_nodes = [inst_nodes[i] for i in inst_index]
 
-    # reorder based on clustered order
-    inst_nodes = [ inst_nodes[i] for i in inst_index]
+        # make distance matrix dataframe
+        dm = dist_matrix_lattice(inst_nodes)
 
-    # make distance matrix dataframe
-    dm = dist_matrix_lattice(inst_nodes)
+        node_infos = list(net.dat["node_info"][inst_rc].keys())
 
-    node_infos = list(net.dat['node_info'][inst_rc].keys())
+        all_cats = [inst_info for inst_info in node_infos if "dict_cat_" in inst_info]
 
-    all_cats = []
-    for inst_info in node_infos:
-      if 'dict_cat_' in inst_info:
-        all_cats.append(inst_info)
+        for cat_dict in all_cats:
+            tmp_dict = net.dat["node_info"][inst_rc][cat_dict]
 
-    for cat_dict in all_cats:
+            pval_name = cat_dict.replace("dict_", "pval_")
+            net.dat["node_info"][inst_rc][pval_name] = {}
 
-      tmp_dict = net.dat['node_info'][inst_rc][cat_dict]
+            for cat_name in tmp_dict:
+                subset = tmp_dict[cat_name]
 
-      pval_name = cat_dict.replace('dict_','pval_')
-      net.dat['node_info'][inst_rc][pval_name] = {}
+                inst_median = calc_median_dist_subset(dm, subset)
 
-      for cat_name in tmp_dict:
+                hist = calc_hist_distances(dm, subset, inst_nodes)
 
-        subset = tmp_dict[cat_name]
+                pval = 0
 
-        inst_median = calc_median_dist_subset(dm, subset)
+                for i in range(len(hist["prob"])):
+                    if i == 0:
+                        pval = hist["prob"][i]
+                    elif inst_median >= hist["bins"][i]:
+                        pval = pval + hist["prob"][i]
 
-        hist = calc_hist_distances(dm, subset, inst_nodes)
+                net.dat["node_info"][inst_rc][pval_name][cat_name] = pval
 
-        pval = 0
-
-        for i in range(len(hist['prob'])):
-          if i == 0:
-            pval = hist['prob'][i]
-          if i >= 1:
-            if inst_median >= hist['bins'][i]:
-              pval = pval + hist['prob'][i]
-
-        net.dat['node_info'][inst_rc][pval_name][cat_name] = pval
 
 def dist_matrix_lattice(names):
-  from scipy.spatial.distance import pdist, squareform
+    from scipy.spatial.distance import pdist, squareform
 
-  lattice_size = len(names)
-  mat = np.zeros([lattice_size, 1])
-  mat[:,0] = list(range(lattice_size))
+    lattice_size = len(names)
+    mat = np.zeros([lattice_size, 1])
+    mat[:, 0] = list(range(lattice_size))
 
-  inst_dm = pdist(mat, metric='euclidean')
+    inst_dm = pdist(mat, metric="euclidean")
 
-  inst_dm[inst_dm < 0] = float(0)
+    inst_dm[inst_dm < 0] = float(0)
 
-  inst_dm = squareform(inst_dm)
+    inst_dm = squareform(inst_dm)
 
-  df = pd.DataFrame(data=inst_dm, columns=names, index=names)
-
-  return df
+    return pd.DataFrame(data=inst_dm, columns=names, index=names)
 
 
 def calc_median_dist_subset(dm, subset):
-  return np.median(dm[subset].loc[subset].values)
+    return np.median(dm[subset].loc[subset].values)
+
 
 def calc_hist_distances(dm, subset, inst_nodes):
-  np.random.seed(100)
+    np.random.seed(100)
 
-  num_null = 1000
-  num_points = len(subset)
+    num_null = 1000
+    num_points = len(subset)
 
-  median_dist = []
-  for i in range(num_null):
-    tmp = np.random.choice(inst_nodes, num_points, replace=False)
-    median_dist.append( np.median(dm[tmp].loc[tmp].values)  )
+    median_dist = []
+    for _ in range(num_null):
+        tmp = np.random.choice(inst_nodes, num_points, replace=False)
+        median_dist.append(np.median(dm[tmp].loc[tmp].values))
 
-  tmp_dist = sorted(deepcopy(median_dist))
+    median_dist = np.asarray(median_dist)
+    s1 = pd.Series(median_dist)
+    hist = np.histogram(s1, bins=30)
 
-  median_dist = np.asarray(median_dist)
-  s1 = pd.Series(median_dist)
-  hist = np.histogram(s1, bins=30)
-
-  H = {}
-  H['prob'] = hist[0]/np.float(num_null)
-  H['bins'] = hist[1]
-
-  return H
+    return {
+        "prob": hist[0] / float(num_null),
+        "bins": hist[1],
+    }

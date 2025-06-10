@@ -1,66 +1,61 @@
 export const set_row_cat_data = (network, viz_state) => {
+  let index_row = 0;
+  let matrix_index = 0;
 
-    var index_row = 0
-    let matrix_index = 0;
+  const num_points = viz_state.mat.num_rows * viz_state.cats.num_cats.row;
 
-    var num_points = viz_state.mat.num_rows * viz_state.cats.num_cats.row
+  const row_cat_data = new Array(num_points).fill(0).map(() => {
+    const index_col = matrix_index % viz_state.cats.num_cats.row;
 
-    const row_cat_data =  new Array(num_points).fill(0).map( () => {
+    if (matrix_index % viz_state.cats.num_cats.row === 0) {
+      index_row += 1;
+    }
 
-        var index_col = matrix_index % viz_state.cats.num_cats.row
+    const p = {
+      position: [
+        // viz_state.viz.row_cat_offset * (index_col + 0.5),
+        viz_state.viz.row_cat_offset * (index_col + 0.5) + 20,
+        viz_state.viz.row_offset * (index_row + 0.5),
+      ],
+      color: [0, 255, 0, 255],
+      name: `something ${index_row}`,
+    };
 
-        if (matrix_index % viz_state.cats.num_cats.row === 0){
-            index_row += 1;
-        }
+    matrix_index += 1;
 
-        const p = {
-            position: [
-                // viz_state.viz.row_cat_offset * (index_col + 0.5),
-                viz_state.viz.row_cat_offset * (index_col + 0.5) + 20,
-                viz_state.viz.row_offset * (index_row + 0.5)
-            ],
-            color: [0, 255, 0, 255],
-            name: 'something ' + index_row
-        };
+    return p;
+  });
 
-        matrix_index += 1;
-
-        return p;
-    })
-
-    return row_cat_data
-
-}
+  return row_cat_data;
+};
 
 export const set_col_cat_data = (network, viz_state) => {
+  const num_points = viz_state.mat.num_cols * viz_state.cats.num_cats.col;
 
-    var num_points = viz_state.mat.num_cols * viz_state.cats.num_cats.col
+  let index_row = 0;
+  let matrix_index = 0;
 
-    var index_row = 0
-    let matrix_index = 0;
+  const col_cat_data = new Array(num_points).fill(0).map(() => {
+    const index_col = matrix_index % viz_state.mat.num_cols;
 
-    const col_cat_data = new Array(num_points).fill(0).map( () => {
+    if (matrix_index % viz_state.mat.num_cols === 0) {
+      index_row += 1;
+    }
 
-        var index_col = matrix_index % viz_state.mat.num_cols
+    const p = {
+      position: [
+        viz_state.viz.col_offset * (index_col + 0.5),
+        // move cats down
+        viz_state.viz.col_cat_offset * (index_row + 1.5) - 35,
+      ],
+      color: [0, 255, 0, 150],
+      name: `some column ${index_col}`,
+    };
 
-        if (matrix_index % viz_state.mat.num_cols === 0){
-            index_row += 1;
-        }
+    matrix_index += 1;
 
-        const p = {
-            position: [
-                viz_state.viz.col_offset * (index_col + 0.5),
-                // move cats down
-                viz_state.viz.col_cat_offset * (index_row + 1.5) - 35
-            ],
-            color: [0, 255, 0, 150],
-            name: 'some column ' + index_col,
-        };
+    return p;
+  });
 
-        matrix_index += 1;
-
-        return p;
-    });
-
-    return col_cat_data
-}
+  return col_cat_data;
+};

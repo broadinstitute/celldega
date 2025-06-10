@@ -1,7 +1,12 @@
-import pathlib
+"""
+Widget module for interactive visualization components.
+"""
+
+from pathlib import Path
+
 import anywidget
 import traitlets
-import json
+
 
 class Landscape(anywidget.AnyWidget):
     """
@@ -33,8 +38,8 @@ class Landscape(anywidget.AnyWidget):
         Landscape: A widget for visualizing a 'landscape' view of spatial omics data.
     """
 
-    _esm = pathlib.Path(__file__).parent / "../static" / "widget.js"
-    _css = pathlib.Path(__file__).parent / "../static" / "widget.css"
+    _esm = Path(__file__).parent / "../static" / "widget.js"
+    _css = Path(__file__).parent / "../static" / "widget.css"
     component = traitlets.Unicode("Landscape").tag(sync=True)
 
     technology = traitlets.Unicode("sst").tag(sync=True)
@@ -56,7 +61,7 @@ class Landscape(anywidget.AnyWidget):
     landscape_state = traitlets.Unicode("spatial").tag(sync=True)
 
     update_trigger = traitlets.Dict().tag(sync=True)
-    cell_clusters = traitlets.Dict().tag(sync=True)
+    cell_clusters = traitlets.Dict({}).tag(sync=True)
 
     segmentation = traitlets.Unicode("default").tag(sync=True)
 
@@ -64,11 +69,23 @@ class Landscape(anywidget.AnyWidget):
     height = traitlets.Int(800).tag(sync=True)
 
     def trigger_update(self, new_value):
+        """
+        Update the update_trigger traitlet with a new value.
+
+        Parameters:
+        - new_value: New value to trigger update with
+        """
         # This method updates the update_trigger traitlet with a new value
         # You can pass any information necessary for the update, or just a timestamp
         self.update_trigger = new_value
 
     def update_cell_clusters(self, new_clusters):
+        """
+        Update cell clusters with new data.
+
+        Parameters:
+        - new_clusters: New cluster data to update with
+        """
         # Convert the new_clusters to a JSON serializable format if necessary
         self.cell_clusters = new_clusters
 
@@ -92,8 +109,8 @@ class Matrix(anywidget.AnyWidget):
         Matrix: A widget for visualizing a hierarchically clustered matrix.
     """
 
-    _esm = pathlib.Path(__file__).parent / "../static" / "widget.js"
-    _css = pathlib.Path(__file__).parent / "../static" / "widget.css"
+    _esm = Path(__file__).parent / "../static" / "widget.js"
+    _css = Path(__file__).parent / "../static" / "widget.css"
     value = traitlets.Int(0).tag(sync=True)
     component = traitlets.Unicode("Matrix").tag(sync=True)
 
@@ -105,8 +122,23 @@ class Matrix(anywidget.AnyWidget):
 
 
 class MatrixNew(anywidget.AnyWidget):
-    _esm = pathlib.Path(__file__).parent / "../static" / "widget.js"
-    _css = pathlib.Path(__file__).parent / "../static" / "widget.css"
+    """
+    A new matrix widget for enhanced visualization capabilities.
+
+    Attributes:
+        component (str): The name of the component.
+        network (dict): The network dictionary.
+        click_info (dict): The click_info dictionary.
+        width (int): Width of the widget.
+        height (int): Height of the widget.
+        value (int): The value traitlet.
+
+    Returns:
+        MatrixNew: An enhanced widget for matrix visualization.
+    """
+
+    _esm = Path(__file__).parent / "../static" / "widget.js"
+    _css = Path(__file__).parent / "../static" / "widget.css"
     value = traitlets.Int(0).tag(sync=True)
     component = traitlets.Unicode("MatrixNew").tag(sync=True)
 

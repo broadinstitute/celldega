@@ -1,13 +1,13 @@
 import * as d3 from 'd3';
 
-import { ini_deck_sst } from '../deck-gl/deck_sst';
-import { make_tile_tooltip } from '../deck-gl/make_tile_tooltip';
-import { make_simple_image_layer } from '../deck-gl/simple_image_layer';
+import { ini_deck_sst } from '../deck-gl/core/deck_sst';
+import { make_tile_tooltip } from '../deck-gl/utils/tooltips';
+import { make_simple_image_layer } from '../deck-gl/layers/simple_image_layer';
 import {
   ini_square_scatter_layer,
   set_tile_layer_onclick,
-} from '../deck-gl/square_scatter_layer';
-import { set_views } from '../deck-gl/views';
+} from '../deck-gl/layers/square_scatter_layer';
+import { set_views } from '../deck-gl/core/views';
 import { options, set_options } from '../global_variables/fetch_options';
 import { set_global_base_url } from '../global_variables/global_base_url';
 import { set_dimensions } from '../global_variables/image_dimensions';

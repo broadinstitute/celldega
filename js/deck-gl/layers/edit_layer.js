@@ -7,11 +7,11 @@ import {
 } from '@deck.gl-community/editable-layers';
 import * as d3 from 'd3';
 
-import { handleValidationWarning } from '../temp_utils/errorHandler';
-import { bar_callback_rgn, update_bar_graph } from '../ui/bar_plot';
+import { handleValidationWarning } from '../../temp_utils/errorHandler';
+import { bar_callback_rgn, update_bar_graph } from '../../ui/bar_plot';
 
 import { update_cell_pickable_state } from './cell_layer';
-import { get_layers_list } from './layers_ist';
+import { get_layers_list } from '../utils/layers_ist';
 import { update_path_pickable_state } from './path_layer';
 import { update_trx_pickable_state } from './trx_layer';
 

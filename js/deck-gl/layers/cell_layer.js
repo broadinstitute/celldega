@@ -8,22 +8,21 @@ import {
   set_dict_cell_cats,
   update_selected_cats,
   update_cat,
-} from '../global_variables/cat';
+} from '../../global_variables/cat';
 import {
   set_cell_names_array,
   set_cell_name_to_index_map,
-} from '../global_variables/cell_names_array';
-import { set_color_dict_gene } from '../global_variables/color_dict_gene';
-import { options } from '../global_variables/fetch_options';
-import { update_selected_genes } from '../global_variables/selected_genes';
-import { get_arrow_table } from '../read_parquet/get_arrow_table';
-import { get_scatter_data } from '../read_parquet/get_scatter_data';
-import { update_gene_text_box } from '../ui/gene_search';
-import { toggle_image_layers_and_ctrls } from '../ui/ui_containers';
-import { scale_umap_data } from '../umap/scale_umap_data';
+} from '../../global_variables/cell_names_array';
+import { set_color_dict_gene } from '../../global_variables/color_dict_gene';
+import { options } from '../../global_variables/fetch_options';
+import { update_selected_genes } from '../../global_variables/selected_genes';
+import { get_arrow_table } from '../../read_parquet/get_arrow_table';
+import { get_scatter_data } from '../../read_parquet/get_scatter_data';
+import { update_gene_text_box } from '../../ui/gene_search';
+import { toggle_image_layers_and_ctrls } from '../../ui/ui_containers';
+import { scale_umap_data } from '../../umap/scale_umap_data';
 
-import { get_cell_color } from './cell_color';
-import { get_layers_list } from './layers_ist';
+import { get_layers_list } from '../utils/layers_ist';
 import { update_path_layer_id } from './path_layer';
 import { update_trx_layer_id } from './trx_layer';
 
@@ -322,4 +321,38 @@ export const toggle_spatial_umap = (deck_ist, layers_obj, viz_state) => {
 
   const layers_list = get_layers_list(layers_obj, viz_state.close_up);
   deck_ist.setProps({ layers: layers_list });
+};
+
+// transparent to red
+export const get_cell_color = (cats, i, d) => {
+  if (cats.cat === 'cluster') {
+    try {
+      const inst_cat = cats.cell_cats[d.index];
+
+      let inst_color = cats.color_dict_cluster[inst_cat];
+
+      let inst_opacity =
+        cats.selected_cats.length === 0 || cats.selected_cats.includes(inst_cat)
+          ? 255
+          : 10;
+
+      // Check if inst_color is an array and log an error if it's not
+      if (!Array.isArray(inst_color)) {
+        inst_color = [0, 0, 0];
+        inst_opacity = 0;
+      }
+
+      return [...inst_color, inst_opacity];
+    } catch {
+      return [0, 0, 0, 50]; // Return a default color with some opacity to handle the error gracefully
+    }
+  } else {
+    // color cells based on gene expression
+    try {
+      const inst_exp = cats.cell_exp_array[d.index]; //
+      return [255, 0, 0, inst_exp];
+    } catch {
+      return [255, 0, 0, 50]; // Return a default color with some opacity to handle the error gracefully
+    }
+  }
 };

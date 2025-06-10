@@ -4,45 +4,48 @@ import * as d3 from 'd3';
 import {
   ini_background_layer,
   toggle_background_layer_visibility,
-} from '../deck-gl/background_layer';
-import { calc_viewport } from '../deck-gl/calc_viewport';
+} from '../deck-gl/layers/background_layer';
+import { calc_viewport } from '../deck-gl/core/calc_viewport';
 import {
   ini_cell_layer,
   set_cell_layer_onclick,
   update_cell_layer_id,
-} from '../deck-gl/cell_layer';
+} from '../deck-gl/layers/cell_layer';
 import {
   ini_deck,
   set_deck_on_view_state_change,
   set_initial_view_state,
   set_get_tooltip,
   set_views_prop,
-} from '../deck-gl/deck_ist';
+} from '../deck-gl/core/deck_ist';
 import {
   ini_edit_layer,
   set_edit_layer_on_click,
   set_edit_layer_on_edit,
-} from '../deck-gl/edit_layer';
+} from '../deck-gl/layers/edit_layer';
 import {
   make_image_layers,
   toggle_visibility_image_layers,
-} from '../deck-gl/image_layers';
-import { get_layers_list } from '../deck-gl/layers_ist';
-import { ini_nbhd_layer, set_nbhd_layer_onclick } from '../deck-gl/nbhd_layer';
+} from '../deck-gl/layers/image_layers';
+import { get_layers_list } from '../deck-gl/utils/layers_ist';
+import {
+  ini_nbhd_layer,
+  set_nbhd_layer_onclick,
+} from '../deck-gl/layers/nbhd_layer';
 import {
   ini_path_layer,
   set_path_layer_onclick,
   update_path_layer_id,
   toggle_path_layer_visibility,
-} from '../deck-gl/path_layer';
+} from '../deck-gl/layers/path_layer';
 import {
   ini_trx_layer,
   set_trx_layer_onclick,
   update_trx_layer_radius,
   update_trx_layer_id,
   toggle_trx_layer_visibility,
-} from '../deck-gl/trx_layer';
-import { set_views } from '../deck-gl/views';
+} from '../deck-gl/layers/trx_layer';
+import { set_views } from '../deck-gl/core/views';
 import { ini_cache } from '../global_variables/cache';
 import { update_cat, update_selected_cats } from '../global_variables/cat';
 import { update_cell_exp_array } from '../global_variables/cell_exp_array';

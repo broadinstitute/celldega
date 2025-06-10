@@ -3,28 +3,28 @@
 import { DrawPolygonMode, ViewMode } from '@deck.gl-community/editable-layers';
 import * as d3 from 'd3';
 
-import { toggle_background_layer_visibility } from '../deck-gl/background_layer';
-import { update_cell_pickable_state } from '../deck-gl/cell_layer';
+import { toggle_background_layer_visibility } from '../deck-gl/layers/background_layer';
+import { update_cell_pickable_state } from '../deck-gl/layers/cell_layer';
 import {
   update_edit_layer_mode,
   update_edit_visitility,
   calc_and_update_rgn_bar_graph,
   sync_region_to_model,
-} from '../deck-gl/edit_layer';
-import { toggle_visibility_image_layers } from '../deck-gl/image_layers';
-import { get_layers_list } from '../deck-gl/layers_ist';
+} from '../deck-gl/layers/edit_layer';
+import { toggle_visibility_image_layers } from '../deck-gl/layers/image_layers';
+import { get_layers_list } from '../deck-gl/utils/layers_ist';
 import { update_dendro_layer_data } from '../deck-gl/matrix/dendro_layers';
 import { get_mat_layers_list } from '../deck-gl/matrix/matrix_layers';
 import {
   filter_cat_nbhd_feature_collection,
   toggle_nbhd_layer_visibility,
   update_nbhd_layer_data,
-} from '../deck-gl/nbhd_layer';
-import { update_path_pickable_state } from '../deck-gl/path_layer';
+} from '../deck-gl/layers/nbhd_layer';
+import { update_path_pickable_state } from '../deck-gl/layers/path_layer';
 import {
   toggle_trx_layer_visibility,
   update_trx_pickable_state,
-} from '../deck-gl/trx_layer';
+} from '../deck-gl/layers/trx_layer';
 import {
   calc_dendro_triangles,
   calc_dendro_polygons,

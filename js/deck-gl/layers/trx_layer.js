@@ -3,15 +3,15 @@
 import * as d3 from 'd3';
 import { ScatterplotLayer } from 'deck.gl';
 
-import { update_cat, update_selected_cats } from '../global_variables/cat';
-import { update_cell_exp_array } from '../global_variables/cell_exp_array';
-import { update_selected_genes } from '../global_variables/selected_genes';
-import { update_gene_text_box } from '../ui/gene_search';
-import { toggle_image_layers_and_ctrls } from '../ui/ui_containers';
-import { grab_trx_tiles_in_view } from '../vector_tile/transcripts/grab_trx_tiles_in_view';
+import { update_cat, update_selected_cats } from '../../global_variables/cat';
+import { update_cell_exp_array } from '../../global_variables/cell_exp_array';
+import { update_selected_genes } from '../../global_variables/selected_genes';
+import { update_gene_text_box } from '../../ui/gene_search';
+import { toggle_image_layers_and_ctrls } from '../../ui/ui_containers';
+import { grab_trx_tiles_in_view } from '../../vector_tile/transcripts/grab_trx_tiles_in_view';
 
 import { update_cell_layer_id } from './cell_layer';
-import { get_layers_list } from './layers_ist';
+import { get_layers_list } from '../utils/layers_ist';
 import { update_path_layer_id } from './path_layer';
 
 export const update_trx_layer_id = (genes, layers_obj) => {

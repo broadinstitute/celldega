@@ -1,5 +1,5 @@
-import { update_cell_layer_id } from '../deck-gl/cell_layer';
-import { get_layers_list } from '../deck-gl/layers_ist';
+import { update_cell_layer_id } from '../deck-gl/layers/cell_layer';
+import { get_layers_list } from '../deck-gl/utils/layers_ist';
 import { update_cell_cats } from '../global_variables/cat';
 import { update_meta_cluster } from '../global_variables/meta_cluster';
 import { update_bar_graph, bar_callback_cluster } from '../ui/bar_plot';

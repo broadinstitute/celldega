@@ -3,12 +3,12 @@
 import * as d3 from 'd3';
 import { GeoJsonLayer } from 'deck.gl';
 
-import { update_selected_cats, update_cat } from '../global_variables/cat';
-import { update_selected_genes } from '../global_variables/selected_genes';
-import { hexToRgb } from '../utils/hexToRgb';
+import { update_selected_cats, update_cat } from '../../global_variables/cat';
+import { update_selected_genes } from '../../global_variables/selected_genes';
+import { hexToRgb } from '../../utils/hexToRgb';
 
 import { update_cell_layer_id } from './cell_layer';
-import { get_layers_list } from './layers_ist';
+import { get_layers_list } from '../utils/layers_ist';
 import { update_path_layer_id } from './path_layer';
 
 export const ini_nbhd_layer = (viz_state, visible) => {

@@ -1,9 +1,9 @@
 import { TileLayer } from 'deck.gl';
 
-import { create_simple_render_tile_sublayers } from '../deck-gl/create_simple_render_tile_sublayer';
-import { options } from '../global_variables/fetch_options';
+import { create_simple_render_tile_sublayers } from '../utils/tiles';
+import { options } from '../../global_variables/fetch_options';
 
-import { create_get_tile_data } from './create_get_tile_data';
+import { create_get_tile_data } from '../utils/tiles';
 
 export const make_simple_image_layer = async (viz_state, info) => {
   const { global_base_url } = viz_state;

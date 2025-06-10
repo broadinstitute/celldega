@@ -1,7 +1,6 @@
 /* eslint-disable */
 import { ScatterplotLayer } from 'deck.gl';
-import { update_cat, update_selected_cats } from '../global_variables/cat';
-import { deck_sst } from './deck_sst.js';
+import { update_cat, update_selected_cats } from '../../global_variables/cat';
 
 class SquareScatterplotLayer extends ScatterplotLayer {
   getShaders() {

@@ -2,12 +2,12 @@ import {
   update_bar_graph,
   bar_callback_gene,
   bar_callback_cluster,
-} from '../ui/bar_plot';
-import { visibleTiles } from '../vector_tile/visibleTiles';
+} from '../../ui/bar_plot';
+import { visibleTiles } from '../../vector_tile/visibleTiles';
 
-import { get_layers_list } from './layers_ist';
-import { update_path_layer_data } from './path_layer';
-import { update_trx_layer_data } from './trx_layer';
+import { get_layers_list } from '../utils/layers_ist';
+import { update_path_layer_data } from '../layers/path_layer';
+import { update_trx_layer_data } from '../layers/trx_layer';
 
 export const calc_viewport = async (
   { height, width, zoom, target },

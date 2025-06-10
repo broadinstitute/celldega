@@ -1,22 +1,22 @@
 /* eslint-disable import/no-cycle */
 import * as d3 from 'd3';
 
-import { toggle_background_layer_visibility } from '../deck-gl/background_layer';
+import { toggle_background_layer_visibility } from '../deck-gl/layers/background_layer';
 import {
   new_toggle_cell_layer_visibility,
   toggle_spatial_umap,
-} from '../deck-gl/cell_layer';
+} from '../deck-gl/layers/cell_layer';
 import {
   toggle_visibility_image_layers,
   toggle_visibility_single_image_layer,
-} from '../deck-gl/image_layers';
-import { get_layers_list } from '../deck-gl/layers_ist';
+} from '../deck-gl/layers/image_layers';
+import { get_layers_list } from '../deck-gl/utils/layers_ist';
 import { toggle_dendro_layer_visibility } from '../deck-gl/matrix/dendro_layers';
 import { get_mat_layers_list } from '../deck-gl/matrix/matrix_layers';
-import { toggle_path_layer_visibility } from '../deck-gl/path_layer';
-import { simple_image_layer_visibility } from '../deck-gl/simple_image_layer';
-import { square_scatter_layer_visibility } from '../deck-gl/square_scatter_layer';
-import { toggle_trx_layer_visibility } from '../deck-gl/trx_layer';
+import { toggle_path_layer_visibility } from '../deck-gl/layers/path_layer';
+import { simple_image_layer_visibility } from '../deck-gl/layers/simple_image_layer';
+import { square_scatter_layer_visibility } from '../deck-gl/layers/square_scatter_layer';
+import { toggle_trx_layer_visibility } from '../deck-gl/layers/trx_layer';
 
 import { toggle_slider } from './sliders';
 

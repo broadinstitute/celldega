@@ -5,9 +5,9 @@ import { update_selected_cats, update_cat } from '../../global_variables/cat';
 import { update_selected_genes } from '../../global_variables/selected_genes';
 import { toggle_image_layers_and_ctrls } from '../../ui/ui_containers';
 import { grab_cell_tiles_in_view } from '../../vector_tile/polygons/grab_cell_tiles_in_view';
+import { get_layers_list } from '../utils/layers_ist';
 
 import { update_cell_layer_id } from './cell_layer';
-import { get_layers_list } from '../utils/layers_ist';
 import { update_trx_layer_id } from './trx_layer';
 
 export const get_path_color = (cats, i, d) => {

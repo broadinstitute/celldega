@@ -2,9 +2,9 @@
 import * as d3 from 'd3';
 
 import { update_cell_layer_id } from '../deck-gl/layers/cell_layer';
-import { get_layers_list } from '../deck-gl/utils/layers_ist';
 import { update_path_layer_id } from '../deck-gl/layers/path_layer';
 import { update_trx_layer_id } from '../deck-gl/layers/trx_layer';
+import { get_layers_list } from '../deck-gl/utils/layers_ist';
 import { update_cat, update_selected_cats } from '../global_variables/cat';
 import { update_cell_exp_array } from '../global_variables/cell_exp_array';
 import { update_selected_genes } from '../global_variables/selected_genes';

@@ -2,9 +2,9 @@
 
 import { update_cell_layer_radius } from '../deck-gl/layers/cell_layer';
 import { update_opacity_single_image_layer } from '../deck-gl/layers/image_layers';
-import { get_layers_list } from '../deck-gl/utils/layers_ist';
 import { square_scatter_layer_opacity } from '../deck-gl/layers/square_scatter_layer';
 import { update_trx_layer_radius } from '../deck-gl/layers/trx_layer';
+import { get_layers_list } from '../deck-gl/utils/layers_ist';
 
 export const make_slider = () => {
   return document.createElement('input');

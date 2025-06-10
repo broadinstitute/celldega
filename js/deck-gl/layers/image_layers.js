@@ -1,7 +1,6 @@
 import { TileLayer } from 'deck.gl';
 
 import { options } from '../../global_variables/fetch_options';
-
 import {
   create_get_tile_data,
   create_render_tile_sublayers,

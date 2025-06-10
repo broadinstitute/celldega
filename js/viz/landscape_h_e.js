@@ -1,8 +1,8 @@
 import { AwsClient } from 'aws4fetch';
 
 import { ini_deck_sst } from '../deck-gl/core/deck_sst';
-import { make_simple_image_layer } from '../deck-gl/layers/simple_image_layer';
 import { set_views } from '../deck-gl/core/views';
+import { make_simple_image_layer } from '../deck-gl/layers/simple_image_layer';
 import { set_options } from '../global_variables/fetch_options';
 import { set_global_base_url } from '../global_variables/global_base_url';
 import { set_dimensions } from '../global_variables/image_dimensions';

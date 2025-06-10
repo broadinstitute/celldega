@@ -12,9 +12,6 @@ import {
   sync_region_to_model,
 } from '../deck-gl/layers/edit_layer';
 import { toggle_visibility_image_layers } from '../deck-gl/layers/image_layers';
-import { get_layers_list } from '../deck-gl/utils/layers_ist';
-import { update_dendro_layer_data } from '../deck-gl/matrix/dendro_layers';
-import { get_mat_layers_list } from '../deck-gl/matrix/matrix_layers';
 import {
   filter_cat_nbhd_feature_collection,
   toggle_nbhd_layer_visibility,
@@ -25,6 +22,9 @@ import {
   toggle_trx_layer_visibility,
   update_trx_pickable_state,
 } from '../deck-gl/layers/trx_layer';
+import { update_dendro_layer_data } from '../deck-gl/matrix/dendro_layers';
+import { get_mat_layers_list } from '../deck-gl/matrix/matrix_layers';
+import { get_layers_list } from '../deck-gl/utils/layers_ist';
 import {
   calc_dendro_triangles,
   calc_dendro_polygons,

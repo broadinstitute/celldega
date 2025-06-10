@@ -1,16 +1,7 @@
 import { AwsClient } from 'aws4fetch';
 import * as d3 from 'd3';
 
-import {
-  ini_background_layer,
-  toggle_background_layer_visibility,
-} from '../deck-gl/layers/background_layer';
 import { calc_viewport } from '../deck-gl/core/calc_viewport';
-import {
-  ini_cell_layer,
-  set_cell_layer_onclick,
-  update_cell_layer_id,
-} from '../deck-gl/layers/cell_layer';
 import {
   ini_deck,
   set_deck_on_view_state_change,
@@ -18,6 +9,16 @@ import {
   set_get_tooltip,
   set_views_prop,
 } from '../deck-gl/core/deck_ist';
+import { set_views } from '../deck-gl/core/views';
+import {
+  ini_background_layer,
+  toggle_background_layer_visibility,
+} from '../deck-gl/layers/background_layer';
+import {
+  ini_cell_layer,
+  set_cell_layer_onclick,
+  update_cell_layer_id,
+} from '../deck-gl/layers/cell_layer';
 import {
   ini_edit_layer,
   set_edit_layer_on_click,
@@ -27,7 +28,6 @@ import {
   make_image_layers,
   toggle_visibility_image_layers,
 } from '../deck-gl/layers/image_layers';
-import { get_layers_list } from '../deck-gl/utils/layers_ist';
 import {
   ini_nbhd_layer,
   set_nbhd_layer_onclick,
@@ -45,7 +45,7 @@ import {
   update_trx_layer_id,
   toggle_trx_layer_visibility,
 } from '../deck-gl/layers/trx_layer';
-import { set_views } from '../deck-gl/core/views';
+import { get_layers_list } from '../deck-gl/utils/layers_ist';
 import { ini_cache } from '../global_variables/cache';
 import { update_cat, update_selected_cats } from '../global_variables/cat';
 import { update_cell_exp_array } from '../global_variables/cell_exp_array';

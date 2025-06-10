@@ -100,9 +100,7 @@ def alpha_shape_cell_clusters(
         lambda geom: _round_coordinates(geom, precision=2)
     )
     gdf_alpha["area"] = gdf_alpha.area
-    return gdf_alpha.loc[
-        gdf_alpha.area.sort_values(ascending=False).index.tolist()
-    ]
+    return gdf_alpha.loc[gdf_alpha.area.sort_values(ascending=False).index.tolist()]
 
 
 def alpha_shape_geojson(

@@ -11,7 +11,7 @@ from shapely.geometry.base import BaseGeometry
 
 
 def _prepare_statistics_functions(
-    stats_funcs: str | Callable | list[str | Callable]
+    stats_funcs: str | Callable | list[str | Callable],
 ) -> tuple[list[Callable], list[str]]:
     """Parse stat specs into callables and names."""
     STATS_FUNCS = {
@@ -50,6 +50,7 @@ def _prepare_statistics_functions(
             raise ValueError("stats_funcs must contain strings or callables")
     return funcs, metric_names
 
+
 def _create_polygon_mask(
     polygon: BaseGeometry, height: int, width: int, transform: Any
 ) -> np.ndarray:
@@ -62,6 +63,7 @@ def _create_polygon_mask(
         all_touched=True,
         dtype=np.uint8,
     )
+
 
 def _calculate_channel_stats(
     img: np.ndarray,
@@ -81,6 +83,7 @@ def _calculate_channel_stats(
             col_name = f"{ch_name}_{name}"
             channel_results[col_name] = stat_value
     return channel_results
+
 
 def _process_geodataframe_polygons(
     polygon_src: gpd.GeoDataFrame,
@@ -103,6 +106,7 @@ def _process_geodataframe_polygons(
         all_results.append(channel_stats)
     return all_results
 
+
 def _process_mask_array_polygons(
     polygon_src: np.ndarray,
     img: np.ndarray,
@@ -116,7 +120,7 @@ def _process_mask_array_polygons(
     unique_polygon_ids = unique_polygon_ids[unique_polygon_ids != 0]
     all_results = []
     for polygon_id in unique_polygon_ids:
-        mask = (polygon_src == polygon_id)
+        mask = polygon_src == polygon_id
         channel_stats = {}
         for ch in range(num_channels):
             masked_data = img[:, :, ch][mask]
@@ -128,6 +132,7 @@ def _process_mask_array_polygons(
         channel_stats["polygon_id"] = polygon_id
         all_results.append(channel_stats)
     return all_results
+
 
 def calc_img_zonal_stats(
     polygon_src: gpd.GeoDataFrame | np.ndarray,

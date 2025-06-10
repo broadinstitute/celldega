@@ -78,11 +78,13 @@ def batch_transform_geometries(geometries, transformation_matrix, scale):
     Batch transform geometries using numpy for optimized performance.
     """
     # Construct full affine matrix
-    affine_matrix = np.array([
-        [transformation_matrix[0, 0], transformation_matrix[0, 1], transformation_matrix[0, 2]],
-        [transformation_matrix[1, 0], transformation_matrix[1, 1], transformation_matrix[1, 2]],
-        [0, 0, 1]
-    ])
+    affine_matrix = np.array(
+        [
+            [transformation_matrix[0, 0], transformation_matrix[0, 1], transformation_matrix[0, 2]],
+            [transformation_matrix[1, 0], transformation_matrix[1, 1], transformation_matrix[1, 2]],
+            [0, 0, 1],
+        ]
+    )
 
     transformed_geometries = []
 
@@ -113,7 +115,9 @@ def batch_transform_geometries(geometries, transformation_matrix, scale):
             for poly in geom.geoms:
                 # Exterior
                 exterior_coords = np.array(poly.exterior.coords)
-                exterior_transformed = numpy_affine_transform(exterior_coords, affine_matrix) / scale
+                exterior_transformed = (
+                    numpy_affine_transform(exterior_coords, affine_matrix) / scale
+                )
 
                 # Interiors
                 interiors_transformed = []
@@ -255,11 +259,13 @@ def get_cell_polygons(
         )
         cells_orig = gpd.GeoDataFrame(grouped, geometry="geometry")[["geometry"]]
 
-
     # Transform geometries
-    cells_orig["geometry"] = batch_transform_geometries(cells_orig["geometry"], transformation_matrix, 1)
+    cells_orig["geometry"] = batch_transform_geometries(
+        cells_orig["geometry"], transformation_matrix, 1
+    )
     cells_orig["GEOMETRY"] = cells_orig["geometry"].apply(
-    lambda geom: [[list(coord) for coord in geom.exterior.coords]])
+        lambda geom: [[list(coord) for coord in geom.exterior.coords]]
+    )
 
     return cells_orig
 

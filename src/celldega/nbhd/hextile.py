@@ -59,9 +59,7 @@ def create_hextile(
 
     image_bounds = box(0, 0, img_width, img_height)
     clipped_hexes = [
-        hex.intersection(image_bounds)
-        for hex in hexagons
-        if hex.intersects(image_bounds)
+        hex.intersection(image_bounds) for hex in hexagons if hex.intersects(image_bounds)
     ]
 
     gdf_hextile = gpd.GeoDataFrame(geometry=clipped_hexes)
@@ -91,12 +89,8 @@ def create_hextile(
         print(f"Hextiles saved at '{path_landscape_files}' as 'hextiles.parquet'\n")
 
         fig, ax = plt.subplots(1, 1, figsize=(60, 80))
-        gdf_hextile.plot(
-            ax=ax, alpha=1, linewidth=1, facecolor="none", edgecolor="black"
-        )
-        ax.set_title(
-            f"Hextiles (hexagon radius: {radius_in_microns} microns)", fontsize=50
-        )
+        gdf_hextile.plot(ax=ax, alpha=1, linewidth=1, facecolor="none", edgecolor="black")
+        ax.set_title(f"Hextiles (hexagon radius: {radius_in_microns} microns)", fontsize=50)
         ax.set_xlabel("x (pixels)", fontsize=25)
         ax.set_ylabel("y (pixels)", fontsize=25)
         plt.xticks(fontsize=20)

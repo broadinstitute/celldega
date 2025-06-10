@@ -47,9 +47,7 @@ def calc_nbg_cd(
             how="left",
             predicate="within",
         )
-        joined.drop(
-            columns=["index_right", "cat", "geometry"], inplace=True, errors="ignore"
-        )
+        joined.drop(columns=["index_right", "cat", "geometry"], inplace=True, errors="ignore")
 
         df_nbhd_join = gdf_nbhd[[unique_nbhd_col]]
         for gene in gene_list:
@@ -92,12 +90,8 @@ def calc_nbg_cf(
         engine="pyarrow",
     )
     geometry = gpd.points_from_xy(df_trx["x_location"], df_trx["y_location"])
-    gdf_trx = gpd.GeoDataFrame(
-        df_trx[["feature_name"]], geometry=geometry, crs="EPSG:4326"
-    )
-    gdf_trx = gdf_trx.sjoin(
-        gdf_nbhd[[unique_nbhd_col, "geometry"]], how="left", predicate="within"
-    )
+    gdf_trx = gpd.GeoDataFrame(df_trx[["feature_name"]], geometry=geometry, crs="EPSG:4326")
+    gdf_trx = gdf_trx.sjoin(gdf_nbhd[[unique_nbhd_col, "geometry"]], how="left", predicate="within")
     gdf_trx.rename(columns={unique_nbhd_col: "nbhd_id"}, inplace=True)
     return (
         gdf_trx.groupby(["nbhd_id", "feature_name"])
@@ -123,9 +117,7 @@ def calc_nbi(
 
     img = imread(file_path)
     path_transformation_matrix = f"{path_landscape_files}/micron_to_image_transform.csv"
-    transformation_matrix = pd.read_csv(
-        path_transformation_matrix, header=None, sep=" "
-    ).values
+    transformation_matrix = pd.read_csv(path_transformation_matrix, header=None, sep=" ").values
 
     gdf_nbhd_pixel = gdf_nbhd.copy()
     gdf_nbhd_pixel["geometry"] = batch_transform_geometries(
@@ -286,9 +278,7 @@ def calc_nbp(
     print("Calculating NBP")
     required = {"geometry", nbhd_col}
     if not required.issubset(gdf_nbhd.columns):
-        raise ValueError(
-            f"gdf_nbhd missing required columns: {required - set(gdf_nbhd.columns)}"
-        )
+        raise ValueError(f"gdf_nbhd missing required columns: {required - set(gdf_nbhd.columns)}")
     if not {"geometry", "cluster"}.issubset(gdf_cell.columns):
         raise ValueError("gdf_cell missing required 'geometry' or 'cluster' column")
 
@@ -322,9 +312,7 @@ def get_nbhd_meta(
     summary.index.name = "nbhd_id"
     summary["area_squm"] = gdf_nbhd.geometry.area.round(2)
     summary["perimeter_um"] = gdf_nbhd.geometry.length.round(2)
-    gdf_trx = gdf_trx.sjoin(
-        gdf_nbhd[[unique_nbhd_col, "geometry"]], how="left", predicate="within"
-    )
+    gdf_trx = gdf_trx.sjoin(gdf_nbhd[[unique_nbhd_col, "geometry"]], how="left", predicate="within")
     trx_summary = gdf_trx.groupby(unique_nbhd_col).agg(
         total_trx=("cell_id", "size"),
         unassigned_trx_count=("cell_id", lambda x: (x == "UNASSIGNED").sum()),
@@ -334,9 +322,9 @@ def get_nbhd_meta(
     trx_summary["assigned_trx_pct"] = trx_summary["assigned_trx_count"] / trx_summary[
         "total_trx"
     ].replace(0, 1)
-    trx_summary["unassigned_trx_pct"] = trx_summary[
-        "unassigned_trx_count"
-    ] / trx_summary["total_trx"].replace(0, 1)
+    trx_summary["unassigned_trx_pct"] = trx_summary["unassigned_trx_count"] / trx_summary[
+        "total_trx"
+    ].replace(0, 1)
     gdf_c = gdf_cell[["geometry"]].sjoin(
         gdf_nbhd[[unique_nbhd_col, "geometry"]], how="left", predicate="within"
     )

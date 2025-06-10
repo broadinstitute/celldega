@@ -91,9 +91,7 @@ def _get_gdf_trx(data_dir: str) -> gpd.GeoDataFrame:
         engine="pyarrow",
     )
     geometry = gpd.points_from_xy(df_trx["x_location"], df_trx["y_location"])
-    return gpd.GeoDataFrame(
-        df_trx[["feature_name", "cell_id"]], geometry=geometry, crs="EPSG:4326"
-    )
+    return gpd.GeoDataFrame(df_trx[["feature_name", "cell_id"]], geometry=geometry, crs="EPSG:4326")
 
 
 def _round_coordinates(

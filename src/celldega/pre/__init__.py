@@ -906,7 +906,6 @@ def add_custom_segmentation(
     )
 
 
-
 def _to_geometry(coord_data):
     """
     Converts a coordinate structure back to a Shapely geometry object.
@@ -930,9 +929,9 @@ def _to_geometry(coord_data):
         return coord_data
 
     if (
-        isinstance(coord_data, list | tuple) and
-        all(isinstance(x, int | float) for x in coord_data) and
-        len(coord_data) == 2
+        isinstance(coord_data, list | tuple)
+        and all(isinstance(x, int | float) for x in coord_data)
+        and len(coord_data) == 2
     ):
         return Point(coord_data)
 
@@ -941,17 +940,14 @@ def _to_geometry(coord_data):
         interiors = coord_data.get("interiors", [])
         return Polygon(exterior, interiors)
 
-    if (
-        isinstance(coord_data, list) and
-        all(isinstance(poly, dict) and "exterior" in poly for poly in coord_data)
+    if isinstance(coord_data, list) and all(
+        isinstance(poly, dict) and "exterior" in poly for poly in coord_data
     ):
-        return MultiPolygon([
-            Polygon(poly["exterior"], poly.get("interiors", []))
-            for poly in coord_data
-        ])
+        return MultiPolygon(
+            [Polygon(poly["exterior"], poly.get("interiors", [])) for poly in coord_data]
+        )
 
     raise TypeError(f"Cannot convert {coord_data} to a Shapely geometry. Unexpected structure.")
-
 
 
 def _to_coords(geom):
@@ -978,18 +974,16 @@ def _to_coords(geom):
         return {
             "exterior": [list(coord) for coord in geom.exterior.coords],
             "interiors": [
-                [list(coord) for coord in interior.coords]
-                for interior in geom.interiors
-            ]
+                [list(coord) for coord in interior.coords] for interior in geom.interiors
+            ],
         }
     if isinstance(geom, MultiPolygon):
         return [
             {
                 "exterior": [list(coord) for coord in polygon.exterior.coords],
                 "interiors": [
-                    [list(coord) for coord in interior.coords]
-                    for interior in polygon.interiors
-                ]
+                    [list(coord) for coord in interior.coords] for interior in polygon.interiors
+                ],
             }
             for polygon in geom.geoms
         ]

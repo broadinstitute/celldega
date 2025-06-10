@@ -4,7 +4,8 @@ import { landscape_ist } from './viz/landscape_ist';
 import { landscape_sst } from './viz/landscape_sst';
 import { matrix_viz } from './viz/matrix_viz';
 
-export const render_landscape_ist = async ({ model, el }) => {
+// Remove export keywords from render functions
+const render_landscape_ist = async ({ model, el }) => {
   const token = model.get('token');
   const creds = model.get('creds');
   const ini_x = model.get('ini_x');
@@ -43,7 +44,7 @@ export const render_landscape_ist = async ({ model, el }) => {
   );
 };
 
-export const render_landscape_sst = async ({ model, el }) => {
+const render_landscape_sst = async ({ model, el }) => {
   const token = model.get('token');
   const ini_x = model.get('ini_x');
   const ini_y = model.get('ini_y');
@@ -71,7 +72,7 @@ export const render_landscape_sst = async ({ model, el }) => {
   );
 };
 
-export const render_landscape_h_e = async ({ model, el }) => {
+const render_landscape_h_e = async ({ model, el }) => {
   const token = model.get('token');
   const ini_x = model.get('ini_x');
   const ini_y = model.get('ini_y');
@@ -99,7 +100,7 @@ export const render_landscape_h_e = async ({ model, el }) => {
   );
 };
 
-export const render_landscape = async ({ model, el }) => {
+const render_landscape = async ({ model, el }) => {
   const technology = model.get('technology');
 
   if (['MERSCOPE', 'Xenium'].includes(technology)) {
@@ -111,7 +112,7 @@ export const render_landscape = async ({ model, el }) => {
   }
 };
 
-export const render_matrix_new = async ({ model, el }) => {
+const render_matrix_new = async ({ model, el }) => {
   const network = model.get('network');
   const width = model.get('width');
   const height = model.get('height');
@@ -119,19 +120,38 @@ export const render_matrix_new = async ({ model, el }) => {
   matrix_viz(model, el, network, width, height);
 };
 
-export const render = async ({ model, el }) => {
-  const componentType = model.get('component');
+// Main render function - no export keyword
+function render({ model, el }) {
+  try {
+    const componentType = model.get('component');
 
-  switch (componentType) {
-    case 'Landscape':
-      render_landscape({ model, el });
-      break;
-    case 'Matrix':
-      render_matrix_new({ model, el });
-      break;
-    default:
-      throw new Error(`Unknown component type: ${componentType}`);
+    // Add null/undefined checks
+    if (!componentType) {
+      console.error('Component type is not defined');
+      return;
+    }
+
+    switch (componentType) {
+      case 'Landscape':
+        return render_landscape({ model, el });
+      case 'Matrix':
+        return render_matrix_new({ model, el });
+      default:
+        console.error(`Unknown component type: ${componentType}`);
+        return;
+    }
+  } catch (error) {
+    console.error('Error in render function:', error);
+    // Create error display in the element
+    el.innerHTML = `<div style="color: red; padding: 10px;">Error: ${error.message}</div>`;
   }
-};
+}
 
-export default { render, landscape_ist, landscape_sst, matrix_viz };
+export default {
+  render,
+  render_landscape_ist,
+  render_landscape_sst,
+  render_landscape_h_e,
+  render_landscape,
+  render_matrix_new,
+};

@@ -1,13 +1,13 @@
 """Module for gradient polygon(s) generation."""
 
 import geopandas as gpd
-from geopandas import GeoDataFrame
+
 
 def calc_grad_nbhd_from_roi(
-    polygon: GeoDataFrame,
-    gdf_reference: GeoDataFrame,
+    polygon: gpd.GeoDataFrame,
+    gdf_reference: gpd.GeoDataFrame,
     band_width: float = 300,
-) -> GeoDataFrame:
+) -> gpd.GeoDataFrame:
     """
     Generate concentric rings (neighborhood bands) from a polygon,
     clipped to the convex hull of a reference GeoDataFrame.

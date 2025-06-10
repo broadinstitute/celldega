@@ -1,36 +1,38 @@
 """Module for hexatile computing."""
 
-import os
+from pathlib import Path
 import xml.etree.ElementTree as ET
-from typing import Optional
 
 import geopandas as gpd
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 from shapely.affinity import affine_transform, translate
 from shapely.geometry import Polygon, box
-from geopandas import GeoDataFrame
 
 
 def create_hextile(
     radius: float,
-    path_landscape_files: Optional[str] = None,
+    path_landscape_files: str | None = None,
     img_height: int = 100,
     img_width: int = 100,
     pixel_size: float = 0.2125,
-) -> GeoDataFrame:
+) -> gpd.GeoDataFrame:
     """
     Create a grid of hexagonal tiles for an image or landscape.
     """
     if isinstance(path_landscape_files, str):
-        tree = ET.parse(os.path.join(path_landscape_files, "pyramid_images/bound.dzi"))
+        # Use pathlib for modern, robust path handling
+        base_path = Path(path_landscape_files)
+        tree = ET.parse(base_path / "pyramid_images/bound.dzi")
         root = tree.getroot()
         img_width = int(root[0].attrib["Width"])
         img_height = int(root[0].attrib["Height"])
 
         transformation_matrix = pd.read_csv(
-            f"{path_landscape_files}/micron_to_image_transform.csv", sep=" ", header=None
+            base_path / "micron_to_image_transform.csv",
+            sep=" ",
+            header=None,
         ).values[:3, :3]
     else:
         transformation_matrix = np.eye(3)
@@ -83,14 +85,18 @@ def create_hextile(
     radius_in_microns = pixel_size * radius
 
     if isinstance(path_landscape_files, str):
-        gdf_hextile.to_parquet(os.path.join(path_landscape_files, "hextiles.parquet"))
-        print(
-            f"Hextiles saved at '{path_landscape_files}' as 'hextiles.parquet'\n"
-        )
+        # Use pathlib for the output path as well
+        base_path = Path(path_landscape_files)
+        gdf_hextile.to_parquet(base_path / "hextiles.parquet")
+        print(f"Hextiles saved at '{path_landscape_files}' as 'hextiles.parquet'\n")
 
         fig, ax = plt.subplots(1, 1, figsize=(60, 80))
-        gdf_hextile.plot(ax=ax, alpha=1, linewidth=1, facecolor="none", edgecolor="black")
-        ax.set_title(f"Hextiles (hexagon radius: {radius_in_microns} microns)", fontsize=50)
+        gdf_hextile.plot(
+            ax=ax, alpha=1, linewidth=1, facecolor="none", edgecolor="black"
+        )
+        ax.set_title(
+            f"Hextiles (hexagon radius: {radius_in_microns} microns)", fontsize=50
+        )
         ax.set_xlabel("x (pixels)", fontsize=25)
         ax.set_ylabel("y (pixels)", fontsize=25)
         plt.xticks(fontsize=20)
@@ -103,9 +109,9 @@ def create_hextile(
 
 
 def generate_hex_grid(
-    gdf_cell: GeoDataFrame,
+    gdf_cell: gpd.GeoDataFrame,
     radius: float = 20,
-) -> GeoDataFrame:
+) -> gpd.GeoDataFrame:
     """
     Generate a hexagonal grid over the convex hull of a GeoDataFrame using affine translation.
     """

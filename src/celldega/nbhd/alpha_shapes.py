@@ -1,18 +1,21 @@
 """Module for alpha shapes computation."""
 
+from __future__ import annotations
+
+from collections.abc import Sequence
 import json
-from typing import Any, List, Sequence, Union
+from typing import Any
 
 import geopandas as gpd
-import numpy as np
 from libpysal.cg import alpha_shape as libpysal_alpha_shape
+import numpy as np
 from shapely.geometry import MultiPolygon, Point, base, shape
 
 from .utils import _classify_polygons_contains_check, _round_coordinates
 
 
 def _verify_polygons_with_alpha_bulk(
-    polygons: Union[gpd.GeoSeries, Sequence[base.BaseGeometry]],
+    polygons: gpd.GeoSeries | Sequence[base.BaseGeometry],
     points: Sequence[Any],
     alpha: float,
     area_tolerance: float = 0.05,
@@ -31,7 +34,7 @@ def _verify_polygons_with_alpha_bulk(
     -------
     GeoSeries of curated polygons
     """
-    curated_polygons: List[base.BaseGeometry] = []
+    curated_polygons: list[base.BaseGeometry] = []
     points_gdf = gpd.GeoDataFrame(geometry=[Point(p) for p in points])
     points_sindex = points_gdf.sindex
 
@@ -67,8 +70,7 @@ def alpha_shape(
         points,
         1 / inv_alpha,
     )
-    multi_poly = MultiPolygon(validated_poly.values)
-    return multi_poly
+    return MultiPolygon(validated_poly.values)
 
 
 def alpha_shape_cell_clusters(
@@ -98,10 +100,9 @@ def alpha_shape_cell_clusters(
         lambda geom: _round_coordinates(geom, precision=2)
     )
     gdf_alpha["area"] = gdf_alpha.area
-    gdf_alpha = gdf_alpha.loc[
+    return gdf_alpha.loc[
         gdf_alpha.area.sort_values(ascending=False).index.tolist()
     ]
-    return gdf_alpha
 
 
 def alpha_shape_geojson(

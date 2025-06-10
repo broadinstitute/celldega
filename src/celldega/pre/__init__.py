@@ -19,7 +19,7 @@ from matplotlib.colors import to_hex
 import matplotlib.pyplot as plt
 import pandas as pd
 from scipy.sparse import csr_matrix
-from shapely.geometry import Point, Polygon, MultiPolygon
+from shapely.geometry import MultiPolygon, Point, Polygon
 from skimage.io import imread, imsave
 import tifffile
 import zarr
@@ -926,22 +926,22 @@ def _to_geometry(coord_data):
         TypeError: If the input structure is not recognized.
     """
 
-    if isinstance(coord_data, (Point, Polygon, MultiPolygon)):
+    if isinstance(coord_data, Point | Polygon | MultiPolygon):
         return coord_data
 
-    elif (
-        isinstance(coord_data, (list, tuple)) and
-        all(isinstance(x, (int, float)) for x in coord_data) and
+    if (
+        isinstance(coord_data, list | tuple) and
+        all(isinstance(x, int | float) for x in coord_data) and
         len(coord_data) == 2
     ):
         return Point(coord_data)
 
-    elif isinstance(coord_data, dict) and "exterior" in coord_data:
+    if isinstance(coord_data, dict) and "exterior" in coord_data:
         exterior = coord_data["exterior"]
         interiors = coord_data.get("interiors", [])
         return Polygon(exterior, interiors)
 
-    elif (
+    if (
         isinstance(coord_data, list) and
         all(isinstance(poly, dict) and "exterior" in poly for poly in coord_data)
     ):
@@ -950,8 +950,7 @@ def _to_geometry(coord_data):
             for poly in coord_data
         ])
 
-    else:
-        raise TypeError(f"Cannot convert {coord_data} to a Shapely geometry. Unexpected structure.")
+    raise TypeError(f"Cannot convert {coord_data} to a Shapely geometry. Unexpected structure.")
 
 
 
@@ -975,7 +974,7 @@ def _to_coords(geom):
     """
     if isinstance(geom, Point):
         return list(geom.coords[0])
-    elif isinstance(geom, Polygon):
+    if isinstance(geom, Polygon):
         return {
             "exterior": [list(coord) for coord in geom.exterior.coords],
             "interiors": [
@@ -983,7 +982,7 @@ def _to_coords(geom):
                 for interior in geom.interiors
             ]
         }
-    elif isinstance(geom, MultiPolygon):
+    if isinstance(geom, MultiPolygon):
         return [
             {
                 "exterior": [list(coord) for coord in polygon.exterior.coords],
@@ -994,8 +993,7 @@ def _to_coords(geom):
             }
             for polygon in geom.geoms
         ]
-    else:
-        raise TypeError(f"Unsupported geometry type: {type(geom)}")
+    raise TypeError(f"Unsupported geometry type: {type(geom)}")
 
 
 def write_xenium_transform(

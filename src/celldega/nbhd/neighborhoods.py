@@ -1,14 +1,18 @@
 """Module for NBHD class and related calculations."""
 
-import pandas as pd
-import geopandas as gpd
+# Standard library imports
 from itertools import combinations
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import Any
 
 from anndata import AnnData
+
+# Third-party imports
+import geopandas as gpd
+import pandas as pd
 from skimage.io import imread
 
 from celldega.pre.boundary_tile import batch_transform_geometries
+
 from .utils import _get_gdf_cell, _get_gdf_trx
 from .zonal_stats import calc_img_zonal_stats
 
@@ -18,7 +22,7 @@ def calc_nbg_cd(
     gdf_nbhd: gpd.GeoDataFrame,
     cd_mode: str = "CD/LCD",
     unique_nbhd_col: str = "name",
-) -> Union[gpd.GeoDataFrame, Dict[Any, gpd.GeoDataFrame]]:
+) -> gpd.GeoDataFrame | dict[Any, gpd.GeoDataFrame]:
     """
     Calculate the mean expression of cells within a neighborhood (CD)
     or the mean expression of cells from a given Leiden cluster (LCD).
@@ -60,7 +64,7 @@ def calc_nbg_cd(
 
     if cd_mode == "LCD":
         print("Calculating NBG-LCD")
-        nbhd_by_cluster: Dict[Any, pd.DataFrame] = {}
+        nbhd_by_cluster: dict[Any, pd.DataFrame] = {}
         for cluster in gdf_cell["cluster"].unique():
             cluster_cells = gdf_cell[gdf_cell["cluster"] == cluster]
             nbhd_by_cluster[cluster] = compute_cd(cluster_cells)
@@ -95,12 +99,16 @@ def calc_nbg_cf(
         gdf_nbhd[[unique_nbhd_col, "geometry"]], how="left", predicate="within"
     )
     gdf_trx.rename(columns={unique_nbhd_col: "nbhd_id"}, inplace=True)
-    df_counts = (
-        gdf_trx.groupby(["nbhd_id", "feature_name"]).size().unstack(fill_value=0)
+    return (
+        gdf_trx.groupby(["nbhd_id", "feature_name"])
+        .size()
+        .unstack(fill_value=0)
+        .rename_axis("nbhd_id")
+        .rename_axis(None, axis=1)
+        .reindex(gdf_nbhd[unique_nbhd_col])
+        .fillna(0)
+        .astype(int)
     )
-    df_counts = df_counts.rename_axis("nbhd_id").rename_axis(None, axis=1)
-    df_counts = df_counts.reindex(gdf_nbhd[unique_nbhd_col]).fillna(0).astype(int)
-    return df_counts
 
 
 def calc_nbi(
@@ -115,22 +123,26 @@ def calc_nbi(
 
     img = imread(file_path)
     path_transformation_matrix = f"{path_landscape_files}/micron_to_image_transform.csv"
-    transformation_matrix = pd.read_csv(path_transformation_matrix, header=None, sep=" ").values
+    transformation_matrix = pd.read_csv(
+        path_transformation_matrix, header=None, sep=" "
+    ).values
 
     gdf_nbhd_pixel = gdf_nbhd.copy()
     gdf_nbhd_pixel["geometry"] = batch_transform_geometries(
         gdf_nbhd_pixel["geometry"], transformation_matrix, 1
     )
 
-    data = calc_img_zonal_stats(
-        gdf_nbhd_pixel,
-        img,
-        unique_polygon_col_name="name",
-        channel_names={0: "dapi", 1: "bound", 2: "rna", 3: "prot"},
-        stats_funcs=["mean", "median", "std"],
+    return (
+        calc_img_zonal_stats(
+            gdf_nbhd_pixel,
+            img,
+            unique_polygon_col_name="name",
+            channel_names={0: "dapi", 1: "bound", 2: "rna", 3: "prot"},
+            stats_funcs=["mean", "median", "std"],
+        )
+        .rename(columns={"polygon_id": "nbhd_id"})
+        .set_index("nbhd_id")
     )
-    data = data.rename(columns={"polygon_id": "nbhd_id"}).set_index("nbhd_id")
-    return data
 
 
 class NBHD:
@@ -143,9 +155,9 @@ class NBHD:
         adata: AnnData,
         data_dir: str,
         path_landscape_files: str,
-        source: Optional[Union[str, Dict[str, Any]]] = None,
-        name: Optional[str] = None,
-        meta: Optional[Dict[str, Any]] = None,
+        source: str | dict[str, Any] | None = None,
+        name: str | None = None,
+        meta: dict[str, Any] | None = None,
     ) -> None:
         self.gdf = gdf.copy()
         self.nbhd_type = nbhd_type
@@ -156,7 +168,7 @@ class NBHD:
         self.name = name
         self.meta = meta or {}
 
-        self.derived: Dict[str, Any] = {
+        self.derived: dict[str, Any] = {
             "NBI": None,
             "NBG-CF": None,
             "NBG-CD": None,
@@ -166,7 +178,7 @@ class NBHD:
             "NBN-B": None,
         }
 
-    def set_derived(self, key: str, subkey: Optional[str] = None) -> None:
+    def set_derived(self, key: str, subkey: str | None = None) -> None:
         """
         Set a derived data matrix.
         """
@@ -201,13 +213,13 @@ class NBHD:
             data = calc_nbi(
                 f"{self.data_dir}/morphology_focus/morphology_focus_0000.ome.tif",
                 self.path_landscape_files,
-                self.gdf
-                )
+                self.gdf,
+            )
         else:
             raise ValueError(f"Unknown derived key: {key}")
-            
+
         if key in {"NBP", "NBG-LCD"}:
-            for subkey in data.keys():
+            for subkey in data:
                 self.derived[key][subkey] = data[subkey]
         else:
             self.derived[key] = data
@@ -224,7 +236,7 @@ class NBHD:
             .rename(columns={"name": "nbhd_id"})
         )
 
-    def get_derived(self, key: str, subkey: Optional[str] = None) -> pd.DataFrame:
+    def get_derived(self, key: str, subkey: str | None = None) -> pd.DataFrame:
         if key in {"NBP", "NBG-LCD"}:
             df = self.derived[key].get(subkey)
             return self._add_geo(df)
@@ -234,7 +246,7 @@ class NBHD:
     def to_geodataframe(self) -> gpd.GeoDataFrame:
         return self.gdf
 
-    def summary(self) -> Dict[str, Any]:
+    def summary(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "type": self.nbhd_type,
@@ -243,7 +255,7 @@ class NBHD:
             "meta": self.meta,
         }
 
-    def _derived_summary(self, key: str) -> Optional[Union[Tuple, Dict[str, Tuple]]]:
+    def _derived_summary(self, key: str) -> tuple | dict[str, tuple] | None:
         val = self.derived.get(key)
         if val is None:
             return None
@@ -264,7 +276,7 @@ def calc_nbp(
     gdf_cell: gpd.GeoDataFrame,
     gdf_nbhd: gpd.GeoDataFrame,
     nbhd_col: str = "name",
-) -> Tuple[pd.DataFrame, pd.DataFrame]:
+) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
     Calculate cell counts and percentages per cluster within neighborhoods.
     Returns two DataFrames:
@@ -313,28 +325,24 @@ def get_nbhd_meta(
     gdf_trx = gdf_trx.sjoin(
         gdf_nbhd[[unique_nbhd_col, "geometry"]], how="left", predicate="within"
     )
-    trx_summary = (
-        gdf_trx.groupby(unique_nbhd_col)
-        .agg(
-            total_trx=("cell_id", "size"),
-            unassigned_trx_count=("cell_id", lambda x: (x == "UNASSIGNED").sum()),
-            assigned_trx_count=("cell_id", lambda x: (x != "UNASSIGNED").sum()),
-        )
+    trx_summary = gdf_trx.groupby(unique_nbhd_col).agg(
+        total_trx=("cell_id", "size"),
+        unassigned_trx_count=("cell_id", lambda x: (x == "UNASSIGNED").sum()),
+        assigned_trx_count=("cell_id", lambda x: (x != "UNASSIGNED").sum()),
     )
     trx_summary = trx_summary.reindex(gdf_nbhd.index).fillna(0)
-    trx_summary["assigned_trx_pct"] = (
-        trx_summary["assigned_trx_count"] / trx_summary["total_trx"].replace(0, 1)
-    )
-    trx_summary["unassigned_trx_pct"] = (
-        trx_summary["unassigned_trx_count"] / trx_summary["total_trx"].replace(0, 1)
-    )
+    trx_summary["assigned_trx_pct"] = trx_summary["assigned_trx_count"] / trx_summary[
+        "total_trx"
+    ].replace(0, 1)
+    trx_summary["unassigned_trx_pct"] = trx_summary[
+        "unassigned_trx_count"
+    ] / trx_summary["total_trx"].replace(0, 1)
     gdf_c = gdf_cell[["geometry"]].sjoin(
         gdf_nbhd[[unique_nbhd_col, "geometry"]], how="left", predicate="within"
     )
     cell_counts = gdf_c.groupby(unique_nbhd_col).size().rename("cell_count")
     cell_counts = cell_counts.reindex(gdf_nbhd.index).fillna(0)
-    summary = summary.join(trx_summary).join(cell_counts)
-    return summary
+    return summary.join(trx_summary).join(cell_counts)
 
 
 def calc_nb_overlap(

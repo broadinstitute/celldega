@@ -1,19 +1,20 @@
 """Helper and utility functions."""
 
+# Standard library imports
+from collections.abc import Sequence
+from typing import Any
+
+# Third-party imports
+import geopandas as gpd
 import numpy as np
 import pandas as pd
-import geopandas as gpd
 from shapely.geometry import Point, base
 from shapely.ops import transform
-from typing import Any, Optional, Sequence, Union
-
-from geopandas import GeoDataFrame, GeoSeries
-from pandas import DataFrame
 
 
 def _add_centroids_to_obsm(
     adata: Any,
-    gdf: GeoDataFrame,
+    gdf: gpd.GeoDataFrame,
     key: str = "spatial",
 ) -> None:
     """
@@ -28,9 +29,9 @@ def _add_centroids_to_obsm(
 
 
 def _classify_polygons_contains_check(
-    polygons: Union[GeoSeries, Sequence[base.BaseGeometry]],
+    polygons: gpd.GeoSeries | Sequence[base.BaseGeometry],
     points: Sequence[Any],
-) -> GeoSeries:
+) -> gpd.GeoSeries:
     """
     Classifies polygons as "real" or "fake" based on whether they contain any points inside.
 
@@ -48,10 +49,11 @@ def _classify_polygons_contains_check(
     joined = gpd.sjoin(points_gdf, gdf_poly, predicate="within")
     real_polygons_indices = joined["index_right"].unique()
     curated_polygons = gdf_poly.iloc[real_polygons_indices]
-    return curated_polygons["geometry"] if "geometry" in curated_polygons else curated_polygons
+    # Use .get() for a more concise and idiomatic way to handle the conditional return
+    return curated_polygons.get("geometry", curated_polygons)
 
 
-def _get_df_cell(adata: Any) -> DataFrame:
+def _get_df_cell(adata: Any) -> pd.DataFrame:
     """
     Load cell-level cluster and spatial coordinates from an h5ad file as a DataFrame.
     """
@@ -68,7 +70,7 @@ def _get_df_cell(adata: Any) -> DataFrame:
     return df_cell
 
 
-def _get_gdf_cell(adata: Any) -> GeoDataFrame:
+def _get_gdf_cell(adata: Any) -> gpd.GeoDataFrame:
     """
     Load cell-level cluster and spatial coordinates from an h5ad file as a GeoDataFrame.
     """
@@ -79,7 +81,7 @@ def _get_gdf_cell(adata: Any) -> GeoDataFrame:
     )
 
 
-def _get_gdf_trx(data_dir: str) -> GeoDataFrame:
+def _get_gdf_trx(data_dir: str) -> gpd.GeoDataFrame:
     """
     Load transcript data as a GeoDataFrame with spatial coordinates.
     """
@@ -95,8 +97,8 @@ def _get_gdf_trx(data_dir: str) -> GeoDataFrame:
 
 
 def _round_coordinates(
-    geometry: Optional[base.BaseGeometry], precision: int = 2
-) -> Optional[base.BaseGeometry]:
+    geometry: base.BaseGeometry | None, precision: int = 2
+) -> base.BaseGeometry | None:
     """
     Round the coordinates of a Shapely geometry to the specified precision.
 
@@ -114,8 +116,8 @@ def _round_coordinates(
         return None
 
     def round_coords(
-        x: float, y: float, z: Optional[float] = None
-    ) -> Union[tuple[float, float], tuple[float, float, float]]:
+        x: float, y: float, z: float | None = None
+    ) -> tuple[float, float] | tuple[float, float, float]:
         if z is not None:
             return (round(x, precision), round(y, precision), round(z, precision))
         return (round(x, precision), round(y, precision))

@@ -19,7 +19,7 @@ from matplotlib.colors import to_hex
 import matplotlib.pyplot as plt
 import pandas as pd
 from scipy.sparse import csr_matrix
-from shapely.geometry import Point, Polygon
+from shapely.geometry import MultiPolygon, Point, Polygon
 from skimage.io import imread, imsave
 import tifffile
 import zarr
@@ -906,38 +906,88 @@ def add_custom_segmentation(
     )
 
 
-def _to_geometry(coord_list):
-    """Converts a coordinates list to a Shapely geometry object (Point or Polygon).
+def _to_geometry(coord_data):
+    """
+    Converts a coordinate structure back to a Shapely geometry object.
+
+    Accepts:
+      - [x, y] → Point
+      - {"exterior": [...], "interiors": [...]} → Polygon
+      - list of {"exterior": [...], "interiors": [...]} → MultiPolygon
 
     Args:
-        coord_list (list, Point, Polygon): Input coordinates or geometry object.
+        coord_data (list or dict): Coordinate list or structured dict.
 
     Returns:
-        Point or Polygon: Shapely geometry object.
+        shapely.geometry.Point, Polygon, or MultiPolygon
 
     Raises:
-        TypeError: If the input cannot be converted to a Point or Polygon.
+        TypeError: If the input structure is not recognized.
     """
-    # If the input is already a Shapely geometry, return it as is
-    if isinstance(coord_list, Point | Polygon):
-        return coord_list
 
-    # If it's a list with a single element that is also a list/tuple, flatten it
+    if isinstance(coord_data, Point | Polygon | MultiPolygon):
+        return coord_data
+
     if (
-        isinstance(coord_list, list | tuple)
-        and len(coord_list) == 1
-        and isinstance(coord_list[0], list | tuple)
+        isinstance(coord_data, list | tuple)
+        and all(isinstance(x, int | float) for x in coord_data)
+        and len(coord_data) == 2
     ):
-        coord_list = coord_list[0]
+        return Point(coord_data)
 
-    # Handle coordinate pair or list of coordinate pairs
-    if all(isinstance(c, int | float) for c in coord_list):
-        # Single coordinate pair (e.g., [x, y])
-        return Point(coord_list)
-    if all(isinstance(c, list | tuple) for c in coord_list):
-        # List of coordinate pairs (e.g., [[x1, y1], [x2, y2], ...])
-        return Polygon(coord_list)
-    raise TypeError(f"Cannot convert {coord_list} to a Shapely geometry. Unexpected structure.")
+    if isinstance(coord_data, dict) and "exterior" in coord_data:
+        exterior = coord_data["exterior"]
+        interiors = coord_data.get("interiors", [])
+        return Polygon(exterior, interiors)
+
+    if isinstance(coord_data, list) and all(
+        isinstance(poly, dict) and "exterior" in poly for poly in coord_data
+    ):
+        return MultiPolygon(
+            [Polygon(poly["exterior"], poly.get("interiors", [])) for poly in coord_data]
+        )
+
+    raise TypeError(f"Cannot convert {coord_data} to a Shapely geometry. Unexpected structure.")
+
+
+def _to_coords(geom):
+    """
+    Converts a Shapely geometry object to a serializable coordinate structure.
+
+    Supports:
+      - Point → [x, y]
+      - Polygon → {"exterior": [...], "interiors": [...]}
+      - MultiPolygon → list of {"exterior": [...], "interiors": [...]}
+
+    Args:
+        geom (shapely.geometry): A Shapely Point, Polygon, or MultiPolygon.
+
+    Returns:
+        list or dict: Coordinate representation suitable for serialization.
+
+    Raises:
+        TypeError: If the geometry type is unsupported.
+    """
+    if isinstance(geom, Point):
+        return list(geom.coords[0])
+    if isinstance(geom, Polygon):
+        return {
+            "exterior": [list(coord) for coord in geom.exterior.coords],
+            "interiors": [
+                [list(coord) for coord in interior.coords] for interior in geom.interiors
+            ],
+        }
+    if isinstance(geom, MultiPolygon):
+        return [
+            {
+                "exterior": [list(coord) for coord in polygon.exterior.coords],
+                "interiors": [
+                    [list(coord) for coord in interior.coords] for interior in polygon.interiors
+                ],
+            }
+            for polygon in geom.geoms
+        ]
+    raise TypeError(f"Unsupported geometry type: {type(geom)}")
 
 
 def write_xenium_transform(

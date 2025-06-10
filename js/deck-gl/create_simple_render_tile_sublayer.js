@@ -1,22 +1,20 @@
-import * as mathGl from 'math.gl';
 import { BitmapLayer } from 'deck.gl';
+import * as mathGl from 'math.gl';
 
-export const create_simple_render_tile_sublayers = ( dimensions ) => (props) => {
-    
-    const {
-        bbox: {left, bottom, right, top}
-    } = props.tile;
-    const {width, height} = dimensions;
+export const create_simple_render_tile_sublayers = (dimensions) => (props) => {
+  const {
+    bbox: { left, bottom, right, top },
+  } = props.tile;
+  const { width, height } = dimensions;
 
-    return new BitmapLayer(props, {
-        data: null,
-        image: props.data,
-        bounds: [
-            mathGl.clamp(left, 0, width),
-            mathGl.clamp(bottom, 0, height),
-            mathGl.clamp(right, 0, width),
-            mathGl.clamp(top, 0, height)
-        ],
-    });
-
-}
+  return new BitmapLayer(props, {
+    data: null,
+    image: props.data,
+    bounds: [
+      mathGl.clamp(left, 0, width),
+      mathGl.clamp(bottom, 0, height),
+      mathGl.clamp(right, 0, width),
+      mathGl.clamp(top, 0, height),
+    ],
+  });
+};

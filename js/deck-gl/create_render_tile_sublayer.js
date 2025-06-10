@@ -1,25 +1,25 @@
 import * as mathGl from 'math.gl';
+
 import { CustomBitmapLayer } from './CustomBitmapLayer';
 
-export const create_render_tile_sublayers = (dimensions, color, opacity) => (props) => {
-
+export const create_render_tile_sublayers =
+  (dimensions, color, opacity) => (props) => {
     const {
-        bbox: {left, bottom, right, top}
+      bbox: { left, bottom, right, top },
     } = props.tile;
 
-    const {width, height} = dimensions;
+    const { width, height } = dimensions;
 
     return new CustomBitmapLayer(props, {
-        data: null,
-        image: props.data,
-        bounds: [
-            mathGl.clamp(left, 0, width),
-            mathGl.clamp(bottom, 0, height),
-            mathGl.clamp(right, 0, width),
-            mathGl.clamp(top, 0, height)
-        ],
-        color: color,
-        opacityScale: opacity,
+      data: null,
+      image: props.data,
+      bounds: [
+        mathGl.clamp(left, 0, width),
+        mathGl.clamp(bottom, 0, height),
+        mathGl.clamp(right, 0, width),
+        mathGl.clamp(top, 0, height),
+      ],
+      color,
+      opacityScale: opacity,
     });
-
-}
+  };

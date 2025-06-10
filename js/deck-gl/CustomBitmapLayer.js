@@ -13,7 +13,7 @@ export class CustomBitmapLayer extends BitmapLayer {
         grayscale = clamp(grayscale, 0.0, 1.0);
         // Apply custom color and scaled opacity
         color = vec4(uColor, grayscale);
-      `
+      `,
     };
     return shaders;
   }
@@ -22,21 +22,24 @@ export class CustomBitmapLayer extends BitmapLayer {
   updateState(params) {
     super.updateState(params);
     // Extracting custom props
-    const {props, oldProps} = params;
-    if (props.color !== oldProps.color || props.opacityScale !== oldProps.opacityScale) {
+    const { props, oldProps } = params;
+    if (
+      props.color !== oldProps.color ||
+      props.opacityScale !== oldProps.opacityScale
+    ) {
       // Update uniforms when props change
       this.setState({
         uniforms: {
-          uColor: props.color.map(c => c / 255), // Normalize RGB to [0, 1] range
-          uOpacityScale: props.opacityScale
-        }
+          uColor: props.color.map((c) => c / 255), // Normalize RGB to [0, 1] range
+          uOpacityScale: props.opacityScale,
+        },
       });
     }
   }
 
   draw(opts) {
     // Ensuring custom uniforms are passed to the shader program
-    const {uniforms} = this.state;
+    const { uniforms } = this.state;
     super.draw({
       ...opts,
       uniforms: {

@@ -1,0 +1,44 @@
+name: Release
+
+on:
+  workflow_call:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write # For creating releases
+  id-token: write # For trusted PyPI publishing
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    environment: release
+    steps:
+      - uses: actions/checkout@v4
+
+      # Download build artifacts from build-and-test job
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: python-package-distributions
+          path: dist/
+
+      # Publish to PyPI using trusted publishing (recommended) or API token
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          # Use trusted publishing if configured, otherwise fallback to token
+          password: ${{ secrets.PYPI_API_TOKEN }}
+
+      # Create GitHub Release with artifacts
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.whl
+            dist/*.tar.gz
+          generate_release_notes: true
+          draft: false
+          prerelease: ${{ contains(github.ref, 'alpha') || contains(github.ref, 'beta') || contains(github.ref, 'rc') }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,26 @@
+name: 'Setup JavaScript Environment'
+description: 'Sets up Node.js and npm with dependencies for Celldega'
+
+inputs:
+  node-version:
+    description: 'Node.js version to use'
+    required: false
+    default: '18'
+  install-deps:
+    description: 'Install dependencies'
+    required: false
+    default: 'true'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+        cache: 'npm'
+
+    - name: Install JavaScript dependencies
+      if: inputs.install-deps == 'true'
+      shell: bash
+      run: npm install

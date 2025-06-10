@@ -1,0 +1,116 @@
+# 🧬 Celldega Development Scripts
+
+**Get started in 30 seconds:**
+
+```bash
+./scripts/setup.sh
+source dega/bin/activate
+npm run dev
+```
+
+That's it! 🎉
+
+## What You Need
+
+- **Python 3.10+** → [Download here](https://python.org/downloads/)
+- **Node.js 16+** → [Download here](https://nodejs.org/)
+- **npm 8+** → [Install guide](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm)
+
+## 🗂️ Scripts Overview
+
+| Script     | What it does              | When to use            |
+| ---------- | ------------------------- | ---------------------- |
+| `setup.sh` | **Gets everything ready** | First time setup       |
+| `test.sh`  | **Runs your tests**       | Before submitting work |
+
+## Quick Commands
+
+```bash
+bash ./scripts/setup.sh              # Set up everything
+bash ./scripts/setup.sh --status     # Check what's installed
+bash ./scripts/test.sh               # Run all tests
+```
+
+## Daily Workflow
+
+```bash
+# Start your work session
+source dega/bin/activate
+npm run dev
+
+# Before committing your work
+bash ./scripts/test.sh
+```
+
+## ❤️‍🩹 Common Issues & Solutions
+
+**"Permission denied"?**
+
+```bash
+chmod +x scripts/*.sh
+```
+
+**"Command not found"?**
+
+- Make sure Python, Node.js, and npm are installed
+- Check you're in the right folder (should see `pyproject.toml`)
+
+**Something broken?**
+
+```bash
+./scripts/setup.sh --reset     # Clean slate
+./scripts/setup.sh             # Fresh setup
+```
+
+**Need more details?**
+
+```bash
+bash ./scripts/setup.sh --verbose   # See everything that happens
+bash ./scripts/test.sh --verbose    # Detailed test output
+```
+
+## 😎 For Advanced Users
+
+<details>
+<summary>Click to see advanced options</summary>
+
+### Full Test Options
+
+```bash
+bash ./scripts/test.sh python          # Python tests only
+bash ./scripts/test.sh js              # JavaScript tests only
+bash ./scripts/test.sh lint            # Code quality checks
+bash ./scripts/test.sh coverage       # Generate coverage report
+bash ./scripts/test.sh python tests/unit/  # Run specific directory
+```
+
+### Setup Options
+
+```bash
+./scripts/setup.sh --status      # Check environment status
+./scripts/setup.sh --reset       # Clean install
+./scripts/setup.sh --verbose     # Show all details
+```
+
+### Debugging
+
+```bash
+export VERBOSE=true              # Show detailed output
+export DEBUG=true                # Show debug information
+```
+
+### npm Commands
+
+```bash
+npm install                      # Install dependencies
+npm run dev                      # Start development server
+npm run build                    # Build for production
+npm run test:js                  # Run JavaScript tests
+npm run lint:js                  # Lint JavaScript code
+```
+
+</details>
+
+---
+
+**🆘 Still stuck?** Check the main project README or ask for help!

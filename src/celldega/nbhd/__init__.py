@@ -2,19 +2,20 @@
 Module for performing neighborhood analysis.
 """
 
-from libpysal.cg import alpha_shape as libpysal_alpha_shape
-import geopandas as gpd
-from shapely import Point, MultiPolygon
-from shapely.ops import transform
-import numpy as np
 import json
-from shapely.geometry import Point, Polygon, box, shape
-from shapely.affinity import affine_transform
-from shapely.affinity import translate
-import os
+from pathlib import Path
 import xml.etree.ElementTree as ET
+
+import geopandas as gpd
+from libpysal.cg import alpha_shape as libpysal_alpha_shape
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
+from shapely import MultiPolygon, Point
+from shapely.affinity import affine_transform, translate
+from shapely.geometry import Polygon, box, shape
+from shapely.ops import transform
+
 
 def _classify_polygons_contains_check(polygons, points):
     """
@@ -38,9 +39,7 @@ def _classify_polygons_contains_check(polygons, points):
     real_polygons_indices = joined["index_right"].unique()
 
     # Filter polygons: Keep only those that contain points
-    curated_polygons = gdf_poly.iloc[real_polygons_indices]
-
-    return curated_polygons
+    return gdf_poly.iloc[real_polygons_indices]
 
 
 def _verify_polygons_with_alpha_bulk(polygons, points, alpha, area_tolerance=0.05):
@@ -92,23 +91,25 @@ def _verify_polygons_with_alpha_bulk(polygons, points, alpha, area_tolerance=0.0
     return gpd.GeoSeries(curated_polygons, crs=polygons.crs)
 
 
-
 def alpha_shape(points, inv_alpha):
+    """
+    Compute alpha shape for given points.
 
-    poly = libpysal_alpha_shape(points, 1/inv_alpha)
+    Parameters:
+    - points: Array-like of point coordinates
+    - inv_alpha: Inverse alpha value
+
+    Returns:
+    - MultiPolygon of alpha shapes
+    """
+    poly = libpysal_alpha_shape(points, 1 / inv_alpha)
 
     gdf_curated = _classify_polygons_contains_check(poly.values, points)
 
     validated_poly = _verify_polygons_with_alpha_bulk(
-        gdf_curated.geometry.values,
-        points,
-        1/inv_alpha
+        gdf_curated.geometry.values, points, 1 / inv_alpha
     )
-
-    multi_poly = MultiPolygon(validated_poly.values)
-
-    return multi_poly
-
+    return MultiPolygon(validated_poly.values)
 
 
 def _round_coordinates(geometry, precision=2):
@@ -133,8 +134,7 @@ def _round_coordinates(geometry, precision=2):
     return transform(round_coords, geometry)
 
 
-def alpha_shape_cell_clusters(meta_cell, cat='cluster', alphas=[100, 150, 200, 250, 300, 350]):
-
+def alpha_shape_cell_clusters(meta_cell, cat="cluster", alphas=None):
     """
     Compute alpha shapes for each cluster in the cell metadata.
 
@@ -147,85 +147,125 @@ def alpha_shape_cell_clusters(meta_cell, cat='cluster', alphas=[100, 150, 200, 2
     - GeoDataFrame of alpha shapes.
 
     """
+    if alphas is None:
+        alphas = [100, 150, 200, 250, 300, 350]
 
     gdf_alpha = gpd.GeoDataFrame()
 
     for inv_alpha in alphas:
-
         for inst_cluster in meta_cell[cat].unique():
-
             inst_clust = meta_cell[meta_cell[cat] == inst_cluster]
 
-            if inst_clust.shape[0]> 3:
-
-                nested_array = inst_clust['geometry'].values
+            if inst_clust.shape[0] > 3:
+                nested_array = inst_clust["geometry"].values
 
                 # Convert to a 2D NumPy array
                 flat_array = np.vstack(nested_array)
 
                 inst_shape = alpha_shape(flat_array, inv_alpha)
 
-                inst_name = inst_cluster + '_' + str(inv_alpha)
+                inst_name = f"{inst_cluster}_{inv_alpha}"
 
-                gdf_alpha.loc[inst_name, 'name'] = inst_name
+                gdf_alpha.loc[inst_name, "name"] = inst_name
+                gdf_alpha.loc[inst_name, "cat"] = inst_cluster
+                gdf_alpha.loc[inst_name, "geometry"] = inst_shape
+                gdf_alpha.loc[inst_name, "inv_alpha"] = int(inv_alpha)
 
-                gdf_alpha.loc[inst_name, 'cat'] = inst_cluster
+    gdf_alpha["geometry"] = gdf_alpha["geometry"].apply(
+        lambda geom: _round_coordinates(geom, precision=2)
+    )
 
-                gdf_alpha.loc[inst_name, 'geometry'] = inst_shape
+    gdf_alpha["area"] = gdf_alpha.area
 
-                gdf_alpha.loc[inst_name, 'inv_alpha'] = int(inv_alpha)
+    return gdf_alpha.loc[gdf_alpha.area.sort_values(ascending=False).index.tolist()]
 
-    gdf_alpha["geometry"] = gdf_alpha["geometry"].apply(lambda geom: _round_coordinates(geom, precision=2))
-
-    gdf_alpha['area'] = gdf_alpha.area
-
-    gdf_alpha = gdf_alpha.loc[gdf_alpha.area.sort_values(ascending=False).index.tolist()]
-
-    return gdf_alpha
 
 def alpha_shape_geojson(gdf_alpha, meta_cluster, inst_alpha):
+    """
+    Convert alpha shape GeoDataFrame to GeoJSON format.
 
+    Parameters:
+    - gdf_alpha: GeoDataFrame of alpha shapes
+    - meta_cluster: Metadata for clusters
+    - inst_alpha: Alpha instance value
+
+    Returns:
+    - GeoJSON dictionary
+    """
     geojson_alpha = json.loads(gdf_alpha.to_json())
 
     # Step 2: Edit the properties of each feature
     for feature in geojson_alpha["features"]:
-
-        if feature['geometry'] is not None:
-
+        if feature["geometry"] is not None:
             # Parse the geometry with Shapely for additional calculations
             geometry = shape(feature["geometry"])
 
             # Add area property
             feature["properties"]["area"] = geometry.area
 
-            id = feature['id']
+            feature_id = feature["id"]
 
-            color = meta_cluster.loc[id.split('_')[0], 'color']
+            color = meta_cluster.loc[feature_id.split("_")[0], "color"]
 
             # Add a custom color property (example: based on the area)
-            feature["properties"]["color"] = color # [255, 0, 0, 100]  # RGBA values
-        else:
-            # print('is None')
-            pass
+            feature["properties"]["color"] = color  # [255, 0, 0, 100]  # RGBA values
 
-    geojson_alpha['inst_alpha'] = inst_alpha
+    geojson_alpha["inst_alpha"] = inst_alpha
 
     return geojson_alpha
 
-def create_hextile(radius, path_landscape_files=None, img_height=100, img_width=100, pixel_size=0.2125):
+
+def _save_and_plot_hextiles(gdf_hextile, path_landscape_files, radius_in_microns):
+    """
+    Save hextiles to parquet and create a plot.
+
+    Parameters:
+    - gdf_hextile: GeoDataFrame of hexagonal tiles
+    - path_landscape_files: Path to save files
+    - radius_in_microns: Radius in microns for plot title
+    """
+    gdf_hextile.to_parquet(Path(path_landscape_files) / "hextiles.parquet")
+    print(f"Hextiles saved at '{path_landscape_files}' as 'hextiles.parquet'\n")
+
+    fig, ax = plt.subplots(1, 1, figsize=(60, 80))
+    gdf_hextile.plot(ax=ax, alpha=1, linewidth=1, facecolor="none", edgecolor="black")
+    ax.set_title(f"Hextiles (hexagon radius: {radius_in_microns} microns)", fontsize=50)
+    ax.set_xlabel("x (pixels)", fontsize=25)
+    ax.set_ylabel("y (pixels)", fontsize=25)
+    plt.xticks(fontsize=20)
+    plt.yticks(fontsize=20)
+    plt.gca().invert_yaxis()
+    plt.show()
+    plt.close()
+
+
+def create_hextile(
+    radius, path_landscape_files=None, img_height=100, img_width=100, pixel_size=0.2125
+):
+    """
+    Create hexagonal tiles for spatial analysis.
+
+    Parameters:
+    - radius: Radius of hexagons
+    - path_landscape_files: Path to landscape files (optional)
+    - img_height: Image height in pixels
+    - img_width: Image width in pixels
+    - pixel_size: Size of each pixel
+
+    Returns:
+    - GeoDataFrame of hexagonal tiles
+    """
+    transformation_matrix = np.eye(3)
 
     if isinstance(path_landscape_files, str):
-        tree = ET.parse(os.path.join(path_landscape_files, "pyramid_images/bound.dzi"))
+        tree = ET.parse(Path(path_landscape_files) / "pyramid_images" / "bound.dzi")
         root = tree.getroot()
         img_width = int(root[0].attrib["Width"])
         img_height = int(root[0].attrib["Height"])
 
         transformation_matrix = pd.read_csv(
-            f"{path_landscape_files}/micron_to_image_transform.csv", sep=" ", header=None
+            Path(path_landscape_files) / "micron_to_image_transform.csv", sep=" ", header=None
         ).values[:3, :3]
-
-    else:
-        transformation_matrix = np.eye(3)
 
     hex_height = 2 * radius
     hex_width = np.sqrt(3) * radius
@@ -255,9 +295,7 @@ def create_hextile(radius, path_landscape_files=None, img_height=100, img_width=
 
     # Clip each hexagon to this box
     clipped_hexes = [
-        hex.intersection(image_bounds)
-        for hex in hexagons
-        if hex.intersects(image_bounds)
+        hex.intersection(image_bounds) for hex in hexagons if hex.intersects(image_bounds)
     ]
 
     # Replace original GeoDataFrame
@@ -277,8 +315,8 @@ def create_hextile(radius, path_landscape_files=None, img_height=100, img_width=
 
     inverse_affine_params = [a, b, d, e, xoff, yoff]
 
-    gdf_hextile['geometry'] = gdf_hextile['geometry_image_space'].apply(
-    lambda geom: affine_transform(geom, inverse_affine_params)
+    gdf_hextile["geometry"] = gdf_hextile["geometry_image_space"].apply(
+        lambda geom: affine_transform(geom, inverse_affine_params)
     )
 
     gdf_hextile.set_geometry("geometry", inplace=True)
@@ -286,18 +324,6 @@ def create_hextile(radius, path_landscape_files=None, img_height=100, img_width=
     radius_in_microns = pixel_size * radius
 
     if isinstance(path_landscape_files, str):
-        gdf_hextile.to_parquet(os.path.join(path_landscape_files, "hextiles.parquet"))
-        print(f"Hextiles saved at '{path_landscape_files}' as 'hextiles.parquet'\n")
-
-        fig, ax = plt.subplots(1, 1, figsize=(60, 80))
-        gdf_hextile.plot(ax=ax, alpha=1, linewidth=1, facecolor='none', edgecolor='black')
-        ax.set_title(f"Hextiles (hexagon radius: {radius_in_microns} microns)", fontsize=50)
-        ax.set_xlabel("x (pixels)", fontsize=25)
-        ax.set_ylabel("y (pixels)", fontsize=25)
-        plt.xticks(fontsize=20)
-        plt.yticks(fontsize=20)
-        plt.gca().invert_yaxis()
-        plt.show()
-        plt.close()
+        _save_and_plot_hextiles(gdf_hextile, path_landscape_files, radius_in_microns)
 
     return gdf_hextile

@@ -1,0 +1,83 @@
+# =============================================================================
+# Pre-commit Configuration
+# =============================================================================
+
+repos:
+  # Python: Ruff for linting and formatting
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.11.11
+    hooks:
+      # Run linter first (with fixes)
+      - id: ruff-check
+        args: [--fix, --exit-non-zero-on-fix]
+      # Then run formatter
+      - id: ruff-format
+
+  # JavaScript: Prettier for formatting
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v4.0.0-alpha.8
+    hooks:
+      - id: prettier
+        files: \.(js|mjs|jsx|json|md|yml|yaml)$
+        # Smart exclusions for generated/vendor files
+        exclude: |
+          (?x)^(
+            node_modules/.*|
+            dist/.*|
+            build/.*|
+            coverage/.*|
+            \.min\.(js|css)$|
+            package-lock\.json$
+          )$
+
+  # JavaScript: ESLint for linting
+  - repo: https://github.com/pre-commit/mirrors-eslint
+    rev: v9.15.0
+    hooks:
+      - id: eslint
+        files: \.(js|mjs|jsx)$
+        args: [--fix, --max-warnings=0]
+        additional_dependencies:
+          - eslint@9.15.0
+          - '@eslint/js@9.15.0'
+          - globals@15.12.0
+          - eslint-config-prettier@10.1.5
+          - eslint-plugin-import@2.31.0
+
+  # Essential quality checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: \.(md|rst)$  # Preserve intentional spaces in docs
+      - id: end-of-file-fixer
+        exclude: \.min\.(js|css)$  # Don't modify minified files
+      - id: check-merge-conflict
+      - id: check-json
+        exclude: |
+          (?x)^(
+            \.vscode/.*\.json$|  # VS Code settings may have comments
+            tsconfig.*\.json$    # TypeScript configs may have comments
+          )$
+      - id: check-toml
+      - id: check-yaml
+        args: [--allow-multiple-documents]
+      # Prevent large files
+      - id: check-added-large-files
+        args: [--maxkb=1000]  # Max 1MB files
+      # Cross-platform compatibility
+      - id: check-case-conflict
+
+# Performance optimization
+default_language_version:
+  python: python3
+  node: system
+
+# CI configuration
+ci:
+  autofix_commit_msg: |
+    [pre-commit.ci] auto fixes
+
+    Applied automatic code formatting and fixes
+  autofix_prs: true
+  autoupdate_schedule: weekly

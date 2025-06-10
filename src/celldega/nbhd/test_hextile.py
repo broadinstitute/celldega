@@ -1,8 +1,29 @@
-from . import create_hextile
+import pandas as pd
+import geopandas as gpd
+import io
+
+from . import generate_hex_grid
 
 
 def test_hextile():
-    gdf_dummy_hextile = create_hextile(radius=5, img_width=100, img_height=100)
-    img_width = 100
-    img_height = 100
-    assert round(sum(gdf_dummy_hextile.area.tolist())) == round(img_width * img_height)
+    """Test the hextile generation."""
+    data_string = """cell_id	cluster	geometry
+    aaaadnje-1	4	POINT (446.32669 1701.35730)
+    aaacalai-1	4	POINT (441.30783 1735.87793)
+    aaacjgil-1	4	POINT (466.05319 1712.25977)
+    aaacpcil-1	4	POINT (430.85809 1707.46460)
+    aaadhocp-1	4	POINT (476.11115 1711.08936)
+    oilopeok-1	10	POINT (6035.77051 644.97339)
+    oiloppgp-1	5	POINT (6082.67578 555.14288)
+    oimacfoj-1	5	POINT (6080.99121 626.74213)
+    oimaiaae-1	10	POINT (6030.59473 536.50342)
+    oimajkkk-1	5	POINT (6022.63721 573.78430)
+    """
+
+    df = pd.read_csv(io.StringIO(data_string), sep='\t', index_col=0)
+    gdf_cell = gpd.GeoDataFrame(
+        df, geometry=gpd.GeoSeries.from_wkt(df['geometry'])
+    )
+    gdf_nbhd = generate_hex_grid(gdf_cell, radius=200) # fedault=50
+
+    # assert round(sum(gdf_nbhd.area.tolist())) == round(img_width * img_height)

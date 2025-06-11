@@ -1,198 +1,145 @@
-def df_filter_row_sum(df, threshold, take_abs=True):
-    """filter rows in matrix at some threshold
-    and remove columns that have a sum below this threshold"""
+from typing import Literal
 
-    from copy import deepcopy
-
-    from .__init__ import Network
-
-    _ = Network()
-
-    df_copy = deepcopy(df.abs()) if take_abs else deepcopy(df)
-
-    ini_rows = df_copy.index.values.tolist()
-    df_copy = df_copy.transpose()
-    tmp_sum = df_copy.sum(axis=0)
-    tmp_sum = tmp_sum.abs()
-    tmp_sum.sort_values(inplace=True, ascending=False)
-
-    tmp_sum = tmp_sum[tmp_sum > threshold]
-    keep_rows = sorted(tmp_sum.index.values.tolist())
-
-    if len(keep_rows) < len(ini_rows):
-        df = grab_df_subset(df, keep_rows=keep_rows)
-
-    return df
+import pandas as pd
 
 
-def df_filter_col_sum(df, threshold, take_abs=True):
-    """filter columns in matrix at some threshold
-    and remove rows that have all zero values"""
+def df_filter_row_sum(df: pd.DataFrame, threshold: float, take_abs: bool = True) -> pd.DataFrame:
+    """Filter rows by sum threshold, keeping only rows with sum > threshold."""
+    work_df = df.abs() if take_abs else df
+    row_sums = work_df.sum(axis=1).abs()
+    keep_rows = row_sums[row_sums > threshold].index.tolist()
 
-    from copy import deepcopy
-
-    from .__init__ import Network
-
-    _ = Network()
-
-    df_copy = deepcopy(df.abs()) if take_abs else deepcopy(df)
-
-    df_copy = df_copy.transpose()
-    df_copy = df_copy[df_copy.sum(axis=1) > threshold]
-    df_copy = df_copy.transpose()
-    df_copy = df_copy[df_copy.sum(axis=1) > 0]
-
-    if take_abs:
-        inst_rows = df_copy.index.tolist()
-        inst_cols = df_copy.columns.tolist()
-        df = grab_df_subset(df, inst_rows, inst_cols)
-
-    else:
-        df = df_copy
-
-    return df
+    return grab_df_subset(df, keep_rows=keep_rows) if len(keep_rows) < len(df) else df
 
 
-def grab_df_subset(df, keep_rows="all", keep_cols="all"):
+def df_filter_col_sum(df: pd.DataFrame, threshold: float, take_abs: bool = True) -> pd.DataFrame:
+    """Filter columns by sum threshold, remove zero-sum rows."""
+    work_df = df.abs() if take_abs else df
+
+    # Filter columns by threshold
+    col_sums = work_df.sum(axis=0)
+    keep_cols = col_sums[col_sums > threshold].index.tolist()
+    filtered_df = work_df[keep_cols]
+
+    # Remove zero-sum rows
+    row_sums = filtered_df.sum(axis=1)
+    keep_rows = row_sums[row_sums > 0].index.tolist()
+
+    result_df = filtered_df.loc[keep_rows]
+
+    # Return subset of original df if using abs, otherwise return filtered
+    return grab_df_subset(df, keep_rows, keep_cols) if take_abs else result_df
+
+
+def grab_df_subset(
+    df: pd.DataFrame, keep_rows: list | str = "all", keep_cols: list | str = "all"
+) -> pd.DataFrame:
+    """Extract subset of DataFrame by specified rows and columns."""
+    result = df
     if keep_cols != "all":
-        df = df[keep_cols]
+        result = result[keep_cols]
     if keep_rows != "all":
-        df = df.loc[keep_rows]
-    return df
+        result = result.loc[keep_rows]
+    return result
 
 
-def get_sorted_rows(df, rank_type="sum"):
-    from copy import deepcopy
+def get_sorted_rows(df: pd.DataFrame, rank_type: Literal["sum", "var"] = "sum") -> list[str]:
+    """Get row names sorted by sum or variance in descending order."""
+    work_df = df.T
 
-    inst_df = deepcopy(df)
-    inst_df = inst_df.transpose()
-
-    tmp_sum = inst_df.sum(axis=0) if rank_type == "sum" else inst_df.var(axis=0)
-
-    tmp_sum = tmp_sum.abs()
-    tmp_sum.sort_values(inplace=True, ascending=False)
-    return tmp_sum.index.values.tolist()
+    metric = work_df.sum(axis=0) if rank_type == "sum" else work_df.var(axis=0)
+    return metric.abs().sort_values(ascending=False).index.tolist()
 
 
-def filter_n_top(inst_rc, df, n_top, rank_type="sum"):
-    if inst_rc == "col":
-        df = df.transpose()
+def filter_n_top(
+    inst_rc: Literal["row", "col"],
+    df: pd.DataFrame,
+    n_top: int,
+    rank_type: Literal["sum", "var"] = "sum",
+) -> pd.DataFrame:
+    """Keep only top N rows/columns by specified ranking metric."""
+    work_df = df.T if inst_rc == "col" else df
 
-    rows_sorted = get_sorted_rows(df, rank_type)
+    sorted_rows = get_sorted_rows(work_df, rank_type)
+    keep_rows = sorted_rows[:n_top]
+    result_df = work_df.loc[keep_rows]
 
-    keep_rows = rows_sorted[:n_top]
-
-    df = df.loc[keep_rows]
-
-    if inst_rc == "col":
-        df = df.transpose()
-
-    return df
+    return result_df.T if inst_rc == "col" else result_df
 
 
-def filter_threshold(df, inst_rc, threshold, num_occur=1):
-    """
-    Filter a network's rows or cols based on num_occur values being above a
-    threshold (in absolute_value)
-    """
-    from copy import deepcopy
+def filter_threshold(
+    df: pd.DataFrame, inst_rc: Literal["row", "col"], threshold: float, num_occur: int = 1
+) -> pd.DataFrame:
+    """Filter rows/columns by number of values above threshold."""
+    work_df = df.T if inst_rc == "col" else df
 
-    inst_df = deepcopy(df)
+    # Convert to binary mask and count occurrences above threshold
+    above_threshold = (work_df.abs() >= threshold).sum(axis=1)
+    keep_names = above_threshold[above_threshold >= num_occur].index.tolist()
 
-    if inst_rc == "col":
-        inst_df = inst_df.transpose()
-
-    inst_df = inst_df.abs()
-
-    ini_rows = inst_df.index.values.tolist()
-
-    inst_df[inst_df < threshold] = 0
-    inst_df[inst_df >= threshold] = 1
-
-    tmp_sum = inst_df.sum(axis=1)
-
-    tmp_sum = tmp_sum[tmp_sum >= num_occur]
-
-    keep_names = tmp_sum.index.values.tolist()
-
-    if inst_rc == "row":
-        if len(keep_names) < len(ini_rows):
-            df = grab_df_subset(df, keep_rows=keep_names)
-
-    elif inst_rc == "col":
-        inst_df = inst_df.transpose()
-
-        inst_rows = inst_df.index.values.tolist()
-        inst_cols = keep_names
-
-        df = grab_df_subset(df, inst_rows, inst_cols)
+    if len(keep_names) < len(work_df):
+        if inst_rc == "row":
+            return grab_df_subset(df, keep_rows=keep_names)
+        # col
+        return grab_df_subset(df, keep_cols=keep_names)
 
     return df
 
 
-def filter_cat(net, axis, cat_index, cat_name):
+def filter_cat(net, axis: Literal["row", "col"], cat_index: int, cat_name: str) -> None:
+    """Filter network by category at specified index."""
     try:
         df = net.export_df()
 
-        # DataFrame filtering will be run always be run on columns if the user
-        # wants to filter rows, transpose the matrix before and after
+        # DataFrame filtering always works on columns - transpose if filtering rows
         if axis == "row":
-            df = df.transpose()
+            df = df.T
 
-        all_names = df.columns.tolist()
-
-        if found_names := [i for i in all_names if i[cat_index] == cat_name]:
+        # Use walrus operator for concise filtering
+        if found_names := [col for col in df.columns if col[cat_index] == cat_name]:
             df = df[found_names]
 
             if axis == "row":
-                df = df.transpose()
+                df = df.T
+
+            net.load_df(df)
         else:
-            print(f"no {axis}s were found with this category and filtering was not run")
+            print(f"No {axis}s found with category '{cat_name}' at index {cat_index}")
 
-        net.load_df(df)
-
-    except Exception:
-        print(
-            "category filtering did not run\n check that your category filtering is set up correctly"
-        )
+    except Exception as e:
+        print(f"Category filtering failed: {e}")
 
 
-def filter_names(net, axis, names):
-    print("filter_names")
-    print(names)
-
+def filter_names(net, axis: Literal["row", "col"], names: list[str]) -> None:
+    """Filter network by specified names on given axis."""
     try:
         df = net.export_df()
 
-        # Dataframe filtering will always be run on the columns. If the user wants to filter rows, then it will transpose back and forth.
-
+        # DataFrame filtering always works on columns - transpose if filtering rows
         if axis == "row":
-            df = df.transpose()
+            df = df.T
 
-        all_names = df.columns.tolist()
-
-        found_names = []
-        for inst_name in all_names:
-            check_name = inst_name[0] if isinstance(inst_name, tuple) else inst_name
-
-            if ": " in check_name:
-                check_name = check_name.split(": ")[1]
-
-            if check_name in names:
-                found_names.append(inst_name)
+        # Use set for O(1) lookup performance
+        name_set = set(names)
+        found_names = [col for col in df.columns if _extract_name(col) in name_set]
 
         if found_names:
             df = df[found_names]
 
             if axis == "row":
-                df = df.transpose()
+                df = df.T
 
             net.load_df(df)
-
         else:
-            print(f"no {axis}s were found with these names")
+            print(f"No {axis}s found with specified names")
 
-    except Exception:
-        print("error in filtering names")
+    except Exception as e:
+        print(f"Name filtering failed: {e}")
 
-    print(found_names)
+
+def _extract_name(name: str | tuple) -> str:
+    """Extract comparable name from column identifier."""
+    # Handle MultiIndex tuples
+    check_name = name[0] if isinstance(name, tuple) else name
+    # Extract name after colon separator if present
+    return check_name.split(": ", 1)[1] if ": " in check_name else check_name

@@ -1,12 +1,11 @@
 // wasm-plugin.js
-import * as esbuild from 'esbuild';
 import path from 'node:path';
 import fs from 'node:fs';
 
 let wasmPlugin = {
   name: 'wasm',
   setup(build) {
-    build.onResolve({ filter: /\.wasm$/ }, args => {
+    build.onResolve({ filter: /\.wasm$/ }, (args) => {
       if (args.namespace === 'wasm-stub') {
         return {
           path: args.path,
@@ -17,7 +16,9 @@ let wasmPlugin = {
         return; // Ignore unresolvable paths
       }
       return {
-        path: path.isAbsolute(args.path) ? args.path : path.join(args.resolveDir, args.path),
+        path: path.isAbsolute(args.path)
+          ? args.path
+          : path.join(args.resolveDir, args.path),
         namespace: 'wasm-stub',
       };
     });

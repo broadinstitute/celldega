@@ -1,66 +1,36 @@
-def main(df):
-    """
-    1) check that rows are strings (in case of numerical names)
-    2) check for tuples, and in that case load tuples to categories
-    """
-    from ast import literal_eval as make_tuple
+from ast import literal_eval as make_tuple
 
-    import numpy as np
+import numpy as np
+import pandas as pd
 
-    test = {
-        "row": df.index.tolist(),
-        "col": df.columns.tolist(),
-    }
 
-    # if type( test_row ) is not str and type( test_row ) is not tuple:
+def main(df: pd.DataFrame) -> pd.DataFrame:
+    """Process DataFrame labels: numeric->string, tuple strings->tuples."""
+    for axis in ["index", "columns"]:
+        data = getattr(df, axis)
+        if len(data) == 0:
+            continue
 
-    found_tuple = {}
-    found_number = {}
-    for inst_rc in ["row", "col"]:
-        inst_name = test[inst_rc][0]
+        first = data[0]
 
-        found_tuple[inst_rc] = False
-        found_number[inst_rc] = False
+        # Skip if already tuple
+        if isinstance(first, tuple):
+            continue
 
-        if not isinstance(inst_name, tuple):
-            if isinstance(inst_name, (int | float | np.int64)):
-                found_number[inst_rc] = True
+        # Convert numbers to strings
+        if isinstance(first, int | float | np.int64):
+            setattr(df, axis, [str(x) for x in data])
 
-            else:
-                check_open = inst_name[0]
-                check_comma = inst_name.find(",")
-                check_close = inst_name[-1]
-
-                if (
-                    check_open == "("
-                    and check_close == ")"
-                    and check_comma > 0
-                    and check_comma < len(inst_name)
-                ):
-                    found_tuple[inst_rc] = True
-
-    # convert to tuple if necessary
-    #################################################
-    if found_tuple["row"]:
-        row_names = df.index.tolist()
-        row_names = [make_tuple(x) for x in row_names]
-        df.index = row_names
-
-    if found_tuple["col"]:
-        col_names = df.columns.tolist()
-        col_names = [make_tuple(x) for x in col_names]
-        df.columns = col_names
-
-    # convert numbers to string if necessary
-    #################################################
-    if found_number["row"]:
-        row_names = df.index.tolist()
-        row_names = [str(x) for x in row_names]
-        df.index = row_names
-
-    if found_number["col"]:
-        col_names = df.columns.tolist()
-        col_names = [str(x) for x in col_names]
-        df.columns = col_names
+        # Convert tuple strings to tuples
+        elif _is_tuple_string(first):
+            setattr(df, axis, [make_tuple(x) for x in data])
 
     return df
+
+
+def _is_tuple_string(s) -> bool:
+    """Check if string represents tuple: starts with '(', ends with ')', has comma."""
+    try:
+        return s[0] == "(" and s[-1] == ")" and 0 < s.find(",") < len(s)
+    except (TypeError, IndexError, AttributeError):
+        return False

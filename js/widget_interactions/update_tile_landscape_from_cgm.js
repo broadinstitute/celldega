@@ -1,5 +1,5 @@
 // import { model } from '../global_variables/model'
-import { update_square_scatter_layer } from '../deck-gl/square_scatter_layer';
+import { update_square_scatter_layer } from '../deck-gl/layers/square_scatter_layer';
 import { update_cat, update_selected_cats } from '../global_variables/cat';
 import { update_tile_exp_array } from '../global_variables/tile_exp_array';
 import { update_gene_text_box } from '../ui/gene_search';

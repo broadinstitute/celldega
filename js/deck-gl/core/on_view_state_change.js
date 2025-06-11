@@ -1,4 +1,4 @@
-import { debounce } from '../utils/debounce';
+import { debounce } from '../../utils/debounce';
 
 import { calc_viewport } from './calc_viewport';
 

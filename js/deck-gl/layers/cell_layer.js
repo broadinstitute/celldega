@@ -309,7 +309,7 @@ export const ini_cell_layer = async (base_url, viz_state) => {
     radiusMinPixels: 1,
     getRadius: 5.0,
     pickable: true,
-    getColor: (i, d) => get_cell_color(viz_state.cats, i, d),
+    getFillColor: (i, d) => get_cell_color(viz_state.cats, i, d),
     data: viz_state.spatial.cell_scatter_data_objects,
     transitions,
     getPosition: (d) => (viz_state.umap.state ? d.umap : d.position),

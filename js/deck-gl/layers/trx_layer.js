@@ -123,7 +123,7 @@ export const ini_trx_layer = (genes) => {
     id: 'trx-layer',
     data: genes.trx_data,
     pickable: true,
-    getColor: (i, d) => {
+    getFillColor: (i, d) => {
       const inst_gene = genes.trx_names_array[d.index];
       const inst_color = genes.color_dict_gene[inst_gene];
       const inst_opacity =

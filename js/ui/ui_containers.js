@@ -530,35 +530,6 @@ export const make_ist_ui_container = (
     viz_state
   );
 
-  // obs_store.selected_cats.subscribe((selected_cats) => {
-  //   console.log('cat bar graph subscribe')
-  //   // if selected_cats is empty, reset the bar graph
-  //   if (selected_cats.length === 0) {
-
-  //     viz_state.containers.bar_cluster.scrollTo({
-  //       top: 0,
-  //       behavior: 'smooth',
-  //     });
-
-  //     viz_state.cats.svg_bar_cluster
-  //       .selectAll('g')
-  //       .attr('font-weight', 'normal')
-  //       .attr('opacity', 1.0);
-
-  //   } else {
-
-  //     // make the selected categories bold and opaque otherwise transparent
-  //     viz_state.cats.svg_bar_cluster
-  //       .selectAll('g')
-  //       .attr('font-weight', (d) =>
-  //         selected_cats.includes(d.name) ? 'bold' : 'normal'
-  //       )
-  //       .attr('opacity', (d) =>
-  //         selected_cats.includes(d.name) ? 1.0 : 0.2
-  //       );
-  //   }
-  // })
-
   obs_store.selected_cats.subscribe((selected_cats) => {
 
     console.log('cat bar graph subscribe');

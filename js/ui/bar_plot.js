@@ -23,28 +23,6 @@ export const bar_callback_cluster = (
   _layers_obj,
   _viz_state
 ) => {
-  // // reset gene
-  // _viz_state.genes.svg_bar_gene
-  //   .selectAll('g')
-  //   .attr('font-weight', 'normal')
-  //   .attr('opacity', 1.0);
-
-  // const currentTarget = d3.select(_event.currentTarget);
-  // const isBold = currentTarget.attr('font-weight') === 'bold';
-
-  // _viz_state.cats.svg_bar_cluster
-  //   .selectAll('g')
-  //   .attr('font-weight', 'normal')
-  //   .attr('opacity', 0.25);
-
-  // if (!isBold) {
-  //   currentTarget.attr('font-weight', 'bold');
-  //   currentTarget.attr('opacity', 1.0);
-  // } else {
-  //   currentTarget.attr('font-weight', 'normal');
-
-  //   _viz_state.cats.svg_bar_cluster.selectAll('g').attr('opacity', 1.0);
-  // }
 
   update_cat(_viz_state.cats, 'cluster');
   update_selected_cats(_viz_state.cats, [d.name]);
@@ -63,6 +41,7 @@ export const bar_callback_cluster = (
   const layers_list = get_layers_list(_layers_obj, _viz_state.close_up);
   _deck_ist.setProps({ layers: layers_list });
 
+  // to-do: move this to a subscriber event
   // // turn off gene search updates
   // _viz_state.genes.gene_search_input.value = '';
   // update_gene_text_box(_viz_state.genes, '');

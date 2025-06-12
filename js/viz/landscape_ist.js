@@ -69,6 +69,7 @@ import {
 } from '../ui/ui_containers';
 import { update_cell_clusters } from '../widget_interactions/update_cell_clusters';
 import { update_ist_landscape_from_cgm } from '../widget_interactions/update_ist_landscape_from_cgm';
+import { obs_store } from '../obs_store/obs_store';
 
 export const landscape_ist = async (
   el,
@@ -91,9 +92,16 @@ export const landscape_ist = async (
   creds = {},
   view_change_custom_callback = null
 ) => {
+
   if (width === 0) {
     width = '100%';
   }
+
+  console.log('check obs_store')
+  console.log(obs_store)
+  console.log('obs_store cell', obs_store.cell.get())
+  obs_store.cell.set('something')
+  console.log('obs_store cell', obs_store.cell.get());
 
   const viz_state = {};
   viz_state.seg = {};

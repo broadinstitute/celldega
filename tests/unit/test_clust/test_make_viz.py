@@ -46,19 +46,20 @@ def viz_json(net, dendro: bool = True, links: bool = False) -> None:
                 raise IndexError(f"Index {i} out of bounds in {axis} node_info") from e
 
     # Save data efficiently
-    if links:
-        viz["links"] = [
+    viz["mat" if not links else "links"] = (
+        dat["mat"].tolist()
+        if not links
+        else [
             {
                 "source": i,
                 "target": j,
-                "value": (val := float(dat["mat"][i, j])),
-                **({} if not np.isnan(val) else {"value_orig": "NaN"}),
+                "value": val,
+                **({} if not np.isnan(val := float(dat["mat"][i, j])) else {"value_orig": "NaN"}),
             }
             for i in range(len(dat["nodes"]["row"]))
             for j in range(len(dat["nodes"]["col"]))
         ]
-    else:
-        viz["mat"] = dat["mat"].tolist()
+    )
 
 
 def _add_optional_fields(node: dict, node_info: dict, i: int, cat_keys: list) -> None:

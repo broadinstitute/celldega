@@ -1,70 +1,67 @@
-# make_unique_labels
+"""Process DataFrame labels to ensure uniqueness."""
+
+from typing import Any
+
+import pandas as pd
 
 
-def main(net, df=None):
+def main(net, df: pd.DataFrame | None = None) -> pd.DataFrame:
     """
-    Run in load_data module (which runs when file is loaded or dataframe is loaded),
-    check for duplicate row/col names, and add index to names if necessary
+    Make row and column names unique by adding numeric suffixes if duplicates exist.
     """
     if df is None:
+        if net is None:
+            raise ValueError("Either net or df must be provided")
         df = net.export_df()
 
-    # rows
-    #############
-    rows = df.index.tolist()
-    if isinstance(rows[0], str):
-        if len(rows) != len(list(set(rows))):
-            print("warning: making row names unique")
-            new_rows = add_index_list(rows)
-            df.index = new_rows
+    if df.empty:
+        return df
 
-    elif isinstance(rows[0], tuple):
-        row_names = [inst_row[0] for inst_row in rows]
+    # Process with original warning message format
+    _make_axis_unique(df, "row", "index")
+    _make_axis_unique(df, "col", "columns")
 
-        if len(row_names) != len(list(set(row_names))):
-            print("warning: making row names unique")
-            row_names = add_index_list(row_names)
-
-            # add back to tuple
-            new_rows = []
-            for inst_index in range(len(rows)):
-                inst_row = rows[inst_index]
-                new_row = list(inst_row)
-                new_row[0] = row_names[inst_index]
-                new_rows.append(tuple(new_row))
-
-            df.index = new_rows
-
-    # cols
-    #############
-    cols = df.columns.tolist()
-    if isinstance(cols[0], str):
-        # list column names
-        if len(cols) != len(list(set(cols))):
-            print("warning: making col names unique")
-            new_cols = add_index_list(cols)
-            df.columns = new_cols
-
-    elif isinstance(cols[0], tuple):
-        col_names = [inst_col[0] for inst_col in cols]
-
-        if len(col_names) != len(list(set(col_names))):
-            print("warning: making col names unique")
-            col_names = add_index_list(col_names)
-
-            # add back to tuple
-            new_cols = []
-            for inst_index in range(len(cols)):
-                inst_col = cols[inst_index]
-                new_col = list(inst_col)
-                new_col[0] = col_names[inst_index]
-                new_cols.append(tuple(new_col))
-
-            df.columns = new_cols
-
-    # return dataframe with unique names
     return df
 
 
-def add_index_list(nodes):
-    return [f"{nodes[i]}-{i + 1}" for i in range(len(nodes))]
+def _make_axis_unique(df: pd.DataFrame, axis_name: str, axis_attr: str) -> None:
+    """
+    Make single axis unique if duplicates exist.
+    """
+    items = getattr(df, axis_attr).tolist()
+
+    if not items:
+        return
+
+    if isinstance(items[0], str):
+        if _has_duplicates(items):
+            print(f"warning: making {axis_name} names unique")
+            setattr(df, axis_attr, add_index_list(items))
+
+    elif isinstance(items[0], tuple):
+        try:
+            first_elements = [item[0] for item in items]
+        except (IndexError, TypeError) as e:
+            # Use "column" for error messages but "col" for warnings
+            error_axis = "column" if axis_name == "col" else axis_name
+            raise ValueError(f"Empty tuples found in {error_axis} index") from e
+
+        if _has_duplicates(first_elements):
+            print(f"warning: making {axis_name} names unique")
+            unique_first = add_index_list(first_elements)
+            new_items = [(unique_first[i], *item[1:]) for i, item in enumerate(items)]
+            setattr(df, axis_attr, new_items)
+
+
+def _has_duplicates(items: list[Any]) -> bool:
+    """
+    Check if list contains duplicates. O(n) time, O(n) space.
+    """
+    return len(items) != len(set(items))
+
+
+def add_index_list(nodes: list[Any]) -> list[str]:
+    """
+    Add numeric suffixes: ['gene', 'gene'] -> ['gene-1', 'gene-2'].
+    """
+    return [f"{node}-{i + 1}" for i, node in enumerate(nodes)]

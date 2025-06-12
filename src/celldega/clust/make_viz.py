@@ -4,15 +4,16 @@ import numpy as np
 
 
 def viz_json(net, dendro: bool = True, links: bool = False) -> None:
-    """Generate visualization JSON for clustergram.js."""
+    """
+    Generate visualization JSON for clustergram.js.
+    """
     # Validate once upfront
     if not all(hasattr(net, attr) for attr in ("viz", "dat")):
         raise AttributeError("Network missing required attributes")
     if missing := {"nodes", "node_info", "mat"} - net.dat.keys():
         raise KeyError(f"Missing keys: {missing}")
 
-    dat = net.dat  # Cache reference
-    viz = net.viz  # Cache reference
+    dat, viz = net.dat, net.viz  # Parallel assignment
 
     # Set linkage data
     viz["linkage"] = {axis: dat["node_info"][axis]["Y"].tolist() for axis in ("row", "col")}
@@ -20,15 +21,14 @@ def viz_json(net, dendro: bool = True, links: bool = False) -> None:
     # Process nodes for both axes
     for axis in dat["nodes"]:
         node_info = dat["node_info"][axis]
-        nodes = dat["nodes"][axis]
         axis_nodes = viz[f"{axis}_nodes"]
 
         # Pre-compute cluster lookup and category keys once per axis
-        cluster_lookup = {v: i for i, v in enumerate(node_info["clust"])}
+        cluster_lookup = dict(enumerate(node_info["clust"]))
         cat_keys = [k for k in node_info if k.startswith("cat-")]
 
         # Process all nodes for this axis
-        for i, name in enumerate(nodes):
+        for i, name in enumerate(dat["nodes"][axis]):
             try:
                 # Build node dict efficiently
                 node = {
@@ -62,7 +62,9 @@ def viz_json(net, dendro: bool = True, links: bool = False) -> None:
 
 
 def _add_optional_fields(node: dict, node_info: dict, i: int, cat_keys: list) -> None:
-    """Add all optional fields to node in single pass."""
+    """
+    Add all optional fields to node in single pass.
+    """
     # Add scalar optional fields
     for field in ("rankvar", "value", "info"):
         if (data := node_info.get(field)) and i < len(data):

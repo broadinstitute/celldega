@@ -1,154 +1,222 @@
-from copy import deepcopy
+from typing import Literal
+import warnings
 
 import numpy as np
 import pandas as pd
 
 
-def run_norm(net, df=None, norm_type="zscore", axis="row", z_clip=None):
+def run_norm(
+    net,
+    df: pd.DataFrame | None = None,
+    norm_type: Literal["zscore", "qn", "umi"] = "zscore",
+    axis: Literal["row", "col"] = "row",
+    z_clip: float | None = None,
+) -> None:
+    """Apply normalization to DataFrame and update network object.
+
+    Args:
+        net: Network object with dat_to_df, df_to_dat methods and dat dictionary
+        df: DataFrame to normalize. If None, uses net.dat_to_df()
+        norm_type: Normalization type - "zscore", "qn", or "umi"
+        axis: Normalization axis - "row" or "col"
+        z_clip: Optional positive clipping threshold for z-scores
+
+    Raises:
+        ValueError: If parameters are invalid
     """
-    A dataframe can be passed to run_norm and a normalization will be run (
-    e.g. zscore) on either the rows or columns
-    """
+    if norm_type not in {"zscore", "qn", "umi"}:
+        raise ValueError(f"Invalid norm_type '{norm_type}'. Must be 'zscore', 'qn', or 'umi'")
+
+    if axis not in {"row", "col"}:
+        raise ValueError(f"Invalid axis '{axis}'. Must be 'row' or 'col'")
+
+    if z_clip is not None and z_clip <= 0:
+        raise ValueError(f"z_clip must be positive, got {z_clip}")
 
     if df is None:
         df = net.dat_to_df()
 
     if norm_type == "zscore":
         df, ser_mean, ser_std = zscore_df(df, axis, z_clip=z_clip)
-
         net.dat["pre_zscore"] = {
             "mean": ser_mean.values.tolist(),
             "std": ser_std.values.tolist(),
         }
-
     elif norm_type == "qn":
         df = qn_df(df, axis)
-
     elif norm_type == "umi":
         df = umi_norm(df)
 
     net.df_to_dat(df)
 
-    # if norm_type == 'zscore' and axis == 'row':
-    #   net.dat['pre_zscore'] = {}
-    #   net.dat['pre_zscore']['mean'] = ser_mean
-    #   net.dat['pre_zscore']['std'] = ser_std
 
+def qn_df(df: pd.DataFrame, axis: Literal["row", "col"] = "row") -> pd.DataFrame:
+    """Apply quantile normalization to DataFrame.
 
-def qn_df(df, axis="row"):
+    Quantile normalization ensures all samples have the same distribution
+    by replacing values with the mean of values at the same quantile.
+
+    Args:
+        df: Input DataFrame
+        axis: Normalization axis - "col" normalizes columns, "row" normalizes rows
+
+    Returns:
+        Quantile normalized DataFrame with same shape as input
     """
-    do quantile normalization of a dataframe dictionary, does not write to net
+    if df.empty:
+        return df
+
+    work_df = df.T if axis == "row" else df
+
+    # Optimized null checking - single scan
+    has_nulls = work_df.isnull()
+    missing_mask = has_nulls if has_nulls.any().any() else None
+
+    if missing_mask is not None:
+        work_df = work_df.fillna(0)
+
+    # Calculate common distribution and apply
+    common_dist = calc_common_dist(work_df)
+    work_df = swap_in_common_dist(work_df, common_dist)
+
+    if missing_mask is not None:
+        work_df = work_df.mask(missing_mask, np.nan)
+
+    return work_df.T if axis == "row" else work_df
+
+
+def zscore_df(
+    df: pd.DataFrame, axis: Literal["row", "col"] = "row", z_clip: float | None = None
+) -> tuple[pd.DataFrame, pd.Series, pd.Series]:
+    """Apply z-score normalization to DataFrame.
+
+    Args:
+        df: Input DataFrame
+        axis: Normalization axis - "row" or "col"
+        z_clip: Optional clipping threshold
+
+    Returns:
+        Tuple of (normalized_df, means, stds)
+
+    Warns:
+        UserWarning: If constant columns are detected (std=0)
     """
-    # using transpose to do row qn
-    if axis == "row":
-        df = df.transpose()
+    if df.empty:
+        return df, pd.Series(dtype=float), pd.Series(dtype=float)
 
-    missing_values = df.isnull().values.any()
+    work_df = df.T if axis == "row" else df
+    means, stds = work_df.mean(), work_df.std()
 
-    # make mask of missing values
-    if missing_values:
-        # get nan mask
-        missing_mask = pd.isnull(df)
+    # Warn about constant columns
+    if (stds == 0).any():
+        warnings.warn(
+            "Constant columns detected in z-score normalization. "
+            "These will produce inf/NaN values.",
+            UserWarning,
+            stacklevel=2,
+        )
 
-        # tmp fill in na with zero, will not affect qn
-        df = df.fillna(value=0)
-
-    # calc common distribution
-    common_dist = calc_common_dist(df)
-
-    # swap in common distribution
-    df = swap_in_common_dist(df, common_dist)
-
-    # swap back in missing values
-    if missing_values:
-        df = df.mask(missing_mask, other=np.nan)
-
-    # using transpose to do row qn
-    if axis == "row":
-        df = df.transpose()
-
-    return df
-
-
-def swap_in_common_dist(df, common_dist):
-    col_names = df.columns.tolist()
-
-    qn_arr = np.array([])
-    orig_rows = df.index.tolist()
-
-    # loop through each column
-    for inst_col in col_names:
-        # get the sorted list of row names for the given column
-        tmp_series = deepcopy(df[inst_col])
-        tmp_series = tmp_series.sort_values(ascending=False)
-        sorted_names = tmp_series.index.tolist()
-
-        qn_vect = np.array([])
-        for inst_row in orig_rows:
-            inst_index = sorted_names.index(inst_row)
-            inst_val = common_dist[inst_index]
-            qn_vect = np.hstack((qn_vect, inst_val))
-
-        qn_arr = qn_vect if qn_arr.shape[0] == 0 else np.vstack((qn_arr, qn_vect))
-
-    # transpose (because of vstacking)
-    qn_arr = qn_arr.transpose()
-
-    return pd.DataFrame(data=qn_arr, columns=col_names, index=orig_rows)
-
-
-def calc_common_dist(df):
-    """
-    calculate a common distribution (for col qn only) that will be used to qn
-    """
-
-    # axis is col
-    tmp_arr = np.array([])
-
-    col_names = df.columns.tolist()
-
-    for inst_col in col_names:
-        # sort column
-        tmp_vect = df[inst_col].sort_values(ascending=False).values
-
-        # stacking rows vertically (will transpose)
-        tmp_arr = tmp_vect if tmp_arr.shape[0] == 0 else np.vstack((tmp_arr, tmp_vect))
-
-    tmp_arr = tmp_arr.transpose()
-
-    return tmp_arr.mean(axis=1)
-
-
-def zscore_df(df, axis="row", z_clip=None):
-    """
-    take the zscore of a dataframe dictionary, does not write to net (self)
-    """
-
-    if axis == "row":
-        df = df.transpose()
-
-    ser_mean = df.mean()
-    ser_std = df.std()
-
-    df_z = (df - ser_mean) / ser_std
-
-    if axis == "row":
-        df_z = df_z.transpose()
+    normalized = (work_df - means) / stds
 
     if z_clip is not None:
-        df_z = z_clip_fun(df_z, lower=-z_clip, upper=z_clip)
+        normalized = normalized.clip(lower=-z_clip, upper=z_clip)
 
-    return df_z, ser_mean, ser_std
-
-
-def umi_norm(df):
-    # umi norm
-    barcode_umi_sum = df.sum()
-    return df.div(barcode_umi_sum)
+    result = normalized.T if axis == "row" else normalized
+    return result, means, stds
 
 
-def z_clip_fun(df_z, lower=None, upper=None):
+def umi_norm(df: pd.DataFrame) -> pd.DataFrame:
+    """Apply UMI normalization - divide each column by its sum.
+
+    Each column is normalized by its total count to account for
+    library size differences in sequencing data.
+
+    Args:
+        df: Input DataFrame with samples as columns
+
+    Returns:
+        UMI normalized DataFrame
     """
-    Trim values at input thresholds using pandas function
+    return df if df.empty else df.div(df.sum(axis=0), axis=1)
+
+
+def z_clip_fun(
+    df: pd.DataFrame, lower: float | None = None, upper: float | None = None
+) -> pd.DataFrame:
+    """Clip DataFrame values to specified thresholds.
+
+    Args:
+        df: Input DataFrame
+        lower: Lower clipping threshold
+        upper: Upper clipping threshold
+
+    Returns:
+        Clipped DataFrame
     """
-    return df_z.clip(lower=lower, upper=upper)
+    return df.clip(lower=lower, upper=upper)
+
+
+def calc_common_dist(df: pd.DataFrame) -> np.ndarray:
+    """Calculate common distribution for quantile normalization.
+
+    Computes the mean of sorted values across all columns to create
+    a common distribution for quantile normalization.
+
+    Args:
+        df: Input DataFrame with columns to normalize
+
+    Returns:
+        Common distribution array
+    """
+    if df.empty:
+        return np.array([])
+
+    # Optimized: collect all sorted arrays first
+    sorted_arrays = [df[col].sort_values(ascending=False).values for col in df.columns]
+
+    # Handle single column case
+    if len(sorted_arrays) == 1:
+        return sorted_arrays[0]
+
+    # Stack vertically then transpose (matches original)
+    stacked = np.vstack(sorted_arrays).T
+    return stacked.mean(axis=1)
+
+
+def swap_in_common_dist(df: pd.DataFrame, common_dist: np.ndarray) -> pd.DataFrame:
+    """Apply common distribution values based on ranking.
+
+    Maps each value to its corresponding position in the common distribution
+    based on the value's rank within its column.
+
+    Args:
+        df: Input DataFrame
+        common_dist: Common distribution values to apply
+
+    Returns:
+        DataFrame with common distribution applied
+    """
+    if df.empty or len(common_dist) == 0:
+        return df
+
+    result_data = {}
+
+    for col in df.columns:
+        # Replicate original algorithm: sort descending, get positional indices
+        sorted_series = df[col].sort_values(ascending=False)
+        position_map = {idx: pos for pos, idx in enumerate(sorted_series.index)}
+
+        # Pre-allocate result array for performance
+        col_result = np.full(len(df), np.nan)
+
+        for i, idx in enumerate(df.index):
+            try:
+                position = position_map[idx]
+                if position < len(common_dist):
+                    col_result[i] = common_dist[position]
+            except KeyError:
+                pass  # col_result[i] already set to NaN
+
+        result_data[col] = col_result
+
+    return pd.DataFrame(result_data, index=df.index)

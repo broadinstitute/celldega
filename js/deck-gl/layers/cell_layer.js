@@ -25,6 +25,7 @@ import { get_layers_list } from '../utils/layers_ist';
 
 import { update_path_layer_id } from './path_layer';
 import { update_trx_layer_id } from './trx_layer';
+import { obs_store } from '../../obs_store/obs_store';
 
 // Forward declarations for functions used before definition
 export function update_cell_layer_id(layers_obj, new_cat) {
@@ -54,45 +55,46 @@ const cell_layer_onclick = async (info, d, deck_ist, layers_obj, viz_state) => {
 
   const inst_cat_name = viz_state.cats.selected_cats.join('-');
 
+  // // update bar graphs
   // reset gene
   viz_state.genes.svg_bar_gene
     .selectAll('g')
     .attr('font-weight', 'normal')
     .attr('opacity', 1.0);
 
-  viz_state.cats.svg_bar_cluster
-    .selectAll('g')
-    .attr('font-weight', 'normal')
-    .attr('opacity', viz_state.cats.reset_cat ? 1.0 : 0.25);
+  // viz_state.cats.svg_bar_cluster
+  //   .selectAll('g')
+  //   .attr('font-weight', 'normal')
+  //   .attr('opacity', viz_state.cats.reset_cat ? 1.0 : 0.25);
 
-  if (!viz_state.cats.reset_cat) {
-    const selectedBar = viz_state.cats.svg_bar_cluster
-      .selectAll('g')
-      .filter(function () {
-        return d3.select(this).select('text').text() === inst_cat;
-      })
-      .attr('opacity', 1.0);
+  // if (!viz_state.cats.reset_cat) {
+  //   const selectedBar = viz_state.cats.svg_bar_cluster
+  //     .selectAll('g')
+  //     .filter(function () {
+  //       return d3.select(this).select('text').text() === inst_cat;
+  //     })
+  //     .attr('opacity', 1.0);
 
-    if (!selectedBar.empty()) {
-      const barPosition = selectedBar.node().getBoundingClientRect().top;
-      const containerPosition =
-        viz_state.containers.bar_cluster.getBoundingClientRect().top;
-      const scrollPosition =
-        barPosition -
-        containerPosition +
-        viz_state.containers.bar_cluster.scrollTop;
+  //   if (!selectedBar.empty()) {
+  //     const barPosition = selectedBar.node().getBoundingClientRect().top;
+  //     const containerPosition =
+  //       viz_state.containers.bar_cluster.getBoundingClientRect().top;
+  //     const scrollPosition =
+  //       barPosition -
+  //       containerPosition +
+  //       viz_state.containers.bar_cluster.scrollTop;
 
-      viz_state.containers.bar_cluster.scrollTo({
-        top: scrollPosition,
-        behavior: 'smooth',
-      });
-    }
-  } else {
-    viz_state.containers.bar_cluster.scrollTo({
-      top: 0,
-      behavior: 'smooth',
-    });
-  }
+  //     viz_state.containers.bar_cluster.scrollTo({
+  //       top: scrollPosition,
+  //       behavior: 'smooth',
+  //     });
+  //   }
+  // } else {
+  //   viz_state.containers.bar_cluster.scrollTo({
+  //     top: 0,
+  //     behavior: 'smooth',
+  //   });
+  // }
 
   update_cell_layer_id(layers_obj, inst_cat_name);
 
@@ -148,6 +150,11 @@ export const get_cell_color = (cats, i, d) => {
 };
 
 export const ini_cell_layer = async (base_url, viz_state) => {
+
+  obs_store.cat.subscribe((new_cat) => {
+    console.log('subscriber - obs_store cat changed:', new_cat);
+  })
+
   let cell_url;
   if (viz_state.seg.version === 'default') {
     cell_url = `${base_url}/cell_metadata.parquet`;

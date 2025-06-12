@@ -54,6 +54,8 @@ import {
   make_reorder_button,
 } from './text_buttons';
 
+import { obs_store } from '../obs_store/obs_store';
+
 export const toggle_image_layers_and_ctrls = (
   layers_obj,
   viz_state,
@@ -527,6 +529,102 @@ export const make_ist_ui_container = (
     layers_obj,
     viz_state
   );
+
+  // obs_store.selected_cats.subscribe((selected_cats) => {
+  //   console.log('cat bar graph subscribe')
+  //   // if selected_cats is empty, reset the bar graph
+  //   if (selected_cats.length === 0) {
+
+  //     viz_state.containers.bar_cluster.scrollTo({
+  //       top: 0,
+  //       behavior: 'smooth',
+  //     });
+
+  //     viz_state.cats.svg_bar_cluster
+  //       .selectAll('g')
+  //       .attr('font-weight', 'normal')
+  //       .attr('opacity', 1.0);
+
+  //   } else {
+
+  //     // make the selected categories bold and opaque otherwise transparent
+  //     viz_state.cats.svg_bar_cluster
+  //       .selectAll('g')
+  //       .attr('font-weight', (d) =>
+  //         selected_cats.includes(d.name) ? 'bold' : 'normal'
+  //       )
+  //       .attr('opacity', (d) =>
+  //         selected_cats.includes(d.name) ? 1.0 : 0.2
+  //       );
+  //   }
+  // })
+
+  obs_store.selected_cats.subscribe((selected_cats) => {
+
+    console.log('cat bar graph subscribe');
+    const svg = viz_state.cats.svg_bar_cluster;
+    const container = viz_state.containers.bar_cluster;
+
+    // --- 1. Update the styles ---
+    if (!Array.isArray(selected_cats) || selected_cats.length === 0) {
+      svg.selectAll('g')
+        .attr('font-weight', 'normal')
+        .attr('opacity', 1.0);
+
+      // Scroll to top if we're resetting
+      container.scrollTo({
+        top: 0,
+        behavior: 'smooth',
+      });
+    } else {
+      svg.selectAll('g')
+        .attr('font-weight', (d) =>
+          selected_cats.includes(d.name) ? 'bold' : 'normal'
+        )
+        .attr('opacity', (d) =>
+          selected_cats.includes(d.name) ? 1.0 : 0.2
+        );
+
+      // --- 2. Scroll to the selected bar if only one is selected ---
+      if (selected_cats.length === 1) {
+        const inst_cat = selected_cats[0];
+
+        const selectedBar = svg
+          .selectAll('g')
+          .filter(function () {
+            return d3.select(this).select('text').text() === inst_cat;
+          });
+
+        if (!selectedBar.empty()) {
+          const barElement = selectedBar.node();
+          const containerRect = container.getBoundingClientRect();
+          const barRect = barElement.getBoundingClientRect();
+
+          // Check if the bar is already fully visible in the container
+          const barTop = barRect.top;
+          const barBottom = barRect.bottom;
+          const containerTop = containerRect.top;
+          const containerBottom = containerRect.bottom;
+
+          const barFullyVisible = barTop >= containerTop && barBottom <= containerBottom;
+
+          if (!barFullyVisible) {
+            // Compute scroll target
+            const offsetTop = barTop - containerTop;
+            const scrollTop = container.scrollTop + offsetTop;
+
+            container.scrollTo({
+              top: scrollTop,
+              behavior: 'smooth',
+            });
+          }
+        }
+
+
+      }
+    }
+  });
+
 
   cell_container.appendChild(cell_ctrl_container);
   cell_container.appendChild(viz_state.containers.bar_cluster);

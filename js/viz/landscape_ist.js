@@ -61,6 +61,7 @@ import { set_landscape_parameters } from '../global_variables/landscape_paramete
 import { set_cluster_metadata } from '../global_variables/meta_cluster';
 import { set_meta_gene } from '../global_variables/meta_gene';
 import { update_selected_genes } from '../global_variables/selected_genes';
+import { obs_store } from '../obs_store/obs_store';
 import { update_gene_text_box } from '../ui/gene_search';
 import { set_image_layer_sliders } from '../ui/sliders';
 import {
@@ -69,7 +70,7 @@ import {
 } from '../ui/ui_containers';
 import { update_cell_clusters } from '../widget_interactions/update_cell_clusters';
 import { update_ist_landscape_from_cgm } from '../widget_interactions/update_ist_landscape_from_cgm';
-import { obs_store } from '../obs_store/obs_store';
+
 
 export const landscape_ist = async (
   el,
@@ -99,9 +100,13 @@ export const landscape_ist = async (
 
   console.log('check obs_store')
   console.log(obs_store)
-  console.log('obs_store cell', obs_store.cell.get())
-  obs_store.cell.set('something')
-  console.log('obs_store cell', obs_store.cell.get());
+  // console.log('obs_store cat', obs_store.cat.get())
+  // obs_store.cat.set('something')
+  // console.log('obs_store cat', obs_store.cat.get());
+
+  obs_store.selected_cats.subscribe((new_selected_cats) => {
+    console.log('obs_store selected_cats changed:', new_selected_cats);
+  })
 
   const viz_state = {};
   viz_state.seg = {};

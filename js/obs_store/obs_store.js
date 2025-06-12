@@ -15,12 +15,13 @@ function Observable(initialValue) {
     subscribe: fn => {
       subscribers.add(fn);
       fn(value); // Call immediately with current value
-      return () => subscribers.delete(fn); // Unsubscribe function
+      return () => subscribers.delete(fn); // Un_catsubscribe function
     }
   }
 
 }
 
 export const obs_store = {
-  cell: Observable("all"),
+  cat: Observable("cluster"),
+  selected_cats: Observable([]),
 }

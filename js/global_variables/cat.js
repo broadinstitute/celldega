@@ -4,6 +4,8 @@
 // // and 'cluster' can be filtered using selected_cats. This can be used to filter
 // // for a subset of cell cluster categories.
 
+import { obs_store } from '../obs_store/obs_store.js';
+
 export const update_cat = (cats, new_cat) => {
   cats.cat = new_cat;
 };
@@ -33,4 +35,7 @@ export const update_selected_cats = (cats, new_selected_cats) => {
 
   // Use the ternary operator to update selected_cats
   cats.selected_cats = cats.reset_cat ? [] : new_selected_cats;
+
+  // Update obs_store
+  obs_store.selected_cats.set(cats.selected_cats);
 };

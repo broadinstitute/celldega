@@ -5,17 +5,8 @@ import pandas as pd
 
 
 def main(df: pd.DataFrame) -> pd.DataFrame:
-    """Process DataFrame labels: numeric->string, tuple strings->tuples.
-
-    Args:
-        df: Input DataFrame to process
-
-    Returns:
-        DataFrame with processed labels
-
-    Raises:
-        TypeError: If df is not a pandas DataFrame
-        ValueError: If tuple strings are malformed
+    """
+    Process DataFrame labels: numeric->string, tuple strings->tuples.
     """
     if not isinstance(df, pd.DataFrame):
         raise TypeError(f"Expected pandas DataFrame, got {type(df)}")
@@ -46,13 +37,8 @@ def main(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def _is_tuple_string(s) -> bool:
-    """Check if string represents tuple: starts with '(', ends with ')', has comma.
-
-    Args:
-        s: String to check
-
-    Returns:
-        True if string appears to be a tuple representation
+    """
+    Check if string represents tuple: starts with '(', ends with ')', has comma.
     """
     try:
         return (
@@ -67,16 +53,8 @@ def _is_tuple_string(s) -> bool:
 
 
 def _safe_make_tuple(s) -> tuple:
-    """Safely convert string to tuple with error handling.
-
-    Args:
-        s: String representation of tuple
-
-    Returns:
-        Parsed tuple
-
-    Raises:
-        ValueError: If string cannot be parsed as tuple
+    """
+    Safely convert string to tuple with error handling.
     """
     try:
         result = make_tuple(s)

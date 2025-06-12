@@ -12,17 +12,8 @@ def run_norm(
     axis: Literal["row", "col"] = "row",
     z_clip: float | None = None,
 ) -> None:
-    """Apply normalization to DataFrame and update network object.
-
-    Args:
-        net: Network object with dat_to_df, df_to_dat methods and dat dictionary
-        df: DataFrame to normalize. If None, uses net.dat_to_df()
-        norm_type: Normalization type - "zscore", "qn", or "umi"
-        axis: Normalization axis - "row" or "col"
-        z_clip: Optional positive clipping threshold for z-scores
-
-    Raises:
-        ValueError: If parameters are invalid
+    """
+    Apply normalization to DataFrame and update network object.
     """
     if norm_type not in {"zscore", "qn", "umi"}:
         raise ValueError(f"Invalid norm_type '{norm_type}'. Must be 'zscore', 'qn', or 'umi'")
@@ -51,17 +42,8 @@ def run_norm(
 
 
 def qn_df(df: pd.DataFrame, axis: Literal["row", "col"] = "row") -> pd.DataFrame:
-    """Apply quantile normalization to DataFrame.
-
-    Quantile normalization ensures all samples have the same distribution
-    by replacing values with the mean of values at the same quantile.
-
-    Args:
-        df: Input DataFrame
-        axis: Normalization axis - "col" normalizes columns, "row" normalizes rows
-
-    Returns:
-        Quantile normalized DataFrame with same shape as input
+    """
+    Apply quantile normalization to DataFrame.
     """
     if df.empty:
         return df
@@ -88,18 +70,8 @@ def qn_df(df: pd.DataFrame, axis: Literal["row", "col"] = "row") -> pd.DataFrame
 def zscore_df(
     df: pd.DataFrame, axis: Literal["row", "col"] = "row", z_clip: float | None = None
 ) -> tuple[pd.DataFrame, pd.Series, pd.Series]:
-    """Apply z-score normalization to DataFrame.
-
-    Args:
-        df: Input DataFrame
-        axis: Normalization axis - "row" or "col"
-        z_clip: Optional clipping threshold
-
-    Returns:
-        Tuple of (normalized_df, means, stds)
-
-    Warns:
-        UserWarning: If constant columns are detected (std=0)
+    """
+    Apply z-score normalization to DataFrame.
     """
     if df.empty:
         return df, pd.Series(dtype=float), pd.Series(dtype=float)
@@ -126,16 +98,8 @@ def zscore_df(
 
 
 def umi_norm(df: pd.DataFrame) -> pd.DataFrame:
-    """Apply UMI normalization - divide each column by its sum.
-
-    Each column is normalized by its total count to account for
-    library size differences in sequencing data.
-
-    Args:
-        df: Input DataFrame with samples as columns
-
-    Returns:
-        UMI normalized DataFrame
+    """
+    Apply UMI normalization - divide each column by its sum.
     """
     return df if df.empty else df.div(df.sum(axis=0), axis=1)
 
@@ -143,30 +107,15 @@ def umi_norm(df: pd.DataFrame) -> pd.DataFrame:
 def z_clip_fun(
     df: pd.DataFrame, lower: float | None = None, upper: float | None = None
 ) -> pd.DataFrame:
-    """Clip DataFrame values to specified thresholds.
-
-    Args:
-        df: Input DataFrame
-        lower: Lower clipping threshold
-        upper: Upper clipping threshold
-
-    Returns:
-        Clipped DataFrame
+    """
+    Clip DataFrame values to specified thresholds.
     """
     return df.clip(lower=lower, upper=upper)
 
 
 def calc_common_dist(df: pd.DataFrame) -> np.ndarray:
-    """Calculate common distribution for quantile normalization.
-
-    Computes the mean of sorted values across all columns to create
-    a common distribution for quantile normalization.
-
-    Args:
-        df: Input DataFrame with columns to normalize
-
-    Returns:
-        Common distribution array
+    """
+    Calculate common distribution for quantile normalization.
     """
     if df.empty:
         return np.array([])
@@ -184,17 +133,8 @@ def calc_common_dist(df: pd.DataFrame) -> np.ndarray:
 
 
 def swap_in_common_dist(df: pd.DataFrame, common_dist: np.ndarray) -> pd.DataFrame:
-    """Apply common distribution values based on ranking.
-
-    Maps each value to its corresponding position in the common distribution
-    based on the value's rank within its column.
-
-    Args:
-        df: Input DataFrame
-        common_dist: Common distribution values to apply
-
-    Returns:
-        DataFrame with common distribution applied
+    """
+    Apply common distribution values based on ranking.
     """
     if df.empty or len(common_dist) == 0:
         return df

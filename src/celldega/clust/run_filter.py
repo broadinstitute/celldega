@@ -5,18 +5,8 @@ import pandas as pd
 
 
 def df_filter_row_sum(df: pd.DataFrame, threshold: float, take_abs: bool = True) -> pd.DataFrame:
-    """Filter rows by sum threshold, keeping only rows with sum > threshold.
-
-    Args:
-        df: Input DataFrame
-        threshold: Minimum sum threshold
-        take_abs: Whether to use absolute values for filtering
-
-    Returns:
-        Filtered DataFrame
-
-    Raises:
-        ValueError: If threshold is invalid
+    """
+    Filter rows by sum threshold, keeping only rows with sum > threshold.
     """
     if not isinstance(threshold, int | float):
         raise ValueError(f"threshold must be numeric, got {type(threshold)}")
@@ -32,18 +22,8 @@ def df_filter_row_sum(df: pd.DataFrame, threshold: float, take_abs: bool = True)
 
 
 def df_filter_col_sum(df: pd.DataFrame, threshold: float, take_abs: bool = True) -> pd.DataFrame:
-    """Filter columns by sum threshold, remove zero-sum rows.
-
-    Args:
-        df: Input DataFrame
-        threshold: Minimum sum threshold
-        take_abs: Whether to use absolute values for filtering
-
-    Returns:
-        Filtered DataFrame
-
-    Raises:
-        ValueError: If threshold is invalid
+    """
+    Filter columns by sum threshold, remove zero-sum rows.
     """
     if not isinstance(threshold, int | float):
         raise ValueError(f"threshold must be numeric, got {type(threshold)}")
@@ -75,15 +55,8 @@ def df_filter_col_sum(df: pd.DataFrame, threshold: float, take_abs: bool = True)
 def grab_df_subset(
     df: pd.DataFrame, keep_rows: list | str = "all", keep_cols: list | str = "all"
 ) -> pd.DataFrame:
-    """Extract subset of DataFrame by specified rows and columns.
-
-    Args:
-        df: Input DataFrame
-        keep_rows: Row indices to keep, or "all" for all rows
-        keep_cols: Column names to keep, or "all" for all columns
-
-    Returns:
-        Subset DataFrame
+    """
+    Extract subset of DataFrame by specified rows and columns.
     """
     result = df
     if keep_cols != "all":
@@ -94,14 +67,8 @@ def grab_df_subset(
 
 
 def get_sorted_rows(df: pd.DataFrame, rank_type: Literal["sum", "var"] = "sum") -> list[str]:
-    """Get row names sorted by sum or variance in descending order.
-
-    Args:
-        df: Input DataFrame
-        rank_type: Ranking metric - "sum" or "var"
-
-    Returns:
-        List of row names sorted in descending order
+    """
+    Get row names sorted by sum or variance in descending order.
     """
     if df.empty:
         return []
@@ -117,19 +84,8 @@ def filter_n_top(
     n_top: int,
     rank_type: Literal["sum", "var"] = "sum",
 ) -> pd.DataFrame:
-    """Keep only top N rows/columns by specified ranking metric.
-
-    Args:
-        inst_rc: Filter axis - "row" or "col"
-        df: Input DataFrame
-        n_top: Number of top items to keep
-        rank_type: Ranking metric - "sum" or "var"
-
-    Returns:
-        Filtered DataFrame
-
-    Raises:
-        ValueError: If n_top is negative
+    """
+    Keep only top N rows/columns by specified ranking metric.
     """
     if n_top < 0:
         raise ValueError(f"n_top must be non-negative, got {n_top}")
@@ -150,19 +106,8 @@ def filter_n_top(
 def filter_threshold(
     df: pd.DataFrame, inst_rc: Literal["row", "col"], threshold: float, num_occur: int = 1
 ) -> pd.DataFrame:
-    """Filter rows/columns by number of values above threshold.
-
-    Args:
-        df: Input DataFrame
-        inst_rc: Filter axis - "row" or "col"
-        threshold: Value threshold
-        num_occur: Minimum number of occurrences above threshold
-
-    Returns:
-        Filtered DataFrame
-
-    Raises:
-        ValueError: If parameters are invalid
+    """
+    Filter rows/columns by number of values above threshold.
     """
     if not isinstance(threshold, int | float):
         raise ValueError(f"threshold must be numeric, got {type(threshold)}")
@@ -188,17 +133,8 @@ def filter_threshold(
 
 
 def filter_cat(net, axis: Literal["row", "col"], cat_index: int, cat_name: str) -> None:
-    """Filter network by category at specified index.
-
-    Args:
-        net: Network object with export_df/load_df methods
-        axis: Filter axis - "row" or "col"
-        cat_index: Index of category in tuple
-        cat_name: Category name to filter by
-
-    Raises:
-        ValueError: If cat_index is negative
-        AttributeError: If net object missing required methods
+    """
+    Filter network by category at specified index.
     """
     if cat_index < 0:
         raise ValueError(f"cat_index must be non-negative, got {cat_index}")
@@ -238,16 +174,8 @@ def filter_cat(net, axis: Literal["row", "col"], cat_index: int, cat_name: str) 
 
 
 def filter_names(net, axis: Literal["row", "col"], names: list[str]) -> None:
-    """Filter network by specified names on given axis.
-
-    Args:
-        net: Network object with export_df/load_df methods
-        axis: Filter axis - "row" or "col"
-        names: List of names to filter by
-
-    Raises:
-        ValueError: If names is empty
-        AttributeError: If net object missing required methods
+    """
+    Filter network by specified names on given axis.
     """
     if not names:
         raise ValueError("names list cannot be empty")
@@ -285,13 +213,8 @@ def filter_names(net, axis: Literal["row", "col"], names: list[str]) -> None:
 
 
 def _extract_name(name: str | tuple) -> str:
-    """Extract comparable name from column identifier.
-
-    Args:
-        name: Column identifier (string or tuple)
-
-    Returns:
-        Extracted name string
+    """
+    Extract comparable name from column identifier.
     """
     # Handle MultiIndex tuples
     check_name = name[0] if isinstance(name, tuple) else name

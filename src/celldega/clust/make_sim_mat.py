@@ -1,71 +1,126 @@
-def main(net, inst_dm, which_sim, filter_sim, sim_mat_views=None):
-    from copy import deepcopy
+"""
+Similarity matrix computation and clustering for high-dimensional data.
 
-    from . import calc_clust
-    from .__init__ import Network
+This module converts distance matrices to similarity matrices with optional filtering
+and generates clustered network visualizations.
+"""
 
-    if sim_mat_views is None:
-        sim_mat_views = ["N_row_sum"]
+from copy import deepcopy
 
-    sim_dict = {
-        inst_rc: dm_to_sim(inst_dm[inst_rc], make_squareform=True, filter_sim=filter_sim)
-        for inst_rc in which_sim
+import numpy as np
+from scipy.spatial.distance import squareform
+
+from . import calc_clust
+
+
+# Constants for filtering thresholds
+MIN_SIMILARITY_THRESHOLD = 0.01
+DEFAULT_KEEP_TOP = 20000
+
+
+def main(
+    net,
+    distance_matrices: dict[str, np.ndarray],
+    axes_to_process: list[str],
+    filter_threshold: float,
+    sim_mat_views: list[str] | None = None,
+) -> dict[str, object]:
+    """
+    Generate similarity matrices from distance matrices and create clustered networks.
+    """
+    if not axes_to_process:
+        return {}
+
+    # Convert distance matrices to similarity matrices
+    similarity_matrices = {
+        axis: dm_to_sim(distance_matrices[axis], make_squareform=True, filter_sim=filter_threshold)
+        for axis in axes_to_process
     }
 
-    sim_net = {}
+    # Create clustered networks for each axis
+    clustered_networks = {}
+    for axis in axes_to_process:
+        clustered_networks[axis] = _create_similarity_network(net, similarity_matrices[axis], axis)
 
-    for inst_rc in which_sim:
-        sim_net[inst_rc] = deepcopy(Network())
-
-        sim_net[inst_rc].dat["mat"] = sim_dict[inst_rc]
-
-        sim_net[inst_rc].dat["nodes"]["row"] = net.dat["nodes"][inst_rc]
-        sim_net[inst_rc].dat["nodes"]["col"] = net.dat["nodes"][inst_rc]
-
-        sim_net[inst_rc].dat["node_info"]["row"] = net.dat["node_info"][inst_rc]
-        sim_net[inst_rc].dat["node_info"]["col"] = net.dat["node_info"][inst_rc]
-
-        calc_clust.cluster_row_and_col(sim_net[inst_rc])
-
-        all_views = []
-        _ = sim_net[inst_rc].dat_to_df()
-
-        sim_net[inst_rc].viz["views"] = all_views
-
-    return sim_net
+    return clustered_networks
 
 
-def dm_to_sim(inst_dm, make_squareform=False, filter_sim=0):
-    import numpy as np
-    from scipy.spatial.distance import squareform
+def dm_to_sim(
+    distance_matrix: np.ndarray | object, make_squareform: bool = False, filter_sim: float = 0
+) -> np.ndarray:
+    """
+    Convert distance matrix to similarity matrix with optional filtering.
+    """
+    # Input validation
+    if not hasattr(distance_matrix, "size") or not hasattr(distance_matrix, "shape"):
+        raise TypeError("distance_matrix must be a numpy array or array-like object")
 
+    if distance_matrix.size == 0:
+        return distance_matrix
+
+    # Convert to square form if needed
     if make_squareform:
-        inst_dm = squareform(inst_dm)
+        distance_matrix = squareform(distance_matrix)
 
-    inst_sim_mat = 1 - inst_dm
+    # Convert distances to similarities
+    similarity_matrix = 1 - distance_matrix
 
+    # Apply filtering if threshold is specified
     if filter_sim > 0:
-        filter_sim = adjust_filter_sim(inst_sim_mat, filter_sim)
-        inst_sim_mat[np.abs(inst_sim_mat) < filter_sim] = 0
+        adjusted_threshold = adjust_filter_sim(similarity_matrix, filter_sim)
+        similarity_matrix[np.abs(similarity_matrix) < adjusted_threshold] = 0
 
-    return inst_sim_mat
+    return similarity_matrix
 
 
-def adjust_filter_sim(inst_dm, filter_sim, keep_top=20000):
-    import numpy as np
-    import pandas as pd
+def adjust_filter_sim(
+    similarity_matrix: np.ndarray | object,
+    filter_threshold: float,
+    keep_top: int = DEFAULT_KEEP_TOP,
+) -> float:
+    """
+    Adjust similarity filtering threshold based on value distribution.
+    """
+    # Input validation
+    if not hasattr(similarity_matrix, "flatten") or not hasattr(similarity_matrix, "shape"):
+        raise TypeError("similarity_matrix must be a numpy array or array-like object")
 
-    inst_df = pd.DataFrame(inst_dm)
-    val_vect = np.abs(inst_df.values.flatten())
+    # Extract significant similarity values
+    significant_values = np.abs(similarity_matrix.flatten())
+    significant_values = significant_values[significant_values > MIN_SIMILARITY_THRESHOLD]
 
-    val_vect = val_vect[val_vect > 0.01]
+    # Return original threshold if insufficient data
+    if len(significant_values) <= keep_top:
+        return filter_threshold
 
-    if len(val_vect) > keep_top:
-        inst_series = pd.Series(val_vect)
-        inst_series.sort_values(ascending=False)
+    # Find threshold that keeps only top similarities
+    sorted_values = np.sort(significant_values)[::-1]  # Sort descending
+    return sorted_values[keep_top]
 
-        sort_values = inst_series.values
 
-        filter_sim = sort_values[keep_top]
+def _create_similarity_network(original_net, similarity_matrix: np.ndarray, axis: str):
+    """
+    Create a new network object with similarity matrix for clustering.
+    """
+    # Create deep copy to avoid modifying original
+    similarity_net = deepcopy(original_net)
 
-    return filter_sim
+    # Replace data matrix with similarity matrix
+    similarity_net.dat["mat"] = similarity_matrix
+
+    # Configure nodes for symmetric similarity matrix
+    axis_nodes = original_net.dat["nodes"][axis]
+    axis_node_info = original_net.dat["node_info"][axis]
+
+    similarity_net.dat["nodes"]["row"] = axis_nodes
+    similarity_net.dat["nodes"]["col"] = axis_nodes
+    similarity_net.dat["node_info"]["row"] = axis_node_info
+    similarity_net.dat["node_info"]["col"] = axis_node_info
+
+    # Perform clustering on similarity matrix
+    calc_clust.cluster_row_and_col(similarity_net)
+
+    # Initialize visualization views
+    similarity_net.viz["views"] = []
+
+    return similarity_net

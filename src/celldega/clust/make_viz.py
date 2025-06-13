@@ -23,8 +23,8 @@ def viz_json(net, dendro: bool = True, links: bool = False) -> None:
         node_info = dat["node_info"][axis]
         axis_nodes = viz[f"{axis}_nodes"]
 
-        # Pre-compute cluster lookup and category keys once per axis
-        cluster_lookup = dict(enumerate(node_info["clust"]))
+        # Pre-compute cluster lookup (value -> position) and category keys once per axis
+        cluster_lookup = {v: k for k, v in enumerate(node_info["clust"])}
         cat_keys = [k for k in node_info if k.startswith("cat-")]
 
         # Process all nodes for this axis
@@ -34,7 +34,7 @@ def viz_json(net, dendro: bool = True, links: bool = False) -> None:
                 node = {
                     "name": name,
                     "ini": node_info["ini"][i],
-                    "clust": cluster_lookup.get(node_info["clust"][i], i),
+                    "clust": cluster_lookup.get(i, i),
                     "rank": node_info["rank"][i],
                 }
 

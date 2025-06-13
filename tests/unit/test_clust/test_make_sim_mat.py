@@ -182,7 +182,7 @@ class TestFilterAdjustment:
         # Values exactly at threshold
         matrix = np.array([[0.01, 0.02], [0.005, 0.03]])
         result = adjust_filter_sim(matrix, 0.5, keep_top=1)
-        assert isinstance(result, (int, float))
+        assert isinstance(result, (int | float))
 
     def test_sorting_behavior_current_implementation(self):
         """Test current sorting behavior (documents known behavior)."""

@@ -24,12 +24,20 @@ def main(self, widget=None):
         found_cats = False
     else:
         found_cats = True
-        inst_cat_colors = self.viz["cat_colors"]
-        inst_global_cat_colors = self.viz["global_cat_colors"]
+        if hasattr(self, "viz") and isinstance(self.viz, dict):
+            if "cat_colors" in self.viz and "global_cat_colors" in self.viz:
+                inst_cat_colors = self.viz["cat_colors"]
+                inst_global_cat_colors = self.viz["global_cat_colors"]
+            else:
+                found_cats = False
+        else:
+            found_cats = False
 
     # initialize matrix colors
     ###########################
-    has_matrix_colors = hasattr(self, "viz") and "matrix_colors" in self.viz
+    has_matrix_colors = (
+        hasattr(self, "viz") and isinstance(self.viz, dict) and "matrix_colors" in self.viz
+    )
 
     matrix_colors = (
         self.viz["matrix_colors"] if has_matrix_colors else {"pos": "red", "neg": "blue"}
@@ -56,14 +64,17 @@ def main(self, widget=None):
         self.viz["cat_colors"] = inst_cat_colors
         self.viz["global_cat_colors"] = inst_global_cat_colors
 
-    self.sim = {}
-    self.umap = {}
-
 
 def viz(self, reset_cat_colors=False):
-    # keep track of old cat_colors
-    old_cat_colors = self.viz["cat_colors"]
-    old_global_cat_colors = self.viz["global_cat_colors"]
+    if not hasattr(self, "viz") or not isinstance(self.viz, dict):
+        self.viz = {
+            "cat_colors": {"row": {}, "col": {}},
+            "global_cat_colors": {},
+            "matrix_colors": {"pos": "red", "neg": "blue"},
+        }
+
+    old_cat_colors = self.viz.get("cat_colors", {"row": {}, "col": {}})
+    old_global_cat_colors = self.viz.get("global_cat_colors", {})
 
     matrix_colors = self.viz.get("matrix_colors", {"pos": "red", "neg": "blue"})
 

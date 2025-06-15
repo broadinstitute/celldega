@@ -1,196 +1,219 @@
+"""Hierarchical clustering utilities for high-dimensional biological data."""
+
+from typing import Any, Literal
+
+import numpy as np
+import pandas as pd
+import scipy.cluster.hierarchy as hier
+from scipy.spatial.distance import pdist
+
+
+# Type aliases
+AxisType = Literal["row", "col"]
+NetworkType = Any
+DistanceMatrix = np.ndarray
+LinkageMatrix = np.ndarray
+
+
 def cluster_row_and_col(
-    net,
-    dist_type="cosine",
-    linkage_type="average",
-    dendro=True,
-    run_clustering=True,
-    run_rank=True,
-    ignore_cat=False,
-    calc_cat_pval=False,
-    links=False,
-    clust_library="scipy",
-    min_samples=1,
-    min_cluster_size=2,
-):
-    """cluster net.dat and make visualization json, net.viz.
-    optionally leave out dendrogram colorbar groups with dendro argument"""
-
-    # import umap
-    from copy import deepcopy
-
+    net: NetworkType,
+    dist_type: str = "cosine",
+    linkage_type: str = "average",
+    dendro: bool = True,
+    run_clustering: bool = True,
+    run_rank: bool = True,
+    ignore_cat: bool = False,
+    calc_cat_pval: bool = False,
+    links: bool = False,
+    clust_library: str = "scipy",
+    min_samples: int = 1,
+    min_cluster_size: int = 2,
+) -> dict[AxisType, DistanceMatrix | None]:
+    """Perform hierarchical clustering on network data for visualization."""
     from . import cat_pval, categories, make_viz
 
-    dm = {}
+    # Process both axes in single loop
+    distance_matrices = {}
+    matrix = net.dat["mat"]  # Single reference, no deep copy needed
+
     for axis in ["row", "col"]:
-        # save directly to dat structure
         node_info = net.dat["node_info"][axis]
+        n_nodes = len(net.dat["nodes"][axis])
 
-        node_info["ini"] = list(range(len(net.dat["nodes"][axis]), -1, -1))
+        # Initialize with range generator
+        node_info["ini"] = list(range(n_nodes, -1, -1))
 
-        tmp_mat = deepcopy(net.dat["mat"])
+        # Calculate distance matrix only if needed
+        dm = None if clust_library == "hdbscan" else calc_distance_matrix(matrix, axis, dist_type)
+        distance_matrices[axis] = dm
 
-        # calc distance matrix
-        if clust_library != "hdbscan":
-            dm[axis] = calc_distance_matrix(tmp_mat, axis, dist_type)
-        else:
-            dm[axis] = None
-
-        # dm[axis] = calc_distance_matrix(tmp_mat, axis, dist_type)
-
-        # cluster
+        # Clustering and ranking in single conditional block
         if run_clustering:
             node_info["clust"], node_info["Y"] = clust_and_group(
                 net,
-                dm[axis],
+                dm,
                 axis,
-                tmp_mat,
-                dist_type=dist_type,
-                linkage_type=linkage_type,
-                clust_library=clust_library,
-                min_samples=min_samples,
-                min_cluster_size=min_cluster_size,
+                matrix,
+                dist_type,
+                linkage_type,
+                clust_library,
+                min_samples,
+                min_cluster_size,
             )
         else:
             dendro = False
             node_info["clust"] = node_info["ini"]
 
-        # sorting
+        # Vectorized ranking computation
         if run_rank:
             node_info["rank"] = sort_rank_nodes(net, axis, "sum")
             node_info["rankvar"] = sort_rank_nodes(net, axis, "var")
         else:
-            node_info["rank"] = node_info["ini"]
-            node_info["rankvar"] = node_info["ini"]
+            node_info["rank"] = node_info["rankvar"] = node_info["ini"]
 
-        ##################################
+        # Category processing
         if not ignore_cat:
             categories.calc_cat_clust_order(net, axis)
 
+    # Final processing
     if calc_cat_pval:
         cat_pval.main(net)
-
-    # make the visualization json
     make_viz.viz_json(net, dendro, links)
 
-    return dm
+    return distance_matrices
 
 
-def calc_distance_matrix(tmp_mat, axis, dist_type="cosine"):
-    from scipy.spatial.distance import pdist
+def calc_distance_matrix(
+    matrix: np.ndarray, axis: AxisType, dist_type: str = "cosine"
+) -> DistanceMatrix:
+    """Calculate pairwise distances with optimal memory usage."""
+    if axis not in ["row", "col"]:
+        raise ValueError(f"Invalid axis '{axis}'. Must be 'row' or 'col'")
 
-    if axis == "row":
-        inst_dm = pdist(tmp_mat, metric=dist_type)
-    elif axis == "col":
-        inst_dm = pdist(tmp_mat.transpose(), metric=dist_type)
+    # Single data selection - no intermediate arrays
+    data = matrix.T if axis == "col" else matrix
 
-    inst_dm[inst_dm < 0] = float(0)
+    # Early return for edge cases - O(1) space
+    if data.shape[0] < 2:
+        return np.array([])
 
-    return inst_dm
+    # Direct computation with in-place correction - minimal memory
+    distances = pdist(data, metric=dist_type)
+    np.maximum(distances, 0.0, out=distances)  # In-place operation
+    return distances
 
 
 def clust_and_group(
-    net,
-    inst_dm,
-    axis,
-    mat,
-    dist_type="cosine",
-    linkage_type="average",
-    clust_library="scipy",
-    min_samples=1,
-    min_cluster_size=2,
-):
-    # print(clust_library)
+    net: NetworkType,
+    distance_matrix: DistanceMatrix | None,
+    axis: AxisType,
+    matrix: np.ndarray,
+    dist_type: str = "cosine",
+    linkage_type: str = "average",
+    clust_library: str = "scipy",
+    min_samples: int = 1,
+    min_cluster_size: int = 2,
+) -> tuple[list[int], LinkageMatrix]:
+    """Perform clustering with minimal memory allocation."""
+    n_nodes = len(net.dat["nodes"][axis])
 
-    import pandas as pd
-    import scipy.cluster.hierarchy as hier
-
-    if clust_library == "scipy":
-        Y = hier.linkage(inst_dm, method=linkage_type)
-
-    elif clust_library == "fastcluster":
-        import fastcluster
-
-        Y = fastcluster.linkage(inst_dm, method=linkage_type)
-
-    elif clust_library == "hdbscan":
-        # print('HDBSCAN!')
-        import hdbscan
-
-        # pca-umap-hdbscan using data (no pre-cal distance matrix)
-        ######################################################
-        from sklearn.decomposition import PCA
-
-        clusterer = hdbscan.HDBSCAN(min_samples=min_samples, min_cluster_size=min_cluster_size)
-
-        # rows are the data points, cols are dimensions
-        n_components = 50
-        if axis == "row":
-            low_d_mat = (
-                PCA(n_components=n_components).fit_transform(mat)
-                if mat.shape[1] > n_components
-                else mat
-            )
-
-        elif axis == "col":
-            low_d_mat = (
-                PCA(n_components=n_components).fit_transform(mat.transpose())
-                if mat.shape[0] > n_components
-                else mat.transpose()
-            )
-
-        # run UMAP on low_d_mat (after PCA)
-        # print('running umap!!!!!!!!!!!!!!!!!!!!!!!!!!')
-        import umap
-
-        umap_mat = umap.UMAP(
-            metric=dist_type,
-            n_neighbors=5,
-            min_dist=0.0,
-            n_components=2,
-            random_state=42,
-        ).fit_transform(low_d_mat)
-
-        umap_df = pd.DataFrame(
-            umap_mat.transpose(), index=["x", "y"], columns=net.dat["nodes"][axis]
+    # Single edge case check
+    if n_nodes < 2 or (distance_matrix is not None and distance_matrix.size == 0):
+        return list(range(n_nodes)), np.array([[0, 1, 0.0, 2]] if n_nodes >= 2 else []).reshape(
+            -1, 4
         )
 
-        net.umap[axis] = umap_df
-        clusterer.fit(umap_mat)
+    # Efficient clustering dispatch using dict lookup
+    clustering_methods = {
+        "hdbscan": lambda: _cluster_hdbscan(
+            net, axis, matrix, dist_type, min_samples, min_cluster_size
+        ),
+        "fastcluster": lambda: _cluster_fastcluster(distance_matrix, linkage_type),
+        "scipy": lambda: hier.linkage(distance_matrix, method=linkage_type),
+    }
 
-        Y = clusterer.single_linkage_tree_.to_numpy()
+    linkage_matrix = clustering_methods.get(clust_library, clustering_methods["scipy"])()
 
-    Z = hier.dendrogram(Y, no_plot=True)
-    inst_clust_order = Z["leaves"]
+    # Single dendrogram call - no validation needed after clustering
+    dendrogram = hier.dendrogram(linkage_matrix, no_plot=True)
+    return dendrogram["leaves"], linkage_matrix
 
-    return inst_clust_order, Y
+
+def sort_rank_nodes(
+    net: NetworkType, axis: AxisType, rank_type: Literal["sum", "var"]
+) -> list[int]:
+    """Rank nodes using vectorized operations for optimal performance."""
+    # Early validation - single check
+    nodes = net.dat["nodes"][axis]
+    matrix = net.dat["mat"]
+    n_nodes = len(nodes)
+
+    if n_nodes == 0 or matrix.shape[0 if axis == "row" else 1] != n_nodes:
+        return list(range(n_nodes))
+
+    # Single data selection and computation
+    data = matrix if axis == "row" else matrix.T
+
+    # Vectorized ranking computation
+    ranking_values = np.sum(data, axis=1) if rank_type == "sum" else np.var(data, axis=1)
+
+    # Direct index mapping - no intermediate data structures
+    sort_order = np.argsort(ranking_values)
+    rank_map = np.empty(n_nodes, dtype=int)
+    rank_map[sort_order] = np.arange(n_nodes)
+
+    return rank_map.tolist()
 
 
-def sort_rank_nodes(net, rowcol, rank_type):
-    from copy import deepcopy
-    from operator import itemgetter
+# Optimized helper functions with minimal overhead
 
-    import numpy as np
 
-    tmp_nodes = deepcopy(net.dat["nodes"][rowcol])
-    inst_mat = deepcopy(net.dat["mat"])
+def _cluster_hdbscan(
+    net: NetworkType,
+    axis: AxisType,
+    matrix: np.ndarray,
+    dist_type: str,
+    min_samples: int,
+    min_cluster_size: int,
+) -> LinkageMatrix:
+    """HDBSCAN clustering with optimized preprocessing pipeline."""
+    import hdbscan
+    from sklearn.decomposition import PCA
+    import umap
 
-    sum_term = []
-    for i, node_name in enumerate(tmp_nodes):
-        inst_dict = {"name": node_name}
+    # Single data selection
+    data = matrix if axis == "row" else matrix.T
 
-        if rowcol == "row":
-            inst_dict["rank"] = (
-                np.sum(inst_mat[i, :]) if rank_type == "sum" else np.var(inst_mat[i, :])
-            )
-        else:
-            inst_dict["rank"] = (
-                np.sum(inst_mat[:, i]) if rank_type == "sum" else np.var(inst_mat[:, i])
-            )
+    if data.shape[0] < 2:
+        return np.array([]).reshape(0, 4)
 
-        sum_term.append(inst_dict)
+    # Optimal PCA components selection
+    n_components = min(50, data.shape[1], data.shape[0] - 1)
+    if data.shape[1] > n_components:
+        data = PCA(n_components=n_components, random_state=42).fit_transform(data)
 
-    sum_term = sorted(sum_term, key=itemgetter("rank"), reverse=False)
+    # Single UMAP transformation
+    umap_data = umap.UMAP(
+        metric=dist_type,
+        n_neighbors=min(5, data.shape[0] - 1),
+        min_dist=0.0,
+        n_components=2,
+        random_state=42,
+    ).fit_transform(data)
 
-    tmp_sort_nodes = [inst_dict["name"] for inst_dict in sum_term]
+    # Store results efficiently
+    net.umap[axis] = pd.DataFrame(umap_data.T, index=["x", "y"], columns=net.dat["nodes"][axis])
 
-    return [tmp_sort_nodes.index(inst_node) for inst_node in tmp_nodes]
+    # Direct clustering
+    return (
+        hdbscan.HDBSCAN(min_samples=min_samples, min_cluster_size=min_cluster_size)
+        .fit(umap_data)
+        .single_linkage_tree_.to_numpy()
+    )
+
+
+def _cluster_fastcluster(distance_matrix: DistanceMatrix, linkage_type: str) -> LinkageMatrix:
+    """Fastcluster with lazy import."""
+    import fastcluster
+
+    return fastcluster.linkage(distance_matrix, method=linkage_type)

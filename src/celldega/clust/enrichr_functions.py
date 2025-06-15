@@ -1,188 +1,267 @@
-def add_enrichr_cats(df, inst_rc, run_enrichr, num_terms=10):
-    from copy import deepcopy
+"""
+Enrichment analysis functions for gene set enrichment using Enrichr API.
 
-    tmp_gene_list = deepcopy(df.index.tolist())
+This module provides functionality to:
+- Submit gene lists to Enrichr API
+- Retrieve enrichment results
+- Process enrichment data for clustering
+- Add enrichment categories to dataframes
+"""
 
-    gene_list = (
-        [inst_tuple[0] for inst_tuple in tmp_gene_list]
-        if isinstance(tmp_gene_list[0], tuple)
-        else tmp_gene_list
-    )
+from copy import deepcopy
+import json
+import math
+import time
+from typing import Any
 
-    orig_gene_list = deepcopy(gene_list)
-
-    # set up for non-tuple case first
-    if ": " in gene_list[0]:
-        # strip titles
-        gene_list = [inst_gene.split(": ")[1] for inst_gene in gene_list]
-
-    # strip extra information (e.g. PTMs)
-    gene_list = [inst_gene.split("_")[0] for inst_gene in gene_list]
-    gene_list = [inst_gene.split(" ")[0] for inst_gene in gene_list]
-    gene_list = [inst_gene.split("-")[0] for inst_gene in gene_list]
-
-    user_list_id = post_request(gene_list)
-
-    enr, response_list = get_request(run_enrichr, user_list_id, max_terms=20)
-
-    # p-value, adjusted pvalue, z-score, combined score, genes
-    # 1: Term
-    # 2: P-value
-    # 3: Z-score
-    # 4: Combined Score
-    # 5: Genes
-    # 6: pval_bh
-
-    # while generating categories store as list of lists, then convert to list of
-    # tuples
-
-    bar_info = []
-    cat_list = [[inst_gene] for inst_gene in orig_gene_list]
-
-    for inst_enr in response_list[:num_terms]:
-        inst_term = inst_enr[1]
-        inst_pval = inst_enr[2]
-        inst_cs = inst_enr[4]
-        inst_list = inst_enr[5]
-
-        pval_string = f"<p> Pval {inst_pval}</p>"
-
-        bar_info.append(inst_cs)
-
-        for inst_info in cat_list:
-            # strip titles
-            gene_name = inst_info[0]
-
-            if ": " in gene_name:
-                gene_name = gene_name.split(": ")[1]
-
-            # strip extra information (e.g. PTMs)
-            gene_name = gene_name.split("_")[0]
-            gene_name = gene_name.split(" ")[0]
-            gene_name = gene_name.split("-")[0]
-
-            result_str = (
-                f"{inst_term}: True{pval_string}"
-                if gene_name in inst_list
-                else f"{inst_term}: False{pval_string}"
-            )
-            inst_info.append(result_str)
-
-    cat_list = [tuple(x) for x in cat_list]
-
-    df.index = cat_list
-
-    return df, bar_info
+import numpy as np
+import pandas as pd
+import requests
+from requests.exceptions import RequestException, Timeout
 
 
-def clust_from_response(response_list):
-    from copy import deepcopy
-    import math
+def add_enrichr_cats(
+    df: pd.DataFrame, inst_rc: str, run_enrichr: str, num_terms: int = 10
+) -> tuple[pd.DataFrame, list[float]]:
+    """
+    Add Enrichr gene enrichment categories to DataFrame index.
 
+    Args:
+        df: DataFrame with genes as index
+        inst_rc: Analysis axis (currently only 'row' supported)
+        run_enrichr: Enrichr library name for enrichment analysis
+        num_terms: Maximum number of enrichment terms to include
+
+    Returns:
+        Tuple of (modified DataFrame with enrichment categories, combined scores)
+    """
+    # Extract and clean gene names from DataFrame index
+    gene_names = _extract_gene_names(df.index.tolist())
+    original_genes = deepcopy(gene_names)
+    cleaned_genes = _clean_gene_names(gene_names)
+
+    # Submit to Enrichr and get results
+    user_list_id = post_request(cleaned_genes)
+    _, response_list = get_request(run_enrichr, user_list_id, max_terms=20)
+
+    # Process enrichment results and update DataFrame
+    return _process_enrichment_results(response_list[:num_terms], original_genes, df)
+
+
+def _extract_gene_names(index_list: list[Any]) -> list[str]:
+    """Extract gene names from DataFrame index, handling tuples."""
+    if not index_list:
+        return []
+
+    if isinstance(index_list[0], tuple):
+        return [item[0] for item in index_list]
+    return index_list
+
+
+def _clean_gene_names(gene_names: list[str]) -> list[str]:
+    """Clean gene names by removing titles and modifiers."""
+    if not gene_names:
+        return []
+
+    cleaned = gene_names[:]
+
+    # Remove titles (e.g., "Gene: BRCA1" -> "BRCA1")
+    if cleaned and ": " in cleaned[0]:
+        cleaned = [gene.split(": ", 1)[1] for gene in cleaned]
+
+    # Remove common modifiers (PTMs, variants, etc.)
+    separators = ["_", " ", "-"]
+    for i, gene in enumerate(cleaned):
+        for separator in separators:
+            if separator in gene:
+                cleaned[i] = gene.split(separator, 1)[0]
+                break
+
+    return cleaned
+
+
+def _process_enrichment_results(
+    enrichment_terms: list[list[Any]], original_genes: list[str], df: pd.DataFrame
+) -> tuple[pd.DataFrame, list[float]]:
+    """Process enrichment results and add categories to DataFrame."""
+    combined_scores = []
+
+    # Pre-create cleaned gene lookup for O(1) access
+    cleaned_gene_lookup = {gene: _clean_gene_names([gene])[0] for gene in original_genes}
+
+    # Initialize gene categories more efficiently
+    categorized_genes = [[gene] for gene in original_genes]
+
+    for term_data in enrichment_terms:
+        term_name = term_data[1]
+        p_value = term_data[2]
+        combined_score = term_data[4]
+        enriched_genes_set = set(term_data[5])
+
+        p_value_html = f"<p> Pval {p_value}</p>"
+        combined_scores.append(combined_score)
+
+        # Single pass through genes with O(1) enrichment lookup
+        for i, gene_data in enumerate(categorized_genes):
+            cleaned_gene = cleaned_gene_lookup[gene_data[0]]
+            enrichment_status = "True" if cleaned_gene in enriched_genes_set else "False"
+            gene_data.append(f"{term_name}: {enrichment_status}{p_value_html}")
+
+    # Update DataFrame with new categorized index
+    df.index = [tuple(gene_data) for gene_data in categorized_genes]
+    return df, combined_scores
+
+
+def clust_from_response(response_list: list[list[Any]]) -> Any:
+    """
+    Create clustering network from Enrichr response data.
+
+    Args:
+        response_list: Raw response data from Enrichr API
+
+    Returns:
+        Network object with clustering visualization data
+    """
+    # Local import to avoid dependency issues
     from clustergrammer import Network
-    import pandas as pd
-    import scipy
 
-    # print('----------------------')
-    # print('enrichr_clust_from_response')
-    # print('----------------------')
+    # Convert response to structured format and filter valid terms
+    enrichment_data = transfer_to_enr_dict(response_list)
+    valid_terms = [term for term in enrichment_data if term["combined_score"] > 0]
 
-    ini_enr = transfer_to_enr_dict(response_list)
+    if not valid_terms:
+        return Network()
 
-    enr = []
-    scores = {}
-    score_types = ["combined_score", "pval", "zscore"]
+    # Calculate normalized scores and build network
+    score_series = _calculate_enrichment_scores(valid_terms)
+    return _build_clustering_network(valid_terms, score_series)
 
-    for score_type in score_types:
-        scores[score_type] = pd.Series()
 
-    for inst_enr in ini_enr:
-        if inst_enr["combined_score"] > 0:
-            # make series of enriched terms with scores
-            for score_type in score_types:
-                # collect the scores of the enriched terms
-                if score_type == "combined_score":
-                    scores[score_type][inst_enr["name"]] = inst_enr[score_type]
-                elif score_type == "pval":
-                    scores[score_type][inst_enr["name"]] = -math.log(inst_enr[score_type])
-                elif score_type == "zscore":
-                    scores[score_type][inst_enr["name"]] = -inst_enr[score_type]
+def _calculate_enrichment_scores(enrichment_terms: list[dict[str, Any]]) -> dict[str, pd.Series]:
+    """Calculate and normalize enrichment scores."""
+    if not enrichment_terms:
+        return {
+            "combined_score": pd.Series(dtype=float),
+            "pval": pd.Series(dtype=float),
+            "zscore": pd.Series(dtype=float),
+        }
 
-            # keep enrichment values
-            enr.append(inst_enr)
+    # Extract all data at once instead of iterating multiple times
+    term_names = [term["name"] for term in enrichment_terms]
+    combined_scores = [term["combined_score"] for term in enrichment_terms]
+    pvals = [term["pval"] for term in enrichment_terms]
+    zscores = [term["zscore"] for term in enrichment_terms]
 
-    # sort and normalize the scores
-    for score_type in score_types:
-        scores[score_type] = scores[score_type] / scores[score_type].max()
-        scores[score_type].sort_values(ascending=False)
+    # Create series efficiently
+    scores = {
+        "combined_score": pd.Series(combined_scores, index=term_names),
+        "pval": pd.Series([-math.log(pval) for pval in pvals], index=term_names),
+        "zscore": pd.Series([-zscore for zscore in zscores], index=term_names),
+    }
 
-    number_of_enriched_terms = len(scores["combined_score"])
+    # Vectorized normalization and sorting
+    for score_type, series in scores.items():
+        if len(series) > 0:
+            max_score = series.max()
+            if max_score > 0:
+                scores[score_type] = series / max_score
+            scores[score_type] = scores[score_type].sort_values(ascending=False)
 
-    enr_score_types = ["combined_score", "pval", "zscore"]
+    return scores
 
-    if number_of_enriched_terms < 10:
-        num_dict = {"ten": 10}
-    elif number_of_enriched_terms < 20:
-        num_dict = {"ten": 10, "twenty": 20}
-    else:
-        num_dict = {"ten": 10, "twenty": 20, "thirty": 30}
 
-    # gather lists of top scores
-    top_terms = {}
-    for enr_type in enr_score_types:
-        top_terms[enr_type] = {}
-        for num_terms in list(num_dict.keys()):
-            inst_num = num_dict[num_terms]
-            top_terms[enr_type][num_terms] = scores[enr_type].index.tolist()[:inst_num]
+def _build_clustering_network(
+    enrichment_terms: list[dict[str, Any]], score_series: dict[str, pd.Series]
+) -> Any:
+    """Build clustering network from enrichment data."""
+    # Determine term count thresholds
+    num_terms = len(enrichment_terms)
+    term_counts = {"ten": 10}
+    if num_terms >= 10:
+        term_counts["twenty"] = 20
+    if num_terms >= 20:
+        term_counts["thirty"] = 30
 
-    # gather the terms that should be kept - they are at the top of the score list
-    keep_terms = []
-    for inst_enr_score in top_terms:
-        for tmp_num in list(num_dict.keys()):
-            keep_terms.extend(top_terms[inst_enr_score][tmp_num])
+    # Get top terms for each score type and threshold
+    top_terms = {
+        score_type: {
+            count_name: series.index.tolist()[:count_value]
+            for count_name, count_value in term_counts.items()
+        }
+        for score_type, series in score_series.items()
+    }
 
-    keep_terms = list(set(keep_terms))
+    # Collect unique terms to keep
+    keep_terms = set()
+    for score_dict in top_terms.values():
+        for term_list in score_dict.values():
+            keep_terms.update(term_list)
 
-    # keep enriched terms that are at the top 10 based on at least one score
-    keep_enr = [inst_enr for inst_enr in enr if inst_enr["name"] in keep_terms]
+    # Filter enrichment terms and create network
+    filtered_terms = [term for term in enrichment_terms if term["name"] in keep_terms]
+    return _create_network_matrix(filtered_terms, score_series, top_terms, term_counts)
 
-    # fill in full matrix
-    #######################
 
-    # genes
-    row_node_names = []
-    # enriched terms
-    col_node_names = []
+def _create_network_matrix(
+    enrichment_terms: list[dict[str, Any]],
+    score_series: dict[str, pd.Series],
+    top_terms: dict[str, dict[str, list[str]]],
+    term_counts: dict[str, int],
+) -> Any:
+    """Create and populate network matrix from enrichment data."""
+    # Local import to avoid dependency issues
+    from clustergrammer import Network
 
-    # gather information from the list of enriched terms
-    for inst_enr in keep_enr:
-        col_node_names.append(inst_enr["name"])
-        row_node_names.extend(inst_enr["int_genes"])
+    # Extract genes and terms
+    all_genes = set()
+    term_names = []
 
-    row_node_names = sorted(set(row_node_names))
+    for term in enrichment_terms:
+        term_names.append(term["name"])
+        all_genes.update(term["int_genes"])
 
+    gene_names = sorted(all_genes)
+
+    # Create lookup dictionaries for O(1) index access
+    gene_to_idx = {gene: idx for idx, gene in enumerate(gene_names)}
+    term_to_idx = {term: idx for idx, term in enumerate(term_names)}
+
+    # Initialize network structure
     net = Network()
-    net.dat["nodes"]["row"] = row_node_names
-    net.dat["nodes"]["col"] = col_node_names
-    net.dat["mat"] = scipy.zeros([len(row_node_names), len(col_node_names)])
+    net.dat["nodes"]["row"] = gene_names
+    net.dat["nodes"]["col"] = term_names
+    net.dat["mat"] = np.zeros([len(gene_names), len(term_names)])
+    net.dat["node_info"] = {"col": {"value": []}}
 
-    for inst_enr in keep_enr:
-        inst_term = inst_enr["name"]
-        col_index = col_node_names.index(inst_term)
+    # Populate matrix with O(1) lookups
+    for term in enrichment_terms:
+        term_name = term["name"]
+        col_idx = term_to_idx[term_name]
 
-        # use combined score for full matrix - will not be seen in viz
-        tmp_score = scores["combined_score"][inst_term]
-        net.dat["node_info"]["col"]["value"].append(tmp_score)
+        # Use combined score for full matrix - will not be seen in viz
+        combined_score = score_series["combined_score"][term_name]
+        net.dat["node_info"]["col"]["value"].append(combined_score)
 
-        for inst_gene in inst_enr["int_genes"]:
-            row_index = row_node_names.index(inst_gene)
+        # Mark gene associations with O(1) lookups
+        for gene in term["int_genes"]:
+            if gene in gene_to_idx:
+                row_idx = gene_to_idx[gene]
+                net.dat["mat"][row_idx, col_idx] = 1
 
-            # save association
-            net.dat["mat"][row_index, col_index] = 1
+    # Perform clustering and create views
+    _perform_clustering(net, score_series, top_terms, term_counts)
+    return net
 
-    # cluster full matrix
-    #############################
-    # do not make multiple views
+
+def _perform_clustering(
+    net: Any,
+    score_series: dict[str, pd.Series],
+    top_terms: dict[str, dict[str, list[str]]],
+    term_counts: dict[str, int],
+) -> None:
+    """Perform clustering on network and create score-based views."""
+    # Cluster full matrix
+    # Do not make multiple views
     views = [""]
 
     if len(net.dat["nodes"]["row"]) > 1:
@@ -190,171 +269,259 @@ def clust_from_response(response_list):
     else:
         net.cluster(dist_type="jaccard", views=views, dendro=False, run_clustering=False)
 
-    # get dataframe from full matrix
+    # Get dataframe from full matrix
     df = net.dat_to_df()
 
-    for score_type in score_types:
-        for num_terms in num_dict:
-            inst_df = deepcopy(df)
-            inst_net = deepcopy(Network())
-
-            inst_df = inst_df[top_terms[score_type][num_terms]]
-
-            # load back into net
-            inst_net.df_to_dat(inst_df)
-
-            # make views
-            if len(net.dat["nodes"]["row"]) > 1:
-                inst_net.cluster(dist_type="jaccard", views=["N_row_sum"], dendro=False)
-            else:
-                inst_net.cluster(
-                    dist_type="jaccard", views=["N_row_sum"], dendro=False, run_clustering=False
-                )
-
-            inst_views = inst_net.viz["views"]
-
-            # add score_type to views
-            for inst_view in inst_views:
-                inst_view["N_col_sum"] = num_dict[num_terms]
-
-                inst_view["enr_score_type"] = score_type
-
-                # add values to col_nodes and order according to rank
-                for inst_col in inst_view["nodes"]["col_nodes"]:
-                    inst_col["rank"] = len(top_terms[score_type][num_terms]) - top_terms[
-                        score_type
-                    ][num_terms].index(inst_col["name"])
-
-                    inst_name = inst_col["name"]
-                    inst_col["value"] = scores[score_type][inst_name]
-
-            # add views to main network
-            net.viz["views"].extend(inst_views)
-
-    return net
+    # Create views for different score types and term counts
+    for score_type in score_series:
+        for count_name in term_counts:
+            term_list = top_terms[score_type][count_name]
+            _create_score_view(
+                net,
+                df,
+                score_type,
+                count_name,
+                term_list,
+                term_counts[count_name],
+                score_series[score_type],
+                len(net.dat["nodes"]["row"]) > 1,
+            )
 
 
-# make the get request to enrichr using the requests library
-# this is done before making the get request with the lib name
-def post_request(input_genes, meta=""):
-    # get metadata
-    import json
+def _create_score_view(
+    net: Any,
+    df: pd.DataFrame,
+    score_type: str,
+    count_name: str,
+    term_list: list[str],
+    count_value: int,
+    score_series: pd.Series,
+    should_cluster: bool,
+) -> None:
+    """Create a single score-based view for the network."""
+    # Local import to avoid dependency issues
+    from copy import deepcopy
 
-    import requests
+    from clustergrammer import Network
 
-    # stringify list
-    input_genes = "\n".join(input_genes)
+    if not term_list:
+        return
 
-    # define post url
-    post_url = "http://amp.pharm.mssm.edu/Enrichr/addList"
+    # Create subset and new network
+    inst_df = deepcopy(df)
+    inst_net = deepcopy(Network())
 
-    # define parameters
-    params = {"list": input_genes, "description": ""}
+    inst_df = inst_df[term_list]
 
-    # make request: post the gene list
-    post_response = requests.post(post_url, files=params)
+    # Load back into net
+    inst_net.df_to_dat(inst_df)
 
-    # load json
-    inst_dict = json.loads(post_response.text)
-    # print(user_list_id)
+    # Make views
+    if should_cluster:
+        inst_net.cluster(dist_type="jaccard", views=["N_row_sum"], dendro=False)
+    else:
+        inst_net.cluster(
+            dist_type="jaccard", views=["N_row_sum"], dendro=False, run_clustering=False
+        )
 
-    # return the user_list_id that is needed to reference the list later
+    inst_views = inst_net.viz["views"]
+
+    # Create lookup dictionary for term positions
+    term_to_rank = {term: len(term_list) - idx for idx, term in enumerate(term_list)}
+
+    # Add score_type to views
+    for inst_view in inst_views:
+        inst_view["N_col_sum"] = count_value
+        inst_view["enr_score_type"] = score_type
+
+        # Add values to col_nodes and order according to rank
+        for inst_col in inst_view["nodes"]["col_nodes"]:
+            inst_name = inst_col["name"]
+            inst_col["rank"] = term_to_rank[inst_name]
+            inst_col["value"] = score_series[inst_name]
+
+    # Add views to main network
+    net.viz["views"].extend(inst_views)
+
+
+def post_request(input_genes: list[str], meta: str = "") -> str:
+    """
+    Submit gene list to Enrichr API.
+
+    Args:
+        input_genes: List of gene symbols
+        meta: Metadata (unused but preserved for compatibility)
+
+    Returns:
+        User list ID for subsequent requests
+    """
+    # Input validation
+    if not input_genes:
+        raise ValueError("Gene list cannot be empty")
+
+    if not isinstance(input_genes, list):
+        raise TypeError("input_genes must be a list")
+
+    # Stringify list
+    input_genes_str = "\n".join(input_genes)
+
+    # Define post url
+    post_url = "https://maayanlab.cloud/Enrichr/addList"
+
+    # Define parameters
+    params = {"list": input_genes_str, "description": ""}
+
+    try:
+        # Make request: post the gene list
+        post_response = requests.post(post_url, files=params, timeout=30)
+        post_response.raise_for_status()
+    except Timeout as e:
+        raise Timeout("Request to Enrichr API timed out") from e
+    except RequestException as e:
+        raise RequestException(f"Failed to submit gene list to Enrichr: {e}") from e
+
+    # Load json
+    try:
+        inst_dict = json.loads(post_response.text)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Invalid response from Enrichr API: {e}") from e
+
+    if "userListId" not in inst_dict:
+        raise ValueError("Enrichr API response missing userListId")
+
+    # Return the user_list_id that is needed to reference the list later
     return str(inst_dict["userListId"])
 
 
-# make the get request to enrichr using the requests library
-# this is done after submitting post request with the input gene list
-def get_request(lib, user_list_id, max_terms=50):
-    import json
+def get_request(
+    lib: str, user_list_id: str | int, max_terms: int = 50
+) -> tuple[list[dict[str, Any]], list[list[Any]]]:
+    """
+    Retrieve enrichment results from Enrichr API.
 
-    import requests
+    Args:
+        lib: Enrichr library name
+        user_list_id: User list ID from post_request
+        max_terms: Maximum number of terms to return
 
-    # convert user_list_id to string
-    user_list_id = str(user_list_id)
+    Returns:
+        Tuple of (processed enrichment data, raw response list)
+    """
+    # Input validation
+    if not lib:
+        raise ValueError("Library name cannot be empty")
 
-    # define the get url
-    get_url = "http://amp.pharm.mssm.edu/Enrichr/enrich"
+    if not user_list_id:
+        raise ValueError("User list ID cannot be empty")
 
-    # get parameters
-    params = {"backgroundType": lib, "userListId": user_list_id}
+    # Make request with retry logic
+    url = "https://maayanlab.cloud/Enrichr/enrich"
+    params = {"backgroundType": lib, "userListId": str(user_list_id)}
+    response_data = _make_enrichr_request_with_retry(url, params)
 
-    # try get request until status code is 200
-    inst_status_code = 400
+    # Process and return results
+    enrichment_dict = transfer_to_enr_dict(response_data, max_terms)
+    return enrichment_dict, response_data
 
-    # wait until okay status code is returned
+
+def _make_enrichr_request_with_retry(
+    url: str, params: dict[str, str], max_retries: int = 100
+) -> list[list[Any]]:
+    """Make request to Enrichr API with exponential backoff retry logic."""
+    base_delay = 0.5
+    inst_status_code = 400  # Start with 400 to enter loop
     num_try = 0
 
-    # print(('\tEnrichr enrichment get req user_list_id: '+str(user_list_id)))
-
-    while inst_status_code == 400 and num_try < 100:
+    while inst_status_code == 400 and num_try < max_retries:
         num_try += 1
+
+        # Add exponential backoff delay (skip first attempt)
+        if num_try > 1:
+            delay = min(base_delay * (2 ** (num_try - 2)), 30)
+            time.sleep(delay)
+
         try:
-            # make the get request to get the enrichr results
+            response = requests.get(url, params=params, timeout=30)
+            inst_status_code = response.status_code
 
-            try:
-                get_response = requests.get(get_url, params=params)
+            # Handle non-200, non-400 status codes immediately
+            if inst_status_code != 400 and inst_status_code != 200:
+                raise RequestException(f"Enrichr API returned status code: {inst_status_code}")
 
-                # get status_code
-                inst_status_code = get_response.status_code
+            # Process successful response
+            if inst_status_code == 200:
+                try:
+                    response_json = json.loads(response.text)
+                except json.JSONDecodeError as e:
+                    raise ValueError(f"Invalid JSON response from Enrichr API: {e}") from e
 
-            except Exception:
-                print("retry get request")
+                if not response_json:
+                    raise ValueError("Empty response from Enrichr API")
 
-        except Exception:
-            print("get requests failed")
+                # Extract and return data
+                library_key = next(iter(response_json.keys()))
+                return response_json[library_key]
 
-    # load as dictionary
-    resp_json = json.loads(get_response.text)
+        except Timeout:
+            print(f"Request timeout on attempt {num_try}, retrying...")
+            inst_status_code = 400  # Continue retrying on timeout
+            continue
+        except RequestException:
+            # For RequestException (non-400 status codes), re-raise immediately
+            raise
+        except Exception as e:
+            print(f"Unexpected error on attempt {num_try}: {e}")
+            # For other exceptions (JSON decode errors, etc.), re-raise immediately
+            raise
 
-    # get the key
-    only_key = next(iter(resp_json.keys()))
-
-    # get response_list
-    response_list = resp_json[only_key]
-
-    # transfer the response_list to the enr_dict
-    enr = transfer_to_enr_dict(response_list, max_terms)
-
-    # return enrichment json and user_list_id
-    return enr, response_list
+    raise RequestException(f"Failed to get valid response after {max_retries} attempts")
 
 
-# transfer the response_list to a list of dictionaries
-def transfer_to_enr_dict(response_list, max_terms=50):
-    # # reduce the number of enriched terms if necessary
-    # if len(response_list) < num_terms:
-    #   num_terms = len(response_list)
+def transfer_to_enr_dict(
+    response_list: list[list[Any]], max_terms: int = 50
+) -> list[dict[str, Any]]:
+    """
+    Convert Enrichr response list to structured dictionary format.
 
-    # p-value, adjusted pvalue, z-score, combined score, genes
-    # 1: Term
-    # 2: P-value
-    # 3: Z-score
-    # 4: Combined Score
-    # 5: Genes
-    # 6: pval_bh
+    Args:
+        response_list: Raw response from Enrichr API
+        max_terms: Maximum number of terms to process
 
-    num_enr_term = min(len(response_list), max_terms)
+    Returns:
+        List of enrichment term dictionaries
+    """
+    # Input validation
+    if not isinstance(response_list, list):
+        raise TypeError("response_list must be a list")
 
-    # transfer response_list to enr structure
-    # and only keep the top terms
-    #
-    # initialize enr
-    enr = []
-    for i in range(num_enr_term):
-        # get list element
-        inst_enr = response_list[i]
+    if not response_list:
+        return []
 
-        # initialize dict
-        inst_dict = {
-            "name": inst_enr[1],  # transfer term
-            "pval": inst_enr[2],  # transfer pval
-            "zscore": inst_enr[3],  # transfer zscore
-            "combined_score": inst_enr[4],  # transfer combined_score
-            "int_genes": inst_enr[5],  # transfer int_genes
-            "pval_bh": inst_enr[6],  # adjusted pval
-        }
+    # Process terms up to max_terms limit
+    num_terms = min(len(response_list), max_terms)
+    enrichment_data = []
 
-        # append dict
-        enr.append(inst_dict)
+    for i in range(num_terms):
+        term_data = response_list[i]
 
-    return enr
+        # Validate term structure
+        if not isinstance(term_data, list) or len(term_data) < 7:
+            print(f"Warning: Skipping malformed enrichment entry at index {i}")
+            continue
+
+        try:
+            enrichment_entry = {
+                "name": term_data[1],  # Term name
+                "pval": term_data[2],  # P-value
+                "zscore": term_data[3],  # Z-score
+                "combined_score": term_data[4],  # Combined score
+                "int_genes": term_data[5],  # Intersecting genes
+                "pval_bh": term_data[6],  # Adjusted p-value
+            }
+            enrichment_data.append(enrichment_entry)
+
+        except (IndexError, TypeError) as e:
+            print(f"Warning: Error processing enrichment entry at index {i}: {e}")
+            continue
+
+    return enrichment_data

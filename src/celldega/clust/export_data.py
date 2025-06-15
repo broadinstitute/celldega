@@ -1,15 +1,15 @@
+from copy import deepcopy
+import json
 from pathlib import Path
 
 
 def export_net_json(net, net_type, indent="no-indent"):
     """export json string of dat"""
-    from copy import deepcopy
-    import json
 
     if net_type == "dat":
         exp_dict = deepcopy(net.dat)
 
-        if type(exp_dict["mat"]) is not list:
+        if not isinstance(exp_dict["mat"], list):
             exp_dict["mat"] = exp_dict["mat"].tolist()
 
     elif net_type == "viz":
@@ -20,6 +20,11 @@ def export_net_json(net, net_type, indent="no-indent"):
 
     elif net_type == "sim_col":
         exp_dict = net.sim["col"]
+
+    else:
+        raise ValueError(
+            f"Invalid net_type: '{net_type}'. Must be one of: 'dat', 'viz', 'sim_row', 'sim_col'"
+        )
 
     return json.dumps(exp_dict, indent=2) if indent == "indent" else json.dumps(exp_dict)
 
@@ -38,17 +43,27 @@ def write_matrix_to_tsv(net, filename=None, df=None):
 
 
 def write_json_to_file(net, net_type, filename, indent="no-indent"):
-    exp_json = net.export_net_json(net_type, indent)
+    """Write network JSON to file with error handling."""
+    try:
+        exp_json = net.export_net_json(net_type, indent)
 
-    with Path.open(filename, "w") as fw:
-        fw.write(exp_json)
+        with Path(filename).open("w") as fw:
+            fw.write(exp_json)
+
+    except OSError as e:
+        raise OSError(f"Failed to write JSON to file '{filename}': {e}") from e
 
 
 def save_dict_to_json(inst_dict, filename, indent="no-indent"):
-    import json
+    """Save dictionary to JSON file with error handling."""
+    try:
+        with Path(filename).open("w") as fw:
+            if indent == "indent":
+                fw.write(json.dumps(inst_dict, indent=2))
+            else:
+                fw.write(json.dumps(inst_dict))
 
-    with Path.open(filename, "w") as fw:
-        if indent == "indent":
-            fw.write(json.dumps(inst_dict, indent=2))
-        else:
-            fw.write(json.dumps(inst_dict))
+    except OSError as e:
+        raise OSError(f"Failed to write JSON to file '{filename}': {e}") from e
+    except (TypeError, ValueError) as e:
+        raise ValueError(f"Failed to serialize dictionary to JSON: {e}") from e

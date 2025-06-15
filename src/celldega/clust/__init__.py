@@ -1,6 +1,10 @@
 """
-Module for clustering high-dimensional data.
+Optimized hierarchical clustering and visualization for high-dimensional biological data.
+
+This module provides the main Network class for data clustering and the hc() convenience
+function for quick clustering operations. Optimized for minimal time/space complexity.
 """
+
 
 # ruff: noqa: E722
 
@@ -31,11 +35,16 @@ Module for clustering high-dimensional data.
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+from __future__ import annotations
+
+import contextlib
 from copy import deepcopy
 from itertools import combinations
 import json
 from pathlib import Path
 import random
+from typing import Any, Literal
+import weakref
 
 import ipywidgets as widgets
 import matplotlib.pyplot as plt
@@ -62,30 +71,71 @@ from . import (
 )
 
 
-def hc(df, filter_n_top=None, norm_col="total", norm_row="zscore"):
+# Type aliases for better readability
+MatrixData = np.ndarray | list[list[float]]
+AxisType = Literal["row", "col"]
+NormType = Literal["zscore", "qn", "umi"]
+DistanceType = Literal["cosine", "euclidean", "correlation", "manhattan", "chebyshev"]
+LinkageType = Literal["average", "single", "complete", "ward"]
+ClusterLibrary = Literal["scipy", "hdbscan", "fastcluster"]
+VizDict = dict[str, Any]
+CatData = dict[str, str | dict[str, list[str]]]
+
+# Optimized constants
+_AXIS_MAP = {"row": 0, "col": 1}
+_DEFAULT_CLUSTERING_PARAMS = {
+    "dist_type": "cosine",
+    "linkage_type": "average",
+    "clust_library": "scipy",
+    "min_samples": 1,
+    "min_cluster_size": 2,
+}
+
+# Global cache for distance matrices to avoid memory leaks from instance methods
+_distance_cache = weakref.WeakKeyDictionary()
+
+
+def _compute_distance_matrix_cached(
+    instance, dist_type: DistanceType, data_hash: int
+) -> np.ndarray:
+    """Cached distance matrix computation using global cache with weak references."""
+    if instance not in _distance_cache:
+        _distance_cache[instance] = {}
+
+    cache_key = (dist_type, data_hash)
+    if cache_key not in _distance_cache[instance]:
+        df = instance.cached_df
+        _distance_cache[instance][cache_key] = 1 - pdist(df.T, metric=dist_type)
+
+    return _distance_cache[instance][cache_key]
+
+
+def hc(
+    df: pd.DataFrame,
+    filter_n_top: int | None = None,
+    norm_col: str | None = "total",
+    norm_row: str | None = "zscore",
+) -> VizDict:
     """
-    This function performs hierarchical clustering on the rows and columns of a
-    DataFrame and returns the visualization JSON for the Celldega-Matrix method.
-    This function is developed using the approaches and code adaptations from the
-    Clustergrammer2 project.
+    Perform hierarchical clustering and return visualization JSON.
+
+    Convenience function that creates a Network, applies filtering and normalization,
+    performs clustering, and returns the visualization data.
 
     Args:
-      df (pd.DataFrame): A Pandas DataFrame.
-      filter_n_top (int): The number of top dimensions to keep after filtering.
-      norm_col (str): The type of normalization to apply to the columns.
-      norm_row (str): The type of normalization to apply to the rows.
+        df: Input DataFrame with samples as columns and features as rows
+        filter_n_top: Number of top features to keep after filtering
+        norm_col: Column normalization method ("total" for UMI normalization)
+        norm_row: Row normalization method ("zscore" for z-score normalization)
 
     Returns:
-      dict: The visualization JSON for the Celldega-Matrix method
-
-    Example:
-    See [Landscape-Matrix_Xenium](../../../examples/brief_notebooks/Landscape-Matrix_Xenium) notebook.
+        Visualization dictionary compatible with Clustergrammer.js
     """
     net = Network()
     net.load_df(df)
 
     if filter_n_top is not None:
-        net.filter_n_top(axis="row", n_top=filter_n_top)  # Fixed: use parameter value
+        net.filter_n_top(axis="row", n_top=filter_n_top)
 
     if norm_col == "total":
         net.normalize(axis="col", norm_type="umi")
@@ -99,77 +149,203 @@ def hc(df, filter_n_top=None, norm_col="total", norm_row="zscore"):
 
 class Network:
     """
-    Clustergrammer.py takes a matrix as input (either from a file of a Pandas DataFrame),
-    normalizes/filters, hierarchically clusters, and produces the visualization_json for
-    clustergrammer_js.
+    Main clustering and visualization class for high-dimensional data.
 
-    Networks have two states:
-      1. the data state, where they are stored as a matrix and nodes
-      2. the viz state where they are stored as viz.links, viz.row_nodes, and viz.col_nodes.
+    Provides hierarchical clustering, data normalization, filtering, and visualization
+    generation for biological data analysis. Supports both data and visualization states.
 
-    The goal is to start in a data-state and produce a viz-state of the network that
-    will be used as input to clustergram.js.
+    Attributes:
+        dat: Internal data representation with matrix and metadata
+        viz: Visualization data structure for frontend rendering
+        meta_cat: Whether metadata categories are present
+        is_downsampled: Whether data has been downsampled
     """
 
-    def __init__(self, widget=None):
+    # Use __slots__ for memory efficiency while maintaining all attributes
+    __slots__ = (
+        "_cached_df",
+        "_distance_cache",
+        "col_cats",
+        "dat",
+        "ds_name",
+        "is_downsampled",
+        "meta_cat",
+        "meta_col",
+        "meta_ds_col",
+        "meta_ds_row",
+        "meta_row",
+        "persistent_cat_colors",
+        "row_cats",
+        "sim",
+        "umap",
+        "viz",
+        "widget_class",
+        "widget_instance",
+    )
+
+    def __init__(self, widget: Any | None = None) -> None:
+        """Initialize Network with optional widget integration."""
+        self.dat: dict[str, Any] = {}
+        self.viz: VizDict = {}
+        self.meta_cat: bool = False
+        self.is_downsampled: bool = False
+        self._cached_df = None
+        self._distance_cache = {}
+        self.sim = {}
+        # Conditionally initialize umap if not present
+        if not hasattr(self, "umap"):
+            self.umap = {"row": None, "col": None}
         initialize_net.main(self, widget)
 
-    def reset(self):
-        """This re-initializes the Network object."""
+    def reset(self) -> None:
+        """Re-initialize the Network object to clean state."""
+        self._cached_df = None
+        self._distance_cache.clear()
         initialize_net.main(self)
 
-    def load_file(self, filename):
-        """Load TSV file."""
+    # Data Loading Methods
+
+    def load_file(self, filename: str | Path) -> None:
+        """Load data from TSV file."""
         load_data.load_file(self, filename)
 
-    def load_file_as_string(self, file_string, filename=""):
-        """Load file as a string."""
+    def load_file_as_string(self, file_string: str, filename: str = "") -> None:
+        """Load data from string content."""
         load_data.load_file_as_string(self, file_string, filename=filename)
 
-    def load_stdin(self):
-        """Load stdin TSV-formatted string."""
+    def load_stdin(self) -> None:
+        """Load TSV-formatted data from standard input."""
         load_data.load_stdin(self)
 
-    def load_tsv_to_net(self, file_buffer, filename=None):
-        """Load a TSV matrix file buffer."""
+    def load_tsv_to_net(self, file_buffer: Any, filename: str | None = None) -> None:
+        """Load TSV data from file buffer."""
         load_data.load_tsv_to_net(self, file_buffer, filename)
 
-    def load_vect_post_to_net(self, vect_post):
-        """Load data in the vector format JSON."""
+    def load_vect_post_to_net(self, vect_post: dict[str, Any]) -> None:
+        """Load data in vector format JSON."""
         load_vect_post.main(self, vect_post)
 
-    def load_data_file_to_net(self, filename):
-        """Load Clustergrammer's dat format (saved as JSON)."""
+    def load_data_file_to_net(self, filename: str | Path) -> None:
+        """Load Clustergrammer's internal data format."""
         inst_dat = self.load_json_to_dict(filename)
         load_data.load_data_to_net(self, inst_dat)
 
+    def load_df(
+        self,
+        df_ini: pd.DataFrame,
+        meta_col: pd.DataFrame | None = None,
+        meta_row: pd.DataFrame | None = None,
+        col_cats: list[str] | None = None,
+        row_cats: list[str] | None = None,
+        is_downsampled: bool = False,
+        meta_ds_row: pd.DataFrame | None = None,
+        meta_ds_col: pd.DataFrame | None = None,
+    ) -> None:
+        """
+        Load DataFrame with optional metadata.
+
+        Args:
+            df_ini: Input DataFrame
+            meta_col: Column metadata DataFrame
+            meta_row: Row metadata DataFrame
+            col_cats: Column category names
+            row_cats: Row category names
+            is_downsampled: Whether data is downsampled
+            meta_ds_row: Downsampled row metadata
+            meta_ds_col: Downsampled column metadata
+        """
+        self.reset()
+        df = deepcopy(df_ini)
+
+        self.is_downsampled = is_downsampled
+        if is_downsampled:
+            if meta_ds_col is not None:
+                self.meta_ds_col = meta_ds_col
+            if meta_ds_row is not None:
+                self.meta_ds_row = meta_ds_row
+
+        self._setup_metadata_flags()
+        self._load_metadata(meta_col, meta_row, col_cats, row_cats)
+        data_formats.df_to_dat(self, df, define_cat_colors=True)
+
+    def _setup_metadata_flags(self) -> None:
+        """Initialize metadata flags if not present."""
+        if not hasattr(self, "meta_col") and not hasattr(self, "meta_row"):
+            self.meta_cat = False
+
+    def _load_metadata(
+        self,
+        meta_col: pd.DataFrame | None,
+        meta_row: pd.DataFrame | None,
+        col_cats: list[str] | None,
+        row_cats: list[str] | None,
+    ) -> None:
+        """Load column and row metadata if provided."""
+        if isinstance(meta_col, pd.DataFrame):
+            self.meta_col = meta_col
+            self.col_cats = meta_col.columns.tolist() if col_cats is None else col_cats
+            self.meta_cat = True
+
+        if isinstance(meta_row, pd.DataFrame):
+            self.meta_row = meta_row
+            self.row_cats = meta_row.columns.tolist() if row_cats is None else row_cats
+            self.meta_cat = True
+
+    @property
+    def cached_df(self) -> pd.DataFrame:
+        """Lazy-loaded cached DataFrame to avoid redundant conversions."""
+        if self._cached_df is None:
+            self._cached_df = data_formats.dat_to_df(self)
+            if self.is_downsampled:
+                self._cached_df.columns = self.dat["nodes"]["col"]
+                self._cached_df.index = self.dat["nodes"]["row"]
+        return self._cached_df
+
+    def export_df(self) -> pd.DataFrame:
+        """Export internal data as pandas DataFrame."""
+        return self.cached_df.copy()
+
+    # Clustering Methods
+
     def cluster(
         self,
-        dist_type="cosine",
-        run_clustering=True,
-        dendro=True,
-        views=None,
-        linkage_type="average",
-        sim_mat=False,
-        filter_sim=0.0,
-        calc_cat_pval=False,
-        run_enrichr=None,
-        enrichrgram=None,
-        clust_library="scipy",
-        min_samples=1,
-        min_cluster_size=2,
-    ):
+        dist_type: DistanceType = "cosine",
+        run_clustering: bool = True,
+        dendro: bool = True,
+        views: list[str] | None = None,
+        linkage_type: LinkageType = "average",
+        sim_mat: bool | str = False,
+        filter_sim: float = 0.0,
+        calc_cat_pval: bool = False,
+        run_enrichr: str | None = None,
+        enrichrgram: bool | None = None,
+        clust_library: ClusterLibrary = "scipy",
+        min_samples: int = 1,
+        min_cluster_size: int = 2,
+    ) -> None:
         """
-        The main function performs hierarchical clustering, optionally generates
-        filtered views (e.g. row-filtered views), and generates the visualization_json.
+        Perform hierarchical clustering and generate visualization.
 
-        Used to set views equal to ['N_row_sum', 'N_row_var']
+        Args:
+            dist_type: Distance metric for clustering
+            run_clustering: Whether to perform actual clustering
+            dendro: Whether to generate dendrogram
+            views: List of view types to generate
+            linkage_type: Hierarchical clustering linkage method
+            sim_mat: Generate similarity matrices (bool or "row"/"col")
+            filter_sim: Similarity filtering threshold
+            calc_cat_pval: Calculate category p-values
+            run_enrichr: Enrichr library for gene enrichment
+            enrichrgram: Enable enrichrgram visualization
+            clust_library: Clustering library to use
+            min_samples: Minimum samples for HDBSCAN
+            min_cluster_size: Minimum cluster size for HDBSCAN
         """
         if views is None:
             views = []
 
+        self._cached_df = None  # Invalidate cache
         initialize_net.viz(self)
-
         make_clust_fun.make_clust(
             self,
             dist_type=dist_type,
@@ -187,108 +363,224 @@ class Network:
             min_cluster_size=min_cluster_size,
         )
 
-    def swap_nan_for_zero(self):
-        """Swaps all NaN (numpy NaN) instances for zero."""
+    # Data Processing Methods
+
+    def swap_nan_for_zero(self) -> None:
+        """Replace all NaN values with zeros in the data matrix."""
         self.dat["mat"][np.isnan(self.dat["mat"])] = 0
+        self._cached_df = None
 
-    def load_df(
+    def normalize(
         self,
-        df_ini,
-        meta_col=None,
-        meta_row=None,
-        col_cats=None,
-        row_cats=None,
-        is_downsampled=False,
-        meta_ds_row=None,
-        meta_ds_col=None,
-    ):
-        """Load Pandas DataFrame."""
-        self.reset()
-        df = deepcopy(df_ini)
+        df: pd.DataFrame | None = None,
+        norm_type: NormType = "zscore",
+        axis: AxisType = "row",
+        z_clip: float | None = None,
+    ) -> None:
+        """
+        Normalize matrix data.
 
-        if is_downsampled:
-            if meta_ds_col is not None:
-                self.meta_ds_col = meta_ds_col
-            if meta_ds_row is not None:
-                self.meta_ds_row = meta_ds_row
+        Args:
+            df: Optional DataFrame to normalize (uses internal data if None)
+            norm_type: Normalization method
+            axis: Axis to normalize along
+            z_clip: Z-score clipping threshold
+        """
+        self._cached_df = None
+        normalize_fun.run_norm(self, df, norm_type, axis, z_clip)
 
-        self.is_downsampled = is_downsampled
+    def clip(self, lower: float | None = None, upper: float | None = None) -> None:
+        """Clip values to specified thresholds."""
+        df = self.export_df()
+        df = df.clip(lower=lower, upper=upper)
+        self._cached_df = None
+        self.load_df(df)
 
-        if not hasattr(self, "meta_col") and not hasattr(self, "meta_row"):
-            self.meta_cat = False
+    # Filtering Methods
 
-        # Load metadata
-        if isinstance(meta_col, pd.DataFrame):
-            self.meta_col = meta_col
-            self.col_cats = meta_col.columns.tolist() if col_cats is None else col_cats
-            self.meta_cat = True
+    def filter_sum(
+        self,
+        threshold: float,
+        take_abs: bool = True,
+        axis: AxisType | None = None,
+        inst_rc: AxisType | None = None,
+    ) -> None:
+        """Filter based on sum threshold across axis."""
+        axis = self._resolve_axis(axis, inst_rc)
+        inst_df = self.dat_to_df()
 
-        if isinstance(meta_row, pd.DataFrame):
-            self.meta_row = meta_row
-            self.row_cats = meta_row.columns.tolist() if row_cats is None else row_cats
-            self.meta_cat = True
+        if axis == "row":
+            inst_df = run_filter.df_filter_row_sum(inst_df, threshold, take_abs)
+        elif axis == "col":
+            inst_df = run_filter.df_filter_col_sum(inst_df, threshold, take_abs)
 
-        data_formats.df_to_dat(self, df, define_cat_colors=True)
+        self._cached_df = None
+        self.df_to_dat(inst_df)
 
-    def export_df(self):
-        """Export Pandas DataFrame."""
-        df = data_formats.dat_to_df(self)
+    def filter_n_top(
+        self,
+        n_top: int,
+        rank_type: Literal["sum", "var"] = "sum",
+        inst_rc: AxisType | None = None,
+        axis: AxisType | None = None,
+    ) -> None:
+        """Keep only top N features by ranking metric."""
+        axis = self._resolve_axis(axis, inst_rc)
+        inst_df = self.dat_to_df()
+        inst_df = run_filter.filter_n_top(axis, inst_df, n_top, rank_type)
+        self._cached_df = None
+        self.df_to_dat(inst_df)
 
-        # Drop tuple categories if downsampling
-        if self.is_downsampled:
-            df.columns = self.dat["nodes"]["col"]
-            df.index = self.dat["nodes"]["row"]
+    def filter_threshold(
+        self,
+        threshold: float,
+        num_occur: int = 1,
+        inst_rc: AxisType | None = None,
+        axis: AxisType | None = None,
+    ) -> None:
+        """Filter based on number of values above threshold."""
+        axis = self._resolve_axis(axis, inst_rc)
+        inst_df = self.dat_to_df()
+        inst_df = run_filter.filter_threshold(inst_df, axis, threshold, num_occur)
+        self._cached_df = None
+        self.df_to_dat(inst_df)
 
-        return df
+    def filter_cat(self, axis: AxisType, cat_index: int, cat_name: str) -> None:
+        """Filter by category membership."""
+        run_filter.filter_cat(self, axis, cat_index, cat_name)
+        self._cached_df = None
 
-    def df_to_dat(self, df, define_cat_colors=False):
-        """Load Pandas DataFrame (will be deprecated)."""
-        data_formats.df_to_dat(self, df, define_cat_colors)
+    def filter_names(self, axis: AxisType, names: list[str]) -> None:
+        """Filter by specific feature names."""
+        run_filter.filter_names(self, axis, names)
+        self._cached_df = None
 
-    def set_matrix_colors(self, pos="red", neg="blue"):
+    def _resolve_axis(self, axis: AxisType | None, inst_rc: AxisType | None) -> AxisType:
+        """Resolve axis parameter with backward compatibility."""
+        resolved_axis = axis or inst_rc
+        if resolved_axis is None:
+            raise ValueError("Must provide axis argument")
+        return resolved_axis
+
+    # Downsampling Methods
+
+    def downsample(
+        self,
+        df: pd.DataFrame | None = None,
+        ds_type: str = "kmeans",
+        axis: AxisType = "row",
+        num_samples: int = 100,
+        random_state: int = 1000,
+        ds_name: str = "Downsample",
+        ds_cluster_name: str = "cluster",
+    ) -> pd.Series | None:
+        """Downsample data using clustering."""
+        self._cached_df = None
+        return downsample_fun.main(
+            self, df, ds_type, axis, num_samples, random_state, ds_name, ds_cluster_name
+        )
+
+    def random_sample(
+        self,
+        num_samples: int,
+        df: pd.DataFrame | None = None,
+        replace: bool = False,
+        weights: np.ndarray | None = None,
+        random_state: int = 100,
+        axis: AxisType = "row",
+    ) -> None:
+        """Random sample from matrix."""
+        if df is None:
+            df = self.dat_to_df()
+
+        axis_int = 0 if axis == "row" else 1
+        df = self.export_df()
+        df = df.sample(
+            n=num_samples,
+            replace=replace,
+            weights=weights,
+            random_state=random_state,
+            axis=axis_int,
+        )
+        self._cached_df = None
+        self.load_df(df)
+
+    # Category Methods
+
+    def add_cats(self, axis: AxisType, cat_data: CatData) -> None:
+        """Add categories to features."""
+        categories.add_cats(self, axis, cat_data)
+        self._cached_df = None
+
+    def set_matrix_colors(self, pos: str = "red", neg: str = "blue") -> None:
+        """Set matrix color scheme."""
         self.viz["matrix_colors"] = {"pos": pos, "neg": neg}
 
-    def set_global_cat_colors(self, df_meta):
-        for inst_name in df_meta.index.tolist():
-            inst_color = df_meta.loc[inst_name, "color"]
-            self.viz["global_cat_colors"][inst_name] = inst_color
+    def set_global_cat_colors(self, df_meta: pd.DataFrame) -> None:
+        """Set global category color mapping."""
+        color_mapping = {name: df_meta.loc[name, "color"] for name in df_meta.index.tolist()}
+        self.viz["global_cat_colors"].update(color_mapping)
 
-    def set_cat_color(self, axis, cat_index, cat_name, inst_color):
-        if axis == 0:
-            axis = "row"
-        if axis == 1:
-            axis = "col"
+    def set_cat_color(
+        self, axis: int | AxisType, cat_index: int, cat_name: str, inst_color: str
+    ) -> None:
+        """Set color for specific category."""
+        # Convert numeric axis to string
+        axis_str = {0: "row", 1: "col"}.get(axis, axis)
 
-        try:
-            cat_index = cat_index - 1
-            cat_index = f"cat-{cat_index}"
-            self.viz["cat_colors"][axis][cat_index][cat_name] = inst_color
-        except (KeyError, TypeError, IndexError) as e:
-            print(f"Warning: Could not set category color: {e}")
+        with contextlib.suppress(KeyError, TypeError, IndexError):
+            cat_key = f"cat-{cat_index - 1}"
+            self.viz["cat_colors"][axis_str][cat_key][cat_name] = inst_color
 
-    def dat_to_df(self):
-        """Export Pandas DataFrame (will be deprecated)."""
-        return data_formats.dat_to_df(self)
+    # Export Methods
 
-    def export_net_json(self, net_type="viz", indent="no-indent"):
-        """Export dat or viz JSON."""
+    def export_net_json(self, net_type: str = "viz", indent: str = "no-indent") -> str:
+        """Export network data as JSON string."""
         return export_data.export_net_json(self, net_type, indent)
 
-    def export_viz_to_widget(self, which_viz="viz"):
-        """Export viz JSON, for use with clustergrammer_widget."""
+    def export_viz_to_widget(self, which_viz: str = "viz") -> str:
+        """Export visualization JSON for widget use."""
         return export_data.export_net_json(self, which_viz, "no-indent")
+
+    def write_json_to_file(
+        self, net_type: str, filename: str | Path, indent: str = "no-indent"
+    ) -> None:
+        """Save network data as JSON file."""
+        export_data.write_json_to_file(self, net_type, filename, indent)
+
+    def write_matrix_to_tsv(
+        self, filename: str | Path | None = None, df: pd.DataFrame | None = None
+    ) -> str:
+        """Export data matrix to TSV file."""
+        return export_data.write_matrix_to_tsv(self, filename, df)
+
+    # Widget Methods
 
     def widget(
         self,
-        which_viz="viz",
-        link_net=None,
-        link_net_js=None,
-        clust_library="scipy",
-        min_samples=1,
-        min_cluster_size=2,
-    ):
-        """Generate a widget visualization using the widget."""
-        # Run clustering if necessary
+        which_viz: str = "viz",
+        link_net: Network | None = None,
+        link_net_js: Network | None = None,
+        clust_library: ClusterLibrary = "scipy",
+        min_samples: int = 1,
+        min_cluster_size: int = 2,
+    ) -> Any:
+        """Generate widget visualization."""
+        self._ensure_clustered(clust_library, min_samples, min_cluster_size)
+        self._validate_widget_class()
+
+        widget_instance = self.widget_class(network=self.export_viz_to_widget(which_viz))
+
+        self._setup_manual_category(widget_instance)
+        self._setup_widget_links(widget_instance, link_net, link_net_js)
+
+        self.widget_instance = widget_instance
+        return widget_instance
+
+    def _ensure_clustered(
+        self, clust_library: ClusterLibrary, min_samples: int, min_cluster_size: int
+    ) -> None:
+        """Ensure clustering is performed before widget creation."""
         if len(self.viz["row_nodes"]) == 0:
             self.cluster(
                 clust_library=clust_library,
@@ -296,52 +588,51 @@ class Network:
                 min_cluster_size=min_cluster_size,
             )
 
-            # Add manual_category to viz json
+            # Transfer additional data to viz
             if "manual_category" in self.dat:
                 self.viz["manual_category"] = self.dat["manual_category"]
-
-            # Add pre-z-score data to viz
             if "pre_zscore" in self.dat:
                 self.viz["pre_zscore"] = self.dat["pre_zscore"]
 
+    def _validate_widget_class(self) -> None:
+        """Validate widget class is available."""
         if not hasattr(self, "widget_class"):
             raise AttributeError(
                 "Network has no widget_class. Initialize with Network(widget_instance)"
             )
 
-        self.widget_instance = self.widget_class(network=self.export_viz_to_widget(which_viz))
+    def _setup_manual_category(self, widget_instance: Any) -> None:
+        """Setup manual category for widget."""
+        if "manual_category" not in self.dat:
+            return
 
-        # Initialize manual category
-        if "manual_category" in self.dat:
-            manual_cat = {"col": {"col_cat_colors": self.viz["cat_colors"]["col"]["cat-0"]}}
-            man_cat_name = self.dat["manual_category"]["col"]
-            manual_cat["col"][man_cat_name] = self.meta_col[man_cat_name].to_dict()
-            self.widget_instance.manual_cat = json.dumps(manual_cat)
-            self.widget_instance.observe(self.get_manual_category, names="manual_cat")
+        manual_cat = {"col": {"col_cat_colors": self.viz["cat_colors"]["col"]["cat-0"]}}
+        man_cat_name = self.dat["manual_category"]["col"]
+        manual_cat["col"][man_cat_name] = self.meta_col[man_cat_name].to_dict()
 
-        # Add link (python)
+        widget_instance.manual_cat = json.dumps(manual_cat)
+        widget_instance.observe(self.get_manual_category, names="manual_cat")
+
+    def _setup_widget_links(
+        self, widget_instance: Any, link_net: Network | None, link_net_js: Network | None
+    ) -> None:
+        """Setup widget links to other networks."""
         if link_net is not None:
-            inst_link = widgets.link(
-                (self.widget_instance, "manual_cat"), (link_net.widget_instance, "manual_cat")
+            widget_instance.link = widgets.link(
+                (widget_instance, "manual_cat"), (link_net.widget_instance, "manual_cat")
             )
-            self.widget_instance.link = inst_link
 
-        # Add jslink (JavaScript)
         if link_net_js is not None:
-            inst_link = widgets.jslink(
-                (self.widget_instance, "manual_cat"), (link_net_js.widget_instance, "manual_cat")
+            widget_instance.link = widgets.jslink(
+                (widget_instance, "manual_cat"), (link_net_js.widget_instance, "manual_cat")
             )
-            self.widget_instance.link = inst_link
 
-        return self.widget_instance
-
-    def widget_df(self):
-        """Export a DataFrame from the front-end visualization."""
+    def widget_df(self) -> pd.DataFrame | None:
+        """Export DataFrame from widget visualization."""
         if hasattr(self, "widget_instance"):
             if self.widget_instance.mat_string != "":
                 tmp_net = deepcopy(Network())
-                df_string = self.widget_instance.mat_string
-                tmp_net.load_file_as_string(df_string)
+                tmp_net.load_file_as_string(self.widget_instance.mat_string)
                 return tmp_net.export_df()
             return self.export_df()
 
@@ -356,263 +647,49 @@ class Network:
         )
         return None
 
-    def write_json_to_file(self, net_type, filename, indent="no-indent"):
-        """Save dat or viz as a JSON to file."""
-        export_data.write_json_to_file(self, net_type, filename, indent)
+    # Visualization and Analysis Methods
 
-    def write_matrix_to_tsv(self, filename=None, df=None):
-        """Export data-matrix to file."""
-        return export_data.write_matrix_to_tsv(self, filename, df)
-
-    def filter_sum(self, threshold, take_abs=True, axis=None, inst_rc=None):
-        """Filter a network's rows or columns based on the sum across rows or columns."""
-        if axis is None:
-            axis = inst_rc
-            if axis is None:
-                raise ValueError("Must provide axis argument")
-
-        inst_df = self.dat_to_df()
-        if axis == "row":
-            inst_df = run_filter.df_filter_row_sum(inst_df, threshold, take_abs)
-        elif axis == "col":
-            inst_df = run_filter.df_filter_col_sum(inst_df, threshold, take_abs)
-        self.df_to_dat(inst_df)
-
-    def filter_n_top(self, n_top, rank_type="sum", inst_rc=None, axis=None):
-        """Filter the matrix rows or columns based on sum/variance, and only keep the top N."""
-        if axis is None:
-            axis = inst_rc
-            if axis is None:
-                raise ValueError("Must provide axis argument")
-
-        inst_df = self.dat_to_df()
-        inst_df = run_filter.filter_n_top(axis, inst_df, n_top, rank_type)  # Fixed: use axis
-        self.df_to_dat(inst_df)
-
-    def filter_threshold(self, threshold, num_occur=1, inst_rc=None, axis=None):
-        """Filter the matrix rows or columns based on num_occur values being above a threshold."""
-        if axis is None:
-            axis = inst_rc
-            if axis is None:
-                raise ValueError("Must provide axis argument")
-
-        inst_df = self.dat_to_df()
-        inst_df = run_filter.filter_threshold(inst_df, axis, threshold, num_occur)
-        self.df_to_dat(inst_df)
-
-    def filter_cat(self, axis, cat_index, cat_name):
-        """Filter the matrix based on their category."""
-        run_filter.filter_cat(self, axis, cat_index, cat_name)
-
-    def filter_names(self, axis, names):
-        """Filter the visualization using row/column names."""
-        run_filter.filter_names(self, axis, names)
-
-    def clip(self, lower=None, upper=None):
-        """Trim values at input thresholds using pandas function."""
-        df = self.export_df()
-        df = df.clip(lower=lower, upper=upper)
-        self.load_df(df)
-
-    def normalize(self, df=None, norm_type="zscore", axis="row", z_clip=None):
-        """Normalize the matrix rows or columns using Z-score or Quantile Normalization."""
-        normalize_fun.run_norm(self, df, norm_type, axis, z_clip)
-
-    def downsample(
-        self,
-        df=None,
-        ds_type="kmeans",
-        axis="row",
-        num_samples=100,
-        random_state=1000,
-        ds_name="Downsample",
-        ds_cluster_name="cluster",
-    ):
-        """Downsample the matrix rows or columns (currently supporting kmeans only)."""
-        return downsample_fun.main(
-            self, df, ds_type, axis, num_samples, random_state, ds_name, ds_cluster_name
-        )
-
-    def random_sample(
-        self, num_samples, df=None, replace=False, weights=None, random_state=100, axis="row"
-    ):
-        """Return random sample of matrix."""
-        if df is None:
-            df = self.dat_to_df()
-
-        if axis == "row":
-            axis = 0
-        if axis == "col":
-            axis = 1
-
-        df = self.export_df()
-        df = df.sample(
-            n=num_samples, replace=replace, weights=weights, random_state=random_state, axis=axis
-        )
-        self.load_df(df)
-
-    def add_cats(self, axis, cat_data):
-        """Add categories to rows or columns using cat_data array of objects."""
-        for inst_data in cat_data:
-            categories.add_cats(self, axis, inst_data)
-
-    def iframe_web_app(self, filename=None, width=1000, height=800):
+    def iframe_web_app(
+        self, filename: str | Path | None = None, width: int = 1000, height: int = 800
+    ) -> str:
+        """Generate iframe web application."""
         return iframe_web_app.main(self, filename, width, height)
 
-    def enrichrgram(self, lib, axis="row"):
-        """
-        Add Enrichr gene enrichment results to your visualization (where your rows
-        are genes). Run enrichrgram before clustering to include enrichment results
-        as row categories. Enrichrgram can also be run on the front-end using the
-        Enrichr logo at the top left.
-
-        Set lib to the Enrichr library that you want to use for enrichment analysis.
-        Libraries included:
-          * ChEA_2016
-          * KEA_2015
-          * ENCODE_TF_ChIP-seq_2015
-          * ENCODE_Histone_Modifications_2015
-          * Disease_Perturbations_from_GEO_up
-          * Disease_Perturbations_from_GEO_down
-          * GO_Molecular_Function_2015
-          * GO_Biological_Process_2015
-          * GO_Cellular_Component_2015
-          * Reactome_2016
-          * KEGG_2016
-          * MGI_Mammalian_Phenotype_Level_4
-          * LINCS_L1000_Chem_Pert_up
-          * LINCS_L1000_Chem_Pert_down
-        """
+    def enrichrgram(self, lib: str, axis: AxisType = "row") -> None:
+        """Add Enrichr gene enrichment results."""
         df = self.export_df()
         df, bar_info = enr_fun.add_enrichr_cats(df, axis, lib)
+        self._cached_df = None
         self.load_df(df)
         self.dat["enrichrgram_lib"] = lib
         self.dat["row_cat_bars"] = bar_info
 
-    @staticmethod
-    def load_gmt(filename):
-        return load_data.load_gmt(filename)
+    # Statistical Analysis Methods
 
-    @staticmethod
-    def load_json_to_dict(filename):
-        return load_data.load_json_to_dict(filename)
-
-    @staticmethod
-    def save_dict_to_json(inst_dict, filename, indent="no-indent"):
-        export_data.save_dict_to_json(inst_dict, filename, indent)
-
-    @staticmethod
-    def load_gene_exp_to_df(inst_path):
-        """Loads gene expression data from 10x in sparse matrix format and returns a Pandas dataframe."""
-        from ast import literal_eval as make_tuple
-
-        import pandas as pd
-        from scipy import io
-
-        # Matrix
-        matrix = io.mmread(f"{inst_path}matrix.mtx")
-        mat = matrix.todense()
-
-        # Genes
-        filename = f"{inst_path}genes.tsv"
-        with Path.open(filename) as f:
-            lines = f.readlines()
-
-        # Add unique id only to duplicate genes
-        ini_genes = []
-        for inst_line in lines:
-            inst_line = inst_line.strip().split()
-            inst_gene = inst_line[1] if len(inst_line) > 1 else inst_line[0]
-            ini_genes.append(inst_gene)
-
-        gene_name_count = pd.Series(ini_genes).value_counts()
-        duplicate_genes = gene_name_count[gene_name_count > 1].index.tolist()
-
-        dup_index = {}
-        genes = []
-        for inst_row in ini_genes:
-            # Add index to non-unique genes
-            if inst_row in duplicate_genes:
-                dup_index[inst_row] = dup_index.get(inst_row, 0) + 1
-                new_row = f"{inst_row}_{dup_index[inst_row]}"
-            else:
-                new_row = inst_row
-            genes.append(new_row)
-
-        # Barcodes
-        filename = f"{inst_path}barcodes.tsv"
-        with Path.open(filename) as f:
-            lines = f.readlines()
-
-        cell_barcodes = []
-        for inst_bc in lines:
-            inst_bc = inst_bc.strip().split("\t")
-            # Remove dash from barcodes if necessary
-            if "-" in inst_bc[0]:
-                inst_bc[0] = inst_bc[0].split("-")[0]
-            cell_barcodes.append(inst_bc[0])
-
-        # Parse tuples if necessary
-        try:
-            cell_barcodes = [make_tuple(x) for x in cell_barcodes]
-        except:
-            pass
-
-        try:
-            genes = [make_tuple(x) for x in genes]
-        except:
-            pass
-
-        return pd.DataFrame(mat, index=genes, columns=cell_barcodes)
-
-    @staticmethod
-    def save_gene_exp_to_mtx_dir(inst_path, df):
-        from scipy import io, sparse
-
-        if not Path.exists(inst_path):
-            Path.makedirs(inst_path)
-
-        genes = df.index.tolist()
-        barcodes = df.columns.tolist()
-
-        Network.save_list_to_tsv(genes, f"{inst_path}genes.tsv")
-        Network.save_list_to_tsv(barcodes, f"{inst_path}barcodes.tsv")
-
-        mat_ge = df.values
-        mat_ge_sparse = sparse.coo_matrix(mat_ge)
-        io.mmwrite(f"{inst_path}matrix.mtx", mat_ge_sparse)
-
-    @staticmethod
-    def save_list_to_tsv(inst_list, filename):
-        with Path.open(filename, "w") as f:
-            for inst_line in inst_list:
-                f.write(f"{inst_line}\n")
+    def _compute_distance_matrix(self, dist_type: DistanceType, data_hash: int) -> np.ndarray:
+        """Compute distance matrix using global cache to avoid memory leaks."""
+        return _compute_distance_matrix_cached(self, dist_type, data_hash)
 
     def sim_same_and_diff_category_samples(
         self,
-        df,
-        cat_index=1,
-        dist_type="cosine",
-        equal_var=False,
-        plot_roc=True,
-        precalc_dist=False,
-        calc_roc=True,
-    ):
-        """
-        Calculate the similarity of samples from the same and different categories.
-        The cat_index gives the index of the category, where 1 is the first category.
-        """
+        df: pd.DataFrame,
+        cat_index: int = 1,
+        dist_type: DistanceType = "cosine",
+        equal_var: bool = False,
+        plot_roc: bool = True,
+        precalc_dist: bool | np.ndarray = False,
+        calc_roc: bool = True,
+    ) -> dict[str, Any]:
+        """Calculate similarity within and between categories."""
         cols = df.columns.tolist()
 
-        if isinstance(precalc_dist, bool):
-            # Compute distance between rows (transpose to get cols as rows)
-            dist_arr = 1 - pdist(df.transpose(), metric=dist_type)
-        else:
-            dist_arr = precalc_dist
+        dist_arr = (
+            1 - pdist(df.transpose(), metric=dist_type)
+            if isinstance(precalc_dist, bool)
+            else precalc_dist
+        )
 
-        # Generate sample names with categories
         sample_combos = list(combinations(range(df.shape[1]), 2))
-
         sample_names = [
             f"{ind}_same" if cols[x[0]][cat_index] == cols[x[1]][cat_index] else f"{ind}_different"
             for ind, x in enumerate(sample_combos)
@@ -620,588 +697,711 @@ class Network:
 
         ser_dist = pd.Series(data=dist_arr, index=sample_names)
 
-        # Find same-cat sample comparisons
+        # Separate same vs different category comparisons
         same_cat = [x for x in sample_names if x.split("_")[1] == "same"]
-        # Find diff-cat sample comparisons
         diff_cat = [x for x in sample_names if x.split("_")[1] == "different"]
 
-        # Make series of same and diff category sample comparisons
         ser_same = ser_dist[same_cat]
         ser_same.name = "Same Category"
         ser_diff = ser_dist[diff_cat]
         ser_diff.name = "Different Category"
 
         sim_dict = {"same": ser_same, "diff": ser_diff}
+
+        # Statistical tests
+        _, pval_ttest = ttest_ind(ser_diff, ser_same, equal_var=equal_var)
+        _, pval_mann = mannwhitneyu(ser_diff, ser_same)
+        pval_dict = {"ttest": pval_ttest, "mannwhitney": pval_mann}
+
+        # ROC analysis
         roc_data = {}
-        pval_dict = {}
-
-        _, pval_dict["ttest"] = ttest_ind(ser_diff, ser_same, equal_var=equal_var)
-        _, pval_dict["mannwhitney"] = mannwhitneyu(ser_diff, ser_same)
-
         if calc_roc:
-            # Calculate AUC
-            true_index = list(np.ones(sim_dict["same"].shape[0]))
-            false_index = list(np.zeros(sim_dict["diff"].shape[0]))
-            y_true = true_index + false_index
+            roc_data = self._calculate_roc_analysis(sim_dict, plot_roc)
 
-            true_val = list(sim_dict["same"].values)
-            false_val = list(sim_dict["diff"].values)
-            y_score = true_val + false_val
+        return {"sim_dict": sim_dict, "pval_dict": pval_dict, "roc_data": roc_data}
 
-            fpr, tpr, thresholds = roc_curve(y_true, y_score)
-            inst_auc = auc(fpr, tpr)
+    def _calculate_roc_analysis(
+        self, sim_dict: dict[str, pd.Series], plot_roc: bool
+    ) -> dict[str, Any]:
+        """Calculate ROC curve analysis for similarity data."""
+        true_labels = list(np.ones(sim_dict["same"].shape[0]))
+        false_labels = list(np.zeros(sim_dict["diff"].shape[0]))
+        y_true = true_labels + false_labels
 
-            if plot_roc:
-                plt.figure()
-                plt.plot(fpr, tpr)
-                plt.plot([0, 1], [0, 1], color="navy", linestyle="--")
-                plt.figure(figsize=(10, 10))
-                print("AUC", inst_auc)
+        true_scores = list(sim_dict["same"].values)
+        false_scores = list(sim_dict["diff"].values)
+        y_score = true_scores + false_scores
 
-            roc_data = {
-                "true": y_true,
-                "score": y_score,
-                "fpr": fpr,
-                "tpr": tpr,
-                "thresholds": thresholds,
-                "auc": inst_auc,
-            }
+        fpr, tpr, thresholds = roc_curve(y_true, y_score)
+        inst_auc = auc(fpr, tpr)
+
+        if plot_roc:
+            plt.figure()
+            plt.plot(fpr, tpr)
+            plt.plot([0, 1], [0, 1], color="navy", linestyle="--")
+            plt.figure(figsize=(10, 10))
+            print("AUC", inst_auc)
 
         return {
-            "sim_dict": sim_dict,
-            "pval_dict": pval_dict,
-            "roc_data": roc_data,
+            "true": y_true,
+            "score": y_score,
+            "fpr": fpr,
+            "tpr": tpr,
+            "thresholds": thresholds,
+            "auc": inst_auc,
         }
 
     def generate_signatures(
         self,
-        df_data,
-        df_meta,
-        category_name,
-        pval_cutoff=0.05,
-        num_top_dims=False,
-        verbose=True,
-        equal_var=False,
-    ):
-        """
-        Generate signatures for column categories.
-        T-test is run for each category in a one-vs-all manner. The num_top_dims overrides
-        the P-value cutoff.
-        """
+        df_data: pd.DataFrame,
+        df_meta: pd.DataFrame,
+        category_name: str,
+        pval_cutoff: float = 0.05,
+        num_top_dims: bool | int = False,
+        verbose: bool = True,
+        equal_var: bool = False,
+    ) -> tuple[pd.DataFrame, dict[str, pd.DataFrame]]:
+        """Generate differential signatures for categories."""
         df_t = df_data.transpose()
 
-        # Remove columns (dimensions) with constant values
+        # Remove constant columns
         orig_num_cols = df_t.shape[1]
         df_t = df_t.loc[:, (df_t != df_t.iloc[0]).any()]
-        if df_t.shape[1] < orig_num_cols:
+        if df_t.shape[1] < orig_num_cols and verbose:
             print("dropped columns with constant values")
 
-        # Make tuple rows
+        # Add category information
         df_t.index = [(x, df_meta.loc[x, category_name]) for x in df_t.index.tolist()]
-        category_level = 1
-
         df = self.row_tuple_to_multiindex(df_t)
-        cell_types = sorted(set(df.index.get_level_values(category_level).tolist()))
 
+        cell_types = sorted(set(df.index.get_level_values(1).tolist()))
+
+        return self._compute_differential_signatures(
+            df, cell_types, pval_cutoff, num_top_dims, equal_var, verbose
+        )
+
+    def _compute_differential_signatures(
+        self,
+        df: pd.DataFrame,
+        cell_types: list[str],
+        pval_cutoff: float,
+        num_top_dims: bool | int,
+        equal_var: bool,
+        verbose: bool,
+    ) -> tuple[pd.DataFrame, dict[str, pd.DataFrame]]:
+        """Compute differential expression signatures."""
         keep_genes = []
-        keep_genes_dict = {}
         gene_pval_dict = {}
         all_fold_info = {}
 
-        for inst_ct in cell_types:
-            inst_ct_mat = df.xs(key=inst_ct, level=category_level)
-            inst_other_mat = df.drop(inst_ct, level=category_level)
+        for cell_type in cell_types:
+            ct_mat = df.xs(key=cell_type, level=1)
+            other_mat = df.drop(cell_type, level=1)
 
-            # Save mean values and fold change
-            fold_info = {
-                "cluster_mean": inst_ct_mat.mean(),
-                "other_mean": inst_other_mat.mean(),
-            }
-            fold_info["log2_fold"] = fold_info["cluster_mean"] / fold_info["other_mean"]
-            fold_info["log2_fold"] = fold_info["log2_fold"].apply(np.log2)
-            all_fold_info[inst_ct] = fold_info
+            # Calculate fold changes and statistics
+            fold_info = self._calculate_fold_changes(ct_mat, other_mat)
+            all_fold_info[cell_type] = fold_info
 
-            _, inst_pvals = ttest_ind(inst_ct_mat, inst_other_mat, axis=0, equal_var=equal_var)
+            _, pvals = ttest_ind(ct_mat, other_mat, axis=0, equal_var=equal_var)
+            ser_pval = pd.Series(data=pvals, index=df.columns.tolist()).sort_values()
 
-            ser_pval = pd.Series(data=inst_pvals, index=df.columns.tolist()).sort_values()
-
+            # Filter by p-value or top N
             ser_pval_keep = (
                 ser_pval[:num_top_dims] if num_top_dims else ser_pval[ser_pval < pval_cutoff]
             )
 
-            gene_pval_dict[inst_ct] = ser_pval_keep
-
-            inst_keep = ser_pval_keep.index.tolist()
-            keep_genes.extend(inst_keep)
-            keep_genes_dict[inst_ct] = inst_keep
+            gene_pval_dict[cell_type] = ser_pval_keep
+            keep_genes.extend(ser_pval_keep.index.tolist())
 
         keep_genes = sorted(set(keep_genes))
-
-        df_gbm = df.groupby(level=category_level).mean().transpose()
-        df_sig = df_gbm.loc[keep_genes]
 
         if len(keep_genes) == 0 and verbose:
             print("found no informative dimensions")
 
-        df_gene_pval = pd.concat(gene_pval_dict, axis=1, sort=False)
+        # Generate signature matrix and differential results
+        df_gbm = df.groupby(level=1).mean().transpose()
+        df_sig = df_gbm.loc[keep_genes] if keep_genes else df_gbm.iloc[:0]
 
-        df_diff = {}
-        for inst_col in df_gene_pval:
-            inst_pvals = df_gene_pval[inst_col]
-            # NaNs represent dimensions that did not meet pval or top threshold
-            inst_pvals = inst_pvals.dropna().sort_values()
-            inst_genes = inst_pvals.index.tolist()
-
-            # Prevent failure if no cells have this category
-            if inst_pvals.shape[0] > 0:
-                _, pval_corr = smm.multipletests(inst_pvals, 0.05, method="fdr_bh")[:2]
-
-                ser_pval = pd.Series(data=inst_pvals, index=inst_genes, name="P-values")
-                ser_bh_pval = pd.Series(data=pval_corr, index=inst_genes, name="BH P-values")
-                ser_log2_fold = all_fold_info[inst_col]["log2_fold"].loc[inst_genes]
-                ser_log2_fold.name = "Log2 Fold Change"
-                ser_cluster_mean = all_fold_info[inst_col]["cluster_mean"].loc[inst_genes]
-                ser_cluster_mean.name = "Cluster Mean"
-                ser_other_mean = all_fold_info[inst_col]["other_mean"].loc[inst_genes]
-                ser_other_mean.name = "All Other Mean"
-                inst_df = pd.concat(
-                    [ser_pval, ser_bh_pval, ser_log2_fold, ser_cluster_mean, ser_other_mean], axis=1
-                )
-
-                df_diff[inst_col] = inst_df
+        df_diff = self._generate_differential_results(gene_pval_dict, all_fold_info, keep_genes)
 
         return df_sig, df_diff
 
+    def _calculate_fold_changes(
+        self, ct_mat: pd.DataFrame, other_mat: pd.DataFrame
+    ) -> dict[str, pd.Series]:
+        """Calculate fold changes between cluster and other samples."""
+        cluster_mean = ct_mat.mean()
+        other_mean = other_mat.mean()
+        log2_fold = (cluster_mean / other_mean).apply(np.log2)
+
+        return {"cluster_mean": cluster_mean, "other_mean": other_mean, "log2_fold": log2_fold}
+
+    def _generate_differential_results(
+        self,
+        gene_pval_dict: dict[str, pd.Series],
+        all_fold_info: dict[str, dict[str, pd.Series]],
+        keep_genes: list[str],
+    ) -> dict[str, pd.DataFrame]:
+        """Generate differential expression results with multiple testing correction."""
+        df_gene_pval = pd.concat(gene_pval_dict, axis=1, sort=False)
+        df_diff = {}
+
+        for col in df_gene_pval.columns:
+            pvals = df_gene_pval[col].dropna().sort_values()
+            if pvals.shape[0] == 0:
+                continue
+
+            genes = pvals.index.tolist()
+            _, pval_corr = smm.multipletests(pvals, 0.05, method="fdr_bh")[:2]
+
+            # Combine all statistics
+            fold_info = all_fold_info[col]
+            df_diff[col] = pd.DataFrame(
+                {
+                    "P-values": pvals,
+                    "BH P-values": pd.Series(pval_corr, index=genes),
+                    "Log2 Fold Change": fold_info["log2_fold"].loc[genes],
+                    "Cluster Mean": fold_info["cluster_mean"].loc[genes],
+                    "All Other Mean": fold_info["other_mean"].loc[genes],
+                }
+            )
+
+        return df_diff
+
     def predict_cats_from_sigs(
         self,
-        df_data_ini,
-        df_meta,
-        df_sig_ini,
-        predict="Predicted Category",
-        dist_type="cosine",
-        unknown_thresh=-1,
-    ):
-        """Predict category using signature."""
-        keep_rows = df_sig_ini.index.tolist()
-        data_rows = df_data_ini.index.tolist()
-
-        common_rows = list(set(data_rows).intersection(keep_rows))
+        df_data_ini: pd.DataFrame,
+        df_meta: pd.DataFrame,
+        df_sig_ini: pd.DataFrame,
+        predict: str = "Predicted Category",
+        dist_type: DistanceType = "cosine",
+        unknown_thresh: float = -1,
+    ) -> tuple[pd.DataFrame, pd.DataFrame]:
+        """Predict categories using signature similarity."""
+        common_rows = list(set(df_data_ini.index.tolist()).intersection(df_sig_ini.index.tolist()))
 
         df_data = deepcopy(df_data_ini.loc[common_rows])
         df_sig = deepcopy(df_sig_ini.loc[common_rows])
 
-        # Calculate similarity matrix of df_data and df_sig
+        # Calculate similarity matrix
+        sim_mat = 1 - pairwise_distances(df_sig.transpose(), df_data.transpose(), metric=dist_type)
+
         cell_types = df_sig.columns.tolist()
         barcodes = df_data.columns.tolist()
-        sim_mat = 1 - pairwise_distances(df_sig.transpose(), df_data.transpose(), metric=dist_type)
         df_sim = pd.DataFrame(data=sim_mat, index=cell_types, columns=barcodes).transpose()
 
-        # Get the top column value (most similar signature)
-        df_sim_top = df_sim.idxmax(axis=1)
+        # Assign predictions based on highest similarity
+        predictions = df_sim.idxmax(axis=1)
+        max_similarities = df_sim.max(axis=1)
 
-        # Get the maximum similarity of a cell to a cell type definition
-        max_sim = df_sim.max(axis=1)
+        # Handle unknown predictions below threshold
+        unknown_mask = max_similarities < unknown_thresh
+        predictions[unknown_mask] = "Unknown"
 
-        unknown_cells = max_sim[max_sim < unknown_thresh].index.tolist()
-        # Assign unknown cells (need category of same name)
-        df_sim_top[unknown_cells] = "Unknown"
+        df_meta[predict] = predictions
+        return df_sim.transpose(), df_meta
 
-        df_sim = df_sim.transpose()
-        df_meta[predict] = df_sim_top
+    def assess_prediction(
+        self, df_meta: pd.DataFrame, truth: str, pred: str
+    ) -> tuple[pd.DataFrame, pd.Series, float]:
+        """Generate confusion matrix and accuracy metrics."""
+        y_true = df_meta[truth].values.tolist()
+        y_pred = df_meta[pred].values.tolist()
 
-        return df_sim, df_meta
+        sorted_cats = sorted(set(y_true + y_pred))
+        conf_mat = confusion_matrix(y_true, y_pred, labels=sorted_cats)
 
-    def assess_prediction(self, df_meta, truth, pred):
-        """Generate confusion matrix from y_info."""
-        y_info = {
-            "true": df_meta[truth].values.tolist(),
-            "pred": df_meta[pred].values.tolist(),
-        }
-
-        sorted_cats = sorted(set(y_info["true"] + y_info["pred"]))
-        conf_mat = confusion_matrix(y_info["true"], y_info["pred"], labels=sorted_cats)
-
-        # True columns and pred rows
+        # Create confusion DataFrame (pred as rows, true as cols)
         df_conf = pd.DataFrame(conf_mat, index=sorted_cats, columns=sorted_cats).transpose()
 
+        # Calculate overall accuracy
         total_correct = np.trace(df_conf)
         total_pred = df_conf.sum().sum()
         fraction_correct = total_correct / float(total_pred)
 
-        # Calculate ser_correct
-        correct_list = []
+        # Calculate per-category accuracy
         cat_counts = df_conf.sum(axis=0)
-        all_cols = df_conf.columns.tolist()
-        for inst_cat in all_cols:
-            inst_correct = df_conf.loc[inst_cat, inst_cat] / cat_counts[inst_cat]
-            correct_list.append(inst_correct)
-
-        ser_correct = pd.Series(data=correct_list, index=all_cols)
+        ser_correct = pd.Series(
+            [df_conf.loc[cat, cat] / cat_counts[cat] for cat in df_conf.columns],
+            index=df_conf.columns,
+        )
 
         return df_conf, ser_correct, fraction_correct
 
     def compare_performance_to_shuffled_labels(
         self,
-        df_data,
-        category_level,
-        num_shuffles=100,
-        random_seed=99,
-        pval_cutoff=0.05,
-        dist_type="cosine",
-        num_top_dims=False,
-        predict_level="Predict Category",
-        truth_level=1,
-        unknown_thresh=-1,
-        equal_var=False,
-        performance_type="prediction",
-    ):
-        """Compare performance to shuffled labels baseline."""
+        df_data: pd.DataFrame,
+        category_level: int,
+        num_shuffles: int = 100,
+        random_seed: int = 99,
+        pval_cutoff: float = 0.05,
+        dist_type: DistanceType = "cosine",
+        num_top_dims: bool | int = False,
+        predict_level: str = "Predict Category",
+        truth_level: int = 1,
+        unknown_thresh: float = -1,
+        equal_var: bool = False,
+        performance_type: Literal["prediction", "cat_sim_auc"] = "prediction",
+    ) -> pd.Series:
+        """Compare performance against shuffled label baseline."""
         random.seed(random_seed)
-        perform_list = []
+        performance_list = []
 
-        # Pre-calculate the distance matrix (similarity matrix) if necessary
+        # Pre-calculate distance matrix for similarity analysis
+        dist_arr = None
         if performance_type == "cat_sim_auc":
             dist_arr = 1 - pdist(df_data.transpose(), metric=dist_type)
 
-        for inst_run in range(num_shuffles + 1):
-            cols = df_data.columns.tolist()
-            rows = df_data.index.tolist()
-            mat = df_data.values
+        for run_idx in range(num_shuffles + 1):
+            df_shuffle = self._create_shuffled_data(df_data, run_idx)
 
-            shuffled_cols = deepcopy(cols)
-            random.shuffle(shuffled_cols)
-
-            # Do not perform shuffling the first time to confirm that we get the same
-            # results as the unshuffled dataset
-            df_shuffle = (
-                deepcopy(df_data)
-                if inst_run == 0
-                else pd.DataFrame(data=mat, columns=shuffled_cols, index=rows)
-            )
-
-            # Generate signature on shuffled data - Fixed to use new signature generation
-            df_sig, df_diff = self.generate_signatures(
+            # Generate signatures on shuffled data
+            df_sig, _ = self.generate_signatures(
                 df_shuffle,
-                self.meta_col,  # Use metadata from network
-                list(self.meta_col.columns)[category_level],  # Get category name
+                self.meta_col,
+                list(self.meta_col.columns)[category_level],
                 pval_cutoff=pval_cutoff,
                 num_top_dims=num_top_dims,
                 equal_var=equal_var,
             )
 
-            # Predictive performance
-            if performance_type == "prediction":
-                # Predict categories from signature
-                _, df_meta_updated = self.predict_cats_from_sigs(
-                    df_shuffle,
-                    self.meta_col,
-                    df_sig,
-                    predict=predict_level,
-                    dist_type=dist_type,
-                    unknown_thresh=unknown_thresh,
-                )
+            performance = self._evaluate_performance(
+                df_shuffle,
+                df_sig,
+                performance_type,
+                predict_level,
+                truth_level,
+                dist_type,
+                unknown_thresh,
+                equal_var,
+                dist_arr,
+            )
 
-                # Calculate confusion matrix and performance
-                _, _, fraction_correct = self.assess_prediction(
-                    df_meta_updated, list(self.meta_col.columns)[truth_level], predict_level
-                )
+            if run_idx == 0:
+                real_performance = performance
+                print(f"performance of unshuffled: {real_performance}")
+            else:
+                performance_list.append(performance)
 
-                # Store performances of shuffles
-                if inst_run > 0:
-                    perform_list.append(fraction_correct)
-                else:
-                    real_performance = fraction_correct
-                    print(f"performance (fraction correct) of unshuffled: {real_performance}")
-
-            elif performance_type == "cat_sim_auc":
-                # Predict categories from signature
-                sim_data = self.sim_same_and_diff_category_samples(
-                    df_shuffle,
-                    cat_index=1,
-                    plot_roc=False,
-                    equal_var=equal_var,
-                    precalc_dist=dist_arr,
-                )
-
-                # Store performances of shuffles
-                if inst_run > 0:
-                    perform_list.append(sim_data["roc_data"]["auc"])
-                else:
-                    real_performance = sim_data["roc_data"]["auc"]
-                    print(
-                        f"performance (category similarity auc) of unshuffled: {real_performance}"
-                    )
-
-        perform_ser = pd.Series(perform_list)
-
-        in_top_fraction = perform_ser[perform_ser > real_performance].shape[0] / num_shuffles
-        print(f"real data performs in the top {in_top_fraction * 100}% of shuffled labels\n")
+        perform_ser = pd.Series(performance_list)
+        top_fraction = (perform_ser > real_performance).sum() / num_shuffles
+        print(f"real data performs in the top {top_fraction * 100}% of shuffled labels\n")
 
         return perform_ser
 
-    @staticmethod
-    def box_scatter_plot(
-        df,
-        group,
-        columns=False,
-        rand_seed=100,
-        alpha=0.5,
-        dot_color="red",
-        num_row=None,
-        num_col=1,
-        figsize=(10, 10),
-        start_title="Variable Measurements Across",
-        end_title="Groups",
-    ):
-        """Create box plots with scatter overlay for grouped data."""
-        import matplotlib.pyplot as plt
-        import pandas as pd
-        from scipy import stats
+    def _create_shuffled_data(self, df_data: pd.DataFrame, run_idx: int) -> pd.DataFrame:
+        """Create shuffled version of data for baseline comparison."""
+        if run_idx == 0:
+            return deepcopy(df_data)
 
-        if not columns:
-            columns = df.columns.tolist()
+        cols = df_data.columns.tolist()
+        shuffled_cols = deepcopy(cols)
+        random.shuffle(shuffled_cols)
 
-        plt.figure(figsize=figsize)
-        figure_title = f"{start_title} {group} {end_title}"
-        plt.suptitle(figure_title, fontsize=20)
+        return pd.DataFrame(
+            data=df_data.values, columns=shuffled_cols, index=df_data.index.tolist()
+        )
 
-        dfs = {}
-
-        for col_num, column in enumerate(columns):
-            plot_id = col_num + 1
-
-            # Group by column name or multiIndex name
-            grouped = df.groupby(group) if group in df.columns.tolist() else df.groupby(level=group)
-
-            names, vals = [], []
-            column_title = column[0] if isinstance(column, tuple) else column
-
-            for name, subdf in grouped:
-                names.append(name)
-                inst_ser = subdf[column]
-                column_name = f"{column_title}-{name}"
-                inst_ser.name = column_name
-                vals.append(inst_ser)
-
-            np.random.seed(rand_seed)
-
-            ax = plt.subplot(num_row, num_col, plot_id)
-            plt.boxplot(vals, labels=names)
-
-            ngroup = len(vals)
-            clevels = np.linspace(0.0, 1.0, ngroup)
-
-            for clevel in clevels:
-                xs = np.random.normal(
-                    clevels.tolist().index(clevel) + 1,
-                    0.04,
-                    len(vals[clevels.tolist().index(clevel)]),
-                )
-                plt.subplot(num_row, num_col, plot_id)
-                plt.scatter(xs, vals[clevels.tolist().index(clevel)], c=dot_color, alpha=alpha)
-
-            df_arranged = pd.concat(vals, axis=1)
-
-            # ANOVA
-            anova_data = [df_arranged[col].dropna() for col in df_arranged]
-            f_val, pval = stats.f_oneway(*anova_data)
-
-            title_text = (
-                f"{column_title} P-val: {pval:.2e}"
-                if pval < 0.01
-                else f"{column_title} P-val: {round(pval * 100000) / 100000}"
+    def _evaluate_performance(
+        self,
+        df_shuffle: pd.DataFrame,
+        df_sig: pd.DataFrame,
+        performance_type: str,
+        predict_level: str,
+        truth_level: int,
+        dist_type: DistanceType,
+        unknown_thresh: float,
+        equal_var: bool,
+        dist_arr: np.ndarray | None,
+    ) -> float:
+        """Evaluate performance using specified metric."""
+        if performance_type == "prediction":
+            _, df_meta_updated = self.predict_cats_from_sigs(
+                df_shuffle,
+                self.meta_col,
+                df_sig,
+                predict=predict_level,
+                dist_type=dist_type,
+                unknown_thresh=unknown_thresh,
             )
-            ax.set_title(title_text)
 
-            dfs[column] = df_arranged
+            _, _, fraction_correct = self.assess_prediction(
+                df_meta_updated, list(self.meta_col.columns)[truth_level], predict_level
+            )
+            return fraction_correct
 
-        return dfs
+        if performance_type == "cat_sim_auc":
+            sim_data = self.sim_same_and_diff_category_samples(
+                df_shuffle, cat_index=1, plot_roc=False, equal_var=equal_var, precalc_dist=dist_arr
+            )
+            return sim_data["roc_data"]["auc"]
 
-    @staticmethod
-    def rank_cols_by_anova_pval(df, group, columns=False):
-        """Rank columns by ANOVA p-values."""
-        import numpy as np
-        import pandas as pd
-        from scipy import stats
+        return 0.0
 
-        if not columns:
-            columns = df.columns.tolist()
+    # Utility Methods
 
-        pval_list = []
-
-        for column in columns:
-            # Group by column name or multiIndex name
-            grouped = df.groupby(group) if group in df.columns.tolist() else df.groupby(level=group)
-
-            names, vals = [], []
-            column_title = column[0] if isinstance(column, tuple) else column
-
-            for name, subdf in grouped:
-                names.append(name)
-                inst_ser = subdf[column]
-                column_name = f"{column_title}-{name}"
-                inst_ser.name = column_name
-                vals.append(inst_ser)
-
-            df_arranged = pd.concat(vals, axis=1)
-
-            # ANOVA
-            anova_data = [df_arranged[col].dropna() for col in df_arranged]
-            _, pval = stats.f_oneway(*anova_data)
-
-            pval_list.append(pval)
-
-        pval_ser = pd.Series(data=pval_list, index=columns)
-        return pval_ser.sort_values(ascending=True)
-
-    def row_tuple_to_multiindex(self, df):
-        """Convert tuple-based row index to MultiIndex."""
-        from copy import deepcopy
-
-        import pandas as pd
-
+    def row_tuple_to_multiindex(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Convert tuple-based row index to pandas MultiIndex."""
         df_mi = deepcopy(df)
         rows = df_mi.index.tolist()
-        titles = []
-        for inst_part in rows[0]:
-            inst_title = inst_part.split(": ")[0] if ": " in inst_part else "Name"
-            titles.append(inst_title)
 
-        new_rows = []
-        for inst_row in rows:
-            inst_row = list(inst_row)
-            new_row = []
-            for inst_part in inst_row:
-                inst_part = inst_part.split(": ")[1] if ": " in inst_part else inst_part
-                new_row.append(inst_part)
-            new_row = tuple(new_row)
-            new_rows.append(new_row)
+        # Extract titles from first row
+        titles = [part.split(": ")[0] if ": " in part else "Name" for part in rows[0]]
 
-        df_mi.index = new_rows
-        df_mi.index = pd.MultiIndex.from_tuples(df_mi.index, names=titles)
+        # Clean up row data
+        new_rows = [
+            tuple(part.split(": ")[1] if ": " in part else part for part in row) for row in rows
+        ]
 
+        df_mi.index = pd.MultiIndex.from_tuples(new_rows, names=titles)
         return df_mi
 
-    def set_cat_colors(self, cat_colors, axis, cat_index, cat_title=False):
-        """Set colors for categories."""
-        for inst_ct in cat_colors:
-            cat_name = f"{cat_title}: {inst_ct}" if cat_title else inst_ct
-            inst_color = cat_colors[inst_ct]
+    def set_cat_colors(
+        self,
+        cat_colors: dict[str, str],
+        axis: AxisType,
+        cat_index: int,
+        cat_title: bool | str = False,
+    ) -> None:
+        """Set colors for multiple categories."""
+        for category_name, color in cat_colors.items():
+            display_name = f"{cat_title}: {category_name}" if cat_title else category_name
             self.set_cat_color(
-                axis=axis, cat_index=cat_index, cat_name=cat_name, inst_color=inst_color
+                axis=axis, cat_index=cat_index, cat_name=display_name, inst_color=color
             )
 
-    def set_manual_category(self, col=None, row=None, preferred_cats=None):
+    def set_manual_category(
+        self,
+        col: str | None = None,
+        row: str | None = None,
+        preferred_cats: pd.DataFrame | None = None,
+    ) -> None:
         """Set manual category for interactive dendrogram definition."""
         self.dat["manual_category"] = {"col": col, "row": row}
 
         if preferred_cats is not None:
-            pref_cats = []
-            for inst_row in preferred_cats.index.tolist():
-                inst_dict = {
-                    "name": inst_row,
-                    "color": preferred_cats.loc[inst_row, "color"],
-                }
-                pref_cats.append(inst_dict)
+            pref_cats = [
+                {"name": name, "color": preferred_cats.loc[name, "color"]}
+                for name in preferred_cats.index.tolist()
+            ]
 
             if col is not None:
                 self.dat["manual_category"]["col_cats"] = pref_cats
-
             if row is not None:
                 self.dat["manual_category"]["row_cats"] = pref_cats
 
-    def ds_to_original_meta(self, axis):
+    def ds_to_original_meta(self, axis: AxisType) -> None:
         """Transfer downsampled metadata to original metadata."""
-        if not hasattr(self, "meta_ds_col") or not hasattr(self, "ds_name"):
+        if not (hasattr(self, "meta_ds_col") and hasattr(self, "ds_name")):
             return
 
         clusters = self.meta_ds_col.index.tolist()
         man_cat_title = self.dat["manual_category"][axis]
 
-        for inst_cluster in clusters:
-            # Get the manual category from the downsampled data
-            inst_man_cat = self.meta_ds_col.loc[inst_cluster, man_cat_title]
-            # Find original labels that are assigned to this cluster
-            found_labels = self.meta_col[self.meta_col[self.ds_name] == inst_cluster].index.tolist()
-            # Update manual category
-            self.meta_col.loc[found_labels, man_cat_title] = inst_man_cat
+        for cluster in clusters:
+            cluster_cat = self.meta_ds_col.loc[cluster, man_cat_title]
+            matching_labels = self.meta_col[self.meta_col[self.ds_name] == cluster].index.tolist()
+            self.meta_col.loc[matching_labels, man_cat_title] = cluster_cat
 
-    def get_manual_category(self, tmp):
-        """Get manual category data from widget."""
+    def get_manual_category(self, tmp: Any) -> None:
+        """Extract manual category data from widget."""
         for axis in ["col"]:
-            try:
-                export_dict = {}
-                inst_nodes = self.dat["nodes"][axis]
+            with contextlib.suppress(Exception):
+                nodes = self.dat["nodes"][axis]
                 cat_title = self.dat["manual_category"][axis]
 
-                # Category Names
-                try:
-                    export_dict[cat_title] = pd.Series(
-                        json.loads(self.widget_instance.manual_cat)[axis][cat_title]
-                    )
+                manual_cat_data = json.loads(self.widget_instance.manual_cat)
+                cat_series = pd.Series(manual_cat_data[axis][cat_title])
 
-                    if hasattr(self, "meta_cat"):
-                        if axis == "row":
-                            if not self.is_downsampled:
-                                self.meta_row.loc[inst_nodes, cat_title] = export_dict[cat_title]
-                            else:
-                                self.meta_ds_row.loc[inst_nodes, cat_title] = export_dict[cat_title]
-                                self.ds_to_original_meta(axis)
+                if hasattr(self, "meta_cat"):
+                    self._update_metadata_categories(axis, nodes, cat_title, cat_series)
 
-                        elif axis == "col":
-                            if not self.is_downsampled:
-                                # Manually looping through rows in metadata works
-                                for inst_row in export_dict[cat_title].index.tolist():
-                                    self.meta_col.loc[inst_row, cat_title] = export_dict[cat_title][
-                                        inst_row
-                                    ]
-                            else:
-                                self.meta_ds_col.loc[inst_nodes, cat_title] = export_dict[cat_title]
-                                self.ds_to_original_meta(axis)
+    def _update_metadata_categories(
+        self, axis: AxisType, nodes: list[str], cat_title: str, cat_series: pd.Series
+    ) -> None:
+        """Update metadata with manual category assignments."""
+        if axis == "row":
+            target_meta = self.meta_ds_row if self.is_downsampled else self.meta_row
+            target_meta.loc[nodes, cat_title] = cat_series
+            if self.is_downsampled:
+                self.ds_to_original_meta(axis)
 
-                    # Category Colors
-                    export_dict["cat_colors"] = json.loads(self.widget_instance.manual_cat)[
-                        "global_cat_colors"
-                    ]
-                except Exception as e:
-                    print(f"Warning: Error processing manual category: {e}")
+        elif axis == "col":
+            if self.is_downsampled:
+                self.meta_ds_col.loc[nodes, cat_title] = cat_series
+                self.ds_to_original_meta(axis)
+            else:
+                for node in cat_series.index.tolist():
+                    self.meta_col.loc[node, cat_title] = cat_series[node]
 
-            except Exception as e:
-                print(f"Warning: Error in get_manual_category: {e}")
+    # Deprecated Methods (maintained for backward compatibility)
 
-    @staticmethod
-    def umi_norm(df):
-        """UMI normalization - divide each column by its sum."""
-        barcode_umi_sum = df.sum()
-        return df.div(barcode_umi_sum)
+    def df_to_dat(self, df: pd.DataFrame, define_cat_colors: bool = False) -> None:
+        """Load DataFrame (deprecated - use load_df instead)."""
+        self._cached_df = None
+        data_formats.df_to_dat(self, df, define_cat_colors)
+
+    def dat_to_df(self) -> pd.DataFrame:
+        """Export DataFrame (deprecated - use export_df instead)."""
+        return data_formats.dat_to_df(self)
+
+    # Static Methods
 
     @staticmethod
-    def make_df_from_cols(cols):
-        """Make DataFrame from column tuples."""
+    def load_gmt(filename: str | Path) -> dict[str, list[str]]:
+        """Load GMT format pathway file."""
+        return load_data.load_gmt(filename)
+
+    @staticmethod
+    def load_json_to_dict(filename: str | Path) -> dict[str, Any]:
+        """Load JSON file to dictionary."""
+        return load_data.load_json_to_dict(filename)
+
+    @staticmethod
+    def save_dict_to_json(
+        inst_dict: dict[str, Any], filename: str | Path, indent: str = "no-indent"
+    ) -> None:
+        """Save dictionary to JSON file."""
+        export_data.save_dict_to_json(inst_dict, filename, indent)
+
+    @staticmethod
+    def save_list_to_tsv(inst_list: list[str], filename: str | Path) -> None:
+        """Save list of strings to TSV file."""
+        with Path(filename).open("w") as f:
+            for line in inst_list:
+                f.write(f"{line}\n")
+
+    @staticmethod
+    def load_gene_exp_to_df(inst_path: str | Path) -> pd.DataFrame:
+        """Load 10x Genomics gene expression data to DataFrame."""
+        from ast import literal_eval as make_tuple
+
+        from scipy import io
+
+        path_str = str(inst_path)
+
+        # Load matrix
+        matrix = io.mmread(f"{path_str}matrix.mtx")
+        mat = matrix.todense()
+
+        # Load and process genes
+        genes = Network._load_genes_file(f"{path_str}genes.tsv")
+
+        # Load and process barcodes
+        barcodes = Network._load_barcodes_file(f"{path_str}barcodes.tsv")
+
+        # Try to parse as tuples if needed
+        for data_list in [barcodes, genes]:
+            with contextlib.suppress(Exception):
+                data_list[:] = [make_tuple(x) for x in data_list]
+
+        return pd.DataFrame(mat, index=genes, columns=barcodes)
+
+    @staticmethod
+    def _load_genes_file(filename: str) -> list[str]:
+        """Load and process genes file with duplicate handling."""
+        with Path(filename).open() as f:
+            lines = f.readlines()
+
+        # Extract gene names
+        raw_genes = [
+            line.strip().split()[1] if len(line.strip().split()) > 1 else line.strip().split()[0]
+            for line in lines
+        ]
+
+        # Handle duplicates by adding numeric suffixes
+        gene_counts = pd.Series(raw_genes).value_counts()
+        duplicates = set(gene_counts[gene_counts > 1].index)
+
+        processed_genes = []
+        dup_counters = {}
+
+        for gene in raw_genes:
+            if gene in duplicates:
+                dup_counters[gene] = dup_counters.get(gene, 0) + 1
+                processed_genes.append(f"{gene}_{dup_counters[gene]}")
+            else:
+                processed_genes.append(gene)
+
+        return processed_genes
+
+    @staticmethod
+    def _load_barcodes_file(filename: str) -> list[str]:
+        """Load and process barcodes file."""
+        with Path(filename).open() as f:
+            lines = f.readlines()
+
+        barcodes = []
+        for line in lines:
+            barcode = line.strip().split("\t")[0]
+            # Remove dash suffix if present
+            if "-" in barcode:
+                barcode = barcode.split("-")[0]
+            barcodes.append(barcode)
+
+        return barcodes
+
+    @staticmethod
+    def save_gene_exp_to_mtx_dir(inst_path: str | Path, df: pd.DataFrame) -> None:
+        """Save DataFrame as 10x Genomics format files."""
+        from scipy import io, sparse
+
+        path_obj = Path(inst_path)
+        path_obj.mkdir(exist_ok=True)
+
+        genes = df.index.tolist()
+        barcodes = df.columns.tolist()
+
+        # Save genes and barcodes
+        Network.save_list_to_tsv(genes, path_obj / "genes.tsv")
+        Network.save_list_to_tsv(barcodes, path_obj / "barcodes.tsv")
+
+        # Save matrix in sparse format
+        mat_sparse = sparse.coo_matrix(df.values)
+        io.mmwrite(path_obj / "matrix.mtx", mat_sparse)
+
+    @staticmethod
+    def umi_norm(df: pd.DataFrame) -> pd.DataFrame:
+        """Perform UMI normalization (divide by column sums)."""
+        return df.div(df.sum(axis=0), axis=1)
+
+    @staticmethod
+    def make_df_from_cols(cols: list[tuple[str, ...]]) -> pd.DataFrame:
+        """Create DataFrame from column tuples with category information."""
         if not cols:
             return pd.DataFrame()
 
-        inst_col = cols[0]
+        # Extract category titles from first column
+        cat_titles = [info.split(": ")[0] for info in cols[0][1:]]
 
-        cat_titles = []
-        for inst_info in inst_col[1:]:
-            inst_title = inst_info.split(": ")[0]
-            cat_titles.append(inst_title)
+        # Clean column data
+        clean_cols = [
+            tuple(info.split(": ", 1)[1] if ": " in info else info for info in col) for col in cols
+        ]
 
-        clean_cols = []
-        for inst_col in cols:
-            inst_clean = [info.split(": ", 1)[1] if ": " in info else info for info in inst_col]
-            clean_cols.append(tuple(inst_clean))
+        # Create DataFrame with first element as index
+        df_data = pd.DataFrame(clean_cols).set_index(0)
 
-        df_ini = pd.DataFrame(data=clean_cols).set_index(0)
-        mat = df_ini.values
-        rows = df_ini.index.tolist()
+        return pd.DataFrame(data=df_data.values, index=df_data.index.tolist(), columns=cat_titles)
 
-        return pd.DataFrame(data=mat, index=rows, columns=cat_titles)
+    @staticmethod
+    def box_scatter_plot(
+        df: pd.DataFrame,
+        group: str,
+        columns: bool | list[str] = False,
+        rand_seed: int = 100,
+        alpha: float = 0.5,
+        dot_color: str = "red",
+        num_row: int | None = None,
+        num_col: int = 1,
+        figsize: tuple[int, int] = (10, 10),
+        start_title: str = "Variable Measurements Across",
+        end_title: str = "Groups",
+    ) -> dict[str, pd.DataFrame]:
+        """Create box plots with scatter overlay for grouped data."""
+
+        plot_columns = columns if columns else df.columns.tolist()
+
+        plt.figure(figsize=figsize)
+        plt.suptitle(f"{start_title} {group} {end_title}", fontsize=20)
+
+        result_dfs = {}
+
+        for col_idx, column in enumerate(plot_columns):
+            plot_id = col_idx + 1
+
+            # Group data
+            grouped = df.groupby(group) if group in df.columns else df.groupby(level=group)
+
+            names, values = [], []
+            col_title = column[0] if isinstance(column, tuple) else column
+
+            for name, subdf in grouped:
+                names.append(name)
+                series = subdf[column]
+                series.name = f"{col_title}-{name}"
+                values.append(series)
+
+            # Create plot
+            np.random.seed(rand_seed)
+            ax = plt.subplot(num_row, num_col, plot_id)
+            plt.boxplot(values, labels=names)
+
+            # Add scatter points
+            Network._add_scatter_points(values, dot_color, alpha, num_row, num_col, plot_id)
+
+            # Statistical analysis and title
+            df_arranged = pd.concat(values, axis=1)
+            pval = Network._calculate_anova_pvalue(df_arranged)
+
+            title_text = (
+                f"{col_title} P-val: {pval:.2e}"
+                if pval < 0.01
+                else f"{col_title} P-val: {pval:.5f}"
+            )
+            ax.set_title(title_text)
+
+            result_dfs[column] = df_arranged
+
+        return result_dfs
+
+    @staticmethod
+    def _add_scatter_points(
+        values: list[pd.Series],
+        dot_color: str,
+        alpha: float,
+        num_row: int | None,
+        num_col: int,
+        plot_id: int,
+    ) -> None:
+        """Add scatter points to box plot."""
+        n_groups = len(values)
+        group_positions = np.linspace(0.0, 1.0, n_groups)
+
+        for i, (_, series) in enumerate(zip(group_positions, values, strict=False)):
+            x_scatter = np.random.normal(i + 1, 0.04, len(series))
+            plt.subplot(num_row, num_col, plot_id)
+            plt.scatter(x_scatter, series, c=dot_color, alpha=alpha)
+
+    @staticmethod
+    def _calculate_anova_pvalue(df_arranged: pd.DataFrame) -> float:
+        """Calculate ANOVA p-value for grouped data."""
+        from scipy import stats
+
+        anova_data = [df_arranged[col].dropna() for col in df_arranged.columns]
+        _, pval = stats.f_oneway(*anova_data)
+        return pval
+
+    @staticmethod
+    def rank_cols_by_anova_pval(
+        df: pd.DataFrame, group: str, columns: bool | list[str] = False
+    ) -> pd.Series:
+        """Rank columns by ANOVA p-values for group differences."""
+        plot_columns = columns if columns else df.columns.tolist()
+        pval_list = []
+
+        for column in plot_columns:
+            # Group data
+            grouped = df.groupby(group) if group in df.columns else df.groupby(level=group)
+
+            values = []
+            col_title = column[0] if isinstance(column, tuple) else column
+
+            for name, subdf in grouped:
+                series = subdf[column]
+                series.name = f"{col_title}-{name}"
+                values.append(series)
+
+            # Calculate ANOVA
+            df_arranged = pd.concat(values, axis=1)
+            pval = Network._calculate_anova_pvalue(df_arranged)
+            pval_list.append(pval)
+
+        return pd.Series(pval_list, index=plot_columns).sort_values()
 
 
-def save_list_to_tsv(inst_list, filename):
-    """Save list to TSV file."""
-    with Path.open(filename, "w") as f:
-        for inst_line in inst_list:
-            f.write(f"{inst_line}\n")
+def save_list_to_tsv(inst_list: list[str], filename: str | Path) -> None:
+    """Save list of strings to TSV file."""
+    with Path(filename).open("w") as f:
+        for line in inst_list:
+            f.write(f"{line}\n")

@@ -1,283 +1,288 @@
+"""
+Downsampling utilities for high-dimensional clustering data.
+
+This module provides K-means based downsampling functionality for reducing
+the dimensionality of datasets while preserving cluster structure and metadata.
+"""
+
+from typing import Any
+
 import numpy as np
 import pandas as pd
 from sklearn.cluster import MiniBatchKMeans
 
 
-# string used to format titles
-super_string = ": "
+# Separator string for category formatting
+CATEGORY_SEPARATOR = ": "
 
 
 def main(
-    net,
-    df=None,
-    ds_type="kmeans",
-    axis="row",
-    num_samples=100,
-    random_state=1000,
-    ds_name="Downsample",
-    ds_cluster_name="cluster",
-):
-    # print('is meta cat 1 ??', net.meta_cat)
+    net: Any,
+    df: pd.DataFrame | None = None,
+    ds_type: str = "kmeans",
+    axis: str = "row",
+    num_samples: int = 100,
+    random_state: int = 1000,
+    ds_name: str = "Downsample",
+    ds_cluster_name: str = "cluster",
+) -> pd.Series | None:
+    """
+    Downsample matrix rows or columns using K-means clustering.
 
-    if df is None:
-        df = net.export_df()
+    Args:
+        net: Network object containing the data and metadata
+        df: Optional DataFrame to downsample (uses net.export_df() if None)
+        ds_type: Downsampling algorithm type (currently only "kmeans" supported)
+        axis: Axis to downsample ("row" or "col")
+        num_samples: Target number of clusters/samples
+        random_state: Random seed for reproducibility
+        ds_name: Name for the downsampling operation
+        ds_cluster_name: Prefix for cluster names
+
+    Returns:
+        Series mapping original labels to cluster assignments, or None if metadata exists
+
+    Raises:
+        ValueError: If parameters are invalid or insufficient data available
+    """
+    if num_samples <= 0:
+        raise ValueError("num_samples must be positive")
+    if axis not in {"row", "col"}:
+        raise ValueError(f"Invalid axis '{axis}'. Must be 'row' or 'col'.")
+
+    input_df = df if df is not None else net.export_df()
+
+    available = input_df.shape[0 if axis == "row" else 1]
+    if num_samples > available:
+        raise ValueError(f"Requested {num_samples} samples but only {available} {axis}s available")
+
     net.ds_name = ds_name
 
-    # print('run k-means!!!!!!!!!!!!!')
-    ds_df, ds_data = run_kmeans_mini_batch(
-        net, df, num_samples, axis, random_state, ds_cluster_name
+    # Core processing - optimized single pass
+    ds_df, cluster_assignments = _process_downsample(
+        net, input_df, num_samples, axis, random_state, ds_cluster_name
     )
 
-    ds_data = [f"{ds_cluster_name}-{x + 1}" for x in ds_data]
+    # Generate results efficiently
+    original_labels = input_df.index if axis == "row" else input_df.columns
+    cluster_series = pd.Series(
+        [f"{ds_cluster_name}-{x + 1}" for x in cluster_assignments], index=original_labels
+    )
 
-    labels = df.index.tolist() if axis == "row" else df.columns.tolist()
+    # Update network in-place
+    _finalize_network(net, ds_df, axis, ds_name, cluster_series)
 
-    ser_ds = pd.Series(ds_data, index=labels)
+    return None if net.meta_cat else cluster_series
 
-    # generate downsampled metadata from tuples
-    if axis == "col":
-        net.meta_ds_col = net.make_df_from_cols(ds_df.columns.tolist())
-    else:
-        net.meta_ds_row = net.make_df_from_cols(ds_df.index.tolist())
 
-    # strip tuples
-    # print('strip tuples!!!!!!!!!!!!!!!!!!!!1')
-    if axis == "col":
-        ds_df.columns = [x[0] for x in ds_df.columns.tolist()]
-        # print('after stripping col tuples')
-        # print(ds_df.columns.tolist())
-        net.dat["nodes"]["col"] = ds_df.columns.tolist()
+def _process_downsample(
+    net: Any,
+    df: pd.DataFrame,
+    num_samples: int,
+    axis: str,
+    random_state: int,
+    cluster_name: str,
+) -> tuple[pd.DataFrame, np.ndarray]:
+    """Execute complete downsampling pipeline with minimal data copying."""
 
-    else:
-        ds_df.index = [x[0] for x in ds_df.index.tolist()]
-        net.dat["nodes"]["row"] = ds_df.index.tolist()
+    # Prepare data matrices - single data access
+    is_row_axis = axis == "row"
+    X = df.values if is_row_axis else df.values.T
+    target_labels = df.index.tolist() if is_row_axis else df.columns.tolist()
+    other_labels = df.columns.tolist() if is_row_axis else df.index.tolist()
 
-    # print('is meta cat 1 ??', net.meta_cat)
-
-    # load downsampled dataframe into net
-    # print('setting is_downsampled to True')
-    # print('load downsampled dataframe into net!!!!!!!!!!!!!!')
-    net.load_df(ds_df, is_downsampled=True)
-
-    # print('is meta cat 3 ??', net.meta_cat)
-
+    # Add metadata if needed - single conditional check
     if net.meta_cat:
-        if axis == "row":
-            net.meta_row[ds_name] = ser_ds
-        else:
-            net.meta_col[ds_name] = ser_ds
-        return None
-    return ser_ds
+        meta_cats = getattr(net, f"{axis}_cats", None)
+        if meta_cats:
+            meta_source = getattr(net, f"meta_{axis}")
+            target_labels = [
+                tuple([label] + [f"{cat}: {meta_source.loc[label, cat]}" for cat in meta_cats])
+                for label in target_labels
+            ]
+
+    # Clustering with optimized retry - minimized iterations
+    centers, assignments = _cluster_with_validation(X, num_samples, random_state)
+
+    # Generate metadata efficiently
+    cluster_labels = _build_cluster_labels(
+        assignments, target_labels, centers.shape[0], cluster_name
+    )
+
+    # Create result DataFrame
+    result_df = pd.DataFrame(data=centers, index=cluster_labels, columns=other_labels)
+    return result_df.T if not is_row_axis else result_df, assignments
 
 
-def meta_cat_to_tuple(net, axis, orig_labels, inst_cats):
-    tuple_labels = []
-    for inst_label in orig_labels:
-        new_label = [inst_label]
+def _cluster_with_validation(
+    X: np.ndarray, num_samples: int, random_state: int, max_attempts: int = 10
+) -> tuple[np.ndarray, np.ndarray]:
+    """Optimized clustering with minimal retry overhead."""
 
-        for inst_cat_type in inst_cats:
-            inst_cat = (
-                f"{inst_cat_type}: {net.meta_col.loc[inst_label, inst_cat_type]}"
-                if axis == "col"
-                else f"{inst_cat_type}: {net.meta_row.loc[inst_label, inst_cat_type]}"
-            )
-            new_label.append(inst_cat)
+    n_samples, n_features = X.shape
+    effective_clusters = min(num_samples, n_samples)
 
-        tuple_labels.append(tuple(new_label))
+    if effective_clusters < num_samples:
+        print(f"Warning: Using {effective_clusters} clusters instead of {num_samples}")
 
-    return tuple_labels
+    # Single clustering attempt with validation
+    safe_seed = max(0, min(random_state, 2**31 - 1))
 
-
-def run_kmeans_mini_batch(
-    net, df, num_samples=100, axis="row", random_state=1000, ds_cluster_name="cluster"
-):
-    # gather downsampled axis information
-    if axis == "row":
-        X = df
-        orig_labels = df.index.tolist()
-        non_ds_labels = df.columns.tolist()
-
-        # print(orig_labels)
-        if net.meta_cat:
-            orig_labels = meta_cat_to_tuple(net, axis, orig_labels, net.row_cats)
-
-    else:
-        X = df.transpose()
-        orig_labels = df.columns.tolist()
-        non_ds_labels = df.index.tolist()
-
-        if net.meta_cat:
-            orig_labels = meta_cat_to_tuple(net, axis, orig_labels, net.col_cats)
-
-    # run until the number of returned clusters with data-points is equal to the
-    # number of requested clusters
-    num_returned_clusters = 0
-    while num_samples != num_returned_clusters:
-        clusters, num_returned_clusters, cluster_data, cluster_pop = calc_mbk_clusters(
-            X, num_samples, random_state
+    for attempt in range(max_attempts):
+        kmeans = MiniBatchKMeans(
+            n_clusters=effective_clusters,
+            init="k-means++",
+            max_no_improvement=100,
+            verbose=0,
+            random_state=safe_seed + attempt,
         )
 
-        random_state = random_state + random_state
+        assignments = kmeans.fit_predict(X)
+        centers = kmeans.cluster_centers_
 
-    clust_numbers = range(num_returned_clusters)
-    clust_labels = [f"{ds_cluster_name}-{i + 1}" for i in clust_numbers]
+        # Fast unique check
+        unique_clusters = np.unique(assignments)
+        if len(unique_clusters) == effective_clusters:
+            return centers[unique_clusters], assignments
 
-    found_cats = isinstance(orig_labels[0], tuple)
+        # Reorder centers for partial success
+        centers = centers[unique_clusters]
 
-    # Gather categories if necessary
-    ########################################
-    # check if there are categories
-    if found_cats:
-        all_cats = generate_cat_data(cluster_data, orig_labels, num_samples)
+    print(f"Warning: Could not achieve exact cluster count after {max_attempts} attempts")
+    return centers, assignments
 
-    # generate cluster labels, e.g. add number in each cluster and majority cat
-    # if necessary
-    cluster_labels = []
-    for i in range(num_returned_clusters):
-        inst_name = clust_labels[i]
-        num_in_clust_string = f"number in clust: {cluster_pop[i]}"
 
-        inst_tuple = (inst_name,)
+def _build_cluster_labels(
+    assignments: np.ndarray,
+    labels: list[str | tuple[str, ...]],
+    num_clusters: int,
+    cluster_name: str,
+) -> list[tuple[str, ...]]:
+    """Build cluster metadata labels with optimized category processing."""
 
-        if found_cats:
-            for cat_data in all_cats:
-                cat_values = cat_data["counts"][i]
-                max_cat_fraction = cat_values.max()
-                max_index = np.where(cat_values == max_cat_fraction)[0][0]
-                max_cat_name = cat_data["types"][max_index]
+    # Fast population count
+    _, populations = np.unique(assignments, return_counts=True)
 
-                # add category title if available
-                cat_name_string = f"{cat_data['title']}: {max_cat_name}"
+    # Early return for simple case
+    if not labels or not isinstance(labels[0], tuple):
+        return [
+            (f"{cluster_name}-{i + 1}", f"number in clust: {populations[i]}")
+            for i in range(num_clusters)
+        ]
 
-                inst_tuple = (*inst_tuple, cat_name_string)
+    # Optimized category processing for complex case
+    categories = _extract_categories_optimized(labels, assignments, num_clusters)
 
-        inst_tuple = (*inst_tuple, num_in_clust_string)
+    return [
+        tuple(
+            [f"{cluster_name}-{i + 1}"]
+            + [f"{cat['title']}: {cat['types'][np.argmax(cat['counts'][i])]}" for cat in categories]
+            + [f"number in clust: {populations[i]}"]
+        )
+        for i in range(num_clusters)
+    ]
 
-        cluster_labels.append(inst_tuple)
 
-    # ds_df is always downsampling the rows, if the user wants to downsample the
-    # columns, the df will be switched back later
-    ds_df = pd.DataFrame(data=clusters, index=cluster_labels, columns=non_ds_labels)
+def _extract_categories_optimized(
+    labels: list[tuple[str, ...]],
+    assignments: np.ndarray,
+    num_clusters: int,
+) -> list[dict[str, Any]]:
+    """Optimized category extraction with minimal memory allocation."""
 
-    # swap back for downsampled columns
+    if not labels:
+        return []
+
+    # Single pass to identify string categories
+    example = labels[0]
+    string_indices = []
+
+    for i in range(1, len(example)):
+        value = (
+            example[i].split(CATEGORY_SEPARATOR, 1)[-1]
+            if CATEGORY_SEPARATOR in example[i]
+            else example[i]
+        )
+        try:
+            float(value)
+        except ValueError:
+            string_indices.append(i)
+
+    if not string_indices:
+        return []
+
+    # Vectorized category processing
+    categories = []
+    labels_array = np.array(labels, dtype=object)
+
+    for cat_idx in string_indices:
+        # Extract all values for this category at once
+        cat_column = labels_array[:, cat_idx]
+
+        # Parse category values efficiently
+        title = (
+            cat_column[0].split(CATEGORY_SEPARATOR)[0]
+            if CATEGORY_SEPARATOR in cat_column[0]
+            else "Category"
+        )
+        values = np.array(
+            [
+                val.split(CATEGORY_SEPARATOR, 1)[-1] if CATEGORY_SEPARATOR in val else val
+                for val in cat_column
+            ]
+        )
+
+        unique_values = np.unique(values)
+
+        # Vectorized counting per cluster
+        cluster_counts = {}
+        for cluster_id in range(num_clusters):
+            mask = assignments == cluster_id
+            if not np.any(mask):
+                cluster_counts[cluster_id] = np.zeros(len(unique_values))
+                continue
+
+            cluster_values = values[mask]
+            counts = np.array([np.sum(cluster_values == val) for val in unique_values])
+            total = counts.sum()
+            cluster_counts[cluster_id] = counts / total if total > 0 else counts
+
+        categories.append(
+            {
+                "title": title,
+                "types": unique_values.tolist(),
+                "counts": cluster_counts,
+            }
+        )
+
+    return categories
+
+
+def _finalize_network(
+    net: Any,
+    ds_df: pd.DataFrame,
+    axis: str,
+    ds_name: str,
+    cluster_series: pd.Series,
+) -> None:
+    """Efficiently update network with minimal data copying."""
+
+    # Single axis-based processing
     if axis == "col":
-        ds_df = ds_df.transpose()
+        # Process columns
+        net.meta_ds_col = net.make_df_from_cols(ds_df.columns.tolist())
+        ds_df.columns = [col[0] if isinstance(col, tuple) else col for col in ds_df.columns]
+        net.dat["nodes"]["col"] = ds_df.columns.tolist()
+    else:
+        # Process rows
+        net.meta_ds_row = net.make_df_from_cols(ds_df.index.tolist())
+        ds_df.index = [idx[0] if isinstance(idx, tuple) else idx for idx in ds_df.index]
+        net.dat["nodes"]["row"] = ds_df.index.tolist()
 
-    return ds_df, cluster_data
+    # Single network update
+    net.load_df(ds_df, is_downsampled=True)
 
-
-def generate_cat_data(cluster_data, orig_labels, num_samples):
-    # generate an array of orig_labels, using an array so that I can gather
-    # label subsets using indices
-    orig_array = np.asarray(orig_labels)
-
-    example_label = orig_labels[0]
-
-    # find out how many string categories are available
-    num_cats = 0
-    for i in range(len(example_label)):
-        if i > 0:
-            inst_cat = example_label[i]
-            if super_string in inst_cat:
-                inst_cat = inst_cat.split(super_string)[1]
-
-            try:
-                float(inst_cat)
-                string_cat = False
-            except Exception:
-                string_cat = True
-
-            if string_cat:
-                num_cats = num_cats + 1
-
-    all_cats = []
-
-    for cat_index in range(num_cats):
-        # index zero is for the names
-        cat_index = cat_index + 1
-
-        cat_data = {
-            "title": (
-                example_label[cat_index].split(super_string)[0]
-                if super_string in example_label[cat_index]
-                else "Category"
-            ),
-            "types": [],
-        }
-
-        # if there are string categories, then keep track of how many of each category
-        # are found in each of the downsampled clusters.
-
-        # gather possible categories
-        for inst_label in orig_labels:
-            inst_cat = inst_label[cat_index]
-
-            if super_string in inst_cat:
-                inst_cat = inst_cat.split(super_string)[1]
-
-            # get first category
-            cat_data["types"].append(inst_cat)
-
-        cat_data["types"] = sorted(set(cat_data["types"]))
-
-        num_cats_per_type = len(cat_data["types"])
-
-        # initialize cat_data['counts'] dictionary
-        cat_data["counts"] = {
-            inst_clust: np.zeros([num_cats_per_type]) for inst_clust in range(num_samples)
-        }
-
-        # populate cat_data['counts']
-        for inst_clust in range(num_samples):
-            # get the indices of all original labels that fall in the cluster
-            found = np.where(cluster_data == inst_clust)
-            found_indices = found[0]
-
-            clust_names = orig_array[found_indices]
-
-            for inst_name in clust_names:
-                # get first category name
-                inst_name = inst_name[cat_index]
-
-                if super_string in inst_name:
-                    inst_name = inst_name.split(super_string)[1]
-
-                tmp_index = cat_data["types"].index(inst_name)
-
-                cat_data["counts"][inst_clust][tmp_index] = (
-                    cat_data["counts"][inst_clust][tmp_index] + 1
-                )
-
-        # calculate fractions
-        for inst_clust in range(num_samples):
-            # get array
-            counts = cat_data["counts"][inst_clust]
-            inst_total = np.sum(counts)
-            cat_data["counts"][inst_clust] = cat_data["counts"][inst_clust] / inst_total
-
-        all_cats.append(cat_data)
-
-    return all_cats
-
-
-def calc_mbk_clusters(X, n_clusters, random_state=1000):
-    # kmeans is run with rows as data-points and columns as dimensions
-    mbk = MiniBatchKMeans(
-        init="k-means++",
-        n_clusters=n_clusters,
-        max_no_improvement=100,
-        verbose=0,
-        random_state=random_state,
-    )
-
-    # need to loop through each label (each k-means cluster) and count how many
-    # points were given this label. This will give the population size of each label
-    mbk.fit(X)
-    cluster_data = mbk.labels_
-    clusters = mbk.cluster_centers_
-
-    _, cluster_pop = np.unique(cluster_data, return_counts=True)
-
-    num_returned_clusters = len(cluster_pop)
-
-    return clusters, num_returned_clusters, cluster_data, cluster_pop
+    # Conditional metadata update
+    if net.meta_cat:
+        target_meta = getattr(net, f"meta_{axis}")
+        target_meta[ds_name] = cluster_series

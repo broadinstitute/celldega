@@ -532,7 +532,6 @@ export const make_ist_ui_container = (
 
   obs_store.selected_cats.subscribe((selected_cats) => {
 
-    console.log('cat bar graph subscribe!!!!!!!!!!!!');
     const svg = viz_state.cats.svg_bar_cluster;
     const container = viz_state.containers.bar_cluster;
 
@@ -594,99 +593,6 @@ export const make_ist_ui_container = (
       }
     }
   });
-
-  // obs_store.new_cell_bar_data.subscribe((bar_data) => {
-  //   // This is a side effect that can be used to trigger updates in the UI
-  //   console.log("New cell bar data set:", bar_data);
-
-  //   const svg_bar = viz_state.cats.svg_bar_cluster;
-  //   const container = viz_state.containers.bar_cluster;
-
-  //   const bar_height = 15;
-  //   const svg_height = bar_height * (bar_data.length + 1);
-
-  //   svg_bar.attr('height', svg_height);
-
-  //   const max_bar_width = 90;
-  //   const bar_data_values = bar_data.map((x) => x.value);
-
-  //   const y_new = d3
-  //     .scaleBand()
-  //     .domain(d3.range(bar_data_values.length))
-  //     .range([0, (bar_height + 1) * bar_data_values.length]);
-
-  //   const x_new = d3
-  //     .scaleLinear()
-  //     .domain([0, d3.max(bar_data_values)])
-  //     .range([0, max_bar_width]);
-
-  //   const bars = svg_bar.selectAll('g').data(bar_data, (d) => d.name);
-
-  //   // Enter new bars
-  //   const bars_enter = bars
-  //     .enter()
-  //     .append('g')
-  //     .attr('transform', (d, i) => `translate(2,${y_new(i) + 2})`)
-  //     .on('click', (event, d) =>
-  //       click_callback(event, d, deck_ist, layers_obj, viz_state)
-  //     );
-
-  //   bars_enter
-  //     .append('rect')
-  //     .attr('width', 0) // Initial width set to 0 for transition effect
-  //     .attr('height', y_new.bandwidth() - 1)
-  //     .transition() // Transition for entering elements
-  //     .duration(750)
-  //     .attr('width', (d) => x_new(d.value));
-
-  //   bars_enter
-  //     .append('text')
-  //     .attr('fill', 'black')
-  //     .attr('x', '5px')
-  //     .attr('y', y_new.bandwidth() / 2 - 1) // Adjust this value to push the text up
-  //     .attr('dy', '0.35em')
-  //     .attr('text-anchor', 'start')
-  //     .text((d) => d.name)
-  //     .attr('opacity', 0) // Initial opacity set to 0 for transition effect
-  //     .transition() // Transition for entering elements
-  //     .duration(750)
-  //     .attr('opacity', 1);
-
-  //   // Merge the enter and update selections
-  //   const bars_merged = bars.merge(bars_enter);
-
-  //   // Update existing bars
-  //   bars_merged
-  //     .transition() // Transition for updating elements
-  //     .duration(750)
-  //     .attr('transform', (d, i) => `translate(2,${y_new(i) + 2})`);
-
-  //   const color_dict = viz_state.cats.color_dict_cluster;
-  //   const selected_array = viz_state.cats.selected_cats;
-
-  //   bars_merged
-  //     .select('rect')
-  //     .attr('width', (d) => x_new(d.value))
-  //     .attr('fill', (d) => {
-  //       const inst_rgb = color_dict[d.name] || [0, 0, 0]; // Default to black if not in color_dict
-  //       const inst_opacity =
-  //         selected_array.length === 0 || selected_array.includes(d.name)
-  //           ? 1
-  //           : 0.1;
-  //       return `rgba(${inst_rgb[0]}, ${inst_rgb[1]}, ${inst_rgb[2]}, ${inst_opacity})`;
-  //     });
-
-  //   bars_merged.select('text').text((d) => d.name);
-
-  //   // Remove old bars
-  //   bars
-  //     .exit()
-  //     .transition() // Transition for exiting elements
-  //     .duration(750)
-  //     .attr('opacity', 0)
-  //     .remove();
-
-  // })
 
   obs_store.new_cell_bar_data.subscribe((bar_data) => {
     console.log("New cell bar data set:", bar_data);

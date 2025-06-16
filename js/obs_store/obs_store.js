@@ -24,4 +24,5 @@ function Observable(initialValue) {
 export const obs_store = {
   cat: Observable("cluster"),
   selected_cats: Observable([]),
+  new_cell_bar_data: Observable([]),
 }

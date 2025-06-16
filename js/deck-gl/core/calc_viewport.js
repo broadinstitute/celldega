@@ -7,6 +7,7 @@ import { visibleTiles } from '../../vector_tile/visibleTiles';
 import { update_path_layer_data } from '../layers/path_layer';
 import { update_trx_layer_data } from '../layers/trx_layer';
 import { get_layers_list } from '../utils/layers_ist';
+import { obs_store } from '../../obs_store/obs_store';
 
 export const calc_viewport = async (
   { height, width, zoom, target },
@@ -125,21 +126,24 @@ export const calc_viewport = async (
       .filter((item) => item.value > 0)
       .sort((a, b) => b.value - a.value);
 
-    update_bar_graph(
-      viz_state.cats.svg_bar_cluster,
-      new_bar_data_cell,
-      viz_state.cats.color_dict_cluster,
-      bar_callback_cluster,
-      viz_state.cats.selected_cats,
-      deck_ist,
-      layers_obj,
-      viz_state
-    );
+    obs_store.new_cell_bar_data.set(new_bar_data_cell);
 
-    viz_state.containers.bar_cluster.scrollTo({
-      top: 0,
-      behavior: 'smooth',
-    });
+    // update_bar_graph(
+    //   viz_state.cats.svg_bar_cluster,
+    //   new_bar_data_cell,
+    //   viz_state.cats.color_dict_cluster,
+    //   bar_callback_cluster,
+    //   viz_state.cats.selected_cats,
+    //   deck_ist,
+    //   layers_obj,
+    //   viz_state
+    // );
+
+    // viz_state.containers.bar_cluster.scrollTo({
+    //   top: 0,
+    //   behavior: 'smooth',
+    // });
+
   } else {
     if (viz_state.close_up) {
       viz_state.close_up = false;

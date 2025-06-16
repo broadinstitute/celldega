@@ -1,5 +1,5 @@
 """
-Comprehensive tests for celldega.clust.load_data module.
+Comprehensive tests for celldega.clust.data.load_data module.
 Tests cover all functions with extensive edge case coverage and minimal redundancy.
 """
 
@@ -87,8 +87,8 @@ class TestFileLoading:
         ],
         ids=["simple", "tabular", "empty", "unicode"],
     )
-    @patch("celldega.clust.load_data.Path")
-    @patch("celldega.clust.load_data.load_file_as_string")
+    @patch("celldega.clust.data.load_data.Path")
+    @patch("celldega.clust.data.load_data.load_file_as_string")
     def test_load_file_success_cases(
         self, mock_load_string, mock_path, file_content, filename, expected_reset, mock_network
     ):
@@ -111,7 +111,7 @@ class TestFileLoading:
             (MemoryError(), "huge_file.tsv"),
         ],
     )
-    @patch("celldega.clust.load_data.Path")
+    @patch("celldega.clust.data.load_data.Path")
     def test_load_file_error_cases(self, mock_path, exception_type, filename, mock_network):
         """Test file loading error handling - comprehensive error coverage"""
         mock_path.return_value.read_text.side_effect = exception_type
@@ -239,7 +239,7 @@ class TestStdinAndBufferHandling:
         # Patch the buggy line directly in the function to fix it temporarily
         expected_content = "".join(stdin_input)
 
-        with patch("celldega.clust.load_data.StringIO") as mock_stringio_class:
+        with patch("celldega.clust.data.load_data.StringIO") as mock_stringio_class:
             # Mock the StringIO class to return a proper instance
             mock_stringio_instance = Mock()
             mock_stringio_class.return_value = mock_stringio_instance
@@ -276,8 +276,8 @@ class TestTsvProcessing:
             (4, 4, True),  # Maximum categories
         ],
     )
-    @patch("celldega.clust.load_data.categories.check_categories")
-    @patch("celldega.clust.load_data.proc_df_labels.main")
+    @patch("celldega.clust.data.load_data.categories.check_categories")
+    @patch("celldega.clust.data.load_data.proc_df_labels.main")
     @patch("pandas.read_table")
     def test_tsv_category_configurations(
         self,
@@ -321,7 +321,7 @@ class TestTsvProcessing:
             MemoryError("Out of memory"),
         ],
     )
-    @patch("celldega.clust.load_data.categories.check_categories")
+    @patch("celldega.clust.data.load_data.categories.check_categories")
     @patch("pandas.read_table")
     def test_tsv_pandas_error_handling(
         self, mock_read_table, mock_check_cats, pandas_error, mock_network
@@ -344,9 +344,9 @@ class TestTsvProcessing:
 
         # With the FIX applied: buffer.seek(0) is called in load_tsv_to_net
         # So this should now work without raising EmptyDataError
-        with patch("celldega.clust.load_data.categories.check_categories") as mock_check:
+        with patch("celldega.clust.data.load_data.categories.check_categories") as mock_check:
             with patch("pandas.read_table") as mock_read_table:
-                with patch("celldega.clust.load_data.proc_df_labels.main") as mock_proc:
+                with patch("celldega.clust.data.load_data.proc_df_labels.main") as mock_proc:
                     mock_check.return_value = {"row": 1, "col": 1}
                     mock_df = pd.DataFrame([[1, 2], [3, 4]])
                     mock_read_table.return_value = mock_df
@@ -373,7 +373,7 @@ class TestTsvProcessing:
         _ = buffer.read()  # Advances buffer position to end
 
         # Simulate what the OLD code did (without the seek fix)
-        with patch("celldega.clust.load_data.categories.check_categories") as mock_check:
+        with patch("celldega.clust.data.load_data.categories.check_categories") as mock_check:
             mock_check.return_value = {"row": 1, "col": 1}
 
             # This simulates the old bug: pandas gets empty content due to buffer position
@@ -394,7 +394,7 @@ class TestTsvProcessing:
             ("normal\tdata\nnull\x00byte", "null_bytes"),
         ],
     )
-    @patch("celldega.clust.load_data.categories.check_categories")
+    @patch("celldega.clust.data.load_data.categories.check_categories")
     def test_malformed_tsv_content(
         self, mock_check_cats, malformed_content, error_description, mock_network
     ):
@@ -406,7 +406,7 @@ class TestTsvProcessing:
             mock_df = pd.DataFrame([[1, 2]])
             mock_read_table.return_value = mock_df
 
-            with patch("celldega.clust.load_data.proc_df_labels.main") as mock_proc:
+            with patch("celldega.clust.data.load_data.proc_df_labels.main") as mock_proc:
                 mock_proc.return_value = mock_df
 
                 # Should not raise exception for malformed content (pandas handles it)
@@ -433,7 +433,7 @@ class TestJsonAndGmtLoading:
         """Test JSON loading with various data structures"""
         json_string = json.dumps(json_data)
 
-        with patch("celldega.clust.load_data.Path.open", mock_open(read_data=json_string)):
+        with patch("celldega.clust.data.load_data.Path.open", mock_open(read_data=json_string)):
             result = load_data.load_json_to_dict(f"{description}.json")
 
         assert result == json_data
@@ -450,7 +450,7 @@ class TestJsonAndGmtLoading:
     )
     def test_json_error_handling(self, invalid_json, error_type):
         """Test JSON error handling with various invalid formats"""
-        with patch("celldega.clust.load_data.Path.open", mock_open(read_data=invalid_json)):
+        with patch("celldega.clust.data.load_data.Path.open", mock_open(read_data=invalid_json)):
             if error_type == json.JSONDecodeError:
                 with pytest.raises(json.JSONDecodeError):
                     load_data.load_json_to_dict("invalid.json")
@@ -492,7 +492,7 @@ class TestJsonAndGmtLoading:
     )
     def test_gmt_loading_variations(self, gmt_content, expected_result, description):
         """Test GMT loading with various file formats and edge cases"""
-        with patch("celldega.clust.load_data.Path.open", mock_open(read_data=gmt_content)):
+        with patch("celldega.clust.data.load_data.Path.open", mock_open(read_data=gmt_content)):
             result = load_data.load_gmt(f"{description}.gmt")
 
         assert result == expected_result
@@ -508,7 +508,7 @@ class TestJsonAndGmtLoading:
     )
     def test_file_loading_errors(self, file_error):
         """Test file loading error handling for both JSON and GMT"""
-        with patch("celldega.clust.load_data.Path.open", side_effect=file_error):
+        with patch("celldega.clust.data.load_data.Path.open", side_effect=file_error):
             # Test both JSON and GMT error handling
             with pytest.raises(type(file_error)):
                 load_data.load_json_to_dict("missing.json")
@@ -548,7 +548,7 @@ class TestDataToNetLoading:
             ({"nodes": {"row": ["gene1"], "col": ["cell1"]}, "mat": [[42]]}, "single_cell"),
         ],
     )
-    @patch("celldega.clust.load_data.data_formats.mat_to_numpy_arr")
+    @patch("celldega.clust.data.load_data.data_formats.mat_to_numpy_arr")
     def test_load_data_to_net_success_cases(
         self, mock_mat_to_numpy, test_data, description, mock_network
     ):
@@ -569,7 +569,7 @@ class TestDataToNetLoading:
             ({}, "nodes"),  # Completely empty - missing both keys
         ],
     )
-    @patch("celldega.clust.load_data.data_formats.mat_to_numpy_arr")
+    @patch("celldega.clust.data.load_data.data_formats.mat_to_numpy_arr")
     def test_load_data_to_net_missing_keys(
         self, mock_mat_to_numpy, incomplete_data, missing_key, mock_network
     ):
@@ -580,7 +580,7 @@ class TestDataToNetLoading:
         with pytest.raises(KeyError):
             load_data.load_data_to_net(mock_network, incomplete_data)
 
-    @patch("celldega.clust.load_data.data_formats.mat_to_numpy_arr")
+    @patch("celldega.clust.data.load_data.data_formats.mat_to_numpy_arr")
     def test_load_data_to_net_incomplete_nodes_success(self, mock_mat_to_numpy, mock_network):
         """Test that incomplete nodes dict doesn't raise error in load_data_to_net"""
         mock_network.dat = {}
@@ -619,7 +619,7 @@ class TestComplexIntegrationScenarios:
 
         # Show what the import should be for the code to work
         try:
-            from StringIO import StringIO as LegacyStringIO
+            import StringIO as LegacyStringIO
 
             # This would work in Python 2
             legacy_buffer = LegacyStringIO(data)
@@ -634,7 +634,7 @@ class TestComplexIntegrationScenarios:
         # The import in load_data.py should work correctly
         # This verifies the compatibility import is correct, just the usage is wrong
         try:
-            from StringIO import StringIO
+            import StringIO
 
             # If this works, we're in Python 2 (unlikely)
             assert StringIO is not None
@@ -706,8 +706,8 @@ class TestComplexIntegrationScenarios:
             "special_chars",
         ],
     )
-    @patch("celldega.clust.load_data.Path")
-    @patch("celldega.clust.load_data.load_file_as_string")
+    @patch("celldega.clust.data.load_data.Path")
+    @patch("celldega.clust.data.load_data.load_file_as_string")
     def test_filename_edge_cases(self, mock_load_string, mock_path, path_type, mock_network):
         """Test various filename and path edge cases"""
         mock_path.return_value.read_text.return_value = "test content"
@@ -727,7 +727,7 @@ class TestEndToEndIntegration:
         mock_net = MockNetwork()
 
         # Mock Path class to handle both Path(filename).read_text() and Path(filename).name
-        with patch("celldega.clust.load_data.Path") as mock_path_class:
+        with patch("celldega.clust.data.load_data.Path") as mock_path_class:
             # Create a mock path instance
             mock_path_instance = Mock()
             mock_path_instance.read_text.return_value = valid_tsv_content

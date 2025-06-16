@@ -160,8 +160,8 @@ class TestInputValidationCurrentBehavior(TestLoadVectPostBase):
         mock_net = self.create_mock_net()
 
         with (
-            patch("celldega.clust.load_vect_post.deepcopy") as mock_deepcopy,
-            patch("celldega.clust.load_vect_post.proc_df_labels") as mock_proc_df_labels,
+            patch("celldega.clust.data.load_vect_post.deepcopy") as mock_deepcopy,
+            patch("celldega.clust.data.load_vect_post.proc_df_labels") as mock_proc_df_labels,
         ):
             mock_net_instance = self.create_mock_network_class()
             mock_deepcopy.return_value = mock_net_instance
@@ -180,8 +180,8 @@ class TestInputValidationCurrentBehavior(TestLoadVectPostBase):
 class TestDataProcessingCurrentBehavior(TestLoadVectPostBase):
     """Test core data processing functionality with current code behavior."""
 
-    @patch("celldega.clust.load_vect_post.deepcopy")
-    @patch("celldega.clust.load_vect_post.proc_df_labels")
+    @patch("celldega.clust.data.load_vect_post.deepcopy")
+    @patch("celldega.clust.data.load_vect_post.proc_df_labels")
     def test_successful_basic_processing(self, mock_proc_df_labels, mock_deepcopy):
         """Test successful processing of valid data."""
         mock_net_instance = self.create_mock_network_class()
@@ -210,8 +210,8 @@ class TestDataProcessingCurrentBehavior(TestLoadVectPostBase):
         mock_proc_df_labels.main.assert_called_once()
         real_net.df_to_dat.assert_called_once()
 
-    @patch("celldega.clust.load_vect_post.deepcopy")
-    @patch("celldega.clust.load_vect_post.proc_df_labels")
+    @patch("celldega.clust.data.load_vect_post.deepcopy")
+    @patch("celldega.clust.data.load_vect_post.proc_df_labels")
     def test_matrix_ordering_and_nan_filling(self, mock_proc_df_labels, mock_deepcopy):
         """Test matrix ordering and NaN filling for missing values."""
         mock_net_instance = self.create_mock_network_class()
@@ -254,8 +254,8 @@ class TestDataProcessingCurrentBehavior(TestLoadVectPostBase):
             ([1e308, 1e-308, -1e308], 0),  # Large numbers should be exact
         ],
     )
-    @patch("celldega.clust.load_vect_post.deepcopy")
-    @patch("celldega.clust.load_vect_post.proc_df_labels")
+    @patch("celldega.clust.data.load_vect_post.deepcopy")
+    @patch("celldega.clust.data.load_vect_post.proc_df_labels")
     def test_numeric_value_handling(
         self, mock_proc_df_labels, mock_deepcopy, numeric_values, expected_tolerance
     ):
@@ -294,8 +294,8 @@ class TestDataProcessingCurrentBehavior(TestLoadVectPostBase):
             ({}, TypeError),  # Can't convert dict to float
         ],
     )
-    @patch("celldega.clust.load_vect_post.deepcopy")
-    @patch("celldega.clust.load_vect_post.proc_df_labels")
+    @patch("celldega.clust.data.load_vect_post.deepcopy")
+    @patch("celldega.clust.data.load_vect_post.proc_df_labels")
     def test_invalid_numeric_values(
         self, mock_proc_df_labels, mock_deepcopy, invalid_numeric_value, expected_error
     ):
@@ -326,8 +326,8 @@ class TestDataProcessingCurrentBehavior(TestLoadVectPostBase):
             ["123", "1.5", "-42"],
         ],
     )
-    @patch("celldega.clust.load_vect_post.deepcopy")
-    @patch("celldega.clust.load_vect_post.proc_df_labels")
+    @patch("celldega.clust.data.load_vect_post.deepcopy")
+    @patch("celldega.clust.data.load_vect_post.proc_df_labels")
     def test_string_name_handling(self, mock_proc_df_labels, mock_deepcopy, string_values):
         """Test handling of various string name types."""
         mock_net_instance = self.create_mock_network_class()
@@ -354,7 +354,7 @@ class TestDataProcessingCurrentBehavior(TestLoadVectPostBase):
 class TestNetworkIntegrationCurrentBehavior(TestLoadVectPostBase):
     """Test integration with Network class and error propagation."""
 
-    @patch("celldega.clust.load_vect_post.deepcopy")
+    @patch("celldega.clust.data.load_vect_post.deepcopy")
     def test_network_initialization_failure(self, mock_deepcopy):
         """Test handling of Network initialization failures."""
         mock_deepcopy.side_effect = RuntimeError("Network init failed")
@@ -366,7 +366,7 @@ class TestNetworkIntegrationCurrentBehavior(TestLoadVectPostBase):
         with pytest.raises(RuntimeError, match="Network init failed"):
             main(real_net, vect_post)
 
-    @patch("celldega.clust.load_vect_post.deepcopy")
+    @patch("celldega.clust.data.load_vect_post.deepcopy")
     def test_dat_to_df_failure(self, mock_deepcopy):
         """Test handling of dat_to_df method failures."""
         mock_net_instance = self.create_mock_network_class()
@@ -380,8 +380,8 @@ class TestNetworkIntegrationCurrentBehavior(TestLoadVectPostBase):
         with pytest.raises(AttributeError, match="dat_to_df failed"):
             main(real_net, vect_post)
 
-    @patch("celldega.clust.load_vect_post.deepcopy")
-    @patch("celldega.clust.load_vect_post.proc_df_labels")
+    @patch("celldega.clust.data.load_vect_post.deepcopy")
+    @patch("celldega.clust.data.load_vect_post.proc_df_labels")
     def test_proc_df_labels_failure(self, mock_proc_df_labels, mock_deepcopy):
         """Test handling of proc_df_labels failures."""
         mock_net_instance = self.create_mock_network_class()
@@ -395,8 +395,8 @@ class TestNetworkIntegrationCurrentBehavior(TestLoadVectPostBase):
         with pytest.raises(ValueError, match="Processing failed"):
             main(real_net, vect_post)
 
-    @patch("celldega.clust.load_vect_post.deepcopy")
-    @patch("celldega.clust.load_vect_post.proc_df_labels")
+    @patch("celldega.clust.data.load_vect_post.deepcopy")
+    @patch("celldega.clust.data.load_vect_post.proc_df_labels")
     def test_df_to_dat_failure(self, mock_proc_df_labels, mock_deepcopy):
         """Test handling of df_to_dat method failures."""
         mock_net_instance = self.create_mock_network_class()
@@ -430,8 +430,8 @@ class TestEdgeCasesCurrentBehavior(TestLoadVectPostBase):
             ),
         ],
     )
-    @patch("celldega.clust.load_vect_post.deepcopy")
-    @patch("celldega.clust.load_vect_post.proc_df_labels")
+    @patch("celldega.clust.data.load_vect_post.deepcopy")
+    @patch("celldega.clust.data.load_vect_post.proc_df_labels")
     def test_matrix_size_scenarios(
         self, mock_proc_df_labels, mock_deepcopy, scenario_name, rows, cols, values, expected_shape
     ):
@@ -450,8 +450,8 @@ class TestEdgeCasesCurrentBehavior(TestLoadVectPostBase):
         assert len(mock_net_instance.dat["nodes"]["row"]) == expected_shape[0]
         assert len(mock_net_instance.dat["nodes"]["col"]) == expected_shape[1]
 
-    @patch("celldega.clust.load_vect_post.deepcopy")
-    @patch("celldega.clust.load_vect_post.proc_df_labels")
+    @patch("celldega.clust.data.load_vect_post.deepcopy")
+    @patch("celldega.clust.data.load_vect_post.proc_df_labels")
     def test_duplicate_names_handling(self, mock_proc_df_labels, mock_deepcopy):
         """Test handling of duplicate row/column names."""
         mock_net_instance = self.create_mock_network_class()
@@ -480,8 +480,8 @@ class TestEdgeCasesCurrentBehavior(TestLoadVectPostBase):
         assert matrix.shape == (1, 1)
         assert matrix[0, 0] == 2.0  # Last value wins
 
-    @patch("celldega.clust.load_vect_post.deepcopy")
-    @patch("celldega.clust.load_vect_post.proc_df_labels")
+    @patch("celldega.clust.data.load_vect_post.deepcopy")
+    @patch("celldega.clust.data.load_vect_post.proc_df_labels")
     def test_network_dat_structure_population(self, mock_proc_df_labels, mock_deepcopy):
         """Test that dat structure is populated correctly."""
         # Create network with realistic initial dat structure (as Network() would provide)
@@ -526,8 +526,8 @@ class TestEdgeCasesCurrentBehavior(TestLoadVectPostBase):
 class TestIntegrationScenariosCurrentBehavior(TestLoadVectPostBase):
     """Integration tests for realistic scenarios."""
 
-    @patch("celldega.clust.load_vect_post.deepcopy")
-    @patch("celldega.clust.load_vect_post.proc_df_labels")
+    @patch("celldega.clust.data.load_vect_post.deepcopy")
+    @patch("celldega.clust.data.load_vect_post.proc_df_labels")
     def test_gene_expression_scenario(self, mock_proc_df_labels, mock_deepcopy):
         """Test realistic gene expression data scenario."""
         mock_net_instance = self.create_mock_network_class()
@@ -579,8 +579,8 @@ class TestIntegrationScenariosCurrentBehavior(TestLoadVectPostBase):
         assert np.isnan(matrix[gene_idx["MYC"], cell_idx["cell_001"]])
         assert matrix[gene_idx["MYC"], cell_idx["cell_002"]] == 8.9
 
-    @patch("celldega.clust.load_vect_post.deepcopy")
-    @patch("celldega.clust.load_vect_post.proc_df_labels")
+    @patch("celldega.clust.data.load_vect_post.deepcopy")
+    @patch("celldega.clust.data.load_vect_post.proc_df_labels")
     def test_large_dataset_simulation(self, mock_proc_df_labels, mock_deepcopy):
         """Test performance with larger dataset."""
         mock_net_instance = self.create_mock_network_class()

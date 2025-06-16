@@ -764,7 +764,7 @@ export const make_ist_ui_container = (
       .duration(750)
       .attr('opacity', 0)
       .remove();
-  });
+  }, {immediate: false} );
 
 
 

@@ -12,10 +12,12 @@ function Observable(initialValue) {
         subscribers.forEach(fn => fn(value));
       }
     },
-    subscribe: fn => {
-      subscribers.add(fn);
-      fn(value); // Call immediately with current value
-      return () => subscribers.delete(fn); // Un_catsubscribe function
+    subscribe: (fn, options = { immediate: true }) => {
+    subscribers.add(fn);
+    if (options.immediate) {
+        fn(value);
+    }
+    return () => subscribers.delete(fn);
     }
   }
 

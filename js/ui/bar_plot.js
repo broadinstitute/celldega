@@ -55,12 +55,6 @@ export const bar_callback_gene = async (
   _viz_state
 ) => {
 
-  // // reset cluster bar plot - will move to subscriber event
-  // _viz_state.cats.svg_bar_cluster
-  //   .selectAll('g')
-  //   .attr('font-weight', 'normal')
-  //   .attr('opacity', 1.0);
-
   const currentTarget = d3.select(_event.currentTarget);
   const isBold = currentTarget.attr('font-weight') === 'bold';
 

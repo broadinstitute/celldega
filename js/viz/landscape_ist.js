@@ -448,12 +448,6 @@ export const landscape_ist = async (
         });
       }
 
-      // reset cluster bar plot
-      viz_state.cats.svg_bar_cluster
-        .selectAll('g')
-        .attr('font-weight', 'normal')
-        .attr('opacity', 1.0);
-
       toggle_image_layers_and_ctrls(
         layers_obj,
         viz_state,
@@ -492,39 +486,6 @@ export const landscape_ist = async (
         .attr('font-weight', 'normal')
         .attr('opacity', 1.0);
 
-      viz_state.cats.svg_bar_cluster
-        .selectAll('g')
-        .attr('font-weight', 'normal')
-        .attr('opacity', viz_state.cats.reset_cat ? 1.0 : 0.25);
-
-      if (!viz_state.cats.reset_cat) {
-        const selectedBar = viz_state.cats.svg_bar_cluster
-          .selectAll('g')
-          .filter(function () {
-            return d3.select(this).select('text').text() === inst_col;
-          })
-          .attr('opacity', 1.0);
-
-        if (!selectedBar.empty()) {
-          const barPosition = selectedBar.node().getBoundingClientRect().top;
-          const containerPosition =
-            viz_state.containers.bar_cluster.getBoundingClientRect().top;
-          const scrollPosition =
-            barPosition -
-            containerPosition +
-            viz_state.containers.bar_cluster.scrollTop;
-
-          viz_state.containers.bar_cluster.scrollTo({
-            top: scrollPosition,
-            behavior: 'smooth',
-          });
-        }
-      } else {
-        viz_state.containers.bar_cluster.scrollTo({
-          top: 0,
-          behavior: 'smooth',
-        });
-      }
 
       update_cat(viz_state.cats, 'cluster');
       update_selected_cats(viz_state.cats, [inst_col]);
@@ -575,36 +536,6 @@ export const landscape_ist = async (
       );
       deck_ist.setProps({ layers: dendroColLayersList });
 
-      viz_state.cats.svg_bar_cluster
-        .selectAll('g')
-        .attr('font-weight', 'normal')
-        .attr('opacity', viz_state.cats.reset_cat ? 1.0 : 0.25);
-
-      const inst_cat = new_cats;
-
-      if (!viz_state.cats.reset_cat) {
-        const selectedBar = viz_state.cats.svg_bar_cluster
-          .selectAll('g')
-          .filter(function () {
-            return d3.select(this).select('text').text() === inst_cat;
-          })
-          .attr('opacity', 1.0);
-
-        if (!selectedBar.empty()) {
-          const barPosition = selectedBar.node().getBoundingClientRect().top;
-          const containerPosition =
-            viz_state.containers.bar_cluster.getBoundingClientRect().top;
-          const scrollPosition =
-            barPosition -
-            containerPosition +
-            viz_state.containers.bar_cluster.scrollTop;
-
-          viz_state.containers.bar_cluster.scrollTo({
-            top: scrollPosition,
-            behavior: 'smooth',
-          });
-        }
-      }
     },
     update_view_state: async (new_view_state, close_up, _trx_layer) => {
       viz_state.close_up = close_up;

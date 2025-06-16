@@ -595,7 +595,6 @@ export const make_ist_ui_container = (
   });
 
   obs_store.new_cell_bar_data.subscribe((bar_data) => {
-    console.log("New cell bar data set:", bar_data);
 
     const svg_bar = viz_state.cats.svg_bar_cluster;
     const container = viz_state.containers.bar_cluster;
@@ -621,7 +620,7 @@ export const make_ist_ui_container = (
     const bars_enter = bars.enter()
       .append('g')
       .attr('transform', (d, i) => `translate(2,${y_scale(i) + 2})`)
-      .on('click', (event, d) => click_callback(event, d, deck_ist, layers_obj, viz_state));
+      .on('click', (event, d) => bar_callback_cluster(event, d, deck_ist, layers_obj, viz_state));
 
     bars_enter.append('rect')
       .attr('width', 0)

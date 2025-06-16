@@ -74,39 +74,7 @@ const nbhd_layer_onclick = async (
     .attr('font-weight', 'normal')
     .attr('opacity', 1.0);
 
-  viz_state.cats.svg_bar_cluster
-    .selectAll('g')
-    .attr('font-weight', 'normal')
-    .attr('opacity', viz_state.cats.reset_cat ? 1.0 : 0.25);
-
-  if (!viz_state.cats.reset_cat) {
-    const selectedBar = viz_state.cats.svg_bar_cluster
-      .selectAll('g')
-      .filter(function () {
-        return d3.select(this).select('text').text() === inst_cat;
-      })
-      .attr('opacity', 1.0);
-
-    if (!selectedBar.empty()) {
-      const barPosition = selectedBar.node().getBoundingClientRect().top;
-      const containerPosition =
-        viz_state.containers.bar_cluster.getBoundingClientRect().top;
-      const scrollPosition =
-        barPosition -
-        containerPosition +
-        viz_state.containers.bar_cluster.scrollTop;
-
-      viz_state.containers.bar_cluster.scrollTo({
-        top: scrollPosition,
-        behavior: 'smooth',
-      });
-    }
-  } else {
-    viz_state.containers.bar_cluster.scrollTo({
-      top: 0,
-      behavior: 'smooth',
-    });
-  }
+  // will set up svg_bar_cluster update via observable
 
   update_cell_layer_id(layers_obj, inst_cat_name);
   update_path_layer_id(layers_obj, inst_cat_name);

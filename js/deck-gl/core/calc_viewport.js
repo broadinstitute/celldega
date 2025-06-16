@@ -128,22 +128,6 @@ export const calc_viewport = async (
 
     obs_store.new_cell_bar_data.set(new_bar_data_cell);
 
-    // update_bar_graph(
-    //   viz_state.cats.svg_bar_cluster,
-    //   new_bar_data_cell,
-    //   viz_state.cats.color_dict_cluster,
-    //   bar_callback_cluster,
-    //   viz_state.cats.selected_cats,
-    //   deck_ist,
-    //   layers_obj,
-    //   viz_state
-    // );
-
-    // viz_state.containers.bar_cluster.scrollTo({
-    //   top: 0,
-    //   behavior: 'smooth',
-    // });
-
   } else {
     if (viz_state.close_up) {
       viz_state.close_up = false;
@@ -158,16 +142,8 @@ export const calc_viewport = async (
         layers_obj,
         viz_state
       );
-      update_bar_graph(
-        viz_state.cats.svg_bar_cluster,
-        viz_state.cats.cluster_counts,
-        viz_state.cats.color_dict_cluster,
-        bar_callback_cluster,
-        viz_state.cats.selected_cats,
-        deck_ist,
-        layers_obj,
-        viz_state
-      );
+
+      obs_store.new_cell_bar_data.set(viz_state.cats.cluster_counts);
 
       viz_state.containers.bar_gene.scrollTo({
         top: 0,

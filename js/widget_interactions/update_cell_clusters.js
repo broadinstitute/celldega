@@ -5,6 +5,7 @@ import { update_meta_cluster } from '../global_variables/meta_cluster';
 import { update_bar_graph, bar_callback_cluster } from '../ui/bar_plot';
 
 export const update_cell_clusters = (deck_ist, layers_obj, viz_state) => {
+  console.log('update_cell_clusters called');
   const new_cluster_info = viz_state.model.get('cell_clusters');
 
   update_meta_cluster(viz_state.cats, new_cluster_info['meta_cluster']);
@@ -20,14 +21,6 @@ export const update_cell_clusters = (deck_ist, layers_obj, viz_state) => {
     cat: viz_state.cats.dict_cell_cats[cell.name],
   }));
 
-  update_bar_graph(
-    viz_state.cats.svg_bar_cluster,
-    viz_state.cats.cluster_counts,
-    viz_state.cats.color_dict_cluster,
-    bar_callback_cluster,
-    [],
-    deck_ist,
-    layers_obj,
-    viz_state
-  );
+  // update to bar graph should take place via observable
+
 };

@@ -106,11 +106,11 @@ const trx_layer_callback = async (
     });
   }
 
-  // reset cluster bar plot
-  viz_state.cats.svg_bar_cluster
-    .selectAll('g')
-    .attr('font-weight', 'normal')
-    .attr('opacity', 1.0);
+  // // reset cluster bar plot
+  // viz_state.cats.svg_bar_cluster
+  //   .selectAll('g')
+  //   .attr('font-weight', 'normal')
+  //   .attr('opacity', 1.0);
 
   viz_state.genes.gene_search_input.value =
     viz_state.genes.gene_search_input.value !== inst_gene ? inst_gene : '';

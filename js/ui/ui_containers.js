@@ -483,6 +483,7 @@ export const make_ist_ui_container = (
     layers_obj,
     viz_state
   );
+
   make_button(
     trx_container,
     'ist',
@@ -505,6 +506,8 @@ export const make_ist_ui_container = (
   cell_ctrl_container.appendChild(cell_slider_container);
 
   viz_state.containers.bar_cluster = make_bar_container();
+
+  viz_state.cats.svg_bar_cluster = d3.create('svg');
 
   make_bar_graph(
     viz_state.containers.bar_cluster,

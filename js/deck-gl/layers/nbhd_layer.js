@@ -74,7 +74,6 @@ const nbhd_layer_onclick = async (
     .attr('font-weight', 'normal')
     .attr('opacity', 1.0);
 
-  // will set up svg_bar_cluster update via observable
 
   update_cell_layer_id(layers_obj, inst_cat_name);
   update_path_layer_id(layers_obj, inst_cat_name);

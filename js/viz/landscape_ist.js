@@ -212,7 +212,6 @@ export const landscape_ist = async (
   viz_state.cats.color_dict_cluster = {};
   viz_state.cats.cluster_counts = [];
   viz_state.cats.polygon_cell_names = [];
-  viz_state.cats.svg_bar_cluster = d3.create('svg');
 
   // check if meta_cell is an empty object
   if (Object.keys(meta_cell).length === 0) {

@@ -98,15 +98,11 @@ export const landscape_ist = async (
     width = '100%';
   }
 
-  console.log('check obs_store')
-  console.log(obs_store)
-  // console.log('obs_store cat', obs_store.cat.get())
-  // obs_store.cat.set('something')
-  // console.log('obs_store cat', obs_store.cat.get());
-
-  obs_store.selected_cats.subscribe((new_selected_cats) => {
-    console.log('obs_store selected_cats changed:', new_selected_cats);
-  })
+  // console.log('check obs_store')
+  // console.log(obs_store)
+  // // console.log('obs_store cat', obs_store.cat.get())
+  // // obs_store.cat.set('something')
+  // // console.log('obs_store cat', obs_store.cat.get());
 
   const viz_state = {};
   viz_state.seg = {};
@@ -254,7 +250,6 @@ export const landscape_ist = async (
   viz_state.genes.gene_text_box = '';
   viz_state.genes.trx_slider = document.createElement('input');
   viz_state.genes.gene_search = document.createElement('div');
-  viz_state.genes.svg_bar_gene = d3.create('svg');
 
   viz_state.cats.cell_exp_array = [];
   viz_state.cats.cell_names_array = [];
@@ -415,37 +410,37 @@ export const landscape_ist = async (
       const new_cat = reset_gene ? 'cluster' : inst_gene;
 
       if (!reset_gene) {
-        const selectedBar = viz_state.genes.svg_bar_gene
-          .selectAll('g')
-          .filter(function () {
-            const textElement = d3.select(this).select('text').node();
-            return textElement && textElement.textContent === inst_gene;
-          })
-          .attr('opacity', 1.0);
+      //   const selectedBar = viz_state.genes.svg_bar_gene
+      //     .selectAll('g')
+      //     .filter(function () {
+      //       const textElement = d3.select(this).select('text').node();
+      //       return textElement && textElement.textContent === inst_gene;
+      //     })
+      //     .attr('opacity', 1.0);
 
-        if (!selectedBar.empty()) {
-          const barPosition = selectedBar.node().getBoundingClientRect().top;
+      //   if (!selectedBar.empty()) {
+      //     const barPosition = selectedBar.node().getBoundingClientRect().top;
 
-          const containerPosition =
-            viz_state.containers.bar_gene.getBoundingClientRect().top;
-          const scrollPosition =
-            barPosition -
-            containerPosition +
-            viz_state.containers.bar_gene.scrollTop;
+      //     const containerPosition =
+      //       viz_state.containers.bar_gene.getBoundingClientRect().top;
+      //     const scrollPosition =
+      //       barPosition -
+      //       containerPosition +
+      //       viz_state.containers.bar_gene.scrollTop;
 
-          viz_state.genes.svg_bar_gene.attr('opacity', 1.0);
+      //     viz_state.genes.svg_bar_gene.attr('opacity', 1.0);
 
-          viz_state.containers.bar_gene.scrollTo({
-            top: scrollPosition,
-            behavior: 'smooth',
-          });
-        }
-      } else {
-        viz_state.containers.bar_gene.scrollTo({
-          top: 0,
-          behavior: 'smooth',
-        });
-      }
+      //     viz_state.containers.bar_gene.scrollTo({
+      //       top: scrollPosition,
+      //       behavior: 'smooth',
+      //     });
+      //   }
+      // } else {
+      //   viz_state.containers.bar_gene.scrollTo({
+      //     top: 0,
+      //     behavior: 'smooth',
+      //   });
+      // }
 
       toggle_image_layers_and_ctrls(
         layers_obj,

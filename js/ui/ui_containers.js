@@ -508,6 +508,8 @@ export const make_ist_ui_container = (
   viz_state.containers.bar_cluster = make_bar_container();
 
   viz_state.cats.svg_bar_cluster = d3.create('svg');
+  viz_state.genes.svg_bar_gene = d3.create('svg');
+
 
   make_bar_graph(
     viz_state.containers.bar_cluster,
@@ -533,69 +535,79 @@ export const make_ist_ui_container = (
     viz_state
   );
 
-  obs_store.selected_cats.subscribe((selected_cats) => {
+  const make_bar_cat_subscriber = (svg, container) => {
+    return (selected_cats) => {
+      // --- 1. Update the styles ---
+      if (!Array.isArray(selected_cats) || selected_cats.length === 0) {
+        svg.selectAll('g')
+          .attr('font-weight', 'normal')
+          .attr('opacity', 1.0);
 
-    const svg = viz_state.cats.svg_bar_cluster;
-    const container = viz_state.containers.bar_cluster;
+        // Scroll to top if we're resetting
+        container.scrollTo({
+          top: 0,
+          behavior: 'smooth',
+        });
+      } else {
+        svg.selectAll('g')
+          .attr('font-weight', d =>
+            selected_cats.includes(d.name) ? 'bold' : 'normal'
+          )
+          .attr('opacity', d =>
+            selected_cats.includes(d.name) ? 1.0 : 0.2
+          );
 
-    // --- 1. Update the styles ---
-    if (!Array.isArray(selected_cats) || selected_cats.length === 0) {
-      svg.selectAll('g')
-        .attr('font-weight', 'normal')
-        .attr('opacity', 1.0);
+        // --- 2. Scroll to the selected bar if only one is selected ---
+        if (selected_cats.length === 1) {
+          const inst_cat = selected_cats[0];
 
-      // Scroll to top if we're resetting
-      container.scrollTo({
-        top: 0,
-        behavior: 'smooth',
-      });
-    } else {
-      svg.selectAll('g')
-        .attr('font-weight', (d) =>
-          selected_cats.includes(d.name) ? 'bold' : 'normal'
-        )
-        .attr('opacity', (d) =>
-          selected_cats.includes(d.name) ? 1.0 : 0.2
-        );
-
-      // --- 2. Scroll to the selected bar if only one is selected ---
-      if (selected_cats.length === 1) {
-        const inst_cat = selected_cats[0];
-
-        const selectedBar = svg
-          .selectAll('g')
-          .filter(function () {
-            return d3.select(this).select('text').text() === inst_cat;
-          });
-
-        if (!selectedBar.empty()) {
-          const barElement = selectedBar.node();
-          const containerRect = container.getBoundingClientRect();
-          const barRect = barElement.getBoundingClientRect();
-
-          // Check if the bar is already fully visible in the container
-          const barTop = barRect.top;
-          const barBottom = barRect.bottom;
-          const containerTop = containerRect.top;
-          const containerBottom = containerRect.bottom;
-
-          const barFullyVisible = barTop >= containerTop && barBottom <= containerBottom;
-
-          if (!barFullyVisible) {
-            // Compute scroll target
-            const offsetTop = barTop - containerTop;
-            const scrollTop = container.scrollTop + offsetTop;
-
-            container.scrollTo({
-              top: scrollTop,
-              behavior: 'smooth',
+          const selectedBar = svg
+            .selectAll('g')
+            .filter(function () {
+              return d3.select(this).select('text').text() === inst_cat;
             });
+
+          if (!selectedBar.empty()) {
+            const barElement = selectedBar.node();
+            const containerRect = container.getBoundingClientRect();
+            const barRect = barElement.getBoundingClientRect();
+
+            const barTop = barRect.top;
+            const barBottom = barRect.bottom;
+            const containerTop = containerRect.top;
+            const containerBottom = containerRect.bottom;
+
+            const barFullyVisible = barTop >= containerTop && barBottom <= containerBottom;
+
+            if (!barFullyVisible) {
+              const offsetTop = barTop - containerTop;
+              const scrollTop = container.scrollTop + offsetTop;
+
+              container.scrollTo({
+                top: scrollTop,
+                behavior: 'smooth',
+              });
+            }
           }
         }
-
       }
-    }
-  });
+    };
+  };
+
+
+  obs_store.selected_cats.subscribe(make_bar_cat_subscriber(
+    viz_state.cats.svg_bar_cluster,
+    viz_state.containers.bar_cluster
+  ), {immediate: false});
+
+  // obs_store.selected_genes.subscribe((selected_genes) => {
+  //   console.log('obs_store selected_genes changed:', selected_genes);
+  // }, {immediate: false});
+
+  obs_store.selected_genes.subscribe(make_bar_cat_subscriber(
+    viz_state.genes.svg_bar_gene,
+    viz_state.containers.bar_gene
+  ), {immediate: false});
 
   obs_store.new_cell_bar_data.subscribe((bar_data) => {
 

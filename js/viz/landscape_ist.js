@@ -409,39 +409,6 @@ export const landscape_ist = async (
       const reset_gene = inst_gene === viz_state.cats.cat;
       const new_cat = reset_gene ? 'cluster' : inst_gene;
 
-      if (!reset_gene) {
-      //   const selectedBar = viz_state.genes.svg_bar_gene
-      //     .selectAll('g')
-      //     .filter(function () {
-      //       const textElement = d3.select(this).select('text').node();
-      //       return textElement && textElement.textContent === inst_gene;
-      //     })
-      //     .attr('opacity', 1.0);
-
-      //   if (!selectedBar.empty()) {
-      //     const barPosition = selectedBar.node().getBoundingClientRect().top;
-
-      //     const containerPosition =
-      //       viz_state.containers.bar_gene.getBoundingClientRect().top;
-      //     const scrollPosition =
-      //       barPosition -
-      //       containerPosition +
-      //       viz_state.containers.bar_gene.scrollTop;
-
-      //     viz_state.genes.svg_bar_gene.attr('opacity', 1.0);
-
-      //     viz_state.containers.bar_gene.scrollTo({
-      //       top: scrollPosition,
-      //       behavior: 'smooth',
-      //     });
-      //   }
-      // } else {
-      //   viz_state.containers.bar_gene.scrollTo({
-      //     top: 0,
-      //     behavior: 'smooth',
-      //   });
-      // }
-
       toggle_image_layers_and_ctrls(
         layers_obj,
         viz_state,

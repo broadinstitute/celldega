@@ -10,7 +10,7 @@ from unittest.mock import Mock, mock_open, patch
 import pandas as pd
 import pytest
 
-from celldega.clust import load_data
+from celldega.clust.data import load_data
 
 
 class MockNetwork:

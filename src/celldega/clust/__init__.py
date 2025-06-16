@@ -55,20 +55,13 @@ from scipy.stats import mannwhitneyu, ttest_ind
 from sklearn.metrics import auc, confusion_matrix, pairwise_distances, roc_curve
 import statsmodels.stats.multitest as smm
 
-from . import (
-    categories,
-    data_formats,
-    downsample_fun,
-    enrichr_functions as enr_fun,
-    export_data,
-    iframe_web_app,
-    initialize_net,
-    load_data,
-    load_vect_post,
-    make_clust_fun,
-    normalize_fun,
-    run_filter,
-)
+from .analysis import enrichr_functions as enr_fun
+from .categories import categories
+from .clustering import make_clust_fun
+from .core import data_formats, initialize_net
+from .data import export_data, load_data, load_vect_post
+from .preprocessing import downsample_fun, normalize_fun, run_filter
+from .visualization import iframe_web_app
 
 
 # Type aliases for better readability
@@ -1039,7 +1032,6 @@ class Network:
         return 0.0
 
     # Utility Methods
-
     def row_tuple_to_multiindex(self, df: pd.DataFrame) -> pd.DataFrame:
         """Convert tuple-based row index to pandas MultiIndex."""
         df_mi = deepcopy(df)

@@ -11,7 +11,6 @@ Options to run tests:
 3. Run with: python -m pytest (if using src layout)
 """
 
-import importlib.util
 from pathlib import Path
 import sys
 from unittest.mock import MagicMock, patch
@@ -21,45 +20,17 @@ import pandas as pd
 import pytest
 
 
-# Add src to path if not already there (fallback method)
-if "src" not in sys.path:
-    src_path = Path(__file__).parent.parent.parent / "src"
-    if src_path.exists():
-        sys.path.insert(0, str(src_path))
+sys.path.insert(0, str(Path(__file__).parents[3] / "src"))
 
-# Import from the src layout structure
-main = None
-dist_matrix_lattice = None
-calc_median_dist_subset = None
-calc_hist_distances = None
+# Import the same way as the actual code does
+from celldega.clust.categories import cat_pval
 
-# Try primary import path
-if importlib.util.find_spec("celldega.clust.cat_pval") is not None:
-    try:
-        from celldega.clust.cat_pval import (
-            calc_hist_distances,
-            calc_median_dist_subset,
-            dist_matrix_lattice,
-            main,
-        )
 
-        MODULE_PATH = "celldega.clust.cat_pval"
-    except ImportError:
-        pass
-
-# Try alternative import path if primary failed
-if main is None and importlib.util.find_spec("src.celldega.clust.cat_pval") is not None:
-    try:
-        from src.celldega.clust.cat_pval import (
-            calc_hist_distances,
-            calc_median_dist_subset,
-            dist_matrix_lattice,
-            main,
-        )
-
-        MODULE_PATH = "src.celldega.clust.cat_pval"
-    except ImportError:
-        pass
+# Import the functions we need for testing
+calc_hist_distances = cat_pval.calc_hist_distances
+calc_median_dist_subset = cat_pval.calc_median_dist_subset
+dist_matrix_lattice = cat_pval.dist_matrix_lattice
+main = cat_pval.main
 
 # Skip tests if no imports worked
 if main is None:
@@ -187,7 +158,7 @@ class TestCalcMedianDistSubset:
 
         # Should handle this gracefully since 'A' exists but 'Z' doesn't
         # The function now filters to valid elements, so this should work
-        assert isinstance(result, (int, float))
+        assert isinstance(result, (int | float))
         assert not np.isnan(result)  # 'A' exists, so should get a valid result
 
 
@@ -300,17 +271,15 @@ class TestMainFunction:
         }
         return net
 
-    # Patch with proper module path detection
-    def _get_patch_path(self, func_name):
-        """Get the correct patch path based on how the module was imported"""
-        return f"{MODULE_PATH}.{func_name}"
-
     def test_basic_main_functionality(self, mock_network):
         """Test basic functionality of main function"""
+        # Import the module first to ensure it's loaded
+        from celldega.clust.categories import cat_pval as cat_pval_module
+
         with (
-            patch(self._get_patch_path("dist_matrix_lattice")) as mock_dist,
-            patch(self._get_patch_path("calc_median_dist_subset")) as mock_median,
-            patch(self._get_patch_path("calc_hist_distances")) as mock_hist,
+            patch.object(cat_pval_module, "dist_matrix_lattice") as mock_dist,
+            patch.object(cat_pval_module, "calc_median_dist_subset") as mock_median,
+            patch.object(cat_pval_module, "calc_hist_distances") as mock_hist,
         ):
             # Setup mocks
             mock_dist.return_value = pd.DataFrame()
@@ -346,9 +315,12 @@ class TestMainFunction:
 
     def test_pvalue_calculation_logic(self, mock_network):
         """Test the p-value calculation logic specifically"""
+        # Import the module first to ensure it's loaded
+        from celldega.clust.categories import cat_pval as cat_pval_module
+
         with (
-            patch(self._get_patch_path("calc_median_dist_subset")) as mock_median,
-            patch(self._get_patch_path("calc_hist_distances")) as mock_hist,
+            patch.object(cat_pval_module, "calc_median_dist_subset") as mock_median,
+            patch.object(cat_pval_module, "calc_hist_distances") as mock_hist,
         ):
             # Setup specific test case
             mock_median.return_value = 0.6  # observed median
@@ -530,16 +502,28 @@ class TestCurrentImplementationIssues:
 
     def test_statistical_calculation_is_now_valid(self):
         """Test that verifies the statistical calculation now uses proper null distribution"""
+        # Import the module first to ensure it's loaded
+        from celldega.clust.categories import cat_pval as cat_pval_module
+
         # This test demonstrates the fixed statistical calculation
-        with patch(self._get_patch_path("_fast_median_distance")) as mock_median:
+        # Patch the actual internal function that gets called
+        with patch.object(cat_pval_module, "_fast_median_distance") as mock_median:
             # Set up a scenario where we can predict the result
-            mock_median.side_effect = [
-                0.5,
+            # We need 1001 values: 1 for observed + 1000 for null distribution
+            mock_values = [
+                0.5,  # First call - observed median
                 0.3,
                 0.7,
                 0.4,
                 0.6,
-            ] * 250  # Cycle through values for null distribution
+                0.2,
+                0.8,
+                0.1,
+                0.9,
+                0.5,  # 9 values for null distribution
+            ]
+            # Repeat the pattern to get enough values (1000 for null distribution)
+            mock_median.side_effect = mock_values * 112  # 10 * 112 = 1120 values (more than enough)
 
             net = MagicMock()
             net.dat = {
@@ -558,11 +542,8 @@ class TestCurrentImplementationIssues:
             # P-value should be between 0 and 1 and represent actual statistical test
             assert 0 <= pval <= 1
 
-            # The first call is for observed median, rest are for null distribution
-            # In the optimized version, _fast_median_distance is called instead of calc_median_dist_subset
-            assert (
-                mock_median.call_count >= 1000
-            )  # Should be called many times for null distribution
+            # Should be called many times - once for observed value + 1000 for null distribution
+            assert mock_median.call_count >= 1000
 
     def test_edge_case_handling_improvements(self):
         """Test that edge cases are now handled properly"""
@@ -581,7 +562,3 @@ class TestCurrentImplementationIssues:
 
         # Verify probabilities sum to 1
         assert abs(sum(result["prob"]) - 1.0) < 1e-10
-
-    def _get_patch_path(self, func_name):
-        """Get the correct patch path based on how the module was imported"""
-        return f"{MODULE_PATH}.{func_name}"

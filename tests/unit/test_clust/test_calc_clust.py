@@ -10,7 +10,7 @@ from scipy.spatial.distance import pdist
 # Add the source directory to the path for imports
 sys.path.insert(0, str(Path(__file__).parents[3] / "src"))
 
-from celldega.clust.calc_clust import (
+from celldega.clust.clustering.calc_clust import (
     calc_distance_matrix,
     clust_and_group,
     cluster_row_and_col,

@@ -21,7 +21,7 @@ import pytest
 from requests.exceptions import ConnectionError, HTTPError, RequestException, Timeout
 
 # Import the functions to test
-from celldega.clust.enrichr_functions import (
+from celldega.clust.analysis.enrichr_functions import (
     add_enrichr_cats,
     get_request,
     post_request,
@@ -89,8 +89,8 @@ class TestAddEnrichrCats(TestDataFixtures):
             (["Gene: BRCA1", "Gene: TP53"], ["BRCA1", "TP53"]),  # Titled genes
         ],
     )
-    @patch("celldega.clust.enrichr_functions.get_request")
-    @patch("celldega.clust.enrichr_functions.post_request")
+    @patch("celldega.clust.analysis.enrichr_functions.get_request")
+    @patch("celldega.clust.analysis.enrichr_functions.post_request")
     def test_gene_name_processing_variations(
         self, mock_post, mock_get, gene_format, expected_processing, mock_enrichr_response
     ):
@@ -118,8 +118,8 @@ class TestAddEnrichrCats(TestDataFixtures):
         "df_type,index_structure",
         [("simple", "string"), ("tuple", "tuple"), ("titled", "titled_string")],
     )
-    @patch("celldega.clust.enrichr_functions.get_request")
-    @patch("celldega.clust.enrichr_functions.post_request")
+    @patch("celldega.clust.analysis.enrichr_functions.get_request")
+    @patch("celldega.clust.analysis.enrichr_functions.post_request")
     def test_dataframe_index_types(
         self,
         mock_post,
@@ -166,8 +166,8 @@ class TestAddEnrichrCats(TestDataFixtures):
             (3, 0, 0),  # No response terms
         ],
     )
-    @patch("celldega.clust.enrichr_functions.get_request")
-    @patch("celldega.clust.enrichr_functions.post_request")
+    @patch("celldega.clust.analysis.enrichr_functions.get_request")
+    @patch("celldega.clust.analysis.enrichr_functions.post_request")
     def test_term_quantity_edge_cases(
         self,
         mock_post,
@@ -190,8 +190,8 @@ class TestAddEnrichrCats(TestDataFixtures):
         assert len(result_df.index[0]) == expected_index_length
         assert len(bar_info) == expected_categories
 
-    @patch("celldega.clust.enrichr_functions.get_request")
-    @patch("celldega.clust.enrichr_functions.post_request")
+    @patch("celldega.clust.analysis.enrichr_functions.get_request")
+    @patch("celldega.clust.analysis.enrichr_functions.post_request")
     def test_network_failures_propagate(self, mock_post, mock_get, sample_df_simple):
         """Test that network failures in downstream calls are properly propagated"""
         mock_post.side_effect = RequestException("Network error")
@@ -206,7 +206,7 @@ class TestClustFromResponse(TestDataFixtures):
     def test_response_parsing_logic(self, mock_enrichr_response):
         """Test the core response parsing logic that can be isolated (Edge case coverage 1/3)"""
         # Test the data transformation parts that don't require Network
-        from celldega.clust.enrichr_functions import transfer_to_enr_dict
+        from celldega.clust.analysis.enrichr_functions import transfer_to_enr_dict
 
         # Test score processing logic
         response_list = mock_enrichr_response
@@ -221,7 +221,7 @@ class TestClustFromResponse(TestDataFixtures):
 
     def test_empty_response_handling(self):
         """Test handling of empty enrichment responses (Edge case coverage 2/3)"""
-        from celldega.clust.enrichr_functions import transfer_to_enr_dict
+        from celldega.clust.analysis.enrichr_functions import transfer_to_enr_dict
 
         # Empty response should return empty list
         result = transfer_to_enr_dict([])
@@ -235,7 +235,7 @@ class TestClustFromResponse(TestDataFixtures):
 
     def test_malformed_response_resilience(self):
         """Test resilience to malformed enrichment data (Edge case coverage 3/3)"""
-        from celldega.clust.enrichr_functions import transfer_to_enr_dict
+        from celldega.clust.analysis.enrichr_functions import transfer_to_enr_dict
 
         # Test with incomplete data
         incomplete_response = [["", "term"]]  # Missing required fields
@@ -379,7 +379,7 @@ class TestGetRequest(TestDataFixtures):
         assert mock_get.call_count == expected_retries
 
     @pytest.mark.parametrize("error_code", [500, 503, 404])
-    @patch("celldega.clust.enrichr_functions.time.sleep")  # Mock sleep in the right module
+    @patch("celldega.clust.analysis.enrichr_functions.time.sleep")  # Mock sleep in the right module
     @patch("requests.get")
     def test_non_400_errors_immediate_failure(
         self, mock_get, mock_sleep, error_code, mock_enrichr_response
@@ -590,8 +590,8 @@ class TestTransferToEnrDict(TestDataFixtures):
 class TestIntegrationScenarios(TestDataFixtures):
     """Integration tests that combine multiple functions"""
 
-    @patch("src.celldega.clust.enrichr_functions.get_request")
-    @patch("src.celldega.clust.enrichr_functions.post_request")
+    @patch("celldega.clust.analysis.enrichr_functions.get_request")
+    @patch("celldega.clust.analysis.enrichr_functions.post_request")
     def test_full_enrichment_workflow(
         self, mock_post, mock_get, sample_df_simple, mock_enrichr_response
     ):

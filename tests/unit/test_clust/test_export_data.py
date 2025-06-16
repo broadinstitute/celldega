@@ -26,7 +26,7 @@ src_path = project_root / "src"
 if src_path not in sys.path:
     sys.path.insert(0, str(src_path))
 
-from celldega.clust import export_data
+from celldega.clust.data import export_data
 
 
 # Shared test fixtures to minimize duplication

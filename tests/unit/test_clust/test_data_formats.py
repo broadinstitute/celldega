@@ -15,7 +15,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from celldega.clust.data_formats import dat_to_df, df_to_dat, mat_to_numpy_arr
+from celldega.clust.core.data_formats import dat_to_df, df_to_dat, mat_to_numpy_arr
 
 
 class TestDataFormats:
@@ -74,8 +74,10 @@ class TestDfToDat(TestDataFormats):
     def test_basic_conversion(self, mock_net, sample_df):
         """Test basic DataFrame to dat conversion."""
         with (
-            patch("celldega.clust.data_formats.make_unique_labels.main", return_value=sample_df),
-            patch("celldega.clust.data_formats.categories.dict_cat"),
+            patch(
+                "celldega.clust.core.data_formats.make_unique_labels.main", return_value=sample_df
+            ),
+            patch("celldega.clust.core.data_formats.categories.dict_cat"),
         ):
             df_to_dat(mock_net, sample_df)
 
@@ -86,8 +88,10 @@ class TestDfToDat(TestDataFormats):
     def test_tuple_categories_processing(self, mock_net, tuple_df):
         """Test processing of tuple-based categories."""
         with (
-            patch("celldega.clust.data_formats.make_unique_labels.main", return_value=tuple_df),
-            patch("celldega.clust.data_formats.categories.dict_cat"),
+            patch(
+                "celldega.clust.core.data_formats.make_unique_labels.main", return_value=tuple_df
+            ),
+            patch("celldega.clust.core.data_formats.categories.dict_cat"),
         ):
             df_to_dat(mock_net, tuple_df)
 
@@ -104,8 +108,10 @@ class TestDfToDat(TestDataFormats):
     def test_metadata_categories_processing(self, mock_net_with_meta, sample_df):
         """Test processing with metadata-based categories."""
         with (
-            patch("celldega.clust.data_formats.make_unique_labels.main", return_value=sample_df),
-            patch("celldega.clust.data_formats.categories.dict_cat"),
+            patch(
+                "celldega.clust.core.data_formats.make_unique_labels.main", return_value=sample_df
+            ),
+            patch("celldega.clust.core.data_formats.categories.dict_cat"),
         ):
             df_to_dat(mock_net_with_meta, sample_df)
 
@@ -124,8 +130,10 @@ class TestDfToDat(TestDataFormats):
         mock_net_with_meta.meta_ds_col = mock_net_with_meta.meta_col.copy()
 
         with (
-            patch("celldega.clust.data_formats.make_unique_labels.main", return_value=sample_df),
-            patch("celldega.clust.data_formats.categories.dict_cat"),
+            patch(
+                "celldega.clust.core.data_formats.make_unique_labels.main", return_value=sample_df
+            ),
+            patch("celldega.clust.core.data_formats.categories.dict_cat"),
         ):
             df_to_dat(mock_net_with_meta, sample_df)
 
@@ -137,8 +145,10 @@ class TestDfToDat(TestDataFormats):
         """Test that empty DataFrame handling now works correctly after bug fix."""
         empty_df = pd.DataFrame()
         with (
-            patch("celldega.clust.data_formats.make_unique_labels.main", return_value=empty_df),
-            patch("celldega.clust.data_formats.categories.dict_cat"),
+            patch(
+                "celldega.clust.core.data_formats.make_unique_labels.main", return_value=empty_df
+            ),
+            patch("celldega.clust.core.data_formats.categories.dict_cat"),
         ):
             # This should now work without crashing (bug fixed!)
             df_to_dat(mock_net, empty_df)
@@ -152,8 +162,10 @@ class TestDfToDat(TestDataFormats):
         """Test handling of single-cell DataFrame."""
         single_df = pd.DataFrame({"col1": [42]}, index=["row1"])
         with (
-            patch("celldega.clust.data_formats.make_unique_labels.main", return_value=single_df),
-            patch("celldega.clust.data_formats.categories.dict_cat"),
+            patch(
+                "celldega.clust.core.data_formats.make_unique_labels.main", return_value=single_df
+            ),
+            patch("celldega.clust.core.data_formats.categories.dict_cat"),
         ):
             df_to_dat(mock_net, single_df)
 
@@ -280,8 +292,10 @@ class TestEdgeCasesReview1(TestDataFormats):
         )
 
         with (
-            patch("celldega.clust.data_formats.make_unique_labels.main", return_value=special_df),
-            patch("celldega.clust.data_formats.categories.dict_cat"),
+            patch(
+                "celldega.clust.core.data_formats.make_unique_labels.main", return_value=special_df
+            ),
+            patch("celldega.clust.core.data_formats.categories.dict_cat"),
         ):
             df_to_dat(mock_net, special_df)
 
@@ -293,8 +307,10 @@ class TestEdgeCasesReview1(TestDataFormats):
         numeric_df = pd.DataFrame({1: [10, 20], 2.5: [30, 40], 0: [50, 60]}, index=[100, 200])
 
         with (
-            patch("celldega.clust.data_formats.make_unique_labels.main", return_value=numeric_df),
-            patch("celldega.clust.data_formats.categories.dict_cat"),
+            patch(
+                "celldega.clust.core.data_formats.make_unique_labels.main", return_value=numeric_df
+            ),
+            patch("celldega.clust.core.data_formats.categories.dict_cat"),
         ):
             df_to_dat(mock_net, numeric_df)
 
@@ -307,8 +323,10 @@ class TestEdgeCasesReview1(TestDataFormats):
         del mock_net_with_meta.row_cats
 
         with (
-            patch("celldega.clust.data_formats.make_unique_labels.main", return_value=sample_df),
-            patch("celldega.clust.data_formats.categories.dict_cat"),
+            patch(
+                "celldega.clust.core.data_formats.make_unique_labels.main", return_value=sample_df
+            ),
+            patch("celldega.clust.core.data_formats.categories.dict_cat"),
         ):
             # Should not crash when row_cats is missing
             df_to_dat(mock_net_with_meta, sample_df)
@@ -322,8 +340,10 @@ class TestEdgeCasesReview1(TestDataFormats):
         mock_net_with_meta.meta_row.index = ["different1", "different2", "different3"]
 
         with (
-            patch("celldega.clust.data_formats.make_unique_labels.main", return_value=sample_df),
-            patch("celldega.clust.data_formats.categories.dict_cat"),
+            patch(
+                "celldega.clust.core.data_formats.make_unique_labels.main", return_value=sample_df
+            ),
+            patch("celldega.clust.core.data_formats.categories.dict_cat"),
         ):
             # Should raise KeyError due to index mismatch
             with pytest.raises(KeyError):
@@ -347,8 +367,10 @@ class TestEdgeCasesReview2(TestDataFormats):
         )
 
         with (
-            patch("celldega.clust.data_formats.make_unique_labels.main", return_value=complex_df),
-            patch("celldega.clust.data_formats.categories.dict_cat"),
+            patch(
+                "celldega.clust.core.data_formats.make_unique_labels.main", return_value=complex_df
+            ),
+            patch("celldega.clust.core.data_formats.categories.dict_cat"),
         ):
             df_to_dat(mock_net, complex_df)
 
@@ -366,8 +388,10 @@ class TestEdgeCasesReview2(TestDataFormats):
         )
 
         with (
-            patch("celldega.clust.data_formats.make_unique_labels.main", return_value=mixed_df),
-            patch("celldega.clust.data_formats.categories.dict_cat"),
+            patch(
+                "celldega.clust.core.data_formats.make_unique_labels.main", return_value=mixed_df
+            ),
+            patch("celldega.clust.core.data_formats.categories.dict_cat"),
         ):
             df_to_dat(mock_net, mixed_df)
 
@@ -393,8 +417,10 @@ class TestEdgeCasesReview2(TestDataFormats):
         sample_df = pd.DataFrame({"col1": [1, 2]}, index=["row1", "row2"])
 
         with (
-            patch("celldega.clust.data_formats.make_unique_labels.main", return_value=sample_df),
-            patch("celldega.clust.data_formats.categories.dict_cat"),
+            patch(
+                "celldega.clust.core.data_formats.make_unique_labels.main", return_value=sample_df
+            ),
+            patch("celldega.clust.core.data_formats.categories.dict_cat"),
         ):
             df_to_dat(mock_net, sample_df)
 
@@ -412,8 +438,8 @@ class TestEdgeCasesReview2(TestDataFormats):
         )
 
         with (
-            patch("celldega.clust.data_formats.make_unique_labels.main", return_value=ref_df),
-            patch("celldega.clust.data_formats.categories.dict_cat"),
+            patch("celldega.clust.core.data_formats.make_unique_labels.main", return_value=ref_df),
+            patch("celldega.clust.core.data_formats.categories.dict_cat"),
         ):
             df_to_dat(mock_net, ref_df)
 
@@ -443,9 +469,10 @@ class TestEdgeCasesReview3(TestDataFormats):
 
         with (
             patch(
-                "celldega.clust.data_formats.make_unique_labels.main", return_value=inconsistent_df
+                "celldega.clust.core.data_formats.make_unique_labels.main",
+                return_value=inconsistent_df,
             ),
-            patch("celldega.clust.data_formats.categories.dict_cat"),
+            patch("celldega.clust.core.data_formats.categories.dict_cat"),
         ):
             # This demonstrates the actual behavior with mixed structures
             df_to_dat(mock_net, inconsistent_df)
@@ -466,8 +493,8 @@ class TestEdgeCasesReview3(TestDataFormats):
         )
 
         with (
-            patch("celldega.clust.data_formats.make_unique_labels.main", return_value=wide_df),
-            patch("celldega.clust.data_formats.categories.dict_cat"),
+            patch("celldega.clust.core.data_formats.make_unique_labels.main", return_value=wide_df),
+            patch("celldega.clust.core.data_formats.categories.dict_cat"),
         ):
             df_to_dat(mock_net, wide_df)
 
@@ -483,8 +510,10 @@ class TestEdgeCasesReview3(TestDataFormats):
         )
 
         with (
-            patch("celldega.clust.data_formats.make_unique_labels.main", return_value=sample_df),
-            patch("celldega.clust.data_formats.categories.dict_cat"),
+            patch(
+                "celldega.clust.core.data_formats.make_unique_labels.main", return_value=sample_df
+            ),
+            patch("celldega.clust.core.data_formats.categories.dict_cat"),
         ):
             df_to_dat(mock_net_with_meta, sample_df)
 
@@ -504,8 +533,10 @@ class TestEdgeCasesReview3(TestDataFormats):
         )
 
         with (
-            patch("celldega.clust.data_formats.make_unique_labels.main", return_value=large_df),
-            patch("celldega.clust.data_formats.categories.dict_cat"),
+            patch(
+                "celldega.clust.core.data_formats.make_unique_labels.main", return_value=large_df
+            ),
+            patch("celldega.clust.core.data_formats.categories.dict_cat"),
         ):
             df_to_dat(mock_net, large_df)
 
@@ -521,8 +552,10 @@ class TestEdgeCasesReview3(TestDataFormats):
         sample_df = pd.DataFrame({"col1": [1, 2]}, index=["row1", "row2"])
 
         with (
-            patch("celldega.clust.data_formats.make_unique_labels.main", return_value=sample_df),
-            patch("celldega.clust.data_formats.categories.dict_cat"),
+            patch(
+                "celldega.clust.core.data_formats.make_unique_labels.main", return_value=sample_df
+            ),
+            patch("celldega.clust.core.data_formats.categories.dict_cat"),
         ):
             # This should now work without crashing (bug fixed!)
             df_to_dat(mock_net_with_meta, sample_df)
@@ -568,8 +601,10 @@ class TestIntegrationScenarios(TestDataFormats):
         mock_net_with_meta.row_cats = ["cell_type", "treatment"]
 
         with (
-            patch("celldega.clust.data_formats.make_unique_labels.main", return_value=complex_df),
-            patch("celldega.clust.data_formats.categories.dict_cat"),
+            patch(
+                "celldega.clust.core.data_formats.make_unique_labels.main", return_value=complex_df
+            ),
+            patch("celldega.clust.core.data_formats.categories.dict_cat"),
         ):
             df_to_dat(mock_net_with_meta, complex_df)
 

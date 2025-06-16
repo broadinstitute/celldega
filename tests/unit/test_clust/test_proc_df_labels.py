@@ -9,7 +9,7 @@ import pytest
 # Add the source directory to the path for imports
 sys.path.insert(0, str(Path(__file__).parents[3] / "src"))
 
-from celldega.clust.proc_df_labels import main
+from celldega.clust.data.proc_df_labels import main
 
 
 class TestProcDfLabelsBasic:

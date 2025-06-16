@@ -34,7 +34,6 @@ def main(self, widget=None):
             found_cats = False
 
     # initialize matrix colors
-    ###########################
     has_matrix_colors = (
         hasattr(self, "viz") and isinstance(self.viz, dict) and "matrix_colors" in self.viz
     )

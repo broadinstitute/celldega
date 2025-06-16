@@ -10,7 +10,8 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from . import categories, make_unique_labels
+from ..categories import categories
+from ..data import make_unique_labels
 
 
 def df_to_dat(net: Any, df: pd.DataFrame, define_cat_colors: bool = False) -> None:

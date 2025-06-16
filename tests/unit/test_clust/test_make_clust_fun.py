@@ -11,7 +11,7 @@ import pytest
 # Add the source directory to the path for imports
 sys.path.insert(0, str(Path(__file__).parents[3] / "src"))
 
-from celldega.clust.make_clust_fun import make_clust
+from celldega.clust.clustering.make_clust_fun import make_clust
 
 
 class TestMakeClustBase:
@@ -97,9 +97,9 @@ class TestMakeClustBase:
 def mock_dependencies():
     """Fixture providing all common mock dependencies."""
     with (
-        patch("celldega.clust.make_clust_fun.make_sim_mat") as mock_make_sim_mat,
-        patch("celldega.clust.make_clust_fun.calc_clust") as mock_calc_clust,
-        patch("celldega.clust.make_clust_fun.enr_fun") as mock_enr_fun,
+        patch("celldega.clust.clustering.make_clust_fun.make_sim_mat") as mock_make_sim_mat,
+        patch("celldega.clust.clustering.make_clust_fun.calc_clust") as mock_calc_clust,
+        patch("celldega.clust.clustering.make_clust_fun.enr_fun") as mock_enr_fun,
     ):
         # Set up default mock behaviors
         TestMakeClustBase.setup_similarity_mocks(mock_make_sim_mat, mock_calc_clust)

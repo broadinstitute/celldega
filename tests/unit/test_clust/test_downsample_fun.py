@@ -24,7 +24,8 @@ import pytest
 
 # Try to import the actual modules
 try:
-    from celldega.clust import Network, downsample_fun
+    from celldega.clust import Network
+    from celldega.clust.preprocessing import downsample_fun
 
     MODULES_AVAILABLE = True
 except ImportError:
@@ -87,7 +88,7 @@ class TestDownsampleInterface:
 
         except (NotImplementedError, AttributeError):
             # Fall back to interface testing with mocking
-            with patch("celldega.clust.downsample_fun.main") as mock_ds:
+            with patch("celldega.clust.preprocessing.downsample_fun.main") as mock_ds:
                 mock_ds.return_value = Mock()
                 result = sample_network.downsample()
                 mock_ds.assert_called_once()

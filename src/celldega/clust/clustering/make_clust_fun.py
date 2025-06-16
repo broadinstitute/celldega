@@ -7,7 +7,8 @@ matrix generation and gene enrichment analysis integration.
 
 from typing import Any
 
-from . import calc_clust, enrichr_functions as enr_fun, make_sim_mat
+from ..analysis import enrichr_functions as enr_fun
+from . import calc_clust, make_sim_mat
 
 
 def make_clust(

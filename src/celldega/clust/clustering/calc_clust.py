@@ -30,7 +30,8 @@ def cluster_row_and_col(
     min_cluster_size: int = 2,
 ) -> dict[AxisType, DistanceMatrix | None]:
     """Perform hierarchical clustering on network data for visualization."""
-    from . import cat_pval, categories, make_viz
+    from ..categories import cat_pval, categories
+    from ..visualization import make_viz
 
     # Process both axes in single loop
     distance_matrices = {}

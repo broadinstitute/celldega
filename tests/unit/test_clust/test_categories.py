@@ -17,7 +17,7 @@ import pytest
 
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
-from celldega.clust import categories
+from celldega.clust.categories import categories
 
 
 class TestCheckCategories:

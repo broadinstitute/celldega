@@ -10,7 +10,7 @@ import pytest
 # Add the source directory to the path for imports
 sys.path.insert(0, str(Path(__file__).parents[3] / "src"))
 
-from celldega.clust.normalize_fun import (
+from celldega.clust.preprocessing.normalize_fun import (
     calc_common_dist,
     qn_df,
     run_norm,

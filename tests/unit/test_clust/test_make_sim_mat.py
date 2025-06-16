@@ -10,7 +10,7 @@ import pytest
 # Add the source directory to the path for imports
 sys.path.insert(0, str(Path(__file__).parents[3] / "src"))
 
-from celldega.clust.make_sim_mat import adjust_filter_sim, dm_to_sim, main
+from celldega.clust.clustering.make_sim_mat import adjust_filter_sim, dm_to_sim, main
 
 
 class TestFixtures:
@@ -45,7 +45,7 @@ class TestMainFunction:
         self.mock_net = TestFixtures.create_mock_network()
         self.inst_dm = TestFixtures.create_sample_distance_matrices()
 
-    @patch("celldega.clust.calc_clust.cluster_row_and_col")
+    @patch("celldega.clust.clustering.calc_clust.cluster_row_and_col")
     def test_main_functionality_and_network_setup(self, mock_cluster):
         """Test basic functionality, multiple axes, and network object setup."""
         # Test basic functionality
@@ -76,7 +76,7 @@ class TestMainFunction:
             main(self.mock_net, self.inst_dm, ["missing_key"], 0.0)
 
         # Custom sim_mat_views parameter (unused but should not cause errors)
-        with patch("celldega.clust.calc_clust.cluster_row_and_col") as mock_cluster:
+        with patch("celldega.clust.clustering.calc_clust.cluster_row_and_col") as mock_cluster:
             result = main(self.mock_net, self.inst_dm, ["row"], 0.0, ["custom_view"])
             assert "row" in result
             mock_cluster.assert_called_once()
@@ -207,7 +207,7 @@ class TestIntegrationAndErrorHandling:
         mock_net.dat["nodes"]["row"] = ["r1", "r2"]
         inst_dm = {"row": np.array([0.3])}  # Single distance for 2x2 matrix
 
-        with patch("celldega.clust.calc_clust.cluster_row_and_col") as mock_cluster:
+        with patch("celldega.clust.clustering.calc_clust.cluster_row_and_col") as mock_cluster:
             result = main(mock_net, inst_dm, ["row"], 0.1)
             assert "row" in result
             assert mock_cluster.called
@@ -255,7 +255,7 @@ class TestIntegrationAndErrorHandling:
         original_dat = deepcopy(mock_net.dat)
         inst_dm = TestFixtures.create_sample_distance_matrices()
 
-        with patch("celldega.clust.calc_clust.cluster_row_and_col"):
+        with patch("celldega.clust.clustering.calc_clust.cluster_row_and_col"):
             main(mock_net, inst_dm, ["row"], 0.0)
             # Original network should be unchanged
             assert mock_net.dat["nodes"]["row"] == original_dat["nodes"]["row"]
@@ -270,7 +270,7 @@ class TestDocumentedBehavior:
         mock_net = TestFixtures.create_mock_network()
         inst_dm = {"row": np.array([])}
 
-        with patch("celldega.clust.calc_clust.cluster_row_and_col"):
+        with patch("celldega.clust.clustering.calc_clust.cluster_row_and_col"):
             # Parameter is accepted but has no effect on output
             result1 = main(mock_net, inst_dm, [], 0.0, None)
             result2 = main(mock_net, inst_dm, [], 0.0, ["custom_view"])
@@ -328,7 +328,7 @@ class TestParametrizedCases:
         mock_net = TestFixtures.create_mock_network()
         inst_dm = TestFixtures.create_sample_distance_matrices()
 
-        with patch("celldega.clust.calc_clust.cluster_row_and_col"):
+        with patch("celldega.clust.clustering.calc_clust.cluster_row_and_col"):
             result = main(mock_net, inst_dm, axes, 0.0)
             for axis in axes:
                 assert axis in result

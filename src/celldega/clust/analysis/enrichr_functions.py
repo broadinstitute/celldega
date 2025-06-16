@@ -102,7 +102,7 @@ def _process_enrichment_results(
         combined_scores.append(combined_score)
 
         # Single pass through genes with O(1) enrichment lookup
-        for i, gene_data in enumerate(categorized_genes):
+        for _, gene_data in enumerate(categorized_genes):
             cleaned_gene = cleaned_gene_lookup[gene_data[0]]
             enrichment_status = "True" if cleaned_gene in enriched_genes_set else "False"
             gene_data.append(f"{term_name}: {enrichment_status}{p_value_html}")

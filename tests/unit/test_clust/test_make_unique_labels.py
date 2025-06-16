@@ -10,7 +10,7 @@ import pytest
 # Add the source directory to the path for imports
 sys.path.insert(0, str(Path(__file__).parents[3] / "src"))
 
-from celldega.clust.make_unique_labels import _has_duplicates, add_index_list, main
+from celldega.clust.data.make_unique_labels import _has_duplicates, add_index_list, main
 
 
 class TestMakeUniqueLabelsBase:

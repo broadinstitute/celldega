@@ -18,7 +18,7 @@ import pytest
 # Add the src directory to the path to import the module
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from celldega.clust import initialize_net
+from celldega.clust.core import initialize_net
 
 
 class MockNetwork:

@@ -1,5 +1,11 @@
+"""
+Comprehensive tests for celldega.clust.data.make_unique_labels module.
+Tests cover all functions with extensive edge case coverage and minimal redundancy.
+"""
+
 from pathlib import Path
 import sys
+from typing import Any
 from unittest.mock import Mock
 
 import numpy as np
@@ -13,364 +19,668 @@ sys.path.insert(0, str(Path(__file__).parents[3] / "src"))
 from celldega.clust.data.make_unique_labels import _has_duplicates, add_index_list, main
 
 
-class TestMakeUniqueLabelsBase:
-    """Base class with common utilities."""
+# =============================================================================
+# CONSTANTS
+# =============================================================================
 
-    @staticmethod
-    def create_mock_net(df=None):
-        """Create mock network with optional DataFrame."""
-        mock_net = Mock()
-        if df is not None:
-            mock_net.export_df.return_value = df
-        return mock_net
+# Test gene names
+GENE_1 = "gene1"
+GENE_2 = "gene2"
+GENE_3 = "gene3"
+GENE_ACTB = "ACTB"
+GENE_GAPDH = "GAPDH"
+GENE_TP53 = "TP53"
+GENE_1_UPPER = "GENE1"
+GENE_2_UPPER = "GENE2"
+
+# Test column names
+COL_1 = "col1"
+COL_2 = "col2"
+SAMPLE_1 = "sample1"
+SAMPLE_2 = "sample2"
+EXPRESSION_COL = "expression"
+
+# Test types and categories
+TYPE_1 = "type1"
+TYPE_2 = "type2"
+TYPE_PROTEIN = "protein"
+TYPE_RNA = "rna"
+CONDITION_1 = "condition1"
+CONDITION_2 = "condition2"
+
+# Test row names
+ROW_1 = "row1"
+ROW_2 = "row2"
+
+# Special string values
+EMPTY_STRING = ""
+WHITESPACE_STRING = "  "
+TAB_STRING = "\t"
+HYPHEN_GENE = "gene-1"
+AT_GENE = "gene@2"
+EMOJI_GENE = "gene🧬"
+
+# Numeric test values
+TEST_VALUE_1 = 1
+TEST_VALUE_2 = 2
+TEST_VALUE_3 = 3
+TEST_VALUE_42 = 42
+FLOAT_VALUE_1_1 = 1.1
+FLOAT_VALUE_1_2 = 1.2
+FLOAT_VALUE_1_5 = 1.5
+FLOAT_VALUE_2_2 = 2.2
+FLOAT_VALUE_2_3 = 2.3
+FLOAT_VALUE_2_6 = 2.6
+FLOAT_VALUE_3_3 = 3.3
+FLOAT_VALUE_3_4 = 3.4
+FLOAT_VALUE_3_7 = 3.7
+FLOAT_VALUE_0_8 = 0.8
+FLOAT_VALUE_1_9 = 1.9
+FLOAT_VALUE_2_1 = 2.1
+
+# Expected output patterns
+SUFFIX_1 = "-1"
+SUFFIX_2 = "-2"
+SUFFIX_3 = "-3"
+SUFFIX_4 = "-4"
+
+# Warning messages
+WARNING_ROW_UNIQUE = "warning: making row names unique"
+WARNING_COL_UNIQUE = "warning: making col names unique"
+
+# Error messages
+ERROR_EITHER_NET_OR_DF = "Either net or df must be provided"
+ERROR_EMPTY_TUPLES_ROW = "Empty tuples found in row index"
+ERROR_EMPTY_TUPLES_COLUMN = "Empty tuples found in column index"
+ERROR_NETWORK_ERROR = "Network error"
+
+# Test data structure keys
+DATA_KEY_INT_COL = "int_col"
+DATA_KEY_FLOAT_COL = "float_col"
+DATA_KEY_STR_COL = "str_col"
+DATA_KEY_BOOL_COL = "bool_col"
+
+# Large dataset constants
+LARGE_DATASET_SIZE = 1000
+
+# =============================================================================
+# UTILITIES
+# =============================================================================
 
 
-class TestMainFunctionality(TestMakeUniqueLabelsBase):
-    """Test core functionality."""
+def create_simple_dataframe(
+    data: dict[str, list[Any]] | None = None,
+    index: list[str] | None = None,
+    columns: list[str] | None = None,
+) -> pd.DataFrame:
+    """Create a simple DataFrame with optional custom data, index, and columns."""
+    if data is None:
+        data = {COL_1: [TEST_VALUE_1, TEST_VALUE_2]}
+    if index is None:
+        index = [GENE_1, GENE_2]
+    if columns is None and isinstance(data, dict):
+        columns = list(data.keys())
 
-    @pytest.mark.parametrize(
-        "df_setup,expected_unchanged",
-        [
-            # No duplicates cases
-            (lambda: pd.DataFrame({"col1": [1, 2]}, index=["gene1", "gene2"]), True),
-            (
-                lambda: pd.DataFrame(
-                    {"col1": [1, 2]}, index=[("gene1", "type1"), ("gene2", "type2")]
-                ),
-                True,
-            ),
-            (lambda: pd.DataFrame([[1, 2]], columns=["col1", "col2"]), True),
-            (lambda: pd.DataFrame(), True),  # Empty DataFrame
+    return pd.DataFrame(data, index=index, columns=columns)
+
+
+def create_tuple_index_dataframe(
+    tuples: list[tuple[Any, ...]], data: dict[str, list[Any]] | None = None
+) -> pd.DataFrame:
+    """Create DataFrame with tuple index."""
+    if data is None:
+        data = {COL_1: list(range(len(tuples)))}
+    return pd.DataFrame(data, index=tuples)
+
+
+def create_tuple_columns_dataframe(
+    tuples: list[tuple[Any, ...]], data: list[list[Any]] | None = None
+) -> pd.DataFrame:
+    """Create DataFrame with tuple columns."""
+    if data is None:
+        data = [[TEST_VALUE_1] * len(tuples)]
+    return pd.DataFrame(data, columns=tuples)
+
+
+def create_gene_expression_dataframe() -> pd.DataFrame:
+    """Create realistic gene expression DataFrame with both tuple index and columns."""
+    return pd.DataFrame(
+        {
+            (SAMPLE_1, CONDITION_1): [FLOAT_VALUE_1_2, FLOAT_VALUE_2_3, FLOAT_VALUE_3_4],
+            (SAMPLE_2, CONDITION_1): [FLOAT_VALUE_1_5, FLOAT_VALUE_2_6, FLOAT_VALUE_3_7],
+            (SAMPLE_1, CONDITION_2): [FLOAT_VALUE_0_8, FLOAT_VALUE_1_9, FLOAT_VALUE_2_1],
+        },
+        index=[
+            (GENE_1_UPPER, TYPE_PROTEIN),
+            (GENE_1_UPPER, TYPE_RNA),
+            (GENE_2_UPPER, TYPE_PROTEIN),
         ],
     )
-    def test_no_changes_when_no_duplicates(self, df_setup, expected_unchanged):
+
+
+def create_mixed_data_types_dataframe() -> pd.DataFrame:
+    """Create DataFrame with mixed data types for integrity testing."""
+    return pd.DataFrame(
+        {
+            DATA_KEY_INT_COL: [TEST_VALUE_1, TEST_VALUE_2, TEST_VALUE_3],
+            DATA_KEY_FLOAT_COL: [FLOAT_VALUE_1_1, FLOAT_VALUE_2_2, FLOAT_VALUE_3_3],
+            DATA_KEY_STR_COL: ["a", "b", "c"],
+            DATA_KEY_BOOL_COL: [True, False, True],
+        },
+        index=[ROW_1, ROW_1, ROW_2],
+    )
+
+
+def create_large_duplicates_dataframe(size: int = LARGE_DATASET_SIZE) -> pd.DataFrame:
+    """Create DataFrame with many duplicates for performance testing."""
+    return pd.DataFrame({COL_1: list(range(size))}, index=[GENE_1] * size)
+
+
+def assert_dataframe_data_unchanged(
+    result_df: pd.DataFrame, original_values: np.ndarray, original_dtypes: pd.Series | None = None
+) -> None:
+    """Assert that DataFrame data values and types remain unchanged."""
+    np.testing.assert_array_equal(result_df.values, original_values)
+    if original_dtypes is not None:
+        for col in original_dtypes.index:
+            assert result_df[col].dtype == original_dtypes[col]
+
+
+def create_mock_network_with_df(df: pd.DataFrame | None = None) -> Mock:
+    """Create mock network object with optional DataFrame export."""
+    mock_net = Mock()
+    if df is not None:
+        mock_net.export_df.return_value = df
+    return mock_net
+
+
+def create_failing_mock_network(error: Exception) -> Mock:
+    """Create mock network that raises an error on export_df."""
+    mock_net = Mock()
+    mock_net.export_df.side_effect = error
+    return mock_net
+
+
+# =============================================================================
+# FIXTURES
+# =============================================================================
+
+
+@pytest.fixture
+def mock_network() -> Mock:
+    """Create a standard mock network object."""
+    return create_mock_network_with_df()
+
+
+@pytest.fixture
+def simple_dataframe() -> pd.DataFrame:
+    """Create a simple test DataFrame."""
+    return create_simple_dataframe()
+
+
+@pytest.fixture
+def gene_expression_dataframe() -> pd.DataFrame:
+    """Create realistic gene expression DataFrame."""
+    return create_gene_expression_dataframe()
+
+
+@pytest.fixture
+def mixed_types_dataframe() -> pd.DataFrame:
+    """Create DataFrame with mixed data types."""
+    return create_mixed_data_types_dataframe()
+
+
+# =============================================================================
+# MAIN FUNCTIONALITY TESTS
+# =============================================================================
+
+
+class TestMainFunctionality:
+    """Test core functionality of the main function."""
+
+    @pytest.mark.parametrize(
+        "df_factory,description",
+        [
+            (lambda: create_simple_dataframe(index=[GENE_1, GENE_2]), "no_row_duplicates"),
+            (
+                lambda: create_tuple_index_dataframe([(GENE_1, TYPE_1), (GENE_2, TYPE_2)]),
+                "no_tuple_duplicates",
+            ),
+            (lambda: create_simple_dataframe(columns=[COL_1, COL_2]), "no_col_duplicates"),
+            (lambda: pd.DataFrame(), "empty_dataframe"),
+        ],
+    )
+    def test_no_changes_when_no_duplicates(
+        self, df_factory: callable, description: str, mock_network: Mock
+    ):
         """Test DataFrames without duplicates remain unchanged."""
-        df = df_setup()
+        df = df_factory()
         original_df = df.copy()
-        mock_net = self.create_mock_net()
 
-        result = main(mock_net, df)
+        result = main(mock_network, df)
 
-        if expected_unchanged:
-            pd.testing.assert_frame_equal(result, original_df)
+        pd.testing.assert_frame_equal(result, original_df)
 
     @pytest.mark.parametrize(
-        "axis,duplicates,expected",
+        "axis,duplicates,expected,description",
         [
-            ("rows", ["gene1", "gene1", "gene2"], ["gene1-1", "gene1-2", "gene2-3"]),
-            ("cols", ["col1", "col1", "col2"], ["col1-1", "col1-2", "col2-3"]),
             (
-                "both",
-                (["gene1", "gene1"], ["col1", "col1"]),
-                (["gene1-1", "gene1-2"], ["col1-1", "col1-2"]),
+                "rows",
+                [GENE_1, GENE_1, GENE_2],
+                [GENE_1 + SUFFIX_1, GENE_1 + SUFFIX_2, GENE_2 + SUFFIX_3],
+                "row_duplicates",
+            ),
+            (
+                "cols",
+                [COL_1, COL_1, COL_2],
+                [COL_1 + SUFFIX_1, COL_1 + SUFFIX_2, COL_2 + SUFFIX_3],
+                "col_duplicates",
             ),
         ],
     )
-    def test_string_duplicates_handling(self, axis, duplicates, expected, capsys):
-        """Test string duplicate handling."""
-        mock_net = self.create_mock_net()
-
+    def test_string_duplicates_handling(
+        self,
+        axis: str,
+        duplicates: list[str],
+        expected: list[str],
+        description: str,
+        mock_network: Mock,
+        capsys: pytest.CaptureFixture[str],
+    ):
+        """Test string duplicate handling with warning messages."""
         if axis == "rows":
-            df = pd.DataFrame({"col1": [1, 2, 3]}, index=duplicates)
-            result = main(mock_net, df)
+            df = create_simple_dataframe(
+                data={COL_1: [TEST_VALUE_1, TEST_VALUE_2, TEST_VALUE_3]}, index=duplicates
+            )
+            result = main(mock_network, df)
             assert result.index.tolist() == expected
-        elif axis == "cols":
-            df = pd.DataFrame([[1, 2, 3]], columns=duplicates)
-            result = main(mock_net, df)
-            assert result.columns.tolist() == expected
-        else:  # both
-            df = pd.DataFrame([[1, 2], [3, 4]], index=duplicates[0], columns=duplicates[1])
-            result = main(mock_net, df)
-            assert result.index.tolist() == expected[0]
-            assert result.columns.tolist() == expected[1]
 
-        # Check warning messages
+            captured = capsys.readouterr()
+            assert WARNING_ROW_UNIQUE in captured.out
+
+        else:  # cols
+            df = pd.DataFrame([[TEST_VALUE_1, TEST_VALUE_2, TEST_VALUE_3]], columns=duplicates)
+            result = main(mock_network, df)
+            assert result.columns.tolist() == expected
+
+            captured = capsys.readouterr()
+            assert WARNING_COL_UNIQUE in captured.out
+
+    def test_both_axes_duplicates(self, mock_network: Mock, capsys: pytest.CaptureFixture[str]):
+        """Test handling duplicates in both rows and columns."""
+        row_duplicates = [GENE_1, GENE_1]
+        col_duplicates = [COL_1, COL_1]
+        expected_rows = [GENE_1 + SUFFIX_1, GENE_1 + SUFFIX_2]
+        expected_cols = [COL_1 + SUFFIX_1, COL_1 + SUFFIX_2]
+
+        df = pd.DataFrame(
+            [[TEST_VALUE_1, TEST_VALUE_2], [TEST_VALUE_3, TEST_VALUE_42]],
+            index=row_duplicates,
+            columns=col_duplicates,
+        )
+
+        result = main(mock_network, df)
+
+        assert result.index.tolist() == expected_rows
+        assert result.columns.tolist() == expected_cols
+
         captured = capsys.readouterr()
-        if axis in ["rows", "both"]:
-            assert "warning: making row names unique" in captured.out
-        if axis in ["cols", "both"]:
-            assert "warning: making col names unique" in captured.out
+        assert WARNING_ROW_UNIQUE in captured.out
+        assert WARNING_COL_UNIQUE in captured.out
 
     @pytest.mark.parametrize(
-        "tuples,expected",
+        "tuples,expected,description",
         [
             (
-                [("gene1", "type1"), ("gene1", "type2"), ("gene2", "type1")],
-                [("gene1-1", "type1"), ("gene1-2", "type2"), ("gene2-3", "type1")],
+                [(GENE_1, TYPE_1), (GENE_1, TYPE_2), (GENE_2, TYPE_1)],
+                [
+                    (GENE_1 + SUFFIX_1, TYPE_1),
+                    (GENE_1 + SUFFIX_2, TYPE_2),
+                    (GENE_2 + SUFFIX_3, TYPE_1),
+                ],
+                "tuple_duplicates",
             ),
             (
-                [("gene1", "type1", "extra"), ("gene1", "type2")],
-                [("gene1-1", "type1", "extra"), ("gene1-2", "type2")],
+                [(GENE_1, TYPE_1, "extra"), (GENE_1, TYPE_2)],
+                [(GENE_1 + SUFFIX_1, TYPE_1, "extra"), (GENE_1 + SUFFIX_2, TYPE_2)],
+                "mixed_tuple_lengths",
             ),
             (
-                [(1, "type1"), (1, "type2"), (2, "type1")],
-                [("1-1", "type1"), ("1-2", "type2"), ("2-3", "type1")],
+                [(TEST_VALUE_1, TYPE_1), (TEST_VALUE_1, TYPE_2), (TEST_VALUE_2, TYPE_1)],
+                [("1" + SUFFIX_1, TYPE_1), ("1" + SUFFIX_2, TYPE_2), ("2" + SUFFIX_3, TYPE_1)],
+                "numeric_first_elements",
             ),
         ],
     )
-    def test_tuple_duplicates_handling(self, tuples, expected):
+    def test_tuple_duplicates_handling(
+        self,
+        tuples: list[tuple[Any, ...]],
+        expected: list[tuple[Any, ...]],
+        description: str,
+        mock_network: Mock,
+    ):
         """Test tuple duplicate handling."""
-        mock_net = self.create_mock_net()
-        df = pd.DataFrame({"col1": range(len(tuples))}, index=tuples)
-
-        result = main(mock_net, df)
+        df = create_tuple_index_dataframe(tuples)
+        result = main(mock_network, df)
         assert result.index.tolist() == expected
 
     def test_net_vs_df_parameter_handling(self):
         """Test net vs df parameter precedence."""
         # Test df=None uses net.export_df()
-        mock_df = pd.DataFrame({"col1": [1, 2]}, index=["gene1", "gene1"])
-        mock_net = self.create_mock_net(mock_df)
+        mock_df = create_simple_dataframe(index=[GENE_1, GENE_1])
+        mock_net = create_mock_network_with_df(mock_df)
 
         result = main(mock_net, df=None)
         mock_net.export_df.assert_called_once()
-        assert result.index.tolist() == ["gene1-1", "gene1-2"]
+        assert result.index.tolist() == [GENE_1 + SUFFIX_1, GENE_1 + SUFFIX_2]
 
         # Test df provided doesn't call net.export_df()
         mock_net.reset_mock()
-        df = pd.DataFrame({"col1": [1, 2]}, index=["gene2", "gene2"])
+        df = create_simple_dataframe(index=[GENE_2, GENE_2])
         result = main(mock_net, df)
         mock_net.export_df.assert_not_called()
-        assert result.index.tolist() == ["gene2-1", "gene2-2"]
+        assert result.index.tolist() == [GENE_2 + SUFFIX_1, GENE_2 + SUFFIX_2]
 
-    def test_in_place_modification(self):
+    def test_in_place_modification(self, mock_network: Mock):
         """Test function modifies original DataFrame in place."""
-        mock_net = self.create_mock_net()
-        df = pd.DataFrame({"col1": [1, 2]}, index=["gene1", "gene1"])
+        df = create_simple_dataframe(index=[GENE_1, GENE_1])
         original_values = df.values.copy()
 
-        result = main(mock_net, df)
+        result = main(mock_network, df)
 
-        assert result is df  # Same object
-        assert df.index.tolist() == ["gene1-1", "gene1-2"]
+        assert result is df  # Same object reference
+        assert df.index.tolist() == [GENE_1 + SUFFIX_1, GENE_1 + SUFFIX_2]
         np.testing.assert_array_equal(df.values, original_values)
 
 
-class TestEdgeCasesAndErrorHandling(TestMakeUniqueLabelsBase):
-    """Test edge cases and error handling."""
+# =============================================================================
+# EDGE CASES AND ERROR HANDLING TESTS
+# =============================================================================
+
+
+class TestEdgeCasesAndErrorHandling:
+    """Test edge cases and error handling scenarios."""
 
     @pytest.mark.parametrize(
-        "df_setup",
+        "df_factory,description",
         [
-            lambda: pd.DataFrame(),
-            lambda: pd.DataFrame(columns=["col1", "col2"]),
-            lambda: pd.DataFrame(index=["row1", "row2"]),
-            lambda: pd.DataFrame({"col1": [42]}, index=["row1"]),
-        ],
-    )
-    def test_empty_and_minimal_dataframes(self, df_setup):
-        """Test empty and minimal DataFrames are handled gracefully."""
-        mock_net = self.create_mock_net()
-        df = df_setup()
-        original_df = df.copy()
-
-        result = main(mock_net, df)
-        pd.testing.assert_frame_equal(result, original_df)
-
-    @pytest.mark.parametrize(
-        "empty_tuple_axis,error_msg",
-        [
-            ("index", "Empty tuples found in row index"),
-            ("columns", "Empty tuples found in column index"),
-        ],
-    )
-    def test_empty_tuple_error_handling(self, empty_tuple_axis, error_msg):
-        """Test empty tuples raise clear error messages."""
-        mock_net = self.create_mock_net()
-
-        if empty_tuple_axis == "index":
-            df = pd.DataFrame({"col1": [1, 2]}, index=[(), ("gene2", "type2")])
-        else:
-            df = pd.DataFrame([[1, 2]], columns=[(), ("col2", "cat2")])
-
-        with pytest.raises(ValueError, match=error_msg):
-            main(mock_net, df)
-
-    @pytest.mark.parametrize(
-        "setup_func,error_type,error_msg",
-        [
-            (lambda: (None, None), ValueError, "Either net or df must be provided"),
-            (lambda: (Mock(**{"export_df.return_value": None}), None), AttributeError, None),
+            (lambda: pd.DataFrame(), "completely_empty"),
+            (lambda: pd.DataFrame(columns=[COL_1, COL_2]), "empty_with_columns"),
+            (lambda: pd.DataFrame(index=[ROW_1, ROW_2]), "empty_with_index"),
             (
-                lambda: (Mock(**{"export_df.side_effect": RuntimeError("Network error")}), None),
-                RuntimeError,
-                "Network error",
+                lambda: create_simple_dataframe(data={COL_1: [TEST_VALUE_42]}, index=[ROW_1]),
+                "single_cell",
             ),
         ],
     )
-    def test_input_validation(self, setup_func, error_type, error_msg):
+    def test_empty_and_minimal_dataframes(
+        self, df_factory: callable, description: str, mock_network: Mock
+    ):
+        """Test empty and minimal DataFrames are handled gracefully."""
+        df = df_factory()
+        original_df = df.copy()
+
+        result = main(mock_network, df)
+        pd.testing.assert_frame_equal(result, original_df)
+
+    @pytest.mark.parametrize(
+        "empty_tuple_axis,error_msg,description",
+        [
+            ("index", ERROR_EMPTY_TUPLES_ROW, "empty_tuple_in_index"),
+            ("columns", ERROR_EMPTY_TUPLES_COLUMN, "empty_tuple_in_columns"),
+        ],
+    )
+    def test_empty_tuple_error_handling(
+        self, empty_tuple_axis: str, error_msg: str, description: str, mock_network: Mock
+    ):
+        """Test empty tuples raise clear error messages."""
+        if empty_tuple_axis == "index":
+            df = create_tuple_index_dataframe([(), (GENE_2, TYPE_2)])
+        else:
+            df = create_tuple_columns_dataframe([(), (COL_2, "cat2")])
+
+        with pytest.raises(ValueError, match=error_msg):
+            main(mock_network, df)
+
+    @pytest.mark.parametrize(
+        "setup_func,error_type,error_msg,description",
+        [
+            (lambda: (None, None), ValueError, ERROR_EITHER_NET_OR_DF, "both_none"),
+            (
+                lambda: (Mock(**{"export_df.return_value": None}), None),
+                AttributeError,
+                None,
+                "net_returns_none",
+            ),
+            (
+                lambda: (create_failing_mock_network(RuntimeError(ERROR_NETWORK_ERROR)), None),
+                RuntimeError,
+                ERROR_NETWORK_ERROR,
+                "network_export_error",
+            ),
+        ],
+    )
+    def test_input_validation(
+        self,
+        setup_func: callable,
+        error_type: type[Exception],
+        error_msg: str | None,
+        description: str,
+    ):
         """Test input validation and error handling."""
         net, df = setup_func()
 
-        with pytest.raises(error_type, match=error_msg):
-            main(net, df)
+        if error_msg:
+            with pytest.raises(error_type, match=error_msg):
+                main(net, df)
+        else:
+            with pytest.raises(error_type):
+                main(net, df)
 
 
-class TestSpecialValues(TestMakeUniqueLabelsBase):
+# =============================================================================
+# SPECIAL VALUES TESTS
+# =============================================================================
+
+
+class TestSpecialValues:
     """Test handling of special values and types."""
 
     @pytest.mark.parametrize(
-        "test_case",
+        "input_tuples,expected,description",
         [
-            {
-                "input": [(None, "type1"), (None, "type2")],
-                "expected": [("None-1", "type1"), ("None-2", "type2")],
-            },
-            {
-                "input": [(1, "type1"), (1, "type2"), (2, "type1")],
-                "expected": [("1-1", "type1"), ("1-2", "type2"), ("2-3", "type1")],
-            },
-            {
-                "input": [(True, "type1"), (True, "type2")],
-                "expected": [("True-1", "type1"), ("True-2", "type2")],
-            },
-            {
-                "input": [(np.inf, "type1"), (np.inf, "type2")],
-                "expected": [("inf-1", "type1"), ("inf-2", "type2")],
-            },
+            (
+                [(None, TYPE_1), (None, TYPE_2)],
+                [("None" + SUFFIX_1, TYPE_1), ("None" + SUFFIX_2, TYPE_2)],
+                "none_values",
+            ),
+            (
+                [(TEST_VALUE_1, TYPE_1), (TEST_VALUE_1, TYPE_2), (TEST_VALUE_2, TYPE_1)],
+                [("1" + SUFFIX_1, TYPE_1), ("1" + SUFFIX_2, TYPE_2), ("2" + SUFFIX_3, TYPE_1)],
+                "integer_values",
+            ),
+            (
+                [(True, TYPE_1), (True, TYPE_2)],
+                [("True" + SUFFIX_1, TYPE_1), ("True" + SUFFIX_2, TYPE_2)],
+                "boolean_values",
+            ),
+            (
+                [(np.inf, TYPE_1), (np.inf, TYPE_2)],
+                [("inf" + SUFFIX_1, TYPE_1), ("inf" + SUFFIX_2, TYPE_2)],
+                "infinity_values",
+            ),
         ],
     )
-    def test_special_values_in_tuples(self, test_case):
+    def test_special_values_in_tuples(
+        self,
+        input_tuples: list[tuple[Any, ...]],
+        expected: list[tuple[Any, ...]],
+        description: str,
+        mock_network: Mock,
+    ):
         """Test handling of special values in tuple positions."""
-        mock_net = self.create_mock_net()
-        df = pd.DataFrame({"col1": range(len(test_case["input"]))}, index=test_case["input"])
-
-        result = main(mock_net, df)
-        assert result.index.tolist() == test_case["expected"]
-
-    @pytest.mark.parametrize(
-        "input_strings,expected",
-        [
-            (["", ""], ["-1", "-2"]),
-            (["  ", "  "], ["  -1", "  -2"]),
-            (["gene-1", "gene-1", "gene@2"], ["gene-1-1", "gene-1-2", "gene@2-3"]),
-            (["gene🧬", "gene🧬"], ["gene🧬-1", "gene🧬-2"]),
-        ],
-    )
-    def test_string_edge_cases(self, input_strings, expected):
-        """Test edge cases with string names."""
-        mock_net = self.create_mock_net()
-        df = pd.DataFrame({"col1": range(len(input_strings))}, index=input_strings)
-
-        result = main(mock_net, df)
+        df = create_tuple_index_dataframe(input_tuples)
+        result = main(mock_network, df)
         assert result.index.tolist() == expected
 
-    def test_data_integrity_preservation(self):
+    @pytest.mark.parametrize(
+        "input_strings,expected,description",
+        [
+            (
+                [EMPTY_STRING, EMPTY_STRING],
+                [EMPTY_STRING + SUFFIX_1, EMPTY_STRING + SUFFIX_2],
+                "empty_strings",
+            ),
+            (
+                [WHITESPACE_STRING, WHITESPACE_STRING],
+                [WHITESPACE_STRING + SUFFIX_1, WHITESPACE_STRING + SUFFIX_2],
+                "whitespace_strings",
+            ),
+            (
+                [HYPHEN_GENE, HYPHEN_GENE, AT_GENE],
+                [HYPHEN_GENE + SUFFIX_1, HYPHEN_GENE + SUFFIX_2, AT_GENE + SUFFIX_3],
+                "special_chars",
+            ),
+            (
+                [EMOJI_GENE, EMOJI_GENE],
+                [EMOJI_GENE + SUFFIX_1, EMOJI_GENE + SUFFIX_2],
+                "unicode_emoji",
+            ),
+        ],
+    )
+    def test_string_edge_cases(
+        self, input_strings: list[str], expected: list[str], description: str, mock_network: Mock
+    ):
+        """Test edge cases with string names."""
+        df = create_simple_dataframe(
+            data={COL_1: list(range(len(input_strings)))}, index=input_strings
+        )
+        result = main(mock_network, df)
+        assert result.index.tolist() == expected
+
+    def test_data_integrity_preservation(
+        self, mock_network: Mock, mixed_types_dataframe: pd.DataFrame
+    ):
         """Test data integrity is preserved during modifications."""
-        mock_net = self.create_mock_net()
+        original_values = mixed_types_dataframe.values.copy()
+        original_dtypes = mixed_types_dataframe.dtypes.copy()
 
-        original_data = {
-            "int_col": [1, 2, 3],
-            "float_col": [1.1, 2.2, 3.3],
-            "str_col": ["a", "b", "c"],
-            "bool_col": [True, False, True],
-        }
-        df = pd.DataFrame(original_data, index=["row1", "row1", "row2"])
-        original_values = df.values.copy()
+        result = main(mock_network, mixed_types_dataframe)
 
-        result = main(mock_net, df)
+        assert_dataframe_data_unchanged(result, original_values, original_dtypes)
+        assert result.index.tolist() == [ROW_1 + SUFFIX_1, ROW_1 + SUFFIX_2, ROW_2 + SUFFIX_3]
 
-        np.testing.assert_array_equal(result.values, original_values)
-        for col in original_data:
-            assert result[col].dtype == df[col].dtype
-        assert result.index.tolist() == ["row1-1", "row1-2", "row2-3"]
+
+# =============================================================================
+# HELPER FUNCTIONS TESTS
+# =============================================================================
 
 
 class TestHelperFunctions:
-    """Test helper functions."""
+    """Test helper functions independently."""
 
     @pytest.mark.parametrize(
-        "input_list,expected",
+        "input_list,expected,description",
         [
-            (["gene1", "gene2", "gene3"], ["gene1-1", "gene2-2", "gene3-3"]),
-            ([], []),
-            (["gene1"], ["gene1-1"]),
-            (["gene1", "42", "gene3"], ["gene1-1", "42-2", "gene3-3"]),
+            (
+                [GENE_1, GENE_2, GENE_3],
+                [GENE_1 + SUFFIX_1, GENE_2 + SUFFIX_2, GENE_3 + SUFFIX_3],
+                "normal_strings",
+            ),
+            ([], [], "empty_list"),
+            ([GENE_1], [GENE_1 + SUFFIX_1], "single_item"),
+            (
+                [GENE_1, "42", GENE_3],
+                [GENE_1 + SUFFIX_1, "42" + SUFFIX_2, GENE_3 + SUFFIX_3],
+                "mixed_strings",
+            ),
         ],
     )
-    def test_add_index_list(self, input_list, expected):
+    def test_add_index_list(self, input_list: list[Any], expected: list[str], description: str):
         """Test add_index_list function."""
+        original_list = input_list.copy()
         result = add_index_list(input_list)
-        assert result == expected
 
+        assert result == expected
         # Original list should not be modified
-        original = input_list.copy()
-        add_index_list(input_list)
-        assert input_list == original
+        assert input_list == original_list
 
     @pytest.mark.parametrize(
-        "input_list,has_dupes",
+        "input_list,has_dupes,description",
         [
-            (["a", "b", "a"], True),
-            ([1, 2, 1], True),
-            ([("a", "b"), ("a", "b")], True),
-            (["a", "b", "c"], False),
-            ([1, 2, 3], False),
-            ([], False),
-            (["a"], False),
-            ([None, None], True),
+            (["a", "b", "a"], True, "string_duplicates"),
+            ([TEST_VALUE_1, TEST_VALUE_2, TEST_VALUE_1], True, "integer_duplicates"),
+            ([("a", "b"), ("a", "b")], True, "tuple_duplicates"),
+            (["a", "b", "c"], False, "no_duplicates"),
+            ([TEST_VALUE_1, TEST_VALUE_2, TEST_VALUE_3], False, "no_integer_duplicates"),
+            ([], False, "empty_list"),
+            (["a"], False, "single_item"),
+            ([None, None], True, "none_duplicates"),
         ],
     )
-    def test_has_duplicates(self, input_list, has_dupes):
+    def test_has_duplicates(self, input_list: list[Any], has_dupes: bool, description: str):
         """Test _has_duplicates function."""
         assert _has_duplicates(input_list) == has_dupes
 
 
-class TestIntegrationScenarios(TestMakeUniqueLabelsBase):
+# =============================================================================
+# INTEGRATION SCENARIO TESTS
+# =============================================================================
+
+
+class TestIntegrationScenarios:
     """Integration tests for realistic scenarios."""
 
-    def test_gene_expression_scenario(self):
+    def test_gene_expression_scenario(
+        self, mock_network: Mock, gene_expression_dataframe: pd.DataFrame
+    ):
         """Test realistic gene expression data scenario."""
-        mock_net = self.create_mock_net()
+        result = main(mock_network, gene_expression_dataframe)
 
-        df = pd.DataFrame(
-            {
-                ("sample1", "condition1"): [1.2, 2.3, 3.4],
-                ("sample2", "condition1"): [1.5, 2.6, 3.7],
-                ("sample1", "condition2"): [0.8, 1.9, 2.1],
-            },
-            index=[("GENE1", "protein"), ("GENE1", "rna"), ("GENE2", "protein")],
-        )
-
-        result = main(mock_net, df)
-
-        expected_index = [("GENE1-1", "protein"), ("GENE1-2", "rna"), ("GENE2-3", "protein")]
+        expected_index = [
+            (GENE_1_UPPER + SUFFIX_1, TYPE_PROTEIN),
+            (GENE_1_UPPER + SUFFIX_2, TYPE_RNA),
+            (GENE_2_UPPER + SUFFIX_3, TYPE_PROTEIN),
+        ]
         expected_columns = [
-            ("sample1-1", "condition1"),
-            ("sample2-2", "condition1"),
-            ("sample1-3", "condition2"),
+            (SAMPLE_1 + SUFFIX_1, CONDITION_1),
+            (SAMPLE_2 + SUFFIX_2, CONDITION_1),
+            (SAMPLE_1 + SUFFIX_3, CONDITION_2),
         ]
 
         assert result.index.tolist() == expected_index
         assert result.columns.tolist() == expected_columns
-        np.testing.assert_array_equal(result.values, df.values)
+        np.testing.assert_array_equal(result.values, gene_expression_dataframe.values)
 
     def test_network_integration_simulation(self):
         """Test integration with network object."""
-        mock_net = self.create_mock_net()
-        mock_net.export_df.return_value = pd.DataFrame(
-            {"expression": [1.5, 2.3, 0.8, 1.2]}, index=["GENE1", "GENE1", "GENE2", "GENE3"]
+        test_df = create_simple_dataframe(
+            data={
+                EXPRESSION_COL: [FLOAT_VALUE_1_5, FLOAT_VALUE_2_3, FLOAT_VALUE_0_8, FLOAT_VALUE_1_2]
+            },
+            index=[GENE_1_UPPER, GENE_1_UPPER, GENE_2_UPPER, GENE_3],
         )
+        mock_net = create_mock_network_with_df(test_df)
 
         result = main(mock_net)
 
-        assert result.index.tolist() == ["GENE1-1", "GENE1-2", "GENE2-3", "GENE3-4"]
+        assert result.index.tolist() == [
+            GENE_1_UPPER + SUFFIX_1,
+            GENE_1_UPPER + SUFFIX_2,
+            GENE_2_UPPER + SUFFIX_3,
+            GENE_3 + SUFFIX_4,
+        ]
         mock_net.export_df.assert_called_once()
 
-    def test_performance_with_many_duplicates(self):
+    def test_performance_with_many_duplicates(self, mock_network: Mock):
         """Test performance with large number of duplicates."""
-        mock_net = self.create_mock_net()
+        df = create_large_duplicates_dataframe()
+        result = main(mock_network, df)
 
-        # Create manageable test size
-        n_duplicates = 1000
-        df = pd.DataFrame({"col1": range(n_duplicates)}, index=["gene1"] * n_duplicates)
-
-        result = main(mock_net, df)
-
-        assert len(result.index) == n_duplicates
-        assert len(set(result.index)) == n_duplicates  # All unique
-        assert result.index[0] == "gene1-1"
-        assert result.index[-1] == f"gene1-{n_duplicates}"
+        assert len(result.index) == LARGE_DATASET_SIZE
+        assert len(set(result.index)) == LARGE_DATASET_SIZE  # All unique
+        assert result.index[0] == GENE_1 + SUFFIX_1
+        assert result.index[-1] == f"{GENE_1}-{LARGE_DATASET_SIZE}"
 
 
 if __name__ == "__main__":

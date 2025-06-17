@@ -1,18 +1,20 @@
 """
-Updated comprehensive test suite for the FIXED version of export_data.py
+Comprehensive test suite for export_data.py module.
 
-Key changes from original tests:
-1. Removed all patches for Path.open() bug (now fixed)
-2. Changed UnboundLocalError tests to ValueError tests (bug fixed)
-3. Removed TestKnownBugs class (bugs are now fixed)
-4. Added tests for improved error handling
-5. Tests now work with the actual fixed code without workarounds
+This module tests all functionality of the celldega.clust.data.export_data module
+with improved robustness, conciseness, and consistency. All bugs from the original
+implementation have been fixed and are tested accordingly.
 """
+
+# =============================================================================
+# IMPORTS AND MODULE SETUP
+# =============================================================================
 
 import json
 from pathlib import Path
 import sys
 import tempfile
+from typing import Any
 from unittest.mock import Mock, patch
 
 import numpy as np
@@ -21,209 +23,359 @@ import pytest
 
 
 # Add the src directory to Python path for imports
-project_root = Path(__file__).parent.parent.parent.parent
-src_path = project_root / "src"
-if src_path not in sys.path:
-    sys.path.insert(0, str(src_path))
+PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
+SRC_PATH = PROJECT_ROOT / "src"
+if SRC_PATH not in sys.path:
+    sys.path.insert(0, str(SRC_PATH))
 
 from celldega.clust.data import export_data
 
 
-# Shared test fixtures to minimize duplication
-@pytest.fixture
-def mock_network():
-    """Create a complete mock network object used across multiple test classes."""
-    mock_net = Mock()
-    mock_net.dat = {"mat": [[1, 2], [3, 4]], "nodes": {"row": ["r1", "r2"], "col": ["c1", "c2"]}}
-    mock_net.viz = {"data": "viz_content"}
-    mock_net.sim = {"row": {"similarity": "row_data"}, "col": {"similarity": "col_data"}}
-    mock_net.dat_to_df.return_value = pd.DataFrame(
-        {"col1": [1, 2, 3], "col2": [4, 5, 6]}, index=["row1", "row2", "row3"]
-    )
+# =============================================================================
+# MODULE-LEVEL CONSTANTS
+# =============================================================================
 
-    # Configure export_net_json to return different values based on indent parameter
-    def mock_export_net_json(net_type, indent="no-indent"):
-        test_data = {"test": "data"}
+# Test data constants
+DEFAULT_MATRIX = [[1, 2], [3, 4]]
+DEFAULT_NODES = {"row": ["r1", "r2"], "col": ["c1", "c2"]}
+DEFAULT_VIZ_DATA = {"data": "viz_content"}
+DEFAULT_SIM_DATA = {"row": {"similarity": "row_data"}, "col": {"similarity": "col_data"}}
+
+# DataFrame constants
+DEFAULT_DF_DATA = {"col1": [1, 2, 3], "col2": [4, 5, 6]}
+DEFAULT_DF_INDEX = ["row1", "row2", "row3"]
+CUSTOM_DF_DATA = {"a": [1, 2], "b": [3, 4]}
+CUSTOM_DF_INDEX = ["row1", "row2"]
+
+# JSON test constants
+TEST_JSON_DICT = {"test": "data"}
+COMPLEX_JSON_DICT = {
+    "unicode": "café ñoño 中文",
+    "special": "\"quotes\" and 'apostrophes' and \n newlines",
+    "numbers": [1.5, -2.3, 0],
+    "empty_structures": {"list": [], "dict": {}, "string": ""},
+}
+
+# Valid net types for export_net_json
+VALID_NET_TYPES = ["dat", "viz", "sim_row", "sim_col"]
+INVALID_NET_TYPES = ["invalid", "wrong", "fake", "", "DATA", "VIZ", "nonexistent"]
+
+# Error message patterns
+INVALID_NET_TYPE_PATTERN = r"Invalid net_type: '[^']*'"
+NET_TYPE_OPTIONS_PATTERN = r"Must be one of: 'dat', 'viz', 'sim_row', 'sim_col'"
+SERIALIZATION_ERROR_PATTERN = r"Failed to serialize dictionary to JSON"
+FILE_WRITE_ERROR_PATTERN = r"Failed to write JSON to file.*"
+
+# File operation constants
+FILE_ENCODING = "utf-8"
+TEMP_FILE_SUFFIX = ".json"
+
+# Test matrix variations
+MATRIX_VARIATIONS: list[tuple[Any, str]] = [
+    ([], "empty list"),
+    ([[]], "nested empty list"),
+    (np.array([]), "empty numpy array"),
+    (np.array([[1, 2], [3, 4]]), "2D numpy array"),
+    (([[1, 2]],), "tuple of lists"),
+]
+
+# Large test data constants
+LARGE_MATRIX_ROWS = 100
+LARGE_MATRIX_COLS = 50
+
+# =============================================================================
+# UTILITY HELPER FUNCTIONS
+# =============================================================================
+
+
+def create_mock_network_data(
+    matrix: list[list[int]] | None = None,
+    nodes: dict[str, list[str]] | None = None,
+    viz_data: dict[str, str] | None = None,
+    sim_data: dict[str, dict[str, str]] | None = None,
+) -> dict[str, Any]:
+    """Create standardized mock network data structure."""
+    return {
+        "mat": matrix or DEFAULT_MATRIX,
+        "nodes": nodes or DEFAULT_NODES.copy(),
+        "viz": viz_data or DEFAULT_VIZ_DATA.copy(),
+        "sim": sim_data or DEFAULT_SIM_DATA.copy(),
+    }
+
+
+def create_test_dataframe(
+    data: dict[str, list[int]] | None = None, index: list[str] | None = None
+) -> pd.DataFrame:
+    """Create standardized test DataFrame."""
+    return pd.DataFrame(data or DEFAULT_DF_DATA.copy(), index=index or DEFAULT_DF_INDEX.copy())
+
+
+def validate_json_structure(json_string: str) -> dict[str, Any]:
+    """Validate JSON string and return parsed dictionary."""
+    assert isinstance(json_string, str), "Expected string output"
+    return json.loads(json_string)
+
+
+def create_mock_export_net_json_func() -> callable:
+    """Create mock function for export_net_json with indent support."""
+
+    def mock_func(net_type: str, indent: str = "no-indent") -> str:
         if indent == "indent":
-            return json.dumps(test_data, indent=2)
-        return json.dumps(test_data)
+            return json.dumps(TEST_JSON_DICT, indent=2)
+        return json.dumps(TEST_JSON_DICT)
 
-    mock_net.export_net_json.side_effect = mock_export_net_json
+    return mock_func
+
+
+def assert_file_contains_content(file_path: str | Path, expected_content: str) -> None:
+    """Assert that file exists and contains expected content."""
+    path = Path(file_path)
+    assert path.exists(), f"File {path} does not exist"
+
+    with path.open(encoding=FILE_ENCODING) as f:
+        content = f.read()
+    assert expected_content in content, f"Expected content not found in {path}"
+
+
+def assert_valid_tsv_format(content: str) -> None:
+    """Assert that content is in valid TSV format."""
+    assert isinstance(content, str), "TSV content must be string"
+    assert "\t" in content, "TSV content must contain tab separators"
+
+
+# =============================================================================
+# PYTEST FIXTURES AND TEST DATA
+# =============================================================================
+
+
+@pytest.fixture
+def mock_network() -> Mock:
+    """Create a complete mock network object for testing."""
+    mock_net = Mock()
+    network_data = create_mock_network_data()
+
+    mock_net.dat = {"mat": network_data["mat"], "nodes": network_data["nodes"]}
+    mock_net.viz = network_data["viz"]
+    mock_net.sim = network_data["sim"]
+    mock_net.dat_to_df.return_value = create_test_dataframe()
+    mock_net.export_net_json.side_effect = create_mock_export_net_json_func()
+
     return mock_net
 
 
 @pytest.fixture
-def temp_file():
+def temp_file() -> str:
     """Create temporary file for testing file operations."""
-    with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".json") as tmp_file:
+    with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=TEMP_FILE_SUFFIX) as tmp_file:
         temp_filename = tmp_file.name
+
     yield temp_filename
-    if Path(temp_filename).exists():
-        Path(temp_filename).unlink()
+
+    temp_path = Path(temp_filename)
+    if temp_path.exists():
+        temp_path.unlink()
+
+
+@pytest.fixture
+def large_test_matrix() -> list[list[float]]:
+    """Create large matrix for performance testing."""
+    return np.random.rand(LARGE_MATRIX_ROWS, LARGE_MATRIX_COLS).tolist()
+
+
+# =============================================================================
+# CORE FUNCTIONALITY TESTS - EXPORT NET JSON
+# =============================================================================
 
 
 class TestExportNetJsonFixed:
     """Test export_net_json function with all bugs fixed."""
 
-    def test_all_net_types_and_matrix_conversions(self, mock_network):
-        """Test all net_type options and matrix type conversions."""
-        # Test cases: (net_type, description)
-        test_cases = [
+    @pytest.mark.parametrize(
+        "net_type,description",
+        [
             ("dat", "dat export with list matrix"),
             ("viz", "viz export"),
             ("sim_row", "sim_row export"),
             ("sim_col", "sim_col export"),
-        ]
+        ],
+    )
+    def test_valid_net_types_with_matrix_conversions(
+        self, mock_network: Mock, net_type: str, description: str
+    ) -> None:
+        """Test all valid net_type options and matrix type conversions."""
+        result = export_data.export_net_json(mock_network, net_type)
+        validate_json_structure(result)
 
-        for net_type, description in test_cases:
+        # Test numpy matrix conversion for dat type
+        if net_type == "dat":
+            mock_network.dat["mat"] = np.array(DEFAULT_MATRIX)
             result = export_data.export_net_json(mock_network, net_type)
-            assert isinstance(result, str), f"Failed for {description}"
-            # Verify it's valid JSON
-            json.loads(result)
+            result_dict = validate_json_structure(result)
+            assert result_dict["mat"] == DEFAULT_MATRIX, "Numpy array conversion failed"
 
-            # For dat type, also test numpy matrix conversion
-            if net_type == "dat":
-                mock_network.dat["mat"] = np.array([[1, 2], [3, 4]])
-                result = export_data.export_net_json(mock_network, net_type)
-                result_dict = json.loads(result)
-                assert result_dict["mat"] == [[1, 2], [3, 4]], "Numpy array conversion failed"
+            # Reset to list for other tests
+            mock_network.dat["mat"] = DEFAULT_MATRIX
 
-                # Reset to list for other tests
-                mock_network.dat["mat"] = [[1, 2], [3, 4]]
+    @pytest.mark.parametrize(
+        "indent_option,expected_formatting",
+        [
+            ("indent", True),
+            ("no-indent", False),
+        ],
+    )
+    def test_indent_formatting_options(
+        self, mock_network: Mock, indent_option: str, expected_formatting: bool
+    ) -> None:
+        """Test indent formatting options."""
+        result = export_data.export_net_json(mock_network, "viz", indent=indent_option)
 
-    def test_indent_options_and_fixed_error_handling(self, mock_network):
-        """Test indent formatting and the fixed error handling."""
-        # Test indent options
-        result_indent = export_data.export_net_json(mock_network, "viz", indent="indent")
-        result_no_indent = export_data.export_net_json(mock_network, "viz", indent="no-indent")
+        if expected_formatting:
+            expected = json.dumps(mock_network.viz, indent=2)
+        else:
+            expected = json.dumps(mock_network.viz)
 
-        expected_indent = json.dumps(mock_network.viz, indent=2)
-        expected_no_indent = json.dumps(mock_network.viz)
+        assert result == expected
 
-        assert result_indent == expected_indent
-        assert result_no_indent == expected_no_indent
+    @pytest.mark.parametrize("invalid_type", INVALID_NET_TYPES)
+    def test_invalid_net_type_error_handling(self, mock_network: Mock, invalid_type: str) -> None:
+        """Test improved error handling for invalid net_types."""
+        with pytest.raises(ValueError, match=INVALID_NET_TYPE_PATTERN):
+            export_data.export_net_json(mock_network, invalid_type)
 
-        # Test fixed error handling - now raises ValueError with correct message
-        with pytest.raises(ValueError, match="Invalid net_type: 'invalid_type'"):
-            export_data.export_net_json(mock_network, "invalid_type")
-
-        # Test that the error message contains the expected text
-        with pytest.raises(ValueError, match="Must be one of: 'dat', 'viz', 'sim_row', 'sim_col'"):
+    def test_error_message_content_validation(self, mock_network: Mock) -> None:
+        """Test that error messages contain expected helpful information."""
+        with pytest.raises(ValueError) as exc_info:
             export_data.export_net_json(mock_network, "nonexistent")
 
-        # Test missing attributes still raise AttributeError (unchanged behavior)
+        error_message = str(exc_info.value)
+        assert "Invalid net_type: 'nonexistent'" in error_message
+        assert "Must be one of:" in error_message
+        for valid_type in VALID_NET_TYPES:
+            assert valid_type in error_message
+
+    def test_missing_attributes_error_handling(self) -> None:
+        """Test handling of networks with missing attributes."""
         incomplete_net = Mock()
         del incomplete_net.dat
+
         with pytest.raises(AttributeError):
             export_data.export_net_json(incomplete_net, "dat")
 
-    def test_isinstance_fix_validation(self, mock_network):
+    def test_isinstance_fix_with_inheritance(self, mock_network: Mock) -> None:
         """Test that isinstance() fix works correctly with inheritance."""
 
-        # Test with custom list subclass to verify isinstance() works better than type()
         class CustomList(list):
-            pass
+            """Custom list subclass for testing isinstance() behavior."""
 
-        # The fixed code should handle list subclasses correctly
-        mock_network.dat["mat"] = CustomList([[1, 2], [3, 4]])
+        mock_network.dat["mat"] = CustomList(DEFAULT_MATRIX)
         result = export_data.export_net_json(mock_network, "dat")
-        result_dict = json.loads(result)
+        result_dict = validate_json_structure(result)
 
-        # Should still convert to regular list (isinstance handles subclasses properly)
-        assert result_dict["mat"] == [[1, 2], [3, 4]]
+        assert result_dict["mat"] == DEFAULT_MATRIX
+
+
+# =============================================================================
+# FILE OPERATION TESTS - TSV AND JSON HANDLING
+# =============================================================================
 
 
 class TestFileOperationsFixed:
-    """Test file operations with Path.open() bugs completely fixed."""
+    """Test file operations with all Path.open() bugs fixed."""
 
-    def test_tsv_export_all_scenarios(self, mock_network, temp_file):
-        """Test all TSV export scenarios."""
-        mock_network.dat_to_df.reset_mock()
-
-        # Test 1: Export with filename
+    def test_tsv_export_with_filename(self, mock_network: Mock, temp_file: str) -> None:
+        """Test TSV export when filename is provided."""
         export_data.write_matrix_to_tsv(mock_network, filename=temp_file)
-        assert Path(temp_file).exists()
+        assert_file_contains_content(temp_file, "col1\tcol2")
 
-        with Path(temp_file).open() as f:
-            content = f.read()
-        assert "\t" in content and "col1\tcol2" in content
-
-        # Test 2: Export without filename (returns string)
+    def test_tsv_export_without_filename(self, mock_network: Mock) -> None:
+        """Test TSV export when no filename is provided (returns string)."""
         result = export_data.write_matrix_to_tsv(mock_network, filename=None)
-        assert isinstance(result, str) and "\t" in result
+        assert_valid_tsv_format(result)
+        assert "col1\tcol2" in result
 
-        # Test 3: Export with custom DataFrame
+    def test_tsv_export_with_custom_dataframe(self, mock_network: Mock, temp_file: str) -> None:
+        """Test TSV export with custom DataFrame provided."""
         mock_network.dat_to_df.reset_mock()
-        custom_df = pd.DataFrame({"a": [1, 2], "b": [3, 4]})
+        custom_df = create_test_dataframe(CUSTOM_DF_DATA, CUSTOM_DF_INDEX)
+
         export_data.write_matrix_to_tsv(mock_network, filename=temp_file, df=custom_df)
 
-        with Path(temp_file).open() as f:
-            content = f.read()
-        assert "a\tb" in content
+        assert_file_contains_content(temp_file, "a\tb")
         mock_network.dat_to_df.assert_not_called()
 
-    def test_json_file_operations_now_work(self, mock_network, temp_file):
-        """Test JSON file operations - Path.open() now works correctly!"""
-        test_dict = {"key": "value", "unicode": "café ñoño", "number": 42}
-
-        # Test cases: (function, args, description)
-        json_test_cases = [
+    @pytest.mark.parametrize(
+        "function_name,args_factory,description",
+        [
             (
-                export_data.write_json_to_file,
-                [mock_network, "viz", temp_file, "no-indent"],
+                "write_json_to_file",
+                lambda net, temp_file: [net, "viz", temp_file, "no-indent"],
                 "write_json_to_file no-indent",
             ),
             (
-                export_data.write_json_to_file,
-                [mock_network, "viz", temp_file, "indent"],
+                "write_json_to_file",
+                lambda net, temp_file: [net, "viz", temp_file, "indent"],
                 "write_json_to_file with indent",
             ),
             (
-                export_data.save_dict_to_json,
-                [test_dict, temp_file, "no-indent"],
+                "save_dict_to_json",
+                lambda net, temp_file: [TEST_JSON_DICT, temp_file, "no-indent"],
                 "save_dict_to_json no-indent",
             ),
             (
-                export_data.save_dict_to_json,
-                [test_dict, temp_file, "indent"],
+                "save_dict_to_json",
+                lambda net, temp_file: [TEST_JSON_DICT, temp_file, "indent"],
                 "save_dict_to_json with indent",
             ),
-        ]
+        ],
+    )
+    def test_json_file_operations(
+        self,
+        mock_network: Mock,
+        temp_file: str,
+        function_name: str,
+        args_factory: callable,
+        description: str,
+    ) -> None:
+        """Test JSON file operations with various configurations."""
+        func = getattr(export_data, function_name)
+        args = args_factory(mock_network, temp_file)
 
-        for func, args, description in json_test_cases:
-            # Path.open() now works correctly!
-            func(*args)
-            assert Path(temp_file).exists(), f"File not created for {description}"
+        func(*args)
 
-            with Path(temp_file).open(encoding="utf-8") as f:
-                content = f.read()
+        assert Path(temp_file).exists(), f"File not created for {description}"
 
-            # Verify content is valid JSON
-            json.loads(content)
+        with Path(temp_file).open(encoding=FILE_ENCODING) as f:
+            content = f.read()
 
-            # Check indentation for indent cases
-            if "indent" in description and description.endswith("with indent"):
-                assert "\n" in content, f"No indentation found for {description}"
+        # Verify content is valid JSON
+        validate_json_structure(content)
 
-    def test_improved_error_handling(self, mock_network, temp_file):
-        """Test the new and improved error handling in file operations."""
+        # Check indentation for indent cases
+        if description.endswith("with indent"):
+            assert "\n" in content, f"No indentation found for {description}"
 
-        # Test file permission errors with better error messages
+    def test_file_permission_error_handling(self, mock_network: Mock) -> None:
+        """Test improved error handling for file permission errors."""
+        readonly_file = "readonly.json"
+
         with patch("pathlib.Path.open", side_effect=PermissionError("Permission denied")):
-            # Now get descriptive OSError instead of generic PermissionError
-            with pytest.raises(OSError, match="Failed to write JSON to file.*readonly.json"):
-                export_data.save_dict_to_json({"test": "data"}, "readonly.json")
+            with pytest.raises(OSError, match=FILE_WRITE_ERROR_PATTERN):
+                export_data.save_dict_to_json(TEST_JSON_DICT, readonly_file)
 
-            with pytest.raises(OSError, match="Failed to write JSON to file.*readonly.json"):
-                export_data.write_json_to_file(mock_network, "viz", "readonly.json")
+            with pytest.raises(OSError, match=FILE_WRITE_ERROR_PATTERN):
+                export_data.write_json_to_file(mock_network, "viz", readonly_file)
 
-        # Test non-serializable objects with better error messages
+    def test_non_serializable_objects_error_handling(self, temp_file: str) -> None:
+        """Test error handling for non-serializable objects."""
         non_serializable = {"function": lambda x: x, "set": {1, 2, 3}}
-        with pytest.raises(ValueError, match="Failed to serialize dictionary to JSON"):
+
+        with pytest.raises(ValueError, match=SERIALIZATION_ERROR_PATTERN):
             export_data.save_dict_to_json(non_serializable, temp_file)
 
-        # Test network method failures (unchanged behavior)
+    def test_network_method_failure_handling(self, mock_network: Mock) -> None:
+        """Test handling of network method failures."""
         mock_network.dat_to_df.side_effect = AttributeError("Method failed")
+
         with pytest.raises(AttributeError, match="Method failed"):
             export_data.write_matrix_to_tsv(mock_network)
 
@@ -231,170 +383,173 @@ class TestFileOperationsFixed:
         mock_network.dat_to_df.side_effect = None
 
 
+# =============================================================================
+# INTEGRATION AND EDGE CASE TESTS
+# =============================================================================
+
+
 class TestEdgeCasesAndIntegration:
     """Test edge cases and integration scenarios with all fixes applied."""
 
-    def test_matrix_type_variations(self, mock_network):
+    @pytest.mark.parametrize("matrix,description", MATRIX_VARIATIONS)
+    def test_matrix_type_variations(
+        self, mock_network: Mock, matrix: Any, description: str
+    ) -> None:
         """Test various matrix types work with isinstance() fix."""
-        matrix_variations = [
-            ([], "empty list"),
-            ([[]], "nested empty list"),
-            (np.array([]), "empty numpy array"),
-            (np.array([[1, 2], [3, 4]]), "2D numpy array"),
-            (([[1, 2]],), "tuple of lists"),
-        ]
+        mock_network.dat = {"mat": matrix}
 
-        for matrix, description in matrix_variations:
-            mock_network.dat = {"mat": matrix}
-            try:
-                result = export_data.export_net_json(mock_network, "dat")
-                assert isinstance(result, str), f"Failed for {description}"
-                json.loads(result)  # Verify valid JSON
-            except (TypeError, AttributeError):
-                # Some edge cases may still fail, which is acceptable
-                pass
+        try:
+            result = export_data.export_net_json(mock_network, "dat")
+            validate_json_structure(result)
+        except (TypeError, AttributeError):
+            # Some edge cases may still fail, which is acceptable
+            pass
 
-    def test_special_data_handling_no_patching_needed(self, temp_file):
-        """Test special data handling - Path.open() now works correctly."""
-        # Large dataset test
-        large_matrix = np.random.rand(100, 50).tolist()
+    def test_large_dataset_handling(self, large_test_matrix: list[list[float]]) -> None:
+        """Test handling of large datasets."""
         mock_net = Mock()
-        mock_net.dat = {"mat": large_matrix}
+        mock_net.dat = {"mat": large_test_matrix}
 
         result = export_data.export_net_json(mock_net, "dat")
-        result_dict = json.loads(result)
-        assert len(result_dict["mat"]) == 100
+        result_dict = validate_json_structure(result)
 
-        # Special characters and unicode - works directly now
-        special_dict = {
-            "unicode": "café ñoño 中文",
-            "special": "\"quotes\" and 'apostrophes' and \n newlines",
-            "numbers": [1.5, -2.3, 0],
-            "empty_structures": {"list": [], "dict": {}, "string": ""},
-        }
+        assert len(result_dict["mat"]) == LARGE_MATRIX_ROWS
 
-        # Path.open() now works correctly!
-        export_data.save_dict_to_json(special_dict, temp_file)
-        with Path(temp_file).open(encoding="utf-8") as f:
+    def test_unicode_and_special_characters(self, temp_file: str) -> None:
+        """Test handling of unicode and special characters."""
+        export_data.save_dict_to_json(COMPLEX_JSON_DICT, temp_file)
+
+        with Path(temp_file).open(encoding=FILE_ENCODING) as f:
             reloaded = json.load(f)
 
-        assert reloaded["unicode"] == "café ñoño 中文"
-        assert reloaded["special"] == "\"quotes\" and 'apostrophes' and \n newlines"
+        assert reloaded["unicode"] == COMPLEX_JSON_DICT["unicode"]
+        assert reloaded["special"] == COMPLEX_JSON_DICT["special"]
 
-        # Test circular reference detection (improved error message)
+    def test_circular_reference_detection(self, temp_file: str) -> None:
+        """Test detection and handling of circular references."""
         circular_dict = {"key": "value"}
         circular_dict["self"] = circular_dict
 
-        with pytest.raises(ValueError, match="Failed to serialize dictionary to JSON"):
+        with pytest.raises(ValueError, match=SERIALIZATION_ERROR_PATTERN):
             export_data.save_dict_to_json(circular_dict, temp_file)
 
-    def test_complete_integration_no_workarounds(self, mock_network, temp_file):
-        """Test complete integration - all functions work together seamlessly."""
-        # Test that all functions work together without any workarounds
-
-        # 1. Export network data to JSON
+    def test_complete_integration_workflow(self, mock_network: Mock, temp_file: str) -> None:
+        """Test complete integration workflow without workarounds."""
+        # Export network data to JSON
         json_result = export_data.export_net_json(mock_network, "dat")
         assert json_result is not None
 
-        # 2. Export DataFrame to TSV
+        # Export DataFrame to TSV
         tsv_result = export_data.write_matrix_to_tsv(mock_network, filename=None)
         assert tsv_result is not None
 
-        # 3. Write JSON to file - Path.open() works correctly!
+        # Write JSON to file
         export_data.write_json_to_file(mock_network, "viz", temp_file)
         assert Path(temp_file).exists()
 
-        # 4. Save dict to JSON file - Path.open() works correctly!
-        test_dict = json.loads(json_result)
+        # Save dict to JSON file
+        test_dict = validate_json_structure(json_result)
         export_data.save_dict_to_json(test_dict, temp_file)
         assert Path(temp_file).exists()
 
-        # 5. Performance test with large data
-        large_matrix = [[i + j for j in range(100)] for i in range(100)]
-        mock_network.dat = {"mat": large_matrix}
+    def test_performance_with_large_matrix(
+        self, mock_network: Mock, large_test_matrix: list[list[float]]
+    ) -> None:
+        """Test performance with large matrix data."""
+        mock_network.dat = {"mat": large_test_matrix}
 
         result = export_data.export_net_json(mock_network, "dat")
-        assert len(json.loads(result)["mat"]) == 100
+        result_dict = validate_json_structure(result)
+
+        assert len(result_dict["mat"]) == LARGE_MATRIX_ROWS
+
+
+# =============================================================================
+# BUG FIX VALIDATION TESTS
+# =============================================================================
 
 
 class TestAllBugsAreFixed:
-    """Comprehensive validation that ALL identified bugs have been properly fixed."""
+    """Comprehensive validation that all identified bugs have been properly fixed."""
 
-    def test_unbound_local_error_completely_fixed(self, mock_network):
+    @pytest.mark.parametrize("invalid_type", INVALID_NET_TYPES)
+    def test_unbound_local_error_completely_eliminated(
+        self, mock_network: Mock, invalid_type: str
+    ) -> None:
         """Verify the UnboundLocalError bug is completely eliminated."""
-        # Test various invalid net_types
-        invalid_types = ["invalid", "wrong", "fake", "", "DATA", "VIZ"]
+        with pytest.raises(ValueError, match=INVALID_NET_TYPE_PATTERN):
+            export_data.export_net_json(mock_network, invalid_type)
 
-        for invalid_type in invalid_types:
-            with pytest.raises(ValueError, match="Invalid net_type"):
-                export_data.export_net_json(mock_network, invalid_type)
-
-        # Verify the error message is helpful
-        try:
+    def test_error_message_helpfulness(self, mock_network: Mock) -> None:
+        """Verify error messages are helpful and informative."""
+        with pytest.raises(ValueError) as exc_info:
             export_data.export_net_json(mock_network, "wrong")
-            raise AssertionError("Should have raised ValueError")
-        except ValueError as e:
-            assert "Invalid net_type: 'wrong'" in str(e)
-            assert "Must be one of:" in str(e)
 
-    def test_path_open_bugs_completely_fixed(self, temp_file):
-        """Verify Path.open() now works correctly."""
-        # Test save_dict_to_json works with Path.open()
-        test_dict = {"test": "data", "unicode": "café"}
-        export_data.save_dict_to_json(test_dict, temp_file)
+        error_message = str(exc_info.value)
+        assert "Invalid net_type: 'wrong'" in error_message
+        assert "Must be one of:" in error_message
+
+    def test_path_open_functionality_restored(self, temp_file: str) -> None:
+        """Verify Path.open() functionality is completely restored."""
+        # Test save_dict_to_json
+        export_data.save_dict_to_json(COMPLEX_JSON_DICT, temp_file)
         assert Path(temp_file).exists()
 
-        with Path(temp_file).open() as f:
+        with Path(temp_file).open(encoding=FILE_ENCODING) as f:
             content = f.read()
-        reloaded = json.loads(content)
-        assert reloaded == test_dict
+        reloaded = validate_json_structure(content)
+        assert reloaded["unicode"] == COMPLEX_JSON_DICT["unicode"]
 
-        # Test write_json_to_file works with Path.open()
+        # Test write_json_to_file
         mock_net = Mock()
-        mock_net.export_net_json.return_value = '{"test": "data"}'
+        mock_net.export_net_json.return_value = json.dumps(TEST_JSON_DICT)
         export_data.write_json_to_file(mock_net, "viz", temp_file)
         assert Path(temp_file).exists()
 
-    def test_type_checking_improvement_works(self, mock_network):
-        """Verify isinstance() improvement works correctly."""
+    def test_isinstance_improvement_validation(self, mock_network: Mock) -> None:
+        """Verify isinstance() improvement works with inheritance."""
 
-        # Test with list subclass (isinstance handles this better than type())
         class SpecialList(list):
-            def __init__(self, data):
+            """Special list subclass for testing."""
+
+            def __init__(self, data: list[Any]) -> None:
                 super().__init__(data)
                 self.metadata = "special"
 
-        special_matrix = SpecialList([[1, 2], [3, 4]])
+        special_matrix = SpecialList(DEFAULT_MATRIX)
         mock_network.dat["mat"] = special_matrix
 
-        # Should work correctly with isinstance() fix
         result = export_data.export_net_json(mock_network, "dat")
-        result_dict = json.loads(result)
-        assert result_dict["mat"] == [[1, 2], [3, 4]]
+        result_dict = validate_json_structure(result)
+        assert result_dict["mat"] == DEFAULT_MATRIX
 
-    def test_all_functions_work_together_flawlessly(self, mock_network, temp_file):
-        """Final integration test - everything should work perfectly."""
-        # This test would have failed with multiple bugs in the original code
-        # Now it should pass flawlessly
-
-        # Test error handling improvements
-        with pytest.raises(ValueError, match="Invalid net_type"):
+    def test_comprehensive_functionality_validation(
+        self, mock_network: Mock, temp_file: str
+    ) -> None:
+        """Final comprehensive test - all functionality working together."""
+        # Test error handling
+        with pytest.raises(ValueError, match=INVALID_NET_TYPE_PATTERN):
             export_data.export_net_json(mock_network, "bad_type")
 
-        # Test file operations work
+        # Test file operations
         export_data.write_json_to_file(mock_network, "viz", temp_file)
-        export_data.save_dict_to_json({"test": "data"}, temp_file)
+        export_data.save_dict_to_json(TEST_JSON_DICT, temp_file)
 
         # Test matrix conversion with isinstance
-        mock_network.dat["mat"] = np.array([[1, 2]])
+        mock_network.dat["mat"] = np.array(DEFAULT_MATRIX)
         result = export_data.export_net_json(mock_network, "dat")
-        assert json.loads(result)["mat"] == [[1, 2]]
+        result_dict = validate_json_structure(result)
+        assert result_dict["mat"] == DEFAULT_MATRIX
 
         # Test TSV export
         tsv_result = export_data.write_matrix_to_tsv(mock_network, filename=None)
         assert isinstance(tsv_result, str)
 
 
+# =============================================================================
+# TEST EXECUTION CONFIGURATION
+# =============================================================================
+
 if __name__ == "__main__":
-    # Run tests with verbose output
+    # Run tests with verbose output and short traceback format
     pytest.main([__file__, "-v", "--tb=short"])

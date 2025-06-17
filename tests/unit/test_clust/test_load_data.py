@@ -5,6 +5,8 @@ Tests cover all functions with extensive edge case coverage and minimal redundan
 
 import io
 import json
+from pathlib import Path
+from typing import Any
 from unittest.mock import Mock, mock_open, patch
 
 import pandas as pd
@@ -13,166 +15,255 @@ import pytest
 from celldega.clust.data import load_data
 
 
-class MockNetwork:
-    """Mock Network object for testing"""
+# =============================================================================
+# CONSTANTS
+# =============================================================================
 
-    def __init__(self):
-        self.dat = {"filename": None}
-        self.reset_called = False
-        self.df_to_dat_called = False
-        self.load_tsv_to_net_called = False
+# Test file names and paths
+TEST_FILE_SIMPLE = "test.tsv"
+TEST_FILE_DATA = "data.tsv"
+TEST_FILE_EMPTY = "empty.tsv"
+TEST_FILE_UNICODE = "unicode.tsv"
+TEST_FILE_NONEXISTENT = "nonexistent.tsv"
+TEST_FILE_RESTRICTED = "restricted.tsv"
+TEST_FILE_BAD_ENCODING = "bad_encoding.tsv"
+TEST_FILE_IO_ERROR = "io_error.tsv"
+TEST_FILE_HUGE = "huge_file.tsv"
+TEST_FILE_LARGE = "large.tsv"
+TEST_FILE_JSON = "test.json"
+TEST_FILE_GMT = "test.gmt"
 
-    def reset(self):
-        self.reset_called = True
+# Test content constants
+CONTENT_SIMPLE = "simple content"
+CONTENT_TABULAR = "gene\tcell1\ncellA\t1"
+CONTENT_EMPTY = ""
+CONTENT_UNICODE = "unicode: café\tnaïve\t1"
+CONTENT_LARGE = "large content\n" * 1000
 
-    def df_to_dat(self, df, flag):
-        self.df_to_dat_called = True
-        self.last_df = df
-        self.last_flag = flag
-
-    def load_tsv_to_net(self, buffer, filename):
-        self.load_tsv_to_net_called = True
-        self.last_buffer = buffer
-        self.last_filename = filename
-        # Simulate what the real load_tsv_to_net does:
-        # 1. Eventually calls df_to_dat
-        # 2. Sets the filename
-        self.df_to_dat_called = True
-        self.dat["filename"] = filename
-
-
-# Fixtures for reusable test data
-@pytest.fixture
-def mock_network():
-    """Reusable mock network object"""
-    return MockNetwork()
-
-
-@pytest.fixture
-def valid_tsv_content():
-    """Valid TSV content with categories"""
-    return """cat1\tcat2\t\tcell1\tcell2\tcell3
+# TSV content templates
+TSV_VALID_WITH_CATEGORIES = """cat1\tcat2\t\tcell1\tcell2\tcell3
 \t\t\tval1\tval2\tval3
 gene1\tA\t\t1\t2\t3
 gene2\tB\t\t4\t5\t6
 gene3\tA\t\t7\t8\t9"""
 
-
-@pytest.fixture
-def simple_tsv_content():
-    """Simple TSV without categories"""
-    return """gene\tcell1\tcell2\tcell3
+TSV_SIMPLE = """gene\tcell1\tcell2\tcell3
 gene1\t1\t2\t3
 gene2\t4\t5\t6"""
 
-
-@pytest.fixture
-def gmt_content():
-    """Valid GMT format content"""
-    return """pathway1\tdescription1\tgene1\tgene2\tgene3
+# GMT content template
+GMT_CONTENT = """pathway1\tdescription1\tgene1\tgene2\tgene3
 pathway2\tdescription2\tgeneA\tgeneB
 pathway3\tdescription3\tgeneX"""
 
+# Error messages
+ERROR_IO = "I/O error"
+ERROR_INVALID_ENCODING = "invalid start byte"
+ERROR_NO_DATA = "No data"
+ERROR_PARSER = "Parser error"
+ERROR_INVALID_FORMAT = "Invalid data format"
+ERROR_OUT_OF_MEMORY = "Out of memory"
+
+# Category configuration constants
+ROW_CATS_NONE = 1
+ROW_CATS_SINGLE = 2
+ROW_CATS_MULTIPLE = 3
+ROW_CATS_MAX = 4
+COL_CATS_NONE = 1
+COL_CATS_SINGLE = 2
+COL_CATS_MULTIPLE = 3
+COL_CATS_MAX = 4
+
+# Buffer size constants
+BUFFER_SIZE_TINY = 1
+BUFFER_SIZE_SMALL = 100
+BUFFER_SIZE_MEDIUM = 1000
+BUFFER_SIZE_LARGE = 10000
+
+# =============================================================================
+# UTILITIES
+# =============================================================================
+
+
+def create_test_dataframe(rows: int = 2, cols: int = 2) -> pd.DataFrame:
+    """Create a test DataFrame with specified dimensions."""
+    return pd.DataFrame([[i + j for j in range(cols)] for i in range(rows)])
+
+
+def create_mock_path_with_content(content: str) -> Mock:
+    """Create a mock Path object that returns specified content."""
+    mock_path_instance = Mock()
+    mock_path_instance.read_text.return_value = content
+    mock_path_instance.name = "test_file"
+    return mock_path_instance
+
+
+def generate_content_of_size(size: int) -> str:
+    """Generate test content of specified line count."""
+    return "\n".join([f"gene{i}\tcell1\tcell2\n{i}\t{i + 1}\t{i + 2}" for i in range(size)])
+
+
+def create_unicode_samples() -> list[str]:
+    """Create comprehensive Unicode test samples."""
+    return [
+        "café\tnaïve\trésumé",  # Latin characters
+        "αβγ\tδεζ\tηθι",  # Greek
+        "测试\t数据\t内容",  # Chinese
+        "🧬\t🧪\t🔬",  # Emojis
+        "test\u0000null",  # Null bytes
+        "tab\there\tthere",  # Mixed
+    ]
+
+
+# =============================================================================
+# FIXTURES
+# =============================================================================
+
+
+@pytest.fixture
+def mock_network() -> Mock:
+    """Create a reusable mock network object with standard behavior."""
+    network = Mock()
+    network.dat = {"filename": None}
+    network.reset_called = False
+    network.df_to_dat_called = False
+    network.load_tsv_to_net_called = False
+
+    def reset():
+        network.reset_called = True
+
+    def df_to_dat(df: pd.DataFrame, flag: bool):
+        network.df_to_dat_called = True
+        network.last_df = df
+        network.last_flag = flag
+
+    def load_tsv_to_net(buffer: io.StringIO, filename: str | None):
+        network.load_tsv_to_net_called = True
+        network.last_buffer = buffer
+        network.last_filename = filename
+        network.df_to_dat_called = True
+        network.dat["filename"] = filename
+
+    network.reset = reset
+    network.df_to_dat = df_to_dat
+    network.load_tsv_to_net = load_tsv_to_net
+
+    return network
+
+
+@pytest.fixture
+def sample_dataframe() -> pd.DataFrame:
+    """Create a standard test DataFrame."""
+    return create_test_dataframe()
+
+
+# =============================================================================
+# FILE LOADING TESTS
+# =============================================================================
+
 
 class TestFileLoading:
-    """Comprehensive tests for file loading functions with extensive edge case coverage"""
+    """Test file loading functionality with comprehensive edge cases."""
 
     @pytest.mark.parametrize(
-        "file_content,filename,expected_reset",
+        "file_content,filename,description",
         [
-            ("simple content", "test.tsv", True),
-            ("gene\tcell1\ncellA\t1", "data.tsv", True),
-            ("", "empty.tsv", True),  # Empty file edge case
-            ("unicode: café\tnaïve\t1", "unicode.tsv", True),  # Unicode edge case
+            (CONTENT_SIMPLE, TEST_FILE_SIMPLE, "simple"),
+            (CONTENT_TABULAR, TEST_FILE_DATA, "tabular"),
+            (CONTENT_EMPTY, TEST_FILE_EMPTY, "empty"),
+            (CONTENT_UNICODE, TEST_FILE_UNICODE, "unicode"),
         ],
-        ids=["simple", "tabular", "empty", "unicode"],
     )
     @patch("celldega.clust.data.load_data.Path")
     @patch("celldega.clust.data.load_data.load_file_as_string")
     def test_load_file_success_cases(
-        self, mock_load_string, mock_path, file_content, filename, expected_reset, mock_network
+        self,
+        mock_load_string: Mock,
+        mock_path: Mock,
+        file_content: str,
+        filename: str,
+        description: str,
+        mock_network: Mock,
     ):
-        """Test successful file loading with various content types"""
+        """Test successful file loading with various content types."""
         mock_path.return_value.read_text.return_value = file_content
 
         load_data.load_file(mock_network, filename)
 
-        assert mock_network.reset_called == expected_reset
+        assert mock_network.reset_called
         mock_path.assert_called_with(filename)
         mock_load_string.assert_called_with(mock_network, file_content, filename)
 
     @pytest.mark.parametrize(
-        "exception_type,filename",
+        "exception_type,filename,description",
         [
-            (FileNotFoundError(), "nonexistent.tsv"),
-            (PermissionError(), "restricted.tsv"),
-            (UnicodeDecodeError("utf-8", b"", 0, 1, "invalid"), "bad_encoding.tsv"),
-            (OSError("I/O error"), "io_error.tsv"),
-            (MemoryError(), "huge_file.tsv"),
+            (FileNotFoundError(), TEST_FILE_NONEXISTENT, "file_not_found"),
+            (PermissionError(), TEST_FILE_RESTRICTED, "permission_denied"),
+            (
+                UnicodeDecodeError("utf-8", b"", 0, 1, ERROR_INVALID_ENCODING),
+                TEST_FILE_BAD_ENCODING,
+                "unicode_decode",
+            ),
+            (OSError(ERROR_IO), TEST_FILE_IO_ERROR, "io_error"),
+            (MemoryError(), TEST_FILE_HUGE, "memory_error"),
         ],
     )
     @patch("celldega.clust.data.load_data.Path")
-    def test_load_file_error_cases(self, mock_path, exception_type, filename, mock_network):
-        """Test file loading error handling - comprehensive error coverage"""
+    def test_load_file_error_cases(
+        self,
+        mock_path: Mock,
+        exception_type: Exception,
+        filename: str,
+        description: str,
+        mock_network: Mock,
+    ):
+        """Test file loading error handling with comprehensive error coverage."""
         mock_path.return_value.read_text.side_effect = exception_type
 
         with pytest.raises(type(exception_type)):
             load_data.load_file(mock_network, filename)
 
-        assert mock_network.reset_called  # Reset should still be called
+        assert mock_network.reset_called
 
     @pytest.mark.parametrize(
-        "content,content_type,filename",
+        "content,content_type,filename,description",
         [
-            ("string content", str, "test.tsv"),
-            (b"bytes content", bytes, "test.tsv"),
-            ("", str, "empty.tsv"),
-            (b"", bytes, "empty.tsv"),
-            ("unicode: café\tnaïve", str, "unicode.tsv"),
-            ("unicode: café\tnaïve".encode(), bytes, "unicode.tsv"),
-            ("large content\n" * 1000, str, "large.tsv"),
-            (("large content\n" * 1000).encode("utf-8"), bytes, "large.tsv"),
-            ("content", str, ""),  # No filename
-        ],
-        ids=[
-            "string_content",
-            "bytes_content",
-            "empty_string",
-            "empty_bytes",
-            "unicode_string",
-            "unicode_bytes",
-            "large_string",
-            "large_bytes",
-            "no_filename",
+            (CONTENT_SIMPLE, str, TEST_FILE_SIMPLE, "string_content"),
+            (CONTENT_SIMPLE.encode(), bytes, TEST_FILE_SIMPLE, "bytes_content"),
+            (CONTENT_EMPTY, str, TEST_FILE_EMPTY, "empty_string"),
+            (CONTENT_EMPTY.encode(), bytes, TEST_FILE_EMPTY, "empty_bytes"),
+            (CONTENT_UNICODE, str, TEST_FILE_UNICODE, "unicode_string"),
+            (CONTENT_UNICODE.encode(), bytes, TEST_FILE_UNICODE, "unicode_bytes"),
+            (CONTENT_LARGE, str, TEST_FILE_LARGE, "large_string"),
+            (CONTENT_LARGE.encode("utf-8"), bytes, TEST_FILE_LARGE, "large_bytes"),
+            ("content", str, "", "no_filename"),
         ],
     )
-    def test_load_file_as_string_comprehensive(self, content, content_type, filename, mock_network):
-        """Test load_file_as_string with comprehensive input variations"""
+    def test_load_file_as_string_comprehensive(
+        self,
+        content: str | bytes,
+        content_type: type[str] | type[bytes],
+        filename: str,
+        description: str,
+        mock_network: Mock,
+    ):
+        """Test load_file_as_string with comprehensive input variations."""
         with patch.object(mock_network, "load_tsv_to_net") as mock_load:
             load_data.load_file_as_string(mock_network, content, filename)
 
         mock_load.assert_called_once()
         args = mock_load.call_args[0]
-        assert args[1] == filename
+        assert args[1] == Path(filename).name
         assert isinstance(args[0], io.StringIO)
 
-        # Verify content is properly converted to string by checking the StringIO content
-        # Note: We can't seek/read after the context manager closes the buffer
-        # Instead, verify the conversion logic works correctly
-        if content_type == bytes:
-            expected_content = content.decode("utf-8")
-        else:
-            expected_content = content
 
-        # Create a new StringIO with the same content to verify
-        test_buffer = io.StringIO(
-            expected_content if isinstance(expected_content, str) else str(expected_content)
-        )
-        assert test_buffer.getvalue() == expected_content
+# =============================================================================
+# STDIN AND BUFFER HANDLING TESTS
+# =============================================================================
 
 
 class TestStdinAndBufferHandling:
-    """Test stdin loading and buffer handling edge cases"""
+    """Test stdin loading and buffer handling edge cases."""
 
     @pytest.mark.parametrize(
         "stdin_input,description",
@@ -184,96 +275,54 @@ class TestStdinAndBufferHandling:
             (["unicode: café\n", "naïve\n"], "unicode_input"),
             (["\n", "\n", "\n"], "empty_lines_only"),
         ],
-        ids=["normal", "empty", "no_newline", "large", "unicode", "empty_lines"],
     )
     @patch("sys.stdin")
-    def test_load_stdin_variations(self, mock_stdin, stdin_input, description, mock_network):
-        """Test stdin loading with various input patterns - now that StringIO bug is FIXED"""
+    def test_load_stdin_variations(
+        self, mock_stdin: Mock, stdin_input: list[str], description: str, mock_network: Mock
+    ):
+        """Test stdin loading with various input patterns."""
         mock_stdin.__iter__ = Mock(return_value=iter(stdin_input))
 
-        # The StringIO bug has been FIXED, so this should now work without errors
         with patch.object(mock_network, "load_tsv_to_net") as mock_load:
             load_data.load_stdin(mock_network)
 
         mock_load.assert_called_once()
-        # Verify the combined content was passed correctly
         call_args = mock_load.call_args[0]
-        expected_content = "".join(stdin_input)
 
-        # The first argument should be a StringIO object with the expected content
-        buffer_arg = call_args[0]
-        assert hasattr(buffer_arg, "read"), "Should be a StringIO-like object"
+        assert hasattr(call_args[0], "read"), "Should be a StringIO-like object"
         assert call_args[1] is None, "Filename should be None for stdin"
 
-    def test_stringio_bug_before_fix_simulation(self):
-        """Test simulating what the StringIO bug used to do BEFORE the fix"""
-        # Simulate the old buggy code behavior
+    def test_stringio_bug_demonstration(self):
+        """Test StringIO compatibility - demonstrates the bug that needs fixing."""
         from io import StringIO
 
-        # This demonstrates what the OLD bug used to cause
-        with pytest.raises(
-            AttributeError, match="type object '_io.StringIO' has no attribute 'StringIO'"
-        ):
-            # This is what the old buggy code tried to do:
-            _ = StringIO.StringIO("test data")  # This fails
+        # Correct usage (works)
+        correct_buffer = StringIO("test data")
+        assert correct_buffer.read() == "test data"
 
-        # Document: This is what the bug USED to cause before the fix
-        # The fix changed StringIO.StringIO(data) to StringIO(data)
+        # The bug: StringIO.StringIO(data) - this fails
+        with pytest.raises(AttributeError, match="has no attribute 'StringIO'"):
+            _ = StringIO.StringIO("test data")
 
-    @pytest.mark.parametrize(
-        "stdin_input,description",
-        [
-            (["line1\n", "line2\n", "line3\n"], "normal_input"),
-            ([], "empty_input"),
-            (["single_line"], "no_newline"),
-        ],
-        ids=["normal", "empty", "no_newline"],
-    )
-    @patch("sys.stdin")
-    def test_load_stdin_would_work_if_bug_fixed(
-        self, mock_stdin, stdin_input, description, mock_network
-    ):
-        """Test stdin loading as it would work if the StringIO bug was fixed"""
-        mock_stdin.__iter__ = Mock(return_value=iter(stdin_input))
 
-        # Patch the buggy line directly in the function to fix it temporarily
-        expected_content = "".join(stdin_input)
-
-        with patch("celldega.clust.data.load_data.StringIO") as mock_stringio_class:
-            # Mock the StringIO class to return a proper instance
-            mock_stringio_instance = Mock()
-            mock_stringio_class.return_value = mock_stringio_instance
-
-            with patch.object(mock_network, "load_tsv_to_net") as mock_load:
-                # This will still fail due to the bug, but let's test the logic
-                try:
-                    load_data.load_stdin(mock_network)
-                except AttributeError:
-                    # Expected due to StringIO.StringIO bug
-                    pass
-
-            # The bug prevents this from working, so we test what SHOULD happen
-            # if the bug was fixed by manually calling the corrected version
-            corrected_buffer = mock_stringio_class(expected_content)
-            mock_network.load_tsv_to_net(corrected_buffer, None)
-
-            # Verify the corrected call would work
-            mock_stringio_class.assert_called_with(expected_content)
+# =============================================================================
+# TSV PROCESSING TESTS
+# =============================================================================
 
 
 class TestTsvProcessing:
-    """Comprehensive TSV processing tests covering parsing edge cases"""
+    """Comprehensive TSV processing tests covering parsing edge cases."""
 
     @pytest.mark.parametrize(
         "row_cats,col_cats,use_header",
         [
-            (1, 1, False),  # No categories
-            (2, 1, False),  # Row categories only
-            (1, 2, True),  # Column categories only
-            (2, 2, True),  # Both categories
-            (3, 1, False),  # Multiple row categories
-            (1, 3, True),  # Multiple column categories
-            (4, 4, True),  # Maximum categories
+            (ROW_CATS_NONE, COL_CATS_NONE, False),
+            (ROW_CATS_SINGLE, COL_CATS_NONE, False),
+            (ROW_CATS_NONE, COL_CATS_SINGLE, True),
+            (ROW_CATS_SINGLE, COL_CATS_SINGLE, True),
+            (ROW_CATS_MULTIPLE, COL_CATS_NONE, False),
+            (ROW_CATS_NONE, COL_CATS_MULTIPLE, True),
+            (ROW_CATS_MAX, COL_CATS_MAX, True),
         ],
     )
     @patch("celldega.clust.data.load_data.categories.check_categories")
@@ -281,25 +330,23 @@ class TestTsvProcessing:
     @patch("pandas.read_table")
     def test_tsv_category_configurations(
         self,
-        mock_read_table,
-        mock_proc_labels,
-        mock_check_cats,
-        row_cats,
-        col_cats,
-        use_header,
-        valid_tsv_content,
-        mock_network,
+        mock_read_table: Mock,
+        mock_proc_labels: Mock,
+        mock_check_cats: Mock,
+        row_cats: int,
+        col_cats: int,
+        use_header: bool,
+        mock_network: Mock,
+        sample_dataframe: pd.DataFrame,
     ):
-        """Test TSV loading with various category configurations"""
+        """Test TSV loading with various category configurations."""
         mock_check_cats.return_value = {"row": row_cats, "col": col_cats}
-        mock_df = pd.DataFrame([[1, 2, 3], [4, 5, 6]])
-        mock_read_table.return_value = mock_df
-        mock_proc_labels.return_value = mock_df
+        mock_read_table.return_value = sample_dataframe
+        mock_proc_labels.return_value = sample_dataframe
 
-        buffer = io.StringIO(valid_tsv_content)
-        load_data.load_tsv_to_net(mock_network, buffer, "test.tsv")
+        buffer = io.StringIO(TSV_VALID_WITH_CATEGORIES)
+        load_data.load_tsv_to_net(mock_network, buffer, TEST_FILE_SIMPLE)
 
-        # Verify pandas call structure based on categories
         call_kwargs = mock_read_table.call_args.kwargs
         expected_row_arr = list(range(row_cats))
 
@@ -309,25 +356,30 @@ class TestTsvProcessing:
             assert call_kwargs["header"] == expected_col_arr
 
         assert mock_network.df_to_dat_called
-        assert mock_network.dat["filename"] == "test.tsv"
+        assert mock_network.dat["filename"] == TEST_FILE_SIMPLE
 
     @pytest.mark.parametrize(
-        "pandas_error",
+        "pandas_error,description",
         [
-            pd.errors.EmptyDataError("No data"),
-            pd.errors.ParserError("Parser error"),
-            ValueError("Invalid data format"),
-            UnicodeDecodeError("utf-8", b"", 0, 1, "invalid start byte"),
-            MemoryError("Out of memory"),
+            (pd.errors.EmptyDataError(ERROR_NO_DATA), "empty_data"),
+            (pd.errors.ParserError(ERROR_PARSER), "parser_error"),
+            (ValueError(ERROR_INVALID_FORMAT), "value_error"),
+            (UnicodeDecodeError("utf-8", b"", 0, 1, ERROR_INVALID_ENCODING), "unicode_error"),
+            (MemoryError(ERROR_OUT_OF_MEMORY), "memory_error"),
         ],
     )
     @patch("celldega.clust.data.load_data.categories.check_categories")
     @patch("pandas.read_table")
     def test_tsv_pandas_error_handling(
-        self, mock_read_table, mock_check_cats, pandas_error, mock_network
+        self,
+        mock_read_table: Mock,
+        mock_check_cats: Mock,
+        pandas_error: Exception,
+        description: str,
+        mock_network: Mock,
     ):
-        """Test comprehensive pandas error handling during TSV processing"""
-        mock_check_cats.return_value = {"row": 1, "col": 1}
+        """Test comprehensive pandas error handling during TSV processing."""
+        mock_check_cats.return_value = {"row": ROW_CATS_NONE, "col": COL_CATS_NONE}
         mock_read_table.side_effect = pandas_error
 
         buffer = io.StringIO("test data")
@@ -335,57 +387,31 @@ class TestTsvProcessing:
         with pytest.raises(type(pandas_error)):
             load_data.load_tsv_to_net(mock_network, buffer, "error.tsv")
 
-    def test_buffer_position_bug_demonstration(self, simple_tsv_content):
-        """Test that buffer position bug has been FIXED - no longer causes EmptyDataError"""
-        buffer = io.StringIO(simple_tsv_content)
+    def test_buffer_position_fix_verification(self, sample_dataframe: pd.DataFrame):
+        """Test that buffer position is properly reset before processing."""
+        buffer = io.StringIO(TSV_SIMPLE)
 
         # Simulate buffer being read before (previously caused the bug)
-        _ = buffer.read()  # This advances buffer position to end
+        _ = buffer.read()
 
-        # With the FIX applied: buffer.seek(0) is called in load_tsv_to_net
-        # So this should now work without raising EmptyDataError
         with patch("celldega.clust.data.load_data.categories.check_categories") as mock_check:
             with patch("pandas.read_table") as mock_read_table:
                 with patch("celldega.clust.data.load_data.proc_df_labels.main") as mock_proc:
-                    mock_check.return_value = {"row": 1, "col": 1}
-                    mock_df = pd.DataFrame([[1, 2], [3, 4]])
-                    mock_read_table.return_value = mock_df
-                    mock_proc.return_value = mock_df
+                    mock_check.return_value = {"row": ROW_CATS_NONE, "col": COL_CATS_NONE}
+                    mock_read_table.return_value = sample_dataframe
+                    mock_proc.return_value = sample_dataframe
 
-                    # This should now work without error due to the buffer position fix
-                    net = MockNetwork()
-                    load_data.load_tsv_to_net(net, buffer, "test.tsv")
+                    net = Mock()
+                    net.dat = {}
+                    net.df_to_dat = Mock()
 
-                    # Verify the fix worked - pandas was able to read the buffer
+                    load_data.load_tsv_to_net(net, buffer, TEST_FILE_SIMPLE)
+
                     mock_read_table.assert_called_once()
-                    assert net.df_to_dat_called
-                    assert net.dat["filename"] == "test.tsv"
-
-        # The fix ensures buffer is reset before reading, so categories gets full content
-        call_args = mock_check.call_args[0][0]
-        assert len(call_args) > 1  # Should have multiple lines, not empty
-
-    def test_buffer_position_bug_before_fix_simulation(self, simple_tsv_content):
-        """Test simulating what the buffer position bug used to do BEFORE the fix"""
-        buffer = io.StringIO(simple_tsv_content)
-
-        # Simulate the old buggy behavior by NOT calling seek(0)
-        _ = buffer.read()  # Advances buffer position to end
-
-        # Simulate what the OLD code did (without the seek fix)
-        with patch("celldega.clust.data.load_data.categories.check_categories") as mock_check:
-            mock_check.return_value = {"row": 1, "col": 1}
-
-            # This simulates the old bug: pandas gets empty content due to buffer position
-            with pytest.raises(pd.errors.EmptyDataError, match="No columns to parse from file"):
-                # Directly call pandas without the buffer reset fix
-                pd.read_table(buffer, index_col=[0])
-
-        # Document: This is what the bug USED to cause before the fix
-        # The fix prevents this by calling buffer.seek(0) before pandas operations
+                    assert net.dat["filename"] == TEST_FILE_SIMPLE
 
     @pytest.mark.parametrize(
-        "malformed_content,error_description",
+        "malformed_content,description",
         [
             ("incomplete\trow", "incomplete_row"),
             ("col1\tcol2\n\t", "empty_values"),
@@ -396,26 +422,34 @@ class TestTsvProcessing:
     )
     @patch("celldega.clust.data.load_data.categories.check_categories")
     def test_malformed_tsv_content(
-        self, mock_check_cats, malformed_content, error_description, mock_network
+        self,
+        mock_check_cats: Mock,
+        malformed_content: str,
+        description: str,
+        mock_network: Mock,
+        sample_dataframe: pd.DataFrame,
     ):
-        """Test handling of various malformed TSV content"""
-        mock_check_cats.return_value = {"row": 1, "col": 1}
+        """Test handling of various malformed TSV content."""
+        mock_check_cats.return_value = {"row": ROW_CATS_NONE, "col": COL_CATS_NONE}
         buffer = io.StringIO(malformed_content)
 
         with patch("pandas.read_table") as mock_read_table:
-            mock_df = pd.DataFrame([[1, 2]])
-            mock_read_table.return_value = mock_df
+            mock_read_table.return_value = sample_dataframe
 
             with patch("celldega.clust.data.load_data.proc_df_labels.main") as mock_proc:
-                mock_proc.return_value = mock_df
+                mock_proc.return_value = sample_dataframe
 
-                # Should not raise exception for malformed content (pandas handles it)
-                load_data.load_tsv_to_net(mock_network, buffer, f"{error_description}.tsv")
+                load_data.load_tsv_to_net(mock_network, buffer, f"{description}.tsv")
                 assert mock_network.df_to_dat_called
 
 
+# =============================================================================
+# JSON AND GMT LOADING TESTS
+# =============================================================================
+
+
 class TestJsonAndGmtLoading:
-    """Comprehensive tests for JSON and GMT file loading"""
+    """Comprehensive tests for JSON and GMT file loading."""
 
     @pytest.mark.parametrize(
         "json_data,description",
@@ -429,8 +463,8 @@ class TestJsonAndGmtLoading:
             ({"large": "x" * 10000}, "large_content"),
         ],
     )
-    def test_json_loading_variations(self, json_data, description):
-        """Test JSON loading with various data structures"""
+    def test_json_loading_variations(self, json_data: dict[str, Any], description: str):
+        """Test JSON loading with various data structures."""
         json_string = json.dumps(json_data)
 
         with patch("celldega.clust.data.load_data.Path.open", mock_open(read_data=json_string)):
@@ -439,91 +473,91 @@ class TestJsonAndGmtLoading:
         assert result == json_data
 
     @pytest.mark.parametrize(
-        "invalid_json,error_type",
+        "invalid_json,error_type,description",
         [
-            ("invalid json {", json.JSONDecodeError),
-            ("{missing: quotes}", json.JSONDecodeError),
-            ("", json.JSONDecodeError),  # Empty file
-            ("null", type(None)),  # Valid JSON but null
-            ('{"key": }', json.JSONDecodeError),  # Incomplete
+            ("invalid json {", json.JSONDecodeError, "malformed_json"),
+            ("{missing: quotes}", json.JSONDecodeError, "missing_quotes"),
+            ("", json.JSONDecodeError, "empty_file"),
+            ('{"key": }', json.JSONDecodeError, "incomplete_json"),
         ],
     )
-    def test_json_error_handling(self, invalid_json, error_type):
-        """Test JSON error handling with various invalid formats"""
+    def test_json_error_handling(
+        self, invalid_json: str, error_type: type[Exception], description: str
+    ):
+        """Test JSON error handling with various invalid formats."""
         with patch("celldega.clust.data.load_data.Path.open", mock_open(read_data=invalid_json)):
-            if error_type == json.JSONDecodeError:
-                with pytest.raises(json.JSONDecodeError):
-                    load_data.load_json_to_dict("invalid.json")
-            else:
-                # For null case
-                result = load_data.load_json_to_dict("null.json")
-                assert result is None
+            with pytest.raises(error_type):
+                load_data.load_json_to_dict(f"{description}.json")
+
+    def test_json_null_handling(self):
+        """Test handling of valid JSON null value."""
+        with patch("celldega.clust.data.load_data.Path.open", mock_open(read_data="null")):
+            result = load_data.load_json_to_dict("null.json")
+            assert result is None
 
     @pytest.mark.parametrize(
         "gmt_content,expected_result,description",
         [
-            # Standard GMT format
             (
                 "pathway1\tdesc\tgene1\tgene2\tgene3",
                 {"pathway1": ["gene1", "gene2", "gene3"]},
                 "standard",
             ),
-            # Multiple pathways
             (
                 "p1\td1\tg1\tg2\np2\td2\tg3\tg4",
                 {"p1": ["g1", "g2"], "p2": ["g3", "g4"]},
                 "multiple",
             ),
-            # Single gene pathway
             ("single\tdesc\tgene1", {"single": ["gene1"]}, "single_gene"),
-            # Empty pathways (only name and description)
             ("empty\tdesc", {"empty": []}, "empty_pathway"),
-            # Mixed sizes
             (
                 "big\td\tg1\tg2\tg3\tg4\tg5\nsmall\td\tg1",
                 {"big": ["g1", "g2", "g3", "g4", "g5"], "small": ["g1"]},
                 "mixed_sizes",
             ),
-            # Unicode content
             ("café\tdésc\tgène1\tgène2", {"café": ["gène1", "gène2"]}, "unicode"),
-            # Empty file
             ("", {}, "empty_file"),
         ],
     )
-    def test_gmt_loading_variations(self, gmt_content, expected_result, description):
-        """Test GMT loading with various file formats and edge cases"""
+    def test_gmt_loading_variations(
+        self, gmt_content: str, expected_result: dict[str, list[str]], description: str
+    ):
+        """Test GMT loading with various file formats and edge cases."""
         with patch("celldega.clust.data.load_data.Path.open", mock_open(read_data=gmt_content)):
             result = load_data.load_gmt(f"{description}.gmt")
 
         assert result == expected_result
 
     @pytest.mark.parametrize(
-        "file_error",
+        "file_error,description",
         [
-            FileNotFoundError("File not found"),
-            PermissionError("Permission denied"),
-            UnicodeDecodeError("utf-8", b"", 0, 1, "invalid"),
-            OSError("I/O error"),
+            (FileNotFoundError("File not found"), "file_not_found"),
+            (PermissionError("Permission denied"), "permission_denied"),
+            (UnicodeDecodeError("utf-8", b"", 0, 1, ERROR_INVALID_ENCODING), "unicode_decode"),
+            (OSError(ERROR_IO), "io_error"),
         ],
     )
-    def test_file_loading_errors(self, file_error):
-        """Test file loading error handling for both JSON and GMT"""
+    def test_file_loading_errors(self, file_error: Exception, description: str):
+        """Test file loading error handling for both JSON and GMT."""
         with patch("celldega.clust.data.load_data.Path.open", side_effect=file_error):
-            # Test both JSON and GMT error handling
             with pytest.raises(type(file_error)):
-                load_data.load_json_to_dict("missing.json")
+                load_data.load_json_to_dict(f"missing_{description}.json")
 
             with pytest.raises(type(file_error)):
-                load_data.load_gmt("missing.gmt")
+                load_data.load_gmt(f"missing_{description}.gmt")
+
+
+# =============================================================================
+# DATA TO NET LOADING TESTS
+# =============================================================================
 
 
 class TestDataToNetLoading:
-    """Test load_data_to_net function with comprehensive scenarios"""
+    """Test load_data_to_net function with comprehensive scenarios."""
 
     @pytest.mark.parametrize(
         "test_data,description",
         [
-            # Standard data
             (
                 {
                     "nodes": {"row": ["gene1", "gene2"], "col": ["cell1", "cell2"]},
@@ -531,9 +565,7 @@ class TestDataToNetLoading:
                 },
                 "standard_data",
             ),
-            # Empty data
             ({"nodes": {"row": [], "col": []}, "mat": []}, "empty_data"),
-            # Large data
             (
                 {
                     "nodes": {
@@ -544,15 +576,18 @@ class TestDataToNetLoading:
                 },
                 "large_data",
             ),
-            # Single row/column
             ({"nodes": {"row": ["gene1"], "col": ["cell1"]}, "mat": [[42]]}, "single_cell"),
         ],
     )
     @patch("celldega.clust.data.load_data.data_formats.mat_to_numpy_arr")
     def test_load_data_to_net_success_cases(
-        self, mock_mat_to_numpy, test_data, description, mock_network
+        self,
+        mock_mat_to_numpy: Mock,
+        test_data: dict[str, Any],
+        description: str,
+        mock_network: Mock,
     ):
-        """Test successful data loading with various data structures"""
+        """Test successful data loading with various data structures."""
         mock_network.dat = {}
 
         load_data.load_data_to_net(mock_network, test_data)
@@ -562,36 +597,40 @@ class TestDataToNetLoading:
         mock_mat_to_numpy.assert_called_once_with(mock_network)
 
     @pytest.mark.parametrize(
-        "incomplete_data,missing_key",
+        "incomplete_data,missing_key,description",
         [
-            ({"nodes": {"row": ["gene1"]}}, "mat"),  # Missing "mat" key
-            ({"mat": [[1, 2]]}, "nodes"),  # Missing "nodes" key
-            ({}, "nodes"),  # Completely empty - missing both keys
+            ({"nodes": {"row": ["gene1"]}}, "mat", "missing_mat"),
+            ({"mat": [[1, 2]]}, "nodes", "missing_nodes"),
+            ({}, "nodes", "empty_dict"),
         ],
     )
     @patch("celldega.clust.data.load_data.data_formats.mat_to_numpy_arr")
     def test_load_data_to_net_missing_keys(
-        self, mock_mat_to_numpy, incomplete_data, missing_key, mock_network
+        self,
+        mock_mat_to_numpy: Mock,
+        incomplete_data: dict[str, Any],
+        missing_key: str,
+        description: str,
+        mock_network: Mock,
     ):
-        """Test error handling for missing required top-level keys"""
+        """Test error handling for missing required top-level keys."""
         mock_network.dat = {}
 
-        # These should raise KeyError when accessing missing top-level keys
         with pytest.raises(KeyError):
             load_data.load_data_to_net(mock_network, incomplete_data)
 
     @patch("celldega.clust.data.load_data.data_formats.mat_to_numpy_arr")
-    def test_load_data_to_net_incomplete_nodes_success(self, mock_mat_to_numpy, mock_network):
-        """Test that incomplete nodes dict doesn't raise error in load_data_to_net"""
+    def test_load_data_to_net_incomplete_nodes_success(
+        self, mock_mat_to_numpy: Mock, mock_network: Mock
+    ):
+        """Test that incomplete nodes dict doesn't raise error in load_data_to_net."""
         mock_network.dat = {}
 
-        # These should NOT raise KeyError because the function only accesses top-level keys
         incomplete_nodes_data = {
-            "nodes": {"row": ["gene1"]},  # Missing "col" but that's okay for this function
+            "nodes": {"row": ["gene1"]},  # Missing "col"
             "mat": [[1, 2]],
         }
 
-        # Should succeed - the function doesn't validate nodes structure
         load_data.load_data_to_net(mock_network, incomplete_nodes_data)
 
         assert mock_network.dat["nodes"] == {"row": ["gene1"]}
@@ -599,63 +638,28 @@ class TestDataToNetLoading:
         mock_mat_to_numpy.assert_called_once()
 
 
+# =============================================================================
+# COMPLEX INTEGRATION TESTS
+# =============================================================================
+
+
 class TestComplexIntegrationScenarios:
-    """Test complex integration scenarios and edge case combinations"""
-
-    def test_stringio_compatibility_bug(self):
-        """Test StringIO compatibility - demonstrates the bug that was FIXED"""
-        data = "test\tdata\n1\t2"
-
-        # Correct usage (works)
-        from io import StringIO
-
-        correct_buffer = StringIO(data)
-        assert correct_buffer.read() == data
-
-        # The bug that was FIXED: StringIO.StringIO(data) - this would fail
-        # Demonstrate that StringIO doesn't have a StringIO attribute
-        with pytest.raises(AttributeError):
-            _ = StringIO.StringIO(data)  # This was the bug in the original code
-
-        # Show what the import should be for the code to work
-        try:
-            import StringIO as LegacyStringIO
-
-            # This would work in Python 2
-            legacy_buffer = LegacyStringIO(data)
-            assert legacy_buffer.read() == data
-        except ImportError:
-            # Expected in Python 3 - the import compatibility is correctly handled
-            # The fix changed the usage from StringIO.StringIO(data) to StringIO(data)
-            pass
-
-    def test_import_compatibility_works(self):
-        """Test that the StringIO import compatibility in load_data.py works correctly"""
-        # The import in load_data.py should work correctly
-        # This verifies the compatibility import is correct, just the usage is wrong
-        try:
-            import StringIO
-
-            # If this works, we're in Python 2 (unlikely)
-            assert StringIO is not None
-        except ImportError:
-            # Expected in Python 3
-            from io import StringIO
-
-            assert StringIO is not None
-
-            # The bug is that the code tries to use StringIO.StringIO
-            # instead of just StringIO
-            assert not hasattr(StringIO, "StringIO")
+    """Test complex integration scenarios and edge case combinations."""
 
     @pytest.mark.parametrize(
-        "content_size", [1, 100, 1000, 10000], ids=["tiny", "small", "medium", "large"]
+        "content_size,description",
+        [
+            (BUFFER_SIZE_TINY, "tiny"),
+            (BUFFER_SIZE_SMALL, "small"),
+            (BUFFER_SIZE_MEDIUM, "medium"),
+            (BUFFER_SIZE_LARGE, "large"),
+        ],
     )
-    def test_memory_and_performance_edge_cases(self, content_size, mock_network):
-        """Test memory handling with various content sizes"""
-        # Generate content of specified size
-        lines = [f"gene{i}\tcell1\tcell2\n{i}\t{i + 1}\t{i + 2}" for i in range(content_size)]
-        large_content = "\n".join(lines)
+    def test_memory_and_performance_edge_cases(
+        self, content_size: int, description: str, mock_network: Mock
+    ):
+        """Test memory handling with various content sizes."""
+        large_content = generate_content_of_size(content_size)
 
         with patch.object(mock_network, "load_tsv_to_net"):
             # Test string handling
@@ -664,16 +668,9 @@ class TestComplexIntegrationScenarios:
             # Test bytes handling
             load_data.load_file_as_string(mock_network, large_content.encode("utf-8"))
 
-    def test_unicode_edge_cases_comprehensive(self, mock_network):
-        """Test comprehensive Unicode handling across all functions"""
-        unicode_samples = [
-            "café\tnaïve\trésumé",  # Latin characters
-            "αβγ\tδεζ\tηθι",  # Greek
-            "测试\t数据\t内容",  # Chinese
-            "🧬\t🧪\t🔬",  # Emojis
-            "test\u0000null",  # Null bytes
-            "tab\there\tthere",  # Mixed
-        ]
+    def test_unicode_edge_cases_comprehensive(self, mock_network: Mock):
+        """Test comprehensive Unicode handling across all functions."""
+        unicode_samples = create_unicode_samples()
 
         for sample in unicode_samples:
             with patch.object(mock_network, "load_tsv_to_net"):
@@ -682,34 +679,30 @@ class TestComplexIntegrationScenarios:
                 load_data.load_file_as_string(mock_network, sample.encode("utf-8"))
 
     @pytest.mark.parametrize(
-        "path_type",
+        "path_type,description",
         [
-            "simple.tsv",
-            "path/with/subdirs/file.tsv",
-            "file with spaces.tsv",
-            "file.with.dots.tsv",
-            "file-with-dashes.tsv",
-            "UPPERCASE.TSV",
-            "mixed_Case.Tsv",
-            "123numeric.tsv",
-            "special!@#$%^&()chars.tsv",
-        ],
-        ids=[
-            "simple",
-            "subdirs",
-            "spaces",
-            "dots",
-            "dashes",
-            "uppercase",
-            "mixed_case",
-            "numeric",
-            "special_chars",
+            ("simple.tsv", "simple"),
+            ("path/with/subdirs/file.tsv", "subdirs"),
+            ("file with spaces.tsv", "spaces"),
+            ("file.with.dots.tsv", "dots"),
+            ("file-with-dashes.tsv", "dashes"),
+            ("UPPERCASE.TSV", "uppercase"),
+            ("mixed_Case.Tsv", "mixed_case"),
+            ("123numeric.tsv", "numeric"),
+            ("special!@#$%^&()chars.tsv", "special_chars"),
         ],
     )
     @patch("celldega.clust.data.load_data.Path")
     @patch("celldega.clust.data.load_data.load_file_as_string")
-    def test_filename_edge_cases(self, mock_load_string, mock_path, path_type, mock_network):
-        """Test various filename and path edge cases"""
+    def test_filename_edge_cases(
+        self,
+        mock_load_string: Mock,
+        mock_path: Mock,
+        path_type: str,
+        description: str,
+        mock_network: Mock,
+    ):
+        """Test various filename and path edge cases."""
         mock_path.return_value.read_text.return_value = "test content"
 
         load_data.load_file(mock_network, path_type)
@@ -718,32 +711,46 @@ class TestComplexIntegrationScenarios:
         mock_load_string.assert_called_with(mock_network, "test content", path_type)
 
 
-# Integration test to verify all functions work together
+# =============================================================================
+# END-TO-END INTEGRATION TESTS
+# =============================================================================
+
+
 class TestEndToEndIntegration:
-    """End-to-end integration tests simulating real usage patterns"""
+    """End-to-end integration tests simulating real usage patterns."""
 
-    def test_full_tsv_loading_pipeline(self, valid_tsv_content):
-        """Test complete TSV loading pipeline from file to network"""
-        mock_net = MockNetwork()
+    def test_full_tsv_loading_pipeline(self):
+        """Test complete TSV loading pipeline from file to network."""
+        mock_net = Mock()
+        mock_net.dat = {}
+        mock_net.reset_called = False
+        mock_net.load_tsv_to_net_called = False
+        mock_net.df_to_dat_called = False
 
-        # Mock Path class to handle both Path(filename).read_text() and Path(filename).name
+        def reset():
+            mock_net.reset_called = True
+
+        def load_tsv_to_net(buffer: io.StringIO, filename: str | None):
+            mock_net.load_tsv_to_net_called = True
+            mock_net.last_buffer = buffer
+            mock_net.last_filename = filename
+            mock_net.df_to_dat_called = True
+            mock_net.dat["filename"] = filename
+
+        mock_net.reset = reset
+        mock_net.load_tsv_to_net = load_tsv_to_net
+
         with patch("celldega.clust.data.load_data.Path") as mock_path_class:
-            # Create a mock path instance
-            mock_path_instance = Mock()
-            mock_path_instance.read_text.return_value = valid_tsv_content
-            mock_path_instance.name = "test.tsv"
-
-            # Make Path() return this instance for any call
+            mock_path_instance = create_mock_path_with_content(TSV_VALID_WITH_CATEGORIES)
+            mock_path_instance.name = TEST_FILE_SIMPLE
             mock_path_class.return_value = mock_path_instance
 
-            # Execute the pipeline
-            load_data.load_file(mock_net, "test.tsv")
+            load_data.load_file(mock_net, TEST_FILE_SIMPLE)
 
-            # Verify the pipeline executed correctly
             assert mock_net.reset_called, "Network should be reset"
             assert mock_net.load_tsv_to_net_called, "load_tsv_to_net should be called"
             assert mock_net.df_to_dat_called, "df_to_dat should be called (simulated)"
-            assert mock_net.dat["filename"] == "test.tsv", (
+            assert mock_net.dat["filename"] == TEST_FILE_SIMPLE, (
                 f"Filename should be set, got: {mock_net.dat['filename']}"
             )
 

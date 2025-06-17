@@ -37,11 +37,10 @@ from .core.network import Network
 from .utils import hc
 
 
-# Public API - this maintains backward compatibility
+# Public API
 __all__ = [
     "Network",
     "hc",
 ]
 
-# Version information (if needed)
 __version__ = "1.0.0"

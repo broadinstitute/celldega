@@ -12,7 +12,7 @@ dist
 .cache
 site
 secret_*
-data
+# data
 *.code-workspace
 
 # pixi environments
@@ -36,6 +36,7 @@ meta.json
 # others
 .history
 repomix-output.txt
+*ignore
 
 # Testing
 *coverage*

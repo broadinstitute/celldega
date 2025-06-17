@@ -50,8 +50,8 @@ const sst_gene_search_callback = async (deck_sst, viz_state, layers_sst) => {
 
   if (inst_gene === '' || viz_state.genes.gene_names.includes(inst_gene)) {
     update_cat(viz_state.cats, new_cat);
-    update_selected_genes(viz_state.genes, inst_gene === '' ? [] : [inst_gene]);
-    update_selected_cats(viz_state.cats, []);
+    update_selected_genes(viz_state.genes, inst_gene === '' ? [] : [inst_gene], viz_state.obs_store);
+    update_selected_cats(viz_state.cats, [], viz_state.obs_store);
 
     if (inst_gene !== '' && gene_search_options.includes(inst_gene)) {
       await update_tile_exp_array(viz_state, inst_gene);
@@ -73,8 +73,8 @@ const ist_gene_search_callback = async (deck_ist, layers_obj, viz_state) => {
 
   if (inst_gene === '' || viz_state.genes.gene_names.includes(inst_gene)) {
     update_cat(viz_state.cats, new_cat);
-    update_selected_genes(viz_state.genes, inst_gene === '' ? [] : [inst_gene]);
-    update_selected_cats(viz_state.cats, []);
+    update_selected_genes(viz_state.genes, inst_gene === '' ? [] : [inst_gene], viz_state.obs_store);
+    update_selected_cats(viz_state.cats, [], viz_state.obs_store);
 
     const inst_gene_in_gene_names =
       viz_state.genes.gene_names.includes(inst_gene);

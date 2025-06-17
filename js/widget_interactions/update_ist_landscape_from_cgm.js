@@ -37,8 +37,8 @@ export const update_ist_landscape_from_cgm = async (
       }
 
       update_cat(viz_state.cats, new_cat);
-      update_selected_genes(viz_state.genes, [inst_gene]);
-      update_selected_cats(viz_state.cats, []);
+      update_selected_genes(viz_state.genes, [inst_gene], viz_state.obs_store);
+      update_selected_cats(viz_state.cats, [], viz_state.obs_store);
       await update_cell_exp_array(
         viz_state.cats,
         viz_state.genes,
@@ -96,8 +96,8 @@ export const update_ist_landscape_from_cgm = async (
       new_cat = click_info.value.name;
 
       update_cat(viz_state.cats, 'cluster');
-      update_selected_cats(viz_state.cats, [new_cat]);
-      update_selected_genes(viz_state.genes, []);
+      update_selected_cats(viz_state.cats, [new_cat], viz_state.obs_store);
+      update_selected_genes(viz_state.genes, [], viz_state.obs_store);
 
       if (viz_state.umap.state === false) {
         toggle_image_layers_and_ctrls(
@@ -123,8 +123,8 @@ export const update_ist_landscape_from_cgm = async (
       const new_cats = click_info.value.selected_names;
 
       update_cat(viz_state.cats, 'cluster');
-      update_selected_cats(viz_state.cats, new_cats);
-      update_selected_genes(viz_state.genes, []);
+      update_selected_cats(viz_state.cats, new_cats, viz_state.obs_store);
+      update_selected_genes(viz_state.genes, [], viz_state.obs_store);
 
       if (viz_state.umap.state === false) {
         toggle_image_layers_and_ctrls(
@@ -144,7 +144,7 @@ export const update_ist_landscape_from_cgm = async (
       deck_ist.setProps({ layers: layers_list });
 
       update_cat(viz_state.cats, inst_gene);
-      update_selected_cats(viz_state.cats, click_info.click_value);
+      update_selected_cats(viz_state.cats, click_info.click_value, viz_state.obs_store);
     }
   } catch (error) {
     handleAsyncError(error, {

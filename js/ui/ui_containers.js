@@ -54,8 +54,6 @@ import {
   make_reorder_button,
 } from './text_buttons';
 
-import { obs_store } from '../obs_store/obs_store';
-
 export const toggle_image_layers_and_ctrls = (
   layers_obj,
   viz_state,
@@ -595,21 +593,17 @@ export const make_ist_ui_container = (
   };
 
 
-  obs_store.selected_cats.subscribe(make_bar_cat_subscriber(
+  viz_state.obs_store.selected_cats.subscribe(make_bar_cat_subscriber(
     viz_state.cats.svg_bar_cluster,
     viz_state.containers.bar_cluster
   ), {immediate: false});
 
-  // obs_store.selected_genes.subscribe((selected_genes) => {
-  //   console.log('obs_store selected_genes changed:', selected_genes);
-  // }, {immediate: false});
-
-  obs_store.selected_genes.subscribe(make_bar_cat_subscriber(
+  viz_state.obs_store.selected_genes.subscribe(make_bar_cat_subscriber(
     viz_state.genes.svg_bar_gene,
     viz_state.containers.bar_gene
   ), {immediate: false});
 
-  obs_store.new_cell_bar_data.subscribe((bar_data) => {
+  viz_state.obs_store.new_cell_bar_data.subscribe((bar_data) => {
 
     const svg_bar = viz_state.cats.svg_bar_cluster;
     const container = viz_state.containers.bar_cluster;

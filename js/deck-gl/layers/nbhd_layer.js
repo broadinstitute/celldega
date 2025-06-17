@@ -63,8 +63,8 @@ const nbhd_layer_onclick = async (
   const inst_cat = info.object.properties.cat;
 
   update_cat(viz_state.cats, 'cluster');
-  update_selected_cats(viz_state.cats, [inst_cat]);
-  update_selected_genes(viz_state.genes, []);
+  update_selected_cats(viz_state.cats, [inst_cat], viz_state.obs_store);
+  update_selected_genes(viz_state.genes, [], viz_state.obs_store);
 
   const inst_cat_name = viz_state.cats.selected_cats.join('-');
 

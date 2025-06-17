@@ -19,10 +19,10 @@ export const update_tile_landscape_from_cgm = async (
     await update_tile_exp_array(viz_state, inst_gene);
   } else if (click_info.click_type === 'col-label') {
     update_cat(viz_state.cats, 'cluster');
-    update_selected_cats(viz_state.cats, [click_info.click_value]);
+    update_selected_cats(viz_state.cats, [click_info.click_value], viz_state.obs_store);
   } else if (click_info.click_type === 'col-dendro') {
     update_cat(viz_state.cats, 'cluster');
-    update_selected_cats(viz_state.cats, click_info.click_value);
+    update_selected_cats(viz_state.cats, click_info.click_value, viz_state.obs_store);
   } else {
     update_cat('cluster');
   }

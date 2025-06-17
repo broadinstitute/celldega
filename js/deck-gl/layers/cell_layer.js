@@ -25,7 +25,6 @@ import { get_layers_list } from '../utils/layers_ist';
 
 import { update_path_layer_id } from './path_layer';
 import { update_trx_layer_id } from './trx_layer';
-import { obs_store } from '../../obs_store/obs_store';
 
 // Forward declarations for functions used before definition
 export function update_cell_layer_id(layers_obj, new_cat) {
@@ -50,8 +49,8 @@ const cell_layer_onclick = async (info, d, deck_ist, layers_obj, viz_state) => {
   }
 
   update_cat(viz_state.cats, 'cluster');
-  update_selected_cats(viz_state.cats, [inst_cat]);
-  update_selected_genes(viz_state.genes, []);
+  update_selected_cats(viz_state.cats, [inst_cat], viz_state.obs_store);
+  update_selected_genes(viz_state.genes, [], viz_state.obs_store);
 
   const inst_cat_name = viz_state.cats.selected_cats.join('-');
 
@@ -116,10 +115,6 @@ export const get_cell_color = (cats, i, d) => {
 };
 
 export const ini_cell_layer = async (base_url, viz_state) => {
-
-  obs_store.cat.subscribe((new_cat) => {
-    console.log('subscriber - obs_store cat changed:', new_cat);
-  })
 
   let cell_url;
   if (viz_state.seg.version === 'default') {

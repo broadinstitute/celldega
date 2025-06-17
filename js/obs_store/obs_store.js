@@ -1,4 +1,5 @@
-function Observable(initialValue) {
+
+const Observable = (initialValue) => {
 
   let value = initialValue;
   const subscribers = new Set()
@@ -23,9 +24,14 @@ function Observable(initialValue) {
 
 }
 
-export const obs_store = {
-  cat: Observable("cluster"),
-  selected_cats: Observable([]),
-  new_cell_bar_data: Observable([]),
-  selected_genes: Observable([]),
+export const create_obs_store = () => {
+
+    return {
+        cat: Observable("cluster"),
+        selected_cats: Observable([]),
+        new_cell_bar_data: Observable([]),
+        selected_genes: Observable([]),
+    }
+
 }
+

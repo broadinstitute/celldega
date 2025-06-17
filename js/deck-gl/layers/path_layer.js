@@ -64,8 +64,8 @@ const path_layer_onclick = async (
   const inst_cat = viz_state.cats.dict_cell_cats[inst_cell_id];
 
   update_cat(viz_state.cats, 'cluster');
-  update_selected_cats(viz_state.cats, [inst_cat]);
-  update_selected_genes(viz_state.genes, []);
+  update_selected_cats(viz_state.cats, [inst_cat], viz_state.obs_store);
+  update_selected_genes(viz_state.genes, [], viz_state.obs_store);
 
   toggle_image_layers_and_ctrls(
     layers_obj,

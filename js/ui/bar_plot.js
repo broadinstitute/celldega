@@ -25,8 +25,8 @@ export const bar_callback_cluster = (
 ) => {
 
   update_cat(_viz_state.cats, 'cluster');
-  update_selected_cats(_viz_state.cats, [d.name]);
-  update_selected_genes(_viz_state.genes, []);
+  update_selected_cats(_viz_state.cats, [d.name], _viz_state.obs_store);
+  update_selected_genes(_viz_state.genes, [], _viz_state.obs_store);
   toggle_image_layers_and_ctrls(
     _layers_obj,
     _viz_state,
@@ -83,8 +83,8 @@ export const bar_callback_gene = async (
   );
 
   update_cat(_viz_state.cats, new_cat);
-  update_selected_genes(_viz_state.genes, [inst_gene]);
-  update_selected_cats(_viz_state.cats, []);
+  update_selected_genes(_viz_state.genes, [inst_gene], _viz_state.obs_store);
+  update_selected_cats(_viz_state.cats, [], _viz_state.obs_store);
   await update_cell_exp_array(
     _viz_state.cats,
     _viz_state.genes,

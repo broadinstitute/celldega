@@ -7,7 +7,6 @@ import { visibleTiles } from '../../vector_tile/visibleTiles';
 import { update_path_layer_data } from '../layers/path_layer';
 import { update_trx_layer_data } from '../layers/trx_layer';
 import { get_layers_list } from '../utils/layers_ist';
-import { obs_store } from '../../obs_store/obs_store';
 
 export const calc_viewport = async (
   { height, width, zoom, target },
@@ -126,7 +125,7 @@ export const calc_viewport = async (
       .filter((item) => item.value > 0)
       .sort((a, b) => b.value - a.value);
 
-    obs_store.new_cell_bar_data.set(new_bar_data_cell);
+    viz_state.obs_store.new_cell_bar_data.set(new_bar_data_cell);
 
   } else {
     if (viz_state.close_up) {
@@ -143,7 +142,7 @@ export const calc_viewport = async (
         viz_state
       );
 
-      obs_store.new_cell_bar_data.set(viz_state.cats.cluster_counts);
+      viz_state.obs_store.new_cell_bar_data.set(viz_state.cats.cluster_counts);
 
       viz_state.containers.bar_gene.scrollTo({
         top: 0,

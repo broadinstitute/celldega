@@ -61,7 +61,7 @@ import { set_landscape_parameters } from '../global_variables/landscape_paramete
 import { set_cluster_metadata } from '../global_variables/meta_cluster';
 import { set_meta_gene } from '../global_variables/meta_gene';
 import { update_selected_genes } from '../global_variables/selected_genes';
-import { obs_store } from '../obs_store/obs_store';
+import { create_obs_store } from '../obs_store/obs_store';
 import { update_gene_text_box } from '../ui/gene_search';
 import { set_image_layer_sliders } from '../ui/sliders';
 import {
@@ -98,13 +98,10 @@ export const landscape_ist = async (
     width = '100%';
   }
 
-  // console.log('check obs_store')
-  // console.log(obs_store)
-  // // console.log('obs_store cat', obs_store.cat.get())
-  // // obs_store.cat.set('something')
-  // // console.log('obs_store cat', obs_store.cat.get());
-
   const viz_state = {};
+
+  viz_state.obs_store = create_obs_store();
+
   viz_state.seg = {};
   viz_state.seg.version = segmentation;
 
@@ -416,8 +413,8 @@ export const landscape_ist = async (
       );
 
       update_cat(viz_state.cats, new_cat);
-      update_selected_genes(viz_state.genes, [inst_gene]);
-      update_selected_cats(viz_state.cats, []);
+      update_selected_genes(viz_state.genes, [inst_gene], viz_state.obs_store);
+      update_selected_cats(viz_state.cats, [], viz_state.obs_store);
       await update_cell_exp_array(
         viz_state.cats,
         viz_state.genes,
@@ -449,8 +446,8 @@ export const landscape_ist = async (
 
 
       update_cat(viz_state.cats, 'cluster');
-      update_selected_cats(viz_state.cats, [inst_col]);
-      update_selected_genes(viz_state.genes, []);
+      update_selected_cats(viz_state.cats, [inst_col], viz_state.obs_store);
+      update_selected_genes(viz_state.genes, [], viz_state.obs_store);
       toggle_image_layers_and_ctrls(
         layers_obj,
         viz_state,
@@ -476,9 +473,9 @@ export const landscape_ist = async (
       const new_cats = selected_cols; // click_info.value.selected_names
 
       update_cat(viz_state.cats, 'cluster');
-      update_selected_cats(viz_state.cats, new_cats);
+      update_selected_cats(viz_state.cats, new_cats, viz_state.obs_store);
 
-      update_selected_genes(viz_state.genes, []);
+      update_selected_genes(viz_state.genes, [], viz_state.obs_store);
       toggle_image_layers_and_ctrls(
         layers_obj,
         viz_state,
@@ -501,7 +498,7 @@ export const landscape_ist = async (
     update_view_state: async (new_view_state, close_up, _trx_layer) => {
       viz_state.close_up = close_up;
 
-      calc_viewport(new_view_state, deck_ist, layers_obj, viz_state);
+      calc_viewport(new_view_state, deck_ist, layers_obj, viz_state, obs_store);
       const viewStateLayersList = get_layers_list(
         layers_obj,
         viz_state.close_up

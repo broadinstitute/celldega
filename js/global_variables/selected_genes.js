@@ -1,8 +1,4 @@
-import { obs_store } from "../obs_store/obs_store";
-
-export const update_selected_genes = (genes, new_selected_genes) => {
-
-  console.log('update_selected_genes')
+export const update_selected_genes = (genes, new_selected_genes, obs_store) => {
 
   // Check if the arrays are equal
   const areArraysEqual =

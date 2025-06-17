@@ -46,8 +46,8 @@ const trx_layer_callback = async (
 
   update_cat(viz_state.cats, new_cat);
 
-  update_selected_genes(viz_state.genes, [inst_gene]);
-  update_selected_cats(viz_state.cats, []);
+  update_selected_genes(viz_state.genes, [inst_gene], viz_state.obs_store);
+  update_selected_cats(viz_state.cats, [], viz_state.obs_store);
 
   await update_cell_exp_array(
     viz_state.cats,

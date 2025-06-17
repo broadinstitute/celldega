@@ -94,6 +94,8 @@ export const landscape_ist = async (
   view_change_custom_callback = null
 ) => {
 
+  console.log('hello!!!!!!!!!!!!')
+
   if (width === 0) {
     width = '100%';
   }

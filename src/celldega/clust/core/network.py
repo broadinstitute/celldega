@@ -33,7 +33,6 @@ from ..categories import categories
 from ..clustering import make_clust_fun
 from ..data import export_data, load_data, load_vect_post
 from ..preprocessing import downsample_fun, normalize_fun, run_filter
-from ..visualization import iframe_web_app
 from . import data_formats, initialize_net
 
 
@@ -577,12 +576,6 @@ class Network:
         return None
 
     # Visualization and Analysis Methods
-
-    def iframe_web_app(
-        self, filename: str | Path | None = None, width: int = 1000, height: int = 800
-    ) -> str:
-        """Generate iframe web application."""
-        return iframe_web_app.main(self, filename, width, height)
 
     def enrichrgram(self, lib: str, axis: AxisType = "row") -> None:
         """Add Enrichr gene enrichment results."""

@@ -224,22 +224,17 @@ def get_cell_polygons(
     path_cell_boundaries,
     transformation_matrix,
     path_output=None,
-    image_scale=1,
     path_meta_cell_micron=None,
 ):
     # Load cell boundary data based on the technology
     if technology == "MERSCOPE":
-        df_meta = pd.read_parquet(
-            f"{path_output.replace('cell_segmentation', 'cell_metadata.parquet')}"
-        )
-        entity_to_cell_id_dict = pd.Series(df_meta.index.values, index=df_meta.EntityID).to_dict()
         cells_orig = gpd.read_parquet(path_cell_boundaries)
-        cells_orig["cell_id"] = cells_orig["EntityID"].map(entity_to_cell_id_dict)
+        cells_orig["cell_id"] = cells_orig["EntityID"]
         cells_orig = cells_orig[cells_orig["ZIndex"] == 1]
 
         # Correct cell_id issues with meta_cell
         meta_cell = pd.read_csv(path_meta_cell_micron)
-        meta_cell["cell_id"] = meta_cell["EntityID"].map(entity_to_cell_id_dict)
+        meta_cell["cell_id"] = meta_cell["EntityID"]
         cells_orig.index = meta_cell[meta_cell["cell_id"].isin(cells_orig["cell_id"])].index
 
         # Correct 'MultiPolygon' to 'Polygon'
@@ -355,13 +350,12 @@ def make_cell_boundary_tiles(
             path_cell_boundaries,
             transformation_matrix,
             path_output,
-            image_scale,
             path_meta_cell_micron,
         )
 
         # Convert string index to integer index
         cell_str_to_int_mapping = _get_name_mapping(
-            path_transformation_matrix.replace("/micron_to_image_transform.csv", ""),
+            path_output.split("/cell_segmentation")[0],
             layer="boundary",
         )
         gdf_cells.index = gdf_cells.index.map(cell_str_to_int_mapping)

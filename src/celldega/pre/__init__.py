@@ -319,12 +319,11 @@ def create_cluster_and_meta_cluster(
     return clusters
 
 
-def _process_image_channel(data_dir, path_landscape_files, channel_info, img=None):
+def _process_image_channel(path_landscape_files, channel_info, img):
     """
     Process a single image channel for tiling.
 
     Parameters:
-    - data_dir: Data directory path
     - path_landscape_files: Landscape files path
     - channel_info: Dictionary with channel information (name, index)
     - img: Optional pre-loaded image array
@@ -341,13 +340,14 @@ def _process_image_channel(data_dir, path_landscape_files, channel_info, img=Non
     if pyramid_path.exists():
         return
 
-    if img is None:
-        file_path = Path(data_dir) / "morphology_focus" / "morphology_focus_0000.ome.tif"
-        img = imread(file_path)
-
     # Extract and process the channel
     scale = 1 if channel_name.lower() == "dapi" else 2  # Adjust intensity for better visualization
-    image_data = img[..., channel_index] * scale
+    if img.ndim == 3:
+        image_data = img[..., channel_index] * scale
+    elif img.ndim == 2:
+        image_data = img * scale
+    else:
+        raise ValueError(f"Unsupported image dimensions: {img.ndim}. Expected 2D or 3D image.")
 
     output_path = Path(path_landscape_files) / f"{channel_name}_output_regular.tif"
     imsave(output_path, image_data)
@@ -383,6 +383,11 @@ def create_image_tiles(technology, data_dir, path_landscape_files, image_tile_la
     if technology == "Xenium":
         print("------ xenium")
         create_image_tiles_xenium(data_dir, path_landscape_files, image_tile_layer=image_tile_layer)
+    elif technology == "MERSCOPE":
+        print("------ merscope")
+        create_image_tiles_merscope(
+            data_dir, path_landscape_files, image_tile_layer=image_tile_layer
+        )
     elif technology == "h&e":
         print("------ h&e")
         create_image_tiles_h_and_e(
@@ -465,20 +470,65 @@ def create_image_tiles_xenium(data_dir, path_landscape_files, image_tile_layer="
         )
 
     # Load the morphology image once if processing multiple channels
-    img = None
-    if image_tile_layer == "all":
-        img = imread(file_path)
+    img = imread(file_path)
 
     # Process the DAPI channel
     if image_tile_layer in ["dapi", "all"]:
-        _process_image_channel(data_dir, path_landscape_files, {"name": "dapi", "index": 0}, img)
+        _process_image_channel(path_landscape_files, {"name": "dapi", "index": 0}, img)
 
     # Process additional channels if image_tile_layer is 'all'
     if image_tile_layer == "all":
         for idx, channel in enumerate(["bound", "rna", "prot"]):
-            _process_image_channel(
-                data_dir, path_landscape_files, {"name": channel, "index": idx + 1}, img
+            _process_image_channel(path_landscape_files, {"name": channel, "index": idx + 1}, img)
+
+    remove_intermediate_files(path_landscape_files)
+
+
+def create_image_tiles_merscope(data_dir, path_landscape_files, image_tile_layer="dapi"):
+    """
+    Creates image tiles for visualization from the Xenium morphology image.
+
+    Args:
+        data_dir (str): Path to the directory containing the data (e.g., morphology_focus_0000.ome.tif).
+        path_landscape_files (str): Path to the directory where the image tiles and pyramid will be saved.
+        image_tile_layer (str, optional): Specifies which image layers to process. Options are 'dapi' (default) or 'all'.
+    Raises:
+        FileNotFoundError: If the required input image file is not found.
+    """
+    if image_tile_layer not in ["dapi", "all"]:
+        raise ValueError(f"Invalid image_tile_layer: {image_tile_layer}. Must be 'dapi' or 'all'.")
+
+    # Define the path to the DAPI image
+    dapi_file_path = Path(data_dir) / "images" / "mosaic_DAPI_z3.tif"
+
+    # Check if the DAPI image exists
+    if not dapi_file_path.exists():
+        raise FileNotFoundError(
+            f"The file 'mosaic_DAPI_z3.tif' does not exist in directory '{data_dir}'."
+        )
+
+    # Load the DAPI image once if processing multiple channels
+    img_dapi = imread(dapi_file_path)
+
+    # Process the DAPI channel
+    _process_image_channel(path_landscape_files, {"name": "dapi", "index": 0}, img_dapi)
+
+    # Process additional channels if image_tile_layer is 'all'
+    if image_tile_layer == "all":
+        # Define the path to the boundary image
+        bounda_file_path = Path(data_dir) / "images" / "mosaic_Cellbound1_z3.tif"
+
+        # Check if the boundary image exists
+        if not bounda_file_path.exists():
+            raise FileNotFoundError(
+                f"The file 'mosaic_Cellbound1_z3.tif' does not exist in directory '{data_dir}'."
             )
+
+        # Load the boundary image once if processing multiple channels
+        img_bound = imread(bounda_file_path)
+
+        # Process the boundary channel
+        _process_image_channel(path_landscape_files, {"name": "bound", "index": 0}, img_bound)
 
     remove_intermediate_files(path_landscape_files)
 
@@ -577,21 +627,21 @@ def make_deepzoom_pyramid(
     image.dzsave(str(output_path), tile_size=tile_size, overlap=overlap, suffix=suffix)
 
 
-def _load_meta_cell_by_technology(technology, path_meta_cell_micron, path_transformation_matrix):
+def _load_meta_cell_by_technology(technology, path_meta_cell_micron):
     """
     Load meta cell data based on technology.
 
     Parameters:
     - technology: Technology type
     - path_meta_cell_micron: Path to meta cell micron data
-    - path_transformation_matrix: Path to transformation matrix
 
     Returns:
     - Meta cell dataframe
     """
     if technology == "MERSCOPE":
         meta_cell = pd.read_csv(path_meta_cell_micron, usecols=["EntityID", "center_x", "center_y"])
-        meta_cell = _convert_long_id_to_short(meta_cell)
+        # meta_cell = _convert_long_id_to_short(meta_cell)
+        meta_cell["cell_id"] = meta_cell["EntityID"]
         meta_cell["name"] = meta_cell["cell_id"]
         meta_cell = meta_cell.set_index("cell_id")
     elif technology == "Xenium":
@@ -659,9 +709,7 @@ def make_meta_cell_image_coord(
     transformation_matrix = pd.read_csv(path_transformation_matrix, header=None, sep=" ").values
     sparse_matrix = csr_matrix(transformation_matrix)
 
-    meta_cell = _load_meta_cell_by_technology(
-        technology, path_meta_cell_micron, path_transformation_matrix
-    )
+    meta_cell = _load_meta_cell_by_technology(technology, path_meta_cell_micron)
 
     # Adding a ones column to accommodate for affine transformation
     meta_cell["ones"] = 1
@@ -678,11 +726,7 @@ def make_meta_cell_image_coord(
     meta_cell["center_y"] = meta_cell["center_y"] / image_scale
 
     meta_cell["geometry"] = meta_cell.apply(lambda row: [row["center_x"], row["center_y"]], axis=1)
-
-    if technology == "MERSCOPE":
-        meta_cell = meta_cell[["name", "geometry", "EntityID"]]
-    else:
-        meta_cell = meta_cell[["name", "geometry"]]
+    meta_cell = meta_cell[["name", "geometry"]]
 
     # Check if the 'name' column is unique
     if not meta_cell["name"].is_unique:
@@ -1132,9 +1176,9 @@ def _check_required_files(technology, data_dir):
             "analysis",  # directory
         ],
         "MERSCOPE": [
-            "images/mosaic_DAPI_z1.tif",
-            "images/mosaic_Cellbound1_z1.tif",
-            "images/micron_to_mosaic_pixel_transform.csv",
+            "images/mosaic_DAPI_z3.tif",
+            "images/mosaic_Cellbound1_z3.tif",
+            "micron_to_mosaic_pixel_transform.csv",
             "cell_metadata.csv",
             "detected_transcripts.csv",
             "cell_boundaries.parquet",
@@ -1164,6 +1208,7 @@ def _check_required_files(technology, data_dir):
 
 
 __all__ = [
+    "_to_geometry",
     "boundary_tile",
     "get_image_info",
     "landscape",

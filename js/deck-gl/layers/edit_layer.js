@@ -8,7 +8,6 @@ import {
 import * as d3 from 'd3';
 
 import { handleValidationWarning } from '../../temp_utils/errorHandler';
-import { bar_callback_rgn, update_bar_graph } from '../../ui/bar_plot';
 import { get_layers_list } from '../utils/layers_ist';
 
 import { update_cell_pickable_state } from './cell_layer';
@@ -86,16 +85,8 @@ export const calc_and_update_rgn_bar_graph = async (
       return acc;
     }, {});
 
-  update_bar_graph(
-    viz_state.edit.svg_bar_rgn,
-    viz_state.edit.rgn_areas,
-    viz_state.edit.color_dict_rgn,
-    bar_callback_rgn,
-    [], // selected_cats
-    deck_ist,
-    layers_obj,
-    viz_state
-  );
+  // To do: set up region bar graph subscriber to viz_state.edit.rgn_areas
+
 };
 
 const edit_layer_on_edit = async (

@@ -1,9 +1,3 @@
-import {
-  update_bar_graph,
-  bar_callback_gene,
-  bar_callback_cluster,
-} from '../../ui/bar_plot';
-
 import { visibleTiles } from '../../vector_tile/visibleTiles';
 import { update_path_layer_data } from '../layers/path_layer';
 import { update_trx_layer_data } from '../layers/trx_layer';

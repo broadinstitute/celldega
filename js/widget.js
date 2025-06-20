@@ -11,7 +11,6 @@ import { matrix_viz } from './viz/matrix_viz';
 // Remove export keywords from render functions
 const render_landscape_ist = async ({ model, el }) => {
 
-  console.log('here!!!!!!!!!!!!')
   const token = model.get('token');
   const creds = model.get('creds');
   const ini_x = model.get('ini_x');

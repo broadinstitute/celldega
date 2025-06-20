@@ -38,7 +38,6 @@ import {
   bar_callback_cluster,
   make_bar_container,
   bar_callback_gene,
-  update_bar_graph,
 } from './bar_plot';
 import { set_gene_search } from './gene_search';
 import { logo } from './logo';
@@ -822,16 +821,7 @@ export const make_ist_ui_container = (
         {}
       );
 
-    update_bar_graph(
-      _viz_state.edit.svg_bar_rgn,
-      _viz_state.edit.rgn_areas,
-      _viz_state.edit.color_dict_rgn,
-      bar_callback_rgn,
-      [], // selected_cats
-      _deck_ist,
-      _layers_obj,
-      _viz_state
-    );
+    // to do: set up subscriber for rgn bar graph
   };
 
   const delete_polygon_index = (featureCollection, index) => {
@@ -943,18 +933,7 @@ export const make_ist_ui_container = (
         value: feature.properties.area, // Use the "area" property for the bar height
       }));
 
-    // console.log(_viz_state.nbhd.color_dict_nbhd)
-
-    update_bar_graph(
-      _viz_state.edit.svg_bar_rgn,
-      _viz_state.nbhd.nbhd_areas,
-      _viz_state.cats.color_dict_cluster,
-      bar_callback_nbhd,
-      [], // selected_cats
-      _deck_ist,
-      _layers_obj,
-      _viz_state
-    );
+    // to do: set up subscriber for nbhd bar graph
   };
 
   viz_state.edit.buttons = {};

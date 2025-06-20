@@ -94,8 +94,6 @@ export const landscape_ist = async (
   view_change_custom_callback = null
 ) => {
 
-  console.log('hello!!!!!!!!!!!!')
-
   if (width === 0) {
     width = '100%';
   }
@@ -493,7 +491,7 @@ export const landscape_ist = async (
     update_view_state: async (new_view_state, close_up, _trx_layer) => {
       viz_state.close_up = close_up;
 
-      calc_viewport(new_view_state, deck_ist, layers_obj, viz_state, obs_store);
+      calc_viewport(new_view_state, deck_ist, layers_obj, viz_state, viz_state.obs_store);
       const viewStateLayersList = get_layers_list(
         layers_obj,
         viz_state.close_up

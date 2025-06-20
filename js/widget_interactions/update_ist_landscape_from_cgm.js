@@ -1,5 +1,3 @@
-import * as d3 from 'd3';
-
 import { update_cell_layer_id } from '../deck-gl/layers/cell_layer';
 import { update_path_layer_id } from '../deck-gl/layers/path_layer';
 import { update_trx_layer_id } from '../deck-gl/layers/trx_layer';
@@ -55,8 +53,6 @@ export const update_ist_landscape_from_cgm = async (
 
       const layers_list = get_layers_list(layers_obj, viz_state.close_up);
       deck_ist.setProps({ layers: layers_list });
-
-      const reset_gene = false;
 
       viz_state.genes.gene_search_input.value =
         viz_state.genes.gene_search_input.value !== inst_gene ? inst_gene : '';

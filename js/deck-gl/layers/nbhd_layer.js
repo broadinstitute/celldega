@@ -1,6 +1,5 @@
 /* eslint-disable import/no-cycle */
 
-import * as d3 from 'd3';
 import { GeoJsonLayer } from 'deck.gl';
 
 import { update_selected_cats, update_cat } from '../../global_variables/cat';

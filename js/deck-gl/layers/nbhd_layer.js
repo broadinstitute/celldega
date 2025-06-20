@@ -68,12 +68,6 @@ const nbhd_layer_onclick = async (
 
   const inst_cat_name = viz_state.cats.selected_cats.join('-');
 
-  // // reset gene
-  // viz_state.genes.svg_bar_gene
-  //   .selectAll('g')
-  //   .attr('font-weight', 'normal')
-  //   .attr('opacity', 1.0);
-
   update_cell_layer_id(layers_obj, inst_cat_name);
   update_path_layer_id(layers_obj, inst_cat_name);
 

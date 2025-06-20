@@ -68,46 +68,6 @@ const trx_layer_callback = async (
   const layers_list = get_layers_list(layers_obj, viz_state.close_up);
   deck_ist.setProps({ layers: layers_list });
 
-  // //////////////////////////////////////////////////////////
-  // viz_state.genes.svg_bar_gene
-  //   .selectAll('g')
-  //   .attr('font-weight', 'normal')
-  //   .attr('opacity', reset_gene ? 1.0 : 0.25);
-
-  // if (!reset_gene) {
-  //   const selectedBar = viz_state.genes.svg_bar_gene
-  //     .selectAll('g')
-  //     .filter(function () {
-  //       const textElement = d3.select(this).select('text').node();
-  //       return textElement && textElement.textContent === inst_gene;
-  //     })
-  //     .attr('opacity', 1.0);
-
-  //   if (!selectedBar.empty()) {
-  //     const barPosition = selectedBar.node().getBoundingClientRect().top;
-
-  //     const containerPosition =
-  //       viz_state.containers.bar_gene.getBoundingClientRect().top;
-  //     const scrollPosition =
-  //       barPosition -
-  //       containerPosition +
-  //       viz_state.containers.bar_gene.scrollTop;
-
-  //     viz_state.genes.svg_bar_gene.attr('opacity', 1.0);
-
-  //     viz_state.containers.bar_gene.scrollTo({
-  //       top: scrollPosition,
-  //       behavior: 'smooth',
-  //     });
-  //   }
-  // } else {
-  //   viz_state.containers.bar_gene.scrollTo({
-  //     top: 0,
-  //     behavior: 'smooth',
-  //   });
-  // }
-  // //////////////////////////////////////////////////////////
-
   viz_state.genes.gene_search_input.value =
     viz_state.genes.gene_search_input.value !== inst_gene ? inst_gene : '';
 

@@ -439,6 +439,8 @@ export const landscape_ist = async (
       update_gene_text_box(viz_state.genes, reset_gene ? '' : inst_gene);
     },
     update_matrix_col: async (inst_col) => {
+
+      console.log('update_matrix_col', inst_col);
       // reset bar graphs (will remove duplicate code later)
       //////////////////////////////////////////
       viz_state.genes.svg_bar_gene

@@ -58,35 +58,6 @@ export const update_ist_landscape_from_cgm = async (
 
       const reset_gene = false;
 
-      viz_state.genes.svg_bar_gene
-        .selectAll('g')
-        .attr('font-weight', 'normal')
-        .attr('opacity', reset_gene ? 1.0 : 0.25);
-
-      if (!reset_gene) {
-        const selectedBar = viz_state.genes.svg_bar_gene
-          .selectAll('g')
-          .filter(function () {
-            return d3.select(this).select('text').text() === inst_gene;
-          })
-          .attr('opacity', 1.0);
-
-        if (!selectedBar.empty()) {
-          const barPosition = selectedBar.node().getBoundingClientRect().top;
-          const containerPosition =
-            viz_state.containers.bar_gene.getBoundingClientRect().top;
-          const scrollPosition =
-            barPosition -
-            containerPosition +
-            viz_state.containers.bar_gene.scrollTop;
-
-          viz_state.containers.bar_gene.scrollTo({
-            top: scrollPosition,
-            behavior: 'smooth',
-          });
-        }
-      }
-
       viz_state.genes.gene_search_input.value =
         viz_state.genes.gene_search_input.value !== inst_gene ? inst_gene : '';
 

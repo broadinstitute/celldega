@@ -58,20 +58,6 @@ export const bar_callback_gene = async (
   const currentTarget = d3.select(_event.currentTarget);
   const isBold = currentTarget.attr('font-weight') === 'bold';
 
-  // _viz_state.genes.svg_bar_gene
-  //   .selectAll('g')
-  //   .attr('font-weight', 'normal')
-  //   .attr('opacity', 0.25);
-
-  // if (!isBold) {
-  //   currentTarget.attr('font-weight', 'bold');
-  //   currentTarget.attr('opacity', 1.0);
-  // } else {
-  //   currentTarget.attr('font-weight', 'normal');
-
-  //   _viz_state.genes.svg_bar_gene.selectAll('g').attr('opacity', 1.0);
-  // }
-
   const inst_gene = d.name;
   const reset_gene = inst_gene === _viz_state.cats.cat;
   const new_cat = reset_gene ? 'cluster' : inst_gene;

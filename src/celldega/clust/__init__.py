@@ -2,8 +2,6 @@
 Module for clustering high-dimensional data.
 """
 
-# ruff: noqa: E722
-
 # The Celldega Matrix Vizualization Method is being built using the approaches
 # and code adaptations from the Clustergrammer-GL library, which is available at
 # github.com/ismms-himc/clustergrammer2

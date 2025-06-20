@@ -440,15 +440,6 @@ export const landscape_ist = async (
     },
     update_matrix_col: async (inst_col) => {
 
-      console.log('update_matrix_col', inst_col);
-      // reset bar graphs (will remove duplicate code later)
-      //////////////////////////////////////////
-      viz_state.genes.svg_bar_gene
-        .selectAll('g')
-        .attr('font-weight', 'normal')
-        .attr('opacity', 1.0);
-
-
       update_cat(viz_state.cats, 'cluster');
       update_selected_cats(viz_state.cats, [inst_col], viz_state.obs_store);
       update_selected_genes(viz_state.genes, [], viz_state.obs_store);

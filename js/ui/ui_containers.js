@@ -603,7 +603,7 @@ export const make_ist_ui_container = (
     viz_state.containers.bar_gene
   ), {immediate: false});
 
-  viz_state.obs_store.new_cell_bar_data.subscribe((bar_data) => {
+  const subscriber_new_cell_bar_data = (bar_data) => {
 
     const svg_bar = viz_state.cats.svg_bar_cluster;
     const container = viz_state.containers.bar_cluster;
@@ -678,7 +678,9 @@ export const make_ist_ui_container = (
       .duration(750)
       .attr('opacity', 0)
       .remove();
-  }, {immediate: false} );
+  }
+
+  viz_state.obs_store.new_cell_bar_data.subscribe(subscriber_new_cell_bar_data, {immediate: false} );
 
 
 

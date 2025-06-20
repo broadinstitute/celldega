@@ -55,7 +55,7 @@ def _determine_technology(data_dir):
     # Determine technology based on the presence of experiment.xenium file
     if (data_path / "experiment.xenium").exists():
         return "Xenium"
-    if (data_path / "micron_to_mosaic_pixel_transform.csv").exists():
+    if (data_path / "detected_transcripts.csv").exists():
         return "MERSCOPE"
     raise ValueError(
         "Unsupported technology. Only Xenium and MERSCOPE are supported in this script."
@@ -90,7 +90,7 @@ def _setup_preprocessing_paths(technology, path_landscape_files, data_dir):
         }
     if technology == "MERSCOPE":
         return {
-            "transformation_matrix": data_path / "micron_to_mosaic_pixel_transform.csv",
+            "transformation_matrix": data_path / "images/micron_to_mosaic_pixel_transform.csv",
             "meta_cell_micron": data_path / "cell_metadata.csv",
             "meta_cell_image": landscape_path / "cell_metadata.parquet",
             "meta_gene": landscape_path / "meta_gene.parquet",

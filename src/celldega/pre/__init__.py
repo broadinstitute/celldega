@@ -1177,8 +1177,8 @@ def _check_required_files(technology, data_dir):
         ],
         "MERSCOPE": [
             "images/mosaic_DAPI_z3.tif",
-            "images/mosaic_Cellbound1_z3.tif",
-            "micron_to_mosaic_pixel_transform.csv",
+            # "images/mosaic_Cellbound1_z3.tif",
+            "images/micron_to_mosaic_pixel_transform.csv",
             "cell_metadata.csv",
             "detected_transcripts.csv",
             "cell_boundaries.parquet",

@@ -31,7 +31,7 @@ import statsmodels.stats.multitest as smm
 from ..analysis import enrichr_functions as enr_fun
 from ..categories import categories
 from ..clustering import make_clust_fun
-from ..data import export_data, load_data, load_vect_post
+from ..data_io import export_data, load_data, load_vect_post
 from ..preprocessing import downsample_fun, normalize_fun, run_filter
 from . import data_formats, initialize_net
 

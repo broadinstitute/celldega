@@ -1,7 +1,7 @@
 """
 Comprehensive test suite for export_data.py module.
 
-This module tests all functionality of the celldega.clust.data.export_data module
+This module tests all functionality of the celldega.clust.data_io.export_data module
 with improved robustness, conciseness, and consistency. All bugs from the original
 implementation have been fixed and are tested accordingly.
 """
@@ -28,7 +28,7 @@ SRC_PATH = PROJECT_ROOT / "src"
 if SRC_PATH not in sys.path:
     sys.path.insert(0, str(SRC_PATH))
 
-from celldega.clust.data import export_data
+from celldega.clust.data_io import export_data
 
 
 # =============================================================================

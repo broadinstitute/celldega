@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 
 from ..categories import categories
-from ..data import make_unique_labels
+from ..data_io import make_unique_labels
 
 
 def df_to_dat(net: Any, df: pd.DataFrame, define_cat_colors: bool = False) -> None:

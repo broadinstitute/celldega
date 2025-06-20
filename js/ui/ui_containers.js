@@ -603,14 +603,16 @@ export const make_ist_ui_container = (
     viz_state.containers.bar_gene
   ), {immediate: false});
 
-  const subscriber_new_cell_bar_data = (bar_data) => {
-
-    const svg_bar = viz_state.cats.svg_bar_cluster;
-    const container = viz_state.containers.bar_cluster;
-
+  const subscriber_new_bar_data = ({
+    svg,
+    color_dict,
+    selected_array,
+    bar_callback,
+    container
+  }) => (bar_data) => {
     const bar_height = 15;
     const svg_height = bar_height * (bar_data.length + 1);
-    svg_bar.attr('height', svg_height);
+    svg.attr('height', svg_height);
 
     const max_bar_width = 90;
     const bar_data_values = bar_data.map(d => d.value);
@@ -623,13 +625,13 @@ export const make_ist_ui_container = (
       .domain([0, d3.max(bar_data_values)])
       .range([0, max_bar_width]);
 
-    const bars = svg_bar.selectAll('g').data(bar_data, d => d.name);
+    const bars = svg.selectAll('g').data(bar_data, d => d.name);
 
     // Enter new bars
     const bars_enter = bars.enter()
       .append('g')
       .attr('transform', (d, i) => `translate(2,${y_scale(i) + 2})`)
-      .on('click', (event, d) => bar_callback_cluster(event, d, deck_ist, layers_obj, viz_state));
+      .on('click', (event, d) => bar_callback(event, d, deck_ist, layers_obj, viz_state));
 
     bars_enter.append('rect')
       .attr('width', 0)
@@ -658,9 +660,6 @@ export const make_ist_ui_container = (
       .duration(750)
       .attr('transform', (d, i) => `translate(2,${y_scale(i) + 2})`);
 
-    const color_dict = viz_state.cats.color_dict_cluster;
-    const selected_array = viz_state.cats.selected_cats;
-
     bars_merged.select('rect')
       .attr('width', d => x_scale(d.value))
       .attr('fill', d => {
@@ -678,9 +677,38 @@ export const make_ist_ui_container = (
       .duration(750)
       .attr('opacity', 0)
       .remove();
-  }
 
-  viz_state.obs_store.new_cell_bar_data.subscribe(subscriber_new_cell_bar_data, {immediate: false} );
+    // Optional: scroll container to top
+    if (container) {
+      container.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      });
+    }
+  };
+
+
+  viz_state.obs_store.new_cell_bar_data.subscribe(
+    subscriber_new_bar_data({
+      svg: viz_state.cats.svg_bar_cluster,
+      color_dict: viz_state.cats.color_dict_cluster,
+      selected_array: viz_state.cats.selected_cats,
+      bar_callback: bar_callback_cluster,
+      container: viz_state.containers.bar_cluster
+    }),
+    { immediate: false }
+  );
+
+  viz_state.obs_store.new_gene_bar_data.subscribe(
+    subscriber_new_bar_data({
+      svg: viz_state.genes.svg_bar_gene,
+      color_dict: viz_state.genes.color_dict_gene,
+      selected_array: viz_state.genes.selected_genes,
+      bar_callback: bar_callback_gene,
+      container: viz_state.containers.bar_gene
+    }),
+    { immediate: false }
+  );
 
 
 

@@ -58,7 +58,40 @@ class Matrix:
         meta_row: pd.DataFrame | None = None,
         col_cats: list[str] | None = None,
         row_cats: list[str] | None = None,
+        # Processing parameters
+        filter_genes: int | None = None,
+        norm_col: str | None = "total",
+        norm_row: str | None = "zscore",
+        # Control flag
+        disable_processing: bool = False,
     ):
+        """
+        Create Matrix with automatic processing unless disabled.
+
+        Args:
+            data: DataFrame or AnnData object
+            meta_col: Column metadata (for DataFrame input)
+            meta_row: Row metadata (for DataFrame input)
+            col_cats: Column categories (for DataFrame input)
+            row_cats: Row categories (for DataFrame input)
+            filter_genes: Number of top variable genes to keep (None = no filtering)
+            norm_col: Column normalization ('total', 'zscore', 'qn', None)
+            norm_row: Row normalization ('total', 'zscore', 'qn', None)
+            disable_processing: Skip automatic processing (default: False)
+
+        Examples:
+            # Automatic processing (recommended)
+            mat = Matrix(adata)  # Applies norm_col='total', norm_row='zscore'
+
+            # Custom processing
+            mat = Matrix(adata, filter_genes=5000, norm_row='qn')
+
+            # No processing
+            mat = Matrix(adata, disable_processing=True)
+
+            # Raw matrix without data
+            mat = Matrix()  # Empty matrix for manual loading
+        """
         # Core data storage
         self.data: pd.DataFrame | None = None
         self.meta_col: pd.DataFrame = pd.DataFrame()
@@ -78,11 +111,55 @@ class Matrix:
         # Visualization structure
         self.viz: dict[str, Any] = DEFAULT_VIZ.copy()
 
+        # Load data and optionally apply processing
         if data is not None:
+            # Step 1: Always load data
             if isinstance(data, AnnData):
                 self.load_adata(data)
             else:
                 self.load_df(data, meta_col, meta_row, col_cats, row_cats)
+
+            # Step 2: Apply processing unless disabled
+            if not disable_processing:
+                self.process(filter_genes=filter_genes, norm_col=norm_col, norm_row=norm_row)
+
+    def process(self, filter_genes=None, norm_col="total", norm_row="zscore") -> None:
+        """
+        Apply processing pipeline to the matrix.
+
+        Args:
+            filter_genes: Number of top variable genes to keep
+            norm_col: Column normalization method ('total', 'zscore', 'qn', None)
+            norm_row: Row normalization method ('total', 'zscore', 'qn', None)
+
+        Examples:
+            mat = Matrix(adata, disable_processing=True)  # Raw data
+            mat.process(filter_genes=5000, norm_row='qn')  # Custom processing
+        """
+        if filter_genes:
+            self.filter(axis=Axis.ROW.value, by="var", num=filter_genes)
+        if norm_col:
+            self.norm(axis=Axis.COL.value, by=norm_col)
+        if norm_row:
+            self.norm(axis=Axis.ROW.value, by=norm_row)
+
+    def cluster(self, **cluster_kwargs) -> dict[str, Any]:
+        """
+        Perform clustering and return visualization data.
+
+        Args:
+            **cluster_kwargs: Clustering parameters (dist_type, linkage_type, force)
+
+        Returns:
+            dict: Visualization-ready JSON structure
+
+        Examples:
+            mat = Matrix(adata)
+            viz_data = mat.cluster()  # Use defaults
+            viz_data = mat.cluster(dist_type='euclidean', linkage_type='ward')
+        """
+        self.clust(**cluster_kwargs)
+        return self.export_viz_json()
 
     def _invalidate_cache(self, level: str) -> None:
         """Hierarchical cache invalidation."""
@@ -561,24 +638,3 @@ class Matrix:
                 UserWarning,
                 stacklevel=2,
             )
-
-
-def matrix(data, filter_genes=None, norm_col="total", norm_row="zscore", **kwargs) -> Matrix:
-    """Create and process Matrix with defaults."""
-    mat = Matrix(data)
-
-    if filter_genes:
-        mat.filter(axis=Axis.ROW.value, by="var", num=filter_genes)
-
-    if norm_col:
-        mat.norm(axis=Axis.COL.value, by=norm_col)
-    if norm_row:
-        mat.norm(axis=Axis.ROW.value, by=norm_row)
-
-    mat.clust(**kwargs)
-    return mat
-
-
-def hc2(df: pd.DataFrame, **kwargs) -> dict[str, Any]:
-    """Hierarchical clustering convenience function."""
-    return matrix(df, **kwargs).export_viz_json()

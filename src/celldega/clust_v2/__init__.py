@@ -6,12 +6,10 @@ function for quick clustering operations. Optimized for minimal time/space compl
 """
 
 # Import main classes and functions
-from .matrix import Matrix, hc2, matrix
+from .matrix import Matrix
 
 
 # Export list
 __all__ = [
     "Matrix",
-    "hc2",
-    "matrix",
 ]

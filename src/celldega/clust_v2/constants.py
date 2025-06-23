@@ -88,7 +88,6 @@ DEFAULT_VIZ = {
     "links": [],
 }
 
-# Error messages
 ERRORS = {
     "no_data": "No data loaded",
     "invalid_filter": "Filter type '{}' not supported. Use: {}",

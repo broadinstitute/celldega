@@ -165,7 +165,11 @@ class Matrix:
         matrix_data = (adata.X.todense() if hasattr(adata.X, "todense") else adata.X).T
 
         if adata.n_obs * adata.n_vars > CONFIG["memory_warning_threshold"]:
-            warnings.warn(f"Large matrix ({adata.n_obs} x {adata.n_vars}). Consider filtering.")
+            warnings.warn(
+                f"Large matrix ({adata.n_obs} x {adata.n_vars}). Consider filtering.",
+                UserWarning,
+                stacklevel=2,
+            )
 
         df = pd.DataFrame(matrix_data, index=adata.var.index, columns=adata.obs.index)
         self.load_df(
@@ -321,7 +325,7 @@ class Matrix:
                     _distance_cache[self][cache_key] = distances
 
             except Exception as e:
-                warnings.warn(f"Clustering failed for {axis}: {e}")
+                warnings.warn(f"Clustering failed for {axis}: {e}", UserWarning, stacklevel=2)
                 self.viz["linkage"][axis] = []
                 return
 
@@ -329,7 +333,7 @@ class Matrix:
             linkage_matrix = linkage(distances, method=linkage_type)
             self.viz["linkage"][axis] = linkage_matrix.tolist()
         except Exception as e:
-            warnings.warn(f"Clustering failed for {axis}: {e}")
+            warnings.warn(f"Clustering failed for {axis}: {e}", UserWarning, stacklevel=2)
             self.viz["linkage"][axis] = []
 
     def make_viz(self) -> None:
@@ -337,8 +341,8 @@ class Matrix:
         if self.data is None:
             raise ValueError(ERRORS["no_data"])
 
-        # Use cached dat structure
-        dat_structure = self.dat
+        # Use cached dat structure (triggers lazy loading)
+        _ = self.dat
 
         # Update rankings
         self._update_rankings_cached()
@@ -468,7 +472,7 @@ class Matrix:
         try:
             import scanpy as sc
         except ImportError:
-            raise ImportError(ERRORS["missing_scanpy"])
+            raise ImportError(ERRORS["missing_scanpy"]) from None
 
         meta_df = self.meta_col if axis == Axis.COL.value else self.meta_row
         if category not in meta_df.columns:
@@ -517,7 +521,7 @@ class Matrix:
     def export_viz_json(self) -> dict[str, Any]:
         """Export visualization as JSON dict."""
         if not self._clustered:
-            warnings.warn("Matrix not clustered. Call clust() first.", UserWarning)
+            warnings.warn("Matrix not clustered. Call clust() first.", UserWarning, stacklevel=2)
         return self.viz.copy()
 
     def export_viz_json_string(self) -> str:
@@ -553,7 +557,9 @@ class Matrix:
             raise ValueError(ERRORS["clustering_size"].format(n_cols))
         if n_rows * n_cols > CONFIG["memory_warning_threshold"]:
             warnings.warn(
-                f"Large matrix ({n_rows} x {n_cols}) may cause memory issues.", UserWarning
+                f"Large matrix ({n_rows} x {n_cols}) may cause memory issues.",
+                UserWarning,
+                stacklevel=2,
             )
 
 

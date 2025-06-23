@@ -42,7 +42,7 @@ def validate_metadata_types(meta_col: pd.DataFrame, meta_row: pd.DataFrame) -> N
         for col in meta_df.columns:
             dtypes = meta_df[col].dropna().apply(type).unique()
             if len(dtypes) > 1:
-                warnings.warn(f"Mixed data types in {df_name}['{col}'].", UserWarning)
+                warnings.warn(f"Mixed data types in {df_name}['{col}'].", UserWarning, stacklevel=2)
 
 
 def compute_metric(data: pd.DataFrame | np.ndarray, metric: str, axis: int = 1) -> np.ndarray:
@@ -52,6 +52,8 @@ def compute_metric(data: pd.DataFrame | np.ndarray, metric: str, axis: int = 1) 
 
     if isinstance(data, pd.DataFrame):
         return getattr(data, METRIC_FUNCTIONS[metric])(axis=axis).values
+
+    # Handle numpy array cases
     if metric == "sum":
         return np.sum(data, axis=axis)
     if metric == "var":
@@ -60,6 +62,7 @@ def compute_metric(data: pd.DataFrame | np.ndarray, metric: str, axis: int = 1) 
         return np.mean(data, axis=axis)
     if metric == "median":
         return np.median(data, axis=axis)
+    raise ValueError(f"Unsupported metric: {metric}")
 
 
 def fast_cosine_distance(data: np.ndarray) -> np.ndarray:
@@ -88,6 +91,7 @@ def zscore_normalize_inplace(data: np.ndarray, axis: int = 0) -> np.ndarray:
             f"Found {zero_std_mask.sum()} constant features. "
             "Replacing zero std with small value to avoid inf/NaN.",
             UserWarning,
+            stacklevel=2,
         )
         stds[zero_std_mask] = 1e-10
 

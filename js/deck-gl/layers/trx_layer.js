@@ -5,7 +5,6 @@ import { ScatterplotLayer } from 'deck.gl';
 import { update_cat, update_selected_cats } from '../../global_variables/cat';
 import { update_cell_exp_array } from '../../global_variables/cell_exp_array';
 import { update_selected_genes } from '../../global_variables/selected_genes';
-import { update_gene_text_box } from '../../ui/gene_search';
 import { toggle_image_layers_and_ctrls } from '../../ui/ui_containers';
 import { grab_trx_tiles_in_view } from '../../vector_tile/transcripts/grab_trx_tiles_in_view';
 import { get_layers_list } from '../utils/layers_ist';
@@ -67,7 +66,6 @@ const trx_layer_callback = async (
   const layers_list = get_layers_list(layers_obj, viz_state.close_up);
   deck_ist.setProps({ layers: layers_list });
 
-  update_gene_text_box(viz_state.genes, reset_gene ? '' : inst_gene);
 };
 
 export const ini_trx_layer = (genes) => {

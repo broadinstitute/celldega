@@ -62,7 +62,6 @@ import { set_cluster_metadata } from '../global_variables/meta_cluster';
 import { set_meta_gene } from '../global_variables/meta_gene';
 import { update_selected_genes } from '../global_variables/selected_genes';
 import { create_obs_store } from '../obs_store/obs_store';
-import { update_gene_text_box } from '../ui/gene_search';
 import { set_image_layer_sliders } from '../ui/sliders';
 import {
   make_ist_ui_container,
@@ -431,8 +430,6 @@ export const landscape_ist = async (
 
       const updatedLayersList = get_layers_list(layers_obj, viz_state.close_up);
       deck_ist.setProps({ layers: updatedLayersList });
-
-      update_gene_text_box(viz_state.genes, reset_gene ? '' : inst_gene);
     },
     update_matrix_col: async (inst_col) => {
 
@@ -455,8 +452,6 @@ export const landscape_ist = async (
         viz_state.close_up
       );
       deck_ist.setProps({ layers: matrixColLayersList });
-
-      update_gene_text_box(viz_state.genes, '');
     },
     update_matrix_dendro_col: async (selected_cols) => {
       // const inst_gene = 'cluster'

@@ -18,7 +18,6 @@ import { options } from '../../global_variables/fetch_options';
 import { update_selected_genes } from '../../global_variables/selected_genes';
 import { get_arrow_table } from '../../read_parquet/get_arrow_table';
 import { get_scatter_data } from '../../read_parquet/get_scatter_data';
-import { update_gene_text_box } from '../../ui/gene_search';
 import { toggle_image_layers_and_ctrls } from '../../ui/ui_containers';
 import { scale_umap_data } from '../../umap/scale_umap_data';
 import { get_layers_list } from '../utils/layers_ist';
@@ -69,7 +68,6 @@ const cell_layer_onclick = async (info, d, deck_ist, layers_obj, viz_state) => {
   const layers_list = get_layers_list(layers_obj, viz_state.close_up);
   deck_ist.setProps({ layers: layers_list });
 
-  update_gene_text_box(viz_state.genes, '');
 };
 
 // transparent to red

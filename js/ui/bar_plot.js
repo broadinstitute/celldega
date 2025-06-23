@@ -9,7 +9,6 @@ import { update_cat, update_selected_cats } from '../global_variables/cat';
 import { update_cell_exp_array } from '../global_variables/cell_exp_array';
 import { update_selected_genes } from '../global_variables/selected_genes';
 
-import { update_gene_text_box } from './gene_search';
 import { toggle_image_layers_and_ctrls } from './ui_containers';
 
 export const make_bar_container = () => {
@@ -41,7 +40,6 @@ export const bar_callback_cluster = (
   const layers_list = get_layers_list(_layers_obj, _viz_state.close_up);
   _deck_ist.setProps({ layers: layers_list });
 
-  // update_gene_text_box(_viz_state.genes, '');
 };
 
 export const bar_callback_gene = async (
@@ -82,7 +80,6 @@ export const bar_callback_gene = async (
   const layers_list = get_layers_list(_layers_obj, _viz_state.close_up);
   _deck_ist.setProps({ layers: layers_list });
 
-  update_gene_text_box(_viz_state.genes, reset_gene ? '' : inst_gene);
 };
 
 export const bar_callback_rgn = (

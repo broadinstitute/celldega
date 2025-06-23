@@ -6,7 +6,6 @@ import { update_cat, update_selected_cats } from '../global_variables/cat';
 import { update_cell_exp_array } from '../global_variables/cell_exp_array';
 import { update_selected_genes } from '../global_variables/selected_genes';
 import { handleAsyncError } from '../temp_utils/errorHandler';
-import { update_gene_text_box } from '../ui/gene_search';
 import { toggle_image_layers_and_ctrls } from '../ui/ui_containers';
 
 export const update_ist_landscape_from_cgm = async (
@@ -54,7 +53,6 @@ export const update_ist_landscape_from_cgm = async (
       const layers_list = get_layers_list(layers_obj, viz_state.close_up);
       deck_ist.setProps({ layers: layers_list });
 
-      update_gene_text_box(viz_state.genes, inst_gene);
     } else if (click_info.type === 'col_label') {
       inst_gene = 'cluster';
       new_cat = click_info.value.name;

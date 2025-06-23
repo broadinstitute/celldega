@@ -4,10 +4,6 @@ import { update_path_layer_id } from '../deck-gl/layers/path_layer';
 import { update_square_scatter_layer } from '../deck-gl/layers/square_scatter_layer';
 import { update_trx_layer_id } from '../deck-gl/layers/trx_layer';
 import { get_layers_list } from '../deck-gl/utils/layers_ist';
-import {
-  uniprot_data,
-  uniprot_get_request,
-} from '../external_apis/uniprot_api';
 import { update_cat, update_selected_cats } from '../global_variables/cat';
 import { update_cell_exp_array } from '../global_variables/cell_exp_array';
 import { update_selected_genes } from '../global_variables/selected_genes';
@@ -17,29 +13,6 @@ import { set_gene_search_input } from './gene_search_input';
 import { toggle_image_layers_and_ctrls } from './ui_containers';
 
 let gene_search_options = [];
-
-export const update_gene_text_box = async (genes, inst_gene) => {
-  if (inst_gene !== '') {
-    genes.gene_text_box.textContent = 'loading';
-
-    await uniprot_get_request(inst_gene);
-
-    const gene_data = uniprot_data[inst_gene];
-
-    if (gene_data && gene_data.name && gene_data.description) {
-      genes.gene_text_box.innerHTML = `<span style="color: blue;">${gene_data.name}</span><br>${gene_data.description}`;
-    } else {
-      genes.gene_text_box.textContent = '';
-    }
-  } else {
-    genes.gene_text_box.textContent = '';
-  }
-
-  genes.gene_text_box.scrollTo({
-    top: 0,
-    behavior: 'smooth',
-  });
-};
 
 const sst_gene_search_callback = async (deck_sst, viz_state, layers_sst) => {
   const inst_gene = viz_state.genes.gene_search_input.value;
@@ -60,7 +33,6 @@ const sst_gene_search_callback = async (deck_sst, viz_state, layers_sst) => {
       layers: [layers_sst.simple_image_layer, layers_sst.square_scatter_layer],
     });
 
-    await update_gene_text_box(viz_state.genes, inst_gene);
   }
 };
 
@@ -102,11 +74,6 @@ const ist_gene_search_callback = async (deck_ist, layers_obj, viz_state) => {
     const layers_list = get_layers_list(layers_obj, viz_state.close_up);
     deck_ist.setProps({ layers: layers_list });
 
-    const reset_gene = false;
-
-    if (!reset_gene) {
-      await update_gene_text_box(viz_state.genes, inst_gene);
-    }
   }
 };
 

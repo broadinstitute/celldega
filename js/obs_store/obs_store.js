@@ -32,6 +32,7 @@ export const create_obs_store = () => {
         new_cell_bar_data: Observable([]),
         new_gene_bar_data: Observable([]),
         selected_genes: Observable([]),
+        viz_img_layers: Observable(true)
     }
 
 }

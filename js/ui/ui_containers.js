@@ -57,6 +57,7 @@ import {
   make_reorder_button,
 } from './text_buttons';
 
+// to do: move this to a subscriber
 export const toggle_image_layers_and_ctrls = (
   layers_obj,
   viz_state,
@@ -867,7 +868,6 @@ export const make_ist_ui_container = (
   //       {}
   //     );
 
-  //   // to do: set up subscriber for rgn bar graph
   // };
 
   // const delete_polygon_index = (featureCollection, index) => {

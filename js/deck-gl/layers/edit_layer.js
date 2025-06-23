@@ -83,8 +83,6 @@ export const calc_and_update_rgn_bar_graph = async (
       return acc;
     }, {});
 
-  // To do: set up region bar graph subscriber to viz_state.edit.rgn_areas
-
 };
 
 const edit_layer_on_edit = async (

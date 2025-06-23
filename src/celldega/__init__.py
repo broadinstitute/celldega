@@ -1,8 +1,9 @@
 import importlib.metadata  # temporary fix for libpysal warning
 import warnings
 
-from celldega import clust
+from celldega import clust, clust_v2
 from celldega.clust import Network, hc
+from celldega.clust_v2 import hc2
 from celldega.nbhd import alpha_shape
 from celldega.pre import landscape
 from celldega.qc import qc_segmentation
@@ -22,7 +23,9 @@ __all__ = [
     "Network",
     "alpha_shape",
     "clust",
+    "clust_v2",
     "hc",
+    "hc2",
     "landscape",
     "qc_segmentation",
 ]

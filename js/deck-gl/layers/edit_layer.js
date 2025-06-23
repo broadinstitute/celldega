@@ -63,9 +63,7 @@ export const sync_region_to_model = (viz_state) => {
 };
 
 export const calc_and_update_rgn_bar_graph = async (
-  viz_state,
-  deck_ist,
-  layers_obj
+  viz_state
 ) => {
   // Calculate areas
   viz_state.edit.feature_collection = calc_region_areas(
@@ -117,14 +115,14 @@ const edit_layer_on_edit = async (
     update_path_pickable_state(layers_obj, true);
     update_trx_pickable_state(layers_obj, true);
 
-    await calc_and_update_rgn_bar_graph(viz_state, deck_ist, layers_obj);
+    await calc_and_update_rgn_bar_graph(viz_state);
 
     sync_region_to_model(viz_state);
   }
 
   const layers_list = get_layers_list(layers_obj, viz_state.close_up);
   deck_ist.setProps({ layers: layers_list });
-  await calc_and_update_rgn_bar_graph(viz_state, deck_ist, layers_obj);
+  await calc_and_update_rgn_bar_graph(viz_state);
   sync_region_to_model(viz_state);
 };
 

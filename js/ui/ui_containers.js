@@ -862,14 +862,14 @@ export const make_ist_ui_container = (
 
     d3.select(_viz_state.edit.buttons.sktch).style('display', 'inline-flex');
 
-    calc_and_update_rgn_bar_graph(_viz_state, _deck_ist, _layers_obj);
+    calc_and_update_rgn_bar_graph(_viz_state);
 
     sync_region_to_model(_viz_state);
   };
 
-  const bar_callback_nbhd = (_info) => {
-    // console.log('clicking nbhd bar', _info)
-  };
+  // const bar_callback_nbhd = (_info) => {
+  //   // console.log('clicking nbhd bar', _info)
+  // };
 
   const alph_callback = (event, _deck_ist, _layers_obj, _viz_state) => {
     // toggle color of the alpha txt button

@@ -1,30 +1,30 @@
 /* eslint-disable import/no-cycle */
 
-import { DrawPolygonMode, ViewMode } from '@deck.gl-community/editable-layers';
+// import { DrawPolygonMode, ViewMode } from '@deck.gl-community/editable-layers';
 import * as d3 from 'd3';
 
-import { toggle_background_layer_visibility } from '../deck-gl/layers/background_layer';
-import { update_cell_pickable_state } from '../deck-gl/layers/cell_layer';
-import {
-  update_edit_layer_mode,
-  update_edit_visitility,
-  calc_and_update_rgn_bar_graph,
-  sync_region_to_model,
-} from '../deck-gl/layers/edit_layer';
+// import { toggle_background_layer_visibility } from '../deck-gl/layers/background_layer';
+// import { update_cell_pickable_state } from '../deck-gl/layers/cell_layer';
+// import _
+//   update_edit_layer_mode,
+//   update_edit_visitility,
+//   calc_and_update_rgn_bar_graph,
+//   sync_region_to_model,
+// } from '../deck-gl/layers/edit_layer';
 import { toggle_visibility_image_layers } from '../deck-gl/layers/image_layers';
-import {
-  filter_cat_nbhd_feature_collection,
-  toggle_nbhd_layer_visibility,
-  update_nbhd_layer_data,
-} from '../deck-gl/layers/nbhd_layer';
-import { update_path_pickable_state } from '../deck-gl/layers/path_layer';
-import {
-  toggle_trx_layer_visibility,
-  update_trx_pickable_state,
-} from '../deck-gl/layers/trx_layer';
+// import {
+//   filter_cat_nbhd_feature_collection,
+//   toggle_nbhd_layer_visibility,
+//   update_nbhd_layer_data,
+// } from '../deck-gl/layers/nbhd_layer';
+// import { update_path_pickable_state } from '../deck-gl/layers/path_layer';
+// import {
+//   toggle_trx_layer_visibility,
+//   update_trx_pickable_state,
+// } from '../deck-gl/layers/trx_layer';
 import { update_dendro_layer_data } from '../deck-gl/matrix/dendro_layers';
 import { get_mat_layers_list } from '../deck-gl/matrix/matrix_layers';
-import { get_layers_list } from '../deck-gl/utils/layers_ist';
+// import { get_layers_list } from '../deck-gl/utils/layers_ist';
 import {
   uniprot_data,
   uniprot_get_request,
@@ -38,7 +38,7 @@ import { debounce } from '../utils/debounce';
 
 import {
   make_bar_graph,
-  bar_callback_rgn,
+  // bar_callback_rgn,
   bar_callback_cluster,
   make_bar_container,
   bar_callback_gene,
@@ -53,7 +53,7 @@ import {
 } from './sliders';
 import {
   make_button,
-  make_edit_button,
+  // make_edit_button,
   make_reorder_button,
 } from './text_buttons';
 
@@ -353,11 +353,11 @@ export const make_ist_ui_container = (
   gene_container.style.width = bar_container_width;
   const trx_container = flex_container('trx_container', 'row');
 
-  const rgn_container = flex_container('rgn_container', 'column');
-  rgn_container.style.width = bar_container_width;
-  const rgn_ctrl_container = flex_container('rgn_ctrl_container', 'row');
-  rgn_ctrl_container.style.marginLeft = '0px';
-  rgn_ctrl_container.style.height = '22.5px';
+  // const rgn_container = flex_container('rgn_container', 'column');
+  // rgn_container.style.width = bar_container_width;
+  // const rgn_ctrl_container = flex_container('rgn_ctrl_container', 'row');
+  // rgn_ctrl_container.style.marginLeft = '0px';
+  // rgn_ctrl_container.style.height = '22.5px';
 
   const cell_slider_container = make_slider_container('cell_slider_container');
   const trx_slider_container = make_slider_container('trx_slider_container');
@@ -780,334 +780,332 @@ export const make_ist_ui_container = (
   viz_state.genes.gene_search.style.width = '160px';
   viz_state.genes.gene_search.style.marginLeft = '5px';
 
-  const sketch_callback = (event, _deck_ist, _layers_obj, _viz_state) => {
-    const current = d3.select(event.currentTarget);
-    const is_active = current.classed('active');
-    // let button_name = current.text().toLowerCase()
+  // const sketch_callback = (event, _deck_ist, _layers_obj, _viz_state) => {
+  //   const current = d3.select(event.currentTarget);
+  //   const is_active = current.classed('active');
+  //   // let button_name = current.text().toLowerCase()
 
-    // clicking sketch should always return the rgn to visible
-    _viz_state.edit.visible = true;
-    current.classed('active', _viz_state.edit.visible).style('color', 'blue');
+  //   // clicking sketch should always return the rgn to visible
+  //   _viz_state.edit.visible = true;
+  //   current.classed('active', _viz_state.edit.visible).style('color', 'blue');
 
-    d3.select(_viz_state.edit.buttons.rgn)
-      .style('color', 'blue')
-      .classed('active', true);
+  //   d3.select(_viz_state.edit.buttons.rgn)
+  //     .style('color', 'blue')
+  //     .classed('active', true);
 
-    update_edit_visitility(_layers_obj, _viz_state.edit.visible);
+  //   update_edit_visitility(_layers_obj, _viz_state.edit.visible);
 
-    if (is_active === false) {
-      current.classed('active', true).style('color', 'blue');
+  //   if (is_active === false) {
+  //     current.classed('active', true).style('color', 'blue');
 
-      _viz_state.edit.mode = 'sktch';
+  //     _viz_state.edit.mode = 'sktch';
 
-      update_edit_layer_mode(_layers_obj, DrawPolygonMode);
-      update_cell_pickable_state(_layers_obj, false);
-      update_path_pickable_state(_layers_obj, false);
-      update_trx_pickable_state(_layers_obj, false);
-      const layers_list = get_layers_list(_layers_obj, _viz_state.close_up);
-      _deck_ist.setProps({ layers: layers_list });
-    } else if (is_active === true) {
-      _viz_state.edit.mode = 'view';
+  //     update_edit_layer_mode(_layers_obj, DrawPolygonMode);
+  //     update_cell_pickable_state(_layers_obj, false);
+  //     update_path_pickable_state(_layers_obj, false);
+  //     update_trx_pickable_state(_layers_obj, false);
+  //     const layers_list = get_layers_list(_layers_obj, _viz_state.close_up);
+  //     _deck_ist.setProps({ layers: layers_list });
+  //   } else if (is_active === true) {
+  //     _viz_state.edit.mode = 'view';
 
-      current.classed('active', false).style('color', 'gray');
+  //     current.classed('active', false).style('color', 'gray');
 
-      update_edit_layer_mode(_layers_obj, ViewMode);
-      update_cell_pickable_state(_layers_obj, true);
-      update_path_pickable_state(_layers_obj, true);
-      update_trx_pickable_state(_layers_obj, true);
+  //     update_edit_layer_mode(_layers_obj, ViewMode);
+  //     update_cell_pickable_state(_layers_obj, true);
+  //     update_path_pickable_state(_layers_obj, true);
+  //     update_trx_pickable_state(_layers_obj, true);
 
-      const layers_list = get_layers_list(_layers_obj, _viz_state.close_up);
-      _deck_ist.setProps({ layers: layers_list });
-    }
-  };
+  //     const layers_list = get_layers_list(_layers_obj, _viz_state.close_up);
+  //     _deck_ist.setProps({ layers: layers_list });
+  //   }
+  // };
 
-  const rgn_callback = (event, _deck_ist, _layers_obj, _viz_state) => {
-    const current = d3.select(event.currentTarget);
-    const is_active = current.classed('active');
+  // const rgn_callback = (event, _deck_ist, _layers_obj, _viz_state) => {
+  //   const current = d3.select(event.currentTarget);
+  //   const is_active = current.classed('active');
 
-    if (is_active === false) {
-      _viz_state.edit.visible = true;
+  //   if (is_active === false) {
+  //     _viz_state.edit.visible = true;
 
-      current.classed('active', _viz_state.edit.visible).style('color', 'blue');
+  //     current.classed('active', _viz_state.edit.visible).style('color', 'blue');
 
-      // hide alph button
-      d3.select(_viz_state.edit.buttons.alph).style('display', 'none');
+  //     // hide alph button
+  //     d3.select(_viz_state.edit.buttons.alph).style('display', 'none');
 
-      // show sktch button
-      d3.select(_viz_state.edit.buttons.sktch).style('display', 'inline-flex');
-    } else {
-      _viz_state.edit.visible = false;
+  //     // show sktch button
+  //     d3.select(_viz_state.edit.buttons.sktch).style('display', 'inline-flex');
+  //   } else {
+  //     _viz_state.edit.visible = false;
 
-      current.classed('active', _viz_state.edit.visible).style('color', 'gray');
+  //     current.classed('active', _viz_state.edit.visible).style('color', 'gray');
 
-      // show alph button
-      d3.select(_viz_state.edit.buttons.alph).style('display', 'inline-flex');
+  //     // show alph button
+  //     d3.select(_viz_state.edit.buttons.alph).style('display', 'inline-flex');
 
-      // show sktch button
-      d3.select(_viz_state.edit.buttons.sktch).style('display', 'none');
-    }
+  //     // show sktch button
+  //     d3.select(_viz_state.edit.buttons.sktch).style('display', 'none');
+  //   }
 
-    update_edit_visitility(_layers_obj, _viz_state.edit.visible);
-    const layers_list = get_layers_list(_layers_obj, _viz_state.close_up);
-    _deck_ist.setProps({ layers: layers_list });
+  //   update_edit_visitility(_layers_obj, _viz_state.edit.visible);
+  //   const layers_list = get_layers_list(_layers_obj, _viz_state.close_up);
+  //   _deck_ist.setProps({ layers: layers_list });
 
-    _viz_state.edit.rgn_areas = _viz_state.edit.feature_collection.features.map(
-      (feature, index) => ({
-        name: (index + 1).toString(), // Assign numeric names starting from 1
-        value: feature.properties.area, // Use the "area" property for the bar height
-      })
-    );
+  //   _viz_state.edit.rgn_areas = _viz_state.edit.feature_collection.features.map(
+  //     (feature, index) => ({
+  //       name: (index + 1).toString(), // Assign numeric names starting from 1
+  //       value: feature.properties.area, // Use the "area" property for the bar height
+  //     })
+  //   );
 
-    _viz_state.edit.color_dict_rgn =
-      _viz_state.edit.feature_collection.features.reduce(
-        (acc, feature, index) => {
-          acc[(index + 1).toString()] = feature.properties.color; // Use the "color" property
-          return acc;
-        },
-        {}
-      );
+  //   _viz_state.edit.color_dict_rgn =
+  //     _viz_state.edit.feature_collection.features.reduce(
+  //       (acc, feature, index) => {
+  //         acc[(index + 1).toString()] = feature.properties.color; // Use the "color" property
+  //         return acc;
+  //       },
+  //       {}
+  //     );
 
-    // to do: set up subscriber for rgn bar graph
-  };
+  //   // to do: set up subscriber for rgn bar graph
+  // };
 
-  const delete_polygon_index = (featureCollection, index) => {
-    if (index >= 0 && index < featureCollection.features.length) {
-      featureCollection.features.splice(index, 1); // Remove the feature at the given index
-      //   console.log(`Feature at index ${index} deleted.`);
-    } else {
-      //   console.warn(`Invalid index: ${index}. No feature deleted.`);
-    }
+  // const delete_polygon_index = (featureCollection, index) => {
+  //   if (index >= 0 && index < featureCollection.features.length) {
+  //     featureCollection.features.splice(index, 1); // Remove the feature at the given index
+  //     //   console.log(`Feature at index ${index} deleted.`);
+  //   } else {
+  //     //   console.warn(`Invalid index: ${index}. No feature deleted.`);
+  //   }
 
-    return featureCollection; // Return the updated FeatureCollection
-  };
+  //   return featureCollection; // Return the updated FeatureCollection
+  // };
 
-  const del_callback = (event, _deck_ist, _layers_obj, _viz_state) => {
-    _viz_state.edit.feature_collection = delete_polygon_index(
-      _viz_state.edit.feature_collection,
-      _viz_state.edit.modify_index
-    );
+  // const del_callback = (event, _deck_ist, _layers_obj, _viz_state) => {
+  //   _viz_state.edit.feature_collection = delete_polygon_index(
+  //     _viz_state.edit.feature_collection,
+  //     _viz_state.edit.modify_index
+  //   );
 
-    // switch to view mode
-    _layers_obj.edit_layer = _layers_obj.edit_layer.clone({
-      id: 'edit-layer-delete',
-      data: _viz_state.edit.feature_collection,
-      mode: ViewMode,
-      selectedFeatureIndexes: [],
-    });
+  //   // switch to view mode
+  //   _layers_obj.edit_layer = _layers_obj.edit_layer.clone({
+  //     id: 'edit-layer-delete',
+  //     data: _viz_state.edit.feature_collection,
+  //     mode: ViewMode,
+  //     selectedFeatureIndexes: [],
+  //   });
 
-    const layers_list = get_layers_list(_layers_obj, _viz_state.close_up);
-    _deck_ist.setProps({ layers: layers_list });
+  //   const layers_list = get_layers_list(_layers_obj, _viz_state.close_up);
+  //   _deck_ist.setProps({ layers: layers_list });
 
-    // hide the DEL button
-    d3.select(_viz_state.edit.buttons.del)
-      .classed('active', false)
-      .style('display', 'none');
+  //   // hide the DEL button
+  //   d3.select(_viz_state.edit.buttons.del)
+  //     .classed('active', false)
+  //     .style('display', 'none');
 
-    // hide the RGN and SKTCH buttons
-    d3.select(_viz_state.edit.buttons.rgn).style('display', 'inline-flex');
+  //   // hide the RGN and SKTCH buttons
+  //   d3.select(_viz_state.edit.buttons.rgn).style('display', 'inline-flex');
 
-    d3.select(_viz_state.edit.buttons.sktch).style('display', 'inline-flex');
+  //   d3.select(_viz_state.edit.buttons.sktch).style('display', 'inline-flex');
 
-    calc_and_update_rgn_bar_graph(_viz_state);
+  //   calc_and_update_rgn_bar_graph(_viz_state);
 
-    sync_region_to_model(_viz_state);
-  };
+  //   sync_region_to_model(_viz_state);
+  // };
 
   // const bar_callback_nbhd = (_info) => {
   //   // console.log('clicking nbhd bar', _info)
   // };
 
-  const alph_callback = (event, _deck_ist, _layers_obj, _viz_state) => {
-    // toggle color of the alpha txt button
-    const _current = d3.select(event.currentTarget);
+  // const alph_callback = (event, _deck_ist, _layers_obj, _viz_state) => {
+  //   // toggle color of the alpha txt button
+  //   const _current = d3.select(event.currentTarget);
 
-    if (_viz_state.nbhd.visible === true) {
-      _viz_state.nbhd.visible = false;
+  //   if (_viz_state.nbhd.visible === true) {
+  //     _viz_state.nbhd.visible = false;
 
-      // hacky - need to store these buttons elsewhere
-      d3.select(_viz_state.edit.buttons.alph).style('color', 'gray');
+  //     // hacky - need to store these buttons elsewhere
+  //     d3.select(_viz_state.edit.buttons.alph).style('color', 'gray');
 
-      // show rgn button
-      d3.select(_viz_state.edit.buttons.rgn).style('display', 'inline-flex');
+  //     // show rgn button
+  //     d3.select(_viz_state.edit.buttons.rgn).style('display', 'inline-flex');
 
-      _viz_state.sliders.alph.style.display = 'none';
-    } else {
-      _viz_state.nbhd.visible = true;
-      d3.select(_viz_state.edit.buttons.alph).style('color', 'blue');
+  //     _viz_state.sliders.alph.style.display = 'none';
+  //   } else {
+  //     _viz_state.nbhd.visible = true;
+  //     d3.select(_viz_state.edit.buttons.alph).style('color', 'blue');
 
-      // hide rgn button
-      d3.select(_viz_state.edit.buttons.rgn).style('display', 'none');
+  //     // hide rgn button
+  //     d3.select(_viz_state.edit.buttons.rgn).style('display', 'none');
 
-      _viz_state.sliders.alph.style.display = 'block';
-    }
+  //     _viz_state.sliders.alph.style.display = 'block';
+  //   }
 
-    toggle_nbhd_layer_visibility(_layers_obj, _viz_state.nbhd.visible);
+  //   toggle_nbhd_layer_visibility(_layers_obj, _viz_state.nbhd.visible);
 
-    // toggle with the opposite of _viz_state.nbhd.visible
-    toggle_trx_layer_visibility(
-      _layers_obj,
-      _viz_state.nbhd.visible === true ? false : true
-    );
-    toggle_visibility_image_layers(
-      _layers_obj,
-      _viz_state.nbhd.visible === true ? false : true
-    );
-    toggle_background_layer_visibility(
-      _layers_obj,
-      _viz_state.nbhd.visible === true ? false : true
-    );
+  //   // toggle with the opposite of _viz_state.nbhd.visible
+  //   toggle_trx_layer_visibility(
+  //     _layers_obj,
+  //     _viz_state.nbhd.visible === true ? false : true
+  //   );
+  //   toggle_visibility_image_layers(
+  //     _layers_obj,
+  //     _viz_state.nbhd.visible === true ? false : true
+  //   );
+  //   toggle_background_layer_visibility(
+  //     _layers_obj,
+  //     _viz_state.nbhd.visible === true ? false : true
+  //   );
 
-    update_cell_pickable_state(
-      _layers_obj,
-      _viz_state.nbhd.visible === true ? false : true
-    );
-    update_path_pickable_state(
-      _layers_obj,
-      _viz_state.nbhd.visible === true ? false : true
-    );
+  //   update_cell_pickable_state(
+  //     _layers_obj,
+  //     _viz_state.nbhd.visible === true ? false : true
+  //   );
+  //   update_path_pickable_state(
+  //     _layers_obj,
+  //     _viz_state.nbhd.visible === true ? false : true
+  //   );
 
-    const layers_list = get_layers_list(
-      _layers_obj,
-      _viz_state.close_up,
-      _viz_state.nbhd.visible
-    );
-    _deck_ist.setProps({ layers: layers_list });
+  //   const layers_list = get_layers_list(
+  //     _layers_obj,
+  //     _viz_state.close_up,
+  //     _viz_state.nbhd.visible
+  //   );
+  //   _deck_ist.setProps({ layers: layers_list });
 
-    _viz_state.nbhd.nbhd_areas =
-      _viz_state.nbhd.feature_collection.features.map((feature, index) => ({
-        name: (index + 1).toString(), // Assign numeric names starting from 1
-        value: feature.properties.area, // Use the "area" property for the bar height
-      }));
+  //   _viz_state.nbhd.nbhd_areas =
+  //     _viz_state.nbhd.feature_collection.features.map((feature, index) => ({
+  //       name: (index + 1).toString(), // Assign numeric names starting from 1
+  //       value: feature.properties.area, // Use the "area" property for the bar height
+  //     }));
+  // };
 
-    // to do: set up subscriber for nbhd bar graph
-  };
+  // viz_state.edit.buttons = {};
+  // viz_state.edit.mode = 'view';
+  // make_edit_button(
+  //   deck_ist,
+  //   layers_obj,
+  //   viz_state,
+  //   ctrl_container,
+  //   'RGN',
+  //   30,
+  //   rgn_callback
+  // );
+  // if (viz_state.nbhd.alpha_nbhd === true) {
+  //   make_edit_button(
+  //     deck_ist,
+  //     layers_obj,
+  //     viz_state,
+  //     rgn_ctrl_container,
+  //     'ALPH',
+  //     30,
+  //     alph_callback
+  //   );
+  // }
 
-  viz_state.edit.buttons = {};
-  viz_state.edit.mode = 'view';
-  make_edit_button(
-    deck_ist,
-    layers_obj,
-    viz_state,
-    rgn_ctrl_container,
-    'RGN',
-    30,
-    rgn_callback
-  );
-  if (viz_state.nbhd.alpha_nbhd === true) {
-    make_edit_button(
-      deck_ist,
-      layers_obj,
-      viz_state,
-      rgn_ctrl_container,
-      'ALPH',
-      30,
-      alph_callback
-    );
-  }
+  // make_edit_button(
+  //   deck_ist,
+  //   layers_obj,
+  //   viz_state,
+  //   rgn_ctrl_container,
+  //   'SKTCH',
+  //   40,
+  //   sketch_callback
+  // );
 
-  make_edit_button(
-    deck_ist,
-    layers_obj,
-    viz_state,
-    rgn_ctrl_container,
-    'SKTCH',
-    40,
-    sketch_callback
-  );
+  // // initially hide SKTCH button
+  // d3.select(viz_state.edit.buttons.sktch).style('display', 'none');
 
-  // initially hide SKTCH button
-  d3.select(viz_state.edit.buttons.sktch).style('display', 'none');
+  // make_edit_button(
+  //   deck_ist,
+  //   layers_obj,
+  //   viz_state,
+  //   rgn_ctrl_container,
+  //   'DEL',
+  //   30,
+  //   del_callback
+  // );
 
-  make_edit_button(
-    deck_ist,
-    layers_obj,
-    viz_state,
-    rgn_ctrl_container,
-    'DEL',
-    30,
-    del_callback
-  );
+  // const alph_slider_container = make_slider_container('alph_slider_container');
 
-  const alph_slider_container = make_slider_container('alph_slider_container');
+  // const alph_slider_callback = (event, _deck_ist, _layers_obj, _viz_state) => {
+  //   const sliderValue = event.target.value / 100; // Normalize slider value to [0, 1]
+  //   const _inv_alpha_values = Array.from(
+  //     new Set(
+  //       _viz_state.nbhd.ini_feature_collection.features.map(
+  //         (feature) => feature.properties.inv_alpha
+  //       )
+  //     )
+  //   ).sort((a, b) => a - b);
 
-  const alph_slider_callback = (event, _deck_ist, _layers_obj, _viz_state) => {
-    const sliderValue = event.target.value / 100; // Normalize slider value to [0, 1]
-    const _inv_alpha_values = Array.from(
-      new Set(
-        _viz_state.nbhd.ini_feature_collection.features.map(
-          (feature) => feature.properties.inv_alpha
-        )
-      )
-    ).sort((a, b) => a - b);
+  //   // Map slider value [0, 1] to the range of `inv_alpha_values`
+  //   const mappedValue =
+  //     _inv_alpha_values[
+  //       Math.round(sliderValue * (_inv_alpha_values.length - 1))
+  //     ];
 
-    // Map slider value [0, 1] to the range of `inv_alpha_values`
-    const mappedValue =
-      _inv_alpha_values[
-        Math.round(sliderValue * (_inv_alpha_values.length - 1))
-      ];
+  //   if (mappedValue !== _viz_state.nbhd.inst_alpha) {
+  //     // console.log('Mapped inv_alpha:', mappedValue);
+  //     _viz_state.nbhd.inst_alpha = mappedValue;
 
-    if (mappedValue !== _viz_state.nbhd.inst_alpha) {
-      // console.log('Mapped inv_alpha:', mappedValue);
-      _viz_state.nbhd.inst_alpha = mappedValue;
+  //     filter_cat_nbhd_feature_collection(_viz_state);
+  //     update_nbhd_layer_data(_viz_state, _layers_obj);
+  //     const layers_list = get_layers_list(_layers_obj, _viz_state.close_up);
+  //     _deck_ist.setProps({ layers: layers_list });
+  //   }
+  // };
 
-      filter_cat_nbhd_feature_collection(_viz_state);
-      update_nbhd_layer_data(_viz_state, _layers_obj);
-      const layers_list = get_layers_list(_layers_obj, _viz_state.close_up);
-      _deck_ist.setProps({ layers: layers_list });
-    }
-  };
+  // // Assuming your feature collection is stored in `viz_state.nbhd.ini_feature_collection`
+  // const _inv_alpha_values = Array.from(
+  //   new Set(
+  //     viz_state.nbhd.ini_feature_collection.features.map(
+  //       (feature) => feature.properties.inv_alpha
+  //     ) // Extract the `inv_alpha` property
+  //   )
+  // ).sort((a, b) => a - b); // Sort the unique values in ascending order
 
-  // Assuming your feature collection is stored in `viz_state.nbhd.ini_feature_collection`
-  const _inv_alpha_values = Array.from(
-    new Set(
-      viz_state.nbhd.ini_feature_collection.features.map(
-        (feature) => feature.properties.inv_alpha
-      ) // Extract the `inv_alpha` property
-    )
-  ).sort((a, b) => a - b); // Sort the unique values in ascending order
+  // // console.log(inv_alpha_values);
 
-  // console.log(inv_alpha_values);
+  // viz_state.sliders.alph = document.createElement('input');
+  // viz_state.sliders.alph.type = 'range';
+  // viz_state.sliders.alph.min = '0';
+  // viz_state.sliders.alph.max = '100';
+  // viz_state.sliders.alph.value = 50;
+  // viz_state.sliders.alph.className = 'slider';
+  // viz_state.sliders.alph.style.width = '75px';
+  // viz_state.sliders.alph.addEventListener('input', (event) =>
+  //   alph_slider_callback(event, deck_ist, layers_obj, viz_state)
+  // );
+  // viz_state.sliders.alph.style.display = 'none';
 
-  viz_state.sliders.alph = document.createElement('input');
-  viz_state.sliders.alph.type = 'range';
-  viz_state.sliders.alph.min = '0';
-  viz_state.sliders.alph.max = '100';
-  viz_state.sliders.alph.value = 50;
-  viz_state.sliders.alph.className = 'slider';
-  viz_state.sliders.alph.style.width = '75px';
-  viz_state.sliders.alph.addEventListener('input', (event) =>
-    alph_slider_callback(event, deck_ist, layers_obj, viz_state)
-  );
-  viz_state.sliders.alph.style.display = 'none';
+  // rgn_ctrl_container.appendChild(alph_slider_container);
+  // alph_slider_container.appendChild(viz_state.sliders.alph);
 
-  rgn_ctrl_container.appendChild(alph_slider_container);
-  alph_slider_container.appendChild(viz_state.sliders.alph);
+  // // initially hide the DEL delete button
+  // d3.select(viz_state.edit.buttons.del)
+  //   .style('color', 'red')
+  //   .style('display', 'none');
 
-  // initially hide the DEL delete button
-  d3.select(viz_state.edit.buttons.del)
-    .style('color', 'red')
-    .style('display', 'none');
+  // viz_state.containers.bar_rgn = make_bar_container();
+  // viz_state.containers.bar_rgn.style.marginLeft = '0px';
 
-  viz_state.containers.bar_rgn = make_bar_container();
-  viz_state.containers.bar_rgn.style.marginLeft = '0px';
+  // rgn_container.appendChild(rgn_ctrl_container);
+  // rgn_container.appendChild(viz_state.containers.bar_rgn);
 
-  rgn_container.appendChild(rgn_ctrl_container);
-  rgn_container.appendChild(viz_state.containers.bar_rgn);
+  // ctrl_container.appendChild(rgn_container);
 
-  ctrl_container.appendChild(rgn_container);
+  // make_bar_graph(
+  //   viz_state.containers.bar_rgn,
+  //   bar_callback_rgn,
+  //   viz_state.edit.svg_bar_rgn,
+  //   viz_state.edit.rgn_areas,
+  //   viz_state.edit.color_dict_rgn,
+  //   deck_ist,
+  //   layers_obj,
+  //   viz_state
+  // );
 
   ctrl_container.appendChild(viz_state.genes.gene_search);
-
-  make_bar_graph(
-    viz_state.containers.bar_rgn,
-    bar_callback_rgn,
-    viz_state.edit.svg_bar_rgn,
-    viz_state.edit.rgn_areas,
-    viz_state.edit.color_dict_rgn,
-    deck_ist,
-    layers_obj,
-    viz_state
-  );
 
   // === Add logo to top right === //
   const logo_button = document.createElement('div');

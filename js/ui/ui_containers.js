@@ -63,9 +63,9 @@ export const toggle_image_layers_and_ctrls = (
   viz_state,
   is_visible
 ) => {
-  d3.select(viz_state.containers.image)
-    .selectAll('.img_layer_button')
-    .style('color', is_visible ? 'blue' : 'gray');
+  // d3.select(viz_state.containers.image)
+  //   .selectAll('.img_layer_button')
+  //   .style('color', is_visible ? 'blue' : 'gray');
 
   viz_state.img.image_layer_sliders.map((slider) =>
     toggle_slider(slider, is_visible)
@@ -473,6 +473,19 @@ export const make_ist_ui_container = (
   viz_state.img.image_info.map((inst_image) =>
     make_img_layer_ctrl(viz_state.img, inst_image)
   );
+
+  viz_state.obs_store.viz_image_layers.subscribe((viz_image_layers) => {
+
+    d3.select(viz_state.containers.image)
+      .selectAll('.img_layer_button')
+      .style('color', viz_image_layers ? 'blue' : 'gray');
+
+    viz_state.img.image_layer_sliders.map((slider) =>
+        toggle_slider(slider, viz_image_layers)
+      );
+
+
+  })
 
   make_button(
     cell_ctrl_container,

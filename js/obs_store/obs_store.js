@@ -14,11 +14,11 @@ const Observable = (initialValue) => {
       }
     },
     subscribe: (fn, options = { immediate: true }) => {
-    subscribers.add(fn);
-    if (options.immediate) {
-        fn(value);
-    }
-    return () => subscribers.delete(fn);
+      subscribers.add(fn);
+      if (options.immediate) {
+          fn(value);
+      }
+      return () => subscribers.delete(fn);
     }
   }
 
@@ -32,7 +32,7 @@ export const create_obs_store = () => {
         new_cell_bar_data: Observable([]),
         new_gene_bar_data: Observable([]),
         selected_genes: Observable([]),
-        viz_img_layers: Observable(true)
+        viz_image_layers: Observable(true)
     }
 
 }

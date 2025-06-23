@@ -18,7 +18,7 @@ import { options } from '../../global_variables/fetch_options';
 import { update_selected_genes } from '../../global_variables/selected_genes';
 import { get_arrow_table } from '../../read_parquet/get_arrow_table';
 import { get_scatter_data } from '../../read_parquet/get_scatter_data';
-import { toggle_image_layers_and_ctrls } from '../../ui/ui_containers';
+// import { toggle_image_layers_and_ctrls } from '../../ui/ui_containers';
 import { scale_umap_data } from '../../umap/scale_umap_data';
 import { get_layers_list } from '../utils/layers_ist';
 
@@ -56,11 +56,19 @@ const cell_layer_onclick = async (info, d, deck_ist, layers_obj, viz_state) => {
   update_cell_layer_id(layers_obj, inst_cat_name);
 
   if (viz_state.umap.state === false) {
-    toggle_image_layers_and_ctrls(
-      layers_obj,
-      viz_state,
-      !viz_state.cats.selected_cats.length > 0
-    );
+
+    // toggle_image_layers_and_ctrls(
+    //   layers_obj,
+    //   viz_state,
+    //   !viz_state.cats.selected_cats.length > 0
+    // );
+
+    if (viz_state.obs_store.selected_cats.get().length > 0) {
+      viz_state.obs_store.viz_image_layers.set(false);
+    } else {
+      viz_state.obs_store.viz_image_layers.set(true);
+    }
+
     update_path_layer_id(layers_obj, inst_cat_name);
     update_trx_layer_id(viz_state.genes, layers_obj);
   }

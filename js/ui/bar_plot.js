@@ -41,9 +41,6 @@ export const bar_callback_cluster = (
   const layers_list = get_layers_list(_layers_obj, _viz_state.close_up);
   _deck_ist.setProps({ layers: layers_list });
 
-  // to-do: move this to a subscriber event
-  // // turn off gene search updates
-  // _viz_state.genes.gene_search_input.value = '';
   // update_gene_text_box(_viz_state.genes, '');
 };
 
@@ -85,8 +82,6 @@ export const bar_callback_gene = async (
   const layers_list = get_layers_list(_layers_obj, _viz_state.close_up);
   _deck_ist.setProps({ layers: layers_list });
 
-  _viz_state.genes.gene_search_input.value =
-    _viz_state.genes.gene_search_input.value !== inst_gene ? inst_gene : '';
   update_gene_text_box(_viz_state.genes, reset_gene ? '' : inst_gene);
 };
 

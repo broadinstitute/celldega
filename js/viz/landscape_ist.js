@@ -432,8 +432,6 @@ export const landscape_ist = async (
       const updatedLayersList = get_layers_list(layers_obj, viz_state.close_up);
       deck_ist.setProps({ layers: updatedLayersList });
 
-      viz_state.genes.gene_search_input.value =
-        viz_state.genes.gene_search_input.value !== inst_gene ? inst_gene : '';
       update_gene_text_box(viz_state.genes, reset_gene ? '' : inst_gene);
     },
     update_matrix_col: async (inst_col) => {
@@ -458,7 +456,6 @@ export const landscape_ist = async (
       );
       deck_ist.setProps({ layers: matrixColLayersList });
 
-      viz_state.genes.gene_search_input.value = '';
       update_gene_text_box(viz_state.genes, '');
     },
     update_matrix_dendro_col: async (selected_cols) => {

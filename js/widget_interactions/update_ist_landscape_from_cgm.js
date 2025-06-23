@@ -54,9 +54,6 @@ export const update_ist_landscape_from_cgm = async (
       const layers_list = get_layers_list(layers_obj, viz_state.close_up);
       deck_ist.setProps({ layers: layers_list });
 
-      viz_state.genes.gene_search_input.value =
-        viz_state.genes.gene_search_input.value !== inst_gene ? inst_gene : '';
-
       update_gene_text_box(viz_state.genes, inst_gene);
     } else if (click_info.type === 'col_label') {
       inst_gene = 'cluster';

@@ -725,6 +725,24 @@ export const make_ist_ui_container = (
 
   viz_state.genes.gene_search.style.marginLeft = '0px';
 
+  // add subscriber for gene search
+  viz_state.obs_store.selected_genes.subscribe(
+    (selected_genes) => {
+      // console.log('gene search subscriber: selected genes:', selected_genes);
+
+      // if selected_genes has a length of 1, update the gene search input
+      if (selected_genes.length === 1) {
+        const inst_gene = selected_genes[0];
+
+        viz_state.genes.gene_search_input.value =
+          viz_state.genes.gene_search_input.value !== inst_gene ? inst_gene : '';
+      } else if (selected_genes.length === 0) {
+        viz_state.genes.gene_search_input.value = '';
+      }
+
+    }
+  )
+
   ui_container.appendChild(ctrl_container);
 
   ctrl_container.appendChild(viz_state.containers.image);

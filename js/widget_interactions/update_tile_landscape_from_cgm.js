@@ -34,8 +34,6 @@ export const update_tile_landscape_from_cgm = async (
 
   // only run if inst_gene is defined and not 'cluster'
   if (inst_gene && inst_gene !== 'cluster') {
-    viz_state.genes.gene_search_input.value =
-      viz_state.genes.gene_search_input.value !== inst_gene ? inst_gene : '';
     await update_gene_text_box(viz_state.genes, inst_gene);
   }
 };

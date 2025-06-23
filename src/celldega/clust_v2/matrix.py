@@ -49,7 +49,23 @@ _ranking_cache = weakref.WeakKeyDictionary()
 
 
 class Matrix:
-    """Optimized Matrix class with improved time and space complexity."""
+    """
+    High-performance matrix class for single-cell genomics data processing.
+
+    Features automatic processing pipeline, hierarchical clustering, and visualization export.
+    Uses intelligent caching for performance with large datasets.
+
+    Examples:
+        # Basic usage - applies norm_col='total', norm_row='zscore'
+        mat = Matrix(adata)
+        viz_data = mat.cluster()
+
+        # Custom processing
+        mat = Matrix(adata, filter_genes=5000, norm_row='qn')
+
+        # No processing
+        mat = Matrix(adata, disable_processing=True)
+    """
 
     def __init__(
         self,
@@ -222,7 +238,16 @@ class Matrix:
         return node_info
 
     def load_df(self, df: pd.DataFrame, meta_col=None, meta_row=None, col_cats=None, row_cats=None):
-        """Load DataFrame with metadata."""
+        """
+        Load DataFrame with metadata.
+
+        Args:
+            df: Data matrix
+            meta_col: Column metadata (must match df.columns)
+            meta_row: Row metadata (must match df.index)
+            col_cats: Column category names for viz
+            row_cats: Row category names for viz
+        """
         self.data = df.copy()
 
         self.meta_col = meta_col.copy() if meta_col is not None else pd.DataFrame(index=df.columns)
@@ -238,7 +263,12 @@ class Matrix:
         self._invalidate_cache(CacheLevel.DATA.value)
 
     def load_adata(self, adata: AnnData) -> None:
-        """Load AnnData object."""
+        """
+        Load AnnData object.
+
+        Args:
+            adata: AnnData object (will be transposed to genes x cells)
+        """
         matrix_data = (adata.X.todense() if hasattr(adata.X, "todense") else adata.X).T
 
         if adata.n_obs * adata.n_vars > CONFIG["memory_warning_threshold"]:
@@ -254,7 +284,14 @@ class Matrix:
         )
 
     def filter(self, axis: AxisType, by: FilterType, num: int) -> None:
-        """Filter features by specified metric."""
+        """
+        Filter features by specified metric.
+
+        Args:
+            axis: 'row' or 'col'
+            by: Metric ('var' for variance, 'mean' for mean)
+            num: Number of top features to keep
+        """
         if self.data is None:
             raise ValueError(ERRORS["no_data"])
 
@@ -273,7 +310,13 @@ class Matrix:
         self._invalidate_cache(CacheLevel.DATA.value)
 
     def subset(self, axis: AxisType, by: list[str]) -> None:
-        """Subset data by feature list."""
+        """
+        Subset data by feature list.
+
+        Args:
+            axis: 'row' or 'col'
+            by: List of feature names to keep
+        """
         if self.data is None:
             raise ValueError(ERRORS["no_data"])
 
@@ -294,7 +337,14 @@ class Matrix:
         self._invalidate_cache(CacheLevel.DATA.value)
 
     def random_subsample(self, axis: AxisType, num: int, seed: int = 42) -> None:
-        """Randomly subsample features."""
+        """
+        Randomly subsample features.
+
+        Args:
+            axis: 'row' or 'col'
+            num: Number of features to sample
+            seed: Random seed for reproducibility
+        """
         if self.data is None:
             raise ValueError(ERRORS["no_data"])
 
@@ -316,7 +366,13 @@ class Matrix:
         self._invalidate_cache(CacheLevel.DATA.value)
 
     def norm(self, axis: AxisType, by: NormType) -> None:
-        """Normalize data along specified axis."""
+        """
+        Normalize data along specified axis.
+
+        Args:
+            axis: 'row' or 'col'
+            by: Normalization method ('total', 'zscore', 'qn')
+        """
         if self.data is None:
             raise ValueError(ERRORS["no_data"])
 
@@ -362,7 +418,14 @@ class Matrix:
         linkage_type: LinkageType = "average",
         force: bool = False,
     ):
-        """Perform hierarchical clustering."""
+        """
+        Perform hierarchical clustering.
+
+        Args:
+            dist_type: Distance metric ('cosine', 'euclidean', 'correlation')
+            linkage_type: Linkage method ('average', 'complete', 'ward')
+            force: Override size limits for large matrices
+        """
         if self.data is None:
             raise ValueError(ERRORS["no_data"])
 
@@ -542,7 +605,16 @@ class Matrix:
             axis_nodes.append(node)
 
     def downsample_to(self, category: str = "leiden", axis: AxisType = "col") -> None:
-        """Downsample data by aggregating categories."""
+        """
+        Downsample data by aggregating categories.
+
+        Args:
+            category: Metadata column to aggregate by
+            axis: Which axis to aggregate ('col' for cells, 'row' for genes)
+
+        Requires:
+            scanpy for aggregation functionality
+        """
         if self.data is None:
             raise ValueError(ERRORS["no_data"])
 
@@ -610,7 +682,14 @@ class Matrix:
         return self.export_viz_json_string()
 
     def add_category(self, axis: AxisType, name: str, data: pd.Series) -> None:
-        """Add category to metadata."""
+        """
+        Add category to metadata.
+
+        Args:
+            axis: 'row' or 'col'
+            name: Category name
+            data: Category values (must match axis length)
+        """
         if self.data is None:
             raise ValueError(ERRORS["no_data"])
 

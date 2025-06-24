@@ -1,8 +1,5 @@
 """
-Optimized hierarchical clustering and visualization for high-dimensional biological data.
-
-This module provides the main Network class for data clustering and the hc() convenience
-function for quick clustering operations. Optimized for minimal time/space complexity.
+This module provides the main Matrix class for hierarchical data clustering and visualization.
 """
 
 # Import main classes and functions

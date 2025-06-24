@@ -89,7 +89,7 @@ export const matrix_viz = async (
   el.style.position = 'relative';
   viz_state.el = el;
 
-  console.log('network', network);
+  // console.log('network', network);
 
   set_mat_data(network, viz_state);
 

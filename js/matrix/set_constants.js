@@ -62,8 +62,9 @@ export const set_mat_constants = (
   viz_state.zoom.ini_zoom_x = 0;
   viz_state.zoom.ini_zoom_y = 0;
 
-  viz_state.viz.row_cat_width = 9;
-  viz_state.viz.col_cat_height = 9;
+  // to do: adjust height
+  viz_state.viz.row_cat_width = 8;
+  viz_state.viz.col_cat_height = 8;
 
   viz_state.viz.row_cat_offset = 10;
 

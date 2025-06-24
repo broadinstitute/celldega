@@ -82,9 +82,6 @@ const reorder_button_callback = (
       },
     });
 
-    console.log('viz_state.order.current.row', viz_state.order.current.row);
-    console.log('viz_state.order.current.col', viz_state.order.current.col);
-
     if (axis === 'row') {
 
       layers_mat.row_label_layer = layers_mat.row_label_layer.clone({

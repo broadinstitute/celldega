@@ -3,7 +3,6 @@ import * as d3 from 'd3-color';
 const colorToRgba = (colorStr, alpha = 255) => {
   const d3col = d3.color(colorStr);
   if (!d3col) {
-    console.warn(`Invalid color: ${colorStr}`);
     return [0, 0, 0, alpha]; // fallback: black
   }
   return [d3col.r, d3col.g, d3col.b, alpha];
@@ -16,13 +15,15 @@ const set_cat_data = (network, viz_state, axis) => {
   const cat_offset = isRow ? viz_state.viz.row_cat_offset : viz_state.viz.col_cat_offset;
   const node_offset = isRow ? viz_state.viz.row_offset : viz_state.viz.col_offset;
 
+  // // 👇 Shift rows down by one row_offset (or fraction if needed)
+  // const row_shift = isRow ? node_offset : 0;
+
   const cat_data = nodes.flatMap((node, node_index) => {
     return Array.from({ length: num_cats }).map((_, cat_index) => {
       const cat_name = `cat-${cat_index}`;
       const ini_cat = node[cat_name];
 
       if (!ini_cat) {
-        console.warn(`Missing ${cat_name} for ${axis} node ${node.name}`);
         return null;
       }
 
@@ -42,11 +43,11 @@ const set_cat_data = (network, viz_state, axis) => {
             ],
         color: color_rgba,
         name: clean_cat,
-        level: cat_index,         // category level (e.g. cat-0, cat-1)
-        original_index: node_index // <--- ADDED: track original row/col index
+        level: cat_index,
+        original_index: node_index
       };
     });
-  }).filter(Boolean); // remove nulls
+  }).filter(Boolean);
 
   return cat_data;
 };

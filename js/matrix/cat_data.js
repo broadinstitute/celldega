@@ -27,6 +27,9 @@ const set_cat_data = (network, viz_state, axis) => {
         return null;
       }
 
+      if (!ini_cat.includes(': ')) {
+        return null;
+      }
       const clean_cat = ini_cat.split(': ')[1];
       const ini_color = network.global_cat_colors[clean_cat];
       const color_rgba = colorToRgba(ini_color, 255);

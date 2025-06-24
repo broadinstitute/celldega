@@ -63,11 +63,11 @@ const cell_layer_onclick = async (info, d, deck_ist, layers_obj, viz_state) => {
     //   !viz_state.cats.selected_cats.length > 0
     // );
 
-    if (viz_state.obs_store.selected_cats.get().length > 0) {
-      viz_state.obs_store.viz_image_layers.set(false);
-    } else {
-      viz_state.obs_store.viz_image_layers.set(true);
-    }
+    // if (viz_state.obs_store.selected_cats.get().length > 0) {
+    //   viz_state.obs_store.viz_image_layers.set(false);
+    // } else {
+    //   viz_state.obs_store.viz_image_layers.set(true);
+    // }
 
     update_path_layer_id(layers_obj, inst_cat_name);
     update_trx_layer_id(viz_state.genes, layers_obj);

@@ -65,7 +65,7 @@ import { create_obs_store } from '../obs_store/obs_store';
 import { set_image_layer_sliders } from '../ui/sliders';
 import {
   make_ist_ui_container,
-  toggle_image_layers_and_ctrls,
+  // toggle_image_layers_and_ctrls,
 } from '../ui/ui_containers';
 import { update_cell_clusters } from '../widget_interactions/update_cell_clusters';
 import { update_ist_landscape_from_cgm } from '../widget_interactions/update_ist_landscape_from_cgm';
@@ -100,6 +100,23 @@ export const landscape_ist = async (
   const viz_state = {};
 
   viz_state.obs_store = create_obs_store();
+
+  const update_viz_image_layers = () => {
+    const hasCats = viz_state.obs_store.selected_cats.get().length > 0;
+    const hasGenes = viz_state.obs_store.selected_genes.get().length > 0;
+
+    if (hasCats || hasGenes) {
+      viz_state.obs_store.viz_image_layers.set(false);
+    } else {
+      viz_state.obs_store.viz_image_layers.set(true);
+    }
+  };
+
+  // Subscribe both, but they call the same function
+  viz_state.obs_store.selected_cats.subscribe(update_viz_image_layers);
+  viz_state.obs_store.selected_genes.subscribe(update_viz_image_layers);
+
+
 
   console.log(viz_state.obs_store);
   console.log(viz_state.obs_store.viz_image_layers.get())
@@ -408,11 +425,11 @@ export const landscape_ist = async (
       const reset_gene = inst_gene === viz_state.cats.cat;
       const new_cat = reset_gene ? 'cluster' : inst_gene;
 
-      toggle_image_layers_and_ctrls(
-        layers_obj,
-        viz_state,
-        viz_state.cats.cat === inst_gene
-      );
+      // toggle_image_layers_and_ctrls(
+      //   layers_obj,
+      //   viz_state,
+      //   viz_state.cats.cat === inst_gene
+      // );
 
       update_cat(viz_state.cats, new_cat);
       update_selected_genes(viz_state.genes, [inst_gene], viz_state.obs_store);
@@ -439,11 +456,12 @@ export const landscape_ist = async (
       update_cat(viz_state.cats, 'cluster');
       update_selected_cats(viz_state.cats, [inst_col], viz_state.obs_store);
       update_selected_genes(viz_state.genes, [], viz_state.obs_store);
-      toggle_image_layers_and_ctrls(
-        layers_obj,
-        viz_state,
-        !viz_state.cats.selected_cats.length > 0
-      );
+
+      // toggle_image_layers_and_ctrls(
+      //   layers_obj,
+      //   viz_state,
+      //   !viz_state.cats.selected_cats.length > 0
+      // );
 
       const inst_cat_name = viz_state.cats.selected_cats.join('-');
       update_cell_layer_id(layers_obj, inst_cat_name);
@@ -464,11 +482,12 @@ export const landscape_ist = async (
       update_selected_cats(viz_state.cats, new_cats, viz_state.obs_store);
 
       update_selected_genes(viz_state.genes, [], viz_state.obs_store);
-      toggle_image_layers_and_ctrls(
-        layers_obj,
-        viz_state,
-        !viz_state.cats.selected_cats.length > 0
-      );
+
+      // toggle_image_layers_and_ctrls(
+      //   layers_obj,
+      //   viz_state,
+      //   !viz_state.cats.selected_cats.length > 0
+      // );
 
       const inst_cat_name = viz_state.cats.selected_cats.join('-');
 

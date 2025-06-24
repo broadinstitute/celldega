@@ -5,7 +5,7 @@ import { ScatterplotLayer } from 'deck.gl';
 import { update_cat, update_selected_cats } from '../../global_variables/cat';
 import { update_cell_exp_array } from '../../global_variables/cell_exp_array';
 import { update_selected_genes } from '../../global_variables/selected_genes';
-import { toggle_image_layers_and_ctrls } from '../../ui/ui_containers';
+// import { toggle_image_layers_and_ctrls } from '../../ui/ui_containers';
 import { grab_trx_tiles_in_view } from '../../vector_tile/transcripts/grab_trx_tiles_in_view';
 import { get_layers_list } from '../utils/layers_ist';
 
@@ -36,11 +36,11 @@ const trx_layer_callback = async (
 
   const new_cat = reset_gene ? 'cluster' : inst_gene;
 
-  toggle_image_layers_and_ctrls(
-    layers_obj,
-    viz_state,
-    viz_state.cats.cat === inst_gene
-  );
+  // toggle_image_layers_and_ctrls(
+  //   layers_obj,
+  //   viz_state,
+  //   viz_state.cats.cat === inst_gene
+  // );
 
   update_cat(viz_state.cats, new_cat);
 

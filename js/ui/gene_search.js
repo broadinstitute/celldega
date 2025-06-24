@@ -10,7 +10,7 @@ import { update_selected_genes } from '../global_variables/selected_genes';
 import { update_tile_exp_array } from '../global_variables/tile_exp_array';
 
 import { set_gene_search_input } from './gene_search_input';
-import { toggle_image_layers_and_ctrls } from './ui_containers';
+// import { toggle_image_layers_and_ctrls } from './ui_containers';
 
 let gene_search_options = [];
 
@@ -61,11 +61,11 @@ const ist_gene_search_callback = async (deck_ist, layers_obj, viz_state) => {
       );
     }
 
-    toggle_image_layers_and_ctrls(
-      layers_obj,
-      viz_state,
-      !inst_gene_in_gene_names
-    );
+    // toggle_image_layers_and_ctrls(
+    //   layers_obj,
+    //   viz_state,
+    //   !inst_gene_in_gene_names
+    // );
 
     update_cell_layer_id(layers_obj, new_cat);
     update_path_layer_id(layers_obj, new_cat);

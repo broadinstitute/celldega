@@ -83,17 +83,35 @@ const reorder_button_callback = (
     });
 
     if (axis === 'row') {
+
       layers_mat.row_label_layer = layers_mat.row_label_layer.clone({
         updateTriggers: {
           getPosition: viz_state.order.current.row,
         },
       });
+
+      // reorder cat_layer
+      layers_mat.row_cat_layer = layers_mat.row_cat_layer.clone({
+        updateTriggers: {
+          getPosition: viz_state.order.current.row,
+        },
+      });
+
     } else {
+
       layers_mat.col_label_layer = layers_mat.col_label_layer.clone({
         updateTriggers: {
           getPosition: viz_state.order.current.col,
         },
       });
+
+      // reorder cat_layer
+      layers_mat.col_cat_layer = layers_mat.col_cat_layer.clone({
+        updateTriggers: {
+          getPosition: viz_state.order.current.col,
+        },
+      });
+
     }
 
     toggle_dendro_layer_visibility(layers_mat, viz_state, axis);

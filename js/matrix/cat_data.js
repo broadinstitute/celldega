@@ -1,61 +1,64 @@
+import * as d3 from 'd3-color';
+
+const colorToRgba = (colorStr, alpha = 255) => {
+  const d3col = d3.color(colorStr);
+  if (!d3col) {
+    return [0, 0, 0, alpha]; // fallback: black
+  }
+  return [d3col.r, d3col.g, d3col.b, alpha];
+};
+
+const set_cat_data = (network, viz_state, axis) => {
+  const isRow = axis === 'row';
+  const nodes = isRow ? network.row_nodes : network.col_nodes;
+  const num_cats = isRow ? viz_state.cats.num_cats.row : viz_state.cats.num_cats.col;
+  const cat_offset = isRow ? viz_state.viz.row_cat_offset : viz_state.viz.col_cat_offset;
+  const node_offset = isRow ? viz_state.viz.row_offset : viz_state.viz.col_offset;
+
+  // // 👇 Shift rows down by one row_offset (or fraction if needed)
+  // const row_shift = isRow ? node_offset : 0;
+
+  const cat_data = nodes.flatMap((node, node_index) => {
+    return Array.from({ length: num_cats }).map((_, cat_index) => {
+      const cat_name = `cat-${cat_index}`;
+      const ini_cat = node[cat_name];
+
+      if (!ini_cat) {
+        return null;
+      }
+
+      if (!ini_cat.includes(': ')) {
+        return null;
+      }
+      const clean_cat = ini_cat.split(': ')[1];
+      const ini_color = network.global_cat_colors[clean_cat];
+      const color_rgba = colorToRgba(ini_color, 255);
+
+      return {
+        position: isRow
+          ? [
+              cat_offset * (cat_index + 0.5) + 20,
+              node_offset * (node_index + 0.5)
+            ]
+          : [
+              node_offset * (node_index + 0.5),
+              cat_offset * (cat_index + 1.5) - 30
+            ],
+        color: color_rgba,
+        name: clean_cat,
+        level: cat_index,
+        original_index: node_index
+      };
+    });
+  }).filter(Boolean);
+
+  return cat_data;
+};
+
 export const set_row_cat_data = (network, viz_state) => {
-  let index_row = 0;
-  let matrix_index = 0;
-
-  const num_points = viz_state.mat.num_rows * viz_state.cats.num_cats.row;
-
-  const row_cat_data = new Array(num_points).fill(0).map(() => {
-    const index_col = matrix_index % viz_state.cats.num_cats.row;
-
-    if (matrix_index % viz_state.cats.num_cats.row === 0) {
-      index_row += 1;
-    }
-
-    const p = {
-      position: [
-        // viz_state.viz.row_cat_offset * (index_col + 0.5),
-        viz_state.viz.row_cat_offset * (index_col + 0.5) + 20,
-        viz_state.viz.row_offset * (index_row + 0.5),
-      ],
-      color: [0, 255, 0, 255],
-      name: `something ${index_row}`,
-    };
-
-    matrix_index += 1;
-
-    return p;
-  });
-
-  return row_cat_data;
+  return set_cat_data(network, viz_state, 'row');
 };
 
 export const set_col_cat_data = (network, viz_state) => {
-  const num_points = viz_state.mat.num_cols * viz_state.cats.num_cats.col;
-
-  let index_row = 0;
-  let matrix_index = 0;
-
-  const col_cat_data = new Array(num_points).fill(0).map(() => {
-    const index_col = matrix_index % viz_state.mat.num_cols;
-
-    if (matrix_index % viz_state.mat.num_cols === 0) {
-      index_row += 1;
-    }
-
-    const p = {
-      position: [
-        viz_state.viz.col_offset * (index_col + 0.5),
-        // move cats down
-        viz_state.viz.col_cat_offset * (index_row + 1.5) - 35,
-      ],
-      color: [0, 255, 0, 150],
-      name: `some column ${index_col}`,
-    };
-
-    matrix_index += 1;
-
-    return p;
-  });
-
-  return col_cat_data;
+  return set_cat_data(network, viz_state, 'col');
 };

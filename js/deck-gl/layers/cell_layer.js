@@ -1,5 +1,3 @@
-/* eslint-disable import/no-cycle */
-
 import * as d3 from 'd3';
 import { ScatterplotLayer } from 'deck.gl';
 

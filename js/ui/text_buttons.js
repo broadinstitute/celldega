@@ -1,4 +1,3 @@
-/* eslint-disable import/no-cycle */
 import * as d3 from 'd3';
 
 import { toggle_background_layer_visibility } from '../deck-gl/layers/background_layer';

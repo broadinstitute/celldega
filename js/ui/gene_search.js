@@ -1,4 +1,3 @@
-/* eslint-disable import/no-cycle */
 import { update_cell_layer_id } from '../deck-gl/layers/cell_layer';
 import { update_path_layer_id } from '../deck-gl/layers/path_layer';
 import { update_square_scatter_layer } from '../deck-gl/layers/square_scatter_layer';

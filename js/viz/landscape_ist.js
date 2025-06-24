@@ -116,11 +116,6 @@ export const landscape_ist = async (
   viz_state.obs_store.selected_cats.subscribe(update_viz_image_layers);
   viz_state.obs_store.selected_genes.subscribe(update_viz_image_layers);
 
-
-
-  console.log(viz_state.obs_store);
-  console.log(viz_state.obs_store.viz_image_layers.get())
-
   viz_state.seg = {};
   viz_state.seg.version = segmentation;
 

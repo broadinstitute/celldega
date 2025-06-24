@@ -1,6 +1,7 @@
 import { CustomMatrixLayer } from './custom_matrix_layer';
 
 export const ini_row_cat_layer = (viz_state) => {
+
   // Create a new ScatterplotLayer using the input data
   const row_cat_layer = new CustomMatrixLayer({
     id: 'row-layer',
@@ -20,6 +21,7 @@ export const ini_row_cat_layer = (viz_state) => {
 };
 
 export const ini_col_cat_layer = (viz_state) => {
+
   const col_cat_layer = new CustomMatrixLayer({
     id: 'col-layer',
     data: viz_state.cats.col_cat_data,

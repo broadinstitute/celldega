@@ -139,6 +139,22 @@ class Matrix:
             if not disable_processing:
                 self.process(filter_genes=filter_genes, norm_col=norm_col, norm_row=norm_row)
 
+    @property
+    def dat(self) -> dict[str, Any]:
+        """Lazy dat structure with intelligent caching."""
+        current_hash = get_data_hash(self.data)
+
+        if (
+            self._dat_cache is None
+            or self._data_hash != current_hash
+            or self._dirty_flags[CacheLevel.DATA.value]
+        ):
+            self._dat_cache = self._build_dat_structure()
+            self._data_hash = current_hash
+            self._dirty_flags[CacheLevel.DATA.value] = False
+
+        return self._dat_cache
+
     def process(self, filter_genes=None, norm_col="total", norm_row="zscore") -> None:
         """
         Apply processing pipeline to the matrix.
@@ -176,66 +192,6 @@ class Matrix:
         """
         self.clust(**cluster_kwargs)
         return self.export_viz_json()
-
-    def _invalidate_cache(self, level: str) -> None:
-        """Hierarchical cache invalidation."""
-        self._dirty_flags[level] = True
-        for dependent in CACHE_HIERARCHY.get(level, []):
-            self._dirty_flags[dependent] = True
-
-        if level == CacheLevel.DATA.value:
-            self._dat_cache = None
-            if self in _ranking_cache:
-                del _ranking_cache[self]
-
-    @property
-    def dat(self) -> dict[str, Any]:
-        """Lazy dat structure with intelligent caching."""
-        current_hash = get_data_hash(self.data)
-
-        if (
-            self._dat_cache is None
-            or self._data_hash != current_hash
-            or self._dirty_flags[CacheLevel.DATA.value]
-        ):
-            self._dat_cache = self._build_dat_structure()
-            self._data_hash = current_hash
-            self._dirty_flags[CacheLevel.DATA.value] = False
-
-        return self._dat_cache
-
-    def _build_dat_structure(self) -> dict[str, Any]:
-        """Build dat structure efficiently."""
-        if self.data is None:
-            return {
-                "nodes": {Axis.ROW.value: [], Axis.COL.value: []},
-                "mat": np.array([]),
-                "node_info": {Axis.ROW.value: {}, Axis.COL.value: {}},
-            }
-
-        return {
-            "nodes": {
-                Axis.ROW.value: list(self.data.index),
-                Axis.COL.value: list(self.data.columns),
-            },
-            "mat": self.data.values,
-            "node_info": {
-                Axis.ROW.value: self._create_node_info(Axis.ROW.value),
-                Axis.COL.value: self._create_node_info(Axis.COL.value),
-            },
-        }
-
-    def _create_node_info(self, axis: str) -> dict[str, Any]:
-        """Create node info for specified axis."""
-        nodes = list(self.data.index if axis == Axis.ROW.value else self.data.columns)
-        meta_df = self.meta_row if axis == Axis.ROW.value else self.meta_col
-        cats = self.row_cats if axis == Axis.ROW.value else self.col_cats
-        linkage_data = self.viz["linkage"][axis]
-
-        node_info = create_node_info_base(len(nodes), linkage_data)
-        add_categories_to_node_info(node_info, nodes, meta_df, cats)
-
-        return node_info
 
     def load_df(self, df: pd.DataFrame, meta_col=None, meta_row=None, col_cats=None, row_cats=None):
         """
@@ -501,6 +457,156 @@ class Matrix:
         self._viz_json(dendro=self._clustered)
         self._dirty_flags[CacheLevel.VIZ.value] = False
 
+    def downsample_to(self, category: str = "leiden", axis: AxisType = "col") -> None:
+        """
+        Downsample data by aggregating categories.
+
+        Args:
+            category: Metadata column to aggregate by
+            axis: Which axis to aggregate ('col' for cells, 'row' for genes)
+
+        Requires:
+            scanpy for aggregation functionality
+        """
+        if self.data is None:
+            raise ValueError(ERRORS["no_data"])
+
+        try:
+            import scanpy as sc
+        except ImportError:
+            raise ImportError(ERRORS["missing_scanpy"]) from None
+
+        meta_df = self.meta_col if axis == Axis.COL.value else self.meta_row
+        if category not in meta_df.columns:
+            raise ValueError(ERRORS["missing_category"].format(category, list(meta_df.columns)))
+
+        adata = (
+            self.to_adata()
+            if axis == Axis.COL.value
+            else AnnData(X=self.data.T, obs=self.meta_row, var=self.meta_col)
+        )
+        adata_agg = sc.get.aggregate(adata, by=category, func="mean")
+
+        count_col = "n_cells" if axis == Axis.COL.value else "n_genes"
+        adata_agg.obs[count_col] = adata.obs.groupby(category).size().values
+
+        modal_cols = {
+            col: adata.obs.groupby(category)[col]
+            .agg(lambda x: x.mode().iloc[0] if len(x.mode()) > 0 else None)
+            .values
+            for col in meta_df.columns
+            if col != category and col not in adata_agg.obs.columns
+        }
+
+        for col, values in modal_cols.items():
+            adata_agg.obs[col] = values
+
+        self.data = pd.DataFrame(
+            adata_agg.X.T if axis == Axis.COL.value else adata_agg.X,
+            index=adata_agg.var.index if axis == Axis.COL.value else adata_agg.obs.index,
+            columns=adata_agg.obs.index if axis == Axis.COL.value else adata_agg.var.index,
+        )
+        setattr(self, f"meta_{axis}", adata_agg.obs)
+        self.is_downsampled, self._clustered = True, False
+        self._invalidate_cache(CacheLevel.DATA.value)
+
+    def to_df(self) -> pd.DataFrame:
+        """Return DataFrame copy of data."""
+        return self.data.copy() if self.data is not None else pd.DataFrame()
+
+    def to_adata(self) -> AnnData:
+        """Convert to AnnData object."""
+        if self.data is None:
+            raise ValueError(ERRORS["no_data"])
+        return AnnData(X=self.data.values.T, obs=self.meta_col, var=self.meta_row)
+
+    def export_viz_json(self) -> dict[str, Any]:
+        """Export visualization as JSON dict."""
+        if not self._clustered:
+            warnings.warn("Matrix not clustered. Call clust() first.", UserWarning, stacklevel=2)
+        return self.viz.copy()
+
+    def export_viz_json_string(self) -> str:
+        """Export visualization as JSON string."""
+        return json.dumps(self.export_viz_json())
+
+    def export_viz_to_widget(self, which_viz: str = "viz") -> str:
+        """Export visualization for widget."""
+        return self.export_viz_json_string()
+
+    def add_category(self, axis: AxisType, name: str, data: pd.Series) -> None:
+        """
+        Add category to metadata.
+
+        Args:
+            axis: 'row' or 'col'
+            name: Category name
+            data: Category values (must match axis length)
+        """
+        if self.data is None:
+            raise ValueError(ERRORS["no_data"])
+
+        meta_df = self.meta_col if axis == Axis.COL.value else self.meta_row
+        meta_df[name] = data
+
+        cats_list = self.col_cats if axis == Axis.COL.value else self.row_cats
+        if name not in cats_list:
+            cats_list.append(name)
+
+        self._invalidate_cache(CacheLevel.DATA.value)
+        if self._clustered:
+            self.make_viz()
+
+    ###########################################################################
+
+    # NOTE: Internal helpers
+
+    ###########################################################################
+
+    def _invalidate_cache(self, level: str) -> None:
+        """Hierarchical cache invalidation."""
+        self._dirty_flags[level] = True
+        for dependent in CACHE_HIERARCHY.get(level, []):
+            self._dirty_flags[dependent] = True
+
+        if level == CacheLevel.DATA.value:
+            self._dat_cache = None
+            if self in _ranking_cache:
+                del _ranking_cache[self]
+
+    def _build_dat_structure(self) -> dict[str, Any]:
+        """Build dat structure efficiently."""
+        if self.data is None:
+            return {
+                "nodes": {Axis.ROW.value: [], Axis.COL.value: []},
+                "mat": np.array([]),
+                "node_info": {Axis.ROW.value: {}, Axis.COL.value: {}},
+            }
+
+        return {
+            "nodes": {
+                Axis.ROW.value: list(self.data.index),
+                Axis.COL.value: list(self.data.columns),
+            },
+            "mat": self.data.values,
+            "node_info": {
+                Axis.ROW.value: self._create_node_info(Axis.ROW.value),
+                Axis.COL.value: self._create_node_info(Axis.COL.value),
+            },
+        }
+
+    def _create_node_info(self, axis: str) -> dict[str, Any]:
+        """Create node info for specified axis."""
+        nodes = list(self.data.index if axis == Axis.ROW.value else self.data.columns)
+        meta_df = self.meta_row if axis == Axis.ROW.value else self.meta_col
+        cats = self.row_cats if axis == Axis.ROW.value else self.col_cats
+        linkage_data = self.viz["linkage"][axis]
+
+        node_info = create_node_info_base(len(nodes), linkage_data)
+        add_categories_to_node_info(node_info, nodes, meta_df, cats)
+
+        return node_info
+
     def _update_rankings_cached(self) -> None:
         """Update rankings with caching."""
         if self in _ranking_cache and not self._dirty_flags[CacheLevel.CLUSTERING.value]:
@@ -603,106 +709,6 @@ class Matrix:
                     node[cat_key] = cat_data[i]
 
             axis_nodes.append(node)
-
-    def downsample_to(self, category: str = "leiden", axis: AxisType = "col") -> None:
-        """
-        Downsample data by aggregating categories.
-
-        Args:
-            category: Metadata column to aggregate by
-            axis: Which axis to aggregate ('col' for cells, 'row' for genes)
-
-        Requires:
-            scanpy for aggregation functionality
-        """
-        if self.data is None:
-            raise ValueError(ERRORS["no_data"])
-
-        try:
-            import scanpy as sc
-        except ImportError:
-            raise ImportError(ERRORS["missing_scanpy"]) from None
-
-        meta_df = self.meta_col if axis == Axis.COL.value else self.meta_row
-        if category not in meta_df.columns:
-            raise ValueError(ERRORS["missing_category"].format(category, list(meta_df.columns)))
-
-        adata = (
-            self.to_adata()
-            if axis == Axis.COL.value
-            else AnnData(X=self.data.T, obs=self.meta_row, var=self.meta_col)
-        )
-        adata_agg = sc.get.aggregate(adata, by=category, func="mean")
-
-        count_col = "n_cells" if axis == Axis.COL.value else "n_genes"
-        adata_agg.obs[count_col] = adata.obs.groupby(category).size().values
-
-        modal_cols = {
-            col: adata.obs.groupby(category)[col]
-            .agg(lambda x: x.mode().iloc[0] if len(x.mode()) > 0 else None)
-            .values
-            for col in meta_df.columns
-            if col != category and col not in adata_agg.obs.columns
-        }
-
-        for col, values in modal_cols.items():
-            adata_agg.obs[col] = values
-
-        self.data = pd.DataFrame(
-            adata_agg.X.T if axis == Axis.COL.value else adata_agg.X,
-            index=adata_agg.var.index if axis == Axis.COL.value else adata_agg.obs.index,
-            columns=adata_agg.obs.index if axis == Axis.COL.value else adata_agg.var.index,
-        )
-        setattr(self, f"meta_{axis}", adata_agg.obs)
-        self.is_downsampled, self._clustered = True, False
-        self._invalidate_cache(CacheLevel.DATA.value)
-
-    def to_df(self) -> pd.DataFrame:
-        """Return DataFrame copy of data."""
-        return self.data.copy() if self.data is not None else pd.DataFrame()
-
-    def to_adata(self) -> AnnData:
-        """Convert to AnnData object."""
-        if self.data is None:
-            raise ValueError(ERRORS["no_data"])
-        return AnnData(X=self.data.values.T, obs=self.meta_col, var=self.meta_row)
-
-    def export_viz_json(self) -> dict[str, Any]:
-        """Export visualization as JSON dict."""
-        if not self._clustered:
-            warnings.warn("Matrix not clustered. Call clust() first.", UserWarning, stacklevel=2)
-        return self.viz.copy()
-
-    def export_viz_json_string(self) -> str:
-        """Export visualization as JSON string."""
-        return json.dumps(self.export_viz_json())
-
-    def export_viz_to_widget(self, which_viz: str = "viz") -> str:
-        """Export visualization for widget."""
-        return self.export_viz_json_string()
-
-    def add_category(self, axis: AxisType, name: str, data: pd.Series) -> None:
-        """
-        Add category to metadata.
-
-        Args:
-            axis: 'row' or 'col'
-            name: Category name
-            data: Category values (must match axis length)
-        """
-        if self.data is None:
-            raise ValueError(ERRORS["no_data"])
-
-        meta_df = self.meta_col if axis == Axis.COL.value else self.meta_row
-        meta_df[name] = data
-
-        cats_list = self.col_cats if axis == Axis.COL.value else self.row_cats
-        if name not in cats_list:
-            cats_list.append(name)
-
-        self._invalidate_cache(CacheLevel.DATA.value)
-        if self._clustered:
-            self.make_viz()
 
     def _validate_clustering_size(self, force: bool = False) -> None:
         """Validate matrix size for clustering."""

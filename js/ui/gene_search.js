@@ -1,4 +1,4 @@
-import { update_cell_layer_id } from '../deck-gl/layers/cell_layer';
+// import { update_cell_layer_id } from '../deck-gl/layers/cell_layer';
 import { update_path_layer_id } from '../deck-gl/layers/path_layer';
 import { update_square_scatter_layer } from '../deck-gl/layers/square_scatter_layer';
 import { update_trx_layer_id } from '../deck-gl/layers/trx_layer';
@@ -42,7 +42,11 @@ const ist_gene_search_callback = async (deck_ist, layers_obj, viz_state) => {
   if (inst_gene === '' || viz_state.genes.gene_names.includes(inst_gene)) {
     update_cat(viz_state.cats, new_cat);
     update_selected_genes(viz_state.genes, inst_gene === '' ? [] : [inst_gene], viz_state.obs_store);
-    update_selected_cats(viz_state.cats, [], viz_state.obs_store);
+
+    // make selected_cats an empty array if new_cat is cluster or
+    // make it an array with the selected gene if inst_gene is not an empty string
+    // update_selected_cats(viz_state.cats, [new_cat], viz_state.obs_store);
+    update_selected_cats(viz_state.cats, new_cat === 'cluster' ? [] : [inst_gene], viz_state.obs_store);
 
     const inst_gene_in_gene_names =
       viz_state.genes.gene_names.includes(inst_gene);
@@ -59,7 +63,7 @@ const ist_gene_search_callback = async (deck_ist, layers_obj, viz_state) => {
       );
     }
 
-    update_cell_layer_id(layers_obj, new_cat);
+    // update_cell_layer_id(layers_obj, new_cat);
     update_path_layer_id(layers_obj, new_cat);
     update_trx_layer_id(viz_state.genes, layers_obj);
 

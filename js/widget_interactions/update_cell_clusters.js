@@ -1,4 +1,4 @@
-import { update_cell_layer_id } from '../deck-gl/layers/cell_layer';
+// import { update_cell_layer_id } from '../deck-gl/layers/cell_layer';
 import { get_layers_list } from '../deck-gl/utils/layers_ist';
 import { update_cell_cats } from '../global_variables/cat';
 import { update_meta_cluster } from '../global_variables/meta_cluster';
@@ -9,7 +9,7 @@ export const update_cell_clusters = (deck_ist, layers_obj, viz_state) => {
   update_meta_cluster(viz_state.cats, new_cluster_info['meta_cluster']);
   update_cell_cats(viz_state.cats, new_cluster_info['new_clusters']);
 
-  update_cell_layer_id(layers_obj, 'cluster');
+  // update_cell_layer_id(layers_obj, 'cluster');
 
   const layers_list = get_layers_list(layers_obj, viz_state.close_up);
   deck_ist.setProps({ layers: layers_list });

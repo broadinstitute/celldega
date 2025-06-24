@@ -24,12 +24,12 @@ import { get_layers_list } from '../utils/layers_ist';
 import { update_path_layer_id } from './path_layer';
 import { update_trx_layer_id } from './trx_layer';
 
-// Forward declarations for functions used before definition
-export function update_cell_layer_id(layers_obj, new_cat) {
-  layers_obj.cell_layer = layers_obj.cell_layer.clone({
-    id: `cell-layer-${new_cat}`,
-  });
-}
+// // Forward declarations for functions used before definition
+// export function update_cell_layer_id(layers_obj, new_cat) {
+//   layers_obj.cell_layer = layers_obj.cell_layer.clone({
+//     id: `cell-layer-${new_cat}`,
+//   });
+// }
 
 const cell_layer_onclick = async (info, d, deck_ist, layers_obj, viz_state) => {
   // Check if the device is a touch device
@@ -52,7 +52,7 @@ const cell_layer_onclick = async (info, d, deck_ist, layers_obj, viz_state) => {
 
   const inst_cat_name = viz_state.cats.selected_cats.join('-');
 
-  update_cell_layer_id(layers_obj, inst_cat_name);
+  // update_cell_layer_id(layers_obj, inst_cat_name);
 
   if (viz_state.umap.state === false) {
 

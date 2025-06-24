@@ -55,23 +55,6 @@ import {
   make_reorder_button,
 } from './text_buttons';
 
-// // to do: move this to a subscriber
-// export const toggle_image_layers_and_ctrls = (
-//   layers_obj,
-//   viz_state,
-//   is_visible
-// ) => {
-//   // d3.select(viz_state.containers.image)
-//   //   .selectAll('.img_layer_button')
-//   //   .style('color', is_visible ? 'blue' : 'gray');
-
-//   // viz_state.img.image_layer_sliders.map((slider) =>
-//   //   toggle_slider(slider, is_visible)
-//   // );
-
-//   // toggle_visibility_image_layers(layers_obj, is_visible);
-// };
-
 export const make_ui_container = () => {
   const ui_container = document.createElement('div');
   ui_container.style.display = 'flex';

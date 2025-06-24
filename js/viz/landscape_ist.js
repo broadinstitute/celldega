@@ -65,7 +65,6 @@ import { create_obs_store } from '../obs_store/obs_store';
 import { set_image_layer_sliders } from '../ui/sliders';
 import {
   make_ist_ui_container,
-  // toggle_image_layers_and_ctrls,
 } from '../ui/ui_containers';
 import { update_cell_clusters } from '../widget_interactions/update_cell_clusters';
 import { update_ist_landscape_from_cgm } from '../widget_interactions/update_ist_landscape_from_cgm';
@@ -378,6 +377,8 @@ export const landscape_ist = async (
   set_edit_layer_on_click(deck_ist, layers_obj, viz_state);
   set_nbhd_layer_onclick(deck_ist, layers_obj, viz_state);
 
+
+
   update_trx_layer_radius(layers_obj, trx_radius);
 
   if (viz_state.umap.state === true) {
@@ -420,12 +421,6 @@ export const landscape_ist = async (
       const reset_gene = inst_gene === viz_state.cats.cat;
       const new_cat = reset_gene ? 'cluster' : inst_gene;
 
-      // toggle_image_layers_and_ctrls(
-      //   layers_obj,
-      //   viz_state,
-      //   viz_state.cats.cat === inst_gene
-      // );
-
       update_cat(viz_state.cats, new_cat);
       update_selected_genes(viz_state.genes, [inst_gene], viz_state.obs_store);
       update_selected_cats(viz_state.cats, [], viz_state.obs_store);
@@ -452,12 +447,6 @@ export const landscape_ist = async (
       update_selected_cats(viz_state.cats, [inst_col], viz_state.obs_store);
       update_selected_genes(viz_state.genes, [], viz_state.obs_store);
 
-      // toggle_image_layers_and_ctrls(
-      //   layers_obj,
-      //   viz_state,
-      //   !viz_state.cats.selected_cats.length > 0
-      // );
-
       const inst_cat_name = viz_state.cats.selected_cats.join('-');
       update_cell_layer_id(layers_obj, inst_cat_name);
       update_path_layer_id(layers_obj, inst_cat_name);
@@ -477,12 +466,6 @@ export const landscape_ist = async (
       update_selected_cats(viz_state.cats, new_cats, viz_state.obs_store);
 
       update_selected_genes(viz_state.genes, [], viz_state.obs_store);
-
-      // toggle_image_layers_and_ctrls(
-      //   layers_obj,
-      //   viz_state,
-      //   !viz_state.cats.selected_cats.length > 0
-      // );
 
       const inst_cat_name = viz_state.cats.selected_cats.join('-');
 

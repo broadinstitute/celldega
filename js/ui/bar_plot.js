@@ -8,8 +8,6 @@ import { update_cat, update_selected_cats } from '../global_variables/cat';
 import { update_cell_exp_array } from '../global_variables/cell_exp_array';
 import { update_selected_genes } from '../global_variables/selected_genes';
 
-// import { toggle_image_layers_and_ctrls } from './ui_containers';
-
 export const make_bar_container = () => {
   return document.createElement('div');
 };
@@ -25,16 +23,20 @@ export const bar_callback_cluster = (
   update_cat(_viz_state.cats, 'cluster');
   update_selected_cats(_viz_state.cats, [d.name], _viz_state.obs_store);
   update_selected_genes(_viz_state.genes, [], _viz_state.obs_store);
-  // toggle_image_layers_and_ctrls(
-  //   _layers_obj,
-  //   _viz_state,
-  //   !_viz_state.cats.selected_cats.length > 0
-  // );
 
   const inst_cat_name = _viz_state.cats.selected_cats.join('-');
   update_cell_layer_id(_layers_obj, inst_cat_name);
   update_path_layer_id(_layers_obj, inst_cat_name);
   update_trx_layer_id(_viz_state.genes, _layers_obj);
+
+  // add cell_layer, path_layer, and trx_layer to the deck_check observable
+  // to do list
+  _viz_state.obs_store.deck_check.set({
+      ..._viz_state.obs_store.deck_check.get(),
+      cell_layer: false,
+      path_layer: false,
+      trx_layer: false,
+    })
 
   const layers_list = get_layers_list(_layers_obj, _viz_state.close_up);
   _deck_ist.setProps({ layers: layers_list });
@@ -52,12 +54,6 @@ export const bar_callback_gene = async (
   const inst_gene = d.name;
   const reset_gene = inst_gene === _viz_state.cats.cat;
   const new_cat = reset_gene ? 'cluster' : inst_gene;
-
-  // toggle_image_layers_and_ctrls(
-  //   _layers_obj,
-  //   _viz_state,
-  //   _viz_state.cats.cat === inst_gene
-  // );
 
   update_cat(_viz_state.cats, new_cat);
   update_selected_genes(_viz_state.genes, [inst_gene], _viz_state.obs_store);

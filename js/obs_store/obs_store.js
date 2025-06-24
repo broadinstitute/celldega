@@ -32,7 +32,14 @@ export const create_obs_store = () => {
         new_cell_bar_data: Observable([]),
         new_gene_bar_data: Observable([]),
         selected_genes: Observable([]),
-        viz_image_layers: Observable(true)
+        viz_image_layers: Observable(true),
+        deck_check: Observable({
+            backgroukd_layer: true,
+            image_layers: true,
+            cell_layer: true,
+            path_layer: true,
+            trx_layer: true
+        }),
     }
 
 }

@@ -17,7 +17,6 @@ import {
 import {
   ini_cell_layer,
   set_cell_layer_onclick,
-  // update_cell_layer_id,
 } from '../deck-gl/layers/cell_layer';
 import {
   ini_edit_layer,
@@ -440,7 +439,6 @@ export const landscape_ist = async (
         viz_state.aws
       );
 
-      // update_cell_layer_id(layers_obj, new_cat);
       update_path_layer_id(layers_obj, new_cat);
       update_trx_layer_id(viz_state.genes, layers_obj);
 
@@ -454,7 +452,6 @@ export const landscape_ist = async (
       update_selected_genes(viz_state.genes, [], viz_state.obs_store);
 
       const inst_cat_name = viz_state.cats.selected_cats.join('-');
-      // update_cell_layer_id(layers_obj, inst_cat_name);
       update_path_layer_id(layers_obj, inst_cat_name);
       update_trx_layer_id(viz_state.genes, layers_obj);
 
@@ -475,7 +472,6 @@ export const landscape_ist = async (
 
       const inst_cat_name = viz_state.cats.selected_cats.join('-');
 
-      // update_cell_layer_id(layers_obj, inst_cat_name);
       update_path_layer_id(layers_obj, inst_cat_name);
       update_trx_layer_id(viz_state.genes, layers_obj);
 

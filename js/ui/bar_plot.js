@@ -1,6 +1,5 @@
 import * as d3 from 'd3';
 
-// import { update_cell_layer_id } from '../deck-gl/layers/cell_layer';
 import { update_path_layer_id } from '../deck-gl/layers/path_layer';
 import { update_trx_layer_id } from '../deck-gl/layers/trx_layer';
 import { get_layers_list } from '../deck-gl/utils/layers_ist';
@@ -25,7 +24,6 @@ export const bar_callback_cluster = (
   update_selected_genes(_viz_state.genes, [], _viz_state.obs_store);
 
   const inst_cat_name = _viz_state.cats.selected_cats.join('-');
-  // update_cell_layer_id(_layers_obj, inst_cat_name);
   update_path_layer_id(_layers_obj, inst_cat_name);
   update_trx_layer_id(_viz_state.genes, _layers_obj);
 
@@ -70,7 +68,6 @@ export const bar_callback_gene = async (
     _viz_state.aws
   );
 
-  // update_cell_layer_id(_layers_obj, new_cat);
   update_path_layer_id(_layers_obj, new_cat);
   update_trx_layer_id(_viz_state.genes, _layers_obj);
 

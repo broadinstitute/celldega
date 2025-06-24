@@ -1,4 +1,3 @@
-// import { update_cell_layer_id } from '../deck-gl/layers/cell_layer';
 import { update_path_layer_id } from '../deck-gl/layers/path_layer';
 import { update_square_scatter_layer } from '../deck-gl/layers/square_scatter_layer';
 import { update_trx_layer_id } from '../deck-gl/layers/trx_layer';
@@ -63,7 +62,6 @@ const ist_gene_search_callback = async (deck_ist, layers_obj, viz_state) => {
       );
     }
 
-    // update_cell_layer_id(layers_obj, new_cat);
     update_path_layer_id(layers_obj, new_cat);
     update_trx_layer_id(viz_state.genes, layers_obj);
 

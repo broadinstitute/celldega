@@ -6,7 +6,6 @@ import { update_selected_genes } from '../../global_variables/selected_genes';
 import { grab_cell_tiles_in_view } from '../../vector_tile/polygons/grab_cell_tiles_in_view';
 import { get_layers_list } from '../utils/layers_ist';
 
-// import { update_cell_layer_id } from './cell_layer';
 import { update_trx_layer_id } from './trx_layer';
 
 export const get_path_color = (cats, i, d) => {
@@ -68,7 +67,6 @@ const path_layer_onclick = async (
 
   const inst_cat_name = viz_state.cats.selected_cats.join('-');
 
-  // update_cell_layer_id(layers_obj, inst_cat_name);
   update_path_layer_id(layers_obj, inst_cat_name);
   update_trx_layer_id(viz_state.genes, layers_obj);
 

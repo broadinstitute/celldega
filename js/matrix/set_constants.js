@@ -55,8 +55,8 @@ export const set_mat_constants = (
   viz_state.viz.row_label = 75; // 35
 
   viz_state.viz.extra_space = {};
-  viz_state.viz.extra_space.row = 10;
-  viz_state.viz.extra_space.col = 10;
+  viz_state.viz.extra_space.row = 5; // 10;
+  viz_state.viz.extra_space.col = 5; // 10;
 
   viz_state.zoom = {};
   viz_state.zoom.ini_zoom_x = 0;

@@ -57,7 +57,9 @@ docs = [
     "mkdocs",
     "mkdocs-material",
     "mkdocstrings[python]",
-    "mkdocstrings[javascript]"
+    "mkdocstrings[javascript]",
+    "mkdocs-jupyter",
+    "mkdocs-open-in-new-tab"
 ]
 
 # Automatically add the dev feature to the default env (e.g., hatch shell)

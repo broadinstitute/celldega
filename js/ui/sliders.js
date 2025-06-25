@@ -1,5 +1,3 @@
-/* eslint-disable import/no-cycle */
-
 import { update_cell_layer_radius } from '../deck-gl/layers/cell_layer';
 import { update_opacity_single_image_layer } from '../deck-gl/layers/image_layers';
 import { square_scatter_layer_opacity } from '../deck-gl/layers/square_scatter_layer';

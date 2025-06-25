@@ -34,7 +34,7 @@ export const create_obs_store = () => {
         selected_genes: Observable([]),
         viz_image_layers: Observable(true),
         deck_check: Observable({
-            backgroukd_layer: true,
+            background_layer: true,
             image_layers: true,
             cell_layer: true,
             path_layer: true,

@@ -18,19 +18,19 @@ import {
   ini_cell_layer,
   set_cell_layer_onclick,
 } from '../deck-gl/layers/cell_layer';
-import {
-  ini_edit_layer,
-  set_edit_layer_on_click,
-  set_edit_layer_on_edit,
-} from '../deck-gl/layers/edit_layer';
+// import {
+//   ini_edit_layer,
+//   set_edit_layer_on_click,
+//   set_edit_layer_on_edit,
+// } from '../deck-gl/layers/edit_layer';
 import {
   make_image_layers,
   toggle_visibility_image_layers,
 } from '../deck-gl/layers/image_layers';
-import {
-  ini_nbhd_layer,
-  set_nbhd_layer_onclick,
-} from '../deck-gl/layers/nbhd_layer';
+// import {
+//   ini_nbhd_layer,
+//   set_nbhd_layer_onclick,
+// } from '../deck-gl/layers/nbhd_layer';
 import {
   ini_path_layer,
   set_path_layer_onclick,
@@ -352,8 +352,8 @@ export const landscape_ist = async (
   const cell_layer = await ini_cell_layer(base_url, viz_state);
   const path_layer = await ini_path_layer(viz_state);
   const trx_layer = ini_trx_layer(viz_state.genes);
-  const edit_layer = ini_edit_layer(viz_state);
-  const nbhd_layer = ini_nbhd_layer(viz_state, false);
+  // const edit_layer = ini_edit_layer(viz_state);
+  // const nbhd_layer = ini_nbhd_layer(viz_state, false);
 
   // make layers object
   const layers_obj = {
@@ -362,17 +362,17 @@ export const landscape_ist = async (
     cell_layer,
     path_layer,
     trx_layer,
-    edit_layer,
-    nbhd_layer,
+    // edit_layer,
+    // nbhd_layer,
   };
 
   // set onclicks after all layers are made
   set_cell_layer_onclick(deck_ist, layers_obj, viz_state);
   set_path_layer_onclick(deck_ist, layers_obj, viz_state);
   set_trx_layer_onclick(deck_ist, layers_obj, viz_state);
-  set_edit_layer_on_edit(deck_ist, layers_obj, viz_state);
-  set_edit_layer_on_click(deck_ist, layers_obj, viz_state);
-  set_nbhd_layer_onclick(deck_ist, layers_obj, viz_state);
+  // set_edit_layer_on_edit(deck_ist, layers_obj, viz_state);
+  // set_edit_layer_on_click(deck_ist, layers_obj, viz_state);
+  // set_nbhd_layer_onclick(deck_ist, layers_obj, viz_state);
 
   viz_state.obs_store.selected_cats.subscribe((selected_cats) => {
     const selected_cats_name = selected_cats.join('-');

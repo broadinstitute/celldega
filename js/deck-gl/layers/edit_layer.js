@@ -1,229 +1,231 @@
-// /* eslint-disable import/no-cycle */
+// to do: re-enable edit_layer
 
-import {
-  EditableGeoJsonLayer,
-  ModifyMode,
-  ViewMode,
-} from '@deck.gl-community/editable-layers';
-import * as d3 from 'd3';
+// // /* eslint-disable import/no-cycle */
 
-import { handleValidationWarning } from '../../temp_utils/errorHandler';
-import { get_layers_list } from '../utils/layers_ist';
+// import {
+//   EditableGeoJsonLayer,
+//   ModifyMode,
+//   ViewMode,
+// } from '@deck.gl-community/editable-layers';
+// import * as d3 from 'd3';
 
-import { update_cell_pickable_state } from './cell_layer';
-import { update_path_pickable_state } from './path_layer';
-import { update_trx_pickable_state } from './trx_layer';
+// import { handleValidationWarning } from '../../temp_utils/errorHandler';
+// import { get_layers_list } from '../utils/layers_ist';
 
-// Forward declaration for function used before definition
-function update_edit_layer_mode(layers_obj, mode) {
-  layers_obj.edit_layer = layers_obj.edit_layer.clone({
-    mode,
-  });
-}
+// import { update_cell_pickable_state } from './cell_layer';
+// import { update_path_pickable_state } from './path_layer';
+// import { update_trx_pickable_state } from './trx_layer';
 
-// Function to calculate areas from a FeatureCollection
-const calc_region_areas = (featureCollection) => {
-  featureCollection.features.forEach((feature, index) => {
-    if (feature.geometry.type === 'Polygon') {
-      // Extract the outer ring of the polygon
-      const coordinates = feature.geometry.coordinates[0];
+// // Forward declaration for function used before definition
+// function update_edit_layer_mode(layers_obj, mode) {
+//   layers_obj.edit_layer = layers_obj.edit_layer.clone({
+//     mode,
+//   });
+// }
 
-      // Calculate the area
-      const area = Math.abs(d3.polygonArea(coordinates));
+// // Function to calculate areas from a FeatureCollection
+// const calc_region_areas = (featureCollection) => {
+//   featureCollection.features.forEach((feature, index) => {
+//     if (feature.geometry.type === 'Polygon') {
+//       // Extract the outer ring of the polygon
+//       const coordinates = feature.geometry.coordinates[0];
 
-      // Update the properties
-      feature.properties = {
-        ...feature.properties,
-        area, // Store the calculated area
-        name: feature.properties.name || `Feature ${index + 1}`, // Default name if not set
-        color: feature.properties.color || [
-          Math.random() * 255,
-          Math.random() * 255,
-          Math.random() * 255,
-        ], // Default color if not set
-      };
-    } else {
-      handleValidationWarning(`Feature ${index} is not a Polygon.`, {
-        logLevel: 'warn',
-        shouldLog: true,
-        data: { featureIndex: index, featureType: feature.geometry?.type },
-      });
-    }
-  });
+//       // Calculate the area
+//       const area = Math.abs(d3.polygonArea(coordinates));
 
-  return featureCollection; // Return updated FeatureCollection
-};
+//       // Update the properties
+//       feature.properties = {
+//         ...feature.properties,
+//         area, // Store the calculated area
+//         name: feature.properties.name || `Feature ${index + 1}`, // Default name if not set
+//         color: feature.properties.color || [
+//           Math.random() * 255,
+//           Math.random() * 255,
+//           Math.random() * 255,
+//         ], // Default color if not set
+//       };
+//     } else {
+//       handleValidationWarning(`Feature ${index} is not a Polygon.`, {
+//         logLevel: 'warn',
+//         shouldLog: true,
+//         data: { featureIndex: index, featureType: feature.geometry?.type },
+//       });
+//     }
+//   });
 
-export const sync_region_to_model = (viz_state) => {
-  if (Object.keys(viz_state.model).length > 0) {
-    viz_state.model.set('region', {});
-    viz_state.model.set('region', viz_state.edit.feature_collection);
-    viz_state.model.save_changes();
-  }
-};
+//   return featureCollection; // Return updated FeatureCollection
+// };
 
-export const calc_and_update_rgn_bar_graph = async (
-  viz_state
-) => {
-  // Calculate areas
-  viz_state.edit.feature_collection = calc_region_areas(
-    viz_state.edit.feature_collection
-  );
+// export const sync_region_to_model = (viz_state) => {
+//   if (Object.keys(viz_state.model).length > 0) {
+//     viz_state.model.set('region', {});
+//     viz_state.model.set('region', viz_state.edit.feature_collection);
+//     viz_state.model.save_changes();
+//   }
+// };
 
-  viz_state.edit.rgn_areas = viz_state.edit.feature_collection.features
-    .map((feature, index) => ({
-      name: (index + 1).toString(), // Assign numeric names starting from 1
-      value: feature.properties.area, // Use the "area" property for the bar height
-    }))
-    .sort((a, b) => b.value - a.value);
+// export const calc_and_update_rgn_bar_graph = async (
+//   viz_state
+// ) => {
+//   // Calculate areas
+//   viz_state.edit.feature_collection = calc_region_areas(
+//     viz_state.edit.feature_collection
+//   );
 
-  viz_state.edit.color_dict_rgn =
-    viz_state.edit.feature_collection.features.reduce((acc, feature, index) => {
-      acc[(index + 1).toString()] = feature.properties.color; // Use the "color" property
-      return acc;
-    }, {});
+//   viz_state.edit.rgn_areas = viz_state.edit.feature_collection.features
+//     .map((feature, index) => ({
+//       name: (index + 1).toString(), // Assign numeric names starting from 1
+//       value: feature.properties.area, // Use the "area" property for the bar height
+//     }))
+//     .sort((a, b) => b.value - a.value);
 
-};
+//   viz_state.edit.color_dict_rgn =
+//     viz_state.edit.feature_collection.features.reduce((acc, feature, index) => {
+//       acc[(index + 1).toString()] = feature.properties.color; // Use the "color" property
+//       return acc;
+//     }, {});
 
-const edit_layer_on_edit = async (
-  deck_ist,
-  layers_obj,
-  viz_state,
-  edit_info
-) => {
-  // const { updatedData, editType, featureIndexes, editContext } = edit_info;
-  const { updatedData, editType } = edit_info;
+// };
 
-  viz_state.edit.feature_collection = updatedData;
+// const edit_layer_on_edit = async (
+//   deck_ist,
+//   layers_obj,
+//   viz_state,
+//   edit_info
+// ) => {
+//   // const { updatedData, editType, featureIndexes, editContext } = edit_info;
+//   const { updatedData, editType } = edit_info;
 
-  layers_obj.edit_layer = layers_obj.edit_layer.clone({
-    data: viz_state.edit.feature_collection,
-  });
+//   viz_state.edit.feature_collection = updatedData;
 
-  if (editType === 'addFeature') {
-    update_edit_layer_mode(layers_obj, ViewMode);
+//   layers_obj.edit_layer = layers_obj.edit_layer.clone({
+//     data: viz_state.edit.feature_collection,
+//   });
 
-    d3.select(viz_state.edit.buttons.sktch)
-      .style('color', 'gray')
-      .classed('active', false);
+//   if (editType === 'addFeature') {
+//     update_edit_layer_mode(layers_obj, ViewMode);
 
-    viz_state.edit.mode = 'view';
+//     d3.select(viz_state.edit.buttons.sktch)
+//       .style('color', 'gray')
+//       .classed('active', false);
 
-    update_cell_pickable_state(layers_obj, true);
-    update_path_pickable_state(layers_obj, true);
-    update_trx_pickable_state(layers_obj, true);
+//     viz_state.edit.mode = 'view';
 
-    await calc_and_update_rgn_bar_graph(viz_state);
+//     update_cell_pickable_state(layers_obj, true);
+//     update_path_pickable_state(layers_obj, true);
+//     update_trx_pickable_state(layers_obj, true);
 
-    sync_region_to_model(viz_state);
-  }
+//     await calc_and_update_rgn_bar_graph(viz_state);
 
-  const layers_list = get_layers_list(layers_obj, viz_state.close_up);
-  deck_ist.setProps({ layers: layers_list });
-  await calc_and_update_rgn_bar_graph(viz_state);
-  sync_region_to_model(viz_state);
-};
+//     sync_region_to_model(viz_state);
+//   }
 
-const edit_layer_on_click = async (event, deck_ist, layers_obj, viz_state) => {
-  if (event.featureType === 'polygons' && viz_state.edit.mode === 'view') {
-    // switch to modify mode
-    layers_obj.edit_layer = layers_obj.edit_layer.clone({
-      id: 'edit-layer-modify',
-      mode: ModifyMode,
-      selectedFeatureIndexes: [event.index],
-      modeConfig: {
-        dragToAddNew: true, // Enable dragging along edges to create new nodes
-        enableSnapping: false, // Disable snapping to nearby nodes
-      },
-    });
+//   const layers_list = get_layers_list(layers_obj, viz_state.close_up);
+//   deck_ist.setProps({ layers: layers_list });
+//   await calc_and_update_rgn_bar_graph(viz_state);
+//   sync_region_to_model(viz_state);
+// };
 
-    const layers_list = await get_layers_list(layers_obj, viz_state.close_up);
-    deck_ist.setProps({ layers: layers_list });
+// const edit_layer_on_click = async (event, deck_ist, layers_obj, viz_state) => {
+//   if (event.featureType === 'polygons' && viz_state.edit.mode === 'view') {
+//     // switch to modify mode
+//     layers_obj.edit_layer = layers_obj.edit_layer.clone({
+//       id: 'edit-layer-modify',
+//       mode: ModifyMode,
+//       selectedFeatureIndexes: [event.index],
+//       modeConfig: {
+//         dragToAddNew: true, // Enable dragging along edges to create new nodes
+//         enableSnapping: false, // Disable snapping to nearby nodes
+//       },
+//     });
 
-    viz_state.edit.mode = 'modify';
+//     const layers_list = await get_layers_list(layers_obj, viz_state.close_up);
+//     deck_ist.setProps({ layers: layers_list });
 
-    viz_state.edit.modify_index = event.index;
+//     viz_state.edit.mode = 'modify';
 
-    // make the DEL button red and active
-    d3.select(viz_state.edit.buttons.del)
-      .classed('active', true)
-      .style('display', 'inline-flex');
+//     viz_state.edit.modify_index = event.index;
 
-    // hide the RGN and SKTCH buttons
-    d3.select(viz_state.edit.buttons.rgn).style('display', 'none');
+//     // make the DEL button red and active
+//     d3.select(viz_state.edit.buttons.del)
+//       .classed('active', true)
+//       .style('display', 'inline-flex');
 
-    d3.select(viz_state.edit.buttons.sktch).style('display', 'none');
-  } else if (
-    event.featureType === 'polygons' &&
-    viz_state.edit.mode === 'modify'
-  ) {
-    // switch to view mode
-    layers_obj.edit_layer = layers_obj.edit_layer.clone({
-      id: 'edit-layer-view',
-      mode: ViewMode,
-      selectedFeatureIndexes: [],
-    });
+//     // hide the RGN and SKTCH buttons
+//     d3.select(viz_state.edit.buttons.rgn).style('display', 'none');
 
-    const layers_list = await get_layers_list(layers_obj, viz_state.close_up);
-    deck_ist.setProps({ layers: layers_list });
+//     d3.select(viz_state.edit.buttons.sktch).style('display', 'none');
+//   } else if (
+//     event.featureType === 'polygons' &&
+//     viz_state.edit.mode === 'modify'
+//   ) {
+//     // switch to view mode
+//     layers_obj.edit_layer = layers_obj.edit_layer.clone({
+//       id: 'edit-layer-view',
+//       mode: ViewMode,
+//       selectedFeatureIndexes: [],
+//     });
 
-    viz_state.edit.mode = 'view';
+//     const layers_list = await get_layers_list(layers_obj, viz_state.close_up);
+//     deck_ist.setProps({ layers: layers_list });
 
-    viz_state.edit.modify_index = null;
+//     viz_state.edit.mode = 'view';
 
-    // hide the DEL button
-    d3.select(viz_state.edit.buttons.del)
-      .classed('active', false)
-      .style('display', 'none');
+//     viz_state.edit.modify_index = null;
 
-    // hide the RGN and SKTCH buttons
-    d3.select(viz_state.edit.buttons.rgn).style('display', 'inline-flex');
+//     // hide the DEL button
+//     d3.select(viz_state.edit.buttons.del)
+//       .classed('active', false)
+//       .style('display', 'none');
 
-    d3.select(viz_state.edit.buttons.sktch).style('display', 'inline-flex');
-  }
-};
+//     // hide the RGN and SKTCH buttons
+//     d3.select(viz_state.edit.buttons.rgn).style('display', 'inline-flex');
 
-export const ini_edit_layer = (viz_state) => {
-  const edit_layer = new EditableGeoJsonLayer({
-    id: 'edit-layer',
-    data: viz_state.edit.feature_collection,
-    selectedFeatureIndexes: [],
-    mode: ViewMode,
-    filled: true,
-    pointRadiusMinPixels: 2,
-    pointRadiusScale: 2000,
-    extruded: true,
-    getElevation: 1000,
-    getFillColor: (d) => d.properties.color,
-    pickable: true,
-    autoHighlight: true,
-    modeConfig: {
-      preventOverlappingLines: true,
-    },
-    visible: false,
-  });
+//     d3.select(viz_state.edit.buttons.sktch).style('display', 'inline-flex');
+//   }
+// };
 
-  return edit_layer;
-};
+// export const ini_edit_layer = (viz_state) => {
+//   const edit_layer = new EditableGeoJsonLayer({
+//     id: 'edit-layer',
+//     data: viz_state.edit.feature_collection,
+//     selectedFeatureIndexes: [],
+//     mode: ViewMode,
+//     filled: true,
+//     pointRadiusMinPixels: 2,
+//     pointRadiusScale: 2000,
+//     extruded: true,
+//     getElevation: 1000,
+//     getFillColor: (d) => d.properties.color,
+//     pickable: true,
+//     autoHighlight: true,
+//     modeConfig: {
+//       preventOverlappingLines: true,
+//     },
+//     visible: false,
+//   });
 
-export const set_edit_layer_on_edit = (deck_ist, layers_obj, viz_state) => {
-  layers_obj.edit_layer = layers_obj.edit_layer.clone({
-    onEdit: (edit_info) =>
-      edit_layer_on_edit(deck_ist, layers_obj, viz_state, edit_info),
-  });
-};
+//   return edit_layer;
+// };
 
-export const set_edit_layer_on_click = (deck_ist, layers_obj, viz_state) => {
-  layers_obj.edit_layer = layers_obj.edit_layer.clone({
-    onClick: (event) =>
-      edit_layer_on_click(event, deck_ist, layers_obj, viz_state),
-  });
-};
+// export const set_edit_layer_on_edit = (deck_ist, layers_obj, viz_state) => {
+//   layers_obj.edit_layer = layers_obj.edit_layer.clone({
+//     onEdit: (edit_info) =>
+//       edit_layer_on_edit(deck_ist, layers_obj, viz_state, edit_info),
+//   });
+// };
 
-export { update_edit_layer_mode };
+// export const set_edit_layer_on_click = (deck_ist, layers_obj, viz_state) => {
+//   layers_obj.edit_layer = layers_obj.edit_layer.clone({
+//     onClick: (event) =>
+//       edit_layer_on_click(event, deck_ist, layers_obj, viz_state),
+//   });
+// };
 
-export const update_edit_visitility = (layers_obj, visible) => {
-  layers_obj.edit_layer = layers_obj.edit_layer.clone({
-    visible,
-  });
-};
+// export { update_edit_layer_mode };
+
+// export const update_edit_visitility = (layers_obj, visible) => {
+//   layers_obj.edit_layer = layers_obj.edit_layer.clone({
+//     visible,
+//   });
+// };

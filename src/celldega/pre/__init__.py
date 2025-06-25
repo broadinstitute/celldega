@@ -364,7 +364,6 @@ def _process_image_channel(path_landscape_files, channel_info, img):
     )
 
 
-
 def create_image_tiles(technology, data_dir, path_landscape_files, image_tile_layer="dapi"):
     """
     Creates image tiles for visualization from the Xenium morphology image.

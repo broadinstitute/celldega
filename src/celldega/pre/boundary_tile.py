@@ -135,7 +135,6 @@ def batch_transform_geometries(geometries, transformation_matrix, scale):
     return transformed_geometries
 
 
-
 def filter_and_save_fine_boundary(
     coarse_tile,
     fine_i,

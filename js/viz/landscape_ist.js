@@ -40,7 +40,6 @@ import {
   ini_trx_layer,
   set_trx_layer_onclick,
   update_trx_layer_radius,
-  update_trx_layer_id,
   toggle_trx_layer_visibility,
 } from '../deck-gl/layers/trx_layer';
 import { get_layers_list } from '../deck-gl/utils/layers_ist';
@@ -388,6 +387,14 @@ export const landscape_ist = async (
 
   })
 
+  viz_state.obs_store.selected_genes.subscribe((selected_genes) => {
+    const selected_genes_name = selected_genes.join('-');
+    layers_obj.trx_layer = layers_obj.trx_layer.clone({
+      id: `trx-layer-${selected_genes_name}`,
+    });
+  });
+
+
   update_trx_layer_radius(layers_obj, trx_radius);
 
   if (viz_state.umap.state === true) {
@@ -444,8 +451,6 @@ export const landscape_ist = async (
         viz_state.aws
       );
 
-      update_trx_layer_id(viz_state.genes, layers_obj);
-
       const updatedLayersList = get_layers_list(layers_obj, viz_state.close_up);
       deck_ist.setProps({ layers: updatedLayersList });
     },
@@ -454,8 +459,6 @@ export const landscape_ist = async (
       update_cat(viz_state.cats, 'cluster');
       update_selected_cats(viz_state.cats, [inst_col], viz_state.obs_store);
       update_selected_genes(viz_state.genes, [], viz_state.obs_store);
-
-      update_trx_layer_id(viz_state.genes, layers_obj);
 
       const matrixColLayersList = get_layers_list(
         layers_obj,
@@ -471,8 +474,6 @@ export const landscape_ist = async (
       update_selected_cats(viz_state.cats, new_cats, viz_state.obs_store);
 
       update_selected_genes(viz_state.genes, [], viz_state.obs_store);
-
-      update_trx_layer_id(viz_state.genes, layers_obj);
 
       const dendroColLayersList = get_layers_list(
         layers_obj,

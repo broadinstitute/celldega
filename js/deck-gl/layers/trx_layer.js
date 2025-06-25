@@ -6,12 +6,6 @@ import { update_selected_genes } from '../../global_variables/selected_genes';
 import { grab_trx_tiles_in_view } from '../../vector_tile/transcripts/grab_trx_tiles_in_view';
 import { get_layers_list } from '../utils/layers_ist';
 
-export const update_trx_layer_id = (genes, layers_obj) => {
-  layers_obj.trx_layer = layers_obj.trx_layer.clone({
-    id: `trx-layer-${genes.selected_genes.join('-')}`,
-  });
-};
-
 const trx_layer_callback = async (
   info,
   _d,
@@ -46,8 +40,6 @@ const trx_layer_callback = async (
     viz_state.vector_name_integer,
     viz_state.aws
   );
-
-  update_trx_layer_id(viz_state.genes, layers_obj);
 
   const layers_list = get_layers_list(layers_obj, viz_state.close_up);
   deck_ist.setProps({ layers: layers_list });

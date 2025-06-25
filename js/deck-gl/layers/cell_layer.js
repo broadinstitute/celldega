@@ -19,8 +19,6 @@ import { get_scatter_data } from '../../read_parquet/get_scatter_data';
 import { scale_umap_data } from '../../umap/scale_umap_data';
 import { get_layers_list } from '../utils/layers_ist';
 
-import { update_trx_layer_id } from './trx_layer';
-
 const cell_layer_onclick = async (info, d, deck_ist, layers_obj, viz_state) => {
   // Check if the device is a touch device
   const isTouchDevice =
@@ -39,12 +37,6 @@ const cell_layer_onclick = async (info, d, deck_ist, layers_obj, viz_state) => {
   update_cat(viz_state.cats, 'cluster');
   update_selected_cats(viz_state.cats, [inst_cat], viz_state.obs_store);
   update_selected_genes(viz_state.genes, [], viz_state.obs_store);
-
-
-  if (viz_state.umap.state === false) {
-
-    update_trx_layer_id(viz_state.genes, layers_obj);
-  }
 
   const layers_list = get_layers_list(layers_obj, viz_state.close_up);
   deck_ist.setProps({ layers: layers_list });

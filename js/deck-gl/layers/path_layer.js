@@ -5,8 +5,6 @@ import { update_selected_genes } from '../../global_variables/selected_genes';
 import { grab_cell_tiles_in_view } from '../../vector_tile/polygons/grab_cell_tiles_in_view';
 import { get_layers_list } from '../utils/layers_ist';
 
-import { update_trx_layer_id } from './trx_layer';
-
 export const get_path_color = (cats, i, d) => {
   const inst_cell_id = cats.polygon_cell_names[d.index];
   const inst_cat = cats.dict_cell_cats[inst_cell_id];
@@ -57,8 +55,6 @@ const path_layer_onclick = async (
   update_cat(viz_state.cats, 'cluster');
   update_selected_cats(viz_state.cats, [inst_cat], viz_state.obs_store);
   update_selected_genes(viz_state.genes, [], viz_state.obs_store);
-
-  update_trx_layer_id(viz_state.genes, layers_obj);
 
   const layers_list = get_layers_list(layers_obj, viz_state.close_up);
   deck_ist.setProps({ layers: layers_list });

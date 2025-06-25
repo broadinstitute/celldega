@@ -17,32 +17,29 @@ import {
 import {
   ini_cell_layer,
   set_cell_layer_onclick,
-  update_cell_layer_id,
 } from '../deck-gl/layers/cell_layer';
-import {
-  ini_edit_layer,
-  set_edit_layer_on_click,
-  set_edit_layer_on_edit,
-} from '../deck-gl/layers/edit_layer';
+// import {
+//   ini_edit_layer,
+//   set_edit_layer_on_click,
+//   set_edit_layer_on_edit,
+// } from '../deck-gl/layers/edit_layer';
 import {
   make_image_layers,
   toggle_visibility_image_layers,
 } from '../deck-gl/layers/image_layers';
-import {
-  ini_nbhd_layer,
-  set_nbhd_layer_onclick,
-} from '../deck-gl/layers/nbhd_layer';
+// import {
+//   ini_nbhd_layer,
+//   set_nbhd_layer_onclick,
+// } from '../deck-gl/layers/nbhd_layer';
 import {
   ini_path_layer,
   set_path_layer_onclick,
-  update_path_layer_id,
   toggle_path_layer_visibility,
 } from '../deck-gl/layers/path_layer';
 import {
   ini_trx_layer,
   set_trx_layer_onclick,
   update_trx_layer_radius,
-  update_trx_layer_id,
   toggle_trx_layer_visibility,
 } from '../deck-gl/layers/trx_layer';
 import { get_layers_list } from '../deck-gl/utils/layers_ist';
@@ -61,14 +58,14 @@ import { set_landscape_parameters } from '../global_variables/landscape_paramete
 import { set_cluster_metadata } from '../global_variables/meta_cluster';
 import { set_meta_gene } from '../global_variables/meta_gene';
 import { update_selected_genes } from '../global_variables/selected_genes';
-import { update_gene_text_box } from '../ui/gene_search';
+import { create_obs_store } from '../obs_store/obs_store';
 import { set_image_layer_sliders } from '../ui/sliders';
 import {
   make_ist_ui_container,
-  toggle_image_layers_and_ctrls,
 } from '../ui/ui_containers';
 import { update_cell_clusters } from '../widget_interactions/update_cell_clusters';
 import { update_ist_landscape_from_cgm } from '../widget_interactions/update_ist_landscape_from_cgm';
+
 
 export const landscape_ist = async (
   el,
@@ -91,11 +88,30 @@ export const landscape_ist = async (
   creds = {},
   view_change_custom_callback = null
 ) => {
+
   if (width === 0) {
     width = '100%';
   }
 
   const viz_state = {};
+
+  viz_state.obs_store = create_obs_store();
+
+  const update_viz_image_layers = () => {
+    const hasCats = viz_state.obs_store.selected_cats.get().length > 0;
+    const hasGenes = viz_state.obs_store.selected_genes.get().length > 0;
+
+    if (hasCats || hasGenes) {
+      viz_state.obs_store.viz_image_layers.set(false);
+    } else {
+      viz_state.obs_store.viz_image_layers.set(true);
+    }
+  };
+
+  // Subscribe both, but they call the same function
+  viz_state.obs_store.selected_cats.subscribe(update_viz_image_layers);
+  viz_state.obs_store.selected_genes.subscribe(update_viz_image_layers);
+
   viz_state.seg = {};
   viz_state.seg.version = segmentation;
 
@@ -199,7 +215,6 @@ export const landscape_ist = async (
   viz_state.cats.color_dict_cluster = {};
   viz_state.cats.cluster_counts = [];
   viz_state.cats.polygon_cell_names = [];
-  viz_state.cats.svg_bar_cluster = d3.create('svg');
 
   // check if meta_cell is an empty object
   if (Object.keys(meta_cell).length === 0) {
@@ -242,7 +257,6 @@ export const landscape_ist = async (
   viz_state.genes.gene_text_box = '';
   viz_state.genes.trx_slider = document.createElement('input');
   viz_state.genes.gene_search = document.createElement('div');
-  viz_state.genes.svg_bar_gene = d3.create('svg');
 
   viz_state.cats.cell_exp_array = [];
   viz_state.cats.cell_names_array = [];
@@ -338,8 +352,8 @@ export const landscape_ist = async (
   const cell_layer = await ini_cell_layer(base_url, viz_state);
   const path_layer = await ini_path_layer(viz_state);
   const trx_layer = ini_trx_layer(viz_state.genes);
-  const edit_layer = ini_edit_layer(viz_state);
-  const nbhd_layer = ini_nbhd_layer(viz_state, false);
+  // const edit_layer = ini_edit_layer(viz_state);
+  // const nbhd_layer = ini_nbhd_layer(viz_state, false);
 
   // make layers object
   const layers_obj = {
@@ -348,17 +362,38 @@ export const landscape_ist = async (
     cell_layer,
     path_layer,
     trx_layer,
-    edit_layer,
-    nbhd_layer,
+    // edit_layer,
+    // nbhd_layer,
   };
 
   // set onclicks after all layers are made
   set_cell_layer_onclick(deck_ist, layers_obj, viz_state);
   set_path_layer_onclick(deck_ist, layers_obj, viz_state);
   set_trx_layer_onclick(deck_ist, layers_obj, viz_state);
-  set_edit_layer_on_edit(deck_ist, layers_obj, viz_state);
-  set_edit_layer_on_click(deck_ist, layers_obj, viz_state);
-  set_nbhd_layer_onclick(deck_ist, layers_obj, viz_state);
+  // set_edit_layer_on_edit(deck_ist, layers_obj, viz_state);
+  // set_edit_layer_on_click(deck_ist, layers_obj, viz_state);
+  // set_nbhd_layer_onclick(deck_ist, layers_obj, viz_state);
+
+  viz_state.obs_store.selected_cats.subscribe((selected_cats) => {
+    const selected_cats_name = selected_cats.join('-');
+
+    layers_obj.cell_layer = layers_obj.cell_layer.clone({
+      id: `cell-layer-${selected_cats_name}`,
+    });
+
+    layers_obj.path_layer = layers_obj.path_layer.clone({
+      id: `path-layer-${selected_cats_name}`,
+    });
+
+  })
+
+  viz_state.obs_store.selected_genes.subscribe((selected_genes) => {
+    const selected_genes_name = selected_genes.join('-');
+    layers_obj.trx_layer = layers_obj.trx_layer.clone({
+      id: `trx-layer-${selected_genes_name}`,
+    });
+  });
+
 
   update_trx_layer_radius(layers_obj, trx_radius);
 
@@ -402,54 +437,10 @@ export const landscape_ist = async (
       const reset_gene = inst_gene === viz_state.cats.cat;
       const new_cat = reset_gene ? 'cluster' : inst_gene;
 
-      if (!reset_gene) {
-        const selectedBar = viz_state.genes.svg_bar_gene
-          .selectAll('g')
-          .filter(function () {
-            const textElement = d3.select(this).select('text').node();
-            return textElement && textElement.textContent === inst_gene;
-          })
-          .attr('opacity', 1.0);
-
-        if (!selectedBar.empty()) {
-          const barPosition = selectedBar.node().getBoundingClientRect().top;
-
-          const containerPosition =
-            viz_state.containers.bar_gene.getBoundingClientRect().top;
-          const scrollPosition =
-            barPosition -
-            containerPosition +
-            viz_state.containers.bar_gene.scrollTop;
-
-          viz_state.genes.svg_bar_gene.attr('opacity', 1.0);
-
-          viz_state.containers.bar_gene.scrollTo({
-            top: scrollPosition,
-            behavior: 'smooth',
-          });
-        }
-      } else {
-        viz_state.containers.bar_gene.scrollTo({
-          top: 0,
-          behavior: 'smooth',
-        });
-      }
-
-      // reset cluster bar plot
-      viz_state.cats.svg_bar_cluster
-        .selectAll('g')
-        .attr('font-weight', 'normal')
-        .attr('opacity', 1.0);
-
-      toggle_image_layers_and_ctrls(
-        layers_obj,
-        viz_state,
-        viz_state.cats.cat === inst_gene
-      );
-
       update_cat(viz_state.cats, new_cat);
-      update_selected_genes(viz_state.genes, [inst_gene]);
-      update_selected_cats(viz_state.cats, []);
+      update_selected_genes(viz_state.genes, [inst_gene], viz_state.obs_store);
+      // update_selected_cats(viz_state.cats, [], viz_state.obs_store);
+      update_selected_cats(viz_state.cats, new_cat === 'cluster' ? [] : [inst_gene], viz_state.obs_store);
       await update_cell_exp_array(
         viz_state.cats,
         viz_state.genes,
@@ -460,101 +451,29 @@ export const landscape_ist = async (
         viz_state.aws
       );
 
-      update_cell_layer_id(layers_obj, new_cat);
-      update_path_layer_id(layers_obj, new_cat);
-      update_trx_layer_id(viz_state.genes, layers_obj);
-
       const updatedLayersList = get_layers_list(layers_obj, viz_state.close_up);
       deck_ist.setProps({ layers: updatedLayersList });
-
-      viz_state.genes.gene_search_input.value =
-        viz_state.genes.gene_search_input.value !== inst_gene ? inst_gene : '';
-      update_gene_text_box(viz_state.genes, reset_gene ? '' : inst_gene);
     },
     update_matrix_col: async (inst_col) => {
-      // reset bar graphs (will remove duplicate code later)
-      //////////////////////////////////////////
-      viz_state.genes.svg_bar_gene
-        .selectAll('g')
-        .attr('font-weight', 'normal')
-        .attr('opacity', 1.0);
-
-      viz_state.cats.svg_bar_cluster
-        .selectAll('g')
-        .attr('font-weight', 'normal')
-        .attr('opacity', viz_state.cats.reset_cat ? 1.0 : 0.25);
-
-      if (!viz_state.cats.reset_cat) {
-        const selectedBar = viz_state.cats.svg_bar_cluster
-          .selectAll('g')
-          .filter(function () {
-            return d3.select(this).select('text').text() === inst_col;
-          })
-          .attr('opacity', 1.0);
-
-        if (!selectedBar.empty()) {
-          const barPosition = selectedBar.node().getBoundingClientRect().top;
-          const containerPosition =
-            viz_state.containers.bar_cluster.getBoundingClientRect().top;
-          const scrollPosition =
-            barPosition -
-            containerPosition +
-            viz_state.containers.bar_cluster.scrollTop;
-
-          viz_state.containers.bar_cluster.scrollTo({
-            top: scrollPosition,
-            behavior: 'smooth',
-          });
-        }
-      } else {
-        viz_state.containers.bar_cluster.scrollTo({
-          top: 0,
-          behavior: 'smooth',
-        });
-      }
 
       update_cat(viz_state.cats, 'cluster');
-      update_selected_cats(viz_state.cats, [inst_col]);
-      update_selected_genes(viz_state.genes, []);
-      toggle_image_layers_and_ctrls(
-        layers_obj,
-        viz_state,
-        !viz_state.cats.selected_cats.length > 0
-      );
-
-      const inst_cat_name = viz_state.cats.selected_cats.join('-');
-      update_cell_layer_id(layers_obj, inst_cat_name);
-      update_path_layer_id(layers_obj, inst_cat_name);
-      update_trx_layer_id(viz_state.genes, layers_obj);
+      update_selected_cats(viz_state.cats, [inst_col], viz_state.obs_store);
+      update_selected_genes(viz_state.genes, [], viz_state.obs_store);
 
       const matrixColLayersList = get_layers_list(
         layers_obj,
         viz_state.close_up
       );
       deck_ist.setProps({ layers: matrixColLayersList });
-
-      viz_state.genes.gene_search_input.value = '';
-      update_gene_text_box(viz_state.genes, '');
     },
     update_matrix_dendro_col: async (selected_cols) => {
       // const inst_gene = 'cluster'
       const new_cats = selected_cols; // click_info.value.selected_names
 
       update_cat(viz_state.cats, 'cluster');
-      update_selected_cats(viz_state.cats, new_cats);
+      update_selected_cats(viz_state.cats, new_cats, viz_state.obs_store);
 
-      update_selected_genes(viz_state.genes, []);
-      toggle_image_layers_and_ctrls(
-        layers_obj,
-        viz_state,
-        !viz_state.cats.selected_cats.length > 0
-      );
-
-      const inst_cat_name = viz_state.cats.selected_cats.join('-');
-
-      update_cell_layer_id(layers_obj, inst_cat_name);
-      update_path_layer_id(layers_obj, inst_cat_name);
-      update_trx_layer_id(viz_state.genes, layers_obj);
+      update_selected_genes(viz_state.genes, [], viz_state.obs_store);
 
       const dendroColLayersList = get_layers_list(
         layers_obj,
@@ -562,41 +481,11 @@ export const landscape_ist = async (
       );
       deck_ist.setProps({ layers: dendroColLayersList });
 
-      viz_state.cats.svg_bar_cluster
-        .selectAll('g')
-        .attr('font-weight', 'normal')
-        .attr('opacity', viz_state.cats.reset_cat ? 1.0 : 0.25);
-
-      const inst_cat = new_cats;
-
-      if (!viz_state.cats.reset_cat) {
-        const selectedBar = viz_state.cats.svg_bar_cluster
-          .selectAll('g')
-          .filter(function () {
-            return d3.select(this).select('text').text() === inst_cat;
-          })
-          .attr('opacity', 1.0);
-
-        if (!selectedBar.empty()) {
-          const barPosition = selectedBar.node().getBoundingClientRect().top;
-          const containerPosition =
-            viz_state.containers.bar_cluster.getBoundingClientRect().top;
-          const scrollPosition =
-            barPosition -
-            containerPosition +
-            viz_state.containers.bar_cluster.scrollTop;
-
-          viz_state.containers.bar_cluster.scrollTo({
-            top: scrollPosition,
-            behavior: 'smooth',
-          });
-        }
-      }
     },
     update_view_state: async (new_view_state, close_up, _trx_layer) => {
       viz_state.close_up = close_up;
 
-      calc_viewport(new_view_state, deck_ist, layers_obj, viz_state);
+      calc_viewport(new_view_state, deck_ist, layers_obj, viz_state, viz_state.obs_store);
       const viewStateLayersList = get_layers_list(
         layers_obj,
         viz_state.close_up

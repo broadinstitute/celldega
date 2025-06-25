@@ -1,8 +1,3 @@
-import {
-  update_bar_graph,
-  bar_callback_gene,
-  bar_callback_cluster,
-} from '../../ui/bar_plot';
 import { visibleTiles } from '../../vector_tile/visibleTiles';
 import { update_path_layer_data } from '../layers/path_layer';
 import { update_trx_layer_data } from '../layers/trx_layer';
@@ -85,21 +80,7 @@ export const calc_viewport = async (
       .filter((item) => item.value > 0)
       .sort((a, b) => b.value - a.value);
 
-    update_bar_graph(
-      viz_state.genes.svg_bar_gene,
-      new_bar_data,
-      viz_state.genes.color_dict_gene,
-      bar_callback_gene,
-      viz_state.genes.selected_genes,
-      deck_ist,
-      layers_obj,
-      viz_state
-    );
-
-    viz_state.containers.bar_gene.scrollTo({
-      top: 0,
-      behavior: 'smooth',
-    });
+    viz_state.obs_store.new_gene_bar_data.set(new_bar_data);
 
     // cell bar graph update
     const filtered_cells = viz_state.combo_data.cell.filter(
@@ -125,44 +106,18 @@ export const calc_viewport = async (
       .filter((item) => item.value > 0)
       .sort((a, b) => b.value - a.value);
 
-    update_bar_graph(
-      viz_state.cats.svg_bar_cluster,
-      new_bar_data_cell,
-      viz_state.cats.color_dict_cluster,
-      bar_callback_cluster,
-      viz_state.cats.selected_cats,
-      deck_ist,
-      layers_obj,
-      viz_state
-    );
+    viz_state.obs_store.new_cell_bar_data.set(new_bar_data_cell);
 
-    viz_state.containers.bar_cluster.scrollTo({
-      top: 0,
-      behavior: 'smooth',
-    });
   } else {
     if (viz_state.close_up) {
       viz_state.close_up = false;
 
-      update_bar_graph(
-        viz_state.genes.svg_bar_gene,
-        viz_state.genes.gene_counts,
-        viz_state.genes.color_dict_gene,
-        bar_callback_gene,
-        viz_state.genes.selected_genes,
-        deck_ist,
-        layers_obj,
-        viz_state
+      viz_state.obs_store.new_gene_bar_data.set(
+        viz_state.genes.gene_counts
       );
-      update_bar_graph(
-        viz_state.cats.svg_bar_cluster,
-        viz_state.cats.cluster_counts,
-        viz_state.cats.color_dict_cluster,
-        bar_callback_cluster,
-        viz_state.cats.selected_cats,
-        deck_ist,
-        layers_obj,
-        viz_state
+
+      viz_state.obs_store.new_cell_bar_data.set(
+        viz_state.cats.cluster_counts
       );
 
       viz_state.containers.bar_gene.scrollTo({

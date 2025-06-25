@@ -2,7 +2,6 @@
 import { update_square_scatter_layer } from '../deck-gl/layers/square_scatter_layer';
 import { update_cat, update_selected_cats } from '../global_variables/cat';
 import { update_tile_exp_array } from '../global_variables/tile_exp_array';
-import { update_gene_text_box } from '../ui/gene_search';
 
 export const update_tile_landscape_from_cgm = async (
   deck_sst,
@@ -19,10 +18,10 @@ export const update_tile_landscape_from_cgm = async (
     await update_tile_exp_array(viz_state, inst_gene);
   } else if (click_info.click_type === 'col-label') {
     update_cat(viz_state.cats, 'cluster');
-    update_selected_cats(viz_state.cats, [click_info.click_value]);
+    update_selected_cats(viz_state.cats, [click_info.click_value], viz_state.obs_store);
   } else if (click_info.click_type === 'col-dendro') {
     update_cat(viz_state.cats, 'cluster');
-    update_selected_cats(viz_state.cats, click_info.click_value);
+    update_selected_cats(viz_state.cats, click_info.click_value, viz_state.obs_store);
   } else {
     update_cat('cluster');
   }
@@ -31,11 +30,4 @@ export const update_tile_landscape_from_cgm = async (
   deck_sst.setProps({
     layers: [layers_sst.simple_image_layer, layers_sst.square_scatter_layer],
   });
-
-  // only run if inst_gene is defined and not 'cluster'
-  if (inst_gene && inst_gene !== 'cluster') {
-    viz_state.genes.gene_search_input.value =
-      viz_state.genes.gene_search_input.value !== inst_gene ? inst_gene : '';
-    await update_gene_text_box(viz_state.genes, inst_gene);
-  }
 };

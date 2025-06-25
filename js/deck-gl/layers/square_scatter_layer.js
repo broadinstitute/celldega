@@ -111,7 +111,7 @@ const tile_layer_onclick = (event, d, deck_sst, layers_sst, viz_state) => {
 
   let new_selected_cats = [inst_cat];
 
-  update_selected_cats(viz_state.cats, new_selected_cats);
+  update_selected_cats(viz_state.cats, new_selected_cats, viz_state.obs_store);
   update_cat(viz_state.cats, 'cluster');
 
   update_square_scatter_layer(viz_state, layers_sst);

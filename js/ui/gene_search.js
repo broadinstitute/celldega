@@ -1,47 +1,13 @@
-/* eslint-disable import/no-cycle */
-import * as d3 from 'd3';
-
-import { update_cell_layer_id } from '../deck-gl/layers/cell_layer';
-import { update_path_layer_id } from '../deck-gl/layers/path_layer';
 import { update_square_scatter_layer } from '../deck-gl/layers/square_scatter_layer';
-import { update_trx_layer_id } from '../deck-gl/layers/trx_layer';
 import { get_layers_list } from '../deck-gl/utils/layers_ist';
-import {
-  uniprot_data,
-  uniprot_get_request,
-} from '../external_apis/uniprot_api';
 import { update_cat, update_selected_cats } from '../global_variables/cat';
 import { update_cell_exp_array } from '../global_variables/cell_exp_array';
 import { update_selected_genes } from '../global_variables/selected_genes';
 import { update_tile_exp_array } from '../global_variables/tile_exp_array';
 
 import { set_gene_search_input } from './gene_search_input';
-import { toggle_image_layers_and_ctrls } from './ui_containers';
 
 let gene_search_options = [];
-
-export const update_gene_text_box = async (genes, inst_gene) => {
-  if (inst_gene !== '') {
-    genes.gene_text_box.textContent = 'loading';
-
-    await uniprot_get_request(inst_gene);
-
-    const gene_data = uniprot_data[inst_gene];
-
-    if (gene_data && gene_data.name && gene_data.description) {
-      genes.gene_text_box.innerHTML = `<span style="color: blue;">${gene_data.name}</span><br>${gene_data.description}`;
-    } else {
-      genes.gene_text_box.textContent = '';
-    }
-  } else {
-    genes.gene_text_box.textContent = '';
-  }
-
-  genes.gene_text_box.scrollTo({
-    top: 0,
-    behavior: 'smooth',
-  });
-};
 
 const sst_gene_search_callback = async (deck_sst, viz_state, layers_sst) => {
   const inst_gene = viz_state.genes.gene_search_input.value;
@@ -50,8 +16,8 @@ const sst_gene_search_callback = async (deck_sst, viz_state, layers_sst) => {
 
   if (inst_gene === '' || viz_state.genes.gene_names.includes(inst_gene)) {
     update_cat(viz_state.cats, new_cat);
-    update_selected_genes(viz_state.genes, inst_gene === '' ? [] : [inst_gene]);
-    update_selected_cats(viz_state.cats, []);
+    update_selected_genes(viz_state.genes, inst_gene === '' ? [] : [inst_gene], viz_state.obs_store);
+    update_selected_cats(viz_state.cats, [], viz_state.obs_store);
 
     if (inst_gene !== '' && gene_search_options.includes(inst_gene)) {
       await update_tile_exp_array(viz_state, inst_gene);
@@ -62,7 +28,6 @@ const sst_gene_search_callback = async (deck_sst, viz_state, layers_sst) => {
       layers: [layers_sst.simple_image_layer, layers_sst.square_scatter_layer],
     });
 
-    await update_gene_text_box(viz_state.genes, inst_gene);
   }
 };
 
@@ -73,8 +38,12 @@ const ist_gene_search_callback = async (deck_ist, layers_obj, viz_state) => {
 
   if (inst_gene === '' || viz_state.genes.gene_names.includes(inst_gene)) {
     update_cat(viz_state.cats, new_cat);
-    update_selected_genes(viz_state.genes, inst_gene === '' ? [] : [inst_gene]);
-    update_selected_cats(viz_state.cats, []);
+    update_selected_genes(viz_state.genes, inst_gene === '' ? [] : [inst_gene], viz_state.obs_store);
+
+    // make selected_cats an empty array if new_cat is cluster or
+    // make it an array with the selected gene if inst_gene is not an empty string
+    // update_selected_cats(viz_state.cats, [new_cat], viz_state.obs_store);
+    update_selected_cats(viz_state.cats, new_cat === 'cluster' ? [] : [inst_gene], viz_state.obs_store);
 
     const inst_gene_in_gene_names =
       viz_state.genes.gene_names.includes(inst_gene);
@@ -91,51 +60,9 @@ const ist_gene_search_callback = async (deck_ist, layers_obj, viz_state) => {
       );
     }
 
-    toggle_image_layers_and_ctrls(
-      layers_obj,
-      viz_state,
-      !inst_gene_in_gene_names
-    );
-
-    update_cell_layer_id(layers_obj, new_cat);
-    update_path_layer_id(layers_obj, new_cat);
-    update_trx_layer_id(viz_state.genes, layers_obj);
-
     const layers_list = get_layers_list(layers_obj, viz_state.close_up);
     deck_ist.setProps({ layers: layers_list });
 
-    const reset_gene = false;
-
-    viz_state.genes.svg_bar_gene
-      .selectAll('g')
-      .attr('font-weight', 'normal')
-      .attr('opacity', reset_gene ? 1.0 : 0.25);
-
-    if (!reset_gene) {
-      const selectedBar = viz_state.genes.svg_bar_gene
-        .selectAll('g')
-        .filter(function () {
-          return d3.select(this).select('text').text() === inst_gene;
-        })
-        .attr('opacity', 1.0);
-
-      if (!selectedBar.empty()) {
-        const barPosition = selectedBar.node().getBoundingClientRect().top;
-        const containerPosition =
-          viz_state.containers.bar_gene.getBoundingClientRect().top;
-        const scrollPosition =
-          barPosition -
-          containerPosition +
-          viz_state.containers.bar_gene.scrollTop;
-
-        viz_state.containers.bar_gene.scrollTo({
-          top: scrollPosition,
-          behavior: 'smooth',
-        });
-      }
-
-      await update_gene_text_box(viz_state.genes, inst_gene);
-    }
   }
 };
 

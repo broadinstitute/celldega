@@ -1,13 +1,49 @@
 """Configuration constants and string literals for Matrix module."""
 
 from enum import Enum
-from typing import Any, Literal
+from typing import Any, Literal, Union
 
 
-# Enum definitions for better type safety and IDE support
+# Enhanced Axis enum that supports both string and numeric values
 class Axis(Enum):
     ROW = "row"
     COL = "col"
+
+    @classmethod
+    def normalize(cls, axis: Union["Axis", str, int]) -> "Axis":
+        """
+        Convert axis input to Axis enum.
+
+        Args:
+            axis: Axis enum, string ('row', 'col'), or numeric (0, 1)
+
+        Returns:
+            Axis: Normalized Axis enum
+
+        Examples:
+            Axis.normalize(0) -> Axis.ROW
+            Axis.normalize(1) -> Axis.COL
+            Axis.normalize('row') -> Axis.ROW
+            Axis.normalize('col') -> Axis.COL
+            Axis.normalize(Axis.ROW) -> Axis.ROW
+        """
+        if isinstance(axis, cls):
+            return axis
+        if axis == 0 or axis == "row":
+            return cls.ROW
+        if axis == 1 or axis == "col":
+            return cls.COL
+        raise ValueError(f"Invalid axis: {axis}. Use 0/'row'/Axis.ROW or 1/'col'/Axis.COL")
+
+    @property
+    def numeric(self) -> int:
+        """Return numeric representation (0 for ROW, 1 for COL)."""
+        return 0 if self == Axis.ROW else 1
+
+    @property
+    def pandas_axis(self) -> int:
+        """Return pandas axis for operations (1 for ROW operations, 0 for COL operations)."""
+        return 1 if self == Axis.ROW else 0
 
 
 class Normalization(Enum):
@@ -43,12 +79,31 @@ class CacheLevel(Enum):
     VIZ = "viz"
 
 
-# Type definitions for backward compatibility
+# Type definitions - now unified around the enhanced Axis enum
 AxisType = Literal["row", "col"]
+AxisInput = Axis | str | int  # Support enum, string, and numeric inputs
 NormType = Literal["zscore", "total", "qn"]
 FilterType = Literal["sum", "var", "mean", "median"]
 DistanceType = Literal["cosine", "euclidean", "correlation", "manhattan"]
 LinkageType = Literal["average", "single", "complete", "ward"]
+
+
+# Legacy function for backward compatibility
+def normalize_axis(axis: AxisInput) -> str:
+    """
+    Convert axis input to standard string format.
+
+    Args:
+        axis: Axis enum, string ('row', 'col'), or numeric (0, 1)
+
+    Returns:
+        str: Normalized axis string ('row' or 'col')
+
+    Note:
+        This function is deprecated. Use Axis.normalize() instead.
+    """
+    return Axis.normalize(axis).value
+
 
 # Performance configuration
 CONFIG: dict[str, Any] = {

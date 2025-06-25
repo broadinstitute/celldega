@@ -22,6 +22,7 @@ from .constants import (
     DEFAULT_VIZ,
     ERRORS,
     Axis,
+    AxisInput,
     AxisType,
     CacheLevel,
     Distance,
@@ -174,11 +175,11 @@ class Matrix:
             mat.process(filter_genes=5000, norm_row='qn')  # Custom processing
         """
         if filter_genes:
-            self.filter(axis=Axis.ROW.value, by="var", num=filter_genes)
+            self.filter(axis=Axis.ROW, by="var", num=filter_genes)
         if norm_col:
-            self.norm(axis=Axis.COL.value, by=norm_col)
+            self.norm(axis=Axis.COL, by=norm_col)
         if norm_row:
-            self.norm(axis=Axis.ROW.value, by=norm_row)
+            self.norm(axis=Axis.ROW, by=norm_row)
 
     def cluster(self, **cluster_kwargs: Any) -> dict[str, Any]:
         """
@@ -251,23 +252,24 @@ class Matrix:
             df, adata.obs.copy(), adata.var.copy(), list(adata.obs.columns), list(adata.var.columns)
         )
 
-    def filter(self, axis: AxisType, by: FilterType, num: int) -> None:
+    def filter(self, axis: AxisInput, by: FilterType, num: int) -> None:
         """
         Filter features by specified metric.
 
         Args:
-            axis: 'row' or 'col'
+            axis: 'row'/'col', 0/1, or Axis enum (0/ROW=rows, 1/COL=columns)
             by: Metric ('var' for variance, 'mean' for mean)
             num: Number of top features to keep
         """
         if self.data is None:
             raise ValueError(ERRORS["no_data"])
 
-        axis_data = self.data if axis == Axis.ROW.value else self.data.T
+        axis_enum = Axis.normalize(axis)
+        axis_data = self.data if axis_enum == Axis.ROW else self.data.T
         metric = compute_metric(axis_data, by, axis=1)
         top_features = pd.Series(metric, index=axis_data.index).nlargest(num).index
 
-        if axis == Axis.ROW.value:
+        if axis_enum == Axis.ROW:
             self.data = self.data.loc[top_features]
             self.meta_row = self.meta_row.loc[top_features]
         else:
@@ -277,24 +279,25 @@ class Matrix:
         self._clustered = False
         self._invalidate_cache(CacheLevel.DATA.value)
 
-    def subset(self, axis: AxisType, by: list[str]) -> None:
+    def subset(self, axis: AxisInput, by: list[str]) -> None:
         """
         Subset data by feature list.
 
         Args:
-            axis: 'row' or 'col'
+            axis: 'row'/'col', 0/1, or Axis enum (0/ROW=rows, 1/COL=columns)
             by: List of feature names to keep
         """
         if self.data is None:
             raise ValueError(ERRORS["no_data"])
 
-        available = set(self.data.index if axis == Axis.ROW.value else self.data.columns)
+        axis_enum = Axis.normalize(axis)
+        available = set(self.data.index if axis_enum == Axis.ROW else self.data.columns)
         valid_features = [f for f in by if f in available]
 
         if not valid_features:
-            raise ValueError(ERRORS["no_valid_features"].format(axis))
+            raise ValueError(ERRORS["no_valid_features"].format(axis_enum.value))
 
-        if axis == Axis.ROW.value:
+        if axis_enum == Axis.ROW:
             self.data = self.data.loc[valid_features]
             self.meta_row = self.meta_row.loc[valid_features]
         else:
@@ -304,26 +307,27 @@ class Matrix:
         self._clustered = False
         self._invalidate_cache(CacheLevel.DATA.value)
 
-    def random_subsample(self, axis: AxisType, num: int, seed: int = 42) -> None:
+    def random_subsample(self, axis: AxisInput, num: int, seed: int = 42) -> None:
         """
         Randomly subsample features.
 
         Args:
-            axis: 'row' or 'col'
+            axis: 'row'/'col', 0/1, or Axis enum (0/ROW=rows, 1/COL=columns)
             num: Number of features to sample
             seed: Random seed for reproducibility
         """
         if self.data is None:
             raise ValueError(ERRORS["no_data"])
 
-        features = self.data.index if axis == Axis.ROW.value else self.data.columns
+        axis_enum = Axis.normalize(axis)
+        features = self.data.index if axis_enum == Axis.ROW else self.data.columns
         if num >= len(features):
             return
 
         np.random.seed(seed)
         sampled = np.random.choice(features, size=num, replace=False)
 
-        if axis == Axis.ROW.value:
+        if axis_enum == Axis.ROW:
             self.data = self.data.loc[sampled]
             self.meta_row = self.meta_row.loc[sampled]
         else:
@@ -333,29 +337,33 @@ class Matrix:
         self._clustered = False
         self._invalidate_cache(CacheLevel.DATA.value)
 
-    def norm(self, axis: AxisType, by: NormType) -> None:
+    def norm(self, axis: AxisInput, by: NormType) -> None:
         """
         Normalize data along specified axis.
 
         Args:
-            axis: 'row' or 'col'
+            axis: 'row'/'col', 0/1, or Axis enum (0/ROW=rows, 1/COL=columns)
             by: Normalization method ('total', 'zscore', 'qn')
         """
         if self.data is None:
             raise ValueError(ERRORS["no_data"])
 
+        axis_enum = Axis.normalize(axis)
+
         if by == Normalization.TOTAL.value:
-            axis_sum = self.data.sum(axis=1 if axis == Axis.ROW.value else 0)
+            pandas_axis = axis_enum.pandas_axis
+            axis_sum = self.data.sum(axis=pandas_axis)
             axis_sum = axis_sum.replace(0, 1)  # Avoid division by zero
-            self.data = self.data.div(axis_sum, axis=0 if axis == Axis.ROW.value else 1)
+            div_axis = 0 if axis_enum == Axis.ROW else 1
+            self.data = self.data.div(axis_sum, axis=div_axis)
 
         elif by == Normalization.ZSCORE.value:
             data_values = (
-                self.data.values.T.copy() if axis == Axis.ROW.value else self.data.values.copy()
+                self.data.values.T.copy() if axis_enum == Axis.ROW else self.data.values.copy()
             )
             zscore_normalize_inplace(data_values, axis=0)
 
-            if axis == Axis.ROW.value:
+            if axis_enum == Axis.ROW:
                 self.data = pd.DataFrame(
                     data_values.T, index=self.data.index, columns=self.data.columns
                 )
@@ -366,7 +374,7 @@ class Matrix:
 
         elif by == Normalization.QN.value:
             qt = QuantileTransformer(output_distribution="uniform", random_state=42)
-            if axis == Axis.COL.value:
+            if axis_enum == Axis.COL:
                 normalized_data = qt.fit_transform(self.data)
             else:
                 normalized_data = qt.fit_transform(self.data.T).T
@@ -469,13 +477,13 @@ class Matrix:
         self._viz_json(dendro=self._clustered)
         self._dirty_flags[CacheLevel.VIZ.value] = False
 
-    def downsample_to(self, category: str = "leiden", axis: AxisType = "col") -> None:
+    def downsample_to(self, category: str = "leiden", axis: AxisInput = "col") -> None:
         """
         Downsample data by aggregating categories.
 
         Args:
             category: Metadata column to aggregate by
-            axis: Which axis to aggregate ('col' for cells, 'row' for genes)
+            axis: Which axis to aggregate ('col'/1/COL for cells, 'row'/0/ROW for genes)
 
         Requires:
             scanpy for aggregation functionality
@@ -488,18 +496,19 @@ class Matrix:
         except ImportError:
             raise ImportError(ERRORS["missing_scanpy"]) from None
 
-        meta_df = self.meta_col if axis == Axis.COL.value else self.meta_row
+        axis_enum = Axis.normalize(axis)
+        meta_df = self.meta_col if axis_enum == Axis.COL else self.meta_row
         if category not in meta_df.columns:
             raise ValueError(ERRORS["missing_category"].format(category, list(meta_df.columns)))
 
         adata = (
             self.to_adata()
-            if axis == Axis.COL.value
+            if axis_enum == Axis.COL
             else AnnData(X=self.data.T, obs=self.meta_row, var=self.meta_col)
         )
         adata_agg = sc.get.aggregate(adata, by=category, func="mean")
 
-        count_col = "n_cells" if axis == Axis.COL.value else "n_genes"
+        count_col = "n_cells" if axis_enum == Axis.COL else "n_genes"
         adata_agg.obs[count_col] = adata.obs.groupby(category).size().values
 
         modal_cols = {
@@ -514,11 +523,11 @@ class Matrix:
             adata_agg.obs[col] = values
 
         self.data = pd.DataFrame(
-            adata_agg.X.T if axis == Axis.COL.value else adata_agg.X,
-            index=adata_agg.var.index if axis == Axis.COL.value else adata_agg.obs.index,
-            columns=adata_agg.obs.index if axis == Axis.COL.value else adata_agg.var.index,
+            adata_agg.X.T if axis_enum == Axis.COL else adata_agg.X,
+            index=adata_agg.var.index if axis_enum == Axis.COL else adata_agg.obs.index,
+            columns=adata_agg.obs.index if axis_enum == Axis.COL else adata_agg.var.index,
         )
-        setattr(self, f"meta_{axis}", adata_agg.obs)
+        setattr(self, f"meta_{axis_enum.value}", adata_agg.obs)
         self.is_downsampled, self._clustered = True, False
         self._invalidate_cache(CacheLevel.DATA.value)
 
@@ -546,22 +555,23 @@ class Matrix:
         """Export visualization for widget."""
         return self.export_viz_json_string()
 
-    def add_category(self, axis: AxisType, name: str, data: pd.Series) -> None:
+    def add_category(self, axis: AxisInput, name: str, data: pd.Series) -> None:
         """
         Add category to metadata.
 
         Args:
-            axis: 'row' or 'col'
+            axis: 'row'/'col', 0/1, or Axis enum (0/ROW=rows, 1/COL=columns)
             name: Category name
             data: Category values (must match axis length)
         """
         if self.data is None:
             raise ValueError(ERRORS["no_data"])
 
-        meta_df = self.meta_col if axis == Axis.COL.value else self.meta_row
+        axis_enum = Axis.normalize(axis)
+        meta_df = self.meta_col if axis_enum == Axis.COL else self.meta_row
         meta_df[name] = data
 
-        cats_list = self.col_cats if axis == Axis.COL.value else self.row_cats
+        cats_list = self.col_cats if axis_enum == Axis.COL else self.row_cats
         if name not in cats_list:
             cats_list.append(name)
 

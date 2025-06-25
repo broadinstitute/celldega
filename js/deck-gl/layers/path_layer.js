@@ -1,14 +1,9 @@
-/* eslint-disable import/no-cycle */
 import { PathLayer } from 'deck.gl';
 
 import { update_selected_cats, update_cat } from '../../global_variables/cat';
 import { update_selected_genes } from '../../global_variables/selected_genes';
-import { toggle_image_layers_and_ctrls } from '../../ui/ui_containers';
 import { grab_cell_tiles_in_view } from '../../vector_tile/polygons/grab_cell_tiles_in_view';
 import { get_layers_list } from '../utils/layers_ist';
-
-import { update_cell_layer_id } from './cell_layer';
-import { update_trx_layer_id } from './trx_layer';
 
 export const get_path_color = (cats, i, d) => {
   const inst_cell_id = cats.polygon_cell_names[d.index];
@@ -47,12 +42,6 @@ export const ini_path_layer = (viz_state) => {
   return path_layer;
 };
 
-export const update_path_layer_id = (layers_obj, new_cat) => {
-  layers_obj.path_layer = layers_obj.path_layer.clone({
-    id: `path-layer-${new_cat}`,
-  });
-};
-
 const path_layer_onclick = async (
   info,
   _d,
@@ -64,20 +53,8 @@ const path_layer_onclick = async (
   const inst_cat = viz_state.cats.dict_cell_cats[inst_cell_id];
 
   update_cat(viz_state.cats, 'cluster');
-  update_selected_cats(viz_state.cats, [inst_cat]);
-  update_selected_genes(viz_state.genes, []);
-
-  toggle_image_layers_and_ctrls(
-    layers_obj,
-    viz_state,
-    !viz_state.cats.selected_cats.length > 0
-  );
-
-  const inst_cat_name = viz_state.cats.selected_cats.join('-');
-
-  update_cell_layer_id(layers_obj, inst_cat_name);
-  update_path_layer_id(layers_obj, inst_cat_name);
-  update_trx_layer_id(viz_state.genes, layers_obj);
+  update_selected_cats(viz_state.cats, [inst_cat], viz_state.obs_store);
+  update_selected_genes(viz_state.genes, [], viz_state.obs_store);
 
   const layers_list = get_layers_list(layers_obj, viz_state.close_up);
   deck_ist.setProps({ layers: layers_list });

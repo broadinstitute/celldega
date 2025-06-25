@@ -28,8 +28,10 @@ export const set_mat_constants = (
 
   viz_state.cats = {};
   viz_state.cats.num_cats = {};
-  viz_state.cats.num_cats.row = 0;
-  viz_state.cats.num_cats.col = 0;
+
+  // use network cat_colors to figure out how many categories there are
+  viz_state.cats.num_cats.row = Object.keys(network.cat_colors.row).length;
+  viz_state.cats.num_cats.col = Object.keys(network.cat_colors.col).length;
 
   viz_state.root.style.height = `${height + viz_state.viz.height_margin}px`;
 
@@ -53,15 +55,16 @@ export const set_mat_constants = (
   viz_state.viz.row_label = 75; // 35
 
   viz_state.viz.extra_space = {};
-  viz_state.viz.extra_space.row = 10;
-  viz_state.viz.extra_space.col = 10;
+  viz_state.viz.extra_space.row = 5; // 10;
+  viz_state.viz.extra_space.col = 5; // 10;
 
   viz_state.zoom = {};
   viz_state.zoom.ini_zoom_x = 0;
   viz_state.zoom.ini_zoom_y = 0;
 
-  viz_state.viz.row_cat_width = 9;
-  viz_state.viz.col_cat_height = 9;
+  // to do: adjust height
+  viz_state.viz.row_cat_width = 8;
+  viz_state.viz.col_cat_height = 8;
 
   viz_state.viz.row_cat_offset = 10;
 

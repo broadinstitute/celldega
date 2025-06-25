@@ -1,16 +1,9 @@
-/* eslint-disable import/no-cycle */
 import * as d3 from 'd3';
 
-import { update_cell_layer_id } from '../deck-gl/layers/cell_layer';
-import { update_path_layer_id } from '../deck-gl/layers/path_layer';
-import { update_trx_layer_id } from '../deck-gl/layers/trx_layer';
 import { get_layers_list } from '../deck-gl/utils/layers_ist';
 import { update_cat, update_selected_cats } from '../global_variables/cat';
 import { update_cell_exp_array } from '../global_variables/cell_exp_array';
 import { update_selected_genes } from '../global_variables/selected_genes';
-
-import { update_gene_text_box } from './gene_search';
-import { toggle_image_layers_and_ctrls } from './ui_containers';
 
 export const make_bar_container = () => {
   return document.createElement('div');
@@ -23,48 +16,23 @@ export const bar_callback_cluster = (
   _layers_obj,
   _viz_state
 ) => {
-  // reset gene
-  _viz_state.genes.svg_bar_gene
-    .selectAll('g')
-    .attr('font-weight', 'normal')
-    .attr('opacity', 1.0);
-
-  const currentTarget = d3.select(_event.currentTarget);
-  const isBold = currentTarget.attr('font-weight') === 'bold';
-
-  _viz_state.cats.svg_bar_cluster
-    .selectAll('g')
-    .attr('font-weight', 'normal')
-    .attr('opacity', 0.25);
-
-  if (!isBold) {
-    currentTarget.attr('font-weight', 'bold');
-    currentTarget.attr('opacity', 1.0);
-  } else {
-    currentTarget.attr('font-weight', 'normal');
-
-    _viz_state.cats.svg_bar_cluster.selectAll('g').attr('opacity', 1.0);
-  }
 
   update_cat(_viz_state.cats, 'cluster');
-  update_selected_cats(_viz_state.cats, [d.name]);
-  update_selected_genes(_viz_state.genes, []);
-  toggle_image_layers_and_ctrls(
-    _layers_obj,
-    _viz_state,
-    !_viz_state.cats.selected_cats.length > 0
-  );
+  update_selected_cats(_viz_state.cats, [d.name], _viz_state.obs_store);
+  update_selected_genes(_viz_state.genes, [], _viz_state.obs_store);
 
-  const inst_cat_name = _viz_state.cats.selected_cats.join('-');
-  update_cell_layer_id(_layers_obj, inst_cat_name);
-  update_path_layer_id(_layers_obj, inst_cat_name);
-  update_trx_layer_id(_viz_state.genes, _layers_obj);
+  // add cell_layer, path_layer, and trx_layer to the deck_check observable
+  // to do list
+  _viz_state.obs_store.deck_check.set({
+      ..._viz_state.obs_store.deck_check.get(),
+      cell_layer: false,
+      path_layer: false,
+      trx_layer: false,
+    })
 
   const layers_list = get_layers_list(_layers_obj, _viz_state.close_up);
   _deck_ist.setProps({ layers: layers_list });
 
-  _viz_state.genes.gene_search_input.value = '';
-  update_gene_text_box(_viz_state.genes, '');
 };
 
 export const bar_callback_gene = async (
@@ -74,42 +42,16 @@ export const bar_callback_gene = async (
   _layers_obj,
   _viz_state
 ) => {
-  // reset cluster bar plot
-  _viz_state.cats.svg_bar_cluster
-    .selectAll('g')
-    .attr('font-weight', 'normal')
-    .attr('opacity', 1.0);
-
-  const currentTarget = d3.select(_event.currentTarget);
-  const isBold = currentTarget.attr('font-weight') === 'bold';
-
-  _viz_state.genes.svg_bar_gene
-    .selectAll('g')
-    .attr('font-weight', 'normal')
-    .attr('opacity', 0.25);
-
-  if (!isBold) {
-    currentTarget.attr('font-weight', 'bold');
-    currentTarget.attr('opacity', 1.0);
-  } else {
-    currentTarget.attr('font-weight', 'normal');
-
-    _viz_state.genes.svg_bar_gene.selectAll('g').attr('opacity', 1.0);
-  }
 
   const inst_gene = d.name;
   const reset_gene = inst_gene === _viz_state.cats.cat;
   const new_cat = reset_gene ? 'cluster' : inst_gene;
 
-  toggle_image_layers_and_ctrls(
-    _layers_obj,
-    _viz_state,
-    _viz_state.cats.cat === inst_gene
-  );
-
   update_cat(_viz_state.cats, new_cat);
-  update_selected_genes(_viz_state.genes, [inst_gene]);
-  update_selected_cats(_viz_state.cats, []);
+  update_selected_genes(_viz_state.genes, [inst_gene], _viz_state.obs_store);
+  // testing setting selected_cats to array with the selected gene for
+  // observable updates
+  update_selected_cats(_viz_state.cats, [inst_gene], _viz_state.obs_store);
   await update_cell_exp_array(
     _viz_state.cats,
     _viz_state.genes,
@@ -120,16 +62,9 @@ export const bar_callback_gene = async (
     _viz_state.aws
   );
 
-  update_cell_layer_id(_layers_obj, new_cat);
-  update_path_layer_id(_layers_obj, new_cat);
-  update_trx_layer_id(_viz_state.genes, _layers_obj);
-
   const layers_list = get_layers_list(_layers_obj, _viz_state.close_up);
   _deck_ist.setProps({ layers: layers_list });
 
-  _viz_state.genes.gene_search_input.value =
-    _viz_state.genes.gene_search_input.value !== inst_gene ? inst_gene : '';
-  update_gene_text_box(_viz_state.genes, reset_gene ? '' : inst_gene);
 };
 
 export const bar_callback_rgn = (
@@ -221,96 +156,4 @@ export const make_bar_graph = (
     .attr('dy', '0.35em')
     .attr('text-anchor', 'start')
     .text((d) => d.name);
-};
-
-export const update_bar_graph = (
-  svg_bar,
-  bar_data,
-  color_dict,
-  click_callback,
-  selected_array,
-  deck_ist,
-  layers_obj,
-  viz_state
-) => {
-  const bar_height = 15;
-  const svg_height = bar_height * (bar_data.length + 1);
-
-  svg_bar.attr('height', svg_height);
-
-  const max_bar_width = 90;
-  const bar_data_values = bar_data.map((x) => x.value);
-
-  const y_new = d3
-    .scaleBand()
-    .domain(d3.range(bar_data_values.length))
-    .range([0, (bar_height + 1) * bar_data_values.length]);
-
-  const x_new = d3
-    .scaleLinear()
-    .domain([0, d3.max(bar_data_values)])
-    .range([0, max_bar_width]);
-
-  const bars = svg_bar.selectAll('g').data(bar_data, (d) => d.name);
-
-  // Enter new bars
-  const bars_enter = bars
-    .enter()
-    .append('g')
-    .attr('transform', (d, i) => `translate(2,${y_new(i) + 2})`)
-    .on('click', (event, d) =>
-      click_callback(event, d, deck_ist, layers_obj, viz_state)
-    );
-
-  bars_enter
-    .append('rect')
-    .attr('width', 0) // Initial width set to 0 for transition effect
-    .attr('height', y_new.bandwidth() - 1)
-    .transition() // Transition for entering elements
-    .duration(750)
-    .attr('width', (d) => x_new(d.value));
-
-  bars_enter
-    .append('text')
-    .attr('fill', 'black')
-    .attr('x', '5px')
-    .attr('y', y_new.bandwidth() / 2 - 1) // Adjust this value to push the text up
-    .attr('dy', '0.35em')
-    .attr('text-anchor', 'start')
-    .text((d) => d.name)
-    .attr('opacity', 0) // Initial opacity set to 0 for transition effect
-    .transition() // Transition for entering elements
-    .duration(750)
-    .attr('opacity', 1);
-
-  // Merge the enter and update selections
-  const bars_merged = bars.merge(bars_enter);
-
-  // Update existing bars
-  bars_merged
-    .transition() // Transition for updating elements
-    .duration(750)
-    .attr('transform', (d, i) => `translate(2,${y_new(i) + 2})`);
-
-  bars_merged
-    .select('rect')
-    .attr('width', (d) => x_new(d.value))
-    .attr('fill', (d) => {
-      const inst_rgb = color_dict[d.name] || [0, 0, 0]; // Default to black if not in color_dict
-      const inst_opacity =
-        selected_array.length === 0 || selected_array.includes(d.name)
-          ? 1
-          : 0.1;
-      return `rgba(${inst_rgb[0]}, ${inst_rgb[1]}, ${inst_rgb[2]}, ${inst_opacity})`;
-    });
-
-  bars_merged.select('text').text((d) => d.name);
-
-  // Remove old bars
-  bars
-    .exit()
-    .transition() // Transition for exiting elements
-    .duration(750)
-    .attr('opacity', 0)
-    .remove();
 };

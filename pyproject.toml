@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "celldega"
-version = "0.12.0"
+version = "0.13.0a1"
 readme = "README.md"
 dependencies = [
     "anndata~=0.11.0",
@@ -57,7 +57,9 @@ docs = [
     "mkdocs",
     "mkdocs-material",
     "mkdocstrings[python]",
-    "mkdocstrings[javascript]"
+    "mkdocstrings[javascript]",
+    "mkdocs-jupyter",
+    "mkdocs-open-in-new-tab"
 ]
 
 # Automatically add the dev feature to the default env (e.g., hatch shell)

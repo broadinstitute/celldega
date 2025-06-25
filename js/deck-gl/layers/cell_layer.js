@@ -1,5 +1,3 @@
-/* eslint-disable import/no-cycle */
-
 import * as d3 from 'd3';
 import { ScatterplotLayer } from 'deck.gl';
 
@@ -18,20 +16,8 @@ import { options } from '../../global_variables/fetch_options';
 import { update_selected_genes } from '../../global_variables/selected_genes';
 import { get_arrow_table } from '../../read_parquet/get_arrow_table';
 import { get_scatter_data } from '../../read_parquet/get_scatter_data';
-import { update_gene_text_box } from '../../ui/gene_search';
-import { toggle_image_layers_and_ctrls } from '../../ui/ui_containers';
 import { scale_umap_data } from '../../umap/scale_umap_data';
 import { get_layers_list } from '../utils/layers_ist';
-
-import { update_path_layer_id } from './path_layer';
-import { update_trx_layer_id } from './trx_layer';
-
-// Forward declarations for functions used before definition
-export function update_cell_layer_id(layers_obj, new_cat) {
-  layers_obj.cell_layer = layers_obj.cell_layer.clone({
-    id: `cell-layer-${new_cat}`,
-  });
-}
 
 const cell_layer_onclick = async (info, d, deck_ist, layers_obj, viz_state) => {
   // Check if the device is a touch device
@@ -49,68 +35,12 @@ const cell_layer_onclick = async (info, d, deck_ist, layers_obj, viz_state) => {
   }
 
   update_cat(viz_state.cats, 'cluster');
-  update_selected_cats(viz_state.cats, [inst_cat]);
-  update_selected_genes(viz_state.genes, []);
-
-  const inst_cat_name = viz_state.cats.selected_cats.join('-');
-
-  // reset gene
-  viz_state.genes.svg_bar_gene
-    .selectAll('g')
-    .attr('font-weight', 'normal')
-    .attr('opacity', 1.0);
-
-  viz_state.cats.svg_bar_cluster
-    .selectAll('g')
-    .attr('font-weight', 'normal')
-    .attr('opacity', viz_state.cats.reset_cat ? 1.0 : 0.25);
-
-  if (!viz_state.cats.reset_cat) {
-    const selectedBar = viz_state.cats.svg_bar_cluster
-      .selectAll('g')
-      .filter(function () {
-        return d3.select(this).select('text').text() === inst_cat;
-      })
-      .attr('opacity', 1.0);
-
-    if (!selectedBar.empty()) {
-      const barPosition = selectedBar.node().getBoundingClientRect().top;
-      const containerPosition =
-        viz_state.containers.bar_cluster.getBoundingClientRect().top;
-      const scrollPosition =
-        barPosition -
-        containerPosition +
-        viz_state.containers.bar_cluster.scrollTop;
-
-      viz_state.containers.bar_cluster.scrollTo({
-        top: scrollPosition,
-        behavior: 'smooth',
-      });
-    }
-  } else {
-    viz_state.containers.bar_cluster.scrollTo({
-      top: 0,
-      behavior: 'smooth',
-    });
-  }
-
-  update_cell_layer_id(layers_obj, inst_cat_name);
-
-  if (viz_state.umap.state === false) {
-    toggle_image_layers_and_ctrls(
-      layers_obj,
-      viz_state,
-      !viz_state.cats.selected_cats.length > 0
-    );
-    update_path_layer_id(layers_obj, inst_cat_name);
-    update_trx_layer_id(viz_state.genes, layers_obj);
-  }
+  update_selected_cats(viz_state.cats, [inst_cat], viz_state.obs_store);
+  update_selected_genes(viz_state.genes, [], viz_state.obs_store);
 
   const layers_list = get_layers_list(layers_obj, viz_state.close_up);
   deck_ist.setProps({ layers: layers_list });
 
-  viz_state.genes.gene_search_input.value = '';
-  update_gene_text_box(viz_state.genes, '');
 };
 
 // transparent to red
@@ -148,6 +78,7 @@ export const get_cell_color = (cats, i, d) => {
 };
 
 export const ini_cell_layer = async (base_url, viz_state) => {
+
   let cell_url;
   if (viz_state.seg.version === 'default') {
     cell_url = `${base_url}/cell_metadata.parquet`;

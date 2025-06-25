@@ -42,6 +42,7 @@ def _get_name_mapping(path_landscape_files, layer, segmentation="default"):
             df_meta_cell = pd.read_parquet(
                 f"{path_landscape_files}/cell_metadata_{segmentation}.parquet"
             )
+
         return {name: idx for idx, name in df_meta_cell["name"].items()}
 
     raise ValueError(
@@ -134,6 +135,7 @@ def batch_transform_geometries(geometries, transformation_matrix, scale):
     return transformed_geometries
 
 
+
 def filter_and_save_fine_boundary(
     coarse_tile,
     fine_i,
@@ -223,8 +225,7 @@ def get_cell_polygons(
     technology,
     path_cell_boundaries,
     transformation_matrix,
-    path_output=None,
-    path_meta_cell_micron=None,
+    path_meta_cell_micron,
 ):
     # Load cell boundary data based on the technology
     if technology == "MERSCOPE":
@@ -258,6 +259,7 @@ def get_cell_polygons(
     cells_orig["geometry"] = batch_transform_geometries(
         cells_orig["geometry"], transformation_matrix, 1
     )
+
     cells_orig["GEOMETRY"] = cells_orig["geometry"].apply(
         lambda geom: [[list(coord) for coord in geom.exterior.coords]]
     )
@@ -274,7 +276,6 @@ def make_cell_boundary_tiles(
     coarse_tile_factor=20,
     tile_size=250,
     tile_bounds=None,
-    image_scale=1,
     max_workers=8,
 ):
     """
@@ -300,8 +301,6 @@ def make_cell_boundary_tiles(
         Size of each fine-grain tile in microns.
     tile_bounds : dict, optional
         Dictionary containing the minimum and maximum bounds for x and y coordinates.
-    image_scale : float, optional, default=1
-        Scale factor to apply to the geometry data.
     max_workers : int, optional, default=8
         Maximum number of parallel workers for processing tiles.
 
@@ -310,17 +309,16 @@ def make_cell_boundary_tiles(
     None
     """
 
-    print("\n========Create cell boundary spatial tiles========")
-
     # Ensure the output directory exists
     Path(path_output).mkdir(parents=True, exist_ok=True)
 
     if technology == "custom":
+        print("custom technology")
         gdf_cells = gpd.read_parquet(path_cell_boundaries)
 
         # Convert string index to integer index
         cell_str_to_int_mapping = _get_name_mapping(
-            path_output.split("/cell_segmentation")[0],  # get the path of landscape files
+            path_output.replace("/cell_segmentation", ""),  # get the path of landscape files
             layer="boundary",
             segmentation=path_output.split("cell_segmentation_")[
                 1
@@ -343,19 +341,21 @@ def make_cell_boundary_tiles(
         gdf_cells["GEOMETRY"] = transformed_geometries
 
     else:
+        print("technology", technology)
         transformation_matrix = pd.read_csv(path_transformation_matrix, header=None, sep=" ").values
 
         gdf_cells = get_cell_polygons(
             technology,
             path_cell_boundaries,
             transformation_matrix,
-            path_output,
             path_meta_cell_micron,
         )
 
+        path_landscape_files = path_output.replace("/cell_segmentation", "")
+
         # Convert string index to integer index
         cell_str_to_int_mapping = _get_name_mapping(
-            path_output.split("/cell_segmentation")[0],
+            path_landscape_files,
             layer="boundary",
         )
         gdf_cells.index = gdf_cells.index.map(cell_str_to_int_mapping)

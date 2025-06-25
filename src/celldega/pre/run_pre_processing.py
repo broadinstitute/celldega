@@ -216,13 +216,11 @@ def main(
         coarse_tile_factor=10,
         tile_size=tile_size,
         tile_bounds=tile_bounds,
-        image_scale=1,
         max_workers=2,
     )
 
     # Force name to be str for MERSCOPE
     if technology == "MERSCOPE":
-        print(str(paths["meta_cell_image"]))
         cell_meta = pd.read_parquet(str(paths["meta_cell_image"]))
         cell_meta["name"] = cell_meta["name"].astype(str)
         cell_meta.to_parquet(str(paths["meta_cell_image"]))

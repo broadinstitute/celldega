@@ -364,6 +364,7 @@ def _process_image_channel(path_landscape_files, channel_info, img):
     )
 
 
+
 def create_image_tiles(technology, data_dir, path_landscape_files, image_tile_layer="dapi"):
     """
     Creates image tiles for visualization from the Xenium morphology image.
@@ -726,7 +727,11 @@ def make_meta_cell_image_coord(
     meta_cell["center_y"] = meta_cell["center_y"] / image_scale
 
     meta_cell["geometry"] = meta_cell.apply(lambda row: [row["center_x"], row["center_y"]], axis=1)
-    meta_cell = meta_cell[["name", "geometry"]]
+
+    if technology == "MERSCOPE":
+        meta_cell = meta_cell[["name", "geometry", "EntityID"]]
+    else:
+        meta_cell = meta_cell[["name", "geometry"]]
 
     # Check if the 'name' column is unique
     if not meta_cell["name"].is_unique:

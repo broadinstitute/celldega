@@ -1,5 +1,6 @@
 """Utility functions for Matrix operations."""
 
+from typing import Any
 import warnings
 
 import numpy as np
@@ -100,7 +101,7 @@ def zscore_normalize_inplace(data: np.ndarray, axis: int = 0) -> np.ndarray:
     return data
 
 
-def create_node_info_base(n_nodes: int, linkage_data: list) -> dict:
+def create_node_info_base(n_nodes: int, linkage_data: list[Any]) -> dict[str, Any]:
     """Create base node info structure."""
     linkage_array = np.array(linkage_data) if linkage_data else np.array([]).reshape(0, 4)
 
@@ -113,7 +114,7 @@ def create_node_info_base(n_nodes: int, linkage_data: list) -> dict:
 
 
 def add_categories_to_node_info(
-    node_info: dict, nodes: list, meta_df: pd.DataFrame, cats: list
+    node_info: dict[str, Any], nodes: list[str], meta_df: pd.DataFrame, cats: list[str]
 ) -> None:
     """Add category information to node info."""
     if not cats or meta_df.empty:

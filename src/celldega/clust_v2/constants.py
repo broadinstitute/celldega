@@ -1,7 +1,7 @@
 """Configuration constants and string literals for Matrix module."""
 
 from enum import Enum
-from typing import Literal
+from typing import Any, Literal
 
 
 # Enum definitions for better type safety and IDE support
@@ -51,7 +51,7 @@ DistanceType = Literal["cosine", "euclidean", "correlation", "manhattan"]
 LinkageType = Literal["average", "single", "complete", "ward"]
 
 # Performance configuration
-CONFIG = {
+CONFIG: dict[str, Any] = {
     "chunk_size": 2000,
     "memory_threshold": 2e9,  # 2GB for memory mapping
     "cache_size_limit": 5,
@@ -61,14 +61,14 @@ CONFIG = {
 }
 
 # Cache hierarchy for invalidation
-CACHE_HIERARCHY = {
+CACHE_HIERARCHY: dict[str, list[str]] = {
     CacheLevel.DATA.value: [CacheLevel.CLUSTERING.value, CacheLevel.VIZ.value],
     CacheLevel.CLUSTERING.value: [CacheLevel.VIZ.value],
     CacheLevel.VIZ.value: [],
 }
 
 # Metric function mappings
-METRIC_FUNCTIONS = {
+METRIC_FUNCTIONS: dict[str, str] = {
     Filter.SUM.value: "sum",
     Filter.VAR.value: "var",
     Filter.MEAN.value: "mean",
@@ -76,7 +76,7 @@ METRIC_FUNCTIONS = {
 }
 
 # Default visualization structure
-DEFAULT_VIZ = {
+DEFAULT_VIZ: dict[str, Any] = {
     "row_nodes": [],
     "col_nodes": [],
     "mat": [],
@@ -88,7 +88,7 @@ DEFAULT_VIZ = {
     "links": [],
 }
 
-ERRORS = {
+ERRORS: dict[str, str] = {
     "no_data": "No data loaded",
     "invalid_filter": "Filter type '{}' not supported. Use: {}",
     "invalid_norm": "Normalization '{}' not supported. Use: total, zscore, qn",

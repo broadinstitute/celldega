@@ -122,7 +122,7 @@ class Matrix:
         # Optimized caching
         self._dat_cache: dict[str, Any] | None = None
         self._data_hash: int | None = None
-        self._dirty_flags = dict.fromkeys(CACHE_HIERARCHY, True)
+        self._dirty_flags: dict[str, bool] = dict.fromkeys(CACHE_HIERARCHY, True)
 
         # Visualization structure
         self.viz: dict[str, Any] = DEFAULT_VIZ.copy()
@@ -155,7 +155,12 @@ class Matrix:
 
         return self._dat_cache
 
-    def process(self, filter_genes=None, norm_col="total", norm_row="zscore") -> None:
+    def process(
+        self,
+        filter_genes: int | None = None,
+        norm_col: str | None = "total",
+        norm_row: str | None = "zscore",
+    ) -> None:
         """
         Apply processing pipeline to the matrix.
 
@@ -175,7 +180,7 @@ class Matrix:
         if norm_row:
             self.norm(axis=Axis.ROW.value, by=norm_row)
 
-    def cluster(self, **cluster_kwargs) -> dict[str, Any]:
+    def cluster(self, **cluster_kwargs: Any) -> dict[str, Any]:
         """
         Perform clustering and return visualization data.
 
@@ -193,7 +198,14 @@ class Matrix:
         self.clust(**cluster_kwargs)
         return self.export_viz_json()
 
-    def load_df(self, df: pd.DataFrame, meta_col=None, meta_row=None, col_cats=None, row_cats=None):
+    def load_df(
+        self,
+        df: pd.DataFrame,
+        meta_col: pd.DataFrame | None = None,
+        meta_row: pd.DataFrame | None = None,
+        col_cats: list[str] | None = None,
+        row_cats: list[str] | None = None,
+    ) -> None:
         """
         Load DataFrame with metadata.
 
@@ -373,7 +385,7 @@ class Matrix:
         dist_type: DistanceType = "cosine",
         linkage_type: LinkageType = "average",
         force: bool = False,
-    ):
+    ) -> None:
         """
         Perform hierarchical clustering.
 
@@ -675,7 +687,7 @@ class Matrix:
         else:
             viz["mat"] = dat["mat"].tolist()
 
-    def _process_axis_nodes(self, axis: str, dat: dict, viz: dict) -> None:
+    def _process_axis_nodes(self, axis: str, dat: dict[str, Any], viz: dict[str, Any]) -> None:
         """Process nodes for visualization."""
         node_info = dat["node_info"][axis]
         axis_nodes = viz[f"{axis}_nodes"]

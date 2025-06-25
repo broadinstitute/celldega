@@ -1,4 +1,3 @@
-import { update_path_layer_id } from '../deck-gl/layers/path_layer';
 import { update_trx_layer_id } from '../deck-gl/layers/trx_layer';
 import { get_layers_list } from '../deck-gl/utils/layers_ist';
 import { update_cat, update_selected_cats } from '../global_variables/cat';
@@ -38,7 +37,6 @@ export const update_ist_landscape_from_cgm = async (
         viz_state.aws
       );
 
-      update_path_layer_id(layers_obj, new_cat);
       update_trx_layer_id(viz_state.genes, layers_obj);
 
       const layers_list = get_layers_list(layers_obj, viz_state.close_up);
@@ -52,9 +50,6 @@ export const update_ist_landscape_from_cgm = async (
       update_selected_cats(viz_state.cats, [new_cat], viz_state.obs_store);
       update_selected_genes(viz_state.genes, [], viz_state.obs_store);
 
-      const inst_cat_name = viz_state.cats.selected_cats.join('-');
-
-      update_path_layer_id(layers_obj, inst_cat_name);
       update_trx_layer_id(viz_state.genes, layers_obj);
 
       const layers_list = get_layers_list(layers_obj, viz_state.close_up);
@@ -70,9 +65,6 @@ export const update_ist_landscape_from_cgm = async (
       update_selected_cats(viz_state.cats, new_cats, viz_state.obs_store);
       update_selected_genes(viz_state.genes, [], viz_state.obs_store);
 
-      const inst_cat_name = viz_state.cats.selected_cats.join('-');
-
-      update_path_layer_id(layers_obj, inst_cat_name);
       update_trx_layer_id(viz_state.genes, layers_obj);
 
       const layers_list = get_layers_list(layers_obj, viz_state.close_up);

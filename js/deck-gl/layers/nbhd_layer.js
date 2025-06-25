@@ -7,8 +7,6 @@ import { update_selected_genes } from '../../global_variables/selected_genes';
 import { hexToRgb } from '../../utils/hexToRgb';
 import { get_layers_list } from '../utils/layers_ist';
 
-import { update_path_layer_id } from './path_layer';
-
 export const ini_nbhd_layer = (viz_state, visible) => {
   // console.log(viz_state.nbhd.feature_collection)
 
@@ -64,12 +62,7 @@ const nbhd_layer_onclick = async (
   update_selected_cats(viz_state.cats, [inst_cat], viz_state.obs_store);
   update_selected_genes(viz_state.genes, [], viz_state.obs_store);
 
-  const inst_cat_name = viz_state.cats.selected_cats.join('-');
-
-  update_path_layer_id(layers_obj, inst_cat_name);
-
   // update data for nbhd layer
-
   await filter_cat_nbhd_feature_collection(viz_state);
   await update_nbhd_layer_data(viz_state, layers_obj);
 

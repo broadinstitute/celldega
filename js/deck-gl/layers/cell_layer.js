@@ -19,7 +19,6 @@ import { get_scatter_data } from '../../read_parquet/get_scatter_data';
 import { scale_umap_data } from '../../umap/scale_umap_data';
 import { get_layers_list } from '../utils/layers_ist';
 
-import { update_path_layer_id } from './path_layer';
 import { update_trx_layer_id } from './trx_layer';
 
 const cell_layer_onclick = async (info, d, deck_ist, layers_obj, viz_state) => {
@@ -41,11 +40,9 @@ const cell_layer_onclick = async (info, d, deck_ist, layers_obj, viz_state) => {
   update_selected_cats(viz_state.cats, [inst_cat], viz_state.obs_store);
   update_selected_genes(viz_state.genes, [], viz_state.obs_store);
 
-  const inst_cat_name = viz_state.cats.selected_cats.join('-');
 
   if (viz_state.umap.state === false) {
 
-    update_path_layer_id(layers_obj, inst_cat_name);
     update_trx_layer_id(viz_state.genes, layers_obj);
   }
 

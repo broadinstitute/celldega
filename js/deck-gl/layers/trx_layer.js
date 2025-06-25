@@ -1,5 +1,3 @@
-/* eslint-disable import/no-cycle */
-
 import { ScatterplotLayer } from 'deck.gl';
 
 import { update_cat, update_selected_cats } from '../../global_variables/cat';
@@ -7,8 +5,6 @@ import { update_cell_exp_array } from '../../global_variables/cell_exp_array';
 import { update_selected_genes } from '../../global_variables/selected_genes';
 import { grab_trx_tiles_in_view } from '../../vector_tile/transcripts/grab_trx_tiles_in_view';
 import { get_layers_list } from '../utils/layers_ist';
-
-import { update_path_layer_id } from './path_layer';
 
 export const update_trx_layer_id = (genes, layers_obj) => {
   layers_obj.trx_layer = layers_obj.trx_layer.clone({
@@ -50,8 +46,6 @@ const trx_layer_callback = async (
     viz_state.vector_name_integer,
     viz_state.aws
   );
-
-  update_path_layer_id(layers_obj, new_cat);
 
   update_trx_layer_id(viz_state.genes, layers_obj);
 

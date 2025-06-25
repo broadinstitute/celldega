@@ -34,7 +34,6 @@ import {
 import {
   ini_path_layer,
   set_path_layer_onclick,
-  update_path_layer_id,
   toggle_path_layer_visibility,
 } from '../deck-gl/layers/path_layer';
 import {
@@ -378,9 +377,15 @@ export const landscape_ist = async (
 
   viz_state.obs_store.selected_cats.subscribe((selected_cats) => {
     const selected_cats_name = selected_cats.join('-');
+
     layers_obj.cell_layer = layers_obj.cell_layer.clone({
       id: `cell-layer-${selected_cats_name}`,
     });
+
+    layers_obj.path_layer = layers_obj.path_layer.clone({
+      id: `path-layer-${selected_cats_name}`,
+    });
+
   })
 
   update_trx_layer_radius(layers_obj, trx_radius);
@@ -439,7 +444,6 @@ export const landscape_ist = async (
         viz_state.aws
       );
 
-      update_path_layer_id(layers_obj, new_cat);
       update_trx_layer_id(viz_state.genes, layers_obj);
 
       const updatedLayersList = get_layers_list(layers_obj, viz_state.close_up);
@@ -451,8 +455,6 @@ export const landscape_ist = async (
       update_selected_cats(viz_state.cats, [inst_col], viz_state.obs_store);
       update_selected_genes(viz_state.genes, [], viz_state.obs_store);
 
-      const inst_cat_name = viz_state.cats.selected_cats.join('-');
-      update_path_layer_id(layers_obj, inst_cat_name);
       update_trx_layer_id(viz_state.genes, layers_obj);
 
       const matrixColLayersList = get_layers_list(
@@ -470,9 +472,6 @@ export const landscape_ist = async (
 
       update_selected_genes(viz_state.genes, [], viz_state.obs_store);
 
-      const inst_cat_name = viz_state.cats.selected_cats.join('-');
-
-      update_path_layer_id(layers_obj, inst_cat_name);
       update_trx_layer_id(viz_state.genes, layers_obj);
 
       const dendroColLayersList = get_layers_list(

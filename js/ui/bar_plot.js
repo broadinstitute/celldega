@@ -1,6 +1,5 @@
 import * as d3 from 'd3';
 
-import { update_path_layer_id } from '../deck-gl/layers/path_layer';
 import { update_trx_layer_id } from '../deck-gl/layers/trx_layer';
 import { get_layers_list } from '../deck-gl/utils/layers_ist';
 import { update_cat, update_selected_cats } from '../global_variables/cat';
@@ -23,8 +22,6 @@ export const bar_callback_cluster = (
   update_selected_cats(_viz_state.cats, [d.name], _viz_state.obs_store);
   update_selected_genes(_viz_state.genes, [], _viz_state.obs_store);
 
-  const inst_cat_name = _viz_state.cats.selected_cats.join('-');
-  update_path_layer_id(_layers_obj, inst_cat_name);
   update_trx_layer_id(_viz_state.genes, _layers_obj);
 
   // add cell_layer, path_layer, and trx_layer to the deck_check observable
@@ -68,7 +65,6 @@ export const bar_callback_gene = async (
     _viz_state.aws
   );
 
-  update_path_layer_id(_layers_obj, new_cat);
   update_trx_layer_id(_viz_state.genes, _layers_obj);
 
   const layers_list = get_layers_list(_layers_obj, _viz_state.close_up);

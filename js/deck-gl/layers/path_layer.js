@@ -1,4 +1,3 @@
-/* eslint-disable import/no-cycle */
 import { PathLayer } from 'deck.gl';
 
 import { update_selected_cats, update_cat } from '../../global_variables/cat';
@@ -45,12 +44,6 @@ export const ini_path_layer = (viz_state) => {
   return path_layer;
 };
 
-export const update_path_layer_id = (layers_obj, new_cat) => {
-  layers_obj.path_layer = layers_obj.path_layer.clone({
-    id: `path-layer-${new_cat}`,
-  });
-};
-
 const path_layer_onclick = async (
   info,
   _d,
@@ -65,9 +58,6 @@ const path_layer_onclick = async (
   update_selected_cats(viz_state.cats, [inst_cat], viz_state.obs_store);
   update_selected_genes(viz_state.genes, [], viz_state.obs_store);
 
-  const inst_cat_name = viz_state.cats.selected_cats.join('-');
-
-  update_path_layer_id(layers_obj, inst_cat_name);
   update_trx_layer_id(viz_state.genes, layers_obj);
 
   const layers_list = get_layers_list(layers_obj, viz_state.close_up);

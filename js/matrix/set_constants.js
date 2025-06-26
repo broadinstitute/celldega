@@ -106,6 +106,21 @@ export const set_mat_constants = (
       viz_state.cats.num_cats.row +
     viz_state.viz.row_label;
 
+  // reduce matrix size to make room for attribute bars
+  viz_state.viz.mat_width =
+    width -
+    viz_state.viz.row_region -
+    viz_state.viz.dendrogram_width -
+    viz_state.viz.label_buffer;
+  viz_state.viz.mat_height =
+    height -
+    viz_state.viz.col_region -
+    viz_state.viz.dendrogram_width -
+    viz_state.viz.label_buffer;
+
+  viz_state.viz.mat_width = Math.max(20, viz_state.viz.mat_width);
+  viz_state.viz.mat_height = Math.max(20, viz_state.viz.mat_height);
+
   viz_state.viz.col_width = viz_state.viz.mat_width / viz_state.mat.num_cols;
   viz_state.viz.row_offset = viz_state.viz.mat_height / viz_state.mat.num_rows;
   viz_state.viz.col_offset = viz_state.viz.mat_width / viz_state.mat.num_cols;

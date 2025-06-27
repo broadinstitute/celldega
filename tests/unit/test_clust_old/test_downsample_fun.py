@@ -681,7 +681,7 @@ class TestDownsampleMockingInterface:
 
     def test_interface_with_mocking(self, basic_network):
         """Test interface behavior using mocks for unavailable functionality."""
-        with patch("celldega.clust.preprocessing.downsample_fun.main") as mock_ds:
+        with patch("celldega.clust_old.preprocessing.downsample_fun.main") as mock_ds:
             mock_ds.return_value = Mock()
 
             try:
@@ -704,7 +704,7 @@ class TestDownsampleMockingInterface:
     )
     def test_various_mock_scenarios(self, basic_network, mock_scenario):
         """Test different mocking scenarios for robustness."""
-        with patch("celldega.clust.preprocessing.downsample_fun.main", **mock_scenario):
+        with patch("celldega.clust_old.preprocessing.downsample_fun.main", **mock_scenario):
             try:
                 result = basic_network.downsample()
 

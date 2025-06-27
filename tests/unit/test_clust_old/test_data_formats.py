@@ -111,8 +111,8 @@ class TestDataFormatHelpers:
     def patch_dependencies() -> Generator[tuple[Mock, Mock], None, None]:
         """Context manager for patching common dependencies."""
         with (
-            patch("celldega.clust.core.data_formats.make_unique_labels.main") as mock_unique,
-            patch("celldega.clust.core.data_formats.categories.dict_cat") as mock_dict_cat,
+            patch("celldega.clust_old.core.data_formats.make_unique_labels.main") as mock_unique,
+            patch("celldega.clust_old.core.data_formats.categories.dict_cat") as mock_dict_cat,
         ):
             yield mock_unique, mock_dict_cat
 

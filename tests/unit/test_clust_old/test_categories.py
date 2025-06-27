@@ -30,7 +30,7 @@ import pytest
 
 # Path and module constants
 TEST_DATA_DIR = Path(__file__).parent.parent / "src"
-MODULE_PATH = "celldega.clust.categories.categories"
+MODULE_PATH = "celldega.clust_old.categories.categories"
 
 # Test data constants
 SAMPLE_HEADER_WITH_CATEGORIES = "col1\t\t\tval1\tval2\tval3"

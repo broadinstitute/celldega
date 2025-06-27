@@ -155,9 +155,9 @@ def assert_clustering_called_with_params(
 def mock_dependencies():
     """Fixture providing all common mock dependencies with default setup."""
     with (
-        patch("celldega.clust.clustering.make_clust_fun.make_sim_mat") as mock_make_sim_mat,
-        patch("celldega.clust.clustering.make_clust_fun.calc_clust") as mock_calc_clust,
-        patch("celldega.clust.clustering.make_clust_fun.enr_fun") as mock_enr_fun,
+        patch("celldega.clust_old.clustering.make_clust_fun.make_sim_mat") as mock_make_sim_mat,
+        patch("celldega.clust_old.clustering.make_clust_fun.calc_clust") as mock_calc_clust,
+        patch("celldega.clust_old.clustering.make_clust_fun.enr_fun") as mock_enr_fun,
     ):
         setup_similarity_mocks(mock_make_sim_mat, mock_calc_clust)
         setup_enrichr_mocks(mock_enr_fun)

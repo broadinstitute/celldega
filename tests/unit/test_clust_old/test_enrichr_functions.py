@@ -213,8 +213,8 @@ class TestAddEnrichrCats:
         ],
         ids=["simple_genes", "genes_with_modifiers", "titled_genes"],
     )
-    @patch("celldega.clust.analysis.enrichr_functions.get_request")
-    @patch("celldega.clust.analysis.enrichr_functions.post_request")
+    @patch("celldega.clust_old.analysis.enrichr_functions.get_request")
+    @patch("celldega.clust_old.analysis.enrichr_functions.post_request")
     def test_gene_name_processing_variations(
         self,
         mock_post: Mock,
@@ -245,8 +245,8 @@ class TestAddEnrichrCats:
         ],
         ids=["string_index", "tuple_index", "titled_index"],
     )
-    @patch("celldega.clust.analysis.enrichr_functions.get_request")
-    @patch("celldega.clust.analysis.enrichr_functions.post_request")
+    @patch("celldega.clust_old.analysis.enrichr_functions.get_request")
+    @patch("celldega.clust_old.analysis.enrichr_functions.post_request")
     def test_dataframe_index_types(
         self,
         mock_post: Mock,
@@ -277,8 +277,8 @@ class TestAddEnrichrCats:
         ],
         ids=["zero_terms", "fewer_than_available", "more_than_available", "empty_response"],
     )
-    @patch("celldega.clust.analysis.enrichr_functions.get_request")
-    @patch("celldega.clust.analysis.enrichr_functions.post_request")
+    @patch("celldega.clust_old.analysis.enrichr_functions.get_request")
+    @patch("celldega.clust_old.analysis.enrichr_functions.post_request")
     def test_term_quantity_edge_cases(
         self,
         mock_post: Mock,
@@ -306,7 +306,7 @@ class TestAddEnrichrCats:
         [RequestException, Timeout, ConnectionError],
         ids=["request_exception", "timeout", "connection_error"],
     )
-    @patch("celldega.clust.analysis.enrichr_functions.post_request")
+    @patch("celldega.clust_old.analysis.enrichr_functions.post_request")
     def test_network_failures_propagate(
         self,
         mock_post: Mock,
@@ -483,7 +483,7 @@ class TestGetRequest:
 
         assert mock_get.call_count == 1
 
-    @patch("celldega.clust.analysis.enrichr_functions.time.sleep")
+    @patch("celldega.clust_old.analysis.enrichr_functions.time.sleep")
     @patch("requests.get")
     def test_max_retry_behavior(self, mock_get: Mock, mock_sleep: Mock) -> None:
         """Test that function respects maximum retry limit."""
@@ -671,8 +671,8 @@ class TestTransferToEnrDict:
 class TestIntegrationScenarios:
     """Integration tests combining multiple functions in realistic workflows."""
 
-    @patch("celldega.clust.analysis.enrichr_functions.get_request")
-    @patch("celldega.clust.analysis.enrichr_functions.post_request")
+    @patch("celldega.clust_old.analysis.enrichr_functions.get_request")
+    @patch("celldega.clust_old.analysis.enrichr_functions.post_request")
     def test_full_enrichment_workflow(
         self,
         mock_post: Mock,
@@ -730,7 +730,7 @@ class TestIntegrationScenarios:
 
     def test_error_propagation_chain(self, simple_dataframe: pd.DataFrame) -> None:
         """Test that errors propagate correctly through the function chain."""
-        with patch("celldega.clust.analysis.enrichr_functions.post_request") as mock_post:
+        with patch("celldega.clust_old.analysis.enrichr_functions.post_request") as mock_post:
             mock_post.side_effect = RequestException("API Error")
 
             with pytest.raises(RequestException, match="API Error"):
@@ -745,8 +745,8 @@ class TestIntegrationScenarios:
         five_terms_response = create_enrichr_response(5)
 
         with (
-            patch("celldega.clust.analysis.enrichr_functions.post_request") as mock_post,
-            patch("celldega.clust.analysis.enrichr_functions.get_request") as mock_get,
+            patch("celldega.clust_old.analysis.enrichr_functions.post_request") as mock_post,
+            patch("celldega.clust_old.analysis.enrichr_functions.get_request") as mock_get,
         ):
             mock_post.return_value = DEFAULT_USER_LIST_ID
             mock_get.return_value = ([], five_terms_response)

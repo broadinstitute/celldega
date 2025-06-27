@@ -1,5 +1,5 @@
 """
-Comprehensive tests for celldega.clust.data_io.load_data module.
+Comprehensive tests for celldega.clust_old.data_io.load_data module.
 Tests cover all functions with extensive edge case coverage and minimal redundancy.
 """
 
@@ -174,8 +174,8 @@ class TestFileLoading:
             (CONTENT_UNICODE, TEST_FILE_UNICODE, "unicode"),
         ],
     )
-    @patch("celldega.clust.data_io.load_data.Path")
-    @patch("celldega.clust.data_io.load_data.load_file_as_string")
+    @patch("celldega.clust_old.data_io.load_data.Path")
+    @patch("celldega.clust_old.data_io.load_data.load_file_as_string")
     def test_load_file_success_cases(
         self,
         mock_load_string: Mock,
@@ -208,7 +208,7 @@ class TestFileLoading:
             (MemoryError(), TEST_FILE_HUGE, "memory_error"),
         ],
     )
-    @patch("celldega.clust.data_io.load_data.Path")
+    @patch("celldega.clust_old.data_io.load_data.Path")
     def test_load_file_error_cases(
         self,
         mock_path: Mock,
@@ -325,8 +325,8 @@ class TestTsvProcessing:
             (ROW_CATS_MAX, COL_CATS_MAX, True),
         ],
     )
-    @patch("celldega.clust.data_io.load_data.categories.check_categories")
-    @patch("celldega.clust.data_io.load_data.proc_df_labels.main")
+    @patch("celldega.clust_old.data_io.load_data.categories.check_categories")
+    @patch("celldega.clust_old.data_io.load_data.proc_df_labels.main")
     @patch("pandas.read_table")
     def test_tsv_category_configurations(
         self,
@@ -368,7 +368,7 @@ class TestTsvProcessing:
             (MemoryError(ERROR_OUT_OF_MEMORY), "memory_error"),
         ],
     )
-    @patch("celldega.clust.data_io.load_data.categories.check_categories")
+    @patch("celldega.clust_old.data_io.load_data.categories.check_categories")
     @patch("pandas.read_table")
     def test_tsv_pandas_error_handling(
         self,
@@ -394,9 +394,11 @@ class TestTsvProcessing:
         # Simulate buffer being read before (previously caused the bug)
         _ = buffer.read()
 
-        with patch("celldega.clust.data_io.load_data.categories.check_categories") as mock_check:
+        with patch(
+            "celldega.clust_old.data_io.load_data.categories.check_categories"
+        ) as mock_check:
             with patch("pandas.read_table") as mock_read_table:
-                with patch("celldega.clust.data_io.load_data.proc_df_labels.main") as mock_proc:
+                with patch("celldega.clust_old.data_io.load_data.proc_df_labels.main") as mock_proc:
                     mock_check.return_value = {"row": ROW_CATS_NONE, "col": COL_CATS_NONE}
                     mock_read_table.return_value = sample_dataframe
                     mock_proc.return_value = sample_dataframe
@@ -420,7 +422,7 @@ class TestTsvProcessing:
             ("normal\tdata\nnull\x00byte", "null_bytes"),
         ],
     )
-    @patch("celldega.clust.data_io.load_data.categories.check_categories")
+    @patch("celldega.clust_old.data_io.load_data.categories.check_categories")
     def test_malformed_tsv_content(
         self,
         mock_check_cats: Mock,
@@ -436,7 +438,7 @@ class TestTsvProcessing:
         with patch("pandas.read_table") as mock_read_table:
             mock_read_table.return_value = sample_dataframe
 
-            with patch("celldega.clust.data_io.load_data.proc_df_labels.main") as mock_proc:
+            with patch("celldega.clust_old.data_io.load_data.proc_df_labels.main") as mock_proc:
                 mock_proc.return_value = sample_dataframe
 
                 load_data.load_tsv_to_net(mock_network, buffer, f"{description}.tsv")
@@ -467,7 +469,9 @@ class TestJsonAndGmtLoading:
         """Test JSON loading with various data structures."""
         json_string = json.dumps(json_data)
 
-        with patch("celldega.clust.data_io.load_data.Path.open", mock_open(read_data=json_string)):
+        with patch(
+            "celldega.clust_old.data_io.load_data.Path.open", mock_open(read_data=json_string)
+        ):
             result = load_data.load_json_to_dict(f"{description}.json")
 
         assert result == json_data
@@ -485,13 +489,15 @@ class TestJsonAndGmtLoading:
         self, invalid_json: str, error_type: type[Exception], description: str
     ):
         """Test JSON error handling with various invalid formats."""
-        with patch("celldega.clust.data_io.load_data.Path.open", mock_open(read_data=invalid_json)):
+        with patch(
+            "celldega.clust_old.data_io.load_data.Path.open", mock_open(read_data=invalid_json)
+        ):
             with pytest.raises(error_type):
                 load_data.load_json_to_dict(f"{description}.json")
 
     def test_json_null_handling(self):
         """Test handling of valid JSON null value."""
-        with patch("celldega.clust.data_io.load_data.Path.open", mock_open(read_data="null")):
+        with patch("celldega.clust_old.data_io.load_data.Path.open", mock_open(read_data="null")):
             result = load_data.load_json_to_dict("null.json")
             assert result is None
 
@@ -523,7 +529,9 @@ class TestJsonAndGmtLoading:
         self, gmt_content: str, expected_result: dict[str, list[str]], description: str
     ):
         """Test GMT loading with various file formats and edge cases."""
-        with patch("celldega.clust.data_io.load_data.Path.open", mock_open(read_data=gmt_content)):
+        with patch(
+            "celldega.clust_old.data_io.load_data.Path.open", mock_open(read_data=gmt_content)
+        ):
             result = load_data.load_gmt(f"{description}.gmt")
 
         assert result == expected_result
@@ -539,7 +547,7 @@ class TestJsonAndGmtLoading:
     )
     def test_file_loading_errors(self, file_error: Exception, description: str):
         """Test file loading error handling for both JSON and GMT."""
-        with patch("celldega.clust.data_io.load_data.Path.open", side_effect=file_error):
+        with patch("celldega.clust_old.data_io.load_data.Path.open", side_effect=file_error):
             with pytest.raises(type(file_error)):
                 load_data.load_json_to_dict(f"missing_{description}.json")
 
@@ -579,7 +587,7 @@ class TestDataToNetLoading:
             ({"nodes": {"row": ["gene1"], "col": ["cell1"]}, "mat": [[42]]}, "single_cell"),
         ],
     )
-    @patch("celldega.clust.data_io.load_data.data_formats.mat_to_numpy_arr")
+    @patch("celldega.clust_old.data_io.load_data.data_formats.mat_to_numpy_arr")
     def test_load_data_to_net_success_cases(
         self,
         mock_mat_to_numpy: Mock,
@@ -604,7 +612,7 @@ class TestDataToNetLoading:
             ({}, "nodes", "empty_dict"),
         ],
     )
-    @patch("celldega.clust.data_io.load_data.data_formats.mat_to_numpy_arr")
+    @patch("celldega.clust_old.data_io.load_data.data_formats.mat_to_numpy_arr")
     def test_load_data_to_net_missing_keys(
         self,
         mock_mat_to_numpy: Mock,
@@ -619,7 +627,7 @@ class TestDataToNetLoading:
         with pytest.raises(KeyError):
             load_data.load_data_to_net(mock_network, incomplete_data)
 
-    @patch("celldega.clust.data_io.load_data.data_formats.mat_to_numpy_arr")
+    @patch("celldega.clust_old.data_io.load_data.data_formats.mat_to_numpy_arr")
     def test_load_data_to_net_incomplete_nodes_success(
         self, mock_mat_to_numpy: Mock, mock_network: Mock
     ):
@@ -692,8 +700,8 @@ class TestComplexIntegrationScenarios:
             ("special!@#$%^&()chars.tsv", "special_chars"),
         ],
     )
-    @patch("celldega.clust.data_io.load_data.Path")
-    @patch("celldega.clust.data_io.load_data.load_file_as_string")
+    @patch("celldega.clust_old.data_io.load_data.Path")
+    @patch("celldega.clust_old.data_io.load_data.load_file_as_string")
     def test_filename_edge_cases(
         self,
         mock_load_string: Mock,
@@ -740,7 +748,7 @@ class TestEndToEndIntegration:
         mock_net.reset = reset
         mock_net.load_tsv_to_net = load_tsv_to_net
 
-        with patch("celldega.clust.data_io.load_data.Path") as mock_path_class:
+        with patch("celldega.clust_old.data_io.load_data.Path") as mock_path_class:
             mock_path_instance = create_mock_path_with_content(TSV_VALID_WITH_CATEGORIES)
             mock_path_instance.name = TEST_FILE_SIMPLE
             mock_path_class.return_value = mock_path_instance

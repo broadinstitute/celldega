@@ -1,5 +1,5 @@
 """
-Comprehensive test suite for celldega.clust.__init__.py
+Comprehensive test suite for celldega.clust_old.__init__.py
 
 This version addresses robustness, conciseness, and consistency issues:
 - Reduces duplicate code through helper functions and fixtures
@@ -738,7 +738,7 @@ class TestNetworkAdvanced:
         )
         net = initialize_network_with_data(df)
 
-        with patch("celldega.clust.analysis.enrichr_functions.get_request") as mock_get:
+        with patch("celldega.clust_old.analysis.enrichr_functions.get_request") as mock_get:
             mock_get.return_value = ([], [])
             net.enrichrgram(lib="KEGG_2016", axis="row")
 

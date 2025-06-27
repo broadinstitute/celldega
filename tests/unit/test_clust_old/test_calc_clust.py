@@ -308,7 +308,7 @@ class TestAssertionHelpers:
         Yields:
             Mock object for visualization function
         """
-        with patch("celldega.clust.visualization.make_viz.viz_json") as mock_viz:
+        with patch("celldega.clust_old.visualization.make_viz.viz_json") as mock_viz:
             yield mock_viz
 
     @staticmethod

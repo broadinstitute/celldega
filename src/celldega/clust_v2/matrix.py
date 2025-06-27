@@ -61,8 +61,9 @@ class Matrix:
         mat = Matrix(adata)
         viz_data = mat.cluster()
 
-        # Custom processing
-        mat = Matrix(adata, filter_genes=5000, norm_row='qn')
+        # Custom processing with colors
+        mat = Matrix(adata, filter_genes=5000, norm_row='qn',
+                    global_colors={"high": "red", "low": "blue"})
 
         # No processing
         mat = Matrix(adata, disable_processing=True)
@@ -81,6 +82,8 @@ class Matrix:
         norm_row: str | None = "zscore",
         # Control flag
         disable_processing: bool = False,
+        # Visualization parameters
+        global_colors: dict[str, str] | pd.DataFrame | None = None,
     ):
         """
         Create Matrix with automatic processing unless disabled.
@@ -95,13 +98,15 @@ class Matrix:
             norm_col: Column normalization ('total', 'zscore', 'qn', None)
             norm_row: Row normalization ('total', 'zscore', 'qn', None)
             disable_processing: Skip automatic processing (default: False)
+            global_colors: Global category color mapping (dict or DataFrame with 'color' column)
 
         Examples:
             # Automatic processing (recommended)
             mat = Matrix(adata)  # Applies norm_col='total', norm_row='zscore'
 
-            # Custom processing
-            mat = Matrix(adata, filter_genes=5000, norm_row='qn')
+            # Custom processing with colors
+            colors = {"Cancer": "#ff0000", "Normal": "#0000ff"}
+            mat = Matrix(adata, filter_genes=5000, norm_row='qn', global_colors=colors)
 
             # No processing
             mat = Matrix(adata, disable_processing=True)
@@ -139,6 +144,10 @@ class Matrix:
             # Step 2: Apply processing unless disabled
             if not disable_processing:
                 self.process(filter_genes=filter_genes, norm_col=norm_col, norm_row=norm_row)
+
+        # Step 3: Set colors if provided
+        if global_colors is not None:
+            self.set_global_cat_colors(global_colors)
 
     @property
     def dat(self) -> dict[str, Any]:
@@ -578,6 +587,164 @@ class Matrix:
         self._invalidate_cache(CacheLevel.DATA.value)
         if self._clustered:
             self.make_viz()
+
+    # =========================================================================
+    # CATEGORY METHODS
+    # =========================================================================
+
+    def add_cats(self, axis: AxisInput, cat_data: dict[str, Any]) -> None:
+        """
+        Add multiple categories to metadata.
+
+        Args:
+            axis: 'row'/'col', 0/1, or Axis enum
+            cat_data: Dict with category name as key, values as list/Series/dict
+
+        Examples:
+            # Add multiple categories at once
+            mat.add_cats('col', {
+                'cell_type': ['T-cell', 'B-cell', 'NK-cell'],
+                'treatment': ['control', 'treated', 'control']
+            })
+
+            # From existing metadata
+            mat.add_cats('col', meta_df.to_dict('series'))
+        """
+        if self.data is None:
+            raise ValueError(ERRORS["no_data"])
+
+        axis_enum = Axis.normalize(axis)
+        meta_df = self.meta_col if axis_enum == Axis.COL else self.meta_row
+        cats_list = self.col_cats if axis_enum == Axis.COL else self.row_cats
+
+        for cat_name, cat_values in cat_data.items():
+            # Handle different input types
+            if isinstance(cat_values, dict):
+                # Dict mapping feature names to values
+                cat_series = pd.Series(cat_values)
+                cat_series = cat_series.reindex(meta_df.index, fill_value=None)
+            elif isinstance(cat_values, list):
+                # List of values in same order as features
+                if len(cat_values) != len(meta_df):
+                    raise ValueError(
+                        f"Category '{cat_name}' length ({len(cat_values)}) "
+                        f"doesn't match {axis_enum.value} count ({len(meta_df)})"
+                    )
+                cat_series = pd.Series(cat_values, index=meta_df.index)
+            elif isinstance(cat_values, pd.Series):
+                # Pandas Series - reindex to match metadata
+                cat_series = cat_values.reindex(meta_df.index, fill_value=None)
+            else:
+                raise ValueError(f"Unsupported category data type: {type(cat_values)}")
+
+            meta_df[cat_name] = cat_series
+
+            if cat_name not in cats_list:
+                cats_list.append(cat_name)
+
+        self._invalidate_cache(CacheLevel.DATA.value)
+        if self._clustered:
+            self.make_viz()
+
+    def set_global_cat_colors(self, color_mapping: dict[str, str] | pd.DataFrame) -> None:
+        """
+        Set global category color mapping that applies across all categories.
+
+        Args:
+            color_mapping: Dict mapping category values to colors,
+                          or DataFrame with 'color' column
+
+        Examples:
+            # Dict format
+            mat.set_global_cat_colors({"Cancer": "#ff0000", "Normal": "#0000ff"})
+
+            # DataFrame format (compatible with Network.py)
+            df_colors = pd.DataFrame()
+            df_colors.loc['Cancer', 'color'] = '#ff0000'
+            df_colors.loc['Normal', 'color'] = '#0000ff'
+            mat.set_global_cat_colors(df_colors)
+        """
+        # Ensure viz structure exists
+        if "global_cat_colors" not in self.viz:
+            self.viz["global_cat_colors"] = {}
+
+        # Handle different input formats
+        if isinstance(color_mapping, pd.DataFrame):
+            if "color" in color_mapping.columns:
+                color_dict = color_mapping["color"].to_dict()
+            else:
+                raise ValueError("DataFrame must have 'color' column")
+        else:
+            color_dict = dict(color_mapping)
+
+        self.viz["global_cat_colors"].update(color_dict)
+
+    def set_matrix_colors(self, pos: str = "red", neg: str = "blue") -> None:
+        """
+        Set matrix color scheme for positive and negative values.
+
+        Args:
+            pos: Color for positive values (hex or named color)
+            neg: Color for negative values (hex or named color)
+
+        Example:
+            mat.set_matrix_colors(pos="#ff0000", neg="#0000ff")
+        """
+        if "matrix_colors" not in self.viz:
+            self.viz["matrix_colors"] = {}
+        self.viz["matrix_colors"].update({"pos": pos, "neg": neg})
+
+    def set_cat_color(self, axis: AxisInput, cat_index: int, cat_name: str, color: str) -> None:
+        """
+        Set color for specific category value in a specific category column.
+
+        Args:
+            axis: 'row'/'col', 0/1, or Axis enum
+            cat_index: Category column index (1-based, like original Network)
+            cat_name: Category value name to color
+            color: Hex color string or named color
+
+        Example:
+            # Set color for 'Cancer' in the first column category
+            mat.set_cat_color('col', 1, 'Cancer', '#ff0000')
+        """
+        axis_enum = Axis.normalize(axis)
+
+        # Ensure viz structure exists
+        if "cat_colors" not in self.viz:
+            self.viz["cat_colors"] = {Axis.ROW.value: {}, Axis.COL.value: {}}
+
+        axis_str = axis_enum.value
+        cat_key = f"cat-{cat_index - 1}"  # Convert 1-based to 0-based
+
+        if axis_str not in self.viz["cat_colors"]:
+            self.viz["cat_colors"][axis_str] = {}
+        if cat_key not in self.viz["cat_colors"][axis_str]:
+            self.viz["cat_colors"][axis_str][cat_key] = {}
+
+        self.viz["cat_colors"][axis_str][cat_key][cat_name] = color
+
+    def set_cat_colors(
+        self, axis: AxisInput, cat_index: int, color_mapping: dict[str, str]
+    ) -> None:
+        """
+        Set colors for multiple category values in a specific category column.
+
+        Args:
+            axis: 'row'/'col', 0/1, or Axis enum
+            cat_index: Category column index (1-based)
+            color_mapping: Dict mapping category values to colors
+
+        Example:
+            # Set colors for multiple values in tissue type category
+            mat.set_cat_colors('col', 1, {
+                'Liver': '#00ff00',
+                'Brain': '#ffff00',
+                'Heart': '#ff00ff'
+            })
+        """
+        for cat_name, color in color_mapping.items():
+            self.set_cat_color(axis, cat_index, cat_name, color)
 
     ###########################################################################
 

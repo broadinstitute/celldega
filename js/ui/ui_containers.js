@@ -457,17 +457,16 @@ export const make_ist_ui_container = (
   );
 
   viz_state.obs_store.viz_image_layers.subscribe((viz_image_layers) => {
-
     d3.select(viz_state.containers.image)
       .selectAll('.img_layer_button')
       .style('color', viz_image_layers ? 'blue' : 'gray');
 
     viz_state.img.image_layer_sliders.map((slider) =>
-        toggle_slider(slider, viz_image_layers)
-      );
+      toggle_slider(slider, viz_image_layers)
+    );
 
     toggle_visibility_image_layers(layers_obj, viz_image_layers);
-  })
+  });
 
   make_button(
     cell_ctrl_container,
@@ -507,7 +506,6 @@ export const make_ist_ui_container = (
   viz_state.cats.svg_bar_cluster = d3.create('svg');
   viz_state.genes.svg_bar_gene = d3.create('svg');
 
-
   make_bar_graph(
     viz_state.containers.bar_cluster,
     bar_callback_cluster,
@@ -536,9 +534,7 @@ export const make_ist_ui_container = (
     return (selected_cats) => {
       // --- 1. Update the styles ---
       if (!Array.isArray(selected_cats) || selected_cats.length === 0) {
-        svg.selectAll('g')
-          .attr('font-weight', 'normal')
-          .attr('opacity', 1.0);
+        svg.selectAll('g').attr('font-weight', 'normal').attr('opacity', 1.0);
 
         // Scroll to top if we're resetting
         container.scrollTo({
@@ -546,23 +542,20 @@ export const make_ist_ui_container = (
           behavior: 'smooth',
         });
       } else {
-        svg.selectAll('g')
-          .attr('font-weight', d =>
+        svg
+          .selectAll('g')
+          .attr('font-weight', (d) =>
             selected_cats.includes(d.name) ? 'bold' : 'normal'
           )
-          .attr('opacity', d =>
-            selected_cats.includes(d.name) ? 1.0 : 0.2
-          );
+          .attr('opacity', (d) => (selected_cats.includes(d.name) ? 1.0 : 0.2));
 
         // --- 2. Scroll to the selected bar if only one is selected ---
         if (selected_cats.length === 1) {
           const inst_cat = selected_cats[0];
 
-          const selectedBar = svg
-            .selectAll('g')
-            .filter(function () {
-              return d3.select(this).select('text').text() === inst_cat;
-            });
+          const selectedBar = svg.selectAll('g').filter(function () {
+            return d3.select(this).select('text').text() === inst_cat;
+          });
 
           if (!selectedBar.empty()) {
             const barElement = selectedBar.node();
@@ -574,7 +567,8 @@ export const make_ist_ui_container = (
             const containerTop = containerRect.top;
             const containerBottom = containerRect.bottom;
 
-            const barFullyVisible = barTop >= containerTop && barBottom <= containerBottom;
+            const barFullyVisible =
+              barTop >= containerTop && barBottom <= containerBottom;
 
             if (!barFullyVisible) {
               const offsetTop = barTop - containerTop;
@@ -591,101 +585,108 @@ export const make_ist_ui_container = (
     };
   };
 
+  viz_state.obs_store.selected_cats.subscribe(
+    make_bar_cat_subscriber(
+      viz_state.cats.svg_bar_cluster,
+      viz_state.containers.bar_cluster
+    ),
+    { immediate: false }
+  );
 
-  viz_state.obs_store.selected_cats.subscribe(make_bar_cat_subscriber(
-    viz_state.cats.svg_bar_cluster,
-    viz_state.containers.bar_cluster
-  ), {immediate: false});
+  viz_state.obs_store.selected_genes.subscribe(
+    make_bar_cat_subscriber(
+      viz_state.genes.svg_bar_gene,
+      viz_state.containers.bar_gene
+    ),
+    { immediate: false }
+  );
 
-  viz_state.obs_store.selected_genes.subscribe(make_bar_cat_subscriber(
-    viz_state.genes.svg_bar_gene,
-    viz_state.containers.bar_gene
-  ), {immediate: false});
+  const subscriber_new_bar_data =
+    ({ svg, color_dict, selected_array, bar_callback, container }) =>
+    (bar_data) => {
+      const bar_height = 15;
+      const svg_height = bar_height * (bar_data.length + 1);
+      svg.attr('height', svg_height);
 
-  const subscriber_new_bar_data = ({
-    svg,
-    color_dict,
-    selected_array,
-    bar_callback,
-    container
-  }) => (bar_data) => {
-    const bar_height = 15;
-    const svg_height = bar_height * (bar_data.length + 1);
-    svg.attr('height', svg_height);
+      const max_bar_width = 90;
+      const bar_data_values = bar_data.map((d) => d.value);
 
-    const max_bar_width = 90;
-    const bar_data_values = bar_data.map(d => d.value);
+      const y_scale = d3
+        .scaleBand()
+        .domain(d3.range(bar_data_values.length))
+        .range([0, (bar_height + 1) * bar_data_values.length]);
 
-    const y_scale = d3.scaleBand()
-      .domain(d3.range(bar_data_values.length))
-      .range([0, (bar_height + 1) * bar_data_values.length]);
+      const x_scale = d3
+        .scaleLinear()
+        .domain([0, d3.max(bar_data_values)])
+        .range([0, max_bar_width]);
 
-    const x_scale = d3.scaleLinear()
-      .domain([0, d3.max(bar_data_values)])
-      .range([0, max_bar_width]);
+      const bars = svg.selectAll('g').data(bar_data, (d) => d.name);
 
-    const bars = svg.selectAll('g').data(bar_data, d => d.name);
+      // Enter new bars
+      const bars_enter = bars
+        .enter()
+        .append('g')
+        .attr('transform', (d, i) => `translate(2,${y_scale(i) + 2})`)
+        .on('click', (event, d) =>
+          bar_callback(event, d, deck_ist, layers_obj, viz_state)
+        );
 
-    // Enter new bars
-    const bars_enter = bars.enter()
-      .append('g')
-      .attr('transform', (d, i) => `translate(2,${y_scale(i) + 2})`)
-      .on('click', (event, d) => bar_callback(event, d, deck_ist, layers_obj, viz_state));
+      bars_enter
+        .append('rect')
+        .attr('width', 0)
+        .attr('height', y_scale.bandwidth() - 1)
+        .transition()
+        .duration(750)
+        .attr('width', (d) => x_scale(d.value));
 
-    bars_enter.append('rect')
-      .attr('width', 0)
-      .attr('height', y_scale.bandwidth() - 1)
-      .transition()
-      .duration(750)
-      .attr('width', d => x_scale(d.value));
+      bars_enter
+        .append('text')
+        .attr('fill', 'black')
+        .attr('x', '5px')
+        .attr('y', y_scale.bandwidth() / 2 - 1)
+        .attr('dy', '0.35em')
+        .attr('text-anchor', 'start')
+        .attr('opacity', 0)
+        .text((d) => d.name)
+        .transition()
+        .duration(750)
+        .attr('opacity', 1);
 
-    bars_enter.append('text')
-      .attr('fill', 'black')
-      .attr('x', '5px')
-      .attr('y', y_scale.bandwidth() / 2 - 1)
-      .attr('dy', '0.35em')
-      .attr('text-anchor', 'start')
-      .attr('opacity', 0)
-      .text(d => d.name)
-      .transition()
-      .duration(750)
-      .attr('opacity', 1);
+      // Merge enter and update selections
+      const bars_merged = bars.merge(bars_enter);
 
-    // Merge enter and update selections
-    const bars_merged = bars.merge(bars_enter);
+      // Update bars
+      bars_merged
+        .transition()
+        .duration(750)
+        .attr('transform', (d, i) => `translate(2,${y_scale(i) + 2})`);
 
-    // Update bars
-    bars_merged.transition()
-      .duration(750)
-      .attr('transform', (d, i) => `translate(2,${y_scale(i) + 2})`);
+      bars_merged
+        .select('rect')
+        .attr('width', (d) => x_scale(d.value))
+        .attr('fill', (d) => {
+          const rgb = color_dict[d.name] || [0, 0, 0];
+          const opacity =
+            selected_array.length === 0 || selected_array.includes(d.name)
+              ? 1
+              : 0.1;
+          return `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${opacity})`;
+        });
 
-    bars_merged.select('rect')
-      .attr('width', d => x_scale(d.value))
-      .attr('fill', d => {
-        const rgb = color_dict[d.name] || [0, 0, 0];
-        const opacity = selected_array.length === 0 || selected_array.includes(d.name) ? 1 : 0.1;
-        return `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${opacity})`;
-      });
+      bars_merged.select('text').text((d) => d.name);
 
-    bars_merged.select('text')
-      .text(d => d.name);
+      // Remove old bars
+      bars.exit().transition().duration(750).attr('opacity', 0).remove();
 
-    // Remove old bars
-    bars.exit()
-      .transition()
-      .duration(750)
-      .attr('opacity', 0)
-      .remove();
-
-    // Optional: scroll container to top
-    if (container) {
-      container.scrollTo({
-        top: 0,
-        behavior: 'smooth'
-      });
-    }
-  };
-
+      // Optional: scroll container to top
+      if (container) {
+        container.scrollTo({
+          top: 0,
+          behavior: 'smooth',
+        });
+      }
+    };
 
   viz_state.obs_store.new_cell_bar_data.subscribe(
     subscriber_new_bar_data({
@@ -693,7 +694,7 @@ export const make_ist_ui_container = (
       color_dict: viz_state.cats.color_dict_cluster,
       selected_array: viz_state.cats.selected_cats,
       bar_callback: bar_callback_cluster,
-      container: viz_state.containers.bar_cluster
+      container: viz_state.containers.bar_cluster,
     }),
     { immediate: false }
   );
@@ -704,12 +705,10 @@ export const make_ist_ui_container = (
       color_dict: viz_state.genes.color_dict_gene,
       selected_array: viz_state.genes.selected_genes,
       bar_callback: bar_callback_gene,
-      container: viz_state.containers.bar_gene
+      container: viz_state.containers.bar_gene,
     }),
     { immediate: false }
   );
-
-
 
   cell_container.appendChild(cell_ctrl_container);
   cell_container.appendChild(viz_state.containers.bar_cluster);
@@ -726,46 +725,38 @@ export const make_ist_ui_container = (
   viz_state.genes.gene_search.style.marginLeft = '0px';
 
   // add subscriber for gene search and gene_text_box
-  viz_state.obs_store.selected_genes.subscribe(
+  viz_state.obs_store.selected_genes.subscribe(async (selected_genes) => {
+    // if selected_genes has a length of 1, update the gene search input
+    if (selected_genes.length === 1) {
+      const inst_gene = selected_genes[0];
 
-    async (selected_genes) => {
+      viz_state.genes.gene_search_input.value = inst_gene;
 
-      // if selected_genes has a length of 1, update the gene search input
-      if (selected_genes.length === 1) {
+      if (inst_gene !== '') {
+        if (viz_state.genes.gene_names.includes(inst_gene)) {
+          viz_state.genes.gene_text_box.textContent = 'loading';
+          await uniprot_get_request(inst_gene);
+          const gene_data = uniprot_data[inst_gene];
 
-        const inst_gene = selected_genes[0];
-
-        viz_state.genes.gene_search_input.value = inst_gene;
-
-        if (inst_gene !== '') {
-          if (viz_state.genes.gene_names.includes(inst_gene)) {
-
-            viz_state.genes.gene_text_box.textContent = 'loading';
-            await uniprot_get_request(inst_gene);
-            const gene_data = uniprot_data[inst_gene];
-
-            if (gene_data && gene_data.name && gene_data.description) {
-              viz_state.genes.gene_text_box.innerHTML = `<span style="color: blue;">${gene_data.name}</span><br>${gene_data.description}`;
-            } else {
-              viz_state.genes.gene_text_box.textContent = '';
-            }
+          if (gene_data && gene_data.name && gene_data.description) {
+            viz_state.genes.gene_text_box.innerHTML = `<span style="color: blue;">${gene_data.name}</span><br>${gene_data.description}`;
+          } else {
+            viz_state.genes.gene_text_box.textContent = '';
           }
-        } else {
-          viz_state.genes.gene_text_box.textContent = '';
         }
-
-        viz_state.genes.gene_text_box.scrollTo({
-          top: 0,
-          behavior: 'smooth',
-        });
-
-      } else if (selected_genes.length === 0) {
-        viz_state.genes.gene_search_input.value = '';
+      } else {
         viz_state.genes.gene_text_box.textContent = '';
       }
 
+      viz_state.genes.gene_text_box.scrollTo({
+        top: 0,
+        behavior: 'smooth',
+      });
+    } else if (selected_genes.length === 0) {
+      viz_state.genes.gene_search_input.value = '';
+      viz_state.genes.gene_text_box.textContent = '';
     }
-  )
+  });
 
   ui_container.appendChild(ctrl_container);
 

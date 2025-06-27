@@ -11,46 +11,54 @@ const colorToRgba = (colorStr, alpha = 255) => {
 const set_cat_data = (network, viz_state, axis) => {
   const isRow = axis === 'row';
   const nodes = isRow ? network.row_nodes : network.col_nodes;
-  const num_cats = isRow ? viz_state.cats.num_cats.row : viz_state.cats.num_cats.col;
-  const cat_offset = isRow ? viz_state.viz.row_cat_offset : viz_state.viz.col_cat_offset;
-  const node_offset = isRow ? viz_state.viz.row_offset : viz_state.viz.col_offset;
+  const num_cats = isRow
+    ? viz_state.cats.num_cats.row
+    : viz_state.cats.num_cats.col;
+  const cat_offset = isRow
+    ? viz_state.viz.row_cat_offset
+    : viz_state.viz.col_cat_offset;
+  const node_offset = isRow
+    ? viz_state.viz.row_offset
+    : viz_state.viz.col_offset;
 
   // // 👇 Shift rows down by one row_offset (or fraction if needed)
   // const row_shift = isRow ? node_offset : 0;
 
-  const cat_data = nodes.flatMap((node, node_index) => {
-    return Array.from({ length: num_cats }).map((_, cat_index) => {
-      const cat_name = `cat-${cat_index}`;
-      const ini_cat = node[cat_name];
+  const cat_data = nodes
+    .flatMap((node, node_index) => {
+      return Array.from({ length: num_cats }).map((_, cat_index) => {
+        const cat_name = `cat-${cat_index}`;
+        const ini_cat = node[cat_name];
 
-      if (!ini_cat) {
-        return null;
-      }
+        if (!ini_cat) {
+          return null;
+        }
 
-      if (!ini_cat.includes(': ')) {
-        return null;
-      }
-      const clean_cat = ini_cat.split(': ')[1];
-      const ini_color = network.global_cat_colors[clean_cat];
-      const color_rgba = colorToRgba(ini_color, 255);
+        if (!ini_cat.includes(': ')) {
+          return null;
+        }
+        const clean_cat = ini_cat.split(': ')[1];
+        const ini_color = network.global_cat_colors[clean_cat];
+        const color_rgba = colorToRgba(ini_color, 255);
 
-      return {
-        position: isRow
-          ? [
-              cat_offset * (cat_index + 0.5) + 20,
-              node_offset * (node_index + 0.5)
-            ]
-          : [
-              node_offset * (node_index + 0.5),
-              cat_offset * (cat_index + 1.5) - 30
-            ],
-        color: color_rgba,
-        name: clean_cat,
-        level: cat_index,
-        original_index: node_index
-      };
-    });
-  }).filter(Boolean);
+        return {
+          position: isRow
+            ? [
+                cat_offset * (cat_index + 0.5) + 20,
+                node_offset * (node_index + 0.5),
+              ]
+            : [
+                node_offset * (node_index + 0.5),
+                cat_offset * (cat_index + 1.5) - 30,
+              ],
+          color: color_rgba,
+          name: clean_cat,
+          level: cat_index,
+          original_index: node_index,
+        };
+      });
+    })
+    .filter(Boolean);
 
   return cat_data;
 };

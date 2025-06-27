@@ -168,7 +168,6 @@ const custom_label_reorder = (
   });
 
   if (other_axis === 'col') {
-
     layers_mat.col_label_layer = layers_mat.col_label_layer.clone({
       updateTriggers: {
         getPosition: [viz_state.order.current.col, name],
@@ -182,10 +181,8 @@ const custom_label_reorder = (
       },
     });
 
-
     toggle_dendro_layer_visibility(layers_mat, viz_state, 'col');
   } else if (other_axis === 'row') {
-
     layers_mat.row_label_layer = layers_mat.row_label_layer.clone({
       updateTriggers: {
         getPosition: [viz_state.order.current.row, name],

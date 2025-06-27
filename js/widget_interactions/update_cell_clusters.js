@@ -15,5 +15,4 @@ export const update_cell_clusters = (deck_ist, layers_obj, viz_state) => {
     ...cell,
     cat: viz_state.cats.dict_cell_cats[cell.name],
   }));
-
 };

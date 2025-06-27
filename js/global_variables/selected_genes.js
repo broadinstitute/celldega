@@ -1,5 +1,4 @@
 export const update_selected_genes = (genes, new_selected_genes, obs_store) => {
-
   // Check if the arrays are equal
   const areArraysEqual =
     new_selected_genes.length === genes.selected_genes.length &&
@@ -12,5 +11,4 @@ export const update_selected_genes = (genes, new_selected_genes, obs_store) => {
 
   // Update obs_store
   obs_store.selected_genes.set(genes.selected_genes);
-
 };

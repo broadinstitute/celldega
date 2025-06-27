@@ -24,7 +24,11 @@ export const update_ist_landscape_from_cgm = async (
       update_cat(viz_state.cats, new_cat);
       update_selected_genes(viz_state.genes, [inst_gene], viz_state.obs_store);
       // update_selected_cats(viz_state.cats, [], viz_state.obs_store);
-      update_selected_cats(viz_state.cats, new_cat === 'cluster' ? [] : [inst_gene], viz_state.obs_store);
+      update_selected_cats(
+        viz_state.cats,
+        new_cat === 'cluster' ? [] : [inst_gene],
+        viz_state.obs_store
+      );
 
       await update_cell_exp_array(
         viz_state.cats,
@@ -38,7 +42,6 @@ export const update_ist_landscape_from_cgm = async (
 
       const layers_list = get_layers_list(layers_obj, viz_state.close_up);
       deck_ist.setProps({ layers: layers_list });
-
     } else if (click_info.type === 'col_label') {
       inst_gene = 'cluster';
       new_cat = click_info.value.name;
@@ -49,7 +52,6 @@ export const update_ist_landscape_from_cgm = async (
 
       const layers_list = get_layers_list(layers_obj, viz_state.close_up);
       deck_ist.setProps({ layers: layers_list });
-
     } else if (click_info.type === 'col_dendro') {
       inst_gene = 'cluster';
 
@@ -64,7 +66,11 @@ export const update_ist_landscape_from_cgm = async (
       deck_ist.setProps({ layers: layers_list });
 
       update_cat(viz_state.cats, inst_gene);
-      update_selected_cats(viz_state.cats, click_info.click_value, viz_state.obs_store);
+      update_selected_cats(
+        viz_state.cats,
+        click_info.click_value,
+        viz_state.obs_store
+      );
     }
   } catch (error) {
     handleAsyncError(error, {

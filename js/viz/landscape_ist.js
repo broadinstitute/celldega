@@ -60,12 +60,9 @@ import { set_meta_gene } from '../global_variables/meta_gene';
 import { update_selected_genes } from '../global_variables/selected_genes';
 import { create_obs_store } from '../obs_store/obs_store';
 import { set_image_layer_sliders } from '../ui/sliders';
-import {
-  make_ist_ui_container,
-} from '../ui/ui_containers';
+import { make_ist_ui_container } from '../ui/ui_containers';
 import { update_cell_clusters } from '../widget_interactions/update_cell_clusters';
 import { update_ist_landscape_from_cgm } from '../widget_interactions/update_ist_landscape_from_cgm';
-
 
 export const landscape_ist = async (
   el,
@@ -88,7 +85,6 @@ export const landscape_ist = async (
   creds = {},
   view_change_custom_callback = null
 ) => {
-
   if (width === 0) {
     width = '100%';
   }
@@ -384,8 +380,7 @@ export const landscape_ist = async (
     layers_obj.path_layer = layers_obj.path_layer.clone({
       id: `path-layer-${selected_cats_name}`,
     });
-
-  })
+  });
 
   viz_state.obs_store.selected_genes.subscribe((selected_genes) => {
     const selected_genes_name = selected_genes.join('-');
@@ -393,7 +388,6 @@ export const landscape_ist = async (
       id: `trx-layer-${selected_genes_name}`,
     });
   });
-
 
   update_trx_layer_radius(layers_obj, trx_radius);
 
@@ -440,7 +434,11 @@ export const landscape_ist = async (
       update_cat(viz_state.cats, new_cat);
       update_selected_genes(viz_state.genes, [inst_gene], viz_state.obs_store);
       // update_selected_cats(viz_state.cats, [], viz_state.obs_store);
-      update_selected_cats(viz_state.cats, new_cat === 'cluster' ? [] : [inst_gene], viz_state.obs_store);
+      update_selected_cats(
+        viz_state.cats,
+        new_cat === 'cluster' ? [] : [inst_gene],
+        viz_state.obs_store
+      );
       await update_cell_exp_array(
         viz_state.cats,
         viz_state.genes,
@@ -455,7 +453,6 @@ export const landscape_ist = async (
       deck_ist.setProps({ layers: updatedLayersList });
     },
     update_matrix_col: async (inst_col) => {
-
       update_cat(viz_state.cats, 'cluster');
       update_selected_cats(viz_state.cats, [inst_col], viz_state.obs_store);
       update_selected_genes(viz_state.genes, [], viz_state.obs_store);
@@ -480,12 +477,17 @@ export const landscape_ist = async (
         viz_state.close_up
       );
       deck_ist.setProps({ layers: dendroColLayersList });
-
     },
     update_view_state: async (new_view_state, close_up, _trx_layer) => {
       viz_state.close_up = close_up;
 
-      calc_viewport(new_view_state, deck_ist, layers_obj, viz_state, viz_state.obs_store);
+      calc_viewport(
+        new_view_state,
+        deck_ist,
+        layers_obj,
+        viz_state,
+        viz_state.obs_store
+      );
       const viewStateLayersList = get_layers_list(
         layers_obj,
         viz_state.close_up

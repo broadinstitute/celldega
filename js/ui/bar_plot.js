@@ -16,7 +16,6 @@ export const bar_callback_cluster = (
   _layers_obj,
   _viz_state
 ) => {
-
   update_cat(_viz_state.cats, 'cluster');
   update_selected_cats(_viz_state.cats, [d.name], _viz_state.obs_store);
   update_selected_genes(_viz_state.genes, [], _viz_state.obs_store);
@@ -24,15 +23,14 @@ export const bar_callback_cluster = (
   // add cell_layer, path_layer, and trx_layer to the deck_check observable
   // to do list
   _viz_state.obs_store.deck_check.set({
-      ..._viz_state.obs_store.deck_check.get(),
-      cell_layer: false,
-      path_layer: false,
-      trx_layer: false,
-    })
+    ..._viz_state.obs_store.deck_check.get(),
+    cell_layer: false,
+    path_layer: false,
+    trx_layer: false,
+  });
 
   const layers_list = get_layers_list(_layers_obj, _viz_state.close_up);
   _deck_ist.setProps({ layers: layers_list });
-
 };
 
 export const bar_callback_gene = async (
@@ -42,7 +40,6 @@ export const bar_callback_gene = async (
   _layers_obj,
   _viz_state
 ) => {
-
   const inst_gene = d.name;
   const reset_gene = inst_gene === _viz_state.cats.cat;
   const new_cat = reset_gene ? 'cluster' : inst_gene;
@@ -64,7 +61,6 @@ export const bar_callback_gene = async (
 
   const layers_list = get_layers_list(_layers_obj, _viz_state.close_up);
   _deck_ist.setProps({ layers: layers_list });
-
 };
 
 export const bar_callback_rgn = (

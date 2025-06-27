@@ -22,7 +22,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from celldega.clust.core.data_formats import dat_to_df, df_to_dat, mat_to_numpy_arr
+from celldega.clust_old.core.data_formats import dat_to_df, df_to_dat, mat_to_numpy_arr
 
 
 # =============================================================================

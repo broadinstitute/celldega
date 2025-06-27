@@ -102,7 +102,7 @@ MINIMAL_MATRIX_SIZE = 2
 sys.path.insert(0, str(SRC_PATH))
 
 try:
-    from celldega.clust.categories import cat_pval
+    from celldega.clust_old.categories import cat_pval
 
     # Import the functions we need for testing
     calc_hist_distances = cat_pval.calc_hist_distances

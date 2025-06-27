@@ -211,7 +211,7 @@ def nan_data_mock_net():
 # IMPORT AND BASIC FUNCTIONALITY
 # =============================================================================
 
-from celldega.clust.preprocessing.normalize_fun import (
+from celldega.clust_old.preprocessing.normalize_fun import (
     calc_common_dist,
     qn_df,
     run_norm,

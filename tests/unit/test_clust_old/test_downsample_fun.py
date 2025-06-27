@@ -80,8 +80,8 @@ NON_NUMERIC_TYPES = [str, bool, object]
 # =============================================================================
 
 try:
-    from celldega.clust import Network
-    from celldega.clust.preprocessing import downsample_fun
+    from celldega.clust_old import Network
+    from celldega.clust_old.preprocessing import downsample_fun
 
     MODULES_AVAILABLE = True
 except ImportError:

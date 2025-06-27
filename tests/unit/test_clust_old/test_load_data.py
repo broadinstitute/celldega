@@ -12,7 +12,7 @@ from unittest.mock import Mock, mock_open, patch
 import pandas as pd
 import pytest
 
-from celldega.clust.data_io import load_data
+from celldega.clust_old.data_io import load_data
 
 
 # =============================================================================

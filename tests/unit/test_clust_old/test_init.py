@@ -24,7 +24,7 @@ import pytest
 import requests
 
 # Import the module under test
-from celldega.clust import Network, hc
+from celldega.clust_old import Network, hc
 
 
 # =============================================================================

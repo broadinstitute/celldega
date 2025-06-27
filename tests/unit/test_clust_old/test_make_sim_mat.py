@@ -10,7 +10,7 @@ import pytest
 # Add the source directory to the path for imports
 sys.path.insert(0, str(Path(__file__).parents[3] / "src"))
 
-from celldega.clust.clustering.make_sim_mat import adjust_filter_sim, dm_to_sim, main
+from celldega.clust_old.clustering.make_sim_mat import adjust_filter_sim, dm_to_sim, main
 
 
 class TestFixtures:

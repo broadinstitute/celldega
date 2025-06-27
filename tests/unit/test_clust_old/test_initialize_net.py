@@ -47,7 +47,7 @@ EMPTY_CAT_COLORS = {"row": {}, "col": {}}
 # Add the src directory to the path to import the module
 sys.path.insert(0, SRC_DIR)
 
-from celldega.clust.core import initialize_net
+from celldega.clust_old.core import initialize_net
 
 
 # =============================================================================

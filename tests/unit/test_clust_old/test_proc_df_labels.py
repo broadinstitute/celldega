@@ -268,7 +268,7 @@ def mixed_conversion_df():
 # IMPORT AND BASIC FUNCTIONALITY
 # =============================================================================
 
-from celldega.clust.data_io.proc_df_labels import main
+from celldega.clust_old.data_io.proc_df_labels import main
 
 
 # =============================================================================

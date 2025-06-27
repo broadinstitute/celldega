@@ -72,7 +72,7 @@ PROBABILITY_TOLERANCE = 1e-10
 sys.path.insert(0, str(SRC_ROOT))
 
 # Import after path setup
-from celldega.clust.analysis.enrichr_functions import (
+from celldega.clust_old.analysis.enrichr_functions import (
     add_enrichr_cats,
     get_request,
     post_request,

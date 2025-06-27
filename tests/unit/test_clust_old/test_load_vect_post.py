@@ -16,7 +16,7 @@ import pytest
 # Add the source directory to the path for imports
 sys.path.insert(0, str(Path(__file__).parents[3] / "src"))
 
-from celldega.clust.data_io.load_vect_post import main
+from celldega.clust_old.data_io.load_vect_post import main
 
 
 # =============================================================================

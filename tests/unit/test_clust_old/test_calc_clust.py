@@ -106,7 +106,7 @@ LARGE_MATRIX_COLS = 80
 # Add source to path for imports
 sys.path.insert(0, str(SRC_PATH))
 
-from celldega.clust.clustering.calc_clust import (
+from celldega.clust_old.clustering.calc_clust import (
     calc_distance_matrix,
     clust_and_group,
     cluster_row_and_col,

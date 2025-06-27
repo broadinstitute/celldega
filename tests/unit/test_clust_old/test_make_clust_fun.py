@@ -24,7 +24,7 @@ import pytest
 SRC_ROOT = Path(__file__).parents[3] / "src"
 sys.path.insert(0, str(SRC_ROOT))
 
-from celldega.clust.clustering.make_clust_fun import make_clust
+from celldega.clust_old.clustering.make_clust_fun import make_clust
 
 
 # Test data constants

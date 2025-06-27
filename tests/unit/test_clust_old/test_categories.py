@@ -68,7 +68,7 @@ VALID_AXES = [ROW_AXIS, COL_AXIS]
 
 # Import the module under test
 sys.path.insert(0, str(TEST_DATA_DIR))
-from celldega.clust.categories import categories
+from celldega.clust_old.categories import categories
 
 
 # =============================================================================

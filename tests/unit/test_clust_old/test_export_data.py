@@ -28,7 +28,7 @@ SRC_PATH = PROJECT_ROOT / "src"
 if SRC_PATH not in sys.path:
     sys.path.insert(0, str(SRC_PATH))
 
-from celldega.clust.data_io import export_data
+from celldega.clust_old.data_io import export_data
 
 
 # =============================================================================

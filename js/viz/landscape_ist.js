@@ -76,7 +76,7 @@ export const landscape_ist = async (
   ini_z,
   ini_zoom,
   base_url,
-  dataset_name = '',
+  base_urls = [],
   trx_radius = 0.25,
   width = 0,
   height = 800,
@@ -96,6 +96,7 @@ export const landscape_ist = async (
   const viz_state = {};
 
   viz_state.obs_store = create_obs_store();
+  viz_state.obs_store.base_url.set(base_url);
 
   const update_viz_image_layers = () => {
     const hasCats = viz_state.obs_store.selected_cats.get().length > 0;
@@ -422,7 +423,8 @@ export const landscape_ist = async (
   }
 
   const ui_container = make_ist_ui_container(
-    dataset_name,
+    base_url,
+    base_urls,
     deck_ist,
     layers_obj,
     viz_state
@@ -431,6 +433,40 @@ export const landscape_ist = async (
   // UI and Viz Container
   el.appendChild(ui_container);
   el.appendChild(root);
+
+  const reload_dataset = async (new_url) => {
+    deck_ist.finalize();
+    while (el.firstChild) {
+      el.removeChild(el.firstChild);
+    }
+    await landscape_ist(
+      el,
+      viz_state.model,
+      token,
+      ini_x,
+      ini_y,
+      ini_z,
+      ini_zoom,
+      new_url,
+      base_urls,
+      trx_radius,
+      width,
+      height,
+      meta_cell,
+      meta_cluster,
+      umap,
+      landscape_state,
+      segmentation,
+      creds,
+      view_change_custom_callback
+    );
+  };
+
+  viz_state.obs_store.base_url.subscribe((new_url) => {
+    if (new_url !== viz_state.global_base_url) {
+      reload_dataset(new_url);
+    }
+  }, { immediate: false });
 
   const landscape = {
     update_matrix_gene: async (inst_gene) => {

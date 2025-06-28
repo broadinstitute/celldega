@@ -34,7 +34,6 @@ export const landscape_sst = async (
   ini_z,
   ini_zoom,
   square_tile_size = 1.4,
-  _dataset_name = '',
   width = 0,
   height = 800
 ) => {
@@ -157,7 +156,11 @@ export const landscape_sst = async (
 
   set_tile_layer_onclick(deck_sst, layers_sst, viz_state);
 
-  const ui_container = make_sst_ui_container(deck_sst, layers_sst, viz_state);
+  const ui_container = make_sst_ui_container(
+    deck_sst,
+    layers_sst,
+    viz_state
+  );
 
   // UI and Viz Container
   el.appendChild(ui_container);

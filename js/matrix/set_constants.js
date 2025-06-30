@@ -36,8 +36,8 @@ export const set_mat_constants = (
   viz_state.root.style.height = `${height + viz_state.viz.height_margin}px`;
 
   // height of attribute bars
-  viz_state.viz.row_cat_offset = 10;
-  viz_state.viz.col_cat_offset = 10;
+  viz_state.viz.row_cat_offset = 9;
+  viz_state.viz.col_cat_offset = 9;
 
   viz_state.viz.mat_width = width - (viz_state.viz.row_cat_offset * viz_state.cats.num_cats.row);
   viz_state.viz.mat_height = height - (viz_state.viz.col_cat_offset * viz_state.cats.num_cats.col);

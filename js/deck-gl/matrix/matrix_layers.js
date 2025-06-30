@@ -3,6 +3,8 @@ export const get_mat_layers_list = (layers_mat) => {
     layers_mat.mat_layer,
     layers_mat.row_cat_layer,
     layers_mat.col_cat_layer,
+    layers_mat.row_attr_label_layer,
+    layers_mat.col_attr_label_layer,
     layers_mat.row_label_layer,
     layers_mat.col_label_layer,
     layers_mat.row_dendro_layer,
@@ -21,7 +23,11 @@ export const layer_filter = ({ layer, viewport }) => {
     return true;
   } else if (viewport.id === 'rows' && layer.id.includes('row-label-layer')) {
     return true;
+  } else if (viewport.id === 'rows' && layer.id === 'row-attr-label-layer') {
+    return true;
   } else if (viewport.id === 'cols' && layer.id === 'col-label-layer') {
+    return true;
+  } else if (viewport.id === 'cols' && layer.id === 'col-attr-label-layer') {
     return true;
   } else if (
     (viewport.id === 'dendro_rows') &

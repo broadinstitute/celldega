@@ -2,7 +2,6 @@
 
 The JavaScript component of Celldega is used within the Jupyter Widgets framework to provide interactive visualization in the context of a Jupyter notebook but can also be used as a standalone JavaScript library.
 
-
 ## `landscape_ist` API Documentation
 
 The `landscape_ist` function initializes and renders an interactive spatial transcriptomics (IST) landscape visualization. This API is designed to work with Deck.gl and includes customizable visualization options, dynamic data updates, and UI interactions.
@@ -32,9 +31,11 @@ The `landscape_ist` function returns an object (`landscape`) with several method
 Updates the visualization to highlight data for a specific gene.
 
 ##### Parameters
+
 - **`inst_gene`** (`string`): The gene to highlight.
 
 ##### Behavior
+
 - Updates the transcript layer to show data for the specified gene.
 - Scrolls the bar graph to bring the selected gene into view.
 - Toggles visibility of image layers and controls based on the selected gene.
@@ -46,9 +47,11 @@ Updates the visualization to highlight data for a specific gene.
 Updates the visualization to highlight data for a specific column (e.g., cluster).
 
 ##### Parameters
+
 - **`inst_col`** (`string`): The column to highlight.
 
 ##### Behavior
+
 - Highlights the bar graph corresponding to the selected column.
 - Updates cell and path layers to reflect the selected column.
 - Toggles visibility of layers based on the column selection.
@@ -60,9 +63,11 @@ Updates the visualization to highlight data for a specific column (e.g., cluster
 Updates the visualization based on a dendrogram selection of columns.
 
 ##### Parameters
+
 - **`selected_cols`** (`Array<string>`): The list of selected column names.
 
 ##### Behavior
+
 - Highlights the selected columns in the bar graph.
 - Updates layers to reflect the selection.
 
@@ -73,11 +78,13 @@ Updates the visualization based on a dendrogram selection of columns.
 Updates the view state of the Deck.gl visualization.
 
 ##### Parameters
+
 - **`new_view_state`** (`Object`): The new view state configuration.
 - **`close_up`** (`boolean`): Whether the view should zoom in closely.
 - **`trx_layer`** (`Object`): The transcript layer to update.
 
 ##### Behavior
+
 - Adjusts the viewport and reconfigures layers based on the new view state.
 
 ---
@@ -87,6 +94,7 @@ Updates the view state of the Deck.gl visualization.
 Updates all visualization layers.
 
 ##### Behavior
+
 - Refreshes the Deck.gl layers with the current visualization state.
 
 ---
@@ -96,6 +104,7 @@ Updates all visualization layers.
 Finalizes the Deck.gl instance and cleans up resources.
 
 ##### Behavior
+
 - Disposes of all Deck.gl resources and event listeners to prevent memory leaks.
 
 ---
@@ -155,25 +164,28 @@ The `matrix_viz` function initializes and renders a matrix visualization. This A
 ### Internal Behavior
 
 The function performs the following setup:
+
 1. **Deck.gl Integration**:
+
    - Initializes a Deck.gl instance for the matrix visualization.
    - Sets properties for interactivity, including tooltips, view state changes, and layer filtering.
 
 2. **Matrix Data Setup**:
+
    - Parses and structures the matrix data from the `network` object.
-   - Configures labels, categories, and dendrograms for both rows and columns.
+   - Configures labels, attributes, and dendrograms for both rows and columns.
 
 3. **Layer Initialization**:
+
    - Creates layers for:
      - Matrix cells.
      - Row and column labels.
-     - Row and column categories.
+     - Row and column attributes.
      - Row and column dendrograms.
    - Attaches interactions (e.g., click events) to these layers.
 
 4. **UI Setup**:
    - Creates a container for the visualization and appends it to the root DOM element.
-
 
 ---
 
@@ -183,31 +195,35 @@ The function performs the following setup:
 import { matrix_viz } from 'path/to/matrix_viz';
 
 const rootElement = document.getElementById('matrix-container');
-const model = { /* Model containing visualization data */ };
-const network = { /* Network object representing the matrix data */ };
+const model = {
+  /* Model containing visualization data */
+};
+const network = {
+  /* Network object representing the matrix data */
+};
 
 // Callback functions
 const rowLabelCallback = (row) => {
-    console.log('Row label clicked:', row);
+  console.log('Row label clicked:', row);
 };
 
 const colLabelCallback = (col) => {
-    console.log('Column label clicked:', col);
+  console.log('Column label clicked:', col);
 };
 
 const colDendroCallback = (dendro) => {
-    console.log('Column dendrogram clicked:', dendro);
+  console.log('Column dendrogram clicked:', dendro);
 };
 
 // Initialize the matrix visualization
 await matrix_viz(
-    model,
-    rootElement,
-    network,
-    800,
-    800,
-    rowLabelCallback,
-    colLabelCallback,
-    colDendroCallback
+  model,
+  rootElement,
+  network,
+  800,
+  800,
+  rowLabelCallback,
+  colLabelCallback,
+  colDendroCallback
 );
 ```

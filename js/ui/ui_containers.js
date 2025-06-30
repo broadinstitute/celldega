@@ -81,6 +81,49 @@ export const make_ctrl_container = () => {
   return ctrl_container;
 };
 
+
+export const make_baseurl_selector = (
+  base_url,
+  base_urls,
+  viz_state
+) => {
+  const container = flex_container('baseurl_selector_container', 'row');
+
+  if (base_urls.length <= 1) {
+    const label = document.createElement('div');
+    label.textContent = base_url;
+    label.style.marginLeft = '2px';
+    label.style.marginRight = '4px';
+    container.appendChild(label);
+    return container;
+  }
+
+  const select = document.createElement('select');
+  select.style.height = '20px';
+  select.style.marginLeft = '2px';
+  select.style.marginRight = '4px';
+
+  base_urls.forEach((url) => {
+    const opt = document.createElement('option');
+    opt.value = url;
+    opt.textContent = url;
+    select.appendChild(opt);
+  });
+
+  select.value = base_url;
+
+  select.addEventListener('change', (event) => {
+    viz_state.model.set('base_url', event.target.value);
+    viz_state.model.save_changes();
+    if (viz_state.obs_store && viz_state.obs_store.base_url) {
+      viz_state.obs_store.base_url.set(event.target.value);
+    }
+  });
+
+  container.appendChild(select);
+  return container;
+};
+
 export const flex_container = (class_name, flex_direction, height = null) => {
   const container = document.createElement('div');
   container.className = class_name;
@@ -237,12 +280,17 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
   slider_container.style.marginLeft = '10px';
 
   ui_container.appendChild(ctrl_container);
+
   ui_container.appendChild(slider_container);
 
   return ui_container;
 };
 
-export const make_sst_ui_container = (deck_sst, layers_sst, viz_state) => {
+export const make_sst_ui_container = (
+  deck_sst,
+  layers_sst,
+  viz_state
+) => {
   const ui_container = make_ui_container();
   const ctrl_container = make_ctrl_container();
   const image_container = flex_container('image_container', 'row');
@@ -292,13 +340,19 @@ export const make_sst_ui_container = (deck_sst, layers_sst, viz_state) => {
 };
 
 export const make_ist_ui_container = (
-  dataset_name,
+  base_url,
+  base_urls,
   deck_ist,
   layers_obj,
   viz_state
 ) => {
   const ui_container = make_ui_container();
   const ctrl_container = make_ctrl_container();
+  const baseurl_selector = make_baseurl_selector(
+    base_url,
+    base_urls,
+    viz_state
+  );
 
   viz_state.containers.image = flex_container('image_container', 'column');
 
@@ -768,6 +822,7 @@ export const make_ist_ui_container = (
   )
 
   ui_container.appendChild(ctrl_container);
+  ctrl_container.appendChild(baseurl_selector);
 
   ctrl_container.appendChild(viz_state.containers.image);
   ctrl_container.appendChild(cell_container);

@@ -18,7 +18,7 @@ const render_landscape_ist = async ({ model, el }) => {
   const ini_z = model.get('ini_z');
   const ini_zoom = model.get('ini_zoom');
   const base_url = model.get('base_url');
-  const dataset_name = model.get('dataset_name');
+  const base_urls = model.get('base_urls');
   const width = model.get('width');
   const height = model.get('height');
   const meta_cell = model.get('meta_cell');
@@ -36,7 +36,7 @@ const render_landscape_ist = async ({ model, el }) => {
     ini_z,
     ini_zoom,
     base_url,
-    dataset_name,
+    base_urls,
     0.25,
     width,
     height,
@@ -56,7 +56,6 @@ const render_landscape_sst = async ({ model, el }) => {
   const ini_z = model.get('ini_z');
   const ini_zoom = model.get('ini_zoom');
   const base_url = model.get('base_url');
-  const dataset_name = model.get('dataset_name');
   const square_tile_size = model.get('square_tile_size');
   const width = model.get('width');
   const height = model.get('height');
@@ -71,7 +70,6 @@ const render_landscape_sst = async ({ model, el }) => {
     ini_z,
     ini_zoom,
     square_tile_size,
-    dataset_name,
     width,
     height
   );
@@ -84,7 +82,6 @@ const render_landscape_h_e = async ({ model, el }) => {
   const ini_z = model.get('ini_z');
   const ini_zoom = model.get('ini_zoom');
   const base_url = model.get('base_url');
-  const dataset_name = model.get('dataset_name');
   const width = model.get('width');
   const height = model.get('height');
   const creds = model.get('creds');
@@ -98,7 +95,6 @@ const render_landscape_h_e = async ({ model, el }) => {
     ini_y,
     ini_z,
     ini_zoom,
-    dataset_name,
     width,
     height,
     creds

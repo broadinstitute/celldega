@@ -19,7 +19,7 @@ class Landscape(anywidget.AnyWidget):
         ini_zoom (float): The initial zoom level of the view.
         token (str): The token traitlet.
         base_url (str): The base URL for the widget.
-        dataset_name (str, optional): The name of the dataset to visualize. This will show up in the user interface bar.
+        base_urls (list[str], optional): A list of base URLs for multi-tenant visualizations.
 
     Attributes:
         component (str): The name of the component.
@@ -30,7 +30,7 @@ class Landscape(anywidget.AnyWidget):
         ini_y (float): The initial y-coordinate of the view.
         ini_z (float): The initial z-coordinate of the view.
         ini_zoom (float): The initial zoom level of the view.
-        dataset_name (str): The name of the dataset to visualize.
+        base_urls (list[str]): Available base URLs when multiple datasets are provided.
         update_trigger (dict): The dictionary to trigger updates.
         cell_clusters (dict): The dictionary containing cell cluster information.
 
@@ -44,6 +44,7 @@ class Landscape(anywidget.AnyWidget):
 
     technology = traitlets.Unicode("sst").tag(sync=True)
     base_url = traitlets.Unicode("").tag(sync=True)
+    base_urls = traitlets.List(traitlets.Unicode(), default_value=[]).tag(sync=True)
     token = traitlets.Unicode("").tag(sync=True)
     creds = traitlets.Dict({}).tag(sync=True)
     ini_x = traitlets.Float().tag(sync=True)
@@ -51,7 +52,6 @@ class Landscape(anywidget.AnyWidget):
     ini_z = traitlets.Float().tag(sync=True)
     ini_zoom = traitlets.Float(0).tag(sync=True)
     square_tile_size = traitlets.Float(1.4).tag(sync=True)
-    dataset_name = traitlets.Unicode("").tag(sync=True)
     region = traitlets.Dict({}).tag(sync=True)
     nbhd = traitlets.Dict({}).tag(sync=True)
 

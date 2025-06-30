@@ -17,7 +17,6 @@ export const landscape_h_e = async (
   ini_y,
   ini_z,
   ini_zoom,
-  _dataset_name = '',
   width = 0,
   height = 800,
   creds = {}

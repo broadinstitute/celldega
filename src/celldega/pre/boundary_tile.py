@@ -33,7 +33,7 @@ def _get_name_mapping(path_landscape_files, layer, segmentation="default"):
             )
         df_meta_gene["name"] = df_meta_gene.index
         df_meta_gene = df_meta_gene.reset_index(drop=True)
-        return {name: idx for idx, name in df_meta_gene["name"].items()}
+        return {str(name): idx for idx, name in df_meta_gene["name"].items()}
 
     if layer == "boundary":
         # Load cell metadata
@@ -42,7 +42,7 @@ def _get_name_mapping(path_landscape_files, layer, segmentation="default"):
             df_meta_cell = pd.read_parquet(
                 f"{path_landscape_files}/cell_metadata_{segmentation}.parquet"
             )
-        return {name: idx for idx, name in df_meta_cell["name"].items()}
+        return {str(name): idx for idx, name in df_meta_cell["name"].items()}
 
     raise ValueError(
         f"Unsupported layer: {layer}. Supported technologies are 'boundary' and 'transcript'."
@@ -237,9 +237,9 @@ def get_cell_polygons(
         # Remove rows where geometry is empty (None, MultiPolygon with no geoms, or generic empty)
         cells_orig = cells_orig[
             ~(
-                cells_orig["Geometry"].isna() |  # None values
-                cells_orig["Geometry"].apply(lambda g: g.is_empty) |  # Generic empty
-                cells_orig["Geometry"].apply(  # Empty MultiPolygons
+                cells_orig["Geometry"].isna()  # None values
+                | cells_orig["Geometry"].apply(lambda g: g.is_empty)  # Generic empty
+                | cells_orig["Geometry"].apply(  # Empty MultiPolygons
                     lambda g: isinstance(g, MultiPolygon) and len(g.geoms) == 0
                 )
             )
@@ -336,7 +336,7 @@ def make_cell_boundary_tiles(
                 1
             ],  # get the cell segmentation method, such as cellpose2.
         )
-        gdf_cells.index = gdf_cells.index.map(cell_str_to_int_mapping)
+        gdf_cells.index = gdf_cells.index.astype(str).map(cell_str_to_int_mapping)
 
         gdf_cells.rename(columns={"geometry_image_space": "GEOMETRY"}, inplace=True)
 
@@ -373,7 +373,7 @@ def make_cell_boundary_tiles(
             path_output.replace("/cell_segmentation", ""),
             layer="boundary",
         )
-        gdf_cells.index = gdf_cells.index.map(cell_str_to_int_mapping)
+        gdf_cells.index = gdf_cells.index.astype(str).map(cell_str_to_int_mapping)
 
         gdf_cells["center_x"] = gdf_cells.geometry.centroid.x
         gdf_cells["center_y"] = gdf_cells.geometry.centroid.y

@@ -223,8 +223,6 @@ def get_cell_polygons(
 ):
     # Load cell boundary data based on the technology
     if technology == "MERSCOPE":
-
-
         cells_orig = gpd.read_parquet(path_cell_boundaries)
         cells_orig["cell_id"] = cells_orig["EntityID"]
         cells_orig = cells_orig[cells_orig["ZIndex"] == 1]

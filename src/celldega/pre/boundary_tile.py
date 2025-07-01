@@ -42,7 +42,6 @@ def _get_name_mapping(path_landscape_files, layer, segmentation="default"):
             df_meta_cell = pd.read_parquet(
                 f"{path_landscape_files}/cell_metadata_{segmentation}.parquet"
             )
-
         return {name: idx for idx, name in df_meta_cell["name"].items()}
 
     raise ValueError(
@@ -78,11 +77,19 @@ def batch_transform_geometries(geometries, transformation_matrix, scale):
     """
     Batch transform geometries using numpy for optimized performance.
     """
-    # Construct full affine matrix
+    # Extract affine transformation parameters into a 3x3 matrix for numpy
     affine_matrix = np.array(
         [
-            [transformation_matrix[0, 0], transformation_matrix[0, 1], transformation_matrix[0, 2]],
-            [transformation_matrix[1, 0], transformation_matrix[1, 1], transformation_matrix[1, 2]],
+            [
+                transformation_matrix[0, 0],
+                transformation_matrix[0, 1],
+                transformation_matrix[0, 2],
+            ],
+            [
+                transformation_matrix[1, 0],
+                transformation_matrix[1, 1],
+                transformation_matrix[1, 2],
+            ],
             [0, 0, 1],
         ]
     )
@@ -91,46 +98,32 @@ def batch_transform_geometries(geometries, transformation_matrix, scale):
 
     for geom in geometries:
         if isinstance(geom, Point):
-            coords = np.array([[geom.x, geom.y]])
-            transformed = numpy_affine_transform(coords, affine_matrix) / scale
-            transformed_geometries.append(Point(transformed[0]))
+            # Transform a single Point geometry
+            point_coords = np.array([[geom.x, geom.y]])
+            transformed_coords = numpy_affine_transform(point_coords, affine_matrix) / scale
+            transformed_geometries.append(Point(transformed_coords[0]))
 
         elif isinstance(geom, Polygon):
-            # Transform exterior
+            # Transform a Polygon geometry
             exterior_coords = np.array(geom.exterior.coords)
-            exterior_transformed = numpy_affine_transform(exterior_coords, affine_matrix) / scale
 
-            # Transform interior rings if present
-            interiors_transformed = []
-            for ring in geom.interiors:
-                ring_coords = np.array(ring.coords)
-                ring_transformed = numpy_affine_transform(ring_coords, affine_matrix) / scale
-                interiors_transformed.append(ring_transformed.tolist())
+            # Apply the affine transformation and scale
+            transformed_coords = numpy_affine_transform(exterior_coords, affine_matrix) / scale
 
-            # Create transformed Polygon
-            transformed_geometries.append(Polygon(exterior_transformed, interiors_transformed))
+            # Append the result to the transformed_geometries list
+            transformed_geometries.append([transformed_coords.tolist()])
 
         elif isinstance(geom, MultiPolygon):
-            transformed_polys = []
+            geom = next(geom.geoms)  # Use the first geometry
 
-            for poly in geom.geoms:
-                # Exterior
-                exterior_coords = np.array(poly.exterior.coords)
-                exterior_transformed = (
-                    numpy_affine_transform(exterior_coords, affine_matrix) / scale
-                )
+            # Transform the exterior of the polygon
+            exterior_coords = np.array(geom.exterior.coords)
 
-                # Interiors
-                interiors_transformed = []
-                for ring in poly.interiors:
-                    ring_coords = np.array(ring.coords)
-                    ring_transformed = numpy_affine_transform(ring_coords, affine_matrix) / scale
-                    interiors_transformed.append(ring_transformed.tolist())
+            # Apply the affine transformation and scale
+            transformed_coords = numpy_affine_transform(exterior_coords, affine_matrix) / scale
 
-                transformed_polys.append(Polygon(exterior_transformed, interiors_transformed))
-
-            # Combine all polygons
-            transformed_geometries.append(MultiPolygon(transformed_polys))
+            # Append the result to the transformed_geometries list
+            transformed_geometries.append([transformed_coords.tolist()])
 
     return transformed_geometries
 
@@ -224,10 +217,14 @@ def get_cell_polygons(
     technology,
     path_cell_boundaries,
     transformation_matrix,
-    path_meta_cell_micron,
+    path_output=None,
+    image_scale=1,
+    path_meta_cell_micron=None,
 ):
     # Load cell boundary data based on the technology
     if technology == "MERSCOPE":
+
+
         cells_orig = gpd.read_parquet(path_cell_boundaries)
         cells_orig["cell_id"] = cells_orig["EntityID"]
         cells_orig = cells_orig[cells_orig["ZIndex"] == 1]
@@ -255,15 +252,16 @@ def get_cell_polygons(
         cells_orig = gpd.GeoDataFrame(grouped, geometry="geometry")[["geometry"]]
 
     # Transform geometries
-    cells_orig["geometry"] = batch_transform_geometries(
-        cells_orig["geometry"], transformation_matrix, 1
+    cells_orig["GEOMETRY"] = batch_transform_geometries(
+        cells_orig["geometry"], transformation_matrix, image_scale
     )
 
-    cells_orig["GEOMETRY"] = cells_orig["geometry"].apply(
-        lambda geom: [[list(coord) for coord in geom.exterior.coords]]
-    )
+    # Convert transformed geometries to polygons and calculate centroids
+    cells_orig["polygon"] = cells_orig["GEOMETRY"].apply(lambda x: Polygon(x[0]))
+    gdf_cells = gpd.GeoDataFrame(geometry=cells_orig["polygon"])
+    gdf_cells["GEOMETRY"] = cells_orig["GEOMETRY"]
 
-    return cells_orig
+    return gdf_cells
 
 
 def make_cell_boundary_tiles(
@@ -275,6 +273,7 @@ def make_cell_boundary_tiles(
     coarse_tile_factor=20,
     tile_size=250,
     tile_bounds=None,
+    image_scale=1,
     max_workers=8,
 ):
     """
@@ -300,6 +299,8 @@ def make_cell_boundary_tiles(
         Size of each fine-grain tile in microns.
     tile_bounds : dict, optional
         Dictionary containing the minimum and maximum bounds for x and y coordinates.
+    image_scale : float, optional, default=1
+        Scale factor to apply to the geometry data.
     max_workers : int, optional, default=8
         Maximum number of parallel workers for processing tiles.
 
@@ -307,6 +308,8 @@ def make_cell_boundary_tiles(
     -------
     None
     """
+
+    print("\n========Create cell boundary spatial tiles========")
 
     # Ensure the output directory exists
     Path(path_output).mkdir(parents=True, exist_ok=True)
@@ -347,14 +350,17 @@ def make_cell_boundary_tiles(
             technology,
             path_cell_boundaries,
             transformation_matrix,
+            path_output,
+            image_scale,
             path_meta_cell_micron,
         )
 
-        path_landscape_files = path_output.replace("/cell_segmentation", "")
+        # path_landscape_files = path_transformation_matrix.replace("/micron_to_image_transform.csv", "")
+        # path_landscape_files = path_output.split("/")[0]
 
         # Convert string index to integer index
         cell_str_to_int_mapping = _get_name_mapping(
-            path_landscape_files,
+            path_output.replace("/cell_segmentation", ""),
             layer="boundary",
         )
         gdf_cells.index = gdf_cells.index.map(cell_str_to_int_mapping)

@@ -159,9 +159,13 @@ This file contains the configuration information about the dataset. See example 
             ]
         }
     ],
-    "image_format": ".webp"
+    "image_format": ".webp",
+  "cell_layer_only": false
 }
 ```
+
+Setting `cell_layer_only` to `true` will render only the cell layer without
+transcripts, cell boundaries, or images.
 
 #### Gene Metadata
 The `gene_metadata.parquet` file contains gene level metadata including: average expression across all cells, standard deviation, max expression, proportion of cells with non-zero expression, and the color assigned to each gene. See example below:

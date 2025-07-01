@@ -160,7 +160,7 @@ This file contains the configuration information about the dataset. See example 
         }
     ],
     "image_format": ".webp",
-  "cell_layer_only": false
+    "cell_layer_only": false
 }
 ```
 

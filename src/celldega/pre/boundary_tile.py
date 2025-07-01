@@ -233,6 +233,18 @@ def get_cell_polygons(
         cells_orig.index = meta_cell[meta_cell["cell_id"].isin(cells_orig["cell_id"])].index
 
         # Correct 'MultiPolygon' to 'Polygon'
+
+        # Remove rows where geometry is empty (None, MultiPolygon with no geoms, or generic empty)
+        cells_orig = cells_orig[
+            ~(
+                cells_orig["Geometry"].isna() |  # None values
+                cells_orig["Geometry"].apply(lambda g: g.is_empty) |  # Generic empty
+                cells_orig["Geometry"].apply(  # Empty MultiPolygons
+                    lambda g: isinstance(g, MultiPolygon) and len(g.geoms) == 0
+                )
+            )
+        ].copy()
+
         cells_orig["geometry"] = cells_orig["Geometry"].apply(
             lambda x: next(iter(x.geoms)) if isinstance(x, MultiPolygon) else x
         )

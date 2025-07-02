@@ -13,6 +13,7 @@ dist
 site
 secret_*
 data
+cache
 *.code-workspace
 
 # pixi environments

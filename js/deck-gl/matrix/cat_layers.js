@@ -4,7 +4,6 @@ import { CustomMatrixLayer } from './custom_matrix_layer';
 
 export const ini_row_cat_layer = (viz_state) => {
 
-  console.log('here')
   const transitions = {
     getPosition: {
       duration: viz_state.animate.duration,
@@ -17,7 +16,6 @@ export const ini_row_cat_layer = (viz_state) => {
     data: viz_state.cats.row_cat_data,
     getPosition: (d) => {
       const row_order = viz_state.mat.orders.row[viz_state.order.current.row];
-      // console.log('ini_row_cat_layer: row_order', row_order);
 
       // Use original_index to look up its rank
       const clustered_index =

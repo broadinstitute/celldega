@@ -33,8 +33,6 @@ export const set_mat_constants = (
   viz_state.cats.num_cats.row = Object.keys(network.row_cats).length;
   viz_state.cats.num_cats.col = Object.keys(network.col_cats).length;
 
-  console.log('viz_state.cats.num_cats', viz_state.cats.num_cats);
-
   viz_state.root.style.height = `${height + viz_state.viz.height_margin}px`;
 
   // height of attribute bars

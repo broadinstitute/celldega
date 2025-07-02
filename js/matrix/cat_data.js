@@ -10,8 +10,6 @@ const colorToRgba = (colorStr, alpha = 255) => {
 
 const set_cat_data = (network, viz_state, axis) => {
 
-  console.log('set_cat_data', axis);
-
   const isRow = axis === 'row';
   const nodes = isRow ? network.row_nodes : network.col_nodes;
   const num_cats = isRow
@@ -33,8 +31,6 @@ const set_cat_data = (network, viz_state, axis) => {
 
         const cat_name = `cat-${cat_index}`;
         const inst_cat = node[cat_name];
-
-        console.log('cat_name, inst_cat', cat_name, inst_cat);
 
         if (!inst_cat) {
           return null;
@@ -61,8 +57,6 @@ const set_cat_data = (network, viz_state, axis) => {
       });
     })
     .filter(Boolean);
-
-    console.log('cat_data', cat_data);
 
   return cat_data;
 };

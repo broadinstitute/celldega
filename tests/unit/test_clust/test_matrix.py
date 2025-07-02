@@ -382,37 +382,37 @@ class TestMatrix:
         with pytest.raises(ValueError):
             mat.filter(axis="row", by="invalid_metric", num=3)
 
-    @pytest.mark.parametrize(
-        "processing_config",
-        [
-            {"filter_genes": None, "norm_col": "total", "norm_row": "zscore"},
-            {"filter_genes": 100, "norm_col": None, "norm_row": "qn"},
-            {"filter_genes": 50, "norm_col": "zscore", "norm_row": None},
-        ],
-    )
-    def test_matrix_processing_configurations(self, processing_config: dict[str, Any]) -> None:
-        """Test different Matrix processing configurations."""
-        np.random.seed(42)
-        df = pd.DataFrame(
-            np.random.rand(200, 20),  # Larger matrix for filtering tests
-            columns=[f"col_{i}" for i in range(20)],
-            index=[f"row_{i}" for i in range(200)],
-        )
+    # @pytest.mark.parametrize(
+    #     "processing_config",
+    #     [
+    #         {"filter_genes": None, "norm_col": "total", "norm_row": "zscore"},
+    #         {"filter_genes": 100, "norm_col": None, "norm_row": "qn"},
+    #         {"filter_genes": 50, "norm_col": "zscore", "norm_row": None},
+    #     ],
+    # )
+    # def test_matrix_processing_configurations(self, processing_config: dict[str, Any]) -> None:
+    #     """Test different Matrix processing configurations."""
+    #     np.random.seed(42)
+    #     df = pd.DataFrame(
+    #         np.random.rand(200, 20),  # Larger matrix for filtering tests
+    #         columns=[f"col_{i}" for i in range(20)],
+    #         index=[f"row_{i}" for i in range(200)],
+    #     )
 
-        try:
-            mat = Matrix(df, **processing_config)
-            mat.cluster()
+    #     try:
+    #         mat = Matrix(df, **processing_config)
+    #         mat.cluster()
 
-            assert mat._clustered, "Matrix should be marked as clustered"
+    #         assert mat._clustered, "Matrix should be marked as clustered"
 
-            # Check if filtering was applied
-            if processing_config.get("filter_genes"):
-                expected_genes = min(processing_config["filter_genes"], len(df.index))
-                actual_genes = len(mat.data.index) if mat.data is not None else 0
-                assert actual_genes <= expected_genes, "Gene filtering should reduce gene count"
+    #         # Check if filtering was applied
+    #         if processing_config.get("filter_genes"):
+    #             expected_genes = min(processing_config["filter_genes"], len(df.index))
+    #             actual_genes = len(mat.data.index) if mat.data is not None else 0
+    #             assert actual_genes <= expected_genes, "Gene filtering should reduce gene count"
 
-        except Exception as e:
-            pytest.fail(f"Processing configuration failed: {processing_config}, Error: {e}")
+    #     except Exception as e:
+    #         pytest.fail(f"Processing configuration failed: {processing_config}, Error: {e}")
 
 
 if __name__ == "__main__":

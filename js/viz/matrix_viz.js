@@ -105,6 +105,8 @@ export const matrix_viz = async (
   viz_state.cats.row_cat_data = set_row_cat_data(network, viz_state);
   viz_state.cats.col_cat_data = set_col_cat_data(network, viz_state);
 
+  console.log('viz_state.cats', viz_state.cats);
+
   ini_dendro(viz_state);
 
   // need semicolon for some reason

@@ -682,8 +682,8 @@ class Matrix:
             color_mapping = dict(color_mapping)
 
         # save the row and column categories as a list
-        self.viz['row_cats'] = self.row_cats
-        self.viz['col_cats'] = self.col_cats
+        self.viz["row_cats"] = self.row_cats
+        self.viz["col_cats"] = self.col_cats
 
         self.viz["global_cat_colors"].update(color_mapping)
 

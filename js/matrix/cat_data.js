@@ -9,6 +9,9 @@ const colorToRgba = (colorStr, alpha = 255) => {
 };
 
 const set_cat_data = (network, viz_state, axis) => {
+
+  console.log('set_cat_data', axis);
+
   const isRow = axis === 'row';
   const nodes = isRow ? network.row_nodes : network.col_nodes;
   const num_cats = isRow
@@ -27,18 +30,17 @@ const set_cat_data = (network, viz_state, axis) => {
   const cat_data = nodes
     .flatMap((node, node_index) => {
       return Array.from({ length: num_cats }).map((_, cat_index) => {
+
         const cat_name = `cat-${cat_index}`;
-        const ini_cat = node[cat_name];
+        const inst_cat = node[cat_name];
 
-        if (!ini_cat) {
+        console.log('cat_name, inst_cat', cat_name, inst_cat);
+
+        if (!inst_cat) {
           return null;
         }
 
-        if (!ini_cat.includes(': ')) {
-          return null;
-        }
-        const clean_cat = ini_cat.split(': ')[1];
-        const ini_color = network.global_cat_colors[clean_cat];
+        const ini_color = network.global_cat_colors[inst_cat];
         const color_rgba = colorToRgba(ini_color, 255);
 
         return {
@@ -52,13 +54,15 @@ const set_cat_data = (network, viz_state, axis) => {
                 cat_offset * (cat_index + 1.5) - 30,
               ],
           color: color_rgba,
-          name: clean_cat,
+          name: inst_cat,
           level: cat_index,
           original_index: node_index,
         };
       });
     })
     .filter(Boolean);
+
+    console.log('cat_data', cat_data);
 
   return cat_data;
 };

@@ -69,7 +69,6 @@ export const matrix_viz = async (
   col_label_callback = null,
   col_dendro_callback = null
 ) => {
-
   const root = document.createElement('div');
   root.style.border = '1px solid #d3d3d3';
   // root.style.width = width

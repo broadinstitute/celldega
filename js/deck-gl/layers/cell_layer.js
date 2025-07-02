@@ -40,7 +40,6 @@ const cell_layer_onclick = async (info, d, deck_ist, layers_obj, viz_state) => {
 
   const layers_list = get_layers_list(layers_obj, viz_state.close_up);
   deck_ist.setProps({ layers: layers_list });
-
 };
 
 // transparent to red
@@ -78,7 +77,6 @@ export const get_cell_color = (cats, i, d) => {
 };
 
 export const ini_cell_layer = async (base_url, viz_state) => {
-
   let cell_url;
   if (viz_state.seg.version === 'default') {
     cell_url = `${base_url}/cell_metadata.parquet`;

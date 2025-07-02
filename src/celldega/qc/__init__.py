@@ -12,7 +12,7 @@ from ..pre.boundary_tile import get_cell_polygons
 from ..pre.landscape import read_cbg_mtx
 
 
-def get_largest_polygon(geometry):
+def get_largest_polygon(geometry):  # TODO: underscore
     """
     Get the largest polygon from a geometry.
 

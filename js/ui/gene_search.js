@@ -16,7 +16,11 @@ const sst_gene_search_callback = async (deck_sst, viz_state, layers_sst) => {
 
   if (inst_gene === '' || viz_state.genes.gene_names.includes(inst_gene)) {
     update_cat(viz_state.cats, new_cat);
-    update_selected_genes(viz_state.genes, inst_gene === '' ? [] : [inst_gene], viz_state.obs_store);
+    update_selected_genes(
+      viz_state.genes,
+      inst_gene === '' ? [] : [inst_gene],
+      viz_state.obs_store
+    );
     update_selected_cats(viz_state.cats, [], viz_state.obs_store);
 
     if (inst_gene !== '' && gene_search_options.includes(inst_gene)) {
@@ -27,7 +31,6 @@ const sst_gene_search_callback = async (deck_sst, viz_state, layers_sst) => {
     deck_sst.setProps({
       layers: [layers_sst.simple_image_layer, layers_sst.square_scatter_layer],
     });
-
   }
 };
 
@@ -38,12 +41,20 @@ const ist_gene_search_callback = async (deck_ist, layers_obj, viz_state) => {
 
   if (inst_gene === '' || viz_state.genes.gene_names.includes(inst_gene)) {
     update_cat(viz_state.cats, new_cat);
-    update_selected_genes(viz_state.genes, inst_gene === '' ? [] : [inst_gene], viz_state.obs_store);
+    update_selected_genes(
+      viz_state.genes,
+      inst_gene === '' ? [] : [inst_gene],
+      viz_state.obs_store
+    );
 
     // make selected_cats an empty array if new_cat is cluster or
     // make it an array with the selected gene if inst_gene is not an empty string
     // update_selected_cats(viz_state.cats, [new_cat], viz_state.obs_store);
-    update_selected_cats(viz_state.cats, new_cat === 'cluster' ? [] : [inst_gene], viz_state.obs_store);
+    update_selected_cats(
+      viz_state.cats,
+      new_cat === 'cluster' ? [] : [inst_gene],
+      viz_state.obs_store
+    );
 
     const inst_gene_in_gene_names =
       viz_state.genes.gene_names.includes(inst_gene);
@@ -62,7 +73,6 @@ const ist_gene_search_callback = async (deck_ist, layers_obj, viz_state) => {
 
     const layers_list = get_layers_list(layers_obj, viz_state.close_up);
     deck_ist.setProps({ layers: layers_list });
-
   }
 };
 

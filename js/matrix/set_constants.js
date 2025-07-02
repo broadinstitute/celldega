@@ -30,8 +30,8 @@ export const set_mat_constants = (
   viz_state.cats.num_cats = {};
 
   // use network cat_colors to figure out how many categories there are
-  viz_state.cats.num_cats.row = Object.keys(network.cat_colors.row).length;
-  viz_state.cats.num_cats.col = Object.keys(network.cat_colors.col).length;
+  viz_state.cats.num_cats.row = Object.keys(network.row_cats).length;
+  viz_state.cats.num_cats.col = Object.keys(network.col_cats).length;
 
   viz_state.root.style.height = `${height + viz_state.viz.height_margin}px`;
 

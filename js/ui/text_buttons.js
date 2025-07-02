@@ -82,7 +82,6 @@ const reorder_button_callback = (
     });
 
     if (axis === 'row') {
-
       layers_mat.row_label_layer = layers_mat.row_label_layer.clone({
         updateTriggers: {
           getPosition: viz_state.order.current.row,
@@ -95,9 +94,7 @@ const reorder_button_callback = (
           getPosition: viz_state.order.current.row,
         },
       });
-
     } else {
-
       layers_mat.col_label_layer = layers_mat.col_label_layer.clone({
         updateTriggers: {
           getPosition: viz_state.order.current.col,
@@ -110,7 +107,6 @@ const reorder_button_callback = (
           getPosition: viz_state.order.current.col,
         },
       });
-
     }
 
     toggle_dendro_layer_visibility(layers_mat, viz_state, axis);

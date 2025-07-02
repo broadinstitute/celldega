@@ -43,7 +43,6 @@ const trx_layer_callback = async (
 
   const layers_list = get_layers_list(layers_obj, viz_state.close_up);
   deck_ist.setProps({ layers: layers_list });
-
 };
 
 export const ini_trx_layer = (genes) => {

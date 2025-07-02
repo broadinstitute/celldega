@@ -64,7 +64,7 @@ export const ini_col_cat_layer = (viz_state) => {
     pickable: true,
     transitions,
     opacity: 0.8,
-    tile_width: (viz_state.viz.mat_height / viz_state.mat.num_cols) * 0.5,
+    tile_width: (viz_state.viz.mat_width / viz_state.mat.num_cols) * 0.5,
     tile_height: viz_state.viz.col_cat_height / 2,
   });
 

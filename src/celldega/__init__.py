@@ -1,8 +1,7 @@
 import importlib.metadata  # temporary fix for libpysal warning
 import warnings
 
-from celldega import clust, clust_old
-from celldega.clust_old import Network, hc
+from celldega import clust
 from celldega.nbhd import alpha_shape
 from celldega.pre import landscape
 from celldega.qc import qc_segmentation
@@ -19,11 +18,8 @@ except importlib.metadata.PackageNotFoundError:
 __all__ = [
     "Landscape",
     "Matrix",
-    "Network",
     "alpha_shape",
     "clust",
-    "clust_old",
-    "hc",
     "landscape",
     "qc_segmentation",
 ]

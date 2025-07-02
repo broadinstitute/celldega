@@ -87,6 +87,15 @@ FilterType = Literal["sum", "var", "mean", "median"]
 DistanceType = Literal["cosine", "euclidean", "correlation", "manhattan"]
 LinkageType = Literal["average", "single", "complete", "ward"]
 
+_COLOR_PALETTE = [
+    "#393b79", "#aec7e8", "#ff7f0e", "#ffbb78", "#98df8a", "#bcbd22",
+    "#404040", "#ff9896", "#c5b0d5", "#8c5648", "#1f77b4", "#5254a3",
+    "#FFDB58", "#c49c94", "#e377c2", "#7f7f7f", "#2ca02c", "#9467bd",
+    "#dbdb8d", "#17becf", "#637939", "#6b6ecf", "#9c9ede", "#d62728",
+    "#8ca252", "#8c6d31", "#bd9e39", "#e7cb94", "#843c39", "#ad494a",
+    "#d6616b", "#7b4173", "#a55194", "#ce6dbd", "#de9ed6"
+]
+
 
 # Legacy function for backward compatibility
 def normalize_axis(axis: AxisInput) -> str:

@@ -17,6 +17,7 @@ from scipy.spatial.distance import pdist
 from sklearn.preprocessing import QuantileTransformer
 
 from .constants import (
+    _COLOR_PALETTE,
     CACHE_HIERARCHY,
     CONFIG,
     DEFAULT_VIZ,
@@ -81,7 +82,7 @@ class Matrix:
         norm_col: str | None = "total",
         norm_row: str | None = "zscore",
         # Control flag
-        disable_processing: bool = False,
+        disable_processing: bool = True,
         # Visualization parameters
         global_colors: dict[str, str] | pd.DataFrame | None = None,
     ):
@@ -145,9 +146,8 @@ class Matrix:
             if not disable_processing:
                 self.process(filter_genes=filter_genes, norm_col=norm_col, norm_row=norm_row)
 
-        # Step 3: Set colors if provided
-        if global_colors is not None:
-            self.set_global_cat_colors(global_colors)
+        # Step 3: Always assign colors (auto-generated if not provided)
+        self.set_global_cat_colors(global_colors)
 
     @property
     def dat(self) -> dict[str, Any]:
@@ -646,38 +646,47 @@ class Matrix:
         if self._clustered:
             self.make_viz()
 
-    def set_global_cat_colors(self, color_mapping: dict[str, str] | pd.DataFrame) -> None:
+    def set_global_cat_colors(self, color_mapping: dict[str, str] | pd.DataFrame | None = None) -> None:
         """
         Set global category color mapping that applies across all categories.
 
         Args:
             color_mapping: Dict mapping category values to colors,
-                          or DataFrame with 'color' column
-
-        Examples:
-            # Dict format
-            mat.set_global_cat_colors({"Cancer": "#ff0000", "Normal": "#0000ff"})
-
-            # DataFrame format (compatible with Network.py)
-            df_colors = pd.DataFrame()
-            df_colors.loc['Cancer', 'color'] = '#ff0000'
-            df_colors.loc['Normal', 'color'] = '#0000ff'
-            mat.set_global_cat_colors(df_colors)
+                        DataFrame with 'color' column, or None to auto-generate
         """
         # Ensure viz structure exists
         if "global_cat_colors" not in self.viz:
             self.viz["global_cat_colors"] = {}
 
-        # Handle different input formats
-        if isinstance(color_mapping, pd.DataFrame):
+        if color_mapping is None:
+            # Build color mapping from all unique category values
+            all_cats = set()
+
+            for df in [self.meta_row, self.meta_col]:
+                if df is not None and not df.empty:
+                    for col in df.columns:
+                        all_cats.update(df[col].dropna().unique())
+
+            color_mapping = {
+                str(cat): _COLOR_PALETTE[i % len(_COLOR_PALETTE)]
+                for i, cat in enumerate(sorted(all_cats))
+            }
+
+        elif isinstance(color_mapping, pd.DataFrame):
             if "color" in color_mapping.columns:
-                color_dict = color_mapping["color"].to_dict()
+                color_mapping = color_mapping["color"].to_dict()
             else:
                 raise ValueError("DataFrame must have 'color' column")
-        else:
-            color_dict = dict(color_mapping)
 
-        self.viz["global_cat_colors"].update(color_dict)
+        else:
+            color_mapping = dict(color_mapping)
+
+        # save the row and column categories as a list
+        self.viz['row_cats'] = self.row_cats
+        self.viz['col_cats'] = self.col_cats
+
+        self.viz["global_cat_colors"].update(color_mapping)
+
 
     def set_matrix_colors(self, pos: str = "red", neg: str = "blue") -> None:
         """

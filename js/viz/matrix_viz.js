@@ -84,6 +84,7 @@ export const matrix_viz = async (
     col_label_callback,
     col_dendro_callback
   );
+  console.log('network', network);
   // fix for tooltip positioning
   el.style.position = 'relative';
   viz_state.el = el;

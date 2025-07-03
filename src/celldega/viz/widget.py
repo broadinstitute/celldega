@@ -130,8 +130,6 @@ class Clustergram(anywidget.AnyWidget):
         # Close any previously registered widget with the same name
         old_widget = _clustergram_registry.get(name)
 
-        print(_clustergram_registry.keys())
-
         if old_widget:
             with suppress(Exception):
                 old_widget.close()

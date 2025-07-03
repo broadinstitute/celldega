@@ -114,7 +114,7 @@ class Clustergram(anywidget.AnyWidget):
     _css = Path(__file__).parent / "../static" / "widget.css"
 
     value = traitlets.Int(0).tag(sync=True)
-    component = traitlets.Unicode("Matrix").tag(sync=True)
+    component = traitlets.Unicode("Clustergram").tag(sync=True)
     network = traitlets.Dict({}).tag(sync=True)
     width = traitlets.Int(600).tag(sync=True)
     height = traitlets.Int(600).tag(sync=True)

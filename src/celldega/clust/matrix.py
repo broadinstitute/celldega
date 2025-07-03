@@ -11,6 +11,7 @@ import weakref
 
 from anndata import AnnData
 import numpy as np
+import hashlib
 import pandas as pd
 from scipy.cluster.hierarchy import dendrogram, linkage
 from scipy.spatial.distance import pdist
@@ -49,6 +50,28 @@ from .utils import (
 _distance_cache = weakref.WeakKeyDictionary()
 _ranking_cache = weakref.WeakKeyDictionary()
 
+def quick_hash_data(data: pd.DataFrame | AnnData, max_rows=100, max_cols=100) -> str:
+    try:
+        if isinstance(data, pd.DataFrame):
+            df = data.select_dtypes(include=[np.number])  # drop object/string columns
+            row_means = df.mean(axis=1).values[:max_rows]
+            col_means = df.mean(axis=0).values[:max_cols]
+        elif isinstance(data, AnnData):
+            import scipy.sparse
+            x = data.X
+            if scipy.sparse.issparse(x):
+                x = x.toarray()
+            x = np.asarray(x, dtype=np.float32)
+            row_means = x.mean(axis=1)[:max_rows]
+            col_means = x.mean(axis=0)[:max_cols]
+        else:
+            return f"cgm_{id(data)}"
+
+        sig = np.concatenate([row_means, col_means])
+        sig_bytes = sig.astype(np.float32).tobytes()
+        return f"cgm_{hashlib.md5(sig_bytes).hexdigest()[:12]}"
+    except Exception:
+        return f"cgm_{id(data)}"
 
 class Matrix:
     """
@@ -85,6 +108,7 @@ class Matrix:
         disable_processing: bool = True,
         # Visualization parameters
         global_colors: dict[str, str] | pd.DataFrame | None = None,
+        name: str | None = None,
     ):
         """
         Create Matrix with automatic processing unless disabled.
@@ -133,6 +157,13 @@ class Matrix:
 
         # Visualization structure
         self.viz: dict[str, Any] = DEFAULT_VIZ.copy()
+
+        # if name is None, generate a quick hash-based name from the data content
+        if name is None:
+            # Generate a quick hash-based name from the data content
+            self._data_hash_name = quick_hash_data(data)
+        else:
+            self._data_hash_name = name
 
         # Load data and optionally apply processing
         if data is not None:
@@ -851,6 +882,9 @@ class Matrix:
     def _viz_json(self, dendro: bool = True, links: bool = False) -> None:
         """Generate visualization JSON structure."""
         dat, viz = self.dat, self.viz
+
+        # add name
+        viz["name"] = self._data_hash_name
 
         viz["linkage"] = {
             axis: dat["node_info"][axis]["Y"].tolist() for axis in (Axis.ROW.value, Axis.COL.value)

@@ -7,6 +7,8 @@ from pathlib import Path
 import anywidget
 import traitlets
 
+_clustergram_registry = {}  # maps names to widget instances
+
 
 class Landscape(anywidget.AnyWidget):
     """
@@ -94,28 +96,50 @@ class Clustergram(anywidget.AnyWidget):
     """
     A widget for interactive visualization of a hierarchically clustered matrix.
 
+    Automatically replaces older widgets with the same name to prevent notebook bloat.
+
     Args:
         value (int): The value traitlet.
         component (str): The component traitlet.
         network (dict): The network traitlet.
         click_info (dict): The click_info traitlet.
-
-    Attributes:
-        component (str): The name of the component.
-        network (dict): The network dictionary.
-        click_info (dict): The click_info dictionary.
+        name (str): Optional name for this widget instance.
 
     Returns:
-        Matrix: A widget for visualizing a hierarchically clustered matrix.
+        Clustergram: A widget for visualizing a hierarchically clustered matrix.
     """
 
     _esm = Path(__file__).parent / "../static" / "widget.js"
     _css = Path(__file__).parent / "../static" / "widget.css"
+
     value = traitlets.Int(0).tag(sync=True)
     component = traitlets.Unicode("Matrix").tag(sync=True)
-
     network = traitlets.Dict({}).tag(sync=True)
-
     width = traitlets.Int(600).tag(sync=True)
     height = traitlets.Int(600).tag(sync=True)
     click_info = traitlets.Dict({}).tag(sync=True)
+
+    def __init__(self, **kwargs):
+
+        # set name from network.name
+        if "network" in kwargs and "name" not in kwargs:
+            name = kwargs["network"].get("name", None)
+
+        # Close any previously registered widget with the same name
+        old_widget = _clustergram_registry.get(name)
+
+        print(_clustergram_registry.keys())
+
+        if old_widget:
+            try:
+                old_widget.close()
+            except Exception:
+                pass
+
+        # Pass name into traitlets
+        kwargs["name"] = name
+
+        super().__init__(**kwargs)
+
+        # Store new widget
+        _clustergram_registry[name] = self

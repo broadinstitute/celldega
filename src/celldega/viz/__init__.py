@@ -5,7 +5,7 @@ Module for visualization
 from ipywidgets import HBox, Layout, jslink
 
 from .local_server import get_local_server
-from .widget import Landscape, Clustergram
+from .widget import Clustergram, Landscape
 
 
 def landscape_matrix(landscape, mat, width="600px", height="700px"):
@@ -34,4 +34,4 @@ def landscape_matrix(landscape, mat, width="600px", height="700px"):
     return HBox([landscape, mat])
 
 
-__all__ = ["Landscape", "Clustergram", "get_local_server", "landscape_matrix"]
+__all__ = ["Clustergram", "Landscape", "get_local_server", "landscape_matrix"]

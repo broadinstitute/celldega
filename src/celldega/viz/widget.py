@@ -90,7 +90,7 @@ class Landscape(anywidget.AnyWidget):
         self.cell_clusters = new_clusters
 
 
-class Matrix(anywidget.AnyWidget):
+class Clustergram(anywidget.AnyWidget):
     """
     A widget for interactive visualization of a hierarchically clustered matrix.
 
@@ -118,32 +118,4 @@ class Matrix(anywidget.AnyWidget):
 
     width = traitlets.Int(600).tag(sync=True)
     height = traitlets.Int(600).tag(sync=True)
-    click_info = traitlets.Dict({}).tag(sync=True)
-
-
-class MatrixNew(anywidget.AnyWidget):
-    """
-    A new matrix widget for enhanced visualization capabilities.
-
-    Attributes:
-        component (str): The name of the component.
-        network (dict): The network dictionary.
-        click_info (dict): The click_info dictionary.
-        width (int): Width of the widget.
-        height (int): Height of the widget.
-        value (int): The value traitlet.
-
-    Returns:
-        MatrixNew: An enhanced widget for matrix visualization.
-    """
-
-    _esm = Path(__file__).parent / "../static" / "widget.js"
-    _css = Path(__file__).parent / "../static" / "widget.css"
-    value = traitlets.Int(0).tag(sync=True)
-    component = traitlets.Unicode("MatrixNew").tag(sync=True)
-
-    network = traitlets.Dict({}).tag(sync=True)
-    width = traitlets.Int(600).tag(sync=True)
-    height = traitlets.Int(600).tag(sync=True)
-
     click_info = traitlets.Dict({}).tag(sync=True)

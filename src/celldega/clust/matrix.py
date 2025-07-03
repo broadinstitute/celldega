@@ -1,9 +1,6 @@
-"""
-Optimized Matrix class with improved maintainability and time/space complexity.
-"""
-
 from __future__ import annotations
 
+import hashlib
 import json
 from typing import Any
 import warnings
@@ -11,7 +8,6 @@ import weakref
 
 from anndata import AnnData
 import numpy as np
-import hashlib
 import pandas as pd
 from scipy.cluster.hierarchy import dendrogram, linkage
 from scipy.spatial.distance import pdist

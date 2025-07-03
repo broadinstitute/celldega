@@ -2,10 +2,12 @@
 Widget module for interactive visualization components.
 """
 
+from contextlib import suppress
 from pathlib import Path
 
 import anywidget
 import traitlets
+
 
 _clustergram_registry = {}  # maps names to widget instances
 
@@ -131,10 +133,8 @@ class Clustergram(anywidget.AnyWidget):
         print(_clustergram_registry.keys())
 
         if old_widget:
-            try:
+            with suppress(Exception):
                 old_widget.close()
-            except Exception:
-                pass
 
         # Pass name into traitlets
         kwargs["name"] = name

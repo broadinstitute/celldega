@@ -16,6 +16,11 @@ const sst_gene_search_callback = async (deck_sst, viz_state, layers_sst) => {
 
   if (inst_gene === '' || viz_state.genes.gene_names.includes(inst_gene)) {
     update_cat(viz_state.cats, new_cat);
+    viz_state.obs_store.deck_check.set({
+      ...viz_state.obs_store.deck_check.get(),
+      cell_layer: false,
+      trx_layer: false,
+    });
     update_selected_genes(
       viz_state.genes,
       inst_gene === '' ? [] : [inst_gene],
@@ -41,6 +46,11 @@ const ist_gene_search_callback = async (deck_ist, layers_obj, viz_state) => {
 
   if (inst_gene === '' || viz_state.genes.gene_names.includes(inst_gene)) {
     update_cat(viz_state.cats, new_cat);
+    viz_state.obs_store.deck_check.set({
+      ...viz_state.obs_store.deck_check.get(),
+      cell_layer: false,
+      trx_layer: false,
+    });
     update_selected_genes(
       viz_state.genes,
       inst_gene === '' ? [] : [inst_gene],
@@ -71,8 +81,10 @@ const ist_gene_search_callback = async (deck_ist, layers_obj, viz_state) => {
       );
     }
 
-    const layers_list = get_layers_list(layers_obj, viz_state.close_up);
-    deck_ist.setProps({ layers: layers_list });
+    viz_state.obs_store.deck_check.set({
+      ...viz_state.obs_store.deck_check.get(),
+      cell_layer: true,
+    });
   }
 };
 

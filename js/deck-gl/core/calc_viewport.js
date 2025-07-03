@@ -127,6 +127,5 @@ export const calc_viewport = async (
     }
   }
 
-  const layers_list = get_layers_list(layers_obj, viz_state.close_up);
-  deck_ist.setProps({ layers: layers_list });
+  viz_state.layers_obj = layers_obj;
 };

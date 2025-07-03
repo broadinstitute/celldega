@@ -11,4 +11,10 @@ export const update_selected_genes = (genes, new_selected_genes, obs_store) => {
 
   // Update obs_store
   obs_store.selected_genes.set(genes.selected_genes);
+
+  obs_store.deck_check.set({
+    ...obs_store.deck_check.get(),
+    cell_layer: false,
+    trx_layer: false,
+  });
 };

@@ -35,11 +35,14 @@ const cell_layer_onclick = async (info, d, deck_ist, layers_obj, viz_state) => {
   }
 
   update_cat(viz_state.cats, 'cluster');
+  viz_state.obs_store.deck_check.set({
+    ...viz_state.obs_store.deck_check.get(),
+    cell_layer: false,
+    path_layer: false,
+    trx_layer: false,
+  });
   update_selected_cats(viz_state.cats, [inst_cat], viz_state.obs_store);
   update_selected_genes(viz_state.genes, [], viz_state.obs_store);
-
-  const layers_list = get_layers_list(layers_obj, viz_state.close_up);
-  deck_ist.setProps({ layers: layers_list });
 };
 
 // transparent to red
@@ -282,6 +285,4 @@ export const toggle_spatial_umap = (deck_ist, layers_obj, viz_state) => {
     },
   });
 
-  const layers_list = get_layers_list(layers_obj, viz_state.close_up);
-  deck_ist.setProps({ layers: layers_list });
 };

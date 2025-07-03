@@ -26,6 +26,12 @@ const trx_layer_callback = async (
 
   update_cat(viz_state.cats, new_cat);
 
+  viz_state.obs_store.deck_check.set({
+    ...viz_state.obs_store.deck_check.get(),
+    cell_layer: false,
+    trx_layer: false,
+  });
+
   update_selected_genes(viz_state.genes, [inst_gene], viz_state.obs_store);
   // testing setting selected_cats to array with the selected gene for
   // observable updates
@@ -41,8 +47,10 @@ const trx_layer_callback = async (
     viz_state.aws
   );
 
-  const layers_list = get_layers_list(layers_obj, viz_state.close_up);
-  deck_ist.setProps({ layers: layers_list });
+  viz_state.obs_store.deck_check.set({
+    ...viz_state.obs_store.deck_check.get(),
+    cell_layer: true,
+  });
 };
 
 export const ini_trx_layer = (genes) => {
@@ -79,6 +87,10 @@ export const update_trx_layer_data = async (
   layers_obj,
   viz_state
 ) => {
+  viz_state.obs_store.deck_check.set({
+    ...viz_state.obs_store.deck_check.get(),
+    trx_layer: false,
+  });
   viz_state.genes.trx_data = await grab_trx_tiles_in_view(
     base_url,
     tiles_in_view,
@@ -87,6 +99,11 @@ export const update_trx_layer_data = async (
 
   layers_obj.trx_layer = layers_obj.trx_layer.clone({
     data: viz_state.genes.trx_data,
+  });
+
+  viz_state.obs_store.deck_check.set({
+    ...viz_state.obs_store.deck_check.get(),
+    trx_layer: true,
   });
 };
 

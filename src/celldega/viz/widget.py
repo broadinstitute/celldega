@@ -105,7 +105,6 @@ class Clustergram(anywidget.AnyWidget):
         component (str): The component traitlet.
         network (dict): The network traitlet.
         click_info (dict): The click_info traitlet.
-        name (str): Optional name for this widget instance.
 
     Returns:
         Clustergram: A widget for visualizing a hierarchically clustered matrix.
@@ -124,7 +123,7 @@ class Clustergram(anywidget.AnyWidget):
     def __init__(self, **kwargs):
 
         # set name from network.name
-        if "network" in kwargs and "name" not in kwargs:
+        if "network" in kwargs:
             name = kwargs["network"].get("name", None)
 
         # Close any previously registered widget with the same name

@@ -22,7 +22,7 @@ const Observable = (initialValue) => {
 };
 
 export const create_obs_store = () => {
-  return {
+  const store = {
     cat: Observable('cluster'),
     selected_cats: Observable([]),
     new_cell_bar_data: Observable([]),
@@ -37,5 +37,13 @@ export const create_obs_store = () => {
       path_layer: true,
       trx_layer: true,
     }),
+    deck_ready: Observable(false),
   };
+
+  store.deck_check.subscribe((check) => {
+    const ready = Object.values(check).every((v) => v === true);
+    store.deck_ready.set(ready);
+  });
+
+  return store;
 };

@@ -43,14 +43,18 @@ def test_clustergram_initializes_with_parquet() -> None:
     mat = make_simple_matrix()
     pq = mat.export_viz_parquet()
 
-    widget = Clustergram(parquet_data=pq)
+    widget = Clustergram(matrix=mat)
 
+    # Confirm meta is set correctly
     assert widget.network_meta == pq["meta"]
-    for attr in [
-        "mat_parquet",
-        "row_nodes_parquet",
-        "col_nodes_parquet",
-        "row_linkage_parquet",
-        "col_linkage_parquet",
+
+    # Confirm dynamic parquet attributes exist and match expected values
+    for attr, key in [
+        ("mat_parquet", "mat"),
+        ("row_nodes_parquet", "row_nodes"),
+        ("col_nodes_parquet", "col_nodes"),
+        ("row_linkage_parquet", "row_linkage"),
+        ("col_linkage_parquet", "col_linkage"),
     ]:
-        assert getattr(widget, attr) == pq[attr]
+        assert hasattr(widget, attr), f"Missing attribute: {attr}"
+        assert getattr(widget, attr) == pq[key], f"Attribute {attr} does not match expected parquet value"

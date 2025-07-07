@@ -1,19 +1,13 @@
 import { arrayBufferToArrowTable } from './arrayBufferToArrowTable';
 
 function tableToObjects(table) {
-  const cols = {};
-  table.schema.fields.forEach((f) => {
-    cols[f.name] = table.getChild(f.name).toArray();
-  });
-  const rows = [];
-  for (let i = 0; i < table.numRows; i++) {
-    const obj = {};
-    table.schema.fields.forEach((f) => {
-      obj[f.name] = cols[f.name][i];
-    });
-    rows.push(obj);
-  }
-  return rows;
+  const cols = table.schema.fields.map((f) => ({
+    name: f.name,
+    data: table.getChild(f.name).toArray(),
+  }));
+  return Array.from({ length: table.numRows }, (_, i) =>
+    Object.fromEntries(cols.map((col) => [col.name, col.data[i]]))
+  );
 }
 
 function tableToMatrix(table) {

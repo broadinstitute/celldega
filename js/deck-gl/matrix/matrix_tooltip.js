@@ -8,7 +8,6 @@ export const get_tooltip = (viz_state, params) => {
   tooltipParent.style.position = 'unset';
 
   if (object) {
-    console.log(object)
     // Check which layer the tooltip is currently over
     if (layer.id === 'row-label-layer') {
       // Display the row label when hovering over the row_label_layer

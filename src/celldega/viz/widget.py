@@ -126,7 +126,6 @@ class Clustergram(anywidget.AnyWidget):
         name = kwargs.get("network", {}).get("name", None)
 
         if "parquet_data" in kwargs:
-            print('parquet_data found in kwargs, using it to set up the widget')
             pq_data = kwargs.pop("parquet_data")
             meta = pq_data.get("meta", {})
             name = meta.get("name", name)

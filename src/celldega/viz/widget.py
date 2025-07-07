@@ -116,27 +116,40 @@ class Clustergram(anywidget.AnyWidget):
     value = traitlets.Int(0).tag(sync=True)
     component = traitlets.Unicode("Matrix").tag(sync=True)
     network = traitlets.Dict({}).tag(sync=True)
+    network_meta = traitlets.Dict({}).tag(sync=True)
     width = traitlets.Int(600).tag(sync=True)
     height = traitlets.Int(600).tag(sync=True)
     click_info = traitlets.Dict({}).tag(sync=True)
 
     def __init__(self, **kwargs):
+        # Set name from network.name
+        name = kwargs.get("network", {}).get("name", None)
 
-        # set name from network.name
-        if "network" in kwargs:
-            name = kwargs["network"].get("name", None)
+        if "parquet_data" in kwargs:
+            print('parquet_data found in kwargs, using it to set up the widget')
+            pq_data = kwargs.pop("parquet_data")
+            meta = pq_data.get("meta", {})
+            name = meta.get("name", name)
+            kwargs.setdefault("network_meta", meta)
+
+            # Define dynamic traitlets for parquet components
+            parquet_traits = {
+                "mat_parquet": traitlets.Bytes(pq_data.get("mat", b"")).tag(sync=True),
+                "row_nodes_parquet": traitlets.Bytes(pq_data.get("row_nodes", b"")).tag(sync=True),
+                "col_nodes_parquet": traitlets.Bytes(pq_data.get("col_nodes", b"")).tag(sync=True),
+                "row_linkage_parquet": traitlets.Bytes(pq_data.get("row_linkage", b"")).tag(sync=True),
+                "col_linkage_parquet": traitlets.Bytes(pq_data.get("col_linkage", b"")).tag(sync=True),
+            }
+            self.add_traits(**parquet_traits)
 
         # Close any previously registered widget with the same name
         old_widget = _clustergram_registry.get(name)
-
         if old_widget:
             with suppress(Exception):
                 old_widget.close()
 
-        # Pass name into traitlets
         kwargs["name"] = name
 
         super().__init__(**kwargs)
 
-        # Store new widget
         _clustergram_registry[name] = self

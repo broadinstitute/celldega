@@ -590,6 +590,52 @@ class Matrix:
     def export_viz_to_widget(self, which_viz: str = "viz") -> str:
         """Export visualization for widget."""
         return self.export_viz_json_string()
+    
+    def export_viz_parquet(self) -> dict[str, bytes]:
+        """Export visualization using Parquet encoded tables."""
+        if not self._clustered:
+            warnings.warn(
+                "Matrix not clustered. Call clust() first.",
+                UserWarning,
+                stacklevel=2,
+            )
+
+        import io
+        import pyarrow as pa
+        import pyarrow.parquet as pq
+
+        def _to_bytes(df: pd.DataFrame) -> bytes:
+            buf = io.BytesIO()
+            pq.write_table(pa.Table.from_pandas(df), buf, compression="zstd")
+            return buf.getvalue()
+
+        viz = self.viz
+
+        mat_df = pd.DataFrame(
+            self.dat["mat"],
+            index=self.dat["nodes"][Axis.ROW.value],
+            columns=self.dat["nodes"][Axis.COL.value],
+        ).reset_index(names="row")
+
+        row_nodes_df = pd.DataFrame(viz.get("row_nodes", []))
+        col_nodes_df = pd.DataFrame(viz.get("col_nodes", []))
+        row_link_df = pd.DataFrame(viz.get("linkage", {}).get(Axis.ROW.value, []))
+        col_link_df = pd.DataFrame(viz.get("linkage", {}).get(Axis.COL.value, []))
+
+        meta_json = viz.copy()
+        meta_json.pop("mat", None)
+        meta_json.pop("row_nodes", None)
+        meta_json.pop("col_nodes", None)
+        meta_json["linkage"] = {}
+
+        return {
+            "mat": _to_bytes(mat_df),
+            "row_nodes": _to_bytes(row_nodes_df),
+            "col_nodes": _to_bytes(col_nodes_df),
+            "row_linkage": _to_bytes(row_link_df),
+            "col_linkage": _to_bytes(col_link_df),
+            "meta": meta_json,
+        }               
 
     def add_category(self, axis: AxisInput, name: str, data: pd.Series) -> None:
         """

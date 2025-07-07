@@ -7,6 +7,7 @@ import { landscape_h_e } from './viz/landscape_h_e';
 import { landscape_ist } from './viz/landscape_ist';
 import { landscape_sst } from './viz/landscape_sst';
 import { matrix_viz } from './viz/matrix_viz';
+import { networkFromParquet } from './read_parquet/network_from_parquet';
 
 // Remove export keywords from render functions
 const render_landscape_ist = async ({ model, el }) => {
@@ -117,15 +118,34 @@ const render_landscape = async ({ model, el }) => {
 };
 
 const render_matrix_new = async ({ model, el }) => {
-  const network = model.get('network');
+  let network = model.get('network');
   const width = model.get('width');
   const height = model.get('height');
+
+  console.log('here')
+
+  const matBytes = model.get('mat_parquet');
+  console.log('matBytes:', matBytes);
+  if (matBytes && matBytes.byteLength > 0) {
+
+    console.log('parsing parquet')
+    network = await networkFromParquet(
+      model.get('network_meta'),
+      matBytes,
+      model.get('row_nodes_parquet'),
+      model.get('col_nodes_parquet'),
+      model.get('row_linkage_parquet'),
+      model.get('col_linkage_parquet')
+    );
+  }  
 
   matrix_viz(model, el, network, width, height);
 };
 
 // Main render function - no export keyword
 function render({ model, el }) {
+
+  console.log('render called with model:', model, 'and el:', el);
   try {
     const componentType = model.get('component');
 

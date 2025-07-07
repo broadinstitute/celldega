@@ -125,13 +125,13 @@ class Clustergram(anywidget.AnyWidget):
         pq_data = kwargs.pop("parquet_data", None)
 
         # Allow fallback via a 'matrix' kwarg
-        if pq_data is None and "network" not in kwargs:
+        if pq_data is None:
             matrix = kwargs.pop("matrix", None)
             if matrix is not None:
                 pq_data = matrix.export_viz_parquet()
-            else:
+            elif "network" not in kwargs:
                 raise ValueError(
-                    "You must pass either `network`, `parquet_data`, or `matrix` (for fallback)."
+                    "You must pass either `network`, `parquet_data`, or `matrix` (for fallback). If both `network` and `matrix` are provided, `matrix` will be prioritized."
                 )
 
         # Infer name from pq_data or network

@@ -42,7 +42,12 @@ export const create_obs_store = () => {
 
   store.deck_check.subscribe((check) => {
     const ready = Object.values(check).every((v) => v === true);
+    
     store.deck_ready.set(ready);
+
+    console.log(store.deck_check.get())
+
+    console.log('deck_check', ready)
   });
 
   return store;

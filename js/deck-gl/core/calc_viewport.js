@@ -128,4 +128,6 @@ export const calc_viewport = async (
   }
 
   viz_state.layers_obj = layers_obj;
+
+  console.log('Viewport calculated:')
 };

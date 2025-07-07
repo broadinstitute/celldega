@@ -39,10 +39,4 @@ export const update_selected_cats = (cats, new_selected_cats, obs_store) => {
   // Update obs_store
   obs_store.selected_cats.set(cats.selected_cats);
 
-  obs_store.deck_check.set({
-    ...obs_store.deck_check.get(),
-    cell_layer: false,
-    path_layer: false,
-    trx_layer: false,
-  });
 };

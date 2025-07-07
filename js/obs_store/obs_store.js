@@ -36,6 +36,8 @@ export const create_obs_store = () => {
       cell_layer: true,
       path_layer: true,
       trx_layer: true,
+      trx_data: true,
+      path_data: true
     }),
     deck_ready: Observable(false),
   };
@@ -46,7 +48,7 @@ export const create_obs_store = () => {
     store.deck_ready.set(ready);
 
     console.log(store.deck_check.get())
-    console.log('deck_check', ready)
+    console.log('subscriber: deck_check', ready)
   });
 
   return store;

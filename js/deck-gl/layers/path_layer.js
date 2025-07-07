@@ -51,6 +51,7 @@ const path_layer_onclick = async (
   const inst_cell_id = viz_state.cats.polygon_cell_names[info.index];
   const inst_cat = viz_state.cats.dict_cell_cats[inst_cell_id];
 
+  console.log('deck_check: path_layer onclick')
   viz_state.obs_store.deck_check.set({
     ...viz_state.obs_store.deck_check.get(),
     cell_layer: false,
@@ -69,10 +70,7 @@ export const update_path_layer_data = async (
   layers_obj,
   viz_state
 ) => {
-  viz_state.obs_store.deck_check.set({
-    ...viz_state.obs_store.deck_check.get(),
-    path_layer: false,
-  });
+
   const polygonPathsConcat = await grab_cell_tiles_in_view(
     base_url,
     tiles_in_view,
@@ -83,9 +81,10 @@ export const update_path_layer_data = async (
     data: polygonPathsConcat,
   });
 
+  console.log('deck_check: update_path_layer_data');
   viz_state.obs_store.deck_check.set({
     ...viz_state.obs_store.deck_check.get(),
-    path_layer: true,
+    path_data: true,
   });
 };
 

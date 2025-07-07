@@ -36,6 +36,17 @@ export const calc_viewport = async (
   );
 
   if (tiles_in_view.length < max_tiles_to_view) {
+
+    console.log('deck_check: calc_viewport')
+    viz_state.obs_store.deck_check.set({
+      ...viz_state.obs_store.deck_check.get(),
+      // cell_layer: false,
+      // path_layer: false,
+      trx_layer: false,
+      trx_data: false
+    });    
+
+
     await update_trx_layer_data(
       viz_state.global_base_url,
       tiles_in_view,

@@ -38,7 +38,7 @@ const cell_layer_onclick = async (info, d, deck_ist, layers_obj, viz_state) => {
 
   update_cat(viz_state.cats, 'cluster');
 
-  console.log('cell_layer_onclick', inst_cat);
+  console.log('deck_check: cell_layer')
   viz_state.obs_store.deck_check.set({
     ...viz_state.obs_store.deck_check.get(),
     cell_layer: false,

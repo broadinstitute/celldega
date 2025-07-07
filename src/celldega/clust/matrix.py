@@ -46,6 +46,7 @@ from .utils import (
 _distance_cache = weakref.WeakKeyDictionary()
 _ranking_cache = weakref.WeakKeyDictionary()
 
+
 def quick_hash_data(data: pd.DataFrame | AnnData, max_rows=100, max_cols=100) -> str:
     try:
         if isinstance(data, pd.DataFrame):
@@ -54,6 +55,7 @@ def quick_hash_data(data: pd.DataFrame | AnnData, max_rows=100, max_cols=100) ->
             col_means = df.mean(axis=0).values[:max_cols]
         elif isinstance(data, AnnData):
             import scipy.sparse
+
             x = data.X
             if scipy.sparse.issparse(x):
                 row_means = x.mean(axis=1).A1[:max_rows]  # Use sparse matrix operations
@@ -70,6 +72,7 @@ def quick_hash_data(data: pd.DataFrame | AnnData, max_rows=100, max_cols=100) ->
         return f"cgm_{hashlib.md5(sig_bytes).hexdigest()[:12]}"
     except Exception:
         return f"cgm_{id(data)}"
+
 
 class Matrix:
     """
@@ -592,7 +595,7 @@ class Matrix:
     def export_viz_to_widget(self, which_viz: str = "viz") -> str:
         """Export visualization for widget."""
         return self.export_viz_json_string()
-    
+
     def export_viz_parquet(self) -> dict[str, bytes]:
         """Export visualization using Parquet encoded tables."""
         if not self._clustered:
@@ -623,7 +626,6 @@ class Matrix:
             pq.write_table(pa.Table.from_pandas(df_casted), buf, compression="zstd")
             return buf.getvalue()
 
-
         viz = self.viz
 
         mat_df = pd.DataFrame(
@@ -650,7 +652,7 @@ class Matrix:
             "row_linkage": _to_bytes(row_link_df),
             "col_linkage": _to_bytes(col_link_df),
             "meta": meta_json,
-        } 
+        }
 
     def add_category(self, axis: AxisInput, name: str, data: pd.Series) -> None:
         """
@@ -734,7 +736,9 @@ class Matrix:
         if self._clustered:
             self.make_viz()
 
-    def set_global_cat_colors(self, color_mapping: dict[str, str] | pd.DataFrame | None = None) -> None:
+    def set_global_cat_colors(
+        self, color_mapping: dict[str, str] | pd.DataFrame | None = None
+    ) -> None:
         """
         Set global category color mapping that applies across all categories.
 
@@ -774,7 +778,6 @@ class Matrix:
         self.viz["col_cats"] = self.col_cats
 
         self.viz["global_cat_colors"].update(color_mapping)
-
 
     def set_matrix_colors(self, pos: str = "red", neg: str = "blue") -> None:
         """

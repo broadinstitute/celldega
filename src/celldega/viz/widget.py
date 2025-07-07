@@ -145,8 +145,12 @@ class Clustergram(anywidget.AnyWidget):
                 "mat_parquet": traitlets.Bytes(pq_data.get("mat", b"")).tag(sync=True),
                 "row_nodes_parquet": traitlets.Bytes(pq_data.get("row_nodes", b"")).tag(sync=True),
                 "col_nodes_parquet": traitlets.Bytes(pq_data.get("col_nodes", b"")).tag(sync=True),
-                "row_linkage_parquet": traitlets.Bytes(pq_data.get("row_linkage", b"")).tag(sync=True),
-                "col_linkage_parquet": traitlets.Bytes(pq_data.get("col_linkage", b"")).tag(sync=True),
+                "row_linkage_parquet": traitlets.Bytes(pq_data.get("row_linkage", b"")).tag(
+                    sync=True
+                ),
+                "col_linkage_parquet": traitlets.Bytes(pq_data.get("col_linkage", b"")).tag(
+                    sync=True
+                ),
             }
             self.add_traits(**parquet_traits)
 

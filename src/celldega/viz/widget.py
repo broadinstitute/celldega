@@ -122,16 +122,25 @@ class Clustergram(anywidget.AnyWidget):
     click_info = traitlets.Dict({}).tag(sync=True)
 
     def __init__(self, **kwargs):
-        # Set name from network.name
-        name = kwargs.get("network", {}).get("name", None)
+        pq_data = kwargs.pop("parquet_data", None)
 
-        if "parquet_data" in kwargs:
-            pq_data = kwargs.pop("parquet_data")
+        # Allow fallback via a 'matrix' kwarg
+        if pq_data is None and "network" not in kwargs:
+            matrix = kwargs.pop("matrix", None)
+            if matrix is not None:
+                pq_data = matrix.export_viz_parquet()
+            else:
+                raise ValueError(
+                    "You must pass either `network`, `parquet_data`, or `matrix` (for fallback)."
+                )
+
+        # Infer name from pq_data or network
+        name = kwargs.get("network", {}).get("name", None)
+        if pq_data is not None:
             meta = pq_data.get("meta", {})
             name = meta.get("name", name)
             kwargs.setdefault("network_meta", meta)
 
-            # Define dynamic traitlets for parquet components
             parquet_traits = {
                 "mat_parquet": traitlets.Bytes(pq_data.get("mat", b"")).tag(sync=True),
                 "row_nodes_parquet": traitlets.Bytes(pq_data.get("row_nodes", b"")).tag(sync=True),
@@ -141,14 +150,11 @@ class Clustergram(anywidget.AnyWidget):
             }
             self.add_traits(**parquet_traits)
 
-        # Close any previously registered widget with the same name
         old_widget = _clustergram_registry.get(name)
         if old_widget:
             with suppress(Exception):
                 old_widget.close()
 
         kwargs["name"] = name
-
         super().__init__(**kwargs)
-
         _clustergram_registry[name] = self

@@ -40,10 +40,8 @@ export const calc_viewport = async (
     console.log('deck_check: calc_viewport')
     viz_state.obs_store.deck_check.set({
       ...viz_state.obs_store.deck_check.get(),
-      // cell_layer: false,
-      // path_layer: false,
-      trx_layer: false,
-      trx_data: false
+      trx_data: false,
+      path_data: false
     });
 
     viz_state.close_up = true;

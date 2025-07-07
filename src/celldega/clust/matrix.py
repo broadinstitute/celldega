@@ -56,10 +56,12 @@ def quick_hash_data(data: pd.DataFrame | AnnData, max_rows=100, max_cols=100) ->
             import scipy.sparse
             x = data.X
             if scipy.sparse.issparse(x):
-                x = x.toarray()
-            x = np.asarray(x, dtype=np.float32)
-            row_means = x.mean(axis=1)[:max_rows]
-            col_means = x.mean(axis=0)[:max_cols]
+                row_means = x.mean(axis=1).A1[:max_rows]  # Use sparse matrix operations
+                col_means = x.mean(axis=0).A1[:max_cols]  # Use sparse matrix operations
+            else:
+                x = np.asarray(x, dtype=np.float32)
+                row_means = x.mean(axis=1)[:max_rows]
+                col_means = x.mean(axis=0)[:max_cols]
         else:
             return f"cgm_{id(data)}"
 

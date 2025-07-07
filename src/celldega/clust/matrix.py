@@ -605,14 +605,21 @@ class Matrix:
         import pyarrow.parquet as pq
 
         def _to_bytes(df: pd.DataFrame) -> bytes:
-            # Downcast integer and float columns to avoid BigInts and 64-bit floats in JS
+            # Build a dtype mapping for all applicable columns
+            dtype_map = {}
             for col in df.select_dtypes(include=["int64"]).columns:
-                df[col] = df[col].astype("int32")
+                dtype_map[col] = "int32"
             for col in df.select_dtypes(include=["float64"]).columns:
-                df[col] = df[col].astype("float32")            
+                dtype_map[col] = "float32"
+
+            # Perform a single bulk cast
+            df_casted = df.astype(dtype_map, copy=False)
+
+            # Serialize to Parquet
             buf = io.BytesIO()
-            pq.write_table(pa.Table.from_pandas(df), buf, compression="zstd")
+            pq.write_table(pa.Table.from_pandas(df_casted), buf, compression="zstd")
             return buf.getvalue()
+
 
         viz = self.viz
 

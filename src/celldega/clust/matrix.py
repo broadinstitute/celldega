@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import io
 import json
 from typing import Any
 import warnings
@@ -9,6 +10,8 @@ import weakref
 from anndata import AnnData
 import numpy as np
 import pandas as pd
+import pyarrow as pa
+import pyarrow.parquet as pq
 from scipy.cluster.hierarchy import dendrogram, linkage
 from scipy.spatial.distance import pdist
 from sklearn.preprocessing import QuantileTransformer
@@ -46,6 +49,7 @@ from .utils import (
 _distance_cache = weakref.WeakKeyDictionary()
 _ranking_cache = weakref.WeakKeyDictionary()
 
+
 def quick_hash_data(data: pd.DataFrame | AnnData, max_rows=100, max_cols=100) -> str:
     try:
         if isinstance(data, pd.DataFrame):
@@ -54,6 +58,7 @@ def quick_hash_data(data: pd.DataFrame | AnnData, max_rows=100, max_cols=100) ->
             col_means = df.mean(axis=0).values[:max_cols]
         elif isinstance(data, AnnData):
             import scipy.sparse
+
             x = data.X
             if scipy.sparse.issparse(x):
                 x = x[:max_rows, :max_cols].toarray()
@@ -69,6 +74,7 @@ def quick_hash_data(data: pd.DataFrame | AnnData, max_rows=100, max_cols=100) ->
         return f"cgm_{hashlib.md5(sig_bytes).hexdigest()[:12]}"
     except Exception:
         return f"cgm_{id(data)}"
+
 
 class Matrix:
     """
@@ -601,10 +607,6 @@ class Matrix:
                 stacklevel=2,
             )
 
-        import io
-        import pyarrow as pa
-        import pyarrow.parquet as pq
-
         def _to_bytes(df: pd.DataFrame) -> bytes:
             buf = io.BytesIO()
             pq.write_table(
@@ -724,7 +726,9 @@ class Matrix:
         if self._clustered:
             self.make_viz()
 
-    def set_global_cat_colors(self, color_mapping: dict[str, str] | pd.DataFrame | None = None) -> None:
+    def set_global_cat_colors(
+        self, color_mapping: dict[str, str] | pd.DataFrame | None = None
+    ) -> None:
         """
         Set global category color mapping that applies across all categories.
 
@@ -764,7 +768,6 @@ class Matrix:
         self.viz["col_cats"] = self.col_cats
 
         self.viz["global_cat_colors"].update(color_mapping)
-
 
     def set_matrix_colors(self, pos: str = "red", neg: str = "blue") -> None:
         """

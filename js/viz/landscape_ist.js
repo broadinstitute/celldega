@@ -364,16 +364,7 @@ export const landscape_ist = async (
 
   viz_state.layers_obj = layers_obj;
 
-  viz_state.obs_store.deck_ready.subscribe((ready) => {
-    if (ready) {
-      // console.log('deck_ready: is ready')
-      const list = get_layers_list(viz_state.layers_obj, viz_state.close_up);
-      deck_ist.setProps({ layers: list });
-    } else {
-      // console.log('deck_ready: not ready')
-    }
-    
-  });
+
 
   // set onclicks after all layers are made
   set_cell_layer_onclick(deck_ist, layers_obj, viz_state);
@@ -383,9 +374,19 @@ export const landscape_ist = async (
   // set_edit_layer_on_click(deck_ist, layers_obj, viz_state);
   // set_nbhd_layer_onclick(deck_ist, layers_obj, viz_state);
 
+  viz_state.obs_store.deck_ready.subscribe((ready) => {
+    if (ready) {
+      console.log('deck_ready: is ready')
+      const list = get_layers_list(viz_state.layers_obj, viz_state.close_up);
+      deck_ist.setProps({ layers: list });
+    } else {
+      console.log('deck_ready: not ready')
+    }
+    
+  });  
+
   viz_state.obs_store.selected_cats.subscribe((selected_cats) => {
 
-    // console.log('selected_cats subscriber', selected_cats);
     const selected_cats_name = selected_cats.join('-');
 
     layers_obj.cell_layer = layers_obj.cell_layer.clone({

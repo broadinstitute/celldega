@@ -1,6 +1,5 @@
 import * as d3 from 'd3';
 
-import { get_layers_list } from '../deck-gl/utils/layers_ist';
 import { update_cat, update_selected_cats } from '../global_variables/cat';
 import { update_cell_exp_array } from '../global_variables/cell_exp_array';
 import { update_selected_genes } from '../global_variables/selected_genes';
@@ -18,7 +17,6 @@ export const bar_callback_cluster = (
 ) => {
 
   // add cell_layer, path_layer, and trx_layer to the deck_check observable
-  console.log('setting deck_check: cell_layer, path_layer, trx_layer to false');
   _viz_state.obs_store.deck_check.set({
     ..._viz_state.obs_store.deck_check.get(),
     cell_layer: false,
@@ -29,7 +27,6 @@ export const bar_callback_cluster = (
   update_cat(_viz_state.cats, 'cluster');
   update_selected_cats(_viz_state.cats, [d.name], _viz_state.obs_store);
   update_selected_genes(_viz_state.genes, [], _viz_state.obs_store);
-
 
 };
 

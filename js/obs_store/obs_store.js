@@ -45,9 +45,8 @@ export const create_obs_store = () => {
     
     store.deck_ready.set(ready);
 
-    console.log(store.deck_check.get())
-
-    console.log('deck_check', ready)
+    // console.log(store.deck_check.get())
+    // console.log('deck_check', ready)
   });
 
   return store;

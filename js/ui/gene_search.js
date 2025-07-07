@@ -1,5 +1,4 @@
 import { update_square_scatter_layer } from '../deck-gl/layers/square_scatter_layer';
-import { get_layers_list } from '../deck-gl/utils/layers_ist';
 import { update_cat, update_selected_cats } from '../global_variables/cat';
 import { update_cell_exp_array } from '../global_variables/cell_exp_array';
 import { update_selected_genes } from '../global_variables/selected_genes';

@@ -1,7 +1,6 @@
 import { visibleTiles } from '../../vector_tile/visibleTiles';
 import { update_path_layer_data } from '../layers/path_layer';
 import { update_trx_layer_data } from '../layers/trx_layer';
-import { get_layers_list } from '../utils/layers_ist';
 
 export const calc_viewport = async (
   { height, width, zoom, target },
@@ -25,7 +24,6 @@ export const calc_viewport = async (
   // Get the current viewport from Deck.gl
   const viewports = deck_ist.viewManager.getViewports();
   if (!viewports || viewports.length === 0) {
-    // console.error('No viewports available')
     return;
   }
 
@@ -129,5 +127,4 @@ export const calc_viewport = async (
 
   viz_state.layers_obj = layers_obj;
 
-  console.log('Viewport calculated:')
 };

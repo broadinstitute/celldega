@@ -124,7 +124,6 @@ const render_matrix_new = async ({ model, el }) => {
 
   const matBytes = model.get('mat_parquet');
   if (matBytes && matBytes.byteLength > 0) {
-
     network = await networkFromParquet(
       model.get('network_meta'),
       matBytes,
@@ -133,14 +132,13 @@ const render_matrix_new = async ({ model, el }) => {
       model.get('row_linkage_parquet'),
       model.get('col_linkage_parquet')
     );
-  }  
+  }
 
   matrix_viz(model, el, network, width, height);
 };
 
 // Main render function - no export keyword
 function render({ model, el }) {
-
   try {
     const componentType = model.get('component');
 

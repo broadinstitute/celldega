@@ -3,7 +3,6 @@ import * as d3 from 'd3';
 import { CustomMatrixLayer } from './custom_matrix_layer';
 
 export const ini_row_cat_layer = (viz_state) => {
-
   const transitions = {
     getPosition: {
       duration: viz_state.animate.duration,

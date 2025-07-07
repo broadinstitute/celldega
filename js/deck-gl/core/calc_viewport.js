@@ -37,7 +37,6 @@ export const calc_viewport = async (
 
   if (tiles_in_view.length < max_tiles_to_view) {
 
-    console.log('deck_check: calc_viewport')
     viz_state.obs_store.deck_check.set({
       ...viz_state.obs_store.deck_check.get(),
       trx_data: false,

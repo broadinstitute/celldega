@@ -374,12 +374,8 @@ export const landscape_ist = async (
 
   viz_state.obs_store.deck_ready.subscribe((ready) => {
     if (ready) {
-      console.log('deck_ready: is ready')
       const list = get_layers_list(viz_state.layers_obj, viz_state.close_up);
       deck_ist.setProps({ layers: list });
-      console.log('--- setProps layers ---');
-    } else {
-      console.log('deck_ready: not ready')
     }
     
   });  
@@ -396,7 +392,6 @@ export const landscape_ist = async (
       id: `path-layer-${selected_cats_name}`,
     });
 
-    console.log('deck_check: selected_cats subscribe')
     viz_state.obs_store.deck_check.set({
       ...viz_state.obs_store.deck_check.get(),
       path_layer: true,
@@ -411,7 +406,6 @@ export const landscape_ist = async (
       id: `trx-layer-${selected_genes_name}`,
     });
 
-    console.log('deck_check: selected_genes subscribe')
     viz_state.obs_store.deck_check.set({
       ...viz_state.obs_store.deck_check.get(),
       trx_layer: true,
@@ -538,7 +532,6 @@ export const landscape_ist = async (
       viz_state.layers_obj = layers_obj;
     },
     update_layers: () => {
-      // console.log('update_layers')
     },
     finalize: () => {
       deck_ist.finalize();

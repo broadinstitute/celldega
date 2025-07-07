@@ -15,7 +15,6 @@ const trx_layer_callback = async (
   const inst_gene = viz_state.genes.trx_names_array[info.index];
 
   if (!inst_gene) {
-    // console.error("Invalid gene name at index:", info.index)
     return;
   }
 
@@ -25,7 +24,6 @@ const trx_layer_callback = async (
 
   update_cat(viz_state.cats, new_cat);
 
-  console.log('deck_check: trx_layer onclick');
   viz_state.obs_store.deck_check.set({
     ...viz_state.obs_store.deck_check.get(),
     cell_layer: false,
@@ -96,7 +94,6 @@ export const update_trx_layer_data = async (
   // update viz_state layers before notifying deck_ready
   viz_state.layers_obj = layers_obj;
 
-  console.log('deck_check: update_trx_layer_data');
   viz_state.obs_store.deck_check.set({
     ...viz_state.obs_store.deck_check.get(),
     trx_layer: true,

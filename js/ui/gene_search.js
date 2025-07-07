@@ -50,7 +50,6 @@ const ist_gene_search_callback = async (deck_ist, layers_obj, viz_state) => {
 
     update_cat(viz_state.cats, new_cat);
 
-    console.log('deck_check: ist_gene_search_callback');
     viz_state.obs_store.deck_check.set({
       ...viz_state.obs_store.deck_check.get(),
       cell_layer: false,

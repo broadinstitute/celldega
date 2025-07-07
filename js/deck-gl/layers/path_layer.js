@@ -51,7 +51,6 @@ const path_layer_onclick = async (
   const inst_cell_id = viz_state.cats.polygon_cell_names[info.index];
   const inst_cat = viz_state.cats.dict_cell_cats[inst_cell_id];
 
-  console.log('deck_check: path_layer onclick')
   viz_state.obs_store.deck_check.set({
     ...viz_state.obs_store.deck_check.get(),
     cell_layer: false,
@@ -84,7 +83,6 @@ export const update_path_layer_data = async (
   // ensure state updated prior to deck_ready notification
   viz_state.layers_obj = layers_obj;
 
-  console.log('deck_check: update_path_layer_data');
   viz_state.obs_store.deck_check.set({
     ...viz_state.obs_store.deck_check.get(),
     path_data: true,

@@ -17,7 +17,6 @@ export const bar_callback_cluster = (
 ) => {
 
   // add cell_layer, path_layer, and trx_layer to the deck_check observable
-  console.log('deck_check: bar_callback_cluster');
   _viz_state.obs_store.deck_check.set({
     ..._viz_state.obs_store.deck_check.get(),
     cell_layer: false,
@@ -44,7 +43,6 @@ export const bar_callback_gene = async (
 
   update_cat(_viz_state.cats, new_cat);
 
-  console.log('deck_check: bar_callback_gene');
   _viz_state.obs_store.deck_check.set({
     ..._viz_state.obs_store.deck_check.get(),
     cell_layer: false,

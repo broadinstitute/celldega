@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+
 try:
     from celldega.clust import Matrix
     from celldega.viz import Clustergram
@@ -34,7 +35,7 @@ def test_export_viz_parquet_returns_bytes() -> None:
 
     assert set(pq) == expected_keys
     for key in expected_keys - {"meta"}:
-        assert isinstance(pq[key], (bytes, bytearray))
+        assert isinstance(pq[key], bytes | bytearray)
         assert pq[key]  # non-empty
     assert isinstance(pq["meta"], dict)
 

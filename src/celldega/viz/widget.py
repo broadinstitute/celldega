@@ -116,27 +116,45 @@ class Clustergram(anywidget.AnyWidget):
     value = traitlets.Int(0).tag(sync=True)
     component = traitlets.Unicode("Matrix").tag(sync=True)
     network = traitlets.Dict({}).tag(sync=True)
+    network_meta = traitlets.Dict({}).tag(sync=True)
     width = traitlets.Int(600).tag(sync=True)
     height = traitlets.Int(600).tag(sync=True)
     click_info = traitlets.Dict({}).tag(sync=True)
 
     def __init__(self, **kwargs):
+        pq_data = kwargs.pop("parquet_data", None)
 
-        # set name from network.name
-        if "network" in kwargs:
-            name = kwargs["network"].get("name", None)
+        # Allow fallback via a 'matrix' kwarg
+        if pq_data is None:
+            matrix = kwargs.pop("matrix", None)
+            if matrix is not None:
+                pq_data = matrix.export_viz_parquet()
+            elif "network" not in kwargs:
+                raise ValueError(
+                    "You must pass either `network`, `parquet_data`, or `matrix` (for fallback). If both `network` and `matrix` are provided, `matrix` will be prioritized."
+                )
 
-        # Close any previously registered widget with the same name
+        # Infer name from pq_data or network
+        name = kwargs.get("network", {}).get("name", None)
+        if pq_data is not None:
+            meta = pq_data.get("meta", {})
+            name = meta.get("name", name)
+            kwargs.setdefault("network_meta", meta)
+
+            parquet_traits = {
+                "mat_parquet": traitlets.Bytes(pq_data.get("mat", b"")).tag(sync=True),
+                "row_nodes_parquet": traitlets.Bytes(pq_data.get("row_nodes", b"")).tag(sync=True),
+                "col_nodes_parquet": traitlets.Bytes(pq_data.get("col_nodes", b"")).tag(sync=True),
+                "row_linkage_parquet": traitlets.Bytes(pq_data.get("row_linkage", b"")).tag(sync=True),
+                "col_linkage_parquet": traitlets.Bytes(pq_data.get("col_linkage", b"")).tag(sync=True),
+            }
+            self.add_traits(**parquet_traits)
+
         old_widget = _clustergram_registry.get(name)
-
         if old_widget:
             with suppress(Exception):
                 old_widget.close()
 
-        # Pass name into traitlets
         kwargs["name"] = name
-
         super().__init__(**kwargs)
-
-        # Store new widget
         _clustergram_registry[name] = self

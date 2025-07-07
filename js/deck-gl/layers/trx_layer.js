@@ -93,6 +93,9 @@ export const update_trx_layer_data = async (
     data: viz_state.genes.trx_data,
   });
 
+  // update viz_state layers before notifying deck_ready
+  viz_state.layers_obj = layers_obj;
+
   console.log('deck_check: update_trx_layer_data');
   viz_state.obs_store.deck_check.set({
     ...viz_state.obs_store.deck_check.get(),

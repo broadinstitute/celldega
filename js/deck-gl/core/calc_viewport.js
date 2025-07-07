@@ -40,12 +40,11 @@ export const calc_viewport = async (
     console.log('deck_check: calc_viewport')
     viz_state.obs_store.deck_check.set({
       ...viz_state.obs_store.deck_check.get(),
-      // cell_layer: false,
-      // path_layer: false,
-      trx_layer: false,
-      trx_data: false
-    });    
+      trx_data: false,
+      path_data: false
+    });
 
+    viz_state.close_up = true;
 
     await update_trx_layer_data(
       viz_state.global_base_url,
@@ -61,7 +60,6 @@ export const calc_viewport = async (
       viz_state
     );
 
-    viz_state.close_up = true;
 
     // gene bar graph update
     const filtered_transcripts = viz_state.combo_data.trx.filter(

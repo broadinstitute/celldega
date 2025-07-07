@@ -81,6 +81,9 @@ export const update_path_layer_data = async (
     data: polygonPathsConcat,
   });
 
+  // ensure state updated prior to deck_ready notification
+  viz_state.layers_obj = layers_obj;
+
   console.log('deck_check: update_path_layer_data');
   viz_state.obs_store.deck_check.set({
     ...viz_state.obs_store.deck_check.get(),

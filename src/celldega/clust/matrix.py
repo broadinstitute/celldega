@@ -605,6 +605,11 @@ class Matrix:
         import pyarrow.parquet as pq
 
         def _to_bytes(df: pd.DataFrame) -> bytes:
+            # Downcast integer and float columns to avoid BigInts and 64-bit floats in JS
+            for col in df.select_dtypes(include=["int64"]).columns:
+                df[col] = df[col].astype("int32")
+            for col in df.select_dtypes(include=["float64"]).columns:
+                df[col] = df[col].astype("float32")            
             buf = io.BytesIO()
             pq.write_table(pa.Table.from_pandas(df), buf, compression="zstd")
             return buf.getvalue()
@@ -635,7 +640,7 @@ class Matrix:
             "row_linkage": _to_bytes(row_link_df),
             "col_linkage": _to_bytes(col_link_df),
             "meta": meta_json,
-        }               
+        } 
 
     def add_category(self, axis: AxisInput, name: str, data: pd.Series) -> None:
         """

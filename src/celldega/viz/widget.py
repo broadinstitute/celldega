@@ -116,15 +116,36 @@ class Clustergram(anywidget.AnyWidget):
     value = traitlets.Int(0).tag(sync=True)
     component = traitlets.Unicode("Clustergram").tag(sync=True)
     network = traitlets.Dict({}).tag(sync=True)
+    network_meta = traitlets.Dict({}).tag(sync=True)
+    mat_parquet = traitlets.Bytes(b"").tag(sync=True)
+    row_nodes_parquet = traitlets.Bytes(b"").tag(sync=True)
+    col_nodes_parquet = traitlets.Bytes(b"").tag(sync=True)
+    row_linkage_parquet = traitlets.Bytes(b"").tag(sync=True)
+    col_linkage_parquet = traitlets.Bytes(b"").tag(sync=True)
     width = traitlets.Int(600).tag(sync=True)
     height = traitlets.Int(600).tag(sync=True)
     click_info = traitlets.Dict({}).tag(sync=True)
 
     def __init__(self, **kwargs):
 
-        # set name from network.name
+        # set name from network.name or parquet meta
+        name = None
         if "network" in kwargs:
             name = kwargs["network"].get("name", None)
+        if "parquet_data" in kwargs:
+            pq_data = kwargs.pop("parquet_data")
+            meta = pq_data.get("meta", {})
+            name = meta.get("name", name)
+            kwargs.setdefault("network_meta", meta)
+            kwargs.setdefault("mat_parquet", pq_data.get("mat", b""))
+            kwargs.setdefault("row_nodes_parquet", pq_data.get("row_nodes", b""))
+            kwargs.setdefault("col_nodes_parquet", pq_data.get("col_nodes", b""))
+            kwargs.setdefault(
+                "row_linkage_parquet", pq_data.get("row_linkage", b"")
+            )
+            kwargs.setdefault(
+                "col_linkage_parquet", pq_data.get("col_linkage", b"")
+            )
 
         # Close any previously registered widget with the same name
         old_widget = _clustergram_registry.get(name)

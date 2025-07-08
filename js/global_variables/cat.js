@@ -4,33 +4,38 @@
 // // and 'cluster' can be filtered using selected_cats. This can be used to filter
 // // for a subset of cell cluster categories.
 
+// import { obs_store } from '../obs_store/obs_store.js';
+
 export const update_cat = (cats, new_cat) => {
-    cats.cat = new_cat
-}
+  cats.cat = new_cat;
+};
 
 export const set_cell_cats = (cats, cell_arrow_table, column_name) => {
-    cats.cell_cats = cell_arrow_table.getChild(column_name).toArray()
-}
+  cats.cell_cats = cell_arrow_table.getChild(column_name).toArray();
+};
 
 export const update_cell_cats = (cats, new_cell_cats) => {
-    // swap 'nan' for null in new cats
-    cats.cell_cats = new_cell_cats.map(cat => cat === 'nan' ? null : cat)
-}
+  // swap 'nan' for null in new cats
+  cats.cell_cats = new_cell_cats.map((cat) => (cat === 'nan' ? null : cat));
+};
 
 export const set_dict_cell_cats = (cats) => {
+  cats.cell_names_array.forEach((name, index) => {
+    cats.dict_cell_cats[name] = cats.cell_cats[index];
+  });
+};
 
-    cats.cell_names_array.forEach((name, index) => {
-        cats.dict_cell_cats[name] = cats.cell_cats[index]
-    })
+export const update_selected_cats = (cats, new_selected_cats, obs_store) => {
+  // Check if the arrays are equal
+  cats.reset_cat =
+    new_selected_cats.length === cats.selected_cats.length &&
+    new_selected_cats.every(
+      (value, index) => value === cats.selected_cats[index]
+    );
 
-}
+  // Use the ternary operator to update selected_cats
+  cats.selected_cats = cats.reset_cat ? [] : new_selected_cats;
 
-export const update_selected_cats = (cats, new_selected_cats) => {
-
-    // Check if the arrays are equal
-    cats.reset_cat = new_selected_cats.length === cats.selected_cats.length &&
-                           new_selected_cats.every((value, index) => value === cats.selected_cats[index])
-
-    // Use the ternary operator to update selected_cats
-    cats.selected_cats = cats.reset_cat ? [] : new_selected_cats
-}
+  // Update obs_store
+  obs_store.selected_cats.set(cats.selected_cats);
+};

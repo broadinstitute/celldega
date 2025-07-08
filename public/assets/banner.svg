@@ -1,0 +1,27 @@
+<svg width="100%" height="80" viewBox="0 0 1700 80" xmlns="http://www.w3.org/2000/svg">
+
+  <!-- Blue background -->
+  <rect width="100%" height="80" fill="#016DB6"/>
+
+  <!-- Celldega logo -->
+  <g transform="translate(25, 21) scale(0.1)">
+    <!-- Your actual Celldega logo -->
+    <path d="M0.0585938 224H146.059V289C146.059 329.317 113.375 362 73.0586 362V362C32.7418 362 0.0585938 329.317 0.0585938 289V224Z" fill="white"/>
+    <path d="M146.058 224H293.058V288.5C293.058 329.093 260.151 362 219.558 362V362C178.965 362 146.058 329.093 146.058 288.5V224Z" fill="white"/>
+    <path d="M293.058 224H440.058V288.5C440.058 329.093 407.151 362 366.558 362V362C325.965 362 293.058 329.093 293.058 288.5V224Z" fill="white"/>
+    <path d="M440.058 224H586.058V289C586.058 329.317 553.375 362 513.058 362V362C472.741 362 440.058 329.317 440.058 289V224Z" fill="white"/>
+    <rect x="4.05859" width="106" height="181" fill="white"/>
+    <rect x="586" y="224" width="67" height="586" transform="rotate(90 586 224)" fill="white"/>
+    <rect x="162.058" width="106" height="181" fill="#44A8CF"/>
+    <rect x="319.058" width="106" height="181" fill="white"/>
+    <rect x="477.058" width="106" height="181" fill="#44A8CF"/>
+  </g>
+
+  <!-- Celldega title -->
+  <text x="100" y="52"
+        font-family="Arial, Helvetica, sans-serif"
+        font-size="40"
+        font-weight="590"
+        fill="white">Celldega</text>
+
+</svg>

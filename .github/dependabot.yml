@@ -1,0 +1,44 @@
+# =============================================================================
+# Dependabot Configuration for Celldega
+# Automatically creates PRs for dependency updates
+# =============================================================================
+
+version: 2
+
+# Global defaults (applied to all ecosystems where applicable)
+updates:
+  # GitHub Actions dependencies (.github/workflows/*.yml)
+  - package-ecosystem: 'github-actions'
+    directory: '/'
+    schedule: { interval: weekly, day: monday, time: '09:00' }
+    reviewers: [cornhundred]
+    labels: [dependencies, github-actions]
+    groups:
+      actions:
+        patterns:
+          - '*'
+
+  # JavaScript dependencies (package.json)
+  - package-ecosystem: 'npm'
+    directory: '/'
+    schedule: { interval: weekly, day: monday, time: '09:00' }
+    reviewers: [cornhundred]
+    labels: [dependencies, javascript]
+    groups:
+      dev-dependencies:
+        dependency-type: 'development'
+        update-types:
+          - 'patch'
+          - 'minor'
+      prod-dependencies:
+        dependency-type: 'production'
+        update-types:
+          - 'patch'
+          - 'minor'
+
+  # Python dependencies (pyproject.toml)
+  - package-ecosystem: 'pip'
+    directory: '/'
+    schedule: { interval: weekly, day: monday, time: '09:00' }
+    reviewers: [cornhundred]
+    labels: [dependencies, python]

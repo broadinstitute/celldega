@@ -1,0 +1,29 @@
+name: Build and Test
+
+on:
+  workflow_call:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Setup both environments in correct order
+      - name: Setup full environment
+        uses: ./.github/actions/setup-full-env
+
+      # Build and test package using reusable action
+      - name: Build package
+        uses: ./.github/actions/build-package
+
+      # Store build artifacts for release job
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-package-distributions
+          path: dist/

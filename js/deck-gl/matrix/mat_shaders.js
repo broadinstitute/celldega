@@ -33,7 +33,7 @@ void main(void) {
 
 }
 
-`
+`;
 
 export const fs = `#version 300 es
 #define SHADER_NAME scatterplot-layer-fragment-shader
@@ -49,4 +49,4 @@ void main(void) {
     geometry.uv = unitPosition;
     fragColor = vFillColor;
     DECKGL_FILTER_COLOR(fragColor, geometry);
-}`
+}`;

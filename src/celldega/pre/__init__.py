@@ -842,13 +842,6 @@ def add_custom_segmentation(
         / f"meta_gene_{segmentation_parameters['segmentation_approach']}.parquet",
     )
 
-    save_cbg_gene_parquets(
-        base_path=path_landscape_files,
-        cbg=cbg_custom,
-        verbose=True,
-        segmentation_approach=segmentation_parameters["segmentation_approach"],
-    )
-
     make_meta_cell_image_coord(
         technology=segmentation_parameters["technology"],
         path_transformation_matrix=str(
@@ -862,6 +855,13 @@ def add_custom_segmentation(
             / f"cell_metadata_{segmentation_parameters['segmentation_approach']}.parquet"
         ),
         image_scale=image_scale,
+    )
+
+    save_cbg_gene_parquets(
+        base_path=path_landscape_files,
+        cbg=cbg_custom,
+        verbose=True,
+        segmentation_approach=segmentation_parameters["segmentation_approach"],
     )
 
     create_cluster_and_meta_cluster(

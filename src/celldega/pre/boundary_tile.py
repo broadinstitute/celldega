@@ -259,13 +259,17 @@ def get_cell_polygons(
         )
         cells_orig = gpd.GeoDataFrame(grouped, geometry="geometry")[["geometry"]]
 
+        cells_orig.rename(columns={"geometry": "geometry_micron"}, inplace=True)
+
     # Transform geometries
     cells_orig["geometry"] = batch_transform_geometries(
-        cells_orig["geometry"], transformation_matrix, 1
+        cells_orig["geometry_micron"], transformation_matrix, 1
     )
     cells_orig["GEOMETRY"] = cells_orig["geometry"].apply(
         lambda geom: [[list(coord) for coord in geom.exterior.coords]]
     )
+
+    cells_orig.set_geometry("geometry", inplace=True)
 
     return cells_orig
 

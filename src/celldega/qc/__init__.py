@@ -68,7 +68,7 @@ def _process_custom_technology(base_path):
     trx = pd.read_parquet(Path(base_path) / "transcripts.parquet")
     trx_meta = trx[trx[cell_index] != -1][[transcript_index, cell_index, gene]]
     cell_gdf = gpd.read_parquet(Path(base_path) / "cell_polygons.parquet")
-    cell_meta_gdf = gpd.read_parquet(Path(base_path) / "cell_metadata.parquet")
+    cell_meta_gdf = gpd.read_parquet(Path(base_path) / "cell_metadata_micron_space.parquet")
 
     return cell_index, gene, transcript_index, trx_meta, cell_gdf, cell_meta_gdf
 
@@ -92,12 +92,15 @@ def _process_xenium_technology(base_path, segmentation_parameters):
     trx = trx.rename(columns={"name": gene})
     trx_meta = trx[trx[cell_index] != "UNASSIGNED"][[transcript_index, cell_index, gene]]
 
+    transformation_matrix = pd.read_csv(Path(base_path) / "micron_to_image_transform.csv", header=None, sep=" ").values
     cell_gdf = get_cell_polygons(
         technology=segmentation_parameters["technology"],
         path_cell_boundaries=Path(base_path) / "cell_boundaries.parquet",
+        transformation_matrix = transformation_matrix
     )
 
-    cell_gdf = gpd.GeoDataFrame(geometry=cell_gdf["geometry"])
+    cell_gdf = gpd.GeoDataFrame(geometry=cell_gdf["geometry_micron"])
+
     cell_gdf["geometry"] = cell_gdf["geometry"].apply(get_largest_polygon)
     cell_gdf.reset_index(inplace=True)
     cell_gdf["area"] = cell_gdf["geometry"].area
@@ -461,6 +464,7 @@ def _create_barplot_visualization(
     - cell_a_name: Name of cell type A
     - cell_b_name: Name of cell type B
     """
+
     orthogonal_data = pd.DataFrame(
         {
             "Technology": [i for i in cell_a_with_b_cell_specific_genes for _ in range(2)],
@@ -468,7 +472,7 @@ def _create_barplot_visualization(
                 f"{cell_a_name} with {cell_b_name} genes",
                 f"{cell_b_name} with {cell_a_name} genes",
             ]
-            * 4,
+            * len(cell_a_with_b_cell_specific_genes.keys()),
             "Count": [
                 gene
                 for pair in zip(

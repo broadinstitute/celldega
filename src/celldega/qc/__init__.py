@@ -96,7 +96,7 @@ def _process_xenium_technology(base_path, segmentation_parameters):
     cell_gdf = get_cell_polygons(
         technology=segmentation_parameters["technology"],
         path_cell_boundaries=Path(base_path) / "cell_boundaries.parquet",
-        transformation_matrix = transformation_matrix
+        transformation_matrix=transformation_matrix
     )
 
     cell_gdf = gpd.GeoDataFrame(geometry=cell_gdf["geometry_micron"])

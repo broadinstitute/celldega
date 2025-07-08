@@ -6,6 +6,7 @@ from contextlib import suppress
 from pathlib import Path
 
 import anywidget
+import pandas as pd
 import traitlets
 
 
@@ -59,9 +60,7 @@ class Landscape(anywidget.AnyWidget):
     region = traitlets.Dict({}).tag(sync=True)
     nbhd = traitlets.Dict({}).tag(sync=True)
 
-    meta_cell = traitlets.Dict({}).tag(sync=True)
     meta_cluster = traitlets.Dict({}).tag(sync=True)
-    umap = traitlets.Dict({}).tag(sync=True)
     landscape_state = traitlets.Unicode("spatial").tag(sync=True)
 
     update_trigger = traitlets.Dict().tag(sync=True)
@@ -71,6 +70,69 @@ class Landscape(anywidget.AnyWidget):
 
     width = traitlets.Int(0).tag(sync=True)
     height = traitlets.Int(800).tag(sync=True)
+
+    def __init__(self, **kwargs):
+        adata = kwargs.pop("adata", None)
+        pq_meta_cell = kwargs.pop("meta_cell_parquet", None)
+        pq_meta_cluster = kwargs.pop("meta_cluster_parquet", None)
+        pq_umap = kwargs.pop("umap_parquet", None)
+
+        meta_cell_df = kwargs.pop("meta_cell", None)
+        meta_cluster = kwargs.get("meta_cluster")
+        umap_df = kwargs.pop("umap", None)
+
+        def _df_to_bytes(df):
+            import io
+
+            import pyarrow as pa
+            import pyarrow.parquet as pq
+
+            buf = io.BytesIO()
+            pq.write_table(pa.Table.from_pandas(df), buf, compression="zstd")
+            return buf.getvalue()
+
+        if adata is not None:
+
+            meta_cell_df = adata.obs.copy()
+            meta_cell_df.reset_index(inplace=True)
+            pq_meta_cell = _df_to_bytes(meta_cell_df)
+
+            if "X_umap" in adata.obsm:
+                umap_df = pd.DataFrame(
+                    adata.obsm["X_umap"], index=adata.obs.index
+                ).reset_index()
+                pq_umap = _df_to_bytes(umap_df)
+
+        if isinstance(meta_cell_df, pd.DataFrame):
+            pq_meta_cell = _df_to_bytes(meta_cell_df.reset_index())
+
+        if isinstance(meta_cluster, pd.DataFrame):
+            pq_meta_cluster = _df_to_bytes(meta_cluster.reset_index())
+            kwargs.pop("meta_cluster")
+
+        if isinstance(umap_df, pd.DataFrame):
+            pq_umap = _df_to_bytes(umap_df.reset_index())
+
+        parquet_traits = {}
+        if pq_meta_cell is not None:
+            parquet_traits["meta_cell_parquet"] = traitlets.Bytes(pq_meta_cell).tag(
+                sync=True
+            )
+        if pq_meta_cluster is not None:
+            parquet_traits["meta_cluster_parquet"] = traitlets.Bytes(
+                pq_meta_cluster
+            ).tag(sync=True)
+        if pq_umap is not None:
+            parquet_traits["umap_parquet"] = traitlets.Bytes(pq_umap).tag(sync=True)
+
+        if parquet_traits:
+            self.add_traits(**parquet_traits)
+
+        super().__init__(**kwargs)
+
+        # store DataFrames locally without syncing to the frontend
+        self.meta_cell = meta_cell_df
+        self.umap = umap_df
 
     def trigger_update(self, new_value):
         """

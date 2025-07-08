@@ -56,21 +56,14 @@ import {
 } from './text_buttons';
 
 export const make_ui_container = () => {
-<<<<<<< HEAD
-  const ui_container = document.createElement("div")
-  ui_container.style.display = "flex"
-  ui_container.style.flexDirection = "row"
-  ui_container.style.border = "1px solid #d3d3d3"
-  ui_container.className = "ui_container"
-  ui_container.style.height = '105px'
-=======
+
   const ui_container = document.createElement('div');
   ui_container.style.display = 'flex';
   ui_container.style.flexDirection = 'row';
   ui_container.style.border = '1px solid #d3d3d3';
   ui_container.className = 'ui_container';
   ui_container.style.height = '100px';
->>>>>>> main
+
 
   // ✅ CSS rules to prevent border cutoff
   ui_container.style.boxSizing = 'border-box';

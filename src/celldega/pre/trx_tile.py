@@ -211,12 +211,13 @@ def _load_transcript_data_by_technology(technology, path_trx):
     """
     if technology == "MERSCOPE":
         # Define both potential file paths
-        path_trx_parquet = path_trx.replace(".csv", ".parquet")
+        path_trx = Path(path_trx)  # if it's a string, convert to Path
+        parquet_path = path_trx.with_suffix(".parquet")
 
         # Prefer Parquet if it exists
-        if Path.exists.exists(path_trx_parquet):
+        if parquet_path.exists():
             trx_ini = pl.read_parquet(
-                path_trx_parquet,
+                parquet_path,
                 columns=["gene", "global_x", "global_y", "cell_id", "transcript_id"],
             )
         # Fallback to CSV if Parquet does not exist, to be backward compatible

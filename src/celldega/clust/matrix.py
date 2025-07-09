@@ -31,7 +31,7 @@ from .constants import (
     NormType,
 )
 from .utils import (
-    add_categories_to_node_info,
+    add_mixed_attributes_to_node_info,
     compute_metric,
     create_node_info_base,
     fast_cosine_distance,
@@ -99,8 +99,8 @@ class Matrix:
         data: pd.DataFrame | AnnData | None = None,
         meta_col: pd.DataFrame | None = None,
         meta_row: pd.DataFrame | None = None,
-        col_cats: list[str] | None = None,
-        row_cats: list[str] | None = None,
+        col_attrs: list[str] | None = None,
+        row_attrs: list[str] | None = None,
         # Processing parameters
         filter_genes: int | None = None,
         norm_col: str | None = "total",
@@ -118,8 +118,8 @@ class Matrix:
             data: DataFrame or AnnData object
             meta_col: Column metadata (for DataFrame input)
             meta_row: Row metadata (for DataFrame input)
-            col_cats: Column categories (for DataFrame input)
-            row_cats: Row categories (for DataFrame input)
+            col_attrs: Column attribute names (categorical or numeric)
+            row_attrs: Row attribute names (categorical or numeric)
             filter_genes: Number of top variable genes to keep (None = no filtering)
             norm_col: Column normalization ('total', 'zscore', 'qn', None)
             norm_row: Row normalization ('total', 'zscore', 'qn', None)
@@ -146,6 +146,8 @@ class Matrix:
         self.meta_row: pd.DataFrame = pd.DataFrame()
         self.col_cats: list[str] = []
         self.row_cats: list[str] = []
+        self.col_attrs: list[str] = []
+        self.row_attrs: list[str] = []
 
         # State tracking
         self._clustered: bool = False
@@ -172,7 +174,13 @@ class Matrix:
             if isinstance(data, AnnData):
                 self.load_adata(data)
             else:
-                self.load_df(data, meta_col, meta_row, col_cats, row_cats)
+                self.load_df(
+                    data,
+                    meta_col,
+                    meta_row,
+                    col_attrs,
+                    row_attrs,
+                )
 
             # Step 2: Apply processing unless disabled
             if not disable_processing:
@@ -245,8 +253,8 @@ class Matrix:
         df: pd.DataFrame,
         meta_col: pd.DataFrame | None = None,
         meta_row: pd.DataFrame | None = None,
-        col_cats: list[str] | None = None,
-        row_cats: list[str] | None = None,
+        col_attrs: list[str] | None = None,
+        row_attrs: list[str] | None = None,
     ) -> None:
         """
         Load DataFrame with metadata.
@@ -255,8 +263,8 @@ class Matrix:
             df: Data matrix
             meta_col: Column metadata (must match df.columns)
             meta_row: Row metadata (must match df.index)
-            col_cats: Column category names for viz
-            row_cats: Row category names for viz
+            col_attrs: Column attribute names for viz (categorical or numeric)
+            row_attrs: Row attribute names for viz (categorical or numeric)
         """
         self.data = df.copy()
 
@@ -266,8 +274,21 @@ class Matrix:
         validate_metadata(df, self.meta_col, self.meta_row)
         validate_metadata_types(self.meta_col, self.meta_row)
 
-        self.col_cats = col_cats or list(self.meta_col.columns)
-        self.row_cats = row_cats or list(self.meta_row.columns)
+        self.col_attrs = col_attrs or list(self.meta_col.columns)
+        self.row_attrs = row_attrs or list(self.meta_row.columns)
+
+        self.col_cats = [
+            attr
+            for attr in self.col_attrs
+            if attr in self.meta_col.columns
+            and not pd.api.types.is_numeric_dtype(self.meta_col[attr])
+        ]
+        self.row_cats = [
+            attr
+            for attr in self.row_attrs
+            if attr in self.meta_row.columns
+            and not pd.api.types.is_numeric_dtype(self.meta_row[attr])
+        ]
 
         self._clustered = self.is_downsampled = False
         self._invalidate_cache(CacheLevel.DATA.value)
@@ -290,7 +311,11 @@ class Matrix:
 
         df = pd.DataFrame(matrix_data, index=adata.var.index, columns=adata.obs.index)
         self.load_df(
-            df, adata.obs.copy(), adata.var.copy(), list(adata.obs.columns), list(adata.var.columns)
+            df,
+            adata.obs.copy(),
+            adata.var.copy(),
+            list(adata.obs.columns),
+            list(adata.var.columns),
         )
 
     def filter(self, axis: AxisInput, by: FilterType, num: int) -> None:
@@ -751,16 +776,20 @@ class Matrix:
             self.viz["global_cat_colors"] = {}
 
         if color_mapping is None:
-            # Build color mapping from all unique category values
-            all_cats = set()
+            # Build color mapping from all unique categorical values only
+            all_cats: set[str] = set()
 
-            for df in [self.meta_row, self.meta_col]:
-                if df is not None and not df.empty:
-                    for col in df.columns:
-                        all_cats.update(df[col].dropna().unique())
+            for meta_df, cat_list in (
+                (self.meta_row, self.row_cats),
+                (self.meta_col, self.col_cats),
+            ):
+                if meta_df is not None and not meta_df.empty:
+                    for cat_col in cat_list:
+                        if cat_col in meta_df.columns:
+                            all_cats.update(meta_df[cat_col].dropna().astype(str).unique().tolist())
 
             color_mapping = {
-                str(cat): _COLOR_PALETTE[i % len(_COLOR_PALETTE)]
+                cat: _COLOR_PALETTE[i % len(_COLOR_PALETTE)]
                 for i, cat in enumerate(sorted(all_cats))
             }
 
@@ -773,11 +802,29 @@ class Matrix:
         else:
             color_mapping = dict(color_mapping)
 
-        # save the row and column categories as a list
+        # save the row and column categories and attributes
         self.viz["row_cats"] = self.row_cats
         self.viz["col_cats"] = self.col_cats
+        self.viz["row_attrs"] = self.row_attrs
+        self.viz["col_attrs"] = self.col_attrs
+
+        self.viz["row_attr_maxabs"] = self._compute_attr_maxabs(Axis.ROW.value)
+        self.viz["col_attr_maxabs"] = self._compute_attr_maxabs(Axis.COL.value)
 
         self.viz["global_cat_colors"].update(color_mapping)
+
+    def _compute_attr_maxabs(self, axis: str) -> list[float | None]:
+        """Return max absolute values for numeric attributes on an axis."""
+        meta_df = self.meta_row if axis == Axis.ROW.value else self.meta_col
+        attrs = self.row_attrs if axis == Axis.ROW.value else self.col_attrs
+
+        maxabs: list[float | None] = []
+        for attr in attrs:
+            if attr in meta_df.columns and pd.api.types.is_numeric_dtype(meta_df[attr]):
+                maxabs.append(float(meta_df[attr].abs().max()))
+            else:
+                maxabs.append(None)
+        return maxabs
 
     def set_matrix_colors(self, pos: str = "red", neg: str = "blue") -> None:
         """
@@ -888,11 +935,12 @@ class Matrix:
         """Create node info for specified axis."""
         nodes = list(self.data.index if axis == Axis.ROW.value else self.data.columns)
         meta_df = self.meta_row if axis == Axis.ROW.value else self.meta_col
-        cats = self.row_cats if axis == Axis.ROW.value else self.col_cats
+        attrs = self.row_attrs if axis == Axis.ROW.value else self.col_attrs
         linkage_data = self.viz["linkage"][axis]
 
         node_info = create_node_info_base(len(nodes), linkage_data)
-        add_categories_to_node_info(node_info, nodes, meta_df, cats)
+        max_abs = add_mixed_attributes_to_node_info(node_info, nodes, meta_df, attrs)
+        self.viz[f"{axis}_attr_maxabs"] = max_abs
 
         return node_info
 
@@ -950,6 +998,9 @@ class Matrix:
             axis: dat["node_info"][axis]["Y"].tolist() for axis in (Axis.ROW.value, Axis.COL.value)
         }
 
+        viz["row_attr_maxabs"] = self.viz.get("row_attr_maxabs", [])
+        viz["col_attr_maxabs"] = self.viz.get("col_attr_maxabs", [])
+
         for axis in dat["nodes"]:
             self._process_axis_nodes(axis, dat, viz)
 
@@ -975,6 +1026,7 @@ class Matrix:
 
         cluster_lookup = {v: k for k, v in enumerate(node_info["clust"])}
         cat_keys = [k for k in node_info if k.startswith("cat-")]
+        num_keys = [k for k in node_info if k.startswith("num-")]
 
         # Pre-fetch arrays
         arrays = {
@@ -999,6 +1051,12 @@ class Matrix:
                 cat_data = node_info.get(cat_key, [])
                 if i < len(cat_data):
                     node[cat_key] = cat_data[i]
+
+            # Add numeric attributes
+            for num_key in num_keys:
+                num_data = node_info.get(num_key, [])
+                if i < len(num_data):
+                    node[num_key] = num_data[i]
 
             axis_nodes.append(node)
 

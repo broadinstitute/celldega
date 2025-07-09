@@ -130,3 +130,37 @@ def add_categories_to_node_info(
             node_info[f"cat-{idx}"] = cat_data[cat_name].tolist()
     except Exception:
         pass  # Skip failed category processing
+
+
+def add_mixed_attributes_to_node_info(
+    node_info: dict[str, Any], nodes: list[str], meta_df: pd.DataFrame, attrs: list[str]
+) -> list[float | None]:
+    """Add categorical and numeric attributes to node info.
+
+    Returns a list of max absolute values for numeric attributes (``None`` for
+    categorical attributes).
+    """
+    if not attrs or meta_df.empty:
+        return []
+
+    valid_attrs = [attr for attr in attrs if attr in meta_df.columns]
+    if not valid_attrs:
+        return []
+
+    max_abs: list[float | None] = []
+
+    try:
+        attr_data = meta_df.reindex(nodes)[valid_attrs]
+        for idx, attr_name in enumerate(valid_attrs):
+            series = attr_data[attr_name]
+            if pd.api.types.is_numeric_dtype(series):
+                node_info[f"num-{idx}"] = series.astype(float).tolist()
+                max_abs_val = float(series.abs().max())
+                max_abs.append(max_abs_val)
+            else:
+                node_info[f"cat-{idx}"] = series.fillna("Unknown").astype(str).tolist()
+                max_abs.append(None)
+    except Exception:
+        return []
+
+    return max_abs

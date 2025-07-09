@@ -9,7 +9,6 @@ const colorToRgba = (colorStr, alpha = 255) => {
 };
 
 const set_cat_data = (network, viz_state, axis) => {
-
   const isRow = axis === 'row';
   const nodes = isRow ? network.row_nodes : network.col_nodes;
   const num_cats = isRow
@@ -28,7 +27,6 @@ const set_cat_data = (network, viz_state, axis) => {
   const cat_data = nodes
     .flatMap((node, node_index) => {
       return Array.from({ length: num_cats }).map((_, cat_index) => {
-
         const cat_name = `cat-${cat_index}`;
         const inst_cat = node[cat_name];
 

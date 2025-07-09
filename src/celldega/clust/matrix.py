@@ -646,7 +646,9 @@ class Matrix:
         if self._clustered:
             self.make_viz()
 
-    def set_global_cat_colors(self, color_mapping: dict[str, str] | pd.DataFrame | None = None) -> None:
+    def set_global_cat_colors(
+        self, color_mapping: dict[str, str] | pd.DataFrame | None = None
+    ) -> None:
         """
         Set global category color mapping that applies across all categories.
 
@@ -686,7 +688,6 @@ class Matrix:
         self.viz["col_cats"] = self.col_cats
 
         self.viz["global_cat_colors"].update(color_mapping)
-
 
     def set_matrix_colors(self, pos: str = "red", neg: str = "blue") -> None:
         """

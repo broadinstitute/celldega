@@ -1,5 +1,4 @@
 import { update_square_scatter_layer } from '../deck-gl/layers/square_scatter_layer';
-import { get_layers_list } from '../deck-gl/utils/layers_ist';
 import { update_cat, update_selected_cats } from '../global_variables/cat';
 import { update_cell_exp_array } from '../global_variables/cell_exp_array';
 import { update_selected_genes } from '../global_variables/selected_genes';
@@ -15,7 +14,15 @@ const sst_gene_search_callback = async (deck_sst, viz_state, layers_sst) => {
   const new_cat = inst_gene === '' ? 'cluster' : inst_gene;
 
   if (inst_gene === '' || viz_state.genes.gene_names.includes(inst_gene)) {
+
     update_cat(viz_state.cats, new_cat);
+
+    viz_state.obs_store.deck_check.set({
+      ...viz_state.obs_store.deck_check.get(),
+      cell_layer: false,
+      trx_layer: false,
+    });
+
     update_selected_genes(
       viz_state.genes,
       inst_gene === '' ? [] : [inst_gene],
@@ -40,7 +47,15 @@ const ist_gene_search_callback = async (deck_ist, layers_obj, viz_state) => {
   const new_cat = inst_gene === '' ? 'cluster' : inst_gene;
 
   if (inst_gene === '' || viz_state.genes.gene_names.includes(inst_gene)) {
+
     update_cat(viz_state.cats, new_cat);
+
+    viz_state.obs_store.deck_check.set({
+      ...viz_state.obs_store.deck_check.get(),
+      cell_layer: false,
+      trx_layer: false,
+    });
+
     update_selected_genes(
       viz_state.genes,
       inst_gene === '' ? [] : [inst_gene],
@@ -71,8 +86,6 @@ const ist_gene_search_callback = async (deck_ist, layers_obj, viz_state) => {
       );
     }
 
-    const layers_list = get_layers_list(layers_obj, viz_state.close_up);
-    deck_ist.setProps({ layers: layers_list });
   }
 };
 

@@ -362,6 +362,8 @@ export const landscape_ist = async (
     // nbhd_layer,
   };
 
+  viz_state.layers_obj = layers_obj;
+
   // set onclicks after all layers are made
   set_cell_layer_onclick(deck_ist, layers_obj, viz_state);
   set_path_layer_onclick(deck_ist, layers_obj, viz_state);
@@ -370,7 +372,16 @@ export const landscape_ist = async (
   // set_edit_layer_on_click(deck_ist, layers_obj, viz_state);
   // set_nbhd_layer_onclick(deck_ist, layers_obj, viz_state);
 
+  viz_state.obs_store.deck_ready.subscribe((ready) => {
+    if (ready) {
+      const list = get_layers_list(viz_state.layers_obj, viz_state.close_up);
+      deck_ist.setProps({ layers: list });
+    }
+    
+  });  
+
   viz_state.obs_store.selected_cats.subscribe((selected_cats) => {
+
     const selected_cats_name = selected_cats.join('-');
 
     layers_obj.cell_layer = layers_obj.cell_layer.clone({
@@ -380,12 +391,24 @@ export const landscape_ist = async (
     layers_obj.path_layer = layers_obj.path_layer.clone({
       id: `path-layer-${selected_cats_name}`,
     });
+
+    viz_state.obs_store.deck_check.set({
+      ...viz_state.obs_store.deck_check.get(),
+      path_layer: true,
+      cell_layer: true,
+    });
+
   });
 
   viz_state.obs_store.selected_genes.subscribe((selected_genes) => {
     const selected_genes_name = selected_genes.join('-');
     layers_obj.trx_layer = layers_obj.trx_layer.clone({
       id: `trx-layer-${selected_genes_name}`,
+    });
+
+    viz_state.obs_store.deck_check.set({
+      ...viz_state.obs_store.deck_check.get(),
+      trx_layer: true,
     });
   });
 
@@ -398,11 +421,7 @@ export const landscape_ist = async (
     toggle_path_layer_visibility(layers_obj, false);
   }
 
-  const layers_list = get_layers_list(layers_obj, viz_state.close_up);
-
   set_initial_view_state(deck_ist, ini_x, ini_y, ini_z, ini_zoom, viz_state);
-
-  deck_ist.setProps({ layers: layers_list });
 
   set_deck_on_view_state_change(deck_ist, layers_obj, viz_state);
 
@@ -449,19 +468,26 @@ export const landscape_ist = async (
         viz_state.aws
       );
 
-      const updatedLayersList = get_layers_list(layers_obj, viz_state.close_up);
-      deck_ist.setProps({ layers: updatedLayersList });
+      viz_state.layers_obj = layers_obj;
+
+      viz_state.obs_store.deck_check.set({
+        ...viz_state.obs_store.deck_check.get(),
+        cell_layer: true,
+      });
+
     },
     update_matrix_col: async (inst_col) => {
       update_cat(viz_state.cats, 'cluster');
       update_selected_cats(viz_state.cats, [inst_col], viz_state.obs_store);
       update_selected_genes(viz_state.genes, [], viz_state.obs_store);
 
-      const matrixColLayersList = get_layers_list(
-        layers_obj,
-        viz_state.close_up
-      );
-      deck_ist.setProps({ layers: matrixColLayersList });
+      viz_state.obs_store.deck_check.set({
+        ...viz_state.obs_store.deck_check.get(),
+        cell_layer: false,
+        path_layer: false,
+        trx_layer: false,
+      });
+      viz_state.layers_obj = layers_obj;
     },
     update_matrix_dendro_col: async (selected_cols) => {
       // const inst_gene = 'cluster'
@@ -472,11 +498,13 @@ export const landscape_ist = async (
 
       update_selected_genes(viz_state.genes, [], viz_state.obs_store);
 
-      const dendroColLayersList = get_layers_list(
-        layers_obj,
-        viz_state.close_up
-      );
-      deck_ist.setProps({ layers: dendroColLayersList });
+      viz_state.obs_store.deck_check.set({
+        ...viz_state.obs_store.deck_check.get(),
+        cell_layer: false,
+        path_layer: false,
+        trx_layer: false,
+      });
+      viz_state.layers_obj = layers_obj;
     },
     update_view_state: async (new_view_state, close_up, _trx_layer) => {
       viz_state.close_up = close_up;
@@ -488,20 +516,22 @@ export const landscape_ist = async (
         viz_state,
         viz_state.obs_store
       );
-      const viewStateLayersList = get_layers_list(
-        layers_obj,
-        viz_state.close_up
-      );
+      viz_state.obs_store.deck_check.set({
+        ...viz_state.obs_store.deck_check.get(),
+        cell_layer: false,
+        path_layer: false,
+        trx_layer: false,
+      });
 
       deck_ist.setProps({
         controller: { doubleClickZoom: false },
         initialViewState: new_view_state,
         views: viz_state.views,
-        layers: viewStateLayersList,
       });
+
+      viz_state.layers_obj = layers_obj;
     },
     update_layers: () => {
-      // console.log('update_layers')
     },
     finalize: () => {
       deck_ist.finalize();

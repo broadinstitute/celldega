@@ -39,8 +39,10 @@ export const set_mat_constants = (
   viz_state.viz.row_cat_offset = 9;
   viz_state.viz.col_cat_offset = 9;
 
-  viz_state.viz.mat_width = width - (viz_state.viz.row_cat_offset * viz_state.cats.num_cats.row);
-  viz_state.viz.mat_height = height - (viz_state.viz.col_cat_offset * viz_state.cats.num_cats.col);
+  viz_state.viz.mat_width =
+    width - viz_state.viz.row_cat_offset * viz_state.cats.num_cats.row;
+  viz_state.viz.mat_height =
+    height - viz_state.viz.col_cat_offset * viz_state.cats.num_cats.col;
 
   viz_state.mat = {};
   viz_state.mat.num_rows = network.mat.length;
@@ -69,8 +71,6 @@ export const set_mat_constants = (
   // to do: adjust height
   viz_state.viz.row_cat_width = 8;
   viz_state.viz.col_cat_height = 8;
-
-
 
   // move rows labels left
   viz_state.viz.label_row_x = 15; // 15

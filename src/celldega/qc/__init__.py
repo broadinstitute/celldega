@@ -131,11 +131,7 @@ def _process_merscope_technology(
     parquet_path = csv_path.with_suffix(".parquet")
 
     # Prefer Parquet if it exists
-    if parquet_path.exists():
-        trx = pd.read_parquet(parquet_path)
-    else:
-        trx = pd.read_csv(csv_path)
-
+    trx = pd.read_parquet(parquet_path) if parquet_path.exists() else pd.read_csv(csv_path)
     trx = trx.rename(columns={"name": gene})
     trx_meta = trx[trx[cell_index] != -1][[transcript_index, cell_index, gene]]
 
@@ -280,11 +276,7 @@ def qc_segmentation(base_path, path_output=None, path_meta_cell_micron=None):
         parquet_path = csv_path.with_suffix(".parquet")
 
         # Prefer Parquet if it exists
-        if parquet_path.exists():
-            trx = pd.read_parquet(parquet_path)
-        else:
-            trx = pd.read_csv(csv_path)
-
+        trx = pd.read_parquet(parquet_path) if parquet_path.exists() else pd.read_csv(csv_path)
         trx = trx.rename(columns={"name": gene})
     else:
         print(f"Unknown technology: {segmentation_parameters['technology']}")

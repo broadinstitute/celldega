@@ -4,7 +4,6 @@ Transcript tile processing module for spatial transcriptomics data.
 
 import concurrent.futures
 from pathlib import Path
-import os
 
 import numpy as np
 import polars as pl
@@ -215,7 +214,7 @@ def _load_transcript_data_by_technology(technology, path_trx):
         path_trx_parquet = path_trx.replace(".csv", ".parquet")
 
         # Prefer Parquet if it exists
-        if os.path.exists(path_trx_parquet):
+        if Path.exists.exists(path_trx_parquet):
             trx_ini = pl.read_parquet(
                 path_trx_parquet,
                 columns=["gene", "global_x", "global_y", "cell_id", "transcript_id"],

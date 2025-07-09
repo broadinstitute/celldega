@@ -28,17 +28,13 @@ const set_cat_data = (network, viz_state, axis) => {
     .flatMap((node, node_index) => {
       return Array.from({ length: num_cats }).map((_, cat_index) => {
         const cat_name = `cat-${cat_index}`;
-        const ini_cat = node[cat_name];
+        const inst_cat = node[cat_name];
 
-        if (!ini_cat) {
+        if (!inst_cat) {
           return null;
         }
 
-        if (!ini_cat.includes(': ')) {
-          return null;
-        }
-        const clean_cat = ini_cat.split(': ')[1];
-        const ini_color = network.global_cat_colors[clean_cat];
+        const ini_color = network.global_cat_colors[inst_cat];
         const color_rgba = colorToRgba(ini_color, 255);
 
         return {
@@ -52,7 +48,7 @@ const set_cat_data = (network, viz_state, axis) => {
                 cat_offset * (cat_index + 1.5) - 30,
               ],
           color: color_rgba,
-          name: clean_cat,
+          name: inst_cat,
           level: cat_index,
           original_index: node_index,
         };

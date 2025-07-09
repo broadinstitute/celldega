@@ -35,7 +35,7 @@ export const ini_mat_layer = (viz_state) => {
     pickable: true,
     antialiasing: false,
     tile_height: (viz_state.viz.mat_height / viz_state.mat.num_rows) * 0.5,
-    tile_width: (viz_state.viz.mat_height / viz_state.mat.num_cols) * 0.5,
+    tile_width: (viz_state.viz.mat_width / viz_state.mat.num_cols) * 0.5,
     transitions,
   });
 

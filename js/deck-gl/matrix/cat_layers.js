@@ -3,6 +3,7 @@ import * as d3 from 'd3';
 import { CustomMatrixLayer } from './custom_matrix_layer';
 
 export const ini_row_cat_layer = (viz_state) => {
+
   const transitions = {
     getPosition: {
       duration: viz_state.animate.duration,
@@ -15,7 +16,6 @@ export const ini_row_cat_layer = (viz_state) => {
     data: viz_state.cats.row_cat_data,
     getPosition: (d) => {
       const row_order = viz_state.mat.orders.row[viz_state.order.current.row];
-      // console.log('ini_row_cat_layer: row_order', row_order);
 
       // Use original_index to look up its rank
       const clustered_index =
@@ -64,7 +64,7 @@ export const ini_col_cat_layer = (viz_state) => {
     pickable: true,
     transitions,
     opacity: 0.8,
-    tile_width: (viz_state.viz.mat_height / viz_state.mat.num_cols) * 0.5,
+    tile_width: (viz_state.viz.mat_width / viz_state.mat.num_cols) * 0.5,
     tile_height: viz_state.viz.col_cat_height / 2,
   });
 

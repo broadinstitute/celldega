@@ -30,13 +30,17 @@ export const set_mat_constants = (
   viz_state.cats.num_cats = {};
 
   // use network cat_colors to figure out how many categories there are
-  viz_state.cats.num_cats.row = Object.keys(network.cat_colors.row).length;
-  viz_state.cats.num_cats.col = Object.keys(network.cat_colors.col).length;
+  viz_state.cats.num_cats.row = Object.keys(network.row_cats).length;
+  viz_state.cats.num_cats.col = Object.keys(network.col_cats).length;
 
   viz_state.root.style.height = `${height + viz_state.viz.height_margin}px`;
 
-  viz_state.viz.mat_width = width;
-  viz_state.viz.mat_height = height;
+  // height of attribute bars
+  viz_state.viz.row_cat_offset = 9;
+  viz_state.viz.col_cat_offset = 9;
+
+  viz_state.viz.mat_width = width - (viz_state.viz.row_cat_offset * viz_state.cats.num_cats.row);
+  viz_state.viz.mat_height = height - (viz_state.viz.col_cat_offset * viz_state.cats.num_cats.col);
 
   viz_state.mat = {};
   viz_state.mat.num_rows = network.mat.length;
@@ -66,10 +70,7 @@ export const set_mat_constants = (
   viz_state.viz.row_cat_width = 8;
   viz_state.viz.col_cat_height = 8;
 
-  viz_state.viz.row_cat_offset = 10;
 
-  // height of column category bars
-  viz_state.viz.col_cat_offset = 10;
 
   // move rows labels left
   viz_state.viz.label_row_x = 15; // 15

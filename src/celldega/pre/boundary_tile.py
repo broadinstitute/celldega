@@ -114,7 +114,7 @@ def batch_transform_geometries(geometries, transformation_matrix, scale):
             transformed_geometries.append([transformed_coords.tolist()])
 
         elif isinstance(geom, MultiPolygon):
-            geom = next(geom.geoms)  # Use the first geometry
+            geom = max(geom.geoms, key=lambda g: g.area)
 
             # Transform the exterior of the polygon
             exterior_coords = np.array(geom.exterior.coords)

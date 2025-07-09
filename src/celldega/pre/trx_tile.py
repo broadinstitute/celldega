@@ -4,6 +4,7 @@ Transcript tile processing module for spatial transcriptomics data.
 
 import concurrent.futures
 from pathlib import Path
+import os
 
 import numpy as np
 import polars as pl
@@ -210,9 +211,21 @@ def _load_transcript_data_by_technology(technology, path_trx):
     - Polars DataFrame with transcript data
     """
     if technology == "MERSCOPE":
-        trx_ini = pl.read_csv(
-            path_trx, columns=["gene", "global_x", "global_y", "cell_id", "transcript_id"]
-        )
+        # Define both potential file paths
+        path_trx_parquet = path_trx.replace(".csv", ".parquet")
+
+        # Prefer Parquet if it exists
+        if os.path.exists(path_trx_parquet):
+            trx_ini = pl.read_parquet(
+                path_trx_parquet,
+                columns=["gene", "global_x", "global_y", "cell_id", "transcript_id"],
+            )
+        # Fallback to CSV if Parquet does not exist, to be backward compatible
+        else:
+            trx_ini = pl.read_csv(
+                path_trx, columns=["gene", "global_x", "global_y", "cell_id", "transcript_id"]
+            )
+
         return trx_ini.with_columns(
             [
                 pl.col("cell_id"),

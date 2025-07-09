@@ -788,6 +788,7 @@ class Matrix:
         if "global_cat_colors" not in self.viz:
             self.viz["global_cat_colors"] = {}
 
+        print('here')
         if color_mapping is None:
             # Build color mapping from all unique categorical values only
             all_cats: set[str] = set()

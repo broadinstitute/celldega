@@ -145,10 +145,22 @@ class Matrix:
         self.data: pd.DataFrame | None = None
         self.meta_col: pd.DataFrame = pd.DataFrame()
         self.meta_row: pd.DataFrame = pd.DataFrame()
-        self.col_cats: list[str] = []
-        self.row_cats: list[str] = []
-        self.col_attrs: list[str] = []
-        self.row_attrs: list[str] = []
+
+        self.col_attrs = col_attrs or list(self.meta_col.columns)
+        self.row_attrs = row_attrs or list(self.meta_row.columns)
+
+        self.col_cats = [
+            attr
+            for attr in self.col_attrs
+            if attr in self.meta_col.columns
+            and not pd.api.types.is_numeric_dtype(self.meta_col[attr])
+        ]
+        self.row_cats = [
+            attr
+            for attr in self.row_attrs
+            if attr in self.meta_row.columns
+            and not pd.api.types.is_numeric_dtype(self.meta_row[attr])
+        ]
 
         # State tracking
         self._clustered: bool = False
@@ -777,16 +789,20 @@ class Matrix:
             self.viz["global_cat_colors"] = {}
 
         if color_mapping is None:
-            # Build color mapping from all unique category values
-            all_cats = set()
+            # Build color mapping from all unique categorical values only
+            all_cats: set[str] = set()
 
-            for df in [self.meta_row, self.meta_col]:
-                if df is not None and not df.empty:
-                    for col in df.columns:
-                        all_cats.update(df[col].dropna().unique())
+            for meta_df, cat_list in (
+                (self.meta_row, self.row_cats),
+                (self.meta_col, self.col_cats),
+            ):
+                if meta_df is not None and not meta_df.empty:
+                    for cat_col in cat_list:
+                        if cat_col in meta_df.columns:
+                            all_cats.update(meta_df[cat_col].dropna().astype(str).unique().tolist())
 
             color_mapping = {
-                str(cat): _COLOR_PALETTE[i % len(_COLOR_PALETTE)]
+                cat: _COLOR_PALETTE[i % len(_COLOR_PALETTE)]
                 for i, cat in enumerate(sorted(all_cats))
             }
 

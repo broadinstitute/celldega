@@ -17,6 +17,9 @@ const set_cat_data = (network, viz_state, axis) => {
   const max_abs = isRow
     ? viz_state.attrs.maxabs.row
     : viz_state.attrs.maxabs.col;
+  const max_abs = isRow
+    ? viz_state.attrs.maxabs.row
+    : viz_state.attrs.maxabs.col;
   const cat_offset = isRow
     ? viz_state.viz.row_cat_offset
     : viz_state.viz.col_cat_offset;

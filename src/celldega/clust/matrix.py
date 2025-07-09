@@ -1,9 +1,6 @@
-"""
-Optimized Matrix class with improved maintainability and time/space complexity.
-"""
-
 from __future__ import annotations
 
+import hashlib
 import json
 from typing import Any
 import warnings
@@ -50,6 +47,33 @@ _distance_cache = weakref.WeakKeyDictionary()
 _ranking_cache = weakref.WeakKeyDictionary()
 
 
+def quick_hash_data(data: pd.DataFrame | AnnData, max_rows=100, max_cols=100) -> str:
+    try:
+        if isinstance(data, pd.DataFrame):
+            df = data.select_dtypes(include=[np.number])  # drop object/string columns
+            row_means = df.mean(axis=1).values[:max_rows]
+            col_means = df.mean(axis=0).values[:max_cols]
+        elif isinstance(data, AnnData):
+            import scipy.sparse
+
+            x = data.X
+            if scipy.sparse.issparse(x):
+                row_means = x.mean(axis=1).A1[:max_rows]  # Use sparse matrix operations
+                col_means = x.mean(axis=0).A1[:max_cols]  # Use sparse matrix operations
+            else:
+                x = np.asarray(x, dtype=np.float32)
+                row_means = x.mean(axis=1)[:max_rows]
+                col_means = x.mean(axis=0)[:max_cols]
+        else:
+            return f"cgm_{id(data)}"
+
+        sig = np.concatenate([row_means, col_means])
+        sig_bytes = sig.astype(np.float32).tobytes()
+        return f"cgm_{hashlib.md5(sig_bytes).hexdigest()[:12]}"
+    except Exception:
+        return f"cgm_{id(data)}"
+
+
 class Matrix:
     """
     High-performance matrix class for single-cell genomics data processing.
@@ -85,6 +109,7 @@ class Matrix:
         disable_processing: bool = True,
         # Visualization parameters
         global_colors: dict[str, str] | pd.DataFrame | None = None,
+        name: str | None = None,
     ):
         """
         Create Matrix with automatic processing unless disabled.
@@ -100,6 +125,7 @@ class Matrix:
             norm_row: Row normalization ('total', 'zscore', 'qn', None)
             disable_processing: Skip automatic processing (default: False)
             global_colors: Global category color mapping (dict or DataFrame with 'color' column)
+            name: Name for the matrix (default: None)
 
         Examples:
             # Automatic processing (recommended)
@@ -133,6 +159,13 @@ class Matrix:
 
         # Visualization structure
         self.viz: dict[str, Any] = DEFAULT_VIZ.copy()
+
+        # if name is None, generate a quick hash-based name from the data content
+        if name is None:
+            # Generate a quick hash-based name from the data content
+            self._data_hash_name = quick_hash_data(data)
+        else:
+            self._data_hash_name = name
 
         # Load data and optionally apply processing
         if data is not None:
@@ -564,6 +597,64 @@ class Matrix:
         """Export visualization for widget."""
         return self.export_viz_json_string()
 
+    def export_viz_parquet(self) -> dict[str, bytes]:
+        """Export visualization using Parquet encoded tables."""
+        if not self._clustered:
+            warnings.warn(
+                "Matrix not clustered. Call clust() first.",
+                UserWarning,
+                stacklevel=2,
+            )
+
+        import io
+
+        import pyarrow as pa
+        import pyarrow.parquet as pq
+
+        def _to_bytes(df: pd.DataFrame) -> bytes:
+            # Build a dtype mapping for all applicable columns
+            dtype_map = {}
+            for col in df.select_dtypes(include=["int64"]).columns:
+                dtype_map[col] = "int32"
+            for col in df.select_dtypes(include=["float64"]).columns:
+                dtype_map[col] = "float32"
+
+            # Perform a single bulk cast
+            df_casted = df.astype(dtype_map, copy=False)
+
+            # Serialize to Parquet
+            buf = io.BytesIO()
+            pq.write_table(pa.Table.from_pandas(df_casted), buf, compression="zstd")
+            return buf.getvalue()
+
+        viz = self.viz
+
+        mat_df = pd.DataFrame(
+            self.dat["mat"],
+            index=self.dat["nodes"][Axis.ROW.value],
+            columns=self.dat["nodes"][Axis.COL.value],
+        ).reset_index(names="row")
+
+        row_nodes_df = pd.DataFrame(viz.get("row_nodes", []))
+        col_nodes_df = pd.DataFrame(viz.get("col_nodes", []))
+        row_link_df = pd.DataFrame(viz.get("linkage", {}).get(Axis.ROW.value, []))
+        col_link_df = pd.DataFrame(viz.get("linkage", {}).get(Axis.COL.value, []))
+
+        meta_json = viz.copy()
+        meta_json.pop("mat", None)
+        meta_json.pop("row_nodes", None)
+        meta_json.pop("col_nodes", None)
+        meta_json["linkage"] = {}
+
+        return {
+            "mat": _to_bytes(mat_df),
+            "row_nodes": _to_bytes(row_nodes_df),
+            "col_nodes": _to_bytes(col_nodes_df),
+            "row_linkage": _to_bytes(row_link_df),
+            "col_linkage": _to_bytes(col_link_df),
+            "meta": meta_json,
+        }
+
     def add_category(self, axis: AxisInput, name: str, data: pd.Series) -> None:
         """
         Add category to metadata.
@@ -646,7 +737,9 @@ class Matrix:
         if self._clustered:
             self.make_viz()
 
-    def set_global_cat_colors(self, color_mapping: dict[str, str] | pd.DataFrame | None = None) -> None:
+    def set_global_cat_colors(
+        self, color_mapping: dict[str, str] | pd.DataFrame | None = None
+    ) -> None:
         """
         Set global category color mapping that applies across all categories.
 
@@ -686,7 +779,6 @@ class Matrix:
         self.viz["col_cats"] = self.col_cats
 
         self.viz["global_cat_colors"].update(color_mapping)
-
 
     def set_matrix_colors(self, pos: str = "red", neg: str = "blue") -> None:
         """
@@ -851,6 +943,9 @@ class Matrix:
     def _viz_json(self, dendro: bool = True, links: bool = False) -> None:
         """Generate visualization JSON structure."""
         dat, viz = self.dat, self.viz
+
+        # add name
+        viz["name"] = self._data_hash_name
 
         viz["linkage"] = {
             axis: dat["node_info"][axis]["Y"].tolist() for axis in (Axis.ROW.value, Axis.COL.value)

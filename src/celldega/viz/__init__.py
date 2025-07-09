@@ -5,16 +5,16 @@ Module for visualization
 from ipywidgets import HBox, Layout, jslink
 
 from .local_server import get_local_server
-from .widget import Landscape, Matrix
+from .widget import Clustergram, Landscape
 
 
 def landscape_matrix(landscape, mat, width="600px", height="700px"):
     """
-    Display a `Landscape` widget and a `Matrix` widget side by side.
+    Display a `Landscape` widget and a `Clustergram` widget side by side.
 
     Args:
         landscape (Landscape): A `Landscape` widget.
-        mat (Matrix): A `Matrix` widget.
+        cgm (Clustergram): A `Clustergram` widget.
         width (str): The width of the widgets.
         height (str): The height of the widgets.
 
@@ -34,4 +34,4 @@ def landscape_matrix(landscape, mat, width="600px", height="700px"):
     return HBox([landscape, mat])
 
 
-__all__ = ["Landscape", "Matrix", "get_local_server", "landscape_matrix"]
+__all__ = ["Clustergram", "Landscape", "get_local_server", "landscape_matrix"]

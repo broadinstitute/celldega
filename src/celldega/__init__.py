@@ -5,7 +5,7 @@ from celldega import clust
 from celldega.nbhd import alpha_shape
 from celldega.pre import landscape
 from celldega.qc import qc_segmentation
-from celldega.viz import Landscape, Matrix
+from celldega.viz import Clustergram, Landscape
 
 
 warnings.filterwarnings("ignore", category=FutureWarning)
@@ -16,8 +16,8 @@ except importlib.metadata.PackageNotFoundError:
     __version__ = "unknown"
 
 __all__ = [
+    "Clustergram",
     "Landscape",
-    "Matrix",
     "alpha_shape",
     "clust",
     "landscape",

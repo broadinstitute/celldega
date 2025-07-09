@@ -1,4 +1,5 @@
 import './widget.css';
+import { networkFromParquet } from './read_parquet/network_from_parquet';
 import {
   handleAsyncError,
   handleValidationWarning,
@@ -117,9 +118,21 @@ const render_landscape = async ({ model, el }) => {
 };
 
 const render_matrix_new = async ({ model, el }) => {
-  const network = model.get('network');
+  let network = model.get('network');
   const width = model.get('width');
   const height = model.get('height');
+
+  const matBytes = model.get('mat_parquet');
+  if (matBytes && matBytes.byteLength > 0) {
+    network = await networkFromParquet(
+      model.get('network_meta'),
+      matBytes,
+      model.get('row_nodes_parquet'),
+      model.get('col_nodes_parquet'),
+      model.get('row_linkage_parquet'),
+      model.get('col_linkage_parquet')
+    );
+  }
 
   matrix_viz(model, el, network, width, height);
 };

@@ -118,12 +118,15 @@ const render_landscape = async ({ model, el }) => {
 };
 
 const render_matrix_new = async ({ model, el }) => {
-  let network = model.get('network');
+  // let network = model.get('network');
+  let network;
   const width = model.get('width');
   const height = model.get('height');
 
   const matBytes = model.get('mat_parquet');
   if (matBytes && matBytes.byteLength > 0) {
+
+    console.log('Loading network from Parquet files');
     network = await networkFromParquet(
       model.get('network_meta'),
       matBytes,

@@ -185,6 +185,14 @@ class Matrix:
         if data is not None:
             # Step 1: Always load data
             if isinstance(data, AnnData):
+
+                # if col_attr/row_attr are provided use them to
+                # filter adata.obs/var
+                if col_attr is not None:
+                    data.obs = data.obs[col_attr]
+                if row_attr is not None:
+                    data.var = data.var[row_attr]
+
                 self.load_adata(data)
             else:
                 self.load_df(

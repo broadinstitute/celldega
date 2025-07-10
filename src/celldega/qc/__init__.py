@@ -465,24 +465,32 @@ def _create_barplot_visualization(
     - cell_b_name: Name of cell type B
     """
 
-    orthogonal_data = pd.DataFrame(
-        {
-            "Technology": [i for i in cell_a_with_b_cell_specific_genes for _ in range(2)],
-            "Category": [
-                f"{cell_a_name} with {cell_b_name} genes",
-                f"{cell_b_name} with {cell_a_name} genes",
-            ]
-            * len(cell_a_with_b_cell_specific_genes.keys()),
-            "Count": [
-                gene
-                for pair in zip(
-                    cell_a_with_b_cell_specific_genes.values(),
-                    cell_b_with_a_cell_specific_genes.values(),
-                    strict=False,
-                )
-                for gene in pair
-            ],
-        }
+    technology_series = pd.Series(
+        [tech for tech in cell_a_with_b_cell_specific_genes for _ in range(2)],
+        name="Technology"
+    )
+
+    category_series = pd.Series(
+        [
+            f"{cell_a_name} with {cell_b_name} genes",
+            f"{cell_b_name} with {cell_a_name} genes"
+        ] * len(cell_a_with_b_cell_specific_genes),
+        name="Category"
+    )
+
+    count_values = []
+    for a_count, b_count in zip(
+        cell_a_with_b_cell_specific_genes.values(),
+        cell_b_with_a_cell_specific_genes.values(),
+        strict=False
+    ):
+        count_values.extend([a_count, b_count])
+
+    count_series = pd.Series(count_values, name="Count")
+
+    orthogonal_data = pd.concat(
+        [technology_series, category_series, count_series],
+        axis=1
     )
 
     fig, ax = plt.subplots(figsize=(10, 6))

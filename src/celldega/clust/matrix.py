@@ -99,8 +99,8 @@ class Matrix:
         data: pd.DataFrame | AnnData | None = None,
         meta_col: pd.DataFrame | None = None,
         meta_row: pd.DataFrame | None = None,
-        col_attrs: list[str] | None = None,
-        row_attrs: list[str] | None = None,
+        col_attr: list[str] | None = None,
+        row_attr: list[str] | None = None,
         # Processing parameters
         filter_genes: int | None = None,
         norm_col: str | None = "total",
@@ -118,8 +118,8 @@ class Matrix:
             data: DataFrame or AnnData object
             meta_col: Column metadata (for DataFrame input)
             meta_row: Row metadata (for DataFrame input)
-            col_attrs: Column attribute names (categorical or numeric)
-            row_attrs: Row attribute names (categorical or numeric)
+            col_attr: Column attribute names (categorical or numeric)
+            row_attr: Row attribute names (categorical or numeric)
             filter_genes: Number of top variable genes to keep (None = no filtering)
             norm_col: Column normalization ('total', 'zscore', 'qn', None)
             norm_row: Row normalization ('total', 'zscore', 'qn', None)
@@ -146,18 +146,18 @@ class Matrix:
         self.meta_col: pd.DataFrame = pd.DataFrame()
         self.meta_row: pd.DataFrame = pd.DataFrame()
 
-        self.col_attrs = col_attrs or list(self.meta_col.columns)
-        self.row_attrs = row_attrs or list(self.meta_row.columns)
+        self.col_attr = col_attr or list(self.meta_col.columns)
+        self.row_attr = row_attr or list(self.meta_row.columns)
 
         self.col_cats = [
             attr
-            for attr in self.col_attrs
+            for attr in self.col_attr
             if attr in self.meta_col.columns
             and not pd.api.types.is_numeric_dtype(self.meta_col[attr])
         ]
         self.row_cats = [
             attr
-            for attr in self.row_attrs
+            for attr in self.row_attr
             if attr in self.meta_row.columns
             and not pd.api.types.is_numeric_dtype(self.meta_row[attr])
         ]
@@ -191,8 +191,8 @@ class Matrix:
                     data,
                     meta_col,
                     meta_row,
-                    col_attrs,
-                    row_attrs,
+                    col_attr,
+                    row_attr,
                 )
 
             # Step 2: Apply processing unless disabled
@@ -266,8 +266,8 @@ class Matrix:
         df: pd.DataFrame,
         meta_col: pd.DataFrame | None = None,
         meta_row: pd.DataFrame | None = None,
-        col_attrs: list[str] | None = None,
-        row_attrs: list[str] | None = None,
+        col_attr: list[str] | None = None,
+        row_attr: list[str] | None = None,
     ) -> None:
         """
         Load DataFrame with metadata.
@@ -276,8 +276,8 @@ class Matrix:
             df: Data matrix
             meta_col: Column metadata (must match df.columns)
             meta_row: Row metadata (must match df.index)
-            col_attrs: Column attribute names for viz (categorical or numeric)
-            row_attrs: Row attribute names for viz (categorical or numeric)
+            col_attr: Column attribute names for viz (categorical or numeric)
+            row_attr: Row attribute names for viz (categorical or numeric)
         """
         self.data = df.copy()
 
@@ -287,18 +287,18 @@ class Matrix:
         validate_metadata(df, self.meta_col, self.meta_row)
         validate_metadata_types(self.meta_col, self.meta_row)
 
-        self.col_attrs = col_attrs or list(self.meta_col.columns)
-        self.row_attrs = row_attrs or list(self.meta_row.columns)
+        self.col_attr = col_attr or list(self.meta_col.columns)
+        self.row_attr = row_attr or list(self.meta_row.columns)
 
         self.col_cats = [
             attr
-            for attr in self.col_attrs
+            for attr in self.col_attr
             if attr in self.meta_col.columns
             and not pd.api.types.is_numeric_dtype(self.meta_col[attr])
         ]
         self.row_cats = [
             attr
-            for attr in self.row_attrs
+            for attr in self.row_attr
             if attr in self.meta_row.columns
             and not pd.api.types.is_numeric_dtype(self.meta_row[attr])
         ]
@@ -822,7 +822,6 @@ class Matrix:
         if "global_cat_colors" not in self.viz:
             self.viz["global_cat_colors"] = {}
 
-        print('here')
         if color_mapping is None:
             # Build color mapping from all unique categorical values only
             all_cats: set[str] = set()
@@ -853,8 +852,8 @@ class Matrix:
         # save the row and column categories and attributes
         self.viz["row_cats"] = self.row_cats
         self.viz["col_cats"] = self.col_cats
-        self.viz["row_attrs"] = self.row_attrs
-        self.viz["col_attrs"] = self.col_attrs
+        self.viz["row_attr"] = self.row_attr
+        self.viz["col_attr"] = self.col_attr
 
         self.viz["row_attr_maxabs"] = self._compute_attr_maxabs(Axis.ROW.value)
         self.viz["col_attr_maxabs"] = self._compute_attr_maxabs(Axis.COL.value)
@@ -864,10 +863,10 @@ class Matrix:
     def _compute_attr_maxabs(self, axis: str) -> list[float | None]:
         """Return max absolute values for numeric attributes on an axis."""
         meta_df = self.meta_row if axis == Axis.ROW.value else self.meta_col
-        attrs = self.row_attrs if axis == Axis.ROW.value else self.col_attrs
+        attr = self.row_attr if axis == Axis.ROW.value else self.col_attr
 
         maxabs: list[float | None] = []
-        for attr in attrs:
+        for attr in attr:
             if attr in meta_df.columns and pd.api.types.is_numeric_dtype(meta_df[attr]):
                 maxabs.append(float(meta_df[attr].abs().max()))
             else:
@@ -983,11 +982,11 @@ class Matrix:
         """Create node info for specified axis."""
         nodes = list(self.data.index if axis == Axis.ROW.value else self.data.columns)
         meta_df = self.meta_row if axis == Axis.ROW.value else self.meta_col
-        attrs = self.row_attrs if axis == Axis.ROW.value else self.col_attrs
+        attr = self.row_attr if axis == Axis.ROW.value else self.col_attr
         linkage_data = self.viz["linkage"][axis]
 
         node_info = create_node_info_base(len(nodes), linkage_data)
-        max_abs = add_mixed_attributes_to_node_info(node_info, nodes, meta_df, attrs)
+        max_abs = add_mixed_attributes_to_node_info(node_info, nodes, meta_df, attr)
         self.viz[f"{axis}_attr_maxabs"] = max_abs
 
         return node_info

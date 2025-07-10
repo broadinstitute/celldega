@@ -177,7 +177,7 @@ class TestMatrix:
         try:
             # Create Matrix object and reproduce notebook workflow
             mat = Matrix(df, disable_processing=True)  # Disable auto-processing
-            mat.load_df(df, meta_col=meta_col, meta_row=meta_row, col_attrs=["experiment"])
+            mat.load_df(df, meta_col=meta_col, meta_row=meta_row, col_attr=["experiment"])
             mat.set_global_cat_colors(df_colors)
             _ = mat.cluster()
 
@@ -369,9 +369,9 @@ class TestMatrix:
             np.random.rand(3, 3), index=["r1", "r2", "r3"], columns=["c1", "c2", "c3"]
         )
         meta_row = pd.DataFrame({"score": [0.2, -0.5, 1.0]}, index=df.index)
-        mat = Matrix(df, meta_row=meta_row, row_attrs=["score"], disable_processing=True)
+        mat = Matrix(df, meta_row=meta_row, row_attr=["score"], disable_processing=True)
         mat.cluster()
-        assert "row_attrs" in mat.viz and mat.viz["row_attrs"] == ["score"]
+        assert "row_attr" in mat.viz and mat.viz["row_attr"] == ["score"]
         assert "row_attr_maxabs" in mat.viz and mat.viz["row_attr_maxabs"][0] == 1.0
         for node in mat.viz["row_nodes"]:
             assert "num-0" in node

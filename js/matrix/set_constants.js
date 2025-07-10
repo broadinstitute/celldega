@@ -26,18 +26,18 @@ export const set_mat_constants = (
   viz_state.viz = {};
   viz_state.viz.height_margin = 100;
 
-  viz_state.attrs = {};
-  viz_state.attrs.names = {
-    row: network.row_attrs || [],
-    col: network.col_attrs || [],
+  viz_state.attr = {};
+  viz_state.attr.names = {
+    row: network.row_attr || [],
+    col: network.col_attr || [],
   };
-  viz_state.attrs.maxabs = {
+  viz_state.attr.maxabs = {
     row: network.row_attr_maxabs || [],
     col: network.col_attr_maxabs || [],
   };
-  viz_state.attrs.num = {
-    row: viz_state.attrs.names.row.length,
-    col: viz_state.attrs.names.col.length,
+  viz_state.attr.num = {
+    row: viz_state.attr.names.row.length,
+    col: viz_state.attr.names.col.length,
   };
 
   viz_state.root.style.height = `${height + viz_state.viz.height_margin}px`;
@@ -47,9 +47,9 @@ export const set_mat_constants = (
   viz_state.viz.col_cat_offset = 9;
 
   viz_state.viz.mat_width =
-    width - viz_state.viz.row_cat_offset * viz_state.attrs.num.row;
+    width - viz_state.viz.row_cat_offset * viz_state.attr.num.row;
   viz_state.viz.mat_height =
-    height - viz_state.viz.col_cat_offset * viz_state.attrs.num.col;
+    height - viz_state.viz.col_cat_offset * viz_state.attr.num.col;
 
   viz_state.mat = {};
   viz_state.mat.num_rows = network.mat.length;
@@ -106,12 +106,12 @@ export const set_mat_constants = (
 
   viz_state.viz.col_region =
     (viz_state.viz.col_cat_height + viz_state.viz.extra_space.col) *
-      viz_state.attrs.num.col +
+      viz_state.attr.num.col +
     viz_state.viz.col_label;
 
   viz_state.viz.row_region =
     (viz_state.viz.row_cat_width + viz_state.viz.extra_space.row) *
-      viz_state.attrs.num.row +
+      viz_state.attr.num.row +
     viz_state.viz.row_label;
 
   viz_state.viz.col_width = viz_state.viz.mat_width / viz_state.mat.num_cols;

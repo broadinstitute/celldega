@@ -11,15 +11,15 @@ const colorToRgba = (colorStr, alpha = 255) => {
 const set_cat_data = (network, viz_state, axis) => {
   const isRow = axis === 'row';
   const nodes = isRow ? network.row_nodes : network.col_nodes;
-  const num_attrs = isRow
-    ? viz_state.attrs.num.row
-    : viz_state.attrs.num.col;
+  const num_attr = isRow
+    ? viz_state.attr.num.row
+    : viz_state.attr.num.col;
   const max_abs = isRow
-    ? viz_state.attrs.maxabs.row
-    : viz_state.attrs.maxabs.col;
+    ? viz_state.attr.maxabs.row
+    : viz_state.attr.maxabs.col;
   const max_abs = isRow
-    ? viz_state.attrs.maxabs.row
-    : viz_state.attrs.maxabs.col;
+    ? viz_state.attr.maxabs.row
+    : viz_state.attr.maxabs.col;
   const cat_offset = isRow
     ? viz_state.viz.row_cat_offset
     : viz_state.viz.col_cat_offset;
@@ -32,7 +32,7 @@ const set_cat_data = (network, viz_state, axis) => {
 
   const cat_data = nodes
     .flatMap((node, node_index) => {
-      return Array.from({ length: num_attrs }).map((_, attr_index) => {
+      return Array.from({ length: num_attr }).map((_, attr_index) => {
         let value;
         let color_rgba;
         const maxVal = max_abs[attr_index];

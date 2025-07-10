@@ -133,25 +133,25 @@ def add_categories_to_node_info(
 
 
 def add_mixed_attributes_to_node_info(
-    node_info: dict[str, Any], nodes: list[str], meta_df: pd.DataFrame, attrs: list[str]
+    node_info: dict[str, Any], nodes: list[str], meta_df: pd.DataFrame, attr: list[str]
 ) -> list[float | None]:
     """Add categorical and numeric attributes to node info.
 
     Returns a list of max absolute values for numeric attributes (``None`` for
     categorical attributes).
     """
-    if not attrs or meta_df.empty:
+    if not attr or meta_df.empty:
         return []
 
-    valid_attrs = [attr for attr in attrs if attr in meta_df.columns]
-    if not valid_attrs:
+    valid_attr = [attr for attr in attr if attr in meta_df.columns]
+    if not valid_attr:
         return []
 
     max_abs: list[float | None] = []
 
     try:
-        attr_data = meta_df.reindex(nodes)[valid_attrs]
-        for idx, attr_name in enumerate(valid_attrs):
+        attr_data = meta_df.reindex(nodes)[valid_attr]
+        for idx, attr_name in enumerate(valid_attr):
             series = attr_data[attr_name]
             if pd.api.types.is_numeric_dtype(series):
                 node_info[f"num-{idx}"] = series.astype(float).tolist()

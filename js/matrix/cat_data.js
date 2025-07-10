@@ -49,8 +49,9 @@ export const set_cat_data = (network, viz_state, axis) => {
           if (value === undefined || value === null || isNaN(value)) {
             return null;
           }
-          const pos = [255, 0, 0];
-          const neg = [0, 0, 255];
+          // orange rgba for positive, dark gray rgba for negative
+          const pos = [255, 165, 0];
+          const neg = [169, 169, 169];
           const color = value >= 0 ? pos : neg;
           const scale = maxVal === 0 ? 1 : maxVal;
           const alpha = Math.min(1, Math.abs(value) / scale);

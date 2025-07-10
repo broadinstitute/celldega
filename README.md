@@ -31,13 +31,20 @@ apt update && apt install -y libvips libvips-tools libvips-dev
 base_url = 'https://raw.githubusercontent.com/broadinstitute/celldega_Xenium_Prime_Human_Skin_FFPE_outs/main/Xenium_Prime_Human_Skin_FFPE_outs'
 
 landscape_ist = dega.viz.Landscape(
-    technology='Xenium',
-    ini_zoom = -4.5,
+    technology="Xenium",
+    ini_zoom=-4.5,
     ini_x=6000,
     ini_y=8000,
-    base_url = base_url,
-    height = 700,
-    width= 600
+    base_url=base_url,
+    height=700,
+    width=600,
+)
+
+# Alternatively pass an AnnData object to auto-populate cell metadata
+# including "leiden" clusters, colors and UMAP coordinates.
+landscape_from_adata = dega.viz.Landscape(
+    base_url=base_url,
+    AnnData=adata,
 )
 
 file_path = 'https://raw.githubusercontent.com/broadinstitute/celldega_Xenium_Prime_Human_Skin_FFPE_outs/main/Xenium_Prime_Human_Skin_FFPE_outs/df_sig.parquet'

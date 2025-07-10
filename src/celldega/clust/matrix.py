@@ -866,9 +866,9 @@ class Matrix:
         attr = self.row_attr if axis == Axis.ROW.value else self.col_attr
 
         maxabs: list[float | None] = []
-        for attr in attr:
-            if attr in meta_df.columns and pd.api.types.is_numeric_dtype(meta_df[attr]):
-                maxabs.append(float(meta_df[attr].abs().max()))
+        for inst_attr in attr:
+            if inst_attr in meta_df.columns and pd.api.types.is_numeric_dtype(meta_df[inst_attr]):
+                maxabs.append(float(meta_df[inst_attr].abs().max()))
             else:
                 maxabs.append(None)
         return maxabs

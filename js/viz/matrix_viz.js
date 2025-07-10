@@ -69,7 +69,6 @@ export const matrix_viz = async (
   col_label_callback = null,
   col_dendro_callback = null
 ) => {
-  console.log(network)
   const root = document.createElement('div');
   root.style.border = '1px solid #d3d3d3';
   // root.style.width = width
@@ -101,10 +100,6 @@ export const matrix_viz = async (
 
   set_row_label_data(network, viz_state);
   set_col_label_data(network, viz_state);
-
-  console.log('network before set_cat_data', network)
-
-  console.log('viz_state.cats', viz_state.cats);
 
   viz_state.cats = {};
   viz_state.cats.row_cat_data = set_cat_data(network, viz_state, 'row');

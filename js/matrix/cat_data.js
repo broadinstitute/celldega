@@ -10,8 +10,6 @@ const colorToRgba = (colorStr, alpha = 255) => {
 
 export const set_cat_data = (network, viz_state, axis) => {
 
-  console.log('set_cat_data', axis);
-
   const isRow = axis === 'row';
   const nodes = isRow ? network.row_nodes : network.col_nodes;
   const num_attr = isRow
@@ -27,13 +25,8 @@ export const set_cat_data = (network, viz_state, axis) => {
     ? viz_state.viz.row_offset
     : viz_state.viz.col_offset;
 
-  console.log('num_attr', num_attr);
-  console.log('max_abs', max_abs);
-
   // // 👇 Shift rows down by one row_offset (or fraction if needed)
   // const row_shift = isRow ? node_offset : 0;
-
-  console.log(nodes)
 
   const cat_data = nodes
     .flatMap((node, node_index) => {
@@ -78,8 +71,6 @@ export const set_cat_data = (network, viz_state, axis) => {
       });
     })
     .filter(Boolean);
-
-  console.log('cat_data', cat_data);
 
   return cat_data;
 

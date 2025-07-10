@@ -59,6 +59,9 @@ class Landscape(anywidget.AnyWidget):
     region = traitlets.Dict({}).tag(sync=True)
     nbhd = traitlets.Dict({}).tag(sync=True)
 
+    meta_nbhd = traitlets.Dict({}).tag(sync=True)
+    nbhd_parquet = traitlets.Bytes(b"").tag(sync=True)
+
     meta_cell = traitlets.Dict({}).tag(sync=True)
     meta_cluster = traitlets.Dict({}).tag(sync=True)
     umap = traitlets.Dict({}).tag(sync=True)

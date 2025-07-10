@@ -23,6 +23,8 @@ const render_landscape_ist = async ({ model, el }) => {
   const height = model.get('height');
   const meta_cell = model.get('meta_cell');
   const meta_cluster = model.get('meta_cluster');
+  const meta_nbhd = model.get('meta_nbhd');
+  const nbhd_parquet = model.get('nbhd_parquet');
   const umap = model.get('umap');
   const landscape_state = model.get('landscape_state');
   const segmentation = model.get('segmentation');
@@ -42,6 +44,8 @@ const render_landscape_ist = async ({ model, el }) => {
     height,
     meta_cell,
     meta_cluster,
+    meta_nbhd,
+    nbhd_parquet,
     umap,
     landscape_state,
     segmentation,

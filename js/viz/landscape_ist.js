@@ -79,6 +79,8 @@ export const landscape_ist = async (
   height = 800,
   meta_cell = {},
   meta_cluster = {},
+  meta_nbhd = {},
+  nbhd_parquet = null,
   umap = {},
   landscape_state = 'spatial',
   segmentation = 'default',
@@ -182,17 +184,21 @@ export const landscape_ist = async (
         type: 'FeatureCollection',
         features: filt_features,
       };
+      viz_state.nbhd.meta = meta_nbhd;
+      viz_state.nbhd.parquet = nbhd_parquet;
     }
   } else {
     viz_state.nbhd.alpha_nbhd = false;
 
-    viz_state.nbhd.ini_feature_collection = {
-      type: 'FeatureCollection',
-      features: [],
-      inst_alpha: null,
-    };
-    viz_state.nbhd.feature_collection = viz_state.nbhd.ini_feature_collection;
-  }
+  viz_state.nbhd.ini_feature_collection = {
+    type: 'FeatureCollection',
+    features: [],
+    inst_alpha: null,
+  };
+  viz_state.nbhd.feature_collection = viz_state.nbhd.ini_feature_collection;
+  viz_state.nbhd.meta = meta_nbhd;
+  viz_state.nbhd.parquet = nbhd_parquet;
+}
 
   viz_state.containers = {};
   viz_state.containers.root_dim = {};

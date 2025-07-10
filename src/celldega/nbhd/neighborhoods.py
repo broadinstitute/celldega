@@ -3,8 +3,12 @@
 # Standard library imports
 from itertools import combinations
 from typing import Any
+import io
+import numpy as np
 
 from anndata import AnnData
+import pyarrow as pa
+import pyarrow.parquet as pq
 
 # Third-party imports
 import geopandas as gpd
@@ -262,6 +266,21 @@ class NBHD:
                 summary[subkey] = subval.shape if hasattr(subval, "shape") else None
             return summary
         return val.shape if hasattr(val, "shape") else None
+
+    def to_adata(self) -> AnnData:
+        """Return an AnnData representation of the neighborhoods."""
+        obs = self.gdf.drop(columns="geometry").copy()
+        coords = np.vstack(
+            [self.gdf.geometry.centroid.x.values, self.gdf.geometry.centroid.y.values]
+        ).T
+        adata = AnnData(obs=obs, obsm={"spatial": coords})
+        return adata
+
+    def export_parquet(self) -> bytes:
+        """Export the neighborhoods as Parquet-encoded bytes."""
+        buf = io.BytesIO()
+        pq.write_table(pa.Table.from_pandas(self.gdf), buf, compression="zstd")
+        return buf.getvalue()
 
 
 def calc_nbp(

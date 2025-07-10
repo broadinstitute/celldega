@@ -93,6 +93,12 @@ class Landscape(anywidget.AnyWidget):
         # Convert the new_clusters to a JSON serializable format if necessary
         self.cell_clusters = new_clusters
 
+    def close(self):  # pragma: no cover - cleanup depends on JS
+        """Close the widget and notify the frontend to release resources."""
+        with suppress(Exception):
+            self.send({"event": "finalize"})
+        super().close()
+
 
 class Clustergram(anywidget.AnyWidget):
     """
@@ -162,3 +168,9 @@ class Clustergram(anywidget.AnyWidget):
         kwargs["name"] = name
         super().__init__(**kwargs)
         _clustergram_registry[name] = self
+
+    def close(self):  # pragma: no cover - cleanup depends on JS
+        """Close the widget and notify the frontend to release resources."""
+        with suppress(Exception):
+            self.send({"event": "finalize"})
+        super().close()

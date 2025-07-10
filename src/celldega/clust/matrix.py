@@ -621,17 +621,51 @@ class Matrix:
         return AnnData(X=self.data.values.T, obs=self.meta_col, var=self.meta_row)
 
     def export_viz_json(self) -> dict[str, Any]:
-        """Export visualization as JSON dict."""
+        """Export visualization as JSON dict.
+
+        .. deprecated:: 0.10
+           Use :meth:`export_viz_parquet` instead.
+        """
+        warnings.warn(
+            "`export_viz_json` is deprecated and will be removed in a future "
+            "release. Use `export_viz_parquet` instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         if not self._clustered:
-            warnings.warn("Matrix not clustered. Call clust() first.", UserWarning, stacklevel=2)
+            warnings.warn(
+                "Matrix not clustered. Call clust() first.",
+                UserWarning,
+                stacklevel=2,
+            )
         return self.viz.copy()
 
     def export_viz_json_string(self) -> str:
-        """Export visualization as JSON string."""
+        """Export visualization as JSON string.
+
+        .. deprecated:: 0.10
+           Use :meth:`export_viz_parquet` instead.
+        """
+        warnings.warn(
+            "`export_viz_json_string` is deprecated and will be removed in a "
+            "future release. Use `export_viz_parquet` instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return json.dumps(self.export_viz_json())
 
     def export_viz_to_widget(self, which_viz: str = "viz") -> str:
-        """Export visualization for widget."""
+        """Export visualization for widget.
+
+        .. deprecated:: 0.10
+           Use :class:`celldega.viz.Clustergram` with ``matrix`` instead.
+        """
+        warnings.warn(
+            "`export_viz_to_widget` is deprecated. Instantiate `Clustergram` "
+            "with `matrix` or `parquet_data` instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return self.export_viz_json_string()
 
     def export_viz_parquet(self) -> dict[str, bytes]:

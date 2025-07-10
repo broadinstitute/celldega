@@ -25,4 +25,4 @@ cgm = dega.viz.Clustergram(parquet_data=pq_data, width=500, height=500)
 cgm
 ```
 
-`Clustergram` also accepts `network` or `matrix` arguments, but `parquet_data` is recommended for large datasets.
+`Clustergram` can also be initialized directly from a `Matrix` instance which internally uses `export_viz_parquet`. Passing a legacy JSON `network` is now deprecated.

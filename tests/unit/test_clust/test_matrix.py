@@ -350,12 +350,14 @@ class TestMatrix:
         mat.cluster()
         assert mat._clustered, "Matrix should be marked as clustered"
 
-        # Test export methods
-        json_str = mat.export_viz_json_string()
-        assert isinstance(json_str, str), "export_viz_json_string() should return string"
+        # Test export methods (deprecated JSON)
+        with pytest.deprecated_call():
+            json_str = mat.export_viz_json_string()
+        assert isinstance(json_str, str)
 
-        json_dict = mat.export_viz_json()
-        assert isinstance(json_dict, dict), "export_viz_json() should return dict"
+        with pytest.deprecated_call():
+            json_dict = mat.export_viz_json()
+        assert isinstance(json_dict, dict)
 
         # Test data export
         exported_df = mat.to_df()

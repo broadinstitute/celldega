@@ -20,6 +20,9 @@ def _hsv_to_hex(h: float) -> str:
     return f"#{int(r * 255):02x}{int(g * 255):02x}{int(b * 255):02x}"
 
 
+_clustergram_registry = {}  # maps names to widget instances
+
+
 class Landscape(anywidget.AnyWidget):
     """
     A widget for interactive visualization of spatial omics data. This widget

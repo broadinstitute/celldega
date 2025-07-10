@@ -125,6 +125,7 @@ class Matrix:
             norm_row: Row normalization ('total', 'zscore', 'qn', None)
             disable_processing: Skip automatic processing (default: False)
             global_colors: Global category color mapping (dict or DataFrame with 'color' column)
+            name: Name for the matrix (default: None)
 
         Examples:
             # Automatic processing (recommended)

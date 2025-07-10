@@ -8,9 +8,16 @@ from pathlib import Path
 import anywidget
 import pandas as pd
 import traitlets
+import colorsys
 
 
 _clustergram_registry = {}  # maps names to widget instances
+
+
+def _hsv_to_hex(h: float) -> str:
+    """Convert HSV color to hex string."""
+    r, g, b = colorsys.hsv_to_rgb(h, 0.65, 0.9)
+    return f"#{int(r * 255):02x}{int(g * 255):02x}{int(b * 255):02x}"
 
 
 class Landscape(anywidget.AnyWidget):
@@ -24,7 +31,12 @@ class Landscape(anywidget.AnyWidget):
         ini_zoom (float): The initial zoom level of the view.
         token (str): The token traitlet.
         base_url (str): The base URL for the widget.
+        AnnData (AnnData, optional): AnnData object to derive metadata from.
         dataset_name (str, optional): The name of the dataset to visualize. This will show up in the user interface bar.
+
+    The AnnData input automatically extracts cell attributes (e.g., ``leiden``
+    clusters), the corresponding colors (or derives them when missing), and any
+    available UMAP coordinates.
 
     Attributes:
         component (str): The name of the component.
@@ -72,7 +84,7 @@ class Landscape(anywidget.AnyWidget):
     height = traitlets.Int(800).tag(sync=True)
 
     def __init__(self, **kwargs):
-        adata = kwargs.pop("adata", None)
+        adata = kwargs.pop("adata", None) or kwargs.pop("AnnData", None)
         pq_meta_cell = kwargs.pop("meta_cell_parquet", None)
         pq_meta_cluster = kwargs.pop("meta_cluster_parquet", None)
         pq_umap = kwargs.pop("umap_parquet", None)
@@ -80,6 +92,7 @@ class Landscape(anywidget.AnyWidget):
         meta_cell_df = kwargs.pop("meta_cell", None)
         meta_cluster = kwargs.get("meta_cluster")
         umap_df = kwargs.pop("umap", None)
+        meta_cluster_df = None
 
         def _df_to_bytes(df):
             import io
@@ -97,6 +110,23 @@ class Landscape(anywidget.AnyWidget):
             meta_cell_df.reset_index(inplace=True)
             pq_meta_cell = _df_to_bytes(meta_cell_df)
 
+            if "leiden" in adata.obs.columns:
+                cluster_counts = adata.obs["leiden"].value_counts().sort_index()
+                colors = adata.uns.get("leiden_colors")
+                if colors is None:
+                    n = len(cluster_counts)
+                    colors = [
+                        _hsv_to_hex(i / max(n, 1)) for i in range(n)
+                    ]
+                meta_cluster_df = pd.DataFrame(
+                    {
+                        "color": list(colors)[: len(cluster_counts)],
+                        "count": cluster_counts.values,
+                    },
+                    index=cluster_counts.index,
+                )
+                pq_meta_cluster = _df_to_bytes(meta_cluster_df)
+
             if "X_umap" in adata.obsm:
                 umap_df = pd.DataFrame(
                     adata.obsm["X_umap"], index=adata.obs.index
@@ -109,6 +139,7 @@ class Landscape(anywidget.AnyWidget):
         if isinstance(meta_cluster, pd.DataFrame):
             pq_meta_cluster = _df_to_bytes(meta_cluster.reset_index())
             kwargs.pop("meta_cluster")
+            meta_cluster_df = meta_cluster
 
         if isinstance(umap_df, pd.DataFrame):
             pq_umap = _df_to_bytes(umap_df.reset_index())
@@ -133,7 +164,9 @@ class Landscape(anywidget.AnyWidget):
         # store DataFrames locally without syncing to the frontend
         self.meta_cell = meta_cell_df
         self.umap = umap_df
-
+        if meta_cluster_df is not None:
+            self.meta_cluster_df = meta_cluster_df
+        
     def trigger_update(self, new_value):
         """
         Update the update_trigger traitlet with a new value.

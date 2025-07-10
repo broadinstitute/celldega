@@ -186,14 +186,13 @@ class Matrix:
             # Step 1: Always load data
             if isinstance(data, AnnData):
 
-                # if col_attr/row_attr are provided use them to
-                # filter adata.obs/var
-                if col_attr is not None:
-                    data.obs = data.obs[col_attr]
-                if row_attr is not None:
-                    data.var = data.var[row_attr]
+                # by default no metadata should be visualized for AnnDatas
+                if col_attr is None:
+                    col_attr = []
+                if row_attr is None:
+                    row_attr = []
 
-                self.load_adata(data)
+                self.load_adata(data, col_attr=col_attr, row_attr=row_attr)
             else:
                 self.load_df(
                     data,
@@ -295,8 +294,8 @@ class Matrix:
         validate_metadata(df, self.meta_col, self.meta_row)
         validate_metadata_types(self.meta_col, self.meta_row)
 
-        self.col_attr = col_attr or list(self.meta_col.columns)
-        self.row_attr = row_attr or list(self.meta_row.columns)
+        self.col_attr = list(self.meta_col.columns) if col_attr is None else col_attr
+        self.row_attr = list(self.meta_row.columns) if row_attr is None else row_attr
 
         self.col_cats = [
             attr
@@ -314,7 +313,7 @@ class Matrix:
         self._clustered = self.is_downsampled = False
         self._invalidate_cache(CacheLevel.DATA.value)
 
-    def load_adata(self, adata: AnnData) -> None:
+    def load_adata(self, adata: AnnData, col_attr: list[str] | None = None, row_attr: list[str] | None = None) -> None:
         """
         Load AnnData object.
 
@@ -347,8 +346,8 @@ class Matrix:
             df,
             meta_col,
             meta_row,
-            list(adata.obs.columns),
-            list(adata.var.columns),
+            col_attr,
+            row_attr,
         )
 
     def filter(self, axis: AxisInput, by: FilterType, num: int) -> None:

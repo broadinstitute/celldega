@@ -331,10 +331,22 @@ class Matrix:
             )
 
         df = pd.DataFrame(matrix_data, index=adata.var.index, columns=adata.obs.index)
+
+        # Copy metadata to avoid mutating the original AnnData object
+        meta_col = adata.obs.copy()
+        meta_row = adata.var.copy()
+
+        # convert categorical columns to string
+        for col in meta_col.select_dtypes(include=["category"]).columns:
+            meta_col[col] = meta_col[col].astype(str)
+
+        for col in meta_row.select_dtypes(include=["category"]).columns:
+            meta_row[col] = meta_row[col].astype(str)
+
         self.load_df(
             df,
-            adata.obs.copy(),
-            adata.var.copy(),
+            meta_col,
+            meta_row,
             list(adata.obs.columns),
             list(adata.var.columns),
         )

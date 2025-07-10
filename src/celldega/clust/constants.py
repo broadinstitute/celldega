@@ -149,7 +149,7 @@ CONFIG: dict[str, Any] = {
     "memory_threshold": 2e9,  # 2GB for memory mapping
     "cache_size_limit": 5,
     "large_matrix_threshold": 10000,
-    "memory_warning_threshold": 50_000_000,
+    "memory_warning_threshold": 5_000_000,
     "sample_hash_size": 100,
 }
 

@@ -47,6 +47,7 @@ dev = [
     "pre-commit",        # Git hooks automation
     "build",             # Package building
     "twine",             # PyPI publishing
+    # Documentation dependencies
     "mkdocs",
     "mkdocs-material",
     "mkdocstrings[python]",

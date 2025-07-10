@@ -43,8 +43,8 @@ export const set_cat_data = (network, viz_state, axis) => {
             return null;
           }
           // orange rgba for positive, dark gray rgba for negative
-          const pos = [255, 165, 0];
-          const neg = [169, 169, 169];
+          const neg = [255, 165, 0];
+          const pos = [169, 169, 169];
           const color = value >= 0 ? pos : neg;
           const scale = maxVal === 0 ? 1 : maxVal;
           const alpha = Math.min(1, Math.abs(value) / scale);

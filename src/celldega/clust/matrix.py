@@ -322,7 +322,7 @@ class Matrix:
         """
         matrix_data = (adata.X.todense() if hasattr(adata.X, "todense") else adata.X).T
 
-        if adata.n_obs * adata.n_vars > CONFIG["memory_warning_threshold"]:
+        if adata.n_obs * adata.n_vars > CONFIG["matrix_cell_threshold"]:
             warnings.warn(
                 f"Large matrix ({adata.n_obs} x {adata.n_vars}). Consider filtering.",
                 UserWarning,
@@ -1131,9 +1131,15 @@ class Matrix:
         if self.data is None:
             return
         n_rows, n_cols = self.data.shape
-        if n_cols > CONFIG["large_matrix_threshold"] and not force:
-            raise ValueError(ERRORS["clustering_size"].format(n_cols))
-        if n_rows * n_cols > CONFIG["memory_warning_threshold"]:
+        # if n_cols > CONFIG["large_matrix_threshold"] and not force:
+        #     raise ValueError(ERRORS["clustering_size"].format(n_cols))
+        if n_rows * n_cols > CONFIG["matrix_cell_threshold"]:
+            # raise and error if the matrix is too large
+            if not force:
+                raise ValueError(
+                    ERRORS["clustering_size"].format(n_rows, n_cols, CONFIG["matrix_cell_threshold"])
+                )
+            # otherwise, just warn
             warnings.warn(
                 f"Large matrix ({n_rows} x {n_cols}) may cause memory issues.",
                 UserWarning,

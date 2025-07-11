@@ -149,7 +149,7 @@ CONFIG: dict[str, Any] = {
     "memory_threshold": 2e9,  # 2GB for memory mapping
     "cache_size_limit": 5,
     "large_matrix_threshold": 10000,
-    "memory_warning_threshold": 5_000_000,
+    "matrix_cell_threshold": 5_000_000,
     "sample_hash_size": 100,
 }
 
@@ -191,7 +191,7 @@ ERRORS: dict[str, str] = {
     "invalid_norm": "Normalization '{}' not supported. Use: total, zscore, qn",
     "missing_category": "Category '{}' not found in {}",
     "no_valid_features": "No valid {} features found",
-    "clustering_size": "Matrix has {} columns. Use force=True to override.",
+    "clustering_size": "Matrix has {} rows and {} columns exceeding the total recommended matrix cell count of {}. Use force=True to override.",
     "missing_scanpy": "scanpy required: pip install scanpy",
     "missing_metadata": "{} metadata missing for: {}...",
 }

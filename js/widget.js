@@ -11,6 +11,7 @@ import { matrix_viz } from './viz/matrix_viz';
 import { postGeneList, fetchEnrichment } from './external_apis/enrichr_api';
 import { uniprot_data, uniprot_get_request } from './external_apis/uniprot_api';
 import { fetchRefSeqInfo } from './external_apis/refseq_api';
+import * as d3 from 'd3';
 
 // Remove export keywords from render functions
 const render_landscape_ist = async ({ model, el }) => {
@@ -164,44 +165,122 @@ const render_enrich = async ({ model, el }) => {
     try {
       const listId = await postGeneList(genes);
       const data = await fetchEnrichment(listId, lib);
-      const arr = (data[lib] || [])
+
+      console.log(data)
+      const bar_data = (data[lib] || [])
         .map((d) => ({ name: d[1], score: d[4], genes: d[5] }))
         .sort((a, b) => b.score - a.score)
         .slice(0, numTerms);
 
+      console.log('bar_data:', bar_data);
+
+      const term_list = bar_data.map(x => x.name)
+      const score_list = bar_data.map(x => x.value)
+      const bar_data_values = bar_data.map(x => x.value)
+
+      const width = 1250
+
       const table = document.createElement('table');
-      arr.forEach((term) => {
-        const row = document.createElement('tr');
-        const nameCell = document.createElement('td');
-        nameCell.textContent = term.name;
-        const scoreCell = document.createElement('td');
-        scoreCell.textContent = term.score.toFixed(2);
-        row.appendChild(nameCell);
-        row.appendChild(scoreCell);
-        row.addEventListener('click', () => {
-          geneInfoHolder.innerHTML = '';
-          term.genes.forEach((g) => {
-            const span = document.createElement('span');
-            span.textContent = `${g} `;
-            span.style.cursor = 'pointer';
-            span.addEventListener('click', async () => {
-              geneInfoHolder.textContent = 'loading...';
-              await uniprot_get_request(g);
-              const uni = uniprot_data[g] || {};
-              const ref = await fetchRefSeqInfo(g);
-              const infoParts = [];
-              if (uni.name) infoParts.push(`<strong>${uni.name}</strong>`);
-              if (uni.description) infoParts.push(uni.description);
-              if (ref?.refseq) infoParts.push(`RefSeq: ${ref.refseq}`);
-              geneInfoHolder.innerHTML = infoParts.join('<br>');
-            });
-            geneInfoHolder.appendChild(span);
-          });
-        });
-        table.appendChild(row);
-      });
+
+      const x_new = d3.scaleLinear()
+          .domain([0, d3.max(bar_data_values)])
+          .range([0, 950])
+
+      const y_new = d3.scaleBand()
+          .domain(d3.range(bar_data_values.length))
+          .range([0, 22 * bar_data_values.length])
+
+      const svg = d3.create("svg")
+          .attr("width", width)
+          .attr("height", y_new.range()[1])
+          .attr("font-family", "sans-serif")
+          .attr("font-size", "16")
+          .attr("text-anchor", "end");
+
+      // initialized
+      svg.property('value', {
+        'term_name': 'Select Term',
+        'term_genes': []
+      })
+
+      const bar = svg.selectAll("g")
+        .data(bar_data)
+        .join("g")
+          .attr("transform", (d, i) => `translate(0,${y_new(i)})`)
+          .on('click', function(d){
+
+            console.log(d)
+            // from https://twitter.com/darth_mall/status/961770045826371584?s=20
+            let term_genes = d.genes.map(x => x.toLowerCase())
+            let value_dict = {}
+            value_dict.term_genes = term_genes
+            value_dict.term_name = d.name
+            value_dict.score = d.value
+
+            svg.property("value", value_dict)
+              .dispatch("input");
+
+            svg.selectAll("g")
+              .attr('font-weight', 'normal')
+
+            d3.select(this)
+              .attr('font-weight', 'bold')
+          })
+
+      bar.append("rect")
+          .attr("fill", "steelblue")
+          .attr('opacity', 0.25)
+          .attr("width", function(d){return x_new(d.value)})
+          .attr("height", y_new.bandwidth() - 1);
+
+      bar.append("text")
+          .attr("fill", 'black')
+          //.attr("x", d => x_new(d.value) - 3)
+          .attr("x", '5px')
+          .attr("y", y_new.bandwidth() / 2)
+          .attr("dy", "0.35em")
+          .attr('text-anchor', 'start')
+          .text(d => d.name);
+
+
+
+      // arr.forEach((term) => {
+      //   const row = document.createElement('tr');
+      //   const nameCell = document.createElement('td');
+      //   nameCell.textContent = term.name;
+      //   const scoreCell = document.createElement('td');
+      //   scoreCell.textContent = term.score.toFixed(2);
+      //   row.appendChild(nameCell);
+      //   row.appendChild(scoreCell);
+      //   row.addEventListener('click', () => {
+      //     geneInfoHolder.innerHTML = '';
+      //     term.genes.forEach((g) => {
+      //       const span = document.createElement('span');
+      //       span.textContent = `${g} `;
+      //       span.style.cursor = 'pointer';
+      //       span.addEventListener('click', async () => {
+      //         geneInfoHolder.textContent = 'loading...';
+      //         await uniprot_get_request(g);
+      //         const uni = uniprot_data[g] || {};
+      //         const ref = await fetchRefSeqInfo(g);
+      //         const infoParts = [];
+      //         if (uni.name) infoParts.push(`<strong>${uni.name}</strong>`);
+      //         if (uni.description) infoParts.push(uni.description);
+      //         if (ref?.refseq) infoParts.push(`RefSeq: ${ref.refseq}`);
+      //         geneInfoHolder.innerHTML = infoParts.join('<br>');
+      //       });
+      //       geneInfoHolder.appendChild(span);
+      //     });
+      //   });
+      //   table.appendChild(row);
+      // });
+
+
       tableHolder.innerHTML = '';
-      tableHolder.appendChild(table);
+      // tableHolder.appendChild(table);
+      tableHolder.appendChild(svg.node());
+
+
     } catch (error) {
       handleAsyncError(error, { context: 'render_enrich' });
       tableHolder.textContent = 'Error loading enrichment data.';

@@ -1,0 +1,36 @@
+name: 'Setup Python Environment'
+description: 'Sets up Python with dependencies for Celldega'
+
+inputs:
+  python-version:
+    description: 'Python version to use'
+    required: false
+    default: '3.11'
+  install-deps:
+    description: 'Install dependencies (requires JS environment to be set up first)'
+    required: false
+    default: 'true'
+  disable-jupyter-builder:
+    description: 'Disable jupyter-builder for linting/security'
+    required: false
+    default: 'false'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Python ${{ inputs.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Disable jupyter-builder build hook
+      if: inputs.disable-jupyter-builder == 'true'
+      shell: bash
+      run: |
+        sed -i 's/\[tool.hatch.build.hooks.\(.*\)\]/\[_tool.hatch.build.hooks.\1\]/' pyproject.toml
+
+    - name: Install Python dependencies
+      if: inputs.install-deps == 'true'
+      shell: bash
+      run: |
+        pip install -e ".[dev]"

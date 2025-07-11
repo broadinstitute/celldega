@@ -1,0 +1,39 @@
+name: 'Setup Full Environment'
+description: 'Sets up both Python and JavaScript environments in correct order for Celldega'
+
+inputs:
+  python-version:
+    description: 'Python version to use'
+    required: false
+    default: '3.11'
+  node-version:
+    description: 'Node.js version to use'
+    required: false
+    default: '18'
+  disable-jupyter-builder:
+    description: 'Disable jupyter-builder for linting/security'
+    required: false
+    default: 'false'
+
+runs:
+  using: 'composite'
+  steps:
+    # Step 1: Setup Python (without dependencies)
+    - name: Setup Python environment
+      uses: ./.github/actions/setup-python-env
+      with:
+        python-version: ${{ inputs.python-version }}
+        install-deps: 'false'
+        disable-jupyter-builder: ${{ inputs.disable-jupyter-builder }}
+
+    # Step 2: Setup JavaScript environment
+    - name: Setup JavaScript environment
+      uses: ./.github/actions/setup-js-env
+      with:
+        node-version: ${{ inputs.node-version }}
+
+    # Step 3: Now install Python dependencies (after JS tools are available)
+    - name: Install Python dependencies
+      shell: bash
+      run: |
+        pip install -e ".[dev]"

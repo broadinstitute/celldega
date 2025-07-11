@@ -1,0 +1,31 @@
+name: Test JavaScript
+
+on:
+  workflow_call:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+
+jobs:
+  test-javascript:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Setup environment using reusable action
+      - name: Setup JavaScript environment
+        uses: ./.github/actions/setup-js-env
+
+      # Run JavaScript/TypeScript tests (Jest)
+      - name: Run JavaScript tests
+        run: npm run test:js
+
+      # Upload JavaScript test coverage to Codecov
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          file: ./coverage/lcov.info
+          flags: javascript
+          name: codecov-javascript
+          fail_ci_if_error: false

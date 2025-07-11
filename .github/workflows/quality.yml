@@ -1,0 +1,46 @@
+name: Quality
+
+on:
+  workflow_call:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Setup both environments in correct order
+      - name: Setup full environment
+        uses: ./.github/actions/setup-full-env
+        with:
+          python-version: '3.11'
+          disable-jupyter-builder: 'true'
+
+      # Python quality checks
+      - name: Lint Python code
+        run: ruff check src/
+
+      - name: Check Python formatting
+        run: ruff format --check src/
+
+      # JavaScript quality checks
+      - name: Lint JavaScript code
+        run: npm run lint:js
+
+      - name: Check JavaScript formatting
+        run: npm run format:js:check
+
+      # Security scanning
+      - name: Run Safety Check
+        run: |
+          pip install safety
+          safety check --json --output safety-report.json || true
+
+      - name: Run Bandit Security Scan
+        run: |
+          pip install bandit[toml]
+          bandit -r src/ -f json -o bandit-report.json || true

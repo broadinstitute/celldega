@@ -1,3 +1,9 @@
+:root {
+    --md-primary-fg-color: #006DB6; /* main banner background */
+    /*--md-primary-fg-color--light: #ffffff; */ /* text color in banner */
+  }
+
+
 /* .md-header__button{
     color: red;
 } */

@@ -1,13 +1,13 @@
-import importlib.metadata
-
-from celldega.viz import Landscape, Matrix
-from celldega.pre import landscape
-from celldega.nbhd import alpha_shape
-
-from celldega.clust import Network
-
-# temporary fix for libpysal warning
+import importlib.metadata  # temporary fix for libpysal warning
 import warnings
+
+from celldega import clust
+from celldega.nbhd import alpha_shape
+from celldega.pre import landscape
+from celldega.qc import qc_segmentation
+from celldega.viz import Clustergram, Landscape
+
+
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 try:
@@ -15,4 +15,11 @@ try:
 except importlib.metadata.PackageNotFoundError:
     __version__ = "unknown"
 
-__all__ = ["Landscape", "landscape", "Matrix"]
+__all__ = [
+    "Clustergram",
+    "Landscape",
+    "alpha_shape",
+    "clust",
+    "landscape",
+    "qc_segmentation",
+]

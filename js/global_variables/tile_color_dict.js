@@ -1,31 +1,27 @@
-import { get_arrow_table } from "../read_parquet/get_arrow_table";
-import { options } from '../global_variables/fetch_options.js';
-import { hexToRgb } from '../utils/hexToRgb.js'
-
-
+import { options } from '../global_variables/fetch_options';
+import { get_arrow_table } from '../read_parquet/get_arrow_table';
+import { hexToRgb } from '../utils/hexToRgb';
 
 export const set_tile_color_dict = async (base_url) => {
+  const tile_color_dict = {};
 
-    let tile_color_dict = {}
+  const df_colors_url = `${base_url}/df_colors.parquet`;
+  const df_colors = await get_arrow_table(df_colors_url, options.fetch);
 
-    const df_colors_url = base_url + `/df_colors.parquet`;
-    var df_colors = await get_arrow_table(df_colors_url, options.fetch)
+  let names = [];
+  let colors = [];
 
-    let names = [];
-    let colors = [];
+  const nameColumn = df_colors.getChild('__index_level_0__');
+  const colorColumn = df_colors.getChild('color');
 
-    const nameColumn = df_colors.getChild('__index_level_0__');
-    const colorColumn = df_colors.getChild('color');
+  if (nameColumn && colorColumn) {
+    names = nameColumn.toArray();
+    colors = colorColumn.toArray();
+  }
 
-    if (nameColumn && colorColumn) {
-        names = nameColumn.toArray();
-        colors = colorColumn.toArray();
-    }
+  names.forEach((geneName, index) => {
+    tile_color_dict[String(geneName)] = hexToRgb(colors[index]);
+  });
 
-    names.forEach((geneName, index) => {
-        tile_color_dict[String(geneName)] = hexToRgb(colors[index]);
-    });
-
-    return tile_color_dict
-
-}
+  return tile_color_dict;
+};

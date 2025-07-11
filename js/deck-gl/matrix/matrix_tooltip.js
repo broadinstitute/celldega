@@ -10,37 +10,33 @@ export const get_tooltip = (viz_state, params) => {
   if (object) {
     // Check which layer the tooltip is currently over
     if (layer.id === 'row-label-layer') {
-      // Display the row label when hovering over the row_label_layer
       return {
         html: `Row Label: ${object.name}`,
         style: { color: 'white' },
       };
     } else if (layer.id === 'col-label-layer') {
-      // Display the row label when hovering over the row_label_layer
       return {
         html: `Col Label: ${object.name}`,
         style: { color: 'white' },
       };
     } else if (layer.id === 'row-layer') {
-      // Display the row label when hovering over the row_label_layer
+      const row_attr_name = viz_state.attr.names.row[object.level];
       return {
-        html: `Row Label: ${object.name}`,
+        html: `${row_attr_name}: ${object.name}`,
         style: { color: 'white' },
       };
     } else if (layer.id === 'col-layer') {
-      // Display the row label when hovering over the row_label_layer
+      const col_attr_name = viz_state.attr.names.col[object.level];
       return {
-        html: `Col Label: ${object.name}`,
+        html: `${col_attr_name}: ${object.name}`,
         style: { color: 'white' },
       };
     } else if (layer.id === 'row-dendro-layer') {
-      // Display the row label when hovering over the row_label_layer
       return {
         html: `row-dendro-${object.properties.name}<br>${object.properties.all_names}`,
         style: { color: 'white' },
       };
     } else if (layer.id === 'col-dendro-layer') {
-      // Display the row label when hovering over the row_label_layer
       return {
         html: `row-dendro-${object.properties.name}<br>${object.properties.all_names}`,
         style: { color: 'white' },

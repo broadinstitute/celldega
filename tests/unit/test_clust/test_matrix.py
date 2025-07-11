@@ -177,7 +177,7 @@ class TestMatrix:
         try:
             # Create Matrix object and reproduce notebook workflow
             mat = Matrix(df, disable_processing=True)  # Disable auto-processing
-            mat.load_df(df, meta_col=meta_col, meta_row=meta_row, col_cats=["experiment"])
+            mat.load_df(df, meta_col=meta_col, meta_row=meta_row, col_attr=["experiment"])
             mat.set_global_cat_colors(df_colors)
             _ = mat.cluster()
 
@@ -350,16 +350,31 @@ class TestMatrix:
         mat.cluster()
         assert mat._clustered, "Matrix should be marked as clustered"
 
-        # Test export methods
-        json_str = mat.export_viz_json_string()
-        assert isinstance(json_str, str), "export_viz_json_string() should return string"
+        # Test export methods (deprecated JSON)
+        with pytest.deprecated_call():
+            json_str = mat.export_viz_json_string()
+        assert isinstance(json_str, str)
 
-        json_dict = mat.export_viz_json()
-        assert isinstance(json_dict, dict), "export_viz_json() should return dict"
+        with pytest.deprecated_call():
+            json_dict = mat.export_viz_json()
+        assert isinstance(json_dict, dict)
 
         # Test data export
         exported_df = mat.to_df()
         assert isinstance(exported_df, pd.DataFrame), "to_df() should return DataFrame"
+
+    def test_numeric_attributes_in_viz(self) -> None:
+        """Numeric attributes should be exported as num-* keys."""
+        df = pd.DataFrame(
+            np.random.rand(3, 3), index=["r1", "r2", "r3"], columns=["c1", "c2", "c3"]
+        )
+        meta_row = pd.DataFrame({"score": [0.2, -0.5, 1.0]}, index=df.index)
+        mat = Matrix(df, meta_row=meta_row, row_attr=["score"], disable_processing=True)
+        mat.cluster()
+        assert "row_attr" in mat.viz and mat.viz["row_attr"] == ["score"]
+        assert "row_attr_maxabs" in mat.viz and mat.viz["row_attr_maxabs"][0] == 1.0
+        for node in mat.viz["row_nodes"]:
+            assert "num-0" in node
 
     def test_matrix_error_handling(self) -> None:
         """Test Matrix error handling and edge cases."""

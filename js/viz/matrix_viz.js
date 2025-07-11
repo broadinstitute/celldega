@@ -148,4 +148,6 @@ export const matrix_viz = async (
 
   el.appendChild(ui_container);
   el.appendChild(viz_state.root);
+
+  return () => deck_mat.finalize();
 };

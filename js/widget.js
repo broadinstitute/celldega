@@ -305,7 +305,16 @@ const render_enrich = async ({ model, el }) => {
 
           svg.selectAll('g').attr('font-weight', 'normal');
 
-          d3.select(this).attr('font-weight', 'bold');
+          // d3.select(this).attr('font-weight', 'bold');
+
+          // make the text color light gray except for the clicked one
+          svg.selectAll('text')
+            .attr('fill', 'lightgray');
+
+          d3.select(this)
+            .select('text')
+            .attr('fill', 'black');
+
         });
 
       bar

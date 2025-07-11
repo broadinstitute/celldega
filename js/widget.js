@@ -207,7 +207,7 @@ const render_enrich = async ({ model, el }) => {
         .data(bar_data)
         .join("g")
           .attr("transform", (d, i) => `translate(0,${y_new(i)})`)
-          .on('click', function(d){
+          .on('click', function(event, d){
 
             console.log(d)
             // from https://twitter.com/darth_mall/status/961770045826371584?s=20

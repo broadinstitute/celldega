@@ -178,13 +178,13 @@ const render_enrich = async ({ model, el }) => {
       const score_list = bar_data.map(x => x.score)
       const bar_data_values = bar_data.map(x => x.score)
 
-      const width = 1250
+      const width = 250
 
       const table = document.createElement('table');
 
       const x_new = d3.scaleLinear()
           .domain([0, d3.max(bar_data_values)])
-          .range([0, 950])
+          .range([0, width])
 
       const y_new = d3.scaleBand()
           .domain(d3.range(bar_data_values.length))

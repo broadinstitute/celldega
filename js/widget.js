@@ -210,7 +210,6 @@ const render_enrich = async ({ model, el }) => {
           .on('click', function(event, d){
 
             console.log(d)
-            // from https://twitter.com/darth_mall/status/961770045826371584?s=20
             let term_genes = d.genes.map(x => x.toLowerCase())
             let value_dict = {}
             value_dict.term_genes = term_genes
@@ -247,10 +246,66 @@ const render_enrich = async ({ model, el }) => {
           .attr('text-anchor', 'start')
           .text(d => d.name);
 
+      const new_chart = svg.node()
+
       tableHolder.innerHTML = '';
       // tableHolder.appendChild(table);
-      tableHolder.appendChild(svg.node());
 
+      // Paragraph visual
+      //////////////////////////////////////////////////
+
+      const element = document.createElement('div');
+      element.style.display = 'inline-block';
+      element.style.userSelect = 'none';
+
+      // var common_genes = new_chart.term_genes
+      const common_genes = genes
+
+      d3.select(element)
+        .append('h3')
+        .text(new_chart.term_name)
+
+      d3.select(element)
+        .append('h5')
+        .text('Combined Score ' + new_chart.score)
+
+      element.value = 'Click on a gene to obtain detailed information'
+
+      // d3.select(element)
+      d3.select(element)
+        .selectAll('div')
+        .data(genes.map(x=>x + ', '))
+        .join('span')
+        .text(d => d)
+        .style('font-weight', '550')
+        .style('color', function(d){
+          let inst_gene = d.toLowerCase().replace(', ','')
+          let inst_color
+          if (common_genes.length > 0){
+            if (common_genes.includes(inst_gene)){
+              inst_color = 'blue'
+            } else {
+              inst_color = '#2F4F4F'// '#808080'
+            }
+          } else {
+            inst_color = 'black'
+          }
+          return inst_color
+        })
+        .on('click', function(d){
+
+          d3.select(element).selectAll('span')
+            .style('font-weight', '550')
+          d3.select(this)
+            .style('font-weight', 'bold')
+
+          element.value = d.replace(', ', '')
+          element.dispatchEvent(new CustomEvent("input"));
+        })
+
+
+      tableHolder.appendChild(new_chart);
+      tableHolder.appendChild(element);
 
     } catch (error) {
       handleAsyncError(error, { context: 'render_enrich' });

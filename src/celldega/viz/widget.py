@@ -108,6 +108,12 @@ class Enrich(anywidget.AnyWidget):
     # gene list
     gene_list = traitlets.List([]).tag(sync=True)
 
+    # enrichment library
+    inst_lib = traitlets.Unicode("KEGG_2019_Human").tag(sync=True)
+
+    # number of terms
+    num_terms = traitlets.Int(10).tag(sync=True)
+
 
 class Clustergram(anywidget.AnyWidget):
     """

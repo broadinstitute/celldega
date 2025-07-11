@@ -1,5 +1,6 @@
 import './widget.css';
 import { networkFromParquet } from './read_parquet/network_from_parquet';
+import * as d3 from 'd3';
 import {
   handleAsyncError,
   handleValidationWarning,
@@ -8,6 +9,9 @@ import { landscape_h_e } from './viz/landscape_h_e';
 import { landscape_ist } from './viz/landscape_ist';
 import { landscape_sst } from './viz/landscape_sst';
 import { matrix_viz } from './viz/matrix_viz';
+import { postGeneList, fetchEnrichment } from './external_apis/enrichr_api';
+import { uniprot_data, uniprot_get_request } from './external_apis/uniprot_api';
+import { fetchRefSeqInfo } from './external_apis/refseq_api';
 
 // Remove export keywords from render functions
 const render_landscape_ist = async ({ model, el }) => {
@@ -137,6 +141,139 @@ const render_matrix_new = async ({ model, el }) => {
   matrix_viz(model, el, network, width, height);
 };
 
+const render_enrich = async ({ model, el }) => {
+  const container = document.createElement('div');
+  const chartHolder = document.createElement('div');
+  const geneHolder = document.createElement('div');
+  const infoHolder = document.createElement('div');
+
+  container.appendChild(chartHolder);
+  container.appendChild(geneHolder);
+  container.appendChild(infoHolder);
+  el.appendChild(container);
+
+  const showGenes = async (genes) => {
+    geneHolder.innerHTML = '';
+    infoHolder.innerHTML = 'Select a gene';
+    genes.forEach((g) => {
+      const span = document.createElement('span');
+      span.textContent = `${g} `;
+      span.style.cursor = 'pointer';
+      span.style.color = '#2F4F4F';
+      span.addEventListener('click', async () => {
+        Array.from(geneHolder.children).forEach((s) => {
+          s.style.fontWeight = 'normal';
+        });
+        span.style.fontWeight = 'bold';
+        infoHolder.textContent = 'loading...';
+        await uniprot_get_request(g);
+        const uni = uniprot_data[g] || {};
+        const ref = await fetchRefSeqInfo(g);
+        const parts = [];
+        if (uni.name) parts.push(`<strong>${uni.name}</strong>`);
+        if (uni.description) parts.push(uni.description);
+        if (ref?.refseq) parts.push(`RefSeq: ${ref.refseq}`);
+        infoHolder.innerHTML = parts.join('<br>');
+      });
+      geneHolder.appendChild(span);
+    });
+  };
+
+  const createChart = (data) => {
+    chartHolder.innerHTML = '';
+    if (data.length === 0) {
+      chartHolder.textContent = 'No enrichment results.';
+      return;
+    }
+
+    const width = 400;
+    const barHeight = 20;
+    const svg = d3
+      .create('svg')
+      .attr('width', width)
+      .attr('height', barHeight * data.length)
+      .attr('font-family', 'sans-serif')
+      .attr('font-size', '12');
+
+    const x = d3
+      .scaleLinear()
+      .domain([0, d3.max(data, (d) => d.score)])
+      .range([0, width - 150]);
+
+    const y = d3
+      .scaleBand()
+      .domain(d3.range(data.length))
+      .range([0, barHeight * data.length]);
+
+    const bar = svg
+      .selectAll('g')
+      .data(data)
+      .join('g')
+      .attr('transform', (d, i) => `translate(0,${y(i)})`)
+      .style('cursor', 'pointer')
+      .on('click', (_, d) => showGenes(d.genes));
+
+    bar
+      .append('rect')
+      .attr('fill', 'steelblue')
+      .attr('opacity', 0.25)
+      .attr('width', (d) => x(d.score))
+      .attr('height', y.bandwidth() - 1);
+
+    bar
+      .append('text')
+      .attr('x', 5)
+      .attr('y', y.bandwidth() / 2)
+      .attr('dy', '0.35em')
+      .attr('text-anchor', 'start')
+      .attr('fill', 'black')
+      .text((d) => d.name);
+
+    chartHolder.appendChild(svg.node());
+  };
+
+  const update = async () => {
+    const genes = model.get('gene_list') || [];
+    const lib = model.get('inst_lib') || 'KEGG_2019_Human';
+    const numTerms = model.get('num_terms') || 10;
+
+    if (genes.length === 0) {
+      chartHolder.textContent = 'No genes provided.';
+      geneHolder.textContent = '';
+      infoHolder.textContent = '';
+      return;
+    }
+
+    chartHolder.textContent = 'Loading...';
+    geneHolder.textContent = '';
+    infoHolder.textContent = '';
+
+    try {
+      const listId = await postGeneList(genes);
+      const data = await fetchEnrichment(listId, lib);
+      const arr = (data[lib] || [])
+        .map((d) => ({ name: d[1], score: d[4], genes: d[5] }))
+        .sort((a, b) => b.score - a.score)
+        .slice(0, numTerms);
+
+      createChart(arr);
+      if (arr.length > 0) {
+        showGenes(arr[0].genes);
+      }
+    } catch (error) {
+      handleAsyncError(error, { context: 'render_enrich' });
+      chartHolder.textContent = 'Error loading enrichment data.';
+      geneHolder.textContent = '';
+      infoHolder.textContent = '';
+    }
+  };
+
+  model.on('change:gene_list', update);
+  model.on('change:inst_lib', update);
+  model.on('change:num_terms', update);
+  await update();
+};
+
 // Main render function - no export keyword
 function render({ model, el }) {
   try {
@@ -155,6 +292,8 @@ function render({ model, el }) {
         return render_landscape({ model, el });
       case 'Matrix':
         return render_matrix_new({ model, el });
+      case 'Enrich':
+        return render_enrich({ model, el });
       default:
         handleValidationWarning(`Unknown component type: ${componentType}`, {
           data: { componentType, model: model?.id || 'unknown' },
@@ -186,4 +325,5 @@ export default {
   render_landscape_h_e,
   render_landscape,
   render_matrix_new,
+  render_enrich,
 };

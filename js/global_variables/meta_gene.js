@@ -15,11 +15,16 @@ export const set_meta_gene = async (
     meta_gene_url = `${base_url}/meta_gene_${seg_version}.parquet`;
   }
 
+  console.log('meta_gene_url', meta_gene_url);
+  console.log('options.fetch', options.fetch);
+
   const meta_gene_table = await get_arrow_table(
     meta_gene_url,
     options.fetch,
     aws
   );
+
+  console.log('meta_gene_table', meta_gene_table);
 
   const gene_names = meta_gene_table.getChild('__index_level_0__').toArray();
   const gene_mean = meta_gene_table.getChild('mean').toArray();

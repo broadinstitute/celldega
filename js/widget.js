@@ -8,6 +8,9 @@ import { landscape_h_e } from './viz/landscape_h_e';
 import { landscape_ist } from './viz/landscape_ist';
 import { landscape_sst } from './viz/landscape_sst';
 import { matrix_viz } from './viz/matrix_viz';
+import { postGeneList, fetchEnrichment } from './external_apis/enrichr_api';
+import { uniprot_data, uniprot_get_request } from './external_apis/uniprot_api';
+import { fetchRefSeqInfo } from './external_apis/refseq_api';
 
 // Remove export keywords from render functions
 const render_landscape_ist = async ({ model, el }) => {
@@ -137,6 +140,81 @@ const render_matrix_new = async ({ model, el }) => {
   matrix_viz(model, el, network, width, height);
 };
 
+const render_enrich = async ({ model, el }) => {
+  const container = document.createElement('div');
+  const tableHolder = document.createElement('div');
+  const geneInfoHolder = document.createElement('div');
+  container.appendChild(tableHolder);
+  container.appendChild(geneInfoHolder);
+  el.appendChild(container);
+
+  const update = async () => {
+    const genes = model.get('gene_list') || [];
+    const lib = model.get('inst_lib') || 'KEGG_2019_Human';
+    const numTerms = model.get('num_terms') || 10;
+
+    if (genes.length === 0) {
+      tableHolder.textContent = 'No genes provided.';
+      geneInfoHolder.textContent = '';
+      return;
+    }
+
+    tableHolder.textContent = 'Loading...';
+
+    try {
+      const listId = await postGeneList(genes);
+      const data = await fetchEnrichment(listId, lib);
+      const arr = (data[lib] || [])
+        .map((d) => ({ name: d[1], score: d[4], genes: d[5] }))
+        .sort((a, b) => b.score - a.score)
+        .slice(0, numTerms);
+
+      const table = document.createElement('table');
+      arr.forEach((term) => {
+        const row = document.createElement('tr');
+        const nameCell = document.createElement('td');
+        nameCell.textContent = term.name;
+        const scoreCell = document.createElement('td');
+        scoreCell.textContent = term.score.toFixed(2);
+        row.appendChild(nameCell);
+        row.appendChild(scoreCell);
+        row.addEventListener('click', () => {
+          geneInfoHolder.innerHTML = '';
+          term.genes.forEach((g) => {
+            const span = document.createElement('span');
+            span.textContent = `${g} `;
+            span.style.cursor = 'pointer';
+            span.addEventListener('click', async () => {
+              geneInfoHolder.textContent = 'loading...';
+              await uniprot_get_request(g);
+              const uni = uniprot_data[g] || {};
+              const ref = await fetchRefSeqInfo(g);
+              const infoParts = [];
+              if (uni.name) infoParts.push(`<strong>${uni.name}</strong>`);
+              if (uni.description) infoParts.push(uni.description);
+              if (ref?.refseq) infoParts.push(`RefSeq: ${ref.refseq}`);
+              geneInfoHolder.innerHTML = infoParts.join('<br>');
+            });
+            geneInfoHolder.appendChild(span);
+          });
+        });
+        table.appendChild(row);
+      });
+      tableHolder.innerHTML = '';
+      tableHolder.appendChild(table);
+    } catch (error) {
+      handleAsyncError(error, { context: 'render_enrich' });
+      tableHolder.textContent = 'Error loading enrichment data.';
+      geneInfoHolder.textContent = '';
+    }
+  };
+
+  model.on('change:gene_list', update);
+  model.on('change:inst_lib', update);
+  model.on('change:num_terms', update);
+  await update();
+};
+
 // Main render function - no export keyword
 function render({ model, el }) {
   try {
@@ -155,6 +233,8 @@ function render({ model, el }) {
         return render_landscape({ model, el });
       case 'Matrix':
         return render_matrix_new({ model, el });
+      case 'Enrich':
+        return render_enrich({ model, el });
       default:
         handleValidationWarning(`Unknown component type: ${componentType}`, {
           data: { componentType, model: model?.id || 'unknown' },
@@ -186,4 +266,5 @@ export default {
   render_landscape_h_e,
   render_landscape,
   render_matrix_new,
+  render_enrich,
 };

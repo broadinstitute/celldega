@@ -37,7 +37,7 @@ export const set_cat_data = (network, viz_state, axis) => {
           if (value === undefined || value === null || isNaN(value)) {
             return null;
           }
-          // orange rgba for positive, dark gray rgba for negative
+          // dark gray rgba for positive, orange rgba for negative
           const neg = [255, 165, 0];
           const pos = [169, 169, 169];
           const color = value >= 0 ? pos : neg;

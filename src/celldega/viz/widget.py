@@ -93,10 +93,9 @@ class Landscape(anywidget.AnyWidget):
         # Convert the new_clusters to a JSON serializable format if necessary
         self.cell_clusters = new_clusters
 
-class Enrich(anywidget.AnyWidget):
-    """
 
-    """
+class Enrich(anywidget.AnyWidget):
+    """ """
 
     _esm = Path(__file__).parent / "../static" / "widget.js"
     _css = Path(__file__).parent / "../static" / "widget.css"
@@ -107,6 +106,25 @@ class Enrich(anywidget.AnyWidget):
 
     # gene list
     gene_list = traitlets.List([]).tag(sync=True)
+
+    # available enrichment libraries
+    available_libs = traitlets.List(
+        [
+            "CellMarker_2024",
+            "ARCHS4_Tissues",
+            "GO_Biological_Process_2018",
+            "GO_Cellular_Component_2018",
+            "GO_Molecular_Function_2018",
+            "GTEx_Tissue_Sample_Gene_Expression_Profiles_up",
+            "KEGG_2019_Human",
+            "ChEA_2016",
+            "MGI_Mammalian_Phenotype_Level_4_2019",
+            "Disease_Perturbations_from_GEO_up",
+            "Ligand_Perturbations_from_GEO_up",
+            "LINCS_L1000_Chem_Pert_down",
+            "Ligand_Perturbations_from_GEO_down",
+        ]
+    ).tag(sync=True)
 
     # enrichment library
     inst_lib = traitlets.Unicode("KEGG_2019_Human").tag(sync=True)

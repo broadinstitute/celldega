@@ -11,6 +11,7 @@ import { matrix_viz } from './viz/matrix_viz';
 import { postGeneList, fetchEnrichment } from './external_apis/enrichr_api';
 import { uniprot_data, uniprot_get_request } from './external_apis/uniprot_api';
 import { fetchRefSeqInfo } from './external_apis/refseq_api';
+import { create_enrich_store } from './obs_store/enrich_store';
 import * as d3 from 'd3';
 
 // Remove export keywords from render functions
@@ -142,16 +143,90 @@ const render_matrix_new = async ({ model, el }) => {
 };
 
 const render_enrich = async ({ model, el }) => {
+  const store = create_enrich_store();
+  store.available_libs.set(model.get('available_libs') || []);
+  store.selected_lib.set(model.get('inst_lib') || 'KEGG_2019_Human');
+
+  const cache = {};
+  let paragraphElement = null;
+  let genesForParagraph = [];
+
   const container = document.createElement('div');
+  const select = document.createElement('select');
   const tableHolder = document.createElement('div');
   const geneInfoHolder = document.createElement('div');
+  container.appendChild(select);
   container.appendChild(tableHolder);
   container.appendChild(geneInfoHolder);
   el.appendChild(container);
 
+  const updateSelectOptions = () => {
+    select.innerHTML = '';
+    store.available_libs.get().forEach((lib) => {
+      const opt = document.createElement('option');
+      opt.value = lib;
+      opt.textContent = lib;
+      select.appendChild(opt);
+    });
+    select.value = store.selected_lib.get();
+  };
+
+  store.available_libs.subscribe(updateSelectOptions);
+  store.selected_lib.subscribe(
+    () => {
+      select.value = store.selected_lib.get();
+    },
+    { immediate: false }
+  );
+
+  select.addEventListener('change', (e) => {
+    store.selected_lib.set(e.target.value);
+    model.set('inst_lib', e.target.value);
+    model.save_changes();
+  });
+
+  model.on('change:available_libs', () => {
+    store.available_libs.set(model.get('available_libs') || []);
+  });
+  model.on('change:inst_lib', () => {
+    store.selected_lib.set(model.get('inst_lib'));
+  });
+
+  const updateParagraphColors = (element, genes) => {
+    const common = store.term_genes.get();
+    d3.select(element)
+      .selectAll('span')
+      .style('color', (d) => {
+        const inst_gene = d.toLowerCase().replace(', ', '');
+        if (common.length > 0) {
+          return common.includes(inst_gene) ? 'blue' : '#2F4F4F';
+        }
+        return 'black';
+      });
+  };
+
+  const updateGeneInfo = async () => {
+    const gene = store.gene_of_interest.get();
+    if (!gene) {
+      geneInfoHolder.textContent = '';
+      return;
+    }
+    await uniprot_get_request(gene);
+    const info = uniprot_data[gene] || { name: '', description: '' };
+    geneInfoHolder.innerHTML = `<h3>${gene}: ${info.name}</h3><p>${info.description}</p>`;
+  };
+
+  store.term_genes.subscribe(
+    () => {
+      updateParagraphColors(paragraphElement, genesForParagraph);
+    },
+    { immediate: false }
+  );
+  store.gene_of_interest.subscribe(updateGeneInfo, { immediate: false });
+
   const update = async () => {
     const genes = model.get('gene_list') || [];
-    const lib = model.get('inst_lib') || 'KEGG_2019_Human';
+    const lib = store.selected_lib.get();
     const numTerms = model.get('num_terms') || 10;
 
     if (genes.length === 0) {
@@ -163,10 +238,17 @@ const render_enrich = async ({ model, el }) => {
     tableHolder.textContent = 'Loading...';
 
     try {
-      const listId = await postGeneList(genes);
-      const data = await fetchEnrichment(listId, lib);
+      const cacheKey = `${genes.join(',')}__${lib}`;
+      let data;
+      if (cache[cacheKey]) {
+        data = cache[cacheKey];
+      } else {
+        const listId = await postGeneList(genes);
+        data = await fetchEnrichment(listId, lib);
+        cache[cacheKey] = data;
+      }
 
-      console.log(data)
+      console.log(data);
       const bar_data = (data[lib] || [])
         .map((d) => ({ name: d[1], score: d[4], genes: d[5] }))
         .sort((a, b) => b.score - a.score)
@@ -174,79 +256,80 @@ const render_enrich = async ({ model, el }) => {
 
       console.log('bar_data:', bar_data);
 
-      const term_list = bar_data.map(x => x.name)
-      const score_list = bar_data.map(x => x.score)
-      const bar_data_values = bar_data.map(x => x.score)
+      const bar_data_values = bar_data.map((x) => x.score);
 
-      const width = 250
+      const width = 250;
 
       const table = document.createElement('table');
 
-      const x_new = d3.scaleLinear()
-          .domain([0, d3.max(bar_data_values)])
-          .range([0, width])
+      const x_new = d3
+        .scaleLinear()
+        .domain([0, d3.max(bar_data_values)])
+        .range([0, width]);
 
-      const y_new = d3.scaleBand()
-          .domain(d3.range(bar_data_values.length))
-          .range([0, 22 * bar_data_values.length])
+      const y_new = d3
+        .scaleBand()
+        .domain(d3.range(bar_data_values.length))
+        .range([0, 22 * bar_data_values.length]);
 
-      const svg = d3.create("svg")
-          .attr("width", width)
-          .attr("height", y_new.range()[1])
-          .attr("font-family", "sans-serif")
-          .attr("font-size", "16")
-          .attr("text-anchor", "end");
+      const svg = d3
+        .create('svg')
+        .attr('width', width)
+        .attr('height', y_new.range()[1])
+        .attr('font-family', 'sans-serif')
+        .attr('font-size', '16')
+        .attr('text-anchor', 'end');
 
       // initialized
       svg.property('value', {
-        'term_name': 'Select Term',
-        'term_genes': []
-      })
+        term_name: 'Select Term',
+        term_genes: [],
+        score: 0,
+      });
 
-      const bar = svg.selectAll("g")
+      const bar = svg
+        .selectAll('g')
         .data(bar_data)
-        .join("g")
-          .attr("transform", (d, i) => `translate(0,${y_new(i)})`)
-          .on('click', function(event, d){
+        .join('g')
+        .attr('transform', (d, i) => `translate(0,${y_new(i)})`)
+        .on('click', function (event, d) {
+          const term_genes = d.genes.map((x) => x.toLowerCase());
+          const value_dict = {
+            term_genes,
+            term_name: d.name,
+            score: d.score,
+          };
 
-            console.log(d)
-            let term_genes = d.genes.map(x => x.toLowerCase())
-            let value_dict = {}
-            value_dict.term_genes = term_genes
-            value_dict.term_name = d.name
-            value_dict.score = d.value
+          svg.property('value', value_dict).dispatch('input');
 
-            svg.property("value", value_dict)
-              .dispatch("input");
+          svg.selectAll('g').attr('font-weight', 'normal');
 
-            svg.selectAll("g")
-              .attr('font-weight', 'normal')
+          d3.select(this).attr('font-weight', 'bold');
+        });
 
-            d3.select(this)
-              .attr('font-weight', 'bold')
-          })
+      bar
+        .append('rect')
+        .attr('fill', 'steelblue')
+        .attr('opacity', 0.25)
+        // .attr("width", function(d){return x_new(d.value)})
+        .attr('width', function (d) {
+          let inst_width = x_new(d.score);
+          console.log('inst_width:', inst_width, 'score:', d.score);
+          return inst_width;
+        })
+        .attr('height', y_new.bandwidth() - 1);
 
-      bar.append("rect")
-          .attr("fill", "steelblue")
-          .attr('opacity', 0.25)
-          // .attr("width", function(d){return x_new(d.value)})
-          .attr("width", function(d){
-            let inst_width = x_new(d.score);
-            console.log('inst_width:', inst_width, 'score:', d.score);
-            return inst_width
-          })
-          .attr("height", y_new.bandwidth() - 1);
+      bar
+        .append('text')
+        .attr('fill', 'black')
+        //.attr("x", d => x_new(d.value) - 3)
+        .attr('x', '5px')
+        .attr('y', y_new.bandwidth() / 2)
+        .attr('dy', '0.35em')
+        .attr('text-anchor', 'start')
+        .text((d) => d.name);
 
-      bar.append("text")
-          .attr("fill", 'black')
-          //.attr("x", d => x_new(d.value) - 3)
-          .attr("x", '5px')
-          .attr("y", y_new.bandwidth() / 2)
-          .attr("dy", "0.35em")
-          .attr('text-anchor', 'start')
-          .text(d => d.name);
-
-      const new_chart = svg.node()
+      const new_chart = svg.node();
 
       tableHolder.innerHTML = '';
       // tableHolder.appendChild(table);
@@ -258,55 +341,47 @@ const render_enrich = async ({ model, el }) => {
       element.style.display = 'inline-block';
       element.style.userSelect = 'none';
 
-      // var common_genes = new_chart.term_genes
-      const common_genes = genes
+      paragraphElement = element;
+      genesForParagraph = genes.map((g) => g.toLowerCase());
 
-      d3.select(element)
-        .append('h3')
-        .text(new_chart.term_name)
-
+      d3.select(element).append('h3').text(new_chart.term_name);
       d3.select(element)
         .append('h5')
-        .text('Combined Score ' + new_chart.score)
+        .text('Combined Score ' + new_chart.score);
 
-      element.value = 'Click on a gene to obtain detailed information'
+      element.value = 'Click on a gene to obtain detailed information';
 
-      // d3.select(element)
       d3.select(element)
         .selectAll('div')
-        .data(genes.map(x=>x + ', '))
+        .data(genes.map((x) => x + ', '))
         .join('span')
-        .text(d => d)
+        .text((d) => d)
         .style('font-weight', '550')
-        .style('color', function(d){
-          let inst_gene = d.toLowerCase().replace(', ','')
-          let inst_color
-          if (common_genes.length > 0){
-            if (common_genes.includes(inst_gene)){
-              inst_color = 'blue'
-            } else {
-              inst_color = '#2F4F4F'// '#808080'
-            }
-          } else {
-            inst_color = 'black'
-          }
-          return inst_color
-        })
-        .on('click', function(d){
+        .style('color', () => 'black')
+        .on('click', function (d) {
+          d3.select(element).selectAll('span').style('font-weight', '550');
+          d3.select(this).style('font-weight', 'bold');
 
-          d3.select(element).selectAll('span')
-            .style('font-weight', '550')
-          d3.select(this)
-            .style('font-weight', 'bold')
+          store.gene_of_interest.set(d.replace(', ', ''));
 
-          element.value = d.replace(', ', '')
-          element.dispatchEvent(new CustomEvent("input"));
-        })
-
+          element.value = d.replace(', ', '');
+          element.dispatchEvent(new CustomEvent('input'));
+        });
 
       tableHolder.appendChild(new_chart);
       tableHolder.appendChild(element);
 
+      new_chart.addEventListener('input', () => {
+        const val = new_chart.value || {};
+        store.term_genes.set(val.term_genes || []);
+        d3.select(element).select('h3').text(val.term_name);
+        d3.select(element)
+          .select('h5')
+          .text('Combined Score ' + val.score);
+        updateParagraphColors(element, genesForParagraph);
+      });
+
+      updateParagraphColors(element, genesForParagraph);
     } catch (error) {
       handleAsyncError(error, { context: 'render_enrich' });
       tableHolder.textContent = 'Error loading enrichment data.';

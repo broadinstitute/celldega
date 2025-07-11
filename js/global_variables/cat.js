@@ -38,5 +38,4 @@ export const update_selected_cats = (cats, new_selected_cats, obs_store) => {
 
   // Update obs_store
   obs_store.selected_cats.set(cats.selected_cats);
-
 };

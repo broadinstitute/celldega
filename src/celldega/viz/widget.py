@@ -4,6 +4,7 @@ Widget module for interactive visualization components.
 
 from contextlib import suppress
 from pathlib import Path
+import warnings
 
 import anywidget
 import traitlets
@@ -93,6 +94,12 @@ class Landscape(anywidget.AnyWidget):
         # Convert the new_clusters to a JSON serializable format if necessary
         self.cell_clusters = new_clusters
 
+    def close(self):  # pragma: no cover - cleanup depends on JS
+        """Close the widget and notify the frontend to release resources."""
+        with suppress(Exception):
+            self.send({"event": "finalize"})
+        super().close()
+
 
 class Enrich(anywidget.AnyWidget):
     """ """
@@ -142,7 +149,7 @@ class Clustergram(anywidget.AnyWidget):
     Args:
         value (int): The value traitlet.
         component (str): The component traitlet.
-        network (dict): The network traitlet.
+        network (dict): **Deprecated.** Use ``matrix`` or ``parquet_data``.
         click_info (dict): The click_info traitlet.
 
     Returns:
@@ -162,6 +169,13 @@ class Clustergram(anywidget.AnyWidget):
 
     def __init__(self, **kwargs):
         pq_data = kwargs.pop("parquet_data", None)
+
+        if "network" in kwargs:
+            warnings.warn(
+                "`network` argument is deprecated. Use `matrix` or `parquet_data` instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
 
         # Allow fallback via a 'matrix' kwarg
         if pq_data is None:
@@ -201,3 +215,9 @@ class Clustergram(anywidget.AnyWidget):
         kwargs["name"] = name
         super().__init__(**kwargs)
         _clustergram_registry[name] = self
+
+    def close(self):  # pragma: no cover - cleanup depends on JS
+        """Close the widget and notify the frontend to release resources."""
+        with suppress(Exception):
+            self.send({"event": "finalize"})
+        super().close()

@@ -19,7 +19,6 @@ import { get_scatter_data } from '../../read_parquet/get_scatter_data';
 import { scale_umap_data } from '../../umap/scale_umap_data';
 
 const cell_layer_onclick = async (info, d, deck_ist, layers_obj, viz_state) => {
-
   // Check if the device is a touch device
   const isTouchDevice =
     'ontouchstart' in window || navigator.maxTouchPoints > 0;
@@ -285,5 +284,4 @@ export const toggle_spatial_umap = (deck_ist, layers_obj, viz_state) => {
       getPosition: [viz_state.umap.state],
     },
   });
-
 };

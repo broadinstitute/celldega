@@ -359,7 +359,7 @@ const render_enrich = async ({ model, el }) => {
         .text((d) => d)
         .style('font-weight', '550')
         .style('color', () => 'black')
-        .on('click', function (d) {
+        .on('click', function (event, d) {
           d3.select(element).selectAll('span').style('font-weight', '550');
           d3.select(this).style('font-weight', 'bold');
 

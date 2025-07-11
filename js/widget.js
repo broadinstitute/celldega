@@ -175,8 +175,8 @@ const render_enrich = async ({ model, el }) => {
       console.log('bar_data:', bar_data);
 
       const term_list = bar_data.map(x => x.name)
-      const score_list = bar_data.map(x => x.value)
-      const bar_data_values = bar_data.map(x => x.value)
+      const score_list = bar_data.map(x => x.score)
+      const bar_data_values = bar_data.map(x => x.score)
 
       const width = 1250
 
@@ -230,7 +230,12 @@ const render_enrich = async ({ model, el }) => {
       bar.append("rect")
           .attr("fill", "steelblue")
           .attr('opacity', 0.25)
-          .attr("width", function(d){return x_new(d.value)})
+          // .attr("width", function(d){return x_new(d.value)})
+          .attr("width", function(d){
+            let inst_width = x_new(d.score);
+            console.log('inst_width:', inst_width, 'score:', d.score);
+            return inst_width
+          })
           .attr("height", y_new.bandwidth() - 1);
 
       bar.append("text")
@@ -241,40 +246,6 @@ const render_enrich = async ({ model, el }) => {
           .attr("dy", "0.35em")
           .attr('text-anchor', 'start')
           .text(d => d.name);
-
-
-
-      // arr.forEach((term) => {
-      //   const row = document.createElement('tr');
-      //   const nameCell = document.createElement('td');
-      //   nameCell.textContent = term.name;
-      //   const scoreCell = document.createElement('td');
-      //   scoreCell.textContent = term.score.toFixed(2);
-      //   row.appendChild(nameCell);
-      //   row.appendChild(scoreCell);
-      //   row.addEventListener('click', () => {
-      //     geneInfoHolder.innerHTML = '';
-      //     term.genes.forEach((g) => {
-      //       const span = document.createElement('span');
-      //       span.textContent = `${g} `;
-      //       span.style.cursor = 'pointer';
-      //       span.addEventListener('click', async () => {
-      //         geneInfoHolder.textContent = 'loading...';
-      //         await uniprot_get_request(g);
-      //         const uni = uniprot_data[g] || {};
-      //         const ref = await fetchRefSeqInfo(g);
-      //         const infoParts = [];
-      //         if (uni.name) infoParts.push(`<strong>${uni.name}</strong>`);
-      //         if (uni.description) infoParts.push(uni.description);
-      //         if (ref?.refseq) infoParts.push(`RefSeq: ${ref.refseq}`);
-      //         geneInfoHolder.innerHTML = infoParts.join('<br>');
-      //       });
-      //       geneInfoHolder.appendChild(span);
-      //     });
-      //   });
-      //   table.appendChild(row);
-      // });
-
 
       tableHolder.innerHTML = '';
       // tableHolder.appendChild(table);

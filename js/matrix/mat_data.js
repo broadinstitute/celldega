@@ -1,8 +1,8 @@
 export const set_mat_data = (network, viz_state) => {
   const { mat } = network;
   const { col_offset, row_offset } = viz_state.viz;
-  const max_abs_value = viz_state.mat.max_abs_value;
-  const mat_data = viz_state.mat.mat_data;
+  const { max_abs_value } = viz_state.mat;
+  const { mat_data } = viz_state.mat;
 
   for (let index_row = 0; index_row < mat.length; index_row++) {
     const rowArray = mat[index_row];

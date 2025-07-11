@@ -185,7 +185,6 @@ class Matrix:
         if data is not None:
             # Step 1: Always load data
             if isinstance(data, AnnData):
-
                 # by default no metadata should be visualized for AnnDatas
                 if col_attr is None:
                     col_attr = []
@@ -313,7 +312,9 @@ class Matrix:
         self._clustered = self.is_downsampled = False
         self._invalidate_cache(CacheLevel.DATA.value)
 
-    def load_adata(self, adata: AnnData, col_attr: list[str] | None = None, row_attr: list[str] | None = None) -> None:
+    def load_adata(
+        self, adata: AnnData, col_attr: list[str] | None = None, row_attr: list[str] | None = None
+    ) -> None:
         """
         Load AnnData object.
 
@@ -1137,7 +1138,9 @@ class Matrix:
             # raise and error if the matrix is too large
             if not force:
                 raise ValueError(
-                    ERRORS["clustering_size"].format(n_rows, n_cols, CONFIG["matrix_cell_threshold"])
+                    ERRORS["clustering_size"].format(
+                        n_rows, n_cols, CONFIG["matrix_cell_threshold"]
+                    )
                 )
             # otherwise, just warn
             warnings.warn(

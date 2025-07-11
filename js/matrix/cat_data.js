@@ -9,15 +9,10 @@ const colorToRgba = (colorStr, alpha = 255) => {
 };
 
 export const set_cat_data = (network, viz_state, axis) => {
-
   const isRow = axis === 'row';
   const nodes = isRow ? network.row_nodes : network.col_nodes;
-  const num_attr = isRow
-    ? viz_state.attr.num.row
-    : viz_state.attr.num.col;
-  const max_abs = isRow
-    ? viz_state.attr.maxabs.row
-    : viz_state.attr.maxabs.col;
+  const num_attr = isRow ? viz_state.attr.num.row : viz_state.attr.num.col;
+  const max_abs = isRow ? viz_state.attr.maxabs.row : viz_state.attr.maxabs.col;
   const cat_offset = isRow
     ? viz_state.viz.row_cat_offset
     : viz_state.viz.col_cat_offset;
@@ -61,8 +56,14 @@ export const set_cat_data = (network, viz_state, axis) => {
 
         return {
           position: isRow
-            ? [cat_offset * (attr_index + 0.5) + 20, node_offset * (node_index + 0.5)]
-            : [node_offset * (node_index + 0.5), cat_offset * (attr_index + 1.5) - 30],
+            ? [
+                cat_offset * (attr_index + 0.5) + 20,
+                node_offset * (node_index + 0.5),
+              ]
+            : [
+                node_offset * (node_index + 0.5),
+                cat_offset * (attr_index + 1.5) - 30,
+              ],
           color: color_rgba,
           name: value,
           level: attr_index,
@@ -73,5 +74,4 @@ export const set_cat_data = (network, viz_state, axis) => {
     .filter(Boolean);
 
   return cat_data;
-
 };

@@ -125,8 +125,6 @@ const render_matrix_new = async ({ model, el }) => {
 
   const matBytes = model.get('mat_parquet');
   if (matBytes && matBytes.byteLength > 0) {
-
-    console.log('Loading network from Parquet files');
     network = await networkFromParquet(
       model.get('network_meta'),
       matBytes,
@@ -177,7 +175,10 @@ async function render({ model, el }) {
             cleanup.finalize();
           }
         } catch (e) {
-          console.error('Error finalizing deck:', e);
+          // do not use console.log in production code
+          handleValidationWarning('Error finalizing deck', {
+            data: { error: e.message, model: model?.id || 'unknown' },
+          });
         }
         cleanup = null;
       }

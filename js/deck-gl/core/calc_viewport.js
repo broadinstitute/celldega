@@ -36,11 +36,10 @@ export const calc_viewport = async (
   );
 
   if (tiles_in_view.length < max_tiles_to_view) {
-
     viz_state.obs_store.deck_check.set({
       ...viz_state.obs_store.deck_check.get(),
       trx_data: false,
-      path_data: false
+      path_data: false,
     });
 
     viz_state.close_up = true;
@@ -58,7 +57,6 @@ export const calc_viewport = async (
       layers_obj,
       viz_state
     );
-
 
     // gene bar graph update
     const filtered_transcripts = viz_state.combo_data.trx.filter(
@@ -134,5 +132,4 @@ export const calc_viewport = async (
   }
 
   viz_state.layers_obj = layers_obj;
-
 };

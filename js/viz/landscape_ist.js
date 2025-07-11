@@ -377,11 +377,9 @@ export const landscape_ist = async (
       const list = get_layers_list(viz_state.layers_obj, viz_state.close_up);
       deck_ist.setProps({ layers: list });
     }
-    
-  });  
+  });
 
   viz_state.obs_store.selected_cats.subscribe((selected_cats) => {
-
     const selected_cats_name = selected_cats.join('-');
 
     layers_obj.cell_layer = layers_obj.cell_layer.clone({
@@ -397,7 +395,6 @@ export const landscape_ist = async (
       path_layer: true,
       cell_layer: true,
     });
-
   });
 
   viz_state.obs_store.selected_genes.subscribe((selected_genes) => {
@@ -474,7 +471,6 @@ export const landscape_ist = async (
         ...viz_state.obs_store.deck_check.get(),
         cell_layer: true,
       });
-
     },
     update_matrix_col: async (inst_col) => {
       update_cat(viz_state.cats, 'cluster');
@@ -531,8 +527,7 @@ export const landscape_ist = async (
 
       viz_state.layers_obj = layers_obj;
     },
-    update_layers: () => {
-    },
+    update_layers: () => {},
     finalize: () => {
       deck_ist.finalize();
     },

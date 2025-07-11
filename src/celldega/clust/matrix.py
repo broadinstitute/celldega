@@ -31,7 +31,7 @@ from .constants import (
     NormType,
 )
 from .utils import (
-    add_categories_to_node_info,
+    add_mixed_attributes_to_node_info,
     compute_metric,
     create_node_info_base,
     fast_cosine_distance,
@@ -99,8 +99,8 @@ class Matrix:
         data: pd.DataFrame | AnnData | None = None,
         meta_col: pd.DataFrame | None = None,
         meta_row: pd.DataFrame | None = None,
-        col_cats: list[str] | None = None,
-        row_cats: list[str] | None = None,
+        col_attr: list[str] | None = None,
+        row_attr: list[str] | None = None,
         # Processing parameters
         filter_genes: int | None = None,
         norm_col: str | None = "total",
@@ -118,8 +118,8 @@ class Matrix:
             data: DataFrame or AnnData object
             meta_col: Column metadata (for DataFrame input)
             meta_row: Row metadata (for DataFrame input)
-            col_cats: Column categories (for DataFrame input)
-            row_cats: Row categories (for DataFrame input)
+            col_attr: Column attribute names (categorical or numeric)
+            row_attr: Row attribute names (categorical or numeric)
             filter_genes: Number of top variable genes to keep (None = no filtering)
             norm_col: Column normalization ('total', 'zscore', 'qn', None)
             norm_row: Row normalization ('total', 'zscore', 'qn', None)
@@ -145,8 +145,22 @@ class Matrix:
         self.data: pd.DataFrame | None = None
         self.meta_col: pd.DataFrame = pd.DataFrame()
         self.meta_row: pd.DataFrame = pd.DataFrame()
-        self.col_cats: list[str] = []
-        self.row_cats: list[str] = []
+
+        self.col_attr = col_attr or list(self.meta_col.columns)
+        self.row_attr = row_attr or list(self.meta_row.columns)
+
+        self.col_cats = [
+            attr
+            for attr in self.col_attr
+            if attr in self.meta_col.columns
+            and not pd.api.types.is_numeric_dtype(self.meta_col[attr])
+        ]
+        self.row_cats = [
+            attr
+            for attr in self.row_attr
+            if attr in self.meta_row.columns
+            and not pd.api.types.is_numeric_dtype(self.meta_row[attr])
+        ]
 
         # State tracking
         self._clustered: bool = False
@@ -171,9 +185,21 @@ class Matrix:
         if data is not None:
             # Step 1: Always load data
             if isinstance(data, AnnData):
-                self.load_adata(data)
+                # by default no metadata should be visualized for AnnDatas
+                if col_attr is None:
+                    col_attr = []
+                if row_attr is None:
+                    row_attr = []
+
+                self.load_adata(data, col_attr=col_attr, row_attr=row_attr)
             else:
-                self.load_df(data, meta_col, meta_row, col_cats, row_cats)
+                self.load_df(
+                    data,
+                    meta_col,
+                    meta_row,
+                    col_attr,
+                    row_attr,
+                )
 
             # Step 2: Apply processing unless disabled
             if not disable_processing:
@@ -246,8 +272,8 @@ class Matrix:
         df: pd.DataFrame,
         meta_col: pd.DataFrame | None = None,
         meta_row: pd.DataFrame | None = None,
-        col_cats: list[str] | None = None,
-        row_cats: list[str] | None = None,
+        col_attr: list[str] | None = None,
+        row_attr: list[str] | None = None,
     ) -> None:
         """
         Load DataFrame with metadata.
@@ -256,8 +282,8 @@ class Matrix:
             df: Data matrix
             meta_col: Column metadata (must match df.columns)
             meta_row: Row metadata (must match df.index)
-            col_cats: Column category names for viz
-            row_cats: Row category names for viz
+            col_attr: Column attribute names for viz (categorical or numeric)
+            row_attr: Row attribute names for viz (categorical or numeric)
         """
         self.data = df.copy()
 
@@ -267,13 +293,28 @@ class Matrix:
         validate_metadata(df, self.meta_col, self.meta_row)
         validate_metadata_types(self.meta_col, self.meta_row)
 
-        self.col_cats = col_cats or list(self.meta_col.columns)
-        self.row_cats = row_cats or list(self.meta_row.columns)
+        self.col_attr = list(self.meta_col.columns) if col_attr is None else col_attr
+        self.row_attr = list(self.meta_row.columns) if row_attr is None else row_attr
+
+        self.col_cats = [
+            attr
+            for attr in self.col_attr
+            if attr in self.meta_col.columns
+            and not pd.api.types.is_numeric_dtype(self.meta_col[attr])
+        ]
+        self.row_cats = [
+            attr
+            for attr in self.row_attr
+            if attr in self.meta_row.columns
+            and not pd.api.types.is_numeric_dtype(self.meta_row[attr])
+        ]
 
         self._clustered = self.is_downsampled = False
         self._invalidate_cache(CacheLevel.DATA.value)
 
-    def load_adata(self, adata: AnnData) -> None:
+    def load_adata(
+        self, adata: AnnData, col_attr: list[str] | None = None, row_attr: list[str] | None = None
+    ) -> None:
         """
         Load AnnData object.
 
@@ -282,7 +323,7 @@ class Matrix:
         """
         matrix_data = (adata.X.todense() if hasattr(adata.X, "todense") else adata.X).T
 
-        if adata.n_obs * adata.n_vars > CONFIG["memory_warning_threshold"]:
+        if adata.n_obs * adata.n_vars > CONFIG["matrix_cell_threshold"]:
             warnings.warn(
                 f"Large matrix ({adata.n_obs} x {adata.n_vars}). Consider filtering.",
                 UserWarning,
@@ -290,8 +331,24 @@ class Matrix:
             )
 
         df = pd.DataFrame(matrix_data, index=adata.var.index, columns=adata.obs.index)
+
+        # Copy metadata to avoid mutating the original AnnData object
+        meta_col = adata.obs.copy()
+        meta_row = adata.var.copy()
+
+        # convert categorical columns to string
+        for col in meta_col.select_dtypes(include=["category"]).columns:
+            meta_col[col] = meta_col[col].astype(str)
+
+        for col in meta_row.select_dtypes(include=["category"]).columns:
+            meta_row[col] = meta_row[col].astype(str)
+
         self.load_df(
-            df, adata.obs.copy(), adata.var.copy(), list(adata.obs.columns), list(adata.var.columns)
+            df,
+            meta_col,
+            meta_row,
+            col_attr,
+            row_attr,
         )
 
     def filter(self, axis: AxisInput, by: FilterType, num: int) -> None:
@@ -584,17 +641,51 @@ class Matrix:
         return AnnData(X=self.data.values.T, obs=self.meta_col, var=self.meta_row)
 
     def export_viz_json(self) -> dict[str, Any]:
-        """Export visualization as JSON dict."""
+        """Export visualization as JSON dict.
+
+        .. deprecated:: 0.10
+           Use :meth:`export_viz_parquet` instead.
+        """
+        warnings.warn(
+            "`export_viz_json` is deprecated and will be removed in a future "
+            "release. Use `export_viz_parquet` instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         if not self._clustered:
-            warnings.warn("Matrix not clustered. Call clust() first.", UserWarning, stacklevel=2)
+            warnings.warn(
+                "Matrix not clustered. Call clust() first.",
+                UserWarning,
+                stacklevel=2,
+            )
         return self.viz.copy()
 
     def export_viz_json_string(self) -> str:
-        """Export visualization as JSON string."""
+        """Export visualization as JSON string.
+
+        .. deprecated:: 0.10
+           Use :meth:`export_viz_parquet` instead.
+        """
+        warnings.warn(
+            "`export_viz_json_string` is deprecated and will be removed in a "
+            "future release. Use `export_viz_parquet` instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return json.dumps(self.export_viz_json())
 
     def export_viz_to_widget(self, which_viz: str = "viz") -> str:
-        """Export visualization for widget."""
+        """Export visualization for widget.
+
+        .. deprecated:: 0.10
+           Use :class:`celldega.viz.Clustergram` with ``matrix`` instead.
+        """
+        warnings.warn(
+            "`export_viz_to_widget` is deprecated. Instantiate `Clustergram` "
+            "with `matrix` or `parquet_data` instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return self.export_viz_json_string()
 
     def export_viz_parquet(self) -> dict[str, bytes]:
@@ -752,16 +843,20 @@ class Matrix:
             self.viz["global_cat_colors"] = {}
 
         if color_mapping is None:
-            # Build color mapping from all unique category values
-            all_cats = set()
+            # Build color mapping from all unique categorical values only
+            all_cats: set[str] = set()
 
-            for df in [self.meta_row, self.meta_col]:
-                if df is not None and not df.empty:
-                    for col in df.columns:
-                        all_cats.update(df[col].dropna().unique())
+            for meta_df, cat_list in (
+                (self.meta_row, self.row_cats),
+                (self.meta_col, self.col_cats),
+            ):
+                if meta_df is not None and not meta_df.empty:
+                    for cat_col in cat_list:
+                        if cat_col in meta_df.columns:
+                            all_cats.update(meta_df[cat_col].dropna().astype(str).unique().tolist())
 
             color_mapping = {
-                str(cat): _COLOR_PALETTE[i % len(_COLOR_PALETTE)]
+                cat: _COLOR_PALETTE[i % len(_COLOR_PALETTE)]
                 for i, cat in enumerate(sorted(all_cats))
             }
 
@@ -774,11 +869,29 @@ class Matrix:
         else:
             color_mapping = dict(color_mapping)
 
-        # save the row and column categories as a list
+        # save the row and column categories and attributes
         self.viz["row_cats"] = self.row_cats
         self.viz["col_cats"] = self.col_cats
+        self.viz["row_attr"] = self.row_attr
+        self.viz["col_attr"] = self.col_attr
+
+        self.viz["row_attr_maxabs"] = self._compute_attr_maxabs(Axis.ROW.value)
+        self.viz["col_attr_maxabs"] = self._compute_attr_maxabs(Axis.COL.value)
 
         self.viz["global_cat_colors"].update(color_mapping)
+
+    def _compute_attr_maxabs(self, axis: str) -> list[float | None]:
+        """Return max absolute values for numeric attributes on an axis."""
+        meta_df = self.meta_row if axis == Axis.ROW.value else self.meta_col
+        attr = self.row_attr if axis == Axis.ROW.value else self.col_attr
+
+        maxabs: list[float | None] = []
+        for inst_attr in attr:
+            if inst_attr in meta_df.columns and pd.api.types.is_numeric_dtype(meta_df[inst_attr]):
+                maxabs.append(float(meta_df[inst_attr].abs().max()))
+            else:
+                maxabs.append(None)
+        return maxabs
 
     def set_matrix_colors(self, pos: str = "red", neg: str = "blue") -> None:
         """
@@ -889,11 +1002,12 @@ class Matrix:
         """Create node info for specified axis."""
         nodes = list(self.data.index if axis == Axis.ROW.value else self.data.columns)
         meta_df = self.meta_row if axis == Axis.ROW.value else self.meta_col
-        cats = self.row_cats if axis == Axis.ROW.value else self.col_cats
+        attr = self.row_attr if axis == Axis.ROW.value else self.col_attr
         linkage_data = self.viz["linkage"][axis]
 
         node_info = create_node_info_base(len(nodes), linkage_data)
-        add_categories_to_node_info(node_info, nodes, meta_df, cats)
+        max_abs = add_mixed_attributes_to_node_info(node_info, nodes, meta_df, attr)
+        self.viz[f"{axis}_attr_maxabs"] = max_abs
 
         return node_info
 
@@ -951,6 +1065,9 @@ class Matrix:
             axis: dat["node_info"][axis]["Y"].tolist() for axis in (Axis.ROW.value, Axis.COL.value)
         }
 
+        viz["row_attr_maxabs"] = self.viz.get("row_attr_maxabs", [])
+        viz["col_attr_maxabs"] = self.viz.get("col_attr_maxabs", [])
+
         for axis in dat["nodes"]:
             self._process_axis_nodes(axis, dat, viz)
 
@@ -976,6 +1093,7 @@ class Matrix:
 
         cluster_lookup = {v: k for k, v in enumerate(node_info["clust"])}
         cat_keys = [k for k in node_info if k.startswith("cat-")]
+        num_keys = [k for k in node_info if k.startswith("num-")]
 
         # Pre-fetch arrays
         arrays = {
@@ -1001,6 +1119,12 @@ class Matrix:
                 if i < len(cat_data):
                     node[cat_key] = cat_data[i]
 
+            # Add numeric attributes
+            for num_key in num_keys:
+                num_data = node_info.get(num_key, [])
+                if i < len(num_data):
+                    node[num_key] = num_data[i]
+
             axis_nodes.append(node)
 
     def _validate_clustering_size(self, force: bool = False) -> None:
@@ -1008,9 +1132,17 @@ class Matrix:
         if self.data is None:
             return
         n_rows, n_cols = self.data.shape
-        if n_cols > CONFIG["large_matrix_threshold"] and not force:
-            raise ValueError(ERRORS["clustering_size"].format(n_cols))
-        if n_rows * n_cols > CONFIG["memory_warning_threshold"]:
+        # if n_cols > CONFIG["large_matrix_threshold"] and not force:
+        #     raise ValueError(ERRORS["clustering_size"].format(n_cols))
+        if n_rows * n_cols > CONFIG["matrix_cell_threshold"]:
+            # raise and error if the matrix is too large
+            if not force:
+                raise ValueError(
+                    ERRORS["clustering_size"].format(
+                        n_rows, n_cols, CONFIG["matrix_cell_threshold"]
+                    )
+                )
+            # otherwise, just warn
             warnings.warn(
                 f"Large matrix ({n_rows} x {n_cols}) may cause memory issues.",
                 UserWarning,

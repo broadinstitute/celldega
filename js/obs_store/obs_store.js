@@ -37,15 +37,18 @@ export const create_obs_store = () => {
       path_layer: true,
       trx_layer: true,
       trx_data: true,
-      path_data: true
+      path_data: true,
     }),
     deck_ready: Observable(false),
   };
 
-  store.deck_check.subscribe((check) => {
-    const ready = Object.values(check).every((v) => v === true);
-    store.deck_ready.set(ready);
-  }, { immediate: false });
+  store.deck_check.subscribe(
+    (check) => {
+      const ready = Object.values(check).every((v) => v === true);
+      store.deck_ready.set(ready);
+    },
+    { immediate: false }
+  );
 
   return store;
 };

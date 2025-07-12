@@ -102,7 +102,19 @@ class Landscape(anywidget.AnyWidget):
 
 
 class Enrich(anywidget.AnyWidget):
-    """ """
+    """ 
+    A widget for interactive enrichment analysis using the Enrichr API.
+    This widget allows users to select a gene list, choose an enrichment library,
+    and specify the number of terms to display.
+    Automatically replaces older widgets with the same name to prevent notebook bloat.
+    Args:
+        value (int): The value traitlet.
+        component (str): The component traitlet.
+        gene_list (list): The list of genes to analyze.
+        available_libs (list): The list of available enrichment libraries.
+        inst_lib (str): The selected enrichment library.
+        num_terms (int): The number of terms to display.
+    """
 
     _esm = Path(__file__).parent / "../static" / "widget.js"
     _css = Path(__file__).parent / "../static" / "widget.css"

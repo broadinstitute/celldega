@@ -311,19 +311,34 @@ const render_enrich = async ({ model, el }) => {
 
           svg.property('value', value_dict).dispatch('input');
 
-          svg.selectAll('g').attr('font-weight', 'normal');
-          svg.selectAll('text').attr('fill', isSelected ? 'black' : 'lightgray');
+          // svg.selectAll('g').attr('font-weight', 'normal');
 
+          // // make the text color light gray except for the clicked one
+          // // reset to black if isSelected is true
+          // svg.selectAll('text')
+          //   .attr('fill', isSelected ? 'black' : 'lightgray');
 
+          
           // d3.select(this).attr('font-weight', 'bold');
 
           // make the text color light gray except for the clicked one
-          svg.selectAll('text')
-            .attr('fill', 'gray');
+          if (!isSelected) {
 
-          d3.select(this)
-            .select('text')
-            .attr('fill', 'black');
+            svg.selectAll('text')
+              .attr('fill', 'gray');
+
+            d3.select(this)
+              .select('text')
+              .attr('fill', 'black');              
+
+          } else {
+
+            svg.selectAll('text')
+              .attr('fill', 'black');
+              
+          }
+
+
 
 
         });
@@ -380,25 +395,25 @@ const render_enrich = async ({ model, el }) => {
         .style('color', () => 'black')
         .on('click', function (event, d) {
 
-//           const gene = d.replace(', ', '');
-//           const current = store.gene_of_interest.get();
+          const gene = d.replace(', ', '');
+          const current = store.gene_of_interest.get();
 
-//           if (gene === current) {
-//             // Toggle off if clicking the same gene
-//             store.gene_of_interest.set('');
-//             element.value = 'Click on a gene to obtain detailed information';
-//             d3.select(element).selectAll('span').style('font-weight', '550');
-//           } else {
-//             d3.select(element).selectAll('span').style('font-weight', '550');
-//             d3.select(this).style('font-weight', 'bold');
-//             store.gene_of_interest.set(gene);
-//             element.value = gene;
-//           }
+          if (gene === current) {
+            // Toggle off if clicking the same gene
+            store.gene_of_interest.set('');
+            element.value = 'Click on a gene to obtain detailed information';
+            // d3.select(element).selectAll('span').style('font-weight', '550');
+          } else {
+            // d3.select(element).selectAll('span').style('font-weight', '550');
+            d3.select(this).style('font-weight', 'bold');
+            store.gene_of_interest.set(gene);
+            element.value = gene;
+          }
 
-          d3.select(element).selectAll('span').style('font-weight', '550');
-          d3.select(this).style('font-weight', 'bold');
+          // d3.select(element).selectAll('span').style('font-weight', '550');
+          // d3.select(this).style('font-weight', 'bold');
 
-          store.gene_of_interest.set(d.replace(', ', ''));
+          // store.gene_of_interest.set(d.replace(', ', ''));
 
 
           element.dispatchEvent(new CustomEvent('input'));

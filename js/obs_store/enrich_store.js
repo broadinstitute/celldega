@@ -27,6 +27,7 @@ export const create_enrich_store = () => {
     selected_lib: Observable('KEGG_2019_Human'),
     term_genes: Observable([]),
     gene_of_interest: Observable(''),
+    selected_term: Observable('Select Term'),
   };
 
   return store;

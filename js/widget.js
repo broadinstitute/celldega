@@ -9,9 +9,9 @@ import { landscape_ist } from './viz/landscape_ist';
 import { landscape_sst } from './viz/landscape_sst';
 import { matrix_viz } from './viz/matrix_viz';
 import { postGeneList, fetchEnrichment } from './external_apis/enrichr_api';
-import { uniprot_data, uniprot_get_request } from './external_apis/uniprot_api';
 import { fetchRefSeqInfo } from './external_apis/refseq_api';
 import { create_enrich_store } from './obs_store/enrich_store';
+import { updateParagraphColors, updateGeneInfo } from './widget_interactions/enrich_utils';
 import * as d3 from 'd3';
 
 // Remove export keywords from render functions
@@ -150,16 +150,39 @@ const render_enrich = async ({ model, el }) => {
 
   const cache = {};
   let paragraphElement = null;
-  let genesForParagraph = [];
 
   const container = document.createElement('div');
   const select = document.createElement('select');
-  const tableHolder = document.createElement('div');
+  const layout = document.createElement('div');
+  const barHolder = document.createElement('div');
+  const infoHolder = document.createElement('div');
   const geneInfoHolder = document.createElement('div');
+  const paragraphHolder = document.createElement('div');
+
   container.appendChild(select);
-  container.appendChild(tableHolder);
-  container.appendChild(geneInfoHolder);
+  container.appendChild(layout);
+  layout.appendChild(barHolder);
+  layout.appendChild(infoHolder);
+  infoHolder.appendChild(paragraphHolder);
+  infoHolder.appendChild(geneInfoHolder);
   el.appendChild(container);
+
+  container.style.width = '800px';
+  layout.style.display = 'flex';
+  layout.style.width = '800px';
+  layout.style.height = '500px';
+  barHolder.style.width = '250px';
+  barHolder.style.height = '100%';
+  barHolder.style.overflowY = 'auto';
+  infoHolder.style.width = '550px';
+  infoHolder.style.height = '100%';
+  infoHolder.style.overflowY = 'auto';
+  paragraphHolder.style.height = '60%';
+  paragraphHolder.style.overflowY = 'auto';
+  geneInfoHolder.style.marginTop = '10px';
+
+  paragraphHolder.textContent = 'Paragraph view';
+  geneInfoHolder.textContent = 'Gene info';
 
   const updateSelectOptions = () => {
     select.innerHTML = '';
@@ -193,37 +216,17 @@ const render_enrich = async ({ model, el }) => {
     store.selected_lib.set(model.get('inst_lib'));
   });
 
-  const updateParagraphColors = (element, genes) => {
-    const common = store.term_genes.get();
-    d3.select(element)
-      .selectAll('span')
-      .style('color', (d) => {
-        const inst_gene = d.toLowerCase().replace(', ', '');
-        if (common.length > 0) {
-          return common.includes(inst_gene) ? 'blue' : '#2F4F4F';
-        }
-        return 'black';
-      });
-  };
-
-  const updateGeneInfo = async () => {
-    const gene = store.gene_of_interest.get();
-    if (!gene) {
-      geneInfoHolder.textContent = '';
-      return;
-    }
-    await uniprot_get_request(gene);
-    const info = uniprot_data[gene] || { name: '', description: '' };
-    geneInfoHolder.innerHTML = `<h3>${gene}: ${info.name}</h3><p>${info.description}</p>`;
-  };
 
   store.term_genes.subscribe(
-    () => {
-      updateParagraphColors(paragraphElement, genesForParagraph);
+    (tg) => {
+      updateParagraphColors(paragraphElement, tg);
     },
     { immediate: false }
   );
-  store.gene_of_interest.subscribe(updateGeneInfo, { immediate: false });
+  store.gene_of_interest.subscribe(
+    (gene) => updateGeneInfo(gene, geneInfoHolder),
+    { immediate: false }
+  );
 
   const update = async () => {
     const genes = model.get('gene_list') || [];
@@ -231,12 +234,12 @@ const render_enrich = async ({ model, el }) => {
     const numTerms = model.get('num_terms') || 10;
 
     if (genes.length === 0) {
-      tableHolder.textContent = 'No genes provided.';
+      barHolder.textContent = 'No genes provided.';
       geneInfoHolder.textContent = '';
       return;
     }
 
-    tableHolder.textContent = 'Loading...';
+    barHolder.textContent = 'Loading...';
 
     try {
       const cacheKey = `${genes.join(',')}__${lib}`;
@@ -281,12 +284,14 @@ const render_enrich = async ({ model, el }) => {
         .attr('font-size', '16')
         .attr('text-anchor', 'end');
 
-      // initialized
-      svg.property('value', {
+      const default_value = {
         term_name: 'Select Term',
         term_genes: [],
         score: 0,
-      });
+      };
+
+      // initialized
+      svg.property('value', { ...default_value });
 
       const bar = svg
         .selectAll('g')
@@ -294,26 +299,32 @@ const render_enrich = async ({ model, el }) => {
         .join('g')
         .attr('transform', (d, i) => `translate(0,${y_new(i)})`)
         .on('click', function (event, d) {
-          const term_genes = d.genes.map((x) => x.toLowerCase());
-          const value_dict = {
-            term_genes,
-            term_name: d.name,
-            score: d.score,
-          };
+          const isSelected = store.selected_term.get() === d.name;
+
+          const value_dict = isSelected
+            ? default_value
+            : {
+                term_genes: d.genes.map((x) => x.toLowerCase()),
+                term_name: d.name,
+                score: d.score,
+              };
 
           svg.property('value', value_dict).dispatch('input');
 
           svg.selectAll('g').attr('font-weight', 'normal');
+          svg.selectAll('text').attr('fill', isSelected ? 'black' : 'lightgray');
+
 
           // d3.select(this).attr('font-weight', 'bold');
 
           // make the text color light gray except for the clicked one
           svg.selectAll('text')
-            .attr('fill', 'lightgray');
+            .attr('fill', 'gray');
 
           d3.select(this)
             .select('text')
             .attr('fill', 'black');
+
 
         });
 
@@ -341,8 +352,8 @@ const render_enrich = async ({ model, el }) => {
 
       const new_chart = svg.node();
 
-      tableHolder.innerHTML = '';
-      // tableHolder.appendChild(table);
+      barHolder.innerHTML = '';
+      // barHolder.appendChild(table);
 
       // Paragraph visual
       //////////////////////////////////////////////////
@@ -352,7 +363,6 @@ const render_enrich = async ({ model, el }) => {
       element.style.userSelect = 'none';
 
       paragraphElement = element;
-      genesForParagraph = genes.map((g) => g.toLowerCase());
 
       d3.select(element).append('h3').text(new_chart.term_name);
       d3.select(element)
@@ -369,32 +379,50 @@ const render_enrich = async ({ model, el }) => {
         .style('font-weight', '550')
         .style('color', () => 'black')
         .on('click', function (event, d) {
+
+//           const gene = d.replace(', ', '');
+//           const current = store.gene_of_interest.get();
+
+//           if (gene === current) {
+//             // Toggle off if clicking the same gene
+//             store.gene_of_interest.set('');
+//             element.value = 'Click on a gene to obtain detailed information';
+//             d3.select(element).selectAll('span').style('font-weight', '550');
+//           } else {
+//             d3.select(element).selectAll('span').style('font-weight', '550');
+//             d3.select(this).style('font-weight', 'bold');
+//             store.gene_of_interest.set(gene);
+//             element.value = gene;
+//           }
+
           d3.select(element).selectAll('span').style('font-weight', '550');
           d3.select(this).style('font-weight', 'bold');
 
           store.gene_of_interest.set(d.replace(', ', ''));
 
-          element.value = d.replace(', ', '');
+
           element.dispatchEvent(new CustomEvent('input'));
         });
 
-      tableHolder.appendChild(new_chart);
-      tableHolder.appendChild(element);
+      barHolder.appendChild(new_chart);
+      paragraphHolder.innerHTML = '';
+      paragraphHolder.appendChild(element);
 
       new_chart.addEventListener('input', () => {
         const val = new_chart.value || {};
         store.term_genes.set(val.term_genes || []);
+        store.selected_term.set(val.term_name);
         d3.select(element).select('h3').text(val.term_name);
         d3.select(element)
           .select('h5')
           .text('Combined Score ' + val.score);
-        updateParagraphColors(element, genesForParagraph);
+        updateParagraphColors(element, store.term_genes.get());
       });
 
-      updateParagraphColors(element, genesForParagraph);
+      updateParagraphColors(element, store.term_genes.get());
     } catch (error) {
       handleAsyncError(error, { context: 'render_enrich' });
-      tableHolder.textContent = 'Error loading enrichment data.';
+      barHolder.textContent = 'Error loading enrichment data.';
       geneInfoHolder.textContent = '';
     }
   };
@@ -428,7 +456,7 @@ async function render({ model, el }) {
         cleanup = await render_matrix_new({ model, el });
         break;
       case 'Enrich':
-        return render_enrich({ model, el }); main
+        return render_enrich({ model, el });
       default:
         handleValidationWarning(`Unknown component type: ${componentType}`, {
           data: { componentType, model: model?.id || 'unknown' },

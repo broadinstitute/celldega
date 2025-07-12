@@ -112,7 +112,7 @@ class Enrich(anywidget.AnyWidget):
     component = traitlets.Unicode("Enrich").tag(sync=True)
 
     # gene list
-    gene_list = traitlets.List([]).tag(sync=True)
+    gene_list = traitlets.List(default_value=[]).tag(sync=True)
 
     # available enrichment libraries
     available_libs = traitlets.List(

@@ -1,4 +1,8 @@
 import './widget.css';
+import * as d3 from 'd3';
+
+import { postGeneList, fetchEnrichment } from './external_apis/enrichr_api';
+import { create_enrich_store } from './obs_store/enrich_store';
 import { networkFromParquet } from './read_parquet/network_from_parquet';
 import {
   handleAsyncError,
@@ -8,11 +12,10 @@ import { landscape_h_e } from './viz/landscape_h_e';
 import { landscape_ist } from './viz/landscape_ist';
 import { landscape_sst } from './viz/landscape_sst';
 import { matrix_viz } from './viz/matrix_viz';
-import { postGeneList, fetchEnrichment } from './external_apis/enrichr_api';
-import { fetchRefSeqInfo } from './external_apis/refseq_api';
-import { create_enrich_store } from './obs_store/enrich_store';
-import { updateParagraphColors, updateGeneInfo } from './widget_interactions/enrich_utils';
-import * as d3 from 'd3';
+import {
+  updateParagraphColors,
+  updateGeneInfo,
+} from './widget_interactions/enrich_utils';
 
 // Remove export keywords from render functions
 const render_landscape_ist = async ({ model, el }) => {
@@ -216,7 +219,6 @@ const render_enrich = async ({ model, el }) => {
     store.selected_lib.set(model.get('inst_lib'));
   });
 
-
   store.term_genes.subscribe(
     (tg) => {
       updateParagraphColors(paragraphElement, tg);
@@ -260,8 +262,6 @@ const render_enrich = async ({ model, el }) => {
       const bar_data_values = bar_data.map((x) => x.score);
 
       const width = 250;
-
-      const table = document.createElement('table');
 
       const x_new = d3
         .scaleLinear()
@@ -310,29 +310,20 @@ const render_enrich = async ({ model, el }) => {
 
           // make the text color light gray except for the clicked one
           if (!isSelected) {
+            svg.selectAll('text').attr('fill', 'gray');
 
-            svg.selectAll('text')
-              .attr('fill', 'gray');
-
-            d3.select(this)
-              .select('text')
-              .attr('fill', 'black');
-            
+            d3.select(this).select('text').attr('fill', 'black');
           } else {
-
-            svg.selectAll('text')
-              .attr('fill', 'black');
-
+            svg.selectAll('text').attr('fill', 'black');
           }
-
         });
 
       bar
         .append('rect')
         .attr('fill', 'steelblue')
         .attr('opacity', 0.25)
-        .attr('width', function (d) {
-          let inst_width = x_new(d.score);
+        .attr('width', (d) => {
+          const inst_width = x_new(d.score);
           return inst_width;
         })
         .attr('height', y_new.bandwidth() - 1);
@@ -362,21 +353,18 @@ const render_enrich = async ({ model, el }) => {
       paragraphElement = element;
 
       d3.select(element).append('h3').text(new_chart.term_name);
-      d3.select(element)
-        .append('h5')
-        .text('Combined Score ' + new_chart.score);
+      d3.select(element).append('h5').text(`Combined Score ${new_chart.score}`);
 
       element.value = 'Click on a gene to obtain detailed information';
 
       d3.select(element)
         .selectAll('div')
-        .data(genes.map((x) => x + ', '))
+        .data(genes.map((x) => `${x}, `))
         .join('span')
         .text((d) => d)
         .style('font-weight', '550')
         .style('color', () => 'black')
         .on('click', function (event, d) {
-
           const gene = d.replace(', ', '');
           const current = store.gene_of_interest.get();
 
@@ -397,7 +385,6 @@ const render_enrich = async ({ model, el }) => {
 
           // store.gene_of_interest.set(d.replace(', ', ''));
 
-
           element.dispatchEvent(new CustomEvent('input'));
         });
 
@@ -410,9 +397,7 @@ const render_enrich = async ({ model, el }) => {
         store.term_genes.set(val.term_genes || []);
         store.selected_term.set(val.term_name);
         d3.select(element).select('h3').text(val.term_name);
-        d3.select(element)
-          .select('h5')
-          .text('Combined Score ' + val.score);
+        d3.select(element).select('h5').text(`Combined Score ${val.score}`);
         updateParagraphColors(element, store.term_genes.get());
       });
 

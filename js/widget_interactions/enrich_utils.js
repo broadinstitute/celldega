@@ -1,5 +1,9 @@
 import * as d3 from 'd3';
-import { uniprot_data, uniprot_get_request } from '../external_apis/uniprot_api';
+
+import {
+  uniprot_data,
+  uniprot_get_request,
+} from '../external_apis/uniprot_api';
 import { handleAsyncError } from '../temp_utils/errorHandler';
 
 export const updateParagraphColors = (element, term_genes) => {

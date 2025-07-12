@@ -7,8 +7,7 @@ export const fetchRefSeqInfo = async (geneSymbol) => {
     return refseq_cache[geneSymbol];
   }
 
-  const searchUrl =
-    `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=gene&term=${geneSymbol}[sym]&retmode=json`;
+  const searchUrl = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=gene&term=${geneSymbol}[sym]&retmode=json`;
 
   try {
     const searchRes = await fetch(searchUrl);
@@ -19,8 +18,7 @@ export const fetchRefSeqInfo = async (geneSymbol) => {
       return null;
     }
 
-    const summaryUrl =
-      `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=gene&id=${id}&retmode=json`;
+    const summaryUrl = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=gene&id=${id}&retmode=json`;
     const summaryRes = await fetch(summaryUrl);
     const summaryJson = await summaryRes.json();
     const doc = summaryJson.result?.[id] || {};

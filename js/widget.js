@@ -171,10 +171,10 @@ const render_enrich = async ({ model, el }) => {
   layout.style.display = 'flex';
   layout.style.width = '800px';
   layout.style.height = '500px';
-  barHolder.style.width = '250px';
+  barHolder.style.width = '400px';
   barHolder.style.height = '100%';
   barHolder.style.overflowY = 'auto';
-  infoHolder.style.width = '550px';
+  infoHolder.style.width = '400px';
   infoHolder.style.height = '100%';
   infoHolder.style.overflowY = 'auto';
   paragraphHolder.style.height = '60%';
@@ -252,13 +252,10 @@ const render_enrich = async ({ model, el }) => {
         cache[cacheKey] = data;
       }
 
-      console.log(data);
       const bar_data = (data[lib] || [])
         .map((d) => ({ name: d[1], score: d[4], genes: d[5] }))
         .sort((a, b) => b.score - a.score)
         .slice(0, numTerms);
-
-      console.log('bar_data:', bar_data);
 
       const bar_data_values = bar_data.map((x) => x.score);
 
@@ -328,9 +325,6 @@ const render_enrich = async ({ model, el }) => {
 
           }
 
-
-
-
         });
 
       bar
@@ -339,7 +333,6 @@ const render_enrich = async ({ model, el }) => {
         .attr('opacity', 0.25)
         .attr('width', function (d) {
           let inst_width = x_new(d.score);
-          console.log('inst_width:', inst_width, 'score:', d.score);
           return inst_width;
         })
         .attr('height', y_new.bandwidth() - 1);
@@ -477,7 +470,6 @@ async function render({ model, el }) {
             cleanup.finalize();
           }
         } catch (e) {
-          // do not use console.log in production code
           handleValidationWarning('Error finalizing deck', {
             data: { error: e.message, model: model?.id || 'unknown' },
           });

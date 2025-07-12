@@ -1,7 +1,6 @@
 import { handleAsyncError } from '../temp_utils/errorHandler';
 
 export const postGeneList = async (genes) => {
-  console.log('Posting gene list to Enrichr:', genes);
   const url = 'https://amp.pharm.mssm.edu/Enrichr/addList';
   const formData = new FormData();
   formData.append('list', genes.join('\n'));
@@ -20,7 +19,6 @@ export const postGeneList = async (genes) => {
 };
 
 export const fetchEnrichment = async (listId, library) => {
-  console.log('Fetching enrichment for listId:', listId, 'library:', library);
   const url = `https://amp.pharm.mssm.edu/Enrichr/enrich?backgroundType=${library}&userListId=${listId}`;
   try {
     const response = await fetch(url);

@@ -311,16 +311,6 @@ const render_enrich = async ({ model, el }) => {
 
           svg.property('value', value_dict).dispatch('input');
 
-          // svg.selectAll('g').attr('font-weight', 'normal');
-
-          // // make the text color light gray except for the clicked one
-          // // reset to black if isSelected is true
-          // svg.selectAll('text')
-          //   .attr('fill', isSelected ? 'black' : 'lightgray');
-
-          
-          // d3.select(this).attr('font-weight', 'bold');
-
           // make the text color light gray except for the clicked one
           if (!isSelected) {
 
@@ -329,13 +319,13 @@ const render_enrich = async ({ model, el }) => {
 
             d3.select(this)
               .select('text')
-              .attr('fill', 'black');              
-
+              .attr('fill', 'black');
+            
           } else {
 
             svg.selectAll('text')
               .attr('fill', 'black');
-              
+
           }
 
 
@@ -347,7 +337,6 @@ const render_enrich = async ({ model, el }) => {
         .append('rect')
         .attr('fill', 'steelblue')
         .attr('opacity', 0.25)
-        // .attr("width", function(d){return x_new(d.value)})
         .attr('width', function (d) {
           let inst_width = x_new(d.score);
           console.log('inst_width:', inst_width, 'score:', d.score);

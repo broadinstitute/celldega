@@ -371,12 +371,21 @@ const render_enrich = async ({ model, el }) => {
         .style('font-weight', '550')
         .style('color', () => 'black')
         .on('click', function (event, d) {
-          d3.select(element).selectAll('span').style('font-weight', '550');
-          d3.select(this).style('font-weight', 'bold');
+          const gene = d.replace(', ', '');
+          const current = store.gene_of_interest.get();
 
-          store.gene_of_interest.set(d.replace(', ', ''));
+          if (gene === current) {
+            // Toggle off if clicking the same gene
+            store.gene_of_interest.set('');
+            element.value = 'Click on a gene to obtain detailed information';
+            d3.select(element).selectAll('span').style('font-weight', '550');
+          } else {
+            d3.select(element).selectAll('span').style('font-weight', '550');
+            d3.select(this).style('font-weight', 'bold');
+            store.gene_of_interest.set(gene);
+            element.value = gene;
+          }
 
-          element.value = d.replace(', ', '');
           element.dispatchEvent(new CustomEvent('input'));
         });
 

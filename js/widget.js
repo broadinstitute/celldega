@@ -187,13 +187,13 @@ const render_enrich = async ({ model, el }) => {
   infoHolder.style.width = '400px';
   infoHolder.style.height = '250px';
   
-  paragraphHolder.style.height = '150px';
+  paragraphHolder.style.height = '160px';
   paragraphHolder.style.width = '500px';
   paragraphHolder.style.marginTop = '5px';
   paragraphHolder.style.overflowY = 'auto';
   paragraphHolder.style.border = '1px solid #d3d3d3';
 
-  geneInfoHolder.style.height = '170px';
+  geneInfoHolder.style.height = '155px';
   geneInfoHolder.style.width = '500px';
   geneInfoHolder.style.marginTop = '5px';
   geneInfoHolder.style.overflowY = 'auto';

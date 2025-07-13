@@ -127,6 +127,9 @@ class Enrich(anywidget.AnyWidget):
     # gene list
     gene_list = traitlets.List(default_value=[]).tag(sync=True)
 
+    # optional background gene list
+    background_list = traitlets.List(allow_none=True, default_value=None).tag(sync=True)
+
     # available enrichment libraries
     available_libs = traitlets.List(
         [

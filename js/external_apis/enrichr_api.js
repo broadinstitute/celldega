@@ -1,9 +1,12 @@
 import { handleAsyncError } from '../temp_utils/errorHandler';
 
-export const postGeneList = async (genes) => {
+export const postGeneList = async (genes, background = null) => {
   const url = 'https://amp.pharm.mssm.edu/Enrichr/addList';
   const formData = new FormData();
   formData.append('list', genes.join('\n'));
+  if (background && Array.isArray(background) && background.length > 0) {
+    formData.append('background', background.join('\n'));
+  }
 
   try {
     const response = await fetch(url, {
@@ -11,7 +14,10 @@ export const postGeneList = async (genes) => {
       body: formData,
     });
     const json = await response.json();
-    return json.userListId.toString();
+    return {
+      userListId: json.userListId.toString(),
+      shortId: json.shortId || null,
+    };
   } catch (error) {
     handleAsyncError(error, { context: 'posting gene list to Enrichr', url });
     throw error;

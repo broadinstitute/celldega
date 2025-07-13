@@ -11,6 +11,7 @@ import traitlets
 
 
 _clustergram_registry = {}  # maps names to widget instances
+_enrich_registry = {}  # maps names to widget instances
 
 
 class Landscape(anywidget.AnyWidget):
@@ -148,6 +149,22 @@ class Enrich(anywidget.AnyWidget):
 
     # number of terms
     num_terms = traitlets.Int(10).tag(sync=True)
+
+    def __init__(self, **kwargs):
+        name = kwargs.pop("name", "default")
+        old_widget = _enrich_registry.get(name)
+        if old_widget:
+            with suppress(Exception):
+                old_widget.close()
+
+        kwargs["name"] = name
+        super().__init__(**kwargs)
+        _enrich_registry[name] = self
+
+    def close(self):  # pragma: no cover - cleanup depends on JS
+        with suppress(Exception):
+            self.send({"event": "finalize"})
+        super().close()
 
 
 class Clustergram(anywidget.AnyWidget):

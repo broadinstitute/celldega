@@ -48,13 +48,15 @@ export const render_enrich = async ({ model, el }) => {
   paragraphHolder.style.width = '500px';
   paragraphHolder.style.marginTop = '5px';
   paragraphHolder.style.overflowY = 'auto';
-  paragraphHolder.style.border = '1px solid #d3d3d3';
+  paragraphHolder.style.border = '1px solid #d3d3d3';  
 
   geneInfoHolder.style.height = '155px';
   geneInfoHolder.style.width = '500px';
   geneInfoHolder.style.marginTop = '5px';
   geneInfoHolder.style.overflowY = 'auto';
   geneInfoHolder.style.border = '1px solid #d3d3d3';
+  geneInfoHolder.style.fontFamily = '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif';
+  
 
   paragraphHolder.textContent = 'Paragraph view';
   geneInfoHolder.textContent = 'Gene info';
@@ -149,8 +151,11 @@ export const render_enrich = async ({ model, el }) => {
         .create('svg')
         .attr('width', width)
         .attr('height', y_new.range()[1])
-        .attr('font-family', 'sans-serif')
-        .attr('font-size', '16')
+        .style(
+          'font-family',
+          '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif'
+        )
+        .attr('font-size', '14')
         .attr('text-anchor', 'end');
 
       const default_value = {
@@ -225,6 +230,10 @@ export const render_enrich = async ({ model, el }) => {
         .join('span')
         .text((d) => d)
         .style('font-weight', '550')
+        .style(
+          'font-family',
+          '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif'
+        )
         .style('color', () => 'black')
         .on('click', function (event, d) {
           const gene = d.replace(', ', '');

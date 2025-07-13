@@ -16,6 +16,7 @@ def test_enrich_defaults() -> None:
     assert "KEGG_2019_Human" in w.available_libs
     assert w.inst_lib == "KEGG_2019_Human"
     assert w.num_terms == 10
+    assert w.background_list is None
 
 
 def test_enrich_traitlets_update() -> None:
@@ -28,4 +29,6 @@ def test_enrich_traitlets_update() -> None:
     assert w.available_libs == ["A", "B"]
     w.num_terms = 5
     assert w.num_terms == 5
+    w.background_list = ["X", "Y"]
+    assert w.background_list == ["X", "Y"]
 

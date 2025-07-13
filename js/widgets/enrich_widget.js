@@ -19,9 +19,11 @@ export const render_enrich = async ({ model, el }) => {
   const infoHolder = document.createElement('div');
   const geneInfoHolder = document.createElement('div');
   const paragraphHolder = document.createElement('div');
+  const linkHolder = document.createElement('a');
 
   container.appendChild(select);
   container.appendChild(layout);
+  container.appendChild(linkHolder);
   layout.appendChild(barHolder);
   layout.appendChild(infoHolder);
   infoHolder.appendChild(paragraphHolder);
@@ -57,6 +59,11 @@ export const render_enrich = async ({ model, el }) => {
   geneInfoHolder.style.overflowY = 'auto';
   geneInfoHolder.style.border = '1px solid #d3d3d3';
   geneInfoHolder.style.fontFamily = '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif';
+
+  linkHolder.style.display = 'block';
+  linkHolder.style.marginTop = '5px';
+  linkHolder.textContent = '';
+  linkHolder.target = '_blank';
 
   paragraphHolder.textContent = 'Paragraph view';
   geneInfoHolder.textContent = 'Gene info';
@@ -108,24 +115,29 @@ export const render_enrich = async ({ model, el }) => {
     const genes = model.get('gene_list') || [];
     const lib = store.selected_lib.get();
     const numTerms = model.get('num_terms') || 10;
+    const background = model.get('background_list') || null;
 
     if (genes.length === 0) {
       barHolder.textContent = 'No genes provided.';
       geneInfoHolder.textContent = '';
+      linkHolder.textContent = '';
       return;
     }
 
     barHolder.textContent = 'Loading...';
 
     try {
-      const cacheKey = `${genes.join(',')}__${lib}`;
+      const cacheKey = `${genes.join(',')}__${lib}__${background ? background.join(',') : 'none'}`;
       let data;
+      let shortId;
       if (cache[cacheKey]) {
-        data = cache[cacheKey];
+        ({ data, shortId } = cache[cacheKey]);
       } else {
-        const listId = await postGeneList(genes);
+        const res = await postGeneList(genes, background);
+        const listId = res.userListId;
+        shortId = res.shortId;
         data = await fetchEnrichment(listId, lib);
-        cache[cacheKey] = data;
+        cache[cacheKey] = { data, shortId };
       }
 
       const bar_data = (data[lib] || [])
@@ -265,15 +277,23 @@ export const render_enrich = async ({ model, el }) => {
       });
 
       updateParagraphColors(element, store.term_genes.get());
+      if (shortId) {
+        linkHolder.href = `https://maayanlab.cloud/Enrichr/enrich?dataset=${shortId}`;
+        linkHolder.textContent = 'View full results on Enrichr';
+      } else {
+        linkHolder.textContent = '';
+      }
     } catch (error) {
       handleAsyncError(error, { context: 'render_enrich' });
       barHolder.textContent = 'Error loading enrichment data.';
       geneInfoHolder.textContent = '';
+      linkHolder.textContent = '';
     }
   };
 
   model.on('change:gene_list', update);
   model.on('change:inst_lib', update);
   model.on('change:num_terms', update);
+  model.on('change:background_list', update);
   await update();
 };

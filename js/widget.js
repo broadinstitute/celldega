@@ -171,24 +171,33 @@ const render_enrich = async ({ model, el }) => {
   el.appendChild(container);
 
   container.style.width = '800px';
+
   select.style.marginBottom = '5px';
-  // layout.style.display = 'flex';
+  select.style.width = '500px';
+  
   layout.style.width = '800px';
   layout.style.height = '500px';
+
   barHolder.style.width = '500px';
   barHolder.style.height = '165px';
   barHolder.style.overflowY = 'auto';
+  // light outline
+  barHolder.style.border = '1px solid #d3d3d3';
 
   infoHolder.style.width = '400px';
   infoHolder.style.height = '250px';
   
   paragraphHolder.style.height = '150px';
+  paragraphHolder.style.width = '500px';
   paragraphHolder.style.marginTop = '5px';
   paragraphHolder.style.overflowY = 'auto';
+  paragraphHolder.style.border = '1px solid #d3d3d3';
 
-  geneInfoHolder.style.height = '165px';
+  geneInfoHolder.style.height = '170px';
+  geneInfoHolder.style.width = '500px';
   geneInfoHolder.style.marginTop = '5px';
   geneInfoHolder.style.overflowY = 'auto';
+  geneInfoHolder.style.border = '1px solid #d3d3d3';
 
   paragraphHolder.textContent = 'Paragraph view';
   geneInfoHolder.textContent = 'Gene info';
@@ -347,19 +356,13 @@ const render_enrich = async ({ model, el }) => {
       const new_chart = svg.node();
 
       barHolder.innerHTML = '';
-      // barHolder.appendChild(table);
 
       // Paragraph visual
       //////////////////////////////////////////////////
-
       const element = document.createElement('div');
-      // element.style.display = 'inline-block';
       element.style.userSelect = 'none';
 
       paragraphElement = element;
-
-      // d3.select(element).append('h3').text(new_chart.term_name);
-      // d3.select(element).append('h5').text(`Combined Score ${new_chart.score}`);
 
       element.value = 'Click on a gene to obtain detailed information';
 
@@ -380,9 +383,6 @@ const render_enrich = async ({ model, el }) => {
             store.gene_of_interest.set('');
             element.value = 'Click on a gene to obtain detailed information';
             d3.select(element).selectAll('span').style('font-weight', '550');
-            // d3.select(element).selectAll('span').style('font-weight', '550');
-            // turl all text in the element to normal font weight
-            // d3.select(element).select
 
           } else {
             d3.select(element).selectAll('span').style('font-weight', '550');
@@ -390,11 +390,6 @@ const render_enrich = async ({ model, el }) => {
             store.gene_of_interest.set(gene);
             element.value = gene;
           }
-
-          // d3.select(element).selectAll('span').style('font-weight', '550');
-          // d3.select(this).style('font-weight', 'bold');
-
-          // store.gene_of_interest.set(d.replace(', ', ''));
 
           element.dispatchEvent(new CustomEvent('input'));
         });
@@ -407,8 +402,6 @@ const render_enrich = async ({ model, el }) => {
         const val = new_chart.value || {};
         store.term_genes.set(val.term_genes || []);
         store.selected_term.set(val.term_name);
-        // d3.select(element).select('h3').text(val.term_name);
-        // d3.select(element).select('h5').text(`Combined Score ${val.score}`);
         updateParagraphColors(element, store.term_genes.get());
       });
 

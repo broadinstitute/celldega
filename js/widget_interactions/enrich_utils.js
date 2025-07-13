@@ -27,7 +27,7 @@ export const updateGeneInfo = async (gene, geneInfoHolder) => {
   try {
     await uniprot_get_request(gene);
     const info = uniprot_data[gene] || { name: '', description: '' };
-    geneInfoHolder.innerHTML = `<h3>${gene}: ${info.name}</h3><p>${info.description}</p>`;
+    geneInfoHolder.innerHTML = `<b>${gene}: ${info.name}</b> <p>${info.description}</p>`;
   } catch (error) {
     handleAsyncError(error, { context: 'updateGeneInfo' });
   }

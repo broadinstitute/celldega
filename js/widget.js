@@ -276,7 +276,7 @@ const render_enrich = async ({ model, el }) => {
 
       const bar_data_values = bar_data.map((x) => x.score);
 
-      const width = 250;
+      const width = 495;
 
       const x_new = d3
         .scaleLinear()

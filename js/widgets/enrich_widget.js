@@ -48,7 +48,8 @@ export const render_enrich = async ({ model, el }) => {
   paragraphHolder.style.width = '500px';
   paragraphHolder.style.marginTop = '5px';
   paragraphHolder.style.overflowY = 'auto';
-  paragraphHolder.style.border = '1px solid #d3d3d3';  
+  paragraphHolder.style.border = '1px solid #d3d3d3';
+
 
   geneInfoHolder.style.height = '155px';
   geneInfoHolder.style.width = '500px';
@@ -56,7 +57,6 @@ export const render_enrich = async ({ model, el }) => {
   geneInfoHolder.style.overflowY = 'auto';
   geneInfoHolder.style.border = '1px solid #d3d3d3';
   geneInfoHolder.style.fontFamily = '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif';
-  
 
   paragraphHolder.textContent = 'Paragraph view';
   geneInfoHolder.textContent = 'Gene info';

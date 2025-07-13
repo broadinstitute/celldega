@@ -131,9 +131,7 @@ class Enrich(anywidget.AnyWidget):
         [
             "CellMarker_2024",
             "ARCHS4_Tissues",
-            "GO_Biological_Process_2018",
-            "GO_Cellular_Component_2018",
-            "GO_Molecular_Function_2018",
+            "GO_Biological_Process_2025",
             "GTEx_Tissue_Sample_Gene_Expression_Profiles_up",
             "KEGG_2019_Human",
             "ChEA_2016",
@@ -146,7 +144,7 @@ class Enrich(anywidget.AnyWidget):
     ).tag(sync=True)
 
     # enrichment library
-    inst_lib = traitlets.Unicode("KEGG_2019_Human").tag(sync=True)
+    inst_lib = traitlets.Unicode("CellMarker_2024").tag(sync=True)
 
     # number of terms
     num_terms = traitlets.Int(10).tag(sync=True)

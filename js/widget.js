@@ -171,18 +171,24 @@ const render_enrich = async ({ model, el }) => {
   el.appendChild(container);
 
   container.style.width = '800px';
-  layout.style.display = 'flex';
+  select.style.marginBottom = '5px';
+  // layout.style.display = 'flex';
   layout.style.width = '800px';
   layout.style.height = '500px';
-  barHolder.style.width = '400px';
-  barHolder.style.height = '100%';
+  barHolder.style.width = '500px';
+  barHolder.style.height = '165px';
   barHolder.style.overflowY = 'auto';
+
   infoHolder.style.width = '400px';
-  infoHolder.style.height = '100%';
-  infoHolder.style.overflowY = 'auto';
-  paragraphHolder.style.height = '60%';
+  infoHolder.style.height = '250px';
+  
+  paragraphHolder.style.height = '150px';
+  paragraphHolder.style.marginTop = '5px';
   paragraphHolder.style.overflowY = 'auto';
-  geneInfoHolder.style.marginTop = '10px';
+
+  geneInfoHolder.style.height = '165px';
+  geneInfoHolder.style.marginTop = '5px';
+  geneInfoHolder.style.overflowY = 'auto';
 
   paragraphHolder.textContent = 'Paragraph view';
   geneInfoHolder.textContent = 'Gene info';
@@ -347,18 +353,19 @@ const render_enrich = async ({ model, el }) => {
       //////////////////////////////////////////////////
 
       const element = document.createElement('div');
-      element.style.display = 'inline-block';
+      // element.style.display = 'inline-block';
       element.style.userSelect = 'none';
 
       paragraphElement = element;
 
-      d3.select(element).append('h3').text(new_chart.term_name);
-      d3.select(element).append('h5').text(`Combined Score ${new_chart.score}`);
+      // d3.select(element).append('h3').text(new_chart.term_name);
+      // d3.select(element).append('h5').text(`Combined Score ${new_chart.score}`);
 
       element.value = 'Click on a gene to obtain detailed information';
 
       d3.select(element)
         .selectAll('div')
+        .style('margin-top', '5px')
         .data(genes.map((x) => `${x}, `))
         .join('span')
         .text((d) => d)
@@ -372,9 +379,13 @@ const render_enrich = async ({ model, el }) => {
             // Toggle off if clicking the same gene
             store.gene_of_interest.set('');
             element.value = 'Click on a gene to obtain detailed information';
+            d3.select(element).selectAll('span').style('font-weight', '550');
             // d3.select(element).selectAll('span').style('font-weight', '550');
+            // turl all text in the element to normal font weight
+            // d3.select(element).select
+
           } else {
-            // d3.select(element).selectAll('span').style('font-weight', '550');
+            d3.select(element).selectAll('span').style('font-weight', '550');
             d3.select(this).style('font-weight', 'bold');
             store.gene_of_interest.set(gene);
             element.value = gene;
@@ -396,8 +407,8 @@ const render_enrich = async ({ model, el }) => {
         const val = new_chart.value || {};
         store.term_genes.set(val.term_genes || []);
         store.selected_term.set(val.term_name);
-        d3.select(element).select('h3').text(val.term_name);
-        d3.select(element).select('h5').text(`Combined Score ${val.score}`);
+        // d3.select(element).select('h3').text(val.term_name);
+        // d3.select(element).select('h5').text(`Combined Score ${val.score}`);
         updateParagraphColors(element, store.term_genes.get());
       });
 

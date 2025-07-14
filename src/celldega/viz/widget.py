@@ -148,7 +148,7 @@ class Enrich(anywidget.AnyWidget):
     ).tag(sync=True)
 
     # enrichment library
-    inst_lib = traitlets.Unicode("CellMarker_2024").tag(sync=True)
+    inst_lib = traitlets.Unicode("KEGG_2019_Human").tag(sync=True)
 
     # number of terms
     num_terms = traitlets.Int(10).tag(sync=True)

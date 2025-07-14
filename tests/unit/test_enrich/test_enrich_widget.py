@@ -2,6 +2,7 @@
 
 import pytest
 
+
 try:
     from celldega.viz import Enrich
 except Exception as e:  # pragma: no cover - skip if deps missing

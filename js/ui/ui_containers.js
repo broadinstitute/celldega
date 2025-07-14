@@ -236,6 +236,7 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
   slider_container.style.marginTop = '0px';
   slider_container.style.marginLeft = '10px';
 
+
   ui_container.appendChild(ctrl_container);
   ui_container.appendChild(slider_container);
 

@@ -1,3 +1,5 @@
+import { create_clustergram_store } from '../obs_store/clustergram_store';
+
 export const set_mat_constants = (
   model,
   network,
@@ -17,6 +19,7 @@ export const set_mat_constants = (
   viz_state.root = root;
 
   viz_state.model = model;
+  viz_state.obs_store = create_clustergram_store();
 
   viz_state.custom_callbacks = {};
   viz_state.custom_callbacks.row = row_label_callback;
@@ -153,6 +156,8 @@ export const set_mat_constants = (
   viz_state.click = {};
   viz_state.click.type = null;
   viz_state.click.value = null;
+
+  viz_state.top_n_genes = 15;
 
   return viz_state;
 };

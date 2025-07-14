@@ -27,7 +27,13 @@ export const updateGeneInfo = async (gene, geneInfoHolder) => {
   try {
     await uniprot_get_request(gene);
     const info = uniprot_data[gene] || { name: '', description: '' };
-    geneInfoHolder.innerHTML = `<b>${gene}: ${info.name}</b> <p>${info.description}</p>`;
+    const boldElement = document.createElement('b');
+    boldElement.textContent = `${gene}: ${info.name}`;
+    const paragraphElement = document.createElement('p');
+    paragraphElement.textContent = info.description;
+    geneInfoHolder.textContent = ''; // Clear existing content
+    geneInfoHolder.appendChild(boldElement);
+    geneInfoHolder.appendChild(paragraphElement);
   } catch (error) {
     handleAsyncError(error, { context: 'updateGeneInfo' });
   }

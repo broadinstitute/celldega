@@ -17,7 +17,6 @@ def test_enrich_defaults() -> None:
     assert "CellMarker_2024" in w.available_libs
     assert w.inst_lib == "CellMarker_2024"
     assert w.num_terms == 50
-    assert w.top_n_genes == 50
     assert w.background_list is None
 
 

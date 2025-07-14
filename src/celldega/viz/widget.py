@@ -156,7 +156,6 @@ class Enrich(anywidget.AnyWidget):
 
     # number of terms
     num_terms = traitlets.Int(50).tag(sync=True)
-    top_n_genes = traitlets.Int(50).tag(sync=True)
 
     def __init__(self, **kwargs):
         name = kwargs.pop("name", "default")

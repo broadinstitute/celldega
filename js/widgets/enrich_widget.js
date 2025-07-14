@@ -24,8 +24,8 @@ export const render_enrich = async ({ model, el }) => {
   const geneSliderLabel = document.createElement('span');
 
   container.appendChild(select);
-  container.appendChild(geneSlider);
-  container.appendChild(geneSliderLabel);
+  // container.appendChild(geneSlider);
+  // container.appendChild(geneSliderLabel);
   container.appendChild(layout);
   container.appendChild(linkHolder);
   layout.appendChild(barHolder);
@@ -34,7 +34,8 @@ export const render_enrich = async ({ model, el }) => {
   infoHolder.appendChild(geneInfoHolder);
   el.appendChild(container);
 
-  container.style.width = '800px';
+  container.style.width = '350px';
+  container.overflowX = 'scroll'
 
   select.style.marginBottom = '5px';
   select.style.width = '500px';

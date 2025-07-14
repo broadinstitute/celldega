@@ -112,7 +112,6 @@ export const render_enrich = async ({ model, el }) => {
     store.selected_lib.set(model.get('inst_lib'));
   });
 
-
   store.term_genes.subscribe(
     (tg) => {
       updateParagraphColors(paragraphElement, tg);
@@ -140,19 +139,21 @@ export const render_enrich = async ({ model, el }) => {
     barHolder.textContent = 'Loading...';
 
     try {
-        const cacheKey = `${genes.join(',')}__${lib}__${background ? background.join(',') : 'none'}`;
-        let data;
-        let shortId;
+      const cacheKey = `${genes.join(',')}__${lib}__${background ? background.join(',') : 'none'}`;
+      let data;
+      let shortId;
 
-        if (cache[cacheKey]) {
-          ({ data, shortId } = cache[cacheKey]);
-        } else {
-          const { userListId, shortId: sId } = await postGeneList(genes, background);
-          shortId = sId;
-          data = await fetchEnrichment(userListId, lib);
-          cache[cacheKey] = { data, shortId };
-        }
-
+      if (cache[cacheKey]) {
+        ({ data, shortId } = cache[cacheKey]);
+      } else {
+        const { userListId, shortId: sId } = await postGeneList(
+          genes,
+          background
+        );
+        shortId = sId;
+        data = await fetchEnrichment(userListId, lib);
+        cache[cacheKey] = { data, shortId };
+      }
 
       const bar_data = (data[lib] || [])
         .map((d) => ({ name: d[1], score: d[4], genes: d[5] }))

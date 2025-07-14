@@ -152,6 +152,7 @@ class Enrich(anywidget.AnyWidget):
 
     # number of terms
     num_terms = traitlets.Int(10).tag(sync=True)
+    top_n_genes = traitlets.Int(50).tag(sync=True)
 
     def __init__(self, **kwargs):
         name = kwargs.pop("name", "default")
@@ -197,6 +198,7 @@ class Clustergram(anywidget.AnyWidget):
     height = traitlets.Int(600).tag(sync=True)
     click_info = traitlets.Dict({}).tag(sync=True)
     selected_genes = traitlets.List(default_value=[]).tag(sync=True)
+    top_n_genes = traitlets.Int(50).tag(sync=True)
 
     def __init__(self, **kwargs):
         pq_data = kwargs.pop("parquet_data", None)

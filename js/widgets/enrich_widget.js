@@ -20,8 +20,12 @@ export const render_enrich = async ({ model, el }) => {
   const geneInfoHolder = document.createElement('div');
   const paragraphHolder = document.createElement('div');
   const linkHolder = document.createElement('a');
+  const geneSlider = document.createElement('input');
+  const geneSliderLabel = document.createElement('span');
 
   container.appendChild(select);
+  container.appendChild(geneSlider);
+  container.appendChild(geneSliderLabel);
   container.appendChild(layout);
   container.appendChild(linkHolder);
   layout.appendChild(barHolder);
@@ -34,6 +38,16 @@ export const render_enrich = async ({ model, el }) => {
 
   select.style.marginBottom = '5px';
   select.style.width = '500px';
+
+  geneSlider.type = 'range';
+  geneSlider.min = '1';
+  geneSlider.max = '200';
+  geneSlider.value = model.get('top_n_genes') || 50;
+  geneSlider.className = 'slider';
+  geneSlider.style.width = '150px';
+  geneSlider.style.marginLeft = '5px';
+  geneSliderLabel.textContent = geneSlider.value;
+  geneSliderLabel.style.marginLeft = '5px';
 
   layout.style.width = '800px';
   layout.style.height = '500px';
@@ -98,6 +112,18 @@ export const render_enrich = async ({ model, el }) => {
   });
   model.on('change:inst_lib', () => {
     store.selected_lib.set(model.get('inst_lib'));
+  });
+
+  geneSlider.addEventListener('input', (e) => {
+    geneSliderLabel.textContent = e.target.value;
+    model.set('top_n_genes', Number(e.target.value));
+    model.save_changes();
+  });
+
+  model.on('change:top_n_genes', () => {
+    const val = model.get('top_n_genes') || 50;
+    geneSlider.value = val;
+    geneSliderLabel.textContent = val;
   });
 
   store.term_genes.subscribe(

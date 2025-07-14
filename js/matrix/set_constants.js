@@ -137,9 +137,11 @@ export const set_mat_constants = (
   viz_state.mat.num_rows = network.mat.length;
   viz_state.mat.num_cols = network.mat[0].length;
 
-  viz_state.mat.max_abs_value = network.mat
-    .flat()
-    .reduce((max, num) => Math.max(max, Math.abs(num)), -Infinity);
+  const abs_vals = network.mat.flat().map((x) => Math.abs(x));
+  abs_vals.sort((a, b) => a - b);
+  const perc_idx = Math.floor(0.9 * (abs_vals.length - 1));
+  viz_state.mat.max_abs_value = abs_vals[perc_idx] || 1;
+  viz_state.mat.opacity = 1.0;
 
   viz_state.order = {};
 
@@ -157,7 +159,8 @@ export const set_mat_constants = (
   viz_state.click.type = null;
   viz_state.click.value = null;
 
-  viz_state.top_n_genes = 15;
+  viz_state.top_n_genes =
+    (model && typeof model.get === 'function' && model.get('top_n_genes')) || 50;
 
   return viz_state;
 };

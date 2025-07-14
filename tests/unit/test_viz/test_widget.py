@@ -66,6 +66,7 @@ def test_clustergram_selected_genes_trait() -> None:
     widget = Clustergram(matrix=mat)
 
     assert widget.selected_genes == []
+    assert widget.top_n_genes == 50
 
     widget.selected_genes = ["A", "B"]
     assert widget.selected_genes == ["A", "B"]

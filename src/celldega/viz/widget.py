@@ -2,10 +2,15 @@
 Widget module for interactive visualization components.
 """
 
+from contextlib import suppress
 from pathlib import Path
+import warnings
 
 import anywidget
 import traitlets
+
+
+_clustergram_registry = {}  # maps names to widget instances
 
 
 class Landscape(anywidget.AnyWidget):
@@ -89,61 +94,91 @@ class Landscape(anywidget.AnyWidget):
         # Convert the new_clusters to a JSON serializable format if necessary
         self.cell_clusters = new_clusters
 
+    def close(self):  # pragma: no cover - cleanup depends on JS
+        """Close the widget and notify the frontend to release resources."""
+        with suppress(Exception):
+            self.send({"event": "finalize"})
+        super().close()
 
-class Matrix(anywidget.AnyWidget):
+
+class Clustergram(anywidget.AnyWidget):
     """
     A widget for interactive visualization of a hierarchically clustered matrix.
+
+    Automatically replaces older widgets with the same name to prevent notebook bloat.
 
     Args:
         value (int): The value traitlet.
         component (str): The component traitlet.
-        network (dict): The network traitlet.
+        network (dict): **Deprecated.** Use ``matrix`` or ``parquet_data``.
         click_info (dict): The click_info traitlet.
 
-    Attributes:
-        component (str): The name of the component.
-        network (dict): The network dictionary.
-        click_info (dict): The click_info dictionary.
-
     Returns:
-        Matrix: A widget for visualizing a hierarchically clustered matrix.
+        Clustergram: A widget for visualizing a hierarchically clustered matrix.
     """
 
     _esm = Path(__file__).parent / "../static" / "widget.js"
     _css = Path(__file__).parent / "../static" / "widget.css"
+
     value = traitlets.Int(0).tag(sync=True)
     component = traitlets.Unicode("Matrix").tag(sync=True)
-
     network = traitlets.Dict({}).tag(sync=True)
-
+    network_meta = traitlets.Dict({}).tag(sync=True)
     width = traitlets.Int(600).tag(sync=True)
     height = traitlets.Int(600).tag(sync=True)
     click_info = traitlets.Dict({}).tag(sync=True)
 
+    def __init__(self, **kwargs):
+        pq_data = kwargs.pop("parquet_data", None)
 
-class MatrixNew(anywidget.AnyWidget):
-    """
-    A new matrix widget for enhanced visualization capabilities.
+        if "network" in kwargs:
+            warnings.warn(
+                "`network` argument is deprecated. Use `matrix` or `parquet_data` instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
 
-    Attributes:
-        component (str): The name of the component.
-        network (dict): The network dictionary.
-        click_info (dict): The click_info dictionary.
-        width (int): Width of the widget.
-        height (int): Height of the widget.
-        value (int): The value traitlet.
+        # Allow fallback via a 'matrix' kwarg
+        if pq_data is None:
+            matrix = kwargs.pop("matrix", None)
+            if matrix is not None:
+                pq_data = matrix.export_viz_parquet()
+            elif "network" not in kwargs:
+                raise ValueError(
+                    "You must pass either `network`, `parquet_data`, or `matrix` (for fallback). If both `network` and `matrix` are provided, `matrix` will be prioritized."
+                )
 
-    Returns:
-        MatrixNew: An enhanced widget for matrix visualization.
-    """
+        # Infer name from pq_data or network
+        name = kwargs.get("network", {}).get("name", None)
+        if pq_data is not None:
+            meta = pq_data.get("meta", {})
+            name = meta.get("name", name)
+            kwargs.setdefault("network_meta", meta)
 
-    _esm = Path(__file__).parent / "../static" / "widget.js"
-    _css = Path(__file__).parent / "../static" / "widget.css"
-    value = traitlets.Int(0).tag(sync=True)
-    component = traitlets.Unicode("MatrixNew").tag(sync=True)
+            parquet_traits = {
+                "mat_parquet": traitlets.Bytes(pq_data.get("mat", b"")).tag(sync=True),
+                "row_nodes_parquet": traitlets.Bytes(pq_data.get("row_nodes", b"")).tag(sync=True),
+                "col_nodes_parquet": traitlets.Bytes(pq_data.get("col_nodes", b"")).tag(sync=True),
+                "row_linkage_parquet": traitlets.Bytes(pq_data.get("row_linkage", b"")).tag(
+                    sync=True
+                ),
+                "col_linkage_parquet": traitlets.Bytes(pq_data.get("col_linkage", b"")).tag(
+                    sync=True
+                ),
+            }
+            self.add_traits(**parquet_traits)
 
-    network = traitlets.Dict({}).tag(sync=True)
-    width = traitlets.Int(600).tag(sync=True)
-    height = traitlets.Int(600).tag(sync=True)
+        old_widget = _clustergram_registry.get(name)
+        if old_widget:
+            with suppress(Exception):
+                old_widget.close()
 
-    click_info = traitlets.Dict({}).tag(sync=True)
+        kwargs["name"] = name
+        super().__init__(**kwargs)
+        _clustergram_registry[name] = self
+
+    def close(self):  # pragma: no cover - cleanup depends on JS
+        """Close the widget and notify the frontend to release resources."""
+        with suppress(Exception):
+            self.send({"event": "finalize"})
+        super().close()

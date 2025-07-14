@@ -181,7 +181,15 @@ def _filter_and_save_fine_tile(
         # Add geometry column as a list of [x, y] pairs
         fine_tile_trx = fine_tile_trx.with_columns(
             pl.concat_list([pl.col("transformed_x"), pl.col("transformed_y")]).alias("geometry")
-        ).drop(["transformed_x", "transformed_y", "cell_id", "transcript_id"])
+        )
+
+        # Drop columns if they exist
+        columns_to_drop = [
+            col
+            for col in ["transformed_x", "transformed_y", "cell_id", "transcript_id"]
+            if col in fine_tile_trx.columns
+        ]
+        fine_tile_trx = fine_tile_trx.drop(columns_to_drop)
 
         # Define the filename based on fine tile coordinates
         filename = Path(path_trx_tiles) / f"transcripts_tile_{fine_i}_{fine_j}.parquet"
@@ -202,7 +210,22 @@ def _load_transcript_data_by_technology(technology, path_trx):
     - Polars DataFrame with transcript data
     """
     if technology == "MERSCOPE":
-        trx_ini = pl.read_csv(path_trx, columns=["gene", "global_x", "global_y"])
+        # Define both potential file paths
+        path_trx = Path(path_trx)  # if it's a string, convert to Path
+        parquet_path = path_trx.with_suffix(".parquet")
+
+        # Prefer Parquet if it exists
+        if parquet_path.exists():
+            trx_ini = pl.read_parquet(
+                parquet_path,
+                columns=["gene", "global_x", "global_y", "cell_id", "transcript_id"],
+            )
+        # Fallback to CSV if Parquet does not exist, to be backward compatible
+        else:
+            trx_ini = pl.read_csv(
+                path_trx, columns=["gene", "global_x", "global_y", "cell_id", "transcript_id"]
+            )
+
         return trx_ini.with_columns(
             [
                 pl.col("cell_id"),
@@ -476,7 +499,7 @@ def make_trx_tiles(
         transformation_matrix = np.loadtxt(path_transformation_matrix)
 
         gene_str_to_int_mapping = _get_name_mapping(
-            str(Path(path_transformation_matrix).parent),
+            path_trx_tiles.replace("/transcript_tiles", ""),
             layer="transcript",
         )
 

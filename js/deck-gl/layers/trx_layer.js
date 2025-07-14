@@ -4,7 +4,6 @@ import { update_cat, update_selected_cats } from '../../global_variables/cat';
 import { update_cell_exp_array } from '../../global_variables/cell_exp_array';
 import { update_selected_genes } from '../../global_variables/selected_genes';
 import { grab_trx_tiles_in_view } from '../../vector_tile/transcripts/grab_trx_tiles_in_view';
-import { get_layers_list } from '../utils/layers_ist';
 
 const trx_layer_callback = async (
   info,
@@ -16,7 +15,6 @@ const trx_layer_callback = async (
   const inst_gene = viz_state.genes.trx_names_array[info.index];
 
   if (!inst_gene) {
-    // console.error("Invalid gene name at index:", info.index)
     return;
   }
 
@@ -25,6 +23,12 @@ const trx_layer_callback = async (
   const new_cat = reset_gene ? 'cluster' : inst_gene;
 
   update_cat(viz_state.cats, new_cat);
+
+  viz_state.obs_store.deck_check.set({
+    ...viz_state.obs_store.deck_check.get(),
+    cell_layer: false,
+    trx_layer: false,
+  });
 
   update_selected_genes(viz_state.genes, [inst_gene], viz_state.obs_store);
   // testing setting selected_cats to array with the selected gene for
@@ -40,9 +44,6 @@ const trx_layer_callback = async (
     viz_state.vector_name_integer,
     viz_state.aws
   );
-
-  const layers_list = get_layers_list(layers_obj, viz_state.close_up);
-  deck_ist.setProps({ layers: layers_list });
 };
 
 export const ini_trx_layer = (genes) => {
@@ -87,6 +88,15 @@ export const update_trx_layer_data = async (
 
   layers_obj.trx_layer = layers_obj.trx_layer.clone({
     data: viz_state.genes.trx_data,
+  });
+
+  // update viz_state layers before notifying deck_ready
+  viz_state.layers_obj = layers_obj;
+
+  viz_state.obs_store.deck_check.set({
+    ...viz_state.obs_store.deck_check.get(),
+    trx_layer: true,
+    trx_data: true,
   });
 };
 

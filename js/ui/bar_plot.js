@@ -1,6 +1,5 @@
 import * as d3 from 'd3';
 
-import { get_layers_list } from '../deck-gl/utils/layers_ist';
 import { update_cat, update_selected_cats } from '../global_variables/cat';
 import { update_cell_exp_array } from '../global_variables/cell_exp_array';
 import { update_selected_genes } from '../global_variables/selected_genes';
@@ -16,12 +15,7 @@ export const bar_callback_cluster = (
   _layers_obj,
   _viz_state
 ) => {
-  update_cat(_viz_state.cats, 'cluster');
-  update_selected_cats(_viz_state.cats, [d.name], _viz_state.obs_store);
-  update_selected_genes(_viz_state.genes, [], _viz_state.obs_store);
-
   // add cell_layer, path_layer, and trx_layer to the deck_check observable
-  // to do list
   _viz_state.obs_store.deck_check.set({
     ..._viz_state.obs_store.deck_check.get(),
     cell_layer: false,
@@ -29,8 +23,9 @@ export const bar_callback_cluster = (
     trx_layer: false,
   });
 
-  const layers_list = get_layers_list(_layers_obj, _viz_state.close_up);
-  _deck_ist.setProps({ layers: layers_list });
+  update_cat(_viz_state.cats, 'cluster');
+  update_selected_cats(_viz_state.cats, [d.name], _viz_state.obs_store);
+  update_selected_genes(_viz_state.genes, [], _viz_state.obs_store);
 };
 
 export const bar_callback_gene = async (
@@ -45,6 +40,12 @@ export const bar_callback_gene = async (
   const new_cat = reset_gene ? 'cluster' : inst_gene;
 
   update_cat(_viz_state.cats, new_cat);
+
+  _viz_state.obs_store.deck_check.set({
+    ..._viz_state.obs_store.deck_check.get(),
+    cell_layer: false,
+    trx_layer: false,
+  });
   update_selected_genes(_viz_state.genes, [inst_gene], _viz_state.obs_store);
   // testing setting selected_cats to array with the selected gene for
   // observable updates
@@ -58,9 +59,6 @@ export const bar_callback_gene = async (
     _viz_state.vector_name_integer,
     _viz_state.aws
   );
-
-  const layers_list = get_layers_list(_layers_obj, _viz_state.close_up);
-  _deck_ist.setProps({ layers: layers_list });
 };
 
 export const bar_callback_rgn = (

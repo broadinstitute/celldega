@@ -22,19 +22,33 @@ const Observable = (initialValue) => {
 };
 
 export const create_obs_store = () => {
-  return {
+  const store = {
     cat: Observable('cluster'),
     selected_cats: Observable([]),
     new_cell_bar_data: Observable([]),
     new_gene_bar_data: Observable([]),
     selected_genes: Observable([]),
     viz_image_layers: Observable(true),
+    // to do utilize for setProps
     deck_check: Observable({
       background_layer: true,
       image_layers: true,
       cell_layer: true,
       path_layer: true,
       trx_layer: true,
+      trx_data: true,
+      path_data: true,
     }),
+    deck_ready: Observable(false),
   };
+
+  store.deck_check.subscribe(
+    (check) => {
+      const ready = Object.values(check).every((v) => v === true);
+      store.deck_ready.set(ready);
+    },
+    { immediate: false }
+  );
+
+  return store;
 };

@@ -1,7 +1,6 @@
 import { visibleTiles } from '../../vector_tile/visibleTiles';
 import { update_path_layer_data } from '../layers/path_layer';
 import { update_trx_layer_data } from '../layers/trx_layer';
-import { get_layers_list } from '../utils/layers_ist';
 
 export const calc_viewport = async (
   { height, width, zoom, target },
@@ -25,7 +24,6 @@ export const calc_viewport = async (
   // Get the current viewport from Deck.gl
   const viewports = deck_ist.viewManager.getViewports();
   if (!viewports || viewports.length === 0) {
-    // console.error('No viewports available')
     return;
   }
 
@@ -38,6 +36,14 @@ export const calc_viewport = async (
   );
 
   if (tiles_in_view.length < max_tiles_to_view) {
+    viz_state.obs_store.deck_check.set({
+      ...viz_state.obs_store.deck_check.get(),
+      trx_data: false,
+      path_data: false,
+    });
+
+    viz_state.close_up = true;
+
     await update_trx_layer_data(
       viz_state.global_base_url,
       tiles_in_view,
@@ -51,8 +57,6 @@ export const calc_viewport = async (
       layers_obj,
       viz_state
     );
-
-    viz_state.close_up = true;
 
     // gene bar graph update
     const filtered_transcripts = viz_state.combo_data.trx.filter(
@@ -127,6 +131,5 @@ export const calc_viewport = async (
     }
   }
 
-  const layers_list = get_layers_list(layers_obj, viz_state.close_up);
-  deck_ist.setProps({ layers: layers_list });
+  viz_state.layers_obj = layers_obj;
 };

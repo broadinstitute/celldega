@@ -88,12 +88,41 @@ DistanceType = Literal["cosine", "euclidean", "correlation", "manhattan"]
 LinkageType = Literal["average", "single", "complete", "ward"]
 
 _COLOR_PALETTE = [
-    "#393b79", "#aec7e8", "#ff7f0e", "#ffbb78", "#98df8a", "#bcbd22",
-    "#404040", "#ff9896", "#c5b0d5", "#8c5648", "#1f77b4", "#5254a3",
-    "#FFDB58", "#c49c94", "#e377c2", "#7f7f7f", "#2ca02c", "#9467bd",
-    "#dbdb8d", "#17becf", "#637939", "#6b6ecf", "#9c9ede", "#d62728",
-    "#8ca252", "#8c6d31", "#bd9e39", "#e7cb94", "#843c39", "#ad494a",
-    "#d6616b", "#7b4173", "#a55194", "#ce6dbd", "#de9ed6"
+    "#393b79",
+    "#aec7e8",
+    "#ff7f0e",
+    "#ffbb78",
+    "#98df8a",
+    "#bcbd22",
+    "#404040",
+    "#ff9896",
+    "#c5b0d5",
+    "#8c5648",
+    "#1f77b4",
+    "#5254a3",
+    "#FFDB58",
+    "#c49c94",
+    "#e377c2",
+    "#7f7f7f",
+    "#2ca02c",
+    "#9467bd",
+    "#dbdb8d",
+    "#17becf",
+    "#637939",
+    "#6b6ecf",
+    "#9c9ede",
+    "#d62728",
+    "#8ca252",
+    "#8c6d31",
+    "#bd9e39",
+    "#e7cb94",
+    "#843c39",
+    "#ad494a",
+    "#d6616b",
+    "#7b4173",
+    "#a55194",
+    "#ce6dbd",
+    "#de9ed6",
 ]
 
 
@@ -120,7 +149,7 @@ CONFIG: dict[str, Any] = {
     "memory_threshold": 2e9,  # 2GB for memory mapping
     "cache_size_limit": 5,
     "large_matrix_threshold": 10000,
-    "memory_warning_threshold": 50_000_000,
+    "matrix_cell_threshold": 5_000_000,
     "sample_hash_size": 100,
 }
 
@@ -145,6 +174,10 @@ DEFAULT_VIZ: dict[str, Any] = {
     "col_nodes": [],
     "mat": [],
     "linkage": {Axis.ROW.value: [], Axis.COL.value: []},
+    "row_attr": [],
+    "col_attr": [],
+    "row_attr_maxabs": [],
+    "col_attr_maxabs": [],
     "cat_colors": {Axis.ROW.value: {}, Axis.COL.value: {}},
     "matrix_colors": {"pos": "red", "neg": "blue"},
     "views": [],
@@ -158,7 +191,7 @@ ERRORS: dict[str, str] = {
     "invalid_norm": "Normalization '{}' not supported. Use: total, zscore, qn",
     "missing_category": "Category '{}' not found in {}",
     "no_valid_features": "No valid {} features found",
-    "clustering_size": "Matrix has {} columns. Use force=True to override.",
+    "clustering_size": "Matrix has {} rows and {} columns exceeding the total recommended matrix cell count of {}. Use force=True to override.",
     "missing_scanpy": "scanpy required: pip install scanpy",
     "missing_metadata": "{} metadata missing for: {}...",
 }

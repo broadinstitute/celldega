@@ -3,7 +3,6 @@ import { PathLayer } from 'deck.gl';
 import { update_selected_cats, update_cat } from '../../global_variables/cat';
 import { update_selected_genes } from '../../global_variables/selected_genes';
 import { grab_cell_tiles_in_view } from '../../vector_tile/polygons/grab_cell_tiles_in_view';
-import { get_layers_list } from '../utils/layers_ist';
 
 export const get_path_color = (cats, i, d) => {
   const inst_cell_id = cats.polygon_cell_names[d.index];
@@ -52,12 +51,16 @@ const path_layer_onclick = async (
   const inst_cell_id = viz_state.cats.polygon_cell_names[info.index];
   const inst_cat = viz_state.cats.dict_cell_cats[inst_cell_id];
 
+  viz_state.obs_store.deck_check.set({
+    ...viz_state.obs_store.deck_check.get(),
+    cell_layer: false,
+    path_layer: false,
+    trx_layer: false,
+  });
+
   update_cat(viz_state.cats, 'cluster');
   update_selected_cats(viz_state.cats, [inst_cat], viz_state.obs_store);
   update_selected_genes(viz_state.genes, [], viz_state.obs_store);
-
-  const layers_list = get_layers_list(layers_obj, viz_state.close_up);
-  deck_ist.setProps({ layers: layers_list });
 };
 
 export const update_path_layer_data = async (
@@ -74,6 +77,14 @@ export const update_path_layer_data = async (
 
   layers_obj.path_layer = layers_obj.path_layer.clone({
     data: polygonPathsConcat,
+  });
+
+  // ensure state updated prior to deck_ready notification
+  viz_state.layers_obj = layers_obj;
+
+  viz_state.obs_store.deck_check.set({
+    ...viz_state.obs_store.deck_check.get(),
+    path_data: true,
   });
 };
 

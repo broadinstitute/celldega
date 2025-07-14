@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "celldega"
-version = "0.13.0a3"
+version = "0.13.0a4"
 readme = "README.md"
 dependencies = [
     "anndata~=0.11.0",
@@ -47,19 +47,17 @@ dev = [
     "pre-commit",        # Git hooks automation
     "build",             # Package building
     "twine",             # PyPI publishing
-]
-# optional dependencies for pre-processing
-pre = [
-    "pyvips~=2.2.2"
-]
-# optional dependencies for documentation
-docs = [
+    # Documentation dependencies
     "mkdocs",
     "mkdocs-material",
     "mkdocstrings[python]",
     "mkdocstrings[javascript]",
     "mkdocs-jupyter",
-    "mkdocs-open-in-new-tab"
+    "mkdocs-open-in-new-tab"    
+]
+# optional dependencies for pre-processing
+pre = [
+    "pyvips~=2.2.2"
 ]
 
 # Automatically add the dev feature to the default env (e.g., hatch shell)

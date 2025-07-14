@@ -12,8 +12,10 @@ export class CustomMatrixLayer extends ScatterplotLayer {
   }
 
   // Add custom uniforms
-  draw({ uniforms }) {
+  draw(opts) {
+    const { uniforms } = opts;
     super.draw({
+      ...opts,
       uniforms: {
         ...uniforms,
         tile_height: this.props.tile_height,

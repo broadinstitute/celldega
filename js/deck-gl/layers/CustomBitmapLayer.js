@@ -6,12 +6,9 @@ export class CustomBitmapLayer extends BitmapLayer {
     // Directly injecting shader code
     shaders.inject = {
       'fs:#decl': `uniform vec3 uColor; uniform float uOpacityScale;`,
-      'fs:DECKGL_FILTER_COLOR': `
-        // Convert color to grayscale and apply opacity scale
+      'fs:DECKGL_FILTER_COLOR(inout vec4 color, Geometry geometry)': `
         float grayscale = ((color.r + color.g + color.b) / 3.0) * uOpacityScale;
-        // Clamp grayscale to valid range
         grayscale = clamp(grayscale, 0.0, 1.0);
-        // Apply custom color and scaled opacity
         color = vec4(uColor, grayscale);
       `,
     };

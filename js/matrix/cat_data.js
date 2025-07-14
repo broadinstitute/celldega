@@ -8,12 +8,11 @@ const colorToRgba = (colorStr, alpha = 255) => {
   return [d3col.r, d3col.g, d3col.b, alpha];
 };
 
-const set_cat_data = (network, viz_state, axis) => {
+export const set_cat_data = (network, viz_state, axis) => {
   const isRow = axis === 'row';
   const nodes = isRow ? network.row_nodes : network.col_nodes;
-  const num_cats = isRow
-    ? viz_state.cats.num_cats.row
-    : viz_state.cats.num_cats.col;
+  const num_attr = isRow ? viz_state.attr.num.row : viz_state.attr.num.col;
+  const max_abs = isRow ? viz_state.attr.maxabs.row : viz_state.attr.maxabs.col;
   const cat_offset = isRow
     ? viz_state.viz.row_cat_offset
     : viz_state.viz.col_cat_offset;
@@ -26,30 +25,48 @@ const set_cat_data = (network, viz_state, axis) => {
 
   const cat_data = nodes
     .flatMap((node, node_index) => {
-      return Array.from({ length: num_cats }).map((_, cat_index) => {
-        const cat_name = `cat-${cat_index}`;
-        const inst_cat = node[cat_name];
+      return Array.from({ length: num_attr }).map((_, attr_index) => {
+        let value;
+        let color_rgba;
+        const maxVal = max_abs[attr_index];
+        const isNumeric = maxVal !== null && maxVal !== undefined;
 
-        if (!inst_cat) {
-          return null;
+        if (isNumeric) {
+          const attr_name = `num-${attr_index}`;
+          value = node[attr_name];
+          if (value === undefined || value === null || isNaN(value)) {
+            return null;
+          }
+          // dark gray rgba for positive, orange rgba for negative
+          const neg = [255, 165, 0];
+          const pos = [169, 169, 169];
+          const color = value >= 0 ? pos : neg;
+          const scale = maxVal === 0 ? 1 : maxVal;
+          const alpha = Math.min(1, Math.abs(value) / scale);
+          color_rgba = [...color, Math.round(alpha * 255)];
+        } else {
+          const cat_name = `cat-${attr_index}`;
+          value = node[cat_name];
+          if (!value) {
+            return null;
+          }
+          const ini_color = network.global_cat_colors[value];
+          color_rgba = colorToRgba(ini_color, 255);
         }
-
-        const ini_color = network.global_cat_colors[inst_cat];
-        const color_rgba = colorToRgba(ini_color, 255);
 
         return {
           position: isRow
             ? [
-                cat_offset * (cat_index + 0.5) + 20,
+                cat_offset * (attr_index + 0.5) + 20,
                 node_offset * (node_index + 0.5),
               ]
             : [
                 node_offset * (node_index + 0.5),
-                cat_offset * (cat_index + 1.5) - 30,
+                cat_offset * (attr_index + 1.5) - 30,
               ],
           color: color_rgba,
-          name: inst_cat,
-          level: cat_index,
+          name: value,
+          level: attr_index,
           original_index: node_index,
         };
       });
@@ -57,12 +74,4 @@ const set_cat_data = (network, viz_state, axis) => {
     .filter(Boolean);
 
   return cat_data;
-};
-
-export const set_row_cat_data = (network, viz_state) => {
-  return set_cat_data(network, viz_state, 'row');
-};
-
-export const set_col_cat_data = (network, viz_state) => {
-  return set_cat_data(network, viz_state, 'col');
 };

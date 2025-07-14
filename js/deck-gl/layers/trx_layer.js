@@ -44,7 +44,6 @@ const trx_layer_callback = async (
     viz_state.vector_name_integer,
     viz_state.aws
   );
-
 };
 
 export const ini_trx_layer = (genes) => {

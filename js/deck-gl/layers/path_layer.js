@@ -69,7 +69,6 @@ export const update_path_layer_data = async (
   layers_obj,
   viz_state
 ) => {
-
   const polygonPathsConcat = await grab_cell_tiles_in_view(
     base_url,
     tiles_in_view,

@@ -134,7 +134,8 @@ const render_landscape = async ({ model, el }) => {
 };
 
 const render_matrix_new = async ({ model, el }) => {
-  let network = model.get('network');
+  // let network = model.get('network');
+  let network;
   const width = model.get('width');
   const height = model.get('height');
 
@@ -150,11 +151,12 @@ const render_matrix_new = async ({ model, el }) => {
     );
   }
 
-  matrix_viz(model, el, network, width, height);
+  return matrix_viz(model, el, network, width, height);
 };
 
 // Main render function - no export keyword
-function render({ model, el }) {
+async function render({ model, el }) {
+  let cleanup = null;
   try {
     const componentType = model.get('component');
 
@@ -168,15 +170,35 @@ function render({ model, el }) {
 
     switch (componentType) {
       case 'Landscape':
-        return render_landscape({ model, el });
+        cleanup = await render_landscape({ model, el });
+        break;
       case 'Matrix':
-        return render_matrix_new({ model, el });
+        cleanup = await render_matrix_new({ model, el });
+        break;
       default:
         handleValidationWarning(`Unknown component type: ${componentType}`, {
           data: { componentType, model: model?.id || 'unknown' },
         });
         return;
     }
+
+    model.on('msg:custom', (msg) => {
+      if (msg.event === 'finalize' && cleanup) {
+        try {
+          if (typeof cleanup === 'function') {
+            cleanup();
+          } else if (cleanup.finalize) {
+            cleanup.finalize();
+          }
+        } catch (e) {
+          // do not use console.log in production code
+          handleValidationWarning('Error finalizing deck', {
+            data: { error: e.message, model: model?.id || 'unknown' },
+          });
+        }
+        cleanup = null;
+      }
+    });
   } catch (error) {
     const errorResult = handleAsyncError(error, {
       context: 'render function',

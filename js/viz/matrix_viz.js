@@ -52,7 +52,7 @@ import { get_tooltip } from '../deck-gl/matrix/matrix_tooltip';
 import { on_view_state_change } from '../deck-gl/matrix/on_view_state_change';
 import { ini_views, ini_view_state } from '../deck-gl/matrix/views';
 import { ini_zoom_data } from '../deck-gl/matrix/zoom';
-import { set_row_cat_data, set_col_cat_data } from '../matrix/cat_data';
+import { set_cat_data } from '../matrix/cat_data';
 import { calc_dendro_polygons, ini_dendro } from '../matrix/dendro';
 import { set_row_label_data, set_col_label_data } from '../matrix/label_data';
 import { set_mat_data } from '../matrix/mat_data';
@@ -101,8 +101,9 @@ export const matrix_viz = async (
   set_row_label_data(network, viz_state);
   set_col_label_data(network, viz_state);
 
-  viz_state.cats.row_cat_data = set_row_cat_data(network, viz_state);
-  viz_state.cats.col_cat_data = set_col_cat_data(network, viz_state);
+  viz_state.cats = {};
+  viz_state.cats.row_cat_data = set_cat_data(network, viz_state, 'row');
+  viz_state.cats.col_cat_data = set_cat_data(network, viz_state, 'col');
 
   ini_dendro(viz_state);
 
@@ -147,4 +148,6 @@ export const matrix_viz = async (
 
   el.appendChild(ui_container);
   el.appendChild(viz_state.root);
+
+  return () => deck_mat.finalize();
 };

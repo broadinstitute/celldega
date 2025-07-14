@@ -164,7 +164,8 @@ async function render({ model, el }) {
         cleanup = await render_matrix_new({ model, el });
         break;
       case 'Enrich':
-        return render_enrich({ model, el });
+        cleanup = await render_enrich({ model, el });
+        break;
       default:
         handleValidationWarning(`Unknown component type: ${componentType}`, {
           data: { componentType, model: model?.id || 'unknown' },

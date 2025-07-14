@@ -43,10 +43,11 @@ landscape_ist = dega.viz.Landscape(
 file_path = 'https://raw.githubusercontent.com/broadinstitute/celldega_Xenium_Prime_Human_Skin_FFPE_outs/main/Xenium_Prime_Human_Skin_FFPE_outs/df_sig.parquet'
 df = pd.read_parquet(file_path)
 
-network = dega.clust.hc(df)
-mat = dega.viz.Matrix(network=network, width=500, height=500)
+mat = dega.clust.Matrix(df)
+mat.cluster()
+cgm = deva.viz.Clustergram(mat)
 
-dega.viz.landscape_matrix(landscape_ist, mat)
+dega.viz.landscape_clustergram(landscape_ist, cgm)
 ```
 
 ![Celldega Demo](public/assets/celldega-demo.png)

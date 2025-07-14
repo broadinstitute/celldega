@@ -14,8 +14,8 @@ def test_enrich_defaults() -> None:
     assert w.component == "Enrich"
     assert w.gene_list == []
     assert isinstance(w.available_libs, list)
-    assert "KEGG_2019_Human" in w.available_libs
-    assert w.inst_lib == "KEGG_2019_Human"
+    assert "CellMarker_2024" in w.available_libs
+    assert w.inst_lib == "CellMarker_2024"
     assert w.num_terms == 10
     assert w.top_n_genes == 50
     assert w.background_list is None

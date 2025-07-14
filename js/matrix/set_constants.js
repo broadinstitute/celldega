@@ -139,9 +139,8 @@ export const set_mat_constants = (
 
   const abs_vals = network.mat.flat().map((x) => Math.abs(x));
   abs_vals.sort((a, b) => a - b);
-  const perc_idx = Math.floor(0.9 * (abs_vals.length - 1));
+  const perc_idx = Math.floor(0.99 * (abs_vals.length - 1));
   viz_state.mat.max_abs_value = abs_vals[perc_idx] || 1;
-  viz_state.mat.opacity = 1.0;
 
   viz_state.order = {};
 

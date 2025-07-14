@@ -103,7 +103,7 @@ class Landscape(anywidget.AnyWidget):
 
 
 class Enrich(anywidget.AnyWidget):
-    """ 
+    """
     A widget for interactive enrichment analysis using the Enrichr API.
     This widget allows users to select a gene list, choose an enrichment library,
     and specify the number of terms to display.
@@ -121,6 +121,8 @@ class Enrich(anywidget.AnyWidget):
     _css = Path(__file__).parent / "../static" / "widget.css"
 
     value = traitlets.Int(0).tag(sync=True)
+    width = traitlets.Int(350).tag(sync=True)
+    height = traitlets.Int(500).tag(sync=True)
 
     component = traitlets.Unicode("Enrich").tag(sync=True)
 
@@ -136,6 +138,8 @@ class Enrich(anywidget.AnyWidget):
             "CellMarker_2024",
             "ARCHS4_Tissues",
             "GO_Biological_Process_2025",
+            "GO_Cellular_Component_2025",
+            "GO_Molecular_Function_2025",
             "GTEx_Tissue_Expression_Up",
             "KEGG_2019_Human",
             "ChEA_2022",
@@ -148,7 +152,7 @@ class Enrich(anywidget.AnyWidget):
     ).tag(sync=True)
 
     # enrichment library
-    inst_lib = traitlets.Unicode("KEGG_2019_Human").tag(sync=True)
+    inst_lib = traitlets.Unicode("CellMarker_2024").tag(sync=True)
 
     # number of terms
     num_terms = traitlets.Int(10).tag(sync=True)

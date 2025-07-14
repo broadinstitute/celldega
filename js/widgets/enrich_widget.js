@@ -7,7 +7,7 @@ import { handleAsyncError } from '../temp_utils/errorHandler';
 export const render_enrich = async ({ model, el }) => {
   const store = create_enrich_store();
   store.available_libs.set(model.get('available_libs') || []);
-  store.selected_lib.set(model.get('inst_lib') || 'KEGG_2019_Human');
+  store.selected_lib.set(model.get('inst_lib') || 'CellMarker_2024');
 
   const cache = {};
   let paragraphElement = null;
@@ -34,42 +34,51 @@ export const render_enrich = async ({ model, el }) => {
   infoHolder.appendChild(geneInfoHolder);
   el.appendChild(container);
 
-  container.style.width = '350px';
+
+  // const width = 350;
+  // get width from traitlet
+  const width = model.get('width') - 5 || 350;
+  const height = model.get('height') || 500;
+
+
+  container.style.width = `${width}px`;
   container.overflowX = 'scroll'
+  container.style.marginLeft = '5px';
 
   select.style.marginBottom = '5px';
-  select.style.width = '500px';
 
-  geneSlider.type = 'range';
-  geneSlider.min = '1';
-  geneSlider.max = '200';
-  geneSlider.value = model.get('top_n_genes') || 50;
-  geneSlider.className = 'slider';
-  geneSlider.style.width = '150px';
-  geneSlider.style.marginLeft = '5px';
-  geneSliderLabel.textContent = geneSlider.value;
-  geneSliderLabel.style.marginLeft = '5px';
+  select.style.width = `${width}px`;
 
-  layout.style.width = '800px';
+  // geneSlider.type = 'range';
+  // geneSlider.min = '1';
+  // geneSlider.max = '200';
+  // geneSlider.value = model.get('top_n_genes') || 50;
+  // geneSlider.className = 'slider';
+  // geneSlider.style.width = '150px';
+  // geneSlider.style.marginLeft = '5px';
+  // geneSliderLabel.textContent = geneSlider.value;
+  // geneSliderLabel.style.marginLeft = '5px';
+
+  layout.style.width = `${width}px`;
   layout.style.height = '500px';
 
-  barHolder.style.width = '500px';
+  barHolder.style.width = `${width}px`;
   barHolder.style.height = '165px';
   barHolder.style.overflowY = 'auto';
   barHolder.style.border = '1px solid #d3d3d3';
 
-  infoHolder.style.width = '400px';
+  infoHolder.style.width = `${width}px`;
   infoHolder.style.height = '250px';
 
   paragraphHolder.style.height = '160px';
-  paragraphHolder.style.width = '500px';
+  paragraphHolder.style.width = `${width}px`;
   paragraphHolder.style.marginTop = '5px';
   paragraphHolder.style.overflowY = 'auto';
   paragraphHolder.style.border = '1px solid #d3d3d3';
 
 
   geneInfoHolder.style.height = '155px';
-  geneInfoHolder.style.width = '500px';
+  geneInfoHolder.style.width = `${width}px`;
   geneInfoHolder.style.marginTop = '5px';
   geneInfoHolder.style.overflowY = 'auto';
   geneInfoHolder.style.border = '1px solid #d3d3d3';
@@ -173,8 +182,6 @@ export const render_enrich = async ({ model, el }) => {
         .slice(0, numTerms);
 
       const bar_data_values = bar_data.map((x) => x.score);
-
-      const width = 495;
 
       const x_new = d3
         .scaleLinear()
@@ -307,6 +314,9 @@ export const render_enrich = async ({ model, el }) => {
       if (shortId) {
         linkHolder.href = `https://maayanlab.cloud/Enrichr/enrich?dataset=${shortId}`;
         linkHolder.textContent = 'View full results on Enrichr';
+        linkHolder.target = '_blank';
+        // make the text this color '#47515b'
+        // linkHolder.textContent.style.color = '#47515b';
       } else {
         linkHolder.textContent = '';
       }

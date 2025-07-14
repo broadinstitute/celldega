@@ -224,8 +224,6 @@ const row_label_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
       viz_state.model.save_changes();
     }
 
-    sync_selected_genes(viz_state, [event.object.name]);
-
     if (typeof viz_state.custom_callbacks.row === 'function') {
       viz_state.custom_callbacks.row(event.object.name);
     }

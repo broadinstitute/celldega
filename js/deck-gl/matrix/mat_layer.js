@@ -34,7 +34,6 @@ export const ini_mat_layer = (viz_state) => {
     getFillColor: (d) => d.color,
     pickable: true,
     antialiasing: false,
-    opacity: viz_state.mat.opacity,
     tile_height: (viz_state.viz.mat_height / viz_state.mat.num_rows) * 0.5,
     tile_width: (viz_state.viz.mat_width / viz_state.mat.num_cols) * 0.5,
     transitions,

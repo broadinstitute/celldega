@@ -8,7 +8,7 @@ from .local_server import get_local_server
 from .widget import Clustergram, Enrich, Landscape
 
 
-def landscape_matrix(landscape, mat, width="600px", height="700px"):
+def landscape_clustergram(landscape, mat, width="600px", height="700px"):
     """
     Display a `Landscape` widget and a `Clustergram` widget side by side.
 
@@ -34,4 +34,24 @@ def landscape_matrix(landscape, mat, width="600px", height="700px"):
     return HBox([landscape, mat])
 
 
-__all__ = ["Clustergram", "Enrich", "Landscape", "get_local_server", "landscape_matrix"]
+def clustergram_enrich(
+    cgm: Clustergram,
+) -> HBox:
+    """
+    Display a `Clustergram` widget and an `Enrich` widget side by side.
+
+    Args:
+        cgm (Clustergram): A `Clustergram` widget.
+
+    Returns:
+        HBox: Visualization display containing both widgets
+    """
+
+    cgm.layout = Layout(width='600px')
+
+    enrich = Enrich(gene_list=[], width=250)
+    jslink((cgm, 'selected_genes'), (enrich, 'gene_list'))
+    return HBox([cgm, enrich], layout=Layout(width='1000px'))
+
+
+__all__ = ["Clustergram", "Enrich", "Landscape", "get_local_server", "landscape_clustergram"]

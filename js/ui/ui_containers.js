@@ -231,10 +231,50 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
   slider_container.appendChild(viz_state.dendro.sliders.col);
   slider_container.appendChild(viz_state.dendro.sliders.row);
 
+  viz_state.mat_opacity_slider = document.createElement('input');
+  viz_state.mat_opacity_slider.type = 'range';
+  viz_state.mat_opacity_slider.min = '0';
+  viz_state.mat_opacity_slider.max = '100';
+  viz_state.mat_opacity_slider.value = 100;
+  viz_state.mat_opacity_slider.className = 'slider';
+  viz_state.mat_opacity_slider.style.width = '75px';
+
+  viz_state.mat_opacity_slider.addEventListener('input', (event) => {
+    const val = Number(event.target.value) / 100;
+    layers_mat.mat_layer = layers_mat.mat_layer.clone({ opacity: val });
+    deck_mat.setProps({ layers: get_mat_layers_list(layers_mat) });
+  });
+
+  d3.select(slider_container)
+    .append('div')
+    .text('OPACITY')
+    .style('width', `${button_width}px`)
+    .style('height', '20px')
+    .style('display', 'inline-flex')
+    .style('align-items', 'center')
+    .style('justify-content', 'center')
+    .style('text-align', 'center')
+    .style('cursor', 'pointer')
+    .style('font-size', '12px')
+    .style('font-weight', 'bold')
+    .style('color', '#47515b')
+    .style('border', '3px solid')
+    .style('border-color', 'white')
+    .style('border-radius', '12px')
+    .style('margin-top', '5px')
+    .style('margin-left', '20px')
+    .style('user-select', 'none')
+    .style(
+      'font-family',
+      '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif'
+    );
+  slider_container.appendChild(viz_state.mat_opacity_slider);
+
   // add top margin to ctrl_container and slider_container
   ctrl_container.style.marginTop = '15px';
   slider_container.style.marginTop = '0px';
   slider_container.style.marginLeft = '10px';
+
 
   ui_container.appendChild(ctrl_container);
   ui_container.appendChild(slider_container);

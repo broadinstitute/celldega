@@ -177,7 +177,7 @@ export const render_enrich = async ({ model, el }) => {
 
       const x_new = d3
         .scaleLinear()
-        .domain([0, d3.max(bar_data_values)])
+        .domain([0, bar_data_values.length > 0 ? d3.max(bar_data_values) : 0])
         .range([0, width]);
 
       const y_new = d3

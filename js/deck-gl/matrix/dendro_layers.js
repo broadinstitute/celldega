@@ -1,4 +1,5 @@
 import { PolygonLayer } from 'deck.gl';
+
 import { sync_selected_genes } from '../../global_variables/selected_genes';
 
 export const ini_dendro_layer = (layers_mat, viz_state, axis) => {

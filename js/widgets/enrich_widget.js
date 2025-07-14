@@ -1,11 +1,12 @@
 import * as d3 from 'd3';
+
 import { postGeneList, fetchEnrichment } from '../external_apis/enrichr_api';
 import { create_enrich_store } from '../obs_store/enrich_store';
+import { handleAsyncError } from '../temp_utils/errorHandler';
 import {
   updateParagraphColors,
   updateGeneInfo,
 } from '../widget_interactions/enrich_utils';
-import { handleAsyncError } from '../temp_utils/errorHandler';
 
 export const render_enrich = async ({ model, el }) => {
   const store = create_enrich_store();
@@ -164,18 +165,19 @@ export const render_enrich = async ({ model, el }) => {
     barHolder.textContent = 'Loading...';
 
     try {
-      const cacheKey = `${genes.join(',')}__${lib}__${background ? background.join(',') : 'none'}`;
-      let data;
-      let shortId;
-      if (cache[cacheKey]) {
-        ({ data, shortId } = cache[cacheKey]);
-      } else {
-        const res = await postGeneList(genes, background);
-        const listId = res.userListId;
-        shortId = res.shortId;
-        data = await fetchEnrichment(listId, lib);
-        cache[cacheKey] = { data, shortId };
-      }
+        const cacheKey = `${genes.join(',')}__${lib}__${background ? background.join(',') : 'none'}`;
+        let data;
+        let shortId;
+
+        if (cache[cacheKey]) {
+          ({ data, shortId } = cache[cacheKey]);
+        } else {
+          const { userListId, shortId: sId } = await postGeneList(genes, background);
+          shortId = sId;
+          data = await fetchEnrichment(userListId, lib);
+          cache[cacheKey] = { data, shortId };
+        }
+
 
       const bar_data = (data[lib] || [])
         .map((d) => ({ name: d[1], score: d[4], genes: d[5] }))

@@ -1,9 +1,10 @@
 import * as d3 from 'd3';
 import { TextLayer } from 'deck.gl';
 
+import { sync_selected_genes } from '../../global_variables/selected_genes';
+
 import { toggle_dendro_layer_visibility } from './dendro_layers';
 import { get_mat_layers_list } from './matrix_layers';
-import { sync_selected_genes } from '../../global_variables/selected_genes';
 
 const row_label_get_position = (d, index, viz_state) => {
   const inst_index = index.index;

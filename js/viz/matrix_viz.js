@@ -159,7 +159,6 @@ export const matrix_viz = async (
     viz_state.model.on('change:top_n_genes', () => {
       viz_state.top_n_genes = viz_state.model.get('top_n_genes') || 50;
     });
-
   }
 
   const matrix = {

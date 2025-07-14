@@ -47,11 +47,11 @@ def clustergram_enrich(
         HBox: Visualization display containing both widgets
     """
 
-    cgm.layout = Layout(width='600px')
+    cgm.layout = Layout(width="600px")
 
     enrich = Enrich(gene_list=[], width=250)
-    jslink((cgm, 'selected_genes'), (enrich, 'gene_list'))
-    return HBox([cgm, enrich], layout=Layout(width='1000px'))
+    jslink((cgm, "selected_genes"), (enrich, "gene_list"))
+    return HBox([cgm, enrich], layout=Layout(width="1000px"))
 
 
 __all__ = ["Clustergram", "Enrich", "Landscape", "get_local_server", "landscape_clustergram"]

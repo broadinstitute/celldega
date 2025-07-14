@@ -140,7 +140,6 @@ const render_matrix_new = async ({ model, el }) => {
   return matrix_viz(model, el, network, width, height);
 };
 
-
 // Main render function - no export keyword
 async function render({ model, el }) {
   let cleanup = null;

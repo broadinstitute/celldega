@@ -262,7 +262,9 @@ const col_label_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
 
     const col_index = event.object.index;
     const values = viz_state.mat.net_mat.map((row) => row[col_index]);
-    const sorted = Array.from(values.keys()).sort((a, b) => values[b] - values[a]);
+    const sorted = Array.from(values.keys()).sort(
+      (a, b) => values[b] - values[a]
+    );
     const top_n = viz_state.top_n_genes || 15;
     const gene_names = sorted
       .slice(0, top_n)

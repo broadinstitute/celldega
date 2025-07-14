@@ -1,7 +1,10 @@
 import * as d3 from 'd3';
 import { postGeneList, fetchEnrichment } from '../external_apis/enrichr_api';
 import { create_enrich_store } from '../obs_store/enrich_store';
-import { updateParagraphColors, updateGeneInfo } from '../widget_interactions/enrich_utils';
+import {
+  updateParagraphColors,
+  updateGeneInfo,
+} from '../widget_interactions/enrich_utils';
 import { handleAsyncError } from '../temp_utils/errorHandler';
 
 export const render_enrich = async ({ model, el }) => {
@@ -34,18 +37,16 @@ export const render_enrich = async ({ model, el }) => {
   infoHolder.appendChild(geneInfoHolder);
   el.appendChild(container);
 
-
   // const width = 350;
   // get width from traitlet
   const width = model.get('width') - 5 || 350;
   const height = model.get('height') || 500;
 
-
   container.style.width = `${width}px`;
-  container.overflowX = 'scroll'
+  container.style.height = `${height}px`;
+  container.overflowX = 'scroll';
+  select.style.marginTop = '5px';
   container.style.marginLeft = '5px';
-
-  select.style.marginBottom = '5px';
 
   select.style.width = `${width}px`;
 
@@ -70,19 +71,19 @@ export const render_enrich = async ({ model, el }) => {
   infoHolder.style.width = `${width}px`;
   infoHolder.style.height = '250px';
 
-  paragraphHolder.style.height = '160px';
+  paragraphHolder.style.height = '225px';
   paragraphHolder.style.width = `${width}px`;
   paragraphHolder.style.marginTop = '5px';
   paragraphHolder.style.overflowY = 'auto';
   paragraphHolder.style.border = '1px solid #d3d3d3';
-
 
   geneInfoHolder.style.height = '155px';
   geneInfoHolder.style.width = `${width}px`;
   geneInfoHolder.style.marginTop = '5px';
   geneInfoHolder.style.overflowY = 'auto';
   geneInfoHolder.style.border = '1px solid #d3d3d3';
-  geneInfoHolder.style.fontFamily = '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif';
+  geneInfoHolder.style.fontFamily =
+    '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif';
 
   linkHolder.style.display = 'block';
   linkHolder.style.marginTop = '5px';

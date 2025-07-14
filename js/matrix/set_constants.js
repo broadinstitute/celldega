@@ -159,7 +159,8 @@ export const set_mat_constants = (
   viz_state.click.value = null;
 
   viz_state.top_n_genes =
-    (model && typeof model.get === 'function' && model.get('top_n_genes')) || 50;
+    (model && typeof model.get === 'function' && model.get('top_n_genes')) ||
+    50;
 
   return viz_state;
 };

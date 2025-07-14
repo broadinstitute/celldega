@@ -122,7 +122,7 @@ class Enrich(anywidget.AnyWidget):
 
     value = traitlets.Int(0).tag(sync=True)
     width = traitlets.Int(650).tag(sync=True)
-    height = traitlets.Int(500).tag(sync=True)
+    height = traitlets.Int(650).tag(sync=True)
 
     component = traitlets.Unicode("Enrich").tag(sync=True)
 

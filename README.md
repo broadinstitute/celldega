@@ -45,7 +45,7 @@ df = pd.read_parquet(file_path)
 
 mat = dega.clust.Matrix(df)
 mat.cluster()
-cgm = deva.viz.Clustergram(mat)
+cgm = deva.viz.Clustergram(matrix=mat)
 
 dega.viz.landscape_clustergram(landscape_ist, cgm)
 ```

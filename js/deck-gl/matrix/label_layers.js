@@ -3,6 +3,7 @@ import { TextLayer } from 'deck.gl';
 
 import { toggle_dendro_layer_visibility } from './dendro_layers';
 import { get_mat_layers_list } from './matrix_layers';
+import { sync_selected_genes } from '../../global_variables/selected_genes';
 
 const row_label_get_position = (d, index, viz_state) => {
   const inst_index = index.index;
@@ -223,6 +224,8 @@ const row_label_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
       viz_state.model.save_changes();
     }
 
+    sync_selected_genes(viz_state, [event.object.name]);
+
     if (typeof viz_state.custom_callbacks.row === 'function') {
       viz_state.custom_callbacks.row(event.object.name);
     }
@@ -258,6 +261,15 @@ const col_label_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
       viz_state.model.set('click_info', viz_state.click);
       viz_state.model.save_changes();
     }
+
+    const col_index = event.object.index;
+    const values = viz_state.mat.net_mat.map((row) => row[col_index]);
+    const sorted = Array.from(values.keys()).sort((a, b) => values[b] - values[a]);
+    const top_n = viz_state.top_n_genes || 15;
+    const gene_names = sorted
+      .slice(0, top_n)
+      .map((i) => viz_state.row_nodes[i].name);
+    sync_selected_genes(viz_state, gene_names);
 
     if (typeof viz_state.custom_callbacks.col === 'function') {
       viz_state.custom_callbacks.col(event.object.name);

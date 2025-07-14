@@ -149,5 +149,20 @@ export const matrix_viz = async (
   el.appendChild(ui_container);
   el.appendChild(viz_state.root);
 
-  return () => deck_mat.finalize();
+  if (viz_state.model) {
+    viz_state.model.on('change:selected_genes', () => {
+      viz_state.obs_store.selected_genes.set(
+        viz_state.model.get('selected_genes') || []
+      );
+    });
+  }
+
+  const matrix = {
+    obs_store: viz_state.obs_store,
+    finalize: () => {
+      deck_mat.finalize();
+    },
+  };
+
+  return matrix;
 };

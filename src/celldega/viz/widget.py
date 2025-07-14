@@ -196,6 +196,7 @@ class Clustergram(anywidget.AnyWidget):
     width = traitlets.Int(600).tag(sync=True)
     height = traitlets.Int(600).tag(sync=True)
     click_info = traitlets.Dict({}).tag(sync=True)
+    selected_genes = traitlets.List(default_value=[]).tag(sync=True)
 
     def __init__(self, **kwargs):
         pq_data = kwargs.pop("parquet_data", None)

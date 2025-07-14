@@ -121,7 +121,7 @@ class Enrich(anywidget.AnyWidget):
     _css = Path(__file__).parent / "../static" / "widget.css"
 
     value = traitlets.Int(0).tag(sync=True)
-    width = traitlets.Int(350).tag(sync=True)
+    width = traitlets.Int(650).tag(sync=True)
     height = traitlets.Int(500).tag(sync=True)
 
     component = traitlets.Unicode("Enrich").tag(sync=True)
@@ -155,7 +155,7 @@ class Enrich(anywidget.AnyWidget):
     inst_lib = traitlets.Unicode("CellMarker_2024").tag(sync=True)
 
     # number of terms
-    num_terms = traitlets.Int(10).tag(sync=True)
+    num_terms = traitlets.Int(50).tag(sync=True)
     top_n_genes = traitlets.Int(50).tag(sync=True)
 
     def __init__(self, **kwargs):

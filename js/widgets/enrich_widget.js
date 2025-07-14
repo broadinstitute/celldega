@@ -60,10 +60,10 @@ export const render_enrich = async ({ model, el }) => {
   // geneSliderLabel.style.marginLeft = '5px';
 
   layout.style.width = `${width}px`;
-  layout.style.height = '500px';
+  layout.style.height = `${height}px`;
 
   barHolder.style.width = `${width}px`;
-  barHolder.style.height = '165px';
+  barHolder.style.height = '255px';
   barHolder.style.overflowY = 'auto';
   barHolder.style.border = '1px solid #d3d3d3';
 

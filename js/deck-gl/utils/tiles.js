@@ -28,14 +28,21 @@ export const create_get_tile_data = (
     const { x, y, z } = index;
     const full_url = `${base_url}/pyramid_images/${image_name}_files/${max_image_zoom + z}/${x}_${y}${image_format}`;
 
-    // If AWS credentials are provided, use aws.fetch to sign the request
-    const fetch_fn = aws
-      ? (url, fetchOptions) => aws.fetch(url, fetchOptions)
-      : undefined;
+    // Separate fetch options so we can merge them with loader options
+    const { fetch: fetchOptions = {}, ...loaderOptions } = options;
+
+    // Fetch function that preserves headers and supports aws signed requests
+    const fetch_fn = async (url, fetchOpts = {}) => {
+      const merged = { ...fetchOptions, ...fetchOpts };
+      if (aws) {
+        return aws.fetch(url, merged);
+      }
+      return fetch(url, merged);
+    };
 
     try {
       const image = await load(full_url, ImageLoader, {
-        ...options,
+        ...loaderOptions,
         fetch: fetch_fn,
       });
       return image;

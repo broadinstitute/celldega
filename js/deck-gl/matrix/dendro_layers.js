@@ -1,5 +1,7 @@
 import { PolygonLayer } from 'deck.gl';
 
+import { sync_selected_genes } from '../../global_variables/selected_genes';
+
 export const ini_dendro_layer = (layers_mat, viz_state, axis) => {
   const inst_layer = new PolygonLayer({
     id: `${axis}-dendro-layer`,
@@ -52,6 +54,10 @@ const dendro_layer_onclick = (event, deck_mat, layers_mat, viz_state, axis) => {
     viz_state.model.set('click_info', null);
     viz_state.model.set('click_info', viz_state.click);
     viz_state.model.save_changes();
+  }
+
+  if (axis === 'row') {
+    sync_selected_genes(viz_state, event.object.properties.all_names);
   }
 
   if (typeof viz_state.custom_callbacks[`${axis}_dendro`] === 'function') {

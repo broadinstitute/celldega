@@ -22,6 +22,7 @@ def _hsv_to_hex(h: float) -> str:
 
 
 _clustergram_registry = {}  # maps names to widget instances
+_enrich_registry = {}  # maps names to widget instances
 
 
 class Landscape(anywidget.AnyWidget):
@@ -201,6 +202,78 @@ class Landscape(anywidget.AnyWidget):
         super().close()
 
 
+class Enrich(anywidget.AnyWidget):
+    """
+    A widget for interactive enrichment analysis using the Enrichr API.
+    This widget allows users to select a gene list, choose an enrichment library,
+    and specify the number of terms to display.
+    Automatically replaces older widgets with the same name to prevent notebook bloat.
+    Args:
+        value (int): The value traitlet.
+        component (str): The component traitlet.
+        gene_list (list): The list of genes to analyze.
+        available_libs (list): The list of available enrichment libraries.
+        inst_lib (str): The selected enrichment library.
+        num_terms (int): The number of terms to display.
+    """
+
+    _esm = Path(__file__).parent / "../static" / "widget.js"
+    _css = Path(__file__).parent / "../static" / "widget.css"
+
+    value = traitlets.Int(0).tag(sync=True)
+    width = traitlets.Int(650).tag(sync=True)
+    height = traitlets.Int(650).tag(sync=True)
+
+    component = traitlets.Unicode("Enrich").tag(sync=True)
+
+    # gene list
+    gene_list = traitlets.List(default_value=[]).tag(sync=True)
+
+    # optional background gene list
+    background_list = traitlets.List(allow_none=True, default_value=None).tag(sync=True)
+
+    # available enrichment libraries
+    available_libs = traitlets.List(
+        [
+            "CellMarker_2024",
+            "ARCHS4_Tissues",
+            "GO_Biological_Process_2025",
+            "GO_Cellular_Component_2025",
+            "GO_Molecular_Function_2025",
+            "GTEx_Tissue_Expression_Up",
+            "KEGG_2019_Human",
+            "ChEA_2022",
+            "MGI_Mammalian_Phenotype_Level_4_2024",
+            "Disease_Perturbations_from_GEO_up",
+            "Ligand_Perturbations_from_GEO_up",
+            "LINCS_L1000_Chem_Pert_down",
+            "Ligand_Perturbations_from_GEO_down",
+        ]
+    ).tag(sync=True)
+
+    # enrichment library
+    inst_lib = traitlets.Unicode("CellMarker_2024").tag(sync=True)
+
+    # number of terms
+    num_terms = traitlets.Int(50).tag(sync=True)
+
+    def __init__(self, **kwargs):
+        name = kwargs.pop("name", "default")
+        old_widget = _enrich_registry.get(name)
+        if old_widget:
+            with suppress(Exception):
+                old_widget.close()
+
+        kwargs["name"] = name
+        super().__init__(**kwargs)
+        _enrich_registry[name] = self
+
+    def close(self):  # pragma: no cover - cleanup depends on JS
+        with suppress(Exception):
+            self.send({"event": "finalize"})
+        super().close()
+
+
 class Clustergram(anywidget.AnyWidget):
     """
     A widget for interactive visualization of a hierarchically clustered matrix.
@@ -227,6 +300,8 @@ class Clustergram(anywidget.AnyWidget):
     width = traitlets.Int(600).tag(sync=True)
     height = traitlets.Int(600).tag(sync=True)
     click_info = traitlets.Dict({}).tag(sync=True)
+    selected_genes = traitlets.List(default_value=[]).tag(sync=True)
+    top_n_genes = traitlets.Int(50).tag(sync=True)
 
     def __init__(self, **kwargs):
         pq_data = kwargs.pop("parquet_data", None)

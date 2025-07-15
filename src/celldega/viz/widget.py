@@ -110,6 +110,8 @@ class Landscape(anywidget.AnyWidget):
 
         if adata is not None:
 
+            print('found AnnData object, extracting metadata')
+
             meta_cell_df = adata.obs.copy()
             meta_cell_df.reset_index(inplace=True)
             pq_meta_cell = _df_to_bytes(meta_cell_df)
@@ -170,7 +172,7 @@ class Landscape(anywidget.AnyWidget):
         self.umap = umap_df
         if meta_cluster_df is not None:
             self.meta_cluster_df = meta_cluster_df
-        
+
     def trigger_update(self, new_value):
         """
         Update the update_trigger traitlet with a new value.

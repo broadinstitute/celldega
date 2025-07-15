@@ -6,6 +6,7 @@ import argparse
 from pathlib import Path
 
 import pandas as pd
+import shutil
 
 import celldega as dega
 
@@ -144,11 +145,20 @@ def main(
     # Setup file paths
     paths = _setup_preprocessing_paths(technology, path_landscape_files, data_dir)
 
+    # Save transformation matrices
+
     if technology == "Xenium":
         # Unzip compressed files in Xenium data folder
         dega.pre._xenium_unzipper(str(data_dir))
         # Write transform file
         dega.pre.write_xenium_transform(str(data_dir), path_landscape_files)
+
+    elif technology == "MERSCOPE":
+
+        source_path = Path(paths["transformation_matrix"])
+
+        # Copy the file to the destination directory, keeping the same filename
+        shutil.copy(source_path, Path(path_landscape_files) / "micron_to_image_transform.csv")
 
     # Check required files for preprocessing
     dega.pre._check_required_files(technology, str(data_dir))

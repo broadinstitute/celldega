@@ -918,7 +918,13 @@ def add_custom_segmentation(
         segmentation_approach=segmentation_parameters["segmentation_approach"],
     )
 
-    tree = ET.parse(Path(path_landscape_files) / "pyramid_images" / "bound.dzi")
+    # Get the first .dzi file in sorted order
+    dzi_files = sorted((Path(path_landscape_files) / "pyramid_images").glob("*.dzi"))
+    if not dzi_files:
+        raise FileNotFoundError("No .dzi files found in pyramid_images.")
+
+    # Use the first .dzi file
+    tree = ET.parse(dzi_files[0])
     root = tree.getroot()
     width = int(root[0].attrib["Width"])
     height = int(root[0].attrib["Height"])

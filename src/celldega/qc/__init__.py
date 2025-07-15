@@ -111,7 +111,7 @@ def _process_xenium_technology(base_path, segmentation_parameters):
 
 
 def _process_merscope_technology(
-    base_path, segmentation_parameters, path_output, path_meta_cell_micron
+    base_path, segmentation_parameters
 ):
     """
     Process data for MERSCOPE technology.
@@ -125,7 +125,7 @@ def _process_merscope_technology(
     Returns:
     - Tuple of (cell_index, gene, transcript_index, trx_meta, cell_gdf, cell_meta_gdf)
     """
-    cell_index = "EntityID"
+    cell_index = "cell_id"
     gene = "gene"
     transcript_index = "transcript_id"
 
@@ -133,21 +133,25 @@ def _process_merscope_technology(
     csv_path = Path(base_path) / "detected_transcripts.csv"
     parquet_path = csv_path.with_suffix(".parquet")
 
+    path_meta_cell_micron = Path(base_path) / "cell_metadata.csv"
+
     # Prefer Parquet if it exists
     trx = pd.read_parquet(parquet_path) if parquet_path.exists() else pd.read_csv(csv_path)
     trx = trx.rename(columns={"name": gene})
     trx_meta = trx[trx[cell_index] != -1][[transcript_index, cell_index, gene]]
 
+    transformation_matrix = pd.read_csv(Path(base_path) / "images/micron_to_mosaic_pixel_transform.csv", header=None, sep=" ").values
+
     cell_gdf = get_cell_polygons(
         technology=segmentation_parameters["technology"],
         path_cell_boundaries=Path(base_path) / "cell_boundaries.parquet",
-        path_output=path_output,
+        transformation_matrix=transformation_matrix,
         path_meta_cell_micron=path_meta_cell_micron,
     )
 
-    cell_gdf["geometry"] = cell_gdf["Geometry"].apply(get_largest_polygon)
-    cell_gdf.drop(["Geometry"], axis=1, inplace=True)
-    cell_gdf = gpd.GeoDataFrame(geometry=cell_gdf["Geometry"])
+    cell_gdf = gpd.GeoDataFrame(geometry=cell_gdf["geometry_micron"])
+
+    cell_gdf["geometry"] = cell_gdf["geometry"].apply(get_largest_polygon)
 
     cell_gdf.reset_index(inplace=True)
     cell_gdf["area"] = cell_gdf["geometry"].area
@@ -270,7 +274,7 @@ def qc_segmentation(base_path, path_output=None, path_meta_cell_micron=None):
     elif segmentation_parameters["technology"] == "MERSCOPE":
         cell_index, gene, transcript_index, trx_meta, cell_gdf, cell_meta_gdf = (
             _process_merscope_technology(
-                base_path, segmentation_parameters, path_output, path_meta_cell_micron
+                base_path, segmentation_parameters
             )
         )
 
@@ -399,7 +403,7 @@ def _load_cbg_data(base_paths):
                 )
             elif segmentation_parameters["technology"] == "MERSCOPE":
                 cbg_dict[segmentation_parameters["segmentation_approach"]] = pd.read_csv(
-                    Path(base_path) / "cell_by_gene_matrix.csv"
+                    Path(base_path) / "cell_by_gene.csv"
                 )
 
     return cbg_dict
@@ -476,29 +480,65 @@ def _create_barplot_visualization(
     - cell_b_name: Name of cell type B
     """
 
-    technology_series = pd.Series(
-        [tech for tech in cell_a_with_b_cell_specific_genes for _ in range(2)],
-        name="Technology"
-    )
+    # technology_series = pd.Series(
+    #     [tech for tech in cell_a_with_b_cell_specific_genes for _ in range(2)],
+    #     name="Technology"
+    # )
 
-    category_series = pd.Series(
-        [
+    # category_series = pd.Series(
+    #     [
+    #         f"{cell_a_name} with {cell_b_name} genes",
+    #         f"{cell_b_name} with {cell_a_name} genes"
+    #     ] * len(cell_a_with_b_cell_specific_genes),
+    #     name="Category"
+    # )
+
+    # count_values = []
+    # for a_count, b_count in zip(
+    #     cell_a_with_b_cell_specific_genes.values(),
+    #     cell_b_with_a_cell_specific_genes.values(),
+    #     strict=False
+    # ):
+    #     count_values.extend([a_count, b_count])
+
+    # count_series = pd.Series(count_values, name="Count")
+
+    # orthogonal_data = pd.concat(
+    #     [technology_series, category_series, count_series],
+    #     axis=1
+    # )
+
+    # Step 1: Repeat each technology name twice (for each gene comparison)
+    technologies = []
+    for tech in cell_a_with_b_cell_specific_genes:
+        technologies.extend([tech, tech])
+
+    technology_series = pd.Series(technologies, name="Technology")
+
+    # Step 2: Create corresponding category labels (A with B genes, B with A genes)
+    category_labels = []
+    for _ in cell_a_with_b_cell_specific_genes:
+        category_labels.extend([
             f"{cell_a_name} with {cell_b_name} genes",
             f"{cell_b_name} with {cell_a_name} genes"
-        ] * len(cell_a_with_b_cell_specific_genes),
-        name="Category"
-    )
+        ])
+
+    category_series = pd.Series(category_labels, name="Category")
+
+    # Step 3: Extract counts from both dictionaries and interleave them
+    a_counts = cell_a_with_b_cell_specific_genes.values()
+    b_counts = cell_b_with_a_cell_specific_genes.values()
 
     count_values = []
-    for a_count, b_count in zip(
-        cell_a_with_b_cell_specific_genes.values(),
-        cell_b_with_a_cell_specific_genes.values(),
-        strict=False
-    ):
-        count_values.extend([a_count, b_count])
+
+    for a_count, b_count in zip(a_counts, b_counts):
+        # Step 3: Add both counts to the list
+        count_values.append(a_count)
+        count_values.append(b_count)
 
     count_series = pd.Series(count_values, name="Count")
 
+    # Step 4: Combine into a single DataFrame
     orthogonal_data = pd.concat(
         [technology_series, category_series, count_series],
         axis=1

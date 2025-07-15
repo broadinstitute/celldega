@@ -24,7 +24,7 @@ export const set_mat_data = (network, viz_state) => {
           inst_color[0],
           inst_color[1],
           inst_color[2],
-          (255 * Math.abs(tile_value)) / max_abs_value,
+          Math.min(255, (255 * Math.abs(tile_value)) / max_abs_value),
         ],
         value: tile_value,
         row: index_row,

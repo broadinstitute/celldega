@@ -107,27 +107,15 @@ export const ini_cell_layer = async (base_url, viz_state) => {
   set_cell_name_to_index_map(viz_state.cats);
 
   if (viz_state.cats.has_meta_cell) {
-    // viz_state.cats.cell_cats = viz_state.cats.cell_names_array.map(
-    //   (name) => {
 
-    //     let ini_cat = viz_state.cats.meta_cell[name]
-    //     let inst_cat
-    //     console.log('ini_cat', ini_cat);
-
-    //     // if ini_cat is defined
-    //     if (ini_cat !== undefined) {
-    //       inst_cat = ini_cat[0]
-    //     } else {
-    //       inst_cat = 'unknown';
-    //     }
-
-    //     return inst_cat
-    //   }
-    // );
+    // look up the index of the inst_cell_attr in the meta_cell_attr array
+    const inst_index = viz_state.cats.meta_cell_attr.indexOf(
+      viz_state.cats.inst_cell_attr
+    );
 
     viz_state.cats.cell_cats = viz_state.cats.cell_names_array.map((name) => {
       const attrs = viz_state.cats.meta_cell[name];
-      return attrs?.[0] ?? 'N.A.';
+      return attrs?.[inst_index] ?? 'N.A.';
     });
 
 

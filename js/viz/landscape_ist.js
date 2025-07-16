@@ -225,6 +225,8 @@ export const landscape_ist = async (
     viz_state.cats.has_meta_cell = true;
   }
   viz_state.cats.meta_cell = meta_cell;
+  viz_state.cats.meta_cell_attr = meta_cell_attr;
+  viz_state.cats.inst_cell_attr = meta_cell_attr[0] || 'N.A.';
 
   // console.log('viz_state.cats.meta_cell', viz_state.cats.meta_cell);
 

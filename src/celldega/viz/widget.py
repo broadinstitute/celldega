@@ -83,6 +83,11 @@ class Landscape(anywidget.AnyWidget):
     update_trigger = traitlets.Dict().tag(sync=True)
     cell_clusters = traitlets.Dict({}).tag(sync=True)
 
+    # make a traitlet for cell_attr a list that will have the AnnData obs columns
+    # cell_attr = traitlets.List(['leiden']).tag(sync=True)
+    cell_attr = traitlets.List(trait=traitlets.Unicode(), default_value=["leiden"]).tag(sync=True)
+
+
     segmentation = traitlets.Unicode("default").tag(sync=True)
 
     width = traitlets.Int(0).tag(sync=True)
@@ -98,6 +103,9 @@ class Landscape(anywidget.AnyWidget):
         meta_cluster = kwargs.get("meta_cluster")
         umap_df = kwargs.pop("umap", None)
         meta_cluster_df = None
+        # cell_attr = kwargs.pop("cell_attr", "leiden")
+        cell_attr = kwargs.pop("cell_attr", ["leiden"])
+
 
         def _df_to_bytes(df):
             import io
@@ -112,7 +120,7 @@ class Landscape(anywidget.AnyWidget):
 
         if adata is not None:
 
-            meta_cell_df = adata.obs.copy()
+            meta_cell_df = adata.obs[cell_attr].copy()
             # meta_cell_df.reset_index(inplace=True)
             pq_meta_cell = _df_to_bytes(meta_cell_df)
 

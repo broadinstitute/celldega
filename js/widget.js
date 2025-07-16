@@ -1,4 +1,5 @@
 import './widget.css';
+
 import { networkFromParquet } from './read_parquet/network_from_parquet';
 import {
   handleAsyncError,
@@ -8,6 +9,7 @@ import { landscape_h_e } from './viz/landscape_h_e';
 import { landscape_ist } from './viz/landscape_ist';
 import { landscape_sst } from './viz/landscape_sst';
 import { matrix_viz } from './viz/matrix_viz';
+import { render_enrich } from './widgets/enrich_widget';
 
 // Remove export keywords from render functions
 const render_landscape_ist = async ({ model, el }) => {
@@ -157,7 +159,11 @@ async function render({ model, el }) {
         cleanup = await render_landscape({ model, el });
         break;
       case 'Matrix':
+        // return render_matrix_new({ model, el });
         cleanup = await render_matrix_new({ model, el });
+        break;
+      case 'Enrich':
+        cleanup = await render_enrich({ model, el });
         break;
       default:
         handleValidationWarning(`Unknown component type: ${componentType}`, {
@@ -175,7 +181,6 @@ async function render({ model, el }) {
             cleanup.finalize();
           }
         } catch (e) {
-          // do not use console.log in production code
           handleValidationWarning('Error finalizing deck', {
             data: { error: e.message, model: model?.id || 'unknown' },
           });
@@ -208,4 +213,5 @@ export default {
   render_landscape_h_e,
   render_landscape,
   render_matrix_new,
+  render_enrich,
 };

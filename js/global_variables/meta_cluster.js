@@ -1,4 +1,3 @@
-import { count } from 'd3';
 import { get_arrow_table } from '../read_parquet/get_arrow_table';
 import { hexToRgb } from '../utils/hexToRgb';
 
@@ -40,20 +39,10 @@ export const set_cluster_metadata = async (viz_state) => {
       );
     }
 
-    // loop through the keys and assembe cluster_counts
-
     // find the index of count in viz_state.cats.meta_cluster_attr
     const count_index = viz_state.cats.meta_cluster_attr.indexOf('count');
 
-    // for (const cluster_name in viz_state.cats.meta_cluster) {
-    //   viz_state.cats.cluster_counts.push({
-    //     name: cluster_name,
-    //     value: viz_state.cats.meta_cluster[cluster_name][count_index]
-    //   });
-    // }
-
     for (const cluster_name in viz_state.cats.meta_cluster) {
-      const count_index = viz_state.cats.meta_cluster_attr.indexOf('count');
 
       const raw = viz_state.cats.meta_cluster[cluster_name][count_index];
       const value = raw !== undefined ? Number(raw) : 0;

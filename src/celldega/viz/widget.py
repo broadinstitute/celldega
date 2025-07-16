@@ -96,7 +96,7 @@ class Landscape(anywidget.AnyWidget):
         pq_umap = kwargs.pop("umap_parquet", None)
 
         meta_cell_df = kwargs.pop("meta_cell", None)
-        meta_cluster = kwargs.get("meta_cluster")
+        meta_cluster = kwargs.pop("meta_cluster", None)
         umap_df = kwargs.pop("umap", None)
         meta_cluster_df = None
         # cell_attr = kwargs.pop("cell_attr", "leiden")

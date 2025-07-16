@@ -25,7 +25,7 @@ const render_landscape_ist = async ({ model, el }) => {
   const width = model.get('width');
   const height = model.get('height');
 
-  let meta_cell_data;
+  let meta_cell_data = { result: {}, attr: [] };
   let meta_cluster_data;
   // let umap_data;
 

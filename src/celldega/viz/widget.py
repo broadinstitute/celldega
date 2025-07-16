@@ -105,13 +105,12 @@ class Landscape(anywidget.AnyWidget):
             import pyarrow as pa
             import pyarrow.parquet as pq
 
+            df.columns = df.columns.map(str)
             buf = io.BytesIO()
             pq.write_table(pa.Table.from_pandas(df), buf, compression="zstd")
             return buf.getvalue()
 
         if adata is not None:
-
-            print('found AnnData object, extracting metadata')
 
             meta_cell_df = adata.obs.copy()
             # meta_cell_df.reset_index(inplace=True)
@@ -133,7 +132,6 @@ class Landscape(anywidget.AnyWidget):
                     index=cluster_counts.index,
                 )
 
-                print('meta_cluster_df', meta_cluster_df)
                 pq_meta_cluster = _df_to_bytes(meta_cluster_df)
 
             if "X_umap" in adata.obsm:
@@ -166,7 +164,6 @@ class Landscape(anywidget.AnyWidget):
             parquet_traits["umap_parquet"] = traitlets.Bytes(pq_umap).tag(sync=True)
 
         if parquet_traits:
-            print(parquet_traits)
             self.add_traits(**parquet_traits)
 
         super().__init__(**kwargs)

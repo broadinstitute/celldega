@@ -1,3 +1,4 @@
+import { count } from 'd3';
 import { get_arrow_table } from '../read_parquet/get_arrow_table';
 import { hexToRgb } from '../utils/hexToRgb';
 
@@ -29,14 +30,14 @@ export const update_meta_cluster = (cats, new_meta_cluster) => {
 
 export const set_cluster_metadata = async (viz_state) => {
   if (viz_state.cats.has_meta_cluster) {
+
+    // find the index of color in viz_state.cats.meta_cluster_attr
+    const color_index = viz_state.cats.meta_cluster_attr.indexOf('color');
+
     // loop through the keys of meta_cluster and assemble a dictionary of colors use a map or something functional
     for (const cluster_name in viz_state.cats.meta_cluster) {
 
-      console.log('cluster_name', cluster_name);
-      // console.log('color', viz_state.cats.meta_cluster[cluster_name]['color']);
 
-      // find the index of color in viz_state.cats.meta_cluster_attr
-      const color_index = viz_state.cats.meta_cluster_attr.indexOf('color');
 
       viz_state.cats.color_dict_cluster[cluster_name] = hexToRgb(
         viz_state.cats.meta_cluster[cluster_name][color_index] || '#000000'
@@ -44,12 +45,30 @@ export const set_cluster_metadata = async (viz_state) => {
     }
 
     // loop through the keys and assembe cluster_counts
+
+    // find the index of count in viz_state.cats.meta_cluster_attr
+    const count_index = viz_state.cats.meta_cluster_attr.indexOf('count');
+
+    // for (const cluster_name in viz_state.cats.meta_cluster) {
+    //   viz_state.cats.cluster_counts.push({
+    //     name: cluster_name,
+    //     value: viz_state.cats.meta_cluster[cluster_name][count_index]
+    //   });
+    // }
+
     for (const cluster_name in viz_state.cats.meta_cluster) {
+      const count_index = viz_state.cats.meta_cluster_attr.indexOf('count');
+
+      const raw = viz_state.cats.meta_cluster[cluster_name][count_index];
+      const value = raw !== undefined ? Number(raw) : 0;
+
       viz_state.cats.cluster_counts.push({
         name: cluster_name,
-        value: viz_state.cats.meta_cluster[cluster_name]['count'],
+        value,
       });
     }
+
+
   } else {
     let meta_cell_url;
 

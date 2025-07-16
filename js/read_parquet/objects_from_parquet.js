@@ -14,8 +14,6 @@ export const objects_from_parquet = async (bytes) => {
 
   if (fields.length < 2) return {};
 
-  console.log('fields', fields[1,:])
-
   // Check if the index is explicitly preserved
   const indexField = fields.find((f) =>
     f === '__index_level_0__' || !f.match(/^[a-zA-Z_]/) // conservative fallback
@@ -28,12 +26,9 @@ export const objects_from_parquet = async (bytes) => {
   const result = {};
   for (let i = 0; i < table.numRows; i++) {
     const key = String(keyCol[i]);
-    if (valueCols.length === 1) {
-      result[key] = valueCols[0][i];
-    } else {
-      result[key] = valueCols.map((col) => col[i]);
-    }
+    result[key] = valueCols.map((col) => col[i]);
   }
 
-  return result;
+
+  return {result, fields};
 };

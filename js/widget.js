@@ -28,21 +28,27 @@ const render_landscape_ist = async ({ model, el }) => {
   let meta_cluster = model.get('meta_cluster');
   let umap = model.get('umap');
 
+  let meta_cell_data;
+  let meta_cluster_data;
+  let umap_data;
+
   const metaCellBytes = model.get('meta_cell_parquet');
   if (metaCellBytes && metaCellBytes.byteLength > 0) {
-    meta_cell = await objects_from_parquet(metaCellBytes);
+    console.log('here')
+    meta_cell_data = await objects_from_parquet(metaCellBytes);
+    console.log('meta_cell_data', meta_cell_data);
   }
 
   const metaClusterBytes = model.get('meta_cluster_parquet');
   if (metaClusterBytes && metaClusterBytes.byteLength > 0) {
-    meta_cluster = await objects_from_parquet(metaClusterBytes);
+    meta_cluster_data = await objects_from_parquet(metaClusterBytes);
 
     console.log('meta_cluster', meta_cluster);
   }
 
   const umapBytes = model.get('umap_parquet');
   if (umapBytes && umapBytes.byteLength > 0) {
-    umap = await objects_from_parquet(umapBytes);
+    umap_data = await objects_from_parquet(umapBytes);
   }
   const landscape_state = model.get('landscape_state');
   const segmentation = model.get('segmentation');
@@ -60,7 +66,8 @@ const render_landscape_ist = async ({ model, el }) => {
     0.25,
     width,
     height,
-    meta_cell,
+    meta_cell_data.result,
+    meta_cell_data.fields,
     {}, // meta_cluster,
     {}, // umap,
     landscape_state,

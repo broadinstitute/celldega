@@ -78,8 +78,11 @@ export const landscape_ist = async (
   width = 0,
   height = 800,
   meta_cell = {},
+  meta_cell_attr = [],
   meta_cluster = {},
+  // meta_cluster_attr = [],
   umap = {},
+  // umap_attr = [],
   landscape_state = 'spatial',
   segmentation = 'default',
   creds = {},
@@ -89,6 +92,8 @@ export const landscape_ist = async (
   if (width === 0) {
     width = '100%';
   }
+
+  console.log('meta_cluster_attr', meta_cell_attr);
 
   const viz_state = {};
 
@@ -220,6 +225,8 @@ export const landscape_ist = async (
     viz_state.cats.has_meta_cell = true;
   }
   viz_state.cats.meta_cell = meta_cell;
+
+  // console.log('viz_state.cats.meta_cell', viz_state.cats.meta_cell);
 
   if (Object.keys(meta_cluster).length === 0) {
     viz_state.cats.has_meta_cluster = false;

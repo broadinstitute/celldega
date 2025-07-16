@@ -885,7 +885,7 @@ def add_custom_segmentation(
     cbg_custom = pd.read_parquet(Path(path_segmentation_files) / "cell_by_gene_matrix.parquet")
 
     # make sure all genes are present in cbg_custom
-    meta_gene = pd.read_parquet(Path(path_landscape_files) / f"meta_gene.parquet")
+    meta_gene = pd.read_parquet(Path(path_landscape_files) / "meta_gene.parquet")
     missing_cols = meta_gene.index.difference(cbg_custom.columns)
     for col in missing_cols:
         cbg_custom[col] = 0

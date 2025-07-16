@@ -8,11 +8,12 @@ import pandas as pd
 import seaborn as sns
 from shapely.geometry import MultiPolygon
 
+from ..pre import write_xenium_transform
 from ..pre.boundary_tile import get_cell_polygons
 from ..pre.landscape import read_cbg_mtx
 
 
-def get_largest_polygon(geometry):  # TODO: underscore
+def _get_largest_polygon(geometry):
     """
     Get the largest polygon from a geometry.
 
@@ -27,7 +28,20 @@ def get_largest_polygon(geometry):  # TODO: underscore
     return geometry
 
 
-def _load_segmentation_parameters(base_path):
+def _write_default_seg_json(parameters_file, technology, dataset_name):
+    segmentation_parameters = {
+        "technology": technology,
+        "segmentation_approach": "default",
+        "dataset_name": dataset_name,
+    }
+
+    with parameters_file.open("w") as f:
+        json.dump(segmentation_parameters, f, indent=4)
+
+    return segmentation_parameters
+
+
+def _load_segmentation_parameters(base_path, technology, dataset_name):
     """
     Load segmentation parameters from JSON file.
 
@@ -40,8 +54,9 @@ def _load_segmentation_parameters(base_path):
     parameters_file = Path(base_path) / "segmentation_parameters.json"
 
     if not parameters_file.exists():
-        print("segmentation_parameters.json does not exist")
-        return None
+        print("segmentation_parameters.json does not exist, creating one...")
+
+        return _write_default_seg_json(parameters_file, technology, dataset_name)
 
     try:
         with parameters_file.open() as parameter_file:
@@ -92,16 +107,17 @@ def _process_xenium_technology(base_path, segmentation_parameters):
     trx = trx.rename(columns={"name": gene})
     trx_meta = trx[trx[cell_index] != "UNASSIGNED"][[transcript_index, cell_index, gene]]
 
-    transformation_matrix = pd.read_csv(Path(base_path) / "micron_to_image_transform.csv", header=None, sep=" ").values
+    transformation_matrix = write_xenium_transform(base_path, base_path)
+
     cell_gdf = get_cell_polygons(
         technology=segmentation_parameters["technology"],
         path_cell_boundaries=Path(base_path) / "cell_boundaries.parquet",
-        transformation_matrix=transformation_matrix
+        transformation_matrix=transformation_matrix,
     )
 
     cell_gdf = gpd.GeoDataFrame(geometry=cell_gdf["geometry_micron"])
 
-    cell_gdf["geometry"] = cell_gdf["geometry"].apply(get_largest_polygon)
+    cell_gdf["geometry"] = cell_gdf["geometry"].apply(_get_largest_polygon)
     cell_gdf.reset_index(inplace=True)
     cell_gdf["area"] = cell_gdf["geometry"].area
     cell_gdf["centroid"] = cell_gdf["geometry"].centroid
@@ -110,9 +126,7 @@ def _process_xenium_technology(base_path, segmentation_parameters):
     return cell_index, gene, transcript_index, trx_meta, cell_gdf, cell_meta_gdf
 
 
-def _process_merscope_technology(
-    base_path, segmentation_parameters
-):
+def _process_merscope_technology(base_path, segmentation_parameters):
     """
     Process data for MERSCOPE technology.
 
@@ -140,7 +154,9 @@ def _process_merscope_technology(
     trx = trx.rename(columns={"name": gene})
     trx_meta = trx[trx[cell_index] != -1][[transcript_index, cell_index, gene]]
 
-    transformation_matrix = pd.read_csv(Path(base_path) / "images/micron_to_mosaic_pixel_transform.csv", header=None, sep=" ").values
+    transformation_matrix = pd.read_csv(
+        Path(base_path) / "images/micron_to_mosaic_pixel_transform.csv", header=None, sep=" "
+    ).values
 
     cell_gdf = get_cell_polygons(
         technology=segmentation_parameters["technology"],
@@ -151,7 +167,7 @@ def _process_merscope_technology(
 
     cell_gdf = gpd.GeoDataFrame(geometry=cell_gdf["geometry_micron"])
 
-    cell_gdf["geometry"] = cell_gdf["geometry"].apply(get_largest_polygon)
+    cell_gdf["geometry"] = cell_gdf["geometry"].apply(_get_largest_polygon)
 
     cell_gdf.reset_index(inplace=True)
     cell_gdf["area"] = cell_gdf["geometry"].area
@@ -230,7 +246,7 @@ def _save_qc_results(base_path, metrics, gene_specific_metrics_df, segmentation_
     gene_specific_metrics_df.to_csv(Path(base_path) / "gene_specific_qc.csv")
 
 
-def qc_segmentation(base_path, path_output=None, path_meta_cell_micron=None):
+def qc_segmentation(base_path, technology=None, dataset_name=None):
     """
     Calculate segmentation quality control (QC) metrics for imaging spatial transcriptomics data.
 
@@ -256,7 +272,7 @@ def qc_segmentation(base_path, path_output=None, path_meta_cell_micron=None):
     -------
     qc_segmentation(base_path="path/to/data")
     """
-    segmentation_parameters = _load_segmentation_parameters(base_path)
+    segmentation_parameters = _load_segmentation_parameters(base_path, technology, dataset_name)
     if segmentation_parameters is None:
         return
 
@@ -273,9 +289,7 @@ def qc_segmentation(base_path, path_output=None, path_meta_cell_micron=None):
         trx = trx.rename(columns={"name": gene})
     elif segmentation_parameters["technology"] == "MERSCOPE":
         cell_index, gene, transcript_index, trx_meta, cell_gdf, cell_meta_gdf = (
-            _process_merscope_technology(
-                base_path, segmentation_parameters
-            )
+            _process_merscope_technology(base_path, segmentation_parameters)
         )
 
         # Define base paths
@@ -480,34 +494,6 @@ def _create_barplot_visualization(
     - cell_b_name: Name of cell type B
     """
 
-    # technology_series = pd.Series(
-    #     [tech for tech in cell_a_with_b_cell_specific_genes for _ in range(2)],
-    #     name="Technology"
-    # )
-
-    # category_series = pd.Series(
-    #     [
-    #         f"{cell_a_name} with {cell_b_name} genes",
-    #         f"{cell_b_name} with {cell_a_name} genes"
-    #     ] * len(cell_a_with_b_cell_specific_genes),
-    #     name="Category"
-    # )
-
-    # count_values = []
-    # for a_count, b_count in zip(
-    #     cell_a_with_b_cell_specific_genes.values(),
-    #     cell_b_with_a_cell_specific_genes.values(),
-    #     strict=False
-    # ):
-    #     count_values.extend([a_count, b_count])
-
-    # count_series = pd.Series(count_values, name="Count")
-
-    # orthogonal_data = pd.concat(
-    #     [technology_series, category_series, count_series],
-    #     axis=1
-    # )
-
     # Step 1: Repeat each technology name twice (for each gene comparison)
     technologies = []
     for tech in cell_a_with_b_cell_specific_genes:
@@ -518,10 +504,9 @@ def _create_barplot_visualization(
     # Step 2: Create corresponding category labels (A with B genes, B with A genes)
     category_labels = []
     for _ in cell_a_with_b_cell_specific_genes:
-        category_labels.extend([
-            f"{cell_a_name} with {cell_b_name} genes",
-            f"{cell_b_name} with {cell_a_name} genes"
-        ])
+        category_labels.extend(
+            [f"{cell_a_name} with {cell_b_name} genes", f"{cell_b_name} with {cell_a_name} genes"]
+        )
 
     category_series = pd.Series(category_labels, name="Category")
 
@@ -531,7 +516,7 @@ def _create_barplot_visualization(
 
     count_values = []
 
-    for a_count, b_count in zip(a_counts, b_counts):
+    for a_count, b_count in zip(a_counts, b_counts, strict=False):
         # Step 3: Add both counts to the list
         count_values.append(a_count)
         count_values.append(b_count)
@@ -539,10 +524,7 @@ def _create_barplot_visualization(
     count_series = pd.Series(count_values, name="Count")
 
     # Step 4: Combine into a single DataFrame
-    orthogonal_data = pd.concat(
-        [technology_series, category_series, count_series],
-        axis=1
-    )
+    orthogonal_data = pd.concat([technology_series, category_series, count_series], axis=1)
 
     fig, ax = plt.subplots(figsize=(10, 6))
 

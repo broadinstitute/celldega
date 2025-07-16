@@ -4,9 +4,9 @@ Main preprocessing script for Xenium data processing.
 
 import argparse
 from pathlib import Path
+import shutil
 
 import pandas as pd
-import shutil
 
 import celldega as dega
 
@@ -27,15 +27,17 @@ def _create_directories(directories):
 
 def create_dummy_clusters(path_landscape_files, cbg):
     _create_directories([f"{path_landscape_files}/cell_clusters"])
-    meta_cluster = pd.DataFrame(index=["0"], columns=["color", "count"])
-    meta_cluster.loc["0", "color"] = "#1f77b4"
-    meta_cluster.loc["0", "count"] = 1000
-    meta_cluster.to_parquet(f"{path_landscape_files}/cell_clusters/meta_cluster.parquet")
+
     inst_index = [str(x) for x in cbg.index.tolist()]
     meta_cell = pd.DataFrame(index=inst_index)
     meta_cell["cluster"] = "0"
     meta_cell.index = meta_cell.index.astype(str)
     meta_cell.to_parquet(f"{path_landscape_files}/cell_clusters/cluster.parquet")
+
+    meta_cluster = pd.DataFrame(index=["0"], columns=["color", "count"])
+    meta_cluster.loc["0", "color"] = "#1f77b4"
+    meta_cluster.loc["0", "count"] = len(meta_cell)
+    meta_cluster.to_parquet(f"{path_landscape_files}/cell_clusters/meta_cluster.parquet")
 
 
 def _determine_technology(data_dir):
@@ -154,7 +156,6 @@ def main(
         dega.pre.write_xenium_transform(str(data_dir), path_landscape_files)
 
     elif technology == "MERSCOPE":
-
         source_path = Path(paths["transformation_matrix"])
 
         # Copy the file to the destination directory, keeping the same filename

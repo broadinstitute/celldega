@@ -267,7 +267,7 @@ def get_cell_polygons(
 
     # Transform geometries
     cells_orig["GEOMETRY"] = batch_transform_geometries(
-        cells_orig["geometry_micron"], transformation_matrix, 1
+        cells_orig["geometry_micron"], transformation_matrix, image_scale
     )
 
     # Convert transformed geometries to polygons and calculate centroids
@@ -276,9 +276,8 @@ def get_cell_polygons(
     # Specify the columns to include
     columns_to_include = ["geometry_micron", "GEOMETRY"]
 
-    gdf_cells = gpd.GeoDataFrame(cells_orig[columns_to_include], geometry=cells_orig["polygon"])
+    return gpd.GeoDataFrame(cells_orig[columns_to_include], geometry=cells_orig["polygon"])
 
-    return gdf_cells
 
 def make_cell_boundary_tiles(
     technology,

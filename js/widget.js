@@ -1,7 +1,7 @@
 import './widget.css';
 
 import { networkFromParquet } from './read_parquet/network_from_parquet';
-import { objectsFromParquet } from './read_parquet/objects_from_parquet';
+import { objects_from_parquet } from './read_parquet/objects_from_parquet';
 import {
   handleAsyncError,
   handleValidationWarning,
@@ -30,17 +30,19 @@ const render_landscape_ist = async ({ model, el }) => {
 
   const metaCellBytes = model.get('meta_cell_parquet');
   if (metaCellBytes && metaCellBytes.byteLength > 0) {
-    meta_cell = await objectsFromParquet(metaCellBytes);
+    meta_cell = await objects_from_parquet(metaCellBytes);
   }
 
   const metaClusterBytes = model.get('meta_cluster_parquet');
   if (metaClusterBytes && metaClusterBytes.byteLength > 0) {
-    meta_cluster = await objectsFromParquet(metaClusterBytes);
+    meta_cluster = await objects_from_parquet(metaClusterBytes);
+
+    console.log('meta_cluster', meta_cluster);
   }
 
   const umapBytes = model.get('umap_parquet');
   if (umapBytes && umapBytes.byteLength > 0) {
-    umap = await objectsFromParquet(umapBytes);
+    umap = await objects_from_parquet(umapBytes);
   }
   const landscape_state = model.get('landscape_state');
   const segmentation = model.get('segmentation');

@@ -127,7 +127,6 @@ class Landscape(anywidget.AnyWidget):
                     ]
                 meta_cluster_df = pd.DataFrame(
                     {
-                        "name": cluster_counts.index,
                         "color": list(colors)[: len(cluster_counts)],
                         "count": cluster_counts.values,
                     },

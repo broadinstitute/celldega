@@ -107,14 +107,14 @@ export const ini_cell_layer = async (base_url, viz_state) => {
   set_cell_name_to_index_map(viz_state.cats);
 
   if (viz_state.cats.has_meta_cell) {
-    console.log('has_meta_cell', viz_state.cats.has_meta_cell);
-    console.log('meta_cell', viz_state.cats.meta_cell);
-    console.log('viz_state.cats.cell_names_array', viz_state.cats.cell_names_array);
+    // console.log('has_meta_cell', viz_state.cats.has_meta_cell);
+    // console.log('meta_cell', viz_state.cats.meta_cell);
+    // console.log('viz_state.cats.cell_names_array', viz_state.cats.cell_names_array);
     viz_state.cats.cell_cats = viz_state.cats.cell_names_array.map(
       (name) => viz_state.cats.meta_cell[name]
     );
 
-    console.log('cell_cats', viz_state.cats.cell_cats);
+    // console.log('cell_cats', viz_state.cats.cell_cats);
   } else {
     // default clustering
 

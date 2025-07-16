@@ -29,6 +29,8 @@ export const objects_from_parquet = async (bytes) => {
     result[key] = valueCols.map((col) => col[i]);
   }
 
+  // find the attribute fields (drop index field)
+  const attr = fields.filter((f) => f !== indexField);
 
-  return {result, fields};
+  return {result, attr};
 };

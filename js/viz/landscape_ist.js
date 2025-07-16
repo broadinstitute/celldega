@@ -93,7 +93,7 @@ export const landscape_ist = async (
     width = '100%';
   }
 
-  console.log('meta_cluster_attr', meta_cell_attr);
+  console.log('meta_cell_attr', meta_cell_attr);
 
   const viz_state = {};
 

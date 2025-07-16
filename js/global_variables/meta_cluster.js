@@ -43,7 +43,6 @@ export const set_cluster_metadata = async (viz_state) => {
     const count_index = viz_state.cats.meta_cluster_attr.indexOf('count');
 
     for (const cluster_name in viz_state.cats.meta_cluster) {
-
       const raw = viz_state.cats.meta_cluster[cluster_name][count_index];
       const value = raw !== undefined ? Number(raw) : 0;
 

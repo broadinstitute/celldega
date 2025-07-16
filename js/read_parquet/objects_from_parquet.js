@@ -14,7 +14,7 @@ export const objects_from_parquet = async (
   const table = await arrayBufferToArrowTable(bytes.buffer);
   const fields = table.schema.fields.map((f) => f.name);
 
-  if (fields.length < 2) return {};
+  if (fields.length < 2) return { result: {}, attr: [] };
 
   if (!fields.includes(keyField)) {
     throw new Error(

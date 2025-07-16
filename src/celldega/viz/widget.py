@@ -13,16 +13,13 @@ import colorsys
 
 
 _clustergram_registry = {}  # maps names to widget instances
+_enrich_registry = {}  # maps names to widget instances
 
 
 def _hsv_to_hex(h: float) -> str:
     """Convert HSV color to hex string."""
     r, g, b = colorsys.hsv_to_rgb(h, 0.65, 0.9)
     return f"#{int(r * 255):02x}{int(g * 255):02x}{int(b * 255):02x}"
-
-
-_clustergram_registry = {}  # maps names to widget instances
-_enrich_registry = {}  # maps names to widget instances
 
 
 class Landscape(anywidget.AnyWidget):
@@ -87,7 +84,6 @@ class Landscape(anywidget.AnyWidget):
     # cell_attr = traitlets.List(['leiden']).tag(sync=True)
     cell_attr = traitlets.List(trait=traitlets.Unicode(), default_value=["leiden"]).tag(sync=True)
 
-
     segmentation = traitlets.Unicode("default").tag(sync=True)
 
     width = traitlets.Int(0).tag(sync=True)
@@ -106,7 +102,6 @@ class Landscape(anywidget.AnyWidget):
         # cell_attr = kwargs.pop("cell_attr", "leiden")
         cell_attr = kwargs.pop("cell_attr", ["leiden"])
 
-
         def _df_to_bytes(df):
             import io
 
@@ -119,7 +114,6 @@ class Landscape(anywidget.AnyWidget):
             return buf.getvalue()
 
         if adata is not None:
-
             meta_cell_df = adata.obs[cell_attr].copy()
             # meta_cell_df.reset_index(inplace=True)
             pq_meta_cell = _df_to_bytes(meta_cell_df)
@@ -129,9 +123,7 @@ class Landscape(anywidget.AnyWidget):
                 colors = adata.uns.get("leiden_colors")
                 if colors is None:
                     n = len(cluster_counts)
-                    colors = [
-                        _hsv_to_hex(i / max(n, 1)) for i in range(n)
-                    ]
+                    colors = [_hsv_to_hex(i / max(n, 1)) for i in range(n)]
                 meta_cluster_df = pd.DataFrame(
                     {
                         "color": list(colors)[: len(cluster_counts)],
@@ -143,9 +135,7 @@ class Landscape(anywidget.AnyWidget):
                 pq_meta_cluster = _df_to_bytes(meta_cluster_df)
 
             if "X_umap" in adata.obsm:
-                umap_df = pd.DataFrame(
-                    adata.obsm["X_umap"], index=adata.obs.index
-                ).reset_index()
+                umap_df = pd.DataFrame(adata.obsm["X_umap"], index=adata.obs.index).reset_index()
                 pq_umap = _df_to_bytes(umap_df)
 
         if isinstance(meta_cell_df, pd.DataFrame):
@@ -161,13 +151,9 @@ class Landscape(anywidget.AnyWidget):
 
         parquet_traits = {}
         if pq_meta_cell is not None:
-            parquet_traits["meta_cell_parquet"] = traitlets.Bytes(pq_meta_cell).tag(
-                sync=True
-            )
+            parquet_traits["meta_cell_parquet"] = traitlets.Bytes(pq_meta_cell).tag(sync=True)
         if pq_meta_cluster is not None:
-            parquet_traits["meta_cluster_parquet"] = traitlets.Bytes(
-                pq_meta_cluster
-            ).tag(sync=True)
+            parquet_traits["meta_cluster_parquet"] = traitlets.Bytes(pq_meta_cluster).tag(sync=True)
         if pq_umap is not None:
             parquet_traits["umap_parquet"] = traitlets.Bytes(pq_umap).tag(sync=True)
 

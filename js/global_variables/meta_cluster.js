@@ -30,15 +30,11 @@ export const update_meta_cluster = (cats, new_meta_cluster) => {
 
 export const set_cluster_metadata = async (viz_state) => {
   if (viz_state.cats.has_meta_cluster) {
-
     // find the index of color in viz_state.cats.meta_cluster_attr
     const color_index = viz_state.cats.meta_cluster_attr.indexOf('color');
 
     // loop through the keys of meta_cluster and assemble a dictionary of colors use a map or something functional
     for (const cluster_name in viz_state.cats.meta_cluster) {
-
-
-
       viz_state.cats.color_dict_cluster[cluster_name] = hexToRgb(
         viz_state.cats.meta_cluster[cluster_name][color_index] || '#000000'
       );
@@ -67,8 +63,6 @@ export const set_cluster_metadata = async (viz_state) => {
         value,
       });
     }
-
-
   } else {
     let meta_cell_url;
 

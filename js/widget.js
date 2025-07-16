@@ -24,13 +24,13 @@ const render_landscape_ist = async ({ model, el }) => {
   const dataset_name = model.get('dataset_name');
   const width = model.get('width');
   const height = model.get('height');
-  let meta_cell = model.get('meta_cell');
-  let meta_cluster = model.get('meta_cluster');
-  let umap = model.get('umap');
+  // let meta_cell = model.get('meta_cell');
+  // let meta_cluster = model.get('meta_cluster');
+  // let umap = model.get('umap');
 
   let meta_cell_data;
   let meta_cluster_data;
-  let umap_data;
+  // let umap_data;
 
   const metaCellBytes = model.get('meta_cell_parquet');
   if (metaCellBytes && metaCellBytes.byteLength > 0) {
@@ -40,7 +40,6 @@ const render_landscape_ist = async ({ model, el }) => {
   const metaClusterBytes = model.get('meta_cluster_parquet');
   if (metaClusterBytes && metaClusterBytes.byteLength > 0) {
     meta_cluster_data = await objects_from_parquet(metaClusterBytes, 'leiden');
-    console.log('meta_cluster', meta_cluster);
   }
 
   const umapBytes = model.get('umap_parquet');

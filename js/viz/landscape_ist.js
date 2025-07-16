@@ -89,12 +89,6 @@ export const landscape_ist = async (
   creds = {},
   view_change_custom_callback = null
 ) => {
-
-  console.log('landscape_ist')
-
-  console.log('meta_cell', meta_cell);
-  console.log('meta_cluster', meta_cluster);
-
   if (width === 0) {
     width = '100%';
   }
@@ -230,8 +224,6 @@ export const landscape_ist = async (
   viz_state.cats.meta_cell = meta_cell;
   viz_state.cats.meta_cell_attr = meta_cell_attr;
   viz_state.cats.inst_cell_attr = meta_cell_attr[0] || 'N.A.';
-
-  console.log('meta_cluster', meta_cluster);
 
   if (Object.keys(meta_cluster).length === 0) {
     viz_state.cats.has_meta_cluster = false;

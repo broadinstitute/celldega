@@ -118,10 +118,7 @@ export const ini_cell_layer = async (base_url, viz_state) => {
       return attrs?.[inst_index] ?? 'N.A.';
     });
 
-
-    // console.log('cell_cats', viz_state.cats.cell_cats);
   } else {
-    // default clustering
 
     const cluster_arrow_table = await get_arrow_table(
       `${base_url}/cell_clusters${viz_state.seg.version && viz_state.seg.version !== 'default' ? `_${viz_state.seg.version}` : ''}/cluster.parquet`,

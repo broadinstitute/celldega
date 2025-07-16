@@ -132,6 +132,8 @@ class Landscape(anywidget.AnyWidget):
                     },
                     index=cluster_counts.index,
                 )
+
+                print('meta_cluster_df', meta_cluster_df)
                 pq_meta_cluster = _df_to_bytes(meta_cluster_df)
 
             if "X_umap" in adata.obsm:

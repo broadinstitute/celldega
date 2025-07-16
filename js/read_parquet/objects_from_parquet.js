@@ -1,26 +1,25 @@
 import { arrayBufferToArrowTable } from './arrayBufferToArrowTable';
 
 /**
- * Converts a Parquet-encoded ArrayBuffer into an object using the DataFrame index as key.
+ * Converts a Parquet-encoded ArrayBuffer into an object using the specified key field.
  *
- * Works whether the index is named or not (e.g. "__index_level_0__").
- *
- * @param {ArrayBuffer} bytes - The buffer to decode.
- * @returns {Promise<Object>} - Object mapping index → [values] or single value.
+ * @param {ArrayBuffer} bytes - The Parquet bytes.
+ * @param {string} keyField - The name of the field to use as the key.
+ * @returns {Promise<{ result: Object, attr: string[] }>}
  */
-export const objects_from_parquet = async (bytes) => {
+export const objects_from_parquet = async (bytes, keyField = '__index_level_0__') => {
   const table = await arrayBufferToArrowTable(bytes.buffer);
   const fields = table.schema.fields.map((f) => f.name);
 
   if (fields.length < 2) return {};
 
-  // Check if the index is explicitly preserved
-  const indexField = fields.find((f) =>
-    f === '__index_level_0__' || !f.match(/^[a-zA-Z_]/) // conservative fallback
-  ) || fields[0];  // fallback to first field if no index column is clearly marked
+  if (!fields.includes(keyField)) {
+    throw new Error(`Key field "${keyField}" not found in Parquet fields: ${fields.join(', ')}`);
+  }
 
-  const keyCol = table.getChild(indexField).toArray();
-  const valueFields = fields.filter((f) => f !== indexField);
+
+  const keyCol = table.getChild(keyField).toArray();
+  const valueFields = fields.filter((f) => f !== keyField);
   const valueCols = valueFields.map((f) => table.getChild(f).toArray());
 
   const result = {};
@@ -29,8 +28,9 @@ export const objects_from_parquet = async (bytes) => {
     result[key] = valueCols.map((col) => col[i]);
   }
 
-  // find the attribute fields (drop index field)
-  const attr = fields.filter((f) => f !== indexField);
+  console.log('fields', fields);
+  console.log('keyField', keyField);
+  console.log('valueFields', valueFields);
 
-  return {result, attr};
+  return { result, attr: valueFields };
 };

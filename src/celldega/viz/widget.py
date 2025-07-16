@@ -114,7 +114,7 @@ class Landscape(anywidget.AnyWidget):
             print('found AnnData object, extracting metadata')
 
             meta_cell_df = adata.obs.copy()
-            meta_cell_df.reset_index(inplace=True)
+            # meta_cell_df.reset_index(inplace=True)
             pq_meta_cell = _df_to_bytes(meta_cell_df)
 
             if "leiden" in adata.obs.columns:
@@ -164,6 +164,7 @@ class Landscape(anywidget.AnyWidget):
             parquet_traits["umap_parquet"] = traitlets.Bytes(pq_umap).tag(sync=True)
 
         if parquet_traits:
+            print(parquet_traits)
             self.add_traits(**parquet_traits)
 
         super().__init__(**kwargs)

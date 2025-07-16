@@ -59,8 +59,8 @@ const render_landscape_ist = async ({ model, el }) => {
     width,
     height,
     meta_cell,
-    meta_cluster,
-    umap,
+    {}, // meta_cluster,
+    {}, // umap,
     landscape_state,
     segmentation,
     creds

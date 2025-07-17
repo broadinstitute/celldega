@@ -10,9 +10,7 @@ import {
   set_views_prop,
 } from '../deck-gl/core/deck_ist';
 import { set_views } from '../deck-gl/core/views';
-import {
-  ini_background_layer,
-} from '../deck-gl/layers/background_layer';
+import { ini_background_layer } from '../deck-gl/layers/background_layer';
 import {
   ini_cell_layer,
   set_cell_layer_onclick,
@@ -22,9 +20,7 @@ import {
 //   set_edit_layer_on_click,
 //   set_edit_layer_on_edit,
 // } from '../deck-gl/layers/edit_layer';
-import {
-  make_image_layers,
-} from '../deck-gl/layers/image_layers';
+import { make_image_layers } from '../deck-gl/layers/image_layers';
 // import {
 //   ini_nbhd_layer,
 //   set_nbhd_layer_onclick,

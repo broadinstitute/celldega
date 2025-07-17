@@ -19,10 +19,7 @@ export const update_ist_landscape_from_cgm = async (
 
   // add try catch block
   try {
-
-
     if (click_info.type === 'row_label') {
-
       inst_gene = click_info.value.name;
 
       new_cat = inst_gene === viz_state.cats.cat ? 'cluster' : inst_gene;
@@ -47,7 +44,6 @@ export const update_ist_landscape_from_cgm = async (
       );
 
       refreshLayer(viz_state, layers_obj, 'cell_layer');
-
     } else if (click_info.type === 'col_label') {
       inst_gene = 'cluster';
       new_cat = click_info.value.name;

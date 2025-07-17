@@ -292,28 +292,28 @@ const spatial_button_callback = async (
   viz_state.buttons.buttons.spatial.style('color', 'blue');
 
   // restore layer visibility after a short delay
-    setTimeout(() => {
-      viz_state.obs_store.viz_background_layer.set(true);
-      viz_state.obs_store.viz_image_layers.set(true);
-      toggle_trx_layer_visibility(layers_obj, true);
-      toggle_path_layer_visibility(layers_obj, true);
+  setTimeout(() => {
+    viz_state.obs_store.viz_background_layer.set(true);
+    viz_state.obs_store.viz_image_layers.set(true);
+    toggle_trx_layer_visibility(layers_obj, true);
+    toggle_path_layer_visibility(layers_obj, true);
 
-      viz_state.obs_store.deck_check.set({
-        ...viz_state.obs_store.deck_check.get(),
-        cell_layer: false,
-        path_layer: false,
-        trx_layer: false,
-      });
+    viz_state.obs_store.deck_check.set({
+      ...viz_state.obs_store.deck_check.get(),
+      cell_layer: false,
+      path_layer: false,
+      trx_layer: false,
+    });
 
-      viz_state.layers_obj = layers_obj;
+    viz_state.layers_obj = layers_obj;
 
-      viz_state.obs_store.deck_check.set({
-        ...viz_state.obs_store.deck_check.get(),
-        cell_layer: true,
-        path_layer: true,
-        trx_layer: true,
-      });
-    }, 3000);
+    viz_state.obs_store.deck_check.set({
+      ...viz_state.obs_store.deck_check.get(),
+      cell_layer: true,
+      path_layer: true,
+      trx_layer: true,
+    });
+  }, 3000);
 };
 
 const make_ist_img_layer_button_callback = (

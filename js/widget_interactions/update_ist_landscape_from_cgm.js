@@ -13,7 +13,6 @@ export const update_ist_landscape_from_cgm = async (
   if (!click_info || !click_info.type) {
     return;
   }
-  console.log('update_ist_landscape_from_cgm', click_info);
 
   let inst_gene;
   let new_cat;
@@ -21,11 +20,9 @@ export const update_ist_landscape_from_cgm = async (
   // add try catch block
   try {
 
-    console.log('click_info.type', click_info.type);
 
     if (click_info.type === 'row_label') {
 
-      console.log('row_label click_info', click_info);
       inst_gene = click_info.value.name;
 
       new_cat = inst_gene === viz_state.cats.cat ? 'cluster' : inst_gene;
@@ -52,7 +49,6 @@ export const update_ist_landscape_from_cgm = async (
       refreshLayer(viz_state, layers_obj, 'cell_layer');
 
     } else if (click_info.type === 'col_label') {
-      console.log('col_label click_info', click_info);
       inst_gene = 'cluster';
       new_cat = click_info.value.name;
 
@@ -62,7 +58,6 @@ export const update_ist_landscape_from_cgm = async (
 
       refreshLayer(viz_state, layers_obj, 'cell_layer');
     } else if (click_info.type === 'col_dendro') {
-      console.log('col_dendro click_info', click_info);
       inst_gene = 'cluster';
 
       inst_gene = 'cluster';

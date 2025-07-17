@@ -116,7 +116,6 @@ class Landscape(anywidget.AnyWidget):
             return buf.getvalue()
 
         if adata is not None:
-
             # if cell_id is in the adata.obs, use it as index
             if "cell_id" in adata.obs.columns:
                 adata.obs.set_index("cell_id", inplace=True)

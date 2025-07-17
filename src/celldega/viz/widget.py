@@ -122,6 +122,12 @@ class Landscape(anywidget.AnyWidget):
                 cluster_counts = adata.obs["leiden"].value_counts().sort_index()
                 colors = adata.uns.get("leiden_colors")
                 if colors is None:
+                    with suppress(Exception):
+                        from scanpy.plotting._utils import add_colors_for_categorical_obs
+
+                        add_colors_for_categorical_obs(adata, "leiden")
+                        colors = adata.uns.get("leiden_colors")
+                if colors is None:
                     n = len(cluster_counts)
                     colors = [_hsv_to_hex(i / max(n, 1)) for i in range(n)]
                 meta_cluster_df = pd.DataFrame(

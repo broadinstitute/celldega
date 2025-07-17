@@ -8,8 +8,11 @@ export const calc_viewport = async (
   layers_obj,
   viz_state
 ) => {
-  const { tile_size } = viz_state.img.landscape_parameters;
-  const max_tiles_to_view = 50;
+  const { tile_size, cell_layer_only } =
+    viz_state.img.landscape_parameters;
+  // Setting max_tiles_to_view to 0 prevents close_up mode from
+  // being triggered, which avoids fetching sub-cellular parquet files
+  const max_tiles_to_view = cell_layer_only === true ? 0 : 50;
   const zoomFactor = Math.pow(2, zoom);
   const [targetX, targetY] = target;
   const halfWidthZoomed = width / (2 * zoomFactor);

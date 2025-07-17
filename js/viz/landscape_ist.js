@@ -274,6 +274,8 @@ export const landscape_ist = async (
 
   await set_landscape_parameters(viz_state.img, base_url, viz_state.aws);
 
+  const cell_layer_only =
+    viz_state.img.landscape_parameters.cell_layer_only === true;
   const tmp_image_info = viz_state.img.landscape_parameters.image_info;
 
   viz_state.vector_name_integer =
@@ -416,7 +418,12 @@ export const landscape_ist = async (
 
   update_trx_layer_radius(layers_obj, trx_radius);
 
-  if (viz_state.umap.state === true) {
+  if (cell_layer_only) {
+    toggle_background_layer_visibility(layers_obj, false);
+    toggle_visibility_image_layers(layers_obj, false);
+    toggle_trx_layer_visibility(layers_obj, false);
+    toggle_path_layer_visibility(layers_obj, false);
+  } else if (viz_state.umap.state === true) {
     toggle_background_layer_visibility(layers_obj, false);
     toggle_visibility_image_layers(layers_obj, false);
     toggle_trx_layer_visibility(layers_obj, false);

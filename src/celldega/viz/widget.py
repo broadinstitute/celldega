@@ -101,7 +101,6 @@ class Landscape(anywidget.AnyWidget):
         meta_cluster = kwargs.pop("meta_cluster", None)
         umap_df = kwargs.pop("umap", None)
         meta_cluster_df = None
-        # cell_attr = kwargs.pop("cell_attr", "leiden")
         cell_attr = kwargs.pop("cell_attr", ["leiden"])
 
         def _df_to_bytes(df):

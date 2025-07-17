@@ -7,9 +7,9 @@ from pathlib import Path
 import warnings
 
 import anywidget
+import colorsys
 import pandas as pd
 import traitlets
-import colorsys
 
 
 _clustergram_registry = {}  # maps names to widget instances

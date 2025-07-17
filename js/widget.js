@@ -63,7 +63,7 @@ const render_landscape_ist = async ({ model, el }) => {
     
     meta_cluster_data.result,
     meta_cluster_data.attr,
-    {}, // umap,
+    {},
     landscape_state,
     segmentation,
     creds

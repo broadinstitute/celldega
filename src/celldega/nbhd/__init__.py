@@ -1,6 +1,10 @@
 """Module for performing neighborhood analysis."""
 
-from .alpha_shapes import alpha_shape, alpha_shape_cell_clusters
+from .alpha_shapes import (
+    alpha_shape,
+    alpha_shape_cell_clusters,
+    alpha_shape_cell_clusters_from_adata,
+)
 from .gradient import calc_grad_nbhd_from_roi
 from .hextile import generate_hex_grid
 from .neighborhoods import (
@@ -16,6 +20,8 @@ from .utils import (
     _get_df_cell,
     _get_gdf_cell,
     _get_gdf_trx,
+    get_gdf_cell_from_adata,
+    save_nbhd_to_parquet,
 )
 
 
@@ -25,6 +31,9 @@ __all__ = [
     "_get_df_cell",
     "_get_gdf_cell",
     "_get_gdf_trx",
+    "get_gdf_cell_from_adata",
+    "alpha_shape_cell_clusters_from_adata",
+    "save_nbhd_to_parquet",
     "alpha_shape",
     "alpha_shape_cell_clusters",
     "calc_grad_nbhd_from_roi",

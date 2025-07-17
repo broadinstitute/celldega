@@ -83,7 +83,6 @@ class Landscape(anywidget.AnyWidget):
     cell_clusters = traitlets.Dict({}).tag(sync=True)
 
     # make a traitlet for cell_attr a list that will have the AnnData obs columns
-    # cell_attr = traitlets.List(['leiden']).tag(sync=True)
     cell_attr = traitlets.List(trait=traitlets.Unicode(), default_value=["leiden"]).tag(sync=True)
 
     segmentation = traitlets.Unicode("default").tag(sync=True)
@@ -101,7 +100,6 @@ class Landscape(anywidget.AnyWidget):
         meta_cluster = kwargs.pop("meta_cluster", None)
         umap_df = kwargs.pop("umap", None)
         meta_cluster_df = None
-        # cell_attr = kwargs.pop("cell_attr", "leiden")
         cell_attr = kwargs.pop("cell_attr", ["leiden"])
 
         def _df_to_bytes(df):
@@ -121,7 +119,6 @@ class Landscape(anywidget.AnyWidget):
                 adata.obs.set_index("cell_id", inplace=True)
 
             meta_cell_df = adata.obs[cell_attr].copy()
-            # meta_cell_df.reset_index(inplace=True)
             pq_meta_cell = _df_to_bytes(meta_cell_df)
 
             if "leiden" in adata.obs.columns:
@@ -137,7 +134,7 @@ class Landscape(anywidget.AnyWidget):
                 # backup color definition
                 if colors is None:
                     n = len(cluster_counts)
-                    colors = [_hsv_to_hex(i / max(n, 1)) for i in range(n)]
+                    colors = [_hsv_to_hex(i / n) for i in range(n)]
 
                 meta_cluster_df = pd.DataFrame(
                     {

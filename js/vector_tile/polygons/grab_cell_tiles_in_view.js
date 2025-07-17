@@ -3,7 +3,6 @@ import { fetch_all_tables_new } from '../../read_parquet/fetch_all_tables';
 import { get_polygon_data } from '../../read_parquet/get_polygon_data';
 import { concatenate_polygon_data } from '../concatenate_functions';
 
-import { extractPolygonPaths } from './extractPolygonPaths';
 
 export const grab_cell_tiles_in_view = async (
   base_url,
@@ -50,7 +49,5 @@ export const grab_cell_tiles_in_view = async (
 
   const polygon_data = concatenate_polygon_data(polygon_datas);
 
-  const polygonPathsConcat = extractPolygonPaths(polygon_data);
-
-  return polygonPathsConcat;
+  return polygon_data;
 };

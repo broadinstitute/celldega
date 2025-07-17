@@ -83,7 +83,6 @@ class Landscape(anywidget.AnyWidget):
     cell_clusters = traitlets.Dict({}).tag(sync=True)
 
     # make a traitlet for cell_attr a list that will have the AnnData obs columns
-    # cell_attr = traitlets.List(['leiden']).tag(sync=True)
     cell_attr = traitlets.List(trait=traitlets.Unicode(), default_value=["leiden"]).tag(sync=True)
 
     segmentation = traitlets.Unicode("default").tag(sync=True)

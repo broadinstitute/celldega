@@ -2,6 +2,7 @@ import { update_cat, update_selected_cats } from '../global_variables/cat';
 import { update_cell_exp_array } from '../global_variables/cell_exp_array';
 import { update_selected_genes } from '../global_variables/selected_genes';
 import { handleAsyncError } from '../temp_utils/errorHandler';
+import { refreshLayer } from '../utils/refreshLayer';
 
 export const update_ist_landscape_from_cgm = async (
   deck_ist,
@@ -9,6 +10,9 @@ export const update_ist_landscape_from_cgm = async (
   viz_state
 ) => {
   const click_info = viz_state.model.get('update_trigger');
+  if (!click_info || !click_info.type) {
+    return;
+  }
   console.log('update_ist_landscape_from_cgm', click_info);
 
   let inst_gene;
@@ -45,17 +49,7 @@ export const update_ist_landscape_from_cgm = async (
         viz_state.aws
       );
 
-      viz_state.obs_store.deck_check.set({
-        ...viz_state.obs_store.deck_check.get(),
-        cell_layer: false,
-      });
-
-      viz_state.layers_obj = layers_obj;
-
-      viz_state.obs_store.deck_check.set({
-        ...viz_state.obs_store.deck_check.get(),
-        cell_layer: true,
-      });
+      refreshLayer(viz_state, layers_obj, 'cell_layer');
 
     } else if (click_info.type === 'col_label') {
       console.log('col_label click_info', click_info);
@@ -66,17 +60,7 @@ export const update_ist_landscape_from_cgm = async (
       update_selected_cats(viz_state.cats, [new_cat], viz_state.obs_store);
       update_selected_genes(viz_state.genes, [], viz_state.obs_store);
 
-      viz_state.obs_store.deck_check.set({
-        ...viz_state.obs_store.deck_check.get(),
-        cell_layer: false,
-      });
-
-      viz_state.layers_obj = layers_obj;
-
-      viz_state.obs_store.deck_check.set({
-        ...viz_state.obs_store.deck_check.get(),
-        cell_layer: true,
-      });
+      refreshLayer(viz_state, layers_obj, 'cell_layer');
     } else if (click_info.type === 'col_dendro') {
       console.log('col_dendro click_info', click_info);
       inst_gene = 'cluster';
@@ -88,17 +72,7 @@ export const update_ist_landscape_from_cgm = async (
       update_selected_cats(viz_state.cats, new_cats, viz_state.obs_store);
       update_selected_genes(viz_state.genes, [], viz_state.obs_store);
 
-      viz_state.obs_store.deck_check.set({
-        ...viz_state.obs_store.deck_check.get(),
-        cell_layer: false,
-      });
-
-      viz_state.layers_obj = layers_obj;
-
-      viz_state.obs_store.deck_check.set({
-        ...viz_state.obs_store.deck_check.get(),
-        cell_layer: true,
-      });
+      refreshLayer(viz_state, layers_obj, 'cell_layer');
 
       update_cat(viz_state.cats, inst_gene);
       update_selected_cats(

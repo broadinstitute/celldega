@@ -8,7 +8,9 @@ import warnings
 
 import anywidget
 import colorsys
+from matplotlib import pyplot as plt
 import pandas as pd
+import scanpy as sc
 import traitlets
 
 
@@ -121,15 +123,18 @@ class Landscape(anywidget.AnyWidget):
             if "leiden" in adata.obs.columns:
                 cluster_counts = adata.obs["leiden"].value_counts().sort_index()
                 colors = adata.uns.get("leiden_colors")
+
                 if colors is None:
                     with suppress(Exception):
-                        from scanpy.plotting._utils import add_colors_for_categorical_obs
-
-                        add_colors_for_categorical_obs(adata, "leiden")
+                        sc.pl.umap(adata, color="leiden", show=False)
+                        plt.close()
                         colors = adata.uns.get("leiden_colors")
+
+                # backup color definition
                 if colors is None:
                     n = len(cluster_counts)
                     colors = [_hsv_to_hex(i / max(n, 1)) for i in range(n)]
+
                 meta_cluster_df = pd.DataFrame(
                     {
                         "color": list(colors)[: len(cluster_counts)],

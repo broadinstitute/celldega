@@ -2,6 +2,7 @@ import './widget.css';
 
 import { networkFromParquet } from './read_parquet/network_from_parquet';
 import { objects_from_parquet } from './read_parquet/objects_from_parquet';
+import { featureCollectionFromParquet } from './read_parquet/feature_collection_from_parquet';
 import {
   handleAsyncError,
   handleValidationWarning,
@@ -27,6 +28,8 @@ const render_landscape_ist = async ({ model, el }) => {
 
   let meta_cell_data = { result: {}, attr: [] };
   let meta_cluster_data;
+  let nbhd_fc;
+  let nbhd_meta = { result: {}, attr: [] };
   // let umap_data;
 
   const metaCellBytes = model.get('meta_cell_parquet');
@@ -37,6 +40,16 @@ const render_landscape_ist = async ({ model, el }) => {
   const metaClusterBytes = model.get('meta_cluster_parquet');
   if (metaClusterBytes && metaClusterBytes.byteLength > 0) {
     meta_cluster_data = await objects_from_parquet(metaClusterBytes, 'leiden');
+  }
+
+  const nbhdBytes = model.get('nbhd_parquet');
+  if (nbhdBytes && nbhdBytes.byteLength > 0) {
+    nbhd_fc = await featureCollectionFromParquet(nbhdBytes);
+  }
+
+  const metaNbhdBytes = model.get('meta_nbhd_parquet');
+  if (metaNbhdBytes && metaNbhdBytes.byteLength > 0) {
+    nbhd_meta = await objects_from_parquet(metaNbhdBytes, 'nbhd_id');
   }
 
   const umapBytes = model.get('umap_parquet');
@@ -65,6 +78,9 @@ const render_landscape_ist = async ({ model, el }) => {
     // {}, // meta_cluster,
     meta_cluster_data.result,
     meta_cluster_data.attr,
+    nbhd_fc,
+    nbhd_meta.result,
+    nbhd_meta.attr,
     {}, // umap,
     landscape_state,
     segmentation,

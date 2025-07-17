@@ -73,6 +73,8 @@ class Landscape(anywidget.AnyWidget):
     dataset_name = traitlets.Unicode("").tag(sync=True)
     region = traitlets.Dict({}).tag(sync=True)
     nbhd = traitlets.Dict({}).tag(sync=True)
+    nbhd_parquet = traitlets.Bytes(b"").tag(sync=True)
+    meta_nbhd_parquet = traitlets.Bytes(b"").tag(sync=True)
 
     meta_cluster = traitlets.Dict({}).tag(sync=True)
     landscape_state = traitlets.Unicode("spatial").tag(sync=True)
@@ -94,9 +96,13 @@ class Landscape(anywidget.AnyWidget):
         pq_meta_cell = kwargs.pop("meta_cell_parquet", None)
         pq_meta_cluster = kwargs.pop("meta_cluster_parquet", None)
         pq_umap = kwargs.pop("umap_parquet", None)
+        pq_nbhd = kwargs.pop("nbhd_parquet", None)
+        pq_meta_nbhd = kwargs.pop("meta_nbhd_parquet", None)
 
         meta_cell_df = kwargs.pop("meta_cell", None)
         meta_cluster = kwargs.pop("meta_cluster", None)
+        nbhd_gdf = kwargs.pop("nbhd", None)
+        meta_nbhd_df = kwargs.pop("meta_nbhd", None)
         umap_df = kwargs.pop("umap", None)
         meta_cluster_df = None
         # cell_attr = kwargs.pop("cell_attr", "leiden")
@@ -111,6 +117,13 @@ class Landscape(anywidget.AnyWidget):
             df.columns = df.columns.map(str)
             buf = io.BytesIO()
             pq.write_table(pa.Table.from_pandas(df), buf, compression="zstd")
+            return buf.getvalue()
+
+        def _gdf_to_bytes(gdf):
+            import io
+
+            buf = io.BytesIO()
+            gdf.to_parquet(buf, index=False)
             return buf.getvalue()
 
         if adata is not None:
@@ -149,6 +162,12 @@ class Landscape(anywidget.AnyWidget):
         if isinstance(umap_df, pd.DataFrame):
             pq_umap = _df_to_bytes(umap_df.reset_index())
 
+        if nbhd_gdf is not None and pq_nbhd is None:
+            pq_nbhd = _gdf_to_bytes(nbhd_gdf)
+
+        if isinstance(meta_nbhd_df, pd.DataFrame) and pq_meta_nbhd is None:
+            pq_meta_nbhd = _df_to_bytes(meta_nbhd_df.reset_index())
+
         parquet_traits = {}
         if pq_meta_cell is not None:
             parquet_traits["meta_cell_parquet"] = traitlets.Bytes(pq_meta_cell).tag(sync=True)
@@ -156,6 +175,10 @@ class Landscape(anywidget.AnyWidget):
             parquet_traits["meta_cluster_parquet"] = traitlets.Bytes(pq_meta_cluster).tag(sync=True)
         if pq_umap is not None:
             parquet_traits["umap_parquet"] = traitlets.Bytes(pq_umap).tag(sync=True)
+        if pq_nbhd is not None:
+            parquet_traits["nbhd_parquet"] = traitlets.Bytes(pq_nbhd).tag(sync=True)
+        if pq_meta_nbhd is not None:
+            parquet_traits["meta_nbhd_parquet"] = traitlets.Bytes(pq_meta_nbhd).tag(sync=True)
 
         if parquet_traits:
             self.add_traits(**parquet_traits)
@@ -167,6 +190,10 @@ class Landscape(anywidget.AnyWidget):
         self.umap = umap_df
         if meta_cluster_df is not None:
             self.meta_cluster_df = meta_cluster_df
+        if nbhd_gdf is not None:
+            self.nbhd_gdf = nbhd_gdf
+        if meta_nbhd_df is not None:
+            self.meta_nbhd_df = meta_nbhd_df
 
     def trigger_update(self, new_value):
         """

@@ -76,7 +76,12 @@ export const landscape_ist = async (
   meta_cell_attr = [],
   meta_cluster = {},
   meta_cluster_attr = [],
+  nbhd_fc = null,
+  nbhd_meta = {},
+  nbhd_meta_attr = [],
+  // meta_cluster_attr = [],
   umap = {},
+  // umap_attr = [],
   landscape_state = 'spatial',
   segmentation = 'default',
   creds = {},
@@ -155,7 +160,22 @@ export const landscape_ist = async (
     viz_state.aws = null;
   }
 
-  if (Object.keys(viz_state.model).length !== 0) {
+  if (nbhd_fc) {
+    viz_state.nbhd.alpha_nbhd = true;
+
+    viz_state.nbhd.ini_feature_collection = nbhd_fc;
+
+    viz_state.nbhd.inst_alpha = nbhd_fc['inst_alpha'];
+
+    const filt_features = nbhd_fc.features.filter(
+      (d) => d.properties.inv_alpha === viz_state.nbhd.inst_alpha
+    );
+
+    viz_state.nbhd.feature_collection = {
+      type: 'FeatureCollection',
+      features: filt_features,
+    };
+  } else if (Object.keys(viz_state.model).length !== 0) {
     if (Object.keys(viz_state.model.get('nbhd')).length === 0) {
       viz_state.nbhd.alpha_nbhd = false;
 
@@ -230,6 +250,9 @@ export const landscape_ist = async (
   viz_state.cats.meta_cluster = meta_cluster;
   viz_state.cats.meta_cluster_attr = meta_cluster_attr;
   viz_state.cats.inst_cluster_attr = meta_cluster_attr[0] || 'N.A.';
+
+  viz_state.nbhd.meta = nbhd_meta;
+  viz_state.nbhd.meta_attr = nbhd_meta_attr;
 
   viz_state.umap = {};
   if (Object.keys(umap).length === 0) {

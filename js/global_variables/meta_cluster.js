@@ -29,18 +29,26 @@ export const update_meta_cluster = (cats, new_meta_cluster) => {
 
 export const set_cluster_metadata = async (viz_state) => {
   if (viz_state.cats.has_meta_cluster) {
+    // find the index of color in viz_state.cats.meta_cluster_attr
+    const color_index = viz_state.cats.meta_cluster_attr.indexOf('color');
+
     // loop through the keys of meta_cluster and assemble a dictionary of colors use a map or something functional
     for (const cluster_name in viz_state.cats.meta_cluster) {
       viz_state.cats.color_dict_cluster[cluster_name] = hexToRgb(
-        viz_state.cats.meta_cluster[cluster_name]['color']
+        viz_state.cats.meta_cluster[cluster_name][color_index] || '#000000'
       );
     }
 
-    // loop through the keys and assembe cluster_counts
+    // find the index of count in viz_state.cats.meta_cluster_attr
+    const count_index = viz_state.cats.meta_cluster_attr.indexOf('count');
+
     for (const cluster_name in viz_state.cats.meta_cluster) {
+      const raw = viz_state.cats.meta_cluster[cluster_name][count_index];
+      const value = raw !== undefined ? Number(raw) : 0;
+
       viz_state.cats.cluster_counts.push({
         name: cluster_name,
-        value: viz_state.cats.meta_cluster[cluster_name]['count'],
+        value,
       });
     }
   } else {

@@ -78,7 +78,9 @@ export const landscape_ist = async (
   width = 0,
   height = 800,
   meta_cell = {},
+  meta_cell_attr = [],
   meta_cluster = {},
+  meta_cluster_attr = [],
   umap = {},
   landscape_state = 'spatial',
   segmentation = 'default',
@@ -212,13 +214,14 @@ export const landscape_ist = async (
   viz_state.cats.cluster_counts = [];
   viz_state.cats.polygon_cell_names = [];
 
-  // check if meta_cell is an empty object
   if (Object.keys(meta_cell).length === 0) {
     viz_state.cats.has_meta_cell = false;
   } else {
     viz_state.cats.has_meta_cell = true;
   }
   viz_state.cats.meta_cell = meta_cell;
+  viz_state.cats.meta_cell_attr = meta_cell_attr;
+  viz_state.cats.inst_cell_attr = meta_cell_attr[0] || 'N.A.';
 
   if (Object.keys(meta_cluster).length === 0) {
     viz_state.cats.has_meta_cluster = false;
@@ -226,6 +229,8 @@ export const landscape_ist = async (
     viz_state.cats.has_meta_cluster = true;
   }
   viz_state.cats.meta_cluster = meta_cluster;
+  viz_state.cats.meta_cluster_attr = meta_cluster_attr;
+  viz_state.cats.inst_cluster_attr = meta_cluster_attr[0] || 'N.A.';
 
   viz_state.umap = {};
   if (Object.keys(umap).length === 0) {

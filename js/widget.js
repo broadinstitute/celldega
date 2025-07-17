@@ -40,7 +40,6 @@ const render_landscape_ist = async ({ model, el }) => {
 
   const umapBytes = model.get('umap_parquet');
   if (umapBytes && umapBytes.byteLength > 0) {
-    // umap_data = await objects_from_parquet(umapBytes);
   }
 
   const landscape_state = model.get('landscape_state');

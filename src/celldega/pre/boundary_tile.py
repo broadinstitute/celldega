@@ -335,7 +335,7 @@ def make_cell_boundary_tiles(
 
         # Convert string index to integer index
         cell_str_to_int_mapping = _get_name_mapping(
-            path_output.rsplit("/", 1)[0],  # get the path of landscape files
+            str(Path(path_output).parent),  # get the path of landscape files
             layer="boundary",
             segmentation=path_output.split("cell_segmentation_")[
                 1

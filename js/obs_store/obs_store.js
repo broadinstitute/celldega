@@ -29,6 +29,7 @@ export const create_obs_store = () => {
     new_gene_bar_data: Observable([]),
     selected_genes: Observable([]),
     viz_image_layers: Observable(true),
+    viz_background_layer: Observable(true),
     // to do utilize for setProps
     deck_check: Observable({
       background_layer: true,

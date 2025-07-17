@@ -1,8 +1,8 @@
-import { get_layers_list } from '../deck-gl/utils/layers_ist';
 import { update_cat, update_selected_cats } from '../global_variables/cat';
 import { update_cell_exp_array } from '../global_variables/cell_exp_array';
 import { update_selected_genes } from '../global_variables/selected_genes';
 import { handleAsyncError } from '../temp_utils/errorHandler';
+import { refreshLayer } from '../utils/refreshLayer';
 
 export const update_ist_landscape_from_cgm = async (
   deck_ist,
@@ -10,6 +10,9 @@ export const update_ist_landscape_from_cgm = async (
   viz_state
 ) => {
   const click_info = viz_state.model.get('update_trigger');
+  if (!click_info || !click_info.type) {
+    return;
+  }
 
   let inst_gene;
   let new_cat;
@@ -40,8 +43,7 @@ export const update_ist_landscape_from_cgm = async (
         viz_state.aws
       );
 
-      const layers_list = get_layers_list(layers_obj, viz_state.close_up);
-      deck_ist.setProps({ layers: layers_list });
+      refreshLayer(viz_state, layers_obj, 'cell_layer');
     } else if (click_info.type === 'col_label') {
       inst_gene = 'cluster';
       new_cat = click_info.value.name;
@@ -50,8 +52,7 @@ export const update_ist_landscape_from_cgm = async (
       update_selected_cats(viz_state.cats, [new_cat], viz_state.obs_store);
       update_selected_genes(viz_state.genes, [], viz_state.obs_store);
 
-      const layers_list = get_layers_list(layers_obj, viz_state.close_up);
-      deck_ist.setProps({ layers: layers_list });
+      refreshLayer(viz_state, layers_obj, 'cell_layer');
     } else if (click_info.type === 'col_dendro') {
       inst_gene = 'cluster';
 
@@ -62,8 +63,7 @@ export const update_ist_landscape_from_cgm = async (
       update_selected_cats(viz_state.cats, new_cats, viz_state.obs_store);
       update_selected_genes(viz_state.genes, [], viz_state.obs_store);
 
-      const layers_list = get_layers_list(layers_obj, viz_state.close_up);
-      deck_ist.setProps({ layers: layers_list });
+      refreshLayer(viz_state, layers_obj, 'cell_layer');
 
       update_cat(viz_state.cats, inst_gene);
       update_selected_cats(

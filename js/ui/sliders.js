@@ -2,7 +2,6 @@ import { update_cell_layer_radius } from '../deck-gl/layers/cell_layer';
 import { update_opacity_single_image_layer } from '../deck-gl/layers/image_layers';
 import { square_scatter_layer_opacity } from '../deck-gl/layers/square_scatter_layer';
 import { update_trx_layer_radius } from '../deck-gl/layers/trx_layer';
-import { get_layers_list } from '../deck-gl/utils/layers_ist';
 
 export const make_slider = () => {
   return document.createElement('input');
@@ -31,8 +30,17 @@ const cell_slider_callback = async (deck_ist, layers_obj, viz_state) => {
     viz_state.sliders.cell.value / scale_down_cell_radius
   );
 
-  const layers_list = get_layers_list(layers_obj, viz_state.close_up);
-  deck_ist.setProps({ layers: layers_list });
+  viz_state.obs_store.deck_check.set({
+    ...viz_state.obs_store.deck_check.get(),
+    cell_layer: false,
+  });
+
+  viz_state.layers_obj = layers_obj;
+
+  viz_state.obs_store.deck_check.set({
+    ...viz_state.obs_store.deck_check.get(),
+    cell_layer: true,
+  });
 };
 
 const trx_slider_callback = async (deck_ist, layers_obj, viz_state) => {
@@ -43,8 +51,17 @@ const trx_slider_callback = async (deck_ist, layers_obj, viz_state) => {
     viz_state.sliders.trx.value / scale_down_trx_radius
   );
 
-  const layers_list = get_layers_list(layers_obj, viz_state.close_up);
-  deck_ist.setProps({ layers: layers_list });
+  viz_state.obs_store.deck_check.set({
+    ...viz_state.obs_store.deck_check.get(),
+    trx_layer: false,
+  });
+
+  viz_state.layers_obj = layers_obj;
+
+  viz_state.obs_store.deck_check.set({
+    ...viz_state.obs_store.deck_check.get(),
+    trx_layer: true,
+  });
 };
 
 export const make_img_layer_slider_callback = (
@@ -70,8 +87,17 @@ export const make_img_layer_slider_callback = (
       viz_state.img.image_layer_colors
     );
 
-    const layers_list = get_layers_list(layers_obj, viz_state.close_up);
-    deck_ist.setProps({ layers: layers_list });
+    viz_state.obs_store.deck_check.set({
+      ...viz_state.obs_store.deck_check.get(),
+      image_layers: false,
+    });
+
+    viz_state.layers_obj = layers_obj;
+
+    viz_state.obs_store.deck_check.set({
+      ...viz_state.obs_store.deck_check.get(),
+      image_layers: true,
+    });
   };
 };
 

@@ -82,7 +82,6 @@ export const landscape_ist = async (
   meta_cluster = {},
   meta_cluster_attr = [],
   umap = {},
-  // umap_attr = [],
   landscape_state = 'spatial',
   segmentation = 'default',
   creds = {},

@@ -11,7 +11,11 @@ from libpysal.cg import alpha_shape as libpysal_alpha_shape
 import numpy as np
 from shapely.geometry import MultiPolygon, Point, base, shape
 
-from .utils import _classify_polygons_contains_check, _round_coordinates
+from .utils import (
+    _classify_polygons_contains_check,
+    _round_coordinates,
+    get_gdf_cell_from_adata,
+)
 
 
 def _verify_polygons_with_alpha_bulk(
@@ -101,6 +105,18 @@ def alpha_shape_cell_clusters(
     )
     gdf_alpha["area"] = gdf_alpha.area
     return gdf_alpha.loc[gdf_alpha.area.sort_values(ascending=False).index.tolist()]
+
+
+def alpha_shape_cell_clusters_from_adata(
+    adata: Any,
+    key: str = "spatial",
+    cluster_key: str = "leiden",
+    alphas: Sequence[float] = (100, 150, 200, 250, 300, 350),
+) -> gpd.GeoDataFrame:
+    """Convenience wrapper to compute alpha shapes directly from an AnnData object."""
+
+    gdf_cell = get_gdf_cell_from_adata(adata, key=key, cluster_key=cluster_key)
+    return alpha_shape_cell_clusters(gdf_cell, cat="cluster", alphas=alphas)
 
 
 def alpha_shape_geojson(

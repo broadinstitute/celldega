@@ -11,6 +11,11 @@ import pandas as pd
 from shapely.geometry import Point, base
 from shapely.ops import transform
 
+from celldega.pre.boundary_tile import (
+    _round_nested_coord_list,
+    batch_transform_geometries,
+)
+
 
 def _add_centroids_to_obsm(
     adata: Any,
@@ -121,3 +126,71 @@ def _round_coordinates(
         return (round(x, precision), round(y, precision))
 
     return transform(round_coords, geometry)
+
+
+def get_gdf_cell_from_adata(
+    adata: Any,
+    key: str = "spatial",
+    cluster_key: str = "leiden",
+) -> gpd.GeoDataFrame:
+    """Return cell coordinates from an :class:`~anndata.AnnData` object as a
+    :class:`geopandas.GeoDataFrame`.
+
+    Parameters
+    ----------
+    adata:
+        AnnData object with spatial coordinates stored in ``adata.obsm[key]``.
+    key:
+        Key in ``adata.obsm`` where the spatial coordinates are stored.
+    cluster_key:
+        Column in ``adata.obs`` containing cluster labels. Defaults to
+        ``"leiden"``.
+
+    Returns
+    -------
+    geopandas.GeoDataFrame
+        GeoDataFrame with cell clusters (if present) and point geometries.
+    """
+
+    clusters = adata.obs.get(cluster_key)
+    return gpd.GeoDataFrame(
+        {"cluster": clusters} if clusters is not None else {},
+        geometry=gpd.points_from_xy(*adata.obsm[key].T[:2]),
+        crs="EPSG:4326",
+    )
+
+
+def save_nbhd_to_parquet(
+    gdf_nbhd: gpd.GeoDataFrame,
+    path_output: str,
+    transformation_matrix: np.ndarray | str,
+    image_scale: float = 1,
+) -> None:
+    """Save neighborhoods to a Parquet file after converting from micron to
+    image (Parquet) space.
+
+    Parameters
+    ----------
+    gdf_nbhd:
+        Neighborhood polygons in micron coordinates.
+    path_output:
+        Destination Parquet file.
+    transformation_matrix:
+        3x3 affine matrix or path to ``micron_to_image_transform.csv``.
+    image_scale:
+        Scale factor applied after the affine transformation.
+    """
+
+    if isinstance(transformation_matrix, str):
+        transformation_matrix = pd.read_csv(
+            transformation_matrix, header=None, sep=" "
+        ).values
+
+    transformed = batch_transform_geometries(
+        gdf_nbhd["geometry"], transformation_matrix, image_scale
+    )
+    df = gdf_nbhd.copy()
+    df["GEOMETRY"] = [coords for coords in transformed]
+    df["GEOMETRY"] = df["GEOMETRY"].apply(lambda x: _round_nested_coord_list(x))
+    df.drop(columns=["geometry"], inplace=True)
+    df.to_parquet(path_output, index=False)

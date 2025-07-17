@@ -1,7 +1,7 @@
 // import { DrawPolygonMode, ViewMode } from '@deck.gl-community/editable-layers';
 import * as d3 from 'd3';
 
-// import { toggle_background_layer_visibility } from '../deck-gl/layers/background_layer';
+import { toggle_background_layer_visibility } from '../deck-gl/layers/background_layer';
 // import { update_cell_pickable_state } from '../deck-gl/layers/cell_layer';
 // import _
 //   update_edit_layer_mode,

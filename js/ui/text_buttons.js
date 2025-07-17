@@ -18,6 +18,8 @@ let is_visible;
 
 let img_layer_visible = true;
 
+export const get_img_layer_visible = () => img_layer_visible;
+
 const set_img_layer_visible = (visible) => {
   img_layer_visible = visible;
 };

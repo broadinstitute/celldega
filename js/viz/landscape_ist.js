@@ -23,7 +23,7 @@ import {
 //   set_edit_layer_on_edit,
 // } from '../deck-gl/layers/edit_layer';
 import {
-  toggle_visibility_image_layers,
+  make_image_layers,
 } from '../deck-gl/layers/image_layers';
 // import {
 //   ini_nbhd_layer,
@@ -56,9 +56,9 @@ import { set_landscape_parameters } from '../global_variables/landscape_paramete
 import { set_cluster_metadata } from '../global_variables/meta_cluster';
 import { set_meta_gene } from '../global_variables/meta_gene';
 import { update_selected_genes } from '../global_variables/selected_genes';
+import { get_img_layer_visible } from '../ui/text_buttons';
 import { create_obs_store } from '../obs_store/obs_store';
 import { set_image_layer_sliders } from '../ui/sliders';
-import { get_img_layer_visible } from '../ui/text_buttons';
 import { make_ist_ui_container } from '../ui/ui_containers';
 import { update_cell_clusters } from '../widget_interactions/update_cell_clusters';
 import { update_ist_landscape_from_cgm } from '../widget_interactions/update_ist_landscape_from_cgm';

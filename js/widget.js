@@ -26,8 +26,7 @@ const render_landscape_ist = async ({ model, el }) => {
   const height = model.get('height');
 
   let meta_cell_data = { result: {}, attr: [] };
-  let meta_cluster_data;
-  // let umap_data;
+  let meta_cluster_data = { result: {}, attr: [] };
 
   const metaCellBytes = model.get('meta_cell_parquet');
   if (metaCellBytes && metaCellBytes.byteLength > 0) {

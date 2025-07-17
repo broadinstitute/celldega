@@ -16,6 +16,9 @@ export const update_ist_landscape_from_cgm = async (
   // add try catch block
   try {
     if (click_info.type === 'row_label') {
+
+      console.log('update_ist_landscape_from_cgm', click_info);
+
       inst_gene = click_info.value.name;
 
       new_cat = inst_gene === viz_state.cats.cat ? 'cluster' : inst_gene;

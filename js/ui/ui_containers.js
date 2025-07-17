@@ -1,7 +1,7 @@
 // import { DrawPolygonMode, ViewMode } from '@deck.gl-community/editable-layers';
 import * as d3 from 'd3';
 
-// import { toggle_background_layer_visibility } from '../deck-gl/layers/background_layer';
+import { toggle_background_layer_visibility } from '../deck-gl/layers/background_layer';
 // import { update_cell_pickable_state } from '../deck-gl/layers/cell_layer';
 // import _
 //   update_edit_layer_mode,
@@ -467,15 +467,33 @@ export const make_ist_ui_container = (
 
     toggle_visibility_image_layers(layers_obj, viz_image_layers);
 
-    const layers_list = get_layers_list(layers_obj, viz_state.close_up);
-    deck_ist.setProps({ layers: layers_list });
+    viz_state.obs_store.deck_check.set({
+      ...viz_state.obs_store.deck_check.get(),
+      image_layers: false,
+    });
+
+    viz_state.layers_obj = layers_obj;
+
+    viz_state.obs_store.deck_check.set({
+      ...viz_state.obs_store.deck_check.get(),
+      image_layers: true,
+    });
   });
 
   viz_state.obs_store.viz_background_layer.subscribe((visible) => {
     toggle_background_layer_visibility(layers_obj, visible);
 
-    const layers_list = get_layers_list(layers_obj, viz_state.close_up);
-    deck_ist.setProps({ layers: layers_list });
+    viz_state.obs_store.deck_check.set({
+      ...viz_state.obs_store.deck_check.get(),
+      background_layer: false,
+    });
+
+    viz_state.layers_obj = layers_obj;
+
+    viz_state.obs_store.deck_check.set({
+      ...viz_state.obs_store.deck_check.get(),
+      background_layer: true,
+    });
   });
 
   make_button(

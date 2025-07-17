@@ -135,7 +135,7 @@ class Landscape(anywidget.AnyWidget):
                 # backup color definition
                 if colors is None:
                     n = len(cluster_counts)
-                    colors = [_hsv_to_hex(i / max(n, 1)) for i in range(n)]
+                    colors = [_hsv_to_hex(i / n) for i in range(n)]
 
                 meta_cluster_df = pd.DataFrame(
                     {

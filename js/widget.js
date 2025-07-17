@@ -60,7 +60,7 @@ const render_landscape_ist = async ({ model, el }) => {
     height,
     meta_cell_data.result,
     meta_cell_data.attr,
-    // {}, // meta_cluster,
+    
     meta_cluster_data.result,
     meta_cluster_data.attr,
     {}, // umap,

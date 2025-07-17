@@ -1,14 +1,10 @@
 import * as d3 from 'd3';
 
-import { toggle_background_layer_visibility } from '../deck-gl/layers/background_layer';
 import {
   new_toggle_cell_layer_visibility,
   toggle_spatial_umap,
 } from '../deck-gl/layers/cell_layer';
-import {
-  toggle_visibility_image_layers,
-  toggle_visibility_single_image_layer,
-} from '../deck-gl/layers/image_layers';
+import { toggle_visibility_single_image_layer } from '../deck-gl/layers/image_layers';
 import { toggle_path_layer_visibility } from '../deck-gl/layers/path_layer';
 import { simple_image_layer_visibility } from '../deck-gl/layers/simple_image_layer';
 import { square_scatter_layer_visibility } from '../deck-gl/layers/square_scatter_layer';
@@ -187,21 +183,10 @@ const ist_img_button_callback = async (
   viz_state
 ) => {
   toggle_visible_button(event);
-  toggle_visibility_image_layers(layers_obj, is_visible);
-  toggle_background_layer_visibility(layers_obj, is_visible);
-
-  d3.select(viz_state.containers.image)
-    .selectAll('.img_layer_button')
-    .style('color', is_visible ? 'blue' : 'gray');
+  viz_state.obs_store.viz_image_layers.set(is_visible);
+  viz_state.obs_store.viz_background_layer.set(is_visible);
 
   set_img_layer_visible(is_visible);
-
-  viz_state.img.image_layer_sliders.map((slider) =>
-    toggle_slider(slider, is_visible)
-  );
-
-  const layers_list = get_layers_list(layers_obj, viz_state.close_up);
-  deck_ist.setProps({ layers: layers_list });
 };
 
 const tile_button_callback = async (event, deck_sst, layers_sst, viz_state) => {
@@ -251,11 +236,8 @@ const umap_button_callback = async (event, deck_ist, layers_obj, viz_state) => {
   viz_state.buttons.buttons.umap.style('color', 'blue');
   viz_state.buttons.buttons.spatial.style('color', 'gray');
 
-  // placeholder for turning off visibility on other layers
-  viz_state.buttons.buttons.img.node().click();
-
-  toggle_background_layer_visibility(layers_obj, false);
-  toggle_visibility_image_layers(layers_obj, false);
+  viz_state.obs_store.viz_background_layer.set(false);
+  viz_state.obs_store.viz_image_layers.set(false);
   toggle_trx_layer_visibility(layers_obj, false);
   toggle_path_layer_visibility(layers_obj, false);
 
@@ -275,11 +257,10 @@ const spatial_button_callback = async (
   viz_state.buttons.buttons.umap.style('color', 'gray');
   viz_state.buttons.buttons.spatial.style('color', 'blue');
 
-  // click the img button after 3 seconds
+  // restore layer visibility after a short delay
   setTimeout(() => {
-    viz_state.buttons.buttons.img.node().click();
-    toggle_background_layer_visibility(layers_obj, true);
-    toggle_visibility_image_layers(layers_obj, true);
+    viz_state.obs_store.viz_background_layer.set(true);
+    viz_state.obs_store.viz_image_layers.set(true);
     toggle_trx_layer_visibility(layers_obj, true);
     toggle_path_layer_visibility(layers_obj, true);
 

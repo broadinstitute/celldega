@@ -116,6 +116,11 @@ class Landscape(anywidget.AnyWidget):
             return buf.getvalue()
 
         if adata is not None:
+
+            # if cell_id is in the adata.obs, use it as index
+            if "cell_id" in adata.obs.columns:
+                adata.obs.set_index("cell_id", inplace=True)
+
             meta_cell_df = adata.obs[cell_attr].copy()
             # meta_cell_df.reset_index(inplace=True)
             pq_meta_cell = _df_to_bytes(meta_cell_df)

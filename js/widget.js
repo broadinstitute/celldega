@@ -27,7 +27,6 @@ const render_landscape_ist = async ({ model, el }) => {
 
   let meta_cell_data = { result: {}, attr: [] };
   let meta_cluster_data;
-  // let umap_data;
 
   const metaCellBytes = model.get('meta_cell_parquet');
   if (metaCellBytes && metaCellBytes.byteLength > 0) {

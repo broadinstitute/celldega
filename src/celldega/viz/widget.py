@@ -2,12 +2,12 @@
 Widget module for interactive visualization components.
 """
 
+import colorsys
 from contextlib import suppress
 from pathlib import Path
 import warnings
 
 import anywidget
-import colorsys
 from matplotlib import pyplot as plt
 import pandas as pd
 import scanpy as sc

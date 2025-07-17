@@ -884,17 +884,16 @@ def add_custom_segmentation(
 
     cbg_custom = pd.read_parquet(Path(path_segmentation_files) / "cell_by_gene_matrix.parquet")
 
+    # make sure all genes are present in cbg_custom
+    meta_gene = pd.read_parquet(Path(path_landscape_files) / "meta_gene.parquet")
+    missing_cols = meta_gene.index.difference(cbg_custom.columns)
+    for col in missing_cols:
+        cbg_custom[col] = 0
+
     make_meta_gene(
         cbg=cbg_custom,
         path_output=Path(path_landscape_files)
         / f"meta_gene_{segmentation_parameters['segmentation_approach']}.parquet",
-    )
-
-    save_cbg_gene_parquets(
-        base_path=path_landscape_files,
-        cbg=cbg_custom,
-        verbose=True,
-        segmentation_approach=segmentation_parameters["segmentation_approach"],
     )
 
     make_meta_cell_image_coord(
@@ -912,13 +911,26 @@ def add_custom_segmentation(
         image_scale=image_scale,
     )
 
+    save_cbg_gene_parquets(
+        base_path=path_landscape_files,
+        cbg=cbg_custom,
+        verbose=True,
+        segmentation_approach=segmentation_parameters["segmentation_approach"],
+    )
+
     create_cluster_and_meta_cluster(
         technology=segmentation_parameters["technology"],
         path_landscape_files=path_landscape_files,
         segmentation_approach=segmentation_parameters["segmentation_approach"],
     )
 
-    tree = ET.parse(Path(path_landscape_files) / "pyramid_images" / "bound.dzi")
+    # Get the first .dzi file in sorted order
+    dzi_files = sorted((Path(path_landscape_files) / "pyramid_images").glob("*.dzi"))
+    if not dzi_files:
+        raise FileNotFoundError("No .dzi files found in pyramid_images.")
+
+    # Use the first .dzi file
+    tree = ET.parse(dzi_files[0])
     root = tree.getroot()
     width = int(root[0].attrib["Width"])
     height = int(root[0].attrib["Height"])

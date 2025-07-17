@@ -251,6 +251,8 @@ def get_cell_polygons(
 
         cells_orig.set_index("cell_id", inplace=True)
 
+        cells_orig.rename(columns={"geometry": "geometry_micron"}, inplace=True)
+
     elif technology == "Xenium":
         xenium_cells = pd.read_parquet(path_cell_boundaries)
         grouped = xenium_cells.groupby("cell_id")[["vertex_x", "vertex_y"]].agg(
@@ -261,17 +263,20 @@ def get_cell_polygons(
         )
         cells_orig = gpd.GeoDataFrame(grouped, geometry="geometry")[["geometry"]]
 
+        cells_orig.rename(columns={"geometry": "geometry_micron"}, inplace=True)
+
     # Transform geometries
     cells_orig["GEOMETRY"] = batch_transform_geometries(
-        cells_orig["geometry"], transformation_matrix, image_scale
+        cells_orig["geometry_micron"], transformation_matrix, image_scale
     )
 
     # Convert transformed geometries to polygons and calculate centroids
     cells_orig["polygon"] = cells_orig["GEOMETRY"].apply(lambda x: Polygon(x[0]))
-    gdf_cells = gpd.GeoDataFrame(geometry=cells_orig["polygon"])
-    gdf_cells["GEOMETRY"] = cells_orig["GEOMETRY"]
 
-    return gdf_cells
+    # Specify the columns to include
+    columns_to_include = ["geometry_micron", "GEOMETRY"]
+
+    return gpd.GeoDataFrame(cells_orig[columns_to_include], geometry=cells_orig["polygon"])
 
 
 def make_cell_boundary_tiles(
@@ -330,7 +335,7 @@ def make_cell_boundary_tiles(
 
         # Convert string index to integer index
         cell_str_to_int_mapping = _get_name_mapping(
-            path_output.replace("/cell_segmentation", ""),  # get the path of landscape files
+            str(Path(path_output).parent),  # get the path of landscape files
             layer="boundary",
             segmentation=path_output.split("cell_segmentation_")[
                 1

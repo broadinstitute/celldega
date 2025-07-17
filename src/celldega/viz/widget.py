@@ -2,12 +2,15 @@
 Widget module for interactive visualization components.
 """
 
+import colorsys
 from contextlib import suppress
 from pathlib import Path
 import warnings
 
 import anywidget
+from matplotlib import pyplot as plt
 import pandas as pd
+import scanpy as sc
 import traitlets
 import colorsys
 
@@ -83,7 +86,6 @@ class Landscape(anywidget.AnyWidget):
     cell_clusters = traitlets.Dict({}).tag(sync=True)
 
     # make a traitlet for cell_attr a list that will have the AnnData obs columns
-    # cell_attr = traitlets.List(['leiden']).tag(sync=True)
     cell_attr = traitlets.List(trait=traitlets.Unicode(), default_value=["leiden"]).tag(sync=True)
 
     segmentation = traitlets.Unicode("default").tag(sync=True)
@@ -106,6 +108,11 @@ class Landscape(anywidget.AnyWidget):
         umap_df = kwargs.pop("umap", None)
         meta_cluster_df = None
         # cell_attr = kwargs.pop("cell_attr", "leiden")
+
+        # meta_cell_df = kwargs.pop("meta_cell", None)
+        # meta_cluster = kwargs.pop("meta_cluster", None)
+        # umap_df = kwargs.pop("umap", None)
+        # meta_cluster_df = None
         cell_attr = kwargs.pop("cell_attr", ["leiden"])
 
         def _df_to_bytes(df):
@@ -126,17 +133,28 @@ class Landscape(anywidget.AnyWidget):
             gdf.to_parquet(buf, index=False)
             return buf.getvalue()
 
+
+
         if adata is not None:
             meta_cell_df = adata.obs[cell_attr].copy()
-            # meta_cell_df.reset_index(inplace=True)
+
             pq_meta_cell = _df_to_bytes(meta_cell_df)
 
             if "leiden" in adata.obs.columns:
                 cluster_counts = adata.obs["leiden"].value_counts().sort_index()
                 colors = adata.uns.get("leiden_colors")
+
+                if colors is None:
+                    with suppress(Exception):
+                        sc.pl.umap(adata, color="leiden", show=False)
+                        plt.close()
+                        colors = adata.uns.get("leiden_colors")
+
+                # backup color definition
                 if colors is None:
                     n = len(cluster_counts)
-                    colors = [_hsv_to_hex(i / max(n, 1)) for i in range(n)]
+                    colors = [_hsv_to_hex(i / n) for i in range(n)]
+
                 meta_cluster_df = pd.DataFrame(
                     {
                         "color": list(colors)[: len(cluster_counts)],

@@ -291,7 +291,7 @@ const spatial_button_callback = async (
   viz_state.buttons.buttons.umap.style('color', 'gray');
   viz_state.buttons.buttons.spatial.style('color', 'blue');
 
-  // restore layer visibility after a short delay
+  // Use observables to restore layer visibility after a short delay via setTimeout
   setTimeout(() => {
     viz_state.obs_store.viz_background_layer.set(true);
     viz_state.obs_store.viz_image_layers.set(true);

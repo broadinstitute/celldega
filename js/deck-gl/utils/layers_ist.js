@@ -9,7 +9,7 @@ export const get_layers_list = (layers_obj, close_up, _nbhd) => {
       layers_obj.path_layer,
       layers_obj.cell_layer,
       layers_obj.trx_layer,
-      // layers_obj.nbhd_layer,
+      layers_obj.nbhd_layer,
     ];
   } else {
     layers_list = [

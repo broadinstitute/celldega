@@ -21,10 +21,10 @@ import {
 //   set_edit_layer_on_edit,
 // } from '../deck-gl/layers/edit_layer';
 import { make_image_layers } from '../deck-gl/layers/image_layers';
-// import {
-//   ini_nbhd_layer,
-//   set_nbhd_layer_onclick,
-// } from '../deck-gl/layers/nbhd_layer';
+import {
+  ini_nbhd_layer,
+  set_nbhd_layer_onclick,
+} from '../deck-gl/layers/nbhd_layer';
 import {
   ini_path_layer,
   set_path_layer_onclick,
@@ -90,6 +90,8 @@ export const landscape_ist = async (
   if (width === 0) {
     width = '100%';
   }
+
+  console.log('nbhd_fc:', nbhd_fc);
 
   const viz_state = {};
 
@@ -376,7 +378,7 @@ export const landscape_ist = async (
   const path_layer = await ini_path_layer(viz_state);
   const trx_layer = ini_trx_layer(viz_state.genes);
   // const edit_layer = ini_edit_layer(viz_state);
-  // const nbhd_layer = ini_nbhd_layer(viz_state, false);
+  const nbhd_layer = ini_nbhd_layer(viz_state, true);
 
   // make layers object
   const layers_obj = {
@@ -386,10 +388,12 @@ export const landscape_ist = async (
     path_layer,
     trx_layer,
     // edit_layer,
-    // nbhd_layer,
+    nbhd_layer,
   };
 
   viz_state.layers_obj = layers_obj;
+
+  console.log('Layers object:', layers_obj);
 
   // set onclicks after all layers are made
   set_cell_layer_onclick(deck_ist, layers_obj, viz_state);
@@ -397,7 +401,7 @@ export const landscape_ist = async (
   set_trx_layer_onclick(deck_ist, layers_obj, viz_state);
   // set_edit_layer_on_edit(deck_ist, layers_obj, viz_state);
   // set_edit_layer_on_click(deck_ist, layers_obj, viz_state);
-  // set_nbhd_layer_onclick(deck_ist, layers_obj, viz_state);
+  set_nbhd_layer_onclick(deck_ist, layers_obj, viz_state);
 
   viz_state.obs_store.deck_ready.subscribe((ready) => {
     if (ready) {

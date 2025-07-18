@@ -103,7 +103,7 @@ class Landscape(anywidget.AnyWidget):
 
         meta_cell_df = kwargs.pop("meta_cell", None)
         meta_cluster = kwargs.pop("meta_cluster", None)
-        nbhd_gdf = kwargs.pop("nbhd", None)
+        nbhd_gdf = kwargs.pop("nbhd_gdf", None)
         meta_nbhd_df = kwargs.pop("meta_nbhd", None)
         umap_df = kwargs.pop("umap", None)
         meta_cluster_df = None

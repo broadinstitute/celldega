@@ -469,7 +469,6 @@ export const make_ist_ui_container = (
     toggle_visibility_image_layers(layers_obj, viz_image_layers);
 
     refresh_layer(viz_state, layers_obj, 'image_layers');
-
   });
 
   viz_state.obs_store.viz_background_layer.subscribe((visible) => {

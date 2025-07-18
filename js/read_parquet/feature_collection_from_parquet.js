@@ -2,7 +2,7 @@ import { arrayBufferToArrowTable } from './arrayBufferToArrowTable';
 import { get_polygon_data } from './get_polygon_data';
 import { extractPolygonPaths } from '../vector_tile/polygons/extractPolygonPaths';
 
-export const featureCollectionFromParquet = async (bytes) => {
+export const feature_collectoin_from_parquet = async (bytes) => {
   const table = await arrayBufferToArrowTable(bytes.buffer);
   const polygonData = get_polygon_data(table);
   if (!polygonData) {

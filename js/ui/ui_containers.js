@@ -1,7 +1,7 @@
 // import { DrawPolygonMode, ViewMode } from '@deck.gl-community/editable-layers';
 import * as d3 from 'd3';
 
-// import { toggle_background_layer_visibility } from '../deck-gl/layers/background_layer';
+import { toggle_background_layer_visibility } from '../deck-gl/layers/background_layer';
 // import { update_cell_pickable_state } from '../deck-gl/layers/cell_layer';
 // import _
 //   update_edit_layer_mode,
@@ -33,6 +33,7 @@ import {
   alt_slice_linkage,
 } from '../matrix/dendro';
 import { debounce } from '../utils/debounce';
+import { refresh_layer } from '../utils/refresh_layer';
 
 import {
   make_bar_graph,
@@ -466,6 +467,13 @@ export const make_ist_ui_container = (
     );
 
     toggle_visibility_image_layers(layers_obj, viz_image_layers);
+
+    refresh_layer(viz_state, layers_obj, 'image_layers');
+  });
+
+  viz_state.obs_store.viz_background_layer.subscribe((visible) => {
+    toggle_background_layer_visibility(layers_obj, visible);
+    refresh_layer(viz_state, layers_obj, 'background_layer');
   });
 
   make_button(

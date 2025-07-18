@@ -38,10 +38,6 @@ const render_landscape_ist = async ({ model, el }) => {
     meta_cluster_data = await objects_from_parquet(metaClusterBytes, 'leiden');
   }
 
-  const umapBytes = model.get('umap_parquet');
-  if (umapBytes && umapBytes.byteLength > 0) {
-  }
-
   const landscape_state = model.get('landscape_state');
   const segmentation = model.get('segmentation');
 

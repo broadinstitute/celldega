@@ -1,4 +1,4 @@
-export const refreshLayer = (viz_state, layers_obj, layer_name) => {
+export const refresh_layer = (viz_state, layers_obj, layer_name) => {
   viz_state.obs_store.deck_check.set({
     ...viz_state.obs_store.deck_check.get(),
     [layer_name]: false,

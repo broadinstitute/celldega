@@ -2,7 +2,7 @@ import './widget.css';
 
 import { networkFromParquet } from './read_parquet/network_from_parquet';
 import { objects_from_parquet } from './read_parquet/objects_from_parquet';
-import { featureCollectionFromParquet } from './read_parquet/feature_collection_from_parquet';
+import { polygonDataFromParquet } from './read_parquet/polygon_data_from_parquet';
 import {
   handleAsyncError,
   handleValidationWarning,
@@ -28,7 +28,7 @@ const render_landscape_ist = async ({ model, el }) => {
 
   let meta_cell_data = { result: {}, attr: [] };
 
-  let nbhd_fc;
+  let nbhd_data;
   let nbhd_meta = { result: {}, attr: [] };
   // let umap_data;
   let meta_cluster_data = { result: {}, attr: [] };
@@ -45,7 +45,7 @@ const render_landscape_ist = async ({ model, el }) => {
 
   const nbhdBytes = model.get('nbhd_parquet');
   if (nbhdBytes && nbhdBytes.byteLength > 0) {
-    nbhd_fc = await featureCollectionFromParquet(nbhdBytes);
+    nbhd_data = await polygonDataFromParquet(nbhdBytes);
   }
 
   const metaNbhdBytes = model.get('meta_nbhd_parquet');
@@ -79,7 +79,7 @@ const render_landscape_ist = async ({ model, el }) => {
     // {}, // meta_cluster,
     meta_cluster_data.result,
     meta_cluster_data.attr,
-    nbhd_fc,
+    nbhd_data,
     nbhd_meta.result,
     nbhd_meta.attr,
     {}, // umap,

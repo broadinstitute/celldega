@@ -4,8 +4,8 @@ import { update_selected_cats, update_cat } from '../../global_variables/cat';
 import { update_selected_genes } from '../../global_variables/selected_genes';
 import { grab_cell_tiles_in_view } from '../../vector_tile/polygons/grab_cell_tiles_in_view';
 
-export const get_path_color = (cats, i) => {
-  const inst_cell_id = cats.polygon_cell_names[i];
+export const get_path_color = (cats, i, d) => {
+  const inst_cell_id = cats.polygon_cell_names[d.index];
   const inst_cat = cats.dict_cell_cats[inst_cell_id];
 
   let inst_color;
@@ -33,7 +33,8 @@ export const ini_path_layer = (viz_state) => {
     pickable: true,
     widthScale: 3,
     widthMinPixels: 1,
-    getColor: (i) => get_path_color(viz_state.cats, i),
+    getPath: (d) => d,
+    getColor: (i, d) => get_path_color(viz_state.cats, i, d),
     widthUnits: 'pixels',
   });
 
@@ -68,25 +69,14 @@ export const update_path_layer_data = async (
   layers_obj,
   viz_state
 ) => {
-  const polygonData = await grab_cell_tiles_in_view(
+  const polygonPathsConcat = await grab_cell_tiles_in_view(
     base_url,
     tiles_in_view,
     viz_state
   );
 
-  const data = {
-    length: polygonData.length,
-    startIndices: polygonData.startIndices,
-    attributes: {
-      getPath: {
-        value: polygonData.attributes.getPolygon.value,
-        size: 2,
-      },
-    },
-  };
-
   layers_obj.path_layer = layers_obj.path_layer.clone({
-    data,
+    data: polygonPathsConcat,
   });
 
   // ensure state updated prior to deck_ready notification
@@ -100,8 +90,8 @@ export const update_path_layer_data = async (
 
 export const set_path_layer_onclick = (deck_ist, layers_obj, viz_state) => {
   layers_obj.path_layer = layers_obj.path_layer.clone({
-    onClick: (info) =>
-      path_layer_onclick(info, null, deck_ist, layers_obj, viz_state),
+    onClick: (info, d) =>
+      path_layer_onclick(info, d, deck_ist, layers_obj, viz_state),
   });
 };
 

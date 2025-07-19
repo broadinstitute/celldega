@@ -1,6 +1,9 @@
 export const get_polygon_data = (arrowTable) => {
   const geometryColumn = arrowTable.getChildAt(0);
 
+  console.log('geometryColumn:', geometryColumn);
+  console.log('geometryColumn.data[0].type.typeId', geometryColumn.data[0].type.typeId);
+
   if (geometryColumn.data[0].type.typeId === 12) {
     const polygonIndices = geometryColumn.data[0].valueOffsets;
     const ringIndices = geometryColumn.getChildAt(0).data[0].valueOffsets;

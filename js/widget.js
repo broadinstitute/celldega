@@ -2,7 +2,7 @@ import './widget.css';
 
 import { networkFromParquet } from './read_parquet/network_from_parquet';
 import { objects_from_parquet } from './read_parquet/objects_from_parquet';
-import { polygonDataFromParquet } from './read_parquet/polygon_data_from_parquet';
+import { polygon_data_from_parquet } from './read_parquet/polygon_data_from_parquet';
 import {
   handleAsyncError,
   handleValidationWarning,
@@ -45,7 +45,9 @@ const render_landscape_ist = async ({ model, el }) => {
 
   const nbhdBytes = model.get('nbhd_parquet');
   if (nbhdBytes && nbhdBytes.byteLength > 0) {
-    nbhd_data = await polygonDataFromParquet(nbhdBytes);
+    console.log('nbhdBytes:', nbhdBytes);
+    nbhd_data = await polygon_data_from_parquet(nbhdBytes);
+    console.log('nbhd_data:', nbhd_data);
   }
 
   const metaNbhdBytes = model.get('meta_nbhd_parquet');

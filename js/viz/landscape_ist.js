@@ -91,7 +91,7 @@ export const landscape_ist = async (
     width = '100%';
   }
 
-  console.log('nbhd_fc:', nbhd_fc);
+  console.log('nbhd_data:', nbhd_data);
 
   const viz_state = {};
 

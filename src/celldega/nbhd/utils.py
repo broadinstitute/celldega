@@ -182,9 +182,7 @@ def save_nbhd_to_parquet(
     """
 
     if isinstance(transformation_matrix, str):
-        transformation_matrix = pd.read_csv(
-            transformation_matrix, header=None, sep=" "
-        ).values
+        transformation_matrix = pd.read_csv(transformation_matrix, header=None, sep=" ").values
 
     transformed = batch_transform_geometries(
         gdf_nbhd["geometry"], transformation_matrix, image_scale
@@ -194,3 +192,43 @@ def save_nbhd_to_parquet(
     df["GEOMETRY"] = df["GEOMETRY"].apply(lambda x: _round_nested_coord_list(x))
     df.drop(columns=["geometry"], inplace=True)
     df.to_parquet(path_output, index=False)
+
+
+def save_alpha_shape_clusters_to_parquet(
+    meta_cell: gpd.GeoDataFrame,
+    path_output: str,
+    transformation_matrix: np.ndarray | str,
+    alphas: Sequence[float] | None = None,
+    cat: str = "cluster",
+    image_scale: float = 1,
+) -> None:
+    """Compute alpha shapes for cell clusters and save as Parquet.
+
+    Parameters
+    ----------
+    meta_cell:
+        GeoDataFrame with cell coordinates in micron space.
+    path_output:
+        Destination Parquet file.
+    transformation_matrix:
+        3x3 affine matrix or path to ``micron_to_image_transform.csv``.
+    alphas:
+        Iterable of alpha values to compute shapes for. Defaults to
+        ``(100, 150, 200, 250, 300, 350)``.
+    cat:
+        Column in ``meta_cell`` containing cluster labels. Defaults to
+        ``"cluster"``.
+    image_scale:
+        Scale factor applied after the affine transformation.
+    """
+
+    if alphas is None:
+        alphas = (100, 150, 200, 250, 300, 350)
+
+    gdf_alpha = alpha_shape_cell_clusters(meta_cell, cat=cat, alphas=alphas)
+    save_nbhd_to_parquet(
+        gdf_alpha,
+        path_output,
+        transformation_matrix,
+        image_scale=image_scale,
+    )

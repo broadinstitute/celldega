@@ -30,6 +30,7 @@ export const create_obs_store = () => {
     selected_genes: Observable([]),
     viz_image_layers: Observable(true),
     viz_background_layer: Observable(true),
+    viz_nbhd_layer: Observable(false),
     // to do utilize for setProps
     deck_check: Observable({
       background_layer: true,
@@ -37,6 +38,7 @@ export const create_obs_store = () => {
       cell_layer: true,
       path_layer: true,
       trx_layer: true,
+      nbhd_layer: true,
       trx_data: true,
       path_data: true,
     }),

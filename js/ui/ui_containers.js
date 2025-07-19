@@ -33,6 +33,7 @@ import {
   alt_slice_linkage,
 } from '../matrix/dendro';
 import { debounce } from '../utils/debounce';
+import { refresh_layer } from '../utils/refresh_layer';
 
 import {
   make_bar_graph,
@@ -467,33 +468,12 @@ export const make_ist_ui_container = (
 
     toggle_visibility_image_layers(layers_obj, viz_image_layers);
 
-    viz_state.obs_store.deck_check.set({
-      ...viz_state.obs_store.deck_check.get(),
-      image_layers: false,
-    });
-
-    viz_state.layers_obj = layers_obj;
-
-    viz_state.obs_store.deck_check.set({
-      ...viz_state.obs_store.deck_check.get(),
-      image_layers: true,
-    });
+    refresh_layer(viz_state, layers_obj, 'image_layers');
   });
 
   viz_state.obs_store.viz_background_layer.subscribe((visible) => {
     toggle_background_layer_visibility(layers_obj, visible);
-
-    viz_state.obs_store.deck_check.set({
-      ...viz_state.obs_store.deck_check.get(),
-      background_layer: false,
-    });
-
-    viz_state.layers_obj = layers_obj;
-
-    viz_state.obs_store.deck_check.set({
-      ...viz_state.obs_store.deck_check.get(),
-      background_layer: true,
-    });
+    refresh_layer(viz_state, layers_obj, 'background_layer');
   });
 
   make_button(

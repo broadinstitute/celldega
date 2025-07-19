@@ -91,6 +91,8 @@ export const landscape_ist = async (
     width = '100%';
   }
 
+  console.log('nbhd_data:', nbhd_data);
+
   const viz_state = {};
 
   viz_state.obs_store = create_obs_store();
@@ -336,7 +338,8 @@ export const landscape_ist = async (
   const path_layer = await ini_path_layer(viz_state);
   const trx_layer = ini_trx_layer(viz_state.genes);
   // const edit_layer = ini_edit_layer(viz_state);
-  const nbhd_layer = ini_nbhd_layer(viz_state, false);
+  const nbhd_layer = ini_nbhd_layer(viz_state, true);
+
 
   // make layers object
   const layers_obj = {
@@ -347,9 +350,12 @@ export const landscape_ist = async (
     trx_layer,
     nbhd_layer,
     // edit_layer,
+    nbhd_layer,
   };
 
   viz_state.layers_obj = layers_obj;
+
+  console.log('Layers object:', layers_obj);
 
   // set onclicks after all layers are made
   set_cell_layer_onclick(deck_ist, layers_obj, viz_state);

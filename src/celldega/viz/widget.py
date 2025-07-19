@@ -103,7 +103,7 @@ class Landscape(anywidget.AnyWidget):
 
         meta_cell_df = kwargs.pop("meta_cell", None)
         meta_cluster = kwargs.pop("meta_cluster", None)
-        nbhd_gdf = kwargs.pop("nbhd", None)
+        nbhd_gdf = kwargs.pop("nbhd_gdf", None)
         meta_nbhd_df = kwargs.pop("meta_nbhd", None)
         umap_df = kwargs.pop("umap", None)
         meta_cluster_df = None
@@ -181,6 +181,7 @@ class Landscape(anywidget.AnyWidget):
             pq_umap = _df_to_bytes(umap_df.reset_index())
 
         if nbhd_gdf is not None and pq_nbhd is None:
+            print('nbhd_gdf:', nbhd_gdf.head())
             pq_nbhd = _gdf_to_bytes(nbhd_gdf)
 
         if isinstance(meta_nbhd_df, pd.DataFrame) and pq_meta_nbhd is None:

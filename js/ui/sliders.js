@@ -2,6 +2,7 @@ import { update_cell_layer_radius } from '../deck-gl/layers/cell_layer';
 import { update_opacity_single_image_layer } from '../deck-gl/layers/image_layers';
 import { square_scatter_layer_opacity } from '../deck-gl/layers/square_scatter_layer';
 import { update_trx_layer_radius } from '../deck-gl/layers/trx_layer';
+import { refresh_layer } from '../utils/refresh_layer';
 
 export const make_slider = () => {
   return document.createElement('input');
@@ -30,17 +31,7 @@ const cell_slider_callback = async (deck_ist, layers_obj, viz_state) => {
     viz_state.sliders.cell.value / scale_down_cell_radius
   );
 
-  viz_state.obs_store.deck_check.set({
-    ...viz_state.obs_store.deck_check.get(),
-    cell_layer: false,
-  });
-
-  viz_state.layers_obj = layers_obj;
-
-  viz_state.obs_store.deck_check.set({
-    ...viz_state.obs_store.deck_check.get(),
-    cell_layer: true,
-  });
+  refresh_layer(viz_state, layers_obj, 'cell_layer');
 };
 
 const trx_slider_callback = async (deck_ist, layers_obj, viz_state) => {
@@ -51,17 +42,7 @@ const trx_slider_callback = async (deck_ist, layers_obj, viz_state) => {
     viz_state.sliders.trx.value / scale_down_trx_radius
   );
 
-  viz_state.obs_store.deck_check.set({
-    ...viz_state.obs_store.deck_check.get(),
-    trx_layer: false,
-  });
-
-  viz_state.layers_obj = layers_obj;
-
-  viz_state.obs_store.deck_check.set({
-    ...viz_state.obs_store.deck_check.get(),
-    trx_layer: true,
-  });
+  refresh_layer(viz_state, layers_obj, 'trx_layer');
 };
 
 export const make_img_layer_slider_callback = (
@@ -87,17 +68,7 @@ export const make_img_layer_slider_callback = (
       viz_state.img.image_layer_colors
     );
 
-    viz_state.obs_store.deck_check.set({
-      ...viz_state.obs_store.deck_check.get(),
-      image_layers: false,
-    });
-
-    viz_state.layers_obj = layers_obj;
-
-    viz_state.obs_store.deck_check.set({
-      ...viz_state.obs_store.deck_check.get(),
-      image_layers: true,
-    });
+    refresh_layer(viz_state, layers_obj, 'image_layers');
   };
 };
 

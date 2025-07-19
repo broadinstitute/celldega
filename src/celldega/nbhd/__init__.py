@@ -22,6 +22,7 @@ from .utils import (
     _get_gdf_trx,
     get_gdf_cell_from_adata,
     save_nbhd_to_parquet,
+    save_alpha_shape_clusters_to_parquet,
 )
 
 
@@ -34,6 +35,7 @@ __all__ = [
     "get_gdf_cell_from_adata",
     "alpha_shape_cell_clusters_from_adata",
     "save_nbhd_to_parquet",
+    "save_alpha_shape_clusters_to_parquet",
     "alpha_shape",
     "alpha_shape_cell_clusters",
     "calc_grad_nbhd_from_roi",

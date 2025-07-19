@@ -181,6 +181,7 @@ class Landscape(anywidget.AnyWidget):
             pq_umap = _df_to_bytes(umap_df.reset_index())
 
         if nbhd_gdf is not None and pq_nbhd is None:
+            print('nbhd_gdf:', nbhd_gdf.head())
             pq_nbhd = _gdf_to_bytes(nbhd_gdf)
 
         if isinstance(meta_nbhd_df, pd.DataFrame) and pq_meta_nbhd is None:

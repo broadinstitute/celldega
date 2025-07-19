@@ -76,7 +76,7 @@ export const landscape_ist = async (
   meta_cell_attr = [],
   meta_cluster = {},
   meta_cluster_attr = [],
-  nbhd_fc = null,
+  nbhd_data = null,
   nbhd_meta = {},
   nbhd_meta_attr = [],
   // meta_cluster_attr = [],
@@ -91,7 +91,7 @@ export const landscape_ist = async (
     width = '100%';
   }
 
-  console.log('nbhd_fc:', nbhd_fc);
+  console.log('nbhd_data:', nbhd_data);
 
   const viz_state = {};
 
@@ -162,59 +162,19 @@ export const landscape_ist = async (
     viz_state.aws = null;
   }
 
-  if (nbhd_fc) {
+  if (nbhd_data) {
     viz_state.nbhd.alpha_nbhd = true;
-
-    viz_state.nbhd.ini_feature_collection = nbhd_fc;
-
-    viz_state.nbhd.inst_alpha = nbhd_fc['inst_alpha'];
-
-    const filt_features = nbhd_fc.features.filter(
-      (d) => d.properties.inv_alpha === viz_state.nbhd.inst_alpha
-    );
-
-    viz_state.nbhd.feature_collection = {
-      type: 'FeatureCollection',
-      features: filt_features,
-    };
-  } else if (Object.keys(viz_state.model).length !== 0) {
-    if (Object.keys(viz_state.model.get('nbhd')).length === 0) {
-      viz_state.nbhd.alpha_nbhd = false;
-
-      viz_state.nbhd.ini_feature_collection = {
-        type: 'FeatureCollection',
-        features: [],
-        inst_alpha: null,
-      };
-      viz_state.nbhd.feature_collection = viz_state.nbhd.ini_feature_collection;
-    } else {
-      viz_state.nbhd.alpha_nbhd = true;
-
-      viz_state.nbhd.ini_feature_collection = viz_state.model.get('nbhd');
-
-      viz_state.nbhd.inst_alpha =
-        viz_state.nbhd.ini_feature_collection['inst_alpha'];
-
-      const filt_features =
-        viz_state.nbhd.ini_feature_collection.features.filter(
-          (d) => d.properties.inv_alpha === viz_state.nbhd.inst_alpha
-        );
-
-      // filter for alpha shapes that have a inv_alpha value of 200
-      viz_state.nbhd.feature_collection = {
-        type: 'FeatureCollection',
-        features: filt_features,
-      };
-    }
+    viz_state.nbhd.polygon_data = nbhd_data.polygonData;
+    const props = nbhd_data.properties || {};
+    viz_state.nbhd.names = Array.from(props.name || []);
+    viz_state.nbhd.cats = Array.from(props.cat || []);
+    viz_state.nbhd.colors = Array.from(props.color || []);
   } else {
     viz_state.nbhd.alpha_nbhd = false;
-
-    viz_state.nbhd.ini_feature_collection = {
-      type: 'FeatureCollection',
-      features: [],
-      inst_alpha: null,
-    };
-    viz_state.nbhd.feature_collection = viz_state.nbhd.ini_feature_collection;
+    viz_state.nbhd.polygon_data = { length: 0, startIndices: new Int32Array(), attributes: { getPolygon: { value: new Float64Array(), size: 2 } } };
+    viz_state.nbhd.names = [];
+    viz_state.nbhd.cats = [];
+    viz_state.nbhd.colors = [];
   }
 
   viz_state.containers = {};
@@ -380,6 +340,7 @@ export const landscape_ist = async (
   // const edit_layer = ini_edit_layer(viz_state);
   const nbhd_layer = ini_nbhd_layer(viz_state, true);
 
+
   // make layers object
   const layers_obj = {
     background_layer,
@@ -387,6 +348,7 @@ export const landscape_ist = async (
     cell_layer,
     path_layer,
     trx_layer,
+    nbhd_layer,
     // edit_layer,
     nbhd_layer,
   };

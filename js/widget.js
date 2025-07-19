@@ -2,7 +2,9 @@ import './widget.css';
 
 import { networkFromParquet } from './read_parquet/network_from_parquet';
 import { objects_from_parquet } from './read_parquet/objects_from_parquet';
-import { feature_collectoin_from_parquet } from './read_parquet/feature_collection_from_parquet';
+
+import { polygon_data_from_parquet } from './read_parquet/polygon_data_from_parquet';
+
 import {
   handleAsyncError,
   handleValidationWarning,
@@ -28,7 +30,7 @@ const render_landscape_ist = async ({ model, el }) => {
 
   let meta_cell_data = { result: {}, attr: [] };
 
-  let nbhd_fc;
+  let nbhd_data;
   let nbhd_meta = { result: {}, attr: [] };
   // let umap_data;
   let meta_cluster_data = { result: {}, attr: [] };
@@ -43,13 +45,12 @@ const render_landscape_ist = async ({ model, el }) => {
     meta_cluster_data = await objects_from_parquet(metaClusterBytes, 'leiden');
   }
 
-  const nbhd_bytes = model.get('nbhd_parquet');
+  const nbhdBytes = model.get('nbhd_parquet');
+  if (nbhdBytes && nbhdBytes.byteLength > 0) {
 
-
-  if (nbhd_bytes && nbhd_bytes.byteLength > 0) {
-    console.log('running feature_collectoin_from_parquet', nbhd_bytes.byteLength);
-    nbhd_fc = await feature_collectoin_from_parquet(nbhd_bytes);
-    console.log('nbhd_fc:', nbhd_fc);
+    console.log('nbhdBytes:', nbhdBytes);
+    nbhd_data = await polygon_data_from_parquet(nbhdBytes);
+    console.log('nbhd_data:', nbhd_data);
   }
 
   const metaNbhdBytes = model.get('meta_nbhd_parquet');
@@ -83,7 +84,7 @@ const render_landscape_ist = async ({ model, el }) => {
     // {}, // meta_cluster,
     meta_cluster_data.result,
     meta_cluster_data.attr,
-    nbhd_fc,
+    nbhd_data,
     nbhd_meta.result,
     nbhd_meta.attr,
     {}, // umap,

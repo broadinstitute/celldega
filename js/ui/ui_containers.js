@@ -10,11 +10,11 @@ import { toggle_background_layer_visibility } from '../deck-gl/layers/background
 //   sync_region_to_model,
 // } from '../deck-gl/layers/edit_layer';
 import { toggle_visibility_image_layers } from '../deck-gl/layers/image_layers';
-// import {
-//   filter_cat_nbhd_feature_collection,
-//   toggle_nbhd_layer_visibility,
-//   update_nbhd_layer_data,
-// } from '../deck-gl/layers/nbhd_layer';
+import {
+  filter_cat_nbhd_feature_collection,
+  toggle_nbhd_layer_visibility,
+  update_nbhd_layer_data,
+} from '../deck-gl/layers/nbhd_layer';
 // import { update_path_pickable_state } from '../deck-gl/layers/path_layer';
 // import {
 //   toggle_trx_layer_visibility,
@@ -476,11 +476,28 @@ export const make_ist_ui_container = (
     refresh_layer(viz_state, layers_obj, 'background_layer');
   });
 
+  viz_state.obs_store.viz_nbhd_layer.subscribe((visible) => {
+    toggle_nbhd_layer_visibility(layers_obj, visible);
+    refresh_layer(viz_state, layers_obj, 'nbhd_layer');
+  });
+
   make_button(
     cell_ctrl_container,
     'ist',
     'CELL',
     'blue',
+    40,
+    'button',
+    deck_ist,
+    layers_obj,
+    viz_state
+  );
+
+  make_button(
+    cell_ctrl_container,
+    'ist',
+    'NBHD',
+    'gray',
     40,
     'button',
     deck_ist,

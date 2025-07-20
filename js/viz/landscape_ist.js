@@ -77,14 +77,18 @@ export const landscape_ist = async (
   meta_cluster = {},
   meta_cluster_attr = [],
   umap = {},
+  nbhd = {},
   landscape_state = 'spatial',
   segmentation = 'default',
   creds = {},
   view_change_custom_callback = null
 ) => {
+
   if (width === 0) {
     width = '100%';
   }
+
+  console.log('here in landscape_ist')
 
   const viz_state = {};
 
@@ -166,6 +170,8 @@ export const landscape_ist = async (
       };
       viz_state.nbhd.feature_collection = viz_state.nbhd.ini_feature_collection;
     } else {
+
+      console.log('found nbhd in model')
       viz_state.nbhd.alpha_nbhd = true;
 
       viz_state.nbhd.ini_feature_collection = viz_state.model.get('nbhd');
@@ -353,7 +359,7 @@ export const landscape_ist = async (
   const path_layer = await ini_path_layer(viz_state);
   const trx_layer = ini_trx_layer(viz_state.genes);
   // const edit_layer = ini_edit_layer(viz_state);
-  const nbhd_layer = ini_nbhd_layer(viz_state, false);
+  const nbhd_layer = ini_nbhd_layer(viz_state, true);
 
   // make layers object
   const layers_obj = {

@@ -115,9 +115,9 @@ class Landscape(anywidget.AnyWidget):
 
         path_transformation_matrix = kwargs.pop("path_transformation_matrix", None)
 
-        base_path = kwargs.get("base_url", None) + '/'
+        base_path = kwargs.get("base_url", None) + "/"
 
-        path_transformation_matrix = base_path + 'micron_to_image_transform.csv'
+        path_transformation_matrix = base_path + "micron_to_image_transform.csv"
         transformation_matrix = pd.read_csv(path_transformation_matrix, header=None, sep=" ").values
 
         def _df_to_bytes(df):
@@ -207,9 +207,7 @@ class Landscape(anywidget.AnyWidget):
 
         # compute geojson for initial nbhd if provided
         if self.nbhd is not None:
-
-            if 'geometry_pixel' not in self.nbhd.columns:
-
+            if "geometry_pixel" not in self.nbhd.columns:
                 # Assuming `transformation_matrix` is your 3x3 numpy array
                 a, b, tx = transformation_matrix[0]
                 c, d, ty = transformation_matrix[1]

@@ -77,7 +77,7 @@ def alpha_shape(
 
 
 def alpha_shape_cell_clusters(
-    adata: ad.AnnData   ,
+    adata: ad.AnnData,
     cat: str = "cluster",
     alphas: Sequence[float] = (100, 150, 200, 250, 300, 350),
     meta_cluster: pd.DataFrame | None = None,
@@ -88,8 +88,8 @@ def alpha_shape_cell_clusters(
 
     meta_cell = adata.obs
 
-    coords = adata.obsm['spatial']
-    meta_cell['geometry'] = list(coords)
+    coords = adata.obsm["spatial"]
+    meta_cell["geometry"] = list(coords)
 
     gdf_alpha = gpd.GeoDataFrame()
 
@@ -110,9 +110,7 @@ def alpha_shape_cell_clusters(
 
                 # look up color using meta_cluster if provided
                 if meta_cluster is not None and inst_cluster in meta_cluster.index:
-                    gdf_alpha.loc[inst_name, "color"] = meta_cluster.loc[
-                        inst_cluster, "color"
-                    ]
+                    gdf_alpha.loc[inst_name, "color"] = meta_cluster.loc[inst_cluster, "color"]
                 else:
                     gdf_alpha.loc[inst_name, "color"] = "#000000"
 

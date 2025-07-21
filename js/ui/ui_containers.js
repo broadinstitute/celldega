@@ -338,7 +338,6 @@ export const make_ist_ui_container = (
   let nbhd_container
   let nbhd_ctrl_container
   if (viz_state.nbhd.is_nbhd) {
-    console.log('making nbhd_container!!!!!!!!!!!!!!!!!!');
     nbhd_container = flex_container('nbhd_container', 'column');
     nbhd_container.style.width = bar_container_width;
     nbhd_ctrl_container = flex_container('nbhd_ctrl_container', 'row');
@@ -539,10 +538,6 @@ export const make_ist_ui_container = (
   if (viz_state.nbhd.is_nbhd) {
     viz_state.nbhd.svg_bar_nbhd = d3.create('svg');
   }
-
-    console.log(viz_state.cats.svg_bar_cluster)
-    console.log(viz_state.cats.cluster_counts)
-    console.log(viz_state.cats.color_dict_cluster)
 
   make_bar_graph(
     viz_state.containers.bar_cluster,
@@ -1118,9 +1113,6 @@ export const make_ist_ui_container = (
     nbhd_container.appendChild(viz_state.containers.bar_nbhd);
 
     ctrl_container.appendChild(nbhd_container);
-
-    console.log('viz_state.containers.bar_nbhd', viz_state.containers.bar_nbhd);
-    console.log('bar_callback_nbhd', bar_callback_nbhd);
 
     if (viz_state.nbhd.is_nbhd){
       make_bar_graph(

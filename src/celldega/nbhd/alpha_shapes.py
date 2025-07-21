@@ -74,13 +74,22 @@ def alpha_shape(
 
 
 def alpha_shape_cell_clusters(
-    meta_cell: gpd.GeoDataFrame,
+    adata: ad.AnnData   ,
     cat: str = "cluster",
     alphas: Sequence[float] = (100, 150, 200, 250, 300, 350),
+    # meta_cluster: pd.DataFrame | None = None,
 ) -> gpd.GeoDataFrame:
     """
     Compute alpha shapes for each cluster in the cell metadata.
     """
+
+    print(adata)
+
+    meta_cell = adata.obs
+
+    coords = adata.obsm['spatial']
+    meta_cell['geometry'] = list(coords)
+
     gdf_alpha = gpd.GeoDataFrame()
 
     for inv_alpha in alphas:
@@ -91,10 +100,19 @@ def alpha_shape_cell_clusters(
                 flat_array = np.vstack(nested_array)
                 inst_shape = alpha_shape(flat_array, inv_alpha)
                 inst_name = f"{inst_cluster}_{inv_alpha}"
+
                 gdf_alpha.loc[inst_name, "name"] = inst_name
                 gdf_alpha.loc[inst_name, "cat"] = inst_cluster
                 gdf_alpha.loc[inst_name, "geometry"] = inst_shape
                 gdf_alpha.loc[inst_name, "inv_alpha"] = int(inv_alpha)
+
+                # # look up color using meta_cluster if provided
+                # if meta_cluster is not None and inst_cluster in meta_cluster.index:
+                #     gdf_alpha.loc[inst_name, "color"] = meta_cluster.loc[
+                #         inst_cluster, "color"
+                #     ]
+                # else:
+                gdf_alpha.loc[inst_name, "color"] = "#000000"
 
     gdf_alpha["geometry"] = gdf_alpha["geometry"].apply(
         lambda geom: _round_coordinates(geom, precision=2)

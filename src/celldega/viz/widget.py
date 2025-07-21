@@ -15,6 +15,7 @@ import pandas as pd
 import scanpy as sc
 import traitlets
 from shapely.affinity import affine_transform
+from copy import deepcopy
 
 
 _clustergram_registry = {}  # maps names to widget instances
@@ -210,32 +211,23 @@ class Landscape(anywidget.AnyWidget):
         # compute geojson for initial nbhd if provided
         if self.nbhd is not None:
 
-            # Assuming `transformation_matrix` is your 3x3 numpy array
-            a, b, tx = transformation_matrix[0]
-            c, d, ty = transformation_matrix[1]
+            if 'geometry_pixel' not in self.nbhd.columns:
 
-            coeffs = [a, b, c, d, tx, ty]
+                # Assuming `transformation_matrix` is your 3x3 numpy array
+                a, b, tx = transformation_matrix[0]
+                c, d, ty = transformation_matrix[1]
 
-            self.nbhd["geometry"] = self.nbhd.geometry.apply(
-                lambda geom: affine_transform(geom, coeffs)
-            )
+                coeffs = [a, b, c, d, tx, ty]
 
-            print('"Computing initial neighborhood GeoJSON...")')
-            print(self.nbhd.head())
-            # # overwrite geometry column with geometry_pixel and delete geometry_pixel
-            # if "geometry_pixel" in self.nbhd.columns:
-            #     self.nbhd["geometry"] = self.nbhd["geometry_pixel"]
-            #     del self.nbhd["geometry_pixel"]
+                self.nbhd["geometry_pixel"] = self.nbhd.geometry.apply(
+                    lambda geom: affine_transform(geom, coeffs)
+                )
 
+            gdf_viz = deepcopy(self.nbhd)
+            gdf_viz["geometry"] = gdf_viz["geometry_pixel"]
+            del gdf_viz["geometry_pixel"]
 
-            # # drop the geometry_micron column
-            # if "geometry_micron" in self.nbhd.columns:
-            #     self.nbhd["geometry"] = self.nbhd["geometry_micron"]
-            #     del self.nbhd["geometry_micron"]
-
-            print(self.nbhd.head())
-
-            self.nbhd_geojson = json.loads(self.nbhd.to_json())
+            self.nbhd_geojson = json.loads(gdf_viz.to_json())
 
     # @traitlets.observe("nbhd")
     # def _on_nbhd_change(self, change):

@@ -87,6 +87,8 @@ export const landscape_ist = async (
     width = '100%';
   }
 
+
+
   const viz_state = {};
 
   viz_state.obs_store = create_obs_store();
@@ -169,9 +171,22 @@ export const landscape_ist = async (
 
       viz_state.nbhd.feature_collection = viz_state.nbhd.ini_feature_collection;
     } else {
+
+
       viz_state.nbhd.alpha_nbhd = true;
 
       viz_state.nbhd.ini_feature_collection = nbhd; // viz_state.model.get('nbhd');
+
+
+
+      viz_state.nbhd.bar_data = nbhd.features.map((feature) => {
+        return {
+          name: feature.properties.cat,  // "1_50" → "1"
+          value: feature.properties.area                // use area as the value
+        }
+      }).sort((a, b) => b.value - a.value);
+
+      console.log('viz_state.nbhd.bar_data', viz_state.nbhd.bar_data);
 
       viz_state.nbhd.feature_collection = {
         type: 'FeatureCollection',

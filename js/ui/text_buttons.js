@@ -263,20 +263,6 @@ const nbhd_button_callback = async (event, deck_ist, layers_obj, viz_state) => {
   toggle_nbhd_layer_visibility(layers_obj, is_visible);
   viz_state.obs_store.viz_nbhd_layer.set(is_visible);
 
-  // if (is_visible) {
-  //   viz_state.obs_store.viz_image_layers.set(false);
-  //   viz_state.obs_store.viz_background_layer.set(false);
-  //   toggle_trx_layer_visibility(layers_obj, false);
-  //   toggle_path_layer_visibility(layers_obj, false);
-  //   new_toggle_cell_layer_visibility(layers_obj, false);
-  // } else {
-  //   viz_state.obs_store.viz_image_layers.set(true);
-  //   viz_state.obs_store.viz_background_layer.set(true);
-  //   toggle_trx_layer_visibility(layers_obj, true);
-  //   toggle_path_layer_visibility(layers_obj, true);
-  //   new_toggle_cell_layer_visibility(layers_obj, true);
-  // }
-
   viz_state.obs_store.deck_check.set({
     ...viz_state.obs_store.deck_check.get(),
     nbhd_layer: false,

@@ -271,7 +271,6 @@ const nbhd_button_callback = async (event, deck_ist, layers_obj, viz_state) => {
   if (is_visible) {
     new_toggle_cell_layer_visibility(layers_obj, false);
 
-
     viz_state.buttons.buttons.cell.style('color', 'gray');
     viz_state.buttons.buttons.img.style('color', 'gray');
     viz_state.buttons.buttons.trx.style('color', 'gray');
@@ -292,6 +291,8 @@ const nbhd_button_callback = async (event, deck_ist, layers_obj, viz_state) => {
 
   viz_state.obs_store.deck_check.set({
     ...viz_state.obs_store.deck_check.get(),
+    // reset image layers
+    image_layers: false,
     nbhd_layer: false,
     cell_layer: false,
     path_layer: false,
@@ -302,6 +303,7 @@ const nbhd_button_callback = async (event, deck_ist, layers_obj, viz_state) => {
 
   viz_state.obs_store.deck_check.set({
     ...viz_state.obs_store.deck_check.get(),
+    image_layers: true,
     nbhd_layer: true,
     cell_layer: true,
     path_layer: true,

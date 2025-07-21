@@ -11,9 +11,7 @@ import { toggle_background_layer_visibility } from '../deck-gl/layers/background
 // } from '../deck-gl/layers/edit_layer';
 import { toggle_visibility_image_layers } from '../deck-gl/layers/image_layers';
 import {
-  filter_cat_nbhd_feature_collection,
   toggle_nbhd_layer_visibility,
-  update_nbhd_layer_data,
 } from '../deck-gl/layers/nbhd_layer';
 // import { update_path_pickable_state } from '../deck-gl/layers/path_layer';
 // import {

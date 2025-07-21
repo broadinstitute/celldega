@@ -83,7 +83,6 @@ export const landscape_ist = async (
   creds = {},
   view_change_custom_callback = null
 ) => {
-
   if (width === 0) {
     width = '100%';
   }
@@ -157,12 +156,8 @@ export const landscape_ist = async (
     viz_state.aws = null;
   }
 
-
   if (Object.keys(viz_state.model).length !== 0) {
-
     if (Object.keys(nbhd).length === 0) {
-
-      console.log('no nbhd in model')
 
       viz_state.nbhd.alpha_nbhd = false;
 
@@ -173,12 +168,10 @@ export const landscape_ist = async (
       };
 
       viz_state.nbhd.feature_collection = viz_state.nbhd.ini_feature_collection;
-
     } else {
-
       viz_state.nbhd.alpha_nbhd = true;
 
-      viz_state.nbhd.ini_feature_collection = nbhd // viz_state.model.get('nbhd');
+      viz_state.nbhd.ini_feature_collection = nbhd; // viz_state.model.get('nbhd');
 
       viz_state.nbhd.feature_collection = {
         type: 'FeatureCollection',

@@ -115,10 +115,7 @@ class Landscape(anywidget.AnyWidget):
 
         path_transformation_matrix = kwargs.pop("path_transformation_matrix", None)
 
-        print(path_transformation_matrix)
-        # print('base_url', self.base_url)
         base_path = kwargs.get("base_url", None) + '/'
-        print('base_path', base_path)
 
         path_transformation_matrix = base_path + 'micron_to_image_transform.csv'
         transformation_matrix = pd.read_csv(path_transformation_matrix, header=None, sep=" ").values

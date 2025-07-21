@@ -5,11 +5,11 @@ import {
   toggle_spatial_umap,
 } from '../deck-gl/layers/cell_layer';
 import { toggle_visibility_single_image_layer } from '../deck-gl/layers/image_layers';
+import { toggle_nbhd_layer_visibility } from '../deck-gl/layers/nbhd_layer';
 import { toggle_path_layer_visibility } from '../deck-gl/layers/path_layer';
 import { simple_image_layer_visibility } from '../deck-gl/layers/simple_image_layer';
 import { square_scatter_layer_visibility } from '../deck-gl/layers/square_scatter_layer';
 import { toggle_trx_layer_visibility } from '../deck-gl/layers/trx_layer';
-import { toggle_nbhd_layer_visibility } from '../deck-gl/layers/nbhd_layer';
 import { toggle_dendro_layer_visibility } from '../deck-gl/matrix/dendro_layers';
 import { get_mat_layers_list } from '../deck-gl/matrix/matrix_layers';
 

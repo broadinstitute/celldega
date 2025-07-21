@@ -80,23 +80,13 @@ def alpha_shape_cell_clusters(
     adata: ad.AnnData   ,
     cat: str = "cluster",
     alphas: Sequence[float] = (100, 150, 200, 250, 300, 350),
-    # meta_cluster: pd.DataFrame | None = None,
-    # path_transformation_matrix: str | None = None,
+    meta_cluster: pd.DataFrame | None = None,
 ) -> gpd.GeoDataFrame:
     """
     Compute alpha shapes for each cluster in the cell metadata.
     """
 
     meta_cell = adata.obs
-
-    # # load transformation matrix if provided
-    # if path_transformation_matrix is not None:
-    #     try:
-    #         transformation_matrix = pd.read_csv(path_transformation_matrix, header=None, sep=" ").values
-    #     except FileNotFoundError:
-    #         raise FileNotFoundError(
-    #             f"Transformation matrix file not found at {path_transformation_matrix}"
-    #         )
 
     coords = adata.obsm['spatial']
     meta_cell['geometry'] = list(coords)
@@ -118,13 +108,13 @@ def alpha_shape_cell_clusters(
                 gdf_alpha.loc[inst_name, "geometry"] = inst_shape
                 gdf_alpha.loc[inst_name, "inv_alpha"] = int(inv_alpha)
 
-                # # look up color using meta_cluster if provided
-                # if meta_cluster is not None and inst_cluster in meta_cluster.index:
-                #     gdf_alpha.loc[inst_name, "color"] = meta_cluster.loc[
-                #         inst_cluster, "color"
-                #     ]
-                # else:
-                gdf_alpha.loc[inst_name, "color"] = "#000000"
+                # look up color using meta_cluster if provided
+                if meta_cluster is not None and inst_cluster in meta_cluster.index:
+                    gdf_alpha.loc[inst_name, "color"] = meta_cluster.loc[
+                        inst_cluster, "color"
+                    ]
+                else:
+                    gdf_alpha.loc[inst_name, "color"] = "#000000"
 
     gdf_alpha["geometry"] = gdf_alpha["geometry"].apply(
         lambda geom: _round_coordinates(geom, precision=2)

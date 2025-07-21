@@ -1,4 +1,5 @@
 import { GeoJsonLayer } from 'deck.gl';
+
 import { update_selected_cats, update_cat } from '../../global_variables/cat';
 import { update_selected_genes } from '../../global_variables/selected_genes';
 import { hexToRgb } from '../../utils/hexToRgb';
@@ -26,8 +27,9 @@ export const filter_cat_nbhd_feature_collection = (viz_state) => {
   if (viz_state.cats.selected_cats.length === 0) {
     filt_features = viz_state.nbhd.ini_feature_collection.features;
   } else {
-    filt_features = viz_state.nbhd.ini_feature_collection.features
-      .filter((d) => viz_state.cats.selected_cats.includes(d.properties.cat));
+    filt_features = viz_state.nbhd.ini_feature_collection.features.filter((d) =>
+      viz_state.cats.selected_cats.includes(d.properties.cat)
+    );
   }
   viz_state.nbhd.feature_collection = {
     type: 'FeatureCollection',

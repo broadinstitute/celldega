@@ -114,6 +114,36 @@ export const landscape_ist = async (
   viz_state.obs_store.selected_cats.subscribe(update_viz_image_layers);
   viz_state.obs_store.selected_genes.subscribe(update_viz_image_layers);
 
+  viz_state.obs_store.selected_nbhds.subscribe((selected_nbhds) => {
+    if (selected_nbhds.length > 0) {
+      viz_state.obs_store.viz_nbhd_layer.set(true);
+      viz_state.obs_store.viz_image_layers.set(false);
+      viz_state.obs_store.viz_background_layer.set(false);
+    } else {
+      viz_state.obs_store.viz_nbhd_layer.set(false);
+      viz_state.obs_store.viz_image_layers.set(true);
+      viz_state.obs_store.viz_background_layer.set(true);
+    }
+  });
+
+  viz_state.obs_store.viz_nbhd_layer.subscribe((visible) => {
+
+    console.log('here')
+    if (visible) {
+      viz_state.obs_store.viz_image_layers.set(false);
+      viz_state.obs_store.viz_background_layer.set(false);
+    //   toggle_trx_layer_visibility(layers_obj, false);
+    //   toggle_path_layer_visibility(layers_obj, false);
+    //   new_toggle_cell_layer_visibility(layers_obj, false);
+    } else {
+      viz_state.obs_store.viz_image_layers.set(true);
+      viz_state.obs_store.viz_background_layer.set(true);
+    //   toggle_trx_layer_visibility(layers_obj, true);
+    //   toggle_path_layer_visibility(layers_obj, true);
+    //   new_toggle_cell_layer_visibility(layers_obj, true);
+    }
+  });
+
   viz_state.seg = {};
   viz_state.seg.version = segmentation;
 

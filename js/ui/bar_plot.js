@@ -68,7 +68,12 @@ export const bar_callback_nbhd = (
   _layers_obj,
   _viz_state
 ) => {
-  // console.log('bar_callback_nbhd')
+  console.log(_event, _d)
+
+  // update selected_nbhds observable
+  _viz_state.obs_store.selected_nbhds.set([_d.name]);
+
+
 };
 
 export const make_bar_graph = (

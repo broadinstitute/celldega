@@ -18,6 +18,7 @@ import xml.etree.ElementTree as ET
 from matplotlib.colors import to_hex
 import matplotlib.pyplot as plt
 import pandas as pd
+import geopandas as gpd
 from scipy.sparse import csr_matrix
 from shapely.geometry import MultiPolygon, Point, Polygon
 from skimage.io import imread, imsave
@@ -32,6 +33,7 @@ from .image_info import get_image_info
 from .landscape import calc_meta_gene_data, read_cbg_mtx, save_cbg_gene_parquets
 from .run_pre_processing import main
 from .trx_tile import make_trx_tiles
+
 
 
 def _load_xenium_cluster_data(data_dir, meta_cell):
@@ -61,6 +63,48 @@ def _load_xenium_cluster_data(data_dir, meta_cell):
     default_clustering.loc[default_clustering_ini.index.tolist(), "cluster"] = (
         default_clustering_ini["cluster"]
     )
+
+    # Count the number of cells in each cluster
+    ser_counts = default_clustering["cluster"].value_counts()
+    clusters = ser_counts.index.tolist()
+
+    return default_clustering, clusters, ser_counts
+
+
+def _load_visium_hd_cluster_data(data_dir, barcode_to_cell_dict):
+    """
+    Load and process Visium-HD clustering data.
+
+    Parameters:
+    - data_dir: Path to data directory
+    - meta_cell: Meta cell dataframe
+
+    Returns:
+    - Tuple of (default_clustering, clusters)
+    """
+    # Load the default clustering data
+    meta_tile = pd.read_csv(
+        Path(data_dir) / "analysis" / "clustering" / "gene_expression_graphclust" / "clusters.csv"
+    )
+
+    meta_tile['cell_id'] = meta_tile['Barcode'].map(barcode_to_cell_dict).astype('Int64')
+
+    default_clustering = (
+        meta_tile[['cell_id', 'Cluster']]
+        .dropna(subset=['cell_id'])
+        .drop_duplicates()
+        .sort_values(by='cell_id')
+        .set_index('cell_id')
+        .rename(columns={'Cluster': 'cluster'})
+    )
+    default_clustering.columns = default_clustering.columns.str.lower()
+
+    # Prepare the clustering data
+    default_clustering_ini = default_clustering.copy()
+    default_clustering_ini["cluster"] = default_clustering_ini["cluster"].astype("string")
+
+    # Align the clustering data with the cell metadata
+    default_clustering = default_clustering_ini.copy()
 
     # Count the number of cells in each cluster
     ser_counts = default_clustering["cluster"].value_counts()

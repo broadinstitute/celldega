@@ -14,6 +14,7 @@ from matplotlib import pyplot as plt
 import pandas as pd
 import scanpy as sc
 import traitlets
+from shapely.affinity import affine_transform
 
 
 _clustergram_registry = {}  # maps names to widget instances
@@ -111,6 +112,16 @@ class Landscape(anywidget.AnyWidget):
         meta_cluster_df = None
         cell_attr = kwargs.pop("cell_attr", ["leiden"])
 
+        path_transformation_matrix = kwargs.pop("path_transformation_matrix", None)
+
+        print(path_transformation_matrix)
+        # print('base_url', self.base_url)
+        base_path = kwargs.get("base_url", None) + '/'
+        print('base_path', base_path)
+
+        path_transformation_matrix = base_path + 'micron_to_image_transform.csv'
+        transformation_matrix = pd.read_csv(path_transformation_matrix, header=None, sep=" ").values
+
         def _df_to_bytes(df):
             import io
 
@@ -198,16 +209,41 @@ class Landscape(anywidget.AnyWidget):
 
         # compute geojson for initial nbhd if provided
         if self.nbhd is not None:
+
+            # Assuming `transformation_matrix` is your 3x3 numpy array
+            a, b, tx = transformation_matrix[0]
+            c, d, ty = transformation_matrix[1]
+
+            coeffs = [a, b, c, d, tx, ty]
+
+            self.nbhd["geometry"] = self.nbhd.geometry.apply(
+                lambda geom: affine_transform(geom, coeffs)
+            )
+
             print('"Computing initial neighborhood GeoJSON...")')
+            print(self.nbhd.head())
+            # # overwrite geometry column with geometry_pixel and delete geometry_pixel
+            # if "geometry_pixel" in self.nbhd.columns:
+            #     self.nbhd["geometry"] = self.nbhd["geometry_pixel"]
+            #     del self.nbhd["geometry_pixel"]
+
+
+            # # drop the geometry_micron column
+            # if "geometry_micron" in self.nbhd.columns:
+            #     self.nbhd["geometry"] = self.nbhd["geometry_micron"]
+            #     del self.nbhd["geometry_micron"]
+
+            print(self.nbhd.head())
+
             self.nbhd_geojson = json.loads(self.nbhd.to_json())
 
-    @traitlets.observe("nbhd")
-    def _on_nbhd_change(self, change):
-        new = change["new"]
-        if new is None:
-            self.nbhd_geojson = {"type": "FeatureCollection", "features": []}
-        else:
-            self.nbhd_geojson = json.loads(new.to_json())
+    # @traitlets.observe("nbhd")
+    # def _on_nbhd_change(self, change):
+    #     new = change["new"]
+    #     if new is None:
+    #         self.nbhd_geojson = {"type": "FeatureCollection", "features": []}
+    #     else:
+    #         self.nbhd_geojson = json.loads(new.to_json())
 
     def trigger_update(self, new_value):
         """

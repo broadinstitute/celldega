@@ -13,7 +13,6 @@ import numpy as np
 from shapely.geometry import MultiPolygon, Point, base, shape
 from shapely import transform
 from copy import deepcopy
-from shapely.affinity import affine_transform
 
 from .utils import _classify_polygons_contains_check, _round_coordinates
 
@@ -82,7 +81,7 @@ def alpha_shape_cell_clusters(
     cat: str = "cluster",
     alphas: Sequence[float] = (100, 150, 200, 250, 300, 350),
     # meta_cluster: pd.DataFrame | None = None,
-    path_transformation_matrix: str | None = None,
+    # path_transformation_matrix: str | None = None,
 ) -> gpd.GeoDataFrame:
     """
     Compute alpha shapes for each cluster in the cell metadata.
@@ -90,14 +89,14 @@ def alpha_shape_cell_clusters(
 
     meta_cell = adata.obs
 
-    # load transformation matrix if provided
-    if path_transformation_matrix is not None:
-        try:
-            transformation_matrix = pd.read_csv(path_transformation_matrix, header=None, sep=" ").values
-        except FileNotFoundError:
-            raise FileNotFoundError(
-                f"Transformation matrix file not found at {path_transformation_matrix}"
-            )
+    # # load transformation matrix if provided
+    # if path_transformation_matrix is not None:
+    #     try:
+    #         transformation_matrix = pd.read_csv(path_transformation_matrix, header=None, sep=" ").values
+    #     except FileNotFoundError:
+    #         raise FileNotFoundError(
+    #             f"Transformation matrix file not found at {path_transformation_matrix}"
+    #         )
 
     coords = adata.obsm['spatial']
     meta_cell['geometry'] = list(coords)
@@ -132,15 +131,18 @@ def alpha_shape_cell_clusters(
     )
     gdf_alpha["area"] = gdf_alpha.area
 
-    # Assuming `transformation_matrix` is your 3x3 numpy array
-    a, b, tx = transformation_matrix[0]
-    c, d, ty = transformation_matrix[1]
+    # # Assuming `transformation_matrix` is your 3x3 numpy array
+    # a, b, tx = transformation_matrix[0]
+    # c, d, ty = transformation_matrix[1]
 
-    coeffs = [a, b, c, d, tx, ty]
+    # coeffs = [a, b, c, d, tx, ty]
 
-    gdf_alpha["geometry_pixel"] = gdf_alpha.geometry.apply(
-        lambda geom: affine_transform(geom, coeffs)
-    )
+    # # rename geometry to geometry_micron
+    # gdf_alpha = gdf_alpha.rename(columns={"geometry": "geometry_micron"})
+
+    # gdf_alpha["geometry"] = gdf_alpha.geometry_micron.apply(
+    #     lambda geom: affine_transform(geom, coeffs)
+    # )
 
     return gdf_alpha.loc[gdf_alpha.area.sort_values(ascending=False).index.tolist()]
 

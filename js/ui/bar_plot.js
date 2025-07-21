@@ -61,14 +61,14 @@ export const bar_callback_gene = async (
   );
 };
 
-export const bar_callback_rgn = (
+export const bar_callback_nbhd = (
   _event,
   _d,
   _deck_ist,
   _layers_obj,
   _viz_state
 ) => {
-  // console.log('bar_callback_rgn')
+  console.log('bar_callback_nbhd')
 };
 
 export const make_bar_graph = (

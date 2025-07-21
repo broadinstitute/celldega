@@ -35,7 +35,7 @@ import { refresh_layer } from '../utils/refresh_layer';
 
 import {
   make_bar_graph,
-  // bar_callback_rgn,
+  bar_callback_nbhd,
   bar_callback_cluster,
   make_bar_container,
   bar_callback_gene,
@@ -335,11 +335,11 @@ export const make_ist_ui_container = (
   gene_container.style.width = bar_container_width;
   const trx_container = flex_container('trx_container', 'row');
 
-  const rgn_container = flex_container('rgn_container', 'column');
-  rgn_container.style.width = bar_container_width;
-  const rgn_ctrl_container = flex_container('rgn_ctrl_container', 'row');
-  rgn_ctrl_container.style.marginLeft = '0px';
-  rgn_ctrl_container.style.height = '22.5px';
+  const nbhd_container = flex_container('nbhd_container', 'column');
+  nbhd_container.style.width = bar_container_width;
+  const nbhd_ctrl_container = flex_container('nbhd_ctrl_container', 'row');
+  nbhd_ctrl_container.style.marginLeft = '0px';
+  nbhd_ctrl_container.style.height = '22.5px';
 
   const cell_slider_container = make_slider_container('cell_slider_container');
   const trx_slider_container = make_slider_container('trx_slider_container');
@@ -492,7 +492,7 @@ export const make_ist_ui_container = (
   );
 
   make_button(
-    rgn_ctrl_container,
+    nbhd_ctrl_container,
     'ist',
     'NBHD',
     'gray',
@@ -528,6 +528,10 @@ export const make_ist_ui_container = (
 
   viz_state.cats.svg_bar_cluster = d3.create('svg');
   viz_state.genes.svg_bar_gene = d3.create('svg');
+
+    console.log(viz_state.cats.svg_bar_cluster)
+    console.log(viz_state.cats.cluster_counts)
+    console.log(viz_state.cats.color_dict_cluster)
 
   make_bar_graph(
     viz_state.containers.bar_cluster,
@@ -1005,7 +1009,7 @@ export const make_ist_ui_container = (
   //     deck_ist,
   //     layers_obj,
   //     viz_state,
-  //     rgn_ctrl_container,
+  //     nbhd_ctrl_container,
   //     'ALPH',
   //     30,
   //     alph_callback
@@ -1016,7 +1020,7 @@ export const make_ist_ui_container = (
   //   deck_ist,
   //   layers_obj,
   //   viz_state,
-  //   rgn_ctrl_container,
+  //   nbhd_ctrl_container,
   //   'SKTCH',
   //   40,
   //   sketch_callback
@@ -1029,7 +1033,7 @@ export const make_ist_ui_container = (
   //   deck_ist,
   //   layers_obj,
   //   viz_state,
-  //   rgn_ctrl_container,
+  //   nbhd_ctrl_container,
   //   'DEL',
   //   30,
   //   del_callback
@@ -1087,7 +1091,7 @@ export const make_ist_ui_container = (
   // );
   // viz_state.sliders.alph.style.display = 'none';
 
-  // rgn_ctrl_container.appendChild(alph_slider_container);
+  // nbhd_ctrl_container.appendChild(alph_slider_container);
   // alph_slider_container.appendChild(viz_state.sliders.alph);
 
   // // initially hide the DEL delete button
@@ -1095,20 +1099,26 @@ export const make_ist_ui_container = (
   //   .style('color', 'red')
   //   .style('display', 'none');
 
-  // viz_state.containers.bar_rgn = make_bar_container();
-  // viz_state.containers.bar_rgn.style.marginLeft = '0px';
+  viz_state.containers.bar_nbhd = make_bar_container();
+  viz_state.containers.bar_nbhd.style.marginLeft = '0px';
 
-  rgn_container.appendChild(rgn_ctrl_container);
-  // rgn_container.appendChild(viz_state.containers.bar_rgn);
+  nbhd_container.appendChild(nbhd_ctrl_container);
+  nbhd_container.appendChild(viz_state.containers.bar_nbhd);
 
-  ctrl_container.appendChild(rgn_container);
+  ctrl_container.appendChild(nbhd_container);
+
+  console.log('viz_state.containers.bar_nbhd', viz_state.containers.bar_nbhd);
+  console.log('bar_callback_nbhd', bar_callback_nbhd);
 
   // make_bar_graph(
-  //   viz_state.containers.bar_rgn,
-  //   bar_callback_rgn,
-  //   viz_state.edit.svg_bar_rgn,
-  //   viz_state.edit.rgn_areas,
-  //   viz_state.edit.color_dict_rgn,
+  //   viz_state.containers.bar_nbhd,
+  //   bar_callback_nbhd,
+  //   // viz_state.edit.svg_bar_nbhd,
+  //   // viz_state.edit.rgn_areas,
+  //   // viz_state.edit.color_dict_rgn,
+  //   viz_state.cats.svg_bar_cluster,
+  //   viz_state.cats.cluster_counts,
+  //   viz_state.cats.color_dict_cluster,
   //   deck_ist,
   //   layers_obj,
   //   viz_state

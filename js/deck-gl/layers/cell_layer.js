@@ -107,12 +107,16 @@ export const ini_cell_layer = async (base_url, viz_state) => {
   set_cell_name_to_index_map(viz_state.cats);
 
   if (viz_state.cats.has_meta_cell) {
-    viz_state.cats.cell_cats = viz_state.cats.cell_names_array.map(
-      (name) => viz_state.cats.meta_cell[name]
+    // look up the index of the inst_cell_attr in the meta_cell_attr array
+    const inst_index = viz_state.cats.meta_cell_attr.indexOf(
+      viz_state.cats.inst_cell_attr
     );
-  } else {
-    // default clustering
 
+    viz_state.cats.cell_cats = viz_state.cats.cell_names_array.map((name) => {
+      const attrs = viz_state.cats.meta_cell[name];
+      return attrs?.[inst_index] ?? 'N.A.';
+    });
+  } else {
     const cluster_arrow_table = await get_arrow_table(
       `${base_url}/cell_clusters${viz_state.seg.version && viz_state.seg.version !== 'default' ? `_${viz_state.seg.version}` : ''}/cluster.parquet`,
       options.fetch,

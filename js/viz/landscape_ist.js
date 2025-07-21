@@ -10,10 +10,7 @@ import {
   set_views_prop,
 } from '../deck-gl/core/deck_ist';
 import { set_views } from '../deck-gl/core/views';
-import {
-  ini_background_layer,
-  toggle_background_layer_visibility,
-} from '../deck-gl/layers/background_layer';
+import { ini_background_layer } from '../deck-gl/layers/background_layer';
 import {
   ini_cell_layer,
   set_cell_layer_onclick,
@@ -23,10 +20,7 @@ import {
 //   set_edit_layer_on_click,
 //   set_edit_layer_on_edit,
 // } from '../deck-gl/layers/edit_layer';
-import {
-  make_image_layers,
-  toggle_visibility_image_layers,
-} from '../deck-gl/layers/image_layers';
+import { make_image_layers } from '../deck-gl/layers/image_layers';
 // import {
 //   ini_nbhd_layer,
 //   set_nbhd_layer_onclick,
@@ -60,6 +54,7 @@ import { set_meta_gene } from '../global_variables/meta_gene';
 import { update_selected_genes } from '../global_variables/selected_genes';
 import { create_obs_store } from '../obs_store/obs_store';
 import { set_image_layer_sliders } from '../ui/sliders';
+import { get_img_layer_visible } from '../ui/text_buttons';
 import { make_ist_ui_container } from '../ui/ui_containers';
 import { update_cell_clusters } from '../widget_interactions/update_cell_clusters';
 import { update_ist_landscape_from_cgm } from '../widget_interactions/update_ist_landscape_from_cgm';
@@ -78,7 +73,9 @@ export const landscape_ist = async (
   width = 0,
   height = 800,
   meta_cell = {},
+  meta_cell_attr = [],
   meta_cluster = {},
+  meta_cluster_attr = [],
   umap = {},
   landscape_state = 'spatial',
   segmentation = 'default',
@@ -94,6 +91,10 @@ export const landscape_ist = async (
   viz_state.obs_store = create_obs_store();
 
   const update_viz_image_layers = () => {
+    if (!get_img_layer_visible()) {
+      return;
+    }
+
     const hasCats = viz_state.obs_store.selected_cats.get().length > 0;
     const hasGenes = viz_state.obs_store.selected_genes.get().length > 0;
 
@@ -212,13 +213,14 @@ export const landscape_ist = async (
   viz_state.cats.cluster_counts = [];
   viz_state.cats.polygon_cell_names = [];
 
-  // check if meta_cell is an empty object
   if (Object.keys(meta_cell).length === 0) {
     viz_state.cats.has_meta_cell = false;
   } else {
     viz_state.cats.has_meta_cell = true;
   }
   viz_state.cats.meta_cell = meta_cell;
+  viz_state.cats.meta_cell_attr = meta_cell_attr;
+  viz_state.cats.inst_cell_attr = meta_cell_attr[0] || 'N.A.';
 
   if (Object.keys(meta_cluster).length === 0) {
     viz_state.cats.has_meta_cluster = false;
@@ -226,6 +228,8 @@ export const landscape_ist = async (
     viz_state.cats.has_meta_cluster = true;
   }
   viz_state.cats.meta_cluster = meta_cluster;
+  viz_state.cats.meta_cluster_attr = meta_cluster_attr;
+  viz_state.cats.inst_cluster_attr = meta_cluster_attr[0] || 'N.A.';
 
   viz_state.umap = {};
   if (Object.keys(umap).length === 0) {
@@ -412,8 +416,8 @@ export const landscape_ist = async (
   update_trx_layer_radius(layers_obj, trx_radius);
 
   if (viz_state.umap.state === true) {
-    toggle_background_layer_visibility(layers_obj, false);
-    toggle_visibility_image_layers(layers_obj, false);
+    viz_state.obs_store.viz_background_layer.set(false);
+    viz_state.obs_store.viz_image_layers.set(false);
     toggle_trx_layer_visibility(layers_obj, false);
     toggle_path_layer_visibility(layers_obj, false);
   }

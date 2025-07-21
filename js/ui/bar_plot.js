@@ -3,6 +3,8 @@ import * as d3 from 'd3';
 import { update_cat, update_selected_cats } from '../global_variables/cat';
 import { update_cell_exp_array } from '../global_variables/cell_exp_array';
 import { update_selected_genes } from '../global_variables/selected_genes';
+import { new_toggle_cell_layer_visibility } from '../deck-gl/layers/cell_layer';
+import { toggle_nbhd_layer_visibility } from '../deck-gl/layers/nbhd_layer';
 
 export const make_bar_container = () => {
   return document.createElement('div');
@@ -15,17 +17,32 @@ export const bar_callback_cluster = (
   _layers_obj,
   _viz_state
 ) => {
-  // add cell_layer, path_layer, and trx_layer to the deck_check observable
+  // add cell_layer, path_layer, nbhd_layer, and trx_layer to the deck_check observable
   _viz_state.obs_store.deck_check.set({
     ..._viz_state.obs_store.deck_check.get(),
     cell_layer: false,
     path_layer: false,
     trx_layer: false,
+    nbhd_layer: false,
   });
 
   update_cat(_viz_state.cats, 'cluster');
   update_selected_cats(_viz_state.cats, [d.name], _viz_state.obs_store);
   update_selected_genes(_viz_state.genes, [], _viz_state.obs_store);
+
+  // show cells and hide neighborhoods when clicking a cell bar
+  new_toggle_cell_layer_visibility(_layers_obj, true);
+  toggle_nbhd_layer_visibility(_layers_obj, false);
+  _viz_state.obs_store.viz_nbhd_layer.set(false);
+
+  _viz_state.layers_obj = _layers_obj;
+  _viz_state.obs_store.deck_check.set({
+    ..._viz_state.obs_store.deck_check.get(),
+    cell_layer: true,
+    path_layer: true,
+    trx_layer: true,
+    nbhd_layer: true,
+  });
 };
 
 export const bar_callback_gene = async (
@@ -63,12 +80,32 @@ export const bar_callback_gene = async (
 
 export const bar_callback_nbhd = (
   _event,
-  _d,
+  d,
   _deck_ist,
   _layers_obj,
   _viz_state
 ) => {
-  // console.log('bar_callback_nbhd')
+  // set the selected neighborhood
+  _viz_state.obs_store.selected_nbhds.set([d.name]);
+
+  // update deck check before toggling layers
+  _viz_state.obs_store.deck_check.set({
+    ..._viz_state.obs_store.deck_check.get(),
+    nbhd_layer: false,
+    cell_layer: false,
+  });
+
+  // show neighborhood layer and hide cells
+  toggle_nbhd_layer_visibility(_layers_obj, true);
+  _viz_state.obs_store.viz_nbhd_layer.set(true);
+  new_toggle_cell_layer_visibility(_layers_obj, false);
+
+  _viz_state.layers_obj = _layers_obj;
+  _viz_state.obs_store.deck_check.set({
+    ..._viz_state.obs_store.deck_check.get(),
+    nbhd_layer: true,
+    cell_layer: true,
+  });
 };
 
 export const make_bar_graph = (

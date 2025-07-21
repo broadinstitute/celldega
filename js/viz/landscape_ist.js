@@ -163,7 +163,7 @@ export const landscape_ist = async (
   if (Object.keys(viz_state.model).length !== 0) {
     if (Object.keys(nbhd).length === 0) {
 
-      viz_state.nbhd.alpha_nbhd = false;
+      viz_state.nbhd.is_nbhd = false;
 
       viz_state.nbhd.ini_feature_collection = {
         type: 'FeatureCollection',
@@ -172,14 +172,12 @@ export const landscape_ist = async (
       };
 
       viz_state.nbhd.feature_collection = viz_state.nbhd.ini_feature_collection;
+
     } else {
 
-
-      viz_state.nbhd.alpha_nbhd = true;
+      viz_state.nbhd.is_nbhd = true;
 
       viz_state.nbhd.ini_feature_collection = nbhd; // viz_state.model.get('nbhd');
-
-
 
       viz_state.nbhd.bar_data = nbhd.features.map((feature) => {
         return {
@@ -188,8 +186,6 @@ export const landscape_ist = async (
         }
       }).sort((a, b) => b.value - a.value);
 
-      console.log('viz_state.nbhd.bar_data', viz_state.nbhd.bar_data);
-
       // parse colors from features and make a dictionary with cat name and
       // color as rgb array that is converted from hex
       viz_state.nbhd.color_dict = {};
@@ -197,8 +193,6 @@ export const landscape_ist = async (
         const color = colorToRgba(feature.properties.color);
         viz_state.nbhd.color_dict[feature.properties.cat] = color;
       });
-
-      console.log('viz_state.nbhd.color_dict', viz_state.nbhd.color_dict);
 
       viz_state.nbhd.feature_collection = {
         type: 'FeatureCollection',

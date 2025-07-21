@@ -335,11 +335,16 @@ export const make_ist_ui_container = (
   gene_container.style.width = bar_container_width;
   const trx_container = flex_container('trx_container', 'row');
 
-  const nbhd_container = flex_container('nbhd_container', 'column');
-  nbhd_container.style.width = bar_container_width;
-  const nbhd_ctrl_container = flex_container('nbhd_ctrl_container', 'row');
-  nbhd_ctrl_container.style.marginLeft = '0px';
-  nbhd_ctrl_container.style.height = '22.5px';
+  let nbhd_container
+  let nbhd_ctrl_container
+  if (viz_state.nbhd.is_nbhd) {
+    console.log('making nbhd_container!!!!!!!!!!!!!!!!!!');
+    nbhd_container = flex_container('nbhd_container', 'column');
+    nbhd_container.style.width = bar_container_width;
+    nbhd_ctrl_container = flex_container('nbhd_ctrl_container', 'row');
+    nbhd_ctrl_container.style.marginLeft = '0px';
+    nbhd_ctrl_container.style.height = '22.5px';
+  }
 
   const cell_slider_container = make_slider_container('cell_slider_container');
   const trx_slider_container = make_slider_container('trx_slider_container');
@@ -491,17 +496,19 @@ export const make_ist_ui_container = (
     viz_state
   );
 
-  make_button(
-    nbhd_ctrl_container,
-    'ist',
-    'NBHD',
-    'gray',
-    40,
-    'button',
-    deck_ist,
-    layers_obj,
-    viz_state
-  );
+  if (viz_state.nbhd.is_nbhd) {
+    make_button(
+      nbhd_ctrl_container,
+      'ist',
+      'NBHD',
+      'gray',
+      40,
+      'button',
+      deck_ist,
+      layers_obj,
+      viz_state
+    );
+  }
 
   make_button(
     trx_container,
@@ -528,7 +535,10 @@ export const make_ist_ui_container = (
 
   viz_state.cats.svg_bar_cluster = d3.create('svg');
   viz_state.genes.svg_bar_gene = d3.create('svg');
-  viz_state.nbhd.svg_bar_nbhd = d3.create('svg');
+
+  if (viz_state.nbhd.is_nbhd) {
+    viz_state.nbhd.svg_bar_nbhd = d3.create('svg');
+  }
 
     console.log(viz_state.cats.svg_bar_cluster)
     console.log(viz_state.cats.cluster_counts)
@@ -1100,27 +1110,31 @@ export const make_ist_ui_container = (
   //   .style('color', 'red')
   //   .style('display', 'none');
 
-  viz_state.containers.bar_nbhd = make_bar_container();
-  viz_state.containers.bar_nbhd.style.marginLeft = '0px';
+  if (viz_state.nbhd.is_nbhd) {
+    viz_state.containers.bar_nbhd = make_bar_container();
+    viz_state.containers.bar_nbhd.style.marginLeft = '0px';
 
-  nbhd_container.appendChild(nbhd_ctrl_container);
-  nbhd_container.appendChild(viz_state.containers.bar_nbhd);
+    nbhd_container.appendChild(nbhd_ctrl_container);
+    nbhd_container.appendChild(viz_state.containers.bar_nbhd);
 
-  ctrl_container.appendChild(nbhd_container);
+    ctrl_container.appendChild(nbhd_container);
 
-  console.log('viz_state.containers.bar_nbhd', viz_state.containers.bar_nbhd);
-  console.log('bar_callback_nbhd', bar_callback_nbhd);
+    console.log('viz_state.containers.bar_nbhd', viz_state.containers.bar_nbhd);
+    console.log('bar_callback_nbhd', bar_callback_nbhd);
 
-  make_bar_graph(
-    viz_state.containers.bar_nbhd,
-    bar_callback_nbhd,
-    viz_state.nbhd.svg_bar_nbhd,
-    viz_state.nbhd.bar_data,
-    viz_state.nbhd.color_dict,
-    deck_ist,
-    layers_obj,
-    viz_state
-  );
+    if (viz_state.nbhd.is_nbhd){
+      make_bar_graph(
+        viz_state.containers.bar_nbhd,
+        bar_callback_nbhd,
+        viz_state.nbhd.svg_bar_nbhd,
+        viz_state.nbhd.bar_data,
+        viz_state.nbhd.color_dict,
+        deck_ist,
+        layers_obj,
+        viz_state
+      );
+    }
+  }
 
   ctrl_container.appendChild(viz_state.genes.gene_search);
 

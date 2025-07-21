@@ -4,6 +4,7 @@ Widget module for interactive visualization components.
 
 import colorsys
 from contextlib import suppress
+from copy import deepcopy
 import json
 from pathlib import Path
 import warnings
@@ -13,9 +14,8 @@ import geopandas as gpd
 from matplotlib import pyplot as plt
 import pandas as pd
 import scanpy as sc
-import traitlets
 from shapely.affinity import affine_transform
-from copy import deepcopy
+import traitlets
 
 
 _clustergram_registry = {}  # maps names to widget instances
@@ -115,7 +115,7 @@ class Landscape(anywidget.AnyWidget):
 
         path_transformation_matrix = kwargs.pop("path_transformation_matrix", None)
 
-        base_path = kwargs.get("base_url", None) + "/"
+        base_path = kwargs.get("base_url") + "/"
 
         path_transformation_matrix = base_path + "micron_to_image_transform.csv"
         transformation_matrix = pd.read_csv(path_transformation_matrix, header=None, sep=" ").values

@@ -6,13 +6,12 @@ from collections.abc import Sequence
 import json
 from typing import Any
 
-import pandas as pd
+import anndata as ad
 import geopandas as gpd
 from libpysal.cg import alpha_shape as libpysal_alpha_shape
 import numpy as np
+import pandas as pd
 from shapely.geometry import MultiPolygon, Point, base, shape
-from shapely import transform
-from copy import deepcopy
 
 from .utils import _classify_polygons_contains_check, _round_coordinates
 

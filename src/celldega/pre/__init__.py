@@ -363,6 +363,58 @@ def create_cluster_and_meta_cluster(
     return clusters
 
 
+def create_barcode_to_cell_id_mapping(
+    data_dir: str,
+    micron_size: int,
+) -> tuple[dict, gpd.GeoDataFrame, gpd.GeoDataFrame, gpd.GeoDataFrame]:
+
+    """
+    Create a mapping from spatial barcodes to cell IDs by spatially joining
+    barcode positions with segmented cell geometries.
+
+    Args:
+        data_dir (str): Base directory containing the spatial transcriptomics data.
+        micron_size (int): Micron size used to define the binned output directory.
+
+    Returns:
+        tuple:
+            - dict: Mapping from barcode (str) to cell_id (any).
+            - GeoDataFrame: Barcode positions joined with cell segmentation polygons.
+            - GeoDataFrame: Original cell segmentation polygons.
+            - GeoDataFrame: Original barcode position geometries.
+    """
+
+    base_path = f"{data_dir}/binned_outputs/square_{micron_size}um"
+
+    # Load the cell segmentation GeoJSON file
+    cell_segmentation_geojson = f"{data_dir}/segmented_outputs/cell_segmentations.geojson"
+    gdf_cells = gpd.read_file(cell_segmentation_geojson)
+
+    # Load and filter barcode positions
+    df_pos = pd.read_parquet(f"{base_path}/spatial/tissue_positions.parquet")
+    df_pos = df_pos[df_pos["in_tissue"] == 1].copy()
+
+    # Convert to GeoDataFrame
+    df_pos["geometry"] = df_pos.apply(
+        lambda row: Point(row["pxl_col_in_fullres"], row["pxl_row_in_fullres"]),
+        axis=1,
+    )
+    gdf_pos = gpd.GeoDataFrame(df_pos, geometry="geometry")
+
+    # Spatial join with cell segmentation polygons
+    gdf_pos_join = gpd.sjoin(
+        gdf_pos,
+        gdf_cells,
+        how="inner",
+        predicate="intersects",
+    ).drop(columns="index_right")
+
+    barcode_to_cell = gdf_pos_join[["barcode", "cell_id"]].drop_duplicates()
+    barcode_to_cell_dict = dict(zip(barcode_to_cell["barcode"], barcode_to_cell["cell_id"]))
+
+    return barcode_to_cell_dict, gdf_pos_join, gdf_cells, gdf_pos
+
+
 def _process_image_channel(path_landscape_files, channel_info, img):
     """
     Process a single image channel for tiling.

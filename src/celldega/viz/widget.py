@@ -198,6 +198,7 @@ class Landscape(anywidget.AnyWidget):
 
         # compute geojson for initial nbhd if provided
         if self.nbhd is not None:
+            print('"Computing initial neighborhood GeoJSON...")')
             self.nbhd_geojson = json.loads(self.nbhd.to_json())
 
     @traitlets.observe("nbhd")

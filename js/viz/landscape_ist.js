@@ -88,8 +88,6 @@ export const landscape_ist = async (
     width = '100%';
   }
 
-  console.log('here in landscape_ist')
-
   const viz_state = {};
 
   viz_state.obs_store = create_obs_store();
@@ -159,8 +157,13 @@ export const landscape_ist = async (
     viz_state.aws = null;
   }
 
+
   if (Object.keys(viz_state.model).length !== 0) {
-    if (Object.keys(viz_state.model.get('nbhd')).length === 0) {
+
+    if (Object.keys(nbhd).length === 0) {
+
+      console.log('no nbhd in model')
+
       viz_state.nbhd.alpha_nbhd = false;
 
       viz_state.nbhd.ini_feature_collection = {
@@ -168,37 +171,20 @@ export const landscape_ist = async (
         features: [],
         inst_alpha: null,
       };
+
       viz_state.nbhd.feature_collection = viz_state.nbhd.ini_feature_collection;
+
     } else {
 
-      console.log('found nbhd in model')
       viz_state.nbhd.alpha_nbhd = true;
 
-      viz_state.nbhd.ini_feature_collection = viz_state.model.get('nbhd');
+      viz_state.nbhd.ini_feature_collection = nbhd // viz_state.model.get('nbhd');
 
-      viz_state.nbhd.inst_alpha =
-        viz_state.nbhd.ini_feature_collection['inst_alpha'];
-
-      const filt_features =
-        viz_state.nbhd.ini_feature_collection.features.filter(
-          (d) => d.properties.inv_alpha === viz_state.nbhd.inst_alpha
-        );
-
-      // filter for alpha shapes that have a inv_alpha value of 200
       viz_state.nbhd.feature_collection = {
         type: 'FeatureCollection',
-        features: filt_features,
+        features: nbhd.features,
       };
     }
-  } else {
-    viz_state.nbhd.alpha_nbhd = false;
-
-    viz_state.nbhd.ini_feature_collection = {
-      type: 'FeatureCollection',
-      features: [],
-      inst_alpha: null,
-    };
-    viz_state.nbhd.feature_collection = viz_state.nbhd.ini_feature_collection;
   }
 
   viz_state.containers = {};

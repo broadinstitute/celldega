@@ -24,13 +24,10 @@ export const filter_cat_nbhd_feature_collection = (viz_state) => {
   let filt_features;
 
   if (viz_state.cats.selected_cats.length === 0) {
-    filt_features = viz_state.nbhd.ini_feature_collection.features.filter(
-      (d) => d.properties.inv_alpha === viz_state.nbhd.inst_alpha
-    );
+    filt_features = viz_state.nbhd.ini_feature_collection.features;
   } else {
     filt_features = viz_state.nbhd.ini_feature_collection.features
-      .filter((d) => viz_state.cats.selected_cats.includes(d.properties.cat))
-      .filter((d) => d.properties.inv_alpha === viz_state.nbhd.inst_alpha);
+      .filter((d) => viz_state.cats.selected_cats.includes(d.properties.cat));
   }
   viz_state.nbhd.feature_collection = {
     type: 'FeatureCollection',

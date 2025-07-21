@@ -25,9 +25,7 @@ const render_landscape_ist = async ({ model, el }) => {
   const width = model.get('width');
   const height = model.get('height');
 
-  const nbhd = model.get('nbhd');
-  console.log('nbhd', nbhd);
-  console.log('here in widget.js') 
+  const nbhd = model.get('nbhd_geojson');
 
   let meta_cell_data = { result: {}, attr: [] };
   let meta_cluster_data = { result: {}, attr: [] };

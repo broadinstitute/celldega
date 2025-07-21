@@ -335,11 +335,11 @@ export const make_ist_ui_container = (
   gene_container.style.width = bar_container_width;
   const trx_container = flex_container('trx_container', 'row');
 
-  // const rgn_container = flex_container('rgn_container', 'column');
-  // rgn_container.style.width = bar_container_width;
-  // const rgn_ctrl_container = flex_container('rgn_ctrl_container', 'row');
-  // rgn_ctrl_container.style.marginLeft = '0px';
-  // rgn_ctrl_container.style.height = '22.5px';
+  const rgn_container = flex_container('rgn_container', 'column');
+  rgn_container.style.width = bar_container_width;
+  const rgn_ctrl_container = flex_container('rgn_ctrl_container', 'row');
+  rgn_ctrl_container.style.marginLeft = '0px';
+  rgn_ctrl_container.style.height = '22.5px';
 
   const cell_slider_container = make_slider_container('cell_slider_container');
   const trx_slider_container = make_slider_container('trx_slider_container');
@@ -492,7 +492,7 @@ export const make_ist_ui_container = (
   );
 
   make_button(
-    cell_ctrl_container,
+    rgn_ctrl_container,
     'ist',
     'NBHD',
     'gray',
@@ -1098,10 +1098,10 @@ export const make_ist_ui_container = (
   // viz_state.containers.bar_rgn = make_bar_container();
   // viz_state.containers.bar_rgn.style.marginLeft = '0px';
 
-  // rgn_container.appendChild(rgn_ctrl_container);
+  rgn_container.appendChild(rgn_ctrl_container);
   // rgn_container.appendChild(viz_state.containers.bar_rgn);
 
-  // ctrl_container.appendChild(rgn_container);
+  ctrl_container.appendChild(rgn_container);
 
   // make_bar_graph(
   //   viz_state.containers.bar_rgn,

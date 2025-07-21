@@ -59,6 +59,8 @@ import { make_ist_ui_container } from '../ui/ui_containers';
 import { update_cell_clusters } from '../widget_interactions/update_cell_clusters';
 import { update_ist_landscape_from_cgm } from '../widget_interactions/update_ist_landscape_from_cgm';
 
+import { colorToRgba } from '../matrix/cat_data';
+
 export const landscape_ist = async (
   el,
   ini_model,
@@ -187,6 +189,16 @@ export const landscape_ist = async (
       }).sort((a, b) => b.value - a.value);
 
       console.log('viz_state.nbhd.bar_data', viz_state.nbhd.bar_data);
+
+      // parse colors from features and make a dictionary with cat name and
+      // color as rgb array that is converted from hex
+      viz_state.nbhd.color_dict = {};
+      nbhd.features.forEach((feature) => {
+        const color = colorToRgba(feature.properties.color);
+        viz_state.nbhd.color_dict[feature.properties.cat] = color;
+      });
+
+      console.log('viz_state.nbhd.color_dict', viz_state.nbhd.color_dict);
 
       viz_state.nbhd.feature_collection = {
         type: 'FeatureCollection',

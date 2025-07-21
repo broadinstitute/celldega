@@ -528,6 +528,7 @@ export const make_ist_ui_container = (
 
   viz_state.cats.svg_bar_cluster = d3.create('svg');
   viz_state.genes.svg_bar_gene = d3.create('svg');
+  viz_state.nbhd.svg_bar_nbhd = d3.create('svg');
 
     console.log(viz_state.cats.svg_bar_cluster)
     console.log(viz_state.cats.cluster_counts)
@@ -1110,19 +1111,16 @@ export const make_ist_ui_container = (
   console.log('viz_state.containers.bar_nbhd', viz_state.containers.bar_nbhd);
   console.log('bar_callback_nbhd', bar_callback_nbhd);
 
-  // make_bar_graph(
-  //   viz_state.containers.bar_nbhd,
-  //   bar_callback_nbhd,
-  //   // viz_state.edit.svg_bar_nbhd,
-  //   // viz_state.edit.rgn_areas,
-  //   // viz_state.edit.color_dict_rgn,
-  //   viz_state.cats.svg_bar_cluster,
-  //   viz_state.cats.cluster_counts,
-  //   viz_state.cats.color_dict_cluster,
-  //   deck_ist,
-  //   layers_obj,
-  //   viz_state
-  // );
+  make_bar_graph(
+    viz_state.containers.bar_nbhd,
+    bar_callback_nbhd,
+    viz_state.nbhd.svg_bar_nbhd,
+    viz_state.nbhd.bar_data,
+    viz_state.nbhd.color_dict,
+    deck_ist,
+    layers_obj,
+    viz_state
+  );
 
   ctrl_container.appendChild(viz_state.genes.gene_search);
 

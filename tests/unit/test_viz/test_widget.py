@@ -88,6 +88,9 @@ def test_landscape_nbhd_geojson_and_metadata() -> None:
 
     widget = Landscape(nbhd=gdf, meta_nbhd=meta_nbhd)
 
+    # drop geometry_pixel column from gdf
+    gdf = gdf.drop(columns=["geometry_pixel"], errors="ignore")
+
     assert widget.nbhd_geojson == json.loads(gdf.to_json())
     assert hasattr(widget, "meta_nbhd_parquet")
     assert isinstance(widget.meta_nbhd_parquet, bytes | bytearray)

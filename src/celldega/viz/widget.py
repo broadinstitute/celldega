@@ -115,10 +115,18 @@ class Landscape(anywidget.AnyWidget):
 
         path_transformation_matrix = kwargs.pop("path_transformation_matrix", None)
 
-        base_path = kwargs.get("base_url") + "/"
+        base_path = (kwargs.get("base_url") or "") + "/"
 
         path_transformation_matrix = base_path + "micron_to_image_transform.csv"
-        transformation_matrix = pd.read_csv(path_transformation_matrix, header=None, sep=" ").values
+
+        try:
+            transformation_matrix = pd.read_csv(path_transformation_matrix, header=None, sep=" ").values
+        except FileNotFoundError:
+            transformation_matrix = np.eye(3)  # Fallback for testing
+            warnings.warn(
+                f"Transformation matrix not found at {path_transformation_matrix}. Using identity."
+            )
+
 
         def _df_to_bytes(df):
             import io

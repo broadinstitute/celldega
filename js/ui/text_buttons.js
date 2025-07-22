@@ -217,7 +217,10 @@ const trx_button_callback_ist = async (
   if (is_visible) {
     toggle_nbhd_layer_visibility(layers_obj, false);
     viz_state.obs_store.viz_nbhd_layer.set(false);
-    viz_state.buttons.buttons.nbhd.style('color', 'gray');
+
+    if (viz_state.nbhd.is_nbhd) {
+      viz_state.buttons.buttons.nbhd.style('color', 'gray');
+    }
 
     viz_state.genes.svg_bar_gene.selectAll('rect').style('opacity', 1.0);
 
@@ -250,7 +253,10 @@ const cell_button_callback = async (event, deck_ist, layers_obj, viz_state) => {
 
     toggle_nbhd_layer_visibility(layers_obj, false);
     viz_state.obs_store.viz_nbhd_layer.set(false);
-    viz_state.buttons.buttons.nbhd.style('color', 'gray');
+
+    if (viz_state.nbhd.is_nbhd) {
+      viz_state.buttons.buttons.nbhd.style('color', 'gray');
+    }
 
     viz_state.cats.svg_bar_cluster.selectAll('rect').style('opacity', 1.0);
 

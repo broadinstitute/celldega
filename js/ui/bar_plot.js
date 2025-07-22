@@ -22,12 +22,15 @@ export const bar_callback_cat = (
 
   // ensure that cell button, slider and bars are active
   _viz_state.buttons.buttons.cell.style('color', 'blue');
-  _viz_state.buttons.buttons.nbhd.style('color', 'gray');
 
   toggle_slider(_viz_state.sliders.cell, true);
   _viz_state.cats.svg_bar_cluster.selectAll('rect').style('opacity', 1.0);
   new_toggle_cell_layer_visibility(_layers_obj, true);
-  _viz_state.obs_store.viz_nbhd_layer.set(false);
+
+  if (_viz_state.nbhd.is_nbhd) {
+    _viz_state.obs_store.viz_nbhd_layer.set(false);
+    _viz_state.buttons.buttons.nbhd.style('color', 'gray');
+  }
 
   // add cell_layer, path_layer, and trx_layer to the deck_check observable
   _viz_state.obs_store.deck_check.set({
@@ -60,14 +63,17 @@ export const bar_callback_gene = async (
 
   // ensure that trx button, slider, and bars are active
   _viz_state.buttons.buttons.trx.style('color', 'blue');
-  _viz_state.buttons.buttons.nbhd.style('color', 'gray');
 
   toggle_slider(_viz_state.sliders.trx, true);
   _viz_state.genes.svg_bar_gene.selectAll('rect').style('opacity', 1.0);
 
 
   toggle_trx_layer_visibility(_layers_obj, true);
-  _viz_state.obs_store.viz_nbhd_layer.set(false);
+
+  if (_viz_state.nbhd.is_nbhd) {
+    _viz_state.obs_store.viz_nbhd_layer.set(false);
+    _viz_state.buttons.buttons.nbhd.style('color', 'gray');
+  }
 
   const inst_gene = d.name;
   const reset_gene = inst_gene === _viz_state.cats.cat;

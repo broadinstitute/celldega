@@ -1,11 +1,11 @@
 import * as d3 from 'd3';
 
+import { new_toggle_cell_layer_visibility } from '../deck-gl/layers/cell_layer';
+import { toggle_trx_layer_visibility } from '../deck-gl/layers/trx_layer';
 import { update_cat, update_selected_cats } from '../global_variables/cat';
 import { update_cell_exp_array } from '../global_variables/cell_exp_array';
 import { update_selected_genes } from '../global_variables/selected_genes';
 import { toggle_slider } from '../ui/sliders';
-import { new_toggle_cell_layer_visibility } from '../deck-gl/layers/cell_layer';
-import { toggle_trx_layer_visibility } from '../deck-gl/layers/trx_layer';
 
 export const make_bar_container = () => {
   return document.createElement('div');
@@ -85,11 +85,9 @@ export const bar_callback_nbhd = (
   _layers_obj,
   _viz_state
 ) => {
-  console.log(_event, _d)
 
   // update selected_nbhds observable
   _viz_state.obs_store.selected_nbhds.set([_d.name]);
-
 
 };
 

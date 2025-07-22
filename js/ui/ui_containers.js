@@ -566,7 +566,6 @@ export const make_ist_ui_container = (
   const make_bar_cat_subscriber = (svg, container) => {
     return (selected_cats) => {
 
-      console.log('make_bar_cat_subscriber', selected_cats);
       // --- 1. Update the styles ---
       if (!Array.isArray(selected_cats) || selected_cats.length === 0) {
         svg.selectAll('g').attr('font-weight', 'normal').attr('opacity', 1.0);

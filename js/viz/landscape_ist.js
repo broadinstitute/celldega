@@ -113,6 +113,13 @@ export const landscape_ist = async (
   viz_state.obs_store.selected_genes.subscribe(update_viz_image_layers);
 
   viz_state.obs_store.selected_nbhds.subscribe((selected_nbhds) => {
+
+    const selected_nbhds_name = selected_nbhds.join('-');
+
+    layers_obj.nbhd_layer = layers_obj.nbhd_layer.clone({
+      id: `nbhd-layer-${selected_nbhds_name}`,
+    });
+
     if (selected_nbhds.length > 0) {
       viz_state.obs_store.viz_nbhd_layer.set(true);
       viz_state.obs_store.viz_image_layers.set(false);
@@ -122,7 +129,7 @@ export const landscape_ist = async (
       viz_state.obs_store.viz_image_layers.set(true);
       viz_state.obs_store.viz_background_layer.set(true);
     }
-  });
+  }, { immediate: false });
 
   viz_state.obs_store.viz_nbhd_layer.subscribe((visible) => {
 
@@ -420,6 +427,8 @@ export const landscape_ist = async (
   set_nbhd_layer_onclick(deck_ist, layers_obj, viz_state);
 
   viz_state.obs_store.deck_ready.subscribe((ready) => {
+
+    console.log('deck_ready', ready);
     if (ready) {
       const list = get_layers_list(viz_state.layers_obj, viz_state.close_up);
       deck_ist.setProps({ layers: list });
@@ -427,6 +436,7 @@ export const landscape_ist = async (
   });
 
   viz_state.obs_store.selected_cats.subscribe((selected_cats) => {
+
     const selected_cats_name = selected_cats.join('-');
 
     layers_obj.cell_layer = layers_obj.cell_layer.clone({

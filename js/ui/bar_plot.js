@@ -95,6 +95,8 @@ export const bar_callback_nbhd = (
   // update selected_nbhds observable
   _viz_state.obs_store.selected_nbhds.set([_d.name]);
 
+  console.log('bar_callback_nbhd', _d.name);
+
 };
 
 export const make_bar_graph = (

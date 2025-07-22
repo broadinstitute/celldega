@@ -4,6 +4,35 @@ import { update_selected_cats, update_cat } from '../../global_variables/cat';
 import { update_selected_genes } from '../../global_variables/selected_genes';
 import { hexToRgb } from '../../utils/hexToRgb';
 import { get_layers_list } from '../utils/layers_ist';
+import { refresh_layer } from '../../utils/refresh_layer';
+
+const get_nbhd_color = (d, viz_state) => {
+
+  let inst_color = hexToRgb(d.properties.color)
+
+  let inst_opacity;
+
+  // if viz_state.obs_store.selected_nbhds is not empty
+  // then check if the cat is in the selected_nbhds
+  if (viz_state.obs_store.selected_nbhds.get().length > 0) {
+    if (viz_state.obs_store.selected_nbhds.get().includes(d.properties.cat)) {
+      // if the cat is in the selected_nbhds, set the opacity to 255
+      inst_opacity = 255;
+    } else {
+      // if the cat is not in the selected_nbhds, set the opacity to 50
+      inst_opacity = 10;
+    }
+  } else {
+    // if selected_nbhds is empty, set the opacity to 255
+    inst_opacity = 255;
+  }
+
+  // add the opacity to the color
+  inst_color.push(inst_opacity);
+
+  return inst_color;
+
+};
 
 export const ini_nbhd_layer = (viz_state, visible) => {
   const nbhd_layer = new GeoJsonLayer({
@@ -13,7 +42,7 @@ export const ini_nbhd_layer = (viz_state, visible) => {
     stroked: false,
     filled: true,
     getLineWidth: 1,
-    getFillColor: (d) => hexToRgb(d.properties.color),
+    getFillColor: (d) => get_nbhd_color(d, viz_state),
     opacity: 0.5,
     visible,
   });
@@ -52,15 +81,20 @@ const nbhd_layer_onclick = async (
 ) => {
   const inst_cat = info.object.properties.cat;
 
-  update_cat(viz_state.cats, 'cluster');
-  update_selected_cats(viz_state.cats, [inst_cat], viz_state.obs_store);
-  update_selected_genes(viz_state.genes, [], viz_state.obs_store);
+  viz_state.obs_store.selected_nbhds.set([inst_cat]);
 
-  await filter_cat_nbhd_feature_collection(viz_state);
-  await update_nbhd_layer_data(viz_state, layers_obj);
+  // refresh the nbhd layer
+  refresh_layer(viz_state, layers_obj, 'nbhd_layer');
 
-  const layers_list = get_layers_list(layers_obj, viz_state.close_up);
-  deck_ist.setProps({ layers: layers_list });
+  // update_cat(viz_state.cats, 'cluster');
+  // update_selected_cats(viz_state.cats, [inst_cat], viz_state.obs_store);
+  // update_selected_genes(viz_state.genes, [], viz_state.obs_store);
+
+  // await filter_cat_nbhd_feature_collection(viz_state);
+  // await update_nbhd_layer_data(viz_state, layers_obj);
+
+  // const layers_list = get_layers_list(layers_obj, viz_state.close_up);
+  // deck_ist.setProps({ layers: layers_list });
 };
 
 export const set_nbhd_layer_onclick = (deck_ist, layers_obj, viz_state) => {

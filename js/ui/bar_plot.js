@@ -93,8 +93,11 @@ export const bar_callback_nbhd = (
   _viz_state
 ) => {
 
-  // // update selected_nbhds observable
-  // _viz_state.obs_store.selected_nbhds.set([_d.name]);
+  // set nbhd to visible
+  _viz_state.obs_store.viz_nbhd_layer.set(true);
+
+  // make sure nbhd button is active
+  _viz_state.buttons.buttons.nbhd.style('color', 'blue');
 
   // update selected_nbhds observable with the clicked nbhd unless
   // the clicked nbhd is already equal to selected_nbhds
@@ -108,7 +111,20 @@ export const bar_callback_nbhd = (
   // refresh the nbhd layer
   refresh_layer(_viz_state, _layers_obj, 'nbhd_layer');
 
-  console.log('bar_callback_nbhd', _d.name);
+  // highlight the nbhd in the bar plot
+  if (_viz_state.obs_store.selected_nbhds.get().length > 0) {
+    _viz_state.nbhd.svg_bar_nbhd.selectAll('rect')
+      .style('opacity', (d) => {
+        if (d.name === _d.name) {
+          return 1.0;
+        } else {
+          return 0.2;
+        }
+      });
+  } else {
+    _viz_state.nbhd.svg_bar_nbhd.selectAll('rect')
+      .style('opacity', 1.0);
+  }
 
 };
 

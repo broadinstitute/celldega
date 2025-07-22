@@ -95,6 +95,31 @@ const nbhd_layer_onclick = async (
   // refresh the nbhd layer
   refresh_layer(viz_state, layers_obj, 'nbhd_layer');
 
+  // highlight the nbhd in the bar plot
+  if (viz_state.obs_store.selected_nbhds.get().length > 0) {
+
+    viz_state.nbhd.svg_bar_nbhd.selectAll('rect')
+      .style('opacity', (d) => {
+        if (d.name === inst_nbhd) {
+          return 1.0;
+        } else {
+          return 0.2;
+        }
+      })
+    } else {
+      viz_state.nbhd.svg_bar_nbhd.selectAll('rect')
+        .style('opacity', 1.0);
+    }
+
+  //   // scroll to the nbhd in the bar plot
+  // viz_state.nbhd.svg_bar_nbhd.selectAll('rect')
+  //   .filter((d) => d.name === inst_nbhd)
+  //   .node().scrollIntoView({
+  //     behavior: 'smooth',
+  //     block: 'center',
+  //     inline: 'nearest',
+  //   });
+
 };
 
 export const set_nbhd_layer_onclick = (deck_ist, layers_obj, viz_state) => {

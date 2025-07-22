@@ -279,29 +279,8 @@ const nbhd_button_callback = async (event, deck_ist, layers_obj, viz_state) => {
   toggle_visible_button(event);
 
   toggle_nbhd_layer_visibility(layers_obj, is_visible);
+
   viz_state.obs_store.viz_nbhd_layer.set(is_visible);
-
-  // set cell layer to not visible if nbhd layer is visible
-  if (is_visible) {
-    new_toggle_cell_layer_visibility(layers_obj, false);
-
-    viz_state.buttons.buttons.cell.style('color', 'gray');
-    viz_state.buttons.buttons.img.style('color', 'gray');
-    viz_state.buttons.buttons.trx.style('color', 'gray');
-
-    toggle_slider(viz_state.sliders.cell, false);
-    toggle_slider(viz_state.sliders.trx, false);
-
-  } else {
-    new_toggle_cell_layer_visibility(layers_obj, true);
-
-    viz_state.buttons.buttons.cell.style('color', 'blue');
-    viz_state.buttons.buttons.img.style('color', 'blue');
-    viz_state.buttons.buttons.trx.style('color', 'blue');
-
-    toggle_slider(viz_state.sliders.cell, true);
-    toggle_slider(viz_state.sliders.trx, true);
-  }
 
   viz_state.obs_store.deck_check.set({
     ...viz_state.obs_store.deck_check.get(),

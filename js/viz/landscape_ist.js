@@ -13,6 +13,7 @@ import { set_views } from '../deck-gl/core/views';
 import { ini_background_layer } from '../deck-gl/layers/background_layer';
 import {
   ini_cell_layer,
+  new_toggle_cell_layer_visibility,
   set_cell_layer_onclick,
 } from '../deck-gl/layers/cell_layer';
 // import {
@@ -59,7 +60,7 @@ import { get_img_layer_visible } from '../ui/text_buttons';
 import { make_ist_ui_container } from '../ui/ui_containers';
 import { update_cell_clusters } from '../widget_interactions/update_cell_clusters';
 import { update_ist_landscape_from_cgm } from '../widget_interactions/update_ist_landscape_from_cgm';
-
+import { toggle_slider } from '../ui/sliders';
 
 export const landscape_ist = async (
   el,
@@ -129,18 +130,37 @@ export const landscape_ist = async (
       viz_state.obs_store.viz_image_layers.set(false);
       viz_state.obs_store.viz_background_layer.set(false);
 
+      // set cell layer to not visible
+      new_toggle_cell_layer_visibility(viz_state.layers_obj, false);
+
       // set gene/cat bars to disabled color
       viz_state.genes.svg_bar_gene.selectAll('rect').style('opacity', 0.2);
       viz_state.cats.svg_bar_cluster.selectAll('rect').style('opacity', 0.2);
       viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', 1.0);
 
+      viz_state.buttons.buttons.cell.style('color', 'gray');
+      viz_state.buttons.buttons.img.style('color', 'gray');
+      viz_state.buttons.buttons.trx.style('color', 'gray');
+
+      toggle_slider(viz_state.sliders.cell, false);
+      toggle_slider(viz_state.sliders.trx, false);
+
     } else {
       viz_state.obs_store.viz_image_layers.set(true);
       viz_state.obs_store.viz_background_layer.set(true);
 
+      new_toggle_cell_layer_visibility(viz_state.layers_obj, true);
+
       viz_state.genes.svg_bar_gene.selectAll('rect').style('opacity', 1.0);
       viz_state.cats.svg_bar_cluster.selectAll('rect').style('opacity', 1.0);
       viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', 0.2);
+
+      viz_state.buttons.buttons.cell.style('color', 'blue');
+      viz_state.buttons.buttons.img.style('color', 'blue');
+      viz_state.buttons.buttons.trx.style('color', 'blue');
+
+      toggle_slider(viz_state.sliders.cell, true);
+      toggle_slider(viz_state.sliders.trx, true);
 
     }
   }, { immediate: false });

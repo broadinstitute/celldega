@@ -282,6 +282,7 @@ const cell_button_callback = async (event, deck_ist, layers_obj, viz_state) => {
 };
 
 const nbhd_button_callback = async (event, deck_ist, layers_obj, viz_state) => {
+
   toggle_visible_button(event);
 
   toggle_nbhd_layer_visibility(layers_obj, is_visible);

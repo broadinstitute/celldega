@@ -391,8 +391,6 @@ export const landscape_ist = async (
   viz_state.obs_store.viz_nbhd_layer.subscribe((visible) => {
 
     if (visible) {
-      viz_state.obs_store.viz_image_layers.set(false);
-      viz_state.obs_store.viz_background_layer.set(false);
 
       // set cell layer to not visible
       new_toggle_cell_layer_visibility(viz_state.layers_obj, false);
@@ -403,15 +401,12 @@ export const landscape_ist = async (
       viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', 1.0);
 
       viz_state.buttons.buttons.cell.style('color', 'gray');
-      viz_state.buttons.buttons.img.style('color', 'gray');
       viz_state.buttons.buttons.trx.style('color', 'gray');
 
       toggle_slider(viz_state.sliders.cell, false);
       toggle_slider(viz_state.sliders.trx, false);
 
     } else {
-      viz_state.obs_store.viz_image_layers.set(true);
-      viz_state.obs_store.viz_background_layer.set(true);
 
       new_toggle_cell_layer_visibility(viz_state.layers_obj, true);
 
@@ -420,7 +415,6 @@ export const landscape_ist = async (
       viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', 0.2);
 
       viz_state.buttons.buttons.cell.style('color', 'blue');
-      viz_state.buttons.buttons.img.style('color', 'blue');
       viz_state.buttons.buttons.trx.style('color', 'blue');
 
       toggle_slider(viz_state.sliders.cell, true);

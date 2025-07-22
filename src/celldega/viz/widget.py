@@ -114,8 +114,6 @@ class Landscape(anywidget.AnyWidget):
         meta_cluster_df = None
         cell_attr = kwargs.pop("cell_attr", ["leiden"])
 
-        path_transformation_matrix = kwargs.pop("path_transformation_matrix", None)
-
         base_path = (kwargs.get("base_url") or "") + "/"
 
         path_transformation_matrix = base_path + "micron_to_image_transform.csv"

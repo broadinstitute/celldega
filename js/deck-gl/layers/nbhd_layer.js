@@ -81,20 +81,18 @@ const nbhd_layer_onclick = async (
 ) => {
   const inst_cat = info.object.properties.cat;
 
-  viz_state.obs_store.selected_nbhds.set([inst_cat]);
+  // update selected_nbhds observable with the clicked nbhd unless
+  // the clicked nbhd is already equal to selected_nbhds
+  const prev_selected_nbhds = viz_state.obs_store.selected_nbhds.get();
+  if (prev_selected_nbhds[0] === inst_cat && prev_selected_nbhds.length === 1) {
+    viz_state.obs_store.selected_nbhds.set([]);
+  } else {
+    viz_state.obs_store.selected_nbhds.set([inst_cat]);
+  }
 
   // refresh the nbhd layer
   refresh_layer(viz_state, layers_obj, 'nbhd_layer');
 
-  // update_cat(viz_state.cats, 'cluster');
-  // update_selected_cats(viz_state.cats, [inst_cat], viz_state.obs_store);
-  // update_selected_genes(viz_state.genes, [], viz_state.obs_store);
-
-  // await filter_cat_nbhd_feature_collection(viz_state);
-  // await update_nbhd_layer_data(viz_state, layers_obj);
-
-  // const layers_list = get_layers_list(layers_obj, viz_state.close_up);
-  // deck_ist.setProps({ layers: layers_list });
 };
 
 export const set_nbhd_layer_onclick = (deck_ist, layers_obj, viz_state) => {

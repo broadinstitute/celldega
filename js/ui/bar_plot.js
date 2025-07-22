@@ -6,6 +6,7 @@ import { update_cat, update_selected_cats } from '../global_variables/cat';
 import { update_cell_exp_array } from '../global_variables/cell_exp_array';
 import { update_selected_genes } from '../global_variables/selected_genes';
 import { toggle_slider } from '../ui/sliders';
+import { refresh_layer } from '../utils/refresh_layer';
 
 export const make_bar_container = () => {
   return document.createElement('div');
@@ -92,8 +93,20 @@ export const bar_callback_nbhd = (
   _viz_state
 ) => {
 
-  // update selected_nbhds observable
-  _viz_state.obs_store.selected_nbhds.set([_d.name]);
+  // // update selected_nbhds observable
+  // _viz_state.obs_store.selected_nbhds.set([_d.name]);
+
+  // update selected_nbhds observable with the clicked nbhd unless
+  // the clicked nbhd is already equal to selected_nbhds
+  const prev_selected_nbhds = _viz_state.obs_store.selected_nbhds.get();
+  if (prev_selected_nbhds[0] === _d.name && prev_selected_nbhds.length === 1) {
+    _viz_state.obs_store.selected_nbhds.set([]);
+  } else {
+    _viz_state.obs_store.selected_nbhds.set([_d.name]);
+  }
+
+  // refresh the nbhd layer
+  refresh_layer(_viz_state, _layers_obj, 'nbhd_layer');
 
   console.log('bar_callback_nbhd', _d.name);
 

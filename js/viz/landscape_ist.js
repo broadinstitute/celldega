@@ -120,15 +120,7 @@ export const landscape_ist = async (
       id: `nbhd-layer-${selected_nbhds_name}`,
     });
 
-    if (selected_nbhds.length > 0) {
-      viz_state.obs_store.viz_nbhd_layer.set(true);
-      viz_state.obs_store.viz_image_layers.set(false);
-      viz_state.obs_store.viz_background_layer.set(false);
-    } else {
-      viz_state.obs_store.viz_nbhd_layer.set(false);
-      viz_state.obs_store.viz_image_layers.set(true);
-      viz_state.obs_store.viz_background_layer.set(true);
-    }
+
   }, { immediate: false });
 
   viz_state.obs_store.viz_nbhd_layer.subscribe((visible) => {

@@ -285,6 +285,9 @@ const nbhd_button_callback = async (event, deck_ist, layers_obj, viz_state) => {
   if (is_visible) {
     new_toggle_cell_layer_visibility(layers_obj, false);
 
+    // bar plot
+    // viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', 1.0);
+
     viz_state.buttons.buttons.cell.style('color', 'gray');
     viz_state.buttons.buttons.img.style('color', 'gray');
     viz_state.buttons.buttons.trx.style('color', 'gray');
@@ -294,6 +297,8 @@ const nbhd_button_callback = async (event, deck_ist, layers_obj, viz_state) => {
 
   } else {
     new_toggle_cell_layer_visibility(layers_obj, true);
+
+    // viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', 0.2);
 
     viz_state.buttons.buttons.cell.style('color', 'blue');
     viz_state.buttons.buttons.img.style('color', 'blue');

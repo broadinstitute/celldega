@@ -133,6 +133,7 @@ export const landscape_ist = async (
       // set gene/cat bars to disabled color
       viz_state.genes.svg_bar_gene.selectAll('rect').style('opacity', 0.2);
       viz_state.cats.svg_bar_cluster.selectAll('rect').style('opacity', 0.2);
+      viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', 1.0);
 
     } else {
       viz_state.obs_store.viz_image_layers.set(true);
@@ -140,6 +141,7 @@ export const landscape_ist = async (
 
       viz_state.genes.svg_bar_gene.selectAll('rect').style('opacity', 1.0);
       viz_state.cats.svg_bar_cluster.selectAll('rect').style('opacity', 1.0);
+      viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', 0.2);
 
     }
   }, { immediate: false });

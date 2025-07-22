@@ -89,8 +89,6 @@ export const landscape_ist = async (
     width = '100%';
   }
 
-
-
   const viz_state = {};
 
   viz_state.obs_store = create_obs_store();
@@ -132,17 +130,21 @@ export const landscape_ist = async (
     if (visible) {
       viz_state.obs_store.viz_image_layers.set(false);
       viz_state.obs_store.viz_background_layer.set(false);
-    //   toggle_trx_layer_visibility(layers_obj, false);
-    //   toggle_path_layer_visibility(layers_obj, false);
-    //   new_toggle_cell_layer_visibility(layers_obj, false);
+
+      // set gene/cat bars to disabled color
+      viz_state.genes.svg_bar_gene.selectAll('rect').style('opacity', 0.2);
+      viz_state.cats.svg_bar_cluster.selectAll('rect').style('opacity', 0.2);
+
     } else {
       viz_state.obs_store.viz_image_layers.set(true);
       viz_state.obs_store.viz_background_layer.set(true);
-    //   toggle_trx_layer_visibility(layers_obj, true);
-    //   toggle_path_layer_visibility(layers_obj, true);
-    //   new_toggle_cell_layer_visibility(layers_obj, true);
+
+
+      viz_state.genes.svg_bar_gene.selectAll('rect').style('opacity', 1.0);
+      viz_state.cats.svg_bar_cluster.selectAll('rect').style('opacity', 1.0);
+
     }
-  });
+  }, { immediate: false });
 
   viz_state.seg = {};
   viz_state.seg.version = segmentation;

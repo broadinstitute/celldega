@@ -390,8 +390,6 @@ export const landscape_ist = async (
 
   viz_state.obs_store.viz_nbhd_layer.subscribe((visible) => {
 
-    console.log('viz_nbhd_layer changed to', visible);
-
     if (visible) {
       viz_state.obs_store.viz_image_layers.set(false);
       viz_state.obs_store.viz_background_layer.set(false);

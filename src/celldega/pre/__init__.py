@@ -1139,18 +1139,43 @@ def _xenium_unzipper(target_dir):
         extraction_tasks = [
             ("cells.csv", ["gzip", "-dk", "cells.csv.gz"]),
             ("cells.zarr", ["unzip", "cells.zarr.zip", "-d", "cells.zarr"]),
-            ("analysis", ["tar", "-xvzf", "analysis.tar.gz"]),
             ("cell_feature_matrix", ["tar", "-xvzf", "cell_feature_matrix.tar.gz"]),
         ]
 
         for target_file, command in extraction_tasks:
-            if not Path(target_file).exists():
+            if not Path(target_file).exists() and Path(command[-1]).exists():
                 subprocess.run(
                     command,
                     check=True,
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
                 )
+
+        # Extract analysis directory which may be packaged either as a tar or a zip archive
+        if not Path("analysis").exists():
+            if Path("analysis.tar.gz").exists():
+                subprocess.run(
+                    ["tar", "-xvzf", "analysis.tar.gz"],
+                    check=True,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+            elif Path("analysis.zip").exists():
+                subprocess.run(
+                    ["unzip", "analysis.zip", "-d", "analysis"],
+                    check=True,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+            elif Path("analysis.zarr.zip").exists():
+                subprocess.run(
+                    ["unzip", "analysis.zarr.zip"],
+                    check=True,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+                if Path("analysis.zarr").exists():
+                    Path("analysis.zarr").rename("analysis")
 
         print("All files have been successfully extracted or skipped.")
     except subprocess.CalledProcessError as e:

@@ -125,8 +125,10 @@ class Landscape(anywidget.AnyWidget):
         except FileNotFoundError:
             transformation_matrix = np.eye(3)  # Fallback for testing
             warnings.warn(
-                f"Transformation matrix not found at {path_transformation_matrix}. Using identity."
+                f"Transformation matrix not found at {path_transformation_matrix}. Using identity.",
+                stacklevel=2,
             )
+
 
 
         def _df_to_bytes(df):

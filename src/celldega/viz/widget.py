@@ -229,7 +229,7 @@ class Landscape(anywidget.AnyWidget):
 
             gdf_viz = deepcopy(self.nbhd)
             gdf_viz["geometry"] = gdf_viz["geometry_pixel"]
-            del gdf_viz["geometry_pixel"]
+            gdf_viz.drop(columns=["geometry_pixel"], inplace=True)
 
             self.nbhd_geojson = json.loads(gdf_viz.to_json())
 

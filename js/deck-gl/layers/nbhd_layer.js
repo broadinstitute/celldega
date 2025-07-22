@@ -1,3 +1,4 @@
+import * as d3 from 'd3';
 import { GeoJsonLayer } from 'deck.gl';
 
 import { update_selected_cats, update_cat } from '../../global_variables/cat';
@@ -5,6 +6,7 @@ import { update_selected_genes } from '../../global_variables/selected_genes';
 import { hexToRgb } from '../../utils/hexToRgb';
 import { get_layers_list } from '../utils/layers_ist';
 import { refresh_layer } from '../../utils/refresh_layer';
+
 
 const get_nbhd_color = (d, viz_state) => {
 
@@ -79,15 +81,15 @@ const nbhd_layer_onclick = async (
   layers_obj,
   viz_state
 ) => {
-  const inst_cat = info.object.properties.cat;
+  const inst_nbhd = info.object.properties.cat;
 
   // update selected_nbhds observable with the clicked nbhd unless
   // the clicked nbhd is already equal to selected_nbhds
   const prev_selected_nbhds = viz_state.obs_store.selected_nbhds.get();
-  if (prev_selected_nbhds[0] === inst_cat && prev_selected_nbhds.length === 1) {
+  if (prev_selected_nbhds[0] === inst_nbhd && prev_selected_nbhds.length === 1) {
     viz_state.obs_store.selected_nbhds.set([]);
   } else {
-    viz_state.obs_store.selected_nbhds.set([inst_cat]);
+    viz_state.obs_store.selected_nbhds.set([inst_nbhd]);
   }
 
   // refresh the nbhd layer

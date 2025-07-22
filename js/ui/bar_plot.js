@@ -40,6 +40,14 @@ export const bar_callback_cat = (
   update_cat(_viz_state.cats, 'cluster');
   update_selected_cats(_viz_state.cats, [d.name], _viz_state.obs_store);
   update_selected_genes(_viz_state.genes, [], _viz_state.obs_store);
+
+  // toggle gene bars based on reset_cat
+  if (_viz_state.cats.reset_cat) {
+    _viz_state.genes.svg_bar_gene.selectAll('rect').style('opacity', 1.0);
+  } else {
+    _viz_state.genes.svg_bar_gene.selectAll('rect').style('opacity', 0.2);
+  }
+
 };
 
 export const bar_callback_gene = async (
@@ -56,12 +64,20 @@ export const bar_callback_gene = async (
 
   toggle_slider(_viz_state.sliders.trx, true);
   _viz_state.genes.svg_bar_gene.selectAll('rect').style('opacity', 1.0);
+
+
   toggle_trx_layer_visibility(_layers_obj, true);
   _viz_state.obs_store.viz_nbhd_layer.set(false);
 
   const inst_gene = d.name;
   const reset_gene = inst_gene === _viz_state.cats.cat;
   const new_cat = reset_gene ? 'cluster' : inst_gene;
+
+  if (reset_gene) {
+    _viz_state.cats.svg_bar_cluster.selectAll('rect').style('opacity', 1.0);
+  } else {
+    _viz_state.cats.svg_bar_cluster.selectAll('rect').style('opacity', 0.2);
+  }
 
   update_cat(_viz_state.cats, new_cat);
 

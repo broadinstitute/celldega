@@ -16,7 +16,9 @@ def test_qc_module_exists():
     import importlib.util
 
     try:
-        if importlib.util.find_spec("celldega.qc") is None:
-            pytest.skip("qc module not importable")
+        spec = importlib.util.find_spec("celldega.qc")
     except ModuleNotFoundError:
         pytest.skip("qc dependencies missing")
+
+    if spec is None:
+        pytest.skip("qc module not importable")

@@ -36,7 +36,7 @@ import { refresh_layer } from '../utils/refresh_layer';
 import {
   make_bar_graph,
   bar_callback_nbhd,
-  bar_callback_cluster,
+  bar_callback_cat,
   make_bar_container,
   bar_callback_gene,
 } from './bar_plot';
@@ -541,7 +541,7 @@ export const make_ist_ui_container = (
 
   make_bar_graph(
     viz_state.containers.bar_cluster,
-    bar_callback_cluster,
+    bar_callback_cat,
     viz_state.cats.svg_bar_cluster,
     viz_state.cats.cluster_counts,
     viz_state.cats.color_dict_cluster,
@@ -730,7 +730,7 @@ export const make_ist_ui_container = (
       svg: viz_state.cats.svg_bar_cluster,
       color_dict: viz_state.cats.color_dict_cluster,
       selected_array: viz_state.cats.selected_cats,
-      bar_callback: bar_callback_cluster,
+      bar_callback: bar_callback_cat,
       container: viz_state.containers.bar_cluster,
     }),
     { immediate: false }

@@ -3,18 +3,28 @@ import * as d3 from 'd3';
 import { update_cat, update_selected_cats } from '../global_variables/cat';
 import { update_cell_exp_array } from '../global_variables/cell_exp_array';
 import { update_selected_genes } from '../global_variables/selected_genes';
+import { toggle_slider } from '../ui/sliders';
+import { new_toggle_cell_layer_visibility } from '../deck-gl/layers/cell_layer';
+import { toggle_trx_layer_visibility } from '../deck-gl/layers/trx_layer';
 
 export const make_bar_container = () => {
   return document.createElement('div');
 };
 
-export const bar_callback_cluster = (
+export const bar_callback_cat = (
   _event,
   d,
   _deck_ist,
   _layers_obj,
   _viz_state
 ) => {
+
+  // ensure that cell button, slider and bars are active
+  _viz_state.buttons.buttons.cell.style('color', 'blue');
+  toggle_slider(_viz_state.sliders.cell, true);
+  _viz_state.cats.svg_bar_cluster.selectAll('rect').style('opacity', 1.0);
+  new_toggle_cell_layer_visibility(_layers_obj, true);
+
   // add cell_layer, path_layer, and trx_layer to the deck_check observable
   _viz_state.obs_store.deck_check.set({
     ..._viz_state.obs_store.deck_check.get(),
@@ -35,6 +45,13 @@ export const bar_callback_gene = async (
   _layers_obj,
   _viz_state
 ) => {
+
+  // ensure that trx button, slider, and bars are active
+  _viz_state.buttons.buttons.trx.style('color', 'blue');
+  toggle_slider(_viz_state.sliders.trx, true);
+  _viz_state.genes.svg_bar_gene.selectAll('rect').style('opacity', 1.0);
+  toggle_trx_layer_visibility(_layers_obj, true);
+
   const inst_gene = d.name;
   const reset_gene = inst_gene === _viz_state.cats.cat;
   const new_cat = reset_gene ? 'cluster' : inst_gene;

@@ -1117,7 +1117,7 @@ export const make_ist_ui_container = (
 
     ctrl_container.appendChild(nbhd_container);
 
-    if (viz_state.nbhd.is_nbhd){
+    if (viz_state.nbhd.is_nbhd) {
       make_bar_graph(
         viz_state.containers.bar_nbhd,
         bar_callback_nbhd,

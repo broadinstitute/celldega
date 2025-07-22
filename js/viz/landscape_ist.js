@@ -139,7 +139,6 @@ export const landscape_ist = async (
       viz_state.obs_store.viz_image_layers.set(true);
       viz_state.obs_store.viz_background_layer.set(true);
 
-
       viz_state.genes.svg_bar_gene.selectAll('rect').style('opacity', 1.0);
       viz_state.cats.svg_bar_cluster.selectAll('rect').style('opacity', 1.0);
 

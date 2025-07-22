@@ -118,7 +118,6 @@ def alpha_shape_cell_clusters(
     )
     gdf_alpha["area"] = gdf_alpha.area
 
-    # Removed commented-out code block for clarity and maintainability.
     return gdf_alpha.loc[gdf_alpha.area.sort_values(ascending=False).index.tolist()]
 
 

@@ -118,19 +118,7 @@ def alpha_shape_cell_clusters(
     )
     gdf_alpha["area"] = gdf_alpha.area
 
-    # # Assuming `transformation_matrix` is your 3x3 numpy array
-    # a, b, tx = transformation_matrix[0]
-    # c, d, ty = transformation_matrix[1]
-
-    # coeffs = [a, b, c, d, tx, ty]
-
-    # # rename geometry to geometry_micron
-    # gdf_alpha = gdf_alpha.rename(columns={"geometry": "geometry_micron"})
-
-    # gdf_alpha["geometry"] = gdf_alpha.geometry_micron.apply(
-    #     lambda geom: affine_transform(geom, coeffs)
-    # )
-
+# Removed commented-out code block for clarity and maintainability.
     return gdf_alpha.loc[gdf_alpha.area.sort_values(ascending=False).index.tolist()]
 
 

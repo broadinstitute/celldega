@@ -1,16 +1,12 @@
-import * as d3 from 'd3';
 import { GeoJsonLayer } from 'deck.gl';
 
-import { update_selected_cats, update_cat } from '../../global_variables/cat';
-import { update_selected_genes } from '../../global_variables/selected_genes';
 import { hexToRgb } from '../../utils/hexToRgb';
-import { get_layers_list } from '../utils/layers_ist';
 import { refresh_layer } from '../../utils/refresh_layer';
 
 
 const get_nbhd_color = (d, viz_state) => {
 
-  let inst_color = hexToRgb(d.properties.color)
+  const inst_color = hexToRgb(d.properties.color)
 
   let inst_opacity;
 

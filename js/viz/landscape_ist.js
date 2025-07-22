@@ -55,12 +55,11 @@ import { set_meta_gene } from '../global_variables/meta_gene';
 import { update_selected_genes } from '../global_variables/selected_genes';
 import { colorToRgba } from '../matrix/cat_data';
 import { create_obs_store } from '../obs_store/obs_store';
-import { set_image_layer_sliders } from '../ui/sliders';
+import { toggle_slider, set_image_layer_sliders } from '../ui/sliders';
 import { get_img_layer_visible } from '../ui/text_buttons';
 import { make_ist_ui_container } from '../ui/ui_containers';
 import { update_cell_clusters } from '../widget_interactions/update_cell_clusters';
 import { update_ist_landscape_from_cgm } from '../widget_interactions/update_ist_landscape_from_cgm';
-import { toggle_slider } from '../ui/sliders';
 
 export const landscape_ist = async (
   el,
@@ -112,58 +111,6 @@ export const landscape_ist = async (
   // Subscribe both, but they call the same function
   viz_state.obs_store.selected_cats.subscribe(update_viz_image_layers);
   viz_state.obs_store.selected_genes.subscribe(update_viz_image_layers);
-
-  viz_state.obs_store.selected_nbhds.subscribe((selected_nbhds) => {
-
-    const selected_nbhds_name = selected_nbhds.join('-');
-
-    layers_obj.nbhd_layer = layers_obj.nbhd_layer.clone({
-      id: `nbhd-layer-${selected_nbhds_name}`,
-    });
-
-
-  }, { immediate: false });
-
-  viz_state.obs_store.viz_nbhd_layer.subscribe((visible) => {
-
-    if (visible) {
-      viz_state.obs_store.viz_image_layers.set(false);
-      viz_state.obs_store.viz_background_layer.set(false);
-
-      // set cell layer to not visible
-      new_toggle_cell_layer_visibility(viz_state.layers_obj, false);
-
-      // set gene/cat bars to disabled color
-      viz_state.genes.svg_bar_gene.selectAll('rect').style('opacity', 0.2);
-      viz_state.cats.svg_bar_cluster.selectAll('rect').style('opacity', 0.2);
-      viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', 1.0);
-
-      viz_state.buttons.buttons.cell.style('color', 'gray');
-      viz_state.buttons.buttons.img.style('color', 'gray');
-      viz_state.buttons.buttons.trx.style('color', 'gray');
-
-      toggle_slider(viz_state.sliders.cell, false);
-      toggle_slider(viz_state.sliders.trx, false);
-
-    } else {
-      viz_state.obs_store.viz_image_layers.set(true);
-      viz_state.obs_store.viz_background_layer.set(true);
-
-      new_toggle_cell_layer_visibility(viz_state.layers_obj, true);
-
-      viz_state.genes.svg_bar_gene.selectAll('rect').style('opacity', 1.0);
-      viz_state.cats.svg_bar_cluster.selectAll('rect').style('opacity', 1.0);
-      viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', 0.2);
-
-      viz_state.buttons.buttons.cell.style('color', 'blue');
-      viz_state.buttons.buttons.img.style('color', 'blue');
-      viz_state.buttons.buttons.trx.style('color', 'blue');
-
-      toggle_slider(viz_state.sliders.cell, true);
-      toggle_slider(viz_state.sliders.trx, true);
-
-    }
-  }, { immediate: false });
 
   viz_state.seg = {};
   viz_state.seg.version = segmentation;
@@ -430,6 +377,58 @@ export const landscape_ist = async (
     nbhd_layer: true,
   });
 
+  viz_state.obs_store.selected_nbhds.subscribe((selected_nbhds) => {
+
+    const selected_nbhds_name = selected_nbhds.join('-');
+
+    layers_obj.nbhd_layer = layers_obj.nbhd_layer.clone({
+      id: `nbhd-layer-${selected_nbhds_name}`,
+    });
+
+
+  }, { immediate: false });
+
+  viz_state.obs_store.viz_nbhd_layer.subscribe((visible) => {
+
+    if (visible) {
+      viz_state.obs_store.viz_image_layers.set(false);
+      viz_state.obs_store.viz_background_layer.set(false);
+
+      // set cell layer to not visible
+      new_toggle_cell_layer_visibility(viz_state.layers_obj, false);
+
+      // set gene/cat bars to disabled color
+      viz_state.genes.svg_bar_gene.selectAll('rect').style('opacity', 0.2);
+      viz_state.cats.svg_bar_cluster.selectAll('rect').style('opacity', 0.2);
+      viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', 1.0);
+
+      viz_state.buttons.buttons.cell.style('color', 'gray');
+      viz_state.buttons.buttons.img.style('color', 'gray');
+      viz_state.buttons.buttons.trx.style('color', 'gray');
+
+      toggle_slider(viz_state.sliders.cell, false);
+      toggle_slider(viz_state.sliders.trx, false);
+
+    } else {
+      viz_state.obs_store.viz_image_layers.set(true);
+      viz_state.obs_store.viz_background_layer.set(true);
+
+      new_toggle_cell_layer_visibility(viz_state.layers_obj, true);
+
+      viz_state.genes.svg_bar_gene.selectAll('rect').style('opacity', 1.0);
+      viz_state.cats.svg_bar_cluster.selectAll('rect').style('opacity', 1.0);
+      viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', 0.2);
+
+      viz_state.buttons.buttons.cell.style('color', 'blue');
+      viz_state.buttons.buttons.img.style('color', 'blue');
+      viz_state.buttons.buttons.trx.style('color', 'blue');
+
+      toggle_slider(viz_state.sliders.cell, true);
+      toggle_slider(viz_state.sliders.trx, true);
+
+    }
+  }, { immediate: false });
+
   // set onclicks after all layers are made
   set_cell_layer_onclick(deck_ist, layers_obj, viz_state);
   set_path_layer_onclick(deck_ist, layers_obj, viz_state);
@@ -439,8 +438,6 @@ export const landscape_ist = async (
   set_nbhd_layer_onclick(deck_ist, layers_obj, viz_state);
 
   viz_state.obs_store.deck_ready.subscribe((ready) => {
-
-    console.log('deck_ready', ready);
     if (ready) {
       const list = get_layers_list(viz_state.layers_obj, viz_state.close_up);
       deck_ist.setProps({ layers: list });

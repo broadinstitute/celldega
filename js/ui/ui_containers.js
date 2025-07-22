@@ -1128,6 +1128,10 @@ export const make_ist_ui_container = (
         layers_obj,
         viz_state
       );
+
+      viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', 0.2)
+
+
     }
   }
 

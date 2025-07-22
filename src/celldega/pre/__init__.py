@@ -1137,20 +1137,39 @@ def _xenium_unzipper(target_dir):
         os.chdir(target_path)
 
         extraction_tasks = [
-            ("cells.csv", ["gzip", "-dk", "cells.csv.gz"]),
-            ("cells.zarr", ["unzip", "cells.zarr.zip", "-d", "cells.zarr"]),
-            ("analysis", ["tar", "-xvzf", "analysis.tar.gz"]),
-            ("cell_feature_matrix", ["tar", "-xvzf", "cell_feature_matrix.tar.gz"]),
+            (
+                "cells.csv",
+                "cells.csv.gz",
+                ["gzip", "-dk", "cells.csv.gz"],
+            ),
+            (
+                "cells.zarr",
+                "cells.zarr.zip",
+                ["unzip", "cells.zarr.zip", "-d", "cells.zarr"],
+            ),
+            (
+                "analysis",
+                "analysis.tar.gz",
+                ["tar", "-xvzf", "analysis.tar.gz"],
+            ),
+            (
+                "cell_feature_matrix",
+                "cell_feature_matrix.tar.gz",
+                ["tar", "-xvzf", "cell_feature_matrix.tar.gz"],
+            ),
         ]
 
-        for target_file, command in extraction_tasks:
-            if not Path(target_file).exists():
-                subprocess.run(
-                    command,
-                    check=True,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                )
+        for target_file, archive_path, command in extraction_tasks:
+            if Path(target_file).exists():
+                continue
+            if not Path(archive_path).exists():
+                continue
+            subprocess.run(
+                command,
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
 
         print("All files have been successfully extracted or skipped.")
     except subprocess.CalledProcessError as e:

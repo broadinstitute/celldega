@@ -19,7 +19,6 @@ export const bar_callback_cat = (
   _layers_obj,
   _viz_state
 ) => {
-
   // ensure that cell button, slider and bars are active
   _viz_state.buttons.buttons.cell.style('color', 'blue');
 
@@ -50,7 +49,6 @@ export const bar_callback_cat = (
   } else {
     _viz_state.genes.svg_bar_gene.selectAll('rect').style('opacity', 0.2);
   }
-
 };
 
 export const bar_callback_gene = async (
@@ -60,13 +58,11 @@ export const bar_callback_gene = async (
   _layers_obj,
   _viz_state
 ) => {
-
   // ensure that trx button, slider, and bars are active
   _viz_state.buttons.buttons.trx.style('color', 'blue');
 
   toggle_slider(_viz_state.sliders.trx, true);
   _viz_state.genes.svg_bar_gene.selectAll('rect').style('opacity', 1.0);
-
 
   toggle_trx_layer_visibility(_layers_obj, true);
 
@@ -114,7 +110,6 @@ export const bar_callback_nbhd = (
   _layers_obj,
   _viz_state
 ) => {
-
   // set nbhd to visible
   _viz_state.obs_store.viz_nbhd_layer.set(true);
 
@@ -135,19 +130,16 @@ export const bar_callback_nbhd = (
 
   // highlight the nbhd in the bar plot
   if (_viz_state.obs_store.selected_nbhds.get().length > 0) {
-    _viz_state.nbhd.svg_bar_nbhd.selectAll('rect')
-      .style('opacity', (d) => {
-        if (d.name === _d.name) {
-          return 1.0;
-        } else {
-          return 0.2;
-        }
-      });
+    _viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', (d) => {
+      if (d.name === _d.name) {
+        return 1.0;
+      } else {
+        return 0.2;
+      }
+    });
   } else {
-    _viz_state.nbhd.svg_bar_nbhd.selectAll('rect')
-      .style('opacity', 1.0);
+    _viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', 1.0);
   }
-
 };
 
 export const make_bar_graph = (

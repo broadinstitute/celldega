@@ -3,10 +3,8 @@ import { GeoJsonLayer } from 'deck.gl';
 import { hexToRgb } from '../../utils/hexToRgb';
 import { refresh_layer } from '../../utils/refresh_layer';
 
-
 const get_nbhd_color = (d, viz_state) => {
-
-  const inst_color = hexToRgb(d.properties.color)
+  const inst_color = hexToRgb(d.properties.color);
 
   let inst_opacity;
 
@@ -29,7 +27,6 @@ const get_nbhd_color = (d, viz_state) => {
   inst_color.push(inst_opacity);
 
   return inst_color;
-
 };
 
 export const ini_nbhd_layer = (viz_state, visible) => {
@@ -82,7 +79,10 @@ const nbhd_layer_onclick = async (
   // update selected_nbhds observable with the clicked nbhd unless
   // the clicked nbhd is already equal to selected_nbhds
   const prev_selected_nbhds = viz_state.obs_store.selected_nbhds.get();
-  if (prev_selected_nbhds[0] === inst_nbhd && prev_selected_nbhds.length === 1) {
+  if (
+    prev_selected_nbhds[0] === inst_nbhd &&
+    prev_selected_nbhds.length === 1
+  ) {
     viz_state.obs_store.selected_nbhds.set([]);
   } else {
     viz_state.obs_store.selected_nbhds.set([inst_nbhd]);
@@ -93,19 +93,16 @@ const nbhd_layer_onclick = async (
 
   // highlight the nbhd in the bar plot
   if (viz_state.obs_store.selected_nbhds.get().length > 0) {
-
-    viz_state.nbhd.svg_bar_nbhd.selectAll('rect')
-      .style('opacity', (d) => {
-        if (d.name === inst_nbhd) {
-          return 1.0;
-        } else {
-          return 0.2;
-        };
-      });
-    } else {
-      viz_state.nbhd.svg_bar_nbhd.selectAll('rect')
-        .style('opacity', 1.0);
-    }
+    viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', (d) => {
+      if (d.name === inst_nbhd) {
+        return 1.0;
+      } else {
+        return 0.2;
+      }
+    });
+  } else {
+    viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', 1.0);
+  }
 
   //   // scroll to the nbhd in the bar plot
   // viz_state.nbhd.svg_bar_nbhd.selectAll('rect')
@@ -115,7 +112,6 @@ const nbhd_layer_onclick = async (
   //     block: 'center',
   //     inline: 'nearest',
   //   });
-
 };
 
 export const set_nbhd_layer_onclick = (deck_ist, layers_obj, viz_state) => {

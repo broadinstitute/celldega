@@ -160,7 +160,6 @@ export const landscape_ist = async (
 
   if (Object.keys(viz_state.model).length !== 0) {
     if (Object.keys(nbhd).length === 0) {
-
       viz_state.nbhd.is_nbhd = false;
 
       viz_state.nbhd.ini_feature_collection = {
@@ -170,19 +169,19 @@ export const landscape_ist = async (
       };
 
       viz_state.nbhd.feature_collection = viz_state.nbhd.ini_feature_collection;
-
     } else {
-
       viz_state.nbhd.is_nbhd = true;
 
       viz_state.nbhd.ini_feature_collection = nbhd; // viz_state.model.get('nbhd');
 
-      viz_state.nbhd.bar_data = nbhd.features.map((feature) => {
-        return {
-          name: feature.properties.cat,  // "1_50" → "1"
-          value: feature.properties.area                // use area as the value
-        }
-      }).sort((a, b) => b.value - a.value);
+      viz_state.nbhd.bar_data = nbhd.features
+        .map((feature) => {
+          return {
+            name: feature.properties.cat, // "1_50" → "1"
+            value: feature.properties.area, // use area as the value
+          };
+        })
+        .sort((a, b) => b.value - a.value);
 
       // parse colors from features and make a dictionary with cat name and
       // color as rgb array that is converted from hex
@@ -377,51 +376,49 @@ export const landscape_ist = async (
     nbhd_layer: true,
   });
 
-  viz_state.obs_store.selected_nbhds.subscribe((selected_nbhds) => {
+  viz_state.obs_store.selected_nbhds.subscribe(
+    (selected_nbhds) => {
+      const selected_nbhds_name = selected_nbhds.join('-');
 
-    const selected_nbhds_name = selected_nbhds.join('-');
+      layers_obj.nbhd_layer = layers_obj.nbhd_layer.clone({
+        id: `nbhd-layer-${selected_nbhds_name}`,
+      });
+    },
+    { immediate: false }
+  );
 
-    layers_obj.nbhd_layer = layers_obj.nbhd_layer.clone({
-      id: `nbhd-layer-${selected_nbhds_name}`,
-    });
+  viz_state.obs_store.viz_nbhd_layer.subscribe(
+    (visible) => {
+      if (visible) {
+        // set cell layer to not visible
+        new_toggle_cell_layer_visibility(viz_state.layers_obj, false);
 
+        // set gene/cat bars to disabled color
+        viz_state.genes.svg_bar_gene.selectAll('rect').style('opacity', 0.2);
+        viz_state.cats.svg_bar_cluster.selectAll('rect').style('opacity', 0.2);
+        viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', 1.0);
 
-  }, { immediate: false });
+        viz_state.buttons.buttons.cell.style('color', 'gray');
+        viz_state.buttons.buttons.trx.style('color', 'gray');
 
-  viz_state.obs_store.viz_nbhd_layer.subscribe((visible) => {
+        toggle_slider(viz_state.sliders.cell, false);
+        toggle_slider(viz_state.sliders.trx, false);
+      } else {
+        new_toggle_cell_layer_visibility(viz_state.layers_obj, true);
 
-    if (visible) {
+        viz_state.genes.svg_bar_gene.selectAll('rect').style('opacity', 1.0);
+        viz_state.cats.svg_bar_cluster.selectAll('rect').style('opacity', 1.0);
+        viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', 0.2);
 
-      // set cell layer to not visible
-      new_toggle_cell_layer_visibility(viz_state.layers_obj, false);
+        viz_state.buttons.buttons.cell.style('color', 'blue');
+        viz_state.buttons.buttons.trx.style('color', 'blue');
 
-      // set gene/cat bars to disabled color
-      viz_state.genes.svg_bar_gene.selectAll('rect').style('opacity', 0.2);
-      viz_state.cats.svg_bar_cluster.selectAll('rect').style('opacity', 0.2);
-      viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', 1.0);
-
-      viz_state.buttons.buttons.cell.style('color', 'gray');
-      viz_state.buttons.buttons.trx.style('color', 'gray');
-
-      toggle_slider(viz_state.sliders.cell, false);
-      toggle_slider(viz_state.sliders.trx, false);
-
-    } else {
-
-      new_toggle_cell_layer_visibility(viz_state.layers_obj, true);
-
-      viz_state.genes.svg_bar_gene.selectAll('rect').style('opacity', 1.0);
-      viz_state.cats.svg_bar_cluster.selectAll('rect').style('opacity', 1.0);
-      viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', 0.2);
-
-      viz_state.buttons.buttons.cell.style('color', 'blue');
-      viz_state.buttons.buttons.trx.style('color', 'blue');
-
-      toggle_slider(viz_state.sliders.cell, true);
-      toggle_slider(viz_state.sliders.trx, true);
-
-    }
-  }, { immediate: false });
+        toggle_slider(viz_state.sliders.cell, true);
+        toggle_slider(viz_state.sliders.trx, true);
+      }
+    },
+    { immediate: false }
+  );
 
   // set onclicks after all layers are made
   set_cell_layer_onclick(deck_ist, layers_obj, viz_state);
@@ -439,7 +436,6 @@ export const landscape_ist = async (
   });
 
   viz_state.obs_store.selected_cats.subscribe((selected_cats) => {
-
     const selected_cats_name = selected_cats.join('-');
 
     layers_obj.cell_layer = layers_obj.cell_layer.clone({

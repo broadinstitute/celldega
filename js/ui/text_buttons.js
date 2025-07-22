@@ -209,7 +209,6 @@ const trx_button_callback_ist = async (
   layers_obj,
   viz_state
 ) => {
-
   toggle_visible_button(event);
   toggle_slider(viz_state.sliders.trx, is_visible);
   toggle_trx_layer_visibility(layers_obj, is_visible);
@@ -223,7 +222,6 @@ const trx_button_callback_ist = async (
     }
 
     viz_state.genes.svg_bar_gene.selectAll('rect').style('opacity', 1.0);
-
   } else {
     viz_state.genes.svg_bar_gene.selectAll('rect').style('opacity', 0.2);
   }
@@ -242,7 +240,6 @@ const trx_button_callback_ist = async (
 };
 
 const cell_button_callback = async (event, deck_ist, layers_obj, viz_state) => {
-
   toggle_visible_button(event);
   toggle_slider(viz_state.sliders.cell, is_visible);
 
@@ -250,7 +247,6 @@ const cell_button_callback = async (event, deck_ist, layers_obj, viz_state) => {
   toggle_path_layer_visibility(layers_obj, is_visible);
 
   if (is_visible) {
-
     toggle_nbhd_layer_visibility(layers_obj, false);
     viz_state.obs_store.viz_nbhd_layer.set(false);
 
@@ -259,7 +255,6 @@ const cell_button_callback = async (event, deck_ist, layers_obj, viz_state) => {
     }
 
     viz_state.cats.svg_bar_cluster.selectAll('rect').style('opacity', 1.0);
-
   } else {
     viz_state.cats.svg_bar_cluster.selectAll('rect').style('opacity', 0.2);
   }
@@ -282,7 +277,6 @@ const cell_button_callback = async (event, deck_ist, layers_obj, viz_state) => {
 };
 
 const nbhd_button_callback = async (event, deck_ist, layers_obj, viz_state) => {
-
   toggle_visible_button(event);
 
   toggle_nbhd_layer_visibility(layers_obj, is_visible);

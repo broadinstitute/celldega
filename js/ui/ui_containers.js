@@ -10,9 +10,7 @@ import { toggle_background_layer_visibility } from '../deck-gl/layers/background
 //   sync_region_to_model,
 // } from '../deck-gl/layers/edit_layer';
 import { toggle_visibility_image_layers } from '../deck-gl/layers/image_layers';
-import {
-  toggle_nbhd_layer_visibility,
-} from '../deck-gl/layers/nbhd_layer';
+import { toggle_nbhd_layer_visibility } from '../deck-gl/layers/nbhd_layer';
 // import { update_path_pickable_state } from '../deck-gl/layers/path_layer';
 // import {
 //   toggle_trx_layer_visibility,
@@ -335,8 +333,8 @@ export const make_ist_ui_container = (
   gene_container.style.width = bar_container_width;
   const trx_container = flex_container('trx_container', 'row');
 
-  let nbhd_container
-  let nbhd_ctrl_container
+  let nbhd_container;
+  let nbhd_ctrl_container;
   if (viz_state.nbhd.is_nbhd) {
     nbhd_container = flex_container('nbhd_container', 'column');
     nbhd_container.style.width = bar_container_width;
@@ -565,7 +563,6 @@ export const make_ist_ui_container = (
 
   const make_bar_cat_subscriber = (svg, container) => {
     return (selected_cats) => {
-
       // --- 1. Update the styles ---
       if (!Array.isArray(selected_cats) || selected_cats.length === 0) {
         svg.selectAll('g').attr('font-weight', 'normal').attr('opacity', 1.0);
@@ -575,9 +572,7 @@ export const make_ist_ui_container = (
           top: 0,
           behavior: 'smooth',
         });
-
       } else {
-
         svg
           .selectAll('g')
           .attr('font-weight', (d) =>
@@ -1129,9 +1124,7 @@ export const make_ist_ui_container = (
         viz_state
       );
 
-      viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', 0.2)
-
-
+      viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', 0.2);
     }
   }
 

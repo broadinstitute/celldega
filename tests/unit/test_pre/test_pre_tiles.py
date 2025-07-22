@@ -44,8 +44,7 @@ make_trx_tiles = trx_tile.make_trx_tiles
 make_cell_boundary_tiles = boundary_tile.make_cell_boundary_tiles
 
 
-@pytest.fixture
-def synthetic_paths(tmp_path: Path) -> dict[str, Path]:
+def _build_paths(tmp_path: Path, technology: str) -> dict[str, Path]:
     """Create synthetic transcript and cell boundary data."""
     rng = np.random.default_rng(42)
 
@@ -74,15 +73,26 @@ def synthetic_paths(tmp_path: Path) -> dict[str, Path]:
     # Generate transcripts
     points = [(rng.uniform(bbox[0], bbox[1]), rng.uniform(bbox[2], bbox[3])) for _ in range(transcripts)]
     genes = [f"G{i%3}" for i in range(transcripts)]
-    df_trx = pl.DataFrame(
-        {
-            "gene": genes,
-            "global_x": [p[0] for p in points],
-            "global_y": [p[1] for p in points],
-            "cell_id": [str(i % n_cells) for i in range(transcripts)],
-            "transcript_id": list(range(transcripts)),
-        }
-    )
+    if technology == "MERSCOPE":
+        df_trx = pl.DataFrame(
+            {
+                "gene": genes,
+                "global_x": [p[0] for p in points],
+                "global_y": [p[1] for p in points],
+                "cell_id": [str(i % n_cells) for i in range(transcripts)],
+                "transcript_id": list(range(transcripts)),
+            }
+        )
+    else:  # Xenium style
+        df_trx = pl.DataFrame(
+            {
+                "feature_name": genes,
+                "x_location": [p[0] for p in points],
+                "y_location": [p[1] for p in points],
+                "cell_id": [str(i % n_cells) for i in range(transcripts)],
+                "transcript_id": list(range(transcripts)),
+            }
+        )
     trx_file = tmp_path / "transcripts.parquet"
     df_trx.write_parquet(trx_file)
 
@@ -102,12 +112,15 @@ def synthetic_paths(tmp_path: Path) -> dict[str, Path]:
     }
 
 
-def test_make_tiles_functions(synthetic_paths: dict[str, Path]) -> None:
+@pytest.mark.parametrize("technology", ["MERSCOPE", "Xenium"])
+def test_make_tiles_functions(tmp_path: Path, technology: str) -> None:
+    paths = _build_paths(tmp_path, technology)
+
     bounds = make_trx_tiles(
-        technology="MERSCOPE",
-        path_trx=str(synthetic_paths["trx"]),
-        path_transformation_matrix=str(synthetic_paths["transform"]),
-        path_trx_tiles=str(synthetic_paths["trx_tiles"]),
+        technology=technology,
+        path_trx=str(paths["trx"]),
+        path_transformation_matrix=str(paths["transform"]),
+        path_trx_tiles=str(paths["trx_tiles"]),
         coarse_tile_factor=2,
         tile_size=10,
         chunk_size=50,
@@ -115,12 +128,17 @@ def test_make_tiles_functions(synthetic_paths: dict[str, Path]) -> None:
         max_workers=1,
     )
 
-    assert list(synthetic_paths["trx_tiles"].glob("transcripts_tile_*.parquet")), "Transcript tiles missing"
+    trx_tiles = list(paths["trx_tiles"].glob("transcripts_tile_*.parquet"))
+    assert trx_tiles, "Transcript tiles missing"
+    assert bounds["x_min"] < bounds["x_max"]
+    assert bounds["y_min"] < bounds["y_max"]
+    for p in trx_tiles:
+        assert p.stat().st_size > 0
 
     make_cell_boundary_tiles(
         technology="custom",
-        path_cell_boundaries=str(synthetic_paths["boundaries"]),
-        path_output=str(synthetic_paths["cell_tiles"]),
+        path_cell_boundaries=str(paths["boundaries"]),
+        path_output=str(paths["cell_tiles"]),
         tile_size=10,
         coarse_tile_factor=2,
         tile_bounds=bounds,
@@ -128,4 +146,7 @@ def test_make_tiles_functions(synthetic_paths: dict[str, Path]) -> None:
         max_workers=1,
     )
 
-    assert list(synthetic_paths["cell_tiles"].glob("cell_tile_*.parquet")), "Cell tiles missing"
+    cell_tiles = list(paths["cell_tiles"].glob("cell_tile_*.parquet"))
+    assert cell_tiles, "Cell tiles missing"
+    for p in cell_tiles:
+        assert p.stat().st_size > 0

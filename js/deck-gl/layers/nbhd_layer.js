@@ -100,8 +100,8 @@ const nbhd_layer_onclick = async (
           return 1.0;
         } else {
           return 0.2;
-        }
-      })
+        };
+      });
     } else {
       viz_state.nbhd.svg_bar_nbhd.selectAll('rect')
         .style('opacity', 1.0);

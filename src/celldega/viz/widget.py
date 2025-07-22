@@ -12,6 +12,7 @@ import warnings
 import anywidget
 import geopandas as gpd
 from matplotlib import pyplot as plt
+import numpy as np
 import pandas as pd
 import scanpy as sc
 from shapely.affinity import affine_transform

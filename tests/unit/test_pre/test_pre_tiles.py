@@ -236,7 +236,10 @@ def test_tiles(tmp_path: Path, technology: str) -> None:
         df = pd.read_parquet(p)
         assert not df.empty
         assert "geometry" in df.columns or "GEOMETRY" in df.columns
-        all_cells.update(df.get("name", df.index).tolist())
+        if "name" in df.columns:
+            all_cells.update(df["name"].tolist())
+        else:
+            all_cells.update(df.index.tolist())
 
     if technology == "MERSCOPE":
         df_cells = gpd.read_parquet(paths["boundaries"])

@@ -115,14 +115,16 @@ def main(
     image_tile_layer,
     path_landscape_files,
     use_int_index=True,
-    max_workers=1
+    max_workers=1,
 ):
     """
-    Main function to preprocess Xenium data and generate landscape files.
+    Main function to preprocess Xenium or MERSCOPE data and generate landscape files.
 
     Args:
         sample (str): Name of the sample (e.g., 'Xenium_V1_human_Pancreas_FFPE_outs').
-        data_root_dir (str): Root directory containing the sample data.
+        data_root_dir (str): Root directory containing all sample data. The
+            ``sample`` name will be appended to this path to locate the
+            specific dataset.
         tile_size (int): Size of the tiles for transcript and boundary tiles.
         image_tile_layer (str): Image layers to be tiled. 'dapi' or 'all'.
         path_landscape_files (str): Directory to save the landscape files.
@@ -142,7 +144,7 @@ def main(
     print(f"Starting preprocessing for sample: {sample}")
 
     # Construct data directory
-    data_dir = Path(data_root_dir)
+    data_dir = Path(data_root_dir) / sample
 
     # Create necessary directories if they don't exist
     _create_directories([data_dir, path_landscape_files])
@@ -274,7 +276,8 @@ def _setup_argument_parser():
     parser.add_argument(
         "--data_root_dir",
         required=True,
-        help="Root directory containing the data for this sample and other samples.",
+        help="Root directory containing all samples. The value will be joined with"
+        " the provided sample name to locate the dataset.",
     )
     parser.add_argument(
         "--tile_size",

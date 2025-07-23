@@ -176,6 +176,9 @@ def _generate_synthetic_data(tmp_path: Path, technology: str) -> dict[str, Path]
                 )
         pd.DataFrame(records).to_parquet(cell_boundaries_path, index=False)
 
+    else:
+        raise ValueError(f"Unsupported technology: {technology}")
+
     df_meta_cell = pd.DataFrame({"name": [f"cell_{i}" for i in range(N_CELLS)]})
     df_meta_cell.to_parquet(tmp_path / "cell_metadata.parquet", index=False)
 
@@ -204,6 +207,9 @@ def _generate_synthetic_data(tmp_path: Path, technology: str) -> dict[str, Path]
                 "transcript_id": list(range(N_TRX)),
             }
         )
+    else:
+        raise ValueError(f"Unsupported technology: {technology}")
+
     trx_file = tmp_path / "transcripts.parquet"
     df_trx.write_parquet(trx_file)
 
@@ -294,6 +300,8 @@ def test_tiles(make_synthetic_data, technology) -> None:
     elif technology == "Xenium":
         df_trx = pl.read_parquet(paths["trx_path"]).to_pandas()
         xcol, ycol = "x_location", "y_location"
+    else:
+        raise ValueError(f"Unsupported technology: {technology}")
 
     for x, y in zip(df_trx[xcol], df_trx[ycol]):
         i = int((x - bounds["x_min"]) // TILE_SIZE)
@@ -341,6 +349,8 @@ def test_tiles(make_synthetic_data, technology) -> None:
             df_cells.groupby("cell_id")[["vertex_x", "vertex_y"]]
             .apply(create_cell_polygon)
         )
+    else:
+        raise ValueError(f"Unsupported technology: {technology}")
 
     # Count how many cells have centroids that fall within the image bounding box
     expected_cells = sum(

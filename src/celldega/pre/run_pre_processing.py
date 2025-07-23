@@ -109,7 +109,13 @@ def _setup_preprocessing_paths(technology, path_landscape_files, data_dir):
 
 
 def main(
-    sample, data_root_dir, tile_size, image_tile_layer, path_landscape_files, use_int_index=True
+    sample,
+    data_root_dir,
+    tile_size,
+    image_tile_layer,
+    path_landscape_files,
+    use_int_index=True,
+    max_workers=1
 ):
     """
     Main function to preprocess Xenium data and generate landscape files.
@@ -212,7 +218,7 @@ def main(
         chunk_size=100000,
         verbose=False,
         image_scale=1,
-        max_workers=2,
+        max_workers=max_workers,
     )
     print(f"tile bounds: {tile_bounds}")
 
@@ -227,7 +233,7 @@ def main(
         coarse_tile_factor=10,
         tile_size=tile_size,
         tile_bounds=tile_bounds,
-        max_workers=2,
+        max_workers=max_workers,
     )
 
     # Force name to be str for MERSCOPE

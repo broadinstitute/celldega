@@ -289,7 +289,7 @@ def make_cell_boundary_tiles(
     tile_size=250,
     tile_bounds=None,
     image_scale=1,
-    max_workers=8,
+    max_workers=1,
 ):
     """
     Processes cell boundary data and divides it into spatial tiles based on the provided technology.
@@ -316,7 +316,7 @@ def make_cell_boundary_tiles(
         Dictionary containing the minimum and maximum bounds for x and y coordinates.
     image_scale : float, optional, default=1
         Scale factor to apply to the geometry data.
-    max_workers : int, optional, default=8
+    max_workers : int, optional, default=1
         Maximum number of parallel workers for processing tiles.
 
     Returns

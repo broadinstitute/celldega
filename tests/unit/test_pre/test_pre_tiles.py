@@ -12,7 +12,7 @@ try:
     import geopandas as gpd
     import polars as pl
     from shapely.geometry import Polygon
-except Exception as e:  # pragma: no cover - skip if deps missing
+except (ImportError, ModuleNotFoundError) as e:  # pragma: no cover - skip if deps missing
     pytest.skip(f"Required libraries missing: {e}", allow_module_level=True)
 
 # Dynamically load modules to avoid heavy imports

@@ -36,7 +36,6 @@ def get_local_server() -> int:
         int: The port number on which the server is running.
     """
     server = HTTPServer(("", 0), CORSHTTPRequestHandler)
-    print(f"Server running on port {server.server_address[1]}")
 
     service = thr.Thread(target=server.serve_forever)
     service.start()

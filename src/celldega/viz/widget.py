@@ -4,13 +4,18 @@ Widget module for interactive visualization components.
 
 import colorsys
 from contextlib import suppress
+from copy import deepcopy
+import json
 from pathlib import Path
 import warnings
 
 import anywidget
+import geopandas as gpd
 from matplotlib import pyplot as plt
+import numpy as np
 import pandas as pd
 import scanpy as sc
+from shapely.affinity import affine_transform
 import traitlets
 
 
@@ -74,7 +79,11 @@ class Landscape(anywidget.AnyWidget):
     square_tile_size = traitlets.Float(1.4).tag(sync=True)
     dataset_name = traitlets.Unicode("").tag(sync=True)
     region = traitlets.Dict({}).tag(sync=True)
-    nbhd = traitlets.Dict({}).tag(sync=True)
+
+    nbhd = traitlets.Instance(gpd.GeoDataFrame, allow_none=True)
+    nbhd_geojson = traitlets.Dict({}).tag(sync=True)
+
+    meta_nbhd = traitlets.Instance(pd.DataFrame, allow_none=True)
 
     meta_cluster = traitlets.Dict({}).tag(sync=True)
     landscape_state = traitlets.Unicode("spatial").tag(sync=True)
@@ -95,12 +104,30 @@ class Landscape(anywidget.AnyWidget):
         pq_meta_cell = kwargs.pop("meta_cell_parquet", None)
         pq_meta_cluster = kwargs.pop("meta_cluster_parquet", None)
         pq_umap = kwargs.pop("umap_parquet", None)
+        pq_meta_nbhd = kwargs.pop("meta_nbhd_parquet", None)
 
         meta_cell_df = kwargs.pop("meta_cell", None)
         meta_cluster = kwargs.pop("meta_cluster", None)
         umap_df = kwargs.pop("umap", None)
+        nbhd_gdf = kwargs.pop("nbhd", None)
+        meta_nbhd_df = kwargs.pop("meta_nbhd", None)
         meta_cluster_df = None
         cell_attr = kwargs.pop("cell_attr", ["leiden"])
+
+        base_path = (kwargs.get("base_url") or "") + "/"
+
+        path_transformation_matrix = base_path + "micron_to_image_transform.csv"
+
+        try:
+            transformation_matrix = pd.read_csv(
+                path_transformation_matrix, header=None, sep=" "
+            ).values
+        except FileNotFoundError:
+            transformation_matrix = np.eye(3)  # Fallback for testing
+            warnings.warn(
+                f"Transformation matrix not found at {path_transformation_matrix}. Using identity.",
+                stacklevel=2,
+            )
 
         def _df_to_bytes(df):
             import io
@@ -161,6 +188,9 @@ class Landscape(anywidget.AnyWidget):
         if isinstance(umap_df, pd.DataFrame):
             pq_umap = _df_to_bytes(umap_df.reset_index())
 
+        if isinstance(meta_nbhd_df, pd.DataFrame):
+            pq_meta_nbhd = _df_to_bytes(meta_nbhd_df.reset_index())
+
         parquet_traits = {}
         if pq_meta_cell is not None:
             parquet_traits["meta_cell_parquet"] = traitlets.Bytes(pq_meta_cell).tag(sync=True)
@@ -168,6 +198,8 @@ class Landscape(anywidget.AnyWidget):
             parquet_traits["meta_cluster_parquet"] = traitlets.Bytes(pq_meta_cluster).tag(sync=True)
         if pq_umap is not None:
             parquet_traits["umap_parquet"] = traitlets.Bytes(pq_umap).tag(sync=True)
+        if pq_meta_nbhd is not None:
+            parquet_traits["meta_nbhd_parquet"] = traitlets.Bytes(pq_meta_nbhd).tag(sync=True)
 
         if parquet_traits:
             self.add_traits(**parquet_traits)
@@ -176,9 +208,38 @@ class Landscape(anywidget.AnyWidget):
 
         # store DataFrames locally without syncing to the frontend
         self.meta_cell = meta_cell_df
+        self.meta_nbhd = meta_nbhd_df
+        self.nbhd = nbhd_gdf
         self.umap = umap_df
         if meta_cluster_df is not None:
             self.meta_cluster_df = meta_cluster_df
+
+        # compute geojson for initial nbhd if provided
+        if self.nbhd is not None:
+            if "geometry_pixel" not in self.nbhd.columns:
+                # Assuming `transformation_matrix` is your 3x3 numpy array
+                a, b, tx = transformation_matrix[0]
+                c, d, ty = transformation_matrix[1]
+
+                coeffs = [a, b, c, d, tx, ty]
+
+                self.nbhd["geometry_pixel"] = self.nbhd.geometry.apply(
+                    lambda geom: affine_transform(geom, coeffs)
+                )
+
+            gdf_viz = deepcopy(self.nbhd)
+            gdf_viz["geometry"] = gdf_viz["geometry_pixel"]
+            gdf_viz.drop(columns=["geometry_pixel"], inplace=True)
+
+            self.nbhd_geojson = json.loads(gdf_viz.to_json())
+
+    # @traitlets.observe("nbhd")
+    # def _on_nbhd_change(self, change):
+    #     new = change["new"]
+    #     if new is None:
+    #         self.nbhd_geojson = {"type": "FeatureCollection", "features": []}
+    #     else:
+    #         self.nbhd_geojson = json.loads(new.to_json())
 
     def trigger_update(self, new_value):
         """

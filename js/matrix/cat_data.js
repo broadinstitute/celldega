@@ -1,6 +1,6 @@
 import * as d3 from 'd3-color';
 
-const colorToRgba = (colorStr, alpha = 255) => {
+export const colorToRgba = (colorStr, alpha = 255) => {
   const d3col = d3.color(colorStr);
   if (!d3col) {
     return [0, 0, 0, alpha]; // fallback: black

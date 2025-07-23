@@ -1,13 +1,18 @@
 """Tests for Clustergram widget with Parquet input."""
 
+import json
+
 import numpy as np
 import pandas as pd
 import pytest
 
 
 try:
+    import geopandas as gpd
+    from shapely.geometry import Polygon
+
     from celldega.clust import Matrix
-    from celldega.viz import Clustergram
+    from celldega.viz import Clustergram, Landscape
 except Exception as e:  # pragma: no cover - if deps missing skip
     pytest.skip(f"celldega modules unavailable: {e}", allow_module_level=True)
 
@@ -58,7 +63,9 @@ def test_clustergram_initializes_with_parquet() -> None:
         ("col_linkage_parquet", "col_linkage"),
     ]:
         assert hasattr(widget, attr), f"Missing attribute: {attr}"
-        assert getattr(widget, attr) == pq[key], f"Attribute {attr} does not match expected parquet value"
+        assert getattr(widget, attr) == pq[key], (
+            f"Attribute {attr} does not match expected parquet value"
+        )
 
 
 def test_clustergram_selected_genes_trait() -> None:
@@ -70,3 +77,20 @@ def test_clustergram_selected_genes_trait() -> None:
 
     widget.selected_genes = ["A", "B"]
     assert widget.selected_genes == ["A", "B"]
+
+
+def test_landscape_nbhd_geojson_and_metadata() -> None:
+    gdf = gpd.GeoDataFrame(
+        {"name": ["a"], "cat": ["x"]},
+        geometry=[Polygon([(0, 0), (1, 0), (1, 1), (0, 1)])],
+    )
+    meta_nbhd = pd.DataFrame({"area": [1]}, index=["a"])
+
+    widget = Landscape(nbhd=gdf, meta_nbhd=meta_nbhd)
+
+    # drop geometry_pixel column from gdf
+    gdf = gdf.drop(columns=["geometry_pixel"], errors="ignore")
+
+    assert widget.nbhd_geojson == json.loads(gdf.to_json())
+    assert hasattr(widget, "meta_nbhd_parquet")
+    assert isinstance(widget.meta_nbhd_parquet, (bytes, bytearray))

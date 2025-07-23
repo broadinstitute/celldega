@@ -5,6 +5,7 @@ import {
   toggle_spatial_umap,
 } from '../deck-gl/layers/cell_layer';
 import { toggle_visibility_single_image_layer } from '../deck-gl/layers/image_layers';
+import { toggle_nbhd_layer_visibility } from '../deck-gl/layers/nbhd_layer';
 import { toggle_path_layer_visibility } from '../deck-gl/layers/path_layer';
 import { simple_image_layer_visibility } from '../deck-gl/layers/simple_image_layer';
 import { square_scatter_layer_visibility } from '../deck-gl/layers/square_scatter_layer';
@@ -209,10 +210,21 @@ const trx_button_callback_ist = async (
   viz_state
 ) => {
   toggle_visible_button(event);
-
-  toggle_slider(viz_state.genes.trx_slider, is_visible);
-
+  toggle_slider(viz_state.sliders.trx, is_visible);
   toggle_trx_layer_visibility(layers_obj, is_visible);
+
+  if (is_visible) {
+    toggle_nbhd_layer_visibility(layers_obj, false);
+    viz_state.obs_store.viz_nbhd_layer.set(false);
+
+    if (viz_state.nbhd.is_nbhd) {
+      viz_state.buttons.buttons.nbhd.style('color', 'gray');
+    }
+
+    viz_state.genes.svg_bar_gene.selectAll('rect').style('opacity', 1.0);
+  } else {
+    viz_state.genes.svg_bar_gene.selectAll('rect').style('opacity', 0.2);
+  }
 
   viz_state.obs_store.deck_check.set({
     ...viz_state.obs_store.deck_check.get(),
@@ -229,16 +241,29 @@ const trx_button_callback_ist = async (
 
 const cell_button_callback = async (event, deck_ist, layers_obj, viz_state) => {
   toggle_visible_button(event);
-
   toggle_slider(viz_state.sliders.cell, is_visible);
 
   new_toggle_cell_layer_visibility(layers_obj, is_visible);
   toggle_path_layer_visibility(layers_obj, is_visible);
 
+  if (is_visible) {
+    toggle_nbhd_layer_visibility(layers_obj, false);
+    viz_state.obs_store.viz_nbhd_layer.set(false);
+
+    if (viz_state.nbhd.is_nbhd) {
+      viz_state.buttons.buttons.nbhd.style('color', 'gray');
+    }
+
+    viz_state.cats.svg_bar_cluster.selectAll('rect').style('opacity', 1.0);
+  } else {
+    viz_state.cats.svg_bar_cluster.selectAll('rect').style('opacity', 0.2);
+  }
+
   viz_state.obs_store.deck_check.set({
     ...viz_state.obs_store.deck_check.get(),
     cell_layer: false,
     path_layer: false,
+    nbhd_layer: false,
   });
 
   viz_state.layers_obj = layers_obj;
@@ -247,6 +272,36 @@ const cell_button_callback = async (event, deck_ist, layers_obj, viz_state) => {
     ...viz_state.obs_store.deck_check.get(),
     cell_layer: true,
     path_layer: true,
+    nbhd_layer: true,
+  });
+};
+
+const nbhd_button_callback = async (event, deck_ist, layers_obj, viz_state) => {
+  toggle_visible_button(event);
+
+  toggle_nbhd_layer_visibility(layers_obj, is_visible);
+
+  viz_state.obs_store.viz_nbhd_layer.set(is_visible);
+
+  viz_state.obs_store.deck_check.set({
+    ...viz_state.obs_store.deck_check.get(),
+    // reset image layers
+    image_layers: false,
+    nbhd_layer: false,
+    cell_layer: false,
+    path_layer: false,
+    trx_layer: false,
+  });
+
+  viz_state.layers_obj = layers_obj;
+
+  viz_state.obs_store.deck_check.set({
+    ...viz_state.obs_store.deck_check.get(),
+    image_layers: true,
+    nbhd_layer: true,
+    cell_layer: true,
+    path_layer: true,
+    trx_layer: true,
   });
 };
 
@@ -379,6 +434,9 @@ export const make_button = (
   } else if (text === 'CELL') {
     callback = (event) =>
       cell_button_callback(event, inst_deck, layers_obj, viz_state);
+  } else if (text === 'NBHD') {
+    callback = (event) =>
+      nbhd_button_callback(event, inst_deck, layers_obj, viz_state);
   } else if (text === 'UMAP') {
     callback = (event) =>
       umap_button_callback(event, inst_deck, layers_obj, viz_state);

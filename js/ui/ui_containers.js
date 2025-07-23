@@ -10,11 +10,7 @@ import { toggle_background_layer_visibility } from '../deck-gl/layers/background
 //   sync_region_to_model,
 // } from '../deck-gl/layers/edit_layer';
 import { toggle_visibility_image_layers } from '../deck-gl/layers/image_layers';
-// import {
-//   filter_cat_nbhd_feature_collection,
-//   toggle_nbhd_layer_visibility,
-//   update_nbhd_layer_data,
-// } from '../deck-gl/layers/nbhd_layer';
+import { toggle_nbhd_layer_visibility } from '../deck-gl/layers/nbhd_layer';
 // import { update_path_pickable_state } from '../deck-gl/layers/path_layer';
 // import {
 //   toggle_trx_layer_visibility,
@@ -37,8 +33,8 @@ import { refresh_layer } from '../utils/refresh_layer';
 
 import {
   make_bar_graph,
-  // bar_callback_rgn,
-  bar_callback_cluster,
+  bar_callback_nbhd,
+  bar_callback_cat,
   make_bar_container,
   bar_callback_gene,
 } from './bar_plot';
@@ -337,11 +333,15 @@ export const make_ist_ui_container = (
   gene_container.style.width = bar_container_width;
   const trx_container = flex_container('trx_container', 'row');
 
-  // const rgn_container = flex_container('rgn_container', 'column');
-  // rgn_container.style.width = bar_container_width;
-  // const rgn_ctrl_container = flex_container('rgn_ctrl_container', 'row');
-  // rgn_ctrl_container.style.marginLeft = '0px';
-  // rgn_ctrl_container.style.height = '22.5px';
+  let nbhd_container;
+  let nbhd_ctrl_container;
+  if (viz_state.nbhd.is_nbhd) {
+    nbhd_container = flex_container('nbhd_container', 'column');
+    nbhd_container.style.width = bar_container_width;
+    nbhd_ctrl_container = flex_container('nbhd_ctrl_container', 'row');
+    nbhd_ctrl_container.style.marginLeft = '0px';
+    nbhd_ctrl_container.style.height = '22.5px';
+  }
 
   const cell_slider_container = make_slider_container('cell_slider_container');
   const trx_slider_container = make_slider_container('trx_slider_container');
@@ -476,6 +476,11 @@ export const make_ist_ui_container = (
     refresh_layer(viz_state, layers_obj, 'background_layer');
   });
 
+  viz_state.obs_store.viz_nbhd_layer.subscribe((visible) => {
+    toggle_nbhd_layer_visibility(layers_obj, visible);
+    refresh_layer(viz_state, layers_obj, 'nbhd_layer');
+  });
+
   make_button(
     cell_ctrl_container,
     'ist',
@@ -487,6 +492,20 @@ export const make_ist_ui_container = (
     layers_obj,
     viz_state
   );
+
+  if (viz_state.nbhd.is_nbhd) {
+    make_button(
+      nbhd_ctrl_container,
+      'ist',
+      'NBHD',
+      'gray',
+      40,
+      'button',
+      deck_ist,
+      layers_obj,
+      viz_state
+    );
+  }
 
   make_button(
     trx_container,
@@ -514,9 +533,13 @@ export const make_ist_ui_container = (
   viz_state.cats.svg_bar_cluster = d3.create('svg');
   viz_state.genes.svg_bar_gene = d3.create('svg');
 
+  if (viz_state.nbhd.is_nbhd) {
+    viz_state.nbhd.svg_bar_nbhd = d3.create('svg');
+  }
+
   make_bar_graph(
     viz_state.containers.bar_cluster,
-    bar_callback_cluster,
+    bar_callback_cat,
     viz_state.cats.svg_bar_cluster,
     viz_state.cats.cluster_counts,
     viz_state.cats.color_dict_cluster,
@@ -701,7 +724,7 @@ export const make_ist_ui_container = (
       svg: viz_state.cats.svg_bar_cluster,
       color_dict: viz_state.cats.color_dict_cluster,
       selected_array: viz_state.cats.selected_cats,
-      bar_callback: bar_callback_cluster,
+      bar_callback: bar_callback_cat,
       container: viz_state.containers.bar_cluster,
     }),
     { immediate: false }
@@ -990,7 +1013,7 @@ export const make_ist_ui_container = (
   //     deck_ist,
   //     layers_obj,
   //     viz_state,
-  //     rgn_ctrl_container,
+  //     nbhd_ctrl_container,
   //     'ALPH',
   //     30,
   //     alph_callback
@@ -1001,7 +1024,7 @@ export const make_ist_ui_container = (
   //   deck_ist,
   //   layers_obj,
   //   viz_state,
-  //   rgn_ctrl_container,
+  //   nbhd_ctrl_container,
   //   'SKTCH',
   //   40,
   //   sketch_callback
@@ -1014,7 +1037,7 @@ export const make_ist_ui_container = (
   //   deck_ist,
   //   layers_obj,
   //   viz_state,
-  //   rgn_ctrl_container,
+  //   nbhd_ctrl_container,
   //   'DEL',
   //   30,
   //   del_callback
@@ -1072,7 +1095,7 @@ export const make_ist_ui_container = (
   // );
   // viz_state.sliders.alph.style.display = 'none';
 
-  // rgn_ctrl_container.appendChild(alph_slider_container);
+  // nbhd_ctrl_container.appendChild(alph_slider_container);
   // alph_slider_container.appendChild(viz_state.sliders.alph);
 
   // // initially hide the DEL delete button
@@ -1080,24 +1103,30 @@ export const make_ist_ui_container = (
   //   .style('color', 'red')
   //   .style('display', 'none');
 
-  // viz_state.containers.bar_rgn = make_bar_container();
-  // viz_state.containers.bar_rgn.style.marginLeft = '0px';
+  if (viz_state.nbhd.is_nbhd) {
+    viz_state.containers.bar_nbhd = make_bar_container();
+    viz_state.containers.bar_nbhd.style.marginLeft = '0px';
 
-  // rgn_container.appendChild(rgn_ctrl_container);
-  // rgn_container.appendChild(viz_state.containers.bar_rgn);
+    nbhd_container.appendChild(nbhd_ctrl_container);
+    nbhd_container.appendChild(viz_state.containers.bar_nbhd);
 
-  // ctrl_container.appendChild(rgn_container);
+    ctrl_container.appendChild(nbhd_container);
 
-  // make_bar_graph(
-  //   viz_state.containers.bar_rgn,
-  //   bar_callback_rgn,
-  //   viz_state.edit.svg_bar_rgn,
-  //   viz_state.edit.rgn_areas,
-  //   viz_state.edit.color_dict_rgn,
-  //   deck_ist,
-  //   layers_obj,
-  //   viz_state
-  // );
+    if (viz_state.nbhd.is_nbhd) {
+      make_bar_graph(
+        viz_state.containers.bar_nbhd,
+        bar_callback_nbhd,
+        viz_state.nbhd.svg_bar_nbhd,
+        viz_state.nbhd.bar_data,
+        viz_state.nbhd.color_dict,
+        deck_ist,
+        layers_obj,
+        viz_state
+      );
+
+      viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', 0.2);
+    }
+  }
 
   ctrl_container.appendChild(viz_state.genes.gene_search);
 

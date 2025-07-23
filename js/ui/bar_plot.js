@@ -1,20 +1,36 @@
 import * as d3 from 'd3';
 
+import { new_toggle_cell_layer_visibility } from '../deck-gl/layers/cell_layer';
+import { toggle_trx_layer_visibility } from '../deck-gl/layers/trx_layer';
 import { update_cat, update_selected_cats } from '../global_variables/cat';
 import { update_cell_exp_array } from '../global_variables/cell_exp_array';
 import { update_selected_genes } from '../global_variables/selected_genes';
+import { toggle_slider } from '../ui/sliders';
+import { refresh_layer } from '../utils/refresh_layer';
 
 export const make_bar_container = () => {
   return document.createElement('div');
 };
 
-export const bar_callback_cluster = (
+export const bar_callback_cat = (
   _event,
   d,
   _deck_ist,
   _layers_obj,
   _viz_state
 ) => {
+  // ensure that cell button, slider and bars are active
+  _viz_state.buttons.buttons.cell.style('color', 'blue');
+
+  toggle_slider(_viz_state.sliders.cell, true);
+  _viz_state.cats.svg_bar_cluster.selectAll('rect').style('opacity', 1.0);
+  new_toggle_cell_layer_visibility(_layers_obj, true);
+
+  if (_viz_state.nbhd.is_nbhd) {
+    _viz_state.obs_store.viz_nbhd_layer.set(false);
+    _viz_state.buttons.buttons.nbhd.style('color', 'gray');
+  }
+
   // add cell_layer, path_layer, and trx_layer to the deck_check observable
   _viz_state.obs_store.deck_check.set({
     ..._viz_state.obs_store.deck_check.get(),
@@ -26,6 +42,13 @@ export const bar_callback_cluster = (
   update_cat(_viz_state.cats, 'cluster');
   update_selected_cats(_viz_state.cats, [d.name], _viz_state.obs_store);
   update_selected_genes(_viz_state.genes, [], _viz_state.obs_store);
+
+  // toggle gene bars based on reset_cat
+  if (_viz_state.cats.reset_cat) {
+    _viz_state.genes.svg_bar_gene.selectAll('rect').style('opacity', 1.0);
+  } else {
+    _viz_state.genes.svg_bar_gene.selectAll('rect').style('opacity', 0.2);
+  }
 };
 
 export const bar_callback_gene = async (
@@ -35,9 +58,28 @@ export const bar_callback_gene = async (
   _layers_obj,
   _viz_state
 ) => {
+  // ensure that trx button, slider, and bars are active
+  _viz_state.buttons.buttons.trx.style('color', 'blue');
+
+  toggle_slider(_viz_state.sliders.trx, true);
+  _viz_state.genes.svg_bar_gene.selectAll('rect').style('opacity', 1.0);
+
+  toggle_trx_layer_visibility(_layers_obj, true);
+
+  if (_viz_state.nbhd.is_nbhd) {
+    _viz_state.obs_store.viz_nbhd_layer.set(false);
+    _viz_state.buttons.buttons.nbhd.style('color', 'gray');
+  }
+
   const inst_gene = d.name;
   const reset_gene = inst_gene === _viz_state.cats.cat;
   const new_cat = reset_gene ? 'cluster' : inst_gene;
+
+  if (reset_gene) {
+    _viz_state.cats.svg_bar_cluster.selectAll('rect').style('opacity', 1.0);
+  } else {
+    _viz_state.cats.svg_bar_cluster.selectAll('rect').style('opacity', 0.2);
+  }
 
   update_cat(_viz_state.cats, new_cat);
 
@@ -61,14 +103,43 @@ export const bar_callback_gene = async (
   );
 };
 
-export const bar_callback_rgn = (
+export const bar_callback_nbhd = (
   _event,
   _d,
   _deck_ist,
   _layers_obj,
   _viz_state
 ) => {
-  // console.log('bar_callback_rgn')
+  // set nbhd to visible
+  _viz_state.obs_store.viz_nbhd_layer.set(true);
+
+  // make sure nbhd button is active
+  _viz_state.buttons.buttons.nbhd.style('color', 'blue');
+
+  // update selected_nbhds observable with the clicked nbhd unless
+  // the clicked nbhd is already equal to selected_nbhds
+  const prev_selected_nbhds = _viz_state.obs_store.selected_nbhds.get();
+  if (prev_selected_nbhds[0] === _d.name && prev_selected_nbhds.length === 1) {
+    _viz_state.obs_store.selected_nbhds.set([]);
+  } else {
+    _viz_state.obs_store.selected_nbhds.set([_d.name]);
+  }
+
+  // refresh the nbhd layer
+  refresh_layer(_viz_state, _layers_obj, 'nbhd_layer');
+
+  // highlight the nbhd in the bar plot
+  if (_viz_state.obs_store.selected_nbhds.get().length > 0) {
+    _viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', (d) => {
+      if (d.name === _d.name) {
+        return 1.0;
+      } else {
+        return 0.2;
+      }
+    });
+  } else {
+    _viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', 1.0);
+  }
 };
 
 export const make_bar_graph = (

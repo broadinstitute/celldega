@@ -337,7 +337,10 @@ def test_tiles(make_synthetic_data, technology) -> None:
         df = pd.read_parquet(p)
         assert not df.empty
         assert "geometry" in df.columns or "GEOMETRY" in df.columns
-        all_cells.update(df.get("name", df.index).tolist())
+        if "name" in df.columns:
+            all_cells.update(df["name"].tolist())
+        else:
+            all_cells.update(df.index.tolist())
 
     # Step 5: Load and re-compute expected polygons from the full boundary dataset
     if technology == "MERSCOPE":

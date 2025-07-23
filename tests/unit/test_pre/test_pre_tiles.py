@@ -246,7 +246,7 @@ def test_tiles(make_synthetic_data, technology) -> None:
     each of which may differ slightly in file format or metadata layout.
 
     Args:
-        tmp_path (Path): Temporary output directory for synthetic test files.
+        make_synthetic_data: Fixture to generate synthetic input files.
         technology (str): Name of the spatial transcriptomics technology.
     """
     # Step 1: Generate synthetic input data

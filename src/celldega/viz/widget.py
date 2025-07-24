@@ -7,6 +7,7 @@ from contextlib import suppress
 from copy import deepcopy
 import json
 from pathlib import Path
+import urllib.error
 import warnings
 
 import anywidget
@@ -17,7 +18,6 @@ import pandas as pd
 import scanpy as sc
 from shapely.affinity import affine_transform
 import traitlets
-import urllib.error
 
 
 _clustergram_registry = {}  # maps names to widget instances

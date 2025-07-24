@@ -7,6 +7,7 @@ from contextlib import suppress
 from copy import deepcopy
 import json
 from pathlib import Path
+import urllib.error
 import warnings
 
 import anywidget
@@ -122,7 +123,7 @@ class Landscape(anywidget.AnyWidget):
             transformation_matrix = pd.read_csv(
                 path_transformation_matrix, header=None, sep=" "
             ).values
-        except FileNotFoundError:
+        except (FileNotFoundError, urllib.error.HTTPError, urllib.error.URLError):
             transformation_matrix = np.eye(3)  # Fallback for testing
             warnings.warn(
                 f"Transformation matrix not found at {path_transformation_matrix}. Using identity.",

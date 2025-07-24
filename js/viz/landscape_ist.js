@@ -85,6 +85,8 @@ export const landscape_ist = async (
   creds = {},
   view_change_custom_callback = null
 ) => {
+
+  console.log('landscape_ist')
   if (width === 0) {
     width = '100%';
   }
@@ -92,6 +94,8 @@ export const landscape_ist = async (
   const viz_state = {};
 
   viz_state.obs_store = create_obs_store();
+
+  console.log('obs_store created', viz_state.obs_store);
 
   const update_viz_image_layers = () => {
     if (!get_img_layer_visible()) {
@@ -271,12 +275,12 @@ export const landscape_ist = async (
 
   set_options(token);
 
-  // move this to landscape_parameters
-  const imgage_name_for_dim = 'dapi';
-
   await set_landscape_parameters(viz_state.img, base_url, viz_state.aws);
 
   const tmp_image_info = viz_state.img.landscape_parameters.image_info;
+
+  // set image_name_for_dim using the first image info name
+  const image_name_for_dim = tmp_image_info[0].name;
 
   viz_state.vector_name_integer =
     viz_state.img.landscape_parameters.use_int_index;
@@ -297,7 +301,7 @@ export const landscape_ist = async (
   root.style.height = `${height}px`;
   root.style.border = '1px solid #d3d3d3';
 
-  await set_dimensions(viz_state, base_url, imgage_name_for_dim);
+  await set_dimensions(viz_state, base_url, image_name_for_dim);
 
   await set_meta_gene(
     viz_state.genes,

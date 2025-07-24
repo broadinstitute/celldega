@@ -17,6 +17,7 @@ import pandas as pd
 import scanpy as sc
 from shapely.affinity import affine_transform
 import traitlets
+import urllib.error
 
 
 _clustergram_registry = {}  # maps names to widget instances

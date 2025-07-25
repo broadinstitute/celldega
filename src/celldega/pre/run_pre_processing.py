@@ -55,14 +55,14 @@ def _determine_technology(data_dir):
     """
     data_path = Path(data_dir)
 
-    # Determine technology based on the presence of experiment.xenium file
+    # Determine technology based on characteristic files
     if (data_path / "experiment.xenium").exists():
         return "Xenium"
     if (data_path / "detected_transcripts.csv").exists():
         return "MERSCOPE"
-    raise ValueError(
-        "Unsupported technology. Only Xenium and MERSCOPE are supported in this script."
-    )
+    if (data_path / "registered_images").exists():
+        return "IST"
+    raise ValueError("Unsupported technology. Only Xenium, MERSCOPE and IST are supported in this script.")
 
 
 def _setup_preprocessing_paths(technology, path_landscape_files, data_dir):
@@ -103,8 +103,20 @@ def _setup_preprocessing_paths(technology, path_landscape_files, data_dir):
             "cell_segmentation": landscape_path / "cell_segmentation",
             "cbg_csv": data_path / "cell_by_gene.csv",
         }
+    if technology == "IST":
+        dataset, inst_slice = dega.pre._parse_ist_names(str(data_path))
+        return {
+            "transformation_matrix": landscape_path / "micron_to_image_transform.csv",
+            "meta_cell_image": landscape_path / "cell_metadata.parquet",
+            "meta_gene": landscape_path / "meta_gene.parquet",
+            "transcript_tiles": landscape_path / "transcript_tiles",
+            "cell_boundaries": landscape_path / "cell_boundaries.parquet",
+            "cell_segmentation": landscape_path / "cell_segmentation",
+            "cbg_matrix": data_path / "matrix_files" / f"{inst_slice}_{dataset}" / f"{inst_slice}_{dataset}_raw",
+            "image_file": data_path / "registered_images" / f"{inst_slice}_{dataset}.ome.tiff",
+        }
     raise ValueError(
-        "Unsupported technology. Only Xenium and MERSCOPE are supported in this script."
+        "Unsupported technology. Only Xenium, MERSCOPE and IST are supported in this script."
     )
 
 
@@ -158,39 +170,39 @@ def main(
     # Save transformation matrices
 
     if technology == "Xenium":
-        # Unzip compressed files in Xenium data folder
         dega.pre._xenium_unzipper(str(data_dir))
-        # Write transform file
         dega.pre.write_xenium_transform(str(data_dir), path_landscape_files)
 
     elif technology == "MERSCOPE":
         source_path = Path(paths["transformation_matrix"])
-
-        # Copy the file to the destination directory, keeping the same filename
         shutil.copy(source_path, Path(path_landscape_files) / "micron_to_image_transform.csv")
+
+    elif technology == "IST":
+        dega.pre.write_identity_transform(path_landscape_files)
 
     # Check required files for preprocessing
     dega.pre._check_required_files(technology, str(data_dir))
 
-    # Make cell image coordinates
-    dega.pre.make_meta_cell_image_coord(
-        technology,
-        str(paths["transformation_matrix"]),
-        str(paths["meta_cell_micron"]),
-        str(paths["meta_cell_image"]),
-        image_scale=1,
-    )
+    if technology in ["Xenium", "MERSCOPE"]:
+        dega.pre.make_meta_cell_image_coord(
+            technology,
+            str(paths["transformation_matrix"]),
+            str(paths["meta_cell_micron"]),
+            str(paths["meta_cell_image"]),
+            image_scale=1,
+        )
+    elif technology == "IST":
+        dega.pre.make_meta_cell_ist(str(data_dir), path_landscape_files)
 
     # Calculate CBG
-    if technology == "Xenium":
+    if technology in ["Xenium", "IST"]:
         cbg = dega.pre.read_cbg_mtx(str(paths["cbg_matrix"]))
     elif technology == "MERSCOPE":
         cbg = pd.read_csv(str(paths["cbg_csv"]), index_col=0)
 
     if technology == "Xenium":
-        # Create cluster-based gene expression
         dega.pre.cluster_gene_expression(technology, path_landscape_files, cbg, str(data_dir))
-    elif technology == "MERSCOPE":
+    else:
         create_dummy_clusters(path_landscape_files, cbg)
 
     # Make meta gene files
@@ -203,40 +215,52 @@ def main(
         # Create cluster and meta cluster files
         dega.pre.create_cluster_and_meta_cluster(technology, path_landscape_files, str(data_dir))
 
-    # Generate image tiles
-    dega.pre.create_image_tiles(
-        technology, str(data_dir), path_landscape_files, image_tile_layer=image_tile_layer
-    )
+    if technology == "IST":
+        dega.pre.create_image_tiles_ist(str(data_dir), path_landscape_files)
+        tile_bounds = dega.pre.get_ist_image_bounds(str(paths["image_file"]))
+        bound_path = dega.pre.make_cell_boundaries_ist(str(data_dir), path_landscape_files)
+        dega.pre.make_cell_boundary_tiles(
+            "custom",
+            str(bound_path),
+            str(paths["cell_segmentation"]),
+            coarse_tile_factor=10,
+            tile_size=tile_size,
+            tile_bounds=tile_bounds,
+            image_scale=1,
+            max_workers=max_workers,
+        )
+    else:
+        dega.pre.create_image_tiles(
+            technology, str(data_dir), path_landscape_files, image_tile_layer=image_tile_layer
+        )
 
-    # Generate transcript tiles
-    print("\n========Generating transcript tiles========")
-    tile_bounds = dega.pre.make_trx_tiles(
-        technology,
-        str(paths["transcripts"]),
-        str(paths["transformation_matrix"]),
-        str(paths["transcript_tiles"]),
-        coarse_tile_factor=10,
-        tile_size=tile_size,
-        chunk_size=100000,
-        verbose=False,
-        image_scale=1,
-        max_workers=max_workers,
-    )
-    print(f"tile bounds: {tile_bounds}")
+        print("\n========Generating transcript tiles========")
+        tile_bounds = dega.pre.make_trx_tiles(
+            technology,
+            str(paths["transcripts"]),
+            str(paths["transformation_matrix"]),
+            str(paths["transcript_tiles"]),
+            coarse_tile_factor=10,
+            tile_size=tile_size,
+            chunk_size=100000,
+            verbose=False,
+            image_scale=1,
+            max_workers=max_workers,
+        )
+        print(f"tile bounds: {tile_bounds}")
 
-    # Generate boundary tiles
-    print("\n========Generating boundary tiles========")
-    dega.pre.make_cell_boundary_tiles(
-        technology,
-        str(paths["cell_boundaries"]),
-        str(paths["cell_segmentation"]),
-        str(paths["meta_cell_micron"]),
-        str(paths["transformation_matrix"]),
-        coarse_tile_factor=10,
-        tile_size=tile_size,
-        tile_bounds=tile_bounds,
-        max_workers=max_workers,
-    )
+        print("\n========Generating boundary tiles========")
+        dega.pre.make_cell_boundary_tiles(
+            technology,
+            str(paths["cell_boundaries"]),
+            str(paths["cell_segmentation"]),
+            str(paths.get("meta_cell_micron", "")),
+            str(paths["transformation_matrix"]),
+            coarse_tile_factor=10,
+            tile_size=tile_size,
+            tile_bounds=tile_bounds,
+            max_workers=max_workers,
+        )
 
     # Force name to be str for MERSCOPE
     if technology == "MERSCOPE":

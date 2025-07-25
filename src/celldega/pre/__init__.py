@@ -18,6 +18,8 @@ import xml.etree.ElementTree as ET
 from matplotlib.colors import to_hex
 import matplotlib.pyplot as plt
 import pandas as pd
+import geopandas as gpd
+import numpy as np
 from scipy.sparse import csr_matrix
 from shapely.geometry import MultiPolygon, Point, Polygon
 from skimage.io import imread, imsave
@@ -1200,6 +1202,11 @@ def _check_required_files(technology, data_dir):
             "cell_boundaries.parquet",
             "cell_by_gene.csv",
         ],
+        "IST": [
+            "registered_images",
+            "matrix_files",
+            "cell_masks",
+        ],
     }
 
     if technology not in required_files_mapping:
@@ -1223,6 +1230,118 @@ def _check_required_files(technology, data_dir):
     )
 
 
+def write_identity_transform(path_landscape_files: str) -> None:
+    """Write an identity transform matrix for IST data."""
+    path = Path(path_landscape_files) / "micron_to_image_transform.csv"
+    if not path.exists():
+        pd.DataFrame(np.eye(3)).to_csv(path, sep=" ", header=False, index=False)
+
+
+def _parse_ist_names(data_dir: str) -> tuple[str, str]:
+    """Infer dataset and slice names from an IST directory structure."""
+    base = Path(data_dir)
+    dataset = base.name.replace("Substrate_", "")
+    matrix_root = next((base / "matrix_files").glob("*"), None)
+    if matrix_root is None:
+        raise FileNotFoundError("matrix_files directory is missing")
+    slice_name = matrix_root.name.split("_")[0]
+    return dataset, slice_name
+
+
+def make_meta_cell_ist(data_dir: str, path_landscape_files: str, image_scale: float = 1.0) -> None:
+    """Generate IST cell centroids in pixel coordinates."""
+    dataset, inst_slice = _parse_ist_names(data_dir)
+    gc = pd.read_csv(Path(data_dir) / "registered_images" / f"globalpos_{dataset}.csv", index_col=0)
+    x_shift = gc.loc[f"{inst_slice}_{dataset}", "X_shift"]
+    y_shift = gc.loc[f"{inst_slice}_{dataset}", "Y_shift"]
+
+    barcodes_path = (
+        Path(data_dir)
+        / "matrix_files"
+        / f"{inst_slice}_{dataset}"
+        / f"{inst_slice}_{dataset}_raw"
+        / "barcodes.tsv.gz"
+    )
+    barcodes = pd.read_csv(barcodes_path, sep="\t", header=None, index_col=0)
+    barcodes.index.name = None
+    barcodes["x"] = pd.NA
+    barcodes["y"] = pd.NA
+
+    map_file = Path(data_dir) / f"Substrate_{dataset}_map_file.tsv"
+    if map_file.exists():
+        chunk_size = 10_000_000
+        barcodes_set = set(barcodes.index.tolist())
+        for chunk in pd.read_csv(map_file, sep="\t", chunksize=chunk_size, header=None, index_col=0):
+            common = list(barcodes_set.intersection(chunk.index.tolist()))
+            if common:
+                barcodes.loc[common, "x"] = chunk.loc[common, 1]
+                barcodes.loc[common, "y"] = chunk.loc[common, 2]
+
+    scale = 1 / 0.382
+    barcodes["x"] = (barcodes["x"].astype(float) - x_shift) * scale
+    barcodes["y"] = (barcodes["y"].astype(float) - y_shift) * scale
+
+    barcodes["name"] = barcodes.index.astype(str)
+    barcodes["geometry"] = barcodes.apply(lambda r: [r["y"] / image_scale, r["x"] / image_scale], axis=1)
+    barcodes[["name", "geometry"]].to_parquet(Path(path_landscape_files) / "cell_metadata.parquet")
+
+
+def make_cell_boundaries_ist(data_dir: str, path_landscape_files: str, image_scale: float = 1.0) -> Path:
+    """Create a cell boundary parquet for IST data."""
+    dataset, inst_slice = _parse_ist_names(data_dir)
+    gc = pd.read_csv(Path(data_dir) / "registered_images" / f"globalpos_{dataset}.csv", index_col=0)
+    x_shift = gc.loc[f"{inst_slice}_{dataset}", "Y_shift"]
+    y_shift = gc.loc[f"{inst_slice}_{dataset}", "X_shift"]
+
+    poly_file = (
+        Path(data_dir)
+        / "cell_masks"
+        / f"{inst_slice}_{dataset}_Expanded_5um_cell_contour_coords.csv"
+    )
+    poly = pd.read_csv(poly_file)
+    poly["vertex_x"] = (poly["vertex_x"] - x_shift) * (1 / 0.382)
+    poly["vertex_y"] = (poly["vertex_y"] - y_shift) * (1 / 0.382)
+
+    grouped = poly.groupby("cell_id").agg(list)
+
+    def _safe_polygon(row):
+        try:
+            return Polygon(zip(row["vertex_x"], row["vertex_y"]))
+        except Exception:
+            return Polygon()
+
+    grouped["geometry"] = grouped.apply(_safe_polygon, axis=1)
+    gdf = gpd.GeoDataFrame(grouped, geometry="geometry")[["geometry"]]
+    gdf.rename(columns={"geometry": "geometry_image_space"}, inplace=True)
+    out = Path(path_landscape_files) / "cell_boundaries.parquet"
+    gdf.to_parquet(out)
+    return out
+
+
+def get_ist_image_bounds(image_path: str) -> dict:
+    """Return image bounds from an OME-TIFF file."""
+    with tifffile.TiffFile(image_path) as tif:
+        img = tif.series[0].asarray()
+    return {"x_min": 0, "x_max": img.shape[1], "y_min": 0, "y_max": img.shape[0]}
+
+
+def create_image_tiles_ist(data_dir: str, path_landscape_files: str, image_tile_layer: str = "") -> str:
+    """Create DeepZoom tiles from an IST OME-TIFF file."""
+    dataset, inst_slice = _parse_ist_names(data_dir)
+    file_path = Path(data_dir) / "registered_images" / f"{inst_slice}_{dataset}.ome.tiff"
+    with tifffile.TiffFile(file_path) as tif:
+        image = tif.series[0].asarray()
+
+    landscape_path = Path(path_landscape_files)
+    landscape_path.mkdir(exist_ok=True)
+    temp_tiff_path = landscape_path / "output_regular.tif"
+    tifffile.imwrite(temp_tiff_path, image, compression=None)
+    image_png = _convert_to_png(str(temp_tiff_path))
+    make_deepzoom_pyramid(image_png, str(landscape_path / "pyramid_images"), "h&e", suffix=".webp[Q=100]")
+    remove_intermediate_files(path_landscape_files)
+    return str(file_path)
+
+
 __all__ = [
     "_to_geometry",
     "boundary_tile",
@@ -1232,4 +1351,10 @@ __all__ = [
     "make_trx_tiles",
     "read_cbg_mtx",
     "trx_tile",
+    "write_identity_transform",
+    "make_meta_cell_ist",
+    "make_cell_boundaries_ist",
+    "create_image_tiles_ist",
+    "get_ist_image_bounds",
+    "_parse_ist_names",
 ]

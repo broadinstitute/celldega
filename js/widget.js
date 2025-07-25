@@ -129,7 +129,7 @@ const fetchTechnology = async (base_url) => {
 
   console.warn(
     "'technology' will be removed from the Python API in a future release. " +
-    "Please update your code to rely on landscape_parameters.json instead."
+      'Please update your code to rely on landscape_parameters.json instead.'
   );
 
   try {
@@ -152,7 +152,9 @@ const render_landscape = async ({ model, el }) => {
     technology = model.get('technology');
   } catch {
     // eslint-disable-next-line no-console
-    console.warn("No 'technology' key found on widget model. Will try to fetch it.");
+    console.warn(
+      "No 'technology' key found on widget model. Will try to fetch it."
+    );
   }
 
   if (!technology) {

@@ -101,6 +101,25 @@ class Landscape(anywidget.AnyWidget):
     height = traitlets.Int(800).tag(sync=True)
 
     def __init__(self, **kwargs):
+
+        base_path = (kwargs.get("base_url") or "") + "/"
+
+        if "technology" not in kwargs:
+            path_parameters_json = base_path + "landscape_parameters.json"
+
+            try:
+                import urllib.request
+                with urllib.request.urlopen(path_parameters_json) as f:
+                    landscape_parameters = json.load(f)
+
+                kwargs["technology"] = landscape_parameters.get("technology", "sst")
+            except (FileNotFoundError, urllib.error.HTTPError, urllib.error.URLError, json.JSONDecodeError, TypeError) as e:
+                kwargs["technology"] = "sst"
+                warnings.warn(
+                    f"Could not read technology from {path_parameters_json}. Using default 'sst'. Reason: {e}",
+                    stacklevel=2,
+                )
+
         adata = kwargs.pop("adata", None) or kwargs.pop("AnnData", None)
         pq_meta_cell = kwargs.pop("meta_cell_parquet", None)
         pq_meta_cluster = kwargs.pop("meta_cluster_parquet", None)
@@ -114,8 +133,6 @@ class Landscape(anywidget.AnyWidget):
         meta_nbhd_df = kwargs.pop("meta_nbhd", None)
         meta_cluster_df = None
         cell_attr = kwargs.pop("cell_attr", ["leiden"])
-
-        base_path = (kwargs.get("base_url") or "") + "/"
 
         path_transformation_matrix = base_path + "micron_to_image_transform.csv"
 

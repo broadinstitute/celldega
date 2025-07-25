@@ -7,6 +7,8 @@ from contextlib import suppress
 from copy import deepcopy
 import json
 from pathlib import Path
+import urllib.request
+import urllib.error
 import warnings
 
 import anywidget
@@ -17,7 +19,7 @@ import pandas as pd
 import scanpy as sc
 from shapely.affinity import affine_transform
 import traitlets
-import urllib.request
+
 
 _clustergram_registry = {}  # maps names to widget instances
 _enrich_registry = {}  # maps names to widget instances
@@ -68,7 +70,7 @@ class Landscape(anywidget.AnyWidget):
     _css = Path(__file__).parent / "../static" / "widget.css"
     component = traitlets.Unicode("Landscape").tag(sync=True)
 
-    technology = traitlets.Unicode("sst").tag(sync=True)
+    technology = traitlets.Unicode(None, allow_none=True).tag(sync=True)
     base_url = traitlets.Unicode("").tag(sync=True)
     token = traitlets.Unicode("").tag(sync=True)
     creds = traitlets.Dict({}).tag(sync=True)
@@ -102,20 +104,6 @@ class Landscape(anywidget.AnyWidget):
     def __init__(self, **kwargs):
 
         base_path = (kwargs.get("base_url") or "") + "/"
-
-        if "technology" not in kwargs:
-            path_parameters_json = base_path + "landscape_parameters.json"
-            try:
-                with urllib.request.urlopen(path_parameters_json) as f:
-                    landscape_parameters = json.load(f)
-
-                kwargs["technology"] = landscape_parameters.get("technology", "sst")
-            except (FileNotFoundError, urllib.error.HTTPError, urllib.error.URLError, json.JSONDecodeError, TypeError) as e:
-                kwargs["technology"] = "sst"
-                warnings.warn(
-                    f"Could not read technology from {path_parameters_json}. Using default 'sst'. Reason: {e}",
-                    stacklevel=2,
-                )
 
         adata = kwargs.pop("adata", None) or kwargs.pop("AnnData", None)
         pq_meta_cell = kwargs.pop("meta_cell_parquet", None)

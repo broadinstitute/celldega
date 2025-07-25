@@ -251,8 +251,8 @@ def main(
     dega.pre.save_landscape_parameters(
         technology,
         path_landscape_files,
-        image_width=tile_bounds['x_max'],
-        image_height=tile_bounds['y_max'],
+        image_width=tile_bounds["x_max"],
+        image_height=tile_bounds["y_max"],
         image_name="dapi_files",
         tile_size=tile_size,
         image_info=dega.pre.get_image_info(technology, image_tile_layer),

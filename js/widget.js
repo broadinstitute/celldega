@@ -124,8 +124,41 @@ const render_landscape_h_e = async ({ model, el }) => {
   );
 };
 
+const fetchTechnology = async (base_url) => {
+  const path_parameters_json = `${base_url || ''}/landscape_parameters.json`;
+
+  console.warn(
+    "'technology' will be removed from the Python API in a future release. " +
+    "Please update your code to rely on landscape_parameters.json instead."
+  );
+
+  try {
+    const response = await fetch(path_parameters_json);
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    const landscape_parameters = await response.json();
+    return landscape_parameters.technology || 'sst';
+  } catch (e) {
+    console.warn(
+      `Could not read technology from ${path_parameters_json}. Using default 'sst'. Reason: ${e}`
+    );
+    return 'sst';
+  }
+};
+
 const render_landscape = async ({ model, el }) => {
-  const technology = model.get('technology');
+  let technology;
+
+  try {
+    technology = model.get('technology');
+  } catch (e) {
+    console.warn("No 'technology' key found on widget model. Will try to fetch it.");
+  }
+
+  if (!technology) {
+    const base_url = model.get('base_url');
+    technology = await fetchTechnology(base_url);
+    model.set('technology', technology);
+  }
 
   if (['MERSCOPE', 'Xenium'].includes(technology)) {
     return render_landscape_ist({ model, el });
@@ -133,6 +166,8 @@ const render_landscape = async ({ model, el }) => {
     return render_landscape_sst({ model, el });
   } else if (['h&e'].includes(technology)) {
     return render_landscape_h_e({ model, el });
+  } else {
+    console.warn(`Unknown technology "${technology}". Rendering skipped.`);
   }
 };
 

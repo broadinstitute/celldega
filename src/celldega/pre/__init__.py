@@ -689,13 +689,11 @@ def _align_and_deduplicate_genes(cbg_custom: pd.DataFrame, path_landscape_files:
 
     # Optional: check for duplicates in meta_gene index
     duplicated_genes = meta_gene.index[meta_gene.index.duplicated()].unique()
-    if not duplicated_genes.empty:
+    if len(duplicated_genes) > 0:
         print(f"Warning: Duplicate genes found in meta_gene index: {list(duplicated_genes)}")
 
     # Remove duplicate columns from cbg_custom
-    cbg_custom = cbg_custom.loc[:, ~cbg_custom.columns.duplicated()]
-
-    return cbg_custom
+    return cbg_custom.loc[:, ~cbg_custom.columns.duplicated()]
 
 def make_meta_cell_image_coord(
     technology,
@@ -880,7 +878,7 @@ def save_landscape_parameters(
             "tile_size": "N.A.",
             "image_info": image_info,
             "image_format": image_format,
-            "image_dimensions": {'width': image_width, 'height': image_height},
+            "image_dimensions": {"width": image_width, "height": image_height},
             "use_int_index": "N.A.",
         }
     elif technology != "custom":
@@ -891,7 +889,7 @@ def save_landscape_parameters(
             "tile_size": tile_size,
             "image_info": image_info,
             "image_format": image_format,
-            "image_dimensions": {'width': image_width, 'height': image_height},
+            "image_dimensions": {"width": image_width, "height": image_height},
             "use_int_index": use_int_index,
         }
     else:

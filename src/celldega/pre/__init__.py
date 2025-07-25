@@ -662,6 +662,40 @@ def _load_meta_cell_by_technology(technology, path_meta_cell_micron):
 
     return meta_cell
 
+def _align_and_deduplicate_genes(cbg_custom: pd.DataFrame, path_landscape_files: str) -> pd.DataFrame:
+    """
+    Ensures all genes from meta_gene.parquet are present in cbg_custom DataFrame.
+    Adds missing genes with value 0 and removes duplicate columns (keeps the first occurrence).
+
+    Parameters:
+    -----------
+    cbg_custom : pd.DataFrame
+        DataFrame containing custom cell-by-gene matrix.
+    path_landscape_files : str
+        Path to directory containing meta_gene.parquet.
+
+    Returns:
+    --------
+    pd.DataFrame
+        Cleaned cbg_custom DataFrame with all expected genes and no duplicate columns.
+    """
+    meta_gene_path = Path(path_landscape_files) / "meta_gene.parquet"
+    meta_gene = pd.read_parquet(meta_gene_path)
+
+    # Add missing gene columns with default value 0
+    missing_cols = meta_gene.index.difference(cbg_custom.columns)
+    for col in missing_cols:
+        cbg_custom[col] = 0
+
+    # Optional: check for duplicates in meta_gene index
+    duplicated_genes = meta_gene.index[meta_gene.index.duplicated()].unique()
+    if not duplicated_genes.empty:
+        print(f"Warning: Duplicate genes found in meta_gene index: {list(duplicated_genes)}")
+
+    # Remove duplicate columns from cbg_custom
+    cbg_custom = cbg_custom.loc[:, ~cbg_custom.columns.duplicated()]
+
+    return cbg_custom
 
 def make_meta_cell_image_coord(
     technology,
@@ -800,6 +834,8 @@ def get_max_zoom_level(path_image_pyramid):
 def save_landscape_parameters(
     technology,
     path_landscape_files,
+    image_width,
+    image_height,
     image_name="dapi_files",
     tile_size=1000,
     image_info=None,
@@ -844,6 +880,7 @@ def save_landscape_parameters(
             "tile_size": "N.A.",
             "image_info": image_info,
             "image_format": image_format,
+            "image_dimensions": {'width': image_width, 'height': image_height},
             "use_int_index": "N.A.",
         }
     elif technology != "custom":
@@ -854,6 +891,7 @@ def save_landscape_parameters(
             "tile_size": tile_size,
             "image_info": image_info,
             "image_format": image_format,
+            "image_dimensions": {'width': image_width, 'height': image_height},
             "use_int_index": use_int_index,
         }
     else:
@@ -884,11 +922,7 @@ def add_custom_segmentation(
 
     cbg_custom = pd.read_parquet(Path(path_segmentation_files) / "cell_by_gene_matrix.parquet")
 
-    # make sure all genes are present in cbg_custom
-    meta_gene = pd.read_parquet(Path(path_landscape_files) / "meta_gene.parquet")
-    missing_cols = meta_gene.index.difference(cbg_custom.columns)
-    for col in missing_cols:
-        cbg_custom[col] = 0
+    cbg_custom = _align_and_deduplicate_genes(cbg_custom, path_landscape_files)
 
     make_meta_gene(
         cbg=cbg_custom,
@@ -959,6 +993,8 @@ def add_custom_segmentation(
     save_landscape_parameters(
         technology=segmentation_parameters["technology"],
         path_landscape_files=path_landscape_files,
+        image_width=width,
+        image_height=height,
         image_name="dapi_files",
         tile_size=tile_size,
         image_format=".webp",

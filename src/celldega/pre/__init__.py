@@ -662,7 +662,10 @@ def _load_meta_cell_by_technology(technology, path_meta_cell_micron):
 
     return meta_cell
 
-def _align_and_deduplicate_genes(cbg_custom: pd.DataFrame, path_landscape_files: str) -> pd.DataFrame:
+
+def _align_and_deduplicate_genes(
+    cbg_custom: pd.DataFrame, path_landscape_files: str
+) -> pd.DataFrame:
     """
     Ensures all genes from meta_gene.parquet are present in cbg_custom DataFrame.
     Adds missing genes with value 0 and removes duplicate columns (keeps the first occurrence).
@@ -694,6 +697,7 @@ def _align_and_deduplicate_genes(cbg_custom: pd.DataFrame, path_landscape_files:
 
     # Remove duplicate columns from cbg_custom
     return cbg_custom.loc[:, ~cbg_custom.columns.duplicated()]
+
 
 def make_meta_cell_image_coord(
     technology,

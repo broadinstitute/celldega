@@ -102,7 +102,6 @@ class Landscape(anywidget.AnyWidget):
     height = traitlets.Int(800).tag(sync=True)
 
     def __init__(self, **kwargs):
-
         base_path = (kwargs.get("base_url") or "") + "/"
 
         adata = kwargs.pop("adata", None) or kwargs.pop("AnnData", None)

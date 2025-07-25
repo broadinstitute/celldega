@@ -1,11 +1,11 @@
-"""Tests for Clustergram widget with Parquet input."""
+"""Tests for Clustergram and Landscape widgets with Parquet input."""
 
+import io
 import json
-
 import numpy as np
 import pandas as pd
 import pytest
-
+from unittest.mock import patch
 
 try:
     import geopandas as gpd
@@ -40,8 +40,8 @@ def test_export_viz_parquet_returns_bytes() -> None:
 
     assert set(pq) == expected_keys
     for key in expected_keys - {"meta"}:
-        assert isinstance(pq[key], bytes | bytearray)
-        assert pq[key]  # non-empty
+        assert isinstance(pq[key], (bytes, bytearray))
+        assert pq[key]  # ensure non-empty
     assert isinstance(pq["meta"], dict)
 
 
@@ -79,7 +79,16 @@ def test_clustergram_selected_genes_trait() -> None:
     assert widget.selected_genes == ["A", "B"]
 
 
-def test_landscape_nbhd_geojson_and_metadata() -> None:
+# ---------- Landscape Patch and Test ----------
+
+def mock_urlopen_success(*args, **kwargs):
+    """Mock function to simulate reading landscape_parameters.json."""
+    fake_json = json.dumps({"technology": "sst"}).encode("utf-8")
+    return io.BytesIO(fake_json)
+
+
+@patch("celldega.viz.widget.urllib.request.urlopen", side_effect=mock_urlopen_success)
+def test_landscape_nbhd_geojson_and_metadata(mock_urlopen) -> None:
     gdf = gpd.GeoDataFrame(
         {"name": ["a"], "cat": ["x"]},
         geometry=[Polygon([(0, 0), (1, 0), (1, 1), (0, 1)])],
@@ -88,7 +97,7 @@ def test_landscape_nbhd_geojson_and_metadata() -> None:
 
     widget = Landscape(nbhd=gdf, meta_nbhd=meta_nbhd)
 
-    # drop geometry_pixel column from gdf
+    # Drop geometry_pixel for comparison
     gdf = gdf.drop(columns=["geometry_pixel"], errors="ignore")
 
     assert widget.nbhd_geojson == json.loads(gdf.to_json())

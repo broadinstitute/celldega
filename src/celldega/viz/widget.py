@@ -7,7 +7,6 @@ from contextlib import suppress
 from copy import deepcopy
 import json
 from pathlib import Path
-import urllib.error
 import warnings
 
 import anywidget
@@ -18,7 +17,7 @@ import pandas as pd
 import scanpy as sc
 from shapely.affinity import affine_transform
 import traitlets
-
+import urllib.request
 
 _clustergram_registry = {}  # maps names to widget instances
 _enrich_registry = {}  # maps names to widget instances
@@ -106,9 +105,7 @@ class Landscape(anywidget.AnyWidget):
 
         if "technology" not in kwargs:
             path_parameters_json = base_path + "landscape_parameters.json"
-
             try:
-                import urllib.request
                 with urllib.request.urlopen(path_parameters_json) as f:
                     landscape_parameters = json.load(f)
 

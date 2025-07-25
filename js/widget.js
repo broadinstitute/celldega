@@ -150,7 +150,8 @@ const render_landscape = async ({ model, el }) => {
 
   try {
     technology = model.get('technology');
-  } catch (e) {
+  } catch {
+    // eslint-disable-next-line no-console
     console.warn("No 'technology' key found on widget model. Will try to fetch it.");
   }
 
@@ -167,6 +168,7 @@ const render_landscape = async ({ model, el }) => {
   } else if (['h&e'].includes(technology)) {
     return render_landscape_h_e({ model, el });
   } else {
+    // eslint-disable-next-line no-console
     console.warn(`Unknown technology "${technology}". Rendering skipped.`);
   }
 };

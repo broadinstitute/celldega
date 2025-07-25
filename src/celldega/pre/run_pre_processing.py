@@ -216,9 +216,14 @@ def main(
         dega.pre.create_cluster_and_meta_cluster(technology, path_landscape_files, str(data_dir))
 
     if technology == "IST":
+
+        print("\n======== Image tiles ========")
         dega.pre.create_image_tiles_ist(str(data_dir), path_landscape_files)
+
         tile_bounds = dega.pre.get_ist_image_bounds(str(paths["image_file"]))
         bound_path = dega.pre.make_cell_boundaries_ist(str(data_dir), path_landscape_files)
+
+        print("\n======== Cell Boundary Tiles ========")
         dega.pre.make_cell_boundary_tiles(
             "custom",
             str(bound_path),
@@ -229,12 +234,15 @@ def main(
             image_scale=1,
             max_workers=max_workers,
         )
+
     else:
+
+        print("\n======== Image Tiles========")
         dega.pre.create_image_tiles(
             technology, str(data_dir), path_landscape_files, image_tile_layer=image_tile_layer
         )
 
-        print("\n========Generating transcript tiles========")
+        print("\n======== Transcript Tiles========")
         tile_bounds = dega.pre.make_trx_tiles(
             technology,
             str(paths["transcripts"]),
@@ -249,7 +257,7 @@ def main(
         )
         print(f"tile bounds: {tile_bounds}")
 
-        print("\n========Generating boundary tiles========")
+        print("\n======== Cell Boundary Tiles ========")
         dega.pre.make_cell_boundary_tiles(
             technology,
             str(paths["cell_boundaries"]),

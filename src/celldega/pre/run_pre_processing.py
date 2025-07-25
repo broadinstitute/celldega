@@ -112,8 +112,8 @@ def main(
     sample,
     data_root_dir,
     tile_size,
-    image_tile_layer,
     path_landscape_files,
+    image_tile_layer='all',
     use_int_index=True,
     max_workers=1,
 ):

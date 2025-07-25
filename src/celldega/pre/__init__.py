@@ -1248,7 +1248,7 @@ def _parse_ist_names(data_dir: str) -> tuple[str, str]:
     return dataset, slice_name
 
 
-def make_meta_cell_ist(data_dir: str, path_landscape_files: str, image_scale: float = 1.0) -> None:
+def find_spot_positions(data_dir: str, path_landscape_files: str, image_scale: float = 1.0) -> None:
     """Generate IST cell centroids in pixel coordinates."""
     dataset, inst_slice = _parse_ist_names(data_dir)
     gc = pd.read_csv(Path(data_dir) / "registered_images" / f"globalpos_{dataset}.csv", index_col=0)
@@ -1283,7 +1283,7 @@ def make_meta_cell_ist(data_dir: str, path_landscape_files: str, image_scale: fl
 
     barcodes["name"] = barcodes.index.astype(str)
     barcodes["geometry"] = barcodes.apply(lambda r: [r["y"] / image_scale, r["x"] / image_scale], axis=1)
-    barcodes[["name", "geometry"]].to_parquet(Path(path_landscape_files) / "cell_metadata.parquet")
+    barcodes[["name", "geometry"]].to_parquet(Path(path_landscape_files) / "spot_positions.parquet")
 
 
 def make_cell_boundaries_ist(data_dir: str, path_landscape_files: str, image_scale: float = 1.0) -> Path:
@@ -1352,7 +1352,7 @@ __all__ = [
     "read_cbg_mtx",
     "trx_tile",
     "write_identity_transform",
-    "make_meta_cell_ist",
+    "find_spot_positions",
     "make_cell_boundaries_ist",
     "create_image_tiles_ist",
     "get_ist_image_bounds",

@@ -178,6 +178,7 @@ def main(
         shutil.copy(source_path, Path(path_landscape_files) / "micron_to_image_transform.csv")
 
     elif technology == "IST":
+        print('IST: write identity transform')
         dega.pre.write_identity_transform(path_landscape_files)
 
     # Check required files for preprocessing
@@ -191,11 +192,13 @@ def main(
             str(paths["meta_cell_image"]),
             image_scale=1,
         )
-    elif technology == "IST":
-        dega.pre.make_meta_cell_ist(str(data_dir), path_landscape_files)
+    # elif technology == "IST":
+    #     print('IST: find spot positions')
+    #     dega.pre.find_spot_positions(str(data_dir), path_landscape_files)
 
     # Calculate CBG
     if technology in ["Xenium", "IST"]:
+        print('IST: read CBG matrix')
         cbg = dega.pre.read_cbg_mtx(str(paths["cbg_matrix"]))
     elif technology == "MERSCOPE":
         cbg = pd.read_csv(str(paths["cbg_csv"]), index_col=0)
@@ -217,13 +220,13 @@ def main(
 
     if technology == "IST":
 
-        print("\n======== Image tiles ========")
+        print("\n======== IST: Image tiles ========")
         dega.pre.create_image_tiles_ist(str(data_dir), path_landscape_files)
 
         tile_bounds = dega.pre.get_ist_image_bounds(str(paths["image_file"]))
         bound_path = dega.pre.make_cell_boundaries_ist(str(data_dir), path_landscape_files)
 
-        print("\n======== Cell Boundary Tiles ========")
+        print("\n======== IST: Cell Boundary Tiles ========")
         dega.pre.make_cell_boundary_tiles(
             "custom",
             str(bound_path),

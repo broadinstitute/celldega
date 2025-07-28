@@ -74,7 +74,7 @@ def _determine_technology(data_dir):
     )
 
 
-def _setup_preprocessing_paths(technology, path_landscape_files, data_dir):
+def _setup_preprocessing_paths(technology, path_landscape_files, data_dir, sample=None):
     """
     Setup preprocessing file paths.
 
@@ -116,6 +116,7 @@ def _setup_preprocessing_paths(technology, path_landscape_files, data_dir):
         dataset, inst_slice = dega.pre._parse_ist_names(str(data_path))
         return {
             "transformation_matrix": landscape_path / "micron_to_image_transform.csv",
+            "meta_cell_micron": data_path / f"registered_images/globalpos_{sample}.csv",
             "meta_cell_image": landscape_path / "cell_metadata.parquet",
             "meta_gene": landscape_path / "meta_gene.parquet",
             "transcript_tiles": landscape_path / "transcript_tiles",
@@ -175,7 +176,9 @@ def main(
     technology = _determine_technology(data_dir)
 
     # Setup file paths
-    paths = _setup_preprocessing_paths(technology, path_landscape_files, data_dir)
+    paths = _setup_preprocessing_paths(technology, path_landscape_files, data_dir, sample)
+
+    print('paths:', paths)
     bound_path = None
 
     # Save transformation matrices if not already present
@@ -197,6 +200,7 @@ def main(
     # Check required files for preprocessing
     dega.pre._check_required_files(technology, str(data_dir))
 
+    print('here')
     if not Path(paths["meta_cell_image"]).exists():
         if technology in ["Xenium", "MERSCOPE"]:
             dega.pre.make_meta_cell_image_coord(
@@ -207,10 +211,16 @@ def main(
                 image_scale=1,
             )
         elif technology == "IST":
-            if not Path(paths["cell_boundaries"]).exists():
-                bound_path = dega.pre.make_cell_boundaries_ist(str(data_dir), path_landscape_files)
-            else:
-                bound_path = paths["cell_boundaries"]
+            # print('checking if cell boundaries exist!!!!!!!!!!!')
+            # if not Path(paths["cell_boundaries"]).exists():
+            #     bound_path = dega.pre.make_cell_boundaries_ist(str(data_dir), path_landscape_files)
+            # else:
+            #     bound_path = paths["cell_boundaries"]
+
+            print('making IST meta_cell_image_coord !!!!!!!!!!!')
+
+
+
             dega.pre.make_meta_cell_image_coord(
                 "custom",
                 str(transform_out),

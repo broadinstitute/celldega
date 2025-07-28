@@ -153,19 +153,22 @@ def save_cbg_gene_parquets(base_path, cbg, verbose=False, segmentation_approach=
     )
     cbg.index = cbg.index.map(cell_str_to_int_mapping)
 
+    # ensure the index name doesn't trigger warnings on parquet save
+    cbg.index.name = None
+
     for index, gene in enumerate(cbg.columns):
         if verbose and index % 100 == 0:
             print(f"Processing gene {index}: {gene}")
 
-        # Extract the column as a DataFrame. ``to_frame`` guarantees a
-        # single-column DataFrame without touching the underlying values
-        # which avoids shape mismatches when ``cbg`` has a sparse backing
-        # matrix.
-        inst_df = cbg[gene].to_frame()
+        # Extract the column as a DataFrame without changing the backing
+        # data. ``[[gene]]`` always returns a DataFrame even if duplicate
+        # column names exist.
+        inst_df = cbg[[gene]].copy()
 
         # Drop rows with zero counts since SparseArray does not support
         # in-place replacement. Filtering avoids densifying the data.
         inst_df = inst_df.loc[inst_df[gene] != 0]
+        inst_df.index.name = None
 
         if not inst_df.empty:
             if pd.api.types.is_sparse(inst_df[gene].dtype):

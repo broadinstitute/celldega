@@ -37,13 +37,32 @@ def _npm_version() -> str:
 def _serialize_state(widget) -> dict:
     """Return a JSON-serializable state dictionary for *widget*."""
 
-    state = {}
-    for name in widget.traits(sync=True):
-        val = getattr(widget, name)
+    state = widget._get_embed_state()["state"].copy()
+
+    ignored = {
+        "layout",
+        "style",
+        "tooltip",
+        "tabbable",
+        "_anywidget_id",
+        "_dom_classes",
+        "_view_count",
+        "_model_module",
+        "_model_module_version",
+        "_model_name",
+        "_view_module",
+        "_view_module_version",
+        "_view_name",
+    }
+
+    for name in list(state):
+        if name in ignored or name.startswith("_"):
+            state.pop(name, None)
+
+    for name, val in state.items():
         if isinstance(val, (bytes | bytearray)):
             state[name] = b64encode(val).decode("ascii")
-        else:
-            state[name] = val
+
     return state
 
 

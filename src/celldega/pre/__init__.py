@@ -710,7 +710,9 @@ def _load_meta_cell_by_technology(technology, path_meta_cell_micron):
         meta_cell["name"] = pd.Series(meta_cell.index, index=meta_cell.index).astype(
             "str"
         )
-        meta_cell.drop(["area", "centroid"], axis=1, inplace=True)
+        cols_to_drop = [c for c in ["area", "centroid"] if c in meta_cell.columns]
+        if cols_to_drop:
+            meta_cell.drop(columns=cols_to_drop, inplace=True)
     else:
         raise ValueError(f"Unsupported technology: {technology}")
 

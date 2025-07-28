@@ -114,9 +114,13 @@ def _setup_preprocessing_paths(technology, path_landscape_files, data_dir, sampl
         }
     if technology == "IST":
         dataset, inst_slice = dega.pre._parse_ist_names(str(data_path))
+
+        print('dataset:', dataset)
+        print('inst_slice:', inst_slice)
+
         return {
             "transformation_matrix": landscape_path / "micron_to_image_transform.csv",
-            "meta_cell_micron": data_path / f"registered_images/globalpos_{sample}.csv",
+            "meta_cell_micron": data_path / f"registered_images/globalpos_{dataset}.csv",
             "meta_cell_image": landscape_path / "cell_metadata.parquet",
             "meta_gene": landscape_path / "meta_gene.parquet",
             "transcript_tiles": landscape_path / "transcript_tiles",
@@ -176,7 +180,7 @@ def main(
     technology = _determine_technology(data_dir)
 
     # Setup file paths
-    paths = _setup_preprocessing_paths(technology, path_landscape_files, data_dir, sample)
+    paths = _setup_preprocessing_paths(technology, path_landscape_files, data_dir, sample=sample)
 
     print('paths:', paths)
     bound_path = None
@@ -222,11 +226,12 @@ def main(
 
 
             dega.pre.make_meta_cell_image_coord(
-                "custom",
+                technology,
                 str(transform_out),
-                str(bound_path),
+                str(paths.get("meta_cell_micron", "")),
                 str(paths["meta_cell_image"]),
                 image_scale=1,
+                sample=sample,
             )
     else:
         print(f"Skipping meta cell generation, found {paths['meta_cell_image']}")

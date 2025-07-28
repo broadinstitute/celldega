@@ -701,6 +701,30 @@ def _load_meta_cell_by_technology(technology, path_meta_cell_micron):
         meta_cell = pd.read_csv(path_meta_cell_micron, index_col=0, usecols=usecols)
         meta_cell.columns = ["center_x", "center_y"]
         meta_cell["name"] = pd.Series(meta_cell.index, index=meta_cell.index)
+
+    elif technology == "IST":
+        print('_load_meta_cell_by_technology:', path_meta_cell_micron)
+        print('(((((((((((((())))))))))))))')
+        gc = pd.read_csv(path_meta_cell_micron, index_col=0)
+
+        print('gc:', gc.head())
+
+        tmp = pd.DataFrame([x.split(':') for x in cells.index.tolist()])
+        tmp.set_index(0, inplace=True)
+        tmp.index.name = None
+        tmp.columns = ['x', 'y']
+        tmp = tmp.astype(float)
+        tmp['x'] = (tmp['x'] - gc.loc[inst_slice + '_E14_62', 'X_shift']) * high_res_scale
+        tmp['y'] = (tmp['y'] - gc.loc[inst_slice + '_E14_62', 'Y_shift']) * high_res_scale
+
+        tmp["geometry"] = tmp.apply(
+                # swapped for some reason
+                lambda row: [row["y"], row["x"]] , axis=1
+            )
+
+        tmp['name'] = pd.Series(tmp.index.tolist(), index=tmp.index.tolist())
+
+        tmp[['name', 'geometry']].to_parquet('data/michal_landscape_files/E14_' + inst_slice + '/cell_metadata.parquet')
     elif technology == "custom":
         import geopandas as gpd
 
@@ -725,6 +749,7 @@ def make_meta_cell_image_coord(
     path_meta_cell_micron,
     path_meta_cell_image,
     image_scale=1,
+    sample=None
 ):
     """Applies an affine transformation to cell coordinates in microns and saves the transformed coordinates in pixels.
 

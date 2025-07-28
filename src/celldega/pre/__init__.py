@@ -677,7 +677,7 @@ def make_deepzoom_pyramid(
     image.dzsave(str(output_path), tile_size=tile_size, overlap=overlap, suffix=suffix)
 
 
-def _load_meta_cell_by_technology(technology, path_meta_cell_micron):
+def _load_meta_cell_by_technology(technology, path_meta_cell_micron, dataset=None, inst_slice=None, paths=None, high_res_scale=1):
     """
     Load meta cell data based on technology.
 
@@ -709,13 +709,29 @@ def _load_meta_cell_by_technology(technology, path_meta_cell_micron):
 
         print('gc:', gc.head())
 
+        print('****************************')
+        print(paths['cbg_matrix'])
+        # print(paths['cbg_matrix'] + '/barcodes.tsv.gz')
+
+        print('load this path ', paths['cbg_matrix'] / 'barcodes.tsv.gz')
+
+        cells = pd.read_csv(
+            # use paths['cbg_matrix'] to read barcodes.tsv.gz
+            paths['cbg_matrix'] / 'barcodes.tsv.gz',
+            sep='\t',
+            header=None,
+            index_col=0
+        )
+
+        print('cells:', cells.head())
+
         tmp = pd.DataFrame([x.split(':') for x in cells.index.tolist()])
         tmp.set_index(0, inplace=True)
         tmp.index.name = None
         tmp.columns = ['x', 'y']
         tmp = tmp.astype(float)
-        tmp['x'] = (tmp['x'] - gc.loc[inst_slice + '_E14_62', 'X_shift']) * high_res_scale
-        tmp['y'] = (tmp['y'] - gc.loc[inst_slice + '_E14_62', 'Y_shift']) * high_res_scale
+        tmp['x'] = (tmp['x'] - gc.loc[inst_slice + '_' + dataset, 'X_shift']) * high_res_scale
+        tmp['y'] = (tmp['y'] - gc.loc[inst_slice + '_' + dataset, 'Y_shift']) * high_res_scale
 
         tmp["geometry"] = tmp.apply(
                 # swapped for some reason
@@ -749,7 +765,8 @@ def make_meta_cell_image_coord(
     path_meta_cell_micron,
     path_meta_cell_image,
     image_scale=1,
-    sample=None
+    sample=None,
+    paths=None,
 ):
     """Applies an affine transformation to cell coordinates in microns and saves the transformed coordinates in pixels.
 
@@ -792,7 +809,10 @@ def make_meta_cell_image_coord(
     ).values
     sparse_matrix = csr_matrix(transformation_matrix)
 
-    meta_cell = _load_meta_cell_by_technology(technology, path_meta_cell_micron)
+    print('checking paths before _load_meta_cell_by_technology')
+    print(paths)
+
+    meta_cell = _load_meta_cell_by_technology(technology, path_meta_cell_micron, paths=paths)
 
     # Adding a ones column to accommodate for affine transformation
     meta_cell["ones"] = 1

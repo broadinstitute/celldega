@@ -223,7 +223,8 @@ def main(
 
             print('making IST meta_cell_image_coord !!!!!!!!!!!')
 
-
+            print('checking paths before make_meta_cell_image_coord')
+            print(paths)
 
             dega.pre.make_meta_cell_image_coord(
                 technology,
@@ -232,6 +233,7 @@ def main(
                 str(paths["meta_cell_image"]),
                 image_scale=1,
                 sample=sample,
+                paths=paths,
             )
     else:
         print(f"Skipping meta cell generation, found {paths['meta_cell_image']}")

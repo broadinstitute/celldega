@@ -163,9 +163,9 @@ def save_cbg_gene_parquets(base_path, cbg, verbose=False, segmentation_approach=
         # matrix.
         inst_df = cbg[gene].to_frame()
 
-        # Replace 0 with NA and drop rows where all values are NA
-        inst_df.replace(0, pd.NA, inplace=True)
-        inst_df.dropna(how="all", inplace=True)
+        # Drop rows with zero counts since SparseArray does not support
+        # in-place replacement. Filtering avoids densifying the data.
+        inst_df = inst_df.loc[inst_df[gene] != 0]
 
         # Save to Parquet if DataFrame is not empty
         if not inst_df.empty:

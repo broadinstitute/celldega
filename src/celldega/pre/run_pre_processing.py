@@ -113,7 +113,7 @@ def main(
     data_root_dir,
     tile_size,
     path_landscape_files,
-    image_tile_layer='all',
+    image_tile_layer="all",
     use_int_index=True,
     max_workers=1,
 ):

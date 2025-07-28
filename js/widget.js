@@ -124,13 +124,8 @@ const render_landscape_h_e = async ({ model, el }) => {
   );
 };
 
-const fetchTechnology = async (base_url) => {
+const fetchTechnology = async (base_url, model) => {
   const path_parameters_json = `${base_url || ''}/landscape_parameters.json`;
-
-  console.warn(
-    "'technology' will be removed from the Python API in a future release. " +
-      'Please update your code to rely on landscape_parameters.json instead.'
-  );
 
   try {
     const response = await fetch(path_parameters_json);
@@ -138,10 +133,18 @@ const fetchTechnology = async (base_url) => {
     const landscape_parameters = await response.json();
     return landscape_parameters.technology || 'Xenium';
   } catch (err) {
-    console.error(err);
-    throw new Error(
-      `Could not read technology from ${path_parameters_json}. Using default 'Xenium'`
-    );
+    const msg = `Could not read technology from ${path_parameters_json}. Using default 'Xenium'`;
+
+    console.warn(msg, err);
+
+    // Send warning to backend
+    model.send({
+      event: 'technology_fetch_warning',
+      message: msg,
+      error: err.message,
+    });
+
+    return 'Xenium';
   }
 };
 
@@ -156,7 +159,7 @@ const render_landscape = async ({ model, el }) => {
 
   if (!technology) {
     const base_url = model.get('base_url');
-    technology = await fetchTechnology(base_url);
+    technology = await fetchTechnology(base_url, model);
     model.set('technology', technology);
   }
 

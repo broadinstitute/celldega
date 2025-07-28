@@ -207,6 +207,14 @@ class Landscape(anywidget.AnyWidget):
 
         super().__init__(**kwargs)
 
+        def _handle_frontend_msg(_, content, buffers):
+            if content.get("event") == "technology_fetch_warning":
+                msg = content.get("message", "Technology fetch warning from frontend.")
+                err = content.get("error", "")
+                warnings.warn(f"{msg} Frontend error: {err}", stacklevel=2)
+
+        self.on_msg(_handle_frontend_msg)
+
         # store DataFrames locally without syncing to the frontend
         self.meta_cell = meta_cell_df
         self.meta_nbhd = meta_nbhd_df

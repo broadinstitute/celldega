@@ -154,7 +154,7 @@ def save_cbg_gene_parquets(base_path, cbg, verbose=False, segmentation_approach=
     cbg.index = cbg.index.map(cell_str_to_int_mapping)
 
     for index, gene in enumerate(cbg.columns):
-        if verbose and index % 100 == 0:
+        if verbose and index % 1000 == 0:
             print(f"Processing gene {index}: {gene}")
 
         # Extract the column as a DataFrame as a copy

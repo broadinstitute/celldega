@@ -114,7 +114,8 @@ def _setup_preprocessing_paths(technology, path_landscape_files, data_dir):
             "transcript_tiles": landscape_path / "transcript_tiles",
             "cell_boundaries": landscape_path / "cell_boundaries.parquet",
             "cell_segmentation": landscape_path / "cell_segmentation",
-            "cbg_matrix": data_path / "matrix_files" / f"{inst_slice}_{dataset}" / f"{inst_slice}_{dataset}_raw",
+            "cbg_matrix": data_path / "matrix_files" / f"{inst_slice}_{dataset}" / f"{inst_slice}_{dataset}_cell_binned",
+            "sbg_matrix": data_path / "matrix_files" / f"{inst_slice}_{dataset}" / f"{inst_slice}_{dataset}_raw",
             "image_file": data_path / "registered_images" / f"{inst_slice}_{dataset}.ome.tiff",
         }
     raise ValueError(

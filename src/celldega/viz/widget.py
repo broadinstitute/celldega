@@ -270,12 +270,13 @@ class Landscape(anywidget.AnyWidget):
         super().close()
 
     def embed(self, fp: str | Path | None = None, **kwargs):
-        """Create an embeddable HTML snippet of the widget.
+        """Return a self-contained HTML snippet of the widget.
 
-        This is useful for environments like Kaggle or Colab that have
-        limited support for Jupyter widgets. If ``fp`` is provided, the
-        HTML snippet is written to that file. Otherwise an
-        :class:`IPython.display.HTML` object is returned.
+        The returned HTML includes the widget's JavaScript so it remains
+        fully interactive in environments without traitlet syncing (e.g.
+        Kaggle or Colab). If ``fp`` is provided, the snippet is written to
+        that file. Otherwise an :class:`IPython.display.HTML` object is
+        returned that can be displayed directly in a notebook.
 
         Parameters
         ----------
@@ -370,10 +371,12 @@ class Enrich(anywidget.AnyWidget):
         super().close()
 
     def embed(self, fp: str | Path | None = None, **kwargs):
-        """Create an embeddable HTML snippet of the widget.
+        """Return an interactive HTML snippet of the widget.
 
-        Works the same as :meth:`Landscape.embed` and can be used to
-        save or display the widget outside Jupyter environments.
+        This behaves like :meth:`Landscape.embed` and is primarily for
+        notebook environments that lack full widget support. The snippet
+        contains the widget's JavaScript, so the visualization remains
+        interactive but is no longer linked to Python once rendered.
         """
 
         from IPython.display import HTML
@@ -472,7 +475,12 @@ class Clustergram(anywidget.AnyWidget):
         super().close()
 
     def embed(self, fp: str | Path | None = None, **kwargs):
-        """Create an embeddable HTML snippet of the widget."""
+        """Return an interactive HTML snippet of the widget.
+
+        The output includes the widget's JavaScript assets, allowing the
+        visualization to function without a live Python kernel. It is
+        otherwise identical to :meth:`Landscape.embed`.
+        """
 
         from IPython.display import HTML
         from ipywidgets import embed

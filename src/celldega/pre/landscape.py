@@ -167,8 +167,10 @@ def save_cbg_gene_parquets(base_path, cbg, verbose=False, segmentation_approach=
         # in-place replacement. Filtering avoids densifying the data.
         inst_df = inst_df.loc[inst_df[gene] != 0]
 
-        # Save to Parquet if DataFrame is not empty
         if not inst_df.empty:
+            if pd.api.types.is_sparse(inst_df[gene].dtype):
+                inst_df[gene] = inst_df[gene].sparse.to_dense()
+
             output_path = output_dir / f"{gene}.parquet"
             inst_df.to_parquet(output_path)
 

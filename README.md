@@ -57,6 +57,24 @@ cgm = dega.viz.Clustergram(matrix=mat)
 dega.viz.landscape_clustergram(landscape_ist, cgm)
 ```
 
+### Embedding Visualizations
+
+Use the :py:meth:`embed` method on any Celldega widget to generate a
+standalone HTML snippet that loads the Celldega JavaScript library from a
+CDN. The snippet stays interactive but no longer syncs with Python,
+making it handy on platforms like Kaggle or Colab that have limited
+widget support.
+
+```python
+landscape = dega.viz.Landscape(base_url=base_url)
+
+# Display in the notebook
+display(landscape.embed())
+
+# Or write to a file
+landscape.embed("landscape.html")
+```
+
 ![Celldega Demo](public/assets/celldega-demo.png)
 
 ## 📖 Documentation & Examples

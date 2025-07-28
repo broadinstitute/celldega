@@ -2,12 +2,15 @@
 Widget module for interactive visualization components.
 """
 
+from base64 import b64encode
 import colorsys
 from contextlib import suppress
 from copy import deepcopy
 import json
 from pathlib import Path
+import re
 import urllib.error
+import uuid
 import warnings
 
 import anywidget
@@ -22,6 +25,64 @@ import traitlets
 
 _clustergram_registry = {}  # maps names to widget instances
 _enrich_registry = {}  # maps names to widget instances
+
+
+def _npm_version() -> str:
+    """Return the NPM package version matching the Python version."""
+    from celldega import __version__
+
+    return re.sub(r"a(\d+)$", r"-alpha.\1", __version__)
+
+
+def _serialize_state(widget) -> dict:
+    """Return a JSON-serializable state dictionary for *widget*."""
+
+    state = {}
+    for name in widget.traits(sync=True):
+        val = getattr(widget, name)
+        if isinstance(val, (bytes | bytearray)):
+            state[name] = b64encode(val).decode("ascii")
+        else:
+            state[name] = val
+    return state
+
+
+def _embed_html(widget, fp: str | Path | None = None):
+    """Create an embeddable HTML snippet for ``widget``."""
+
+    from IPython.display import HTML
+
+    state = _serialize_state(widget)
+    npm_version = _npm_version()
+    js_url = (
+        f"https://cdn.jsdelivr.net/npm/celldega@{npm_version}/src/celldega/static/widget.js"
+    )
+    div_id = f"celldega-{uuid.uuid4().hex}"
+    width = state.get("width", 0)
+    height = state.get("height", 800)
+    width_css = f"{width}px" if isinstance(width, (int | float)) and width else "100%"
+    height_css = (
+        f"{height}px" if isinstance(height, (int | float)) and height else "800px"
+    )
+
+    html = f"""
+<div id='{div_id}' style='width: {width_css}; height: {height_css};'></div>
+<script type='module'>
+import celldega from '{js_url}';
+const state = {json.dumps(state)};
+const model = {{
+  get: (name) => state[name],
+  on: () => {{}}
+}};
+celldega.render({{ model, el: document.getElementById('{div_id}') }});
+</script>
+"""
+
+    if fp is not None:
+        Path(fp).write_text(html, encoding="utf-8")
+        return Path(fp)
+
+    return HTML(html)
 
 
 def _hsv_to_hex(h: float) -> str:
@@ -269,6 +330,11 @@ class Landscape(anywidget.AnyWidget):
             self.send({"event": "finalize"})
         super().close()
 
+    def embed(self, fp: str | Path | None = None, **_kwargs):
+        """Return an embeddable HTML snippet of the widget."""
+
+        return _embed_html(self, fp)
+
 
 class Enrich(anywidget.AnyWidget):
     """
@@ -340,6 +406,11 @@ class Enrich(anywidget.AnyWidget):
         with suppress(Exception):
             self.send({"event": "finalize"})
         super().close()
+
+    def embed(self, fp: str | Path | None = None, **_kwargs):
+        """Return an embeddable HTML snippet of the widget."""
+
+        return _embed_html(self, fp)
 
 
 class Clustergram(anywidget.AnyWidget):
@@ -425,3 +496,8 @@ class Clustergram(anywidget.AnyWidget):
         with suppress(Exception):
             self.send({"event": "finalize"})
         super().close()
+
+    def embed(self, fp: str | Path | None = None, **_kwargs):
+        """Return an embeddable HTML snippet of the widget."""
+
+        return _embed_html(self, fp)

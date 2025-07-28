@@ -7,6 +7,8 @@ from pathlib import Path
 import shutil
 
 import pandas as pd
+from collections import defaultdict
+
 
 import celldega as dega
 
@@ -166,6 +168,7 @@ def main(
 
     # Setup file paths
     paths = _setup_preprocessing_paths(technology, path_landscape_files, data_dir)
+    bound_path = None
 
     # Save transformation matrices
 
@@ -178,7 +181,7 @@ def main(
         shutil.copy(source_path, Path(path_landscape_files) / "micron_to_image_transform.csv")
 
     elif technology == "IST":
-        print('IST: write identity transform')
+        print("IST: write identity transform")
         dega.pre.write_identity_transform(path_landscape_files)
 
     # Check required files for preprocessing
@@ -192,6 +195,15 @@ def main(
             str(paths["meta_cell_image"]),
             image_scale=1,
         )
+    elif technology == "IST":
+        bound_path = dega.pre.make_cell_boundaries_ist(str(data_dir), path_landscape_files)
+        dega.pre.make_meta_cell_image_coord(
+            "custom",
+            str(paths["transformation_matrix"]),
+            str(bound_path),
+            str(paths["meta_cell_image"]),
+            image_scale=1,
+        )
     # elif technology == "IST":
     #     print('IST: find spot positions')
     #     dega.pre.find_spot_positions(str(data_dir), path_landscape_files)
@@ -202,6 +214,39 @@ def main(
         cbg = dega.pre.read_cbg_mtx(str(paths["cbg_matrix"]))
     elif technology == "MERSCOPE":
         cbg = pd.read_csv(str(paths["cbg_csv"]), index_col=0)
+
+
+    def make_column_names_unique_fast(df):
+        counts = defaultdict(int)
+        used = set()
+        new_cols = []
+
+        for col in df.columns:
+            if col not in used:
+                new_cols.append(col)
+                used.add(col)
+                counts[col] += 1
+            else:
+                while True:
+                    new_name = f"{col}_{counts[col]}"
+                    counts[col] += 1
+                    if new_name not in used:
+                        new_cols.append(new_name)
+                        used.add(new_name)
+                        break
+
+        df.columns = new_cols
+        return df
+
+    if(cbg.columns.duplicated().any()):
+        print("Duplicate columns found in CBG matrix. Making column names unique.")
+        cbg = make_column_names_unique_fast(cbg)
+
+
+    print('cbg shape:', cbg.shape)
+    # check if cbg has repeated columns
+    print(cbg.columns.duplicated().any())
+    print(len(set(cbg.columns.tolist())))
 
     if technology == "Xenium":
         dega.pre.cluster_gene_expression(technology, path_landscape_files, cbg, str(data_dir))
@@ -224,7 +269,8 @@ def main(
         dega.pre.create_image_tiles_ist(str(data_dir), path_landscape_files)
 
         tile_bounds = dega.pre.get_ist_image_bounds(str(paths["image_file"]))
-        bound_path = dega.pre.make_cell_boundaries_ist(str(data_dir), path_landscape_files)
+        if bound_path is None:
+            bound_path = dega.pre.make_cell_boundaries_ist(str(data_dir), path_landscape_files)
 
         print("\n======== IST: Cell Boundary Tiles ========")
         dega.pre.make_cell_boundary_tiles(

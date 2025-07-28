@@ -49,14 +49,20 @@ def _load_xenium_cluster_data(data_dir, meta_cell):
     """
     # Load the default clustering data
     default_clustering = pd.read_csv(
-        Path(data_dir) / "analysis" / "clustering" / "gene_expression_graphclust" / "clusters.csv",
+        Path(data_dir)
+        / "analysis"
+        / "clustering"
+        / "gene_expression_graphclust"
+        / "clusters.csv",
         index_col=0,
     )
     default_clustering.columns = default_clustering.columns.str.lower()
 
     # Prepare the clustering data
     default_clustering_ini = default_clustering.copy()
-    default_clustering_ini["cluster"] = default_clustering_ini["cluster"].astype("string")
+    default_clustering_ini["cluster"] = default_clustering_ini["cluster"].astype(
+        "string"
+    )
 
     # Align the clustering data with the cell metadata
     default_clustering = pd.DataFrame(index=meta_cell["name"].tolist())
@@ -86,7 +92,11 @@ def _create_cluster_colors(clusters):
     flat_colors_hex = [to_hex(color) for color in flat_colors]
 
     return [
-        (flat_colors_hex[i % len(flat_colors_hex)] if "Blank" not in cluster else "#FFFFFF")
+        (
+            flat_colors_hex[i % len(flat_colors_hex)]
+            if "Blank" not in cluster
+            else "#FFFFFF"
+        )
         for i, cluster in enumerate(clusters)
     ]
 
@@ -117,7 +127,11 @@ def _save_cluster_data(cell_clusters_dir, default_clustering, clusters, ser_coun
 
 
 def cluster_gene_expression(
-    technology, path_landscape_files, cbg, data_dir=None, segmentation_approach="default"
+    technology,
+    path_landscape_files,
+    cbg,
+    data_dir=None,
+    segmentation_approach="default",
 ):
     """
     Calculates cluster-specific gene expression signatures for Xenium data.
@@ -183,7 +197,9 @@ def cluster_gene_expression(
         list_ser = []
         for inst_cat in df_cluster["cluster"].unique():
             if inst_cat is not None:
-                inst_cells = df_cluster[df_cluster["cluster"] == inst_cat].index.tolist()
+                inst_cells = df_cluster[
+                    df_cluster["cluster"] == inst_cat
+                ].index.tolist()
 
                 if set(inst_cells) & set(cbg.index):
                     common_cells = list(set(inst_cells) & set(cbg.index))
@@ -217,7 +233,9 @@ def cluster_gene_expression(
     df_sig = df_sig.loc[sorted(df_sig.index), sorted(df_sig.columns)]
 
     # Save the gene expression signatures
-    segmentation_suffix = f"_{segmentation_approach}" if segmentation_approach != "default" else ""
+    segmentation_suffix = (
+        f"_{segmentation_approach}" if segmentation_approach != "default" else ""
+    )
     output_path = Path(path_landscape_files) / f"df_sig{segmentation_suffix}.parquet"
 
     if any(isinstance(dtype, pd.SparseDtype) for dtype in df_sig.dtypes):
@@ -283,8 +301,12 @@ def create_cluster_and_meta_cluster(
         )
 
     # Check if the cell metadata file exists
-    segmentation_suffix = f"_{segmentation_approach}" if segmentation_approach != "default" else ""
-    cell_metadata_path = Path(path_landscape_files) / f"cell_metadata{segmentation_suffix}.parquet"
+    segmentation_suffix = (
+        f"_{segmentation_approach}" if segmentation_approach != "default" else ""
+    )
+    cell_metadata_path = (
+        Path(path_landscape_files) / f"cell_metadata{segmentation_suffix}.parquet"
+    )
 
     if not cell_metadata_path.exists():
         raise FileNotFoundError(
@@ -292,14 +314,18 @@ def create_cluster_and_meta_cluster(
         )
 
     # Create the cell_clusters directory if it doesn't exist
-    cell_clusters_dir = Path(path_landscape_files) / f"cell_clusters{segmentation_suffix}"
+    cell_clusters_dir = (
+        Path(path_landscape_files) / f"cell_clusters{segmentation_suffix}"
+    )
     cell_clusters_dir.mkdir(exist_ok=True)
 
     # Load the cell metadata
     meta_cell = pd.read_parquet(cell_metadata_path)
 
     if technology == "Xenium":
-        default_clustering, clusters, ser_counts = _load_xenium_cluster_data(data_dir, meta_cell)
+        default_clustering, clusters, ser_counts = _load_xenium_cluster_data(
+            data_dir, meta_cell
+        )
         _save_cluster_data(cell_clusters_dir, default_clustering, clusters, ser_counts)
 
     elif technology == "custom":
@@ -338,18 +364,24 @@ def _process_image_channel(path_landscape_files, channel_info, img):
 
     print(f"generating {channel_name} image tiles ...")
 
-    pyramid_path = Path(path_landscape_files) / "pyramid_images" / f"{channel_name}_files"
+    pyramid_path = (
+        Path(path_landscape_files) / "pyramid_images" / f"{channel_name}_files"
+    )
     if pyramid_path.exists():
         return
 
     # Extract and process the channel
-    scale = 1 if channel_name.lower() == "dapi" else 2  # Adjust intensity for better visualization
+    scale = (
+        1 if channel_name.lower() == "dapi" else 2
+    )  # Adjust intensity for better visualization
     if img.ndim == 3:
         image_data = img[..., channel_index] * scale
     elif img.ndim == 2:
         image_data = img * scale
     else:
-        raise ValueError(f"Unsupported image dimensions: {img.ndim}. Expected 2D or 3D image.")
+        raise ValueError(
+            f"Unsupported image dimensions: {img.ndim}. Expected 2D or 3D image."
+        )
 
     output_path = Path(path_landscape_files) / f"{channel_name}_output_regular.tif"
     imsave(output_path, image_data)
@@ -366,7 +398,9 @@ def _process_image_channel(path_landscape_files, channel_info, img):
     )
 
 
-def create_image_tiles(technology, data_dir, path_landscape_files, image_tile_layer="dapi"):
+def create_image_tiles(
+    technology, data_dir, path_landscape_files, image_tile_layer="dapi"
+):
     """
     Creates image tiles for visualization from the Xenium morphology image.
 
@@ -384,7 +418,9 @@ def create_image_tiles(technology, data_dir, path_landscape_files, image_tile_la
     print("\n========Generating image tiles========")
     if technology == "Xenium":
         print("------ xenium")
-        create_image_tiles_xenium(data_dir, path_landscape_files, image_tile_layer=image_tile_layer)
+        create_image_tiles_xenium(
+            data_dir, path_landscape_files, image_tile_layer=image_tile_layer
+        )
     elif technology == "MERSCOPE":
         print("------ merscope")
         create_image_tiles_merscope(
@@ -418,7 +454,9 @@ def create_image_tiles_h_and_e(data_dir, path_landscape_files, image_tile_layer)
         landscape_path = Path(path_landscape_files)
         landscape_path.mkdir(exist_ok=True)
 
-        temp_tiff_path = landscape_path / image_tile_layer.replace(".scn", "_output_regular.tif")
+        temp_tiff_path = landscape_path / image_tile_layer.replace(
+            ".scn", "_output_regular.tif"
+        )
         tifffile.imwrite(temp_tiff_path, image)
 
         # Convert the image to PNG format
@@ -460,7 +498,9 @@ def create_image_tiles_xenium(data_dir, path_landscape_files, image_tile_layer="
         FileNotFoundError: If the required input image file is not found.
     """
     if image_tile_layer not in ["dapi", "all"]:
-        raise ValueError(f"Invalid image_tile_layer: {image_tile_layer}. Must be 'dapi' or 'all'.")
+        raise ValueError(
+            f"Invalid image_tile_layer: {image_tile_layer}. Must be 'dapi' or 'all'."
+        )
 
     # Define the path to the morphology image
     file_path = Path(data_dir) / "morphology_focus" / "morphology_focus_0000.ome.tif"
@@ -481,12 +521,16 @@ def create_image_tiles_xenium(data_dir, path_landscape_files, image_tile_layer="
     # Process additional channels if image_tile_layer is 'all'
     if image_tile_layer == "all":
         for idx, channel in enumerate(["bound", "rna", "prot"]):
-            _process_image_channel(path_landscape_files, {"name": channel, "index": idx + 1}, img)
+            _process_image_channel(
+                path_landscape_files, {"name": channel, "index": idx + 1}, img
+            )
 
     remove_intermediate_files(path_landscape_files)
 
 
-def create_image_tiles_merscope(data_dir, path_landscape_files, image_tile_layer="dapi"):
+def create_image_tiles_merscope(
+    data_dir, path_landscape_files, image_tile_layer="dapi"
+):
     """
     Creates image tiles for visualization from the Xenium morphology image.
 
@@ -498,7 +542,9 @@ def create_image_tiles_merscope(data_dir, path_landscape_files, image_tile_layer
         FileNotFoundError: If the required input image file is not found.
     """
     if image_tile_layer not in ["dapi", "all"]:
-        raise ValueError(f"Invalid image_tile_layer: {image_tile_layer}. Must be 'dapi' or 'all'.")
+        raise ValueError(
+            f"Invalid image_tile_layer: {image_tile_layer}. Must be 'dapi' or 'all'."
+        )
 
     # Define the path to the DAPI image
     dapi_file_path = Path(data_dir) / "images" / "mosaic_DAPI_z3.tif"
@@ -530,7 +576,9 @@ def create_image_tiles_merscope(data_dir, path_landscape_files, image_tile_layer
         img_bound = imread(bounda_file_path)
 
         # Process the boundary channel
-        _process_image_channel(path_landscape_files, {"name": "bound", "index": 0}, img_bound)
+        _process_image_channel(
+            path_landscape_files, {"name": "bound", "index": 0}, img_bound
+        )
 
     remove_intermediate_files(path_landscape_files)
 
@@ -641,7 +689,9 @@ def _load_meta_cell_by_technology(technology, path_meta_cell_micron):
     - Meta cell dataframe
     """
     if technology == "MERSCOPE":
-        meta_cell = pd.read_csv(path_meta_cell_micron, usecols=["EntityID", "center_x", "center_y"])
+        meta_cell = pd.read_csv(
+            path_meta_cell_micron, usecols=["EntityID", "center_x", "center_y"]
+        )
         # meta_cell = _convert_long_id_to_short(meta_cell)
         meta_cell["cell_id"] = meta_cell["EntityID"]
         meta_cell["name"] = meta_cell["cell_id"]
@@ -657,8 +707,12 @@ def _load_meta_cell_by_technology(technology, path_meta_cell_micron):
         meta_cell = gpd.read_parquet(path_meta_cell_micron)
         meta_cell["center_x"] = meta_cell.centroid.x
         meta_cell["center_y"] = meta_cell.centroid.y
-        meta_cell["name"] = pd.Series(meta_cell.index, index=meta_cell.index).astype("str")
-        meta_cell.drop(["area", "centroid"], axis=1, inplace=True)
+        meta_cell["name"] = pd.Series(meta_cell.index, index=meta_cell.index).astype(
+            "str"
+        )
+        cols_to_drop = [c for c in ["area", "centroid"] if c in meta_cell.columns]
+        if cols_to_drop:
+            meta_cell.drop(columns=cols_to_drop, inplace=True)
     else:
         raise ValueError(f"Unsupported technology: {technology}")
 
@@ -708,7 +762,9 @@ def make_meta_cell_image_coord(
         None
     """
     print("\n========Make meta cells in pixel space========")
-    transformation_matrix = pd.read_csv(path_transformation_matrix, header=None, sep=" ").values
+    transformation_matrix = pd.read_csv(
+        path_transformation_matrix, header=None, sep=" "
+    ).values
     sparse_matrix = csr_matrix(transformation_matrix)
 
     meta_cell = _load_meta_cell_by_technology(technology, path_meta_cell_micron)
@@ -727,7 +783,9 @@ def make_meta_cell_image_coord(
     meta_cell["center_x"] = meta_cell["center_x"] / image_scale
     meta_cell["center_y"] = meta_cell["center_y"] / image_scale
 
-    meta_cell["geometry"] = meta_cell.apply(lambda row: [row["center_x"], row["center_y"]], axis=1)
+    meta_cell["geometry"] = meta_cell.apply(
+        lambda row: [row["center_x"], row["center_y"]], axis=1
+    )
 
     if technology == "MERSCOPE":
         meta_cell = meta_cell[["name", "geometry", "EntityID"]]
@@ -736,7 +794,9 @@ def make_meta_cell_image_coord(
 
     # Check if the 'name' column is unique
     if not meta_cell["name"].is_unique:
-        warnings.warn("Duplicate cell names found in meta_cell!", UserWarning, stacklevel=2)
+        warnings.warn(
+            "Duplicate cell names found in meta_cell!", UserWarning, stacklevel=2
+        )
 
     # Apply rounding to the GEOMETRY column
     meta_cell["geometry"] = meta_cell["geometry"].apply(_round_nested_coord_list)
@@ -773,7 +833,9 @@ def make_meta_gene(cbg, path_output):
     meta_gene = calc_meta_gene_data(cbg)
     meta_gene["color"] = ser_color
 
-    sparse_cols = [col for col in meta_gene.columns if pd.api.types.is_sparse(meta_gene[col])]
+    sparse_cols = [
+        col for col in meta_gene.columns if pd.api.types.is_sparse(meta_gene[col])
+    ]
     for col in sparse_cols:
         meta_gene[col] = meta_gene[col].sparse.to_dense()
 
@@ -794,7 +856,9 @@ def get_max_zoom_level(path_image_pyramid):
     """
     path_pyramid = Path(path_image_pyramid)
     zoom_levels = [
-        entry.name for entry in path_pyramid.iterdir() if entry.is_dir() and entry.name.isdigit()
+        entry.name
+        for entry in path_pyramid.iterdir()
+        if entry.is_dir() and entry.name.isdigit()
     ]
     return max(map(int, zoom_levels)) if zoom_levels else None
 
@@ -881,10 +945,14 @@ def add_custom_segmentation(
     - image_scale: Image scale factor
     - tile_size: Tile size for processing
     """
-    with (Path(path_segmentation_files) / "segmentation_parameters.json").open() as file:
+    with (
+        Path(path_segmentation_files) / "segmentation_parameters.json"
+    ).open() as file:
         segmentation_parameters = json.load(file)
 
-    cbg_custom = pd.read_parquet(Path(path_segmentation_files) / "cell_by_gene_matrix.parquet")
+    cbg_custom = pd.read_parquet(
+        Path(path_segmentation_files) / "cell_by_gene_matrix.parquet"
+    )
 
     # make sure all genes are present in cbg_custom
     meta_gene = pd.read_parquet(Path(path_landscape_files) / "meta_gene.parquet")
@@ -941,7 +1009,9 @@ def add_custom_segmentation(
 
     make_cell_boundary_tiles(
         technology=segmentation_parameters["technology"],
-        path_cell_boundaries=str(Path(path_segmentation_files) / "cell_polygons.parquet"),
+        path_cell_boundaries=str(
+            Path(path_segmentation_files) / "cell_polygons.parquet"
+        ),
         path_output=str(
             Path(path_landscape_files)
             / f"cell_segmentation_{segmentation_parameters['segmentation_approach']}"
@@ -1006,10 +1076,15 @@ def _to_geometry(coord_data):
         isinstance(poly, dict) and "exterior" in poly for poly in coord_data
     ):
         return MultiPolygon(
-            [Polygon(poly["exterior"], poly.get("interiors", [])) for poly in coord_data]
+            [
+                Polygon(poly["exterior"], poly.get("interiors", []))
+                for poly in coord_data
+            ]
         )
 
-    raise TypeError(f"Cannot convert {coord_data} to a Shapely geometry. Unexpected structure.")
+    raise TypeError(
+        f"Cannot convert {coord_data} to a Shapely geometry. Unexpected structure."
+    )
 
 
 def _to_coords(geom):
@@ -1036,7 +1111,8 @@ def _to_coords(geom):
         return {
             "exterior": [list(coord) for coord in geom.exterior.coords],
             "interiors": [
-                [list(coord) for coord in interior.coords] for interior in geom.interiors
+                [list(coord) for coord in interior.coords]
+                for interior in geom.interiors
             ],
         }
     if isinstance(geom, MultiPolygon):
@@ -1044,7 +1120,8 @@ def _to_coords(geom):
             {
                 "exterior": [list(coord) for coord in polygon.exterior.coords],
                 "interiors": [
-                    [list(coord) for coord in interior.coords] for interior in polygon.interiors
+                    [list(coord) for coord in interior.coords]
+                    for interior in polygon.interiors
                 ],
             }
             for polygon in geom.geoms
@@ -1084,7 +1161,9 @@ def write_xenium_transform(
     # Function to open a Zarr file
     def open_zarr(path: str) -> zarr.Group:
         store = (
-            zarr.ZipStore(path, mode="r") if path.endswith(".zip") else zarr.DirectoryStore(path)
+            zarr.ZipStore(path, mode="r")
+            if path.endswith(".zip")
+            else zarr.DirectoryStore(path)
         )
         return zarr.group(store=store)
 
@@ -1103,7 +1182,9 @@ def write_xenium_transform(
 
         print(f"Transformation matrix saved to '{output_path}'.")
     except KeyError as e:
-        raise KeyError(f"Could not find the transformation matrix in the Zarr file: {e}") from e
+        raise KeyError(
+            f"Could not find the transformation matrix in the Zarr file: {e}"
+        ) from e
     except Exception as e:
         raise Exception(f"An error occurred while processing the Zarr file: {e}") from e
 
@@ -1248,10 +1329,14 @@ def _parse_ist_names(data_dir: str) -> tuple[str, str]:
     return dataset, slice_name
 
 
-def find_spot_positions(data_dir: str, path_landscape_files: str, image_scale: float = 1.0) -> None:
+def find_spot_positions(
+    data_dir: str, path_landscape_files: str, image_scale: float = 1.0
+) -> None:
     """Generate IST cell centroids in pixel coordinates."""
     dataset, inst_slice = _parse_ist_names(data_dir)
-    gc = pd.read_csv(Path(data_dir) / "registered_images" / f"globalpos_{dataset}.csv", index_col=0)
+    gc = pd.read_csv(
+        Path(data_dir) / "registered_images" / f"globalpos_{dataset}.csv", index_col=0
+    )
     x_shift = gc.loc[f"{inst_slice}_{dataset}", "X_shift"]
     y_shift = gc.loc[f"{inst_slice}_{dataset}", "Y_shift"]
 
@@ -1271,7 +1356,9 @@ def find_spot_positions(data_dir: str, path_landscape_files: str, image_scale: f
     if map_file.exists():
         chunk_size = 10_000_000
         barcodes_set = set(barcodes.index.tolist())
-        for chunk in pd.read_csv(map_file, sep="\t", chunksize=chunk_size, header=None, index_col=0):
+        for chunk in pd.read_csv(
+            map_file, sep="\t", chunksize=chunk_size, header=None, index_col=0
+        ):
             common = list(barcodes_set.intersection(chunk.index.tolist()))
             if common:
                 barcodes.loc[common, "x"] = chunk.loc[common, 1]
@@ -1282,14 +1369,113 @@ def find_spot_positions(data_dir: str, path_landscape_files: str, image_scale: f
     barcodes["y"] = (barcodes["y"].astype(float) - y_shift) * scale
 
     barcodes["name"] = barcodes.index.astype(str)
-    barcodes["geometry"] = barcodes.apply(lambda r: [r["y"] / image_scale, r["x"] / image_scale], axis=1)
-    barcodes[["name", "geometry"]].to_parquet(Path(path_landscape_files) / "spot_positions.parquet")
+    barcodes["geometry"] = barcodes.apply(
+        lambda r: [r["y"] / image_scale, r["x"] / image_scale], axis=1
+    )
+    barcodes[["name", "geometry"]].to_parquet(
+        Path(path_landscape_files) / "spot_positions.parquet"
+    )
 
 
-def make_cell_boundaries_ist(data_dir: str, path_landscape_files: str, image_scale: float = 1.0) -> Path:
+def make_pseudo_transcript_tiles(
+    cbg: pd.DataFrame,
+    path_spot_positions: str,
+    path_output: str,
+    tile_size: int,
+    jitter: float = 1.0,
+    *,
+    rng: np.random.Generator | None = None,
+) -> dict:
+    """Generate pseudo-transcript tiles from a cell-by-gene matrix.
+
+    Parameters
+    ----------
+    cbg:
+        Cell-by-gene matrix with barcodes as index and genes as columns. The
+        matrix may be sparse.
+    path_spot_positions:
+        Path to the ``spot_positions.parquet`` file created by
+        :func:`find_spot_positions`.
+    path_output:
+        Directory where the transcript tile Parquet files will be written.
+    tile_size:
+        Size of each tile in pixel coordinates.
+    jitter:
+        Amount of random jitter to add to each transcript location.
+    rng:
+        Optional :class:`numpy.random.Generator` instance for reproducible
+        jitter.
+
+    Returns
+    -------
+    dict
+        Bounding box of the generated transcript coordinates.
+    """
+
+    if rng is None:
+        rng = np.random.default_rng()
+
+    spots = pd.read_parquet(path_spot_positions)
+    spots[["y", "x"]] = spots["geometry"].apply(pd.Series)
+    spots = spots.set_index("name")[["x", "y"]]
+
+    cbg = cbg.loc[cbg.index.intersection(spots.index)]
+    if pd.api.types.is_sparse(cbg):
+        coo = cbg.sparse.to_coo()
+    else:
+        from scipy.sparse import coo_matrix
+
+        coo = coo_matrix(cbg.values)
+
+    rows = np.asarray(coo.row)
+    cols = np.asarray(coo.col)
+    counts = np.asarray(coo.data, dtype=int)
+
+    x_min = float(spots["x"].min()) - jitter / 2
+    x_max = float(spots["x"].max()) + jitter / 2
+    y_min = float(spots["y"].min()) - jitter / 2
+    y_max = float(spots["y"].max()) + jitter / 2
+
+    out_dir = Path(path_output)
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    buckets: dict[tuple[int, int], list[dict[str, list]]] = {}
+
+    idx_to_barcode = cbg.index.to_numpy()
+    idx_to_gene = cbg.columns.to_numpy()
+
+    for r, c, n in zip(rows, cols, counts):
+        barcode = idx_to_barcode[r]
+        gene = idx_to_gene[c]
+        base_x = spots.at[barcode, "x"]
+        base_y = spots.at[barcode, "y"]
+
+        jitter_x = rng.uniform(-jitter / 2, jitter / 2, size=n)
+        jitter_y = rng.uniform(-jitter / 2, jitter / 2, size=n)
+        xs = base_x + jitter_x
+        ys = base_y + jitter_y
+
+        tile_i = ((xs - x_min) // tile_size).astype(int)
+        tile_j = ((ys - y_min) // tile_size).astype(int)
+
+        for ti, tj, x, y in zip(tile_i, tile_j, xs, ys):
+            buckets.setdefault((ti, tj), []).append({"name": gene, "geometry": [x, y]})
+
+    for (i, j), records in buckets.items():
+        df = pd.DataFrame(records)
+        df.to_parquet(out_dir / f"transcripts_tile_{i}_{j}.parquet", index=False)
+
+    return {"x_min": x_min, "x_max": x_max, "y_min": y_min, "y_max": y_max}
+
+
+def make_cell_boundaries_ist(
+    data_dir: str, path_landscape_files: str, image_scale: float = 1.0
+) -> Path:
     """Create a cell boundary parquet for IST data."""
     dataset, inst_slice = _parse_ist_names(data_dir)
-    gc = pd.read_csv(Path(data_dir) / "registered_images" / f"globalpos_{dataset}.csv", index_col=0)
+    gc = pd.read_csv(
+        Path(data_dir) / "registered_images" / f"globalpos_{dataset}.csv", index_col=0
+    )
     x_shift = gc.loc[f"{inst_slice}_{dataset}", "Y_shift"]
     y_shift = gc.loc[f"{inst_slice}_{dataset}", "X_shift"]
 
@@ -1325,10 +1511,14 @@ def get_ist_image_bounds(image_path: str) -> dict:
     return {"x_min": 0, "x_max": img.shape[1], "y_min": 0, "y_max": img.shape[0]}
 
 
-def create_image_tiles_ist(data_dir: str, path_landscape_files: str, image_tile_layer: str = "") -> str:
+def create_image_tiles_ist(
+    data_dir: str, path_landscape_files: str, image_tile_layer: str = ""
+) -> str:
     """Create DeepZoom tiles from an IST OME-TIFF file."""
     dataset, inst_slice = _parse_ist_names(data_dir)
-    file_path = Path(data_dir) / "registered_images" / f"{inst_slice}_{dataset}.ome.tiff"
+    file_path = (
+        Path(data_dir) / "registered_images" / f"{inst_slice}_{dataset}.ome.tiff"
+    )
     with tifffile.TiffFile(file_path) as tif:
         image = tif.series[0].asarray()
 
@@ -1337,7 +1527,9 @@ def create_image_tiles_ist(data_dir: str, path_landscape_files: str, image_tile_
     temp_tiff_path = landscape_path / "output_regular.tif"
     tifffile.imwrite(temp_tiff_path, image, compression=None)
     image_png = _convert_to_png(str(temp_tiff_path))
-    make_deepzoom_pyramid(image_png, str(landscape_path / "pyramid_images"), "h&e", suffix=".webp[Q=100]")
+    make_deepzoom_pyramid(
+        image_png, str(landscape_path / "pyramid_images"), "h&e", suffix=".webp[Q=100]"
+    )
     remove_intermediate_files(path_landscape_files)
     return str(file_path)
 
@@ -1353,6 +1545,7 @@ __all__ = [
     "trx_tile",
     "write_identity_transform",
     "find_spot_positions",
+    "make_pseudo_transcript_tiles",
     "make_cell_boundaries_ist",
     "create_image_tiles_ist",
     "get_ist_image_bounds",

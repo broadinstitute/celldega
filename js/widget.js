@@ -12,6 +12,8 @@ import { landscape_sst } from './viz/landscape_sst';
 import { matrix_viz } from './viz/matrix_viz';
 import { render_enrich } from './widgets/enrich_widget';
 
+const DEFAULT_TECHNOLOGY = 'Xenium';
+
 // Remove export keywords from render functions
 const render_landscape_ist = async ({ model, el }) => {
   const token = model.get('token');
@@ -131,9 +133,9 @@ const fetchTechnology = async (base_url, model) => {
     const response = await fetch(path_parameters_json);
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     const landscape_parameters = await response.json();
-    return landscape_parameters.technology || 'Xenium';
+    return landscape_parameters.technology || DEFAULT_TECHNOLOGY;
   } catch (err) {
-    const msg = `Could not read technology from ${path_parameters_json}. Using default 'Xenium'`;
+    const msg = `Could not read technology from ${path_parameters_json}. Using default ${DEFAULT_TECHNOLOGY}`;
     console.warn(msg, err);
 
     if (model?.send) {
@@ -144,7 +146,7 @@ const fetchTechnology = async (base_url, model) => {
       });
     }
 
-    return 'Xenium';
+    return DEFAULT_TECHNOLOGY;
   }
 };
 

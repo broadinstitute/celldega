@@ -22,7 +22,6 @@ import traitlets
 
 warnings.simplefilter("always")
 
-
 _clustergram_registry = {}  # maps names to widget instances
 _enrich_registry = {}  # maps names to widget instances
 

@@ -665,8 +665,16 @@ def _load_meta_cell_by_technology(technology, path_meta_cell_micron):
 
 def _make_names_unique(index: pd.Index) -> pd.Index:
     """
-    Mimics AnnData.var_names_make_unique() behavior:
-    Appends '-1', '-2', etc., to duplicate entries.
+    Ensure uniqueness of values in a pandas Index by appending suffixes to duplicates.
+
+    For each duplicated entry, appends a hyphen and a count (e.g., 'name', 'name-1', 'name-2', ...).
+    The first occurrence of each name is left unchanged.
+
+    Parameters:
+        index (pd.Index): A pandas Index potentially containing duplicate values.
+
+    Returns:
+        pd.Index: A new Index with all values made unique.
     """
     seen = {}
     unique_names = []
@@ -712,8 +720,8 @@ def _align_and_deduplicate_genes(
         missing_in_meta = genes_cbg - genes_meta
         raise ValueError(
             f"Mismatch between cbg_custom and meta_gene genes.\n"
-            f"Missing in cbg_custom: {missing_in_cbg}\n"
-            f"Missing in meta_gene: {missing_in_meta}"
+            f"Missing in cbg_custom (up to 20): {list(missing_in_cbg)[:20]}\n"
+            f"Missing in meta_gene (up to 20): {list(missing_in_meta)[:20]}"
         )
 
     # Make gene names unique consistently across both

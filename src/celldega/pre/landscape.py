@@ -157,11 +157,11 @@ def save_cbg_gene_parquets(base_path, cbg, verbose=False, segmentation_approach=
         if verbose and index % 100 == 0:
             print(f"Processing gene {index}: {gene}")
 
-        # Extract the column as a DataFrame as a copy
-        col_df = cbg[[gene]].copy()
-
-        # Create a DataFrame necessary to prevent error in to_parquet
-        inst_df = pd.DataFrame(col_df.values, columns=[gene], index=col_df.index.tolist())
+        # Extract the column as a DataFrame. ``to_frame`` guarantees a
+        # single-column DataFrame without touching the underlying values
+        # which avoids shape mismatches when ``cbg`` has a sparse backing
+        # matrix.
+        inst_df = cbg[gene].to_frame()
 
         # Replace 0 with NA and drop rows where all values are NA
         inst_df.replace(0, pd.NA, inplace=True)

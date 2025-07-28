@@ -20,6 +20,9 @@ from shapely.affinity import affine_transform
 import traitlets
 
 
+warnings.simplefilter("always")
+
+
 _clustergram_registry = {}  # maps names to widget instances
 _enrich_registry = {}  # maps names to widget instances
 
@@ -207,11 +210,11 @@ class Landscape(anywidget.AnyWidget):
 
         super().__init__(**kwargs)
 
-        def _handle_frontend_msg(_, content, buffers):
+        def _handle_frontend_msg(widget, content, buffers):
             if content.get("event") == "technology_fetch_warning":
                 msg = content.get("message", "Technology fetch warning from frontend.")
                 err = content.get("error", "")
-                warnings.warn(f"{msg} Frontend error: {err}", stacklevel=2)
+                warnings.warn(f"{msg}\nFrontend error: {err}", stacklevel=2)
 
         self.on_msg(_handle_frontend_msg)
 

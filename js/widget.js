@@ -134,15 +134,15 @@ const fetchTechnology = async (base_url, model) => {
     return landscape_parameters.technology || 'Xenium';
   } catch (err) {
     const msg = `Could not read technology from ${path_parameters_json}. Using default 'Xenium'`;
-
     console.warn(msg, err);
 
-    // Send warning to backend
-    model.send({
-      event: 'technology_fetch_warning',
-      message: msg,
-      error: err.message,
-    });
+    if (model?.send) {
+      model.send({
+        event: 'technology_fetch_warning',
+        message: msg,
+        error: err.message || '',
+      });
+    }
 
     return 'Xenium';
   }

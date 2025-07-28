@@ -12,7 +12,7 @@ except Exception as e:  # pragma: no cover - if deps missing skip
     pytest.skip(f"celldega modules unavailable: {e}", allow_module_level=True)
 
 def mock_urlopen_success(*args, **kwargs):
-    fake_json = json.dumps({"technology": "sst"}).encode("utf-8")
+    fake_json = json.dumps({"technology": "Xenium"}).encode("utf-8")
     return io.BytesIO(fake_json)
 
 @patch("celldega.viz.widget.urllib.request.urlopen", side_effect=mock_urlopen_success)

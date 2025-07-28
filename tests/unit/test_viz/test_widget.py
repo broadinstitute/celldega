@@ -83,7 +83,7 @@ def test_clustergram_selected_genes_trait() -> None:
 
 def mock_urlopen_success(*args, **kwargs):
     """Mock function to simulate reading landscape_parameters.json."""
-    fake_json = json.dumps({"technology": "sst"}).encode("utf-8")
+    fake_json = json.dumps({"technology": "Xenium"}).encode("utf-8")
     return io.BytesIO(fake_json)
 
 

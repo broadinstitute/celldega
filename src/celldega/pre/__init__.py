@@ -662,6 +662,7 @@ def _load_meta_cell_by_technology(technology, path_meta_cell_micron):
 
     return meta_cell
 
+
 def _make_names_unique(index: pd.Index) -> pd.Index:
     """
     Mimics AnnData.var_names_make_unique() behavior:
@@ -677,6 +678,7 @@ def _make_names_unique(index: pd.Index) -> pd.Index:
             seen[name] += 1
             unique_names.append(f"{name}-{seen[name]}")
     return pd.Index(unique_names)
+
 
 def _align_and_deduplicate_genes(
     cbg_custom: pd.DataFrame, path_landscape_files: str

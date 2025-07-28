@@ -662,13 +662,29 @@ def _load_meta_cell_by_technology(technology, path_meta_cell_micron):
 
     return meta_cell
 
+def _make_names_unique(index: pd.Index) -> pd.Index:
+    """
+    Mimics AnnData.var_names_make_unique() behavior:
+    Appends '-1', '-2', etc., to duplicate entries.
+    """
+    seen = {}
+    unique_names = []
+    for name in index:
+        if name not in seen:
+            seen[name] = 0
+            unique_names.append(name)
+        else:
+            seen[name] += 1
+            unique_names.append(f"{name}-{seen[name]}")
+    return pd.Index(unique_names)
 
 def _align_and_deduplicate_genes(
     cbg_custom: pd.DataFrame, path_landscape_files: str
 ) -> pd.DataFrame:
     """
-    Ensures all genes from meta_gene.parquet are present in cbg_custom DataFrame.
-    Adds missing genes with value 0 and removes duplicate columns (keeps the first occurrence).
+    Ensures genes in cbg_custom and meta_gene are identical,
+    and makes duplicate gene names unique by suffixing.
+    Raises an error if there is a mismatch in gene sets.
 
     Parameters:
     -----------
@@ -680,23 +696,30 @@ def _align_and_deduplicate_genes(
     Returns:
     --------
     pd.DataFrame
-        Cleaned cbg_custom DataFrame with all expected genes and no duplicate columns.
+        cbg_custom with deduplicated gene names (columns).
     """
     meta_gene_path = Path(path_landscape_files) / "meta_gene.parquet"
     meta_gene = pd.read_parquet(meta_gene_path)
 
-    # Add missing gene columns with default value 0
-    missing_cols = meta_gene.index.difference(cbg_custom.columns)
-    for col in missing_cols:
-        cbg_custom[col] = 0
+    # Compare unordered gene sets before deduplication
+    genes_meta = set(meta_gene.index)
+    genes_cbg = set(cbg_custom.columns)
 
-    # Optional: check for duplicates in meta_gene index
-    duplicated_genes = meta_gene.index[meta_gene.index.duplicated()].unique()
-    if len(duplicated_genes) > 0:
-        print(f"Warning: Duplicate genes found in meta_gene index: {list(duplicated_genes)}")
+    if genes_meta != genes_cbg:
+        missing_in_cbg = genes_meta - genes_cbg
+        missing_in_meta = genes_cbg - genes_meta
+        raise ValueError(
+            f"Mismatch between cbg_custom and meta_gene genes.\n"
+            f"Missing in cbg_custom: {missing_in_cbg}\n"
+            f"Missing in meta_gene: {missing_in_meta}"
+        )
 
-    # Remove duplicate columns from cbg_custom
-    return cbg_custom.loc[:, ~cbg_custom.columns.duplicated()]
+    # Make gene names unique consistently across both
+    cbg_custom.columns = _make_names_unique(pd.Index(cbg_custom.columns))
+    meta_gene.index = _make_names_unique(pd.Index(meta_gene.index))
+
+    # Align column order to meta_gene index order
+    return cbg_custom.loc[:, meta_gene.index]
 
 
 def make_meta_cell_image_coord(

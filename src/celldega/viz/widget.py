@@ -8,7 +8,6 @@ from copy import deepcopy
 import json
 from pathlib import Path
 import urllib.error
-import urllib.request
 import warnings
 
 import anywidget

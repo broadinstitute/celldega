@@ -136,12 +136,12 @@ const fetchTechnology = async (base_url) => {
     const response = await fetch(path_parameters_json);
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     const landscape_parameters = await response.json();
-    return landscape_parameters.technology || 'sst';
-  } catch (e) {
-    console.warn(
-      `Could not read technology from ${path_parameters_json}. Using default 'sst'. Reason: ${e}`
+    return landscape_parameters.technology || 'Xenium';
+  } catch (err) {
+    console.error(err);
+    throw new Error(
+      `Could not read technology from ${path_parameters_json}. Using default 'Xenium'`
     );
-    return 'sst';
   }
 };
 
@@ -151,10 +151,7 @@ const render_landscape = async ({ model, el }) => {
   try {
     technology = model.get('technology');
   } catch {
-    // eslint-disable-next-line no-console
-    console.warn(
-      "No 'technology' key found on widget model. Will try to fetch it."
-    );
+    technology = null; // fallback to fetching from JSON
   }
 
   if (!technology) {

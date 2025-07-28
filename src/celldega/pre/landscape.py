@@ -153,31 +153,22 @@ def save_cbg_gene_parquets(base_path, cbg, verbose=False, segmentation_approach=
     )
     cbg.index = cbg.index.map(cell_str_to_int_mapping)
 
-    # ensure the index name doesn't trigger warnings on parquet save
-    cbg.index.name = None
-
     for index, gene in enumerate(cbg.columns):
         if verbose and index % 100 == 0:
             print(f"Processing gene {index}: {gene}")
 
-        # Extract the column as a DataFrame without changing the backing
-        # data. ``[[gene]]`` always returns a DataFrame even if duplicate
-        # column names exist.
-        inst_df = cbg[[gene]].copy()
+        # Extract the column as a DataFrame as a copy
+        col_df = cbg[[gene]].copy()
 
-        # Merge duplicate gene columns, if any, then filter out rows with all
-        # zeros without densifying the sparse values. ``sum`` preserves sparsity
-        # when possible.
-        inst_series = inst_df.sum(axis=1)
-        inst_df = inst_series.to_frame(name=gene)
-        mask = inst_df[gene] != 0
-        inst_df = inst_df.loc[mask]
-        inst_df.index.name = None
+        # Create a DataFrame necessary to prevent error in to_parquet
+        inst_df = pd.DataFrame(col_df.values, columns=[gene], index=col_df.index.tolist())
 
+        # Replace 0 with NA and drop rows where all values are NA
+        inst_df.replace(0, pd.NA, inplace=True)
+        inst_df.dropna(how="all", inplace=True)
+
+        # Save to Parquet if DataFrame is not empty
         if not inst_df.empty:
-            if pd.api.types.is_sparse(inst_df[gene].dtype):
-                inst_df[gene] = inst_df[gene].sparse.to_dense()
-
             output_path = output_dir / f"{gene}.parquet"
             inst_df.to_parquet(output_path)
 

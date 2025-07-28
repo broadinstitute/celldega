@@ -7,6 +7,8 @@ from pathlib import Path
 import shutil
 
 import pandas as pd
+from collections import defaultdict
+
 
 import celldega as dega
 
@@ -212,6 +214,39 @@ def main(
         cbg = dega.pre.read_cbg_mtx(str(paths["cbg_matrix"]))
     elif technology == "MERSCOPE":
         cbg = pd.read_csv(str(paths["cbg_csv"]), index_col=0)
+
+
+    def make_column_names_unique_fast(df):
+        counts = defaultdict(int)
+        used = set()
+        new_cols = []
+
+        for col in df.columns:
+            if col not in used:
+                new_cols.append(col)
+                used.add(col)
+                counts[col] += 1
+            else:
+                while True:
+                    new_name = f"{col}_{counts[col]}"
+                    counts[col] += 1
+                    if new_name not in used:
+                        new_cols.append(new_name)
+                        used.add(new_name)
+                        break
+
+        df.columns = new_cols
+        return df
+
+    if(cbg.columns.duplicated().any()):
+        print("Duplicate columns found in CBG matrix. Making column names unique.")
+        cbg = make_column_names_unique_fast(cbg)
+
+
+    print('cbg shape:', cbg.shape)
+    # check if cbg has repeated columns
+    print(cbg.columns.duplicated().any())
+    print(len(set(cbg.columns.tolist())))
 
     if technology == "Xenium":
         dega.pre.cluster_gene_expression(technology, path_landscape_files, cbg, str(data_dir))

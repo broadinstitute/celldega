@@ -167,7 +167,11 @@ def save_cbg_gene_parquets(base_path, cbg, verbose=False, segmentation_approach=
 
         # Drop rows with zero counts since SparseArray does not support
         # in-place replacement. Filtering avoids densifying the data.
-        inst_df = inst_df.loc[inst_df[gene] != 0]
+        # ``cbg`` may contain duplicate gene columns so ``inst_df[gene]`` can be
+        # a DataFrame. ``any`` collapses across duplicates and yields a valid
+        # boolean mask for indexing.
+        mask = (inst_df != 0).any(axis=1)
+        inst_df = inst_df.loc[mask]
         inst_df.index.name = None
 
         if not inst_df.empty:

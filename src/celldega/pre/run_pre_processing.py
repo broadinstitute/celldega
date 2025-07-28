@@ -166,6 +166,7 @@ def main(
 
     # Setup file paths
     paths = _setup_preprocessing_paths(technology, path_landscape_files, data_dir)
+    bound_path = None
 
     # Save transformation matrices
 
@@ -178,7 +179,7 @@ def main(
         shutil.copy(source_path, Path(path_landscape_files) / "micron_to_image_transform.csv")
 
     elif technology == "IST":
-        print('IST: write identity transform')
+        print("IST: write identity transform")
         dega.pre.write_identity_transform(path_landscape_files)
 
     # Check required files for preprocessing
@@ -189,6 +190,15 @@ def main(
             technology,
             str(paths["transformation_matrix"]),
             str(paths["meta_cell_micron"]),
+            str(paths["meta_cell_image"]),
+            image_scale=1,
+        )
+    elif technology == "IST":
+        bound_path = dega.pre.make_cell_boundaries_ist(str(data_dir), path_landscape_files)
+        dega.pre.make_meta_cell_image_coord(
+            "custom",
+            str(paths["transformation_matrix"]),
+            str(bound_path),
             str(paths["meta_cell_image"]),
             image_scale=1,
         )
@@ -224,7 +234,8 @@ def main(
         dega.pre.create_image_tiles_ist(str(data_dir), path_landscape_files)
 
         tile_bounds = dega.pre.get_ist_image_bounds(str(paths["image_file"]))
-        bound_path = dega.pre.make_cell_boundaries_ist(str(data_dir), path_landscape_files)
+        if bound_path is None:
+            bound_path = dega.pre.make_cell_boundaries_ist(str(data_dir), path_landscape_files)
 
         print("\n======== IST: Cell Boundary Tiles ========")
         dega.pre.make_cell_boundary_tiles(

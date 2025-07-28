@@ -269,6 +269,34 @@ class Landscape(anywidget.AnyWidget):
             self.send({"event": "finalize"})
         super().close()
 
+    def embed(self, fp: str | Path | None = None, **kwargs):
+        """Create an embeddable HTML snippet of the widget.
+
+        This is useful for environments like Kaggle or Colab that have
+        limited support for Jupyter widgets. If ``fp`` is provided, the
+        HTML snippet is written to that file. Otherwise an
+        :class:`IPython.display.HTML` object is returned.
+
+        Parameters
+        ----------
+        fp:
+            Optional destination file to save the HTML snippet.
+        **kwargs:
+            Additional keyword arguments forwarded to
+            :func:`ipywidgets.embed.embed_minimal_html` when ``fp`` is
+            supplied.
+        """
+
+        from IPython.display import HTML
+        from ipywidgets import embed
+
+        if fp is not None:
+            embed.embed_minimal_html(fp, [self], **kwargs)
+            return Path(fp)
+
+        html = embed.embed_snippet(self, **kwargs)
+        return HTML(html)
+
 
 class Enrich(anywidget.AnyWidget):
     """
@@ -340,6 +368,23 @@ class Enrich(anywidget.AnyWidget):
         with suppress(Exception):
             self.send({"event": "finalize"})
         super().close()
+
+    def embed(self, fp: str | Path | None = None, **kwargs):
+        """Create an embeddable HTML snippet of the widget.
+
+        Works the same as :meth:`Landscape.embed` and can be used to
+        save or display the widget outside Jupyter environments.
+        """
+
+        from IPython.display import HTML
+        from ipywidgets import embed
+
+        if fp is not None:
+            embed.embed_minimal_html(fp, [self], **kwargs)
+            return Path(fp)
+
+        html = embed.embed_snippet(self, **kwargs)
+        return HTML(html)
 
 
 class Clustergram(anywidget.AnyWidget):
@@ -425,3 +470,16 @@ class Clustergram(anywidget.AnyWidget):
         with suppress(Exception):
             self.send({"event": "finalize"})
         super().close()
+
+    def embed(self, fp: str | Path | None = None, **kwargs):
+        """Create an embeddable HTML snippet of the widget."""
+
+        from IPython.display import HTML
+        from ipywidgets import embed
+
+        if fp is not None:
+            embed.embed_minimal_html(fp, [self], **kwargs)
+            return Path(fp)
+
+        html = embed.embed_snippet(self, **kwargs)
+        return HTML(html)

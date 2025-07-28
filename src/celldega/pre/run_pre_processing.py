@@ -309,7 +309,7 @@ def main(
 
             print("\n======== IST: Cell Boundary Tiles ========")
             dega.pre.make_cell_boundary_tiles(
-                "custom",
+                technology,
                 str(bound_path),
                 str(paths["cell_segmentation"]),
                 coarse_tile_factor=10,

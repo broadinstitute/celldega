@@ -165,12 +165,12 @@ def save_cbg_gene_parquets(base_path, cbg, verbose=False, segmentation_approach=
         # column names exist.
         inst_df = cbg[[gene]].copy()
 
-        # Drop rows with zero counts since SparseArray does not support
-        # in-place replacement. Filtering avoids densifying the data.
-        # ``cbg`` may contain duplicate gene columns so ``inst_df[gene]`` can be
-        # a DataFrame. ``any`` collapses across duplicates and yields a valid
-        # boolean mask for indexing.
-        mask = (inst_df != 0).any(axis=1)
+        # Merge duplicate gene columns, if any, then filter out rows with all
+        # zeros without densifying the sparse values. ``sum`` preserves sparsity
+        # when possible.
+        inst_series = inst_df.sum(axis=1)
+        inst_df = inst_series.to_frame(name=gene)
+        mask = inst_df[gene] != 0
         inst_df = inst_df.loc[mask]
         inst_df.index.name = None
 

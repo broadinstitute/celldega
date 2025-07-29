@@ -347,6 +347,7 @@ def make_cell_boundary_tiles(
                 1
             ],  # get the cell segmentation method, such as cellpose2.
         )
+
         gdf_cells.index = gdf_cells.index.astype(str).map(cell_str_to_int_mapping)
 
         gdf_cells.rename(columns={"geometry_image_space": "GEOMETRY"}, inplace=True)
@@ -382,7 +383,19 @@ def make_cell_boundary_tiles(
             path_meta_cell_micron,
         )
 
-    else:
+        # Convert string index to integer index
+        cell_str_to_int_mapping = _get_name_mapping(
+            path_output.replace("/cell_segmentation", ""),
+            layer="boundary",
+        )
+
+        gdf_cells.index = gdf_cells.index.astype(str).map(cell_str_to_int_mapping)
+
+        gdf_cells["center_x"] = gdf_cells.geometry.centroid.x
+        gdf_cells["center_y"] = gdf_cells.geometry.centroid.y
+
+    # MERSCOPE and Xenium
+    elif technology in ["MERSCOPE", "Xenium"]:
 
         print("technology", technology)
         transformation_matrix = pd.read_csv(paths['transformation_matrix'], header=None, sep=" ").values
@@ -396,18 +409,20 @@ def make_cell_boundary_tiles(
             path_meta_cell_micron,
         )
 
-        # path_landscape_files = path_transformation_matrix.replace("/micron_to_image_transform.csv", "")
-        # path_landscape_files = path_output.split("/")[0]
-
         # Convert string index to integer index
         cell_str_to_int_mapping = _get_name_mapping(
             path_output.replace("/cell_segmentation", ""),
             layer="boundary",
         )
+
         gdf_cells.index = gdf_cells.index.astype(str).map(cell_str_to_int_mapping)
 
         gdf_cells["center_x"] = gdf_cells.geometry.centroid.x
         gdf_cells["center_y"] = gdf_cells.geometry.centroid.y
+    else:
+        raise ValueError(
+            f"Unsupported technology: {technology}. Supported technologies are 'MERSCOPE', 'Xenium', and 'IST'."
+        )
 
     # Calculate tile bounds and fine/coarse tiles
     x_min, x_max = tile_bounds["x_min"], tile_bounds["x_max"]
@@ -416,6 +431,8 @@ def make_cell_boundary_tiles(
     n_fine_tiles_y = int(np.ceil((y_max - y_min) / tile_size))
     n_coarse_tiles_x = int(np.ceil((x_max - x_min) / (coarse_tile_factor * tile_size)))
     n_coarse_tiles_y = int(np.ceil((y_max - y_min) / (coarse_tile_factor * tile_size)))
+
+    print(gdf_cells.head())
 
     # Process coarse tiles in parallel
     for i in tqdm(range(n_coarse_tiles_x), desc="Processing coarse tiles"):

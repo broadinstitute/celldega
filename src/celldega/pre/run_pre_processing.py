@@ -115,9 +115,6 @@ def _setup_preprocessing_paths(technology, path_landscape_files, data_dir, sampl
     if technology == "IST":
         dataset, inst_slice = dega.pre._parse_ist_names(str(data_path))
 
-        print("dataset:", dataset)
-        print("inst_slice:", inst_slice)
-
         return {
             "transformation_matrix": landscape_path / "micron_to_image_transform.csv",
             "meta_cell_micron": data_path / f"registered_images/globalpos_{dataset}.csv",
@@ -190,7 +187,6 @@ def main(
     # Setup file paths
     paths = _setup_preprocessing_paths(technology, path_landscape_files, data_dir, sample=sample)
 
-    print("paths:", paths)
     bound_path = None
 
     # Save transformation matrices if not already present
@@ -204,7 +200,6 @@ def main(
             source_path = Path(paths["transformation_matrix"])
             shutil.copy(source_path, transform_out)
         elif technology == "IST":
-            print("IST: write identity transform")
             dega.pre.write_identity_transform(path_landscape_files)
     else:
         print(f"Skipping transform step, using existing {transform_out}")
@@ -212,9 +207,11 @@ def main(
     # Check required files for preprocessing
     dega.pre._check_required_files(technology, str(data_dir))
 
-    print("here")
+    # Make meta_cell with image coordinates
+    #######################################
     if not Path(paths["meta_cell_image"]).exists():
         if technology in ["Xenium", "MERSCOPE"]:
+
             dega.pre.make_meta_cell_image_coord(
                 technology,
                 str(transform_out),
@@ -222,6 +219,7 @@ def main(
                 str(paths["meta_cell_image"]),
                 image_scale=1,
             )
+
         elif technology == "IST":
 
             dega.pre.make_meta_cell_image_coord(
@@ -237,11 +235,9 @@ def main(
             )
     else:
         print(f"Skipping meta cell generation, found {paths['meta_cell_image']}")
-    # elif technology == "IST":
-    #     print('IST: find spot positions')
-    #     dega.pre.find_spot_positions(str(data_dir), path_landscape_files)
 
-    # Calculate CBG
+    # Load CBG matrix
+    #######################################
     if technology in ["Xenium", "IST"]:
         print("IST: read CBG matrix")
         cbg = dega.pre.read_cbg_mtx(str(paths["cbg_matrix"]))
@@ -274,11 +270,8 @@ def main(
         print("Duplicate columns found in CBG matrix. Making column names unique.")
         cbg = make_column_names_unique_fast(cbg)
 
-    print("cbg shape:", cbg.shape)
-    # check if cbg has repeated columns
-    print(cbg.columns.duplicated().any())
-    print(len(set(cbg.columns.tolist())))
-
+    # Cell and Cluster Metadata
+    #######################################
     cluster_file = Path(path_landscape_files) / "cell_clusters/cluster.parquet"
     df_sig_file = Path(path_landscape_files) / "df_sig.parquet"
 
@@ -298,6 +291,7 @@ def main(
         print(f"Skipping meta gene file creation, found {paths['meta_gene']}")
 
     # Save CBG gene parquet files
+    #######################################
     cbg_dir = Path(path_landscape_files) / "cbg"
     if not cbg_dir.exists() or not any(cbg_dir.glob("*.parquet")):
         dega.pre.save_cbg_gene_parquets(path_landscape_files, cbg, verbose=True)
@@ -308,6 +302,8 @@ def main(
         # Create cluster and meta cluster files
         dega.pre.create_cluster_and_meta_cluster(technology, path_landscape_files, str(data_dir))
 
+    # Image, Cell Boundary, and Transcript Tiles
+    #######################################
     if technology == "IST":
         print("\n======== IST: Image tiles ========")
         dega.pre.create_image_tiles_ist(str(data_dir), path_landscape_files)
@@ -359,7 +355,9 @@ def main(
         else:
             print("Skipping IST boundary tiles, output already exists")
 
-    else:
+    # Xenium and MERSCOPE
+    #######################################
+    elif technology in ["MERSCOPE", "Xenium"]:
 
         print("\n======== Image Tiles========")
         dega.pre.create_image_tiles(
@@ -405,6 +403,10 @@ def main(
             )
         else:
             print("Skipping cell boundary tiles, output already exists")
+    else:
+        raise ValueError(
+            f"Unsupported technology: {technology}. Supported technologies are 'MERSCOPE', 'Xenium', and 'IST'."
+        )
 
     # Force name to be str for MERSCOPE
     if technology == "MERSCOPE":

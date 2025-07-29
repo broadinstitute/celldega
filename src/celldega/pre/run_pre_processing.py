@@ -115,8 +115,8 @@ def _setup_preprocessing_paths(technology, path_landscape_files, data_dir, sampl
     if technology == "IST":
         dataset, inst_slice = dega.pre._parse_ist_names(str(data_path))
 
-        print('dataset:', dataset)
-        print('inst_slice:', inst_slice)
+        print("dataset:", dataset)
+        print("inst_slice:", inst_slice)
 
         return {
             "transformation_matrix": landscape_path / "micron_to_image_transform.csv",
@@ -126,8 +126,14 @@ def _setup_preprocessing_paths(technology, path_landscape_files, data_dir, sampl
             "transcript_tiles": landscape_path / "transcript_tiles",
             "cell_boundaries": landscape_path / "cell_boundaries.parquet",
             "cell_segmentation": landscape_path / "cell_segmentation",
-            "cbg_matrix": data_path / "matrix_files" / f"{inst_slice}_{dataset}" / f"{inst_slice}_{dataset}_cell_binned",
-            "sbg_matrix": data_path / "matrix_files" / f"{inst_slice}_{dataset}" / f"{inst_slice}_{dataset}_raw",
+            "cbg_matrix": data_path
+            / "matrix_files"
+            / f"{inst_slice}_{dataset}"
+            / f"{inst_slice}_{dataset}_cell_binned",
+            "sbg_matrix": data_path
+            / "matrix_files"
+            / f"{inst_slice}_{dataset}"
+            / f"{inst_slice}_{dataset}_raw",
             "image_file": data_path / "registered_images" / f"{inst_slice}_{dataset}.ome.tiff",
             "dataset": dataset,
             "inst_slice": inst_slice,
@@ -184,7 +190,7 @@ def main(
     # Setup file paths
     paths = _setup_preprocessing_paths(technology, path_landscape_files, data_dir, sample=sample)
 
-    print('paths:', paths)
+    print("paths:", paths)
     bound_path = None
 
     # Save transformation matrices if not already present
@@ -206,7 +212,7 @@ def main(
     # Check required files for preprocessing
     dega.pre._check_required_files(technology, str(data_dir))
 
-    print('here')
+    print("here")
     if not Path(paths["meta_cell_image"]).exists():
         if technology in ["Xenium", "MERSCOPE"]:
             dega.pre.make_meta_cell_image_coord(
@@ -223,17 +229,17 @@ def main(
             # else:
             #     bound_path = paths["cell_boundaries"]
 
-            print('making IST meta_cell_image_coord !!!!!!!!!!!')
+            print("making IST meta_cell_image_coord !!!!!!!!!!!")
 
-            print('checking paths before make_meta_cell_image_coord')
+            print("checking paths before make_meta_cell_image_coord")
             print(paths)
 
-            print('************************************')
-            print('************************************')
-            print('dataset:', paths.get("dataset", ""))
-            print('inst_slice:', paths.get("inst_slice", ""))
-            print('************************************')
-            print('************************************')
+            print("************************************")
+            print("************************************")
+            print("dataset:", paths.get("dataset", ""))
+            print("inst_slice:", paths.get("inst_slice", ""))
+            print("************************************")
+            print("************************************")
 
             dega.pre.make_meta_cell_image_coord(
                 technology,
@@ -324,6 +330,21 @@ def main(
         dega.pre.create_image_tiles_ist(str(data_dir), path_landscape_files)
 
         tile_bounds = dega.pre.get_ist_image_bounds(str(paths["image_file"]))
+
+        if not _output_exists(paths["transcript_tiles"]):
+            print("\n======== IST: Transcript Tiles ========")
+            spot_file = Path(path_landscape_files) / "spot_positions.parquet"
+            if not spot_file.exists():
+                dega.pre.find_spot_positions(str(data_dir), path_landscape_files)
+
+            dega.pre.make_pseudo_transcript_tiles(
+                cbg,
+                str(spot_file),
+                str(paths["transcript_tiles"]),
+                tile_size=tile_size,
+            )
+        else:
+            print("Skipping IST transcript tiles, output already exists")
 
         need_boundaries = not _output_exists(paths["cell_segmentation"])
         if need_boundaries:

@@ -389,6 +389,10 @@ def make_cell_boundary_tiles(
             layer="boundary",
         )
 
+        # Print the first 10 items (as a dict)
+        subset = dict(list(cell_str_to_int_mapping.items())[:10])
+        print(subset)
+
         gdf_cells.index = gdf_cells.index.astype(str).map(cell_str_to_int_mapping)
 
         gdf_cells["center_x"] = gdf_cells.geometry.centroid.x

@@ -1495,8 +1495,10 @@ def make_pseudo_transcript_tiles(
     spots[["y", "x"]] = spots["geometry"].apply(pd.Series)
     spots = spots.set_index("name")[["x", "y"]]
 
-    print('spots.head()', spots.head())
+    # use the "Xenium" technology argument to bypass barcode string parsing
+    sbg = read_cbg_mtx(paths['sbg_matrix'], 'Xenium')
 
+    print('spots.head()', spots.head())
 
     # hardwire tile bounds
     tile_bounds = {}
@@ -1532,10 +1534,11 @@ def make_pseudo_transcript_tiles(
                 & (spots.y < tile_y_max)
             ].copy()
 
-            print('tile_spots shape:', tile_spots.shape)
 
             # Save the filtered DataFrame to a Parquet file
             if tile_spots.shape[0] > 0:
+
+                print('found spots:', tile_spots.shape)
 
                 inst_spots = tile_spots.index.tolist()
 
@@ -1546,23 +1549,25 @@ def make_pseudo_transcript_tiles(
 
                     # inst_df = adata[inst_spot].to_df()
                     # ser_exp = inst_df.loc[inst_spot]
-                    # ser_exp = ser_exp[ser_exp > 0]
-                    # ser_exp = ser_exp.sort_values(ascending=False)
 
-                    # df_expanded = ser_exp.index.repeat(ser_exp.values).to_frame(name="gene").reset_index(drop=True)
-                    # df_expanded['x'] = pd.Series(inst_pos['x'], index=df_expanded.index.tolist())
-                    # df_expanded['y'] = pd.Series(inst_pos['y'], index=df_expanded.index.tolist())
+                    ser_exp = sbg.loc[inst_spot].copy()
+                    ser_exp = ser_exp[ser_exp > 0]
+                    ser_exp = ser_exp.sort_values(ascending=False)
 
-                    # jiggle = 1 * high_res_scale
+                    df_expanded = ser_exp.index.repeat(ser_exp.values).to_frame(name="gene").reset_index(drop=True)
+                    df_expanded['x'] = pd.Series(inst_pos['x'], index=df_expanded.index.tolist())
+                    df_expanded['y'] = pd.Series(inst_pos['y'], index=df_expanded.index.tolist())
 
-                    # # Add random uniform jitter to x and y within ±jiggle
-                    # df_expanded["x"] += np.random.uniform(-jiggle/2, jiggle/2, size=len(df_expanded))
-                    # df_expanded["y"] += np.random.uniform(-jiggle/2, jiggle/2, size=len(df_expanded))
+                    jiggle = 1 * high_res_scale
 
-                    # if inst_pseudo is None:
-                    #     inst_pseudo = df_expanded
-                    # else:
-                    #     inst_pseudo = pd.concat([inst_pseudo, df_expanded], axis=0)
+                    # Add random uniform jitter to x and y within ±jiggle
+                    df_expanded["x"] += np.random.uniform(-jiggle/2, jiggle/2, size=len(df_expanded))
+                    df_expanded["y"] += np.random.uniform(-jiggle/2, jiggle/2, size=len(df_expanded))
+
+                    if inst_pseudo is None:
+                        inst_pseudo = df_expanded
+                    else:
+                        inst_pseudo = pd.concat([inst_pseudo, df_expanded], axis=0)
 
 
                 print(inst_pseudo.shape)

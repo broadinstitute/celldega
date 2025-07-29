@@ -129,6 +129,8 @@ def _setup_preprocessing_paths(technology, path_landscape_files, data_dir, sampl
             "cbg_matrix": data_path / "matrix_files" / f"{inst_slice}_{dataset}" / f"{inst_slice}_{dataset}_cell_binned",
             "sbg_matrix": data_path / "matrix_files" / f"{inst_slice}_{dataset}" / f"{inst_slice}_{dataset}_raw",
             "image_file": data_path / "registered_images" / f"{inst_slice}_{dataset}.ome.tiff",
+            "dataset": dataset,
+            "inst_slice": inst_slice,
         }
     raise ValueError(
         "Unsupported technology. Only Xenium, MERSCOPE and IST are supported in this script."
@@ -226,6 +228,13 @@ def main(
             print('checking paths before make_meta_cell_image_coord')
             print(paths)
 
+            print('************************************')
+            print('************************************')
+            print('dataset:', paths.get("dataset", ""))
+            print('inst_slice:', paths.get("inst_slice", ""))
+            print('************************************')
+            print('************************************')
+
             dega.pre.make_meta_cell_image_coord(
                 technology,
                 str(transform_out),
@@ -234,6 +243,8 @@ def main(
                 image_scale=1,
                 sample=sample,
                 paths=paths,
+                dataset=paths.get("dataset", ""),
+                inst_slice=paths.get("inst_slice", ""),
             )
     else:
         print(f"Skipping meta cell generation, found {paths['meta_cell_image']}")

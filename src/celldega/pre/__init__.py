@@ -677,7 +677,14 @@ def make_deepzoom_pyramid(
     image.dzsave(str(output_path), tile_size=tile_size, overlap=overlap, suffix=suffix)
 
 
-def _load_meta_cell_by_technology(technology, path_meta_cell_micron, dataset=None, inst_slice=None, paths=None, high_res_scale=1):
+def _load_meta_cell_by_technology(
+        technology,
+        path_meta_cell_micron,
+        paths=None,
+        dataset=None,
+        inst_slice=None,
+        high_res_scale=1
+        ):
     """
     Load meta cell data based on technology.
 
@@ -715,32 +722,50 @@ def _load_meta_cell_by_technology(technology, path_meta_cell_micron, dataset=Non
 
         print('load this path ', paths['cbg_matrix'] / 'barcodes.tsv.gz')
 
-        cells = pd.read_csv(
-            # use paths['cbg_matrix'] to read barcodes.tsv.gz
+        tmp = pd.read_csv(
             paths['cbg_matrix'] / 'barcodes.tsv.gz',
-            sep='\t',
+            sep=':',
             header=None,
             index_col=0
         )
 
-        print('cells:', cells.head())
+        # print('cells:', cells.head())
 
-        tmp = pd.DataFrame([x.split(':') for x in cells.index.tolist()])
-        tmp.set_index(0, inplace=True)
+        # tmp = pd.DataFrame([x.split(':') for x in cells.index.tolist()])
+        # tmp.set_index(0, inplace=True)
         tmp.index.name = None
-        tmp.columns = ['x', 'y']
+        tmp.columns = ['center_x', 'center_y']
         tmp = tmp.astype(float)
-        tmp['x'] = (tmp['x'] - gc.loc[inst_slice + '_' + dataset, 'X_shift']) * high_res_scale
-        tmp['y'] = (tmp['y'] - gc.loc[inst_slice + '_' + dataset, 'Y_shift']) * high_res_scale
+        print('tmp:', tmp.head())
+
+        print('inst_slice:', inst_slice)
+        print('dataset:', dataset)
+
+        print('loc x', inst_slice + '_' + dataset, 'X_shift')
+        print('loc y', inst_slice + '_' + dataset, 'Y_shift')
+
+        x_shift = gc.loc[inst_slice + '_' + dataset, 'X_shift']
+        y_shift = gc.loc[inst_slice + '_' + dataset, 'Y_shift']
+
+        print('gc')
+        print(gc)
+
+        print('x_shift:', x_shift, 'y_shift:', y_shift)
+
+        tmp['center_x'] = (tmp['center_x'] - x_shift) * high_res_scale
+        tmp['center_y'] = (tmp['center_y'] - y_shift) * high_res_scale
 
         tmp["geometry"] = tmp.apply(
                 # swapped for some reason
-                lambda row: [row["y"], row["x"]] , axis=1
+                lambda row: [row["center_y"], row["center_x"]] , axis=1
             )
 
-        tmp['name'] = pd.Series(tmp.index.tolist(), index=tmp.index.tolist())
+        # tmp['name'] = pd.Series(tmp.index.tolist(), index=tmp.index.tolist())
 
-        tmp[['name', 'geometry']].to_parquet('data/michal_landscape_files/E14_' + inst_slice + '/cell_metadata.parquet')
+        # tmp[['name', 'geometry']].to_parquet('data/michal_landscape_files/E14_' + inst_slice + '/cell_metadata.parquet')
+
+        meta_cell = tmp
+
     elif technology == "custom":
         import geopandas as gpd
 
@@ -767,6 +792,8 @@ def make_meta_cell_image_coord(
     image_scale=1,
     sample=None,
     paths=None,
+    dataset=None,
+    inst_slice=None,
 ):
     """Applies an affine transformation to cell coordinates in microns and saves the transformed coordinates in pixels.
 
@@ -812,7 +839,13 @@ def make_meta_cell_image_coord(
     print('checking paths before _load_meta_cell_by_technology')
     print(paths)
 
-    meta_cell = _load_meta_cell_by_technology(technology, path_meta_cell_micron, paths=paths)
+    meta_cell = _load_meta_cell_by_technology(
+        technology,
+        path_meta_cell_micron,
+        paths=paths,
+        dataset=dataset,
+        inst_slice=sample,
+        )
 
     # Adding a ones column to accommodate for affine transformation
     meta_cell["ones"] = 1

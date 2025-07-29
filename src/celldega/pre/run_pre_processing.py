@@ -217,23 +217,6 @@ def main(
                 image_scale=1,
             )
         elif technology == "IST":
-            # print('checking if cell boundaries exist!!!!!!!!!!!')
-            # if not Path(paths["cell_boundaries"]).exists():
-            #     bound_path = dega.pre.make_cell_boundaries_ist(str(data_dir), path_landscape_files)
-            # else:
-            #     bound_path = paths["cell_boundaries"]
-
-            print('making IST meta_cell_image_coord !!!!!!!!!!!')
-
-            print('checking paths before make_meta_cell_image_coord')
-            print(paths)
-
-            print('************************************')
-            print('************************************')
-            print('dataset:', paths.get("dataset", ""))
-            print('inst_slice:', paths.get("inst_slice", ""))
-            print('************************************')
-            print('************************************')
 
             dega.pre.make_meta_cell_image_coord(
                 technology,
@@ -329,27 +312,34 @@ def main(
         if need_boundaries:
             if bound_path is None:
                 if not Path(paths["cell_boundaries"]).exists():
+                    print('make_cell_boundaries_ist!!!!!!!!!!!!!!!')
                     bound_path = dega.pre.make_cell_boundaries_ist(
                         str(data_dir), path_landscape_files
                     )
                 else:
                     bound_path = paths["cell_boundaries"]
 
+            print('after make_cell_boundaries_ist')
+            print('     ')
+
             print("\n======== IST: Cell Boundary Tiles ========")
             dega.pre.make_cell_boundary_tiles(
                 technology,
                 str(bound_path),
                 str(paths["cell_segmentation"]),
+                str(paths.get("meta_cell_micron", "")),
                 coarse_tile_factor=10,
                 tile_size=tile_size,
                 tile_bounds=tile_bounds,
                 image_scale=1,
                 max_workers=max_workers,
+                paths=paths,
             )
         else:
             print("Skipping IST boundary tiles, output already exists")
 
     else:
+
         print("\n======== Image Tiles========")
         dega.pre.create_image_tiles(
             technology, str(data_dir), path_landscape_files, image_tile_layer=image_tile_layer
@@ -372,6 +362,7 @@ def main(
                 verbose=False,
                 image_scale=1,
                 max_workers=max_workers,
+                paths=paths,
             )
             print(f"tile bounds: {tile_bounds}")
         else:
@@ -389,6 +380,7 @@ def main(
                 tile_size=tile_size,
                 tile_bounds=tile_bounds,
                 max_workers=max_workers,
+                paths=paths,
             )
         else:
             print("Skipping cell boundary tiles, output already exists")

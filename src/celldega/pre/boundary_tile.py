@@ -290,6 +290,7 @@ def make_cell_boundary_tiles(
     tile_bounds=None,
     image_scale=1,
     max_workers=1,
+    paths=None,
 ):
     """
     Processes cell boundary data and divides it into spatial tiles based on the provided technology.
@@ -357,9 +358,29 @@ def make_cell_boundary_tiles(
 
         gdf_cells["GEOMETRY"] = transformed_geometries
 
+    elif technology == 'IST':
+        print("IST technology")
+
+        print('paths')
+        print(paths)
+
+        # Load the transformation matrix
+        transformation_matrix = pd.read_csv(paths['transformation_matrix'], header=None, sep=" ").values
+
+        # Load cell boundaries and apply the transformation
+        gdf_cells = get_cell_polygons(
+            technology,
+            path_cell_boundaries,
+            transformation_matrix,
+            path_output,
+            image_scale,
+            path_meta_cell_micron,
+        )
+
     else:
+
         print("technology", technology)
-        transformation_matrix = pd.read_csv(path_transformation_matrix, header=None, sep=" ").values
+        transformation_matrix = pd.read_csv(paths['transformation_matrix'], header=None, sep=" ").values
 
         gdf_cells = get_cell_polygons(
             technology,

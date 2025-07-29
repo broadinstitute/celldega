@@ -1564,11 +1564,11 @@ def make_pseudo_transcript_tiles(
                     df_expanded['x'] = pd.Series(inst_pos['x'], index=df_expanded.index.tolist())
                     df_expanded['y'] = pd.Series(inst_pos['y'], index=df_expanded.index.tolist())
 
-                    jiggle = 1 * high_res_scale
+                    jitter = 1 # * high_res_scale
 
-                    # Add random uniform jitter to x and y within ±jiggle
-                    df_expanded["x"] += np.random.uniform(-jiggle/2, jiggle/2, size=len(df_expanded))
-                    df_expanded["y"] += np.random.uniform(-jiggle/2, jiggle/2, size=len(df_expanded))
+                    # Add random uniform jitter to x and y within ±jitter
+                    df_expanded["x"] += np.random.uniform(-jitter/2, jitter/2, size=len(df_expanded))
+                    df_expanded["y"] += np.random.uniform(-jitter/2, jitter/2, size=len(df_expanded))
 
                     if inst_pseudo is None:
                         inst_pseudo = df_expanded

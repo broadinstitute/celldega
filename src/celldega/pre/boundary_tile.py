@@ -335,6 +335,9 @@ def make_cell_boundary_tiles(
     # Ensure the output directory exists
     Path(path_output).mkdir(parents=True, exist_ok=True)
 
+    if paths is not None and path_transformation_matrix is None:
+        path_transformation_matrix = paths.get("transformation_matrix")
+
     if technology == "custom":
         print("custom technology")
         gdf_cells = gpd.read_parquet(path_cell_boundaries)
@@ -371,7 +374,7 @@ def make_cell_boundary_tiles(
         print(paths)
 
         # Load the transformation matrix
-        transformation_matrix = pd.read_csv(paths['transformation_matrix'], header=None, sep=" ").values
+        transformation_matrix = pd.read_csv(path_transformation_matrix, header=None, sep=" ").values
 
         # Load cell boundaries and apply the transformation
         gdf_cells = get_cell_polygons(
@@ -402,7 +405,7 @@ def make_cell_boundary_tiles(
     elif technology in ["MERSCOPE", "Xenium"]:
 
         print("technology", technology)
-        transformation_matrix = pd.read_csv(paths['transformation_matrix'], header=None, sep=" ").values
+        transformation_matrix = pd.read_csv(path_transformation_matrix, header=None, sep=" ").values
 
         gdf_cells = get_cell_polygons(
             technology,

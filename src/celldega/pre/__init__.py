@@ -1456,7 +1456,7 @@ def find_spot_positions(
 
 
 def make_pseudo_transcript_tiles(
-    paths: dict[str, str],
+    cbg: pd.DataFrame,
     path_spot_positions: str,
     path_output: str,
     tile_size: int,
@@ -1490,113 +1490,60 @@ def make_pseudo_transcript_tiles(
         Bounding box of the generated transcript coordinates.
     """
 
-    print('========Make pseudo transcript tiles========')
+    if rng is None:
+        rng = np.random.default_rng()
 
     spots = pd.read_parquet(path_spot_positions)
     spots[["y", "x"]] = spots["geometry"].apply(pd.Series)
     spots = spots.set_index("name")[["x", "y"]]
 
-    print('range of x and y values in spots:')
-    print('x:', spots.x.min(), spots.x.max())
-    print('y:', spots.y.min(), spots.y.max())
+    cbg = cbg.loc[cbg.index.intersection(spots.index)]
+    if pd.api.types.is_sparse(cbg):
+        coo = cbg.sparse.to_coo()
+    else:
+        from scipy.sparse import coo_matrix
 
-    # use the "Xenium" technology argument to bypass barcode string parsing
-    sbg = read_cbg_mtx(paths['sbg_matrix'], 'Xenium')
+        coo = coo_matrix(cbg.values)
 
-    print('spots.head()', spots.head())
+    rows = np.asarray(coo.row)
+    cols = np.asarray(coo.col)
+    counts = np.asarray(coo.data, dtype=int)
 
-    # hardwire tile bounds
-    tile_bounds = {}
-    tile_bounds["x_min"] = 0
-    tile_bounds["x_max"] = 20000
-    tile_bounds["y_min"] = 0
-    tile_bounds["y_max"] = 20000
+    idx_to_barcode = cbg.index.to_numpy()
+    idx_to_gene = cbg.columns.to_numpy()
 
-    # Calculate the number of tiles needed
-    n_tiles_x = int(np.ceil((tile_bounds["x_max"] - tile_bounds["x_min"]) / tile_size))
-    n_tiles_y = int(np.ceil((tile_bounds["y_max"] - tile_bounds["y_min"]) / tile_size))
+    base_x = spots.loc[idx_to_barcode[rows], "x"].to_numpy()
+    base_y = spots.loc[idx_to_barcode[rows], "y"].to_numpy()
+
+    expanded_x = np.repeat(base_x, counts)
+    expanded_y = np.repeat(base_y, counts)
+    expanded_gene = np.repeat(idx_to_gene[cols], counts)
+
+    jitter_x = rng.uniform(-jitter / 2, jitter / 2, size=len(expanded_x))
+    jitter_y = rng.uniform(-jitter / 2, jitter / 2, size=len(expanded_y))
+    xs = expanded_x + jitter_x
+    ys = expanded_y + jitter_y
+
+    x_min = float(xs.min()) - jitter / 2
+    x_max = float(xs.max()) + jitter / 2
+    y_min = float(ys.min()) - jitter / 2
+    y_max = float(ys.max()) + jitter / 2
+
+    tile_i = ((xs - x_min) // tile_size).astype(int)
+    tile_j = ((ys - y_min) // tile_size).astype(int)
 
     out_dir = Path(path_output)
     out_dir.mkdir(parents=True, exist_ok=True)
 
+    buckets: dict[tuple[int, int], list[dict[str, list]]] = {}
+    for ti, tj, gene, x, y in zip(tile_i, tile_j, expanded_gene, xs, ys):
+        buckets.setdefault((ti, tj), []).append({"name": gene, "geometry": [x, y]})
 
-    for i in range(n_tiles_x):
+    for (i, j), records in buckets.items():
+        df = pd.DataFrame(records)
+        df.to_parquet(out_dir / f"transcripts_tile_{i}_{j}.parquet", index=False)
 
-        if i % 10 == 0:
-            print("row", i)
-
-        for j in range(n_tiles_y):
-
-            # calculate polygon from these bounds
-            tile_x_min = tile_bounds["x_min"] + i * tile_size
-            tile_x_max = tile_x_min + tile_size
-            tile_y_min = tile_bounds["y_min"] + j * tile_size
-            tile_y_max = tile_y_min + tile_size
-
-            # Filter trx to get only the data within the current tile's bounds
-            # We need to make this more efficient
-            # option 1: make a GeoDataFrame and filter using sindex and the tile polygon
-            # option 2: remove transcripts that have been assigned to a tile from the DataFrame
-            tile_spots = spots[
-                (spots.x >= tile_x_min)
-                & (spots.x < tile_x_max)
-                & (spots.y >= tile_y_min)
-                & (spots.y < tile_y_max)
-            ].copy()
-
-
-            # Save the filtered DataFrame to a Parquet file
-            if tile_spots.shape[0] > 0:
-
-                print('found spots:', tile_spots.shape)
-
-                inst_spots = tile_spots.index.tolist()
-
-                inst_pseudo = None
-
-                for inst_spot in inst_spots:
-                    inst_pos = tile_spots.loc[inst_spot]
-
-                    # inst_df = adata[inst_spot].to_df()
-                    # ser_exp = inst_df.loc[inst_spot]
-
-                    ser_exp = sbg.loc[inst_spot].copy()
-                    ser_exp = ser_exp[ser_exp > 0]
-                    ser_exp = ser_exp.sort_values(ascending=False)
-
-                    df_expanded = ser_exp.index.repeat(ser_exp.values).to_frame(name="gene").reset_index(drop=True)
-                    df_expanded['x'] = pd.Series(inst_pos['x'], index=df_expanded.index.tolist())
-                    df_expanded['y'] = pd.Series(inst_pos['y'], index=df_expanded.index.tolist())
-
-                    jitter = 1 # * high_res_scale
-
-                    # Add random uniform jitter to x and y within ±jitter
-                    df_expanded["x"] += np.random.uniform(-jitter/2, jitter/2, size=len(df_expanded))
-                    df_expanded["y"] += np.random.uniform(-jitter/2, jitter/2, size=len(df_expanded))
-
-                    if inst_pseudo is None:
-                        inst_pseudo = df_expanded
-                    else:
-                        inst_pseudo = pd.concat([inst_pseudo, df_expanded], axis=0)
-
-
-                print(inst_pseudo.shape)
-
-                inst_pseudo.rename(columns={'gene':'name'}, inplace=True)
-
-                # make 'geometry' column
-                inst_pseudo = inst_pseudo.assign(
-                    geometry=inst_pseudo.apply(lambda row: [row["x"], row["y"]], axis=1)
-                )
-
-
-                # Define the filename based on the tile's coordinates
-
-                # write to the out_dir
-                filename = f"{path_output}/transcripts_tile_{i}_{j}.parquet"
-                # filename = f"{path_pseudo_tiles}/transcripts_tile_{i}_{j}.parquet"
-
-                inst_pseudo[["name", "geometry"]].to_parquet(filename)
+    return {"x_min": x_min, "x_max": x_max, "y_min": y_min, "y_max": y_max}
 
 
 

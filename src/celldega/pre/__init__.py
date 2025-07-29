@@ -1491,97 +1491,176 @@ def make_pseudo_transcript_tiles(
 
     print('========Make pseudo transcript tiles========')
 
-    if rng is None:
-        rng = np.random.default_rng()
-
-
-    print('read path_spot_positions:', path_spot_positions)
-
     spots = pd.read_parquet(path_spot_positions)
-
     spots[["y", "x"]] = spots["geometry"].apply(pd.Series)
     spots = spots.set_index("name")[["x", "y"]]
 
-    print('spots:', spots.shape)
+    print('spots.head()', spots.head())
+
+
+    # hardwire tile bounds
+    tile_bounds = {}
+    tile_bounds["x_min"] = 0
+    tile_bounds["x_max"] = 20000
+    tile_bounds["y_min"] = 0
+    tile_bounds["y_max"] = 20000
+
+    # Calculate the number of tiles needed
+    n_tiles_x = int(np.ceil((tile_bounds["x_max"] - tile_bounds["x_min"]) / tile_size))
+    n_tiles_y = int(np.ceil((tile_bounds["y_max"] - tile_bounds["y_min"]) / tile_size))
+
+    for i in range(n_tiles_x):
+
+        if i % 10 == 0:
+            print("row", i)
+
+        for j in range(n_tiles_y):
+            # calculate polygon from these bounds
+            tile_x_min = tile_bounds["x_min"] + i * tile_size
+            tile_x_max = tile_x_min + tile_size
+            tile_y_min = tile_bounds["y_min"] + j * tile_size
+            tile_y_max = tile_y_min + tile_size
+
+            # Filter trx to get only the data within the current tile's bounds
+            # We need to make this more efficient
+            # option 1: make a GeoDataFrame and filter using sindex and the tile polygon
+            # option 2: remove transcripts that have been assigned to a tile from the DataFrame
+            tile_spots = spots[
+                (spots.x >= tile_x_min)
+                & (spots.x < tile_x_max)
+                & (spots.y >= tile_y_min)
+                & (spots.y < tile_y_max)
+            ].copy()
+
+            print('tile_spots shape:', tile_spots.shape)
+
+            # Save the filtered DataFrame to a Parquet file
+            if tile_spots.shape[0] > 0:
+
+                inst_spots = tile_spots.index.tolist()
+
+                inst_pseudo = None
+
+                for inst_spot in inst_spots:
+                    inst_pos = tile_spots.loc[inst_spot]
+
+                    # inst_df = adata[inst_spot].to_df()
+                    # ser_exp = inst_df.loc[inst_spot]
+                    # ser_exp = ser_exp[ser_exp > 0]
+                    # ser_exp = ser_exp.sort_values(ascending=False)
+
+                    # df_expanded = ser_exp.index.repeat(ser_exp.values).to_frame(name="gene").reset_index(drop=True)
+                    # df_expanded['x'] = pd.Series(inst_pos['x'], index=df_expanded.index.tolist())
+                    # df_expanded['y'] = pd.Series(inst_pos['y'], index=df_expanded.index.tolist())
+
+                    # jiggle = 1 * high_res_scale
+
+                    # # Add random uniform jitter to x and y within ±jiggle
+                    # df_expanded["x"] += np.random.uniform(-jiggle/2, jiggle/2, size=len(df_expanded))
+                    # df_expanded["y"] += np.random.uniform(-jiggle/2, jiggle/2, size=len(df_expanded))
+
+                    # if inst_pseudo is None:
+                    #     inst_pseudo = df_expanded
+                    # else:
+                    #     inst_pseudo = pd.concat([inst_pseudo, df_expanded], axis=0)
+
+
+                print(inst_pseudo.shape)
+
+                inst_pseudo.rename(columns={'gene':'name'}, inplace=True)
+
+                # make 'geometry' column
+                inst_pseudo = inst_pseudo.assign(
+                    geometry=inst_pseudo.apply(lambda row: [row["x"], row["y"]], axis=1)
+                )
+
+
+                # Define the filename based on the tile's coordinates
+                filename = f"{path_pseudo_tiles}/transcripts_tile_{i}_{j}.parquet"
+
+                inst_pseudo[["name", "geometry"]].to_parquet(filename)
 
 
 
-    print('paths')
-    print(paths)
+    # print('========Make pseudo transcript tiles========')
 
-    # read the spot cell by gene matrix
-    sbg = read_cbg_mtx(paths['sbg_matrix'], 'Xenium')
+    # if rng is None:
+    #     rng = np.random.default_rng()
 
-    print('                     ')
-    print('spots index', spots.index.tolist()[:10])
-    print('sbg index', sbg.index.tolist()[:10])
-    print('                     ')
 
-    print('                     ')
-    print('sbg:', sbg.shape)
-    print('                     ')
+    # print('read path_spot_positions:', path_spot_positions)
 
-    # common_spots = sorted(list(set(spots.index.tolist()).intersection(sbg.index.tolist())))
+    # spots = pd.read_parquet(path_spot_positions)
 
-    # print('number of common spots:', len(common_spots))
+    # spots[["y", "x"]] = spots["geometry"].apply(pd.Series)
+    # spots = spots.set_index("name")[["x", "y"]]
 
-    # # sbg = sbg.loc[sbg.index.intersection(spots.index)]
-    # sbg = sbg.loc[common_spots]
-    # spots = spots.loc[common_spots]
-
-    # print('after intersection sbg:', sbg.shape)
-    # print('sbg:', sbg.shape)
     # print('spots:', spots.shape)
 
-    print('skipping finding common spots')
+    # print('paths')
+    # print(paths)
 
-    if pd.api.types.is_sparse(sbg):
-        coo = sbg.sparse.to_coo()
-    else:
-        from scipy.sparse import coo_matrix
+    # # read the spot cell by gene matrix
+    # sbg = read_cbg_mtx(paths['sbg_matrix'], 'Xenium')
 
-        coo = coo_matrix(sbg.values)
+    # print('                     ')
+    # print('spots index', spots.index.tolist()[:10])
+    # print('sbg index', sbg.index.tolist()[:10])
+    # print('                     ')
 
-    rows = np.asarray(coo.row)
-    cols = np.asarray(coo.col)
-    counts = np.asarray(coo.data, dtype=int)
+    # print('                     ')
+    # print('sbg:', sbg.shape)
+    # print('                     ')
 
-    x_min = float(spots["x"].min()) - jitter / 2
-    x_max = float(spots["x"].max()) + jitter / 2
-    y_min = float(spots["y"].min()) - jitter / 2
-    y_max = float(spots["y"].max()) + jitter / 2
+    # print('skipping finding common spots')
 
-    out_dir = Path(path_output)
-    out_dir.mkdir(parents=True, exist_ok=True)
+    # if pd.api.types.is_sparse(sbg):
+    #     coo = sbg.sparse.to_coo()
+    # else:
+    #     from scipy.sparse import coo_matrix
 
-    buckets: dict[tuple[int, int], list[dict[str, list]]] = {}
+    #     coo = coo_matrix(sbg.values)
 
-    idx_to_barcode = sbg.index.to_numpy()
-    idx_to_gene = sbg.columns.to_numpy()
+    # rows = np.asarray(coo.row)
+    # cols = np.asarray(coo.col)
+    # counts = np.asarray(coo.data, dtype=int)
 
-    print('about to iterate over rows, cols, counts')
-    for r, c, n in zip(rows, cols, counts):
-        barcode = idx_to_barcode[r]
-        gene = idx_to_gene[c]
-        base_x = spots.at[barcode, "x"]
-        base_y = spots.at[barcode, "y"]
+    # x_min = float(spots["x"].min()) - jitter / 2
+    # x_max = float(spots["x"].max()) + jitter / 2
+    # y_min = float(spots["y"].min()) - jitter / 2
+    # y_max = float(spots["y"].max()) + jitter / 2
 
-        jitter_x = rng.uniform(-jitter / 2, jitter / 2, size=n)
-        jitter_y = rng.uniform(-jitter / 2, jitter / 2, size=n)
-        xs = base_x + jitter_x
-        ys = base_y + jitter_y
+    # out_dir = Path(path_output)
+    # out_dir.mkdir(parents=True, exist_ok=True)
 
-        tile_i = ((xs - x_min) // tile_size).astype(int)
-        tile_j = ((ys - y_min) // tile_size).astype(int)
+    # buckets: dict[tuple[int, int], list[dict[str, list]]] = {}
 
-        for ti, tj, x, y in zip(tile_i, tile_j, xs, ys):
-            buckets.setdefault((ti, tj), []).append({"name": gene, "geometry": [x, y]})
+    # idx_to_barcode = sbg.index.to_numpy()
+    # idx_to_gene = sbg.columns.to_numpy()
 
-    for (i, j), records in buckets.items():
-        df = pd.DataFrame(records)
-        df.to_parquet(out_dir / f"transcripts_tile_{i}_{j}.parquet", index=False)
+    # print('about to iterate over rows, cols, counts')
+    # for r, c, n in zip(rows, cols, counts):
+    #     barcode = idx_to_barcode[r]
+    #     gene = idx_to_gene[c]
+    #     base_x = spots.at[barcode, "x"]
+    #     base_y = spots.at[barcode, "y"]
 
-    return {"x_min": x_min, "x_max": x_max, "y_min": y_min, "y_max": y_max}
+    #     jitter_x = rng.uniform(-jitter / 2, jitter / 2, size=n)
+    #     jitter_y = rng.uniform(-jitter / 2, jitter / 2, size=n)
+    #     xs = base_x + jitter_x
+    #     ys = base_y + jitter_y
+
+    #     tile_i = ((xs - x_min) // tile_size).astype(int)
+    #     tile_j = ((ys - y_min) // tile_size).astype(int)
+
+    #     for ti, tj, x, y in zip(tile_i, tile_j, xs, ys):
+    #         buckets.setdefault((ti, tj), []).append({"name": gene, "geometry": [x, y]})
+
+    # for (i, j), records in buckets.items():
+    #     df = pd.DataFrame(records)
+    #     df.to_parquet(out_dir / f"transcripts_tile_{i}_{j}.parquet", index=False)
+
+    # return {"x_min": x_min, "x_max": x_max, "y_min": y_min, "y_max": y_max}
 
 
 def make_cell_boundaries_ist(

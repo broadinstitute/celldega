@@ -308,7 +308,11 @@ def main(
     if technology == "IST":
 
         print("\n======== IST: Image tiles ========")
-        dega.pre.create_image_tiles_ist(str(data_dir), path_landscape_files)
+        # make image tiles if the directory pyramid_images does not exist
+        if not _output_exists(path_landscape_files + "/pyramid_images"):
+            dega.pre.create_image_tiles_ist(str(data_dir), path_landscape_files)
+        else:
+            print("Skipping IST image tiles, output already exists")
 
         tile_bounds = dega.pre.get_ist_image_bounds(str(paths["image_file"]))
 

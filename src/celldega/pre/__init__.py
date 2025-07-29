@@ -741,8 +741,6 @@ def _load_meta_cell_by_technology(
         print('inst_slice:', inst_slice)
         print('dataset:', dataset)
 
-        print('loc x', inst_slice + '_' + dataset, 'X_shift')
-        print('loc y', inst_slice + '_' + dataset, 'Y_shift')
 
         x_shift = gc.loc[inst_slice + '_' + dataset, 'X_shift']
         y_shift = gc.loc[inst_slice + '_' + dataset, 'Y_shift']
@@ -844,7 +842,7 @@ def make_meta_cell_image_coord(
         path_meta_cell_micron,
         paths=paths,
         dataset=dataset,
-        inst_slice=sample,
+        inst_slice=inst_slice,
         )
 
     # Adding a ones column to accommodate for affine transformation

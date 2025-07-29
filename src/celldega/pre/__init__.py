@@ -722,21 +722,17 @@ def _load_meta_cell_by_technology(
 
         print('load this path ', paths['cbg_matrix'] / 'barcodes.tsv.gz')
 
-        tmp = pd.read_csv(
+        meta_cell = pd.read_csv(
             paths['cbg_matrix'] / 'barcodes.tsv.gz',
             sep=':',
             header=None,
             index_col=0
         )
 
-        # print('cells:', cells.head())
-
-        # tmp = pd.DataFrame([x.split(':') for x in cells.index.tolist()])
-        # tmp.set_index(0, inplace=True)
-        tmp.index.name = None
-        tmp.columns = ['center_x', 'center_y']
-        tmp = tmp.astype(float)
-        print('tmp:', tmp.head())
+        meta_cell.index.name = None
+        meta_cell.columns = ['center_x', 'center_y']
+        meta_cell = meta_cell.astype(float)
+        print('meta_cell:', meta_cell.head())
 
         print('inst_slice:', inst_slice)
         print('dataset:', dataset)
@@ -750,19 +746,15 @@ def _load_meta_cell_by_technology(
 
         print('x_shift:', x_shift, 'y_shift:', y_shift)
 
-        tmp['center_x'] = (tmp['center_x'] - x_shift) * high_res_scale
-        tmp['center_y'] = (tmp['center_y'] - y_shift) * high_res_scale
+        meta_cell['center_x'] = (meta_cell['center_x'] - x_shift) * high_res_scale
+        meta_cell['center_y'] = (meta_cell['center_y'] - y_shift) * high_res_scale
 
-        tmp["geometry"] = tmp.apply(
+        meta_cell["geometry"] = meta_cell.apply(
                 # swapped for some reason
                 lambda row: [row["center_y"], row["center_x"]] , axis=1
             )
 
-        # tmp['name'] = pd.Series(tmp.index.tolist(), index=tmp.index.tolist())
-
-        # tmp[['name', 'geometry']].to_parquet('data/michal_landscape_files/E14_' + inst_slice + '/cell_metadata.parquet')
-
-        meta_cell = tmp
+        meta_cell["name"] = pd.Series(meta_cell.index, index=meta_cell.index)
 
     elif technology == "custom":
         import geopandas as gpd
@@ -844,6 +836,9 @@ def make_meta_cell_image_coord(
         dataset=dataset,
         inst_slice=inst_slice,
         )
+
+    print('meta_cell after _load_meta_cell_by_technology')
+    print(meta_cell.head())
 
     # Adding a ones column to accommodate for affine transformation
     meta_cell["ones"] = 1

@@ -1432,7 +1432,6 @@ def find_spot_positions(
         for chunk in pd.read_csv(
             map_file, sep="\t", chunksize=chunk_size, header=None, index_col=0
         ):
-            print('chunk:')
             common = list(barcodes_set.intersection(chunk.index.tolist()))
             if common:
                 print('found common barcodes:', len(common))
@@ -1440,8 +1439,10 @@ def find_spot_positions(
                 barcodes.loc[common, "y"] = chunk.loc[common, 2]
 
     scale = 1 / 0.382
-    barcodes["x"] = (barcodes["x"].astype(float) - x_shift) * scale
-    barcodes["y"] = (barcodes["y"].astype(float) - y_shift) * scale
+
+    # barcodes are in nm and need to be converted to microns
+    barcodes["x"] = (barcodes["x"].astype(float)/1000 - x_shift) * scale
+    barcodes["y"] = (barcodes["y"].astype(float)/1000 - y_shift) * scale
 
     barcodes["name"] = barcodes.index.astype(str)
     barcodes["geometry"] = barcodes.apply(
@@ -1495,6 +1496,10 @@ def make_pseudo_transcript_tiles(
     spots[["y", "x"]] = spots["geometry"].apply(pd.Series)
     spots = spots.set_index("name")[["x", "y"]]
 
+    print('range of x and y values in spots:')
+    print('x:', spots.x.min(), spots.x.max())
+    print('y:', spots.y.min(), spots.y.max())
+
     # use the "Xenium" technology argument to bypass barcode string parsing
     sbg = read_cbg_mtx(paths['sbg_matrix'], 'Xenium')
 
@@ -1517,6 +1522,7 @@ def make_pseudo_transcript_tiles(
             print("row", i)
 
         for j in range(n_tiles_y):
+
             # calculate polygon from these bounds
             tile_x_min = tile_bounds["x_min"] + i * tile_size
             tile_x_max = tile_x_min + tile_size

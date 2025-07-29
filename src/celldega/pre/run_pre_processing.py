@@ -240,7 +240,7 @@ def main(
     #######################################
     if technology in ["Xenium", "IST"]:
         print("IST: read CBG matrix")
-        cbg = dega.pre.read_cbg_mtx(str(paths["cbg_matrix"]))
+        cbg = dega.pre.read_cbg_mtx(str(paths["cbg_matrix"]), technology=technology)
     elif technology == "MERSCOPE":
         cbg = pd.read_csv(str(paths["cbg_csv"]), index_col=0)
 

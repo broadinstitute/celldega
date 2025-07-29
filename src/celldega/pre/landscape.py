@@ -88,7 +88,7 @@ def calc_meta_gene_data(cbg):
     return pd.DataFrame(meta_gene.values, index=meta_gene.index.tolist(), columns=meta_gene.columns)
 
 
-def read_cbg_mtx(base_path):
+def read_cbg_mtx(base_path, technology=None):
     """
     Read the cell-by-gene matrix from the mtx files.
 
@@ -110,7 +110,23 @@ def read_cbg_mtx(base_path):
     matrix_path = base_path / "matrix.mtx.gz"
 
     # Read barcodes and features
-    barcodes = pd.read_csv(barcodes_path, header=None, compression="gzip")
+    if technology == "IST":
+        # parsing colon separated barcode data
+        barcodes = pd.read_csv(
+            barcodes_path,
+            sep=':',
+            header=None,
+            index_col=0
+        )
+        barcodes = barcodes.index.tolist()
+    elif technology == "Xenium":
+        barcodes = pd.read_csv(barcodes_path, header=None, compression="gzip")
+        barcodes = barcodes[0]
+    else:
+        raise ValueError(f"Unsupported technology: {technology}. Supported technologies are 'Xenium', 'MERSCOPE', and 'IST'.")
+
+    print(barcodes[:5])
+
     features = pd.read_csv(features_path, header=None, compression="gzip", sep="\t")
 
     # Read the gene expression matrix and transpose it
@@ -118,7 +134,7 @@ def read_cbg_mtx(base_path):
     matrix = mmread(matrix_path).transpose().tocsc()
 
     # Create a sparse DataFrame with genes as columns and barcodes as rows
-    cbg = pd.DataFrame.sparse.from_spmatrix(matrix, index=barcodes[0], columns=features[1])
+    cbg = pd.DataFrame.sparse.from_spmatrix(matrix, index=barcodes, columns=features[1])
 
     return cbg.rename_axis("__index_level_0__", axis="columns")
 
@@ -151,6 +167,14 @@ def save_cbg_gene_parquets(base_path, cbg, verbose=False, segmentation_approach=
     cell_str_to_int_mapping = _get_name_mapping(
         base_path, layer="boundary", segmentation=segmentation_approach
     )
+
+    # print the first 10 items (as a dict)
+    subset = dict(list(cell_str_to_int_mapping.items())[:10])
+    print('checking cell_str_to_int_mapping in save_cbg_gene_parquets:')
+    print(subset)
+
+    print('cbg.head()', cbg.head())
+
     cbg.index = cbg.index.map(cell_str_to_int_mapping)
 
     for index, gene in enumerate(cbg.columns):

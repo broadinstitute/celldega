@@ -259,11 +259,16 @@ def get_cell_polygons(
             lambda x: x.tolist()
         )
         grouped["geometry"] = grouped.apply(
-            lambda row: Polygon(zip(row["vertex_x"], row["vertex_y"], strict=False)), axis=1
+            lambda row: Polygon(zip(row["vertex_x"], row["vertex_y"], strict=False)),
+            axis=1,
         )
         cells_orig = gpd.GeoDataFrame(grouped, geometry="geometry")[["geometry"]]
 
         cells_orig.rename(columns={"geometry": "geometry_micron"}, inplace=True)
+
+    elif technology == "IST":
+        cells_orig = gpd.read_parquet(path_cell_boundaries)
+        cells_orig.rename(columns={"geometry_image_space": "geometry_micron"}, inplace=True)
 
     # Transform geometries
     cells_orig["GEOMETRY"] = batch_transform_geometries(

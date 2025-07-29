@@ -1494,24 +1494,46 @@ def make_pseudo_transcript_tiles(
     if rng is None:
         rng = np.random.default_rng()
 
+
     print('read path_spot_positions:', path_spot_positions)
+
     spots = pd.read_parquet(path_spot_positions)
 
     spots[["y", "x"]] = spots["geometry"].apply(pd.Series)
     spots = spots.set_index("name")[["x", "y"]]
 
-    print('spots:', spots.head())
+    print('spots:', spots.shape)
+
+
 
     print('paths')
     print(paths)
 
     # read the spot cell by gene matrix
     sbg = read_cbg_mtx(paths['sbg_matrix'], 'Xenium')
-    print('sbg:', sbg.head())
 
-    sbg = sbg.loc[sbg.index.intersection(spots.index)]
+    print('                     ')
+    print('spots index', spots.index.tolist()[:10])
+    print('sbg index', sbg.index.tolist()[:10])
+    print('                     ')
 
-    print('after intersection sbg:', sbg.head())
+    print('                     ')
+    print('sbg:', sbg.shape)
+    print('                     ')
+
+    # common_spots = sorted(list(set(spots.index.tolist()).intersection(sbg.index.tolist())))
+
+    # print('number of common spots:', len(common_spots))
+
+    # # sbg = sbg.loc[sbg.index.intersection(spots.index)]
+    # sbg = sbg.loc[common_spots]
+    # spots = spots.loc[common_spots]
+
+    # print('after intersection sbg:', sbg.shape)
+    # print('sbg:', sbg.shape)
+    # print('spots:', spots.shape)
+
+    print('skipping finding common spots')
 
     if pd.api.types.is_sparse(sbg):
         coo = sbg.sparse.to_coo()
@@ -1537,6 +1559,7 @@ def make_pseudo_transcript_tiles(
     idx_to_barcode = sbg.index.to_numpy()
     idx_to_gene = sbg.columns.to_numpy()
 
+    print('about to iterate over rows, cols, counts')
     for r, c, n in zip(rows, cols, counts):
         barcode = idx_to_barcode[r]
         gene = idx_to_gene[c]

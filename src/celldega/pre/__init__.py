@@ -1516,6 +1516,10 @@ def make_pseudo_transcript_tiles(
     n_tiles_x = int(np.ceil((tile_bounds["x_max"] - tile_bounds["x_min"]) / tile_size))
     n_tiles_y = int(np.ceil((tile_bounds["y_max"] - tile_bounds["y_min"]) / tile_size))
 
+    out_dir = Path(path_output)
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+
     for i in range(n_tiles_x):
 
         if i % 10 == 0:
@@ -1587,7 +1591,10 @@ def make_pseudo_transcript_tiles(
 
 
                 # Define the filename based on the tile's coordinates
-                filename = f"{path_pseudo_tiles}/transcripts_tile_{i}_{j}.parquet"
+
+                # write to the out_dir
+                filename = f"{path_output}/transcripts_tile_{i}_{j}.parquet"
+                # filename = f"{path_pseudo_tiles}/transcripts_tile_{i}_{j}.parquet"
 
                 inst_pseudo[["name", "geometry"]].to_parquet(filename)
 

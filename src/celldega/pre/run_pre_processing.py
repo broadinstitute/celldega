@@ -323,7 +323,7 @@ def main(
                 dega.pre.find_spot_positions(str(data_dir), path_landscape_files)
 
             dega.pre.make_pseudo_transcript_tiles(
-                paths,
+                cbg,
                 str(spot_file),
                 str(paths["transcript_tiles"]),
                 tile_size=tile_size,

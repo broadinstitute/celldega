@@ -189,7 +189,8 @@ def main(
 
     bound_path = None
 
-    # Save transformation matrices if not already present
+    # Transformation matrix
+    #######################################
     transform_out = Path(path_landscape_files) / "micron_to_image_transform.csv"
 
     if not transform_out.exists():
@@ -303,8 +304,9 @@ def main(
         dega.pre.create_cluster_and_meta_cluster(technology, path_landscape_files, str(data_dir))
 
     # Image, Cell Boundary, and Transcript Tiles
-    #######################################
+    ###############################################
     if technology == "IST":
+
         print("\n======== IST: Image tiles ========")
         dega.pre.create_image_tiles_ist(str(data_dir), path_landscape_files)
 
@@ -317,7 +319,7 @@ def main(
                 dega.pre.find_spot_positions(str(data_dir), path_landscape_files)
 
             dega.pre.make_pseudo_transcript_tiles(
-                cbg,
+                paths,
                 str(spot_file),
                 str(paths["transcript_tiles"]),
                 tile_size=tile_size,

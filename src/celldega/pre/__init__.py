@@ -26,6 +26,7 @@ from skimage.io import imread, imsave
 import tifffile
 import zarr
 
+
 from .boundary_tile import (
     _round_nested_coord_list,
     make_cell_boundary_tiles,
@@ -1411,6 +1412,7 @@ def find_spot_positions(
     x_shift = gc.loc[f"{inst_slice}_{dataset}", "X_shift"]
     y_shift = gc.loc[f"{inst_slice}_{dataset}", "Y_shift"]
 
+    # Load "raw" barcodes which give spot position
     barcodes_path = (
         Path(data_dir)
         / "matrix_files"
@@ -1430,8 +1432,10 @@ def find_spot_positions(
         for chunk in pd.read_csv(
             map_file, sep="\t", chunksize=chunk_size, header=None, index_col=0
         ):
+            print('chunk:')
             common = list(barcodes_set.intersection(chunk.index.tolist()))
             if common:
+                print('found common barcodes:', len(common))
                 barcodes.loc[common, "x"] = chunk.loc[common, 1]
                 barcodes.loc[common, "y"] = chunk.loc[common, 2]
 
@@ -1443,13 +1447,15 @@ def find_spot_positions(
     barcodes["geometry"] = barcodes.apply(
         lambda r: [r["y"] / image_scale, r["x"] / image_scale], axis=1
     )
+
+    print('spot positions to parquet')
     barcodes[["name", "geometry"]].to_parquet(
         Path(path_landscape_files) / "spot_positions.parquet"
     )
 
 
 def make_pseudo_transcript_tiles(
-    cbg: pd.DataFrame,
+    paths: dict[str, str],
     path_spot_positions: str,
     path_output: str,
     tile_size: int,
@@ -1483,20 +1489,36 @@ def make_pseudo_transcript_tiles(
         Bounding box of the generated transcript coordinates.
     """
 
+    print('========Make pseudo transcript tiles========')
+
     if rng is None:
         rng = np.random.default_rng()
 
+    print('read path_spot_positions:', path_spot_positions)
     spots = pd.read_parquet(path_spot_positions)
+
     spots[["y", "x"]] = spots["geometry"].apply(pd.Series)
     spots = spots.set_index("name")[["x", "y"]]
 
-    cbg = cbg.loc[cbg.index.intersection(spots.index)]
-    if pd.api.types.is_sparse(cbg):
-        coo = cbg.sparse.to_coo()
+    print('spots:', spots.head())
+
+    print('paths')
+    print(paths)
+
+    # read the spot cell by gene matrix
+    sbg = read_cbg_mtx(paths['sbg_matrix'], 'Xenium')
+    print('sbg:', sbg.head())
+
+    sbg = sbg.loc[sbg.index.intersection(spots.index)]
+
+    print('after intersection sbg:', sbg.head())
+
+    if pd.api.types.is_sparse(sbg):
+        coo = sbg.sparse.to_coo()
     else:
         from scipy.sparse import coo_matrix
 
-        coo = coo_matrix(cbg.values)
+        coo = coo_matrix(sbg.values)
 
     rows = np.asarray(coo.row)
     cols = np.asarray(coo.col)
@@ -1512,8 +1534,8 @@ def make_pseudo_transcript_tiles(
 
     buckets: dict[tuple[int, int], list[dict[str, list]]] = {}
 
-    idx_to_barcode = cbg.index.to_numpy()
-    idx_to_gene = cbg.columns.to_numpy()
+    idx_to_barcode = sbg.index.to_numpy()
+    idx_to_gene = sbg.columns.to_numpy()
 
     for r, c, n in zip(rows, cols, counts):
         barcode = idx_to_barcode[r]

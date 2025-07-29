@@ -119,11 +119,9 @@ def read_cbg_mtx(base_path, technology=None):
             index_col=0
         )
         barcodes = barcodes.index.tolist()
-    elif technology == "Xenium":
+    else:
         barcodes = pd.read_csv(barcodes_path, header=None, compression="gzip")
         barcodes = barcodes[0]
-    else:
-        raise ValueError(f"Unsupported technology: {technology}. Supported technologies are 'Xenium', 'MERSCOPE', and 'IST'.")
 
     print(barcodes[:5])
 

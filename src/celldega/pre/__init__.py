@@ -1552,133 +1552,42 @@ def make_pseudo_transcript_tiles(
 
                 inst_spots = tile_spots.index.tolist()
 
-                inst_pseudo = None
+                # Just get expression matrix for this tile
+                tile_sbg = sbg.loc[inst_spots]
 
-                for inst_spot in inst_spots:
-                    inst_pos = tile_spots.loc[inst_spot]
+                # Remove zeros and unstack to long format
+                # (sparse .stack() is fast and memory-efficient)
+                long_df = tile_sbg.stack().rename_axis(index=["spot", "gene"]).reset_index(name="count")
 
-                    # inst_df = adata[inst_spot].to_df()
-                    # ser_exp = inst_df.loc[inst_spot]
+                # Repeat rows by transcript count
+                long_df = long_df[long_df["count"] > 0].reset_index(drop=True)
+                repeats = long_df["count"].astype(int).to_numpy()
+                long_df = long_df.loc[long_df.index.repeat(repeats)].reset_index(drop=True)
 
-                    ser_exp = sbg.loc[inst_spot].copy()
-                    ser_exp = ser_exp[ser_exp > 0]
-                    ser_exp = ser_exp.sort_values(ascending=False)
+                # Add x and y coordinates using spot index
+                long_df["x"] = long_df["spot"].map(tile_spots["x"])
+                long_df["y"] = long_df["spot"].map(tile_spots["y"])
 
-                    df_expanded = ser_exp.index.repeat(ser_exp.values).to_frame(name="gene").reset_index(drop=True)
-                    df_expanded['x'] = pd.Series(inst_pos['x'], index=df_expanded.index.tolist())
-                    df_expanded['y'] = pd.Series(inst_pos['y'], index=df_expanded.index.tolist())
+                # Add vectorized jitter
+                jitter_radius = jitter / 2
+                n = len(long_df)
 
-                    jitter = 1 # * high_res_scale
+                if rng is None:
+                    rng = np.random.default_rng()
 
-                    # Add random uniform jitter to x and y within ±jitter
-                    df_expanded["x"] += np.random.uniform(-jitter/2, jitter/2, size=len(df_expanded))
-                    df_expanded["y"] += np.random.uniform(-jitter/2, jitter/2, size=len(df_expanded))
+                long_df["x"] += rng.uniform(-jitter_radius, jitter_radius, size=n)
+                long_df["y"] += rng.uniform(-jitter_radius, jitter_radius, size=n)
 
-                    if inst_pseudo is None:
-                        inst_pseudo = df_expanded
-                    else:
-                        inst_pseudo = pd.concat([inst_pseudo, df_expanded], axis=0)
+                # Rename and build geometry
+                long_df.rename(columns={"gene": "name"}, inplace=True)
+                long_df["geometry"] = np.stack([long_df["x"], long_df["y"]], axis=1).tolist()
 
-
-                print(inst_pseudo.shape)
-
-                inst_pseudo.rename(columns={'gene':'name'}, inplace=True)
-
-                # make 'geometry' column
-                inst_pseudo = inst_pseudo.assign(
-                    geometry=inst_pseudo.apply(lambda row: [row["x"], row["y"]], axis=1)
-                )
-
-
-                # Define the filename based on the tile's coordinates
-
-                # write to the out_dir
+                # Save to parquet
                 filename = f"{path_output}/transcripts_tile_{i}_{j}.parquet"
-                # filename = f"{path_pseudo_tiles}/transcripts_tile_{i}_{j}.parquet"
+                long_df[["name", "geometry"]].to_parquet(filename)
 
-                inst_pseudo[["name", "geometry"]].to_parquet(filename)
+                print(f"tile {i},{j}: wrote {len(long_df)} pseudo-transcripts")
 
-
-
-    # print('========Make pseudo transcript tiles========')
-
-    # if rng is None:
-    #     rng = np.random.default_rng()
-
-
-    # print('read path_spot_positions:', path_spot_positions)
-
-    # spots = pd.read_parquet(path_spot_positions)
-
-    # spots[["y", "x"]] = spots["geometry"].apply(pd.Series)
-    # spots = spots.set_index("name")[["x", "y"]]
-
-    # print('spots:', spots.shape)
-
-    # print('paths')
-    # print(paths)
-
-    # # read the spot cell by gene matrix
-    # sbg = read_cbg_mtx(paths['sbg_matrix'], 'Xenium')
-
-    # print('                     ')
-    # print('spots index', spots.index.tolist()[:10])
-    # print('sbg index', sbg.index.tolist()[:10])
-    # print('                     ')
-
-    # print('                     ')
-    # print('sbg:', sbg.shape)
-    # print('                     ')
-
-    # print('skipping finding common spots')
-
-    # if pd.api.types.is_sparse(sbg):
-    #     coo = sbg.sparse.to_coo()
-    # else:
-    #     from scipy.sparse import coo_matrix
-
-    #     coo = coo_matrix(sbg.values)
-
-    # rows = np.asarray(coo.row)
-    # cols = np.asarray(coo.col)
-    # counts = np.asarray(coo.data, dtype=int)
-
-    # x_min = float(spots["x"].min()) - jitter / 2
-    # x_max = float(spots["x"].max()) + jitter / 2
-    # y_min = float(spots["y"].min()) - jitter / 2
-    # y_max = float(spots["y"].max()) + jitter / 2
-
-    # out_dir = Path(path_output)
-    # out_dir.mkdir(parents=True, exist_ok=True)
-
-    # buckets: dict[tuple[int, int], list[dict[str, list]]] = {}
-
-    # idx_to_barcode = sbg.index.to_numpy()
-    # idx_to_gene = sbg.columns.to_numpy()
-
-    # print('about to iterate over rows, cols, counts')
-    # for r, c, n in zip(rows, cols, counts):
-    #     barcode = idx_to_barcode[r]
-    #     gene = idx_to_gene[c]
-    #     base_x = spots.at[barcode, "x"]
-    #     base_y = spots.at[barcode, "y"]
-
-    #     jitter_x = rng.uniform(-jitter / 2, jitter / 2, size=n)
-    #     jitter_y = rng.uniform(-jitter / 2, jitter / 2, size=n)
-    #     xs = base_x + jitter_x
-    #     ys = base_y + jitter_y
-
-    #     tile_i = ((xs - x_min) // tile_size).astype(int)
-    #     tile_j = ((ys - y_min) // tile_size).astype(int)
-
-    #     for ti, tj, x, y in zip(tile_i, tile_j, xs, ys):
-    #         buckets.setdefault((ti, tj), []).append({"name": gene, "geometry": [x, y]})
-
-    # for (i, j), records in buckets.items():
-    #     df = pd.DataFrame(records)
-    #     df.to_parquet(out_dir / f"transcripts_tile_{i}_{j}.parquet", index=False)
-
-    # return {"x_min": x_min, "x_max": x_max, "y_min": y_min, "y_max": y_max}
 
 
 def make_cell_boundaries_ist(

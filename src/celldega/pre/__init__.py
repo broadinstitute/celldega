@@ -27,6 +27,9 @@ import tifffile
 import zarr
 
 
+import polars as pl
+from scipy.sparse import coo_matrix
+
 from .boundary_tile import (
     _round_nested_coord_list,
     make_cell_boundary_tiles,
@@ -1458,6 +1461,8 @@ def find_spot_positions(
     )
 
 
+
+
 def make_pseudo_transcript_tiles(
     paths: dict[str, str],
     path_spot_positions: str,
@@ -1467,34 +1472,9 @@ def make_pseudo_transcript_tiles(
     *,
     rng: np.random.Generator | None = None,
 ) -> dict:
-    """Generate pseudo-transcript tiles from a cell-by-gene matrix.
-
-    Parameters
-    ----------
-    cbg:
-        Cell-by-gene matrix with barcodes as index and genes as columns. The
-        matrix may be sparse.
-    path_spot_positions:
-        Path to the ``spot_positions.parquet`` file created by
-        :func:`find_spot_positions`.
-    path_output:
-        Directory where the transcript tile Parquet files will be written.
-    tile_size:
-        Size of each tile in pixel coordinates.
-    jitter:
-        Amount of random jitter to add to each transcript location.
-    rng:
-        Optional :class:`numpy.random.Generator` instance for reproducible
-        jitter.
-
-    Returns
-    -------
-    dict
-        Bounding box of the generated transcript coordinates.
-    """
-
     print('========Make pseudo transcript tiles========')
 
+    # Load spot positions
     spots = pd.read_parquet(path_spot_positions)
     spots[["y", "x"]] = spots["geometry"].apply(pd.Series)
     spots = spots.set_index("name")[["x", "y"]]
@@ -1503,104 +1483,242 @@ def make_pseudo_transcript_tiles(
     print('x:', spots.x.min(), spots.x.max())
     print('y:', spots.y.min(), spots.y.max())
 
-    # use the "Xenium" technology argument to bypass barcode string parsing
+    # Read sparse cell-by-gene matrix
     sbg = read_cbg_mtx(paths['sbg_matrix'], 'Xenium')
 
-    print('spots.head()', spots.head())
+    # Get gene mapping {gene_str: int}
+    gene_str_to_int = _get_name_mapping(
+        path_output.replace("/transcript_tiles", ""),
+        layer="transcript",
+    )
 
-    # hardwire tile bounds
-    tile_bounds = {}
-    tile_bounds["x_min"] = 0
-    tile_bounds["x_max"] = 20000
-    tile_bounds["y_min"] = 0
-    tile_bounds["y_max"] = 20000
-
-    # Calculate the number of tiles needed
+    # Set tile grid
+    tile_bounds = dict(x_min=0, x_max=20000, y_min=0, y_max=20000)
     n_tiles_x = int(np.ceil((tile_bounds["x_max"] - tile_bounds["x_min"]) / tile_size))
     n_tiles_y = int(np.ceil((tile_bounds["y_max"] - tile_bounds["y_min"]) / tile_size))
 
     out_dir = Path(path_output)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-
     for i in range(n_tiles_x):
-
         if i % 10 == 0:
             print("row", i)
 
         for j in range(n_tiles_y):
-
-            # calculate polygon from these bounds
             tile_x_min = tile_bounds["x_min"] + i * tile_size
             tile_x_max = tile_x_min + tile_size
             tile_y_min = tile_bounds["y_min"] + j * tile_size
             tile_y_max = tile_y_min + tile_size
 
-            # Filter trx to get only the data within the current tile's bounds
-            # We need to make this more efficient
-            # option 1: make a GeoDataFrame and filter using sindex and the tile polygon
-            # option 2: remove transcripts that have been assigned to a tile from the DataFrame
+            # Filter spot coordinates in this tile
             tile_spots = spots[
                 (spots.x >= tile_x_min)
                 & (spots.x < tile_x_max)
                 & (spots.y >= tile_y_min)
                 & (spots.y < tile_y_max)
-            ].copy()
+            ]
+
+            if tile_spots.empty:
+                continue
+
+            inst_spots = tile_spots.index.tolist()
+
+            # Subset sparse matrix
+            tile_sbg = sbg.loc[inst_spots]
+            if tile_sbg.sparse.to_coo().nnz == 0:
+                continue
+
+            # Convert to COO
+            coo: coo_matrix = tile_sbg.sparse.to_coo().tocoo()
+            row = np.array([inst_spots[r] for r in coo.row])
+            col = tile_sbg.columns.to_numpy()[coo.col]
+            count = coo.data
+
+            # Create long format table with repeats
+            df = pd.DataFrame(dict(spot=row, gene=col, count=count))
+            df = df[df["count"] > 0]
+
+            df = df.loc[df.index.repeat(df["count"].astype(int))].reset_index(drop=True)
+
+            # Map spot → x, y
+            df["x"] = df["spot"].map(tile_spots["x"])
+            df["y"] = df["spot"].map(tile_spots["y"])
+
+            # Map gene → int
+            df["name"] = df["gene"].map(gene_str_to_int).astype("int32")
+
+            # Convert to Polars for final processing
+            pl_df = pl.DataFrame(df[["name", "x", "y"]])
+
+            if rng is None:
+                rng = np.random.default_rng()
+
+            jitter_radius = jitter / 2
+            jitter_x = rng.uniform(-jitter_radius, jitter_radius, size=len(pl_df))
+            jitter_y = rng.uniform(-jitter_radius, jitter_radius, size=len(pl_df))
+
+            pl_df = pl_df.with_columns([
+                (pl.col("x") + pl.Series(jitter_x)).round(2).alias("x"),
+                (pl.col("y") + pl.Series(jitter_y)).round(2).alias("y"),
+            ])
+
+            # # Build geometry column as list [x, y]
+            # pl_df = pl_df.with_columns([
+            #     pl.struct(["x", "y"]).alias("geometry")
+            # ])
+            # # Write to Parquet
+            # filename = f"{path_output}/transcripts_tile_{i}_{j}.parquet"
+            # pl_df.select(["name", "geometry"]).write_parquet(filename)
+
+            df_out = pl_df.to_pandas()
+            df_out["geometry"] = df_out[["x", "y"]].values.tolist()
+            filename = f"{path_output}/transcripts_tile_{i}_{j}.parquet"
+            df_out[["name", "geometry"]].to_parquet(filename, index=False)
+
+            print(f"tile {i},{j}: wrote {len(pl_df)} pseudo-transcripts")
 
 
-            # Save the filtered DataFrame to a Parquet file
-            if tile_spots.shape[0] > 0:
+# def make_pseudo_transcript_tiles(
+#     paths: dict[str, str],
+#     path_spot_positions: str,
+#     path_output: str,
+#     tile_size: int,
+#     jitter: float = 1.0,
+#     *,
+#     rng: np.random.Generator | None = None,
+# ) -> dict:
+#     """Generate pseudo-transcript tiles from a cell-by-gene matrix.
 
-                print('found spots:', tile_spots.shape)
+#     Parameters
+#     ----------
+#     cbg:
+#         Cell-by-gene matrix with barcodes as index and genes as columns. The
+#         matrix may be sparse.
+#     path_spot_positions:
+#         Path to the ``spot_positions.parquet`` file created by
+#         :func:`find_spot_positions`.
+#     path_output:
+#         Directory where the transcript tile Parquet files will be written.
+#     tile_size:
+#         Size of each tile in pixel coordinates.
+#     jitter:
+#         Amount of random jitter to add to each transcript location.
+#     rng:
+#         Optional :class:`numpy.random.Generator` instance for reproducible
+#         jitter.
 
-                inst_spots = tile_spots.index.tolist()
+#     Returns
+#     -------
+#     dict
+#         Bounding box of the generated transcript coordinates.
+#     """
 
-                # Just get expression matrix for this tile
-                tile_sbg = sbg.loc[inst_spots]
+#     print('========Make pseudo transcript tiles========')
 
-                # Remove zeros and unstack to long format
-                # (sparse .stack() is fast and memory-efficient)
-                long_df = tile_sbg.stack().rename_axis(index=["spot", "gene"]).reset_index(name="count")
+#     spots = pd.read_parquet(path_spot_positions)
+#     spots[["y", "x"]] = spots["geometry"].apply(pd.Series)
+#     spots = spots.set_index("name")[["x", "y"]]
 
-                # Repeat rows by transcript count
-                long_df = long_df[long_df["count"] > 0].reset_index(drop=True)
-                repeats = long_df["count"].astype(int).to_numpy()
-                long_df = long_df.loc[long_df.index.repeat(repeats)].reset_index(drop=True)
+#     print('range of x and y values in spots:')
+#     print('x:', spots.x.min(), spots.x.max())
+#     print('y:', spots.y.min(), spots.y.max())
 
-                # Add x and y coordinates using spot index
-                long_df["x"] = long_df["spot"].map(tile_spots["x"])
-                long_df["y"] = long_df["spot"].map(tile_spots["y"])
+#     # use the "Xenium" technology argument to bypass barcode string parsing
+#     sbg = read_cbg_mtx(paths['sbg_matrix'], 'Xenium')
 
-                # Add vectorized jitter
-                jitter_radius = jitter / 2
-                n = len(long_df)
+#     print('spots.head()', spots.head())
 
-                if rng is None:
-                    rng = np.random.default_rng()
+#     # hardwire tile bounds
+#     tile_bounds = {}
+#     tile_bounds["x_min"] = 0
+#     tile_bounds["x_max"] = 20000
+#     tile_bounds["y_min"] = 0
+#     tile_bounds["y_max"] = 20000
 
-                long_df["x"] += rng.uniform(-jitter_radius, jitter_radius, size=n)
-                long_df["y"] += rng.uniform(-jitter_radius, jitter_radius, size=n)
+#     # Calculate the number of tiles needed
+#     n_tiles_x = int(np.ceil((tile_bounds["x_max"] - tile_bounds["x_min"]) / tile_size))
+#     n_tiles_y = int(np.ceil((tile_bounds["y_max"] - tile_bounds["y_min"]) / tile_size))
 
-                long_df["x"] = long_df["x"].round(2)
-                long_df["y"] = long_df["y"].round(2)
+#     out_dir = Path(path_output)
+#     out_dir.mkdir(parents=True, exist_ok=True)
 
-                # Rename and build geometry
-                long_df.rename(columns={"gene": "name"}, inplace=True)
-                long_df["geometry"] = np.stack([long_df["x"], long_df["y"]], axis=1).tolist()
+#     for i in range(n_tiles_x):
 
-                # Save to parquet
-                filename = f"{path_output}/transcripts_tile_{i}_{j}.parquet"
+#         if i % 10 == 0:
+#             print("row", i)
 
-                # replace name with index
-                gene_str_to_int_mapping = _get_name_mapping(
-                    path_output.replace("/transcript_tiles", ""),
-                    layer="transcript",
-                )
+#         for j in range(n_tiles_y):
 
-                long_df["name"] = long_df["name"].map(gene_str_to_int_mapping)
-                long_df[["name", "geometry"]].to_parquet(filename)
+#             # calculate polygon from these bounds
+#             tile_x_min = tile_bounds["x_min"] + i * tile_size
+#             tile_x_max = tile_x_min + tile_size
+#             tile_y_min = tile_bounds["y_min"] + j * tile_size
+#             tile_y_max = tile_y_min + tile_size
 
-                print(f"tile {i},{j}: wrote {len(long_df)} pseudo-transcripts")
+#             # Filter trx to get only the data within the current tile's bounds
+#             # We need to make this more efficient
+#             # option 1: make a GeoDataFrame and filter using sindex and the tile polygon
+#             # option 2: remove transcripts that have been assigned to a tile from the DataFrame
+#             tile_spots = spots[
+#                 (spots.x >= tile_x_min)
+#                 & (spots.x < tile_x_max)
+#                 & (spots.y >= tile_y_min)
+#                 & (spots.y < tile_y_max)
+#             ].copy()
+
+#             # Save the filtered DataFrame to a Parquet file
+#             if tile_spots.shape[0] > 0:
+
+#                 print('found spots:', tile_spots.shape)
+
+#                 inst_spots = tile_spots.index.tolist()
+
+#                 # Just get expression matrix for this tile
+#                 tile_sbg = sbg.loc[inst_spots]
+
+#                 # Remove zeros and unstack to long format
+#                 # (sparse .stack() is fast and memory-efficient)
+#                 long_df = tile_sbg.stack().rename_axis(index=["spot", "gene"]).reset_index(name="count")
+
+#                 # Repeat rows by transcript count
+#                 long_df = long_df[long_df["count"] > 0].reset_index(drop=True)
+#                 repeats = long_df["count"].astype(int).to_numpy()
+#                 long_df = long_df.loc[long_df.index.repeat(repeats)].reset_index(drop=True)
+
+#                 # Add x and y coordinates using spot index
+#                 long_df["x"] = long_df["spot"].map(tile_spots["x"])
+#                 long_df["y"] = long_df["spot"].map(tile_spots["y"])
+
+#                 # Add vectorized jitter
+#                 jitter_radius = jitter / 2
+#                 n = len(long_df)
+
+#                 if rng is None:
+#                     rng = np.random.default_rng()
+
+#                 long_df["x"] += rng.uniform(-jitter_radius, jitter_radius, size=n)
+#                 long_df["y"] += rng.uniform(-jitter_radius, jitter_radius, size=n)
+
+#                 long_df["x"] = long_df["x"].round(2)
+#                 long_df["y"] = long_df["y"].round(2)
+
+#                 # Rename and build geometry
+#                 long_df.rename(columns={"gene": "name"}, inplace=True)
+#                 long_df["geometry"] = np.stack([long_df["x"], long_df["y"]], axis=1).tolist()
+
+#                 # Save to parquet
+#                 filename = f"{path_output}/transcripts_tile_{i}_{j}.parquet"
+
+#                 # replace name with index
+#                 gene_str_to_int_mapping = _get_name_mapping(
+#                     path_output.replace("/transcript_tiles", ""),
+#                     layer="transcript",
+#                 )
+
+#                 long_df["name"] = long_df["name"].map(gene_str_to_int_mapping)
+#                 long_df[["name", "geometry"]].to_parquet(filename)
+
+#                 print(f"tile {i},{j}: wrote {len(long_df)} pseudo-transcripts")
 
 
 

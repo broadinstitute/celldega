@@ -420,11 +420,15 @@ def main(
         cell_meta["name"] = cell_meta["name"].astype(str)
         cell_meta.to_parquet(str(paths["meta_cell_image"]))
 
+    check_img_directory = image_tile_layer + "_files"
+
+    print('check_img_directory:', check_img_directory)
+
     # Save landscape parameters
     dega.pre.save_landscape_parameters(
         technology,
         path_landscape_files,
-        "dapi_files",
+        check_img_directory,
         tile_size=tile_size,
         image_info=dega.pre.get_image_info(technology, image_tile_layer),
         image_format=".webp",

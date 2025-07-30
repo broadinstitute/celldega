@@ -20,8 +20,6 @@ from shapely.affinity import affine_transform
 import traitlets
 
 
-warnings.simplefilter("always")
-
 _clustergram_registry = {}  # maps names to widget instances
 _enrich_registry = {}  # maps names to widget instances
 
@@ -71,7 +69,7 @@ class Landscape(anywidget.AnyWidget):
     _css = Path(__file__).parent / "../static" / "widget.css"
     component = traitlets.Unicode("Landscape").tag(sync=True)
 
-    technology = traitlets.Unicode(None, allow_none=True).tag(sync=True)
+    technology = traitlets.Unicode("").tag(sync=True)
     base_url = traitlets.Unicode("").tag(sync=True)
     token = traitlets.Unicode("").tag(sync=True)
     creds = traitlets.Dict({}).tag(sync=True)
@@ -103,7 +101,13 @@ class Landscape(anywidget.AnyWidget):
     height = traitlets.Int(800).tag(sync=True)
 
     def __init__(self, **kwargs):
-        base_path = (kwargs.get("base_url") or "") + "/"
+        technology_value = kwargs.get("technology", "")
+        if technology_value:
+            warnings.warn(
+                "[DEPRECATION WARNING] Passing `technology` manually to the Landscape widget is deprecated and will be removed in a future release. "
+                "Please rely on automatic detection via `landscape_parameters.json`.",
+                stacklevel=2,
+            )
 
         adata = kwargs.pop("adata", None) or kwargs.pop("AnnData", None)
         pq_meta_cell = kwargs.pop("meta_cell_parquet", None)
@@ -118,6 +122,8 @@ class Landscape(anywidget.AnyWidget):
         meta_nbhd_df = kwargs.pop("meta_nbhd", None)
         meta_cluster_df = None
         cell_attr = kwargs.pop("cell_attr", ["leiden"])
+
+        base_path = (kwargs.get("base_url") or "") + "/"
 
         path_transformation_matrix = base_path + "micron_to_image_transform.csv"
 
@@ -209,13 +215,8 @@ class Landscape(anywidget.AnyWidget):
 
         super().__init__(**kwargs)
 
-        def _handle_frontend_msg(widget, content, buffers):
-            if content.get("event") == "technology_fetch_warning":
-                msg = content.get("message", "Technology fetch warning from frontend.")
-                err = content.get("error", "")
-                warnings.warn(f"{msg}\nFrontend error: {err}", stacklevel=2)
-
-        self.on_msg(_handle_frontend_msg)
+        # handle messages from the frontend for warnings/errors
+        self.on_msg(self._handle_frontend_message)
 
         # store DataFrames locally without syncing to the frontend
         self.meta_cell = meta_cell_df
@@ -243,6 +244,19 @@ class Landscape(anywidget.AnyWidget):
             gdf_viz.drop(columns=["geometry_pixel"], inplace=True)
 
             self.nbhd_geojson = json.loads(gdf_viz.to_json())
+
+    def _handle_frontend_message(self, _, content, buffers=None):
+        event = content.get("event")
+        message = content.get("message", "")
+
+        if event == "js_warning":
+            print(f"JavaScript warning: {message}")
+            warnings.warn(message, stacklevel=2)
+        elif event == "js_error":
+            print(f"JavaScript error: {message}")
+            warnings.warn(f"JavaScript error: {message}", stacklevel=2)
+        else:
+            print(f"Unhandled frontend event: {event}")
 
     # @traitlets.observe("nbhd")
     # def _on_nbhd_change(self, change):

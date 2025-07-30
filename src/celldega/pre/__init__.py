@@ -1462,7 +1462,7 @@ def find_spot_positions(
 
 
 
-
+# Polars/Pandas version - testing
 def make_pseudo_transcript_tiles(
     paths: dict[str, str],
     path_spot_positions: str,
@@ -1578,6 +1578,7 @@ def make_pseudo_transcript_tiles(
             print(f"tile {i},{j}: wrote {len(pl_df)} pseudo-transcripts")
 
 
+# # working Pandas version
 # def make_pseudo_transcript_tiles(
 #     paths: dict[str, str],
 #     path_spot_positions: str,

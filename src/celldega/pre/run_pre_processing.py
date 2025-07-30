@@ -40,7 +40,7 @@ def create_dummy_clusters(path_landscape_files, cbg):
     meta_cluster.to_parquet(f"{path_landscape_files}/cell_clusters/meta_cluster.parquet")
 
 
-def _determine_technology(data_dir):
+def _determine_technology(data_dir, tile_size_micron):
     """
     Determine technology based on files present in data directory.
 
@@ -57,9 +57,9 @@ def _determine_technology(data_dir):
 
     # Determine technology based on the presence of experiment.xenium file
     if (data_path / "experiment.xenium").exists():
-        return "Xenium"
+        return "Xenium", tile_size_micron / 0.2125
     if (data_path / "detected_transcripts.csv").exists():
-        return "MERSCOPE"
+        return "MERSCOPE", tile_size_micron / 0.108
     raise ValueError(
         "Unsupported technology. Only Xenium and MERSCOPE are supported in this script."
     )
@@ -111,7 +111,7 @@ def _setup_preprocessing_paths(technology, path_landscape_files, data_dir):
 def main(
     sample,
     data_root_dir,
-    tile_size,
+    tile_size_micron,
     image_tile_layer,
     path_landscape_files,
     use_int_index=True,
@@ -125,7 +125,7 @@ def main(
         data_root_dir (str): Root directory containing all sample data. The
             ``sample`` name will be appended to this path to locate the
             specific dataset.
-        tile_size (int): Size of the tiles for transcript and boundary tiles.
+        tile_size_micron (int): Size of the tiles for transcript and boundary tiles in micron space.
         image_tile_layer (str): Image layers to be tiled. 'dapi' or 'all'.
         path_landscape_files (str): Directory to save the landscape files.
         use_int_index (bool): Use integer index for smaller files and faster rendering.
@@ -150,7 +150,7 @@ def main(
     _create_directories([data_dir, path_landscape_files])
 
     # Determine technology
-    technology = _determine_technology(data_dir)
+    technology, tile_size = _determine_technology(data_dir, tile_size_micron)
 
     # Setup file paths
     paths = _setup_preprocessing_paths(technology, path_landscape_files, data_dir)

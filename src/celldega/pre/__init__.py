@@ -36,6 +36,9 @@ from .landscape import calc_meta_gene_data, read_cbg_mtx, save_cbg_gene_parquets
 from .run_pre_processing import main
 from .trx_tile import make_trx_tiles
 
+# import _get_name_mapping
+from .boundary_tile import _get_name_mapping
+
 
 def _load_xenium_cluster_data(data_dir, meta_cell):
     """
@@ -1578,12 +1581,23 @@ def make_pseudo_transcript_tiles(
                 long_df["x"] += rng.uniform(-jitter_radius, jitter_radius, size=n)
                 long_df["y"] += rng.uniform(-jitter_radius, jitter_radius, size=n)
 
+                long_df["x"] = long_df["x"].round(2)
+                long_df["y"] = long_df["y"].round(2)
+
                 # Rename and build geometry
                 long_df.rename(columns={"gene": "name"}, inplace=True)
                 long_df["geometry"] = np.stack([long_df["x"], long_df["y"]], axis=1).tolist()
 
                 # Save to parquet
                 filename = f"{path_output}/transcripts_tile_{i}_{j}.parquet"
+
+                # replace name with index
+                gene_str_to_int_mapping = _get_name_mapping(
+                    path_output.replace("/transcript_tiles", ""),
+                    layer="transcript",
+                )
+
+                long_df["name"] = long_df["name"].map(gene_str_to_int_mapping)
                 long_df[["name", "geometry"]].to_parquet(filename)
 
                 print(f"tile {i},{j}: wrote {len(long_df)} pseudo-transcripts")

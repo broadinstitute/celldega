@@ -6,10 +6,9 @@ export const calc_viewport = async (
   { height, width, zoom, target },
   deck_ist,
   layers_obj,
-  viz_state
+  viz_state,
 ) => {
   const { tile_size } = viz_state.img.landscape_parameters;
-  const max_tiles_to_view = 50;
   const zoomFactor = Math.pow(2, zoom);
   const [targetX, targetY] = target;
   const halfWidthZoomed = width / (2 * zoomFactor);
@@ -35,7 +34,7 @@ export const calc_viewport = async (
     tile_size
   );
 
-  if (tiles_in_view.length < max_tiles_to_view) {
+  if (tiles_in_view.length < viz_state.max_tiles_to_view) {
     viz_state.obs_store.deck_check.set({
       ...viz_state.obs_store.deck_check.get(),
       trx_data: false,

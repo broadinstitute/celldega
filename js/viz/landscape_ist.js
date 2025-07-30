@@ -83,7 +83,8 @@ export const landscape_ist = async (
   landscape_state = 'spatial',
   segmentation = 'default',
   creds = {},
-  view_change_custom_callback = null
+  view_change_custom_callback = null,
+  max_tiles_to_view = 50
 ) => {
 
   console.log('landscape_ist')
@@ -95,7 +96,11 @@ export const landscape_ist = async (
 
   viz_state.obs_store = create_obs_store();
 
+  viz_state.max_tiles_to_view = max_tiles_to_view;
+
   console.log('obs_store created', viz_state.obs_store);
+
+  console.log('max_tiles_to_view', viz_state.max_tiles_to_view);
 
   const update_viz_image_layers = () => {
     if (!get_img_layer_visible()) {

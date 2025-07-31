@@ -23,6 +23,7 @@ import { get_arrow_table } from '../read_parquet/get_arrow_table';
 import { get_scatter_data } from '../read_parquet/get_scatter_data';
 import { make_sst_ui_container } from '../ui/ui_containers';
 import { update_tile_landscape_from_cgm } from '../widget_interactions/update_tile_landscape_from_cgm';
+import { create_obs_store } from '../obs_store/obs_store';
 
 export const landscape_sst = async (
   ini_model,
@@ -50,6 +51,9 @@ export const landscape_sst = async (
   root.style.height = '800px';
 
   const viz_state = {};
+
+  viz_state.obs_store = create_obs_store();
+
   set_options(token);
   set_global_base_url(viz_state, base_url);
 

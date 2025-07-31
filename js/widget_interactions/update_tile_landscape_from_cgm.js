@@ -8,30 +8,45 @@ export const update_tile_landscape_from_cgm = async (
   layers_sst,
   viz_state
 ) => {
-  const click_info = viz_state.model.get('update_trigger');
+  const raw_click = viz_state.model.get('update_trigger');
+  if (!raw_click || typeof raw_click !== 'object') {
+    return;
+  }
+
+  const click_info = {
+    type: raw_click.type || raw_click.click_type,
+    value: raw_click.value || raw_click.click_value,
+  };
+
+  // legacy click names sometimes use dashes
+  const click_type = click_info.type?.replace('-', '_');
+
+  if (!click_type) {
+    return;
+  }
 
   let inst_gene;
 
-  if (click_info.click_type === 'row-label') {
-    inst_gene = click_info.click_value;
+  if (click_type === 'row_label') {
+    inst_gene = click_info.value.name || click_info.value;
     update_cat(viz_state.cats, inst_gene);
     await update_tile_exp_array(viz_state, inst_gene);
-  } else if (click_info.click_type === 'col-label') {
+  } else if (click_type === 'col_label') {
     update_cat(viz_state.cats, 'cluster');
     update_selected_cats(
       viz_state.cats,
-      [click_info.click_value],
+      [click_info.value.name || click_info.value],
       viz_state.obs_store
     );
-  } else if (click_info.click_type === 'col-dendro') {
+  } else if (click_type === 'col_dendro') {
     update_cat(viz_state.cats, 'cluster');
     update_selected_cats(
       viz_state.cats,
-      click_info.click_value,
+      click_info.value.selected_names || click_info.value,
       viz_state.obs_store
     );
   } else {
-    update_cat('cluster');
+    update_cat(viz_state.cats, 'cluster');
   }
 
   update_square_scatter_layer(viz_state, layers_sst);

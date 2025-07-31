@@ -36,11 +36,14 @@ export const landscape_sst = async (
   square_tile_size = 1.4,
   _dataset_name = '',
   width = 0,
-  height = 800
+  height = 800,
+  creds = {}
 ) => {
   if (width === 0) {
     width = '100%';
   }
+
+  console.log('landscape_sst!!!')
 
   // Create and append the visualization container
   const root = document.createElement('div');
@@ -57,6 +60,38 @@ export const landscape_sst = async (
   viz_state.img.image_layer_sliders = {};
 
   await set_landscape_parameters(viz_state.img, base_url);
+
+
+  // AWS credentials setup
+  console.log('setting up creds')
+
+  if ('accessKeyId' in creds) {
+    console.log('Using AWS credentials for landscape_ist');
+    viz_state.aws = new AwsClient({
+      accessKeyId: creds.accessKeyId,
+      secretAccessKey: creds.secretAccessKey,
+      sessionToken: creds.sessionToken,
+      region: 'us-east-1',
+      service: 's3',
+    });
+
+    // fetch after initialization of aws client is apparently required?
+    const response = await viz_state.aws.fetch(
+      `${base_url}/landscape_parameters.json`
+    );
+
+    if (!response.ok) {
+      throw new Error(`Fetch failed: ${response.statusText}`);
+    }
+
+    // const json = await response.json();
+    // el.textContent = "Fetch succeeded! Here's the object: " + JSON.stringify(json, null, 2).slice(0,50);
+  } else {
+    console.log('no aws credentials for landscape_ist');
+    viz_state.aws = null;
+  }
+
+  console.log('viz_state.aws', viz_state.aws);
 
   await set_dimensions(viz_state, base_url, 'cells');
 
@@ -95,7 +130,13 @@ export const landscape_sst = async (
 
   viz_state.cats.square_tile_size = square_tile_size;
 
-  await set_meta_gene(viz_state.genes, base_url);
+  await set_meta_gene(
+    viz_state.genes,
+    base_url,
+    'default',
+    viz_state.aws
+  );
+
 
   // move this to landscape_parameters
   const _info = {
@@ -105,7 +146,11 @@ export const landscape_sst = async (
 
   const tile_url = `${base_url}/tile_geometries.parquet`;
 
-  const tile_arrow_table = await get_arrow_table(tile_url, options.fetch);
+  const tile_arrow_table = await get_arrow_table(
+    tile_url,
+    options.fetch,
+    viz_state.aws
+  );
 
   viz_state.cats.tile_cats_array = tile_arrow_table
     .getChild('cluster')

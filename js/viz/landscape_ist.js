@@ -135,6 +135,7 @@ export const landscape_ist = async (
   // later we will parse the region from the s3 url
 
   if ('accessKeyId' in creds) {
+    console.log('Using AWS credentials for landscape_ist');
     viz_state.aws = new AwsClient({
       accessKeyId: creds.accessKeyId,
       secretAccessKey: creds.secretAccessKey,
@@ -155,8 +156,11 @@ export const landscape_ist = async (
     // const json = await response.json();
     // el.textContent = "Fetch succeeded! Here's the object: " + JSON.stringify(json, null, 2).slice(0,50);
   } else {
+    console.log('no aws credentials for landscape_ist');
     viz_state.aws = null;
   }
+
+  console.log('viz_state.aws', viz_state.aws);
 
   if (Object.keys(viz_state.model).length !== 0) {
     if (Object.keys(nbhd).length === 0) {

@@ -11,8 +11,6 @@ let gene_search_options = [];
 const sst_gene_search_callback = async (deck_sst, viz_state, layers_sst) => {
   const inst_gene = viz_state.genes.gene_search_input.value;
 
-  console.log('inst_gene', inst_gene);
-
   const new_cat = inst_gene === '' ? 'cluster' : inst_gene;
 
   if (inst_gene === '' || viz_state.genes.gene_names.includes(inst_gene)) {

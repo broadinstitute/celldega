@@ -19,11 +19,11 @@ import {
   set_tile_name_to_index_map,
 } from '../global_variables/tile_names_array';
 import { set_tile_scatter_data } from '../global_variables/tile_scatter_data';
+import { create_obs_store } from '../obs_store/obs_store';
 import { get_arrow_table } from '../read_parquet/get_arrow_table';
 import { get_scatter_data } from '../read_parquet/get_scatter_data';
 import { make_sst_ui_container } from '../ui/ui_containers';
 import { update_tile_landscape_from_cgm } from '../widget_interactions/update_tile_landscape_from_cgm';
-import { create_obs_store } from '../obs_store/obs_store';
 
 export const landscape_sst = async (
   ini_model,
@@ -44,7 +44,6 @@ export const landscape_sst = async (
     width = '100%';
   }
 
-  console.log('landscape_sst!!!')
 
   // Create and append the visualization container
   const root = document.createElement('div');
@@ -67,10 +66,8 @@ export const landscape_sst = async (
 
 
   // AWS credentials setup
-  console.log('setting up creds')
 
   if ('accessKeyId' in creds) {
-    console.log('Using AWS credentials for landscape_ist');
     viz_state.aws = new AwsClient({
       accessKeyId: creds.accessKeyId,
       secretAccessKey: creds.secretAccessKey,
@@ -91,11 +88,9 @@ export const landscape_sst = async (
     // const json = await response.json();
     // el.textContent = "Fetch succeeded! Here's the object: " + JSON.stringify(json, null, 2).slice(0,50);
   } else {
-    console.log('no aws credentials for landscape_ist');
     viz_state.aws = null;
   }
 
-  console.log('viz_state.aws', viz_state.aws);
 
   await set_dimensions(viz_state, base_url, 'cells');
 
@@ -171,7 +166,6 @@ export const landscape_sst = async (
   );
   set_tile_name_to_index_map(viz_state.cats);
 
-  console.log('setting colors!!!!!!!')
   viz_state.cats.tile_color_dict = await set_tile_color_dict(viz_state, base_url);
 
   const simple_image_layer = await make_simple_image_layer(viz_state, _info);

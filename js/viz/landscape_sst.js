@@ -1,3 +1,4 @@
+import { AwsClient } from 'aws4fetch';
 import * as d3 from 'd3';
 
 import { ini_deck_sst } from '../deck-gl/core/deck_sst';

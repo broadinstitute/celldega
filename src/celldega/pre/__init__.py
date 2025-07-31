@@ -1408,7 +1408,7 @@ def make_pseudo_transcript_tiles(
     )
 
     # Set tile grid
-    tile_bounds = dict(x_min=0, x_max=20000, y_min=0, y_max=20000)
+    tile_bounds = {"x_min": 0, "x_max": 20000, "y_min": 0, "y_max": 20000}
     n_tiles_x = int(np.ceil((tile_bounds["x_max"] - tile_bounds["x_min"]) / tile_size))
     n_tiles_y = int(np.ceil((tile_bounds["y_max"] - tile_bounds["y_min"]) / tile_size))
 
@@ -1450,7 +1450,7 @@ def make_pseudo_transcript_tiles(
             count = coo.data
 
             # Create long format table with repeats
-            df = pd.DataFrame(dict(spot=row, gene=col, count=count))
+            df = pd.DataFrame({"spot": row, "gene": col, "count": count})
             df = df[df["count"] > 0]
 
             df = df.loc[df.index.repeat(df["count"].astype(int))].reset_index(drop=True)

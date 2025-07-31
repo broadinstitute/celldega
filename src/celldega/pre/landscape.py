@@ -114,7 +114,7 @@ def read_cbg_mtx(base_path, technology=None):
         # parsing colon separated barcode data
         barcodes = pd.read_csv(
             barcodes_path,
-            sep=':',
+            sep=":",
             header=None,
             index_col=0
         )
@@ -168,10 +168,10 @@ def save_cbg_gene_parquets(base_path, cbg, verbose=False, segmentation_approach=
 
     # print the first 10 items (as a dict)
     subset = dict(list(cell_str_to_int_mapping.items())[:10])
-    print('checking cell_str_to_int_mapping in save_cbg_gene_parquets:')
+    print("checking cell_str_to_int_mapping in save_cbg_gene_parquets:")
     print(subset)
 
-    print('cbg.head()', cbg.head())
+    print("cbg.head()", cbg.head())
 
     cbg.index = cbg.index.map(cell_str_to_int_mapping)
 

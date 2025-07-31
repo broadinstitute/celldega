@@ -364,14 +364,14 @@ def make_cell_boundary_tiles(
 
         gdf_cells["GEOMETRY"] = transformed_geometries
 
-    elif technology == 'IST':
+    elif technology == "IST":
         print("IST technology")
 
-        print('paths')
+        print("paths")
         print(paths)
 
         # Load the transformation matrix
-        transformation_matrix = pd.read_csv(paths['transformation_matrix'], header=None, sep=" ").values
+        transformation_matrix = pd.read_csv(paths["transformation_matrix"], header=None, sep=" ").values
 
         # Load cell boundaries and apply the transformation
         gdf_cells = get_cell_polygons(
@@ -402,7 +402,7 @@ def make_cell_boundary_tiles(
     elif technology in ["MERSCOPE", "Xenium"]:
 
         print("technology", technology)
-        transformation_matrix = pd.read_csv(paths['transformation_matrix'], header=None, sep=" ").values
+        transformation_matrix = pd.read_csv(paths["transformation_matrix"], header=None, sep=" ").values
 
         gdf_cells = get_cell_polygons(
             technology,

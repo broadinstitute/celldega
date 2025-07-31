@@ -2,11 +2,15 @@ import { options } from '../global_variables/fetch_options';
 import { get_arrow_table } from '../read_parquet/get_arrow_table';
 import { hexToRgb } from '../utils/hexToRgb';
 
-export const set_tile_color_dict = async (base_url) => {
+export const set_tile_color_dict = async (viz_state, base_url) => {
   const tile_color_dict = {};
 
   const df_colors_url = `${base_url}/df_colors.parquet`;
-  const df_colors = await get_arrow_table(df_colors_url, options.fetch);
+  const df_colors = await get_arrow_table(
+    df_colors_url, 
+    options.fetch,
+    viz_state.aws
+  );
 
   let names = [];
   let colors = [];

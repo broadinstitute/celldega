@@ -167,7 +167,8 @@ export const landscape_sst = async (
   );
   set_tile_name_to_index_map(viz_state.cats);
 
-  viz_state.cats.tile_color_dict = await set_tile_color_dict(base_url);
+  console.log('setting colors!!!!!!!')
+  viz_state.cats.tile_color_dict = await set_tile_color_dict(viz_state, base_url);
 
   const simple_image_layer = await make_simple_image_layer(viz_state, _info);
   const square_scatter_layer = ini_square_scatter_layer(viz_state.cats);

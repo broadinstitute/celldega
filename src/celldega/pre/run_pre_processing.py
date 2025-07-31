@@ -212,7 +212,6 @@ def main(
     #######################################
     if not Path(paths["meta_cell_image"]).exists():
         if technology in ["Xenium", "MERSCOPE"]:
-
             dega.pre.make_meta_cell_image_coord(
                 technology,
                 str(transform_out),
@@ -222,7 +221,6 @@ def main(
             )
 
         elif technology == "IST":
-
             dega.pre.make_meta_cell_image_coord(
                 technology,
                 str(transform_out),
@@ -306,7 +304,6 @@ def main(
     # Image, Cell Boundary, and Transcript Tiles
     ###############################################
     if technology == "IST":
-
         print("\n======== IST: Image tiles ========")
         # make image tiles if the directory pyramid_images does not exist
         if not _output_exists(path_landscape_files + "/pyramid_images"):
@@ -316,34 +313,36 @@ def main(
 
         tile_bounds = dega.pre.get_ist_image_bounds(str(paths["image_file"]))
 
-        if not _output_exists(paths["transcript_tiles"]):
-            print("\n======== IST: Transcript Tiles ========")
-            spot_file = Path(path_landscape_files) / "spot_positions.parquet"
-            if not spot_file.exists():
-                dega.pre.find_spot_positions(str(data_dir), path_landscape_files)
+        print("Skipping IST transcript tiles, still in development")
 
-            dega.pre.make_pseudo_transcript_tiles(
-                paths,
-                str(spot_file),
-                str(paths["transcript_tiles"]),
-                tile_size=tile_size,
-            )
-        else:
-            print("Skipping IST transcript tiles, output already exists")
+        # if not _output_exists(paths["transcript_tiles"]):
+        #     print("\n======== IST: Transcript Tiles ========")
+        #     spot_file = Path(path_landscape_files) / "spot_positions.parquet"
+        #     if not spot_file.exists():
+        #         dega.pre.find_spot_positions(str(data_dir), path_landscape_files)
+
+        #     dega.pre.make_pseudo_transcript_tiles(
+        #         paths,
+        #         str(spot_file),
+        #         str(paths["transcript_tiles"]),
+        #         tile_size=tile_size,
+        #     )
+        # else:
+        #     print("Skipping IST transcript tiles, output already exists")
 
         need_boundaries = not _output_exists(paths["cell_segmentation"])
         if need_boundaries:
             if bound_path is None:
                 if not Path(paths["cell_boundaries"]).exists():
-                    print('make_cell_boundaries_ist!!!!!!!!!!!!!!!')
+                    print("make_cell_boundaries_ist!!!!!!!!!!!!!!!")
                     bound_path = dega.pre.make_cell_boundaries_ist(
                         str(data_dir), path_landscape_files
                     )
                 else:
                     bound_path = paths["cell_boundaries"]
 
-            print('after make_cell_boundaries_ist')
-            print('     ')
+            print("after make_cell_boundaries_ist")
+            print("     ")
 
             print("\n======== IST: Cell Boundary Tiles ========")
             dega.pre.make_cell_boundary_tiles(
@@ -364,7 +363,6 @@ def main(
     # Xenium and MERSCOPE
     #######################################
     elif technology in ["MERSCOPE", "Xenium"]:
-
         print("\n======== Image Tiles========")
         dega.pre.create_image_tiles(
             technology, str(data_dir), path_landscape_files, image_tile_layer=image_tile_layer
@@ -422,7 +420,7 @@ def main(
 
     check_img_directory = image_tile_layer + "_files"
 
-    print('check_img_directory:', check_img_directory)
+    print("check_img_directory:", check_img_directory)
 
     # Save landscape parameters
     dega.pre.save_landscape_parameters(

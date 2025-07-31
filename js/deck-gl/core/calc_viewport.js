@@ -6,7 +6,7 @@ export const calc_viewport = async (
   { height, width, zoom, target },
   deck_ist,
   layers_obj,
-  viz_state,
+  viz_state
 ) => {
   const { tile_size } = viz_state.img.landscape_parameters;
   const zoomFactor = Math.pow(2, zoom);
@@ -37,18 +37,19 @@ export const calc_viewport = async (
   if (tiles_in_view.length < viz_state.max_tiles_to_view) {
     viz_state.obs_store.deck_check.set({
       ...viz_state.obs_store.deck_check.get(),
-      trx_data: false,
+      // trx_data: false, # TODO: skip for now, enable when sub-cellular viz is built out.
       path_data: false,
     });
 
     viz_state.close_up = true;
 
-    await update_trx_layer_data(
-      viz_state.global_base_url,
-      tiles_in_view,
-      layers_obj,
-      viz_state
-    );
+    // # TODO: skip for now, enable when sub-cellular viz is built out.
+    // await update_trx_layer_data(
+    //   viz_state.global_base_url,
+    //   tiles_in_view,
+    //   layers_obj,
+    //   viz_state
+    // );
 
     // tmp disable
     await update_path_layer_data(

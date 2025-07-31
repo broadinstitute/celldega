@@ -102,12 +102,6 @@ class Landscape(anywidget.AnyWidget):
     height = traitlets.Int(800).tag(sync=True)
 
     def __init__(self, **kwargs):
-
-        print('Initializing Landscape widget with kwargs:', kwargs)
-        # check max_tiles_to_view
-        max_tiles = kwargs.pop("max_tiles_to_view", 50)
-        print(max_tiles)
-
         adata = kwargs.pop("adata", None) or kwargs.pop("AnnData", None)
         pq_meta_cell = kwargs.pop("meta_cell_parquet", None)
         pq_meta_cluster = kwargs.pop("meta_cluster_parquet", None)

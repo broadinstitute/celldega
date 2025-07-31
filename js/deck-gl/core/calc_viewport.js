@@ -50,6 +50,7 @@ export const calc_viewport = async (
       viz_state
     );
 
+    // tmp disable
     await update_path_layer_data(
       viz_state.global_base_url,
       tiles_in_view,

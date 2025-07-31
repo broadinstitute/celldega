@@ -83,8 +83,8 @@ export const landscape_ist = async (
   landscape_state = 'spatial',
   segmentation = 'default',
   creds = {},
+  max_tiles_to_view = 50,
   view_change_custom_callback = null,
-  max_tiles_to_view = 50
 ) => {
 
   console.log('landscape_ist')

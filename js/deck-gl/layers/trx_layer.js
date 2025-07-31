@@ -86,6 +86,8 @@ export const update_trx_layer_data = async (
     viz_state
   );
 
+  console.log('trx_data length', viz_state.genes.trx_data.length);
+
   layers_obj.trx_layer = layers_obj.trx_layer.clone({
     data: viz_state.genes.trx_data,
   });

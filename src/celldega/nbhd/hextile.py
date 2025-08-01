@@ -68,4 +68,4 @@ def prepare_nbhd_for_clustering(
         var=pd.DataFrame(index=population_distribution.columns),
     )
 
-    return ad_tiles
+    return ad_tiles, gdf_hex

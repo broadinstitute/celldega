@@ -44,7 +44,8 @@ export const landscape_sst = async (
 
   // Create and append the visualization container
   const root = document.createElement('div');
-  root.style.height = '800px';
+  root.style.height = `${height}px`;
+  root.style.width = typeof width === 'number' ? `${width}px` : width;
 
   const viz_state = {};
   set_options(token);
@@ -59,6 +60,30 @@ export const landscape_sst = async (
   await set_landscape_parameters(viz_state.img, base_url);
 
   await set_dimensions(viz_state, base_url, 'cells');
+
+  const parseDim = (val, ref) => {
+    if (typeof val === 'string' && val.includes('%')) {
+      const ratio = parseFloat(val) / 100;
+      return ref * ratio;
+    }
+    return parseFloat(val) || ref;
+  };
+
+  const imgWidth = viz_state.dimensions.width;
+  const imgHeight = viz_state.dimensions.height;
+  const containerWidth = parseDim(width, el.clientWidth || imgWidth);
+  const containerHeight = parseDim(height, el.clientHeight || imgHeight);
+  const scale = Math.min(
+    containerWidth / imgWidth,
+    containerHeight / imgHeight
+  );
+  const autoZoom = Math.log2(scale);
+
+  if (ini_x === 0 && ini_y === 0 && ini_zoom === 0) {
+    ini_x = imgWidth / 2;
+    ini_y = imgHeight / 2;
+    ini_zoom = autoZoom;
+  }
 
   viz_state.buttons = {};
   viz_state.buttons.blue = '#8797ff';

@@ -442,18 +442,28 @@ export const landscape_ist = async (
       id: `cell-layer-${selected_cats_name}`,
     });
 
-    layers_obj.path_layer = layers_obj.path_layer.clone({
-      id: `path-layer-${selected_cats_name}`,
-    });
+    if (viz_state.close_up) {
+      layers_obj.path_layer = layers_obj.path_layer.clone({
+        id: `path-layer-${selected_cats_name}`,
+      });
 
-    viz_state.obs_store.deck_check.set({
-      ...viz_state.obs_store.deck_check.get(),
-      path_layer: true,
-      cell_layer: true,
-    });
+      viz_state.obs_store.deck_check.set({
+        ...viz_state.obs_store.deck_check.get(),
+        path_layer: true,
+        cell_layer: true,
+      });
+    } else {
+      viz_state.obs_store.deck_check.set({
+        ...viz_state.obs_store.deck_check.get(),
+        cell_layer: true,
+      });
+    }
   });
 
   viz_state.obs_store.selected_genes.subscribe((selected_genes) => {
+    if (!viz_state.close_up) {
+      return;
+    }
     const selected_genes_name = selected_genes.join('-');
     layers_obj.trx_layer = layers_obj.trx_layer.clone({
       id: `trx-layer-${selected_genes_name}`,

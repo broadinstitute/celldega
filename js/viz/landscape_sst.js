@@ -106,8 +106,6 @@ export const landscape_sst = async (
     return parseFloat(val) || ref;
   };
 
-  console.log(viz_state.dimensions)
-
   const imgWidth = viz_state.dimensions.width;
   const imgHeight = viz_state.dimensions.height;
   const containerWidth = parseDim(width, el.clientWidth || imgWidth);

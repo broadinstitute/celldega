@@ -27,8 +27,6 @@ const render_landscape_ist = async ({ model, el }) => {
   const nbhd = model.get('nbhd_geojson');
   const max_tiles_to_view = model.get('max_tiles_to_view');
 
-  console.log('checking max_tiles_to_view in render_landscape_ist:', max_tiles_to_view);
-
   let meta_cell_data = { result: {}, attr: [] };
   let meta_cluster_data = { result: {}, attr: [] };
 

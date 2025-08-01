@@ -95,11 +95,11 @@ export const landscape_ist = async (
   viz_state.obs_store = create_obs_store();
 
   viz_state.max_tiles_to_view = max_tiles_to_view;
-
   const update_viz_image_layers = () => {
     if (!get_img_layer_visible()) {
       return;
     }
+
     const hasCats = viz_state.obs_store.selected_cats.get().length > 0;
     const hasGenes = viz_state.obs_store.selected_genes.get().length > 0;
 
@@ -453,7 +453,6 @@ export const landscape_ist = async (
       path_layer: true,
       cell_layer: true,
     });
-
   });
 
   viz_state.obs_store.selected_genes.subscribe((selected_genes) => {

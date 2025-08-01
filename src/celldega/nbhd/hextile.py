@@ -42,17 +42,13 @@ def generate_hex_grid(
     )
 
 
-def cluster_hex_tiles_leiden(
+def prepare_nbhd_for_clustering(
     adata: AnnData,
-    radius: float = 20,
-    resolution: float = 1.0,
-    n_neighbors: int = 15,
+    radius: float = 75,
 ) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
-    """Cluster hexagon tiles based on cell type composition using Leiden.
+    """Prepare nbhd geometries for clustering based on cell type composition.
     Also returns cell-type proportions in each tile."""
     import pandas as pd
-    import scanpy as sc
-
     from .neighborhoods import calc_nbp
     from .utils import _get_gdf_cell
 
@@ -63,34 +59,13 @@ def cluster_hex_tiles_leiden(
     gdf_hex = generate_hex_grid(gdf_cell, radius=radius)
 
     # Calculate cell-type counts per hex tile
-    counts, _ = calc_nbp(gdf_cell, gdf_hex)
-    counts = counts.fillna(0)
-
-    # Compute proportions per hex tile (row-wise normalization)
-    proportions = counts.div(counts.sum(axis=1), axis=0).fillna(0)
-    proportions.columns = [col for col in proportions.columns]
+    counts, population_distribution = calc_nbp(gdf_cell, gdf_hex)
 
     # Prepare AnnData for clustering
     ad_tiles = AnnData(
-        X=proportions.values,
-        obs=pd.DataFrame(index=proportions.index),
-        var=pd.DataFrame(index=proportions.columns),
+        X=population_distribution.values,
+        obs=pd.DataFrame(index=population_distribution.index),
+        var=pd.DataFrame(index=population_distribution.columns),
     )
 
-    # Clustering
-    n_neighbors = min(n_neighbors, max(1, len(gdf_hex) - 1))
-    sc.pp.neighbors(ad_tiles, n_neighbors=n_neighbors)
-    sc.tl.leiden(ad_tiles, resolution=resolution, key_added="leiden")
-
-    # Add clustering and proportions to hex GeoDataFrame
-    gdf_hex = gdf_hex.set_index("name")
-    gdf_hex["leiden"] = ad_tiles.obs["leiden"].values
-    gdf_hex = gdf_hex.join(proportions)
-    gdf_hex.reset_index(inplace=True)
-
-    # Dissolve to form niches
-    gdf_niche = gdf_hex.dissolve(by="leiden", as_index=False)
-    gdf_niche["name"] = [f"niche_{c}" for c in gdf_niche["leiden"]]
-
-    return gdf_niche, gdf_hex
-
+    return ad_tiles

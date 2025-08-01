@@ -112,12 +112,7 @@ def read_cbg_mtx(base_path, technology=None):
     # Read barcodes and features
     if technology == "IST":
         # parsing colon separated barcode data
-        barcodes = pd.read_csv(
-            barcodes_path,
-            sep=":",
-            header=None,
-            index_col=0
-        )
+        barcodes = pd.read_csv(barcodes_path, sep=":", header=None, index_col=0)
         barcodes = barcodes.index.tolist()
     else:
         barcodes = pd.read_csv(barcodes_path, header=None, compression="gzip")
@@ -137,12 +132,16 @@ def read_cbg_mtx(base_path, technology=None):
     return cbg.rename_axis("__index_level_0__", axis="columns")
 
 
-def save_cbg_gene_parquets(base_path, cbg, verbose=False, segmentation_approach="default"):
+def save_cbg_gene_parquets(
+    technology, base_path, cbg, verbose=False, segmentation_approach="default"
+):
     """
     Save the cell-by-gene matrix as gene-specific Parquet files.
 
     Parameters
     ----------
+    technology : str
+        The technology used for the data, e.g., "IST" or others.
     base_path : str
         The base path to the parent directory containing the landscape_files directory.
     cbg : pandas.DataFrame
@@ -161,19 +160,23 @@ def save_cbg_gene_parquets(base_path, cbg, verbose=False, segmentation_approach=
     print(output_dir)
     output_dir.mkdir(exist_ok=True)
 
-    # convert cell index from string to integer
-    cell_str_to_int_mapping = _get_name_mapping(
-        base_path, layer="boundary", segmentation=segmentation_approach
-    )
+    if technology == "IST":
+        cbg.index = cbg.index.str.replace("cell", "").astype(int)
 
-    # print the first 10 items (as a dict)
-    subset = dict(list(cell_str_to_int_mapping.items())[:10])
-    print("checking cell_str_to_int_mapping in save_cbg_gene_parquets:")
-    print(subset)
+    else:
+        # convert cell index from string to integer
+        cell_str_to_int_mapping = _get_name_mapping(
+            base_path, layer="boundary", segmentation=segmentation_approach
+        )
 
-    print("cbg.head()", cbg.head())
+        # print the first 10 items (as a dict)
+        subset = dict(list(cell_str_to_int_mapping.items())[:10])
+        print("checking cell_str_to_int_mapping in save_cbg_gene_parquets:")
+        print(subset)
 
-    cbg.index = cbg.index.map(cell_str_to_int_mapping)
+        print("cbg.head()", cbg.head())
+
+        cbg.index = cbg.index.map(cell_str_to_int_mapping)
 
     for index, gene in enumerate(cbg.columns):
         if verbose and index % 1000 == 0:

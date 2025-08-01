@@ -293,7 +293,7 @@ def main(
     #######################################
     cbg_dir = Path(path_landscape_files) / "cbg"
     if not cbg_dir.exists() or not any(cbg_dir.glob("*.parquet")):
-        dega.pre.save_cbg_gene_parquets(path_landscape_files, cbg, verbose=True)
+        dega.pre.save_cbg_gene_parquets(technology, path_landscape_files, cbg, verbose=True)
     else:
         print(f"Skipping CBG gene parquets, directory {cbg_dir} already populated")
 

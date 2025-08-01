@@ -367,11 +367,10 @@ def make_cell_boundary_tiles(
     elif technology == "IST":
         print("IST technology")
 
-        print("paths")
-        print(paths)
-
         # Load the transformation matrix
-        transformation_matrix = pd.read_csv(paths["transformation_matrix"], header=None, sep=" ").values
+        transformation_matrix = pd.read_csv(
+            paths["transformation_matrix"], header=None, sep=" "
+        ).values
 
         # Load cell boundaries and apply the transformation
         gdf_cells = get_cell_polygons(
@@ -383,26 +382,15 @@ def make_cell_boundary_tiles(
             path_meta_cell_micron,
         )
 
-        # Convert string index to integer index
-        cell_str_to_int_mapping = _get_name_mapping(
-            path_output.replace("/cell_segmentation", ""),
-            layer="boundary",
-        )
-
-        # Print the first 10 items (as a dict)
-        subset = dict(list(cell_str_to_int_mapping.items())[:10])
-        print(subset)
-
-        gdf_cells.index = gdf_cells.index.astype(str).map(cell_str_to_int_mapping)
-
         gdf_cells["center_x"] = gdf_cells.geometry.centroid.x
         gdf_cells["center_y"] = gdf_cells.geometry.centroid.y
 
     # MERSCOPE and Xenium
     elif technology in ["MERSCOPE", "Xenium"]:
-
         print("technology", technology)
-        transformation_matrix = pd.read_csv(paths["transformation_matrix"], header=None, sep=" ").values
+        transformation_matrix = pd.read_csv(
+            paths["transformation_matrix"], header=None, sep=" "
+        ).values
 
         gdf_cells = get_cell_polygons(
             technology,

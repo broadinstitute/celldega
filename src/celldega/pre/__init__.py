@@ -951,12 +951,13 @@ def save_landscape_parameters(
 
 
 def add_custom_segmentation(
-    path_landscape_files, path_segmentation_files, image_scale=1, tile_size=250
+    technology, path_landscape_files, path_segmentation_files, image_scale=1, tile_size=250
 ):
     """
     Add custom segmentation to existing landscape files.
 
     Parameters:
+    - technology: Technology type (e.g., "Xenium", "MERSCOPE", "custom")
     - path_landscape_files: Path to landscape files
     - path_segmentation_files: Path to segmentation files
     - image_scale: Image scale factor
@@ -995,6 +996,7 @@ def add_custom_segmentation(
     )
 
     save_cbg_gene_parquets(
+        technology=technology,
         base_path=path_landscape_files,
         cbg=cbg_custom,
         verbose=True,

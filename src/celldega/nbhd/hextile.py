@@ -68,13 +68,13 @@ def cluster_hex_tiles_leiden(
 
     # Compute proportions per hex tile (row-wise normalization)
     proportions = counts.div(counts.sum(axis=1), axis=0).fillna(0)
-    proportions.columns = [f"prop_{col}" for col in proportions.columns]
+    proportions.columns = [col for col in proportions.columns]
 
     # Prepare AnnData for clustering
     ad_tiles = AnnData(
-        X=counts.values,
-        obs=pd.DataFrame(index=counts.index),
-        var=pd.DataFrame(index=counts.columns),
+        X=proportions.values,
+        obs=pd.DataFrame(index=proportions.index),
+        var=pd.DataFrame(index=proportions.columns),
     )
 
     # Clustering
@@ -92,5 +92,5 @@ def cluster_hex_tiles_leiden(
     gdf_niche = gdf_hex.dissolve(by="leiden", as_index=False)
     gdf_niche["name"] = [f"niche_{c}" for c in gdf_niche["leiden"]]
 
-    return gdf_niche[["name", "geometry"]], gdf_hex
+    return gdf_niche, gdf_hex
 

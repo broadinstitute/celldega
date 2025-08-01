@@ -4,8 +4,6 @@ export const get_image_dimensions = async (
   options,
   aws
 ) => {
-
-  console.log('get_image_dimensions', base_url, image_name, options, aws);
   const dzi_url = `${base_url}/pyramid_images/${image_name}.dzi`;
 
   const response =

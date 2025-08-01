@@ -86,7 +86,6 @@ export const landscape_ist = async (
   max_tiles_to_view = 50,
   view_change_custom_callback = null
 ) => {
-  console.log('landscape_ist');
   if (width === 0) {
     width = '100%';
   }
@@ -97,15 +96,10 @@ export const landscape_ist = async (
 
   viz_state.max_tiles_to_view = max_tiles_to_view;
 
-  console.log('obs_store created', viz_state.obs_store);
-
-  console.log('max_tiles_to_view', viz_state.max_tiles_to_view);
-
   const update_viz_image_layers = () => {
     if (!get_img_layer_visible()) {
       return;
     }
-    console.log('update_viz_image_layers');
     const hasCats = viz_state.obs_store.selected_cats.get().length > 0;
     const hasGenes = viz_state.obs_store.selected_genes.get().length > 0;
 
@@ -450,28 +444,19 @@ export const landscape_ist = async (
       id: `cell-layer-${selected_cats_name}`,
     });
 
-    if (viz_state.close_up) {
-      layers_obj.path_layer = layers_obj.path_layer.clone({
-        id: `path-layer-${selected_cats_name}`,
-      });
+    layers_obj.path_layer = layers_obj.path_layer.clone({
+      id: `path-layer-${selected_cats_name}`,
+    });
 
-      viz_state.obs_store.deck_check.set({
-        ...viz_state.obs_store.deck_check.get(),
-        path_layer: true,
-        cell_layer: true,
-      });
-    } else {
-      viz_state.obs_store.deck_check.set({
-        ...viz_state.obs_store.deck_check.get(),
-        cell_layer: true,
-      });
-    }
+    viz_state.obs_store.deck_check.set({
+      ...viz_state.obs_store.deck_check.get(),
+      path_layer: true,
+      cell_layer: true,
+    });
+
   });
 
   viz_state.obs_store.selected_genes.subscribe((selected_genes) => {
-    if (!viz_state.close_up) {
-      return;
-    }
     const selected_genes_name = selected_genes.join('-');
     layers_obj.trx_layer = layers_obj.trx_layer.clone({
       id: `trx-layer-${selected_genes_name}`,

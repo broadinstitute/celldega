@@ -9,8 +9,19 @@ export const update_ist_landscape_from_cgm = async (
   layers_obj,
   viz_state
 ) => {
-  const click_info = viz_state.model.get('update_trigger');
-  if (!click_info || !click_info.type) {
+  const raw_click = viz_state.model.get('update_trigger');
+  if (!raw_click || typeof raw_click !== 'object') {
+    return;
+  }
+
+  const click_info = {
+    type: raw_click.type || raw_click.click_type,
+    value: raw_click.value || raw_click.click_value,
+  };
+
+  const click_type = click_info.type?.replace('-', '_');
+
+  if (!click_type) {
     return;
   }
 
@@ -19,7 +30,7 @@ export const update_ist_landscape_from_cgm = async (
 
   // add try catch block
   try {
-    if (click_info.type === 'row_label') {
+    if (click_type === 'row_label') {
       inst_gene = click_info.value.name;
 
       new_cat = inst_gene === viz_state.cats.cat ? 'cluster' : inst_gene;
@@ -44,7 +55,7 @@ export const update_ist_landscape_from_cgm = async (
       );
 
       refresh_layer(viz_state, layers_obj, 'cell_layer');
-    } else if (click_info.type === 'col_label') {
+    } else if (click_type === 'col_label') {
       inst_gene = 'cluster';
       new_cat = click_info.value.name;
 
@@ -53,9 +64,7 @@ export const update_ist_landscape_from_cgm = async (
       update_selected_genes(viz_state.genes, [], viz_state.obs_store);
 
       refresh_layer(viz_state, layers_obj, 'cell_layer');
-    } else if (click_info.type === 'col_dendro') {
-      inst_gene = 'cluster';
-
+    } else if (click_type === 'col_dendro') {
       inst_gene = 'cluster';
       const new_cats = click_info.value.selected_names;
 
@@ -64,13 +73,6 @@ export const update_ist_landscape_from_cgm = async (
       update_selected_genes(viz_state.genes, [], viz_state.obs_store);
 
       refresh_layer(viz_state, layers_obj, 'cell_layer');
-
-      update_cat(viz_state.cats, inst_gene);
-      update_selected_cats(
-        viz_state.cats,
-        click_info.click_value,
-        viz_state.obs_store
-      );
     }
   } catch (error) {
     handleAsyncError(error, {

@@ -81,7 +81,8 @@ export const calc_viewport = async (
         return acc;
       }, [])
       .filter((item) => item.value > 0)
-      .sort((a, b) => b.value - a.value);
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 1000);
 
     viz_state.obs_store.new_gene_bar_data.set(new_bar_data);
 
@@ -114,7 +115,9 @@ export const calc_viewport = async (
     if (viz_state.close_up) {
       viz_state.close_up = false;
 
-      viz_state.obs_store.new_gene_bar_data.set(viz_state.genes.gene_counts);
+      viz_state.obs_store.new_gene_bar_data.set(
+        viz_state.genes.gene_counts.slice(0, 1000)
+      );
 
       viz_state.obs_store.new_cell_bar_data.set(viz_state.cats.cluster_counts);
 

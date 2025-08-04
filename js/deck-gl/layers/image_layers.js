@@ -5,6 +5,7 @@ import {
   create_get_tile_data,
   create_render_tile_sublayers,
 } from '../utils/tiles';
+
 import { make_simple_image_layer } from './simple_image_layer';
 
 const make_image_layer = (viz_state, info) => {

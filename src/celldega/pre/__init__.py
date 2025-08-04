@@ -68,6 +68,7 @@ def _load_xenium_cluster_data(data_dir, meta_cell):
 
     return default_clustering, clusters, ser_counts
 
+
 def _create_cluster_colors(clusters):
     """
     Create color mapping for clusters.

@@ -47,7 +47,6 @@ export const landscape_sst = async (
 
   // Create and append the visualization container
   const root = document.createElement('div');
-  // root.style.height = '800px';
   root.style.height = `${height}px`;
   root.style.width = typeof width === 'number' ? `${width}px` : width;
 
@@ -86,8 +85,6 @@ export const landscape_sst = async (
       throw new Error(`Fetch failed: ${response.statusText}`);
     }
 
-    // const json = await response.json();
-    // el.textContent = "Fetch succeeded! Here's the object: " + JSON.stringify(json, null, 2).slice(0,50);
   } else {
     viz_state.aws = null;
   }

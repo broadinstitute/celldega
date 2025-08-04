@@ -65,7 +65,6 @@ export const update_ist_landscape_from_cgm = async (
 
       refresh_layer(viz_state, layers_obj, 'cell_layer');
     } else if (click_type === 'col_dendro') {
-      inst_gene = 'cluster';
       const new_cats = click_info.value.selected_names;
 
       update_cat(viz_state.cats, 'cluster');

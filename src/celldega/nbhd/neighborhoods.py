@@ -265,8 +265,9 @@ class NBHD:
 
 
 def calc_nbp(
-    gdf_cell: gpd.GeoDataFrame,
+    data: gpd.GeoDataFrame | AnnData,
     gdf_nbhd: gpd.GeoDataFrame,
+    category: str = "cluster",
     nbhd_col: str = "name",
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
@@ -276,22 +277,34 @@ def calc_nbp(
     2. Percentage distribution of clusters within each neighborhood
     """
     print("Calculating NBP")
+
+    if isinstance(data, AnnData):
+        gdf_cell = _get_gdf_cell(data)
+    else:
+        gdf_cell = data
+
     required = {"geometry", nbhd_col}
     if not required.issubset(gdf_nbhd.columns):
         raise ValueError(f"gdf_nbhd missing required columns: {required - set(gdf_nbhd.columns)}")
-    if not {"geometry", "cluster"}.issubset(gdf_cell.columns):
-        raise ValueError("gdf_cell missing required 'geometry' or 'cluster' column")
+    if not {"geometry", category}.issubset(gdf_cell.columns):
+        raise ValueError(f"gdf_cell missing required 'geometry' or {category} column")
 
     counts = (
         gdf_cell.sjoin(gdf_nbhd[[nbhd_col, "geometry"]], how="left", predicate="within")
-        .groupby([nbhd_col, "cluster"])
+        .groupby([nbhd_col, category])
         .size()
         .unstack(fill_value=0)
         .pipe(lambda df: df.set_axis(df.columns.astype(str), axis=1))
     )
     counts = counts.reindex(gdf_nbhd[nbhd_col]).fillna(0).astype(int)
     population_distribution = counts.div(counts.sum(axis=1), axis=0).fillna(0)
-    return counts, population_distribution
+
+    adata_nbp = AnnData(
+        X=population_distribution.values,
+        obs=pd.DataFrame(index=population_distribution.index),
+        var=pd.DataFrame(index=population_distribution.columns),
+    )
+    return adata_nbp
 
 
 def get_nbhd_meta(

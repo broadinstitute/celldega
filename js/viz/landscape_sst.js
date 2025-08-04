@@ -45,7 +45,6 @@ export const landscape_sst = async (
     width = '100%';
   }
 
-
   // Create and append the visualization container
   const root = document.createElement('div');
   // root.style.height = '800px';
@@ -66,9 +65,6 @@ export const landscape_sst = async (
   viz_state.img.image_layer_sliders = {};
 
   await set_landscape_parameters(viz_state.img, base_url);
-
-
-
 
   // AWS credentials setup
 
@@ -98,7 +94,7 @@ export const landscape_sst = async (
 
   await set_dimensions(viz_state, base_url, 'cells');
 
- const parseDim = (val, ref) => {
+  const parseDim = (val, ref) => {
     if (typeof val === 'string' && val.includes('%')) {
       const ratio = parseFloat(val) / 100;
       return ref * ratio;
@@ -157,13 +153,7 @@ export const landscape_sst = async (
 
   viz_state.cats.square_tile_size = square_tile_size;
 
-  await set_meta_gene(
-    viz_state.genes,
-    base_url,
-    'default',
-    viz_state.aws
-  );
-
+  await set_meta_gene(viz_state.genes, base_url, 'default', viz_state.aws);
 
   // move this to landscape_parameters
   const _info = {
@@ -194,7 +184,10 @@ export const landscape_sst = async (
   );
   set_tile_name_to_index_map(viz_state.cats);
 
-  viz_state.cats.tile_color_dict = await set_tile_color_dict(viz_state, base_url);
+  viz_state.cats.tile_color_dict = await set_tile_color_dict(
+    viz_state,
+    base_url
+  );
 
   const simple_image_layer = await make_simple_image_layer(viz_state, _info);
   const square_scatter_layer = ini_square_scatter_layer(viz_state.cats);

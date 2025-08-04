@@ -7,7 +7,7 @@ export const set_tile_color_dict = async (viz_state, base_url) => {
 
   const df_colors_url = `${base_url}/df_colors.parquet`;
   const df_colors = await get_arrow_table(
-    df_colors_url, 
+    df_colors_url,
     options.fetch,
     viz_state.aws
   );

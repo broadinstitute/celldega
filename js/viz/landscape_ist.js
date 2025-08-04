@@ -158,7 +158,6 @@ export const landscape_ist = async (
     viz_state.aws = null;
   }
 
-
   if (Object.keys(viz_state.model).length !== 0) {
     if (Object.keys(nbhd).length === 0) {
       viz_state.nbhd.is_nbhd = false;

@@ -37,7 +37,6 @@ export const update_tile_landscape_from_cgm = async (
     if (viz_state.genes && viz_state.genes.gene_search_input) {
       viz_state.genes.gene_search_input.value = inst_gene;
     }
-
   } else if (click_type === 'col_label') {
     update_cat(viz_state.cats, 'cluster');
     update_selected_cats(

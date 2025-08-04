@@ -40,7 +40,7 @@ export const set_meta_gene = async (
   });
 
   genes.gene_counts.sort((a, b) => b.value - a.value);
-  genes.top_gene_counts = genes.gene_counts.slice(0, 1000);
+  genes.top_gene_counts = genes.gene_counts.slice(0, 100);
 
   // Create the reverse mapping: integer index to gene name
   const g_nameMapping_inv = gene_names.reduce((acc, name, idx) => {

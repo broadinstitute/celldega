@@ -82,7 +82,7 @@ export const calc_viewport = async (
       }, [])
       .filter((item) => item.value > 0)
       .sort((a, b) => b.value - a.value)
-      .slice(0, 1000);
+      .slice(0, 100);
 
     viz_state.obs_store.new_gene_bar_data.set(new_bar_data);
 

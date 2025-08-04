@@ -85,7 +85,6 @@ export const landscape_sst = async (
       throw new Error(`Fetch failed: ${response.statusText}`);
     }
 
-    // el.textContent = "Fetch succeeded! Here's the object: " + JSON.stringify(json, null, 2).slice(0,50);
   } else {
     viz_state.aws = null;
   }

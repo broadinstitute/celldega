@@ -281,6 +281,39 @@ export const make_sst_ui_container = (deck_sst, layers_sst, viz_state) => {
 
   set_gene_search('sst', deck_sst, layers_sst, viz_state);
 
+  // add subscriber for gene search and gene_text_box
+  viz_state.obs_store.selected_genes.subscribe(async (selected_genes) => {
+    if (selected_genes.length === 1) {
+      const inst_gene = selected_genes[0];
+
+      viz_state.genes.gene_search_input.value = inst_gene;
+
+      if (inst_gene !== '') {
+        if (viz_state.genes.gene_names.includes(inst_gene)) {
+          viz_state.genes.gene_text_box.textContent = 'loading';
+          await uniprot_get_request(inst_gene);
+          const gene_data = uniprot_data[inst_gene];
+
+          if (gene_data && gene_data.name && gene_data.description) {
+            viz_state.genes.gene_text_box.innerHTML = `<span style="color: blue;">${gene_data.name}</span><br>${gene_data.description}`;
+          } else {
+            viz_state.genes.gene_text_box.textContent = '';
+          }
+        }
+      } else {
+        viz_state.genes.gene_text_box.textContent = '';
+      }
+
+      viz_state.genes.gene_text_box.scrollTo({
+        top: 0,
+        behavior: 'smooth',
+      });
+    } else if (selected_genes.length === 0) {
+      viz_state.genes.gene_search_input.value = '';
+      viz_state.genes.gene_text_box.textContent = '';
+    }
+  });
+
   ctrl_container.appendChild(image_container);
   ctrl_container.appendChild(tile_container);
   ctrl_container.appendChild(viz_state.genes.gene_search);

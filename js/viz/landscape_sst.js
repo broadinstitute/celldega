@@ -1,3 +1,4 @@
+import { AwsClient } from 'aws4fetch';
 import * as d3 from 'd3';
 
 import { ini_deck_sst } from '../deck-gl/core/deck_sst';
@@ -19,6 +20,7 @@ import {
   set_tile_name_to_index_map,
 } from '../global_variables/tile_names_array';
 import { set_tile_scatter_data } from '../global_variables/tile_scatter_data';
+import { create_obs_store } from '../obs_store/obs_store';
 import { get_arrow_table } from '../read_parquet/get_arrow_table';
 import { get_scatter_data } from '../read_parquet/get_scatter_data';
 import { make_sst_ui_container } from '../ui/ui_containers';
@@ -36,7 +38,8 @@ export const landscape_sst = async (
   square_tile_size = 1.4,
   _dataset_name = '',
   width = 0,
-  height = 800
+  height = 800,
+  creds = {}
 ) => {
   if (width === 0) {
     width = '100%';
@@ -44,9 +47,13 @@ export const landscape_sst = async (
 
   // Create and append the visualization container
   const root = document.createElement('div');
-  root.style.height = '800px';
+  root.style.height = `${height}px`;
+  root.style.width = typeof width === 'number' ? `${width}px` : width;
 
   const viz_state = {};
+
+  viz_state.obs_store = create_obs_store();
+
   set_options(token);
   set_global_base_url(viz_state, base_url);
 
@@ -58,7 +65,54 @@ export const landscape_sst = async (
 
   await set_landscape_parameters(viz_state.img, base_url);
 
+  // AWS credentials setup
+
+  if ('accessKeyId' in creds) {
+    viz_state.aws = new AwsClient({
+      accessKeyId: creds.accessKeyId,
+      secretAccessKey: creds.secretAccessKey,
+      sessionToken: creds.sessionToken,
+      region: 'us-east-1',
+      service: 's3',
+    });
+
+    // fetch after initialization of aws client is apparently required?
+    const response = await viz_state.aws.fetch(
+      `${base_url}/landscape_parameters.json`
+    );
+
+    if (!response.ok) {
+      throw new Error(`Fetch failed: ${response.statusText}`);
+    }
+  } else {
+    viz_state.aws = null;
+  }
+
   await set_dimensions(viz_state, base_url, 'cells');
+
+  const parseDim = (val, ref) => {
+    if (typeof val === 'string' && val.includes('%')) {
+      const ratio = parseFloat(val) / 100;
+      return ref * ratio;
+    }
+    return parseFloat(val) || ref;
+  };
+
+  const imgWidth = viz_state.dimensions.width;
+  const imgHeight = viz_state.dimensions.height;
+  const containerWidth = parseDim(width, el.clientWidth || imgWidth);
+  const containerHeight = parseDim(height, el.clientHeight || imgHeight);
+  const scale = Math.min(
+    containerWidth / imgWidth,
+    containerHeight / imgHeight
+  );
+  const autoZoom = Math.log2(scale);
+
+  if (ini_x === 0 && ini_y === 0 && ini_zoom === 0) {
+    ini_x = imgWidth / 2;
+    ini_y = imgHeight / 2;
+    ini_zoom = autoZoom;
+  }
 
   viz_state.buttons = {};
   viz_state.buttons.blue = '#8797ff';
@@ -95,7 +149,7 @@ export const landscape_sst = async (
 
   viz_state.cats.square_tile_size = square_tile_size;
 
-  await set_meta_gene(viz_state.genes, base_url);
+  await set_meta_gene(viz_state.genes, base_url, 'default', viz_state.aws);
 
   // move this to landscape_parameters
   const _info = {
@@ -105,7 +159,11 @@ export const landscape_sst = async (
 
   const tile_url = `${base_url}/tile_geometries.parquet`;
 
-  const tile_arrow_table = await get_arrow_table(tile_url, options.fetch);
+  const tile_arrow_table = await get_arrow_table(
+    tile_url,
+    options.fetch,
+    viz_state.aws
+  );
 
   viz_state.cats.tile_cats_array = tile_arrow_table
     .getChild('cluster')
@@ -122,7 +180,10 @@ export const landscape_sst = async (
   );
   set_tile_name_to_index_map(viz_state.cats);
 
-  viz_state.cats.tile_color_dict = await set_tile_color_dict(base_url);
+  viz_state.cats.tile_color_dict = await set_tile_color_dict(
+    viz_state,
+    base_url
+  );
 
   const simple_image_layer = await make_simple_image_layer(viz_state, _info);
   const square_scatter_layer = ini_square_scatter_layer(viz_state.cats);

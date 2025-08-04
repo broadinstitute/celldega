@@ -18,8 +18,7 @@ const sst_gene_search_callback = async (deck_sst, viz_state, layers_sst) => {
 
     viz_state.obs_store.deck_check.set({
       ...viz_state.obs_store.deck_check.get(),
-      cell_layer: false,
-      trx_layer: false,
+      square_scatter_layer: false,
     });
 
     update_selected_genes(

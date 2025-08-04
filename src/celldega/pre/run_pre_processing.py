@@ -60,8 +60,14 @@ def _determine_technology(data_dir):
         return "Xenium"
     if (data_path / "detected_transcripts.csv").exists():
         return "MERSCOPE"
+    # Visium-HD datasets contain a binned_outputs directory with spatial information
+    if next(
+        (data_path / "binned_outputs").glob("square_*um/spatial/tissue_positions.parquet"),
+        None,
+    ):
+        return "Visium-HD"
     raise ValueError(
-        "Unsupported technology. Only Xenium and MERSCOPE are supported in this script."
+        "Unsupported technology. Only Xenium, MERSCOPE and Visium-HD are supported in this script."
     )
 
 
@@ -70,7 +76,7 @@ def _setup_preprocessing_paths(technology, path_landscape_files, data_dir):
     Setup preprocessing file paths.
 
     Parameters:
-    - technology: Technology type (e.g., 'Xenium', 'MERSCOPE')
+    - technology: Technology type (e.g., 'Xenium', 'MERSCOPE', 'Visium-HD')
     - path_landscape_files: Base landscape files path
     - data_dir: Data directory path
 
@@ -103,8 +109,26 @@ def _setup_preprocessing_paths(technology, path_landscape_files, data_dir):
             "cell_segmentation": landscape_path / "cell_segmentation",
             "cbg_csv": data_path / "cell_by_gene.csv",
         }
+    if technology == "Visium-HD":
+        # Find the binned output directory (e.g., square_008um)
+        binned_base = next((data_path / "binned_outputs").glob("square_*um"), None)
+        if binned_base is None:
+            raise ValueError("Could not locate binned_outputs directory for Visium-HD")
+        return {
+            "scalefactors": binned_base / "spatial" / "scalefactors_json.json",
+            "meta_cell_micron": binned_base / "spatial" / "tissue_positions.parquet",
+            "meta_cell_image": landscape_path / "cell_metadata.parquet",
+            "meta_gene": landscape_path / "meta_gene.parquet",
+            "cbg_matrix": binned_base / "filtered_feature_bc_matrix",
+            "cluster_csv": binned_base
+            / "analysis"
+            / "clustering"
+            / "gene_expression_graphclust"
+            / "clusters.csv",
+            "base_path": binned_base,
+        }
     raise ValueError(
-        "Unsupported technology. Only Xenium and MERSCOPE are supported in this script."
+        "Unsupported technology. Only Xenium, MERSCOPE and Visium-HD are supported in this script."
     )
 
 
@@ -118,7 +142,7 @@ def main(
     max_workers=1,
 ):
     """
-    Main function to preprocess Xenium or MERSCOPE data and generate landscape files.
+    Main function to preprocess Xenium, MERSCOPE or Visium-HD data and generate landscape files.
 
     Args:
         sample (str): Name of the sample (e.g., 'Xenium_V1_human_Pancreas_FFPE_outs').
@@ -162,36 +186,51 @@ def main(
         dega.pre._xenium_unzipper(str(data_dir))
         # Write transform file
         dega.pre.write_xenium_transform(str(data_dir), path_landscape_files)
-
     elif technology == "MERSCOPE":
         source_path = Path(paths["transformation_matrix"])
-
         # Copy the file to the destination directory, keeping the same filename
         shutil.copy(source_path, Path(path_landscape_files) / "micron_to_image_transform.csv")
+
+    # Visium-HD does not require additional transformation setup
 
     # Check required files for preprocessing
     dega.pre._check_required_files(technology, str(data_dir))
 
     # Make cell image coordinates
-    dega.pre.make_meta_cell_image_coord(
-        technology,
-        str(paths["transformation_matrix"]),
-        str(paths["meta_cell_micron"]),
-        str(paths["meta_cell_image"]),
-        image_scale=1,
-    )
+    if technology == "Visium-HD":
+        dega.pre.make_meta_cell_image_coord(
+            technology,
+            str(paths["scalefactors"]),
+            str(paths["meta_cell_micron"]),
+            str(paths["meta_cell_image"]),
+            image_scale=1,
+        )
+    else:
+        dega.pre.make_meta_cell_image_coord(
+            technology,
+            str(paths["transformation_matrix"]),
+            str(paths["meta_cell_micron"]),
+            str(paths["meta_cell_image"]),
+            image_scale=1,
+        )
 
     # Calculate CBG
     if technology == "Xenium":
         cbg = dega.pre.read_cbg_mtx(str(paths["cbg_matrix"]))
     elif technology == "MERSCOPE":
         cbg = pd.read_csv(str(paths["cbg_csv"]), index_col=0)
+    elif technology == "Visium-HD":
+        cbg = dega.pre.read_cbg_mtx(str(paths["cbg_matrix"]))
 
     if technology == "Xenium":
         # Create cluster-based gene expression
         dega.pre.cluster_gene_expression(technology, path_landscape_files, cbg, str(data_dir))
     elif technology == "MERSCOPE":
         create_dummy_clusters(path_landscape_files, cbg)
+    elif technology == "Visium-HD":
+        dega.pre.cluster_gene_expression(
+            technology, path_landscape_files, cbg, str(paths["base_path"])
+        )
 
     # Make meta gene files
     dega.pre.make_meta_gene(cbg, str(paths["meta_gene"]))
@@ -202,41 +241,49 @@ def main(
     if technology == "Xenium":
         # Create cluster and meta cluster files
         dega.pre.create_cluster_and_meta_cluster(technology, path_landscape_files, str(data_dir))
+    elif technology == "Visium-HD":
+        dega.pre.create_cluster_and_meta_cluster(
+            technology, path_landscape_files, data_dir=str(paths["base_path"])
+        )
 
     # Generate image tiles
     dega.pre.create_image_tiles(
-        technology, str(data_dir), path_landscape_files, image_tile_layer=image_tile_layer
+        technology,
+        str(paths.get("base_path", data_dir)),
+        path_landscape_files,
+        image_tile_layer=image_tile_layer,
     )
 
-    # Generate transcript tiles
-    print("\n========Generating transcript tiles========")
-    tile_bounds = dega.pre.make_trx_tiles(
-        technology,
-        str(paths["transcripts"]),
-        str(paths["transformation_matrix"]),
-        str(paths["transcript_tiles"]),
-        coarse_tile_factor=10,
-        tile_size=tile_size,
-        chunk_size=100000,
-        verbose=False,
-        image_scale=1,
-        max_workers=max_workers,
-    )
-    print(f"tile bounds: {tile_bounds}")
+    if technology in ["Xenium", "MERSCOPE"]:
+        # Generate transcript tiles
+        print("\n========Generating transcript tiles========")
+        tile_bounds = dega.pre.make_trx_tiles(
+            technology,
+            str(paths["transcripts"]),
+            str(paths["transformation_matrix"]),
+            str(paths["transcript_tiles"]),
+            coarse_tile_factor=10,
+            tile_size=tile_size,
+            chunk_size=100000,
+            verbose=False,
+            image_scale=1,
+            max_workers=max_workers,
+        )
+        print(f"tile bounds: {tile_bounds}")
 
-    # Generate boundary tiles
-    print("\n========Generating boundary tiles========")
-    dega.pre.make_cell_boundary_tiles(
-        technology,
-        str(paths["cell_boundaries"]),
-        str(paths["cell_segmentation"]),
-        str(paths["meta_cell_micron"]),
-        str(paths["transformation_matrix"]),
-        coarse_tile_factor=10,
-        tile_size=tile_size,
-        tile_bounds=tile_bounds,
-        max_workers=max_workers,
-    )
+        # Generate boundary tiles
+        print("\n========Generating boundary tiles========")
+        dega.pre.make_cell_boundary_tiles(
+            technology,
+            str(paths["cell_boundaries"]),
+            str(paths["cell_segmentation"]),
+            str(paths["meta_cell_micron"]),
+            str(paths["transformation_matrix"]),
+            coarse_tile_factor=10,
+            tile_size=tile_size,
+            tile_bounds=tile_bounds,
+            max_workers=max_workers,
+        )
 
     # Force name to be str for MERSCOPE
     if technology == "MERSCOPE":
@@ -248,7 +295,7 @@ def main(
     dega.pre.save_landscape_parameters(
         technology,
         path_landscape_files,
-        "dapi_files",
+        "dapi_files" if technology != "Visium-HD" else "cells_files",
         tile_size=tile_size,
         image_info=dega.pre.get_image_info(technology, image_tile_layer),
         image_format=".webp",

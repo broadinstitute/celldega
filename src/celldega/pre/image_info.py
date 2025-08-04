@@ -9,9 +9,9 @@ def get_image_info(technology: str, image_tile_layer: str = "dapi") -> list[dict
 
     Args:
         technology: The technology for which image information is requested.
-                   Currently supports 'Xenium' and 'MERSCOPE'.
+                    Supports 'Xenium', 'MERSCOPE', and 'Visium-HD'.
         image_tile_layer: The type of image tile layer to retrieve information for.
-                         Options are 'dapi' or 'all'. Defaults to 'dapi'.
+                         Options are 'dapi' or 'all' for Xenium/MERSCOPE.
 
     Returns:
         A list of dictionaries containing image information, including name,
@@ -22,17 +22,20 @@ def get_image_info(technology: str, image_tile_layer: str = "dapi") -> list[dict
                    is invalid.
     """
     # Validate technology
-    supported_technologies = ["Xenium", "MERSCOPE"]
+    supported_technologies = ["Xenium", "MERSCOPE", "Visium-HD"]
     if technology not in supported_technologies:
         raise ValueError(
             f"Unsupported technology: {technology}. Supported technologies are: {supported_technologies}."
         )
 
-    # Validate image_tile_layer
+    if technology == "Visium-HD":
+        return [{"name": "cells", "button_name": "CELLS", "color": [0, 0, 255]}]
+
+    # Validate image_tile_layer for other technologies
     if image_tile_layer not in ["dapi", "all"]:
         raise ValueError(f"Invalid image_tile_layer: {image_tile_layer}. Must be 'dapi' or 'all'.")
 
-    # Handle 'dapi' case for both Xenium and MERSCOPE
+    # Handle 'dapi' case for Xenium and MERSCOPE
     if image_tile_layer == "dapi":
         return [{"name": "dapi", "button_name": "DAPI", "color": [0, 0, 255]}]
 

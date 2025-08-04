@@ -160,24 +160,12 @@ def _save_cluster_data(cell_clusters_dir, default_clustering, clusters, ser_coun
 def cluster_gene_expression(
     technology, path_landscape_files, cbg, data_dir=None, segmentation_approach="default"
 ):
-    """
-    Calculates cluster-specific gene expression signatures for Xenium data.
+    """Calculates cluster-specific gene expression signatures."""
 
-    Args:
-        technology (str): The technology used (e.g., "Xenium" or "MERSCOPE"). Currently, only "Xenium" is supported.
-        data_dir (str): Path to the directory containing the Xenium data.
-        path_landscape_files (str): Path to the directory where the gene expression signature file will be saved.
-        cbg (pd.DataFrame): A cell-by-gene matrix where rows represent cells and columns represent genes.
-                            The index of the DataFrame should match the cell IDs in the Xenium metadata.
-
-    Raises:
-        ValueError: If the specified technology is not supported.
-        FileNotFoundError: If the required input files are not found.
-    """
     print("\n========Create cluster gene expression (df_sig)========")
-    if technology not in ["Xenium", "custom"]:
+    if technology not in ["Xenium", "Visium-HD", "custom"]:
         raise ValueError(
-            f"Unsupported technology: {technology}. Currently, only 'Xenium' and 'Custom' is supported."
+            f"Unsupported technology: {technology}. Currently, only 'Xenium', 'Visium-HD' and 'Custom' are supported."
         )
 
     if technology == "Xenium":
@@ -189,53 +177,59 @@ def cluster_gene_expression(
             / "gene_expression_graphclust"
             / "clusters.csv"
         )
-
-        # Load the cell metadata
         usecols = ["cell_id", "x_centroid", "y_centroid"]
         meta_cell = pd.read_csv(cells_csv_path, index_col=0, usecols=usecols)
         meta_cell.columns = ["center_x", "center_y"]
-
-        # Load the clustering data
         df_meta = pd.read_csv(clusters_csv_path, index_col=0)
         df_meta["Cluster"] = df_meta["Cluster"].astype("string")
         df_meta.columns = ["cluster"]
-
-        # Add cluster information to the cell metadata
         meta_cell["cluster"] = df_meta["cluster"]
         clusters = meta_cell["cluster"].unique().tolist()
-
-        # Calculate cluster-specific gene expression signatures
         list_ser = []
-        for inst_cat in meta_cell["cluster"].unique().tolist():
+        for inst_cat in clusters:
             if inst_cat is not None:
                 inst_cells = meta_cell[meta_cell["cluster"] == inst_cat].index.tolist()
                 inst_ser = cbg.loc[inst_cells].sum() / len(inst_cells)
                 inst_ser.name = inst_cat
                 list_ser.append(inst_ser)
-
+    elif technology == "Visium-HD":
+        clusters_csv_path = (
+            Path(data_dir)
+            / "analysis"
+            / "clustering"
+            / "gene_expression_graphclust"
+            / "clusters.csv"
+        )
+        meta_tile = pd.read_csv(clusters_csv_path)
+        meta_tile["Cluster"] = meta_tile["Cluster"].astype("string")
+        meta_tile = meta_tile.rename(columns={"Barcode": "name", "Cluster": "cluster"})
+        clusters = meta_tile["cluster"].unique().tolist()
+        list_ser = []
+        for inst_cat in clusters:
+            if inst_cat is not None:
+                keep_tiles = meta_tile[meta_tile["cluster"] == inst_cat]["name"].tolist()
+                inst_ser = cbg.loc[keep_tiles].sum() / len(keep_tiles)
+                inst_ser.name = inst_cat
+                list_ser.append(inst_ser)
     elif technology == "custom":
         df_cluster = pd.read_parquet(
             Path(path_landscape_files)
             / f"cell_clusters_{segmentation_approach}"
-            / "cluster.parquet"
+            / "cluster.parquet",
         )
         clusters = df_cluster["cluster"].unique().tolist()
-
         list_ser = []
         for inst_cat in df_cluster["cluster"].unique():
             if inst_cat is not None:
                 inst_cells = df_cluster[df_cluster["cluster"] == inst_cat].index.tolist()
-
                 if set(inst_cells) & set(cbg.index):
                     common_cells = list(set(inst_cells) & set(cbg.index))
                     inst_ser = cbg.loc[common_cells].sum() / len(common_cells)
                 else:
                     genes = cbg.columns
                     inst_ser = pd.Series(0.0, index=genes)
-
                 inst_ser.name = inst_cat
                 list_ser.append(inst_ser)
-
     # Combine the signatures into a DataFrame
     df_sig = pd.concat(list_ser, axis=1)
 
@@ -305,11 +299,10 @@ def create_cluster_and_meta_cluster(
 ):
     """
     Creates cell clusters and meta cluster files for visualization.
-    Currently supports only Xenium.
 
     Args:
-        technology (str): The technology used (e.g., "Xenium" or "MERSCOPE"). Currently, only "Xenium" is supported.
-        data_dir (str): Path to the directory containing the Xenium data.
+        technology (str): The technology used (e.g., "Xenium", "Visium-HD" or "MERSCOPE").
+        data_dir (str): Path to the directory containing the data.
         path_landscape_files (str): Path to the directory where the cluster and meta cluster files will be saved.
 
     Raises:
@@ -318,9 +311,9 @@ def create_cluster_and_meta_cluster(
     """
     print("\n========Create clusters and meta clusters files========")
 
-    if technology not in ["Xenium", "custom"]:
+    if technology not in ["Xenium", "custom", "Visium-HD"]:
         raise ValueError(
-            f"Unsupported technology: {technology}. Currently, only 'Xenium' and 'Custom' is supported."
+            f"Unsupported technology: {technology}. Currently, only 'Xenium', 'Visium-HD' and 'Custom' are supported."
         )
 
     # Check if the cell metadata file exists
@@ -341,6 +334,22 @@ def create_cluster_and_meta_cluster(
 
     if technology == "Xenium":
         default_clustering, clusters, ser_counts = _load_xenium_cluster_data(data_dir, meta_cell)
+        _save_cluster_data(cell_clusters_dir, default_clustering, clusters, ser_counts)
+
+    elif technology == "Visium-HD":
+        meta_tile = pd.read_csv(
+            Path(data_dir)
+            / "analysis"
+            / "clustering"
+            / "gene_expression_graphclust"
+            / "clusters.csv"
+        )
+        meta_tile["Cluster"] = meta_tile["Cluster"].astype("string")
+        default_clustering = meta_tile.rename(
+            columns={"Barcode": "name", "Cluster": "cluster"}
+        ).set_index("name")
+        clusters = default_clustering["cluster"].unique().tolist()
+        ser_counts = default_clustering["cluster"].value_counts()
         _save_cluster_data(cell_clusters_dir, default_clustering, clusters, ser_counts)
 
     elif technology == "custom":
@@ -484,6 +493,9 @@ def create_image_tiles(technology, data_dir, path_landscape_files, image_tile_la
         create_image_tiles_merscope(
             data_dir, path_landscape_files, image_tile_layer=image_tile_layer
         )
+    elif technology == "Visium-HD":
+        print("------ visium-hd")
+        create_image_tiles_visium_hd(data_dir, path_landscape_files)
     elif technology == "h&e":
         print("------ h&e")
         create_image_tiles_h_and_e(
@@ -627,6 +639,21 @@ def create_image_tiles_merscope(data_dir, path_landscape_files, image_tile_layer
         _process_image_channel(path_landscape_files, {"name": "bound", "index": 0}, img_bound)
 
     remove_intermediate_files(path_landscape_files)
+
+
+def create_image_tiles_visium_hd(data_dir, path_landscape_files):
+    """Creates image tiles from Visium-HD tissue images."""
+    image_path = Path(data_dir) / "spatial" / "tissue_hires_image.png"
+    if not image_path.exists():
+        raise FileNotFoundError(
+            f"The file 'tissue_hires_image.png' does not exist in directory '{data_dir}'."
+        )
+    make_deepzoom_pyramid(
+        str(image_path),
+        str(Path(path_landscape_files) / "pyramid_images"),
+        "cells",
+        suffix=".webp[Q=100]",
+    )
 
 
 def _reduce_image_size(image_path, scale_image=0.5, path_landscape_files=""):
@@ -802,6 +829,30 @@ def make_meta_cell_image_coord(
         None
     """
     print("\n========Make meta cells in pixel space========")
+
+    if technology == "Visium-HD":
+        import json
+
+        df_pos = pd.read_parquet(path_meta_cell_micron)
+        df_pos = df_pos[df_pos["in_tissue"] == 1]
+        with Path(path_transformation_matrix).open() as f:
+            scale_factor = json.load(f)["tissue_hires_scalef"]
+        meta_cell = pd.DataFrame(
+            {
+                "name": df_pos["barcode"].astype(str),
+                "center_x": df_pos["pxl_col_in_fullres"] * scale_factor,
+                "center_y": df_pos["pxl_row_in_fullres"] * scale_factor,
+            }
+        )
+        meta_cell["geometry"] = meta_cell.apply(
+            lambda row: [row["center_x"], row["center_y"]], axis=1
+        )
+        meta_cell = meta_cell[["name", "geometry"]]
+        meta_cell["geometry"] = meta_cell["geometry"].apply(_round_nested_coord_list)
+        meta_cell = meta_cell.sort_values(by=["name"]).reset_index(drop=True)
+        meta_cell.to_parquet(path_meta_cell_image, index=False)
+        return
+
     transformation_matrix = pd.read_csv(path_transformation_matrix, header=None, sep=" ").values
     sparse_matrix = csr_matrix(transformation_matrix)
 
@@ -1265,7 +1316,7 @@ def _check_required_files(technology, data_dir):
     Checks if all required files or directories exist for the specified technology.
 
     Args:
-        technology (str): The technology to check files for (e.g., "Xenium" or "MERSCOPE").
+        technology (str): The technology to check files for (e.g., "Xenium", "MERSCOPE", "Visium-HD").
         data_dir (str): Path to the directory containing the required files or directories.
 
     Raises:
@@ -1298,13 +1349,28 @@ def _check_required_files(technology, data_dir):
         ],
     }
 
-    if technology not in required_files_mapping:
-        raise ValueError(
-            f"Unsupported technology: {technology}. Supported technologies are {list(required_files_mapping.keys())}."
-        )
-
-    required_files_or_dir = required_files_mapping[technology]
-    data_path = Path(data_dir)
+    if technology == "Visium-HD":
+        data_path = Path(data_dir)
+        binned_base = next((data_path / "binned_outputs").glob("square_*um"), None)
+        if binned_base is None:
+            raise FileNotFoundError(
+                f"Could not find binned_outputs directory in '{data_dir}' for Visium-HD."
+            )
+        required_files_or_dir = [
+            binned_base / "spatial" / "tissue_positions.parquet",
+            binned_base / "spatial" / "scalefactors_json.json",
+            binned_base / "spatial" / "tissue_hires_image.png",
+            binned_base / "filtered_feature_bc_matrix",
+            binned_base / "analysis",
+        ]
+    else:
+        if technology not in required_files_mapping:
+            supported = [*required_files_mapping.keys(), "Visium-HD"]
+            raise ValueError(
+                f"Unsupported technology: {technology}. Supported technologies are {supported}"
+            )
+        data_path = Path(data_dir)
+        required_files_or_dir = [data_path / file for file in required_files_mapping[technology]]
 
     # Raise an error if any files or directories are missing
     if missing_files_or_dir := [

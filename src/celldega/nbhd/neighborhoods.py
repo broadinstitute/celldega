@@ -290,8 +290,8 @@ def calc_nbp(
         .pipe(lambda df: df.set_axis(df.columns.astype(str), axis=1))
     )
     counts = counts.reindex(gdf_nbhd[nbhd_col]).fillna(0).astype(int)
-    percentages = counts.div(counts.sum(axis=1), axis=0).fillna(0) * 100
-    return counts, percentages
+    population_distribution = counts.div(counts.sum(axis=1), axis=0).fillna(0)
+    return counts, population_distribution
 
 
 def get_nbhd_meta(

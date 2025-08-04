@@ -84,7 +84,6 @@ export const landscape_sst = async (
     if (!response.ok) {
       throw new Error(`Fetch failed: ${response.statusText}`);
     }
-
   } else {
     viz_state.aws = null;
   }

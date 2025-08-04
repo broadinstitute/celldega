@@ -5,6 +5,11 @@ import geopandas as gpd
 import numpy as np
 from shapely.affinity import translate
 from shapely.geometry import Polygon
+import pandas as pd
+from .neighborhoods import calc_nbp
+from .utils import _get_df_cell, _get_gdf_cell
+from .alpha_shapes import alpha_shape_cell_clusters
+from .gradient import calc_grad_nbhd_from_roi
 
 
 def generate_hex_grid(
@@ -50,11 +55,6 @@ def prepare_nbhd_for_clustering(
 ) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
     """Prepare nbhd geometries for clustering based on cell type composition.
     Also returns cell-type proportions in each nbhd."""
-    import pandas as pd
-    from .neighborhoods import calc_nbp
-    from .utils import _get_df_cell, _get_gdf_cell
-    from .alpha_shapes import alpha_shape_cell_clusters
-    from .gradient import calc_grad_nbhd_from_roi
 
     if not isinstance(adata, AnnData):
         raise TypeError("adata must be an AnnData object")

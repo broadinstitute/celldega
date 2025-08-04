@@ -15,7 +15,6 @@ import subprocess
 import warnings
 import xml.etree.ElementTree as ET
 
-import geopandas as gpd
 from matplotlib.colors import to_hex
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -68,9 +67,6 @@ def _load_xenium_cluster_data(data_dir, meta_cell):
     clusters = ser_counts.index.tolist()
 
     return default_clustering, clusters, ser_counts
-
-
-d
 
 def _create_cluster_colors(clusters):
     """

@@ -40,6 +40,7 @@ export const set_meta_gene = async (
   });
 
   genes.gene_counts.sort((a, b) => b.value - a.value);
+  genes.top_gene_counts = genes.gene_counts.slice(0, 1000);
 
   // Create the reverse mapping: integer index to gene name
   const g_nameMapping_inv = gene_names.reduce((acc, name, idx) => {
@@ -50,5 +51,5 @@ export const set_meta_gene = async (
   // Save the mapping as cats.nameMapping_inv
   genes.g_nameMapping_inv = g_nameMapping_inv;
 
-  genes.gene_names = genes.gene_counts.map((gene) => gene.name);
+  genes.gene_names = gene_names;
 };

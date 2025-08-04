@@ -116,7 +116,7 @@ export const calc_viewport = async (
       viz_state.close_up = false;
 
       viz_state.obs_store.new_gene_bar_data.set(
-        viz_state.genes.gene_counts.slice(0, 1000)
+        viz_state.genes.top_gene_counts
       );
 
       viz_state.obs_store.new_cell_bar_data.set(viz_state.cats.cluster_counts);

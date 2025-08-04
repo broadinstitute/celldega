@@ -31,6 +31,7 @@ dependencies = [
     "spatialdata~=0.3.0",
     "spatialdata_io~=0.1.0",
     "squidpy~=1.6.0",
+    "statemodels~=0.14.5",
     "tifffile~=2024.4.0",
     "watchfiles",
     "zarr~=2.17.0; python_version<'3.11'",

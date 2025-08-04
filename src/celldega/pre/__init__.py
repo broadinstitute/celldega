@@ -70,47 +70,7 @@ def _load_xenium_cluster_data(data_dir, meta_cell):
     return default_clustering, clusters, ser_counts
 
 
-def _load_visium_hd_cluster_data(data_dir, barcode_to_cell_dict):
-    """
-    Load and process Visium-HD clustering data.
-
-    Parameters:
-    - data_dir: Path to data directory
-    - meta_cell: Meta cell dataframe
-
-    Returns:
-    - Tuple of (default_clustering, clusters)
-    """
-    # Load the default clustering data
-    meta_tile = pd.read_csv(
-        Path(data_dir) / "analysis" / "clustering" / "gene_expression_graphclust" / "clusters.csv"
-    )
-
-    meta_tile["cell_id"] = meta_tile["Barcode"].map(barcode_to_cell_dict).astype("Int64")
-
-    default_clustering = (
-        meta_tile[["cell_id", "Cluster"]]
-        .dropna(subset=["cell_id"])
-        .drop_duplicates()
-        .sort_values(by="cell_id")
-        .set_index("cell_id")
-        .rename(columns={"Cluster": "cluster"})
-    )
-    default_clustering.columns = default_clustering.columns.str.lower()
-
-    # Prepare the clustering data
-    default_clustering_ini = default_clustering.copy()
-    default_clustering_ini["cluster"] = default_clustering_ini["cluster"].astype("string")
-
-    # Align the clustering data with the cell metadata
-    default_clustering = default_clustering_ini.copy()
-
-    # Count the number of cells in each cluster
-    ser_counts = default_clustering["cluster"].value_counts()
-    clusters = ser_counts.index.tolist()
-
-    return default_clustering, clusters, ser_counts
-
+d
 
 def _create_cluster_colors(clusters):
     """
@@ -360,59 +320,6 @@ def create_cluster_and_meta_cluster(
     print("Cell clusters and meta cluster files created successfully.")
 
     return clusters
-
-
-def create_barcode_to_cell_id_mapping(
-    data_dir: str,
-    micron_size: int,
-) -> tuple[dict, gpd.GeoDataFrame, gpd.GeoDataFrame, gpd.GeoDataFrame]:
-    """
-    Create a mapping from spatial barcodes to cell IDs by spatially joining
-    barcode positions with segmented cell geometries.
-
-    Args:
-        data_dir (str): Base directory containing the spatial transcriptomics data.
-        micron_size (int): Micron size used to define the binned output directory.
-
-    Returns:
-        tuple:
-            - dict: Mapping from barcode (str) to cell_id (any).
-            - GeoDataFrame: Barcode positions joined with cell segmentation polygons.
-            - GeoDataFrame: Original cell segmentation polygons.
-            - GeoDataFrame: Original barcode position geometries.
-    """
-
-    base_path = f"{data_dir}/binned_outputs/square_{micron_size}um"
-
-    # Load the cell segmentation GeoJSON file
-    cell_segmentation_geojson = f"{data_dir}/segmented_outputs/cell_segmentations.geojson"
-    gdf_cells = gpd.read_file(cell_segmentation_geojson)
-
-    # Load and filter barcode positions
-    df_pos = pd.read_parquet(f"{base_path}/spatial/tissue_positions.parquet")
-    df_pos = df_pos[df_pos["in_tissue"] == 1].copy()
-
-    # Convert to GeoDataFrame
-    df_pos["geometry"] = df_pos.apply(
-        lambda row: Point(row["pxl_col_in_fullres"], row["pxl_row_in_fullres"]),
-        axis=1,
-    )
-    gdf_pos = gpd.GeoDataFrame(df_pos, geometry="geometry")
-
-    # Spatial join with cell segmentation polygons
-    gdf_pos_join = gpd.sjoin(
-        gdf_pos,
-        gdf_cells,
-        how="inner",
-        predicate="intersects",
-    ).drop(columns="index_right")
-
-    barcode_to_cell = gdf_pos_join[["barcode", "cell_id"]].drop_duplicates()
-    barcode_to_cell_dict = dict(
-        zip(barcode_to_cell["barcode"], barcode_to_cell["cell_id"], strict=False)
-    )
-
-    return barcode_to_cell_dict, gdf_pos_join, gdf_cells, gdf_pos
 
 
 def _process_image_channel(path_landscape_files, channel_info, img):

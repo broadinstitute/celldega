@@ -18,6 +18,8 @@ import xml.etree.ElementTree as ET
 from matplotlib.colors import to_hex
 import matplotlib.pyplot as plt
 import pandas as pd
+
+from .chromium import make_landscape_from_anndata
 from scipy.sparse import csr_matrix
 from shapely.geometry import MultiPolygon, Point, Polygon
 from skimage.io import imread, imsave
@@ -1232,4 +1234,5 @@ __all__ = [
     "make_trx_tiles",
     "read_cbg_mtx",
     "trx_tile",
+    "make_landscape_from_anndata",
 ]

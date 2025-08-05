@@ -55,6 +55,19 @@ mat.cluster()
 cgm = dega.viz.Clustergram(matrix=mat)
 
 dega.viz.landscape_clustergram(landscape_ist, cgm)
+
+## Chromium Example
+
+```python
+adata = sc.read_h5ad('pbmc_10x.h5ad')
+dega.pre.make_landscape_from_anndata(adata, 'pbmc_landscape')
+landscape = dega.viz.Landscape(
+    technology='Chromium',
+    base_url='pbmc_landscape',
+    AnnData=adata,
+    landscape_state='umap'
+)
+```
 ```
 
 ![Celldega Demo](public/assets/celldega-demo.png)

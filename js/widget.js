@@ -9,6 +9,7 @@ import {
 import { landscape_h_e } from './viz/landscape_h_e';
 import { landscape_ist } from './viz/landscape_ist';
 import { landscape_sst } from './viz/landscape_sst';
+import { landscape_chromium } from './viz/landscape_chromium';
 import { matrix_viz } from './viz/matrix_viz';
 import { render_enrich } from './widgets/enrich_widget';
 
@@ -124,6 +125,15 @@ const render_landscape_h_e = async ({ model, el }) => {
   );
 };
 
+const render_landscape_chromium = async ({ model, el }) => {
+  const token = model.get('token');
+  const base_url = model.get('base_url');
+  const width = model.get('width');
+  const height = model.get('height');
+
+  landscape_chromium(model, el, base_url, token, width, height);
+};
+
 const render_landscape = async ({ model, el }) => {
   const technology = model.get('technology');
 
@@ -133,6 +143,8 @@ const render_landscape = async ({ model, el }) => {
     return render_landscape_sst({ model, el });
   } else if (['h&e'].includes(technology)) {
     return render_landscape_h_e({ model, el });
+  } else if (['Chromium'].includes(technology)) {
+    return render_landscape_chromium({ model, el });
   }
 };
 
@@ -228,6 +240,7 @@ export default {
   render_landscape_ist,
   render_landscape_sst,
   render_landscape_h_e,
+  render_landscape_chromium,
   render_landscape,
   render_matrix_new,
   render_enrich,

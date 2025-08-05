@@ -172,16 +172,41 @@ export const landscape_ist = async (
     } else {
       viz_state.nbhd.is_nbhd = true;
 
-      viz_state.nbhd.ini_feature_collection = nbhd; // viz_state.model.get('nbhd');
+      viz_state.nbhd.ini_feature_collection = nbhd;
 
-      viz_state.nbhd.bar_data = nbhd.features
-        .map((feature) => {
-          return {
-            name: feature.properties.cat, // "1_50" → "1"
-            value: feature.properties.area, // use area as the value
-          };
-        })
-        .sort((a, b) => b.value - a.value);
+      // find all unique categories in the nbhd features
+      const unique_cats = new Set(
+        nbhd.features.map((feature) => feature.properties.cat)
+      );
+
+      // calculate the area of all unqiue categories
+      viz_state.nbhd.bar_data = Array.from(unique_cats).map((cat) => {
+        const features = nbhd.features.filter(
+          (feature) => feature.properties.cat === cat
+        );
+        const area = features.reduce(
+          (acc, feature) => acc + feature.properties.area,
+          0
+        );
+
+        return {
+          name: cat,
+          value: area,
+        };
+      })
+      .sort((a, b) => b.value - a.value);
+
+      console.log('new calc')
+      console.log('nbhd.bar_data', viz_state.nbhd.bar_data);
+
+      // viz_state.nbhd.bar_data = nbhd.features
+      //   .map((feature) => {
+      //     return {
+      //       name: feature.properties.cat, // "1_50" → "1"
+      //       value: feature.properties.area, // use area as the value
+      //     };
+      //   })
+      //   .sort((a, b) => b.value - a.value);
 
       // parse colors from features and make a dictionary with cat name and
       // color as rgb array that is converted from hex

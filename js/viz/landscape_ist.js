@@ -530,6 +530,8 @@ export const landscape_ist = async (
     } else {
       viz_state.buttons.buttons.umap.style('color', 'gray');
       viz_state.buttons.buttons.spatial.style('color', 'blue');
+
+      console.log('delay transition to spatial');
       setTimeout(() => {
         viz_state.obs_store.viz_background_layer.set(true);
         viz_state.obs_store.viz_image_layers.set(true);

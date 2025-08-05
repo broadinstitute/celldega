@@ -15,6 +15,7 @@ import {
   ini_cell_layer,
   new_toggle_cell_layer_visibility,
   set_cell_layer_onclick,
+  toggle_spatial_umap,
 } from '../deck-gl/layers/cell_layer';
 // import {
 //   ini_edit_layer,
@@ -247,6 +248,8 @@ export const landscape_ist = async (
   } else if (landscape_state === 'umap') {
     viz_state.umap.state = true;
   }
+
+  viz_state.obs_store.landscape_view.set(landscape_state);
 
   viz_state.genes = {};
   viz_state.genes.color_dict_gene = {};
@@ -497,6 +500,56 @@ export const landscape_ist = async (
   // UI and Viz Container
   el.appendChild(ui_container);
   el.appendChild(root);
+
+  viz_state.obs_store.landscape_view.subscribe((view) => {
+    const isUmap = view === 'umap';
+    viz_state.umap.state = isUmap;
+    toggle_spatial_umap(deck_ist, layers_obj, viz_state);
+
+    if (isUmap) {
+      viz_state.buttons.buttons.umap.style('color', 'blue');
+      viz_state.buttons.buttons.spatial.style('color', 'gray');
+      viz_state.obs_store.viz_background_layer.set(false);
+      viz_state.obs_store.viz_image_layers.set(false);
+      toggle_trx_layer_visibility(layers_obj, false);
+      toggle_path_layer_visibility(layers_obj, false);
+      viz_state.obs_store.deck_check.set({
+        ...viz_state.obs_store.deck_check.get(),
+        cell_layer: false,
+        path_layer: false,
+        trx_layer: false,
+      });
+      viz_state.layers_obj = layers_obj;
+      viz_state.obs_store.deck_check.set({
+        ...viz_state.obs_store.deck_check.get(),
+        cell_layer: true,
+        path_layer: true,
+        trx_layer: true,
+      });
+    } else {
+      viz_state.buttons.buttons.umap.style('color', 'gray');
+      viz_state.buttons.buttons.spatial.style('color', 'blue');
+      setTimeout(() => {
+        viz_state.obs_store.viz_background_layer.set(true);
+        viz_state.obs_store.viz_image_layers.set(true);
+        toggle_trx_layer_visibility(layers_obj, true);
+        toggle_path_layer_visibility(layers_obj, true);
+        viz_state.obs_store.deck_check.set({
+          ...viz_state.obs_store.deck_check.get(),
+          cell_layer: false,
+          path_layer: false,
+          trx_layer: false,
+        });
+        viz_state.layers_obj = layers_obj;
+        viz_state.obs_store.deck_check.set({
+          ...viz_state.obs_store.deck_check.get(),
+          cell_layer: true,
+          path_layer: true,
+          trx_layer: true,
+        });
+      }, 3000);
+    }
+  });
 
   const landscape = {
     update_matrix_gene: async (inst_gene) => {

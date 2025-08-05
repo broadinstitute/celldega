@@ -502,6 +502,7 @@ export const landscape_ist = async (
   el.appendChild(root);
 
   viz_state.obs_store.landscape_view.subscribe((view) => {
+    console.log(`Landscape view changed to: ${view}`);
     const isUmap = view === 'umap';
     viz_state.umap.state = isUmap;
     toggle_spatial_umap(deck_ist, layers_obj, viz_state);
@@ -549,7 +550,7 @@ export const landscape_ist = async (
         });
       }, 3000);
     }
-  });
+  }, { immediate: false });
 
   const landscape = {
     update_matrix_gene: async (inst_gene) => {

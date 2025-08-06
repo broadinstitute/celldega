@@ -99,6 +99,7 @@ class Landscape(anywidget.AnyWidget):
 
     width = traitlets.Int(0).tag(sync=True)
     height = traitlets.Int(800).tag(sync=True)
+    interaction_entity = traitlets.Unicode("cell").tag(sync=True)
 
     def __init__(self, **kwargs):
         adata = kwargs.pop("adata", None) or kwargs.pop("AnnData", None)

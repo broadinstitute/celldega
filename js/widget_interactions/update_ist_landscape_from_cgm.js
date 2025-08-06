@@ -14,6 +14,8 @@ export const update_ist_landscape_from_cgm = async (
     return;
   }
 
+  const entity = viz_state.model.get('interaction_entity') || 'cell';
+
   const click_info = {
     type: raw_click.type || raw_click.click_type,
     value: raw_click.value || raw_click.click_value,
@@ -30,50 +32,83 @@ export const update_ist_landscape_from_cgm = async (
 
   // add try catch block
   try {
-    if (click_type === 'row_label') {
+    if (entity === 'nbhd') {
+      if (click_type === 'row_label') {
+        inst_gene = click_info.value.name;
 
-      inst_gene = click_info.value.name;
+        new_cat = inst_gene === viz_state.cats.cat ? 'cluster' : inst_gene;
 
-      new_cat = inst_gene === viz_state.cats.cat ? 'cluster' : inst_gene;
+        update_cat(viz_state.cats, new_cat);
+        update_selected_genes(viz_state.genes, [inst_gene], viz_state.obs_store);
+        update_selected_cats(
+          viz_state.cats,
+          new_cat === 'cluster' ? [] : [inst_gene],
+          viz_state.obs_store
+        );
 
-      update_cat(viz_state.cats, new_cat);
-      update_selected_genes(viz_state.genes, [inst_gene], viz_state.obs_store);
-      // update_selected_cats(viz_state.cats, [], viz_state.obs_store);
-      update_selected_cats(
-        viz_state.cats,
-        new_cat === 'cluster' ? [] : [inst_gene],
-        viz_state.obs_store
-      );
+        refresh_layer(viz_state, layers_obj, 'nbhd_layer');
+      } else if (click_type === 'col_label') {
+        inst_gene = 'cluster';
+        new_cat = click_info.value.name;
 
-      await update_cell_exp_array(
-        viz_state.cats,
-        viz_state.genes,
-        viz_state.global_base_url,
-        inst_gene,
-        viz_state.seg.version,
-        viz_state.vector_name_integer,
-        viz_state.aws
-      );
+        update_cat(viz_state.cats, 'cluster');
+        update_selected_cats(viz_state.cats, [new_cat], viz_state.obs_store);
+        update_selected_genes(viz_state.genes, [], viz_state.obs_store);
 
-      refresh_layer(viz_state, layers_obj, 'cell_layer');
-    } else if (click_type === 'col_label') {
+        refresh_layer(viz_state, layers_obj, 'nbhd_layer');
+      } else if (click_type === 'col_dendro') {
+        const new_cats = click_info.value.selected_names;
 
-      inst_gene = 'cluster';
-      new_cat = click_info.value.name;
+        update_cat(viz_state.cats, 'cluster');
+        update_selected_cats(viz_state.cats, new_cats, viz_state.obs_store);
+        update_selected_genes(viz_state.genes, [], viz_state.obs_store);
 
-      update_cat(viz_state.cats, 'cluster');
-      update_selected_cats(viz_state.cats, [new_cat], viz_state.obs_store);
-      update_selected_genes(viz_state.genes, [], viz_state.obs_store);
+        refresh_layer(viz_state, layers_obj, 'nbhd_layer');
+      }
+    } else if (entity === 'cell') {
+      if (click_type === 'row_label') {
+        inst_gene = click_info.value.name;
 
-      refresh_layer(viz_state, layers_obj, 'cell_layer');
-    } else if (click_type === 'col_dendro') {
-      const new_cats = click_info.value.selected_names;
+        new_cat = inst_gene === viz_state.cats.cat ? 'cluster' : inst_gene;
 
-      update_cat(viz_state.cats, 'cluster');
-      update_selected_cats(viz_state.cats, new_cats, viz_state.obs_store);
-      update_selected_genes(viz_state.genes, [], viz_state.obs_store);
+        update_cat(viz_state.cats, new_cat);
+        update_selected_genes(viz_state.genes, [inst_gene], viz_state.obs_store);
+        // update_selected_cats(viz_state.cats, [], viz_state.obs_store);
+        update_selected_cats(
+          viz_state.cats,
+          new_cat === 'cluster' ? [] : [inst_gene],
+          viz_state.obs_store
+        );
 
-      refresh_layer(viz_state, layers_obj, 'cell_layer');
+        await update_cell_exp_array(
+          viz_state.cats,
+          viz_state.genes,
+          viz_state.global_base_url,
+          inst_gene,
+          viz_state.seg.version,
+          viz_state.vector_name_integer,
+          viz_state.aws
+        );
+
+        refresh_layer(viz_state, layers_obj, 'cell_layer');
+      } else if (click_type === 'col_label') {
+        inst_gene = 'cluster';
+        new_cat = click_info.value.name;
+
+        update_cat(viz_state.cats, 'cluster');
+        update_selected_cats(viz_state.cats, [new_cat], viz_state.obs_store);
+        update_selected_genes(viz_state.genes, [], viz_state.obs_store);
+
+        refresh_layer(viz_state, layers_obj, 'cell_layer');
+      } else if (click_type === 'col_dendro') {
+        const new_cats = click_info.value.selected_names;
+
+        update_cat(viz_state.cats, 'cluster');
+        update_selected_cats(viz_state.cats, new_cats, viz_state.obs_store);
+        update_selected_genes(viz_state.genes, [], viz_state.obs_store);
+
+        refresh_layer(viz_state, layers_obj, 'cell_layer');
+      }
     }
   } catch (error) {
     handleAsyncError(error, {

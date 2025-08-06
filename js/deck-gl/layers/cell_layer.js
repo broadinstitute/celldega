@@ -233,16 +233,10 @@ export const ini_cell_layer = async (base_url, viz_state) => {
     viz_state.spatial.ini_x = viz_state.spatial.center_x;
     viz_state.spatial.ini_y = viz_state.spatial.center_y;
   } else {
-
-    // set zoom, x, y to show all points given 10000 x 10000 range
-    viz_state.spatial.ini_zoom = Math.log2(canvas_width / 10000) * 0.95;
-    viz_state.spatial.ini_x = 10000;
-    viz_state.spatial.ini_y = 10000;
+    viz_state.spatial.ini_zoom = Math.log2(canvas_width / 5000) * 0.95;
+    viz_state.spatial.ini_x = 5000;
+    viz_state.spatial.ini_y = 5000;
   }
-
-  console.log('viz_state.spatial.ini_zoom:', viz_state.spatial.ini_zoom);
-  console.log('viz_state.spatial.ini_x:', viz_state.spatial.ini_x);
-  console.log('viz_state.spatial.ini_y:', viz_state.spatial.ini_y);
 
   viz_state.spatial.cell_scatter_data_objects = cell_scatter_data_objects;
 

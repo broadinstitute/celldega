@@ -613,7 +613,6 @@ export const make_ist_ui_container = (
   // only keep the top 100 genes in gene_counts
   const max_num_gene_bars = 1000;
   viz_state.genes.gene_counts = viz_state.genes.gene_counts.sort((a, b) => b.value - a.value).slice(0, max_num_gene_bars);
-  console.log('check length of gene_counts:', viz_state.genes.gene_counts.length);
 
   make_bar_graph(
     viz_state.containers.bar_gene,

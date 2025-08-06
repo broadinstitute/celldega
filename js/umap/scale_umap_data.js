@@ -27,8 +27,6 @@ export const scale_umap_data = (viz_state, cell_scatter_data_objects) => {
   const x_range = x_max - x_min;
   const y_range = y_max - y_min;
 
-  console.log(`x_min: ${x_min}, x_max: ${x_max}, y_min: ${y_min}, y_max: ${y_max}`);
-
   const range_max = Math.max(x_range, y_range);
 
   const x_mid = (x_max - x_min) / 2;
@@ -63,8 +61,6 @@ export const scale_umap_data = (viz_state, cell_scatter_data_objects) => {
     d.umap[0] = d.umap[0] + x_diff;
     d.umap[1] = d.umap[1] + y_diff;
   });
-
-  console.log('cell_scatter_data_objects', cell_scatter_data_objects);
 
   return cell_scatter_data_objects;
 };

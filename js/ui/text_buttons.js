@@ -328,29 +328,39 @@ const make_ist_img_layer_button_callback = (
   viz_state
 ) => {
   return async (event) => {
-    if (img_layer_visible) {
-      toggle_visible_button(event);
+    const inUmap = viz_state.obs_store.umap_state.get();
 
-      toggle_visibility_single_image_layer(layers_obj, text, is_visible);
-
-      const inst_slider = viz_state.img.image_layer_sliders.filter(
-        (slider) => slider.name === text
-      )[0];
-
-      toggle_slider(inst_slider, is_visible);
-
-      viz_state.obs_store.deck_check.set({
-        ...viz_state.obs_store.deck_check.get(),
-        image_layers: false,
-      });
-
-      viz_state.layers_obj = layers_obj;
-
-      viz_state.obs_store.deck_check.set({
-        ...viz_state.obs_store.deck_check.get(),
-        image_layers: true,
-      });
+    if (!img_layer_visible && !inUmap) {
+      return;
     }
+
+    toggle_visible_button(event);
+
+    if (inUmap) {
+      viz_state.obs_store.landscape_view.set('spatial');
+      viz_state.obs_store.viz_background_layer.set(true);
+      viz_state.obs_store.viz_image_layers.set(true);
+    }
+
+    toggle_visibility_single_image_layer(layers_obj, text, is_visible);
+
+    const inst_slider = viz_state.img.image_layer_sliders.filter(
+      (slider) => slider.name === text
+    )[0];
+
+    toggle_slider(inst_slider, is_visible);
+
+    viz_state.obs_store.deck_check.set({
+      ...viz_state.obs_store.deck_check.get(),
+      image_layers: false,
+    });
+
+    viz_state.layers_obj = layers_obj;
+
+    viz_state.obs_store.deck_check.set({
+      ...viz_state.obs_store.deck_check.get(),
+      image_layers: true,
+    });
   };
 };
 

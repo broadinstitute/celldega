@@ -446,11 +446,15 @@ export const make_ist_ui_container = (
     const inst_container = flex_container('image_layer_container', 'row');
     inst_container.style.height = '21px';
 
+    const ini_img_color = viz_state.obs_store.umap_state.get()
+      ? 'gray'
+      : 'blue';
+
     make_button(
       inst_container,
       'ist',
       inst_name,
-      'blue',
+      ini_img_color,
       75,
       'img_layer_button',
       deck_ist,

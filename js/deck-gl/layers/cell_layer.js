@@ -166,22 +166,23 @@ export const ini_cell_layer = async (base_url, viz_state) => {
       ],
     }));
 
-    viz_state.spatial.x_min = d3.min(
-      cell_scatter_data_objects.map((d) => d.position[0])
-    );
-    viz_state.spatial.x_max = d3.max(
-      cell_scatter_data_objects.map((d) => d.position[0])
-    );
-    viz_state.spatial.y_min = d3.min(
-      cell_scatter_data_objects.map((d) => d.position[1])
-    );
-    viz_state.spatial.y_max = d3.max(
-      cell_scatter_data_objects.map((d) => d.position[1])
-    );
-
     cell_scatter_data_objects = scale_umap_data(
       viz_state,
       cell_scatter_data_objects
+    );
+
+    // use scaled UMAP coordinates to define spatial extent
+    viz_state.spatial.x_min = d3.min(
+      cell_scatter_data_objects.map((d) => d.umap[0])
+    );
+    viz_state.spatial.x_max = d3.max(
+      cell_scatter_data_objects.map((d) => d.umap[0])
+    );
+    viz_state.spatial.y_min = d3.min(
+      cell_scatter_data_objects.map((d) => d.umap[1])
+    );
+    viz_state.spatial.y_max = d3.max(
+      cell_scatter_data_objects.map((d) => d.umap[1])
     );
   } else {
     const numRows = viz_state.spatial.cell_scatter_data.length; // Replace with arrow_table.numRows
@@ -213,12 +214,15 @@ export const ini_cell_layer = async (base_url, viz_state) => {
   viz_state.spatial.data_height =
     viz_state.spatial.y_max - viz_state.spatial.y_min;
 
-  // get the width of viz_state.root
-  const _root_width = viz_state.root.clientWidth;
-  const _root_height = viz_state.root.clientHeight;
-
-  const canvas_width = viz_state.root.clientWidth; // 1000
-  const canvas_height = viz_state.containers.root_dim.height; //500
+  // handle undefined canvas dimensions with sensible defaults
+  const canvas_width =
+    viz_state.root?.clientWidth ||
+    viz_state.containers?.root_dim?.width ||
+    1000; // 1000
+  const canvas_height =
+    viz_state.containers?.root_dim?.height ||
+    viz_state.root?.clientHeight ||
+    500; //500
 
   viz_state.spatial.scale_x = canvas_width / viz_state.spatial.data_width;
   viz_state.spatial.scale_y = canvas_height / viz_state.spatial.data_height;
@@ -227,15 +231,17 @@ export const ini_cell_layer = async (base_url, viz_state) => {
     viz_state.spatial.scale_y
   );
 
-  // calculate ini x, y, zoom if technology is not Chromium
-  if (viz_state.img.landscape_parameters.technology !== 'Chromium') {
-    viz_state.spatial.ini_zoom = Math.log2(viz_state.spatial.scale) * 1.01 - 4;
+  const isChromium =
+    viz_state.img.landscape_parameters.technology === 'Chromium';
+
+  if (isChromium) {
+    viz_state.spatial.ini_zoom = Math.log2(viz_state.spatial.scale * 2) * 0.95;
     viz_state.spatial.ini_x = viz_state.spatial.center_x;
     viz_state.spatial.ini_y = viz_state.spatial.center_y;
   } else {
-    viz_state.spatial.ini_zoom = Math.log2(canvas_width / 5000) * 0.95;
-    viz_state.spatial.ini_x = 5000;
-    viz_state.spatial.ini_y = 5000;
+    viz_state.spatial.ini_zoom = Math.log2(viz_state.spatial.scale) * 1.01 - 4;
+    viz_state.spatial.ini_x = viz_state.spatial.center_x;
+    viz_state.spatial.ini_y = viz_state.spatial.center_y;
   }
 
   viz_state.spatial.cell_scatter_data_objects = cell_scatter_data_objects;

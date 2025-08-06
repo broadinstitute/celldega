@@ -457,6 +457,7 @@ export const landscape_ist = async (
   });
 
   viz_state.obs_store.selected_genes.subscribe((selected_genes) => {
+
     const selected_genes_name = selected_genes.join('-');
     layers_obj.trx_layer = layers_obj.trx_layer.clone({
       id: `trx-layer-${selected_genes_name}`,
@@ -575,7 +576,6 @@ export const landscape_ist = async (
 
       update_cat(viz_state.cats, new_cat);
       update_selected_genes(viz_state.genes, [inst_gene], viz_state.obs_store);
-      // update_selected_cats(viz_state.cats, [], viz_state.obs_store);
       update_selected_cats(
         viz_state.cats,
         new_cat === 'cluster' ? [] : [inst_gene],

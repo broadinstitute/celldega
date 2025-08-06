@@ -26,6 +26,7 @@ export const set_dict_cell_cats = (cats) => {
 };
 
 export const update_selected_cats = (cats, new_selected_cats, obs_store) => {
+
   // Check if the arrays are equal
   cats.reset_cat =
     new_selected_cats.length === cats.selected_cats.length &&

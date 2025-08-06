@@ -16,6 +16,9 @@ export const update_cell_exp_array = async (
   vector_name_integer,
   aws
 ) => {
+
+  console.log('update_cell_exp_array called for gene:', inst_gene);
+
   let file_path;
   if (version === 'default') {
     file_path = `${base_url}/cbg/${inst_gene}.parquet`;
@@ -23,7 +26,6 @@ export const update_cell_exp_array = async (
     file_path = `${base_url}/cbg_${version}/${inst_gene}.parquet`;
   }
 
-  //var file_path = base_url + '/cbg/' + inst_gene + '.parquet'
   const exp_table = await get_arrow_table(file_path, options.fetch, aws);
   const cell_names = exp_table.getChild('__index_level_0__').toArray();
   const cell_exp = exp_table.getChild(inst_gene).toArray();

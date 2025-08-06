@@ -802,10 +802,7 @@ def make_chromium_from_anndata(adata, path_landscape_files):
     path_landscape_files = Path(path_landscape_files)
     path_landscape_files.mkdir(parents=True, exist_ok=True)
 
-    if "counts" in adata.layers:
-        X = adata.layers["counts"]
-    else:
-        X = adata.X
+    X = adata.layers.get("counts", adata.X)
 
     data = X.data if issparse(X) else np.asarray(X)
     if not np.all(np.equal(np.mod(data, 1), 0)):

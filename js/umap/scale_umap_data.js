@@ -1,16 +1,35 @@
 import * as d3 from 'd3';
 
 export const scale_umap_data = (viz_state, cell_scatter_data_objects) => {
+
+  console.log('scaling umap data');
+
   // scale umap values to be centered around the middle of the image x and y positions (max - min / 2)
   // use d3 to find the min and max of the flatCoordinateArray
-  const { x_min } = viz_state.spatial;
-  const { x_max } = viz_state.spatial;
-  const { y_min } = viz_state.spatial;
-  const { y_max } = viz_state.spatial;
+
+  // if tech is 'Chromium' redefine placeholders for spatial max/min
+  let x_min
+  let x_max
+  let y_min
+  let y_max
+  if (viz_state.img.landscape_parameters.technology === 'Chromium') {
+    x_min = 0;
+    x_max = 10000;
+    y_min = 0;
+    y_max = 10000;
+  } else {
+    x_min = viz_state.spatial.x_min;
+    x_max = viz_state.spatial.x_max;
+    y_min = viz_state.spatial.y_min;
+    y_max = viz_state.spatial.y_max;
+  }
+
 
   // take the smaller of the two ranges for x and y
   const x_range = x_max - x_min;
   const y_range = y_max - y_min;
+
+  console.log(`x_min: ${x_min}, x_max: ${x_max}, y_min: ${y_min}, y_max: ${y_max}`);
 
   const range_max = Math.max(x_range, y_range);
 
@@ -46,6 +65,8 @@ export const scale_umap_data = (viz_state, cell_scatter_data_objects) => {
     d.umap[0] = d.umap[0] + x_diff;
     d.umap[1] = d.umap[1] + y_diff;
   });
+
+  console.log('cell_scatter_data_objects', cell_scatter_data_objects);
 
   return cell_scatter_data_objects;
 };

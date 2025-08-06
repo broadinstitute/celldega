@@ -28,7 +28,7 @@ dependencies = [
     "rasterio==1.4.3",
     "scanpy~=1.10.0",
     "shapely~=2.0.0",
-    "spatialdata~=0.3.0",
+    "spatialdata>=0.3,<0.3",
     "spatialdata_io~=0.1.0",
     "squidpy~=1.6.0",
     "statsmodels~=0.14.5",

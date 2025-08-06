@@ -3,7 +3,6 @@ import * as d3 from 'd3';
 import { new_toggle_cell_layer_visibility } from '../deck-gl/layers/cell_layer';
 import { toggle_trx_layer_visibility } from '../deck-gl/layers/trx_layer';
 import { update_cat, update_selected_cats } from '../global_variables/cat';
-import { update_cell_exp_array } from '../global_variables/cell_exp_array';
 import { update_selected_genes } from '../global_variables/selected_genes';
 import { toggle_slider } from '../ui/sliders';
 import { refresh_layer } from '../utils/refresh_layer';
@@ -92,15 +91,6 @@ export const bar_callback_gene = async (
   // testing setting selected_cats to array with the selected gene for
   // observable updates
   update_selected_cats(_viz_state.cats, [inst_gene], _viz_state.obs_store);
-  await update_cell_exp_array(
-    _viz_state.cats,
-    _viz_state.genes,
-    _viz_state.global_base_url,
-    inst_gene,
-    _viz_state.seg.version,
-    _viz_state.vector_name_integer,
-    _viz_state.aws
-  );
 };
 
 export const bar_callback_nbhd = (

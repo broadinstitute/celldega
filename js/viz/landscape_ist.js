@@ -456,16 +456,56 @@ export const landscape_ist = async (
     });
   });
 
-  viz_state.obs_store.selected_genes.subscribe((selected_genes) => {
+  let gene_request = 0;
+  viz_state.obs_store.selected_genes.subscribe(async (selected_genes) => {
+    const request_id = ++gene_request;
     const selected_genes_name = selected_genes.join('-');
     layers_obj.trx_layer = layers_obj.trx_layer.clone({
       id: `trx-layer-${selected_genes_name}`,
     });
 
-    viz_state.obs_store.deck_check.set({
-      ...viz_state.obs_store.deck_check.get(),
-      trx_layer: true,
-    });
+    if (selected_genes.length === 1) {
+      const inst_gene = selected_genes[0];
+
+      viz_state.obs_store.deck_check.set({
+        ...viz_state.obs_store.deck_check.get(),
+        cell_layer: false,
+        trx_layer: false,
+      });
+
+      await update_cell_exp_array(
+        viz_state.cats,
+        viz_state.genes,
+        viz_state.global_base_url,
+        inst_gene,
+        viz_state.seg.version,
+        viz_state.vector_name_integer,
+        viz_state.aws
+      );
+
+      if (request_id === gene_request) {
+        layers_obj.cell_layer = layers_obj.cell_layer.clone({
+          id: `cell-layer-${selected_genes_name}`,
+        });
+
+        viz_state.obs_store.deck_check.set({
+          ...viz_state.obs_store.deck_check.get(),
+          cell_layer: true,
+          trx_layer: true,
+        });
+      }
+    } else {
+      viz_state.cats.cell_exp_array = [];
+      layers_obj.cell_layer = layers_obj.cell_layer.clone({
+        id: `cell-layer-${selected_genes_name}`,
+      });
+
+      viz_state.obs_store.deck_check.set({
+        ...viz_state.obs_store.deck_check.get(),
+        cell_layer: true,
+        trx_layer: true,
+      });
+    }
   });
 
   update_trx_layer_radius(layers_obj, trx_radius);
@@ -581,22 +621,8 @@ export const landscape_ist = async (
         new_cat === 'cluster' ? [] : [inst_gene],
         viz_state.obs_store
       );
-      await update_cell_exp_array(
-        viz_state.cats,
-        viz_state.genes,
-        viz_state.global_base_url,
-        inst_gene,
-        viz_state.seg.version,
-        viz_state.vector_name_integer,
-        viz_state.aws
-      );
 
       viz_state.layers_obj = layers_obj;
-
-      viz_state.obs_store.deck_check.set({
-        ...viz_state.obs_store.deck_check.get(),
-        cell_layer: true,
-      });
     },
     update_matrix_col: async (inst_col) => {
       update_cat(viz_state.cats, 'cluster');

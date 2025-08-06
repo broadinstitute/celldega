@@ -1,7 +1,6 @@
 import { ScatterplotLayer } from 'deck.gl';
 
 import { update_cat, update_selected_cats } from '../../global_variables/cat';
-import { update_cell_exp_array } from '../../global_variables/cell_exp_array';
 import { update_selected_genes } from '../../global_variables/selected_genes';
 import { grab_trx_tiles_in_view } from '../../vector_tile/transcripts/grab_trx_tiles_in_view';
 
@@ -34,16 +33,6 @@ const trx_layer_callback = async (
   // testing setting selected_cats to array with the selected gene for
   // observable updates
   update_selected_cats(viz_state.cats, [inst_gene], viz_state.obs_store);
-
-  await update_cell_exp_array(
-    viz_state.cats,
-    viz_state.genes,
-    viz_state.global_base_url,
-    inst_gene,
-    viz_state.seg.version,
-    viz_state.vector_name_integer,
-    viz_state.aws
-  );
 };
 
 export const ini_trx_layer = (genes) => {

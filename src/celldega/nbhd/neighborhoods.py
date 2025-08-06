@@ -299,7 +299,7 @@ def calc_nbp(
 
     population_distribution = counts.div(counts.sum(axis=1), axis=0).fillna(0)
 
-    filtered_gdf_nbhd = gdf_nbhd[gdf_nbhd[nbhd_col].isin(counts.index)]
+    filtered_gdf_nbhd = gdf_nbhd[gdf_nbhd[nbhd_col].isin(counts.index)].reset_index(drop=True)
 
     adata_nbp = AnnData(
         X=population_distribution.values,

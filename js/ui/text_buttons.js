@@ -274,6 +274,10 @@ const cell_button_callback = async (event, deck_ist, layers_obj, viz_state) => {
     path_layer: true,
     nbhd_layer: true,
   });
+  if (viz_state.model) {
+    viz_state.model.set('entity', 'CELL');
+    viz_state.model.save_changes();
+  }
 };
 
 const nbhd_button_callback = async (event, deck_ist, layers_obj, viz_state) => {
@@ -303,6 +307,10 @@ const nbhd_button_callback = async (event, deck_ist, layers_obj, viz_state) => {
     path_layer: true,
     trx_layer: true,
   });
+  if (viz_state.model) {
+    viz_state.model.set('entity', 'NBHD');
+    viz_state.model.save_changes();
+  }
 };
 
 const umap_button_callback = async (event, deck_ist, layers_obj, viz_state) => {

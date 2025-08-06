@@ -8,7 +8,13 @@ from .local_server import get_local_server
 from .widget import Clustergram, Enrich, Landscape
 
 
-def landscape_clustergram(landscape, mat, width="600px", height="700px"):
+def landscape_clustergram(
+    landscape,
+    mat,
+    width="600px",
+    height="700px",
+    entity: str = "CELL",
+):
     """
     Display a `Landscape` widget and a `Clustergram` widget side by side.
 
@@ -17,6 +23,8 @@ def landscape_clustergram(landscape, mat, width="600px", height="700px"):
         cgm (Clustergram): A `Clustergram` widget.
         width (str): The width of the widgets.
         height (str): The height of the widgets.
+        entity (str, optional): "CELL" or "NBHD" indicating which entity
+            interactions should target. Defaults to "CELL".
 
     Returns:
         HBox: Visualization display containing both widgets
@@ -26,6 +34,14 @@ def landscape_clustergram(landscape, mat, width="600px", height="700px"):
     """
     # Use `jslink` to directly link `click_info` from `mat` to `trigger_value` in `landscape_ist`
     jslink((mat, "click_info"), (landscape, "update_trigger"))
+
+    # Sync entity selection between widgets
+    jslink((landscape, "entity"), (mat, "entity"))
+
+    # Initialize entity for both widgets so the clustergram targets the
+    # appropriate landscape layer
+    landscape.entity = entity
+    mat.entity = entity
 
     # Set layouts for the widgets
     mat.layout = Layout(width=width)  # Adjust as needed

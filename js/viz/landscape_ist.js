@@ -503,7 +503,6 @@ export const landscape_ist = async (
   el.appendChild(root);
 
   viz_state.obs_store.landscape_view.subscribe((view) => {
-
     const isUmap = view === 'umap';
     viz_state.obs_store.umap_state.set(isUmap);
 

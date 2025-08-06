@@ -497,7 +497,6 @@ export const make_ist_ui_container = (
   );
 
   viz_state.obs_store.viz_image_layers.subscribe((viz_image_layers) => {
-
     d3.select(viz_state.containers.image)
       .selectAll('.img_layer_button')
       .style('color', viz_image_layers ? 'blue' : 'gray');

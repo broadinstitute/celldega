@@ -25,7 +25,7 @@ export const scale_umap_data = (viz_state, cell_scatter_data_objects) => {
   const umap_x_range = umap_x_max - umap_x_min;
   const umap_y_range = umap_y_max - umap_y_min;
 
-  // scale the umap values to be within range_max and c   entered about x_mid and y_mid
+  // scale the umap values to be within range_max and centered about x_mid and y_mid
   cell_scatter_data_objects.forEach((d) => {
     d.umap[0] = ((d.umap[0] - umap_x_min) / umap_x_range) * range_max;
     d.umap[1] = ((d.umap[1] - umap_y_min) / umap_y_range) * range_max;

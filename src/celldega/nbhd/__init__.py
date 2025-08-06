@@ -13,20 +13,20 @@ from .neighborhoods import (
 )
 from .utils import (
     _add_centroids_to_obsm,
+    _dissolve_by_category,
     _get_df_cell,
     _get_gdf_cell,
     _get_gdf_trx,
-    _dissolve_by_category
 )
 
 
 __all__ = [
     "NBHD",
     "_add_centroids_to_obsm",
+    "_dissolve_by_category",
     "_get_df_cell",
     "_get_gdf_cell",
     "_get_gdf_trx",
-    "_dissolve_by_category",
     "alpha_shape",
     "alpha_shape_cell_clusters",
     "calc_grad_nbhd_from_roi",

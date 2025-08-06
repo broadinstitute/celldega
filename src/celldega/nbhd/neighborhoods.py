@@ -16,6 +16,7 @@ from celldega.pre.boundary_tile import batch_transform_geometries
 from .utils import _get_gdf_cell, _get_gdf_trx
 from .zonal_stats import calc_img_zonal_stats
 
+
 def calc_nbg_cd(
     adata: AnnData,
     gdf_nbhd: gpd.GeoDataFrame,
@@ -287,7 +288,9 @@ def calc_nbp(
 
     counts = (
         gdf_cell.sjoin(gdf_nbhd[[nbhd_col, "geometry"]], how="left", predicate="within")
-        .pipe(lambda df: df[df[nbhd_col].map(df[nbhd_col].value_counts()) >= 5]) # filter out hexagons with less than 5 cells
+        .pipe(
+            lambda df: df[df[nbhd_col].map(df[nbhd_col].value_counts()) >= 5]
+        )  # filter out hexagons with less than 5 cells
         .groupby([nbhd_col, category])
         .size()
         .unstack(fill_value=0)
@@ -305,6 +308,7 @@ def calc_nbp(
     )
 
     return (adata_nbp, filtered_gdf_nbhd)
+
 
 def get_nbhd_meta(
     gdf_nbhd: gpd.GeoDataFrame,

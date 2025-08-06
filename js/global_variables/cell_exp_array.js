@@ -16,7 +16,6 @@ export const update_cell_exp_array = async (
   vector_name_integer,
   aws
 ) => {
-
   let file_path;
   if (version === 'default') {
     file_path = `${base_url}/cbg/${inst_gene}.parquet`;

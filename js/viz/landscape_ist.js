@@ -456,7 +456,6 @@ export const landscape_ist = async (
   });
 
   viz_state.obs_store.selected_genes.subscribe((selected_genes) => {
-
     const selected_genes_name = selected_genes.join('-');
     layers_obj.trx_layer = layers_obj.trx_layer.clone({
       id: `trx-layer-${selected_genes_name}`,
@@ -502,68 +501,69 @@ export const landscape_ist = async (
   el.appendChild(ui_container);
   el.appendChild(root);
 
-  viz_state.obs_store.landscape_view.subscribe((view) => {
-    const isUmap = view === 'umap';
-    viz_state.obs_store.umap_state.set(isUmap);
+  viz_state.obs_store.landscape_view.subscribe(
+    (view) => {
+      const isUmap = view === 'umap';
+      viz_state.obs_store.umap_state.set(isUmap);
 
-    toggle_spatial_umap(deck_ist, layers_obj, viz_state);
+      toggle_spatial_umap(deck_ist, layers_obj, viz_state);
 
-    if (isUmap) {
-      viz_state.buttons.buttons.umap.style('color', 'blue');
-      viz_state.buttons.buttons.spatial.style('color', 'gray');
-      viz_state.buttons.buttons.img.style('color', 'gray');
+      if (isUmap) {
+        viz_state.buttons.buttons.umap.style('color', 'blue');
+        viz_state.buttons.buttons.spatial.style('color', 'gray');
+        viz_state.buttons.buttons.img.style('color', 'gray');
 
-      viz_state.obs_store.viz_background_layer.set(false);
-      viz_state.obs_store.viz_image_layers.set(false);
+        viz_state.obs_store.viz_background_layer.set(false);
+        viz_state.obs_store.viz_image_layers.set(false);
 
-      toggle_trx_layer_visibility(layers_obj, false);
-      toggle_path_layer_visibility(layers_obj, false);
+        toggle_trx_layer_visibility(layers_obj, false);
+        toggle_path_layer_visibility(layers_obj, false);
 
-      viz_state.obs_store.deck_check.set({
-        ...viz_state.obs_store.deck_check.get(),
-        cell_layer: false,
-        path_layer: false,
-        trx_layer: false,
-      });
+        viz_state.obs_store.deck_check.set({
+          ...viz_state.obs_store.deck_check.get(),
+          cell_layer: false,
+          path_layer: false,
+          trx_layer: false,
+        });
 
-      viz_state.layers_obj = layers_obj;
+        viz_state.layers_obj = layers_obj;
 
-      viz_state.obs_store.deck_check.set({
-        ...viz_state.obs_store.deck_check.get(),
-        cell_layer: true,
-        path_layer: true,
-        trx_layer: true,
-      });
+        viz_state.obs_store.deck_check.set({
+          ...viz_state.obs_store.deck_check.get(),
+          cell_layer: true,
+          path_layer: true,
+          trx_layer: true,
+        });
+      } else {
+        viz_state.buttons.buttons.umap.style('color', 'gray');
+        viz_state.buttons.buttons.spatial.style('color', 'blue');
+        viz_state.buttons.buttons.img.style('color', 'blue');
 
-    } else {
+        toggle_trx_layer_visibility(layers_obj, true);
+        toggle_path_layer_visibility(layers_obj, true);
 
-      viz_state.buttons.buttons.umap.style('color', 'gray');
-      viz_state.buttons.buttons.spatial.style('color', 'blue');
-      viz_state.buttons.buttons.img.style('color', 'blue');
+        viz_state.obs_store.deck_check.set({
+          ...viz_state.obs_store.deck_check.get(),
+          cell_layer: false,
+          path_layer: false,
+          trx_layer: false,
+        });
+        viz_state.layers_obj = layers_obj;
+        viz_state.obs_store.deck_check.set({
+          ...viz_state.obs_store.deck_check.get(),
+          cell_layer: true,
+          path_layer: true,
+          trx_layer: true,
+        });
 
-      toggle_trx_layer_visibility(layers_obj, true);
-      toggle_path_layer_visibility(layers_obj, true);
-
-      viz_state.obs_store.deck_check.set({
-        ...viz_state.obs_store.deck_check.get(),
-        cell_layer: false,
-        path_layer: false,
-        trx_layer: false,
-      });
-      viz_state.layers_obj = layers_obj;
-      viz_state.obs_store.deck_check.set({
-        ...viz_state.obs_store.deck_check.get(),
-        cell_layer: true,
-        path_layer: true,
-        trx_layer: true,
-      });
-
-      setTimeout(() => {
-        viz_state.obs_store.viz_background_layer.set(true);
-        viz_state.obs_store.viz_image_layers.set(true);
-      }, 3000);
-    }
-  }, { immediate: false });
+        setTimeout(() => {
+          viz_state.obs_store.viz_background_layer.set(true);
+          viz_state.obs_store.viz_image_layers.set(true);
+        }, 3000);
+      }
+    },
+    { immediate: false }
+  );
 
   const landscape = {
     update_matrix_gene: async (inst_gene) => {

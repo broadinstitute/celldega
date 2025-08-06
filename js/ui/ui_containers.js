@@ -52,7 +52,6 @@ import {
   make_reorder_button,
 } from './text_buttons';
 
-
 export const make_ui_container = () => {
   const ui_container = document.createElement('div');
   ui_container.style.display = 'flex';
@@ -513,7 +512,6 @@ export const make_ist_ui_container = (
     if (viz_image_layers && viz_state.obs_store.umap_state.get()) {
       viz_state.obs_store.landscape_view.set('spatial');
     }
-
   });
 
   viz_state.obs_store.viz_background_layer.subscribe((visible) => {

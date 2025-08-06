@@ -103,7 +103,6 @@ export const bar_callback_gene = async (
   // update selected_cats after update_cell_exp_array has been run
   // can clean up and move more logic to observability
   update_selected_cats(_viz_state.cats, [inst_gene], _viz_state.obs_store);
-
 };
 
 export const bar_callback_nbhd = (

@@ -308,7 +308,12 @@ const nbhd_button_callback = async (event, deck_ist, layers_obj, viz_state) => {
   });
 };
 
-const umap_button_callback = async (_event, _deck_ist, _layers_obj, viz_state) => {
+const umap_button_callback = async (
+  _event,
+  _deck_ist,
+  _layers_obj,
+  viz_state
+) => {
   viz_state.obs_store.landscape_view.set('umap');
 };
 

@@ -179,35 +179,22 @@ export const landscape_ist = async (
         nbhd.features.map((feature) => feature.properties.cat)
       );
 
-      // calculate the area of all unqiue categories
-      viz_state.nbhd.bar_data = Array.from(unique_cats)
-        .map((cat) => {
-          const features = nbhd.features.filter(
-            (feature) => feature.properties.cat === cat
-          );
-          const area = features.reduce(
-            (acc, feature) => acc + feature.properties.area,
-            0
-          );
+      // calculate the area of all unique categories
+      viz_state.nbhd.bar_data = Array.from(unique_cats).map((cat) => {
+        const features = nbhd.features.filter(
+          (feature) => feature.properties.cat === cat
+        );
+        const area = features.reduce(
+          (acc, feature) => acc + feature.properties.area,
+          0
+        );
 
-          return {
-            name: cat,
-            value: area,
-          };
-        })
-        .sort((a, b) => b.value - a.value);
-
-      console.log('new calc');
-      console.log('nbhd.bar_data', viz_state.nbhd.bar_data);
-
-      // viz_state.nbhd.bar_data = nbhd.features
-      //   .map((feature) => {
-      //     return {
-      //       name: feature.properties.cat, // "1_50" → "1"
-      //       value: feature.properties.area, // use area as the value
-      //     };
-      //   })
-      //   .sort((a, b) => b.value - a.value);
+        return {
+          name: cat,
+          value: area,
+        };
+      })
+      .sort((a, b) => b.value - a.value);
 
       // parse colors from features and make a dictionary with cat name and
       // color as rgb array that is converted from hex

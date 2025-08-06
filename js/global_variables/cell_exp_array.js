@@ -56,7 +56,7 @@ export const update_cell_exp_array = async (
 
   // Log missing names (if any) after processing all cells
   if (missingCellNames1.size > 0) {
-    // onsole.log(`Cell names not found in cell_name_to_index_map (${missingCellNames1.size} unique names):`,
+    // console.log(`Cell names not found in cell_name_to_index_map (${missingCellNames1.size} unique names):`,
     //             Array.from(missingCellNames1).slice(0, 5),
     //             missingCellNames1.size > 5 ? '...' : '');
   }

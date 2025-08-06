@@ -384,54 +384,71 @@ export const make_ist_ui_container = (
     'row'
   );
 
-  if (viz_state.umap.has_umap === true) {
-    const umap_active = viz_state.obs_store.umap_state.get();
-    let ini_umap_color;
-    let ini_spatial_color;
+  const isChromium =
+    viz_state.img.landscape_parameters.technology === 'Chromium';
 
-    if (umap_active === true) {
-      ini_umap_color = 'blue';
-      ini_spatial_color = 'gray';
-    } else {
-      ini_umap_color = 'gray';
-      ini_spatial_color = 'blue';
-    }
-
+  if (isChromium) {
     make_button(
       spatial_toggle_container,
       'ist',
       'UMAP',
-      ini_umap_color,
+      'blue',
       35,
       'button',
       deck_ist,
       layers_obj,
       viz_state
     );
+  } else {
+    if (viz_state.umap.has_umap === true) {
+      const umap_active = viz_state.obs_store.umap_state.get();
+      let ini_umap_color;
+      let ini_spatial_color;
+
+      if (umap_active === true) {
+        ini_umap_color = 'blue';
+        ini_spatial_color = 'gray';
+      } else {
+        ini_umap_color = 'gray';
+        ini_spatial_color = 'blue';
+      }
+
+      make_button(
+        spatial_toggle_container,
+        'ist',
+        'UMAP',
+        ini_umap_color,
+        35,
+        'button',
+        deck_ist,
+        layers_obj,
+        viz_state
+      );
+      make_button(
+        spatial_toggle_container,
+        'ist',
+        'SPATIAL',
+        ini_spatial_color,
+        50,
+        'button',
+        deck_ist,
+        layers_obj,
+        viz_state
+      );
+    }
+
     make_button(
       spatial_toggle_container,
       'ist',
-      'SPATIAL',
-      ini_spatial_color,
-      50,
+      'IMG',
+      'blue',
+      30,
       'button',
       deck_ist,
       layers_obj,
       viz_state
     );
   }
-
-  make_button(
-    spatial_toggle_container,
-    'ist',
-    'IMG',
-    'blue',
-    30,
-    'button',
-    deck_ist,
-    layers_obj,
-    viz_state
-  );
 
   viz_state.containers.image.appendChild(spatial_toggle_container);
 

@@ -277,6 +277,11 @@ export const landscape_ist = async (
   const imgage_name_for_dim = 'dapi';
 
   await set_landscape_parameters(viz_state.img, base_url, viz_state.aws);
+  const tech = viz_state.img.landscape_parameters.technology;
+  if (tech === 'Chromium') {
+    viz_state.obs_store.viz_image_layers.set(false);
+    viz_state.obs_store.viz_background_layer.set(false);
+  }
 
   const tmp_image_info = viz_state.img.landscape_parameters.image_info;
 
@@ -299,7 +304,11 @@ export const landscape_ist = async (
   root.style.height = `${height}px`;
   root.style.border = '1px solid #d3d3d3';
 
-  await set_dimensions(viz_state, base_url, imgage_name_for_dim);
+  if (tech === 'Chromium') {
+    viz_state.dimensions = { width: 1, height: 1, tileSize: 1 };
+  } else {
+    await set_dimensions(viz_state, base_url, imgage_name_for_dim);
+  }
 
   await set_meta_gene(
     viz_state.genes,
@@ -501,6 +510,7 @@ export const landscape_ist = async (
   el.appendChild(ui_container);
   el.appendChild(root);
 
+  const isChromium = viz_state.img.landscape_parameters.technology === 'Chromium';
   viz_state.obs_store.landscape_view.subscribe(
     (view) => {
       const isUmap = view === 'umap';
@@ -510,8 +520,10 @@ export const landscape_ist = async (
 
       if (isUmap) {
         viz_state.buttons.buttons.umap.style('color', 'blue');
-        viz_state.buttons.buttons.spatial.style('color', 'gray');
-        viz_state.buttons.buttons.img.style('color', 'gray');
+        if (!isChromium) {
+          viz_state.buttons.buttons.spatial.style('color', 'gray');
+          viz_state.buttons.buttons.img.style('color', 'gray');
+        }
 
         viz_state.obs_store.viz_background_layer.set(false);
         viz_state.obs_store.viz_image_layers.set(false);
@@ -535,9 +547,11 @@ export const landscape_ist = async (
           trx_layer: true,
         });
       } else {
-        viz_state.buttons.buttons.umap.style('color', 'gray');
-        viz_state.buttons.buttons.spatial.style('color', 'blue');
-        viz_state.buttons.buttons.img.style('color', 'blue');
+        if (!isChromium) {
+          viz_state.buttons.buttons.umap.style('color', 'gray');
+          viz_state.buttons.buttons.spatial.style('color', 'blue');
+          viz_state.buttons.buttons.img.style('color', 'blue');
+        }
 
         toggle_trx_layer_visibility(layers_obj, true);
         toggle_path_layer_visibility(layers_obj, true);

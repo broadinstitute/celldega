@@ -11,6 +11,31 @@ import pandas as pd
 from shapely.geometry import Point, base
 from shapely.ops import transform
 
+def _dissolve_by_category(
+    gdf_nbhd: gpd.GeoDataFrame,
+    category: str = "leiden"
+) -> gpd.GeoDataFrame:
+    """
+    Dissolve neighborhood geometries by a categorical column.
+
+    Parameters
+    ----------
+    gdf_nbhd : gpd.GeoDataFrame
+        A GeoDataFrame containing neighborhood geometries and a categorical column.
+
+    category : str, optional
+        The name of the column to dissolve by. All geometries sharing the same
+        category value will be merged into a single geometry. Default is "leiden".
+
+    Returns
+    -------
+    gpd.GeoDataFrame
+        A new GeoDataFrame where geometries have been dissolved (merged) by the
+        specified category, preserving category labels as attributes.
+    """
+    gdf_niche = gdf_nbhd.dissolve(by=category, as_index=False)
+
+    return gdf_niche
 
 def _add_centroids_to_obsm(
     adata: Any,

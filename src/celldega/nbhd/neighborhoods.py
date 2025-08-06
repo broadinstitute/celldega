@@ -278,10 +278,7 @@ def calc_nbp(
     """
     print("Calculating NBP")
 
-    if isinstance(data, AnnData):
-        gdf_cell = _get_gdf_cell(data)
-    else:
-        gdf_cell = data
+    gdf_cell = _get_gdf_cell(data) if isinstance(data, AnnData) else data
 
     required = {"geometry", nbhd_col}
     if not required.issubset(gdf_nbhd.columns):
@@ -299,13 +296,11 @@ def calc_nbp(
     counts = counts.reindex(gdf_nbhd[nbhd_col]).fillna(0).astype(int)
     population_distribution = counts.div(counts.sum(axis=1), axis=0).fillna(0)
 
-    adata_nbp = AnnData(
+    return AnnData(
         X=population_distribution.values,
         obs=pd.DataFrame(index=population_distribution.index),
         var=pd.DataFrame(index=population_distribution.columns),
     )
-    return adata_nbp
-
 
 def get_nbhd_meta(
     gdf_nbhd: gpd.GeoDataFrame,

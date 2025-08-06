@@ -229,13 +229,15 @@ export const ini_cell_layer = async (base_url, viz_state) => {
 
   // calculate ini x, y, zoom if technology is not Chromium
   if (viz_state.img.landscape_parameters.technology !== 'Chromium') {
-    viz_state.spatial.ini_zoom = Math.log2(viz_state.spatial.scale) * 1.01;
+    viz_state.spatial.ini_zoom = Math.log2(viz_state.spatial.scale) * 1.01 - 4;
     viz_state.spatial.ini_x = viz_state.spatial.center_x;
     viz_state.spatial.ini_y = viz_state.spatial.center_y;
   } else {
-    viz_state.spatial.ini_zoom = -3;
-    viz_state.spatial.ini_x = 5000;
-    viz_state.spatial.ini_y = 5000;
+
+    // set zoom, x, y to show all points given 10000 x 10000 range
+    viz_state.spatial.ini_zoom = Math.log2(canvas_width / 10000) * 0.95;
+    viz_state.spatial.ini_x = 10000;
+    viz_state.spatial.ini_y = 10000;
   }
 
   console.log('viz_state.spatial.ini_zoom:', viz_state.spatial.ini_zoom);

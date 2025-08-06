@@ -2,8 +2,6 @@ import * as d3 from 'd3';
 
 export const scale_umap_data = (viz_state, cell_scatter_data_objects) => {
 
-  console.log('scaling umap data');
-
   // scale umap values to be centered around the middle of the image x and y positions (max - min / 2)
   // use d3 to find the min and max of the flatCoordinateArray
 

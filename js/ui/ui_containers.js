@@ -51,6 +51,9 @@ import {
   // make_edit_button,
   make_reorder_button,
 } from './text_buttons';
+import {
+  toggle_spatial_umap,
+} from '../deck-gl/layers/cell_layer';
 
 export const make_ui_container = () => {
   const ui_container = document.createElement('div');
@@ -491,6 +494,7 @@ export const make_ist_ui_container = (
   );
 
   viz_state.obs_store.viz_image_layers.subscribe((viz_image_layers) => {
+
     d3.select(viz_state.containers.image)
       .selectAll('.img_layer_button')
       .style('color', viz_image_layers ? 'blue' : 'gray');
@@ -502,6 +506,14 @@ export const make_ist_ui_container = (
     toggle_visibility_image_layers(layers_obj, viz_image_layers);
 
     refresh_layer(viz_state, layers_obj, 'image_layers');
+
+    // move out of umap state if image is visible
+    if (viz_image_layers) {
+      viz_state.umap.state = false;
+      // viz_state.obs_store.umap_state.set(false);
+      toggle_spatial_umap(deck_ist, layers_obj, viz_state);
+    }
+
   });
 
   viz_state.obs_store.viz_background_layer.subscribe((visible) => {

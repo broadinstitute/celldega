@@ -502,34 +502,46 @@ export const landscape_ist = async (
   el.appendChild(root);
 
   viz_state.obs_store.landscape_view.subscribe((view) => {
+
     console.log(`Landscape view changed to: ${view}`);
+
     const isUmap = view === 'umap';
     viz_state.umap.state = isUmap;
+
     toggle_spatial_umap(deck_ist, layers_obj, viz_state);
 
     if (isUmap) {
       viz_state.buttons.buttons.umap.style('color', 'blue');
       viz_state.buttons.buttons.spatial.style('color', 'gray');
+      viz_state.buttons.buttons.img.style('color', 'gray');
+
       viz_state.obs_store.viz_background_layer.set(false);
       viz_state.obs_store.viz_image_layers.set(false);
+
       toggle_trx_layer_visibility(layers_obj, false);
       toggle_path_layer_visibility(layers_obj, false);
+
       viz_state.obs_store.deck_check.set({
         ...viz_state.obs_store.deck_check.get(),
         cell_layer: false,
         path_layer: false,
         trx_layer: false,
       });
+
       viz_state.layers_obj = layers_obj;
+
       viz_state.obs_store.deck_check.set({
         ...viz_state.obs_store.deck_check.get(),
         cell_layer: true,
         path_layer: true,
         trx_layer: true,
       });
+
     } else {
+
       viz_state.buttons.buttons.umap.style('color', 'gray');
       viz_state.buttons.buttons.spatial.style('color', 'blue');
+      viz_state.buttons.buttons.img.style('color', 'blue');
 
       console.log('delay transition to spatial');
       setTimeout(() => {

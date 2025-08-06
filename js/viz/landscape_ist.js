@@ -473,6 +473,9 @@ export const landscape_ist = async (
   if (viz_state.obs_store.umap_state.get() === true) {
     viz_state.obs_store.viz_background_layer.set(false);
     viz_state.obs_store.viz_image_layers.set(false);
+
+
+
     toggle_trx_layer_visibility(layers_obj, false);
     toggle_path_layer_visibility(layers_obj, false);
   }

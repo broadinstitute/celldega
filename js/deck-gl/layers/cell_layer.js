@@ -248,9 +248,10 @@ export const ini_cell_layer = async (base_url, viz_state) => {
     getFillColor: (i, d) => get_cell_color(viz_state.cats, i, d),
     data: viz_state.spatial.cell_scatter_data_objects,
     transitions,
-    getPosition: (d) => (viz_state.umap.state ? d.umap : d.position),
+    getPosition: (d) =>
+      viz_state.obs_store.umap_state.get() ? d.umap : d.position,
     updateTriggers: {
-      getPosition: [viz_state.umap.state],
+      getPosition: [viz_state.obs_store.umap_state.get()],
     },
   });
 
@@ -282,10 +283,10 @@ export const update_cell_pickable_state = (layers_obj, pickable) => {
   });
 };
 
-export const toggle_spatial_umap = (deck_ist, layers_obj, viz_state) => {
+export const toggle_spatial_umap = (_deck_ist, layers_obj, viz_state) => {
   layers_obj.cell_layer = layers_obj.cell_layer.clone({
     updateTriggers: {
-      getPosition: [viz_state.umap.state],
+      getPosition: [viz_state.obs_store.umap_state.get()],
     },
   });
 };

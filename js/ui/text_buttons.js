@@ -1,9 +1,6 @@
 import * as d3 from 'd3';
 
-import {
-  new_toggle_cell_layer_visibility,
-  toggle_spatial_umap,
-} from '../deck-gl/layers/cell_layer';
+import { new_toggle_cell_layer_visibility } from '../deck-gl/layers/cell_layer';
 import { toggle_visibility_single_image_layer } from '../deck-gl/layers/image_layers';
 import { toggle_nbhd_layer_visibility } from '../deck-gl/layers/nbhd_layer';
 import { toggle_path_layer_visibility } from '../deck-gl/layers/path_layer';
@@ -180,15 +177,21 @@ const sst_img_button_callback = async (event, deck_sst, layers_sst) => {
 
 const ist_img_button_callback = async (
   event,
-  deck_ist,
-  layers_obj,
+  _deck_ist,
+  _layers_obj,
   viz_state
 ) => {
   toggle_visible_button(event);
-  viz_state.obs_store.viz_image_layers.set(is_visible);
-  viz_state.obs_store.viz_background_layer.set(is_visible);
+  const show = is_visible;
 
-  set_img_layer_visible(is_visible);
+  if (viz_state.obs_store.umap_state.get() && show) {
+    viz_state.obs_store.landscape_view.set('spatial');
+  } else {
+    viz_state.obs_store.viz_image_layers.set(show);
+    viz_state.obs_store.viz_background_layer.set(show);
+  }
+
+  set_img_layer_visible(show);
 };
 
 const tile_button_callback = async (event, deck_sst, layers_sst, viz_state) => {
@@ -305,70 +308,22 @@ const nbhd_button_callback = async (event, deck_ist, layers_obj, viz_state) => {
   });
 };
 
-const umap_button_callback = async (event, deck_ist, layers_obj, viz_state) => {
-  viz_state.umap.state = true;
-  toggle_spatial_umap(deck_ist, layers_obj, viz_state);
-
-  viz_state.buttons.buttons.umap.style('color', 'blue');
-  viz_state.buttons.buttons.spatial.style('color', 'gray');
-
-  viz_state.obs_store.viz_background_layer.set(false);
-  viz_state.obs_store.viz_image_layers.set(false);
-  toggle_trx_layer_visibility(layers_obj, false);
-  toggle_path_layer_visibility(layers_obj, false);
-
-  viz_state.obs_store.deck_check.set({
-    ...viz_state.obs_store.deck_check.get(),
-    cell_layer: false,
-    path_layer: false,
-    trx_layer: false,
-  });
-
-  viz_state.layers_obj = layers_obj;
-
-  viz_state.obs_store.deck_check.set({
-    ...viz_state.obs_store.deck_check.get(),
-    cell_layer: true,
-    path_layer: true,
-    trx_layer: true,
-  });
+const umap_button_callback = async (
+  _event,
+  _deck_ist,
+  _layers_obj,
+  viz_state
+) => {
+  viz_state.obs_store.landscape_view.set('umap');
 };
 
 const spatial_button_callback = async (
-  event,
-  deck_ist,
-  layers_obj,
+  _event,
+  _deck_ist,
+  _layers_obj,
   viz_state
 ) => {
-  viz_state.umap.state = false;
-  toggle_spatial_umap(deck_ist, layers_obj, viz_state);
-
-  viz_state.buttons.buttons.umap.style('color', 'gray');
-  viz_state.buttons.buttons.spatial.style('color', 'blue');
-
-  // Use observables to restore layer visibility after a short delay via setTimeout
-  setTimeout(() => {
-    viz_state.obs_store.viz_background_layer.set(true);
-    viz_state.obs_store.viz_image_layers.set(true);
-    toggle_trx_layer_visibility(layers_obj, true);
-    toggle_path_layer_visibility(layers_obj, true);
-
-    viz_state.obs_store.deck_check.set({
-      ...viz_state.obs_store.deck_check.get(),
-      cell_layer: false,
-      path_layer: false,
-      trx_layer: false,
-    });
-
-    viz_state.layers_obj = layers_obj;
-
-    viz_state.obs_store.deck_check.set({
-      ...viz_state.obs_store.deck_check.get(),
-      cell_layer: true,
-      path_layer: true,
-      trx_layer: true,
-    });
-  }, 3000);
+  viz_state.obs_store.landscape_view.set('spatial');
 };
 
 const make_ist_img_layer_button_callback = (
@@ -378,29 +333,39 @@ const make_ist_img_layer_button_callback = (
   viz_state
 ) => {
   return async (event) => {
-    if (img_layer_visible) {
-      toggle_visible_button(event);
+    const inUmap = viz_state.obs_store.umap_state.get();
 
-      toggle_visibility_single_image_layer(layers_obj, text, is_visible);
-
-      const inst_slider = viz_state.img.image_layer_sliders.filter(
-        (slider) => slider.name === text
-      )[0];
-
-      toggle_slider(inst_slider, is_visible);
-
-      viz_state.obs_store.deck_check.set({
-        ...viz_state.obs_store.deck_check.get(),
-        image_layers: false,
-      });
-
-      viz_state.layers_obj = layers_obj;
-
-      viz_state.obs_store.deck_check.set({
-        ...viz_state.obs_store.deck_check.get(),
-        image_layers: true,
-      });
+    if (!img_layer_visible && !inUmap) {
+      return;
     }
+
+    toggle_visible_button(event);
+
+    if (inUmap) {
+      viz_state.obs_store.landscape_view.set('spatial');
+      viz_state.obs_store.viz_background_layer.set(true);
+      viz_state.obs_store.viz_image_layers.set(true);
+    }
+
+    toggle_visibility_single_image_layer(layers_obj, text, is_visible);
+
+    const inst_slider = viz_state.img.image_layer_sliders.filter(
+      (slider) => slider.name === text
+    )[0];
+
+    toggle_slider(inst_slider, is_visible);
+
+    viz_state.obs_store.deck_check.set({
+      ...viz_state.obs_store.deck_check.get(),
+      image_layers: false,
+    });
+
+    viz_state.layers_obj = layers_obj;
+
+    viz_state.obs_store.deck_check.set({
+      ...viz_state.obs_store.deck_check.get(),
+      image_layers: true,
+    });
   };
 };
 

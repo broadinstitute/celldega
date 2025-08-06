@@ -385,10 +385,11 @@ export const make_ist_ui_container = (
   );
 
   if (viz_state.umap.has_umap === true) {
+    const umap_active = viz_state.obs_store.umap_state.get();
     let ini_umap_color;
     let ini_spatial_color;
 
-    if (viz_state.umap.state === true) {
+    if (umap_active === true) {
       ini_umap_color = 'blue';
       ini_spatial_color = 'gray';
     } else {
@@ -444,11 +445,15 @@ export const make_ist_ui_container = (
     const inst_container = flex_container('image_layer_container', 'row');
     inst_container.style.height = '21px';
 
+    const ini_img_color = viz_state.obs_store.umap_state.get()
+      ? 'gray'
+      : 'blue';
+
     make_button(
       inst_container,
       'ist',
       inst_name,
-      'blue',
+      ini_img_color,
       75,
       'img_layer_button',
       deck_ist,
@@ -502,6 +507,11 @@ export const make_ist_ui_container = (
     toggle_visibility_image_layers(layers_obj, viz_image_layers);
 
     refresh_layer(viz_state, layers_obj, 'image_layers');
+
+    // move out of umap state if image is visible
+    if (viz_image_layers && viz_state.obs_store.umap_state.get()) {
+      viz_state.obs_store.landscape_view.set('spatial');
+    }
   });
 
   viz_state.obs_store.viz_background_layer.subscribe((visible) => {

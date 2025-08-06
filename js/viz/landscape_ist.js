@@ -105,7 +105,10 @@ export const landscape_ist = async (
     if (hasCats || hasGenes) {
       viz_state.obs_store.viz_image_layers.set(false);
     } else {
-      viz_state.obs_store.viz_image_layers.set(true);
+      // only do this if not in umap view
+      if (viz_state.obs_store.umap_state.get() === false) {
+        viz_state.obs_store.viz_image_layers.set(true);
+      }
     }
   };
 
@@ -435,6 +438,7 @@ export const landscape_ist = async (
   });
 
   viz_state.obs_store.selected_cats.subscribe((selected_cats) => {
+
     const selected_cats_name = selected_cats.join('-');
 
     layers_obj.cell_layer = layers_obj.cell_layer.clone({
@@ -498,8 +502,6 @@ export const landscape_ist = async (
   el.appendChild(root);
 
   viz_state.obs_store.landscape_view.subscribe((view) => {
-
-    console.log(`Landscape view changed to: ${view}`);
 
     const isUmap = view === 'umap';
     viz_state.obs_store.umap_state.set(isUmap);

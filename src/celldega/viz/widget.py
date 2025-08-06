@@ -147,7 +147,7 @@ class Landscape(anywidget.AnyWidget):
                 adata.obs.set_index("cell_id", inplace=True)
 
             meta_cell_df = adata.obs[cell_attr].copy()
-            # meta_cell_df = meta_cell_df.reset_index().rename(columns={"index": "cell_id"})
+            meta_cell_df = meta_cell_df.reset_index().rename(columns={"index": "cell_id"})
             pq_meta_cell = _df_to_bytes(meta_cell_df)
 
             if "leiden" in adata.obs.columns:

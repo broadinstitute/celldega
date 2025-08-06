@@ -180,21 +180,22 @@ export const landscape_ist = async (
       );
 
       // calculate the area of all unique categories
-      viz_state.nbhd.bar_data = Array.from(unique_cats).map((cat) => {
-        const features = nbhd.features.filter(
-          (feature) => feature.properties.cat === cat
-        );
-        const area = features.reduce(
-          (acc, feature) => acc + feature.properties.area,
-          0
-        );
+      viz_state.nbhd.bar_data = Array.from(unique_cats)
+        .map((cat) => {
+          const features = nbhd.features.filter(
+            (feature) => feature.properties.cat === cat
+          );
+          const area = features.reduce(
+            (acc, feature) => acc + feature.properties.area,
+            0
+          );
 
-        return {
-          name: cat,
-          value: area,
-        };
-      })
-      .sort((a, b) => b.value - a.value);
+          return {
+            name: cat,
+            value: area,
+          };
+        })
+        .sort((a, b) => b.value - a.value);
 
       // parse colors from features and make a dictionary with cat name and
       // color as rgb array that is converted from hex

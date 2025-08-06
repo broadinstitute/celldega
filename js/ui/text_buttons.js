@@ -177,15 +177,21 @@ const sst_img_button_callback = async (event, deck_sst, layers_sst) => {
 
 const ist_img_button_callback = async (
   event,
-  deck_ist,
-  layers_obj,
+  _deck_ist,
+  _layers_obj,
   viz_state
 ) => {
   toggle_visible_button(event);
-  viz_state.obs_store.viz_image_layers.set(is_visible);
-  viz_state.obs_store.viz_background_layer.set(is_visible);
+  const show = is_visible;
 
-  set_img_layer_visible(is_visible);
+  if (viz_state.obs_store.umap_state.get() && show) {
+    viz_state.obs_store.landscape_view.set('spatial');
+  } else {
+    viz_state.obs_store.viz_image_layers.set(show);
+    viz_state.obs_store.viz_background_layer.set(show);
+  }
+
+  set_img_layer_visible(show);
 };
 
 const tile_button_callback = async (event, deck_sst, layers_sst, viz_state) => {

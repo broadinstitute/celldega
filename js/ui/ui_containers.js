@@ -51,9 +51,7 @@ import {
   // make_edit_button,
   make_reorder_button,
 } from './text_buttons';
-import {
-  toggle_spatial_umap,
-} from '../deck-gl/layers/cell_layer';
+
 
 export const make_ui_container = () => {
   const ui_container = document.createElement('div');
@@ -388,10 +386,11 @@ export const make_ist_ui_container = (
   );
 
   if (viz_state.umap.has_umap === true) {
+    const umap_active = viz_state.obs_store.umap_state.get();
     let ini_umap_color;
     let ini_spatial_color;
 
-    if (viz_state.umap.state === true) {
+    if (umap_active === true) {
       ini_umap_color = 'blue';
       ini_spatial_color = 'gray';
     } else {
@@ -508,10 +507,8 @@ export const make_ist_ui_container = (
     refresh_layer(viz_state, layers_obj, 'image_layers');
 
     // move out of umap state if image is visible
-    if (viz_image_layers) {
-      viz_state.umap.state = false;
-      // viz_state.obs_store.umap_state.set(false);
-      toggle_spatial_umap(deck_ist, layers_obj, viz_state);
+    if (viz_image_layers && viz_state.obs_store.umap_state.get()) {
+      viz_state.obs_store.landscape_view.set('spatial');
     }
 
   });

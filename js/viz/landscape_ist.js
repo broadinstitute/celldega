@@ -438,7 +438,6 @@ export const landscape_ist = async (
   });
 
   viz_state.obs_store.selected_cats.subscribe((selected_cats) => {
-
     const selected_cats_name = selected_cats.join('-');
 
     layers_obj.cell_layer = layers_obj.cell_layer.clone({

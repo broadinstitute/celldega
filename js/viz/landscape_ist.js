@@ -510,7 +510,8 @@ export const landscape_ist = async (
   el.appendChild(ui_container);
   el.appendChild(root);
 
-  const isChromium = viz_state.img.landscape_parameters.technology === 'Chromium';
+  const isChromium =
+    viz_state.img.landscape_parameters.technology === 'Chromium';
   viz_state.obs_store.landscape_view.subscribe(
     (view) => {
       const isUmap = view === 'umap';

@@ -8,12 +8,13 @@ from shapely.geometry import Polygon
 
 def generate_hex_grid(
     gdf_cell: gpd.GeoDataFrame,
-    radius: float = 20,
+    diameter: float = 100,
 ) -> gpd.GeoDataFrame:
     """Generate a hexagonal grid over the convex hull of a GeoDataFrame."""
     bounding_geom = gdf_cell.unary_union.convex_hull
     minx, miny, maxx, maxy = bounding_geom.bounds
 
+    radius = diameter / 2
     dx = np.sqrt(3) * radius
     dy = 1.5 * radius
 

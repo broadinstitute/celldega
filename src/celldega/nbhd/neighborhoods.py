@@ -269,12 +269,13 @@ def calc_nbp(
     gdf_nbhd: gpd.GeoDataFrame,
     category: str = "cluster",
     nbhd_col: str = "name",
-) -> tuple[pd.DataFrame, pd.DataFrame]:
+) -> tuple[AnnData, gpd.GeoDataFrame]:
     """
     Calculate cell counts and percentages per cluster within neighborhoods.
-    Returns two DataFrames:
-    1. Raw counts per neighborhood-cluster combination
-    2. Percentage distribution of clusters within each neighborhood
+
+    Returns:
+        - AnnData: with population distribution (cluster %s) per neighborhood
+        - GeoDataFrame: filtered neighborhoods with >= 5 assigned cells
     """
     print("Calculating NBP")
 
@@ -286,21 +287,39 @@ def calc_nbp(
     if not {"geometry", category}.issubset(gdf_cell.columns):
         raise ValueError(f"gdf_cell missing required 'geometry' or {category} column")
 
+    # Spatial join: assign each cell to a neighborhood
+    sjoin_df = gdf_cell.sjoin(gdf_nbhd[[nbhd_col, "geometry"]], how="left", predicate="within")
+
+    # Filter neighborhoods with at least 5 cells
+    valid_nbhd_names = sjoin_df[nbhd_col].value_counts()
+    valid_nbhd_names = valid_nbhd_names[valid_nbhd_names >= 5].index
+    sjoin_df = sjoin_df[sjoin_df[nbhd_col].isin(valid_nbhd_names)]
+
+    # Count cells per (neighborhood, cluster)
     counts = (
-        gdf_cell.sjoin(gdf_nbhd[[nbhd_col, "geometry"]], how="left", predicate="within")
-        .groupby([nbhd_col, category])
+        sjoin_df.groupby([nbhd_col, category])
         .size()
         .unstack(fill_value=0)
         .pipe(lambda df: df.set_axis(df.columns.astype(str), axis=1))
     )
-    counts = counts.reindex(gdf_nbhd[nbhd_col]).fillna(0).astype(int)
+
+    # Reindex to preserve order of filtered gdf_nbhd
+    filtered_gdf_nbhd = gdf_nbhd[gdf_nbhd[nbhd_col].isin(valid_nbhd_names)].reset_index(drop=True)
+    counts = counts.reindex(filtered_gdf_nbhd[nbhd_col]).fillna(0).astype(int)
+
+    # Calculate percentages
     population_distribution = counts.div(counts.sum(axis=1), axis=0).fillna(0)
 
-    return AnnData(
-        X=population_distribution.values,
-        obs=pd.DataFrame(index=population_distribution.index),
-        var=pd.DataFrame(index=population_distribution.columns),
+    # Return both AnnData and filtered neighborhood geometries
+    return (
+        AnnData(
+            X=population_distribution.values,
+            obs=pd.DataFrame(index=population_distribution.index),
+            var=pd.DataFrame(index=population_distribution.columns),
+        ),
+        filtered_gdf_nbhd,
     )
+
 
 def get_nbhd_meta(
     gdf_nbhd: gpd.GeoDataFrame,

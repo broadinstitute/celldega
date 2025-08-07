@@ -147,6 +147,10 @@ class Landscape(anywidget.AnyWidget):
                 adata.obs.set_index("cell_id", inplace=True)
 
             meta_cell_df = adata.obs[cell_attr].copy()
+
+            if meta_cell_df.index.name is None:
+                meta_cell_df.index.name = "cell_id"
+
             pq_meta_cell = _df_to_bytes(meta_cell_df)
 
             if "leiden" in adata.obs.columns:
@@ -175,7 +179,11 @@ class Landscape(anywidget.AnyWidget):
                 pq_meta_cluster = _df_to_bytes(meta_cluster_df)
 
             if "X_umap" in adata.obsm:
-                umap_df = pd.DataFrame(adata.obsm["X_umap"], index=adata.obs.index).reset_index()
+                umap_df = (
+                    pd.DataFrame(adata.obsm["X_umap"], index=adata.obs.index)
+                    .reset_index()
+                    .rename(columns={"index": "cell_id", 0: "umap_0", 1: "umap_1"})
+                )
                 pq_umap = _df_to_bytes(umap_df)
 
         if isinstance(meta_cell_df, pd.DataFrame):
@@ -187,7 +195,7 @@ class Landscape(anywidget.AnyWidget):
             meta_cluster_df = meta_cluster
 
         if isinstance(umap_df, pd.DataFrame):
-            pq_umap = _df_to_bytes(umap_df.reset_index())
+            pq_umap = _df_to_bytes(umap_df)
 
         if isinstance(meta_nbhd_df, pd.DataFrame):
             pq_meta_nbhd = _df_to_bytes(meta_nbhd_df.reset_index())

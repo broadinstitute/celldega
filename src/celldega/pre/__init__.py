@@ -805,23 +805,9 @@ def make_chromium_from_anndata(adata, path_landscape_files):
     X = adata.layers.get("counts", adata.X)
 
     data = X.data if issparse(X) else np.asarray(X)
-    if validate_integers:
-        num_elements = data.size if hasattr(data, "size") else np.prod(data.shape)
-        # Threshold for full validation, e.g., 1 million elements
-        threshold = 1_000_000
-        if num_elements <= threshold:
-            if not np.all(np.equal(np.mod(data, 1), 0)):
-                raise ValueError("Chromium processing requires integer counts")
-        else:
-            # Sample random elements for validation
-            rng = np.random.default_rng()
-            flat_data = data.ravel()
-            idx = rng.choice(flat_data.size, size=min(sample_size, flat_data.size), replace=False)
-            sampled = flat_data[idx]
-            if not np.all(np.equal(np.mod(sampled, 1), 0)):
-                raise ValueError(
-                    f"Chromium processing requires integer counts (non-integer values found in a sample of {sample_size} elements)"
-                )
+
+    if not np.all(np.equal(np.mod(data, 1), 0)):
+        raise ValueError("Chromium processing requires integer counts")
 
     if issparse(X):
         cbg = pd.DataFrame.sparse.from_spmatrix(X, index=adata.obs_names, columns=adata.var_names)

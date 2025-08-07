@@ -384,53 +384,71 @@ export const make_ist_ui_container = (
     'row'
   );
 
-  if (viz_state.umap.has_umap === true) {
-    let ini_umap_color;
-    let ini_spatial_color;
+  const isChromium =
+    viz_state.img.landscape_parameters.technology === 'Chromium';
 
-    if (viz_state.umap.state === true) {
-      ini_umap_color = 'blue';
-      ini_spatial_color = 'gray';
-    } else {
-      ini_umap_color = 'gray';
-      ini_spatial_color = 'blue';
-    }
-
+  if (isChromium) {
     make_button(
       spatial_toggle_container,
       'ist',
       'UMAP',
-      ini_umap_color,
+      'blue',
       35,
       'button',
       deck_ist,
       layers_obj,
       viz_state
     );
+  } else {
+    if (viz_state.umap.has_umap === true) {
+      const umap_active = viz_state.obs_store.umap_state.get();
+      let ini_umap_color;
+      let ini_spatial_color;
+
+      if (umap_active === true) {
+        ini_umap_color = 'blue';
+        ini_spatial_color = 'gray';
+      } else {
+        ini_umap_color = 'gray';
+        ini_spatial_color = 'blue';
+      }
+
+      make_button(
+        spatial_toggle_container,
+        'ist',
+        'UMAP',
+        ini_umap_color,
+        35,
+        'button',
+        deck_ist,
+        layers_obj,
+        viz_state
+      );
+      make_button(
+        spatial_toggle_container,
+        'ist',
+        'SPATIAL',
+        ini_spatial_color,
+        50,
+        'button',
+        deck_ist,
+        layers_obj,
+        viz_state
+      );
+    }
+
     make_button(
       spatial_toggle_container,
       'ist',
-      'SPATIAL',
-      ini_spatial_color,
-      50,
+      'IMG',
+      'blue',
+      30,
       'button',
       deck_ist,
       layers_obj,
       viz_state
     );
   }
-
-  make_button(
-    spatial_toggle_container,
-    'ist',
-    'IMG',
-    'blue',
-    30,
-    'button',
-    deck_ist,
-    layers_obj,
-    viz_state
-  );
 
   viz_state.containers.image.appendChild(spatial_toggle_container);
 
@@ -444,11 +462,15 @@ export const make_ist_ui_container = (
     const inst_container = flex_container('image_layer_container', 'row');
     inst_container.style.height = '21px';
 
+    const ini_img_color = viz_state.obs_store.umap_state.get()
+      ? 'gray'
+      : 'blue';
+
     make_button(
       inst_container,
       'ist',
       inst_name,
-      'blue',
+      ini_img_color,
       75,
       'img_layer_button',
       deck_ist,
@@ -502,6 +524,11 @@ export const make_ist_ui_container = (
     toggle_visibility_image_layers(layers_obj, viz_image_layers);
 
     refresh_layer(viz_state, layers_obj, 'image_layers');
+
+    // move out of umap state if image is visible
+    if (viz_image_layers && viz_state.obs_store.umap_state.get()) {
+      viz_state.obs_store.landscape_view.set('spatial');
+    }
   });
 
   viz_state.obs_store.viz_background_layer.subscribe((visible) => {
@@ -582,6 +609,12 @@ export const make_ist_ui_container = (
   );
 
   viz_state.containers.bar_gene = make_bar_container();
+
+  // only keep the top 100 genes in gene_counts
+  const max_num_gene_bars = 1000;
+  viz_state.genes.gene_counts = viz_state.genes.gene_counts
+    .sort((a, b) => b.value - a.value)
+    .slice(0, max_num_gene_bars);
 
   make_bar_graph(
     viz_state.containers.bar_gene,

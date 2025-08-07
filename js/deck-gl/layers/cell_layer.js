@@ -227,9 +227,16 @@ export const ini_cell_layer = async (base_url, viz_state) => {
     viz_state.spatial.scale_y
   );
 
-  viz_state.spatial.ini_zoom = Math.log2(viz_state.spatial.scale) * 1.01;
-  viz_state.spatial.ini_x = viz_state.spatial.center_x;
-  viz_state.spatial.ini_y = viz_state.spatial.center_y;
+  // calculate ini x, y, zoom if technology is not Chromium
+  if (viz_state.img.landscape_parameters.technology !== 'Chromium') {
+    viz_state.spatial.ini_zoom = Math.log2(viz_state.spatial.scale) * 1.01;
+    viz_state.spatial.ini_x = viz_state.spatial.center_x;
+    viz_state.spatial.ini_y = viz_state.spatial.center_y;
+  } else {
+    viz_state.spatial.ini_zoom = Math.log2(canvas_width / 5000) * 0.95;
+    viz_state.spatial.ini_x = 5000;
+    viz_state.spatial.ini_y = 5000;
+  }
 
   viz_state.spatial.cell_scatter_data_objects = cell_scatter_data_objects;
 
@@ -248,9 +255,10 @@ export const ini_cell_layer = async (base_url, viz_state) => {
     getFillColor: (i, d) => get_cell_color(viz_state.cats, i, d),
     data: viz_state.spatial.cell_scatter_data_objects,
     transitions,
-    getPosition: (d) => (viz_state.umap.state ? d.umap : d.position),
+    getPosition: (d) =>
+      viz_state.obs_store.umap_state.get() ? d.umap : d.position,
     updateTriggers: {
-      getPosition: [viz_state.umap.state],
+      getPosition: [viz_state.obs_store.umap_state.get()],
     },
   });
 
@@ -282,10 +290,10 @@ export const update_cell_pickable_state = (layers_obj, pickable) => {
   });
 };
 
-export const toggle_spatial_umap = (deck_ist, layers_obj, viz_state) => {
+export const toggle_spatial_umap = (_deck_ist, layers_obj, viz_state) => {
   layers_obj.cell_layer = layers_obj.cell_layer.clone({
     updateTriggers: {
-      getPosition: [viz_state.umap.state],
+      getPosition: [viz_state.obs_store.umap_state.get()],
     },
   });
 };

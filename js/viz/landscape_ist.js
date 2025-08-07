@@ -15,6 +15,7 @@ import {
   ini_cell_layer,
   new_toggle_cell_layer_visibility,
   set_cell_layer_onclick,
+  toggle_spatial_umap,
 } from '../deck-gl/layers/cell_layer';
 // import {
 //   ini_edit_layer,
@@ -104,7 +105,10 @@ export const landscape_ist = async (
     if (hasCats || hasGenes) {
       viz_state.obs_store.viz_image_layers.set(false);
     } else {
-      viz_state.obs_store.viz_image_layers.set(true);
+      // only do this if not in umap view
+      if (viz_state.obs_store.umap_state.get() === false) {
+        viz_state.obs_store.viz_image_layers.set(true);
+      }
     }
   };
 
@@ -256,11 +260,9 @@ export const landscape_ist = async (
   }
   viz_state.umap.umap = umap;
 
-  if (landscape_state === 'spatial') {
-    viz_state.umap.state = false;
-  } else if (landscape_state === 'umap') {
-    viz_state.umap.state = true;
-  }
+  const isUmapInit = landscape_state === 'umap';
+  viz_state.obs_store.umap_state.set(isUmapInit);
+  viz_state.obs_store.landscape_view.set(landscape_state);
 
   viz_state.genes = {};
   viz_state.genes.color_dict_gene = {};
@@ -289,6 +291,11 @@ export const landscape_ist = async (
   const imgage_name_for_dim = 'dapi';
 
   await set_landscape_parameters(viz_state.img, base_url, viz_state.aws);
+  const tech = viz_state.img.landscape_parameters.technology;
+  if (tech === 'Chromium') {
+    viz_state.obs_store.viz_image_layers.set(false);
+    viz_state.obs_store.viz_background_layer.set(false);
+  }
 
   const tmp_image_info = viz_state.img.landscape_parameters.image_info;
 
@@ -311,7 +318,11 @@ export const landscape_ist = async (
   root.style.height = `${height}px`;
   root.style.border = '1px solid #d3d3d3';
 
-  await set_dimensions(viz_state, base_url, imgage_name_for_dim);
+  if (tech === 'Chromium') {
+    viz_state.dimensions = { width: 1, height: 1, tileSize: 1 };
+  } else {
+    await set_dimensions(viz_state, base_url, imgage_name_for_dim);
+  }
 
   await set_meta_gene(
     viz_state.genes,
@@ -494,9 +505,10 @@ export const landscape_ist = async (
 
   update_trx_layer_radius(layers_obj, trx_radius);
 
-  if (viz_state.umap.state === true) {
+  if (viz_state.obs_store.umap_state.get() === true) {
     viz_state.obs_store.viz_background_layer.set(false);
     viz_state.obs_store.viz_image_layers.set(false);
+
     toggle_trx_layer_visibility(layers_obj, false);
     toggle_path_layer_visibility(layers_obj, false);
   }
@@ -525,6 +537,76 @@ export const landscape_ist = async (
   el.appendChild(ui_container);
   el.appendChild(root);
 
+  const isChromium =
+    viz_state.img.landscape_parameters.technology === 'Chromium';
+  viz_state.obs_store.landscape_view.subscribe(
+    (view) => {
+      const isUmap = view === 'umap';
+      viz_state.obs_store.umap_state.set(isUmap);
+
+      toggle_spatial_umap(deck_ist, layers_obj, viz_state);
+
+      if (isUmap) {
+        viz_state.buttons.buttons.umap.style('color', 'blue');
+        if (!isChromium) {
+          viz_state.buttons.buttons.spatial.style('color', 'gray');
+          viz_state.buttons.buttons.img.style('color', 'gray');
+        }
+
+        viz_state.obs_store.viz_background_layer.set(false);
+        viz_state.obs_store.viz_image_layers.set(false);
+
+        toggle_trx_layer_visibility(layers_obj, false);
+        toggle_path_layer_visibility(layers_obj, false);
+
+        viz_state.obs_store.deck_check.set({
+          ...viz_state.obs_store.deck_check.get(),
+          cell_layer: false,
+          path_layer: false,
+          trx_layer: false,
+        });
+
+        viz_state.layers_obj = layers_obj;
+
+        viz_state.obs_store.deck_check.set({
+          ...viz_state.obs_store.deck_check.get(),
+          cell_layer: true,
+          path_layer: true,
+          trx_layer: true,
+        });
+      } else {
+        if (!isChromium) {
+          viz_state.buttons.buttons.umap.style('color', 'gray');
+          viz_state.buttons.buttons.spatial.style('color', 'blue');
+          viz_state.buttons.buttons.img.style('color', 'blue');
+        }
+
+        toggle_trx_layer_visibility(layers_obj, true);
+        toggle_path_layer_visibility(layers_obj, true);
+
+        viz_state.obs_store.deck_check.set({
+          ...viz_state.obs_store.deck_check.get(),
+          cell_layer: false,
+          path_layer: false,
+          trx_layer: false,
+        });
+        viz_state.layers_obj = layers_obj;
+        viz_state.obs_store.deck_check.set({
+          ...viz_state.obs_store.deck_check.get(),
+          cell_layer: true,
+          path_layer: true,
+          trx_layer: true,
+        });
+
+        setTimeout(() => {
+          viz_state.obs_store.viz_background_layer.set(true);
+          viz_state.obs_store.viz_image_layers.set(true);
+        }, 3000);
+      }
+    },
+    { immediate: false }
+  );
+
   const landscape = {
     update_matrix_gene: async (inst_gene) => {
       const reset_gene = inst_gene === viz_state.cats.cat;
@@ -532,7 +614,6 @@ export const landscape_ist = async (
 
       update_cat(viz_state.cats, new_cat);
       update_selected_genes(viz_state.genes, [inst_gene], viz_state.obs_store);
-      // update_selected_cats(viz_state.cats, [], viz_state.obs_store);
       update_selected_cats(
         viz_state.cats,
         new_cat === 'cluster' ? [] : [inst_gene],

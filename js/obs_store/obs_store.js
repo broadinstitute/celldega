@@ -32,6 +32,8 @@ export const create_obs_store = () => {
     viz_image_layers: Observable(true),
     viz_background_layer: Observable(true),
     viz_nbhd_layer: Observable(false),
+    landscape_view: Observable('spatial'),
+    umap_state: Observable(false),
     // to do utilize for setProps
     deck_check: Observable({
       background_layer: true,

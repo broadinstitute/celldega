@@ -809,15 +809,11 @@ def make_chromium_from_anndata(adata, path_landscape_files):
         raise ValueError("Chromium processing requires integer counts")
 
     if issparse(X):
-        cbg = pd.DataFrame.sparse.from_spmatrix(
-            X, index=adata.obs_names, columns=adata.var_names
-        )
+        cbg = pd.DataFrame.sparse.from_spmatrix(X, index=adata.obs_names, columns=adata.var_names)
     else:
         cbg = pd.DataFrame(X, index=adata.obs_names, columns=adata.var_names)
 
-    cell_meta = pd.DataFrame(
-        {"name": adata.obs_names, "geometry": [[0.0, 0.0]] * adata.n_obs}
-    )
+    cell_meta = pd.DataFrame({"name": adata.obs_names, "geometry": [[0.0, 0.0]] * adata.n_obs})
     cell_meta.to_parquet(path_landscape_files / "cell_metadata.parquet", index=False)
 
     save_cbg_gene_parquets(path_landscape_files, cbg)

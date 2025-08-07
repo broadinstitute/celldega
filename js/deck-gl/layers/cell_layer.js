@@ -229,7 +229,7 @@ export const ini_cell_layer = async (base_url, viz_state) => {
 
   // calculate ini x, y, zoom if technology is not Chromium
   if (viz_state.img.landscape_parameters.technology !== 'Chromium') {
-    viz_state.spatial.ini_zoom = Math.log2(viz_state.spatial.scale) * 1.01 - 4;
+    viz_state.spatial.ini_zoom = Math.log2(viz_state.spatial.scale) * 1.01;
     viz_state.spatial.ini_x = viz_state.spatial.center_x;
     viz_state.spatial.ini_y = viz_state.spatial.center_y;
   } else {

@@ -59,14 +59,7 @@ const ist_gene_search_callback = async (deck_ist, layers_obj, viz_state) => {
       viz_state.obs_store
     );
 
-    // make selected_cats an empty array if new_cat is cluster or
-    // make it an array with the selected gene if inst_gene is not an empty string
-    // update_selected_cats(viz_state.cats, [new_cat], viz_state.obs_store);
-    update_selected_cats(
-      viz_state.cats,
-      new_cat === 'cluster' ? [] : [inst_gene],
-      viz_state.obs_store
-    );
+
 
     const inst_gene_in_gene_names =
       viz_state.genes.gene_names.includes(inst_gene);
@@ -82,6 +75,19 @@ const ist_gene_search_callback = async (deck_ist, layers_obj, viz_state) => {
         viz_state.aws
       );
     }
+
+    // make selected_cats an empty array if new_cat is cluster or
+    // make it an array with the selected gene if inst_gene is not an empty string
+    // update_selected_cats(viz_state.cats, [new_cat], viz_state.obs_store);
+    //
+    // update selected_cats after update_cell_exp_array has been run
+    // can clean up and move more logic to observability
+    update_selected_cats(
+      viz_state.cats,
+      new_cat === 'cluster' ? [] : [inst_gene],
+      viz_state.obs_store
+    );
+
   }
 };
 

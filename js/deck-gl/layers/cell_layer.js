@@ -227,9 +227,16 @@ export const ini_cell_layer = async (base_url, viz_state) => {
     viz_state.spatial.scale_y
   );
 
-  viz_state.spatial.ini_zoom = Math.log2(viz_state.spatial.scale) * 1.01;
-  viz_state.spatial.ini_x = viz_state.spatial.center_x;
-  viz_state.spatial.ini_y = viz_state.spatial.center_y;
+  // calculate ini x, y, zoom if technology is not Chromium
+  if (viz_state.img.landscape_parameters.technology !== 'Chromium') {
+    viz_state.spatial.ini_zoom = Math.log2(viz_state.spatial.scale) * 1.01;
+    viz_state.spatial.ini_x = viz_state.spatial.center_x;
+    viz_state.spatial.ini_y = viz_state.spatial.center_y;
+  } else {
+    viz_state.spatial.ini_zoom = Math.log2(canvas_width / 5000) * 0.95;
+    viz_state.spatial.ini_x = 5000;
+    viz_state.spatial.ini_y = 5000;
+  }
 
   viz_state.spatial.cell_scatter_data_objects = cell_scatter_data_objects;
 

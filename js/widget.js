@@ -46,7 +46,11 @@ const render_landscape_ist = async ({ model, el }) => {
     umap_data = (await objects_from_parquet(umapBytes, 'cell_id')).result;
   }
 
-  const landscape_state = model.get('landscape_state');
+  const technology = model.get('technology');
+  let landscape_state = model.get('landscape_state');
+  if (technology === 'Chromium') {
+    landscape_state = 'umap';
+  }
   const segmentation = model.get('segmentation');
 
   return landscape_ist(
@@ -133,7 +137,7 @@ const render_landscape_h_e = async ({ model, el }) => {
 const render_landscape = async ({ model, el }) => {
   const technology = model.get('technology');
 
-  if (['MERSCOPE', 'Xenium'].includes(technology)) {
+  if (['MERSCOPE', 'Xenium', 'Chromium'].includes(technology)) {
     return render_landscape_ist({ model, el });
   } else if (['Visium-HD'].includes(technology)) {
     return render_landscape_sst({ model, el });

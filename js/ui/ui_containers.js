@@ -2,23 +2,18 @@
 import * as d3 from 'd3';
 
 import { toggle_background_layer_visibility } from '../deck-gl/layers/background_layer';
-// import { update_cell_pickable_state } from '../deck-gl/layers/cell_layer';
-// import _
-//   update_edit_layer_mode,
-//   update_edit_visitility,
-//   calc_and_update_rgn_bar_graph,
-//   sync_region_to_model,
-// } from '../deck-gl/layers/edit_layer';
+import {
+  update_edit_visibility,
+  start_sketch_mode,
+  delete_selected_feature,
+} from '../deck-gl/layers/edit_layer';
 import { toggle_visibility_image_layers } from '../deck-gl/layers/image_layers';
 import { toggle_nbhd_layer_visibility } from '../deck-gl/layers/nbhd_layer';
 // import { update_path_pickable_state } from '../deck-gl/layers/path_layer';
-// import {
-//   toggle_trx_layer_visibility,
-//   update_trx_pickable_state,
-// } from '../deck-gl/layers/trx_layer';
+import { toggle_trx_layer_visibility } from '../deck-gl/layers/trx_layer';
 import { update_dendro_layer_data } from '../deck-gl/matrix/dendro_layers';
 import { get_mat_layers_list } from '../deck-gl/matrix/matrix_layers';
-// import { get_layers_list } from '../deck-gl/utils/layers_ist';
+import { get_layers_list } from '../deck-gl/utils/layers_ist';
 import {
   uniprot_data,
   uniprot_get_request,
@@ -46,11 +41,7 @@ import {
   ini_slider,
   ini_slider_params,
 } from './sliders';
-import {
-  make_button,
-  // make_edit_button,
-  make_reorder_button,
-} from './text_buttons';
+import { make_button, make_edit_button, make_reorder_button } from './text_buttons';
 
 export const make_ui_container = () => {
   const ui_container = document.createElement('div');
@@ -368,7 +359,7 @@ export const make_ist_ui_container = (
 
   let nbhd_container;
   let nbhd_ctrl_container;
-  if (viz_state.nbhd.is_nbhd) {
+  if (viz_state.nbhd.is_nbhd || viz_state.nbhd_edit === true) {
     nbhd_container = flex_container('nbhd_container', 'column');
     nbhd_container.style.width = bar_container_width;
     nbhd_ctrl_container = flex_container('nbhd_ctrl_container', 'row');
@@ -863,47 +854,63 @@ export const make_ist_ui_container = (
 
   viz_state.genes.gene_search.style.width = '160px';
   viz_state.genes.gene_search.style.marginLeft = '5px';
+  const nbhd_callback = (event, deck_ist, layers_obj, _viz_state) => {
+    const current = d3.select(event.currentTarget);
+    const active = _viz_state.obs_store.nbhd_edit_mode.get();
+    const new_state = !active;
+    _viz_state.obs_store.nbhd_edit_mode.set(new_state);
+    current.style('color', new_state ? 'blue' : 'gray').classed('active', new_state);
+    update_edit_visibility(layers_obj, new_state);
+    toggle_trx_layer_visibility(layers_obj, !new_state);
+    const layers_list = get_layers_list(layers_obj, _viz_state.close_up);
+    deck_ist.setProps({ layers: layers_list });
+  };
 
-  // const sketch_callback = (event, _deck_ist, _layers_obj, _viz_state) => {
-  //   const current = d3.select(event.currentTarget);
-  //   const is_active = current.classed('active');
-  //   // let button_name = current.text().toLowerCase()
+  const sketch_callback = (_event, deck_ist, layers_obj, _viz_state) => {
+    start_sketch_mode(layers_obj);
+    const layers_list = get_layers_list(layers_obj, _viz_state.close_up);
+    deck_ist.setProps({ layers: layers_list });
+  };
 
-  //   // clicking sketch should always return the rgn to visible
-  //   _viz_state.edit.visible = true;
-  //   current.classed('active', _viz_state.edit.visible).style('color', 'blue');
+  const del_callback = (_event, deck_ist, layers_obj, _viz_state) => {
+    delete_selected_feature(deck_ist, layers_obj, _viz_state);
+  };
 
-  //   d3.select(_viz_state.edit.buttons.rgn)
-  //     .style('color', 'blue')
-  //     .classed('active', true);
+  if (viz_state.nbhd_edit === true) {
+    viz_state.edit = viz_state.edit || {};
+    viz_state.edit.buttons = {};
+    make_edit_button(
+      deck_ist,
+      layers_obj,
+      viz_state,
+      nbhd_ctrl_container,
+      'NBHD',
+      40,
+      nbhd_callback
+    );
+    make_edit_button(
+      deck_ist,
+      layers_obj,
+      viz_state,
+      nbhd_ctrl_container,
+      'SKTCH',
+      40,
+      sketch_callback
+    );
+    make_edit_button(
+      deck_ist,
+      layers_obj,
+      viz_state,
+      nbhd_ctrl_container,
+      'DEL',
+      30,
+      del_callback
+    );
 
-  //   update_edit_visitility(_layers_obj, _viz_state.edit.visible);
-
-  //   if (is_active === false) {
-  //     current.classed('active', true).style('color', 'blue');
-
-  //     _viz_state.edit.mode = 'sktch';
-
-  //     update_edit_layer_mode(_layers_obj, DrawPolygonMode);
-  //     update_cell_pickable_state(_layers_obj, false);
-  //     update_path_pickable_state(_layers_obj, false);
-  //     update_trx_pickable_state(_layers_obj, false);
-  //     const layers_list = get_layers_list(_layers_obj, _viz_state.close_up);
-  //     _deck_ist.setProps({ layers: layers_list });
-  //   } else if (is_active === true) {
-  //     _viz_state.edit.mode = 'view';
-
-  //     current.classed('active', false).style('color', 'gray');
-
-  //     update_edit_layer_mode(_layers_obj, ViewMode);
-  //     update_cell_pickable_state(_layers_obj, true);
-  //     update_path_pickable_state(_layers_obj, true);
-  //     update_trx_pickable_state(_layers_obj, true);
-
-  //     const layers_list = get_layers_list(_layers_obj, _viz_state.close_up);
-  //     _deck_ist.setProps({ layers: layers_list });
-  //   }
-  // };
+    d3.select(viz_state.edit.buttons.del)
+      .style('color', 'red')
+      .style('display', 'none');
+  }
 
   // const rgn_callback = (event, _deck_ist, _layers_obj, _viz_state) => {
   //   const current = d3.select(event.currentTarget);
@@ -1169,12 +1176,14 @@ export const make_ist_ui_container = (
   //   .style('color', 'red')
   //   .style('display', 'none');
 
-  if (viz_state.nbhd.is_nbhd) {
-    viz_state.containers.bar_nbhd = make_bar_container();
-    viz_state.containers.bar_nbhd.style.marginLeft = '0px';
-
+  if (viz_state.nbhd.is_nbhd || viz_state.nbhd_edit === true) {
     nbhd_container.appendChild(nbhd_ctrl_container);
-    nbhd_container.appendChild(viz_state.containers.bar_nbhd);
+
+    if (viz_state.nbhd.is_nbhd) {
+      viz_state.containers.bar_nbhd = make_bar_container();
+      viz_state.containers.bar_nbhd.style.marginLeft = '0px';
+      nbhd_container.appendChild(viz_state.containers.bar_nbhd);
+    }
 
     ctrl_container.appendChild(nbhd_container);
 

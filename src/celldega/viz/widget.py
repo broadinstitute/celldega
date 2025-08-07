@@ -83,6 +83,7 @@ class Landscape(anywidget.AnyWidget):
 
     nbhd = traitlets.Instance(gpd.GeoDataFrame, allow_none=True)
     nbhd_geojson = traitlets.Dict({}).tag(sync=True)
+    nbhd_edit = traitlets.Bool(False).tag(sync=True)
 
     meta_nbhd = traitlets.Instance(pd.DataFrame, allow_none=True)
 
@@ -112,6 +113,7 @@ class Landscape(anywidget.AnyWidget):
         umap_df = kwargs.pop("umap", None)
         nbhd_gdf = kwargs.pop("nbhd", None)
         meta_nbhd_df = kwargs.pop("meta_nbhd", None)
+        nbhd_edit_flag = kwargs.pop("nbhd_edit", False)
         meta_cluster_df = None
         cell_attr = kwargs.pop("cell_attr", ["leiden"])
 
@@ -129,6 +131,11 @@ class Landscape(anywidget.AnyWidget):
                 f"Transformation matrix not found at {path_transformation_matrix}. Using identity.",
                 stacklevel=2,
             )
+
+        inverse_matrix = np.linalg.inv(transformation_matrix)
+        a_i, b_i, tx_i = inverse_matrix[0]
+        c_i, d_i, ty_i = inverse_matrix[1]
+        self._pixel_to_micron_coeffs = [a_i, b_i, c_i, d_i, tx_i, ty_i]
 
         def _df_to_bytes(df):
             import io
@@ -215,6 +222,8 @@ class Landscape(anywidget.AnyWidget):
 
         super().__init__(**kwargs)
 
+        self.nbhd_edit = nbhd_edit_flag
+
         # store DataFrames locally without syncing to the frontend
         self.meta_cell = meta_cell_df
         self.meta_nbhd = meta_nbhd_df
@@ -241,6 +250,21 @@ class Landscape(anywidget.AnyWidget):
             gdf_viz.drop(columns=["geometry_pixel"], inplace=True)
 
             self.nbhd_geojson = json.loads(gdf_viz.to_json())
+
+    @traitlets.observe("nbhd_geojson")
+    def _on_nbhd_geojson_change(self, change):
+        if not self.nbhd_edit:
+            return
+        new = change["new"]
+        if not new or len(new.get("features", [])) == 0:
+            self.nbhd = None
+            return
+        gdf = gpd.GeoDataFrame.from_features(new["features"])
+        if self._pixel_to_micron_coeffs is not None:
+            gdf["geometry"] = gdf.geometry.apply(
+                lambda geom: affine_transform(geom, self._pixel_to_micron_coeffs)
+            )
+        self.nbhd = gdf
 
     # @traitlets.observe("nbhd")
     # def _on_nbhd_change(self, change):

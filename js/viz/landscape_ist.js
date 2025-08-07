@@ -17,11 +17,12 @@ import {
   set_cell_layer_onclick,
   toggle_spatial_umap,
 } from '../deck-gl/layers/cell_layer';
-// import {
-//   ini_edit_layer,
-//   set_edit_layer_on_click,
-//   set_edit_layer_on_edit,
-// } from '../deck-gl/layers/edit_layer';
+import {
+  ini_edit_layer,
+  set_edit_layer_on_click,
+  set_edit_layer_on_edit,
+  update_edit_visibility,
+} from '../deck-gl/layers/edit_layer';
 import { make_image_layers } from '../deck-gl/layers/image_layers';
 import {
   ini_nbhd_layer,
@@ -81,6 +82,7 @@ export const landscape_ist = async (
   meta_cluster_attr = [],
   umap = {},
   nbhd = {},
+  nbhd_edit = false,
   landscape_state = 'spatial',
   segmentation = 'default',
   creds = {},
@@ -133,6 +135,8 @@ export const landscape_ist = async (
 
   viz_state.nbhd = {};
   viz_state.nbhd.visible = false;
+  viz_state.nbhd.selected_index = null;
+  viz_state.nbhd_edit = nbhd_edit;
 
   viz_state.spatial = {};
 
@@ -162,7 +166,13 @@ export const landscape_ist = async (
     viz_state.aws = null;
   }
 
-  if (Object.keys(viz_state.model).length !== 0) {
+  if (nbhd_edit) {
+    viz_state.nbhd.is_nbhd = false;
+    viz_state.nbhd.feature_collection = {
+      type: 'FeatureCollection',
+      features: [],
+    };
+  } else if (Object.keys(viz_state.model).length !== 0) {
     if (Object.keys(nbhd).length === 0) {
       viz_state.nbhd.is_nbhd = false;
 
@@ -366,8 +376,8 @@ export const landscape_ist = async (
   const cell_layer = await ini_cell_layer(base_url, viz_state);
   const path_layer = await ini_path_layer(viz_state);
   const trx_layer = ini_trx_layer(viz_state.genes);
-  // const edit_layer = ini_edit_layer(viz_state);
-  const nbhd_layer = ini_nbhd_layer(viz_state, true);
+  const edit_layer = nbhd_edit ? ini_edit_layer(viz_state) : null;
+  const nbhd_layer = nbhd_edit ? null : ini_nbhd_layer(viz_state, true);
 
   // make layers object
   const layers_obj = {
@@ -376,8 +386,7 @@ export const landscape_ist = async (
     cell_layer,
     path_layer,
     trx_layer,
-    // edit_layer,
-    nbhd_layer,
+    ...(nbhd_edit ? { edit_layer } : { nbhd_layer }),
   };
 
   viz_state.layers_obj = layers_obj;
@@ -387,57 +396,72 @@ export const landscape_ist = async (
     nbhd_layer: true,
   });
 
-  viz_state.obs_store.selected_nbhds.subscribe(
-    (selected_nbhds) => {
-      const selected_nbhds_name = selected_nbhds.join('-');
+  if (!nbhd_edit) {
+    viz_state.obs_store.selected_nbhds.subscribe(
+      (selected_nbhds) => {
+        const selected_nbhds_name = selected_nbhds.join('-');
 
-      layers_obj.nbhd_layer = layers_obj.nbhd_layer.clone({
-        id: `nbhd-layer-${selected_nbhds_name}`,
-      });
-    },
-    { immediate: false }
-  );
+        layers_obj.nbhd_layer = layers_obj.nbhd_layer.clone({
+          id: `nbhd-layer-${selected_nbhds_name}`,
+        });
+      },
+      { immediate: false }
+    );
 
-  viz_state.obs_store.viz_nbhd_layer.subscribe(
-    (visible) => {
-      if (visible) {
-        // set cell layer to not visible
-        new_toggle_cell_layer_visibility(viz_state.layers_obj, false);
+    viz_state.obs_store.viz_nbhd_layer.subscribe(
+      (visible) => {
+        if (visible) {
+          // set cell layer to not visible
+          new_toggle_cell_layer_visibility(viz_state.layers_obj, false);
 
-        // set gene/cat bars to disabled color
-        viz_state.genes.svg_bar_gene.selectAll('rect').style('opacity', 0.2);
-        viz_state.cats.svg_bar_cluster.selectAll('rect').style('opacity', 0.2);
-        viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', 1.0);
+          // set gene/cat bars to disabled color
+          viz_state.genes.svg_bar_gene.selectAll('rect').style('opacity', 0.2);
+          viz_state.cats.svg_bar_cluster.selectAll('rect').style('opacity', 0.2);
+          viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', 1.0);
 
-        viz_state.buttons.buttons.cell.style('color', 'gray');
-        viz_state.buttons.buttons.trx.style('color', 'gray');
+          viz_state.buttons.buttons.cell.style('color', 'gray');
+          viz_state.buttons.buttons.trx.style('color', 'gray');
 
-        toggle_slider(viz_state.sliders.cell, false);
-        toggle_slider(viz_state.sliders.trx, false);
-      } else {
-        new_toggle_cell_layer_visibility(viz_state.layers_obj, true);
+          toggle_slider(viz_state.sliders.cell, false);
+          toggle_slider(viz_state.sliders.trx, false);
+        } else {
+          new_toggle_cell_layer_visibility(viz_state.layers_obj, true);
 
-        viz_state.genes.svg_bar_gene.selectAll('rect').style('opacity', 1.0);
-        viz_state.cats.svg_bar_cluster.selectAll('rect').style('opacity', 1.0);
-        viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', 0.2);
+          viz_state.genes.svg_bar_gene.selectAll('rect').style('opacity', 1.0);
+          viz_state.cats.svg_bar_cluster.selectAll('rect').style('opacity', 1.0);
+          viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', 0.2);
 
-        viz_state.buttons.buttons.cell.style('color', 'blue');
-        viz_state.buttons.buttons.trx.style('color', 'blue');
+          viz_state.buttons.buttons.cell.style('color', 'blue');
+          viz_state.buttons.buttons.trx.style('color', 'blue');
 
-        toggle_slider(viz_state.sliders.cell, true);
-        toggle_slider(viz_state.sliders.trx, true);
-      }
-    },
-    { immediate: false }
-  );
+          toggle_slider(viz_state.sliders.cell, true);
+          toggle_slider(viz_state.sliders.trx, true);
+        }
+      },
+      { immediate: false }
+    );
+  }
 
   // set onclicks after all layers are made
   set_cell_layer_onclick(deck_ist, layers_obj, viz_state);
   set_path_layer_onclick(deck_ist, layers_obj, viz_state);
   set_trx_layer_onclick(deck_ist, layers_obj, viz_state);
-  // set_edit_layer_on_edit(deck_ist, layers_obj, viz_state);
-  // set_edit_layer_on_click(deck_ist, layers_obj, viz_state);
-  set_nbhd_layer_onclick(deck_ist, layers_obj, viz_state);
+  if (nbhd_edit) {
+    set_edit_layer_on_edit(deck_ist, layers_obj, viz_state);
+    set_edit_layer_on_click(deck_ist, layers_obj, viz_state);
+  } else {
+    set_nbhd_layer_onclick(deck_ist, layers_obj, viz_state);
+  }
+
+  viz_state.obs_store.nbhd_edit_mode.subscribe(
+    (editing) => {
+      update_edit_visibility(layers_obj, editing);
+      toggle_trx_layer_visibility(layers_obj, !editing);
+      const list = get_layers_list(viz_state.layers_obj, viz_state.close_up);
+      deck_ist.setProps({ layers: list });
+    },
+    { immediate: false }
+  );
 
   viz_state.obs_store.deck_ready.subscribe((ready) => {
     if (ready) {

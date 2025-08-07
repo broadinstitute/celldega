@@ -26,6 +26,7 @@ const render_landscape_ist = async ({ model, el }) => {
   const height = model.get('height');
 
   const nbhd = model.get('nbhd_geojson');
+  const nbhd_edit = model.get('nbhd_edit');
 
   let meta_cell_data = { result: {}, attr: [] };
   let meta_cluster_data = { result: {}, attr: [] };
@@ -72,6 +73,7 @@ const render_landscape_ist = async ({ model, el }) => {
     meta_cluster_data.attr,
     umap_data,
     nbhd,
+    nbhd_edit,
     landscape_state,
     segmentation,
     creds

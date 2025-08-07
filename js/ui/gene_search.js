@@ -59,8 +59,6 @@ const ist_gene_search_callback = async (deck_ist, layers_obj, viz_state) => {
       viz_state.obs_store
     );
 
-
-
     const inst_gene_in_gene_names =
       viz_state.genes.gene_names.includes(inst_gene);
 
@@ -87,7 +85,6 @@ const ist_gene_search_callback = async (deck_ist, layers_obj, viz_state) => {
       new_cat === 'cluster' ? [] : [inst_gene],
       viz_state.obs_store
     );
-
   }
 };
 

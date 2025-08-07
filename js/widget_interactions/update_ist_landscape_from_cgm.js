@@ -1,5 +1,5 @@
-import { update_nbhd_layer_data, toggle_nbhd_layer_visibility } from '../deck-gl/layers/nbhd_layer';
 import { new_toggle_cell_layer_visibility } from '../deck-gl/layers/cell_layer';
+import { update_nbhd_layer_data, toggle_nbhd_layer_visibility } from '../deck-gl/layers/nbhd_layer';
 import { update_cat, update_selected_cats } from '../global_variables/cat';
 import { update_cell_exp_array } from '../global_variables/cell_exp_array';
 import { update_selected_genes } from '../global_variables/selected_genes';
@@ -44,29 +44,49 @@ export const update_ist_landscape_from_cgm = async (
 
       new_cat = inst_gene === viz_state.cats.cat ? 'cluster' : inst_gene;
 
-      update_cat(viz_state.cats, new_cat);
-      update_selected_genes(viz_state.genes, [inst_gene], viz_state.obs_store);
-      // update_selected_cats(viz_state.cats, [], viz_state.obs_store);
-      update_selected_cats(
-        viz_state.cats,
-        new_cat === 'cluster' ? [] : [inst_gene],
-        viz_state.obs_store
-      );
+      if (entity === 'CELL') {
+        console.log("in cell block");
+        update_cat(viz_state.cats, new_cat);
+        update_selected_genes(viz_state.genes, [inst_gene], viz_state.obs_store);
+        // update_selected_cats(viz_state.cats, [], viz_state.obs_store);
+        update_selected_cats(
+          viz_state.cats,
+          new_cat === 'cluster' ? [] : [inst_gene],
+          viz_state.obs_store
+        );
 
-      await update_cell_exp_array(
-        viz_state.cats,
-        viz_state.genes,
-        viz_state.global_base_url,
-        inst_gene,
-        viz_state.seg.version,
-        viz_state.vector_name_integer,
-        viz_state.aws
-      );
+        await update_cell_exp_array(
+          viz_state.cats,
+          viz_state.genes,
+          viz_state.global_base_url,
+          inst_gene,
+          viz_state.seg.version,
+          viz_state.vector_name_integer,
+          viz_state.aws
+        );
 
-      refresh_layer(viz_state, layers_obj, 'cell_layer');
-      // set_cell_layer_onclick(deck_ist, layers_obj, viz_state);
-      // new_toggle_cell_layer_visibility(layers_obj, true);
-      // toggle_slider(viz_state.sliders.cell, true);
+        refresh_layer(viz_state, layers_obj, 'cell_layer');
+        // set_cell_layer_onclick(deck_ist, layers_obj, viz_state);
+        // new_toggle_cell_layer_visibility(layers_obj, true);
+        // toggle_slider(viz_state.sliders.cell, true);
+
+      } else {
+        console.log("in nbhd block");
+
+        toggle_nbhd_layer_visibility(layers_obj, false);
+        new_toggle_cell_layer_visibility(layers_obj, true);
+        toggle_slider(viz_state.sliders.cell, true);
+
+        viz_state.buttons.buttons.nbhd.style('color', 'gray');
+        viz_state.buttons.buttons.cell.style('color', 'blue');
+
+        new_cat = click_info.value.name;
+        update_cat(viz_state.cats, 'cluster');
+        update_selected_cats(viz_state.cats, [new_cat], viz_state.obs_store);
+        update_selected_genes(viz_state.genes, [], viz_state.obs_store);
+
+        refresh_layer(viz_state, layers_obj, 'cell_layer');
+      }
     } else if (click_type === 'col_label') {
       inst_gene = 'cluster';
       new_cat = click_info.value.name;

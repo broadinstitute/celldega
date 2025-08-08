@@ -1,11 +1,9 @@
 import celldega from './widget.js';
 document.addEventListener("DOMContentLoaded", async () => {
 
-    console.log('trying to run visium hd lung cancer script');
+    const landscape_el = document.getElementById('landscape-visium-hd-pancreas');
 
-    const landscape_el = document.getElementById('landscape-visium-hd-lung-cancer');
-
-    if (window.location.pathname.endsWith('gallery_visium_hd_lung_cancer/')){
+    if (window.location.pathname.endsWith('gallery_visium_hd_pancreas/')){
 
         console.log('hi!')
 
@@ -15,8 +13,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const ini_x = 3000;
         const ini_y = 3000;
         const ini_z = 0;
-        // const base_url = 'https://raw.githubusercontent.com/broadinstitute/Visium_HD_Human_Lung_Cancer_binned_outputs/main/Visium_HD_Human_Lung_Cancer_binned_outputs';
-        const base_url = 'https://raw.githubusercontent.com/broadinstitute/Celldega_Visium_HD_Human_Kidney_FFPE/tree/main/Visium_HD_Human_Kidney_FFPE';
+        const base_url = 'https://raw.githubusercontent.com/broadinstitute/celldega_Visium_HD_Human_Pancreas_binned_outputs/main/Visium_HD_Human_Pancreas_binned_outputs';
 
         const landscape = await celldega.landscape_sst(
             // ini_model

@@ -53,6 +53,8 @@ def _determine_technology(data_dir):
     Raises:
     - ValueError: If technology cannot be determined
     """
+
+    print(data_dir)
     data_path = Path(data_dir)
 
     # Determine technology based on the presence of experiment.xenium file

@@ -1,11 +1,9 @@
 import celldega from './widget.js';
 document.addEventListener("DOMContentLoaded", async () => {
 
-    console.log('trying to run visium hd lung cancer script');
+    const landscape_el = document.getElementById('landscape-visium-hd-human-kidney');
 
-    const landscape_el = document.getElementById('landscape-visium-hd-lung-cancer');
-
-    if (window.location.pathname.endsWith('gallery_visium_hd_lung_cancer/')){
+    if (window.location.pathname.endsWith('gallery_visium_hd_human_kidney/')){
 
         console.log('hi!')
 

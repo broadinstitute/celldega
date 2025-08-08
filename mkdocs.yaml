@@ -45,6 +45,9 @@ nav:
           - Xenium Multi Dataset: gallery/gallery_xenium_multi.md
   - Example Notebooks:
     - examples/index.md
+    - Tutorials:
+      - Scanpy-Squidpy Xenium Pancreas: examples/tutorial_notebooks/Scanpy-Squidpy_Xenium_Pancreas.ipynb
+      - Scanpy_Chromium: examples/tutorial_notebooks/Scanpy_Chromium.ipynb
     - Brief Notebooks:
       - Landscape View Xenium: examples/brief_notebooks/Landscape_View_Xenium.ipynb
       - Landscape-Matrix View Xenium: examples/brief_notebooks/Landscape-Matrix_Xenium.ipynb
@@ -86,7 +89,7 @@ extra_javascript:
   - path: assets/js/google-analytics.js
   - path: assets/js/hide_notebook_sidebar.js
     type: module
-  - path: assets/js/gallery_visium_hd_lung_cancer.js
+  - path: assets/js/gallery_visium_hd_human_kidney.js
     type: module
   - path: assets/js/gallery_visium_hd_pancreas.js
     type: module

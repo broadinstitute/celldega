@@ -15,8 +15,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const ini_x = 3000;
         const ini_y = 3000;
         const ini_z = 0;
-        // const base_url = 'https://raw.githubusercontent.com/broadinstitute/Visium_HD_Human_Lung_Cancer_binned_outputs/main/Visium_HD_Human_Lung_Cancer_binned_outputs';
-        const base_url = 'https://raw.githubusercontent.com/broadinstitute/Celldega_Visium_HD_Human_Kidney_FFPE/tree/main/Visium_HD_Human_Kidney_FFPE';
+        const base_url = 'https://raw.githubusercontent.com/broadinstitute/Celldega_Visium_HD_Human_Kidney_FFPE/main/Visium_HD_Human_Kidney_FFPE';
 
         const landscape = await celldega.landscape_sst(
             // ini_model

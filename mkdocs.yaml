@@ -48,6 +48,7 @@ nav:
     - Tutorials:
       - Scanpy-Squidpy Xenium Pancreas: examples/tutorial_notebooks/Scanpy-Squidpy_Xenium_Pancreas.ipynb
       - Scanpy_Chromium: examples/tutorial_notebooks/Scanpy_Chromium.ipynb
+      - Single-cell Clustergram Chromium: examples/tutorial_notebooks/Single-cell_Clustergram_Chromium.ipynb
     - Brief Notebooks:
       - Landscape View Xenium: examples/brief_notebooks/Landscape_View_Xenium.ipynb
       - Landscape-Matrix View Xenium: examples/brief_notebooks/Landscape-Matrix_Xenium.ipynb

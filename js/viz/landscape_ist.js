@@ -81,6 +81,7 @@ export const landscape_ist = async (
   meta_cluster_attr = [],
   umap = {},
   nbhd = {},
+  nbhd_edit = false,
   landscape_state = 'spatial',
   segmentation = 'default',
   creds = {},
@@ -133,6 +134,7 @@ export const landscape_ist = async (
 
   viz_state.nbhd = {};
   viz_state.nbhd.visible = false;
+  viz_state.nbhd.edit = nbhd_edit;
 
   viz_state.spatial = {};
 
@@ -164,7 +166,7 @@ export const landscape_ist = async (
 
   if (Object.keys(viz_state.model).length !== 0) {
     if (Object.keys(nbhd).length === 0) {
-      viz_state.nbhd.is_nbhd = false;
+      viz_state.nbhd.is_nbhd = nbhd_edit;
 
       viz_state.nbhd.ini_feature_collection = {
         type: 'FeatureCollection',
@@ -376,9 +378,12 @@ export const landscape_ist = async (
     cell_layer,
     path_layer,
     trx_layer,
-    // edit_layer,
     nbhd_layer,
   };
+
+  if (nbhd_edit) {
+    toggle_trx_layer_visibility(layers_obj, false);
+  }
 
   viz_state.layers_obj = layers_obj;
 

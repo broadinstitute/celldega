@@ -48,7 +48,7 @@ import {
 } from './sliders';
 import {
   make_button,
-  // make_edit_button,
+  make_edit_button,
   make_reorder_button,
 } from './text_buttons';
 
@@ -1063,51 +1063,43 @@ export const make_ist_ui_container = (
   //     }));
   // };
 
-  // viz_state.edit.buttons = {};
-  // viz_state.edit.mode = 'view';
-  // make_edit_button(
-  //   deck_ist,
-  //   layers_obj,
-  //   viz_state,
-  //   ctrl_container,
-  //   'RGN',
-  //   30,
-  //   rgn_callback
-  // );
-  // if (viz_state.nbhd.alpha_nbhd === true) {
-  //   make_edit_button(
-  //     deck_ist,
-  //     layers_obj,
-  //     viz_state,
-  //     nbhd_ctrl_container,
-  //     'ALPH',
-  //     30,
-  //     alph_callback
-  //   );
-  // }
+  if (viz_state.nbhd.is_nbhd) {
+    viz_state.edit = viz_state.edit || {};
+    viz_state.edit.buttons = {};
+    viz_state.edit.mode = 'view';
 
-  // make_edit_button(
-  //   deck_ist,
-  //   layers_obj,
-  //   viz_state,
-  //   nbhd_ctrl_container,
-  //   'SKTCH',
-  //   40,
-  //   sketch_callback
-  // );
+    const noop = () => {};
 
-  // // initially hide SKTCH button
-  // d3.select(viz_state.edit.buttons.sktch).style('display', 'none');
+    make_edit_button(
+      deck_ist,
+      layers_obj,
+      viz_state,
+      nbhd_ctrl_container,
+      'NBHD',
+      40,
+      noop
+    );
+    make_edit_button(
+      deck_ist,
+      layers_obj,
+      viz_state,
+      nbhd_ctrl_container,
+      'SKTCH',
+      40,
+      noop
+    );
+    d3.select(viz_state.edit.buttons.sktch).style('display', 'none');
 
-  // make_edit_button(
-  //   deck_ist,
-  //   layers_obj,
-  //   viz_state,
-  //   nbhd_ctrl_container,
-  //   'DEL',
-  //   30,
-  //   del_callback
-  // );
+    make_edit_button(
+      deck_ist,
+      layers_obj,
+      viz_state,
+      nbhd_ctrl_container,
+      'DEL',
+      30,
+      noop
+    );
+  }
 
   // const alph_slider_container = make_slider_container('alph_slider_container');
 

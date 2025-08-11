@@ -51,6 +51,8 @@ const mat_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
     name: `${row_name}_${col_name}`,
     row: row_name,
     col: col_name,
+    row_entity: viz_state.entity.row,
+    col_entity: viz_state.entity.col,
   };
 
   if (Object.keys(viz_state.model).length > 0) {

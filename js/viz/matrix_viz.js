@@ -65,6 +65,7 @@ export const matrix_viz = async (
   network,
   width = '800',
   height = '800',
+  entity = 'CELL',
   row_label_callback = null,
   col_label_callback = null,
   col_dendro_callback = null
@@ -80,6 +81,7 @@ export const matrix_viz = async (
     root,
     width,
     height,
+    entity,
     row_label_callback,
     col_label_callback,
     col_dendro_callback

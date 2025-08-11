@@ -24,6 +24,7 @@ const render_landscape_ist = async ({ model, el }) => {
   const dataset_name = model.get('dataset_name');
   const width = model.get('width');
   const height = model.get('height');
+  const entity = model.get('entity');
 
   const nbhd = model.get('nbhd_geojson');
 
@@ -72,6 +73,7 @@ const render_landscape_ist = async ({ model, el }) => {
     meta_cluster_data.attr,
     umap_data,
     nbhd,
+    entity,
     landscape_state,
     segmentation,
     creds
@@ -151,6 +153,7 @@ const render_matrix_new = async ({ model, el }) => {
   let network;
   const width = model.get('width');
   const height = model.get('height');
+  const entity = model.get('entity');
 
   const matBytes = model.get('mat_parquet');
   if (matBytes && matBytes.byteLength > 0) {
@@ -164,7 +167,7 @@ const render_matrix_new = async ({ model, el }) => {
     );
   }
 
-  return matrix_viz(model, el, network, width, height);
+  return matrix_viz(model, el, network, width, height, entity);
 };
 
 // Main render function - no export keyword

@@ -140,9 +140,12 @@ class Landscape(anywidget.AnyWidget):
         self._transformation_matrix = transformation_matrix
         try:
             self._inv_transform = np.linalg.inv(transformation_matrix)
-        except np.linalg.LinAlgError:
+        except np.linalg.LinAlgError as e:
             self._inv_transform = np.eye(3)
-
+            warnings.warn(
+                f"Matrix inversion failed for transformation_matrix: {e}. Using identity matrix as fallback.",
+                stacklevel=2,
+            )
         def _df_to_bytes(df):
             import io
 

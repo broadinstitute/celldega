@@ -8,6 +8,7 @@ import {
   update_edit_visitility,
   calc_and_update_rgn_bar_graph,
   sync_region_to_model,
+  update_edit_layer_opacity,
 } from '../deck-gl/layers/edit_layer';
 import { toggle_visibility_image_layers } from '../deck-gl/layers/image_layers';
 import { toggle_nbhd_layer_visibility } from '../deck-gl/layers/nbhd_layer';
@@ -1132,67 +1133,37 @@ export const make_ist_ui_container = (
       .style('display', 'none');
 
     viz_state.buttons.buttons.nbhd = viz_state.edit.buttons.nbhd;
+
+    if (viz_state.nbhd.edit) {
+      const nbhd_opacity_container = make_slider_container(
+        'nbhd_opacity_container'
+      );
+
+      const opacity_callback = () => {
+        const opacity = viz_state.sliders.nbhd_opacity.value / 100;
+        viz_state.edit.rgn_opacity = opacity;
+        update_edit_layer_opacity(layers_obj, opacity);
+        refresh_layer(viz_state, layers_obj, 'edit_layer');
+      };
+
+      viz_state.sliders.nbhd_opacity = make_slider();
+      ini_slider_params(
+        viz_state.sliders.nbhd_opacity,
+        viz_state.edit.rgn_opacity * 100,
+        opacity_callback
+      );
+
+      nbhd_opacity_container.appendChild(viz_state.sliders.nbhd_opacity);
+      nbhd_ctrl_container.appendChild(nbhd_opacity_container);
+
+      viz_state.containers.nbhd_opacity_slider = nbhd_opacity_container;
+      // start hidden until edit layer is visible
+      d3.select(viz_state.containers.nbhd_opacity_slider).style(
+        'display',
+        'none'
+      );
+    }
   }
-
-  // const alph_slider_container = make_slider_container('alph_slider_container');
-
-  // const alph_slider_callback = (event, _deck_ist, _layers_obj, _viz_state) => {
-  //   const sliderValue = event.target.value / 100; // Normalize slider value to [0, 1]
-  //   const _inv_alpha_values = Array.from(
-  //     new Set(
-  //       _viz_state.nbhd.ini_feature_collection.features.map(
-  //         (feature) => feature.properties.inv_alpha
-  //       )
-  //     )
-  //   ).sort((a, b) => a - b);
-
-  //   // Map slider value [0, 1] to the range of `inv_alpha_values`
-  //   const mappedValue =
-  //     _inv_alpha_values[
-  //       Math.round(sliderValue * (_inv_alpha_values.length - 1))
-  //     ];
-
-  //   if (mappedValue !== _viz_state.nbhd.inst_alpha) {
-  //     // console.log('Mapped inv_alpha:', mappedValue);
-  //     _viz_state.nbhd.inst_alpha = mappedValue;
-
-  //     filter_cat_nbhd_feature_collection(_viz_state);
-  //     update_nbhd_layer_data(_viz_state, _layers_obj);
-  //     const layers_list = get_layers_list(_layers_obj, _viz_state.close_up);
-  //     _deck_ist.setProps({ layers: layers_list });
-  //   }
-  // };
-
-  // // Assuming your feature collection is stored in `viz_state.nbhd.ini_feature_collection`
-  // const _inv_alpha_values = Array.from(
-  //   new Set(
-  //     viz_state.nbhd.ini_feature_collection.features.map(
-  //       (feature) => feature.properties.inv_alpha
-  //     ) // Extract the `inv_alpha` property
-  //   )
-  // ).sort((a, b) => a - b); // Sort the unique values in ascending order
-
-  // // console.log(inv_alpha_values);
-
-  // viz_state.sliders.alph = document.createElement('input');
-  // viz_state.sliders.alph.type = 'range';
-  // viz_state.sliders.alph.min = '0';
-  // viz_state.sliders.alph.max = '100';
-  // viz_state.sliders.alph.value = 50;
-  // viz_state.sliders.alph.className = 'slider';
-  // viz_state.sliders.alph.style.width = '75px';
-  // viz_state.sliders.alph.addEventListener('input', (event) =>
-  //   alph_slider_callback(event, deck_ist, layers_obj, viz_state)
-  // );
-  // viz_state.sliders.alph.style.display = 'none';
-
-  // nbhd_ctrl_container.appendChild(alph_slider_container);
-  // alph_slider_container.appendChild(viz_state.sliders.alph);
-
-  // // initially hide the DEL delete button
-  // d3.select(viz_state.edit.buttons.del)
-  //   .style('color', 'red')
-  //   .style('display', 'none');
 
   if (viz_state.nbhd.is_nbhd) {
     viz_state.containers.bar_nbhd = make_bar_container();

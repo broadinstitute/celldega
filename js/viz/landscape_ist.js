@@ -351,7 +351,8 @@ export const landscape_ist = async (
   viz_state.edit.svg_bar_rgn = d3.create('svg');
   viz_state.edit.rgn_areas = [];
   viz_state.edit.color_dict_rgn = {};
-  viz_state.edit.rgn_opacity = 0.75;
+  // default opacity for editable neighborhoods
+  viz_state.edit.rgn_opacity = 0.3;
   viz_state.edit.visible = false;
   viz_state.edit.modify_index = null;
 
@@ -475,6 +476,12 @@ export const landscape_ist = async (
           .style('display', 'inline-flex')
           .style('color', 'gray')
           .classed('active', false);
+        if (viz_state.nbhd.edit && viz_state.containers.nbhd_opacity_slider) {
+          d3
+            .select(viz_state.containers.nbhd_opacity_slider)
+            .style('display', 'inline-flex');
+          toggle_slider(viz_state.sliders.nbhd_opacity, true);
+        }
       } else {
         toggle_trx_layer_visibility(layers_obj, true);
         viz_state.buttons.buttons.trx.style('color', 'blue');
@@ -491,6 +498,12 @@ export const landscape_ist = async (
         update_cell_pickable_state(layers_obj, true);
         update_path_pickable_state(layers_obj, true);
         update_trx_pickable_state(layers_obj, true);
+        if (viz_state.nbhd.edit && viz_state.containers.nbhd_opacity_slider) {
+          d3
+            .select(viz_state.containers.nbhd_opacity_slider)
+            .style('display', 'none');
+          toggle_slider(viz_state.sliders.nbhd_opacity, false);
+        }
       }
       refresh_layer(viz_state, layers_obj, 'edit_layer');
     },

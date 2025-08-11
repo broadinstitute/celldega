@@ -231,6 +231,7 @@ export const ini_edit_layer = (viz_state) => {
       preventOverlappingLines: true,
     },
     visible: false,
+    opacity: viz_state.edit.rgn_opacity,
   });
 
   return edit_layer;
@@ -255,6 +256,12 @@ export { update_edit_layer_mode };
 export const update_edit_visitility = (layers_obj, visible) => {
   layers_obj.edit_layer = layers_obj.edit_layer.clone({
     visible,
+  });
+};
+
+export const update_edit_layer_opacity = (layers_obj, opacity) => {
+  layers_obj.edit_layer = layers_obj.edit_layer.clone({
+    opacity,
   });
 };
 

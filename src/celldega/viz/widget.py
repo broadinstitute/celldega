@@ -140,9 +140,12 @@ class Landscape(anywidget.AnyWidget):
         self._transformation_matrix = transformation_matrix
         try:
             self._inv_transform = np.linalg.inv(transformation_matrix)
-        except np.linalg.LinAlgError:
+        except np.linalg.LinAlgError as e:
             self._inv_transform = np.eye(3)
-
+            warnings.warn(
+                f"Matrix inversion failed for transformation_matrix: {e}. Using identity matrix as fallback.",
+                stacklevel=2,
+            )
         def _df_to_bytes(df):
             import io
 
@@ -304,9 +307,12 @@ class Landscape(anywidget.AnyWidget):
             a, b, tx = self._inv_transform[0]
             c, d, ty = self._inv_transform[1]
             coeffs = [a, b, c, d, tx, ty]
-            gdf["geometry"] = gdf.geometry.apply(lambda geom: affine_transform(geom, coeffs))
-        except Exception:
-            pass
+            gdf["geometry"] = gdf.geometry.apply(
+                lambda geom: affine_transform(geom, coeffs)
+            )
+        except Exception as e:
+            import traceback
+            # warnings.warn(f"Failed to transform neighborhood geometry: {e}\n{traceback.format_exc()}")
 
         self.nbhd = gdf
 

@@ -1,8 +1,12 @@
+import { new_toggle_cell_layer_visibility } from '../deck-gl/layers/cell_layer';
+import { toggle_nbhd_layer_visibility } from '../deck-gl/layers/nbhd_layer';
+import { toggle_trx_layer_visibility } from '../deck-gl/layers/trx_layer';
 import { update_cat, update_selected_cats } from '../global_variables/cat';
 import { update_cell_exp_array } from '../global_variables/cell_exp_array';
 import { update_selected_genes, sync_selected_genes} from '../global_variables/selected_genes';
 import { handleAsyncError } from '../temp_utils/errorHandler';
 import { refresh_layer } from '../utils/refresh_layer';
+import { toggle_slider } from '../ui/sliders';
 
 export const update_ist_landscape_from_cgm = async (
   deck_ist,
@@ -39,6 +43,18 @@ export const update_ist_landscape_from_cgm = async (
         update_selected_cats(viz_state.cats, [new_cat], viz_state.obs_store);
         update_selected_genes(viz_state.genes, [], viz_state.obs_store);
 
+        new_toggle_cell_layer_visibility(layers_obj, true);
+        toggle_nbhd_layer_visibility(layers_obj, false);
+        toggle_trx_layer_visibility(layers_obj, false);
+
+        toggle_slider(viz_state.sliders.nbhd, false);
+        toggle_slider(viz_state.sliders.cell, true);
+        toggle_slider(viz_state.sliders.trx, false);
+
+        viz_state.buttons.buttons.nbhd.style('color', 'gray');
+        viz_state.buttons.buttons.cell.style('color', 'blue');
+        viz_state.buttons.buttons.trx.style('color', 'gray');
+
         refresh_layer(viz_state, layers_obj, 'cell_layer');
       } else {
         inst_gene = click_info.value.name;
@@ -66,6 +82,7 @@ export const update_ist_landscape_from_cgm = async (
           viz_state.vector_name_integer,
           viz_state.aws
         );
+
         refresh_layer(viz_state, layers_obj, 'cell_layer');
         refresh_layer(viz_state, layers_obj, 'trx_layer');
       }
@@ -73,7 +90,22 @@ export const update_ist_landscape_from_cgm = async (
       if (click_info.value.entity === 'nbhd') {
         const new_nbhd = click_info.value.name;
         viz_state.obs_store.selected_nbhds.set([new_nbhd]);
+
+        toggle_nbhd_layer_visibility(layers_obj, true);
+        new_toggle_cell_layer_visibility(layers_obj, false);
+        toggle_trx_layer_visibility(layers_obj, false);
+
+        toggle_slider(viz_state.sliders.nbhd, true);
+        toggle_slider(viz_state.sliders.cell, false);
+        toggle_slider(viz_state.sliders.trx, false);
+
+        viz_state.buttons.buttons.nbhd.style('color', 'blue');
+        viz_state.buttons.buttons.cell.style('color', 'gray');
+        viz_state.buttons.buttons.trx.style('color', 'gray');
+
         refresh_layer(viz_state, layers_obj, 'nbhd_layer');
+        refresh_layer(viz_state, layers_obj, 'cell_layer');
+        refresh_layer(viz_state, layers_obj, 'trx_layer');
 
         if (viz_state.obs_store.selected_nbhds.get().length > 0) {
           viz_state.nbhd.svg_bar_nbhd
@@ -106,7 +138,17 @@ export const update_ist_landscape_from_cgm = async (
         update_selected_cats(viz_state.cats, [new_cat], viz_state.obs_store);
         update_selected_genes(viz_state.genes, [], viz_state.obs_store);
 
+        new_toggle_cell_layer_visibility(layers_obj, true);
+        toggle_nbhd_layer_visibility(layers_obj, false);
+        toggle_trx_layer_visibility(layers_obj, false);
+
+        toggle_slider(viz_state.sliders.cell, true);
+        viz_state.buttons.buttons.nbhd.style('color', 'gray');
+        viz_state.buttons.buttons.cell.style('color', 'blue');
+
         refresh_layer(viz_state, layers_obj, 'cell_layer');
+        refresh_layer(viz_state, layers_obj, 'nbhd_layer');
+        refresh_layer(viz_state, layers_obj, 'trx_layer');
       }
     } else if (click_type === 'col_dendro') {
       const new_cats = click_info.value.selected_names;

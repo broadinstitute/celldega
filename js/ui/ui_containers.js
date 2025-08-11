@@ -378,6 +378,10 @@ export const make_ist_ui_container = (
 
   const cell_slider_container = make_slider_container('cell_slider_container');
   const trx_slider_container = make_slider_container('trx_slider_container');
+  let nbhd_slider_container;
+  if (viz_state.nbhd.is_nbhd) {
+    nbhd_slider_container = make_slider_container('nbhd_slider_container');
+  }
 
   const spatial_toggle_container = flex_container(
     'image_layer_container',
@@ -587,6 +591,16 @@ export const make_ist_ui_container = (
 
   cell_slider_container.appendChild(viz_state.sliders.cell);
   cell_ctrl_container.appendChild(cell_slider_container);
+
+  if (viz_state.nbhd.is_nbhd) {
+    ini_slider('nbhd', deck_ist, layers_obj, viz_state);
+    nbhd_slider_container.appendChild(viz_state.sliders.nbhd);
+    nbhd_ctrl_container.appendChild(nbhd_slider_container);
+    toggle_slider(
+      viz_state.sliders.nbhd,
+      viz_state.obs_store.viz_nbhd_layer.get()
+    );
+  }
 
   viz_state.containers.bar_cluster = make_bar_container();
 

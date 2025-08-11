@@ -29,6 +29,7 @@ export const bar_callback_cat = (
   if (_viz_state.nbhd.is_nbhd) {
     _viz_state.obs_store.viz_nbhd_layer.set(false);
     _viz_state.buttons.buttons.nbhd.style('color', 'gray');
+    toggle_slider(_viz_state.sliders.nbhd, false);
   }
 
   // add cell_layer, path_layer, and trx_layer to the deck_check observable
@@ -69,6 +70,7 @@ export const bar_callback_gene = async (
   if (_viz_state.nbhd.is_nbhd) {
     _viz_state.obs_store.viz_nbhd_layer.set(false);
     _viz_state.buttons.buttons.nbhd.style('color', 'gray');
+    toggle_slider(_viz_state.sliders.nbhd, false);
   }
 
   const inst_gene = d.name;
@@ -117,6 +119,8 @@ export const bar_callback_nbhd = (
 
   // make sure nbhd button is active
   _viz_state.buttons.buttons.nbhd.style('color', 'blue');
+
+  toggle_slider(_viz_state.sliders.nbhd, true);
 
   // update selected_nbhds observable with the clicked nbhd unless
   // the clicked nbhd is already equal to selected_nbhds

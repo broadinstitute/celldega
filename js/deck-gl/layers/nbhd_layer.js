@@ -67,6 +67,12 @@ export const update_nbhd_layer_data = (viz_state, layers_obj) => {
   });
 };
 
+export const update_nbhd_layer_opacity = (layers_obj, opacity) => {
+  layers_obj.nbhd_layer = layers_obj.nbhd_layer.clone({
+    opacity,
+  });
+};
+
 const nbhd_layer_onclick = async (
   info,
   _event,

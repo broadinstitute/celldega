@@ -431,6 +431,9 @@ export const landscape_ist = async (
 
         toggle_slider(viz_state.sliders.cell, false);
         toggle_slider(viz_state.sliders.trx, false);
+        if (viz_state.nbhd.is_nbhd) {
+          toggle_slider(viz_state.sliders.nbhd, true);
+        }
       } else {
         new_toggle_cell_layer_visibility(viz_state.layers_obj, true);
 
@@ -443,6 +446,9 @@ export const landscape_ist = async (
 
         toggle_slider(viz_state.sliders.cell, true);
         toggle_slider(viz_state.sliders.trx, true);
+        if (viz_state.nbhd.is_nbhd) {
+          toggle_slider(viz_state.sliders.nbhd, false);
+        }
       }
     },
     { immediate: false }

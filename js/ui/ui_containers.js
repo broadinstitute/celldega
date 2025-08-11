@@ -1103,10 +1103,11 @@ export const make_ist_ui_container = (
       layers_obj,
       viz_state,
       nbhd_ctrl_container,
-      'NBHD',
+      'EDIT',
       40,
       nbhd_edit_callback
     );
+
     make_edit_button(
       deck_ist,
       layers_obj,
@@ -1116,6 +1117,12 @@ export const make_ist_ui_container = (
       40,
       sketch_callback
     );
+
+    // hide edit button if not in viz_state.nbhd.edit
+    if (!viz_state.nbhd.edit) {
+      d3.select(viz_state.edit.buttons.edit).style('display', 'none');
+    }
+
     d3.select(viz_state.edit.buttons.sktch).style('display', 'none');
 
     make_edit_button(

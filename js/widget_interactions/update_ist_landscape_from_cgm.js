@@ -1,6 +1,6 @@
 import { update_cat, update_selected_cats } from '../global_variables/cat';
 import { update_cell_exp_array } from '../global_variables/cell_exp_array';
-import { update_selected_genes } from '../global_variables/selected_genes';
+import { update_selected_genes, sync_selected_genes} from '../global_variables/selected_genes';
 import { handleAsyncError } from '../temp_utils/errorHandler';
 import { refresh_layer } from '../utils/refresh_layer';
 
@@ -66,6 +66,8 @@ export const update_ist_landscape_from_cgm = async (
           viz_state.vector_name_integer,
           viz_state.aws
         );
+        refresh_layer(viz_state, layers_obj, 'cell_layer');
+        refresh_layer(viz_state, layers_obj, 'trx_layer');
       }
     } else if (click_type === 'col_label') {
       if (click_info.value.entity === 'nbhd') {
@@ -147,6 +149,41 @@ export const update_ist_landscape_from_cgm = async (
         update_selected_genes(viz_state.genes, [], viz_state.obs_store);
 
         refresh_layer(viz_state, layers_obj, 'cell_layer');
+      } else {
+        update_selected_genes(
+          viz_state.genes,
+          new_cats,
+          viz_state.obs_store
+        );
+
+        sync_selected_genes(viz_state, viz_state.genes.selected_genes);
+
+        if (new_cats.length === 1) {
+          inst_gene = new_cats[0];
+          new_cat = inst_gene === viz_state.cats.cat ? 'cluster' : inst_gene;
+
+          update_cat(viz_state.cats, new_cat);
+          update_selected_cats(
+            viz_state.cats,
+            new_cat === 'cluster' ? [] : [inst_gene],
+            viz_state.obs_store
+          );
+
+          await update_cell_exp_array(
+            viz_state.cats,
+            viz_state.genes,
+            viz_state.global_base_url,
+            inst_gene,
+            viz_state.seg.version,
+            viz_state.vector_name_integer,
+            viz_state.aws
+          );
+        } else {
+          update_cat(viz_state.cats, 'cluster');
+          update_selected_cats(viz_state.cats, [], viz_state.obs_store);
+        }
+        refresh_layer(viz_state, layers_obj, 'cell_layer');
+        refresh_layer(viz_state, layers_obj, 'trx_layer');
       }
     }
   } catch (error) {

@@ -46,7 +46,11 @@ export const update_ist_landscape_from_cgm = async (
         new_cat = inst_gene === viz_state.cats.cat ? 'cluster' : inst_gene;
 
         update_cat(viz_state.cats, new_cat);
-        update_selected_genes(viz_state.genes, [inst_gene], viz_state.obs_store);
+        update_selected_genes(
+          viz_state.genes,
+          [inst_gene],
+          viz_state.obs_store
+        );
         update_selected_cats(
           viz_state.cats,
           new_cat === 'cluster' ? [] : [inst_gene],
@@ -90,9 +94,7 @@ export const update_ist_landscape_from_cgm = async (
               inline: 'nearest',
             });
         } else {
-          viz_state.nbhd.svg_bar_nbhd
-            .selectAll('rect')
-            .style('opacity', 1.0);
+          viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', 1.0);
         }
       } else {
         inst_gene = 'cluster';
@@ -128,9 +130,7 @@ export const update_ist_landscape_from_cgm = async (
               inline: 'nearest',
             });
         } else {
-          viz_state.nbhd.svg_bar_nbhd
-            .selectAll('rect')
-            .style('opacity', 1.0);
+          viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', 1.0);
         }
       } else {
         update_cat(viz_state.cats, 'cluster');

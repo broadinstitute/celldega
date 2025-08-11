@@ -8,12 +8,7 @@ from .local_server import get_local_server
 from .widget import Clustergram, Enrich, Landscape
 
 
-def landscape_clustergram(
-    landscape,
-    mat,
-    width="600px",
-    height="700px"
-):
+def landscape_clustergram(landscape, mat, width="600px", height="700px"):
     """
     Display a `Landscape` widget and a `Clustergram` widget side by side.
 

@@ -58,6 +58,7 @@ import { set_row_label_data, set_col_label_data } from '../matrix/label_data';
 import { set_mat_data } from '../matrix/mat_data';
 import { set_mat_constants } from '../matrix/set_constants';
 import { make_matrix_ui_container } from '../ui/ui_containers';
+import { add_enrich_to_clustergram } from '../ui/enrich_clustergram';
 
 export const matrix_viz = async (
   model,
@@ -148,6 +149,8 @@ export const matrix_viz = async (
 
   el.appendChild(ui_container);
   el.appendChild(viz_state.root);
+  const enrich_container = add_enrich_to_clustergram(viz_state);
+  el.appendChild(enrich_container);
 
   if (viz_state.model) {
     viz_state.model.on('change:selected_genes', () => {

@@ -29,7 +29,12 @@ export const bar_callback_cat = (
   if (_viz_state.nbhd.is_nbhd) {
     _viz_state.obs_store.viz_nbhd_layer.set(false);
     _viz_state.obs_store.viz_edit_layer.set(false);
-    _viz_state.buttons.buttons.nbhd.style('color', 'gray');
+    // wrap in try
+    try {
+      _viz_state.buttons.buttons.nbhd.style('color', 'gray');
+    } catch (error) {
+      console.error('Error updating button color:', error);
+    }
   }
 
   // add cell_layer, path_layer, and trx_layer to the deck_check observable
@@ -70,7 +75,12 @@ export const bar_callback_gene = async (
   if (_viz_state.nbhd.is_nbhd) {
     _viz_state.obs_store.viz_nbhd_layer.set(false);
     _viz_state.obs_store.viz_edit_layer.set(false);
-    _viz_state.buttons.buttons.nbhd.style('color', 'gray');
+    // wrap in try
+    try {
+      _viz_state.buttons.buttons.nbhd.style('color', 'gray');
+    } catch (error) {
+      console.error('Error updating button color:', error);
+    }
   }
 
   const inst_gene = d.name;

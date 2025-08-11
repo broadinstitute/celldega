@@ -1146,22 +1146,6 @@ export const make_ist_ui_container = (
         refresh_layer(viz_state, layers_obj, 'edit_layer');
       };
 
-      // viz_state.sliders.nbhd_opacity = make_slider();
-      // ini_slider_params(
-      //   viz_state.sliders.nbhd_opacity,
-      //   viz_state.edit.rgn_opacity * 100,
-      //   opacity_callback
-      // );
-
-      // nbhd_opacity_container.appendChild(viz_state.sliders.nbhd_opacity);
-      // nbhd_ctrl_container.appendChild(nbhd_opacity_container);
-
-      // viz_state.containers.nbhd_opacity_slider = nbhd_opacity_container;
-      // // start hidden until edit layer is visible
-      // d3.select(viz_state.containers.nbhd_opacity_slider).style(
-      //   'display',
-      //   'none'
-      // );
     }
   }
 

@@ -304,9 +304,7 @@ class Landscape(anywidget.AnyWidget):
             a, b, tx = self._inv_transform[0]
             c, d, ty = self._inv_transform[1]
             coeffs = [a, b, c, d, tx, ty]
-            gdf["geometry"] = gdf.geometry.apply(
-                lambda geom: affine_transform(geom, coeffs)
-            )
+            gdf["geometry"] = gdf.geometry.apply(lambda geom: affine_transform(geom, coeffs))
         except Exception:
             pass
 

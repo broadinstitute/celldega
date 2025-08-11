@@ -462,33 +462,17 @@ export const landscape_ist = async (
 
   viz_state.obs_store.selected_cats.subscribe((selected_cats) => {
     const selected_cats_name = selected_cats.join('-');
-    const entity = viz_state.model?.get('entity') || 'CELL';
-    if (entity === 'NBHD') {
-
-      layers_obj.nbhd_layer = layers_obj.nbhd_layer.clone({
-        id: `nbhd-layer-${selected_cats_name}`,
-      });
-
-      viz_state.obs_store.deck_check.set({
-        ...viz_state.obs_store.deck_check.get(),
-        nbhd_layer: true,
-      });
-
-    } else {
-      layers_obj.cell_layer = layers_obj.cell_layer.clone({
+    layers_obj.cell_layer = layers_obj.cell_layer.clone({
         id: `cell-layer-${selected_cats_name}`,
       });
-
     layers_obj.path_layer = layers_obj.path_layer.clone({
         id: `path-layer-${selected_cats_name}`,
       });
-
-      viz_state.obs_store.deck_check.set({
-        ...viz_state.obs_store.deck_check.get(),
-        path_layer: true,
-        cell_layer: true,
-      });
-    }
+    viz_state.obs_store.deck_check.set({
+      ...viz_state.obs_store.deck_check.get(),
+      path_layer: true,
+      cell_layer: true,
+    });
   });
 
   viz_state.obs_store.selected_genes.subscribe((selected_genes) => {

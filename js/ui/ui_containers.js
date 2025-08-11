@@ -953,48 +953,44 @@ export const make_ist_ui_container = (
 
   // };
 
-  // const delete_polygon_index = (featureCollection, index) => {
-  //   if (index >= 0 && index < featureCollection.features.length) {
-  //     featureCollection.features.splice(index, 1); // Remove the feature at the given index
-  //     //   console.log(`Feature at index ${index} deleted.`);
-  //   } else {
-  //     //   console.warn(`Invalid index: ${index}. No feature deleted.`);
-  //   }
+  const delete_polygon_index = (featureCollection, index) => {
+    if (index >= 0 && index < featureCollection.features.length) {
+      featureCollection.features.splice(index, 1);
+    }
+    return featureCollection;
+  };
 
-  //   return featureCollection; // Return the updated FeatureCollection
-  // };
+  const del_callback = (event, _deck_ist, _layers_obj, _viz_state) => {
+    _viz_state.edit.feature_collection = delete_polygon_index(
+      _viz_state.edit.feature_collection,
+      _viz_state.edit.modify_index
+    );
 
-  // const del_callback = (event, _deck_ist, _layers_obj, _viz_state) => {
-  //   _viz_state.edit.feature_collection = delete_polygon_index(
-  //     _viz_state.edit.feature_collection,
-  //     _viz_state.edit.modify_index
-  //   );
+    _viz_state.edit.modify_index = null;
 
-  //   // switch to view mode
-  //   _layers_obj.edit_layer = _layers_obj.edit_layer.clone({
-  //     id: 'edit-layer-delete',
-  //     data: _viz_state.edit.feature_collection,
-  //     mode: ViewMode,
-  //     selectedFeatureIndexes: [],
-  //   });
+    // switch to view mode
+    _layers_obj.edit_layer = _layers_obj.edit_layer.clone({
+      id: 'edit-layer-delete',
+      data: _viz_state.edit.feature_collection,
+      mode: ViewMode,
+      selectedFeatureIndexes: [],
+    });
 
-  //   const layers_list = get_layers_list(_layers_obj, _viz_state.close_up);
-  //   _deck_ist.setProps({ layers: layers_list });
+    const layers_list = get_layers_list(_layers_obj, _viz_state.close_up);
+    _deck_ist.setProps({ layers: layers_list });
 
-  //   // hide the DEL button
-  //   d3.select(_viz_state.edit.buttons.del)
-  //     .classed('active', false)
-  //     .style('display', 'none');
+    // hide the DEL button
+    d3.select(_viz_state.edit.buttons.del)
+      .classed('active', false)
+      .style('display', 'none');
 
-  //   // hide the RGN and SKTCH buttons
-  //   d3.select(_viz_state.edit.buttons.rgn).style('display', 'inline-flex');
+    // show the NBHD and SKTCH buttons again
+    d3.select(_viz_state.edit.buttons.nbhd).style('display', 'inline-flex');
+    d3.select(_viz_state.edit.buttons.sktch).style('display', 'inline-flex');
 
-  //   d3.select(_viz_state.edit.buttons.sktch).style('display', 'inline-flex');
-
-  //   calc_and_update_rgn_bar_graph(_viz_state);
-
-  //   sync_region_to_model(_viz_state);
-  // };
+    calc_and_update_rgn_bar_graph(_viz_state, _deck_ist, _layers_obj);
+    sync_region_to_model(_viz_state);
+  };
 
   // const bar_callback_nbhd = (_info) => {
   //   // console.log('clicking nbhd bar', _info)
@@ -1101,8 +1097,6 @@ export const make_ist_ui_container = (
       _deck_ist.setProps({ layers: layers_list });
     };
 
-    const noop = () => {};
-
     make_edit_button(
       deck_ist,
       layers_obj,
@@ -1130,7 +1124,7 @@ export const make_ist_ui_container = (
       nbhd_ctrl_container,
       'DEL',
       30,
-      noop
+      del_callback
     );
 
     d3.select(viz_state.edit.buttons.del)

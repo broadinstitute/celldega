@@ -14,6 +14,7 @@ import { get_layers_list } from '../utils/layers_ist';
 import { update_cell_pickable_state } from './cell_layer';
 import { update_path_pickable_state } from './path_layer';
 import { update_trx_pickable_state } from './trx_layer';
+import { make_bar_graph, bar_callback_nbhd } from '../../ui/bar_plot';
 
 // Forward declaration for function used before definition
 function update_edit_layer_mode(layers_obj, mode) {
@@ -36,7 +37,8 @@ const calc_region_areas = (featureCollection) => {
       feature.properties = {
         ...feature.properties,
         area, // Store the calculated area
-        name: feature.properties.name || `Feature ${index + 1}`, // Default name if not set
+        name: (index + 1).toString(),
+        cat: (index + 1).toString(),
         color:
           feature.properties.color || [
             Math.random() * 255,
@@ -58,14 +60,21 @@ const calc_region_areas = (featureCollection) => {
 
 export const sync_region_to_model = (viz_state) => {
   if (Object.keys(viz_state.model).length > 0) {
-    viz_state.model.set('region', {});
-    viz_state.model.set('region', viz_state.edit.feature_collection);
+    if (viz_state.nbhd?.edit) {
+      viz_state.model.set('nbhd_geojson', {});
+      viz_state.model.set('nbhd_geojson', viz_state.edit.feature_collection);
+    } else {
+      viz_state.model.set('region', {});
+      viz_state.model.set('region', viz_state.edit.feature_collection);
+    }
     viz_state.model.save_changes();
   }
 };
 
 export const calc_and_update_rgn_bar_graph = async (
-  viz_state
+  viz_state,
+  deck_ist,
+  layers_obj
 ) => {
   // Calculate areas
   viz_state.edit.feature_collection = calc_region_areas(
@@ -84,6 +93,26 @@ export const calc_and_update_rgn_bar_graph = async (
       acc[(index + 1).toString()] = feature.properties.color; // Use the "color" property
       return acc;
     }, {});
+  if (viz_state.nbhd?.edit) {
+    viz_state.nbhd.bar_data = viz_state.edit.rgn_areas;
+    viz_state.nbhd.color_dict = viz_state.edit.color_dict_rgn;
+    viz_state.nbhd.feature_collection = viz_state.edit.feature_collection;
+
+    if (viz_state.containers?.bar_nbhd) {
+      viz_state.nbhd.svg_bar_nbhd.selectAll('*').remove();
+      make_bar_graph(
+        viz_state.containers.bar_nbhd,
+        bar_callback_nbhd,
+        viz_state.nbhd.svg_bar_nbhd,
+        viz_state.nbhd.bar_data,
+        viz_state.nbhd.color_dict,
+        deck_ist,
+        layers_obj,
+        viz_state
+      );
+      viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', 0.2);
+    }
+  }
 };
 
 const edit_layer_on_edit = async (
@@ -114,14 +143,14 @@ const edit_layer_on_edit = async (
     update_path_pickable_state(layers_obj, true);
     update_trx_pickable_state(layers_obj, true);
 
-    await calc_and_update_rgn_bar_graph(viz_state);
+    await calc_and_update_rgn_bar_graph(viz_state, deck_ist, layers_obj);
 
     sync_region_to_model(viz_state);
   }
 
   const layers_list = get_layers_list(layers_obj, viz_state.close_up);
   deck_ist.setProps({ layers: layers_list });
-  await calc_and_update_rgn_bar_graph(viz_state);
+  await calc_and_update_rgn_bar_graph(viz_state, deck_ist, layers_obj);
   sync_region_to_model(viz_state);
 };
 

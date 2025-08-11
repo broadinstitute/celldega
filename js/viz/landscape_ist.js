@@ -414,7 +414,6 @@ export const landscape_ist = async (
     edit_layer,
   };
 
-
   viz_state.layers_obj = layers_obj;
 
   viz_state.obs_store.deck_check.set({
@@ -494,26 +493,24 @@ export const landscape_ist = async (
         toggle_trx_layer_visibility(layers_obj, false);
         viz_state.buttons.buttons.trx.style('color', 'gray');
         d3.select(viz_state.edit.buttons.nbhd).style('color', 'blue');
-        d3
-          .select(viz_state.edit.buttons.sktch)
+        d3.select(viz_state.edit.buttons.sktch)
           .style('display', 'inline-flex')
           .style('color', 'gray')
           .classed('active', false);
         if (viz_state.nbhd.edit && viz_state.containers.nbhd_opacity_slider) {
-          d3
-            .select(viz_state.containers.nbhd_opacity_slider)
-            .style('display', 'inline-flex');
+          d3.select(viz_state.containers.nbhd_opacity_slider).style(
+            'display',
+            'inline-flex'
+          );
           toggle_slider(viz_state.sliders.nbhd_opacity, true);
         }
       } else {
         toggle_trx_layer_visibility(layers_obj, true);
         viz_state.buttons.buttons.trx.style('color', 'blue');
-        d3
-          .select(viz_state.edit.buttons.nbhd)
+        d3.select(viz_state.edit.buttons.nbhd)
           .style('color', 'gray')
           .classed('active', false);
-        d3
-          .select(viz_state.edit.buttons.sktch)
+        d3.select(viz_state.edit.buttons.sktch)
           .style('display', 'none')
           .style('color', 'gray')
           .classed('active', false);
@@ -522,9 +519,10 @@ export const landscape_ist = async (
         update_path_pickable_state(layers_obj, true);
         update_trx_pickable_state(layers_obj, true);
         if (viz_state.nbhd.edit && viz_state.containers.nbhd_opacity_slider) {
-          d3
-            .select(viz_state.containers.nbhd_opacity_slider)
-            .style('display', 'none');
+          d3.select(viz_state.containers.nbhd_opacity_slider).style(
+            'display',
+            'none'
+          );
           toggle_slider(viz_state.sliders.nbhd_opacity, false);
         }
       }

@@ -130,16 +130,20 @@ export const bar_callback_nbhd = (
     _viz_state.buttons.buttons.nbhd.style('color', 'blue');
 
     const prev_selected_nbhds = _viz_state.obs_store.selected_nbhds.get();
-    if (prev_selected_nbhds[0] === _d.name && prev_selected_nbhds.length === 1) {
+    if (
+      prev_selected_nbhds[0] === _d.name &&
+      prev_selected_nbhds.length === 1
+    ) {
       _viz_state.obs_store.selected_nbhds.set([]);
       _layers_obj.edit_layer = _layers_obj.edit_layer.clone({
         selectedFeatureIndexes: [],
       });
     } else {
       _viz_state.obs_store.selected_nbhds.set([_d.name]);
-      const featureIndex = _viz_state.nbhd.feature_collection.features.findIndex(
-        (f) => f.properties.name === _d.name
-      );
+      const featureIndex =
+        _viz_state.nbhd.feature_collection.features.findIndex(
+          (f) => f.properties.name === _d.name
+        );
       _layers_obj.edit_layer = _layers_obj.edit_layer.clone({
         selectedFeatureIndexes: [featureIndex],
       });
@@ -165,7 +169,10 @@ export const bar_callback_nbhd = (
     _viz_state.buttons.buttons.nbhd.style('color', 'blue');
 
     const prev_selected_nbhds = _viz_state.obs_store.selected_nbhds.get();
-    if (prev_selected_nbhds[0] === _d.name && prev_selected_nbhds.length === 1) {
+    if (
+      prev_selected_nbhds[0] === _d.name &&
+      prev_selected_nbhds.length === 1
+    ) {
       _viz_state.obs_store.selected_nbhds.set([]);
     } else {
       _viz_state.obs_store.selected_nbhds.set([_d.name]);

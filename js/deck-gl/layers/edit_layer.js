@@ -39,12 +39,11 @@ const calc_region_areas = (featureCollection) => {
         area, // Store the calculated area
         name: (index + 1).toString(),
         cat: (index + 1).toString(),
-        color:
-          feature.properties.color || [
-            Math.random() * 255,
-            Math.random() * 255,
-            Math.random() * 255,
-          ], // Default color if not set
+        color: feature.properties.color || [
+          Math.random() * 255,
+          Math.random() * 255,
+          Math.random() * 255,
+        ], // Default color if not set
       };
     } else {
       handleValidationWarning(`Feature ${index} is not a Polygon.`, {
@@ -264,4 +263,3 @@ export const update_edit_layer_opacity = (layers_obj, opacity) => {
     opacity,
   });
 };
-

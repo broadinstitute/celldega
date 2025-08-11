@@ -1152,7 +1152,6 @@ export const make_ist_ui_container = (
         update_edit_layer_opacity(layers_obj, opacity);
         refresh_layer(viz_state, layers_obj, 'edit_layer');
       };
-
     }
   }
 

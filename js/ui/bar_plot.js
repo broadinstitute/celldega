@@ -32,9 +32,7 @@ export const bar_callback_cat = (
     // wrap in try
     try {
       _viz_state.buttons.buttons.nbhd.style('color', 'gray');
-    } catch (error) {
-      console.error('Error updating button color:', error);
-    }
+    } catch (error) {}
   }
 
   // add cell_layer, path_layer, and trx_layer to the deck_check observable
@@ -78,9 +76,7 @@ export const bar_callback_gene = async (
     // wrap in try
     try {
       _viz_state.buttons.buttons.nbhd.style('color', 'gray');
-    } catch (error) {
-      console.error('Error updating button color:', error);
-    }
+    } catch (error) {}
   }
 
   const inst_gene = d.name;

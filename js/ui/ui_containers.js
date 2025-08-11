@@ -5,7 +5,6 @@ import { toggle_background_layer_visibility } from '../deck-gl/layers/background
 import { update_cell_pickable_state } from '../deck-gl/layers/cell_layer';
 import {
   update_edit_layer_mode,
-  update_edit_visitility,
   calc_and_update_rgn_bar_graph,
   sync_region_to_model,
   update_edit_layer_opacity,
@@ -13,10 +12,7 @@ import {
 import { toggle_visibility_image_layers } from '../deck-gl/layers/image_layers';
 import { toggle_nbhd_layer_visibility } from '../deck-gl/layers/nbhd_layer';
 import { update_path_pickable_state } from '../deck-gl/layers/path_layer';
-import {
-  toggle_trx_layer_visibility,
-  update_trx_pickable_state,
-} from '../deck-gl/layers/trx_layer';
+import { update_trx_pickable_state } from '../deck-gl/layers/trx_layer';
 import { update_dendro_layer_data } from '../deck-gl/matrix/dendro_layers';
 import { get_mat_layers_list } from '../deck-gl/matrix/matrix_layers';
 import { get_layers_list } from '../deck-gl/utils/layers_ist';
@@ -1140,19 +1136,6 @@ export const make_ist_ui_container = (
       .style('display', 'none');
 
     viz_state.buttons.buttons.nbhd = viz_state.edit.buttons.nbhd;
-
-    if (viz_state.nbhd.edit) {
-      const nbhd_opacity_container = make_slider_container(
-        'nbhd_opacity_container'
-      );
-
-      const opacity_callback = () => {
-        const opacity = viz_state.sliders.nbhd_opacity.value / 100;
-        viz_state.edit.rgn_opacity = opacity;
-        update_edit_layer_opacity(layers_obj, opacity);
-        refresh_layer(viz_state, layers_obj, 'edit_layer');
-      };
-    }
   }
 
   if (viz_state.nbhd.is_nbhd) {

@@ -310,8 +310,9 @@ class Landscape(anywidget.AnyWidget):
             gdf["geometry"] = gdf.geometry.apply(
                 lambda geom: affine_transform(geom, coeffs)
             )
-        except Exception:
-            pass
+        except Exception as e:
+            import traceback
+            warnings.warn(f"Failed to transform neighborhood geometry: {e}\n{traceback.format_exc()}")
 
         self.nbhd = gdf
 

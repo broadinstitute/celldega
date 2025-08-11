@@ -190,7 +190,17 @@ export const update_ist_landscape_from_cgm = async (
         update_selected_cats(viz_state.cats, new_cats, viz_state.obs_store);
         update_selected_genes(viz_state.genes, [], viz_state.obs_store);
 
+        new_toggle_cell_layer_visibility(layers_obj, true);
+        toggle_nbhd_layer_visibility(layers_obj, false);
+        toggle_trx_layer_visibility(layers_obj, false);
+
+        toggle_slider(viz_state.sliders.cell, true);
+        viz_state.buttons.buttons.nbhd.style('color', 'gray');
+        viz_state.buttons.buttons.cell.style('color', 'blue');
+
         refresh_layer(viz_state, layers_obj, 'cell_layer');
+        refresh_layer(viz_state, layers_obj, 'trx_layer');
+        refresh_layer(viz_state, layers_obj, 'nbhd_layer');
       } else {
         update_selected_genes(
           viz_state.genes,
@@ -224,6 +234,7 @@ export const update_ist_landscape_from_cgm = async (
           update_cat(viz_state.cats, 'cluster');
           update_selected_cats(viz_state.cats, [], viz_state.obs_store);
         }
+
         refresh_layer(viz_state, layers_obj, 'cell_layer');
         refresh_layer(viz_state, layers_obj, 'trx_layer');
       }

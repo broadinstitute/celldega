@@ -28,6 +28,7 @@ export const bar_callback_cat = (
 
   if (_viz_state.nbhd.is_nbhd) {
     _viz_state.obs_store.viz_nbhd_layer.set(false);
+    _viz_state.obs_store.viz_edit_layer.set(false);
     _viz_state.buttons.buttons.nbhd.style('color', 'gray');
   }
 
@@ -68,6 +69,7 @@ export const bar_callback_gene = async (
 
   if (_viz_state.nbhd.is_nbhd) {
     _viz_state.obs_store.viz_nbhd_layer.set(false);
+    _viz_state.obs_store.viz_edit_layer.set(false);
     _viz_state.buttons.buttons.nbhd.style('color', 'gray');
   }
 
@@ -114,6 +116,7 @@ export const bar_callback_nbhd = (
 ) => {
   // set nbhd to visible
   _viz_state.obs_store.viz_nbhd_layer.set(true);
+  _viz_state.obs_store.viz_edit_layer.set(false);
 
   // make sure nbhd button is active
   _viz_state.buttons.buttons.nbhd.style('color', 'blue');

@@ -1,24 +1,24 @@
-// import { DrawPolygonMode, ViewMode } from '@deck.gl-community/editable-layers';
+import { DrawPolygonMode, ViewMode } from '@deck.gl-community/editable-layers';
 import * as d3 from 'd3';
 
 import { toggle_background_layer_visibility } from '../deck-gl/layers/background_layer';
-// import { update_cell_pickable_state } from '../deck-gl/layers/cell_layer';
-// import _
-//   update_edit_layer_mode,
-//   update_edit_visitility,
-//   calc_and_update_rgn_bar_graph,
-//   sync_region_to_model,
-// } from '../deck-gl/layers/edit_layer';
+import { update_cell_pickable_state } from '../deck-gl/layers/cell_layer';
+import {
+  update_edit_layer_mode,
+  update_edit_visitility,
+  calc_and_update_rgn_bar_graph,
+  sync_region_to_model,
+} from '../deck-gl/layers/edit_layer';
 import { toggle_visibility_image_layers } from '../deck-gl/layers/image_layers';
 import { toggle_nbhd_layer_visibility } from '../deck-gl/layers/nbhd_layer';
-// import { update_path_pickable_state } from '../deck-gl/layers/path_layer';
-// import {
-//   toggle_trx_layer_visibility,
-//   update_trx_pickable_state,
-// } from '../deck-gl/layers/trx_layer';
+import { update_path_pickable_state } from '../deck-gl/layers/path_layer';
+import {
+  toggle_trx_layer_visibility,
+  update_trx_pickable_state,
+} from '../deck-gl/layers/trx_layer';
 import { update_dendro_layer_data } from '../deck-gl/matrix/dendro_layers';
 import { get_mat_layers_list } from '../deck-gl/matrix/matrix_layers';
-// import { get_layers_list } from '../deck-gl/utils/layers_ist';
+import { get_layers_list } from '../deck-gl/utils/layers_ist';
 import {
   uniprot_data,
   uniprot_get_request,
@@ -553,7 +553,7 @@ export const make_ist_ui_container = (
     viz_state
   );
 
-  if (viz_state.nbhd.is_nbhd) {
+  if (viz_state.nbhd.is_nbhd && !viz_state.nbhd.edit) {
     make_button(
       nbhd_ctrl_container,
       'ist',
@@ -1068,6 +1068,39 @@ export const make_ist_ui_container = (
     viz_state.edit.buttons = {};
     viz_state.edit.mode = 'view';
 
+    const nbhd_edit_callback = (_event, _deck_ist, _layers_obj, _viz_state) => {
+      const visible = _viz_state.obs_store.viz_edit_layer.get();
+      _viz_state.obs_store.viz_edit_layer.set(!visible);
+    };
+
+    const sketch_callback = (event, _deck_ist, _layers_obj, _viz_state) => {
+      const current = d3.select(event.currentTarget);
+      const is_active = current.classed('active');
+
+      if (is_active === false) {
+        current.classed('active', true).style('color', 'blue');
+
+        _viz_state.edit.mode = 'sktch';
+
+        update_edit_layer_mode(_layers_obj, DrawPolygonMode);
+        update_cell_pickable_state(_layers_obj, false);
+        update_path_pickable_state(_layers_obj, false);
+        update_trx_pickable_state(_layers_obj, false);
+      } else {
+        _viz_state.edit.mode = 'view';
+
+        current.classed('active', false).style('color', 'gray');
+
+        update_edit_layer_mode(_layers_obj, ViewMode);
+        update_cell_pickable_state(_layers_obj, true);
+        update_path_pickable_state(_layers_obj, true);
+        update_trx_pickable_state(_layers_obj, true);
+      }
+
+      const layers_list = get_layers_list(_layers_obj, _viz_state.close_up);
+      _deck_ist.setProps({ layers: layers_list });
+    };
+
     const noop = () => {};
 
     make_edit_button(
@@ -1077,7 +1110,7 @@ export const make_ist_ui_container = (
       nbhd_ctrl_container,
       'NBHD',
       40,
-      noop
+      nbhd_edit_callback
     );
     make_edit_button(
       deck_ist,
@@ -1086,7 +1119,7 @@ export const make_ist_ui_container = (
       nbhd_ctrl_container,
       'SKTCH',
       40,
-      noop
+      sketch_callback
     );
     d3.select(viz_state.edit.buttons.sktch).style('display', 'none');
 
@@ -1099,6 +1132,12 @@ export const make_ist_ui_container = (
       30,
       noop
     );
+
+    d3.select(viz_state.edit.buttons.del)
+      .style('color', 'red')
+      .style('display', 'none');
+
+    viz_state.buttons.buttons.nbhd = viz_state.edit.buttons.nbhd;
   }
 
   // const alph_slider_container = make_slider_container('alph_slider_container');

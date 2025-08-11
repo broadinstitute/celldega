@@ -16,27 +16,34 @@ import {
   new_toggle_cell_layer_visibility,
   set_cell_layer_onclick,
   toggle_spatial_umap,
+  update_cell_pickable_state,
 } from '../deck-gl/layers/cell_layer';
-// import {
-//   ini_edit_layer,
-//   set_edit_layer_on_click,
-//   set_edit_layer_on_edit,
-// } from '../deck-gl/layers/edit_layer';
+import {
+  ini_edit_layer,
+  set_edit_layer_on_click,
+  set_edit_layer_on_edit,
+  update_edit_visitility,
+  update_edit_layer_mode,
+} from '../deck-gl/layers/edit_layer';
+import { ViewMode } from '@deck.gl-community/editable-layers';
 import { make_image_layers } from '../deck-gl/layers/image_layers';
 import {
   ini_nbhd_layer,
   set_nbhd_layer_onclick,
+  toggle_nbhd_layer_visibility,
 } from '../deck-gl/layers/nbhd_layer';
 import {
   ini_path_layer,
   set_path_layer_onclick,
   toggle_path_layer_visibility,
+  update_path_pickable_state,
 } from '../deck-gl/layers/path_layer';
 import {
   ini_trx_layer,
   set_trx_layer_onclick,
   update_trx_layer_radius,
   toggle_trx_layer_visibility,
+  update_trx_pickable_state,
 } from '../deck-gl/layers/trx_layer';
 import { get_layers_list } from '../deck-gl/utils/layers_ist';
 import { ini_cache } from '../global_variables/cache';
@@ -55,6 +62,7 @@ import { set_cluster_metadata } from '../global_variables/meta_cluster';
 import { set_meta_gene } from '../global_variables/meta_gene';
 import { update_selected_genes } from '../global_variables/selected_genes';
 import { colorToRgba } from '../matrix/cat_data';
+import { refresh_layer } from '../utils/refresh_layer';
 import { create_obs_store } from '../obs_store/obs_store';
 import { toggle_slider, set_image_layer_sliders } from '../ui/sliders';
 import { get_img_layer_visible } from '../ui/text_buttons';
@@ -368,7 +376,7 @@ export const landscape_ist = async (
   const cell_layer = await ini_cell_layer(base_url, viz_state);
   const path_layer = await ini_path_layer(viz_state);
   const trx_layer = ini_trx_layer(viz_state.genes);
-  // const edit_layer = ini_edit_layer(viz_state);
+  const edit_layer = ini_edit_layer(viz_state);
   const nbhd_layer = ini_nbhd_layer(viz_state, true);
 
   // make layers object
@@ -379,17 +387,16 @@ export const landscape_ist = async (
     path_layer,
     trx_layer,
     nbhd_layer,
+    edit_layer,
   };
 
-  if (nbhd_edit) {
-    toggle_trx_layer_visibility(layers_obj, false);
-  }
 
   viz_state.layers_obj = layers_obj;
 
   viz_state.obs_store.deck_check.set({
     ...viz_state.obs_store.deck_check.get(),
     nbhd_layer: true,
+    edit_layer: true,
   });
 
   viz_state.obs_store.selected_nbhds.subscribe(
@@ -432,6 +439,9 @@ export const landscape_ist = async (
         toggle_slider(viz_state.sliders.cell, true);
         toggle_slider(viz_state.sliders.trx, true);
       }
+      if (visible) {
+        viz_state.obs_store.viz_edit_layer.set(false);
+      }
     },
     { immediate: false }
   );
@@ -440,8 +450,8 @@ export const landscape_ist = async (
   set_cell_layer_onclick(deck_ist, layers_obj, viz_state);
   set_path_layer_onclick(deck_ist, layers_obj, viz_state);
   set_trx_layer_onclick(deck_ist, layers_obj, viz_state);
-  // set_edit_layer_on_edit(deck_ist, layers_obj, viz_state);
-  // set_edit_layer_on_click(deck_ist, layers_obj, viz_state);
+  set_edit_layer_on_edit(deck_ist, layers_obj, viz_state);
+  set_edit_layer_on_click(deck_ist, layers_obj, viz_state);
   set_nbhd_layer_onclick(deck_ist, layers_obj, viz_state);
 
   viz_state.obs_store.deck_ready.subscribe((ready) => {
@@ -450,6 +460,42 @@ export const landscape_ist = async (
       deck_ist.setProps({ layers: list });
     }
   });
+
+  viz_state.obs_store.viz_edit_layer.subscribe(
+    (visible) => {
+      update_edit_visitility(layers_obj, visible);
+      if (visible) {
+        viz_state.obs_store.viz_nbhd_layer.set(false);
+        toggle_nbhd_layer_visibility(layers_obj, false);
+        toggle_trx_layer_visibility(layers_obj, false);
+        viz_state.buttons.buttons.trx.style('color', 'gray');
+        d3.select(viz_state.edit.buttons.nbhd).style('color', 'blue');
+        d3
+          .select(viz_state.edit.buttons.sktch)
+          .style('display', 'inline-flex')
+          .style('color', 'gray')
+          .classed('active', false);
+      } else {
+        toggle_trx_layer_visibility(layers_obj, true);
+        viz_state.buttons.buttons.trx.style('color', 'blue');
+        d3
+          .select(viz_state.edit.buttons.nbhd)
+          .style('color', 'gray')
+          .classed('active', false);
+        d3
+          .select(viz_state.edit.buttons.sktch)
+          .style('display', 'none')
+          .style('color', 'gray')
+          .classed('active', false);
+        update_edit_layer_mode(layers_obj, ViewMode);
+        update_cell_pickable_state(layers_obj, true);
+        update_path_pickable_state(layers_obj, true);
+        update_trx_pickable_state(layers_obj, true);
+      }
+      refresh_layer(viz_state, layers_obj, 'edit_layer');
+    },
+    { immediate: false }
+  );
 
   viz_state.obs_store.selected_cats.subscribe((selected_cats) => {
     const selected_cats_name = selected_cats.join('-');

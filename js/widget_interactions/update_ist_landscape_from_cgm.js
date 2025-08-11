@@ -86,7 +86,7 @@ export const update_ist_landscape_from_cgm = async (
             .node()
             ?.scrollIntoView({
               behavior: 'smooth',
-              block: 'center',
+              block: 'nearest',
               inline: 'nearest',
             });
         } else {
@@ -124,7 +124,7 @@ export const update_ist_landscape_from_cgm = async (
             .node()
             ?.scrollIntoView({
               behavior: 'smooth',
-              block: 'center',
+              block: 'nearest',
               inline: 'nearest',
             });
         } else {

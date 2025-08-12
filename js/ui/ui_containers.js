@@ -7,7 +7,6 @@ import {
   update_edit_layer_mode,
   calc_and_update_rgn_bar_graph,
   sync_region_to_model,
-  update_edit_layer_opacity,
 } from '../deck-gl/layers/edit_layer';
 import { toggle_visibility_image_layers } from '../deck-gl/layers/image_layers';
 import { toggle_nbhd_layer_visibility } from '../deck-gl/layers/nbhd_layer';

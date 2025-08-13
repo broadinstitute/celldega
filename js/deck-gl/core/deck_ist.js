@@ -55,11 +55,17 @@ export const set_initial_view_state = (
   ini_zoom,
   viz_state
 ) => {
-  const { center_x, center_y, ini_zoom: initial_zoom } = viz_state.spatial;
+  const {
+    center_x,
+    center_y,
+    center_z = 0,
+    ini_zoom: initial_zoom,
+  } = viz_state.spatial;
 
-  if (ini_x === 0 && ini_y === 0 && ini_zoom === 0) {
+  if (ini_x === 0 && ini_y === 0 && ini_z === 0 && ini_zoom === 0) {
     ini_x = center_x;
     ini_y = center_y;
+    ini_z = center_z;
     ini_zoom = initial_zoom;
   }
 

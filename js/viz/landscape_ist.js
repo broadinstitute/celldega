@@ -1,6 +1,7 @@
 import { ViewMode } from '@deck.gl-community/editable-layers';
 import { AwsClient } from 'aws4fetch';
 import * as d3 from 'd3';
+import { OrbitController } from 'deck.gl';
 
 import { calc_viewport } from '../deck-gl/core/calc_viewport';
 import {
@@ -398,6 +399,13 @@ export const landscape_ist = async (
   const background_layer = ini_background_layer(viz_state);
   const image_layers = await make_image_layers(viz_state);
   const cell_layer = await ini_cell_layer(base_url, viz_state);
+  if (viz_state.spatial.is3d) {
+    viz_state.views = set_views(true);
+    set_views_prop(deck_ist, viz_state.views);
+    deck_ist.setProps({
+      controller: { type: OrbitController, doubleClickZoom: false },
+    });
+  }
   const path_layer = await ini_path_layer(viz_state);
   const trx_layer = ini_trx_layer(viz_state.genes);
   const edit_layer = ini_edit_layer(viz_state);

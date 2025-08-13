@@ -1,5 +1,5 @@
 import * as d3 from 'd3';
-import { ScatterplotLayer } from 'deck.gl';
+import { PointCloudLayer, ScatterplotLayer } from 'deck.gl';
 
 import {
   set_cell_cats,
@@ -96,6 +96,9 @@ export const ini_cell_layer = async (base_url, viz_state) => {
   set_cell_names_array(viz_state.cats, cell_arrow_table);
 
   viz_state.spatial.cell_scatter_data = get_scatter_data(cell_arrow_table);
+  const positionSize =
+    viz_state.spatial.cell_scatter_data.attributes.getPosition.size;
+  viz_state.spatial.is3d = positionSize === 3;
 
   await set_color_dict_gene(
     viz_state.genes,
@@ -134,12 +137,25 @@ export const ini_cell_layer = async (base_url, viz_state) => {
     viz_state.spatial.cell_scatter_data.attributes.getPosition.value;
 
   // save cell positions and categories in one place for updating cluster bar plot
-  viz_state.combo_data.cell = new_cell_names_array.map((name, index) => ({
-    name,
-    cat: viz_state.cats.dict_cell_cats[name],
-    x: flatCoordinateArray[index * 2],
-    y: flatCoordinateArray[index * 2 + 1],
-  }));
+  viz_state.combo_data.cell = new_cell_names_array.map((name, index) => {
+    const base = {
+      name,
+      cat: viz_state.cats.dict_cell_cats[name],
+    };
+    if (positionSize === 3) {
+      return {
+        ...base,
+        x: flatCoordinateArray[index * 3],
+        y: flatCoordinateArray[index * 3 + 1],
+        z: flatCoordinateArray[index * 3 + 2],
+      };
+    }
+    return {
+      ...base,
+      x: flatCoordinateArray[index * 2],
+      y: flatCoordinateArray[index * 2 + 1],
+    };
+  });
 
   let cell_scatter_data_objects;
   if (viz_state.umap.has_umap) {
@@ -151,20 +167,32 @@ export const ini_cell_layer = async (base_url, viz_state) => {
         } else {
           coords = viz_state.umap.umap[cell_id];
         }
-
         return coords;
       })
     );
 
-    // convert to easier to use objects
-    const numRows = viz_state.spatial.cell_scatter_data.length; // Replace with arrow_table.numRows
-    cell_scatter_data_objects = Array.from({ length: numRows }, (_, i) => ({
-      position: [flatCoordinateArray[i * 2], flatCoordinateArray[i * 2 + 1]],
-      umap: [
+    const numRows = viz_state.spatial.cell_scatter_data.length;
+    cell_scatter_data_objects = Array.from({ length: numRows }, (_, i) => {
+      const pos =
+        positionSize === 3
+          ? [
+              flatCoordinateArray[i * 3],
+              flatCoordinateArray[i * 3 + 1],
+              flatCoordinateArray[i * 3 + 2],
+            ]
+          : [
+              flatCoordinateArray[i * 2],
+              flatCoordinateArray[i * 2 + 1],
+            ];
+      const umap = [
         flatCoordinateArray_umap[i * 2],
         flatCoordinateArray_umap[i * 2 + 1],
-      ],
-    }));
+      ];
+      if (positionSize === 3) {
+        umap.push(0);
+      }
+      return { position: pos, umap };
+    });
 
     viz_state.spatial.x_min = d3.min(
       cell_scatter_data_objects.map((d) => d.position[0])
@@ -178,15 +206,33 @@ export const ini_cell_layer = async (base_url, viz_state) => {
     viz_state.spatial.y_max = d3.max(
       cell_scatter_data_objects.map((d) => d.position[1])
     );
+    if (positionSize === 3) {
+      viz_state.spatial.z_min = d3.min(
+        cell_scatter_data_objects.map((d) => d.position[2])
+      );
+      viz_state.spatial.z_max = d3.max(
+        cell_scatter_data_objects.map((d) => d.position[2])
+      );
+    }
 
     cell_scatter_data_objects = scale_umap_data(
       viz_state,
       cell_scatter_data_objects
     );
   } else {
-    const numRows = viz_state.spatial.cell_scatter_data.length; // Replace with arrow_table.numRows
+    const numRows = viz_state.spatial.cell_scatter_data.length;
     cell_scatter_data_objects = Array.from({ length: numRows }, (_, i) => ({
-      position: [flatCoordinateArray[i * 2], flatCoordinateArray[i * 2 + 1]],
+      position:
+        positionSize === 3
+          ? [
+              flatCoordinateArray[i * 3],
+              flatCoordinateArray[i * 3 + 1],
+              flatCoordinateArray[i * 3 + 2],
+            ]
+          : [
+              flatCoordinateArray[i * 2],
+              flatCoordinateArray[i * 2 + 1],
+            ],
     }));
 
     viz_state.spatial.x_min = d3.min(
@@ -201,17 +247,33 @@ export const ini_cell_layer = async (base_url, viz_state) => {
     viz_state.spatial.y_max = d3.max(
       cell_scatter_data_objects.map((d) => d.position[1])
     );
+    if (positionSize === 3) {
+      viz_state.spatial.z_min = d3.min(
+        cell_scatter_data_objects.map((d) => d.position[2])
+      );
+      viz_state.spatial.z_max = d3.max(
+        cell_scatter_data_objects.map((d) => d.position[2])
+      );
+    }
   }
 
   viz_state.spatial.center_x =
     (viz_state.spatial.x_max + viz_state.spatial.x_min) / 2;
   viz_state.spatial.center_y =
     (viz_state.spatial.y_max + viz_state.spatial.y_min) / 2;
+  if (positionSize === 3) {
+    viz_state.spatial.center_z =
+      (viz_state.spatial.z_max + viz_state.spatial.z_min) / 2;
+  }
 
   viz_state.spatial.data_width =
     viz_state.spatial.x_max - viz_state.spatial.x_min;
   viz_state.spatial.data_height =
     viz_state.spatial.y_max - viz_state.spatial.y_min;
+  if (positionSize === 3) {
+    viz_state.spatial.data_depth =
+      viz_state.spatial.z_max - viz_state.spatial.z_min;
+  }
 
   // get the width of viz_state.root
   const _root_width = viz_state.root.clientWidth;
@@ -232,10 +294,12 @@ export const ini_cell_layer = async (base_url, viz_state) => {
     viz_state.spatial.ini_zoom = Math.log2(viz_state.spatial.scale) * 1.01;
     viz_state.spatial.ini_x = viz_state.spatial.center_x;
     viz_state.spatial.ini_y = viz_state.spatial.center_y;
+    viz_state.spatial.ini_z = positionSize === 3 ? viz_state.spatial.center_z : 0;
   } else {
     viz_state.spatial.ini_zoom = Math.log2(canvas_width / 5000) * 0.95;
     viz_state.spatial.ini_x = 5000;
     viz_state.spatial.ini_y = 5000;
+    viz_state.spatial.ini_z = 0;
   }
 
   viz_state.spatial.cell_scatter_data_objects = cell_scatter_data_objects;
@@ -247,20 +311,35 @@ export const ini_cell_layer = async (base_url, viz_state) => {
     },
   };
 
-  const cell_layer = new ScatterplotLayer({
-    id: 'cell-layer',
-    radiusMinPixels: 1,
-    getRadius: 5.0,
-    pickable: true,
-    getFillColor: (i, d) => get_cell_color(viz_state.cats, i, d),
-    data: viz_state.spatial.cell_scatter_data_objects,
-    transitions,
-    getPosition: (d) =>
-      viz_state.obs_store.umap_state.get() ? d.umap : d.position,
-    updateTriggers: {
-      getPosition: [viz_state.obs_store.umap_state.get()],
-    },
-  });
+  const cell_layer =
+    positionSize === 3
+      ? new PointCloudLayer({
+          id: 'cell-layer',
+          pointSize: 1,
+          pickable: true,
+          getColor: (i, d) => get_cell_color(viz_state.cats, i, d),
+          data: viz_state.spatial.cell_scatter_data_objects,
+          transitions,
+          getPosition: (d) =>
+            viz_state.obs_store.umap_state.get() ? d.umap : d.position,
+          updateTriggers: {
+            getPosition: [viz_state.obs_store.umap_state.get()],
+          },
+        })
+      : new ScatterplotLayer({
+          id: 'cell-layer',
+          radiusMinPixels: 1,
+          getRadius: 5.0,
+          pickable: true,
+          getFillColor: (i, d) => get_cell_color(viz_state.cats, i, d),
+          data: viz_state.spatial.cell_scatter_data_objects,
+          transitions,
+          getPosition: (d) =>
+            viz_state.obs_store.umap_state.get() ? d.umap : d.position,
+          updateTriggers: {
+            getPosition: [viz_state.obs_store.umap_state.get()],
+          },
+        });
 
   return cell_layer;
 };
@@ -279,9 +358,15 @@ export const new_toggle_cell_layer_visibility = (layers_obj, visible) => {
 };
 
 export const update_cell_layer_radius = (layers_obj, radius) => {
-  layers_obj.cell_layer = layers_obj.cell_layer.clone({
-    getRadius: radius,
-  });
+  if (layers_obj.cell_layer instanceof PointCloudLayer) {
+    layers_obj.cell_layer = layers_obj.cell_layer.clone({
+      pointSize: radius,
+    });
+  } else {
+    layers_obj.cell_layer = layers_obj.cell_layer.clone({
+      getRadius: radius,
+    });
+  }
 };
 
 export const update_cell_pickable_state = (layers_obj, pickable) => {

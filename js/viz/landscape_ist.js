@@ -307,9 +307,6 @@ export const landscape_ist = async (
 
   set_options(token);
 
-  // move this to landscape_parameters
-  const imgage_name_for_dim = 'dapi';
-
   await set_landscape_parameters(viz_state.img, base_url, viz_state.aws);
   const tech = viz_state.img.landscape_parameters.technology;
   if (tech === 'Chromium') {
@@ -317,7 +314,8 @@ export const landscape_ist = async (
     viz_state.obs_store.viz_background_layer.set(false);
   }
 
-  const tmp_image_info = viz_state.img.landscape_parameters.image_info;
+  const tmp_image_info =
+    viz_state.img.landscape_parameters.image_info || [];
 
   viz_state.vector_name_integer =
     viz_state.img.landscape_parameters.use_int_index;
@@ -338,10 +336,12 @@ export const landscape_ist = async (
   root.style.height = `${height}px`;
   root.style.border = '1px solid #d3d3d3';
 
-  if (tech === 'Chromium') {
+  const image_name_for_dim = tmp_image_info[0]?.name;
+
+  if (tech === 'Chromium' || !image_name_for_dim) {
     viz_state.dimensions = { width: 1, height: 1, tileSize: 1 };
   } else {
-    await set_dimensions(viz_state, base_url, imgage_name_for_dim);
+    await set_dimensions(viz_state, base_url, image_name_for_dim);
   }
 
   await set_meta_gene(

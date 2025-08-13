@@ -32,6 +32,7 @@ export const create_obs_store = () => {
     viz_image_layers: Observable(true),
     viz_background_layer: Observable(true),
     viz_nbhd_layer: Observable(false),
+    viz_edit_layer: Observable(false),
     landscape_view: Observable('spatial'),
     umap_state: Observable(false),
     // to do utilize for setProps
@@ -42,6 +43,7 @@ export const create_obs_store = () => {
       path_layer: true,
       trx_layer: true,
       nbhd_layer: true,
+      edit_layer: true,
       trx_data: true,
       path_data: true,
       square_scatter_data: true,

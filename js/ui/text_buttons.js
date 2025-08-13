@@ -219,6 +219,7 @@ const trx_button_callback_ist = async (
   if (is_visible) {
     toggle_nbhd_layer_visibility(layers_obj, false);
     viz_state.obs_store.viz_nbhd_layer.set(false);
+    viz_state.obs_store.viz_edit_layer.set(false);
 
     if (viz_state.nbhd.is_nbhd) {
       viz_state.buttons.buttons.nbhd.style('color', 'gray');
@@ -252,6 +253,7 @@ const cell_button_callback = async (event, deck_ist, layers_obj, viz_state) => {
   if (is_visible) {
     toggle_nbhd_layer_visibility(layers_obj, false);
     viz_state.obs_store.viz_nbhd_layer.set(false);
+    viz_state.obs_store.viz_edit_layer.set(false);
 
     if (viz_state.nbhd.is_nbhd) {
       viz_state.buttons.buttons.nbhd.style('color', 'gray');
@@ -441,54 +443,54 @@ export const make_button = (
   viz_state.buttons.buttons[button_name] = inst_button;
 };
 
-// export const make_edit_button = (
-//   deck_ist,
-//   layers_obj,
-//   viz_state,
-//   container,
-//   text,
-//   width,
-//   edit_button_callback
-// ) => {
-//   const button_class = 'edit_button';
+export const make_edit_button = (
+  deck_ist,
+  layers_obj,
+  viz_state,
+  container,
+  text,
+  width,
+  edit_button_callback
+) => {
+  const button_class = 'edit_button';
 
-//   const active = false;
+  const active = false;
 
-//   // make text all caps
-//   text = text.toUpperCase();
+  // make text all caps
+  text = text.toUpperCase();
 
-//   const inst_button = d3
-//     .select(container)
-//     .append('div')
-//     .classed(button_class, true)
-//     .classed('active', active)
-//     .text(text)
-//     .style('width', `${width}px`)
-//     .style('height', '20px') // Adjust height for button padding
-//     .style('display', 'inline-flex')
-//     .style('align-items', 'center')
-//     .style('justify-content', 'center')
-//     .style('text-align', 'center')
-//     .style('cursor', 'pointer')
-//     .style('font-size', '12px')
-//     .style('font-weight', 'bold')
-//     .style('color', 'gray')
-//     // .style('border', '3px solid')  // Light gray border
-//     // .style('border-color', color)  // Light gray border
-//     // .style('border-radius', '12px')  // Rounded corners
-//     // .style('margin-top', '5px')
-//     .style('margin-left', '3px')
-//     // .style('padding', '4px 10px')  // Padding inside the button
-//     .style('user-select', 'none')
-//     .style(
-//       'font-family',
-//       '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif'
-//     )
-//     .on('click', (event) =>
-//       edit_button_callback(event, deck_ist, layers_obj, viz_state)
-//     )
-//     .node();
+  const inst_button = d3
+    .select(container)
+    .append('div')
+    .classed(button_class, true)
+    .classed('active', active)
+    .text(text)
+    .style('width', `${width}px`)
+    .style('height', '20px') // Adjust height for button padding
+    .style('display', 'inline-flex')
+    .style('align-items', 'center')
+    .style('justify-content', 'center')
+    .style('text-align', 'center')
+    .style('cursor', 'pointer')
+    .style('font-size', '12px')
+    .style('font-weight', 'bold')
+    .style('color', 'gray')
+    // .style('border', '3px solid')  // Light gray border
+    // .style('border-color', color)  // Light gray border
+    // .style('border-radius', '12px')  // Rounded corners
+    // .style('margin-top', '5px')
+    .style('margin-left', '3px')
+    // .style('padding', '4px 10px')  // Padding inside the button
+    .style('user-select', 'none')
+    .style(
+      'font-family',
+      '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif'
+    )
+    .on('click', (event) =>
+      edit_button_callback(event, deck_ist, layers_obj, viz_state)
+    )
+    .node();
 
-//   const button_name = text.toLowerCase();
-//   viz_state.edit.buttons[button_name] = inst_button;
-// };
+  const button_name = text.toLowerCase();
+  viz_state.edit.buttons[button_name] = inst_button;
+};

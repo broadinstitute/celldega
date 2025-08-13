@@ -211,9 +211,11 @@ const row_label_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
 
   if (viz_state.labels.clicks.row === 1) {
     viz_state.click.type = 'row_label';
+    const name = event.object[viz_state.attribute.row] || event.object.name;
     viz_state.click.value = {
-      name: event.object.name,
+      name,
       entity: viz_state.entity.row,
+      attribute: viz_state.attribute.row,
     };
 
     setTimeout(() => {
@@ -227,7 +229,7 @@ const row_label_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
     }
 
     if (typeof viz_state.custom_callbacks.row === 'function') {
-      viz_state.custom_callbacks.row(event.object.name);
+      viz_state.custom_callbacks.row(name);
     }
   } else if (viz_state.labels.clicks.row === 2) {
     viz_state.labels.clicks.row = 0;
@@ -248,9 +250,11 @@ const col_label_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
 
   if (viz_state.labels.clicks.col === 1) {
     viz_state.click.type = 'col_label';
+    const name = event.object[viz_state.attribute.col] || event.object.name;
     viz_state.click.value = {
-      name: event.object.name,
+      name,
       entity: viz_state.entity.col,
+      attribute: viz_state.attribute.col,
     };
 
     setTimeout(() => {
@@ -275,7 +279,7 @@ const col_label_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
     sync_selected_genes(viz_state, gene_names);
 
     if (typeof viz_state.custom_callbacks.col === 'function') {
-      viz_state.custom_callbacks.col(event.object.name);
+      viz_state.custom_callbacks.col(name);
     }
   } else if (viz_state.labels.clicks.col === 2) {
     viz_state.labels.clicks.col = 0;

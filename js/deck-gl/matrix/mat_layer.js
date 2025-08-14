@@ -46,13 +46,18 @@ const mat_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
   const row_name = viz_state.labels.row_label_data[event.object.row].name;
   const col_name = viz_state.labels.col_label_data[event.object.col].name;
 
-  viz_state.click.type = 'mat';
+  viz_state.click.type = 'mat_value';
   viz_state.click.value = {
-    name: `${row_name}_${col_name}`,
-    row: row_name,
-    col: col_name,
-    row_entity: viz_state.entity.row,
-    col_entity: viz_state.entity.col,
+    row: {
+      name: row_name,
+      entity: viz_state.entity.row,
+      attribute: viz_state.attribute.row,
+    },
+    col: {
+      name: col_name,
+      entity: viz_state.entity.col,
+      attribute: viz_state.attribute.col,
+    },
   };
 
   if (Object.keys(viz_state.model).length > 0) {

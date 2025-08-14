@@ -6,7 +6,8 @@ export const set_mat_constants = (
   root,
   width,
   height,
-  entity,
+  entities,
+  attributes,
   row_label_callback,
   col_label_callback,
   col_dendro_callback
@@ -98,14 +99,8 @@ export const set_mat_constants = (
 
   viz_state.viz.dendrogram_width = 15;
 
-  viz_state.entity = {};
-  if (entity === 'NBHD') {
-    viz_state.entity.row = 'cell';
-    viz_state.entity.col = 'nbhd';
-  } else {
-    viz_state.entity.row = 'gene';
-    viz_state.entity.col = 'cell';
-  }
+  viz_state.entity = entities || {};
+  viz_state.attribute = attributes || {};
 
   //////////////////////////////
   // Variables

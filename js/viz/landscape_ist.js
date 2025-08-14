@@ -81,7 +81,6 @@ export const landscape_ist = async (
   meta_cluster_attr = [],
   umap = {},
   nbhd = {},
-  entity = 'CELL',
   landscape_state = 'spatial',
   segmentation = 'default',
   creds = {},
@@ -119,8 +118,6 @@ export const landscape_ist = async (
 
   viz_state.seg = {};
   viz_state.seg.version = segmentation;
-
-  viz_state.entity = entity;
 
   viz_state.root = el;
   viz_state.buttons = {};

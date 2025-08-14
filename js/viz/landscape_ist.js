@@ -311,7 +311,7 @@ export const landscape_ist = async (
 
   await set_landscape_parameters(viz_state.img, base_url, viz_state.aws);
   const tech = viz_state.img.landscape_parameters.technology;
-  if (tech === 'Chromium') {
+  if (tech === 'Chromium' || tech === 'point-cloud') {
     viz_state.obs_store.viz_image_layers.set(false);
     viz_state.obs_store.viz_background_layer.set(false);
   }
@@ -337,7 +337,7 @@ export const landscape_ist = async (
   root.style.height = `${height}px`;
   root.style.border = '1px solid #d3d3d3';
 
-  if (tech === 'Chromium') {
+  if (tech === 'Chromium' || tech === 'point-cloud') {
     viz_state.dimensions = { width: 1, height: 1, tileSize: 1 };
   } else {
     await set_dimensions(viz_state, base_url, imgage_name_for_dim);
@@ -352,9 +352,9 @@ export const landscape_ist = async (
 
   await set_cluster_metadata(viz_state);
 
-  viz_state.views = set_views();
+  viz_state.views = set_views(tech);
 
-  const deck_ist = await ini_deck(root, width, height);
+  const deck_ist = await ini_deck(root, width, height, tech);
   // set_initial_view_state(deck_ist, ini_x, ini_y, ini_z, ini_zoom)
   set_views_prop(deck_ist, viz_state.views);
 
@@ -595,8 +595,9 @@ export const landscape_ist = async (
   el.appendChild(ui_container);
   el.appendChild(root);
 
-  const isChromium =
-    viz_state.img.landscape_parameters.technology === 'Chromium';
+  const isChromium = ['Chromium', 'point-cloud'].includes(
+    viz_state.img.landscape_parameters.technology
+  );
   viz_state.obs_store.landscape_view.subscribe(
     (view) => {
       const isUmap = view === 'umap';

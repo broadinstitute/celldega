@@ -375,58 +375,72 @@ export const make_ist_ui_container = (
   const cell_slider_container = make_slider_container('cell_slider_container');
   const trx_slider_container = make_slider_container('trx_slider_container');
 
-  const spatial_toggle_container = flex_container(
-    'image_layer_container',
-    'row'
-  );
+  const technology = viz_state.img.landscape_parameters.technology;
+  const isChromium = technology === 'Chromium';
+  const isPointCloud = technology === 'point-cloud';
 
-  const isChromium = ['Chromium', 'point-cloud'].includes(
-    viz_state.img.landscape_parameters.technology
-  );
-
-  if (isChromium) {
-    make_button(
-      spatial_toggle_container,
-      'ist',
-      'UMAP',
-      'blue',
-      35,
-      'button',
-      deck_ist,
-      layers_obj,
-      viz_state
+  if (!isPointCloud) {
+    const spatial_toggle_container = flex_container(
+      'image_layer_container',
+      'row'
     );
-  } else {
-    if (viz_state.umap.has_umap === true) {
-      const umap_active = viz_state.obs_store.umap_state.get();
-      let ini_umap_color;
-      let ini_spatial_color;
 
-      if (umap_active === true) {
-        ini_umap_color = 'blue';
-        ini_spatial_color = 'gray';
-      } else {
-        ini_umap_color = 'gray';
-        ini_spatial_color = 'blue';
-      }
-
+    if (isChromium) {
       make_button(
         spatial_toggle_container,
         'ist',
         'UMAP',
-        ini_umap_color,
+        'blue',
         35,
         'button',
         deck_ist,
         layers_obj,
         viz_state
       );
+    } else {
+      if (viz_state.umap.has_umap === true) {
+        const umap_active = viz_state.obs_store.umap_state.get();
+        let ini_umap_color;
+        let ini_spatial_color;
+
+        if (umap_active === true) {
+          ini_umap_color = 'blue';
+          ini_spatial_color = 'gray';
+        } else {
+          ini_umap_color = 'gray';
+          ini_spatial_color = 'blue';
+        }
+
+        make_button(
+          spatial_toggle_container,
+          'ist',
+          'UMAP',
+          ini_umap_color,
+          35,
+          'button',
+          deck_ist,
+          layers_obj,
+          viz_state
+        );
+        make_button(
+          spatial_toggle_container,
+          'ist',
+          'SPATIAL',
+          ini_spatial_color,
+          50,
+          'button',
+          deck_ist,
+          layers_obj,
+          viz_state
+        );
+      }
+
       make_button(
         spatial_toggle_container,
         'ist',
-        'SPATIAL',
-        ini_spatial_color,
-        50,
+        'IMG',
+        'blue',
+        30,
         'button',
         deck_ist,
         layers_obj,
@@ -434,109 +448,99 @@ export const make_ist_ui_container = (
       );
     }
 
-    make_button(
-      spatial_toggle_container,
-      'ist',
-      'IMG',
-      'blue',
-      30,
-      'button',
-      deck_ist,
-      layers_obj,
-      viz_state
+    viz_state.containers.image.appendChild(spatial_toggle_container);
+
+    const get_slider_by_name = (img, name) => {
+      return img.image_layer_sliders.filter((slider) => slider.name === name);
+    };
+
+    const make_img_layer_ctrl = (img, inst_image) => {
+      const inst_name = inst_image.button_name;
+
+      const inst_container = flex_container('image_layer_container', 'row');
+      inst_container.style.height = '21px';
+
+      const ini_img_color = viz_state.obs_store.umap_state.get()
+        ? 'gray'
+        : 'blue';
+
+      make_button(
+        inst_container,
+        'ist',
+        inst_name,
+        ini_img_color,
+        75,
+        'img_layer_button',
+        deck_ist,
+        layers_obj,
+        viz_state
+      );
+
+      const inst_slider_container = make_slider_container(inst_name);
+
+      const slider = get_slider_by_name(img, inst_name)[0];
+
+      const img_layer_slider_callback = make_img_layer_slider_callback(
+        inst_name,
+        deck_ist,
+        layers_obj,
+        viz_state
+      );
+
+      const debounce_time = 100;
+      const img_layer_slider_callback_debounced = debounce(
+        img_layer_slider_callback,
+        debounce_time
+      );
+      const ini_img_slider_value = 50;
+      ini_slider_params(
+        slider,
+        ini_img_slider_value,
+        img_layer_slider_callback_debounced
+      );
+
+      inst_slider_container.appendChild(slider);
+
+      inst_container.appendChild(inst_slider_container);
+
+      img_layers_container.appendChild(inst_container);
+    };
+
+    viz_state.img.image_info.map((inst_image) =>
+      make_img_layer_ctrl(viz_state.img, inst_image)
     );
+
+    viz_state.obs_store.viz_image_layers.subscribe((viz_image_layers) => {
+      d3.select(viz_state.containers.image)
+        .selectAll('.img_layer_button')
+        .style('color', viz_image_layers ? 'blue' : 'gray');
+
+      viz_state.img.image_layer_sliders.map((slider) =>
+        toggle_slider(slider, viz_image_layers)
+      );
+
+      toggle_visibility_image_layers(layers_obj, viz_image_layers);
+
+      refresh_layer(viz_state, layers_obj, 'image_layers');
+
+      // move out of umap state if image is visible
+      if (viz_image_layers && viz_state.obs_store.umap_state.get()) {
+        viz_state.obs_store.landscape_view.set('spatial');
+      }
+    });
+
+    viz_state.obs_store.viz_background_layer.subscribe((visible) => {
+      toggle_background_layer_visibility(layers_obj, visible);
+      refresh_layer(viz_state, layers_obj, 'background_layer');
+    });
+
+    viz_state.obs_store.viz_nbhd_layer.subscribe((visible) => {
+      toggle_nbhd_layer_visibility(layers_obj, visible);
+      refresh_layer(viz_state, layers_obj, 'nbhd_layer');
+    });
+
+    viz_state.containers.image.appendChild(img_layers_container);
   }
-
-  viz_state.containers.image.appendChild(spatial_toggle_container);
-
-  const get_slider_by_name = (img, name) => {
-    return img.image_layer_sliders.filter((slider) => slider.name === name);
-  };
-
-  const make_img_layer_ctrl = (img, inst_image) => {
-    const inst_name = inst_image.button_name;
-
-    const inst_container = flex_container('image_layer_container', 'row');
-    inst_container.style.height = '21px';
-
-    const ini_img_color = viz_state.obs_store.umap_state.get()
-      ? 'gray'
-      : 'blue';
-
-    make_button(
-      inst_container,
-      'ist',
-      inst_name,
-      ini_img_color,
-      75,
-      'img_layer_button',
-      deck_ist,
-      layers_obj,
-      viz_state
-    );
-
-    const inst_slider_container = make_slider_container(inst_name);
-
-    const slider = get_slider_by_name(img, inst_name)[0];
-
-    const img_layer_slider_callback = make_img_layer_slider_callback(
-      inst_name,
-      deck_ist,
-      layers_obj,
-      viz_state
-    );
-
-    const debounce_time = 100;
-    const img_layer_slider_callback_debounced = debounce(
-      img_layer_slider_callback,
-      debounce_time
-    );
-    const ini_img_slider_value = 50;
-    ini_slider_params(
-      slider,
-      ini_img_slider_value,
-      img_layer_slider_callback_debounced
-    );
-
-    inst_slider_container.appendChild(slider);
-
-    inst_container.appendChild(inst_slider_container);
-
-    img_layers_container.appendChild(inst_container);
-  };
-
-  viz_state.img.image_info.map((inst_image) =>
-    make_img_layer_ctrl(viz_state.img, inst_image)
-  );
-
-  viz_state.obs_store.viz_image_layers.subscribe((viz_image_layers) => {
-    d3.select(viz_state.containers.image)
-      .selectAll('.img_layer_button')
-      .style('color', viz_image_layers ? 'blue' : 'gray');
-
-    viz_state.img.image_layer_sliders.map((slider) =>
-      toggle_slider(slider, viz_image_layers)
-    );
-
-    toggle_visibility_image_layers(layers_obj, viz_image_layers);
-
-    refresh_layer(viz_state, layers_obj, 'image_layers');
-
-    // move out of umap state if image is visible
-    if (viz_image_layers && viz_state.obs_store.umap_state.get()) {
-      viz_state.obs_store.landscape_view.set('spatial');
-    }
-  });
-
-  viz_state.obs_store.viz_background_layer.subscribe((visible) => {
-    toggle_background_layer_visibility(layers_obj, visible);
-    refresh_layer(viz_state, layers_obj, 'background_layer');
-  });
-
-  viz_state.obs_store.viz_nbhd_layer.subscribe((visible) => {
-    toggle_nbhd_layer_visibility(layers_obj, visible);
-    refresh_layer(viz_state, layers_obj, 'nbhd_layer');
-  });
 
   make_button(
     cell_ctrl_container,
@@ -575,8 +579,6 @@ export const make_ist_ui_container = (
     layers_obj,
     viz_state
   );
-
-  viz_state.containers.image.appendChild(img_layers_container);
 
   viz_state.sliders = {};
 
@@ -854,7 +856,9 @@ export const make_ist_ui_container = (
 
   ui_container.appendChild(ctrl_container);
 
-  ctrl_container.appendChild(viz_state.containers.image);
+  if (!isPointCloud) {
+    ctrl_container.appendChild(viz_state.containers.image);
+  }
   ctrl_container.appendChild(cell_container);
   ctrl_container.appendChild(gene_container);
 

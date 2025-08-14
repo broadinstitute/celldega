@@ -43,6 +43,7 @@ export const update_ist_landscape_from_cgm = async (
         update_selected_genes(viz_state.genes, [], viz_state.obs_store);
 
         viz_state.obs_store.viz_nbhd_layer.set(false);
+        viz_state.buttons.buttons.nbhd.style('color', 'gray');
 
         refresh_layer(viz_state, layers_obj, 'cell_layer');
       } else {
@@ -73,6 +74,7 @@ export const update_ist_landscape_from_cgm = async (
         );
 
         viz_state.obs_store.viz_nbhd_layer.set(false);
+        viz_state.buttons.buttons.nbhd.style('color', 'gray');
 
         refresh_layer(viz_state, layers_obj, 'cell_layer');
         refresh_layer(viz_state, layers_obj, 'trx_layer');
@@ -82,6 +84,7 @@ export const update_ist_landscape_from_cgm = async (
         const new_nbhd = click_info.value.name;
         viz_state.obs_store.selected_nbhds.set([new_nbhd]);
         viz_state.obs_store.viz_nbhd_layer.set(true);
+        viz_state.buttons.buttons.nbhd.style('color', 'blue');
 
         refresh_layer(viz_state, layers_obj, 'nbhd_layer');
         refresh_layer(viz_state, layers_obj, 'cell_layer');
@@ -113,6 +116,7 @@ export const update_ist_landscape_from_cgm = async (
         update_selected_genes(viz_state.genes, [], viz_state.obs_store);
 
         viz_state.obs_store.viz_nbhd_layer.set(false);
+        viz_state.buttons.buttons.nbhd.style('color', 'gray');
 
         refresh_layer(viz_state, layers_obj, 'cell_layer');
         refresh_layer(viz_state, layers_obj, 'nbhd_layer');
@@ -123,6 +127,7 @@ export const update_ist_landscape_from_cgm = async (
       if (click_info.value.entity === 'nbhd') {
         viz_state.obs_store.selected_nbhds.set(new_cats);
         viz_state.obs_store.viz_nbhd_layer.set(true);
+        viz_state.buttons.buttons.nbhd.style('color', 'blue');
         refresh_layer(viz_state, layers_obj, 'nbhd_layer');
 
         if (viz_state.obs_store.selected_nbhds.get().length > 0) {
@@ -151,6 +156,7 @@ export const update_ist_landscape_from_cgm = async (
         update_selected_genes(viz_state.genes, [], viz_state.obs_store);
 
         viz_state.obs_store.viz_nbhd_layer.set(false);
+        viz_state.buttons.buttons.nbhd.style('color', 'gray');
 
         refresh_layer(viz_state, layers_obj, 'cell_layer');
       }
@@ -162,6 +168,7 @@ export const update_ist_landscape_from_cgm = async (
         update_selected_genes(viz_state.genes, [], viz_state.obs_store);
 
         viz_state.obs_store.viz_nbhd_layer.set(false);
+        viz_state.buttons.buttons.nbhd.style('color', 'gray');
 
         refresh_layer(viz_state, layers_obj, 'cell_layer');
         refresh_layer(viz_state, layers_obj, 'trx_layer');
@@ -197,16 +204,18 @@ export const update_ist_landscape_from_cgm = async (
         }
 
         viz_state.obs_store.viz_nbhd_layer.set(false);
+        viz_state.buttons.buttons.nbhd.style('color', 'gray');
 
         refresh_layer(viz_state, layers_obj, 'cell_layer');
         refresh_layer(viz_state, layers_obj, 'trx_layer');
       }
     } else if (click_type === 'mat_value') {
       const { row, col } = click_info.value;
-      if (row.entity === 'nbhd' && col.entity === 'nbhd') {
+      if (row.entity === 'cell' && col.entity === 'nbhd') {
         const new_nbhds = [row.name, col.name];
         viz_state.obs_store.selected_nbhds.set(new_nbhds);
         viz_state.obs_store.viz_nbhd_layer.set(true);
+        viz_state.buttons.buttons.nbhd.style('color', 'blue');
         refresh_layer(viz_state, layers_obj, 'nbhd_layer');
 
         if (viz_state.obs_store.selected_nbhds.get().length > 0) {

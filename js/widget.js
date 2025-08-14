@@ -157,7 +157,7 @@ const render_matrix_new = async ({ model, el }) => {
     (entity === 'NBHD'
       ? { row: 'cell', col: 'nbhd' }
       : { row: 'gene', col: 'cell' });
-  const attributes = model.get('attributes') || { row: 'name', col: 'name' };
+  const attributes = model.get('attributes') || { row: 'name', col: 'cluster' };
 
   const matBytes = model.get('mat_parquet');
   if (matBytes && matBytes.byteLength > 0) {

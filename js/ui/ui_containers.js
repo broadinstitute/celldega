@@ -380,8 +380,9 @@ export const make_ist_ui_container = (
     'row'
   );
 
-  const isChromium =
-    viz_state.img.landscape_parameters.technology === 'Chromium';
+  const isChromium = ['Chromium', 'point-cloud'].includes(
+    viz_state.img.landscape_parameters.technology
+  );
 
   if (isChromium) {
     make_button(

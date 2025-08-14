@@ -13,10 +13,12 @@ export const get_scatter_data = (arrow_table) => {
         return combined;
       }, new Float64Array(0));
 
+    const size = flatCoordinateArray.length / arrow_table.numRows;
+
     const scatter_data = {
       length: arrow_table.numRows,
       attributes: {
-        getPosition: { value: flatCoordinateArray, size: 2 },
+        getPosition: { value: flatCoordinateArray, size },
       },
     };
 

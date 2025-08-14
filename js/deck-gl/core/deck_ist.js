@@ -58,7 +58,9 @@ export const set_initial_view_state = (
   ini_y,
   ini_z,
   ini_zoom,
-  viz_state
+  viz_state,
+  rotation_orbit = 0,
+  rotation_x = 0
 ) => {
   const {
     center_x,
@@ -78,6 +80,11 @@ export const set_initial_view_state = (
     target: [ini_x, ini_y, ini_z],
     zoom: ini_zoom,
   };
+
+  if (viz_state.img.landscape_parameters.technology === 'point-cloud') {
+    initial_view_state.rotationOrbit = rotation_orbit;
+    initial_view_state.rotationX = rotation_x;
+  }
 
   deck_ist.setProps({
     initialViewState: initial_view_state,

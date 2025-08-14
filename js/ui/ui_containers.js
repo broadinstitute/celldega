@@ -375,7 +375,7 @@ export const make_ist_ui_container = (
   const cell_slider_container = make_slider_container('cell_slider_container');
   const trx_slider_container = make_slider_container('trx_slider_container');
 
-  const technology = viz_state.img.landscape_parameters.technology;
+  const {technology} = viz_state.img.landscape_parameters;
   const isChromium = technology === 'Chromium';
   const isPointCloud = technology === 'point-cloud';
 

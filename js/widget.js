@@ -24,6 +24,8 @@ const render_landscape_ist = async ({ model, el }) => {
   const dataset_name = model.get('dataset_name');
   const width = model.get('width');
   const height = model.get('height');
+  const rotation_orbit = model.get('rotation_orbit') ?? 0;
+  const rotation_x = model.get('rotation_x') ?? 0;
 
   const nbhd = model.get('nbhd_geojson');
   const nbhd_edit = model.get('nbhd_edit');
@@ -78,7 +80,10 @@ const render_landscape_ist = async ({ model, el }) => {
     nbhd_edit,
     landscape_state,
     segmentation,
-    creds
+    creds,
+    null,
+    rotation_orbit,
+    rotation_x
   );
 };
 

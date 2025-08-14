@@ -93,7 +93,9 @@ export const landscape_ist = async (
   landscape_state = 'spatial',
   segmentation = 'default',
   creds = {},
-  view_change_custom_callback = null
+  view_change_custom_callback = null,
+  rotation_orbit = 0,
+  rotation_x = 0
 ) => {
   if (width === 0) {
     width = '100%';
@@ -571,7 +573,16 @@ export const landscape_ist = async (
     toggle_path_layer_visibility(layers_obj, false);
   }
 
-  set_initial_view_state(deck_ist, ini_x, ini_y, ini_z, ini_zoom, viz_state);
+  set_initial_view_state(
+    deck_ist,
+    ini_x,
+    ini_y,
+    ini_z,
+    ini_zoom,
+    viz_state,
+    rotation_orbit,
+    rotation_x
+  );
 
   set_deck_on_view_state_change(deck_ist, layers_obj, viz_state);
 

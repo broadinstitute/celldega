@@ -28,7 +28,13 @@ export const bar_callback_cat = (
 
   if (_viz_state.nbhd.is_nbhd) {
     _viz_state.obs_store.viz_nbhd_layer.set(false);
-    _viz_state.buttons.buttons.nbhd.style('color', 'gray');
+    _viz_state.obs_store.viz_edit_layer.set(false);
+    // wrap in try
+    try {
+      _viz_state.buttons.buttons.nbhd.style('color', 'gray');
+    } catch {
+      // intentionally ignore missing neighborhood button
+    }
   }
 
   // add cell_layer, path_layer, and trx_layer to the deck_check observable
@@ -71,7 +77,13 @@ export const bar_callback_gene = async (
 
   if (_viz_state.nbhd.is_nbhd) {
     _viz_state.obs_store.viz_nbhd_layer.set(false);
-    _viz_state.buttons.buttons.nbhd.style('color', 'gray');
+    _viz_state.obs_store.viz_edit_layer.set(false);
+    // wrap in try
+    try {
+      _viz_state.buttons.buttons.nbhd.style('color', 'gray');
+    } catch {
+      // intentionally ignore missing neighborhood button
+    }
   }
 
   const inst_gene = d.name;
@@ -96,10 +108,6 @@ export const bar_callback_gene = async (
 
   console.log('update_selected_genes', [inst_gene]);
   update_selected_genes(_viz_state.genes, [inst_gene], _viz_state.obs_store);
-  console.log('update_selected_cats', [inst_gene]);
-  update_selected_cats(_viz_state.cats, [inst_gene], _viz_state.obs_store);
-
-  console.log('****** update_cell_exp_array for gene:', inst_gene);
   await update_cell_exp_array(
     _viz_state.cats,
     _viz_state.genes,
@@ -109,7 +117,10 @@ export const bar_callback_gene = async (
     _viz_state.vector_name_integer,
     _viz_state.aws
   );
-  console.log('****** done updating cell_exp_array for gene:', inst_gene);
+
+  // update selected_cats after update_cell_exp_array has been run
+  // can clean up and move more logic to observability
+  update_selected_cats(_viz_state.cats, [inst_gene], _viz_state.obs_store);
 };
 
 export const bar_callback_nbhd = (
@@ -119,35 +130,73 @@ export const bar_callback_nbhd = (
   _layers_obj,
   _viz_state
 ) => {
-  // set nbhd to visible
-  _viz_state.obs_store.viz_nbhd_layer.set(true);
+  if (_viz_state.nbhd.edit) {
+    _viz_state.obs_store.viz_edit_layer.set(true);
 
-  // make sure nbhd button is active
-  _viz_state.buttons.buttons.nbhd.style('color', 'blue');
+    _viz_state.buttons.buttons.nbhd.style('color', 'blue');
 
-  // update selected_nbhds observable with the clicked nbhd unless
-  // the clicked nbhd is already equal to selected_nbhds
-  const prev_selected_nbhds = _viz_state.obs_store.selected_nbhds.get();
-  if (prev_selected_nbhds[0] === _d.name && prev_selected_nbhds.length === 1) {
-    _viz_state.obs_store.selected_nbhds.set([]);
+    const prev_selected_nbhds = _viz_state.obs_store.selected_nbhds.get();
+    if (
+      prev_selected_nbhds[0] === _d.name &&
+      prev_selected_nbhds.length === 1
+    ) {
+      _viz_state.obs_store.selected_nbhds.set([]);
+      _layers_obj.edit_layer = _layers_obj.edit_layer.clone({
+        selectedFeatureIndexes: [],
+      });
+    } else {
+      _viz_state.obs_store.selected_nbhds.set([_d.name]);
+      const featureIndex =
+        _viz_state.nbhd.feature_collection.features.findIndex(
+          (f) => f.properties.name === _d.name
+        );
+      _layers_obj.edit_layer = _layers_obj.edit_layer.clone({
+        selectedFeatureIndexes: [featureIndex],
+      });
+    }
+
+    refresh_layer(_viz_state, _layers_obj, 'edit_layer');
+
+    if (_viz_state.obs_store.selected_nbhds.get().length > 0) {
+      _viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', (d) => {
+        if (d.name === _d.name) {
+          return 1.0;
+        } else {
+          return 0.2;
+        }
+      });
+    } else {
+      _viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', 1.0);
+    }
   } else {
-    _viz_state.obs_store.selected_nbhds.set([_d.name]);
-  }
+    _viz_state.obs_store.viz_nbhd_layer.set(true);
+    _viz_state.obs_store.viz_edit_layer.set(false);
 
-  // refresh the nbhd layer
-  refresh_layer(_viz_state, _layers_obj, 'nbhd_layer');
+    _viz_state.buttons.buttons.nbhd.style('color', 'blue');
 
-  // highlight the nbhd in the bar plot
-  if (_viz_state.obs_store.selected_nbhds.get().length > 0) {
-    _viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', (d) => {
-      if (d.name === _d.name) {
-        return 1.0;
-      } else {
-        return 0.2;
-      }
-    });
-  } else {
-    _viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', 1.0);
+    const prev_selected_nbhds = _viz_state.obs_store.selected_nbhds.get();
+    if (
+      prev_selected_nbhds[0] === _d.name &&
+      prev_selected_nbhds.length === 1
+    ) {
+      _viz_state.obs_store.selected_nbhds.set([]);
+    } else {
+      _viz_state.obs_store.selected_nbhds.set([_d.name]);
+    }
+
+    refresh_layer(_viz_state, _layers_obj, 'nbhd_layer');
+
+    if (_viz_state.obs_store.selected_nbhds.get().length > 0) {
+      _viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', (d) => {
+        if (d.name === _d.name) {
+          return 1.0;
+        } else {
+          return 0.2;
+        }
+      });
+    } else {
+      _viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', 1.0);
+    }
   }
 };
 

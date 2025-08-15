@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import polars as pl
-from scipy.sparse import coo_matrix, csr_matrix
+from scipy.sparse import coo_matrix, csr_matrix, issparse
 from shapely.geometry import MultiPolygon, Point, Polygon
 from skimage.io import imread, imsave
 import tifffile
@@ -864,6 +864,56 @@ def make_meta_gene(cbg, path_output):
     print("All meta gene files are succesfully saved.")
 
 
+def make_chromium_from_anndata(adata, path_landscape_files):
+    """Generate minimal LandscapeFiles from a Chromium AnnData object.
+
+    Parameters
+    ----------
+    adata : anndata.AnnData
+        AnnData object containing scRNA-seq count data.
+    path_landscape_files : str or Path
+        Directory where LandscapeFiles will be written.
+
+    Raises
+    ------
+    ValueError
+        If the expression matrix contains non-integer values.
+    """
+
+    print("\n========Process Chromium AnnData========")
+    path_landscape_files = Path(path_landscape_files)
+    path_landscape_files.mkdir(parents=True, exist_ok=True)
+
+    X = adata.layers.get("counts", adata.X)
+
+    data = X.data if issparse(X) else np.asarray(X)
+
+    if not np.all(np.equal(np.mod(data, 1), 0)):
+        raise ValueError("Chromium processing requires integer counts")
+
+    if issparse(X):
+        cbg = pd.DataFrame.sparse.from_spmatrix(X, index=adata.obs_names, columns=adata.var_names)
+    else:
+        cbg = pd.DataFrame(X, index=adata.obs_names, columns=adata.var_names)
+
+    cell_meta = pd.DataFrame({"name": adata.obs_names, "geometry": [[0.0, 0.0]] * adata.n_obs})
+    cell_meta.to_parquet(path_landscape_files / "cell_metadata.parquet", index=False)
+
+    save_cbg_gene_parquets(path_landscape_files, cbg)
+
+    make_meta_gene(cbg, path_landscape_files / "meta_gene.parquet")
+
+    (path_landscape_files / "pyramid_images").mkdir(exist_ok=True)
+
+    save_landscape_parameters(
+        technology="Chromium",
+        path_landscape_files=path_landscape_files,
+        image_name="",
+        tile_size=1,
+        image_info=[],
+    )
+
+
 def get_max_zoom_level(path_image_pyramid):
     """Returns the maximum zoom level based on the highest-numbered directory in the specified path.
 
@@ -887,7 +937,7 @@ def save_landscape_parameters(
     tile_size=1000,
     image_info=None,
     image_format=".webp",
-    use_int_index=False,
+    use_int_index=True,
     segmentation_approach="default",
 ):
     """Saves the landscape parameters to a JSON file.

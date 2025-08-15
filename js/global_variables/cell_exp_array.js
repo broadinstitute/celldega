@@ -27,7 +27,6 @@ export const update_cell_exp_array = async (
     file_path = `${base_url}/cbg_${version}/${inst_gene}.parquet`;
   }
 
-  console.log('Fetching expression table from:', file_path);
   const exp_table = await get_arrow_table(file_path, options.fetch, aws);
   console.log('get cell_names')
   const cell_names = exp_table.getChild('__index_level_0__').toArray();
@@ -35,8 +34,6 @@ export const update_cell_exp_array = async (
   const cell_exp = exp_table.getChild(inst_gene).toArray();
 
   const new_exp_array = new Array(cats.cell_names_array.length).fill(0);
-
-  // console.log('vector_name_integer:',vector_name_integer)
 
   // Use Sets to track missing names (automatically keeps them unique)
   const missingCellNames1 = new Set(); // For cell_name_to_index_map

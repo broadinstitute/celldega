@@ -1,3 +1,4 @@
+import { ViewMode } from '@deck.gl-community/editable-layers';
 import { AwsClient } from 'aws4fetch';
 import * as d3 from 'd3';
 
@@ -15,27 +16,34 @@ import {
   ini_cell_layer,
   new_toggle_cell_layer_visibility,
   set_cell_layer_onclick,
+  toggle_spatial_umap,
+  update_cell_pickable_state,
 } from '../deck-gl/layers/cell_layer';
-// import {
-//   ini_edit_layer,
-//   set_edit_layer_on_click,
-//   set_edit_layer_on_edit,
-// } from '../deck-gl/layers/edit_layer';
+import {
+  ini_edit_layer,
+  set_edit_layer_on_click,
+  set_edit_layer_on_edit,
+  update_edit_visitility,
+  update_edit_layer_mode,
+} from '../deck-gl/layers/edit_layer';
 import { make_image_layers } from '../deck-gl/layers/image_layers';
 import {
   ini_nbhd_layer,
   set_nbhd_layer_onclick,
+  toggle_nbhd_layer_visibility,
 } from '../deck-gl/layers/nbhd_layer';
 import {
   ini_path_layer,
   set_path_layer_onclick,
   toggle_path_layer_visibility,
+  update_path_pickable_state,
 } from '../deck-gl/layers/path_layer';
 import {
   ini_trx_layer,
   set_trx_layer_onclick,
   update_trx_layer_radius,
   toggle_trx_layer_visibility,
+  update_trx_pickable_state,
 } from '../deck-gl/layers/trx_layer';
 import { get_layers_list } from '../deck-gl/utils/layers_ist';
 import { ini_cache } from '../global_variables/cache';
@@ -58,6 +66,7 @@ import { create_obs_store } from '../obs_store/obs_store';
 import { toggle_slider, set_image_layer_sliders } from '../ui/sliders';
 import { get_img_layer_visible } from '../ui/text_buttons';
 import { make_ist_ui_container } from '../ui/ui_containers';
+import { refresh_layer } from '../utils/refresh_layer';
 import { update_cell_clusters } from '../widget_interactions/update_cell_clusters';
 import { update_ist_landscape_from_cgm } from '../widget_interactions/update_ist_landscape_from_cgm';
 
@@ -80,6 +89,7 @@ export const landscape_ist = async (
   meta_cluster_attr = [],
   umap = {},
   nbhd = {},
+  nbhd_edit = false,
   landscape_state = 'spatial',
   segmentation = 'default',
   creds = {},
@@ -110,7 +120,10 @@ export const landscape_ist = async (
     if (hasCats || hasGenes) {
       viz_state.obs_store.viz_image_layers.set(false);
     } else {
-      viz_state.obs_store.viz_image_layers.set(true);
+      // only do this if not in umap view
+      if (viz_state.obs_store.umap_state.get() === false) {
+        viz_state.obs_store.viz_image_layers.set(true);
+      }
     }
   };
 
@@ -135,6 +148,7 @@ export const landscape_ist = async (
 
   viz_state.nbhd = {};
   viz_state.nbhd.visible = false;
+  viz_state.nbhd.edit = nbhd_edit;
 
   viz_state.spatial = {};
 
@@ -166,7 +180,7 @@ export const landscape_ist = async (
 
   if (Object.keys(viz_state.model).length !== 0) {
     if (Object.keys(nbhd).length === 0) {
-      viz_state.nbhd.is_nbhd = false;
+      viz_state.nbhd.is_nbhd = nbhd_edit;
 
       viz_state.nbhd.ini_feature_collection = {
         type: 'FeatureCollection',
@@ -180,11 +194,34 @@ export const landscape_ist = async (
 
       viz_state.nbhd.ini_feature_collection = nbhd; // viz_state.model.get('nbhd');
 
-      viz_state.nbhd.bar_data = nbhd.features
-        .map((feature) => {
+      // viz_state.nbhd.bar_data = nbhd.features
+      //   .map((feature) => {
+      //     return {
+      //       name: feature.properties.cat, // "1_50" → "1"
+      //       value: feature.properties.area, // use area as the value
+      //     };
+      //   })
+      //   .sort((a, b) => b.value - a.value);
+
+      // find all unique categories in the nbhd features
+      const unique_cats = new Set(
+        nbhd.features.map((feature) => feature.properties.cat)
+      );
+
+      // calculate the area of all unique categories
+      viz_state.nbhd.bar_data = Array.from(unique_cats)
+        .map((cat) => {
+          const features = nbhd.features.filter(
+            (feature) => feature.properties.cat === cat
+          );
+          const area = features.reduce(
+            (acc, feature) => acc + feature.properties.area,
+            0
+          );
+
           return {
-            name: feature.properties.cat, // "1_50" → "1"
-            value: feature.properties.area, // use area as the value
+            name: cat,
+            value: area,
           };
         })
         .sort((a, b) => b.value - a.value);
@@ -248,11 +285,9 @@ export const landscape_ist = async (
   }
   viz_state.umap.umap = umap;
 
-  if (landscape_state === 'spatial') {
-    viz_state.umap.state = false;
-  } else if (landscape_state === 'umap') {
-    viz_state.umap.state = true;
-  }
+  const isUmapInit = landscape_state === 'umap';
+  viz_state.obs_store.umap_state.set(isUmapInit);
+  viz_state.obs_store.landscape_view.set(landscape_state);
 
   viz_state.genes = {};
   viz_state.genes.color_dict_gene = {};
@@ -278,6 +313,11 @@ export const landscape_ist = async (
   set_options(token);
 
   await set_landscape_parameters(viz_state.img, base_url, viz_state.aws);
+  const tech = viz_state.img.landscape_parameters.technology;
+  if (tech === 'Chromium') {
+    viz_state.obs_store.viz_image_layers.set(false);
+    viz_state.obs_store.viz_background_layer.set(false);
+  }
 
   const tmp_image_info = viz_state.img.landscape_parameters.image_info;
 
@@ -303,7 +343,11 @@ export const landscape_ist = async (
   root.style.height = `${height}px`;
   root.style.border = '1px solid #d3d3d3';
 
-  await set_dimensions(viz_state, base_url, image_name_for_dim);
+  if (tech === 'Chromium') {
+    viz_state.dimensions = { width: 1, height: 1, tileSize: 1 };
+  } else {
+    await set_dimensions(viz_state, base_url, imgage_name_for_dim);
+  }
 
   await set_meta_gene(
     viz_state.genes,
@@ -336,7 +380,8 @@ export const landscape_ist = async (
   viz_state.edit.svg_bar_rgn = d3.create('svg');
   viz_state.edit.rgn_areas = [];
   viz_state.edit.color_dict_rgn = {};
-  viz_state.edit.rgn_opacity = 0.75;
+  // default opacity for editable neighborhoods
+  viz_state.edit.rgn_opacity = 0.3;
   viz_state.edit.visible = false;
   viz_state.edit.modify_index = null;
 
@@ -361,7 +406,7 @@ export const landscape_ist = async (
   const cell_layer = await ini_cell_layer(base_url, viz_state);
   const path_layer = await ini_path_layer(viz_state);
   const trx_layer = ini_trx_layer(viz_state.genes);
-  // const edit_layer = ini_edit_layer(viz_state);
+  const edit_layer = ini_edit_layer(viz_state);
   const nbhd_layer = ini_nbhd_layer(viz_state, true);
 
   // make layers object
@@ -371,8 +416,8 @@ export const landscape_ist = async (
     cell_layer,
     path_layer,
     trx_layer,
-    // edit_layer,
     nbhd_layer,
+    edit_layer,
   };
 
   viz_state.layers_obj = layers_obj;
@@ -380,6 +425,7 @@ export const landscape_ist = async (
   viz_state.obs_store.deck_check.set({
     ...viz_state.obs_store.deck_check.get(),
     nbhd_layer: true,
+    edit_layer: true,
   });
 
   viz_state.obs_store.selected_nbhds.subscribe(
@@ -422,6 +468,9 @@ export const landscape_ist = async (
         toggle_slider(viz_state.sliders.cell, true);
         toggle_slider(viz_state.sliders.trx, true);
       }
+      if (visible) {
+        viz_state.obs_store.viz_edit_layer.set(false);
+      }
     },
     { immediate: false }
   );
@@ -430,8 +479,8 @@ export const landscape_ist = async (
   set_cell_layer_onclick(deck_ist, layers_obj, viz_state);
   set_path_layer_onclick(deck_ist, layers_obj, viz_state);
   set_trx_layer_onclick(deck_ist, layers_obj, viz_state);
-  // set_edit_layer_on_edit(deck_ist, layers_obj, viz_state);
-  // set_edit_layer_on_click(deck_ist, layers_obj, viz_state);
+  set_edit_layer_on_edit(deck_ist, layers_obj, viz_state);
+  set_edit_layer_on_click(deck_ist, layers_obj, viz_state);
   set_nbhd_layer_onclick(deck_ist, layers_obj, viz_state);
 
   viz_state.obs_store.deck_ready.subscribe((ready) => {
@@ -441,6 +490,53 @@ export const landscape_ist = async (
       deck_ist.setProps({ layers: list });
     }
   });
+
+  viz_state.obs_store.viz_edit_layer.subscribe(
+    (visible) => {
+      update_edit_visitility(layers_obj, visible);
+      if (visible) {
+        viz_state.obs_store.viz_nbhd_layer.set(false);
+        toggle_nbhd_layer_visibility(layers_obj, false);
+        toggle_trx_layer_visibility(layers_obj, false);
+        viz_state.buttons.buttons.trx.style('color', 'gray');
+        d3.select(viz_state.edit.buttons.nbhd).style('color', 'blue');
+        d3.select(viz_state.edit.buttons.sktch)
+          .style('display', 'inline-flex')
+          .style('color', 'gray')
+          .classed('active', false);
+        if (viz_state.nbhd.edit && viz_state.containers.nbhd_opacity_slider) {
+          d3.select(viz_state.containers.nbhd_opacity_slider).style(
+            'display',
+            'inline-flex'
+          );
+          toggle_slider(viz_state.sliders.nbhd_opacity, true);
+        }
+      } else {
+        toggle_trx_layer_visibility(layers_obj, true);
+        viz_state.buttons.buttons.trx.style('color', 'blue');
+        d3.select(viz_state.edit.buttons.nbhd)
+          .style('color', 'gray')
+          .classed('active', false);
+        d3.select(viz_state.edit.buttons.sktch)
+          .style('display', 'none')
+          .style('color', 'gray')
+          .classed('active', false);
+        update_edit_layer_mode(layers_obj, ViewMode);
+        update_cell_pickable_state(layers_obj, true);
+        update_path_pickable_state(layers_obj, true);
+        update_trx_pickable_state(layers_obj, true);
+        if (viz_state.nbhd.edit && viz_state.containers.nbhd_opacity_slider) {
+          d3.select(viz_state.containers.nbhd_opacity_slider).style(
+            'display',
+            'none'
+          );
+          toggle_slider(viz_state.sliders.nbhd_opacity, false);
+        }
+      }
+      refresh_layer(viz_state, layers_obj, 'edit_layer');
+    },
+    { immediate: false }
+  );
 
   viz_state.obs_store.selected_cats.subscribe((selected_cats) => {
     console.log('selected_cats.subscribe', selected_cats);
@@ -476,9 +572,10 @@ export const landscape_ist = async (
 
   update_trx_layer_radius(layers_obj, trx_radius);
 
-  if (viz_state.umap.state === true) {
+  if (viz_state.obs_store.umap_state.get() === true) {
     viz_state.obs_store.viz_background_layer.set(false);
     viz_state.obs_store.viz_image_layers.set(false);
+
     toggle_trx_layer_visibility(layers_obj, false);
     toggle_path_layer_visibility(layers_obj, false);
   }
@@ -507,6 +604,76 @@ export const landscape_ist = async (
   el.appendChild(ui_container);
   el.appendChild(root);
 
+  const isChromium =
+    viz_state.img.landscape_parameters.technology === 'Chromium';
+  viz_state.obs_store.landscape_view.subscribe(
+    (view) => {
+      const isUmap = view === 'umap';
+      viz_state.obs_store.umap_state.set(isUmap);
+
+      toggle_spatial_umap(deck_ist, layers_obj, viz_state);
+
+      if (isUmap) {
+        viz_state.buttons.buttons.umap.style('color', 'blue');
+        if (!isChromium) {
+          viz_state.buttons.buttons.spatial.style('color', 'gray');
+          viz_state.buttons.buttons.img.style('color', 'gray');
+        }
+
+        viz_state.obs_store.viz_background_layer.set(false);
+        viz_state.obs_store.viz_image_layers.set(false);
+
+        toggle_trx_layer_visibility(layers_obj, false);
+        toggle_path_layer_visibility(layers_obj, false);
+
+        viz_state.obs_store.deck_check.set({
+          ...viz_state.obs_store.deck_check.get(),
+          cell_layer: false,
+          path_layer: false,
+          trx_layer: false,
+        });
+
+        viz_state.layers_obj = layers_obj;
+
+        viz_state.obs_store.deck_check.set({
+          ...viz_state.obs_store.deck_check.get(),
+          cell_layer: true,
+          path_layer: true,
+          trx_layer: true,
+        });
+      } else {
+        if (!isChromium) {
+          viz_state.buttons.buttons.umap.style('color', 'gray');
+          viz_state.buttons.buttons.spatial.style('color', 'blue');
+          viz_state.buttons.buttons.img.style('color', 'blue');
+        }
+
+        toggle_trx_layer_visibility(layers_obj, true);
+        toggle_path_layer_visibility(layers_obj, true);
+
+        viz_state.obs_store.deck_check.set({
+          ...viz_state.obs_store.deck_check.get(),
+          cell_layer: false,
+          path_layer: false,
+          trx_layer: false,
+        });
+        viz_state.layers_obj = layers_obj;
+        viz_state.obs_store.deck_check.set({
+          ...viz_state.obs_store.deck_check.get(),
+          cell_layer: true,
+          path_layer: true,
+          trx_layer: true,
+        });
+
+        setTimeout(() => {
+          viz_state.obs_store.viz_background_layer.set(true);
+          viz_state.obs_store.viz_image_layers.set(true);
+        }, 3000);
+      }
+    },
+    { immediate: false }
+  );
+
   const landscape = {
     update_matrix_gene: async (inst_gene) => {
       const reset_gene = inst_gene === viz_state.cats.cat;
@@ -514,7 +681,6 @@ export const landscape_ist = async (
 
       update_cat(viz_state.cats, new_cat);
       update_selected_genes(viz_state.genes, [inst_gene], viz_state.obs_store);
-      // update_selected_cats(viz_state.cats, [], viz_state.obs_store);
       update_selected_cats(
         viz_state.cats,
         new_cat === 'cluster' ? [] : [inst_gene],

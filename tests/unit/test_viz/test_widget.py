@@ -94,3 +94,32 @@ def test_landscape_nbhd_geojson_and_metadata() -> None:
     assert widget.nbhd_geojson == json.loads(gdf.to_json())
     assert hasattr(widget, "meta_nbhd_parquet")
     assert isinstance(widget.meta_nbhd_parquet, (bytes, bytearray))
+
+
+def test_landscape_nbhd_edit_mutual_exclusion() -> None:
+    gdf = gpd.GeoDataFrame(
+        {"name": ["a"]},
+        geometry=[Polygon([(0, 0), (1, 0), (1, 1), (0, 1)])],
+    )
+    with pytest.raises(ValueError):
+        Landscape(nbhd=gdf, nbhd_edit=True)
+
+
+def test_landscape_nbhd_edit_syncs_geojson() -> None:
+    widget = Landscape(nbhd_edit=True)
+    geojson = {
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "properties": {"name": "a"},
+                "geometry": {
+                    "type": "Polygon",
+                    "coordinates": [[(0, 0), (1, 0), (1, 1), (0, 1), (0, 0)]],
+                },
+            }
+        ],
+    }
+    widget.nbhd_geojson = geojson
+    assert isinstance(widget.nbhd, gpd.GeoDataFrame)
+    assert list(widget.nbhd["name"]) == ["a"]

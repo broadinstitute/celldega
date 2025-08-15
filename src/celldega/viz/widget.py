@@ -85,6 +85,9 @@ class Landscape(anywidget.AnyWidget):
     nbhd = traitlets.Instance(gpd.GeoDataFrame, allow_none=True)
     nbhd_geojson = traitlets.Dict({}).tag(sync=True)
 
+    # Enable editing of neighborhoods when True
+    nbhd_edit = traitlets.Bool(False).tag(sync=True)
+
     meta_nbhd = traitlets.Instance(pd.DataFrame, allow_none=True)
 
     meta_cluster = traitlets.Dict({}).tag(sync=True)
@@ -113,8 +116,12 @@ class Landscape(anywidget.AnyWidget):
         umap_df = kwargs.pop("umap", None)
         nbhd_gdf = kwargs.pop("nbhd", None)
         meta_nbhd_df = kwargs.pop("meta_nbhd", None)
+        nbhd_edit = kwargs.pop("nbhd_edit", False)
         meta_cluster_df = None
         cell_attr = kwargs.pop("cell_attr", ["leiden"])
+
+        if nbhd_gdf is not None and nbhd_edit:
+            raise ValueError("nbhd_edit cannot be True when nbhd data is provided")
 
         base_path = (kwargs.get("base_url") or "") + "/"
 
@@ -128,6 +135,16 @@ class Landscape(anywidget.AnyWidget):
             transformation_matrix = np.eye(3)  # Fallback for testing
             warnings.warn(
                 f"Transformation matrix not found at {path_transformation_matrix}. Using identity.",
+                stacklevel=2,
+            )
+
+        self._transformation_matrix = transformation_matrix
+        try:
+            self._inv_transform = np.linalg.inv(transformation_matrix)
+        except np.linalg.LinAlgError as e:
+            self._inv_transform = np.eye(3)
+            warnings.warn(
+                f"Matrix inversion failed for transformation_matrix: {e}. Using identity matrix as fallback.",
                 stacklevel=2,
             )
 
@@ -148,6 +165,10 @@ class Landscape(anywidget.AnyWidget):
                 adata.obs.set_index("cell_id", inplace=True)
 
             meta_cell_df = adata.obs[cell_attr].copy()
+
+            if meta_cell_df.index.name is None:
+                meta_cell_df.index.name = "cell_id"
+
             pq_meta_cell = _df_to_bytes(meta_cell_df)
 
             if "leiden" in adata.obs.columns:
@@ -176,7 +197,11 @@ class Landscape(anywidget.AnyWidget):
                 pq_meta_cluster = _df_to_bytes(meta_cluster_df)
 
             if "X_umap" in adata.obsm:
-                umap_df = pd.DataFrame(adata.obsm["X_umap"], index=adata.obs.index).reset_index()
+                umap_df = (
+                    pd.DataFrame(adata.obsm["X_umap"], index=adata.obs.index)
+                    .reset_index()
+                    .rename(columns={"index": "cell_id", 0: "umap_0", 1: "umap_1"})
+                )
                 pq_umap = _df_to_bytes(umap_df)
 
         if isinstance(meta_cell_df, pd.DataFrame):
@@ -188,7 +213,7 @@ class Landscape(anywidget.AnyWidget):
             meta_cluster_df = meta_cluster
 
         if isinstance(umap_df, pd.DataFrame):
-            pq_umap = _df_to_bytes(umap_df.reset_index())
+            pq_umap = _df_to_bytes(umap_df)
 
         if isinstance(meta_nbhd_df, pd.DataFrame):
             pq_meta_nbhd = _df_to_bytes(meta_nbhd_df.reset_index())
@@ -212,6 +237,7 @@ class Landscape(anywidget.AnyWidget):
         self.meta_cell = meta_cell_df
         self.meta_nbhd = meta_nbhd_df
         self.nbhd = nbhd_gdf
+        self.nbhd_edit = nbhd_edit
         self.umap = umap_df
         if meta_cluster_df is not None:
             self.meta_cluster_df = meta_cluster_df
@@ -234,6 +260,8 @@ class Landscape(anywidget.AnyWidget):
             gdf_viz.drop(columns=["geometry_pixel"], inplace=True)
 
             self.nbhd_geojson = json.loads(gdf_viz.to_json())
+        elif self.nbhd_edit:
+            self.nbhd_geojson = {"type": "FeatureCollection", "features": []}
 
     # @traitlets.observe("nbhd")
     # def _on_nbhd_change(self, change):
@@ -263,6 +291,29 @@ class Landscape(anywidget.AnyWidget):
         """
         # Convert the new_clusters to a JSON serializable format if necessary
         self.cell_clusters = new_clusters
+
+    @traitlets.observe("nbhd_geojson")
+    def _on_nbhd_geojson_change(self, change):
+        """Update ``nbhd`` GeoDataFrame when the GeoJSON changes."""
+        if not getattr(self, "nbhd_edit", False):
+            return
+
+        new = change["new"]
+        if not new:
+            self.nbhd = gpd.GeoDataFrame(columns=["name", "geometry"], geometry="geometry")
+            return
+
+        gdf = gpd.GeoDataFrame.from_features(new.get("features", []))
+
+        try:
+            a, b, tx = self._inv_transform[0]
+            c, d, ty = self._inv_transform[1]
+            coeffs = [a, b, c, d, tx, ty]
+            gdf["geometry"] = gdf.geometry.apply(lambda geom: affine_transform(geom, coeffs))
+        except Exception:
+            pass
+
+        self.nbhd = gdf
 
     def close(self):  # pragma: no cover - cleanup depends on JS
         """Close the widget and notify the frontend to release resources."""

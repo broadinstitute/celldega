@@ -26,9 +26,11 @@ const render_landscape_ist = async ({ model, el }) => {
   const height = model.get('height');
   const nbhd = model.get('nbhd_geojson');
   const max_tiles_to_view = model.get('max_tiles_to_view');
+  const nbhd_edit = model.get('nbhd_edit');
 
   let meta_cell_data = { result: {}, attr: [] };
   let meta_cluster_data = { result: {}, attr: [] };
+  let umap_data = {};
 
   const metaCellBytes = model.get('meta_cell_parquet');
   if (metaCellBytes && metaCellBytes.byteLength > 0) {
@@ -40,7 +42,16 @@ const render_landscape_ist = async ({ model, el }) => {
     meta_cluster_data = await objects_from_parquet(metaClusterBytes, 'leiden');
   }
 
-  const landscape_state = model.get('landscape_state');
+  const umapBytes = model.get('umap_parquet');
+  if (umapBytes && umapBytes.byteLength > 0) {
+    umap_data = (await objects_from_parquet(umapBytes, 'cell_id')).result;
+  }
+
+  const technology = model.get('technology');
+  let landscape_state = model.get('landscape_state');
+  if (technology === 'Chromium') {
+    landscape_state = 'umap';
+  }
   const segmentation = model.get('segmentation');
 
   return landscape_ist(
@@ -60,8 +71,9 @@ const render_landscape_ist = async ({ model, el }) => {
     meta_cell_data.attr,
     meta_cluster_data.result,
     meta_cluster_data.attr,
-    {},
+    umap_data,
     nbhd,
+    nbhd_edit,
     landscape_state,
     segmentation,
     creds,
@@ -129,7 +141,7 @@ const render_landscape = async ({ model, el }) => {
   console.log('render_landscape')
   const technology = model.get('technology');
 
-  if (['MERSCOPE', 'Xenium'].includes(technology)) {
+  if (['MERSCOPE', 'Xenium', 'Chromium'].includes(technology)) {
     return render_landscape_ist({ model, el });
   } else if (['Visium-HD'].includes(technology)) {
     return render_landscape_sst({ model, el });

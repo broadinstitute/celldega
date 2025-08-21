@@ -196,6 +196,9 @@ def main(
     # Make meta gene files
     dega.pre.make_meta_gene(cbg, str(paths["meta_gene"]))
 
+    # Check if the genes are unique before saving the cbg files
+    cbg = dega.pre._align_and_deduplicate_genes(cbg, path_landscape_files)
+
     # Save CBG gene parquet files
     dega.pre.save_cbg_gene_parquets(path_landscape_files, cbg, verbose=True)
 
@@ -248,7 +251,9 @@ def main(
     dega.pre.save_landscape_parameters(
         technology,
         path_landscape_files,
-        "dapi_files",
+        image_width=tile_bounds["x_max"],
+        image_height=tile_bounds["y_max"],
+        image_name="dapi_files",
         tile_size=tile_size,
         image_info=dega.pre.get_image_info(technology, image_tile_layer),
         image_format=".webp",

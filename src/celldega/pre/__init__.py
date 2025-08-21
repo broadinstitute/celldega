@@ -664,6 +664,75 @@ def _load_meta_cell_by_technology(technology, path_meta_cell_micron):
     return meta_cell
 
 
+def _make_names_unique(index: pd.Index) -> pd.Index:
+    """
+    Ensure uniqueness of values in a pandas Index by appending suffixes to duplicates.
+
+    For each duplicated entry, appends a hyphen and a count (e.g., 'name', 'name-1', 'name-2', ...).
+    The first occurrence of each name is left unchanged.
+
+    Parameters:
+        index (pd.Index): A pandas Index potentially containing duplicate values.
+
+    Returns:
+        pd.Index: A new Index with all values made unique.
+    """
+    seen = {}
+    unique_names = []
+    for name in index:
+        if name not in seen:
+            seen[name] = 0
+            unique_names.append(name)
+        else:
+            seen[name] += 1
+            unique_names.append(f"{name}-{seen[name]}")
+    return pd.Index(unique_names)
+
+
+def _align_and_deduplicate_genes(
+    cbg_custom: pd.DataFrame, path_landscape_files: str
+) -> pd.DataFrame:
+    """
+    Ensures genes in cbg_custom and meta_gene are identical,
+    and makes duplicate gene names unique by suffixing.
+    Raises an error if there is a mismatch in gene sets.
+
+    Parameters:
+    -----------
+    cbg_custom : pd.DataFrame
+        DataFrame containing custom cell-by-gene matrix.
+    path_landscape_files : str
+        Path to directory containing meta_gene.parquet.
+
+    Returns:
+    --------
+    pd.DataFrame
+        cbg_custom with deduplicated gene names (columns).
+    """
+    meta_gene_path = Path(path_landscape_files) / "meta_gene.parquet"
+    meta_gene = pd.read_parquet(meta_gene_path)
+
+    # Compare unordered gene sets before deduplication
+    genes_meta = set(meta_gene.index)
+    genes_cbg = set(cbg_custom.columns)
+
+    if genes_meta != genes_cbg:
+        missing_in_cbg = genes_meta - genes_cbg
+        missing_in_meta = genes_cbg - genes_meta
+        raise ValueError(
+            f"Mismatch between cbg_custom and meta_gene genes.\n"
+            f"Missing in cbg_custom (up to 20): {list(missing_in_cbg)[:20]}\n"
+            f"Missing in meta_gene (up to 20): {list(missing_in_meta)[:20]}"
+        )
+
+    # Make gene names unique consistently across both
+    cbg_custom.columns = _make_names_unique(pd.Index(cbg_custom.columns))
+    meta_gene.index = _make_names_unique(pd.Index(meta_gene.index))
+
+    # Align column order to meta_gene index order
+    return cbg_custom.loc[:, meta_gene.index]
+
+
 def make_meta_cell_image_coord(
     technology,
     path_transformation_matrix,
@@ -826,6 +895,8 @@ def make_chromium_from_anndata(adata, path_landscape_files):
     save_landscape_parameters(
         technology="Chromium",
         path_landscape_files=path_landscape_files,
+        image_width=100,
+        image_height=100,
         image_name="",
         tile_size=1,
         image_info=[],
@@ -851,6 +922,8 @@ def get_max_zoom_level(path_image_pyramid):
 def save_landscape_parameters(
     technology,
     path_landscape_files,
+    image_width,
+    image_height,
     image_name="dapi_files",
     tile_size=1000,
     image_info=None,
@@ -895,6 +968,7 @@ def save_landscape_parameters(
             "tile_size": "N.A.",
             "image_info": image_info,
             "image_format": image_format,
+            "image_dimensions": {"width": image_width, "height": image_height},
             "use_int_index": "N.A.",
         }
     elif technology != "custom":
@@ -905,6 +979,7 @@ def save_landscape_parameters(
             "tile_size": tile_size,
             "image_info": image_info,
             "image_format": image_format,
+            "image_dimensions": {"width": image_width, "height": image_height},
             "use_int_index": use_int_index,
         }
     else:
@@ -935,11 +1010,7 @@ def add_custom_segmentation(
 
     cbg_custom = pd.read_parquet(Path(path_segmentation_files) / "cell_by_gene_matrix.parquet")
 
-    # make sure all genes are present in cbg_custom
-    meta_gene = pd.read_parquet(Path(path_landscape_files) / "meta_gene.parquet")
-    missing_cols = meta_gene.index.difference(cbg_custom.columns)
-    for col in missing_cols:
-        cbg_custom[col] = 0
+    cbg_custom = _align_and_deduplicate_genes(cbg_custom, path_landscape_files)
 
     make_meta_gene(
         cbg=cbg_custom,
@@ -1010,6 +1081,8 @@ def add_custom_segmentation(
     save_landscape_parameters(
         technology=segmentation_parameters["technology"],
         path_landscape_files=path_landscape_files,
+        image_width=width,
+        image_height=height,
         image_name="dapi_files",
         tile_size=tile_size,
         image_format=".webp",

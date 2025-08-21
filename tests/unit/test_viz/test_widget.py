@@ -1,6 +1,9 @@
-"""Tests for Clustergram widget with Parquet input."""
+"""Tests for Clustergram and Landscape widgets with Parquet input."""
 
+import io
 import json
+from unittest.mock import patch
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -15,6 +18,16 @@ try:
     from celldega.viz import Clustergram, Landscape
 except Exception as e:  # pragma: no cover - if deps missing skip
     pytest.skip(f"celldega modules unavailable: {e}", allow_module_level=True)
+
+
+def test_landscape_deprecated_technology_argument_warning():
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        _ = Landscape(technology="MERSCOPE")
+        messages = [str(warn.message) for warn in w]
+        assert any("deprecated" in msg.lower() for msg in messages), (
+            "Expected deprecation warning for `technology` argument"
+        )
 
 
 def make_simple_matrix() -> Matrix:
@@ -41,7 +54,7 @@ def test_export_viz_parquet_returns_bytes() -> None:
     assert set(pq) == expected_keys
     for key in expected_keys - {"meta"}:
         assert isinstance(pq[key], bytes | bytearray)
-        assert pq[key]  # non-empty
+        assert pq[key]  # ensure non-empty
     assert isinstance(pq["meta"], dict)
 
 
@@ -50,11 +63,8 @@ def test_clustergram_initializes_with_parquet() -> None:
     pq = mat.export_viz_parquet()
 
     widget = Clustergram(matrix=mat)
-
-    # Confirm meta is set correctly
     assert widget.network_meta == pq["meta"]
 
-    # Confirm dynamic parquet attributes exist and match expected values
     for attr, key in [
         ("mat_parquet", "mat"),
         ("row_nodes_parquet", "row_nodes"),
@@ -63,15 +73,12 @@ def test_clustergram_initializes_with_parquet() -> None:
         ("col_linkage_parquet", "col_linkage"),
     ]:
         assert hasattr(widget, attr), f"Missing attribute: {attr}"
-        assert getattr(widget, attr) == pq[key], (
-            f"Attribute {attr} does not match expected parquet value"
-        )
+        assert getattr(widget, attr) == pq[key]
 
 
 def test_clustergram_selected_genes_trait() -> None:
     mat = make_simple_matrix()
     widget = Clustergram(matrix=mat)
-
     assert widget.selected_genes == []
     assert widget.top_n_genes == 50
 
@@ -79,7 +86,27 @@ def test_clustergram_selected_genes_trait() -> None:
     assert widget.selected_genes == ["A", "B"]
 
 
-def test_landscape_nbhd_geojson_and_metadata() -> None:
+# ---------- Landscape Patch and Tests ----------
+
+
+class MockHTTPResponse(io.BytesIO):
+    def __init__(self, data: bytes):
+        super().__init__(data)
+        self.headers = {}  # Mimic real HTTPResponse
+
+
+def mock_urlopen_with_technology(*args, **kwargs):
+    """Valid JSON containing technology."""
+    return MockHTTPResponse(json.dumps({"technology": "Xenium"}).encode("utf-8"))
+
+
+def mock_urlopen_missing_technology(*args, **kwargs):
+    """JSON missing the technology field."""
+    return MockHTTPResponse(json.dumps({}).encode("utf-8"))
+
+
+@patch("celldega.viz.widget.urllib.request.urlopen", side_effect=mock_urlopen_with_technology)
+def test_landscape_nbhd_geojson_and_metadata(mock_urlopen) -> None:
     gdf = gpd.GeoDataFrame(
         {"name": ["a"], "cat": ["x"]},
         geometry=[Polygon([(0, 0), (1, 0), (1, 1), (0, 1)])],
@@ -87,8 +114,6 @@ def test_landscape_nbhd_geojson_and_metadata() -> None:
     meta_nbhd = pd.DataFrame({"area": [1]}, index=["a"])
 
     widget = Landscape(nbhd=gdf, meta_nbhd=meta_nbhd)
-
-    # drop geometry_pixel column from gdf
     gdf = gdf.drop(columns=["geometry_pixel"], errors="ignore")
 
     assert widget.nbhd_geojson == json.loads(gdf.to_json())

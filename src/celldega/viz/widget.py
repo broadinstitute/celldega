@@ -69,7 +69,7 @@ class Landscape(anywidget.AnyWidget):
     _css = Path(__file__).parent / "../static" / "widget.css"
     component = traitlets.Unicode("Landscape").tag(sync=True)
 
-    technology = traitlets.Unicode("sst").tag(sync=True)
+    technology = traitlets.Unicode("").tag(sync=True)
     base_url = traitlets.Unicode("").tag(sync=True)
     token = traitlets.Unicode("").tag(sync=True)
     creds = traitlets.Dict({}).tag(sync=True)
@@ -104,6 +104,14 @@ class Landscape(anywidget.AnyWidget):
     height = traitlets.Int(800).tag(sync=True)
 
     def __init__(self, **kwargs):
+        technology_value = kwargs.get("technology", "")
+        if technology_value:
+            warnings.warn(
+                "[DEPRECATION WARNING] Passing `technology` manually to the Landscape widget is deprecated and will be removed in a future release. "
+                "Please rely on automatic detection via `landscape_parameters.json`.",
+                stacklevel=2,
+            )
+
         adata = kwargs.pop("adata", None) or kwargs.pop("AnnData", None)
         pq_meta_cell = kwargs.pop("meta_cell_parquet", None)
         pq_meta_cluster = kwargs.pop("meta_cluster_parquet", None)
@@ -232,6 +240,9 @@ class Landscape(anywidget.AnyWidget):
 
         super().__init__(**kwargs)
 
+        # handle messages from the frontend for warnings/errors
+        self.on_msg(self._handle_frontend_message)
+
         # store DataFrames locally without syncing to the frontend
         self.meta_cell = meta_cell_df
         self.meta_nbhd = meta_nbhd_df
@@ -261,6 +272,19 @@ class Landscape(anywidget.AnyWidget):
             self.nbhd_geojson = json.loads(gdf_viz.to_json())
         elif self.nbhd_edit:
             self.nbhd_geojson = {"type": "FeatureCollection", "features": []}
+
+    def _handle_frontend_message(self, _, content, buffers=None):
+        event = content.get("event")
+        message = content.get("message", "")
+
+        if event == "js_warning":
+            print(f"JavaScript warning: {message}")
+            warnings.warn(message, stacklevel=2)
+        elif event == "js_error":
+            print(f"JavaScript error: {message}")
+            warnings.warn(f"JavaScript error: {message}", stacklevel=2)
+        else:
+            print(f"Unhandled frontend event: {event}")
 
     # @traitlets.observe("nbhd")
     # def _on_nbhd_change(self, change):

@@ -895,6 +895,8 @@ def make_chromium_from_anndata(adata, path_landscape_files):
     save_landscape_parameters(
         technology="Chromium",
         path_landscape_files=path_landscape_files,
+        image_width=100,
+        image_height=100,
         image_name="",
         tile_size=1,
         image_info=[],

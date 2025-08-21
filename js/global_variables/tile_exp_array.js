@@ -6,7 +6,8 @@ export const update_tile_exp_array = async (viz_state, inst_gene) => {
 
   const exp_table = await get_arrow_table(
     `${base_url}/tbg/${inst_gene}.parquet`,
-    options.fetch
+    options.fetch,
+    viz_state.aws
   );
   const tile_names = exp_table.getChild('__index_level_0__').toArray();
   const tile_exp = exp_table.getChild(inst_gene).toArray();

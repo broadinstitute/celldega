@@ -605,7 +605,10 @@ class Matrix:
             if axis_enum == Axis.COL
             else AnnData(X=self.data.T, obs=self.meta_row, var=self.meta_col)
         )
+
         adata_agg = sc.get.aggregate(adata, by=category, func="mean")
+        if adata_agg.X is None and "mean" in adata_agg.layers:
+            adata_agg.X = adata_agg.layers["mean"]
 
         count_col = "n_cells" if axis_enum == Axis.COL else "n_genes"
         adata_agg.obs[count_col] = adata.obs.groupby(category).size().values

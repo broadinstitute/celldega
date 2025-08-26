@@ -60,7 +60,7 @@ const mat_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
     },
   };
 
-  if (Object.keys(viz_state.model).length > 0) {
+  if (viz_state.model?.set) {
     viz_state.model.set('click_info', null);
     viz_state.model.set('click_info', viz_state.click);
     viz_state.model.save_changes();

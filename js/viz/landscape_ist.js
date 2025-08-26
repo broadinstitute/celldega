@@ -446,6 +446,7 @@ export const landscape_ist = async (
 
         viz_state.buttons.buttons.cell.style('color', 'gray');
         viz_state.buttons.buttons.trx.style('color', 'gray');
+        viz_state.buttons.buttons.nbhd?.style('color', 'blue');
 
         toggle_slider(viz_state.sliders.cell, false);
         toggle_slider(viz_state.sliders.trx, false);
@@ -461,6 +462,7 @@ export const landscape_ist = async (
 
         viz_state.buttons.buttons.cell.style('color', 'blue');
         viz_state.buttons.buttons.trx.style('color', 'blue');
+        viz_state.buttons.buttons.nbhd?.style('color', 'gray');
 
         toggle_slider(viz_state.sliders.cell, true);
         toggle_slider(viz_state.sliders.trx, true);

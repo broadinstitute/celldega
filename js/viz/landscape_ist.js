@@ -188,22 +188,6 @@ export const landscape_ist = async (
 
       viz_state.nbhd.ini_feature_collection = nbhd;
 
-      // find all unique categories in the nbhd features
-      const unique_cats = new Set(
-        nbhd.features.map((feature) => feature.properties.cat)
-      );
-
-      // calculate the area of all unique categories
-      viz_state.nbhd.bar_data = Array.from(unique_cats)
-        .map((cat) => {
-          const features = nbhd.features.filter(
-            (feature) => feature.properties.cat === cat
-          );
-          const area = features.reduce(
-            (acc, feature) => acc + feature.properties.area,
-            0
-          );
-
       // viz_state.nbhd.bar_data = nbhd.features
       //   .map((feature) => {
       //     return {

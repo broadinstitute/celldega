@@ -75,18 +75,14 @@ export const bar_callback_gene = async (
 
   if (_viz_state.nbhd.is_nbhd) {
     _viz_state.obs_store.viz_nbhd_layer.set(false);
-<<<<<<< HEAD
-    _viz_state.buttons.buttons.nbhd.style('color', 'gray');
-    toggle_slider(_viz_state.sliders.nbhd, false);
-=======
     _viz_state.obs_store.viz_edit_layer.set(false);
     // wrap in try
     try {
       _viz_state.buttons.buttons.nbhd.style('color', 'gray');
+      toggle_slider(_viz_state.sliders.nbhd, false);
     } catch {
       // intentionally ignore missing neighborhood button
     }
->>>>>>> origin/main
   }
 
   const inst_gene = d.name;
@@ -134,16 +130,8 @@ export const bar_callback_nbhd = (
     _viz_state.obs_store.viz_edit_layer.set(true);
 
     _viz_state.buttons.buttons.nbhd.style('color', 'blue');
+    toggle_slider(_viz_state.sliders.nbhd, true);
 
-<<<<<<< HEAD
-  toggle_slider(_viz_state.sliders.nbhd, true);
-
-  // update selected_nbhds observable with the clicked nbhd unless
-  // the clicked nbhd is already equal to selected_nbhds
-  const prev_selected_nbhds = _viz_state.obs_store.selected_nbhds.get();
-  if (prev_selected_nbhds[0] === _d.name && prev_selected_nbhds.length === 1) {
-    _viz_state.obs_store.selected_nbhds.set([]);
-=======
     const prev_selected_nbhds = _viz_state.obs_store.selected_nbhds.get();
     if (
       prev_selected_nbhds[0] === _d.name &&
@@ -177,7 +165,6 @@ export const bar_callback_nbhd = (
     } else {
       _viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', 1.0);
     }
->>>>>>> origin/main
   } else {
     _viz_state.obs_store.viz_nbhd_layer.set(true);
     _viz_state.obs_store.viz_edit_layer.set(false);

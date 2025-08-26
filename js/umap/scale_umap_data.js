@@ -15,10 +15,7 @@ export const scale_umap_data = (viz_state, cell_scatter_data_objects) => {
     y_min = 0;
     y_max = 10000;
   } else {
-    x_min = viz_state.spatial.x_min;
-    x_max = viz_state.spatial.x_max;
-    y_min = viz_state.spatial.y_min;
-    y_max = viz_state.spatial.y_max;
+    ({ x_min, x_max, y_min, y_max } = viz_state.spatial);
   }
 
   // take the smaller of the two ranges for x and y

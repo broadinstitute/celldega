@@ -222,7 +222,7 @@ const trx_button_callback_ist = async (
     viz_state.obs_store.viz_edit_layer.set(false);
 
     if (viz_state.nbhd.is_nbhd) {
-      viz_state.buttons.buttons.nbhd.style('color', 'gray');
+      viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
     }
 
     viz_state.genes.svg_bar_gene.selectAll('rect').style('opacity', 1.0);
@@ -256,7 +256,7 @@ const cell_button_callback = async (event, deck_ist, layers_obj, viz_state) => {
     viz_state.obs_store.viz_edit_layer.set(false);
 
     if (viz_state.nbhd.is_nbhd) {
-      viz_state.buttons.buttons.nbhd.style('color', 'gray');
+      viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
     }
 
     viz_state.cats.svg_bar_cluster.selectAll('rect').style('opacity', 1.0);

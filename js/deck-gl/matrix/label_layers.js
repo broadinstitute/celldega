@@ -222,7 +222,7 @@ const row_label_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
       viz_state.labels.clicks.row = 0;
     }, DOUBLE_CLICK_DELAY);
 
-    if (Object.keys(viz_state.model).length > 0) {
+    if (viz_state.model?.set) {
       viz_state.model.set('click_info', null);
       viz_state.model.set('click_info', viz_state.click);
       viz_state.model.save_changes();
@@ -261,7 +261,7 @@ const col_label_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
       viz_state.labels.clicks.col = 0;
     }, DOUBLE_CLICK_DELAY);
 
-    if (Object.keys(viz_state.model).length > 0) {
+    if (viz_state.model?.set) {
       viz_state.model.set('click_info', null);
       viz_state.model.set('click_info', viz_state.click);
       viz_state.model.save_changes();

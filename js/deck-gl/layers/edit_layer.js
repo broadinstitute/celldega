@@ -55,7 +55,7 @@ const calc_region_areas = (featureCollection) => {
 };
 
 export const sync_region_to_model = (viz_state) => {
-  if (Object.keys(viz_state.model).length > 0) {
+  if (viz_state.model?.set) {
     if (viz_state.nbhd?.edit) {
       viz_state.model.set('nbhd_geojson', {});
       viz_state.model.set('nbhd_geojson', viz_state.edit.feature_collection);

@@ -52,7 +52,12 @@ df = pd.read_parquet(file_path)
 
 mat = dega.clust.Matrix(df)
 mat.cluster()
-cgm = dega.viz.Clustergram(matrix=mat)
+cgm = dega.viz.Clustergram(
+    matrix=mat,
+    row_entity="gene",
+    col_entity="cell-cluster",
+    attribute="leiden",
+)
 
 dega.viz.landscape_clustergram(landscape_ist, cgm)
 ```

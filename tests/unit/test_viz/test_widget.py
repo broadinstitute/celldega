@@ -85,8 +85,7 @@ def test_clustergram_entities_attributes() -> None:
         matrix=mat,
         row_entity="gene",
         col_entity="cell-cluster",
-        row_attribute="name",
-        col_attribute="leiden",
+        attribute="leiden",
     )
 
     assert widget.entities == {"row": "gene", "col": "cell-cluster"}

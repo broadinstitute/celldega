@@ -435,9 +435,7 @@ class Clustergram(anywidget.AnyWidget):
         col_entity = kwargs.pop("col_entity", None)
         entities = kwargs.pop("entities", None)
 
-        row_attribute = kwargs.pop("row_attribute", None)
-        col_attribute = kwargs.pop("col_attribute", None)
-        attribute = kwargs.pop("attribute", None)  # backward compat
+        attribute = kwargs.pop("attribute", None)  # column attribute
         attributes = kwargs.pop("attributes", None)
 
         # Consolidate entity information
@@ -450,10 +448,10 @@ class Clustergram(anywidget.AnyWidget):
             kwargs.setdefault("entities", entities)
 
         # Consolidate attribute information
-        if attributes is None and any([row_attribute, col_attribute, attribute]):
+        if attributes is None and attribute is not None:
             attributes = {
-                "row": row_attribute or "name",
-                "col": col_attribute or attribute or "cluster",
+                "row": "name",
+                "col": attribute,
             }
         if attributes is not None:
             kwargs.setdefault("attributes", attributes)

@@ -2,7 +2,7 @@
 Module for visualization
 """
 
-from ipywidgets import HBox, Layout, jslink
+from ipywidgets import HBox, Layout, jsdlink, jslink
 
 from .local_server import get_local_server
 from .widget import Clustergram, Enrich, Landscape
@@ -24,8 +24,11 @@ def landscape_clustergram(landscape, mat, width="600px", height="700px"):
     Example:
     See example [Landscape-Matrix_Xenium](../../../examples/brief_notebooks/Landscape-Matrix_Xenium) notebook
     """
-    # Use `jslink` to directly link `click_info` from `mat` to `trigger_value` in `landscape_ist`
-    jslink((mat, "click_info"), (landscape, "update_trigger"))
+    # Link `click_info` from the Clustergram to `update_trigger` in the Landscape
+    # widget. Use a directional link so that updates flow only from the
+    # Clustergram to the Landscape, preventing feedback loops that could break
+    # interactions like the row dendrogram selection.
+    jsdlink((mat, "click_info"), (landscape, "update_trigger"))
 
     # Set layouts for the widgets
     mat.layout = Layout(width=width)  # Adjust as needed

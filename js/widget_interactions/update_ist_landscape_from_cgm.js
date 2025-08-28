@@ -189,15 +189,17 @@ export const update_ist_landscape_from_cgm = async (
             viz_state.obs_store
           );
 
-          await update_cell_exp_array(
-            viz_state.cats,
-            viz_state.genes,
-            viz_state.global_base_url,
-            inst_gene,
-            viz_state.seg.version,
-            viz_state.vector_name_integer,
-            viz_state.aws
-          );
+          if (viz_state.global_base_url) {
+            await update_cell_exp_array(
+              viz_state.cats,
+              viz_state.genes,
+              viz_state.global_base_url,
+              inst_gene,
+              viz_state.seg.version,
+              viz_state.vector_name_integer,
+              viz_state.aws
+            );
+          }
         } else {
           update_cat(viz_state.cats, 'cluster');
           update_selected_cats(viz_state.cats, [], viz_state.obs_store);

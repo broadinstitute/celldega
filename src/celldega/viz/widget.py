@@ -422,11 +422,41 @@ class Clustergram(anywidget.AnyWidget):
     height = traitlets.Int(600).tag(sync=True)
     click_info = traitlets.Dict({}).tag(sync=True)
     entity = traitlets.Unicode("CELL").tag(sync=True)
+    entities = traitlets.Dict({}).tag(sync=True)
+    attributes = traitlets.Dict({}).tag(sync=True)
     selected_genes = traitlets.List(default_value=[]).tag(sync=True)
     top_n_genes = traitlets.Int(50).tag(sync=True)
 
     def __init__(self, **kwargs):
         pq_data = kwargs.pop("parquet_data", None)
+
+        # Extract optional entity/attribute arguments
+        row_entity = kwargs.pop("row_entity", None)
+        col_entity = kwargs.pop("col_entity", None)
+        entities = kwargs.pop("entities", None)
+
+        row_attribute = kwargs.pop("row_attribute", None)
+        col_attribute = kwargs.pop("col_attribute", None)
+        attribute = kwargs.pop("attribute", None)  # backward compat
+        attributes = kwargs.pop("attributes", None)
+
+        # Consolidate entity information
+        if entities is None and (row_entity is not None or col_entity is not None):
+            entities = {
+                "row": row_entity or "gene",
+                "col": col_entity or "cell",
+            }
+        if entities is not None:
+            kwargs.setdefault("entities", entities)
+
+        # Consolidate attribute information
+        if attributes is None and any([row_attribute, col_attribute, attribute]):
+            attributes = {
+                "row": row_attribute or "name",
+                "col": col_attribute or attribute or "cluster",
+            }
+        if attributes is not None:
+            kwargs.setdefault("attributes", attributes)
 
         if "network" in kwargs:
             warnings.warn(

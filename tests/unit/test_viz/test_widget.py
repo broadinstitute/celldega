@@ -79,6 +79,20 @@ def test_clustergram_selected_genes_trait() -> None:
     assert widget.selected_genes == ["A", "B"]
 
 
+def test_clustergram_entities_attributes() -> None:
+    mat = make_simple_matrix()
+    widget = Clustergram(
+        matrix=mat,
+        row_entity="gene",
+        col_entity="cell-cluster",
+        row_attribute="name",
+        col_attribute="leiden",
+    )
+
+    assert widget.entities == {"row": "gene", "col": "cell-cluster"}
+    assert widget.attributes == {"row": "name", "col": "leiden"}
+
+
 def test_landscape_nbhd_geojson_and_metadata() -> None:
     gdf = gpd.GeoDataFrame(
         {"name": ["a"], "cat": ["x"]},

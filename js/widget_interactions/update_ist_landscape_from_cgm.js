@@ -213,7 +213,11 @@ export const update_ist_landscape_from_cgm = async (
         refresh_layer(viz_state, layers_obj, 'trx_layer');
       }
     } else if (click_type === 'mat_value') {
-      const { row, col } = click_info.value;
+
+      const { row_entity, col_entity } = click_info.value;
+      const row = row_entity;
+      const col = col_entity;
+
       if (row === 'cell_cluster' && col === 'nbhd') {
         const new_nbhds = [row.name, col.name];
         viz_state.obs_store.selected_nbhds.set(new_nbhds);

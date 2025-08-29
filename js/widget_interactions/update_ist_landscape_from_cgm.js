@@ -34,7 +34,9 @@ export const update_ist_landscape_from_cgm = async (
   // add try catch block
   try {
     if (click_type === 'row_label') {
-      if (click_info.value.entity === 'cell') {
+
+      if (click_info.value.row_entity === 'cell_cluster') {
+
         inst_gene = 'cluster';
         new_cat = click_info.value.name;
 
@@ -80,7 +82,8 @@ export const update_ist_landscape_from_cgm = async (
         refresh_layer(viz_state, layers_obj, 'trx_layer');
       }
     } else if (click_type === 'col_label') {
-      if (click_info.value.entity === 'nbhd') {
+
+      if (click_info.value.col_entity === 'nbhd') {
         const new_nbhd = click_info.value.name;
         viz_state.obs_store.selected_nbhds.set([new_nbhd]);
         viz_state.obs_store.viz_nbhd_layer.set(true);
@@ -124,7 +127,7 @@ export const update_ist_landscape_from_cgm = async (
       }
     } else if (click_type === 'col_dendro') {
       const new_cats = click_info.value.selected_names;
-      if (click_info.value.entity === 'nbhd') {
+      if (click_info.value.col_entity === 'nbhd') {
         viz_state.obs_store.selected_nbhds.set(new_cats);
         viz_state.obs_store.viz_nbhd_layer.set(true);
         viz_state.buttons?.buttons?.nbhd?.style?.('color', 'blue');
@@ -162,7 +165,7 @@ export const update_ist_landscape_from_cgm = async (
       }
     } else if (click_type === 'row_dendro') {
       const new_cats = click_info.value.selected_names;
-      if (click_info.value.entity === 'cell') {
+      if (click_info.value.row_entity === 'cell_cluster') {
         update_cat(viz_state.cats, 'cluster');
         update_selected_cats(viz_state.cats, new_cats, viz_state.obs_store);
         update_selected_genes(viz_state.genes, [], viz_state.obs_store);
@@ -211,7 +214,7 @@ export const update_ist_landscape_from_cgm = async (
       }
     } else if (click_type === 'mat_value') {
       const { row, col } = click_info.value;
-      if (row.entity === 'cell' && col.entity === 'nbhd') {
+      if (row === 'cell_cluster' && col === 'nbhd') {
         const new_nbhds = [row.name, col.name];
         viz_state.obs_store.selected_nbhds.set(new_nbhds);
         viz_state.obs_store.viz_nbhd_layer.set(true);

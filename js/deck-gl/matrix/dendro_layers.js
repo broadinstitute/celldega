@@ -48,8 +48,8 @@ const dendro_layer_onclick = (event, deck_mat, layers_mat, viz_state, axis) => {
   viz_state.click.value = {
     name: event.object.properties.name,
     selected_names: event.object.properties.all_names,
-    entity: viz_state.entity[axis],
-    attribute: viz_state.attribute[axis],
+    row_entity: viz_state.row_entity,
+    col_entity: viz_state.col_entity
   };
 
   if (viz_state.model?.set) {

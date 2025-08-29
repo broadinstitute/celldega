@@ -92,8 +92,6 @@ class Landscape(anywidget.AnyWidget):
     meta_cluster = traitlets.Dict({}).tag(sync=True)
     landscape_state = traitlets.Unicode("spatial").tag(sync=True)
 
-    entity = traitlets.Unicode("CELL").tag(sync=True)
-
     update_trigger = traitlets.Dict().tag(sync=True)
     cell_clusters = traitlets.Dict({}).tag(sync=True)
 
@@ -421,7 +419,7 @@ class Clustergram(anywidget.AnyWidget):
     width = traitlets.Int(600).tag(sync=True)
     height = traitlets.Int(600).tag(sync=True)
     click_info = traitlets.Dict({}).tag(sync=True)
-    entity = traitlets.Unicode("CELL").tag(sync=True)
+
     selected_genes = traitlets.List(default_value=[]).tag(sync=True)
     top_n_genes = traitlets.Int(50).tag(sync=True)
 
@@ -462,6 +460,8 @@ class Clustergram(anywidget.AnyWidget):
                 "col_linkage_parquet": traitlets.Bytes(pq_data.get("col_linkage", b"")).tag(
                     sync=True
                 ),
+                "row_entity": traitlets.Unicode(pq_data.get("row_entity")).tag(sync=True),
+                "col_entity": traitlets.Unicode(pq_data.get("col_entity")).tag(sync=True),
             }
             self.add_traits(**parquet_traits)
 

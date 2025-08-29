@@ -153,13 +153,6 @@ const render_matrix_new = async ({ model, el }) => {
   let network;
   const width = model.get('width');
   const height = model.get('height');
-  const entity = model.get('entity');
-  const entities =
-    model.get('entities') ||
-    (entity === 'NBHD'
-      ? { row: 'cell', col: 'nbhd' }
-      : { row: 'gene', col: 'cell' });
-  const attributes = model.get('attributes') || { row: 'name', col: 'cluster' };
 
   const matBytes = model.get('mat_parquet');
   if (matBytes && matBytes.byteLength > 0) {
@@ -169,11 +162,13 @@ const render_matrix_new = async ({ model, el }) => {
       model.get('row_nodes_parquet'),
       model.get('col_nodes_parquet'),
       model.get('row_linkage_parquet'),
-      model.get('col_linkage_parquet')
+      model.get('col_linkage_parquet'),
+      model.get('row_entity'),
+      model.get('col_entity')
     );
   }
 
-  return matrix_viz(model, el, network, width, height, entities, attributes);
+  return matrix_viz(model, el, network, width, height);
 };
 
 // Main render function - no export keyword

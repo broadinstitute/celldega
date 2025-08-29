@@ -65,8 +65,6 @@ export const matrix_viz = async (
   network,
   width = '800',
   height = '800',
-  entities = { row: 'gene', col: 'cell' },
-  attributes = { row: 'name', col: 'cluster' },
   row_label_callback = null,
   col_label_callback = null,
   col_dendro_callback = null
@@ -76,14 +74,17 @@ export const matrix_viz = async (
   // root.style.width = width
   const deck_mat = ini_deck(root, width, height);
 
+  const row_entity = model.get('row_entity');
+  const col_entity = model.get('col_entity');
+
   const viz_state = set_mat_constants(
     model,
     network,
     root,
     width,
     height,
-    entities,
-    attributes,
+    row_entity,
+    col_entity,
     row_label_callback,
     col_label_callback,
     col_dendro_callback

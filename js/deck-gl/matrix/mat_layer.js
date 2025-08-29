@@ -50,13 +50,12 @@ const mat_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
   viz_state.click.value = {
     row: {
       name: row_name,
-      entity: viz_state.entity.row,
-      attribute: viz_state.attribute.row,
+
+      row_entity: viz_state.row_entity
     },
     col: {
       name: col_name,
-      entity: viz_state.entity.col,
-      attribute: viz_state.attribute.col,
+      col_entity: viz_state.col_entity
     },
   };
 

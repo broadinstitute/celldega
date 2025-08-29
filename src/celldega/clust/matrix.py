@@ -101,6 +101,8 @@ class Matrix:
         meta_row: pd.DataFrame | None = None,
         col_attr: list[str] | None = None,
         row_attr: list[str] | None = None,
+        row_entity: str | None = "cell_cluster",
+        col_entity: str | None = "gene",
         # Processing parameters
         filter_genes: int | None = None,
         norm_col: str | None = "total",
@@ -161,6 +163,9 @@ class Matrix:
             if attr in self.meta_row.columns
             and not pd.api.types.is_numeric_dtype(self.meta_row[attr])
         ]
+
+        self.row_entity = row_entity
+        self.col_entity = col_entity
 
         # State tracking
         self._clustered: bool = False
@@ -691,7 +696,7 @@ class Matrix:
         )
         return self.export_viz_json_string()
 
-    def export_viz_parquet(self) -> dict[str, bytes]:
+    def export_viz_parquet(self) -> dict[str, bytes | str]:
         """Export visualization using Parquet encoded tables."""
         if not self._clustered:
             warnings.warn(
@@ -734,6 +739,9 @@ class Matrix:
         row_link_df = pd.DataFrame(viz.get("linkage", {}).get(Axis.ROW.value, []))
         col_link_df = pd.DataFrame(viz.get("linkage", {}).get(Axis.COL.value, []))
 
+        row_entity = self.row_entity
+        col_entity = self.col_entity
+
         meta_json = viz.copy()
         meta_json.pop("mat", None)
         meta_json.pop("row_nodes", None)
@@ -747,6 +755,8 @@ class Matrix:
             "row_linkage": _to_bytes(row_link_df),
             "col_linkage": _to_bytes(col_link_df),
             "meta": meta_json,
+            "row_entity": row_entity,
+            "col_entity": col_entity
         }
 
     def add_category(self, axis: AxisInput, name: str, data: pd.Series) -> None:

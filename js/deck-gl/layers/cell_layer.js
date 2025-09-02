@@ -293,7 +293,8 @@ export const ini_cell_layer = async (base_url, viz_state) => {
   if (viz_state.img.landscape_parameters.technology === 'point-cloud') {
     cell_layer = new PointCloudLayer({
       id: 'cell-layer',
-      pointSize: 1,
+      sizeUnits: 'meters',
+      pointSize: 5,
       pickable: true,
       getColor: (i, d) => get_cell_color(viz_state.cats, i, d),
       data: viz_state.spatial.cell_scatter_data_objects,
@@ -303,7 +304,7 @@ export const ini_cell_layer = async (base_url, viz_state) => {
       updateTriggers: {
         getPosition: [viz_state.obs_store.umap_state.get()],
       },
-      opacity: 0.5,
+      opacity: 1,
     });
   } else {
     cell_layer = new ScatterplotLayer({
@@ -338,10 +339,12 @@ export const new_toggle_cell_layer_visibility = (layers_obj, visible) => {
   });
 };
 
+const POINT_SIZE_SCALE_FACTOR = 2;
+
 export const update_cell_layer_radius = (layers_obj, radius, viz_state) => {
   if (viz_state.img.landscape_parameters.technology === 'point-cloud') {
     layers_obj.cell_layer = layers_obj.cell_layer.clone({
-      pointSize: radius / 10,
+      pointSize: radius / POINT_SIZE_SCALE_FACTOR,
     });
   } else {
     layers_obj.cell_layer = layers_obj.cell_layer.clone({

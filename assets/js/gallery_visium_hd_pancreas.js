@@ -6,7 +6,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (window.location.pathname.endsWith('gallery_visium_hd_pancreas/')){
 
         console.log('hi!')
-
         // Use the imported functions
         const token = '';
         const ini_zoom = -3.5;

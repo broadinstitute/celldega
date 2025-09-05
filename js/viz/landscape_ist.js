@@ -346,7 +346,7 @@ export const landscape_ist = async (
   if (tech === 'Chromium') {
     viz_state.dimensions = { width: 1, height: 1, tileSize: 1 };
   } else {
-    await set_dimensions(viz_state, base_url, imgage_name_for_dim);
+    await set_dimensions(viz_state, base_url, image_name_for_dim);
   }
 
   await set_meta_gene(

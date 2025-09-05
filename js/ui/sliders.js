@@ -26,12 +26,6 @@ const tile_slider_callback = async (deck_sst, viz_state, layers_sst) => {
 const cell_slider_callback = async (deck_ist, layers_obj, viz_state) => {
   const scale_down_cell_radius = 5;
 
-  console.log('viz_state.sliders.cell.value', viz_state.sliders.cell.value);
-  console.log(
-    'scaled down',
-    viz_state.sliders.cell.value / scale_down_cell_radius
-  );
-
   update_cell_layer_radius(
     layers_obj,
     viz_state.sliders.cell.value / scale_down_cell_radius,

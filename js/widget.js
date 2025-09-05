@@ -24,6 +24,8 @@ const render_landscape_ist = async ({ model, el }) => {
   const dataset_name = model.get('dataset_name');
   const width = model.get('width');
   const height = model.get('height');
+  const rotation_orbit = model.get('rotation_orbit') ?? 0;
+  const rotation_x = model.get('rotation_x') ?? 0;
   const nbhd = model.get('nbhd_geojson');
   const max_tiles_to_view = model.get('max_tiles_to_view');
   const nbhd_edit = model.get('nbhd_edit');
@@ -51,6 +53,8 @@ const render_landscape_ist = async ({ model, el }) => {
   let landscape_state = model.get('landscape_state');
   if (technology === 'Chromium') {
     landscape_state = 'umap';
+  } else if (technology === 'point-cloud') {
+    landscape_state = 'spatial';
   }
   const segmentation = model.get('segmentation');
 
@@ -77,6 +81,9 @@ const render_landscape_ist = async ({ model, el }) => {
     landscape_state,
     segmentation,
     creds,
+    null,
+    rotation_orbit,
+    rotation_x
     max_tiles_to_view
   );
 };
@@ -141,7 +148,7 @@ const render_landscape = async ({ model, el }) => {
   console.log('render_landscape')
   const technology = model.get('technology');
 
-  if (['MERSCOPE', 'Xenium', 'Chromium'].includes(technology)) {
+  if (['MERSCOPE', 'Xenium', 'Chromium', 'point-cloud'].includes(technology)) {
     return render_landscape_ist({ model, el });
   } else if (['Visium-HD'].includes(technology)) {
     return render_landscape_sst({ model, el });

@@ -39,6 +39,8 @@ class Landscape(anywidget.AnyWidget):
         ini_x (float): The initial x-coordinate of the view.
         ini_y (float): The initial y-coordinate of the view.
         ini_zoom (float): The initial zoom level of the view.
+        rotation_orbit (float, optional): Rotating angle around orbit axis for point-cloud views.
+        rotation_x (float, optional): Rotating angle around X axis for point-cloud views.
         token (str): The token traitlet.
         base_url (str): The base URL for the widget.
         AnnData (AnnData, optional): AnnData object to derive metadata from.
@@ -57,6 +59,8 @@ class Landscape(anywidget.AnyWidget):
         ini_y (float): The initial y-coordinate of the view.
         ini_z (float): The initial z-coordinate of the view.
         ini_zoom (float): The initial zoom level of the view.
+        rotation_orbit (float): Rotating angle around orbit axis for point-cloud views.
+        rotation_x (float): Rotating angle around X axis for point-cloud views.
         dataset_name (str): The name of the dataset to visualize.
         update_trigger (dict): The dictionary to trigger updates.
         cell_clusters (dict): The dictionary containing cell cluster information.
@@ -78,6 +82,8 @@ class Landscape(anywidget.AnyWidget):
     ini_y = traitlets.Float().tag(sync=True)
     ini_z = traitlets.Float().tag(sync=True)
     ini_zoom = traitlets.Float(0).tag(sync=True)
+    rotation_orbit = traitlets.Float(0).tag(sync=True)
+    rotation_x = traitlets.Float(0).tag(sync=True)
     square_tile_size = traitlets.Float(1.4).tag(sync=True)
     dataset_name = traitlets.Unicode("").tag(sync=True)
     region = traitlets.Dict({}).tag(sync=True)

@@ -103,6 +103,9 @@ export const landscape_ist = async (
   }
 
   console.log('IST *************************')
+  console.log('IST *************************')
+  console.log('IST *************************')
+  console.log('IST *************************')
 
   const viz_state = {};
 
@@ -111,7 +114,6 @@ export const landscape_ist = async (
   viz_state.max_tiles_to_view = max_tiles_to_view;
   const update_viz_image_layers = () => {
 
-    console.log('update_viz_image_layers called');
     if (!get_img_layer_visible()) {
       return;
     }
@@ -486,7 +488,6 @@ export const landscape_ist = async (
   set_nbhd_layer_onclick(deck_ist, layers_obj, viz_state);
 
   viz_state.obs_store.deck_ready.subscribe((ready) => {
-    console.log('deck_ready.subscribe', ready);
     if (ready) {
       const list = get_layers_list(viz_state.layers_obj, viz_state.close_up);
       deck_ist.setProps({ layers: list });
@@ -541,7 +542,6 @@ export const landscape_ist = async (
   );
 
   viz_state.obs_store.selected_cats.subscribe((selected_cats) => {
-    console.log('selected_cats.subscribe', selected_cats);
     const selected_cats_name = selected_cats.join('-');
 
     layers_obj.cell_layer = layers_obj.cell_layer.clone({
@@ -560,7 +560,6 @@ export const landscape_ist = async (
   });
 
   viz_state.obs_store.selected_genes.subscribe((selected_genes) => {
-    console.log('selected_genes.subscribe', selected_genes);
     const selected_genes_name = selected_genes.join('-');
     layers_obj.trx_layer = layers_obj.trx_layer.clone({
       id: `trx-layer-${selected_genes_name}`,

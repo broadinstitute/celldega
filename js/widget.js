@@ -83,7 +83,7 @@ const render_landscape_ist = async ({ model, el }) => {
     creds,
     null,
     rotation_orbit,
-    rotation_x
+    rotation_x,
     max_tiles_to_view
   );
 };

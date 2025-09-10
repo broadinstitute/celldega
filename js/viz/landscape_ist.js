@@ -93,9 +93,9 @@ export const landscape_ist = async (
   landscape_state = 'spatial',
   segmentation = 'default',
   creds = {},
-  view_change_custom_callback = null
+  view_change_custom_callback = null,
   rotation_orbit = 0,
-  rotation_x = 0
+  rotation_x = 0,
   max_tiles_to_view = 50,
 ) => {
   if (width === 0) {

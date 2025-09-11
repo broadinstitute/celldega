@@ -88,7 +88,7 @@ def calc_meta_gene_data(cbg):
     return pd.DataFrame(meta_gene.values, index=meta_gene.index.tolist(), columns=meta_gene.columns)
 
 
-def read_cbg_mtx(base_path, technology=None):
+def read_cbg_mtx(base_path, barcodes_name='barcodes', features_name='features', technology=None):
     """
     Read the cell-by-gene matrix from the mtx files.
 
@@ -105,8 +105,8 @@ def read_cbg_mtx(base_path, technology=None):
     base_path = Path(base_path)
 
     # File paths
-    barcodes_path = base_path / "barcodes.tsv.gz"
-    features_path = base_path / "features.tsv.gz"
+    barcodes_path = base_path / (barcodes_name + ".tsv.gz")
+    features_path = base_path / (features_name + ".tsv.gz")
     matrix_path = base_path / "matrix.mtx.gz"
 
     # Read barcodes and features

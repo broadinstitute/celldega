@@ -43,12 +43,14 @@ export const calc_viewport = async (
 
     viz_state.close_up = true;
 
-    await update_trx_layer_data(
-      viz_state.global_base_url,
-      tiles_in_view,
-      layers_obj,
-      viz_state
-    );
+    // await update_trx_layer_data(
+    //   viz_state.global_base_url,
+    //   tiles_in_view,
+    //   layers_obj,
+    //   viz_state
+    // );
+
+    console.log('tiles_in_view', tiles_in_view);
 
     await update_path_layer_data(
       viz_state.global_base_url,
@@ -58,13 +60,15 @@ export const calc_viewport = async (
     );
 
     // gene bar graph update
-    const filtered_transcripts = viz_state.combo_data.trx.filter(
-      (pos) =>
-        pos.x >= viz_state.bounds.min_x &&
-        pos.x <= viz_state.bounds.max_x &&
-        pos.y >= viz_state.bounds.min_y &&
-        pos.y <= viz_state.bounds.max_y
-    );
+    // const filtered_transcripts = viz_state.combo_data.trx.filter(
+    //   (pos) =>
+    //     pos.x >= viz_state.bounds.min_x &&
+    //     pos.x <= viz_state.bounds.max_x &&
+    //     pos.y >= viz_state.bounds.min_y &&
+    //     pos.y <= viz_state.bounds.max_y
+    // );
+
+    const filtered_transcripts = []
 
     const filtered_gene_names = filtered_transcripts.map(
       (transcript) => transcript.name
@@ -134,4 +138,6 @@ export const calc_viewport = async (
   }
 
   viz_state.layers_obj = layers_obj;
+
+  console.log('update layers_obj', layers_obj);
 };

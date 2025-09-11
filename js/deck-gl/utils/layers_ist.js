@@ -1,6 +1,8 @@
 export const get_layers_list = (layers_obj, close_up, _nbhd) => {
   let layers_list;
 
+  console.log('close_up', close_up);
+
   if (close_up) {
     layers_list = [
       layers_obj.background_layer,

@@ -488,6 +488,8 @@ export const landscape_ist = async (
   set_nbhd_layer_onclick(deck_ist, layers_obj, viz_state);
 
   viz_state.obs_store.deck_ready.subscribe((ready) => {
+
+    console.log('deck ready:', ready);
     if (ready) {
       const list = get_layers_list(viz_state.layers_obj, viz_state.close_up);
       deck_ist.setProps({ layers: list });

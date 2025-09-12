@@ -16,10 +16,6 @@ export const update_cell_exp_array = async (
   vector_name_integer,
   aws
 ) => {
-
-  console.log('------------------------------------------------------')
-  console.log('in update_cell_exp_array function')
-
   let file_path;
   if (version === 'default') {
     file_path = `${base_url}/cbg/${inst_gene}.parquet`;
@@ -28,9 +24,7 @@ export const update_cell_exp_array = async (
   }
 
   const exp_table = await get_arrow_table(file_path, options.fetch, aws);
-  console.log('get cell_names')
   const cell_names = exp_table.getChild('__index_level_0__').toArray();
-  console.log('get cell_exp')
   const cell_exp = exp_table.getChild(inst_gene).toArray();
 
   const new_exp_array = new Array(cats.cell_names_array.length).fill(0);
@@ -39,7 +33,6 @@ export const update_cell_exp_array = async (
   const missingCellNames1 = new Set(); // For cell_name_to_index_map
   const missingCellNames2 = new Set(); // For nameMapping_inv
 
-  console.log('Updating cell_exp_array for gene:', inst_gene);
   cell_names.forEach((name, i) => {
     name = String(name);
     const exp_value = Number(cell_exp[i]);
@@ -61,8 +54,6 @@ export const update_cell_exp_array = async (
     }
   });
 
-  console.log('done updating cell_exp_array for gene:', inst_gene);
-
   // Log missing names (if any) after processing all cells
   if (missingCellNames1.size > 0) {
     // console.log(`Cell names not found in cell_name_to_index_map (${missingCellNames1.size} unique names):`,
@@ -76,7 +67,4 @@ export const update_cell_exp_array = async (
   }
 
   cats.cell_exp_array = new_exp_array;
-
-  console.log('end of update_cell_exp_array function')
-  console.log('------------------------------------------------------')
 };

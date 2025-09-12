@@ -50,8 +50,6 @@ export const calc_viewport = async (
       viz_state
     );
 
-    console.log('tiles_in_view', tiles_in_view);
-
     await update_path_layer_data(
       viz_state.global_base_url,
       tiles_in_view,
@@ -139,5 +137,4 @@ export const calc_viewport = async (
 
   viz_state.layers_obj = layers_obj;
 
-  console.log('update layers_obj', layers_obj);
 };

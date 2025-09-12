@@ -60,15 +60,15 @@ export const calc_viewport = async (
     );
 
     // gene bar graph update
-    // const filtered_transcripts = viz_state.combo_data.trx.filter(
-    //   (pos) =>
-    //     pos.x >= viz_state.bounds.min_x &&
-    //     pos.x <= viz_state.bounds.max_x &&
-    //     pos.y >= viz_state.bounds.min_y &&
-    //     pos.y <= viz_state.bounds.max_y
-    // );
+    const filtered_transcripts = viz_state.combo_data.trx.filter(
+      (pos) =>
+        pos.x >= viz_state.bounds.min_x &&
+        pos.x <= viz_state.bounds.max_x &&
+        pos.y >= viz_state.bounds.min_y &&
+        pos.y <= viz_state.bounds.max_y
+    );
 
-    const filtered_transcripts = []
+    // const filtered_transcripts = []
 
     const filtered_gene_names = filtered_transcripts.map(
       (transcript) => transcript.name

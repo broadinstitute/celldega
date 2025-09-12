@@ -80,18 +80,18 @@ export const update_trx_layer_data = async (
   layers_obj,
   viz_state
 ) => {
-  // viz_state.genes.trx_data = await grab_trx_tiles_in_view(
-  //   base_url,
-  //   tiles_in_view,
-  //   viz_state
-  // );
+  viz_state.genes.trx_data = await grab_trx_tiles_in_view(
+    base_url,
+    tiles_in_view,
+    viz_state
+  );
 
-  // layers_obj.trx_layer = layers_obj.trx_layer.clone({
-  //   data: viz_state.genes.trx_data,
-  // });
+  layers_obj.trx_layer = layers_obj.trx_layer.clone({
+    data: viz_state.genes.trx_data,
+  });
 
-  // // update viz_state layers before notifying deck_ready
-  // viz_state.layers_obj = layers_obj;
+  // update viz_state layers before notifying deck_ready
+  viz_state.layers_obj = layers_obj;
 
   viz_state.obs_store.deck_check.set({
     ...viz_state.obs_store.deck_check.get(),

@@ -145,7 +145,6 @@ const render_landscape_h_e = async ({ model, el }) => {
 };
 
 const render_landscape = async ({ model, el }) => {
-  console.log('render_landscape')
   const technology = model.get('technology');
 
   if (['MERSCOPE', 'Xenium', 'Chromium', 'point-cloud'].includes(technology)) {

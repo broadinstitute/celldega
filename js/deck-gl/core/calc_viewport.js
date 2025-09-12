@@ -66,8 +66,6 @@ export const calc_viewport = async (
         pos.y <= viz_state.bounds.max_y
     );
 
-    // const filtered_transcripts = []
-
     const filtered_gene_names = filtered_transcripts.map(
       (transcript) => transcript.name
     );
@@ -136,5 +134,4 @@ export const calc_viewport = async (
   }
 
   viz_state.layers_obj = layers_obj;
-
 };

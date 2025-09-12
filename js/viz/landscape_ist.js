@@ -102,11 +102,6 @@ export const landscape_ist = async (
     width = '100%';
   }
 
-  console.log('IST *************************')
-  console.log('IST *************************')
-  console.log('IST *************************')
-  console.log('IST *************************')
-
   const viz_state = {};
 
   viz_state.obs_store = create_obs_store();

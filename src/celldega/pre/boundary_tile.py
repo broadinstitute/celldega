@@ -42,6 +42,7 @@ def _get_name_mapping(path_landscape_files, layer, segmentation="default"):
             df_meta_cell = pd.read_parquet(
                 f"{path_landscape_files}/cell_metadata_{segmentation}.parquet"
             )
+        df_meta_cell = df_meta_cell.reset_index(drop=True)
         return {str(name): idx for idx, name in df_meta_cell["name"].items()}
 
     raise ValueError(

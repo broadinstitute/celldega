@@ -169,14 +169,13 @@ def save_cbg_gene_parquets(
             base_path, layer="boundary", segmentation=segmentation_approach
         )
 
-        # print the first 10 items (as a dict)
-        subset = dict(list(cell_str_to_int_mapping.items())[:10])
-        print("checking cell_str_to_int_mapping in save_cbg_gene_parquets:")
-        print(subset)
-
-        print("cbg.head()", cbg.head())
+        print("cbg.index before mapping:")
+        print(cbg.index[:5])
 
         cbg.index = cbg.index.map(cell_str_to_int_mapping)
+
+        print("cbg.index after mapping:")
+        print(cbg.index[:5])
 
     for index, gene in enumerate(cbg.columns):
         if verbose and index % 1000 == 0:

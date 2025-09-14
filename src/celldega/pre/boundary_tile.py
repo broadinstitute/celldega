@@ -156,9 +156,17 @@ def filter_and_save_fine_boundary(
     # Apply rounding to the GEOMETRY column
     fine_tile_cells["GEOMETRY"] = fine_tile_cells["GEOMETRY"].apply(_round_nested_coord_list)
 
-    if not fine_tile_cells.empty:
-        filename = f"{path_output}/cell_tile_{fine_i}_{fine_j}.parquet"
-        fine_tile_cells.to_parquet(filename, index=False)
+    filename = f"{path_output}/cell_tile_{fine_i}_{fine_j}.parquet"
+
+    if fine_tile_cells.empty:
+        # Write an empty DataFrame with the right schema
+        fine_tile_cells = pd.DataFrame(columns=["GEOMETRY", "name"])
+
+    fine_tile_cells.to_parquet(filename, index=False)
+
+    # if not fine_tile_cells.empty:
+    #     filename = f"{path_output}/cell_tile_{fine_i}_{fine_j}.parquet"
+    #     fine_tile_cells.to_parquet(filename, index=False)
 
 
 def process_fine_boundaries(
@@ -183,17 +191,23 @@ def process_fine_boundaries(
             fine_tile_x_min = x_min + fine_i * tile_size
             fine_tile_x_max = fine_tile_x_min + tile_size
 
-            if not (fine_tile_x_min >= coarse_tile_x_min and fine_tile_x_max <= coarse_tile_x_max):
-                continue
+            if fine_tile_x_max <= coarse_tile_x_min or fine_tile_x_min >= coarse_tile_x_max:
+                continue  # no horizontal overlap
+
+            # if not (fine_tile_x_min >= coarse_tile_x_min and fine_tile_x_max <= coarse_tile_x_max):
+            #     continue
 
             for fine_j in range(n_fine_tiles_y):
                 fine_tile_y_min = y_min + fine_j * tile_size
                 fine_tile_y_max = fine_tile_y_min + tile_size
 
-                if not (
-                    fine_tile_y_min >= coarse_tile_y_min and fine_tile_y_max <= coarse_tile_y_max
-                ):
-                    continue
+                # if not (
+                #     fine_tile_y_min >= coarse_tile_y_min and fine_tile_y_max <= coarse_tile_y_max
+                # ):
+                #     continue
+
+                if fine_tile_y_max <= coarse_tile_y_min or fine_tile_y_min >= coarse_tile_y_max:
+                    continue  # no vertical overlap
 
                 futures.append(
                     executor.submit(
@@ -380,8 +394,19 @@ def make_cell_boundary_tiles(
         )
         gdf_cells.index = gdf_cells.index.astype(str).map(cell_str_to_int_mapping)
 
+        print(gdf_cells.index.isnull().sum())
+
         gdf_cells["center_x"] = gdf_cells.geometry.centroid.x
         gdf_cells["center_y"] = gdf_cells.geometry.centroid.y
+
+        print("gdf_cells.shape:", gdf_cells.shape)
+        print("Center x range:", gdf_cells['center_x'].min(), gdf_cells['center_x'].max())
+        print("Center y range:", gdf_cells['center_y'].min(), gdf_cells['center_y'].max())
+        print("Tile bounds:", tile_bounds)
+
+        # Optional assert to catch empty outputs early
+        assert not gdf_cells.empty, "Cell boundaries GeoDataFrame is empty!"
+
 
     # Calculate tile bounds and fine/coarse tiles
     x_min, x_max = tile_bounds["x_min"], tile_bounds["x_max"]

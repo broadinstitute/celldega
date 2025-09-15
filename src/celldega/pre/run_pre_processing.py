@@ -186,6 +186,7 @@ def main(
         cbg = dega.pre.read_cbg_mtx(str(paths["cbg_matrix"]))
     elif technology == "MERSCOPE":
         cbg = pd.read_csv(str(paths["cbg_csv"]), index_col=0)
+        cbg.index = cbg.index.astype(str)
 
     if technology == "Xenium":
         # Create cluster-based gene expression

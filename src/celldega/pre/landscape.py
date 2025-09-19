@@ -118,8 +118,6 @@ def read_cbg_mtx(base_path, barcodes_name='barcodes', features_name='features', 
         barcodes = pd.read_csv(barcodes_path, header=None, compression="gzip")
         barcodes = barcodes[0]
 
-    print(barcodes[:5])
-
     features = pd.read_csv(features_path, header=None, compression="gzip", sep="\t")
 
     # Read the gene expression matrix and transpose it

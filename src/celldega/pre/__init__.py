@@ -15,21 +15,17 @@ import subprocess
 import warnings
 import xml.etree.ElementTree as ET
 
-import geopandas as gpd
 from matplotlib.colors import to_hex
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import polars as pl
-from scipy.sparse import coo_matrix, csr_matrix, issparse
+from scipy.sparse import csr_matrix, issparse
 from shapely.geometry import MultiPolygon, Point, Polygon
 from skimage.io import imread, imsave
 import tifffile
 import zarr
 
-# import _get_name_mapping
 from .boundary_tile import (
-    _get_name_mapping,
     _round_nested_coord_list,
     make_cell_boundary_tiles,
 )

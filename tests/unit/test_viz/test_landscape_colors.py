@@ -14,11 +14,7 @@ def test_leiden_colors_added_if_missing() -> None:
     adata.obs["leiden"] = pd.Categorical(["0", "1", "0"])
     adata.uns.pop("leiden_colors", None)
 
-    adata.obsm["X_umap"] = np.array([
-        [0.0, 0.0],
-        [1.0, 1.0],
-        [2.0, 2.0]
-    ])
+    adata.obsm["X_umap"] = np.array([[0.0, 0.0], [1.0, 1.0], [2.0, 2.0]])
 
     widget = Landscape(adata=adata)
 

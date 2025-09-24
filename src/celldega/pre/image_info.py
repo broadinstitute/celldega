@@ -22,7 +22,7 @@ def get_image_info(technology: str, image_tile_layer: str = "dapi") -> list[dict
                    is invalid.
     """
     # Validate technology
-    supported_technologies = ["Xenium", "MERSCOPE", "IST"]
+    supported_technologies = ["Xenium", "MERSCOPE"]
     if technology not in supported_technologies:
         raise ValueError(
             f"Unsupported technology: {technology}. Supported technologies are: {supported_technologies}."

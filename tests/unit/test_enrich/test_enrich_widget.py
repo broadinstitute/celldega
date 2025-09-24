@@ -34,4 +34,3 @@ def test_enrich_traitlets_update() -> None:
     assert w.top_n_genes == 20
     w.background_list = ["X", "Y"]
     assert w.background_list == ["X", "Y"]
-

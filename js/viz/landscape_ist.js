@@ -96,7 +96,7 @@ export const landscape_ist = async (
   view_change_custom_callback = null,
   rotation_orbit = 0,
   rotation_x = 0,
-  max_tiles_to_view = 50,
+  max_tiles_to_view = 50
 ) => {
   if (width === 0) {
     width = '100%';
@@ -108,7 +108,6 @@ export const landscape_ist = async (
 
   viz_state.max_tiles_to_view = max_tiles_to_view;
   const update_viz_image_layers = () => {
-
     if (!get_img_layer_visible()) {
       return;
     }

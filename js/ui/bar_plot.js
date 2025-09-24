@@ -64,7 +64,6 @@ export const bar_callback_gene = async (
   _layers_obj,
   _viz_state
 ) => {
-
   console.log('bar_callback_gene', d.name);
 
   // ensure that trx button, slider, and bars are active

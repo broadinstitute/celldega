@@ -88,7 +88,7 @@ def calc_meta_gene_data(cbg):
     return pd.DataFrame(meta_gene.values, index=meta_gene.index.tolist(), columns=meta_gene.columns)
 
 
-def read_cbg_mtx(base_path, barcodes_name='barcodes', features_name='features', technology=None):
+def read_cbg_mtx(base_path, barcodes_name="barcodes", features_name="features", technology=None):
     """
     Read the cell-by-gene matrix from the mtx files.
 
@@ -110,13 +110,13 @@ def read_cbg_mtx(base_path, barcodes_name='barcodes', features_name='features', 
     matrix_path = base_path / "matrix.mtx.gz"
 
     # Read barcodes and features
-    if technology == "IST":
-        # parsing colon separated barcode data
-        barcodes = pd.read_csv(barcodes_path, sep=":", header=None, index_col=0)
-        barcodes = barcodes.index.tolist()
-    else:
-        barcodes = pd.read_csv(barcodes_path, header=None, compression="gzip")
-        barcodes = barcodes[0]
+    # if technology == "IST":
+    #     # parsing colon separated barcode data
+    #     barcodes = pd.read_csv(barcodes_path, sep=":", header=None, index_col=0)
+    #     barcodes = barcodes.index.tolist()
+    # else:
+    barcodes = pd.read_csv(barcodes_path, header=None, compression="gzip")
+    barcodes = barcodes[0]
 
     features = pd.read_csv(features_path, header=None, compression="gzip", sep="\t")
 
@@ -139,7 +139,7 @@ def save_cbg_gene_parquets(
     Parameters
     ----------
     technology : str
-        The technology used for the data, e.g., "IST" or others.
+        The technology used for the data.
     base_path : str
         The base path to the parent directory containing the landscape_files directory.
     cbg : pandas.DataFrame
@@ -158,22 +158,22 @@ def save_cbg_gene_parquets(
     print(output_dir)
     output_dir.mkdir(exist_ok=True)
 
-    if technology == "IST":
-        cbg.index = cbg.index.str.replace("cell", "").astype(int)
+    # if technology == "IST":
+    #     cbg.index = cbg.index.str.replace("cell", "").astype(int)
 
-    else:
-        # convert cell index from string to integer
-        cell_str_to_int_mapping = _get_name_mapping(
-            base_path, layer="boundary", segmentation=segmentation_approach
-        )
+    # else:
+    # convert cell index from string to integer
+    cell_str_to_int_mapping = _get_name_mapping(
+        base_path, layer="boundary", segmentation=segmentation_approach
+    )
 
-        print("cbg.index before mapping:")
-        print(cbg.index[:5])
+    print("cbg.index before mapping:")
+    print(cbg.index[:5])
 
-        cbg.index = cbg.index.map(cell_str_to_int_mapping)
+    cbg.index = cbg.index.map(cell_str_to_int_mapping)
 
-        print("cbg.index after mapping:")
-        print(cbg.index[:5])
+    print("cbg.index after mapping:")
+    print(cbg.index[:5])
 
     for index, gene in enumerate(cbg.columns):
         if verbose and index % 1000 == 0:

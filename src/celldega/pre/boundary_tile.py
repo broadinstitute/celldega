@@ -267,9 +267,9 @@ def get_cell_polygons(
 
         cells_orig.rename(columns={"geometry": "geometry_micron"}, inplace=True)
 
-    elif technology == "IST":
-        cells_orig = gpd.read_parquet(path_cell_boundaries)
-        cells_orig.rename(columns={"geometry_image_space": "geometry_micron"}, inplace=True)
+    # elif technology == "IST":
+    #     cells_orig = gpd.read_parquet(path_cell_boundaries)
+    #     cells_orig.rename(columns={"geometry_image_space": "geometry_micron"}, inplace=True)
 
     # Transform geometries
     cells_orig["GEOMETRY"] = batch_transform_geometries(
@@ -295,8 +295,7 @@ def make_cell_boundary_tiles(
     tile_size=250,
     tile_bounds=None,
     image_scale=1,
-    max_workers=1,
-    paths=None,
+    max_workers=1
 ):
     """
     Processes cell boundary data and divides it into spatial tiles based on the provided technology.
@@ -365,32 +364,32 @@ def make_cell_boundary_tiles(
 
         gdf_cells["GEOMETRY"] = transformed_geometries
 
-    elif technology == "IST":
-        print("IST technology")
+    # elif technology == "IST":
+    #     print("IST technology")
 
-        # Load the transformation matrix
-        transformation_matrix = pd.read_csv(
-            paths["transformation_matrix"], header=None, sep=" "
-        ).values
+    #     # Load the transformation matrix
+    #     transformation_matrix = pd.read_csv(
+    #         paths["transformation_matrix"], header=None, sep=" "
+    #     ).values
 
-        # Load cell boundaries and apply the transformation
-        gdf_cells = get_cell_polygons(
-            technology,
-            path_cell_boundaries,
-            transformation_matrix,
-            path_output,
-            image_scale,
-            path_meta_cell_micron,
-        )
+    #     # Load cell boundaries and apply the transformation
+    #     gdf_cells = get_cell_polygons(
+    #         technology,
+    #         path_cell_boundaries,
+    #         transformation_matrix,
+    #         path_output,
+    #         image_scale,
+    #         path_meta_cell_micron,
+    #     )
 
-        gdf_cells["center_x"] = gdf_cells.geometry.centroid.x
-        gdf_cells["center_y"] = gdf_cells.geometry.centroid.y
+    #     gdf_cells["center_x"] = gdf_cells.geometry.centroid.x
+    #     gdf_cells["center_y"] = gdf_cells.geometry.centroid.y
 
     # MERSCOPE and Xenium
     elif technology in ["MERSCOPE", "Xenium"]:
         print("technology", technology)
         transformation_matrix = pd.read_csv(
-            paths["transformation_matrix"], header=None, sep=" "
+            path_transformation_matrix, header=None, sep=" "
         ).values
 
         gdf_cells = get_cell_polygons(
@@ -414,7 +413,7 @@ def make_cell_boundary_tiles(
         gdf_cells["center_y"] = gdf_cells.geometry.centroid.y
     else:
         raise ValueError(
-            f"Unsupported technology: {technology}. Supported technologies are 'MERSCOPE', 'Xenium', and 'IST'."
+            f"Unsupported technology: {technology}. Supported technologies are 'MERSCOPE' and 'Xenium'."
         )
 
     # Calculate tile bounds and fine/coarse tiles

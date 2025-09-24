@@ -57,6 +57,7 @@ const render_landscape_ist = async ({ model, el }) => {
     landscape_state = 'spatial';
   }
   const segmentation = model.get('segmentation');
+  const point_cloud_radius = model.get('point_cloud_radius');
 
   return landscape_ist(
     el,
@@ -83,7 +84,8 @@ const render_landscape_ist = async ({ model, el }) => {
     creds,
     null,
     rotation_orbit,
-    rotation_x
+    rotation_x,
+    point_cloud_radius
   );
 };
 

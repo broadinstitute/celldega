@@ -27,15 +27,25 @@ export const calc_viewport = async (
     return;
   }
 
-  const tiles_in_view = visibleTiles(
-    viz_state.bounds.min_x,
-    viz_state.bounds.max_x,
-    viz_state.bounds.min_y,
-    viz_state.bounds.max_y,
-    tile_size
-  );
+  // only calculate the visibleTiles if the technology is not 'point-cloud'
+  let tiles_in_view
+  if (viz_state.img.landscape_parameters.technology !== 'point-cloud') {
 
-  if (tiles_in_view.length < max_tiles_to_view) {
+    tiles_in_view = visibleTiles(
+      viz_state.bounds.min_x,
+      viz_state.bounds.max_x,
+      viz_state.bounds.min_y,
+      viz_state.bounds.max_y,
+      tile_size
+    );
+
+  } else {
+    tiles_in_view = []
+  }
+
+  // load tiles only if technology is not point-cloud and the number of tiles is less than max_tiles_to_view
+  if (tiles_in_view.length < max_tiles_to_view && viz_state.img.landscape_parameters.technology !== 'point-cloud') {
+
     viz_state.obs_store.deck_check.set({
       ...viz_state.obs_store.deck_check.get(),
       trx_data: false,

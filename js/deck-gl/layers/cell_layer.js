@@ -294,7 +294,7 @@ export const ini_cell_layer = async (base_url, viz_state) => {
     cell_layer = new PointCloudLayer({
       id: 'cell-layer',
       sizeUnits: 'meters',
-      pointSize: 5,
+      pointSize: viz_state.cells.point_cloud_radius,
       pickable: true,
       getColor: (i, d) => get_cell_color(viz_state.cats, i, d),
       data: viz_state.spatial.cell_scatter_data_objects,

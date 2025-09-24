@@ -95,7 +95,8 @@ export const landscape_ist = async (
   creds = {},
   view_change_custom_callback = null,
   rotation_orbit = 0,
-  rotation_x = 0
+  rotation_x = 0,
+  point_cloud_radius = 5
 ) => {
   if (width === 0) {
     width = '100%';
@@ -305,6 +306,9 @@ export const landscape_ist = async (
   viz_state.img = {};
   viz_state.img.image_layer_colors = {};
   viz_state.img.image_layer_sliders = {};
+
+  viz_state.cells = {};
+  viz_state.cells.point_cloud_radius = point_cloud_radius;
 
   set_options(token);
 

@@ -77,6 +77,7 @@ class Landscape(anywidget.AnyWidget):
     base_url = traitlets.Unicode("").tag(sync=True)
     token = traitlets.Unicode("").tag(sync=True)
     creds = traitlets.Dict({}).tag(sync=True)
+    max_tiles_to_view = traitlets.Int(50).tag(sync=True)
     ini_x = traitlets.Float().tag(sync=True)
     ini_y = traitlets.Float().tag(sync=True)
     ini_z = traitlets.Float().tag(sync=True)
@@ -102,12 +103,14 @@ class Landscape(anywidget.AnyWidget):
     cell_clusters = traitlets.Dict({}).tag(sync=True)
 
     # make a traitlet for cell_attr a list that will have the AnnData obs columns
-    cell_attr = traitlets.List(trait=traitlets.Unicode(), default_value=["leiden"]).tag(sync=True)
+    cell_aTtr = traitlets.List(trait=traitlets.Unicode(), default_value=["leiden"]).tag(sync=True)
 
     segmentation = traitlets.Unicode("default").tag(sync=True)
 
     width = traitlets.Int(0).tag(sync=True)
     height = traitlets.Int(800).tag(sync=True)
+
+    point_cloud_radius = traitlets.Float(5).tag(sync=True)
 
     def __init__(self, **kwargs):
         adata = kwargs.pop("adata", None) or kwargs.pop("AnnData", None)

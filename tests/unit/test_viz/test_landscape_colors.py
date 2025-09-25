@@ -2,8 +2,10 @@ import numpy as np
 import pandas as pd
 import pytest
 
+
 try:
     import anndata as ad
+
     from celldega.viz import Landscape
 except Exception as e:  # pragma: no cover - if deps missing skip
     pytest.skip(f"celldega modules unavailable: {e}", allow_module_level=True)

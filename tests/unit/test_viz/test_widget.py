@@ -93,7 +93,7 @@ def test_landscape_nbhd_geojson_and_metadata() -> None:
 
     assert widget.nbhd_geojson == json.loads(gdf.to_json())
     assert hasattr(widget, "meta_nbhd_parquet")
-    assert isinstance(widget.meta_nbhd_parquet, (bytes, bytearray))
+    assert isinstance(widget.meta_nbhd_parquet, bytes | bytearray)
 
 
 def test_landscape_nbhd_edit_mutual_exclusion() -> None:

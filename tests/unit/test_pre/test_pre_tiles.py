@@ -1,12 +1,13 @@
 import importlib.util
 import math
+from pathlib import Path
 import sys
 import types
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import pytest
+
 
 try:
     import geopandas as gpd
@@ -75,7 +76,7 @@ def create_cell_polygon(df: pd.DataFrame) -> Polygon:
     if len(df) < 3:
         raise ValueError("At least three vertices are required to construct a polygon.")
 
-    return Polygon(zip(df["vertex_x"], df["vertex_y"]))
+    return Polygon(zip(df["vertex_x"], df["vertex_y"], strict=False))
 
 
 @pytest.fixture
@@ -299,7 +300,7 @@ def test_tiles(make_synthetic_data, technology) -> None:
     else:
         raise ValueError(f"Unsupported technology: {technology}")
 
-    for x, y in zip(df_trx[xcol], df_trx[ycol]):
+    for x, y in zip(df_trx[xcol], df_trx[ycol], strict=False):
         i = int((x - bounds["x_min"]) // TILE_SIZE)
         j = int((y - bounds["y_min"]) // TILE_SIZE)
         assert (i, j) in produced_trx_tiles

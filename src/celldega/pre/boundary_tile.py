@@ -267,10 +267,6 @@ def get_cell_polygons(
 
         cells_orig.rename(columns={"geometry": "geometry_micron"}, inplace=True)
 
-    # elif technology == "IST":
-    #     cells_orig = gpd.read_parquet(path_cell_boundaries)
-    #     cells_orig.rename(columns={"geometry_image_space": "geometry_micron"}, inplace=True)
-
     # Transform geometries
     cells_orig["GEOMETRY"] = batch_transform_geometries(
         cells_orig["geometry_micron"], transformation_matrix, image_scale
@@ -363,27 +359,6 @@ def make_cell_boundary_tiles(
                 transformed_geometries.append([exterior_coords.tolist()])
 
         gdf_cells["GEOMETRY"] = transformed_geometries
-
-    # elif technology == "IST":
-    #     print("IST technology")
-
-    #     # Load the transformation matrix
-    #     transformation_matrix = pd.read_csv(
-    #         paths["transformation_matrix"], header=None, sep=" "
-    #     ).values
-
-    #     # Load cell boundaries and apply the transformation
-    #     gdf_cells = get_cell_polygons(
-    #         technology,
-    #         path_cell_boundaries,
-    #         transformation_matrix,
-    #         path_output,
-    #         image_scale,
-    #         path_meta_cell_micron,
-    #     )
-
-    #     gdf_cells["center_x"] = gdf_cells.geometry.centroid.x
-    #     gdf_cells["center_y"] = gdf_cells.geometry.centroid.y
 
     # MERSCOPE and Xenium
     elif technology in ["MERSCOPE", "Xenium"]:

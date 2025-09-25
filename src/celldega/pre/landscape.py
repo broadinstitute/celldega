@@ -110,11 +110,6 @@ def read_cbg_mtx(base_path, barcodes_name="barcodes", features_name="features", 
     matrix_path = base_path / "matrix.mtx.gz"
 
     # Read barcodes and features
-    # if technology == "IST":
-    #     # parsing colon separated barcode data
-    #     barcodes = pd.read_csv(barcodes_path, sep=":", header=None, index_col=0)
-    #     barcodes = barcodes.index.tolist()
-    # else:
     barcodes = pd.read_csv(barcodes_path, header=None, compression="gzip")
     barcodes = barcodes[0]
 
@@ -158,10 +153,6 @@ def save_cbg_gene_parquets(
     print(output_dir)
     output_dir.mkdir(exist_ok=True)
 
-    # if technology == "IST":
-    #     cbg.index = cbg.index.str.replace("cell", "").astype(int)
-
-    # else:
     # convert cell index from string to integer
     cell_str_to_int_mapping = _get_name_mapping(
         base_path, layer="boundary", segmentation=segmentation_approach

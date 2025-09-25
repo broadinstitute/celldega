@@ -147,9 +147,13 @@ const render_landscape_h_e = async ({ model, el }) => {
 const render_landscape = async ({ model, el }) => {
   const technology = model.get('technology');
 
-  if (['MERSCOPE', 'Xenium', 'Chromium', 'point-cloud'].includes(technology)) {
+  if (
+    ['MERSCOPE', 'Xenium', 'Chromium', 'point-cloud', 'Visium-HD'].includes(
+      technology
+    )
+  ) {
     return render_landscape_ist({ model, el });
-  } else if (['Visium-HD'].includes(technology)) {
+  } else if (['Visium-HD-no-jitter'].includes(technology)) {
     return render_landscape_sst({ model, el });
   } else if (['h&e'].includes(technology)) {
     return render_landscape_h_e({ model, el });

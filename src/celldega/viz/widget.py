@@ -33,7 +33,7 @@ def _hsv_to_hex(h: float) -> str:
 class Landscape(anywidget.AnyWidget):
     """
     A widget for interactive visualization of spatial omics data. This widget
-    currently supports iST (Xenium and MERSCOPE) and sST (Visium HD data)
+    currently supports iST (Xenium and MERSCOPE) and sST (Visium HD data, with and without cell segmentation)
 
     Args:
         ini_x (float): The initial x-coordinate of the view.
@@ -73,7 +73,7 @@ class Landscape(anywidget.AnyWidget):
     _css = Path(__file__).parent / "../static" / "widget.css"
     component = traitlets.Unicode("Landscape").tag(sync=True)
 
-    technology = traitlets.Unicode("sst").tag(sync=True)
+    technology = traitlets.Unicode("Xenium").tag(sync=True)
     base_url = traitlets.Unicode("").tag(sync=True)
     token = traitlets.Unicode("").tag(sync=True)
     creds = traitlets.Dict({}).tag(sync=True)

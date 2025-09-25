@@ -657,55 +657,6 @@ def _load_meta_cell_by_technology(
         meta_cell.columns = ["center_x", "center_y"]
         meta_cell["name"] = pd.Series(meta_cell.index, index=meta_cell.index)
 
-    # elif technology == "IST":
-    #     print("_load_meta_cell_by_technology:", path_meta_cell_micron)
-    #     print("(((((((((((((())))))))))))))")
-    #     gc = pd.read_csv(path_meta_cell_micron, index_col=0)
-
-    #     print("gc:", gc.head())
-
-    #     print("****************************")
-    #     print(paths["cbg_matrix"])
-    #     # print(paths['cbg_matrix'] + '/barcodes.tsv.gz')
-
-    #     print("load this path ", paths["cbg_matrix"] / "barcodes.tsv.gz")
-
-    #     meta_cell = pd.read_csv(
-    #         paths["cbg_matrix"] / "barcodes.tsv.gz", sep=":", header=None, index_col=0
-    #     )
-
-    #     meta_cell.index.name = None
-    #     meta_cell.columns = ["center_x", "center_y"]
-    #     meta_cell = meta_cell.astype(float)
-    #     print("meta_cell:", meta_cell.head())
-
-    #     print("inst_slice:", inst_slice)
-    #     print("dataset:", dataset)
-
-    #     x_shift = gc.loc[inst_slice + "_" + dataset, "X_shift"]
-    #     y_shift = gc.loc[inst_slice + "_" + dataset, "Y_shift"]
-
-    #     print("gc")
-    #     print(gc)
-
-    #     print("x_shift:", x_shift, "y_shift:", y_shift)
-
-    #     meta_cell["center_x"] = (meta_cell["center_x"] - x_shift) * high_res_scale
-    #     meta_cell["center_y"] = (meta_cell["center_y"] - y_shift) * high_res_scale
-
-    #     meta_cell["center_x"], meta_cell["center_y"] = (
-    #         meta_cell["center_y"].copy(),
-    #         meta_cell["center_x"].copy(),
-    #     )
-
-    #     meta_cell["geometry"] = meta_cell.apply(
-    #         # swapped for some reason
-    #         lambda row: [row["center_x"], row["center_y"]],
-    #         axis=1,
-    #     )
-
-    #     meta_cell["name"] = pd.Series(meta_cell.index, index=meta_cell.index)
-
     elif technology == "custom":
         import geopandas as gpd
 
@@ -770,13 +721,6 @@ def make_meta_cell_image_coord(
     print("\n========Make meta cells in pixel space========")
     transformation_matrix = pd.read_csv(path_transformation_matrix, header=None, sep=" ").values
     sparse_matrix = csr_matrix(transformation_matrix)
-
-    # print("checking paths before _load_meta_cell_by_technology")
-    # print(paths)
-
-    # high_res_scale = 1
-    # if technology == "IST":
-    #     high_res_scale = 1 / 0.382
 
     meta_cell = _load_meta_cell_by_technology(
         technology, path_meta_cell_micron, paths=paths, dataset=dataset, inst_slice=inst_slice
@@ -1326,12 +1270,6 @@ def _check_required_files(technology, data_dir):
             "cell_boundaries.parquet",
             "cell_by_gene.csv",
         ],
-        # ,
-        # "IST": [
-        #     "registered_images",
-        #     "matrix_files",
-        #     "cell_masks",
-        # ],
     }
 
     if technology not in required_files_mapping:

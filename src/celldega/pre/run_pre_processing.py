@@ -394,7 +394,7 @@ def main(
                 coarse_tile_factor=10,
                 tile_size=tile_size,
                 tile_bounds=tile_bounds,
-                max_workers=max_workers
+                max_workers=max_workers,
             )
         else:
             print("Skipping cell boundary tiles, output already exists")

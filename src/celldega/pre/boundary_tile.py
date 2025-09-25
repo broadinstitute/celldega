@@ -295,7 +295,7 @@ def make_cell_boundary_tiles(
     tile_size=250,
     tile_bounds=None,
     image_scale=1,
-    max_workers=1
+    max_workers=1,
 ):
     """
     Processes cell boundary data and divides it into spatial tiles based on the provided technology.
@@ -388,9 +388,7 @@ def make_cell_boundary_tiles(
     # MERSCOPE and Xenium
     elif technology in ["MERSCOPE", "Xenium"]:
         print("technology", technology)
-        transformation_matrix = pd.read_csv(
-            path_transformation_matrix, header=None, sep=" "
-        ).values
+        transformation_matrix = pd.read_csv(path_transformation_matrix, header=None, sep=" ").values
 
         gdf_cells = get_cell_polygons(
             technology,

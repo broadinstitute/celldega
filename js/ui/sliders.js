@@ -29,7 +29,8 @@ const cell_slider_callback = async (deck_ist, layers_obj, viz_state) => {
 
   update_cell_layer_radius(
     layers_obj,
-    viz_state.sliders.cell.value / scale_down_cell_radius
+    viz_state.sliders.cell.value / scale_down_cell_radius,
+    viz_state
   );
 
   refresh_layer(viz_state, layers_obj, 'cell_layer');

@@ -15,3 +15,5 @@
 [Custom Segmentation Visualization in Celldega](brief_notebooks/Custom_Segmentation.ipynb)
 
 [Landscape-Clustergram_Visium-HD_Human_Lung_Cancer](brief_notebooks/Landscape-Clustergram_Visium-HD_Human_Lung_Cancer.ipynb)
+
+[Landscape-3D_thick_MERFISH](brief_notebooks/Landscape-3D_thick_MERFISH.ipynb)

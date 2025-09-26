@@ -9,7 +9,11 @@ export const scale_umap_data = (viz_state, cell_scatter_data_objects) => {
   let x_max;
   let y_min;
   let y_max;
-  if (viz_state.img.landscape_parameters.technology === 'Chromium') {
+  if (
+    ['Chromium', 'point-cloud'].includes(
+      viz_state.img.landscape_parameters.technology
+    )
+  ) {
     x_min = 0;
     x_max = 10000;
     y_min = 0;

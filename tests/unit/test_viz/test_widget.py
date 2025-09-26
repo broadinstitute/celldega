@@ -29,20 +29,25 @@ def test_export_viz_parquet_returns_bytes() -> None:
     mat = make_simple_matrix()
     pq = mat.export_viz_parquet()
 
-    expected_keys = {
+    expected_bytes_keys = {
         "mat",
         "row_nodes",
         "col_nodes",
         "row_linkage",
         "col_linkage",
-        "meta",
     }
 
-    assert set(pq) == expected_keys
-    for key in expected_keys - {"meta"}:
+    expected_str_keys = {"row_entity", "col_entity"}
+
+    assert set(pq) == expected_bytes_keys | expected_str_keys | {"meta"}
+
+    for key in expected_bytes_keys:
         assert isinstance(pq[key], bytes | bytearray)
         assert pq[key]  # non-empty
     assert isinstance(pq["meta"], dict)
+    for key in expected_str_keys:
+        assert isinstance(pq[key], str)
+        assert pq[key]
 
 
 def test_clustergram_initializes_with_parquet() -> None:

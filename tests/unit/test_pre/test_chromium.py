@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 
 from anndata import AnnData
 import numpy as np
@@ -25,7 +26,7 @@ def test_make_chromium_from_anndata(tmp_path):
     assert cell_meta["name"].tolist() == ["c1", "c2"]
     assert list(cell_meta["geometry"].iloc[0]) == [0.0, 0.0]
 
-    with open(tmp_path / "landscape_parameters.json") as fh:
+    with Path.open(tmp_path / "landscape_parameters.json") as fh:
         params = json.load(fh)
     assert params["technology"] == "Chromium"
 

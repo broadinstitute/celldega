@@ -51,11 +51,11 @@ const mat_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
     row: {
       name: row_name,
 
-      row_entity: viz_state.row_entity
+      row_entity: viz_state.row_entity,
     },
     col: {
       name: col_name,
-      col_entity: viz_state.col_entity
+      col_entity: viz_state.col_entity,
     },
   };
 

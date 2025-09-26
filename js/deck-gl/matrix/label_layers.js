@@ -214,7 +214,7 @@ const row_label_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
     const name = event.object.name;
     viz_state.click.value = {
       name,
-      row_entity: viz_state.row_entity
+      row_entity: viz_state.row_entity,
     };
 
     setTimeout(() => {
@@ -253,7 +253,7 @@ const col_label_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
     viz_state.click.value = {
       name,
 
-      col_entity: viz_state.col_entity
+      col_entity: viz_state.col_entity,
     };
 
     setTimeout(() => {

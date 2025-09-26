@@ -756,7 +756,7 @@ class Matrix:
             "col_linkage": _to_bytes(col_link_df),
             "meta": meta_json,
             "row_entity": row_entity,
-            "col_entity": col_entity
+            "col_entity": col_entity,
         }
 
     def add_category(self, axis: AxisInput, name: str, data: pd.Series) -> None:

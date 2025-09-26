@@ -34,9 +34,7 @@ export const update_ist_landscape_from_cgm = async (
   // add try catch block
   try {
     if (click_type === 'row_label') {
-
       if (click_info.value.row_entity === 'cell_cluster') {
-
         inst_gene = 'cluster';
         new_cat = click_info.value.name;
 
@@ -82,7 +80,6 @@ export const update_ist_landscape_from_cgm = async (
         refresh_layer(viz_state, layers_obj, 'trx_layer');
       }
     } else if (click_type === 'col_label') {
-
       if (click_info.value.col_entity === 'nbhd') {
         const new_nbhd = click_info.value.name;
         viz_state.obs_store.selected_nbhds.set([new_nbhd]);
@@ -213,7 +210,6 @@ export const update_ist_landscape_from_cgm = async (
         refresh_layer(viz_state, layers_obj, 'trx_layer');
       }
     } else if (click_type === 'mat_value') {
-
       const { row_entity, col_entity } = click_info.value;
       const row = row_entity;
       const col = col_entity;

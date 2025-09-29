@@ -31,7 +31,7 @@ from .boundary_tile import (
 )
 from .image_info import get_image_info
 from .landscape import calc_meta_gene_data, read_cbg_mtx, save_cbg_gene_parquets
-from .run_pre_processing import main
+from .run_pre_processing import _make_xenium_anndata, main
 from .trx_tile import make_trx_tiles
 
 
@@ -1275,6 +1275,7 @@ def _check_required_files(technology, data_dir):
 
 
 __all__ = [
+    "_make_xenium_anndata",
     "_to_geometry",
     "boundary_tile",
     "get_image_info",

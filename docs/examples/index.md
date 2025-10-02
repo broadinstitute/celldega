@@ -7,8 +7,12 @@
 
 [Single-Cell Clustergram Chromium](tutorial_notebooks/Single-Cell_Clustergram_Chromium.ipynb)
 
+[Process Landscape-Heatmap Visium-HD](tutorial_notebooks/Visium-HD_Landscape_Pre-process.ipynb)
+
 ## Brief Notebooks
 [Landscape View Xenium](brief_notebooks/Landscape_View_Xenium.ipynb)
+
+[Landscape-Heatmap View Visium-HD](brief_notebooks/Landscape-Heatmap-Visium-HD.ipynb)
 
 [Mouse-Brain_Alpha-Shape-Neighborhood](brief_notebooks/Mouse-Brain_Alpha-Shape-Neighborhood.ipynb)
 

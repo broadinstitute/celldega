@@ -619,7 +619,7 @@ export const make_ist_ui_container = (
     viz_state.containers.bar_gene,
     bar_callback_gene,
     viz_state.genes.svg_bar_gene,
-    viz_state.genes.gene_counts,
+    viz_state.genes.top_gene_counts,
     viz_state.genes.color_dict_gene,
     deck_ist,
     layers_obj,

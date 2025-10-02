@@ -100,8 +100,8 @@ export const bar_callback_gene = async (
     cell_layer: false,
     trx_layer: false,
   });
-  update_selected_genes(_viz_state.genes, [inst_gene], _viz_state.obs_store);
 
+  update_selected_genes(_viz_state.genes, [inst_gene], _viz_state.obs_store);
   await update_cell_exp_array(
     _viz_state.cats,
     _viz_state.genes,

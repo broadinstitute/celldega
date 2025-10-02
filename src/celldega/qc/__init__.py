@@ -526,7 +526,7 @@ def _create_barplot_visualization(
     # Step 4: Combine into a single DataFrame
     orthogonal_data = pd.concat([technology_series, category_series, count_series], axis=1)
 
-    fig, ax = plt.subplots(figsize=(10, 6))
+    _fig, ax = plt.subplots(figsize=(10, 6))
 
     sns.barplot(data=orthogonal_data, x="Technology", y="Count", hue="Category", ax=ax)
 

@@ -150,7 +150,6 @@ def save_cbg_gene_parquets(
     """
     segmentation_suffix = f"_{segmentation_approach}" if segmentation_approach != "default" else ""
     output_dir = Path(base_path) / f"cbg{segmentation_suffix}"
-    print(output_dir)
     output_dir.mkdir(exist_ok=True)
 
     # convert cell index from string to integer
@@ -158,13 +157,7 @@ def save_cbg_gene_parquets(
         base_path, layer="boundary", segmentation=segmentation_approach
     )
 
-    print("cbg.index before mapping:")
-    print(cbg.index[:5])
-
     cbg.index = cbg.index.map(cell_str_to_int_mapping)
-
-    print("cbg.index after mapping:")
-    print(cbg.index[:5])
 
     for index, gene in enumerate(cbg.columns):
         if verbose and index % 1000 == 0:

@@ -28,10 +28,6 @@ def get_image_info(technology: str, image_tile_layer: str = "dapi") -> list[dict
             f"Unsupported technology: {technology}. Supported technologies are: {supported_technologies}."
         )
 
-    # # Validate image_tile_layer
-    # if image_tile_layer not in ["dapi", "all"]:
-    #     raise ValueError(f"Invalid image_tile_layer: {image_tile_layer}. Must be 'dapi' or 'all'.")
-
     # Handle 'dapi' case for both Xenium and MERSCOPE
     if image_tile_layer == "dapi":
         return [{"name": "dapi", "button_name": "DAPI", "color": [0, 0, 255]}]

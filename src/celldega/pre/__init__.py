@@ -632,9 +632,7 @@ def make_deepzoom_pyramid(
     image.dzsave(str(output_path), tile_size=tile_size, overlap=overlap, suffix=suffix)
 
 
-def _load_meta_cell_by_technology(
-    technology, path_meta_cell_micron, paths=None, dataset=None, inst_slice=None
-):
+def _load_meta_cell_by_technology(technology, path_meta_cell_micron, paths=None, dataset=None):
     """
     Load meta cell data based on technology.
 
@@ -681,7 +679,6 @@ def make_meta_cell_image_coord(
     sample=None,
     paths=None,
     dataset=None,
-    inst_slice=None,
 ):
     """Applies an affine transformation to cell coordinates in microns and saves the transformed coordinates in pixels.
 
@@ -723,7 +720,10 @@ def make_meta_cell_image_coord(
     sparse_matrix = csr_matrix(transformation_matrix)
 
     meta_cell = _load_meta_cell_by_technology(
-        technology, path_meta_cell_micron, paths=paths, dataset=dataset, inst_slice=inst_slice
+        technology,
+        path_meta_cell_micron,
+        paths=paths,
+        dataset=dataset,
     )
 
     print("meta_cell after _load_meta_cell_by_technology")

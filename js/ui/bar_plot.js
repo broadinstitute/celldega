@@ -64,8 +64,6 @@ export const bar_callback_gene = async (
   _layers_obj,
   _viz_state
 ) => {
-  console.log('bar_callback_gene', d.name);
-
   // ensure that trx button, slider, and bars are active
   _viz_state.buttons.buttons.trx.style('color', 'blue');
 
@@ -95,17 +93,14 @@ export const bar_callback_gene = async (
     _viz_state.cats.svg_bar_cluster.selectAll('rect').style('opacity', 0.2);
   }
 
-  console.log('update_cat', new_cat);
   update_cat(_viz_state.cats, new_cat);
 
-  console.log('deck_check set for trx_layer and cell_layer');
   _viz_state.obs_store.deck_check.set({
     ..._viz_state.obs_store.deck_check.get(),
     cell_layer: false,
     trx_layer: false,
   });
 
-  console.log('update_selected_genes', [inst_gene]);
   update_selected_genes(_viz_state.genes, [inst_gene], _viz_state.obs_store);
   await update_cell_exp_array(
     _viz_state.cats,

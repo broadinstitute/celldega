@@ -397,8 +397,6 @@ def make_cell_boundary_tiles(
     n_coarse_tiles_x = int(np.ceil((x_max - x_min) / (coarse_tile_factor * tile_size)))
     n_coarse_tiles_y = int(np.ceil((y_max - y_min) / (coarse_tile_factor * tile_size)))
 
-    print(gdf_cells.head())
-
     # Process coarse tiles in parallel
     for i in tqdm(range(n_coarse_tiles_x), desc="Processing coarse tiles"):
         coarse_tile_x_min = x_min + i * (coarse_tile_factor * tile_size)

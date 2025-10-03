@@ -1,9 +1,9 @@
 import celldega from './widget.js';
 document.addEventListener("DOMContentLoaded", async () => {
 
-    const landscape_el = document.getElementById('landscape-visium-hd-jitter-mouse-brain');
+    const landscape_el = document.getElementById('landscape-visium-hd-cell-segmentation-mouse-brain');
 
-    if (window.location.pathname.endsWith('gallery_visium_hd_jitter_mouse_brain/')){
+    if (window.location.pathname.endsWith('gallery_visium_hd_cell_segmentation_mouse_brain/')){
 
         // Use the imported functions
         const token = '';

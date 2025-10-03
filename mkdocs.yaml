@@ -88,7 +88,7 @@ extra_javascript:
   - path: assets/js/google-analytics.js
   - path: assets/js/hide_notebook_sidebar.js
     type: module
-  - path: assets/js/gallery_visium_hd_jitter_mouse_brain.js
+  - path: assets/js/gallery_visium_hd_cell_segmentation_mouse_brain.js
     type: module
   - path: assets/js/gallery_visium_hd_human_kidney.js
     type: module

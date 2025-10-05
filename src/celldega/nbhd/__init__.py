@@ -10,6 +10,7 @@ from .neighborhoods import (
     calc_nbg_cd,
     calc_nbg_cf,
     calc_nbp,
+    get_nbhd_meta
 )
 from .utils import (
     _add_centroids_to_obsm,
@@ -35,5 +36,6 @@ __all__ = [
     "calc_nbg_cd",
     "calc_nbg_cf",
     "calc_nbp",
+    "get_nbhd_meta",
     "generate_hex_grid",
 ]

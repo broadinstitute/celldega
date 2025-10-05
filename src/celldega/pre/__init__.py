@@ -116,7 +116,11 @@ def _save_cluster_data(cell_clusters_dir, default_clustering, clusters, ser_coun
 
 
 def cluster_gene_expression(
-    technology, path_landscape_files, cbg, data_dir=None, segmentation_approach="default"
+    technology,
+    path_landscape_files,
+    cbg,
+    data_dir=None,
+    segmentation_approach="default",
 ):
     """
     Calculates cluster-specific gene expression signatures for Xenium data.
@@ -628,7 +632,7 @@ def make_deepzoom_pyramid(
     image.dzsave(str(output_path), tile_size=tile_size, overlap=overlap, suffix=suffix)
 
 
-def _load_meta_cell_by_technology(technology, path_meta_cell_micron):
+def _load_meta_cell_by_technology(technology, path_meta_cell_micron, paths=None, dataset=None):
     """
     Load meta cell data based on technology.
 
@@ -650,6 +654,7 @@ def _load_meta_cell_by_technology(technology, path_meta_cell_micron):
         meta_cell = pd.read_csv(path_meta_cell_micron, index_col=0, usecols=usecols)
         meta_cell.columns = ["center_x", "center_y"]
         meta_cell["name"] = pd.Series(meta_cell.index, index=meta_cell.index)
+
     elif technology == "custom":
         import geopandas as gpd
 
@@ -657,10 +662,11 @@ def _load_meta_cell_by_technology(technology, path_meta_cell_micron):
         meta_cell["center_x"] = meta_cell.centroid.x
         meta_cell["center_y"] = meta_cell.centroid.y
         meta_cell["name"] = pd.Series(meta_cell.index, index=meta_cell.index).astype("str")
-        meta_cell.drop(["area", "centroid"], axis=1, inplace=True)
+        cols_to_drop = [c for c in ["area", "centroid"] if c in meta_cell.columns]
+        if cols_to_drop:
+            meta_cell.drop(columns=cols_to_drop, inplace=True)
     else:
         raise ValueError(f"Unsupported technology: {technology}")
-
     return meta_cell
 
 
@@ -670,6 +676,9 @@ def make_meta_cell_image_coord(
     path_meta_cell_micron,
     path_meta_cell_image,
     image_scale=1,
+    sample=None,
+    paths=None,
+    dataset=None,
 ):
     """Applies an affine transformation to cell coordinates in microns and saves the transformed coordinates in pixels.
 
@@ -710,7 +719,15 @@ def make_meta_cell_image_coord(
     transformation_matrix = pd.read_csv(path_transformation_matrix, header=None, sep=" ").values
     sparse_matrix = csr_matrix(transformation_matrix)
 
-    meta_cell = _load_meta_cell_by_technology(technology, path_meta_cell_micron)
+    meta_cell = _load_meta_cell_by_technology(
+        technology,
+        path_meta_cell_micron,
+        paths=paths,
+        dataset=dataset,
+    )
+
+    print("meta_cell after _load_meta_cell_by_technology")
+    print(meta_cell.head())
 
     # Adding a ones column to accommodate for affine transformation
     meta_cell["ones"] = 1
@@ -817,7 +834,7 @@ def make_chromium_from_anndata(adata, path_landscape_files):
     cell_meta = pd.DataFrame({"name": adata.obs_names, "geometry": [[0.0, 0.0]] * adata.n_obs})
     cell_meta.to_parquet(path_landscape_files / "cell_metadata.parquet", index=False)
 
-    save_cbg_gene_parquets(path_landscape_files, cbg)
+    save_cbg_gene_parquets("Chromium", path_landscape_files, cbg)
 
     make_meta_gene(cbg, path_landscape_files / "meta_gene.parquet")
 
@@ -919,12 +936,13 @@ def save_landscape_parameters(
 
 
 def add_custom_segmentation(
-    path_landscape_files, path_segmentation_files, image_scale=1, tile_size=250
+    technology, path_landscape_files, path_segmentation_files, image_scale=1, tile_size=250
 ):
     """
     Add custom segmentation to existing landscape files.
 
     Parameters:
+    - technology: Technology type (e.g., "Xenium", "MERSCOPE", "custom")
     - path_landscape_files: Path to landscape files
     - path_segmentation_files: Path to segmentation files
     - image_scale: Image scale factor
@@ -963,6 +981,7 @@ def add_custom_segmentation(
     )
 
     save_cbg_gene_parquets(
+        technology=technology,
         base_path=path_landscape_files,
         cbg=cbg_custom,
         verbose=True,
@@ -1274,6 +1293,13 @@ def _check_required_files(technology, data_dir):
     )
 
 
+def write_identity_transform(path_landscape_files: str) -> None:
+    """Write an identity transform matrix for IST data."""
+    path = Path(path_landscape_files) / "micron_to_image_transform.csv"
+    if not path.exists():
+        pd.DataFrame(np.eye(3)).to_csv(path, sep=" ", header=False, index=False)
+
+
 __all__ = [
     "_make_xenium_anndata",
     "_to_geometry",
@@ -1284,4 +1310,5 @@ __all__ = [
     "make_trx_tiles",
     "read_cbg_mtx",
     "trx_tile",
+    "write_identity_transform",
 ]

@@ -95,7 +95,8 @@ export const landscape_ist = async (
   creds = {},
   view_change_custom_callback = null,
   rotation_orbit = 0,
-  rotation_x = 0
+  rotation_x = 0,
+  max_tiles_to_view = 50
 ) => {
   if (width === 0) {
     width = '100%';
@@ -105,6 +106,7 @@ export const landscape_ist = async (
 
   viz_state.obs_store = create_obs_store();
 
+  viz_state.max_tiles_to_view = max_tiles_to_view;
   const update_viz_image_layers = () => {
     if (!get_img_layer_visible()) {
       return;
@@ -308,9 +310,6 @@ export const landscape_ist = async (
 
   set_options(token);
 
-  // move this to landscape_parameters
-  const imgage_name_for_dim = 'dapi';
-
   await set_landscape_parameters(viz_state.img, base_url, viz_state.aws);
   const tech = viz_state.img.landscape_parameters.technology;
   if (tech === 'Chromium' || tech === 'point-cloud') {
@@ -319,6 +318,9 @@ export const landscape_ist = async (
   }
 
   const tmp_image_info = viz_state.img.landscape_parameters.image_info;
+
+  // set image_name_for_dim using the first image info name
+  const image_name_for_dim = tmp_image_info[0].name;
 
   viz_state.vector_name_integer =
     viz_state.img.landscape_parameters.use_int_index;
@@ -342,7 +344,7 @@ export const landscape_ist = async (
   if (tech === 'Chromium' || tech === 'point-cloud') {
     viz_state.dimensions = { width: 1, height: 1, tileSize: 1 };
   } else {
-    await set_dimensions(viz_state, base_url, imgage_name_for_dim);
+    await set_dimensions(viz_state, base_url, image_name_for_dim);
   }
 
   await set_meta_gene(

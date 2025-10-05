@@ -42,6 +42,7 @@ def _get_name_mapping(path_landscape_files, layer, segmentation="default"):
             df_meta_cell = pd.read_parquet(
                 f"{path_landscape_files}/cell_metadata_{segmentation}.parquet"
             )
+        df_meta_cell = df_meta_cell.reset_index(drop=True)
         return {str(name): idx for idx, name in df_meta_cell["name"].items()}
 
     raise ValueError(
@@ -259,7 +260,8 @@ def get_cell_polygons(
             lambda x: x.tolist()
         )
         grouped["geometry"] = grouped.apply(
-            lambda row: Polygon(zip(row["vertex_x"], row["vertex_y"], strict=False)), axis=1
+            lambda row: Polygon(zip(row["vertex_x"], row["vertex_y"], strict=False)),
+            axis=1,
         )
         cells_orig = gpd.GeoDataFrame(grouped, geometry="geometry")[["geometry"]]
 
@@ -341,6 +343,7 @@ def make_cell_boundary_tiles(
                 1
             ],  # get the cell segmentation method, such as cellpose2.
         )
+
         gdf_cells.index = gdf_cells.index.astype(str).map(cell_str_to_int_mapping)
 
         gdf_cells.rename(columns={"geometry_image_space": "GEOMETRY"}, inplace=True)
@@ -357,7 +360,8 @@ def make_cell_boundary_tiles(
 
         gdf_cells["GEOMETRY"] = transformed_geometries
 
-    else:
+    # MERSCOPE and Xenium
+    elif technology in ["MERSCOPE", "Xenium"]:
         print("technology", technology)
         transformation_matrix = pd.read_csv(path_transformation_matrix, header=None, sep=" ").values
 
@@ -370,18 +374,20 @@ def make_cell_boundary_tiles(
             path_meta_cell_micron,
         )
 
-        # path_landscape_files = path_transformation_matrix.replace("/micron_to_image_transform.csv", "")
-        # path_landscape_files = path_output.split("/")[0]
-
         # Convert string index to integer index
         cell_str_to_int_mapping = _get_name_mapping(
             path_output.replace("/cell_segmentation", ""),
             layer="boundary",
         )
+
         gdf_cells.index = gdf_cells.index.astype(str).map(cell_str_to_int_mapping)
 
         gdf_cells["center_x"] = gdf_cells.geometry.centroid.x
         gdf_cells["center_y"] = gdf_cells.geometry.centroid.y
+    else:
+        raise ValueError(
+            f"Unsupported technology: {technology}. Supported technologies are 'MERSCOPE' and 'Xenium'."
+        )
 
     # Calculate tile bounds and fine/coarse tiles
     x_min, x_max = tile_bounds["x_min"], tile_bounds["x_max"]

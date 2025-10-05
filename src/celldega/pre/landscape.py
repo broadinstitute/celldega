@@ -88,7 +88,7 @@ def calc_meta_gene_data(cbg):
     return pd.DataFrame(meta_gene.values, index=meta_gene.index.tolist(), columns=meta_gene.columns)
 
 
-def read_cbg_mtx(base_path):
+def read_cbg_mtx(base_path, barcodes_name="barcodes", features_name="features", technology=None):
     """
     Read the cell-by-gene matrix from the mtx files.
 
@@ -105,12 +105,14 @@ def read_cbg_mtx(base_path):
     base_path = Path(base_path)
 
     # File paths
-    barcodes_path = base_path / "barcodes.tsv.gz"
-    features_path = base_path / "features.tsv.gz"
+    barcodes_path = base_path / (barcodes_name + ".tsv.gz")
+    features_path = base_path / (features_name + ".tsv.gz")
     matrix_path = base_path / "matrix.mtx.gz"
 
     # Read barcodes and features
     barcodes = pd.read_csv(barcodes_path, header=None, compression="gzip")
+    barcodes = barcodes[0]
+
     features = pd.read_csv(features_path, header=None, compression="gzip", sep="\t")
 
     # Read the gene expression matrix and transpose it
@@ -118,17 +120,21 @@ def read_cbg_mtx(base_path):
     matrix = mmread(matrix_path).transpose().tocsc()
 
     # Create a sparse DataFrame with genes as columns and barcodes as rows
-    cbg = pd.DataFrame.sparse.from_spmatrix(matrix, index=barcodes[0], columns=features[1])
+    cbg = pd.DataFrame.sparse.from_spmatrix(matrix, index=barcodes, columns=features[1])
 
     return cbg.rename_axis("__index_level_0__", axis="columns")
 
 
-def save_cbg_gene_parquets(base_path, cbg, verbose=False, segmentation_approach="default"):
+def save_cbg_gene_parquets(
+    technology, base_path, cbg, verbose=False, segmentation_approach="default"
+):
     """
     Save the cell-by-gene matrix as gene-specific Parquet files.
 
     Parameters
     ----------
+    technology : str
+        The technology used for the data.
     base_path : str
         The base path to the parent directory containing the landscape_files directory.
     cbg : pandas.DataFrame
@@ -144,17 +150,17 @@ def save_cbg_gene_parquets(base_path, cbg, verbose=False, segmentation_approach=
     """
     segmentation_suffix = f"_{segmentation_approach}" if segmentation_approach != "default" else ""
     output_dir = Path(base_path) / f"cbg{segmentation_suffix}"
-    print(output_dir)
     output_dir.mkdir(exist_ok=True)
 
     # convert cell index from string to integer
     cell_str_to_int_mapping = _get_name_mapping(
         base_path, layer="boundary", segmentation=segmentation_approach
     )
+
     cbg.index = cbg.index.map(cell_str_to_int_mapping)
 
     for index, gene in enumerate(cbg.columns):
-        if verbose and index % 100 == 0:
+        if verbose and index % 1000 == 0:
             print(f"Processing gene {index}: {gene}")
 
         # Extract the column as a DataFrame as a copy

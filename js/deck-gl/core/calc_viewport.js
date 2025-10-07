@@ -8,6 +8,7 @@ export const calc_viewport = async (
   layers_obj,
   viz_state
 ) => {
+  const wasCloseUp = viz_state.close_up;
   const { tile_size } = viz_state.img.landscape_parameters;
   const zoomFactor = Math.pow(2, zoom);
   const [targetX, targetY] = target;
@@ -112,8 +113,20 @@ export const calc_viewport = async (
 
     viz_state.obs_store.new_cell_bar_data.set(new_bar_data_cell);
   } else {
-    if (viz_state.close_up) {
+    if (wasCloseUp) {
+      viz_state.obs_store.deck_check.set({
+        ...viz_state.obs_store.deck_check.get(),
+        trx_data: false,
+        path_data: false,
+      });
+
       viz_state.close_up = false;
+
+      viz_state.obs_store.deck_check.set({
+        ...viz_state.obs_store.deck_check.get(),
+        trx_data: true,
+        path_data: true,
+      });
 
       viz_state.obs_store.new_gene_bar_data.set(
         viz_state.genes.top_gene_counts

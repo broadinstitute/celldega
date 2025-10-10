@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Mapping
 import math
-from collections.abc import Mapping
 from pathlib import Path
-from typing import Iterable
 
 import numpy as np
 import pandas as pd
 from scipy.sparse import csr_matrix
+
 
 __all__ = ["write_pseudotranscripts_from_sbg"]
 
@@ -40,7 +40,9 @@ def _prepare_gene_codes(columns: Iterable[str], mapping: Mapping[str, int]) -> n
     return gene_codes
 
 
-def _coerce_mapping(gene_str_to_int: Mapping[str, int] | pd.Series | dict[str, int]) -> Mapping[str, int]:
+def _coerce_mapping(
+    gene_str_to_int: Mapping[str, int] | pd.Series | dict[str, int],
+) -> Mapping[str, int]:
     if isinstance(gene_str_to_int, Mapping):
         return gene_str_to_int
     return dict(gene_str_to_int)
@@ -66,7 +68,13 @@ def _group_rows_by_tile(
     unique_keys, key_start = np.unique(tile_keys_sorted, return_index=True)
     key_end = np.concatenate([key_start[1:], np.array([tile_keys_sorted.size], dtype=np.int64)])
 
-    tile_slices = dict(zip(unique_keys.tolist(), zip(key_start.tolist(), key_end.tolist(), strict=False)))
+    tile_slices = dict(
+        zip(
+            unique_keys.tolist(),
+            zip(key_start.tolist(), key_end.tolist(), strict=False),
+            strict=False,
+        )
+    )
 
     return row_positions_sorted, tile_slices
 
@@ -181,8 +189,8 @@ def write_pseudotranscripts_from_sbg(
 
     x_min, x_max, y_min, y_max = _validate_tile_bounds(tile_bounds)
 
-    n_tiles_x = int(math.ceil((x_max - x_min) / tile_size))
-    n_tiles_y = int(math.ceil((y_max - y_min) / tile_size))
+    n_tiles_x = math.ceil((x_max - x_min) / tile_size)
+    n_tiles_y = math.ceil((y_max - y_min) / tile_size)
 
     if n_tiles_x <= 0 or n_tiles_y <= 0:
         return
@@ -213,12 +221,7 @@ def write_pseudotranscripts_from_sbg(
     tile_i = np.floor((spot_x - x_min) / tile_size).astype(np.int64, copy=False)
     tile_j = np.floor((spot_y - y_min) / tile_size).astype(np.int64, copy=False)
 
-    valid_mask &= (
-        (tile_i >= 0)
-        & (tile_i < n_tiles_x)
-        & (tile_j >= 0)
-        & (tile_j < n_tiles_y)
-    )
+    valid_mask &= (tile_i >= 0) & (tile_i < n_tiles_x) & (tile_j >= 0) & (tile_j < n_tiles_y)
 
     if not np.any(valid_mask):
         return

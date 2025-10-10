@@ -69,7 +69,11 @@ def _group_rows_by_tile(
     key_end = np.concatenate([key_start[1:], np.array([tile_keys_sorted.size], dtype=np.int64)])
 
     tile_slices = dict(
-        zip(unique_keys.tolist(), zip(key_start.tolist(), key_end.tolist(), strict=False), strict=False)
+        zip(
+            unique_keys.tolist(),
+            zip(key_start.tolist(), key_end.tolist(), strict=False),
+            strict=False,
+        )
     )
 
     return row_positions_sorted, tile_slices

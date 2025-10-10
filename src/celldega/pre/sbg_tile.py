@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Mapping
 import math
-from collections.abc import Mapping
 from pathlib import Path
-from typing import Iterable
 
 import numpy as np
 import pandas as pd
 from scipy.sparse import csr_matrix
+
 
 __all__ = ["write_pseudotranscripts_from_sbg"]
 
@@ -69,7 +69,7 @@ def _group_rows_by_tile(
     key_end = np.concatenate([key_start[1:], np.array([tile_keys_sorted.size], dtype=np.int64)])
 
     tile_slices = dict(
-        zip(unique_keys.tolist(), zip(key_start.tolist(), key_end.tolist(), strict=False))
+        zip(unique_keys.tolist(), zip(key_start.tolist(), key_end.tolist(), strict=False), strict=False)
     )
 
     return row_positions_sorted, tile_slices
@@ -185,8 +185,8 @@ def write_pseudotranscripts_from_sbg(
 
     x_min, x_max, y_min, y_max = _validate_tile_bounds(tile_bounds)
 
-    n_tiles_x = int(math.ceil((x_max - x_min) / tile_size))
-    n_tiles_y = int(math.ceil((y_max - y_min) / tile_size))
+    n_tiles_x = math.ceil((x_max - x_min) / tile_size)
+    n_tiles_y = math.ceil((y_max - y_min) / tile_size)
 
     if n_tiles_x <= 0 or n_tiles_y <= 0:
         return

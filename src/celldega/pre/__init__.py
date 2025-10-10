@@ -32,8 +32,8 @@ from .boundary_tile import (
 from .image_info import get_image_info
 from .landscape import calc_meta_gene_data, read_cbg_mtx, save_cbg_gene_parquets
 from .run_pre_processing import main
-from .trx_tile import make_trx_tiles
 from .sbg_tile import write_pseudotranscripts_from_sbg
+from .trx_tile import make_trx_tiles
 
 
 def _load_xenium_cluster_data(data_dir, meta_cell):

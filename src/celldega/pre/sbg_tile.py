@@ -40,7 +40,9 @@ def _prepare_gene_codes(columns: Iterable[str], mapping: Mapping[str, int]) -> n
     return gene_codes
 
 
-def _coerce_mapping(gene_str_to_int: Mapping[str, int] | pd.Series | dict[str, int]) -> Mapping[str, int]:
+def _coerce_mapping(
+    gene_str_to_int: Mapping[str, int] | pd.Series | dict[str, int],
+) -> Mapping[str, int]:
     if isinstance(gene_str_to_int, Mapping):
         return gene_str_to_int
     return dict(gene_str_to_int)
@@ -66,7 +68,9 @@ def _group_rows_by_tile(
     unique_keys, key_start = np.unique(tile_keys_sorted, return_index=True)
     key_end = np.concatenate([key_start[1:], np.array([tile_keys_sorted.size], dtype=np.int64)])
 
-    tile_slices = dict(zip(unique_keys.tolist(), zip(key_start.tolist(), key_end.tolist(), strict=False)))
+    tile_slices = dict(
+        zip(unique_keys.tolist(), zip(key_start.tolist(), key_end.tolist(), strict=False))
+    )
 
     return row_positions_sorted, tile_slices
 
@@ -213,12 +217,7 @@ def write_pseudotranscripts_from_sbg(
     tile_i = np.floor((spot_x - x_min) / tile_size).astype(np.int64, copy=False)
     tile_j = np.floor((spot_y - y_min) / tile_size).astype(np.int64, copy=False)
 
-    valid_mask &= (
-        (tile_i >= 0)
-        & (tile_i < n_tiles_x)
-        & (tile_j >= 0)
-        & (tile_j < n_tiles_y)
-    )
+    valid_mask &= (tile_i >= 0) & (tile_i < n_tiles_x) & (tile_j >= 0) & (tile_j < n_tiles_y)
 
     if not np.any(valid_mask):
         return

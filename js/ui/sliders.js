@@ -29,6 +29,14 @@ const slider_style_block = `
   margin: 0;
 }
 
+.slider:disabled {
+  --c: #c5c5c5;
+  --thumb-border: #d0d0d0;
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
 .slider::-webkit-slider-runnable-track {
   height: 8px;
   border-radius: 999px;
@@ -50,6 +58,10 @@ const slider_style_block = `
   cursor: pointer;
 }
 
+.slider:disabled::-webkit-slider-thumb {
+  cursor: not-allowed;
+}
+
 .slider::-moz-range-track {
   height: 8px;
   border-radius: 999px;
@@ -69,6 +81,10 @@ const slider_style_block = `
   background: var(--c);
   border: 2px solid var(--thumb-border);
   cursor: pointer;
+}
+
+.slider:disabled::-moz-range-thumb {
+  cursor: not-allowed;
 }
 `;
 
@@ -296,5 +312,9 @@ export const ini_slider = (slider_type, inst_deck, layers_obj, viz_state) => {
 };
 
 export const toggle_slider = (slider, state) => {
+  if (!slider) {
+    return;
+  }
+
   slider.disabled = !state;
 };

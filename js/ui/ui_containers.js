@@ -182,10 +182,8 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
 
     const ini_dendro_value = 50;
 
-    ini_slider_params(
-      slider,
-      ini_dendro_value,
-      (event) => dendro_slider_callback(deck_mat, viz_state, axis, event)
+    ini_slider_params(slider, ini_dendro_value, (event) =>
+      dendro_slider_callback(deck_mat, viz_state, axis, event)
     );
   });
 

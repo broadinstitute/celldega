@@ -157,16 +157,6 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
 
   viz_state.dendro.sliders = {};
 
-  axes.forEach((axis) => {
-    viz_state.dendro.sliders[axis] = document.createElement('input');
-    viz_state.dendro.sliders[axis].type = 'range';
-    viz_state.dendro.sliders[axis].min = '0';
-    viz_state.dendro.sliders[axis].max = '100';
-    viz_state.dendro.sliders[axis].value = 50;
-    viz_state.dendro.sliders[axis].className = 'slider';
-    viz_state.dendro.sliders[axis].style.width = '75px';
-  });
-
   const dendro_slider_callback = (_deck_mat, _viz_state, axis, event) => {
     // Update the dendrogram layer
     _viz_state.dendro.sliders[`${axis}_value`] =
@@ -186,10 +176,16 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
     });
   };
 
-  // Add event listener to log the slider value
   axes.forEach((axis) => {
-    viz_state.dendro.sliders[axis].addEventListener('input', (event) =>
-      dendro_slider_callback(deck_mat, viz_state, axis, event)
+    const slider = document.createElement('input');
+    viz_state.dendro.sliders[axis] = slider;
+
+    const ini_dendro_value = 50;
+
+    ini_slider_params(
+      slider,
+      ini_dendro_value,
+      (event) => dendro_slider_callback(deck_mat, viz_state, axis, event)
     );
   });
 

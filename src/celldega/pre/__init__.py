@@ -122,6 +122,7 @@ def cluster_gene_expression(
     cbg,
     data_dir=None,
     segmentation_approach="default",
+    cluster_key="gene_expression_graphclust",
 ):
     """
     Calculates cluster-specific gene expression signatures for Xenium data.
@@ -146,11 +147,7 @@ def cluster_gene_expression(
     if technology == "Xenium":
         cells_csv_path = Path(data_dir) / "cells.csv.gz"
         clusters_csv_path = (
-            Path(data_dir)
-            / "analysis"
-            / "clustering"
-            / "gene_expression_graphclust"
-            / "clusters.csv"
+            Path(data_dir) / "analysis" / "clustering" / cluster_key / "clusters.csv"
         )
 
         # Load the cell metadata

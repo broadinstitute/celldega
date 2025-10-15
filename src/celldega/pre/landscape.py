@@ -2,7 +2,6 @@
 Landscape processing module for handling gene expression data.
 """
 
-import glob
 from pathlib import Path
 
 import numpy as np
@@ -140,7 +139,13 @@ def read_cbg_mtx(base_path, barcodes_name="barcodes", features_name="features", 
     features_path = base_path / (features_name + ".tsv.gz")
     matrix_path = base_path / "matrix.mtx.gz"
     morph_dir = base_path.parent / "morphology_focus"
-    ome_tif_fnames = sorted(glob.glob(str(morph_dir / "*.ome.tif")))
+    ome_tif_fnames = sorted(
+        [
+            str(p)
+            for p in Path(morph_dir).glob("*.ome.tif")
+            if "morphology_focus" not in p.name.lower()
+        ]
+    )
     all_protein_names = [x.split(".ome.tif")[0].split("/")[-1][7:] for x in ome_tif_fnames]
 
     # Read barcodes and features

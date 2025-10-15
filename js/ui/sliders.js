@@ -4,48 +4,60 @@ import { square_scatter_layer_opacity } from '../deck-gl/layers/square_scatter_l
 import { update_trx_layer_radius } from '../deck-gl/layers/trx_layer';
 import { refresh_layer } from '../utils/refresh_layer';
 
-const clampToByte = (value) => {
+const clamp_to_byte = (value) => {
   return Math.max(0, Math.min(255, Math.round(value)));
 };
 
-const rgbColorToHex = (color) => {
-  if (!color) {
-    return undefined;
-  }
-
-  const trimmedColor = color.trim();
-
-  if (trimmedColor.startsWith('#')) {
-    return trimmedColor;
-  }
-
-  const components = trimmedColor.match(/\d+(?:\.\d+)?/g);
-
+const array_to_hex = (components) => {
   if (!components || components.length < 3) {
     return undefined;
   }
 
   const [r, g, b] = components.slice(0, 3).map((component) => {
-    const numericValue = Number(component);
+    const numeric_value = Number(component);
 
-    if (Number.isNaN(numericValue)) {
+    if (Number.isNaN(numeric_value)) {
       return '00';
     }
 
-    return clampToByte(numericValue).toString(16).padStart(2, '0');
+    return clamp_to_byte(numeric_value).toString(16).padStart(2, '0');
   });
 
   return `#${r}${g}${b}`;
 };
 
-const setSliderAccentColor = (slider, color) => {
-  const hexColor = rgbColorToHex(color);
+const rgb_color_to_hex = (color) => {
+  if (!color) {
+    return undefined;
+  }
 
-  if (!hexColor) {
+  if (Array.isArray(color)) {
+    return array_to_hex(color);
+  }
+
+  if (typeof ArrayBuffer !== 'undefined' && ArrayBuffer.isView(color)) {
+    return array_to_hex(Array.from(color));
+  }
+
+  const trimmed_color = String(color).trim();
+
+  if (trimmed_color.startsWith('#')) {
+    return trimmed_color;
+  }
+
+  const components = trimmed_color.match(/\d+(?:\.\d+)?/g);
+
+  return array_to_hex(components);
+};
+
+const set_slider_accent_color = (slider, color) => {
+  const hex_color = rgb_color_to_hex(color);
+
+  if (!hex_color) {
     return;
   }
 
-  slider.style.setProperty('accent-color', hexColor);
+  slider.style.setProperty('accent-color', hex_color);
 };
 
 export const make_slider = () => {
@@ -56,7 +68,7 @@ export const set_image_layer_sliders = (img) => {
   img.image_layer_sliders = img.image_info.map((info) => {
     const input = document.createElement('input');
     input.name = info.button_name;
-    setSliderAccentColor(input, info.color);
+    set_slider_accent_color(input, info.color);
     return input;
   });
 };

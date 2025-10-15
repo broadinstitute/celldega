@@ -4,6 +4,14 @@ import { square_scatter_layer_opacity } from '../deck-gl/layers/square_scatter_l
 import { update_trx_layer_radius } from '../deck-gl/layers/trx_layer';
 import { refresh_layer } from '../utils/refresh_layer';
 
+const setSliderAccentColor = (slider, color) => {
+  if (!color) {
+    return;
+  }
+
+  slider.style.setProperty('accent-color', color);
+};
+
 export const make_slider = () => {
   return document.createElement('input');
 };
@@ -12,6 +20,7 @@ export const set_image_layer_sliders = (img) => {
   img.image_layer_sliders = img.image_info.map((info) => {
     const input = document.createElement('input');
     input.name = info.button_name;
+    setSliderAccentColor(input, info.color);
     return input;
   });
 };

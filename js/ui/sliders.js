@@ -4,12 +4,48 @@ import { square_scatter_layer_opacity } from '../deck-gl/layers/square_scatter_l
 import { update_trx_layer_radius } from '../deck-gl/layers/trx_layer';
 import { refresh_layer } from '../utils/refresh_layer';
 
-const setSliderAccentColor = (slider, color) => {
+const clampToByte = (value) => {
+  return Math.max(0, Math.min(255, Math.round(value)));
+};
+
+const rgbColorToHex = (color) => {
   if (!color) {
+    return undefined;
+  }
+
+  const trimmedColor = color.trim();
+
+  if (trimmedColor.startsWith('#')) {
+    return trimmedColor;
+  }
+
+  const components = trimmedColor.match(/\d+(?:\.\d+)?/g);
+
+  if (!components || components.length < 3) {
+    return undefined;
+  }
+
+  const [r, g, b] = components.slice(0, 3).map((component) => {
+    const numericValue = Number(component);
+
+    if (Number.isNaN(numericValue)) {
+      return '00';
+    }
+
+    return clampToByte(numericValue).toString(16).padStart(2, '0');
+  });
+
+  return `#${r}${g}${b}`;
+};
+
+const setSliderAccentColor = (slider, color) => {
+  const hexColor = rgbColorToHex(color);
+
+  if (!hexColor) {
     return;
   }
 
-  slider.style.setProperty('accent-color', color);
+  slider.style.setProperty('accent-color', hexColor);
 };
 
 export const make_slider = () => {

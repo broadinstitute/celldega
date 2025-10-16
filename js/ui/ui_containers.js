@@ -8,7 +8,7 @@ import {
   calc_and_update_rgn_bar_graph,
   sync_region_to_model,
 } from '../deck-gl/layers/edit_layer';
-import { toggle_visibility_image_layers } from '../deck-gl/layers/image_layers';
+import { toggle_visibility_single_image_layer } from '../deck-gl/layers/image_layers';
 import { toggle_nbhd_layer_visibility } from '../deck-gl/layers/nbhd_layer';
 import { update_path_pickable_state } from '../deck-gl/layers/path_layer';
 import { update_trx_pickable_state } from '../deck-gl/layers/trx_layer';
@@ -504,23 +504,69 @@ export const make_ist_ui_container = (
       make_img_layer_ctrl(viz_state.img, inst_image)
     );
 
-    viz_state.obs_store.viz_image_layers.subscribe((viz_image_layers) => {
-      d3.select(viz_state.containers.image)
-        .selectAll('.img_layer_button')
-        .style('color', viz_image_layers ? 'blue' : 'gray');
+    const sync_image_layer_controls = () => {
+      const vizImageLayers = viz_state.obs_store.viz_image_layers.get();
+      const focusedLayer = viz_state.obs_store.focused_image_layer.get();
+      const focusActive = Boolean(focusedLayer);
 
-      viz_state.img.image_layer_sliders.map((slider) =>
-        toggle_slider(slider, viz_image_layers)
-      );
+      const buttonSelection = d3
+        .select(viz_state.containers.image)
+        .selectAll('.img_layer_button');
 
-      toggle_visibility_image_layers(layers_obj, viz_image_layers);
+      if (!focusActive) {
+        buttonSelection
+          .style('pointer-events', 'auto')
+          .style('cursor', 'pointer')
+          .style('opacity', 1)
+          .style('color', vizImageLayers ? 'blue' : 'gray');
+      }
+
+      viz_state.img.image_info.forEach((inst_image) => {
+        const inst_name = inst_image.button_name;
+        const slider = get_slider_by_name(viz_state.img, inst_name)[0];
+        const button = viz_state.buttons.buttons[inst_name.toLowerCase()];
+        const isFocused = focusActive && inst_name === focusedLayer;
+        const sliderEnabled = focusActive ? isFocused : vizImageLayers;
+
+        toggle_slider(slider, sliderEnabled);
+
+        if (focusActive && button) {
+          button
+            .style('pointer-events', isFocused ? 'auto' : 'none')
+            .style('cursor', isFocused ? 'pointer' : 'default')
+            .style('opacity', isFocused ? 1 : 0.5)
+            .style('color', isFocused ? 'blue' : 'gray');
+        }
+
+        const shouldBeVisible = focusActive ? isFocused : vizImageLayers;
+        toggle_visibility_single_image_layer(
+          layers_obj,
+          inst_name,
+          shouldBeVisible
+        );
+      });
 
       refresh_layer(viz_state, layers_obj, 'image_layers');
+    };
 
-      // move out of umap state if image is visible
-      if (viz_image_layers && viz_state.obs_store.umap_state.get()) {
+    viz_state.obs_store.viz_image_layers.subscribe((vizImageLayers) => {
+      if (!vizImageLayers && viz_state.obs_store.focused_image_layer.get()) {
+        viz_state.obs_store.focused_image_layer.set(null);
+      }
+
+      sync_image_layer_controls();
+
+      const has_visible_image =
+        vizImageLayers ||
+        Boolean(viz_state.obs_store.focused_image_layer.get());
+
+      if (has_visible_image && viz_state.obs_store.umap_state.get()) {
         viz_state.obs_store.landscape_view.set('spatial');
       }
+    });
+
+    viz_state.obs_store.focused_image_layer.subscribe(() => {
+      sync_image_layer_controls();
     });
 
     viz_state.obs_store.viz_background_layer.subscribe((visible) => {

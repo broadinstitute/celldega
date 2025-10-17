@@ -207,7 +207,7 @@ export const calc_dendro_polygons = (viz_state, axis) => {
 
       viz_state.dendro.polygons[axis].push({
         coordinates: triangle,
-        properties: { ...group, axis, is_active: false }, // Attach group data and axis
+        properties: { ...group, axis, is_focused: false }, // Attach group data and axis
       });
     } else if (axis === 'col') {
       const height = pos_bot - pos_top; // Increase width for better visibility
@@ -225,7 +225,7 @@ export const calc_dendro_polygons = (viz_state, axis) => {
 
       viz_state.dendro.polygons[axis].push({
         coordinates: triangle,
-        properties: { ...group, axis, is_active: false }, // Attach group data and axis
+        properties: { ...group, axis, is_focused: false }, // Attach group data and axis
       });
     }
   });

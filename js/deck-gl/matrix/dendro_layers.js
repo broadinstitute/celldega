@@ -2,15 +2,89 @@ import { PolygonLayer } from 'deck.gl';
 
 import { sync_selected_genes } from '../../global_variables/selected_genes';
 
+const DENDRO_AXES = ['row', 'col'];
+const DEFAULT_FILL_COLOR = [0, 0, 0, 90];
+const DIMMED_FILL_COLOR = [160, 160, 160, 25];
+
+const getCurrentFocus = (viz_state) => {
+  const storeFocus =
+    viz_state?.obs_store?.focused_dendro &&
+    typeof viz_state.obs_store.focused_dendro.get === 'function'
+      ? viz_state.obs_store.focused_dendro.get()
+      : null;
+
+  return storeFocus ?? viz_state.dendro?.active_polygon ?? null;
+};
+
+const applyDendroFocus = (layers_mat, viz_state, focus) => {
+  const normalizedFocus = focus
+    ? { axis: focus.axis, name: focus.name }
+    : null;
+
+  DENDRO_AXES.forEach((targetAxis) => {
+    if (!viz_state.dendro.polygons[targetAxis]) {
+      return;
+    }
+
+    const updatedPolygons = viz_state.dendro.polygons[targetAxis].map(
+      (polygon) => {
+        const isFocused =
+          !!normalizedFocus &&
+          polygon.properties.axis === normalizedFocus.axis &&
+          polygon.properties.name === normalizedFocus.name;
+
+        if (polygon.properties.is_focused === isFocused) {
+          return polygon;
+        }
+
+        return {
+          ...polygon,
+          properties: {
+            ...polygon.properties,
+            is_focused: isFocused,
+          },
+        };
+      }
+    );
+
+    viz_state.dendro.polygons[targetAxis] = updatedPolygons;
+
+    if (layers_mat[`${targetAxis}_dendro_layer`]) {
+      layers_mat[`${targetAxis}_dendro_layer`] =
+        layers_mat[`${targetAxis}_dendro_layer`].clone({
+          data: updatedPolygons,
+        });
+    }
+  });
+
+  viz_state.dendro.active_polygon = normalizedFocus;
+
+  if (viz_state.obs_store?.focused_dendro) {
+    const focusValue = normalizedFocus
+      ? { ...normalizedFocus }
+      : null;
+    viz_state.obs_store.focused_dendro.set(focusValue);
+  }
+};
+
 export const ini_dendro_layer = (layers_mat, viz_state, axis) => {
   const inst_layer = new PolygonLayer({
     id: `${axis}-dendro-layer`,
     data: viz_state.dendro.polygons[axis],
     getPolygon: (d) => d.coordinates,
-    getFillColor: (d) =>
-      d.properties?.is_active
-        ? [0, 0, 0, 180]
-        : [120, 120, 120, 40],
+    getFillColor: (d) => {
+      const currentFocus = getCurrentFocus(viz_state);
+
+      if (
+        currentFocus &&
+        d.properties.axis === currentFocus.axis &&
+        d.properties.name === currentFocus.name
+      ) {
+        return DEFAULT_FILL_COLOR;
+      }
+
+      return currentFocus ? DIMMED_FILL_COLOR : DEFAULT_FILL_COLOR;
+    },
     getLineColor: [255, 255, 255, 255],
     lineWidthMinPixels: 0,
     pickable: true,
@@ -46,25 +120,17 @@ export const toggle_dendro_layer_visibility = (layers_mat, viz_state, axis) => {
 };
 
 const focus_dendro_polygon = (layers_mat, viz_state, axis, polygonName) => {
-  if (!viz_state.dendro.active_polygon) {
-    viz_state.dendro.active_polygon = {};
+  const previousFocus = getCurrentFocus(viz_state);
+
+  if (
+    previousFocus &&
+    previousFocus.axis === axis &&
+    previousFocus.name === polygonName
+  ) {
+    return;
   }
 
-  viz_state.dendro.active_polygon[axis] = polygonName;
-
-  viz_state.dendro.polygons[axis] = viz_state.dendro.polygons[axis].map(
-    (polygon) => ({
-      ...polygon,
-      properties: {
-        ...polygon.properties,
-        is_active: polygon.properties.name === polygonName,
-      },
-    })
-  );
-
-  layers_mat[`${axis}_dendro_layer`] = layers_mat[`${axis}_dendro_layer`].clone({
-    data: viz_state.dendro.polygons[axis],
-  });
+  applyDendroFocus(layers_mat, viz_state, { axis, name: polygonName });
 };
 
 const dendro_layer_onclick = (event, deck_mat, layers_mat, viz_state, axis) => {

@@ -7,7 +7,10 @@ export const ini_dendro_layer = (layers_mat, viz_state, axis) => {
     id: `${axis}-dendro-layer`,
     data: viz_state.dendro.polygons[axis],
     getPolygon: (d) => d.coordinates,
-    getFillColor: [0, 0, 0, 90],
+    getFillColor: (d) =>
+      d.properties?.is_active
+        ? [0, 0, 0, 180]
+        : [120, 120, 120, 40],
     getLineColor: [255, 255, 255, 255],
     lineWidthMinPixels: 0,
     pickable: true,
@@ -42,6 +45,28 @@ export const toggle_dendro_layer_visibility = (layers_mat, viz_state, axis) => {
   );
 };
 
+const focus_dendro_polygon = (layers_mat, viz_state, axis, polygonName) => {
+  if (!viz_state.dendro.active_polygon) {
+    viz_state.dendro.active_polygon = {};
+  }
+
+  viz_state.dendro.active_polygon[axis] = polygonName;
+
+  viz_state.dendro.polygons[axis] = viz_state.dendro.polygons[axis].map(
+    (polygon) => ({
+      ...polygon,
+      properties: {
+        ...polygon.properties,
+        is_active: polygon.properties.name === polygonName,
+      },
+    })
+  );
+
+  layers_mat[`${axis}_dendro_layer`] = layers_mat[`${axis}_dendro_layer`].clone({
+    data: viz_state.dendro.polygons[axis],
+  });
+};
+
 const dendro_layer_onclick = (event, deck_mat, layers_mat, viz_state, axis) => {
   viz_state.click.type = `${axis}_dendro`;
 
@@ -49,6 +74,8 @@ const dendro_layer_onclick = (event, deck_mat, layers_mat, viz_state, axis) => {
     name: event.object.properties.name,
     selected_names: event.object.properties.all_names,
   };
+
+  focus_dendro_polygon(layers_mat, viz_state, axis, event.object.properties.name);
 
   if (Object.keys(viz_state.model).length > 0) {
     viz_state.model.set('click_info', null);

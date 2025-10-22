@@ -356,7 +356,14 @@ def _process_image_channel(path_landscape_files, channel_info, img):
         raise ValueError(f"Unsupported image dimensions: {img.ndim}. Expected 2D or 3D image.")
 
     output_path = Path(path_landscape_files) / f"{channel_name}_output_regular.tif"
-    imsave(output_path, image_data)
+
+    tifffile.imwrite(
+        output_path,
+        image_data,
+        bigtiff=True,
+        compression="zlib",
+        tile=(256, 256),
+    )
 
     # Convert the image to PNG format
     image_png = _convert_to_png(str(output_path))

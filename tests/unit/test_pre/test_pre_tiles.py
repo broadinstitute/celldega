@@ -1,12 +1,13 @@
 import importlib.util
 import math
+from pathlib import Path
 import sys
 import types
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import pytest
+
 
 try:
     import geopandas as gpd
@@ -33,9 +34,7 @@ boundary_tile.__package__ = "celldega.pre"
 sys.modules["celldega.pre.boundary_tile"] = boundary_tile
 spec_b.loader.exec_module(boundary_tile)
 
-spec_t = importlib.util.spec_from_file_location(
-    "celldega.pre.trx_tile", PRE_ROOT / "trx_tile.py"
-)
+spec_t = importlib.util.spec_from_file_location("celldega.pre.trx_tile", PRE_ROOT / "trx_tile.py")
 trx_tile = importlib.util.module_from_spec(spec_t)
 trx_tile.__package__ = "celldega.pre"
 sys.modules["celldega.pre.trx_tile"] = trx_tile
@@ -49,6 +48,7 @@ N_CELLS = 10
 N_TRX = 100
 TILE_SIZE = 250
 BBOX = (0, 500, 0, 500)
+
 
 def create_cell_polygon(df: pd.DataFrame) -> Polygon:
     """
@@ -76,16 +76,18 @@ def create_cell_polygon(df: pd.DataFrame) -> Polygon:
     if len(df) < 3:
         raise ValueError("At least three vertices are required to construct a polygon.")
 
-    return Polygon(zip(df["vertex_x"], df["vertex_y"]))
+    return Polygon(zip(df["vertex_x"], df["vertex_y"], strict=False))
+
 
 @pytest.fixture
 def make_synthetic_data(tmp_path):
     def _make(technology):
         return _generate_synthetic_data(tmp_path, technology)
+
     return _make
 
-def _generate_synthetic_data(tmp_path: Path, technology: str) -> dict[str, Path]:
 
+def _generate_synthetic_data(tmp_path: Path, technology: str) -> dict[str, Path]:
     """
     Generate synthetic spatial transcriptomics data for testing purposes.
 
@@ -182,18 +184,15 @@ def _generate_synthetic_data(tmp_path: Path, technology: str) -> dict[str, Path]
     df_meta_cell = pd.DataFrame({"name": [f"cell_{i}" for i in range(N_CELLS)]})
     df_meta_cell.to_parquet(tmp_path / "cell_metadata.parquet", index=False)
 
-    points = [
-        (rng.uniform(BBOX[0], BBOX[1]), rng.uniform(BBOX[2], BBOX[3]))
-        for _ in range(N_TRX)
-    ]
-    genes = [f"G{i%3}" for i in range(N_TRX)]
+    points = [(rng.uniform(BBOX[0], BBOX[1]), rng.uniform(BBOX[2], BBOX[3])) for _ in range(N_TRX)]
+    genes = [f"G{i % 3}" for i in range(N_TRX)]
     if technology == "MERSCOPE":
         df_trx = pl.DataFrame(
             {
                 "gene": genes,
                 "global_x": [p[0] for p in points],
                 "global_y": [p[1] for p in points],
-                "cell_id": [f"cell_{i%N_CELLS}" for i in range(N_TRX)],
+                "cell_id": [f"cell_{i % N_CELLS}" for i in range(N_TRX)],
                 "transcript_id": list(range(N_TRX)),
             }
         )
@@ -203,7 +202,7 @@ def _generate_synthetic_data(tmp_path: Path, technology: str) -> dict[str, Path]
                 "feature_name": genes,
                 "x_location": [p[0] for p in points],
                 "y_location": [p[1] for p in points],
-                "cell_id": [f"cell_{i%N_CELLS}" for i in range(N_TRX)],
+                "cell_id": [f"cell_{i % N_CELLS}" for i in range(N_TRX)],
                 "transcript_id": list(range(N_TRX)),
             }
         )
@@ -290,9 +289,7 @@ def test_tiles(make_synthetic_data, technology) -> None:
     assert total_trx == N_TRX
 
     # Step 3: Ensure that every transcript maps to one of the generated transcript tile coordinates
-    produced_trx_tiles = {
-        tuple(map(int, p.stem.split("_")[-2:])) for p in trx_tile_files
-    }
+    produced_trx_tiles = {tuple(map(int, p.stem.split("_")[-2:])) for p in trx_tile_files}
 
     if technology == "MERSCOPE":
         df_trx = pl.read_parquet(paths["trx_path"]).to_pandas()
@@ -303,7 +300,7 @@ def test_tiles(make_synthetic_data, technology) -> None:
     else:
         raise ValueError(f"Unsupported technology: {technology}")
 
-    for x, y in zip(df_trx[xcol], df_trx[ycol]):
+    for x, y in zip(df_trx[xcol], df_trx[ycol], strict=False):
         i = int((x - bounds["x_min"]) // TILE_SIZE)
         j = int((y - bounds["y_min"]) // TILE_SIZE)
         assert (i, j) in produced_trx_tiles
@@ -348,10 +345,7 @@ def test_tiles(make_synthetic_data, technology) -> None:
         polygons = df_cells["Geometry"]
     elif technology == "Xenium":
         df_cells = pd.read_parquet(paths["boundaries_path"])
-        polygons = (
-            df_cells.groupby("cell_id")[["vertex_x", "vertex_y"]]
-            .apply(create_cell_polygon)
-        )
+        polygons = df_cells.groupby("cell_id")[["vertex_x", "vertex_y"]].apply(create_cell_polygon)
     else:
         raise ValueError(f"Unsupported technology: {technology}")
 
@@ -363,14 +357,9 @@ def test_tiles(make_synthetic_data, technology) -> None:
     assert len(all_cells) >= expected_cells
 
     # Verify that each expected cell polygon maps to a cell tile by centroid location
-    produced_cell_tiles = {
-        tuple(map(int, p.stem.split("_")[-2:])) for p in cell_tile_files
-    }
+    produced_cell_tiles = {tuple(map(int, p.stem.split("_")[-2:])) for p in cell_tile_files}
     for poly in polygons:
-        if not (
-            BBOX[0] <= poly.centroid.x < BBOX[1]
-            and BBOX[2] <= poly.centroid.y < BBOX[3]
-        ):
+        if not (BBOX[0] <= poly.centroid.x < BBOX[1] and BBOX[2] <= poly.centroid.y < BBOX[3]):
             continue
         i = int((poly.centroid.x - bounds["x_min"]) // TILE_SIZE)
         j = int((poly.centroid.y - bounds["y_min"]) // TILE_SIZE)

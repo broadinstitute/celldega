@@ -149,7 +149,7 @@ def calc_img_zonal_stats(
         stats_funcs = ["mean"]
 
     funcs, metric_names = _prepare_statistics_functions(stats_funcs)
-    height, width, _ = img.shape
+    height, _width, _ = img.shape
     transform = rasterio.transform.from_origin(0, height, 1, 1)
 
     if isinstance(polygon_src, gpd.GeoDataFrame):

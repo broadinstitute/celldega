@@ -26,8 +26,8 @@ const render_landscape_ist = async ({ model, el }) => {
   const height = model.get('height');
   const rotation_orbit = model.get('rotation_orbit') ?? 0;
   const rotation_x = model.get('rotation_x') ?? 0;
-
   const nbhd = model.get('nbhd_geojson');
+  const max_tiles_to_view = model.get('max_tiles_to_view');
   const nbhd_edit = model.get('nbhd_edit');
 
   let meta_cell_data = { result: {}, attr: [] };
@@ -83,7 +83,8 @@ const render_landscape_ist = async ({ model, el }) => {
     creds,
     null,
     rotation_orbit,
-    rotation_x
+    rotation_x,
+    max_tiles_to_view
   );
 };
 
@@ -146,9 +147,13 @@ const render_landscape_h_e = async ({ model, el }) => {
 const render_landscape = async ({ model, el }) => {
   const technology = model.get('technology');
 
-  if (['MERSCOPE', 'Xenium', 'Chromium', 'point-cloud'].includes(technology)) {
+  if (
+    ['MERSCOPE', 'Xenium', 'Chromium', 'point-cloud', 'Visium-HD'].includes(
+      technology
+    )
+  ) {
     return render_landscape_ist({ model, el });
-  } else if (['Visium-HD'].includes(technology)) {
+  } else if (['Visium-HD-no-jitter'].includes(technology)) {
     return render_landscape_sst({ model, el });
   } else if (['h&e'].includes(technology)) {
     return render_landscape_h_e({ model, el });

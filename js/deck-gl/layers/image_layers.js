@@ -6,6 +6,8 @@ import {
   create_render_tile_sublayers,
 } from '../utils/tiles';
 
+import { make_simple_image_layer } from './simple_image_layer';
+
 const make_image_layer = (viz_state, info) => {
   const { max_pyramid_zoom } = viz_state.img.landscape_parameters;
 
@@ -37,7 +39,17 @@ const make_image_layer = (viz_state, info) => {
 };
 
 export const make_image_layers = async (viz_state) => {
-  const image_layers = viz_state.img.image_info.map((info) =>
+  const { image_info } = viz_state.img;
+
+  if (
+    image_info.length === 1 &&
+    (image_info[0].name === 'h_and_e' || image_info[0].name === 'h&e')
+  ) {
+    const layer = await make_simple_image_layer(viz_state, image_info[0]);
+    return [layer];
+  }
+
+  const image_layers = image_info.map((info) =>
     make_image_layer(viz_state, info)
   );
   return image_layers;

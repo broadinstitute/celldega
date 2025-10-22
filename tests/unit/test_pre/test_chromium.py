@@ -1,8 +1,10 @@
 import json
+from pathlib import Path
+
+from anndata import AnnData
 import numpy as np
 import pandas as pd
 import pytest
-from anndata import AnnData
 
 from celldega.pre import make_chromium_from_anndata
 
@@ -24,7 +26,7 @@ def test_make_chromium_from_anndata(tmp_path):
     assert cell_meta["name"].tolist() == ["c1", "c2"]
     assert list(cell_meta["geometry"].iloc[0]) == [0.0, 0.0]
 
-    with open(tmp_path / "landscape_parameters.json") as fh:
+    with Path.open(tmp_path / "landscape_parameters.json") as fh:
         params = json.load(fh)
     assert params["technology"] == "Chromium"
 

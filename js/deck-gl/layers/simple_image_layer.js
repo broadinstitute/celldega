@@ -25,7 +25,8 @@ export const make_simple_image_layer = async (viz_state, info) => {
       info.name,
       image_format,
       landscape_parameters.max_pyramid_zoom,
-      options
+      options,
+      viz_state.aws
     ),
     renderSubLayers: create_simple_render_tile_sublayers(dimensions),
     visible: true,

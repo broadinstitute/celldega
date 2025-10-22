@@ -213,7 +213,6 @@ def _filter_and_save_fine_tile(
             fine_tile_trx.to_pandas().to_parquet(filename, index=False)
 
 
-
 def _load_transcript_data_by_technology(technology, path_trx):
     """
     Load transcript data based on technology.

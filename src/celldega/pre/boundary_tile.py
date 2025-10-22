@@ -406,13 +406,12 @@ def make_cell_boundary_tiles(
         )
 
         print("gdf_cells.shape:", gdf_cells.shape)
-        print("Center x range:", gdf_cells['center_x'].min(), gdf_cells['center_x'].max())
-        print("Center y range:", gdf_cells['center_y'].min(), gdf_cells['center_y'].max())
+        print("Center x range:", gdf_cells["center_x"].min(), gdf_cells["center_x"].max())
+        print("Center y range:", gdf_cells["center_y"].min(), gdf_cells["center_y"].max())
         print("Tile bounds:", tile_bounds)
 
         # Optional assert to catch empty outputs early
         assert not gdf_cells.empty, "Cell boundaries GeoDataFrame is empty!"
-
 
     # Calculate tile bounds and fine/coarse tiles
     x_min, x_max = tile_bounds["x_min"], tile_bounds["x_max"]

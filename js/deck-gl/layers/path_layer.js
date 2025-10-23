@@ -2,6 +2,7 @@ import { PathLayer } from 'deck.gl';
 
 import { update_selected_cats, update_cat } from '../../global_variables/cat';
 import { update_selected_genes } from '../../global_variables/selected_genes';
+import { update_selected_proteins } from '../../global_variables/selected_proteins';
 import { grab_cell_tiles_in_view } from '../../vector_tile/polygons/grab_cell_tiles_in_view';
 
 export const get_path_color = (cats, i, d) => {
@@ -61,6 +62,7 @@ const path_layer_onclick = async (
   update_cat(viz_state.cats, 'cluster');
   update_selected_cats(viz_state.cats, [inst_cat], viz_state.obs_store);
   update_selected_genes(viz_state.genes, [], viz_state.obs_store);
+  update_selected_proteins(viz_state.proteins, [], viz_state.obs_store);
 };
 
 export const update_path_layer_data = async (

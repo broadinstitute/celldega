@@ -134,6 +134,15 @@ export const landscape_sst = async (
   viz_state.genes.gene_search = document.createElement('div');
   viz_state.genes.svg_bar_gene = d3.create('svg');
 
+  viz_state.proteins = {};
+  viz_state.proteins.color_dict_protein = {};
+  viz_state.proteins.protein_names = [];
+  viz_state.proteins.meta_protein = {};
+  viz_state.proteins.protein_counts = [];
+  viz_state.proteins.top_protein_counts = [];
+  viz_state.proteins.selected_proteins = [];
+  viz_state.proteins.svg_bar_protein = d3.create('svg');
+
   viz_state.cats = {};
   viz_state.cats.cat = 'cluster';
   viz_state.cats.reset_cat = false;

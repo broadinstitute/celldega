@@ -3,6 +3,7 @@ import { ScatterplotLayer } from 'deck.gl';
 import { update_cat, update_selected_cats } from '../../global_variables/cat';
 import { update_cell_exp_array } from '../../global_variables/cell_exp_array';
 import { update_selected_genes } from '../../global_variables/selected_genes';
+import { update_selected_proteins } from '../../global_variables/selected_proteins';
 import { grab_trx_tiles_in_view } from '../../vector_tile/transcripts/grab_trx_tiles_in_view';
 
 const trx_layer_callback = async (
@@ -44,6 +45,8 @@ const trx_layer_callback = async (
     viz_state.vector_name_integer,
     viz_state.aws
   );
+
+  update_selected_proteins(viz_state.proteins, [], viz_state.obs_store);
 };
 
 export const ini_trx_layer = (genes) => {

@@ -132,6 +132,12 @@ export const calc_viewport = async (
         viz_state.genes.top_gene_counts
       );
 
+      if (viz_state.proteins && viz_state.obs_store.new_protein_bar_data) {
+        viz_state.obs_store.new_protein_bar_data.set(
+          viz_state.proteins.top_protein_counts || []
+        );
+      }
+
       viz_state.obs_store.new_cell_bar_data.set(viz_state.cats.cluster_counts);
 
       viz_state.containers.bar_gene.scrollTo({
@@ -143,6 +149,13 @@ export const calc_viewport = async (
         top: 0,
         behavior: 'smooth',
       });
+
+      if (viz_state.containers.bar_protein) {
+        viz_state.containers.bar_protein.scrollTo({
+          top: 0,
+          behavior: 'smooth',
+        });
+      }
     }
   }
 

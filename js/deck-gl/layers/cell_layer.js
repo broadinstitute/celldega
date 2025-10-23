@@ -14,6 +14,7 @@ import {
 import { set_color_dict_gene } from '../../global_variables/color_dict_gene';
 import { options } from '../../global_variables/fetch_options';
 import { update_selected_genes } from '../../global_variables/selected_genes';
+import { update_selected_proteins } from '../../global_variables/selected_proteins';
 import { get_arrow_table } from '../../read_parquet/get_arrow_table';
 import { get_scatter_data } from '../../read_parquet/get_scatter_data';
 import { scale_umap_data } from '../../umap/scale_umap_data';
@@ -43,6 +44,7 @@ const cell_layer_onclick = async (info, d, deck_ist, layers_obj, viz_state) => {
   });
   update_selected_cats(viz_state.cats, [inst_cat], viz_state.obs_store);
   update_selected_genes(viz_state.genes, [], viz_state.obs_store);
+  update_selected_proteins(viz_state.proteins, [], viz_state.obs_store);
 };
 
 // transparent to red
@@ -69,7 +71,7 @@ export const get_cell_color = (cats, i, d) => {
       return [0, 0, 0, 50]; // Return a default color with some opacity to handle the error gracefully
     }
   } else {
-    // color cells based on gene expression
+    // color cells based on gene or protein expression
     try {
       const inst_exp = cats.cell_exp_array[d.index]; //
       return [255, 0, 0, inst_exp];

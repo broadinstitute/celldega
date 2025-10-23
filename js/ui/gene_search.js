@@ -2,6 +2,7 @@ import { update_square_scatter_layer } from '../deck-gl/layers/square_scatter_la
 import { update_cat, update_selected_cats } from '../global_variables/cat';
 import { update_cell_exp_array } from '../global_variables/cell_exp_array';
 import { update_selected_genes } from '../global_variables/selected_genes';
+import { update_selected_proteins } from '../global_variables/selected_proteins';
 import { update_tile_exp_array } from '../global_variables/tile_exp_array';
 
 import { set_gene_search_input } from './gene_search_input';
@@ -26,6 +27,7 @@ const sst_gene_search_callback = async (deck_sst, viz_state, layers_sst) => {
       inst_gene === '' ? [] : [inst_gene],
       viz_state.obs_store
     );
+    update_selected_proteins(viz_state.proteins, [], viz_state.obs_store);
     update_selected_cats(viz_state.cats, [], viz_state.obs_store);
 
     if (inst_gene !== '' && gene_search_options.includes(inst_gene)) {
@@ -58,6 +60,7 @@ const ist_gene_search_callback = async (deck_ist, layers_obj, viz_state) => {
       inst_gene === '' ? [] : [inst_gene],
       viz_state.obs_store
     );
+    update_selected_proteins(viz_state.proteins, [], viz_state.obs_store);
 
     const inst_gene_in_gene_names =
       viz_state.genes.gene_names.includes(inst_gene);

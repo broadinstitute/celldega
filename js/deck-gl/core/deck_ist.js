@@ -1,5 +1,6 @@
 import { Deck, OrbitController } from 'deck.gl';
 
+import { hideScaleBar } from '../../ui/scale_bar';
 import { make_tooltip } from '../utils/tooltips';
 
 import { on_view_state_change } from './on_view_state_change';
@@ -47,7 +48,8 @@ export const set_deck_on_view_state_change = (
 ) => {
   deck_ist.setProps({
     onViewStateChange: (params) => {
-      on_view_state_change(params, deck_ist, layers_obj, viz_state);
+      hideScaleBar(viz_state, deck_ist);
+      return on_view_state_change(params, deck_ist, layers_obj, viz_state);
     },
   });
 };

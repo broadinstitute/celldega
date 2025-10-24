@@ -7,6 +7,8 @@ import { set_options } from '../global_variables/fetch_options';
 import { set_global_base_url } from '../global_variables/global_base_url';
 import { set_dimensions } from '../global_variables/image_dimensions';
 import { set_landscape_parameters } from '../global_variables/landscape_parameters';
+import { attachScaleBar, refreshScaleBar, hideScaleBar } from '../ui/scale_bar';
+import { debounce } from '../utils/debounce';
 
 export const landscape_h_e = async (
   ini_model,
@@ -66,6 +68,8 @@ export const landscape_h_e = async (
 
   await set_landscape_parameters(viz_state.img, base_url);
 
+  attachScaleBar(viz_state, root);
+
   await set_dimensions(viz_state, base_url, 'h_and_e');
 
   viz_state.buttons = {};
@@ -87,21 +91,58 @@ export const landscape_h_e = async (
     simple_image_layer,
   };
 
+  if (viz_state.scale_bar) {
+    viz_state.scale_bar.commit = (deck) => {
+      const layers = [
+        layers_sst.simple_image_layer,
+        viz_state.scale_bar.layers?.bar,
+        viz_state.scale_bar.layers?.text,
+      ].filter(Boolean);
+      deck.setProps({ layers });
+    };
+  }
+
   viz_state.views = set_views();
 
   const deck_sst = ini_deck_sst(root, width, height);
 
+  const viewportWidth =
+    typeof width === 'number' ? width : viz_state.dimensions?.width ?? undefined;
+  const viewportHeight =
+    typeof height === 'number' ? height : viz_state.dimensions?.height ?? undefined;
+
   const initial_view_state = {
     target: [ini_x, ini_y, ini_z],
     zoom: ini_zoom,
+    width: viewportWidth,
+    height: viewportHeight,
   };
+
+  const updateScaleBarDebounced = debounce(({ viewState }) => {
+    if (viewState && typeof viewState.zoom === 'number') {
+      refreshScaleBar(viz_state, deck_sst, viewState);
+    }
+  }, 200);
 
   deck_sst.setProps({
     views: viz_state.views,
-    layers: [layers_sst.simple_image_layer],
+    layers: [
+      layers_sst.simple_image_layer,
+      viz_state.scale_bar?.layers?.bar,
+      viz_state.scale_bar?.layers?.text,
+    ].filter(Boolean),
     // getTooltip: (info) => make_tile_tooltip(info, viz_state),
     initialViewState: initial_view_state,
+    onViewStateChange: (params) => {
+      hideScaleBar(viz_state, deck_sst);
+      updateScaleBarDebounced(params);
+      return params.viewState;
+    },
   });
+
+  if (typeof initial_view_state.zoom === 'number') {
+    refreshScaleBar(viz_state, deck_sst, initial_view_state);
+  }
 
   // const ui_container = make_sst_ui_container(deck_sst, layers_sst, viz_state)
 

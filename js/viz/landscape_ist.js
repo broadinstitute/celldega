@@ -63,6 +63,7 @@ import { set_meta_gene } from '../global_variables/meta_gene';
 import { update_selected_genes } from '../global_variables/selected_genes';
 import { colorToRgba } from '../matrix/cat_data';
 import { create_obs_store } from '../obs_store/obs_store';
+import { attachScaleBar, refreshScaleBar, hideScaleBar } from '../ui/scale_bar';
 import { toggle_slider, set_image_layer_sliders } from '../ui/sliders';
 import { get_img_layer_visible } from '../ui/text_buttons';
 import { make_ist_ui_container } from '../ui/ui_containers';
@@ -341,6 +342,8 @@ export const landscape_ist = async (
   root.style.height = `${height}px`;
   root.style.border = '1px solid #d3d3d3';
 
+  attachScaleBar(viz_state, root);
+
   if (tech === 'Chromium' || tech === 'point-cloud') {
     viz_state.dimensions = { width: 1, height: 1, tileSize: 1 };
   } else {
@@ -416,6 +419,8 @@ export const landscape_ist = async (
     trx_layer,
     nbhd_layer,
     edit_layer,
+    scale_bar_bar_layer: viz_state.scale_bar?.layers?.bar,
+    scale_bar_text_layer: viz_state.scale_bar?.layers?.text,
   };
 
   viz_state.layers_obj = layers_obj;
@@ -586,6 +591,13 @@ export const landscape_ist = async (
     rotation_x
   );
 
+  if (
+    viz_state.obs_store.umap_state.get() === false &&
+    typeof viz_state.spatial?.ini_zoom === 'number'
+  ) {
+    refreshScaleBar(viz_state, deck_ist);
+  }
+
   set_deck_on_view_state_change(deck_ist, layers_obj, viz_state);
 
   if (Object.keys(viz_state.model).length > 0) {
@@ -619,6 +631,7 @@ export const landscape_ist = async (
       toggle_spatial_umap(deck_ist, layers_obj, viz_state);
 
       if (isUmap) {
+        hideScaleBar(viz_state, deck_ist);
         viz_state.buttons.buttons.umap.style('color', 'blue');
         if (!isChromium) {
           viz_state.buttons.buttons.spatial.style('color', 'gray');
@@ -651,6 +664,14 @@ export const landscape_ist = async (
           viz_state.buttons.buttons.umap.style('color', 'gray');
           viz_state.buttons.buttons.spatial.style('color', 'blue');
           viz_state.buttons.buttons.img.style('color', 'blue');
+        }
+
+        const currentZoom =
+          deck_ist.viewState?.zoom ??
+          deck_ist.props?.initialViewState?.zoom ??
+          viz_state.spatial?.ini_zoom;
+        if (typeof currentZoom === 'number') {
+          refreshScaleBar(viz_state, deck_ist);
         }
 
         toggle_trx_layer_visibility(layers_obj, true);

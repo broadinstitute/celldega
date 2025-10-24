@@ -1,3 +1,4 @@
+import { refreshScaleBar } from '../../ui/scale_bar';
 import { visibleTiles } from '../../vector_tile/visibleTiles';
 import { update_path_layer_data } from '../layers/path_layer';
 import { update_trx_layer_data } from '../layers/trx_layer';
@@ -147,4 +148,13 @@ export const calc_viewport = async (
   }
 
   viz_state.layers_obj = layers_obj;
+
+  if (typeof zoom === 'number') {
+    refreshScaleBar(viz_state, deck_ist, {
+      zoom,
+      width,
+      height,
+      target,
+    });
+  }
 };

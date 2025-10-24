@@ -23,7 +23,9 @@ import { set_tile_scatter_data } from '../global_variables/tile_scatter_data';
 import { create_obs_store } from '../obs_store/obs_store';
 import { get_arrow_table } from '../read_parquet/get_arrow_table';
 import { get_scatter_data } from '../read_parquet/get_scatter_data';
+import { attachScaleBar, refreshScaleBar, hideScaleBar } from '../ui/scale_bar';
 import { make_sst_ui_container } from '../ui/ui_containers';
+import { debounce } from '../utils/debounce';
 import { update_tile_landscape_from_cgm } from '../widget_interactions/update_tile_landscape_from_cgm';
 
 export const landscape_sst = async (
@@ -64,6 +66,8 @@ export const landscape_sst = async (
   viz_state.img.image_layer_sliders = {};
 
   await set_landscape_parameters(viz_state.img, base_url);
+
+  attachScaleBar(viz_state, root);
 
   // AWS credentials setup
 
@@ -193,6 +197,18 @@ export const landscape_sst = async (
     square_scatter_layer,
   };
 
+  if (viz_state.scale_bar) {
+    viz_state.scale_bar.commit = (deck) => {
+      const layers = [
+        layers_sst.simple_image_layer,
+        layers_sst.square_scatter_layer,
+        viz_state.scale_bar.layers?.bar,
+        viz_state.scale_bar.layers?.text,
+      ].filter(Boolean);
+      deck.setProps({ layers });
+    };
+  }
+
   viz_state.views = set_views();
 
   const deck_sst = ini_deck_sst(root, width, height);
@@ -200,14 +216,36 @@ export const landscape_sst = async (
   const initial_view_state = {
     target: [ini_x, ini_y, ini_z],
     zoom: ini_zoom,
+    width: containerWidth,
+    height: containerHeight,
   };
+
+  const updateScaleBarDebounced = debounce(({ viewState }) => {
+    if (viewState && typeof viewState.zoom === 'number') {
+      refreshScaleBar(viz_state, deck_sst, viewState);
+    }
+  }, 200);
 
   deck_sst.setProps({
     views: viz_state.views,
-    layers: [layers_sst.simple_image_layer, layers_sst.square_scatter_layer],
+    layers: [
+      layers_sst.simple_image_layer,
+      layers_sst.square_scatter_layer,
+      viz_state.scale_bar?.layers?.bar,
+      viz_state.scale_bar?.layers?.text,
+    ].filter(Boolean),
     getTooltip: (info) => make_tile_tooltip(info, viz_state),
     initialViewState: initial_view_state,
+    onViewStateChange: (params) => {
+      hideScaleBar(viz_state, deck_sst);
+      updateScaleBarDebounced(params);
+      return params.viewState;
+    },
   });
+
+  if (typeof initial_view_state.zoom === 'number') {
+    refreshScaleBar(viz_state, deck_sst, initial_view_state);
+  }
 
   if (Object.keys(viz_state.model).length > 0) {
     // ist version

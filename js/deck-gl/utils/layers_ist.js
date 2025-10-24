@@ -21,5 +21,13 @@ export const get_layers_list = (layers_obj, close_up, _nbhd) => {
     ];
   }
 
+  if (layers_obj.scale_bar_bar_layer) {
+    layers_list.push(layers_obj.scale_bar_bar_layer);
+  }
+
+  if (layers_obj.scale_bar_text_layer) {
+    layers_list.push(layers_obj.scale_bar_text_layer);
+  }
+
   return layers_list;
 };

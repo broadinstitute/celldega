@@ -310,7 +310,7 @@ export const ini_cell_layer = async (base_url, viz_state) => {
     cell_layer = new ScatterplotLayer({
       id: 'cell-layer',
       radiusMinPixels: 1,
-      getRadius: 5.0,
+      getRadius: 0.5, //5.0,
       pickable: true,
       getFillColor: (i, d) => get_cell_color(viz_state.cats, i, d),
       data: viz_state.spatial.cell_scatter_data_objects,

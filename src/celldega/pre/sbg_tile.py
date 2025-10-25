@@ -182,17 +182,25 @@ def write_pseudotranscripts_from_sbg(
         Optional numpy random Generator. If ``None`` a new generator is created.
     """
 
+    print('here!')
+
     if tile_size <= 0:
+        print('tile size error')
         raise ValueError("tile_size must be positive")
 
     coarse_tile_factor = max(1, int(coarse_tile_factor))
 
+    print('_validate_tile_bounds')
     x_min, x_max, y_min, y_max = _validate_tile_bounds(tile_bounds)
 
     n_tiles_x = math.ceil((x_max - x_min) / tile_size)
     n_tiles_y = math.ceil((y_max - y_min) / tile_size)
 
+    print('n_tiles_x', n_tiles_x)
+    print('n_tiles_y', n_tiles_y)
+
     if n_tiles_x <= 0 or n_tiles_y <= 0:
+        print('no tiles')
         return
 
     output_dir = Path(path_output)
@@ -200,11 +208,14 @@ def write_pseudotranscripts_from_sbg(
 
     rng = rng if rng is not None else np.random.default_rng()
 
+    print('_coerce_mapping')
     gene_map = _coerce_mapping(gene_str_to_int)
+    print('_prepare_gene_codes')
     gene_codes = _prepare_gene_codes(sbg.columns.to_numpy(), gene_map)
 
     sbg_csr = sbg.sparse.to_coo().tocsr()
     if sbg_csr.nnz == 0:
+        print('empty sbg')
         return
 
     aligned_spots = spots.reindex(sbg.index)
@@ -213,6 +224,7 @@ def write_pseudotranscripts_from_sbg(
 
     valid_mask = np.isfinite(spot_x) & np.isfinite(spot_y)
     if not np.any(valid_mask):
+        print('no valid spots')
         return
 
     spot_x = spot_x.astype(float, copy=False)
@@ -221,9 +233,15 @@ def write_pseudotranscripts_from_sbg(
     tile_i = np.floor((spot_x - x_min) / tile_size).astype(np.int64, copy=False)
     tile_j = np.floor((spot_y - y_min) / tile_size).astype(np.int64, copy=False)
 
+    print('tile_i', tile_i)
+    print('tile_j', tile_j)
+    print('n_tiles_x', n_tiles_x)
+    print('n_tiles_y', n_tiles_y)
+
     valid_mask &= (tile_i >= 0) & (tile_i < n_tiles_x) & (tile_j >= 0) & (tile_j < n_tiles_y)
 
     if not np.any(valid_mask):
+        print('no valid tiles')
         return
 
     tile_i_valid = tile_i[valid_mask]
@@ -234,11 +252,14 @@ def write_pseudotranscripts_from_sbg(
         tile_i_valid, tile_j_valid, row_positions, n_tiles_x, n_tiles_y
     )
     if not tile_slices:
+        print('no tiles after grouping')
         return
 
     coarse_step = coarse_tile_factor
     n_coarse_tiles_x = math.ceil(n_tiles_x / coarse_step)
     n_coarse_tiles_y = math.ceil(n_tiles_y / coarse_step)
+
+    print('n_coarse_tiles_x', n_coarse_tiles_x)
 
     for coarse_i in range(n_coarse_tiles_x):
         coarse_i_start = coarse_i * coarse_step

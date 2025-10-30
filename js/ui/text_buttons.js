@@ -22,6 +22,35 @@ const set_img_layer_visible = (visible) => {
   img_layer_visible = visible;
 };
 
+const handle_img_layer_button_double_click = (event, text, viz_state) => {
+  event.preventDefault();
+  event.stopPropagation();
+
+  const normalized_text = text;
+  const focused_layer = viz_state.obs_store.focused_image_layer.get();
+
+  const ensure_image_layers_enabled = () => {
+    if (!viz_state.obs_store.viz_image_layers.get()) {
+      viz_state.obs_store.viz_image_layers.set(true);
+    }
+
+    if (!viz_state.obs_store.viz_background_layer.get()) {
+      viz_state.obs_store.viz_background_layer.set(true);
+    }
+
+    set_img_layer_visible(true);
+  };
+
+  if (focused_layer === normalized_text) {
+    viz_state.obs_store.focused_image_layer.set(null);
+    ensure_image_layers_enabled();
+    return;
+  }
+
+  viz_state.obs_store.focused_image_layer.set(normalized_text);
+  ensure_image_layers_enabled();
+};
+
 const toggle_visible_button = (event) => {
   const current = d3.select(event.currentTarget);
 
@@ -335,6 +364,10 @@ const make_ist_img_layer_button_callback = (
   viz_state
 ) => {
   return async (event) => {
+    if (viz_state.obs_store.focused_image_layer.get()) {
+      return;
+    }
+
     const inUmap = viz_state.obs_store.umap_state.get();
 
     if (!img_layer_visible && !inUmap) {
@@ -438,6 +471,12 @@ export const make_button = (
       '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif;'
     )
     .on('click', callback);
+
+  if (button_class === 'img_layer_button') {
+    inst_button.on('dblclick', (event) =>
+      handle_img_layer_button_double_click(event, text, viz_state)
+    );
+  }
 
   const button_name = text.toLowerCase();
   viz_state.buttons.buttons[button_name] = inst_button;

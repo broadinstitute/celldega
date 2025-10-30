@@ -20,6 +20,36 @@ from .boundary_tile import _get_name_mapping
 # =============================================================================
 
 
+def _find_protein_columns(cbg, all_protein_names):
+    """
+    Match protein names (case-insensitive) in cbg.columns.
+    If duplicates exist, select the second occurrence.
+
+    Returns:
+        {
+            "protein_columns": [list of matched column names],
+            "protein_index": [list of integer indices]
+        }
+    """
+    protein_columns = []
+    protein_index = []
+
+    for ch in all_protein_names:
+        # Boolean mask for case-insensitive match
+        mask = cbg.columns.str.lower() == ch.lower()
+        indices = [i for i, m in enumerate(mask) if m]
+
+        if len(indices) >= 2:
+            protein_columns.append(cbg.columns[indices[1]])
+            protein_index.append(indices[1])
+        elif len(indices) == 1:
+            protein_columns.append(cbg.columns[indices[0]])
+            protein_index.append(indices[0])
+        # skip if no match
+
+    return {"protein_columns": protein_columns, "protein_index": protein_index}
+
+
 def _convert_to_dense(series):
     """
     Convert a pandas Series to dense format if it's sparse.
@@ -108,6 +138,15 @@ def read_cbg_mtx(base_path, barcodes_name="barcodes", features_name="features", 
     barcodes_path = base_path / (barcodes_name + ".tsv.gz")
     features_path = base_path / (features_name + ".tsv.gz")
     matrix_path = base_path / "matrix.mtx.gz"
+    morph_dir = base_path.parent / "morphology_focus"
+    ome_tif_fnames = sorted(
+        [
+            str(p)
+            for p in Path(morph_dir).glob("*.ome.tif")
+            if "morphology_focus" not in p.name.lower()
+        ]
+    )
+    all_protein_names = [x.split(".ome.tif")[0].split("/")[-1][7:] for x in ome_tif_fnames]
 
     # Read barcodes and features
     barcodes = pd.read_csv(barcodes_path, header=None, compression="gzip")
@@ -121,8 +160,12 @@ def read_cbg_mtx(base_path, barcodes_name="barcodes", features_name="features", 
 
     # Create a sparse DataFrame with genes as columns and barcodes as rows
     cbg = pd.DataFrame.sparse.from_spmatrix(matrix, index=barcodes, columns=features[1])
+    cbg = cbg.rename_axis("__index_level_0__", axis="columns")
+    protein_index = _find_protein_columns(cbg, all_protein_names)["protein_index"]
+    if len(protein_index) > 0:
+        cbg.columns.values[protein_index] = [f"protein_{cbg.columns[i]}" for i in protein_index]
 
-    return cbg.rename_axis("__index_level_0__", axis="columns")
+    return cbg
 
 
 def save_cbg_gene_parquets(

@@ -29,6 +29,11 @@ export const update_cell_exp_array = async (
 
   const new_exp_array = new Array(cats.cell_names_array.length).fill(0);
 
+  const allowedCellIds =
+    cats.meta_cell_id_set && cats.meta_cell_id_set.size > 0
+      ? cats.meta_cell_id_set
+      : null;
+
   // Use Sets to track missing names (automatically keeps them unique)
   const missingCellNames1 = new Set(); // For cell_name_to_index_map
   const missingCellNames2 = new Set(); // For nameMapping_inv
@@ -41,13 +46,22 @@ export const update_cell_exp_array = async (
     if (!vector_name_integer) {
       if (cats.cell_name_to_index_map.has(name)) {
         const index = cats.cell_name_to_index_map.get(name);
-        new_exp_array[index] = processExpression(exp_value, max_exp);
+        const shouldInclude = !allowedCellIds || allowedCellIds.has(name);
+
+        if (shouldInclude) {
+          new_exp_array[index] = processExpression(exp_value, max_exp);
+        }
       } else {
         missingCellNames1.add(name);
       }
     } else {
       if (name in cats.nameMapping_inv) {
-        new_exp_array[name] = processExpression(exp_value, max_exp);
+        const cellName = String(cats.nameMapping_inv[name]);
+        const shouldInclude = !allowedCellIds || allowedCellIds.has(cellName);
+
+        if (shouldInclude) {
+          new_exp_array[name] = processExpression(exp_value, max_exp);
+        }
       } else {
         missingCellNames2.add(name);
       }

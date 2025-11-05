@@ -264,6 +264,9 @@ export const landscape_ist = async (
   }
   viz_state.cats.meta_cell = meta_cell;
   viz_state.cats.meta_cell_attr = meta_cell_attr;
+  viz_state.cats.meta_cell_id_set = new Set(
+    Object.keys(meta_cell || {}).map((cell_id) => String(cell_id))
+  );
   viz_state.cats.inst_cell_attr = meta_cell_attr[0] || 'N.A.';
 
   if (Object.keys(meta_cluster).length === 0) {

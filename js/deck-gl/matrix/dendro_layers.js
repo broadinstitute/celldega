@@ -18,9 +18,7 @@ const getCurrentFocus = (viz_state) => {
 };
 
 const applyDendroFocus = (deck_mat, layers_mat, viz_state, focus) => {
-  const normalizedFocus = focus
-    ? { axis: focus.axis, name: focus.name }
-    : null;
+  const normalizedFocus = focus ? { axis: focus.axis, name: focus.name } : null;
 
   let didUpdate = false;
 
@@ -55,19 +53,18 @@ const applyDendroFocus = (deck_mat, layers_mat, viz_state, focus) => {
     viz_state.dendro.polygons[targetAxis] = updatedPolygons;
 
     if (layers_mat[`${targetAxis}_dendro_layer`]) {
-      layers_mat[`${targetAxis}_dendro_layer`] =
-        layers_mat[`${targetAxis}_dendro_layer`].clone({
-          data: updatedPolygons,
-        });
+      layers_mat[`${targetAxis}_dendro_layer`] = layers_mat[
+        `${targetAxis}_dendro_layer`
+      ].clone({
+        data: updatedPolygons,
+      });
     }
   });
 
   viz_state.dendro.active_polygon = normalizedFocus;
 
   if (viz_state.obs_store?.focused_dendro) {
-    const focusValue = normalizedFocus
-      ? { ...normalizedFocus }
-      : null;
+    const focusValue = normalizedFocus ? { ...normalizedFocus } : null;
     viz_state.obs_store.focused_dendro.set(focusValue);
   }
 

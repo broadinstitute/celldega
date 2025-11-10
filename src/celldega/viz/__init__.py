@@ -68,7 +68,7 @@ def clustergram_enrich(
         click_type = (click_info.get("type") or "").lower()
         selected_names = (click_info.get("value") or {}).get("selected_names") or []
 
-        is_dendro = click_type.startswith("row") or click_type.startswith("col")
+        is_dendro = click_type.startswith(("row", "col"))
         matches_click = (
             bool(selected_names)
             and len(selected_names) == len(genes)

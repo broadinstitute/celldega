@@ -98,7 +98,7 @@ def clustergram_enrich(
         elif click_type.startswith("row"):
             if not row_enrich:
                 _set_gene_list([])
-
+                return
     cgm.observe(_on_selected_genes, names="selected_genes")
     cgm.observe(_on_click_info, names="click_info")
 

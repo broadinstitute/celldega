@@ -1,6 +1,7 @@
 import { PolygonLayer } from 'deck.gl';
 
 import { sync_selected_genes } from '../../global_variables/selected_genes';
+
 import { get_mat_layers_list } from './matrix_layers';
 
 const DENDRO_AXES = ['row', 'col'];

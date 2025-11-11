@@ -19,6 +19,7 @@ The `landscape_ist` function initializes and renders an interactive spatial tran
 - **`trx_radius`** (`number`, optional): Initial radius for transcript points. Default: `0.25`.
 - **`width`** (`number|string`, optional): Width of the visualization. Default: `100%`.
 - **`height`** (`number`, optional): Height of the visualization. Default: `800`.
+- **`scaleBarOptions`** (`Object`, optional): Configuration for the scale bar. Supports `pixelToMicron` to override the technology-specific pixel-to-micron conversion.
 - **`view_change_custom_callback`** (`Function`, optional): Custom callback triggered on view changes.
 
 ---
@@ -132,6 +133,8 @@ visualization.update_matrix_col('Cluster 1');
 visualization.finalize();
 
 ```
+
+> 💡 To override the default technology-based scale bar calibration, pass a `scaleBarOptions` object as the final argument, for example `{ pixelToMicron: 0.1625 }`.
 
 ---
 

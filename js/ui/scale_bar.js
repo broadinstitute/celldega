@@ -13,6 +13,7 @@ const BAR_THICKNESS_PX = 3;
 const HORIZONTAL_MARGIN_PX = 24;
 const VERTICAL_MARGIN_PX = 28;
 const TEXT_GAP_PX = 6;
+const TEXT_OFFSET_X_PX = 4;
 const TEXT_SIZE_PX = 10;
 
 const FONT_FAMILY =
@@ -22,12 +23,17 @@ const BLUE_RGBA = [...hexToRgb(BLUE_HEX), 255];
 
 const DEFAULT_PIXEL_TO_MICRON_BY_TECH = {
   Chromium: 0.2125,
-  Xenium: 0.2125,
-  Visium: 1,
-  'Visium CytAssist': 1,
+  Xenium: 0.1625,
+  'Xenium Prime': 0.1625,
   'Visium HD': 0.5,
   'Visium HD FFPE': 0.5,
   'Visium HD Fresh Frozen': 0.5,
+  'Visium-HD': 0.5,
+  'Visium HD (CytAssist)': 0.5,
+  Visium: 1,
+  'Visium CytAssist': 1,
+  MERFISH: 0.1,
+  MERSCOPE: 0.1,
   'point-cloud': 1,
 };
 
@@ -54,7 +60,11 @@ const formatLabel = (microns) => {
   return `${formatted} nm`;
 };
 
-const resolvePixelToMicron = (landscapeParameters = {}) => {
+const resolvePixelToMicron = (landscapeParameters = {}, override = null) => {
+  if (typeof override === 'number' && Number.isFinite(override) && override > 0) {
+    return override;
+  }
+
   const { pixel_to_micron, technology } = landscapeParameters;
 
   if (typeof pixel_to_micron === 'number' && pixel_to_micron > 0) {
@@ -161,7 +171,10 @@ const applyLayerUpdates = (viz_state, barLayer, textLayer, deck_ist) => {
   }
 };
 
-export const attachScaleBar = (viz_state) => {
+export const attachScaleBar = (viz_state, options = {}) => {
+  const normalizedOptions =
+    options && typeof options === 'object' ? options : {};
+
   const barLayer = new SolidPolygonLayer({
     id: 'scale-bar-layer',
     data: [],
@@ -200,6 +213,12 @@ export const attachScaleBar = (viz_state) => {
     },
     visible: false,
     last_view_state: null,
+    pixel_to_micron_override:
+      typeof normalizedOptions.pixelToMicron === 'number' &&
+      Number.isFinite(normalizedOptions.pixelToMicron) &&
+      normalizedOptions.pixelToMicron > 0
+        ? normalizedOptions.pixelToMicron
+        : null,
   };
 
   return viz_state.scale_bar.layers;
@@ -274,7 +293,10 @@ export const refreshScaleBar = (viz_state, deck_ist, viewStateOverride = null) =
     return hideScaleBar(viz_state, deck_ist);
   }
 
-  const pixelToMicron = resolvePixelToMicron(landscapeParameters);
+  const pixelToMicron = resolvePixelToMicron(
+    landscapeParameters,
+    viz_state.scale_bar.pixel_to_micron_override
+  );
   if (!pixelToMicron) {
     return hideScaleBar(viz_state, deck_ist);
   }
@@ -300,7 +322,8 @@ export const refreshScaleBar = (viz_state, deck_ist, viewStateOverride = null) =
   const { microns, pixels } = selection;
 
   const baseX = bounds.min_x + HORIZONTAL_MARGIN_PX / zoomFactor;
-  const baseY = bounds.min_y + VERTICAL_MARGIN_PX / zoomFactor;
+  const baseY =
+    bounds.max_y - VERTICAL_MARGIN_PX / zoomFactor - BAR_THICKNESS_PX / zoomFactor;
 
   const lengthWorld = pixels / zoomFactor;
   const thicknessWorld = BAR_THICKNESS_PX / zoomFactor;
@@ -316,10 +339,11 @@ export const refreshScaleBar = (viz_state, deck_ist, viewStateOverride = null) =
     },
   ];
 
-  const textY = baseY + thicknessWorld + TEXT_GAP_PX / zoomFactor;
+  const textX = baseX + TEXT_OFFSET_X_PX / zoomFactor;
+  const textY = baseY - TEXT_GAP_PX / zoomFactor;
   const textData = [
     {
-      position: [baseX, textY],
+      position: [textX, textY],
       text: formatLabel(microns),
       size: TEXT_SIZE_PX,
     },

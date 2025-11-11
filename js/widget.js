@@ -29,6 +29,17 @@ const render_landscape_ist = async ({ model, el }) => {
   const nbhd = model.get('nbhd_geojson');
   const max_tiles_to_view = model.get('max_tiles_to_view');
   const nbhd_edit = model.get('nbhd_edit');
+  const pixelToMicronRaw = model.get('pixel_to_micron');
+  const pixelToMicronValue =
+    typeof pixelToMicronRaw === 'number'
+      ? pixelToMicronRaw
+      : typeof pixelToMicronRaw?.value === 'number'
+      ? pixelToMicronRaw.value
+      : null;
+  const scaleBarOptions =
+    typeof pixelToMicronValue === 'number' && pixelToMicronValue > 0
+      ? { pixelToMicron: pixelToMicronValue }
+      : {};
 
   let meta_cell_data = { result: {}, attr: [] };
   let meta_cluster_data = { result: {}, attr: [] };
@@ -84,7 +95,8 @@ const render_landscape_ist = async ({ model, el }) => {
     null,
     rotation_orbit,
     rotation_x,
-    max_tiles_to_view
+    max_tiles_to_view,
+    scaleBarOptions
   );
 };
 
@@ -99,6 +111,17 @@ const render_landscape_sst = async ({ model, el }) => {
   const square_tile_size = model.get('square_tile_size');
   const width = model.get('width');
   const height = model.get('height');
+  const pixelToMicronRaw = model.get('pixel_to_micron');
+  const pixelToMicronValue =
+    typeof pixelToMicronRaw === 'number'
+      ? pixelToMicronRaw
+      : typeof pixelToMicronRaw?.value === 'number'
+      ? pixelToMicronRaw.value
+      : null;
+  const scaleBarOptions =
+    typeof pixelToMicronValue === 'number' && pixelToMicronValue > 0
+      ? { pixelToMicron: pixelToMicronValue }
+      : {};
 
   landscape_sst(
     model,
@@ -112,7 +135,9 @@ const render_landscape_sst = async ({ model, el }) => {
     square_tile_size,
     dataset_name,
     width,
-    height
+    height,
+    {},
+    scaleBarOptions
   );
 };
 
@@ -127,6 +152,17 @@ const render_landscape_h_e = async ({ model, el }) => {
   const width = model.get('width');
   const height = model.get('height');
   const creds = model.get('creds');
+  const pixelToMicronRaw = model.get('pixel_to_micron');
+  const pixelToMicronValue =
+    typeof pixelToMicronRaw === 'number'
+      ? pixelToMicronRaw
+      : typeof pixelToMicronRaw?.value === 'number'
+      ? pixelToMicronRaw.value
+      : null;
+  const scaleBarOptions =
+    typeof pixelToMicronValue === 'number' && pixelToMicronValue > 0
+      ? { pixelToMicron: pixelToMicronValue }
+      : {};
 
   landscape_h_e(
     model,
@@ -140,7 +176,8 @@ const render_landscape_h_e = async ({ model, el }) => {
     dataset_name,
     width,
     height,
-    creds
+    creds,
+    scaleBarOptions
   );
 };
 

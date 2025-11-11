@@ -22,7 +22,8 @@ export const landscape_h_e = async (
   _dataset_name = '',
   width = 0,
   height = 800,
-  creds = {}
+  creds = {},
+  scaleBarOptions = {}
 ) => {
   if (width === 0) {
     width = '100%';
@@ -68,7 +69,7 @@ export const landscape_h_e = async (
 
   await set_landscape_parameters(viz_state.img, base_url);
 
-  attachScaleBar(viz_state, root);
+  attachScaleBar(viz_state, scaleBarOptions);
 
   await set_dimensions(viz_state, base_url, 'h_and_e');
 

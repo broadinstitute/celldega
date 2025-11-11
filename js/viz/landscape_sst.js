@@ -41,7 +41,8 @@ export const landscape_sst = async (
   _dataset_name = '',
   width = 0,
   height = 800,
-  creds = {}
+  creds = {},
+  scaleBarOptions = {}
 ) => {
   if (width === 0) {
     width = '100%';
@@ -67,7 +68,7 @@ export const landscape_sst = async (
 
   await set_landscape_parameters(viz_state.img, base_url);
 
-  attachScaleBar(viz_state, root);
+  attachScaleBar(viz_state, scaleBarOptions);
 
   // AWS credentials setup
 

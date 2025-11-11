@@ -97,7 +97,8 @@ export const landscape_ist = async (
   view_change_custom_callback = null,
   rotation_orbit = 0,
   rotation_x = 0,
-  max_tiles_to_view = 50
+  max_tiles_to_view = 50,
+  scaleBarOptions = {}
 ) => {
   if (width === 0) {
     width = '100%';
@@ -342,7 +343,7 @@ export const landscape_ist = async (
   root.style.height = `${height}px`;
   root.style.border = '1px solid #d3d3d3';
 
-  attachScaleBar(viz_state, root);
+  attachScaleBar(viz_state, scaleBarOptions);
 
   if (tech === 'Chromium' || tech === 'point-cloud') {
     viz_state.dimensions = { width: 1, height: 1, tileSize: 1 };
@@ -364,6 +365,67 @@ export const landscape_ist = async (
   const deck_ist = await ini_deck(root, width, height, tech);
   // set_initial_view_state(deck_ist, ini_x, ini_y, ini_z, ini_zoom)
   set_views_prop(deck_ist, viz_state.views);
+
+  const normalizeNumber = (value, fallback = 0) =>
+    typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+
+  const normalizedIniX = normalizeNumber(ini_x, 0);
+  const normalizedIniY = normalizeNumber(ini_y, 0);
+  const normalizedIniZ = normalizeNumber(ini_z, 0);
+  const normalizedIniZoom = normalizeNumber(ini_zoom, 0);
+
+  let initialTarget = [normalizedIniX, normalizedIniY, normalizedIniZ];
+  let initialZoom = normalizedIniZoom;
+
+  if (
+    initialTarget[0] === 0 &&
+    initialTarget[1] === 0 &&
+    initialTarget[2] === 0 &&
+    initialZoom === 0
+  ) {
+    const fallbackX =
+      normalizeNumber(viz_state.spatial?.ini_x, null) ??
+      normalizeNumber(viz_state.spatial?.center_x, 0);
+    const fallbackY =
+      normalizeNumber(viz_state.spatial?.ini_y, null) ??
+      normalizeNumber(viz_state.spatial?.center_y, 0);
+    const fallbackZ =
+      normalizeNumber(viz_state.spatial?.ini_z, null) ??
+      normalizeNumber(viz_state.spatial?.center_z, 0);
+    const fallbackZoom =
+      normalizeNumber(viz_state.spatial?.ini_zoom, null) ?? 0;
+
+    initialTarget = [fallbackX, fallbackY, fallbackZ];
+    initialZoom = fallbackZoom;
+  }
+
+  const canvasElement = deck_ist.canvas;
+  const canvasClientWidth =
+    canvasElement && typeof canvasElement.clientWidth === 'number'
+      ? canvasElement.clientWidth
+      : null;
+  const canvasClientHeight =
+    canvasElement && typeof canvasElement.clientHeight === 'number'
+      ? canvasElement.clientHeight
+      : null;
+
+  const viewportWidth =
+    normalizeNumber(width, null) ??
+    normalizeNumber(deck_ist?.width, null) ??
+    normalizeNumber(canvasClientWidth, null) ??
+    normalizeNumber(viz_state.dimensions?.width, null);
+  const viewportHeight =
+    normalizeNumber(height, null) ??
+    normalizeNumber(deck_ist?.height, null) ??
+    normalizeNumber(canvasClientHeight, null) ??
+    normalizeNumber(viz_state.dimensions?.height, null);
+
+  const initialScaleBarViewState = {
+    target: initialTarget,
+    zoom: initialZoom,
+    width: viewportWidth,
+    height: viewportHeight,
+  };
 
   // initialize cell and trx caches
   viz_state.cache = {};
@@ -593,9 +655,11 @@ export const landscape_ist = async (
 
   if (
     viz_state.obs_store.umap_state.get() === false &&
-    typeof viz_state.spatial?.ini_zoom === 'number'
+    typeof initialScaleBarViewState.zoom === 'number' &&
+    typeof initialScaleBarViewState.width === 'number' &&
+    typeof initialScaleBarViewState.height === 'number'
   ) {
-    refreshScaleBar(viz_state, deck_ist);
+    refreshScaleBar(viz_state, deck_ist, initialScaleBarViewState);
   }
 
   set_deck_on_view_state_change(deck_ist, layers_obj, viz_state);

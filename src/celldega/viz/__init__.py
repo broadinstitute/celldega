@@ -58,32 +58,7 @@ def clustergram_enrich(
 
     enrich = Enrich(gene_list=[], width=250)
 
-    def _set_gene_list(genes):
-        enrich.gene_list = list(genes) if genes else []
-
-    def _on_selected_genes(change):
-        genes = change["new"] or []
-
-        click_info = getattr(cgm, "click_info", {}) or {}
-        click_type = (click_info.get("type") or "").lower()
-        selected_names = (click_info.get("value") or {}).get("selected_names") or []
-
-        is_dendro = click_type.startswith(("row", "col"))
-        matches_click = (
-            bool(selected_names)
-            and len(selected_names) == len(genes)
-            and set(selected_names) == set(genes)
-        )
-
-        if is_dendro and matches_click:
-            if click_type.startswith("row") and not row_enrich:
-                _set_gene_list([])
-                return
-            if click_type.startswith("col") and not col_enrich:
-                _set_gene_list([])
-                return
-
-        _set_gene_list(genes)
+    jslink((cgm, "selected_genes"), (enrich, "gene_list"))
 
     def _on_click_info(change):
         info = change["new"] or {}
@@ -92,14 +67,16 @@ def clustergram_enrich(
 
         if click_type.startswith("col"):
             if not col_enrich:
+                if getattr(cgm, "selected_genes", []):
+                    cgm.selected_genes = []
                 return
-            if selected_names:
-                cgm.selected_genes = list(selected_names)
+            cgm.selected_genes = list(selected_names)
         elif click_type.startswith("row"):
             if not row_enrich:
-                _set_gene_list([])
+                if getattr(cgm, "selected_genes", []):
+                    cgm.selected_genes = []
                 return
-    cgm.observe(_on_selected_genes, names="selected_genes")
+            cgm.selected_genes = list(selected_names)
     cgm.observe(_on_click_info, names="click_info")
 
     return HBox([cgm, enrich], layout=Layout(width="1000px"))

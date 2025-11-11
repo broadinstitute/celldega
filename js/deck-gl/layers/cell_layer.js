@@ -17,6 +17,7 @@ import { update_selected_genes } from '../../global_variables/selected_genes';
 import { get_arrow_table } from '../../read_parquet/get_arrow_table';
 import { get_scatter_data } from '../../read_parquet/get_scatter_data';
 import { scale_umap_data } from '../../umap/scale_umap_data';
+import { hexToRgb } from '../../utils/hexToRgb';
 
 const cell_layer_onclick = async (info, d, deck_ist, layers_obj, viz_state) => {
   // Check if the device is a touch device
@@ -45,6 +46,31 @@ const cell_layer_onclick = async (info, d, deck_ist, layers_obj, viz_state) => {
   update_selected_genes(viz_state.genes, [], viz_state.obs_store);
 };
 
+const parseColorValue = (value) => {
+  if (Array.isArray(value) && value.length >= 3) {
+    const numeric = value
+      .slice(0, 3)
+      .map((component) => Number(component))
+      .filter((component) => Number.isFinite(component));
+
+    if (numeric.length === 3) {
+      const needsScaling = numeric.every(
+        (component) => component >= 0 && component <= 1
+      );
+
+      return needsScaling
+        ? numeric.map((component) => Math.round(component * 255))
+        : numeric.map((component) => Math.round(component));
+    }
+  }
+
+  if (typeof value === 'string' && value) {
+    return hexToRgb(value);
+  }
+
+  return null;
+};
+
 // transparent to red
 export const get_cell_color = (cats, i, d) => {
   if (cats.cat === 'cluster') {
@@ -52,6 +78,22 @@ export const get_cell_color = (cats, i, d) => {
       const inst_cat = cats.cell_cats[d.index];
 
       let inst_color = cats.color_dict_cluster[inst_cat];
+
+      const colorIndex = Array.isArray(cats.meta_cell_attr)
+        ? cats.meta_cell_attr.indexOf('color')
+        : -1;
+
+      if (colorIndex > -1 && cats.meta_cell && cats.cell_names_array) {
+        const cellName = cats.cell_names_array[d.index];
+        const cellAttrs =
+          cats.meta_cell?.[cellName] ?? cats.meta_cell?.[String(cellName)];
+        const colorValue = cellAttrs?.[colorIndex];
+        const parsed = parseColorValue(colorValue);
+
+        if (parsed) {
+          inst_color = parsed;
+        }
+      }
 
       let inst_opacity =
         cats.selected_cats.length === 0 || cats.selected_cats.includes(inst_cat)
@@ -123,6 +165,33 @@ export const ini_cell_layer = async (base_url, viz_state) => {
       viz_state.aws
     );
     set_cell_cats(viz_state.cats, cluster_arrow_table, 'cluster');
+  }
+
+  const colorAttrIndex = Array.isArray(viz_state.cats.meta_cell_attr)
+    ? viz_state.cats.meta_cell_attr.indexOf('color')
+    : -1;
+
+  if (colorAttrIndex > -1 && viz_state.cats.has_meta_cell) {
+    viz_state.cats.cell_cats.forEach((clusterName, cellIdx) => {
+      if (!clusterName) {
+        return;
+      }
+
+      const cellName = viz_state.cats.cell_names_array[cellIdx];
+      const cellAttrs =
+        viz_state.cats.meta_cell?.[cellName] ??
+        viz_state.cats.meta_cell?.[String(cellName)];
+
+      if (!cellAttrs) {
+        return;
+      }
+
+      const parsed = parseColorValue(cellAttrs[colorAttrIndex]);
+
+      if (parsed) {
+        viz_state.cats.color_dict_cluster[clusterName] = parsed;
+      }
+    });
   }
 
   set_dict_cell_cats(viz_state.cats);

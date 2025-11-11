@@ -124,7 +124,8 @@ class Landscape(anywidget.AnyWidget):
         meta_nbhd_df = kwargs.pop("meta_nbhd", None)
         nbhd_edit = kwargs.pop("nbhd_edit", False)
         meta_cluster_df = None
-        cell_attr = kwargs.pop("cell_attr", ["leiden"])
+        # cell_attr = kwargs.pop("cell_attr", ["leiden"])
+        cell_attr = list(kwargs.pop("cell_attr", ["leiden"]))
 
         if nbhd_gdf is not None and nbhd_edit:
             raise ValueError("nbhd_edit cannot be True when nbhd data is provided")
@@ -166,6 +167,9 @@ class Landscape(anywidget.AnyWidget):
             return buf.getvalue()
 
         if adata is not None:
+            if "color" in adata.obs.columns and "color" not in cell_attr:
+                cell_attr.append("color")
+
             # if cell_id is in the adata.obs, use it as index
             if "cell_id" in adata.obs.columns:
                 adata.obs.set_index("cell_id", inplace=True)
@@ -238,6 +242,8 @@ class Landscape(anywidget.AnyWidget):
             self.add_traits(**parquet_traits)
 
         super().__init__(**kwargs)
+
+        self.cell_attr = cell_attr
 
         # store DataFrames locally without syncing to the frontend
         self.meta_cell = meta_cell_df

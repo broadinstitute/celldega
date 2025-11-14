@@ -26,6 +26,7 @@ const render_landscape_ist = async ({ model, el }) => {
   const height = model.get('height');
   const rotation_orbit = model.get('rotation_orbit') ?? 0;
   const rotation_x = model.get('rotation_x') ?? 0;
+  const rotate = model.get('rotate') ?? 0;
   const nbhd = model.get('nbhd_geojson');
   const max_tiles_to_view = model.get('max_tiles_to_view');
   const nbhd_edit = model.get('nbhd_edit');
@@ -84,6 +85,7 @@ const render_landscape_ist = async ({ model, el }) => {
     null,
     rotation_orbit,
     rotation_x,
+    rotate,
     max_tiles_to_view
   );
 };

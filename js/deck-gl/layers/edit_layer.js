@@ -12,6 +12,7 @@ import { get_layers_list } from '../utils/layers_ist';
 import { update_cell_pickable_state } from './cell_layer';
 import { update_path_pickable_state } from './path_layer';
 import { update_trx_pickable_state } from './trx_layer';
+import { getModelMatrixProps } from '../../utils/rotation';
 
 // Forward declaration for function used before definition
 function update_edit_layer_mode(layers_obj, mode) {
@@ -228,6 +229,7 @@ export const ini_edit_layer = (viz_state) => {
     },
     visible: false,
     opacity: viz_state.edit.rgn_opacity,
+    ...getModelMatrixProps(viz_state.rotation),
   });
 
   return edit_layer;

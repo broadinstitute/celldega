@@ -5,6 +5,7 @@ import {
   create_get_tile_data,
   create_render_tile_sublayers,
 } from '../utils/tiles';
+import { getModelMatrixProps } from '../../utils/rotation';
 
 import { make_simple_image_layer } from './simple_image_layer';
 
@@ -34,6 +35,7 @@ const make_image_layer = (viz_state, info) => {
       info.color,
       opacity
     ),
+    ...getModelMatrixProps(viz_state.rotation),
   });
   return image_layer;
 };

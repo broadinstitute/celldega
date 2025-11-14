@@ -4,6 +4,7 @@ import { update_cat, update_selected_cats } from '../../global_variables/cat';
 import { update_cell_exp_array } from '../../global_variables/cell_exp_array';
 import { update_selected_genes } from '../../global_variables/selected_genes';
 import { grab_trx_tiles_in_view } from '../../vector_tile/transcripts/grab_trx_tiles_in_view';
+import { getModelMatrixProps } from '../../utils/rotation';
 
 const trx_layer_callback = async (
   info,
@@ -46,7 +47,9 @@ const trx_layer_callback = async (
   );
 };
 
-export const ini_trx_layer = (genes) => {
+export const ini_trx_layer = (viz_state) => {
+  const { genes } = viz_state;
+
   const trx_layer = new ScatterplotLayer({
     id: 'trx-layer',
     data: genes.trx_data,
@@ -58,10 +61,11 @@ export const ini_trx_layer = (genes) => {
         genes.selected_genes.length === 0 ||
         genes.selected_genes.includes(inst_gene)
           ? 255
-          : 5;
+      : 5;
 
       return [...inst_color, inst_opacity];
     },
+    ...getModelMatrixProps(viz_state.rotation),
   });
 
   return trx_layer;

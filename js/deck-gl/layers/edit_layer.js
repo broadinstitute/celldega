@@ -7,12 +7,12 @@ import * as d3 from 'd3';
 
 import { handleValidationWarning } from '../../temp_utils/errorHandler';
 import { make_bar_graph, bar_callback_nbhd } from '../../ui/bar_plot';
+import { getModelMatrixProps } from '../../utils/rotation';
 import { get_layers_list } from '../utils/layers_ist';
 
 import { update_cell_pickable_state } from './cell_layer';
 import { update_path_pickable_state } from './path_layer';
 import { update_trx_pickable_state } from './trx_layer';
-import { getModelMatrixProps } from '../../utils/rotation';
 
 // Forward declaration for function used before definition
 function update_edit_layer_mode(layers_obj, mode) {

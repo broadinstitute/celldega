@@ -2,8 +2,8 @@ import { PathLayer } from 'deck.gl';
 
 import { update_selected_cats, update_cat } from '../../global_variables/cat';
 import { update_selected_genes } from '../../global_variables/selected_genes';
-import { grab_cell_tiles_in_view } from '../../vector_tile/polygons/grab_cell_tiles_in_view';
 import { getModelMatrixProps } from '../../utils/rotation';
+import { grab_cell_tiles_in_view } from '../../vector_tile/polygons/grab_cell_tiles_in_view';
 
 export const get_path_color = (cats, i, d) => {
   const inst_cell_id = cats.polygon_cell_names[d.index];

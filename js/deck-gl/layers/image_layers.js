@@ -1,11 +1,11 @@
 import { TileLayer } from 'deck.gl';
 
 import { options } from '../../global_variables/fetch_options';
+import { getModelMatrixProps } from '../../utils/rotation';
 import {
   create_get_tile_data,
   create_render_tile_sublayers,
 } from '../utils/tiles';
-import { getModelMatrixProps } from '../../utils/rotation';
 
 import { make_simple_image_layer } from './simple_image_layer';
 

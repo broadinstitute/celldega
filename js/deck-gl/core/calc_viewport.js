@@ -1,7 +1,7 @@
+import { rotatePoint, rotatePointInverse } from '../../utils/rotation';
 import { visibleTiles } from '../../vector_tile/visibleTiles';
 import { update_path_layer_data } from '../layers/path_layer';
 import { update_trx_layer_data } from '../layers/trx_layer';
-import { rotatePoint, rotatePointInverse } from '../../utils/rotation';
 
 export const calc_viewport = async (
   { height, width, zoom, target },

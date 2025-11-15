@@ -36,7 +36,7 @@ export const getModelMatrixProps = (rotationState) => {
   return {};
 };
 
-export const rotatePoint = (x, y, rotationState) => {
+export const rotate_point = (x, y, rotationState) => {
   if (!rotationState?.hasRotation) {
     return [x, y];
   }
@@ -46,7 +46,7 @@ export const rotatePoint = (x, y, rotationState) => {
   return [cos * dx - sin * dy + center[0], sin * dx + cos * dy + center[1]];
 };
 
-export const rotatePointInverse = (x, y, rotationState) => {
+export const rotate_point_inverse = (x, y, rotationState) => {
   if (!rotationState?.hasRotation) {
     return [x, y];
   }

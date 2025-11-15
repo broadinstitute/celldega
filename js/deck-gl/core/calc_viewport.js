@@ -1,4 +1,4 @@
-import { rotatePoint, rotatePointInverse } from '../../utils/rotation';
+import { rotate_point, rotate_point_inverse } from '../../utils/rotation';
 import { visibleTiles } from '../../vector_tile/visibleTiles';
 import { update_path_layer_data } from '../layers/path_layer';
 import { update_trx_layer_data } from '../layers/trx_layer';
@@ -38,7 +38,7 @@ export const calc_viewport = async (
       [viz_state.bounds.min_x, viz_state.bounds.max_y],
       [viz_state.bounds.max_x, viz_state.bounds.min_y],
       [viz_state.bounds.max_x, viz_state.bounds.max_y],
-    ].map(([x, y]) => rotatePointInverse(x, y, viz_state.rotation));
+    ].map(([x, y]) => rotate_point_inverse(x, y, viz_state.rotation));
 
     const xs = corners.map(([x]) => x);
     const ys = corners.map(([, y]) => y);
@@ -93,7 +93,7 @@ export const calc_viewport = async (
         );
       }
 
-      const [rotX, rotY] = rotatePoint(pos.x, pos.y, viz_state.rotation);
+      const [rotX, rotY] = rotate_point(pos.x, pos.y, viz_state.rotation);
 
       return (
         rotX >= viz_state.bounds.min_x &&
@@ -134,7 +134,7 @@ export const calc_viewport = async (
         );
       }
 
-      const [rotX, rotY] = rotatePoint(pos.x, pos.y, viz_state.rotation);
+      const [rotX, rotY] = rotate_point(pos.x, pos.y, viz_state.rotation);
 
       return (
         rotX >= viz_state.bounds.min_x &&

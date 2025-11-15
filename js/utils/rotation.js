@@ -2,7 +2,7 @@ import { Matrix4 } from '@math.gl/core';
 
 const EPSILON = 1e-6;
 
-export const buildRotationState = (angleDegrees = 0, center = [0, 0]) => {
+export const build_rotation_state = (angleDegrees = 0, center = [0, 0]) => {
   const angleRadians = (angleDegrees * Math.PI) / 180;
   const hasRotation = Math.abs(angleRadians) > EPSILON;
   const sin = Math.sin(angleRadians);

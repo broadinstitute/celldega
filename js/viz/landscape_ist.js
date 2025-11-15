@@ -67,7 +67,7 @@ import { toggle_slider, set_image_layer_sliders } from '../ui/sliders';
 import { get_img_layer_visible } from '../ui/text_buttons';
 import { make_ist_ui_container } from '../ui/ui_containers';
 import { refresh_layer } from '../utils/refresh_layer';
-import { buildRotationState } from '../utils/rotation';
+import { build_rotation_state } from '../utils/rotation';
 import { update_cell_clusters } from '../widget_interactions/update_cell_clusters';
 import { update_ist_landscape_from_cgm } from '../widget_interactions/update_ist_landscape_from_cgm';
 
@@ -358,7 +358,7 @@ export const landscape_ist = async (
   const centerY = viz_state.dimensions?.height
     ? viz_state.dimensions.height / 2
     : 0;
-  viz_state.rotation = buildRotationState(rotate, [centerX, centerY]);
+  viz_state.rotation = build_rotation_state(rotate, [centerX, centerY]);
 
   await set_meta_gene(
     viz_state.genes,

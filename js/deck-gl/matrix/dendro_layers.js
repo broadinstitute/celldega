@@ -42,12 +42,9 @@ const applyViewStateTransition = (viewState) => {
 };
 
 const computeClusterZoom = (matrixSpan, clusterSpan, minUnit) => {
-  const paddedSpan = Math.min(
-    matrixSpan,
-    Math.max(clusterSpan * 1.2, minUnit * 3)
-  );
+  const effectiveSpan = Math.min(matrixSpan, Math.max(clusterSpan, minUnit));
 
-  const zoom = Math.log2(matrixSpan / Math.max(paddedSpan, 1e-6));
+  const zoom = Math.log2(matrixSpan / Math.max(effectiveSpan, 1e-6));
 
   return Math.min(Math.max(zoom, 0), MAX_FOCUS_ZOOM);
 };

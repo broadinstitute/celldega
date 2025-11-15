@@ -161,6 +161,20 @@ export const initialize_attribute_editor = (viz_state, deck_mat, layers_mat) => 
 
   let context = null;
 
+  const getStoredColor = (value) => {
+    if (!value) {
+      return null;
+    }
+    const color_map = viz_state.attr?.category_colors || {};
+    return color_map[String(value)] || null;
+  };
+
+  const axis_is_enabled = (axis) => {
+    const flags = viz_state.manual_cat?.flags || {};
+    const config = viz_state.manual_cat?.config?.[axis];
+    return Boolean(flags?.[axis] && config?.attribute);
+  };
+
   const close = () => {
     container.style.display = 'none';
     context = null;
@@ -226,7 +240,11 @@ export const initialize_attribute_editor = (viz_state, deck_mat, layers_mat) => 
     initial_color,
     position,
   }) => {
-    if (!Array.isArray(selection) || selection.length === 0) {
+    if (
+      !Array.isArray(selection) ||
+      selection.length === 0 ||
+      !axis_is_enabled(axis)
+    ) {
       return;
     }
 
@@ -237,6 +255,7 @@ export const initialize_attribute_editor = (viz_state, deck_mat, layers_mat) => 
 
     const axis_label = axis === 'col' ? 'columns' : 'rows';
     const configured_name = viz_state.manual_cat?.config?.[axis]?.attribute;
+    const is_locked = Boolean(viz_state.manual_cat?.config?.[axis]?.locked);
     const default_attribute =
       attribute_name ||
       configured_name ||
@@ -245,10 +264,17 @@ export const initialize_attribute_editor = (viz_state, deck_mat, layers_mat) => 
     populate_preferred(axis);
 
     selection_info.textContent = `${selection.length} ${axis_label} selected`;
-    attribute_input.value = default_attribute;
+    attribute_input.value = configured_name || default_attribute;
+    attribute_input.disabled = is_locked;
+    attribute_input.readOnly = is_locked;
+    attribute_input.style.backgroundColor = is_locked ? '#f3f4f6' : '#ffffff';
     value_input.value = initial_value ? String(initial_value) : '';
+    const stored_color = getStoredColor(value_input.value.trim());
     color_input.value =
-      initial_color || DEFAULT_COLORS[axis] || DEFAULT_COLORS.row;
+      initial_color ||
+      stored_color ||
+      DEFAULT_COLORS[axis] ||
+      DEFAULT_COLORS.row;
 
     container.style.display = 'block';
     position_container(position);
@@ -301,4 +327,11 @@ export const initialize_attribute_editor = (viz_state, deck_mat, layers_mat) => 
     open,
     close,
   };
+
+  value_input.addEventListener('change', () => {
+    const stored = getStoredColor(value_input.value.trim());
+    if (stored) {
+      color_input.value = stored;
+    }
+  });
 };

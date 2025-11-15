@@ -16,6 +16,21 @@ export const render_enrich = async ({ model, el }) => {
   const cache = {};
   let paragraphElement = null;
 
+  const highlightGeneSelection = (gene) => {
+    if (!paragraphElement) {
+      return;
+    }
+    const spans = paragraphElement.querySelectorAll('span');
+    const normalized = (gene || '').toLowerCase();
+    spans.forEach((span) => {
+      const text = (span.textContent || '').replace(', ', '').toLowerCase();
+      span.style.fontWeight = normalized && text === normalized ? 'bold' : '550';
+    });
+    paragraphElement.value = gene
+      ? gene
+      : 'Click on a gene to obtain detailed information';
+  };
+
   const container = document.createElement('div');
   const select = document.createElement('select');
   const layout = document.createElement('div');
@@ -119,7 +134,10 @@ export const render_enrich = async ({ model, el }) => {
     { immediate: false }
   );
   store.gene_of_interest.subscribe(
-    (gene) => updateGeneInfo(gene, geneInfoHolder),
+    (gene) => {
+      updateGeneInfo(gene, geneInfoHolder);
+      highlightGeneSelection(gene);
+    },
     { immediate: false }
   );
 
@@ -275,12 +293,16 @@ export const render_enrich = async ({ model, el }) => {
             element.value = gene;
           }
 
+          model.set('focused_gene', store.gene_of_interest.get() || '');
+          model.save_changes();
           element.dispatchEvent(new CustomEvent('input'));
         });
 
       barHolder.appendChild(new_chart);
       paragraphHolder.innerHTML = '';
       paragraphHolder.appendChild(element);
+
+      highlightGeneSelection(store.gene_of_interest.get());
 
       new_chart.addEventListener('input', () => {
         const val = new_chart.value || {};
@@ -318,6 +340,13 @@ export const render_enrich = async ({ model, el }) => {
   model.on('change:inst_lib', update);
   model.on('change:num_terms', update);
   model.on('change:background_list', update);
+  model.on('change:focused_gene', () => {
+    const gene = model.get('focused_gene') || '';
+    if (store.gene_of_interest.get() !== gene) {
+      store.gene_of_interest.set(gene);
+    }
+    highlightGeneSelection(gene);
+  });
   model.on('change:term_genes', () => {
     const incoming = model.get('term_genes') || [];
     store.term_genes.set(incoming);

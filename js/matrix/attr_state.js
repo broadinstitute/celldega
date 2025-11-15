@@ -188,11 +188,13 @@ export const initialize_attr_state = (viz_state, network) => {
   viz_state.attr.all_defs = { row: [], col: [] };
   viz_state.attr.frames = { row: null, col: null };
   viz_state.attr.color_payload = { row: {}, col: {} };
+  viz_state.attr.category_colors = {};
   viz_state.attr.did_initialize = false;
   viz_state.manual_cat = {
     definitions: { row: {}, col: {} },
     config: { row: null, col: null },
     self_update: false,
+    flags: { row: false, col: false },
   };
 
   viz_state.attr.static_defs.row = build_static_definitions(
@@ -286,9 +288,11 @@ export const apply_attribute_frame = (
     );
     const color_map = {};
     const provided_colors = color_payload?.[column] || {};
+    const stored_colors = viz_state.attr.category_colors || {};
 
     unique_values.forEach((val, idx) => {
-      color_map[val] = provided_colors[val] || fallback_color(val, idx);
+      color_map[val] =
+        provided_colors[val] || stored_colors[val] || fallback_color(val, idx);
     });
 
     return {

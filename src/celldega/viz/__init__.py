@@ -9,7 +9,17 @@ from .local_server import get_local_server
 from .widget import Clustergram, Enrich, Landscape
 
 
-def landscape_clustergram(landscape, mat, width="600px", height="700px"):
+def landscape_clustergram(
+    landscape,
+    mat,
+    width="600px",
+    height="700px",
+    *,
+    enrich: bool | Enrich = False,
+    row_enrich: bool = True,
+    col_enrich: bool = False,
+    enrich_kwargs: dict | None = None,
+):
     """
     Display a `Landscape` widget and a `Clustergram` widget side by side.
 
@@ -32,7 +42,168 @@ def landscape_clustergram(landscape, mat, width="600px", height="700px"):
     mat.layout = Layout(width=width)  # Adjust as needed
     landscape.layout = Layout(width=width, height=height)  # Adjust as needed
 
-    return HBox([landscape, mat])
+    enrich_widget = None
+    if isinstance(enrich, Enrich):
+        enrich_widget = enrich
+    elif enrich:
+        config = dict(enrich_kwargs or {})
+        config.setdefault("gene_list", [])
+        config.setdefault("width", 250)
+        enrich_widget = Enrich(**config)
+
+    if enrich_widget is not None:
+        def _forward_gene_to_landscape(gene: str) -> None:
+            if gene:
+                landscape.trigger_update({"type": "row_label", "value": {"name": gene}})
+
+        _link_clustergram_to_enrich(
+            mat,
+            enrich_widget,
+            row_enrich=row_enrich,
+            col_enrich=col_enrich,
+            gene_focus_callback=_forward_gene_to_landscape,
+        )
+
+    children = [landscape, mat]
+    if enrich_widget is not None:
+        children.append(enrich_widget)
+
+    return HBox(children)
+
+
+def _link_clustergram_to_enrich(
+    cgm: Clustergram,
+    enrich: Enrich,
+    *,
+    row_enrich: bool = True,
+    col_enrich: bool = False,
+    gene_focus_callback=None,
+) -> None:
+    def _ensure_attribute_index(axis: str) -> pd.Index:
+        names = getattr(cgm, f"{axis}_names", []) or []
+        return pd.Index([str(name) for name in names], name=f"{axis}_id")
+
+    enrich_column_names = {
+        "row": "Enrichment membership",
+        "col": "Column enrichment membership",
+    }
+    enrich_colors = {"In term": "#2f74ff", "Out of term": "#ffffff"}
+
+    def _record_colors() -> None:
+        if hasattr(cgm, "_record_category_colors"):
+            cgm._record_category_colors(enrich_colors)
+
+    _record_colors()
+
+    current_axis = "row"
+    current_terms: dict[str, list[str]] = {"row": [], "col": []}
+
+    def _set_gene_list(genes):
+        enrich.gene_list = list(genes) if genes else []
+
+    def _update_enrichment_membership(term_genes, axis: str):
+        target_axis = "col" if axis == "col" and col_enrich else "row"
+        if target_axis == "row" and not row_enrich:
+            return
+
+        current_terms[target_axis] = list(term_genes or [])
+
+        index = _ensure_attribute_index(target_axis)
+        if index.empty:
+            return
+
+        existing = getattr(cgm, f"{target_axis}_attributes_df")
+        if existing is None or existing.empty:
+            df = pd.DataFrame(index=index)
+        else:
+            df = existing.reindex(index)
+
+        column_name = enrich_column_names[target_axis]
+        colors = dict(getattr(cgm, f"{target_axis}_attribute_colors") or {})
+
+        if not term_genes:
+            if column_name in df.columns:
+                df = df.drop(columns=[column_name])
+            setattr(cgm, f"{target_axis}_attributes_df", df if not df.empty else None)
+            colors.pop(column_name, None)
+            setattr(cgm, f"{target_axis}_attribute_colors", colors)
+            return
+
+        normalized = {str(g).lower() for g in term_genes}
+        membership = pd.Series("Out of term", index=index, dtype=object)
+        membership[index.str.lower().isin(normalized)] = "In term"
+        df[column_name] = membership
+
+        setattr(cgm, f"{target_axis}_attributes_df", df)
+        colors[column_name] = enrich_colors
+        setattr(cgm, f"{target_axis}_attribute_colors", colors)
+
+    def _on_selected_genes(change):
+        nonlocal current_axis
+        genes = change["new"] or []
+
+        click_info = getattr(cgm, "click_info", {}) or {}
+        click_type = (click_info.get("type") or "").lower()
+        selected_names = (click_info.get("value") or {}).get("selected_names") or []
+
+        is_dendro = click_type.startswith(("row", "col"))
+        matches_click = (
+            bool(selected_names)
+            and len(selected_names) == len(genes)
+            and set(selected_names) == set(genes)
+        )
+
+        if is_dendro and matches_click:
+            if click_type.startswith("row"):
+                if not row_enrich:
+                    _set_gene_list([])
+                    return
+                current_axis = "row"
+            elif click_type.startswith("col"):
+                if not col_enrich:
+                    _set_gene_list([])
+                    return
+                current_axis = "col"
+
+        _set_gene_list(genes)
+
+    def _on_click_info(change):
+        nonlocal current_axis
+        info = change["new"] or {}
+        click_type = (info.get("type") or "").lower()
+        selected_names = (info.get("value") or {}).get("selected_names") or []
+
+        if click_type.startswith("col"):
+            if not col_enrich:
+                return
+            current_axis = "col"
+            if selected_names:
+                cgm.selected_genes = list(selected_names)
+        elif click_type.startswith("row"):
+            current_axis = "row"
+            if not row_enrich:
+                _set_gene_list([])
+
+    def _on_term_genes(change):
+        _update_enrichment_membership(change["new"] or [], current_axis)
+
+    def _on_axis_names(change):
+        axis = "row" if change["name"] == "row_names" else "col"
+        if current_terms.get(axis):
+            _update_enrichment_membership(current_terms[axis], axis)
+
+    def _on_focused_gene(change):
+        if gene_focus_callback is None:
+            return
+        gene = change["new"] or ""
+        gene_focus_callback(gene)
+
+    cgm.observe(_on_selected_genes, names="selected_genes")
+    cgm.observe(_on_click_info, names="click_info")
+    cgm.observe(_on_axis_names, names="row_names")
+    cgm.observe(_on_axis_names, names="col_names")
+    enrich.observe(_on_term_genes, names="term_genes")
+    enrich.observe(_on_focused_gene, names="focused_gene")
 
 
 def clustergram_enrich(
@@ -59,93 +230,21 @@ def clustergram_enrich(
 
     enrich = Enrich(gene_list=[], width=250)
 
-    def _ensure_attribute_index(axis: str) -> pd.Index:
-        names = getattr(cgm, f"{axis}_names", []) or []
-        return pd.Index([str(name) for name in names], name=f"{axis}_id")
-
-    ENRICH_COLUMN_NAME = "Enrichment Membership"
-    ENRICH_COLORS = {"In term": "#2f74ff", "Out of term": "#ffffff"}
-
-    def _set_gene_list(genes):
-        enrich.gene_list = list(genes) if genes else []
-
-    def _update_enrichment_membership(term_genes):
-        index = _ensure_attribute_index("row")
-        if index.empty:
-            return
-
-        existing = cgm.row_attributes_df
-        if existing is None or existing.empty:
-            df = pd.DataFrame(index=index)
-        else:
-            df = existing.reindex(index)
-
-        if not term_genes:
-            if ENRICH_COLUMN_NAME in df.columns:
-                df = df.drop(columns=[ENRICH_COLUMN_NAME])
-            cgm.row_attributes_df = df if not df.empty else None
-            colors = dict(cgm.row_attribute_colors or {})
-            colors.pop(ENRICH_COLUMN_NAME, None)
-            cgm.row_attribute_colors = colors
-            return
-
-        normalized = {str(g).lower() for g in term_genes}
-        membership = pd.Series("Out of term", index=index, dtype=object)
-        membership[index.str.lower().isin(normalized)] = "In term"
-        df[ENRICH_COLUMN_NAME] = membership
-
-        cgm.row_attributes_df = df
-        colors = dict(cgm.row_attribute_colors or {})
-        colors[ENRICH_COLUMN_NAME] = ENRICH_COLORS
-        cgm.row_attribute_colors = colors
-
-    def _on_selected_genes(change):
-        genes = change["new"] or []
-
-        click_info = getattr(cgm, "click_info", {}) or {}
-        click_type = (click_info.get("type") or "").lower()
-        selected_names = (click_info.get("value") or {}).get("selected_names") or []
-
-        is_dendro = click_type.startswith(("row", "col"))
-        matches_click = (
-            bool(selected_names)
-            and len(selected_names) == len(genes)
-            and set(selected_names) == set(genes)
-        )
-
-        if is_dendro and matches_click:
-            if click_type.startswith("row") and not row_enrich:
-                _set_gene_list([])
-                return
-            if click_type.startswith("col") and not col_enrich:
-                _set_gene_list([])
-                return
-
-        _set_gene_list(genes)
-
-    def _on_click_info(change):
-        info = change["new"] or {}
-        click_type = (info.get("type") or "").lower()
-        selected_names = (info.get("value") or {}).get("selected_names") or []
-
-        if click_type.startswith("col"):
-            if not col_enrich:
-                return
-            if selected_names:
-                cgm.selected_genes = list(selected_names)
-        elif click_type.startswith("row"):
-            if not row_enrich:
-                _set_gene_list([])
-
-    cgm.observe(_on_selected_genes, names="selected_genes")
-    cgm.observe(_on_click_info, names="click_info")
-
-    def _on_term_genes(change):
-        _update_enrichment_membership(change["new"] or [])
-
-    enrich.observe(_on_term_genes, names="term_genes")
+    _link_clustergram_to_enrich(
+        cgm,
+        enrich,
+        row_enrich=row_enrich,
+        col_enrich=col_enrich,
+    )
 
     return HBox([cgm, enrich], layout=Layout(width="1000px"))
 
 
-__all__ = ["Clustergram", "Enrich", "Landscape", "get_local_server", "landscape_clustergram"]
+__all__ = [
+    "Clustergram",
+    "Enrich",
+    "Landscape",
+    "clustergram_enrich",
+    "get_local_server",
+    "landscape_clustergram",
+]

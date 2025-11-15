@@ -12,7 +12,7 @@ try:
     from shapely.geometry import Polygon
 
     from celldega.clust import Matrix
-    from celldega.viz import Clustergram, Landscape
+    from celldega.viz import Clustergram, Landscape, clustergram_enrich
 except Exception as e:  # pragma: no cover - if deps missing skip
     pytest.skip(f"celldega modules unavailable: {e}", allow_module_level=True)
 
@@ -77,6 +77,48 @@ def test_clustergram_selected_genes_trait() -> None:
 
     widget.selected_genes = ["A", "B"]
     assert widget.selected_genes == ["A", "B"]
+
+
+def test_manual_col_attribute_initializes_na() -> None:
+    mat = make_simple_matrix()
+    widget = Clustergram(matrix=mat, manual_col_cat=True)
+
+    widget.col_names = [f"col{i}" for i in range(4)]
+
+    df = widget.col_attributes_df
+    assert df is not None
+    assert "Manual column attribute" in df.columns
+    assert set(df["Manual column attribute"].unique()) == {"N.A."}
+
+    colors = widget.col_attribute_colors or {}
+    assert colors["Manual column attribute"]["N.A."] == "#d1d5db"
+
+    payload = json.loads(widget.manual_cat)
+    assert "Manual column attribute" in payload["col"]
+    assert widget.category_colors.get("N.A.") == "#d1d5db"
+
+
+def test_clustergram_category_colors_from_matrix() -> None:
+    mat = make_simple_matrix()
+    mat.set_global_cat_colors({"dog": "#123456"})
+    widget = Clustergram(matrix=mat)
+    assert widget.category_colors.get("dog") == "#123456"
+
+
+def test_clustergram_enrich_sets_membership_column() -> None:
+    mat = make_simple_matrix()
+    widget = Clustergram(matrix=mat)
+    widget.row_names = [f"gene{i}" for i in range(4)]
+
+    holder = clustergram_enrich(widget)
+    enrich_widget = holder.children[1]
+
+    enrich_widget.term_genes = [widget.row_names[0]]
+
+    df = widget.row_attributes_df
+    assert df is not None
+    assert "Enrichment membership" in df.columns
+    assert df.loc[widget.row_names[0], "Enrichment membership"] == "In term"
 
 
 def test_landscape_nbhd_geojson_and_metadata() -> None:

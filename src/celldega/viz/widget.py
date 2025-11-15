@@ -24,6 +24,13 @@ import traitlets
 _clustergram_registry = {}  # maps names to widget instances
 _enrich_registry = {}  # maps names to widget instances
 
+_MANUAL_ATTRIBUTE_TITLES = {
+    "row": "Manual row attribute",
+    "col": "Manual column attribute",
+}
+_MANUAL_FILL_VALUE = "N.A."
+_MANUAL_FILL_COLOR = "#d1d5db"
+
 
 def _hsv_to_hex(h: float) -> str:
     """Convert HSV color to hex string."""
@@ -439,6 +446,7 @@ class Enrich(anywidget.AnyWidget):
 
     term_genes = traitlets.List(default_value=[]).tag(sync=True)
     selected_term = traitlets.Unicode("Select Term").tag(sync=True)
+    focused_gene = traitlets.Unicode("").tag(sync=True)
 
     def __init__(self, **kwargs):
         name = kwargs.pop("name", "default")
@@ -492,6 +500,9 @@ class Clustergram(anywidget.AnyWidget):
     col_attributes_df = DataFrameTrait(allow_none=True).tag(sync=True)
     row_attribute_colors = traitlets.Dict(default_value={}).tag(sync=True)
     col_attribute_colors = traitlets.Dict(default_value={}).tag(sync=True)
+    manual_row_cat = traitlets.Bool(False).tag(sync=True)
+    manual_col_cat = traitlets.Bool(False).tag(sync=True)
+    category_colors = traitlets.Dict(default_value={}).tag(sync=True)
     manual_cat = traitlets.Unicode("{}").tag(sync=True)
     manual_cat_config = traitlets.Unicode("{}").tag(sync=True)
 
@@ -506,6 +517,9 @@ class Clustergram(anywidget.AnyWidget):
             )
 
         # Allow fallback via a 'matrix' kwarg
+        manual_row_flag = bool(kwargs.pop("manual_row_cat", False))
+        manual_col_flag = bool(kwargs.pop("manual_col_cat", False))
+
         if pq_data is None:
             matrix = kwargs.pop("matrix", None)
             if matrix is not None:
@@ -541,19 +555,34 @@ class Clustergram(anywidget.AnyWidget):
                 old_widget.close()
 
         kwargs["name"] = name
+        kwargs["manual_row_cat"] = manual_row_flag
+        kwargs["manual_col_cat"] = manual_col_flag
         super().__init__(**kwargs)
         _clustergram_registry[name] = self
 
         self._manual_sync_block = False
         self._manual_categories = {"row": set(), "col": set()}
         self._manual_config = {"row": None, "col": None}
+        self._manual_axis_enabled = {"row": bool(self.manual_row_cat), "col": bool(self.manual_col_cat)}
+
+        base_colors = dict(self.network_meta.get("global_cat_colors", {}))
+        if getattr(self, "category_colors", None):
+            base_colors.update(self.category_colors)
+        self._category_colors = base_colors
+        self.category_colors = deepcopy(self._category_colors)
 
         self.observe(self._on_manual_cat_change, names="manual_cat")
         self.observe(self._on_manual_config_change, names="manual_cat_config")
+        self.observe(self._on_manual_axis_flag_change, names="manual_row_cat")
+        self.observe(self._on_manual_axis_flag_change, names="manual_col_cat")
+        self.observe(self._on_axis_names_change, names="row_names")
+        self.observe(self._on_axis_names_change, names="col_names")
 
         # Initialize manual category state from existing trait values
         self._on_manual_config_change({"new": self.manual_cat_config})
         self._on_manual_cat_change({"new": self.manual_cat})
+        self._maybe_initialize_manual_axis("row")
+        self._maybe_initialize_manual_axis("col")
 
     def close(self):  # pragma: no cover - cleanup depends on JS
         """Close the widget and notify the frontend to release resources."""
@@ -587,8 +616,84 @@ class Clustergram(anywidget.AnyWidget):
         else:
             setattr(self, f"{axis}_attributes_df", dataframe)
 
-    @staticmethod
-    def _parse_manual_payload(payload) -> dict[str, dict[str, dict[str, dict[str, str]]]]:
+    def _record_category_colors(self, mapping: Mapping | None) -> None:
+        if not mapping:
+            return
+
+        updated = False
+        for name, color in mapping.items():
+            if name is None or color is None:
+                continue
+            normalized_name = str(name)
+            normalized_color = str(color)
+            if self._category_colors.get(normalized_name) != normalized_color:
+                self._category_colors[normalized_name] = normalized_color
+                updated = True
+
+        if updated:
+            self.category_colors = deepcopy(self._category_colors)
+
+    def _maybe_initialize_manual_axis(self, axis: str) -> None:
+        normalized_axis = self._normalize_axis(axis)
+        if not self._manual_axis_enabled.get(normalized_axis):
+            return
+
+        index = self._axis_index(normalized_axis)
+        if index.empty:
+            return
+
+        config_entry = self._manual_config.get(normalized_axis) or {}
+        attribute = config_entry.get("attribute") or _MANUAL_ATTRIBUTE_TITLES[
+            normalized_axis
+        ]
+
+        if not config_entry.get("attribute"):
+            config = self._load_manual_config(self.manual_cat_config)
+            config[normalized_axis] = {
+                "attribute": attribute,
+                "preferred": config_entry.get("preferred", []),
+                "locked": True,
+            }
+            self.manual_cat_config = json.dumps(config)
+            self._manual_config = config
+
+        dataframe = self._get_axis_dataframe(normalized_axis)
+        dataframe = dataframe.reindex(index)
+        if attribute not in dataframe.columns:
+            dataframe[attribute] = _MANUAL_FILL_VALUE
+        else:
+            dataframe[attribute] = dataframe[attribute].where(
+                dataframe[attribute].notna(), _MANUAL_FILL_VALUE
+            )
+
+        colors = dict(getattr(self, f"{normalized_axis}_attribute_colors") or {})
+        attr_colors = dict(colors.get(attribute) or {})
+        attr_colors.setdefault(_MANUAL_FILL_VALUE, _MANUAL_FILL_COLOR)
+        colors[attribute] = attr_colors
+
+        self._manual_categories[normalized_axis].add(attribute)
+
+        self._manual_sync_block = True
+        try:
+            self._set_axis_dataframe(normalized_axis, dataframe)
+            setattr(self, f"{normalized_axis}_attribute_colors", colors)
+            self.manual_cat = json.dumps(self._export_manual_payload())
+        finally:
+            self._manual_sync_block = False
+
+        self._record_category_colors({_MANUAL_FILL_VALUE: attr_colors[_MANUAL_FILL_VALUE]})
+
+    def _on_manual_axis_flag_change(self, change) -> None:
+        axis = "row" if change["name"] == "manual_row_cat" else "col"
+        self._manual_axis_enabled[axis] = bool(change["new"])
+        if change["new"]:
+            self._maybe_initialize_manual_axis(axis)
+
+    def _on_axis_names_change(self, change) -> None:
+        axis = "row" if change["name"] == "row_names" else "col"
+        self._maybe_initialize_manual_axis(axis)
+
+    def _parse_manual_payload(self, payload) -> dict[str, dict[str, dict[str, dict[str, str]]]]:
         result: dict[str, dict[str, dict[str, dict[str, str]]]] = {"row": {}, "col": {}}
 
         if payload is None:
@@ -709,6 +814,7 @@ class Clustergram(anywidget.AnyWidget):
                         str(name): str(color)
                         for name, color in colors_map.items()
                     }
+                    self._record_category_colors(colors_map)
 
             # Remove columns that are entirely null
             for attribute in list(incoming_attributes):
@@ -797,6 +903,7 @@ class Clustergram(anywidget.AnyWidget):
             config[axis] = {
                 "attribute": str(attribute) if attribute is not None else None,
                 "preferred": normalized_preferred,
+                "locked": bool(entry.get("locked")),
             }
 
         return config
@@ -820,6 +927,8 @@ class Clustergram(anywidget.AnyWidget):
         preferred_cats=None,
         row_preferred=None,
         col_preferred=None,
+        row_locked: bool | None = None,
+        col_locked: bool | None = None,
     ) -> None:
         """Configure the manual category editor defaults for rows and columns."""
 
@@ -831,7 +940,11 @@ class Clustergram(anywidget.AnyWidget):
                 if row_preferred is not None
                 else self._normalize_preferred(preferred_cats)
             )
-            config["row"] = {"attribute": str(row), "preferred": preferred}
+            config["row"] = {
+                "attribute": str(row),
+                "preferred": preferred,
+                "locked": bool(row_locked) if row_locked is not None else bool(config.get("row", {}).get("locked")),
+            }
 
         if col is not None:
             preferred = (
@@ -839,7 +952,11 @@ class Clustergram(anywidget.AnyWidget):
                 if col_preferred is not None
                 else self._normalize_preferred(preferred_cats)
             )
-            config["col"] = {"attribute": str(col), "preferred": preferred}
+            config["col"] = {
+                "attribute": str(col),
+                "preferred": preferred,
+                "locked": bool(col_locked) if col_locked is not None else bool(config.get("col", {}).get("locked")),
+            }
 
         self.manual_cat_config = json.dumps(config)
 
@@ -881,6 +998,7 @@ class Clustergram(anywidget.AnyWidget):
                 **color_map.get(attribute, {}),
                 **{str(name): str(color) for name, color in colors.items()},
             }
+            self._record_category_colors(colors)
 
         if attribute in dataframe.columns and dataframe[attribute].isna().all():
             dataframe = dataframe.drop(columns=[attribute])

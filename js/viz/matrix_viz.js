@@ -277,11 +277,28 @@ export const matrix_viz = async (
       viz_state.manual_cat.config.col = normalized.col || null;
     };
 
+    const apply_manual_flags = () => {
+      viz_state.manual_cat.flags = {
+        row: !!viz_state.model.get('manual_row_cat'),
+        col: !!viz_state.model.get('manual_col_cat'),
+      };
+    };
+
+    const apply_category_colors = () => {
+      viz_state.attr.category_colors =
+        viz_state.model.get('category_colors') || {};
+    };
+
     apply_manual_payload();
     apply_manual_config();
+    apply_manual_flags();
+    apply_category_colors();
 
     viz_state.model.on('change:manual_cat', apply_manual_payload);
     viz_state.model.on('change:manual_cat_config', apply_manual_config);
+    viz_state.model.on('change:manual_row_cat', apply_manual_flags);
+    viz_state.model.on('change:manual_col_cat', apply_manual_flags);
+    viz_state.model.on('change:category_colors', apply_category_colors);
 
     viz_state.model.on('change:selected_genes', () => {
       viz_state.obs_store.selected_genes.set(

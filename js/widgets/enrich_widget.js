@@ -284,9 +284,16 @@ export const render_enrich = async ({ model, el }) => {
 
       new_chart.addEventListener('input', () => {
         const val = new_chart.value || {};
-        store.term_genes.set(val.term_genes || []);
-        store.selected_term.set(val.term_name);
-        updateParagraphColors(element, store.term_genes.get());
+        const genes = val.term_genes || [];
+        const termName = val.term_name || 'Select Term';
+
+        store.term_genes.set(genes);
+        store.selected_term.set(termName);
+        model.set('term_genes', genes);
+        model.set('selected_term', termName);
+        model.save_changes();
+
+        updateParagraphColors(element, genes);
       });
 
       updateParagraphColors(element, store.term_genes.get());
@@ -311,5 +318,14 @@ export const render_enrich = async ({ model, el }) => {
   model.on('change:inst_lib', update);
   model.on('change:num_terms', update);
   model.on('change:background_list', update);
+  model.on('change:term_genes', () => {
+    const incoming = model.get('term_genes') || [];
+    store.term_genes.set(incoming);
+    updateParagraphColors(paragraphElement, incoming);
+  });
+  model.on('change:selected_term', () => {
+    const nextTerm = model.get('selected_term') || 'Select Term';
+    store.selected_term.set(nextTerm);
+  });
   await update();
 };

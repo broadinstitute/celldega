@@ -2,6 +2,7 @@
 Module for visualization
 """
 
+import pandas as pd
 from ipywidgets import HBox, Layout, jslink
 
 from .local_server import get_local_server
@@ -58,8 +59,45 @@ def clustergram_enrich(
 
     enrich = Enrich(gene_list=[], width=250)
 
+    def _ensure_attribute_index(axis: str) -> pd.Index:
+        names = getattr(cgm, f"{axis}_names", []) or []
+        return pd.Index([str(name) for name in names], name=f"{axis}_id")
+
+    ENRICH_COLUMN_NAME = "Enrichment Membership"
+    ENRICH_COLORS = {"In term": "#2f74ff", "Out of term": "#ffffff"}
+
     def _set_gene_list(genes):
         enrich.gene_list = list(genes) if genes else []
+
+    def _update_enrichment_membership(term_genes):
+        index = _ensure_attribute_index("row")
+        if index.empty:
+            return
+
+        existing = cgm.row_attributes_df
+        if existing is None or existing.empty:
+            df = pd.DataFrame(index=index)
+        else:
+            df = existing.reindex(index)
+
+        if not term_genes:
+            if ENRICH_COLUMN_NAME in df.columns:
+                df = df.drop(columns=[ENRICH_COLUMN_NAME])
+            cgm.row_attributes_df = df if not df.empty else None
+            colors = dict(cgm.row_attribute_colors or {})
+            colors.pop(ENRICH_COLUMN_NAME, None)
+            cgm.row_attribute_colors = colors
+            return
+
+        normalized = {str(g).lower() for g in term_genes}
+        membership = pd.Series("Out of term", index=index, dtype=object)
+        membership[index.str.lower().isin(normalized)] = "In term"
+        df[ENRICH_COLUMN_NAME] = membership
+
+        cgm.row_attributes_df = df
+        colors = dict(cgm.row_attribute_colors or {})
+        colors[ENRICH_COLUMN_NAME] = ENRICH_COLORS
+        cgm.row_attribute_colors = colors
 
     def _on_selected_genes(change):
         genes = change["new"] or []
@@ -101,6 +139,11 @@ def clustergram_enrich(
 
     cgm.observe(_on_selected_genes, names="selected_genes")
     cgm.observe(_on_click_info, names="click_info")
+
+    def _on_term_genes(change):
+        _update_enrichment_membership(change["new"] or [])
+
+    enrich.observe(_on_term_genes, names="term_genes")
 
     return HBox([cgm, enrich], layout=Layout(width="1000px"))
 

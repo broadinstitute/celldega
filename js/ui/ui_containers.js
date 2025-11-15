@@ -226,6 +226,16 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
   ui_container.appendChild(ctrl_container);
   ui_container.appendChild(slider_container);
 
+  const breakdown_container = flex_container('category_breakdown_container', 'column');
+  breakdown_container.style.width = '240px';
+  breakdown_container.style.marginLeft = '16px';
+  breakdown_container.style.padding = '8px';
+  breakdown_container.style.borderLeft = '1px solid #d3d3d3';
+  breakdown_container.style.boxSizing = 'border-box';
+
+  ui_container.appendChild(breakdown_container);
+  viz_state.ui_breakdown_container = breakdown_container;
+
   return ui_container;
 };
 

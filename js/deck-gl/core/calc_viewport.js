@@ -28,7 +28,7 @@ export const calc_viewport = async (
     return;
   }
 
-  const tileBounds = (() => {
+  const tile_bounds = (() => {
     if (!viz_state.rotation?.hasRotation) {
       return viz_state.bounds;
     }
@@ -52,10 +52,10 @@ export const calc_viewport = async (
   })();
 
   const tiles_in_view = visibleTiles(
-    tileBounds.min_x,
-    tileBounds.max_x,
-    tileBounds.min_y,
-    tileBounds.max_y,
+    tile_bounds.min_x,
+    tile_bounds.max_x,
+    tile_bounds.min_y,
+    tile_bounds.max_y,
     tile_size
   );
 

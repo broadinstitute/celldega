@@ -83,18 +83,21 @@ def test_manual_col_attribute_initializes_na() -> None:
     mat = make_simple_matrix()
     widget = Clustergram(matrix=mat, manual_col_cat=True)
 
+    config = json.loads(widget.manual_cat_config)
+    assert config["col"]["attribute"] == "manual_cat"
+
     widget.col_names = [f"col{i}" for i in range(4)]
 
     df = widget.col_attributes_df
     assert df is not None
-    assert "Manual column attribute" in df.columns
-    assert set(df["Manual column attribute"].unique()) == {"N.A."}
+    assert "manual_cat" in df.columns
+    assert set(df["manual_cat"].unique()) == {"N.A."}
 
     colors = widget.col_attribute_colors or {}
-    assert colors["Manual column attribute"]["N.A."] == "#d1d5db"
+    assert colors["manual_cat"]["N.A."] == "#d1d5db"
 
     payload = json.loads(widget.manual_cat)
-    assert "Manual column attribute" in payload["col"]
+    assert "manual_cat" in payload["col"]
     assert widget.category_colors.get("N.A.") == "#d1d5db"
 
 

@@ -25,8 +25,8 @@ _clustergram_registry = {}  # maps names to widget instances
 _enrich_registry = {}  # maps names to widget instances
 
 _MANUAL_ATTRIBUTE_TITLES = {
-    "row": "Manual row attribute",
-    "col": "Manual column attribute",
+    "row": "manual_cat",
+    "col": "manual_cat",
 }
 _MANUAL_FILL_VALUE = "N.A."
 _MANUAL_FILL_COLOR = "#d1d5db"
@@ -388,6 +388,13 @@ class DataFrameTrait(traitlets.TraitType):
             df = df.reindex(columns=columns)
         return df
 
+    def equal(self, old, new):  # noqa: D401 - traitlets signature
+        if old is None or new is None:
+            return old is None and new is None
+        if isinstance(old, pd.DataFrame) and isinstance(new, pd.DataFrame):
+            return old.equals(new)
+        return old is new
+
 
 class Enrich(anywidget.AnyWidget):
     """
@@ -633,29 +640,47 @@ class Clustergram(anywidget.AnyWidget):
         if updated:
             self.category_colors = deepcopy(self._category_colors)
 
+    def _ensure_manual_config_entry(self, axis: str) -> dict[str, object]:
+        normalized_axis = self._normalize_axis(axis)
+        config = self._load_manual_config(self.manual_cat_config)
+        entry = dict(config.get(normalized_axis) or {})
+        changed = False
+
+        if not entry.get("attribute"):
+            entry["attribute"] = _MANUAL_ATTRIBUTE_TITLES[normalized_axis]
+            changed = True
+
+        if entry.get("preferred") is None:
+            entry["preferred"] = []
+            changed = True
+
+        if "locked" not in entry:
+            entry["locked"] = True
+            changed = True
+
+        if config.get(normalized_axis) != entry:
+            config[normalized_axis] = entry
+            changed = True
+
+        if changed:
+            self.manual_cat_config = json.dumps(config)
+
+        self._manual_config = config
+        return entry
+
     def _maybe_initialize_manual_axis(self, axis: str) -> None:
         normalized_axis = self._normalize_axis(axis)
         if not self._manual_axis_enabled.get(normalized_axis):
             return
 
-        index = self._axis_index(normalized_axis)
-        if index.empty:
-            return
-
-        config_entry = self._manual_config.get(normalized_axis) or {}
+        config_entry = self._ensure_manual_config_entry(normalized_axis)
         attribute = config_entry.get("attribute") or _MANUAL_ATTRIBUTE_TITLES[
             normalized_axis
         ]
 
-        if not config_entry.get("attribute"):
-            config = self._load_manual_config(self.manual_cat_config)
-            config[normalized_axis] = {
-                "attribute": attribute,
-                "preferred": config_entry.get("preferred", []),
-                "locked": True,
-            }
-            self.manual_cat_config = json.dumps(config)
-            self._manual_config = config
+        index = self._axis_index(normalized_axis)
+        if index.empty:
+            return
 
         dataframe = self._get_axis_dataframe(normalized_axis)
         dataframe = dataframe.reindex(index)

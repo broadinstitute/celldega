@@ -418,6 +418,16 @@ export const update_manual_category_for_selection = (
   const frame = ensure_frame_payload(normalized_axis, viz_state);
   const colors = update_color_payload(normalized_axis, viz_state);
 
+  const nodes =
+    normalized_axis === 'row' ? viz_state.row_nodes : viz_state.col_nodes;
+  if (!Array.isArray(frame.index) || !frame.index.length) {
+    frame.index = (nodes || []).map((node) => String(node.name));
+  }
+  if (!frame.index_name) {
+    frame.index_name = normalized_axis === 'row' ? 'row_id' : 'col_id';
+  }
+  const index_labels = frame.index;
+
   if (!Array.isArray(frame.columns)) {
     frame.columns = [];
   }
@@ -427,14 +437,12 @@ export const update_manual_category_for_selection = (
 
   if (!frame.columns.includes(attribute_name)) {
     frame.columns.push(attribute_name);
-    frame.data[attribute_name] = Array(frame.index.length).fill(null);
+    frame.data[attribute_name] = Array(index_labels.length).fill(null);
   } else if (!frame.data[attribute_name]) {
-    frame.data[attribute_name] = Array(frame.index.length).fill(null);
+    frame.data[attribute_name] = Array(index_labels.length).fill(null);
   }
 
-  const index_lookup = new Map(
-    (frame.index || []).map((name, idx) => [String(name), idx])
-  );
+  const index_lookup = new Map(index_labels.map((name, idx) => [String(name), idx]));
 
   const normalized_value =
     category_value === null || category_value === undefined || category_value === ''

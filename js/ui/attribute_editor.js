@@ -257,9 +257,7 @@ export const initialize_attribute_editor = (viz_state, deck_mat, layers_mat) => 
     const configured_name = viz_state.manual_cat?.config?.[axis]?.attribute;
     const is_locked = Boolean(viz_state.manual_cat?.config?.[axis]?.locked);
     const default_attribute =
-      attribute_name ||
-      configured_name ||
-      (axis === 'col' ? 'Manual column attribute' : 'Manual row attribute');
+      attribute_name || configured_name || 'manual_cat';
 
     populate_preferred(axis);
 

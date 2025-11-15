@@ -640,6 +640,45 @@ class Clustergram(anywidget.AnyWidget):
         if updated:
             self.category_colors = deepcopy(self._category_colors)
 
+    def _default_manual_attribute_name(self, axis: str) -> str | None:
+        """Return the configured manual attribute name for an axis, if any."""
+
+        normalized_axis = self._normalize_axis(axis)
+        entry = (self._manual_config or {}).get(normalized_axis)
+        if entry is None and self._manual_axis_enabled.get(normalized_axis):
+            entry = self._ensure_manual_config_entry(normalized_axis)
+        attribute = (entry or {}).get("attribute")
+        return str(attribute) if attribute else None
+
+    def _is_default_manual_attribute(self, axis: str, attribute: str | None) -> bool:
+        if attribute is None:
+            return False
+        manual_name = self._default_manual_attribute_name(axis)
+        return bool(manual_name and str(attribute) == manual_name)
+
+    def _fill_manual_attribute_defaults(
+        self,
+        axis: str,
+        attribute: str,
+        dataframe: pd.DataFrame,
+        colors: dict[str, dict[str, str]],
+    ) -> None:
+        if not self._is_default_manual_attribute(axis, attribute):
+            return
+
+        if attribute not in dataframe.columns:
+            dataframe[attribute] = _MANUAL_FILL_VALUE
+        else:
+            dataframe[attribute] = dataframe[attribute].where(
+                dataframe[attribute].notna(), _MANUAL_FILL_VALUE
+            )
+
+        attr_colors = dict(colors.get(attribute) or {})
+        if attr_colors.get(_MANUAL_FILL_VALUE) != _MANUAL_FILL_COLOR:
+            attr_colors[_MANUAL_FILL_VALUE] = _MANUAL_FILL_COLOR
+            colors[attribute] = attr_colors
+            self._record_category_colors({_MANUAL_FILL_VALUE: _MANUAL_FILL_COLOR})
+
     def _ensure_manual_config_entry(self, axis: str) -> dict[str, object]:
         normalized_axis = self._normalize_axis(axis)
         config = self._load_manual_config(self.manual_cat_config)
@@ -810,9 +849,14 @@ class Clustergram(anywidget.AnyWidget):
             colors = dict(getattr(self, f"{axis}_attribute_colors") or {})
 
             incoming_attributes = set(axis_payload.keys())
+            default_attribute = self._default_manual_attribute_name(axis)
+            if default_attribute:
+                incoming_attributes.add(default_attribute)
             previous_attributes = set(self._manual_categories[axis])
 
             for attribute in previous_attributes - incoming_attributes:
+                if self._is_default_manual_attribute(axis, attribute):
+                    continue
                 if attribute in dataframe.columns:
                     dataframe = dataframe.drop(columns=[attribute])
                 colors.pop(attribute, None)
@@ -841,9 +885,18 @@ class Clustergram(anywidget.AnyWidget):
                     }
                     self._record_category_colors(colors_map)
 
+                self._fill_manual_attribute_defaults(axis, attribute, dataframe, colors)
+
+            if default_attribute:
+                self._fill_manual_attribute_defaults(
+                    axis, default_attribute, dataframe, colors
+                )
+
             # Remove columns that are entirely null
             for attribute in list(incoming_attributes):
                 if attribute in dataframe.columns and dataframe[attribute].isna().all():
+                    if self._is_default_manual_attribute(axis, attribute):
+                        continue
                     dataframe = dataframe.drop(columns=[attribute])
                     colors.pop(attribute, None)
                     incoming_attributes.discard(attribute)
@@ -1012,7 +1065,9 @@ class Clustergram(anywidget.AnyWidget):
             raise TypeError("assignments must be a pandas Series or mapping")
 
         series = pd.Series(mapping)
-        dataframe[attribute] = None
+        if attribute not in dataframe.columns:
+            dataframe[attribute] = None
+
         if not series.empty:
             series.index = series.index.map(str)
             aligned = dataframe.index.intersection(series.index)
@@ -1025,7 +1080,13 @@ class Clustergram(anywidget.AnyWidget):
             }
             self._record_category_colors(colors)
 
-        if attribute in dataframe.columns and dataframe[attribute].isna().all():
+        self._fill_manual_attribute_defaults(axis_name, attribute, dataframe, color_map)
+
+        if (
+            attribute in dataframe.columns
+            and dataframe[attribute].isna().all()
+            and not self._is_default_manual_attribute(axis_name, attribute)
+        ):
             dataframe = dataframe.drop(columns=[attribute])
             color_map.pop(attribute, None)
             self._manual_categories[axis_name].discard(attribute)
@@ -1057,6 +1118,13 @@ class Clustergram(anywidget.AnyWidget):
             targets = [str(attribute)]
 
         for attr in targets:
+            if self._is_default_manual_attribute(axis_name, attr):
+                if attr not in dataframe.columns:
+                    dataframe[attr] = None
+                self._fill_manual_attribute_defaults(axis_name, attr, dataframe, color_map)
+                self._manual_categories[axis_name].add(attr)
+                continue
+
             if attr in dataframe.columns:
                 dataframe = dataframe.drop(columns=[attr])
             color_map.pop(attr, None)
@@ -1070,13 +1138,31 @@ class Clustergram(anywidget.AnyWidget):
         finally:
             self._manual_sync_block = False
 
-    def get_manual_category(self, axis: str, attribute: str) -> pd.Series:
-        """Return a Series with manual category assignments for an attribute."""
+    def get_manual_category(
+        self, axis: str, attribute: str | None = None
+    ) -> pd.Series:
+        """Return manual category assignments for an axis/attribute."""
 
         axis_name = self._normalize_axis(axis)
+        target_attribute = (
+            str(attribute)
+            if attribute is not None
+            else self._default_manual_attribute_name(axis_name)
+        )
+        if not target_attribute:
+            raise KeyError(
+                f"Manual attribute is not configured for axis '{axis_name}'"
+            )
+
         dataframe = getattr(self, f"{axis_name}_attributes_df")
-        if dataframe is None or attribute not in dataframe.columns:
-            raise KeyError(f"Manual attribute '{attribute}' not found for axis '{axis_name}'")
-        series = dataframe[attribute].dropna()
+        if dataframe is None or target_attribute not in dataframe.columns:
+            raise KeyError(
+                f"Manual attribute '{target_attribute}' not found for axis '{axis_name}'"
+            )
+
+        series = dataframe[target_attribute].dropna()
+        if self._is_default_manual_attribute(axis_name, target_attribute):
+            series = series[series != _MANUAL_FILL_VALUE]
+
         series.index = series.index.map(str)
         return series

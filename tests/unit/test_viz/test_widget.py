@@ -101,6 +101,29 @@ def test_manual_col_attribute_initializes_na() -> None:
     assert widget.category_colors.get("N.A.") == "#d1d5db"
 
 
+def test_manual_category_preserves_assignments() -> None:
+    mat = make_simple_matrix()
+    widget = Clustergram(matrix=mat, manual_col_cat=True)
+    widget.col_names = [f"col{i}" for i in range(5)]
+
+    widget.apply_manual_category("col", "manual_cat", {"col0": "dog"})
+    widget.apply_manual_category("col", "manual_cat", {"col1": "cat"})
+
+    df = widget.col_attributes_df
+    assert df is not None
+    assert df.loc["col0", "manual_cat"] == "dog"
+    assert df.loc["col1", "manual_cat"] == "cat"
+    assert (df["manual_cat"] == "N.A.").sum() == len(df) - 2
+
+    series = widget.get_manual_category("col")
+    assert series.to_dict() == {"col0": "dog", "col1": "cat"}
+
+    widget.clear_manual_category("col", "manual_cat")
+    df = widget.col_attributes_df
+    assert df is not None
+    assert set(df["manual_cat"].unique()) == {"N.A."}
+
+
 def test_clustergram_category_colors_from_matrix() -> None:
     mat = make_simple_matrix()
     mat.set_global_cat_colors({"dog": "#123456"})

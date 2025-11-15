@@ -40,8 +40,8 @@ class CategoryBreakdown {
       button.style.background = 'transparent';
       button.style.border = 'none';
       button.style.padding = '0';
-      button.style.fontSize = '12px';
-      button.style.fontWeight = '600';
+      button.style.fontSize = '11px';
+      button.style.fontWeight = '700';
       button.style.letterSpacing = '0.08em';
       button.style.textTransform = 'uppercase';
       button.style.cursor = 'pointer';
@@ -50,18 +50,52 @@ class CategoryBreakdown {
       buttonRow.appendChild(button);
     });
 
+    this.attributeLabel = document.createElement('div');
+    this.attributeLabel.style.fontSize = '11px';
+    this.attributeLabel.style.fontWeight = '600';
+    this.attributeLabel.style.textTransform = 'uppercase';
+    this.attributeLabel.style.letterSpacing = '0.05em';
+    this.attributeLabel.style.color = '#4b5563';
+
     this.message = document.createElement('div');
     this.message.style.fontSize = '11px';
     this.message.style.color = '#6b7280';
     this.message.style.minHeight = '16px';
 
-    this.svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    this.svg.setAttribute('width', '150');
-    this.svg.style.display = 'none';
+    this.barContainer = document.createElement('div');
+    this.barContainer.className = 'bar_container';
+    this.barContainer.style.width = '120px';
+    this.barContainer.style.height = '140px';
+    this.barContainer.style.marginLeft = '4px';
+    this.barContainer.style.border = '1px solid #d3d3d3';
+    this.barContainer.style.borderRadius = '6px';
+    this.barContainer.style.overflowY = 'auto';
+    this.barContainer.style.background = '#ffffff';
+    this.barContainer.style.display = 'none';
+
+    this.barContainer.addEventListener('wheel', (event) => {
+      const { scrollTop, scrollHeight, clientHeight } = this.barContainer;
+      const atTop = scrollTop === 0;
+      const atBottom = scrollTop + clientHeight === scrollHeight;
+
+      if ((atTop && event.deltaY < 0) || (atBottom && event.deltaY > 0)) {
+        event.preventDefault();
+      }
+    });
+
+    const svgNode = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svgNode.setAttribute('width', '110');
+    this.barSvg = d3.select(svgNode);
+    this.barSvg
+      .attr('font-family', 'sans-serif')
+      .attr('font-size', 11)
+      .style('user-select', 'none');
+    this.barContainer.appendChild(svgNode);
 
     this.container.appendChild(buttonRow);
+    this.container.appendChild(this.attributeLabel);
     this.container.appendChild(this.message);
-    this.container.appendChild(this.svg);
+    this.container.appendChild(this.barContainer);
 
     this._update_axis_buttons();
 
@@ -163,13 +197,15 @@ class CategoryBreakdown {
   _render_axis(axis) {
     const attr_def = this._get_definition(axis);
     if (!attr_def || !Array.isArray(attr_def.values)) {
-      this.svg.style.display = 'none';
+      this.barContainer.style.display = 'none';
       this.message.style.display = 'block';
       this.message.textContent = `No categorical attributes for ${
         axis === 'row' ? 'rows' : 'columns'
       }`;
       return;
     }
+
+    this.attributeLabel.textContent = attr_def.name || 'manual_cat';
 
     const names = this.focus_names[axis] || [];
     const index_map = this.index_maps[axis];
@@ -194,7 +230,7 @@ class CategoryBreakdown {
     }
 
     if (!target_indices.length) {
-      this.svg.style.display = 'none';
+      this.barContainer.style.display = 'none';
       return;
     }
 
@@ -213,28 +249,29 @@ class CategoryBreakdown {
       .slice(0, DEFAULT_MAX_BARS);
 
     if (!sorted_entries.length) {
-      this.svg.style.display = 'none';
+      this.barContainer.style.display = 'none';
       this.message.style.display = 'block';
       this.message.textContent = 'No categories found for this selection';
       return;
     }
 
-    const width = 150;
-    const bar_height = 14;
+    const width = 110;
+    const bar_height = 15;
     const bar_gap = 4;
-    const chart_height = sorted_entries.length * (bar_height + bar_gap) + bar_gap;
+    const chart_height =
+      sorted_entries.length * (bar_height + bar_gap) + bar_gap + 4;
 
-    const svg = d3.select(this.svg);
+    const svg = this.barSvg;
     svg.selectAll('*').remove();
     svg.attr('width', width);
     svg.attr('height', chart_height);
-    svg.style.display = 'block';
+    this.barContainer.style.display = 'block';
 
     const max_value = d3.max(sorted_entries, (entry) => entry[1]) || 1;
     const x_scale = d3
       .scaleLinear()
       .domain([0, max_value])
-      .range([0, width - 16]);
+      .range([0, width - 20]);
 
     const color_map = attr_def.color_map || {};
 
@@ -243,12 +280,12 @@ class CategoryBreakdown {
       .data(sorted_entries)
       .join('g')
       .attr('transform', (_, idx) => `translate(4, ${
-        idx * (bar_height + bar_gap) + bar_gap / 2
+        idx * (bar_height + bar_gap) + bar_gap
       })`);
 
     groups
       .append('rect')
-      .attr('width', (entry) => x_scale(entry[1]))
+      .attr('width', (entry) => Math.max(2, x_scale(entry[1])))
       .attr('height', bar_height)
       .attr('rx', 3)
       .attr('fill', (entry) => color_map[entry[0]] || '#3b82f6');

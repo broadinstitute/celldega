@@ -384,48 +384,61 @@ export const update_color_payload = (axis, viz_state) =>
 
 const normalize_axis = (axis) => (axis === 'col' ? 'col' : 'row');
 
-const ensure_index_alignment = (axis, frame, viz_state) => {
-  const nodes = axis === 'row' ? viz_state.row_nodes : viz_state.col_nodes;
-  const node_names = (nodes || []).map((node) => String(node.name));
+export const apply_manual_definitions_to_axis = (viz_state, axis) => {
+  const normalized_axis = normalize_axis(axis);
+  const flags = viz_state.manual_cat?.flags || {};
+  const manual_store = viz_state.obs_store?.manual_cat?.[normalized_axis];
+  const frame = ensure_frame_payload(normalized_axis, viz_state);
+  const colors = update_color_payload(normalized_axis, viz_state);
 
-  let reset = false;
+  const attribute_name = manual_store?.attribute || null;
+  const configured_name =
+    viz_state.manual_cat?.config?.[normalized_axis]?.attribute || null;
+  const target_attribute = attribute_name || configured_name;
+  const is_enabled = !!(flags[normalized_axis] && attribute_name);
+  let did_change = false;
 
-  // If we don't have an index or lengths differ, we must reset.
-  if (!Array.isArray(frame.index) || frame.index.length !== node_names.length) {
-    reset = true;
-  } else {
-    // Normalize to strings and check if it really matches node_names
-    const normalized_index = frame.index.map((label) => String(label));
-    for (let i = 0; i < normalized_index.length; i += 1) {
-      if (normalized_index[i] !== node_names[i]) {
-        reset = true;
-        break;
+  const remove_manual_attribute = (target) => {
+    if (!target) {
+      return;
+    }
+    let removed = false;
+    if (Array.isArray(frame.columns)) {
+      const next_columns = frame.columns.filter((column) => column !== target);
+      if (next_columns.length !== frame.columns.length) {
+        removed = true;
+      }
+      frame.columns = next_columns;
+    }
+    if (frame.data) {
+      if (Object.prototype.hasOwnProperty.call(frame.data, target)) {
+        delete frame.data[target];
+        removed = true;
       }
     }
-    frame.index = normalized_index;
+    if (colors[target]) {
+      delete colors[target];
+      removed = true;
+    }
+    if (removed) {
+      did_change = true;
+    }
+  };
+
+  if (!is_enabled || !manual_store) {
+    remove_manual_attribute(target_attribute);
+    if (did_change) {
+      apply_attribute_frame(normalized_axis, frame, colors, viz_state);
+    }
+    return did_change;
   }
 
-  // If needed, overwrite with the true visualization order
-  if (reset) {
-    frame.index = node_names;
-    frame.index_name = axis === 'row' ? 'row_id' : 'col_id';
-  }
+  const manual_frame = manual_store.toFrame(MANUAL_FILL_VALUE);
+  const manual_colors = manual_store.toColorPayload(
+    MANUAL_FILL_VALUE,
+    MANUAL_FILL_COLOR
+  );
 
-  // Build lookup ONLY by label, not by positional index
-  const lookup = new Map();
-  frame.index.forEach((label, idx) => {
-    lookup.set(String(label), idx);
-  });
-
-  return lookup;
-};
-
-
-
-
-const ensure_manual_column_defaults = (frame, attribute_name, index_labels) => {
-  const normalized_labels = (index_labels || []).map((label) => String(label));
-  let did_change = false;
   if (!Array.isArray(frame.columns)) {
     frame.columns = [];
   }
@@ -433,191 +446,45 @@ const ensure_manual_column_defaults = (frame, attribute_name, index_labels) => {
     frame.data = {};
   }
 
+  const column = manual_frame.data[attribute_name] || [];
+  const existing = frame.data[attribute_name] || [];
   if (!frame.columns.includes(attribute_name)) {
     frame.columns.push(attribute_name);
-    frame.data[attribute_name] = Array(normalized_labels.length).fill(
-      MANUAL_FILL_VALUE
-    );
-    return true;
-  }
-
-  const existing = frame.data[attribute_name] || [];
-  const normalized = normalized_labels.map((_, idx) => {
-    const value = existing[idx];
-    if (value === null || value === undefined || value === '') {
-      if (value !== MANUAL_FILL_VALUE) {
-        did_change = true;
-      }
-      return MANUAL_FILL_VALUE;
-    }
-    const ensured = ensure_string(value);
-    if (ensured !== value) {
-      did_change = true;
-    }
-    return ensured;
-  });
-
-  if (frame.data[attribute_name]?.length !== normalized.length) {
     did_change = true;
-  } else {
-    for (let idx = 0; idx < normalized.length; idx += 1) {
-      if (frame.data[attribute_name][idx] !== normalized[idx]) {
-        did_change = true;
-        break;
-      }
-    }
   }
 
-  frame.data[attribute_name] = normalized;
+  if (existing.length !== column.length || existing.some((v, i) => v !== column[i])) {
+    frame.data[attribute_name] = column.slice();
+    did_change = true;
+  }
+
+  const current_colors = colors[attribute_name] || {};
+  const manual_color_map = manual_colors[attribute_name] || {};
+  const merged_colors = {
+    ...current_colors,
+    ...manual_color_map,
+  };
+  const merged_keys = Object.keys(merged_colors);
+  const color_changed = merged_keys.some((key) => current_colors[key] !== merged_colors[key]);
+  if (color_changed) {
+    colors[attribute_name] = merged_colors;
+    did_change = true;
+  }
+
+  const category_colors = viz_state.attr.category_colors || {};
+  merged_keys.forEach((value) => {
+    const hex = merged_colors[value];
+    if (value && hex && category_colors[value] !== hex) {
+      category_colors[value] = hex;
+    }
+  });
+  viz_state.attr.category_colors = category_colors;
+
+  if (did_change) {
+    apply_attribute_frame(normalized_axis, frame, colors, viz_state);
+  }
+
   return did_change;
-};
-
-const ensure_manual_color_entry = (colors, attribute_name) => {
-  let did_change = false;
-  if (!colors[attribute_name]) {
-    colors[attribute_name] = {};
-    did_change = true;
-  }
-  if (!colors[attribute_name][MANUAL_FILL_VALUE]) {
-    colors[attribute_name][MANUAL_FILL_VALUE] = MANUAL_FILL_COLOR;
-    did_change = true;
-  }
-  return did_change;
-};
-
-export const ensure_manual_attribute_presence = (viz_state, axis) => {
-  const normalized_axis = normalize_axis(axis);
-  const flags = viz_state.manual_cat?.flags || {};
-  const config = viz_state.manual_cat?.config || {};
-  if (!flags[normalized_axis]) {
-    return false;
-  }
-
-  const attribute_name = config[normalized_axis]?.attribute;
-  if (!attribute_name) {
-    return false;
-  }
-
-  const manual_store = viz_state.obs_store?.manual_cat?.[normalized_axis];
-  if (manual_store) {
-    manual_store.setAttribute(attribute_name);
-  }
-
-  const nodes =
-    normalized_axis === 'row' ? viz_state.row_nodes : viz_state.col_nodes;
-  if (!nodes || !nodes.length) {
-    return false;
-  }
-
-  const frame = ensure_frame_payload(normalized_axis, viz_state);
-  const colors = update_color_payload(normalized_axis, viz_state);
-
-  let index_labels = (frame.index || []).map((label) => String(label));
-  let did_change = false;
-  if (index_labels.length === 0) {
-    frame.index = nodes.map((node) => String(node.name));
-    frame.index_name = normalized_axis === 'row' ? 'row_id' : 'col_id';
-    did_change = true;
-    index_labels = frame.index;
-  } else if (index_labels.length !== nodes.length) {
-    frame.index = nodes.map((node) => String(node.name));
-    did_change = true;
-    index_labels = frame.index;
-  } else {
-    frame.index = index_labels;
-  }
-
-  const column_changed = ensure_manual_column_defaults(
-    frame,
-    attribute_name,
-    frame.index
-  );
-  const color_changed = ensure_manual_color_entry(colors, attribute_name);
-
-  did_change = did_change || column_changed || color_changed;
-
-  if (!did_change) {
-    return false;
-  }
-
-  apply_attribute_frame(normalized_axis, frame, colors, viz_state);
-  return true;
-};
-
-export const apply_manual_definitions_to_axis = (viz_state, axis) => {
-  const normalized_axis = normalize_axis(axis);
-  const flags = viz_state.manual_cat?.flags || {};
-  const manual_store = viz_state.obs_store?.manual_cat?.[normalized_axis];
-
-  if (!flags[normalized_axis] || !manual_store || !manual_store.attribute) {
-    return false;
-  }
-
-  const nodes = normalized_axis === 'row' ? viz_state.row_nodes : viz_state.col_nodes;
-  if (!nodes || nodes.length === 0) {
-    return false;
-  }
-
-  const frame = ensure_frame_payload(normalized_axis, viz_state);
-  const colors = update_color_payload(normalized_axis, viz_state);
-  const index_lookup = ensure_index_alignment(normalized_axis, frame, viz_state);
-
-  let did_change = false;
-  const attribute_name = manual_store.attribute;
-
-  if (ensure_manual_column_defaults(frame, attribute_name, frame.index)) {
-    did_change = true;
-  }
-
-  const column = frame.data[attribute_name] || [];
-
-  manual_store.values.forEach((value, name) => {
-    const idx = index_lookup.get(String(name));
-    if (idx === undefined) {
-      return;
-    }
-
-    const normalized_value =
-      value === null || value === undefined || value === ''
-        ? MANUAL_FILL_VALUE
-        : String(value);
-
-    if (column[idx] !== normalized_value) {
-      column[idx] = normalized_value;
-      did_change = true;
-    }
-  });
-
-  ensure_manual_color_entry(colors, attribute_name);
-  colors[attribute_name] = colors[attribute_name] || {};
-
-  manual_store.colors.forEach((hex, category_value) => {
-    if (!hex) {
-      return;
-    }
-    const normalized_hex = String(hex);
-    if (colors[attribute_name][category_value] !== normalized_hex) {
-      colors[attribute_name][category_value] = normalized_hex;
-      did_change = true;
-    }
-
-    if (
-      !viz_state.attr.category_colors ||
-      viz_state.attr.category_colors[category_value] !== normalized_hex
-    ) {
-      viz_state.attr.category_colors = {
-        ...(viz_state.attr.category_colors || {}),
-        [category_value]: normalized_hex,
-      };
-    }
-  });
-
-  if (!did_change) {
-    return false;
-  }
-
-  apply_attribute_frame(normalized_axis, frame, colors, viz_state);
-  return true;
 };
 
 export const sync_manual_category_from_payload = (payload, viz_state) => {

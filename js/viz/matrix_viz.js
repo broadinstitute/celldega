@@ -59,7 +59,6 @@ import { set_mat_constants } from '../matrix/set_constants';
 import {
   apply_attribute_frame,
   apply_manual_definitions_to_axis,
-  ensure_manual_attribute_presence,
   refresh_attribute_layers,
   sync_manual_category_from_payload,
 } from '../matrix/attr_state';
@@ -271,7 +270,7 @@ export const matrix_viz = async (
         viz_state.model.get('row_attribute_colors') || {},
         viz_state
       );
-      ensure_manual_attribute_presence(viz_state, 'row');
+      apply_manual_definitions_to_axis(viz_state, 'row');
       refresh_attribute_layers(deck_mat, layers_mat, viz_state);
       viz_state.category_breakdown?.update_available_attributes();
     };
@@ -283,7 +282,7 @@ export const matrix_viz = async (
         viz_state.model.get('col_attribute_colors') || {},
         viz_state
       );
-      ensure_manual_attribute_presence(viz_state, 'col');
+      apply_manual_definitions_to_axis(viz_state, 'col');
       refresh_attribute_layers(deck_mat, layers_mat, viz_state);
       viz_state.category_breakdown?.update_available_attributes();
     };
@@ -326,19 +325,23 @@ export const matrix_viz = async (
         parsed && typeof parsed === 'object' ? parsed : { row: null, col: null };
       viz_state.manual_cat.config.row = normalized.row || null;
       viz_state.manual_cat.config.col = normalized.col || null;
-
-      const seeded_row = ensure_manual_attribute_presence(viz_state, 'row');
-      const seeded_col = ensure_manual_attribute_presence(viz_state, 'col');
+      ['row', 'col'].forEach((axis) => {
+        const store = viz_state.obs_store?.manual_cat?.[axis];
+        const attribute_name = viz_state.manual_cat?.config?.[axis]?.attribute || null;
+        if (store) {
+          store.setAttribute(attribute_name);
+        }
+      });
       const applied_row = apply_manual_definitions_to_axis(viz_state, 'row');
       const applied_col = apply_manual_definitions_to_axis(viz_state, 'col');
       const dirty_axes = [];
-      if (seeded_row || applied_row) {
+      if (applied_row) {
         dirty_axes.push('row');
       }
-      if (seeded_col || applied_col) {
+      if (applied_col) {
         dirty_axes.push('col');
       }
-      if (seeded_row || seeded_col || applied_row || applied_col) {
+      if (applied_row || applied_col) {
         refresh_attribute_layers(deck_mat, layers_mat, viz_state);
         viz_state.category_breakdown?.update_available_attributes();
         if (dirty_axes.length) {
@@ -353,18 +356,27 @@ export const matrix_viz = async (
         col: !!viz_state.model.get('manual_col_cat'),
       };
 
-      const seeded_row = ensure_manual_attribute_presence(viz_state, 'row');
-      const seeded_col = ensure_manual_attribute_presence(viz_state, 'col');
+      ['row', 'col'].forEach((axis) => {
+        if (!viz_state.manual_cat.flags?.[axis]) {
+          return;
+        }
+        const store = viz_state.obs_store?.manual_cat?.[axis];
+        const attribute_name = viz_state.manual_cat?.config?.[axis]?.attribute || null;
+        if (store) {
+          store.setAttribute(attribute_name);
+        }
+      });
+
       const applied_row = apply_manual_definitions_to_axis(viz_state, 'row');
       const applied_col = apply_manual_definitions_to_axis(viz_state, 'col');
       const dirty_axes = [];
-      if (seeded_row || applied_row) {
+      if (applied_row) {
         dirty_axes.push('row');
       }
-      if (seeded_col || applied_col) {
+      if (applied_col) {
         dirty_axes.push('col');
       }
-      if (seeded_row || seeded_col || applied_row || applied_col) {
+      if (applied_row || applied_col) {
         refresh_attribute_layers(deck_mat, layers_mat, viz_state);
         viz_state.category_breakdown?.update_available_attributes();
         if (dirty_axes.length) {

@@ -260,7 +260,11 @@ export const matrix_viz = async (
 
     const apply_manual_payload = () => {
       const payload = viz_state.model.get('manual_cat');
-      sync_manual_category_from_payload(payload, viz_state);
+      const applied = sync_manual_category_from_payload(payload, viz_state);
+      if (applied) {
+        refresh_attribute_layers(deck_mat, layers_mat, viz_state);
+        viz_state.category_breakdown?.update_available_attributes();
+      }
     };
 
     const apply_manual_config = () => {

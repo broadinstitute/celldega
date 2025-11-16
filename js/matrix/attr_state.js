@@ -384,6 +384,20 @@ export const update_color_payload = (axis, viz_state) =>
 
 const normalize_axis = (axis) => (axis === 'col' ? 'col' : 'row');
 
+const ensure_index_alignment = (axis, frame, viz_state) => {
+  const nodes = axis === 'row' ? viz_state.row_nodes : viz_state.col_nodes;
+  const node_names = (nodes || []).map((node) => String(node.name));
+
+  if (!Array.isArray(frame.index) || frame.index.length !== node_names.length) {
+    frame.index = node_names;
+    frame.index_name = axis === 'row' ? 'row_id' : 'col_id';
+  } else {
+    frame.index = frame.index.map((label) => String(label));
+  }
+
+  return new Map(frame.index.map((label, idx) => [label, idx]));
+};
+
 const ensure_manual_store = (viz_state, axis) => {
   if (!viz_state.manual_cat) {
     viz_state.manual_cat = {
@@ -631,6 +645,85 @@ export const ensure_manual_attribute_presence = (viz_state, axis) => {
   return true;
 };
 
+const apply_manual_definitions_to_axis = (viz_state, axis) => {
+  const normalized_axis = normalize_axis(axis);
+  const definitions = viz_state.manual_cat?.definitions?.[normalized_axis] || {};
+  const flags = viz_state.manual_cat?.flags || {};
+  if (!flags[normalized_axis] || Object.keys(definitions).length === 0) {
+    return false;
+  }
+
+  const nodes = normalized_axis === 'row' ? viz_state.row_nodes : viz_state.col_nodes;
+  if (!nodes || nodes.length === 0) {
+    return false;
+  }
+
+  const frame = ensure_frame_payload(normalized_axis, viz_state);
+  const colors = update_color_payload(normalized_axis, viz_state);
+  const index_lookup = ensure_index_alignment(normalized_axis, frame, viz_state);
+
+  let did_change = false;
+
+  Object.entries(definitions).forEach(([attribute_name, entry]) => {
+    const values = entry?.values || {};
+    const color_map = entry?.colors || {};
+
+    if (ensure_manual_column_defaults(frame, attribute_name, frame.index)) {
+      did_change = true;
+    }
+
+    const column = frame.data[attribute_name] || [];
+
+    Object.entries(values).forEach(([name, value]) => {
+      const idx = index_lookup.get(String(name));
+      if (idx === undefined) {
+        return;
+      }
+
+      const normalized_value =
+        value === null || value === undefined || value === ''
+          ? MANUAL_FILL_VALUE
+          : String(value);
+
+      if (column[idx] !== normalized_value) {
+        column[idx] = normalized_value;
+        did_change = true;
+      }
+    });
+
+    ensure_manual_color_entry(colors, attribute_name);
+    colors[attribute_name] = colors[attribute_name] || {};
+
+    Object.entries(color_map).forEach(([category_value, hex]) => {
+      if (!hex) {
+        return;
+      }
+      const normalized_hex = String(hex);
+      if (colors[attribute_name][category_value] !== normalized_hex) {
+        colors[attribute_name][category_value] = normalized_hex;
+        did_change = true;
+      }
+
+      if (
+        !viz_state.attr.category_colors ||
+        viz_state.attr.category_colors[category_value] !== normalized_hex
+      ) {
+        viz_state.attr.category_colors = {
+          ...(viz_state.attr.category_colors || {}),
+          [category_value]: normalized_hex,
+        };
+      }
+    });
+  });
+
+  if (!did_change) {
+    return false;
+  }
+
+  apply_attribute_frame(normalized_axis, frame, colors, viz_state);
+  return true;
+};
+
 export const sync_manual_category_from_payload = (payload, viz_state) => {
   if (!viz_state.manual_cat) {
     ensure_manual_store(viz_state, 'row');
@@ -639,7 +732,7 @@ export const sync_manual_category_from_payload = (payload, viz_state) => {
 
   if (viz_state.manual_cat.self_update) {
     viz_state.manual_cat.self_update = false;
-    return;
+    return false;
   }
 
   let parsed = payload;
@@ -652,10 +745,11 @@ export const sync_manual_category_from_payload = (payload, viz_state) => {
   }
 
   if (!parsed || typeof parsed !== 'object') {
-    return;
+    return false;
   }
 
   const definitions = viz_state.manual_cat.definitions;
+  let did_change = false;
   ['row', 'col'].forEach((axis) => {
     const axis_payload = parsed[axis] || {};
     const axis_store = {};
@@ -669,6 +763,15 @@ export const sync_manual_category_from_payload = (payload, viz_state) => {
       };
     });
 
+    const previous = definitions[axis] || {};
     definitions[axis] = axis_store;
+    if (!did_change && JSON.stringify(previous) !== JSON.stringify(axis_store)) {
+      did_change = true;
+    }
   });
+
+  const applied_row = apply_manual_definitions_to_axis(viz_state, 'row');
+  const applied_col = apply_manual_definitions_to_axis(viz_state, 'col');
+
+  return did_change || applied_row || applied_col;
 };

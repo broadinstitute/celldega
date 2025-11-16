@@ -198,6 +198,7 @@ export const initialize_attr_state = (viz_state, network) => {
     config: { row: null, col: null },
     self_update: false,
     flags: { row: false, col: false },
+    pending_axes: { row: false, col: false },
   };
 
   viz_state.attr.static_defs.row = build_static_definitions(
@@ -404,6 +405,7 @@ const ensure_manual_store = (viz_state, axis) => {
       definitions: { row: {}, col: {} },
       config: { row: null, col: null },
       self_update: false,
+      pending_axes: { row: false, col: false },
     };
   } else {
     viz_state.manual_cat.definitions = viz_state.manual_cat.definitions || {
@@ -413,6 +415,10 @@ const ensure_manual_store = (viz_state, axis) => {
     viz_state.manual_cat.config = viz_state.manual_cat.config || {
       row: null,
       col: null,
+    };
+    viz_state.manual_cat.pending_axes = viz_state.manual_cat.pending_axes || {
+      row: false,
+      col: false,
     };
   }
 
@@ -645,12 +651,28 @@ export const ensure_manual_attribute_presence = (viz_state, axis) => {
   return true;
 };
 
-const apply_manual_definitions_to_axis = (viz_state, axis) => {
+export const apply_manual_definitions_to_axis = (viz_state, axis) => {
   const normalized_axis = normalize_axis(axis);
   const definitions = viz_state.manual_cat?.definitions?.[normalized_axis] || {};
   const flags = viz_state.manual_cat?.flags || {};
-  if (!flags[normalized_axis] || Object.keys(definitions).length === 0) {
+  const pending = viz_state.manual_cat?.pending_axes || {};
+
+  if (Object.keys(definitions).length === 0) {
+    if (pending[normalized_axis]) {
+      pending[normalized_axis] = false;
+    }
     return false;
+  }
+
+  if (!flags[normalized_axis]) {
+    if (pending) {
+      pending[normalized_axis] = true;
+    }
+    return false;
+  }
+
+  if (pending) {
+    pending[normalized_axis] = false;
   }
 
   const nodes = normalized_axis === 'row' ? viz_state.row_nodes : viz_state.col_nodes;

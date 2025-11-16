@@ -58,6 +58,7 @@ import { set_mat_data } from '../matrix/mat_data';
 import { set_mat_constants } from '../matrix/set_constants';
 import {
   apply_attribute_frame,
+  apply_manual_definitions_to_axis,
   ensure_manual_attribute_presence,
   refresh_attribute_layers,
   sync_manual_category_from_payload,
@@ -285,7 +286,9 @@ export const matrix_viz = async (
 
       const seeded_row = ensure_manual_attribute_presence(viz_state, 'row');
       const seeded_col = ensure_manual_attribute_presence(viz_state, 'col');
-      if (seeded_row || seeded_col) {
+      const applied_row = apply_manual_definitions_to_axis(viz_state, 'row');
+      const applied_col = apply_manual_definitions_to_axis(viz_state, 'col');
+      if (seeded_row || seeded_col || applied_row || applied_col) {
         refresh_attribute_layers(deck_mat, layers_mat, viz_state);
         viz_state.category_breakdown?.update_available_attributes();
       }
@@ -299,7 +302,9 @@ export const matrix_viz = async (
 
       const seeded_row = ensure_manual_attribute_presence(viz_state, 'row');
       const seeded_col = ensure_manual_attribute_presence(viz_state, 'col');
-      if (seeded_row || seeded_col) {
+      const applied_row = apply_manual_definitions_to_axis(viz_state, 'row');
+      const applied_col = apply_manual_definitions_to_axis(viz_state, 'col');
+      if (seeded_row || seeded_col || applied_row || applied_col) {
         refresh_attribute_layers(deck_mat, layers_mat, viz_state);
         viz_state.category_breakdown?.update_available_attributes();
       }

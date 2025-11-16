@@ -136,6 +136,13 @@ const update_combined_attr_defs = (viz_state) => {
       ...(viz_state.attr.editable_defs?.[axis] || []),
     ];
 
+    if (axis === 'col') {
+      console.log('editable_defs:::', viz_state.attr.editable_defs)
+      console.log(combined_defs)
+
+      console.log('viz_state.manual_cat.definitions', viz_state.manual_cat.definitions)
+    }
+
     viz_state.attr.all_defs[axis] = combined_defs;
     viz_state.attr.names[axis] = combined_defs.map((definition) => definition.name);
     viz_state.attr.maxabs[axis] = combined_defs.map((definition) =>
@@ -385,6 +392,46 @@ export const update_color_payload = (axis, viz_state) =>
 
 const normalize_axis = (axis) => (axis === 'col' ? 'col' : 'row');
 
+// const ensure_index_alignment = (axis, frame, viz_state) => {
+//   const nodes = axis === 'row' ? viz_state.row_nodes : viz_state.col_nodes;
+//   const node_names = (nodes || []).map((node) => String(node.name));
+
+//   if (!Array.isArray(frame.index) || frame.index.length !== node_names.length) {
+//     frame.index = node_names;
+//     frame.index_name = axis === 'row' ? 'row_id' : 'col_id';
+//   } else {
+//     frame.index = frame.index.map((label) => String(label));
+//   }
+
+//   return new Map(frame.index.map((label, idx) => [label, idx]));
+// };
+
+// // ChatGPT Rewrite
+// const ensure_index_alignment = (axis, frame, viz_state) => {
+//   console.log('here')
+//   const nodes = axis === 'row' ? viz_state.row_nodes : viz_state.col_nodes;
+//   const node_names = (nodes || []).map((node) => String(node.name));
+
+//   if (!Array.isArray(frame.index) || frame.index.length !== node_names.length) {
+//     frame.index = node_names;
+//     frame.index_name = axis === 'row' ? 'row_id' : 'col_id';
+//   } else {
+//     frame.index = frame.index.map((label) => String(label));
+//   }
+
+//   // Build a lookup that works for both label-based and index-based keys
+//   const lookup = new Map();
+//   frame.index.forEach((label, idx) => {
+//     // by label (e.g. "4" or "Sample_A")
+//     lookup.set(String(label), idx);
+//     // by positional index ("0", "1", ...)
+//     lookup.set(String(idx), idx);
+//   });
+
+//   return lookup;
+// };
+
+// ChatGPT Rewrite 2
 const ensure_index_alignment = (axis, frame, viz_state) => {
   const nodes = axis === 'row' ? viz_state.row_nodes : viz_state.col_nodes;
   const node_names = (nodes || []).map((node) => String(node.name));
@@ -396,8 +443,18 @@ const ensure_index_alignment = (axis, frame, viz_state) => {
     frame.index = frame.index.map((label) => String(label));
   }
 
-  return new Map(frame.index.map((label, idx) => [label, idx]));
+  const lookup = new Map();
+  frame.index.forEach((label, idx) => {
+    // by label
+    lookup.set(String(label), idx);
+    // by positional index
+    lookup.set(String(idx), idx);
+  });
+
+  return lookup;
 };
+
+
 
 const ensure_manual_store = (viz_state, axis) => {
   if (!viz_state.manual_cat) {
@@ -500,52 +557,22 @@ export const update_manual_category_for_selection = (
   color_hex
 ) => {
   const normalized_axis = normalize_axis(axis);
-  const frame = ensure_frame_payload(normalized_axis, viz_state);
-  const colors = update_color_payload(normalized_axis, viz_state);
 
-  const nodes =
-    normalized_axis === 'row' ? viz_state.row_nodes : viz_state.col_nodes;
-  if (!Array.isArray(frame.index) || !frame.index.length) {
-    frame.index = (nodes || []).map((node) => String(node.name));
-  }
-  if (!frame.index_name) {
-    frame.index_name = normalized_axis === 'row' ? 'row_id' : 'col_id';
-  }
-  const index_labels = frame.index;
-
-  ensure_manual_column_defaults(frame, attribute_name, index_labels);
-
-  const index_lookup = new Map(index_labels.map((name, idx) => [String(name), idx]));
-
-  const normalized_value =
-    category_value === null || category_value === undefined || category_value === ''
-      ? null
-      : String(category_value);
-
-  selection.forEach((name) => {
-    const idx = index_lookup.get(String(name));
-    if (idx === undefined) {
-      return;
-    }
-    const stored_value =
-      normalized_value === null ? MANUAL_FILL_VALUE : normalized_value;
-    frame.data[attribute_name][idx] = stored_value;
-  });
-
-  ensure_manual_color_entry(colors, attribute_name);
-
-  if (normalized_value) {
-    colors[attribute_name][normalized_value] = color_hex;
-  }
-
-  apply_attribute_frame(normalized_axis, frame, colors, viz_state);
-
+  // --- 1. Update the manual_cat.definitions store (canonical state) ---
   const store = ensure_manual_store(viz_state, normalized_axis);
   const manual_entry = store[attribute_name] || { values: {}, colors: {} };
+
   manual_entry.values = manual_entry.values || {};
   manual_entry.colors = manual_entry.colors || {};
 
-  selection.forEach((name) => {
+  const normalized_value =
+    category_value === null ||
+    category_value === undefined ||
+    category_value === ''
+      ? null
+      : String(category_value);
+
+  (selection || []).forEach((name) => {
     const key = String(name);
     if (normalized_value) {
       manual_entry.values[key] = normalized_value;
@@ -555,7 +582,7 @@ export const update_manual_category_for_selection = (
   });
 
   if (normalized_value && color_hex) {
-    manual_entry.colors[normalized_value] = color_hex;
+    manual_entry.colors[normalized_value] = String(color_hex);
   }
 
   if (Object.keys(manual_entry.values).length === 0) {
@@ -564,8 +591,26 @@ export const update_manual_category_for_selection = (
     store[attribute_name] = manual_entry;
   }
 
+  // --- 2. Apply definitions to this axis using the *same* code path
+  // used on rebuild / sync from manual_cat payload.
+  const applied = apply_manual_definitions_to_axis(viz_state, normalized_axis);
+
+  // Even if nothing changed (e.g. identical value), we still want to
+  // return the current frame/colors for traitlet sync.
+  const frame = ensure_frame_payload(normalized_axis, viz_state);
+  const colors = update_color_payload(normalized_axis, viz_state);
+
+  // Keep global category_colors in sync for future UI use
+  if (normalized_value && color_hex) {
+    viz_state.attr.category_colors = {
+      ...(viz_state.attr.category_colors || {}),
+      [normalized_value]: String(color_hex),
+    };
+  }
+
   return { frame, colors };
 };
+
 
 export const export_manual_category_payload = (viz_state) => {
   if (!viz_state.manual_cat || !viz_state.manual_cat.definitions) {

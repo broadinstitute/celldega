@@ -354,15 +354,19 @@ export const initialize_attribute_editor = (viz_state, deck_mat, layers_mat) => 
     );
 
     if (viz_state.model) {
+      // Push the already-up-to-date frame/colors into the widget traits
       viz_state.model.set(`${context.axis}_attributes_df`, frame);
       viz_state.model.set(`${context.axis}_attribute_colors`, colors);
-      viz_state.manual_cat.self_update = true;
+
+      // IMPORTANT: we *do not* set self_update here – we WANT the
+      // manual_cat listener to run in other front-ends if they exist.
       viz_state.model.set(
         'manual_cat',
         JSON.stringify(export_manual_category_payload(viz_state))
       );
       viz_state.model.save_changes();
     }
+
 
     if (value) {
       viz_state.attr.category_colors = {

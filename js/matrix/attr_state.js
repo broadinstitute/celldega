@@ -17,6 +17,9 @@ const FALLBACK_COLORS = [
   '#17becf',
 ];
 
+const MANUAL_FILL_VALUE = 'N.A.';
+const MANUAL_FILL_COLOR = '#d1d5db';
+
 const clone = (value) => JSON.parse(JSON.stringify(value));
 
 const ensure_string = (value) =>
@@ -406,6 +409,68 @@ const ensure_manual_store = (viz_state, axis) => {
   return viz_state.manual_cat.definitions[normalized];
 };
 
+const ensure_manual_column_defaults = (frame, attribute_name, index_labels) => {
+  const normalized_labels = (index_labels || []).map((label) => String(label));
+  let did_change = false;
+  if (!Array.isArray(frame.columns)) {
+    frame.columns = [];
+  }
+  if (!frame.data) {
+    frame.data = {};
+  }
+
+  if (!frame.columns.includes(attribute_name)) {
+    frame.columns.push(attribute_name);
+    frame.data[attribute_name] = Array(normalized_labels.length).fill(
+      MANUAL_FILL_VALUE
+    );
+    return true;
+  }
+
+  const existing = frame.data[attribute_name] || [];
+  const normalized = normalized_labels.map((_, idx) => {
+    const value = existing[idx];
+    if (value === null || value === undefined || value === '') {
+      if (value !== MANUAL_FILL_VALUE) {
+        did_change = true;
+      }
+      return MANUAL_FILL_VALUE;
+    }
+    const ensured = ensure_string(value);
+    if (ensured !== value) {
+      did_change = true;
+    }
+    return ensured;
+  });
+
+  if (frame.data[attribute_name]?.length !== normalized.length) {
+    did_change = true;
+  } else {
+    for (let idx = 0; idx < normalized.length; idx += 1) {
+      if (frame.data[attribute_name][idx] !== normalized[idx]) {
+        did_change = true;
+        break;
+      }
+    }
+  }
+
+  frame.data[attribute_name] = normalized;
+  return did_change;
+};
+
+const ensure_manual_color_entry = (colors, attribute_name) => {
+  let did_change = false;
+  if (!colors[attribute_name]) {
+    colors[attribute_name] = {};
+    did_change = true;
+  }
+  if (!colors[attribute_name][MANUAL_FILL_VALUE]) {
+    colors[attribute_name][MANUAL_FILL_VALUE] = MANUAL_FILL_COLOR;
+    did_change = true;
+  }
+  return did_change;
+};
+
 export const update_manual_category_for_selection = (
   viz_state,
   axis,
@@ -428,19 +493,7 @@ export const update_manual_category_for_selection = (
   }
   const index_labels = frame.index;
 
-  if (!Array.isArray(frame.columns)) {
-    frame.columns = [];
-  }
-  if (!frame.data) {
-    frame.data = {};
-  }
-
-  if (!frame.columns.includes(attribute_name)) {
-    frame.columns.push(attribute_name);
-    frame.data[attribute_name] = Array(index_labels.length).fill(null);
-  } else if (!frame.data[attribute_name]) {
-    frame.data[attribute_name] = Array(index_labels.length).fill(null);
-  }
+  ensure_manual_column_defaults(frame, attribute_name, index_labels);
 
   const index_lookup = new Map(index_labels.map((name, idx) => [String(name), idx]));
 
@@ -454,13 +507,15 @@ export const update_manual_category_for_selection = (
     if (idx === undefined) {
       return;
     }
-    frame.data[attribute_name][idx] = normalized_value;
+    const stored_value =
+      normalized_value === null ? MANUAL_FILL_VALUE : normalized_value;
+    frame.data[attribute_name][idx] = stored_value;
   });
 
+  ensure_manual_color_entry(colors, attribute_name);
+
   if (normalized_value) {
-    const attr_colors = colors[attribute_name] || {};
-    attr_colors[normalized_value] = color_hex;
-    colors[attribute_name] = attr_colors;
+    colors[attribute_name][normalized_value] = color_hex;
   }
 
   apply_attribute_frame(normalized_axis, frame, colors, viz_state);
@@ -520,6 +575,60 @@ export const export_manual_category_payload = (viz_state) => {
     row: build_axis_export('row'),
     col: build_axis_export('col'),
   };
+};
+
+export const ensure_manual_attribute_presence = (viz_state, axis) => {
+  const normalized_axis = normalize_axis(axis);
+  const flags = viz_state.manual_cat?.flags || {};
+  const config = viz_state.manual_cat?.config || {};
+  if (!flags[normalized_axis]) {
+    return false;
+  }
+
+  const attribute_name = config[normalized_axis]?.attribute;
+  if (!attribute_name) {
+    return false;
+  }
+
+  const nodes =
+    normalized_axis === 'row' ? viz_state.row_nodes : viz_state.col_nodes;
+  if (!nodes || !nodes.length) {
+    return false;
+  }
+
+  const frame = ensure_frame_payload(normalized_axis, viz_state);
+  const colors = update_color_payload(normalized_axis, viz_state);
+
+  let index_labels = (frame.index || []).map((label) => String(label));
+  let did_change = false;
+  if (index_labels.length === 0) {
+    frame.index = nodes.map((node) => String(node.name));
+    frame.index_name = normalized_axis === 'row' ? 'row_id' : 'col_id';
+    did_change = true;
+    index_labels = frame.index;
+  } else if (index_labels.length !== nodes.length) {
+    frame.index = nodes.map((node) => String(node.name));
+    did_change = true;
+    index_labels = frame.index;
+  } else {
+    frame.index = index_labels;
+  }
+
+  const column_changed = ensure_manual_column_defaults(
+    frame,
+    attribute_name,
+    frame.index
+  );
+  const color_changed = ensure_manual_color_entry(colors, attribute_name);
+
+  did_change = did_change || column_changed || color_changed;
+
+  if (!did_change) {
+    return false;
+  }
+
+  apply_attribute_frame(normalized_axis, frame, colors, viz_state);
+  return true;
 };
 
 export const sync_manual_category_from_payload = (payload, viz_state) => {

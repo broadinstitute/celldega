@@ -58,6 +58,7 @@ import { set_mat_data } from '../matrix/mat_data';
 import { set_mat_constants } from '../matrix/set_constants';
 import {
   apply_attribute_frame,
+  ensure_manual_attribute_presence,
   refresh_attribute_layers,
   sync_manual_category_from_payload,
 } from '../matrix/attr_state';
@@ -222,6 +223,7 @@ export const matrix_viz = async (
         viz_state.model.get('row_attribute_colors') || {},
         viz_state
       );
+      ensure_manual_attribute_presence(viz_state, 'row');
       refresh_attribute_layers(deck_mat, layers_mat, viz_state);
       viz_state.category_breakdown?.update_available_attributes();
     };
@@ -233,6 +235,7 @@ export const matrix_viz = async (
         viz_state.model.get('col_attribute_colors') || {},
         viz_state
       );
+      ensure_manual_attribute_presence(viz_state, 'col');
       refresh_attribute_layers(deck_mat, layers_mat, viz_state);
       viz_state.category_breakdown?.update_available_attributes();
     };
@@ -275,6 +278,13 @@ export const matrix_viz = async (
         parsed && typeof parsed === 'object' ? parsed : { row: null, col: null };
       viz_state.manual_cat.config.row = normalized.row || null;
       viz_state.manual_cat.config.col = normalized.col || null;
+
+      const seeded_row = ensure_manual_attribute_presence(viz_state, 'row');
+      const seeded_col = ensure_manual_attribute_presence(viz_state, 'col');
+      if (seeded_row || seeded_col) {
+        refresh_attribute_layers(deck_mat, layers_mat, viz_state);
+        viz_state.category_breakdown?.update_available_attributes();
+      }
     };
 
     const apply_manual_flags = () => {
@@ -282,6 +292,13 @@ export const matrix_viz = async (
         row: !!viz_state.model.get('manual_row_cat'),
         col: !!viz_state.model.get('manual_col_cat'),
       };
+
+      const seeded_row = ensure_manual_attribute_presence(viz_state, 'row');
+      const seeded_col = ensure_manual_attribute_presence(viz_state, 'col');
+      if (seeded_row || seeded_col) {
+        refresh_attribute_layers(deck_mat, layers_mat, viz_state);
+        viz_state.category_breakdown?.update_available_attributes();
+      }
     };
 
     const apply_category_colors = () => {

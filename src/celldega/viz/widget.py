@@ -24,7 +24,7 @@ import traitlets
 _clustergram_registry = {}  # maps names to widget instances
 _enrich_registry = {}  # maps names to widget instances
 
-_MANUAL_ATTRIBUTE_TITLES = {
+_DEFAULT_MANUAL_ATTRIBUTE_TITLES = {
     "row": "manual_cat",
     "col": "manual_cat",
 }
@@ -396,6 +396,23 @@ class DataFrameTrait(traitlets.TraitType):
         return old is new
 
 
+class ManualAttributeTrait(traitlets.Unicode):
+    """Traitlet for configuring manual attribute names via bools or strings."""
+
+    def __init__(self, *, default_name: str, **kwargs):
+        self._default_name = default_name
+        super().__init__(default_value="", **kwargs)
+
+    def validate(self, obj, value):  # noqa: D401 - traitlets signature
+        if value is None:
+            return ""
+        if isinstance(value, bool):
+            return self._default_name if value else ""
+        if isinstance(value, str):
+            return super().validate(obj, value.strip())
+        return super().validate(obj, str(value).strip())
+
+
 class Enrich(anywidget.AnyWidget):
     """
     A widget for interactive enrichment analysis using the Enrichr API.
@@ -507,8 +524,12 @@ class Clustergram(anywidget.AnyWidget):
     col_attributes_df = DataFrameTrait(allow_none=True).tag(sync=True)
     row_attribute_colors = traitlets.Dict(default_value={}).tag(sync=True)
     col_attribute_colors = traitlets.Dict(default_value={}).tag(sync=True)
-    manual_row_cat = traitlets.Bool(False).tag(sync=True)
-    manual_col_cat = traitlets.Bool(False).tag(sync=True)
+    manual_row_cat = ManualAttributeTrait(
+        default_name=_DEFAULT_MANUAL_ATTRIBUTE_TITLES["row"]
+    ).tag(sync=True)
+    manual_col_cat = ManualAttributeTrait(
+        default_name=_DEFAULT_MANUAL_ATTRIBUTE_TITLES["col"]
+    ).tag(sync=True)
     category_colors = traitlets.Dict(default_value={}).tag(sync=True)
     manual_cat = traitlets.Unicode("{}").tag(sync=True)
     manual_cat_config = traitlets.Unicode("{}").tag(sync=True)
@@ -524,8 +545,8 @@ class Clustergram(anywidget.AnyWidget):
             )
 
         # Allow fallback via a 'matrix' kwarg
-        manual_row_flag = bool(kwargs.pop("manual_row_cat", False))
-        manual_col_flag = bool(kwargs.pop("manual_col_cat", False))
+        manual_row_flag = kwargs.pop("manual_row_cat", "")
+        manual_col_flag = kwargs.pop("manual_col_cat", "")
 
         if pq_data is None:
             matrix = kwargs.pop("matrix", None)
@@ -570,7 +591,14 @@ class Clustergram(anywidget.AnyWidget):
         self._manual_sync_block = False
         self._manual_categories = {"row": set(), "col": set()}
         self._manual_config = {"row": None, "col": None}
-        self._manual_axis_enabled = {"row": bool(self.manual_row_cat), "col": bool(self.manual_col_cat)}
+        self._manual_attribute_titles = {
+            "row": self.manual_row_cat or _DEFAULT_MANUAL_ATTRIBUTE_TITLES["row"],
+            "col": self.manual_col_cat or _DEFAULT_MANUAL_ATTRIBUTE_TITLES["col"],
+        }
+        self._manual_axis_enabled = {
+            "row": bool(self.manual_row_cat),
+            "col": bool(self.manual_col_cat),
+        }
 
         base_colors = dict(self.network_meta.get("global_cat_colors", {}))
         if getattr(self, "category_colors", None):
@@ -648,7 +676,11 @@ class Clustergram(anywidget.AnyWidget):
         if entry is None and self._manual_axis_enabled.get(normalized_axis):
             entry = self._ensure_manual_config_entry(normalized_axis)
         attribute = (entry or {}).get("attribute")
-        return str(attribute) if attribute else None
+        if attribute:
+            return str(attribute)
+        if self._manual_axis_enabled.get(normalized_axis):
+            return self._manual_attribute_titles.get(normalized_axis)
+        return None
 
     def _is_default_manual_attribute(self, axis: str, attribute: str | None) -> bool:
         if attribute is None:
@@ -686,7 +718,7 @@ class Clustergram(anywidget.AnyWidget):
         changed = False
 
         if not entry.get("attribute"):
-            entry["attribute"] = _MANUAL_ATTRIBUTE_TITLES[normalized_axis]
+            entry["attribute"] = self._manual_attribute_titles[normalized_axis]
             changed = True
 
         if entry.get("preferred") is None:
@@ -713,9 +745,10 @@ class Clustergram(anywidget.AnyWidget):
             return
 
         config_entry = self._ensure_manual_config_entry(normalized_axis)
-        attribute = config_entry.get("attribute") or _MANUAL_ATTRIBUTE_TITLES[
-            normalized_axis
-        ]
+        attribute = (
+            config_entry.get("attribute")
+            or self._manual_attribute_titles[normalized_axis]
+        )
 
         index = self._axis_index(normalized_axis)
         if index.empty:
@@ -749,8 +782,13 @@ class Clustergram(anywidget.AnyWidget):
 
     def _on_manual_axis_flag_change(self, change) -> None:
         axis = "row" if change["name"] == "manual_row_cat" else "col"
-        self._manual_axis_enabled[axis] = bool(change["new"])
-        if change["new"]:
+        value = str(change["new"] or "").strip()
+        self._manual_attribute_titles[axis] = (
+            value or _DEFAULT_MANUAL_ATTRIBUTE_TITLES[axis]
+        )
+        self._manual_axis_enabled[axis] = bool(value)
+        if value:
+            self._ensure_manual_config_entry(axis)
             self._maybe_initialize_manual_axis(axis)
 
     def _on_axis_names_change(self, change) -> None:

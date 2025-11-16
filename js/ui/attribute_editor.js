@@ -9,6 +9,48 @@ const DEFAULT_COLORS = {
   col: '#ff7f0e',
 };
 
+const hslToHex = (h, s, l) => {
+  const a = s * Math.min(l, 1 - l);
+  const f = (n) => {
+    const k = (n + h * 12) % 12;
+    const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+    return Math.round(255 * color)
+      .toString(16)
+      .padStart(2, '0');
+  };
+  return `#${f(0)}${f(8)}${f(4)}`;
+};
+
+const getUsedColors = (viz_state) => {
+  const mapping = viz_state.attr?.category_colors || {};
+  return new Set(
+    Object.values(mapping)
+      .filter((color) => Boolean(color))
+      .map((color) => color.toLowerCase())
+  );
+};
+
+const allocateColor = (viz_state) => {
+  viz_state.manual_cat = viz_state.manual_cat || {};
+  if (typeof viz_state.manual_cat.color_cursor !== 'number') {
+    viz_state.manual_cat.color_cursor = 0;
+  }
+
+  const used = getUsedColors(viz_state);
+  for (let attempt = 0; attempt < 720; attempt += 1) {
+    const idx = viz_state.manual_cat.color_cursor + attempt;
+    const hue = ((idx * 137.508) % 360) / 360;
+    const candidate = hslToHex(hue, 0.65, 0.55);
+    if (!used.has(candidate.toLowerCase())) {
+      viz_state.manual_cat.color_cursor = idx + 1;
+      return candidate;
+    }
+  }
+
+  viz_state.manual_cat.color_cursor += 1;
+  return '#3b82f6';
+};
+
 const create_labeled_input = (label_text, input) => {
   const wrapper = document.createElement('label');
   wrapper.style.display = 'block';
@@ -97,11 +139,6 @@ export const initialize_attribute_editor = (viz_state, deck_mat, layers_mat) => 
   selection_info.style.marginBottom = '8px';
   selection_info.style.color = '#5b6770';
 
-  const attribute_input = document.createElement('input');
-  attribute_input.type = 'text';
-  attribute_input.placeholder = 'Attribute name';
-  const attribute_field = create_labeled_input('Attribute name', attribute_input);
-
   const value_input = document.createElement('input');
   value_input.type = 'text';
   value_input.placeholder = 'Category value';
@@ -151,7 +188,6 @@ export const initialize_attribute_editor = (viz_state, deck_mat, layers_mat) => 
 
   container.appendChild(header);
   container.appendChild(selection_info);
-  container.appendChild(attribute_field);
   container.appendChild(value_field);
   container.appendChild(color_field);
   container.appendChild(preferred_section);
@@ -206,11 +242,31 @@ export const initialize_attribute_editor = (viz_state, deck_mat, layers_mat) => 
         value_input.value = entry.name;
         if (entry.color) {
           color_input.value = entry.color;
+        } else {
+          ensure_color_for_value(entry.name, axis);
         }
       });
 
       preferred_list.appendChild(button);
     });
+  };
+
+  const ensure_color_for_value = (raw_value, axis) => {
+    const trimmed = (raw_value || '').trim();
+    if (!trimmed) {
+      color_input.value = DEFAULT_COLORS[axis] || DEFAULT_COLORS.row;
+      return color_input.value;
+    }
+
+    const stored = getStoredColor(trimmed);
+    if (stored) {
+      color_input.value = stored;
+      return stored;
+    }
+
+    const generated = allocateColor(viz_state);
+    color_input.value = generated;
+    return generated;
   };
 
   const position_container = (position) => {
@@ -235,7 +291,6 @@ export const initialize_attribute_editor = (viz_state, deck_mat, layers_mat) => 
   const open = ({
     axis,
     selection,
-    attribute_name,
     initial_value,
     initial_color,
     position,
@@ -255,17 +310,13 @@ export const initialize_attribute_editor = (viz_state, deck_mat, layers_mat) => 
 
     const axis_label = axis === 'col' ? 'columns' : 'rows';
     const configured_name = viz_state.manual_cat?.config?.[axis]?.attribute;
-    const is_locked = Boolean(viz_state.manual_cat?.config?.[axis]?.locked);
-    const default_attribute =
-      attribute_name || configured_name || 'manual_cat';
+    if (!configured_name) {
+      return;
+    }
 
     populate_preferred(axis);
 
     selection_info.textContent = `${selection.length} ${axis_label} selected`;
-    attribute_input.value = configured_name || default_attribute;
-    attribute_input.disabled = is_locked;
-    attribute_input.readOnly = is_locked;
-    attribute_input.style.backgroundColor = is_locked ? '#f3f4f6' : '#ffffff';
     value_input.value = initial_value ? String(initial_value) : '';
     const stored_color = getStoredColor(value_input.value.trim());
     color_input.value =
@@ -283,15 +334,15 @@ export const initialize_attribute_editor = (viz_state, deck_mat, layers_mat) => 
       return;
     }
 
-    const attribute_name = attribute_input.value.trim();
+    const attribute_name = viz_state.manual_cat?.config?.[context.axis]?.attribute;
     if (!attribute_name) {
-      attribute_input.style.borderColor = '#d9534f';
+      close();
       return;
     }
-    attribute_input.style.borderColor = '#d3d3d3';
 
     const value = value_input.value.trim();
-    const color_hex = color_input.value || DEFAULT_COLORS[context.axis];
+    const color_hex =
+      color_input.value || DEFAULT_COLORS[context.axis] || DEFAULT_COLORS.row;
 
     const { frame, colors } = update_manual_category_for_selection(
       viz_state,
@@ -313,6 +364,13 @@ export const initialize_attribute_editor = (viz_state, deck_mat, layers_mat) => 
       viz_state.model.save_changes();
     }
 
+    if (value) {
+      viz_state.attr.category_colors = {
+        ...(viz_state.attr.category_colors || {}),
+        [value]: color_hex,
+      };
+    }
+
     refresh_attribute_layers(deck_mat, layers_mat, viz_state);
     close();
   };
@@ -326,10 +384,8 @@ export const initialize_attribute_editor = (viz_state, deck_mat, layers_mat) => 
     close,
   };
 
-  value_input.addEventListener('change', () => {
-    const stored = getStoredColor(value_input.value.trim());
-    if (stored) {
-      color_input.value = stored;
-    }
+  value_input.addEventListener('input', () => {
+    const axis = context?.axis || 'row';
+    ensure_color_for_value(value_input.value, axis);
   });
 };

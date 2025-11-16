@@ -1,5 +1,18 @@
 import * as d3 from 'd3';
 
+const hexToRgb = (hex) => {
+  if (!hex || typeof hex !== 'string') {
+    return [59, 130, 246];
+  }
+  const normalized = hex.replace('#', '');
+  if (normalized.length !== 6) {
+    return [59, 130, 246];
+  }
+  const value = parseInt(normalized, 16);
+  // eslint-disable-next-line no-bitwise
+  return [(value >> 16) & 255, (value >> 8) & 255, value & 255];
+};
+
 const BUTTON_LABELS = {
   row: 'ROW',
   col: 'COL',
@@ -50,13 +63,6 @@ class CategoryBreakdown {
       buttonRow.appendChild(button);
     });
 
-    this.attributeLabel = document.createElement('div');
-    this.attributeLabel.style.fontSize = '11px';
-    this.attributeLabel.style.fontWeight = '600';
-    this.attributeLabel.style.textTransform = 'uppercase';
-    this.attributeLabel.style.letterSpacing = '0.05em';
-    this.attributeLabel.style.color = '#4b5563';
-
     this.message = document.createElement('div');
     this.message.style.fontSize = '11px';
     this.message.style.color = '#6b7280';
@@ -64,9 +70,9 @@ class CategoryBreakdown {
 
     this.barContainer = document.createElement('div');
     this.barContainer.className = 'bar_container';
-    this.barContainer.style.width = '120px';
-    this.barContainer.style.height = '140px';
-    this.barContainer.style.marginLeft = '4px';
+    this.barContainer.style.width = '107px';
+    this.barContainer.style.height = '100px';
+    this.barContainer.style.marginLeft = '5px';
     this.barContainer.style.border = '1px solid #d3d3d3';
     this.barContainer.style.borderRadius = '6px';
     this.barContainer.style.overflowY = 'auto';
@@ -84,7 +90,7 @@ class CategoryBreakdown {
     });
 
     const svgNode = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    svgNode.setAttribute('width', '110');
+    svgNode.setAttribute('width', '100');
     this.barSvg = d3.select(svgNode);
     this.barSvg
       .attr('font-family', 'sans-serif')
@@ -93,7 +99,6 @@ class CategoryBreakdown {
     this.barContainer.appendChild(svgNode);
 
     this.container.appendChild(buttonRow);
-    this.container.appendChild(this.attributeLabel);
     this.container.appendChild(this.message);
     this.container.appendChild(this.barContainer);
 
@@ -154,6 +159,10 @@ class CategoryBreakdown {
     if (!names.length) {
       return null;
     }
+    const preferred = this.viz_state.manual_cat?.config?.[axis]?.attribute;
+    if (preferred && names.includes(preferred)) {
+      return preferred;
+    }
     if (names.includes('manual_cat')) {
       return 'manual_cat';
     }
@@ -205,8 +214,6 @@ class CategoryBreakdown {
       return;
     }
 
-    this.attributeLabel.textContent = attr_def.name || 'manual_cat';
-
     const names = this.focus_names[axis] || [];
     const index_map = this.index_maps[axis];
     let target_indices = [];
@@ -255,11 +262,9 @@ class CategoryBreakdown {
       return;
     }
 
-    const width = 110;
+    const width = 100;
     const bar_height = 15;
-    const bar_gap = 4;
-    const chart_height =
-      sorted_entries.length * (bar_height + bar_gap) + bar_gap + 4;
+    const chart_height = bar_height * (sorted_entries.length + 1);
 
     const svg = this.barSvg;
     svg.selectAll('*').remove();
@@ -268,44 +273,47 @@ class CategoryBreakdown {
     this.barContainer.style.display = 'block';
 
     const max_value = d3.max(sorted_entries, (entry) => entry[1]) || 1;
+    const y_scale = d3
+      .scaleBand()
+      .domain(d3.range(sorted_entries.length))
+      .range([0, bar_height * sorted_entries.length]);
     const x_scale = d3
       .scaleLinear()
       .domain([0, max_value])
-      .range([0, width - 20]);
+      .range([0, width - 10]);
 
     const color_map = attr_def.color_map || {};
-
-    const groups = svg
+    const bars = svg
       .selectAll('g')
       .data(sorted_entries)
       .join('g')
-      .attr('transform', (_, idx) => `translate(4, ${
-        idx * (bar_height + bar_gap) + bar_gap
-      })`);
+      .attr('transform', (_, idx) => `translate(2, ${y_scale(idx) + 2})`);
 
-    groups
+    bars
       .append('rect')
-      .attr('width', (entry) => Math.max(2, x_scale(entry[1])))
-      .attr('height', bar_height)
-      .attr('rx', 3)
-      .attr('fill', (entry) => color_map[entry[0]] || '#3b82f6');
+      .attr('fill', (entry) => {
+        const rgb = hexToRgb(color_map[entry[0]]);
+        return `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
+      })
+      .attr('width', (entry) => x_scale(entry[1]))
+      .attr('height', y_scale.bandwidth() - 1);
 
-    groups
+    bars
       .append('text')
-      .attr('x', 6)
-      .attr('y', bar_height / 2)
-      .attr('dy', '0.35em')
       .attr('fill', '#111827')
+      .attr('x', 4)
+      .attr('y', y_scale.bandwidth() / 2)
+      .attr('dy', '0.35em')
       .attr('font-size', 10)
       .attr('text-anchor', 'start')
       .text((entry) => entry[0]);
 
-    groups
+    bars
       .append('text')
-      .attr('x', (entry) => x_scale(entry[1]) + 6)
-      .attr('y', bar_height / 2)
-      .attr('dy', '0.35em')
       .attr('fill', '#4b5563')
+      .attr('x', (entry) => Math.min(width - 15, x_scale(entry[1]) + 2))
+      .attr('y', y_scale.bandwidth() / 2)
+      .attr('dy', '0.35em')
       .attr('font-size', 10)
       .attr('text-anchor', 'start')
       .text((entry) => entry[1]);

@@ -12,7 +12,12 @@ try:
     from shapely.geometry import Polygon
 
     from celldega.clust import Matrix
-    from celldega.viz import Clustergram, Landscape, clustergram_enrich
+    from celldega.viz import (
+        Clustergram,
+        Landscape,
+        clustergram_enrich,
+        landscape_clustergram,
+    )
 except Exception as e:  # pragma: no cover - if deps missing skip
     pytest.skip(f"celldega modules unavailable: {e}", allow_module_level=True)
 
@@ -101,6 +106,19 @@ def test_manual_col_attribute_initializes_na() -> None:
     assert widget.category_colors.get("N.A.") == "#d1d5db"
 
 
+def test_manual_attribute_uses_custom_name() -> None:
+    mat = make_simple_matrix()
+    widget = Clustergram(matrix=mat, manual_col_cat="custom_attr")
+
+    widget.col_names = [f"col{i}" for i in range(5)]
+    config = json.loads(widget.manual_cat_config)
+    assert config["col"]["attribute"] == "custom_attr"
+
+    df = widget.col_attributes_df
+    assert df is not None
+    assert set(df["custom_attr"].unique()) == {"N.A."}
+
+
 def test_manual_category_preserves_assignments() -> None:
     mat = make_simple_matrix()
     widget = Clustergram(matrix=mat, manual_col_cat=True)
@@ -145,6 +163,24 @@ def test_clustergram_enrich_sets_membership_column() -> None:
     assert df is not None
     assert "Enrichment membership" in df.columns
     assert df.loc[widget.row_names[0], "Enrichment membership"] == "In term"
+
+
+def test_landscape_clustergram_enrich_links_membership_column() -> None:
+    mat = make_simple_matrix()
+    widget = Clustergram(matrix=mat)
+    widget.row_names = [f"gene{i}" for i in range(4)]
+    landscape = Landscape()
+
+    holder = landscape_clustergram(landscape, widget, enrich=True)
+    assert len(holder.children) == 3
+    enrich_widget = holder.children[2]
+
+    enrich_widget.term_genes = [widget.row_names[1]]
+
+    df = widget.row_attributes_df
+    assert df is not None
+    assert "Enrichment membership" in df.columns
+    assert df.loc[widget.row_names[1], "Enrichment membership"] == "In term"
 
 
 def test_landscape_nbhd_geojson_and_metadata() -> None:

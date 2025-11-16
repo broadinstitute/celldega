@@ -216,6 +216,45 @@ export const matrix_viz = async (
 
   initialize_attribute_editor(viz_state, deck_mat, layers_mat);
 
+  if (viz_state.obs_store?.manual_cat) {
+    ['row', 'col'].forEach((axis) => {
+      const manual_store = viz_state.obs_store.manual_cat[axis];
+      if (!manual_store) {
+        return;
+      }
+
+      manual_store.subscribe(
+        () => {
+          const applied = apply_manual_definitions_to_axis(viz_state, axis);
+          if (applied) {
+            refresh_attribute_layers(deck_mat, layers_mat, viz_state);
+            viz_state.category_breakdown?.update_available_attributes();
+          }
+
+          if (!viz_state.model || viz_state.manual_cat.external_update) {
+            return;
+          }
+
+          const frame = viz_state.attr.frames?.[axis] || null;
+          const colors = viz_state.attr.color_payload?.[axis] || {};
+          viz_state.model.set(`${axis}_attributes_df`, frame);
+          viz_state.model.set(`${axis}_attribute_colors`, colors);
+
+          viz_state.manual_cat.self_update = true;
+          viz_state.model.set(
+            'manual_cat',
+            JSON.stringify({
+              row: viz_state.obs_store.manual_cat.row.toExportPayload(),
+              col: viz_state.obs_store.manual_cat.col.toExportPayload(),
+            })
+          );
+          viz_state.model.save_changes();
+        },
+        { immediate: false }
+      );
+    });
+  }
+
   if (viz_state.model) {
     const apply_row_attributes = () => {
       apply_attribute_frame(
@@ -261,11 +300,7 @@ export const matrix_viz = async (
 
     const apply_manual_payload = () => {
       const payload = viz_state.model.get('manual_cat');
-      const applied = sync_manual_category_from_payload(payload, viz_state);
-      if (applied) {
-        refresh_attribute_layers(deck_mat, layers_mat, viz_state);
-        viz_state.category_breakdown?.update_available_attributes();
-      }
+      sync_manual_category_from_payload(payload, viz_state);
     };
 
     const apply_manual_config = () => {

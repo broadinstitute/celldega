@@ -1,8 +1,3 @@
-import {
-  export_manual_category_payload,
-  refresh_attribute_layers,
-  update_manual_category_for_selection,
-} from '../matrix/attr_state';
 
 const DEFAULT_COLORS = {
   row: '#2f74ff',
@@ -344,38 +339,18 @@ export const initialize_attribute_editor = (viz_state, deck_mat, layers_mat) => 
     const color_hex =
       color_input.value || DEFAULT_COLORS[context.axis] || DEFAULT_COLORS.row;
 
-    const { frame, colors } = update_manual_category_for_selection(
-      viz_state,
-      context.axis,
-      attribute_name,
-      context.selection,
+    const manual_store = viz_state.obs_store?.manual_cat?.[context.axis];
+    if (!manual_store) {
+      close();
+      return;
+    }
+
+    manual_store.setAttribute(attribute_name);
+    manual_store.updateSelection({
+      selection: context.selection,
       value,
-      color_hex
-    );
-
-    if (viz_state.model) {
-      // Push the already-up-to-date frame/colors into the widget traits
-      viz_state.model.set(`${context.axis}_attributes_df`, frame);
-      viz_state.model.set(`${context.axis}_attribute_colors`, colors);
-
-      // IMPORTANT: we *do not* set self_update here – we WANT the
-      // manual_cat listener to run in other front-ends if they exist.
-      viz_state.model.set(
-        'manual_cat',
-        JSON.stringify(export_manual_category_payload(viz_state))
-      );
-      viz_state.model.save_changes();
-    }
-
-
-    if (value) {
-      viz_state.attr.category_colors = {
-        ...(viz_state.attr.category_colors || {}),
-        [value]: color_hex,
-      };
-    }
-
-    refresh_attribute_layers(deck_mat, layers_mat, viz_state);
+      color: color_hex,
+    });
     close();
   };
 

@@ -1,4 +1,5 @@
 import { create_clustergram_store } from '../obs_store/clustergram_store';
+import { ManualCategoryStore } from '../obs_store/manual_category_store';
 import { initialize_attr_state } from './attr_state';
 
 export const set_mat_constants = (
@@ -66,6 +67,15 @@ export const set_mat_constants = (
 
   viz_state.row_nodes = network.row_nodes;
   viz_state.col_nodes = network.col_nodes;
+
+  viz_state.obs_store.manual_cat = {
+    row: new ManualCategoryStore('row', () =>
+      (viz_state.row_nodes || []).map((node) => String(node.name))
+    ),
+    col: new ManualCategoryStore('col', () =>
+      (viz_state.col_nodes || []).map((node) => String(node.name))
+    ),
+  };
 
   viz_state.mat.net_mat = network.mat;
 

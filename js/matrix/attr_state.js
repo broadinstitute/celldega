@@ -136,13 +136,6 @@ const update_combined_attr_defs = (viz_state) => {
       ...(viz_state.attr.editable_defs?.[axis] || []),
     ];
 
-    if (axis === 'col') {
-      console.log('editable_defs:::', viz_state.attr.editable_defs)
-      console.log(combined_defs)
-
-      console.log('viz_state.manual_cat.definitions', viz_state.manual_cat.definitions)
-    }
-
     viz_state.attr.all_defs[axis] = combined_defs;
     viz_state.attr.names[axis] = combined_defs.map((definition) => definition.name);
     viz_state.attr.maxabs[axis] = combined_defs.map((definition) =>
@@ -201,11 +194,10 @@ export const initialize_attr_state = (viz_state, network) => {
   viz_state.attr.category_colors = {};
   viz_state.attr.did_initialize = false;
   viz_state.manual_cat = {
-    definitions: { row: {}, col: {} },
     config: { row: null, col: null },
     self_update: false,
     flags: { row: false, col: false },
-    pending_axes: { row: false, col: false },
+    external_update: false,
   };
 
   viz_state.attr.static_defs.row = build_static_definitions(
@@ -431,36 +423,6 @@ const ensure_index_alignment = (axis, frame, viz_state) => {
 
 
 
-const ensure_manual_store = (viz_state, axis) => {
-  if (!viz_state.manual_cat) {
-    viz_state.manual_cat = {
-      definitions: { row: {}, col: {} },
-      config: { row: null, col: null },
-      self_update: false,
-      pending_axes: { row: false, col: false },
-    };
-  } else {
-    viz_state.manual_cat.definitions = viz_state.manual_cat.definitions || {
-      row: {},
-      col: {},
-    };
-    viz_state.manual_cat.config = viz_state.manual_cat.config || {
-      row: null,
-      col: null,
-    };
-    viz_state.manual_cat.pending_axes = viz_state.manual_cat.pending_axes || {
-      row: false,
-      col: false,
-    };
-  }
-
-  const normalized = normalize_axis(axis);
-  viz_state.manual_cat.definitions[normalized] =
-    viz_state.manual_cat.definitions[normalized] || {};
-
-  return viz_state.manual_cat.definitions[normalized];
-};
-
 const ensure_manual_column_defaults = (frame, attribute_name, index_labels) => {
   const normalized_labels = (index_labels || []).map((label) => String(label));
   let did_change = false;
@@ -523,100 +485,6 @@ const ensure_manual_color_entry = (colors, attribute_name) => {
   return did_change;
 };
 
-export const update_manual_category_for_selection = (
-  viz_state,
-  axis,
-  attribute_name,
-  selection,
-  category_value,
-  color_hex
-) => {
-  const normalized_axis = normalize_axis(axis);
-
-  // --- 1. Update the manual_cat.definitions store (canonical state) ---
-  const store = ensure_manual_store(viz_state, normalized_axis);
-  const manual_entry = store[attribute_name] || { values: {}, colors: {} };
-
-  manual_entry.values = manual_entry.values || {};
-  manual_entry.colors = manual_entry.colors || {};
-
-  const normalized_value =
-    category_value === null ||
-    category_value === undefined ||
-    category_value === ''
-      ? null
-      : String(category_value);
-
-  (selection || []).forEach((name) => {
-    const key = String(name);
-    if (normalized_value) {
-      manual_entry.values[key] = normalized_value;
-    } else {
-      delete manual_entry.values[key];
-    }
-  });
-
-  if (normalized_value && color_hex) {
-    manual_entry.colors[normalized_value] = String(color_hex);
-  }
-
-  if (Object.keys(manual_entry.values).length === 0) {
-    delete store[attribute_name];
-  } else {
-    store[attribute_name] = manual_entry;
-  }
-
-  // --- 2. Apply definitions to this axis using the *same* code path
-  // used on rebuild / sync from manual_cat payload.
-  const applied = apply_manual_definitions_to_axis(viz_state, normalized_axis);
-
-  // Even if nothing changed (e.g. identical value), we still want to
-  // return the current frame/colors for traitlet sync.
-  const frame = ensure_frame_payload(normalized_axis, viz_state);
-  const colors = update_color_payload(normalized_axis, viz_state);
-
-  // Keep global category_colors in sync for future UI use
-  if (normalized_value && color_hex) {
-    viz_state.attr.category_colors = {
-      ...(viz_state.attr.category_colors || {}),
-      [normalized_value]: String(color_hex),
-    };
-  }
-
-  return { frame, colors };
-};
-
-
-export const export_manual_category_payload = (viz_state) => {
-  if (!viz_state.manual_cat || !viz_state.manual_cat.definitions) {
-    return { row: {}, col: {} };
-  }
-
-  const build_axis_export = (axis) => {
-    const definitions = viz_state.manual_cat.definitions[axis] || {};
-    const payload = {};
-
-    Object.entries(definitions).forEach(([attribute_name, entry]) => {
-      const values = entry?.values || {};
-      const color_map = entry?.colors || {};
-      if (Object.keys(values).length === 0) {
-        return;
-      }
-      payload[attribute_name] = {
-        values: { ...values },
-        colors: { ...color_map },
-      };
-    });
-
-    return payload;
-  };
-
-  return {
-    row: build_axis_export('row'),
-    col: build_axis_export('col'),
-  };
-};
-
 export const ensure_manual_attribute_presence = (viz_state, axis) => {
   const normalized_axis = normalize_axis(axis);
   const flags = viz_state.manual_cat?.flags || {};
@@ -628,6 +496,11 @@ export const ensure_manual_attribute_presence = (viz_state, axis) => {
   const attribute_name = config[normalized_axis]?.attribute;
   if (!attribute_name) {
     return false;
+  }
+
+  const manual_store = viz_state.obs_store?.manual_cat?.[normalized_axis];
+  if (manual_store) {
+    manual_store.setAttribute(attribute_name);
   }
 
   const nodes =
@@ -673,26 +546,11 @@ export const ensure_manual_attribute_presence = (viz_state, axis) => {
 
 export const apply_manual_definitions_to_axis = (viz_state, axis) => {
   const normalized_axis = normalize_axis(axis);
-  const definitions = viz_state.manual_cat?.definitions?.[normalized_axis] || {};
   const flags = viz_state.manual_cat?.flags || {};
-  const pending = viz_state.manual_cat?.pending_axes || {};
+  const manual_store = viz_state.obs_store?.manual_cat?.[normalized_axis];
 
-  if (Object.keys(definitions).length === 0) {
-    if (pending[normalized_axis]) {
-      pending[normalized_axis] = false;
-    }
+  if (!flags[normalized_axis] || !manual_store || !manual_store.attribute) {
     return false;
-  }
-
-  if (!flags[normalized_axis]) {
-    if (pending) {
-      pending[normalized_axis] = true;
-    }
-    return false;
-  }
-
-  if (pending) {
-    pending[normalized_axis] = false;
   }
 
   const nodes = normalized_axis === 'row' ? viz_state.row_nodes : viz_state.col_nodes;
@@ -705,57 +563,53 @@ export const apply_manual_definitions_to_axis = (viz_state, axis) => {
   const index_lookup = ensure_index_alignment(normalized_axis, frame, viz_state);
 
   let did_change = false;
+  const attribute_name = manual_store.attribute;
 
-  Object.entries(definitions).forEach(([attribute_name, entry]) => {
-    const values = entry?.values || {};
-    const color_map = entry?.colors || {};
+  if (ensure_manual_column_defaults(frame, attribute_name, frame.index)) {
+    did_change = true;
+  }
 
-    if (ensure_manual_column_defaults(frame, attribute_name, frame.index)) {
+  const column = frame.data[attribute_name] || [];
+
+  manual_store.values.forEach((value, name) => {
+    const idx = index_lookup.get(String(name));
+    if (idx === undefined) {
+      return;
+    }
+
+    const normalized_value =
+      value === null || value === undefined || value === ''
+        ? MANUAL_FILL_VALUE
+        : String(value);
+
+    if (column[idx] !== normalized_value) {
+      column[idx] = normalized_value;
+      did_change = true;
+    }
+  });
+
+  ensure_manual_color_entry(colors, attribute_name);
+  colors[attribute_name] = colors[attribute_name] || {};
+
+  manual_store.colors.forEach((hex, category_value) => {
+    if (!hex) {
+      return;
+    }
+    const normalized_hex = String(hex);
+    if (colors[attribute_name][category_value] !== normalized_hex) {
+      colors[attribute_name][category_value] = normalized_hex;
       did_change = true;
     }
 
-    const column = frame.data[attribute_name] || [];
-
-    Object.entries(values).forEach(([name, value]) => {
-      const idx = index_lookup.get(String(name));
-      if (idx === undefined) {
-        return;
-      }
-
-      const normalized_value =
-        value === null || value === undefined || value === ''
-          ? MANUAL_FILL_VALUE
-          : String(value);
-
-      if (column[idx] !== normalized_value) {
-        column[idx] = normalized_value;
-        did_change = true;
-      }
-    });
-
-    ensure_manual_color_entry(colors, attribute_name);
-    colors[attribute_name] = colors[attribute_name] || {};
-
-    Object.entries(color_map).forEach(([category_value, hex]) => {
-      if (!hex) {
-        return;
-      }
-      const normalized_hex = String(hex);
-      if (colors[attribute_name][category_value] !== normalized_hex) {
-        colors[attribute_name][category_value] = normalized_hex;
-        did_change = true;
-      }
-
-      if (
-        !viz_state.attr.category_colors ||
-        viz_state.attr.category_colors[category_value] !== normalized_hex
-      ) {
-        viz_state.attr.category_colors = {
-          ...(viz_state.attr.category_colors || {}),
-          [category_value]: normalized_hex,
-        };
-      }
-    });
+    if (
+      !viz_state.attr.category_colors ||
+      viz_state.attr.category_colors[category_value] !== normalized_hex
+    ) {
+      viz_state.attr.category_colors = {
+        ...(viz_state.attr.category_colors || {}),
+        [category_value]: normalized_hex,
+      };
+    }
   });
 
   if (!did_change) {
@@ -767,14 +621,9 @@ export const apply_manual_definitions_to_axis = (viz_state, axis) => {
 };
 
 export const sync_manual_category_from_payload = (payload, viz_state) => {
-  if (!viz_state.manual_cat) {
-    ensure_manual_store(viz_state, 'row');
-    ensure_manual_store(viz_state, 'col');
-  }
-
   if (viz_state.manual_cat.self_update) {
     viz_state.manual_cat.self_update = false;
-    return false;
+    return;
   }
 
   let parsed = payload;
@@ -787,33 +636,20 @@ export const sync_manual_category_from_payload = (payload, viz_state) => {
   }
 
   if (!parsed || typeof parsed !== 'object') {
-    return false;
+    return;
   }
 
-  const definitions = viz_state.manual_cat.definitions;
-  let did_change = false;
-  ['row', 'col'].forEach((axis) => {
-    const axis_payload = parsed[axis] || {};
-    const axis_store = {};
-
-    Object.entries(axis_payload).forEach(([attribute_name, entry]) => {
-      const values = entry?.values || entry || {};
-      const colors = entry?.colors || {};
-      axis_store[attribute_name] = {
-        values: { ...values },
-        colors: { ...colors },
-      };
-    });
-
-    const previous = definitions[axis] || {};
-    definitions[axis] = axis_store;
-    if (!did_change && JSON.stringify(previous) !== JSON.stringify(axis_store)) {
-      did_change = true;
+  const row_store = viz_state.obs_store?.manual_cat?.row;
+  const col_store = viz_state.obs_store?.manual_cat?.col;
+  viz_state.manual_cat.external_update = true;
+  try {
+    if (row_store) {
+      row_store.fromExportPayload(parsed.row || {});
     }
-  });
-
-  const applied_row = apply_manual_definitions_to_axis(viz_state, 'row');
-  const applied_col = apply_manual_definitions_to_axis(viz_state, 'col');
-
-  return did_change || applied_row || applied_col;
+    if (col_store) {
+      col_store.fromExportPayload(parsed.col || {});
+    }
+  } finally {
+    viz_state.manual_cat.external_update = false;
+  }
 };

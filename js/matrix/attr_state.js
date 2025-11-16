@@ -392,67 +392,42 @@ export const update_color_payload = (axis, viz_state) =>
 
 const normalize_axis = (axis) => (axis === 'col' ? 'col' : 'row');
 
-// const ensure_index_alignment = (axis, frame, viz_state) => {
-//   const nodes = axis === 'row' ? viz_state.row_nodes : viz_state.col_nodes;
-//   const node_names = (nodes || []).map((node) => String(node.name));
-
-//   if (!Array.isArray(frame.index) || frame.index.length !== node_names.length) {
-//     frame.index = node_names;
-//     frame.index_name = axis === 'row' ? 'row_id' : 'col_id';
-//   } else {
-//     frame.index = frame.index.map((label) => String(label));
-//   }
-
-//   return new Map(frame.index.map((label, idx) => [label, idx]));
-// };
-
-// // ChatGPT Rewrite
-// const ensure_index_alignment = (axis, frame, viz_state) => {
-//   console.log('here')
-//   const nodes = axis === 'row' ? viz_state.row_nodes : viz_state.col_nodes;
-//   const node_names = (nodes || []).map((node) => String(node.name));
-
-//   if (!Array.isArray(frame.index) || frame.index.length !== node_names.length) {
-//     frame.index = node_names;
-//     frame.index_name = axis === 'row' ? 'row_id' : 'col_id';
-//   } else {
-//     frame.index = frame.index.map((label) => String(label));
-//   }
-
-//   // Build a lookup that works for both label-based and index-based keys
-//   const lookup = new Map();
-//   frame.index.forEach((label, idx) => {
-//     // by label (e.g. "4" or "Sample_A")
-//     lookup.set(String(label), idx);
-//     // by positional index ("0", "1", ...)
-//     lookup.set(String(idx), idx);
-//   });
-
-//   return lookup;
-// };
-
-// ChatGPT Rewrite 2
 const ensure_index_alignment = (axis, frame, viz_state) => {
   const nodes = axis === 'row' ? viz_state.row_nodes : viz_state.col_nodes;
   const node_names = (nodes || []).map((node) => String(node.name));
 
+  let reset = false;
+
+  // If we don't have an index or lengths differ, we must reset.
   if (!Array.isArray(frame.index) || frame.index.length !== node_names.length) {
-    frame.index = node_names;
-    frame.index_name = axis === 'row' ? 'row_id' : 'col_id';
+    reset = true;
   } else {
-    frame.index = frame.index.map((label) => String(label));
+    // Normalize to strings and check if it really matches node_names
+    const normalized_index = frame.index.map((label) => String(label));
+    for (let i = 0; i < normalized_index.length; i += 1) {
+      if (normalized_index[i] !== node_names[i]) {
+        reset = true;
+        break;
+      }
+    }
+    frame.index = normalized_index;
   }
 
+  // If needed, overwrite with the true visualization order
+  if (reset) {
+    frame.index = node_names;
+    frame.index_name = axis === 'row' ? 'row_id' : 'col_id';
+  }
+
+  // Build lookup ONLY by label, not by positional index
   const lookup = new Map();
   frame.index.forEach((label, idx) => {
-    // by label
     lookup.set(String(label), idx);
-    // by positional index
-    lookup.set(String(idx), idx);
   });
 
   return lookup;
 };
+
 
 
 

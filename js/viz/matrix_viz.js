@@ -207,7 +207,7 @@ export const matrix_viz = async (
     const axis_list = Array.isArray(axes) ? axes : [axes]
     console.log('sync_axes_to_traitlets', axis_list)
 
-    // Frames + colors per axis
+    // 1) Frames + colors per axis (optional but still useful)
     axis_list.forEach((axis) => {
       const normalized = axis === 'col' ? 'col' : 'row'
       const frame = viz_state.attr.frames?.[normalized] || null
@@ -217,13 +217,13 @@ export const matrix_viz = async (
       viz_state.model.set(`${normalized}_attribute_colors`, colors)
     })
 
-    // Global category color map
+    // 2) Global category color map
     viz_state.model.set(
       'category_colors',
       viz_state.attr.category_colors || {}
     )
 
-    // Manual-cat payload from the JS stores
+    // 3) Manual-cat payload from the JS stores  ->  manual_cat_js (JSON string)
     const row_store = viz_state.obs_store?.manual_cat?.row
     const col_store = viz_state.obs_store?.manual_cat?.col
 
@@ -232,28 +232,10 @@ export const matrix_viz = async (
       col: col_store ? col_store.toExportPayload() : {},
     }
 
-    console.log('sync_manual_cat_to_traitlet', payload)
-    viz_state.model.set('manual_cat', payload)
-    viz_state.model.save_changes()
-  }
-
-  const sync_manual_cat_to_python = () => {
-
-    console.log('sync_manual_cat_to_python!!!!!!!!!!!')
-    if (!viz_state.model || !viz_state.obs_store?.manual_cat) return
-
-    const row_store = viz_state.obs_store.manual_cat.row
-    const col_store = viz_state.obs_store.manual_cat.col
-
-    const payload = {
-      row: row_store ? row_store.toExportPayload() : {},
-      col: col_store ? col_store.toExportPayload() : {},
-    }
-
+    console.log('sync_manual_cat_to_traitlet (manual_cat_js)', payload)
     viz_state.model.set('manual_cat_js', JSON.stringify(payload))
     viz_state.model.save_changes()
   }
-
 
   // Apply manual defs for an axis, refresh layers/UI, optionally sync to Python
   const apply_manual_and_refresh = (axis, { sync = false } = {}) => {
@@ -275,12 +257,60 @@ export const matrix_viz = async (
 
       manual_store.subscribe(
         () => {
+          // Apply to JS state and then sync back to Python
           apply_manual_and_refresh(axis, { sync: true })
         },
         { immediate: false }
       )
     })
   }
+
+
+
+  // const sync_manual_cat_to_python = () => {
+
+  //   console.log('sync_manual_cat_to_python!!!!!!!!!!!')
+  //   if (!viz_state.model || !viz_state.obs_store?.manual_cat) return
+
+  //   const row_store = viz_state.obs_store.manual_cat.row
+  //   const col_store = viz_state.obs_store.manual_cat.col
+
+  //   const payload = {
+  //     row: row_store ? row_store.toExportPayload() : {},
+  //     col: col_store ? col_store.toExportPayload() : {},
+  //   }
+
+  //   viz_state.model.set('manual_cat_js', JSON.stringify(payload))
+  //   viz_state.model.save_changes()
+  // }
+
+
+  // // Apply manual defs for an axis, refresh layers/UI, optionally sync to Python
+  // const apply_manual_and_refresh = (axis, { sync = false } = {}) => {
+  //   const applied = apply_manual_definitions_to_axis(viz_state, axis)
+  //   if (!applied) return
+
+  //   refresh_attribute_layers(deck_mat, layers_mat, viz_state)
+
+  //   if (sync) {
+  //     sync_axes_to_traitlets(axis)
+  //   }
+  // }
+
+  // // Whenever the JS manual_cat stores change (editor/dendro/etc.), repaint + sync
+  // if (viz_state.obs_store?.manual_cat) {
+  //   ;['row', 'col'].forEach((axis) => {
+  //     const manual_store = viz_state.obs_store.manual_cat[axis]
+  //     if (!manual_store) return
+
+  //     manual_store.subscribe(
+  //       () => {
+  //         apply_manual_and_refresh(axis, { sync: true })
+  //       },
+  //       { immediate: false }
+  //     )
+  //   })
+  // }
 
   // ---------------------------------------------------------------------------
   // PYTHON -> JS one-way pieces (names, normal attribute frames, initial config)

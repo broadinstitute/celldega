@@ -329,27 +329,6 @@ class Landscape(anywidget.AnyWidget):
 
         self.nbhd = gdf
 
-    @traitlets.observe("manual_cat_js")
-    def _on_manual_cat_js(self, change) -> None:
-        """
-        Mirror JS-originated manual category payload into the existing
-        `manual_cat` trait so all the current plumbing keeps working.
-
-        JS should set `manual_cat_js` only; Python code should continue
-        to read/use `manual_cat` as before.
-        """
-        if self._manual_sync_block:
-            return
-
-        new_val = change.get("new") or "{}"
-        # Prevent any echo loops while we write manual_cat
-        self._manual_sync_block = True
-        try:
-            self.manual_cat = new_val
-        finally:
-            self._manual_sync_block = False
-
-
     def close(self):  # pragma: no cover - cleanup depends on JS
         """Close the widget and notify the frontend to release resources."""
         with suppress(Exception):
@@ -512,55 +491,76 @@ class Enrich(anywidget.AnyWidget):
 
 class Clustergram(anywidget.AnyWidget):
     """
-    A widget for interactive visualization of a hierarchically clustered matrix.
+    Minimal version of the Clustergram widget.
 
-    Automatically replaces older widgets with the same name to prevent notebook bloat.
-
-    Args:
-        value (int): The value traitlet.
-        component (str): The component traitlet.
-        network (dict): **Deprecated.** Use ``matrix`` or ``parquet_data``.
-        click_info (dict): The click_info traitlet.
-
-    Returns:
-        Clustergram: A widget for visualizing a hierarchically clustered matrix.
+    - Frontend still gets: matrix/parquet data, row/col names, attribute
+      DataFrame traits, manual_cat, manual_cat_config, etc.
+    - Manual categories are treated as a simple JSON string.
+    - All the fancy DataFrame plumbing for manual_cat is removed for now.
     """
 
     _esm = Path(__file__).parent / "../static" / "widget.js"
     _css = Path(__file__).parent / "../static" / "widget.css"
 
+    # --- core traits used by JS ------------------------------------------------
     value = traitlets.Int(0).tag(sync=True)
     component = traitlets.Unicode("Matrix").tag(sync=True)
+
     network = traitlets.Dict({}).tag(sync=True)
     network_meta = traitlets.Dict({}).tag(sync=True)
+
     width = traitlets.Int(600).tag(sync=True)
     height = traitlets.Int(600).tag(sync=True)
+
     click_info = traitlets.Dict({}).tag(sync=True)
     selected_genes = traitlets.List(default_value=[]).tag(sync=True)
     top_n_genes = traitlets.Int(50).tag(sync=True)
+
     row_names = traitlets.List(default_value=[]).tag(sync=True)
     col_names = traitlets.List(default_value=[]).tag(sync=True)
 
+    # Attribute DataFrames (+ colors) still available if you want to
+    # use them later, but we don't auto-manipulate them in this minimal
+    # version.
     row_attributes_df = DataFrameTrait(allow_none=True).tag(sync=True)
     col_attributes_df = DataFrameTrait(allow_none=True).tag(sync=True)
-
     row_attribute_colors = traitlets.Dict(default_value={}).tag(sync=True)
     col_attribute_colors = traitlets.Dict(default_value={}).tag(sync=True)
+
+    # Flags that control whether manual categories are shown in the UI.
     manual_row_cat = ManualAttributeTrait(
         default_name=_DEFAULT_MANUAL_ATTRIBUTE_TITLES["row"]
     ).tag(sync=True)
     manual_col_cat = ManualAttributeTrait(
         default_name=_DEFAULT_MANUAL_ATTRIBUTE_TITLES["col"]
     ).tag(sync=True)
+
+    # Global color registry (JS may write here; Python can also seed it)
     category_colors = traitlets.Dict(default_value={}).tag(sync=True)
 
-    # NEW: raw JS -> PY payload
+    # NEW: raw JS -> PY payload. JS should ONLY write to this.
     manual_cat_js = traitlets.Unicode("").tag(sync=True)
 
+    # Canonical manual category payload as JSON string.
+    # For now we don't automatically convert this to DataFrames.
     manual_cat = traitlets.Unicode("{}").tag(sync=True)
+
+    # Small JSON object describing default attribute names, preferred
+    # categories, etc. We leave it as "dumb" JSON for now.
     manual_cat_config = traitlets.Unicode("{}").tag(sync=True)
 
     def __init__(self, **kwargs):
+        """
+        Parameters
+        ----------
+        parquet_data : dict, optional
+            Pre-exported parquet payload from your matrix object.
+        matrix : object, optional
+            If provided and has .export_viz_parquet(), we'll call that.
+        network : dict, optional
+            Deprecated path, kept only for backwards-compatibility.
+        """
+
         pq_data = kwargs.pop("parquet_data", None)
 
         if "network" in kwargs:
@@ -580,7 +580,8 @@ class Clustergram(anywidget.AnyWidget):
                 pq_data = matrix.export_viz_parquet()
             elif "network" not in kwargs:
                 raise ValueError(
-                    "You must pass either `network`, `parquet_data`, or `matrix` (for fallback). If both `network` and `matrix` are provided, `matrix` will be prioritized."
+                    "You must pass either `network`, `parquet_data`, or `matrix` (for fallback). "
+                    "If both `network` and `matrix` are provided, `matrix` will be prioritized."
                 )
 
         # Infer name from pq_data or network
@@ -594,12 +595,8 @@ class Clustergram(anywidget.AnyWidget):
                 "mat_parquet": traitlets.Bytes(pq_data.get("mat", b"")).tag(sync=True),
                 "row_nodes_parquet": traitlets.Bytes(pq_data.get("row_nodes", b"")).tag(sync=True),
                 "col_nodes_parquet": traitlets.Bytes(pq_data.get("col_nodes", b"")).tag(sync=True),
-                "row_linkage_parquet": traitlets.Bytes(pq_data.get("row_linkage", b"")).tag(
-                    sync=True
-                ),
-                "col_linkage_parquet": traitlets.Bytes(pq_data.get("col_linkage", b"")).tag(
-                    sync=True
-                ),
+                "row_linkage_parquet": traitlets.Bytes(pq_data.get("row_linkage", b"")).tag(sync=True),
+                "col_linkage_parquet": traitlets.Bytes(pq_data.get("col_linkage", b"")).tag(sync=True),
             }
             self.add_traits(**parquet_traits)
 
@@ -611,622 +608,83 @@ class Clustergram(anywidget.AnyWidget):
         kwargs["name"] = name
         kwargs["manual_row_cat"] = manual_row_flag
         kwargs["manual_col_cat"] = manual_col_flag
+
         super().__init__(**kwargs)
         _clustergram_registry[name] = self
 
+        # Used to avoid echo loops when we mirror JS -> PY
         self._manual_sync_block = False
-        self._manual_categories = {"row": set(), "col": set()}
-        self._manual_config = {"row": None, "col": None}
-        self._manual_attribute_titles = {
-            "row": self.manual_row_cat or _DEFAULT_MANUAL_ATTRIBUTE_TITLES["row"],
-            "col": self.manual_col_cat or _DEFAULT_MANUAL_ATTRIBUTE_TITLES["col"],
-        }
-        self._manual_axis_enabled = {
-            "row": bool(self.manual_row_cat),
-            "col": bool(self.manual_col_cat),
-        }
 
+        # ------------------------------------------------------------------
+        # Initialize a simple manual_cat_config from the flags, if the user
+        # didn't pass anything explicit.
+        # ------------------------------------------------------------------
+        config = {"row": None, "col": None}
+
+        if manual_row_flag:
+            config["row"] = {
+                "attribute": str(manual_row_flag),
+                "preferred": [],
+                "locked": True,
+            }
+
+        if manual_col_flag:
+            config["col"] = {
+                "attribute": str(manual_col_flag),
+                "preferred": [],
+                "locked": True,
+            }
+
+        # Only overwrite if it's still the default "{}" / empty
+        if (config["row"] is not None or config["col"] is not None) and (
+            not self.manual_cat_config or self.manual_cat_config == "{}"
+        ):
+            self.manual_cat_config = json.dumps(config)
+
+
+        # Seed category_colors from network_meta if available
         base_colors = dict(self.network_meta.get("global_cat_colors", {}))
         if getattr(self, "category_colors", None):
             base_colors.update(self.category_colors)
         self._category_colors = base_colors
         self.category_colors = deepcopy(self._category_colors)
 
-        self.observe(self._on_manual_cat_change, names="manual_cat")
-        self.observe(self._on_manual_config_change, names="manual_cat_config")
-        self.observe(self._on_manual_axis_flag_change, names="manual_row_cat")
-        self.observe(self._on_manual_axis_flag_change, names="manual_col_cat")
-        self.observe(self._on_axis_names_change, names="row_names")
-        self.observe(self._on_axis_names_change, names="col_names")
+        # # When JS writes manual_cat_js, mirror into manual_cat so your
+        # # Python code only has to read manual_cat.
+        # self.observe(self._on_manual_cat_js, names="manual_cat_js")
 
-        # Initialize manual category state from existing trait values
-        self._on_manual_config_change({"new": self.manual_cat_config})
-        self._on_manual_cat_change({"new": self.manual_cat})
-        self._maybe_initialize_manual_axis("row")
-        self._maybe_initialize_manual_axis("col")
+    # ------------------------------------------------------------------
+    # JS -> PY sync for manual categories (the only "smart" bit we keep)
+    # ------------------------------------------------------------------
+    @traitlets.observe("manual_cat_js")
+    def _on_manual_cat_js(self, change) -> None:
+        """
+        Mirror JS-originated manual category payload into `manual_cat`.
+
+        JS should set `manual_cat_js` ONLY.
+        Python code should read `manual_cat` (JSON string) or use the
+        helper property `manual_cat_dict` below.
+        """
+        if getattr(self, "_manual_sync_block", False):
+            return
+
+        new_val = change.get("new") or "{}"
+        self._manual_sync_block = True
+        try:
+            self.manual_cat = new_val
+        finally:
+            self._manual_sync_block = False
+
+    @property
+    def manual_cat_dict(self) -> dict:
+        """Convenience accessor: parsed JSON from manual_cat."""
+        try:
+            return json.loads(self.manual_cat or "{}")
+        except json.JSONDecodeError:
+            return {}
 
     def close(self):  # pragma: no cover - cleanup depends on JS
         """Close the widget and notify the frontend to release resources."""
         with suppress(Exception):
             self.send({"event": "finalize"})
         super().close()
-
-    @staticmethod
-    def _normalize_axis(axis: str) -> str:
-        axis_lower = str(axis).lower()
-        if axis_lower.startswith("col"):
-            return "col"
-        if axis_lower.startswith("row"):
-            return "row"
-        raise ValueError("axis must be 'row' or 'col'")
-
-    def _axis_index(self, axis: str) -> pd.Index:
-        names = getattr(self, f"{axis}_names", []) or []
-        return pd.Index([str(name) for name in names], name=f"{axis}_id")
-
-    def _get_axis_dataframe(self, axis: str) -> pd.DataFrame:
-        existing = getattr(self, f"{axis}_attributes_df")
-        index = self._axis_index(axis)
-        if existing is None or existing.empty:
-            return pd.DataFrame(index=index)
-        return existing.reindex(index)
-
-    def _set_axis_dataframe(self, axis: str, dataframe: pd.DataFrame) -> None:
-        if dataframe.empty:
-            setattr(self, f"{axis}_attributes_df", None)
-        else:
-            setattr(self, f"{axis}_attributes_df", dataframe)
-
-    def _record_category_colors(self, mapping: Mapping | None) -> None:
-        if not mapping:
-            return
-
-        updated = False
-        for name, color in mapping.items():
-            if name is None or color is None:
-                continue
-            normalized_name = str(name)
-            normalized_color = str(color)
-            if self._category_colors.get(normalized_name) != normalized_color:
-                self._category_colors[normalized_name] = normalized_color
-                updated = True
-
-        if updated:
-            self.category_colors = deepcopy(self._category_colors)
-
-    def _default_manual_attribute_name(self, axis: str) -> str | None:
-        """Return the configured manual attribute name for an axis, if any."""
-
-        normalized_axis = self._normalize_axis(axis)
-        entry = (self._manual_config or {}).get(normalized_axis)
-        if entry is None and self._manual_axis_enabled.get(normalized_axis):
-            entry = self._ensure_manual_config_entry(normalized_axis)
-        attribute = (entry or {}).get("attribute")
-        if attribute:
-            return str(attribute)
-        if self._manual_axis_enabled.get(normalized_axis):
-            return self._manual_attribute_titles.get(normalized_axis)
-        return None
-
-    def _is_default_manual_attribute(self, axis: str, attribute: str | None) -> bool:
-        if attribute is None:
-            return False
-        manual_name = self._default_manual_attribute_name(axis)
-        return bool(manual_name and str(attribute) == manual_name)
-
-    def _fill_manual_attribute_defaults(
-        self,
-        axis: str,
-        attribute: str,
-        dataframe: pd.DataFrame,
-        colors: dict[str, dict[str, str]],
-    ) -> None:
-        if not self._is_default_manual_attribute(axis, attribute):
-            return
-
-        if attribute not in dataframe.columns:
-            dataframe[attribute] = _MANUAL_FILL_VALUE
-        else:
-            dataframe[attribute] = dataframe[attribute].where(
-                dataframe[attribute].notna(), _MANUAL_FILL_VALUE
-            )
-
-        attr_colors = dict(colors.get(attribute) or {})
-        if attr_colors.get(_MANUAL_FILL_VALUE) != _MANUAL_FILL_COLOR:
-            attr_colors[_MANUAL_FILL_VALUE] = _MANUAL_FILL_COLOR
-            colors[attribute] = attr_colors
-            self._record_category_colors({_MANUAL_FILL_VALUE: _MANUAL_FILL_COLOR})
-
-    def _ensure_manual_config_entry(self, axis: str) -> dict[str, object]:
-        normalized_axis = self._normalize_axis(axis)
-        config = self._load_manual_config(self.manual_cat_config)
-        entry = dict(config.get(normalized_axis) or {})
-        changed = False
-
-        if not entry.get("attribute"):
-            entry["attribute"] = self._manual_attribute_titles[normalized_axis]
-            changed = True
-
-        if entry.get("preferred") is None:
-            entry["preferred"] = []
-            changed = True
-
-        if "locked" not in entry:
-            entry["locked"] = True
-            changed = True
-
-        if config.get(normalized_axis) != entry:
-            config[normalized_axis] = entry
-            changed = True
-
-        if changed:
-            self.manual_cat_config = json.dumps(config)
-
-        self._manual_config = config
-        return entry
-
-    def _maybe_initialize_manual_axis(self, axis: str) -> None:
-        normalized_axis = self._normalize_axis(axis)
-        if not self._manual_axis_enabled.get(normalized_axis):
-            return
-
-        config_entry = self._ensure_manual_config_entry(normalized_axis)
-        attribute = (
-            config_entry.get("attribute")
-            or self._manual_attribute_titles[normalized_axis]
-        )
-
-        index = self._axis_index(normalized_axis)
-        if index.empty:
-            return
-
-        dataframe = self._get_axis_dataframe(normalized_axis)
-        dataframe = dataframe.reindex(index)
-        if attribute not in dataframe.columns:
-            dataframe[attribute] = _MANUAL_FILL_VALUE
-        else:
-            dataframe[attribute] = dataframe[attribute].where(
-                dataframe[attribute].notna(), _MANUAL_FILL_VALUE
-            )
-
-        colors = dict(getattr(self, f"{normalized_axis}_attribute_colors") or {})
-        attr_colors = dict(colors.get(attribute) or {})
-        attr_colors.setdefault(_MANUAL_FILL_VALUE, _MANUAL_FILL_COLOR)
-        colors[attribute] = attr_colors
-
-        self._manual_categories[normalized_axis].add(attribute)
-
-        self._manual_sync_block = True
-        try:
-            self._set_axis_dataframe(normalized_axis, dataframe)
-            setattr(self, f"{normalized_axis}_attribute_colors", colors)
-            self.manual_cat = json.dumps(self._export_manual_payload())
-        finally:
-            self._manual_sync_block = False
-
-        self._record_category_colors({_MANUAL_FILL_VALUE: attr_colors[_MANUAL_FILL_VALUE]})
-
-    def _on_manual_axis_flag_change(self, change) -> None:
-        axis = "row" if change["name"] == "manual_row_cat" else "col"
-        value = str(change["new"] or "").strip()
-        self._manual_attribute_titles[axis] = (
-            value or _DEFAULT_MANUAL_ATTRIBUTE_TITLES[axis]
-        )
-        self._manual_axis_enabled[axis] = bool(value)
-        if value:
-            self._ensure_manual_config_entry(axis)
-            self._maybe_initialize_manual_axis(axis)
-
-    def _on_axis_names_change(self, change) -> None:
-        axis = "row" if change["name"] == "row_names" else "col"
-        self._maybe_initialize_manual_axis(axis)
-
-    def _parse_manual_payload(self, payload) -> dict[str, dict[str, dict[str, dict[str, str]]]]:
-        result: dict[str, dict[str, dict[str, dict[str, str]]]] = {"row": {}, "col": {}}
-
-        if payload is None:
-            return result
-
-        if isinstance(payload, str):
-            try:
-                payload = json.loads(payload) if payload else {}
-            except json.JSONDecodeError:
-                return result
-
-        if not isinstance(payload, dict):
-            return result
-
-        for axis in ("row", "col"):
-            axis_payload = payload.get(axis, {})
-            if not isinstance(axis_payload, dict):
-                continue
-
-            normalized_axis: dict[str, dict[str, dict[str, str]]] = {}
-            for attr_name, entry in axis_payload.items():
-                values: Mapping | None
-                colors: Mapping | None
-                if isinstance(entry, dict) and (
-                    "values" in entry or "colors" in entry
-                ):
-                    values = entry.get("values", {})
-                    colors = entry.get("colors", {})
-                else:
-                    values = entry
-                    colors = {}
-
-                if not isinstance(values, Mapping):
-                    values = {}
-                if not isinstance(colors, Mapping):
-                    colors = {}
-
-                normalized_axis[str(attr_name)] = {
-                    "values": {
-                        str(key): None if val is None else str(val)
-                        for key, val in values.items()
-                    },
-                    "colors": {
-                        str(key): str(val)
-                        for key, val in colors.items()
-                        if val is not None
-                    },
-                }
-
-            result[axis] = normalized_axis
-
-        return result
-
-    def _export_manual_payload(self) -> dict[str, dict[str, dict[str, dict[str, str]]]]:
-        export: dict[str, dict[str, dict[str, dict[str, str]]]] = {"row": {}, "col": {}}
-
-        for axis in ("row", "col"):
-            dataframe = getattr(self, f"{axis}_attributes_df")
-            if dataframe is None or dataframe.empty:
-                continue
-
-            colors = getattr(self, f"{axis}_attribute_colors") or {}
-            for attribute in self._manual_categories[axis]:
-                if attribute not in dataframe.columns:
-                    continue
-                series = dataframe[attribute].dropna()
-                if series.empty:
-                    continue
-
-                export[axis][attribute] = {
-                    "values": {
-                        str(index): str(value)
-                        for index, value in series.items()
-                    },
-                    "colors": {
-                        str(name): str(color)
-                        for name, color in (colors.get(attribute) or {}).items()
-                    },
-                }
-
-        return export
-
-    def _apply_manual_payload(self, payload) -> None:
-        parsed = self._parse_manual_payload(payload)
-
-        for axis in ("row", "col"):
-            axis_payload = parsed.get(axis, {})
-            dataframe = self._get_axis_dataframe(axis)
-            colors = dict(getattr(self, f"{axis}_attribute_colors") or {})
-
-            incoming_attributes = set(axis_payload.keys())
-            default_attribute = self._default_manual_attribute_name(axis)
-            if default_attribute:
-                incoming_attributes.add(default_attribute)
-            previous_attributes = set(self._manual_categories[axis])
-
-            for attribute in previous_attributes - incoming_attributes:
-                if self._is_default_manual_attribute(axis, attribute):
-                    continue
-                if attribute in dataframe.columns:
-                    dataframe = dataframe.drop(columns=[attribute])
-                colors.pop(attribute, None)
-
-            for attribute, entry in axis_payload.items():
-                values = entry.get("values", {})
-                colors_map = entry.get("colors", {})
-
-                series = pd.Series(
-                    {
-                        str(index): None if value is None else str(value)
-                        for index, value in values.items()
-                    }
-                )
-
-                dataframe[attribute] = None
-                if not series.empty:
-                    series.index = series.index.map(str)
-                    aligned = dataframe.index.intersection(series.index)
-                    dataframe.loc[aligned, attribute] = series.loc[aligned]
-
-                if colors_map:
-                    colors[attribute] = {
-                        str(name): str(color)
-                        for name, color in colors_map.items()
-                    }
-                    self._record_category_colors(colors_map)
-
-                self._fill_manual_attribute_defaults(axis, attribute, dataframe, colors)
-
-            if default_attribute:
-                self._fill_manual_attribute_defaults(
-                    axis, default_attribute, dataframe, colors
-                )
-
-            # Remove columns that are entirely null
-            for attribute in list(incoming_attributes):
-                if attribute in dataframe.columns and dataframe[attribute].isna().all():
-                    if self._is_default_manual_attribute(axis, attribute):
-                        continue
-                    dataframe = dataframe.drop(columns=[attribute])
-                    colors.pop(attribute, None)
-                    incoming_attributes.discard(attribute)
-
-            self._manual_categories[axis] = incoming_attributes
-            self._set_axis_dataframe(axis, dataframe)
-            setattr(self, f"{axis}_attribute_colors", colors)
-
-    def _normalize_preferred(
-        self,
-        preferred,
-    ) -> list[dict[str, str]]:
-        if preferred is None:
-            return []
-
-        if isinstance(preferred, pd.DataFrame):
-            normalized: list[dict[str, str]] = []
-            for index, row in preferred.iterrows():
-                color_value = row.get("color", "")
-                normalized.append(
-                    {
-                        "name": str(index),
-                        "color": str(color_value) if color_value is not None else "",
-                    }
-                )
-            return normalized
-
-        if isinstance(preferred, Mapping):
-            return [
-                {"name": str(name), "color": str(color)}
-                for name, color in preferred.items()
-            ]
-
-        if isinstance(preferred, Sequence) and not isinstance(preferred, (str, bytes)):
-            normalized: list[dict[str, str]] = []
-            for entry in preferred:
-                if isinstance(entry, Mapping) and "name" in entry:
-                    normalized.append(
-                        {
-                            "name": str(entry["name"]),
-                            "color": str(entry.get("color", "")),
-                        }
-                    )
-                else:
-                    normalized.append({"name": str(entry), "color": ""})
-            return normalized
-
-        raise TypeError(
-            "preferred categories must be a pandas DataFrame, mapping, or sequence"
-        )
-
-    def _load_manual_config(self, value) -> dict[str, dict[str, str] | None]:
-        if isinstance(value, str):
-            try:
-                parsed = json.loads(value) if value else {}
-            except json.JSONDecodeError:
-                parsed = {}
-        elif isinstance(value, dict):
-            parsed = value
-        else:
-            parsed = {}
-
-        config: dict[str, dict[str, str] | None] = {"row": None, "col": None}
-        for axis in ("row", "col"):
-            entry = parsed.get(axis)
-            if not isinstance(entry, dict):
-                continue
-
-            attribute = entry.get("attribute")
-            preferred = entry.get("preferred", [])
-            normalized_preferred: list[dict[str, str]] = []
-            if isinstance(preferred, list):
-                for item in preferred:
-                    if isinstance(item, dict) and "name" in item:
-                        normalized_preferred.append(
-                            {
-                                "name": str(item["name"]),
-                                "color": str(item.get("color", "")),
-                            }
-                        )
-
-            config[axis] = {
-                "attribute": str(attribute) if attribute is not None else None,
-                "preferred": normalized_preferred,
-                "locked": bool(entry.get("locked")),
-            }
-
-        return config
-
-    def _on_manual_cat_change(self, change) -> None:
-        if self._manual_sync_block:
-            return
-
-        payload = change.get("new") if isinstance(change, dict) else change
-        self._apply_manual_payload(payload)
-
-    def _on_manual_config_change(self, change) -> None:
-        value = change.get("new") if isinstance(change, dict) else change
-        self._manual_config = self._load_manual_config(value)
-
-    def set_manual_category(
-        self,
-        *,
-        row: str | None = None,
-        col: str | None = None,
-        preferred_cats=None,
-        row_preferred=None,
-        col_preferred=None,
-        row_locked: bool | None = None,
-        col_locked: bool | None = None,
-    ) -> None:
-        """Configure the manual category editor defaults for rows and columns."""
-
-        config = self._load_manual_config(self.manual_cat_config)
-
-        if row is not None:
-            preferred = (
-                self._normalize_preferred(row_preferred)
-                if row_preferred is not None
-                else self._normalize_preferred(preferred_cats)
-            )
-            config["row"] = {
-                "attribute": str(row),
-                "preferred": preferred,
-                "locked": bool(row_locked) if row_locked is not None else bool(config.get("row", {}).get("locked")),
-            }
-
-        if col is not None:
-            preferred = (
-                self._normalize_preferred(col_preferred)
-                if col_preferred is not None
-                else self._normalize_preferred(preferred_cats)
-            )
-            config["col"] = {
-                "attribute": str(col),
-                "preferred": preferred,
-                "locked": bool(col_locked) if col_locked is not None else bool(config.get("col", {}).get("locked")),
-            }
-
-        self.manual_cat_config = json.dumps(config)
-
-    def apply_manual_category(
-        self,
-        axis: str,
-        attribute: str,
-        assignments,
-        colors: Mapping[str, str] | None = None,
-    ) -> None:
-        """Assign manual categories for the specified axis."""
-
-        axis_name = self._normalize_axis(axis)
-        dataframe = self._get_axis_dataframe(axis_name)
-        color_map = dict(getattr(self, f"{axis_name}_attribute_colors") or {})
-
-        if isinstance(assignments, pd.Series):
-            mapping = {
-                str(index): None if value is None else str(value)
-                for index, value in assignments.items()
-            }
-        elif isinstance(assignments, Mapping):
-            mapping = {
-                str(index): None if value is None else str(value)
-                for index, value in assignments.items()
-            }
-        else:
-            raise TypeError("assignments must be a pandas Series or mapping")
-
-        series = pd.Series(mapping)
-        if attribute not in dataframe.columns:
-            dataframe[attribute] = None
-
-        if not series.empty:
-            series.index = series.index.map(str)
-            aligned = dataframe.index.intersection(series.index)
-            dataframe.loc[aligned, attribute] = series.loc[aligned]
-
-        if colors:
-            color_map[attribute] = {
-                **color_map.get(attribute, {}),
-                **{str(name): str(color) for name, color in colors.items()},
-            }
-            self._record_category_colors(colors)
-
-        self._fill_manual_attribute_defaults(axis_name, attribute, dataframe, color_map)
-
-        if (
-            attribute in dataframe.columns
-            and dataframe[attribute].isna().all()
-            and not self._is_default_manual_attribute(axis_name, attribute)
-        ):
-            dataframe = dataframe.drop(columns=[attribute])
-            color_map.pop(attribute, None)
-            self._manual_categories[axis_name].discard(attribute)
-        else:
-            self._manual_categories[axis_name].add(attribute)
-
-        self._manual_sync_block = True
-        try:
-            self._set_axis_dataframe(axis_name, dataframe)
-            setattr(self, f"{axis_name}_attribute_colors", color_map)
-            self.manual_cat = json.dumps(self._export_manual_payload())
-        finally:
-            self._manual_sync_block = False
-
-    def clear_manual_category(
-        self,
-        axis: str,
-        attribute: str | None = None,
-    ) -> None:
-        """Clear manual category assignments for an axis."""
-
-        axis_name = self._normalize_axis(axis)
-        dataframe = self._get_axis_dataframe(axis_name)
-        color_map = dict(getattr(self, f"{axis_name}_attribute_colors") or {})
-
-        if attribute is None:
-            targets = list(self._manual_categories[axis_name])
-        else:
-            targets = [str(attribute)]
-
-        for attr in targets:
-            if self._is_default_manual_attribute(axis_name, attr):
-                if attr not in dataframe.columns:
-                    dataframe[attr] = None
-                self._fill_manual_attribute_defaults(axis_name, attr, dataframe, color_map)
-                self._manual_categories[axis_name].add(attr)
-                continue
-
-            if attr in dataframe.columns:
-                dataframe = dataframe.drop(columns=[attr])
-            color_map.pop(attr, None)
-            self._manual_categories[axis_name].discard(attr)
-
-        self._manual_sync_block = True
-        try:
-            self._set_axis_dataframe(axis_name, dataframe)
-            setattr(self, f"{axis_name}_attribute_colors", color_map)
-            self.manual_cat = json.dumps(self._export_manual_payload())
-        finally:
-            self._manual_sync_block = False
-
-    def get_manual_category(
-        self, axis: str, attribute: str | None = None
-    ) -> pd.Series:
-        """Return manual category assignments for an axis/attribute."""
-
-        axis_name = self._normalize_axis(axis)
-        target_attribute = (
-            str(attribute)
-            if attribute is not None
-            else self._default_manual_attribute_name(axis_name)
-        )
-        if not target_attribute:
-            raise KeyError(
-                f"Manual attribute is not configured for axis '{axis_name}'"
-            )
-
-        dataframe = getattr(self, f"{axis_name}_attributes_df")
-        if dataframe is None or target_attribute not in dataframe.columns:
-            raise KeyError(
-                f"Manual attribute '{target_attribute}' not found for axis '{axis_name}'"
-            )
-
-        series = dataframe[target_attribute].dropna()
-        if self._is_default_manual_attribute(axis_name, target_attribute):
-            series = series[series != _MANUAL_FILL_VALUE]
-
-        series.index = series.index.map(str)
-        return series

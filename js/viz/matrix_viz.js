@@ -63,7 +63,6 @@ import {
 } from '../matrix/attr_state'
 import { initialize_attribute_editor } from '../ui/attribute_editor'
 import { make_matrix_ui_container } from '../ui/ui_containers'
-import { create_category_breakdown } from '../ui/category_breakdown'
 
 export const matrix_viz = async (
   model,
@@ -191,13 +190,6 @@ export const matrix_viz = async (
     viz_state
   )
 
-  const category_breakdown = create_category_breakdown(viz_state)
-  viz_state.category_breakdown = category_breakdown
-  if (viz_state.ui_breakdown_container) {
-    viz_state.ui_breakdown_container.appendChild(
-      category_breakdown.get_element()
-    )
-  }
 
   el.appendChild(ui_container)
   el.appendChild(viz_state.root)
@@ -269,7 +261,6 @@ export const matrix_viz = async (
     if (!applied) return
 
     refresh_attribute_layers(deck_mat, layers_mat, viz_state)
-    viz_state.category_breakdown?.update_available_attributes?.()
 
     if (sync) {
       sync_axes_to_traitlets(axis)
@@ -315,7 +306,6 @@ export const matrix_viz = async (
         viz_state
       )
       refresh_attribute_layers(deck_mat, layers_mat, viz_state)
-      viz_state.category_breakdown?.update_available_attributes?.()
     }
 
     const apply_col_attributes = () => {
@@ -326,7 +316,6 @@ export const matrix_viz = async (
         viz_state
       )
       refresh_attribute_layers(deck_mat, layers_mat, viz_state)
-      viz_state.category_breakdown?.update_available_attributes?.()
     }
 
     apply_row_attributes()
@@ -408,7 +397,6 @@ export const matrix_viz = async (
   const matrix = {
     obs_store: viz_state.obs_store,
     finalize: () => {
-      viz_state.category_breakdown?.finalize?.()
       deck_mat.finalize()
     },
   }

@@ -336,83 +336,6 @@ class Landscape(anywidget.AnyWidget):
         super().close()
 
 
-class DataFrameTrait(traitlets.TraitType):
-    """Traitlet that synchronizes a pandas ``DataFrame`` with the frontend."""
-
-    default_value = None
-    info_text = "pandas.DataFrame or None"
-
-    def validate(self, obj, value):
-        if value is None:
-            return None
-        if isinstance(value, pd.DataFrame):
-            return value
-        raise traitlets.TraitError(
-            "Expected a pandas DataFrame or None, got %r" % (type(value),)
-        )
-
-    @staticmethod
-    def _ensure_serializable(df: pd.DataFrame) -> pd.DataFrame:
-        df = df.copy()
-        if df.index.name is None:
-            df.index.name = "index"
-        return df.where(df.notna(), None)
-
-    def to_json(self, value, obj):  # noqa: D401 - traitlets signature
-        if value is None:
-            return None
-
-        df = self._ensure_serializable(value.copy())
-        data = {col: df[col].tolist() for col in df.columns}
-
-        return {
-            "columns": list(df.columns),
-            "index": df.index.astype(str).tolist(),
-            "index_name": df.index.name,
-            "data": data,
-        }
-
-    def from_json(self, value, obj):  # noqa: D401 - traitlets signature
-        if value is None:
-            return None
-
-        columns = value.get("columns", [])
-        index = value.get("index", [])
-        data = value.get("data", {})
-
-        df = pd.DataFrame({col: data.get(col, [None] * len(index)) for col in columns})
-        if value.get("index_name") is not None:
-            df.index.name = value["index_name"]
-        df.index = pd.Index(index)
-        if columns:
-            df = df.reindex(columns=columns)
-        return df
-
-    def equal(self, old, new):  # noqa: D401 - traitlets signature
-        if old is None or new is None:
-            return old is None and new is None
-        if isinstance(old, pd.DataFrame) and isinstance(new, pd.DataFrame):
-            return old.equals(new)
-        return old is new
-
-
-class ManualAttributeTrait(traitlets.Unicode):
-    """Traitlet for configuring manual attribute names via bools or strings."""
-
-    def __init__(self, *, default_name: str, **kwargs):
-        self._default_name = default_name
-        super().__init__(default_value="", **kwargs)
-
-    def validate(self, obj, value):  # noqa: D401 - traitlets signature
-        if value is None:
-            return ""
-        if isinstance(value, bool):
-            return self._default_name if value else ""
-        if isinstance(value, str):
-            return super().validate(obj, value.strip())
-        return super().validate(obj, str(value).strip())
-
-
 class Enrich(anywidget.AnyWidget):
     """
     A widget for interactive enrichment analysis using the Enrichr API.
@@ -519,21 +442,21 @@ class Clustergram(anywidget.AnyWidget):
     row_names = traitlets.List(default_value=[]).tag(sync=True)
     col_names = traitlets.List(default_value=[]).tag(sync=True)
 
-    # Attribute DataFrames (+ colors) still available if you want to
-    # use them later, but we don't auto-manipulate them in this minimal
-    # version.
-    row_attributes_df = DataFrameTrait(allow_none=True).tag(sync=True)
-    col_attributes_df = DataFrameTrait(allow_none=True).tag(sync=True)
-    row_attribute_colors = traitlets.Dict(default_value={}).tag(sync=True)
-    col_attribute_colors = traitlets.Dict(default_value={}).tag(sync=True)
+    # # Attribute DataFrames (+ colors) still available if you want to
+    # # use them later, but we don't auto-manipulate them in this minimal
+    # # version.
+    # row_attributes_df = DataFrameTrait(allow_none=True).tag(sync=True)
+    # col_attributes_df = DataFrameTrait(allow_none=True).tag(sync=True)
+    # row_attribute_colors = traitlets.Dict(default_value={}).tag(sync=True)
+    # col_attribute_colors = traitlets.Dict(default_value={}).tag(sync=True)
 
-    # Flags that control whether manual categories are shown in the UI.
-    manual_row_cat = ManualAttributeTrait(
-        default_name=_DEFAULT_MANUAL_ATTRIBUTE_TITLES["row"]
-    ).tag(sync=True)
-    manual_col_cat = ManualAttributeTrait(
-        default_name=_DEFAULT_MANUAL_ATTRIBUTE_TITLES["col"]
-    ).tag(sync=True)
+    # # Flags that control whether manual categories are shown in the UI.
+    # manual_row_cat = ManualAttributeTrait(
+    #     default_name=_DEFAULT_MANUAL_ATTRIBUTE_TITLES["row"]
+    # ).tag(sync=True)
+    # manual_col_cat = ManualAttributeTrait(
+    #     default_name=_DEFAULT_MANUAL_ATTRIBUTE_TITLES["col"]
+    # ).tag(sync=True)
 
     # Global color registry (JS may write here; Python can also seed it)
     category_colors = traitlets.Dict(default_value={}).tag(sync=True)
@@ -623,17 +546,18 @@ class Clustergram(anywidget.AnyWidget):
 
         if manual_row_flag:
             config["row"] = {
-                "attribute": str(manual_row_flag),
+                "attribute": _DEFAULT_MANUAL_ATTRIBUTE_TITLES["row"],
                 "preferred": [],
                 "locked": True,
             }
 
         if manual_col_flag:
             config["col"] = {
-                "attribute": str(manual_col_flag),
+                "attribute": _DEFAULT_MANUAL_ATTRIBUTE_TITLES["col"],
                 "preferred": [],
                 "locked": True,
             }
+
 
         # Only overwrite if it's still the default "{}" / empty
         if (config["row"] is not None or config["col"] is not None) and (

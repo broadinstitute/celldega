@@ -61,7 +61,7 @@ import { set_landscape_parameters } from '../global_variables/landscape_paramete
 import { set_cluster_metadata } from '../global_variables/meta_cluster';
 import { set_meta_gene } from '../global_variables/meta_gene';
 import { update_selected_genes } from '../global_variables/selected_genes';
-import { color_to_rgba } from '../matrix/cat_data';
+import { colorToRgba } from '../matrix/cat_data';
 import { create_obs_store } from '../obs_store/obs_store';
 import { toggle_slider, set_image_layer_sliders } from '../ui/sliders';
 import { get_img_layer_visible } from '../ui/text_buttons';
@@ -228,7 +228,7 @@ export const landscape_ist = async (
       // color as rgb array that is converted from hex
       viz_state.nbhd.color_dict = {};
       nbhd.features.forEach((feature) => {
-        const color = color_to_rgba(feature.properties.color);
+        const color = colorToRgba(feature.properties.color);
         viz_state.nbhd.color_dict[feature.properties.cat] = color;
       });
 

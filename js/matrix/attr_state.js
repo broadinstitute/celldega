@@ -1,6 +1,6 @@
 import * as d3 from 'd3-color';
 
-import { color_to_rgba } from './cat_data';
+import { colorToRgba } from './cat_data';
 import { get_mat_layers_list } from '../deck-gl/matrix/matrix_layers';
 import { ini_views, ini_view_state } from '../deck-gl/matrix/views';
 
@@ -105,7 +105,7 @@ const build_cat_data_for_axis = (viz_state, axis) => {
         const key = ensure_string(value);
         const chosen =
           color_map[key] || fallback_color(key, node_index + attr_index);
-        color = color_to_rgba(chosen, 255);
+        color = colorToRgba(chosen, 255);
       }
 
       cat_data.push({
@@ -487,6 +487,46 @@ export const apply_manual_definitions_to_axis = (viz_state, axis) => {
   return did_change;
 };
 
+// export const sync_manual_category_from_payload = (raw_payload, viz_state) => {
+//   if (!raw_payload || !viz_state.obs_store?.manual_cat) {
+//     return;
+//   }
+
+//   let payload = raw_payload;
+//   if (typeof payload === 'string') {
+//     try {
+//       payload = payload ? JSON.parse(payload) : {};
+//     } catch (e) {
+//       payload = {};
+//     }
+//   }
+
+//   const { row, col } = payload || {};
+
+//   viz_state.manual_cat = viz_state.manual_cat || {};
+
+//   // Mark that we're about to apply a *server-originated* update.
+//   viz_state.manual_cat.external_update = true;
+//   try {
+//     const row_store = viz_state.obs_store.manual_cat.row;
+//     const col_store = viz_state.obs_store.manual_cat.col;
+
+//     if (row_store && row) {
+//       // whatever your existing import logic is, e.g.:
+//       row_store.importFromPayload(row);
+//     }
+
+//     if (col_store && col) {
+//       col_store.importFromPayload(col);
+//     }
+
+//     // (Optionally) re-apply to attr frames here if you were doing that before.
+//   } finally {
+//     // Re-enable JS→Python syncing for future manual edits.
+//     viz_state.manual_cat.external_update = false;
+//   }
+// };
+
 export const sync_manual_category_from_payload = (raw_payload, viz_state) => {
   if (!raw_payload || !viz_state.obs_store?.manual_cat) {
     return;
@@ -502,27 +542,15 @@ export const sync_manual_category_from_payload = (raw_payload, viz_state) => {
   }
 
   const { row, col } = payload || {};
+  const row_store = viz_state.obs_store.manual_cat.row;
+  const col_store = viz_state.obs_store.manual_cat.col;
 
-  viz_state.manual_cat = viz_state.manual_cat || {};
+  if (row_store && row) {
+    row_store.importFromPayload(row);
+  }
 
-  // Mark that we're about to apply a *server-originated* update.
-  viz_state.manual_cat.external_update = true;
-  try {
-    const row_store = viz_state.obs_store.manual_cat.row;
-    const col_store = viz_state.obs_store.manual_cat.col;
-
-    if (row_store && row) {
-      // whatever your existing import logic is, e.g.:
-      row_store.importFromPayload(row);
-    }
-
-    if (col_store && col) {
-      col_store.importFromPayload(col);
-    }
-
-    // (Optionally) re-apply to attr frames here if you were doing that before.
-  } finally {
-    // Re-enable JS→Python syncing for future manual edits.
-    viz_state.manual_cat.external_update = false;
+  if (col_store && col) {
+    col_store.importFromPayload(col);
   }
 };
+

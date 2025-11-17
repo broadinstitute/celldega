@@ -215,37 +215,62 @@ export const matrix_viz = async (
 
   initialize_attribute_editor(viz_state, deck_mat, layers_mat);
 
+  // const sync_axes_to_traitlets = (axes) => {
+  //   if (!viz_state.model || viz_state.manual_cat.external_update) {
+  //     return;
+  //   }
+
+  //   const axis_list = Array.isArray(axes) ? axes : [axes];
+
+  //   // 1) Push the current JS attribute frames/colors back to Python
+  //   axis_list.forEach((axis) => {
+  //     const normalized = axis === 'col' ? 'col' : 'row';
+  //     const frame = viz_state.attr.frames?.[normalized] || null;
+  //     const colors = viz_state.attr.color_payload?.[normalized] || {};
+
+  //     viz_state.model.set(`${normalized}_attributes_df`, frame);
+  //     viz_state.model.set(`${normalized}_attribute_colors`, colors);
+  //   });
+
+  //   // 2) Push the manual_cat payload (used for the fine-grained per-id info)
+  //   viz_state.manual_cat = viz_state.manual_cat || {};
+  //   viz_state.manual_cat.self_update = true; // mark as JS-originated
+
+  //   viz_state.model.set(
+  //     'manual_cat',
+  //     JSON.stringify({
+  //       row: viz_state.obs_store.manual_cat.row.toExportPayload(),
+  //       col: viz_state.obs_store.manual_cat.col.toExportPayload(),
+  //     })
+  //   );
+
+  //   viz_state.model.save_changes();
+  // };
+
+
   const sync_axes_to_traitlets = (axes) => {
-    if (!viz_state.model || viz_state.manual_cat.external_update) {
+    if (!viz_state.model) {
       return;
     }
 
+    console.log('sync_axes_to_traitlets called with axes:', axes);
+
     const axis_list = Array.isArray(axes) ? axes : [axes];
 
-    // 1) Push the current JS attribute frames/colors back to Python
     axis_list.forEach((axis) => {
       const normalized = axis === 'col' ? 'col' : 'row';
-      const frame = viz_state.attr.frames?.[normalized] || null;
-      const colors = viz_state.attr.color_payload?.[normalized] || {};
-
-      viz_state.model.set(`${normalized}_attributes_df`, frame);
-      viz_state.model.set(`${normalized}_attribute_colors`, colors);
+      console.log('sending frame/colors for', normalized,
+                  viz_state.attr.frames?.[normalized],
+                  viz_state.attr.color_payload?.[normalized]);
     });
 
-    // 2) Push the manual_cat payload (used for the fine-grained per-id info)
-    viz_state.manual_cat = viz_state.manual_cat || {};
-    viz_state.manual_cat.self_update = true; // mark as JS-originated
-
-    viz_state.model.set(
-      'manual_cat',
-      JSON.stringify({
-        row: viz_state.obs_store.manual_cat.row.toExportPayload(),
-        col: viz_state.obs_store.manual_cat.col.toExportPayload(),
-      })
+    // ...
+    console.log('sending manual_cat payload',
+      viz_state.obs_store.manual_cat.row.toExportPayload(),
+      viz_state.obs_store.manual_cat.col.toExportPayload()
     );
-
-    viz_state.model.save_changes();
   };
+
 
 
 

@@ -215,6 +215,61 @@ export const matrix_viz = async (
 
   initialize_attribute_editor(viz_state, deck_mat, layers_mat);
 
+
+  // 1) Full sync: frames/colors + manual_cat
+  const sync_axes_to_traitlets_full = (axes) => {
+    if (!viz_state.model || viz_state.manual_cat.external_update) {
+      return;
+    }
+
+    const axis_list = Array.isArray(axes) ? axes : [axes];
+
+    // Push current JS attribute frames/colors back to Python
+    axis_list.forEach((axis) => {
+      const normalized = axis === 'col' ? 'col' : 'row';
+      const frame = viz_state.attr.frames?.[normalized] || null;
+      const colors = viz_state.attr.color_payload?.[normalized] || {};
+
+      viz_state.model.set(`${normalized}_attributes_df`, frame);
+      viz_state.model.set(`${normalized}_attribute_colors`, colors);
+    });
+
+    // Also push manual_cat
+    viz_state.manual_cat = viz_state.manual_cat || {};
+    viz_state.manual_cat.self_update = true;
+
+    viz_state.model.set(
+      'manual_cat',
+      JSON.stringify({
+        row: viz_state.obs_store.manual_cat.row.toExportPayload(),
+        col: viz_state.obs_store.manual_cat.col.toExportPayload(),
+      })
+    );
+
+    viz_state.model.save_changes();
+  };
+
+  // 2) Light sync: ONLY manual_cat (Python recomputes frames/colors)
+  const sync_manual_cat_only = () => {
+    if (!viz_state.model || viz_state.manual_cat.external_update) {
+      return;
+    }
+
+    viz_state.manual_cat = viz_state.manual_cat || {};
+    viz_state.manual_cat.self_update = true;
+
+    viz_state.model.set(
+      'manual_cat',
+      JSON.stringify({
+        row: viz_state.obs_store.manual_cat.row.toExportPayload(),
+        col: viz_state.obs_store.manual_cat.col.toExportPayload(),
+      })
+    );
+
+    viz_state.model.save_changes();
+  };
+
+
   // const sync_axes_to_traitlets = (axes) => {
   //   if (!viz_state.model || viz_state.manual_cat.external_update) {
   //     return;
@@ -247,55 +302,73 @@ export const matrix_viz = async (
   //   viz_state.model.save_changes();
   // };
 
-
-  const sync_axes_to_traitlets = (axes) => {
-    if (!viz_state.model) {
+  const sync_axes_to_traitlets = () => {
+    if (!viz_state.model || viz_state.manual_cat.external_update) {
       return;
     }
 
-    console.log('sync_axes_to_traitlets called with axes:', axes);
+    // JS → Python: manual_cat is the only thing we send.
+    viz_state.manual_cat = viz_state.manual_cat || {};
+    viz_state.manual_cat.self_update = true;
 
-    const axis_list = Array.isArray(axes) ? axes : [axes];
-
-    axis_list.forEach((axis) => {
-      const normalized = axis === 'col' ? 'col' : 'row';
-      console.log('sending frame/colors for', normalized,
-                  viz_state.attr.frames?.[normalized],
-                  viz_state.attr.color_payload?.[normalized]);
-    });
-
-    // ...
-    console.log('sending manual_cat payload',
-      viz_state.obs_store.manual_cat.row.toExportPayload(),
-      viz_state.obs_store.manual_cat.col.toExportPayload()
+    viz_state.model.set(
+      'manual_cat',
+      JSON.stringify({
+        row: viz_state.obs_store.manual_cat.row.toExportPayload(),
+        col: viz_state.obs_store.manual_cat.col.toExportPayload(),
+      })
     );
+
+    viz_state.model.save_changes();
   };
 
 
 
 
 
-  if (viz_state.obs_store?.manual_cat) {
-    ['row', 'col'].forEach((axis) => {
-      const manual_store = viz_state.obs_store.manual_cat[axis];
-      if (!manual_store) {
-        return;
-      }
+    // if (viz_state.obs_store?.manual_cat) {
+    //   ['row', 'col'].forEach((axis) => {
+    //     const manual_store = viz_state.obs_store.manual_cat[axis];
+    //     if (!manual_store) return;
 
-      manual_store.subscribe(
-        () => {
-          const applied = apply_manual_definitions_to_axis(viz_state, axis);
-          if (applied) {
-            refresh_attribute_layers(deck_mat, layers_mat, viz_state);
-            viz_state.category_breakdown?.update_available_attributes();
-            // NEW: push this axis back to Python
-            sync_axes_to_traitlets(axis);
-          }
-        },
-        { immediate: false }
-      );
-    });
-  }
+    //     manual_store.subscribe(
+    //       () => {
+    //         const applied = apply_manual_definitions_to_axis(viz_state, axis);
+    //         if (applied) {
+    //           refresh_attribute_layers(deck_mat, layers_mat, viz_state);
+    //           viz_state.category_breakdown?.update_available_attributes();
+    //           // Only send manual_cat, not frames/colors
+    //           sync_axes_to_traitlets();
+    //         }
+    //       },
+    //       { immediate: false }
+    //     );
+    //   });
+    // }
+
+    if (viz_state.obs_store?.manual_cat) {
+      ['row', 'col'].forEach((axis) => {
+        const manual_store = viz_state.obs_store.manual_cat[axis];
+        if (!manual_store) {
+          return;
+        }
+
+        manual_store.subscribe(
+          () => {
+            const applied = apply_manual_definitions_to_axis(viz_state, axis);
+            if (applied) {
+              refresh_attribute_layers(deck_mat, layers_mat, viz_state);
+              viz_state.category_breakdown?.update_available_attributes();
+              // Interactive edit → only push manual_cat
+              sync_manual_cat_only();
+            }
+          },
+          { immediate: false }
+        );
+      });
+    }
+
+
 
 
 
@@ -342,22 +415,52 @@ export const matrix_viz = async (
     viz_state.model.on('change:col_attributes_df', apply_col_attributes);
     viz_state.model.on('change:col_attribute_colors', apply_col_attributes);
 
+    // const apply_manual_payload = () => {
+    //   const payload = viz_state.model.get('manual_cat');
+
+    //   // If this is just an echo of a JS-originated update, skip re-import.
+    //   if (viz_state.manual_cat?.self_update) {
+    //     viz_state.manual_cat.self_update = false;
+    //     return;
+    //   }
+
+    //   // This is a real server-originated update; sync it into the stores.
+    //   sync_manual_category_from_payload(payload, viz_state);
+
+    //   // Server updates should not trigger JS→Python resync.
+    //   // attr_state.js should be using viz_state.manual_cat.external_update
+    //   // while it applies this payload; assuming that's already happening.
+    // };
+
+    // const apply_manual_payload = () => {
+    //   const payload = viz_state.model.get('manual_cat');
+
+    //   // If this is just an echo of a JS-originated update, skip.
+    //   if (viz_state.manual_cat?.self_update) {
+    //     viz_state.manual_cat.self_update = false;
+    //     return;
+    //   }
+
+    //   // TEMP: don't try to import until we have a real import implementation.
+    //   // This avoids the "importFromPayload is not a function" crash.
+    //   // You can log to keep an eye on it:
+    //   // console.log('manual_cat from Python (ignored for now):', payload);
+    // };
+
     const apply_manual_payload = () => {
       const payload = viz_state.model.get('manual_cat');
 
-      // If this is just an echo of a JS-originated update, skip re-import.
       if (viz_state.manual_cat?.self_update) {
         viz_state.manual_cat.self_update = false;
         return;
       }
 
-      // This is a real server-originated update; sync it into the stores.
-      sync_manual_category_from_payload(payload, viz_state);
-
-      // Server updates should not trigger JS→Python resync.
-      // attr_state.js should be using viz_state.manual_cat.external_update
-      // while it applies this payload; assuming that's already happening.
+      // For now we don't pull server manual_cat back into JS.
+      // Once we implement a proper import on the stores, we can call
+      // sync_manual_category_from_payload(payload, viz_state) here.
     };
+
+
 
 
     // const apply_manual_config = () => {

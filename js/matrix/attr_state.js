@@ -527,30 +527,37 @@ export const apply_manual_definitions_to_axis = (viz_state, axis) => {
 //   }
 // };
 
+// export const sync_manual_category_from_payload = (raw_payload, viz_state) => {
+//   if (!raw_payload || !viz_state.obs_store?.manual_cat) {
+//     return;
+//   }
+
+//   let payload = raw_payload;
+//   if (typeof payload === 'string') {
+//     try {
+//       payload = payload ? JSON.parse(payload) : {};
+//     } catch (e) {
+//       payload = {};
+//     }
+//   }
+
+//   const { row, col } = payload || {};
+//   const row_store = viz_state.obs_store.manual_cat.row;
+//   const col_store = viz_state.obs_store.manual_cat.col;
+
+//   if (row_store && row) {
+//     row_store.importFromPayload(row);
+//   }
+
+//   if (col_store && col) {
+//     col_store.importFromPayload(col);
+//   }
+// };
+
 export const sync_manual_category_from_payload = (raw_payload, viz_state) => {
-  if (!raw_payload || !viz_state.obs_store?.manual_cat) {
-    return;
-  }
-
-  let payload = raw_payload;
-  if (typeof payload === 'string') {
-    try {
-      payload = payload ? JSON.parse(payload) : {};
-    } catch (e) {
-      payload = {};
-    }
-  }
-
-  const { row, col } = payload || {};
-  const row_store = viz_state.obs_store.manual_cat.row;
-  const col_store = viz_state.obs_store.manual_cat.col;
-
-  if (row_store && row) {
-    row_store.importFromPayload(row);
-  }
-
-  if (col_store && col) {
-    col_store.importFromPayload(col);
-  }
+  // Temporarily disabled: our manual stores don't implement importFromPayload yet.
+  // We still want Python to have manual_cat, but we don't import it back into JS.
+  return;
 };
+
 

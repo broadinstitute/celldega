@@ -487,77 +487,8 @@ export const apply_manual_definitions_to_axis = (viz_state, axis) => {
   return did_change;
 };
 
-// export const sync_manual_category_from_payload = (raw_payload, viz_state) => {
-//   if (!raw_payload || !viz_state.obs_store?.manual_cat) {
-//     return;
-//   }
-
-//   let payload = raw_payload;
-//   if (typeof payload === 'string') {
-//     try {
-//       payload = payload ? JSON.parse(payload) : {};
-//     } catch (e) {
-//       payload = {};
-//     }
-//   }
-
-//   const { row, col } = payload || {};
-
-//   viz_state.manual_cat = viz_state.manual_cat || {};
-
-//   // Mark that we're about to apply a *server-originated* update.
-//   viz_state.manual_cat.external_update = true;
-//   try {
-//     const row_store = viz_state.obs_store.manual_cat.row;
-//     const col_store = viz_state.obs_store.manual_cat.col;
-
-//     if (row_store && row) {
-//       // whatever your existing import logic is, e.g.:
-//       row_store.importFromPayload(row);
-//     }
-
-//     if (col_store && col) {
-//       col_store.importFromPayload(col);
-//     }
-
-//     // (Optionally) re-apply to attr frames here if you were doing that before.
-//   } finally {
-//     // Re-enable JS→Python syncing for future manual edits.
-//     viz_state.manual_cat.external_update = false;
-//   }
-// };
-
-// export const sync_manual_category_from_payload = (raw_payload, viz_state) => {
-//   if (!raw_payload || !viz_state.obs_store?.manual_cat) {
-//     return;
-//   }
-
-//   let payload = raw_payload;
-//   if (typeof payload === 'string') {
-//     try {
-//       payload = payload ? JSON.parse(payload) : {};
-//     } catch (e) {
-//       payload = {};
-//     }
-//   }
-
-//   const { row, col } = payload || {};
-//   const row_store = viz_state.obs_store.manual_cat.row;
-//   const col_store = viz_state.obs_store.manual_cat.col;
-
-//   if (row_store && row) {
-//     row_store.importFromPayload(row);
-//   }
-
-//   if (col_store && col) {
-//     col_store.importFromPayload(col);
-//   }
-// };
-
 export const sync_manual_category_from_payload = (raw_payload, viz_state) => {
   // Temporarily disabled: our manual stores don't implement importFromPayload yet.
   // We still want Python to have manual_cat, but we don't import it back into JS.
   return;
 };
-
-

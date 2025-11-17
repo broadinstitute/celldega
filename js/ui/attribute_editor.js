@@ -324,36 +324,6 @@ export const initialize_attribute_editor = (viz_state, deck_mat, layers_mat) => 
     position_container(position);
   };
 
-  // const apply_changes = () => {
-  //   if (!context) {
-  //     return;
-  //   }
-
-  //   const attribute_name = viz_state.manual_cat?.config?.[context.axis]?.attribute;
-  //   if (!attribute_name) {
-  //     close();
-  //     return;
-  //   }
-
-  //   const value = value_input.value.trim();
-  //   const color_hex =
-  //     color_input.value || DEFAULT_COLORS[context.axis] || DEFAULT_COLORS.row;
-
-  //   const manual_store = viz_state.obs_store?.manual_cat?.[context.axis];
-  //   if (!manual_store) {
-  //     close();
-  //     return;
-  //   }
-
-  //   manual_store.setAttribute(attribute_name);
-  //   manual_store.updateSelection({
-  //     selection: context.selection,
-  //     value,
-  //     color: color_hex,
-  //   });
-  //   close();
-  // };
-
   const apply_changes = () => {
     if (!context) {
       return;
@@ -383,23 +353,6 @@ export const initialize_attribute_editor = (viz_state, deck_mat, layers_mat) => 
       value,
       color: color_hex,
     });
-
-    // do not update traitlet here
-    /////////////////////////////////////////////
-    // // 2) Sync to traitlets (so Python sees it)
-    // if (viz_state.model) {
-    //   const payload = {
-    //     row: viz_state.obs_store.manual_cat.row.toExportPayload(),
-    //     col: viz_state.obs_store.manual_cat.col.toExportPayload(),
-    //   };
-
-    //   // mark this as JS-initiated so the JS sync handler can ignore echoes
-    //   viz_state.manual_cat = viz_state.manual_cat || {};
-    //   viz_state.manual_cat.self_update = true;
-
-    //   viz_state.model.set('manual_cat', JSON.stringify(payload));
-    //   viz_state.model.save_changes();
-    // }
 
     close();
   };

@@ -215,40 +215,56 @@ export const matrix_viz = async (
 
   initialize_attribute_editor(viz_state, deck_mat, layers_mat);
 
+  // --- SYNC HELPERS ------------------------------------------------------
+  // Track when we're applying Python-originated changes so we don't
+  // immediately echo them back to Python.
+  viz_state.sync_suspended = false
+  let bootstrap_done = false
 
-    // Single canonical sync: frames/colors + manual_cat
-  const sync_axes_to_traitlets = (axes) => {
+  const with_sync_suspended = (fn) => {
+    const prev = viz_state.sync_suspended
+    viz_state.sync_suspended = true
+    try {
+      fn()
+    } finally {
+      viz_state.sync_suspended = prev
+    }
+  }
 
-    console.log('sync_axes_to_traitlets called');
-    console.log('********************************')
-    if (!viz_state.model || viz_state.manual_cat?.external_update) {
-      return;
+  // Single canonical sync: frames/colors + manual_cat
+  const sync_axes_to_traitlets = (axes, { force = false } = {}) => {
+    if (!viz_state.model) {
+      return
+    }
+    // If we're in the middle of a Python->JS update, skip unless forced
+    if (viz_state.sync_suspended && !force) {
+      return
     }
 
-    const axis_list = Array.isArray(axes) ? axes : [axes];
+    const axis_list = Array.isArray(axes) ? axes : [axes]
 
-    // // 1) Push the current JS attribute frames/colors back to Python
-    // axis_list.forEach((axis) => {
-    //   const normalized = axis === 'col' ? 'col' : 'row';
-    //   const frame = viz_state.attr.frames?.[normalized] || null;
-    //   const colors = viz_state.attr.color_payload?.[normalized] || {};
+    // 1) Push the current JS attribute frames/colors back to Python
+    axis_list.forEach((axis) => {
+      const normalized = axis === 'col' ? 'col' : 'row'
+      const frame = viz_state.attr.frames?.[normalized] || null
+      const colors = viz_state.attr.color_payload?.[normalized] || {}
 
-    //   viz_state.model.set(`${normalized}_attributes_df`, frame);
-    //   viz_state.model.set(`${normalized}_attribute_colors`, colors);
-    // });
+      viz_state.model.set(`${normalized}_attributes_df`, frame)
+      viz_state.model.set(`${normalized}_attribute_colors`, colors)
+    })
 
-    // // 1b) Also push global category_colors so Python can see all hexes
-    // viz_state.model.set(
-    //   'category_colors',
-    //   viz_state.attr.category_colors || {}
-    // );
+    // 1b) Also push global category_colors so Python can see all hexes
+    viz_state.model.set(
+      'category_colors',
+      viz_state.attr.category_colors || {}
+    )
 
     // 2) Push the manual_cat payload (used for the fine-grained per-id info)
-    const row_store = viz_state.obs_store?.manual_cat?.row;
-    const col_store = viz_state.obs_store?.manual_cat?.col;
+    const row_store = viz_state.obs_store?.manual_cat?.row
+    const col_store = viz_state.obs_store?.manual_cat?.col
 
-    viz_state.manual_cat = viz_state.manual_cat || {};
-    viz_state.manual_cat.self_update = true; // mark as JS-originated
+    viz_state.manual_cat = viz_state.manual_cat || {}
+    viz_state.manual_cat.self_update = true // mark as JS-originated
 
     viz_state.model.set(
       'manual_cat',
@@ -256,10 +272,26 @@ export const matrix_viz = async (
         row: row_store ? row_store.toExportPayload() : {},
         col: col_store ? col_store.toExportPayload() : {},
       })
-    );
+    )
 
-    viz_state.model.save_changes();
-  };
+    viz_state.model.save_changes()
+  }
+
+  // Convenience helper so every "apply manual defs" path does the same thing
+  const apply_manual_and_refresh = (axis, { sync = false } = {}) => {
+    const applied = apply_manual_definitions_to_axis(viz_state, axis)
+    if (!applied) {
+      return
+    }
+
+    refresh_attribute_layers(deck_mat, layers_mat, viz_state)
+    viz_state.category_breakdown?.update_available_attributes?.()
+
+    if (sync) {
+      sync_axes_to_traitlets(axis)
+    }
+  }
+
 
 
 
@@ -268,23 +300,17 @@ export const matrix_viz = async (
 
   if (viz_state.obs_store?.manual_cat) {
     ['row', 'col'].forEach((axis) => {
-      const manual_store = viz_state.obs_store.manual_cat[axis];
-      if (!manual_store) return;
+      const manual_store = viz_state.obs_store.manual_cat[axis]
+      if (!manual_store) return
 
       manual_store.subscribe(
         () => {
-          const applied = apply_manual_definitions_to_axis(viz_state, axis);
-
-          // Repaint, update UI
-          refresh_attribute_layers(deck_mat, layers_mat, viz_state);
-          viz_state.category_breakdown?.update_available_attributes?.();
-
-          // Sync both axes back to Python whenever the user edits categories
-          sync_axes_to_traitlets(['row', 'col']);
+          // User edited categories in JS (editor / dendro / etc.)
+          apply_manual_and_refresh(axis, { sync: true })
         },
         { immediate: false }
-      );
-    });
+      )
+    })
   }
 
 
@@ -294,30 +320,30 @@ export const matrix_viz = async (
 
 
 
-  if (viz_state.model) {
-    const apply_row_attributes = () => {
-      apply_attribute_frame(
-        'row',
-        viz_state.model.get('row_attributes_df'),
-        viz_state.model.get('row_attribute_colors') || {},
-        viz_state
-      );
-      apply_manual_definitions_to_axis(viz_state, 'row');
-      refresh_attribute_layers(deck_mat, layers_mat, viz_state);
-      viz_state.category_breakdown?.update_available_attributes();
-    };
 
-    const apply_col_attributes = () => {
-      apply_attribute_frame(
-        'col',
-        viz_state.model.get('col_attributes_df'),
-        viz_state.model.get('col_attribute_colors') || {},
-        viz_state
-      );
-      apply_manual_definitions_to_axis(viz_state, 'col');
-      refresh_attribute_layers(deck_mat, layers_mat, viz_state);
-      viz_state.category_breakdown?.update_available_attributes();
-    };
+  if (viz_state.model) {
+
+    const apply_row_attributes = () =>
+      with_sync_suspended(() => {
+        apply_attribute_frame(
+          'row',
+          viz_state.model.get('row_attributes_df'),
+          viz_state.model.get('row_attribute_colors') || {},
+          viz_state
+        )
+        apply_manual_and_refresh('row', { sync: false })
+      })
+
+    const apply_col_attributes = () =>
+      with_sync_suspended(() => {
+        apply_attribute_frame(
+          'col',
+          viz_state.model.get('col_attributes_df'),
+          viz_state.model.get('col_attribute_colors') || {},
+          viz_state
+        )
+        apply_manual_and_refresh('col', { sync: false })
+      })
 
     viz_state.model.set(
       'row_names',
@@ -351,85 +377,74 @@ export const matrix_viz = async (
     };
 
 
-    const apply_manual_config = () => {
-      const raw_config = viz_state.model.get('manual_cat_config');
-      let parsed = raw_config;
-      if (typeof parsed === 'string') {
-        try {
-          parsed = parsed ? JSON.parse(parsed) : {};
-        } catch {
-          parsed = {};
+    const apply_manual_config = () =>
+      with_sync_suspended(() => {
+        const raw_config = viz_state.model.get('manual_cat_config')
+        let parsed = raw_config
+        if (typeof parsed === 'string') {
+          try {
+            parsed = parsed ? JSON.parse(parsed) : {}
+          } catch {
+            parsed = {}
+          }
         }
-      }
 
-      const normalized =
-        parsed && typeof parsed === 'object' ? parsed : { row: null, col: null };
-      viz_state.manual_cat.config.row = normalized.row || null;
-      viz_state.manual_cat.config.col = normalized.col || null;
+        const normalized =
+          parsed && typeof parsed === 'object' ? parsed : { row: null, col: null }
+        viz_state.manual_cat.config.row = normalized.row || null
+        viz_state.manual_cat.config.col = normalized.col || null
 
-      ['row', 'col'].forEach((axis) => {
-        const store = viz_state.obs_store?.manual_cat?.[axis];
-        const attribute_name =
-          viz_state.manual_cat?.config?.[axis]?.attribute || null;
-        if (store) {
-          store.setAttribute(attribute_name);
+        ;['row', 'col'].forEach((axis) => {
+          const store = viz_state.obs_store?.manual_cat?.[axis]
+          const attribute_name =
+            viz_state.manual_cat?.config?.[axis]?.attribute || null
+          if (store) {
+            store.setAttribute(attribute_name)
+          }
+        })
+
+        apply_manual_and_refresh('row', { sync: false })
+        apply_manual_and_refresh('col', { sync: false })
+      })
+
+    const apply_manual_flags = () =>
+      with_sync_suspended(() => {
+        viz_state.manual_cat.flags = {
+          row: !!viz_state.model.get('manual_row_cat'),
+          col: !!viz_state.model.get('manual_col_cat'),
         }
-      });
 
-      const applied_row = apply_manual_definitions_to_axis(viz_state, 'row');
-      const applied_col = apply_manual_definitions_to_axis(viz_state, 'col');
+        ;['row', 'col'].forEach((axis) => {
+          if (!viz_state.manual_cat.flags?.[axis]) {
+            return
+          }
+          const store = viz_state.obs_store?.manual_cat?.[axis]
+          const attribute_name =
+            viz_state.manual_cat?.config?.[axis]?.attribute || null
+          if (store) {
+            store.setAttribute(attribute_name)
+          }
+        })
 
-      const dirty_axes = [];
-      if (applied_row) dirty_axes.push('row');
-      if (applied_col) dirty_axes.push('col');
+        apply_manual_and_refresh('row', { sync: false })
+        apply_manual_and_refresh('col', { sync: false })
 
-      if (dirty_axes.length) {
-        refresh_attribute_layers(deck_mat, layers_mat, viz_state);
-        viz_state.category_breakdown?.update_available_attributes();
-        // IMPORTANT: seed traitlets so Python sees the initial attribute
-        sync_axes_to_traitlets(dirty_axes);
-      }
-    };
-
-
-    const apply_manual_flags = () => {
-      viz_state.manual_cat.flags = {
-        row: !!viz_state.model.get('manual_row_cat'),
-        col: !!viz_state.model.get('manual_col_cat'),
-      };
-
-      ['row', 'col'].forEach((axis) => {
-        if (!viz_state.manual_cat.flags?.[axis]) {
-          return;
+        // ONE-TIME BOOTSTRAP: after Python turns manual_* on the first time,
+        // push the JS-computed frames/colors + manual_cat back to Python.
+        if (!bootstrap_done) {
+          bootstrap_done = true
+          sync_axes_to_traitlets(['row', 'col'], { force: true })
         }
-        const store = viz_state.obs_store?.manual_cat?.[axis];
-        const attribute_name =
-          viz_state.manual_cat?.config?.[axis]?.attribute || null;
-        if (store) {
-          store.setAttribute(attribute_name);
-        }
-      });
-
-      const applied_row = apply_manual_definitions_to_axis(viz_state, 'row');
-      const applied_col = apply_manual_definitions_to_axis(viz_state, 'col');
-
-      const dirty_axes = [];
-      if (applied_row) dirty_axes.push('row');
-      if (applied_col) dirty_axes.push('col');
-
-      if (dirty_axes.length) {
-        refresh_attribute_layers(deck_mat, layers_mat, viz_state);
-        viz_state.category_breakdown?.update_available_attributes();
-        // Seed/update Python traitlets when flags flip on
-        sync_axes_to_traitlets(dirty_axes);
-      }
-    };
+      })
 
 
-    const apply_category_colors = () => {
-      viz_state.attr.category_colors =
-        viz_state.model.get('category_colors') || {};
-    };
+
+    const apply_category_colors = () =>
+      with_sync_suspended(() => {
+        viz_state.attr.category_colors =
+          viz_state.model.get('category_colors') || {}
+      })
+
 
     apply_manual_payload();
     apply_manual_config();

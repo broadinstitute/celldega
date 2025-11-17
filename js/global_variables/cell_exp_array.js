@@ -9,23 +9,31 @@ function processExpression(exp_value, max_exp) {
 
 export const update_cell_exp_array = async (
   cats,
-  genes,
+  feature_store,
   base_url,
-  inst_gene,
+  inst_name,
   version,
   vector_name_integer,
-  aws
+  aws,
+  { dataType = 'gene' } = {}
 ) => {
+  let directory;
+  if (dataType === 'protein') {
+    directory = 'cbp';
+  } else {
+    directory = 'cbg';
+  }
+
   let file_path;
   if (version === 'default') {
-    file_path = `${base_url}/cbg/${inst_gene}.parquet`;
+    file_path = `${base_url}/${directory}/${inst_name}.parquet`;
   } else {
-    file_path = `${base_url}/cbg_${version}/${inst_gene}.parquet`;
+    file_path = `${base_url}/${directory}_${version}/${inst_name}.parquet`;
   }
 
   const exp_table = await get_arrow_table(file_path, options.fetch, aws);
   const cell_names = exp_table.getChild('__index_level_0__').toArray();
-  const cell_exp = exp_table.getChild(inst_gene).toArray();
+  const cell_exp = exp_table.getChild(inst_name).toArray();
 
   const new_exp_array = new Array(cats.cell_names_array.length).fill(0);
 
@@ -41,7 +49,12 @@ export const update_cell_exp_array = async (
   cell_names.forEach((name, i) => {
     name = String(name);
     const exp_value = Number(cell_exp[i]);
-    const max_exp = Number(genes.meta_gene[inst_gene].max);
+    const meta_dictionary =
+      dataType === 'protein'
+        ? feature_store.meta_protein
+        : feature_store.meta_gene;
+
+    const max_exp = Number(meta_dictionary?.[inst_name]?.max ?? 1);
 
     if (!vector_name_integer) {
       if (cats.cell_name_to_index_map.has(name)) {

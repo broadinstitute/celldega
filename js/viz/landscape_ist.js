@@ -60,7 +60,9 @@ import {
 import { set_landscape_parameters } from '../global_variables/landscape_parameters';
 import { set_cluster_metadata } from '../global_variables/meta_cluster';
 import { set_meta_gene } from '../global_variables/meta_gene';
+import { set_meta_protein } from '../global_variables/meta_protein';
 import { update_selected_genes } from '../global_variables/selected_genes';
+import { update_selected_proteins } from '../global_variables/selected_proteins';
 import { colorToRgba } from '../matrix/cat_data';
 import { create_obs_store } from '../obs_store/obs_store';
 import { toggle_slider, set_image_layer_sliders } from '../ui/sliders';
@@ -303,6 +305,15 @@ export const landscape_ist = async (
   viz_state.genes.trx_slider = document.createElement('input');
   viz_state.genes.gene_search = document.createElement('div');
 
+  viz_state.proteins = {};
+  viz_state.proteins.color_dict_protein = {};
+  viz_state.proteins.protein_names = [];
+  viz_state.proteins.meta_protein = {};
+  viz_state.proteins.protein_counts = [];
+  viz_state.proteins.top_protein_counts = [];
+  viz_state.proteins.selected_proteins = [];
+  viz_state.proteins.svg_bar_protein = d3.create('svg');
+
   viz_state.cats.cell_exp_array = [];
   viz_state.cats.cell_names_array = [];
   viz_state.cats.cell_name_to_index_map = new Map();
@@ -356,6 +367,19 @@ export const landscape_ist = async (
     viz_state.seg.version,
     viz_state.aws
   );
+
+  await set_meta_protein(
+    viz_state.proteins,
+    base_url,
+    viz_state.seg.version,
+    viz_state.aws
+  );
+
+  if (viz_state.obs_store.new_protein_bar_data) {
+    viz_state.obs_store.new_protein_bar_data.set(
+      viz_state.proteins.top_protein_counts || []
+    );
+  }
 
   await set_cluster_metadata(viz_state);
 
@@ -689,6 +713,11 @@ export const landscape_ist = async (
 
       update_cat(viz_state.cats, new_cat);
       update_selected_genes(viz_state.genes, [inst_gene], viz_state.obs_store);
+      update_selected_proteins(
+        viz_state.proteins,
+        [],
+        viz_state.obs_store
+      );
       update_selected_cats(
         viz_state.cats,
         new_cat === 'cluster' ? [] : [inst_gene],
@@ -715,6 +744,7 @@ export const landscape_ist = async (
       update_cat(viz_state.cats, 'cluster');
       update_selected_cats(viz_state.cats, [inst_col], viz_state.obs_store);
       update_selected_genes(viz_state.genes, [], viz_state.obs_store);
+      update_selected_proteins(viz_state.proteins, [], viz_state.obs_store);
 
       viz_state.obs_store.deck_check.set({
         ...viz_state.obs_store.deck_check.get(),
@@ -732,6 +762,7 @@ export const landscape_ist = async (
       update_selected_cats(viz_state.cats, new_cats, viz_state.obs_store);
 
       update_selected_genes(viz_state.genes, [], viz_state.obs_store);
+      update_selected_proteins(viz_state.proteins, [], viz_state.obs_store);
 
       viz_state.obs_store.deck_check.set({
         ...viz_state.obs_store.deck_check.get(),

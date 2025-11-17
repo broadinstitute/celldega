@@ -33,6 +33,7 @@ import {
   bar_callback_cat,
   make_bar_container,
   bar_callback_gene,
+  bar_callback_protein,
 } from './bar_plot';
 import { set_gene_search } from './gene_search';
 import { logo } from './logo';
@@ -356,6 +357,10 @@ export const make_ist_ui_container = (
   gene_container.style.width = bar_container_width;
   const trx_container = flex_container('trx_container', 'row');
 
+  const protein_container = flex_container('protein_container', 'column');
+  protein_container.style.marginTop = '0px';
+  protein_container.style.width = bar_container_width;
+
   let nbhd_container;
   let nbhd_ctrl_container;
   if (viz_state.nbhd.is_nbhd) {
@@ -585,6 +590,9 @@ export const make_ist_ui_container = (
 
   viz_state.cats.svg_bar_cluster = d3.create('svg');
   viz_state.genes.svg_bar_gene = d3.create('svg');
+  if (!viz_state.proteins.svg_bar_protein) {
+    viz_state.proteins.svg_bar_protein = d3.create('svg');
+  }
 
   if (viz_state.nbhd.is_nbhd) {
     viz_state.nbhd.svg_bar_nbhd = d3.create('svg');
@@ -603,6 +611,8 @@ export const make_ist_ui_container = (
 
   viz_state.containers.bar_gene = make_bar_container();
 
+  viz_state.containers.bar_protein = make_bar_container();
+
   // only keep the top 100 genes in gene_counts
   const max_num_gene_bars = 1000;
   viz_state.genes.gene_counts = viz_state.genes.gene_counts
@@ -615,6 +625,17 @@ export const make_ist_ui_container = (
     viz_state.genes.svg_bar_gene,
     viz_state.genes.top_gene_counts,
     viz_state.genes.color_dict_gene,
+    deck_ist,
+    layers_obj,
+    viz_state
+  );
+
+  make_bar_graph(
+    viz_state.containers.bar_protein,
+    bar_callback_protein,
+    viz_state.proteins.svg_bar_protein,
+    viz_state.proteins.top_protein_counts || [],
+    viz_state.proteins.color_dict_protein || {},
     deck_ist,
     layers_obj,
     viz_state
@@ -690,6 +711,16 @@ export const make_ist_ui_container = (
     ),
     { immediate: false }
   );
+
+  if (viz_state.obs_store.selected_proteins) {
+    viz_state.obs_store.selected_proteins.subscribe(
+      make_bar_cat_subscriber(
+        viz_state.proteins.svg_bar_protein,
+        viz_state.containers.bar_protein
+      ),
+      { immediate: false }
+    );
+  }
 
   const subscriber_new_bar_data =
     ({ svg, color_dict, selected_array, bar_callback, container }) =>
@@ -800,6 +831,19 @@ export const make_ist_ui_container = (
     { immediate: false }
   );
 
+  if (viz_state.obs_store.new_protein_bar_data) {
+    viz_state.obs_store.new_protein_bar_data.subscribe(
+      subscriber_new_bar_data({
+        svg: viz_state.proteins.svg_bar_protein,
+        color_dict: viz_state.proteins.color_dict_protein || {},
+        selected_array: viz_state.proteins.selected_proteins || [],
+        bar_callback: bar_callback_protein,
+        container: viz_state.containers.bar_protein,
+      }),
+      { immediate: false }
+    );
+  }
+
   cell_container.appendChild(cell_ctrl_container);
   cell_container.appendChild(viz_state.containers.bar_cluster);
 
@@ -809,6 +853,19 @@ export const make_ist_ui_container = (
 
   gene_container.appendChild(trx_container);
   gene_container.appendChild(viz_state.containers.bar_gene);
+
+  const protein_label = document.createElement('div');
+  protein_label.textContent = 'PRT';
+  protein_label.style.fontWeight = 'bold';
+  protein_label.style.fontSize = '12px';
+  protein_label.style.color = 'blue';
+  protein_label.style.marginTop = '5px';
+  protein_label.style.marginLeft = '5px';
+  protein_label.style.userSelect = 'none';
+  protein_label.style.fontFamily =
+    '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif';
+  protein_container.appendChild(protein_label);
+  protein_container.appendChild(viz_state.containers.bar_protein);
 
   set_gene_search('ist', deck_ist, layers_obj, viz_state);
 
@@ -855,6 +912,7 @@ export const make_ist_ui_container = (
   }
   ctrl_container.appendChild(cell_container);
   ctrl_container.appendChild(gene_container);
+  ctrl_container.appendChild(protein_container);
 
   viz_state.genes.gene_search.style.width = '160px';
   viz_state.genes.gene_search.style.marginLeft = '5px';

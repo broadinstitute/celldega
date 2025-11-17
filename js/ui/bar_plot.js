@@ -5,6 +5,7 @@ import { toggle_trx_layer_visibility } from '../deck-gl/layers/trx_layer';
 import { update_cat, update_selected_cats } from '../global_variables/cat';
 import { update_cell_exp_array } from '../global_variables/cell_exp_array';
 import { update_selected_genes } from '../global_variables/selected_genes';
+import { update_selected_proteins } from '../global_variables/selected_proteins';
 import { toggle_slider } from '../ui/sliders';
 import { refresh_layer } from '../utils/refresh_layer';
 
@@ -48,6 +49,11 @@ export const bar_callback_cat = (
   update_cat(_viz_state.cats, 'cluster');
   update_selected_cats(_viz_state.cats, [d.name], _viz_state.obs_store);
   update_selected_genes(_viz_state.genes, [], _viz_state.obs_store);
+  update_selected_proteins(
+    _viz_state.proteins,
+    [],
+    _viz_state.obs_store
+  );
 
   // toggle gene bars based on reset_cat
   if (_viz_state.cats.reset_cat) {
@@ -112,9 +118,66 @@ export const bar_callback_gene = async (
     _viz_state.aws
   );
 
+  update_selected_proteins(
+    _viz_state.proteins,
+    [],
+    _viz_state.obs_store
+  );
+
   // update selected_cats after update_cell_exp_array has been run
   // can clean up and move more logic to observability
   update_selected_cats(_viz_state.cats, [inst_gene], _viz_state.obs_store);
+};
+
+export const bar_callback_protein = async (
+  _event,
+  d,
+  _deck_ist,
+  _layers_obj,
+  _viz_state
+) => {
+  const inst_protein = d.name;
+  const reset_protein = inst_protein === _viz_state.cats.cat;
+  const new_cat = reset_protein ? 'cluster' : inst_protein;
+
+  if (reset_protein) {
+    _viz_state.cats.svg_bar_cluster.selectAll('rect').style('opacity', 1.0);
+  } else {
+    _viz_state.cats.svg_bar_cluster.selectAll('rect').style('opacity', 0.2);
+  }
+
+  update_cat(_viz_state.cats, new_cat);
+
+  _viz_state.obs_store.deck_check.set({
+    ..._viz_state.obs_store.deck_check.get(),
+    cell_layer: false,
+    trx_layer: false,
+  });
+
+  update_selected_proteins(
+    _viz_state.proteins,
+    [inst_protein],
+    _viz_state.obs_store
+  );
+
+  await update_cell_exp_array(
+    _viz_state.cats,
+    _viz_state.proteins,
+    _viz_state.global_base_url,
+    inst_protein,
+    _viz_state.seg.version,
+    _viz_state.vector_name_integer,
+    _viz_state.aws,
+    { dataType: 'protein' }
+  );
+
+  update_selected_genes(_viz_state.genes, [], _viz_state.obs_store);
+
+  update_selected_cats(
+    _viz_state.cats,
+    [inst_protein],
+    _viz_state.obs_store
+  );
 };
 
 export const bar_callback_nbhd = (

@@ -216,15 +216,15 @@ export const matrix_viz = async (
   initialize_attribute_editor(viz_state, deck_mat, layers_mat);
 
 
-  // 1) Full sync: frames/colors + manual_cat
-  const sync_axes_to_traitlets_full = (axes) => {
-    if (!viz_state.model || viz_state.manual_cat.external_update) {
+  // Single canonical sync: frames/colors + manual_cat
+  const sync_axes_to_traitlets = (axes) => {
+    if (!viz_state.model || viz_state.manual_cat?.external_update) {
       return;
     }
 
     const axis_list = Array.isArray(axes) ? axes : [axes];
 
-    // Push current JS attribute frames/colors back to Python
+    // 1) Push the current JS attribute frames/colors back to Python
     axis_list.forEach((axis) => {
       const normalized = axis === 'col' ? 'col' : 'row';
       const frame = viz_state.attr.frames?.[normalized] || null;
@@ -234,82 +234,51 @@ export const matrix_viz = async (
       viz_state.model.set(`${normalized}_attribute_colors`, colors);
     });
 
-    // Also push manual_cat
+    // 2) Push the manual_cat payload (used for the fine-grained per-id info)
+    const row_store = viz_state.obs_store?.manual_cat?.row;
+    const col_store = viz_state.obs_store?.manual_cat?.col;
+
     viz_state.manual_cat = viz_state.manual_cat || {};
-    viz_state.manual_cat.self_update = true;
+    viz_state.manual_cat.self_update = true; // mark as JS-originated
 
     viz_state.model.set(
       'manual_cat',
       JSON.stringify({
-        row: viz_state.obs_store.manual_cat.row.toExportPayload(),
-        col: viz_state.obs_store.manual_cat.col.toExportPayload(),
+        row: row_store ? row_store.toExportPayload() : {},
+        col: col_store ? col_store.toExportPayload() : {},
       })
     );
 
     viz_state.model.save_changes();
   };
 
-  // 2) Light sync: ONLY manual_cat (Python recomputes frames/colors)
-  const sync_manual_cat_only = () => {
-    if (!viz_state.model || viz_state.manual_cat.external_update) {
-      return;
-    }
 
-    viz_state.manual_cat = viz_state.manual_cat || {};
-    viz_state.manual_cat.self_update = true;
 
-    viz_state.model.set(
-      'manual_cat',
-      JSON.stringify({
-        row: viz_state.obs_store.manual_cat.row.toExportPayload(),
-        col: viz_state.obs_store.manual_cat.col.toExportPayload(),
-      })
-    );
 
-    viz_state.model.save_changes();
-  };
 
-  const sync_axes_to_traitlets = () => {
-    if (!viz_state.model || viz_state.manual_cat.external_update) {
-      return;
-    }
 
-    // JS → Python: manual_cat is the only thing we send.
-    viz_state.manual_cat = viz_state.manual_cat || {};
-    viz_state.manual_cat.self_update = true;
+  if (viz_state.obs_store?.manual_cat) {
+    ['row', 'col'].forEach((axis) => {
+      const manual_store = viz_state.obs_store.manual_cat[axis];
+      if (!manual_store) {
+        return;
+      }
 
-    viz_state.model.set(
-      'manual_cat',
-      JSON.stringify({
-        row: viz_state.obs_store.manual_cat.row.toExportPayload(),
-        col: viz_state.obs_store.manual_cat.col.toExportPayload(),
-      })
-    );
+      manual_store.subscribe(
+        () => {
+          const applied = apply_manual_definitions_to_axis(viz_state, axis);
+          if (applied) {
+            refresh_attribute_layers(deck_mat, layers_mat, viz_state);
+            viz_state.category_breakdown?.update_available_attributes();
+            // Sync both frames/colors and manual_cat for this axis
+            sync_axes_to_traitlets(axis);
+          }
+        },
+        { immediate: false }
+      );
+    });
+  }
 
-    viz_state.model.save_changes();
-  };
-
-    if (viz_state.obs_store?.manual_cat) {
-      ['row', 'col'].forEach((axis) => {
-        const manual_store = viz_state.obs_store.manual_cat[axis];
-        if (!manual_store) {
-          return;
-        }
-
-        manual_store.subscribe(
-          () => {
-            const applied = apply_manual_definitions_to_axis(viz_state, axis);
-            if (applied) {
-              refresh_attribute_layers(deck_mat, layers_mat, viz_state);
-              viz_state.category_breakdown?.update_available_attributes();
-              // Interactive edit → only push manual_cat
-              sync_manual_cat_only();
-            }
-          },
-          { immediate: false }
-        );
-      });
-    }
 
 
 

@@ -215,21 +215,90 @@ export const matrix_viz = async (
 
   initialize_attribute_editor(viz_state, deck_mat, layers_mat);
 
-  const sync_manual_traitlets = (axes) => {
+  // const sync_axes_to_traitlets = (axes) => {
+  //   if (!viz_state.model || viz_state.manual_cat.external_update) {
+  //     return;
+  //   }
+
+  //   const axis_list = Array.isArray(axes) ? axes : [axes];
+
+  //   axis_list.forEach((axis) => {
+  //     const normalized_axis = axis === 'col' ? 'col' : 'row';
+  //     const frame = viz_state.attr.frames?.[normalized_axis] || null;
+  //     const colors = viz_state.attr.color_payload?.[normalized_axis] || {};
+
+  //     viz_state.model.set(`${normalized_axis}_attributes_df`, frame);
+  //     viz_state.model.set(`${normalized_axis}_attribute_colors`, colors);
+  //   });
+
+  //   // Mark this as a JS-initiated manual_cat update so the sync handler
+  //   // in attr_state.js can ignore the echo.
+  //   viz_state.manual_cat.self_update = true;
+  //   viz_state.model.set(
+  //     'manual_cat',
+  //     JSON.stringify({
+  //       row: viz_state.obs_store.manual_cat.row.toExportPayload(),
+  //       col: viz_state.obs_store.manual_cat.col.toExportPayload(),
+  //     })
+  //   );
+
+  //   viz_state.model.save_changes();
+  // };
+
+  // const sync_axes_to_traitlets = (axes) => {
+  //   if (!viz_state.model || viz_state.manual_cat.external_update) {
+  //     console.log('sync_axes_to_traitlets: SKIPPING (no model or external_update)');
+  //     return;
+  //   }
+
+  //   const axis_list = Array.isArray(axes) ? axes : [axes];
+  //   console.log('sync_axes_to_traitlets: axes', axis_list);
+  //   axis_list.forEach((axis) => {
+  //     const normalized_axis = axis === 'col' ? 'col' : 'row';
+  //     const frame = viz_state.attr.frames?.[normalized_axis] || null;
+  //     const colors = viz_state.attr.color_payload?.[normalized_axis] || {};
+  //     console.log(
+  //       'sync_axes_to_traitlets: setting',
+  //       `${normalized_axis}_attributes_df`,
+  //       frame
+  //     );
+  //     viz_state.model.set(`${normalized_axis}_attributes_df`, frame);
+  //     viz_state.model.set(`${normalized_axis}_attribute_colors`, colors);
+  //   });
+
+  //   viz_state.manual_cat.self_update = true;
+  //   viz_state.model.set(
+  //     'manual_cat',
+  //     JSON.stringify({
+  //       row: viz_state.obs_store.manual_cat.row.toExportPayload(),
+  //       col: viz_state.obs_store.manual_cat.col.toExportPayload(),
+  //     })
+  //   );
+
+  //   console.log('sync_axes_to_traitlets: calling save_changes');
+  //   viz_state.model.save_changes();
+  // };
+
+  const sync_axes_to_traitlets = (axes) => {
     if (!viz_state.model || viz_state.manual_cat.external_update) {
       return;
     }
 
     const axis_list = Array.isArray(axes) ? axes : [axes];
-    axis_list.forEach((axis) => {
-      const normalized_axis = axis === 'col' ? 'col' : 'row';
-      const frame = viz_state.attr.frames?.[normalized_axis] || null;
-      const colors = viz_state.attr.color_payload?.[normalized_axis] || {};
-      viz_state.model.set(`${normalized_axis}_attributes_df`, frame);
-      viz_state.model.set(`${normalized_axis}_attribute_colors`, colors);
-    });
 
+    // axis_list.forEach((axis) => {
+    //   const normalized_axis = axis === 'col' ? 'col' : 'row';
+    //   const frame = viz_state.attr.frames?.[normalized_axis] || null;
+    //   const colors = viz_state.attr.color_payload?.[normalized_axis] || {};
+
+    //   viz_state.model.set(`${normalized_axis}_attributes_df`, frame);
+    //   viz_state.model.set(`${normalized_axis}_attribute_colors`, colors);
+    // });
+
+    // mark this as JS-initiated so the echo handler can ignore it
+    viz_state.manual_cat = viz_state.manual_cat || {};
     viz_state.manual_cat.self_update = true;
+
     viz_state.model.set(
       'manual_cat',
       JSON.stringify({
@@ -237,8 +306,80 @@ export const matrix_viz = async (
         col: viz_state.obs_store.manual_cat.col.toExportPayload(),
       })
     );
+
     viz_state.model.save_changes();
   };
+
+
+
+
+  // const sync_manual_traitlets = (axes) => {
+  //   if (!viz_state.model || viz_state.manual_cat.external_update) {
+  //     return;
+  //   }
+
+  //   const axis_list = Array.isArray(axes) ? axes : [axes];
+  //   axis_list.forEach((axis) => {
+  //     const normalized_axis = axis === 'col' ? 'col' : 'row';
+  //     const frame = viz_state.attr.frames?.[normalized_axis] || null;
+  //     const colors = viz_state.attr.color_payload?.[normalized_axis] || {};
+  //     viz_state.model.set(`${normalized_axis}_attributes_df`, frame);
+  //     viz_state.model.set(`${normalized_axis}_attribute_colors`, colors);
+  //   });
+
+  //   viz_state.manual_cat.self_update = true;
+  //   viz_state.model.set(
+  //     'manual_cat',
+  //     JSON.stringify({
+  //       row: viz_state.obs_store.manual_cat.row.toExportPayload(),
+  //       col: viz_state.obs_store.manual_cat.col.toExportPayload(),
+  //     })
+  //   );
+  //   viz_state.model.save_changes();
+  // };
+
+  // if (viz_state.obs_store?.manual_cat) {
+  //   ['row', 'col'].forEach((axis) => {
+  //     const manual_store = viz_state.obs_store.manual_cat[axis];
+  //     if (!manual_store) {
+  //       return;
+  //     }
+
+  //     manual_store.subscribe(
+  //       () => {
+  //         const applied = apply_manual_definitions_to_axis(viz_state, axis);
+  //         if (applied) {
+  //           refresh_attribute_layers(deck_mat, layers_mat, viz_state);
+  //           viz_state.category_breakdown?.update_available_attributes();
+  //         }
+
+  //         sync_manual_traitlets(axis);
+  //       },
+  //       { immediate: false }
+  //     );
+  //   });
+  // }
+
+  // if (viz_state.obs_store?.manual_cat) {
+  //   ['row', 'col'].forEach((axis) => {
+  //     const manual_store = viz_state.obs_store.manual_cat[axis];
+  //     if (!manual_store) {
+  //       return;
+  //     }
+
+  //     // JS-only reaction: keep viz_state.attr.* and the layers in sync
+  //     manual_store.subscribe(
+  //       () => {
+  //         const applied = apply_manual_definitions_to_axis(viz_state, axis);
+  //         if (applied) {
+  //           refresh_attribute_layers(deck_mat, layers_mat, viz_state);
+  //           viz_state.category_breakdown?.update_available_attributes();
+  //         }
+  //       },
+  //       { immediate: false }
+  //     );
+  //   });
+  // }
 
   if (viz_state.obs_store?.manual_cat) {
     ['row', 'col'].forEach((axis) => {
@@ -253,14 +394,16 @@ export const matrix_viz = async (
           if (applied) {
             refresh_attribute_layers(deck_mat, layers_mat, viz_state);
             viz_state.category_breakdown?.update_available_attributes();
+            // NEW: push this axis back to Python
+            sync_axes_to_traitlets(axis);
           }
-
-          sync_manual_traitlets(axis);
         },
         { immediate: false }
       );
     });
   }
+
+
 
   if (viz_state.model) {
     const apply_row_attributes = () => {
@@ -310,6 +453,56 @@ export const matrix_viz = async (
       sync_manual_category_from_payload(payload, viz_state);
     };
 
+    // const apply_manual_config = () => {
+    //   const raw_config = viz_state.model.get('manual_cat_config');
+    //   let parsed = raw_config;
+    //   if (typeof parsed === 'string') {
+    //     try {
+    //       parsed = parsed ? JSON.parse(parsed) : {};
+    //     } catch {
+    //       parsed = {};
+    //     }
+    //   }
+
+    //   const normalized =
+    //     parsed && typeof parsed === 'object' ? parsed : { row: null, col: null };
+    //   viz_state.manual_cat.config.row = normalized.row || null;
+    //   viz_state.manual_cat.config.col = normalized.col || null;
+    //   ['row', 'col'].forEach((axis) => {
+    //     const store = viz_state.obs_store?.manual_cat?.[axis];
+    //     const attribute_name = viz_state.manual_cat?.config?.[axis]?.attribute || null;
+    //     if (store) {
+    //       store.setAttribute(attribute_name);
+    //     }
+    //   });
+    //   // const applied_row = apply_manual_definitions_to_axis(viz_state, 'row');
+    //   // const applied_col = apply_manual_definitions_to_axis(viz_state, 'col');
+    //   // const dirty_axes = [];
+    //   // if (applied_row) {
+    //   //   dirty_axes.push('row');
+    //   // }
+    //   // if (applied_col) {
+    //   //   dirty_axes.push('col');
+    //   // }
+    //   // if (applied_row || applied_col) {
+    //   //   refresh_attribute_layers(deck_mat, layers_mat, viz_state);
+    //   //   viz_state.category_breakdown?.update_available_attributes();
+    //   //   if (dirty_axes.length) {
+    //   //     sync_manual_traitlets(dirty_axes);
+    //   //   }
+    //   // }
+
+    //   const applied_row = apply_manual_definitions_to_axis(viz_state, 'row');
+    //   const applied_col = apply_manual_definitions_to_axis(viz_state, 'col');
+    //   if (applied_row || applied_col) {
+    //     refresh_attribute_layers(deck_mat, layers_mat, viz_state);
+    //     viz_state.category_breakdown?.update_available_attributes();
+    //     // no traitlet sync here – Python is the source when manual_cat / flags change
+    //   }
+
+
+    // };
+
     const apply_manual_config = () => {
       const raw_config = viz_state.model.get('manual_cat_config');
       let parsed = raw_config;
@@ -325,30 +518,77 @@ export const matrix_viz = async (
         parsed && typeof parsed === 'object' ? parsed : { row: null, col: null };
       viz_state.manual_cat.config.row = normalized.row || null;
       viz_state.manual_cat.config.col = normalized.col || null;
+
       ['row', 'col'].forEach((axis) => {
         const store = viz_state.obs_store?.manual_cat?.[axis];
-        const attribute_name = viz_state.manual_cat?.config?.[axis]?.attribute || null;
+        const attribute_name =
+          viz_state.manual_cat?.config?.[axis]?.attribute || null;
         if (store) {
           store.setAttribute(attribute_name);
         }
       });
+
       const applied_row = apply_manual_definitions_to_axis(viz_state, 'row');
       const applied_col = apply_manual_definitions_to_axis(viz_state, 'col');
+
       const dirty_axes = [];
-      if (applied_row) {
-        dirty_axes.push('row');
-      }
-      if (applied_col) {
-        dirty_axes.push('col');
-      }
-      if (applied_row || applied_col) {
+      if (applied_row) dirty_axes.push('row');
+      if (applied_col) dirty_axes.push('col');
+
+      if (dirty_axes.length) {
         refresh_attribute_layers(deck_mat, layers_mat, viz_state);
         viz_state.category_breakdown?.update_available_attributes();
-        if (dirty_axes.length) {
-          sync_manual_traitlets(dirty_axes);
-        }
+        // IMPORTANT: seed traitlets so Python sees the initial attribute
+        sync_axes_to_traitlets(dirty_axes);
       }
     };
+
+
+    // const apply_manual_flags = () => {
+    //   viz_state.manual_cat.flags = {
+    //     row: !!viz_state.model.get('manual_row_cat'),
+    //     col: !!viz_state.model.get('manual_col_cat'),
+    //   };
+
+    //   ['row', 'col'].forEach((axis) => {
+    //     if (!viz_state.manual_cat.flags?.[axis]) {
+    //       return;
+    //     }
+    //     const store = viz_state.obs_store?.manual_cat?.[axis];
+    //     const attribute_name = viz_state.manual_cat?.config?.[axis]?.attribute || null;
+    //     if (store) {
+    //       store.setAttribute(attribute_name);
+    //     }
+    //   });
+
+    //   // const applied_row = apply_manual_definitions_to_axis(viz_state, 'row');
+    //   // const applied_col = apply_manual_definitions_to_axis(viz_state, 'col');
+    //   // const dirty_axes = [];
+    //   // if (applied_row) {
+    //   //   dirty_axes.push('row');
+    //   // }
+    //   // if (applied_col) {
+    //   //   dirty_axes.push('col');
+    //   // }
+    //   // if (applied_row || applied_col) {
+    //   //   refresh_attribute_layers(deck_mat, layers_mat, viz_state);
+    //   //   viz_state.category_breakdown?.update_available_attributes();
+    //   //   if (dirty_axes.length) {
+    //   //     sync_manual_traitlets(dirty_axes);
+    //   //   }
+    //   // }
+
+    //   const applied_row = apply_manual_definitions_to_axis(viz_state, 'row');
+    //   const applied_col = apply_manual_definitions_to_axis(viz_state, 'col');
+    //   if (applied_row || applied_col) {
+    //     refresh_attribute_layers(deck_mat, layers_mat, viz_state);
+    //     viz_state.category_breakdown?.update_available_attributes();
+    //     // no traitlet sync here – Python is the source when manual_cat / flags change
+    //   }
+
+
+
+    // };
 
     const apply_manual_flags = () => {
       viz_state.manual_cat.flags = {
@@ -361,7 +601,8 @@ export const matrix_viz = async (
           return;
         }
         const store = viz_state.obs_store?.manual_cat?.[axis];
-        const attribute_name = viz_state.manual_cat?.config?.[axis]?.attribute || null;
+        const attribute_name =
+          viz_state.manual_cat?.config?.[axis]?.attribute || null;
         if (store) {
           store.setAttribute(attribute_name);
         }
@@ -369,21 +610,19 @@ export const matrix_viz = async (
 
       const applied_row = apply_manual_definitions_to_axis(viz_state, 'row');
       const applied_col = apply_manual_definitions_to_axis(viz_state, 'col');
+
       const dirty_axes = [];
-      if (applied_row) {
-        dirty_axes.push('row');
-      }
-      if (applied_col) {
-        dirty_axes.push('col');
-      }
-      if (applied_row || applied_col) {
+      if (applied_row) dirty_axes.push('row');
+      if (applied_col) dirty_axes.push('col');
+
+      if (dirty_axes.length) {
         refresh_attribute_layers(deck_mat, layers_mat, viz_state);
         viz_state.category_breakdown?.update_available_attributes();
-        if (dirty_axes.length) {
-          sync_manual_traitlets(dirty_axes);
-        }
+        // Seed/update Python traitlets when flags flip on
+        sync_axes_to_traitlets(dirty_axes);
       }
     };
+
 
     const apply_category_colors = () => {
       viz_state.attr.category_colors =

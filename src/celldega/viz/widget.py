@@ -329,6 +329,27 @@ class Landscape(anywidget.AnyWidget):
 
         self.nbhd = gdf
 
+    @traitlets.observe("manual_cat_js")
+    def _on_manual_cat_js(self, change) -> None:
+        """
+        Mirror JS-originated manual category payload into the existing
+        `manual_cat` trait so all the current plumbing keeps working.
+
+        JS should set `manual_cat_js` only; Python code should continue
+        to read/use `manual_cat` as before.
+        """
+        if self._manual_sync_block:
+            return
+
+        new_val = change.get("new") or "{}"
+        # Prevent any echo loops while we write manual_cat
+        self._manual_sync_block = True
+        try:
+            self.manual_cat = new_val
+        finally:
+            self._manual_sync_block = False
+
+
     def close(self):  # pragma: no cover - cleanup depends on JS
         """Close the widget and notify the frontend to release resources."""
         with suppress(Exception):
@@ -522,6 +543,7 @@ class Clustergram(anywidget.AnyWidget):
 
     row_attributes_df = DataFrameTrait(allow_none=True).tag(sync=True)
     col_attributes_df = DataFrameTrait(allow_none=True).tag(sync=True)
+
     row_attribute_colors = traitlets.Dict(default_value={}).tag(sync=True)
     col_attribute_colors = traitlets.Dict(default_value={}).tag(sync=True)
     manual_row_cat = ManualAttributeTrait(
@@ -531,6 +553,10 @@ class Clustergram(anywidget.AnyWidget):
         default_name=_DEFAULT_MANUAL_ATTRIBUTE_TITLES["col"]
     ).tag(sync=True)
     category_colors = traitlets.Dict(default_value={}).tag(sync=True)
+
+    # NEW: raw JS -> PY payload
+    manual_cat_js = traitlets.Unicode("").tag(sync=True)
+
     manual_cat = traitlets.Unicode("{}").tag(sync=True)
     manual_cat_config = traitlets.Unicode("{}").tag(sync=True)
 

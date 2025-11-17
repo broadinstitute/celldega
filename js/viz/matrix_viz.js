@@ -245,6 +245,24 @@ export const matrix_viz = async (
     viz_state.model.save_changes()
   }
 
+  const sync_manual_cat_to_python = () => {
+
+    console.log('sync_manual_cat_to_python!!!!!!!!!!!')
+    if (!viz_state.model || !viz_state.obs_store?.manual_cat) return
+
+    const row_store = viz_state.obs_store.manual_cat.row
+    const col_store = viz_state.obs_store.manual_cat.col
+
+    const payload = {
+      row: row_store ? row_store.toExportPayload() : {},
+      col: col_store ? col_store.toExportPayload() : {},
+    }
+
+    viz_state.model.set('manual_cat_js', JSON.stringify(payload))
+    viz_state.model.save_changes()
+  }
+
+
   // Apply manual defs for an axis, refresh layers/UI, optionally sync to Python
   const apply_manual_and_refresh = (axis, { sync = false } = {}) => {
     const applied = apply_manual_definitions_to_axis(viz_state, axis)

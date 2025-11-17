@@ -215,43 +215,25 @@ export const matrix_viz = async (
 
   initialize_attribute_editor(viz_state, deck_mat, layers_mat);
 
-  // --- SIMPLE JS -> PY SYNC ---------------------------------------------
-  // Single canonical sync: frames/colors + manual_cat
-  const sync_axes_to_traitlets = (axes) => {
+  initialize_attribute_editor(viz_state, deck_mat, layers_mat);
+
+  // --- SIMPLE JS -> PY SYNC: ONLY manual_cat -----------------------------
+
+  const sync_manual_cat_to_traitlet = () => {
     if (!viz_state.model) return;
 
-    const axis_list = Array.isArray(axes) ? axes : [axes];
-
-    console.log('sync_axes_to_traitlets', axis_list);
-
-    // 1) Push the current JS attribute frames/colors back to Python
-    axis_list.forEach((axis) => {
-      const normalized = axis === 'col' ? 'col' : 'row';
-      const frame = viz_state.attr.frames?.[normalized] || null;
-      const colors = viz_state.attr.color_payload?.[normalized] || {};
-
-      viz_state.model.set(`${normalized}_attributes_df`, frame);
-      viz_state.model.set(`${normalized}_attribute_colors`, colors);
-    });
-
-    // 1b) Also push global category_colors so Python can see all hexes
-    viz_state.model.set(
-      'category_colors',
-      viz_state.attr.category_colors || {}
-    );
-
-    // 2) Push the manual_cat payload (fine-grained per-id info)
     const row_store = viz_state.obs_store?.manual_cat?.row;
     const col_store = viz_state.obs_store?.manual_cat?.col;
 
-    viz_state.model.set(
-      'manual_cat',
-      JSON.stringify({
-        row: row_store ? row_store.toExportPayload() : {},
-        col: col_store ? col_store.toExportPayload() : {},
-      })
-    );
+    const payload = {
+      row: row_store ? row_store.toExportPayload() : {},
+      col: col_store ? col_store.toExportPayload() : {},
+    };
 
+    console.log('sync_manual_cat_to_traitlet', payload);
+
+    // NOTE: pass a plain object, NOT JSON.stringify(...)
+    viz_state.model.set('manual_cat', payload);
     viz_state.model.save_changes();
   };
 
@@ -264,7 +246,7 @@ export const matrix_viz = async (
     viz_state.category_breakdown?.update_available_attributes?.();
 
     if (sync) {
-      sync_axes_to_traitlets(axis);
+      sync_manual_cat_to_traitlet();
     }
   };
 
@@ -282,9 +264,8 @@ export const matrix_viz = async (
         { immediate: false }
       );
 
-      console.log('obs_store.manual_cat', viz_state.obs_store?.manual_cat)
-      console.log('row store', viz_state.obs_store?.manual_cat?.row)
-
+      console.log('obs_store.manual_cat', viz_state.obs_store?.manual_cat);
+      console.log('row store', viz_state.obs_store?.manual_cat?.row);
     });
   }
 
@@ -303,8 +284,8 @@ export const matrix_viz = async (
     viz_state.model.save_changes();
 
     // ---------------------------------------------------------------------
-    // 2) Attribute frames from Python (one-way: PY -> JS)
-    //    These are for "normal" attributes, not manual_cat.
+    // 2) Attribute frames/colors from Python (one-way: PY -> JS)
+    //    These are "normal" attributes; manual_cat stays JS-driven.
     // ---------------------------------------------------------------------
     const apply_row_attributes = () => {
       apply_attribute_frame(
@@ -337,8 +318,7 @@ export const matrix_viz = async (
     viz_state.model.on('change:col_attribute_colors', apply_col_attributes);
 
     // ---------------------------------------------------------------------
-    // 3) ONE-TIME manual category bootstrap (PY -> JS once)
-    //    Use current manual_* traitlets to seed JS state + bars.
+    // 3) ONE-TIME BOOTSTRAP of manual categories (PY -> JS -> PY)
     // ---------------------------------------------------------------------
     const bootstrap_manual_categories = () => {
       viz_state.manual_cat = viz_state.manual_cat || { config: {}, flags: {} };
@@ -379,8 +359,8 @@ export const matrix_viz = async (
         apply_manual_and_refresh(axis, { sync: false });
       });
 
-      // Seed Python once with the JS-computed state
-      sync_axes_to_traitlets(['row', 'col']);
+      // Seed Python once with the JS-computed manual_cat state
+      sync_manual_cat_to_traitlet();
     };
 
     bootstrap_manual_categories();

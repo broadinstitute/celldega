@@ -652,28 +652,6 @@ class Clustergram(anywidget.AnyWidget):
         self._category_colors = base_colors
         self.category_colors = deepcopy(self._category_colors)
 
-    # # ------------------------------------------------------------------
-    # # JS -> PY sync for manual categories (the only "smart" bit we keep)
-    # # ------------------------------------------------------------------
-    # @traitlets.observe("manual_cat_js")
-    # def _on_manual_cat_js(self, change) -> None:
-    #     """
-    #     Mirror JS-originated manual category payload into `manual_cat`.
-
-    #     JS should set `manual_cat_js` ONLY.
-    #     Python code should read `manual_cat` (JSON string) or use the
-    #     helper property `manual_cat_dict` below.
-    #     """
-    #     if getattr(self, "_manual_sync_block", False):
-    #         return
-
-    #     new_val = change.get("new") or "{}"
-    #     self._manual_sync_block = True
-    #     try:
-    #         self.manual_cat = new_val
-    #     finally:
-    #         self._manual_sync_block = False
-
     @property
     def manual_cat_dict(self) -> dict:
         """Convenience accessor: parsed JSON from manual_cat."""

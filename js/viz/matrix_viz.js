@@ -207,15 +207,15 @@ export const matrix_viz = async (
     const axis_list = Array.isArray(axes) ? axes : [axes]
     console.log('sync_axes_to_traitlets', axis_list)
 
-    // 1) Frames + colors per axis (optional but still useful)
-    axis_list.forEach((axis) => {
-      const normalized = axis === 'col' ? 'col' : 'row'
-      const frame = viz_state.attr.frames?.[normalized] || null
-      const colors = viz_state.attr.color_payload?.[normalized] || {}
+    // // 1) Frames + colors per axis (optional but still useful)
+    // axis_list.forEach((axis) => {
+    //   const normalized = axis === 'col' ? 'col' : 'row'
+    //   const frame = viz_state.attr.frames?.[normalized] || null
+    //   const colors = viz_state.attr.color_payload?.[normalized] || {}
 
-      viz_state.model.set(`${normalized}_attributes_df`, frame)
-      viz_state.model.set(`${normalized}_attribute_colors`, colors)
-    })
+    //   viz_state.model.set(`${normalized}_attributes_df`, frame)
+    //   viz_state.model.set(`${normalized}_attribute_colors`, colors)
+    // })
 
     // 2) Global category color map
     viz_state.model.set(
@@ -288,34 +288,34 @@ export const matrix_viz = async (
     )
     viz_state.model.save_changes()
 
-    // 2) Normal attribute frames (row/col_attributes_df + *_colors)
-    const apply_row_attributes = () => {
-      apply_attribute_frame(
-        'row',
-        viz_state.model.get('row_attributes_df'),
-        viz_state.model.get('row_attribute_colors') || {},
-        viz_state
-      )
-      refresh_attribute_layers(deck_mat, layers_mat, viz_state)
-    }
+    // // 2) Normal attribute frames (row/col_attributes_df + *_colors)
+    // const apply_row_attributes = () => {
+    //   apply_attribute_frame(
+    //     'row',
+    //     viz_state.model.get('row_attributes_df'),
+    //     viz_state.model.get('row_attribute_colors') || {},
+    //     viz_state
+    //   )
+    //   refresh_attribute_layers(deck_mat, layers_mat, viz_state)
+    // }
 
-    const apply_col_attributes = () => {
-      apply_attribute_frame(
-        'col',
-        viz_state.model.get('col_attributes_df'),
-        viz_state.model.get('col_attribute_colors') || {},
-        viz_state
-      )
-      refresh_attribute_layers(deck_mat, layers_mat, viz_state)
-    }
+    // const apply_col_attributes = () => {
+    //   apply_attribute_frame(
+    //     'col',
+    //     viz_state.model.get('col_attributes_df'),
+    //     viz_state.model.get('col_attribute_colors') || {},
+    //     viz_state
+    //   )
+    //   refresh_attribute_layers(deck_mat, layers_mat, viz_state)
+    // }
 
-    apply_row_attributes()
-    apply_col_attributes()
+    // apply_row_attributes()
+    // apply_col_attributes()
 
-    viz_state.model.on('change:row_attributes_df', apply_row_attributes)
-    viz_state.model.on('change:row_attribute_colors', apply_row_attributes)
-    viz_state.model.on('change:col_attributes_df', apply_col_attributes)
-    viz_state.model.on('change:col_attribute_colors', apply_col_attributes)
+    // viz_state.model.on('change:row_attributes_df', apply_row_attributes)
+    // viz_state.model.on('change:row_attribute_colors', apply_row_attributes)
+    // viz_state.model.on('change:col_attributes_df', apply_col_attributes)
+    // viz_state.model.on('change:col_attribute_colors', apply_col_attributes)
 
     // 3) ONE-TIME: manual categories bootstrap (PY -> JS), then sync back once
     const bootstrap_manual_categories = () => {

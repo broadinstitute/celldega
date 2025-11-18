@@ -20,8 +20,6 @@ const FALLBACK_COLORS = [
 const MANUAL_FILL_VALUE = 'N.A.'
 const MANUAL_FILL_COLOR = '#d1d5db'
 
-const clone = (value) => JSON.parse(JSON.stringify(value))
-
 const ensure_string = (value) =>
   value === null || value === undefined ? null : String(value)
 
@@ -31,9 +29,7 @@ const fallback_color = (value, index) => {
   const palette_color = FALLBACK_COLORS[index % FALLBACK_COLORS.length]
   if (typeof value === 'string') {
     const col = d3.color(value)
-    if (col) {
-      return value
-    }
+    if (col) return value
   }
   return palette_color
 }
@@ -133,7 +129,7 @@ const update_combined_attr_defs = (viz_state) => {
   ;['row', 'col'].forEach((axis) => {
     const combined_defs = [
       ...(viz_state.attr.static_defs?.[axis] || []),
-      ...(viz_state.attr.editable_defs?.[axis] || []),
+      ...(viz_state.attr.manual_defs?.[axis] || []),
     ]
 
     viz_state.attr.all_defs[axis] = combined_defs
@@ -188,99 +184,18 @@ const build_static_definitions = (viz_state, network, axis) => {
   })
 }
 
-// Build editable_defs for an axis from a frame + color payload
-const build_defs_from_frame = (normalized_axis, frame_payload, color_payload, viz_state) => {
-  if (!frame_payload || !Array.isArray(frame_payload.columns)) {
-    viz_state.attr.editable_defs[normalized_axis] = []
-    return
-  }
-
-  const index_labels = (frame_payload.index || []).map((label) => String(label))
-  const data = frame_payload.data || {}
-  const columns = frame_payload.columns || []
-
-  const nodes =
-    normalized_axis === 'row' ? viz_state.row_nodes : viz_state.col_nodes
-  const node_names = nodes.map((node) => String(node.name))
-  const index_lookup = new Map()
-
-  index_labels.forEach((label, idx) => {
-    index_lookup.set(label, idx)
-  })
-
-  const defs = columns.map((column) => {
-    const series = data[column] || []
-
-    const ordered = node_names.map((name) => {
-      const idx = index_lookup.get(String(name))
-      if (idx === undefined) return null
-
-      const value = series[idx]
-      if (value === null || value === undefined) return null
-      return value
-    })
-
-    const valid_values = ordered.filter(
-      (v) => v !== null && v !== undefined && v !== ''
-    )
-    const numeric_values = valid_values.filter(
-      (v) => typeof v === 'number' && !Number.isNaN(v)
-    )
-    const is_numeric =
-      numeric_values.length > 0 && numeric_values.length === valid_values.length
-
-    if (is_numeric) {
-      const max_val =
-        numeric_values.reduce(
-          (acc, val) => Math.max(acc, Math.abs(Number(val))),
-          0
-        ) || 1
-
-      return {
-        name: column,
-        type: 'numeric',
-        values: ordered.map((val) =>
-          val === null || val === undefined ? null : Number(val)
-        ),
-        maxabs: max_val,
-      }
-    }
-
-    const string_values = ordered.map((val) => ensure_string(val))
-    const unique_values = Array.from(
-      new Set(string_values.filter((val) => val !== null && val !== ''))
-    )
-
-    const color_map = {}
-    const provided_colors = color_payload?.[column] || {}
-    const stored_colors = viz_state.attr.category_colors || {}
-
-    unique_values.forEach((val, idx) => {
-      color_map[val] =
-        provided_colors[val] || stored_colors[val] || fallback_color(val, idx)
-    })
-
-    return {
-      name: column,
-      type: 'categorical',
-      values: string_values,
-      color_map,
-    }
-  })
-
-  viz_state.attr.editable_defs[normalized_axis] = defs
-}
-
 export const initialize_attr_state = (viz_state, network) => {
   viz_state.attr.static_defs = { row: [], col: [] }
-  viz_state.attr.editable_defs = { row: [], col: [] }
+  viz_state.attr.manual_defs = { row: [], col: [] }
   viz_state.attr.all_defs = { row: [], col: [] }
-  viz_state.attr.frames = { row: null, col: null }
-  viz_state.attr.color_payload = { row: {}, col: {} }
+  viz_state.attr.names = viz_state.attr.names || { row: [], col: [] }
+  viz_state.attr.maxabs = viz_state.attr.maxabs || { row: [], col: [] }
+  viz_state.attr.num = viz_state.attr.num || { row: 0, col: 0 }
+
   viz_state.attr.category_colors = {}
   viz_state.attr.did_initialize = false
 
-  viz_state.manual_cat = {
+  viz_state.manual_cat = viz_state.manual_cat || {
     config: { row: null, col: null },
     self_update: false,
     flags: { row: false, col: false },
@@ -354,149 +269,83 @@ export const refresh_attribute_layers = (deck_mat, layers_mat, viz_state) => {
   deck_mat.setProps(props)
 }
 
-export const ensure_frame_payload = (axis, viz_state) => {
-  const normalized_axis = normalize_axis(axis)
-  const existing = viz_state.attr.frames?.[normalized_axis]
-  if (existing) {
-    return clone(existing)
-  }
-
-  const nodes =
-    normalized_axis === 'row' ? viz_state.row_nodes : viz_state.col_nodes
-
-  return {
-    columns: [],
-    index: nodes.map((node) => String(node.name)),
-    index_name: normalized_axis === 'row' ? 'row_id' : 'col_id',
-    data: {},
-  }
-}
-
-export const update_color_payload = (axis, viz_state) => {
-  const normalized_axis = normalize_axis(axis)
-  return clone(viz_state.attr.color_payload?.[normalized_axis] || {})
-}
-
 export const apply_manual_definitions_to_axis = (viz_state, axis) => {
   const normalized_axis = normalize_axis(axis)
   const flags = viz_state.manual_cat?.flags || {}
   const manual_store = viz_state.obs_store?.manual_cat?.[normalized_axis]
-  const frame = ensure_frame_payload(normalized_axis, viz_state)
-  const colors = update_color_payload(normalized_axis, viz_state)
 
   const attribute_name = manual_store?.attribute || null
   const configured_name =
     viz_state.manual_cat?.config?.[normalized_axis]?.attribute || null
   const target_attribute = attribute_name || configured_name
   const is_enabled = !!(flags[normalized_axis] && attribute_name)
-  let did_change = false
 
-  const persist_and_rebuild = () => {
-    viz_state.attr.frames[normalized_axis] = clone(frame)
-    viz_state.attr.color_payload[normalized_axis] = clone(colors)
-    build_defs_from_frame(normalized_axis, frame, colors, viz_state)
+  // If disabled or no store, clear manual defs for this axis
+  if (!is_enabled || !manual_store || !target_attribute) {
+    viz_state.attr.manual_defs[normalized_axis] = []
     update_combined_attr_defs(viz_state)
+    return true
   }
 
-  const remove_manual_attribute = (target) => {
-    if (!target) return
-
-    let removed = false
-
-    if (Array.isArray(frame.columns)) {
-      const next_columns = frame.columns.filter((column) => column !== target)
-      if (next_columns.length !== frame.columns.length) {
-        removed = true
-      }
-      frame.columns = next_columns
-    }
-
-    if (frame.data && Object.prototype.hasOwnProperty.call(frame.data, target)) {
-      delete frame.data[target]
-      removed = true
-    }
-
-    if (colors[target]) {
-      delete colors[target]
-      removed = true
-    }
-
-    if (removed) {
-      did_change = true
-    }
-  }
-
-  // If manual category is disabled or store missing, strip the manual column
-  if (!is_enabled || !manual_store) {
-    remove_manual_attribute(target_attribute)
-    if (did_change) {
-      persist_and_rebuild()
-    }
-    return did_change
-  }
-
-  // Enabled: apply manual frame + colors for this attribute
+  // Build values aligned to current node order
   const manual_frame = manual_store.toFrame(MANUAL_FILL_VALUE)
   const manual_colors = manual_store.toColorPayload(
     MANUAL_FILL_VALUE,
     MANUAL_FILL_COLOR
   )
 
-  if (!Array.isArray(frame.columns)) {
-    frame.columns = []
-  }
-  if (!frame.data) {
-    frame.data = {}
-  }
+  const index_labels = (manual_frame.index || []).map((label) => String(label))
+  const index_lookup = new Map()
+  index_labels.forEach((label, idx) => {
+    index_lookup.set(label, idx)
+  })
 
-  const column = manual_frame.data[attribute_name] || []
-  const existing = frame.data[attribute_name] || []
+  const nodes =
+    normalized_axis === 'row' ? viz_state.row_nodes : viz_state.col_nodes
+  const node_names = nodes.map((node) => String(node.name))
+  const series = manual_frame.data[target_attribute] || []
 
-  if (!frame.columns.includes(attribute_name)) {
-    frame.columns.push(attribute_name)
-    did_change = true
-  }
+  const values = node_names.map((name) => {
+    const idx = index_lookup.get(name)
+    if (idx === undefined) return null
+    const value = series[idx]
+    return value === null || value === undefined ? null : value
+  })
 
-  const different_length = existing.length !== column.length
-  const different_values =
-    !different_length && existing.some((v, i) => v !== column[i])
-
-  if (different_length || different_values) {
-    frame.data[attribute_name] = column.slice()
-    did_change = true
-  }
-
-  const current_colors = colors[attribute_name] || {}
-  const manual_color_map = manual_colors[attribute_name] || {}
-  const merged_colors = {
-    ...current_colors,
-    ...manual_color_map,
-  }
-
-  const merged_keys = Object.keys(merged_colors)
-  const color_changed = merged_keys.some(
-    (key) => current_colors[key] !== merged_colors[key]
+  // Build color map
+  const manual_color_map = manual_colors[target_attribute] || {}
+  const stored_colors = viz_state.attr.category_colors || {}
+  const unique_values = Array.from(
+    new Set(values.filter((val) => val !== null && val !== ''))
   )
 
-  if (color_changed) {
-    colors[attribute_name] = merged_colors
-    did_change = true
-  }
+  const color_map = {}
+  unique_values.forEach((val, idx) => {
+    color_map[val] =
+      manual_color_map[val] || stored_colors[val] || fallback_color(val, idx)
+  })
 
+  // Update global category_colors
   const category_colors = viz_state.attr.category_colors || {}
-  merged_keys.forEach((value) => {
-    const hex = merged_colors[value]
+  Object.entries(color_map).forEach(([value, hex]) => {
     if (value && hex && category_colors[value] !== hex) {
       category_colors[value] = hex
     }
   })
   viz_state.attr.category_colors = category_colors
 
-  if (did_change) {
-    persist_and_rebuild()
-  }
+  // Store a single manual def for this axis
+  viz_state.attr.manual_defs[normalized_axis] = [
+    {
+      name: target_attribute,
+      type: 'categorical',
+      values,
+      color_map,
+    },
+  ]
 
-  return did_change
+  update_combined_attr_defs(viz_state)
+  return true
 }
 
 export const sync_manual_category_from_payload = (_raw_payload, _viz_state) => {

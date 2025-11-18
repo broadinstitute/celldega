@@ -143,14 +143,6 @@ def _link_clustergram_to_enrich(
             if not row_enrich:
                 _set_gene_list([])
 
-    # def _on_term_genes(change):
-    #     _update_enrichment_membership(change["new"] or [], current_axis)
-
-    # def _on_axis_names(change):
-    #     axis = "row" if change["name"] == "row_names" else "col"
-    #     if current_terms.get(axis):
-    #         _update_enrichment_membership(current_terms[axis], axis)
-
     def _on_focused_gene(change):
         if gene_focus_callback is None:
             return
@@ -159,9 +151,6 @@ def _link_clustergram_to_enrich(
 
     cgm.observe(_on_selected_genes, names="selected_genes")
     cgm.observe(_on_click_info, names="click_info")
-    # cgm.observe(_on_axis_names, names="row_names")
-    # cgm.observe(_on_axis_names, names="col_names")
-    # enrich.observe(_on_term_genes, names="term_genes")
     enrich.observe(_on_focused_gene, names="focused_gene")
 
 

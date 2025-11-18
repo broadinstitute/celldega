@@ -69,29 +69,6 @@ const create_labeled_input = (label_text, input) => {
 
 const clamp_position = (value, min, max) => Math.min(Math.max(value, min), max)
 
-const build_preferred_section = () => {
-  const section = document.createElement('div')
-  section.style.marginTop = '6px'
-  section.style.display = 'none'
-
-  const title = document.createElement('div')
-  title.textContent = 'Suggested categories'
-  title.style.fontSize = '11px'
-  title.style.fontWeight = '600'
-  title.style.marginBottom = '4px'
-  title.style.color = '#5b6770'
-
-  const list = document.createElement('div')
-  list.style.display = 'flex'
-  list.style.flexWrap = 'wrap'
-  list.style.gap = '4px'
-
-  section.appendChild(title)
-  section.appendChild(list)
-
-  return { section, list }
-}
-
 export const initialize_attribute_editor = (viz_state, _deck_mat, _layers_mat) => {
   const container = document.createElement('div')
   container.style.position = 'absolute'
@@ -147,9 +124,6 @@ export const initialize_attribute_editor = (viz_state, _deck_mat, _layers_mat) =
   color_input.style.cursor = 'pointer'
   const color_field = create_labeled_input('Color', color_input)
 
-  const { section: preferred_section, list: preferred_list } =
-    build_preferred_section()
-
   const button_row = document.createElement('div')
   button_row.style.display = 'flex'
   button_row.style.gap = '8px'
@@ -185,7 +159,6 @@ export const initialize_attribute_editor = (viz_state, _deck_mat, _layers_mat) =
   container.appendChild(selection_info)
   container.appendChild(value_field)
   container.appendChild(color_field)
-  container.appendChild(preferred_section)
   container.appendChild(button_row)
 
   viz_state.el.appendChild(container)
@@ -225,43 +198,6 @@ export const initialize_attribute_editor = (viz_state, _deck_mat, _layers_mat) =
     const generated = allocate_color(viz_state)
     color_input.value = generated
     return generated
-  }
-
-  const populate_preferred = (axis) => {
-    preferred_list.innerHTML = ''
-    const config = viz_state.manual_cat?.config?.[axis]
-    const preferred = config?.preferred || []
-    if (!preferred.length) {
-      preferred_section.style.display = 'none'
-      return
-    }
-
-    preferred_section.style.display = 'block'
-
-    preferred.forEach((entry) => {
-      const button = document.createElement('button')
-      button.type = 'button'
-      button.textContent = entry.name
-      button.style.border = '1px solid #d3d3d3'
-      button.style.borderRadius = '12px'
-      button.style.padding = '2px 8px'
-      button.style.fontSize = '11px'
-      button.style.cursor = 'pointer'
-      button.style.background = entry.color || '#f5f5f5'
-      button.style.color = '#1f2a37'
-
-      button.addEventListener('click', () => {
-        value_input.value = entry.name
-        if (entry.color) {
-          color_input.value = entry.color
-        } else {
-          ensure_color_for_value(entry.name, axis)
-        }
-      })
-
-      preferred_list.appendChild(button)
-    })
-
   }
 
   const position_container = (position) => {
@@ -308,8 +244,6 @@ export const initialize_attribute_editor = (viz_state, _deck_mat, _layers_mat) =
     if (!configured_name) {
       return
     }
-
-    populate_preferred(axis)
 
     selection_info.textContent = `${selection.length} ${axis_label} selected`
     value_input.value = initial_value ? String(initial_value) : ''

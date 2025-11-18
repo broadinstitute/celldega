@@ -3,46 +3,51 @@ Module for visualization
 """
 
 from ipywidgets import HBox, Layout, jslink
-import pandas as pd
 
 from .local_server import get_local_server
 from .widget import Clustergram, Enrich, Landscape
 
 
 def landscape_clustergram(
-    landscape,
-    mat,
-    width="600px",
-    height="700px",
+    landscape: Landscape,
+    mat: Clustergram,
+    width: str = "600px",
+    height: str = "700px",
     *,
     enrich: bool | Enrich = False,
     row_enrich: bool = True,
     col_enrich: bool = False,
     enrich_kwargs: dict | None = None,
-):
+) -> HBox:
     """
     Display a `Landscape` widget and a `Clustergram` widget side by side.
 
     Args:
         landscape (Landscape): A `Landscape` widget.
-        cgm (Clustergram): A `Clustergram` widget.
+        mat (Clustergram): A `Clustergram` widget.
         width (str): The width of the widgets.
         height (str): The height of the widgets.
+        enrich (bool | Enrich): If True, create an `Enrich` widget; if an
+            `Enrich` instance is provided, use it directly. If False, no
+            enrichment widget is shown.
+        row_enrich (bool): If True (default), run enrichment analysis when
+            row dendrogram clusters are selected.
+        col_enrich (bool): If True, run enrichment analysis when column
+            dendrogram clusters are selected.
+        enrich_kwargs (dict | None): Optional kwargs passed to `Enrich` when
+            `enrich=True`.
 
     Returns:
-        HBox: Visualization display containing both widgets
-
-    Example:
-    See example [Landscape-Matrix_Xenium](../../../examples/brief_notebooks/Landscape-Matrix_Xenium) notebook
+        HBox: Visualization display containing the widgets.
     """
-    # Use `jslink` to directly link `click_info` from `mat` to `trigger_value` in `landscape_ist`
+    # Link clustergram click_info to landscape update_trigger
     jslink((mat, "click_info"), (landscape, "update_trigger"))
 
-    # Set layouts for the widgets
-    mat.layout = Layout(width=width)  # Adjust as needed
-    landscape.layout = Layout(width=width, height=height)  # Adjust as needed
+    # Layouts
+    mat.layout = Layout(width=width)
+    landscape.layout = Layout(width=width, height=height)
 
-    enrich_widget = None
+    enrich_widget: Enrich | None = None
     if isinstance(enrich, Enrich):
         enrich_widget = enrich
     elif enrich:
@@ -55,7 +60,9 @@ def landscape_clustergram(
 
         def _forward_gene_to_landscape(gene: str) -> None:
             if gene:
-                landscape.trigger_update({"type": "row_label", "value": {"name": gene}})
+                landscape.trigger_update(
+                    {"type": "row_label", "value": {"name": gene}}
+                )
 
         _link_clustergram_to_enrich(
             mat,
@@ -80,10 +87,6 @@ def _link_clustergram_to_enrich(
     col_enrich: bool = False,
     gene_focus_callback=None,
 ) -> None:
-    def _ensure_attribute_index(axis: str) -> pd.Index:
-        names = getattr(cgm, f"{axis}_names", []) or []
-        return pd.Index([str(name) for name in names], name=f"{axis}_id")
-
     enrich_colors = {"In term": "#2f74ff", "Out of term": "#ffffff"}
 
     def _record_colors() -> None:
@@ -92,13 +95,10 @@ def _link_clustergram_to_enrich(
 
     _record_colors()
 
-    current_axis = "row"
-
-    def _set_gene_list(genes):
+    def _set_gene_list(genes) -> None:
         enrich.gene_list = list(genes) if genes else []
 
-    def _on_selected_genes(change):
-        nonlocal current_axis
+    def _on_selected_genes(change) -> None:
         genes = change["new"] or []
 
         click_info = getattr(cgm, "click_info", {}) or {}
@@ -117,17 +117,14 @@ def _link_clustergram_to_enrich(
                 if not row_enrich:
                     _set_gene_list([])
                     return
-                current_axis = "row"
             elif click_type.startswith("col"):
                 if not col_enrich:
                     _set_gene_list([])
                     return
-                current_axis = "col"
 
         _set_gene_list(genes)
 
-    def _on_click_info(change):
-        nonlocal current_axis
+    def _on_click_info(change) -> None:
         info = change["new"] or {}
         click_type = (info.get("type") or "").lower()
         selected_names = (info.get("value") or {}).get("selected_names") or []
@@ -135,15 +132,13 @@ def _link_clustergram_to_enrich(
         if click_type.startswith("col"):
             if not col_enrich:
                 return
-            current_axis = "col"
             if selected_names:
                 cgm.selected_genes = list(selected_names)
         elif click_type.startswith("row"):
-            current_axis = "row"
             if not row_enrich:
                 _set_gene_list([])
 
-    def _on_focused_gene(change):
+    def _on_focused_gene(change) -> None:
         if gene_focus_callback is None:
             return
         gene = change["new"] or ""
@@ -165,15 +160,14 @@ def clustergram_enrich(
 
     Args:
         cgm (Clustergram): A `Clustergram` widget.
-        row_enrich (bool): If ``True`` (default), run enrichment analysis when
+        row_enrich (bool): If True (default), run enrichment analysis when
             row dendrogram clusters are selected.
-        col_enrich (bool): If ``True``, run enrichment analysis when column
+        col_enrich (bool): If True, run enrichment analysis when column
             dendrogram clusters are selected.
 
     Returns:
-        HBox: Visualization display containing both widgets
+        HBox: Visualization display containing both widgets.
     """
-
     cgm.layout = Layout(width="600px")
 
     enrich = Enrich(gene_list=[], width=250)

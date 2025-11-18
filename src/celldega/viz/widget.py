@@ -519,6 +519,12 @@ class Clustergram(anywidget.AnyWidget):
     row_names = traitlets.List(default_value=[]).tag(sync=True)
     col_names = traitlets.List(default_value=[]).tag(sync=True)
 
+    # backend-only DataFrames derived from `manual_cat`
+    row_manual_df = traitlets.Instance(pd.DataFrame, allow_none=True)
+    col_manual_df = traitlets.Instance(pd.DataFrame, allow_none=True)
+    row_manual_colors_df = traitlets.Instance(pd.DataFrame, allow_none=True)
+    col_manual_colors_df = traitlets.Instance(pd.DataFrame, allow_none=True)
+
     # Attribute DataFrames (+ colors) still available if you want to
     # use them later, but we don't auto-manipulate them in this minimal
     # version.
@@ -682,6 +688,99 @@ class Clustergram(anywidget.AnyWidget):
             return json.loads(self.manual_cat or "{}")
         except json.JSONDecodeError:
             return {}
+
+    # ------------------------------------------------------------------
+    # PY-only DataFrames derived from manual_cat JSON
+    # ------------------------------------------------------------------
+    @traitlets.observe("manual_cat")
+    def _on_manual_cat(self, change) -> None:
+        """Rebuild backend DataFrames when manual_cat JSON changes."""
+        raw = change.get("new") or "{}"
+        try:
+            payload = json.loads(raw)
+        except json.JSONDecodeError:
+            payload = {}
+
+        self._update_manual_cat_frames(payload)
+
+    def _update_manual_cat_frames(self, payload: dict) -> None:
+        """
+        Build four DataFrames from the manual_cat payload:
+
+        - row_manual_df: index=row_id, columns=attributes, values=category strings
+        - col_manual_df: index=col_id, columns=attributes, values=category strings
+        - row_manual_colors_df: index=category, columns=attributes, values=hex colors
+        - col_manual_colors_df: index=category, columns=attributes, values=hex colors
+        """
+        for axis in ("row", "col"):
+            axis_payload = payload.get(axis) or {}
+            if not axis_payload:
+                setattr(self, f"{axis}_manual_df", None)
+                setattr(self, f"{axis}_manual_colors_df", None)
+                continue
+
+            # --- values: name -> category -----------------------------------
+            attr_names = sorted(axis_payload.keys())
+
+            # union of all indices for this axis
+            index_labels = sorted(
+                {
+                    str(name)
+                    for attr in axis_payload.values()
+                    for name in (attr.get("values") or {}).keys()
+                }
+            )
+
+            if index_labels:
+                idx = pd.Index(index_labels, name=f"{axis}_id")
+                data = {}
+                for attr_name, spec in axis_payload.items():
+                    values = spec.get("values") or {}
+                    series = pd.Series(
+                        [values.get(label, _MANUAL_FILL_VALUE) for label in index_labels],
+                        index=idx,
+                        dtype=object,
+                    )
+                    data[str(attr_name)] = series
+                manual_df = pd.DataFrame(data, index=idx)
+            else:
+                manual_df = None
+
+            # --- colors: category -> hex per attribute ----------------------
+            cat_labels = sorted(
+                {
+                    str(cat)
+                    for attr in axis_payload.values()
+                    for cat in (attr.get("colors") or {}).keys()
+                }
+            )
+
+            if cat_labels:
+                cat_idx = pd.Index(cat_labels, name="category")
+                color_data = {}
+                for attr_name, spec in axis_payload.items():
+                    cmap = spec.get("colors") or {}
+                    series = pd.Series(
+                        [cmap.get(cat, None) for cat in cat_labels],
+                        index=cat_idx,
+                        dtype=object,
+                    )
+                    color_data[str(attr_name)] = series
+                colors_df = pd.DataFrame(color_data, index=cat_idx)
+            else:
+                colors_df = None
+
+            setattr(self, f"{axis}_manual_df", manual_df)
+            setattr(self, f"{axis}_manual_colors_df", colors_df)
+
+    @property
+    def manual_cat_dict(self) -> dict:
+        """Convenience accessor: parsed JSON from manual_cat."""
+        try:
+            return json.loads(self.manual_cat or "{}")
+        except json.JSONDecodeError:
+            return {}
+
 
     def close(self):  # pragma: no cover - cleanup depends on JS
         """Close the widget and notify the frontend to release resources."""

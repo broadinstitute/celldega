@@ -149,6 +149,7 @@ class Landscape(anywidget.AnyWidget):
 
         def _df_to_bytes(df):
             import io
+
             import pyarrow as pa
             import pyarrow.parquet as pq
 

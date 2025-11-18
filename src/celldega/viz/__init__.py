@@ -115,10 +115,9 @@ def _link_clustergram_to_enrich(
                 if not row_enrich:
                     _set_gene_list([])
                     return
-            elif click_type.startswith("col"):
-                if not col_enrich:
-                    _set_gene_list([])
-                    return
+            elif click_type.startswith("col") and not col_enrich:
+                _set_gene_list([])
+                return
 
         _set_gene_list(genes)
 

@@ -687,11 +687,7 @@ class Clustergram(anywidget.AnyWidget):
 
             # union of all indices for this axis
             index_labels = sorted(
-                {
-                    str(name)
-                    for attr in axis_payload.values()
-                    for name in (attr.get("values") or {})
-                }
+                {str(name) for attr in axis_payload.values() for name in (attr.get("values") or {})}
             )
 
             if index_labels:
@@ -711,11 +707,7 @@ class Clustergram(anywidget.AnyWidget):
 
             # --- colors: category -> hex per attribute ----------------------
             cat_labels = sorted(
-                {
-                    str(cat)
-                    for attr in axis_payload.values()
-                    for cat in (attr.get("colors") or {})
-                }
+                {str(cat) for attr in axis_payload.values() for cat in (attr.get("colors") or {})}
             )
 
             if cat_labels:

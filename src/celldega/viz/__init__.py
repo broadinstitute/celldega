@@ -60,9 +60,7 @@ def landscape_clustergram(
 
         def _forward_gene_to_landscape(gene: str) -> None:
             if gene:
-                landscape.trigger_update(
-                    {"type": "row_label", "value": {"name": gene}}
-                )
+                landscape.trigger_update({"type": "row_label", "value": {"name": gene}})
 
         _link_clustergram_to_enrich(
             mat,

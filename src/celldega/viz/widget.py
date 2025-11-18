@@ -1,6 +1,4 @@
-"""
-Widget module for interactive visualization components.
-"""
+"""Widget module for interactive visualization components."""
 
 import colorsys
 from contextlib import suppress
@@ -28,7 +26,6 @@ _DEFAULT_MANUAL_ATTRIBUTE_TITLES = {
     "col": "manual_cat",
 }
 _MANUAL_FILL_VALUE = "N.A."
-_MANUAL_FILL_COLOR = "#d1d5db"
 
 
 def _hsv_to_hex(h: float) -> str:
@@ -40,40 +37,26 @@ def _hsv_to_hex(h: float) -> str:
 class Landscape(anywidget.AnyWidget):
     """
     A widget for interactive visualization of spatial omics data. This widget
-    currently supports iST (Xenium and MERSCOPE) and sST (Visium HD data, with and without cell segmentation)
+    currently supports iST (Xenium and MERSCOPE) and sST (Visium HD data, with and
+    without cell segmentation).
 
     Args:
         ini_x (float): The initial x-coordinate of the view.
         ini_y (float): The initial y-coordinate of the view.
         ini_zoom (float): The initial zoom level of the view.
-        rotation_orbit (float, optional): Rotating angle around orbit axis for point-cloud views.
-        rotation_x (float, optional): Rotating angle around X axis for point-cloud views.
+        rotation_orbit (float, optional): Rotating angle around orbit axis for
+            point-cloud views.
+        rotation_x (float, optional): Rotating angle around X axis for
+            point-cloud views.
         token (str): The token traitlet.
         base_url (str): The base URL for the widget.
         AnnData (AnnData, optional): AnnData object to derive metadata from.
-        dataset_name (str, optional): The name of the dataset to visualize. This will show up in the user interface bar.
+        dataset_name (str, optional): The name of the dataset to visualize. This
+            will show up in the user interface bar.
 
     The AnnData input automatically extracts cell attributes (e.g., ``leiden``
     clusters), the corresponding colors (or derives them when missing), and any
     available UMAP coordinates.
-
-    Attributes:
-        component (str): The name of the component.
-        technology (str): The technology used.
-        base_url (str): The base URL for the widget.
-        token (str): The token traitlet.
-        ini_x (float): The initial x-coordinate of the view.
-        ini_y (float): The initial y-coordinate of the view.
-        ini_z (float): The initial z-coordinate of the view.
-        ini_zoom (float): The initial zoom level of the view.
-        rotation_orbit (float): Rotating angle around orbit axis for point-cloud views.
-        rotation_x (float): Rotating angle around X axis for point-cloud views.
-        dataset_name (str): The name of the dataset to visualize.
-        update_trigger (dict): The dictionary to trigger updates.
-        cell_clusters (dict): The dictionary containing cell cluster information.
-
-    Returns:
-        Landscape: A widget for visualizing a 'landscape' view of spatial omics data.
     """
 
     _esm = Path(__file__).parent / "../static" / "widget.js"
@@ -109,8 +92,11 @@ class Landscape(anywidget.AnyWidget):
     update_trigger = traitlets.Dict().tag(sync=True)
     cell_clusters = traitlets.Dict({}).tag(sync=True)
 
-    # make a traitlet for cell_attr a list that will have the AnnData obs columns
-    cell_attr = traitlets.List(trait=traitlets.Unicode(), default_value=["leiden"]).tag(sync=True)
+    # AnnData obs columns (cell attributes)
+    cell_attr = traitlets.List(
+        trait=traitlets.Unicode(),
+        default_value=["leiden"],
+    ).tag(sync=True)
 
     segmentation = traitlets.Unicode("default").tag(sync=True)
 
@@ -137,7 +123,6 @@ class Landscape(anywidget.AnyWidget):
             raise ValueError("nbhd_edit cannot be True when nbhd data is provided")
 
         base_path = (kwargs.get("base_url") or "") + "/"
-
         path_transformation_matrix = base_path + "micron_to_image_transform.csv"
 
         try:
@@ -157,13 +142,13 @@ class Landscape(anywidget.AnyWidget):
         except np.linalg.LinAlgError as e:
             self._inv_transform = np.eye(3)
             warnings.warn(
-                f"Matrix inversion failed for transformation_matrix: {e}. Using identity matrix as fallback.",
+                f"Matrix inversion failed for transformation_matrix: {e}. "
+                "Using identity matrix as fallback.",
                 stacklevel=2,
             )
 
         def _df_to_bytes(df):
             import io
-
             import pyarrow as pa
             import pyarrow.parquet as pq
 
@@ -258,10 +243,8 @@ class Landscape(anywidget.AnyWidget):
         # compute geojson for initial nbhd if provided
         if self.nbhd is not None:
             if "geometry_pixel" not in self.nbhd.columns:
-                # Assuming `transformation_matrix` is your 3x3 numpy array
                 a, b, tx = transformation_matrix[0]
                 c, d, ty = transformation_matrix[1]
-
                 coeffs = [a, b, c, d, tx, ty]
 
                 self.nbhd["geometry_pixel"] = self.nbhd.geometry.apply(
@@ -276,33 +259,12 @@ class Landscape(anywidget.AnyWidget):
         elif self.nbhd_edit:
             self.nbhd_geojson = {"type": "FeatureCollection", "features": []}
 
-    # @traitlets.observe("nbhd")
-    # def _on_nbhd_change(self, change):
-    #     new = change["new"]
-    #     if new is None:
-    #         self.nbhd_geojson = {"type": "FeatureCollection", "features": []}
-    #     else:
-    #         self.nbhd_geojson = json.loads(new.to_json())
-
     def trigger_update(self, new_value):
-        """
-        Update the update_trigger traitlet with a new value.
-
-        Parameters:
-        - new_value: New value to trigger update with
-        """
-        # This method updates the update_trigger traitlet with a new value
-        # You can pass any information necessary for the update, or just a timestamp
+        """Update the update_trigger traitlet with a new value."""
         self.update_trigger = new_value
 
     def update_cell_clusters(self, new_clusters):
-        """
-        Update cell clusters with new data.
-
-        Parameters:
-        - new_clusters: New cluster data to update with
-        """
-        # Convert the new_clusters to a JSON serializable format if necessary
+        """Update cell clusters with new data."""
         self.cell_clusters = new_clusters
 
     @traitlets.observe("nbhd_geojson")
@@ -335,64 +297,6 @@ class Landscape(anywidget.AnyWidget):
         super().close()
 
 
-class DataFrameTrait(traitlets.TraitType):
-    """Traitlet that synchronizes a pandas ``DataFrame`` with the frontend."""
-
-    default_value = None
-    info_text = "pandas.DataFrame or None"
-
-    def validate(self, obj, value):
-        if value is None:
-            return None
-        if isinstance(value, pd.DataFrame):
-            return value
-        raise traitlets.TraitError(f"Expected a pandas DataFrame or None, got {type(value)!r}")
-
-    @staticmethod
-    def _ensure_serializable(df: pd.DataFrame) -> pd.DataFrame:
-        df = df.copy()
-        if df.index.name is None:
-            df.index.name = "index"
-        return df.where(df.notna(), None)
-
-    def to_json(self, value, obj):
-        if value is None:
-            return None
-
-        df = self._ensure_serializable(value.copy())
-        data = {col: df[col].tolist() for col in df.columns}
-
-        return {
-            "columns": list(df.columns),
-            "index": df.index.astype(str).tolist(),
-            "index_name": df.index.name,
-            "data": data,
-        }
-
-    def from_json(self, value, obj):
-        if value is None:
-            return None
-
-        columns = value.get("columns", [])
-        index = value.get("index", [])
-        data = value.get("data", {})
-
-        df = pd.DataFrame({col: data.get(col, [None] * len(index)) for col in columns})
-        if value.get("index_name") is not None:
-            df.index.name = value["index_name"]
-        df.index = pd.Index(index)
-        if columns:
-            df = df.reindex(columns=columns)
-        return df
-
-    def equal(self, old, new):
-        if old is None or new is None:
-            return old is None and new is None
-        if isinstance(old, pd.DataFrame) and isinstance(new, pd.DataFrame):
-            return old.equals(new)
-        return old is new
-
-
 class ManualAttributeTrait(traitlets.Unicode):
     """Traitlet for configuring manual attribute names via bools or strings."""
 
@@ -413,16 +317,10 @@ class ManualAttributeTrait(traitlets.Unicode):
 class Enrich(anywidget.AnyWidget):
     """
     A widget for interactive enrichment analysis using the Enrichr API.
-    This widget allows users to select a gene list, choose an enrichment library,
-    and specify the number of terms to display.
-    Automatically replaces older widgets with the same name to prevent notebook bloat.
-    Args:
-        value (int): The value traitlet.
-        component (str): The component traitlet.
-        gene_list (list): The list of genes to analyze.
-        available_libs (list): The list of available enrichment libraries.
-        inst_lib (str): The selected enrichment library.
-        num_terms (int): The number of terms to display.
+
+    Allows users to select a gene list, choose an enrichment library, and specify
+    the number of terms to display. Automatically replaces older widgets with the
+    same name to prevent notebook bloat.
     """
 
     _esm = Path(__file__).parent / "../static" / "widget.js"
@@ -434,13 +332,9 @@ class Enrich(anywidget.AnyWidget):
 
     component = traitlets.Unicode("Enrich").tag(sync=True)
 
-    # gene list
     gene_list = traitlets.List(default_value=[]).tag(sync=True)
-
-    # optional background gene list
     background_list = traitlets.List(allow_none=True, default_value=None).tag(sync=True)
 
-    # available enrichment libraries
     available_libs = traitlets.List(
         [
             "CellMarker_2024",
@@ -459,10 +353,7 @@ class Enrich(anywidget.AnyWidget):
         ]
     ).tag(sync=True)
 
-    # enrichment library
     inst_lib = traitlets.Unicode("CellMarker_2024").tag(sync=True)
-
-    # number of terms
     num_terms = traitlets.Int(50).tag(sync=True)
 
     term_genes = traitlets.List(default_value=[]).tag(sync=True)
@@ -490,16 +381,16 @@ class Clustergram(anywidget.AnyWidget):
     """
     Minimal version of the Clustergram widget.
 
-    - Frontend still gets: matrix/parquet data, row/col names, attribute
-      DataFrame traits, manual_cat, manual_cat_config, etc.
+    - Frontend still gets: matrix/parquet data, row/col names, manual_cat,
+      manual_cat_config, etc.
     - Manual categories are treated as a simple JSON string.
-    - All the fancy DataFrame plumbing for manual_cat is removed for now.
+    - All the old DataFrame-based manual_cat plumbing is removed.
     """
 
     _esm = Path(__file__).parent / "../static" / "widget.js"
     _css = Path(__file__).parent / "../static" / "widget.css"
 
-    # --- core traits used by JS ------------------------------------------------
+    # --- core traits used by JS -------------------------------------------------
     value = traitlets.Int(0).tag(sync=True)
     component = traitlets.Unicode("Matrix").tag(sync=True)
 
@@ -534,11 +425,10 @@ class Clustergram(anywidget.AnyWidget):
     category_colors = traitlets.Dict(default_value={}).tag(sync=True)
 
     # Canonical manual category payload as JSON string.
-    # For now we don't automatically convert this to DataFrames.
     manual_cat = traitlets.Unicode("{}").tag(sync=True)
 
     # Small JSON object describing default attribute names, preferred
-    # categories, etc. We leave it as "dumb" JSON for now.
+    # categories, etc.
     manual_cat_config = traitlets.Unicode("{}").tag(sync=True)
 
     def __init__(self, **kwargs):
@@ -552,7 +442,6 @@ class Clustergram(anywidget.AnyWidget):
         network : dict, optional
             Deprecated path, kept only for backwards-compatibility.
         """
-
         pq_data = kwargs.pop("parquet_data", None)
 
         if "network" in kwargs:
@@ -562,7 +451,6 @@ class Clustergram(anywidget.AnyWidget):
                 stacklevel=2,
             )
 
-        # Allow fallback via a 'matrix' kwarg
         manual_row_flag = kwargs.pop("manual_row_cat", "")
         manual_col_flag = kwargs.pop("manual_col_cat", "")
 
@@ -607,9 +495,6 @@ class Clustergram(anywidget.AnyWidget):
 
         super().__init__(**kwargs)
         _clustergram_registry[name] = self
-
-        # Used to avoid echo loops when we mirror JS -> PY
-        self._manual_sync_block = False
 
         # ------------------------------------------------------------------
         # Initialize a simple manual_cat_config from the flags, if the user
@@ -682,9 +567,6 @@ class Clustergram(anywidget.AnyWidget):
                 setattr(self, f"{axis}_manual_colors_df", None)
                 continue
 
-            # --- values: name -> category -----------------------------------
-            sorted(axis_payload.keys())
-
             # union of all indices for this axis
             index_labels = sorted(
                 {str(name) for attr in axis_payload.values() for name in (attr.get("values") or {})}
@@ -705,7 +587,7 @@ class Clustergram(anywidget.AnyWidget):
             else:
                 manual_df = None
 
-            # --- colors: category -> hex per attribute ----------------------
+            # colors: category -> hex per attribute
             cat_labels = sorted(
                 {str(cat) for attr in axis_payload.values() for cat in (attr.get("colors") or {})}
             )

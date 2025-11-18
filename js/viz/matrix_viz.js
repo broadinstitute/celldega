@@ -203,24 +203,17 @@ export const matrix_viz = async (
   // ---------------------------------------------------------------------------
   // JS -> PY sync: manual_cat + category_colors
   // ---------------------------------------------------------------------------
-  const sync_axes_to_traitlets = (axes) => {
+  const manual_stores = viz_state.obs_store?.manual_cat || {}
+
+  const sync_manual_traitlets = () => {
     if (!viz_state.model) return
 
-    const axis_list = Array.isArray(axes) ? axes : [axes]
-    console.log('sync_axes_to_traitlets', axis_list)
-
-    const row_store = viz_state.obs_store?.manual_cat?.row
-    const col_store = viz_state.obs_store?.manual_cat?.col
-
     const payload = {
-      row: row_store ? row_store.toExportPayload() : {},
-      col: col_store ? col_store.toExportPayload() : {},
+      row: manual_stores.row ? manual_stores.row.toExportPayload() : {},
+      col: manual_stores.col ? manual_stores.col.toExportPayload() : {},
     }
 
-    const json = JSON.stringify(payload)
-
-    // Primary sources of truth for Python
-    viz_state.model.set('manual_cat', json)
+    viz_state.model.set('manual_cat', JSON.stringify(payload))
     viz_state.model.set(
       'category_colors',
       viz_state.attr.category_colors || {}
@@ -237,25 +230,21 @@ export const matrix_viz = async (
     refresh_attribute_layers(deck_mat, layers_mat, viz_state)
 
     if (sync) {
-      sync_axes_to_traitlets(axis)
+      sync_manual_traitlets()
     }
   }
 
   // Whenever the JS manual_cat stores change (editor/dendro/etc.), repaint + sync
-  if (viz_state.obs_store?.manual_cat) {
-    ;['row', 'col'].forEach((axis) => {
-      const manual_store = viz_state.obs_store.manual_cat[axis]
-      if (!manual_store) return
+  Object.entries(manual_stores).forEach(([axis, store]) => {
+    if (!store || !['row', 'col'].includes(axis)) return
 
-      manual_store.subscribe(
-        () => {
-          // Apply to JS state and then sync back to Python
-          apply_manual_and_refresh(axis, { sync: true })
-        },
-        { immediate: false }
-      )
-    })
-  }
+    store.subscribe(
+      () => {
+        apply_manual_and_refresh(axis, { sync: true })
+      },
+      { immediate: false }
+    )
+  })
 
   // ---------------------------------------------------------------------------
   // PYTHON -> JS one-way pieces
@@ -277,48 +266,40 @@ export const matrix_viz = async (
     viz_state.model.save_changes()
 
     // 2) ONE-TIME: manual categories bootstrap (PY -> JS), then sync back once
-    const bootstrap_manual_categories = () => {
-      viz_state.manual_cat = viz_state.manual_cat || { config: {}, flags: {} }
-
-      // manual_cat_config may be JSON string or object
-      let raw_config = viz_state.model.get('manual_cat_config')
-      let parsed = raw_config
-      if (typeof parsed === 'string') {
-        try {
-          parsed = parsed ? JSON.parse(parsed) : {}
-        } catch {
-          parsed = {}
-        }
+    const parseJSON = (value, fallback) => {
+      if (!value) return fallback
+      if (typeof value === 'object') return value
+      try {
+        return JSON.parse(value)
+      } catch {
+        return fallback
       }
+    }
 
-      const normalized =
-        parsed && typeof parsed === 'object' ? parsed : { row: null, col: null }
+    const bootstrap_manual_categories = () => {
+      const config =
+        parseJSON(viz_state.model.get('manual_cat_config'), {
+          row: null,
+          col: null,
+        }) || {}
 
-      viz_state.manual_cat.config.row = normalized.row || null
-      viz_state.manual_cat.config.col = normalized.col || null
-
-      viz_state.manual_cat.flags = {
+      const flags = {
         row: !!viz_state.model.get('manual_row_cat'),
         col: !!viz_state.model.get('manual_col_cat'),
       }
 
       ;['row', 'col'].forEach((axis) => {
-        if (!viz_state.manual_cat.flags[axis]) return
+        if (!flags[axis]) return
 
-        const store = viz_state.obs_store?.manual_cat?.[axis]
-        const attribute_name =
-          viz_state.manual_cat.config?.[axis]?.attribute || null
-
+        const store = manual_stores[axis]
         if (store) {
-          store.setAttribute(attribute_name)
+          store.setAttribute(config?.[axis]?.attribute || null)
         }
 
-        // Build initial bars, but don't echo back yet
         apply_manual_and_refresh(axis, { sync: false })
       })
 
-      // Let Python see the initial JS state (frames/colors + manual_cat)
-      sync_axes_to_traitlets(['row', 'col'])
+      sync_manual_traitlets()
     }
 
     bootstrap_manual_categories()

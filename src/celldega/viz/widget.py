@@ -3,7 +3,7 @@ Widget module for interactive visualization components.
 """
 
 import colorsys
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from contextlib import suppress
 from copy import deepcopy
 import json
@@ -30,6 +30,26 @@ _DEFAULT_MANUAL_ATTRIBUTE_TITLES = {
 }
 _MANUAL_FILL_VALUE = "N.A."
 _MANUAL_FILL_COLOR = "#d1d5db"
+
+
+def _json_dict_or_default(value, fallback=None):
+    """Parse *value* into a dict, falling back to ``fallback`` when invalid."""
+
+    if fallback is None:
+        fallback = {}
+
+    if not value:
+        return deepcopy(fallback)
+
+    if isinstance(value, Mapping):
+        return dict(value)
+
+    try:
+        parsed = json.loads(value)
+    except (TypeError, json.JSONDecodeError):
+        return deepcopy(fallback)
+
+    return parsed if isinstance(parsed, Mapping) else deepcopy(fallback)
 
 
 def _hsv_to_hex(h: float) -> str:
@@ -607,9 +627,6 @@ class Clustergram(anywidget.AnyWidget):
         super().__init__(**kwargs)
         _clustergram_registry[name] = self
 
-        # Used to avoid echo loops when we mirror JS -> PY
-        self._manual_sync_block = False
-
         # ------------------------------------------------------------------
         # Initialize a simple manual_cat_config from the flags, if the user
         # didn't pass anything explicit.
@@ -641,16 +658,12 @@ class Clustergram(anywidget.AnyWidget):
         base_colors = dict(self.network_meta.get("global_cat_colors", {}))
         if getattr(self, "category_colors", None):
             base_colors.update(self.category_colors)
-        self._category_colors = base_colors
-        self.category_colors = deepcopy(self._category_colors)
+        self.category_colors = deepcopy(base_colors)
 
     @property
     def manual_cat_dict(self) -> dict:
         """Convenience accessor: parsed JSON from manual_cat."""
-        try:
-            return json.loads(self.manual_cat or "{}")
-        except json.JSONDecodeError:
-            return {}
+        return _json_dict_or_default(self.manual_cat)
 
     # ------------------------------------------------------------------
     # PY-only DataFrames derived from manual_cat JSON
@@ -658,12 +671,7 @@ class Clustergram(anywidget.AnyWidget):
     @traitlets.observe("manual_cat")
     def _on_manual_cat(self, change) -> None:
         """Rebuild backend DataFrames when manual_cat JSON changes."""
-        raw = change.get("new") or "{}"
-        try:
-            payload = json.loads(raw)
-        except json.JSONDecodeError:
-            payload = {}
-
+        payload = _json_dict_or_default(change.get("new"))
         self._update_manual_cat_frames(payload)
 
     def _update_manual_cat_frames(self, payload: dict) -> None:
@@ -677,72 +685,59 @@ class Clustergram(anywidget.AnyWidget):
         """
         for axis in ("row", "col"):
             axis_payload = payload.get(axis) or {}
-            if not axis_payload:
-                setattr(self, f"{axis}_manual_df", None)
-                setattr(self, f"{axis}_manual_colors_df", None)
-                continue
-
-            # --- values: name -> category -----------------------------------
-            attr_names = sorted(axis_payload.keys())
-
-            # union of all indices for this axis
-            index_labels = sorted(
-                {
-                    str(name)
-                    for attr in axis_payload.values()
-                    for name in (attr.get("values") or {}).keys()
-                }
-            )
-
-            if index_labels:
-                idx = pd.Index(index_labels, name=f"{axis}_id")
-                data = {}
-                for attr_name, spec in axis_payload.items():
-                    values = spec.get("values") or {}
-                    series = pd.Series(
-                        [values.get(label, _MANUAL_FILL_VALUE) for label in index_labels],
-                        index=idx,
-                        dtype=object,
-                    )
-                    data[str(attr_name)] = series
-                manual_df = pd.DataFrame(data, index=idx)
-            else:
-                manual_df = None
-
-            # --- colors: category -> hex per attribute ----------------------
-            cat_labels = sorted(
-                {
-                    str(cat)
-                    for attr in axis_payload.values()
-                    for cat in (attr.get("colors") or {}).keys()
-                }
-            )
-
-            if cat_labels:
-                cat_idx = pd.Index(cat_labels, name="category")
-                color_data = {}
-                for attr_name, spec in axis_payload.items():
-                    cmap = spec.get("colors") or {}
-                    series = pd.Series(
-                        [cmap.get(cat, None) for cat in cat_labels],
-                        index=cat_idx,
-                        dtype=object,
-                    )
-                    color_data[str(attr_name)] = series
-                colors_df = pd.DataFrame(color_data, index=cat_idx)
-            else:
-                colors_df = None
-
+            manual_df, colors_df = self._build_axis_manual_frames(axis, axis_payload)
             setattr(self, f"{axis}_manual_df", manual_df)
             setattr(self, f"{axis}_manual_colors_df", colors_df)
 
-    @property
-    def manual_cat_dict(self) -> dict:
-        """Convenience accessor: parsed JSON from manual_cat."""
-        try:
-            return json.loads(self.manual_cat or "{}")
-        except json.JSONDecodeError:
-            return {}
+    def _build_axis_manual_frames(self, axis: str, axis_payload: dict):
+        if not axis_payload:
+            return None, None
+
+        index_labels = sorted(
+            {
+                str(name)
+                for attr in axis_payload.values()
+                for name in (attr.get("values") or {}).keys()
+            }
+        )
+
+        manual_df = None
+        if index_labels:
+            idx = pd.Index(index_labels, name=f"{axis}_id")
+            data = {}
+            for attr_name, spec in axis_payload.items():
+                values = spec.get("values") or {}
+                series = pd.Series(
+                    [values.get(label, _MANUAL_FILL_VALUE) for label in index_labels],
+                    index=idx,
+                    dtype=object,
+                )
+                data[str(attr_name)] = series
+            manual_df = pd.DataFrame(data, index=idx)
+
+        cat_labels = sorted(
+            {
+                str(cat)
+                for attr in axis_payload.values()
+                for cat in (attr.get("colors") or {}).keys()
+            }
+        )
+
+        colors_df = None
+        if cat_labels:
+            cat_idx = pd.Index(cat_labels, name="category")
+            color_data = {}
+            for attr_name, spec in axis_payload.items():
+                cmap = spec.get("colors") or {}
+                series = pd.Series(
+                    [cmap.get(cat, None) for cat in cat_labels],
+                    index=cat_idx,
+                    dtype=object,
+                )
+                color_data[str(attr_name)] = series
+            colors_df = pd.DataFrame(color_data, index=cat_idx)
+
+        return manual_df, colors_df
 
 
     def close(self):  # pragma: no cover - cleanup depends on JS

@@ -52,6 +52,7 @@ def landscape_clustergram(
         enrich_widget = Enrich(**config)
 
     if enrich_widget is not None:
+
         def _forward_gene_to_landscape(gene: str) -> None:
             if gene:
                 landscape.trigger_update({"type": "row_label", "value": {"name": gene}})

@@ -347,9 +347,7 @@ class DataFrameTrait(traitlets.TraitType):
             return None
         if isinstance(value, pd.DataFrame):
             return value
-        raise traitlets.TraitError(
-            "Expected a pandas DataFrame or None, got %r" % (type(value),)
-        )
+        raise traitlets.TraitError("Expected a pandas DataFrame or None, got %r" % (type(value),))
 
     @staticmethod
     def _ensure_serializable(df: pd.DataFrame) -> pd.DataFrame:
@@ -526,12 +524,12 @@ class Clustergram(anywidget.AnyWidget):
     col_manual_colors_df = traitlets.Instance(pd.DataFrame, allow_none=True)
 
     # Flags that control whether manual categories are shown in the UI.
-    manual_row_cat = ManualAttributeTrait(
-        default_name=_DEFAULT_MANUAL_ATTRIBUTE_TITLES["row"]
-    ).tag(sync=True)
-    manual_col_cat = ManualAttributeTrait(
-        default_name=_DEFAULT_MANUAL_ATTRIBUTE_TITLES["col"]
-    ).tag(sync=True)
+    manual_row_cat = ManualAttributeTrait(default_name=_DEFAULT_MANUAL_ATTRIBUTE_TITLES["row"]).tag(
+        sync=True
+    )
+    manual_col_cat = ManualAttributeTrait(default_name=_DEFAULT_MANUAL_ATTRIBUTE_TITLES["col"]).tag(
+        sync=True
+    )
 
     # Global color registry (JS may write here; Python can also seed it)
     category_colors = traitlets.Dict(default_value={}).tag(sync=True)
@@ -590,8 +588,12 @@ class Clustergram(anywidget.AnyWidget):
                 "mat_parquet": traitlets.Bytes(pq_data.get("mat", b"")).tag(sync=True),
                 "row_nodes_parquet": traitlets.Bytes(pq_data.get("row_nodes", b"")).tag(sync=True),
                 "col_nodes_parquet": traitlets.Bytes(pq_data.get("col_nodes", b"")).tag(sync=True),
-                "row_linkage_parquet": traitlets.Bytes(pq_data.get("row_linkage", b"")).tag(sync=True),
-                "col_linkage_parquet": traitlets.Bytes(pq_data.get("col_linkage", b"")).tag(sync=True),
+                "row_linkage_parquet": traitlets.Bytes(pq_data.get("row_linkage", b"")).tag(
+                    sync=True
+                ),
+                "col_linkage_parquet": traitlets.Bytes(pq_data.get("col_linkage", b"")).tag(
+                    sync=True
+                ),
             }
             self.add_traits(**parquet_traits)
 
@@ -635,7 +637,6 @@ class Clustergram(anywidget.AnyWidget):
             not self.manual_cat_config or self.manual_cat_config == "{}"
         ):
             self.manual_cat_config = json.dumps(config)
-
 
         # Seed category_colors from network_meta if available
         base_colors = dict(self.network_meta.get("global_cat_colors", {}))
@@ -743,7 +744,6 @@ class Clustergram(anywidget.AnyWidget):
             return json.loads(self.manual_cat or "{}")
         except json.JSONDecodeError:
             return {}
-
 
     def close(self):  # pragma: no cover - cleanup depends on JS
         """Close the widget and notify the frontend to release resources."""

@@ -223,7 +223,6 @@ export const matrix_viz = async (
       viz_state.attr.category_colors || {}
     )
 
-    // 3) Manual-cat payload from the JS stores  ->  manual_cat_js (JSON string)
     const row_store = viz_state.obs_store?.manual_cat?.row
     const col_store = viz_state.obs_store?.manual_cat?.col
 
@@ -232,20 +231,14 @@ export const matrix_viz = async (
     //   col: col_store ? col_store.toExportPayload() : {},
     // }
 
-    // console.log('sync_manual_cat_to_traitlet (manual_cat_js)', payload)
-    // viz_state.model.set('manual_cat_js', JSON.stringify(payload))
-    // viz_state.model.save_changes()
-
     const payload = {
       row: row_store ? row_store.toExportPayload() : {},
       col: col_store ? col_store.toExportPayload() : {},
     }
 
     const json = JSON.stringify(payload)
-    console.log('sync_manual_cat_to_traitlet (manual_cat_js + manual_cat)', payload)
 
     // Primary source of truth: JS sets both traits
-    viz_state.model.set('manual_cat_js', json)
     viz_state.model.set('manual_cat', json)
 
     viz_state.model.save_changes()

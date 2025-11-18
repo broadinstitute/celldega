@@ -19,7 +19,9 @@ const get_current_focus = (viz_state) => {
 };
 
 const apply_dendro_focus = (deck_mat, layers_mat, viz_state, focus) => {
-  const normalized_focus = focus ? { axis: focus.axis, name: focus.name } : null;
+  const normalized_focus = focus
+    ? { axis: focus.axis, name: focus.name }
+    : null;
 
   let did_update = false;
 

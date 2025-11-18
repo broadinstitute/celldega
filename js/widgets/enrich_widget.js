@@ -24,7 +24,8 @@ export const render_enrich = async ({ model, el }) => {
     const normalized = (gene || '').toLowerCase();
     spans.forEach((span) => {
       const text = (span.textContent || '').replace(', ', '').toLowerCase();
-      span.style.fontWeight = normalized && text === normalized ? 'bold' : '550';
+      span.style.fontWeight =
+        normalized && text === normalized ? 'bold' : '550';
     });
     paragraphElement.value = gene
       ? gene

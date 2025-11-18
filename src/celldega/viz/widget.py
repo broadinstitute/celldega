@@ -3,7 +3,6 @@ Widget module for interactive visualization components.
 """
 
 import colorsys
-from collections.abc import Mapping, Sequence
 from contextlib import suppress
 from copy import deepcopy
 import json
@@ -347,7 +346,7 @@ class DataFrameTrait(traitlets.TraitType):
             return None
         if isinstance(value, pd.DataFrame):
             return value
-        raise traitlets.TraitError("Expected a pandas DataFrame or None, got %r" % (type(value),))
+        raise traitlets.TraitError(f"Expected a pandas DataFrame or None, got {type(value)!r}")
 
     @staticmethod
     def _ensure_serializable(df: pd.DataFrame) -> pd.DataFrame:
@@ -356,7 +355,7 @@ class DataFrameTrait(traitlets.TraitType):
             df.index.name = "index"
         return df.where(df.notna(), None)
 
-    def to_json(self, value, obj):  # noqa: D401 - traitlets signature
+    def to_json(self, value, obj):
         if value is None:
             return None
 
@@ -370,7 +369,7 @@ class DataFrameTrait(traitlets.TraitType):
             "data": data,
         }
 
-    def from_json(self, value, obj):  # noqa: D401 - traitlets signature
+    def from_json(self, value, obj):
         if value is None:
             return None
 
@@ -386,7 +385,7 @@ class DataFrameTrait(traitlets.TraitType):
             df = df.reindex(columns=columns)
         return df
 
-    def equal(self, old, new):  # noqa: D401 - traitlets signature
+    def equal(self, old, new):
         if old is None or new is None:
             return old is None and new is None
         if isinstance(old, pd.DataFrame) and isinstance(new, pd.DataFrame):
@@ -401,7 +400,7 @@ class ManualAttributeTrait(traitlets.Unicode):
         self._default_name = default_name
         super().__init__(default_value="", **kwargs)
 
-    def validate(self, obj, value):  # noqa: D401 - traitlets signature
+    def validate(self, obj, value):
         if value is None:
             return ""
         if isinstance(value, bool):
@@ -684,14 +683,14 @@ class Clustergram(anywidget.AnyWidget):
                 continue
 
             # --- values: name -> category -----------------------------------
-            attr_names = sorted(axis_payload.keys())
+            sorted(axis_payload.keys())
 
             # union of all indices for this axis
             index_labels = sorted(
                 {
                     str(name)
                     for attr in axis_payload.values()
-                    for name in (attr.get("values") or {}).keys()
+                    for name in (attr.get("values") or {})
                 }
             )
 
@@ -715,7 +714,7 @@ class Clustergram(anywidget.AnyWidget):
                 {
                     str(cat)
                     for attr in axis_payload.values()
-                    for cat in (attr.get("colors") or {}).keys()
+                    for cat in (attr.get("colors") or {})
                 }
             )
 
@@ -736,14 +735,6 @@ class Clustergram(anywidget.AnyWidget):
 
             setattr(self, f"{axis}_manual_df", manual_df)
             setattr(self, f"{axis}_manual_colors_df", colors_df)
-
-    @property
-    def manual_cat_dict(self) -> dict:
-        """Convenience accessor: parsed JSON from manual_cat."""
-        try:
-            return json.loads(self.manual_cat or "{}")
-        except json.JSONDecodeError:
-            return {}
 
     def close(self):  # pragma: no cover - cleanup depends on JS
         """Close the widget and notify the frontend to release resources."""

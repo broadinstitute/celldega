@@ -195,9 +195,7 @@ export const initialize_attr_state = (viz_state, network) => {
 
   viz_state.manual_cat = viz_state.manual_cat || {
     config: { row: null, col: null },
-    self_update: false,
     flags: { row: false, col: false },
-    external_update: false,
   };
 
   viz_state.attr.static_defs.row = build_static_definitions(

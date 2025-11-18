@@ -153,6 +153,8 @@ export const matrix_viz = async (
         viz_state.attr.editor.open({
           axis,
           selection: [node_name],
+          // attribute_name is currently ignored by the editor, but kept for
+          // potential future use and clarity.
           attribute_name: attr_name,
           initial_value: value,
           initial_color: color_hex,
@@ -234,7 +236,7 @@ export const matrix_viz = async (
     refresh_attribute_layers(deck_mat, layers_mat, viz_state);
 
     if (sync) {
-      sync_axes_to_traitlets(axis);
+      sync_axes_to_traitlets();
     }
   };
 
@@ -315,8 +317,8 @@ export const matrix_viz = async (
         apply_manual_and_refresh(axis, { sync: false });
       });
 
-      // Let Python see the initial JS state (frames/colors + manual_cat)
-      sync_axes_to_traitlets(['row', 'col']);
+      // Let Python see the initial JS state (manual_cat + category_colors)
+      sync_axes_to_traitlets();
     };
 
     bootstrap_manual_categories();

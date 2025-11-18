@@ -52,14 +52,14 @@ import { get_tooltip } from '../deck-gl/matrix/matrix_tooltip'
 import { on_view_state_change } from '../deck-gl/matrix/on_view_state_change'
 import { ini_views, ini_view_state } from '../deck-gl/matrix/views'
 import { ini_zoom_data } from '../deck-gl/matrix/zoom'
-import { calc_dendro_polygons, ini_dendro } from '../matrix/dendro'
-import { set_row_label_data, set_col_label_data } from '../matrix/label_data'
-import { set_mat_data } from '../matrix/mat_data'
-import { set_mat_constants } from '../matrix/set_constants'
 import {
   apply_manual_definitions_to_axis,
   refresh_attribute_layers,
 } from '../matrix/attr_state'
+import { calc_dendro_polygons, ini_dendro } from '../matrix/dendro'
+import { set_row_label_data, set_col_label_data } from '../matrix/label_data'
+import { set_mat_data } from '../matrix/mat_data'
+import { set_mat_constants } from '../matrix/set_constants'
 import { initialize_attribute_editor } from '../ui/attribute_editor'
 import { make_matrix_ui_container } from '../ui/ui_containers'
 
@@ -203,11 +203,8 @@ export const matrix_viz = async (
   // ---------------------------------------------------------------------------
   // JS -> PY sync: manual_cat + category_colors
   // ---------------------------------------------------------------------------
-  const sync_axes_to_traitlets = (axes) => {
+  const sync_axes_to_traitlets = () => {
     if (!viz_state.model) return
-
-    const axis_list = Array.isArray(axes) ? axes : [axes]
-    console.log('sync_axes_to_traitlets', axis_list)
 
     const row_store = viz_state.obs_store?.manual_cat?.row
     const col_store = viz_state.obs_store?.manual_cat?.col
@@ -281,7 +278,7 @@ export const matrix_viz = async (
       viz_state.manual_cat = viz_state.manual_cat || { config: {}, flags: {} }
 
       // manual_cat_config may be JSON string or object
-      let raw_config = viz_state.model.get('manual_cat_config')
+      const raw_config = viz_state.model.get('manual_cat_config')
       let parsed = raw_config
       if (typeof parsed === 'string') {
         try {

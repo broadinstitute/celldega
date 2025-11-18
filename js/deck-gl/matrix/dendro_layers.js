@@ -45,7 +45,7 @@ const apply_dendro_focus = (deck_mat, layers_mat, viz_state, focus) => {
           ...polygon,
           properties: {
             ...polygon.properties,
-            is_focused: is_focused,
+            is_focused,
           },
         };
       }

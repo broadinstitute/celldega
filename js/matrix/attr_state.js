@@ -1,8 +1,9 @@
 import * as d3 from 'd3-color'
 
-import { colorToRgba } from './cat_data'
 import { get_mat_layers_list } from '../deck-gl/matrix/matrix_layers'
 import { ini_views, ini_view_state } from '../deck-gl/matrix/views'
+
+import { colorToRgba } from './cat_data'
 
 const FALLBACK_COLORS = [
   '#1f77b4',
@@ -67,7 +68,6 @@ const compute_geometry = (viz_state) => {
 
 const build_cat_data_for_axis = (viz_state, axis) => {
   const is_row = axis === 'row'
-  const nodes = is_row ? viz_state.row_nodes : viz_state.col_nodes
   const cat_offset = is_row
     ? viz_state.viz.row_cat_offset
     : viz_state.viz.col_cat_offset
@@ -346,9 +346,4 @@ export const apply_manual_definitions_to_axis = (viz_state, axis) => {
 
   update_combined_attr_defs(viz_state)
   return true
-}
-
-export const sync_manual_category_from_payload = (_raw_payload, _viz_state) => {
-  // Still intentionally disabled: JS is the source of truth for manual_cat.
-  return
 }

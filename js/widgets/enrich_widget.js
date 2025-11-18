@@ -306,16 +306,16 @@ export const render_enrich = async ({ model, el }) => {
 
       new_chart.addEventListener('input', () => {
         const val = new_chart.value || {};
-        const genes = val.term_genes || [];
+        const inst_genes = val.term_genes || [];
         const termName = val.term_name || 'Select Term';
 
-        store.term_genes.set(genes);
+        store.term_genes.set(inst_genes);
         store.selected_term.set(termName);
-        model.set('term_genes', genes);
+        model.set('term_genes', inst_genes);
         model.set('selected_term', termName);
         model.save_changes();
 
-        updateParagraphColors(element, genes);
+        updateParagraphColors(element, inst_genes);
       });
 
       updateParagraphColors(element, store.term_genes.get());

@@ -1,5 +1,6 @@
 import { create_clustergram_store } from '../obs_store/clustergram_store';
 import { ManualCategoryStore } from '../obs_store/manual_category_store';
+
 import { initialize_attr_state } from './attr_state';
 
 export const set_mat_constants = (

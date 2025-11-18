@@ -57,7 +57,6 @@ import { set_row_label_data, set_col_label_data } from '../matrix/label_data'
 import { set_mat_data } from '../matrix/mat_data'
 import { set_mat_constants } from '../matrix/set_constants'
 import {
-  apply_attribute_frame,
   apply_manual_definitions_to_axis,
   refresh_attribute_layers,
 } from '../matrix/attr_state'
@@ -124,6 +123,9 @@ export const matrix_viz = async (
 
   refresh_attribute_layers(deck_mat, layers_mat, viz_state)
 
+  // ---------------------------------------------------------------------------
+  // Manual-category click handlers (open editor on cat-tile click)
+  // ---------------------------------------------------------------------------
   const attach_cat_handlers = (axis) => {
     const layer_key = `${axis}_cat_layer`
     layers_mat[layer_key] = layers_mat[layer_key].clone({
@@ -165,6 +167,9 @@ export const matrix_viz = async (
   attach_cat_handlers('row')
   attach_cat_handlers('col')
 
+  // ---------------------------------------------------------------------------
+  // Deck init
+  // ---------------------------------------------------------------------------
   ini_views(viz_state)
   const global_view_state = ini_view_state(viz_state)
 
@@ -190,46 +195,22 @@ export const matrix_viz = async (
     viz_state
   )
 
-
   el.appendChild(ui_container)
   el.appendChild(viz_state.root)
 
   initialize_attribute_editor(viz_state, deck_mat, layers_mat)
 
   // ---------------------------------------------------------------------------
-  // SIMPLE JS -> PY SYNC
+  // JS -> PY sync: manual_cat + category_colors
   // ---------------------------------------------------------------------------
-
-  // Push current JS attribute state + manual_cat back into the widget model
   const sync_axes_to_traitlets = (axes) => {
     if (!viz_state.model) return
 
     const axis_list = Array.isArray(axes) ? axes : [axes]
     console.log('sync_axes_to_traitlets', axis_list)
 
-    // // 1) Frames + colors per axis (optional but still useful)
-    // axis_list.forEach((axis) => {
-    //   const normalized = axis === 'col' ? 'col' : 'row'
-    //   const frame = viz_state.attr.frames?.[normalized] || null
-    //   const colors = viz_state.attr.color_payload?.[normalized] || {}
-
-    //   viz_state.model.set(`${normalized}_attributes_df`, frame)
-    //   viz_state.model.set(`${normalized}_attribute_colors`, colors)
-    // })
-
-    // 2) Global category color map
-    viz_state.model.set(
-      'category_colors',
-      viz_state.attr.category_colors || {}
-    )
-
     const row_store = viz_state.obs_store?.manual_cat?.row
     const col_store = viz_state.obs_store?.manual_cat?.col
-
-    // const payload = {
-    //   row: row_store ? row_store.toExportPayload() : {},
-    //   col: col_store ? col_store.toExportPayload() : {},
-    // }
 
     const payload = {
       row: row_store ? row_store.toExportPayload() : {},
@@ -238,8 +219,12 @@ export const matrix_viz = async (
 
     const json = JSON.stringify(payload)
 
-    // Primary source of truth: JS sets both traits
+    // Primary sources of truth for Python
     viz_state.model.set('manual_cat', json)
+    viz_state.model.set(
+      'category_colors',
+      viz_state.attr.category_colors || {}
+    )
 
     viz_state.model.save_changes()
   }
@@ -272,12 +257,15 @@ export const matrix_viz = async (
     })
   }
 
-
   // ---------------------------------------------------------------------------
-  // PYTHON -> JS one-way pieces (names, normal attribute frames, initial config)
+  // PYTHON -> JS one-way pieces
+  //   - Names
+  //   - Manual category config
+  //   - category_colors seed
+  //   - selected_genes / top_n_genes
   // ---------------------------------------------------------------------------
   if (viz_state.model) {
-    // 1) Names
+    // 1) Axis names
     viz_state.model.set(
       'row_names',
       viz_state.row_nodes.map((node) => String(node.name))
@@ -288,36 +276,7 @@ export const matrix_viz = async (
     )
     viz_state.model.save_changes()
 
-    // // 2) Normal attribute frames (row/col_attributes_df + *_colors)
-    // const apply_row_attributes = () => {
-    //   apply_attribute_frame(
-    //     'row',
-    //     viz_state.model.get('row_attributes_df'),
-    //     viz_state.model.get('row_attribute_colors') || {},
-    //     viz_state
-    //   )
-    //   refresh_attribute_layers(deck_mat, layers_mat, viz_state)
-    // }
-
-    // const apply_col_attributes = () => {
-    //   apply_attribute_frame(
-    //     'col',
-    //     viz_state.model.get('col_attributes_df'),
-    //     viz_state.model.get('col_attribute_colors') || {},
-    //     viz_state
-    //   )
-    //   refresh_attribute_layers(deck_mat, layers_mat, viz_state)
-    // }
-
-    // apply_row_attributes()
-    // apply_col_attributes()
-
-    // viz_state.model.on('change:row_attributes_df', apply_row_attributes)
-    // viz_state.model.on('change:row_attribute_colors', apply_row_attributes)
-    // viz_state.model.on('change:col_attributes_df', apply_col_attributes)
-    // viz_state.model.on('change:col_attribute_colors', apply_col_attributes)
-
-    // 3) ONE-TIME: manual categories bootstrap (PY -> JS), then sync back once
+    // 2) ONE-TIME: manual categories bootstrap (PY -> JS), then sync back once
     const bootstrap_manual_categories = () => {
       viz_state.manual_cat = viz_state.manual_cat || { config: {}, flags: {} }
 
@@ -358,13 +317,13 @@ export const matrix_viz = async (
         apply_manual_and_refresh(axis, { sync: false })
       })
 
-      // Now let Python see the initial JS state (frames/colors + manual_cat)
+      // Let Python see the initial JS state (frames/colors + manual_cat)
       sync_axes_to_traitlets(['row', 'col'])
     }
 
     bootstrap_manual_categories()
 
-    // 4) Initial category_colors from Python (if any)
+    // 3) Initial category_colors from Python (if any)
     const apply_category_colors = () => {
       viz_state.attr.category_colors =
         viz_state.model.get('category_colors') || {}
@@ -373,7 +332,7 @@ export const matrix_viz = async (
     apply_category_colors()
     viz_state.model.on('change:category_colors', apply_category_colors)
 
-    // 5) Misc other traitlets
+    // 4) Misc other traitlets
     viz_state.model.on('change:selected_genes', () => {
       viz_state.obs_store.selected_genes.set(
         viz_state.model.get('selected_genes') || []

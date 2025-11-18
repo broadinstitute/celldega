@@ -101,43 +101,6 @@ def _link_clustergram_to_enrich(
     def _set_gene_list(genes):
         enrich.gene_list = list(genes) if genes else []
 
-    # def _update_enrichment_membership(term_genes, axis: str):
-    #     target_axis = "col" if axis == "col" and col_enrich else "row"
-    #     if target_axis == "row" and not row_enrich:
-    #         return
-
-    #     current_terms[target_axis] = list(term_genes or [])
-
-    #     index = _ensure_attribute_index(target_axis)
-    #     if index.empty:
-    #         return
-
-    #     existing = getattr(cgm, f"{target_axis}_attributes_df")
-    #     if existing is None or existing.empty:
-    #         df = pd.DataFrame(index=index)
-    #     else:
-    #         df = existing.reindex(index)
-
-    #     column_name = enrich_column_names[target_axis]
-    #     colors = dict(getattr(cgm, f"{target_axis}_attribute_colors") or {})
-
-    #     if not term_genes:
-    #         if column_name in df.columns:
-    #             df = df.drop(columns=[column_name])
-    #         setattr(cgm, f"{target_axis}_attributes_df", df if not df.empty else None)
-    #         colors.pop(column_name, None)
-    #         setattr(cgm, f"{target_axis}_attribute_colors", colors)
-    #         return
-
-    #     normalized = {str(g).lower() for g in term_genes}
-    #     membership = pd.Series("Out of term", index=index, dtype=object)
-    #     membership[index.str.lower().isin(normalized)] = "In term"
-    #     df[column_name] = membership
-
-    #     setattr(cgm, f"{target_axis}_attributes_df", df)
-    #     colors[column_name] = enrich_colors
-    #     setattr(cgm, f"{target_axis}_attribute_colors", colors)
-
     def _on_selected_genes(change):
         nonlocal current_axis
         genes = change["new"] or []

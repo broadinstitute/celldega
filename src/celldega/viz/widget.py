@@ -525,14 +525,6 @@ class Clustergram(anywidget.AnyWidget):
     row_manual_colors_df = traitlets.Instance(pd.DataFrame, allow_none=True)
     col_manual_colors_df = traitlets.Instance(pd.DataFrame, allow_none=True)
 
-    # Attribute DataFrames (+ colors) still available if you want to
-    # use them later, but we don't auto-manipulate them in this minimal
-    # version.
-    # row_attributes_df = DataFrameTrait(allow_none=True).tag(sync=True)
-    # col_attributes_df = DataFrameTrait(allow_none=True).tag(sync=True)
-    # row_attribute_colors = traitlets.Dict(default_value={}).tag(sync=True)
-    # col_attribute_colors = traitlets.Dict(default_value={}).tag(sync=True)
-
     # Flags that control whether manual categories are shown in the UI.
     manual_row_cat = ManualAttributeTrait(
         default_name=_DEFAULT_MANUAL_ATTRIBUTE_TITLES["row"]

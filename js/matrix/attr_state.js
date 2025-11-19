@@ -242,10 +242,12 @@ export const refresh_attribute_layers = (deck_mat, layers_mat, viz_state) => {
   });
 
   layers_mat.row_label_layer = layers_mat.row_label_layer.clone({
+    data: viz_state.labels.row_label_data,
     updateTriggers: { getPosition: viz_state.order.current.row },
   });
 
   layers_mat.col_label_layer = layers_mat.col_label_layer.clone({
+    data: viz_state.labels.col_label_data,
     updateTriggers: { getPosition: viz_state.order.current.col },
   });
 

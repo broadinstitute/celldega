@@ -46,6 +46,14 @@ export class ManualCategoryStore {
     this.emit();
   }
 
+  getValueFor(name) {
+    if (name === null || name === undefined) return null;
+
+    const key = String(name);
+    const stored = this.values.get(key);
+    return stored === undefined ? null : stored;
+  }
+
   clear() {
     if (!this.attribute && this.values.size === 0 && this.colors.size === 0) {
       return;

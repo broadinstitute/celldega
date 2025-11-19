@@ -57,7 +57,11 @@ import {
   refresh_attribute_layers,
 } from '../matrix/attr_state';
 import { calc_dendro_polygons, ini_dendro } from '../matrix/dendro';
-import { set_row_label_data, set_col_label_data } from '../matrix/label_data';
+import {
+  set_row_label_data,
+  set_col_label_data,
+  update_label_display_names,
+} from '../matrix/label_data';
 import { set_mat_data } from '../matrix/mat_data';
 import { set_mat_constants } from '../matrix/set_constants';
 import { initialize_attribute_editor } from '../ui/attribute_editor';
@@ -233,6 +237,7 @@ export const matrix_viz = async (
     const applied = apply_manual_definitions_to_axis(viz_state, axis);
     if (!applied) return;
 
+    update_label_display_names(viz_state, axis);
     refresh_attribute_layers(deck_mat, layers_mat, viz_state);
 
     if (sync) {

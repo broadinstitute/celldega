@@ -134,9 +134,10 @@ const create_scale_bar = (micronsPerPixel) => {
     const micronsPerScreenPixel = micronsPerPixel / zoomFactor;
     const targetPixelWidth = 100;
     const rawMicrons = micronsPerScreenPixel * targetPixelWidth;
+    const cappedMicrons = Math.min(rawMicrons, 1000);
 
-    const magnitude = Math.pow(10, Math.floor(Math.log10(rawMicrons)));
-    const normalized = rawMicrons / magnitude;
+    const magnitude = Math.pow(10, Math.floor(Math.log10(cappedMicrons)));
+    const normalized = cappedMicrons / magnitude;
 
     let niceNormalized = 1;
     if (normalized > 5) {

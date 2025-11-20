@@ -71,10 +71,10 @@ import { update_cell_clusters } from '../widget_interactions/update_cell_cluster
 import { update_ist_landscape_from_cgm } from '../widget_interactions/update_ist_landscape_from_cgm';
 
 const PIXEL_SIZE_MICRONS = {
-  Xenium: 0.2125,
-  MERSCOPE: 0.108,
+  'Xenium': 0.2125,
+  'MERSCOPE': 0.108,
   'point-cloud': 1,
-  'Visium HD': 0.65,
+  'Visium-HD': 0.14,
 };
 
 const create_scale_bar = (micronsPerPixel) => {

@@ -106,6 +106,16 @@ const create_scale_bar = (micronsPerPixel) => {
   container.appendChild(bar);
 
   const formatLabel = (microns) => {
+    if (microns >= 1000) {
+      const millimeters = microns / 1000;
+      if (millimeters >= 10) {
+        return `${Math.round(millimeters)} mm`;
+      }
+      if (millimeters >= 1) {
+        return `${Number(millimeters.toFixed(1))} mm`;
+      }
+    }
+
     if (microns >= 100) {
       return `${Math.round(microns)} µm`;
     }

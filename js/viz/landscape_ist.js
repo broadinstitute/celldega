@@ -70,6 +70,82 @@ import { refresh_layer } from '../utils/refresh_layer';
 import { update_cell_clusters } from '../widget_interactions/update_cell_clusters';
 import { update_ist_landscape_from_cgm } from '../widget_interactions/update_ist_landscape_from_cgm';
 
+const PIXEL_SIZE_MICRONS = {
+  Xenium: 0.2125,
+  MERSCOPE: 0.108,
+};
+
+const create_scale_bar = (micronsPerPixel) => {
+  const container = document.createElement('div');
+  container.style.position = 'absolute';
+  container.style.bottom = '10px';
+  container.style.left = '10px';
+  container.style.backgroundColor = 'rgba(0, 0, 0, 0.75)';
+  container.style.color = 'white';
+  container.style.padding = '6px 8px';
+  container.style.border = '1px solid black';
+  container.style.borderRadius = '4px';
+  container.style.fontSize = '12px';
+  container.style.lineHeight = '1.2';
+  container.style.display = 'flex';
+  container.style.flexDirection = 'column';
+  container.style.alignItems = 'flex-start';
+  container.style.pointerEvents = 'none';
+
+  const label = document.createElement('div');
+  label.textContent = '1 µm';
+
+  const bar = document.createElement('div');
+  bar.style.height = '2px';
+  bar.style.backgroundColor = 'white';
+  bar.style.marginTop = '4px';
+  bar.style.width = '80px';
+
+  container.appendChild(label);
+  container.appendChild(bar);
+
+  const formatLabel = (microns) => {
+    if (microns >= 100) {
+      return `${Math.round(microns)} µm`;
+    }
+    if (microns >= 10) {
+      return `${Number(microns.toFixed(1))} µm`;
+    }
+    return `${Number(microns.toPrecision(2))} µm`;
+  };
+
+  const setVisible = (visible) => {
+    container.style.display = visible ? 'flex' : 'none';
+  };
+
+  const update = ({ zoom }) => {
+    const zoomFactor = Math.pow(2, zoom || 0);
+    const micronsPerScreenPixel = micronsPerPixel / zoomFactor;
+    const targetPixelWidth = 100;
+    const rawMicrons = micronsPerScreenPixel * targetPixelWidth;
+
+    const magnitude = Math.pow(10, Math.floor(Math.log10(rawMicrons)));
+    const normalized = rawMicrons / magnitude;
+
+    let niceNormalized = 1;
+    if (normalized > 5) {
+      niceNormalized = 10;
+    } else if (normalized > 2) {
+      niceNormalized = 5;
+    } else if (normalized > 1) {
+      niceNormalized = 2;
+    }
+
+    const barMicrons = niceNormalized * magnitude;
+    const barPixelWidth = barMicrons / micronsPerScreenPixel;
+
+    label.textContent = formatLabel(barMicrons);
+    bar.style.width = `${barPixelWidth}px`;
+  };
+
+  return { container, update, setVisible };
+};
+
 export const landscape_ist = async (
   el,
   ini_model,
@@ -341,8 +417,15 @@ export const landscape_ist = async (
 
   // Create and append the visualization.
   const root = document.createElement('div');
+  root.style.position = 'relative';
   root.style.height = `${height}px`;
   root.style.border = '1px solid #d3d3d3';
+
+  const micronsPerPixel = PIXEL_SIZE_MICRONS[tech];
+  if (micronsPerPixel) {
+    viz_state.scale_bar = create_scale_bar(micronsPerPixel);
+    root.appendChild(viz_state.scale_bar.container);
+  }
 
   if (tech === 'Chromium' || tech === 'point-cloud') {
     viz_state.dimensions = { width: 1, height: 1, tileSize: 1 };
@@ -618,6 +701,10 @@ export const landscape_ist = async (
     (view) => {
       const isUmap = view === 'umap';
       viz_state.obs_store.umap_state.set(isUmap);
+
+      if (viz_state.scale_bar) {
+        viz_state.scale_bar.setVisible(!isUmap);
+      }
 
       toggle_spatial_umap(deck_ist, layers_obj, viz_state);
 

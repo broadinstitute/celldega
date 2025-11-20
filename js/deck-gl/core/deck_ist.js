@@ -89,4 +89,8 @@ export const set_initial_view_state = (
   deck_ist.setProps({
     initialViewState: initial_view_state,
   });
+
+  if (viz_state.scale_bar?.update) {
+    viz_state.scale_bar.update(initial_view_state);
+  }
 };

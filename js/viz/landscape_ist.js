@@ -73,6 +73,8 @@ import { update_ist_landscape_from_cgm } from '../widget_interactions/update_ist
 const PIXEL_SIZE_MICRONS = {
   Xenium: 0.2125,
   MERSCOPE: 0.108,
+  'point-cloud': 1,
+  'Visium HD': 0.65,
 };
 
 const create_scale_bar = (micronsPerPixel) => {

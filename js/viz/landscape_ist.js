@@ -77,15 +77,26 @@ const PIXEL_SIZE_MICRONS = {
   'Visium-HD': 0.14,
 };
 
-const create_scale_bar = (micronsPerPixel) => {
+const create_scale_bar = (micronsPerPixel, tech) => {
+  const techKey = (tech || '');
+  const blackLabelTechs = ['Visium-HD'];
+  const whiteLabelTechs = ['Xenium', 'MERSCOPE'];
+
+  const labelColor =
+    blackLabelTechs.includes(techKey) ? 'black' :
+    whiteLabelTechs.includes(techKey) ? 'white' :
+    'white';
+
+  const rev_labelColor = labelColor === 'white' ? 'black' : 'white';
+
   const container = document.createElement('div');
   container.style.position = 'absolute';
   container.style.bottom = '10px';
   container.style.left = '10px';
-  container.style.backgroundColor = 'rgba(0, 0, 0, 0.75)';
-  container.style.color = 'white';
+  container.style.backgroundColor = 'transparent';
+  container.style.color = labelColor;
   container.style.padding = '6px 8px';
-  container.style.border = '1px solid black';
+  container.style.border = '1px black';
   container.style.borderRadius = '4px';
   container.style.fontSize = '12px';
   container.style.lineHeight = '1.2';
@@ -100,9 +111,14 @@ const create_scale_bar = (micronsPerPixel) => {
 
   const bar = document.createElement('div');
   bar.style.height = '2px';
-  bar.style.backgroundColor = 'white';
+  bar.style.backgroundColor = labelColor;
+  bar.style.outline = `1px solid ${rev_labelColor}`;
   bar.style.marginTop = '4px';
   bar.style.width = '80px';
+
+  if (labelColor === 'white') {
+    container.style.textShadow = '0 0 3px black';
+  }
 
   container.appendChild(label);
   container.appendChild(bar);
@@ -437,7 +453,7 @@ export const landscape_ist = async (
 
   const micronsPerPixel = PIXEL_SIZE_MICRONS[tech];
   if (micronsPerPixel) {
-    viz_state.scale_bar = create_scale_bar(micronsPerPixel);
+    viz_state.scale_bar = create_scale_bar(micronsPerPixel, tech);
     root.appendChild(viz_state.scale_bar.container);
   }
 

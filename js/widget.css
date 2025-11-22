@@ -30,10 +30,47 @@
   margin-bottom: 8px;
 }
 
+.celldega-yearbook-mode-buttons {
+  display: flex;
+  gap: 6px;
+}
+
+.celldega-yearbook-button {
+  background: transparent;
+  border: 1px solid #8797ff;
+  color: #3366cc;
+  border-radius: 6px;
+  cursor: pointer;
+  padding: 4px 8px;
+  transition: background 0.15s ease;
+}
+
+.celldega-yearbook-button:hover {
+  background: #eef2ff;
+}
+
 .celldega-yearbook-controls select,
 .celldega-yearbook-controls button {
   padding: 4px 8px;
   font-size: 0.9em;
+}
+
+.celldega-yearbook-slider-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 2px 6px;
+  background: #f7f8fb;
+  border-radius: 6px;
+}
+
+.celldega-yearbook-slider-row input[type='range'] {
+  accent-color: #3366cc;
+}
+
+.celldega-yearbook-slider-value {
+  font-weight: 600;
+  color: #3366cc;
 }
 
 .celldega-yearbook-toggle-row {
@@ -47,6 +84,43 @@
   gap: 4px;
   align-items: center;
   font-size: 0.9em;
+}
+
+.celldega-yearbook-bars {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
+.celldega-yearbook-bar {
+  flex: 1;
+  min-width: 160px;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  padding: 6px;
+  background: #fafbff;
+}
+
+.celldega-yearbook-bar-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.celldega-yearbook-bar-row span {
+  width: 60px;
+  font-size: 0.8em;
+  color: #444;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.celldega-yearbook-bar-fill {
+  height: 10px;
+  border-radius: 4px;
+  background: #8797ff;
 }
 
 .celldega-yearbook-grid {

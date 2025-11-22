@@ -90,7 +90,7 @@ export const render_yearbook = async ({ model, el }) => {
   const state = {
     aws: null,
     deck: null,
-    imageLayers: [],
+    imageLayerTemplates: [],
     overlays: { path_layer: null, trx_layer: null },
     obs_store: create_obs_store(),
     cellPositions: new Map(),
@@ -167,14 +167,12 @@ export const render_yearbook = async ({ model, el }) => {
     viz_state.dimensions = viz_state.dimensions || { width: 1, height: 1, tileSize: 1 };
 
     const layers = await make_image_layers(viz_state);
-    const tunedLayers = layers.map((layer) =>
+    state.imageLayerTemplates = layers.map((layer) =>
       layer.clone({
         maxCacheSize: Math.max(state.capacity * 2, 12),
         refinementStrategy: 'best-available',
       })
     );
-    state.imageLayers = tunedLayers;
-    state.deck?.setProps({ layers: tunedLayers });
 
     viz_state.seg = { version: segmentation };
     viz_state.cache = { cell: new Map(), trx: new Map() };
@@ -243,6 +241,9 @@ export const render_yearbook = async ({ model, el }) => {
   const buildControls = (attributes) => {
     controls.innerHTML = '';
 
+    const modeButtons = document.createElement('div');
+    modeButtons.className = 'celldega-yearbook-mode-buttons';
+
     const attrSelect = document.createElement('select');
     const emptyOption = document.createElement('option');
     emptyOption.value = '';
@@ -264,19 +265,47 @@ export const render_yearbook = async ({ model, el }) => {
     const addButton = (mode, label) => {
       const btn = document.createElement('button');
       btn.textContent = label;
+      btn.className = 'celldega-yearbook-button';
       btn.onclick = () => {
         model.set('selection_mode', mode);
         model.save_changes();
         updateYearbook();
       };
-      controls.appendChild(btn);
+      modeButtons.appendChild(btn);
     };
+
+    const sliderRow = document.createElement('div');
+    sliderRow.className = 'celldega-yearbook-slider-row';
+    const sliderLabel = document.createElement('span');
+    sliderLabel.textContent = 'Cell size (µm)';
+    const sizeSlider = document.createElement('input');
+    sizeSlider.type = 'range';
+    sizeSlider.min = '5';
+    sizeSlider.max = '80';
+    sizeSlider.value = model.get('cell_size_um') || 20;
+    const sliderValue = document.createElement('span');
+    sliderValue.className = 'celldega-yearbook-slider-value';
+    sliderValue.textContent = `${sizeSlider.value}`;
+    sizeSlider.oninput = () => {
+      sliderValue.textContent = `${sizeSlider.value}`;
+    };
+    sizeSlider.onchange = () => {
+      model.set('cell_size_um', Number(sizeSlider.value));
+      model.save_changes();
+      updateYearbook();
+    };
+
+    sliderRow.appendChild(sliderLabel);
+    sliderRow.appendChild(sizeSlider);
+    sliderRow.appendChild(sliderValue);
 
     controls.appendChild(attrSelect);
     addButton('random', 'Random');
     addButton('max', 'Max');
     addButton('min', 'Min');
     addButton('middle', 'Middle');
+    controls.appendChild(modeButtons);
+    controls.appendChild(sliderRow);
 
     const toggles = document.createElement('div');
     toggles.className = 'celldega-yearbook-toggle-row';
@@ -316,6 +345,18 @@ export const render_yearbook = async ({ model, el }) => {
     );
 
     controls.appendChild(toggles);
+
+    const barRow = document.createElement('div');
+    barRow.className = 'celldega-yearbook-bars';
+    const geneBar = document.createElement('div');
+    geneBar.className = 'celldega-yearbook-bar gene-bar';
+    const cellBar = document.createElement('div');
+    cellBar.className = 'celldega-yearbook-bar cell-bar';
+    barRow.appendChild(geneBar);
+    barRow.appendChild(cellBar);
+    controls.appendChild(barRow);
+
+    state.barContainers = { gene: geneBar, cell: cellBar };
   };
 
   const computeCandidates = (positionMap) => {
@@ -385,6 +426,9 @@ export const render_yearbook = async ({ model, el }) => {
             : 5;
         return [...inst_color, inst_opacity];
       },
+      getRadius: 0.35,
+      radiusMinPixels: 0.75,
+      radiusMaxPixels: 3,
     });
   };
 
@@ -402,6 +446,50 @@ export const render_yearbook = async ({ model, el }) => {
 
     toggle_path_layer_visibility(state.overlays, state.showSegments);
     toggle_trx_layer_visibility(state.overlays, state.showTranscripts);
+
+    const geneCounts = state.viz_state.genes.trx_names_array.reduce((acc, gene) => {
+      const safeGene = gene || 'unknown';
+      acc[safeGene] = (acc[safeGene] || 0) + 1;
+      return acc;
+    }, {});
+    const geneBars = Object.entries(geneCounts)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 10);
+    state.obs_store.new_gene_bar_data.set(geneBars);
+
+    const cellBars = selectedCells.map((cell) => ({
+      name: cell.id,
+      value: 1,
+    }));
+    state.obs_store.new_cell_bar_data.set(cellBars);
+  };
+
+  const renderBars = () => {
+    if (!state.barContainers) return;
+    const renderBar = (container, data, colorFactory) => {
+      container.innerHTML = '';
+      const max = Math.max(...data.map((d) => d.value), 1);
+      data.forEach((d) => {
+        const row = document.createElement('div');
+        row.className = 'celldega-yearbook-bar-row';
+        const label = document.createElement('span');
+        label.textContent = d.name;
+        const bar = document.createElement('div');
+        bar.className = 'celldega-yearbook-bar-fill';
+        bar.style.width = `${(d.value / max) * 100}%`;
+        bar.style.backgroundColor = colorFactory(d.name);
+        row.appendChild(label);
+        row.appendChild(bar);
+        container.appendChild(row);
+      });
+    };
+
+    renderBar(state.barContainers.gene, state.obs_store.new_gene_bar_data.get(), (name) => {
+      const color = state.viz_state?.genes?.color_dict_gene?.[name] || hashColor(name);
+      return `rgba(${color[0]}, ${color[1]}, ${color[2]}, 0.8)`;
+    });
+    renderBar(state.barContainers.cell, state.obs_store.new_cell_bar_data.get(), () => '#8797ff');
   };
 
   const renderCells = async () => {
@@ -427,14 +515,23 @@ export const render_yearbook = async ({ model, el }) => {
       data: scatterData,
       getPosition: (d) => d.position,
       getFillColor: [255, 255, 0, 220],
-      getRadius: Math.max(cellSizeUm / 6, 2),
+      getRadius: Math.max(cellSizeUm / 12, 1.5),
       pickable: false,
     });
 
     await refreshOverlays(selectedCells);
 
+    const imageLayers = selectedCells.flatMap((cell, idx) =>
+      state.imageLayerTemplates.map((layer) =>
+        layer.clone({
+          id: `${layer.id}-${idx}`,
+          viewId: `cell-${idx}`,
+        })
+      )
+    );
+
     const layerStack = [
-      ...state.imageLayers,
+      ...imageLayers,
       ...(state.showSegments && state.overlays.path_layer ? [state.overlays.path_layer] : []),
       ...(state.showTranscripts && state.overlays.trx_layer ? [state.overlays.trx_layer] : []),
       scatterLayer,
@@ -443,10 +540,18 @@ export const render_yearbook = async ({ model, el }) => {
     deck.setProps({
       viewState,
       layers: layerStack,
+      getTooltip: (info) => {
+        if (info?.layer?.id === 'trx-layer') {
+          const gene = state.viz_state.genes.trx_names_array[info.index];
+          return { text: `${gene || 'unknown'}` };
+        }
+        return null;
+      },
     });
 
     model.set('displayed_cells', selectedCells.map((c) => c.id));
     model.save_changes();
+    renderBars();
   };
 
   const updateYearbook = async () => {

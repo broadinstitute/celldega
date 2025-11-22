@@ -1,6 +1,7 @@
 """Widget module for interactive visualization components."""
 
 import colorsys
+import io
 from contextlib import suppress
 from copy import deepcopy
 import json
@@ -32,6 +33,17 @@ def _hsv_to_hex(h: float) -> str:
     """Convert HSV color to hex string."""
     r, g, b = colorsys.hsv_to_rgb(h, 0.65, 0.9)
     return f"#{int(r * 255):02x}{int(g * 255):02x}{int(b * 255):02x}"
+
+
+def _df_to_bytes(df: pd.DataFrame) -> bytes:
+    """Convert a DataFrame to zstd-compressed parquet bytes."""
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    df.columns = df.columns.map(str)
+    buf = io.BytesIO()
+    pq.write_table(pa.Table.from_pandas(df), buf, compression="zstd")
+    return buf.getvalue()
 
 
 class Landscape(anywidget.AnyWidget):
@@ -146,17 +158,6 @@ class Landscape(anywidget.AnyWidget):
                 "Using identity matrix as fallback.",
                 stacklevel=2,
             )
-
-        def _df_to_bytes(df):
-            import io
-
-            import pyarrow as pa
-            import pyarrow.parquet as pq
-
-            df.columns = df.columns.map(str)
-            buf = io.BytesIO()
-            pq.write_table(pa.Table.from_pandas(df), buf, compression="zstd")
-            return buf.getvalue()
 
         if adata is not None:
             # if cell_id is in the adata.obs, use it as index
@@ -296,6 +297,88 @@ class Landscape(anywidget.AnyWidget):
         with suppress(Exception):
             self.send({"event": "finalize"})
         super().close()
+
+
+class Yearbook(anywidget.AnyWidget):
+    """Widget for showing a grid of single-cell portraits ("cellbook").
+
+    The widget renders multiple deck.gl viewports laid out as a grid. Each
+    viewport is centered on a specific cell and sized to roughly 20µm by
+    default. Cells can be provided explicitly, selected randomly from a pool,
+    or chosen using a numeric/categorical attribute with predefined strategies
+    (``random``, ``max``, ``min``, ``middle``).
+
+    Args:
+        base_url: Base URL where the landscape tiles and metadata live.
+        token: Optional bearer token for authenticated requests.
+        cells: Candidate cell IDs to visualize; if longer than ``rows*cols``, a
+            subset is chosen using ``selection_mode``.
+        rows: Number of rows in the cellbook grid.
+        cols: Number of columns in the cellbook grid.
+        cell_size_um: Approximate size of each viewport in microns.
+        selection_attribute: Attribute name used for cell selection when
+            available in the metadata payload.
+        selection_mode: One of ``random``, ``max``, ``min``, ``middle``.
+        segmentation: Segmentation version used to fetch cell metadata.
+        meta_cell_parquet: Optional parquet-encoded metadata (as produced by
+            :class:`anndata.AnnData` ``obs``). If omitted, the widget will rely
+            on server-side metadata only.
+    """
+
+    _esm = Path(__file__).parent / "../static" / "widget.js"
+    _css = Path(__file__).parent / "../static" / "widget.css"
+
+    component = traitlets.Unicode("Yearbook").tag(sync=True)
+
+    base_url = traitlets.Unicode("").tag(sync=True)
+    token = traitlets.Unicode("").tag(sync=True)
+    creds = traitlets.Dict({}).tag(sync=True)
+
+    cells = traitlets.List(trait=traitlets.Unicode(), default_value=[]).tag(sync=True)
+    rows = traitlets.Int(2).tag(sync=True)
+    cols = traitlets.Int(3).tag(sync=True)
+    cell_size_um = traitlets.Float(20.0).tag(sync=True)
+    selection_attribute = traitlets.Unicode("").tag(sync=True)
+    selection_mode = traitlets.Unicode("random").tag(sync=True)
+    displayed_cells = traitlets.List(trait=traitlets.Unicode(), default_value=[]).tag(sync=True)
+
+    width = traitlets.Int(0).tag(sync=True)
+    height = traitlets.Int(600).tag(sync=True)
+
+    segmentation = traitlets.Unicode("default").tag(sync=True)
+    cell_attr = traitlets.List(
+        trait=traitlets.Unicode(), default_value=["leiden"]
+    ).tag(sync=True)
+    meta_cell_parquet = traitlets.Bytes(b"").tag(sync=True)
+
+    def __init__(self, **kwargs):
+        adata = kwargs.pop("adata", None) or kwargs.pop("AnnData", None)
+        pq_meta_cell = kwargs.pop("meta_cell_parquet", None)
+        cell_attr = kwargs.pop("cell_attr", ["leiden"])
+        meta_cell_df = kwargs.pop("meta_cell", None)
+
+        if adata is not None:
+            if "cell_id" in adata.obs.columns:
+                adata.obs.set_index("cell_id", inplace=True)
+
+            meta_cell_df = adata.obs[cell_attr].copy()
+
+            if meta_cell_df.index.name is None:
+                meta_cell_df.index.name = "cell_id"
+
+            pq_meta_cell = _df_to_bytes(meta_cell_df.reset_index())
+
+        if isinstance(meta_cell_df, pd.DataFrame) and pq_meta_cell is None:
+            pq_meta_cell = _df_to_bytes(meta_cell_df.reset_index())
+
+        if pq_meta_cell is not None:
+            kwargs["meta_cell_parquet"] = pq_meta_cell
+
+        kwargs.setdefault("cell_attr", cell_attr)
+
+        super().__init__(**kwargs)
+
+        self.meta_cell = meta_cell_df
 
 
 class ManualAttributeTrait(traitlets.Unicode):

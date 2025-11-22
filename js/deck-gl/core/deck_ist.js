@@ -11,10 +11,19 @@ const getCursor = ({ isDragging }) => {
   return 'pointer';
 };
 
-export const ini_deck = (root, width, height, technology = '') => {
-  const controller = { doubleClickZoom: false };
-  if (technology === 'point-cloud') {
-    controller.type = OrbitController;
+export const ini_deck = (
+  root,
+  width,
+  height,
+  technology = '',
+  controllerOverrides = null
+) => {
+  let controller = controllerOverrides;
+  if (controller === null || controller === undefined) {
+    controller = { doubleClickZoom: false };
+    if (technology === 'point-cloud') {
+      controller.type = OrbitController;
+    }
   }
 
   const deck_ist = new Deck({

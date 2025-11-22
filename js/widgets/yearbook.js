@@ -39,9 +39,9 @@ const makeViewGrid = (rows, cols, width, height) => {
   return { views, cellWidth, cellHeight };
 };
 
-const computeZoomForCell = (cellSizeUm, viewportWidth) => {
+const computeZoomForCell = (cellSizeUm, viewportWidth, viewportHeight) => {
   const safeCellSize = cellSizeUm > 0 ? cellSizeUm : 20;
-  const safeViewport = viewportWidth > 0 ? viewportWidth : 200;
+  const safeViewport = Math.max(Math.min(viewportWidth, viewportHeight), 1);
   return Math.log2(safeViewport / safeCellSize);
 };
 
@@ -210,6 +210,9 @@ export const render_yearbook = async ({ model, el }) => {
       updateYearbook();
     };
 
+    const sampler = document.createElement('div');
+    sampler.className = 'celldega-yearbook-sampler';
+
     const addButton = (mode, label) => {
       const btn = document.createElement('button');
       btn.textContent = label;
@@ -218,7 +221,7 @@ export const render_yearbook = async ({ model, el }) => {
         model.save_changes();
         updateYearbook();
       };
-      controls.appendChild(btn);
+      sampler.appendChild(btn);
     };
 
     controls.appendChild(attrSelect);
@@ -226,6 +229,7 @@ export const render_yearbook = async ({ model, el }) => {
     addButton('max', 'Max');
     addButton('min', 'Min');
     addButton('middle', 'Middle');
+    controls.appendChild(sampler);
   };
 
   const computeCandidates = (positionMap) => {
@@ -267,7 +271,7 @@ export const render_yearbook = async ({ model, el }) => {
       const viewId = `cell-${idx}`;
       viewState[viewId] = {
         target: [cell.x, cell.y, cell.z || 0],
-        zoom: computeZoomForCell(cellSizeUm, state.cellWidth),
+        zoom: computeZoomForCell(cellSizeUm, state.cellWidth, state.cellHeight),
       };
       scatterData.push({ position: [cell.x, cell.y, cell.z || 0], id: cell.id });
     });
@@ -278,7 +282,7 @@ export const render_yearbook = async ({ model, el }) => {
       getPosition: (d) => d.position,
       getFillColor: [255, 255, 0, 220],
       getRadius: Math.max(cellSizeUm / 6, 2),
-      pickable: false,
+      pickable: true,
     });
 
     deck.setProps({

@@ -24,16 +24,37 @@
 
 .celldega-yearbook-controls {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  align-items: flex-start;
+  gap: 6px;
   flex-wrap: wrap;
   margin-bottom: 8px;
 }
 
 .celldega-yearbook-controls select,
 .celldega-yearbook-controls button {
-  padding: 4px 8px;
-  font-size: 0.9em;
+  padding: 3px 6px;
+  font-size: 0.85em;
+}
+
+.celldega-yearbook-sampler {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.celldega-yearbook-sampler button {
+  background: transparent;
+  border: none;
+  color: #1e5bff;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 2px 4px;
+  text-align: left;
+}
+
+.celldega-yearbook-sampler button:hover,
+.celldega-yearbook-sampler button:focus {
+  color: #0f3ba8;
 }
 
 .celldega-yearbook-grid {

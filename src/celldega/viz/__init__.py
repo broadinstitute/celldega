@@ -5,7 +5,7 @@ Module for visualization
 from ipywidgets import HBox, Layout, jslink
 
 from .local_server import get_local_server
-from .widget import Clustergram, Enrich, Landscape
+from .widget import Clustergram, Enrich, GeneScatter, Landscape
 
 
 def landscape_clustergram(
@@ -182,6 +182,7 @@ def clustergram_enrich(
 __all__ = [
     "Clustergram",
     "Enrich",
+    "GeneScatter",
     "Landscape",
     "clustergram_enrich",
     "get_local_server",

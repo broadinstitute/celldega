@@ -82,3 +82,60 @@ export const update_cell_exp_array = async (
 
   cats.cell_exp_array = new_exp_array;
 };
+
+export const fetch_gene_expression_values = async (
+  cats,
+  base_url,
+  inst_gene,
+  version,
+  vector_name_integer,
+  aws
+) => {
+  let file_path;
+  if (version === 'default') {
+    file_path = `${base_url}/cbg/${inst_gene}.parquet`;
+  } else {
+    file_path = `${base_url}/cbg_${version}/${inst_gene}.parquet`;
+  }
+
+  const exp_table = await get_arrow_table(file_path, options.fetch, aws);
+  const cell_names = exp_table.getChild('__index_level_0__').toArray();
+  const cell_exp = exp_table.getChild(inst_gene).toArray();
+
+  const raw_array = new Array(cats.cell_names_array.length).fill(0);
+  const log_array = new Array(cats.cell_names_array.length).fill(0);
+
+  const allowedCellIds =
+    cats.meta_cell_id_set && cats.meta_cell_id_set.size > 0
+      ? cats.meta_cell_id_set
+      : null;
+
+  cell_names.forEach((name, i) => {
+    const exp_value = Number(cell_exp[i]);
+    if (!Number.isFinite(exp_value)) {
+      return;
+    }
+
+    if (!vector_name_integer) {
+      if (cats.cell_name_to_index_map.has(name)) {
+        const index = cats.cell_name_to_index_map.get(name);
+        const shouldInclude = !allowedCellIds || allowedCellIds.has(name);
+
+        if (shouldInclude) {
+          raw_array[index] = exp_value;
+          log_array[index] = Math.log1p(exp_value);
+        }
+      }
+    } else if (name in cats.nameMapping_inv) {
+      const cellName = String(cats.nameMapping_inv[name]);
+      const shouldInclude = !allowedCellIds || allowedCellIds.has(cellName);
+
+      if (shouldInclude) {
+        raw_array[name] = exp_value;
+        log_array[name] = Math.log1p(exp_value);
+      }
+    }
+  });
+
+  return { raw: raw_array, log1p: log_array };
+};

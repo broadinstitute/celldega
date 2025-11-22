@@ -11,6 +11,7 @@ import { landscape_ist } from './viz/landscape_ist';
 import { landscape_sst } from './viz/landscape_sst';
 import { matrix_viz } from './viz/matrix_viz';
 import { render_enrich } from './widgets/enrich_widget';
+import { render_gene_scatter } from './widgets/gene_scatter_widget';
 
 // Remove export keywords from render functions
 const render_landscape_ist = async ({ model, el }) => {
@@ -205,6 +206,9 @@ async function render({ model, el }) {
         break;
       case 'Enrich':
         cleanup = await render_enrich({ model, el });
+        break;
+      case 'GeneScatter':
+        cleanup = await render_gene_scatter({ model, el });
         break;
       default:
         handleValidationWarning(`Unknown component type: ${componentType}`, {

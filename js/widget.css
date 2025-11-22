@@ -21,3 +21,35 @@
 .celldega-counter-button:hover {
   transform: scale(1.05);
 }
+
+.celldega-yearbook-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.celldega-yearbook-controls select,
+.celldega-yearbook-controls button {
+  padding: 4px 8px;
+  font-size: 0.9em;
+}
+
+.celldega-yearbook-toggle-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.celldega-yearbook-toggle {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  font-size: 0.9em;
+}
+
+.celldega-yearbook-grid {
+  border: 1px solid #d3d3d3;
+  width: 100%;
+}

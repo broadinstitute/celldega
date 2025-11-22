@@ -1,4 +1,5 @@
 import { OrthographicView, ScatterplotLayer } from 'deck.gl';
+import * as d3 from 'd3';
 import { AwsClient } from 'aws4fetch';
 
 import { ini_deck, set_views_prop } from '../deck-gl/core/deck_ist';
@@ -23,6 +24,8 @@ import {
   toggle_trx_layer_visibility,
   update_trx_layer_data,
 } from '../deck-gl/layers/trx_layer';
+import { update_selected_genes } from '../global_variables/selected_genes';
+import { make_bar_container, make_bar_graph } from '../ui/bar_plot';
 
 const makeViewGrid = (rows, cols, width, height) => {
   const views = [];
@@ -102,6 +105,8 @@ export const render_yearbook = async ({ model, el }) => {
     viz_state: null,
     showSegments: true,
     showTranscripts: true,
+    barGraphs: null,
+    geneSearch: null,
   };
 
   set_options(token);
@@ -307,6 +312,39 @@ export const render_yearbook = async ({ model, el }) => {
     controls.appendChild(modeButtons);
     controls.appendChild(sliderRow);
 
+    const searchRow = document.createElement('div');
+    searchRow.className = 'celldega-yearbook-search-row';
+    const searchInput = document.createElement('input');
+    searchInput.type = 'text';
+    searchInput.placeholder = 'Search gene';
+    searchInput.className = 'celldega-yearbook-search-input';
+    const dataList = document.createElement('datalist');
+    const listId = 'celldega-yearbook-genes';
+    dataList.id = listId;
+    searchInput.setAttribute('list', listId);
+    searchInput.onchange = () => {
+      const gene = searchInput.value.trim();
+      if (gene === '') {
+        update_selected_genes(state.viz_state.genes, [], state.obs_store);
+      } else {
+        update_selected_genes(state.viz_state.genes, [gene], state.obs_store);
+      }
+      ensureGeneColors();
+      renderBars();
+      if (state.deck) {
+        state.deck.setProps({
+          layers: state.deck.props.layers?.map((layer) =>
+            layer.id === state.overlays.trx_layer.id ? state.overlays.trx_layer : layer
+          ),
+        });
+      }
+    };
+    searchRow.appendChild(searchInput);
+    searchRow.appendChild(dataList);
+    controls.appendChild(searchRow);
+
+    state.geneSearch = { input: searchInput, dataList };
+
     const toggles = document.createElement('div');
     toggles.className = 'celldega-yearbook-toggle-row';
 
@@ -348,15 +386,20 @@ export const render_yearbook = async ({ model, el }) => {
 
     const barRow = document.createElement('div');
     barRow.className = 'celldega-yearbook-bars';
-    const geneBar = document.createElement('div');
-    geneBar.className = 'celldega-yearbook-bar gene-bar';
-    const cellBar = document.createElement('div');
-    cellBar.className = 'celldega-yearbook-bar cell-bar';
-    barRow.appendChild(geneBar);
-    barRow.appendChild(cellBar);
+    const geneContainer = make_bar_container();
+    geneContainer.classList.add('celldega-yearbook-bar');
+    const geneSvg = d3.create('svg');
+    const cellContainer = make_bar_container();
+    cellContainer.classList.add('celldega-yearbook-bar');
+    const cellSvg = d3.create('svg');
+    barRow.appendChild(geneContainer);
+    barRow.appendChild(cellContainer);
     controls.appendChild(barRow);
 
-    state.barContainers = { gene: geneBar, cell: cellBar };
+    state.barGraphs = {
+      gene: { container: geneContainer, svg: geneSvg },
+      cell: { container: cellContainer, svg: cellSvg },
+    };
   };
 
   const computeCandidates = (positionMap) => {
@@ -416,19 +459,41 @@ export const render_yearbook = async ({ model, el }) => {
       }
     });
 
+    const barColorDict = { ...genes.color_dict_gene };
+
     state.overlays.trx_layer = state.overlays.trx_layer.clone({
-      getFillColor: (i, d) => {
-        const inst_gene = genes.trx_names_array[d.index];
-        const inst_color = genes.color_dict_gene[inst_gene] || hashColor(inst_gene);
+      data: state.viz_state.combo_data.trx,
+      getPosition: (d) => [d.x, d.y],
+      pickable: true,
+      getFillColor: (d) => {
+        const inst_gene = d.name;
+        const inst_color = barColorDict[inst_gene] || hashColor(inst_gene);
         const inst_opacity =
           genes.selected_genes.length === 0 || genes.selected_genes.includes(inst_gene)
             ? 255
-            : 5;
+            : 20;
         return [...inst_color, inst_opacity];
       },
-      getRadius: 0.35,
-      radiusMinPixels: 0.75,
-      radiusMaxPixels: 3,
+      getRadius: 0.25,
+      radiusMinPixels: 0.6,
+      radiusMaxPixels: 2,
+      updateTriggers: {
+        getFillColor: [genes.selected_genes.join('-'), Object.keys(barColorDict).length],
+      },
+      onClick: (info) => {
+        const inst_gene = info?.object?.name;
+        if (!inst_gene) return;
+        update_selected_genes(genes, [inst_gene], state.obs_store);
+        ensureGeneColors();
+        renderBars();
+        if (state.deck) {
+          state.deck.setProps({
+            layers: state.deck.props.layers?.map((layer) =>
+              layer.id === state.overlays.trx_layer.id ? state.overlays.trx_layer : layer
+            ),
+          });
+        }
+      },
     });
   };
 
@@ -441,6 +506,20 @@ export const render_yearbook = async ({ model, el }) => {
       update_path_layer_data(base_url, tiles, state.overlays, state.viz_state),
       update_trx_layer_data(base_url, tiles, state.overlays, state.viz_state),
     ]);
+
+    state.viz_state.genes.gene_names = Array.from(
+      new Set(state.viz_state.genes.trx_names_array || [])
+    );
+    state.viz_state.genes.gene_names.sort();
+
+    if (state.geneSearch) {
+      state.geneSearch.dataList.innerHTML = '';
+      state.viz_state.genes.gene_names.forEach((gene) => {
+        const option = document.createElement('option');
+        option.value = gene;
+        state.geneSearch.dataList.appendChild(option);
+      });
+    }
 
     ensureGeneColors();
 
@@ -466,30 +545,57 @@ export const render_yearbook = async ({ model, el }) => {
   };
 
   const renderBars = () => {
-    if (!state.barContainers) return;
-    const renderBar = (container, data, colorFactory) => {
-      container.innerHTML = '';
-      const max = Math.max(...data.map((d) => d.value), 1);
-      data.forEach((d) => {
-        const row = document.createElement('div');
-        row.className = 'celldega-yearbook-bar-row';
-        const label = document.createElement('span');
-        label.textContent = d.name;
-        const bar = document.createElement('div');
-        bar.className = 'celldega-yearbook-bar-fill';
-        bar.style.width = `${(d.value / max) * 100}%`;
-        bar.style.backgroundColor = colorFactory(d.name);
-        row.appendChild(label);
-        row.appendChild(bar);
-        container.appendChild(row);
-      });
-    };
+    if (!state.barGraphs) return;
 
-    renderBar(state.barContainers.gene, state.obs_store.new_gene_bar_data.get(), (name) => {
-      const color = state.viz_state?.genes?.color_dict_gene?.[name] || hashColor(name);
-      return `rgba(${color[0]}, ${color[1]}, ${color[2]}, 0.8)`;
-    });
-    renderBar(state.barContainers.cell, state.obs_store.new_cell_bar_data.get(), () => '#8797ff');
+    const layersObj = state.overlays;
+    const vizState = state.viz_state;
+    const deckIst = state.deck;
+
+    const geneBars = state.obs_store.new_gene_bar_data.get();
+    const geneColorDict = vizState?.genes?.color_dict_gene || {};
+
+    state.barGraphs.gene.container.innerHTML = '';
+    state.barGraphs.cell.container.innerHTML = '';
+
+    make_bar_graph(
+      state.barGraphs.gene.container,
+      (event, d) => {
+        const inst_gene = d.name;
+        update_selected_genes(vizState.genes, [inst_gene], vizState.obs_store);
+        ensureGeneColors();
+        toggle_trx_layer_visibility(layersObj, true);
+        if (deckIst) {
+          deckIst.setProps({
+            layers: deckIst.props.layers?.map((layer) =>
+              layer.id === layersObj.trx_layer.id ? layersObj.trx_layer : layer
+            ),
+          });
+        }
+      },
+      state.barGraphs.gene.svg,
+      geneBars,
+      geneColorDict,
+      deckIst,
+      layersObj,
+      vizState
+    );
+
+    const cellBars = state.obs_store.new_cell_bar_data.get();
+    const cellColorDict = cellBars.reduce((acc, c, idx) => {
+      acc[c.name] = hashColor(`${c.name}-${idx}`);
+      return acc;
+    }, {});
+
+    make_bar_graph(
+      state.barGraphs.cell.container,
+      () => {},
+      state.barGraphs.cell.svg,
+      cellBars,
+      cellColorDict,
+      deckIst,
+      layersObj,
+      vizState
+    );
   };
 
   const renderCells = async () => {
@@ -513,10 +619,12 @@ export const render_yearbook = async ({ model, el }) => {
     const scatterLayer = new ScatterplotLayer({
       id: 'yearbook-centers',
       data: scatterData,
+      pickable: true,
       getPosition: (d) => d.position,
       getFillColor: [255, 255, 0, 220],
-      getRadius: Math.max(cellSizeUm / 12, 1.5),
-      pickable: false,
+      getRadius: Math.max(cellSizeUm / 16, 1),
+      radiusMinPixels: 1,
+      radiusMaxPixels: 4,
     });
 
     await refreshOverlays(selectedCells);
@@ -542,8 +650,11 @@ export const render_yearbook = async ({ model, el }) => {
       layers: layerStack,
       getTooltip: (info) => {
         if (info?.layer?.id === 'trx-layer') {
-          const gene = state.viz_state.genes.trx_names_array[info.index];
+          const gene = info?.object?.name || state.viz_state.genes.trx_names_array[info.index];
           return { text: `${gene || 'unknown'}` };
+        }
+        if (info?.layer?.id === 'yearbook-centers') {
+          return { text: `${info?.object?.id || ''}` };
         }
         return null;
       },

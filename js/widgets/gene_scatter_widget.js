@@ -190,6 +190,7 @@ export const render_gene_scatter = async ({ model, el }) => {
     scaleMode: initialScaleMode,
     edit: { rgn_opacity: 0.25 },
     vector_name_integer: false,
+    aws: null,
   };
 
   if (creds && 'accessKeyId' in creds) {

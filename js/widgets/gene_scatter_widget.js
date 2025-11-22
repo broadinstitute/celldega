@@ -364,17 +364,24 @@ export const render_gene_scatter = async ({ model, el }) => {
   viz_state.cats.has_meta_cluster = false;
   set_dict_cell_cats(viz_state.cats);
 
-  const clusterNames = cluster_arrow_table.getChild('__index_level_0__').toArray();
-  const clusterColors = cluster_arrow_table.getChild('color').toArray();
-  const clusterCounts = cluster_arrow_table.getChild('count').toArray();
-  clusterNames.forEach((name, idx) => {
-    viz_state.cats.color_dict_cluster[name] = [
-      parseInt(clusterColors[idx].slice(1, 3), 16),
-      parseInt(clusterColors[idx].slice(3, 5), 16),
-      parseInt(clusterColors[idx].slice(5, 7), 16),
-    ];
-    viz_state.cats.cluster_counts.push({ name, value: Number(clusterCounts[idx]) });
-  });
+  const clusterNamesColumn = cluster_arrow_table?.getChild?.('__index_level_0__');
+  const clusterColorsColumn = cluster_arrow_table?.getChild?.('color');
+  const clusterCountsColumn = cluster_arrow_table?.getChild?.('count');
+
+  if (clusterNamesColumn && clusterColorsColumn && clusterCountsColumn) {
+    const clusterNames = clusterNamesColumn.toArray();
+    const clusterColors = clusterColorsColumn.toArray();
+    const clusterCounts = clusterCountsColumn.toArray();
+
+    clusterNames.forEach((name, idx) => {
+      viz_state.cats.color_dict_cluster[name] = [
+        parseInt(clusterColors[idx].slice(1, 3), 16),
+        parseInt(clusterColors[idx].slice(3, 5), 16),
+        parseInt(clusterColors[idx].slice(5, 7), 16),
+      ];
+      viz_state.cats.cluster_counts.push({ name, value: Number(clusterCounts[idx]) });
+    });
+  }
 
   await set_meta_gene(viz_state.genes, base_url, segmentation, viz_state.aws);
   await set_cluster_metadata(viz_state);

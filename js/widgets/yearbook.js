@@ -17,6 +17,8 @@ import { create_obs_store } from '../obs_store/obs_store';
 import { get_arrow_table } from '../read_parquet/get_arrow_table';
 import { get_scatter_data } from '../read_parquet/get_scatter_data';
 import { objects_from_parquet } from '../read_parquet/objects_from_parquet';
+import { set_meta_gene } from '../global_variables/meta_gene';
+import { set_cluster_metadata } from '../global_variables/meta_cluster';
 import { visibleTiles } from '../vector_tile/visibleTiles';
 import { ini_path_layer, toggle_path_layer_visibility, update_path_layer_data } from '../deck-gl/layers/path_layer';
 import {
@@ -171,6 +173,9 @@ export const render_yearbook = async ({ model, el }) => {
     await set_dimensions(viz_state, base_url, imageNameForDim);
     viz_state.dimensions = viz_state.dimensions || { width: 1, height: 1, tileSize: 1 };
 
+    await set_meta_gene(viz_state.genes, base_url, viz_state.seg.version, viz_state.aws);
+    await set_cluster_metadata(viz_state);
+
     const layers = await make_image_layers(viz_state);
     state.imageLayerTemplates = layers.map((layer) =>
       layer.clone({
@@ -187,6 +192,10 @@ export const render_yearbook = async ({ model, el }) => {
       color_dict_gene: {},
       selected_genes: [],
       top_gene_counts: [],
+      meta_gene: {},
+      gene_counts: [],
+      g_nameMapping_inv: {},
+      gene_names: [],
     };
     viz_state.cats = {
       polygon_cell_names: [],
@@ -194,6 +203,9 @@ export const render_yearbook = async ({ model, el }) => {
       color_dict_cluster: {},
       selected_cats: [],
       cluster_counts: [],
+      has_meta_cluster: false,
+      meta_cluster: {},
+      meta_cluster_attr: [],
     };
     viz_state.combo_data = { trx: [], cell: [] };
     viz_state.max_tiles_to_view = maxTilesToView;
@@ -297,7 +309,7 @@ export const render_yearbook = async ({ model, el }) => {
     sizeSlider.onchange = () => {
       model.set('cell_size_um', Number(sizeSlider.value));
       model.save_changes();
-      updateYearbook();
+      updateYearbook({ preserveSelection: true });
     };
 
     sliderRow.appendChild(sliderLabel);
@@ -344,6 +356,12 @@ export const render_yearbook = async ({ model, el }) => {
     controls.appendChild(searchRow);
 
     state.geneSearch = { input: searchInput, dataList };
+
+    (state.viz_state?.genes?.gene_names || []).forEach((gene) => {
+      const option = document.createElement('option');
+      option.value = `${gene}`;
+      dataList.appendChild(option);
+    });
 
     const toggles = document.createElement('div');
     toggles.className = 'celldega-yearbook-toggle-row';
@@ -424,27 +442,37 @@ export const render_yearbook = async ({ model, el }) => {
     return Array.from(positionMap.keys());
   };
 
-  const chooseCells = (positionMap) => {
+  const chooseCells = (positionMap, preferredIds = null) => {
     const attrName = model.get('selection_attribute');
     const mode = model.get('selection_mode') || 'random';
     const attrIdx = attrName ? state.metaCell.attr.indexOf(attrName) : -1;
-    const colorAttrName = (model.get('cell_attr') || [])[0] || attrName;
+    const defaultClusterAttr =
+      state.metaCell.attr.find((a) => a?.toLowerCase?.().includes('cluster')) || 'cluster';
+    const colorAttrName = (model.get('cell_attr') || [])[0] || attrName || defaultClusterAttr;
     const colorAttrIdx = colorAttrName ? state.metaCell.attr.indexOf(colorAttrName) : -1;
 
+    const toCandidate = (id) => {
+      const attrValue = attrIdx >= 0 ? state.metaCell.result?.[id]?.[attrIdx] : null;
+      const numericValue = Number.isFinite(Number(attrValue)) ? Number(attrValue) : null;
+      const catValue = colorAttrIdx >= 0 ? state.metaCell.result?.[id]?.[colorAttrIdx] : undefined;
+      const coords = positionMap.get(id);
+      if (!coords) return null;
+      return { id, attrValue: numericValue ?? attrValue, catValue, ...coords };
+    };
+
+    const preferred = Array.isArray(preferredIds)
+      ? preferredIds
+          .map((id) => toCandidate(String(id)))
+          .filter((c) => c && Number.isFinite(c.x) && Number.isFinite(c.y))
+      : [];
+
+    if (preferred.length > 0) {
+      return preferred.slice(0, state.capacity);
+    }
+
     const candidates = computeCandidates(positionMap)
-      .map((id) => {
-        const attrValue = attrIdx >= 0 ? state.metaCell.result?.[id]?.[attrIdx] : null;
-        const numericValue = Number.isFinite(Number(attrValue)) ? Number(attrValue) : null;
-        const catValue =
-          colorAttrIdx >= 0 ? state.metaCell.result?.[id]?.[colorAttrIdx] : undefined;
-        return {
-          id,
-          attrValue: numericValue ?? attrValue,
-          catValue,
-          ...positionMap.get(id),
-        };
-      })
-      .filter((c) => Number.isFinite(c.x) && Number.isFinite(c.y));
+      .map((id) => toCandidate(id))
+      .filter((c) => c && Number.isFinite(c.x) && Number.isFinite(c.y));
 
     const hasNumericAttr = candidates.some((c) => typeof c.attrValue === 'number');
     const ranked = rankCells(candidates, attrIdx >= 0 && hasNumericAttr ? mode : 'random');
@@ -476,11 +504,13 @@ export const render_yearbook = async ({ model, el }) => {
 
   const ensureGeneColors = () => {
     const { genes } = state.viz_state;
-    genes.trx_names_array.forEach((name) => {
-      if (!genes.color_dict_gene[name]) {
-        genes.color_dict_gene[name] = hashColor(name);
-      }
-    });
+    genes.trx_names_array
+      .map((name) => (name === undefined || name === null ? 'unknown' : `${name}`))
+      .forEach((name) => {
+        if (!genes.color_dict_gene[name]) {
+          genes.color_dict_gene[name] = hashColor(name);
+        }
+      });
 
     const barColorDict = { ...genes.color_dict_gene };
 
@@ -495,7 +525,9 @@ export const render_yearbook = async ({ model, el }) => {
           genes.selected_genes.length === 0 || genes.selected_genes.includes(inst_gene)
             ? 255
             : 20;
-        return [...inst_color, inst_opacity];
+        const safeColor =
+          Array.isArray(inst_color) && inst_color.length === 3 ? inst_color : hashColor(inst_gene);
+        return [...safeColor, inst_opacity];
       },
       getRadius: 0.25,
       radiusMinPixels: 0.6,
@@ -530,12 +562,15 @@ export const render_yearbook = async ({ model, el }) => {
       update_trx_layer_data(base_url, tiles, state.overlays, state.viz_state),
     ]);
 
-    state.viz_state.genes.gene_names = Array.from(
-      new Set(state.viz_state.genes.trx_names_array || [])
-    )
+    const transcriptGenes = Array.from(new Set(state.viz_state.genes.trx_names_array || []))
       .filter((g) => g !== undefined && g !== null)
       .map((g) => `${g}`);
-    state.viz_state.genes.gene_names.sort();
+    const searchableGenes =
+      transcriptGenes.length > 0
+        ? transcriptGenes
+        : (state.viz_state.genes.gene_names || []).map((g) => `${g}`);
+    searchableGenes.sort();
+    state.viz_state.genes.gene_names = searchableGenes;
 
     if (state.geneSearch) {
       state.geneSearch.dataList.innerHTML = '';
@@ -614,7 +649,10 @@ export const render_yearbook = async ({ model, el }) => {
     const cellBars = state.obs_store.new_cell_bar_data.get();
     const cellColorDict = cellBars.reduce((acc, c) => {
       const cleanName = c.name || 'unknown';
-      acc[cleanName] = acc[cleanName] || hashColor(cleanName);
+      acc[cleanName] =
+        acc[cleanName] ||
+        state.viz_state.cats.color_dict_cluster?.[cleanName.replace(/^.*?:\s*/, '')] ||
+        hashColor(cleanName);
       return acc;
     }, {});
 
@@ -630,12 +668,12 @@ export const render_yearbook = async ({ model, el }) => {
     );
   };
 
-  const renderCells = async () => {
+  const renderCells = async (selectionIds = null) => {
     const cellSizeUm = model.get('cell_size_um') || 20;
     const deck = state.deck;
     if (!deck) return;
 
-    const selectedCells = chooseCells(state.cellPositions);
+    const selectedCells = chooseCells(state.cellPositions, selectionIds);
     const viewState = {};
     const scatterData = [];
 
@@ -659,8 +697,11 @@ export const render_yearbook = async ({ model, el }) => {
       getPosition: (d) => d.position,
       getFillColor: (d) => {
         const instCluster = d.cluster ?? 'unknown';
-        const instColor = hashColor(`${instCluster}`);
-        return [...instColor, 220];
+        const instColor =
+          state.viz_state.cats.color_dict_cluster?.[instCluster] || hashColor(`${instCluster}`);
+        const safeColor =
+          Array.isArray(instColor) && instColor.length === 3 ? instColor : hashColor(`${instCluster}`);
+        return [...safeColor, 220];
       },
       getRadius: Math.max(cellSizeUm / 16, 1),
       radiusMinPixels: 1,
@@ -705,10 +746,11 @@ export const render_yearbook = async ({ model, el }) => {
     renderBars();
   };
 
-  const updateYearbook = async () => {
+  const updateYearbook = async ({ preserveSelection = false } = {}) => {
     if (!state.mounted) return;
     await Promise.all([loadCellPositions(), loadMetaCell()]);
-    await renderCells();
+    const retained = preserveSelection ? model.get('displayed_cells') || [] : null;
+    await renderCells(retained);
   };
 
   await makeDeck();
@@ -738,7 +780,7 @@ export const render_yearbook = async ({ model, el }) => {
   });
   addListener('change:selection_mode', updateYearbook);
   addListener('change:selection_attribute', updateYearbook);
-  addListener('change:cell_size_um', updateYearbook);
+  addListener('change:cell_size_um', () => updateYearbook({ preserveSelection: true }));
 
   return () => {
     state.mounted = false;

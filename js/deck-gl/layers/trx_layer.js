@@ -53,14 +53,16 @@ export const ini_trx_layer = (genes) => {
     pickable: true,
     getFillColor: (i, d) => {
       const inst_gene = genes.trx_names_array[d.index];
-      const inst_color = genes.color_dict_gene[inst_gene];
+      const inst_color = genes.color_dict_gene[inst_gene] || [0, 0, 0];
       const inst_opacity =
-        genes.selected_genes.length === 0 ||
-        genes.selected_genes.includes(inst_gene)
+        genes.selected_genes.length === 0 || genes.selected_genes.includes(inst_gene)
           ? 255
           : 5;
 
-      return [...inst_color, inst_opacity];
+      const safeColor =
+        Array.isArray(inst_color) && inst_color.length === 3 ? inst_color : [0, 0, 0];
+
+      return [...safeColor, inst_opacity];
     },
   });
 

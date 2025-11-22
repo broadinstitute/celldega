@@ -378,6 +378,34 @@ class Enrich(anywidget.AnyWidget):
         super().close()
 
 
+class GeneScatter(anywidget.AnyWidget):
+    """Interactive scatterplot for two genes with polygon gating.
+
+    This widget mirrors the manual neighborhood drawing flow from the landscape
+    component while focusing on a two-gene scatterplot. Users can pick genes for
+    the X and Y axes, toggle between raw and log1p scales, and sketch polygons
+    that are tagged with the active gene pair and scale for downstream gating.
+    """
+
+    _esm = Path(__file__).parent / "../static" / "widget.js"
+    _css = Path(__file__).parent / "../static" / "widget.css"
+
+    component = traitlets.Unicode("GeneScatter").tag(sync=True)
+
+    base_url = traitlets.Unicode("").tag(sync=True)
+    token = traitlets.Unicode("").tag(sync=True)
+    creds = traitlets.Dict({}).tag(sync=True)
+    dataset_name = traitlets.Unicode("").tag(sync=True)
+
+    segmentation = traitlets.Unicode("default").tag(sync=True)
+    width = traitlets.Int(900).tag(sync=True)
+    height = traitlets.Int(700).tag(sync=True)
+
+    x_gene = traitlets.Unicode("").tag(sync=True)
+    y_gene = traitlets.Unicode("").tag(sync=True)
+    scale_mode = traitlets.Unicode("log1p").tag(sync=True)
+
+
 class Clustergram(anywidget.AnyWidget):
     """
     Minimal version of the Clustergram widget.

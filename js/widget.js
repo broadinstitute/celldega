@@ -160,6 +160,24 @@ const render_landscape = async ({ model, el }) => {
   }
 };
 
+const render_yearbook = async ({ model, el }) => {
+  const rows = model.get('rows') || 1;
+  const cols = model.get('cols') || 1;
+  const selectionMode = model.get('selection_mode') || 'random';
+  const cells = model.get('cells') || [];
+
+  let selected = cells.slice(0, rows * cols);
+  if (selectionMode === 'random' && cells.length > rows * cols) {
+    const shuffled = [...cells].sort(() => Math.random() - 0.5);
+    selected = shuffled.slice(0, rows * cols);
+  }
+
+  model.set('visualized_cells', selected);
+  model.save_changes();
+
+  return render_landscape({ model, el });
+};
+
 const render_matrix_new = async ({ model, el }) => {
   // let network = model.get('network');
   let network;
@@ -198,6 +216,9 @@ async function render({ model, el }) {
     switch (componentType) {
       case 'Landscape':
         cleanup = await render_landscape({ model, el });
+        break;
+      case 'Yearbook':
+        cleanup = await render_yearbook({ model, el });
         break;
       case 'Matrix':
         // return render_matrix_new({ model, el });
@@ -253,6 +274,7 @@ export default {
   render_landscape_sst,
   render_landscape_h_e,
   render_landscape,
+  render_yearbook,
   render_matrix_new,
   render_enrich,
 };

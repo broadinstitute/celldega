@@ -298,6 +298,36 @@ class Landscape(anywidget.AnyWidget):
         super().close()
 
 
+class Yearbook(Landscape):
+    """A lightweight wrapper around :class:`Landscape` for portrait grids."""
+
+    component = traitlets.Unicode("Yearbook").tag(sync=True)
+
+    cells = traitlets.List(trait=traitlets.Unicode(), default_value=[]).tag(sync=True)
+    rows = traitlets.Int(1).tag(sync=True)
+    cols = traitlets.Int(1).tag(sync=True)
+    selection_attr = traitlets.Unicode("").tag(sync=True)
+    selection_mode = traitlets.Unicode("random").tag(sync=True)
+    visualized_cells = traitlets.List(trait=traitlets.Unicode(), default_value=[]).tag(
+        sync=True
+    )
+
+    def __init__(self, **kwargs):
+        cells = kwargs.pop("cells", [])
+        rows = kwargs.pop("rows", 1)
+        cols = kwargs.pop("cols", 1)
+        selection_attr = kwargs.pop("selection_attr", "")
+        selection_mode = kwargs.pop("selection_mode", "random")
+
+        super().__init__(**kwargs)
+
+        self.cells = list(cells)
+        self.rows = int(rows)
+        self.cols = int(cols)
+        self.selection_attr = selection_attr
+        self.selection_mode = selection_mode
+
+
 class ManualAttributeTrait(traitlets.Unicode):
     """Traitlet for configuring manual attribute names via bools or strings."""
 

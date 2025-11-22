@@ -5,7 +5,7 @@ Module for visualization
 from ipywidgets import HBox, Layout, jslink
 
 from .local_server import get_local_server
-from .widget import Clustergram, Enrich, Landscape
+from .widget import Clustergram, Enrich, Landscape, Yearbook
 
 
 def landscape_clustergram(

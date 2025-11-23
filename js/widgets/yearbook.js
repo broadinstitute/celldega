@@ -207,6 +207,9 @@ export const render_yearbook = async ({ model, el }) => {
     await set_dimensions(viz_state, base_url, imageNameForDim);
     viz_state.dimensions = viz_state.dimensions || { width: 1, height: 1, tileSize: 1 };
 
+    viz_state.vector_name_integer =
+      viz_state.img.landscape_parameters?.use_int_index || false;
+
     await set_meta_gene(viz_state.genes, base_url, viz_state.seg.version, viz_state.aws);
     await set_cluster_metadata(viz_state);
 
@@ -221,7 +224,6 @@ export const render_yearbook = async ({ model, el }) => {
     viz_state.combo_data = { trx: [], cell: [] };
     viz_state.max_tiles_to_view = maxTilesToView;
     viz_state.close_up = true;
-    viz_state.vector_name_integer = false;
     viz_state.global_base_url = base_url;
 
     state.viz_state = viz_state;

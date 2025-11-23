@@ -89,7 +89,7 @@ export const update_trx_layer_data = async (
   );
 
   layers_obj.trx_layer = layers_obj.trx_layer.clone({
-    data: viz_state.genes.trx_data,
+    data: viz_state.combo_data.trx,
   });
 
   // update viz_state layers before notifying deck_ready

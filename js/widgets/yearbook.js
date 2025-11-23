@@ -166,6 +166,8 @@ export const render_yearbook = async ({ model, el }) => {
     const imageInfo = viz_state.img.landscape_parameters.image_info;
     const imageNameForDim = imageInfo[0].name;
 
+    viz_state.seg = { version: segmentation };
+
     set_image_format(viz_state.img, viz_state.img.landscape_parameters.image_format);
     set_image_info(viz_state.img, imageInfo);
     set_image_layer_colors(viz_state.img.image_layer_colors ?? {}, viz_state.img.image_info);
@@ -183,8 +185,6 @@ export const render_yearbook = async ({ model, el }) => {
         refinementStrategy: 'best-available',
       })
     );
-
-    viz_state.seg = { version: segmentation };
     viz_state.cache = { cell: new Map(), trx: new Map() };
     viz_state.genes = {
       trx_data: [],

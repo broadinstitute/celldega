@@ -162,6 +162,38 @@ export const render_yearbook = async ({ model, el }) => {
     set_global_base_url(viz_state, base_url);
     viz_state.aws = state.aws;
 
+    viz_state.genes = {
+      trx_data: [],
+      trx_names_array: [],
+      color_dict_gene: {},
+      selected_genes: [],
+      top_gene_counts: [],
+      meta_gene: {},
+      gene_counts: [],
+      g_nameMapping_inv: {},
+      gene_names: [],
+      trx_ini_radius: undefined,
+      gene_text_box: '',
+      trx_slider: document.createElement('input'),
+      gene_search: document.createElement('div'),
+    };
+    viz_state.cats = {
+      polygon_cell_names: [],
+      dict_cell_cats: {},
+      color_dict_cluster: {},
+      selected_cats: [],
+      cluster_counts: [],
+      has_meta_cluster: false,
+      meta_cluster: {},
+      meta_cluster_attr: [],
+      cell_exp_array: [],
+      cell_names_array: [],
+      cell_name_to_index_map: new Map(),
+      has_meta_cell: false,
+      meta_cell: {},
+      meta_cell_attr: [],
+    };
+
     await set_landscape_parameters(viz_state.img, base_url, state.aws);
     const imageInfo = viz_state.img.landscape_parameters.image_info;
     const imageNameForDim = imageInfo[0].name;
@@ -186,27 +218,6 @@ export const render_yearbook = async ({ model, el }) => {
       })
     );
     viz_state.cache = { cell: new Map(), trx: new Map() };
-    viz_state.genes = {
-      trx_data: [],
-      trx_names_array: [],
-      color_dict_gene: {},
-      selected_genes: [],
-      top_gene_counts: [],
-      meta_gene: {},
-      gene_counts: [],
-      g_nameMapping_inv: {},
-      gene_names: [],
-    };
-    viz_state.cats = {
-      polygon_cell_names: [],
-      dict_cell_cats: {},
-      color_dict_cluster: {},
-      selected_cats: [],
-      cluster_counts: [],
-      has_meta_cluster: false,
-      meta_cluster: {},
-      meta_cluster_attr: [],
-    };
     viz_state.combo_data = { trx: [], cell: [] };
     viz_state.max_tiles_to_view = maxTilesToView;
     viz_state.close_up = true;

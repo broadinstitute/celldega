@@ -78,14 +78,15 @@ const PIXEL_SIZE_MICRONS = {
 };
 
 const create_scale_bar = (micronsPerPixel, tech) => {
-  const techKey = (tech || '');
+  const techKey = tech || '';
   const blackLabelTechs = ['Visium-HD'];
   const whiteLabelTechs = ['Xenium', 'MERSCOPE'];
 
-  const labelColor =
-    blackLabelTechs.includes(techKey) ? 'black' :
-    whiteLabelTechs.includes(techKey) ? 'white' :
-    'white';
+  const labelColor = blackLabelTechs.includes(techKey)
+    ? 'black'
+    : whiteLabelTechs.includes(techKey)
+      ? 'white'
+      : 'white';
 
   const rev_labelColor = labelColor === 'white' ? 'black' : 'white';
 

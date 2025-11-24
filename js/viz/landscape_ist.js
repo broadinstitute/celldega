@@ -446,6 +446,13 @@ export const landscape_ist = async (
       },
     });
 
+    // Toggle cell layer readiness so deck.gl re-renders when selections arrive
+    // from the Python backend.
+    viz_state.obs_store.deck_check.set({
+      ...viz_state.obs_store.deck_check.get(),
+      cell_layer: false,
+    });
+
     viz_state.obs_store.deck_check.set({
       ...viz_state.obs_store.deck_check.get(),
       cell_layer: true,

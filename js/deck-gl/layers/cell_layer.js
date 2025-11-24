@@ -49,7 +49,8 @@ const cell_layer_onclick = async (info, d, deck_ist, layers_obj, viz_state) => {
 export const get_cell_color = (cats, highlighted_cells, i, d) => {
   const highlight_set = highlighted_cells ?? new Set();
   const has_highlights = highlight_set.size > 0;
-  const is_highlighted = has_highlights && highlight_set.has(d.name);
+  const inst_cell = cats.cell_names_array[d.index];
+  const is_highlighted = has_highlights && highlight_set.has(inst_cell);
 
   let base_color;
   if (cats.cat === 'cluster') {
@@ -71,7 +72,7 @@ export const get_cell_color = (cats, highlighted_cells, i, d) => {
 
       base_color = [...inst_color, inst_opacity];
     } catch {
-      base_color = [0, 0, 0, 50]; // Return a default color with some opacity to handle the error gracefully
+      base_color = [0, 0, 0, 10]; // Return a default color with some opacity to handle the error gracefully
     }
   } else {
     // color cells based on gene expression
@@ -79,7 +80,7 @@ export const get_cell_color = (cats, highlighted_cells, i, d) => {
       const inst_exp = cats.cell_exp_array[d.index]; //
       base_color = [255, 0, 0, inst_exp];
     } catch {
-      base_color = [255, 0, 0, 50]; // Return a default color with some opacity to handle the error gracefully
+      base_color = [255, 0, 0, 10]; // Return a default color with some opacity to handle the error gracefully
     }
   }
 
@@ -88,10 +89,10 @@ export const get_cell_color = (cats, highlighted_cells, i, d) => {
   }
 
   if (is_highlighted) {
-    return [255, 64, 129, 255];
+    return [0, 0, 255, 255];
   }
 
-  const dimmed_opacity = Math.max(30, Math.round((base_color[3] ?? 0) * 0.2));
+  const dimmed_opacity = 10;
   return [...base_color.slice(0, 3), dimmed_opacity];
 };
 

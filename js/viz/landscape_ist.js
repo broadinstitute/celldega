@@ -104,6 +104,7 @@ const create_scale_bar = (micronsPerPixel, tech) => {
   container.style.alignItems = 'flex-start';
   container.style.pointerEvents = 'none';
   container.style.zIndex = '10';
+  container.style.opacity = '0.5';
 
   const label = document.createElement('div');
   label.textContent = '1 µm';

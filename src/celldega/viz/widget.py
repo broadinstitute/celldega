@@ -299,7 +299,33 @@ class Landscape(anywidget.AnyWidget):
 
 
 class Yearbook(Landscape):
-    """A multi-viewport variant of the Landscape widget for close-up panels."""
+    """
+    A multi-viewport variant of :class:`Landscape` for tiled, close-up panels.
+
+    The widget expects the same assets as :class:`Landscape` (including
+    ``landscape_parameters.json`` and the image/tile directory), so the
+    ``base_url`` argument should point at the exported landscape directory or
+    HTTP server hosting it. A 404 on ``landscape_parameters.json`` usually means
+    the base path is incorrect or the files are not being served.
+
+    Examples:
+        Instantiate a 3×3 grid that reuses a landscape export served locally,
+        with a couple of manually specified targets. When ``yearbook_views`` is
+        shorter than the grid size the remaining panes fall back to an evenly
+        spaced grid over the whole slide.
+
+        >>> yb = Yearbook(
+        ...     base_url="http://localhost:8000/xenium_run",  # contains landscape_parameters.json
+        ...     dataset_name="Xenium run",
+        ...     yearbook_views=[{"x": 1200, "y": 3400}, {"target": [2200, 1800, 0]}],
+        ...     yearbook_zoom_offset=3.0,
+        ... )
+        >>> yb  # displays the widget in a notebook
+
+    The widget can be created independently—no need to construct a Landscape
+    widget first—as long as ``base_url`` (or the AnnData/metadata arguments
+    accepted by :class:`Landscape`) provide the usual landscape inputs.
+    """
 
     component = traitlets.Unicode("Yearbook").tag(sync=True)
 

@@ -71,8 +71,8 @@ import { update_cell_clusters } from '../widget_interactions/update_cell_cluster
 import { update_ist_landscape_from_cgm } from '../widget_interactions/update_ist_landscape_from_cgm';
 
 const PIXEL_SIZE_MICRONS = {
-  Xenium: 0.2125,
-  MERSCOPE: 0.108,
+  'Xenium': 0.2125,
+  'MERSCOPE': 0.108,
   'point-cloud': 1,
   'Visium-HD': 0.14,
 };
@@ -97,8 +97,6 @@ const create_scale_bar = (micronsPerPixel, tech) => {
   container.style.backgroundColor = 'transparent';
   container.style.color = labelColor;
   container.style.padding = '6px 8px';
-  container.style.border = '1px black';
-  container.style.borderRadius = '4px';
   container.style.fontSize = '12px';
   container.style.lineHeight = '1.2';
   container.style.display = 'flex';

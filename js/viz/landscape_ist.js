@@ -70,6 +70,80 @@ import { refresh_layer } from '../utils/refresh_layer';
 import { update_cell_clusters } from '../widget_interactions/update_cell_clusters';
 import { update_ist_landscape_from_cgm } from '../widget_interactions/update_ist_landscape_from_cgm';
 
+const normalize_yearbook_config = (config) => {
+  if (!config) {
+    return null;
+  }
+
+  return {
+    active: true,
+    rows: config.rows ?? 3,
+    cols: config.cols ?? 3,
+    zoomOffset: config.zoomOffset ?? 2.5,
+    zoom: config.zoom,
+    views: Array.isArray(config.views) ? config.views : [],
+    allowPan: config.allowPan ?? true,
+    allowZoom: config.allowZoom ?? false,
+  };
+};
+
+const make_grid_targets = (viz_state, rows, cols) => {
+  const { x_min, x_max, y_min, y_max, center_z = 0 } = viz_state.spatial;
+  const xStep = (x_max - x_min) / cols;
+  const yStep = (y_max - y_min) / rows;
+
+  const targets = [];
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      targets.push({
+        x: x_min + (col + 0.5) * xStep,
+        y: y_min + (row + 0.5) * yStep,
+        z: center_z,
+      });
+    }
+  }
+
+  return targets;
+};
+
+const make_yearbook_view_state = (viz_state) => {
+  const { yearbook } = viz_state;
+  if (!yearbook?.active) {
+    return null;
+  }
+
+  const rows = yearbook.rows ?? 3;
+  const cols = yearbook.cols ?? 3;
+  const viewCount = rows * cols;
+  const providedViews = yearbook.views.slice(0, viewCount);
+  const gridTargets = make_grid_targets(viz_state, rows, cols);
+  const iniZoom = viz_state.spatial.ini_zoom ?? 0;
+  const baseZoom = yearbook.zoom ?? iniZoom + (yearbook.zoomOffset ?? 0);
+
+  const viewState = {};
+  for (let idx = 0; idx < viewCount; idx++) {
+    const fallbackTarget = gridTargets[idx] || {
+      x: viz_state.spatial.center_x,
+      y: viz_state.spatial.center_y,
+      z: viz_state.spatial.center_z ?? 0,
+    };
+    const provided = providedViews[idx] || {};
+    const providedTarget = provided.target || provided.position || {};
+    const target = [
+      providedTarget[0] ?? provided.x ?? fallbackTarget.x,
+      providedTarget[1] ?? provided.y ?? fallbackTarget.y,
+      providedTarget[2] ?? provided.z ?? fallbackTarget.z,
+    ];
+
+    viewState[`yearbook-${idx}`] = {
+      target,
+      zoom: provided.zoom ?? baseZoom,
+    };
+  }
+
+  return viewState;
+};
+
 export const landscape_ist = async (
   el,
   ini_model,
@@ -96,7 +170,8 @@ export const landscape_ist = async (
   view_change_custom_callback = null,
   rotation_orbit = 0,
   rotation_x = 0,
-  max_tiles_to_view = 50
+  max_tiles_to_view = 50,
+  yearbook_config = null
 ) => {
   if (width === 0) {
     width = '100%';
@@ -247,6 +322,8 @@ export const landscape_ist = async (
   viz_state.custom_callbacks = {};
   viz_state.custom_callbacks.view_change = view_change_custom_callback;
 
+  viz_state.yearbook = normalize_yearbook_config(yearbook_config);
+
   viz_state.cats = {};
   viz_state.cats.cat = null;
   viz_state.cats.reset_cat = false;
@@ -359,9 +436,26 @@ export const landscape_ist = async (
 
   await set_cluster_metadata(viz_state);
 
-  viz_state.views = set_views(tech);
+  viz_state.views = set_views(tech, viz_state.yearbook);
 
-  const deck_ist = await ini_deck(root, width, height, tech);
+  const controller_override = viz_state.yearbook?.active
+    ? {
+        doubleClickZoom: false,
+        scrollZoom: viz_state.yearbook.allowZoom,
+        touchZoom: viz_state.yearbook.allowZoom,
+        touchRotate: false,
+        dragPan: viz_state.yearbook.allowPan,
+        dragRotate: false,
+      }
+    : null;
+
+  const deck_ist = await ini_deck(
+    root,
+    width,
+    height,
+    tech,
+    controller_override
+  );
   // set_initial_view_state(deck_ist, ini_x, ini_y, ini_z, ini_zoom)
   set_views_prop(deck_ist, viz_state.views);
 
@@ -405,6 +499,11 @@ export const landscape_ist = async (
   const background_layer = ini_background_layer(viz_state);
   const image_layers = await make_image_layers(viz_state);
   const cell_layer = await ini_cell_layer(base_url, viz_state);
+
+  if (viz_state.yearbook?.active) {
+    viz_state.yearbook.viewState = make_yearbook_view_state(viz_state);
+  }
+
   const path_layer = await ini_path_layer(viz_state);
   const trx_layer = ini_trx_layer(viz_state.genes);
   const edit_layer = ini_edit_layer(viz_state);
@@ -590,6 +689,23 @@ export const landscape_ist = async (
   );
 
   set_deck_on_view_state_change(deck_ist, layers_obj, viz_state);
+
+  if (viz_state.yearbook?.active && viz_state.yearbook.viewState) {
+    const [firstStateKey] = Object.keys(viz_state.yearbook.viewState);
+    const fallback_view_state =
+      viz_state.yearbook.viewState[firstStateKey] || {
+        height: viz_state.containers.root_dim.height,
+        width: viz_state.containers.root_dim.width,
+        zoom: viz_state.spatial.ini_zoom,
+        target: [
+          viz_state.spatial.center_x,
+          viz_state.spatial.center_y,
+          viz_state.spatial.center_z ?? 0,
+        ],
+      };
+
+    await calc_viewport(fallback_view_state, deck_ist, layers_obj, viz_state);
+  }
 
   if (Object.keys(viz_state.model).length > 0) {
     viz_state.model.on('change:update_trigger', () =>

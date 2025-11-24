@@ -11,8 +11,14 @@ const getCursor = ({ isDragging }) => {
   return 'pointer';
 };
 
-export const ini_deck = (root, width, height, technology = '') => {
-  const controller = { doubleClickZoom: false };
+export const ini_deck = (
+  root,
+  width,
+  height,
+  technology = '',
+  controller_override = null
+) => {
+  const controller = controller_override ?? { doubleClickZoom: false };
   if (technology === 'point-cloud') {
     controller.type = OrbitController;
   }
@@ -62,6 +68,14 @@ export const set_initial_view_state = (
   rotation_orbit = 0,
   rotation_x = 0
 ) => {
+  if (viz_state.yearbook?.active && viz_state.yearbook.viewState) {
+    deck_ist.setProps({
+      initialViewState: viz_state.yearbook.viewState,
+      viewState: viz_state.yearbook.viewState,
+    });
+    return;
+  }
+
   const {
     center_x,
     center_y,

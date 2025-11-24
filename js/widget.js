@@ -13,7 +13,7 @@ import { matrix_viz } from './viz/matrix_viz';
 import { render_enrich } from './widgets/enrich_widget';
 
 // Remove export keywords from render functions
-const render_landscape_ist = async ({ model, el }) => {
+const render_landscape_ist = async ({ model, el, yearbook_config = null }) => {
   const token = model.get('token');
   const creds = model.get('creds');
   const ini_x = model.get('ini_x');
@@ -84,8 +84,24 @@ const render_landscape_ist = async ({ model, el }) => {
     null,
     rotation_orbit,
     rotation_x,
-    max_tiles_to_view
+    max_tiles_to_view,
+    yearbook_config
   );
+};
+
+const render_yearbook = async ({ model, el }) => {
+  const yearbook_config = {
+    active: true,
+    rows: model.get('yearbook_rows') ?? 3,
+    cols: model.get('yearbook_cols') ?? 3,
+    views: model.get('yearbook_views') ?? [],
+    zoom: model.get('yearbook_zoom'),
+    zoomOffset: model.get('yearbook_zoom_offset'),
+    allowPan: model.get('yearbook_allow_pan'),
+    allowZoom: model.get('yearbook_allow_zoom'),
+  };
+
+  return render_landscape_ist({ model, el, yearbook_config });
 };
 
 const render_landscape_sst = async ({ model, el }) => {
@@ -198,6 +214,9 @@ async function render({ model, el }) {
     switch (componentType) {
       case 'Landscape':
         cleanup = await render_landscape({ model, el });
+        break;
+      case 'Yearbook':
+        cleanup = await render_yearbook({ model, el });
         break;
       case 'Matrix':
         // return render_matrix_new({ model, el });

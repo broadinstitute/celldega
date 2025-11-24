@@ -298,6 +298,20 @@ class Landscape(anywidget.AnyWidget):
         super().close()
 
 
+class Yearbook(Landscape):
+    """A multi-viewport variant of the Landscape widget for close-up panels."""
+
+    component = traitlets.Unicode("Yearbook").tag(sync=True)
+
+    yearbook_views = traitlets.List(default_value=[]).tag(sync=True)
+    yearbook_rows = traitlets.Int(3).tag(sync=True)
+    yearbook_cols = traitlets.Int(3).tag(sync=True)
+    yearbook_zoom = traitlets.Float(default_value=None, allow_none=True).tag(sync=True)
+    yearbook_zoom_offset = traitlets.Float(2.5).tag(sync=True)
+    yearbook_allow_pan = traitlets.Bool(True).tag(sync=True)
+    yearbook_allow_zoom = traitlets.Bool(False).tag(sync=True)
+
+
 class ManualAttributeTrait(traitlets.Unicode):
     """Traitlet for configuring manual attribute names via bools or strings."""
 

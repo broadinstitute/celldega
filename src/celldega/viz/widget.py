@@ -87,6 +87,9 @@ class Landscape(anywidget.AnyWidget):
     square_tile_size = traitlets.Float(1.4).tag(sync=True)
     dataset_name = traitlets.Unicode("").tag(sync=True)
     region = traitlets.Dict({}).tag(sync=True)
+    scale_bar_microns_per_pixel = traitlets.Float(
+        default_value=None, allow_none=True
+    ).tag(sync=True)
 
     nbhd = traitlets.Instance(gpd.GeoDataFrame, allow_none=True)
     nbhd_geojson = traitlets.Dict({}).tag(sync=True)

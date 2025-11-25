@@ -304,21 +304,18 @@ class Yearbook(anywidget.AnyWidget):
 
     The widget renders multiple deck.gl viewports laid out as a grid. Each
     viewport is centered on a specific cell and sized to roughly 20µm by
-    default. Cells can be provided explicitly, selected randomly from a pool,
-    or chosen using a numeric/categorical attribute with predefined strategies
-    (``random``, ``max``, ``min``, ``middle``).
+    default. Cells can be provided explicitly or selected randomly from a pool;
+    attribute-driven sub-sampling controls are intentionally disabled for now
+    to mirror the simpler Landscape control panel.
 
     Args:
         base_url: Base URL where the landscape tiles and metadata live.
         token: Optional bearer token for authenticated requests.
         cells: Candidate cell IDs to visualize; if longer than ``rows*cols``, a
-            subset is chosen using ``selection_mode``.
+            subset is chosen at random.
         rows: Number of rows in the cellbook grid.
         cols: Number of columns in the cellbook grid.
         cell_size_um: Approximate size of each viewport in microns.
-        selection_attribute: Attribute name used for cell selection when
-            available in the metadata payload.
-        selection_mode: One of ``random``, ``max``, ``min``, ``middle``.
         segmentation: Segmentation version used to fetch cell metadata.
         meta_cell_parquet: Optional parquet-encoded metadata (as produced by
             :class:`anndata.AnnData` ``obs``). If omitted, the widget will rely
@@ -338,8 +335,6 @@ class Yearbook(anywidget.AnyWidget):
     rows = traitlets.Int(2).tag(sync=True)
     cols = traitlets.Int(3).tag(sync=True)
     cell_size_um = traitlets.Float(20.0).tag(sync=True)
-    selection_attribute = traitlets.Unicode("").tag(sync=True)
-    selection_mode = traitlets.Unicode("random").tag(sync=True)
     displayed_cells = traitlets.List(trait=traitlets.Unicode(), default_value=[]).tag(sync=True)
 
     width = traitlets.Int(0).tag(sync=True)

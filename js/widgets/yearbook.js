@@ -70,21 +70,6 @@ const hashColor = (name) => {
   return [Math.abs(r), Math.abs(g), Math.abs(b)];
 };
 
-const rankCells = (cells, mode) => {
-  if (mode === 'max') {
-    return [...cells].sort((a, b) => (b.attrValue ?? -Infinity) - (a.attrValue ?? -Infinity));
-  }
-  if (mode === 'min') {
-    return [...cells].sort((a, b) => (a.attrValue ?? Infinity) - (b.attrValue ?? Infinity));
-  }
-  if (mode === 'middle') {
-    const sorted = [...cells].sort((a, b) => (a.attrValue ?? 0) - (b.attrValue ?? 0));
-    const mid = Math.floor(sorted.length / 2);
-    return shuffle(sorted.slice(Math.max(mid - 1, 0), Math.min(mid + 2, sorted.length)));
-  }
-  return shuffle([...cells]);
-};
-
 export const render_yearbook = async ({ model, el }) => {
   const base_url = model.get('base_url');
   const token = model.get('token');
@@ -268,74 +253,16 @@ export const render_yearbook = async ({ model, el }) => {
     return state.metaCell;
   };
 
-  const buildControls = (attributes) => {
+  const buildControls = () => {
     controls.innerHTML = '';
 
-    const modeButtons = document.createElement('div');
-    modeButtons.className = 'celldega-yearbook-mode-buttons';
-
-    const attrSelect = document.createElement('select');
-    const emptyOption = document.createElement('option');
-    emptyOption.value = '';
-    emptyOption.textContent = 'auto/random';
-    attrSelect.appendChild(emptyOption);
-    attributes.forEach((attr) => {
-      const opt = document.createElement('option');
-      opt.value = attr;
-      opt.textContent = attr;
-      attrSelect.appendChild(opt);
-    });
-    attrSelect.value = model.get('selection_attribute') || '';
-    attrSelect.onchange = () => {
-      model.set('selection_attribute', attrSelect.value);
-      model.save_changes();
-      updateYearbook();
-    };
-
-    const addButton = (mode, label) => {
-      const btn = document.createElement('button');
-      btn.textContent = label;
-      btn.className = 'celldega-yearbook-button';
-      btn.onclick = () => {
-        model.set('selection_mode', mode);
-        model.save_changes();
-        updateYearbook();
-      };
-      modeButtons.appendChild(btn);
-    };
-
-    const sliderRow = document.createElement('div');
-    sliderRow.className = 'celldega-yearbook-slider-row';
-    const sliderLabel = document.createElement('span');
-    sliderLabel.textContent = 'Cell size (µm)';
-    const sizeSlider = document.createElement('input');
-    sizeSlider.type = 'range';
-    sizeSlider.min = '5';
-    sizeSlider.max = '80';
-    sizeSlider.value = model.get('cell_size_um') || 20;
-    const sliderValue = document.createElement('span');
-    sliderValue.className = 'celldega-yearbook-slider-value';
-    sliderValue.textContent = `${sizeSlider.value}`;
-    sizeSlider.oninput = () => {
-      sliderValue.textContent = `${sizeSlider.value}`;
-    };
-    sizeSlider.onchange = () => {
-      model.set('cell_size_um', Number(sizeSlider.value));
-      model.save_changes();
-      updateYearbook({ preserveSelection: true });
-    };
-
-    sliderRow.appendChild(sliderLabel);
-    sliderRow.appendChild(sizeSlider);
-    sliderRow.appendChild(sliderValue);
-
-    controls.appendChild(attrSelect);
-    addButton('random', 'Random');
-    addButton('max', 'Max');
-    addButton('min', 'Min');
-    addButton('middle', 'Middle');
-    controls.appendChild(modeButtons);
-    controls.appendChild(sliderRow);
+    const headerRow = document.createElement('div');
+    headerRow.className = 'celldega-yearbook-header-row';
+    const title = document.createElement('span');
+    title.textContent = 'Landscape controls';
+    title.className = 'celldega-yearbook-title';
+    headerRow.appendChild(title);
+    controls.appendChild(headerRow);
 
     const searchRow = document.createElement('div');
     searchRow.className = 'celldega-yearbook-search-row';
@@ -456,21 +383,16 @@ export const render_yearbook = async ({ model, el }) => {
   };
 
   const chooseCells = (positionMap, preferredIds = null) => {
-    const attrName = model.get('selection_attribute');
-    const mode = model.get('selection_mode') || 'random';
-    const attrIdx = attrName ? state.metaCell.attr.indexOf(attrName) : -1;
     const defaultClusterAttr =
       state.metaCell.attr.find((a) => a?.toLowerCase?.().includes('cluster')) || 'cluster';
-    const colorAttrName = (model.get('cell_attr') || [])[0] || attrName || defaultClusterAttr;
+    const colorAttrName = (model.get('cell_attr') || [])[0] || defaultClusterAttr;
     const colorAttrIdx = colorAttrName ? state.metaCell.attr.indexOf(colorAttrName) : -1;
 
     const toCandidate = (id) => {
-      const attrValue = attrIdx >= 0 ? state.metaCell.result?.[id]?.[attrIdx] : null;
-      const numericValue = Number.isFinite(Number(attrValue)) ? Number(attrValue) : null;
       const catValue = colorAttrIdx >= 0 ? state.metaCell.result?.[id]?.[colorAttrIdx] : undefined;
       const coords = positionMap.get(id);
       if (!coords) return null;
-      return { id, attrValue: numericValue ?? attrValue, catValue, ...coords };
+      return { id, catValue, ...coords };
     };
 
     const preferred = Array.isArray(preferredIds)
@@ -487,9 +409,8 @@ export const render_yearbook = async ({ model, el }) => {
       .map((id) => toCandidate(id))
       .filter((c) => c && Number.isFinite(c.x) && Number.isFinite(c.y));
 
-    const hasNumericAttr = candidates.some((c) => typeof c.attrValue === 'number');
-    const ranked = rankCells(candidates, attrIdx >= 0 && hasNumericAttr ? mode : 'random');
-    return ranked.slice(0, state.capacity);
+    const shuffled = shuffle(candidates);
+    return shuffled.slice(0, state.capacity);
   };
 
   const getTilesForCells = (selectedCells) => {
@@ -768,8 +689,8 @@ export const render_yearbook = async ({ model, el }) => {
 
   await makeDeck();
   await setupImagery();
-  const meta = await loadMetaCell();
-  buildControls(meta.attr || []);
+  await loadMetaCell();
+  buildControls();
   await updateYearbook();
 
   const listeners = [];
@@ -791,8 +712,6 @@ export const render_yearbook = async ({ model, el }) => {
     await setupImagery();
     await updateYearbook();
   });
-  addListener('change:selection_mode', updateYearbook);
-  addListener('change:selection_attribute', updateYearbook);
   addListener('change:cell_size_um', () => updateYearbook({ preserveSelection: true }));
 
   return () => {

@@ -29,16 +29,16 @@
     "fix:js": "npm run lint:js:fix && npm run format:js"
   },
   "dependencies": {
-    "@deck.gl-community/editable-layers": "^9.0.3",
-    "@loaders.gl/core": "^4.2.0",
-    "@luma.gl/core": "^9.0.12",
-    "@luma.gl/engine": "^9.0.12",
-    "@luma.gl/shadertools": "^9.0.12",
+    "@deck.gl-community/editable-layers": "^9.1.1",
+    "@loaders.gl/core": "^4.3.4",
+    "@luma.gl/core": "^9.2.4",
+    "@luma.gl/engine": "^9.2.4",
+    "@luma.gl/shadertools": "^9.2.4",
     "@luma.gl/webgl": "^9.0.12",
     "apache-arrow": "15.0.2",
     "aws4fetch": "^1.0.20",
     "d3": "^7.9.0",
-    "deck.gl": "^9.0.12",
+    "deck.gl": "^9.2.2",
     "math.gl": "2.3.3"
   },
   "devDependencies": {

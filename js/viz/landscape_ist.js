@@ -67,6 +67,7 @@ import { toggle_slider, set_image_layer_sliders } from '../ui/sliders';
 import { get_img_layer_visible } from '../ui/text_buttons';
 import { make_ist_ui_container } from '../ui/ui_containers';
 import { refresh_layer } from '../utils/refresh_layer';
+import { build_rotation_state } from '../utils/rotation';
 import { update_cell_clusters } from '../widget_interactions/update_cell_clusters';
 import { update_ist_landscape_from_cgm } from '../widget_interactions/update_ist_landscape_from_cgm';
 
@@ -96,6 +97,7 @@ export const landscape_ist = async (
   view_change_custom_callback = null,
   rotation_orbit = 0,
   rotation_x = 0,
+  rotate = 0,
   max_tiles_to_view = 50
 ) => {
   if (width === 0) {
@@ -350,6 +352,14 @@ export const landscape_ist = async (
     await set_dimensions(viz_state, base_url, image_name_for_dim);
   }
 
+  const centerX = viz_state.dimensions?.width
+    ? viz_state.dimensions.width / 2
+    : 0;
+  const centerY = viz_state.dimensions?.height
+    ? viz_state.dimensions.height / 2
+    : 0;
+  viz_state.rotation = build_rotation_state(rotate, [centerX, centerY]);
+
   await set_meta_gene(
     viz_state.genes,
     base_url,
@@ -406,7 +416,7 @@ export const landscape_ist = async (
   const image_layers = await make_image_layers(viz_state);
   const cell_layer = await ini_cell_layer(base_url, viz_state);
   const path_layer = await ini_path_layer(viz_state);
-  const trx_layer = ini_trx_layer(viz_state.genes);
+  const trx_layer = ini_trx_layer(viz_state);
   const edit_layer = ini_edit_layer(viz_state);
   const nbhd_layer = ini_nbhd_layer(viz_state, true);
 

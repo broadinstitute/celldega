@@ -7,6 +7,7 @@ import * as d3 from 'd3';
 
 import { handleValidationWarning } from '../../temp_utils/errorHandler';
 import { make_bar_graph, bar_callback_nbhd } from '../../ui/bar_plot';
+import { getModelMatrixProps } from '../../utils/rotation';
 import { get_layers_list } from '../utils/layers_ist';
 
 import { update_cell_pickable_state } from './cell_layer';
@@ -228,6 +229,7 @@ export const ini_edit_layer = (viz_state) => {
     },
     visible: false,
     opacity: viz_state.edit.rgn_opacity,
+    ...getModelMatrixProps(viz_state.rotation),
   });
 
   return edit_layer;

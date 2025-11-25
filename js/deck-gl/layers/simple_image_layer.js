@@ -1,6 +1,7 @@
 import { TileLayer } from 'deck.gl';
 
 import { options } from '../../global_variables/fetch_options';
+import { getModelMatrixProps } from '../../utils/rotation';
 import {
   create_simple_render_tile_sublayers,
   create_get_tile_data,
@@ -30,6 +31,7 @@ export const make_simple_image_layer = async (viz_state, info) => {
     ),
     renderSubLayers: create_simple_render_tile_sublayers(dimensions),
     visible: true,
+    ...getModelMatrixProps(viz_state.rotation),
   });
 
   return simple_image_layer;

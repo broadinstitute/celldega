@@ -61,7 +61,7 @@ export const ini_trx_layer = (viz_state) => {
         genes.selected_genes.length === 0 ||
         genes.selected_genes.includes(inst_gene)
           ? 255
-      : 5;
+          : 5;
 
       return [...inst_color, inst_opacity];
     },

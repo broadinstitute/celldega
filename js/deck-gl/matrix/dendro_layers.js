@@ -8,68 +8,70 @@ const DENDRO_AXES = ['row', 'col'];
 const DEFAULT_FILL_COLOR = [0, 0, 0, 90];
 const FOCUSED_FILL_COLOR = [0, 0, 0, 180];
 
-const getCurrentFocus = (viz_state) => {
-  const storeFocus =
+const get_current_focus = (viz_state) => {
+  const store_focus =
     viz_state?.obs_store?.focused_dendro &&
     typeof viz_state.obs_store.focused_dendro.get === 'function'
       ? viz_state.obs_store.focused_dendro.get()
       : null;
 
-  return storeFocus ?? viz_state.dendro?.active_polygon ?? null;
+  return store_focus ?? viz_state.dendro?.active_polygon ?? null;
 };
 
-const applyDendroFocus = (deck_mat, layers_mat, viz_state, focus) => {
-  const normalizedFocus = focus ? { axis: focus.axis, name: focus.name } : null;
+const apply_dendro_focus = (deck_mat, layers_mat, viz_state, focus) => {
+  const normalized_focus = focus
+    ? { axis: focus.axis, name: focus.name }
+    : null;
 
-  let didUpdate = false;
+  let did_update = false;
 
   DENDRO_AXES.forEach((targetAxis) => {
     if (!viz_state.dendro.polygons[targetAxis]) {
       return;
     }
 
-    const updatedPolygons = viz_state.dendro.polygons[targetAxis].map(
+    const updated_polygons = viz_state.dendro.polygons[targetAxis].map(
       (polygon) => {
-        const isFocused =
-          !!normalizedFocus &&
-          polygon.properties.axis === normalizedFocus.axis &&
-          polygon.properties.name === normalizedFocus.name;
+        const is_focused =
+          !!normalized_focus &&
+          polygon.properties.axis === normalized_focus.axis &&
+          polygon.properties.name === normalized_focus.name;
 
-        if (polygon.properties.is_focused === isFocused) {
+        if (polygon.properties.is_focused === is_focused) {
           return polygon;
         }
 
-        didUpdate = true;
+        did_update = true;
 
         return {
           ...polygon,
           properties: {
             ...polygon.properties,
-            is_focused: isFocused,
+            is_focused,
           },
         };
       }
     );
 
-    viz_state.dendro.polygons[targetAxis] = updatedPolygons;
+    viz_state.dendro.polygons[targetAxis] = updated_polygons;
 
     if (layers_mat[`${targetAxis}_dendro_layer`]) {
       layers_mat[`${targetAxis}_dendro_layer`] = layers_mat[
         `${targetAxis}_dendro_layer`
       ].clone({
-        data: updatedPolygons,
+        data: updated_polygons,
       });
     }
   });
 
-  viz_state.dendro.active_polygon = normalizedFocus;
+  viz_state.dendro.active_polygon = normalized_focus;
 
   if (viz_state.obs_store?.focused_dendro) {
-    const focusValue = normalizedFocus ? { ...normalizedFocus } : null;
-    viz_state.obs_store.focused_dendro.set(focusValue);
+    const focus_value = normalized_focus ? { ...normalized_focus } : null;
+    viz_state.obs_store.focused_dendro.set(focus_value);
   }
 
-  if (didUpdate && typeof deck_mat?.setProps === 'function') {
+  if (did_update && typeof deck_mat?.setProps === 'function') {
     deck_mat.setProps({
       layers: get_mat_layers_list(layers_mat),
     });
@@ -133,18 +135,18 @@ const focus_dendro_polygon = (
   axis,
   polygonName
 ) => {
-  const previousFocus = getCurrentFocus(viz_state);
+  const previous_focus = get_current_focus(viz_state);
 
   if (
-    previousFocus &&
-    previousFocus.axis === axis &&
-    previousFocus.name === polygonName
+    previous_focus &&
+    previous_focus.axis === axis &&
+    previous_focus.name === polygonName
   ) {
-    applyDendroFocus(deck_mat, layers_mat, viz_state, null);
+    apply_dendro_focus(deck_mat, layers_mat, viz_state, null);
     return;
   }
 
-  applyDendroFocus(deck_mat, layers_mat, viz_state, {
+  apply_dendro_focus(deck_mat, layers_mat, viz_state, {
     axis,
     name: polygonName,
   });
@@ -174,6 +176,16 @@ const dendro_layer_onclick = (event, deck_mat, layers_mat, viz_state, axis) => {
 
   if (axis === 'row') {
     sync_selected_genes(viz_state, event.object.properties.all_names);
+  }
+
+  if (viz_state.attr?.editor?.open) {
+    viz_state.attr.editor.open({
+      axis,
+      selection: event.object.properties.all_names || [],
+      position: event?.pixel
+        ? { x: event.pixel[0], y: event.pixel[1] }
+        : undefined,
+    });
   }
 
   if (typeof viz_state.custom_callbacks[`${axis}_dendro`] === 'function') {

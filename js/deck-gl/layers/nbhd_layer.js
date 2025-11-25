@@ -2,6 +2,7 @@ import { GeoJsonLayer } from 'deck.gl';
 
 import { hexToRgb } from '../../utils/hexToRgb';
 import { refresh_layer } from '../../utils/refresh_layer';
+import { getModelMatrixProps } from '../../utils/rotation';
 
 const get_nbhd_color = (d, viz_state) => {
   const inst_color = hexToRgb(d.properties.color);
@@ -40,6 +41,7 @@ export const ini_nbhd_layer = (viz_state, visible) => {
     getFillColor: (d) => get_nbhd_color(d, viz_state),
     opacity: 0.5,
     visible,
+    ...getModelMatrixProps(viz_state.rotation),
   });
 
   return nbhd_layer;

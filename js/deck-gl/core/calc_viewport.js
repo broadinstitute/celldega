@@ -1,3 +1,4 @@
+import { rotate_point, rotate_point_inverse } from '../../utils/rotation';
 import { visibleTiles } from '../../vector_tile/visibleTiles';
 import { update_path_layer_data } from '../layers/path_layer';
 import { update_trx_layer_data } from '../layers/trx_layer';
@@ -27,11 +28,34 @@ export const calc_viewport = async (
     return;
   }
 
+  const tile_bounds = (() => {
+    if (!viz_state.rotation?.hasRotation) {
+      return viz_state.bounds;
+    }
+
+    const corners = [
+      [viz_state.bounds.min_x, viz_state.bounds.min_y],
+      [viz_state.bounds.min_x, viz_state.bounds.max_y],
+      [viz_state.bounds.max_x, viz_state.bounds.min_y],
+      [viz_state.bounds.max_x, viz_state.bounds.max_y],
+    ].map(([x, y]) => rotate_point_inverse(x, y, viz_state.rotation));
+
+    const xs = corners.map(([x]) => x);
+    const ys = corners.map(([, y]) => y);
+
+    return {
+      min_x: Math.min(...xs),
+      max_x: Math.max(...xs),
+      min_y: Math.min(...ys),
+      max_y: Math.max(...ys),
+    };
+  })();
+
   const tiles_in_view = visibleTiles(
-    viz_state.bounds.min_x,
-    viz_state.bounds.max_x,
-    viz_state.bounds.min_y,
-    viz_state.bounds.max_y,
+    tile_bounds.min_x,
+    tile_bounds.max_x,
+    tile_bounds.min_y,
+    tile_bounds.max_y,
     tile_size
   );
 
@@ -59,13 +83,25 @@ export const calc_viewport = async (
     );
 
     // gene bar graph update
-    const filtered_transcripts = viz_state.combo_data.trx.filter(
-      (pos) =>
-        pos.x >= viz_state.bounds.min_x &&
-        pos.x <= viz_state.bounds.max_x &&
-        pos.y >= viz_state.bounds.min_y &&
-        pos.y <= viz_state.bounds.max_y
-    );
+    const filtered_transcripts = viz_state.combo_data.trx.filter((pos) => {
+      if (!viz_state.rotation?.hasRotation) {
+        return (
+          pos.x >= viz_state.bounds.min_x &&
+          pos.x <= viz_state.bounds.max_x &&
+          pos.y >= viz_state.bounds.min_y &&
+          pos.y <= viz_state.bounds.max_y
+        );
+      }
+
+      const [rotX, rotY] = rotate_point(pos.x, pos.y, viz_state.rotation);
+
+      return (
+        rotX >= viz_state.bounds.min_x &&
+        rotX <= viz_state.bounds.max_x &&
+        rotY >= viz_state.bounds.min_y &&
+        rotY <= viz_state.bounds.max_y
+      );
+    });
 
     const filtered_gene_names = filtered_transcripts.map(
       (transcript) => transcript.name
@@ -88,13 +124,25 @@ export const calc_viewport = async (
     viz_state.obs_store.new_gene_bar_data.set(new_bar_data);
 
     // cell bar graph update
-    const filtered_cells = viz_state.combo_data.cell.filter(
-      (pos) =>
-        pos.x >= viz_state.bounds.min_x &&
-        pos.x <= viz_state.bounds.max_x &&
-        pos.y >= viz_state.bounds.min_y &&
-        pos.y <= viz_state.bounds.max_y
-    );
+    const filtered_cells = viz_state.combo_data.cell.filter((pos) => {
+      if (!viz_state.rotation?.hasRotation) {
+        return (
+          pos.x >= viz_state.bounds.min_x &&
+          pos.x <= viz_state.bounds.max_x &&
+          pos.y >= viz_state.bounds.min_y &&
+          pos.y <= viz_state.bounds.max_y
+        );
+      }
+
+      const [rotX, rotY] = rotate_point(pos.x, pos.y, viz_state.rotation);
+
+      return (
+        rotX >= viz_state.bounds.min_x &&
+        rotX <= viz_state.bounds.max_x &&
+        rotY >= viz_state.bounds.min_y &&
+        rotY <= viz_state.bounds.max_y
+      );
+    });
 
     const filtered_cell_names = filtered_cells.map((cell) => cell.cat);
 

@@ -319,7 +319,8 @@ class Yearbook(Landscape):
         selection_attr = kwargs.pop("selection_attr", "")
         selection_mode = kwargs.pop("selection_mode", "random")
 
-        super().__init__(**kwargs)
+        # super().__init__(**kwargs)
+        Landscape.__init__(self, **kwargs)
 
         self.cells = list(cells)
         self.rows = int(rows)

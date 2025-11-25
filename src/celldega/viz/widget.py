@@ -315,7 +315,7 @@ class Yearbook(anywidget.AnyWidget):
             subset is chosen at random.
         rows: Number of rows in the cellbook grid.
         cols: Number of columns in the cellbook grid.
-        cell_size_um: Approximate size of each viewport in microns.
+        window_size_um: Approximate size of each viewport in microns.
         segmentation: Segmentation version used to fetch cell metadata.
         meta_cell_parquet: Optional parquet-encoded metadata (as produced by
             :class:`anndata.AnnData` ``obs``). If omitted, the widget will rely
@@ -334,7 +334,8 @@ class Yearbook(anywidget.AnyWidget):
     cells = traitlets.List(trait=traitlets.Unicode(), default_value=[]).tag(sync=True)
     rows = traitlets.Int(2).tag(sync=True)
     cols = traitlets.Int(3).tag(sync=True)
-    cell_size_um = traitlets.Float(20.0).tag(sync=True)
+    window_size_um = traitlets.Float(20.0).tag(sync=True)
+    cell_size_um = traitlets.Float(allow_none=True, default_value=None).tag(sync=True)
     displayed_cells = traitlets.List(trait=traitlets.Unicode(), default_value=[]).tag(sync=True)
 
     width = traitlets.Int(0).tag(sync=True)
@@ -349,6 +350,8 @@ class Yearbook(anywidget.AnyWidget):
     meta_cell_parquet = traitlets.Bytes(b"").tag(sync=True)
 
     def __init__(self, **kwargs):
+        if "window_size_um" not in kwargs and "cell_size_um" in kwargs:
+            kwargs["window_size_um"] = kwargs.get("cell_size_um")
         adata = kwargs.pop("adata", None) or kwargs.pop("AnnData", None)
         pq_meta_cell = kwargs.pop("meta_cell_parquet", None)
         cell_attr = kwargs.pop("cell_attr", ["leiden"])

@@ -80,16 +80,72 @@ export const update_trx_layer_data = async (
   base_url,
   tiles_in_view,
   layers_obj,
-  viz_state
+  viz_state,
+  filterFn = null
 ) => {
-  viz_state.genes.trx_data = await grab_trx_tiles_in_view(
+  const trx_scatter_data = await grab_trx_tiles_in_view(
     base_url,
     tiles_in_view,
     viz_state
   );
 
+  const names = viz_state.genes.trx_names_array || [];
+  const combo = viz_state.combo_data.trx || [];
+  const positionAttribute = trx_scatter_data?.attributes?.getPosition;
+  const positions = positionAttribute?.value || new Float32Array();
+  const dim = positionAttribute?.size || 2;
+
+  const keepIndices = names.map((_, idx) => idx).filter((idx) => {
+    if (typeof filterFn !== 'function') return true;
+    const x = positions[idx * dim];
+    const y = positions[idx * dim + 1];
+    return filterFn({
+      name: names[idx],
+      x,
+      y,
+      index: idx,
+    });
+  });
+
+  const filteredPositions = new Float32Array(Math.max(keepIndices.length * dim, 0));
+  const filteredCombo = [];
+  const filteredNames = [];
+
+  keepIndices.forEach((origIdx, i) => {
+    filteredPositions[i * dim] = positions[origIdx * dim];
+    filteredPositions[i * dim + 1] = positions[origIdx * dim + 1];
+    if (dim === 3) {
+      filteredPositions[i * dim + 2] = positions[origIdx * dim + 2];
+    }
+
+    const fallback = {
+      name: names[origIdx] ?? 'unknown',
+      x: positions[origIdx * dim],
+      y: positions[origIdx * dim + 1],
+    };
+
+    filteredCombo.push(combo[origIdx] || fallback);
+    filteredNames.push(names[origIdx] ?? fallback.name);
+  });
+
+  viz_state.genes.trx_names_array = filteredNames;
+  viz_state.combo_data.trx = filteredCombo;
+  const baseScatter = trx_scatter_data && typeof trx_scatter_data === 'object' ? trx_scatter_data : { attributes: {} };
+
+  viz_state.genes.trx_data = {
+    ...baseScatter,
+    length: keepIndices.length,
+    attributes: {
+      ...(baseScatter.attributes || {}),
+      getPosition: {
+        ...(baseScatter.attributes?.getPosition || { size: dim }),
+        value: filteredPositions,
+      },
+    },
+  };
+
   layers_obj.trx_layer = layers_obj.trx_layer.clone({
-    data: viz_state.genes.trx_data,
+    data: viz_state.combo_data.trx,
   });
 
   // update viz_state layers before notifying deck_ready

@@ -52,10 +52,16 @@ const makeViewGrid = (rows, cols, width, height) => {
   return { views, cellWidth, cellHeight };
 };
 
-const computeZoomForCell = (cellSizeUm, viewportWidth) => {
-  const safeCellSize = cellSizeUm > 0 ? cellSizeUm : 20;
+const computeZoomForWindow = (windowSizeUm, viewportWidth) => {
+  const safeWindow = windowSizeUm > 0 ? windowSizeUm : 20;
   const safeViewport = viewportWidth > 0 ? viewportWidth : 200;
-  return Math.log2(safeViewport / safeCellSize);
+  return Math.log2(safeViewport / safeWindow);
+};
+
+const getWindowSize = (model) => {
+  const windowSize = model.get('window_size_um');
+  if (windowSize !== undefined && windowSize !== null) return windowSize;
+  return model.get('cell_size_um') || 20;
 };
 
 const shuffle = (array) => array.sort(() => Math.random() - 0.5);
@@ -135,14 +141,17 @@ export const render_yearbook = async ({ model, el }) => {
     state.cellWidth = cellWidth;
     state.cellHeight = cellHeight;
 
-    const controller = {
-      type: OrthographicController,
-      scrollZoom: true,
-      dragPan: false,
-      dragRotate: false,
-      doubleClickZoom: true,
-      keyboard: false,
-    };
+    const controller = views.reduce((acc, view) => {
+      acc[view.id] = {
+        type: OrthographicController,
+        scrollZoom: true,
+        dragPan: false,
+        dragRotate: false,
+        doubleClickZoom: true,
+        keyboard: false,
+      };
+      return acc;
+    }, {});
 
     const deck = ini_deck(gridRoot, width, height, '', controller);
     set_views_prop(deck, views);
@@ -150,18 +159,15 @@ export const render_yearbook = async ({ model, el }) => {
     deck.setProps({ views });
 
     deck.setProps({
-      onViewStateChange: ({ viewState }) => {
+      onViewStateChange: ({ viewId, viewState }) => {
         if (!viewState || !Number.isFinite(viewState.zoom)) return;
-        const nextZoom = viewState.zoom;
-        if (state.globalZoom !== nextZoom) {
-          state.globalZoom = nextZoom;
-          const syncedViewState = {};
-          Array.from(state.viewTargets.entries()).forEach(([viewId, target]) => {
-            syncedViewState[viewId] = { target, zoom: state.globalZoom };
-          });
-          if (Object.keys(syncedViewState).length > 0) {
-            state.deck.setProps({ viewState: syncedViewState });
-          }
+        state.globalZoom = viewState.zoom;
+        const syncedViewState = {};
+        Array.from(state.viewTargets.entries()).forEach(([targetViewId, target]) => {
+          syncedViewState[targetViewId] = { target, zoom: state.globalZoom };
+        });
+        if (Object.keys(syncedViewState).length > 0) {
+          state.deck.setProps({ viewState: syncedViewState });
         }
       },
     });
@@ -421,6 +427,14 @@ export const render_yearbook = async ({ model, el }) => {
     };
   };
 
+  const getColorAttr = () => {
+    const defaultClusterAttr =
+      state.metaCell.attr.find((a) => a?.toLowerCase?.().includes('cluster')) || 'cluster';
+    const colorAttrName = (model.get('cell_attr') || [])[0] || defaultClusterAttr;
+    const colorAttrIdx = colorAttrName ? state.metaCell.attr.indexOf(colorAttrName) : -1;
+    return { colorAttrName, colorAttrIdx };
+  };
+
   const computeCandidates = (positionMap) => {
     const provided = model.get('cells') || [];
     if (provided.length > 0) {
@@ -430,10 +444,7 @@ export const render_yearbook = async ({ model, el }) => {
   };
 
   const chooseCells = (positionMap, preferredIds = null) => {
-    const defaultClusterAttr =
-      state.metaCell.attr.find((a) => a?.toLowerCase?.().includes('cluster')) || 'cluster';
-    const colorAttrName = (model.get('cell_attr') || [])[0] || defaultClusterAttr;
-    const colorAttrIdx = colorAttrName ? state.metaCell.attr.indexOf(colorAttrName) : -1;
+    const { colorAttrIdx } = getColorAttr();
 
     const toCandidate = (id) => {
       const catValue = colorAttrIdx >= 0 ? state.metaCell.result?.[id]?.[colorAttrIdx] : undefined;
@@ -465,8 +476,10 @@ export const render_yearbook = async ({ model, el }) => {
     const { tile_size } = state.viz_state.img.landscape_parameters;
     const tiles = new Map();
 
+    const windowSizeUm = getWindowSize(model);
+
     selectedCells.forEach((cell) => {
-      const zoom = state.globalZoom ?? computeZoomForCell(model.get('cell_size_um') || 20, state.cellWidth);
+      const zoom = state.globalZoom ?? computeZoomForWindow(windowSizeUm, state.cellWidth);
       const zoomFactor = 2 ** zoom;
       const halfWidth = state.cellWidth / (2 * zoomFactor);
       const halfHeight = state.cellHeight / (2 * zoomFactor);
@@ -481,6 +494,40 @@ export const render_yearbook = async ({ model, el }) => {
     });
 
     return Array.from(tiles.values());
+  };
+
+  const filterTranscriptsForWindows = (selectedCells) => {
+    if (!state.viz_state) return;
+    const windowSizeUm = getWindowSize(model);
+    const halfWindow = Number.isFinite(windowSizeUm) && windowSizeUm > 0 ? windowSizeUm / 2 : 10;
+
+    const bounds = selectedCells.map((cell) => ({
+      minX: cell.x - halfWindow,
+      maxX: cell.x + halfWindow,
+      minY: cell.y - halfWindow,
+      maxY: cell.y + halfWindow,
+    }));
+
+    if (bounds.length === 0) return;
+
+    const names = state.viz_state.genes.trx_names_array || [];
+    const filtered = [];
+    const filteredNames = [];
+
+    state.viz_state.combo_data.trx.forEach((trx, idx) => {
+      const matches = bounds.some(
+        (b) => trx && trx.x >= b.minX && trx.x <= b.maxX && trx.y >= b.minY && trx.y <= b.maxY
+      );
+
+      if (matches) {
+        filtered.push(trx);
+        filteredNames.push(names[idx] ?? trx.name ?? 'unknown');
+      }
+    });
+
+    state.viz_state.combo_data.trx = filtered;
+    state.viz_state.genes.trx_names_array = filteredNames;
+    state.overlays.trx_layer = state.overlays.trx_layer.clone({ data: filtered });
   };
 
   const ensureGeneColors = () => {
@@ -538,10 +585,24 @@ export const render_yearbook = async ({ model, el }) => {
     const tiles = getTilesForCells(selectedCells);
     if (tiles.length === 0) return;
 
+    const windowSizeUm = getWindowSize(model);
+    const halfWindow = Number.isFinite(windowSizeUm) && windowSizeUm > 0 ? windowSizeUm / 2 : 10;
+
     await Promise.all([
       update_path_layer_data(base_url, tiles, state.overlays, state.viz_state),
-      update_trx_layer_data(base_url, tiles, state.overlays, state.viz_state),
+      update_trx_layer_data(base_url, tiles, state.overlays, state.viz_state, (trx) => {
+        return selectedCells.some(
+          (cell) =>
+            trx &&
+            trx.x >= cell.x - halfWindow &&
+            trx.x <= cell.x + halfWindow &&
+            trx.y >= cell.y - halfWindow &&
+            trx.y <= cell.y + halfWindow
+        );
+      }),
     ]);
+
+    filterTranscriptsForWindows(selectedCells);
 
     const transcriptGenes = Array.from(new Set(state.viz_state.genes.trx_names_array || []))
       .filter((g) => g !== undefined && g !== null)
@@ -650,26 +711,36 @@ export const render_yearbook = async ({ model, el }) => {
   };
 
   const renderCells = async (selectionIds = null) => {
-    const cellSizeUm = model.get('cell_size_um') || 20;
+    const cellSizeUm = getWindowSize(model);
     const deck = state.deck;
     if (!deck) return;
 
     const selectedCells = chooseCells(state.cellPositions, selectionIds);
+    const selectedIds = new Set(selectedCells.map((c) => c.id));
     const viewState = {};
-    const scatterData = [];
     state.viewTargets.clear();
 
     selectedCells.forEach((cell, idx) => {
       const viewId = `cell-${idx}`;
-      const zoomLevel = state.globalZoom ?? computeZoomForCell(cellSizeUm, state.cellWidth);
+      const zoomLevel = state.globalZoom ?? computeZoomForWindow(cellSizeUm, state.cellWidth);
       state.globalZoom = zoomLevel;
       const target = [cell.x, cell.y, cell.z || 0];
       viewState[viewId] = { target, zoom: zoomLevel };
       state.viewTargets.set(viewId, target);
+    });
+
+    const { colorAttrIdx } = getColorAttr();
+    const scatterData = [];
+
+    state.cellPositions.forEach((coords, id) => {
+      const cellMeta = state.metaCell.result?.[id];
+      const clusterValue =
+        colorAttrIdx >= 0 && Array.isArray(cellMeta) ? cellMeta[colorAttrIdx] : cellMeta?.[colorAttrIdx];
       scatterData.push({
-        position: [cell.x, cell.y, cell.z || 0],
-        id: cell.id,
-        cluster: cell.catValue ?? 'unknown',
+        position: [coords.x, coords.y, coords.z || 0],
+        id,
+        cluster: clusterValue ?? 'unknown',
+        selected: selectedIds.has(id),
       });
     });
 
@@ -684,11 +755,12 @@ export const render_yearbook = async ({ model, el }) => {
           state.viz_state.cats.color_dict_cluster?.[instCluster] || hashColor(`${instCluster}`);
         const safeColor =
           Array.isArray(instColor) && instColor.length === 3 ? instColor : hashColor(`${instCluster}`);
-        return [...safeColor, 220];
+        const alpha = d.selected ? 220 : 90;
+        return [...safeColor, alpha];
       },
-      getRadius: Math.max(cellSizeUm / 16, 1),
-      radiusMinPixels: 1,
-      radiusMaxPixels: 4,
+      getRadius: (d) => (d.selected ? Math.max(cellSizeUm / 12, 1.5) : Math.max(cellSizeUm / 60, 0.5)),
+      radiusMinPixels: 0.4,
+      radiusMaxPixels: 6,
     });
 
     await refreshOverlays(selectedCells);
@@ -697,14 +769,17 @@ export const render_yearbook = async ({ model, el }) => {
       state.backgroundLayer.clone({
         id: `background-layer-${idx}`,
         viewId: `cell-${idx}`,
+        viewportId: `cell-${idx}`,
       })
     );
 
     const imageLayers = selectedCells.flatMap((cell, idx) =>
-      state.imageLayerTemplates.map((layer) =>
+      state.imageLayerTemplates.map((layer, layerIdx) =>
         layer.clone({
-          id: `${layer.id}-${idx}`,
+          id: `${layer.id}-portrait-${idx}-${layerIdx}`,
           viewId: `cell-${idx}`,
+          viewportIds: [`cell-${idx}`],
+          image_layers: layerIdx,
         })
       )
     );
@@ -741,7 +816,7 @@ export const render_yearbook = async ({ model, el }) => {
     if (!state.mounted) return;
     await Promise.all([loadCellPositions(), loadMetaCell()]);
     if (preserveSelection) {
-      state.globalZoom = computeZoomForCell(model.get('cell_size_um') || 20, state.cellWidth);
+      state.globalZoom = computeZoomForWindow(getWindowSize(model), state.cellWidth);
     } else {
       state.globalZoom = null;
     }
@@ -774,6 +849,7 @@ export const render_yearbook = async ({ model, el }) => {
     await setupImagery();
     await updateYearbook();
   });
+  addListener('change:window_size_um', () => updateYearbook({ preserveSelection: true }));
   addListener('change:cell_size_um', () => updateYearbook({ preserveSelection: true }));
 
   return () => {

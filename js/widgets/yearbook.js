@@ -1,4 +1,4 @@
-import { OrthographicView, ScatterplotLayer } from 'deck.gl';
+import { OrthographicController, OrthographicView, ScatterplotLayer } from 'deck.gl';
 import * as d3 from 'd3';
 import { AwsClient } from 'aws4fetch';
 
@@ -26,6 +26,7 @@ import {
   toggle_trx_layer_visibility,
   update_trx_layer_data,
 } from '../deck-gl/layers/trx_layer';
+import { ini_background_layer } from '../deck-gl/layers/background_layer';
 import { update_selected_genes } from '../global_variables/selected_genes';
 import { make_bar_container, make_bar_graph } from '../ui/bar_plot';
 
@@ -81,6 +82,8 @@ export const render_yearbook = async ({ model, el }) => {
     aws: null,
     deck: null,
     imageLayerTemplates: [],
+    imageLayerIds: new Set(),
+    backgroundLayer: null,
     overlays: { path_layer: null, trx_layer: null },
     obs_store: create_obs_store(),
     cellPositions: new Map(),
@@ -94,6 +97,8 @@ export const render_yearbook = async ({ model, el }) => {
     showTranscripts: true,
     barGraphs: null,
     geneSearch: null,
+    globalZoom: null,
+    viewTargets: new Map(),
   };
 
   set_options(token);
@@ -130,16 +135,36 @@ export const render_yearbook = async ({ model, el }) => {
     state.cellWidth = cellWidth;
     state.cellHeight = cellHeight;
 
-    const deck = ini_deck(gridRoot, width, height, '', {
-      scrollZoom: false,
+    const controller = {
+      type: OrthographicController,
+      scrollZoom: true,
       dragPan: false,
       dragRotate: false,
-      doubleClickZoom: false,
+      doubleClickZoom: true,
       keyboard: false,
-    });
+    };
+
+    const deck = ini_deck(gridRoot, width, height, '', controller);
     set_views_prop(deck, views);
     state.deck = deck;
     deck.setProps({ views });
+
+    deck.setProps({
+      onViewStateChange: ({ viewState }) => {
+        if (!viewState || !Number.isFinite(viewState.zoom)) return;
+        const nextZoom = viewState.zoom;
+        if (state.globalZoom !== nextZoom) {
+          state.globalZoom = nextZoom;
+          const syncedViewState = {};
+          Array.from(state.viewTargets.entries()).forEach(([viewId, target]) => {
+            syncedViewState[viewId] = { target, zoom: state.globalZoom };
+          });
+          if (Object.keys(syncedViewState).length > 0) {
+            state.deck.setProps({ viewState: syncedViewState });
+          }
+        }
+      },
+    });
   };
 
   const setupImagery = async () => {
@@ -205,6 +230,7 @@ export const render_yearbook = async ({ model, el }) => {
         refinementStrategy: 'best-available',
       })
     );
+    state.imageLayerIds = new Set(state.imageLayerTemplates.map((layer) => layer.id));
     viz_state.cache = { cell: new Map(), trx: new Map() };
     viz_state.combo_data = { trx: [], cell: [] };
     viz_state.max_tiles_to_view = maxTilesToView;
@@ -212,6 +238,7 @@ export const render_yearbook = async ({ model, el }) => {
     viz_state.global_base_url = base_url;
 
     state.viz_state = viz_state;
+    state.backgroundLayer = ini_background_layer(viz_state);
     state.overlays = {
       path_layer: ini_path_layer(viz_state),
       trx_layer: ini_trx_layer(viz_state.genes),
@@ -256,13 +283,69 @@ export const render_yearbook = async ({ model, el }) => {
   const buildControls = () => {
     controls.innerHTML = '';
 
-    const headerRow = document.createElement('div');
-    headerRow.className = 'celldega-yearbook-header-row';
-    const title = document.createElement('span');
-    title.textContent = 'Landscape controls';
-    title.className = 'celldega-yearbook-title';
-    headerRow.appendChild(title);
-    controls.appendChild(headerRow);
+    const buttonRow = document.createElement('div');
+    buttonRow.className = 'celldega-yearbook-mode-buttons';
+
+    const makeModeButton = (label, active, onClick) => {
+      const btn = document.createElement('button');
+      btn.textContent = label;
+      btn.className = 'celldega-yearbook-button';
+      btn.style.color = active ? '#3366cc' : 'gray';
+      btn.onclick = () => {
+        onClick(!active);
+        btn.style.color = active ? 'gray' : '#3366cc';
+        active = !active;
+      };
+      return btn;
+    };
+
+    const applyLayerVisibility = () => {
+      if (!state.deck) return;
+      const nextLayers = (state.deck.props.layers || []).map((layer) => {
+        if (state.overlays.path_layer && layer.id === state.overlays.path_layer.id) {
+          return state.overlays.path_layer;
+        }
+        if (state.overlays.trx_layer && layer.id === state.overlays.trx_layer.id) {
+          return state.overlays.trx_layer;
+        }
+        return layer;
+      });
+      state.deck.setProps({ layers: nextLayers });
+    };
+
+    const imgButton = makeModeButton('IMG', true, (visible) => {
+      const layers = (state.deck?.props?.layers || []).map((layer) => {
+        if (
+          layer.id?.startsWith('background-layer-') ||
+          (layer.id && state.imageLayerIds.has(layer.id.replace(/-\d+$/, '')))
+        ) {
+          return layer.clone({ visible });
+        }
+        return layer;
+      });
+      state.deck?.setProps({ layers });
+    });
+
+    const cellButton = makeModeButton('CELL', state.showSegments, (visible) => {
+      state.showSegments = visible;
+      if (state.overlays.path_layer) {
+        toggle_path_layer_visibility(state.overlays, visible);
+      }
+      applyLayerVisibility();
+    });
+
+    const trxButton = makeModeButton('TRX', state.showTranscripts, (visible) => {
+      state.showTranscripts = visible;
+      if (state.overlays.trx_layer) {
+        toggle_trx_layer_visibility(state.overlays, visible);
+      }
+      applyLayerVisibility();
+    });
+
+    buttonRow.appendChild(imgButton);
+    buttonRow.appendChild(cellButton);
+    buttonRow.appendChild(trxButton);
+    controls.appendChild(buttonRow);
 
     const searchRow = document.createElement('div');
     searchRow.className = 'celldega-yearbook-search-row';
@@ -293,6 +376,23 @@ export const render_yearbook = async ({ model, el }) => {
     };
     searchRow.appendChild(searchInput);
     searchRow.appendChild(dataList);
+
+    const trxSlider = document.createElement('input');
+    trxSlider.type = 'range';
+    trxSlider.min = '0.2';
+    trxSlider.max = '3';
+    trxSlider.step = '0.1';
+    trxSlider.value = '0.6';
+    trxSlider.className = 'celldega-yearbook-range';
+    trxSlider.addEventListener('input', (event) => {
+      const value = parseFloat(event.target.value);
+      state.overlays.trx_layer = state.overlays.trx_layer.clone({
+        radiusMinPixels: value,
+        radiusMaxPixels: value * 3,
+      });
+      applyLayerVisibility();
+    });
+    searchRow.appendChild(trxSlider);
     controls.appendChild(searchRow);
 
     state.geneSearch = { input: searchInput, dataList };
@@ -302,59 +402,6 @@ export const render_yearbook = async ({ model, el }) => {
       option.value = `${gene}`;
       dataList.appendChild(option);
     });
-
-    const toggles = document.createElement('div');
-    toggles.className = 'celldega-yearbook-toggle-row';
-
-    const applyLayerVisibility = () => {
-      if (!state.deck) return;
-      const nextLayers = (state.deck.props.layers || []).map((layer) => {
-        if (state.overlays.path_layer && layer.id === state.overlays.path_layer.id) {
-          return state.overlays.path_layer;
-        }
-        if (state.overlays.trx_layer && layer.id === state.overlays.trx_layer.id) {
-          return state.overlays.trx_layer;
-        }
-        return layer;
-      });
-      state.deck.setProps({ layers: nextLayers });
-    };
-
-    const makeToggle = (label, initial, onChange) => {
-      const wrapper = document.createElement('label');
-      wrapper.className = 'celldega-yearbook-toggle';
-      const input = document.createElement('input');
-      input.type = 'checkbox';
-      input.checked = initial;
-      input.onchange = () => onChange(input.checked);
-      const span = document.createElement('span');
-      span.textContent = label;
-      wrapper.appendChild(input);
-      wrapper.appendChild(span);
-      return wrapper;
-    };
-
-    toggles.appendChild(
-      makeToggle('Segmentation', state.showSegments, (checked) => {
-        state.showSegments = checked;
-        if (state.overlays.path_layer) {
-          toggle_path_layer_visibility(state.overlays, checked);
-        }
-        applyLayerVisibility();
-      })
-    );
-
-    toggles.appendChild(
-      makeToggle('Transcripts', state.showTranscripts, (checked) => {
-        state.showTranscripts = checked;
-        if (state.overlays.trx_layer) {
-          toggle_trx_layer_visibility(state.overlays, checked);
-        }
-        applyLayerVisibility();
-      })
-    );
-
-    controls.appendChild(toggles);
 
     const barRow = document.createElement('div');
     barRow.className = 'celldega-yearbook-bars';
@@ -419,7 +466,7 @@ export const render_yearbook = async ({ model, el }) => {
     const tiles = new Map();
 
     selectedCells.forEach((cell) => {
-      const zoom = computeZoomForCell(model.get('cell_size_um') || 20, state.cellWidth);
+      const zoom = state.globalZoom ?? computeZoomForCell(model.get('cell_size_um') || 20, state.cellWidth);
       const zoomFactor = 2 ** zoom;
       const halfWidth = state.cellWidth / (2 * zoomFactor);
       const halfHeight = state.cellHeight / (2 * zoomFactor);
@@ -610,13 +657,15 @@ export const render_yearbook = async ({ model, el }) => {
     const selectedCells = chooseCells(state.cellPositions, selectionIds);
     const viewState = {};
     const scatterData = [];
+    state.viewTargets.clear();
 
     selectedCells.forEach((cell, idx) => {
       const viewId = `cell-${idx}`;
-      viewState[viewId] = {
-        target: [cell.x, cell.y, cell.z || 0],
-        zoom: computeZoomForCell(cellSizeUm, state.cellWidth),
-      };
+      const zoomLevel = state.globalZoom ?? computeZoomForCell(cellSizeUm, state.cellWidth);
+      state.globalZoom = zoomLevel;
+      const target = [cell.x, cell.y, cell.z || 0];
+      viewState[viewId] = { target, zoom: zoomLevel };
+      state.viewTargets.set(viewId, target);
       scatterData.push({
         position: [cell.x, cell.y, cell.z || 0],
         id: cell.id,
@@ -644,6 +693,13 @@ export const render_yearbook = async ({ model, el }) => {
 
     await refreshOverlays(selectedCells);
 
+    const backgroundLayers = selectedCells.map((_, idx) =>
+      state.backgroundLayer.clone({
+        id: `background-layer-${idx}`,
+        viewId: `cell-${idx}`,
+      })
+    );
+
     const imageLayers = selectedCells.flatMap((cell, idx) =>
       state.imageLayerTemplates.map((layer) =>
         layer.clone({
@@ -654,6 +710,7 @@ export const render_yearbook = async ({ model, el }) => {
     );
 
     const layerStack = [
+      ...backgroundLayers,
       ...imageLayers,
       ...(state.showSegments && state.overlays.path_layer ? [state.overlays.path_layer] : []),
       ...(state.showTranscripts && state.overlays.trx_layer ? [state.overlays.trx_layer] : []),
@@ -666,10 +723,10 @@ export const render_yearbook = async ({ model, el }) => {
       getTooltip: (info) => {
         if (info?.layer?.id === 'trx-layer') {
           const gene = info?.object?.name || state.viz_state.genes.trx_names_array[info.index];
-          return { text: `${gene || 'unknown'}` };
+          return { text: `${gene || 'unknown'}`, position: info.coordinate, offset: [0, 0] };
         }
         if (info?.layer?.id === 'yearbook-centers') {
-          return { text: `${info?.object?.id || ''}` };
+          return { text: `${info?.object?.id || ''}`, position: info.coordinate, offset: [0, 0] };
         }
         return null;
       },
@@ -683,6 +740,11 @@ export const render_yearbook = async ({ model, el }) => {
   const updateYearbook = async ({ preserveSelection = false } = {}) => {
     if (!state.mounted) return;
     await Promise.all([loadCellPositions(), loadMetaCell()]);
+    if (preserveSelection) {
+      state.globalZoom = computeZoomForCell(model.get('cell_size_um') || 20, state.cellWidth);
+    } else {
+      state.globalZoom = null;
+    }
     const retained = preserveSelection ? model.get('displayed_cells') || [] : null;
     await renderCells(retained);
   };

@@ -90,7 +90,7 @@ export const set_initial_view_state = (
     initialViewState: initial_view_state,
   });
 
-  if (viz_state.scale_bar?.update) {
-    viz_state.scale_bar.update(initial_view_state);
+  if (viz_state.scale_bar) {
+    viz_state.obs_store.scale_bar_view_state.set(initial_view_state);
   }
 };

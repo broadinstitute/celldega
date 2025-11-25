@@ -74,8 +74,6 @@ import { update_ist_landscape_from_cgm } from '../widget_interactions/update_ist
 const PIXEL_SIZE_MICRONS = {
   Xenium: 0.2125,
   MERSCOPE: 0.108,
-  'point-cloud': 1,
-  'Visium-HD': 0.14,
 };
 
 const create_scale_bar = (micronsPerPixel, tech) => {
@@ -204,7 +202,8 @@ export const landscape_ist = async (
   rotation_orbit = 0,
   rotation_x = 0,
   rotate = 0,
-  max_tiles_to_view = 50
+  max_tiles_to_view = 50,
+  scale_bar_microns_per_pixel = null
 ) => {
   if (width === 0) {
     width = '100%';
@@ -453,10 +452,30 @@ export const landscape_ist = async (
   root.style.height = `${height}px`;
   root.style.border = '1px solid #d3d3d3';
 
-  const micronsPerPixel = PIXEL_SIZE_MICRONS[tech];
+  const userMicronsPerPixel =
+    typeof scale_bar_microns_per_pixel === 'number' &&
+    !Number.isNaN(scale_bar_microns_per_pixel) &&
+    scale_bar_microns_per_pixel > 0
+      ? scale_bar_microns_per_pixel
+      : null;
+
+  const defaultMicronsPerPixel = PIXEL_SIZE_MICRONS[tech];
+  const micronsPerPixel = defaultMicronsPerPixel ?? userMicronsPerPixel;
+
   if (micronsPerPixel) {
     viz_state.scale_bar = create_scale_bar(micronsPerPixel, tech);
     root.appendChild(viz_state.scale_bar.container);
+  }
+
+  if (viz_state.scale_bar) {
+    viz_state.obs_store.scale_bar_view_state.subscribe(
+      (viewState) => {
+        if (viewState && viz_state.scale_bar?.update) {
+          viz_state.scale_bar.update(viewState);
+        }
+      },
+      { immediate: false }
+    );
   }
 
   if (tech === 'Chromium' || tech === 'point-cloud') {

@@ -284,19 +284,14 @@ export const render_yearbook = async ({ model, el }) => {
     // yearbook will fill this before rendering to control which tiles load
     viz_state.yearbook_tiles = [];
 
-    state.imageLayerTemplates = layers.map((layer) => {
-      const base_get_tile_data = layer.props.getTileData;
-      const wrapped_get_tile_data =
-        typeof base_get_tile_data === 'function'
-          ? create_yearbook_get_tile_data(viz_state, base_get_tile_data)
-          : base_get_tile_data;
-
-      return layer.clone({
+    // After: just like Landscape, but with a slightly larger cache for multiple portraits
+    state.imageLayerTemplates = layers.map((layer) =>
+      layer.clone({
         maxCacheSize: Math.max(state.capacity * 2, 12),
         refinementStrategy: 'best-available',
-        getTileData: wrapped_get_tile_data,
-      });
-    });
+        // keep the original getTileData unchanged
+      })
+    );
 
     state.imageLayerIds = new Set(state.imageLayerTemplates.map((layer) => layer.id));
     viz_state.cache = { cell: new Map(), trx: new Map() };

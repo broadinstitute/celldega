@@ -62,6 +62,7 @@ class Landscape(anywidget.AnyWidget):
             point-cloud views.
         token (str): The token traitlet.
         base_url (str): The base URL for the widget.
+        rotate (float, optional): Degrees to rotate the 2D landscape visualization.
         AnnData (AnnData, optional): AnnData object to derive metadata from.
         dataset_name (str, optional): The name of the dataset to visualize. This
             will show up in the user interface bar.
@@ -86,9 +87,13 @@ class Landscape(anywidget.AnyWidget):
     ini_zoom = traitlets.Float(0).tag(sync=True)
     rotation_orbit = traitlets.Float(0).tag(sync=True)
     rotation_x = traitlets.Float(0).tag(sync=True)
+    rotate = traitlets.Float(0).tag(sync=True)
     square_tile_size = traitlets.Float(1.4).tag(sync=True)
     dataset_name = traitlets.Unicode("").tag(sync=True)
     region = traitlets.Dict({}).tag(sync=True)
+    scale_bar_microns_per_pixel = traitlets.Float(default_value=None, allow_none=True).tag(
+        sync=True
+    )
 
     nbhd = traitlets.Instance(gpd.GeoDataFrame, allow_none=True)
     nbhd_geojson = traitlets.Dict({}).tag(sync=True)

@@ -3,6 +3,7 @@ import { ScatterplotLayer } from 'deck.gl';
 import { update_cat, update_selected_cats } from '../../global_variables/cat';
 import { update_cell_exp_array } from '../../global_variables/cell_exp_array';
 import { update_selected_genes } from '../../global_variables/selected_genes';
+import { getModelMatrixProps } from '../../utils/rotation';
 import { grab_trx_tiles_in_view } from '../../vector_tile/transcripts/grab_trx_tiles_in_view';
 
 const trx_layer_callback = async (
@@ -46,7 +47,9 @@ const trx_layer_callback = async (
   );
 };
 
-export const ini_trx_layer = (genes) => {
+export const ini_trx_layer = (viz_state) => {
+  const { genes } = viz_state;
+
   const trx_layer = new ScatterplotLayer({
     id: 'trx-layer',
     data: genes.trx_data,
@@ -64,6 +67,7 @@ export const ini_trx_layer = (genes) => {
 
       return [...safeColor, inst_opacity];
     },
+    ...getModelMatrixProps(viz_state.rotation),
   });
 
   return trx_layer;

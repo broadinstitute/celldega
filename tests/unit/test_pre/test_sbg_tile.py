@@ -1,12 +1,13 @@
 import importlib.util
+from pathlib import Path
 import sys
 import types
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import pytest
 from scipy.sparse import csr_matrix
+
 
 ROOT_DIR = Path(__file__).resolve().parents[3]
 PRE_ROOT = ROOT_DIR / "src" / "celldega" / "pre"

@@ -82,9 +82,18 @@ const hashColor = (name) => {
 
 // Restrict TileLayer.getTileData so Yearbook only loads a known tile list
 const create_yearbook_get_tile_data = (viz_state, base_get_tile_data) => {
-  return async ({ x, y, z }) => {
+  return async (params) => {
+    // params is whatever TileLayer passes: { index, signal, layer, tile }
+    const { index } = params || {};
+    if (!index) {
+      // Defensive: if something is weird, just delegate
+      return base_get_tile_data(params);
+    }
+
+    const { x, y, z } = index;
     const tiles = viz_state.yearbook_tiles || [];
     const zz = z ?? 0;
+
     const has_tile = tiles.some((t) => {
       const tz = t.z ?? 0;
       const tx = t.tileX ?? t.x;
@@ -92,18 +101,25 @@ const create_yearbook_get_tile_data = (viz_state, base_get_tile_data) => {
 
       if (tz === zz && tx === x && ty === y) return true;
 
-      // Allow zoom-level variations by normalizing back to the base tile grid
+      // Optional: zoom normalization if you ever mix zoom levels
       const scale = 2 ** (zz - tz);
-      return Number.isFinite(scale) && Math.round(tx * scale) === x && Math.round(ty * scale) === y;
+      return (
+        Number.isFinite(scale) &&
+        Math.round(tx * scale) === x &&
+        Math.round(ty * scale) === y
+      );
     });
 
-    // non-contiguous magic: if we don't know this tile, skip it
+    console.log('getTileData index', index, 'allowed?', has_tile);
+
+    // Non-contiguous magic: if we don't know this tile, skip it
     if (!has_tile) return null;
 
-    // delegate actual loading to the original getTileData
-    return base_get_tile_data({ x, y, z });
+    // Delegate actual loading to the original getTileData
+    return base_get_tile_data(params);
   };
 };
+
 
 export const render_yearbook = async ({ model, el }) => {
   const base_url = model.get('base_url');
@@ -637,6 +653,7 @@ export const render_yearbook = async ({ model, el }) => {
 
     // tell TileLayers exactly which tiles they are allowed to load
     state.viz_state.yearbook_tiles = tiles;
+    console.log('yearbook_tiles', tiles);
 
     const windowSizeUm = getWindowSize(model);
     const halfWindow = Number.isFinite(windowSizeUm) && windowSizeUm > 0 ? windowSizeUm / 2 : 10;

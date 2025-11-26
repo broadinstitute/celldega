@@ -86,6 +86,12 @@ export const create_get_tile_data = (
  */
 export const create_render_tile_sublayers =
   (dimensions, color, opacity) => (props) => {
+    const { data } = props;
+    if (!data) {
+      // No image for this tile (Yearbook manifest says it's empty)
+      return null;
+    }
+
     const {
       bbox: { left, bottom, right, top },
     } = props.tile;
@@ -94,7 +100,7 @@ export const create_render_tile_sublayers =
 
     return new CustomBitmapLayer(props, {
       data: null,
-      image: props.data,
+      image: data,
       bounds: [
         mathGl.clamp(left, 0, width),
         mathGl.clamp(bottom, 0, height),
@@ -105,6 +111,7 @@ export const create_render_tile_sublayers =
       opacityScale: opacity,
     });
   };
+
 
 /**
  * Creates a simple render function for tile sublayers without custom styling

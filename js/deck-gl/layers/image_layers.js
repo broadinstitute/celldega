@@ -1,6 +1,7 @@
 import { TileLayer } from 'deck.gl';
 
 import { options } from '../../global_variables/fetch_options';
+import { getModelMatrixProps } from '../../utils/rotation';
 import {
   create_get_tile_data,
   create_render_tile_sublayers,
@@ -34,6 +35,7 @@ const make_image_layer = (viz_state, info) => {
       info.color,
       opacity
     ),
+    ...getModelMatrixProps(viz_state.rotation),
   });
   return image_layer;
 };

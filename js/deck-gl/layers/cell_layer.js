@@ -17,6 +17,7 @@ import { update_selected_genes } from '../../global_variables/selected_genes';
 import { get_arrow_table } from '../../read_parquet/get_arrow_table';
 import { get_scatter_data } from '../../read_parquet/get_scatter_data';
 import { scale_umap_data } from '../../umap/scale_umap_data';
+import { getModelMatrixProps } from '../../utils/rotation';
 
 const cell_layer_onclick = async (info, d, deck_ist, layers_obj, viz_state) => {
   // Check if the device is a touch device
@@ -326,6 +327,7 @@ export const ini_cell_layer = async (base_url, viz_state) => {
         getFillColor: [viz_state.selection_token],
       },
       opacity: 1,
+      ...getModelMatrixProps(viz_state.rotation),
     });
   } else {
     cell_layer = new ScatterplotLayer({
@@ -343,6 +345,7 @@ export const ini_cell_layer = async (base_url, viz_state) => {
         getPosition: [viz_state.obs_store.umap_state.get()],
         getFillColor: [viz_state.selection_token],
       },
+      ...getModelMatrixProps(viz_state.rotation),
     });
   }
 

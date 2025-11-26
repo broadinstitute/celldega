@@ -1,34 +1,34 @@
-import { OrthographicController, OrthographicView, ScatterplotLayer } from 'deck.gl';
-import * as d3 from 'd3';
 import { AwsClient } from 'aws4fetch';
+import * as d3 from 'd3';
+import { OrthographicController, OrthographicView, ScatterplotLayer } from 'deck.gl';
 
 import { ini_deck, set_views_prop } from '../deck-gl/core/deck_ist';
+import { ini_background_layer } from '../deck-gl/layers/background_layer';
 import { make_image_layers } from '../deck-gl/layers/image_layers';
-import { set_landscape_parameters } from '../global_variables/landscape_parameters';
-import { set_dimensions } from '../global_variables/image_dimensions';
-import { set_global_base_url } from '../global_variables/global_base_url';
-import {
-  set_image_format,
-  set_image_info,
-  set_image_layer_colors,
-} from '../global_variables/image_info';
-import { options, set_options } from '../global_variables/fetch_options';
-import { create_obs_store } from '../obs_store/obs_store';
-import { get_arrow_table } from '../read_parquet/get_arrow_table';
-import { get_scatter_data } from '../read_parquet/get_scatter_data';
-import { objects_from_parquet } from '../read_parquet/objects_from_parquet';
-import { set_meta_gene } from '../global_variables/meta_gene';
-import { set_cluster_metadata } from '../global_variables/meta_cluster';
-import { visibleTiles } from '../vector_tile/visibleTiles';
 import { ini_path_layer, toggle_path_layer_visibility, update_path_layer_data } from '../deck-gl/layers/path_layer';
 import {
   ini_trx_layer,
   toggle_trx_layer_visibility,
   update_trx_layer_data,
 } from '../deck-gl/layers/trx_layer';
-import { ini_background_layer } from '../deck-gl/layers/background_layer';
+import { options, set_options } from '../global_variables/fetch_options';
+import { set_global_base_url } from '../global_variables/global_base_url';
+import { set_dimensions } from '../global_variables/image_dimensions';
+import {
+  set_image_format,
+  set_image_info,
+  set_image_layer_colors,
+} from '../global_variables/image_info';
+import { set_landscape_parameters } from '../global_variables/landscape_parameters';
+import { set_cluster_metadata } from '../global_variables/meta_cluster';
+import { set_meta_gene } from '../global_variables/meta_gene';
 import { update_selected_genes } from '../global_variables/selected_genes';
+import { create_obs_store } from '../obs_store/obs_store';
+import { get_arrow_table } from '../read_parquet/get_arrow_table';
+import { get_scatter_data } from '../read_parquet/get_scatter_data';
+import { objects_from_parquet } from '../read_parquet/objects_from_parquet';
 import { make_bar_container, make_bar_graph } from '../ui/bar_plot';
+import { visibleTiles } from '../vector_tile/visibleTiles';
 
 const makeViewGrid = (rows, cols, width, height) => {
   const views = [];
@@ -765,7 +765,7 @@ export const render_yearbook = async ({ model, el }) => {
 
   const renderCells = async (selectionIds = null) => {
     const cellSizeUm = getWindowSize(model);
-    const deck = state.deck;
+    const {deck} = state;
     if (!deck) return;
 
     const selectedCells = chooseCells(state.cellPositions, selectionIds);

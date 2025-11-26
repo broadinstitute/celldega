@@ -60,7 +60,6 @@ export const calc_viewport = async (
   );
 
   if (tiles_in_view.length <= viz_state.max_tiles_to_view) {
-    // const limited_tiles = tiles_in_view.slice(0, viz_state.max_tiles_to_view);
     viz_state.obs_store.deck_check.set({
       ...viz_state.obs_store.deck_check.get(),
       trx_data: false,

@@ -60,7 +60,7 @@ export const calc_viewport = async (
   );
 
   if (tiles_in_view.length <= viz_state.max_tiles_to_view) {
-    const limited_tiles = tiles_in_view.slice(0, viz_state.max_tiles_to_view);
+    // const limited_tiles = tiles_in_view.slice(0, viz_state.max_tiles_to_view);
     viz_state.obs_store.deck_check.set({
       ...viz_state.obs_store.deck_check.get(),
       trx_data: false,
@@ -69,16 +69,18 @@ export const calc_viewport = async (
 
     viz_state.close_up = true;
 
+    console.log('tile_in_view length', tiles_in_view.length);
+
     await update_trx_layer_data(
       viz_state.global_base_url,
-      limited_tiles,
+      tiles_in_view,
       layers_obj,
       viz_state
     );
 
     await update_path_layer_data(
       viz_state.global_base_url,
-      limited_tiles,
+      tiles_in_view,
       layers_obj,
       viz_state
     );

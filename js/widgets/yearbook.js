@@ -85,13 +85,16 @@ const create_yearbook_get_tile_data = (viz_state, base_get_tile_data) => {
   return async ({ x, y, z }) => {
     const tiles = viz_state.yearbook_tiles || [];
     const zz = z ?? 0;
-    const key = `${zz}/${x}/${y}`;
-
     const has_tile = tiles.some((t) => {
       const tz = t.z ?? 0;
       const tx = t.tileX ?? t.x;
       const ty = t.tileY ?? t.y;
-      return `${tz}/${tx}/${ty}` === key;
+
+      if (tz === zz && tx === x && ty === y) return true;
+
+      // Allow zoom-level variations by normalizing back to the base tile grid
+      const scale = 2 ** (zz - tz);
+      return Number.isFinite(scale) && Math.round(tx * scale) === x && Math.round(ty * scale) === y;
     });
 
     // non-contiguous magic: if we don't know this tile, skip it
@@ -185,11 +188,14 @@ export const render_yearbook = async ({ model, el }) => {
 
     deck.setProps({
       onViewStateChange: ({ viewId, viewState }) => {
-        if (!viewState || !Number.isFinite(viewState.zoom)) return;
+        if (!viewId || !viewState || !Number.isFinite(viewState.zoom)) return;
+
+        // lock each portrait to its selected cell and only share zoom changes
+        const lockedTarget = state.viewTargets.get(viewId);
+        if (!lockedTarget) return;
+
         state.globalZoom = viewState.zoom;
-        if (viewId && viewState.target) {
-          state.viewTargets.set(viewId, viewState.target);
-        }
+
         const syncedViewState = {};
         Array.from(state.viewTargets.entries()).forEach(([targetViewId, target]) => {
           syncedViewState[targetViewId] = { target, zoom: state.globalZoom };

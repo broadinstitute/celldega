@@ -69,8 +69,6 @@ export const calc_viewport = async (
 
     viz_state.close_up = true;
 
-    console.log('tile_in_view length', tiles_in_view.length);
-
     await update_trx_layer_data(
       viz_state.global_base_url,
       tiles_in_view,

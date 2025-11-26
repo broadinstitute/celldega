@@ -247,7 +247,7 @@ export const render_yearbook = async ({ model, el }) => {
     state.backgroundLayer = ini_background_layer(viz_state);
     state.overlays = {
       path_layer: ini_path_layer(viz_state),
-      trx_layer: ini_trx_layer(viz_state.genes),
+      trx_layer: ini_trx_layer(viz_state),
     };
   };
 

@@ -349,9 +349,7 @@ class Yearbook(anywidget.AnyWidget):
     max_tiles_to_view = traitlets.Int(50).tag(sync=True)
 
     segmentation = traitlets.Unicode("default").tag(sync=True)
-    cell_attr = traitlets.List(
-        trait=traitlets.Unicode(), default_value=["leiden"]
-    ).tag(sync=True)
+    cell_attr = traitlets.List(trait=traitlets.Unicode(), default_value=["leiden"]).tag(sync=True)
     meta_cell_parquet = traitlets.Bytes(b"").tag(sync=True)
 
     def __init__(self, **kwargs):

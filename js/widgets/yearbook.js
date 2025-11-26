@@ -32,8 +32,11 @@ import { make_bar_container, make_bar_graph } from '../ui/bar_plot';
 
 const makeViewGrid = (rows, cols, width, height) => {
   const views = [];
-  const cellWidth = width / cols;
-  const cellHeight = height / rows;
+  const spacing = 8;
+  const usableWidth = Math.max(width - spacing * (cols + 1), width * 0.9);
+  const usableHeight = Math.max(height - spacing * (rows + 1), height * 0.9);
+  const cellWidth = usableWidth / cols;
+  const cellHeight = usableHeight / rows;
 
   for (let r = 0; r < rows; r += 1) {
     for (let c = 0; c < cols; c += 1) {
@@ -41,8 +44,8 @@ const makeViewGrid = (rows, cols, width, height) => {
       views.push(
         new OrthographicView({
           id,
-          x: c * cellWidth,
-          y: r * cellHeight,
+          x: spacing + c * (cellWidth + spacing),
+          y: spacing + r * (cellHeight + spacing),
           width: cellWidth,
           height: cellHeight,
         })
@@ -75,6 +78,31 @@ const hashColor = (name) => {
   const g = (hash >> 8) & 0xff;
   const b = hash & 0xff;
   return [Math.abs(r), Math.abs(g), Math.abs(b)];
+};
+
+// Restrict TileLayer.getTileData so Yearbook only loads a known tile list
+const create_yearbook_get_tile_data = (viz_state, base_get_tile_data) => {
+  return async ({ x, y, z }) => {
+    const tiles = viz_state.yearbook_tiles || [];
+    const zz = z ?? 0;
+    const has_tile = tiles.some((t) => {
+      const tz = t.z ?? 0;
+      const tx = t.tileX ?? t.x;
+      const ty = t.tileY ?? t.y;
+
+      if (tz === zz && tx === x && ty === y) return true;
+
+      // Allow zoom-level variations by normalizing back to the base tile grid
+      const scale = 2 ** (zz - tz);
+      return Number.isFinite(scale) && Math.round(tx * scale) === x && Math.round(ty * scale) === y;
+    });
+
+    // non-contiguous magic: if we don't know this tile, skip it
+    if (!has_tile) return null;
+
+    // delegate actual loading to the original getTileData
+    return base_get_tile_data({ x, y, z });
+  };
 };
 
 export const render_yearbook = async ({ model, el }) => {
@@ -160,8 +188,14 @@ export const render_yearbook = async ({ model, el }) => {
 
     deck.setProps({
       onViewStateChange: ({ viewId, viewState }) => {
-        if (!viewState || !Number.isFinite(viewState.zoom)) return;
+        if (!viewId || !viewState || !Number.isFinite(viewState.zoom)) return;
+
+        // lock each portrait to its selected cell and only share zoom changes
+        const lockedTarget = state.viewTargets.get(viewId);
+        if (!lockedTarget) return;
+
         state.globalZoom = viewState.zoom;
+
         const syncedViewState = {};
         Array.from(state.viewTargets.entries()).forEach(([targetViewId, target]) => {
           syncedViewState[targetViewId] = { target, zoom: state.globalZoom };
@@ -230,12 +264,24 @@ export const render_yearbook = async ({ model, el }) => {
     await set_cluster_metadata(viz_state);
 
     const layers = await make_image_layers(viz_state);
-    state.imageLayerTemplates = layers.map((layer) =>
-      layer.clone({
+
+    // yearbook will fill this before rendering to control which tiles load
+    viz_state.yearbook_tiles = [];
+
+    state.imageLayerTemplates = layers.map((layer) => {
+      const base_get_tile_data = layer.props.getTileData;
+      const wrapped_get_tile_data =
+        typeof base_get_tile_data === 'function'
+          ? create_yearbook_get_tile_data(viz_state, base_get_tile_data)
+          : base_get_tile_data;
+
+      return layer.clone({
         maxCacheSize: Math.max(state.capacity * 2, 12),
         refinementStrategy: 'best-available',
-      })
-    );
+        getTileData: wrapped_get_tile_data,
+      });
+    });
+
     state.imageLayerIds = new Set(state.imageLayerTemplates.map((layer) => layer.id));
     viz_state.cache = { cell: new Map(), trx: new Map() };
     viz_state.combo_data = { trx: [], cell: [] };
@@ -582,8 +628,15 @@ export const render_yearbook = async ({ model, el }) => {
 
   const refreshOverlays = async (selectedCells) => {
     if (!state.viz_state || selectedCells.length === 0) return;
-    const tiles = getTilesForCells(selectedCells);
+    let tiles = getTilesForCells(selectedCells);
     if (tiles.length === 0) return;
+
+    // respect maxTilesToView to keep things responsive
+    const max_tiles = state.viz_state.max_tiles_to_view || tiles.length;
+    tiles = tiles.slice(0, max_tiles);
+
+    // tell TileLayers exactly which tiles they are allowed to load
+    state.viz_state.yearbook_tiles = tiles;
 
     const windowSizeUm = getWindowSize(model);
     const halfWindow = Number.isFinite(windowSizeUm) && windowSizeUm > 0 ? windowSizeUm / 2 : 10;

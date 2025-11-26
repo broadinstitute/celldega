@@ -1,9 +1,9 @@
 """Widget module for interactive visualization components."""
 
 import colorsys
-import io
 from contextlib import suppress
 from copy import deepcopy
+import io
 import json
 from pathlib import Path
 import urllib.error

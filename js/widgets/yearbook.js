@@ -185,6 +185,7 @@ export const render_yearbook = async ({ model, el }) => {
     state.cellWidth = cellWidth;
     state.cellHeight = cellHeight;
 
+    // ⬅️ back to per-view controller map (this is what ini_deck expects)
     const controller = views.reduce((acc, view) => {
       acc[view.id] = {
         type: OrthographicController,
@@ -200,25 +201,26 @@ export const render_yearbook = async ({ model, el }) => {
     const deck = ini_deck(gridRoot, width, height, '', controller);
     set_views_prop(deck, views);
     state.deck = deck;
-    deck.setProps({ views });
 
     deck.setProps({
+      views,
+      // Only share zoom, keep each portrait locked to its own target
       onViewStateChange: ({ viewId, viewState }) => {
         if (!viewId || !viewState || !Number.isFinite(viewState.zoom)) return;
+        if (!state.viewTargets.size) return;
 
-        // lock each portrait to its selected cell and only share zoom changes
-        const lockedTarget = state.viewTargets.get(viewId);
-        if (!lockedTarget) return;
-
+        // whichever portrait you scroll in becomes the zoom source
         state.globalZoom = viewState.zoom;
 
         const syncedViewState = {};
-        Array.from(state.viewTargets.entries()).forEach(([targetViewId, target]) => {
-          syncedViewState[targetViewId] = { target, zoom: state.globalZoom };
+        state.viewTargets.forEach((target, targetViewId) => {
+          syncedViewState[targetViewId] = {
+            target,
+            zoom: state.globalZoom,
+          };
         });
-        if (Object.keys(syncedViewState).length > 0) {
-          state.deck.setProps({ viewState: syncedViewState });
-        }
+
+        deck.setProps({ viewState: syncedViewState });
       },
     });
   };

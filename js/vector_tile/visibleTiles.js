@@ -10,5 +10,6 @@ export const visibleTiles = (min_x, max_x, min_y, max_y, tileSize) => {
       tiles.push({ tileX: x, tileY: y, name: `${x}_${y}` });
     }
   }
+  console.log('visibleTiles', tiles);
   return tiles;
 };

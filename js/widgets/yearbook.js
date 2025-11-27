@@ -876,6 +876,13 @@ export const render_yearbook = async ({ model, el }) => {
 
     await refreshOverlays(selectedCells);
 
+    // const backgroundLayers = selectedCells.map((_, idx) =>
+    //   state.backgroundLayer.clone({
+    //     id: `background-layer-${idx}`,
+    //     viewId: `cell-${idx}`,
+    //     viewportId: `cell-${idx}`,
+    //   })
+    // );
     const backgroundLayers = selectedCells.map((_, idx) =>
       state.backgroundLayer.clone({
         id: `background-layer-${idx}`,
@@ -884,16 +891,26 @@ export const render_yearbook = async ({ model, el }) => {
       })
     );
 
-    const imageLayers = selectedCells.flatMap((cell, idx) =>
-      state.imageLayerTemplates.map((layer, layerIdx) =>
-        layer.clone({
-          id: `${layer.id}-portrait-${idx}-${layerIdx}`,
-          viewId: `cell-${idx}`,
-          viewportIds: [`cell-${idx}`],
-          image_layers: layerIdx,
-        })
-      )
+
+    // const imageLayers = selectedCells.flatMap((cell, idx) =>
+    //   state.imageLayerTemplates.map((layer, layerIdx) =>
+    //     layer.clone({
+    //       id: `${layer.id}-portrait-${idx}-${layerIdx}`,
+    //       viewId: `cell-${idx}`,
+    //       viewportIds: [`cell-${idx}`],
+    //       image_layers: layerIdx,
+    //     })
+    //   )
+    // );
+
+    // One TileLayer per channel, shared across all views
+    const imageLayers = state.imageLayerTemplates.map((layer) =>
+      layer.clone({
+        id: `${layer.id}-yearbook`,  // unique vs Landscape
+        // no viewId or viewportIds → deck renders this layer in *every* view
+      })
     );
+
 
     const layerStack = [
       ...backgroundLayers,

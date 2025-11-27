@@ -37,6 +37,10 @@ const make_image_layer = (viz_state, info) => {
       viz_state
     ),
     ...getModelMatrixProps(viz_state.rotation),
+    onTileLoad: (tile) => {
+      const {x, y, z} = tile.index;
+      console.log('Tile loaded', {x, y, z, layerId: info.button_name});
+    },
   });
   return image_layer;
 };

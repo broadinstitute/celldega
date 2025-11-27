@@ -284,13 +284,13 @@ export const render_yearbook = async ({ model, el }) => {
 
     const layers = await make_image_layers(viz_state);
 
-    // yearbook will fill this; used only for clipping in renderSubLayers
-    viz_state.yearbook_windows = [];
-
+    // // yearbook will fill this; used only for clipping in renderSubLayers
+    // viz_state.yearbook_windows = [];
     state.imageLayerTemplates = layers.map((layer) =>
       layer.clone({
         maxCacheSize: Math.max(state.capacity * 2, 12),
         refinementStrategy: 'best-available',
+        // keep the original getTileData
       })
     );
 

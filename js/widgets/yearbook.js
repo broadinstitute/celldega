@@ -91,7 +91,7 @@ const create_yearbook_get_tile_data = (viz_state, base_get_tile_data) => {
     }
 
     const { x, y, z } = index;
-    const tiles = viz_state.yearbook_tiles || [];
+    const tiles = viz_state.vector_yearbook_tiles || [];
     const zz = z ?? 0;
 
     const has_tile = tiles.some((t) => {
@@ -284,7 +284,7 @@ export const render_yearbook = async ({ model, el }) => {
     const layers = await make_image_layers(viz_state);
 
     // yearbook will fill this before rendering to control which tiles load
-    viz_state.yearbook_tiles = [];
+    viz_state.vector_yearbook_tiles = [];
 
     // After: just like Landscape, but with a slightly larger cache for multiple portraits
     state.imageLayerTemplates = layers.map((layer) =>
@@ -555,6 +555,46 @@ export const render_yearbook = async ({ model, el }) => {
     return Array.from(tiles.values());
   };
 
+  // image tiles live in the same world coords [0, width] x [0, height],
+  // but use the pyramid zoom instead of vector_z.
+  const getImageTilesForCells = (selectedCells, viz_state, deckZoom) => {
+    const { tile_size } = viz_state.img.landscape_parameters; // image tile size
+    const tiles = new Map();
+
+    // You can start by snapping deckZoom to an integer, then let TileLayer
+    // internally pick the correct z it wants. For yearbook we really just want
+    // x,y “buckets” that line up with TileLayer indices.
+    const z = Math.round(deckZoom); // deck z, e.g. -3, -2, -1, 0
+
+    selectedCells.forEach((cell) => {
+      const zoomFactor = 2 ** deckZoom;
+      const halfWidth = state.cellWidth / (2 * zoomFactor);
+      const halfHeight = state.cellHeight / (2 * zoomFactor);
+
+      const minX = cell.x - halfWidth;
+      const maxX = cell.x + halfWidth;
+      const minY = cell.y - halfHeight;
+      const maxY = cell.y + halfHeight;
+
+      // convert world coords to image-tile indices at this z
+      const tileSpan = tile_size / (2 ** z); // adjust if sign is flipped in practice
+
+      const x0 = Math.floor(minX / tileSpan);
+      const x1 = Math.floor(maxX / tileSpan);
+      const y0 = Math.floor(minY / tileSpan);
+      const y1 = Math.floor(maxY / tileSpan);
+
+      for (let x = x0; x <= x1; x += 1) {
+        for (let y = y0; y <= y1; y += 1) {
+          tiles.set(`${x}_${y}_${z}`, { x, y, z });
+        }
+      }
+    });
+
+    return Array.from(tiles.values());
+  };
+
+
   const filterTranscriptsForWindows = (selectedCells) => {
     if (!state.viz_state) return;
     const windowSizeUm = getWindowSize(model);
@@ -641,6 +681,12 @@ export const render_yearbook = async ({ model, el }) => {
 
   const refreshOverlays = async (selectedCells) => {
     if (!state.viz_state || selectedCells.length === 0) return;
+
+    const deckZoom = state.globalZoom ?? computeZoomForWindow(getWindowSize(model), state.cellWidth);
+
+    console.log('deckZoom', deckZoom);
+
+    // vectortiles
     let tiles = getTilesForCells(selectedCells);
     if (tiles.length === 0) return;
 
@@ -648,8 +694,14 @@ export const render_yearbook = async ({ model, el }) => {
     const max_tiles = state.viz_state.max_tiles_to_view || tiles.length;
     tiles = tiles.slice(0, max_tiles);
 
+    // Image tiles (separate list)
+    const image_yearbook_tiles = getImageTilesForCells(selectedCells, state.viz_state, deckZoom);
+
+    console.log('image_yearbook_tiles', image_yearbook_tiles);
+
+
     // tell TileLayers exactly which tiles they are allowed to load
-    state.viz_state.yearbook_tiles = tiles;
+    state.viz_state.vector_yearbook_tiles = tiles;
     console.log('yearbook_tiles', tiles);
 
     const windowSizeUm = getWindowSize(model);

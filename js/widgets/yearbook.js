@@ -80,28 +80,23 @@ const hashColor = (name) => {
   return [Math.abs(r), Math.abs(g), Math.abs(b)];
 };
 
-// Restrict TileLayer.getTileData so Yearbook only loads a known tile list
 const create_yearbook_get_tile_data = (viz_state, base_get_tile_data) => {
   return async (params) => {
-    // params is whatever TileLayer passes: { index, signal, layer, tile }
     const { index } = params || {};
-    if (!index) {
-      // Defensive: if something is weird, just delegate
-      return base_get_tile_data(params);
-    }
+    if (!index) return base_get_tile_data(params);
 
     const { x, y, z } = index;
-    const tiles = viz_state.vector_yearbook_tiles || [];
+    const tiles = viz_state.image_yearbook_tiles || [];
     const zz = z ?? 0;
 
     const has_tile = tiles.some((t) => {
       const tz = t.z ?? 0;
-      const tx = t.tileX ?? t.x;
-      const ty = t.tileY ?? t.y;
+      const tx = t.x;
+      const ty = t.y;
 
+      // exact match or zoom-normalized match if TileLayer changes z
       if (tz === zz && tx === x && ty === y) return true;
 
-      // Optional: zoom normalization if you ever mix zoom levels
       const scale = 2 ** (zz - tz);
       return (
         Number.isFinite(scale) &&
@@ -110,15 +105,15 @@ const create_yearbook_get_tile_data = (viz_state, base_get_tile_data) => {
       );
     });
 
-    console.log('getTileData index', index, 'allowed?', has_tile);
+    if (!has_tile) {
+      // yearbook says this tile is outside all windows; skip it
+      return null;
+    }
 
-    // Non-contiguous magic: if we don't know this tile, skip it
-    if (!has_tile) return null;
-
-    // Delegate actual loading to the original getTileData
     return base_get_tile_data(params);
   };
 };
+
 
 
 export const render_yearbook = async ({ model, el }) => {
@@ -284,16 +279,24 @@ export const render_yearbook = async ({ model, el }) => {
     const layers = await make_image_layers(viz_state);
 
     // yearbook will fill this before rendering to control which tiles load
+    // separate manifests
+    viz_state.image_yearbook_tiles = [];
     viz_state.vector_yearbook_tiles = [];
 
     // After: just like Landscape, but with a slightly larger cache for multiple portraits
-    state.imageLayerTemplates = layers.map((layer) =>
-      layer.clone({
+    state.imageLayerTemplates = layers.map((layer) => {
+      const base_get_tile_data = layer.props.getTileData;
+      const wrapped_get_tile_data =
+        typeof base_get_tile_data === 'function'
+          ? create_yearbook_get_tile_data(viz_state, base_get_tile_data)
+          : base_get_tile_data;
+
+      return layer.clone({
         maxCacheSize: Math.max(state.capacity * 2, 12),
         refinementStrategy: 'best-available',
-        // keep the original getTileData unchanged
-      })
-    );
+        getTileData: wrapped_get_tile_data,
+      });
+    });
 
     state.imageLayerIds = new Set(state.imageLayerTemplates.map((layer) => layer.id));
     viz_state.cache = { cell: new Map(), trx: new Map() };
@@ -695,9 +698,9 @@ export const render_yearbook = async ({ model, el }) => {
     tiles = tiles.slice(0, max_tiles);
 
     // Image tiles (separate list)
-    const image_yearbook_tiles = getImageTilesForCells(selectedCells, state.viz_state, deckZoom);
+    state.viz_state.image_yearbook_tiles = getImageTilesForCells(selectedCells, state.viz_state, deckZoom);
 
-    console.log('image_yearbook_tiles', image_yearbook_tiles);
+    console.log('image_yearbook_tiles', state.viz_state.image_yearbook_tiles);
 
 
     // tell TileLayers exactly which tiles they are allowed to load

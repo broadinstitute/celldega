@@ -100,14 +100,16 @@ const tileIntersectsAnyWindow = (bbox, windows) => {
 
 // Restrict TileLayer.getTileData so Yearbook only loads tiles whose bbox
 // intersects any of the selected cell windows
-const create_yearbook_get_tile_data = (viz_state, base_get_tile_data) => {
+const create_yearbook_get_tile_data = (viz_state, base_get_tile_data, getWindows) => {
   return async (params = {}) => {
     if (typeof base_get_tile_data !== 'function') {
       return null;
     }
 
     const { bbox } = params;
-    const windows = viz_state.yearbook_windows || [];
+    const windows = typeof getWindows === 'function'
+      ? getWindows()
+      : viz_state.yearbook_windows || [];
 
     // If we don't have windows yet, behave like Landscape
     if (!bbox || windows.length === 0) {
@@ -864,34 +866,43 @@ export const render_yearbook = async ({ model, el }) => {
       })
     );
 
-    // One TileLayer per channel, shared across all views
+    const halfWindow = Number.isFinite(cellSizeUm) && cellSizeUm > 0 ? cellSizeUm / 2 : 10;
     const windowsForLayer = state.viz_state?.yearbook_windows || [];
-    const yearbookZoom = state.globalZoom ?? computeZoomForWindow(cellSizeUm, state.cellWidth);
+    const imageLayers = selectedCells.flatMap((cell, idx) => {
+      const viewId = `cell-${idx}`;
+      const windowForViewport =
+        windowsForLayer[idx] || {
+          minX: cell.x - halfWindow,
+          maxX: cell.x + halfWindow,
+          minY: cell.y - halfWindow,
+          maxY: cell.y + halfWindow,
+        };
+      const windowTrigger = `${windowForViewport.minX}:${windowForViewport.maxX}:${windowForViewport.minY}:${windowForViewport.maxY}`;
+      const yearbookZoom = state.globalZoom ?? computeZoomForWindow(cellSizeUm, state.cellWidth);
 
-    const imageLayers = state.imageLayerTemplates.map((layer) => {
-      const existingTriggers = layer.props?.updateTriggers || {};
-      const windowTrigger = windowsForLayer.map(
-        (w) => `${w.minX}:${w.maxX}:${w.minY}:${w.maxY}`
-      );
+      return state.imageLayerTemplates.map((layer) => {
+        const existingTriggers = layer.props?.updateTriggers || {};
+        const baseGetTileData = layer.props?.getTileData;
+        const yearbookGetTileData = create_yearbook_get_tile_data(
+          state.viz_state,
+          baseGetTileData,
+          () => [windowForViewport]
+        );
 
-      const baseGetTileData = layer.props?.getTileData;
-      const yearbookGetTileData = create_yearbook_get_tile_data(
-        state.viz_state,
-        baseGetTileData
-      );
-
-      return layer.clone({
-        id: `${layer.id}-yearbook`, // unique vs Landscape
-        // no viewId or viewportIds → deck renders this layer in *every* view
-        yearbookWindows: windowsForLayer,
-        yearbookZoom,
-        getTileData: yearbookGetTileData,
-        updateTriggers: {
-          ...existingTriggers,
-          yearbookWindows: windowTrigger,
+        return layer.clone({
+          id: `${layer.id}-yearbook-${idx}`,
+          viewId,
+          viewportIds: [viewId],
+          yearbookWindows: [windowForViewport],
           yearbookZoom,
-          getTileData: windowTrigger,
-        },
+          getTileData: yearbookGetTileData,
+          updateTriggers: {
+            ...existingTriggers,
+            yearbookWindows: windowTrigger,
+            yearbookZoom,
+            getTileData: windowTrigger,
+          },
+        });
       });
     });
 

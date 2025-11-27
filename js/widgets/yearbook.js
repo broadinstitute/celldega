@@ -85,7 +85,10 @@ const hashColor = (name) => {
 const tileIntersectsAnyWindow = (bbox, windows) => {
   if (!bbox || !windows || windows.length === 0) return true; // fallback: load everything
 
-  const { left, right, bottom, top } = bbox;
+  const left = Math.min(bbox.left, bbox.right);
+  const right = Math.max(bbox.left, bbox.right);
+  const bottom = Math.min(bbox.bottom, bbox.top);
+  const top = Math.max(bbox.bottom, bbox.top);
 
   return windows.some((w) => {
     // w: { minX, maxX, minY, maxY }

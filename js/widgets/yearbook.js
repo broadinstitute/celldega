@@ -871,15 +871,23 @@ export const render_yearbook = async ({ model, el }) => {
         (w) => `${w.minX}:${w.maxX}:${w.minY}:${w.maxY}`
       );
 
+      const baseGetTileData = layer.props?.getTileData;
+      const yearbookGetTileData = create_yearbook_get_tile_data(
+        state.viz_state,
+        baseGetTileData
+      );
+
       return layer.clone({
         id: `${layer.id}-yearbook`, // unique vs Landscape
         // no viewId or viewportIds → deck renders this layer in *every* view
         yearbookWindows: windowsForLayer,
         yearbookZoom,
+        getTileData: yearbookGetTileData,
         updateTriggers: {
           ...existingTriggers,
           yearbookWindows: windowTrigger,
           yearbookZoom,
+          getTileData: windowTrigger,
         },
       });
     });

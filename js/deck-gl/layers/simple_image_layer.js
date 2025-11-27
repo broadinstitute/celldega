@@ -7,13 +7,13 @@ import {
   create_get_tile_data,
 } from '../utils/tiles';
 
-export const make_simple_image_layer = async (viz_state, info) => {
+export const make_simple_image_layer = async (viz_state, info, TileLayerClass = TileLayer) => {
   const { global_base_url } = viz_state;
   const { dimensions } = viz_state;
   const { landscape_parameters } = viz_state.img;
   const { image_format } = viz_state.img.landscape_parameters;
 
-  const simple_image_layer = new TileLayer({
+  const simple_image_layer = new TileLayerClass({
     id: 'global-simple-image-layer',
     tileSize: dimensions.tileSize,
     refinementStrategy: 'no-overlap',

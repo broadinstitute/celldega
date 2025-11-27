@@ -9,12 +9,12 @@ import {
 
 import { make_simple_image_layer } from './simple_image_layer';
 
-const make_image_layer = (viz_state, info) => {
+const make_image_layer = (viz_state, info, TileLayerClass = TileLayer) => {
   const { max_pyramid_zoom } = viz_state.img.landscape_parameters;
 
   const opacity = 5;
 
-  const image_layer = new TileLayer({
+  const image_layer = new TileLayerClass({
     id: info.button_name,
     tileSize: viz_state.dimensions.tileSize,
     refinementStrategy: 'no-overlap',
@@ -45,19 +45,23 @@ const make_image_layer = (viz_state, info) => {
   return image_layer;
 };
 
-export const make_image_layers = async (viz_state) => {
+export const make_image_layers = async (viz_state, options = {}) => {
   const { image_info } = viz_state.img;
 
   if (
     image_info.length === 1 &&
     (image_info[0].name === 'h_and_e' || image_info[0].name === 'h&e')
   ) {
-    const layer = await make_simple_image_layer(viz_state, image_info[0]);
+    const layer = await make_simple_image_layer(
+      viz_state,
+      image_info[0],
+      options?.TileLayerClass
+    );
     return [layer];
   }
 
-  const image_layers = image_info.map((info) =>
-    make_image_layer(viz_state, info)
+const image_layers = image_info.map((info) =>
+    make_image_layer(viz_state, info, options?.TileLayerClass)
   );
   return image_layers;
 };

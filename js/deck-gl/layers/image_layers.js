@@ -33,7 +33,8 @@ const make_image_layer = (viz_state, info) => {
     renderSubLayers: create_render_tile_sublayers(
       viz_state.dimensions,
       info.color,
-      opacity
+      opacity,
+      viz_state
     ),
     ...getModelMatrixProps(viz_state.rotation),
   });

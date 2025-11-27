@@ -80,29 +80,46 @@ const hashColor = (name) => {
   return [Math.abs(r), Math.abs(g), Math.abs(b)];
 };
 
+// world-space window intersection helper
+const tileIntersectsAnyWindow = (bbox, windows) => {
+  if (!bbox || !windows || windows.length === 0) return true; // fallback: load everything
+
+  const { left, right, bottom, top } = bbox;
+
+  return windows.some((w) => {
+    // w: { minX, maxX, minY, maxY }
+    const noOverlap =
+      right < w.minX || left > w.maxX || top < w.minY || bottom > w.maxY;
+    return !noOverlap;
+  });
+};
+
+// Restrict TileLayer.getTileData so Yearbook only loads tiles whose bbox
+// intersects any of the selected cell windows
 const create_yearbook_get_tile_data = (viz_state, base_get_tile_data) => {
-  return async (params) => {
-    const { index } = params || {};
-    if (!index) return base_get_tile_data(params);
-
-    const { x, y } = index;
-    const tiles = viz_state.image_yearbook_tiles || [];
-
-    // if we don't have a manifest yet, just pass through (good for debugging)
-    if (!tiles.length) {
-      return base_get_tile_data(params);
-    }
-
-    const has_tile = tiles.some((t) => t.x === x && t.y === y);
-
-    if (!has_tile) {
-      // tile outside our allowed range; skip
+  return async (params = {}) => {
+    if (typeof base_get_tile_data !== 'function') {
       return null;
     }
 
+    const { bbox } = params;
+    const windows = viz_state.yearbook_windows || [];
+
+    // If we don't have windows yet, behave like Landscape
+    if (!bbox || windows.length === 0) {
+      return base_get_tile_data(params);
+    }
+
+    if (!tileIntersectsAnyWindow(bbox, windows)) {
+      // Outside all portraits → skip this tile
+      return null;
+    }
+
+    // Inside at least one portrait → load normally
     return base_get_tile_data(params);
   };
 };
+
 
 
 export const render_yearbook = async ({ model, el }) => {
@@ -267,17 +284,17 @@ export const render_yearbook = async ({ model, el }) => {
 
     const layers = await make_image_layers(viz_state);
 
-    // we can keep vector_yearbook_tiles for transcripts / polygons
-    viz_state.vector_yearbook_tiles = [];
+    // yearbook will fill this; used only for clipping in renderSubLayers
+    viz_state.yearbook_windows = [];
 
-    // Let TileLayer handle image tile selection like in Landscape
     state.imageLayerTemplates = layers.map((layer) =>
       layer.clone({
         maxCacheSize: Math.max(state.capacity * 2, 12),
         refinementStrategy: 'best-available',
-        // NOTE: do NOT override getTileData here
       })
     );
+
+
 
 
     state.imageLayerIds = new Set(state.imageLayerTemplates.map((layer) => layer.id));
@@ -540,54 +557,6 @@ export const render_yearbook = async ({ model, el }) => {
     return Array.from(tiles.values());
   };
 
-  // Load all image tiles in the single contiguous x,y range that
-  // covers *all* portrait windows.
-  const getImageTilesForCells = (selectedCells, viz_state, deckZoom) => {
-    const { tile_size } = viz_state.img.landscape_parameters;
-    const tiles = new Map();
-
-    if (!selectedCells.length) return [];
-
-    // same window math you already use for vector tiles
-    const zoomFactor = 2 ** deckZoom;
-    const halfWidth = state.cellWidth / (2 * zoomFactor);
-    const halfHeight = state.cellHeight / (2 * zoomFactor);
-
-    let globalMinX = Infinity;
-    let globalMaxX = -Infinity;
-    let globalMinY = Infinity;
-    let globalMaxY = -Infinity;
-
-    selectedCells.forEach((cell) => {
-      const minX = cell.x - halfWidth;
-      const maxX = cell.x + halfWidth;
-      const minY = cell.y - halfHeight;
-      const maxY = cell.y + halfHeight;
-
-      if (minX < globalMinX) globalMinX = minX;
-      if (maxX > globalMaxX) globalMaxX = maxX;
-      if (minY < globalMinY) globalMinY = minY;
-      if (maxY > globalMaxY) globalMaxY = maxY;
-    });
-
-    if (!Number.isFinite(globalMinX)) return [];
-
-    // convert overall bounds to tile indices (same grid as Landscape)
-    const x0 = Math.floor(globalMinX / tile_size);
-    const x1 = Math.floor(globalMaxX / tile_size);
-    const y0 = Math.floor(globalMinY / tile_size);
-    const y1 = Math.floor(globalMaxY / tile_size);
-
-    for (let x = x0; x <= x1; x += 1) {
-      for (let y = y0; y <= y1; y += 1) {
-        tiles.set(`${x}_${y}`, { x, y });
-      }
-    }
-
-    return Array.from(tiles.values());
-  };
-
-
 
   const filterTranscriptsForWindows = (selectedCells) => {
     if (!state.viz_state) return;
@@ -679,25 +648,32 @@ export const render_yearbook = async ({ model, el }) => {
     const deckZoom =
       state.globalZoom ?? computeZoomForWindow(getWindowSize(model), state.cellWidth);
 
-    // vector tiles (unchanged)
-      let tiles = getTilesForCells(selectedCells);
+    const windowSizeUm = getWindowSize(model);
+    const halfWindow =
+      Number.isFinite(windowSizeUm) && windowSizeUm > 0 ? windowSizeUm / 2 : 10;
+
+    // ---- world-space windows for *both* vector + image tiling ----
+    const windows = selectedCells.map((cell) => ({
+      minX: cell.x - halfWindow,
+      maxX: cell.x + halfWindow,
+      minY: cell.y - halfWindow,
+      maxY: cell.y + halfWindow,
+    }));
+
+    // expose these to create_yearbook_get_tile_data
+    state.viz_state.yearbook_windows = windows;
+
+    // ---- vector tiles (unchanged) ----
+    let tiles = getTilesForCells(selectedCells);
     if (tiles.length === 0) return;
 
     const max_tiles = state.viz_state.max_tiles_to_view || tiles.length;
     tiles = tiles.slice(0, max_tiles);
 
-    // image tiles: single contiguous block
-    state.viz_state.image_yearbook_tiles =
-      getImageTilesForCells(selectedCells, state.viz_state, deckZoom);
-
-    console.log('image_yearbook_tiles', state.viz_state.image_yearbook_tiles);
-
-    // vector manifest (for your existing vector tile mechanism)
     state.viz_state.vector_yearbook_tiles = tiles;
-    console.log('yearbook_tiles', tiles);
 
-    const windowSizeUm = getWindowSize(model);
-    const halfWindow = Number.isFinite(windowSizeUm) && windowSizeUm > 0 ? windowSizeUm / 2 : 10;
+
+    console.log('yearbook_tiles', tiles);
 
     await Promise.all([
       update_path_layer_data(base_url, tiles, state.overlays, state.viz_state),
@@ -876,13 +852,6 @@ export const render_yearbook = async ({ model, el }) => {
 
     await refreshOverlays(selectedCells);
 
-    // const backgroundLayers = selectedCells.map((_, idx) =>
-    //   state.backgroundLayer.clone({
-    //     id: `background-layer-${idx}`,
-    //     viewId: `cell-${idx}`,
-    //     viewportId: `cell-${idx}`,
-    //   })
-    // );
     const backgroundLayers = selectedCells.map((_, idx) =>
       state.backgroundLayer.clone({
         id: `background-layer-${idx}`,
@@ -890,18 +859,6 @@ export const render_yearbook = async ({ model, el }) => {
         viewportId: `cell-${idx}`,
       })
     );
-
-
-    // const imageLayers = selectedCells.flatMap((cell, idx) =>
-    //   state.imageLayerTemplates.map((layer, layerIdx) =>
-    //     layer.clone({
-    //       id: `${layer.id}-portrait-${idx}-${layerIdx}`,
-    //       viewId: `cell-${idx}`,
-    //       viewportIds: [`cell-${idx}`],
-    //       image_layers: layerIdx,
-    //     })
-    //   )
-    // );
 
     // One TileLayer per channel, shared across all views
     const imageLayers = state.imageLayerTemplates.map((layer) =>

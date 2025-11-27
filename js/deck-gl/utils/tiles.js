@@ -87,18 +87,40 @@ export const create_get_tile_data = (
  * @returns {Function} Render function for TileLayer
  */
 export const create_render_tile_sublayers =
-  (dimensions, color, opacity) => (props) => {
-    const { data } = props;
-    if (!data) {
-      // No image for this tile (Yearbook manifest says it's empty)
+  (dimensions, color, opacity, viz_state = null) =>
+  (props) => {
+    const { data, tile } = props;
+    if (!data || !tile) {
+      // No image for this tile (or tile is missing)
       return null;
     }
 
+    const { width, height } = dimensions;
+    const { bbox } = tile;
+
+    // Optional clipping for Yearbook: only render tiles that intersect
+    // any of the windows defined in viz_state.yearbook_windows.
+    const windows = viz_state?.yearbook_windows;
+
+    if (bbox && Array.isArray(windows) && windows.length > 0) {
+      const { left, right, bottom, top } = bbox;
+
+      const intersects = windows.some((w) => {
+        const noOverlap =
+          right < w.minX || left > w.maxX || top < w.minY || bottom > w.maxY;
+        return !noOverlap;
+      });
+
+      if (!intersects) {
+        // Tile is outside all portraits; don’t draw it.
+        return null;
+      }
+    }
+
+    // If we get here, draw as usual
     const {
       bbox: { left, bottom, right, top },
-    } = props.tile;
-
-    const { width, height } = dimensions;
+    } = tile;
 
     return new CustomBitmapLayer(props, {
       data: null,
@@ -113,6 +135,7 @@ export const create_render_tile_sublayers =
       opacityScale: opacity,
     });
   };
+};
 
 
 /**

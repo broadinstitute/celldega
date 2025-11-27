@@ -205,6 +205,7 @@ export const landscape_ist = async (
   max_tiles_to_view = 50,
   scale_bar_microns_per_pixel = null
 ) => {
+
   if (width === 0) {
     width = '100%';
   }

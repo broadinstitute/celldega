@@ -135,7 +135,6 @@ export const create_render_tile_sublayers =
       opacityScale: opacity,
     });
   };
-};
 
 
 /**

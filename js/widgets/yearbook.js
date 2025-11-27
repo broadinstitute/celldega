@@ -5,6 +5,7 @@ import { OrthographicController, OrthographicView, ScatterplotLayer } from 'deck
 import { ini_deck, set_views_prop } from '../deck-gl/core/deck_ist';
 import { ini_background_layer } from '../deck-gl/layers/background_layer';
 import { make_image_layers } from '../deck-gl/layers/image_layers';
+import { YearbookTileLayer } from '../deck-gl/layers/yearbook_tile_layer';
 import { ini_path_layer, toggle_path_layer_visibility, update_path_layer_data } from '../deck-gl/layers/path_layer';
 import {
   ini_trx_layer,
@@ -282,7 +283,7 @@ export const render_yearbook = async ({ model, el }) => {
     await set_meta_gene(viz_state.genes, base_url, viz_state.seg.version, viz_state.aws);
     await set_cluster_metadata(viz_state);
 
-    const layers = await make_image_layers(viz_state);
+    const layers = await make_image_layers(viz_state, { TileLayerClass: YearbookTileLayer });
 
     // // yearbook will fill this; used only for clipping in renderSubLayers
     // viz_state.yearbook_windows = [];
@@ -861,12 +862,27 @@ export const render_yearbook = async ({ model, el }) => {
     );
 
     // One TileLayer per channel, shared across all views
-    const imageLayers = state.imageLayerTemplates.map((layer) =>
-      layer.clone({
-        id: `${layer.id}-yearbook`,  // unique vs Landscape
+    const windowsForLayer = state.viz_state?.yearbook_windows || [];
+    const yearbookZoom = state.globalZoom ?? computeZoomForWindow(cellSizeUm, state.cellWidth);
+
+    const imageLayers = state.imageLayerTemplates.map((layer) => {
+      const existingTriggers = layer.props?.updateTriggers || {};
+      const windowTrigger = windowsForLayer.map(
+        (w) => `${w.minX}:${w.maxX}:${w.minY}:${w.maxY}`
+      );
+
+      return layer.clone({
+        id: `${layer.id}-yearbook`, // unique vs Landscape
         // no viewId or viewportIds → deck renders this layer in *every* view
-      })
-    );
+        yearbookWindows: windowsForLayer,
+        yearbookZoom,
+        updateTriggers: {
+          ...existingTriggers,
+          yearbookWindows: windowTrigger,
+          yearbookZoom,
+        },
+      });
+    });
 
 
     const layerStack = [

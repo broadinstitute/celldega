@@ -99,8 +99,10 @@ export const create_render_tile_sublayers =
     const { bbox } = tile;
 
     // Optional clipping for Yearbook: only render tiles that intersect
-    // any of the windows defined in viz_state.yearbook_windows.
-    const windows = viz_state?.yearbook_windows;
+    // any of the windows defined for this layer. Fall back to the
+    // shared viz_state windows so plain TileLayers keep working.
+    const windows =
+      props.yearbookWindows || props.tile?.layer?.props?.yearbookWindows || viz_state?.yearbook_windows;
 
     if (bbox && Array.isArray(windows) && windows.length > 0) {
       const { left, right, bottom, top } = bbox;

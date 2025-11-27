@@ -28,6 +28,8 @@ export const create_get_tile_data = (
     const { x, y, z } = index;
     const full_url = `${base_url}/pyramid_images/${image_name}_files/${max_image_zoom + z}/${x}_${y}${image_format}`;
 
+    console.log('Fetching tile:', full_url);
+
     // Separate fetch options so we can merge them with loader options
     const { fetch: fetchOptions = {}, ...loaderOptions } = options;
 

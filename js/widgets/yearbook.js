@@ -291,7 +291,8 @@ export const render_yearbook = async ({ model, el }) => {
       layer.clone({
         maxCacheSize: Math.max(state.capacity * 2, 12),
         refinementStrategy: 'best-available',
-        // keep the original getTileData
+        // restrict tile requests to the active portrait windows
+        getTileData: create_yearbook_get_tile_data(viz_state, layer.props?.getTileData),
       })
     );
 

@@ -381,16 +381,18 @@ export const render_yearbook = async ({ model, el }) => {
       state.deck.setProps({ layers: nextLayers });
     };
 
+    const isYearbookImageLayer = (layerId) => {
+      if (!layerId) return false;
+      if (layerId.startsWith('background-layer-')) return true;
+      return Array.from(state.imageLayerIds).some((baseId) =>
+        layerId.startsWith(`${baseId}-yearbook`)
+      );
+    };
+
     const imgButton = makeModeButton('IMG', true, (visible) => {
-      const layers = (state.deck?.props?.layers || []).map((layer) => {
-        if (
-          layer.id?.startsWith('background-layer-') ||
-          (layer.id && state.imageLayerIds.has(layer.id.replace(/-\d+$/, '')))
-        ) {
-          return layer.clone({ visible });
-        }
-        return layer;
-      });
+      const layers = (state.deck?.props?.layers || []).map((layer) =>
+        isYearbookImageLayer(layer.id) ? layer.clone({ visible }) : layer
+      );
       state.deck?.setProps({ layers });
     });
 
@@ -861,26 +863,31 @@ export const render_yearbook = async ({ model, el }) => {
       })
     );
 
-    // One TileLayer per channel, shared across all views
+    // One TileLayer per channel, per portrait view
     const windowsForLayer = state.viz_state?.yearbook_windows || [];
     const yearbookZoom = state.globalZoom ?? computeZoomForWindow(cellSizeUm, state.cellWidth);
 
-    const imageLayers = state.imageLayerTemplates.map((layer) => {
-      const existingTriggers = layer.props?.updateTriggers || {};
-      const windowTrigger = windowsForLayer.map(
-        (w) => `${w.minX}:${w.maxX}:${w.minY}:${w.maxY}`
-      );
+    const imageLayers = selectedCells.flatMap((_, idx) => {
+      const windowForLayer = windowsForLayer[idx];
+      const viewId = `cell-${idx}`;
+      const windowTrigger = windowForLayer
+        ? `${windowForLayer.minX}:${windowForLayer.maxX}:${windowForLayer.minY}:${windowForLayer.maxY}`
+        : 'none';
 
-      return layer.clone({
-        id: `${layer.id}-yearbook`, // unique vs Landscape
-        // no viewId or viewportIds → deck renders this layer in *every* view
-        yearbookWindows: windowsForLayer,
-        yearbookZoom,
-        updateTriggers: {
-          ...existingTriggers,
-          yearbookWindows: windowTrigger,
+      return state.imageLayerTemplates.map((layer) => {
+        const existingTriggers = layer.props?.updateTriggers || {};
+        return layer.clone({
+          id: `${layer.id}-yearbook-${idx}`,
+          viewId,
+          viewportId: viewId,
+          yearbookWindows: windowForLayer ? [windowForLayer] : [],
           yearbookZoom,
-        },
+          updateTriggers: {
+            ...existingTriggers,
+            yearbookWindows: windowTrigger,
+            yearbookZoom,
+          },
+        });
       });
     });
 

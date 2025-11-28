@@ -156,6 +156,7 @@ export const render_yearbook = async ({ model, el }) => {
     geneSearch: null,
     globalZoom: null,
     viewTargets: new Map(),
+    viewState: {},
   };
 
   set_options(token);
@@ -213,23 +214,27 @@ export const render_yearbook = async ({ model, el }) => {
       views,
       // Only share zoom, keep each portrait locked to its own target
       onViewStateChange: ({ viewId, viewState }) => {
-        if (!viewId || !viewState || !Number.isFinite(viewState.zoom)) return;
-        if (!state.viewTargets.size) return;
+      if (!viewId || !viewState || !Number.isFinite(viewState.zoom)) return;
+      if (!state.viewTargets.size) return;
 
-        // whichever portrait you scroll in becomes the zoom source
-        state.globalZoom = viewState.zoom;
+      // whichever portrait you scroll in becomes the zoom source
+      state.globalZoom = viewState.zoom;
 
-        const syncedViewState = {};
-        state.viewTargets.forEach((target, targetViewId) => {
-          syncedViewState[targetViewId] = {
-            target,
-            zoom: state.globalZoom,
-          };
-        });
+      const syncedViewState = {};
+      state.viewTargets.forEach((target, targetViewId) => {
+        const previous = state.viewState?.[targetViewId] || {};
+        syncedViewState[targetViewId] = {
+          ...previous,
+          target,
+          zoom: state.globalZoom,
+        };
+      });
 
-        deck.setProps({ viewState: syncedViewState });
-      },
-    });
+      state.viewState = syncedViewState;
+
+      deck.setProps({ viewState: syncedViewState });
+    },
+  });
   };
 
   const setupImagery = async () => {
@@ -821,6 +826,8 @@ export const render_yearbook = async ({ model, el }) => {
       viewState[viewId] = { target, zoom: zoomLevel };
       state.viewTargets.set(viewId, target);
     });
+
+    state.viewState = { ...viewState };
 
     const { colorAttrIdx } = getColorAttr();
     const scatterData = [];

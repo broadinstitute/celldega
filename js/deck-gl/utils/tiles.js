@@ -103,7 +103,10 @@ export const create_render_tile_sublayers =
     const windows = viz_state?.yearbook_windows;
 
     if (bbox && Array.isArray(windows) && windows.length > 0) {
-      const { left, right, bottom, top } = bbox;
+      const left = Math.min(bbox.left, bbox.right);
+      const right = Math.max(bbox.left, bbox.right);
+      const bottom = Math.min(bbox.bottom, bbox.top);
+      const top = Math.max(bbox.bottom, bbox.top);
 
       const intersects = windows.some((w) => {
         const noOverlap =

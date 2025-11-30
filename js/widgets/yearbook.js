@@ -85,7 +85,10 @@ const hashColor = (name) => {
 const tileIntersectsAnyWindow = (bbox, windows) => {
   if (!bbox || !windows || windows.length === 0) return true; // fallback: load everything
 
-  const { left, right, bottom, top } = bbox;
+  const left = Math.min(bbox.left, bbox.right);
+  const right = Math.max(bbox.left, bbox.right);
+  const bottom = Math.min(bbox.bottom, bbox.top);
+  const top = Math.max(bbox.bottom, bbox.top);
 
   return windows.some((w) => {
     // w: { minX, maxX, minY, maxY }
@@ -97,14 +100,16 @@ const tileIntersectsAnyWindow = (bbox, windows) => {
 
 // Restrict TileLayer.getTileData so Yearbook only loads tiles whose bbox
 // intersects any of the selected cell windows
-const create_yearbook_get_tile_data = (viz_state, base_get_tile_data) => {
+const create_yearbook_get_tile_data = (viz_state, base_get_tile_data, getWindows) => {
   return async (params = {}) => {
     if (typeof base_get_tile_data !== 'function') {
       return null;
     }
 
     const { bbox } = params;
-    const windows = viz_state.yearbook_windows || [];
+    const windows = typeof getWindows === 'function'
+      ? getWindows()
+      : viz_state.yearbook_windows || [];
 
     // If we don't have windows yet, behave like Landscape
     if (!bbox || windows.length === 0) {
@@ -151,6 +156,7 @@ export const render_yearbook = async ({ model, el }) => {
     geneSearch: null,
     globalZoom: null,
     viewTargets: new Map(),
+    viewState: {},
   };
 
   set_options(token);
@@ -208,23 +214,27 @@ export const render_yearbook = async ({ model, el }) => {
       views,
       // Only share zoom, keep each portrait locked to its own target
       onViewStateChange: ({ viewId, viewState }) => {
-        if (!viewId || !viewState || !Number.isFinite(viewState.zoom)) return;
-        if (!state.viewTargets.size) return;
+      if (!viewId || !viewState || !Number.isFinite(viewState.zoom)) return;
+      if (!state.viewTargets.size) return;
 
-        // whichever portrait you scroll in becomes the zoom source
-        state.globalZoom = viewState.zoom;
+      // whichever portrait you scroll in becomes the zoom source
+      state.globalZoom = viewState.zoom;
 
-        const syncedViewState = {};
-        state.viewTargets.forEach((target, targetViewId) => {
-          syncedViewState[targetViewId] = {
-            target,
-            zoom: state.globalZoom,
-          };
-        });
+      const syncedViewState = {};
+      state.viewTargets.forEach((target, targetViewId) => {
+        const previous = state.viewState?.[targetViewId] || {};
+        syncedViewState[targetViewId] = {
+          ...previous,
+          target,
+          zoom: state.globalZoom,
+        };
+      });
 
-        deck.setProps({ viewState: syncedViewState });
-      },
-    });
+      state.viewState = syncedViewState;
+
+      deck.setProps({ viewState: syncedViewState });
+    },
+  });
   };
 
   const setupImagery = async () => {
@@ -817,6 +827,8 @@ export const render_yearbook = async ({ model, el }) => {
       state.viewTargets.set(viewId, target);
     });
 
+    state.viewState = { ...viewState };
+
     const { colorAttrIdx } = getColorAttr();
     const scatterData = [];
 
@@ -861,26 +873,43 @@ export const render_yearbook = async ({ model, el }) => {
       })
     );
 
-    // One TileLayer per channel, shared across all views
+    const halfWindow = Number.isFinite(cellSizeUm) && cellSizeUm > 0 ? cellSizeUm / 2 : 10;
     const windowsForLayer = state.viz_state?.yearbook_windows || [];
-    const yearbookZoom = state.globalZoom ?? computeZoomForWindow(cellSizeUm, state.cellWidth);
+    const imageLayers = selectedCells.flatMap((cell, idx) => {
+      const viewId = `cell-${idx}`;
+      const windowForViewport =
+        windowsForLayer[idx] || {
+          minX: cell.x - halfWindow,
+          maxX: cell.x + halfWindow,
+          minY: cell.y - halfWindow,
+          maxY: cell.y + halfWindow,
+        };
+      const windowTrigger = `${windowForViewport.minX}:${windowForViewport.maxX}:${windowForViewport.minY}:${windowForViewport.maxY}`;
+      const yearbookZoom = state.globalZoom ?? computeZoomForWindow(cellSizeUm, state.cellWidth);
 
-    const imageLayers = state.imageLayerTemplates.map((layer) => {
-      const existingTriggers = layer.props?.updateTriggers || {};
-      const windowTrigger = windowsForLayer.map(
-        (w) => `${w.minX}:${w.maxX}:${w.minY}:${w.maxY}`
-      );
+      return state.imageLayerTemplates.map((layer) => {
+        const existingTriggers = layer.props?.updateTriggers || {};
+        const baseGetTileData = layer.props?.getTileData;
+        const yearbookGetTileData = create_yearbook_get_tile_data(
+          state.viz_state,
+          baseGetTileData,
+          () => [windowForViewport]
+        );
 
-      return layer.clone({
-        id: `${layer.id}-yearbook`, // unique vs Landscape
-        // no viewId or viewportIds → deck renders this layer in *every* view
-        yearbookWindows: windowsForLayer,
-        yearbookZoom,
-        updateTriggers: {
-          ...existingTriggers,
-          yearbookWindows: windowTrigger,
+        return layer.clone({
+          id: `${layer.id}-yearbook-${idx}`,
+          viewId,
+          viewportIds: [viewId],
+          yearbookWindows: [windowForViewport],
           yearbookZoom,
-        },
+          getTileData: yearbookGetTileData,
+          updateTriggers: {
+            ...existingTriggers,
+            yearbookWindows: windowTrigger,
+            yearbookZoom,
+            getTileData: windowTrigger,
+          },
+        });
       });
     });
 

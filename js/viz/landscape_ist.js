@@ -255,6 +255,7 @@ export const landscape_ist = async (
   viz_state.nbhd = {};
   viz_state.nbhd.visible = false;
   viz_state.nbhd.edit = nbhd_edit;
+  viz_state.dataset_options = ini_model?.get('base_url_options') || [];
 
   viz_state.spatial = {};
 
@@ -734,13 +735,16 @@ export const landscape_ist = async (
 
   set_deck_on_view_state_change(deck_ist, layers_obj, viz_state);
 
+  let updateTriggerHandler = null;
+  let cellClusterHandler = null;
+
   if (Object.keys(viz_state.model).length > 0) {
-    viz_state.model.on('change:update_trigger', () =>
-      update_ist_landscape_from_cgm(deck_ist, layers_obj, viz_state)
-    );
-    viz_state.model.on('change:cell_clusters', () =>
-      update_cell_clusters(deck_ist, layers_obj, viz_state)
-    );
+    updateTriggerHandler = () =>
+      update_ist_landscape_from_cgm(deck_ist, layers_obj, viz_state);
+    cellClusterHandler = () => update_cell_clusters(deck_ist, layers_obj, viz_state);
+
+    viz_state.model.on('change:update_trigger', updateTriggerHandler);
+    viz_state.model.on('change:cell_clusters', cellClusterHandler);
   }
 
   const ui_container = make_ist_ui_container(
@@ -915,6 +919,14 @@ export const landscape_ist = async (
     },
     update_layers: () => {},
     finalize: () => {
+      if (updateTriggerHandler) {
+        viz_state.model.off('change:update_trigger', updateTriggerHandler);
+      }
+
+      if (cellClusterHandler) {
+        viz_state.model.off('change:cell_clusters', cellClusterHandler);
+      }
+
       deck_ist.finalize();
     },
   };

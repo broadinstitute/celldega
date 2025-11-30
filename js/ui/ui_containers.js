@@ -379,6 +379,67 @@ export const make_ist_ui_container = (
       'row'
     );
 
+    const datasetDropdown = (() => {
+      const options = viz_state.dataset_options || [];
+
+      if (!Array.isArray(options) || options.length === 0) {
+        return null;
+      }
+
+      const wrapper = document.createElement('div');
+      wrapper.style.display = 'flex';
+      wrapper.style.alignItems = 'center';
+      wrapper.style.gap = '4px';
+      wrapper.style.marginLeft = '6px';
+      wrapper.style.fontSize = '12px';
+
+      const label = document.createElement('span');
+      label.textContent = 'Dataset';
+      label.style.color = '#47515b';
+
+      const select = document.createElement('select');
+      select.style.fontSize = '12px';
+      select.style.padding = '2px 4px';
+      select.style.borderRadius = '6px';
+      select.style.border = '1px solid #d3d3d3';
+      select.style.background = '#fff';
+      select.style.cursor = 'pointer';
+
+      options.forEach((option) => {
+        const opt = document.createElement('option');
+        opt.value = option.base_url;
+        opt.textContent = option.name || option.base_url;
+        select.appendChild(opt);
+      });
+
+      const currentBaseUrl = viz_state.model?.get('base_url');
+      if (currentBaseUrl) {
+        select.value = currentBaseUrl;
+      }
+
+      select.addEventListener('change', () => {
+        const selectedOption = options.find((opt) => opt.base_url === select.value);
+        if (!selectedOption || !viz_state.model?.set) {
+          return;
+        }
+
+        viz_state.model.set('base_url', selectedOption.base_url);
+        viz_state.model.set(
+          'dataset_name',
+          selectedOption.name || selectedOption.base_url
+        );
+
+        if (viz_state.model.save_changes) {
+          viz_state.model.save_changes();
+        }
+      });
+
+      wrapper.appendChild(label);
+      wrapper.appendChild(select);
+
+      return wrapper;
+    })();
+
     if (isChromium) {
       make_button(
         spatial_toggle_container,
@@ -440,6 +501,10 @@ export const make_ist_ui_container = (
         layers_obj,
         viz_state
       );
+    }
+
+    if (datasetDropdown) {
+      spatial_toggle_container.appendChild(datasetDropdown);
     }
 
     viz_state.containers.image.appendChild(spatial_toggle_container);

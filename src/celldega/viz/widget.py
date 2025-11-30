@@ -62,6 +62,11 @@ class Landscape(anywidget.AnyWidget):
             point-cloud views.
         token (str): The token traitlet.
         base_url (str): The base URL for the widget.
+        base_urls (list[str | dict], optional): Multiple base URLs to make
+            available through a dataset selector. If dictionaries are
+            provided, they can include ``name``/``label`` and ``base_url``/``url``
+            keys to customize the dropdown label; otherwise, names are
+            inferred from the URL.
         rotate (float, optional): Degrees to rotate the 2D landscape visualization.
         AnnData (AnnData, optional): AnnData object to derive metadata from.
         dataset_name (str, optional): The name of the dataset to visualize. This
@@ -79,6 +84,7 @@ class Landscape(anywidget.AnyWidget):
     technology = traitlets.Unicode("Xenium").tag(sync=True)
     base_url = traitlets.Unicode("").tag(sync=True)
     token = traitlets.Unicode("").tag(sync=True)
+    base_url_options = traitlets.List(trait=traitlets.Dict(), default_value=[]).tag(sync=True)
     creds = traitlets.Dict({}).tag(sync=True)
     max_tiles_to_view = traitlets.Int(50).tag(sync=True)
     ini_x = traitlets.Float().tag(sync=True)
@@ -126,6 +132,7 @@ class Landscape(anywidget.AnyWidget):
         pq_meta_cluster = kwargs.pop("meta_cluster_parquet", None)
         pq_umap = kwargs.pop("umap_parquet", None)
         pq_meta_nbhd = kwargs.pop("meta_nbhd_parquet", None)
+        base_urls = kwargs.pop("base_urls", None)
 
         meta_cell_df = kwargs.pop("meta_cell", None)
         meta_cluster = kwargs.pop("meta_cluster", None)
@@ -138,6 +145,32 @@ class Landscape(anywidget.AnyWidget):
 
         if nbhd_gdf is not None and nbhd_edit:
             raise ValueError("nbhd_edit cannot be True when nbhd data is provided")
+
+        dataset_options = []
+        if base_urls:
+            for item in base_urls:
+                name = None
+                url = None
+
+                if isinstance(item, dict):
+                    url = item.get("base_url") or item.get("url") or item.get("value")
+                    name = item.get("name") or item.get("label") or item.get("dataset_name")
+                else:
+                    url = str(item)
+
+                if not url:
+                    continue
+
+                url = url.rstrip("/")
+                if not name:
+                    name = Path(url).name or url
+
+                dataset_options.append({"name": name, "base_url": url})
+
+        if dataset_options:
+            kwargs.setdefault("base_url", dataset_options[0]["base_url"])
+            kwargs.setdefault("dataset_name", dataset_options[0]["name"])
+            kwargs.setdefault("base_url_options", dataset_options)
 
         base_path = (kwargs.get("base_url") or "") + "/"
         path_transformation_matrix = base_path + "micron_to_image_transform.csv"

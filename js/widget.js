@@ -15,82 +15,117 @@ import { render_yearbook } from './widgets/yearbook';
 
 // Remove export keywords from render functions
 const render_landscape_ist = async ({ model, el }) => {
-  const token = model.get('token');
-  const creds = model.get('creds');
-  const ini_x = model.get('ini_x');
-  const ini_y = model.get('ini_y');
-  const ini_z = model.get('ini_z');
-  const ini_zoom = model.get('ini_zoom');
-  const base_url = model.get('base_url');
-  const dataset_name = model.get('dataset_name');
-  const width = model.get('width');
-  const height = model.get('height');
-  const rotation_orbit = model.get('rotation_orbit') ?? 0;
-  const rotation_x = model.get('rotation_x') ?? 0;
-  const rotate = model.get('rotate') ?? 0;
-  const nbhd = model.get('nbhd_geojson');
-  const max_tiles_to_view = model.get('max_tiles_to_view');
-  const nbhd_edit = model.get('nbhd_edit');
-  const scale_bar_microns_per_pixel = model.get('scale_bar_microns_per_pixel');
+  let cleanup = null;
+  let buildChain = Promise.resolve();
 
-  let meta_cell_data = { result: {}, attr: [] };
-  let meta_cluster_data = { result: {}, attr: [] };
-  let umap_data = {};
+  const buildLandscape = () => {
+    buildChain = buildChain.then(async () => {
+      if (cleanup?.finalize) {
+        cleanup.finalize();
+      }
 
-  const metaCellBytes = model.get('meta_cell_parquet');
-  if (metaCellBytes && metaCellBytes.byteLength > 0) {
-    meta_cell_data = await objects_from_parquet(metaCellBytes, 'cell_id');
-  }
+      el.innerHTML = '';
 
-  const metaClusterBytes = model.get('meta_cluster_parquet');
-  if (metaClusterBytes && metaClusterBytes.byteLength > 0) {
-    meta_cluster_data = await objects_from_parquet(metaClusterBytes, 'leiden');
-  }
+      const token = model.get('token');
+      const creds = model.get('creds');
+      const ini_x = model.get('ini_x');
+      const ini_y = model.get('ini_y');
+      const ini_z = model.get('ini_z');
+      const ini_zoom = model.get('ini_zoom');
+      const base_url = model.get('base_url');
+      const dataset_name = model.get('dataset_name');
+      const width = model.get('width');
+      const height = model.get('height');
+      const rotation_orbit = model.get('rotation_orbit') ?? 0;
+      const rotation_x = model.get('rotation_x') ?? 0;
+      const rotate = model.get('rotate') ?? 0;
+      const nbhd = model.get('nbhd_geojson');
+      const max_tiles_to_view = model.get('max_tiles_to_view');
+      const nbhd_edit = model.get('nbhd_edit');
+      const scale_bar_microns_per_pixel = model.get('scale_bar_microns_per_pixel');
 
-  const umapBytes = model.get('umap_parquet');
-  if (umapBytes && umapBytes.byteLength > 0) {
-    umap_data = (await objects_from_parquet(umapBytes, 'cell_id')).result;
-  }
+      let meta_cell_data = { result: {}, attr: [] };
+      let meta_cluster_data = { result: {}, attr: [] };
+      let umap_data = {};
 
-  const technology = model.get('technology');
-  let landscape_state = model.get('landscape_state');
-  if (technology === 'Chromium') {
-    landscape_state = 'umap';
-  } else if (technology === 'point-cloud') {
-    landscape_state = 'spatial';
-  }
-  const segmentation = model.get('segmentation');
+      const metaCellBytes = model.get('meta_cell_parquet');
+      if (metaCellBytes && metaCellBytes.byteLength > 0) {
+        meta_cell_data = await objects_from_parquet(metaCellBytes, 'cell_id');
+      }
 
-  return landscape_ist(
-    el,
-    model,
-    token,
-    ini_x,
-    ini_y,
-    ini_z,
-    ini_zoom,
-    base_url,
-    dataset_name,
-    0.25,
-    width,
-    height,
-    meta_cell_data.result,
-    meta_cell_data.attr,
-    meta_cluster_data.result,
-    meta_cluster_data.attr,
-    umap_data,
-    nbhd,
-    nbhd_edit,
-    landscape_state,
-    segmentation,
-    creds,
-    null,
-    rotation_orbit,
-    rotation_x,
-    rotate,
-    max_tiles_to_view,
-    scale_bar_microns_per_pixel
-  );
+      const metaClusterBytes = model.get('meta_cluster_parquet');
+      if (metaClusterBytes && metaClusterBytes.byteLength > 0) {
+        meta_cluster_data = await objects_from_parquet(metaClusterBytes, 'leiden');
+      }
+
+      const umapBytes = model.get('umap_parquet');
+      if (umapBytes && umapBytes.byteLength > 0) {
+        umap_data = (await objects_from_parquet(umapBytes, 'cell_id')).result;
+      }
+
+      const technology = model.get('technology');
+      let landscape_state = model.get('landscape_state');
+      if (technology === 'Chromium') {
+        landscape_state = 'umap';
+      } else if (technology === 'point-cloud') {
+        landscape_state = 'spatial';
+      }
+      const segmentation = model.get('segmentation');
+
+      cleanup = await landscape_ist(
+        el,
+        model,
+        token,
+        ini_x,
+        ini_y,
+        ini_z,
+        ini_zoom,
+        base_url,
+        dataset_name,
+        0.25,
+        width,
+        height,
+        meta_cell_data.result,
+        meta_cell_data.attr,
+        meta_cluster_data.result,
+        meta_cluster_data.attr,
+        umap_data,
+        nbhd,
+        nbhd_edit,
+        landscape_state,
+        segmentation,
+        creds,
+        null,
+        rotation_orbit,
+        rotation_x,
+        rotate,
+        max_tiles_to_view,
+        scale_bar_microns_per_pixel
+      );
+    });
+
+    return buildChain;
+  };
+
+  await buildLandscape();
+
+  const handleDatasetChange = () => {
+    void buildLandscape();
+  };
+
+  model.on('change:base_url', handleDatasetChange);
+  model.on('change:dataset_name', handleDatasetChange);
+
+  return () => {
+    buildChain.finally(() => {
+      if (cleanup?.finalize) {
+        cleanup.finalize();
+      }
+
+      model.off('change:base_url', handleDatasetChange);
+      model.off('change:dataset_name', handleDatasetChange);
+    });
+  };
 };
 
 const render_landscape_sst = async ({ model, el }) => {

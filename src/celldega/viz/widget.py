@@ -28,6 +28,8 @@ _DEFAULT_MANUAL_ATTRIBUTE_TITLES = {
 }
 _MANUAL_FILL_VALUE = "N.A."
 
+_CELL_BASE_ID_COLUMN = "__cell_base_id__"
+
 
 def _hsv_to_hex(h: float) -> str:
     """Convert HSV color to hex string."""
@@ -67,6 +69,10 @@ class Landscape(anywidget.AnyWidget):
             provided, they can include ``name``/``label`` and ``base_url``/``url``
             keys to customize the dropdown label; otherwise, names are
             inferred from the URL.
+        cell_name_prefix_col (str, optional): Column in ``adata.obs`` that
+            contains a dataset-specific prefix used to make cell IDs unique
+            across datasets. The prefix is preserved for disambiguation but the
+            original cell IDs remain available for Landscape file lookups.
         rotate (float, optional): Degrees to rotate the 2D landscape visualization.
         AnnData (AnnData, optional): AnnData object to derive metadata from.
         dataset_name (str, optional): The name of the dataset to visualize. This
@@ -120,6 +126,7 @@ class Landscape(anywidget.AnyWidget):
         trait=traitlets.Unicode(),
         default_value=["leiden"],
     ).tag(sync=True)
+    cell_name_prefix_col = traitlets.Unicode("").tag(sync=True)
 
     segmentation = traitlets.Unicode("default").tag(sync=True)
 
@@ -133,6 +140,9 @@ class Landscape(anywidget.AnyWidget):
         pq_umap = kwargs.pop("umap_parquet", None)
         pq_meta_nbhd = kwargs.pop("meta_nbhd_parquet", None)
         base_urls = kwargs.pop("base_urls", None)
+        cell_name_prefix_col = kwargs.pop("cell_name_prefix_col", None) or kwargs.pop(
+            "cell_name_prefix", None
+        )
 
         meta_cell_df = kwargs.pop("meta_cell", None)
         meta_cluster = kwargs.pop("meta_cluster", None)
@@ -142,6 +152,10 @@ class Landscape(anywidget.AnyWidget):
         nbhd_edit = kwargs.pop("nbhd_edit", False)
         meta_cluster_df = None
         cell_attr = kwargs.pop("cell_attr", ["leiden"])
+
+        if cell_name_prefix_col:
+            kwargs.setdefault("cell_name_prefix_col", cell_name_prefix_col)
+        kwargs.setdefault("cell_attr", cell_attr)
 
         if nbhd_gdf is not None and nbhd_edit:
             raise ValueError("nbhd_edit cannot be True when nbhd data is provided")
@@ -202,7 +216,31 @@ class Landscape(anywidget.AnyWidget):
             if "cell_id" in adata.obs.columns:
                 adata.obs.set_index("cell_id", inplace=True)
 
+            if cell_name_prefix_col and cell_name_prefix_col not in adata.obs.columns:
+                warnings.warn(
+                    f"cell_name_prefix_col='{cell_name_prefix_col}' not found in adata.obs. "
+                    "Ignoring prefix handling.",
+                    stacklevel=2,
+                )
+                cell_name_prefix_col = None
+
+            if cell_name_prefix_col and cell_name_prefix_col not in cell_attr:
+                cell_attr = [*cell_attr, cell_name_prefix_col]
+
+            base_cell_ids = adata.obs.index.to_series().astype(str)
+            prefix_series = (
+                adata.obs[cell_name_prefix_col].astype(str)
+                if cell_name_prefix_col
+                else None
+            )
+
             meta_cell_df = adata.obs[cell_attr].copy()
+
+            if prefix_series is not None:
+                meta_cell_df[_CELL_BASE_ID_COLUMN] = base_cell_ids.values
+                meta_cell_df.index = prefix_series.str.cat(base_cell_ids, sep="_")
+            else:
+                meta_cell_df.index = base_cell_ids
 
             if meta_cell_df.index.name is None:
                 meta_cell_df.index.name = "cell_id"
@@ -235,8 +273,13 @@ class Landscape(anywidget.AnyWidget):
                 pq_meta_cluster = _df_to_bytes(meta_cluster_df)
 
             if "X_umap" in adata.obsm:
+                umap_index = (
+                    meta_cell_df.index
+                    if prefix_series is not None
+                    else adata.obs.index
+                )
                 umap_df = (
-                    pd.DataFrame(adata.obsm["X_umap"], index=adata.obs.index)
+                    pd.DataFrame(adata.obsm["X_umap"], index=umap_index)
                     .reset_index()
                     .rename(columns={"index": "cell_id", 0: "umap_0", 1: "umap_1"})
                 )

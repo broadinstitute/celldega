@@ -404,6 +404,10 @@ export const make_ist_ui_container = (
       select.style.border = '1px solid #d3d3d3';
       select.style.background = '#fff';
       select.style.cursor = 'pointer';
+      select.style.maxWidth = '120px';
+      select.style.whiteSpace = 'nowrap';
+      select.style.textOverflow = 'ellipsis';
+      select.style.overflow = 'hidden';
 
       options.forEach((option) => {
         const opt = document.createElement('option');

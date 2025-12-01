@@ -26,6 +26,15 @@ const render_landscape_ist = async ({ model, el }) => {
 
       el.innerHTML = '';
 
+      const loading = document.createElement('div');
+      loading.textContent = 'Loading dataset…';
+      loading.style.padding = '12px';
+      loading.style.color = '#47515b';
+      loading.style.fontSize = '13px';
+      loading.style.fontWeight = '600';
+      loading.style.fontFamily = 'sans-serif';
+      el.appendChild(loading);
+
       const token = model.get('token');
       const creds = model.get('creds');
       const ini_x = model.get('ini_x');
@@ -72,36 +81,40 @@ const render_landscape_ist = async ({ model, el }) => {
       }
       const segmentation = model.get('segmentation');
 
-      cleanup = await landscape_ist(
-        el,
-        model,
-        token,
-        ini_x,
-        ini_y,
-        ini_z,
-        ini_zoom,
-        base_url,
-        dataset_name,
-        0.25,
-        width,
-        height,
-        meta_cell_data.result,
-        meta_cell_data.attr,
-        meta_cluster_data.result,
-        meta_cluster_data.attr,
-        umap_data,
-        nbhd,
-        nbhd_edit,
-        landscape_state,
-        segmentation,
-        creds,
-        null,
-        rotation_orbit,
-        rotation_x,
-        rotate,
-        max_tiles_to_view,
-        scale_bar_microns_per_pixel
-      );
+      try {
+        cleanup = await landscape_ist(
+          el,
+          model,
+          token,
+          ini_x,
+          ini_y,
+          ini_z,
+          ini_zoom,
+          base_url,
+          dataset_name,
+          0.25,
+          width,
+          height,
+          meta_cell_data.result,
+          meta_cell_data.attr,
+          meta_cluster_data.result,
+          meta_cluster_data.attr,
+          umap_data,
+          nbhd,
+          nbhd_edit,
+          landscape_state,
+          segmentation,
+          creds,
+          null,
+          rotation_orbit,
+          rotation_x,
+          rotate,
+          max_tiles_to_view,
+          scale_bar_microns_per_pixel
+        );
+      } finally {
+        loading.remove();
+      }
     });
 
     return buildChain;

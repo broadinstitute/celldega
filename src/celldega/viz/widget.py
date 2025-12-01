@@ -92,9 +92,7 @@ class Landscape(anywidget.AnyWidget):
     meta_nbhd = traitlets.Instance(pd.DataFrame, allow_none=True)
 
     meta_cluster = traitlets.Dict({}).tag(sync=True)
-    selected_cells = traitlets.List(
-        trait=traitlets.Unicode(), default_value=[]
-    ).tag(sync=True)
+    selected_cells = traitlets.List(trait=traitlets.Unicode(), default_value=[]).tag(sync=True)
     landscape_state = traitlets.Unicode("spatial").tag(sync=True)
 
     update_trigger = traitlets.Dict().tag(sync=True)

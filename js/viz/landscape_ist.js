@@ -205,6 +205,7 @@ export const landscape_ist = async (
   max_tiles_to_view = 50,
   scale_bar_microns_per_pixel = null
 ) => {
+
   if (width === 0) {
     width = '100%';
   }
@@ -254,6 +255,68 @@ export const landscape_ist = async (
   viz_state.nbhd = {};
   viz_state.nbhd.visible = false;
   viz_state.nbhd.edit = nbhd_edit;
+  viz_state.dataset_options = ini_model?.get('base_url_options') || [];
+
+  const datasetLabel = dataset_name ? String(dataset_name) : '';
+  const prefixAttr = ini_model?.get('cell_name_prefix_col');
+  const baseIdAttr = '__cell_base_id__';
+
+  const filteredMeta = (() => {
+    if (!prefixAttr || !Array.isArray(meta_cell_attr)) {
+      return {
+        metaCell: meta_cell,
+        metaAttr: meta_cell_attr,
+        idMap: [],
+      };
+    }
+
+    const prefixIdx = meta_cell_attr.indexOf(prefixAttr);
+    if (prefixIdx === -1) {
+      return {
+        metaCell: meta_cell,
+        metaAttr: meta_cell_attr,
+        idMap: [],
+      };
+    }
+
+    const baseIdx = meta_cell_attr.indexOf(baseIdAttr);
+    const metaAttr = meta_cell_attr.filter((attr) => attr !== baseIdAttr);
+    const metaCell = {};
+    const idMap = [];
+
+    Object.entries(meta_cell || {}).forEach(([key, values]) => {
+      const datasetValue = values?.[prefixIdx];
+      if (datasetLabel && String(datasetValue) !== datasetLabel) {
+        return;
+      }
+
+      const baseId = baseIdx >= 0 ? String(values[baseIdx]) : key;
+      const cleanedValues =
+        baseIdx >= 0 ? values.filter((_, idx) => idx !== baseIdx) : values.slice();
+
+      metaCell[baseId] = cleanedValues;
+      idMap.push({ sourceId: key, baseId });
+    });
+
+    return { metaCell, metaAttr, idMap };
+  })();
+
+  const filteredUmap = (() => {
+    if (!filteredMeta.idMap.length) {
+      return prefixAttr ? {} : umap;
+    }
+
+    const mapped = {};
+    filteredMeta.idMap.forEach(({ sourceId, baseId }) => {
+      if (umap?.[sourceId]) {
+        mapped[baseId] = umap[sourceId];
+      } else if (umap?.[baseId]) {
+        mapped[baseId] = umap[baseId];
+      }
+    });
+
+    return mapped;
+  })();
 
   viz_state.spatial = {};
 
@@ -364,17 +427,17 @@ export const landscape_ist = async (
   viz_state.cats.cluster_counts = [];
   viz_state.cats.polygon_cell_names = [];
 
-  if (Object.keys(meta_cell).length === 0) {
+  if (Object.keys(filteredMeta.metaCell).length === 0) {
     viz_state.cats.has_meta_cell = false;
   } else {
     viz_state.cats.has_meta_cell = true;
   }
-  viz_state.cats.meta_cell = meta_cell;
-  viz_state.cats.meta_cell_attr = meta_cell_attr;
+  viz_state.cats.meta_cell = filteredMeta.metaCell;
+  viz_state.cats.meta_cell_attr = filteredMeta.metaAttr;
   viz_state.cats.meta_cell_id_set = new Set(
-    Object.keys(meta_cell || {}).map((cell_id) => String(cell_id))
+    Object.keys(filteredMeta.metaCell || {}).map((cell_id) => String(cell_id))
   );
-  viz_state.cats.inst_cell_attr = meta_cell_attr[0] || 'N.A.';
+  viz_state.cats.inst_cell_attr = filteredMeta.metaAttr?.[0] || 'N.A.';
 
   if (Object.keys(meta_cluster).length === 0) {
     viz_state.cats.has_meta_cluster = false;
@@ -386,12 +449,12 @@ export const landscape_ist = async (
   viz_state.cats.inst_cluster_attr = meta_cluster_attr[0] || 'N.A.';
 
   viz_state.umap = {};
-  if (Object.keys(umap).length === 0) {
+  if (Object.keys(filteredUmap).length === 0) {
     viz_state.umap.has_umap = false;
   } else {
     viz_state.umap.has_umap = true;
   }
-  viz_state.umap.umap = umap;
+  viz_state.umap.umap = filteredUmap;
 
   const isUmapInit = landscape_state === 'umap';
   viz_state.obs_store.umap_state.set(isUmapInit);
@@ -733,13 +796,16 @@ export const landscape_ist = async (
 
   set_deck_on_view_state_change(deck_ist, layers_obj, viz_state);
 
+  let updateTriggerHandler = null;
+  let cellClusterHandler = null;
+
   if (Object.keys(viz_state.model).length > 0) {
-    viz_state.model.on('change:update_trigger', () =>
-      update_ist_landscape_from_cgm(deck_ist, layers_obj, viz_state)
-    );
-    viz_state.model.on('change:cell_clusters', () =>
-      update_cell_clusters(deck_ist, layers_obj, viz_state)
-    );
+    updateTriggerHandler = () =>
+      update_ist_landscape_from_cgm(deck_ist, layers_obj, viz_state);
+    cellClusterHandler = () => update_cell_clusters(deck_ist, layers_obj, viz_state);
+
+    viz_state.model.on('change:update_trigger', updateTriggerHandler);
+    viz_state.model.on('change:cell_clusters', cellClusterHandler);
   }
 
   const ui_container = make_ist_ui_container(
@@ -914,6 +980,14 @@ export const landscape_ist = async (
     },
     update_layers: () => {},
     finalize: () => {
+      if (updateTriggerHandler) {
+        viz_state.model.off('change:update_trigger', updateTriggerHandler);
+      }
+
+      if (cellClusterHandler) {
+        viz_state.model.off('change:cell_clusters', cellClusterHandler);
+      }
+
       deck_ist.finalize();
     },
   };

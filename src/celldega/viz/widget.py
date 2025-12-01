@@ -3,6 +3,7 @@
 import colorsys
 from contextlib import suppress
 from copy import deepcopy
+import io
 import json
 from pathlib import Path
 import urllib.error
@@ -27,11 +28,24 @@ _DEFAULT_MANUAL_ATTRIBUTE_TITLES = {
 }
 _MANUAL_FILL_VALUE = "N.A."
 
+_CELL_BASE_ID_COLUMN = "__cell_base_id__"
+
 
 def _hsv_to_hex(h: float) -> str:
     """Convert HSV color to hex string."""
     r, g, b = colorsys.hsv_to_rgb(h, 0.65, 0.9)
     return f"#{int(r * 255):02x}{int(g * 255):02x}{int(b * 255):02x}"
+
+
+def _df_to_bytes(df: pd.DataFrame) -> bytes:
+    """Convert a DataFrame to zstd-compressed parquet bytes."""
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    df.columns = df.columns.map(str)
+    buf = io.BytesIO()
+    pq.write_table(pa.Table.from_pandas(df), buf, compression="zstd")
+    return buf.getvalue()
 
 
 class Landscape(anywidget.AnyWidget):
@@ -50,6 +64,15 @@ class Landscape(anywidget.AnyWidget):
             point-cloud views.
         token (str): The token traitlet.
         base_url (str): The base URL for the widget.
+        base_urls (list[str | dict], optional): Multiple base URLs to make
+            available through a dataset selector. If dictionaries are
+            provided, they can include ``name``/``label`` and ``base_url``/``url``
+            keys to customize the dropdown label; otherwise, names are
+            inferred from the URL.
+        cell_name_prefix_col (str, optional): Column in ``adata.obs`` that
+            contains a dataset-specific prefix used to make cell IDs unique
+            across datasets. The prefix is preserved for disambiguation but the
+            original cell IDs remain available for Landscape file lookups.
         rotate (float, optional): Degrees to rotate the 2D landscape visualization.
         AnnData (AnnData, optional): AnnData object to derive metadata from.
         dataset_name (str, optional): The name of the dataset to visualize. This
@@ -67,6 +90,7 @@ class Landscape(anywidget.AnyWidget):
     technology = traitlets.Unicode("Xenium").tag(sync=True)
     base_url = traitlets.Unicode("").tag(sync=True)
     token = traitlets.Unicode("").tag(sync=True)
+    base_url_options = traitlets.List(trait=traitlets.Dict(), default_value=[]).tag(sync=True)
     creds = traitlets.Dict({}).tag(sync=True)
     max_tiles_to_view = traitlets.Int(50).tag(sync=True)
     ini_x = traitlets.Float().tag(sync=True)
@@ -102,6 +126,7 @@ class Landscape(anywidget.AnyWidget):
         trait=traitlets.Unicode(),
         default_value=["leiden"],
     ).tag(sync=True)
+    cell_name_prefix_col = traitlets.Unicode("").tag(sync=True)
 
     segmentation = traitlets.Unicode("default").tag(sync=True)
 
@@ -114,6 +139,10 @@ class Landscape(anywidget.AnyWidget):
         pq_meta_cluster = kwargs.pop("meta_cluster_parquet", None)
         pq_umap = kwargs.pop("umap_parquet", None)
         pq_meta_nbhd = kwargs.pop("meta_nbhd_parquet", None)
+        base_urls = kwargs.pop("base_urls", None)
+        cell_name_prefix_col = kwargs.pop("cell_name_prefix_col", None) or kwargs.pop(
+            "cell_name_prefix", None
+        )
 
         meta_cell_df = kwargs.pop("meta_cell", None)
         meta_cluster = kwargs.pop("meta_cluster", None)
@@ -124,8 +153,38 @@ class Landscape(anywidget.AnyWidget):
         meta_cluster_df = None
         cell_attr = kwargs.pop("cell_attr", ["leiden"])
 
+        if cell_name_prefix_col:
+            kwargs.setdefault("cell_name_prefix_col", cell_name_prefix_col)
+        kwargs.setdefault("cell_attr", cell_attr)
+
         if nbhd_gdf is not None and nbhd_edit:
             raise ValueError("nbhd_edit cannot be True when nbhd data is provided")
+
+        dataset_options = []
+        if base_urls:
+            for item in base_urls:
+                name = None
+                url = None
+
+                if isinstance(item, dict):
+                    url = item.get("base_url") or item.get("url") or item.get("value")
+                    name = item.get("name") or item.get("label") or item.get("dataset_name")
+                else:
+                    url = str(item)
+
+                if not url:
+                    continue
+
+                url = url.rstrip("/")
+                if not name:
+                    name = Path(url).name or url
+
+                dataset_options.append({"name": name, "base_url": url})
+
+        if dataset_options:
+            kwargs.setdefault("base_url", dataset_options[0]["base_url"])
+            kwargs.setdefault("dataset_name", dataset_options[0]["name"])
+            kwargs.setdefault("base_url_options", dataset_options)
 
         base_path = (kwargs.get("base_url") or "") + "/"
         path_transformation_matrix = base_path + "micron_to_image_transform.csv"
@@ -152,23 +211,36 @@ class Landscape(anywidget.AnyWidget):
                 stacklevel=2,
             )
 
-        def _df_to_bytes(df):
-            import io
-
-            import pyarrow as pa
-            import pyarrow.parquet as pq
-
-            df.columns = df.columns.map(str)
-            buf = io.BytesIO()
-            pq.write_table(pa.Table.from_pandas(df), buf, compression="zstd")
-            return buf.getvalue()
-
         if adata is not None:
             # if cell_id is in the adata.obs, use it as index
             if "cell_id" in adata.obs.columns:
                 adata.obs.set_index("cell_id", inplace=True)
 
+            if cell_name_prefix_col and cell_name_prefix_col not in adata.obs.columns:
+                warnings.warn(
+                    f"cell_name_prefix_col='{cell_name_prefix_col}' not found in adata.obs. "
+                    "Ignoring prefix handling.",
+                    stacklevel=2,
+                )
+                cell_name_prefix_col = None
+
+            if cell_name_prefix_col and cell_name_prefix_col not in cell_attr:
+                cell_attr = [*cell_attr, cell_name_prefix_col]
+
+            base_cell_ids = adata.obs.index.to_series().astype(str)
+            prefix_series = (
+                adata.obs[cell_name_prefix_col].astype(str)
+                if cell_name_prefix_col
+                else None
+            )
+
             meta_cell_df = adata.obs[cell_attr].copy()
+
+            if prefix_series is not None:
+                meta_cell_df[_CELL_BASE_ID_COLUMN] = base_cell_ids.values
+                meta_cell_df.index = prefix_series.str.cat(base_cell_ids, sep="_")
+            else:
+                meta_cell_df.index = base_cell_ids
 
             if meta_cell_df.index.name is None:
                 meta_cell_df.index.name = "cell_id"
@@ -201,8 +273,13 @@ class Landscape(anywidget.AnyWidget):
                 pq_meta_cluster = _df_to_bytes(meta_cluster_df)
 
             if "X_umap" in adata.obsm:
+                umap_index = (
+                    meta_cell_df.index
+                    if prefix_series is not None
+                    else adata.obs.index
+                )
                 umap_df = (
-                    pd.DataFrame(adata.obsm["X_umap"], index=adata.obs.index)
+                    pd.DataFrame(adata.obsm["X_umap"], index=umap_index)
                     .reset_index()
                     .rename(columns={"index": "cell_id", 0: "umap_0", 1: "umap_1"})
                 )
@@ -301,6 +378,86 @@ class Landscape(anywidget.AnyWidget):
         with suppress(Exception):
             self.send({"event": "finalize"})
         super().close()
+
+
+class Yearbook(anywidget.AnyWidget):
+    """Widget for showing a grid of single-cell portraits ("cellbook").
+
+    The widget renders multiple deck.gl viewports laid out as a grid. Each
+    viewport is centered on a specific cell and sized to roughly 20µm by
+    default. Cells can be provided explicitly or selected randomly from a pool;
+    attribute-driven sub-sampling controls are intentionally disabled for now
+    to mirror the simpler Landscape control panel.
+
+    Args:
+        base_url: Base URL where the landscape tiles and metadata live.
+        token: Optional bearer token for authenticated requests.
+        cells: Candidate cell IDs to visualize; if longer than ``rows*cols``, a
+            subset is chosen at random.
+        rows: Number of rows in the cellbook grid.
+        cols: Number of columns in the cellbook grid.
+        window_size_um: Approximate size of each viewport in microns.
+        segmentation: Segmentation version used to fetch cell metadata.
+        meta_cell_parquet: Optional parquet-encoded metadata (as produced by
+            :class:`anndata.AnnData` ``obs``). If omitted, the widget will rely
+            on server-side metadata only.
+    """
+
+    _esm = Path(__file__).parent / "../static" / "widget.js"
+    _css = Path(__file__).parent / "../static" / "widget.css"
+
+    component = traitlets.Unicode("Yearbook").tag(sync=True)
+
+    base_url = traitlets.Unicode("").tag(sync=True)
+    token = traitlets.Unicode("").tag(sync=True)
+    creds = traitlets.Dict({}).tag(sync=True)
+
+    cells = traitlets.List(trait=traitlets.Unicode(), default_value=[]).tag(sync=True)
+    rows = traitlets.Int(2).tag(sync=True)
+    cols = traitlets.Int(3).tag(sync=True)
+    window_size_um = traitlets.Float(20.0).tag(sync=True)
+    cell_size_um = traitlets.Float(allow_none=True, default_value=None).tag(sync=True)
+    displayed_cells = traitlets.List(trait=traitlets.Unicode(), default_value=[]).tag(sync=True)
+
+    width = traitlets.Int(0).tag(sync=True)
+    height = traitlets.Int(600).tag(sync=True)
+
+    max_tiles_to_view = traitlets.Int(50).tag(sync=True)
+
+    segmentation = traitlets.Unicode("default").tag(sync=True)
+    cell_attr = traitlets.List(trait=traitlets.Unicode(), default_value=["leiden"]).tag(sync=True)
+    meta_cell_parquet = traitlets.Bytes(b"").tag(sync=True)
+
+    def __init__(self, **kwargs):
+        if "window_size_um" not in kwargs and "cell_size_um" in kwargs:
+            kwargs["window_size_um"] = kwargs.get("cell_size_um")
+        adata = kwargs.pop("adata", None) or kwargs.pop("AnnData", None)
+        pq_meta_cell = kwargs.pop("meta_cell_parquet", None)
+        cell_attr = kwargs.pop("cell_attr", ["leiden"])
+        meta_cell_df = kwargs.pop("meta_cell", None)
+
+        if adata is not None:
+            if "cell_id" in adata.obs.columns:
+                adata.obs.set_index("cell_id", inplace=True)
+
+            meta_cell_df = adata.obs[cell_attr].copy()
+
+            if meta_cell_df.index.name is None:
+                meta_cell_df.index.name = "cell_id"
+
+            pq_meta_cell = _df_to_bytes(meta_cell_df.reset_index())
+
+        if isinstance(meta_cell_df, pd.DataFrame) and pq_meta_cell is None:
+            pq_meta_cell = _df_to_bytes(meta_cell_df.reset_index())
+
+        if pq_meta_cell is not None:
+            kwargs["meta_cell_parquet"] = pq_meta_cell
+
+        kwargs.setdefault("cell_attr", cell_attr)
+
+        super().__init__(**kwargs)
+
+        self.meta_cell = meta_cell_df
 
 
 class ManualAttributeTrait(traitlets.Unicode):

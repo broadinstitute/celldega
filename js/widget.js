@@ -11,7 +11,6 @@ import { landscape_ist } from './viz/landscape_ist';
 import { landscape_sst } from './viz/landscape_sst';
 import { matrix_viz } from './viz/matrix_viz';
 import { render_enrich } from './widgets/enrich_widget';
-import { render_yearbook } from './widgets/yearbook';
 
 // Remove export keywords from render functions
 const render_landscape_ist = async ({ model, el }) => {
@@ -258,9 +257,6 @@ async function render({ model, el }) {
         break;
       case 'Enrich':
         cleanup = await render_enrich({ model, el });
-        break;
-      case 'Yearbook':
-        cleanup = await render_yearbook({ model, el });
         break;
       default:
         handleValidationWarning(`Unknown component type: ${componentType}`, {

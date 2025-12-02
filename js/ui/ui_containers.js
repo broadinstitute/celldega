@@ -394,7 +394,7 @@ export const make_ist_ui_container = (
       wrapper.style.fontSize = '12px';
 
       const label = document.createElement('span');
-      label.textContent = 'Dataset';
+      label.textContent = '';
       label.style.color = '#47515b';
 
       const select = document.createElement('select');

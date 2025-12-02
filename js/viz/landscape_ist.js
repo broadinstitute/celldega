@@ -838,8 +838,8 @@ export const landscape_ist = async (
 
   set_deck_on_view_state_change(deck_ist, layers_obj, viz_state);
 
-  let updateTriggerHandler = null;
-  let cellClusterHandler = null;
+  const updateTriggerHandler = null;
+  const cellClusterHandler = null;
 
   if (Object.keys(viz_state.model).length > 0) {
     // updateTriggerHandler = () =>

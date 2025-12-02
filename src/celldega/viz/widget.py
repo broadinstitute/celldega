@@ -229,9 +229,7 @@ class Landscape(anywidget.AnyWidget):
 
             base_cell_ids = adata.obs.index.to_series().astype(str)
             prefix_series = (
-                adata.obs[cell_name_prefix_col].astype(str)
-                if cell_name_prefix_col
-                else None
+                adata.obs[cell_name_prefix_col].astype(str) if cell_name_prefix_col else None
             )
 
             meta_cell_df = adata.obs[cell_attr].copy()
@@ -273,11 +271,7 @@ class Landscape(anywidget.AnyWidget):
                 pq_meta_cluster = _df_to_bytes(meta_cluster_df)
 
             if "X_umap" in adata.obsm:
-                umap_index = (
-                    meta_cell_df.index
-                    if prefix_series is not None
-                    else adata.obs.index
-                )
+                umap_index = meta_cell_df.index if prefix_series is not None else adata.obs.index
                 umap_df = (
                     pd.DataFrame(adata.obsm["X_umap"], index=umap_index)
                     .reset_index()

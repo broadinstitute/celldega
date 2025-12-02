@@ -26,7 +26,10 @@ import {
   update_edit_visitility,
   update_edit_layer_mode,
 } from '../deck-gl/layers/edit_layer';
-import { make_image_layers } from '../deck-gl/layers/image_layers';
+import {
+  make_image_layers,
+  toggle_visibility_single_image_layer,
+} from '../deck-gl/layers/image_layers';
 import {
   ini_nbhd_layer,
   set_nbhd_layer_onclick,
@@ -203,7 +206,8 @@ export const landscape_ist = async (
   rotation_x = 0,
   rotate = 0,
   max_tiles_to_view = 50,
-  scale_bar_microns_per_pixel = null
+  scale_bar_microns_per_pixel = null,
+  persisted_state = {}
 ) => {
   if (width === 0) {
     width = '100%';
@@ -212,6 +216,18 @@ export const landscape_ist = async (
   const viz_state = {};
 
   viz_state.obs_store = create_obs_store();
+
+  const cachedSelectedCats = persisted_state?.selected_cats || [];
+  const cachedSelectedGenes = persisted_state?.selected_genes || [];
+  const cachedVisibleImages = Array.isArray(persisted_state?.visible_images)
+    ? persisted_state.visible_images
+    : [];
+  const cachedVizImageLayers = persisted_state?.viz_image_layers;
+  const cachedLandscapeView = persisted_state?.landscape_view;
+
+  if (typeof cachedVizImageLayers === 'boolean') {
+    viz_state.obs_store.viz_image_layers.set(cachedVizImageLayers);
+  }
 
   viz_state.highlighted_cells = new Set();
   viz_state.selection_token = 0;
@@ -434,7 +450,7 @@ export const landscape_ist = async (
   viz_state.cats = {};
   viz_state.cats.cat = null;
   viz_state.cats.reset_cat = false;
-  viz_state.cats.selected_cats = [];
+  viz_state.cats.selected_cats = cachedSelectedCats.slice();
   viz_state.cats.cell_cats = [];
   viz_state.cats.dict_cell_cats = {};
   viz_state.cats.color_dict_cluster = {};
@@ -452,6 +468,10 @@ export const landscape_ist = async (
     Object.keys(filteredMeta.metaCell || {}).map((cell_id) => String(cell_id))
   );
   viz_state.cats.inst_cell_attr = filteredMeta.metaAttr?.[0] || 'N.A.';
+
+  if (viz_state.cats.selected_cats.length > 0) {
+    viz_state.obs_store.selected_cats.set(viz_state.cats.selected_cats);
+  }
 
   if (Object.keys(meta_cluster).length === 0) {
     viz_state.cats.has_meta_cluster = false;
@@ -474,18 +494,27 @@ export const landscape_ist = async (
   viz_state.obs_store.umap_state.set(isUmapInit);
   viz_state.obs_store.landscape_view.set(landscape_state);
 
+  if (cachedLandscapeView === 'umap') {
+    viz_state.obs_store.umap_state.set(true);
+    viz_state.obs_store.landscape_view.set('umap');
+  }
+
   viz_state.genes = {};
   viz_state.genes.color_dict_gene = {};
   viz_state.genes.gene_names = [];
   viz_state.genes.meta_gene = {};
   viz_state.genes.gene_counts = [];
-  viz_state.genes.selected_genes = [];
+  viz_state.genes.selected_genes = cachedSelectedGenes.slice();
   viz_state.genes.trx_ini_radius = trx_radius;
   viz_state.genes.trx_names_array = [];
   viz_state.genes.trx_data = [];
   viz_state.genes.gene_text_box = '';
   viz_state.genes.trx_slider = document.createElement('input');
   viz_state.genes.gene_search = document.createElement('div');
+
+  if (viz_state.genes.selected_genes.length > 0) {
+    viz_state.obs_store.selected_genes.set(viz_state.genes.selected_genes);
+  }
 
   viz_state.cats.cell_exp_array = [];
   viz_state.cats.cell_names_array = [];
@@ -522,6 +551,18 @@ export const landscape_ist = async (
     viz_state.img.image_layer_colors,
     viz_state.img.image_info
   );
+
+  const allImageLayerNames = viz_state.img.image_info.map(
+    (info) => info.button_name
+  );
+  const persistedVisibleSet = new Set(
+    cachedVisibleImages.filter((name) => allImageLayerNames.includes(name))
+  );
+
+  viz_state.img.visible_layers =
+    persistedVisibleSet.size > 0
+      ? persistedVisibleSet
+      : new Set(allImageLayerNames);
 
   // Create and append the visualization.
   const root = document.createElement('div');
@@ -639,6 +680,26 @@ export const landscape_ist = async (
     nbhd_layer,
     edit_layer,
   };
+
+  const enforceImageLayerVisibility = () => {
+    viz_state.img.image_info.forEach(({ button_name }) => {
+      const shouldShow = viz_state.img.visible_layers.has(button_name);
+      toggle_visibility_single_image_layer(layers_obj, button_name, shouldShow);
+
+      const slider = viz_state.img.image_layer_sliders.find(
+        (instSlider) => instSlider.name === button_name
+      );
+
+      toggle_slider(
+        slider,
+        shouldShow && viz_state.obs_store.viz_image_layers.get()
+      );
+    });
+  };
+
+  viz_state.img.enforce_visibility = enforceImageLayerVisibility;
+
+  enforceImageLayerVisibility();
 
   const refresh_cell_layer = () => {
     const selected_cats_name = viz_state.cats.selected_cats.join('-');
@@ -947,6 +1008,18 @@ export const landscape_ist = async (
     { immediate: false }
   );
 
+  const get_state_snapshot = () => {
+    return {
+      selected_cats: [...(viz_state.obs_store.selected_cats.get() || [])],
+      selected_genes: [...(viz_state.obs_store.selected_genes.get() || [])],
+      landscape_view: viz_state.obs_store.landscape_view.get(),
+      viz_image_layers: viz_state.obs_store.viz_image_layers.get(),
+      visible_images: viz_state.img?.visible_layers
+        ? Array.from(viz_state.img.visible_layers)
+        : [],
+    };
+  };
+
   const landscape = {
     update_matrix_gene: async (inst_gene) => {
       const reset_gene = inst_gene === viz_state.cats.cat;
@@ -1032,6 +1105,7 @@ export const landscape_ist = async (
       viz_state.layers_obj = layers_obj;
     },
     update_layers: () => {},
+    get_state: get_state_snapshot,
     finalize: () => {
       if (updateTriggerHandler) {
         viz_state.model.off('change:update_trigger', updateTriggerHandler);

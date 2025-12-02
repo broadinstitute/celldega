@@ -16,6 +16,13 @@ import { render_enrich } from './widgets/enrich_widget';
 const render_landscape_ist = async ({ model, el }) => {
   let cleanup = null;
   let buildChain = Promise.resolve();
+  let sharedState = null;
+
+  const snapshotCurrentState = () => {
+    if (cleanup?.get_state) {
+      sharedState = cleanup.get_state();
+    }
+  };
 
   const buildLandscape = () => {
     buildChain = buildChain.then(async () => {
@@ -53,6 +60,7 @@ const render_landscape_ist = async ({ model, el }) => {
       const scale_bar_microns_per_pixel = model.get(
         'scale_bar_microns_per_pixel'
       );
+      const persisted_state = sharedState;
 
       let meta_cell_data = { result: {}, attr: [] };
       let meta_cluster_data = { result: {}, attr: [] };
@@ -114,7 +122,8 @@ const render_landscape_ist = async ({ model, el }) => {
           rotation_x,
           rotate,
           max_tiles_to_view,
-          scale_bar_microns_per_pixel
+          scale_bar_microns_per_pixel,
+          persisted_state
         );
       } finally {
         loading.remove();
@@ -127,6 +136,7 @@ const render_landscape_ist = async ({ model, el }) => {
   await buildLandscape();
 
   const handleDatasetChange = () => {
+    snapshotCurrentState();
     void buildLandscape();
   };
 
@@ -135,6 +145,7 @@ const render_landscape_ist = async ({ model, el }) => {
 
   return () => {
     buildChain.finally(() => {
+      snapshotCurrentState();
       if (cleanup?.finalize) {
         cleanup.finalize();
       }

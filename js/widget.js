@@ -16,12 +16,11 @@ import { render_enrich } from './widgets/enrich_widget';
 const render_landscape_ist = async ({ model, el }) => {
   let cleanup = null;
   let buildChain = Promise.resolve();
-  const datasetStateCache = new Map();
-  let activeDatasetKey = model.get('dataset_name') || model.get('base_url');
+  let sharedState = null;
 
   const snapshotCurrentState = () => {
     if (cleanup?.get_state) {
-      datasetStateCache.set(activeDatasetKey, cleanup.get_state());
+      sharedState = cleanup.get_state();
     }
   };
 
@@ -61,7 +60,7 @@ const render_landscape_ist = async ({ model, el }) => {
       const scale_bar_microns_per_pixel = model.get(
         'scale_bar_microns_per_pixel'
       );
-      const persisted_state = datasetStateCache.get(activeDatasetKey);
+      const persisted_state = sharedState;
 
       let meta_cell_data = { result: {}, attr: [] };
       let meta_cluster_data = { result: {}, attr: [] };
@@ -129,8 +128,6 @@ const render_landscape_ist = async ({ model, el }) => {
       } finally {
         loading.remove();
       }
-
-      activeDatasetKey = model.get('dataset_name') || model.get('base_url');
     });
 
     return buildChain;
@@ -140,7 +137,6 @@ const render_landscape_ist = async ({ model, el }) => {
 
   const handleDatasetChange = () => {
     snapshotCurrentState();
-    activeDatasetKey = model.get('dataset_name') || model.get('base_url');
     void buildLandscape();
   };
 

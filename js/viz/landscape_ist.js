@@ -205,7 +205,6 @@ export const landscape_ist = async (
   max_tiles_to_view = 50,
   scale_bar_microns_per_pixel = null
 ) => {
-
   if (width === 0) {
     width = '100%';
   }
@@ -292,7 +291,9 @@ export const landscape_ist = async (
 
       const baseId = baseIdx >= 0 ? String(values[baseIdx]) : key;
       const cleanedValues =
-        baseIdx >= 0 ? values.filter((_, idx) => idx !== baseIdx) : values.slice();
+        baseIdx >= 0
+          ? values.filter((_, idx) => idx !== baseIdx)
+          : values.slice();
 
       metaCell[baseId] = cleanedValues;
       idMap.push({ sourceId: key, baseId });
@@ -802,7 +803,8 @@ export const landscape_ist = async (
   if (Object.keys(viz_state.model).length > 0) {
     updateTriggerHandler = () =>
       update_ist_landscape_from_cgm(deck_ist, layers_obj, viz_state);
-    cellClusterHandler = () => update_cell_clusters(deck_ist, layers_obj, viz_state);
+    cellClusterHandler = () =>
+      update_cell_clusters(deck_ist, layers_obj, viz_state);
 
     viz_state.model.on('change:update_trigger', updateTriggerHandler);
     viz_state.model.on('change:cell_clusters', cellClusterHandler);

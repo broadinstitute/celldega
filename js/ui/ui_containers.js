@@ -422,7 +422,9 @@ export const make_ist_ui_container = (
       }
 
       select.addEventListener('change', () => {
-        const selectedOption = options.find((opt) => opt.base_url === select.value);
+        const selectedOption = options.find(
+          (opt) => opt.base_url === select.value
+        );
         if (!selectedOption || !viz_state.model?.set) {
           return;
         }

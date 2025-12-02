@@ -92,6 +92,7 @@ class Landscape(anywidget.AnyWidget):
     meta_nbhd = traitlets.Instance(pd.DataFrame, allow_none=True)
 
     meta_cluster = traitlets.Dict({}).tag(sync=True)
+    selected_cells = traitlets.List(trait=traitlets.Unicode(), default_value=[]).tag(sync=True)
     landscape_state = traitlets.Unicode("spatial").tag(sync=True)
 
     update_trigger = traitlets.Dict().tag(sync=True)
@@ -272,6 +273,11 @@ class Landscape(anywidget.AnyWidget):
     def update_cell_clusters(self, new_clusters):
         """Update cell clusters with new data."""
         self.cell_clusters = new_clusters
+
+    def highlight_cells(self, cell_ids):
+        """Highlight specific cells by their identifiers."""
+
+        self.selected_cells = list(cell_ids)
 
     @traitlets.observe("nbhd_geojson")
     def _on_nbhd_geojson_change(self, change):

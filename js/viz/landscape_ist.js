@@ -213,6 +213,19 @@ export const landscape_ist = async (
 
   viz_state.obs_store = create_obs_store();
 
+  viz_state.highlighted_cells = new Set();
+  viz_state.selection_token = 0;
+
+  const initial_selected_cells =
+    typeof ini_model?.get === 'function'
+      ? ini_model.get('selected_cells') || []
+      : [];
+
+  if (Array.isArray(initial_selected_cells)) {
+    viz_state.highlighted_cells = new Set(initial_selected_cells);
+    viz_state.obs_store.selected_cells.set(initial_selected_cells);
+  }
+
   viz_state.max_tiles_to_view = max_tiles_to_view;
   const update_viz_image_layers = () => {
     if (!get_img_layer_visible()) {
@@ -563,6 +576,31 @@ export const landscape_ist = async (
     edit_layer,
   };
 
+  const refresh_cell_layer = () => {
+    const selected_cats_name = viz_state.cats.selected_cats.join('-');
+
+    layers_obj.cell_layer = layers_obj.cell_layer.clone({
+      id: `cell-layer-${selected_cats_name}-sel-${viz_state.selection_token}`,
+      updateTriggers: {
+        ...layers_obj.cell_layer.props.updateTriggers,
+        getPosition: [viz_state.obs_store.umap_state.get()],
+        getFillColor: [viz_state.selection_token],
+      },
+    });
+
+    // Toggle cell layer readiness so deck.gl re-renders when selections arrive
+    // from the Python backend.
+    viz_state.obs_store.deck_check.set({
+      ...viz_state.obs_store.deck_check.get(),
+      cell_layer: false,
+    });
+
+    viz_state.obs_store.deck_check.set({
+      ...viz_state.obs_store.deck_check.get(),
+      cell_layer: true,
+    });
+  };
+
   viz_state.layers_obj = layers_obj;
 
   viz_state.obs_store.deck_check.set({
@@ -683,9 +721,7 @@ export const landscape_ist = async (
   viz_state.obs_store.selected_cats.subscribe((selected_cats) => {
     const selected_cats_name = selected_cats.join('-');
 
-    layers_obj.cell_layer = layers_obj.cell_layer.clone({
-      id: `cell-layer-${selected_cats_name}`,
-    });
+    refresh_cell_layer();
 
     layers_obj.path_layer = layers_obj.path_layer.clone({
       id: `path-layer-${selected_cats_name}`,
@@ -694,8 +730,13 @@ export const landscape_ist = async (
     viz_state.obs_store.deck_check.set({
       ...viz_state.obs_store.deck_check.get(),
       path_layer: true,
-      cell_layer: true,
     });
+  });
+
+  viz_state.obs_store.selected_cells.subscribe((selected_cells) => {
+    viz_state.highlighted_cells = new Set(selected_cells ?? []);
+    viz_state.selection_token += 1;
+    refresh_cell_layer();
   });
 
   viz_state.obs_store.selected_genes.subscribe((selected_genes) => {
@@ -740,6 +781,10 @@ export const landscape_ist = async (
     viz_state.model.on('change:cell_clusters', () =>
       update_cell_clusters(deck_ist, layers_obj, viz_state)
     );
+    viz_state.model.on('change:selected_cells', () => {
+      const cells = viz_state.model.get('selected_cells') || [];
+      viz_state.obs_store.selected_cells.set(cells);
+    });
   }
 
   const ui_container = make_ist_ui_container(

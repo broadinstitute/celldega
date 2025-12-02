@@ -25,6 +25,7 @@ export const create_obs_store = () => {
   const store = {
     cat: Observable('cluster'),
     selected_cats: Observable([]),
+    selected_cells: Observable([]),
     new_cell_bar_data: Observable([]),
     new_gene_bar_data: Observable([]),
     selected_genes: Observable([]),

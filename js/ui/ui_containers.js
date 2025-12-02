@@ -584,7 +584,11 @@ export const make_ist_ui_container = (
         toggle_slider(slider, viz_image_layers)
       );
 
-      toggle_visibility_image_layers(layers_obj, viz_image_layers);
+      if (viz_image_layers && viz_state.img.enforce_visibility) {
+        viz_state.img.enforce_visibility();
+      } else {
+        toggle_visibility_image_layers(layers_obj, viz_image_layers);
+      }
 
       refresh_layer(viz_state, layers_obj, 'image_layers');
 

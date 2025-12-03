@@ -215,8 +215,21 @@ export const switch_dataset = async (newIndex, viz_state, deck_ist, layers_obj) 
       },
     });
 
-    // Update image layers by creating new ones with new base_url
-    const new_image_layers = await make_image_layers(viz_state);
+    // Dispose of old image layers to clear any cached tile data
+    if (layers_obj.image_layers && Array.isArray(layers_obj.image_layers)) {
+      layers_obj.image_layers.forEach((layer) => {
+        if (layer && typeof layer.finalize === 'function') {
+          try {
+            layer.finalize();
+          } catch (e) {
+            // Ignore finalize errors
+          }
+        }
+      });
+    }
+
+    // Create completely new image layers with unique IDs to force fresh tile fetching
+    const new_image_layers = await make_image_layers(viz_state, newIndex);
     layers_obj.image_layers = new_image_layers;
 
     // Update background layer extent if needed

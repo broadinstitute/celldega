@@ -928,20 +928,21 @@ export const landscape_ist = async (
 
   set_deck_on_view_state_change(deck_ist, layers_obj, viz_state);
 
-  const updateTriggerHandler = null;
-  const cellClusterHandler = null;
+  const updateTriggerHandler = () =>
+    update_ist_landscape_from_cgm(deck_ist, layers_obj, viz_state);
+
+  const cellClusterHandler = () =>
+    update_cell_clusters(deck_ist, layers_obj, viz_state);
+
+  const selectedCellsHandler = () => {
+    const cells = viz_state.model.get('selected_cells') || [];
+    viz_state.obs_store.selected_cells.set(cells);
+  };
 
   if (Object.keys(viz_state.model).length > 0) {
-    viz_state.model.on('change:update_trigger', () =>
-      update_ist_landscape_from_cgm(deck_ist, layers_obj, viz_state)
-    );
-    viz_state.model.on('change:cell_clusters', () =>
-      update_cell_clusters(deck_ist, layers_obj, viz_state)
-    );
-    viz_state.model.on('change:selected_cells', () => {
-      const cells = viz_state.model.get('selected_cells') || [];
-      viz_state.obs_store.selected_cells.set(cells);
-    });
+    viz_state.model.on('change:update_trigger', updateTriggerHandler);
+    viz_state.model.on('change:cell_clusters', cellClusterHandler);
+    viz_state.model.on('change:selected_cells', selectedCellsHandler);
   }
 
   const ui_container = make_ist_ui_container(
@@ -1135,6 +1136,16 @@ export const landscape_ist = async (
 
       if (cellClusterHandler) {
         viz_state.model.off('change:cell_clusters', cellClusterHandler);
+      }
+
+      if (selectedCellsHandler) {
+        viz_state.model.off('change:selected_cells', selectedCellsHandler);
+      }
+
+      const gl = deck_ist?.animationLoop?.gl;
+      const loseCtxExtension = gl?.getExtension('WEBGL_lose_context');
+      if (loseCtxExtension) {
+        loseCtxExtension.loseContext();
       }
 
       deck_ist.finalize();

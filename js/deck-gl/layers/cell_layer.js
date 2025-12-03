@@ -57,13 +57,20 @@ export const get_cell_color = (cats, highlighted_cells, i, d) => {
   if (cats.cat === 'cluster') {
     try {
       const inst_cat = cats.cell_cats[d.index];
+      const normalizedInstCat = inst_cat == null ? inst_cat : String(inst_cat);
+      const normalizedSelectedCats = cats.selected_cats.map((cat) =>
+        cat == null ? cat : String(cat)
+      );
+
+      const isSelected =
+        normalizedSelectedCats.length === 0 ||
+        normalizedSelectedCats.some(
+          (cat) => cat === normalizedInstCat || (cat == null && inst_cat == null)
+        );
 
       let inst_color = cats.color_dict_cluster[inst_cat];
 
-      let inst_opacity =
-        cats.selected_cats.length === 0 || cats.selected_cats.includes(inst_cat)
-          ? 255
-          : 10;
+      let inst_opacity = isSelected ? 255 : 10;
 
       // Check if inst_color is an array and log an error if it's not
       if (!Array.isArray(inst_color)) {

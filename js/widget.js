@@ -16,24 +16,6 @@ import { render_enrich } from './widgets/enrich_widget';
 const render_landscape_ist = async ({ model, el }) => {
   let cleanup = null;
   let build_chain = Promise.resolve();
-  let shared_state = null;
-  const rotate_cache = new Map();
-  let current_dataset_key = null;
-
-  const get_dataset_key = () => {
-    const base_url = model.get('base_url');
-    const dataset_name = model.get('dataset_name');
-
-    return `${base_url ?? ''}::${dataset_name ?? ''}`;
-  };
-
-  const snapshot_current_state = () => {
-    if (cleanup?.get_state) {
-      current_dataset_key = current_dataset_key || get_dataset_key();
-      shared_state = cleanup.get_state();
-      rotate_cache.set(current_dataset_key, shared_state);
-    }
-  };
 
   const build_landscape = () => {
     build_chain = build_chain.then(async () => {
@@ -71,8 +53,6 @@ const render_landscape_ist = async ({ model, el }) => {
       const scale_bar_microns_per_pixel = model.get(
         'scale_bar_microns_per_pixel'
       );
-      current_dataset_key = get_dataset_key();
-      const persisted_state = rotate_cache.get(current_dataset_key) || shared_state;
 
       let meta_cell_data = { result: {}, attr: [] };
       let meta_cluster_data = { result: {}, attr: [] };
@@ -134,9 +114,7 @@ const render_landscape_ist = async ({ model, el }) => {
           rotation_x,
           rotate,
           max_tiles_to_view,
-          scale_bar_microns_per_pixel,
-          persisted_state,
-          rotate_cache
+          scale_bar_microns_per_pixel
         );
       } finally {
         loading.remove();
@@ -149,7 +127,6 @@ const render_landscape_ist = async ({ model, el }) => {
   await build_landscape();
 
   const handleDatasetChange = () => {
-    snapshot_current_state();
     void build_landscape();
   };
 
@@ -158,7 +135,6 @@ const render_landscape_ist = async ({ model, el }) => {
 
   return () => {
     build_chain.finally(() => {
-      snapshot_current_state();
       if (cleanup?.finalize) {
         cleanup.finalize();
       }

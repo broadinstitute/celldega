@@ -206,9 +206,7 @@ export const landscape_ist = async (
   rotation_x = 0,
   rotate = 0,
   max_tiles_to_view = 50,
-  scale_bar_microns_per_pixel = null,
-  persisted_state = {},
-  rotate_cache = null
+  scale_bar_microns_per_pixel = null
 ) => {
   if (width === 0) {
     width = '100%';
@@ -217,20 +215,10 @@ export const landscape_ist = async (
   const viz_state = {};
 
   viz_state.obs_store = create_obs_store();
-  viz_state.obs_store.persisted_state = persisted_state;
-  viz_state.obs_store.rotate_cache = rotate_cache;
 
-  const cached_selected_cats = persisted_state?.selected_cats || [];
-  const cached_selected_genes = persisted_state?.selected_genes || [];
-  const cached_visible_images = Array.isArray(persisted_state?.visible_images)
-    ? persisted_state.visible_images
-    : [];
-  const cached_viz_image_layers = persisted_state?.viz_image_layers;
-  const cached_landscape_view = persisted_state?.landscape_view;
-
-  if (typeof cached_viz_image_layers === 'boolean') {
-    viz_state.obs_store.viz_image_layers.set(cached_viz_image_layers);
-  }
+  const cached_selected_cats = [];
+  const cached_selected_genes = [];
+  const cached_visible_images = [];
 
   viz_state.highlighted_cells = new Set();
   viz_state.selection_token = 0;
@@ -496,11 +484,6 @@ export const landscape_ist = async (
   const isUmapInit = landscape_state === 'umap';
   viz_state.obs_store.umap_state.set(isUmapInit);
   viz_state.obs_store.landscape_view.set(landscape_state);
-
-  if (cached_landscape_view === 'umap') {
-    viz_state.obs_store.umap_state.set(true);
-    viz_state.obs_store.landscape_view.set('umap');
-  }
 
   viz_state.genes = {};
   viz_state.genes.color_dict_gene = {};

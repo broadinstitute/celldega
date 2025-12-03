@@ -12,6 +12,13 @@ import { landscape_sst } from './viz/landscape_sst';
 import { matrix_viz } from './viz/matrix_viz';
 import { render_enrich } from './widgets/enrich_widget';
 
+const pickBaseUrl = (value) => {
+  if (Array.isArray(value)) {
+    return value[0];
+  }
+  return value;
+};
+
 // Remove export keywords from render functions
 const render_landscape_ist = async ({ model, el }) => {
   const token = model.get('token');
@@ -20,7 +27,8 @@ const render_landscape_ist = async ({ model, el }) => {
   const ini_y = model.get('ini_y');
   const ini_z = model.get('ini_z');
   const ini_zoom = model.get('ini_zoom');
-  const base_url = model.get('base_url');
+  const raw_base_url = model.get('base_url');
+  const base_url = Array.isArray(raw_base_url) ? raw_base_url : raw_base_url;
   const dataset_name = model.get('dataset_name');
   const width = model.get('width');
   const height = model.get('height');
@@ -31,6 +39,7 @@ const render_landscape_ist = async ({ model, el }) => {
   const max_tiles_to_view = model.get('max_tiles_to_view');
   const nbhd_edit = model.get('nbhd_edit');
   const scale_bar_microns_per_pixel = model.get('scale_bar_microns_per_pixel');
+  const cell_name_prefix = model.get('cell_name_prefix');
 
   let meta_cell_data = { result: {}, attr: [] };
   let meta_cluster_data = { result: {}, attr: [] };
@@ -70,6 +79,7 @@ const render_landscape_ist = async ({ model, el }) => {
     ini_zoom,
     base_url,
     dataset_name,
+    cell_name_prefix,
     0.25,
     width,
     height,
@@ -98,7 +108,7 @@ const render_landscape_sst = async ({ model, el }) => {
   const ini_y = model.get('ini_y');
   const ini_z = model.get('ini_z');
   const ini_zoom = model.get('ini_zoom');
-  const base_url = model.get('base_url');
+  const base_url = pickBaseUrl(model.get('base_url'));
   const dataset_name = model.get('dataset_name');
   const square_tile_size = model.get('square_tile_size');
   const width = model.get('width');
@@ -126,7 +136,7 @@ const render_landscape_h_e = async ({ model, el }) => {
   const ini_y = model.get('ini_y');
   const ini_z = model.get('ini_z');
   const ini_zoom = model.get('ini_zoom');
-  const base_url = model.get('base_url');
+  const base_url = pickBaseUrl(model.get('base_url'));
   const dataset_name = model.get('dataset_name');
   const width = model.get('width');
   const height = model.get('height');

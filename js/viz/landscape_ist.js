@@ -175,6 +175,65 @@ const create_scale_bar = (micronsPerPixel, tech) => {
   return { container, update, setVisible };
 };
 
+const normalizeCellId = (cellId, shouldTrim) => {
+  const cellString = String(cellId ?? '');
+  if (!shouldTrim) {
+    return cellString;
+  }
+
+  const parts = cellString.split('_');
+  if (parts.length <= 1) {
+    return cellString;
+  }
+
+  return parts.slice(1).join('_');
+};
+
+const normalizeCellIdMap = (inputMap, shouldTrim) => {
+  if (!shouldTrim || !inputMap) {
+    return inputMap || {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(inputMap).map(([key, value]) => [
+      normalizeCellId(key, shouldTrim),
+      value,
+    ])
+  );
+};
+
+const normalizeCellIdArray = (inputArray, shouldTrim) => {
+  if (!Array.isArray(inputArray)) {
+    return [];
+  }
+
+  if (!shouldTrim) {
+    return inputArray;
+  }
+
+  return inputArray.map((cellId) => normalizeCellId(cellId, shouldTrim));
+};
+
+const normalizeDatasets = (baseUrlInput, datasetNameInput) => {
+  const baseUrls = Array.isArray(baseUrlInput) ? baseUrlInput : [baseUrlInput];
+  const datasetNames = Array.isArray(datasetNameInput)
+    ? datasetNameInput
+    : datasetNameInput
+      ? [datasetNameInput]
+      : [];
+
+  return baseUrls
+    .filter((url) => url !== undefined && url !== null && url !== '')
+    .map((url, idx) => {
+      const providedName = datasetNames[idx] || datasetNames[0];
+      const fallbackName = String(url).split('/').filter(Boolean).slice(-1)[0];
+      return {
+        name: providedName || fallbackName || `dataset-${idx + 1}`,
+        url,
+      };
+    });
+};
+
 export const landscape_ist = async (
   el,
   ini_model,
@@ -185,6 +244,7 @@ export const landscape_ist = async (
   ini_zoom,
   base_url,
   dataset_name = '',
+  cell_name_prefix = false,
   trx_radius = 0.25,
   width = 0,
   height = 800,
@@ -209,17 +269,30 @@ export const landscape_ist = async (
     width = '100%';
   }
 
+  const datasetOptions = normalizeDatasets(base_url, dataset_name);
+  const activeDataset = datasetOptions[0] || { url: '', name: dataset_name };
+  let current_base_url = activeDataset.url || '';
+
+  const normalized_meta_cell = normalizeCellIdMap(meta_cell, cell_name_prefix);
+  const normalized_umap = normalizeCellIdMap(umap, cell_name_prefix);
+
   const viz_state = {};
+
+  viz_state.datasets = datasetOptions;
+  viz_state.current_dataset_name = activeDataset.name;
+  viz_state.cell_name_prefix = cell_name_prefix;
 
   viz_state.obs_store = create_obs_store();
 
   viz_state.highlighted_cells = new Set();
   viz_state.selection_token = 0;
 
-  const initial_selected_cells =
+  const initial_selected_cells = normalizeCellIdArray(
     typeof ini_model?.get === 'function'
       ? ini_model.get('selected_cells') || []
-      : [];
+      : [],
+    viz_state.cell_name_prefix
+  );
 
   if (Array.isArray(initial_selected_cells)) {
     viz_state.highlighted_cells = new Set(initial_selected_cells);
@@ -259,7 +332,7 @@ export const landscape_ist = async (
   viz_state.buttons.light_gray = '#EEEEEE';
   viz_state.buttons.buttons = {};
 
-  set_global_base_url(viz_state, base_url);
+  set_global_base_url(viz_state, current_base_url);
 
   viz_state.close_up = false;
   viz_state.model = ini_model;
@@ -283,7 +356,7 @@ export const landscape_ist = async (
 
     // fetch after initialization of aws client is apparently required?
     const response = await viz_state.aws.fetch(
-      `${base_url}/landscape_parameters.json`
+      `${current_base_url}/landscape_parameters.json`
     );
 
     if (!response.ok) {
@@ -377,15 +450,15 @@ export const landscape_ist = async (
   viz_state.cats.cluster_counts = [];
   viz_state.cats.polygon_cell_names = [];
 
-  if (Object.keys(meta_cell).length === 0) {
+  if (Object.keys(normalized_meta_cell).length === 0) {
     viz_state.cats.has_meta_cell = false;
   } else {
     viz_state.cats.has_meta_cell = true;
   }
-  viz_state.cats.meta_cell = meta_cell;
+  viz_state.cats.meta_cell = normalized_meta_cell;
   viz_state.cats.meta_cell_attr = meta_cell_attr;
   viz_state.cats.meta_cell_id_set = new Set(
-    Object.keys(meta_cell || {}).map((cell_id) => String(cell_id))
+    Object.keys(normalized_meta_cell || {}).map((cell_id) => String(cell_id))
   );
   viz_state.cats.inst_cell_attr = meta_cell_attr[0] || 'N.A.';
 
@@ -399,12 +472,12 @@ export const landscape_ist = async (
   viz_state.cats.inst_cluster_attr = meta_cluster_attr[0] || 'N.A.';
 
   viz_state.umap = {};
-  if (Object.keys(umap).length === 0) {
+  if (Object.keys(normalized_umap).length === 0) {
     viz_state.umap.has_umap = false;
   } else {
     viz_state.umap.has_umap = true;
   }
-  viz_state.umap.umap = umap;
+  viz_state.umap.umap = normalized_umap;
 
   const isUmapInit = landscape_state === 'umap';
   viz_state.obs_store.umap_state.set(isUmapInit);
@@ -433,7 +506,11 @@ export const landscape_ist = async (
 
   set_options(token);
 
-  await set_landscape_parameters(viz_state.img, base_url, viz_state.aws);
+  await set_landscape_parameters(
+    viz_state.img,
+    current_base_url,
+    viz_state.aws
+  );
   const tech = viz_state.img.landscape_parameters.technology;
   if (tech === 'Chromium' || tech === 'point-cloud') {
     viz_state.obs_store.viz_image_layers.set(false);
@@ -494,7 +571,7 @@ export const landscape_ist = async (
   if (tech === 'Chromium' || tech === 'point-cloud') {
     viz_state.dimensions = { width: 1, height: 1, tileSize: 1 };
   } else {
-    await set_dimensions(viz_state, base_url, image_name_for_dim);
+    await set_dimensions(viz_state, current_base_url, image_name_for_dim);
   }
 
   const centerX = viz_state.dimensions?.width
@@ -507,7 +584,7 @@ export const landscape_ist = async (
 
   await set_meta_gene(
     viz_state.genes,
-    base_url,
+    current_base_url,
     viz_state.seg.version,
     viz_state.aws
   );
@@ -559,7 +636,7 @@ export const landscape_ist = async (
 
   const background_layer = ini_background_layer(viz_state);
   const image_layers = await make_image_layers(viz_state);
-  const cell_layer = await ini_cell_layer(base_url, viz_state);
+  const cell_layer = await ini_cell_layer(current_base_url, viz_state);
   const path_layer = await ini_path_layer(viz_state);
   const trx_layer = ini_trx_layer(viz_state);
   const edit_layer = ini_edit_layer(viz_state);
@@ -574,6 +651,168 @@ export const landscape_ist = async (
     trx_layer,
     nbhd_layer,
     edit_layer,
+  };
+
+  const resetSelectionsForDataset = () => {
+    viz_state.obs_store.selected_cells.set([]);
+    viz_state.obs_store.selected_genes.set([]);
+    viz_state.obs_store.selected_cats.set([]);
+    viz_state.cats.selected_cats = [];
+    viz_state.genes.selected_genes = [];
+    viz_state.highlighted_cells = new Set();
+  };
+
+  const refreshUiForDataset = () => {
+    if (viz_state.refresh_image_layer_controls) {
+      viz_state.refresh_image_layer_controls();
+    }
+    if (viz_state.refresh_gene_search) {
+      viz_state.refresh_gene_search();
+    }
+  };
+
+  const rotate_dataset = async (next_dataset, dataset_idx = 0) => {
+    if (!next_dataset?.url || next_dataset.url === current_base_url) {
+      return;
+    }
+
+    current_base_url = next_dataset.url;
+    viz_state.current_dataset_name = next_dataset.name;
+    if (viz_state.dataset_dropdown) {
+      viz_state.dataset_dropdown.value = String(dataset_idx);
+    }
+
+    set_global_base_url(viz_state, current_base_url);
+    resetSelectionsForDataset();
+    viz_state.cache.cell.clear();
+    viz_state.cache.trx.clear();
+
+    viz_state.cats.cluster_counts = [];
+    viz_state.cats.color_dict_cluster = {};
+    viz_state.cats.dict_cell_cats = {};
+    viz_state.cats.cell_cats = [];
+    viz_state.cats.cell_names_array = [];
+    viz_state.cats.cell_name_to_index_map = new Map();
+    viz_state.cats.nameMapping_inv = {};
+
+    viz_state.genes.meta_gene = {};
+    viz_state.genes.gene_counts = [];
+    viz_state.genes.top_gene_counts = [];
+    viz_state.genes.gene_names = [];
+    viz_state.genes.trx_names_array = [];
+    viz_state.genes.trx_data = [];
+
+    viz_state.combo_data.cell = [];
+    viz_state.combo_data.trx = [];
+
+    viz_state.obs_store.viz_image_layers.set(false);
+    viz_state.obs_store.viz_background_layer.set(false);
+
+    await set_landscape_parameters(
+      viz_state.img,
+      current_base_url,
+      viz_state.aws
+    );
+
+    const tmp_image_info = viz_state.img.landscape_parameters.image_info;
+    const image_name_for_dim = tmp_image_info[0].name;
+
+    set_image_format(
+      viz_state.img,
+      viz_state.img.landscape_parameters.image_format
+    );
+    set_image_info(viz_state.img, tmp_image_info);
+    set_image_layer_sliders(viz_state.img);
+    set_image_layer_colors(
+      viz_state.img.image_layer_colors,
+      viz_state.img.image_info
+    );
+
+    const tech = viz_state.img.landscape_parameters.technology;
+
+    if (viz_state.scale_bar?.container) {
+      root.removeChild(viz_state.scale_bar.container);
+      viz_state.scale_bar = null;
+    }
+
+    const updatedUserMicrons =
+      typeof scale_bar_microns_per_pixel === 'number' &&
+      !Number.isNaN(scale_bar_microns_per_pixel) &&
+      scale_bar_microns_per_pixel > 0
+        ? scale_bar_microns_per_pixel
+        : null;
+    const updatedDefaultMicrons = PIXEL_SIZE_MICRONS[tech];
+    const updatedMicrons = updatedDefaultMicrons ?? updatedUserMicrons;
+
+    if (updatedMicrons) {
+      viz_state.scale_bar = create_scale_bar(updatedMicrons, tech);
+      root.appendChild(viz_state.scale_bar.container);
+    }
+
+    if (tech === 'Chromium' || tech === 'point-cloud') {
+      viz_state.dimensions = { width: 1, height: 1, tileSize: 1 };
+    } else {
+      await set_dimensions(viz_state, current_base_url, image_name_for_dim);
+    }
+
+    viz_state.views = set_views(tech);
+    deck_ist.setProps({ views: viz_state.views });
+
+    const centerX = viz_state.dimensions?.width
+      ? viz_state.dimensions.width / 2
+      : 0;
+    const centerY = viz_state.dimensions?.height
+      ? viz_state.dimensions.height / 2
+      : 0;
+    viz_state.rotation = build_rotation_state(rotate, [centerX, centerY]);
+
+    await set_meta_gene(
+      viz_state.genes,
+      current_base_url,
+      viz_state.seg.version,
+      viz_state.aws
+    );
+
+    await set_cluster_metadata(viz_state);
+
+    layers_obj.background_layer = ini_background_layer(viz_state);
+    layers_obj.image_layers = await make_image_layers(viz_state);
+    layers_obj.cell_layer = await ini_cell_layer(current_base_url, viz_state);
+    layers_obj.path_layer = await ini_path_layer(viz_state);
+    layers_obj.trx_layer = ini_trx_layer(viz_state);
+
+    viz_state.obs_store.deck_check.set({
+      ...viz_state.obs_store.deck_check.get(),
+      background_layer: false,
+      image_layers: false,
+      cell_layer: false,
+      path_layer: false,
+      trx_layer: false,
+    });
+
+    viz_state.layers_obj = layers_obj;
+    viz_state.obs_store.deck_check.set({
+      ...viz_state.obs_store.deck_check.get(),
+      background_layer: true,
+      image_layers: true,
+      cell_layer: true,
+      path_layer: true,
+      trx_layer: true,
+    });
+
+    viz_state.obs_store.new_cell_bar_data.set(viz_state.cats.cluster_counts);
+    viz_state.obs_store.new_gene_bar_data.set(
+      viz_state.genes.top_gene_counts || []
+    );
+
+    refreshUiForDataset();
+
+    deck_ist.setProps({
+      layers: get_layers_list(layers_obj),
+    });
+
+    viz_state.obs_store.viz_background_layer.set(true);
+    viz_state.obs_store.viz_image_layers.set(true);
   };
 
   const refresh_cell_layer = () => {
@@ -782,16 +1021,21 @@ export const landscape_ist = async (
       update_cell_clusters(deck_ist, layers_obj, viz_state)
     );
     viz_state.model.on('change:selected_cells', () => {
-      const cells = viz_state.model.get('selected_cells') || [];
+      const cells = normalizeCellIdArray(
+        viz_state.model.get('selected_cells') || [],
+        viz_state.cell_name_prefix
+      );
       viz_state.obs_store.selected_cells.set(cells);
     });
   }
 
   const ui_container = make_ist_ui_container(
-    dataset_name,
+    viz_state.current_dataset_name,
     deck_ist,
     layers_obj,
-    viz_state
+    viz_state,
+    viz_state.datasets,
+    rotate_dataset
   );
 
   // UI and Viz Container

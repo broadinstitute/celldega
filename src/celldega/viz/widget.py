@@ -65,7 +65,9 @@ class Landscape(anywidget.AnyWidget):
     component = traitlets.Unicode("Landscape").tag(sync=True)
 
     technology = traitlets.Unicode("Xenium").tag(sync=True)
-    base_url = traitlets.Unicode("").tag(sync=True)
+    base_url = traitlets.Union(
+        [traitlets.Unicode(""), traitlets.List(trait=traitlets.Unicode())]
+    ).tag(sync=True)
     token = traitlets.Unicode("").tag(sync=True)
     creds = traitlets.Dict({}).tag(sync=True)
     max_tiles_to_view = traitlets.Int(50).tag(sync=True)
@@ -77,7 +79,10 @@ class Landscape(anywidget.AnyWidget):
     rotation_x = traitlets.Float(0).tag(sync=True)
     rotate = traitlets.Float(0).tag(sync=True)
     square_tile_size = traitlets.Float(1.4).tag(sync=True)
-    dataset_name = traitlets.Unicode("").tag(sync=True)
+    dataset_name = traitlets.Union(
+        [traitlets.Unicode(""), traitlets.List(trait=traitlets.Unicode())]
+    ).tag(sync=True)
+    cell_name_prefix = traitlets.Bool(False).tag(sync=True)
     region = traitlets.Dict({}).tag(sync=True)
     scale_bar_microns_per_pixel = traitlets.Float(default_value=None, allow_none=True).tag(
         sync=True
@@ -128,7 +133,11 @@ class Landscape(anywidget.AnyWidget):
         if nbhd_gdf is not None and nbhd_edit:
             raise ValueError("nbhd_edit cannot be True when nbhd data is provided")
 
-        base_path = (kwargs.get("base_url") or "") + "/"
+        base_url_arg = kwargs.get("base_url") or ""
+        if isinstance(base_url_arg, (list, tuple)):
+            base_path = (base_url_arg[0] or "") + "/"
+        else:
+            base_path = base_url_arg + "/"
         path_transformation_matrix = base_path + "micron_to_image_transform.csv"
 
         try:

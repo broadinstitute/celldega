@@ -315,12 +315,56 @@ export const make_ist_ui_container = (
   dataset_name,
   deck_ist,
   layers_obj,
-  viz_state
+  viz_state,
+  dataset_options = [],
+  on_dataset_change = null
 ) => {
   const ui_container = make_ui_container();
   const ctrl_container = make_ctrl_container();
 
   viz_state.containers.image = flex_container('image_container', 'column');
+
+  const dataset_container = flex_container('dataset_container', 'row');
+  dataset_container.style.alignItems = 'center';
+
+  if (dataset_options.length > 0) {
+    const dataset_dropdown = document.createElement('select');
+    dataset_dropdown.style.width = '55px';
+    dataset_dropdown.style.marginLeft = '4px';
+    dataset_dropdown.style.marginBottom = '4px';
+    dataset_dropdown.style.fontSize = '11px';
+    dataset_dropdown.title = 'Switch dataset';
+
+    dataset_options.forEach((option, idx) => {
+      const opt = document.createElement('option');
+      opt.value = String(idx);
+      opt.textContent = option.name;
+      dataset_dropdown.appendChild(opt);
+    });
+
+    if (viz_state.current_dataset_name) {
+      const currentIdx = dataset_options.findIndex(
+        (opt) => opt.name === viz_state.current_dataset_name
+      );
+      if (currentIdx >= 0) {
+        dataset_dropdown.value = String(currentIdx);
+      }
+    }
+
+    if (on_dataset_change) {
+      dataset_dropdown.addEventListener('change', async (event) => {
+        const next_idx = Number(event.target.value);
+        const next_dataset = dataset_options[next_idx];
+        if (next_dataset) {
+          await on_dataset_change(next_dataset, next_idx);
+        }
+      });
+    }
+
+    viz_state.dataset_dropdown = dataset_dropdown;
+    dataset_container.appendChild(dataset_dropdown);
+    viz_state.containers.image.appendChild(dataset_container);
+  }
 
   const img_layers_container = flex_container(
     'img_layers_container',
@@ -444,65 +488,73 @@ export const make_ist_ui_container = (
 
     viz_state.containers.image.appendChild(spatial_toggle_container);
 
-    const get_slider_by_name = (img, name) => {
-      return img.image_layer_sliders.filter((slider) => slider.name === name);
+    const build_image_layer_controls = () => {
+      img_layers_container.innerHTML = '';
+
+      const get_slider_by_name = (img, name) => {
+        return img.image_layer_sliders.filter((slider) => slider.name === name);
+      };
+
+      const make_img_layer_ctrl = (img, inst_image) => {
+        const inst_name = inst_image.button_name;
+
+        const inst_container = flex_container('image_layer_container', 'row');
+        inst_container.style.height = '21px';
+
+        const ini_img_color = viz_state.obs_store.umap_state.get()
+          ? 'gray'
+          : 'blue';
+
+        make_button(
+          inst_container,
+          'ist',
+          inst_name,
+          ini_img_color,
+          75,
+          'img_layer_button',
+          deck_ist,
+          layers_obj,
+          viz_state
+        );
+
+        const inst_slider_container = make_slider_container(inst_name);
+
+        const slider = get_slider_by_name(img, inst_name)[0];
+
+        const img_layer_slider_callback = make_img_layer_slider_callback(
+          inst_name,
+          deck_ist,
+          layers_obj,
+          viz_state
+        );
+
+        const debounce_time = 100;
+        const img_layer_slider_callback_debounced = debounce(
+          img_layer_slider_callback,
+          debounce_time
+        );
+        const ini_img_slider_value = 50;
+        ini_slider_params(
+          slider,
+          ini_img_slider_value,
+          img_layer_slider_callback_debounced
+        );
+
+        inst_slider_container.appendChild(slider);
+
+        inst_container.appendChild(inst_slider_container);
+
+        img_layers_container.appendChild(inst_container);
+      };
+
+      viz_state.img.image_info.map((inst_image) =>
+        make_img_layer_ctrl(viz_state.img, inst_image)
+      );
     };
 
-    const make_img_layer_ctrl = (img, inst_image) => {
-      const inst_name = inst_image.button_name;
+    build_image_layer_controls();
 
-      const inst_container = flex_container('image_layer_container', 'row');
-      inst_container.style.height = '21px';
-
-      const ini_img_color = viz_state.obs_store.umap_state.get()
-        ? 'gray'
-        : 'blue';
-
-      make_button(
-        inst_container,
-        'ist',
-        inst_name,
-        ini_img_color,
-        75,
-        'img_layer_button',
-        deck_ist,
-        layers_obj,
-        viz_state
-      );
-
-      const inst_slider_container = make_slider_container(inst_name);
-
-      const slider = get_slider_by_name(img, inst_name)[0];
-
-      const img_layer_slider_callback = make_img_layer_slider_callback(
-        inst_name,
-        deck_ist,
-        layers_obj,
-        viz_state
-      );
-
-      const debounce_time = 100;
-      const img_layer_slider_callback_debounced = debounce(
-        img_layer_slider_callback,
-        debounce_time
-      );
-      const ini_img_slider_value = 50;
-      ini_slider_params(
-        slider,
-        ini_img_slider_value,
-        img_layer_slider_callback_debounced
-      );
-
-      inst_slider_container.appendChild(slider);
-
-      inst_container.appendChild(inst_slider_container);
-
-      img_layers_container.appendChild(inst_container);
-    };
-
-    viz_state.img.image_info.map((inst_image) =>
-      make_img_layer_ctrl(viz_state.img, inst_image)
-    );
+    viz_state.refresh_image_layer_controls = build_image_layer_controls;
 
     viz_state.obs_store.viz_image_layers.subscribe((viz_image_layers) => {
       d3.select(viz_state.containers.image)
@@ -811,6 +863,13 @@ export const make_ist_ui_container = (
   gene_container.appendChild(viz_state.containers.bar_gene);
 
   set_gene_search('ist', deck_ist, layers_obj, viz_state);
+
+  viz_state.refresh_gene_search = () => {
+    if (viz_state.genes.gene_search) {
+      viz_state.genes.gene_search.innerHTML = '';
+    }
+    set_gene_search('ist', deck_ist, layers_obj, viz_state);
+  };
 
   viz_state.genes.gene_search.style.marginLeft = '0px';
 

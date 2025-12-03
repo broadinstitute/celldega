@@ -52,6 +52,10 @@ class Landscape(anywidget.AnyWidget):
         base_url (str or list): The base URL(s) for the widget. Can be a single string
             or a list of dicts with 'url' and 'label' keys for multiple datasets.
             Example: [{'url': 'http://...', 'label': 'Dataset1'}, ...]
+            You can also pass a simple list of URL strings.
+        dataset_names (list, optional): Short names for the datasets to display in
+            the dropdown selector. Should match the length of base_urls.
+            Example: ['Brain', 'Kidney'] for two datasets.
         rotate (float, optional): Degrees to rotate the 2D landscape visualization.
         AnnData (AnnData, optional): AnnData object to derive metadata from.
         dataset_name (str, optional): The name of the dataset to visualize. This
@@ -139,6 +143,8 @@ class Landscape(anywidget.AnyWidget):
         # Handle base_url which can be a string, list of strings, or list of dicts
         # Also accept base_urls directly for convenience
         raw_base_url = kwargs.pop("base_urls", None) or kwargs.get("base_url", "")
+        # Optional dataset_names for short display names in dropdown
+        dataset_names = kwargs.pop("dataset_names", None)
         base_urls_list = []
 
         if isinstance(raw_base_url, list):
@@ -148,10 +154,24 @@ class Landscape(anywidget.AnyWidget):
                     # Already in dict format with 'url' and optionally 'label'
                     url = item.get("url", "")
                     label = item.get("label", f"Dataset {i + 1}")
-                    base_urls_list.append({"url": url, "label": label})
+                    short_label = item.get("short_label", f"DS-{i + 1}")
+                    base_urls_list.append({"url": url, "label": label, "short_label": short_label})
                 else:
                     # Just a string URL, create a label from the index
-                    base_urls_list.append({"url": str(item), "label": f"Dataset {i + 1}"})
+                    base_urls_list.append({
+                        "url": str(item),
+                        "label": f"Dataset {i + 1}",
+                        "short_label": f"DS-{i + 1}"
+                    })
+
+            # Apply dataset_names if provided (overrides short_label)
+            if dataset_names and isinstance(dataset_names, list):
+                for i, name in enumerate(dataset_names):
+                    if i < len(base_urls_list) and name:
+                        base_urls_list[i]["short_label"] = str(name)
+                        # Also use as label if label is default
+                        if base_urls_list[i]["label"] == f"Dataset {i + 1}":
+                            base_urls_list[i]["label"] = str(name)
 
             # Set the first URL as the primary base_url
             if base_urls_list:
@@ -160,7 +180,7 @@ class Landscape(anywidget.AnyWidget):
         else:
             # Single string URL
             if raw_base_url:
-                base_urls_list = [{"url": raw_base_url, "label": "Dataset 1"}]
+                base_urls_list = [{"url": raw_base_url, "label": "Dataset 1", "short_label": "DS-1"}]
             kwargs["base_urls"] = base_urls_list
 
         base_path = (kwargs.get("base_url") or "") + "/"

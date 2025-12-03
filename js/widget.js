@@ -16,11 +16,14 @@ import { render_enrich } from './widgets/enrich_widget';
 const render_landscape_ist = async ({ model, el }) => {
   let cleanup = null;
   let build_chain = Promise.resolve();
+  let retainedContext = null;
 
   const build_landscape = () => {
     build_chain = build_chain.then(async () => {
       if (cleanup?.finalize) {
-        cleanup.finalize();
+        const nextContext = cleanup?.getContext ? cleanup.getContext() : null;
+        cleanup.finalize({ preserveContext: true });
+        retainedContext = nextContext;
       }
 
       el.innerHTML = '';
@@ -114,8 +117,11 @@ const render_landscape_ist = async ({ model, el }) => {
           rotation_x,
           rotate,
           max_tiles_to_view,
-          scale_bar_microns_per_pixel
+          scale_bar_microns_per_pixel,
+          retainedContext
         );
+
+        retainedContext = cleanup?.getContext ? cleanup.getContext() : null;
       } finally {
         loading.remove();
       }
@@ -138,6 +144,7 @@ const render_landscape_ist = async ({ model, el }) => {
       if (cleanup?.finalize) {
         cleanup.finalize();
       }
+      retainedContext = null;
 
       model.off('change:base_url', handleDatasetChange);
       model.off('change:dataset_name', handleDatasetChange);

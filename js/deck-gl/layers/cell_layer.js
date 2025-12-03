@@ -120,6 +120,11 @@ export const ini_cell_layer = async (base_url, viz_state) => {
 
   set_cell_names_array(viz_state.cats, cell_arrow_table);
 
+  // Ensure gene expression array starts with valid opacity values
+  viz_state.cats.cell_exp_array = new Array(
+    viz_state.cats.cell_names_array.length
+  ).fill(0);
+
   viz_state.spatial.cell_scatter_data = get_scatter_data(cell_arrow_table);
 
   await set_color_dict_gene(

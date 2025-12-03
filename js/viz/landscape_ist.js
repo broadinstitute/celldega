@@ -206,7 +206,8 @@ export const landscape_ist = async (
   rotation_x = 0,
   rotate = 0,
   max_tiles_to_view = 50,
-  scale_bar_microns_per_pixel = null
+  scale_bar_microns_per_pixel = null,
+  reuseContext = null
 ) => {
   if (width === 0) {
     width = '100%';
@@ -650,7 +651,12 @@ export const landscape_ist = async (
 
   viz_state.views = set_views(tech);
 
-  const deck_ist = await ini_deck(root, width, height, tech);
+  const deck_ist = await ini_deck(root, width, height, tech, reuseContext);
+
+  viz_state.gl_context = {
+    canvas: reuseContext?.canvas || deck_ist?.canvas || null,
+    gl: reuseContext?.gl || deck_ist?.animationLoop?.gl || null,
+  };
   // set_initial_view_state(deck_ist, ini_x, ini_y, ini_z, ini_zoom)
   set_views_prop(deck_ist, viz_state.views);
 
@@ -1129,7 +1135,10 @@ export const landscape_ist = async (
     },
     update_layers: () => {},
     get_state: get_state_snapshot,
-    finalize: () => {
+    getContext: () => viz_state.gl_context,
+    finalize: (options = {}) => {
+      const preserveContext = Boolean(options.preserveContext);
+
       if (updateTriggerHandler) {
         viz_state.model.off('change:update_trigger', updateTriggerHandler);
       }
@@ -1142,10 +1151,12 @@ export const landscape_ist = async (
         viz_state.model.off('change:selected_cells', selectedCellsHandler);
       }
 
-      const gl = deck_ist?.animationLoop?.gl;
-      const loseCtxExtension = gl?.getExtension('WEBGL_lose_context');
-      if (loseCtxExtension) {
-        loseCtxExtension.loseContext();
+      if (!preserveContext) {
+        const gl = deck_ist?.animationLoop?.gl;
+        const loseCtxExtension = gl?.getExtension('WEBGL_lose_context');
+        if (loseCtxExtension) {
+          loseCtxExtension.loseContext();
+        }
       }
 
       deck_ist.finalize();

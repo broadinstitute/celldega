@@ -11,19 +11,39 @@ const getCursor = ({ isDragging }) => {
   return 'pointer';
 };
 
-export const ini_deck = (root, width, height, technology = '') => {
+export const ini_deck = (
+  root,
+  width,
+  height,
+  technology = '',
+  reuseContext = null
+) => {
   const controller = { doubleClickZoom: false };
   if (technology === 'point-cloud') {
     controller.type = OrbitController;
   }
 
-  const deck_ist = new Deck({
+  const deckProps = {
     parent: root,
     controller,
     getCursor,
     width,
     height,
-  });
+  };
+
+  const canvas = reuseContext?.canvas;
+  if (canvas) {
+    if (canvas.parentNode !== root) {
+      root.appendChild(canvas);
+    }
+    deckProps.canvas = canvas;
+  }
+
+  if (reuseContext?.gl) {
+    deckProps.gl = reuseContext.gl;
+  }
+
+  const deck_ist = new Deck(deckProps);
 
   return deck_ist;
 };

@@ -15,17 +15,28 @@ import { render_enrich } from './widgets/enrich_widget';
 // Remove export keywords from render functions
 const render_landscape_ist = async ({ model, el }) => {
   let cleanup = null;
-  let buildChain = Promise.resolve();
-  let sharedState = null;
+  let build_chain = Promise.resolve();
+  let shared_state = null;
+  const rotate_cache = new Map();
+  let current_dataset_key = null;
 
-  const snapshotCurrentState = () => {
+  const get_dataset_key = () => {
+    const base_url = model.get('base_url');
+    const dataset_name = model.get('dataset_name');
+
+    return `${base_url ?? ''}::${dataset_name ?? ''}`;
+  };
+
+  const snapshot_current_state = () => {
     if (cleanup?.get_state) {
-      sharedState = cleanup.get_state();
+      current_dataset_key = current_dataset_key || get_dataset_key();
+      shared_state = cleanup.get_state();
+      rotate_cache.set(current_dataset_key, shared_state);
     }
   };
 
-  const buildLandscape = () => {
-    buildChain = buildChain.then(async () => {
+  const build_landscape = () => {
+    build_chain = build_chain.then(async () => {
       if (cleanup?.finalize) {
         cleanup.finalize();
       }
@@ -60,7 +71,8 @@ const render_landscape_ist = async ({ model, el }) => {
       const scale_bar_microns_per_pixel = model.get(
         'scale_bar_microns_per_pixel'
       );
-      const persisted_state = sharedState;
+      current_dataset_key = get_dataset_key();
+      const persisted_state = rotate_cache.get(current_dataset_key) || shared_state;
 
       let meta_cell_data = { result: {}, attr: [] };
       let meta_cluster_data = { result: {}, attr: [] };
@@ -123,29 +135,30 @@ const render_landscape_ist = async ({ model, el }) => {
           rotate,
           max_tiles_to_view,
           scale_bar_microns_per_pixel,
-          persisted_state
+          persisted_state,
+          rotate_cache
         );
       } finally {
         loading.remove();
       }
     });
 
-    return buildChain;
+    return build_chain;
   };
 
-  await buildLandscape();
+  await build_landscape();
 
   const handleDatasetChange = () => {
-    snapshotCurrentState();
-    void buildLandscape();
+    snapshot_current_state();
+    void build_landscape();
   };
 
   model.on('change:base_url', handleDatasetChange);
   model.on('change:dataset_name', handleDatasetChange);
 
   return () => {
-    buildChain.finally(() => {
-      snapshotCurrentState();
+    build_chain.finally(() => {
+      snapshot_current_state();
       if (cleanup?.finalize) {
         cleanup.finalize();
       }

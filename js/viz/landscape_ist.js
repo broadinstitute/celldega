@@ -207,7 +207,8 @@ export const landscape_ist = async (
   rotate = 0,
   max_tiles_to_view = 50,
   scale_bar_microns_per_pixel = null,
-  persisted_state = {}
+  persisted_state = {},
+  rotate_cache = null
 ) => {
   if (width === 0) {
     width = '100%';
@@ -216,17 +217,19 @@ export const landscape_ist = async (
   const viz_state = {};
 
   viz_state.obs_store = create_obs_store();
+  viz_state.obs_store.persisted_state = persisted_state;
+  viz_state.obs_store.rotate_cache = rotate_cache;
 
-  const cachedSelectedCats = persisted_state?.selected_cats || [];
-  const cachedSelectedGenes = persisted_state?.selected_genes || [];
-  const cachedVisibleImages = Array.isArray(persisted_state?.visible_images)
+  const cached_selected_cats = persisted_state?.selected_cats || [];
+  const cached_selected_genes = persisted_state?.selected_genes || [];
+  const cached_visible_images = Array.isArray(persisted_state?.visible_images)
     ? persisted_state.visible_images
     : [];
-  const cachedVizImageLayers = persisted_state?.viz_image_layers;
-  const cachedLandscapeView = persisted_state?.landscape_view;
+  const cached_viz_image_layers = persisted_state?.viz_image_layers;
+  const cached_landscape_view = persisted_state?.landscape_view;
 
-  if (typeof cachedVizImageLayers === 'boolean') {
-    viz_state.obs_store.viz_image_layers.set(cachedVizImageLayers);
+  if (typeof cached_viz_image_layers === 'boolean') {
+    viz_state.obs_store.viz_image_layers.set(cached_viz_image_layers);
   }
 
   viz_state.highlighted_cells = new Set();
@@ -450,7 +453,7 @@ export const landscape_ist = async (
   viz_state.cats = {};
   viz_state.cats.cat = null;
   viz_state.cats.reset_cat = false;
-  viz_state.cats.selected_cats = cachedSelectedCats.slice();
+  viz_state.cats.selected_cats = cached_selected_cats.slice();
   viz_state.cats.cell_cats = [];
   viz_state.cats.dict_cell_cats = {};
   viz_state.cats.color_dict_cluster = {};
@@ -494,7 +497,7 @@ export const landscape_ist = async (
   viz_state.obs_store.umap_state.set(isUmapInit);
   viz_state.obs_store.landscape_view.set(landscape_state);
 
-  if (cachedLandscapeView === 'umap') {
+  if (cached_landscape_view === 'umap') {
     viz_state.obs_store.umap_state.set(true);
     viz_state.obs_store.landscape_view.set('umap');
   }
@@ -504,7 +507,7 @@ export const landscape_ist = async (
   viz_state.genes.gene_names = [];
   viz_state.genes.meta_gene = {};
   viz_state.genes.gene_counts = [];
-  viz_state.genes.selected_genes = cachedSelectedGenes.slice();
+  viz_state.genes.selected_genes = cached_selected_genes.slice();
   viz_state.genes.trx_ini_radius = trx_radius;
   viz_state.genes.trx_names_array = [];
   viz_state.genes.trx_data = [];
@@ -552,17 +555,17 @@ export const landscape_ist = async (
     viz_state.img.image_info
   );
 
-  const allImageLayerNames = viz_state.img.image_info.map(
+  const all_image_layer_names = viz_state.img.image_info.map(
     (info) => info.button_name
   );
-  const persistedVisibleSet = new Set(
-    cachedVisibleImages.filter((name) => allImageLayerNames.includes(name))
+  const persisted_visible_set = new Set(
+    cached_visible_images.filter((name) => all_image_layer_names.includes(name))
   );
 
   viz_state.img.visible_layers =
-    persistedVisibleSet.size > 0
-      ? persistedVisibleSet
-      : new Set(allImageLayerNames);
+    persisted_visible_set.size > 0
+      ? persisted_visible_set
+      : new Set(all_image_layer_names);
 
   // Create and append the visualization.
   const root = document.createElement('div');
@@ -681,10 +684,10 @@ export const landscape_ist = async (
     edit_layer,
   };
 
-  const enforceImageLayerVisibility = () => {
+  const enforce_image_layer_visibility = () => {
     viz_state.img.image_info.forEach(({ button_name }) => {
-      const shouldShow = viz_state.img.visible_layers.has(button_name);
-      toggle_visibility_single_image_layer(layers_obj, button_name, shouldShow);
+      const should_show = viz_state.img.visible_layers.has(button_name);
+      toggle_visibility_single_image_layer(layers_obj, button_name, should_show);
 
       const slider = viz_state.img.image_layer_sliders.find(
         (instSlider) => instSlider.name === button_name
@@ -692,14 +695,14 @@ export const landscape_ist = async (
 
       toggle_slider(
         slider,
-        shouldShow && viz_state.obs_store.viz_image_layers.get()
+        should_show && viz_state.obs_store.viz_image_layers.get()
       );
     });
   };
 
-  viz_state.img.enforce_visibility = enforceImageLayerVisibility;
+  viz_state.img.enforce_visibility = enforce_image_layer_visibility;
 
-  enforceImageLayerVisibility();
+  enforce_image_layer_visibility();
 
   const refresh_cell_layer = () => {
     const selected_cats_name = viz_state.cats.selected_cats.join('-');

@@ -207,7 +207,8 @@ export const landscape_ist = async (
   rotate = 0,
   max_tiles_to_view = 50,
   scale_bar_microns_per_pixel = null,
-  reuseContext = null
+  reuseContext = null,
+  reuseDeck = null
 ) => {
   if (width === 0) {
     width = '100%';
@@ -651,7 +652,14 @@ export const landscape_ist = async (
 
   viz_state.views = set_views(tech);
 
-  const deck_ist = await ini_deck(root, width, height, tech, reuseContext);
+  const deck_ist = await ini_deck(
+    root,
+    width,
+    height,
+    tech,
+    reuseContext,
+    reuseDeck
+  );
 
   viz_state.gl_context = {
     canvas: reuseContext?.canvas || deck_ist?.canvas || null,
@@ -1136,8 +1144,10 @@ export const landscape_ist = async (
     update_layers: () => {},
     get_state: get_state_snapshot,
     getContext: () => viz_state.gl_context,
+    getDeck: () => deck_ist,
     finalize: (options = {}) => {
       const preserveContext = Boolean(options.preserveContext);
+      const keepDeck = Boolean(options.keepDeck);
 
       if (updateTriggerHandler) {
         viz_state.model.off('change:update_trigger', updateTriggerHandler);
@@ -1159,7 +1169,11 @@ export const landscape_ist = async (
         }
       }
 
-      deck_ist.finalize();
+      if (keepDeck) {
+        deck_ist.setProps({ layers: [] });
+      } else {
+        deck_ist.finalize();
+      }
     },
   };
 

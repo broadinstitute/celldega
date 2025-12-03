@@ -16,7 +16,8 @@ export const ini_deck = (
   width,
   height,
   technology = '',
-  reuseContext = null
+  reuseContext = null,
+  reuseDeck = null
 ) => {
   const controller = { doubleClickZoom: false };
   if (technology === 'point-cloud') {
@@ -41,6 +42,24 @@ export const ini_deck = (
 
   if (reuseContext?.gl) {
     deckProps.gl = reuseContext.gl;
+  }
+
+  if (reuseDeck) {
+    const canvas = reuseDeck.canvas;
+
+    if (canvas && canvas.parentNode !== root) {
+      root.appendChild(canvas);
+    }
+
+    reuseDeck.setProps({
+      parent: root,
+      controller,
+      getCursor,
+      width,
+      height,
+    });
+
+    return reuseDeck;
   }
 
   const deck_ist = new Deck(deckProps);

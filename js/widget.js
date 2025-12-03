@@ -17,13 +17,21 @@ const render_landscape_ist = async ({ model, el }) => {
   let cleanup = null;
   let build_chain = Promise.resolve();
   let retainedContext = null;
+  let retainedDeck = null;
 
   const build_landscape = () => {
     build_chain = build_chain.then(async () => {
       if (cleanup?.finalize) {
         const nextContext = cleanup?.getContext ? cleanup.getContext() : null;
-        cleanup.finalize({ preserveContext: true });
+        const nextDeck = cleanup?.getDeck ? cleanup.getDeck() : null;
+
+        cleanup.finalize({
+          preserveContext: true,
+          keepDeck: Boolean(nextDeck),
+        });
+
         retainedContext = nextContext;
+        retainedDeck = nextDeck;
       }
 
       el.innerHTML = '';
@@ -118,10 +126,12 @@ const render_landscape_ist = async ({ model, el }) => {
           rotate,
           max_tiles_to_view,
           scale_bar_microns_per_pixel,
-          retainedContext
+          retainedContext,
+          retainedDeck
         );
 
         retainedContext = cleanup?.getContext ? cleanup.getContext() : null;
+        retainedDeck = cleanup?.getDeck ? cleanup.getDeck() : null;
       } finally {
         loading.remove();
       }
@@ -145,6 +155,7 @@ const render_landscape_ist = async ({ model, el }) => {
         cleanup.finalize();
       }
       retainedContext = null;
+      retainedDeck = null;
 
       model.off('change:base_url', handleDatasetChange);
       model.off('change:dataset_name', handleDatasetChange);

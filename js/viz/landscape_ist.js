@@ -273,16 +273,40 @@ export const landscape_ist = async (
   viz_state.dataset_options = ini_model?.get('base_url_options') || [];
 
   const datasetLabel = dataset_name ? String(dataset_name) : '';
+  const datasetPrefixSeparator = '_';
   const prefixAttr = ini_model?.get('cell_name_prefix_col');
   const baseIdAttr = '__cell_base_id__';
 
   const filteredMeta = (() => {
-    if (!prefixAttr || !Array.isArray(meta_cell_attr)) {
+    if (!Array.isArray(meta_cell_attr)) {
       return {
         metaCell: meta_cell,
         metaAttr: meta_cell_attr,
         idMap: [],
       };
+    }
+
+    if (!prefixAttr && datasetLabel) {
+      const metaCell = {};
+      const idMap = [];
+
+      Object.entries(meta_cell || {}).forEach(([key, values]) => {
+        const keyStr = String(key);
+        const sepIdx = keyStr.indexOf(datasetPrefixSeparator);
+
+        if (sepIdx <= 0) return;
+
+        const datasetValue = keyStr.slice(0, sepIdx);
+        if (datasetValue !== datasetLabel) return;
+
+        const baseId = keyStr.slice(sepIdx + 1);
+        metaCell[baseId] = values;
+        idMap.push({ sourceId: key, baseId });
+      });
+
+      if (idMap.length) {
+        return { metaCell, metaAttr: meta_cell_attr, idMap };
+      }
     }
 
     const prefixIdx = meta_cell_attr.indexOf(prefixAttr);

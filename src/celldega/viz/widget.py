@@ -69,10 +69,13 @@ class Landscape(anywidget.AnyWidget):
             provided, they can include ``name``/``label`` and ``base_url``/``url``
             keys to customize the dropdown label; otherwise, names are
             inferred from the URL.
-        cell_name_prefix_col (str, optional): Column in ``adata.obs`` that
-            contains a dataset-specific prefix used to make cell IDs unique
-            across datasets. The prefix is preserved for disambiguation but the
-            original cell IDs remain available for Landscape file lookups.
+        cell_name_prefix_col (str | bool, optional): When a string, the column
+            in ``adata.obs`` that contains a dataset-specific prefix used to
+            make cell IDs unique across datasets. When ``True``, the widget will
+            strip the portion of each cell ID before the first underscore when
+            referencing Landscape files. The prefix is preserved for
+            disambiguation but the original cell IDs remain available for
+            Landscape file lookups.
         rotate (float, optional): Degrees to rotate the 2D landscape visualization.
         AnnData (AnnData, optional): AnnData object to derive metadata from.
         dataset_name (str, optional): The name of the dataset to visualize. This
@@ -127,7 +130,9 @@ class Landscape(anywidget.AnyWidget):
         trait=traitlets.Unicode(),
         default_value=["leiden"],
     ).tag(sync=True)
-    cell_name_prefix_col = traitlets.Unicode("").tag(sync=True)
+    cell_name_prefix_col = traitlets.Union(
+        [traitlets.Unicode(), traitlets.Bool()], default_value=False
+    ).tag(sync=True)
 
     segmentation = traitlets.Unicode("default").tag(sync=True)
 
@@ -141,8 +146,11 @@ class Landscape(anywidget.AnyWidget):
         pq_umap = kwargs.pop("umap_parquet", None)
         pq_meta_nbhd = kwargs.pop("meta_nbhd_parquet", None)
         base_urls = kwargs.pop("base_urls", None)
-        cell_name_prefix_col = kwargs.pop("cell_name_prefix_col", None) or kwargs.pop(
-            "cell_name_prefix", None
+        prefix = kwargs.pop("prefix", None)
+        cell_name_prefix_col = (
+            kwargs.pop("cell_name_prefix_col", None)
+            or kwargs.pop("cell_name_prefix", None)
+            or prefix
         )
 
         meta_cell_df = kwargs.pop("meta_cell", None)
@@ -154,7 +162,7 @@ class Landscape(anywidget.AnyWidget):
         meta_cluster_df = None
         cell_attr = kwargs.pop("cell_attr", ["leiden"])
 
-        if cell_name_prefix_col:
+        if cell_name_prefix_col is not None:
             kwargs.setdefault("cell_name_prefix_col", cell_name_prefix_col)
         kwargs.setdefault("cell_attr", cell_attr)
 
@@ -217,32 +225,40 @@ class Landscape(anywidget.AnyWidget):
             if "cell_id" in adata.obs.columns:
                 adata.obs.set_index("cell_id", inplace=True)
 
-            if cell_name_prefix_col and cell_name_prefix_col not in adata.obs.columns:
+            has_prefix_column = isinstance(cell_name_prefix_col, str) and bool(
+                cell_name_prefix_col
+            )
+            use_underscore_prefix = cell_name_prefix_col is True
+
+            if has_prefix_column and cell_name_prefix_col not in adata.obs.columns:
                 warnings.warn(
                     f"cell_name_prefix_col='{cell_name_prefix_col}' not found in adata.obs. "
                     "Ignoring prefix handling.",
                     stacklevel=2,
                 )
-                cell_name_prefix_col = None
+                cell_name_prefix_col = False
 
-            if cell_name_prefix_col and cell_name_prefix_col not in cell_attr:
+            if cell_name_prefix_col is False:
+                has_prefix_column = False
+                use_underscore_prefix = False
+
+            if has_prefix_column and cell_name_prefix_col not in cell_attr:
                 cell_attr = [*cell_attr, cell_name_prefix_col]
 
             base_cell_ids = adata.obs.index.to_series().astype(str)
-            prefix_series = (
-                adata.obs[cell_name_prefix_col].astype(str) if cell_name_prefix_col else None
-            )
-
             meta_cell_df = adata.obs[cell_attr].copy()
 
-            if prefix_series is not None:
-                meta_cell_df[_CELL_BASE_ID_COLUMN] = base_cell_ids.values
-                meta_cell_df.index = prefix_series.str.cat(base_cell_ids, sep="_")
-            else:
-                meta_cell_df.index = base_cell_ids
+            if use_underscore_prefix:
+                meta_cell_df[_CELL_BASE_ID_COLUMN] = base_cell_ids.str.split(
+                    "_", n=1, expand=True
+                ).iloc[:, 1].fillna(base_cell_ids)
+            elif has_prefix_column:
+                meta_cell_df[_CELL_BASE_ID_COLUMN] = base_cell_ids.str.split(
+                    "_", n=1, expand=True
+                ).iloc[:, 1].fillna(base_cell_ids)
 
-            if meta_cell_df.index.name is None:
-                meta_cell_df.index.name = "cell_id"
+            meta_cell_df.index = base_cell_ids
+            meta_cell_df.index.name = "cell_id"
 
             pq_meta_cell = _df_to_bytes(meta_cell_df)
 
@@ -272,9 +288,8 @@ class Landscape(anywidget.AnyWidget):
                 pq_meta_cluster = _df_to_bytes(meta_cluster_df)
 
             if "X_umap" in adata.obsm:
-                umap_index = meta_cell_df.index if prefix_series is not None else adata.obs.index
                 umap_df = (
-                    pd.DataFrame(adata.obsm["X_umap"], index=umap_index)
+                    pd.DataFrame(adata.obsm["X_umap"], index=meta_cell_df.index)
                     .reset_index()
                     .rename(columns={"index": "cell_id", 0: "umap_0", 1: "umap_1"})
                 )

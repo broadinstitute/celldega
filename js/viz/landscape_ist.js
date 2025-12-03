@@ -276,6 +276,8 @@ export const landscape_ist = async (
   const datasetPrefixSeparator = '_';
   const prefixAttr = ini_model?.get('cell_name_prefix_col');
   const baseIdAttr = '__cell_base_id__';
+  const autoStripPrefix = prefixAttr === true;
+  const hasPrefixColumn = typeof prefixAttr === 'string' && prefixAttr.length > 0;
 
   const filteredMeta = (() => {
     if (!Array.isArray(meta_cell_attr)) {
@@ -286,7 +288,26 @@ export const landscape_ist = async (
       };
     }
 
-    if (!prefixAttr && datasetLabel) {
+    if (autoStripPrefix) {
+      const metaCell = {};
+      const idMap = [];
+
+      Object.entries(meta_cell || {}).forEach(([key, values]) => {
+        const sepIdx = String(key).indexOf(datasetPrefixSeparator);
+        if (sepIdx <= 0) {
+          metaCell[key] = values;
+          return;
+        }
+
+        const baseId = String(key).slice(sepIdx + 1);
+        metaCell[baseId] = values;
+        idMap.push({ sourceId: key, baseId });
+      });
+
+      return { metaCell, metaAttr: meta_cell_attr, idMap };
+    }
+
+    if (!hasPrefixColumn && datasetLabel) {
       const metaCell = {};
       const idMap = [];
 
@@ -307,6 +328,14 @@ export const landscape_ist = async (
       if (idMap.length) {
         return { metaCell, metaAttr: meta_cell_attr, idMap };
       }
+    }
+
+    if (!hasPrefixColumn) {
+      return {
+        metaCell: meta_cell,
+        metaAttr: meta_cell_attr,
+        idMap: [],
+      };
     }
 
     const prefixIdx = meta_cell_attr.indexOf(prefixAttr);

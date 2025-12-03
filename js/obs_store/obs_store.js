@@ -37,6 +37,9 @@ export const create_obs_store = () => {
     landscape_view: Observable('spatial'),
     umap_state: Observable(false),
     scale_bar_view_state: Observable(null),
+    // Dataset switching observables
+    current_dataset_index: Observable(0),
+    dataset_switching: Observable(false),
     // to do utilize for setProps
     deck_check: Observable({
       background_layer: true,

@@ -889,13 +889,6 @@ export const landscape_ist = async (
   const cellClusterHandler = null;
 
   if (Object.keys(viz_state.model).length > 0) {
-    // updateTriggerHandler = () =>
-    //   update_ist_landscape_from_cgm(deck_ist, layers_obj, viz_state);
-    // cellClusterHandler = () =>
-    //   update_cell_clusters(deck_ist, layers_obj, viz_state);
-
-    // viz_state.model.on('change:update_trigger', updateTriggerHandler);
-    // viz_state.model.on('change:cell_clusters', cellClusterHandler);
     viz_state.model.on('change:update_trigger', () =>
       update_ist_landscape_from_cgm(deck_ist, layers_obj, viz_state)
     );

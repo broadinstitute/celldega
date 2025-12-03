@@ -79,25 +79,25 @@ const PIXEL_SIZE_MICRONS = {
   MERSCOPE: 0.108,
 };
 
-const create_scale_bar = (micronsPerPixel, tech) => {
-  const techKey = tech || '';
-  const blackLabelTechs = ['Visium-HD'];
-  const whiteLabelTechs = ['Xenium', 'MERSCOPE'];
+const create_scale_bar = (microns_per_pixel, tech) => {
+  const tech_key = tech || '';
+  const black_label_techs = ['Visium-HD'];
+  const white_label_techs = ['Xenium', 'MERSCOPE'];
 
-  const labelColor = blackLabelTechs.includes(techKey)
+  const label_color = black_label_techs.includes(tech_key)
     ? 'black'
-    : whiteLabelTechs.includes(techKey)
+    : white_label_techs.includes(tech_key)
       ? 'white'
       : 'white';
 
-  const rev_labelColor = labelColor === 'white' ? 'black' : 'white';
+  const reverse_label_color = label_color === 'white' ? 'black' : 'white';
 
   const container = document.createElement('div');
   container.style.position = 'absolute';
   container.style.bottom = '10px';
   container.style.left = '10px';
   container.style.backgroundColor = 'transparent';
-  container.style.color = labelColor;
+  container.style.color = label_color;
   container.style.padding = '6px 8px';
   container.style.fontSize = '12px';
   container.style.lineHeight = '1.2';
@@ -113,19 +113,19 @@ const create_scale_bar = (micronsPerPixel, tech) => {
 
   const bar = document.createElement('div');
   bar.style.height = '2px';
-  bar.style.backgroundColor = labelColor;
-  bar.style.outline = `1px solid ${rev_labelColor}`;
+  bar.style.backgroundColor = label_color;
+  bar.style.outline = `1px solid ${reverse_label_color}`;
   bar.style.marginTop = '4px';
   bar.style.width = '80px';
 
-  if (labelColor === 'white') {
+  if (label_color === 'white') {
     container.style.textShadow = '0 0 3px black';
   }
 
   container.appendChild(label);
   container.appendChild(bar);
 
-  const formatLabel = (microns) => {
+  const format_label = (microns) => {
     if (microns >= 1000) {
       const millimeters = microns / 1000;
       if (millimeters >= 10) {
@@ -145,37 +145,37 @@ const create_scale_bar = (micronsPerPixel, tech) => {
     return `${Number(microns.toPrecision(2))} µm`;
   };
 
-  const setVisible = (visible) => {
+  const set_visible = (visible) => {
     container.style.display = visible ? 'flex' : 'none';
   };
 
   const update = ({ zoom }) => {
-    const zoomFactor = Math.pow(2, zoom || 0);
-    const micronsPerScreenPixel = micronsPerPixel / zoomFactor;
-    const targetPixelWidth = 100;
-    const rawMicrons = micronsPerScreenPixel * targetPixelWidth;
-    const cappedMicrons = Math.min(rawMicrons, 1000);
+    const zoom_factor = Math.pow(2, zoom || 0);
+    const microns_per_screen_pixel = microns_per_pixel / zoom_factor;
+    const target_pixel_width = 100;
+    const raw_microns = microns_per_screen_pixel * target_pixel_width;
+    const capped_microns = Math.min(raw_microns, 1000);
 
-    const magnitude = Math.pow(10, Math.floor(Math.log10(cappedMicrons)));
-    const normalized = cappedMicrons / magnitude;
+    const magnitude = Math.pow(10, Math.floor(Math.log10(capped_microns)));
+    const normalized = capped_microns / magnitude;
 
-    let niceNormalized = 1;
+    let normalized_target = 1;
     if (normalized > 5) {
-      niceNormalized = 10;
+      normalized_target = 10;
     } else if (normalized > 2) {
-      niceNormalized = 5;
+      normalized_target = 5;
     } else if (normalized > 1) {
-      niceNormalized = 2;
+      normalized_target = 2;
     }
 
-    const barMicrons = niceNormalized * magnitude;
-    const barPixelWidth = barMicrons / micronsPerScreenPixel;
+    const bar_microns = normalized_target * magnitude;
+    const bar_pixel_width = bar_microns / microns_per_screen_pixel;
 
-    label.textContent = formatLabel(barMicrons);
-    bar.style.width = `${barPixelWidth}px`;
+    label.textContent = format_label(bar_microns);
+    bar.style.width = `${bar_pixel_width}px`;
   };
 
-  return { container, update, setVisible };
+  return { container, update, set_visible };
 };
 
 export const landscape_ist = async (
@@ -215,10 +215,6 @@ export const landscape_ist = async (
   const viz_state = {};
 
   viz_state.obs_store = create_obs_store();
-
-  const cached_selected_cats = [];
-  const cached_selected_genes = [];
-  const cached_visible_images = [];
 
   viz_state.highlighted_cells = new Set();
   viz_state.selection_token = 0;
@@ -441,7 +437,7 @@ export const landscape_ist = async (
   viz_state.cats = {};
   viz_state.cats.cat = null;
   viz_state.cats.reset_cat = false;
-  viz_state.cats.selected_cats = cached_selected_cats.slice();
+  viz_state.cats.selected_cats = [];
   viz_state.cats.cell_cats = [];
   viz_state.cats.dict_cell_cats = {};
   viz_state.cats.color_dict_cluster = {};
@@ -490,7 +486,7 @@ export const landscape_ist = async (
   viz_state.genes.gene_names = [];
   viz_state.genes.meta_gene = {};
   viz_state.genes.gene_counts = [];
-  viz_state.genes.selected_genes = cached_selected_genes.slice();
+  viz_state.genes.selected_genes = [];
   viz_state.genes.trx_ini_radius = trx_radius;
   viz_state.genes.trx_names_array = [];
   viz_state.genes.trx_data = [];
@@ -541,14 +537,8 @@ export const landscape_ist = async (
   const all_image_layer_names = viz_state.img.image_info.map(
     (info) => info.button_name
   );
-  const persisted_visible_set = new Set(
-    cached_visible_images.filter((name) => all_image_layer_names.includes(name))
-  );
 
-  viz_state.img.visible_layers =
-    persisted_visible_set.size > 0
-      ? persisted_visible_set
-      : new Set(all_image_layer_names);
+  viz_state.img.visible_layers = new Set(all_image_layer_names);
 
   // Create and append the visualization.
   const root = document.createElement('div');
@@ -556,18 +546,18 @@ export const landscape_ist = async (
   root.style.height = `${height}px`;
   root.style.border = '1px solid #d3d3d3';
 
-  const userMicronsPerPixel =
+  const user_microns_per_pixel =
     typeof scale_bar_microns_per_pixel === 'number' &&
     !Number.isNaN(scale_bar_microns_per_pixel) &&
     scale_bar_microns_per_pixel > 0
       ? scale_bar_microns_per_pixel
       : null;
 
-  const defaultMicronsPerPixel = PIXEL_SIZE_MICRONS[tech];
-  const micronsPerPixel = defaultMicronsPerPixel ?? userMicronsPerPixel;
+  const default_microns_per_pixel = PIXEL_SIZE_MICRONS[tech];
+  const microns_per_pixel = default_microns_per_pixel ?? user_microns_per_pixel;
 
-  if (micronsPerPixel) {
-    viz_state.scale_bar = create_scale_bar(micronsPerPixel, tech);
+  if (microns_per_pixel) {
+    viz_state.scale_bar = create_scale_bar(microns_per_pixel, tech);
     root.appendChild(viz_state.scale_bar.container);
   }
 
@@ -588,13 +578,13 @@ export const landscape_ist = async (
     await set_dimensions(viz_state, base_url, image_name_for_dim);
   }
 
-  const centerX = viz_state.dimensions?.width
+  const center_x = viz_state.dimensions?.width
     ? viz_state.dimensions.width / 2
     : 0;
-  const centerY = viz_state.dimensions?.height
+  const center_y = viz_state.dimensions?.height
     ? viz_state.dimensions.height / 2
     : 0;
-  viz_state.rotation = build_rotation_state(rotate, [centerX, centerY]);
+  viz_state.rotation = build_rotation_state(rotate, [center_x, center_y]);
 
   await set_meta_gene(
     viz_state.genes,
@@ -912,23 +902,23 @@ export const landscape_ist = async (
   el.appendChild(ui_container);
   el.appendChild(root);
 
-  const isChromium = ['Chromium', 'point-cloud'].includes(
+  const is_chromium = ['Chromium', 'point-cloud'].includes(
     viz_state.img.landscape_parameters.technology
   );
   viz_state.obs_store.landscape_view.subscribe(
     (view) => {
-      const isUmap = view === 'umap';
-      viz_state.obs_store.umap_state.set(isUmap);
+      const is_umap = view === 'umap';
+      viz_state.obs_store.umap_state.set(is_umap);
 
       if (viz_state.scale_bar) {
-        viz_state.scale_bar.setVisible(!isUmap);
+        viz_state.scale_bar.set_visible(!is_umap);
       }
 
       toggle_spatial_umap(deck_ist, layers_obj, viz_state);
 
-      if (isUmap) {
+      if (is_umap) {
         viz_state.buttons.buttons.umap.style('color', 'blue');
-        if (!isChromium) {
+        if (!is_chromium) {
           viz_state.buttons.buttons.spatial.style('color', 'gray');
           viz_state.buttons.buttons.img.style('color', 'gray');
         }

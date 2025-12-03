@@ -357,6 +357,16 @@ const make_ist_img_layer_button_callback = (
 
     toggle_slider(inst_slider, is_visible);
 
+    if (!viz_state.img.visible_layers) {
+      viz_state.img.visible_layers = new Set();
+    }
+
+    if (is_visible) {
+      viz_state.img.visible_layers.add(text);
+    } else {
+      viz_state.img.visible_layers.delete(text);
+    }
+
     viz_state.obs_store.deck_check.set({
       ...viz_state.obs_store.deck_check.get(),
       image_layers: false,

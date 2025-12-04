@@ -679,45 +679,62 @@ export const yearbook = async (
     }
   };
 
+  // Debounce flag to prevent recursive updates
+  let isUpdatingZoom = false;
+
+  // Sync zoom across all portraits
+  const syncZoomToAllPortraits = (new_zoom) => {
+    if (isUpdatingZoom) return;
+    isUpdatingZoom = true;
+
+    viz_state.yearbook.zoom_level = new_zoom;
+
+    // Update all view states with the new zoom (keeping their individual centers)
+    const centers = viz_state.yearbook.portrait_centers;
+    centers.forEach((center, index) => {
+      viewStatesRef[`portrait-${index}`] = {
+        target: [center.x, center.y, 0],
+        zoom: new_zoom,
+      };
+    });
+
+    // Update scale bar
+    if (viz_state.scale_bar) {
+      viz_state.scale_bar.update({ zoom: new_zoom });
+    }
+
+    // Apply synced view states to deck
+    deck_yearbook.setProps({
+      initialViewState: { ...viewStatesRef },
+    });
+
+    // Sync to model
+    if (viz_state.model && typeof viz_state.model.set === 'function') {
+      viz_state.model.set('zoom_level', new_zoom);
+      viz_state.model.save_changes();
+    }
+
+    // Reset flag after a short delay
+    setTimeout(() => {
+      isUpdatingZoom = false;
+    }, 100);
+  };
+
   // Set up view state change handler for synced zoom
   deck_yearbook.setProps({
     onViewStateChange: ({ viewState, viewId, interactionState }) => {
-      // Only sync zoom on user interaction (not programmatic changes)
-      if (!interactionState || !interactionState.isZooming) {
-        return viewState;
-      }
-
       const new_zoom = viewState.zoom;
       const old_zoom = viz_state.yearbook.zoom_level;
 
-      // If zoom changed, sync across all portraits
-      if (new_zoom !== old_zoom) {
-        viz_state.yearbook.zoom_level = new_zoom;
-
-        // Update all view states with the new zoom (keeping their individual centers)
-        const centers = viz_state.yearbook.portrait_centers;
-        centers.forEach((center, index) => {
-          viewStatesRef[`portrait-${index}`] = {
-            target: [center.x, center.y, 0],
-            zoom: new_zoom,
-          };
+      // If zoom changed significantly, sync across all portraits
+      if (Math.abs(new_zoom - old_zoom) > 0.01 && !isUpdatingZoom) {
+        // Schedule sync on next frame to avoid blocking
+        requestAnimationFrame(() => {
+          syncZoomToAllPortraits(new_zoom);
         });
-
-        // Update scale bar
-        if (viz_state.scale_bar) {
-          viz_state.scale_bar.update({ zoom: new_zoom });
-        }
-
-        // Sync to model
-        if (viz_state.model && typeof viz_state.model.set === 'function') {
-          viz_state.model.set('zoom_level', new_zoom);
-          viz_state.model.save_changes();
-        }
-
-        // Return synced view states for all views
-        return viewStatesRef;
       }
 
+      // Always return the viewState for the current view
       return viewState;
     },
   });
@@ -748,20 +765,8 @@ export const yearbook = async (
 
     viz_state.model.on('change:zoom_level', () => {
       const new_zoom = viz_state.model.get('zoom_level');
-      if (new_zoom !== viz_state.yearbook.zoom_level) {
-        viz_state.yearbook.zoom_level = new_zoom;
-        // Update all view states with the new zoom
-        const centers = viz_state.yearbook.portrait_centers;
-        centers.forEach((center, index) => {
-          viewStatesRef[`portrait-${index}`] = {
-            target: [center.x, center.y, 0],
-            zoom: new_zoom,
-          };
-        });
-        deck_yearbook.setProps({ initialViewState: viewStatesRef });
-        if (viz_state.scale_bar) {
-          viz_state.scale_bar.update({ zoom: new_zoom });
-        }
+      if (Math.abs(new_zoom - viz_state.yearbook.zoom_level) > 0.01) {
+        syncZoomToAllPortraits(new_zoom);
       }
     });
   }

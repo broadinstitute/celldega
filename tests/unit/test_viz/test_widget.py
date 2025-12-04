@@ -15,8 +15,6 @@ try:
     from celldega.viz import (
         Clustergram,
         Landscape,
-        clustergram_enrich,
-        landscape_clustergram,
     )
 except Exception as e:  # pragma: no cover - if deps missing skip
     pytest.skip(f"celldega modules unavailable: {e}", allow_module_level=True)
@@ -87,7 +85,6 @@ def test_clustergram_selected_genes_trait() -> None:
 
     widget.selected_genes = ["A", "B"]
     assert widget.selected_genes == ["A", "B"]
-
 
 
 def test_clustergram_category_colors_from_matrix() -> None:

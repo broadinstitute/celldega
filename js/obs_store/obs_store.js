@@ -40,6 +40,15 @@ export const create_obs_store = () => {
     // Dataset switching observables
     current_dataset_index: Observable(0),
     dataset_switching: Observable(false),
+    // Persistent state across dataset switches
+    // This allows users to compare the same cluster/gene across datasets
+    persistent_state: Observable({
+      selected_cats: [],
+      selected_genes: [],
+      cat: 'cluster', // 'cluster' or gene name
+      viz_image_layers: true,
+      landscape_view: 'spatial', // 'spatial' or 'umap'
+    }),
     // to do utilize for setProps
     deck_check: Observable({
       background_layer: true,

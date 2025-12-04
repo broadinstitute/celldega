@@ -10,6 +10,7 @@ import { landscape_h_e } from './viz/landscape_h_e';
 import { landscape_ist } from './viz/landscape_ist';
 import { landscape_sst } from './viz/landscape_sst';
 import { matrix_viz } from './viz/matrix_viz';
+import { yearbook } from './viz/yearbook';
 import { render_enrich } from './widgets/enrich_widget';
 
 // Remove export keywords from render functions
@@ -168,6 +169,59 @@ const render_landscape = async ({ model, el }) => {
   }
 };
 
+const render_yearbook = async ({ model, el }) => {
+  const token = model.get('token');
+  const creds = model.get('creds');
+  const base_url = model.get('base_url');
+  const dataset_name = model.get('dataset_name');
+  const width = model.get('width');
+  const height = model.get('height');
+  const cells = model.get('cells') || [];
+  const num_rows = model.get('num_rows') || 2;
+  const num_cols = model.get('num_cols') || 3;
+  const portrait_size_um = model.get('portrait_size_um') || 100;
+  const portrait_gap = model.get('portrait_gap') || 4;
+  const segmentation = model.get('segmentation') || 'default';
+  const scale_bar_microns_per_pixel = model.get('scale_bar_microns_per_pixel');
+  const current_page = model.get('current_page') || 0;
+
+  let meta_cell_data = { result: {}, attr: [] };
+  let meta_cluster_data = { result: {}, attr: [] };
+
+  const metaCellBytes = model.get('meta_cell_parquet');
+  if (metaCellBytes && metaCellBytes.byteLength > 0) {
+    meta_cell_data = await objects_from_parquet(metaCellBytes, 'cell_id');
+  }
+
+  const metaClusterBytes = model.get('meta_cluster_parquet');
+  if (metaClusterBytes && metaClusterBytes.byteLength > 0) {
+    meta_cluster_data = await objects_from_parquet(metaClusterBytes, 'leiden');
+  }
+
+  return yearbook(
+    el,
+    model,
+    token,
+    base_url,
+    dataset_name,
+    cells,
+    num_rows,
+    num_cols,
+    portrait_size_um,
+    portrait_gap,
+    width,
+    height,
+    meta_cell_data.result,
+    meta_cell_data.attr,
+    meta_cluster_data.result,
+    meta_cluster_data.attr,
+    segmentation,
+    creds,
+    scale_bar_microns_per_pixel,
+    current_page
+  );
+};
+
 const render_matrix_new = async ({ model, el }) => {
   // let network = model.get('network');
   let network;
@@ -206,6 +260,9 @@ async function render({ model, el }) {
     switch (componentType) {
       case 'Landscape':
         cleanup = await render_landscape({ model, el });
+        break;
+      case 'Yearbook':
+        cleanup = await render_yearbook({ model, el });
         break;
       case 'Matrix':
         // return render_matrix_new({ model, el });
@@ -256,11 +313,13 @@ export default {
   landscape_sst,
   landscape_h_e,
   matrix_viz,
+  yearbook,
   render,
   render_landscape_ist,
   render_landscape_sst,
   render_landscape_h_e,
   render_landscape,
+  render_yearbook,
   render_matrix_new,
   render_enrich,
 };

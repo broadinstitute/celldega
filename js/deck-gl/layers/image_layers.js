@@ -106,35 +106,41 @@ export const update_opacity_single_image_layer = (
 };
 
 /**
- * Create image layers for yearbook with per-portrait extents.
- * This creates separate image layers for each portrait to ensure
- * only the relevant tiles are loaded.
+ * Create image layers for yearbook.
+ * Creates one set of image layers per portrait, each with its own extent.
+ * This ensures tiles are loaded correctly for each discontiguous region.
  *
  * @param {Object} viz_state - Visualization state
  * @param {Array<{cell_id: string, x: number, y: number}>} portrait_centers - Portrait centers
  * @param {number} portrait_data_size - Portrait size in data coordinates
+ * @param {string} cacheKey - Cache key for layer IDs (page-based for reuse)
  * @returns {Array} Image layers for all portraits
  */
-export const make_yearbook_image_layers = async (viz_state, portrait_centers, portrait_data_size) => {
+export const make_yearbook_image_layers = async (viz_state, portrait_centers, portrait_data_size, cacheKey = null) => {
   const { image_info } = viz_state.img;
-  const { max_pyramid_zoom } = viz_state.img.landscape_parameters;
-  const cacheKey = Date.now().toString(36);
+  const { max_pyramid_zoom, tile_size } = viz_state.img.landscape_parameters;
+  const layerCacheKey = cacheKey || Date.now().toString(36);
 
   const all_layers = [];
+  const half_size = portrait_data_size / 2;
+  // Padding should be generous to cover zoomed-in views and tile boundaries
+  const padding = Math.max(tile_size * 3, portrait_data_size * 0.5);
 
-  // For each portrait, create image layers with restricted extent
+  console.log(`Yearbook: Creating image layers for ${portrait_centers.length} portraits, data_size=${portrait_data_size.toFixed(0)}, padding=${padding.toFixed(0)}`);
+
   portrait_centers.forEach((center, portrait_index) => {
-    const half_size = portrait_data_size / 2;
+    // Each portrait gets its own extent covering its visible area plus padding
     const extent = [
-      Math.max(0, center.x - half_size),
-      Math.max(0, center.y - half_size),
-      Math.min(viz_state.dimensions.width, center.x + half_size),
-      Math.min(viz_state.dimensions.height, center.y + half_size),
+      Math.max(0, center.x - half_size - padding),
+      Math.max(0, center.y - half_size - padding),
+      Math.min(viz_state.dimensions.width, center.x + half_size + padding),
+      Math.min(viz_state.dimensions.height, center.y + half_size + padding),
     ];
 
     image_info.forEach((info) => {
       const opacity = 5;
-      const layerId = `${info.button_name}-portrait${portrait_index}-${cacheKey}`;
+      // Include portrait index in layer ID for proper updates
+      const layerId = `yb-${info.button_name}-p${portrait_index}-${layerCacheKey}`;
 
       const image_layer = new TileLayer({
         id: layerId,
@@ -142,8 +148,8 @@ export const make_yearbook_image_layers = async (viz_state, portrait_centers, po
         refinementStrategy: 'no-overlap',
         minZoom: -7,
         maxZoom: 0,
-        maxCacheSize: 0,
-        maxRequests: 4, // Limit requests per portrait
+        maxCacheSize: 50,
+        maxRequests: 6,
         extent: extent,
         getTileData: create_get_tile_data(
           viz_state.global_base_url,
@@ -165,5 +171,6 @@ export const make_yearbook_image_layers = async (viz_state, portrait_centers, po
     });
   });
 
+  console.log(`Yearbook: Created ${all_layers.length} image layers total`);
   return all_layers;
 };

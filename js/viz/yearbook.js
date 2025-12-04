@@ -420,6 +420,24 @@ export const yearbook = async (
   set_views_prop(deck_yearbook, views);
   set_get_tooltip(deck_yearbook, viz_state);
 
+  // Set up layer filter to render per-portrait image layers only in their target viewport
+  // Image layer IDs are like "yb-DAPI-p0-page0" where p0 means portrait 0
+  // Viewport IDs are like "portrait-0"
+  deck_yearbook.setProps({
+    layerFilter: ({ layer, viewport }) => {
+      const layerId = layer.id;
+      // Check if this is a per-portrait image layer (contains -pN- pattern)
+      const portraitMatch = layerId.match(/-p(\d+)-/);
+      if (portraitMatch) {
+        const portraitIndex = parseInt(portraitMatch[1], 10);
+        const targetViewportId = `portrait-${portraitIndex}`;
+        return viewport.id === targetViewportId;
+      }
+      // All other layers (vector, background) render in all viewports
+      return true;
+    },
+  });
+
   // Make layers object (nbhd_layer and edit_layer are null for yearbook)
   const layers_obj = {
     background_layer,
@@ -492,11 +510,14 @@ export const yearbook = async (
     await update_trx_layer_data(base_url, all_tiles, layers_obj, viz_state);
     await update_path_layer_data(base_url, all_tiles, layers_obj, viz_state);
 
-    // Create per-portrait image layers
+    // Create image layers that cover all portrait regions
+    // Use page number in cache key so layers refresh on pagination
+    const page_cache_key = `page${viz_state.yearbook.current_page}`;
     layers_obj.image_layers = await make_yearbook_image_layers(
       viz_state,
       centers,
-      portrait_data_size
+      portrait_data_size,
+      page_cache_key
     );
     viz_state.layers_obj = layers_obj;
 

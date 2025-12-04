@@ -50,7 +50,7 @@ export const ini_row_label_layer = (viz_state) => {
     id: 'row-label-layer',
     data: viz_state.labels.row_label_data,
     getPosition: (d, index) => row_label_get_position(d, index, viz_state),
-    getText: (d) => d.name,
+    getText: (d) => d.display_name || d.name,
     getSize: viz_state.viz.font_size.rows,
     getColor: [0, 0, 0],
     getAngle: 0,
@@ -90,7 +90,7 @@ export const ini_col_label_layer = (viz_state) => {
     id: 'col-label-layer',
     data: viz_state.labels.col_label_data,
     getPosition: (d, index) => col_label_get_position(d, index, viz_state),
-    getText: (d) => d.name,
+    getText: (d) => d.display_name || d.name,
     getSize: viz_state.viz.font_size.cols,
     getColor: [0, 0, 0],
     getAngle: 45, // Optional: Text angle in degrees

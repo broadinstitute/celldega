@@ -11,12 +11,12 @@ export const get_tooltip = (viz_state, params) => {
     // Check which layer the tooltip is currently over
     if (layer.id === 'row-label-layer') {
       return {
-        html: `Row Label: ${object.name}`,
+        html: `Row Label: ${object.display_name || object.name}`,
         style: { color: 'white' },
       };
     } else if (layer.id === 'col-label-layer') {
       return {
-        html: `Col Label: ${object.name}`,
+        html: `Col Label: ${object.display_name || object.name}`,
         style: { color: 'white' },
       };
     } else if (layer.id === 'row-layer') {
@@ -44,8 +44,10 @@ export const get_tooltip = (viz_state, params) => {
     } else if (layer.id === 'mat-layer') {
       // Display the default tooltip for other layers
 
-      const row_name = viz_state.labels.row_label_data[object.row].name;
-      const col_name = viz_state.labels.col_label_data[object.col].name;
+      const row_entry = viz_state.labels.row_label_data[object.row];
+      const col_entry = viz_state.labels.col_label_data[object.col];
+      const row_name = row_entry?.display_name || row_entry?.name;
+      const col_name = col_entry?.display_name || col_entry?.name;
 
       return {
         html: `Row: ${row_name} <br> Column: ${col_name} <br> Value: ${object.value.toFixed(2)}`,

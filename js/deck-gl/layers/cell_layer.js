@@ -17,7 +17,7 @@ import { update_selected_genes } from '../../global_variables/selected_genes';
 import { get_arrow_table } from '../../read_parquet/get_arrow_table';
 import { get_scatter_data } from '../../read_parquet/get_scatter_data';
 import { scale_umap_data } from '../../umap/scale_umap_data';
-import { hexToRgb } from '../../utils/hexToRgb';
+import { getModelMatrixProps } from '../../utils/rotation';
 
 const cell_layer_onclick = async (info, d, deck_ist, layers_obj, viz_state) => {
   // Check if the device is a touch device
@@ -46,54 +46,19 @@ const cell_layer_onclick = async (info, d, deck_ist, layers_obj, viz_state) => {
   update_selected_genes(viz_state.genes, [], viz_state.obs_store);
 };
 
-const parseColorValue = (value) => {
-  if (Array.isArray(value) && value.length >= 3) {
-    const numeric = value
-      .slice(0, 3)
-      .map((component) => Number(component))
-      .filter((component) => Number.isFinite(component));
-
-    if (numeric.length === 3) {
-      const needsScaling = numeric.every(
-        (component) => component >= 0 && component <= 1
-      );
-
-      return needsScaling
-        ? numeric.map((component) => Math.round(component * 255))
-        : numeric.map((component) => Math.round(component));
-    }
-  }
-
-  if (typeof value === 'string' && value) {
-    return hexToRgb(value);
-  }
-
-  return null;
-};
-
 // transparent to red
-export const get_cell_color = (cats, i, d) => {
+export const get_cell_color = (cats, highlighted_cells, i, d) => {
+  const highlight_set = highlighted_cells ?? new Set();
+  const has_highlights = highlight_set.size > 0;
+  const inst_cell = cats.cell_names_array[d.index];
+  const is_highlighted = has_highlights && highlight_set.has(inst_cell);
+
+  let base_color;
   if (cats.cat === 'cluster') {
     try {
       const inst_cat = cats.cell_cats[d.index];
 
       let inst_color = cats.color_dict_cluster[inst_cat];
-
-      const colorIndex = Array.isArray(cats.meta_cell_attr)
-        ? cats.meta_cell_attr.indexOf('color')
-        : -1;
-
-      if (colorIndex > -1 && cats.meta_cell && cats.cell_names_array) {
-        const cellName = cats.cell_names_array[d.index];
-        const cellAttrs =
-          cats.meta_cell?.[cellName] ?? cats.meta_cell?.[String(cellName)];
-        const colorValue = cellAttrs?.[colorIndex];
-        const parsed = parseColorValue(colorValue);
-
-        if (parsed) {
-          inst_color = parsed;
-        }
-      }
 
       let inst_opacity =
         cats.selected_cats.length === 0 || cats.selected_cats.includes(inst_cat)
@@ -106,19 +71,30 @@ export const get_cell_color = (cats, i, d) => {
         inst_opacity = 0;
       }
 
-      return [...inst_color, inst_opacity];
+      base_color = [...inst_color, inst_opacity];
     } catch {
-      return [0, 0, 0, 50]; // Return a default color with some opacity to handle the error gracefully
+      base_color = [0, 0, 0, 10]; // Return a default color with some opacity to handle the error gracefully
     }
   } else {
     // color cells based on gene expression
     try {
       const inst_exp = cats.cell_exp_array[d.index]; //
-      return [255, 0, 0, inst_exp];
+      base_color = [255, 0, 0, inst_exp];
     } catch {
-      return [255, 0, 0, 50]; // Return a default color with some opacity to handle the error gracefully
+      base_color = [255, 0, 0, 10]; // Return a default color with some opacity to handle the error gracefully
     }
   }
+
+  if (!has_highlights) {
+    return base_color;
+  }
+
+  if (is_highlighted) {
+    return [0, 0, 255, 255];
+  }
+
+  const dimmed_opacity = 10;
+  return [...base_color.slice(0, 3), dimmed_opacity];
 };
 
 export const ini_cell_layer = async (base_url, viz_state) => {
@@ -167,33 +143,6 @@ export const ini_cell_layer = async (base_url, viz_state) => {
     set_cell_cats(viz_state.cats, cluster_arrow_table, 'cluster');
   }
 
-  const colorAttrIndex = Array.isArray(viz_state.cats.meta_cell_attr)
-    ? viz_state.cats.meta_cell_attr.indexOf('color')
-    : -1;
-
-  if (colorAttrIndex > -1 && viz_state.cats.has_meta_cell) {
-    viz_state.cats.cell_cats.forEach((clusterName, cellIdx) => {
-      if (!clusterName) {
-        return;
-      }
-
-      const cellName = viz_state.cats.cell_names_array[cellIdx];
-      const cellAttrs =
-        viz_state.cats.meta_cell?.[cellName] ??
-        viz_state.cats.meta_cell?.[String(cellName)];
-
-      if (!cellAttrs) {
-        return;
-      }
-
-      const parsed = parseColorValue(cellAttrs[colorAttrIndex]);
-
-      if (parsed) {
-        viz_state.cats.color_dict_cluster[clusterName] = parsed;
-      }
-    });
-  }
-
   set_dict_cell_cats(viz_state.cats);
 
   // Combine names and positions into a single array of objects
@@ -231,6 +180,7 @@ export const ini_cell_layer = async (base_url, viz_state) => {
     // convert to easier to use objects
     const numRows = viz_state.spatial.cell_scatter_data.length; // Replace with arrow_table.numRows
     cell_scatter_data_objects = Array.from({ length: numRows }, (_, i) => ({
+      name: viz_state.cats.cell_names_array[i],
       position:
         dim === 3
           ? [
@@ -273,6 +223,7 @@ export const ini_cell_layer = async (base_url, viz_state) => {
   } else {
     const numRows = viz_state.spatial.cell_scatter_data.length; // Replace with arrow_table.numRows
     cell_scatter_data_objects = Array.from({ length: numRows }, (_, i) => ({
+      name: viz_state.cats.cell_names_array[i],
       position:
         dim === 3
           ? [
@@ -365,15 +316,18 @@ export const ini_cell_layer = async (base_url, viz_state) => {
       sizeUnits: 'meters',
       pointSize: 5,
       pickable: true,
-      getColor: (i, d) => get_cell_color(viz_state.cats, i, d),
+      getColor: (i, d) =>
+        get_cell_color(viz_state.cats, viz_state.highlighted_cells, i, d),
       data: viz_state.spatial.cell_scatter_data_objects,
       transitions,
       getPosition: (d) =>
         viz_state.obs_store.umap_state.get() ? d.umap : d.position,
       updateTriggers: {
         getPosition: [viz_state.obs_store.umap_state.get()],
+        getFillColor: [viz_state.selection_token],
       },
       opacity: 1,
+      ...getModelMatrixProps(viz_state.rotation),
     });
   } else {
     cell_layer = new ScatterplotLayer({
@@ -381,14 +335,17 @@ export const ini_cell_layer = async (base_url, viz_state) => {
       radiusMinPixels: 1,
       getRadius: 5.0,
       pickable: true,
-      getFillColor: (i, d) => get_cell_color(viz_state.cats, i, d),
+      getFillColor: (i, d) =>
+        get_cell_color(viz_state.cats, viz_state.highlighted_cells, i, d),
       data: viz_state.spatial.cell_scatter_data_objects,
       transitions,
       getPosition: (d) =>
         viz_state.obs_store.umap_state.get() ? d.umap : d.position,
       updateTriggers: {
         getPosition: [viz_state.obs_store.umap_state.get()],
+        getFillColor: [viz_state.selection_token],
       },
+      ...getModelMatrixProps(viz_state.rotation),
     });
   }
 

@@ -420,13 +420,15 @@ export const yearbook = async (
   set_views_prop(deck_yearbook, views);
   set_get_tooltip(deck_yearbook, viz_state);
 
-  // Make layers object
+  // Make layers object (nbhd_layer and edit_layer are null for yearbook)
   const layers_obj = {
     background_layer,
     image_layers,
     cell_layer,
     path_layer,
     trx_layer,
+    nbhd_layer: null,
+    edit_layer: null,
   };
 
   viz_state.layers_obj = layers_obj;
@@ -498,7 +500,7 @@ export const yearbook = async (
     );
     viz_state.layers_obj = layers_obj;
 
-    // Create view states for each portrait
+    // Create view states for each portrait and update viewStatesRef
     const view_states = {};
     centers.forEach((center, index) => {
       const view_id = `portrait-${index}`;
@@ -506,11 +508,32 @@ export const yearbook = async (
         target: [center.x, center.y, 0],
         zoom: zoom_level,
       };
+      // Also update viewStatesRef for zoom sync
+      viewStatesRef[view_id] = view_states[view_id];
     });
 
+    // Force deck to update with new view states and layers
+    // Use a unique timestamp to force layer recreation
+    const timestamp = Date.now();
+    
+    // Clone layers with new IDs to force refresh
+    layers_obj.cell_layer = layers_obj.cell_layer.clone({
+      id: `cell-layer-page-${viz_state.yearbook.current_page}-${timestamp}`,
+    });
+    layers_obj.path_layer = layers_obj.path_layer.clone({
+      id: `path-layer-page-${viz_state.yearbook.current_page}-${timestamp}`,
+    });
+    layers_obj.trx_layer = layers_obj.trx_layer.clone({
+      id: `trx-layer-page-${viz_state.yearbook.current_page}-${timestamp}`,
+    });
+
+    // Get the updated layers list (filter out null layers for yearbook)
+    const layers_list = get_layers_list(layers_obj, viz_state.close_up).filter(l => l !== null);
+
+    // Apply all changes at once
     deck_yearbook.setProps({
       initialViewState: view_states,
-      controller: { doubleClickZoom: false },
+      layers: layers_list,
     });
 
     // Update bar graphs based on visible data
@@ -605,7 +628,7 @@ export const yearbook = async (
 
   viz_state.obs_store.deck_ready.subscribe((ready) => {
     if (ready) {
-      const list = get_layers_list(viz_state.layers_obj, viz_state.close_up);
+      const list = get_layers_list(viz_state.layers_obj, viz_state.close_up).filter(l => l !== null);
       deck_yearbook.setProps({ layers: list });
     }
   });

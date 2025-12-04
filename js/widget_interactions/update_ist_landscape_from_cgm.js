@@ -37,13 +37,9 @@ export const update_ist_landscape_from_cgm = async (
 
       update_cat(viz_state.cats, new_cat);
       update_selected_genes(viz_state.genes, [inst_gene], viz_state.obs_store);
-      // update_selected_cats(viz_state.cats, [], viz_state.obs_store);
-      update_selected_cats(
-        viz_state.cats,
-        new_cat === 'cluster' ? [] : [inst_gene],
-        viz_state.obs_store
-      );
 
+      // Load gene expression data BEFORE updating selected_cats
+      // This ensures cell_exp_array is populated before the cell layer refreshes
       await update_cell_exp_array(
         viz_state.cats,
         viz_state.genes,
@@ -52,6 +48,14 @@ export const update_ist_landscape_from_cgm = async (
         viz_state.seg.version,
         viz_state.vector_name_integer,
         viz_state.aws
+      );
+
+      // Update selected_cats after cell_exp_array has been populated
+      // This triggers the subscription that refreshes the cell layer
+      update_selected_cats(
+        viz_state.cats,
+        new_cat === 'cluster' ? [] : [inst_gene],
+        viz_state.obs_store
       );
 
       refresh_layer(viz_state, layers_obj, 'cell_layer');

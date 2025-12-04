@@ -126,9 +126,9 @@ const make_pagination_container = (viz_state, handle_page_change) => {
   prev_button.onclick = () => {
     if (viz_state.yearbook.current_page > 0) {
       const new_page = viz_state.yearbook.current_page - 1;
-      viz_state.yearbook.current_page = new_page;
+      // Don't update state here - let handle_page_change do it
+      // UI will be updated via viz_state.yearbook.update_pagination_ui callback
       handle_page_change(new_page);
-      update_pagination_ui();
     }
   };
 
@@ -152,9 +152,9 @@ const make_pagination_container = (viz_state, handle_page_change) => {
     );
     if (viz_state.yearbook.current_page < _total_pages - 1) {
       const new_page = viz_state.yearbook.current_page + 1;
-      viz_state.yearbook.current_page = new_page;
+      // Don't update state here - let handle_page_change do it
+      // UI will be updated via viz_state.yearbook.update_pagination_ui callback
       handle_page_change(new_page);
-      update_pagination_ui();
     }
   };
 

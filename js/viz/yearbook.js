@@ -706,20 +706,35 @@ export const yearbook = async (
   await update_all_portraits();
   initViewStates();
 
-  // Handle page changes
+  // Handle page changes with debounce to prevent rapid clicks causing issues
+  let isPageChanging = false;
   const handle_page_change = async (new_page) => {
-    viz_state.yearbook.current_page = new_page;
-    await update_all_portraits();
-    initViewStates();
-
-    // Update pagination UI
-    if (viz_state.yearbook.update_pagination_ui) {
-      viz_state.yearbook.update_pagination_ui();
+    // Skip if already processing a page change
+    if (isPageChanging) {
+      console.log('Yearbook: Page change already in progress, skipping');
+      return;
     }
 
-    if (viz_state.model && typeof viz_state.model.set === 'function') {
-      viz_state.model.set('current_page', new_page);
-      viz_state.model.save_changes();
+    isPageChanging = true;
+    try {
+      viz_state.yearbook.current_page = new_page;
+      await update_all_portraits();
+      initViewStates();
+
+      // Update pagination UI
+      if (viz_state.yearbook.update_pagination_ui) {
+        viz_state.yearbook.update_pagination_ui();
+      }
+
+      if (viz_state.model && typeof viz_state.model.set === 'function') {
+        viz_state.model.set('current_page', new_page);
+        viz_state.model.save_changes();
+      }
+    } finally {
+      // Reset flag after a short delay to prevent rapid clicks
+      setTimeout(() => {
+        isPageChanging = false;
+      }, 300);
     }
   };
 

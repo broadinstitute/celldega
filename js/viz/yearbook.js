@@ -643,10 +643,6 @@ export const yearbook = async (
 
   update_trx_layer_radius(layers_obj, 0.25);
 
-  // Initialize portraits
-  await update_all_portraits();
-  initViewStates();
-
   // Track view states for each portrait
   const viewStatesRef = {};
 
@@ -661,6 +657,10 @@ export const yearbook = async (
       };
     });
   };
+
+  // Initialize portraits
+  await update_all_portraits();
+  initViewStates();
 
   // Handle page changes
   const handle_page_change = async (new_page) => {

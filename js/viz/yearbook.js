@@ -1,4 +1,5 @@
 import * as d3 from 'd3';
+import { AwsClient } from 'aws4fetch';
 
 import { calc_viewport } from '../deck-gl/core/calc_viewport';
 import {
@@ -308,7 +309,17 @@ export const yearbook = async (
   viz_state.nbhd.feature_collection = { type: 'FeatureCollection', features: [] };
 
   viz_state.spatial = {};
-  viz_state.aws = null;
+
+  // Set up AWS credentials if provided
+  if ('accessKeyId' in creds) {
+    viz_state.aws = new AwsClient({
+      accessKeyId: creds.accessKeyId,
+      secretAccessKey: creds.secretAccessKey,
+      sessionToken: creds.sessionToken,
+    });
+  } else {
+    viz_state.aws = null;
+  }
 
   // Initialize rotation state (no rotation for yearbook)
   viz_state.rotation = { hasRotation: false };

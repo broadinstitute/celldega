@@ -63,6 +63,16 @@ export const ini_views = (viz_state) => {
       },
     }),
 
+    // Corner view for row attribute labels (top-left area)
+    new OrthographicView({
+      id: 'corner',
+      x: '0px',
+      y: '0px',
+      width: `${viz_state.viz.row_region}px`,
+      height: `${viz_state.viz.col_region}px`,
+      controller: false,
+    }),
+
     // New Dendrogram Views
 
     // Dendrogram under the matrix
@@ -114,6 +124,10 @@ export const ini_view_state = (viz_state) => {
     cols: {
       target: [viz_state.zoom.ini_pan_x, viz_state.viz.label_col_y],
       zoom: [viz_state.zoom.ini_zoom_x, viz_state.zoom.ini_zoom_y],
+    },
+    corner: {
+      target: [viz_state.viz.row_region / 2, viz_state.viz.col_region / 2],
+      zoom: [0, 0],
     },
     dendro_rows: {
       target: [viz_state.viz.label_row_x, viz_state.zoom.ini_pan_y],

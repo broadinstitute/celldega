@@ -7,6 +7,7 @@ import * as d3 from 'd3';
 
 import { handleValidationWarning } from '../../temp_utils/errorHandler';
 import { make_bar_graph, bar_callback_nbhd } from '../../ui/bar_plot';
+import { hexToRgb, randomHexColor } from '../../utils/hexToRgb';
 import { getModelMatrixProps } from '../../utils/rotation';
 import { get_layers_list } from '../utils/layers_ist';
 
@@ -31,17 +32,18 @@ const calc_region_areas = (featureCollection) => {
       // Calculate the area
       const area = Math.abs(d3.polygonArea(coordinates));
 
+      // Keep existing name/cat if present, otherwise assign index-based values
+      const existingName = feature.properties.name;
+      const existingCat = feature.properties.cat;
+
       // Update the properties
       feature.properties = {
         ...feature.properties,
         area, // Store the calculated area
-        name: (index + 1).toString(),
-        cat: (index + 1).toString(),
-        color: feature.properties.color || [
-          Math.random() * 255,
-          Math.random() * 255,
-          Math.random() * 255,
-        ], // Default color if not set
+        name: existingName || (index + 1).toString(),
+        cat: existingCat || (index + 1).toString(),
+        // Use hex color format - keep existing hex or generate random hex
+        color: feature.properties.color || randomHexColor(),
       };
     } else {
       handleValidationWarning(`Feature ${index} is not a Polygon.`, {
@@ -73,23 +75,35 @@ export const calc_and_update_rgn_bar_graph = async (
   deck_ist,
   layers_obj
 ) => {
-  // Calculate areas
+  // Calculate areas (preserves existing names/cats and uses hex colors)
   viz_state.edit.feature_collection = calc_region_areas(
     viz_state.edit.feature_collection
   );
 
+  // Build bar data using existing names from features (not index-based)
   viz_state.edit.rgn_areas = viz_state.edit.feature_collection.features
-    .map((feature, index) => ({
-      name: (index + 1).toString(), // Assign numeric names starting from 1
-      value: feature.properties.area, // Use the "area" property for the bar height
+    .map((feature) => ({
+      name: feature.properties.name || feature.properties.cat,
+      value: feature.properties.area,
     }))
     .sort((a, b) => b.value - a.value);
 
+  // Build color dict - convert hex colors to RGB arrays for the bar graph
   viz_state.edit.color_dict_rgn =
-    viz_state.edit.feature_collection.features.reduce((acc, feature, index) => {
-      acc[(index + 1).toString()] = feature.properties.color; // Use the "color" property
+    viz_state.edit.feature_collection.features.reduce((acc, feature) => {
+      const name = feature.properties.name || feature.properties.cat;
+      const color = feature.properties.color;
+      // Convert hex to RGB for the bar graph, or use as-is if already RGB
+      if (typeof color === 'string' && color.startsWith('#')) {
+        acc[name] = hexToRgb(color);
+      } else if (Array.isArray(color)) {
+        acc[name] = color;
+      } else {
+        acc[name] = [128, 128, 128]; // fallback gray
+      }
       return acc;
     }, {});
+
   if (viz_state.nbhd?.edit) {
     viz_state.nbhd.bar_data = viz_state.edit.rgn_areas;
     viz_state.nbhd.color_dict = viz_state.edit.color_dict_rgn;
@@ -118,8 +132,7 @@ const edit_layer_on_edit = async (
   viz_state,
   edit_info
 ) => {
-  // const { updatedData, editType, featureIndexes, editContext } = edit_info;
-  const { updatedData, editType } = edit_info;
+  const { updatedData, editType, featureIndexes } = edit_info;
 
   viz_state.edit.feature_collection = updatedData;
 
@@ -140,8 +153,61 @@ const edit_layer_on_edit = async (
     update_path_pickable_state(layers_obj, true);
     update_trx_pickable_state(layers_obj, true);
 
-    await calc_and_update_rgn_bar_graph(viz_state, deck_ist, layers_obj);
+    // Get the index of the newly added feature
+    const newFeatureIndex =
+      featureIndexes && featureIndexes.length > 0
+        ? featureIndexes[0]
+        : viz_state.edit.feature_collection.features.length - 1;
 
+    // Assign a temporary name and color to the new feature
+    const feature =
+      viz_state.edit.feature_collection.features[newFeatureIndex];
+    if (feature && !feature.properties.name) {
+      feature.properties.name = `nbhd_${newFeatureIndex + 1}`;
+      feature.properties.cat = feature.properties.name;
+      feature.properties.color =
+        feature.properties.color || randomHexColor();
+    }
+
+    // Show the neighborhood editor dialog if available
+    if (viz_state.nbhd?.edit && viz_state.nbhd_editor) {
+      const root_bounds = viz_state.root.getBoundingClientRect();
+      viz_state.nbhd_editor.open({
+        feature_index: newFeatureIndex,
+        initial_name: feature.properties.name,
+        initial_color: feature.properties.color,
+        position: {
+          x: root_bounds.width / 2 - 120,
+          y: root_bounds.height / 2 - 90,
+        },
+        on_apply: ({ feature_index, name, color }) => {
+          // Update the feature properties
+          const feat =
+            viz_state.edit.feature_collection.features[feature_index];
+          if (feat) {
+            feat.properties.name = name;
+            feat.properties.cat = name;
+            feat.properties.color = color;
+          }
+
+          // Refresh the layer and bar graph
+          layers_obj.edit_layer = layers_obj.edit_layer.clone({
+            data: viz_state.edit.feature_collection,
+          });
+
+          calc_and_update_rgn_bar_graph(viz_state, deck_ist, layers_obj);
+          sync_region_to_model(viz_state);
+
+          const layers_list_updated = get_layers_list(
+            layers_obj,
+            viz_state.close_up
+          );
+          deck_ist.setProps({ layers: layers_list_updated });
+        },
+      });
+    }
+
+    await calc_and_update_rgn_bar_graph(viz_state, deck_ist, layers_obj);
     sync_region_to_model(viz_state);
   }
 
@@ -221,7 +287,15 @@ export const ini_edit_layer = (viz_state) => {
     pointRadiusScale: 2000,
     extruded: true,
     getElevation: 1000,
-    getFillColor: (d) => d.properties.color,
+    // Convert hex color to RGB array for rendering
+    getFillColor: (d) => {
+      const color = d.properties.color;
+      // If color is a hex string, convert to RGB; otherwise assume it's already RGB
+      if (typeof color === 'string' && color.startsWith('#')) {
+        return hexToRgb(color);
+      }
+      return color || [128, 128, 128]; // fallback gray
+    },
     pickable: true,
     autoHighlight: true,
     modeConfig: {
@@ -243,9 +317,65 @@ export const set_edit_layer_on_edit = (deck_ist, layers_obj, viz_state) => {
 };
 
 export const set_edit_layer_on_click = (deck_ist, layers_obj, viz_state) => {
+  // Track double-click timing
+  let lastClickTime = 0;
+  let lastClickIndex = -1;
+  const DOUBLE_CLICK_THRESHOLD = 300; // ms
+
+  const handleClick = async (event) => {
+    const currentTime = Date.now();
+    const isDoubleClick =
+      currentTime - lastClickTime < DOUBLE_CLICK_THRESHOLD &&
+      lastClickIndex === event.index;
+
+    lastClickTime = currentTime;
+    lastClickIndex = event.index;
+
+    if (isDoubleClick && event.featureType === 'polygons') {
+      // Double-click: open editor dialog for this neighborhood
+      const feature =
+        viz_state.edit?.feature_collection?.features?.[event.index];
+      if (feature && viz_state.nbhd_editor) {
+        const root_bounds = viz_state.root.getBoundingClientRect();
+        viz_state.nbhd_editor.open({
+          feature_index: event.index,
+          initial_name: feature.properties.name || `nbhd_${event.index + 1}`,
+          initial_color: feature.properties.color,
+          position: {
+            x: root_bounds.width / 2 - 120,
+            y: root_bounds.height / 2 - 90,
+          },
+          on_apply: ({ feature_index, name, color }) => {
+            // Update the feature properties
+            const feat =
+              viz_state.edit.feature_collection.features[feature_index];
+            if (feat) {
+              feat.properties.name = name;
+              feat.properties.cat = name;
+              feat.properties.color = color;
+            }
+
+            // Refresh the layer and bar graph
+            layers_obj.edit_layer = layers_obj.edit_layer.clone({
+              data: viz_state.edit.feature_collection,
+            });
+
+            calc_and_update_rgn_bar_graph(viz_state, deck_ist, layers_obj);
+            sync_region_to_model(viz_state);
+
+            const layers_list = get_layers_list(layers_obj, viz_state.close_up);
+            deck_ist.setProps({ layers: layers_list });
+          },
+        });
+      }
+    } else {
+      // Single click: normal behavior
+      await edit_layer_on_click(event, deck_ist, layers_obj, viz_state);
+    }
+  };
+
   layers_obj.edit_layer = layers_obj.edit_layer.clone({
-    onClick: (event) =>
-      edit_layer_on_click(event, deck_ist, layers_obj, viz_state),
+    onClick: handleClick,
   });
 };
 

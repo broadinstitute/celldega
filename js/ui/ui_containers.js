@@ -1066,7 +1066,8 @@ export const make_ist_ui_container = (
     viz_state.edit.buttons = {};
     viz_state.edit.mode = 'view';
 
-    const nbhd_edit_callback = (_event, _deck_ist, _layers_obj, _viz_state) => {
+    // Callback for NBHD button - toggles the edit layer visibility
+    const nbhd_toggle_callback = (_event, _deck_ist, _layers_obj, _viz_state) => {
       const visible = _viz_state.obs_store.viz_edit_layer.get();
       _viz_state.obs_store.viz_edit_layer.set(!visible);
     };
@@ -1099,15 +1100,19 @@ export const make_ist_ui_container = (
       _deck_ist.setProps({ layers: layers_list });
     };
 
-    make_edit_button(
-      deck_ist,
-      layers_obj,
-      viz_state,
-      nbhd_ctrl_container,
-      'EDIT',
-      40,
-      nbhd_edit_callback
-    );
+    // Create NBHD button when nbhd_edit is true (replaces the old EDIT button)
+    // This button toggles edit mode for neighborhoods
+    if (viz_state.nbhd.edit) {
+      make_edit_button(
+        deck_ist,
+        layers_obj,
+        viz_state,
+        nbhd_ctrl_container,
+        'NBHD',
+        40,
+        nbhd_toggle_callback
+      );
+    }
 
     make_edit_button(
       deck_ist,
@@ -1119,11 +1124,7 @@ export const make_ist_ui_container = (
       sketch_callback
     );
 
-    // hide edit button if not in viz_state.nbhd.edit
-    if (!viz_state.nbhd.edit) {
-      d3.select(viz_state.edit.buttons.edit).style('display', 'none');
-    }
-
+    // SKTCH button is hidden initially, shown when NBHD edit mode is active
     d3.select(viz_state.edit.buttons.sktch).style('display', 'none');
 
     make_edit_button(
@@ -1140,7 +1141,10 @@ export const make_ist_ui_container = (
       .style('color', 'red')
       .style('display', 'none');
 
-    viz_state.buttons.buttons.nbhd = viz_state.edit.buttons.nbhd;
+    // Set the nbhd button reference if it was created
+    if (viz_state.edit.buttons.nbhd) {
+      viz_state.buttons.buttons.nbhd = viz_state.edit.buttons.nbhd;
+    }
   }
 
   if (viz_state.nbhd.is_nbhd) {

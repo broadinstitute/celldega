@@ -56,7 +56,16 @@ export const make_tooltip = (viz_state, info) => {
       viz_state.nbhd.feature_collection.features[info.index].properties.name;
     inst_cat =
       viz_state.nbhd.feature_collection.features[info.index].properties.cat;
-    inst_html = `<div>neighborhood: ${inst_name}</div><div>cluster: ${inst_cat}</div>`;
+    inst_html = `<div>neighborhood: ${inst_name}</div><div>category: ${inst_cat}</div>`;
+  }
+  // Handle edit layer tooltips (for editable neighborhoods)
+  else if (info.layer.id.startsWith('edit-layer')) {
+    const feature = viz_state.edit?.feature_collection?.features?.[info.index];
+    if (feature) {
+      inst_name = feature.properties.name || `nbhd_${info.index + 1}`;
+      inst_cat = feature.properties.cat || inst_name;
+      inst_html = `<div>neighborhood: ${inst_name}</div>`;
+    }
   }
 
   // Configure tooltip positioning and styling

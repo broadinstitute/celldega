@@ -28,6 +28,9 @@ export const make_tile_tooltip = (info, viz_state) => {
 export const make_tooltip = (viz_state, info) => {
   if (info.index === -1 || !info.layer) return null;
 
+  // Disable tooltips when in sketch mode to avoid interference while drawing
+  if (viz_state.edit?.mode === 'sktch') return null;
+
   let inst_html = '';
   let inst_name = '';
   let inst_cat = '';

@@ -109,13 +109,25 @@ def test_landscape_nbhd_geojson_and_metadata() -> None:
     assert isinstance(widget.meta_nbhd_parquet, bytes | bytearray)
 
 
-def test_landscape_nbhd_edit_mutual_exclusion() -> None:
+def test_landscape_nbhd_edit_with_preloaded_data() -> None:
+    """Test that nbhd_edit=True works with pre-loaded neighborhood data."""
     gdf = gpd.GeoDataFrame(
-        {"name": ["a"]},
+        {"name": ["a"], "cat": ["x"], "color": ["#ff0000"], "area": [1.0]},
         geometry=[Polygon([(0, 0), (1, 0), (1, 1), (0, 1)])],
     )
-    with pytest.raises(ValueError):
-        Landscape(nbhd=gdf, nbhd_edit=True)
+    # Should NOT raise an error - editing pre-loaded neighborhoods is now supported
+    widget = Landscape(nbhd=gdf, nbhd_edit=True)
+
+    # Verify that nbhd_edit is True
+    assert widget.nbhd_edit is True
+
+    # Verify that the nbhd GeoDataFrame is stored
+    assert widget.nbhd is not None
+    assert len(widget.nbhd) == 1
+
+    # Verify that nbhd_geojson is populated with the neighborhood data
+    assert "features" in widget.nbhd_geojson
+    assert len(widget.nbhd_geojson["features"]) == 1
 
 
 def test_landscape_nbhd_edit_syncs_geojson() -> None:

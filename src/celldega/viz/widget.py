@@ -137,8 +137,8 @@ class Landscape(anywidget.AnyWidget):
         meta_cluster_df = None
         cell_attr = kwargs.pop("cell_attr", ["leiden"])
 
-        if nbhd_gdf is not None and nbhd_edit:
-            raise ValueError("nbhd_edit cannot be True when nbhd data is provided")
+        # nbhd_edit can now be True even when nbhd data is provided,
+        # allowing users to edit pre-loaded neighborhood polygons
 
         # Handle base_url which can be a string, list of strings, or list of dicts
         # Also accept base_urls directly for convenience

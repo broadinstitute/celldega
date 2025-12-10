@@ -563,6 +563,33 @@ export const landscape_ist = async (
     };
   }
 
+  // When nbhd_edit is true and nbhd data is provided, initialize the edit layer
+  // with the existing neighborhood features to allow editing pre-loaded neighborhoods
+  if (nbhd_edit && Object.keys(nbhd).length > 0 && nbhd.features?.length > 0) {
+    // Deep copy the nbhd features to the edit layer's feature collection
+    // and ensure each feature has the required properties for editing
+    viz_state.edit.feature_collection = {
+      type: 'FeatureCollection',
+      features: nbhd.features.map((feature, index) => ({
+        ...feature,
+        properties: {
+          ...feature.properties,
+          // Ensure color is in RGB array format for the edit layer
+          color: feature.properties.color
+            ? colorToRgba(feature.properties.color)
+            : [
+                Math.random() * 255,
+                Math.random() * 255,
+                Math.random() * 255,
+              ],
+          // Use existing name/cat or assign numeric index
+          name: feature.properties.name || (index + 1).toString(),
+          cat: feature.properties.cat || (index + 1).toString(),
+        },
+      })),
+    };
+  }
+
   const background_layer = ini_background_layer(viz_state);
   const image_layers = await make_image_layers(viz_state);
   const cell_layer = await ini_cell_layer(base_url, viz_state);

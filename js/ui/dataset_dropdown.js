@@ -89,9 +89,9 @@ export const make_dataset_dropdown = (viz_state, deck_ist, layers_obj) => {
       try {
         await switch_dataset(new_index, viz_state, deck_ist, layers_obj);
       } catch (error) {
-        console.error('Error switching dataset:', error);
         // Revert selection on error
         select.value = current_index;
+        void error;
       } finally {
         select.disabled = false;
         select.style.opacity = '1';

@@ -132,7 +132,6 @@ export const switch_dataset = async (new_index, viz_state, deck_ist, layers_obj)
   const base_urls = viz_state.base_urls || [];
 
   if (new_index < 0 || new_index >= base_urls.length) {
-    console.error('Invalid dataset index:', new_index);
     return;
   }
 
@@ -326,6 +325,7 @@ export const switch_dataset = async (new_index, viz_state, deck_ist, layers_obj)
             layer.finalize();
           } catch (e) {
             // Ignore finalize errors
+            void e;
           }
         }
       });
@@ -409,9 +409,6 @@ export const switch_dataset = async (new_index, viz_state, deck_ist, layers_obj)
       cell_layer: true,
     });
 
-  } catch (error) {
-    console.error('Error during dataset switch:', error);
-    throw error;
   } finally {
     // Mark switching as complete
     viz_state.obs_store.dataset_switching.set(false);

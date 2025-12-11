@@ -63,12 +63,22 @@ export const ini_views = (viz_state) => {
       },
     }),
 
-    // Corner view for row attribute labels (top-left area)
+    // Static view for row attribute labels (top-left corner, no zoom/pan)
     new OrthographicView({
-      id: 'corner',
+      id: 'row_attr_labels',
       x: '0px',
       y: '0px',
       width: `${viz_state.viz.row_region}px`,
+      height: `${viz_state.viz.col_region}px`,
+      controller: false,
+    }),
+
+    // Static view for column attribute labels (right side, aligned with dendrogram)
+    new OrthographicView({
+      id: 'col_attr_labels',
+      x: `${viz_state.viz.row_region + viz_state.viz.label_buffer + viz_state.viz.mat_width}px`,
+      y: '0px',
+      width: `${viz_state.viz.dendrogram_width + 60}px`,
       height: `${viz_state.viz.col_region}px`,
       controller: false,
     }),
@@ -125,8 +135,17 @@ export const ini_view_state = (viz_state) => {
       target: [viz_state.zoom.ini_pan_x, viz_state.viz.label_col_y],
       zoom: [viz_state.zoom.ini_zoom_x, viz_state.zoom.ini_zoom_y],
     },
-    corner: {
-      target: [viz_state.viz.row_region / 2, viz_state.viz.col_region / 2],
+    row_attr_labels: {
+      // Match the rows view x-target so bars and labels align horizontally
+      target: [viz_state.viz.label_row_x, viz_state.viz.col_region / 2],
+      zoom: [0, 0],
+    },
+    col_attr_labels: {
+      // Use centered view for simple 1:1 coordinate mapping
+      target: [
+        (viz_state.viz.dendrogram_width + 60) / 2,
+        viz_state.viz.col_region / 2,
+      ],
       zoom: [0, 0],
     },
     dendro_rows: {

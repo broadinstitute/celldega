@@ -176,44 +176,67 @@ const get_row_attr_label_data = (viz_state) => {
 
 /**
  * Gets the position for a column attribute label.
- * Labels appear at the right edge of the matrix in the 'cols' view,
+ * Labels appear in a static view at the right side (aligned with dendrogram x position),
  * vertically aligned with each attribute bar.
+ * 
+ * Column bars y position in cols view:
+ * - Canvas y = col_cat_offset * (attr_index + 1.5) - 30 + cat_shift_col
+ * - Cols view target.y = label_col_y (25)
+ * - DOM y = col_region/2 + (canvas_y - 25)
+ * 
+ * For col_attr_labels view with centered target (1:1 mapping):
+ * - DOM y = canvas_y (since target is at center)
+ * - So we need canvas_y = col_region/2 + (bar_canvas_y - label_col_y)
+ * 
  * @param {Object} d - The label data
  * @param {Object} viz_state - The visualization state
  * @returns {Array} [x, y] position
  */
 const col_attr_label_get_position = (d, viz_state) => {
-  // X position: at the right edge of the matrix width (within 'cols' view)
-  // The 'cols' view has width = mat_width, so position near the right edge
-  const pos_x = viz_state.viz.mat_width - 5;
+  // X position: at the left edge of the col_attr_labels view
+  const pos_x = 5;
 
-  // Y position: aligned with each attribute bar
-  // Column attribute bars are positioned using cat_shift_col and bar spacing
-  // cat_shift_col = col_label (75), bars start below the column text labels
-  const bar_spacing = viz_state.viz.col_cat_height + viz_state.viz.extra_space.col;
-  // Position aligned with each attribute bar row
-  const pos_y = viz_state.viz.cat_shift_col - 20 + bar_spacing * (d.index + 0.5);
+  // Y position: calculate to match the column bar's DOM position
+  // Bar canvas y in cols view:
+  const bar_canvas_y =
+    viz_state.viz.col_cat_offset * (d.index + 1.5) -
+    30 +
+    viz_state.viz.cat_shift_col;
+
+  // Convert to DOM y (cols view has target.y = label_col_y)
+  // DOM y = col_region/2 + (bar_canvas_y - label_col_y)
+  // For our centered view, canvas y = DOM y
+  const pos_y =
+    viz_state.viz.col_region / 2 +
+    (bar_canvas_y - viz_state.viz.label_col_y);
 
   return [pos_x, pos_y];
 };
 
 /**
  * Gets the position for a row attribute label.
- * Labels appear at the top of the 'corner' view, horizontally aligned with each attribute bar.
+ * Labels appear at the top of the row_attr_labels view, aligned with each attribute bar column.
+ * Text reads from bottom to top.
+ * 
+ * Row bars x position formula from attr_state.js and cat_layers.js:
+ * x = row_cat_offset * (attr_index + 0.5) + 20 + cat_shift_row
+ * x = 9 * (attr_index + 0.5) + 20 + 30 = 9 * attr_index + 54.5
+ * 
  * @param {Object} d - The label data
  * @param {Object} viz_state - The visualization state
  * @returns {Array} [x, y] position
  */
 const row_attr_label_get_position = (d, viz_state) => {
-  // X position: aligned with each attribute bar column
-  // Row attribute bars are at x = cat_offset * (attr_index + 0.5) + 20 + cat_shift_row
-  // In the 'corner' view, the coordinate system starts at (0,0) at top-left
-  const bar_spacing = viz_state.viz.row_cat_width + viz_state.viz.extra_space.row;
-  const pos_x = viz_state.viz.cat_shift_row + bar_spacing * (d.index + 0.5);
+  // X position: match the row attribute bar x position
+  // Formula: row_cat_offset * (attr_index + 0.5) + 20 + cat_shift_row
+  const pos_x =
+    viz_state.viz.row_cat_offset * (d.index + 0.5) +
+    20 +
+    viz_state.viz.cat_shift_row;
 
-  // Y position: near the bottom of the corner view (which is col_region height)
-  // Position labels at the bottom so they appear above where the row category bars start
-  const pos_y = viz_state.viz.col_region - 10;
+  // Y position: at the bottom of the view (just above where the rows view starts)
+  // The rows view starts at y = col_region, so position labels just above that
+  const pos_y = viz_state.viz.col_region - 5;
 
   return [pos_x, pos_y];
 };
@@ -238,7 +261,7 @@ export const ini_col_attr_label_layer = (viz_state) => {
     getSize: 10,
     getColor: [80, 80, 80],
     getAngle: 0,
-    getTextAnchor: 'start',
+    getTextAnchor: 'start', // Text starts from left
     getAlignmentBaseline: 'center',
     fontFamily: 'Arial',
     sizeUnits: 'pixels',
@@ -268,8 +291,8 @@ export const ini_row_attr_label_layer = (viz_state) => {
     getText: (d) => d.name,
     getSize: 10,
     getColor: [80, 80, 80],
-    getAngle: -90, // Rotated for vertical text
-    getTextAnchor: 'start',
+    getAngle: 90, // Rotated so text reads bottom-to-top
+    getTextAnchor: 'start', // Text starts from the bottom
     getAlignmentBaseline: 'center',
     fontFamily: 'Arial',
     sizeUnits: 'pixels',

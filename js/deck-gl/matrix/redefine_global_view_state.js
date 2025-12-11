@@ -1,3 +1,20 @@
+// Static view states that never change (for attribute labels)
+const get_static_view_states = (viz_state) => ({
+  row_attr_labels: {
+    // Match the rows view x-target so bars and labels align horizontally
+    target: [viz_state.viz.label_row_x, viz_state.viz.col_region / 2],
+    zoom: [0, 0],
+  },
+  col_attr_labels: {
+    // Use centered view for simple 1:1 coordinate mapping
+    target: [
+      (viz_state.viz.dendrogram_width + 60) / 2,
+      viz_state.viz.col_region / 2,
+    ],
+    zoom: [0, 0],
+  },
+});
+
 export const redefine_global_view_state = (
   viz_state,
   viewId,
@@ -5,6 +22,9 @@ export const redefine_global_view_state = (
   pan_curated
 ) => {
   let globalViewState;
+
+  // Get static view states that should never change
+  const staticStates = get_static_view_states(viz_state);
 
   if (viewId === 'matrix') {
     globalViewState = {
@@ -28,6 +48,7 @@ export const redefine_global_view_state = (
         zoom: [zoom_curated[0], viz_state.zoom.ini_zoom_y],
         target: [pan_curated[0], viz_state.viz.label_col_y],
       },
+      ...staticStates,
     };
   } else if (viewId === 'cols' || viewId === 'dendro_cols') {
     globalViewState = {
@@ -51,6 +72,7 @@ export const redefine_global_view_state = (
         zoom: [zoom_curated[0], viz_state.zoom.ini_zoom_y],
         target: [pan_curated[0], viz_state.viz.label_col_y],
       },
+      ...staticStates,
     };
   } else if (viewId === 'rows' || viewId === 'dendro_rows') {
     globalViewState = {
@@ -74,6 +96,7 @@ export const redefine_global_view_state = (
         zoom: [zoom_curated[0], viz_state.zoom.ini_zoom_y],
         target: [pan_curated[0], viz_state.viz.label_col_y],
       },
+      ...staticStates,
     };
   }
 

@@ -487,10 +487,6 @@ export const yearbook = async (
       start_index + portraits_per_page
     );
 
-    console.log(
-      `Yearbook: Page ${inst_current_page + 1}, showing cells ${start_index} to ${start_index + page_cells.length}`
-    );
-
     // Get cell positions from the scatter data
     const centers = page_cells.map((cell_id) => {
       const cell_index = viz_state.cats.cell_name_to_index_map.get(cell_id);
@@ -509,7 +505,6 @@ export const yearbook = async (
         }
       }
       // Fallback to center of image if cell not found
-      console.warn(`Yearbook: Cell ${cell_id} not found in scatter data`);
       return {
         cell_id,
         x: viz_state.dimensions.width / 2,
@@ -535,10 +530,6 @@ export const yearbook = async (
       portrait_data_size,
       portrait_data_size,
       tile_size
-    );
-
-    console.log(
-      `Yearbook: Loading ${all_tiles.length} tiles for ${centers.length} portraits (${portrait_data_size.toFixed(0)} px per portrait)`
     );
 
     // Update transcript and path layers with combined tile data
@@ -753,7 +744,6 @@ export const yearbook = async (
   const handle_page_change = async (new_page) => {
     // Skip if already processing a page change
     if (isPageChanging) {
-      console.log('Yearbook: Page change already in progress, skipping');
       return;
     }
 

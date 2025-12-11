@@ -475,6 +475,78 @@ export const yearbook = async (
 
   viz_state.layers_obj = layers_obj;
 
+  // Track view states for each portrait
+  const viewStatesRef = {};
+
+  // Update bar graphs based on data in all visible portraits
+  const update_bar_graphs = () => {
+    const centers = viz_state.yearbook.portrait_centers;
+    const { portrait_data_size } = viz_state.yearbook;
+    // Use half the portrait data size as the radius for filtering
+    const half_view_size = portrait_data_size / 2;
+
+    // Filter transcripts visible in any portrait
+    const filtered_transcripts = (viz_state.combo_data.trx || []).filter(
+      (pos) => {
+        return centers.some((center) => {
+          return (
+            pos.x >= center.x - half_view_size &&
+            pos.x <= center.x + half_view_size &&
+            pos.y >= center.y - half_view_size &&
+            pos.y <= center.y + half_view_size
+          );
+        });
+      }
+    );
+
+    const filtered_gene_names = filtered_transcripts.map((t) => t.name);
+
+    const new_bar_data = filtered_gene_names
+      .reduce((acc, gene) => {
+        const existingGene = acc.find((item) => item.name === gene);
+        if (existingGene) {
+          existingGene.value += 1;
+        } else {
+          acc.push({ name: gene, value: 1 });
+        }
+        return acc;
+      }, [])
+      .filter((item) => item.value > 0)
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 100);
+
+    viz_state.obs_store.new_gene_bar_data.set(new_bar_data);
+
+    // Filter cells visible in any portrait
+    const filtered_cells = (viz_state.combo_data.cell || []).filter((pos) => {
+      return centers.some((center) => {
+        return (
+          pos.x >= center.x - half_view_size &&
+          pos.x <= center.x + half_view_size &&
+          pos.y >= center.y - half_view_size &&
+          pos.y <= center.y + half_view_size
+        );
+      });
+    });
+
+    const filtered_cell_cats = filtered_cells.map((cell) => cell.cat);
+
+    const new_bar_data_cell = filtered_cell_cats
+      .reduce((acc, cat) => {
+        const existing_cat = acc.find((item) => item.name === cat);
+        if (existing_cat) {
+          existing_cat.value += 1;
+        } else {
+          acc.push({ name: cat, value: 1 });
+        }
+        return acc;
+      }, [])
+      .filter((item) => item.value > 0)
+      .sort((a, b) => b.value - a.value);
+
+    viz_state.obs_store.new_cell_bar_data.set(new_bar_data_cell);
+  };
+
   // Calculate portrait centers based on cell positions
   const update_portrait_centers = async () => {
     const portraits_per_page = num_rows * num_cols;
@@ -586,81 +658,12 @@ export const yearbook = async (
     });
 
     // Update bar graphs based on visible data
-    update_bar_graphs(viz_state);
+    update_bar_graphs();
 
     // Update scale bar
     if (viz_state.scale_bar) {
       viz_state.scale_bar.update({ zoom: zoom_level });
     }
-  };
-
-  // Update bar graphs based on data in all visible portraits
-  const update_bar_graphs = (viz_state) => {
-    const centers = viz_state.yearbook.portrait_centers;
-    const { portrait_data_size } = viz_state.yearbook;
-    // Use half the portrait data size as the radius for filtering
-    const half_view_size = portrait_data_size / 2;
-
-    // Filter transcripts visible in any portrait
-    const filtered_transcripts = (viz_state.combo_data.trx || []).filter(
-      (pos) => {
-        return centers.some((center) => {
-          return (
-            pos.x >= center.x - half_view_size &&
-            pos.x <= center.x + half_view_size &&
-            pos.y >= center.y - half_view_size &&
-            pos.y <= center.y + half_view_size
-          );
-        });
-      }
-    );
-
-    const filtered_gene_names = filtered_transcripts.map((t) => t.name);
-
-    const new_bar_data = filtered_gene_names
-      .reduce((acc, gene) => {
-        const existingGene = acc.find((item) => item.name === gene);
-        if (existingGene) {
-          existingGene.value += 1;
-        } else {
-          acc.push({ name: gene, value: 1 });
-        }
-        return acc;
-      }, [])
-      .filter((item) => item.value > 0)
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 100);
-
-    viz_state.obs_store.new_gene_bar_data.set(new_bar_data);
-
-    // Filter cells visible in any portrait
-    const filtered_cells = (viz_state.combo_data.cell || []).filter((pos) => {
-      return centers.some((center) => {
-        return (
-          pos.x >= center.x - half_view_size &&
-          pos.x <= center.x + half_view_size &&
-          pos.y >= center.y - half_view_size &&
-          pos.y <= center.y + half_view_size
-        );
-      });
-    });
-
-    const filtered_cell_cats = filtered_cells.map((cell) => cell.cat);
-
-    const new_bar_data_cell = filtered_cell_cats
-      .reduce((acc, cat) => {
-        const existing_cat = acc.find((item) => item.name === cat);
-        if (existing_cat) {
-          existing_cat.value += 1;
-        } else {
-          acc.push({ name: cat, value: 1 });
-        }
-        return acc;
-      }, [])
-      .filter((item) => item.value > 0)
-      .sort((a, b) => b.value - a.value);
-
-    viz_state.obs_store.new_cell_bar_data.set(new_bar_data_cell);
   };
 
   // Set up onclick handlers
@@ -719,9 +722,6 @@ export const yearbook = async (
   });
 
   update_trx_layer_radius(layers_obj, 0.25);
-
-  // Track view states for each portrait
-  const viewStatesRef = {};
 
   // Initialize view states
   const initViewStates = () => {

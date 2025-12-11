@@ -2,11 +2,7 @@ import * as d3 from 'd3';
 
 import { get_total_pages } from '../deck-gl/core/yearbook_viewports';
 import { toggle_background_layer_visibility } from '../deck-gl/layers/background_layer';
-import { new_toggle_cell_layer_visibility } from '../deck-gl/layers/cell_layer';
 import { toggle_visibility_image_layers } from '../deck-gl/layers/image_layers';
-import { toggle_path_layer_visibility } from '../deck-gl/layers/path_layer';
-import { toggle_trx_layer_visibility } from '../deck-gl/layers/trx_layer';
-import { get_layers_list } from '../deck-gl/utils/layers_ist';
 import {
   uniprot_data,
   uniprot_get_request,
@@ -244,8 +240,6 @@ export const make_yearbook_ui_container = (
 
   const cell_slider_container = make_slider_container('cell_slider_container');
   const trx_slider_container = make_slider_container('trx_slider_container');
-
-  const { technology } = viz_state.img.landscape_parameters;
 
   // Image layer toggle
   const spatial_toggle_container = flex_container(

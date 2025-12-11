@@ -1,48 +1,35 @@
 import { AwsClient } from 'aws4fetch';
-import * as d3 from 'd3';
 
-import { calc_viewport } from '../deck-gl/core/calc_viewport';
 import {
   ini_deck,
-  set_deck_on_view_state_change,
   set_get_tooltip,
   set_views_prop,
 } from '../deck-gl/core/deck_ist';
 import {
-  calc_portrait_viewports,
   create_yearbook_views,
   get_discontiguous_tiles,
 } from '../deck-gl/core/yearbook_viewports';
 import { ini_background_layer } from '../deck-gl/layers/background_layer';
 import {
   ini_cell_layer,
-  new_toggle_cell_layer_visibility,
   set_cell_layer_onclick,
-  update_cell_pickable_state,
 } from '../deck-gl/layers/cell_layer';
 import {
-  make_image_layers,
   make_yearbook_image_layers,
 } from '../deck-gl/layers/image_layers';
 import {
   ini_path_layer,
   set_path_layer_onclick,
-  toggle_path_layer_visibility,
-  update_path_pickable_state,
   update_path_layer_data,
 } from '../deck-gl/layers/path_layer';
 import {
   ini_trx_layer,
   set_trx_layer_onclick,
   update_trx_layer_radius,
-  toggle_trx_layer_visibility,
-  update_trx_pickable_state,
   update_trx_layer_data,
 } from '../deck-gl/layers/trx_layer';
 import { get_layers_list } from '../deck-gl/utils/layers_ist';
 import { ini_cache } from '../global_variables/cache';
-import { update_cat, update_selected_cats } from '../global_variables/cat';
-import { update_cell_exp_array } from '../global_variables/cell_exp_array';
 import { set_options } from '../global_variables/fetch_options';
 import { set_global_base_url } from '../global_variables/global_base_url';
 import { set_dimensions } from '../global_variables/image_dimensions';
@@ -54,12 +41,9 @@ import {
 import { set_landscape_parameters } from '../global_variables/landscape_parameters';
 import { set_cluster_metadata } from '../global_variables/meta_cluster';
 import { set_meta_gene } from '../global_variables/meta_gene';
-import { update_selected_genes } from '../global_variables/selected_genes';
 import { create_obs_store } from '../obs_store/obs_store';
 import { set_image_layer_sliders } from '../ui/sliders';
 import { make_yearbook_ui_container } from '../ui/yearbook_ui';
-import { visibleTiles } from '../vector_tile/visibleTiles';
-
 
 const PIXEL_SIZE_MICRONS = {
   Xenium: 0.2125,
@@ -622,7 +606,7 @@ export const yearbook = async (
   // Update bar graphs based on data in all visible portraits
   const update_bar_graphs = (viz_state) => {
     const centers = viz_state.yearbook.portrait_centers;
-    const {portrait_data_size} = viz_state.yearbook;
+    const { portrait_data_size } = viz_state.yearbook;
     // Use half the portrait data size as the radius for filtering
     const half_view_size = portrait_data_size / 2;
 
@@ -839,7 +823,7 @@ export const yearbook = async (
 
   // Set up view state change handler for synced zoom
   deck_yearbook.setProps({
-    onViewStateChange: ({ viewState, viewId, interactionState }) => {
+    onViewStateChange: ({ viewState }) => {
       const new_zoom = viewState.zoom;
       const old_zoom = viz_state.yearbook.zoom_level;
 

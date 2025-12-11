@@ -1,12 +1,17 @@
 import * as d3 from 'd3';
 
-import { toggle_visibility_image_layers } from '../deck-gl/layers/image_layers';
+import { get_total_pages } from '../deck-gl/core/yearbook_viewports';
 import { toggle_background_layer_visibility } from '../deck-gl/layers/background_layer';
 import { new_toggle_cell_layer_visibility } from '../deck-gl/layers/cell_layer';
-import { toggle_trx_layer_visibility } from '../deck-gl/layers/trx_layer';
+import { toggle_visibility_image_layers } from '../deck-gl/layers/image_layers';
 import { toggle_path_layer_visibility } from '../deck-gl/layers/path_layer';
+import { toggle_trx_layer_visibility } from '../deck-gl/layers/trx_layer';
 import { get_layers_list } from '../deck-gl/utils/layers_ist';
-import { get_total_pages } from '../deck-gl/core/yearbook_viewports';
+import {
+  uniprot_data,
+  uniprot_get_request,
+} from '../external_apis/uniprot_api';
+import { debounce } from '../utils/debounce';
 import { refresh_layer } from '../utils/refresh_layer';
 
 import {
@@ -15,6 +20,7 @@ import {
   make_bar_container,
   bar_callback_gene,
 } from './bar_plot';
+import { set_gene_search } from './gene_search';
 import { logo } from './logo';
 import {
   make_img_layer_slider_callback,
@@ -23,12 +29,6 @@ import {
   ini_slider_params,
 } from './sliders';
 import { make_button } from './text_buttons';
-import { set_gene_search } from './gene_search';
-import {
-  uniprot_data,
-  uniprot_get_request,
-} from '../external_apis/uniprot_api';
-import { debounce } from '../utils/debounce';
 
 export const make_ui_container = () => {
   const ui_container = document.createElement('div');
@@ -169,13 +169,15 @@ const make_pagination_container = (viz_state, handle_page_change) => {
     page_text.textContent = `${_current_page + 1} / ${_total_pages}`;
 
     prev_button.disabled = _current_page === 0;
-    prev_button.style.backgroundColor = _current_page > 0 ? '#f0f0f0' : '#e0e0e0';
+    prev_button.style.backgroundColor =
+      _current_page > 0 ? '#f0f0f0' : '#e0e0e0';
     prev_button.style.color = _current_page > 0 ? '#333' : '#999';
 
     next_button.disabled = _current_page >= _total_pages - 1;
     next_button.style.backgroundColor =
       _current_page < _total_pages - 1 ? '#f0f0f0' : '#e0e0e0';
-    next_button.style.color = _current_page < _total_pages - 1 ? '#333' : '#999';
+    next_button.style.color =
+      _current_page < _total_pages - 1 ? '#333' : '#999';
   };
 
   // Store update function in viz_state for external updates
@@ -622,7 +624,10 @@ export const make_yearbook_ui_container = (
   ctrl_container.appendChild(viz_state.genes.gene_search);
 
   // Add pagination controls
-  const pagination_container = make_pagination_container(viz_state, handle_page_change);
+  const pagination_container = make_pagination_container(
+    viz_state,
+    handle_page_change
+  );
   ctrl_container.appendChild(pagination_container);
 
   // Logo
@@ -647,4 +652,3 @@ export const make_yearbook_ui_container = (
 
   return ui_container;
 };
-

@@ -54,7 +54,12 @@ export const make_image_layers = async (viz_state, datasetIndex = 0) => {
     image_info.length === 1 &&
     (image_info[0].name === 'h_and_e' || image_info[0].name === 'h&e')
   ) {
-    const layer = await make_simple_image_layer(viz_state, image_info[0], datasetIndex, cacheKey);
+    const layer = await make_simple_image_layer(
+      viz_state,
+      image_info[0],
+      datasetIndex,
+      cacheKey
+    );
     return [layer];
   }
 
@@ -116,7 +121,12 @@ export const update_opacity_single_image_layer = (
  * @param {string} cacheKey - Cache key for layer IDs (page-based for reuse)
  * @returns {Array} Image layers for all portraits
  */
-export const make_yearbook_image_layers = async (viz_state, portrait_centers, portrait_data_size, cacheKey = null) => {
+export const make_yearbook_image_layers = async (
+  viz_state,
+  portrait_centers,
+  portrait_data_size,
+  cacheKey = null
+) => {
   const { image_info } = viz_state.img;
   const { max_pyramid_zoom, tile_size } = viz_state.img.landscape_parameters;
   const layerCacheKey = cacheKey || Date.now().toString(36);
@@ -125,8 +135,6 @@ export const make_yearbook_image_layers = async (viz_state, portrait_centers, po
   const half_size = portrait_data_size / 2;
   // Padding should be generous to cover zoomed-in views and tile boundaries
   const padding = Math.max(tile_size * 3, portrait_data_size * 0.5);
-
-  console.log(`Yearbook: Creating image layers for ${portrait_centers.length} portraits, data_size=${portrait_data_size.toFixed(0)}, padding=${padding.toFixed(0)}`);
 
   portrait_centers.forEach((center, portrait_index) => {
     // Each portrait gets its own extent covering its visible area plus padding
@@ -150,7 +158,7 @@ export const make_yearbook_image_layers = async (viz_state, portrait_centers, po
         maxZoom: 0,
         maxCacheSize: 50,
         maxRequests: 6,
-        extent: extent,
+        extent,
         getTileData: create_get_tile_data(
           viz_state.global_base_url,
           info.name,
@@ -171,6 +179,5 @@ export const make_yearbook_image_layers = async (viz_state, portrait_centers, po
     });
   });
 
-  console.log(`Yearbook: Created ${all_layers.length} image layers total`);
   return all_layers;
 };

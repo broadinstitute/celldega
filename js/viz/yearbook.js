@@ -1,5 +1,5 @@
-import * as d3 from 'd3';
 import { AwsClient } from 'aws4fetch';
+import * as d3 from 'd3';
 
 import { calc_viewport } from '../deck-gl/core/calc_viewport';
 import {
@@ -8,6 +8,11 @@ import {
   set_get_tooltip,
   set_views_prop,
 } from '../deck-gl/core/deck_ist';
+import {
+  calc_portrait_viewports,
+  create_yearbook_views,
+  get_discontiguous_tiles,
+} from '../deck-gl/core/yearbook_viewports';
 import { ini_background_layer } from '../deck-gl/layers/background_layer';
 import {
   ini_cell_layer,
@@ -15,7 +20,10 @@ import {
   set_cell_layer_onclick,
   update_cell_pickable_state,
 } from '../deck-gl/layers/cell_layer';
-import { make_image_layers, make_yearbook_image_layers } from '../deck-gl/layers/image_layers';
+import {
+  make_image_layers,
+  make_yearbook_image_layers,
+} from '../deck-gl/layers/image_layers';
 import {
   ini_path_layer,
   set_path_layer_onclick,
@@ -49,14 +57,9 @@ import { set_meta_gene } from '../global_variables/meta_gene';
 import { update_selected_genes } from '../global_variables/selected_genes';
 import { create_obs_store } from '../obs_store/obs_store';
 import { set_image_layer_sliders } from '../ui/sliders';
+import { make_yearbook_ui_container } from '../ui/yearbook_ui';
 import { visibleTiles } from '../vector_tile/visibleTiles';
 
-import { make_yearbook_ui_container } from '../ui/yearbook_ui';
-import {
-  calc_portrait_viewports,
-  create_yearbook_views,
-  get_discontiguous_tiles,
-} from '../deck-gl/core/yearbook_viewports';
 
 const PIXEL_SIZE_MICRONS = {
   Xenium: 0.2125,
@@ -165,7 +168,11 @@ const create_scale_bar = (micronsPerPixel, tech) => {
 /**
  * Calculate initial zoom level based on portrait size in micrometers
  */
-const calc_initial_zoom = (portrait_size_um, portrait_pixel_size, micronsPerPixel) => {
+const calc_initial_zoom = (
+  portrait_size_um,
+  portrait_pixel_size,
+  micronsPerPixel
+) => {
   // portrait_size_um is the size in micrometers we want to see
   // portrait_pixel_size is the actual pixel size of the portrait on screen
   // micronsPerPixel is the base resolution of the image
@@ -213,12 +220,12 @@ export const yearbook = async (
 
   // Yearbook-specific state
   viz_state.yearbook = {
-    cells: cells,
-    num_rows: num_rows,
-    num_cols: num_cols,
-    portrait_size_um: portrait_size_um,
-    portrait_gap: portrait_gap,
-    current_page: current_page,
+    cells,
+    num_rows,
+    num_cols,
+    portrait_size_um,
+    portrait_gap,
+    current_page,
     zoom_level: 0,
     portrait_centers: [], // Will store the center coordinates for each portrait
   };
@@ -306,7 +313,10 @@ export const yearbook = async (
   viz_state.nbhd.visible = false;
   viz_state.nbhd.edit = false;
   viz_state.nbhd.is_nbhd = false;
-  viz_state.nbhd.feature_collection = { type: 'FeatureCollection', features: [] };
+  viz_state.nbhd.feature_collection = {
+    type: 'FeatureCollection',
+    features: [],
+  };
 
   viz_state.spatial = {};
 
@@ -332,12 +342,19 @@ export const yearbook = async (
   const tmp_image_info = viz_state.img.landscape_parameters.image_info;
   const image_name_for_dim = tmp_image_info[0].name;
 
-  viz_state.vector_name_integer = viz_state.img.landscape_parameters.use_int_index;
+  viz_state.vector_name_integer =
+    viz_state.img.landscape_parameters.use_int_index;
 
-  set_image_format(viz_state.img, viz_state.img.landscape_parameters.image_format);
+  set_image_format(
+    viz_state.img,
+    viz_state.img.landscape_parameters.image_format
+  );
   set_image_info(viz_state.img, tmp_image_info);
   set_image_layer_sliders(viz_state.img);
-  set_image_layer_colors(viz_state.img.image_layer_colors, viz_state.img.image_info);
+  set_image_layer_colors(
+    viz_state.img.image_layer_colors,
+    viz_state.img.image_info
+  );
 
   // Create and append the visualization
   const root = document.createElement('div');
@@ -385,16 +402,23 @@ export const yearbook = async (
 
   // Edit state (not used in yearbook but needed for layer compatibility)
   viz_state.edit = {};
-  viz_state.edit.feature_collection = { type: 'FeatureCollection', features: [] };
+  viz_state.edit.feature_collection = {
+    type: 'FeatureCollection',
+    features: [],
+  };
   viz_state.edit.visible = false;
 
   // Calculate portrait dimensions FIRST (needed for image layer setup)
-  const actual_width = typeof width === 'string' ? el.clientWidth || 1000 : width;
+  const actual_width =
+    typeof width === 'string' ? el.clientWidth || 1000 : width;
   const available_width = actual_width - (num_cols - 1) * portrait_gap;
   const available_height = height - 100 - (num_rows - 1) * portrait_gap; // 100 for control panel
   const portrait_pixel_width = available_width / num_cols;
   const portrait_pixel_height = available_height / num_rows;
-  const portrait_pixel_size = Math.min(portrait_pixel_width, portrait_pixel_height);
+  const portrait_pixel_size = Math.min(
+    portrait_pixel_width,
+    portrait_pixel_height
+  );
 
   viz_state.yearbook.portrait_pixel_size = portrait_pixel_size;
 
@@ -418,13 +442,18 @@ export const yearbook = async (
 
   // Initialize base layers (image layers will be created per-portrait later)
   const background_layer = ini_background_layer(viz_state);
-  let image_layers = []; // Will be populated with per-portrait layers
+  const image_layers = []; // Will be populated with per-portrait layers
   const cell_layer = await ini_cell_layer(base_url, viz_state);
   const path_layer = await ini_path_layer(viz_state);
   const trx_layer = ini_trx_layer(viz_state);
 
   // Create deck instance with multiple views
-  const views = create_yearbook_views(num_rows, num_cols, portrait_pixel_size, portrait_gap);
+  const views = create_yearbook_views(
+    num_rows,
+    num_cols,
+    portrait_pixel_size,
+    portrait_gap
+  );
   viz_state.views = views;
 
   const deck_yearbook = await ini_deck(root, actual_width, height - 100, tech);
@@ -469,15 +498,24 @@ export const yearbook = async (
     const inst_current_page = viz_state.yearbook.current_page;
     const inst_cells = viz_state.yearbook.cells;
     const start_index = inst_current_page * portraits_per_page;
-    const page_cells = inst_cells.slice(start_index, start_index + portraits_per_page);
+    const page_cells = inst_cells.slice(
+      start_index,
+      start_index + portraits_per_page
+    );
 
-    console.log(`Yearbook: Page ${inst_current_page + 1}, showing cells ${start_index} to ${start_index + page_cells.length}`);
+    console.log(
+      `Yearbook: Page ${inst_current_page + 1}, showing cells ${start_index} to ${start_index + page_cells.length}`
+    );
 
     // Get cell positions from the scatter data
     const centers = page_cells.map((cell_id) => {
       const cell_index = viz_state.cats.cell_name_to_index_map.get(cell_id);
-      if (cell_index !== undefined && viz_state.spatial.cell_scatter_data_objects) {
-        const cell_data = viz_state.spatial.cell_scatter_data_objects[cell_index];
+      if (
+        cell_index !== undefined &&
+        viz_state.spatial.cell_scatter_data_objects
+      ) {
+        const cell_data =
+          viz_state.spatial.cell_scatter_data_objects[cell_index];
         if (cell_data && cell_data.position) {
           return {
             cell_id,
@@ -515,7 +553,9 @@ export const yearbook = async (
       tile_size
     );
 
-    console.log(`Yearbook: Loading ${all_tiles.length} tiles for ${centers.length} portraits (${portrait_data_size.toFixed(0)} px per portrait)`);
+    console.log(
+      `Yearbook: Loading ${all_tiles.length} tiles for ${centers.length} portraits (${portrait_data_size.toFixed(0)} px per portrait)`
+    );
 
     // Update transcript and path layers with combined tile data
     await update_trx_layer_data(base_url, all_tiles, layers_obj, viz_state);
@@ -547,7 +587,7 @@ export const yearbook = async (
     // Force deck to update with new view states and layers
     // Use a unique timestamp to force layer recreation
     const timestamp = Date.now();
-    
+
     // Clone layers with new IDs to force refresh
     layers_obj.cell_layer = layers_obj.cell_layer.clone({
       id: `cell-layer-page-${viz_state.yearbook.current_page}-${timestamp}`,
@@ -560,7 +600,9 @@ export const yearbook = async (
     });
 
     // Get the updated layers list (filter out null layers for yearbook)
-    const layers_list = get_layers_list(layers_obj, viz_state.close_up).filter(l => l !== null);
+    const layers_list = get_layers_list(layers_obj, viz_state.close_up).filter(
+      (l) => l !== null
+    );
 
     // Apply all changes at once
     deck_yearbook.setProps({
@@ -580,21 +622,23 @@ export const yearbook = async (
   // Update bar graphs based on data in all visible portraits
   const update_bar_graphs = (viz_state) => {
     const centers = viz_state.yearbook.portrait_centers;
-    const portrait_data_size = viz_state.yearbook.portrait_data_size;
+    const {portrait_data_size} = viz_state.yearbook;
     // Use half the portrait data size as the radius for filtering
     const half_view_size = portrait_data_size / 2;
 
     // Filter transcripts visible in any portrait
-    const filtered_transcripts = (viz_state.combo_data.trx || []).filter((pos) => {
-      return centers.some((center) => {
-        return (
-          pos.x >= center.x - half_view_size &&
-          pos.x <= center.x + half_view_size &&
-          pos.y >= center.y - half_view_size &&
-          pos.y <= center.y + half_view_size
-        );
-      });
-    });
+    const filtered_transcripts = (viz_state.combo_data.trx || []).filter(
+      (pos) => {
+        return centers.some((center) => {
+          return (
+            pos.x >= center.x - half_view_size &&
+            pos.x <= center.x + half_view_size &&
+            pos.y >= center.y - half_view_size &&
+            pos.y <= center.y + half_view_size
+          );
+        });
+      }
+    );
 
     const filtered_gene_names = filtered_transcripts.map((t) => t.name);
 
@@ -660,7 +704,10 @@ export const yearbook = async (
 
   viz_state.obs_store.deck_ready.subscribe((ready) => {
     if (ready) {
-      const list = get_layers_list(viz_state.layers_obj, viz_state.close_up).filter(l => l !== null);
+      const list = get_layers_list(
+        viz_state.layers_obj,
+        viz_state.close_up
+      ).filter((l) => l !== null);
       deck_yearbook.setProps({ layers: list });
     }
   });
@@ -708,7 +755,7 @@ export const yearbook = async (
     centers.forEach((center, index) => {
       viewStatesRef[`portrait-${index}`] = {
         target: [center.x, center.y, 0],
-        zoom: zoom,
+        zoom,
       };
     });
   };
@@ -858,4 +905,3 @@ export const yearbook = async (
 
   return yearbook_api;
 };
-

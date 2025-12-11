@@ -158,11 +158,13 @@ class Landscape(anywidget.AnyWidget):
                     base_urls_list.append({"url": url, "label": label, "short_label": short_label})
                 else:
                     # Just a string URL, create a label from the index
-                    base_urls_list.append({
-                        "url": str(item),
-                        "label": f"Dataset {i + 1}",
-                        "short_label": f"DS-{i + 1}"
-                    })
+                    base_urls_list.append(
+                        {
+                            "url": str(item),
+                            "label": f"Dataset {i + 1}",
+                            "short_label": f"DS-{i + 1}",
+                        }
+                    )
 
             # Apply dataset_names if provided (overrides short_label)
             if dataset_names and isinstance(dataset_names, list):
@@ -180,7 +182,9 @@ class Landscape(anywidget.AnyWidget):
         else:
             # Single string URL
             if raw_base_url:
-                base_urls_list = [{"url": raw_base_url, "label": "Dataset 1", "short_label": "DS-1"}]
+                base_urls_list = [
+                    {"url": raw_base_url, "label": "Dataset 1", "short_label": "DS-1"}
+                ]
             kwargs["base_urls"] = base_urls_list
 
         base_path = (kwargs.get("base_url") or "") + "/"

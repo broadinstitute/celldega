@@ -9,18 +9,21 @@ import {
 
 import { make_simple_image_layer } from './simple_image_layer';
 
-const make_image_layer = (viz_state, info) => {
+const make_image_layer = (viz_state, info, datasetIndex = 0, cacheKey = '') => {
   const { max_pyramid_zoom } = viz_state.img.landscape_parameters;
 
   const opacity = 5;
 
+  // Include dataset index and cache key in ID to force complete layer recreation
+  const layerId = `${info.button_name}-ds${datasetIndex}${cacheKey ? `-${cacheKey}` : ''}`;
+
   const image_layer = new TileLayer({
-    id: info.button_name,
+    id: layerId,
     tileSize: viz_state.dimensions.tileSize,
     refinementStrategy: 'no-overlap',
     minZoom: -7,
     maxZoom: 0,
-    maxCacheSize: 20,
+    maxCacheSize: 0, // Disable internal tile caching
     extent: [0, 0, viz_state.dimensions.width, viz_state.dimensions.height],
     getTileData: create_get_tile_data(
       viz_state.global_base_url,
@@ -40,19 +43,27 @@ const make_image_layer = (viz_state, info) => {
   return image_layer;
 };
 
-export const make_image_layers = async (viz_state) => {
+export const make_image_layers = async (viz_state, datasetIndex = 0) => {
   const { image_info } = viz_state.img;
+
+  // Generate a unique cache key to force complete layer recreation
+  const cacheKey = Date.now().toString(36);
 
   if (
     image_info.length === 1 &&
     (image_info[0].name === 'h_and_e' || image_info[0].name === 'h&e')
   ) {
-    const layer = await make_simple_image_layer(viz_state, image_info[0]);
+    const layer = await make_simple_image_layer(
+      viz_state,
+      image_info[0],
+      datasetIndex,
+      cacheKey
+    );
     return [layer];
   }
 
   const image_layers = image_info.map((info) =>
-    make_image_layer(viz_state, info)
+    make_image_layer(viz_state, info, datasetIndex, cacheKey)
   );
   return image_layers;
 };

@@ -203,7 +203,9 @@ export const landscape_ist = async (
   rotation_x = 0,
   rotate = 0,
   max_tiles_to_view = 50,
-  scale_bar_microns_per_pixel = null
+  scale_bar_microns_per_pixel = null,
+  base_urls = [],
+  cell_name_prefix = false
 ) => {
   if (width === 0) {
     width = '100%';
@@ -260,6 +262,10 @@ export const landscape_ist = async (
   viz_state.buttons.buttons = {};
 
   set_global_base_url(viz_state, base_url);
+
+  // Store multi-dataset configuration
+  viz_state.base_urls = base_urls;
+  viz_state.cell_name_prefix = cell_name_prefix;
 
   viz_state.close_up = false;
   viz_state.model = ini_model;

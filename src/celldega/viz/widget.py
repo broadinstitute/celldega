@@ -49,11 +49,20 @@ class Landscape(anywidget.AnyWidget):
         rotation_x (float, optional): Rotating angle around X axis for
             point-cloud views.
         token (str): The token traitlet.
-        base_url (str): The base URL for the widget.
+        base_url (str or list): The base URL(s) for the widget. Can be a single string
+            or a list of dicts with 'url' and 'label' keys for multiple datasets.
+            Example: [{'url': 'http://...', 'label': 'Dataset1'}, ...]
+            You can also pass a simple list of URL strings.
+        dataset_names (list, optional): Short names for the datasets to display in
+            the dropdown selector. Should match the length of base_urls.
+            Example: ['Brain', 'Kidney'] for two datasets.
         rotate (float, optional): Degrees to rotate the 2D landscape visualization.
         AnnData (AnnData, optional): AnnData object to derive metadata from.
         dataset_name (str, optional): The name of the dataset to visualize. This
             will show up in the user interface bar.
+        cell_name_prefix (bool, optional): If True, cell names in adata.obs.index
+            are assumed to have a dataset prefix (e.g., "dataset-name_cell-name")
+            that should be trimmed when mapping to LandscapeFiles. Default: False.
 
     The AnnData input automatically extracts cell attributes (e.g., ``leiden``
     clusters), the corresponding colors (or derives them when missing), and any
@@ -66,6 +75,9 @@ class Landscape(anywidget.AnyWidget):
 
     technology = traitlets.Unicode("Xenium").tag(sync=True)
     base_url = traitlets.Unicode("").tag(sync=True)
+    # List of dataset configurations: [{'url': str, 'label': str}, ...]
+    base_urls = traitlets.List(trait=traitlets.Dict(), default_value=[]).tag(sync=True)
+    cell_name_prefix = traitlets.Bool(False).tag(sync=True)
     token = traitlets.Unicode("").tag(sync=True)
     creds = traitlets.Dict({}).tag(sync=True)
     max_tiles_to_view = traitlets.Int(50).tag(sync=True)
@@ -128,6 +140,53 @@ class Landscape(anywidget.AnyWidget):
         if nbhd_gdf is not None and nbhd_edit:
             raise ValueError("nbhd_edit cannot be True when nbhd data is provided")
 
+        # Handle base_url which can be a string, list of strings, or list of dicts
+        # Also accept base_urls directly for convenience
+        raw_base_url = kwargs.pop("base_urls", None) or kwargs.get("base_url", "")
+        # Optional dataset_names for short display names in dropdown
+        dataset_names = kwargs.pop("dataset_names", None)
+        base_urls_list = []
+
+        if isinstance(raw_base_url, list):
+            # Convert list to standardized format
+            for i, item in enumerate(raw_base_url):
+                if isinstance(item, dict):
+                    # Already in dict format with 'url' and optionally 'label'
+                    url = item.get("url", "")
+                    label = item.get("label", f"Dataset {i + 1}")
+                    short_label = item.get("short_label", f"DS-{i + 1}")
+                    base_urls_list.append({"url": url, "label": label, "short_label": short_label})
+                else:
+                    # Just a string URL, create a label from the index
+                    base_urls_list.append(
+                        {
+                            "url": str(item),
+                            "label": f"Dataset {i + 1}",
+                            "short_label": f"DS-{i + 1}",
+                        }
+                    )
+
+            # Apply dataset_names if provided (overrides short_label)
+            if dataset_names and isinstance(dataset_names, list):
+                for i, name in enumerate(dataset_names):
+                    if i < len(base_urls_list) and name:
+                        base_urls_list[i]["short_label"] = str(name)
+                        # Also use as label if label is default
+                        if base_urls_list[i]["label"] == f"Dataset {i + 1}":
+                            base_urls_list[i]["label"] = str(name)
+
+            # Set the first URL as the primary base_url
+            if base_urls_list:
+                kwargs["base_url"] = base_urls_list[0]["url"]
+            kwargs["base_urls"] = base_urls_list
+        else:
+            # Single string URL
+            if raw_base_url:
+                base_urls_list = [
+                    {"url": raw_base_url, "label": "Dataset 1", "short_label": "DS-1"}
+                ]
+            kwargs["base_urls"] = base_urls_list
+
         base_path = (kwargs.get("base_url") or "") + "/"
         path_transformation_matrix = base_path + "micron_to_image_transform.csv"
 
@@ -164,6 +223,9 @@ class Landscape(anywidget.AnyWidget):
             pq.write_table(pa.Table.from_pandas(df), buf, compression="zstd")
             return buf.getvalue()
 
+        # Get cell_name_prefix setting
+        cell_name_prefix_setting = kwargs.get("cell_name_prefix", False)
+
         if adata is not None:
             # if cell_id is in the adata.obs, use it as index
             if "cell_id" in adata.obs.columns:
@@ -173,6 +235,15 @@ class Landscape(anywidget.AnyWidget):
 
             if meta_cell_df.index.name is None:
                 meta_cell_df.index.name = "cell_id"
+
+            # If cell_name_prefix is True, trim the prefix from cell names
+            # This allows mapping to LandscapeFiles which have short names
+            if cell_name_prefix_setting:
+                # Trim prefix before first underscore from index
+                new_index = meta_cell_df.index.map(
+                    lambda x: x.split("_", 1)[1] if "_" in str(x) else x
+                )
+                meta_cell_df.index = new_index
 
             pq_meta_cell = _df_to_bytes(meta_cell_df)
 
@@ -202,10 +273,16 @@ class Landscape(anywidget.AnyWidget):
                 pq_meta_cluster = _df_to_bytes(meta_cluster_df)
 
             if "X_umap" in adata.obsm:
-                umap_df = (
-                    pd.DataFrame(adata.obsm["X_umap"], index=adata.obs.index)
-                    .reset_index()
-                    .rename(columns={"index": "cell_id", 0: "umap_0", 1: "umap_1"})
+                umap_df = pd.DataFrame(adata.obsm["X_umap"], index=adata.obs.index)
+
+                # If cell_name_prefix is True, trim the prefix from cell names
+                if cell_name_prefix_setting:
+                    umap_df.index = umap_df.index.map(
+                        lambda x: x.split("_", 1)[1] if "_" in str(x) else x
+                    )
+
+                umap_df = umap_df.reset_index().rename(
+                    columns={"index": "cell_id", 0: "umap_0", 1: "umap_1"}
                 )
                 pq_umap = _df_to_bytes(umap_df)
 

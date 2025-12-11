@@ -21,6 +21,8 @@ const render_landscape_ist = async ({ model, el }) => {
   const ini_z = model.get('ini_z');
   const ini_zoom = model.get('ini_zoom');
   const base_url = model.get('base_url');
+  const base_urls = model.get('base_urls') || [];
+  const cell_name_prefix = model.get('cell_name_prefix') || false;
   const dataset_name = model.get('dataset_name');
   const width = model.get('width');
   const height = model.get('height');
@@ -88,7 +90,9 @@ const render_landscape_ist = async ({ model, el }) => {
     rotation_x,
     rotate,
     max_tiles_to_view,
-    scale_bar_microns_per_pixel
+    scale_bar_microns_per_pixel,
+    base_urls,
+    cell_name_prefix
   );
 };
 

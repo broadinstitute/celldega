@@ -3,14 +3,26 @@ import * as d3 from 'd3';
 import { ini_background_layer } from '../deck-gl/layers/background_layer';
 import { make_image_layers } from '../deck-gl/layers/image_layers';
 import { get_layers_list } from '../deck-gl/utils/layers_ist';
-import { set_cell_cats, set_dict_cell_cats, update_cat, update_selected_cats } from '../global_variables/cat';
+import {
+  set_cell_cats,
+  set_dict_cell_cats,
+  update_cat,
+  update_selected_cats,
+} from '../global_variables/cat';
 import { update_cell_exp_array } from '../global_variables/cell_exp_array';
-import { set_cell_names_array, set_cell_name_to_index_map } from '../global_variables/cell_names_array';
+import {
+  set_cell_names_array,
+  set_cell_name_to_index_map,
+} from '../global_variables/cell_names_array';
 import { set_color_dict_gene } from '../global_variables/color_dict_gene';
 import { options } from '../global_variables/fetch_options';
 import { set_global_base_url } from '../global_variables/global_base_url';
 import { set_dimensions } from '../global_variables/image_dimensions';
-import { set_image_info, set_image_layer_colors, set_image_format } from '../global_variables/image_info';
+import {
+  set_image_info,
+  set_image_layer_colors,
+  set_image_format,
+} from '../global_variables/image_info';
 import { set_landscape_parameters } from '../global_variables/landscape_parameters';
 import { set_cluster_metadata } from '../global_variables/meta_cluster';
 import { set_meta_gene } from '../global_variables/meta_gene';
@@ -50,8 +62,8 @@ const restore_persistent_state = async (viz_state, layers_obj, saved_state) => {
   }
 
   // Check if selected genes exist in new dataset and restore
-  const valid_genes = saved_state.selected_genes.filter(
-    (gene) => viz_state.genes.gene_names.includes(gene)
+  const valid_genes = saved_state.selected_genes.filter((gene) =>
+    viz_state.genes.gene_names.includes(gene)
   );
 
   if (valid_genes.length > 0) {
@@ -86,7 +98,6 @@ const restore_persistent_state = async (viz_state, layers_obj, saved_state) => {
       },
     });
     viz_state.layers_obj = layers_obj;
-
   } else {
     // No valid gene selection, check for cluster selection
     // Get available clusters in the new dataset
@@ -128,7 +139,12 @@ const restore_persistent_state = async (viz_state, layers_obj, saved_state) => {
  * @param {Object} deck_ist - The deck.gl instance
  * @param {Object} layers_obj - The layers object
  */
-export const switch_dataset = async (new_index, viz_state, deck_ist, layers_obj) => {
+export const switch_dataset = async (
+  new_index,
+  viz_state,
+  deck_ist,
+  layers_obj
+) => {
   const base_urls = viz_state.base_urls || [];
 
   if (new_index < 0 || new_index >= base_urls.length) {
@@ -165,10 +181,16 @@ export const switch_dataset = async (new_index, viz_state, deck_ist, layers_obj)
     const image_name_for_dim = tmp_image_info[0].name;
 
     // Update image format and info
-    set_image_format(viz_state.img, viz_state.img.landscape_parameters.image_format);
+    set_image_format(
+      viz_state.img,
+      viz_state.img.landscape_parameters.image_format
+    );
     set_image_info(viz_state.img, tmp_image_info);
     set_image_layer_sliders(viz_state.img);
-    set_image_layer_colors(viz_state.img.image_layer_colors, viz_state.img.image_info);
+    set_image_layer_colors(
+      viz_state.img.image_layer_colors,
+      viz_state.img.image_info
+    );
 
     // Update dimensions
     const tech = viz_state.img.landscape_parameters.technology;
@@ -179,14 +201,24 @@ export const switch_dataset = async (new_index, viz_state, deck_ist, layers_obj)
     // Load new meta_gene data
     viz_state.genes.gene_counts = [];
     viz_state.genes.meta_gene = {};
-    await set_meta_gene(viz_state.genes, new_base_url, viz_state.seg.version, viz_state.aws);
+    await set_meta_gene(
+      viz_state.genes,
+      new_base_url,
+      viz_state.seg.version,
+      viz_state.aws
+    );
     viz_state.genes.top_gene_counts = viz_state.genes.gene_counts.slice(0, 100);
 
     // Update gene bar data
     viz_state.obs_store.new_gene_bar_data.set(viz_state.genes.top_gene_counts);
 
     // Load new color dict for genes
-    await set_color_dict_gene(viz_state.genes, new_base_url, viz_state.seg.version, viz_state.aws);
+    await set_color_dict_gene(
+      viz_state.genes,
+      new_base_url,
+      viz_state.seg.version,
+      viz_state.aws
+    );
 
     // Load new cell metadata
     let cell_url;
@@ -196,7 +228,11 @@ export const switch_dataset = async (new_index, viz_state, deck_ist, layers_obj)
       cell_url = `${new_base_url}/cell_metadata_${viz_state.seg.version}.parquet`;
     }
 
-    const cell_arrow_table = await get_arrow_table(cell_url, options.fetch, viz_state.aws);
+    const cell_arrow_table = await get_arrow_table(
+      cell_url,
+      options.fetch,
+      viz_state.aws
+    );
     set_cell_names_array(viz_state.cats, cell_arrow_table);
     viz_state.spatial.cell_scatter_data = get_scatter_data(cell_arrow_table);
 
@@ -204,7 +240,9 @@ export const switch_dataset = async (new_index, viz_state, deck_ist, layers_obj)
 
     // Load cluster data
     if (viz_state.cats.has_meta_cell) {
-      const inst_index = viz_state.cats.meta_cell_attr.indexOf(viz_state.cats.inst_cell_attr);
+      const inst_index = viz_state.cats.meta_cell_attr.indexOf(
+        viz_state.cats.inst_cell_attr
+      );
       viz_state.cats.cell_cats = viz_state.cats.cell_names_array.map((name) => {
         const attrs = viz_state.cats.meta_cell[name];
         return attrs?.[inst_index] ?? 'N.A.';
@@ -230,8 +268,10 @@ export const switch_dataset = async (new_index, viz_state, deck_ist, layers_obj)
 
     // Rebuild cell scatter data objects
     const new_cell_names_array = cell_arrow_table.getChild('name').toArray();
-    const flatCoordinateArray = viz_state.spatial.cell_scatter_data.attributes.getPosition.value;
-    const dim = viz_state.spatial.cell_scatter_data.attributes.getPosition.size || 2;
+    const flatCoordinateArray =
+      viz_state.spatial.cell_scatter_data.attributes.getPosition.value;
+    const dim =
+      viz_state.spatial.cell_scatter_data.attributes.getPosition.size || 2;
 
     // Update combo_data.cell
     viz_state.combo_data.cell = new_cell_names_array.map((name, index) => ({
@@ -272,7 +312,10 @@ export const switch_dataset = async (new_index, viz_state, deck_ist, layers_obj)
         ],
       }));
 
-      cell_scatter_data_objects = scale_umap_data(viz_state, cell_scatter_data_objects);
+      cell_scatter_data_objects = scale_umap_data(
+        viz_state,
+        cell_scatter_data_objects
+      );
     } else {
       const numRows = viz_state.spatial.cell_scatter_data.length;
       cell_scatter_data_objects = Array.from({ length: numRows }, (_, i) => ({
@@ -291,19 +334,35 @@ export const switch_dataset = async (new_index, viz_state, deck_ist, layers_obj)
     viz_state.spatial.cell_scatter_data_objects = cell_scatter_data_objects;
 
     // Update spatial bounds
-    viz_state.spatial.x_min = d3.min(cell_scatter_data_objects.map((d) => d.position[0]));
-    viz_state.spatial.x_max = d3.max(cell_scatter_data_objects.map((d) => d.position[0]));
-    viz_state.spatial.y_min = d3.min(cell_scatter_data_objects.map((d) => d.position[1]));
-    viz_state.spatial.y_max = d3.max(cell_scatter_data_objects.map((d) => d.position[1]));
+    viz_state.spatial.x_min = d3.min(
+      cell_scatter_data_objects.map((d) => d.position[0])
+    );
+    viz_state.spatial.x_max = d3.max(
+      cell_scatter_data_objects.map((d) => d.position[0])
+    );
+    viz_state.spatial.y_min = d3.min(
+      cell_scatter_data_objects.map((d) => d.position[1])
+    );
+    viz_state.spatial.y_max = d3.max(
+      cell_scatter_data_objects.map((d) => d.position[1])
+    );
     if (dim === 3) {
-      viz_state.spatial.z_min = d3.min(cell_scatter_data_objects.map((d) => d.position[2]));
-      viz_state.spatial.z_max = d3.max(cell_scatter_data_objects.map((d) => d.position[2]));
+      viz_state.spatial.z_min = d3.min(
+        cell_scatter_data_objects.map((d) => d.position[2])
+      );
+      viz_state.spatial.z_max = d3.max(
+        cell_scatter_data_objects.map((d) => d.position[2])
+      );
     }
 
-    viz_state.spatial.center_x = (viz_state.spatial.x_max + viz_state.spatial.x_min) / 2;
-    viz_state.spatial.center_y = (viz_state.spatial.y_max + viz_state.spatial.y_min) / 2;
-    viz_state.spatial.data_width = viz_state.spatial.x_max - viz_state.spatial.x_min;
-    viz_state.spatial.data_height = viz_state.spatial.y_max - viz_state.spatial.y_min;
+    viz_state.spatial.center_x =
+      (viz_state.spatial.x_max + viz_state.spatial.x_min) / 2;
+    viz_state.spatial.center_y =
+      (viz_state.spatial.y_max + viz_state.spatial.y_min) / 2;
+    viz_state.spatial.data_width =
+      viz_state.spatial.x_max - viz_state.spatial.x_min;
+    viz_state.spatial.data_height =
+      viz_state.spatial.y_max - viz_state.spatial.y_min;
 
     // Update cell layer with new data (clone, don't recreate)
     // Disable transitions for instant dataset switching
@@ -396,7 +455,10 @@ export const switch_dataset = async (new_index, viz_state, deck_ist, layers_obj)
     await restore_persistent_state(viz_state, layers_obj, saved_state);
 
     // Force deck to update with restored layers (especially if gene expression was restored)
-    const final_layers_list = get_layers_list(viz_state.layers_obj, viz_state.close_up);
+    const final_layers_list = get_layers_list(
+      viz_state.layers_obj,
+      viz_state.close_up
+    );
     deck_ist.setProps({ layers: final_layers_list });
 
     // Trigger a final layer update to reflect restored state
@@ -408,7 +470,6 @@ export const switch_dataset = async (new_index, viz_state, deck_ist, layers_obj)
       ...viz_state.obs_store.deck_check.get(),
       cell_layer: true,
     });
-
   } finally {
     // Mark switching as complete
     viz_state.obs_store.dataset_switching.set(false);

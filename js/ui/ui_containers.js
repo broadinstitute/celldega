@@ -446,7 +446,11 @@ export const make_ist_ui_container = (
     viz_state.containers.image.appendChild(spatial_toggle_container);
 
     // Add dataset dropdown if multiple datasets are available
-    const dataset_dropdown = make_dataset_dropdown(viz_state, deck_ist, layers_obj);
+    const dataset_dropdown = make_dataset_dropdown(
+      viz_state,
+      deck_ist,
+      layers_obj
+    );
     if (dataset_dropdown) {
       spatial_toggle_container.appendChild(dataset_dropdown);
     }

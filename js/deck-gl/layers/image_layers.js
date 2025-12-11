@@ -53,7 +53,12 @@ export const make_image_layers = async (viz_state, datasetIndex = 0) => {
     image_info.length === 1 &&
     (image_info[0].name === 'h_and_e' || image_info[0].name === 'h&e')
   ) {
-    const layer = await make_simple_image_layer(viz_state, image_info[0], datasetIndex, cacheKey);
+    const layer = await make_simple_image_layer(
+      viz_state,
+      image_info[0],
+      datasetIndex,
+      cacheKey
+    );
     return [layer];
   }
 

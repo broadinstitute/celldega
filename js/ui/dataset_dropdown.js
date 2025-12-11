@@ -34,12 +34,15 @@ export const make_dataset_dropdown = (viz_state, deck_ist, layers_obj) => {
   select.style.backgroundColor = 'white';
   select.style.cursor = 'pointer';
   select.style.outline = 'none';
-  select.style.fontFamily = '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif';
+  select.style.fontFamily =
+    '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif';
   select.style.transition = 'width 0.15s ease';
   select.title = 'Switch dataset';
 
   // Calculate max width needed for full labels
-  const max_label_length = Math.max(...base_urls.map(d => (d.label || '').length));
+  const max_label_length = Math.max(
+    ...base_urls.map((d) => (d.label || '').length)
+  );
   const expanded_width = Math.min(Math.max(max_label_length * 7 + 20, 80), 150);
 
   // Add focus/hover styling - expand on focus/mousedown
@@ -81,7 +84,10 @@ export const make_dataset_dropdown = (viz_state, deck_ist, layers_obj) => {
     const new_index = parseInt(event.target.value, 10);
     const current_index = viz_state.obs_store.current_dataset_index.get();
 
-    if (new_index !== current_index && !viz_state.obs_store.dataset_switching.get()) {
+    if (
+      new_index !== current_index &&
+      !viz_state.obs_store.dataset_switching.get()
+    ) {
       // Show loading state
       select.disabled = true;
       select.style.opacity = '0.5';

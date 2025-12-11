@@ -97,6 +97,7 @@ export const make_dataset_dropdown = (viz_state, deck_ist, layers_obj) => {
       } catch (error) {
         // Revert selection on error
         select.value = current_index;
+        void error;
       } finally {
         select.disabled = false;
         select.style.opacity = '1';

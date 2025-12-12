@@ -7,6 +7,8 @@
 
 > **Interactive spatial‑omics analysis & visualisation toolkit for single‑cell and spatial transcriptomics data**
 
+![Demo](docs/assets/img/Xenium_HCRC_Landscape-Clustergram.gif)
+
 **Celldega** combines scalable computational pipelines with GPU‑accelerated, web‑native visualisations so you can explore **millions of cells and transcripts** directly inside Jupyter Lab, VS Code, or any modern browser. Built for researchers working with Xenium, Visium HD, MERFISH, and other spatial omics technologies.
 
 ## 🚀 Quick Start (30 min)

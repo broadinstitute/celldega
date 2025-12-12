@@ -1,18 +1,17 @@
+import {
+  clamp_position,
+  create_button_row,
+  create_color_input,
+  create_dialog_container,
+  create_dialog_header,
+  create_labeled_input,
+  create_text_input,
+  hsl_to_hex,
+} from './editor_common';
+
 const DEFAULT_COLORS = {
   row: '#2f74ff',
   col: '#ff7f0e',
-};
-
-const hsl_to_hex = (h, s, l) => {
-  const a = s * Math.min(l, 1 - l);
-  const f = (n) => {
-    const k = (n + h * 12) % 12;
-    const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
-    return Math.round(255 * color)
-      .toString(16)
-      .padStart(2, '0');
-  };
-  return `#${f(0)}${f(8)}${f(4)}`;
 };
 
 const get_used_colors = (viz_state) => {
@@ -46,118 +45,26 @@ const allocate_color = (viz_state) => {
   return '#3b82f6';
 };
 
-const create_labeled_input = (label_text, input) => {
-  const wrapper = document.createElement('label');
-  wrapper.style.display = 'block';
-  wrapper.style.fontSize = '12px';
-  wrapper.style.fontWeight = '600';
-  wrapper.style.marginBottom = '8px';
-  wrapper.style.color = '#47515b';
-  wrapper.textContent = label_text;
-
-  input.style.display = 'block';
-  input.style.width = '100%';
-  input.style.marginTop = '4px';
-  input.style.padding = '6px';
-  input.style.border = '1px solid #d3d3d3';
-  input.style.borderRadius = '4px';
-  input.style.fontSize = '12px';
-
-  wrapper.appendChild(input);
-  return wrapper;
-};
-
-const clamp_position = (value, min, max) => Math.min(Math.max(value, min), max);
-
 export const initialize_attribute_editor = (
   viz_state,
   _deck_mat,
   _layers_mat
 ) => {
-  const container = document.createElement('div');
-  container.style.position = 'absolute';
-  container.style.width = '240px';
-  container.style.background = '#ffffff';
-  container.style.border = '1px solid #d3d3d3';
-  container.style.borderRadius = '8px';
-  container.style.padding = '12px';
-  container.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
-  container.style.zIndex = '20';
-  container.style.display = 'none';
-
-  const header = document.createElement('div');
-  header.style.display = 'flex';
-  header.style.justifyContent = 'space-between';
-  header.style.alignItems = 'center';
-  header.style.marginBottom = '8px';
-
-  const title = document.createElement('span');
-  title.style.fontSize = '13px';
-  title.style.fontWeight = '700';
-  title.style.color = '#333333';
-  title.textContent = 'Manual category';
-
-  const close_button = document.createElement('button');
-  close_button.type = 'button';
-  close_button.textContent = '×';
-  close_button.style.border = 'none';
-  close_button.style.background = 'transparent';
-  close_button.style.cursor = 'pointer';
-  close_button.style.fontSize = '16px';
-  close_button.style.lineHeight = '16px';
-  close_button.style.padding = '0';
-
-  header.appendChild(title);
-  header.appendChild(close_button);
+  const container = create_dialog_container();
+  const { header, close_button } = create_dialog_header('Manual category');
 
   const selection_info = document.createElement('div');
   selection_info.style.fontSize = '11px';
   selection_info.style.marginBottom = '8px';
   selection_info.style.color = '#5b6770';
 
-  const value_input = document.createElement('input');
-  value_input.type = 'text';
-  value_input.placeholder = 'Category value';
+  const value_input = create_text_input('Category value');
   const value_field = create_labeled_input('Category value', value_input);
 
-  const color_input = document.createElement('input');
-  color_input.type = 'color';
-  color_input.value = DEFAULT_COLORS.row;
-  color_input.style.padding = '0';
-  color_input.style.height = '32px';
-  color_input.style.cursor = 'pointer';
+  const color_input = create_color_input(DEFAULT_COLORS.row);
   const color_field = create_labeled_input('Color', color_input);
 
-  const button_row = document.createElement('div');
-  button_row.style.display = 'flex';
-  button_row.style.gap = '8px';
-  button_row.style.marginTop = '12px';
-
-  const apply_button = document.createElement('button');
-  apply_button.type = 'button';
-  apply_button.textContent = 'Apply';
-  apply_button.style.flex = '1';
-  apply_button.style.background = '#2f74ff';
-  apply_button.style.color = '#ffffff';
-  apply_button.style.border = 'none';
-  apply_button.style.borderRadius = '4px';
-  apply_button.style.padding = '8px';
-  apply_button.style.cursor = 'pointer';
-  apply_button.style.fontWeight = '600';
-
-  const cancel_button = document.createElement('button');
-  cancel_button.type = 'button';
-  cancel_button.textContent = 'Cancel';
-  cancel_button.style.flex = '1';
-  cancel_button.style.background = '#f5f5f5';
-  cancel_button.style.color = '#47515b';
-  cancel_button.style.border = '1px solid #d3d3d3';
-  cancel_button.style.borderRadius = '4px';
-  cancel_button.style.padding = '8px';
-  cancel_button.style.cursor = 'pointer';
-
-  button_row.appendChild(apply_button);
-  button_row.appendChild(cancel_button);
+  const { button_row, apply_button, cancel_button } = create_button_row();
 
   container.appendChild(header);
   container.appendChild(selection_info);
@@ -222,13 +129,7 @@ export const initialize_attribute_editor = (
     container.style.top = `${y}px`;
   };
 
-  const open = ({
-    axis,
-    selection,
-    initial_value,
-    initial_color,
-    position,
-  }) => {
+  const open = ({ axis, selection, initial_value, initial_color, position }) => {
     if (
       !Array.isArray(selection) ||
       selection.length === 0 ||

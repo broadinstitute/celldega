@@ -1,5 +1,15 @@
 import { randomHexColor } from '../utils/hexToRgb';
 
+import {
+  clamp_position,
+  create_button_row,
+  create_color_input,
+  create_dialog_container,
+  create_dialog_header,
+  create_labeled_input,
+  create_text_input,
+} from './editor_common';
+
 /**
  * Allocate a unique color for a new neighborhood, avoiding colors already in use.
  * @param {Object} viz_state - Visualization state
@@ -29,133 +39,30 @@ const allocate_nbhd_color = (viz_state) => {
 };
 
 /**
- * Create a labeled input field wrapper.
- * @param {string} label_text - Label text
- * @param {HTMLElement} input - Input element
- * @returns {HTMLElement} Wrapper element
- */
-const create_labeled_input = (label_text, input) => {
-  const wrapper = document.createElement('label');
-  wrapper.style.display = 'block';
-  wrapper.style.fontSize = '12px';
-  wrapper.style.fontWeight = '600';
-  wrapper.style.marginBottom = '8px';
-  wrapper.style.color = '#47515b';
-  wrapper.textContent = label_text;
-
-  input.style.display = 'block';
-  input.style.width = '100%';
-  input.style.marginTop = '4px';
-  input.style.padding = '6px';
-  input.style.border = '1px solid #d3d3d3';
-  input.style.borderRadius = '4px';
-  input.style.fontSize = '12px';
-
-  wrapper.appendChild(input);
-  return wrapper;
-};
-
-/**
- * Clamp a position value within bounds.
- */
-const clamp_position = (value, min, max) => Math.min(Math.max(value, min), max);
-
-/**
  * Initialize the neighborhood editor dialog.
  * This dialog allows users to set/edit neighborhood names and colors.
  *
  * @param {Object} viz_state - Visualization state
- * @param {Object} deck_ist - Deck.gl instance
- * @param {Object} layers_obj - Layers object
+ * @param {Object} _deck_ist - Deck.gl instance (unused, kept for API consistency)
+ * @param {Object} _layers_obj - Layers object (unused, kept for API consistency)
  * @returns {Object} Editor API with open/close methods
  */
-export const initialize_nbhd_editor = (viz_state, deck_ist, layers_obj) => {
-  const container = document.createElement('div');
-  container.style.position = 'absolute';
-  container.style.width = '240px';
-  container.style.background = '#ffffff';
-  container.style.border = '1px solid #d3d3d3';
-  container.style.borderRadius = '8px';
-  container.style.padding = '12px';
-  container.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
-  container.style.zIndex = '20';
-  container.style.display = 'none';
-  container.style.fontFamily =
-    '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif';
-
-  // Header
-  const header = document.createElement('div');
-  header.style.display = 'flex';
-  header.style.justifyContent = 'space-between';
-  header.style.alignItems = 'center';
-  header.style.marginBottom = '8px';
-
-  const title = document.createElement('span');
-  title.style.fontSize = '13px';
-  title.style.fontWeight = '700';
-  title.style.color = '#333333';
-  title.textContent = 'Neighborhood';
-
-  const close_button = document.createElement('button');
-  close_button.type = 'button';
-  close_button.textContent = '×';
-  close_button.style.border = 'none';
-  close_button.style.background = 'transparent';
-  close_button.style.cursor = 'pointer';
-  close_button.style.fontSize = '16px';
-  close_button.style.lineHeight = '16px';
-  close_button.style.padding = '0';
-
-  header.appendChild(title);
-  header.appendChild(close_button);
+export const initialize_nbhd_editor = (viz_state, _deck_ist, _layers_obj) => {
+  const container = create_dialog_container();
+  const { header, close_button } = create_dialog_header('Neighborhood');
 
   // Name input
-  const name_input = document.createElement('input');
-  name_input.type = 'text';
-  name_input.placeholder = 'Neighborhood name';
+  const name_input = create_text_input('Neighborhood name');
   const name_field = create_labeled_input('Name', name_input);
 
   // Color input
-  const color_input = document.createElement('input');
-  color_input.type = 'color';
-  color_input.value = '#3b82f6';
-  color_input.style.padding = '0';
-  color_input.style.height = '32px';
-  color_input.style.cursor = 'pointer';
+  const color_input = create_color_input('#3b82f6');
   const color_field = create_labeled_input('Color', color_input);
 
   // Buttons
-  const button_row = document.createElement('div');
-  button_row.style.display = 'flex';
-  button_row.style.gap = '8px';
-  button_row.style.marginTop = '12px';
+  const { button_row, apply_button, cancel_button } = create_button_row();
 
-  const apply_button = document.createElement('button');
-  apply_button.type = 'button';
-  apply_button.textContent = 'Apply';
-  apply_button.style.flex = '1';
-  apply_button.style.background = '#2f74ff';
-  apply_button.style.color = '#ffffff';
-  apply_button.style.border = 'none';
-  apply_button.style.borderRadius = '4px';
-  apply_button.style.padding = '8px';
-  apply_button.style.cursor = 'pointer';
-  apply_button.style.fontWeight = '600';
-
-  const cancel_button = document.createElement('button');
-  cancel_button.type = 'button';
-  cancel_button.textContent = 'Cancel';
-  cancel_button.style.flex = '1';
-  cancel_button.style.background = '#f5f5f5';
-  cancel_button.style.color = '#47515b';
-  cancel_button.style.border = '1px solid #d3d3d3';
-  cancel_button.style.borderRadius = '4px';
-  cancel_button.style.padding = '8px';
-  cancel_button.style.cursor = 'pointer';
-
-  button_row.appendChild(apply_button);
-  button_row.appendChild(cancel_button);
-
+  // Assemble dialog
   container.appendChild(header);
   container.appendChild(name_field);
   container.appendChild(color_field);
@@ -253,7 +160,7 @@ export const initialize_nbhd_editor = (viz_state, deck_ist, layers_obj) => {
   cancel_button.addEventListener('click', close);
   close_button.addEventListener('click', close);
 
-  // Allow Enter key to apply
+  // Allow Enter key to apply, Escape to close
   name_input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
       apply_changes();

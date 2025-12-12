@@ -1,12 +1,13 @@
 import * as d3 from 'd3';
 
-import { toggle_visibility_image_layers } from '../deck-gl/layers/image_layers';
-import { toggle_background_layer_visibility } from '../deck-gl/layers/background_layer';
-import { new_toggle_cell_layer_visibility } from '../deck-gl/layers/cell_layer';
-import { toggle_trx_layer_visibility } from '../deck-gl/layers/trx_layer';
-import { toggle_path_layer_visibility } from '../deck-gl/layers/path_layer';
-import { get_layers_list } from '../deck-gl/utils/layers_ist';
 import { get_total_pages } from '../deck-gl/core/yearbook_viewports';
+import { toggle_background_layer_visibility } from '../deck-gl/layers/background_layer';
+import { toggle_visibility_image_layers } from '../deck-gl/layers/image_layers';
+import {
+  uniprot_data,
+  uniprot_get_request,
+} from '../external_apis/uniprot_api';
+import { debounce } from '../utils/debounce';
 import { refresh_layer } from '../utils/refresh_layer';
 
 import {
@@ -15,6 +16,7 @@ import {
   make_bar_container,
   bar_callback_gene,
 } from './bar_plot';
+import { set_gene_search } from './gene_search';
 import { logo } from './logo';
 import {
   make_img_layer_slider_callback,
@@ -23,12 +25,6 @@ import {
   ini_slider_params,
 } from './sliders';
 import { make_button } from './text_buttons';
-import { set_gene_search } from './gene_search';
-import {
-  uniprot_data,
-  uniprot_get_request,
-} from '../external_apis/uniprot_api';
-import { debounce } from '../utils/debounce';
 
 export const make_ui_container = () => {
   const ui_container = document.createElement('div');
@@ -90,10 +86,14 @@ const make_pagination_container = (viz_state, handle_page_change) => {
   container.style.justifyContent = 'center';
   container.style.marginLeft = '10px';
   container.style.marginRight = '10px';
-  container.style.minWidth = '80px';
+  container.style.minWidth = '100px';
 
   const { cells, num_rows, num_cols, current_page } = viz_state.yearbook;
   const total_pages = get_total_pages(cells.length, num_rows, num_cols);
+
+  // Colors for quick nav buttons
+  const active_color = '#8797ff'; // Blue when at position
+  const inactive_color = 'gray'; // Gray when not at position
 
   // Page indicator
   const page_text = document.createElement('div');
@@ -106,7 +106,7 @@ const make_pagination_container = (viz_state, handle_page_change) => {
     '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif';
   page_text.textContent = `${current_page + 1} / ${total_pages}`;
 
-  // Button container
+  // Arrow button container
   const button_container = document.createElement('div');
   button_container.style.display = 'flex';
   button_container.style.flexDirection = 'row';
@@ -126,8 +126,6 @@ const make_pagination_container = (viz_state, handle_page_change) => {
   prev_button.onclick = () => {
     if (viz_state.yearbook.current_page > 0) {
       const new_page = viz_state.yearbook.current_page - 1;
-      // Don't update state here - let handle_page_change do it
-      // UI will be updated via viz_state.yearbook.update_pagination_ui callback
       handle_page_change(new_page);
     }
   };
@@ -152,9 +150,70 @@ const make_pagination_container = (viz_state, handle_page_change) => {
     );
     if (viz_state.yearbook.current_page < _total_pages - 1) {
       const new_page = viz_state.yearbook.current_page + 1;
-      // Don't update state here - let handle_page_change do it
-      // UI will be updated via viz_state.yearbook.update_pagination_ui callback
       handle_page_change(new_page);
+    }
+  };
+
+  // Quick navigation button container (Start, Mid, End)
+  const quick_nav_container = document.createElement('div');
+  quick_nav_container.style.display = 'flex';
+  quick_nav_container.style.flexDirection = 'row';
+  quick_nav_container.style.gap = '8px';
+  quick_nav_container.style.marginTop = '5px';
+
+  // Helper to create quick nav text buttons
+  const create_quick_nav_button = (label) => {
+    const btn = document.createElement('span');
+    btn.textContent = label;
+    btn.style.fontSize = '11px';
+    btn.style.fontWeight = 'bold';
+    btn.style.cursor = 'pointer';
+    btn.style.fontFamily =
+      '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif';
+    btn.style.userSelect = 'none';
+    return btn;
+  };
+
+  // Start button
+  const start_button = create_quick_nav_button('START');
+  start_button.style.color = current_page === 0 ? active_color : inactive_color;
+  start_button.onclick = () => {
+    if (viz_state.yearbook.current_page !== 0) {
+      handle_page_change(0);
+    }
+  };
+
+  // Mid button
+  const mid_page = Math.floor((total_pages - 1) / 2);
+  const mid_button = create_quick_nav_button('MID');
+  mid_button.style.color =
+    current_page === mid_page ? active_color : inactive_color;
+  mid_button.onclick = () => {
+    const _total_pages = get_total_pages(
+      viz_state.yearbook.cells.length,
+      viz_state.yearbook.num_rows,
+      viz_state.yearbook.num_cols
+    );
+    const _mid_page = Math.floor((_total_pages - 1) / 2);
+    if (viz_state.yearbook.current_page !== _mid_page) {
+      handle_page_change(_mid_page);
+    }
+  };
+
+  // End button
+  const end_page = total_pages - 1;
+  const end_button = create_quick_nav_button('END');
+  end_button.style.color =
+    current_page === end_page ? active_color : inactive_color;
+  end_button.onclick = () => {
+    const _total_pages = get_total_pages(
+      viz_state.yearbook.cells.length,
+      viz_state.yearbook.num_rows,
+      viz_state.yearbook.num_cols
+    );
+    const _end_page = _total_pages - 1;
+    if (viz_state.yearbook.current_page !== _end_page) {
+      handle_page_change(_end_page);
     }
   };
 
@@ -165,17 +224,30 @@ const make_pagination_container = (viz_state, handle_page_change) => {
       viz_state.yearbook.num_cols
     );
     const _current_page = viz_state.yearbook.current_page;
+    const _mid_page = Math.floor((_total_pages - 1) / 2);
+    const _end_page = _total_pages - 1;
 
     page_text.textContent = `${_current_page + 1} / ${_total_pages}`;
 
+    // Update arrow buttons
     prev_button.disabled = _current_page === 0;
-    prev_button.style.backgroundColor = _current_page > 0 ? '#f0f0f0' : '#e0e0e0';
+    prev_button.style.backgroundColor =
+      _current_page > 0 ? '#f0f0f0' : '#e0e0e0';
     prev_button.style.color = _current_page > 0 ? '#333' : '#999';
 
     next_button.disabled = _current_page >= _total_pages - 1;
     next_button.style.backgroundColor =
       _current_page < _total_pages - 1 ? '#f0f0f0' : '#e0e0e0';
-    next_button.style.color = _current_page < _total_pages - 1 ? '#333' : '#999';
+    next_button.style.color =
+      _current_page < _total_pages - 1 ? '#333' : '#999';
+
+    // Update quick nav button colors
+    start_button.style.color =
+      _current_page === 0 ? active_color : inactive_color;
+    mid_button.style.color =
+      _current_page === _mid_page ? active_color : inactive_color;
+    end_button.style.color =
+      _current_page === _end_page ? active_color : inactive_color;
   };
 
   // Store update function in viz_state for external updates
@@ -184,8 +256,13 @@ const make_pagination_container = (viz_state, handle_page_change) => {
   button_container.appendChild(prev_button);
   button_container.appendChild(next_button);
 
+  quick_nav_container.appendChild(start_button);
+  quick_nav_container.appendChild(mid_button);
+  quick_nav_container.appendChild(end_button);
+
   container.appendChild(page_text);
   container.appendChild(button_container);
+  container.appendChild(quick_nav_container);
 
   return container;
 };
@@ -242,8 +319,6 @@ export const make_yearbook_ui_container = (
 
   const cell_slider_container = make_slider_container('cell_slider_container');
   const trx_slider_container = make_slider_container('trx_slider_container');
-
-  const { technology } = viz_state.img.landscape_parameters;
 
   // Image layer toggle
   const spatial_toggle_container = flex_container(
@@ -622,7 +697,10 @@ export const make_yearbook_ui_container = (
   ctrl_container.appendChild(viz_state.genes.gene_search);
 
   // Add pagination controls
-  const pagination_container = make_pagination_container(viz_state, handle_page_change);
+  const pagination_container = make_pagination_container(
+    viz_state,
+    handle_page_change
+  );
   ctrl_container.appendChild(pagination_container);
 
   // Logo
@@ -647,4 +725,3 @@ export const make_yearbook_ui_container = (
 
   return ui_container;
 };
-

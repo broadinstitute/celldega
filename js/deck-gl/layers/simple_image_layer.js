@@ -7,7 +7,12 @@ import {
   create_get_tile_data,
 } from '../utils/tiles';
 
-export const make_simple_image_layer = async (viz_state, info, datasetIndex = 0, cacheKey = '') => {
+export const make_simple_image_layer = async (
+  viz_state,
+  info,
+  datasetIndex = 0,
+  cacheKey = ''
+) => {
   const { global_base_url } = viz_state;
   const { dimensions } = viz_state;
   const { landscape_parameters } = viz_state.img;

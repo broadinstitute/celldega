@@ -12,7 +12,12 @@ import { visibleTiles } from '../../vector_tile/visibleTiles';
  * @param {number} gap - Gap between portraits in pixels
  * @returns {Array<OrthographicView>} Array of deck.gl views
  */
-export const create_yearbook_views = (num_rows, num_cols, portrait_size, gap) => {
+export const create_yearbook_views = (
+  num_rows,
+  num_cols,
+  portrait_size,
+  gap
+) => {
   const views = [];
 
   for (let row = 0; row < num_rows; row++) {
@@ -26,8 +31,8 @@ export const create_yearbook_views = (num_rows, num_cols, portrait_size, gap) =>
       views.push(
         new OrthographicView({
           id: `portrait-${index}`,
-          x: x,
-          y: y,
+          x,
+          y,
           width: portrait_size,
           height: portrait_size,
           controller: {
@@ -54,7 +59,12 @@ export const create_yearbook_views = (num_rows, num_cols, portrait_size, gap) =>
  * @param {number} view_height - Height of each portrait view (in data coordinates when zoom=0)
  * @returns {Array<{min_x, max_x, min_y, max_y}>} Viewport bounds for each portrait
  */
-export const calc_portrait_viewports = (centers, zoom, view_width, view_height) => {
+export const calc_portrait_viewports = (
+  centers,
+  zoom,
+  view_width,
+  view_height
+) => {
   const zoomFactor = Math.pow(2, zoom);
   const halfWidthZoomed = view_width / (2 * zoomFactor);
   const halfHeightZoomed = view_height / (2 * zoomFactor);
@@ -81,8 +91,19 @@ export const calc_portrait_viewports = (centers, zoom, view_width, view_height) 
  * @param {number} tile_size - Size of each tile
  * @returns {Array<{tileX: number, tileY: number, name: string}>} Unique tiles across all viewports
  */
-export const get_discontiguous_tiles = (centers, zoom, view_width, view_height, tile_size) => {
-  const viewports = calc_portrait_viewports(centers, zoom, view_width, view_height);
+export const get_discontiguous_tiles = (
+  centers,
+  zoom,
+  view_width,
+  view_height,
+  tile_size
+) => {
+  const viewports = calc_portrait_viewports(
+    centers,
+    zoom,
+    view_width,
+    view_height
+  );
 
   // Collect all tiles from all viewports
   const tile_map = new Map();
@@ -121,7 +142,7 @@ export const create_initial_view_states = (centers, zoom) => {
     const view_id = `portrait-${index}`;
     view_states[view_id] = {
       target: [center.x, center.y, 0],
-      zoom: zoom,
+      zoom,
     };
   });
 
@@ -205,4 +226,3 @@ export const filter_data_in_viewports = (data, viewports) => {
     );
   });
 };
-

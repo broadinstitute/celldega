@@ -34,6 +34,7 @@ import {
   make_bar_container,
   bar_callback_gene,
 } from './bar_plot';
+import { make_dataset_dropdown } from './dataset_dropdown';
 import { set_gene_search } from './gene_search';
 import { logo } from './logo';
 import {
@@ -157,16 +158,6 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
 
   viz_state.dendro.sliders = {};
 
-  axes.forEach((axis) => {
-    viz_state.dendro.sliders[axis] = document.createElement('input');
-    viz_state.dendro.sliders[axis].type = 'range';
-    viz_state.dendro.sliders[axis].min = '0';
-    viz_state.dendro.sliders[axis].max = '100';
-    viz_state.dendro.sliders[axis].value = 50;
-    viz_state.dendro.sliders[axis].className = 'slider';
-    viz_state.dendro.sliders[axis].style.width = '75px';
-  });
-
   const dendro_slider_callback = (_deck_mat, _viz_state, axis, event) => {
     // Update the dendrogram layer
     _viz_state.dendro.sliders[`${axis}_value`] =
@@ -186,9 +177,13 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
     });
   };
 
-  // Add event listener to log the slider value
   axes.forEach((axis) => {
-    viz_state.dendro.sliders[axis].addEventListener('input', (event) =>
+    const slider = document.createElement('input');
+    viz_state.dendro.sliders[axis] = slider;
+
+    const ini_dendro_value = 50;
+
+    ini_slider_params(slider, ini_dendro_value, (event) =>
       dendro_slider_callback(deck_mat, viz_state, axis, event)
     );
   });
@@ -453,6 +448,16 @@ export const make_ist_ui_container = (
     }
 
     viz_state.containers.image.appendChild(spatial_toggle_container);
+
+    // Add dataset dropdown if multiple datasets are available
+    const dataset_dropdown = make_dataset_dropdown(
+      viz_state,
+      deck_ist,
+      layers_obj
+    );
+    if (dataset_dropdown) {
+      spatial_toggle_container.appendChild(dataset_dropdown);
+    }
 
     const get_slider_by_name = (img, name) => {
       return img.image_layer_sliders.filter((slider) => slider.name === name);

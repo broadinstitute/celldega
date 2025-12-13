@@ -1,4 +1,7 @@
 import { create_clustergram_store } from '../obs_store/clustergram_store';
+import { ManualCategoryStore } from '../obs_store/manual_category_store';
+
+import { initialize_attr_state } from './attr_state';
 
 export const set_mat_constants = (
   model,
@@ -45,11 +48,16 @@ export const set_mat_constants = (
     col: viz_state.attr.names.col.length,
   };
 
+  initialize_attr_state(viz_state, network);
+
   viz_state.root.style.height = `${height + viz_state.viz.height_margin}px`;
 
   // height of attribute bars
   viz_state.viz.row_cat_offset = 9;
   viz_state.viz.col_cat_offset = 9;
+
+  viz_state.viz.total_width = width;
+  viz_state.viz.total_height = height;
 
   viz_state.viz.mat_width =
     width - viz_state.viz.row_cat_offset * viz_state.attr.num.row;
@@ -62,6 +70,15 @@ export const set_mat_constants = (
 
   viz_state.row_nodes = network.row_nodes;
   viz_state.col_nodes = network.col_nodes;
+
+  viz_state.obs_store.manual_cat = {
+    row: new ManualCategoryStore('row', () =>
+      (viz_state.row_nodes || []).map((node) => String(node.name))
+    ),
+    col: new ManualCategoryStore('col', () =>
+      (viz_state.col_nodes || []).map((node) => String(node.name))
+    ),
+  };
 
   viz_state.mat.net_mat = network.mat;
 

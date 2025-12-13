@@ -25,6 +25,7 @@ export const create_obs_store = () => {
   const store = {
     cat: Observable('cluster'),
     selected_cats: Observable([]),
+    selected_cells: Observable([]),
     new_cell_bar_data: Observable([]),
     new_gene_bar_data: Observable([]),
     selected_genes: Observable([]),
@@ -35,6 +36,19 @@ export const create_obs_store = () => {
     viz_edit_layer: Observable(false),
     landscape_view: Observable('spatial'),
     umap_state: Observable(false),
+    scale_bar_view_state: Observable(null),
+    // Dataset switching observables
+    current_dataset_index: Observable(0),
+    dataset_switching: Observable(false),
+    // Persistent state across dataset switches
+    // This allows users to compare the same cluster/gene across datasets
+    persistent_state: Observable({
+      selected_cats: [],
+      selected_genes: [],
+      cat: 'cluster', // 'cluster' or gene name
+      viz_image_layers: true,
+      landscape_view: 'spatial', // 'spatial' or 'umap'
+    }),
     // to do utilize for setProps
     deck_check: Observable({
       background_layer: true,

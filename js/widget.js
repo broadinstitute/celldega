@@ -21,14 +21,18 @@ const render_landscape_ist = async ({ model, el }) => {
   const ini_z = model.get('ini_z');
   const ini_zoom = model.get('ini_zoom');
   const base_url = model.get('base_url');
+  const base_urls = model.get('base_urls') || [];
+  const cell_name_prefix = model.get('cell_name_prefix') || false;
   const dataset_name = model.get('dataset_name');
   const width = model.get('width');
   const height = model.get('height');
   const rotation_orbit = model.get('rotation_orbit') ?? 0;
   const rotation_x = model.get('rotation_x') ?? 0;
+  const rotate = model.get('rotate') ?? 0;
   const nbhd = model.get('nbhd_geojson');
   const max_tiles_to_view = model.get('max_tiles_to_view');
   const nbhd_edit = model.get('nbhd_edit');
+  const scale_bar_microns_per_pixel = model.get('scale_bar_microns_per_pixel');
 
   let meta_cell_data = { result: {}, attr: [] };
   let meta_cluster_data = { result: {}, attr: [] };
@@ -84,7 +88,11 @@ const render_landscape_ist = async ({ model, el }) => {
     null,
     rotation_orbit,
     rotation_x,
-    max_tiles_to_view
+    rotate,
+    max_tiles_to_view,
+    scale_bar_microns_per_pixel,
+    base_urls,
+    cell_name_prefix
   );
 };
 

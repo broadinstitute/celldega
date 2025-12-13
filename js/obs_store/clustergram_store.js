@@ -23,4 +23,5 @@ const Observable = (initialValue) => {
 
 export const create_clustergram_store = () => ({
   selected_genes: Observable([]),
+  focused_dendro: Observable(null),
 });

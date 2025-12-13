@@ -92,7 +92,7 @@ export const calc_and_update_rgn_bar_graph = async (
   viz_state.edit.color_dict_rgn =
     viz_state.edit.feature_collection.features.reduce((acc, feature) => {
       const name = feature.properties.name || feature.properties.cat;
-      const color = feature.properties.color;
+      const {color} = feature.properties;
       // Convert hex to RGB for the bar graph, or use as-is if already RGB
       if (typeof color === 'string' && color.startsWith('#')) {
         acc[name] = hexToRgb(color);
@@ -160,13 +160,11 @@ const edit_layer_on_edit = async (
         : viz_state.edit.feature_collection.features.length - 1;
 
     // Assign a temporary name and color to the new feature
-    const feature =
-      viz_state.edit.feature_collection.features[newFeatureIndex];
+    const feature = viz_state.edit.feature_collection.features[newFeatureIndex];
     if (feature && !feature.properties.name) {
       feature.properties.name = `nbhd_${newFeatureIndex + 1}`;
       feature.properties.cat = feature.properties.name;
-      feature.properties.color =
-        feature.properties.color || randomHexColor();
+      feature.properties.color = feature.properties.color || randomHexColor();
     }
 
     // Show the neighborhood editor dialog if available
@@ -289,7 +287,7 @@ export const ini_edit_layer = (viz_state) => {
     getElevation: 1000,
     // Convert hex color to RGB array for rendering
     getFillColor: (d) => {
-      const color = d.properties.color;
+      const {color} = d.properties;
       // If color is a hex string, convert to RGB; otherwise assume it's already RGB
       if (typeof color === 'string' && color.startsWith('#')) {
         return hexToRgb(color);

@@ -63,9 +63,9 @@ import { set_meta_gene } from '../global_variables/meta_gene';
 import { update_selected_genes } from '../global_variables/selected_genes';
 import { colorToRgba } from '../matrix/cat_data';
 import { create_obs_store } from '../obs_store/obs_store';
+import { initialize_nbhd_editor } from '../ui/nbhd_editor';
 import { toggle_slider, set_image_layer_sliders } from '../ui/sliders';
 import { get_img_layer_visible } from '../ui/text_buttons';
-import { initialize_nbhd_editor } from '../ui/nbhd_editor';
 import { make_ist_ui_container } from '../ui/ui_containers';
 import { refresh_layer } from '../utils/refresh_layer';
 import { build_rotation_state } from '../utils/rotation';
@@ -501,7 +501,7 @@ export const landscape_ist = async (
 
     viz_state.nbhd.color_dict = {};
     viz_state.edit.feature_collection.features.forEach((feature) => {
-      const color = feature.properties.color;
+      const {color} = feature.properties;
       // Convert hex to RGBA for the color dict used in bar graphs
       viz_state.nbhd.color_dict[feature.properties.cat] = colorToRgba(color);
     });

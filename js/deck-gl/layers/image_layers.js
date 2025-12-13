@@ -24,6 +24,7 @@ const make_image_layer = (viz_state, info, datasetIndex = 0, cacheKey = '') => {
     minZoom: -7,
     maxZoom: 0,
     maxCacheSize: 0, // Disable internal tile caching
+    maxRequests: 6, // Limit concurrent tile requests
     extent: [0, 0, viz_state.dimensions.width, viz_state.dimensions.height],
     getTileData: create_get_tile_data(
       viz_state.global_base_url,
@@ -107,4 +108,76 @@ export const update_opacity_single_image_layer = (
         })
       : layer
   );
+};
+
+/**
+ * Create image layers for yearbook.
+ * Creates one set of image layers per portrait, each with its own extent.
+ * This ensures tiles are loaded correctly for each discontiguous region.
+ *
+ * @param {Object} viz_state - Visualization state
+ * @param {Array<{cell_id: string, x: number, y: number}>} portrait_centers - Portrait centers
+ * @param {number} portrait_data_size - Portrait size in data coordinates
+ * @param {string} cacheKey - Cache key for layer IDs (page-based for reuse)
+ * @returns {Array} Image layers for all portraits
+ */
+export const make_yearbook_image_layers = async (
+  viz_state,
+  portrait_centers,
+  portrait_data_size,
+  cacheKey = null
+) => {
+  const { image_info } = viz_state.img;
+  const { max_pyramid_zoom, tile_size } = viz_state.img.landscape_parameters;
+  const layerCacheKey = cacheKey || Date.now().toString(36);
+
+  const all_layers = [];
+  const half_size = portrait_data_size / 2;
+  // Padding should be generous to cover zoomed-in views and tile boundaries
+  const padding = Math.max(tile_size * 3, portrait_data_size * 0.5);
+
+  portrait_centers.forEach((center, portrait_index) => {
+    // Each portrait gets its own extent covering its visible area plus padding
+    const extent = [
+      Math.max(0, center.x - half_size - padding),
+      Math.max(0, center.y - half_size - padding),
+      Math.min(viz_state.dimensions.width, center.x + half_size + padding),
+      Math.min(viz_state.dimensions.height, center.y + half_size + padding),
+    ];
+
+    image_info.forEach((info) => {
+      const opacity = 5;
+      // Include portrait index in layer ID for proper updates
+      const layerId = `yb-${info.button_name}-p${portrait_index}-${layerCacheKey}`;
+
+      const image_layer = new TileLayer({
+        id: layerId,
+        tileSize: viz_state.dimensions.tileSize,
+        refinementStrategy: 'no-overlap',
+        minZoom: -7,
+        maxZoom: 0,
+        maxCacheSize: 50,
+        maxRequests: 6,
+        extent,
+        getTileData: create_get_tile_data(
+          viz_state.global_base_url,
+          info.name,
+          viz_state.img.image_format,
+          max_pyramid_zoom,
+          options,
+          viz_state.aws
+        ),
+        renderSubLayers: create_render_tile_sublayers(
+          viz_state.dimensions,
+          info.color,
+          opacity
+        ),
+        ...getModelMatrixProps(viz_state.rotation),
+      });
+
+      all_layers.push(image_layer);
+    });
+  });
+
+  return all_layers;
 };

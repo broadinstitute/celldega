@@ -63,117 +63,15 @@ import { set_meta_gene } from '../global_variables/meta_gene';
 import { update_selected_genes } from '../global_variables/selected_genes';
 import { colorToRgba } from '../matrix/cat_data';
 import { create_obs_store } from '../obs_store/obs_store';
+import { initialize_nbhd_editor } from '../ui/nbhd_editor';
 import { toggle_slider, set_image_layer_sliders } from '../ui/sliders';
 import { get_img_layer_visible } from '../ui/text_buttons';
 import { make_ist_ui_container } from '../ui/ui_containers';
 import { refresh_layer } from '../utils/refresh_layer';
 import { build_rotation_state } from '../utils/rotation';
+import { create_scale_bar, PIXEL_SIZE_MICRONS } from '../utils/scale_bar';
 import { update_cell_clusters } from '../widget_interactions/update_cell_clusters';
 import { update_ist_landscape_from_cgm } from '../widget_interactions/update_ist_landscape_from_cgm';
-
-const PIXEL_SIZE_MICRONS = {
-  Xenium: 0.2125,
-  MERSCOPE: 0.108,
-};
-
-const create_scale_bar = (micronsPerPixel, tech) => {
-  const techKey = tech || '';
-  const blackLabelTechs = ['Visium-HD'];
-  const whiteLabelTechs = ['Xenium', 'MERSCOPE'];
-
-  const labelColor = blackLabelTechs.includes(techKey)
-    ? 'black'
-    : whiteLabelTechs.includes(techKey)
-      ? 'white'
-      : 'white';
-
-  const rev_labelColor = labelColor === 'white' ? 'black' : 'white';
-
-  const container = document.createElement('div');
-  container.style.position = 'absolute';
-  container.style.bottom = '10px';
-  container.style.left = '10px';
-  container.style.backgroundColor = 'transparent';
-  container.style.color = labelColor;
-  container.style.padding = '6px 8px';
-  container.style.fontSize = '12px';
-  container.style.lineHeight = '1.2';
-  container.style.display = 'flex';
-  container.style.flexDirection = 'column';
-  container.style.alignItems = 'flex-start';
-  container.style.pointerEvents = 'none';
-  container.style.zIndex = '10';
-  container.style.opacity = '0.5';
-
-  const label = document.createElement('div');
-  label.textContent = '1 µm';
-
-  const bar = document.createElement('div');
-  bar.style.height = '2px';
-  bar.style.backgroundColor = labelColor;
-  bar.style.outline = `1px solid ${rev_labelColor}`;
-  bar.style.marginTop = '4px';
-  bar.style.width = '80px';
-
-  if (labelColor === 'white') {
-    container.style.textShadow = '0 0 3px black';
-  }
-
-  container.appendChild(label);
-  container.appendChild(bar);
-
-  const formatLabel = (microns) => {
-    if (microns >= 1000) {
-      const millimeters = microns / 1000;
-      if (millimeters >= 10) {
-        return `${Math.round(millimeters)} mm`;
-      }
-      if (millimeters >= 1) {
-        return `${Number(millimeters.toFixed(1))} mm`;
-      }
-    }
-
-    if (microns >= 100) {
-      return `${Math.round(microns)} µm`;
-    }
-    if (microns >= 10) {
-      return `${Number(microns.toFixed(1))} µm`;
-    }
-    return `${Number(microns.toPrecision(2))} µm`;
-  };
-
-  const setVisible = (visible) => {
-    container.style.display = visible ? 'flex' : 'none';
-  };
-
-  const update = ({ zoom }) => {
-    const zoomFactor = Math.pow(2, zoom || 0);
-    const micronsPerScreenPixel = micronsPerPixel / zoomFactor;
-    const targetPixelWidth = 100;
-    const rawMicrons = micronsPerScreenPixel * targetPixelWidth;
-    const cappedMicrons = Math.min(rawMicrons, 1000);
-
-    const magnitude = Math.pow(10, Math.floor(Math.log10(cappedMicrons)));
-    const normalized = cappedMicrons / magnitude;
-
-    let niceNormalized = 1;
-    if (normalized > 5) {
-      niceNormalized = 10;
-    } else if (normalized > 2) {
-      niceNormalized = 5;
-    } else if (normalized > 1) {
-      niceNormalized = 2;
-    }
-
-    const barMicrons = niceNormalized * magnitude;
-    const barPixelWidth = barMicrons / micronsPerScreenPixel;
-
-    label.textContent = formatLabel(barMicrons);
-    bar.style.width = `${barPixelWidth}px`;
-  };
-
-  return { container, update, setVisible };
-};
 
 export const landscape_ist = async (
   el,
@@ -563,6 +461,52 @@ export const landscape_ist = async (
     };
   }
 
+  // When nbhd_edit is true and nbhd data is provided, initialize the edit layer
+  // with the existing neighborhood features to allow editing pre-loaded neighborhoods
+  if (nbhd_edit && Object.keys(nbhd).length > 0 && nbhd.features?.length > 0) {
+    // Deep copy the nbhd features to the edit layer's feature collection
+    // Colors are kept in hex format for consistency - the edit layer converts to RGB for rendering
+    viz_state.edit.feature_collection = {
+      type: 'FeatureCollection',
+      features: nbhd.features.map((feature, index) => ({
+        ...feature,
+        properties: {
+          ...feature.properties,
+          // Keep color in hex format (the edit layer converts to RGB for rendering)
+          color: feature.properties.color || '#808080',
+          // Use existing name/cat or assign numeric index
+          name: feature.properties.name || (index + 1).toString(),
+          cat: feature.properties.cat || (index + 1).toString(),
+        },
+      })),
+    };
+
+    // Also update nbhd.bar_data and nbhd.color_dict for the bar graph
+    // when editing pre-loaded neighborhoods
+    const unique_cats = new Set(
+      viz_state.edit.feature_collection.features.map((f) => f.properties.cat)
+    );
+    viz_state.nbhd.bar_data = Array.from(unique_cats)
+      .map((cat) => {
+        const features = viz_state.edit.feature_collection.features.filter(
+          (f) => f.properties.cat === cat
+        );
+        const area = features.reduce(
+          (acc, f) => acc + (f.properties.area || 0),
+          0
+        );
+        return { name: cat, value: area };
+      })
+      .sort((a, b) => b.value - a.value);
+
+    viz_state.nbhd.color_dict = {};
+    viz_state.edit.feature_collection.features.forEach((feature) => {
+      const {color} = feature.properties;
+      // Convert hex to RGBA for the color dict used in bar graphs
+      viz_state.nbhd.color_dict[feature.properties.cat] = colorToRgba(color);
+    });
+  }
+
   const background_layer = ini_background_layer(viz_state);
   const image_layers = await make_image_layers(viz_state);
   const cell_layer = await ini_cell_layer(base_url, viz_state);
@@ -810,6 +754,15 @@ export const landscape_ist = async (
   // UI and Viz Container
   el.appendChild(ui_container);
   el.appendChild(root);
+
+  // Initialize neighborhood editor dialog if nbhd_edit mode is enabled
+  if (viz_state.nbhd.edit) {
+    viz_state.nbhd_editor = initialize_nbhd_editor(
+      viz_state,
+      deck_ist,
+      layers_obj
+    );
+  }
 
   const isChromium = ['Chromium', 'point-cloud'].includes(
     viz_state.img.landscape_parameters.technology

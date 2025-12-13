@@ -138,8 +138,8 @@ class Landscape(anywidget.AnyWidget):
         # cell_attr = kwargs.pop("cell_attr", ["leiden"])
         cell_attr = list(kwargs.pop("cell_attr", ["leiden"]))
 
-        if nbhd_gdf is not None and nbhd_edit:
-            raise ValueError("nbhd_edit cannot be True when nbhd data is provided")
+        # nbhd_edit can now be True even when nbhd data is provided,
+        # allowing users to edit pre-loaded neighborhood polygons
 
         # Handle base_url which can be a string, list of strings, or list of dicts
         # Also accept base_urls directly for convenience
@@ -467,6 +467,212 @@ class Enrich(anywidget.AnyWidget):
         _enrich_registry[name] = self
 
     def close(self):  # pragma: no cover - cleanup depends on JS
+        with suppress(Exception):
+            self.send({"event": "finalize"})
+        super().close()
+
+
+class Yearbook(anywidget.AnyWidget):
+    """
+    A widget for visualizing cell portraits in a yearbook-style grid layout.
+
+    This widget creates a grid of cell "portraits" - zoomed-in views centered on
+    selected cells. All portraits share synchronized zoom state but display different
+    spatial regions. The control panel works similarly to Landscape, showing gene
+    and cell bars based on visible content.
+
+    Args:
+        base_url (str): The base URL for the dataset.
+        cells (list): List of cell identifiers to display as portraits.
+        num_rows (int): Number of rows in the portrait grid. Alias: ``rows``.
+        num_cols (int): Number of columns in the portrait grid. Alias: ``cols``.
+        portrait_size_um (float): Size of each portrait in micrometers.
+        portrait_gap (int): Gap between portraits in pixels. Default is 4.
+        pixel_width (float, optional): Pixel width for scale bar calculation.
+            If provided, a scale bar will be displayed.
+        token (str, optional): Authentication token for data access.
+        dataset_name (str, optional): Name to display in the UI.
+        width (int): Widget width in pixels. 0 means 100%.
+        height (int): Widget height in pixels.
+        segmentation (str): Segmentation version to use. Default is "default".
+        adata (AnnData, optional): AnnData object for cell metadata.
+        cell_attr (list): List of cell attributes to extract from adata.
+
+    Example::
+
+        yb = Yearbook(
+            base_url="https://path-to-dataset",
+            cells=["cell_1", "cell_2", "cell_3", "cell_4"],
+            rows=2,  # or num_rows=2
+            cols=2,  # or num_cols=2
+            portrait_size_um=100,
+        )
+        yb
+    """
+
+    _esm = Path(__file__).parent / "../static" / "widget.js"
+    _css = Path(__file__).parent / "../static" / "widget.css"
+    component = traitlets.Unicode("Yearbook").tag(sync=True)
+
+    base_url = traitlets.Unicode("").tag(sync=True)
+    token = traitlets.Unicode("").tag(sync=True)
+    creds = traitlets.Dict({}).tag(sync=True)
+
+    # Cell list to display as portraits
+    cells = traitlets.List(trait=traitlets.Unicode(), default_value=[]).tag(sync=True)
+
+    # Grid configuration
+    num_rows = traitlets.Int(2).tag(sync=True)
+    num_cols = traitlets.Int(3).tag(sync=True)
+
+    # Portrait size in micrometers
+    portrait_size_um = traitlets.Float(50.0).tag(sync=True)
+
+    # For scale bar calculation
+    pixel_width = traitlets.Float(default_value=None, allow_none=True).tag(sync=True)
+    scale_bar_microns_per_pixel = traitlets.Float(default_value=None, allow_none=True).tag(
+        sync=True
+    )
+
+    # Pagination
+    current_page = traitlets.Int(0).tag(sync=True)
+
+    # Display options
+    dataset_name = traitlets.Unicode("").tag(sync=True)
+    width = traitlets.Int(0).tag(sync=True)
+    height = traitlets.Int(800).tag(sync=True)
+
+    # Gap between portraits in pixels
+    portrait_gap = traitlets.Int(4).tag(sync=True)
+
+    # Segmentation version
+    segmentation = traitlets.Unicode("default").tag(sync=True)
+
+    # Zoom state (synced across all portraits)
+    zoom_level = traitlets.Float(0).tag(sync=True)
+
+    # Cell metadata (similar to Landscape)
+    meta_cluster = traitlets.Dict({}).tag(sync=True)
+    cell_attr = traitlets.List(
+        trait=traitlets.Unicode(),
+        default_value=["leiden"],
+    ).tag(sync=True)
+
+    def __init__(self, **kwargs):
+        # Support 'rows' and 'cols' as aliases for 'num_rows' and 'num_cols'
+        if "rows" in kwargs and "num_rows" not in kwargs:
+            kwargs["num_rows"] = kwargs.pop("rows")
+        elif "rows" in kwargs:
+            kwargs.pop("rows")  # Remove duplicate
+
+        if "cols" in kwargs and "num_cols" not in kwargs:
+            kwargs["num_cols"] = kwargs.pop("cols")
+        elif "cols" in kwargs:
+            kwargs.pop("cols")  # Remove duplicate
+
+        adata = kwargs.pop("adata", None) or kwargs.pop("AnnData", None)
+        pq_meta_cell = kwargs.pop("meta_cell_parquet", None)
+        pq_meta_cluster = kwargs.pop("meta_cluster_parquet", None)
+
+        meta_cell_df = kwargs.pop("meta_cell", None)
+        meta_cluster = kwargs.pop("meta_cluster", None)
+        meta_cluster_df = None
+        cell_attr = kwargs.pop("cell_attr", ["leiden"])
+
+        def _df_to_bytes(df):
+            import io
+
+            import pyarrow as pa
+            import pyarrow.parquet as pq
+
+            df.columns = df.columns.map(str)
+            buf = io.BytesIO()
+            pq.write_table(pa.Table.from_pandas(df), buf, compression="zstd")
+            return buf.getvalue()
+
+        if adata is not None:
+            # if cell_id is in the adata.obs, use it as index
+            if "cell_id" in adata.obs.columns:
+                adata.obs.set_index("cell_id", inplace=True)
+
+            meta_cell_df = adata.obs[cell_attr].copy()
+
+            if meta_cell_df.index.name is None:
+                meta_cell_df.index.name = "cell_id"
+
+            pq_meta_cell = _df_to_bytes(meta_cell_df)
+
+            if "leiden" in adata.obs.columns:
+                cluster_counts = adata.obs["leiden"].value_counts().sort_index()
+                colors = adata.uns.get("leiden_colors")
+
+                if colors is None:
+                    with suppress(Exception):
+                        sc.pl.umap(adata, color="leiden", show=False)
+                        plt.close()
+                        colors = adata.uns.get("leiden_colors")
+
+                # backup color definition
+                if colors is None:
+                    n = len(cluster_counts)
+                    colors = [_hsv_to_hex(i / n) for i in range(n)]
+
+                meta_cluster_df = pd.DataFrame(
+                    {
+                        "color": list(colors)[: len(cluster_counts)],
+                        "count": cluster_counts.values,
+                    },
+                    index=cluster_counts.index,
+                )
+
+                pq_meta_cluster = _df_to_bytes(meta_cluster_df)
+
+        if isinstance(meta_cell_df, pd.DataFrame):
+            pq_meta_cell = _df_to_bytes(meta_cell_df.reset_index())
+
+        if isinstance(meta_cluster, pd.DataFrame):
+            pq_meta_cluster = _df_to_bytes(meta_cluster.reset_index())
+            kwargs.pop("meta_cluster", None)
+            meta_cluster_df = meta_cluster
+
+        parquet_traits = {}
+        if pq_meta_cell is not None:
+            parquet_traits["meta_cell_parquet"] = traitlets.Bytes(pq_meta_cell).tag(sync=True)
+        if pq_meta_cluster is not None:
+            parquet_traits["meta_cluster_parquet"] = traitlets.Bytes(pq_meta_cluster).tag(sync=True)
+
+        if parquet_traits:
+            self.add_traits(**parquet_traits)
+
+        super().__init__(**kwargs)
+
+        # store DataFrames locally without syncing to the frontend
+        self.meta_cell = meta_cell_df
+        if meta_cluster_df is not None:
+            self.meta_cluster_df = meta_cluster_df
+
+    @property
+    def total_pages(self):
+        """Calculate total number of pages based on cells and grid size."""
+        portraits_per_page = self.num_rows * self.num_cols
+        return max(1, -(-len(self.cells) // portraits_per_page))  # Ceiling division
+
+    def next_page(self):
+        """Navigate to next page."""
+        if self.current_page < self.total_pages - 1:
+            self.current_page += 1
+
+    def prev_page(self):
+        """Navigate to previous page."""
+        if self.current_page > 0:
+            self.current_page -= 1
+
+    def go_to_page(self, page):
+        """Navigate to a specific page."""
+        self.current_page = max(0, min(page, self.total_pages - 1))
+
+    def close(self):  # pragma: no cover - cleanup depends on JS
+        """Close the widget and notify the frontend to release resources."""
         with suppress(Exception):
             self.send({"event": "finalize"})
         super().close()

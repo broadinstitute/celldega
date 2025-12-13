@@ -65,6 +65,7 @@ import {
 import { set_mat_data } from '../matrix/mat_data';
 import { set_mat_constants } from '../matrix/set_constants';
 import { initialize_attribute_editor } from '../ui/attribute_editor';
+import { initialize_attribute_labels } from '../ui/attribute_labels';
 import { make_matrix_ui_container } from '../ui/ui_containers';
 
 export const matrix_viz = async (
@@ -210,6 +211,12 @@ export const matrix_viz = async (
   el.appendChild(viz_state.root);
 
   initialize_attribute_editor(viz_state, deck_mat, layers_mat);
+  initialize_attribute_labels(deck_mat, layers_mat, viz_state);
+
+  // Refresh layers to include attribute labels
+  deck_mat.setProps({
+    layers: get_mat_layers_list(layers_mat),
+  });
 
   // ---------------------------------------------------------------------------
   // JS -> PY sync: manual_cat + category_colors

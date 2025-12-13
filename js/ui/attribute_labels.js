@@ -1,8 +1,8 @@
 import * as d3 from 'd3';
 import { TextLayer } from 'deck.gl';
 
-import { get_mat_layers_list } from '../deck-gl/matrix/matrix_layers';
 import { toggle_dendro_layer_visibility } from '../deck-gl/matrix/dendro_layers';
+import { get_mat_layers_list } from '../deck-gl/matrix/matrix_layers';
 
 /**
  * Generates ordering based on category values for an axis.
@@ -21,8 +21,10 @@ const generate_category_order = (viz_state, axis, attr_index) => {
   }
 
   // Get unique category values and sort them
-  const values = attr_def.values;
-  const unique_values = [...new Set(values.filter((v) => v !== null && v !== undefined))];
+  const {values} = attr_def;
+  const unique_values = [
+    ...new Set(values.filter((v) => v !== null && v !== undefined)),
+  ];
 
   // Sort categories - for categorical, sort alphabetically; for numeric, sort by value
   if (attr_def.type === 'numeric') {
@@ -38,7 +40,11 @@ const generate_category_order = (viz_state, axis, attr_index) => {
   // Group nodes by category
   nodes.forEach((node, index) => {
     const cat_value = values[index];
-    if (cat_value !== null && cat_value !== undefined && category_groups.has(cat_value)) {
+    if (
+      cat_value !== null &&
+      cat_value !== undefined &&
+      category_groups.has(cat_value)
+    ) {
       category_groups.get(cat_value).push({ node, index });
     }
   });
@@ -68,7 +74,14 @@ const generate_category_order = (viz_state, axis, attr_index) => {
  * @param {number} attr_index - Index of the attribute
  * @param {string} attr_name - Name of the attribute
  */
-const reorder_by_attribute = (viz_state, deck_mat, layers_mat, axis, attr_index, attr_name) => {
+const reorder_by_attribute = (
+  viz_state,
+  deck_mat,
+  layers_mat,
+  axis,
+  attr_index,
+  attr_name
+) => {
   // Generate the order key name for this attribute
   const order_key = `attr_${attr_index}`;
 
@@ -178,16 +191,16 @@ const get_row_attr_label_data = (viz_state) => {
  * Gets the position for a column attribute label.
  * Labels appear in a static view at the right side (aligned with dendrogram x position),
  * vertically aligned with each attribute bar.
- * 
+ *
  * Column bars y position in cols view:
  * - Canvas y = col_cat_offset * (attr_index + 1.5) - 30 + cat_shift_col
  * - Cols view target.y = label_col_y (25)
  * - DOM y = col_region/2 + (canvas_y - 25)
- * 
+ *
  * For col_attr_labels view with centered target (1:1 mapping):
  * - DOM y = canvas_y (since target is at center)
  * - So we need canvas_y = col_region/2 + (bar_canvas_y - label_col_y)
- * 
+ *
  * @param {Object} d - The label data
  * @param {Object} viz_state - The visualization state
  * @returns {Array} [x, y] position
@@ -207,8 +220,7 @@ const col_attr_label_get_position = (d, viz_state) => {
   // DOM y = col_region/2 + (bar_canvas_y - label_col_y)
   // For our centered view, canvas y = DOM y
   const pos_y =
-    viz_state.viz.col_region / 2 +
-    (bar_canvas_y - viz_state.viz.label_col_y);
+    viz_state.viz.col_region / 2 + (bar_canvas_y - viz_state.viz.label_col_y);
 
   return [pos_x, pos_y];
 };
@@ -217,11 +229,11 @@ const col_attr_label_get_position = (d, viz_state) => {
  * Gets the position for a row attribute label.
  * Labels appear at the top of the row_attr_labels view, aligned with each attribute bar column.
  * Text reads from bottom to top.
- * 
+ *
  * Row bars x position formula from attr_state.js and cat_layers.js:
  * x = row_cat_offset * (attr_index + 0.5) + 20 + cat_shift_row
  * x = 9 * (attr_index + 0.5) + 20 + 30 = 9 * attr_index + 54.5
- * 
+ *
  * @param {Object} d - The label data
  * @param {Object} viz_state - The visualization state
  * @returns {Array} [x, y] position
@@ -311,7 +323,8 @@ export const ini_row_attr_label_layer = (viz_state) => {
  * @param {Object} viz_state - The visualization state
  */
 const col_attr_label_onclick = (event, deck_mat, layers_mat, viz_state) => {
-  viz_state.labels.clicks.col_attr = (viz_state.labels.clicks.col_attr || 0) + 1;
+  viz_state.labels.clicks.col_attr =
+    (viz_state.labels.clicks.col_attr || 0) + 1;
 
   if (viz_state.labels.clicks.col_attr === 1) {
     setTimeout(() => {
@@ -338,7 +351,8 @@ const col_attr_label_onclick = (event, deck_mat, layers_mat, viz_state) => {
  * @param {Object} viz_state - The visualization state
  */
 const row_attr_label_onclick = (event, deck_mat, layers_mat, viz_state) => {
-  viz_state.labels.clicks.row_attr = (viz_state.labels.clicks.row_attr || 0) + 1;
+  viz_state.labels.clicks.row_attr =
+    (viz_state.labels.clicks.row_attr || 0) + 1;
 
   if (viz_state.labels.clicks.row_attr === 1) {
     setTimeout(() => {
@@ -363,7 +377,11 @@ const row_attr_label_onclick = (event, deck_mat, layers_mat, viz_state) => {
  * @param {Object} layers_mat - The layers object
  * @param {Object} viz_state - The visualization state
  */
-export const set_col_attr_label_layer_onclick = (deck_mat, layers_mat, viz_state) => {
+export const set_col_attr_label_layer_onclick = (
+  deck_mat,
+  layers_mat,
+  viz_state
+) => {
   if (!layers_mat.col_attr_label_layer) return;
 
   layers_mat.col_attr_label_layer = layers_mat.col_attr_label_layer.clone({
@@ -378,7 +396,11 @@ export const set_col_attr_label_layer_onclick = (deck_mat, layers_mat, viz_state
  * @param {Object} layers_mat - The layers object
  * @param {Object} viz_state - The visualization state
  */
-export const set_row_attr_label_layer_onclick = (deck_mat, layers_mat, viz_state) => {
+export const set_row_attr_label_layer_onclick = (
+  deck_mat,
+  layers_mat,
+  viz_state
+) => {
   if (!layers_mat.row_attr_label_layer) return;
 
   layers_mat.row_attr_label_layer = layers_mat.row_attr_label_layer.clone({
@@ -429,7 +451,11 @@ export const refresh_attr_label_layers = (deck_mat, layers_mat, viz_state) => {
  * @param {Object} layers_mat - The layers object
  * @param {Object} viz_state - The visualization state
  */
-export const initialize_attribute_labels = (deck_mat, layers_mat, viz_state) => {
+export const initialize_attribute_labels = (
+  deck_mat,
+  layers_mat,
+  viz_state
+) => {
   // Create col attribute label layer
   layers_mat.col_attr_label_layer = ini_col_attr_label_layer(viz_state);
   if (layers_mat.col_attr_label_layer) {

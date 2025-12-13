@@ -129,7 +129,13 @@ export const initialize_attribute_editor = (
     container.style.top = `${y}px`;
   };
 
-  const open = ({ axis, selection, initial_value, initial_color, position }) => {
+  const open = ({
+    axis,
+    selection,
+    initial_value,
+    initial_color,
+    position,
+  }) => {
     if (
       !Array.isArray(selection) ||
       selection.length === 0 ||

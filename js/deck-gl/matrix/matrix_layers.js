@@ -38,10 +38,16 @@ export const layer_filter = ({ layer, viewport }) => {
     return true;
   } else if (viewport.id === 'dendro_cols' && layer.id === 'col-dendro-layer') {
     return true;
-  } else if (viewport.id === 'col_attr_labels' && layer.id === 'col-attr-label-layer') {
+  } else if (
+    viewport.id === 'col_attr_labels' &&
+    layer.id === 'col-attr-label-layer'
+  ) {
     // Column attribute labels appear in a static view at the right
     return true;
-  } else if (viewport.id === 'row_attr_labels' && layer.id === 'row-attr-label-layer') {
+  } else if (
+    viewport.id === 'row_attr_labels' &&
+    layer.id === 'row-attr-label-layer'
+  ) {
     // Row attribute labels appear in a static view at the top-left
     return true;
   }

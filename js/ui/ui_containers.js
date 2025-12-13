@@ -1071,7 +1071,12 @@ export const make_ist_ui_container = (
     viz_state.edit.mode = 'view';
 
     // Callback for NBHD button - toggles the edit layer visibility
-    const nbhd_toggle_callback = (_event, _deck_ist, _layers_obj, _viz_state) => {
+    const nbhd_toggle_callback = (
+      _event,
+      _deck_ist,
+      _layers_obj,
+      _viz_state
+    ) => {
       const visible = _viz_state.obs_store.viz_edit_layer.get();
       _viz_state.obs_store.viz_edit_layer.set(!visible);
     };

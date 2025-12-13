@@ -773,6 +773,14 @@ class Clustergram(anywidget.AnyWidget):
             name = meta.get("name", name)
             kwargs.setdefault("network_meta", meta)
 
+            # Entity info can be dict or string - serialize to JSON for frontend
+            row_entity = pq_data.get("row_entity", {"entity": "gene", "attr": "name"})
+            col_entity = pq_data.get("col_entity", {"entity": "cell", "attr": "leiden"})
+
+            # Convert to JSON strings for syncing with JS
+            row_entity_json = json.dumps(row_entity) if isinstance(row_entity, dict) else row_entity
+            col_entity_json = json.dumps(col_entity) if isinstance(col_entity, dict) else col_entity
+
             parquet_traits = {
                 "mat_parquet": traitlets.Bytes(pq_data.get("mat", b"")).tag(sync=True),
                 "row_nodes_parquet": traitlets.Bytes(pq_data.get("row_nodes", b"")).tag(sync=True),
@@ -783,8 +791,9 @@ class Clustergram(anywidget.AnyWidget):
                 "col_linkage_parquet": traitlets.Bytes(pq_data.get("col_linkage", b"")).tag(
                     sync=True
                 ),
-                "row_entity": traitlets.Unicode(pq_data.get("row_entity")).tag(sync=True),
-                "col_entity": traitlets.Unicode(pq_data.get("col_entity")).tag(sync=True),
+                # Entity info as JSON strings
+                "row_entity": traitlets.Unicode(row_entity_json).tag(sync=True),
+                "col_entity": traitlets.Unicode(col_entity_json).tag(sync=True),
             }
             self.add_traits(**parquet_traits)
 

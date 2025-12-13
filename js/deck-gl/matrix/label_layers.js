@@ -212,9 +212,14 @@ const row_label_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
   if (viz_state.labels.clicks.row === 1) {
     viz_state.click.type = 'row_label';
     const name = event.object.name;
+    // Include full entity info (entity type + attribute)
     viz_state.click.value = {
       name,
-      row_entity: viz_state.row_entity,
+      // New structured entity info
+      entity: viz_state.row_entity.entity,
+      attr: viz_state.row_entity.attr,
+      // Legacy field for backwards compatibility
+      row_entity: viz_state.row_entity.entity,
     };
 
     setTimeout(() => {
@@ -250,10 +255,14 @@ const col_label_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
   if (viz_state.labels.clicks.col === 1) {
     viz_state.click.type = 'col_label';
     const name = event.object.name;
+    // Include full entity info (entity type + attribute)
     viz_state.click.value = {
       name,
-
-      col_entity: viz_state.col_entity,
+      // New structured entity info
+      entity: viz_state.col_entity.entity,
+      attr: viz_state.col_entity.attr,
+      // Legacy field for backwards compatibility
+      col_entity: viz_state.col_entity.entity,
     };
 
     setTimeout(() => {

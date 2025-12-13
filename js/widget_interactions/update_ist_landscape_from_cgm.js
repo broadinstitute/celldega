@@ -7,6 +7,49 @@ import {
 import { handleAsyncError } from '../temp_utils/errorHandler';
 import { refresh_layer } from '../utils/refresh_layer';
 
+/**
+ * Check if a click value represents a cell cluster selection.
+ * Supports both legacy format (row_entity === 'cell_cluster') and
+ * new format (entity === 'cell' && attr === 'leiden').
+ */
+export const isCellCluster = (clickValue) => {
+  if (!clickValue) return false;
+
+  // Legacy format check
+  if (clickValue.row_entity === 'cell_cluster') return true;
+
+  // New format check: entity is 'cell' and attr is a clustering attribute
+  if (clickValue.entity === 'cell') {
+    const clusteringAttrs = ['leiden', 'cluster', 'cell_type', 'cell_cluster'];
+    return clusteringAttrs.includes(clickValue.attr);
+  }
+
+  return false;
+};
+
+/**
+ * Check if a click value represents a neighborhood selection.
+ */
+export const isNeighborhood = (clickValue) => {
+  if (!clickValue) return false;
+
+  // Legacy format check
+  if (clickValue.col_entity === 'nbhd') return true;
+
+  // New format check
+  return clickValue.entity === 'nbhd' || clickValue.entity === 'hextile';
+};
+
+/**
+ * Check if a click value represents a gene selection.
+ */
+export const isGene = (clickValue) => {
+  if (!clickValue) return false;
+
+  // New format check
+  return clickValue.entity === 'gene';
+};
+
 export const update_ist_landscape_from_cgm = async (
   deck_ist,
   layers_obj,
@@ -34,7 +77,8 @@ export const update_ist_landscape_from_cgm = async (
   // add try catch block
   try {
     if (click_type === 'row_label') {
-      if (click_info.value.row_entity === 'cell_cluster') {
+      // Check if this is a cell cluster selection using entity/attr
+      if (isCellCluster(click_info.value)) {
         inst_gene = 'cluster';
         new_cat = click_info.value.name;
 
@@ -47,6 +91,7 @@ export const update_ist_landscape_from_cgm = async (
 
         refresh_layer(viz_state, layers_obj, 'cell_layer');
       } else {
+        // Treat as gene selection
         inst_gene = click_info.value.name;
 
         new_cat = inst_gene === viz_state.cats.cat ? 'cluster' : inst_gene;
@@ -80,7 +125,8 @@ export const update_ist_landscape_from_cgm = async (
         refresh_layer(viz_state, layers_obj, 'trx_layer');
       }
     } else if (click_type === 'col_label') {
-      if (click_info.value.col_entity === 'nbhd') {
+      // Check if this is a neighborhood selection
+      if (isNeighborhood(click_info.value)) {
         const new_nbhd = click_info.value.name;
         viz_state.obs_store.selected_nbhds.set([new_nbhd]);
         viz_state.obs_store.viz_nbhd_layer.set(true);
@@ -124,7 +170,10 @@ export const update_ist_landscape_from_cgm = async (
       }
     } else if (click_type === 'col_dendro') {
       const new_cats = click_info.value.selected_names;
-      if (click_info.value.col_entity === 'nbhd') {
+      // Check if columns represent neighborhoods
+      const col_entity_full =
+        click_info.value.col_entity_full || click_info.value;
+      if (isNeighborhood(col_entity_full)) {
         viz_state.obs_store.selected_nbhds.set(new_cats);
         viz_state.obs_store.viz_nbhd_layer.set(true);
         viz_state.buttons?.buttons?.nbhd?.style?.('color', 'blue');
@@ -162,7 +211,10 @@ export const update_ist_landscape_from_cgm = async (
       }
     } else if (click_type === 'row_dendro') {
       const new_cats = click_info.value.selected_names;
-      if (click_info.value.row_entity === 'cell_cluster') {
+      // Check if rows represent cell clusters
+      const row_entity_full =
+        click_info.value.row_entity_full || click_info.value;
+      if (isCellCluster(row_entity_full)) {
         update_cat(viz_state.cats, 'cluster');
         update_selected_cats(viz_state.cats, new_cats, viz_state.obs_store);
         update_selected_genes(viz_state.genes, [], viz_state.obs_store);
@@ -210,16 +262,28 @@ export const update_ist_landscape_from_cgm = async (
         refresh_layer(viz_state, layers_obj, 'trx_layer');
       }
     } else if (click_type === 'mat_value') {
-      const { row_entity, col_entity } = click_info.value;
-      const row = row_entity;
-      const col = col_entity;
+      const { row, col, row_entity_full, col_entity_full } = click_info.value;
 
-      if (row === 'cell_cluster' && col === 'nbhd') {
-        const new_nbhds = [row.name, col.name];
+      // Use the full entity info if available
+      const rowEntity = row_entity_full || row;
+      const colEntity = col_entity_full || col;
+
+      // Check if we have a cell cluster + neighborhood combination
+      if (isCellCluster(rowEntity) && isNeighborhood(colEntity)) {
+        const new_nbhds = [col.name];
         viz_state.obs_store.selected_nbhds.set(new_nbhds);
         viz_state.obs_store.viz_nbhd_layer.set(true);
         viz_state.buttons?.buttons?.nbhd?.style?.('color', 'blue');
         refresh_layer(viz_state, layers_obj, 'nbhd_layer');
+
+        // Also highlight the selected cluster
+        update_cat(viz_state.cats, 'cluster');
+        update_selected_cats(
+          viz_state.cats,
+          [row.name],
+          viz_state.obs_store
+        );
+        refresh_layer(viz_state, layers_obj, 'cell_layer');
 
         if (viz_state.obs_store.selected_nbhds.get().length > 0) {
           const selected_nbhds = viz_state.obs_store.selected_nbhds.get();

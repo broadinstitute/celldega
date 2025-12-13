@@ -50,13 +50,23 @@ const mat_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
   viz_state.click.value = {
     row: {
       name: row_name,
-
-      row_entity: viz_state.row_entity,
+      // New structured entity info
+      entity: viz_state.row_entity.entity,
+      attr: viz_state.row_entity.attr,
+      // Legacy field for backwards compatibility
+      row_entity: viz_state.row_entity.entity,
     },
     col: {
       name: col_name,
-      col_entity: viz_state.col_entity,
+      // New structured entity info
+      entity: viz_state.col_entity.entity,
+      attr: viz_state.col_entity.attr,
+      // Legacy field for backwards compatibility
+      col_entity: viz_state.col_entity.entity,
     },
+    // Full entity info for both axes
+    row_entity_full: viz_state.row_entity,
+    col_entity_full: viz_state.col_entity,
   };
 
   if (viz_state.model?.set) {

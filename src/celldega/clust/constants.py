@@ -1,7 +1,93 @@
 """Configuration constants and string literals for Matrix module."""
 
 from enum import Enum
-from typing import Any, Literal, Union
+from typing import Any, Literal, TypedDict, Union
+
+
+class EntityType(Enum):
+    """Entity types that can be represented in clustergram rows/columns."""
+
+    CELL = "cell"
+    GENE = "gene"
+    NEIGHBORHOOD = "nbhd"
+    CLUSTER = "cluster"
+    CELL_CLUSTER = "cell_cluster"  # Legacy, alias for CLUSTER
+    HEXTILE = "hextile"
+    CUSTOM = "custom"
+
+
+class AxisEntity(TypedDict, total=False):
+    """
+    Describes what entity a clustergram axis represents.
+
+    Attributes:
+        entity: The type of entity (cell, gene, nbhd, cluster, etc.)
+        attr: The attribute of that entity (name, leiden, custom_column, etc.)
+            - For cells: 'leiden' means cell clusters, 'name' means individual cells
+            - For nbhd: 'name' means specific neighborhoods
+            - For genes: typically 'name'
+
+    Examples:
+        # Clustergram with cell clusters on rows (cells grouped by leiden)
+        {"entity": "cell", "attr": "leiden"}
+
+        # Clustergram with specific cells on columns
+        {"entity": "cell", "attr": "name"}
+
+        # Clustergram with neighborhoods on columns
+        {"entity": "nbhd", "attr": "name"}
+
+        # Clustergram with genes on rows
+        {"entity": "gene", "attr": "name"}
+
+        # Hextile neighborhoods by cell clusters
+        row: {"entity": "cell", "attr": "leiden"}
+        col: {"entity": "hextile", "attr": "nbhd_cluster"}
+    """
+
+    entity: str
+    attr: str
+
+
+def normalize_axis_entity(value: str | dict | AxisEntity | None) -> AxisEntity:
+    """
+    Normalize an axis entity specification to the AxisEntity format.
+
+    Handles backwards compatibility with string-only entity values.
+
+    Args:
+        value: Entity specification - can be:
+            - str: Legacy format (e.g., "gene", "cell_cluster", "nbhd")
+            - dict/AxisEntity: New format with entity and attr keys
+            - None: Returns default gene entity
+
+    Returns:
+        AxisEntity with entity and attr keys
+    """
+    if value is None:
+        return {"entity": "gene", "attr": "name"}
+
+    if isinstance(value, str):
+        # Legacy string format - convert to new structure
+        # Map legacy strings to new entity/attr pairs
+        legacy_mapping: dict[str, AxisEntity] = {
+            "gene": {"entity": "gene", "attr": "name"},
+            "cell_cluster": {"entity": "cell", "attr": "leiden"},
+            "cluster": {"entity": "cell", "attr": "leiden"},
+            "nbhd": {"entity": "nbhd", "attr": "name"},
+            "cell": {"entity": "cell", "attr": "name"},
+            "hextile": {"entity": "hextile", "attr": "name"},
+        }
+        return legacy_mapping.get(value, {"entity": value, "attr": "name"})
+
+    if isinstance(value, dict):
+        # Already in dict format, ensure it has required keys
+        entity = value.get("entity", "custom")
+        attr = value.get("attr", "name")
+        return {"entity": entity, "attr": attr}
+
+    # Fallback
+    return {"entity": "custom", "attr": "name"}
 
 
 # Enhanced Axis enum that supports both string and numeric values

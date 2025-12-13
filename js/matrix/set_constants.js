@@ -3,14 +3,61 @@ import { ManualCategoryStore } from '../obs_store/manual_category_store';
 
 import { initialize_attr_state } from './attr_state';
 
+/**
+ * Parse entity specification from string or object.
+ * Handles both legacy string format and new {entity, attr} format.
+ *
+ * @param {string|object} value - Entity specification
+ * @returns {{entity: string, attr: string}} Normalized entity object
+ */
+const parseEntitySpec = (value) => {
+  if (!value) {
+    return { entity: 'gene', attr: 'name' };
+  }
+
+  // If it's a string, try to parse as JSON first
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      if (parsed && typeof parsed === 'object') {
+        return {
+          entity: parsed.entity || 'custom',
+          attr: parsed.attr || 'name',
+        };
+      }
+    } catch {
+      // Not JSON, handle as legacy string
+      const legacyMapping = {
+        gene: { entity: 'gene', attr: 'name' },
+        cell_cluster: { entity: 'cell', attr: 'leiden' },
+        cluster: { entity: 'cell', attr: 'leiden' },
+        nbhd: { entity: 'nbhd', attr: 'name' },
+        cell: { entity: 'cell', attr: 'name' },
+        hextile: { entity: 'hextile', attr: 'name' },
+      };
+      return legacyMapping[value] || { entity: value, attr: 'name' };
+    }
+  }
+
+  // Already an object
+  if (typeof value === 'object') {
+    return {
+      entity: value.entity || 'custom',
+      attr: value.attr || 'name',
+    };
+  }
+
+  return { entity: 'custom', attr: 'name' };
+};
+
 export const set_mat_constants = (
   model,
   network,
   root,
   width,
   height,
-  row_entity,
-  col_entity,
+  row_entity_raw,
+  col_entity_raw,
   row_label_callback,
   col_label_callback,
   col_dendro_callback
@@ -115,6 +162,10 @@ export const set_mat_constants = (
   viz_state.animate.duration = 2500;
 
   viz_state.viz.dendrogram_width = 15;
+
+  // Parse entity specifications (supports both legacy string and new {entity, attr} format)
+  const row_entity = parseEntitySpec(row_entity_raw);
+  const col_entity = parseEntitySpec(col_entity_raw);
 
   viz_state.row_entity = row_entity;
   viz_state.col_entity = col_entity;

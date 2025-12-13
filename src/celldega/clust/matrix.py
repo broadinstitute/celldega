@@ -20,6 +20,7 @@ from .constants import (
     DEFAULT_VIZ,
     ERRORS,
     Axis,
+    AxisEntity,
     AxisInput,
     AxisType,
     CacheLevel,
@@ -29,6 +30,7 @@ from .constants import (
     LinkageType,
     Normalization,
     NormType,
+    normalize_axis_entity,
 )
 from .utils import (
     add_mixed_attributes_to_node_info,
@@ -101,8 +103,8 @@ class Matrix:
         meta_row: pd.DataFrame | None = None,
         col_attr: list[str] | None = None,
         row_attr: list[str] | None = None,
-        row_entity: str | None = "cell_cluster",
-        col_entity: str | None = "gene",
+        row_entity: str | dict | AxisEntity | None = "cell_cluster",
+        col_entity: str | dict | AxisEntity | None = "gene",
         # Processing parameters
         filter_genes: int | None = None,
         norm_col: str | None = "total",
@@ -122,6 +124,12 @@ class Matrix:
             meta_row: Row metadata (for DataFrame input)
             col_attr: Column attribute names (categorical or numeric)
             row_attr: Row attribute names (categorical or numeric)
+            row_entity: Entity specification for rows. Can be:
+                - str: Legacy format like "gene", "cell_cluster", "nbhd"
+                - dict: New format like {"entity": "cell", "attr": "leiden"}
+                The entity specifies what the rows represent (cell, gene, nbhd, etc.)
+                The attr specifies the attribute (name, leiden, cluster_id, etc.)
+            col_entity: Entity specification for columns (same format as row_entity)
             filter_genes: Number of top variable genes to keep (None = no filtering)
             norm_col: Column normalization ('total', 'zscore', 'qn', None)
             norm_row: Row normalization ('total', 'zscore', 'qn', None)
@@ -142,6 +150,19 @@ class Matrix:
 
             # Raw matrix without data
             mat = Matrix()  # Empty matrix for manual loading
+
+            # With entity specifications for widget interaction:
+            # Genes (rows) by cell clusters (columns) - typical gene expression heatmap
+            mat = Matrix(df, row_entity="gene", col_entity="cell_cluster")
+            # Or equivalently with new format:
+            mat = Matrix(df,
+                row_entity={"entity": "gene", "attr": "name"},
+                col_entity={"entity": "cell", "attr": "leiden"})
+
+            # Neighborhoods by cell types
+            mat = Matrix(df,
+                row_entity={"entity": "cell", "attr": "leiden"},
+                col_entity={"entity": "nbhd", "attr": "name"})
         """
         # Core data storage
         self.data: pd.DataFrame | None = None
@@ -164,8 +185,9 @@ class Matrix:
             and not pd.api.types.is_numeric_dtype(self.meta_row[attr])
         ]
 
-        self.row_entity = row_entity
-        self.col_entity = col_entity
+        # Normalize entity specifications to the new AxisEntity format
+        self.row_entity: AxisEntity = normalize_axis_entity(row_entity)
+        self.col_entity: AxisEntity = normalize_axis_entity(col_entity)
 
         # State tracking
         self._clustered: bool = False
@@ -739,9 +761,6 @@ class Matrix:
         row_link_df = pd.DataFrame(viz.get("linkage", {}).get(Axis.ROW.value, []))
         col_link_df = pd.DataFrame(viz.get("linkage", {}).get(Axis.COL.value, []))
 
-        row_entity = self.row_entity
-        col_entity = self.col_entity
-
         meta_json = viz.copy()
         meta_json.pop("mat", None)
         meta_json.pop("row_nodes", None)
@@ -755,8 +774,9 @@ class Matrix:
             "row_linkage": _to_bytes(row_link_df),
             "col_linkage": _to_bytes(col_link_df),
             "meta": meta_json,
-            "row_entity": row_entity,
-            "col_entity": col_entity,
+            # Entity info as dicts with entity and attr keys
+            "row_entity": self.row_entity,
+            "col_entity": self.col_entity,
         }
 
     def add_category(self, axis: AxisInput, name: str, data: pd.Series) -> None:

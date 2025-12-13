@@ -155,11 +155,21 @@ const focus_dendro_polygon = (
 const dendro_layer_onclick = (event, deck_mat, layers_mat, viz_state, axis) => {
   viz_state.click.type = `${axis}_dendro`;
 
+  // Get the entity info for the clicked axis
+  const axis_entity = axis === 'row' ? viz_state.row_entity : viz_state.col_entity;
+
   viz_state.click.value = {
     name: event.object.properties.name,
     selected_names: event.object.properties.all_names,
-    row_entity: viz_state.row_entity,
-    col_entity: viz_state.col_entity,
+    // New structured entity info for the clicked axis
+    entity: axis_entity.entity,
+    attr: axis_entity.attr,
+    // Legacy fields for backwards compatibility
+    row_entity: viz_state.row_entity.entity,
+    col_entity: viz_state.col_entity.entity,
+    // Full entity info for both axes (for advanced use cases)
+    row_entity_full: viz_state.row_entity,
+    col_entity_full: viz_state.col_entity,
   };
 
   focus_dendro_polygon(

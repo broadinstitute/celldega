@@ -103,8 +103,8 @@ class Matrix:
         meta_row: pd.DataFrame | None = None,
         col_attr: list[str] | None = None,
         row_attr: list[str] | None = None,
-        row_entity: str | dict | AxisEntity | None = "cell_cluster",
-        col_entity: str | dict | AxisEntity | None = "gene",
+        row_entity: str | dict | AxisEntity | None = "gene",
+        col_entity: str | dict | AxisEntity | None = "cell_cluster",
         # Processing parameters
         filter_genes: int | None = None,
         norm_col: str | None = "total",

@@ -34,6 +34,7 @@ import {
   make_bar_container,
   bar_callback_gene,
 } from './bar_plot';
+import { init_matrix_cat_bars } from './matrix_cat_bars';
 import { make_dataset_dropdown } from './dataset_dropdown';
 import { set_gene_search } from './gene_search';
 import { logo } from './logo';
@@ -226,6 +227,9 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
 
   ui_container.appendChild(ctrl_container);
   ui_container.appendChild(slider_container);
+
+  // Initialize category bar graphs (shown on dendro click)
+  init_matrix_cat_bars(viz_state, ui_container);
 
   return ui_container;
 };

@@ -129,10 +129,6 @@ export const bar_callback_nbhd = (
   if (_viz_state.nbhd.edit) {
     _viz_state.obs_store.viz_edit_layer.set(true);
 
-<<<<<<< HEAD
-    _viz_state.buttons?.buttons?.nbhd?.style?.('color', 'blue');
-    toggle_slider(_viz_state.sliders.nbhd, true);
-=======
     // Safely style the NBHD button if it exists
     // Note: edit buttons are DOM nodes, regular buttons are d3 selections
     if (_viz_state.buttons?.buttons?.nbhd) {
@@ -143,7 +139,7 @@ export const bar_callback_nbhd = (
         d3.select(btn).style('color', 'blue');
       }
     }
->>>>>>> clust-attr-label
+    toggle_slider(_viz_state.sliders.nbhd, true);
 
     const prev_selected_nbhds = _viz_state.obs_store.selected_nbhds.get();
     if (

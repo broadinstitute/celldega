@@ -152,15 +152,56 @@ const focus_dendro_polygon = (
   });
 };
 
+/**
+ * Compute category breakdown for selected nodes.
+ * Returns an object with category counts for each attribute.
+ */
+const compute_category_breakdown = (viz_state, axis, selected_names) => {
+  const nodes = axis === 'row' ? viz_state.row_nodes : viz_state.col_nodes;
+  const attr_names = viz_state.attr?.names?.[axis] || [];
+
+  // Find the selected node indices
+  const selected_set = new Set(selected_names);
+  const selected_nodes = nodes.filter((node) => selected_set.has(node.name));
+
+  const breakdown = {};
+
+  // For each attribute, count the category values
+  attr_names.forEach((attr_name, attr_index) => {
+    const cat_key = `cat-${attr_index}`;
+    const counts = {};
+
+    selected_nodes.forEach((node) => {
+      const value = node[cat_key];
+      if (value !== undefined && value !== null) {
+        counts[value] = (counts[value] || 0) + 1;
+      }
+    });
+
+    // Convert to array sorted by count
+    const breakdown_array = Object.entries(counts)
+      .map(([name, count]) => ({ name, value: count }))
+      .sort((a, b) => b.value - a.value);
+
+    if (breakdown_array.length > 0) {
+      breakdown[attr_name] = breakdown_array;
+    }
+  });
+
+  return breakdown;
+};
+
 const dendro_layer_onclick = (event, deck_mat, layers_mat, viz_state, axis) => {
   viz_state.click.type = `${axis}_dendro`;
 
   // Get the entity info for the clicked axis
-  const axis_entity = axis === 'row' ? viz_state.row_entity : viz_state.col_entity;
+  const axis_entity =
+    axis === 'row' ? viz_state.row_entity : viz_state.col_entity;
+  const selected_names = event.object.properties.all_names || [];
 
   viz_state.click.value = {
     name: event.object.properties.name,
-    selected_names: event.object.properties.all_names,
+    selected_names,
     // New structured entity info for the clicked axis
     entity: axis_entity.entity,
     attr: axis_entity.attr,
@@ -180,6 +221,44 @@ const dendro_layer_onclick = (event, deck_mat, layers_mat, viz_state, axis) => {
     event.object.properties.name
   );
 
+  // Update dendro_selection in the store
+  if (viz_state.obs_store?.dendro_selection) {
+    const current = viz_state.obs_store.dendro_selection.get();
+    // Toggle off if clicking the same dendro
+    if (
+      current &&
+      current.axis === axis &&
+      current.name === event.object.properties.name
+    ) {
+      viz_state.obs_store.dendro_selection.set(null);
+      // Reset category breakdown
+      if (viz_state.obs_store?.category_breakdown) {
+        viz_state.obs_store.category_breakdown.set({ row: {}, col: {} });
+      }
+    } else {
+      viz_state.obs_store.dendro_selection.set({
+        axis,
+        name: event.object.properties.name,
+        selected_names,
+      });
+
+      // Compute and update category breakdown
+      if (viz_state.obs_store?.category_breakdown) {
+        const breakdown = compute_category_breakdown(
+          viz_state,
+          axis,
+          selected_names
+        );
+        const current_breakdown =
+          viz_state.obs_store.category_breakdown.get() || { row: {}, col: {} };
+        viz_state.obs_store.category_breakdown.set({
+          ...current_breakdown,
+          [axis]: breakdown,
+        });
+      }
+    }
+  }
+
   if (Object.keys(viz_state.model).length > 0) {
     viz_state.model.set('click_info', null);
     viz_state.model.set('click_info', viz_state.click);
@@ -187,13 +266,13 @@ const dendro_layer_onclick = (event, deck_mat, layers_mat, viz_state, axis) => {
   }
 
   if (axis === 'row') {
-    sync_selected_genes(viz_state, event.object.properties.all_names);
+    sync_selected_genes(viz_state, selected_names);
   }
 
   if (viz_state.attr?.editor?.open) {
     viz_state.attr.editor.open({
       axis,
-      selection: event.object.properties.all_names || [],
+      selection: selected_names,
       position: event?.pixel
         ? { x: event.pixel[0], y: event.pixel[1] }
         : undefined,
@@ -201,9 +280,7 @@ const dendro_layer_onclick = (event, deck_mat, layers_mat, viz_state, axis) => {
   }
 
   if (typeof viz_state.custom_callbacks[`${axis}_dendro`] === 'function') {
-    viz_state.custom_callbacks[`${axis}_dendro`](
-      event.object.properties.all_names
-    );
+    viz_state.custom_callbacks[`${axis}_dendro`](selected_names);
   }
 };
 

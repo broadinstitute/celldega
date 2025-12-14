@@ -129,8 +129,8 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
 
   const slider_container = flex_container('slider_container', 'column');
 
-  // More compact button width
-  const button_width = 28;
+  // Button widths for reorder controls
+  const button_width = 40;
   const label_width = 35;
 
   const axes = ['col', 'row'];

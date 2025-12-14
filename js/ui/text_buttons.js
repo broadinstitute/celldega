@@ -116,7 +116,7 @@ export const make_reorder_button = (
   container,
   text,
   active,
-  width = 28,
+  width = 40,
   axis,
   deck_mat,
   layers_mat,
@@ -131,23 +131,16 @@ export const make_reorder_button = (
     color = viz_state.buttons.gray;
   }
 
-  // Abbreviate text for compact display
-  const abbrev = {
-    clust: 'C',
-    sum: 'S',
-    var: 'V',
-    ini: 'I',
-  };
-  const display_text = abbrev[text.toLowerCase()] || text.toUpperCase();
+  // Keep original uppercase text for display
+  const display_text = text.toUpperCase();
 
   d3.select(container)
     .append('div')
     .classed(button_class, true)
     .classed('active', active)
     .text(display_text)
-    .attr('title', text.toUpperCase()) // Tooltip with full name
     .style('width', `${width}px`)
-    .style('height', '18px')
+    .style('height', '20px')
     .style('display', 'inline-flex')
     .style('align-items', 'center')
     .style('justify-content', 'center')
@@ -156,12 +149,12 @@ export const make_reorder_button = (
     .style('font-size', '10px')
     .style('font-weight', 'bold')
     .style('color', '#47515b')
-    .style('border', '2px solid')
+    .style('border', '3px solid')
     .style('border-color', color)
-    .style('border-radius', '10px')
-    .style('margin-top', '3px')
-    .style('margin-left', '3px')
-    .style('padding', '2px 6px')
+    .style('border-radius', '12px')
+    .style('margin-top', '5px')
+    .style('margin-left', '5px')
+    .style('padding', '4px 8px')
     .style('user-select', 'none')
     .style(
       'font-family',

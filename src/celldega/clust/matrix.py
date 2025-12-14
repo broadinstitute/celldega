@@ -660,6 +660,19 @@ class Matrix:
         self.is_downsampled, self._clustered = True, False
         self._invalidate_cache(CacheLevel.DATA.value)
 
+        # Update entity specification for the downsampled axis
+        # The entity type stays the same, but the attribute changes to the aggregation category
+        current_entity = self.col_entity if axis_enum == Axis.COL else self.row_entity
+        new_entity: AxisEntity = {
+            "entity": current_entity.get("entity", "cell"),
+            "attr": category,
+        }
+
+        if axis_enum == Axis.COL:
+            self.col_entity = new_entity
+        else:
+            self.row_entity = new_entity
+
     def to_df(self) -> pd.DataFrame:
         """Return DataFrame copy of data."""
         return self.data.copy() if self.data is not None else pd.DataFrame()

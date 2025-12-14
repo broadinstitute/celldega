@@ -5,27 +5,25 @@ import { get_mat_layers_list } from './matrix_layers';
 
 /**
  * Get the fill color for a category tile, with hover highlighting support.
+ * When hovering over a category value, all OTHER tiles become very transparent.
  */
 const getCatFillColor = (d, viz_state, axis) => {
-  const hovered = viz_state.obs_store?.hovered_category?.get();
-  const selected = viz_state.obs_store?.selected_category?.get();
+  const hovered = viz_state.hovered_cat;
 
-  // Check if this tile is highlighted (hovered or selected)
-  const isHovered =
-    hovered &&
-    hovered.axis === axis &&
-    hovered.value === d.name &&
-    hovered.attr_index === d.level;
+  // If nothing is hovered, return normal color
+  if (!hovered || !hovered.name) {
+    return d.color;
+  }
 
-  const isSelected =
-    selected &&
-    selected.axis === axis &&
-    selected.value === d.name &&
-    selected.attr_index === d.level;
+  // If hovered on a different axis, return normal color
+  if (hovered.axis !== axis) {
+    return d.color;
+  }
 
-  if (isHovered || isSelected) {
+  // If this tile matches the hovered category value (same value, same level/attribute)
+  if (d.name === hovered.name && d.level === hovered.level) {
     // Brighten the color for highlight
-    const [r, g, b] = d.color;
+    const [r, g, b] = d.color.slice(0, 3);
     return [
       Math.min(255, r + 40),
       Math.min(255, g + 40),
@@ -34,7 +32,9 @@ const getCatFillColor = (d, viz_state, axis) => {
     ];
   }
 
-  return d.color;
+  // Otherwise, make this tile very transparent so the hovered category stands out
+  const [r, g, b] = d.color.slice(0, 3);
+  return [r, g, b, 40]; // Very low alpha
 };
 
 /**
@@ -112,12 +112,28 @@ const cat_layer_onclick = (event, viz_state, axis) => {
 
 /**
  * Handle category tile hover - for highlighting.
+ * Updates viz_state.hovered_cat and triggers layer re-render.
  */
 const cat_layer_onhover = (info, viz_state, axis, deck_mat, layers_mat) => {
+  const prev_hovered = viz_state.hovered_cat;
+
   if (!info.object) {
-    // Mouse left the tile
-    if (viz_state.obs_store?.hovered_category?.get()) {
-      viz_state.obs_store.hovered_category.set(null);
+    // Mouse left the tile - clear hover state
+    if (prev_hovered) {
+      viz_state.hovered_cat = null;
+
+      // Trigger re-render of both cat layers to restore normal colors
+      layers_mat.row_cat_layer = layers_mat.row_cat_layer.clone({
+        updateTriggers: {
+          getFillColor: [null],
+        },
+      });
+      layers_mat.col_cat_layer = layers_mat.col_cat_layer.clone({
+        updateTriggers: {
+          getFillColor: [null],
+        },
+      });
+      deck_mat.setProps({ layers: get_mat_layers_list(layers_mat) });
     }
     return;
   }
@@ -127,23 +143,45 @@ const cat_layer_onhover = (info, viz_state, axis, deck_mat, layers_mat) => {
 
   if (attr_index === undefined || value === undefined) return;
 
-  const attr_name = viz_state.attr.names[axis]?.[attr_index];
-
-  const current = viz_state.obs_store?.hovered_category?.get();
+  // Check if already hovering this exact tile
   if (
-    current?.axis === axis &&
-    current?.attr_index === attr_index &&
-    current?.value === value
+    prev_hovered?.axis === axis &&
+    prev_hovered?.level === attr_index &&
+    prev_hovered?.name === value
   ) {
     return; // Already hovering this tile
   }
 
-  viz_state.obs_store?.hovered_category?.set({
+  // Set new hover state
+  viz_state.hovered_cat = {
     axis,
-    attr_name,
-    attr_index,
-    value,
+    name: value,
+    level: attr_index,
+  };
+
+  // Trigger re-render of both cat layers to update transparency
+  layers_mat.row_cat_layer = layers_mat.row_cat_layer.clone({
+    updateTriggers: {
+      getFillColor: [viz_state.hovered_cat],
+    },
   });
+  layers_mat.col_cat_layer = layers_mat.col_cat_layer.clone({
+    updateTriggers: {
+      getFillColor: [viz_state.hovered_cat],
+    },
+  });
+  deck_mat.setProps({ layers: get_mat_layers_list(layers_mat) });
+
+  // Also update obs_store for other listeners
+  if (viz_state.obs_store?.hovered_category) {
+    const attr_name = viz_state.attr.names[axis]?.[attr_index];
+    viz_state.obs_store.hovered_category.set({
+      axis,
+      attr_name,
+      attr_index,
+      value,
+    });
+  }
 };
 
 export const ini_row_cat_layer = (viz_state) => {

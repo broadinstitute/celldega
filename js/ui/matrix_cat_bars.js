@@ -243,23 +243,13 @@ const compute_filtered_breakdown = (viz_state, axis, selected_names) => {
 };
 
 /**
- * Get entity display name for an axis.
+ * Get the first categorical attribute name for an axis.
  */
-const get_entity_display_name = (viz_state, axis) => {
-  const entity_info =
-    axis === 'row' ? viz_state.row_entity : viz_state.col_entity;
-
-  if (entity_info && entity_info.entity) {
-    // Capitalize and format nicely
-    const entity = entity_info.entity;
-    const attr = entity_info.attr;
-
-    if (attr && attr !== 'name') {
-      return `${entity} (${attr})`;
-    }
-    return entity;
+const get_first_cat_attr_name = (viz_state, axis) => {
+  const cats = viz_state.attr?.cats?.[axis] || [];
+  if (cats.length > 0) {
+    return cats[0];
   }
-
   return axis.toUpperCase();
 };
 
@@ -290,11 +280,14 @@ export const init_matrix_cat_bars = (viz_state, ui_container) => {
 
   // Create row bar if categories exist
   if (row_cats.length > 0) {
-    const entity_name = get_entity_display_name(viz_state, 'row');
-    const { wrapper, svg, title } = make_axis_cat_bar('row', entity_name);
+    const attr_name = get_first_cat_attr_name(viz_state, 'row');
+    const { wrapper, svg, title, bar_container } = make_axis_cat_bar(
+      'row',
+      `Row: ${attr_name}`
+    );
     cat_bars_container.appendChild(wrapper);
 
-    viz_state.cat_bars.row = { wrapper, svg, title };
+    viz_state.cat_bars.row = { wrapper, svg, title, bar_container };
 
     // Compute and display initial breakdown
     const initial = compute_initial_breakdown(viz_state, 'row');
@@ -315,11 +308,14 @@ export const init_matrix_cat_bars = (viz_state, ui_container) => {
 
   // Create col bar if categories exist
   if (col_cats.length > 0) {
-    const entity_name = get_entity_display_name(viz_state, 'col');
-    const { wrapper, svg, title } = make_axis_cat_bar('col', entity_name);
+    const attr_name = get_first_cat_attr_name(viz_state, 'col');
+    const { wrapper, svg, title, bar_container } = make_axis_cat_bar(
+      'col',
+      `Col: ${attr_name}`
+    );
     cat_bars_container.appendChild(wrapper);
 
-    viz_state.cat_bars.col = { wrapper, svg, title };
+    viz_state.cat_bars.col = { wrapper, svg, title, bar_container };
 
     // Compute and display initial breakdown
     const initial = compute_initial_breakdown(viz_state, 'col');
@@ -356,23 +352,63 @@ export const init_matrix_cat_bars = (viz_state, ui_container) => {
 
 /**
  * Get color dictionary from viz_state.
+ * Looks in multiple places for category colors:
+ * 1. Attribute definitions (where colors are stored during static def building)
+ * 2. Global category colors from network
+ * 3. Fallback category colors
  */
 const get_color_dict = (viz_state) => {
-  const colors = viz_state.attr?.category_colors || {};
   const rgb_colors = {};
 
-  Object.entries(colors).forEach(([key, value]) => {
-    if (typeof value === 'string' && value.startsWith('#')) {
-      const hex = value.replace('#', '');
-      rgb_colors[key] = [
-        parseInt(hex.substring(0, 2), 16),
-        parseInt(hex.substring(2, 4), 16),
-        parseInt(hex.substring(4, 6), 16),
-      ];
+  // Helper to convert hex to RGB array
+  const hexToRgb = (hex) => {
+    if (!hex || typeof hex !== 'string') return null;
+    const cleanHex = hex.replace('#', '');
+    if (cleanHex.length !== 6) return null;
+    return [
+      parseInt(cleanHex.substring(0, 2), 16),
+      parseInt(cleanHex.substring(2, 4), 16),
+      parseInt(cleanHex.substring(4, 6), 16),
+    ];
+  };
+
+  // Extract colors from attribute definitions (primary source)
+  ['row', 'col'].forEach((axis) => {
+    const all_defs = viz_state.attr?.all_defs?.[axis] || [];
+    all_defs.forEach((def) => {
+      if (def.type === 'categorical' && def.color_map) {
+        Object.entries(def.color_map).forEach(([key, value]) => {
+          if (rgb_colors[key]) return; // Don't override
+
+          if (typeof value === 'string') {
+            const rgb = hexToRgb(value);
+            if (rgb) {
+              rgb_colors[key] = rgb;
+            }
+          } else if (Array.isArray(value)) {
+            rgb_colors[key] = value.slice(0, 3);
+          }
+        });
+      }
+    });
+  });
+
+  // Also check global_cat_colors from network (secondary source)
+  const global_colors =
+    viz_state.network?.global_cat_colors ||
+    viz_state.global_cat_colors ||
+    {};
+
+  Object.entries(global_colors).forEach(([key, value]) => {
+    if (rgb_colors[key]) return; // Don't override
+
+    if (typeof value === 'string') {
+      const rgb = hexToRgb(value);
+      if (rgb) {
+        rgb_colors[key] = rgb;
+      }
     } else if (Array.isArray(value)) {
-      rgb_colors[key] = value;
-    } else {
-      rgb_colors[key] = [100, 100, 100];
+      rgb_colors[key] = value.slice(0, 3);
     }
   });
 
@@ -407,9 +443,10 @@ const update_cat_bars_on_selection = (viz_state, selection) => {
             }
           );
 
-          // Update title to show full count
-          const entity_name = get_entity_display_name(viz_state, axis);
-          viz_state.cat_bars[axis].title.textContent = entity_name;
+          // Update title to show attribute name
+          const attr_name = get_first_cat_attr_name(viz_state, axis);
+          const axis_label = axis === 'row' ? 'Row' : 'Col';
+          viz_state.cat_bars[axis].title.textContent = `${axis_label}: ${attr_name}`;
         }
       }
     });
@@ -439,9 +476,10 @@ const update_cat_bars_on_selection = (viz_state, selection) => {
       );
 
       // Update title to show filtered count
-      const entity_name = get_entity_display_name(viz_state, axis);
+      const attr_name = get_first_cat_attr_name(viz_state, axis);
+      const axis_label = axis === 'row' ? 'Row' : 'Col';
       const total = filtered.data.reduce((sum, d) => sum + d.value, 0);
-      viz_state.cat_bars[axis].title.textContent = `${entity_name} (${total})`;
+      viz_state.cat_bars[axis].title.textContent = `${axis_label}: ${attr_name} (${total})`;
     }
   }
 };

@@ -132,6 +132,10 @@ export const matrix_viz = async (
   layers_mat.row_dendro_layer = ini_dendro_layer(layers_mat, viz_state, 'row');
   layers_mat.col_dendro_layer = ini_dendro_layer(layers_mat, viz_state, 'col');
 
+  // Store references on viz_state for use by UI components (e.g., bar graph hover)
+  viz_state.deck_mat = deck_mat;
+  viz_state.layers_mat = layers_mat;
+
   refresh_attribute_layers(deck_mat, layers_mat, viz_state);
 
   // ---------------------------------------------------------------------------

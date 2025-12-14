@@ -1,4 +1,5 @@
 import * as d3 from 'd3';
+import { get_mat_layers_list } from '../deck-gl/matrix/matrix_layers';
 
 /**
  * Create a container for matrix category bar graphs.
@@ -76,7 +77,14 @@ const make_axis_cat_bar = (axis, entity_name, on_click) => {
 /**
  * Update a category bar graph with new data.
  */
-const update_cat_bar_graph = (svg, breakdown_data, color_dict, on_click) => {
+const update_cat_bar_graph = (
+  svg,
+  breakdown_data,
+  color_dict,
+  on_click,
+  on_hover,
+  on_hover_out
+) => {
   const bar_height = 14;
   const max_bar_width = 85;
   const svg_height = bar_height * (breakdown_data.length + 1);
@@ -101,11 +109,23 @@ const update_cat_bar_graph = (svg, breakdown_data, color_dict, on_click) => {
   const bars_enter = bars
     .enter()
     .append('g')
+    .attr('class', 'cat-bar-item')
+    .attr('data-name', (d) => d.name)
     .attr('transform', (d, i) => `translate(2,${y_scale(i) + 2})`)
     .style('cursor', on_click ? 'pointer' : 'default')
     .on('click', (event, d) => {
       if (on_click) {
         on_click(d);
+      }
+    })
+    .on('mouseenter', (event, d) => {
+      if (on_hover) {
+        on_hover(d);
+      }
+    })
+    .on('mouseleave', (event, d) => {
+      if (on_hover_out) {
+        on_hover_out(d);
       }
     });
 
@@ -156,8 +176,60 @@ const update_cat_bar_graph = (svg, breakdown_data, color_dict, on_click) => {
 
   bars_merged.select('text').text((d) => `${d.name} (${d.value})`);
 
+  // Add hover handlers to existing bars
+  bars_merged
+    .on('mouseenter', (event, d) => {
+      if (on_hover) {
+        on_hover(d);
+      }
+    })
+    .on('mouseleave', (event, d) => {
+      if (on_hover_out) {
+        on_hover_out(d);
+      }
+    });
+
   // Exit
   bars.exit().transition().duration(300).attr('opacity', 0).remove();
+};
+
+/**
+ * Update bar opacity based on hovered category.
+ * If a category is hovered, matching bars stay at full opacity,
+ * all other bars become very transparent.
+ */
+const update_bar_hover_state = (viz_state, hovered_name) => {
+  ['row', 'col'].forEach((axis) => {
+    const svg = viz_state.cat_bars?.[axis]?.svg;
+    if (!svg) return;
+
+    svg.selectAll('.cat-bar-item').each(function (d) {
+      const group = d3.select(this);
+      const rect = group.select('rect');
+      const text = group.select('text');
+
+      // Convert both to strings for comparison to handle type mismatches
+      const bar_name = String(d.name);
+      const hover_name = hovered_name != null ? String(hovered_name) : null;
+
+      if (!hover_name) {
+        // No hover - restore full opacity by removing inline styles
+        group.style('opacity', null);
+        rect.style('opacity', null);
+        text.style('opacity', null);
+      } else if (bar_name === hover_name) {
+        // Matching category - full opacity (explicitly set to override any transitions)
+        group.style('opacity', '1');
+        rect.style('opacity', '1');
+        text.style('opacity', '1');
+      } else {
+        // Non-matching - very transparent
+        group.style('opacity', '0.15');
+        rect.style('opacity', '0.15');
+        text.style('opacity', '0.15');
+      }
+    });
+  });
 };
 
 /**
@@ -254,6 +326,75 @@ const get_first_cat_attr_name = (viz_state, axis) => {
 };
 
 /**
+ * Trigger re-render of category tile layers to reflect hover state.
+ */
+const update_cat_tile_layers = (viz_state) => {
+  const deck_mat = viz_state.deck_mat;
+  const layers_mat = viz_state.layers_mat;
+
+  if (!deck_mat || !layers_mat) return;
+
+  // Clone layers with updated triggers to force re-render
+  if (layers_mat.row_cat_layer) {
+    layers_mat.row_cat_layer = layers_mat.row_cat_layer.clone({
+      updateTriggers: { getFillColor: [viz_state.hovered_cat] },
+    });
+  }
+  if (layers_mat.col_cat_layer) {
+    layers_mat.col_cat_layer = layers_mat.col_cat_layer.clone({
+      updateTriggers: { getFillColor: [viz_state.hovered_cat] },
+    });
+  }
+
+  deck_mat.setProps({ layers: get_mat_layers_list(layers_mat) });
+};
+
+/**
+ * Create hover handlers for bar graphs that sync with viz_state.hovered_cat.
+ */
+const create_bar_hover_handlers = (viz_state, axis, attr_index) => {
+  const on_hover = (d) => {
+    // Set hovered_cat on viz_state (for category tile highlighting)
+    viz_state.hovered_cat = {
+      axis,
+      name: d.name,
+      level: attr_index,
+    };
+
+    // Update bar graph opacities
+    update_bar_hover_state(viz_state, d.name);
+
+    // Update category tile layers in the Clustergram visualization
+    update_cat_tile_layers(viz_state);
+
+    // Update obs_store for any other listeners
+    if (viz_state.obs_store?.hovered_category) {
+      const attr_name = viz_state.attr.names[axis]?.[attr_index];
+      viz_state.obs_store.hovered_category.set({
+        axis,
+        attr_name,
+        attr_index,
+        value: d.name,
+      });
+    }
+  };
+
+  const on_hover_out = () => {
+    viz_state.hovered_cat = null;
+    update_bar_hover_state(viz_state, null);
+
+    // Update category tile layers
+    update_cat_tile_layers(viz_state);
+
+    if (viz_state.obs_store?.hovered_category) {
+      viz_state.obs_store.hovered_category.set(null);
+    }
+  };
+
+  return { on_hover, on_hover_out };
+};
+
+/**
  * Initialize the matrix category bar UI.
  * Creates containers for row and column category breakdowns.
  * Bar graphs are always shown when categories are available.
@@ -293,16 +434,29 @@ export const init_matrix_cat_bars = (viz_state, ui_container) => {
     const initial = compute_initial_breakdown(viz_state, 'row');
     if (initial && initial.data.length > 0) {
       const color_dict = get_color_dict(viz_state);
-      update_cat_bar_graph(svg, initial.data, color_dict, (d) => {
-        if (viz_state.obs_store?.selected_category) {
-          viz_state.obs_store.selected_category.set({
-            axis: 'row',
-            attr_name: initial.attr_name,
-            attr_index: initial.attr_index,
-            value: d.name,
-          });
-        }
-      });
+      const { on_hover, on_hover_out } = create_bar_hover_handlers(
+        viz_state,
+        'row',
+        initial.attr_index
+      );
+
+      update_cat_bar_graph(
+        svg,
+        initial.data,
+        color_dict,
+        (d) => {
+          if (viz_state.obs_store?.selected_category) {
+            viz_state.obs_store.selected_category.set({
+              axis: 'row',
+              attr_name: initial.attr_name,
+              attr_index: initial.attr_index,
+              value: d.name,
+            });
+          }
+        },
+        on_hover,
+        on_hover_out
+      );
     }
   }
 
@@ -321,16 +475,29 @@ export const init_matrix_cat_bars = (viz_state, ui_container) => {
     const initial = compute_initial_breakdown(viz_state, 'col');
     if (initial && initial.data.length > 0) {
       const color_dict = get_color_dict(viz_state);
-      update_cat_bar_graph(svg, initial.data, color_dict, (d) => {
-        if (viz_state.obs_store?.selected_category) {
-          viz_state.obs_store.selected_category.set({
-            axis: 'col',
-            attr_name: initial.attr_name,
-            attr_index: initial.attr_index,
-            value: d.name,
-          });
-        }
-      });
+      const { on_hover, on_hover_out } = create_bar_hover_handlers(
+        viz_state,
+        'col',
+        initial.attr_index
+      );
+
+      update_cat_bar_graph(
+        svg,
+        initial.data,
+        color_dict,
+        (d) => {
+          if (viz_state.obs_store?.selected_category) {
+            viz_state.obs_store.selected_category.set({
+              axis: 'col',
+              attr_name: initial.attr_name,
+              attr_index: initial.attr_index,
+              value: d.name,
+            });
+          }
+        },
+        on_hover,
+        on_hover_out
+      );
     }
   }
 
@@ -339,6 +506,20 @@ export const init_matrix_cat_bars = (viz_state, ui_container) => {
     viz_state.obs_store.dendro_selection.subscribe(
       (selection) => {
         update_cat_bars_on_selection(viz_state, selection);
+      },
+      { immediate: false }
+    );
+  }
+
+  // Subscribe to hovered_category changes (from category tile hover)
+  if (viz_state.obs_store?.hovered_category) {
+    viz_state.obs_store.hovered_category.subscribe(
+      (hovered) => {
+        if (hovered) {
+          update_bar_hover_state(viz_state, hovered.value);
+        } else {
+          update_bar_hover_state(viz_state, null);
+        }
       },
       { immediate: false }
     );
@@ -427,6 +608,12 @@ const update_cat_bars_on_selection = (viz_state, selection) => {
       if (viz_state.cat_bars?.[axis]) {
         const initial = compute_initial_breakdown(viz_state, axis);
         if (initial && initial.data.length > 0) {
+          const { on_hover, on_hover_out } = create_bar_hover_handlers(
+            viz_state,
+            axis,
+            initial.attr_index
+          );
+
           update_cat_bar_graph(
             viz_state.cat_bars[axis].svg,
             initial.data,
@@ -440,7 +627,9 @@ const update_cat_bars_on_selection = (viz_state, selection) => {
                   value: d.name,
                 });
               }
-            }
+            },
+            on_hover,
+            on_hover_out
           );
 
           // Update title to show attribute name
@@ -459,6 +648,12 @@ const update_cat_bars_on_selection = (viz_state, selection) => {
   if (viz_state.cat_bars?.[axis]) {
     const filtered = compute_filtered_breakdown(viz_state, axis, selected_names);
     if (filtered && filtered.data.length > 0) {
+      const { on_hover, on_hover_out } = create_bar_hover_handlers(
+        viz_state,
+        axis,
+        filtered.attr_index
+      );
+
       update_cat_bar_graph(
         viz_state.cat_bars[axis].svg,
         filtered.data,
@@ -472,7 +667,9 @@ const update_cat_bars_on_selection = (viz_state, selection) => {
               value: d.name,
             });
           }
-        }
+        },
+        on_hover,
+        on_hover_out
       );
 
       // Update title to show filtered count

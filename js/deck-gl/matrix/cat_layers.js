@@ -5,7 +5,9 @@ import { get_mat_layers_list } from './matrix_layers';
 
 /**
  * Get the fill color for a category tile, with hover highlighting support.
- * When hovering over a category value, all OTHER tiles become very transparent.
+ * When hovering over a category value:
+ * - Matching tiles (same category value) stay at normal opacity
+ * - ALL other tiles (any axis, any attribute) become very transparent
  */
 const getCatFillColor = (d, viz_state, axis) => {
   const hovered = viz_state.hovered_cat;
@@ -15,21 +17,10 @@ const getCatFillColor = (d, viz_state, axis) => {
     return d.color;
   }
 
-  // If hovered on a different axis, return normal color
-  if (hovered.axis !== axis) {
+  // If this tile matches the hovered category VALUE (regardless of axis or attribute level)
+  // Keep it at normal opacity
+  if (d.name === hovered.name) {
     return d.color;
-  }
-
-  // If this tile matches the hovered category value (same value, same level/attribute)
-  if (d.name === hovered.name && d.level === hovered.level) {
-    // Brighten the color for highlight
-    const [r, g, b] = d.color.slice(0, 3);
-    return [
-      Math.min(255, r + 40),
-      Math.min(255, g + 40),
-      Math.min(255, b + 40),
-      255,
-    ];
   }
 
   // Otherwise, make this tile very transparent so the hovered category stands out
@@ -134,6 +125,11 @@ const cat_layer_onhover = (info, viz_state, axis, deck_mat, layers_mat) => {
         },
       });
       deck_mat.setProps({ layers: get_mat_layers_list(layers_mat) });
+
+      // Clear obs_store hovered_category so bar graphs update
+      if (viz_state.obs_store?.hovered_category) {
+        viz_state.obs_store.hovered_category.set(null);
+      }
     }
     return;
   }

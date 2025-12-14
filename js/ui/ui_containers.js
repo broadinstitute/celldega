@@ -102,14 +102,24 @@ export const make_slider_container = (class_name) => {
 
 /**
  * Get a short display name for an axis entity.
+ * Returns "Row" or "Col" if no entity is specified or if entity is "N.A.".
  */
 const get_axis_display_name = (viz_state, axis) => {
   const entity_info =
     axis === 'row' ? viz_state.row_entity : viz_state.col_entity;
 
+  // Default to "Row" or "Col" if no entity or if entity is "N.A."
+  const default_name = axis === 'row' ? 'Row' : 'Col';
+
   if (entity_info && entity_info.entity) {
-    // Use abbreviated entity name
     const entity = entity_info.entity;
+
+    // If entity is "N.A." or empty, use default axis name
+    if (!entity || entity === 'N.A.' || entity === 'n.a.') {
+      return default_name;
+    }
+
+    // Use abbreviated entity name for known types
     const abbrev = {
       gene: 'Gene',
       cell: 'Cell',
@@ -120,7 +130,7 @@ const get_axis_display_name = (viz_state, axis) => {
     return abbrev[entity] || entity.substring(0, 4).toUpperCase();
   }
 
-  return axis.toUpperCase();
+  return default_name;
 };
 
 export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
@@ -129,9 +139,9 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
 
   const slider_container = flex_container('slider_container', 'column');
 
-  // Button widths for reorder controls
-  const button_width = 40;
-  const label_width = 35;
+  // Button widths for reorder controls (compact sizing)
+  const button_width = 34;
+  const label_width = 28;
 
   const axes = ['col', 'row'];
 
@@ -147,21 +157,21 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
       .append('div')
       .text(axis_label)
       .style('width', `${label_width}px`)
-      .style('height', '18px')
+      .style('height', '16px')
       .style('display', 'inline-flex')
       .style('align-items', 'center')
       .style('justify-content', 'center')
       .style('text-align', 'center')
       .style('cursor', 'pointer')
-      .style('font-size', '10px')
+      .style('font-size', '9px')
       .style('font-weight', 'bold')
       .style('color', '#47515b')
       .style('border', '2px solid')
       .style('border-color', 'white')
-      .style('border-radius', '10px')
-      .style('margin-top', '3px')
+      .style('border-radius', '8px')
+      .style('margin-top', '4px')
       .style('margin-left', '3px')
-      .style('padding', '2px 4px')
+      .style('padding', '2px 2px')
       .style('user-select', 'none')
       .style(
         'font-family',

@@ -9,43 +9,41 @@ export const make_matrix_cat_bar_container = () => {
   container.className = 'matrix-cat-bar-container';
   container.style.display = 'flex';
   container.style.flexDirection = 'row';
-  container.style.gap = '10px';
+  container.style.gap = '8px';
   container.style.marginTop = '5px';
+  container.style.marginLeft = '10px';
   container.style.maxHeight = '100px';
   container.style.overflow = 'hidden';
   return container;
 };
 
 /**
- * Create a single category bar graph for an attribute.
+ * Create a single category bar graph for an axis.
  */
-const make_single_cat_bar = (
-  attr_name,
-  breakdown_data,
-  color_dict,
-  on_click
-) => {
+const make_axis_cat_bar = (axis, entity_name, on_click) => {
   const wrapper = document.createElement('div');
-  wrapper.className = 'cat-bar-wrapper';
+  wrapper.className = `cat-bar-wrapper-${axis}`;
   wrapper.style.display = 'flex';
   wrapper.style.flexDirection = 'column';
-  wrapper.style.width = '100px';
+  wrapper.style.width = '95px';
 
-  // Title
+  // Title - use entity name if available
   const title = document.createElement('div');
-  title.textContent = attr_name;
+  title.className = `cat-bar-title-${axis}`;
+  title.textContent = entity_name || axis.toUpperCase();
   title.style.fontSize = '10px';
   title.style.fontWeight = 'bold';
   title.style.marginBottom = '2px';
   title.style.whiteSpace = 'nowrap';
   title.style.overflow = 'hidden';
   title.style.textOverflow = 'ellipsis';
+  title.style.textTransform = 'capitalize';
   wrapper.appendChild(title);
 
   // Bar container
   const bar_container = document.createElement('div');
-  bar_container.className = 'cat-bar-graph';
-  bar_container.style.width = '100px';
+  bar_container.className = `cat-bar-graph-${axis}`;
+  bar_container.style.width = '95px';
   bar_container.style.height = '72px';
   bar_container.style.overflowY = 'auto';
   bar_container.style.border = '1px solid #d3d3d3';
@@ -64,7 +62,7 @@ const make_single_cat_bar = (
 
   const svg = d3
     .create('svg')
-    .attr('width', 95)
+    .attr('width', 90)
     .attr('font-family', 'sans-serif')
     .attr('font-size', '11')
     .attr('text-anchor', 'end')
@@ -72,9 +70,7 @@ const make_single_cat_bar = (
 
   bar_container.appendChild(svg.node());
 
-  update_cat_bar_graph(svg, breakdown_data, color_dict, on_click);
-
-  return { wrapper, svg };
+  return { wrapper, bar_container, svg, title };
 };
 
 /**
@@ -165,69 +161,188 @@ const update_cat_bar_graph = (svg, breakdown_data, color_dict, on_click) => {
 };
 
 /**
+ * Compute initial category breakdown for all nodes (no filter).
+ * Uses the first categorical attribute for each axis.
+ */
+const compute_initial_breakdown = (viz_state, axis) => {
+  const nodes = axis === 'row' ? viz_state.row_nodes : viz_state.col_nodes;
+  const cats = viz_state.attr?.cats?.[axis] || [];
+
+  // Use first categorical attribute if available
+  if (cats.length === 0 || !nodes || nodes.length === 0) {
+    return null;
+  }
+
+  const first_cat = cats[0];
+  const attr_names = viz_state.attr?.names?.[axis] || [];
+  const attr_index = attr_names.indexOf(first_cat);
+
+  if (attr_index < 0) return null;
+
+  const cat_key = `cat-${attr_index}`;
+  const counts = {};
+
+  nodes.forEach((node) => {
+    const value = node[cat_key];
+    if (value !== undefined && value !== null) {
+      counts[value] = (counts[value] || 0) + 1;
+    }
+  });
+
+  // Convert to sorted array
+  const breakdown_array = Object.entries(counts)
+    .map(([name, count]) => ({ name, value: count }))
+    .sort((a, b) => b.value - a.value);
+
+  return {
+    attr_name: first_cat,
+    attr_index,
+    data: breakdown_array,
+  };
+};
+
+/**
+ * Compute filtered category breakdown for selected nodes.
+ */
+const compute_filtered_breakdown = (viz_state, axis, selected_names) => {
+  const nodes = axis === 'row' ? viz_state.row_nodes : viz_state.col_nodes;
+  const cats = viz_state.attr?.cats?.[axis] || [];
+
+  if (cats.length === 0 || !nodes || nodes.length === 0) {
+    return null;
+  }
+
+  const first_cat = cats[0];
+  const attr_names = viz_state.attr?.names?.[axis] || [];
+  const attr_index = attr_names.indexOf(first_cat);
+
+  if (attr_index < 0) return null;
+
+  const selected_set = new Set(selected_names);
+  const selected_nodes = nodes.filter((node) => selected_set.has(node.name));
+
+  const cat_key = `cat-${attr_index}`;
+  const counts = {};
+
+  selected_nodes.forEach((node) => {
+    const value = node[cat_key];
+    if (value !== undefined && value !== null) {
+      counts[value] = (counts[value] || 0) + 1;
+    }
+  });
+
+  const breakdown_array = Object.entries(counts)
+    .map(([name, count]) => ({ name, value: count }))
+    .sort((a, b) => b.value - a.value);
+
+  return {
+    attr_name: first_cat,
+    attr_index,
+    data: breakdown_array,
+  };
+};
+
+/**
+ * Get entity display name for an axis.
+ */
+const get_entity_display_name = (viz_state, axis) => {
+  const entity_info =
+    axis === 'row' ? viz_state.row_entity : viz_state.col_entity;
+
+  if (entity_info && entity_info.entity) {
+    // Capitalize and format nicely
+    const entity = entity_info.entity;
+    const attr = entity_info.attr;
+
+    if (attr && attr !== 'name') {
+      return `${entity} (${attr})`;
+    }
+    return entity;
+  }
+
+  return axis.toUpperCase();
+};
+
+/**
  * Initialize the matrix category bar UI.
  * Creates containers for row and column category breakdowns.
+ * Bar graphs are always shown when categories are available.
  */
 export const init_matrix_cat_bars = (viz_state, ui_container) => {
+  // Check if there are categorical attributes
+  const row_cats = viz_state.attr?.cats?.row || [];
+  const col_cats = viz_state.attr?.cats?.col || [];
+
+  if (row_cats.length === 0 && col_cats.length === 0) {
+    // No categories to show
+    return null;
+  }
+
   // Create main container
   const cat_bars_container = make_matrix_cat_bar_container();
-
-  // Create row section
-  const row_section = document.createElement('div');
-  row_section.className = 'cat-bars-row-section';
-  row_section.style.display = 'none'; // Hidden until dendro click
-
-  const row_title = document.createElement('div');
-  row_title.textContent = 'Row Categories';
-  row_title.style.fontSize = '11px';
-  row_title.style.fontWeight = 'bold';
-  row_title.style.marginBottom = '3px';
-  row_section.appendChild(row_title);
-
-  const row_bars_container = document.createElement('div');
-  row_bars_container.className = 'row-bars-container';
-  row_bars_container.style.display = 'flex';
-  row_bars_container.style.flexDirection = 'row';
-  row_bars_container.style.gap = '5px';
-  row_section.appendChild(row_bars_container);
-
-  // Create col section
-  const col_section = document.createElement('div');
-  col_section.className = 'cat-bars-col-section';
-  col_section.style.display = 'none'; // Hidden until dendro click
-
-  const col_title = document.createElement('div');
-  col_title.textContent = 'Col Categories';
-  col_title.style.fontSize = '11px';
-  col_title.style.fontWeight = 'bold';
-  col_title.style.marginBottom = '3px';
-  col_section.appendChild(col_title);
-
-  const col_bars_container = document.createElement('div');
-  col_bars_container.className = 'col-bars-container';
-  col_bars_container.style.display = 'flex';
-  col_bars_container.style.flexDirection = 'row';
-  col_bars_container.style.gap = '5px';
-  col_section.appendChild(col_bars_container);
-
-  cat_bars_container.appendChild(row_section);
-  cat_bars_container.appendChild(col_section);
 
   // Store references
   viz_state.cat_bars = {
     container: cat_bars_container,
-    row_section,
-    row_bars_container,
-    col_section,
-    col_bars_container,
-    bar_svgs: { row: {}, col: {} },
+    row: null,
+    col: null,
   };
 
-  // Subscribe to category breakdown changes
-  if (viz_state.obs_store?.category_breakdown) {
-    viz_state.obs_store.category_breakdown.subscribe(
-      (breakdown) => {
-        update_matrix_cat_bars(viz_state, breakdown);
+  // Create row bar if categories exist
+  if (row_cats.length > 0) {
+    const entity_name = get_entity_display_name(viz_state, 'row');
+    const { wrapper, svg, title } = make_axis_cat_bar('row', entity_name);
+    cat_bars_container.appendChild(wrapper);
+
+    viz_state.cat_bars.row = { wrapper, svg, title };
+
+    // Compute and display initial breakdown
+    const initial = compute_initial_breakdown(viz_state, 'row');
+    if (initial && initial.data.length > 0) {
+      const color_dict = get_color_dict(viz_state);
+      update_cat_bar_graph(svg, initial.data, color_dict, (d) => {
+        if (viz_state.obs_store?.selected_category) {
+          viz_state.obs_store.selected_category.set({
+            axis: 'row',
+            attr_name: initial.attr_name,
+            attr_index: initial.attr_index,
+            value: d.name,
+          });
+        }
+      });
+    }
+  }
+
+  // Create col bar if categories exist
+  if (col_cats.length > 0) {
+    const entity_name = get_entity_display_name(viz_state, 'col');
+    const { wrapper, svg, title } = make_axis_cat_bar('col', entity_name);
+    cat_bars_container.appendChild(wrapper);
+
+    viz_state.cat_bars.col = { wrapper, svg, title };
+
+    // Compute and display initial breakdown
+    const initial = compute_initial_breakdown(viz_state, 'col');
+    if (initial && initial.data.length > 0) {
+      const color_dict = get_color_dict(viz_state);
+      update_cat_bar_graph(svg, initial.data, color_dict, (d) => {
+        if (viz_state.obs_store?.selected_category) {
+          viz_state.obs_store.selected_category.set({
+            axis: 'col',
+            attr_name: initial.attr_name,
+            attr_index: initial.attr_index,
+            value: d.name,
+          });
+        }
+      });
+    }
+  }
+
+  // Subscribe to dendro selection changes
+  if (viz_state.obs_store?.dendro_selection) {
+    viz_state.obs_store.dendro_selection.subscribe(
+      (selection) => {
+        update_cat_bars_on_selection(viz_state, selection);
       },
       { immediate: false }
     );
@@ -240,98 +355,94 @@ export const init_matrix_cat_bars = (viz_state, ui_container) => {
 };
 
 /**
- * Update the matrix category bar graphs with new breakdown data.
+ * Get color dictionary from viz_state.
  */
-const update_matrix_cat_bars = (viz_state, breakdown) => {
-  const { row_section, row_bars_container, col_section, col_bars_container } =
-    viz_state.cat_bars;
+const get_color_dict = (viz_state) => {
+  const colors = viz_state.attr?.category_colors || {};
+  const rgb_colors = {};
 
-  // Get color dictionaries from viz_state
-  const get_color_dict = (axis) => {
-    const colors = viz_state.attr?.category_colors || {};
-    // Convert hex colors to RGB arrays if needed
-    const rgb_colors = {};
-    Object.entries(colors).forEach(([key, value]) => {
-      if (typeof value === 'string' && value.startsWith('#')) {
-        // Convert hex to RGB
-        const hex = value.replace('#', '');
-        rgb_colors[key] = [
-          parseInt(hex.substring(0, 2), 16),
-          parseInt(hex.substring(1, 2) + hex.substring(2, 4), 16),
-          parseInt(hex.substring(4, 6), 16),
-        ];
-      } else if (Array.isArray(value)) {
-        rgb_colors[key] = value;
-      } else {
-        rgb_colors[key] = [100, 100, 100];
+  Object.entries(colors).forEach(([key, value]) => {
+    if (typeof value === 'string' && value.startsWith('#')) {
+      const hex = value.replace('#', '');
+      rgb_colors[key] = [
+        parseInt(hex.substring(0, 2), 16),
+        parseInt(hex.substring(2, 4), 16),
+        parseInt(hex.substring(4, 6), 16),
+      ];
+    } else if (Array.isArray(value)) {
+      rgb_colors[key] = value;
+    } else {
+      rgb_colors[key] = [100, 100, 100];
+    }
+  });
+
+  return rgb_colors;
+};
+
+/**
+ * Update category bar graphs when dendro selection changes.
+ */
+const update_cat_bars_on_selection = (viz_state, selection) => {
+  const color_dict = get_color_dict(viz_state);
+
+  if (!selection) {
+    // Reset to full breakdown
+    ['row', 'col'].forEach((axis) => {
+      if (viz_state.cat_bars?.[axis]) {
+        const initial = compute_initial_breakdown(viz_state, axis);
+        if (initial && initial.data.length > 0) {
+          update_cat_bar_graph(
+            viz_state.cat_bars[axis].svg,
+            initial.data,
+            color_dict,
+            (d) => {
+              if (viz_state.obs_store?.selected_category) {
+                viz_state.obs_store.selected_category.set({
+                  axis,
+                  attr_name: initial.attr_name,
+                  attr_index: initial.attr_index,
+                  value: d.name,
+                });
+              }
+            }
+          );
+
+          // Update title to show full count
+          const entity_name = get_entity_display_name(viz_state, axis);
+          viz_state.cat_bars[axis].title.textContent = entity_name;
+        }
       }
     });
-    return rgb_colors;
-  };
-
-  // Update row bars
-  const row_breakdown = breakdown?.row || {};
-  const row_attrs = Object.keys(row_breakdown);
-
-  if (row_attrs.length > 0) {
-    row_section.style.display = 'block';
-    row_bars_container.innerHTML = '';
-
-    const color_dict = get_color_dict('row');
-
-    row_attrs.forEach((attr_name) => {
-      const { wrapper, svg } = make_single_cat_bar(
-        attr_name,
-        row_breakdown[attr_name],
-        color_dict,
-        (d) => {
-          // Click callback - could filter or highlight
-          if (viz_state.obs_store?.selected_category) {
-            viz_state.obs_store.selected_category.set({
-              axis: 'row',
-              attr_name,
-              value: d.name,
-            });
-          }
-        }
-      );
-      row_bars_container.appendChild(wrapper);
-      viz_state.cat_bars.bar_svgs.row[attr_name] = svg;
-    });
-  } else {
-    row_section.style.display = 'none';
+    return;
   }
 
-  // Update col bars
-  const col_breakdown = breakdown?.col || {};
-  const col_attrs = Object.keys(col_breakdown);
+  // Update the bar for the selected axis
+  const { axis, selected_names } = selection;
 
-  if (col_attrs.length > 0) {
-    col_section.style.display = 'block';
-    col_bars_container.innerHTML = '';
-
-    const color_dict = get_color_dict('col');
-
-    col_attrs.forEach((attr_name) => {
-      const { wrapper, svg } = make_single_cat_bar(
-        attr_name,
-        col_breakdown[attr_name],
+  if (viz_state.cat_bars?.[axis]) {
+    const filtered = compute_filtered_breakdown(viz_state, axis, selected_names);
+    if (filtered && filtered.data.length > 0) {
+      update_cat_bar_graph(
+        viz_state.cat_bars[axis].svg,
+        filtered.data,
         color_dict,
         (d) => {
-          // Click callback
           if (viz_state.obs_store?.selected_category) {
             viz_state.obs_store.selected_category.set({
-              axis: 'col',
-              attr_name,
+              axis,
+              attr_name: filtered.attr_name,
+              attr_index: filtered.attr_index,
               value: d.name,
             });
           }
         }
       );
-      col_bars_container.appendChild(wrapper);
-      viz_state.cat_bars.bar_svgs.col[attr_name] = svg;
-    });
-  } else {
-    col_section.style.display = 'none';
+
+      // Update title to show filtered count
+      const entity_name = get_entity_display_name(viz_state, axis);
+      const total = filtered.data.reduce((sum, d) => sum + d.value, 0);
+      viz_state.cat_bars[axis].title.textContent = `${entity_name} (${total})`;
+    }
   }
 };
+

@@ -100,13 +100,38 @@ export const make_slider_container = (class_name) => {
   return slider_container;
 };
 
+/**
+ * Get a short display name for an axis entity.
+ */
+const get_axis_display_name = (viz_state, axis) => {
+  const entity_info =
+    axis === 'row' ? viz_state.row_entity : viz_state.col_entity;
+
+  if (entity_info && entity_info.entity) {
+    // Use abbreviated entity name
+    const entity = entity_info.entity;
+    const abbrev = {
+      gene: 'Gene',
+      cell: 'Cell',
+      nbhd: 'Nbhd',
+      cluster: 'Clust',
+      hextile: 'Hex',
+    };
+    return abbrev[entity] || entity.substring(0, 4).toUpperCase();
+  }
+
+  return axis.toUpperCase();
+};
+
 export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
   const ui_container = make_ui_container();
   const ctrl_container = flex_container('button_container', 'column');
 
   const slider_container = flex_container('slider_container', 'column');
 
-  const button_width = 33;
+  // More compact button width
+  const button_width = 28;
+  const label_width = 35;
 
   const axes = ['col', 'row'];
 
@@ -115,25 +140,28 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
   axes.forEach((axis) => {
     const inst_container = flex_container(axis, 'row');
 
+    // Use entity name if available
+    const axis_label = get_axis_display_name(viz_state, axis);
+
     d3.select(inst_container)
       .append('div')
-      .text(axis.toUpperCase())
-      .style('width', `${button_width}px`)
-      .style('height', '20px') // Adjust height for button padding
+      .text(axis_label)
+      .style('width', `${label_width}px`)
+      .style('height', '18px')
       .style('display', 'inline-flex')
       .style('align-items', 'center')
       .style('justify-content', 'center')
       .style('text-align', 'center')
       .style('cursor', 'pointer')
-      .style('font-size', '12px')
+      .style('font-size', '10px')
       .style('font-weight', 'bold')
       .style('color', '#47515b')
-      .style('border', '3px solid') // Light gray border
-      .style('border-color', 'white') // Light gray border
-      .style('border-radius', '12px') // Rounded corners
-      .style('margin-top', '5px')
-      .style('margin-left', '5px')
-      .style('padding', '4px 10px') // Padding inside the button
+      .style('border', '2px solid')
+      .style('border-color', 'white')
+      .style('border-radius', '10px')
+      .style('margin-top', '3px')
+      .style('margin-left', '3px')
+      .style('padding', '2px 4px')
       .style('user-select', 'none')
       .style(
         'font-family',
@@ -189,28 +217,26 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
     );
   });
 
-  viz_state.dendro.sliders.col.style.marginTop = '5px';
-  viz_state.dendro.sliders.row.style.marginTop = '20px';
+  viz_state.dendro.sliders.col.style.marginTop = '3px';
+  viz_state.dendro.sliders.row.style.marginTop = '10px';
 
   d3.select(slider_container)
     .append('div')
-    .text('DENDRO')
-    .style('width', `${button_width}px`)
-    .style('height', '20px') // Adjust height for button padding
+    .text('Dendro')
+    .style('width', '40px')
+    .style('height', '16px')
     .style('display', 'inline-flex')
     .style('align-items', 'center')
     .style('justify-content', 'center')
     .style('text-align', 'center')
     .style('cursor', 'pointer')
-    .style('font-size', '12px')
+    .style('font-size', '10px')
     .style('font-weight', 'bold')
     .style('color', '#47515b')
-    .style('border', '3px solid') // Light gray border
-    .style('border-color', 'white') // Light gray border
-    .style('border-radius', '12px') // Rounded corners
-    // .style('margin-top', '5px')
-    .style('margin-left', '20px')
-    // .style('padding', '4px 10px')  // Padding inside the button
+    .style('border', '2px solid')
+    .style('border-color', 'white')
+    .style('border-radius', '8px')
+    .style('margin-left', '10px')
     .style('user-select', 'none')
     .style(
       'font-family',
@@ -221,9 +247,9 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
   slider_container.appendChild(viz_state.dendro.sliders.row);
 
   // add top margin to ctrl_container and slider_container
-  ctrl_container.style.marginTop = '15px';
+  ctrl_container.style.marginTop = '10px';
   slider_container.style.marginTop = '0px';
-  slider_container.style.marginLeft = '10px';
+  slider_container.style.marginLeft = '5px';
 
   ui_container.appendChild(ctrl_container);
   ui_container.appendChild(slider_container);

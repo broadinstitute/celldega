@@ -138,6 +138,11 @@ const update_combined_attr_defs = (viz_state) => {
       definition.type === 'numeric' ? (definition.maxabs ?? 0) : null
     );
     viz_state.attr.num[axis] = combined_defs.length;
+
+    // Track categorical attribute names for bar graphs
+    viz_state.attr.cats[axis] = combined_defs
+      .filter((definition) => definition.type === 'categorical')
+      .map((definition) => definition.name);
   });
 };
 
@@ -189,6 +194,7 @@ export const initialize_attr_state = (viz_state, network) => {
   viz_state.attr.names = viz_state.attr.names || { row: [], col: [] };
   viz_state.attr.maxabs = viz_state.attr.maxabs || { row: [], col: [] };
   viz_state.attr.num = viz_state.attr.num || { row: 0, col: 0 };
+  viz_state.attr.cats = { row: [], col: [] }; // Track categorical attribute names
 
   viz_state.attr.category_colors = {};
   viz_state.attr.did_initialize = false;

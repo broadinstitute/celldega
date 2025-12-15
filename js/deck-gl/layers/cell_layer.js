@@ -82,8 +82,16 @@ export const get_cell_color = (cats, highlighted_cells, i, d) => {
       const inst_exp = cats.cell_exp_array[d.index];
 
       // Check if we should filter to specific clusters (gene+cluster combination)
-      // If selected_cats has values, only show expression for cells in those clusters
-      if (cats.selected_cats && cats.selected_cats.length > 0) {
+      // Only apply cluster filter if selected_cats contains actual cluster names
+      // (not the gene name itself, which happens during normal gene selection)
+      const has_cluster_filter =
+        cats.selected_cats &&
+        cats.selected_cats.length > 0 &&
+        cats.selected_cats.some(
+          (cat) => cats.color_dict_cluster && cat in cats.color_dict_cluster
+        );
+
+      if (has_cluster_filter) {
         const inst_cat = cats.cell_cats[d.index];
         if (!cats.selected_cats.includes(inst_cat)) {
           // Cell is not in the selected cluster(s) - make transparent

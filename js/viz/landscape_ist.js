@@ -63,6 +63,7 @@ import { set_meta_gene } from '../global_variables/meta_gene';
 import { update_selected_genes } from '../global_variables/selected_genes';
 import { colorToRgba } from '../matrix/cat_data';
 import { create_obs_store } from '../obs_store/obs_store';
+import { initialize_nbhd_editor } from '../ui/nbhd_editor';
 import { toggle_slider, set_image_layer_sliders } from '../ui/sliders';
 import { get_img_layer_visible } from '../ui/text_buttons';
 import { make_ist_ui_container } from '../ui/ui_containers';
@@ -460,6 +461,52 @@ export const landscape_ist = async (
     };
   }
 
+  // When nbhd_edit is true and nbhd data is provided, initialize the edit layer
+  // with the existing neighborhood features to allow editing pre-loaded neighborhoods
+  if (nbhd_edit && Object.keys(nbhd).length > 0 && nbhd.features?.length > 0) {
+    // Deep copy the nbhd features to the edit layer's feature collection
+    // Colors are kept in hex format for consistency - the edit layer converts to RGB for rendering
+    viz_state.edit.feature_collection = {
+      type: 'FeatureCollection',
+      features: nbhd.features.map((feature, index) => ({
+        ...feature,
+        properties: {
+          ...feature.properties,
+          // Keep color in hex format (the edit layer converts to RGB for rendering)
+          color: feature.properties.color || '#808080',
+          // Use existing name/cat or assign numeric index
+          name: feature.properties.name || (index + 1).toString(),
+          cat: feature.properties.cat || (index + 1).toString(),
+        },
+      })),
+    };
+
+    // Also update nbhd.bar_data and nbhd.color_dict for the bar graph
+    // when editing pre-loaded neighborhoods
+    const unique_cats = new Set(
+      viz_state.edit.feature_collection.features.map((f) => f.properties.cat)
+    );
+    viz_state.nbhd.bar_data = Array.from(unique_cats)
+      .map((cat) => {
+        const features = viz_state.edit.feature_collection.features.filter(
+          (f) => f.properties.cat === cat
+        );
+        const area = features.reduce(
+          (acc, f) => acc + (f.properties.area || 0),
+          0
+        );
+        return { name: cat, value: area };
+      })
+      .sort((a, b) => b.value - a.value);
+
+    viz_state.nbhd.color_dict = {};
+    viz_state.edit.feature_collection.features.forEach((feature) => {
+      const { color } = feature.properties;
+      // Convert hex to RGBA for the color dict used in bar graphs
+      viz_state.nbhd.color_dict[feature.properties.cat] = colorToRgba(color);
+    });
+  }
+
   const background_layer = ini_background_layer(viz_state);
   const image_layers = await make_image_layers(viz_state);
   const cell_layer = await ini_cell_layer(base_url, viz_state);
@@ -700,6 +747,15 @@ export const landscape_ist = async (
   // UI and Viz Container
   el.appendChild(ui_container);
   el.appendChild(root);
+
+  // Initialize neighborhood editor dialog if nbhd_edit mode is enabled
+  if (viz_state.nbhd.edit) {
+    viz_state.nbhd_editor = initialize_nbhd_editor(
+      viz_state,
+      deck_ist,
+      layers_obj
+    );
+  }
 
   const isChromium = ['Chromium', 'point-cloud'].includes(
     viz_state.img.landscape_parameters.technology

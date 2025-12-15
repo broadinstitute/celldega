@@ -270,6 +270,11 @@ const dendro_layer_onclick = (event, deck_mat, layers_mat, viz_state, axis) => {
   if (is_unselecting) {
     viz_state.click.value.selected_names = [];
     viz_state.click.value.is_unselecting = true;
+
+    // Close the editor when unselecting
+    if (viz_state.attr?.editor?.close) {
+      viz_state.attr.editor.close();
+    }
   }
 
   if (Object.keys(viz_state.model).length > 0) {
@@ -289,13 +294,42 @@ const dendro_layer_onclick = (event, deck_mat, layers_mat, viz_state, axis) => {
     sync_selected_cols(viz_state, names_to_sync);
   }
 
-  if (viz_state.attr?.editor?.open) {
+  // Open editor positioned 1px left of row dendro or 1px above col dendro
+  if (viz_state.attr?.editor?.open && !is_unselecting) {
+    const editor_width = 240;
+    const editor_height = 200;
+    let position;
+    if (axis === 'row') {
+      // Row dendro is on the right - position editor 1px to the left of it
+      position = {
+        x:
+          (viz_state.viz.row_region || 0) +
+          (viz_state.viz.label_buffer || 0) +
+          (viz_state.viz.mat_width || 300) -
+          editor_width -
+          1,
+        y: (viz_state.viz.col_region || 0) + (viz_state.viz.label_buffer || 0),
+      };
+    } else {
+      // Col dendro is at the bottom - position editor 1px above it
+      position = {
+        x:
+          (viz_state.viz.row_region || 0) +
+          (viz_state.viz.label_buffer || 0) +
+          (viz_state.viz.mat_width || 300) -
+          editor_width,
+        y:
+          (viz_state.viz.col_region || 0) +
+          (viz_state.viz.label_buffer || 0) +
+          (viz_state.viz.mat_height || 300) -
+          editor_height -
+          1,
+      };
+    }
     viz_state.attr.editor.open({
       axis,
       selection: selected_names,
-      position: event?.pixel
-        ? { x: event.pixel[0], y: event.pixel[1] }
-        : undefined,
+      position,
     });
   }
 

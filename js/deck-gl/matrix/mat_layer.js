@@ -94,6 +94,11 @@ const mat_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
     viz_state.model.set('click_info', viz_state.click);
     viz_state.model.save_changes();
   }
+
+  // Close the attribute editor on matrix click
+  if (viz_state.attr?.editor?.close) {
+    viz_state.attr.editor.close();
+  }
 };
 
 export const set_mat_layer_onclick = (deck_mat, layers_mat, viz_state) => {

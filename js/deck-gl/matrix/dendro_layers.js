@@ -265,6 +265,13 @@ const dendro_layer_onclick = (event, deck_mat, layers_mat, viz_state, axis) => {
     }
   }
 
+  // If unselecting, update click_info with empty selected_names
+  // so the Landscape handler knows to clear the cells
+  if (is_unselecting) {
+    viz_state.click.value.selected_names = [];
+    viz_state.click.value.is_unselecting = true;
+  }
+
   if (Object.keys(viz_state.model).length > 0) {
     viz_state.model.set('click_info', null);
     viz_state.model.set('click_info', viz_state.click);

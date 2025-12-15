@@ -94,8 +94,8 @@ export const get_cell_color = (cats, highlighted_cells, i, d) => {
     return [0, 0, 255, 255];
   }
 
-  const dimmed_opacity = 10;
-  return [...base_color.slice(0, 3), dimmed_opacity];
+  // Non-selected cells are fully transparent when there are selected cells
+  return [0, 0, 0, 0];
 };
 
 export const ini_cell_layer = async (base_url, viz_state) => {

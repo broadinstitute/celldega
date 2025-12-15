@@ -1,9 +1,5 @@
 import { update_cat, update_selected_cats } from '../global_variables/cat';
-import {
-  update_cell_exp_array,
-  update_multi_gene_exp_array,
-  canLoadMultiGeneOnFrontend,
-} from '../global_variables/cell_exp_array';
+import { update_cell_exp_array } from '../global_variables/cell_exp_array';
 import {
   update_selected_genes,
   sync_selected_genes,
@@ -29,6 +25,20 @@ const strip_cell_prefix = (name, viz_state) => {
 const strip_cell_prefixes = (names, viz_state) => {
   if (!viz_state.cell_name_prefix) return names;
   return names.map((n) => strip_cell_prefix(n, viz_state));
+};
+
+/**
+ * Helper to clear cell selection and reset to cluster mode.
+ */
+const reset_to_cluster_mode = (viz_state, layers_obj) => {
+  viz_state.highlighted_cells = new Set();
+  viz_state.obs_store.selected_cells.set([]);
+  update_cat(viz_state.cats, 'cluster');
+  update_selected_cats(viz_state.cats, [], viz_state.obs_store);
+  update_selected_genes(viz_state.genes, [], viz_state.obs_store);
+  viz_state.obs_store.viz_nbhd_layer.set(false);
+  viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
+  refresh_layer(viz_state, layers_obj, 'cell_layer');
 };
 
 /**
@@ -117,6 +127,9 @@ export const update_ist_landscape_from_cgm = async (
         inst_gene = 'cluster';
         new_cat = click_info.value.name;
 
+        // Clear selected cells when switching to cluster mode
+        viz_state.obs_store.selected_cells.set([]);
+
         update_cat(viz_state.cats, 'cluster');
         update_selected_cats(viz_state.cats, [new_cat], viz_state.obs_store);
         update_selected_genes(viz_state.genes, [], viz_state.obs_store);
@@ -130,6 +143,10 @@ export const update_ist_landscape_from_cgm = async (
         inst_gene = click_info.value.name;
 
         new_cat = inst_gene === viz_state.cats.cat ? 'cluster' : inst_gene;
+
+        // Clear highlighted cells immediately (without triggering subscription refresh)
+        // This prevents the old gene data from showing during loading
+        viz_state.highlighted_cells = new Set();
 
         update_cat(viz_state.cats, new_cat);
         update_selected_genes(
@@ -150,8 +167,10 @@ export const update_ist_landscape_from_cgm = async (
           viz_state.aws
         );
 
+        // Clear selected cells in obs_store (after data is loaded to avoid flash)
+        viz_state.obs_store.selected_cells.set([]);
+
         // Update selected_cats after cell_exp_array has been populated
-        // This triggers the subscription that refreshes the cell layer
         update_selected_cats(
           viz_state.cats,
           new_cat === 'cluster' ? [] : [inst_gene],
@@ -206,6 +225,9 @@ export const update_ist_landscape_from_cgm = async (
         inst_gene = 'cluster';
         new_cat = click_info.value.name;
 
+        // Clear selected cells when switching to cluster mode
+        viz_state.obs_store.selected_cells.set([]);
+
         update_cat(viz_state.cats, 'cluster');
         update_selected_cats(viz_state.cats, [new_cat], viz_state.obs_store);
         update_selected_genes(viz_state.genes, [], viz_state.obs_store);
@@ -218,7 +240,18 @@ export const update_ist_landscape_from_cgm = async (
         refresh_layer(viz_state, layers_obj, 'trx_layer');
       }
     } else if (click_type === 'col_dendro') {
-      const new_cats = click_info.value.selected_names;
+      const new_cats = click_info.value.selected_names || [];
+      const is_unselecting = click_info.value.is_unselecting || new_cats.length === 0;
+
+      // Handle unselection - clear all states and return to cluster mode
+      if (is_unselecting) {
+        viz_state.obs_store.selected_nbhds.set([]);
+        viz_state.nbhd?.svg_bar_nbhd?.selectAll('rect').style('opacity', 1.0);
+        reset_to_cluster_mode(viz_state, layers_obj);
+        refresh_layer(viz_state, layers_obj, 'nbhd_layer');
+        return;
+      }
+
       // Check if columns represent neighborhoods
       const col_entity_full =
         click_info.value.col_entity_full || click_info.value;
@@ -258,6 +291,9 @@ export const update_ist_landscape_from_cgm = async (
 
         refresh_layer(viz_state, layers_obj, 'cell_layer');
       } else {
+        // Clear selected cells when switching to cluster mode
+        viz_state.obs_store.selected_cells.set([]);
+
         update_cat(viz_state.cats, 'cluster');
         update_selected_cats(viz_state.cats, new_cats, viz_state.obs_store);
         update_selected_genes(viz_state.genes, [], viz_state.obs_store);
@@ -268,18 +304,27 @@ export const update_ist_landscape_from_cgm = async (
         refresh_layer(viz_state, layers_obj, 'cell_layer');
       }
     } else if (click_type === 'row_dendro') {
-      const new_cats = click_info.value.selected_names;
+      const new_cats = click_info.value.selected_names || [];
+      const is_unselecting = click_info.value.is_unselecting || new_cats.length === 0;
+
+      // Handle unselection - clear all states and return to cluster mode
+      if (is_unselecting) {
+        reset_to_cluster_mode(viz_state, layers_obj);
+        refresh_layer(viz_state, layers_obj, 'trx_layer');
+        return;
+      }
+
       // Check if rows represent cell clusters
       const row_entity_full =
         click_info.value.row_entity_full || click_info.value;
       if (isCellCluster(row_entity_full)) {
+        viz_state.highlighted_cells = new Set();
+        viz_state.obs_store.selected_cells.set([]);
         update_cat(viz_state.cats, 'cluster');
         update_selected_cats(viz_state.cats, new_cats, viz_state.obs_store);
         update_selected_genes(viz_state.genes, [], viz_state.obs_store);
-
         viz_state.obs_store.viz_nbhd_layer.set(false);
         viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
-
         refresh_layer(viz_state, layers_obj, 'cell_layer');
         refresh_layer(viz_state, layers_obj, 'trx_layer');
         refresh_layer(viz_state, layers_obj, 'nbhd_layer');
@@ -292,6 +337,9 @@ export const update_ist_landscape_from_cgm = async (
         if (new_cats.length === 1) {
           inst_gene = new_cats[0];
           new_cat = inst_gene === viz_state.cats.cat ? 'cluster' : inst_gene;
+
+          // Clear highlighted cells immediately (without triggering subscription refresh)
+          viz_state.highlighted_cells = new Set();
 
           update_cat(viz_state.cats, new_cat);
 
@@ -306,31 +354,19 @@ export const update_ist_landscape_from_cgm = async (
             viz_state.aws
           );
 
+          // Clear selected cells in obs_store (after data is loaded)
+          viz_state.obs_store.selected_cells.set([]);
+
           // Update selected_cats after cell_exp_array has been populated
           update_selected_cats(
             viz_state.cats,
             new_cat === 'cluster' ? [] : [inst_gene],
             viz_state.obs_store
           );
-        } else if (canLoadMultiGeneOnFrontend(new_cats.length)) {
-          // Multiple genes selected - load and combine on frontend
-          // Set cat to special marker for multi-gene display
-          update_cat(viz_state.cats, 'multi_gene');
-
-          // Load and combine expression data for all genes
-          await update_multi_gene_exp_array(
-            viz_state.cats,
-            viz_state.genes,
-            viz_state.global_base_url,
-            new_cats,
-            viz_state.seg.version,
-            viz_state.vector_name_integer,
-            viz_state.aws
-          );
-
-          update_selected_cats(viz_state.cats, [], viz_state.obs_store);
         } else {
-          // Too many genes for frontend loading - just clear selection
+          // Multiple genes selected - just switch to cluster mode for now
+          viz_state.highlighted_cells = new Set();
+          viz_state.obs_store.selected_cells.set([]);
           update_cat(viz_state.cats, 'cluster');
           update_selected_cats(viz_state.cats, [], viz_state.obs_store);
         }
@@ -358,6 +394,9 @@ export const update_ist_landscape_from_cgm = async (
         refresh_layer(viz_state, layers_obj, 'cell_layer');
       } else if (axis === 'col') {
         // Category on columns (e.g., cell clusters)
+        // Clear selected cells when switching to cluster mode
+        viz_state.obs_store.selected_cells.set([]);
+
         update_cat(viz_state.cats, 'cluster');
         update_selected_cats(viz_state.cats, [value], viz_state.obs_store);
         update_selected_genes(viz_state.genes, [], viz_state.obs_store);

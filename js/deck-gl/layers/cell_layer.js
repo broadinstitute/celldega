@@ -64,7 +64,7 @@ export const get_cell_color = (cats, highlighted_cells, i, d) => {
       let inst_opacity =
         cats.selected_cats.length === 0 || cats.selected_cats.includes(inst_cat)
           ? 255
-          : 10;
+          : 0;
 
       // Check if inst_color is an array and log an error if it's not
       if (!Array.isArray(inst_color)) {
@@ -74,13 +74,28 @@ export const get_cell_color = (cats, highlighted_cells, i, d) => {
 
       base_color = [...inst_color, inst_opacity];
     } catch {
-      base_color = [0, 0, 0, 10]; // Return a default color with some opacity to handle the error gracefully
+      base_color = [0, 0, 0, 0]; // Return a default color with some opacity to handle the error gracefully
     }
   } else {
     // color cells based on gene expression
     try {
-      const inst_exp = cats.cell_exp_array[d.index]; //
-      base_color = [255, 0, 0, inst_exp];
+      const inst_exp = cats.cell_exp_array[d.index];
+
+      // Check if we should filter to specific clusters (gene+cluster combination)
+      // If selected_cats has values, only show expression for cells in those clusters
+      if (cats.selected_cats && cats.selected_cats.length > 0) {
+        const inst_cat = cats.cell_cats[d.index];
+        if (!cats.selected_cats.includes(inst_cat)) {
+          // Cell is not in the selected cluster(s) - make transparent
+          base_color = [0, 0, 0, 0];
+        } else {
+          // Cell is in the selected cluster - show gene expression
+          base_color = [255, 0, 0, inst_exp];
+        }
+      } else {
+        // No cluster filter - show all cells with expression
+        base_color = [255, 0, 0, inst_exp];
+      }
     } catch {
       base_color = [255, 0, 0, 10]; // Return a default color with some opacity to handle the error gracefully
     }

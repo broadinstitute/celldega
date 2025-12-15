@@ -413,6 +413,10 @@ export const update_ist_landscape_from_cgm = async (
       const rowEntity = row_entity_full || row;
       const colEntity = col_entity_full || col;
 
+      // Helper to check if two entities match (same entity type and attribute)
+      const entitiesMatch = (e1, e2) =>
+        e1?.entity === e2?.entity && e1?.attr === e2?.attr;
+
       // Check if we have a cell cluster + neighborhood combination
       if (isCellCluster(rowEntity) && isNeighborhood(colEntity)) {
         const new_nbhds = [col.name];
@@ -423,11 +427,7 @@ export const update_ist_landscape_from_cgm = async (
 
         // Also highlight the selected cluster
         update_cat(viz_state.cats, 'cluster');
-        update_selected_cats(
-          viz_state.cats,
-          [row.name],
-          viz_state.obs_store
-        );
+        update_selected_cats(viz_state.cats, [row.name], viz_state.obs_store);
         refresh_layer(viz_state, layers_obj, 'cell_layer');
 
         if (viz_state.obs_store.selected_nbhds.get().length > 0) {
@@ -438,6 +438,85 @@ export const update_ist_landscape_from_cgm = async (
               selected_nbhds.includes(d.name) ? 1.0 : 0.2
             );
         }
+      } else if (entitiesMatch(rowEntity, colEntity) && isCellCluster(rowEntity)) {
+        // Same entity:attr on both axes (e.g., cluster-cluster similarity matrix)
+        // Highlight BOTH clusters in the Landscape
+        viz_state.obs_store.selected_cells.set([]);
+        viz_state.obs_store.viz_nbhd_layer.set(false);
+        viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
+
+        update_cat(viz_state.cats, 'cluster');
+        // Select both the row and column clusters
+        const selected_clusters = [row.name, col.name];
+        update_selected_cats(viz_state.cats, selected_clusters, viz_state.obs_store);
+        update_selected_genes(viz_state.genes, [], viz_state.obs_store);
+
+        refresh_layer(viz_state, layers_obj, 'cell_layer');
+      } else if (isGene(rowEntity) && isCellCluster(colEntity)) {
+        // Gene (row) x Cluster (col): Show gene expression filtered to cluster
+        const gene_name = row.name;
+        const cluster_name = col.name;
+
+        // Clear any previous cell selection
+        viz_state.highlighted_cells = new Set();
+        viz_state.obs_store.selected_cells.set([]);
+
+        // Set the gene as the category for coloring
+        update_cat(viz_state.cats, gene_name);
+        update_selected_genes(viz_state.genes, [gene_name], viz_state.obs_store);
+
+        // Load gene expression data
+        await update_cell_exp_array(
+          viz_state.cats,
+          viz_state.genes,
+          viz_state.global_base_url,
+          gene_name,
+          viz_state.seg.version,
+          viz_state.vector_name_integer,
+          viz_state.aws
+        );
+
+        // Update selected_cats to filter to only cells in this cluster
+        // The cell layer will use this to filter which cells to show
+        update_selected_cats(viz_state.cats, [cluster_name], viz_state.obs_store);
+
+        viz_state.obs_store.viz_nbhd_layer.set(false);
+        viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
+
+        refresh_layer(viz_state, layers_obj, 'cell_layer');
+        refresh_layer(viz_state, layers_obj, 'trx_layer');
+      } else if (isCellCluster(rowEntity) && isGene(colEntity)) {
+        // Cluster (row) x Gene (col): Show gene expression filtered to cluster
+        const cluster_name = row.name;
+        const gene_name = col.name;
+
+        // Clear any previous cell selection
+        viz_state.highlighted_cells = new Set();
+        viz_state.obs_store.selected_cells.set([]);
+
+        // Set the gene as the category for coloring
+        update_cat(viz_state.cats, gene_name);
+        update_selected_genes(viz_state.genes, [gene_name], viz_state.obs_store);
+
+        // Load gene expression data
+        await update_cell_exp_array(
+          viz_state.cats,
+          viz_state.genes,
+          viz_state.global_base_url,
+          gene_name,
+          viz_state.seg.version,
+          viz_state.vector_name_integer,
+          viz_state.aws
+        );
+
+        // Update selected_cats to filter to only cells in this cluster
+        update_selected_cats(viz_state.cats, [cluster_name], viz_state.obs_store);
+
+        viz_state.obs_store.viz_nbhd_layer.set(false);
+        viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
+
+        refresh_layer(viz_state, layers_obj, 'cell_layer');
+        refresh_layer(viz_state, layers_obj, 'trx_layer');
       }
     }
   } catch (error) {

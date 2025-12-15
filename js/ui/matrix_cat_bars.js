@@ -395,17 +395,62 @@ const create_bar_hover_handlers = (viz_state, axis, attr_index) => {
 };
 
 /**
+ * Compute category breakdown from manual categories.
+ */
+const compute_manual_category_breakdown = (viz_state, axis) => {
+  const manual_store = viz_state.obs_store?.manual_cat?.[axis];
+  if (!manual_store) return null;
+
+  const attr_name =
+    manual_store.getAttribute() ||
+    viz_state.manual_cat?.config?.[axis]?.attribute ||
+    'Manual';
+
+  // Get all assignments from the manual store
+  const assignments = manual_store.getAssignments() || {};
+
+  // Count occurrences of each category value
+  const counts = {};
+  Object.values(assignments).forEach((value) => {
+    if (value != null && value !== '') {
+      const key = String(value);
+      counts[key] = (counts[key] || 0) + 1;
+    }
+  });
+
+  // Convert to array format
+  const data = Object.entries(counts)
+    .map(([name, value]) => ({ name, value }))
+    .sort((a, b) => b.value - a.value);
+
+  return {
+    attr_name,
+    attr_index: 0,
+    data,
+  };
+};
+
+/**
  * Initialize the matrix category bar UI.
  * Creates containers for row and column category breakdowns.
- * Bar graphs are always shown when categories are available.
+ * Bar graphs are always shown when categories are available or when manual categories are enabled.
  */
 export const init_matrix_cat_bars = (viz_state, ui_container) => {
   // Check if there are categorical attributes
   const row_cats = viz_state.attr?.cats?.row || [];
   const col_cats = viz_state.attr?.cats?.col || [];
 
-  if (row_cats.length === 0 && col_cats.length === 0) {
-    // No categories to show
+  // Check if manual categories are enabled
+  const has_manual_row = viz_state.manual_cat?.flags?.row;
+  const has_manual_col = viz_state.manual_cat?.flags?.col;
+
+  // If no static categories and no manual categories, don't show anything
+  if (
+    row_cats.length === 0 &&
+    col_cats.length === 0 &&
+    !has_manual_row &&
+    !has_manual_col
+  ) {
     return null;
   }
 
@@ -419,9 +464,12 @@ export const init_matrix_cat_bars = (viz_state, ui_container) => {
     col: null,
   };
 
-  // Create row bar if categories exist
-  if (row_cats.length > 0) {
-    const attr_name = get_first_cat_attr_name(viz_state, 'row');
+  // Create row bar if categories exist OR manual categories are enabled
+  if (row_cats.length > 0 || has_manual_row) {
+    const attr_name =
+      row_cats.length > 0
+        ? get_first_cat_attr_name(viz_state, 'row')
+        : viz_state.manual_cat?.config?.row?.attribute || 'Manual';
     const { wrapper, svg, title, bar_container } = make_axis_cat_bar(
       'row',
       `Row: ${attr_name}`
@@ -430,39 +478,44 @@ export const init_matrix_cat_bars = (viz_state, ui_container) => {
 
     viz_state.cat_bars.row = { wrapper, svg, title, bar_container };
 
-    // Compute and display initial breakdown
-    const initial = compute_initial_breakdown(viz_state, 'row');
-    if (initial && initial.data.length > 0) {
-      const color_dict = get_color_dict(viz_state);
-      const { on_hover, on_hover_out } = create_bar_hover_handlers(
-        viz_state,
-        'row',
-        initial.attr_index
-      );
+    // Compute and display initial breakdown if static categories exist
+    if (row_cats.length > 0) {
+      const initial = compute_initial_breakdown(viz_state, 'row');
+      if (initial && initial.data.length > 0) {
+        const color_dict = get_color_dict(viz_state);
+        const { on_hover, on_hover_out } = create_bar_hover_handlers(
+          viz_state,
+          'row',
+          initial.attr_index
+        );
 
-      update_cat_bar_graph(
-        svg,
-        initial.data,
-        color_dict,
-        (d) => {
-          if (viz_state.obs_store?.selected_category) {
-            viz_state.obs_store.selected_category.set({
-              axis: 'row',
-              attr_name: initial.attr_name,
-              attr_index: initial.attr_index,
-              value: d.name,
-            });
-          }
-        },
-        on_hover,
-        on_hover_out
-      );
+        update_cat_bar_graph(
+          svg,
+          initial.data,
+          color_dict,
+          (d) => {
+            if (viz_state.obs_store?.selected_category) {
+              viz_state.obs_store.selected_category.set({
+                axis: 'row',
+                attr_name: initial.attr_name,
+                attr_index: initial.attr_index,
+                value: d.name,
+              });
+            }
+          },
+          on_hover,
+          on_hover_out
+        );
+      }
     }
   }
 
-  // Create col bar if categories exist
-  if (col_cats.length > 0) {
-    const attr_name = get_first_cat_attr_name(viz_state, 'col');
+  // Create col bar if categories exist OR manual categories are enabled
+  if (col_cats.length > 0 || has_manual_col) {
+    const attr_name =
+      col_cats.length > 0
+        ? get_first_cat_attr_name(viz_state, 'col')
+        : viz_state.manual_cat?.config?.col?.attribute || 'Manual';
     const { wrapper, svg, title, bar_container } = make_axis_cat_bar(
       'col',
       `Col: ${attr_name}`
@@ -471,33 +524,35 @@ export const init_matrix_cat_bars = (viz_state, ui_container) => {
 
     viz_state.cat_bars.col = { wrapper, svg, title, bar_container };
 
-    // Compute and display initial breakdown
-    const initial = compute_initial_breakdown(viz_state, 'col');
-    if (initial && initial.data.length > 0) {
-      const color_dict = get_color_dict(viz_state);
-      const { on_hover, on_hover_out } = create_bar_hover_handlers(
-        viz_state,
-        'col',
-        initial.attr_index
-      );
+    // Compute and display initial breakdown if static categories exist
+    if (col_cats.length > 0) {
+      const initial = compute_initial_breakdown(viz_state, 'col');
+      if (initial && initial.data.length > 0) {
+        const color_dict = get_color_dict(viz_state);
+        const { on_hover, on_hover_out } = create_bar_hover_handlers(
+          viz_state,
+          'col',
+          initial.attr_index
+        );
 
-      update_cat_bar_graph(
-        svg,
-        initial.data,
-        color_dict,
-        (d) => {
-          if (viz_state.obs_store?.selected_category) {
-            viz_state.obs_store.selected_category.set({
-              axis: 'col',
-              attr_name: initial.attr_name,
-              attr_index: initial.attr_index,
-              value: d.name,
-            });
-          }
-        },
-        on_hover,
-        on_hover_out
-      );
+        update_cat_bar_graph(
+          svg,
+          initial.data,
+          color_dict,
+          (d) => {
+            if (viz_state.obs_store?.selected_category) {
+              viz_state.obs_store.selected_category.set({
+                axis: 'col',
+                attr_name: initial.attr_name,
+                attr_index: initial.attr_index,
+                value: d.name,
+              });
+            }
+          },
+          on_hover,
+          on_hover_out
+        );
+      }
     }
   }
 
@@ -523,6 +578,54 @@ export const init_matrix_cat_bars = (viz_state, ui_container) => {
       },
       { immediate: false }
     );
+  }
+
+  // Subscribe to manual_cat changes to update bar graphs dynamically
+  if (viz_state.obs_store?.manual_cat) {
+    ['row', 'col'].forEach((axis) => {
+      const manual_store = viz_state.obs_store.manual_cat[axis];
+      if (!manual_store) return;
+
+      manual_store.subscribe(
+        () => {
+          // Update bar graph with manual category breakdown
+          if (viz_state.cat_bars?.[axis]?.svg) {
+            const breakdown = compute_manual_category_breakdown(viz_state, axis);
+            if (breakdown && breakdown.data.length > 0) {
+              const color_dict = get_color_dict(viz_state);
+              const { on_hover, on_hover_out } = create_bar_hover_handlers(
+                viz_state,
+                axis,
+                0 // Manual categories use index 0
+              );
+
+              update_cat_bar_graph(
+                viz_state.cat_bars[axis].svg,
+                breakdown.data,
+                color_dict,
+                (d) => {
+                  if (viz_state.obs_store?.selected_category) {
+                    viz_state.obs_store.selected_category.set({
+                      axis,
+                      attr_name: breakdown.attr_name,
+                      attr_index: 0,
+                      value: d.name,
+                    });
+                  }
+                },
+                on_hover,
+                on_hover_out
+              );
+
+              // Update title
+              const axis_label = axis === 'row' ? 'Row' : 'Col';
+              viz_state.cat_bars[axis].title.textContent = `${axis_label}: ${breakdown.attr_name}`;
+            }
+          }
+        },
+        { immediate: false }
+      );
+    });
   }
 
   // Append to UI container

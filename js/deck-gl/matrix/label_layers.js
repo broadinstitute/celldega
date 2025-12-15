@@ -1,7 +1,11 @@
 import * as d3 from 'd3';
 import { TextLayer } from 'deck.gl';
 
-import { sync_selected_genes } from '../../global_variables/selected_genes';
+import {
+  sync_selected_genes,
+  sync_selected_rows,
+  sync_selected_cols,
+} from '../../global_variables/selected_genes';
 
 import { toggle_dendro_layer_visibility } from './dendro_layers';
 import { get_mat_layers_list } from './matrix_layers';
@@ -232,6 +236,11 @@ const row_label_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
       viz_state.model.save_changes();
     }
 
+    // Sync selected row to Python model
+    sync_selected_rows(viz_state, [name]);
+    // Also sync to selected_genes for backwards compatibility
+    sync_selected_genes(viz_state, [name]);
+
     if (typeof viz_state.custom_callbacks.row === 'function') {
       viz_state.custom_callbacks.row(name);
     }
@@ -274,6 +283,9 @@ const col_label_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
       viz_state.model.set('click_info', viz_state.click);
       viz_state.model.save_changes();
     }
+
+    // Sync selected column to Python model
+    sync_selected_cols(viz_state, [name]);
 
     const col_index = event.object.index;
     const values = viz_state.mat.net_mat.map((row) => row[col_index]);

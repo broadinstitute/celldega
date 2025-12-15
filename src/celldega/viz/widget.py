@@ -703,6 +703,11 @@ class Clustergram(anywidget.AnyWidget):
 
     click_info = traitlets.Dict({}).tag(sync=True)
 
+    # Generic row/col selection traitlets
+    selected_rows = traitlets.List(default_value=[]).tag(sync=True)
+    selected_cols = traitlets.List(default_value=[]).tag(sync=True)
+
+    # Legacy traitlet for gene selection (copied from selected_rows when row entity is 'gene')
     selected_genes = traitlets.List(default_value=[]).tag(sync=True)
     top_n_genes = traitlets.Int(50).tag(sync=True)
 
@@ -756,9 +761,13 @@ class Clustergram(anywidget.AnyWidget):
         manual_row_flag = kwargs.pop("manual_row_cat", "")
         manual_col_flag = kwargs.pop("manual_col_cat", "")
 
+        # Store matrix reference for later use (e.g., multi-gene expression calculations)
+        self._matrix = None
+
         if pq_data is None:
             matrix = kwargs.pop("matrix", None)
             if matrix is not None:
+                self._matrix = matrix  # Store reference for multi-gene calculations
                 pq_data = matrix.export_viz_parquet()
             elif "network" not in kwargs:
                 raise ValueError(

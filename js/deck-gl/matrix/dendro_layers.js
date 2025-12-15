@@ -1,6 +1,10 @@
 import { PolygonLayer } from 'deck.gl';
 
-import { sync_selected_genes } from '../../global_variables/selected_genes';
+import {
+  sync_selected_genes,
+  sync_selected_rows,
+  sync_selected_cols,
+} from '../../global_variables/selected_genes';
 
 import { get_mat_layers_list } from './matrix_layers';
 
@@ -222,6 +226,7 @@ const dendro_layer_onclick = (event, deck_mat, layers_mat, viz_state, axis) => {
   );
 
   // Update dendro_selection in the store
+  let is_unselecting = false;
   if (viz_state.obs_store?.dendro_selection) {
     const current = viz_state.obs_store.dendro_selection.get();
     // Toggle off if clicking the same dendro
@@ -230,6 +235,7 @@ const dendro_layer_onclick = (event, deck_mat, layers_mat, viz_state, axis) => {
       current.axis === axis &&
       current.name === event.object.properties.name
     ) {
+      is_unselecting = true;
       viz_state.obs_store.dendro_selection.set(null);
       // Reset category breakdown
       if (viz_state.obs_store?.category_breakdown) {
@@ -265,8 +271,15 @@ const dendro_layer_onclick = (event, deck_mat, layers_mat, viz_state, axis) => {
     viz_state.model.save_changes();
   }
 
+  // Sync selected rows/cols to Python model
+  // If unselecting, clear the selections
+  const names_to_sync = is_unselecting ? [] : selected_names;
   if (axis === 'row') {
-    sync_selected_genes(viz_state, selected_names);
+    sync_selected_rows(viz_state, names_to_sync);
+    // Also sync to selected_genes for backwards compatibility
+    sync_selected_genes(viz_state, names_to_sync);
+  } else if (axis === 'col') {
+    sync_selected_cols(viz_state, names_to_sync);
   }
 
   if (viz_state.attr?.editor?.open) {

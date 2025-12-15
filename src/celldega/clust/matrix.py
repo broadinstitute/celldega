@@ -378,6 +378,10 @@ class Matrix:
             row_attr,
         )
 
+        # Set sensible defaults for AnnData: genes (rows) x cells (columns)
+        self.row_entity = {"entity": "gene", "attr": "name"}
+        self.col_entity = {"entity": "cell", "attr": "name"}
+
     def filter(self, axis: AxisInput, by: FilterType, num: int) -> None:
         """
         Filter features by specified metric.

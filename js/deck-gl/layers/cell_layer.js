@@ -54,6 +54,7 @@ export const get_cell_color = (cats, highlighted_cells, i, d) => {
   const is_highlighted = has_highlights && highlight_set.has(inst_cell);
 
   let base_color;
+
   if (cats.cat === 'cluster') {
     try {
       const inst_cat = cats.cell_cats[d.index];

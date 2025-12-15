@@ -1,11 +1,35 @@
 import { update_cat, update_selected_cats } from '../global_variables/cat';
-import { update_cell_exp_array } from '../global_variables/cell_exp_array';
+import {
+  update_cell_exp_array,
+  update_multi_gene_exp_array,
+  canLoadMultiGeneOnFrontend,
+} from '../global_variables/cell_exp_array';
 import {
   update_selected_genes,
   sync_selected_genes,
 } from '../global_variables/selected_genes';
 import { handleAsyncError } from '../temp_utils/errorHandler';
 import { refresh_layer } from '../utils/refresh_layer';
+
+/**
+ * Strip cell name prefix if cell_name_prefix is enabled.
+ * When cell_name_prefix is true, cell names have format "prefix_name"
+ * and we need to strip the prefix to match Landscape cell names.
+ */
+const strip_cell_prefix = (name, viz_state) => {
+  if (!viz_state.cell_name_prefix) return name;
+  if (typeof name !== 'string') return name;
+  const idx = name.indexOf('_');
+  return idx >= 0 ? name.substring(idx + 1) : name;
+};
+
+/**
+ * Strip prefixes from an array of cell names.
+ */
+const strip_cell_prefixes = (names, viz_state) => {
+  if (!viz_state.cell_name_prefix) return names;
+  return names.map((n) => strip_cell_prefix(n, viz_state));
+};
 
 /**
  * Check if a click value represents a cell cluster selection.
@@ -48,6 +72,17 @@ export const isGene = (clickValue) => {
 
   // New format check
   return clickValue.entity === 'gene';
+};
+
+/**
+ * Check if a click value represents an individual cell selection.
+ * This is when entity is 'cell' and attr is 'name' (not a cluster attribute).
+ */
+export const isCell = (clickValue) => {
+  if (!clickValue) return false;
+
+  // Check for cell entity with name attribute (individual cells)
+  return clickValue.entity === 'cell' && clickValue.attr === 'name';
 };
 
 export const update_ist_landscape_from_cgm = async (
@@ -158,6 +193,15 @@ export const update_ist_landscape_from_cgm = async (
         } else {
           viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', 1.0);
         }
+      } else if (isCell(click_info.value)) {
+        // Individual cell selection - highlight in landscape
+        const cell_name = strip_cell_prefix(click_info.value.name, viz_state);
+        viz_state.obs_store.selected_cells.set([cell_name]);
+
+        viz_state.obs_store.viz_nbhd_layer.set(false);
+        viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
+
+        refresh_layer(viz_state, layers_obj, 'cell_layer');
       } else {
         inst_gene = 'cluster';
         new_cat = click_info.value.name;
@@ -204,6 +248,15 @@ export const update_ist_landscape_from_cgm = async (
         } else {
           viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', 1.0);
         }
+      } else if (isCell(col_entity_full)) {
+        // Individual cells selected via dendrogram - highlight in landscape
+        const stripped_cells = strip_cell_prefixes(new_cats, viz_state);
+        viz_state.obs_store.selected_cells.set(stripped_cells);
+
+        viz_state.obs_store.viz_nbhd_layer.set(false);
+        viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
+
+        refresh_layer(viz_state, layers_obj, 'cell_layer');
       } else {
         update_cat(viz_state.cats, 'cluster');
         update_selected_cats(viz_state.cats, new_cats, viz_state.obs_store);
@@ -230,7 +283,8 @@ export const update_ist_landscape_from_cgm = async (
         refresh_layer(viz_state, layers_obj, 'cell_layer');
         refresh_layer(viz_state, layers_obj, 'trx_layer');
         refresh_layer(viz_state, layers_obj, 'nbhd_layer');
-      } else {
+      } else if (isGene(row_entity_full)) {
+        // Gene selection from row dendrogram
         update_selected_genes(viz_state.genes, new_cats, viz_state.obs_store);
 
         sync_selected_genes(viz_state, viz_state.genes.selected_genes);
@@ -258,7 +312,25 @@ export const update_ist_landscape_from_cgm = async (
             new_cat === 'cluster' ? [] : [inst_gene],
             viz_state.obs_store
           );
+        } else if (canLoadMultiGeneOnFrontend(new_cats.length)) {
+          // Multiple genes selected - load and combine on frontend
+          // Set cat to special marker for multi-gene display
+          update_cat(viz_state.cats, 'multi_gene');
+
+          // Load and combine expression data for all genes
+          await update_multi_gene_exp_array(
+            viz_state.cats,
+            viz_state.genes,
+            viz_state.global_base_url,
+            new_cats,
+            viz_state.seg.version,
+            viz_state.vector_name_integer,
+            viz_state.aws
+          );
+
+          update_selected_cats(viz_state.cats, [], viz_state.obs_store);
         } else {
+          // Too many genes for frontend loading - just clear selection
           update_cat(viz_state.cats, 'cluster');
           update_selected_cats(viz_state.cats, [], viz_state.obs_store);
         }
@@ -268,6 +340,32 @@ export const update_ist_landscape_from_cgm = async (
 
         refresh_layer(viz_state, layers_obj, 'cell_layer');
         refresh_layer(viz_state, layers_obj, 'trx_layer');
+      }
+    } else if (click_type === 'cat_value') {
+      // Category bar/tile click - highlight cells in that category
+      const { axis, attr_name, value, node_names } = click_info.value;
+      const col_entity_full = click_info.value.col_entity_full;
+
+      // If columns are cells and we clicked a category on the column axis
+      if (axis === 'col' && isCell(col_entity_full)) {
+        // node_names contains all cells in this category - strip prefixes if needed
+        const stripped_cells = strip_cell_prefixes(node_names || [], viz_state);
+        viz_state.obs_store.selected_cells.set(stripped_cells);
+
+        viz_state.obs_store.viz_nbhd_layer.set(false);
+        viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
+
+        refresh_layer(viz_state, layers_obj, 'cell_layer');
+      } else if (axis === 'col') {
+        // Category on columns (e.g., cell clusters)
+        update_cat(viz_state.cats, 'cluster');
+        update_selected_cats(viz_state.cats, [value], viz_state.obs_store);
+        update_selected_genes(viz_state.genes, [], viz_state.obs_store);
+
+        viz_state.obs_store.viz_nbhd_layer.set(false);
+        viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
+
+        refresh_layer(viz_state, layers_obj, 'cell_layer');
       }
     } else if (click_type === 'mat_value') {
       const { row, col, row_entity_full, col_entity_full } = click_info.value;

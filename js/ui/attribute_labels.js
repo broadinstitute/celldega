@@ -21,7 +21,7 @@ const generate_category_order = (viz_state, axis, attr_index) => {
   }
 
   // Get unique category values and sort them
-  const {values} = attr_def;
+  const { values } = attr_def;
   const unique_values = [
     ...new Set(values.filter((v) => v !== null && v !== undefined)),
   ];

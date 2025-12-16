@@ -501,7 +501,7 @@ export const landscape_ist = async (
 
     viz_state.nbhd.color_dict = {};
     viz_state.edit.feature_collection.features.forEach((feature) => {
-      const {color} = feature.properties;
+      const { color } = feature.properties;
       // Convert hex to RGBA for the color dict used in bar graphs
       viz_state.nbhd.color_dict[feature.properties.cat] = colorToRgba(color);
     });

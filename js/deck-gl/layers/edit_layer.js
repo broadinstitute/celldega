@@ -92,7 +92,7 @@ export const calc_and_update_rgn_bar_graph = async (
   viz_state.edit.color_dict_rgn =
     viz_state.edit.feature_collection.features.reduce((acc, feature) => {
       const name = feature.properties.name || feature.properties.cat;
-      const {color} = feature.properties;
+      const { color } = feature.properties;
       // Convert hex to RGB for the bar graph, or use as-is if already RGB
       if (typeof color === 'string' && color.startsWith('#')) {
         acc[name] = hexToRgb(color);
@@ -287,7 +287,7 @@ export const ini_edit_layer = (viz_state) => {
     getElevation: 1000,
     // Convert hex color to RGB array for rendering
     getFillColor: (d) => {
-      const {color} = d.properties;
+      const { color } = d.properties;
       // If color is a hex string, convert to RGB; otherwise assume it's already RGB
       if (typeof color === 'string' && color.startsWith('#')) {
         return hexToRgb(color);

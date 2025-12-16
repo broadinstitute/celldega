@@ -53,6 +53,16 @@ export const get_tooltip = (viz_state, params) => {
         html: `Row: ${row_name} <br> Column: ${col_name} <br> Value: ${object.value.toFixed(2)}`,
         style: { color: 'white' },
       };
+    } else if (layer.id === 'row-attr-label-layer') {
+      return {
+        html: `Row Attribute: ${object.name}<br><i>Double-click to reorder by this attribute</i>`,
+        style: { color: 'white' },
+      };
+    } else if (layer.id === 'col-attr-label-layer') {
+      return {
+        html: `Column Attribute: ${object.name}<br><i>Double-click to reorder by this attribute</i>`,
+        style: { color: 'white' },
+      };
     }
   }
 };

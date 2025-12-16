@@ -24,4 +24,7 @@ const Observable = (initialValue) => {
 export const create_clustergram_store = () => ({
   selected_genes: Observable([]),
   focused_dendro: Observable(null),
+  // Tracks the current attribute-based reorder state
+  // { axis: 'row'|'col', attr_index: number, attr_name: string, order_key: string }
+  attr_reorder_state: Observable(null),
 });

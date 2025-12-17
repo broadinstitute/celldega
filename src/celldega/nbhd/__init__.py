@@ -5,8 +5,8 @@ from .gradient import calc_grad_nbhd_from_roi
 from .hextile import generate_hex_grid
 from .neighborhoods import (
     NBHD,
-    calc_nb_bordering,
-    calc_nb_overlap,
+    calc_nbhd_bordering,
+    calc_nbhd_overlap,
     calc_nbg_cd,
     calc_nbg_cf,
     calc_nbp,
@@ -31,8 +31,8 @@ __all__ = [
     "alpha_shape",
     "alpha_shape_cell_clusters",
     "calc_grad_nbhd_from_roi",
-    "calc_nb_bordering",
-    "calc_nb_overlap",
+    "calc_nbhd_bordering",
+    "calc_nbhd_overlap",
     "calc_nbg_cd",
     "calc_nbg_cf",
     "calc_nbp",

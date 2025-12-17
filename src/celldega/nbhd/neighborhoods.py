@@ -192,7 +192,7 @@ class NBHD:
             if self.nbhd_type == "ALPH":
                 nb = self.gdf[["name", "geometry"]]
                 print("Calculating neighborhood overlap")
-                data = calc_nb_overlap(nb)
+                data = calc_nbhd_overlap(nb)
             else:
                 raise ValueError("NBN-O can be derived for ALPH only")
         elif key == "NBN-B":
@@ -200,7 +200,7 @@ class NBHD:
                 raise ValueError("NBN-B can not be derived for nbhd having overlap")
             nb = self.gdf[["name", "geometry"]]
             print("Calculating neighborhood bordering")
-            data = calc_nb_bordering(nb)
+            data = calc_nbhd_bordering(nb)
         elif key == "NBI":
             data = calc_nbi(
                 f"{self.data_dir}/morphology_focus/morphology_focus_0000.ome.tif",
@@ -360,56 +360,219 @@ def get_nbhd_meta(
     return summary.join(trx_summary).join(cell_counts)
 
 
-def calc_nb_overlap(
+def calc_nbhd_overlap(
     gdf_nbhd: gpd.GeoDataFrame,
-) -> gpd.GeoDataFrame:
-    """
-    Calculate the pairwise overlap between all neighborhoods, including overlap area and geometry.
-    Skips intersections that are empty or have zero area.
-    """
-    print("Calculating NBN-O")
-    gdf_nbhd = gdf_nbhd.copy()
-    gdf_nbhd["geometry"] = gdf_nbhd["geometry"].buffer(0)
-    results = []
-    for nb1, nb2 in combinations(gdf_nbhd["name"], 2):
-        geom1 = gdf_nbhd.loc[gdf_nbhd["name"] == nb1, "geometry"].values[0]
-        geom2 = gdf_nbhd.loc[gdf_nbhd["name"] == nb2, "geometry"].values[0]
-        intersection = geom1.intersection(geom2)
-        if not intersection.is_empty and intersection.area > 0:
-            results.append(
-                {
-                    "nbhd_1": nb1,
-                    "nbhd_2": nb2,
-                    "overlap_area": round(intersection.area, 2),
-                    "geometry": intersection,
-                }
-            )
-    if results:
-        return gpd.GeoDataFrame(results, geometry="geometry", crs=gdf_nbhd.crs)
-    return gpd.GeoDataFrame(
-        columns=["nbhd_1", "nbhd_2", "overlap_area", "geometry"],
-        geometry="geometry",
-        crs=gdf_nbhd.crs,
-    )
-
-
-def calc_nb_bordering(
-    gdf_nbhd: gpd.GeoDataFrame,
+    metric: str = "iou",
+    name_col: str = "name",
 ) -> pd.DataFrame:
     """
-    Identify pairs of neighborhoods that share a border (touch), using spatial indexing for efficiency.
+    Calculate pairwise overlap between all neighborhoods as a neighborhood-by-neighborhood matrix.
+
+    Parameters
+    ----------
+    gdf_nbhd : gpd.GeoDataFrame
+        GeoDataFrame containing neighborhood geometries. Must have a geometry column
+        and a column specified by `name_col` for neighborhood identifiers.
+    metric : str, default "iou"
+        The overlap metric to compute:
+        - "iou": Intersection over Union. Value = intersection_area / union_area.
+          Symmetric measure ranging from 0 (no overlap) to 1 (identical geometries).
+        - "ioa": Intersection over Area (of self/row). Value = intersection_area / row_area.
+          Asymmetric measure showing what fraction of the row neighborhood overlaps
+          with the column neighborhood. Useful for containment analysis.
+        - "intersection": Raw intersection area in square units.
+    name_col : str, default "name"
+        Column name containing neighborhood identifiers.
+
+    Returns
+    -------
+    pd.DataFrame
+        A symmetric (for "iou" and "intersection") or asymmetric (for "ioa") matrix
+        where rows and columns are neighborhood names, and values represent the
+        computed overlap metric. Diagonal values are 1.0 for "iou" and "ioa",
+        or the neighborhood's own area for "intersection".
+
+    Examples
+    --------
+    >>> df_iou = calc_nbhd_overlap(gdf_nbhd, metric="iou")
+    >>> df_ioa = calc_nbhd_overlap(gdf_nbhd, metric="ioa")
+    >>> df_area = calc_nbhd_overlap(gdf_nbhd, metric="intersection")
     """
-    print("Calculating NBN-B")
+    print(f"Calculating NBN-O ({metric})")
+
+    valid_metrics = {"iou", "ioa", "intersection"}
+    if metric not in valid_metrics:
+        raise ValueError(f"metric must be one of {valid_metrics}, got '{metric}'")
+
     gdf_nbhd = gdf_nbhd.copy()
     gdf_nbhd["geometry"] = gdf_nbhd["geometry"].buffer(0)
+
+    names = gdf_nbhd[name_col].tolist()
+    n = len(names)
+
+    # Pre-compute areas for efficiency
+    areas = {
+        row[name_col]: row["geometry"].area
+        for _, row in gdf_nbhd.iterrows()
+    }
+
+    # Initialize matrix with zeros
+    matrix = pd.DataFrame(0.0, index=names, columns=names)
+
+    # Set diagonal values
+    for name in names:
+        if metric in ("iou", "ioa"):
+            matrix.loc[name, name] = 1.0
+        else:  # intersection
+            matrix.loc[name, name] = round(areas[name], 2)
+
+    # Build a lookup for geometries
+    geom_lookup = {
+        row[name_col]: row["geometry"]
+        for _, row in gdf_nbhd.iterrows()
+    }
+
+    # Compute pairwise overlaps
+    for nb1, nb2 in combinations(names, 2):
+        geom1 = geom_lookup[nb1]
+        geom2 = geom_lookup[nb2]
+        intersection = geom1.intersection(geom2)
+
+        if intersection.is_empty or intersection.area == 0:
+            continue
+
+        intersection_area = intersection.area
+        area1 = areas[nb1]
+        area2 = areas[nb2]
+
+        if metric == "iou":
+            union_area = geom1.union(geom2).area
+            value = intersection_area / union_area if union_area > 0 else 0.0
+            matrix.loc[nb1, nb2] = round(value, 4)
+            matrix.loc[nb2, nb1] = round(value, 4)  # Symmetric
+        elif metric == "ioa":
+            # Asymmetric: row's perspective (what fraction of row overlaps with col)
+            value_1_to_2 = intersection_area / area1 if area1 > 0 else 0.0
+            value_2_to_1 = intersection_area / area2 if area2 > 0 else 0.0
+            matrix.loc[nb1, nb2] = round(value_1_to_2, 4)
+            matrix.loc[nb2, nb1] = round(value_2_to_1, 4)
+        else:  # intersection
+            matrix.loc[nb1, nb2] = round(intersection_area, 2)
+            matrix.loc[nb2, nb1] = round(intersection_area, 2)  # Symmetric
+
+    return matrix
+
+
+def calc_nbhd_bordering(
+    gdf_nbhd: gpd.GeoDataFrame,
+    metric: str = "border_ratio",
+    name_col: str = "name",
+) -> pd.DataFrame:
+    """
+    Calculate pairwise border relationships between neighborhoods as a neighborhood-by-neighborhood matrix.
+
+    Parameters
+    ----------
+    gdf_nbhd : gpd.GeoDataFrame
+        GeoDataFrame containing neighborhood geometries. Must have a geometry column
+        and a column specified by `name_col` for neighborhood identifiers.
+    metric : str, default "border_ratio"
+        The border metric to compute:
+        - "border_ratio": Border length over self (row) perimeter.
+          Value = shared_border_length / row_perimeter.
+          Asymmetric measure showing what fraction of the row neighborhood's
+          perimeter is shared with the column neighborhood.
+        - "border_length": Raw shared border length in linear units.
+          Symmetric measure of the absolute length of shared boundary.
+        - "binary": Binary adjacency (1 if touching, 0 otherwise).
+          Symmetric measure indicating whether neighborhoods share a border.
+    name_col : str, default "name"
+        Column name containing neighborhood identifiers.
+
+    Returns
+    -------
+    pd.DataFrame
+        A matrix where rows and columns are neighborhood names. Values represent
+        the computed border metric. Diagonal values are 0 (a neighborhood doesn't
+        border itself in a meaningful way).
+
+    Notes
+    -----
+    Shared border length is computed as the length of the intersection of the
+    two neighborhood boundaries (perimeters). This works for neighborhoods that
+    touch but don't overlap. For overlapping neighborhoods, consider using
+    `calc_nbhd_overlap` instead.
+
+    Examples
+    --------
+    >>> df_ratio = calc_nbhd_bordering(gdf_nbhd, metric="border_ratio")
+    >>> df_length = calc_nbhd_bordering(gdf_nbhd, metric="border_length")
+    >>> df_adj = calc_nbhd_bordering(gdf_nbhd, metric="binary")
+    """
+    print(f"Calculating NBN-B ({metric})")
+
+    valid_metrics = {"border_ratio", "border_length", "binary"}
+    if metric not in valid_metrics:
+        raise ValueError(f"metric must be one of {valid_metrics}, got '{metric}'")
+
+    gdf_nbhd = gdf_nbhd.copy()
+    gdf_nbhd["geometry"] = gdf_nbhd["geometry"].buffer(0)
+
+    names = gdf_nbhd[name_col].tolist()
+
+    # Pre-compute perimeters for efficiency
+    perimeters = {
+        row[name_col]: row["geometry"].length
+        for _, row in gdf_nbhd.iterrows()
+    }
+
+    # Build a lookup for geometries
+    geom_lookup = {
+        row[name_col]: row["geometry"]
+        for _, row in gdf_nbhd.iterrows()
+    }
+
+    # Initialize matrix with zeros
+    matrix = pd.DataFrame(0.0, index=names, columns=names)
+
+    # Use spatial index to find touching pairs efficiently
     gdf_touches = gpd.sjoin(gdf_nbhd, gdf_nbhd, how="inner", predicate="touches")
-    gdf_touches = gdf_touches[gdf_touches["name_left"] != gdf_touches["name_right"]]
-    gdf_touches["pair"] = gdf_touches.apply(
-        lambda row: tuple(sorted((row["name_left"], row["name_right"]))), axis=1
-    )
-    gdf_touches = gdf_touches.drop_duplicates(subset="pair")
-    return (
-        gdf_touches[["name_left", "name_right"]]
-        .rename(columns={"name_left": "nbhd_1", "name_right": "nbhd_2"})
-        .reset_index(drop=True)
-    )
+    gdf_touches = gdf_touches[gdf_touches[f"{name_col}_left"] != gdf_touches[f"{name_col}_right"]]
+
+    # Get unique pairs
+    seen_pairs: set[tuple[str, str]] = set()
+    for _, row in gdf_touches.iterrows():
+        nb1 = row[f"{name_col}_left"]
+        nb2 = row[f"{name_col}_right"]
+
+        # Skip if we've already processed this pair
+        pair_key = tuple(sorted((nb1, nb2)))
+        if pair_key in seen_pairs:
+            continue
+        seen_pairs.add(pair_key)
+
+        geom1 = geom_lookup[nb1]
+        geom2 = geom_lookup[nb2]
+
+        # Compute shared border length as intersection of boundaries
+        boundary1 = geom1.boundary
+        boundary2 = geom2.boundary
+        shared_border = boundary1.intersection(boundary2)
+        border_length = shared_border.length if not shared_border.is_empty else 0.0
+
+        if metric == "binary":
+            matrix.loc[nb1, nb2] = 1.0
+            matrix.loc[nb2, nb1] = 1.0
+        elif metric == "border_length":
+            matrix.loc[nb1, nb2] = round(border_length, 2)
+            matrix.loc[nb2, nb1] = round(border_length, 2)  # Symmetric
+        elif metric == "border_ratio":
+            # Asymmetric: what fraction of each neighborhood's perimeter is shared
+            perim1 = perimeters[nb1]
+            perim2 = perimeters[nb2]
+            ratio_1 = border_length / perim1 if perim1 > 0 else 0.0
+            ratio_2 = border_length / perim2 if perim2 > 0 else 0.0
+            matrix.loc[nb1, nb2] = round(ratio_1, 4)
+            matrix.loc[nb2, nb1] = round(ratio_2, 4)
+
+    return matrix

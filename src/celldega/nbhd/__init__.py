@@ -2,7 +2,7 @@
 
 from .alpha_shapes import alpha_shape, alpha_shape_cell_clusters, filter_alpha_shapes
 from .gradient import calc_grad_nbhd_from_roi
-from .hextile import generate_hex_grid
+from .hextile import generate_hextile
 from .neighborhoods import (
     NBHD,
     calc_nbhd_bordering,
@@ -37,6 +37,6 @@ __all__ = [
     "calc_nbg_cf",
     "calc_nbp",
     "filter_alpha_shapes",
-    "generate_hex_grid",
+    "generate_hextile",
     "get_nbhd_meta",
 ]

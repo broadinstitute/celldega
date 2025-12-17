@@ -65,10 +65,12 @@ def generate_hextile(
             hex_tile = translate(unit_hex, xoff=x + minx - dx, yoff=y + miny - dy)
             hexagons.append(hex_tile)
 
+    names = [f"hex_{i}" for i in range(len(hexagons))]
     gdf_hex = gpd.GeoDataFrame(
-        {"name": [f"hex_{i}" for i in range(len(hexagons))], "geometry": hexagons},
+        {"name": names, "geometry": hexagons},
     )
     gdf_hex = gdf_hex.set_index("name")
+    gdf_hex["name"] = names  # Keep name as both index and column
 
     return gdf_hex
 

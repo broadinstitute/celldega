@@ -367,6 +367,41 @@ def calc_nbp(
     )
     adata_nbp.obs["n_cells"] = counts.sum(axis=1).values
     adata_nbp.uns["gdf_nbhd"] = filtered_gdf_nbhd
+    adata_nbp.uns["category"] = category
+
+    # Add category as a var column (columns represent categories)
+    adata_nbp.var[category] = adata_nbp.var.index.astype(str)
+
+    # Also add category to obs - neighborhoods are named by their cluster
+    # Look up category from gdf_nbhd if available
+    if "cat" in filtered_gdf_nbhd.columns:
+        nbhd_cat_lookup = dict(zip(filtered_gdf_nbhd[nbhd_col], filtered_gdf_nbhd["cat"].astype(str)))
+        adata_nbp.obs[category] = [nbhd_cat_lookup.get(n, str(n)) for n in adata_nbp.obs.index]
+    else:
+        # Default: use the index (neighborhood name) as the category
+        adata_nbp.obs[category] = adata_nbp.obs.index.astype(str)
+
+    # Copy colors from source adata if available
+    color_key = f"{category}_colors"
+    color_dict: dict[str, str] = {}
+    if color_key in adata.uns:
+        # Map colors to the category values
+        src_colors = adata.uns[color_key]
+        if hasattr(adata.obs[category], "cat"):
+            src_categories = list(adata.obs[category].cat.categories.astype(str))
+        else:
+            src_categories = list(adata.obs[category].unique().astype(str))
+
+        color_dict = {
+            str(cat): src_colors[i] for i, cat in enumerate(src_categories) if i < len(src_colors)
+        }
+
+        # Assign colors to var (columns)
+        adata_nbp.var["color"] = [color_dict.get(str(c), "#808080") for c in adata_nbp.var.index]
+        adata_nbp.uns[color_key] = [color_dict.get(str(c), "#808080") for c in adata_nbp.var.index]
+
+        # Also assign colors to obs (rows/neighborhoods)
+        adata_nbp.obs["color"] = [color_dict.get(str(c), "#808080") for c in adata_nbp.obs[category]]
 
     return adata_nbp
 
@@ -414,6 +449,7 @@ def calc_nbhd_overlap(
     gdf_nbhd: gpd.GeoDataFrame,
     metric: str = "iou",
     name_col: str = "name",
+    category: str = "leiden",
 ) -> AnnData:
     """
     Calculate pairwise overlap between all neighborhoods as a neighborhood-by-neighborhood matrix.
@@ -433,6 +469,9 @@ def calc_nbhd_overlap(
         - "intersection": Raw intersection area in square units.
     name_col : str, default "name"
         Column name containing neighborhood identifiers.
+    category : str, default "leiden"
+        Name of the category that neighborhoods represent (e.g., "leiden", "cell_type").
+        This is used to name the category column in obs/var and the colors in uns.
 
     Returns
     -------
@@ -442,6 +481,7 @@ def calc_nbhd_overlap(
         - `obs`: DataFrame indexed by neighborhood names (rows)
         - `var`: DataFrame indexed by neighborhood names (columns)
         - `obs["area"]`: Area of each neighborhood
+        - `obs[category]`: Category value for each neighborhood
         - `uns["metric"]`: The metric used for computation
         - `uns["gdf_nbhd"]`: Input GeoDataFrame for reference
 
@@ -521,6 +561,38 @@ def calc_nbhd_overlap(
     adata_nbn.obs["area"] = [areas[n] for n in matrix.index]
     adata_nbn.uns["metric"] = metric
     adata_nbn.uns["gdf_nbhd"] = gdf_nbhd
+    adata_nbn.uns["category"] = category
+
+    # Add category and color metadata from gdf_nbhd if available
+    # Look up by name_col to get cat and color for each neighborhood
+    nbhd_lookup = gdf_nbhd.set_index(name_col)
+
+    if "cat" in gdf_nbhd.columns:
+        # Use the category parameter name (e.g., "leiden") instead of "cat"
+        adata_nbn.obs[category] = [
+            str(nbhd_lookup.loc[n, "cat"]) if n in nbhd_lookup.index else str(n)
+            for n in matrix.index
+        ]
+        adata_nbn.var[category] = [
+            str(nbhd_lookup.loc[n, "cat"]) if n in nbhd_lookup.index else str(n)
+            for n in matrix.columns
+        ]
+
+    if "color" in gdf_nbhd.columns:
+        obs_colors = [
+            nbhd_lookup.loc[n, "color"] if n in nbhd_lookup.index else "#808080"
+            for n in matrix.index
+        ]
+        adata_nbn.obs["color"] = obs_colors
+        adata_nbn.var["color"] = [
+            nbhd_lookup.loc[n, "color"] if n in nbhd_lookup.index else "#808080"
+            for n in matrix.columns
+        ]
+        # Store colors in uns using the category name (e.g., "leiden_colors")
+        if "cat" in gdf_nbhd.columns:
+            unique_cats = adata_nbn.obs[category].unique()
+            cat_color_map = dict(zip(adata_nbn.obs[category], obs_colors))
+            adata_nbn.uns[f"{category}_colors"] = [cat_color_map.get(c, "#808080") for c in unique_cats]
 
     return adata_nbn
 
@@ -529,6 +601,7 @@ def calc_nbhd_bordering(
     gdf_nbhd: gpd.GeoDataFrame,
     metric: str = "border_ratio",
     name_col: str = "name",
+    category: str = "leiden",
 ) -> AnnData:
     """
     Calculate pairwise border relationships between neighborhoods as a neighborhood-by-neighborhood matrix.
@@ -550,6 +623,9 @@ def calc_nbhd_bordering(
           Symmetric measure indicating whether neighborhoods share a border.
     name_col : str, default "name"
         Column name containing neighborhood identifiers.
+    category : str, default "leiden"
+        Name of the category that neighborhoods represent (e.g., "leiden", "cell_type").
+        This is used to name the category column in obs/var and the colors in uns.
 
     Returns
     -------
@@ -559,6 +635,7 @@ def calc_nbhd_bordering(
         - `obs`: DataFrame indexed by neighborhood names (rows)
         - `var`: DataFrame indexed by neighborhood names (columns)
         - `obs["perimeter"]`: Perimeter of each neighborhood
+        - `obs[category]`: Category value for each neighborhood
         - `uns["metric"]`: The metric used for computation
         - `uns["gdf_nbhd"]`: Input GeoDataFrame for reference
 
@@ -650,5 +727,36 @@ def calc_nbhd_bordering(
     adata_nbn.obs["perimeter"] = [perimeters[n] for n in matrix.index]
     adata_nbn.uns["metric"] = metric
     adata_nbn.uns["gdf_nbhd"] = gdf_nbhd
+    adata_nbn.uns["category"] = category
+
+    # Add category and color metadata from gdf_nbhd if available
+    nbhd_lookup = gdf_nbhd.set_index(name_col)
+
+    if "cat" in gdf_nbhd.columns:
+        # Use the category parameter name (e.g., "leiden") instead of "cat"
+        adata_nbn.obs[category] = [
+            str(nbhd_lookup.loc[n, "cat"]) if n in nbhd_lookup.index else str(n)
+            for n in matrix.index
+        ]
+        adata_nbn.var[category] = [
+            str(nbhd_lookup.loc[n, "cat"]) if n in nbhd_lookup.index else str(n)
+            for n in matrix.columns
+        ]
+
+    if "color" in gdf_nbhd.columns:
+        obs_colors = [
+            nbhd_lookup.loc[n, "color"] if n in nbhd_lookup.index else "#808080"
+            for n in matrix.index
+        ]
+        adata_nbn.obs["color"] = obs_colors
+        adata_nbn.var["color"] = [
+            nbhd_lookup.loc[n, "color"] if n in nbhd_lookup.index else "#808080"
+            for n in matrix.columns
+        ]
+        # Store colors in uns using the category name (e.g., "leiden_colors")
+        if "cat" in gdf_nbhd.columns:
+            unique_cats = adata_nbn.obs[category].unique()
+            cat_color_map = dict(zip(adata_nbn.obs[category], obs_colors))
+            adata_nbn.uns[f"{category}_colors"] = [cat_color_map.get(c, "#808080") for c in unique_cats]
 
     return adata_nbn

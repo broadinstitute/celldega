@@ -689,7 +689,26 @@ class Matrix:
             index=adata_agg.var.index if axis_enum == Axis.COL else adata_agg.obs.index,
             columns=adata_agg.obs.index if axis_enum == Axis.COL else adata_agg.var.index,
         )
-        setattr(self, f"meta_{axis_enum.value}", adata_agg.obs)
+
+        # Add category column to the aggregated metadata
+        meta_agg = adata_agg.obs.copy()
+        meta_agg[category] = meta_agg.index.astype(str)
+
+        # Add colors from source adata if available
+        color_key = f"{category}_colors"
+        if color_key in adata.uns:
+            src_colors = adata.uns[color_key]
+            if hasattr(adata.obs[category], "cat"):
+                src_categories = list(adata.obs[category].cat.categories.astype(str))
+            else:
+                src_categories = list(adata.obs[category].unique().astype(str))
+
+            color_dict = {
+                str(cat): src_colors[i] for i, cat in enumerate(src_categories) if i < len(src_colors)
+            }
+            meta_agg["color"] = [color_dict.get(str(c), "#808080") for c in meta_agg.index]
+
+        setattr(self, f"meta_{axis_enum.value}", meta_agg)
         self.is_downsampled, self._clustered = True, False
         self._invalidate_cache(CacheLevel.DATA.value)
 
@@ -916,15 +935,41 @@ class Matrix:
         Args:
             color_mapping: Dict mapping category values to colors,
                         DataFrame with 'color' column, or None to auto-generate
+
+        Note:
+            If metadata has a 'color' column, those colors will be used automatically.
         """
         # Ensure viz structure exists
         if "global_cat_colors" not in self.viz:
             self.viz["global_cat_colors"] = {}
 
         if color_mapping is None:
-            # Build color mapping from all unique categorical values only
-            all_cats: set[str] = set()
+            # First, try to extract colors from metadata 'color' columns
+            color_mapping = {}
 
+            for meta_df, cat_list in (
+                (self.meta_row, self.row_cats),
+                (self.meta_col, self.col_cats),
+            ):
+                if meta_df is not None and not meta_df.empty:
+                    # If metadata has a 'color' column, use index -> color mapping
+                    if "color" in meta_df.columns:
+                        for idx, color in zip(meta_df.index, meta_df["color"]):
+                            color_mapping[str(idx)] = color
+
+                    # Also check each categorical column for matching color columns
+                    for cat_col in cat_list:
+                        if cat_col in meta_df.columns:
+                            # Check if there's a color column that maps to this category
+                            if "color" in meta_df.columns:
+                                for cat_val, color in zip(
+                                    meta_df[cat_col].astype(str), meta_df["color"]
+                                ):
+                                    if cat_val not in color_mapping:
+                                        color_mapping[cat_val] = color
+
+            # Fill in missing colors with auto-generated palette
+            all_cats: set[str] = set()
             for meta_df, cat_list in (
                 (self.meta_row, self.row_cats),
                 (self.meta_col, self.col_cats),
@@ -934,10 +979,15 @@ class Matrix:
                         if cat_col in meta_df.columns:
                             all_cats.update(meta_df[cat_col].dropna().astype(str).unique().tolist())
 
-            color_mapping = {
-                cat: _COLOR_PALETTE[i % len(_COLOR_PALETTE)]
-                for i, cat in enumerate(sorted(all_cats))
-            }
+            # Add row/col index values as potential categories (for nbhd-by-nbhd matrices)
+            if self.meta_row is not None:
+                all_cats.update(str(x) for x in self.meta_row.index)
+            if self.meta_col is not None:
+                all_cats.update(str(x) for x in self.meta_col.index)
+
+            for i, cat in enumerate(sorted(all_cats)):
+                if cat not in color_mapping:
+                    color_mapping[cat] = _COLOR_PALETTE[i % len(_COLOR_PALETTE)]
 
         elif isinstance(color_mapping, pd.DataFrame):
             if "color" in color_mapping.columns:

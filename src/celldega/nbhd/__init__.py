@@ -1,6 +1,6 @@
 """Module for performing neighborhood analysis."""
 
-from .alpha_shapes import alpha_shape, alpha_shape_cell_clusters
+from .alpha_shapes import alpha_shape, alpha_shape_cell_clusters, filter_alpha_shapes
 from .gradient import calc_grad_nbhd_from_roi
 from .hextile import generate_hex_grid
 from .neighborhoods import (
@@ -36,6 +36,7 @@ __all__ = [
     "calc_nbg_cd",
     "calc_nbg_cf",
     "calc_nbp",
+    "filter_alpha_shapes",
     "generate_hex_grid",
     "get_nbhd_meta",
 ]

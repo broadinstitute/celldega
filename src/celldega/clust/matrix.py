@@ -124,12 +124,16 @@ class Matrix:
             meta_row: Row metadata (for DataFrame input)
             col_attr: Column attribute names (categorical or numeric)
             row_attr: Row attribute names (categorical or numeric)
-            row_entity: Entity specification for rows. Can be:
-                - str: Legacy format like "gene", "cell_cluster", "nbhd"
-                - dict: New format like {"entity": "cell", "attr": "leiden"}
-                The entity specifies what the rows represent (cell, gene, nbhd, etc.)
-                The attr specifies the attribute (name, leiden, cluster_id, etc.)
-            col_entity: Entity specification for columns (same format as row_entity)
+            row_entity: Entity specification for rows. Accepted formats:
+                - str: Shorthand with implicit attr mapping:
+                    - "gene" → {"entity": "gene", "attr": "name"}
+                    - "nbhd" → {"entity": "nbhd", "attr": "name"}
+                    - "cell" → {"entity": "cell", "attr": "name"}
+                    - "hextile" → {"entity": "hextile", "attr": "name"}
+                    - "cell_cluster" or "cluster" → {"entity": "cell", "attr": "leiden"}
+                - tuple: Compact format, e.g., ("nbhd", "name")
+                - dict: Full format, e.g., {"entity": "nbhd", "attr": "name"}
+            col_entity: Entity specification for columns (same formats as row_entity)
             filter_genes: Number of top variable genes to keep (None = no filtering)
             norm_col: Column normalization ('total', 'zscore', 'qn', None)
             norm_row: Row normalization ('total', 'zscore', 'qn', None)

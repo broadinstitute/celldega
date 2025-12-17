@@ -122,8 +122,45 @@ export const update_ist_landscape_from_cgm = async (
   // add try catch block
   try {
     if (click_type === 'row_label') {
-      // Check if this is a cell cluster selection using entity/attr
-      if (isCellCluster(click_info.value)) {
+      // Check if this is a neighborhood selection
+      if (isNeighborhood(click_info.value)) {
+        const new_nbhd = click_info.value.name;
+        const prev_selected = viz_state.obs_store.selected_nbhds.get();
+
+        // Toggle: if clicking the same nbhd, deselect it
+        const is_same =
+          prev_selected.length === 1 && prev_selected[0] === new_nbhd;
+
+        if (is_same) {
+          // Deselect - show all nbhds
+          viz_state.obs_store.selected_nbhds.set([]);
+          viz_state.nbhd?.svg_bar_nbhd?.selectAll('rect').style('opacity', 1.0);
+        } else {
+          // Select the new nbhd
+          viz_state.obs_store.selected_nbhds.set([new_nbhd]);
+          viz_state.nbhd?.svg_bar_nbhd
+            ?.selectAll('rect')
+            .style('opacity', (d) => (d.name === new_nbhd ? 1.0 : 0.2));
+
+          viz_state.nbhd?.svg_bar_nbhd
+            ?.selectAll('rect')
+            .filter((d) => d.name === new_nbhd)
+            .node()
+            ?.scrollIntoView({
+              behavior: 'smooth',
+              block: 'nearest',
+              inline: 'nearest',
+            });
+        }
+
+        viz_state.obs_store.viz_nbhd_layer.set(true);
+        viz_state.buttons?.buttons?.nbhd?.style?.('color', 'blue');
+
+        refresh_layer(viz_state, layers_obj, 'nbhd_layer');
+        refresh_layer(viz_state, layers_obj, 'cell_layer');
+        refresh_layer(viz_state, layers_obj, 'trx_layer');
+      } else if (isCellCluster(click_info.value)) {
+        // Cell cluster selection
         inst_gene = 'cluster';
         new_cat = click_info.value.name;
 
@@ -187,21 +224,25 @@ export const update_ist_landscape_from_cgm = async (
       // Check if this is a neighborhood selection
       if (isNeighborhood(click_info.value)) {
         const new_nbhd = click_info.value.name;
-        viz_state.obs_store.selected_nbhds.set([new_nbhd]);
-        viz_state.obs_store.viz_nbhd_layer.set(true);
-        viz_state.buttons?.buttons?.nbhd?.style?.('color', 'blue');
+        const prev_selected = viz_state.obs_store.selected_nbhds.get();
 
-        refresh_layer(viz_state, layers_obj, 'nbhd_layer');
-        refresh_layer(viz_state, layers_obj, 'cell_layer');
-        refresh_layer(viz_state, layers_obj, 'trx_layer');
+        // Toggle: if clicking the same nbhd, deselect it
+        const is_same =
+          prev_selected.length === 1 && prev_selected[0] === new_nbhd;
 
-        if (viz_state.obs_store.selected_nbhds.get().length > 0) {
-          viz_state.nbhd.svg_bar_nbhd
-            .selectAll('rect')
+        if (is_same) {
+          // Deselect - show all nbhds
+          viz_state.obs_store.selected_nbhds.set([]);
+          viz_state.nbhd?.svg_bar_nbhd?.selectAll('rect').style('opacity', 1.0);
+        } else {
+          // Select the new nbhd
+          viz_state.obs_store.selected_nbhds.set([new_nbhd]);
+          viz_state.nbhd?.svg_bar_nbhd
+            ?.selectAll('rect')
             .style('opacity', (d) => (d.name === new_nbhd ? 1.0 : 0.2));
 
-          viz_state.nbhd.svg_bar_nbhd
-            .selectAll('rect')
+          viz_state.nbhd?.svg_bar_nbhd
+            ?.selectAll('rect')
             .filter((d) => d.name === new_nbhd)
             .node()
             ?.scrollIntoView({
@@ -209,9 +250,14 @@ export const update_ist_landscape_from_cgm = async (
               block: 'nearest',
               inline: 'nearest',
             });
-        } else {
-          viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', 1.0);
         }
+
+        viz_state.obs_store.viz_nbhd_layer.set(true);
+        viz_state.buttons?.buttons?.nbhd?.style?.('color', 'blue');
+
+        refresh_layer(viz_state, layers_obj, 'nbhd_layer');
+        refresh_layer(viz_state, layers_obj, 'cell_layer');
+        refresh_layer(viz_state, layers_obj, 'trx_layer');
       } else if (isCell(click_info.value)) {
         // Individual cell selection - highlight in landscape
         const cell_name = strip_cell_prefix(click_info.value.name, viz_state);
@@ -309,15 +355,34 @@ export const update_ist_landscape_from_cgm = async (
 
       // Handle unselection - clear all states and return to cluster mode
       if (is_unselecting) {
+        viz_state.obs_store.selected_nbhds.set([]);
+        viz_state.nbhd?.svg_bar_nbhd?.selectAll('rect').style('opacity', 1.0);
         reset_to_cluster_mode(viz_state, layers_obj);
         refresh_layer(viz_state, layers_obj, 'trx_layer');
+        refresh_layer(viz_state, layers_obj, 'nbhd_layer');
         return;
       }
 
-      // Check if rows represent cell clusters
+      // Check if rows represent neighborhoods
       const row_entity_full =
         click_info.value.row_entity_full || click_info.value;
-      if (isCellCluster(row_entity_full)) {
+      if (isNeighborhood(row_entity_full)) {
+        // Neighborhood selection from row dendrogram
+        viz_state.obs_store.selected_nbhds.set(new_cats);
+        viz_state.obs_store.viz_nbhd_layer.set(true);
+        viz_state.buttons?.buttons?.nbhd?.style?.('color', 'blue');
+
+        refresh_layer(viz_state, layers_obj, 'nbhd_layer');
+        refresh_layer(viz_state, layers_obj, 'cell_layer');
+
+        if (viz_state.nbhd?.svg_bar_nbhd) {
+          viz_state.nbhd.svg_bar_nbhd
+            .selectAll('rect')
+            .style('opacity', (d) =>
+              new_cats.includes(d.name) ? 1.0 : 0.2
+            );
+        }
+      } else if (isCellCluster(row_entity_full)) {
         viz_state.highlighted_cells = new Set();
         viz_state.obs_store.selected_cells.set([]);
         update_cat(viz_state.cats, 'cluster');
@@ -517,6 +582,45 @@ export const update_ist_landscape_from_cgm = async (
 
         refresh_layer(viz_state, layers_obj, 'cell_layer');
         refresh_layer(viz_state, layers_obj, 'trx_layer');
+      } else if (isNeighborhood(rowEntity) && isCellCluster(colEntity)) {
+        // Neighborhood (row) x Cluster (col): Highlight nbhd and cluster
+        const new_nbhds = [row.name];
+        viz_state.obs_store.selected_nbhds.set(new_nbhds);
+        viz_state.obs_store.viz_nbhd_layer.set(true);
+        viz_state.buttons?.buttons?.nbhd?.style?.('color', 'blue');
+        refresh_layer(viz_state, layers_obj, 'nbhd_layer');
+
+        // Also highlight the selected cluster
+        update_cat(viz_state.cats, 'cluster');
+        update_selected_cats(viz_state.cats, [col.name], viz_state.obs_store);
+        refresh_layer(viz_state, layers_obj, 'cell_layer');
+
+        if (viz_state.obs_store.selected_nbhds.get().length > 0) {
+          const selected_nbhds = viz_state.obs_store.selected_nbhds.get();
+          viz_state.nbhd?.svg_bar_nbhd
+            ?.selectAll('rect')
+            .style('opacity', (d) =>
+              selected_nbhds.includes(d.name) ? 1.0 : 0.2
+            );
+        }
+      } else if (entitiesMatch(rowEntity, colEntity) && isNeighborhood(rowEntity)) {
+        // Same entity:attr on both axes for neighborhoods (nbhd-nbhd matrix)
+        // Highlight BOTH neighborhoods in the Landscape
+        const selected_nbhds = [row.name, col.name];
+        viz_state.obs_store.selected_nbhds.set(selected_nbhds);
+        viz_state.obs_store.viz_nbhd_layer.set(true);
+        viz_state.buttons?.buttons?.nbhd?.style?.('color', 'blue');
+
+        refresh_layer(viz_state, layers_obj, 'nbhd_layer');
+        refresh_layer(viz_state, layers_obj, 'cell_layer');
+
+        if (viz_state.nbhd?.svg_bar_nbhd) {
+          viz_state.nbhd.svg_bar_nbhd
+            .selectAll('rect')
+            .style('opacity', (d) =>
+              selected_nbhds.includes(d.name) ? 1.0 : 0.2
+            );
+        }
       }
     }
   } catch (error) {

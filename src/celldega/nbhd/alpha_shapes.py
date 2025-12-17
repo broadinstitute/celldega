@@ -155,6 +155,65 @@ def alpha_shape_cell_clusters(
     return gdf_alpha.loc[gdf_alpha.area.sort_values(ascending=False).index.tolist()]
 
 
+def filter_alpha_shapes(
+    gdf_alpha: gpd.GeoDataFrame,
+    alpha: float,
+    min_area: float = 0,
+    clean_names: bool = True,
+) -> gpd.GeoDataFrame:
+    """
+    Filter alpha shapes by a specific alpha value and optionally clean up names.
+
+    Alpha shapes computed by `alpha_shape_cell_clusters` have names in the format
+    `{category}_{alpha}` (e.g., "cluster_0_150"). This function filters to a specific
+    alpha value and removes the trailing `_{alpha}` suffix from names.
+
+    Parameters
+    ----------
+    gdf_alpha : gpd.GeoDataFrame
+        GeoDataFrame of alpha shapes with 'inv_alpha', 'area', 'name', and 'cat' columns.
+        Typically the output of `alpha_shape_cell_clusters`.
+    alpha : float
+        The inverse alpha value to filter for (must match values in 'inv_alpha' column).
+    min_area : float, default 0
+        Minimum area threshold. Shapes with area <= min_area are excluded.
+    clean_names : bool, default True
+        If True, removes the trailing `_{alpha}` suffix from the 'name' column,
+        leaving just the category name (e.g., "cluster_0" instead of "cluster_0_150").
+
+    Returns
+    -------
+    gpd.GeoDataFrame
+        Filtered GeoDataFrame with optionally cleaned names.
+
+    Examples
+    --------
+    >>> gdf_alpha = dega.nbhd.alpha_shape_cell_clusters(adata, cat="leiden")
+    >>> gdf_filtered = dega.nbhd.filter_alpha_shapes(gdf_alpha, alpha=150)
+    >>> # Names are now just category names without the alpha suffix
+    >>> print(gdf_filtered["name"].tolist()[:3])
+    ['0', '1', '2']
+    """
+    # Filter by alpha value
+    gdf_filtered = gdf_alpha[gdf_alpha["inv_alpha"] == alpha].copy()
+
+    # Filter by minimum area
+    gdf_filtered = gdf_filtered[gdf_filtered["area"] > min_area]
+
+    if clean_names:
+        # Remove the trailing _{alpha} suffix from names
+        # Names are in format "{cat}_{alpha}", we want just "{cat}"
+        alpha_suffix = f"_{int(alpha)}"
+        gdf_filtered["name"] = gdf_filtered["name"].apply(
+            lambda x: x[: -len(alpha_suffix)] if x.endswith(alpha_suffix) else x
+        )
+
+    # Reset index for clean output
+    gdf_filtered = gdf_filtered.reset_index(drop=True)
+
+    return gdf_filtered
+
+
 def alpha_shape_geojson(
     gdf_alpha: gpd.GeoDataFrame,
     meta_cluster: gpd.GeoDataFrame,

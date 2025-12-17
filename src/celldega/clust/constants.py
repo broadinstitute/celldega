@@ -49,20 +49,53 @@ class AxisEntity(TypedDict, total=False):
     attr: str
 
 
-def normalize_axis_entity(value: str | dict | AxisEntity | None) -> AxisEntity:
+def normalize_axis_entity(value: str | tuple | dict | AxisEntity | None) -> AxisEntity:
     """
     Normalize an axis entity specification to the AxisEntity format.
 
-    Handles backwards compatibility with string-only entity values.
+    Handles backwards compatibility with string-only entity values and supports
+    compact tuple format.
 
     Args:
         value: Entity specification - can be:
-            - str: Legacy format (e.g., "gene", "cell_cluster", "nbhd")
-            - dict/AxisEntity: New format with entity and attr keys
-            - None: Returns default gene entity
+            - str: Shorthand format with implicit attr (see mapping below)
+            - tuple: Compact format (entity, attr) e.g., ("nbhd", "name")
+            - dict/AxisEntity: Full format with entity and attr keys
+            - None: Returns default {"entity": "gene", "attr": "name"}
+
+    String Shorthand Mapping:
+        When a string is provided, the following implicit attr values are used:
+        - "gene" → {"entity": "gene", "attr": "name"}
+        - "nbhd" → {"entity": "nbhd", "attr": "name"}
+        - "cell" → {"entity": "cell", "attr": "name"}
+        - "hextile" → {"entity": "hextile", "attr": "name"}
+        - "cell_cluster" or "cluster" → {"entity": "cell", "attr": "leiden"}
+        - any other string → {"entity": <string>, "attr": "name"}
 
     Returns:
         AxisEntity with entity and attr keys
+
+    Examples:
+        # String shorthand (attr is implicit)
+        >>> normalize_axis_entity("gene")
+        {"entity": "gene", "attr": "name"}
+
+        >>> normalize_axis_entity("nbhd")
+        {"entity": "nbhd", "attr": "name"}
+
+        >>> normalize_axis_entity("cell_cluster")
+        {"entity": "cell", "attr": "leiden"}
+
+        # Tuple format (explicit entity and attr)
+        >>> normalize_axis_entity(("nbhd", "name"))
+        {"entity": "nbhd", "attr": "name"}
+
+        >>> normalize_axis_entity(("cell", "leiden"))
+        {"entity": "cell", "attr": "leiden"}
+
+        # Dict format (most explicit)
+        >>> normalize_axis_entity({"entity": "cell", "attr": "leiden"})
+        {"entity": "cell", "attr": "leiden"}
     """
     if value is None:
         return {"entity": "gene", "attr": "name"}
@@ -79,6 +112,15 @@ def normalize_axis_entity(value: str | dict | AxisEntity | None) -> AxisEntity:
             "hextile": {"entity": "hextile", "attr": "name"},
         }
         return legacy_mapping.get(value, {"entity": value, "attr": "name"})
+
+    if isinstance(value, tuple):
+        # Compact tuple format: (entity, attr)
+        if len(value) >= 2:
+            return {"entity": str(value[0]), "attr": str(value[1])}
+        elif len(value) == 1:
+            return {"entity": str(value[0]), "attr": "name"}
+        else:
+            return {"entity": "custom", "attr": "name"}
 
     if isinstance(value, dict):
         # Already in dict format, ensure it has required keys

@@ -381,9 +381,8 @@ class Matrix:
             row_attr,
         )
 
-        # Set sensible defaults for AnnData: genes (rows) x cells (columns)
-        self.row_entity = {"entity": "gene", "attr": "name"}
-        self.col_entity = {"entity": "cell", "attr": "name"}
+        # Note: row_entity and col_entity are already set in __init__ based on user input
+        # Don't overwrite them here - user may have specified entities for non-gene-expression data
 
     def filter(self, axis: AxisInput, by: FilterType, num: int) -> None:
         """

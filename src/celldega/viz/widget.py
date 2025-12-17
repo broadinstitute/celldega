@@ -119,7 +119,7 @@ class Landscape(anywidget.AnyWidget):
     segmentation = traitlets.Unicode("default").tag(sync=True)
 
     width = traitlets.Int(0).tag(sync=True)
-    height = traitlets.Int(800).tag(sync=True)
+    height = traitlets.Int(600).tag(sync=True)
 
     def __init__(self, **kwargs):
         adata = kwargs.pop("adata", None) or kwargs.pop("AnnData", None)
@@ -698,8 +698,8 @@ class Clustergram(anywidget.AnyWidget):
     network = traitlets.Dict({}).tag(sync=True)
     network_meta = traitlets.Dict({}).tag(sync=True)
 
-    width = traitlets.Int(600).tag(sync=True)
-    height = traitlets.Int(600).tag(sync=True)
+    width = traitlets.Int(500).tag(sync=True)
+    height = traitlets.Int(500).tag(sync=True)
 
     click_info = traitlets.Dict({}).tag(sync=True)
 

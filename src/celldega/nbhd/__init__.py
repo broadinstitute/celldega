@@ -5,10 +5,10 @@ from .gradient import calc_grad_nbhd_from_roi
 from .hextile import generate_hextile, hextile_niche
 from .neighborhoods import (
     NBHD,
-    calc_nbhd_bordering,
-    calc_nbhd_overlap,
     calc_nbg_cd,
     calc_nbg_cf,
+    calc_nbhd_bordering,
+    calc_nbhd_overlap,
     calc_nbp,
     get_nbhd_meta,
 )
@@ -31,10 +31,10 @@ __all__ = [
     "alpha_shape",
     "alpha_shape_cell_clusters",
     "calc_grad_nbhd_from_roi",
-    "calc_nbhd_bordering",
-    "calc_nbhd_overlap",
     "calc_nbg_cd",
     "calc_nbg_cf",
+    "calc_nbhd_bordering",
+    "calc_nbhd_overlap",
     "calc_nbp",
     "filter_alpha_shapes",
     "generate_hextile",

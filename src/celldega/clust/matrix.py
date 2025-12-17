@@ -960,19 +960,17 @@ class Matrix:
                 if meta_df is not None and not meta_df.empty:
                     # If metadata has a 'color' column, use index -> color mapping
                     if "color" in meta_df.columns:
-                        for idx, color in zip(meta_df.index, meta_df["color"]):
+                        for idx, color in zip(meta_df.index, meta_df["color"], strict=False):
                             color_mapping[str(idx)] = color
 
                     # Also check each categorical column for matching color columns
                     for cat_col in cat_list:
-                        if cat_col in meta_df.columns:
-                            # Check if there's a color column that maps to this category
-                            if "color" in meta_df.columns:
-                                for cat_val, color in zip(
-                                    meta_df[cat_col].astype(str), meta_df["color"]
-                                ):
-                                    if cat_val not in color_mapping:
-                                        color_mapping[cat_val] = color
+                        if cat_col in meta_df.columns and "color" in meta_df.columns:
+                            for cat_val, color in zip(
+                                meta_df[cat_col].astype(str), meta_df["color"], strict=False
+                            ):
+                                if cat_val not in color_mapping:
+                                    color_mapping[cat_val] = color
 
             # Fill in missing colors with auto-generated palette
             all_cats: set[str] = set()

@@ -117,10 +117,9 @@ def normalize_axis_entity(value: str | tuple | dict | AxisEntity | None) -> Axis
         # Compact tuple format: (entity, attr)
         if len(value) >= 2:
             return {"entity": str(value[0]), "attr": str(value[1])}
-        elif len(value) == 1:
+        if len(value) == 1:
             return {"entity": str(value[0]), "attr": "name"}
-        else:
-            return {"entity": "custom", "attr": "name"}
+        return {"entity": "custom", "attr": "name"}
 
     if isinstance(value, dict):
         # Already in dict format, ensure it has required keys

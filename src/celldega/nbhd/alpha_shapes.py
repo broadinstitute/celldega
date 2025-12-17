@@ -213,9 +213,8 @@ def filter_alpha_shapes(
         )
 
     # Reset index for clean output
-    gdf_filtered = gdf_filtered.reset_index(drop=True)
+    return gdf_filtered.reset_index(drop=True)
 
-    return gdf_filtered
 
 
 def alpha_shape_geojson(

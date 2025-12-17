@@ -378,7 +378,7 @@ def calc_nbp(
     # Look up category from gdf_nbhd if available
     if "cat" in filtered_gdf_nbhd.columns:
         nbhd_cat_lookup = dict(
-            zip(filtered_gdf_nbhd[nbhd_col], filtered_gdf_nbhd["cat"].astype(str))
+            zip(filtered_gdf_nbhd[nbhd_col], filtered_gdf_nbhd["cat"].astype(str), strict=False)
         )
         adata_nbp.obs[category] = [nbhd_cat_lookup.get(n, str(n)) for n in adata_nbp.obs.index]
     else:
@@ -591,7 +591,7 @@ def calc_nbhd_overlap(
         # Store colors in uns using the category name (e.g., "leiden_colors")
         if "cat" in gdf_nbhd.columns:
             unique_cats = adata_nbn.obs[category].unique()
-            cat_color_map = dict(zip(adata_nbn.obs[category], obs_colors))
+            cat_color_map = dict(zip(adata_nbn.obs[category], obs_colors, strict=False))
             adata_nbn.uns[f"{category}_colors"] = [
                 cat_color_map.get(c, "#808080") for c in unique_cats
             ]
@@ -752,7 +752,7 @@ def calc_nbhd_bordering(
         # Store colors in uns using the category name (e.g., "leiden_colors")
         if "cat" in gdf_nbhd.columns:
             unique_cats = adata_nbn.obs[category].unique()
-            cat_color_map = dict(zip(adata_nbn.obs[category], obs_colors))
+            cat_color_map = dict(zip(adata_nbn.obs[category], obs_colors, strict=False))
             adata_nbn.uns[f"{category}_colors"] = [
                 cat_color_map.get(c, "#808080") for c in unique_cats
             ]

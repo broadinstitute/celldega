@@ -4,9 +4,9 @@ from typing import TYPE_CHECKING
 
 import geopandas as gpd
 import numpy as np
-import pandas as pd
 from shapely.affinity import translate
 from shapely.geometry import Polygon
+
 
 if TYPE_CHECKING:
     from anndata import AnnData
@@ -176,12 +176,9 @@ def hextile_niche(
         gdf_dissolved["area"] = gdf_dissolved.geometry.area
 
         # Reorder columns
-        gdf_dissolved = gdf_dissolved[["name", "cat", "geometry", "color", "area"]]
+        return gdf_dissolved[["name", "cat", "geometry", "color", "area"]]
 
-        return gdf_dissolved
-    else:
-        # Return individual hexagons with niche assignment
-        gdf_result = gdf_result.reset_index()
-        gdf_result = gdf_result[["name", "cat", "geometry", "color"]]
+    # Return individual hexagons with niche assignment
+    gdf_result = gdf_result.reset_index()
+    return gdf_result[["name", "cat", "geometry", "color"]]
 
-        return gdf_result

@@ -9,8 +9,8 @@ from .matrix import Matrix
 
 # Export list
 __all__ = [
-    "Matrix",
     "AxisEntity",
     "EntityType",
+    "Matrix",
     "normalize_axis_entity",
 ]

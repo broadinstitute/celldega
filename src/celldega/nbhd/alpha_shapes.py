@@ -83,12 +83,43 @@ def alpha_shape_cell_clusters(
 ) -> gpd.GeoDataFrame:
     """
     Compute alpha shapes for each cluster in the cell metadata.
+
+    Parameters
+    ----------
+    adata : AnnData
+        AnnData object with cell metadata in obs and spatial coordinates in obsm["spatial"].
+    cat : str
+        Column name in adata.obs containing cluster/category labels.
+    alphas : Sequence[float]
+        List of inverse alpha values to compute shapes for.
+    meta_cluster : pd.DataFrame | None
+        Optional DataFrame with cluster metadata including 'color' column.
+        If not provided, colors will be extracted from adata.uns[f'{cat}_colors']
+        if available, otherwise defaults to black.
+
+    Returns
+    -------
+    gpd.GeoDataFrame
+        GeoDataFrame with alpha shapes for each cluster at each alpha value.
     """
 
     meta_cell = adata.obs
 
     coords = adata.obsm["spatial"]
     meta_cell["geometry"] = list(coords)
+
+    # Build color lookup from adata.uns if meta_cluster not provided
+    adata_color_dict: dict[str, str] = {}
+    if meta_cluster is None:
+        color_key = f"{cat}_colors"
+        if color_key in adata.uns:
+            # Get categories and their corresponding colors
+            categories = adata.obs[cat].cat.categories if hasattr(adata.obs[cat], "cat") else adata.obs[cat].unique()
+            colors = adata.uns[color_key]
+            # Map categories to colors (colors are in same order as categories)
+            for i, category in enumerate(categories):
+                if i < len(colors):
+                    adata_color_dict[str(category)] = colors[i]
 
     gdf_alpha = gpd.GeoDataFrame()
 
@@ -107,9 +138,12 @@ def alpha_shape_cell_clusters(
                 gdf_alpha.loc[inst_name, "geometry"] = inst_shape
                 gdf_alpha.loc[inst_name, "inv_alpha"] = int(inv_alpha)
 
-                # look up color using meta_cluster if provided
+                # Look up color: meta_cluster > adata.uns colors > default black
+                inst_cluster_str = str(inst_cluster)
                 if meta_cluster is not None and inst_cluster in meta_cluster.index:
                     gdf_alpha.loc[inst_name, "color"] = meta_cluster.loc[inst_cluster, "color"]
+                elif inst_cluster_str in adata_color_dict:
+                    gdf_alpha.loc[inst_name, "color"] = adata_color_dict[inst_cluster_str]
                 else:
                     gdf_alpha.loc[inst_name, "color"] = "#000000"
 

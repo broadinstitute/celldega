@@ -181,4 +181,3 @@ def hextile_niche(
     # Return individual hexagons with niche assignment
     gdf_result = gdf_result.reset_index()
     return gdf_result[["name", "cat", "geometry", "color"]]
-

@@ -216,7 +216,6 @@ def filter_alpha_shapes(
     return gdf_filtered.reset_index(drop=True)
 
 
-
 def alpha_shape_geojson(
     gdf_alpha: gpd.GeoDataFrame,
     meta_cluster: gpd.GeoDataFrame,

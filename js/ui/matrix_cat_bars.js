@@ -1,4 +1,5 @@
 import * as d3 from 'd3';
+
 import { get_mat_layers_list } from '../deck-gl/matrix/matrix_layers';
 
 /**
@@ -21,7 +22,7 @@ export const make_matrix_cat_bar_container = () => {
 /**
  * Create a single category bar graph for an axis.
  */
-const make_axis_cat_bar = (axis, entity_name, on_click) => {
+const make_axis_cat_bar = (axis, entity_name, _on_click) => {
   const wrapper = document.createElement('div');
   wrapper.className = `cat-bar-wrapper-${axis}`;
   wrapper.style.display = 'flex';
@@ -329,8 +330,8 @@ const get_first_cat_attr_name = (viz_state, axis) => {
  * Trigger re-render of category tile layers to reflect hover state.
  */
 const update_cat_tile_layers = (viz_state) => {
-  const deck_mat = viz_state.deck_mat;
-  const layers_mat = viz_state.layers_mat;
+  const { deck_mat } = viz_state;
+  const { layers_mat } = viz_state;
 
   if (!deck_mat || !layers_mat) return;
 
@@ -590,7 +591,10 @@ export const init_matrix_cat_bars = (viz_state, ui_container) => {
         () => {
           // Update bar graph with manual category breakdown
           if (viz_state.cat_bars?.[axis]?.svg) {
-            const breakdown = compute_manual_category_breakdown(viz_state, axis);
+            const breakdown = compute_manual_category_breakdown(
+              viz_state,
+              axis
+            );
             if (breakdown && breakdown.data.length > 0) {
               const color_dict = get_color_dict(viz_state);
               const { on_hover, on_hover_out } = create_bar_hover_handlers(
@@ -619,7 +623,8 @@ export const init_matrix_cat_bars = (viz_state, ui_container) => {
 
               // Update title
               const axis_label = axis === 'row' ? 'Row' : 'Col';
-              viz_state.cat_bars[axis].title.textContent = `${axis_label}: ${breakdown.attr_name}`;
+              viz_state.cat_bars[axis].title.textContent =
+                `${axis_label}: ${breakdown.attr_name}`;
             }
           }
         },
@@ -641,7 +646,7 @@ export const init_matrix_cat_bars = (viz_state, ui_container) => {
  * 2. Global category colors from network
  * 3. Fallback category colors
  */
-const get_color_dict = (viz_state) => {
+function get_color_dict(viz_state) {
   const rgb_colors = {};
 
   // Helper to convert hex to RGB array
@@ -679,9 +684,7 @@ const get_color_dict = (viz_state) => {
 
   // Also check global_cat_colors from network (secondary source)
   const global_colors =
-    viz_state.network?.global_cat_colors ||
-    viz_state.global_cat_colors ||
-    {};
+    viz_state.network?.global_cat_colors || viz_state.global_cat_colors || {};
 
   Object.entries(global_colors).forEach(([key, value]) => {
     if (rgb_colors[key]) return; // Don't override
@@ -697,12 +700,12 @@ const get_color_dict = (viz_state) => {
   });
 
   return rgb_colors;
-};
+}
 
 /**
  * Update category bar graphs when dendro selection changes.
  */
-const update_cat_bars_on_selection = (viz_state, selection) => {
+function update_cat_bars_on_selection(viz_state, selection) {
   const color_dict = get_color_dict(viz_state);
 
   if (!selection) {
@@ -738,7 +741,8 @@ const update_cat_bars_on_selection = (viz_state, selection) => {
           // Update title to show attribute name
           const attr_name = get_first_cat_attr_name(viz_state, axis);
           const axis_label = axis === 'row' ? 'Row' : 'Col';
-          viz_state.cat_bars[axis].title.textContent = `${axis_label}: ${attr_name}`;
+          viz_state.cat_bars[axis].title.textContent =
+            `${axis_label}: ${attr_name}`;
         }
       }
     });
@@ -749,7 +753,11 @@ const update_cat_bars_on_selection = (viz_state, selection) => {
   const { axis, selected_names } = selection;
 
   if (viz_state.cat_bars?.[axis]) {
-    const filtered = compute_filtered_breakdown(viz_state, axis, selected_names);
+    const filtered = compute_filtered_breakdown(
+      viz_state,
+      axis,
+      selected_names
+    );
     if (filtered && filtered.data.length > 0) {
       const { on_hover, on_hover_out } = create_bar_hover_handlers(
         viz_state,
@@ -779,8 +787,8 @@ const update_cat_bars_on_selection = (viz_state, selection) => {
       const attr_name = get_first_cat_attr_name(viz_state, axis);
       const axis_label = axis === 'row' ? 'Row' : 'Col';
       const total = filtered.data.reduce((sum, d) => sum + d.value, 0);
-      viz_state.cat_bars[axis].title.textContent = `${axis_label}: ${attr_name} (${total})`;
+      viz_state.cat_bars[axis].title.textContent =
+        `${axis_label}: ${attr_name} (${total})`;
     }
   }
-};
-
+}

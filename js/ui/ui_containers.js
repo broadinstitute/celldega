@@ -34,10 +34,10 @@ import {
   make_bar_container,
   bar_callback_gene,
 } from './bar_plot';
-import { init_matrix_cat_bars } from './matrix_cat_bars';
 import { make_dataset_dropdown } from './dataset_dropdown';
 import { set_gene_search } from './gene_search';
 import { logo } from './logo';
+import { init_matrix_cat_bars } from './matrix_cat_bars';
 import {
   make_img_layer_slider_callback,
   toggle_slider,
@@ -112,7 +112,7 @@ const get_axis_display_name = (viz_state, axis) => {
   const default_name = axis === 'row' ? 'Row' : 'Col';
 
   if (entity_info && entity_info.entity) {
-    const entity = entity_info.entity;
+    const { entity } = entity_info;
 
     // If entity is "N.A." or empty, use default axis name
     if (!entity || entity === 'N.A.' || entity === 'n.a.') {

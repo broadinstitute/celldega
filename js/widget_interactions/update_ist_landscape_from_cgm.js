@@ -287,7 +287,8 @@ export const update_ist_landscape_from_cgm = async (
       }
     } else if (click_type === 'col_dendro') {
       const new_cats = click_info.value.selected_names || [];
-      const is_unselecting = click_info.value.is_unselecting || new_cats.length === 0;
+      const is_unselecting =
+        click_info.value.is_unselecting || new_cats.length === 0;
 
       // Handle unselection - clear all states and return to cluster mode
       if (is_unselecting) {
@@ -351,7 +352,8 @@ export const update_ist_landscape_from_cgm = async (
       }
     } else if (click_type === 'row_dendro') {
       const new_cats = click_info.value.selected_names || [];
-      const is_unselecting = click_info.value.is_unselecting || new_cats.length === 0;
+      const is_unselecting =
+        click_info.value.is_unselecting || new_cats.length === 0;
 
       // Handle unselection - clear all states and return to cluster mode
       if (is_unselecting) {
@@ -378,9 +380,7 @@ export const update_ist_landscape_from_cgm = async (
         if (viz_state.nbhd?.svg_bar_nbhd) {
           viz_state.nbhd.svg_bar_nbhd
             .selectAll('rect')
-            .style('opacity', (d) =>
-              new_cats.includes(d.name) ? 1.0 : 0.2
-            );
+            .style('opacity', (d) => (new_cats.includes(d.name) ? 1.0 : 0.2));
         }
       } else if (isCellCluster(row_entity_full)) {
         viz_state.highlighted_cells = new Set();
@@ -444,8 +444,13 @@ export const update_ist_landscape_from_cgm = async (
       }
     } else if (click_type === 'cat_value') {
       // Category bar/tile click - highlight cells in that category
-      const { axis, attr_name, value, node_names } = click_info.value;
-      const col_entity_full = click_info.value.col_entity_full;
+      const {
+        axis,
+        attr_name: _attr_name,
+        value,
+        node_names,
+      } = click_info.value;
+      const { col_entity_full } = click_info.value;
 
       // If columns are cells and we clicked a category on the column axis
       if (axis === 'col' && isCell(col_entity_full)) {
@@ -503,7 +508,10 @@ export const update_ist_landscape_from_cgm = async (
               selected_nbhds.includes(d.name) ? 1.0 : 0.2
             );
         }
-      } else if (entitiesMatch(rowEntity, colEntity) && isCellCluster(rowEntity)) {
+      } else if (
+        entitiesMatch(rowEntity, colEntity) &&
+        isCellCluster(rowEntity)
+      ) {
         // Same entity:attr on both axes (e.g., cluster-cluster similarity matrix)
         // Highlight BOTH clusters in the Landscape
         viz_state.obs_store.selected_cells.set([]);
@@ -513,7 +521,11 @@ export const update_ist_landscape_from_cgm = async (
         update_cat(viz_state.cats, 'cluster');
         // Select both the row and column clusters
         const selected_clusters = [row.name, col.name];
-        update_selected_cats(viz_state.cats, selected_clusters, viz_state.obs_store);
+        update_selected_cats(
+          viz_state.cats,
+          selected_clusters,
+          viz_state.obs_store
+        );
         update_selected_genes(viz_state.genes, [], viz_state.obs_store);
 
         refresh_layer(viz_state, layers_obj, 'cell_layer');
@@ -528,7 +540,11 @@ export const update_ist_landscape_from_cgm = async (
 
         // Set the gene as the category for coloring
         update_cat(viz_state.cats, gene_name);
-        update_selected_genes(viz_state.genes, [gene_name], viz_state.obs_store);
+        update_selected_genes(
+          viz_state.genes,
+          [gene_name],
+          viz_state.obs_store
+        );
 
         // Load gene expression data
         await update_cell_exp_array(
@@ -543,7 +559,11 @@ export const update_ist_landscape_from_cgm = async (
 
         // Update selected_cats to filter to only cells in this cluster
         // The cell layer will use this to filter which cells to show
-        update_selected_cats(viz_state.cats, [cluster_name], viz_state.obs_store);
+        update_selected_cats(
+          viz_state.cats,
+          [cluster_name],
+          viz_state.obs_store
+        );
 
         viz_state.obs_store.viz_nbhd_layer.set(false);
         viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
@@ -561,7 +581,11 @@ export const update_ist_landscape_from_cgm = async (
 
         // Set the gene as the category for coloring
         update_cat(viz_state.cats, gene_name);
-        update_selected_genes(viz_state.genes, [gene_name], viz_state.obs_store);
+        update_selected_genes(
+          viz_state.genes,
+          [gene_name],
+          viz_state.obs_store
+        );
 
         // Load gene expression data
         await update_cell_exp_array(
@@ -575,7 +599,11 @@ export const update_ist_landscape_from_cgm = async (
         );
 
         // Update selected_cats to filter to only cells in this cluster
-        update_selected_cats(viz_state.cats, [cluster_name], viz_state.obs_store);
+        update_selected_cats(
+          viz_state.cats,
+          [cluster_name],
+          viz_state.obs_store
+        );
 
         viz_state.obs_store.viz_nbhd_layer.set(false);
         viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
@@ -603,7 +631,10 @@ export const update_ist_landscape_from_cgm = async (
               selected_nbhds.includes(d.name) ? 1.0 : 0.2
             );
         }
-      } else if (entitiesMatch(rowEntity, colEntity) && isNeighborhood(rowEntity)) {
+      } else if (
+        entitiesMatch(rowEntity, colEntity) &&
+        isNeighborhood(rowEntity)
+      ) {
         // Same entity:attr on both axes for neighborhoods (nbhd-nbhd matrix)
         // Highlight BOTH neighborhoods in the Landscape
         const selected_nbhds = [row.name, col.name];

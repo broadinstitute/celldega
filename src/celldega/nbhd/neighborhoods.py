@@ -320,7 +320,9 @@ def calc_nbp(
     # Validate inputs
     required_nbhd = {"geometry", nbhd_col}
     if not required_nbhd.issubset(gdf_nbhd.columns):
-        raise ValueError(f"gdf_nbhd missing required columns: {required_nbhd - set(gdf_nbhd.columns)}")
+        raise ValueError(
+            f"gdf_nbhd missing required columns: {required_nbhd - set(gdf_nbhd.columns)}"
+        )
     if category not in adata.obs.columns:
         raise ValueError(f"adata.obs missing required '{category}' column")
     if "spatial" not in adata.obsm:
@@ -375,7 +377,9 @@ def calc_nbp(
     # Also add category to obs - neighborhoods are named by their cluster
     # Look up category from gdf_nbhd if available
     if "cat" in filtered_gdf_nbhd.columns:
-        nbhd_cat_lookup = dict(zip(filtered_gdf_nbhd[nbhd_col], filtered_gdf_nbhd["cat"].astype(str)))
+        nbhd_cat_lookup = dict(
+            zip(filtered_gdf_nbhd[nbhd_col], filtered_gdf_nbhd["cat"].astype(str))
+        )
         adata_nbp.obs[category] = [nbhd_cat_lookup.get(n, str(n)) for n in adata_nbp.obs.index]
     else:
         # Default: use the index (neighborhood name) as the category
@@ -401,7 +405,9 @@ def calc_nbp(
         adata_nbp.uns[color_key] = [color_dict.get(str(c), "#808080") for c in adata_nbp.var.index]
 
         # Also assign colors to obs (rows/neighborhoods)
-        adata_nbp.obs["color"] = [color_dict.get(str(c), "#808080") for c in adata_nbp.obs[category]]
+        adata_nbp.obs["color"] = [
+            color_dict.get(str(c), "#808080") for c in adata_nbp.obs[category]
+        ]
 
     return adata_nbp
 
@@ -503,10 +509,7 @@ def calc_nbhd_overlap(
     names = gdf_nbhd[name_col].tolist()
 
     # Pre-compute areas for efficiency
-    areas = {
-        row[name_col]: row["geometry"].area
-        for _, row in gdf_nbhd.iterrows()
-    }
+    areas = {row[name_col]: row["geometry"].area for _, row in gdf_nbhd.iterrows()}
 
     # Initialize matrix with zeros
     matrix = pd.DataFrame(0.0, index=names, columns=names)
@@ -519,10 +522,7 @@ def calc_nbhd_overlap(
             matrix.loc[name, name] = round(areas[name], 2)
 
     # Build a lookup for geometries
-    geom_lookup = {
-        row[name_col]: row["geometry"]
-        for _, row in gdf_nbhd.iterrows()
-    }
+    geom_lookup = {row[name_col]: row["geometry"] for _, row in gdf_nbhd.iterrows()}
 
     # Compute pairwise overlaps
     for nb1, nb2 in combinations(names, 2):
@@ -592,7 +592,9 @@ def calc_nbhd_overlap(
         if "cat" in gdf_nbhd.columns:
             unique_cats = adata_nbn.obs[category].unique()
             cat_color_map = dict(zip(adata_nbn.obs[category], obs_colors))
-            adata_nbn.uns[f"{category}_colors"] = [cat_color_map.get(c, "#808080") for c in unique_cats]
+            adata_nbn.uns[f"{category}_colors"] = [
+                cat_color_map.get(c, "#808080") for c in unique_cats
+            ]
 
     return adata_nbn
 
@@ -664,16 +666,10 @@ def calc_nbhd_bordering(
     names = gdf_nbhd[name_col].tolist()
 
     # Pre-compute perimeters for efficiency
-    perimeters = {
-        row[name_col]: row["geometry"].length
-        for _, row in gdf_nbhd.iterrows()
-    }
+    perimeters = {row[name_col]: row["geometry"].length for _, row in gdf_nbhd.iterrows()}
 
     # Build a lookup for geometries
-    geom_lookup = {
-        row[name_col]: row["geometry"]
-        for _, row in gdf_nbhd.iterrows()
-    }
+    geom_lookup = {row[name_col]: row["geometry"] for _, row in gdf_nbhd.iterrows()}
 
     # Initialize matrix with zeros
     matrix = pd.DataFrame(0.0, index=names, columns=names)
@@ -757,6 +753,8 @@ def calc_nbhd_bordering(
         if "cat" in gdf_nbhd.columns:
             unique_cats = adata_nbn.obs[category].unique()
             cat_color_map = dict(zip(adata_nbn.obs[category], obs_colors))
-            adata_nbn.uns[f"{category}_colors"] = [cat_color_map.get(c, "#808080") for c in unique_cats]
+            adata_nbn.uns[f"{category}_colors"] = [
+                cat_color_map.get(c, "#808080") for c in unique_cats
+            ]
 
     return adata_nbn

@@ -114,7 +114,11 @@ def alpha_shape_cell_clusters(
         color_key = f"{cat}_colors"
         if color_key in adata.uns:
             # Get categories and their corresponding colors
-            categories = adata.obs[cat].cat.categories if hasattr(adata.obs[cat], "cat") else adata.obs[cat].unique()
+            categories = (
+                adata.obs[cat].cat.categories
+                if hasattr(adata.obs[cat], "cat")
+                else adata.obs[cat].unique()
+            )
             colors = adata.uns[color_key]
             # Map categories to colors (colors are in same order as categories)
             for i, category in enumerate(categories):

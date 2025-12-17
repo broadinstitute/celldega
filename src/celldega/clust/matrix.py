@@ -668,7 +668,11 @@ class Matrix:
             cols_to_propagate = (
                 [c for c in meta_df.columns if c != category and c not in adata_agg.obs.columns]
                 if propagate_metadata is True
-                else [c for c in propagate_metadata if c in meta_df.columns and c not in adata_agg.obs.columns]
+                else [
+                    c
+                    for c in propagate_metadata
+                    if c in meta_df.columns and c not in adata_agg.obs.columns
+                ]
             )
 
             if cols_to_propagate:
@@ -704,7 +708,9 @@ class Matrix:
                 src_categories = list(adata.obs[category].unique().astype(str))
 
             color_dict = {
-                str(cat): src_colors[i] for i, cat in enumerate(src_categories) if i < len(src_colors)
+                str(cat): src_colors[i]
+                for i, cat in enumerate(src_categories)
+                if i < len(src_colors)
             }
             meta_agg["color"] = [color_dict.get(str(c), "#808080") for c in meta_agg.index]
 

@@ -18,7 +18,7 @@ export const sync_selected_genes = (viz_state, genes) => {
     viz_state.model.set('selected_genes', genes);
 
     // Also sync to selected_rows if row entity is 'gene'
-    const row_entity = viz_state.row_entity;
+    const { row_entity } = viz_state;
     if (row_entity?.entity === 'gene') {
       viz_state.model.set('selected_rows', genes);
     }
@@ -40,7 +40,7 @@ export const sync_selected_rows = (viz_state, rows) => {
     viz_state.model.set('selected_rows', rows);
 
     // Also sync to selected_genes if row entity is 'gene'
-    const row_entity = viz_state.row_entity;
+    const { row_entity } = viz_state;
     if (row_entity?.entity === 'gene') {
       viz_state.model.set('selected_genes', rows);
     }

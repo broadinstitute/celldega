@@ -9,7 +9,7 @@ import { get_mat_layers_list } from './matrix_layers';
  * - Matching tiles (same category value) stay at normal opacity
  * - ALL other tiles (any axis, any attribute) become very transparent
  */
-const getCatFillColor = (d, viz_state, axis) => {
+const getCatFillColor = (d, viz_state, _axis) => {
   const hovered = viz_state.hovered_cat;
 
   // If nothing is hovered, return normal color

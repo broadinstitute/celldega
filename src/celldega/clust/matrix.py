@@ -296,7 +296,6 @@ class Matrix:
             viz_data = mat.cluster(dist_type='euclidean', linkage_type='ward')
         """
         self.clust(**cluster_kwargs)
-        return self.export_viz_json()
 
     def load_df(
         self,
@@ -611,16 +610,30 @@ class Matrix:
         self._viz_json(dendro=self._clustered)
         self._dirty_flags[CacheLevel.VIZ.value] = False
 
-    def downsample_to(self, category: str = "leiden", axis: AxisInput = "col") -> None:
+    def downsample_to(
+        self,
+        category: str = "leiden",
+        axis: AxisInput = "col",
+        propagate_metadata: bool | list[str] = False,
+    ) -> None:
         """
-        Downsample data by aggregating categories.
+        Downsample data by aggregating categories using scanpy.get.aggregate.
 
         Args:
             category: Metadata column to aggregate by
             axis: Which axis to aggregate ('col'/1/COL for cells, 'row'/0/ROW for genes)
+            propagate_metadata: Whether to propagate other metadata columns to the
+                aggregated result using the modal (most frequent) value per group.
+                - False: Skip metadata propagation (fast, default)
+                - True: Propagate all metadata columns (slow for large datasets)
+                - list[str]: Propagate only specified columns
 
         Requires:
             scanpy for aggregation functionality
+
+        Note:
+            Uses scanpy.get.aggregate under the hood for fast mean aggregation.
+            See: https://scanpy.readthedocs.io/en/stable/generated/scanpy.get.aggregate.html
         """
         if self.data is None:
             raise ValueError(ERRORS["no_data"])
@@ -641,23 +654,36 @@ class Matrix:
             else AnnData(X=self.data.T, obs=self.meta_row, var=self.meta_col)
         )
 
+        # Use scanpy's fast aggregate function
         adata_agg = sc.get.aggregate(adata, by=category, func="mean")
         if adata_agg.X is None and "mean" in adata_agg.layers:
             adata_agg.X = adata_agg.layers["mean"]
 
+        # Add count column
         count_col = "n_cells" if axis_enum == Axis.COL else "n_genes"
-        adata_agg.obs[count_col] = adata.obs.groupby(category).size().values
+        group_sizes = adata.obs.groupby(category, observed=True).size()
+        adata_agg.obs[count_col] = group_sizes.reindex(adata_agg.obs.index).values
 
-        modal_cols = {
-            col: adata.obs.groupby(category)[col]
-            .agg(lambda x: x.mode().iloc[0] if len(x.mode()) > 0 else None)
-            .values
-            for col in meta_df.columns
-            if col != category and col not in adata_agg.obs.columns
-        }
+        # Optionally propagate metadata columns using modal values
+        if propagate_metadata:
+            cols_to_propagate = (
+                [c for c in meta_df.columns if c != category and c not in adata_agg.obs.columns]
+                if propagate_metadata is True
+                else [c for c in propagate_metadata if c in meta_df.columns and c not in adata_agg.obs.columns]
+            )
 
-        for col, values in modal_cols.items():
-            adata_agg.obs[col] = values
+            if cols_to_propagate:
+                # Vectorized mode computation using value_counts
+                grouped = adata.obs.groupby(category, observed=True)
+                for col in cols_to_propagate:
+                    try:
+                        # Get the most frequent value per group
+                        mode_series = grouped[col].agg(
+                            lambda x: x.value_counts().index[0] if len(x) > 0 else None
+                        )
+                        adata_agg.obs[col] = mode_series.reindex(adata_agg.obs.index).values
+                    except Exception:
+                        pass  # Skip columns that fail
 
         self.data = pd.DataFrame(
             adata_agg.X.T if axis_enum == Axis.COL else adata_agg.X,

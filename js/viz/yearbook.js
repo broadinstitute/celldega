@@ -5,6 +5,7 @@ import {
   set_get_tooltip,
   set_views_prop,
 } from '../deck-gl/core/deck_ist';
+import { execute_cell_query } from '../utils/cell_query';
 import {
   create_yearbook_views,
   get_discontiguous_tiles,
@@ -85,7 +86,8 @@ export const yearbook = async (
   segmentation = 'default',
   creds = {},
   scale_bar_microns_per_pixel = null,
-  current_page = 0
+  current_page = 0,
+  query = {}
 ) => {
   if (width === 0) {
     width = '100%';
@@ -107,6 +109,7 @@ export const yearbook = async (
     current_page,
     zoom_level: 0,
     portrait_centers: [], // Will store the center coordinates for each portrait
+    query, // Query object for finding cells from LandscapeFiles
   };
 
   viz_state.max_tiles_to_view = 50;
@@ -269,6 +272,28 @@ export const yearbook = async (
 
   await set_cluster_metadata(viz_state);
 
+  // Define process_query function (used after cell layer init and for model changes)
+  const process_query = async (query_obj) => {
+    if (!query_obj || Object.keys(query_obj).length === 0) {
+      return [];
+    }
+
+    // Default max_cells based on grid size (10 pages worth)
+    const default_max_cells = num_rows * num_cols * 10;
+
+    try {
+      const queried_cells = await execute_cell_query(
+        query_obj,
+        viz_state,
+        default_max_cells
+      );
+      return queried_cells;
+    } catch (error) {
+      console.error('Failed to execute cell query:', error);
+      return [];
+    }
+  };
+
   // Initialize cell and trx caches
   viz_state.cache = {};
   viz_state.cache.cell = await ini_cache();
@@ -325,6 +350,19 @@ export const yearbook = async (
   const cell_layer = await ini_cell_layer(base_url, viz_state);
   const path_layer = await ini_path_layer(viz_state);
   const trx_layer = ini_trx_layer(viz_state);
+
+  // Process initial query if cells is empty and query is provided
+  // This must happen after ini_cell_layer which populates cell_names_array and dict_cell_cats
+  if (viz_state.yearbook.cells.length === 0 && Object.keys(query).length > 0) {
+    const queried_cells = await process_query(query);
+    viz_state.yearbook.cells = queried_cells;
+
+    // Sync back to model if available
+    if (viz_state.model && typeof viz_state.model.set === 'function') {
+      viz_state.model.set('cells', queried_cells);
+      viz_state.model.save_changes();
+    }
+  }
 
   // Create deck instance with multiple views
   const views = create_yearbook_views(
@@ -753,6 +791,32 @@ export const yearbook = async (
       const new_zoom = viz_state.model.get('zoom_level');
       if (Math.abs(new_zoom - viz_state.yearbook.zoom_level) > 0.01) {
         syncZoomToAllPortraits(new_zoom);
+      }
+    });
+
+    viz_state.model.on('change:query', async () => {
+      const new_query = viz_state.model.get('query') || {};
+      viz_state.yearbook.query = new_query;
+
+      // Execute the new query
+      if (Object.keys(new_query).length > 0) {
+        const queried_cells = await process_query(new_query);
+        viz_state.yearbook.cells = queried_cells;
+
+        // Sync cells back to model
+        viz_state.model.set('cells', queried_cells);
+        viz_state.model.save_changes();
+
+        // Reset to first page and update portraits
+        viz_state.yearbook.current_page = 0;
+        viz_state.model.set('current_page', 0);
+
+        await update_all_portraits();
+        initViewStates();
+
+        if (viz_state.yearbook.update_pagination_ui) {
+          viz_state.yearbook.update_pagination_ui();
+        }
       }
     });
   }

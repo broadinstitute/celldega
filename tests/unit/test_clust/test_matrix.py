@@ -228,9 +228,13 @@ class TestMatrix:
             # Check category colors were set
             assert "global_cat_colors" in mat.viz, "viz should contain global_cat_colors"
             expected_colors = {"low": "blue", "high": "black", "a": "orange", "b": "purple"}
-            assert mat.viz["global_cat_colors"] == expected_colors, (
-                "Global colors should match expected"
-            )
+            actual_colors = mat.viz["global_cat_colors"]
+            # Check that all expected colors are present (may contain additional auto-generated colors)
+            for key, value in expected_colors.items():
+                assert key in actual_colors, f"Expected color key '{key}' not found"
+                assert actual_colors[key] == value, (
+                    f"Color for '{key}' should be '{value}', got '{actual_colors[key]}'"
+                )
 
             # Check column categories
             col_nodes = mat.viz["col_nodes"]

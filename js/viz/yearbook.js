@@ -763,13 +763,57 @@ export const yearbook = async (
     },
   });
 
+  // Handle query changes from UI
+  const handle_query_change = async (new_query) => {
+    viz_state.yearbook.query = new_query;
+
+    // Update status in UI
+    if (viz_state.yearbook.query_ui) {
+      viz_state.yearbook.query_ui.update_status('Searching...');
+    }
+
+    try {
+      const queried_cells = await process_query(new_query);
+      viz_state.yearbook.cells = queried_cells;
+
+      // Update status with result count
+      if (viz_state.yearbook.query_ui) {
+        const count = queried_cells.length;
+        viz_state.yearbook.query_ui.update_status(`Found ${count} cells`);
+      }
+
+      // Sync to model if available
+      if (viz_state.model && typeof viz_state.model.set === 'function') {
+        viz_state.model.set('cells', queried_cells);
+        viz_state.model.set('query', new_query);
+        viz_state.model.set('current_page', 0);
+        viz_state.model.save_changes();
+      }
+
+      // Reset to first page and update portraits
+      viz_state.yearbook.current_page = 0;
+      await update_all_portraits();
+      initViewStates();
+
+      if (viz_state.yearbook.update_pagination_ui) {
+        viz_state.yearbook.update_pagination_ui();
+      }
+    } catch (error) {
+      console.error('Query failed:', error);
+      if (viz_state.yearbook.query_ui) {
+        viz_state.yearbook.query_ui.update_status('Query failed');
+      }
+    }
+  };
+
   // Create UI container
   const ui_container = make_yearbook_ui_container(
     dataset_name,
     deck_yearbook,
     layers_obj,
     viz_state,
-    handle_page_change
+    handle_page_change,
+    handle_query_change
   );
 
   // Listen for model changes
@@ -798,10 +842,34 @@ export const yearbook = async (
       const new_query = viz_state.model.get('query') || {};
       viz_state.yearbook.query = new_query;
 
+      // Update UI inputs to reflect the new query
+      if (viz_state.yearbook.query_ui) {
+        const { cluster_input, gene_input, update_status } =
+          viz_state.yearbook.query_ui;
+        if (new_query.cluster) {
+          cluster_input.value = new_query.cluster.value || '';
+        } else {
+          cluster_input.value = '';
+        }
+        if (new_query.gene) {
+          gene_input.value = new_query.gene || '';
+        } else {
+          gene_input.value = '';
+        }
+        update_status('Searching...');
+      }
+
       // Execute the new query
       if (Object.keys(new_query).length > 0) {
         const queried_cells = await process_query(new_query);
         viz_state.yearbook.cells = queried_cells;
+
+        // Update status
+        if (viz_state.yearbook.query_ui) {
+          viz_state.yearbook.query_ui.update_status(
+            `Found ${queried_cells.length} cells`
+          );
+        }
 
         // Sync cells back to model
         viz_state.model.set('cells', queried_cells);

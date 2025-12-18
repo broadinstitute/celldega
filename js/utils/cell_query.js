@@ -65,24 +65,43 @@ export const load_gene_expression = async (base_url, version, aws, gene_name) =>
  * Execute a cell query to find cells matching the criteria.
  *
  * Query formats:
- * - {"cluster": {"attr": "leiden", "value": "8"}} - random cells from cluster
- * - {"gene": "BRCA1"} - cells ranked by gene expression (highest first)
- * - {"cluster": {...}, "gene": "BRCA1"} - cluster cells ranked by gene
- * - {"max_cells": 100} - limit number of cells (default based on grid size)
+ * - {"cluster": {"attr": "leiden", "value": "8"}} - random cells from cluster (default limit: 100)
+ * - {"gene": "BRCA1"} - ALL cells ranked by gene expression (highest first, no limit)
+ * - {"cluster": {...}, "gene": "BRCA1"} - cluster cells ranked by gene (no limit by default)
+ * - {"max_cells": 100} - explicit limit on number of cells returned
+ *
+ * Behavior:
+ * - Cluster-only queries: randomly shuffle and limit to max_cells (default 100)
+ * - Gene queries (with or without cluster): return all matching cells ranked by expression
+ * - max_cells in query overrides default behavior
  *
  * @param {object} query - Query object
  * @param {object} viz_state - Visualization state with cell data
- * @param {number} default_max_cells - Default max cells if not specified in query
+ * @param {number} default_cluster_max - Default max cells for cluster-only queries (default: 100)
  * @returns {Promise<string[]>} Array of cell names matching the query
  */
-export const execute_cell_query = async (query, viz_state, default_max_cells = 60) => {
+export const execute_cell_query = async (query, viz_state, default_cluster_max = 100) => {
   if (!query || Object.keys(query).length === 0) {
     return [];
   }
 
-  const max_cells = query.max_cells || default_max_cells;
   const cluster_query = query.cluster;
   const gene_name = query.gene;
+
+  // Determine max_cells based on query type:
+  // - If max_cells is explicitly set in query, use it
+  // - For cluster-only queries, default to default_cluster_max (100)
+  // - For gene queries, no limit (Infinity) to show full expression range
+  let max_cells;
+  if (query.max_cells !== undefined) {
+    max_cells = query.max_cells;
+  } else if (cluster_query && !gene_name) {
+    // Cluster-only: limit to prevent overwhelming the UI
+    max_cells = default_cluster_max;
+  } else {
+    // Gene query (with or without cluster): no limit
+    max_cells = Infinity;
+  }
 
   // Get all available cell names from viz_state
   const all_cell_names = viz_state.cats.cell_names_array || [];
@@ -140,7 +159,7 @@ export const execute_cell_query = async (query, viz_state, default_max_cells = 6
     return [];
   }
 
-  // Rank/filter by gene expression if specified
+  // Rank by gene expression if specified
   if (gene_name) {
     try {
       const exp_map = await load_gene_expression(
@@ -150,13 +169,14 @@ export const execute_cell_query = async (query, viz_state, default_max_cells = 6
         gene_name
       );
 
-      // Filter to cells with non-zero expression and sort by expression (descending)
+      // Sort cells by expression (descending), only include cells with expression >= 1
+      // This shows the full range from high to low expressors
       const cells_with_exp = candidate_cells
         .map((cell_name) => ({
           name: cell_name,
           exp: exp_map.get(cell_name) || 0,
         }))
-        .filter((c) => c.exp > 0)
+        .filter((c) => c.exp >= 1)
         .sort((a, b) => b.exp - a.exp);
 
       candidate_cells = cells_with_exp.map((c) => c.name);
@@ -169,8 +189,11 @@ export const execute_cell_query = async (query, viz_state, default_max_cells = 6
     candidate_cells = shuffle_array(candidate_cells);
   }
 
-  // Limit to max_cells
-  return candidate_cells.slice(0, max_cells);
+  // Apply max_cells limit (may be Infinity for gene queries)
+  if (max_cells !== Infinity && candidate_cells.length > max_cells) {
+    return candidate_cells.slice(0, max_cells);
+  }
+  return candidate_cells;
 };
 
 /**

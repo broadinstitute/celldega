@@ -26,6 +26,242 @@ import {
 } from './sliders';
 import { make_button } from './text_buttons';
 
+/**
+ * Create the query UI box for searching cells by cluster and/or gene
+ * @param {object} viz_state - Visualization state
+ * @param {function} on_query_change - Callback when query changes
+ * @returns {HTMLElement} Query container element
+ */
+const make_query_container = (viz_state, on_query_change) => {
+  const container = document.createElement('div');
+  container.className = 'query_container';
+  container.style.display = 'flex';
+  container.style.flexDirection = 'column';
+  container.style.marginLeft = '5px';
+  container.style.marginTop = '3px';
+  container.style.minWidth = '130px';
+  container.style.maxWidth = '150px';
+
+  // Title
+  const title = document.createElement('div');
+  title.textContent = 'Query Cells';
+  title.style.fontSize = '11px';
+  title.style.fontWeight = 'bold';
+  title.style.color = '#47515b';
+  title.style.marginBottom = '3px';
+  title.style.fontFamily =
+    '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif';
+  container.appendChild(title);
+
+  // Cluster input row
+  const cluster_row = document.createElement('div');
+  cluster_row.style.display = 'flex';
+  cluster_row.style.flexDirection = 'row';
+  cluster_row.style.alignItems = 'center';
+  cluster_row.style.marginBottom = '2px';
+
+  const cluster_label = document.createElement('span');
+  cluster_label.textContent = 'Cluster:';
+  cluster_label.style.fontSize = '10px';
+  cluster_label.style.width = '42px';
+  cluster_label.style.color = '#555';
+  cluster_row.appendChild(cluster_label);
+
+  const cluster_input = document.createElement('input');
+  cluster_input.type = 'text';
+  cluster_input.placeholder = 'e.g. 5';
+  cluster_input.style.width = '70px';
+  cluster_input.style.height = '16px';
+  cluster_input.style.fontSize = '11px';
+  cluster_input.style.border = '1px solid #d3d3d3';
+  cluster_input.style.borderRadius = '2px';
+  cluster_input.style.padding = '1px 3px';
+
+  // Create cluster datalist for autocomplete
+  const cluster_datalist = document.createElement('datalist');
+  cluster_datalist.id = 'yearbook_cluster_datalist';
+  cluster_input.setAttribute('list', cluster_datalist.id);
+
+  // Populate with cluster names from cluster_counts
+  if (viz_state.cats.cluster_counts) {
+    viz_state.cats.cluster_counts.forEach((item) => {
+      const option = document.createElement('option');
+      option.value = item.name;
+      cluster_datalist.appendChild(option);
+    });
+  }
+
+  cluster_row.appendChild(cluster_input);
+  cluster_row.appendChild(cluster_datalist);
+  container.appendChild(cluster_row);
+
+  // Gene input row
+  const gene_row = document.createElement('div');
+  gene_row.style.display = 'flex';
+  gene_row.style.flexDirection = 'row';
+  gene_row.style.alignItems = 'center';
+  gene_row.style.marginBottom = '3px';
+
+  const gene_label = document.createElement('span');
+  gene_label.textContent = 'Gene:';
+  gene_label.style.fontSize = '10px';
+  gene_label.style.width = '42px';
+  gene_label.style.color = '#555';
+  gene_row.appendChild(gene_label);
+
+  const gene_input = document.createElement('input');
+  gene_input.type = 'text';
+  gene_input.placeholder = 'e.g. BRCA1';
+  gene_input.style.width = '70px';
+  gene_input.style.height = '16px';
+  gene_input.style.fontSize = '11px';
+  gene_input.style.border = '1px solid #d3d3d3';
+  gene_input.style.borderRadius = '2px';
+  gene_input.style.padding = '1px 3px';
+
+  // Create gene datalist for autocomplete
+  const gene_datalist = document.createElement('datalist');
+  gene_datalist.id = 'yearbook_gene_datalist';
+  gene_input.setAttribute('list', gene_datalist.id);
+
+  // Populate with gene names
+  if (viz_state.genes.gene_names) {
+    viz_state.genes.gene_names.forEach((gene) => {
+      const option = document.createElement('option');
+      option.value = gene;
+      gene_datalist.appendChild(option);
+    });
+  }
+
+  gene_row.appendChild(gene_input);
+  gene_row.appendChild(gene_datalist);
+  container.appendChild(gene_row);
+
+  // Query button
+  const button_row = document.createElement('div');
+  button_row.style.display = 'flex';
+  button_row.style.flexDirection = 'row';
+  button_row.style.gap = '5px';
+
+  const query_button = document.createElement('button');
+  query_button.textContent = 'Query';
+  query_button.style.padding = '3px 10px';
+  query_button.style.fontSize = '11px';
+  query_button.style.cursor = 'pointer';
+  query_button.style.border = '1px solid #8797ff';
+  query_button.style.borderRadius = '3px';
+  query_button.style.backgroundColor = '#8797ff';
+  query_button.style.color = 'white';
+  query_button.style.fontWeight = 'bold';
+
+  query_button.onmouseenter = () => {
+    query_button.style.backgroundColor = '#6677ee';
+  };
+  query_button.onmouseleave = () => {
+    query_button.style.backgroundColor = '#8797ff';
+  };
+
+  const clear_button = document.createElement('button');
+  clear_button.textContent = 'Clear';
+  clear_button.style.padding = '3px 8px';
+  clear_button.style.fontSize = '11px';
+  clear_button.style.cursor = 'pointer';
+  clear_button.style.border = '1px solid #d3d3d3';
+  clear_button.style.borderRadius = '3px';
+  clear_button.style.backgroundColor = '#f0f0f0';
+  clear_button.style.color = '#555';
+
+  // Build query object and trigger callback
+  const execute_query = () => {
+    const cluster_value = cluster_input.value.trim();
+    const gene_value = gene_input.value.trim();
+
+    // Validate inputs
+    const valid_cluster =
+      !cluster_value ||
+      viz_state.cats.cluster_counts?.some((c) => c.name === cluster_value);
+    const valid_gene =
+      !gene_value || viz_state.genes.gene_names?.includes(gene_value);
+
+    if (!valid_cluster) {
+      cluster_input.style.borderColor = '#ff6666';
+      return;
+    } else {
+      cluster_input.style.borderColor = '#d3d3d3';
+    }
+
+    if (!valid_gene) {
+      gene_input.style.borderColor = '#ff6666';
+      return;
+    } else {
+      gene_input.style.borderColor = '#d3d3d3';
+    }
+
+    // Build query object
+    const query = {};
+
+    if (cluster_value) {
+      // Use the current cluster attribute (default to 'leiden')
+      const cluster_attr = viz_state.cats.inst_cluster_attr || 'leiden';
+      query.cluster = { attr: cluster_attr, value: cluster_value };
+    }
+
+    if (gene_value) {
+      query.gene = gene_value;
+    }
+
+    // Only execute if at least one field is filled
+    if (Object.keys(query).length > 0) {
+      on_query_change(query);
+    }
+  };
+
+  query_button.onclick = execute_query;
+
+  // Allow Enter key to trigger query
+  const on_enter = (event) => {
+    if (event.key === 'Enter') {
+      execute_query();
+    }
+  };
+  cluster_input.addEventListener('keydown', on_enter);
+  gene_input.addEventListener('keydown', on_enter);
+
+  clear_button.onclick = () => {
+    cluster_input.value = '';
+    gene_input.value = '';
+    cluster_input.style.borderColor = '#d3d3d3';
+    gene_input.style.borderColor = '#d3d3d3';
+  };
+
+  button_row.appendChild(query_button);
+  button_row.appendChild(clear_button);
+  container.appendChild(button_row);
+
+  // Status text (shows current query info)
+  const status_text = document.createElement('div');
+  status_text.className = 'query_status';
+  status_text.style.fontSize = '10px';
+  status_text.style.color = '#888';
+  status_text.style.marginTop = '3px';
+  status_text.style.maxHeight = '30px';
+  status_text.style.overflow = 'hidden';
+  status_text.style.textOverflow = 'ellipsis';
+  container.appendChild(status_text);
+
+  // Store references for external updates
+  viz_state.yearbook.query_ui = {
+    cluster_input,
+    gene_input,
+    status_text,
+    update_status: (message) => {
+      status_text.textContent = message;
+    },
+  };
+
+  return container;
+};
+
 export const make_ui_container = () => {
   const ui_container = document.createElement('div');
   ui_container.style.display = 'flex';
@@ -269,14 +505,15 @@ const make_pagination_container = (viz_state, handle_page_change) => {
 
 /**
  * Create the main UI container for the Yearbook widget
- * Similar to make_ist_ui_container but with pagination
+ * Similar to make_ist_ui_container but with pagination and query box
  */
 export const make_yearbook_ui_container = (
   dataset_name,
   deck_yearbook,
   layers_obj,
   viz_state,
-  handle_page_change
+  handle_page_change,
+  handle_query_change
 ) => {
   const ui_container = make_ui_container();
   const ctrl_container = make_ctrl_container();
@@ -695,6 +932,10 @@ export const make_yearbook_ui_container = (
   viz_state.genes.gene_search.style.marginLeft = '5px';
 
   ctrl_container.appendChild(viz_state.genes.gene_search);
+
+  // Add query box for searching cells by cluster/gene
+  const query_container = make_query_container(viz_state, handle_query_change);
+  ctrl_container.appendChild(query_container);
 
   // Add pagination controls
   const pagination_container = make_pagination_container(

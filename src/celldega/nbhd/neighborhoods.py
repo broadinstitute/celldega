@@ -144,9 +144,7 @@ def calc_nbhd_by_gene(
         )
         geometry = gpd.points_from_xy(df_trx["x_location"], df_trx["y_location"])
         gdf_trx = gpd.GeoDataFrame(df_trx[["feature_name"]], geometry=geometry)
-        gdf_trx = gdf_trx.sjoin(
-            gdf_nbhd[[nbhd_col, "geometry"]], how="left", predicate="within"
-        )
+        gdf_trx = gdf_trx.sjoin(gdf_nbhd[[nbhd_col, "geometry"]], how="left", predicate="within")
 
         df_result = (
             gdf_trx.groupby([nbhd_col, "feature_name"])
@@ -190,12 +188,8 @@ def calc_nbhd_by_gene(
         adata_nbg.obs["cat"] = [nbhd_cat_lookup.get(n, str(n)) for n in adata_nbg.obs.index]
 
     if "color" in filtered_gdf.columns:
-        nbhd_color_lookup = dict(
-            zip(filtered_gdf[nbhd_col], filtered_gdf["color"], strict=False)
-        )
-        adata_nbg.obs["color"] = [
-            nbhd_color_lookup.get(n, "#808080") for n in adata_nbg.obs.index
-        ]
+        nbhd_color_lookup = dict(zip(filtered_gdf[nbhd_col], filtered_gdf["color"], strict=False))
+        adata_nbg.obs["color"] = [nbhd_color_lookup.get(n, "#808080") for n in adata_nbg.obs.index]
         # Store colors in uns as well
         adata_nbg.uns["nbhd_colors"] = [
             nbhd_color_lookup.get(n, "#808080") for n in adata_nbg.obs.index

@@ -46,7 +46,7 @@ const reset_to_cluster_mode = (viz_state, layers_obj) => {
  * Supports both legacy format (row_entity === 'cell_cluster') and
  * new format (entity === 'cell' && attr === 'leiden').
  */
-export const isCellCluster = (clickValue) => {
+export const is_cell_cluster = (clickValue) => {
   if (!clickValue) return false;
 
   // Legacy format check
@@ -64,7 +64,7 @@ export const isCellCluster = (clickValue) => {
 /**
  * Check if a click value represents a neighborhood selection.
  */
-export const isNeighborhood = (clickValue) => {
+export const is_neighborhood = (clickValue) => {
   if (!clickValue) return false;
 
   // Legacy format check
@@ -77,7 +77,7 @@ export const isNeighborhood = (clickValue) => {
 /**
  * Check if a click value represents a gene selection.
  */
-export const isGene = (clickValue) => {
+export const is_gene = (clickValue) => {
   if (!clickValue) return false;
 
   // New format check
@@ -88,7 +88,7 @@ export const isGene = (clickValue) => {
  * Check if a click value represents an individual cell selection.
  * This is when entity is 'cell' and attr is 'name' (not a cluster attribute).
  */
-export const isCell = (clickValue) => {
+export const is_cell = (clickValue) => {
   if (!clickValue) return false;
 
   // Check for cell entity with name attribute (individual cells)
@@ -123,7 +123,7 @@ export const update_ist_landscape_from_cgm = async (
   try {
     if (click_type === 'row_label') {
       // Check if this is a neighborhood selection
-      if (isNeighborhood(click_info.value)) {
+      if (is_neighborhood(click_info.value)) {
         const new_nbhd = click_info.value.name;
         const prev_selected = viz_state.obs_store.selected_nbhds.get();
 
@@ -159,7 +159,7 @@ export const update_ist_landscape_from_cgm = async (
         refresh_layer(viz_state, layers_obj, 'nbhd_layer');
         refresh_layer(viz_state, layers_obj, 'cell_layer');
         refresh_layer(viz_state, layers_obj, 'trx_layer');
-      } else if (isCellCluster(click_info.value)) {
+      } else if (is_cell_cluster(click_info.value)) {
         // Cell cluster selection
         inst_gene = 'cluster';
         new_cat = click_info.value.name;
@@ -222,7 +222,7 @@ export const update_ist_landscape_from_cgm = async (
       }
     } else if (click_type === 'col_label') {
       // Check if this is a neighborhood selection
-      if (isNeighborhood(click_info.value)) {
+      if (is_neighborhood(click_info.value)) {
         const new_nbhd = click_info.value.name;
         const prev_selected = viz_state.obs_store.selected_nbhds.get();
 
@@ -258,7 +258,7 @@ export const update_ist_landscape_from_cgm = async (
         refresh_layer(viz_state, layers_obj, 'nbhd_layer');
         refresh_layer(viz_state, layers_obj, 'cell_layer');
         refresh_layer(viz_state, layers_obj, 'trx_layer');
-      } else if (isCell(click_info.value)) {
+      } else if (is_cell(click_info.value)) {
         // Individual cell selection - highlight in landscape
         const cell_name = strip_cell_prefix(click_info.value.name, viz_state);
         viz_state.obs_store.selected_cells.set([cell_name]);
@@ -302,7 +302,7 @@ export const update_ist_landscape_from_cgm = async (
       // Check if columns represent neighborhoods
       const col_entity_full =
         click_info.value.col_entity_full || click_info.value;
-      if (isNeighborhood(col_entity_full)) {
+      if (is_neighborhood(col_entity_full)) {
         viz_state.obs_store.selected_nbhds.set(new_cats);
         viz_state.obs_store.viz_nbhd_layer.set(true);
         viz_state.buttons?.buttons?.nbhd?.style?.('color', 'blue');
@@ -328,7 +328,7 @@ export const update_ist_landscape_from_cgm = async (
         } else {
           viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', 1.0);
         }
-      } else if (isCell(col_entity_full)) {
+      } else if (is_cell(col_entity_full)) {
         // Individual cells selected via dendrogram - highlight in landscape
         const stripped_cells = strip_cell_prefixes(new_cats, viz_state);
         viz_state.obs_store.selected_cells.set(stripped_cells);
@@ -368,7 +368,7 @@ export const update_ist_landscape_from_cgm = async (
       // Check if rows represent neighborhoods
       const row_entity_full =
         click_info.value.row_entity_full || click_info.value;
-      if (isNeighborhood(row_entity_full)) {
+      if (is_neighborhood(row_entity_full)) {
         // Neighborhood selection from row dendrogram
         viz_state.obs_store.selected_nbhds.set(new_cats);
         viz_state.obs_store.viz_nbhd_layer.set(true);
@@ -382,7 +382,7 @@ export const update_ist_landscape_from_cgm = async (
             .selectAll('rect')
             .style('opacity', (d) => (new_cats.includes(d.name) ? 1.0 : 0.2));
         }
-      } else if (isCellCluster(row_entity_full)) {
+      } else if (is_cell_cluster(row_entity_full)) {
         viz_state.highlighted_cells = new Set();
         viz_state.obs_store.selected_cells.set([]);
         update_cat(viz_state.cats, 'cluster');
@@ -393,7 +393,7 @@ export const update_ist_landscape_from_cgm = async (
         refresh_layer(viz_state, layers_obj, 'cell_layer');
         refresh_layer(viz_state, layers_obj, 'trx_layer');
         refresh_layer(viz_state, layers_obj, 'nbhd_layer');
-      } else if (isGene(row_entity_full)) {
+      } else if (is_gene(row_entity_full)) {
         // Gene selection from row dendrogram
         update_selected_genes(viz_state.genes, new_cats, viz_state.obs_store);
 
@@ -453,7 +453,7 @@ export const update_ist_landscape_from_cgm = async (
       const { col_entity_full } = click_info.value;
 
       // If columns are cells and we clicked a category on the column axis
-      if (axis === 'col' && isCell(col_entity_full)) {
+      if (axis === 'col' && is_cell(col_entity_full)) {
         // node_names contains all cells in this category - strip prefixes if needed
         const stripped_cells = strip_cell_prefixes(node_names || [], viz_state);
         viz_state.obs_store.selected_cells.set(stripped_cells);
@@ -488,7 +488,7 @@ export const update_ist_landscape_from_cgm = async (
         e1?.entity === e2?.entity && e1?.attr === e2?.attr;
 
       // Check if we have a cell cluster + neighborhood combination
-      if (isCellCluster(rowEntity) && isNeighborhood(colEntity)) {
+      if (is_cell_cluster(rowEntity) && is_neighborhood(colEntity)) {
         const new_nbhds = [col.name];
         viz_state.obs_store.selected_nbhds.set(new_nbhds);
         viz_state.obs_store.viz_nbhd_layer.set(true);
@@ -510,7 +510,7 @@ export const update_ist_landscape_from_cgm = async (
         }
       } else if (
         entitiesMatch(rowEntity, colEntity) &&
-        isCellCluster(rowEntity)
+        is_cell_cluster(rowEntity)
       ) {
         // Same entity:attr on both axes (e.g., cluster-cluster similarity matrix)
         // Highlight BOTH clusters in the Landscape
@@ -529,7 +529,7 @@ export const update_ist_landscape_from_cgm = async (
         update_selected_genes(viz_state.genes, [], viz_state.obs_store);
 
         refresh_layer(viz_state, layers_obj, 'cell_layer');
-      } else if (isGene(rowEntity) && isCellCluster(colEntity)) {
+      } else if (is_gene(rowEntity) && is_cell_cluster(colEntity)) {
         // Gene (row) x Cluster (col): Show gene expression filtered to cluster
         const gene_name = row.name;
         const cluster_name = col.name;
@@ -570,7 +570,7 @@ export const update_ist_landscape_from_cgm = async (
 
         refresh_layer(viz_state, layers_obj, 'cell_layer');
         refresh_layer(viz_state, layers_obj, 'trx_layer');
-      } else if (isCellCluster(rowEntity) && isGene(colEntity)) {
+      } else if (is_cell_cluster(rowEntity) && is_gene(colEntity)) {
         // Cluster (row) x Gene (col): Show gene expression filtered to cluster
         const cluster_name = row.name;
         const gene_name = col.name;
@@ -610,7 +610,7 @@ export const update_ist_landscape_from_cgm = async (
 
         refresh_layer(viz_state, layers_obj, 'cell_layer');
         refresh_layer(viz_state, layers_obj, 'trx_layer');
-      } else if (isNeighborhood(rowEntity) && isCellCluster(colEntity)) {
+      } else if (is_neighborhood(rowEntity) && is_cell_cluster(colEntity)) {
         // Neighborhood (row) x Cluster (col): Highlight nbhd and cluster
         const new_nbhds = [row.name];
         viz_state.obs_store.selected_nbhds.set(new_nbhds);
@@ -633,7 +633,7 @@ export const update_ist_landscape_from_cgm = async (
         }
       } else if (
         entitiesMatch(rowEntity, colEntity) &&
-        isNeighborhood(rowEntity)
+        is_neighborhood(rowEntity)
       ) {
         // Same entity:attr on both axes for neighborhoods (nbhd-nbhd matrix)
         // Highlight BOTH neighborhoods in the Landscape

@@ -17,7 +17,7 @@ from .utils import _get_gdf_cell, _get_gdf_trx
 from .zonal_stats import calc_img_zonal_stats
 
 
-def calc_nbg_cd(
+def calc_nbhd_by_gene_cell_derived(
     adata: AnnData,
     gdf_nbhd: gpd.GeoDataFrame,
     cd_mode: str = "CD/LCD",
@@ -74,7 +74,7 @@ def calc_nbg_cd(
     raise ValueError("cd_mode must be 'CD' or 'LCD'")
 
 
-def calc_nbg_cf(
+def calc_nbhd_by_gene_cell_free(
     data_dir: str,
     gdf_nbhd: gpd.GeoDataFrame,
     unique_nbhd_col: str = "name",
@@ -174,11 +174,11 @@ class NBHD:
         Set a derived data matrix.
         """
         if key == "NBG-CD":
-            data = calc_nbg_cd(self.adata, self.gdf, "CD")
+            data = calc_nbhd_by_gene_cell_derived(self.adata, self.gdf, "CD")
         elif key == "NBG-LCD":
-            data = calc_nbg_cd(self.adata, self.gdf, "LCD")
+            data = calc_nbhd_by_gene_cell_derived(self.adata, self.gdf, "LCD")
         elif key == "NBG-CF":
-            data = calc_nbg_cf(self.data_dir, self.gdf)
+            data = calc_nbhd_by_gene_cell_free(self.data_dir, self.gdf)
         elif key == "NBP":
             # calc_nbp now takes adata and gdf_nbhd, returns AnnData
             data = {"pct": calc_nbp(self.adata, self.gdf, category="leiden", output="percentage")}

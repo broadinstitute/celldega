@@ -31,7 +31,7 @@ sys.modules["celldega.nbhd.neighborhoods"] = neighborhoods
 spec.loader.exec_module(neighborhoods)
 
 # --- Load function ---
-calc_nbp = neighborhoods.calc_nbp
+calc_nbhd_by_pop = neighborhoods.calc_nbhd_by_pop
 
 
 # --- Fixtures and Tests ---
@@ -56,12 +56,12 @@ def synthetic_data():
     return gdf_nbhd, adata
 
 
-def test_calc_nbp_basic(synthetic_data):
-    """Test basic calc_nbp functionality with AnnData input."""
+def test_calc_nbhd_by_pop_basic(synthetic_data):
+    """Test basic calc_nbhd_by_pop functionality with AnnData input."""
     gdf_nbhd, adata = synthetic_data
 
     # Only neighborhood A has >= 5 cells (min_cells default)
-    adata_nbp = calc_nbp(adata, gdf_nbhd, category="leiden")
+    adata_nbp = calc_nbhd_by_pop(adata, gdf_nbhd, category="leiden")
 
     # Should only include neighborhood A (has 6 cells, B only has 4)
     assert adata_nbp.shape[0] == 1, "Only 1 neighborhood should pass min_cells filter"
@@ -77,34 +77,34 @@ def test_calc_nbp_basic(synthetic_data):
     assert filtered_nbhd.iloc[0]["name"] == "A"
 
 
-def test_calc_nbp_with_lower_min_cells(synthetic_data):
-    """Test calc_nbp with lower min_cells threshold to include both neighborhoods."""
+def test_calc_nbhd_by_pop_with_lower_min_cells(synthetic_data):
+    """Test calc_nbhd_by_pop with lower min_cells threshold to include both neighborhoods."""
     gdf_nbhd, adata = synthetic_data
 
     # Lower min_cells to 3 so both neighborhoods are included
-    adata_nbp = calc_nbp(adata, gdf_nbhd, category="leiden", min_cells=3)
+    adata_nbp = calc_nbhd_by_pop(adata, gdf_nbhd, category="leiden", min_cells=3)
 
     assert adata_nbp.shape[0] == 2, "Both neighborhoods should be included"
     assert isinstance(adata_nbp, AnnData)
 
 
-def test_calc_nbp_raises_on_missing_columns(synthetic_data):
-    """Test that calc_nbp raises appropriate errors for missing columns."""
+def test_calc_nbhd_by_pop_raises_on_missing_columns(synthetic_data):
+    """Test that calc_nbhd_by_pop raises appropriate errors for missing columns."""
     gdf_nbhd, adata = synthetic_data
 
     # Test missing nbhd_col in gdf_nbhd
     bad_nbhd = gdf_nbhd.drop(columns="name")
     with pytest.raises(ValueError, match="gdf_nbhd missing required columns"):
-        calc_nbp(adata, bad_nbhd, category="leiden")
+        calc_nbhd_by_pop(adata, bad_nbhd, category="leiden")
 
     # Test missing category in adata.obs
     bad_adata = adata.copy()
     del bad_adata.obs["leiden"]
     with pytest.raises(ValueError, match="adata.obs missing required 'leiden' column"):
-        calc_nbp(bad_adata, gdf_nbhd, category="leiden")
+        calc_nbhd_by_pop(bad_adata, gdf_nbhd, category="leiden")
 
     # Test missing spatial coordinates
     bad_adata2 = adata.copy()
     del bad_adata2.obsm["spatial"]
     with pytest.raises(ValueError, match="adata.obsm missing 'spatial' coordinates"):
-        calc_nbp(bad_adata2, gdf_nbhd, category="leiden")
+        calc_nbhd_by_pop(bad_adata2, gdf_nbhd, category="leiden")

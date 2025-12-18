@@ -17,94 +17,194 @@ from .utils import _get_gdf_cell, _get_gdf_trx
 from .zonal_stats import calc_img_zonal_stats
 
 
-def calc_nbhd_by_gene_cell_derived(
-    adata: AnnData,
+def calc_nbhd_by_gene(
     gdf_nbhd: gpd.GeoDataFrame,
-    cd_mode: str = "CD/LCD",
-    unique_nbhd_col: str = "name",
-) -> gpd.GeoDataFrame | dict[Any, gpd.GeoDataFrame]:
+    by: str = "cell",
+    adata: AnnData | None = None,
+    data_dir: str | None = None,
+    nbhd_col: str = "name",
+    min_cells: int = 1,
+) -> AnnData:
     """
-    Calculate the mean expression of cells within a neighborhood (CD)
-    or the mean expression of cells from a given Leiden cluster (LCD).
+    Calculate neighborhood-by-gene expression matrix.
+
+    Computes gene expression values for each neighborhood, either from cell-level
+    expression data (mean expression of cells within each neighborhood) or from
+    raw transcript counts (cell-free mode).
+
+    Parameters
+    ----------
+    gdf_nbhd : gpd.GeoDataFrame
+        GeoDataFrame containing neighborhood geometries. Must have a geometry column
+        and a column specified by `nbhd_col` for neighborhood identifiers.
+    by : str, default "cell"
+        Method for calculating gene expression:
+        - "cell": Mean expression of cells within each neighborhood (requires `adata`)
+        - "cell-free": Transcript counts within each neighborhood (requires `data_dir`)
+    adata : AnnData, optional
+        AnnData object with cell data. Required when `by="cell"`. Must have spatial
+        coordinates in `obsm["spatial"]`.
+    data_dir : str, optional
+        Path to directory containing `transcripts.parquet`. Required when
+        `by="cell-free"`.
+    nbhd_col : str, default "name"
+        Column in `gdf_nbhd` containing neighborhood identifiers.
+    min_cells : int, default 1
+        Minimum number of cells/transcripts required within a neighborhood to
+        include it in the output. Only applies when `by="cell"`.
+
+    Returns
+    -------
+    AnnData
+        AnnData object with shape (n_neighborhoods, n_genes) where:
+        - `X`: Matrix of gene expression values (mean for cell-derived, counts for cell-free)
+        - `obs`: DataFrame indexed by neighborhood names
+        - `var`: DataFrame indexed by gene names
+        - `obs["n_cells"]`: Cell count per neighborhood (when `by="cell"`)
+        - `uns["gdf_nbhd"]`: Filtered GeoDataFrame of neighborhoods
+        - `uns["by"]`: Method used ("cell" or "cell-free")
+
+    Examples
+    --------
+    >>> # Cell-derived gene expression per neighborhood
+    >>> adata_nbg = dega.nbhd.calc_nbhd_by_gene(gdf_alpha, by="cell", adata=adata)
+    >>>
+    >>> # Cell-free transcript counts per neighborhood
+    >>> adata_nbg = dega.nbhd.calc_nbhd_by_gene(gdf_alpha, by="cell-free", data_dir="./data")
+    >>>
+    >>> # For cluster-specific analysis, pre-filter the AnnData
+    >>> adata_cluster0 = adata[adata.obs["leiden"] == "0"]
+    >>> adata_nbg = dega.nbhd.calc_nbhd_by_gene(gdf_alpha, by="cell", adata=adata_cluster0)
+
+    Notes
+    -----
+    For cluster-specific gene expression analysis, filter your AnnData object
+    to include only cells from the desired cluster before calling this function.
     """
-    gene_list = adata.var.index
+    if by == "cell":
+        if adata is None:
+            raise ValueError("adata is required when by='cell'")
 
-    gene_exp = pd.DataFrame(
-        adata.X.toarray() if hasattr(adata.X, "toarray") else adata.X,
-        columns=gene_list,
-        index=adata.obs_names,
-    )
+        print("Calculating neighborhood-by-gene (cell-derived)")
 
-    gdf_cell = gpd.GeoDataFrame(
-        data={"cluster": adata.obs["leiden"], **gene_exp},
-        geometry=gpd.points_from_xy(*adata.obsm["spatial"].T[:2]),
-    )
+        gene_list = adata.var.index
+        gene_exp = pd.DataFrame(
+            adata.X.toarray() if hasattr(adata.X, "toarray") else adata.X,
+            columns=gene_list,
+            index=adata.obs_names,
+        )
 
-    def compute_cd(gdf_cell_subset: gpd.GeoDataFrame) -> pd.DataFrame:
-        joined = gdf_cell_subset.sjoin(
-            gdf_nbhd[[unique_nbhd_col, "geometry"]],
+        gdf_cell = gpd.GeoDataFrame(
+            data=gene_exp,
+            geometry=gpd.points_from_xy(*adata.obsm["spatial"].T[:2]),
+        )
+
+        # Spatial join cells to neighborhoods
+        joined = gdf_cell.sjoin(
+            gdf_nbhd[[nbhd_col, "geometry"]],
             how="left",
             predicate="within",
         )
-        joined.drop(columns=["index_right", "cat", "geometry"], inplace=True, errors="ignore")
+        joined.drop(columns=["index_right", "geometry"], inplace=True, errors="ignore")
 
-        df_nbhd_join = gdf_nbhd[[unique_nbhd_col]]
-        for gene in gene_list:
-            avg = joined.groupby(unique_nbhd_col)[gene].mean().reset_index()
-            avg.columns = [unique_nbhd_col, gene]
-            df_nbhd_join = df_nbhd_join.merge(avg, on=unique_nbhd_col, how="left")
+        # Count cells per neighborhood for filtering
+        cell_counts = joined[nbhd_col].value_counts()
+        valid_nbhds = cell_counts[cell_counts >= min_cells].index
+        joined = joined[joined[nbhd_col].isin(valid_nbhds)]
 
-        df_nbhd_join.rename(columns={unique_nbhd_col: "nbhd_id"}, inplace=True)
-        df_nbhd_join.set_index("nbhd_id", inplace=True)
+        # Compute mean expression per neighborhood
+        df_result = joined.groupby(nbhd_col)[list(gene_list)].mean()
 
-        return df_nbhd_join
+        # Filter gdf_nbhd to only include valid neighborhoods
+        filtered_gdf = gdf_nbhd[gdf_nbhd[nbhd_col].isin(valid_nbhds)].reset_index(drop=True)
 
-    if cd_mode == "LCD":
-        print("Calculating NBG-LCD")
-        nbhd_by_cluster: dict[Any, pd.DataFrame] = {}
-        for cluster in gdf_cell["cluster"].unique():
-            cluster_cells = gdf_cell[gdf_cell["cluster"] == cluster]
-            nbhd_by_cluster[cluster] = compute_cd(cluster_cells)
-        return nbhd_by_cluster
+        # Reindex to preserve order
+        df_result = df_result.reindex(filtered_gdf[nbhd_col]).fillna(0)
 
-    if cd_mode == "CD":
-        print("Calculating NBG-CD")
-        return compute_cd(gdf_cell)
+        # Build AnnData
+        adata_nbg = AnnData(
+            X=df_result.values,
+            obs=pd.DataFrame(index=df_result.index),
+            var=pd.DataFrame(index=df_result.columns),
+        )
 
-    raise ValueError("cd_mode must be 'CD' or 'LCD'")
+        # Add cell counts
+        adata_nbg.obs["n_cells"] = [cell_counts.get(n, 0) for n in adata_nbg.obs.index]
+
+    elif by == "cell-free":
+        if data_dir is None:
+            raise ValueError("data_dir is required when by='cell-free'")
+
+        print("Calculating neighborhood-by-gene (cell-free)")
+
+        df_trx = pd.read_parquet(
+            f"{data_dir}/transcripts.parquet",
+            columns=["feature_name", "x_location", "y_location"],
+            engine="pyarrow",
+        )
+        geometry = gpd.points_from_xy(df_trx["x_location"], df_trx["y_location"])
+        gdf_trx = gpd.GeoDataFrame(df_trx[["feature_name"]], geometry=geometry)
+        gdf_trx = gdf_trx.sjoin(
+            gdf_nbhd[[nbhd_col, "geometry"]], how="left", predicate="within"
+        )
+
+        df_result = (
+            gdf_trx.groupby([nbhd_col, "feature_name"])
+            .size()
+            .unstack(fill_value=0)
+            .rename_axis(None, axis=1)
+            .reindex(gdf_nbhd[nbhd_col])
+            .fillna(0)
+            .astype(int)
+        )
+
+        # Filter by min_cells (here it's min transcripts total)
+        trx_counts = df_result.sum(axis=1)
+        valid_nbhds = trx_counts[trx_counts >= min_cells].index
+        df_result = df_result.loc[valid_nbhds]
+
+        filtered_gdf = gdf_nbhd[gdf_nbhd[nbhd_col].isin(valid_nbhds)].reset_index(drop=True)
+
+        # Build AnnData
+        adata_nbg = AnnData(
+            X=df_result.values,
+            obs=pd.DataFrame(index=df_result.index),
+            var=pd.DataFrame(index=df_result.columns),
+        )
+
+        # Add transcript counts
+        adata_nbg.obs["n_transcripts"] = trx_counts.loc[valid_nbhds].values
+
+    else:
+        raise ValueError("by must be 'cell' or 'cell-free'")
+
+    # Store metadata common to both modes
+    adata_nbg.uns["gdf_nbhd"] = filtered_gdf
+    adata_nbg.uns["by"] = by
+
+    # Add neighborhood category and colors from gdf_nbhd if available
+    if "cat" in filtered_gdf.columns:
+        nbhd_cat_lookup = dict(
+            zip(filtered_gdf[nbhd_col], filtered_gdf["cat"].astype(str), strict=False)
+        )
+        adata_nbg.obs["cat"] = [nbhd_cat_lookup.get(n, str(n)) for n in adata_nbg.obs.index]
+
+    if "color" in filtered_gdf.columns:
+        nbhd_color_lookup = dict(
+            zip(filtered_gdf[nbhd_col], filtered_gdf["color"], strict=False)
+        )
+        adata_nbg.obs["color"] = [
+            nbhd_color_lookup.get(n, "#808080") for n in adata_nbg.obs.index
+        ]
+        # Store colors in uns as well
+        adata_nbg.uns["nbhd_colors"] = [
+            nbhd_color_lookup.get(n, "#808080") for n in adata_nbg.obs.index
+        ]
+
+    return adata_nbg
 
 
-def calc_nbhd_by_gene_cell_free(
-    data_dir: str,
-    gdf_nbhd: gpd.GeoDataFrame,
-    unique_nbhd_col: str = "name",
-) -> pd.DataFrame:
-    """
-    Calculates the neighborhood by gene expression.
-    """
-    print("Calculating NBG-CF")
-    df_trx = pd.read_parquet(
-        f"{data_dir}/transcripts.parquet",
-        columns=["feature_name", "x_location", "y_location", "cell_id"],
-        engine="pyarrow",
-    )
-    geometry = gpd.points_from_xy(df_trx["x_location"], df_trx["y_location"])
-    gdf_trx = gpd.GeoDataFrame(df_trx[["feature_name"]], geometry=geometry)
-    gdf_trx = gdf_trx.sjoin(gdf_nbhd[[unique_nbhd_col, "geometry"]], how="left", predicate="within")
-    gdf_trx.rename(columns={unique_nbhd_col: "nbhd_id"}, inplace=True)
-    return (
-        gdf_trx.groupby(["nbhd_id", "feature_name"])
-        .size()
-        .unstack(fill_value=0)
-        .rename_axis("nbhd_id")
-        .rename_axis(None, axis=1)
-        .reindex(gdf_nbhd[unique_nbhd_col])
-        .fillna(0)
-        .astype(int)
-    )
-
-
-def calc_nbi(
+def calc_nbhd_by_image(
     file_path: str,
     path_landscape_files: str,
     gdf_nbhd: gpd.GeoDataFrame,
@@ -174,11 +274,9 @@ class NBHD:
         Set a derived data matrix.
         """
         if key == "NBG-CD":
-            data = calc_nbhd_by_gene_cell_derived(self.adata, self.gdf, "CD")
-        elif key == "NBG-LCD":
-            data = calc_nbhd_by_gene_cell_derived(self.adata, self.gdf, "LCD")
+            data = calc_nbhd_by_gene(self.gdf, by="cell", adata=self.adata)
         elif key == "NBG-CF":
-            data = calc_nbhd_by_gene_cell_free(self.data_dir, self.gdf)
+            data = calc_nbhd_by_gene(self.gdf, by="cell-free", data_dir=self.data_dir)
         elif key == "NBP":
             # calc_nbhd_by_pop now takes adata and gdf_nbhd, returns AnnData
             data = {
@@ -205,7 +303,7 @@ class NBHD:
             print("Calculating neighborhood bordering")
             data = calc_nbhd_bordering(nb)
         elif key == "NBI":
-            data = calc_nbi(
+            data = calc_nbhd_by_image(
                 f"{self.data_dir}/morphology_focus/morphology_focus_0000.ome.tif",
                 self.path_landscape_files,
                 self.gdf,
@@ -213,7 +311,7 @@ class NBHD:
         else:
             raise ValueError(f"Unknown derived key: {key}")
 
-        if key in {"NBP", "NBG-LCD"}:
+        if key == "NBP":
             for subkey in data:
                 self.derived[key][subkey] = data[subkey]
         else:

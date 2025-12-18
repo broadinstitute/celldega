@@ -201,9 +201,9 @@ class TestMatrix:
                 # Some differences might be due to randomization or minor implementation changes
                 warnings.warn(f"Visualization structure differences: {differences}", stacklevel=2)
 
-            # Verify return value matches viz attribute
-            # Note: viz_result contains the same data as mat.viz
-            assert mat.cluster() == mat.viz, "cluster() return value should match viz attribute"
+            # Verify viz attribute is populated after clustering
+            # Note: cluster() no longer returns a value, but mat.viz should be populated
+            assert mat.viz is not None, "viz attribute should be populated after clustering"
 
             # Check essential structure elements
             assert "row_nodes" in mat.viz, "viz should contain row_nodes"
@@ -286,8 +286,9 @@ class TestMatrix:
                     f"Xenium visualization structure differences: {differences}", stacklevel=2
                 )
 
-            # Verify return value matches viz attribute
-            assert mat.cluster() == mat.viz, "cluster() return value should match viz attribute"
+            # Verify viz attribute is populated after clustering
+            # Note: cluster() no longer returns a value, but mat.viz should be populated
+            assert mat.viz is not None, "viz attribute should be populated after clustering"
 
             # Check essential structure elements
             assert "row_nodes" in mat.viz, "viz should contain row_nodes"

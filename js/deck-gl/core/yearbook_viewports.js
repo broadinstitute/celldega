@@ -28,6 +28,9 @@ export const create_yearbook_views = (
       const x = col * (portrait_size + gap);
       const y = row * (portrait_size + gap);
 
+      // Disable panning for the first portrait only
+      const isFirstPortrait = index === 0;
+
       views.push(
         new OrthographicView({
           id: `portrait-${index}`,
@@ -37,7 +40,7 @@ export const create_yearbook_views = (
           height: portrait_size,
           controller: {
             doubleClickZoom: false,
-            dragPan: false, // Disable panning in yearbook
+            dragPan: !isFirstPortrait, // First portrait: no pan, others: pan enabled
             scrollZoom: true, // Enable zoom
             touchZoom: true,
           },

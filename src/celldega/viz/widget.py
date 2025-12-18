@@ -483,7 +483,8 @@ class Yearbook(anywidget.AnyWidget):
 
     Args:
         base_url (str): The base URL for the dataset.
-        cells (list): List of cell identifiers to display as portraits.
+        cells (list, optional): List of cell identifiers to display as portraits.
+            If not provided and no query is given, random cells will be selected.
         query (dict, optional): Query for finding cells from LandscapeFiles.
             Supports the following formats:
 

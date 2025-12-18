@@ -180,9 +180,9 @@ class NBHD:
         elif key == "NBG-CF":
             data = calc_nbhd_by_gene_cell_free(self.data_dir, self.gdf)
         elif key == "NBP":
-            # calc_nbp now takes adata and gdf_nbhd, returns AnnData
-            data = {"pct": calc_nbp(self.adata, self.gdf, category="leiden", output="percentage")}
-            data["abs"] = calc_nbp(self.adata, self.gdf, category="leiden", output="counts")
+            # calc_nbhd_by_pop now takes adata and gdf_nbhd, returns AnnData
+            data = {"pct": calc_nbhd_by_pop(self.adata, self.gdf, category="leiden", output="percentage")}
+            data["abs"] = calc_nbhd_by_pop(self.adata, self.gdf, category="leiden", output="counts")
         elif key == "NBM":
             gdf_trx = _get_gdf_trx(self.data_dir)
             gdf_cell = _get_gdf_cell(self.adata)
@@ -263,7 +263,7 @@ class NBHD:
         return val.shape if hasattr(val, "shape") else None
 
 
-def calc_nbp(
+def calc_nbhd_by_pop(
     adata: AnnData,
     gdf_nbhd: gpd.GeoDataFrame,
     category: str = "leiden",
@@ -310,7 +310,7 @@ def calc_nbp(
 
     Examples
     --------
-    >>> adata_nbp = dega.nbhd.calc_nbp(adata, gdf_alpha, category="leiden")
+    >>> adata_nbp = dega.nbhd.calc_nbhd_by_pop(adata, gdf_alpha, category="leiden")
     >>> adata_nbp.shape
     (42, 18)  # 42 neighborhoods, 18 clusters
     >>> adata_nbp.uns["gdf_nbhd"]  # Access filtered geometries

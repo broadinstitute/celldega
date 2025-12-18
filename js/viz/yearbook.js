@@ -798,6 +798,18 @@ export const yearbook = async (
       if (viz_state.yearbook.update_pagination_ui) {
         viz_state.yearbook.update_pagination_ui();
       }
+
+      // Update gene search box after portraits have updated
+      // Use setTimeout to ensure layers have finished building
+      if (new_query.gene && viz_state.genes.gene_search_input) {
+        setTimeout(() => {
+          viz_state.genes.gene_search_input.value = new_query.gene;
+          // Trigger input event to ensure any listeners update
+          viz_state.genes.gene_search_input.dispatchEvent(
+            new Event('input', { bubbles: true })
+          );
+        }, 500);
+      }
     } catch (error) {
       console.error('Query failed:', error);
       if (viz_state.yearbook.query_ui) {
@@ -842,7 +854,7 @@ export const yearbook = async (
       const new_query = viz_state.model.get('query') || {};
       viz_state.yearbook.query = new_query;
 
-      // Update UI inputs to reflect the new query
+      // Update query UI inputs to reflect the new query
       if (viz_state.yearbook.query_ui) {
         const { cluster_input, gene_input, update_status } =
           viz_state.yearbook.query_ui;
@@ -885,6 +897,20 @@ export const yearbook = async (
         if (viz_state.yearbook.update_pagination_ui) {
           viz_state.yearbook.update_pagination_ui();
         }
+
+        // Update gene search box after portraits have updated
+        // Use setTimeout to ensure layers have finished building
+        setTimeout(() => {
+          if (new_query.gene && viz_state.genes.gene_search_input) {
+            viz_state.genes.gene_search_input.value = new_query.gene;
+            // Trigger input event to ensure any listeners update
+            viz_state.genes.gene_search_input.dispatchEvent(
+              new Event('input', { bubbles: true })
+            );
+          } else if (viz_state.genes.gene_search_input) {
+            viz_state.genes.gene_search_input.value = '';
+          }
+        }, 500);
       }
     });
   }

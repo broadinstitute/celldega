@@ -181,7 +181,11 @@ class NBHD:
             data = calc_nbhd_by_gene_cell_free(self.data_dir, self.gdf)
         elif key == "NBP":
             # calc_nbhd_by_pop now takes adata and gdf_nbhd, returns AnnData
-            data = {"pct": calc_nbhd_by_pop(self.adata, self.gdf, category="leiden", output="percentage")}
+            data = {
+                "pct": calc_nbhd_by_pop(
+                    self.adata, self.gdf, category="leiden", output="percentage"
+                )
+            }
             data["abs"] = calc_nbhd_by_pop(self.adata, self.gdf, category="leiden", output="counts")
         elif key == "NBM":
             gdf_trx = _get_gdf_trx(self.data_dir)

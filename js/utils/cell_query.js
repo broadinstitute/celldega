@@ -54,8 +54,6 @@ export const load_gene_expression = async (base_url, version, aws, gene_name) =>
   const version_suffix = version && version !== 'default' ? `_${version}` : '';
   const gene_url = `${base_url}/cbg${version_suffix}/${gene_name}.parquet`;
 
-  console.log(`Loading gene expression from: ${gene_url}`);
-
   const exp_table = await get_arrow_table(gene_url, options.fetch, aws);
 
   // Handle null table (file doesn't exist or failed to load)
@@ -63,8 +61,6 @@ export const load_gene_expression = async (base_url, version, aws, gene_name) =>
     console.warn(`Failed to load gene expression from ${gene_url}`);
     return new Map();
   }
-
-  console.log(`Gene expression loaded: ${exp_table.numRows} rows`);
 
   // Try multiple possible column names for cell index
   const cell_names_col =
@@ -99,8 +95,6 @@ export const load_gene_expression = async (base_url, version, aws, gene_name) =>
     exp_map.set(String(name), Number(exp_values[i]));
   });
 
-  console.log(`Gene expression map created with ${exp_map.size} entries`);
-
   return exp_map;
 };
 
@@ -132,10 +126,6 @@ export const convert_exp_map_keys = (exp_map, viz_state) => {
       converted_map.set(String(cell_name), exp_value);
     }
   });
-
-  console.log(
-    `Converted exp_map: ${exp_map.size} int keys -> ${converted_map.size} cell names`
-  );
 
   return converted_map;
 };
@@ -253,12 +243,6 @@ export const execute_cell_query = async (query, viz_state, default_cluster_max =
 
       // If gene expression data was loaded successfully (non-empty map)
       if (exp_map.size > 0) {
-        // Debug: check for cell name format mismatches
-        const exp_map_sample = Array.from(exp_map.keys()).slice(0, 3);
-        const candidate_sample = candidate_cells.slice(0, 3);
-        console.log('Cell name samples - exp_map:', exp_map_sample);
-        console.log('Cell name samples - candidates:', candidate_sample);
-
         // Sort cells by expression (descending), only include cells with expression >= 1
         // This shows the full range from high to low expressors
         const cells_with_exp = candidate_cells
@@ -268,10 +252,6 @@ export const execute_cell_query = async (query, viz_state, default_cluster_max =
           }))
           .filter((c) => c.exp >= 1)
           .sort((a, b) => b.exp - a.exp);
-
-        console.log(
-          `Cells with exp >= 1: ${cells_with_exp.length} out of ${candidate_cells.length}`
-        );
 
         candidate_cells = cells_with_exp.map((c) => c.name);
       } else {

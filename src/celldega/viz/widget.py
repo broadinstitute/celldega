@@ -119,7 +119,7 @@ class Landscape(anywidget.AnyWidget):
     segmentation = traitlets.Unicode("default").tag(sync=True)
 
     width = traitlets.Int(0).tag(sync=True)
-    height = traitlets.Int(800).tag(sync=True)
+    height = traitlets.Int(600).tag(sync=True)
 
     def __init__(self, **kwargs):
         adata = kwargs.pop("adata", None) or kwargs.pop("AnnData", None)
@@ -135,7 +135,8 @@ class Landscape(anywidget.AnyWidget):
         meta_nbhd_df = kwargs.pop("meta_nbhd", None)
         nbhd_edit = kwargs.pop("nbhd_edit", False)
         meta_cluster_df = None
-        cell_attr = kwargs.pop("cell_attr", ["leiden"])
+        # cell_attr = kwargs.pop("cell_attr", ["leiden"])
+        cell_attr = list(kwargs.pop("cell_attr", ["leiden"]))
 
         # nbhd_edit can now be True even when nbhd data is provided,
         # allowing users to edit pre-loaded neighborhood polygons
@@ -227,6 +228,9 @@ class Landscape(anywidget.AnyWidget):
         cell_name_prefix_setting = kwargs.get("cell_name_prefix", False)
 
         if adata is not None:
+            if "color" in adata.obs.columns and "color" not in cell_attr:
+                cell_attr.append("color")
+
             # if cell_id is in the adata.obs, use it as index
             if "cell_id" in adata.obs.columns:
                 adata.obs.set_index("cell_id", inplace=True)
@@ -314,6 +318,8 @@ class Landscape(anywidget.AnyWidget):
             self.add_traits(**parquet_traits)
 
         super().__init__(**kwargs)
+
+        self.cell_attr = cell_attr
 
         # store DataFrames locally without syncing to the frontend
         self.meta_cell = meta_cell_df
@@ -692,10 +698,16 @@ class Clustergram(anywidget.AnyWidget):
     network = traitlets.Dict({}).tag(sync=True)
     network_meta = traitlets.Dict({}).tag(sync=True)
 
-    width = traitlets.Int(600).tag(sync=True)
-    height = traitlets.Int(600).tag(sync=True)
+    width = traitlets.Int(500).tag(sync=True)
+    height = traitlets.Int(500).tag(sync=True)
 
     click_info = traitlets.Dict({}).tag(sync=True)
+
+    # Generic row/col selection traitlets
+    selected_rows = traitlets.List(default_value=[]).tag(sync=True)
+    selected_cols = traitlets.List(default_value=[]).tag(sync=True)
+
+    # Legacy traitlet for gene selection (copied from selected_rows when row entity is 'gene')
     selected_genes = traitlets.List(default_value=[]).tag(sync=True)
     top_n_genes = traitlets.Int(50).tag(sync=True)
 
@@ -749,9 +761,13 @@ class Clustergram(anywidget.AnyWidget):
         manual_row_flag = kwargs.pop("manual_row_cat", "")
         manual_col_flag = kwargs.pop("manual_col_cat", "")
 
+        # Store matrix reference for later use (e.g., multi-gene expression calculations)
+        self._matrix = None
+
         if pq_data is None:
             matrix = kwargs.pop("matrix", None)
             if matrix is not None:
+                self._matrix = matrix  # Store reference for multi-gene calculations
                 pq_data = matrix.export_viz_parquet()
             elif "network" not in kwargs:
                 raise ValueError(
@@ -766,6 +782,14 @@ class Clustergram(anywidget.AnyWidget):
             name = meta.get("name", name)
             kwargs.setdefault("network_meta", meta)
 
+            # Entity info can be dict or string - serialize to JSON for frontend
+            row_entity = pq_data.get("row_entity", {"entity": "gene", "attr": "name"})
+            col_entity = pq_data.get("col_entity", {"entity": "cell", "attr": "leiden"})
+
+            # Convert to JSON strings for syncing with JS
+            row_entity_json = json.dumps(row_entity) if isinstance(row_entity, dict) else row_entity
+            col_entity_json = json.dumps(col_entity) if isinstance(col_entity, dict) else col_entity
+
             parquet_traits = {
                 "mat_parquet": traitlets.Bytes(pq_data.get("mat", b"")).tag(sync=True),
                 "row_nodes_parquet": traitlets.Bytes(pq_data.get("row_nodes", b"")).tag(sync=True),
@@ -776,6 +800,9 @@ class Clustergram(anywidget.AnyWidget):
                 "col_linkage_parquet": traitlets.Bytes(pq_data.get("col_linkage", b"")).tag(
                     sync=True
                 ),
+                # Entity info as JSON strings
+                "row_entity": traitlets.Unicode(row_entity_json).tag(sync=True),
+                "col_entity": traitlets.Unicode(col_entity_json).tag(sync=True),
             }
             self.add_traits(**parquet_traits)
 

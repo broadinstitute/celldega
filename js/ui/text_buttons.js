@@ -131,30 +131,30 @@ export const make_reorder_button = (
     color = viz_state.buttons.gray;
   }
 
-  // make text all caps
-  text = text.toUpperCase();
+  // Keep original uppercase text for display
+  const display_text = text.toUpperCase();
 
   d3.select(container)
     .append('div')
     .classed(button_class, true)
     .classed('active', active)
-    .text(text)
+    .text(display_text)
     .style('width', `${width}px`)
-    .style('height', '20px') // Adjust height for button padding
+    .style('height', '16px')
     .style('display', 'inline-flex')
     .style('align-items', 'center')
     .style('justify-content', 'center')
     .style('text-align', 'center')
     .style('cursor', 'pointer')
-    .style('font-size', '12px')
+    .style('font-size', '9px')
     .style('font-weight', 'bold')
     .style('color', '#47515b')
-    .style('border', '3px solid') // Light gray border
-    .style('border-color', color) // Light gray border
-    .style('border-radius', '12px') // Rounded corners
-    .style('margin-top', '5px')
-    .style('margin-left', '5px')
-    .style('padding', '4px 10px') // Padding inside the button
+    .style('border', '2px solid')
+    .style('border-color', color)
+    .style('border-radius', '10px')
+    .style('margin-top', '4px')
+    .style('margin-left', '3px')
+    .style('padding', '2px 4px')
     .style('user-select', 'none')
     .style(
       'font-family',
@@ -222,7 +222,7 @@ const trx_button_callback_ist = async (
     viz_state.obs_store.viz_edit_layer.set(false);
 
     if (viz_state.nbhd.is_nbhd) {
-      viz_state.buttons.buttons.nbhd.style('color', 'gray');
+      viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
     }
 
     viz_state.genes.svg_bar_gene.selectAll('rect').style('opacity', 1.0);
@@ -256,7 +256,7 @@ const cell_button_callback = async (event, deck_ist, layers_obj, viz_state) => {
     viz_state.obs_store.viz_edit_layer.set(false);
 
     if (viz_state.nbhd.is_nbhd) {
-      viz_state.buttons.buttons.nbhd.style('color', 'gray');
+      viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
     }
 
     viz_state.cats.svg_bar_cluster.selectAll('rect').style('opacity', 1.0);
@@ -283,6 +283,8 @@ const cell_button_callback = async (event, deck_ist, layers_obj, viz_state) => {
 
 const nbhd_button_callback = async (event, deck_ist, layers_obj, viz_state) => {
   toggle_visible_button(event);
+
+  toggle_slider(viz_state.sliders.nbhd, is_visible);
 
   toggle_nbhd_layer_visibility(layers_obj, is_visible);
 

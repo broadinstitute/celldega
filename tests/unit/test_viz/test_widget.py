@@ -15,8 +15,6 @@ try:
     from celldega.viz import (
         Clustergram,
         Landscape,
-        clustergram_enrich,
-        landscape_clustergram,
     )
 except Exception as e:  # pragma: no cover - if deps missing skip
     pytest.skip(f"celldega modules unavailable: {e}", allow_module_level=True)
@@ -34,20 +32,78 @@ def test_export_viz_parquet_returns_bytes() -> None:
     mat = make_simple_matrix()
     pq = mat.export_viz_parquet()
 
-    expected_keys = {
+    expected_bytes_keys = {
         "mat",
         "row_nodes",
         "col_nodes",
         "row_linkage",
         "col_linkage",
-        "meta",
     }
 
-    assert set(pq) == expected_keys
-    for key in expected_keys - {"meta"}:
+    expected_entity_keys = {"row_entity", "col_entity"}
+
+    assert set(pq) == expected_bytes_keys | expected_entity_keys | {"meta"}
+
+    for key in expected_bytes_keys:
         assert isinstance(pq[key], bytes | bytearray)
         assert pq[key]  # non-empty
     assert isinstance(pq["meta"], dict)
+
+    # Entity info should be dicts with entity and attr keys
+    for key in expected_entity_keys:
+        assert isinstance(pq[key], dict), f"{key} should be a dict"
+        assert "entity" in pq[key], f"{key} should have 'entity' key"
+        assert "attr" in pq[key], f"{key} should have 'attr' key"
+
+
+def test_matrix_entity_normalization() -> None:
+    """Test that entity specifications are normalized correctly."""
+    from celldega.clust.constants import normalize_axis_entity
+
+    # Test legacy string format
+    result = normalize_axis_entity("gene")
+    assert result == {"entity": "gene", "attr": "name"}
+
+    result = normalize_axis_entity("cell_cluster")
+    assert result == {"entity": "cell", "attr": "leiden"}
+
+    result = normalize_axis_entity("nbhd")
+    assert result == {"entity": "nbhd", "attr": "name"}
+
+    # Test dict format
+    result = normalize_axis_entity({"entity": "cell", "attr": "leiden"})
+    assert result == {"entity": "cell", "attr": "leiden"}
+
+    result = normalize_axis_entity({"entity": "hextile", "attr": "nbhd_cluster"})
+    assert result == {"entity": "hextile", "attr": "nbhd_cluster"}
+
+    # Test None
+    result = normalize_axis_entity(None)
+    assert result == {"entity": "gene", "attr": "name"}
+
+
+def test_matrix_with_custom_entity_spec() -> None:
+    """Test Matrix initialization with custom entity specifications."""
+    np.random.seed(0)
+    df = pd.DataFrame(np.random.rand(4, 5))
+
+    # Test with new dict format
+    mat = Matrix(
+        df,
+        row_entity={"entity": "cell", "attr": "leiden"},
+        col_entity={"entity": "nbhd", "attr": "name"},
+        disable_processing=True,
+    )
+    mat.cluster()
+
+    assert mat.row_entity == {"entity": "cell", "attr": "leiden"}
+    assert mat.col_entity == {"entity": "nbhd", "attr": "name"}
+
+    pq = mat.export_viz_parquet()
+    assert pq["row_entity"]["entity"] == "cell"
+    assert pq["row_entity"]["attr"] == "leiden"
+    assert pq["col_entity"]["entity"] == "nbhd"
+    assert pq["col_entity"]["attr"] == "name"
 
 
 def test_clustergram_initializes_with_parquet() -> None:
@@ -82,7 +138,6 @@ def test_clustergram_selected_genes_trait() -> None:
 
     widget.selected_genes = ["A", "B"]
     assert widget.selected_genes == ["A", "B"]
-
 
 
 def test_clustergram_category_colors_from_matrix() -> None:

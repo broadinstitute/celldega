@@ -43,20 +43,61 @@ export const ini_mat_layer = (viz_state) => {
 };
 
 const mat_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
-  const row_name = viz_state.labels.row_label_data[event.object.row].name;
-  const col_name = viz_state.labels.col_label_data[event.object.col].name;
+  const row_index = event.object.row;
+  const col_index = event.object.col;
+  const row_name = viz_state.labels.row_label_data[row_index].name;
+  const col_name = viz_state.labels.col_label_data[col_index].name;
 
-  viz_state.click.type = 'mat';
+  // Get the actual matrix value
+  const mat_value = viz_state.mat.net_mat[row_index][col_index];
+
+  viz_state.click.type = 'mat_value';
   viz_state.click.value = {
-    name: `${row_name}_${col_name}`,
-    row: row_name,
-    col: col_name,
+    row: {
+      name: row_name,
+      index: row_index,
+      // New structured entity info
+      entity: viz_state.row_entity.entity,
+      attr: viz_state.row_entity.attr,
+      // Legacy field for backwards compatibility
+      row_entity: viz_state.row_entity.entity,
+    },
+    col: {
+      name: col_name,
+      index: col_index,
+      // New structured entity info
+      entity: viz_state.col_entity.entity,
+      attr: viz_state.col_entity.attr,
+      // Legacy field for backwards compatibility
+      col_entity: viz_state.col_entity.entity,
+    },
+    // The actual matrix cell value
+    value: mat_value,
+    // Full entity info for both axes
+    row_entity_full: viz_state.row_entity,
+    col_entity_full: viz_state.col_entity,
   };
 
-  if (Object.keys(viz_state.model).length > 0) {
+  // Update the clustergram store with selected cell info
+  if (viz_state.obs_store?.selected_cell) {
+    viz_state.obs_store.selected_cell.set({
+      row_name,
+      col_name,
+      row_index,
+      col_index,
+      value: mat_value,
+    });
+  }
+
+  if (viz_state.model?.set) {
     viz_state.model.set('click_info', null);
     viz_state.model.set('click_info', viz_state.click);
     viz_state.model.save_changes();
+  }
+
+  // Close the attribute editor on matrix click
+  if (viz_state.attr?.editor?.close) {
+    viz_state.attr.editor.close();
   }
 };
 

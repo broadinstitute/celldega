@@ -236,7 +236,9 @@ const render_matrix_new = async ({ model, el }) => {
       model.get('row_nodes_parquet'),
       model.get('col_nodes_parquet'),
       model.get('row_linkage_parquet'),
-      model.get('col_linkage_parquet')
+      model.get('col_linkage_parquet'),
+      model.get('row_entity'),
+      model.get('col_entity')
     );
   }
 

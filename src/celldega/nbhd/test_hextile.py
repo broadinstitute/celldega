@@ -3,7 +3,7 @@ import io
 import geopandas as gpd
 import pandas as pd
 
-from . import generate_hex_grid
+from . import generate_hextile
 
 
 def test_hextile():
@@ -23,6 +23,6 @@ def test_hextile():
 
     df = pd.read_csv(io.StringIO(data_string), sep="\t", index_col=0)
     gdf_cell = gpd.GeoDataFrame(df, geometry=gpd.GeoSeries.from_wkt(df["geometry"]))
-    gdf_nbhd = generate_hex_grid(gdf_cell, radius=200)  # fedault=50
+    gdf_nbhd = generate_hextile(gdf_cell, radius=200)  # fedault=50
 
     assert len(gdf_nbhd) == 28

@@ -20,6 +20,7 @@ from .constants import (
     DEFAULT_VIZ,
     ERRORS,
     Axis,
+    AxisEntity,
     AxisInput,
     AxisType,
     CacheLevel,
@@ -29,6 +30,7 @@ from .constants import (
     LinkageType,
     Normalization,
     NormType,
+    normalize_axis_entity,
 )
 from .utils import (
     add_mixed_attributes_to_node_info,
@@ -101,6 +103,8 @@ class Matrix:
         meta_row: pd.DataFrame | None = None,
         col_attr: list[str] | None = None,
         row_attr: list[str] | None = None,
+        row_entity: str | dict | AxisEntity | None = "gene",
+        col_entity: str | dict | AxisEntity | None = "cell_cluster",
         # Processing parameters
         filter_genes: int | None = None,
         norm_col: str | None = "total",
@@ -120,6 +124,16 @@ class Matrix:
             meta_row: Row metadata (for DataFrame input)
             col_attr: Column attribute names (categorical or numeric)
             row_attr: Row attribute names (categorical or numeric)
+            row_entity: Entity specification for rows. Accepted formats:
+                - str: Shorthand with implicit attr mapping:
+                    - "gene" → {"entity": "gene", "attr": "name"}
+                    - "nbhd" → {"entity": "nbhd", "attr": "name"}
+                    - "cell" → {"entity": "cell", "attr": "name"}
+                    - "hextile" → {"entity": "hextile", "attr": "name"}
+                    - "cell_cluster" or "cluster" → {"entity": "cell", "attr": "leiden"}
+                - tuple: Compact format, e.g., ("nbhd", "name")
+                - dict: Full format, e.g., {"entity": "nbhd", "attr": "name"}
+            col_entity: Entity specification for columns (same formats as row_entity)
             filter_genes: Number of top variable genes to keep (None = no filtering)
             norm_col: Column normalization ('total', 'zscore', 'qn', None)
             norm_row: Row normalization ('total', 'zscore', 'qn', None)
@@ -140,6 +154,19 @@ class Matrix:
 
             # Raw matrix without data
             mat = Matrix()  # Empty matrix for manual loading
+
+            # With entity specifications for widget interaction:
+            # Genes (rows) by cell clusters (columns) - typical gene expression heatmap
+            mat = Matrix(df, row_entity="gene", col_entity="cell_cluster")
+            # Or equivalently with new format:
+            mat = Matrix(df,
+                row_entity={"entity": "gene", "attr": "name"},
+                col_entity={"entity": "cell", "attr": "leiden"})
+
+            # Neighborhoods by cell types
+            mat = Matrix(df,
+                row_entity={"entity": "cell", "attr": "leiden"},
+                col_entity={"entity": "nbhd", "attr": "name"})
         """
         # Core data storage
         self.data: pd.DataFrame | None = None
@@ -161,6 +188,10 @@ class Matrix:
             if attr in self.meta_row.columns
             and not pd.api.types.is_numeric_dtype(self.meta_row[attr])
         ]
+
+        # Normalize entity specifications to the new AxisEntity format
+        self.row_entity: AxisEntity = normalize_axis_entity(row_entity)
+        self.col_entity: AxisEntity = normalize_axis_entity(col_entity)
 
         # State tracking
         self._clustered: bool = False
@@ -265,7 +296,6 @@ class Matrix:
             viz_data = mat.cluster(dist_type='euclidean', linkage_type='ward')
         """
         self.clust(**cluster_kwargs)
-        return self.export_viz_json()
 
     def load_df(
         self,
@@ -350,6 +380,9 @@ class Matrix:
             col_attr,
             row_attr,
         )
+
+        # Note: row_entity and col_entity are already set in __init__ based on user input
+        # Don't overwrite them here - user may have specified entities for non-gene-expression data
 
     def filter(self, axis: AxisInput, by: FilterType, num: int) -> None:
         """
@@ -576,16 +609,30 @@ class Matrix:
         self._viz_json(dendro=self._clustered)
         self._dirty_flags[CacheLevel.VIZ.value] = False
 
-    def downsample_to(self, category: str = "leiden", axis: AxisInput = "col") -> None:
+    def downsample_to(
+        self,
+        category: str = "leiden",
+        axis: AxisInput = "col",
+        propagate_metadata: bool | list[str] = False,
+    ) -> None:
         """
-        Downsample data by aggregating categories.
+        Downsample data by aggregating categories using scanpy.get.aggregate.
 
         Args:
             category: Metadata column to aggregate by
             axis: Which axis to aggregate ('col'/1/COL for cells, 'row'/0/ROW for genes)
+            propagate_metadata: Whether to propagate other metadata columns to the
+                aggregated result using the modal (most frequent) value per group.
+                - False: Skip metadata propagation (fast, default)
+                - True: Propagate all metadata columns (slow for large datasets)
+                - list[str]: Propagate only specified columns
 
         Requires:
             scanpy for aggregation functionality
+
+        Note:
+            Uses scanpy.get.aggregate under the hood for fast mean aggregation.
+            See: https://scanpy.readthedocs.io/en/stable/generated/scanpy.get.aggregate.html
         """
         if self.data is None:
             raise ValueError(ERRORS["no_data"])
@@ -606,32 +653,83 @@ class Matrix:
             else AnnData(X=self.data.T, obs=self.meta_row, var=self.meta_col)
         )
 
+        # Use scanpy's fast aggregate function
         adata_agg = sc.get.aggregate(adata, by=category, func="mean")
         if adata_agg.X is None and "mean" in adata_agg.layers:
             adata_agg.X = adata_agg.layers["mean"]
 
+        # Add count column
         count_col = "n_cells" if axis_enum == Axis.COL else "n_genes"
-        adata_agg.obs[count_col] = adata.obs.groupby(category).size().values
+        group_sizes = adata.obs.groupby(category, observed=True).size()
+        adata_agg.obs[count_col] = group_sizes.reindex(adata_agg.obs.index).values
 
-        modal_cols = {
-            col: adata.obs.groupby(category)[col]
-            .agg(lambda x: x.mode().iloc[0] if len(x.mode()) > 0 else None)
-            .values
-            for col in meta_df.columns
-            if col != category and col not in adata_agg.obs.columns
-        }
+        # Optionally propagate metadata columns using modal values
+        if propagate_metadata:
+            cols_to_propagate = (
+                [c for c in meta_df.columns if c != category and c not in adata_agg.obs.columns]
+                if propagate_metadata is True
+                else [
+                    c
+                    for c in propagate_metadata
+                    if c in meta_df.columns and c not in adata_agg.obs.columns
+                ]
+            )
 
-        for col, values in modal_cols.items():
-            adata_agg.obs[col] = values
+            if cols_to_propagate:
+                # Vectorized mode computation using value_counts
+                grouped = adata.obs.groupby(category, observed=True)
+                for col in cols_to_propagate:
+                    try:
+                        # Get the most frequent value per group
+                        mode_series = grouped[col].agg(
+                            lambda x: x.value_counts().index[0] if len(x) > 0 else None
+                        )
+                        adata_agg.obs[col] = mode_series.reindex(adata_agg.obs.index).values
+                    except Exception:
+                        pass  # Skip columns that fail
 
         self.data = pd.DataFrame(
             adata_agg.X.T if axis_enum == Axis.COL else adata_agg.X,
             index=adata_agg.var.index if axis_enum == Axis.COL else adata_agg.obs.index,
             columns=adata_agg.obs.index if axis_enum == Axis.COL else adata_agg.var.index,
         )
-        setattr(self, f"meta_{axis_enum.value}", adata_agg.obs)
+
+        # Add category column to the aggregated metadata
+        meta_agg = adata_agg.obs.copy()
+        meta_agg[category] = meta_agg.index.astype(str)
+
+        # Add colors from source adata if available
+        color_key = f"{category}_colors"
+        if color_key in adata.uns:
+            src_colors = adata.uns[color_key]
+            if hasattr(adata.obs[category], "cat"):
+                src_categories = list(adata.obs[category].cat.categories.astype(str))
+            else:
+                src_categories = list(adata.obs[category].unique().astype(str))
+
+            color_dict = {
+                str(cat): src_colors[i]
+                for i, cat in enumerate(src_categories)
+                if i < len(src_colors)
+            }
+            meta_agg["color"] = [color_dict.get(str(c), "#808080") for c in meta_agg.index]
+
+        setattr(self, f"meta_{axis_enum.value}", meta_agg)
         self.is_downsampled, self._clustered = True, False
         self._invalidate_cache(CacheLevel.DATA.value)
+
+        # Update entity specification for the downsampled axis
+        # The entity type stays the same, but the attribute changes to the aggregation category
+        current_entity = self.col_entity if axis_enum == Axis.COL else self.row_entity
+        new_entity: AxisEntity = {
+            "entity": current_entity.get("entity", "cell"),
+            "attr": category,
+        }
+
+        if axis_enum == Axis.COL:
+            self.col_entity = new_entity
+        else:
+            self.row_entity = new_entity
 
     def to_df(self) -> pd.DataFrame:
         """Return DataFrame copy of data."""
@@ -691,7 +789,7 @@ class Matrix:
         )
         return self.export_viz_json_string()
 
-    def export_viz_parquet(self) -> dict[str, bytes]:
+    def export_viz_parquet(self) -> dict[str, bytes | str]:
         """Export visualization using Parquet encoded tables."""
         if not self._clustered:
             warnings.warn(
@@ -747,6 +845,9 @@ class Matrix:
             "row_linkage": _to_bytes(row_link_df),
             "col_linkage": _to_bytes(col_link_df),
             "meta": meta_json,
+            # Entity info as dicts with entity and attr keys
+            "row_entity": self.row_entity,
+            "col_entity": self.col_entity,
         }
 
     def add_category(self, axis: AxisInput, name: str, data: pd.Series) -> None:
@@ -840,15 +941,39 @@ class Matrix:
         Args:
             color_mapping: Dict mapping category values to colors,
                         DataFrame with 'color' column, or None to auto-generate
+
+        Note:
+            If metadata has a 'color' column, those colors will be used automatically.
         """
         # Ensure viz structure exists
         if "global_cat_colors" not in self.viz:
             self.viz["global_cat_colors"] = {}
 
         if color_mapping is None:
-            # Build color mapping from all unique categorical values only
-            all_cats: set[str] = set()
+            # First, try to extract colors from metadata 'color' columns
+            color_mapping = {}
 
+            for meta_df, cat_list in (
+                (self.meta_row, self.row_cats),
+                (self.meta_col, self.col_cats),
+            ):
+                if meta_df is not None and not meta_df.empty:
+                    # If metadata has a 'color' column, use index -> color mapping
+                    if "color" in meta_df.columns:
+                        for idx, color in zip(meta_df.index, meta_df["color"], strict=False):
+                            color_mapping[str(idx)] = color
+
+                    # Also check each categorical column for matching color columns
+                    for cat_col in cat_list:
+                        if cat_col in meta_df.columns and "color" in meta_df.columns:
+                            for cat_val, color in zip(
+                                meta_df[cat_col].astype(str), meta_df["color"], strict=False
+                            ):
+                                if cat_val not in color_mapping:
+                                    color_mapping[cat_val] = color
+
+            # Fill in missing colors with auto-generated palette
+            all_cats: set[str] = set()
             for meta_df, cat_list in (
                 (self.meta_row, self.row_cats),
                 (self.meta_col, self.col_cats),
@@ -858,10 +983,15 @@ class Matrix:
                         if cat_col in meta_df.columns:
                             all_cats.update(meta_df[cat_col].dropna().astype(str).unique().tolist())
 
-            color_mapping = {
-                cat: _COLOR_PALETTE[i % len(_COLOR_PALETTE)]
-                for i, cat in enumerate(sorted(all_cats))
-            }
+            # Add row/col index values as potential categories (for nbhd-by-nbhd matrices)
+            if self.meta_row is not None:
+                all_cats.update(str(x) for x in self.meta_row.index)
+            if self.meta_col is not None:
+                all_cats.update(str(x) for x in self.meta_col.index)
+
+            for i, cat in enumerate(sorted(all_cats)):
+                if cat not in color_mapping:
+                    color_mapping[cat] = _COLOR_PALETTE[i % len(_COLOR_PALETTE)]
 
         elif isinstance(color_mapping, pd.DataFrame):
             if "color" in color_mapping.columns:

@@ -8,6 +8,8 @@ from pathlib import Path
 import shutil
 
 import pandas as pd
+import spatialdata as sd
+from spatialdata_io import xenium
 
 import celldega as dega
 
@@ -114,6 +116,33 @@ def _setup_preprocessing_paths(technology, path_landscape_files, data_dir, sampl
     raise ValueError(
         "Unsupported technology. Only Xenium and MERSCOPE are supported in this script."
     )
+
+
+def _make_xenium_anndata(data_dir, path_landscape_files, write=True):
+    path_landscape_files = Path(path_landscape_files)
+    sample = path_landscape_files.name
+
+    zarr_path = path_landscape_files / f"{sample}.zarr"
+
+    # check if the zarr file already exists
+    if zarr_path.exists():
+        print(f"The file {zarr_path} already exists.")
+        sdata = sd.read_zarr(zarr_path)
+    else:
+        # ingest xenium data raw output folder using spatialdata-io
+        sdata = xenium(data_dir)
+        sdata.write(zarr_path)
+        print(f"Data written to {zarr_path} successfully.")
+
+    # create anndata from sdata.tables["table"]
+    adata = sdata.tables["table"]
+
+    if write:
+        h5ad_path = path_landscape_files / f"{sample}.h5ad"
+        adata.write_h5ad(h5ad_path)
+        print(f"AnnData written to {h5ad_path}")
+
+    return adata
 
 
 def main(

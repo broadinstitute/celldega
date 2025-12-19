@@ -16,8 +16,8 @@ const get_nbhd_color = (d, viz_state) => {
       // if the cat is in the selected_nbhds, set the opacity to 255
       inst_opacity = 255;
     } else {
-      // if the cat is not in the selected_nbhds, set the opacity to 50
-      inst_opacity = 10;
+      // if the cat is not in the selected_nbhds, make fully transparent
+      inst_opacity = 0;
     }
   } else {
     // if selected_nbhds is empty, set the opacity to 255
@@ -66,6 +66,12 @@ export const filter_cat_nbhd_feature_collection = (viz_state) => {
 export const update_nbhd_layer_data = (viz_state, layers_obj) => {
   layers_obj.nbhd_layer = layers_obj.nbhd_layer.clone({
     data: viz_state.nbhd.feature_collection,
+  });
+};
+
+export const update_nbhd_layer_opacity = (layers_obj, opacity) => {
+  layers_obj.nbhd_layer = layers_obj.nbhd_layer.clone({
+    opacity,
   });
 };
 

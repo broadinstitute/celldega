@@ -16,10 +16,45 @@ export const update_selected_genes = (genes, new_selected_genes, obs_store) => {
 export const sync_selected_genes = (viz_state, genes) => {
   if (viz_state.model && typeof viz_state.model.set === 'function') {
     viz_state.model.set('selected_genes', genes);
+
+    // Also sync to selected_rows if row entity is 'gene'
+    const { row_entity } = viz_state;
+    if (row_entity?.entity === 'gene') {
+      viz_state.model.set('selected_rows', genes);
+    }
+
     viz_state.model.save_changes();
   }
 
   if (viz_state.obs_store && viz_state.obs_store.selected_genes) {
     viz_state.obs_store.selected_genes.set(genes);
+  }
+};
+
+/**
+ * Sync selected rows to the Python model.
+ * Also syncs to selected_genes if row entity is 'gene'.
+ */
+export const sync_selected_rows = (viz_state, rows) => {
+  if (viz_state.model && typeof viz_state.model.set === 'function') {
+    viz_state.model.set('selected_rows', rows);
+
+    // Also sync to selected_genes if row entity is 'gene'
+    const { row_entity } = viz_state;
+    if (row_entity?.entity === 'gene') {
+      viz_state.model.set('selected_genes', rows);
+    }
+
+    viz_state.model.save_changes();
+  }
+};
+
+/**
+ * Sync selected columns to the Python model.
+ */
+export const sync_selected_cols = (viz_state, cols) => {
+  if (viz_state.model && typeof viz_state.model.set === 'function') {
+    viz_state.model.set('selected_cols', cols);
+    viz_state.model.save_changes();
   }
 };

@@ -209,7 +209,7 @@ export const landscape_sst = async (
     initialViewState: initial_view_state,
   });
 
-  if (Object.keys(viz_state.model).length > 0) {
+  if (viz_state.model?.on) {
     // ist version
     viz_state.model.on('change:update_trigger', () =>
       update_tile_landscape_from_cgm(deck_sst, layers_sst, viz_state)

@@ -200,7 +200,7 @@ export const landscape_ist = async (
     viz_state.aws = null;
   }
 
-  if (Object.keys(viz_state.model).length !== 0) {
+  if (viz_state.model?.get) {
     if (Object.keys(nbhd).length === 0) {
       viz_state.nbhd.is_nbhd = nbhd_edit;
 
@@ -214,7 +214,7 @@ export const landscape_ist = async (
     } else {
       viz_state.nbhd.is_nbhd = true;
 
-      viz_state.nbhd.ini_feature_collection = nbhd; // viz_state.model.get('nbhd');
+      viz_state.nbhd.ini_feature_collection = nbhd;
 
       // viz_state.nbhd.bar_data = nbhd.features
       //   .map((feature) => {
@@ -445,7 +445,7 @@ export const landscape_ist = async (
   viz_state.edit.visible = false;
   viz_state.edit.modify_index = null;
 
-  if (Object.keys(viz_state.model).length !== 0) {
+  if (viz_state.model?.get) {
     if (Object.keys(viz_state.model.get('region')).length === 0) {
       viz_state.edit.feature_collection = {
         type: 'FeatureCollection',
@@ -583,9 +583,13 @@ export const landscape_ist = async (
 
         viz_state.buttons.buttons.cell.style('color', 'gray');
         viz_state.buttons.buttons.trx.style('color', 'gray');
+        viz_state.buttons.buttons.nbhd?.style('color', 'blue');
 
         toggle_slider(viz_state.sliders.cell, false);
         toggle_slider(viz_state.sliders.trx, false);
+        if (viz_state.nbhd.is_nbhd) {
+          toggle_slider(viz_state.sliders.nbhd, true);
+        }
       } else {
         new_toggle_cell_layer_visibility(viz_state.layers_obj, true);
 
@@ -595,9 +599,13 @@ export const landscape_ist = async (
 
         viz_state.buttons.buttons.cell.style('color', 'blue');
         viz_state.buttons.buttons.trx.style('color', 'blue');
+        viz_state.buttons.buttons.nbhd?.style('color', 'gray');
 
         toggle_slider(viz_state.sliders.cell, true);
         toggle_slider(viz_state.sliders.trx, true);
+        if (viz_state.nbhd.is_nbhd) {
+          toggle_slider(viz_state.sliders.nbhd, false);
+        }
       }
       if (visible) {
         viz_state.obs_store.viz_edit_layer.set(false);
@@ -676,7 +684,6 @@ export const landscape_ist = async (
     layers_obj.path_layer = layers_obj.path_layer.clone({
       id: `path-layer-${selected_cats_name}`,
     });
-
     viz_state.obs_store.deck_check.set({
       ...viz_state.obs_store.deck_check.get(),
       path_layer: true,
@@ -724,7 +731,7 @@ export const landscape_ist = async (
 
   set_deck_on_view_state_change(deck_ist, layers_obj, viz_state);
 
-  if (Object.keys(viz_state.model).length > 0) {
+  if (viz_state.model?.on) {
     viz_state.model.on('change:update_trigger', () =>
       update_ist_landscape_from_cgm(deck_ist, layers_obj, viz_state)
     );

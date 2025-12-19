@@ -28,6 +28,7 @@
 import {
   ini_row_cat_layer,
   ini_col_cat_layer,
+  set_cat_layer_handlers,
 } from '../deck-gl/matrix/cat_layers';
 import { ini_deck } from '../deck-gl/matrix/deck_mat';
 import {
@@ -82,12 +83,17 @@ export const matrix_viz = async (
   root.style.border = '1px solid #d3d3d3';
   const deck_mat = ini_deck(root, width, height);
 
+  const row_entity = model.get('row_entity');
+  const col_entity = model.get('col_entity');
+
   const viz_state = set_mat_constants(
     model,
     network,
     root,
     width,
     height,
+    row_entity,
+    col_entity,
     row_label_callback,
     col_label_callback,
     col_dendro_callback
@@ -126,53 +132,17 @@ export const matrix_viz = async (
   layers_mat.row_dendro_layer = ini_dendro_layer(layers_mat, viz_state, 'row');
   layers_mat.col_dendro_layer = ini_dendro_layer(layers_mat, viz_state, 'col');
 
+  // Store references on viz_state for use by UI components (e.g., bar graph hover)
+  viz_state.deck_mat = deck_mat;
+  viz_state.layers_mat = layers_mat;
+
   refresh_attribute_layers(deck_mat, layers_mat, viz_state);
 
   // ---------------------------------------------------------------------------
-  // Manual-category click handlers (open editor on cat-tile click)
+  // Category layer click/hover handlers
   // ---------------------------------------------------------------------------
-  const attach_cat_handlers = (axis) => {
-    const layer_key = `${axis}_cat_layer`;
-    layers_mat[layer_key] = layers_mat[layer_key].clone({
-      onClick: (event) => {
-        if (!viz_state.attr?.editor?.open) return;
-
-        const attr_index = event.object?.level;
-        const node_index = event.object?.original_index;
-        if (attr_index === undefined || node_index === undefined) return;
-
-        const attr_name = viz_state.attr.names[axis]?.[attr_index];
-        if (!attr_name) return;
-
-        const node_name =
-          axis === 'row'
-            ? viz_state.row_nodes[node_index].name
-            : viz_state.col_nodes[node_index].name;
-
-        const attr_def = viz_state.attr.all_defs?.[axis]?.[attr_index];
-        const value = event.object?.name;
-        const color_key =
-          value === null || value === undefined ? null : String(value);
-        const color_hex = attr_def?.color_map?.[color_key] || null;
-
-        viz_state.attr.editor.open({
-          axis,
-          selection: [node_name],
-          // attribute_name is currently ignored by the editor, but kept for
-          // potential future use and clarity.
-          attribute_name: attr_name,
-          initial_value: value,
-          initial_color: color_hex,
-          position: event?.pixel
-            ? { x: event.pixel[0], y: event.pixel[1] }
-            : undefined,
-        });
-      },
-    });
-  };
-
-  attach_cat_handlers('row');
-  attach_cat_handlers('col');
+  set_cat_layer_handlers(deck_mat, layers_mat, viz_state, 'row');
+  set_cat_layer_handlers(deck_mat, layers_mat, viz_state, 'col');
 
   // ---------------------------------------------------------------------------
   // Deck init

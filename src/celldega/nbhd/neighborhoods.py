@@ -17,95 +17,186 @@ from .utils import _get_gdf_cell, _get_gdf_trx
 from .zonal_stats import calc_img_zonal_stats
 
 
-def calc_nbg_cd(
-    adata: AnnData,
+def calc_nbhd_by_gene(
     gdf_nbhd: gpd.GeoDataFrame,
-    cd_mode: str = "CD/LCD",
-    unique_nbhd_col: str = "name",
-) -> gpd.GeoDataFrame | dict[Any, gpd.GeoDataFrame]:
+    by: str = "cell",
+    adata: AnnData | None = None,
+    data_dir: str | None = None,
+    nbhd_col: str = "name",
+    min_cells: int = 1,
+) -> AnnData:
     """
-    Calculate the mean expression of cells within a neighborhood (CD)
-    or the mean expression of cells from a given Leiden cluster (LCD).
+    Calculate neighborhood-by-gene expression matrix.
+
+    Computes gene expression values for each neighborhood, either from cell-level
+    expression data (mean expression of cells within each neighborhood) or from
+    raw transcript counts (cell-free mode).
+
+    Parameters
+    ----------
+    gdf_nbhd : gpd.GeoDataFrame
+        GeoDataFrame containing neighborhood geometries. Must have a geometry column
+        and a column specified by `nbhd_col` for neighborhood identifiers.
+    by : str, default "cell"
+        Method for calculating gene expression:
+        - "cell": Mean expression of cells within each neighborhood (requires `adata`)
+        - "cell-free": Transcript counts within each neighborhood (requires `data_dir`)
+    adata : AnnData, optional
+        AnnData object with cell data. Required when `by="cell"`. Must have spatial
+        coordinates in `obsm["spatial"]`.
+    data_dir : str, optional
+        Path to directory containing `transcripts.parquet`. Required when
+        `by="cell-free"`.
+    nbhd_col : str, default "name"
+        Column in `gdf_nbhd` containing neighborhood identifiers.
+    min_cells : int, default 1
+        Minimum number of cells/transcripts required within a neighborhood to
+        include it in the output. Only applies when `by="cell"`.
+
+    Returns
+    -------
+    AnnData
+        AnnData object with shape (n_neighborhoods, n_genes) where:
+        - `X`: Matrix of gene expression values (mean for cell-derived, counts for cell-free)
+        - `obs`: DataFrame indexed by neighborhood names
+        - `var`: DataFrame indexed by gene names
+        - `obs["n_cells"]`: Cell count per neighborhood (when `by="cell"`)
+        - `uns["by"]`: Method used ("cell" or "cell-free")
+
+    Examples
+    --------
+    >>> # Cell-derived gene expression per neighborhood
+    >>> adata_nbg = dega.nbhd.calc_nbhd_by_gene(gdf_alpha, by="cell", adata=adata)
+    >>>
+    >>> # Cell-free transcript counts per neighborhood
+    >>> adata_nbg = dega.nbhd.calc_nbhd_by_gene(gdf_alpha, by="cell-free", data_dir="./data")
+    >>>
+    >>> # For cluster-specific analysis, pre-filter the AnnData
+    >>> adata_cluster0 = adata[adata.obs["leiden"] == "0"]
+    >>> adata_nbg = dega.nbhd.calc_nbhd_by_gene(gdf_alpha, by="cell", adata=adata_cluster0)
+
+    Notes
+    -----
+    For cluster-specific gene expression analysis, filter your AnnData object
+    to include only cells from the desired cluster before calling this function.
     """
-    gene_list = adata.var.index
+    if by == "cell":
+        if adata is None:
+            raise ValueError("adata is required when by='cell'")
 
-    gene_exp = pd.DataFrame(
-        adata.X.toarray() if hasattr(adata.X, "toarray") else adata.X,
-        columns=gene_list,
-        index=adata.obs_names,
-    )
+        print("Calculating neighborhood-by-gene (cell-derived)")
 
-    gdf_cell = gpd.GeoDataFrame(
-        data={"cluster": adata.obs["leiden"], **gene_exp},
-        geometry=gpd.points_from_xy(*adata.obsm["spatial"].T[:2]),
-        crs="EPSG:4326",
-    )
+        gene_list = adata.var.index
+        gene_exp = pd.DataFrame(
+            adata.X.toarray() if hasattr(adata.X, "toarray") else adata.X,
+            columns=gene_list,
+            index=adata.obs_names,
+        )
 
-    def compute_cd(gdf_cell_subset: gpd.GeoDataFrame) -> pd.DataFrame:
-        joined = gdf_cell_subset.sjoin(
-            gdf_nbhd[[unique_nbhd_col, "geometry"]],
+        gdf_cell = gpd.GeoDataFrame(
+            data=gene_exp,
+            geometry=gpd.points_from_xy(*adata.obsm["spatial"].T[:2]),
+        )
+
+        # Spatial join cells to neighborhoods
+        joined = gdf_cell.sjoin(
+            gdf_nbhd[[nbhd_col, "geometry"]],
             how="left",
             predicate="within",
         )
-        joined.drop(columns=["index_right", "cat", "geometry"], inplace=True, errors="ignore")
+        joined.drop(columns=["index_right", "geometry"], inplace=True, errors="ignore")
 
-        df_nbhd_join = gdf_nbhd[[unique_nbhd_col]]
-        for gene in gene_list:
-            avg = joined.groupby(unique_nbhd_col)[gene].mean().reset_index()
-            avg.columns = [unique_nbhd_col, gene]
-            df_nbhd_join = df_nbhd_join.merge(avg, on=unique_nbhd_col, how="left")
+        # Count cells per neighborhood for filtering
+        cell_counts = joined[nbhd_col].value_counts()
+        valid_nbhds = cell_counts[cell_counts >= min_cells].index
+        joined = joined[joined[nbhd_col].isin(valid_nbhds)]
 
-        df_nbhd_join.rename(columns={unique_nbhd_col: "nbhd_id"}, inplace=True)
-        df_nbhd_join.set_index("nbhd_id", inplace=True)
+        # Compute mean expression per neighborhood
+        df_result = joined.groupby(nbhd_col)[list(gene_list)].mean()
 
-        return df_nbhd_join
+        # Filter gdf_nbhd to only include valid neighborhoods
+        filtered_gdf = gdf_nbhd[gdf_nbhd[nbhd_col].isin(valid_nbhds)].reset_index(drop=True)
 
-    if cd_mode == "LCD":
-        print("Calculating NBG-LCD")
-        nbhd_by_cluster: dict[Any, pd.DataFrame] = {}
-        for cluster in gdf_cell["cluster"].unique():
-            cluster_cells = gdf_cell[gdf_cell["cluster"] == cluster]
-            nbhd_by_cluster[cluster] = compute_cd(cluster_cells)
-        return nbhd_by_cluster
+        # Reindex to preserve order
+        df_result = df_result.reindex(filtered_gdf[nbhd_col]).fillna(0)
 
-    if cd_mode == "CD":
-        print("Calculating NBG-CD")
-        return compute_cd(gdf_cell)
+        # Build AnnData
+        adata_nbg = AnnData(
+            X=df_result.values,
+            obs=pd.DataFrame(index=df_result.index),
+            var=pd.DataFrame(index=df_result.columns),
+        )
 
-    raise ValueError("cd_mode must be 'CD' or 'LCD'")
+        # Add cell counts
+        adata_nbg.obs["n_cells"] = [cell_counts.get(n, 0) for n in adata_nbg.obs.index]
+
+    elif by == "cell-free":
+        if data_dir is None:
+            raise ValueError("data_dir is required when by='cell-free'")
+
+        print("Calculating neighborhood-by-gene (cell-free)")
+
+        df_trx = pd.read_parquet(
+            f"{data_dir}/transcripts.parquet",
+            columns=["feature_name", "x_location", "y_location"],
+            engine="pyarrow",
+        )
+        geometry = gpd.points_from_xy(df_trx["x_location"], df_trx["y_location"])
+        gdf_trx = gpd.GeoDataFrame(df_trx[["feature_name"]], geometry=geometry)
+        gdf_trx = gdf_trx.sjoin(gdf_nbhd[[nbhd_col, "geometry"]], how="left", predicate="within")
+
+        df_result = (
+            gdf_trx.groupby([nbhd_col, "feature_name"])
+            .size()
+            .unstack(fill_value=0)
+            .rename_axis(None, axis=1)
+            .reindex(gdf_nbhd[nbhd_col])
+            .fillna(0)
+            .astype(int)
+        )
+
+        # Filter by min_cells (here it's min transcripts total)
+        trx_counts = df_result.sum(axis=1)
+        valid_nbhds = trx_counts[trx_counts >= min_cells].index
+        df_result = df_result.loc[valid_nbhds]
+
+        filtered_gdf = gdf_nbhd[gdf_nbhd[nbhd_col].isin(valid_nbhds)].reset_index(drop=True)
+
+        # Build AnnData
+        adata_nbg = AnnData(
+            X=df_result.values,
+            obs=pd.DataFrame(index=df_result.index),
+            var=pd.DataFrame(index=df_result.columns),
+        )
+
+        # Add transcript counts
+        adata_nbg.obs["n_transcripts"] = trx_counts.loc[valid_nbhds].values
+
+    else:
+        raise ValueError("by must be 'cell' or 'cell-free'")
+
+    # Store metadata common to both modes
+    adata_nbg.uns["by"] = by
+
+    # Add neighborhood category and colors from gdf_nbhd if available
+    if "cat" in filtered_gdf.columns:
+        nbhd_cat_lookup = dict(
+            zip(filtered_gdf[nbhd_col], filtered_gdf["cat"].astype(str), strict=False)
+        )
+        adata_nbg.obs["cat"] = [nbhd_cat_lookup.get(n, str(n)) for n in adata_nbg.obs.index]
+
+    if "color" in filtered_gdf.columns:
+        nbhd_color_lookup = dict(zip(filtered_gdf[nbhd_col], filtered_gdf["color"], strict=False))
+        adata_nbg.obs["color"] = [nbhd_color_lookup.get(n, "#808080") for n in adata_nbg.obs.index]
+        # Store colors in uns as well
+        adata_nbg.uns["nbhd_colors"] = [
+            nbhd_color_lookup.get(n, "#808080") for n in adata_nbg.obs.index
+        ]
+
+    return adata_nbg
 
 
-def calc_nbg_cf(
-    data_dir: str,
-    gdf_nbhd: gpd.GeoDataFrame,
-    unique_nbhd_col: str = "name",
-) -> pd.DataFrame:
-    """
-    Calculates the neighborhood by gene expression.
-    """
-    print("Calculating NBG-CF")
-    df_trx = pd.read_parquet(
-        f"{data_dir}/transcripts.parquet",
-        columns=["feature_name", "x_location", "y_location", "cell_id"],
-        engine="pyarrow",
-    )
-    geometry = gpd.points_from_xy(df_trx["x_location"], df_trx["y_location"])
-    gdf_trx = gpd.GeoDataFrame(df_trx[["feature_name"]], geometry=geometry, crs="EPSG:4326")
-    gdf_trx = gdf_trx.sjoin(gdf_nbhd[[unique_nbhd_col, "geometry"]], how="left", predicate="within")
-    gdf_trx.rename(columns={unique_nbhd_col: "nbhd_id"}, inplace=True)
-    return (
-        gdf_trx.groupby(["nbhd_id", "feature_name"])
-        .size()
-        .unstack(fill_value=0)
-        .rename_axis("nbhd_id")
-        .rename_axis(None, axis=1)
-        .reindex(gdf_nbhd[unique_nbhd_col])
-        .fillna(0)
-        .astype(int)
-    )
-
-
-def calc_nbi(
+def calc_nbhd_by_image(
     file_path: str,
     path_landscape_files: str,
     gdf_nbhd: gpd.GeoDataFrame,
@@ -164,7 +255,6 @@ class NBHD:
             "NBI": None,
             "NBG-CF": None,
             "NBG-CD": None,
-            "NBG-LCD": {},
             "NBP": {},
             "NBN-O": None,
             "NBN-B": None,
@@ -175,15 +265,16 @@ class NBHD:
         Set a derived data matrix.
         """
         if key == "NBG-CD":
-            data = calc_nbg_cd(self.adata, self.gdf, "CD")
-        elif key == "NBG-LCD":
-            data = calc_nbg_cd(self.adata, self.gdf, "LCD")
+            data = calc_nbhd_by_gene(self.gdf, by="cell", adata=self.adata)
         elif key == "NBG-CF":
-            data = calc_nbg_cf(self.data_dir, self.gdf)
+            data = calc_nbhd_by_gene(self.gdf, by="cell-free", data_dir=self.data_dir)
         elif key == "NBP":
-            data = {}
-            gdf_cell = _get_gdf_cell(self.adata)
-            data["abs"], data["pct"] = calc_nbp(gdf_cell, self.gdf)
+            data = {
+                "pct": calc_nbhd_by_pop(
+                    self.adata, self.gdf, category="leiden", output="percentage"
+                )
+            }
+            data["abs"] = calc_nbhd_by_pop(self.adata, self.gdf, category="leiden", output="counts")
         elif key == "NBM":
             gdf_trx = _get_gdf_trx(self.data_dir)
             gdf_cell = _get_gdf_cell(self.adata)
@@ -192,7 +283,7 @@ class NBHD:
             if self.nbhd_type == "ALPH":
                 nb = self.gdf[["name", "geometry"]]
                 print("Calculating neighborhood overlap")
-                data = calc_nb_overlap(nb)
+                data = calc_nbhd_overlap(nb)
             else:
                 raise ValueError("NBN-O can be derived for ALPH only")
         elif key == "NBN-B":
@@ -200,9 +291,9 @@ class NBHD:
                 raise ValueError("NBN-B can not be derived for nbhd having overlap")
             nb = self.gdf[["name", "geometry"]]
             print("Calculating neighborhood bordering")
-            data = calc_nb_bordering(nb)
+            data = calc_nbhd_bordering(nb)
         elif key == "NBI":
-            data = calc_nbi(
+            data = calc_nbhd_by_image(
                 f"{self.data_dir}/morphology_focus/morphology_focus_0000.ome.tif",
                 self.path_landscape_files,
                 self.gdf,
@@ -210,7 +301,7 @@ class NBHD:
         else:
             raise ValueError(f"Unknown derived key: {key}")
 
-        if key in {"NBP", "NBG-LCD"}:
+        if key == "NBP":
             for subkey in data:
                 self.derived[key][subkey] = data[subkey]
         else:
@@ -229,7 +320,7 @@ class NBHD:
         )
 
     def get_derived(self, key: str, subkey: str | None = None) -> pd.DataFrame:
-        if key in {"NBP", "NBG-LCD"}:
+        if key == "NBP":
             df = self.derived[key].get(subkey)
             return self._add_geo(df)
         df = self.derived.get(key)
@@ -251,11 +342,8 @@ class NBHD:
         val = self.derived.get(key)
         if val is None:
             return None
-        if key in ["NBP", "NBG-LCD"]:
-            if key == "NBP":
-                subkeys = ["abs", "pct"]
-            elif key == "NBG-LCD":
-                subkeys = sorted(self.adata.obs["leiden"].unique().tolist())
+        if key == "NBP":
+            subkeys = ["abs", "pct"]
             summary = {}
             for subkey in subkeys:
                 subval = val.get(subkey)
@@ -264,34 +352,150 @@ class NBHD:
         return val.shape if hasattr(val, "shape") else None
 
 
-def calc_nbp(
-    gdf_cell: gpd.GeoDataFrame,
+def calc_nbhd_by_pop(
+    adata: AnnData,
     gdf_nbhd: gpd.GeoDataFrame,
+    category: str = "leiden",
     nbhd_col: str = "name",
-) -> tuple[pd.DataFrame, pd.DataFrame]:
+    min_cells: int = 5,
+    output: str = "percentage",
+) -> AnnData:
     """
-    Calculate cell counts and percentages per cluster within neighborhoods.
-    Returns two DataFrames:
-    1. Raw counts per neighborhood-cluster combination
-    2. Percentage distribution of clusters within each neighborhood
+    Calculate cell-level population distribution of neighborhoods.
+
+    Computes a neighborhood-by-population matrix showing the distribution of cell
+    categories (e.g., clusters, cell types) within each neighborhood.
+
+    Parameters
+    ----------
+    adata : AnnData
+        AnnData object containing cell data. Must have spatial coordinates in
+        `obsm["spatial"]` and the category column in `obs`.
+    gdf_nbhd : gpd.GeoDataFrame
+        GeoDataFrame containing neighborhood geometries. Must have a geometry column
+        and a column specified by `nbhd_col` for neighborhood identifiers.
+    category : str, default "leiden"
+        Column name in `adata.obs` containing cell category labels (e.g., "leiden",
+        "cell_type", "cluster").
+    nbhd_col : str, default "name"
+        Column name in `gdf_nbhd` containing neighborhood identifiers.
+    min_cells : int, default 5
+        Minimum number of cells required within a neighborhood to include it in
+        the output. Neighborhoods with fewer cells are filtered out.
+    output : str, default "percentage"
+        Type of values in the output matrix:
+        - "percentage": Fraction of cells per category (sums to 1 per neighborhood)
+        - "counts": Raw cell counts per category
+
+    Returns
+    -------
+    AnnData
+        AnnData object with shape (n_neighborhoods, n_categories) where:
+        - `X`: Matrix of population distributions (percentages or counts)
+        - `obs`: DataFrame indexed by neighborhood names
+        - `var`: DataFrame indexed by category names
+        - `obs["n_cells"]`: Total cell count per neighborhood
+
+    Examples
+    --------
+    >>> adata_nbp = dega.nbhd.calc_nbhd_by_pop(adata, gdf_alpha, category="leiden")
+    >>> adata_nbp.shape
+    (42, 18)  # 42 neighborhoods, 18 clusters
     """
     print("Calculating NBP")
-    required = {"geometry", nbhd_col}
-    if not required.issubset(gdf_nbhd.columns):
-        raise ValueError(f"gdf_nbhd missing required columns: {required - set(gdf_nbhd.columns)}")
-    if not {"geometry", "cluster"}.issubset(gdf_cell.columns):
-        raise ValueError("gdf_cell missing required 'geometry' or 'cluster' column")
 
+    # Validate inputs
+    required_nbhd = {"geometry", nbhd_col}
+    if not required_nbhd.issubset(gdf_nbhd.columns):
+        raise ValueError(
+            f"gdf_nbhd missing required columns: {required_nbhd - set(gdf_nbhd.columns)}"
+        )
+    if category not in adata.obs.columns:
+        raise ValueError(f"adata.obs missing required '{category}' column")
+    if "spatial" not in adata.obsm:
+        raise ValueError("adata.obsm missing 'spatial' coordinates")
+
+    # Build GeoDataFrame from adata with the specified category
+    # No CRS set - using micron imaging coordinates, not geospatial
+    gdf_cell = gpd.GeoDataFrame(
+        {category: adata.obs[category].values},
+        geometry=gpd.points_from_xy(*adata.obsm["spatial"].T[:2]),
+    )
+
+    # Spatial join: assign each cell to a neighborhood
+    sjoin_df = gdf_cell.sjoin(gdf_nbhd[[nbhd_col, "geometry"]], how="left", predicate="within")
+
+    # Filter neighborhoods with at least min_cells
+    cell_counts_per_nbhd = sjoin_df[nbhd_col].value_counts()
+    valid_nbhd_names = cell_counts_per_nbhd[cell_counts_per_nbhd >= min_cells].index
+    sjoin_df = sjoin_df[sjoin_df[nbhd_col].isin(valid_nbhd_names)]
+
+    # Count cells per (neighborhood, cluster)
     counts = (
-        gdf_cell.sjoin(gdf_nbhd[[nbhd_col, "geometry"]], how="left", predicate="within")
-        .groupby([nbhd_col, "cluster"])
+        sjoin_df.groupby([nbhd_col, category])
         .size()
         .unstack(fill_value=0)
         .pipe(lambda df: df.set_axis(df.columns.astype(str), axis=1))
     )
-    counts = counts.reindex(gdf_nbhd[nbhd_col]).fillna(0).astype(int)
-    percentages = counts.div(counts.sum(axis=1), axis=0).fillna(0) * 100
-    return counts, percentages
+
+    # Reindex to preserve order of filtered gdf_nbhd
+    filtered_gdf_nbhd = gdf_nbhd[gdf_nbhd[nbhd_col].isin(valid_nbhd_names)].reset_index(drop=True)
+    counts = counts.reindex(filtered_gdf_nbhd[nbhd_col]).fillna(0).astype(int)
+
+    # Calculate output values
+    if output == "percentage":
+        values = counts.div(counts.sum(axis=1), axis=0).fillna(0).values
+    else:
+        values = counts.values
+
+    # Build AnnData
+    adata_nbp = AnnData(
+        X=values,
+        obs=pd.DataFrame(index=counts.index),
+        var=pd.DataFrame(index=counts.columns),
+    )
+    adata_nbp.obs["n_cells"] = counts.sum(axis=1).values
+    adata_nbp.uns["category"] = category
+
+    # Add category as a var column (columns represent categories)
+    adata_nbp.var[category] = adata_nbp.var.index.astype(str)
+
+    # Also add category to obs - neighborhoods are named by their cluster
+    # Look up category from gdf_nbhd if available
+    if "cat" in filtered_gdf_nbhd.columns:
+        nbhd_cat_lookup = dict(
+            zip(filtered_gdf_nbhd[nbhd_col], filtered_gdf_nbhd["cat"].astype(str), strict=False)
+        )
+        adata_nbp.obs[category] = [nbhd_cat_lookup.get(n, str(n)) for n in adata_nbp.obs.index]
+    else:
+        # Default: use the index (neighborhood name) as the category
+        adata_nbp.obs[category] = adata_nbp.obs.index.astype(str)
+
+    # Copy colors from source adata if available
+    color_key = f"{category}_colors"
+    color_dict: dict[str, str] = {}
+    if color_key in adata.uns:
+        # Map colors to the category values
+        src_colors = adata.uns[color_key]
+        if hasattr(adata.obs[category], "cat"):
+            src_categories = list(adata.obs[category].cat.categories.astype(str))
+        else:
+            src_categories = list(adata.obs[category].unique().astype(str))
+
+        color_dict = {
+            str(cat): src_colors[i] for i, cat in enumerate(src_categories) if i < len(src_colors)
+        }
+
+        # Assign colors to var (columns)
+        adata_nbp.var["color"] = [color_dict.get(str(c), "#808080") for c in adata_nbp.var.index]
+        adata_nbp.uns[color_key] = [color_dict.get(str(c), "#808080") for c in adata_nbp.var.index]
+
+        # Also assign colors to obs (rows/neighborhoods)
+        adata_nbp.obs["color"] = [
+            color_dict.get(str(c), "#808080") for c in adata_nbp.obs[category]
+        ]
+
+    return adata_nbp
 
 
 def get_nbhd_meta(
@@ -333,56 +537,306 @@ def get_nbhd_meta(
     return summary.join(trx_summary).join(cell_counts)
 
 
-def calc_nb_overlap(
+def calc_nbhd_overlap(
     gdf_nbhd: gpd.GeoDataFrame,
-) -> gpd.GeoDataFrame:
+    metric: str = "iou",
+    name_col: str = "name",
+    category: str = "leiden",
+) -> AnnData:
     """
-    Calculate the pairwise overlap between all neighborhoods, including overlap area and geometry.
-    Skips intersections that are empty or have zero area.
+    Calculate pairwise overlap between all neighborhoods as a neighborhood-by-neighborhood matrix.
+
+    Parameters
+    ----------
+    gdf_nbhd : gpd.GeoDataFrame
+        GeoDataFrame containing neighborhood geometries. Must have a geometry column
+        and a column specified by `name_col` for neighborhood identifiers.
+    metric : str, default "iou"
+        The overlap metric to compute:
+        - "iou": Intersection over Union. Value = intersection_area / union_area.
+          Symmetric measure ranging from 0 (no overlap) to 1 (identical geometries).
+        - "ioa": Intersection over Area (of self/row). Value = intersection_area / row_area.
+          Asymmetric measure showing what fraction of the row neighborhood overlaps
+          with the column neighborhood. Useful for containment analysis.
+        - "intersection": Raw intersection area in square units.
+    name_col : str, default "name"
+        Column name containing neighborhood identifiers.
+    category : str, default "leiden"
+        Name of the category that neighborhoods represent (e.g., "leiden", "cell_type").
+        This is used to name the category column in obs/var and the colors in uns.
+
+    Returns
+    -------
+    AnnData
+        AnnData object with shape (n_neighborhoods, n_neighborhoods) where:
+        - `X`: Matrix of overlap values
+        - `obs`: DataFrame indexed by neighborhood names (rows)
+        - `var`: DataFrame indexed by neighborhood names (columns)
+        - `obs["area"]`: Area of each neighborhood
+        - `obs[category]`: Category value for each neighborhood
+        - `uns["metric"]`: The metric used for computation
+
+    Examples
+    --------
+    >>> adata_iou = dega.nbhd.calc_nbhd_overlap(gdf_nbhd, metric="iou")
+    >>> adata_ioa = dega.nbhd.calc_nbhd_overlap(gdf_nbhd, metric="ioa")
+    >>> mat = dega.clust.Matrix(adata_iou, row_entity="nbhd", col_entity="nbhd")
     """
-    print("Calculating NBN-O")
+    print(f"Calculating NBN-O ({metric})")
+
+    valid_metrics = {"iou", "ioa", "intersection"}
+    if metric not in valid_metrics:
+        raise ValueError(f"metric must be one of {valid_metrics}, got '{metric}'")
+
     gdf_nbhd = gdf_nbhd.copy()
     gdf_nbhd["geometry"] = gdf_nbhd["geometry"].buffer(0)
-    results = []
-    for nb1, nb2 in combinations(gdf_nbhd["name"], 2):
-        geom1 = gdf_nbhd.loc[gdf_nbhd["name"] == nb1, "geometry"].values[0]
-        geom2 = gdf_nbhd.loc[gdf_nbhd["name"] == nb2, "geometry"].values[0]
+
+    names = gdf_nbhd[name_col].tolist()
+
+    # Pre-compute areas for efficiency
+    areas = {row[name_col]: row["geometry"].area for _, row in gdf_nbhd.iterrows()}
+
+    # Initialize matrix with zeros
+    matrix = pd.DataFrame(0.0, index=names, columns=names)
+
+    # Set diagonal values
+    for name in names:
+        if metric in ("iou", "ioa"):
+            matrix.loc[name, name] = 1.0
+        else:  # intersection
+            matrix.loc[name, name] = round(areas[name], 2)
+
+    # Build a lookup for geometries
+    geom_lookup = {row[name_col]: row["geometry"] for _, row in gdf_nbhd.iterrows()}
+
+    # Compute pairwise overlaps
+    for nb1, nb2 in combinations(names, 2):
+        geom1 = geom_lookup[nb1]
+        geom2 = geom_lookup[nb2]
         intersection = geom1.intersection(geom2)
-        if not intersection.is_empty and intersection.area > 0:
-            results.append(
-                {
-                    "nbhd_1": nb1,
-                    "nbhd_2": nb2,
-                    "overlap_area": round(intersection.area, 2),
-                    "geometry": intersection,
-                }
-            )
-    if results:
-        return gpd.GeoDataFrame(results, geometry="geometry", crs=gdf_nbhd.crs)
-    return gpd.GeoDataFrame(
-        columns=["nbhd_1", "nbhd_2", "overlap_area", "geometry"],
-        geometry="geometry",
-        crs=gdf_nbhd.crs,
+
+        if intersection.is_empty or intersection.area == 0:
+            continue
+
+        intersection_area = intersection.area
+        area1 = areas[nb1]
+        area2 = areas[nb2]
+
+        if metric == "iou":
+            union_area = geom1.union(geom2).area
+            value = intersection_area / union_area if union_area > 0 else 0.0
+            matrix.loc[nb1, nb2] = round(value, 4)
+            matrix.loc[nb2, nb1] = round(value, 4)  # Symmetric
+        elif metric == "ioa":
+            # Asymmetric: row's perspective (what fraction of row overlaps with col)
+            value_1_to_2 = intersection_area / area1 if area1 > 0 else 0.0
+            value_2_to_1 = intersection_area / area2 if area2 > 0 else 0.0
+            matrix.loc[nb1, nb2] = round(value_1_to_2, 4)
+            matrix.loc[nb2, nb1] = round(value_2_to_1, 4)
+        else:  # intersection
+            matrix.loc[nb1, nb2] = round(intersection_area, 2)
+            matrix.loc[nb2, nb1] = round(intersection_area, 2)  # Symmetric
+
+    # Build AnnData
+    adata_nbn = AnnData(
+        X=matrix.values,
+        obs=pd.DataFrame(index=matrix.index),
+        var=pd.DataFrame(index=matrix.columns),
     )
+    adata_nbn.obs["area"] = [areas[n] for n in matrix.index]
+    adata_nbn.uns["metric"] = metric
+    adata_nbn.uns["category"] = category
+
+    # Add category and color metadata from gdf_nbhd if available
+    # Look up by name_col to get cat and color for each neighborhood
+    nbhd_lookup = gdf_nbhd.set_index(name_col)
+
+    if "cat" in gdf_nbhd.columns:
+        # Use the category parameter name (e.g., "leiden") instead of "cat"
+        adata_nbn.obs[category] = [
+            str(nbhd_lookup.loc[n, "cat"]) if n in nbhd_lookup.index else str(n)
+            for n in matrix.index
+        ]
+        adata_nbn.var[category] = [
+            str(nbhd_lookup.loc[n, "cat"]) if n in nbhd_lookup.index else str(n)
+            for n in matrix.columns
+        ]
+
+    if "color" in gdf_nbhd.columns:
+        obs_colors = [
+            nbhd_lookup.loc[n, "color"] if n in nbhd_lookup.index else "#808080"
+            for n in matrix.index
+        ]
+        adata_nbn.obs["color"] = obs_colors
+        adata_nbn.var["color"] = [
+            nbhd_lookup.loc[n, "color"] if n in nbhd_lookup.index else "#808080"
+            for n in matrix.columns
+        ]
+        # Store colors in uns using the category name (e.g., "leiden_colors")
+        if "cat" in gdf_nbhd.columns:
+            unique_cats = adata_nbn.obs[category].unique()
+            cat_color_map = dict(zip(adata_nbn.obs[category], obs_colors, strict=False))
+            adata_nbn.uns[f"{category}_colors"] = [
+                cat_color_map.get(c, "#808080") for c in unique_cats
+            ]
+
+    return adata_nbn
 
 
-def calc_nb_bordering(
+def calc_nbhd_bordering(
     gdf_nbhd: gpd.GeoDataFrame,
-) -> pd.DataFrame:
+    metric: str = "border_ratio",
+    name_col: str = "name",
+    category: str = "leiden",
+) -> AnnData:
     """
-    Identify pairs of neighborhoods that share a border (touch), using spatial indexing for efficiency.
+    Calculate pairwise border relationships between neighborhoods as a neighborhood-by-neighborhood matrix.
+
+    Parameters
+    ----------
+    gdf_nbhd : gpd.GeoDataFrame
+        GeoDataFrame containing neighborhood geometries. Must have a geometry column
+        and a column specified by `name_col` for neighborhood identifiers.
+    metric : str, default "border_ratio"
+        The border metric to compute:
+        - "border_ratio": Border length over self (row) perimeter.
+          Value = shared_border_length / row_perimeter.
+          Asymmetric measure showing what fraction of the row neighborhood's
+          perimeter is shared with the column neighborhood.
+        - "border_length": Raw shared border length in linear units.
+          Symmetric measure of the absolute length of shared boundary.
+        - "binary": Binary adjacency (1 if touching, 0 otherwise).
+          Symmetric measure indicating whether neighborhoods share a border.
+    name_col : str, default "name"
+        Column name containing neighborhood identifiers.
+    category : str, default "leiden"
+        Name of the category that neighborhoods represent (e.g., "leiden", "cell_type").
+        This is used to name the category column in obs/var and the colors in uns.
+
+    Returns
+    -------
+    AnnData
+        AnnData object with shape (n_neighborhoods, n_neighborhoods) where:
+        - `X`: Matrix of border metric values
+        - `obs`: DataFrame indexed by neighborhood names (rows)
+        - `var`: DataFrame indexed by neighborhood names (columns)
+        - `obs["perimeter"]`: Perimeter of each neighborhood
+        - `obs[category]`: Category value for each neighborhood
+        - `uns["metric"]`: The metric used for computation
+
+    Notes
+    -----
+    Shared border length is computed as the length of the intersection of the
+    two neighborhood boundaries (perimeters). This works for neighborhoods that
+    touch but don't overlap. For overlapping neighborhoods, consider using
+    `calc_nbhd_overlap` instead.
+
+    Examples
+    --------
+    >>> adata_border = dega.nbhd.calc_nbhd_bordering(gdf_nbhd, metric="border_ratio")
+    >>> adata_adj = dega.nbhd.calc_nbhd_bordering(gdf_nbhd, metric="binary")
+    >>> mat = dega.clust.Matrix(adata_border, row_entity="nbhd", col_entity="nbhd")
     """
-    print("Calculating NBN-B")
+    print(f"Calculating NBN-B ({metric})")
+
+    valid_metrics = {"border_ratio", "border_length", "binary"}
+    if metric not in valid_metrics:
+        raise ValueError(f"metric must be one of {valid_metrics}, got '{metric}'")
+
     gdf_nbhd = gdf_nbhd.copy()
     gdf_nbhd["geometry"] = gdf_nbhd["geometry"].buffer(0)
+
+    names = gdf_nbhd[name_col].tolist()
+
+    # Pre-compute perimeters for efficiency
+    perimeters = {row[name_col]: row["geometry"].length for _, row in gdf_nbhd.iterrows()}
+
+    # Build a lookup for geometries
+    geom_lookup = {row[name_col]: row["geometry"] for _, row in gdf_nbhd.iterrows()}
+
+    # Initialize matrix with zeros
+    matrix = pd.DataFrame(0.0, index=names, columns=names)
+
+    # Use spatial index to find touching pairs efficiently
     gdf_touches = gpd.sjoin(gdf_nbhd, gdf_nbhd, how="inner", predicate="touches")
-    gdf_touches = gdf_touches[gdf_touches["name_left"] != gdf_touches["name_right"]]
-    gdf_touches["pair"] = gdf_touches.apply(
-        lambda row: tuple(sorted((row["name_left"], row["name_right"]))), axis=1
+    gdf_touches = gdf_touches[gdf_touches[f"{name_col}_left"] != gdf_touches[f"{name_col}_right"]]
+
+    # Get unique pairs
+    seen_pairs: set[tuple[str, str]] = set()
+    for _, row in gdf_touches.iterrows():
+        nb1 = row[f"{name_col}_left"]
+        nb2 = row[f"{name_col}_right"]
+
+        # Skip if we've already processed this pair
+        pair_key = tuple(sorted((nb1, nb2)))
+        if pair_key in seen_pairs:
+            continue
+        seen_pairs.add(pair_key)
+
+        geom1 = geom_lookup[nb1]
+        geom2 = geom_lookup[nb2]
+
+        # Compute shared border length as intersection of boundaries
+        boundary1 = geom1.boundary
+        boundary2 = geom2.boundary
+        shared_border = boundary1.intersection(boundary2)
+        border_length = shared_border.length if not shared_border.is_empty else 0.0
+
+        if metric == "binary":
+            matrix.loc[nb1, nb2] = 1.0
+            matrix.loc[nb2, nb1] = 1.0
+        elif metric == "border_length":
+            matrix.loc[nb1, nb2] = round(border_length, 2)
+            matrix.loc[nb2, nb1] = round(border_length, 2)  # Symmetric
+        elif metric == "border_ratio":
+            # Asymmetric: what fraction of each neighborhood's perimeter is shared
+            perim1 = perimeters[nb1]
+            perim2 = perimeters[nb2]
+            ratio_1 = border_length / perim1 if perim1 > 0 else 0.0
+            ratio_2 = border_length / perim2 if perim2 > 0 else 0.0
+            matrix.loc[nb1, nb2] = round(ratio_1, 4)
+            matrix.loc[nb2, nb1] = round(ratio_2, 4)
+
+    # Build AnnData
+    adata_nbn = AnnData(
+        X=matrix.values,
+        obs=pd.DataFrame(index=matrix.index),
+        var=pd.DataFrame(index=matrix.columns),
     )
-    gdf_touches = gdf_touches.drop_duplicates(subset="pair")
-    return (
-        gdf_touches[["name_left", "name_right"]]
-        .rename(columns={"name_left": "nbhd_1", "name_right": "nbhd_2"})
-        .reset_index(drop=True)
-    )
+    adata_nbn.obs["perimeter"] = [perimeters[n] for n in matrix.index]
+    adata_nbn.uns["metric"] = metric
+    adata_nbn.uns["category"] = category
+
+    # Add category and color metadata from gdf_nbhd if available
+    nbhd_lookup = gdf_nbhd.set_index(name_col)
+
+    if "cat" in gdf_nbhd.columns:
+        # Use the category parameter name (e.g., "leiden") instead of "cat"
+        adata_nbn.obs[category] = [
+            str(nbhd_lookup.loc[n, "cat"]) if n in nbhd_lookup.index else str(n)
+            for n in matrix.index
+        ]
+        adata_nbn.var[category] = [
+            str(nbhd_lookup.loc[n, "cat"]) if n in nbhd_lookup.index else str(n)
+            for n in matrix.columns
+        ]
+
+    if "color" in gdf_nbhd.columns:
+        obs_colors = [
+            nbhd_lookup.loc[n, "color"] if n in nbhd_lookup.index else "#808080"
+            for n in matrix.index
+        ]
+        adata_nbn.obs["color"] = obs_colors
+        adata_nbn.var["color"] = [
+            nbhd_lookup.loc[n, "color"] if n in nbhd_lookup.index else "#808080"
+            for n in matrix.columns
+        ]
+        # Store colors in uns using the category name (e.g., "leiden_colors")
+        if "cat" in gdf_nbhd.columns:
+            unique_cats = adata_nbn.obs[category].unique()
+            cat_color_map = dict(zip(adata_nbn.obs[category], obs_colors, strict=False))
+            adata_nbn.uns[f"{category}_colors"] = [
+                cat_color_map.get(c, "#808080") for c in unique_cats
+            ]
+
+    return adata_nbn

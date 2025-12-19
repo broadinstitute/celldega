@@ -20,7 +20,7 @@ export const bar_callback_cat = (
   _viz_state
 ) => {
   // ensure that cell button, slider and bars are active
-  _viz_state.buttons.buttons.cell.style('color', 'blue');
+  _viz_state.buttons?.buttons?.cell?.style?.('color', 'blue');
 
   toggle_slider(_viz_state.sliders.cell, true);
   _viz_state.cats.svg_bar_cluster.selectAll('rect').style('opacity', 1.0);
@@ -31,7 +31,8 @@ export const bar_callback_cat = (
     _viz_state.obs_store.viz_edit_layer.set(false);
     // wrap in try
     try {
-      _viz_state.buttons.buttons.nbhd.style('color', 'gray');
+      _viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
+      toggle_slider(_viz_state.sliders.nbhd, false);
     } catch {
       // intentionally ignore missing neighborhood button
     }
@@ -65,7 +66,7 @@ export const bar_callback_gene = async (
   _viz_state
 ) => {
   // ensure that trx button, slider, and bars are active
-  _viz_state.buttons.buttons.trx.style('color', 'blue');
+  _viz_state.buttons?.buttons?.trx?.style?.('color', 'blue');
 
   toggle_slider(_viz_state.sliders.trx, true);
   _viz_state.genes.svg_bar_gene.selectAll('rect').style('opacity', 1.0);
@@ -77,7 +78,8 @@ export const bar_callback_gene = async (
     _viz_state.obs_store.viz_edit_layer.set(false);
     // wrap in try
     try {
-      _viz_state.buttons.buttons.nbhd.style('color', 'gray');
+      _viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
+      toggle_slider(_viz_state.sliders.nbhd, false);
     } catch {
       // intentionally ignore missing neighborhood button
     }
@@ -137,6 +139,7 @@ export const bar_callback_nbhd = (
         d3.select(btn).style('color', 'blue');
       }
     }
+    toggle_slider(_viz_state.sliders.nbhd, true);
 
     const prev_selected_nbhds = _viz_state.obs_store.selected_nbhds.get();
     if (

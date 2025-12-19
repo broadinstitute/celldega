@@ -55,6 +55,7 @@ nav:
       - Pre-Process LandscapeFiles: examples/brief_notebooks/Pre-process_Xenium_V1_human_Pancreas_FFPE_outs.ipynb
       - UMAP-Cluster_Pancreas_Xenium: examples/brief_notebooks/UMAP-Cluster_Pancreas_Xenium.ipynb
       - Landscape-Clustergram_Visium-HD_Human_Lung_Cancer: examples/brief_notebooks/Landscape-Clustergram_Visium-HD_Human_Lung_Cancer.ipynb
+      - Yearbook-Query: examples/brief_notebooks/Yearbook-Query.ipynb
 
 markdown_extensions:
   - toc

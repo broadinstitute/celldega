@@ -72,7 +72,7 @@ const make_query_container = (viz_state, on_query_change) => {
 
   const cluster_input = document.createElement('input');
   cluster_input.type = 'text';
-  cluster_input.placeholder = 'e.g. 5';
+  cluster_input.placeholder = '';
   cluster_input.style.width = '70px';
   cluster_input.style.height = '16px';
   cluster_input.style.fontSize = '11px';
@@ -116,7 +116,7 @@ const make_query_container = (viz_state, on_query_change) => {
 
   const gene_input = document.createElement('input');
   gene_input.type = 'text';
-  gene_input.placeholder = 'e.g. BRCA1';
+  gene_input.placeholder = '';
   gene_input.style.width = '70px';
   gene_input.style.height = '16px';
   gene_input.style.fontSize = '11px';

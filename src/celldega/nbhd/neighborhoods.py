@@ -61,7 +61,6 @@ def calc_nbhd_by_gene(
         - `obs`: DataFrame indexed by neighborhood names
         - `var`: DataFrame indexed by gene names
         - `obs["n_cells"]`: Cell count per neighborhood (when `by="cell"`)
-        - `uns["gdf_nbhd"]`: Filtered GeoDataFrame of neighborhoods
         - `uns["by"]`: Method used ("cell" or "cell-free")
 
     Examples
@@ -177,7 +176,6 @@ def calc_nbhd_by_gene(
         raise ValueError("by must be 'cell' or 'cell-free'")
 
     # Store metadata common to both modes
-    adata_nbg.uns["gdf_nbhd"] = filtered_gdf
     adata_nbg.uns["by"] = by
 
     # Add neighborhood category and colors from gdf_nbhd if available
@@ -257,7 +255,6 @@ class NBHD:
             "NBI": None,
             "NBG-CF": None,
             "NBG-CD": None,
-            "NBG-LCD": {},
             "NBP": {},
             "NBN-O": None,
             "NBN-B": None,
@@ -272,7 +269,6 @@ class NBHD:
         elif key == "NBG-CF":
             data = calc_nbhd_by_gene(self.gdf, by="cell-free", data_dir=self.data_dir)
         elif key == "NBP":
-            # calc_nbhd_by_pop now takes adata and gdf_nbhd, returns AnnData
             data = {
                 "pct": calc_nbhd_by_pop(
                     self.adata, self.gdf, category="leiden", output="percentage"
@@ -324,7 +320,7 @@ class NBHD:
         )
 
     def get_derived(self, key: str, subkey: str | None = None) -> pd.DataFrame:
-        if key in {"NBP", "NBG-LCD"}:
+        if key == "NBP":
             df = self.derived[key].get(subkey)
             return self._add_geo(df)
         df = self.derived.get(key)
@@ -346,11 +342,8 @@ class NBHD:
         val = self.derived.get(key)
         if val is None:
             return None
-        if key in ["NBP", "NBG-LCD"]:
-            if key == "NBP":
-                subkeys = ["abs", "pct"]
-            elif key == "NBG-LCD":
-                subkeys = sorted(self.adata.obs["leiden"].unique().tolist())
+        if key == "NBP":
+            subkeys = ["abs", "pct"]
             summary = {}
             for subkey in subkeys:
                 subval = val.get(subkey)
@@ -402,14 +395,12 @@ def calc_nbhd_by_pop(
         - `obs`: DataFrame indexed by neighborhood names
         - `var`: DataFrame indexed by category names
         - `obs["n_cells"]`: Total cell count per neighborhood
-        - `uns["gdf_nbhd"]`: Filtered GeoDataFrame of neighborhoods
 
     Examples
     --------
     >>> adata_nbp = dega.nbhd.calc_nbhd_by_pop(adata, gdf_alpha, category="leiden")
     >>> adata_nbp.shape
     (42, 18)  # 42 neighborhoods, 18 clusters
-    >>> adata_nbp.uns["gdf_nbhd"]  # Access filtered geometries
     """
     print("Calculating NBP")
 
@@ -464,7 +455,6 @@ def calc_nbhd_by_pop(
         var=pd.DataFrame(index=counts.columns),
     )
     adata_nbp.obs["n_cells"] = counts.sum(axis=1).values
-    adata_nbp.uns["gdf_nbhd"] = filtered_gdf_nbhd
     adata_nbp.uns["category"] = category
 
     # Add category as a var column (columns represent categories)
@@ -585,7 +575,6 @@ def calc_nbhd_overlap(
         - `obs["area"]`: Area of each neighborhood
         - `obs[category]`: Category value for each neighborhood
         - `uns["metric"]`: The metric used for computation
-        - `uns["gdf_nbhd"]`: Input GeoDataFrame for reference
 
     Examples
     --------
@@ -656,7 +645,6 @@ def calc_nbhd_overlap(
     )
     adata_nbn.obs["area"] = [areas[n] for n in matrix.index]
     adata_nbn.uns["metric"] = metric
-    adata_nbn.uns["gdf_nbhd"] = gdf_nbhd
     adata_nbn.uns["category"] = category
 
     # Add category and color metadata from gdf_nbhd if available
@@ -735,7 +723,6 @@ def calc_nbhd_bordering(
         - `obs["perimeter"]`: Perimeter of each neighborhood
         - `obs[category]`: Category value for each neighborhood
         - `uns["metric"]`: The metric used for computation
-        - `uns["gdf_nbhd"]`: Input GeoDataFrame for reference
 
     Notes
     -----
@@ -818,7 +805,6 @@ def calc_nbhd_bordering(
     )
     adata_nbn.obs["perimeter"] = [perimeters[n] for n in matrix.index]
     adata_nbn.uns["metric"] = metric
-    adata_nbn.uns["gdf_nbhd"] = gdf_nbhd
     adata_nbn.uns["category"] = category
 
     # Add category and color metadata from gdf_nbhd if available

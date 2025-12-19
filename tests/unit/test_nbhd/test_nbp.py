@@ -70,12 +70,6 @@ def test_calc_nbhd_by_pop_basic(synthetic_data):
     assert adata_nbp.shape[1] == 2, "Should have 2 categories (X and Y)"
     np.testing.assert_array_equal(sorted(adata_nbp.var.index), ["X", "Y"])
 
-    # Check filtered gdf is stored in uns
-    assert "gdf_nbhd" in adata_nbp.uns
-    filtered_nbhd = adata_nbp.uns["gdf_nbhd"]
-    assert filtered_nbhd.shape[0] == 1
-    assert filtered_nbhd.iloc[0]["name"] == "A"
-
 
 def test_calc_nbhd_by_pop_with_lower_min_cells(synthetic_data):
     """Test calc_nbhd_by_pop with lower min_cells threshold to include both neighborhoods."""

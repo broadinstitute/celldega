@@ -274,9 +274,7 @@ class NBHD:
                     self.adata, self.gdf, category="leiden", output="percentage"
                 )
             }
-            data["abs"] = calc_nbhd_by_pop(
-                self.adata, self.gdf, category="leiden", output="counts"
-            )
+            data["abs"] = calc_nbhd_by_pop(self.adata, self.gdf, category="leiden", output="counts")
         elif key == "NBM":
             gdf_trx = _get_gdf_trx(self.data_dir)
             gdf_cell = _get_gdf_cell(self.adata)

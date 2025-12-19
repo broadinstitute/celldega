@@ -26,6 +26,9 @@ import {
 } from './sliders';
 import { make_button } from './text_buttons';
 
+// Counter for unique datalist IDs to prevent contamination between instances
+let yearbook_datalist_counter = 0;
+
 /**
  * Create the query UI box for searching cells by cluster and/or gene
  * @param {object} viz_state - Visualization state
@@ -77,9 +80,11 @@ const make_query_container = (viz_state, on_query_change) => {
   cluster_input.style.borderRadius = '2px';
   cluster_input.style.padding = '1px 3px';
 
-  // Create cluster datalist for autocomplete
+  // Create cluster datalist for autocomplete with unique ID
+  yearbook_datalist_counter += 1;
+  const instance_id = `${yearbook_datalist_counter}_${Date.now()}`;
   const cluster_datalist = document.createElement('datalist');
-  cluster_datalist.id = 'yearbook_cluster_datalist';
+  cluster_datalist.id = `yearbook_cluster_datalist_${instance_id}`;
   cluster_input.setAttribute('list', cluster_datalist.id);
 
   // Populate with cluster names from cluster_counts
@@ -119,9 +124,9 @@ const make_query_container = (viz_state, on_query_change) => {
   gene_input.style.borderRadius = '2px';
   gene_input.style.padding = '1px 3px';
 
-  // Create gene datalist for autocomplete
+  // Create gene datalist for autocomplete with unique ID
   const gene_datalist = document.createElement('datalist');
-  gene_datalist.id = 'yearbook_gene_datalist';
+  gene_datalist.id = `yearbook_gene_datalist_${instance_id}`;
   gene_input.setAttribute('list', gene_datalist.id);
 
   // Populate with gene names

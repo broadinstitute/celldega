@@ -1,6 +1,16 @@
 import { handleAsyncError } from '../temp_utils/errorHandler';
 
 export const get_scatter_data = (arrow_table) => {
+  // Handle null or undefined table
+  if (!arrow_table) {
+    return {
+      length: 0,
+      attributes: {
+        getPosition: { value: new Float32Array(), size: 2 },
+      },
+    };
+  }
+
   try {
     const flatCoordinateArray = arrow_table
       .getChild('geometry')
@@ -29,6 +39,11 @@ export const get_scatter_data = (arrow_table) => {
       logUnexpected: true,
       throwOnAuth: false,
     });
-    return [];
+    return {
+      length: 0,
+      attributes: {
+        getPosition: { value: new Float32Array(), size: 2 },
+      },
+    };
   }
 };

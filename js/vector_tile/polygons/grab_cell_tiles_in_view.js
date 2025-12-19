@@ -33,15 +33,24 @@ export const grab_cell_tiles_in_view = async (
     (table) => table !== null
   );
 
+  // Handle case where no cell tiles were loaded
+  if (tile_cell_tables.length === 0) {
+    viz_state.cats.polygon_cell_names = [];
+    return [];
+  }
+
   if (!viz_state.vector_name_integer) {
     // When viz_state.vector_name_integer is false, use the direct extraction.
-    viz_state.cats.polygon_cell_names = tile_cell_tables.flatMap((table) =>
-      Array.from(table.getChild('name').toArray())
-    );
+    viz_state.cats.polygon_cell_names = tile_cell_tables.flatMap((table) => {
+      const name_child = table.getChild('name');
+      return name_child ? Array.from(name_child.toArray()) : [];
+    });
   } else {
     // When viz_state.vector_name_integer is true, map the integers to their string values.
     viz_state.cats.polygon_cell_names = tile_cell_tables.flatMap((table) => {
-      const intNames = Array.from(table.getChild('name').toArray());
+      const name_child = table.getChild('name');
+      if (!name_child) return [];
+      const intNames = Array.from(name_child.toArray());
       return intNames.map((num) => viz_state.cats.nameMapping_inv[num]);
     });
   }

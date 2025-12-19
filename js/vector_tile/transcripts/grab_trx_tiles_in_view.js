@@ -23,15 +23,30 @@ export const grab_trx_tiles_in_view = async (
 
   const trx_arrow_table = concatenate_arrow_tables(tile_trx_tables);
 
+  // Handle case where no transcript tiles were loaded
+  if (!trx_arrow_table) {
+    viz_state.genes.trx_names_array = [];
+    viz_state.combo_data.trx = [];
+    return {
+      length: 0,
+      attributes: {
+        getPosition: { value: new Float32Array(), size: 2 },
+      },
+    };
+  }
+
   let new_trx_names_array = [];
   if (!viz_state.vector_name_integer) {
     // extract names directly.
-    new_trx_names_array = trx_arrow_table.getChild('name').toArray();
+    new_trx_names_array = trx_arrow_table.getChild('name')?.toArray() || [];
   } else {
     // map integer values to strings.
-    new_trx_names_array = Array.from(
-      trx_arrow_table.getChild('name').toArray()
-    ).map((num) => viz_state.genes.g_nameMapping_inv[num]);
+    const names_child = trx_arrow_table.getChild('name');
+    new_trx_names_array = names_child
+      ? Array.from(names_child.toArray()).map(
+          (num) => viz_state.genes.g_nameMapping_inv[num]
+        )
+      : [];
   }
 
   viz_state.genes.trx_names_array = new_trx_names_array;

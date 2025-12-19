@@ -22,6 +22,12 @@ export const load_cluster_data = async (base_url, version, aws, attr = 'cluster'
 
   const cluster_table = await get_arrow_table(cluster_url, options.fetch, aws);
 
+  // Handle null table (file doesn't exist or failed to load)
+  if (!cluster_table) {
+    console.warn(`Failed to load cluster data from ${cluster_url}`);
+    return new Map();
+  }
+
   const cell_names = cluster_table.getChild('__index_level_0__')?.toArray() || [];
   const cluster_values = cluster_table.getChild(attr)?.toArray() ||
                          cluster_table.getChild('cluster')?.toArray() || [];
@@ -48,17 +54,90 @@ export const load_gene_expression = async (base_url, version, aws, gene_name) =>
   const version_suffix = version && version !== 'default' ? `_${version}` : '';
   const gene_url = `${base_url}/cbg${version_suffix}/${gene_name}.parquet`;
 
+  console.log(`Loading gene expression from: ${gene_url}`);
+
   const exp_table = await get_arrow_table(gene_url, options.fetch, aws);
 
-  const cell_names = exp_table.getChild('__index_level_0__')?.toArray() || [];
-  const exp_values = exp_table.getChild(gene_name)?.toArray() || [];
+  // Handle null table (file doesn't exist or failed to load)
+  if (!exp_table) {
+    console.warn(`Failed to load gene expression from ${gene_url}`);
+    return new Map();
+  }
+
+  console.log(`Gene expression loaded: ${exp_table.numRows} rows`);
+
+  // Try multiple possible column names for cell index
+  const cell_names_col =
+    exp_table.getChild('__index_level_0__') ||
+    exp_table.getChild('cell_id') ||
+    exp_table.getChild('cell_name') ||
+    exp_table.getChild('index');
+
+  if (!cell_names_col) {
+    console.warn(
+      `Gene expression table has no recognized cell index column. Available columns:`,
+      exp_table.schema.fields.map((f) => f.name)
+    );
+    return new Map();
+  }
+
+  const cell_names = cell_names_col.toArray();
+  const exp_col = exp_table.getChild(gene_name);
+
+  if (!exp_col) {
+    console.warn(
+      `Gene expression column '${gene_name}' not found. Available columns:`,
+      exp_table.schema.fields.map((f) => f.name)
+    );
+    return new Map();
+  }
+
+  const exp_values = exp_col.toArray();
 
   const exp_map = new Map();
   cell_names.forEach((name, i) => {
     exp_map.set(String(name), Number(exp_values[i]));
   });
 
+  console.log(`Gene expression map created with ${exp_map.size} entries`);
+
   return exp_map;
+};
+
+/**
+ * Convert gene expression map keys from integer indices to cell names if needed.
+ * Uses viz_state.cats.nameMapping_inv when vector_name_integer is true.
+ *
+ * @param {Map<string, number>} exp_map - Expression map with possibly integer keys
+ * @param {object} viz_state - Visualization state
+ * @returns {Map<string, number>} Expression map with cell name keys
+ */
+export const convert_exp_map_keys = (exp_map, viz_state) => {
+  if (!viz_state.vector_name_integer) {
+    // No conversion needed - keys are already cell names
+    return exp_map;
+  }
+
+  // Convert integer indices to cell names using nameMapping_inv
+  const nameMapping_inv = viz_state.cats.nameMapping_inv;
+  if (!nameMapping_inv) {
+    console.warn('vector_name_integer is true but nameMapping_inv is missing');
+    return exp_map;
+  }
+
+  const converted_map = new Map();
+  exp_map.forEach((exp_value, int_key) => {
+    const cell_name = nameMapping_inv[int_key];
+    if (cell_name) {
+      converted_map.set(String(cell_name), exp_value);
+    }
+  });
+
+  console.log(
+    `Converted exp_map: ${exp_map.size} int keys -> ${converted_map.size} cell names`
+  );
+
+  return converted_map;
 };
 
 /**
@@ -162,27 +241,51 @@ export const execute_cell_query = async (query, viz_state, default_cluster_max =
   // Rank by gene expression if specified
   if (gene_name) {
     try {
-      const exp_map = await load_gene_expression(
+      const exp_map_raw = await load_gene_expression(
         viz_state.global_base_url,
         viz_state.seg.version,
         viz_state.aws,
         gene_name
       );
 
-      // Sort cells by expression (descending), only include cells with expression >= 1
-      // This shows the full range from high to low expressors
-      const cells_with_exp = candidate_cells
-        .map((cell_name) => ({
-          name: cell_name,
-          exp: exp_map.get(cell_name) || 0,
-        }))
-        .filter((c) => c.exp >= 1)
-        .sort((a, b) => b.exp - a.exp);
+      // Convert integer indices to cell names if needed
+      const exp_map = convert_exp_map_keys(exp_map_raw, viz_state);
 
-      candidate_cells = cells_with_exp.map((c) => c.name);
+      // If gene expression data was loaded successfully (non-empty map)
+      if (exp_map.size > 0) {
+        // Debug: check for cell name format mismatches
+        const exp_map_sample = Array.from(exp_map.keys()).slice(0, 3);
+        const candidate_sample = candidate_cells.slice(0, 3);
+        console.log('Cell name samples - exp_map:', exp_map_sample);
+        console.log('Cell name samples - candidates:', candidate_sample);
+
+        // Sort cells by expression (descending), only include cells with expression >= 1
+        // This shows the full range from high to low expressors
+        const cells_with_exp = candidate_cells
+          .map((cell_name) => ({
+            name: cell_name,
+            exp: exp_map.get(cell_name) || 0,
+          }))
+          .filter((c) => c.exp >= 1)
+          .sort((a, b) => b.exp - a.exp);
+
+        console.log(
+          `Cells with exp >= 1: ${cells_with_exp.length} out of ${candidate_cells.length}`
+        );
+
+        candidate_cells = cells_with_exp.map((c) => c.name);
+      } else {
+        // Gene expression file not found or empty - fall back to unranked cells
+        console.warn(
+          `No gene expression data found for ${gene_name}, returning unranked cells`
+        );
+        // Shuffle since we can't rank by expression
+        candidate_cells = shuffle_array(candidate_cells);
+      }
     } catch (error) {
       console.error(`Failed to load gene expression for ${gene_name}:`, error);
       // Fall back to unranked cells if gene data fails
+      candidate_cells = shuffle_array(candidate_cells);
     }
   } else if (!gene_name && cluster_query) {
     // Cluster only - shuffle for random selection

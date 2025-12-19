@@ -483,7 +483,22 @@ class Yearbook(anywidget.AnyWidget):
 
     Args:
         base_url (str): The base URL for the dataset.
-        cells (list): List of cell identifiers to display as portraits.
+        cells (list, optional): List of cell identifiers to display as portraits.
+            If not provided and no query is given, random cells will be selected.
+        query (dict, optional): Query for finding cells from LandscapeFiles.
+            Supports the following formats:
+
+            - Cluster only: ``{"cluster": {"attr": "leiden", "value": "8"}}``
+              Returns random cells from the specified cluster.
+            - Gene only: ``{"gene": "BRCA1"}``
+              Returns cells ranked by gene expression (highest first).
+            - Cluster + Gene: ``{"cluster": {"attr": "leiden", "value": "8"}, "gene": "BRCA1"}``
+              Returns cells from the cluster ranked by gene expression.
+            - Max cells: ``{"max_cells": 100}``
+              Limits the number of cells returned (default: num_rows * num_cols * 10).
+
+            The query uses LandscapeFiles data (or adata if provided) to find cells.
+            This is an alternative to providing an explicit ``cells`` list.
         num_rows (int): Number of rows in the portrait grid. Alias: ``rows``.
         num_cols (int): Number of columns in the portrait grid. Alias: ``cols``.
         portrait_size_um (float): Size of each portrait in micrometers.
@@ -500,14 +515,32 @@ class Yearbook(anywidget.AnyWidget):
 
     Example::
 
+        # Using explicit cell list
         yb = Yearbook(
             base_url="https://path-to-dataset",
             cells=["cell_1", "cell_2", "cell_3", "cell_4"],
-            rows=2,  # or num_rows=2
-            cols=2,  # or num_cols=2
+            rows=2,
+            cols=2,
             portrait_size_um=100,
         )
-        yb
+
+        # Using query to find cells from a cluster
+        yb = Yearbook(
+            base_url="https://path-to-dataset",
+            query={"cluster": {"attr": "leiden", "value": "5"}},
+            rows=2,
+            cols=2,
+            portrait_size_um=100,
+        )
+
+        # Using query for cells ranked by gene expression
+        yb = Yearbook(
+            base_url="https://path-to-dataset",
+            query={"gene": "BRCA1", "max_cells": 50},
+            rows=2,
+            cols=2,
+            portrait_size_um=100,
+        )
     """
 
     _esm = Path(__file__).parent / "../static" / "widget.js"
@@ -557,6 +590,13 @@ class Yearbook(anywidget.AnyWidget):
         trait=traitlets.Unicode(),
         default_value=["leiden"],
     ).tag(sync=True)
+
+    # Query for finding cells from LandscapeFiles
+    # Supports: {"cluster": {"attr": "leiden", "value": "8"}} - cells from cluster
+    #           {"gene": "BRCA1"} - cells ranked by gene expression
+    #           {"cluster": {"attr": "leiden", "value": "8"}, "gene": "BRCA1"} - cluster cells ranked by gene
+    #           {"max_cells": 100} - limit number of cells returned (default: num_rows * num_cols * 10)
+    query = traitlets.Dict({}).tag(sync=True)
 
     def __init__(self, **kwargs):
         # Support 'rows' and 'cols' as aliases for 'num_rows' and 'num_cols'

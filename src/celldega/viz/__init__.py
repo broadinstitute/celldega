@@ -2,7 +2,7 @@
 Module for visualization
 """
 
-from ipywidgets import HBox, Layout, jslink
+from ipywidgets import HBox, VBox, Layout, jslink
 
 from .local_server import get_local_server
 from .widget import Clustergram, Enrich, Landscape, Yearbook
@@ -179,6 +179,149 @@ def clustergram_enrich(
     return HBox([cgm, enrich], layout=Layout(width="1000px"))
 
 
+def landscape_yearbook(
+    landscape: Landscape,
+    yearbook: Yearbook,
+    width: str = "100%",
+    height: str = "400px",
+) -> "VBox":
+    """
+    Display a `Landscape` widget above a `Yearbook` widget with linked queries.
+
+    When the user clicks on a cluster in the Landscape, the Yearbook automatically
+    updates to show cells from that cluster. When a gene is selected, cells are
+    ranked by gene expression.
+
+    Args:
+        landscape (Landscape): A `Landscape` widget.
+        yearbook (Yearbook): A `Yearbook` widget.
+        width (str): The width of the widgets.
+        height (str): The height of each widget.
+
+    Returns:
+        VBox: Visualization display containing both widgets stacked vertically.
+
+    Example::
+
+        landscape = dega.viz.Landscape(base_url="...", adata=adata)
+        yearbook = dega.viz.Yearbook(base_url="...", rows=2, cols=4)
+        display = dega.viz.landscape_yearbook(landscape, yearbook)
+    """
+    # Link Landscape update_trigger to Yearbook query
+    def _on_update_trigger(change):
+        info = change["new"] or {}
+        click_type = (info.get("type") or "").lower()
+        value = info.get("value") or {}
+
+        current_query = dict(yearbook.query or {})
+
+        if click_type == "col_label":
+            # Cluster selected
+            cluster_name = value.get("name", "")
+            if cluster_name:
+                current_query["cluster"] = {"attr": "leiden", "value": str(cluster_name)}
+                yearbook.query = current_query
+        elif click_type == "row_label":
+            # Gene selected
+            gene_name = value.get("name", "")
+            if gene_name:
+                current_query["gene"] = gene_name
+                yearbook.query = current_query
+        elif click_type == "col_dendro":
+            # Multiple clusters selected via dendrogram
+            selected_names = value.get("selected_names", [])
+            if selected_names and len(selected_names) == 1:
+                current_query["cluster"] = {"attr": "leiden", "value": str(selected_names[0])}
+                yearbook.query = current_query
+
+    landscape.observe(_on_update_trigger, names="update_trigger")
+
+    # Layouts
+    landscape.layout = Layout(width=width, height=height)
+    yearbook.layout = Layout(width=width, height=height)
+
+    return VBox([landscape, yearbook])
+
+
+def landscape_yearbook_clustergram(
+    landscape: Landscape,
+    yearbook: Yearbook,
+    cgm: Clustergram,
+    width: str = "600px",
+    height: str = "400px",
+) -> "VBox":
+    """
+    Display a `Landscape` and `Clustergram` side by side, with a `Yearbook` below.
+
+    All three widgets are linked:
+    - Clustergram clicks update both Landscape and Yearbook
+    - Gene selections rank cells in Yearbook by expression
+    - Cluster selections filter cells in Yearbook
+
+    Args:
+        landscape (Landscape): A `Landscape` widget.
+        yearbook (Yearbook): A `Yearbook` widget.
+        cgm (Clustergram): A `Clustergram` widget.
+        width (str): The width of each widget in the top row.
+        height (str): The height of each widget.
+
+    Returns:
+        VBox: Visualization display with Landscape+Clustergram on top, Yearbook below.
+
+    Example::
+
+        landscape = dega.viz.Landscape(base_url="...", adata=adata)
+        yearbook = dega.viz.Yearbook(base_url="...", rows=2, cols=4)
+        cgm = dega.viz.Clustergram(matrix=mat)
+        display = dega.viz.landscape_yearbook_clustergram(landscape, yearbook, cgm)
+    """
+    # Link clustergram click_info to landscape update_trigger
+    jslink((cgm, "click_info"), (landscape, "update_trigger"))
+
+    # Link Clustergram to Yearbook
+    def _on_click_info(change):
+        info = change["new"] or {}
+        click_type = (info.get("type") or "").lower()
+        value = info.get("value") or {}
+
+        current_query = dict(yearbook.query or {})
+
+        if click_type == "col_label":
+            # Cluster selected
+            cluster_name = value.get("name", "")
+            if cluster_name:
+                current_query["cluster"] = {"attr": "leiden", "value": str(cluster_name)}
+                yearbook.query = current_query
+        elif click_type == "row_label":
+            # Gene selected
+            gene_name = value.get("name", "")
+            if gene_name:
+                current_query["gene"] = gene_name
+                yearbook.query = current_query
+        elif click_type.startswith("col_dendro"):
+            # Multiple clusters selected via dendrogram
+            selected_names = value.get("selected_names", [])
+            if selected_names and len(selected_names) == 1:
+                current_query["cluster"] = {"attr": "leiden", "value": str(selected_names[0])}
+                yearbook.query = current_query
+        elif click_type.startswith("row_dendro"):
+            # Multiple genes selected - use first one
+            selected_names = value.get("selected_names", [])
+            if selected_names:
+                current_query["gene"] = selected_names[0]
+                yearbook.query = current_query
+
+    cgm.observe(_on_click_info, names="click_info")
+
+    # Layouts
+    landscape.layout = Layout(width=width, height=height)
+    cgm.layout = Layout(width=width, height=height)
+    yearbook.layout = Layout(width="100%", height=height)
+
+    top_row = HBox([landscape, cgm])
+    return VBox([top_row, yearbook])
+
+
 __all__ = [
     "Clustergram",
     "Enrich",
@@ -187,4 +330,6 @@ __all__ = [
     "clustergram_enrich",
     "get_local_server",
     "landscape_clustergram",
+    "landscape_yearbook",
+    "landscape_yearbook_clustergram",
 ]

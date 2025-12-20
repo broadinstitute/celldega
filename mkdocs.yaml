@@ -43,6 +43,9 @@ nav:
           - Xenium Prime Mouse Brain: gallery/gallery_xenium_mouse_brain.md
           - Xenium Prime Human Skin: gallery/gallery_xenium_skin_cancer.md
           - Xenium Multi Dataset: gallery/gallery_xenium_multi.md
+      - Linked Views:
+          - Landscape-Clustergram: gallery/gallery_landscape_clustergram.md
+          - Landscape-Yearbook: gallery/gallery_landscape_yearbook.md
   - Example Notebooks:
     - examples/index.md
     - Tutorials:
@@ -94,6 +97,10 @@ extra_javascript:
   - path: assets/js/gallery_visium_hd_human_kidney.js
     type: module
   - path: assets/js/gallery_visium_hd_pancreas.js
+    type: module
+  - path: assets/js/gallery_landscape_clustergram.js
+    type: module
+  - path: assets/js/gallery_landscape_yearbook.js
     type: module
 
 extra_css:

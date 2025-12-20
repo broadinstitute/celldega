@@ -1301,8 +1301,124 @@ def write_identity_transform(path_landscape_files: str) -> None:
         pd.DataFrame(np.eye(3)).to_csv(path, sep=" ", header=False, index=False)
 
 
+def add_clustering_from_adata(
+    adata,
+    path_landscape_files: str,
+    cluster_key: str = "leiden",
+    segmentation_name: str | None = None,
+) -> None:
+    """
+    Add cell clustering data from an AnnData object to LandscapeFiles.
+
+    This function exports clustering assignments and associated colors from an
+    AnnData object to the LandscapeFiles format, enabling the Landscape and
+    Yearbook widgets to use custom clustering results.
+
+    Parameters
+    ----------
+    adata : AnnData
+        AnnData object containing clustering results in `obs[cluster_key]`.
+        Colors can be provided in `uns[f"{cluster_key}_colors"]`.
+    path_landscape_files : str or Path
+        Path to the LandscapeFiles directory.
+    cluster_key : str, default "leiden"
+        Column name in `adata.obs` containing cluster assignments.
+    segmentation_name : str, optional
+        Name for this segmentation/clustering result. If provided, files will be
+        saved as `cell_clusters_{segmentation_name}/`. If None, files are saved
+        to the default `cell_clusters/` directory.
+
+    Returns
+    -------
+    None
+
+    Examples
+    --------
+    >>> import scanpy as sc
+    >>> import celldega as dega
+    >>>
+    >>> # Load and cluster your data
+    >>> adata = sc.read_h5ad("my_data.h5ad")
+    >>> sc.tl.leiden(adata, resolution=0.5)
+    >>>
+    >>> # Add clustering to LandscapeFiles
+    >>> dega.pre.add_clustering_from_adata(
+    ...     adata,
+    ...     path_landscape_files="./my_landscape_files",
+    ...     cluster_key="leiden"
+    ... )
+    >>>
+    >>> # For a custom segmentation with a specific name
+    >>> dega.pre.add_clustering_from_adata(
+    ...     adata,
+    ...     path_landscape_files="./my_landscape_files",
+    ...     cluster_key="leiden",
+    ...     segmentation_name="cellpose2"
+    ... )
+
+    Notes
+    -----
+    The Landscape widget can use the custom clustering by setting the
+    `segmentation` parameter to match the `segmentation_name`.
+    """
+    from contextlib import suppress
+
+    import scanpy as sc
+
+    path_lf = Path(path_landscape_files)
+
+    # Determine output directory
+    if segmentation_name:
+        cluster_dir = path_lf / f"cell_clusters_{segmentation_name}"
+    else:
+        cluster_dir = path_lf / "cell_clusters"
+    cluster_dir.mkdir(exist_ok=True)
+
+    # Get cluster assignments
+    if cluster_key not in adata.obs.columns:
+        raise ValueError(f"Cluster key '{cluster_key}' not found in adata.obs")
+
+    # Create cluster DataFrame
+    df_cluster = pd.DataFrame(index=adata.obs.index)
+    df_cluster["cluster"] = adata.obs[cluster_key].astype("string")
+    df_cluster.to_parquet(cluster_dir / "cluster.parquet")
+
+    # Get or generate colors
+    cluster_counts = df_cluster["cluster"].value_counts().sort_index()
+    clusters = cluster_counts.index.tolist()
+
+    color_key = f"{cluster_key}_colors"
+    colors = None
+    if color_key in adata.uns:
+        colors = adata.uns[color_key]
+    else:
+        # Try to generate colors using scanpy
+        with suppress(Exception):
+            sc.pl.umap(adata, color=cluster_key, show=False)
+            plt.close()
+            colors = adata.uns.get(color_key)
+
+    # Fallback to generated colors
+    if colors is None:
+        colors = _create_cluster_colors(clusters)
+
+    # Ensure we have enough colors
+    if len(colors) < len(clusters):
+        extra_colors = _create_cluster_colors(clusters[len(colors):])
+        colors = list(colors) + extra_colors
+
+    # Create meta_cluster DataFrame
+    meta_cluster = pd.DataFrame(index=clusters)
+    meta_cluster["color"] = [colors[i] if i < len(colors) else "#808080" for i in range(len(clusters))]
+    meta_cluster["count"] = cluster_counts.values
+    meta_cluster.to_parquet(cluster_dir / "meta_cluster.parquet")
+
+    print(f"Clustering data saved to {cluster_dir}")
+
+
 __all__ = [
     "_to_geometry",
+    "add_clustering_from_adata",
     "boundary_tile",
     "get_image_info",
     "landscape",

@@ -1052,6 +1052,8 @@
       
         
       
+        
+      
     
     
     
@@ -1136,12 +1138,35 @@
   
   
     <li class="md-nav__item">
-      <a href="../examples/tutorial_notebooks/Single-cell_Clustergram_Chromium.ipynb" class="md-nav__link">
+      <a href="../examples/tutorial_notebooks/Single-Cell_Clustergram_Chromium/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    Single-cell Clustergram Chromium
+    Landscape Clustergram Chromium
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../examples/tutorial_notebooks/Visium-HD_Landscape_Pre-process/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Visium-HD Landscape Pre-Processing
     
   </span>
   
@@ -1240,35 +1265,12 @@
   
   
     <li class="md-nav__item">
-      <a href="../examples/brief_notebooks/Landscape-Matrix_Xenium/" class="md-nav__link">
+      <a href="../examples/brief_notebooks/Landscape-Heatmap-Visium-HD/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    Landscape-Matrix Xenium
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../examples/brief_notebooks/Pre-process_Xenium_V1_human_Pancreas_FFPE_outs/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    Pre-process_Xenium_V1_human_Pancreas_FFPE_outs
+    Landscape-Heatmap Visium-HD
     
   </span>
   
@@ -1309,12 +1311,35 @@
   
   
     <li class="md-nav__item">
-      <a href="../examples/brief_notebooks/Landscape-Clustergram_Visium-HD_Human_Lung_Cancer/" class="md-nav__link">
+      <a href="../examples/brief_notebooks/Visium-HD_Landscape_Mouse_Lung_FF/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    Landscape-Clustergram Visium-HD
+    Mouse Lung FF
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../examples/brief_notebooks/Custom_Segmentation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Custom Segmentation
     
   </span>
   
@@ -1360,6 +1385,74 @@
     
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#key-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      Key Features
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      Architecture
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Architecture">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#python-library" class="md-nav__link">
+    <span class="md-ellipsis">
+      Python Library
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#javascript-library" class="md-nav__link">
+    <span class="md-ellipsis">
+      JavaScript Library
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      Workflow
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#getting-started" class="md-nav__link">
+    <span class="md-ellipsis">
+      Getting Started
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -1375,12 +1468,61 @@
 
 
 <h1 id="overview">Overview</h1>
-<p>The Celldega library is being developed to help researchers easily visualize and analyze high-dimensional spatial-omics data in the context of a notebook workflow. Initial development has been focused on spatial transcriptomics visualization.</p>
-<p>Celldega can be used as a Python library in a Jupyter notebook environment or as a stand-alone JavaScript library for creating visualizations.</p>
+<p>Celldega is a spatial analysis and visualization library developed by the <a href="https://www.broadinstitute.org/spatial-technology-platform">Spatial Technology Platform</a> at the <a href="https://www.broadinstitute.org">Broad Institute of MIT and Harvard</a>. It enables researchers to easily visualize and analyze large spatial transcriptomics (ST) datasets alongside single-cell and spatial analysis notebook workflows.</p>
+<h2 id="key-features">Key Features</h2>
 <ul>
-<li><a href="getting_started/">Getting Started</a></li>
-<li><a href="installation/">Installation</a></li>
-<li><a href="usage/">Usage</a></li>
+<li><strong>Large Dataset Support</strong>: Efficiently visualize datasets with &gt;100M transcripts</li>
+<li><strong>Interactive Widgets</strong>: Jupyter Widget-based visualizations that integrate with notebook workflows</li>
+<li><strong>Multi-platform Support</strong>: Works with Xenium, MERSCOPE, Visium HD, and Chromium data</li>
+<li><strong>Linked Visualizations</strong>: Connect Landscape views with Clustergram heatmaps</li>
+<li><strong>Neighborhood Analysis</strong>: Define and analyze tissue neighborhoods with alpha shapes and hextiles</li>
+</ul>
+<h2 id="architecture">Architecture</h2>
+<p>Celldega consists of two main components:</p>
+<h3 id="python-library">Python Library</h3>
+<p>Used in Jupyter notebooks for:</p>
+<ul>
+<li>Pre-processing raw ST data into LandscapeFiles format</li>
+<li>Clustering and analysis with the Matrix class</li>
+<li>Neighborhood computation with alpha shapes and hextiles</li>
+<li>Creating interactive visualization widgets</li>
+</ul>
+<h3 id="javascript-library">JavaScript Library</h3>
+<p>Powers the interactive visualizations:</p>
+<ul>
+<li>Deck.gl-based spatial rendering</li>
+<li>Efficient tile-based data loading</li>
+<li>Synchronized multi-view displays</li>
+<li>Web-compatible standalone usage</li>
+</ul>
+<h2 id="workflow">Workflow</h2>
+<p>A typical Celldega workflow involves:</p>
+<ol>
+<li><strong>Pre-process</strong> raw data to create LandscapeFiles</li>
+<li><strong>Cluster</strong> and analyze data using Scanpy/Squidpy</li>
+<li><strong>Visualize</strong> with interactive widgets</li>
+<li><strong>Explore</strong> spatial patterns and gene expression</li>
+</ol>
+<pre><code class="language-python">import celldega as dega
+import scanpy as sc
+
+# Pre-process data
+dega.pre.main(technology=&quot;Xenium&quot;, data_dir=&quot;./data&quot;, path_landscape_files=&quot;./output&quot;)
+
+# Load and cluster
+adata = sc.read_h5ad(&quot;processed.h5ad&quot;)
+sc.tl.leiden(adata)
+
+# Visualize
+landscape = dega.viz.Landscape(base_url=&quot;./output&quot;, adata=adata, ini_zoom=-5)
+landscape
+</code></pre>
+<h2 id="getting-started">Getting Started</h2>
+<ul>
+<li><a href="getting_started/">Getting Started Guide</a> - Quick start with installation and examples</li>
+<li><a href="installation/">Installation</a> - Detailed installation instructions</li>
+<li><a href="file_formats/">File Formats</a> - Understanding LandscapeFiles</li>
+<li><a href="usage/">Usage</a> - In-depth usage guide</li>
 </ul>
 
 

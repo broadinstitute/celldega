@@ -1052,6 +1052,8 @@
       
         
       
+        
+      
     
     
     
@@ -1136,12 +1138,35 @@
   
   
     <li class="md-nav__item">
-      <a href="../examples/tutorial_notebooks/Single-cell_Clustergram_Chromium.ipynb" class="md-nav__link">
+      <a href="../examples/tutorial_notebooks/Single-Cell_Clustergram_Chromium/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    Single-cell Clustergram Chromium
+    Landscape Clustergram Chromium
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../examples/tutorial_notebooks/Visium-HD_Landscape_Pre-process/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Visium-HD Landscape Pre-Processing
     
   </span>
   
@@ -1240,35 +1265,12 @@
   
   
     <li class="md-nav__item">
-      <a href="../examples/brief_notebooks/Landscape-Matrix_Xenium/" class="md-nav__link">
+      <a href="../examples/brief_notebooks/Landscape-Heatmap-Visium-HD/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    Landscape-Matrix Xenium
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../examples/brief_notebooks/Pre-process_Xenium_V1_human_Pancreas_FFPE_outs/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    Pre-process_Xenium_V1_human_Pancreas_FFPE_outs
+    Landscape-Heatmap Visium-HD
     
   </span>
   
@@ -1309,12 +1311,35 @@
   
   
     <li class="md-nav__item">
-      <a href="../examples/brief_notebooks/Landscape-Clustergram_Visium-HD_Human_Lung_Cancer/" class="md-nav__link">
+      <a href="../examples/brief_notebooks/Visium-HD_Landscape_Mouse_Lung_FF/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    Landscape-Clustergram Visium-HD
+    Mouse Lung FF
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../examples/brief_notebooks/Custom_Segmentation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Custom Segmentation
     
   </span>
   
@@ -1367,38 +1392,95 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#pre-module-overview" class="md-nav__link">
+  <a href="#installation" class="md-nav__link">
     <span class="md-ellipsis">
-      Pre Module Overview
+      Installation
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#clust-module-overview" class="md-nav__link">
+  <a href="#core-modules" class="md-nav__link">
     <span class="md-ellipsis">
-      Clust Module Overview
+      Core Modules
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Core Modules">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pre-module" class="md-nav__link">
+    <span class="md-ellipsis">
+      Pre Module
     </span>
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#neighborhood-overview" class="md-nav__link">
+        
+          <li class="md-nav__item">
+  <a href="#clust-module" class="md-nav__link">
     <span class="md-ellipsis">
-      Neighborhood Overview
+      Clust Module
     </span>
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#viz-module-overview" class="md-nav__link">
+        
+          <li class="md-nav__item">
+  <a href="#nbhd-module" class="md-nav__link">
     <span class="md-ellipsis">
-      Viz Module Overview
+      Nbhd Module
     </span>
   </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#viz-module" class="md-nav__link">
+    <span class="md-ellipsis">
+      Viz Module
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quick-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      Quick Reference
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Quick Reference">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#common-imports" class="md-nav__link">
+    <span class="md-ellipsis">
+      Common Imports
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#key-classes-and-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      Key Classes and Functions
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1419,14 +1501,148 @@
 
 
 <h1 id="python-api-overview">Python API Overview</h1>
-<h2 id="pre-module-overview"><a href="pre/api">Pre Module Overview</a></h2>
-<p>The <code>pre</code> module contains methods for pre-processing LandscapeFiles.</p>
-<h2 id="clust-module-overview"><a href="clust/api">Clust Module Overview</a></h2>
-<p>The <code>clust</code> module contains methods for clustering high-dimensional data.</p>
-<h2 id="neighborhood-overview"><a href="nbhd/api">Neighborhood Overview</a></h2>
-<p>The <code>nbhd</code> module contains methods for calculating tissue neighborhoods.</p>
-<h2 id="viz-module-overview"><a href="viz/api">Viz Module Overview</a></h2>
-<p>The <code>viz</code> module contains functions and classes for data visualization.</p>
+<p>The Celldega Python API provides modules for pre-processing spatial transcriptomics data, clustering analysis, neighborhood computation, and interactive visualization.</p>
+<h2 id="installation">Installation</h2>
+<pre><code class="language-bash">pip install celldega
+</code></pre>
+<h2 id="core-modules">Core Modules</h2>
+<h3 id="pre-module"><a href="pre/api/">Pre Module</a></h3>
+<p>The <code>pre</code> module contains functions for pre-processing raw spatial transcriptomics data into LandscapeFiles format. This includes:</p>
+<ul>
+<li>Creating image tile pyramids for efficient zooming</li>
+<li>Generating cell metadata and boundary tiles</li>
+<li>Processing transcript data</li>
+<li>Building cluster assignments and gene expression signatures</li>
+</ul>
+<pre><code class="language-python">import celldega as dega
+
+# Pre-process Xenium data
+dega.pre.main(
+    technology=&quot;Xenium&quot;,
+    data_dir=&quot;/path/to/xenium_outs&quot;,
+    path_landscape_files=&quot;/path/to/output&quot;,
+    tile_size=250
+)
+</code></pre>
+<h3 id="clust-module"><a href="clust/api/">Clust Module</a></h3>
+<p>The <code>clust</code> module provides the <code>Matrix</code> class for hierarchical clustering and heatmap visualization. It supports:</p>
+<ul>
+<li>Automatic data processing pipelines</li>
+<li>Multiple normalization methods (zscore, quantile, total)</li>
+<li>Hierarchical clustering with dendrograms</li>
+<li>Integration with Clustergram widget</li>
+</ul>
+<pre><code class="language-python">import celldega as dega
+
+# Create and cluster a matrix
+mat = dega.clust.Matrix(adata, filter_genes=5000)
+mat.cluster()
+
+# Export for visualization
+cgm = dega.viz.Clustergram(matrix=mat)
+</code></pre>
+<h3 id="nbhd-module"><a href="nbhd/api/">Nbhd Module</a></h3>
+<p>The <code>nbhd</code> module contains functions for computing and analyzing tissue neighborhoods:</p>
+<ul>
+<li>Alpha shape computation for cluster-based neighborhoods</li>
+<li>Hexagonal tiling for regular neighborhood grids</li>
+<li>Neighborhood-by-gene expression analysis</li>
+<li>Neighborhood overlap and bordering calculations</li>
+</ul>
+<pre><code class="language-python">import celldega as dega
+
+# Compute alpha shapes for cell clusters
+gdf_alpha = dega.nbhd.alpha_shape_cell_clusters(
+    adata, 
+    cat=&quot;leiden&quot;, 
+    alphas=[100, 150, 200]
+)
+
+# Generate hexagonal tiles
+gdf_hex = dega.nbhd.generate_hextile(adata, diameter=100)
+
+# Calculate neighborhood-by-gene expression
+adata_nbg = dega.nbhd.calc_nbhd_by_gene(gdf_alpha, by=&quot;cell&quot;, adata=adata)
+</code></pre>
+<h3 id="viz-module"><a href="viz/api/">Viz Module</a></h3>
+<p>The <code>viz</code> module provides Jupyter Widget classes for interactive visualization:</p>
+<table>
+<thead>
+<tr>
+<th>Widget</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Landscape</code></td>
+<td>Main spatial visualization for IST/SST data</td>
+</tr>
+<tr>
+<td><code>Clustergram</code></td>
+<td>Hierarchical clustering heatmap</td>
+</tr>
+<tr>
+<td><code>Yearbook</code></td>
+<td>Grid of cell "portraits"</td>
+</tr>
+<tr>
+<td><code>Enrich</code></td>
+<td>Gene enrichment analysis</td>
+</tr>
+</tbody>
+</table>
+<pre><code class="language-python">import celldega as dega
+
+# Create a Landscape widget
+landscape = dega.viz.Landscape(
+    base_url=&quot;https://your-landscape-files-url&quot;,
+    adata=adata,
+    ini_x=10000,
+    ini_y=10000,
+    ini_zoom=-5
+)
+
+# Display linked Landscape and Clustergram
+display = dega.viz.landscape_clustergram(landscape, cgm)
+</code></pre>
+<h2 id="quick-reference">Quick Reference</h2>
+<h3 id="common-imports">Common Imports</h3>
+<pre><code class="language-python">import celldega as dega
+
+# Access submodules
+dega.pre      # Pre-processing functions
+dega.clust    # Clustering (Matrix class)
+dega.nbhd     # Neighborhood analysis
+dega.viz      # Visualization widgets
+</code></pre>
+<h3 id="key-classes-and-functions">Key Classes and Functions</h3>
+<table>
+<thead>
+<tr>
+<th>Module</th>
+<th>Key Components</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>dega.pre</code></td>
+<td><code>main()</code>, <code>create_image_tiles()</code>, <code>make_meta_gene()</code></td>
+</tr>
+<tr>
+<td><code>dega.clust</code></td>
+<td><code>Matrix</code></td>
+</tr>
+<tr>
+<td><code>dega.nbhd</code></td>
+<td><code>alpha_shape_cell_clusters()</code>, <code>generate_hextile()</code>, <code>calc_nbhd_by_gene()</code>, <code>NBHD</code></td>
+</tr>
+<tr>
+<td><code>dega.viz</code></td>
+<td><code>Landscape</code>, <code>Clustergram</code>, <code>Yearbook</code>, <code>Enrich</code>, <code>landscape_clustergram()</code></td>
+</tr>
+</tbody>
+</table>
 
 
 

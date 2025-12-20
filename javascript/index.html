@@ -1052,6 +1052,8 @@
       
         
       
+        
+      
     
     
     
@@ -1136,12 +1138,35 @@
   
   
     <li class="md-nav__item">
-      <a href="../examples/tutorial_notebooks/Single-cell_Clustergram_Chromium.ipynb" class="md-nav__link">
+      <a href="../examples/tutorial_notebooks/Single-Cell_Clustergram_Chromium/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    Single-cell Clustergram Chromium
+    Landscape Clustergram Chromium
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../examples/tutorial_notebooks/Visium-HD_Landscape_Pre-process/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Visium-HD Landscape Pre-Processing
     
   </span>
   
@@ -1240,35 +1265,12 @@
   
   
     <li class="md-nav__item">
-      <a href="../examples/brief_notebooks/Landscape-Matrix_Xenium/" class="md-nav__link">
+      <a href="../examples/brief_notebooks/Landscape-Heatmap-Visium-HD/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    Landscape-Matrix Xenium
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../examples/brief_notebooks/Pre-process_Xenium_V1_human_Pancreas_FFPE_outs/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    Pre-process_Xenium_V1_human_Pancreas_FFPE_outs
+    Landscape-Heatmap Visium-HD
     
   </span>
   
@@ -1309,12 +1311,35 @@
   
   
     <li class="md-nav__item">
-      <a href="../examples/brief_notebooks/Landscape-Clustergram_Visium-HD_Human_Lung_Cancer/" class="md-nav__link">
+      <a href="../examples/brief_notebooks/Visium-HD_Landscape_Mouse_Lung_FF/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    Landscape-Clustergram Visium-HD
+    Mouse Lung FF
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../examples/brief_notebooks/Custom_Segmentation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Custom Segmentation
     
   </span>
   
@@ -1360,6 +1385,74 @@
     
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#getting-started" class="md-nav__link">
+    <span class="md-ellipsis">
+      Getting Started
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Getting Started">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#using-in-html" class="md-nav__link">
+    <span class="md-ellipsis">
+      Using in HTML
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#using-with-observablehq" class="md-nav__link">
+    <span class="md-ellipsis">
+      Using with ObservableHQ
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#available-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      Available Functions
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#data-requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      Data Requirements
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#api-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      API Reference
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -1375,7 +1468,96 @@
 
 
 <h1 id="javascript-api-overview">JavaScript API Overview</h1>
-<p>Celldega's visualization methods can be used as a stand-alone JavaScript library outside the context of a Jupyter notebook. This can be used to create showcase visualizations with publicly hosted data.</p>
+<p>Celldega's visualization methods can be used as a stand-alone JavaScript library outside the context of a Jupyter notebook. This enables creating showcase visualizations with publicly hosted data, embedding visualizations in web applications, and building custom interactive experiences.</p>
+<h2 id="getting-started">Getting Started</h2>
+<h3 id="using-in-html">Using in HTML</h3>
+<p>You can include Celldega in any HTML page by importing the bundled JavaScript module:</p>
+<pre><code class="language-html">&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+    &lt;style&gt;
+        #landscape-container {
+            width: 100%;
+            height: 800px;
+            border: 1px solid #ccc;
+        }
+    &lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    &lt;div id=&quot;landscape-container&quot;&gt;&lt;/div&gt;
+
+    &lt;script type=&quot;module&quot;&gt;
+        import celldega from './widget.js';
+
+        document.addEventListener(&quot;DOMContentLoaded&quot;, async () =&gt; {
+            const el = document.getElementById('landscape-container');
+
+            const landscape = await celldega.landscape_ist(
+                el,                    // DOM element
+                {},                    // model (empty for standalone)
+                '',                    // token
+                10000,                 // initial X
+                10000,                 // initial Y
+                0,                     // initial Z
+                -5,                    // initial zoom
+                'https://your-data-url/LandscapeFiles',  // base URL
+                'Dataset Name',        // dataset name
+                0.25,                  // transcript radius
+                '100%',                // width
+                '100%'                 // height
+            );
+        });
+    &lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre>
+<h3 id="using-with-observablehq">Using with ObservableHQ</h3>
+<p>Celldega can be used in ObservableHQ notebooks. See the <a href="https://observablehq.com/@cornhundred/celldega-landscape-xenium-observablehq">Celldega Landscape Xenium example</a> for a working demo.</p>
+<h2 id="available-functions">Available Functions</h2>
+<p>Celldega exports the following main visualization functions:</p>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>landscape_ist</code></td>
+<td>Create an interactive spatial transcriptomics (IST) landscape visualization</td>
+</tr>
+<tr>
+<td><code>landscape_sst</code></td>
+<td>Create a spatial spot transcriptomics (SST) visualization for Visium HD</td>
+</tr>
+<tr>
+<td><code>landscape_h_e</code></td>
+<td>Create an H&amp;E image visualization</td>
+</tr>
+<tr>
+<td><code>matrix_viz</code></td>
+<td>Create a Clustergrammer-style matrix/heatmap visualization</td>
+</tr>
+<tr>
+<td><code>yearbook</code></td>
+<td>Create a yearbook-style grid of cell portraits</td>
+</tr>
+</tbody>
+</table>
+<h2 id="data-requirements">Data Requirements</h2>
+<p>For standalone JavaScript visualizations, your data must be hosted publicly (e.g., on GitHub, S3, or a web server). The data should be in the LandscapeFiles format, which includes:</p>
+<ul>
+<li><code>landscape_parameters.json</code> - Configuration file</li>
+<li><code>pyramid_images/</code> - Image tile pyramids</li>
+<li><code>cell_metadata.parquet</code> - Cell positions</li>
+<li><code>cell_segmentation/</code> - Cell boundary tiles</li>
+<li><code>trx_tiles/</code> - Transcript location tiles</li>
+<li><code>meta_gene.parquet</code> - Gene metadata</li>
+</ul>
+<p>See the <a href="../overview/file_formats/">File Formats</a> documentation for details.</p>
+<h2 id="api-reference">API Reference</h2>
+<p>For detailed API documentation of each function, see the <a href="api/">API Reference</a>.</p>
 
 
 

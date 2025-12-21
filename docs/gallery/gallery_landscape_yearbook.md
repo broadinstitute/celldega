@@ -2,6 +2,8 @@
 
 This example demonstrates linking a Landscape visualization with a Yearbook view. The Yearbook shows individual cell "portraits" that can be queried by cluster or gene from the Landscape.
 
+**Try it:** Select a gene or cluster in the Landscape (via the Clustergram if linked) to see the Yearbook automatically update!
+
 <div id="visualization-container" style="display: flex; flex-direction: column; width: 100%; gap: 10px;">
     <div style="display: flex; flex-direction: row; gap: 10px;">
         <div id="landscape-yb" style="flex: 1; height: 500px; border: 1px solid #ccc;"></div>
@@ -11,11 +13,17 @@ This example demonstrates linking a Landscape visualization with a Yearbook view
 
 ## How It Works
 
-The Landscape and Yearbook can be linked through the query system:
+The Landscape and Yearbook are linked through callback functions:
 
-- **Cluster Query**: Select cells from a specific cluster to display as portraits
-- **Gene Query**: Rank cells by gene expression, showing highest expressors first
-- **Combined Query**: Filter by cluster AND rank by gene expression
+- **`on_gene_select(callback)`**: Fires when a gene is selected - Yearbook ranks cells by expression
+- **`on_cluster_select(callback)`**: Fires when a cluster is selected - Yearbook shows cells from that cluster
+- **`on_clusters_select(callback)`**: Fires when multiple clusters are selected via dendrogram
+
+The Yearbook provides update methods:
+
+- **`update_gene(gene_name)`**: Update query to rank cells by gene expression
+- **`update_cluster(cluster_id)`**: Update query to filter by cluster
+- **`update_query(query_obj)`**: Update the full query object
 
 ## Usage in JavaScript
 
@@ -25,30 +33,37 @@ import celldega from './widget.js';
 // Initialize Landscape
 const landscape = await celldega.landscape_ist(el, {}, token, x, y, z, zoom, base_url);
 
-// Initialize Yearbook with a query
+// Initialize Yearbook
 const yearbook = await celldega.yearbook(
-    yb_el,
-    {},
-    token,
-    base_url,
-    'Dataset Name',
-    [],           // cells (empty = use query)
-    2,            // num_rows
-    3,            // num_cols
-    100,          // portrait_size_um
-    4,            // portrait_gap
-    0,            // width
-    600,          // height
-    {},           // meta_cell
-    [],           // meta_cell_attr
-    {},           // meta_cluster
-    [],           // meta_cluster_attr
-    'default',    // segmentation
-    {},           // creds
-    null,         // scale_bar_microns_per_pixel
-    0,            // current_page
-    { cluster: { attr: 'leiden', value: '1' }, gene: 'COL1A1' }  // query
+    yb_el, {}, token, base_url, 'Dataset Name',
+    [], 2, 3, 100, 4, 0, 600,
+    {}, [], {}, [], 'default', {}, null, 0,
+    { cluster: { attr: 'leiden', value: '1' } }
 );
+
+// Link them: when gene is selected in Landscape, update Yearbook
+landscape.on_gene_select((gene_name) => {
+    yearbook.update_gene(gene_name);
+});
+
+// Link them: when cluster is selected, show cells from that cluster
+landscape.on_cluster_select((cluster_id) => {
+    yearbook.update_cluster(cluster_id);
+});
+```
+
+## Python Usage with Linked Widgets
+
+In Jupyter notebooks, you can use the `landscape_yearbook` function to automatically link the widgets:
+
+```python
+import celldega as dega
+
+landscape = dega.viz.Landscape(base_url="...", adata=adata)
+yearbook = dega.viz.Yearbook(base_url="...", rows=2, cols=4)
+
+# Create linked display - clicking clusters/genes in Landscape updates Yearbook
+display = dega.viz.landscape_yearbook(landscape, yearbook)
 ```
 
 [Dataset from 10X Genomics](https://www.10xgenomics.com/datasets)

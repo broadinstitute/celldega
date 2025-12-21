@@ -839,7 +839,35 @@ export const landscape_ist = async (
     { immediate: false }
   );
 
+  // Callback registries for external listeners
+  const callbacks = {
+    on_gene_select: [],
+    on_cluster_select: [],
+    on_clusters_select: [],
+  };
+
   const landscape = {
+    /**
+     * Register a callback for gene selection events.
+     * @param {function} callback - Function called with (gene_name)
+     */
+    on_gene_select: (callback) => {
+      callbacks.on_gene_select.push(callback);
+    },
+    /**
+     * Register a callback for single cluster selection events.
+     * @param {function} callback - Function called with (cluster_id)
+     */
+    on_cluster_select: (callback) => {
+      callbacks.on_cluster_select.push(callback);
+    },
+    /**
+     * Register a callback for multiple cluster selection (via dendrogram).
+     * @param {function} callback - Function called with (cluster_ids_array)
+     */
+    on_clusters_select: (callback) => {
+      callbacks.on_clusters_select.push(callback);
+    },
     update_matrix_gene: async (inst_gene) => {
       const reset_gene = inst_gene === viz_state.cats.cat;
       const new_cat = reset_gene ? 'cluster' : inst_gene;
@@ -867,6 +895,9 @@ export const landscape_ist = async (
         ...viz_state.obs_store.deck_check.get(),
         cell_layer: true,
       });
+
+      // Notify listeners
+      callbacks.on_gene_select.forEach((cb) => cb(inst_gene));
     },
     update_matrix_col: async (inst_col) => {
       update_cat(viz_state.cats, 'cluster');
@@ -880,6 +911,9 @@ export const landscape_ist = async (
         trx_layer: false,
       });
       viz_state.layers_obj = layers_obj;
+
+      // Notify listeners
+      callbacks.on_cluster_select.forEach((cb) => cb(inst_col));
     },
     update_matrix_dendro_col: async (selected_cols) => {
       // const inst_gene = 'cluster'
@@ -897,6 +931,9 @@ export const landscape_ist = async (
         trx_layer: false,
       });
       viz_state.layers_obj = layers_obj;
+
+      // Notify listeners
+      callbacks.on_clusters_select.forEach((cb) => cb(selected_cols));
     },
     update_view_state: async (new_view_state, close_up, _trx_layer) => {
       viz_state.close_up = close_up;

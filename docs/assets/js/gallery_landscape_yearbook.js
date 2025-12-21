@@ -35,7 +35,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             500   // height in pixels
         );
 
-        // Initialize Yearbook with a query for cluster 1 cells ranked by gene expression
+        // Initialize Yearbook with an initial query
         const yearbook = await celldega.yearbook(
             yearbook_el,
             {},
@@ -64,6 +64,34 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
         );
 
+        // ==========================================
+        // Link Landscape selections to Yearbook
+        // ==========================================
+
+        // When a gene is selected in Landscape (via Clustergram callback),
+        // update Yearbook to rank cells by that gene's expression
+        landscape.on_gene_select((gene_name) => {
+            console.log('Gene selected:', gene_name);
+            yearbook.update_gene(gene_name);
+        });
+
+        // When a cluster is selected in Landscape (via Clustergram callback),
+        // update Yearbook to show cells from that cluster
+        landscape.on_cluster_select((cluster_id) => {
+            console.log('Cluster selected:', cluster_id);
+            yearbook.update_cluster(cluster_id);
+        });
+
+        // When multiple clusters are selected via dendrogram,
+        // update Yearbook to show cells from the first selected cluster
+        landscape.on_clusters_select((cluster_ids) => {
+            console.log('Clusters selected:', cluster_ids);
+            if (cluster_ids.length > 0) {
+                yearbook.update_cluster(cluster_ids[0]);
+            }
+        });
+
         console.log('Landscape-Yearbook linked visualization initialized');
+        console.log('Try selecting genes or clusters to see Yearbook update!');
     }
 });

@@ -1,6 +1,7 @@
 import './widget.css';
 
 import { networkFromParquet } from './read_parquet/network_from_parquet';
+import { networkFromDegaFiles } from './read_parquet/network_from_dega_files';
 import { objects_from_parquet } from './read_parquet/objects_from_parquet';
 import {
   handleAsyncError,
@@ -312,11 +313,68 @@ async function render({ model, el }) {
   }
 }
 
+/**
+ * Load and render a Clustergram from DegaFiles.
+ *
+ * @param {HTMLElement} el - Container element for the visualization
+ * @param {string} base_url - Base URL for the DegaFiles directory
+ * @param {string} name - Name of the Clustergram (subdirectory under cgm/)
+ * @param {number} width - Width of the visualization
+ * @param {number} height - Height of the visualization
+ * @param {function} [row_label_callback] - Callback for gene/row click events
+ * @param {function} [col_label_callback] - Callback for cluster/column click events
+ * @param {function} [col_dendro_callback] - Callback for dendrogram selection events
+ * @param {object} [options] - Optional fetch options for authentication
+ * @returns {Promise<object>} - The matrix visualization object
+ */
+const matrix_from_dega_files = async (
+  el,
+  base_url,
+  name = 'default',
+  width = 500,
+  height = 500,
+  row_label_callback = null,
+  col_label_callback = null,
+  col_dendro_callback = null,
+  options = {}
+) => {
+  const network = await networkFromDegaFiles(base_url, name, options);
+
+  // Create a minimal model-like object for matrix_viz
+  const model = {
+    get: (key) => {
+      if (key === 'row_entity') {
+        return JSON.stringify(network.row_entity || { entity: 'gene', attr: 'name' });
+      }
+      if (key === 'col_entity') {
+        return JSON.stringify(network.col_entity || { entity: 'cell', attr: 'leiden' });
+      }
+      return null;
+    },
+    set: () => {},
+    save_changes: () => {},
+    on: () => {},
+  };
+
+  return matrix_viz(
+    model,
+    el,
+    network,
+    width,
+    height,
+    row_label_callback,
+    col_label_callback,
+    col_dendro_callback
+  );
+};
+
 export default {
   landscape_ist,
   landscape_sst,
   landscape_h_e,
   matrix_viz,
+  matrix_from_dega_files,
+  networkFromDegaFiles,
   yearbook,
   render,
   render_landscape_ist,

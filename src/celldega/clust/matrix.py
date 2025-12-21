@@ -850,6 +850,73 @@ class Matrix:
             "col_entity": self.col_entity,
         }
 
+    def write_dega_files(
+        self,
+        path: str,
+        name: str | None = None,
+    ) -> None:
+        """
+        Write Clustergram visualization data to a DegaFiles directory.
+
+        This creates a `cgm/` subdirectory containing the parquet files needed
+        to load the Clustergram in JavaScript without a Python backend.
+
+        Parameters
+        ----------
+        path : str or Path
+            Path to the DegaFiles directory (the same directory used for
+            Landscape and Yearbook data).
+        name : str, optional
+            Name for this Clustergram. If provided, files are saved to
+            ``cgm/{name}/``. If None, uses the matrix's name attribute,
+            or "default" if no name is set.
+
+        Examples
+        --------
+        >>> mat = Matrix(adata)
+        >>> mat.clust()
+        >>> mat.write_dega_files("./my_dega_files", name="skin_cancer_clusters")
+        >>>
+        >>> # JavaScript can then load from:
+        >>> # base_url + '/cgm/skin_cancer_clusters/'
+
+        Notes
+        -----
+        The following files are created:
+        - ``mat.parquet``: The matrix data
+        - ``row_nodes.parquet``: Row node information
+        - ``col_nodes.parquet``: Column node information
+        - ``row_linkage.parquet``: Row dendrogram linkage
+        - ``col_linkage.parquet``: Column dendrogram linkage
+        - ``meta.json``: Metadata including colors and config
+        """
+        from pathlib import Path as PathLib
+
+        # Determine the name for the subdirectory
+        cgm_name = name or self.name or "default"
+
+        # Create output directory
+        cgm_dir = PathLib(path) / "cgm" / cgm_name
+        cgm_dir.mkdir(parents=True, exist_ok=True)
+
+        # Get parquet data
+        pq_data = self.export_viz_parquet()
+
+        # Write parquet files
+        (cgm_dir / "mat.parquet").write_bytes(pq_data["mat"])
+        (cgm_dir / "row_nodes.parquet").write_bytes(pq_data["row_nodes"])
+        (cgm_dir / "col_nodes.parquet").write_bytes(pq_data["col_nodes"])
+        (cgm_dir / "row_linkage.parquet").write_bytes(pq_data["row_linkage"])
+        (cgm_dir / "col_linkage.parquet").write_bytes(pq_data["col_linkage"])
+
+        # Write metadata JSON
+        meta = pq_data["meta"].copy()
+        meta["row_entity"] = pq_data["row_entity"]
+        meta["col_entity"] = pq_data["col_entity"]
+        (cgm_dir / "meta.json").write_text(json.dumps(meta, indent=2))
+
+        print(f"Clustergram data saved to {cgm_dir}")
+
     def add_category(self, axis: AxisInput, name: str, data: pd.Series) -> None:
         """
         Add category to metadata.

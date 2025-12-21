@@ -15,6 +15,21 @@ The Landscape and Clustergram are linked through callback functions:
 - **`update_matrix_col(cluster)`**: Called when clicking on a cluster column - colors cells by that cluster
 - **`update_matrix_dendro_col(clusters)`**: Called when selecting multiple clusters via dendrogram
 
+## Saving Clustergram to DegaFiles
+
+To enable the Clustergram in a JavaScript-only environment, you need to save the data using Python:
+
+```python
+import celldega as dega
+
+# Create and cluster your matrix
+mat = dega.clust.Matrix(adata)
+mat.clust()
+
+# Save to DegaFiles directory
+mat.write_dega_files("./my_dega_files", name="my_clustergram")
+```
+
 ## Usage in JavaScript
 
 ```javascript
@@ -23,15 +38,15 @@ import celldega from './widget.js';
 // Initialize Landscape
 const landscape = await celldega.landscape_ist(el, {}, token, x, y, z, zoom, base_url);
 
-// Initialize Matrix with callbacks to Landscape
-celldega.matrix_viz(
-    {},
+// Load and render Clustergram from DegaFiles with callbacks
+const matrix = await celldega.matrix_from_dega_files(
     matrix_el,
-    network,
-    500,
-    500,
-    landscape.update_matrix_gene,     // Gene click callback
-    landscape.update_matrix_col,      // Cluster click callback
+    base_url,
+    'my_clustergram',              // Clustergram name (matches name used in write_dega_files)
+    500,                            // width
+    500,                            // height
+    landscape.update_matrix_gene,   // Gene click callback
+    landscape.update_matrix_col,    // Cluster click callback
     landscape.update_matrix_dendro_col // Dendrogram callback
 );
 ```

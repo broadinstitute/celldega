@@ -35,20 +35,14 @@ document.addEventListener("DOMContentLoaded", async () => {
             600   // height in pixels
         );
 
-        // Fetch the network data for the Clustergram
-        const net_url = `${base_url}/tmp.json`;
-        
+        // Try to load Clustergram from DegaFiles (cgm/default/)
         try {
-            const response = await fetch(net_url);
-            const network = await response.json();
-
-            // Initialize Matrix visualization with callbacks to Landscape
-            celldega.matrix_viz(
-                {},
+            const matrix = await celldega.matrix_from_dega_files(
                 matrix_el,
-                network,
-                500,
-                550,
+                base_url,
+                'default',    // Clustergram name
+                500,          // width
+                550,          // height
                 landscape.update_matrix_gene,      // Gene click callback
                 landscape.update_matrix_col,       // Cluster click callback
                 landscape.update_matrix_dendro_col // Dendrogram callback
@@ -56,8 +50,19 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             console.log('Landscape-Clustergram linked visualization initialized');
         } catch (error) {
-            console.error('Error fetching network data:', error);
-            matrix_el.innerHTML = '<div style="padding: 20px; color: gray;">Clustergram data not available for this dataset</div>';
+            console.error('Error loading Clustergram from DegaFiles:', error);
+            matrix_el.innerHTML = `
+                <div style="padding: 20px; color: gray; text-align: center;">
+                    <p><strong>Clustergram data not available</strong></p>
+                    <p style="font-size: 0.9em;">
+                        To enable this visualization, generate Clustergram data using:
+                    </p>
+                    <pre style="background: #f5f5f5; padding: 10px; text-align: left; font-size: 0.85em;">
+mat = dega.clust.Matrix(adata)
+mat.clust()
+mat.write_dega_files("path/to/dega_files")</pre>
+                </div>
+            `;
         }
     }
 });

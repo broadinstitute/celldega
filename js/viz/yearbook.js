@@ -1006,6 +1006,48 @@ export const yearbook = async (
       await update_all_portraits();
       initViewStates();
     },
+    /**
+     * Update the yearbook query and refresh the display.
+     * @param {Object} new_query - Query object with optional cluster and gene
+     * @param {Object} [new_query.cluster] - Cluster filter { attr: 'leiden', value: '1' }
+     * @param {string} [new_query.gene] - Gene to rank cells by expression
+     * @param {number} [new_query.max_cells] - Maximum cells to return
+     */
+    update_query: async (new_query) => {
+      await handle_query_change(new_query);
+    },
+    /**
+     * Update query to show cells from a specific cluster.
+     * @param {string} cluster_value - Cluster identifier (e.g., '1', '5')
+     * @param {string} [cluster_attr='leiden'] - Cluster attribute name
+     */
+    update_cluster: async (cluster_value, cluster_attr = 'leiden') => {
+      const current_query = viz_state.yearbook.query || {};
+      const new_query = {
+        ...current_query,
+        cluster: { attr: cluster_attr, value: String(cluster_value) },
+      };
+      await handle_query_change(new_query);
+    },
+    /**
+     * Update query to rank cells by gene expression.
+     * @param {string} gene_name - Gene name to rank by
+     */
+    update_gene: async (gene_name) => {
+      const current_query = viz_state.yearbook.query || {};
+      const new_query = {
+        ...current_query,
+        gene: gene_name,
+      };
+      await handle_query_change(new_query);
+    },
+    /**
+     * Get the current query state.
+     * @returns {Object} Current query object
+     */
+    get_query: () => {
+      return viz_state.yearbook.query || {};
+    },
     finalize: () => {
       deck_yearbook.finalize();
     },

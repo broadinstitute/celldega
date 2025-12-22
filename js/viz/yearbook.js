@@ -90,7 +90,8 @@ export const yearbook = async (
   creds = {},
   scale_bar_microns_per_pixel = null,
   current_page = 0,
-  query = {}
+  query = {},
+  cell_name_prefix = false
 ) => {
   if (width === 0) {
     width = '100%';
@@ -101,6 +102,9 @@ export const yearbook = async (
   viz_state.obs_store = create_obs_store();
   viz_state.highlighted_cells = new Set();
   viz_state.selection_token = 0;
+
+  // Store cell_name_prefix for cell name matching
+  viz_state.cell_name_prefix = cell_name_prefix;
 
   // Yearbook-specific state
   viz_state.yearbook = {

@@ -1,10 +1,38 @@
 /**
  * Cell query utilities for finding cells based on cluster and gene criteria.
- * Used by Yearbook to find cells from LandscapeFiles based on a query object.
+ * Used by Yearbook to find cells from DegaFiles based on a query object.
  */
 
 import { options } from '../global_variables/fetch_options';
 import { get_arrow_table } from '../read_parquet/get_arrow_table';
+
+/**
+ * Get the meta_cell key for a given cell name.
+ * When cell_name_prefix is enabled, try both the full name and stripped name.
+ * @param {string} name - Cell name from cell_names_array
+ * @param {object} meta_cell - Meta cell data object
+ * @param {boolean} cell_name_prefix - Whether cell_name_prefix mode is enabled
+ * @returns {any[]|undefined} - Meta cell attributes or undefined if not found
+ */
+const get_meta_cell_attrs = (name, meta_cell, cell_name_prefix) => {
+  // First try direct lookup
+  if (meta_cell[name] !== undefined) {
+    return meta_cell[name];
+  }
+
+  // If cell_name_prefix is enabled, try stripping the prefix
+  if (cell_name_prefix && typeof name === 'string') {
+    const idx = name.indexOf('_');
+    if (idx >= 0) {
+      const stripped = name.substring(idx + 1);
+      if (meta_cell[stripped] !== undefined) {
+        return meta_cell[stripped];
+      }
+    }
+  }
+
+  return undefined;
+};
 
 /**
  * Load cluster assignments from LandscapeFiles.
@@ -186,13 +214,21 @@ export const execute_cell_query = async (query, viz_state, default_cluster_max =
     const cluster_attr = cluster_query.attr || 'leiden';
     const cluster_value = String(cluster_query.value);
 
+    // Get cell_name_prefix setting for name matching
+    const cell_name_prefix = viz_state.cell_name_prefix || false;
+
     // Check if we have meta_cell data (from adata) or need to load from files
     if (viz_state.cats.has_meta_cell && viz_state.cats.meta_cell) {
       // Use meta_cell from adata
       const attr_index = viz_state.cats.meta_cell_attr.indexOf(cluster_attr);
       if (attr_index >= 0) {
         candidate_cells = candidate_cells.filter((cell_name) => {
-          const attrs = viz_state.cats.meta_cell[cell_name];
+          // Use helper to handle cell_name_prefix matching
+          const attrs = get_meta_cell_attrs(
+            cell_name,
+            viz_state.cats.meta_cell,
+            cell_name_prefix
+          );
           if (!attrs) return false;
           return String(attrs[attr_index]) === cluster_value;
         });
@@ -200,12 +236,12 @@ export const execute_cell_query = async (query, viz_state, default_cluster_max =
         console.warn(`Cluster attribute '${cluster_attr}' not found in meta_cell_attr`);
       }
     } else if (viz_state.cats.dict_cell_cats && Object.keys(viz_state.cats.dict_cell_cats).length > 0) {
-      // Use dict_cell_cats if available (loaded from LandscapeFiles)
+      // Use dict_cell_cats if available (loaded from DegaFiles)
       candidate_cells = candidate_cells.filter((cell_name) => {
         return String(viz_state.cats.dict_cell_cats[cell_name]) === cluster_value;
       });
     } else {
-      // Load cluster data from LandscapeFiles
+      // Load cluster data from DegaFiles
       try {
         const cluster_map = await load_cluster_data(
           viz_state.global_base_url,

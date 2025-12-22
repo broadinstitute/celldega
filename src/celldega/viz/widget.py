@@ -584,6 +584,9 @@ class Yearbook(anywidget.AnyWidget):
     # Zoom state (synced across all portraits)
     zoom_level = traitlets.Float(0).tag(sync=True)
 
+    # Cell name prefix handling (same as Landscape)
+    cell_name_prefix = traitlets.Bool(False).tag(sync=True)
+
     # Cell metadata (similar to Landscape)
     meta_cluster = traitlets.Dict({}).tag(sync=True)
     cell_attr = traitlets.List(
@@ -619,6 +622,9 @@ class Yearbook(anywidget.AnyWidget):
         meta_cluster_df = None
         cell_attr = kwargs.pop("cell_attr", ["leiden"])
 
+        # Get cell_name_prefix setting (same as Landscape)
+        cell_name_prefix_setting = kwargs.get("cell_name_prefix", False)
+
         def _df_to_bytes(df):
             import io
 
@@ -639,6 +645,15 @@ class Yearbook(anywidget.AnyWidget):
 
             if meta_cell_df.index.name is None:
                 meta_cell_df.index.name = "cell_id"
+
+            # If cell_name_prefix is True, trim the prefix from cell names
+            # This allows mapping to DegaFiles which have short names
+            if cell_name_prefix_setting:
+                # Trim prefix before first underscore from index
+                new_index = meta_cell_df.index.map(
+                    lambda x: x.split("_", 1)[1] if "_" in str(x) else x
+                )
+                meta_cell_df.index = new_index
 
             pq_meta_cell = _df_to_bytes(meta_cell_df)
 

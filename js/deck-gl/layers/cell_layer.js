@@ -19,6 +19,34 @@ import { get_scatter_data } from '../../read_parquet/get_scatter_data';
 import { scale_umap_data } from '../../umap/scale_umap_data';
 import { getModelMatrixProps } from '../../utils/rotation';
 
+/**
+ * Get the meta_cell key for a given cell name.
+ * When cell_name_prefix is enabled, try both the full name and stripped name.
+ * @param {string} name - Cell name from cell_names_array
+ * @param {object} meta_cell - Meta cell data object
+ * @param {boolean} cell_name_prefix - Whether cell_name_prefix mode is enabled
+ * @returns {any[]|undefined} - Meta cell attributes or undefined if not found
+ */
+const get_meta_cell_attrs = (name, meta_cell, cell_name_prefix) => {
+  // First try direct lookup
+  if (meta_cell[name] !== undefined) {
+    return meta_cell[name];
+  }
+
+  // If cell_name_prefix is enabled, try stripping the prefix
+  if (cell_name_prefix && typeof name === 'string') {
+    const idx = name.indexOf('_');
+    if (idx >= 0) {
+      const stripped = name.substring(idx + 1);
+      if (meta_cell[stripped] !== undefined) {
+        return meta_cell[stripped];
+      }
+    }
+  }
+
+  return undefined;
+};
+
 const cell_layer_onclick = async (info, d, deck_ist, layers_obj, viz_state) => {
   // Check if the device is a touch device
   const isTouchDevice =
@@ -156,8 +184,15 @@ export const ini_cell_layer = async (base_url, viz_state) => {
       viz_state.cats.inst_cell_attr
     );
 
+    // Use helper to handle cell_name_prefix matching
+    const cell_name_prefix = viz_state.cell_name_prefix || false;
+
     viz_state.cats.cell_cats = viz_state.cats.cell_names_array.map((name) => {
-      const attrs = viz_state.cats.meta_cell[name];
+      const attrs = get_meta_cell_attrs(
+        name,
+        viz_state.cats.meta_cell,
+        cell_name_prefix
+      );
       return attrs?.[inst_index] ?? 'N.A.';
     });
   } else {

@@ -186,6 +186,7 @@ const render_yearbook = async ({ model, el }) => {
   const scale_bar_microns_per_pixel = model.get('scale_bar_microns_per_pixel');
   const current_page = model.get('current_page') || 0;
   const query = model.get('query') || {};
+  const cell_name_prefix = model.get('cell_name_prefix') || false;
 
   let meta_cell_data = { result: {}, attr: [] };
   let meta_cluster_data = { result: {}, attr: [] };
@@ -221,7 +222,8 @@ const render_yearbook = async ({ model, el }) => {
     creds,
     scale_bar_microns_per_pixel,
     current_page,
-    query
+    query,
+    cell_name_prefix
   );
 };
 

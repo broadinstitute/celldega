@@ -5,6 +5,7 @@ import { getModelMatrixProps } from '../../utils/rotation';
 import {
   create_get_tile_data,
   create_render_tile_sublayers,
+  create_simple_render_tile_sublayers,
 } from '../utils/tiles';
 
 import { make_simple_image_layer } from './simple_image_layer';
@@ -136,6 +137,12 @@ export const make_yearbook_image_layers = async (
   // Padding should be generous to cover zoomed-in views and tile boundaries
   const padding = Math.max(tile_size * 3, portrait_data_size * 0.5);
 
+  // Check if this is an H&E image (single image with h_and_e or h&e name)
+  // H&E images should use simple rendering without color channel filtering
+  const isHnE =
+    image_info.length === 1 &&
+    (image_info[0].name === 'h_and_e' || image_info[0].name === 'h&e');
+
   portrait_centers.forEach((center, portrait_index) => {
     // Each portrait gets its own extent covering its visible area plus padding
     const extent = [
@@ -149,6 +156,12 @@ export const make_yearbook_image_layers = async (
       const opacity = 5;
       // Include portrait index in layer ID for proper updates
       const layerId = `yb-${info.button_name}-p${portrait_index}-${layerCacheKey}`;
+
+      // Use simple rendering for H&E images (no color channel filtering)
+      // This preserves the original RGB colors of histology images
+      const renderSubLayers = isHnE
+        ? create_simple_render_tile_sublayers(viz_state.dimensions)
+        : create_render_tile_sublayers(viz_state.dimensions, info.color, opacity);
 
       const image_layer = new TileLayer({
         id: layerId,
@@ -167,11 +180,7 @@ export const make_yearbook_image_layers = async (
           options,
           viz_state.aws
         ),
-        renderSubLayers: create_render_tile_sublayers(
-          viz_state.dimensions,
-          info.color,
-          opacity
-        ),
+        renderSubLayers,
         ...getModelMatrixProps(viz_state.rotation),
       });
 

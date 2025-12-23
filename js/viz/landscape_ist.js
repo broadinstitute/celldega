@@ -200,67 +200,58 @@ export const landscape_ist = async (
     viz_state.aws = null;
   }
 
-  if (viz_state.model?.get) {
-    if (Object.keys(nbhd).length === 0) {
-      viz_state.nbhd.is_nbhd = nbhd_edit;
+  // Set up neighborhood state - this block needs to run regardless of model type
+  // to ensure is_nbhd is set correctly for the UI to create NBHD/SKTCH buttons
+  if (Object.keys(nbhd).length === 0) {
+    viz_state.nbhd.is_nbhd = nbhd_edit;
 
-      viz_state.nbhd.ini_feature_collection = {
-        type: 'FeatureCollection',
-        features: [],
-        inst_alpha: null,
-      };
+    viz_state.nbhd.ini_feature_collection = {
+      type: 'FeatureCollection',
+      features: [],
+      inst_alpha: null,
+    };
 
-      viz_state.nbhd.feature_collection = viz_state.nbhd.ini_feature_collection;
-    } else {
-      viz_state.nbhd.is_nbhd = true;
+    viz_state.nbhd.feature_collection = viz_state.nbhd.ini_feature_collection;
+  } else {
+    viz_state.nbhd.is_nbhd = true;
 
-      viz_state.nbhd.ini_feature_collection = nbhd;
+    viz_state.nbhd.ini_feature_collection = nbhd;
 
-      // viz_state.nbhd.bar_data = nbhd.features
-      //   .map((feature) => {
-      //     return {
-      //       name: feature.properties.cat, // "1_50" → "1"
-      //       value: feature.properties.area, // use area as the value
-      //     };
-      //   })
-      //   .sort((a, b) => b.value - a.value);
+    // find all unique categories in the nbhd features
+    const unique_cats = new Set(
+      nbhd.features.map((feature) => feature.properties.cat)
+    );
 
-      // find all unique categories in the nbhd features
-      const unique_cats = new Set(
-        nbhd.features.map((feature) => feature.properties.cat)
-      );
+    // calculate the area of all unique categories
+    viz_state.nbhd.bar_data = Array.from(unique_cats)
+      .map((cat) => {
+        const features = nbhd.features.filter(
+          (feature) => feature.properties.cat === cat
+        );
+        const area = features.reduce(
+          (acc, feature) => acc + feature.properties.area,
+          0
+        );
 
-      // calculate the area of all unique categories
-      viz_state.nbhd.bar_data = Array.from(unique_cats)
-        .map((cat) => {
-          const features = nbhd.features.filter(
-            (feature) => feature.properties.cat === cat
-          );
-          const area = features.reduce(
-            (acc, feature) => acc + feature.properties.area,
-            0
-          );
+        return {
+          name: cat,
+          value: area,
+        };
+      })
+      .sort((a, b) => b.value - a.value);
 
-          return {
-            name: cat,
-            value: area,
-          };
-        })
-        .sort((a, b) => b.value - a.value);
+    // parse colors from features and make a dictionary with cat name and
+    // color as rgb array that is converted from hex
+    viz_state.nbhd.color_dict = {};
+    nbhd.features.forEach((feature) => {
+      const color = colorToRgba(feature.properties.color);
+      viz_state.nbhd.color_dict[feature.properties.cat] = color;
+    });
 
-      // parse colors from features and make a dictionary with cat name and
-      // color as rgb array that is converted from hex
-      viz_state.nbhd.color_dict = {};
-      nbhd.features.forEach((feature) => {
-        const color = colorToRgba(feature.properties.color);
-        viz_state.nbhd.color_dict[feature.properties.cat] = color;
-      });
-
-      viz_state.nbhd.feature_collection = {
-        type: 'FeatureCollection',
-        features: nbhd.features,
-      };
-    }
+    viz_state.nbhd.feature_collection = {
+      type: 'FeatureCollection',
+      features: nbhd.features,
+    };
   }
 
   viz_state.containers = {};

@@ -15,7 +15,10 @@ import {
   ini_cell_layer,
   set_cell_layer_onclick,
 } from '../deck-gl/layers/cell_layer';
-import { make_yearbook_image_layers } from '../deck-gl/layers/image_layers';
+import {
+  make_yearbook_image_layers,
+  toggle_visibility_image_layers,
+} from '../deck-gl/layers/image_layers';
 import {
   ini_path_layer,
   set_path_layer_onclick,
@@ -573,6 +576,11 @@ export const yearbook = async (
       portrait_data_size,
       page_cache_key
     );
+
+    // Apply current image visibility state to the new layers
+    const current_viz_image_layers = viz_state.obs_store.viz_image_layers.get();
+    toggle_visibility_image_layers(layers_obj, current_viz_image_layers);
+
     viz_state.layers_obj = layers_obj;
 
     // Create view states for each portrait and update viewStatesRef

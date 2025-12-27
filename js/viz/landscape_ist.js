@@ -127,27 +127,11 @@ export const landscape_ist = async (
   }
 
   viz_state.max_tiles_to_view = max_tiles_to_view;
-  const update_viz_image_layers = () => {
-    if (!get_img_layer_visible()) {
-      return;
-    }
 
-    const hasCats = viz_state.obs_store.selected_cats.get().length > 0;
-    const hasGenes = viz_state.obs_store.selected_genes.get().length > 0;
-
-    if (hasCats || hasGenes) {
-      viz_state.obs_store.viz_image_layers.set(false);
-    } else {
-      // only do this if not in umap view
-      if (viz_state.obs_store.umap_state.get() === false) {
-        viz_state.obs_store.viz_image_layers.set(true);
-      }
-    }
-  };
-
-  // Subscribe both, but they call the same function
-  viz_state.obs_store.selected_cats.subscribe(update_viz_image_layers);
-  viz_state.obs_store.selected_genes.subscribe(update_viz_image_layers);
+  // Set up centralized image visibility management via obs_store
+  // This handles the logic for showing/hiding images based on gene/cluster selection and zoom level
+  viz_state.update_viz_image_layers =
+    viz_state.obs_store.setup_image_visibility_manager(get_img_layer_visible);
 
   viz_state.seg = {};
   viz_state.seg.version = segmentation;

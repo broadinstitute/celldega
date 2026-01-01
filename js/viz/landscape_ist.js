@@ -73,6 +73,18 @@ import { create_scale_bar, PIXEL_SIZE_MICRONS } from '../utils/scale_bar';
 import { update_cell_clusters } from '../widget_interactions/update_cell_clusters';
 import { update_ist_landscape_from_cgm } from '../widget_interactions/update_ist_landscape_from_cgm';
 
+// POC: Row group reading - import the test function
+import { testRowGroupReading, getVersion as getParquetWasmVersion } from '../read_parquet/row_group_poc';
+
+// Log parquet-wasm version on module load
+console.log(`[landscape_ist] parquet-wasm version: ${getParquetWasmVersion()}`);
+
+// Expose test function globally for browser console testing
+// Usage: window.testRowGroupReading("https://example.com/row_grouped.parquet")
+if (typeof window !== "undefined") {
+  window.testRowGroupReading = testRowGroupReading;
+}
+
 export const landscape_ist = async (
   el,
   ini_model,

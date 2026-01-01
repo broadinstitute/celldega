@@ -1,19 +1,26 @@
-// local file from unpkg
-import * as pq from '../vendor/parquet-wasm/parquet-wasm_unpkg';
+// Use parquet-wasm ESM with synchronous initialization from embedded WASM
+import { initSync, readParquet, readSchema } from 'parquet-wasm/esm/parquet_wasm.js';
+import wasmBinary from 'parquet-wasm/esm/parquet_wasm_bg.wasm';
+
+console.log('here')
 
 let initialized = false;
 
-async function initPq() {
+function ensureInitialized() {
   if (!initialized) {
-    await pq.default();
+    // wasmBinary is loaded as a Uint8Array by esbuild's wasm plugin
+    // initSync accepts an ArrayBuffer or WebAssembly.Module
+    initSync(wasmBinary);
     initialized = true;
   }
-  return pq;
 }
 
+// Re-export parquet-wasm functions with auto-initialization
 export async function getPq() {
-  if (!initialized) {
-    await initPq();
-  }
-  return pq;
+  ensureInitialized();
+  // Return an object with the same API as the old pq module
+  return {
+    readParquet,
+    readSchema,
+  };
 }

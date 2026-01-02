@@ -1,0 +1,225 @@
+/**
+ * RowGroupTileReader - Efficient tile-based data access from row-grouped parquet files
+ *
+ * Uses HTTP Range Requests to fetch only the needed row groups, providing
+ * performance comparable to individual tile files.
+ *
+ * Row group indices are computed using a simple formula:
+ *   row_group_index = tile_x * num_tiles_y + tile_y
+ *
+ * This requires only the grid dimensions (num_tiles_x, num_tiles_y) - no mapping needed.
+ */
+
+import * as arrow from "apache-arrow";
+
+import { getPq } from "./pqInitializer";
+
+/**
+ * RowGroupTileReader class for efficient streaming tile-based data access
+ */
+export class RowGroupTileReader {
+  /**
+   * Create a new RowGroupTileReader
+   * @param {string} parquetUrl - URL to the row-grouped parquet file
+   * @param {Object} tileGrid - Grid dimensions { num_tiles_x, num_tiles_y }
+   */
+  constructor(parquetUrl, tileGrid = null) {
+    this.url = parquetUrl;
+    this.numTilesX = tileGrid?.num_tiles_x || 0;
+    this.numTilesY = tileGrid?.num_tiles_y || 0;
+    this.initialized = false;
+    this.parquetFile = null;
+    this.useStreaming = true;
+  }
+
+  /**
+   * Compute the row group index from tile coordinates using the formula:
+   *   row_group_index = tile_x * num_tiles_y + tile_y
+   *
+   * @param {number} tileX - Tile X coordinate
+   * @param {number} tileY - Tile Y coordinate
+   * @returns {number} - Row group index
+   */
+  computeRowGroupIndex(tileX, tileY) {
+    return tileX * this.numTilesY + tileY;
+  }
+
+  /**
+   * Initialize the reader
+   * @returns {Promise<void>}
+   */
+  async initialize() {
+    if (this.initialized) {
+      return;
+    }
+
+    const pq = await getPq();
+
+    console.log(`[RowGroupTileReader] Initializing from: ${this.url}`);
+    console.log(
+      `[RowGroupTileReader] Grid: ${this.numTilesX}x${this.numTilesY} = ${this.numTilesX * this.numTilesY} tiles`
+    );
+
+    // Try to use ParquetFile for streaming access with range requests
+    if (pq.ParquetFile && typeof pq.ParquetFile.fromUrl === "function") {
+      try {
+        console.log(`[RowGroupTileReader] Creating streaming ParquetFile...`);
+        this.parquetFile = await pq.ParquetFile.fromUrl(this.url);
+        this.useStreaming = true;
+
+        // Get metadata for verification
+        const metadata = this.parquetFile.metadata();
+        const expectedRowGroups = this.numTilesX * this.numTilesY;
+        console.log(
+          `[RowGroupTileReader] Streaming mode enabled, ${metadata.numRowGroups} row groups (expected ${expectedRowGroups})`
+        );
+      } catch (error) {
+        console.warn(
+          `[RowGroupTileReader] Streaming not available, falling back to full fetch:`,
+          error.message
+        );
+        this.useStreaming = false;
+      }
+    } else {
+      console.log(
+        `[RowGroupTileReader] ParquetFile.fromUrl not available, using full fetch mode`
+      );
+      this.useStreaming = false;
+    }
+
+    // Fallback: fetch entire file if streaming not available
+    if (!this.useStreaming) {
+      console.log(`[RowGroupTileReader] Fetching full file...`);
+      const response = await fetch(this.url);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch parquet file: ${response.statusText}`);
+      }
+      const arrayBuffer = await response.arrayBuffer();
+      this.parquetData = new Uint8Array(arrayBuffer);
+      console.log(
+        `[RowGroupTileReader] Loaded ${(this.parquetData.length / 1024).toFixed(2)} KB (fallback mode)`
+      );
+    }
+
+    this.initialized = true;
+  }
+
+  /**
+   * Check if tile coordinates are within the grid bounds
+   * @param {number} tileX - Tile X coordinate
+   * @param {number} tileY - Tile Y coordinate
+   * @returns {boolean} - True if within bounds
+   */
+  isValidTile(tileX, tileY) {
+    return tileX >= 0 && tileX < this.numTilesX && tileY >= 0 && tileY < this.numTilesY;
+  }
+
+  /**
+   * Read data for specific tiles using formula-based indexing
+   * @param {Array<{tile_x: number, tile_y: number}>} tilesInView - Array of tile coordinates
+   * @returns {Promise<arrow.Table|null>} - Arrow Table with data for requested tiles
+   */
+  async readTiles(tilesInView) {
+    if (!this.initialized) {
+      await this.initialize();
+    }
+
+    // Compute row group indices using formula
+    const rowGroupIndices = [];
+    for (const tile of tilesInView) {
+      if (this.isValidTile(tile.tile_x, tile.tile_y)) {
+        const index = this.computeRowGroupIndex(tile.tile_x, tile.tile_y);
+        rowGroupIndices.push(index);
+      }
+    }
+
+    if (rowGroupIndices.length === 0) {
+      console.log(`[RowGroupTileReader] No valid tiles in request`);
+      return null;
+    }
+
+    // Remove duplicates and sort
+    const uniqueIndices = [...new Set(rowGroupIndices)].sort((a, b) => a - b);
+
+    console.log(
+      `[RowGroupTileReader] Reading ${uniqueIndices.length} row groups: [${uniqueIndices.slice(0, 5).join(", ")}${uniqueIndices.length > 5 ? "..." : ""}]`
+    );
+
+    let wasmTable;
+    const pq = await getPq();
+
+    if (this.useStreaming && this.parquetFile) {
+      // Streaming mode: use ParquetFile.read() with rowGroups option
+      // This should use HTTP Range Requests to fetch only needed data
+      wasmTable = await this.parquetFile.read({
+        rowGroups: uniqueIndices,
+      });
+    } else {
+      // Fallback mode: read from cached full file
+      wasmTable = pq.readParquet(this.parquetData, {
+        rowGroups: uniqueIndices,
+      });
+    }
+
+    // Convert to Arrow Table
+    const arrowIPC = wasmTable.intoIPCStream();
+    const table = arrow.tableFromIPC(arrowIPC);
+
+    console.log(
+      `[RowGroupTileReader] Read ${table.numRows} rows for ${uniqueIndices.length} tiles`
+    );
+
+    return table;
+  }
+
+  /**
+   * Read data for a single tile
+   * @param {number} tileX - Tile X coordinate
+   * @param {number} tileY - Tile Y coordinate
+   * @returns {Promise<arrow.Table|null>} - Arrow Table with tile data
+   */
+  async readTile(tileX, tileY) {
+    return this.readTiles([{ tile_x: tileX, tile_y: tileY }]);
+  }
+
+  /**
+   * Get the total number of tiles in the grid
+   * @returns {number}
+   */
+  getNumTiles() {
+    return this.numTilesX * this.numTilesY;
+  }
+
+  /**
+   * Get grid dimensions
+   * @returns {{num_tiles_x: number, num_tiles_y: number}}
+   */
+  getGridDimensions() {
+    return {
+      num_tiles_x: this.numTilesX,
+      num_tiles_y: this.numTilesY,
+    };
+  }
+
+  /**
+   * Check if streaming mode is active (uses HTTP Range Requests)
+   * @returns {boolean}
+   */
+  isStreaming() {
+    return this.useStreaming && this.parquetFile !== null;
+  }
+}
+
+/**
+ * Factory function to create and initialize a RowGroupTileReader
+ * @param {string} parquetUrl - URL to the row-grouped parquet file
+ * @param {Object} tileGrid - Grid dimensions { num_tiles_x, num_tiles_y }
+ * @returns {Promise<RowGroupTileReader>} - Initialized reader
+ */
+export async function createRowGroupTileReader(parquetUrl, tileGrid = null) {
+  const reader = new RowGroupTileReader(parquetUrl, tileGrid);
+  await reader.initialize();
+  return reader;
+}
+
+export default RowGroupTileReader;

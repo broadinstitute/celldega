@@ -431,3 +431,255 @@ def make_cell_boundary_tiles(
                 )
 
     print("Done.")
+
+
+def _collect_boundary_tile_data_for_row_groups(
+    gdf_cells,
+    x_min,
+    y_min,
+    x_max,
+    y_max,
+    tile_size,
+):
+    """
+    Collect all boundary tile data for row group output in deterministic order.
+
+    ALL tiles are included (even empty ones) so that the formula works:
+        row_group_index = tile_x * num_tiles_y + tile_y
+
+    Parameters:
+    - gdf_cells: GeoDataFrame with cell boundaries
+    - x_min, y_min, x_max, y_max: Coordinate bounds
+    - tile_size: Size of each tile
+
+    Returns:
+    - List of (tile_x, tile_y, DataFrame) tuples (including empty DataFrames)
+    """
+    n_tiles_x = int(np.ceil((x_max - x_min) / tile_size))
+    n_tiles_y = int(np.ceil((y_max - y_min) / tile_size))
+
+    tile_data_list = []
+
+    # Column-major order: tile_x varies slowest
+    # row_group_index = tile_x * num_tiles_y + tile_y
+    for tile_i in tqdm(range(n_tiles_x), desc="Collecting boundary tiles (X)"):
+        tile_x_min = x_min + tile_i * tile_size
+        tile_x_max = tile_x_min + tile_size
+
+        for tile_j in range(n_tiles_y):
+            tile_y_min = y_min + tile_j * tile_size
+            tile_y_max = tile_y_min + tile_size
+
+            # Filter cells for this tile based on centroid
+            tile_filter = (
+                (gdf_cells["center_x"] >= tile_x_min)
+                & (gdf_cells["center_x"] < tile_x_max)
+                & (gdf_cells["center_y"] >= tile_y_min)
+                & (gdf_cells["center_y"] < tile_y_max)
+            )
+
+            tile_cells = gdf_cells[tile_filter].copy()
+
+            if not tile_cells.empty:
+                # Prepare data for output
+                tile_df = tile_cells[["GEOMETRY"]].copy()
+                tile_df["name"] = tile_df.index
+
+                # Apply rounding to the GEOMETRY column
+                tile_df["GEOMETRY"] = tile_df["GEOMETRY"].apply(_round_nested_coord_list)
+
+                # Add tile metadata columns
+                tile_df["tile_x"] = tile_i
+                tile_df["tile_y"] = tile_j
+
+                tile_data_list.append((tile_i, tile_j, tile_df))
+            else:
+                # Create empty DataFrame with correct schema
+                empty_df = pd.DataFrame({
+                    "GEOMETRY": pd.Series([], dtype=object),
+                    "name": pd.Series([], dtype=object),
+                    "tile_x": pd.Series([], dtype=int),
+                    "tile_y": pd.Series([], dtype=int),
+                })
+                tile_data_list.append((tile_i, tile_j, empty_df))
+
+    return tile_data_list
+
+
+def _write_boundary_tiles_as_row_groups(tile_data_list, output_path, tile_grid_info):
+    """
+    Write boundary tile data as row groups in a single parquet file.
+
+    Each tile becomes one row group in deterministic order:
+        row_group_index = tile_x * num_tiles_y + tile_y
+
+    Empty tiles are written as empty row groups to maintain index alignment.
+
+    Parameters:
+    - tile_data_list: List of (tile_x, tile_y, DataFrame) tuples
+    - output_path: Path to output parquet file
+    - tile_grid_info: Dictionary with grid dimensions
+    """
+    import json
+
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    if not tile_data_list:
+        print("Warning: No boundary tile data to write")
+        return
+
+    # Create metadata with tile grid info
+    metadata = {
+        b"tile_grid_info": json.dumps(tile_grid_info).encode("utf-8"),
+        b"storage_mode": b"row_groups_formula",
+    }
+
+    # Get schema from first non-empty tile
+    schema = None
+    for _, _, tile_df in tile_data_list:
+        if not tile_df.empty:
+            first_table = pa.Table.from_pandas(tile_df.reset_index(drop=True), preserve_index=False)
+            schema = first_table.schema.with_metadata(metadata)
+            break
+
+    if schema is None:
+        print("Warning: All tiles are empty, cannot determine schema")
+        return
+
+    # Write with one row group per tile in order
+    writer = pq.ParquetWriter(output_path, schema)
+
+    non_empty_count = 0
+    for tile_x, tile_y, tile_df in tile_data_list:
+        # Write each tile as a separate row group (including empty ones)
+        tile_table = pa.Table.from_pandas(tile_df.reset_index(drop=True), preserve_index=False)
+        writer.write_table(tile_table)
+        if not tile_df.empty:
+            non_empty_count += 1
+
+    writer.close()
+
+    total_tiles = tile_grid_info["num_tiles_x"] * tile_grid_info["num_tiles_y"]
+    print(f"Wrote {len(tile_data_list)} row groups ({non_empty_count} non-empty) to {output_path}")
+    print(f"Tile grid: {tile_grid_info['num_tiles_x']}x{tile_grid_info['num_tiles_y']} = {total_tiles} tiles")
+
+
+def make_cell_boundary_tiles_row_groups(
+    technology,
+    path_cell_boundaries,
+    path_output,
+    path_meta_cell_micron=None,
+    path_transformation_matrix=None,
+    coarse_tile_factor=20,
+    tile_size=250,
+    tile_bounds=None,
+    image_scale=1,
+    max_workers=1,
+    path_landscape_files=None,
+):
+    """
+    Processes cell boundary data and saves all tiles as row groups in a single parquet file.
+
+    This is an alternative to make_cell_boundary_tiles that creates a single file with row groups
+    instead of many individual tile files.
+
+    Parameters
+    ----------
+    technology : str
+        The technology used to generate the cell boundary data, e.g., "MERSCOPE", "Xenium".
+    path_cell_boundaries : str
+        Path to the file containing the cell boundaries (Parquet format).
+    path_output : str
+        Path to the output parquet file (single file with row groups).
+    path_meta_cell_micron : str, optional
+        Path to the file containing cell metadata (CSV format).
+    path_transformation_matrix : str, optional
+        Path to the file containing the transformation matrix (CSV format).
+    coarse_tile_factor : int, optional
+        Not used in row group mode, kept for API compatibility.
+    tile_size : int, optional
+        Size of each tile in pixels (default is 250).
+    tile_bounds : dict, optional
+        Dictionary containing the minimum and maximum bounds for x and y coordinates.
+    image_scale : float, optional
+        Scale factor to apply to the geometry data (default is 1).
+    max_workers : int, optional
+        Not used in row group mode, kept for API compatibility.
+    path_landscape_files : str, optional
+        Path to landscape files directory for loading cell mapping.
+
+    Returns
+    -------
+    None
+    """
+    print("\n======== Create cell boundary spatial tiles (Row Groups) ========")
+
+    if technology == "custom":
+        raise NotImplementedError("Row group mode not yet supported for custom technology")
+
+    if technology not in ["MERSCOPE", "Xenium"]:
+        raise ValueError(
+            f"Unsupported technology: {technology}. Supported technologies are 'MERSCOPE' and 'Xenium'."
+        )
+
+    transformation_matrix = pd.read_csv(path_transformation_matrix, header=None, sep=" ").values
+
+    gdf_cells = get_cell_polygons(
+        technology,
+        path_cell_boundaries,
+        transformation_matrix,
+        path_output,
+        image_scale,
+        path_meta_cell_micron,
+    )
+
+    # Convert string index to integer index
+    if path_landscape_files:
+        cell_str_to_int_mapping = _get_name_mapping(
+            path_landscape_files,
+            layer="boundary",
+        )
+    else:
+        # Fallback to path-based resolution
+        cell_str_to_int_mapping = _get_name_mapping(
+            str(Path(path_output).parent),
+            layer="boundary",
+        )
+
+    gdf_cells.index = gdf_cells.index.astype(str).map(cell_str_to_int_mapping)
+
+    gdf_cells["center_x"] = gdf_cells.geometry.centroid.x
+    gdf_cells["center_y"] = gdf_cells.geometry.centroid.y
+
+    # Get tile bounds
+    x_min, x_max = tile_bounds["x_min"], tile_bounds["x_max"]
+    y_min, y_max = tile_bounds["y_min"], tile_bounds["y_max"]
+
+    n_tiles_x = int(np.ceil((x_max - x_min) / tile_size))
+    n_tiles_y = int(np.ceil((y_max - y_min) / tile_size))
+
+    # Collect all tile data (including empty tiles for formula-based indexing)
+    tile_data_list = _collect_boundary_tile_data_for_row_groups(
+        gdf_cells,
+        x_min,
+        y_min,
+        x_max,
+        y_max,
+        tile_size,
+    )
+
+    tile_grid_info = {
+        "tile_size": tile_size,
+        "num_tiles_x": n_tiles_x,
+        "num_tiles_y": n_tiles_y,
+        "x_min": float(x_min),
+        "x_max": float(x_max),
+        "y_min": float(y_min),
+        "y_max": float(y_max),
+    }
+
+    # Write as row groups
+    _write_boundary_tiles_as_row_groups(tile_data_list, path_output, tile_grid_info)
+
+    print("Done.")

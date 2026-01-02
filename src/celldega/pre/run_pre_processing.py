@@ -153,6 +153,7 @@ def main(
     path_landscape_files="",
     use_int_index=True,
     max_workers=1,
+    use_row_groups=False,
 ):
     """
     Main function to preprocess Xenium or MERSCOPE data and generate landscape files.
@@ -166,6 +167,8 @@ def main(
         image_tile_layer (str): Image layers to be tiled. 'dapi' or 'all'.
         path_landscape_files (str): Directory to save the landscape files.
         use_int_index (bool): Use integer index for smaller files and faster rendering.
+        use_row_groups (bool): If True, save tiles as row groups in a single parquet file
+            instead of individual tile files. Defaults to False.
 
     Example:
         change directory to celldega, and run:
@@ -291,43 +294,90 @@ def main(
             technology, str(data_dir), path_landscape_files, image_tile_layer=image_tile_layer
         )
 
-        need_trx_tiles = not _output_exists(paths["transcript_tiles"])
-        need_boundaries = not _output_exists(paths["cell_segmentation"])
         tile_bounds = None
+        tile_grid_info = None
 
-        if need_trx_tiles or need_boundaries:
-            print("\n======== Transcript Tiles========")
-            tile_bounds = dega.pre.make_trx_tiles(
-                technology,
-                str(paths["transcripts"]),
-                str(transform_out),
-                str(paths["transcript_tiles"]),
-                coarse_tile_factor=10,
-                tile_size=tile_size,
-                chunk_size=100000,
-                verbose=False,
-                image_scale=1,
-                max_workers=max_workers,
-            )
-            print(f"tile bounds: {tile_bounds}")
-        else:
-            print("Skipping transcript tiles, output already exists")
+        if use_row_groups:
+            # Row group mode: save tiles as row groups in single parquet files
+            trx_output = Path(path_landscape_files) / "transcripts.parquet"
+            cell_output = Path(path_landscape_files) / "cell_segmentation.parquet"
 
-        if need_boundaries:
-            print("\n======== Cell Boundary Tiles ========")
-            dega.pre.make_cell_boundary_tiles(
-                technology,
-                str(paths["cell_boundaries"]),
-                str(paths["cell_segmentation"]),
-                str(paths.get("meta_cell_micron", "")),
-                str(transform_out),
-                coarse_tile_factor=10,
-                tile_size=tile_size,
-                tile_bounds=tile_bounds,
-                max_workers=max_workers,
-            )
+            need_trx_tiles = not trx_output.exists()
+            need_boundaries = not cell_output.exists()
+
+            if need_trx_tiles:
+                print("\n======== Transcript Tiles (Row Groups) ========")
+                tile_bounds, tile_grid_info = dega.pre.make_trx_tiles_row_groups(
+                    technology,
+                    str(paths["transcripts"]),
+                    str(transform_out),
+                    str(trx_output),
+                    coarse_tile_factor=10,
+                    tile_size=tile_size,
+                    chunk_size=100000,
+                    verbose=False,
+                    image_scale=1,
+                    max_workers=max_workers,
+                    path_landscape_files=path_landscape_files,
+                )
+                print(f"tile bounds: {tile_bounds}")
+            else:
+                print("Skipping transcript tiles, output already exists")
+
+            if need_boundaries:
+                print("\n======== Cell Boundary Tiles (Row Groups) ========")
+                dega.pre.make_cell_boundary_tiles_row_groups(
+                    technology,
+                    str(paths["cell_boundaries"]),
+                    str(cell_output),
+                    str(paths.get("meta_cell_micron", "")),
+                    str(transform_out),
+                    coarse_tile_factor=10,
+                    tile_size=tile_size,
+                    tile_bounds=tile_bounds,
+                    max_workers=max_workers,
+                    path_landscape_files=path_landscape_files,
+                )
+            else:
+                print("Skipping cell boundary tiles, output already exists")
         else:
-            print("Skipping cell boundary tiles, output already exists")
+            # Traditional mode: save individual tile files
+            need_trx_tiles = not _output_exists(paths["transcript_tiles"])
+            need_boundaries = not _output_exists(paths["cell_segmentation"])
+
+            if need_trx_tiles or need_boundaries:
+                print("\n======== Transcript Tiles========")
+                tile_bounds = dega.pre.make_trx_tiles(
+                    technology,
+                    str(paths["transcripts"]),
+                    str(transform_out),
+                    str(paths["transcript_tiles"]),
+                    coarse_tile_factor=10,
+                    tile_size=tile_size,
+                    chunk_size=100000,
+                    verbose=False,
+                    image_scale=1,
+                    max_workers=max_workers,
+                )
+                print(f"tile bounds: {tile_bounds}")
+            else:
+                print("Skipping transcript tiles, output already exists")
+
+            if need_boundaries:
+                print("\n======== Cell Boundary Tiles ========")
+                dega.pre.make_cell_boundary_tiles(
+                    technology,
+                    str(paths["cell_boundaries"]),
+                    str(paths["cell_segmentation"]),
+                    str(paths.get("meta_cell_micron", "")),
+                    str(transform_out),
+                    coarse_tile_factor=10,
+                    tile_size=tile_size,
+                    tile_bounds=tile_bounds,
+                    max_workers=max_workers,
+                )
+            else:
+                print("Skipping cell boundary tiles, output already exists")
     else:
         raise ValueError(
             f"Unsupported technology: {technology}. Supported technologies are 'MERSCOPE' and 'Xenium'."
@@ -350,6 +400,8 @@ def main(
         image_info=dega.pre.get_image_info(technology, image_tile_layer),
         image_format=".webp",
         use_int_index=use_int_index,
+        use_row_groups=use_row_groups,
+        tile_grid_info=tile_grid_info,
     )
 
     print("Preprocessing completed successfully.")
@@ -395,6 +447,13 @@ def _setup_argument_parser():
         default=True,
         help="Use integer index for smaller files and faster rendering at front end",
     )
+    parser.add_argument(
+        "--use_row_groups",
+        type=bool,
+        required=False,
+        default=False,
+        help="Use row groups in a single parquet file instead of individual tile files",
+    )
 
     return parser
 
@@ -414,4 +473,5 @@ if __name__ == "__main__":
         args.image_tile_layer,
         args.path_landscape_files,
         args.use_int_index,
+        use_row_groups=args.use_row_groups,
     )

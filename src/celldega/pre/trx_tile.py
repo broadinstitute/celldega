@@ -541,3 +541,265 @@ def make_trx_tiles(
 process_coarse_tile = _process_coarse_tile_transcripts
 process_fine_tiles = _process_fine_tiles_transcripts
 filter_and_save_fine_tile = _filter_and_save_fine_tile
+
+
+def _collect_tile_data_for_row_groups(
+    trx,
+    x_min,
+    y_min,
+    x_max,
+    y_max,
+    tile_size,
+):
+    """
+    Collect all tile data for row group output in deterministic order.
+
+    ALL tiles are included (even empty ones) so that the formula works:
+        row_group_index = tile_x * num_tiles_y + tile_y
+
+    This allows the frontend to calculate row group indices directly from
+    tile coordinates using just the grid dimensions.
+
+    Parameters:
+    - trx: Transcript data
+    - x_min, y_min, x_max, y_max: Coordinate bounds
+    - tile_size: Size of each tile
+
+    Returns:
+    - List of (tile_x, tile_y, DataFrame) tuples (including empty DataFrames)
+    - tile_grid_info: Dictionary with grid dimensions
+    """
+    # Calculate the number of tiles
+    n_tiles_x = int(np.ceil((x_max - x_min) / tile_size))
+    n_tiles_y = int(np.ceil((y_max - y_min) / tile_size))
+
+    tile_data_list = []
+
+    # Define the schema for empty tiles
+    empty_schema = ["name", "geometry", "tile_x", "tile_y"]
+
+    # Column-major order: tile_x varies slowest
+    # row_group_index = tile_x * num_tiles_y + tile_y
+    for tile_i in tqdm(range(n_tiles_x), desc="Collecting tiles (X)"):
+        tile_x_min = x_min + tile_i * tile_size
+        tile_x_max = tile_x_min + tile_size
+
+        for tile_j in range(n_tiles_y):
+            tile_y_min = y_min + tile_j * tile_size
+            tile_y_max = tile_y_min + tile_size
+
+            # Filter transcripts for this tile
+            tile_trx = trx.filter(
+                (pl.col("transformed_x") >= tile_x_min)
+                & (pl.col("transformed_x") < tile_x_max)
+                & (pl.col("transformed_y") >= tile_y_min)
+                & (pl.col("transformed_y") < tile_y_max)
+            )
+
+            if not tile_trx.is_empty():
+                # Add geometry column as a list of [x, y] pairs
+                tile_trx = tile_trx.with_columns(
+                    pl.concat_list([pl.col("transformed_x"), pl.col("transformed_y")]).alias(
+                        "geometry"
+                    )
+                )
+
+                # Add tile metadata columns
+                tile_trx = tile_trx.with_columns(
+                    [
+                        pl.lit(tile_i).cast(pl.Int32).alias("tile_x"),
+                        pl.lit(tile_j).cast(pl.Int32).alias("tile_y"),
+                    ]
+                )
+
+                # Drop original coordinate columns
+                columns_to_drop = [
+                    col
+                    for col in ["transformed_x", "transformed_y", "cell_id", "transcript_id"]
+                    if col in tile_trx.columns
+                ]
+                tile_trx = tile_trx.drop(columns_to_drop)
+
+                tile_data_list.append((tile_i, tile_j, tile_trx))
+            else:
+                # Create empty DataFrame with correct schema for empty tiles
+                # This ensures row_group_index = tile_x * num_tiles_y + tile_y works
+                empty_df = pl.DataFrame(
+                    {
+                        "name": pl.Series([], dtype=pl.Int64),
+                        "geometry": pl.Series([], dtype=pl.List(pl.Float64)),
+                        "tile_x": pl.Series([], dtype=pl.Int32),
+                        "tile_y": pl.Series([], dtype=pl.Int32),
+                    }
+                )
+                tile_data_list.append((tile_i, tile_j, empty_df))
+
+    tile_grid_info = {
+        "tile_size": tile_size,
+        "num_tiles_x": n_tiles_x,
+        "num_tiles_y": n_tiles_y,
+        "x_min": float(x_min),
+        "x_max": float(x_max),
+        "y_min": float(y_min),
+        "y_max": float(y_max),
+    }
+
+    return tile_data_list, tile_grid_info
+
+
+def _write_tiles_as_row_groups(tile_data_list, output_path, tile_grid_info):
+    """
+    Write tile data as row groups in a single parquet file.
+
+    Each tile becomes one row group in deterministic order:
+        row_group_index = tile_x * num_tiles_y + tile_y
+
+    Empty tiles are written as empty row groups to maintain index alignment.
+
+    Parameters:
+    - tile_data_list: List of (tile_x, tile_y, DataFrame) tuples
+    - output_path: Path to output parquet file
+    - tile_grid_info: Dictionary with grid dimensions
+    """
+    import json
+
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    if not tile_data_list:
+        print("Warning: No tile data to write")
+        return
+
+    # Create metadata with tile grid info
+    metadata = {
+        b"tile_grid_info": json.dumps(tile_grid_info).encode("utf-8"),
+        b"storage_mode": b"row_groups_formula",
+    }
+
+    # Get schema from first non-empty tile
+    schema = None
+    for _, _, tile_df in tile_data_list:
+        if not tile_df.is_empty():
+            first_table = pa.Table.from_pandas(tile_df.to_pandas(), preserve_index=False)
+            schema = first_table.schema.with_metadata(metadata)
+            break
+
+    if schema is None:
+        print("Warning: All tiles are empty, cannot determine schema")
+        return
+
+    # Write with one row group per tile in order
+    writer = pq.ParquetWriter(output_path, schema)
+
+    non_empty_count = 0
+    for tile_x, tile_y, tile_df in tile_data_list:
+        # Write each tile as a separate row group (including empty ones)
+        tile_table = pa.Table.from_pandas(tile_df.to_pandas(), preserve_index=False)
+        writer.write_table(tile_table)
+        if not tile_df.is_empty():
+            non_empty_count += 1
+
+    writer.close()
+
+    total_tiles = tile_grid_info["num_tiles_x"] * tile_grid_info["num_tiles_y"]
+    print(f"Wrote {len(tile_data_list)} row groups ({non_empty_count} non-empty) to {output_path}")
+    print(f"Tile grid: {tile_grid_info['num_tiles_x']}x{tile_grid_info['num_tiles_y']} = {total_tiles} tiles")
+
+
+def make_trx_tiles_row_groups(
+    technology,
+    path_trx,
+    path_transformation_matrix=None,
+    path_output=None,
+    coarse_tile_factor=10,
+    tile_size=250,
+    chunk_size=1000000,
+    verbose=False,
+    image_scale=1,
+    max_workers=1,
+    path_landscape_files=None,
+):
+    """
+    Processes transcript data and saves all tiles as row groups in a single parquet file.
+
+    This is an alternative to make_trx_tiles that creates a single file with row groups
+    instead of many individual tile files.
+
+    Parameters
+    ----------
+    technology : str
+        The technology used for generating the transcript data (e.g., "MERSCOPE" or "Xenium").
+    path_trx : str
+        Path to the file containing the transcript data.
+    path_transformation_matrix : str
+        Path to the file containing the transformation matrix (CSV file).
+    path_output : str
+        Path to the output parquet file (single file with row groups).
+    coarse_tile_factor : int, optional
+        Not used in row group mode, kept for API compatibility.
+    tile_size : int, optional
+        Size of each tile in pixels (default is 250).
+    chunk_size : int, optional
+        Number of rows to process per chunk for memory efficiency (default is 1000000).
+    verbose : bool, optional
+        Flag to enable verbose output (default is False).
+    image_scale : float, optional
+        Scale factor to apply to the transcript coordinates (default is 1).
+    max_workers : int, optional
+        Not used in row group mode, kept for API compatibility.
+    path_landscape_files : str, optional
+        Path to landscape files directory for loading gene mapping.
+
+    Returns
+    -------
+    tuple
+        (tile_bounds dict, tile_grid_info dict)
+    """
+    if technology == "custom":
+        raise NotImplementedError("Row group mode not yet supported for custom technology")
+
+    transformation_matrix = np.loadtxt(path_transformation_matrix)
+
+    # Get gene mapping from landscape files
+    if path_landscape_files:
+        gene_str_to_int_mapping = _get_name_mapping(
+            path_landscape_files,
+            layer="transcript",
+        )
+    else:
+        gene_str_to_int_mapping = {}
+
+    # Transform coordinates
+    trx = transform_transcript_coordinates(
+        technology,
+        path_trx,
+        chunk_size,
+        transformation_matrix,
+        image_scale,
+        gene_str_to_int_mapping=gene_str_to_int_mapping,
+    )
+
+    # Get bounds
+    x_min, y_min, x_max, y_max = _get_transformed_tile_bounds(trx)
+
+    # Collect all tile data
+    tile_data_list, tile_grid_info = _collect_tile_data_for_row_groups(
+        trx,
+        x_min,
+        y_min,
+        x_max,
+        y_max,
+        tile_size,
+    )
+
+    # Write as row groups
+    _write_tiles_as_row_groups(tile_data_list, path_output, tile_grid_info)
+
+    tile_bounds = {
+        "x_min": x_min,
+        "x_max": x_max,
+        "y_min": y_min,
+        "y_max": y_max,
+    }
+
+    return tile_bounds, tile_grid_info

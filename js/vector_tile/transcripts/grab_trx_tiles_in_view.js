@@ -3,25 +3,55 @@ import { fetch_all_tables_new } from '../../read_parquet/fetch_all_tables';
 import { get_scatter_data } from '../../read_parquet/get_scatter_data';
 import { concatenate_arrow_tables } from '../../vector_tile/concatenate_functions';
 
+/**
+ * Fetch transcript tiles from row group reader
+ * @param {Array} tiles_in_view - Array of tiles with tileX and tileY
+ * @param {Object} viz_state - Visualization state containing row_group_readers
+ * @returns {Promise<arrow.Table|null>} - Combined Arrow table for requested tiles
+ */
+async function grab_trx_tiles_row_groups(tiles_in_view, viz_state) {
+  const reader = viz_state.row_group_readers?.trx;
+  if (!reader) {
+    console.error('[grab_trx_tiles] Row group reader not initialized');
+    return null;
+  }
+
+  // Convert tile format from {tileX, tileY} to {tile_x, tile_y}
+  const tilesForReader = tiles_in_view.map((tile) => ({
+    tile_x: tile.tileX,
+    tile_y: tile.tileY,
+  }));
+
+  return reader.readTiles(tilesForReader);
+}
+
 export const grab_trx_tiles_in_view = async (
   base_url,
   tiles_in_view,
   viz_state
 ) => {
-  const tile_trx_urls = tiles_in_view.map((tile) => {
-    return `${base_url}/transcript_tiles/transcripts_tile_${tile.tileX}_${tile.tileY}.parquet`;
-  });
+  let trx_arrow_table;
 
-  const tile_trx_tables_ini = await fetch_all_tables_new(
-    viz_state.cache.trx,
-    tile_trx_urls,
-    options,
-    viz_state.aws
-  );
+  // Check if using row group mode
+  if (viz_state.use_row_groups && viz_state.row_group_readers?.trx) {
+    trx_arrow_table = await grab_trx_tiles_row_groups(tiles_in_view, viz_state);
+  } else {
+    // Traditional mode: fetch individual tile files
+    const tile_trx_urls = tiles_in_view.map((tile) => {
+      return `${base_url}/transcript_tiles/transcripts_tile_${tile.tileX}_${tile.tileY}.parquet`;
+    });
 
-  const tile_trx_tables = tile_trx_tables_ini.filter((table) => table !== null);
+    const tile_trx_tables_ini = await fetch_all_tables_new(
+      viz_state.cache.trx,
+      tile_trx_urls,
+      options,
+      viz_state.aws
+    );
 
-  const trx_arrow_table = concatenate_arrow_tables(tile_trx_tables);
+    const tile_trx_tables = tile_trx_tables_ini.filter((table) => table !== null);
+
+    trx_arrow_table = concatenate_arrow_tables(tile_trx_tables);
+  }
 
   // Handle case where no transcript tiles were loaded
   if (!trx_arrow_table) {

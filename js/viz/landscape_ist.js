@@ -73,8 +73,9 @@ import { create_scale_bar, PIXEL_SIZE_MICRONS } from '../utils/scale_bar';
 import { update_cell_clusters } from '../widget_interactions/update_cell_clusters';
 import { update_ist_landscape_from_cgm } from '../widget_interactions/update_ist_landscape_from_cgm';
 
-// POC: Row group reading - import the test function
+// Row group reading support
 import { testRowGroupReading, getVersion as getParquetWasmVersion } from '../read_parquet/row_group_poc';
+import { RowGroupTileReader } from '../read_parquet/row_group_tile_reader';
 
 // Log parquet-wasm version on module load
 console.log(`[landscape_ist] parquet-wasm version: ${getParquetWasmVersion()}`);
@@ -83,6 +84,72 @@ console.log(`[landscape_ist] parquet-wasm version: ${getParquetWasmVersion()}`);
 // Usage: window.testRowGroupReading("https://example.com/row_grouped.parquet")
 if (typeof window !== "undefined") {
   window.testRowGroupReading = testRowGroupReading;
+}
+
+/**
+ * Initialize row group readers for tile data if the landscape uses row groups
+ *
+ * Uses formula-based row group indexing:
+ *   row_group_index = tile_x * num_tiles_y + tile_y
+ *
+ * Only requires grid dimensions (num_tiles_x, num_tiles_y) from landscape_parameters.json
+ *
+ * @param {Object} viz_state - Visualization state
+ * @param {string} base_url - Base URL for the landscape files
+ * @returns {Promise<void>}
+ */
+async function initializeRowGroupReaders(viz_state, base_url) {
+  const landscapeParams = viz_state.img.landscape_parameters;
+
+  if (!landscapeParams.use_row_groups) {
+    viz_state.use_row_groups = false;
+    return;
+  }
+
+  console.log('[landscape_ist] Row group mode enabled, initializing readers...');
+
+  const rowGroupFiles = landscapeParams.row_group_files || {};
+  const tileGrid = landscapeParams.tile_grid || {};
+
+  if (!tileGrid.num_tiles_x || !tileGrid.num_tiles_y) {
+    console.error('[landscape_ist] Missing tile_grid dimensions in landscape_parameters');
+    viz_state.use_row_groups = false;
+    return;
+  }
+
+  const totalTiles = tileGrid.num_tiles_x * tileGrid.num_tiles_y;
+  console.log(`[landscape_ist] Tile grid: ${tileGrid.num_tiles_x}x${tileGrid.num_tiles_y} = ${totalTiles} tiles`);
+  console.log(`[landscape_ist] Using formula: row_group_index = tile_x * ${tileGrid.num_tiles_y} + tile_y`);
+
+  viz_state.use_row_groups = true;
+  viz_state.row_group_readers = {};
+  viz_state.tile_grid = tileGrid;
+
+  // Initialize transcript row group reader with grid dimensions
+  if (rowGroupFiles.transcripts) {
+    const trxUrl = `${base_url}/${rowGroupFiles.transcripts}`;
+    console.log(`[landscape_ist] Initializing transcript reader from: ${trxUrl}`);
+
+    viz_state.row_group_readers.trx = new RowGroupTileReader(trxUrl, tileGrid);
+    await viz_state.row_group_readers.trx.initialize();
+
+    const mode = viz_state.row_group_readers.trx.isStreaming() ? 'streaming (range requests)' : 'fallback (full fetch)';
+    console.log(`[landscape_ist] Transcript reader ready - ${mode}`);
+  }
+
+  // Initialize cell segmentation row group reader with grid dimensions
+  if (rowGroupFiles.cell_segmentation) {
+    const cellUrl = `${base_url}/${rowGroupFiles.cell_segmentation}`;
+    console.log(`[landscape_ist] Initializing cell reader from: ${cellUrl}`);
+
+    viz_state.row_group_readers.cell = new RowGroupTileReader(cellUrl, tileGrid);
+    await viz_state.row_group_readers.cell.initialize();
+
+    const mode = viz_state.row_group_readers.cell.isStreaming() ? 'streaming (range requests)' : 'fallback (full fetch)';
+    console.log(`[landscape_ist] Cell reader ready - ${mode}`);
+  }
+
+  console.log('[landscape_ist] Row group readers initialized successfully');
 }
 
 export const landscape_ist = async (
@@ -330,6 +397,9 @@ export const landscape_ist = async (
     viz_state.obs_store.viz_image_layers.set(false);
     viz_state.obs_store.viz_background_layer.set(false);
   }
+
+  // Initialize row group readers if using row group storage mode
+  await initializeRowGroupReaders(viz_state, base_url);
 
   const tmp_image_info = viz_state.img.landscape_parameters.image_info;
 

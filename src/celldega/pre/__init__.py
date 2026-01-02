@@ -28,12 +28,13 @@ import zarr
 from .boundary_tile import (
     _round_nested_coord_list,
     make_cell_boundary_tiles,
+    make_cell_boundary_tiles_row_groups,
 )
 from .image_info import get_image_info
 from .landscape import calc_meta_gene_data, read_cbg_mtx, save_cbg_gene_parquets
 from .run_pre_processing import main
 from .sbg_tile import write_pseudotranscripts_from_sbg
-from .trx_tile import make_trx_tiles
+from .trx_tile import make_trx_tiles, make_trx_tiles_row_groups
 
 
 def _load_xenium_cluster_data(data_dir, meta_cell):
@@ -875,6 +876,8 @@ def save_landscape_parameters(
     image_format=".webp",
     use_int_index=True,
     segmentation_approach="default",
+    use_row_groups=False,
+    tile_grid_info=None,
 ):
     """Saves the landscape parameters to a JSON file.
 
@@ -886,6 +889,8 @@ def save_landscape_parameters(
         image_info (dict, optional): Additional image metadata. Defaults to None.
         image_format (str, optional): Format of the image files. Defaults to ".webp".
         use_int_index (bool, optional): Use integer name for cell_tile and trx_tile.
+        use_row_groups (bool, optional): If True, tiles are stored as row groups. Defaults to False.
+        tile_grid_info (dict, optional): Tile grid metadata when using row groups.
 
     Returns:
         None
@@ -924,7 +929,26 @@ def save_landscape_parameters(
             "image_info": image_info,
             "image_format": image_format,
             "use_int_index": use_int_index,
+            "use_row_groups": use_row_groups,
         }
+
+        # Add row group specific metadata
+        if use_row_groups and tile_grid_info:
+            landscape_parameters["row_group_files"] = {
+                "transcripts": "transcripts.parquet",
+                "cell_segmentation": "cell_segmentation.parquet",
+            }
+            # Store grid dimensions - frontend computes row group index using:
+            # row_group_index = tile_x * num_tiles_y + tile_y
+            landscape_parameters["tile_grid"] = {
+                "tile_size": tile_grid_info.get("tile_size", tile_size),
+                "num_tiles_x": tile_grid_info.get("num_tiles_x"),
+                "num_tiles_y": tile_grid_info.get("num_tiles_y"),
+                "x_min": tile_grid_info.get("x_min"),
+                "x_max": tile_grid_info.get("x_max"),
+                "y_min": tile_grid_info.get("y_min"),
+                "y_max": tile_grid_info.get("y_max"),
+            }
     else:
         with path_landscape_parameters.open() as file:
             landscape_parameters = json.load(file)

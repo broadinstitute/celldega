@@ -97,12 +97,32 @@ export class CBGRowGroupReader {
       const arrayBuffer = await response.arrayBuffer();
       this.parquetData = new Uint8Array(arrayBuffer);
 
-      // Build gene index from full file
-      const wasmTable = pq.readParquet(this.parquetData);
+      // Read with a copy to get metadata (readParquet may consume buffer)
+      const dataCopy = new Uint8Array(this.parquetData);
+      const wasmTable = pq.readParquet(dataCopy);
       const arrowIPC = wasmTable.intoIPCStream();
       const table = arrow.tableFromIPC(arrowIPC);
 
-      this.geneToRowGroup = this._buildGeneIndexFromTable(table);
+      // Try to get gene_to_row_group from schema metadata (stored during preprocessing)
+      const schemaMetadata = table.schema.metadata;
+      if (schemaMetadata && schemaMetadata.has("gene_to_row_group")) {
+        try {
+          this.geneToRowGroup = JSON.parse(schemaMetadata.get("gene_to_row_group"));
+          console.log(
+            `[CBGRowGroupReader] Loaded gene index from metadata: ${Object.keys(this.geneToRowGroup).length} genes`
+          );
+        } catch (e) {
+          console.warn(`[CBGRowGroupReader] Failed to parse gene_to_row_group metadata:`, e);
+        }
+      }
+
+      // Fallback to building from batches (may be incorrect if batches != row groups)
+      if (!this.geneToRowGroup || Object.keys(this.geneToRowGroup).length === 0) {
+        console.warn(
+          `[CBGRowGroupReader] No gene_to_row_group metadata found, building from batches (may be inaccurate)`
+        );
+        this.geneToRowGroup = this._buildGeneIndexFromTable(table);
+      }
 
       console.log(
         `[CBGRowGroupReader] Loaded ${(this.parquetData.length / 1024 / 1024).toFixed(2)} MB, ${Object.keys(this.geneToRowGroup).length} genes`

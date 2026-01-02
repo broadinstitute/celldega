@@ -16,9 +16,6 @@ export const set_dimensions = async (
       options,
       viz_state.aws
     );
-    console.log(
-      `[image_dimensions] From DZI: ${viz_state.dimensions.width}x${viz_state.dimensions.height}, tileSize=${viz_state.dimensions.tileSize}`
-    );
     return;
   } catch (error) {
     console.log(`[image_dimensions] DZI fetch failed: ${error.message}`);

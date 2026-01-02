@@ -51,7 +51,7 @@ export class CBGRowGroupReader {
 
     const pq = await getPq();
 
-    console.log(`[CBGRowGroupReader] Initializing from: ${this.url}`);
+    // console.log(`[CBGRowGroupReader] Initializing from: ${this.url}`);
 
     // First check if Range requests are supported (also validates CORS)
     const rangeSupported = await this._checkRangeSupport();

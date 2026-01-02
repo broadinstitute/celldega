@@ -22,44 +22,22 @@ const create_get_tile_data_from_parquet = (
   maxPyramidZoom,
   channelName = 'unknown'
 ) => {
-  let requestCount = 0;
-
   return async ({ index }) => {
     const { x, y, z } = index;
     // deck.gl uses negative z values, convert to actual zoom level
     const actualZoom = maxPyramidZoom + z;
 
-    requestCount++;
-    if (requestCount <= 3) {
-      console.log(
-        `[image_layers:${channelName}] Tile request #${requestCount}: x=${x}, y=${y}, z=${z} -> actualZoom=${actualZoom}`
-      );
-    }
-
     const blobUrl = await imageReader.readTile(actualZoom, x, y);
 
     if (!blobUrl) {
-      if (requestCount <= 3) {
-        console.log(`[image_layers:${channelName}] No tile data for ${actualZoom}/${x}_${y}`);
-      }
       return null;
     }
 
     // Load the image from the blob URL
     return new Promise((resolve, reject) => {
       const img = new Image();
-      img.onload = () => {
-        if (requestCount <= 3) {
-          console.log(
-            `[image_layers:${channelName}] Loaded tile ${actualZoom}/${x}_${y}: ${img.width}x${img.height}`
-          );
-        }
-        resolve(img);
-      };
-      img.onerror = (err) => {
-        console.error(`[image_layers:${channelName}] Failed to load tile image:`, err);
-        reject(err);
-      };
+      img.onload = () => resolve(img);
+      img.onerror = reject;
       img.src = blobUrl;
     });
   };
@@ -80,7 +58,6 @@ const make_image_layer = (viz_state, info, datasetIndex = 0, cacheKey = '') => {
   // Choose the appropriate getTileData function
   let getTileData;
   if (useRowGroups && imageReader) {
-    console.log(`[image_layers] Using parquet reader for ${info.name}, maxZoom=${max_pyramid_zoom}`);
     getTileData = create_get_tile_data_from_parquet(imageReader, max_pyramid_zoom, info.name);
   } else {
     getTileData = create_get_tile_data(

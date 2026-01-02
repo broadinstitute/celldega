@@ -79,10 +79,7 @@ export class RowGroupTileReader {
 
     const pq = await getPq();
 
-    console.log(`[RowGroupTileReader] Initializing from: ${this.url}`);
-    console.log(
-      `[RowGroupTileReader] Grid: ${this.numTilesX}x${this.numTilesY} = ${this.numTilesX * this.numTilesY} tiles`
-    );
+    // console.log(`[RowGroupTileReader] Initializing from: ${this.url}`);
 
     // First check if Range requests are supported (also validates CORS)
     const rangeSupported = await this._checkRangeSupport();
@@ -170,9 +167,8 @@ export class RowGroupTileReader {
     // Remove duplicates and sort
     const uniqueIndices = [...new Set(rowGroupIndices)].sort((a, b) => a - b);
 
-    console.log(
-      `[RowGroupTileReader] Reading ${uniqueIndices.length} row groups: [${uniqueIndices.slice(0, 5).join(", ")}${uniqueIndices.length > 5 ? "..." : ""}]`
-    );
+    // Verbose logging disabled
+    // console.log(`[RowGroupTileReader] Reading ${uniqueIndices.length} row groups`);
 
     let wasmTable;
     const pq = await getPq();
@@ -194,9 +190,7 @@ export class RowGroupTileReader {
     const arrowIPC = wasmTable.intoIPCStream();
     const table = arrow.tableFromIPC(arrowIPC);
 
-    console.log(
-      `[RowGroupTileReader] Read ${table.numRows} rows for ${uniqueIndices.length} tiles`
-    );
+    // console.log(`[RowGroupTileReader] Read ${table.numRows} rows`);
 
     return table;
   }

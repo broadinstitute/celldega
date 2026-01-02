@@ -108,7 +108,7 @@ async function initializeRowGroupReaders(viz_state, base_url) {
     return;
   }
 
-  console.log('[landscape_ist] Row group mode enabled, initializing readers...');
+  console.log('[landscape_ist] Row group mode enabled');
 
   const rowGroupFiles = landscapeParams.row_group_files || {};
   const tileGrid = landscapeParams.tile_grid || {};
@@ -119,10 +119,6 @@ async function initializeRowGroupReaders(viz_state, base_url) {
     return;
   }
 
-  const totalTiles = tileGrid.num_tiles_x * tileGrid.num_tiles_y;
-  console.log(`[landscape_ist] Tile grid: ${tileGrid.num_tiles_x}x${tileGrid.num_tiles_y} = ${totalTiles} tiles`);
-  console.log(`[landscape_ist] Using formula: row_group_index = tile_x * ${tileGrid.num_tiles_y} + tile_y`);
-
   viz_state.use_row_groups = true;
   viz_state.row_group_readers = {};
   viz_state.tile_grid = tileGrid;
@@ -130,37 +126,22 @@ async function initializeRowGroupReaders(viz_state, base_url) {
   // Initialize transcript row group reader with grid dimensions
   if (rowGroupFiles.transcripts) {
     const trxUrl = `${base_url}/${rowGroupFiles.transcripts}`;
-    console.log(`[landscape_ist] Initializing transcript reader from: ${trxUrl}`);
-
     viz_state.row_group_readers.trx = new RowGroupTileReader(trxUrl, tileGrid);
     await viz_state.row_group_readers.trx.initialize();
-
-    const mode = viz_state.row_group_readers.trx.isStreaming() ? 'streaming (range requests)' : 'fallback (full fetch)';
-    console.log(`[landscape_ist] Transcript reader ready - ${mode}`);
   }
 
   // Initialize cell segmentation row group reader with grid dimensions
   if (rowGroupFiles.cell_segmentation) {
     const cellUrl = `${base_url}/${rowGroupFiles.cell_segmentation}`;
-    console.log(`[landscape_ist] Initializing cell reader from: ${cellUrl}`);
-
     viz_state.row_group_readers.cell = new RowGroupTileReader(cellUrl, tileGrid);
     await viz_state.row_group_readers.cell.initialize();
-
-    const mode = viz_state.row_group_readers.cell.isStreaming() ? 'streaming (range requests)' : 'fallback (full fetch)';
-    console.log(`[landscape_ist] Cell reader ready - ${mode}`);
   }
 
   // Initialize CBG row group reader
   if (rowGroupFiles.cbg) {
     const cbgUrl = `${base_url}/${rowGroupFiles.cbg}`;
-    console.log(`[landscape_ist] Initializing CBG reader from: ${cbgUrl}`);
-
     viz_state.row_group_readers.cbg = new CBGRowGroupReader(cbgUrl);
     await viz_state.row_group_readers.cbg.initialize();
-
-    const mode = viz_state.row_group_readers.cbg.isStreaming() ? 'streaming' : 'fallback';
-    console.log(`[landscape_ist] CBG reader ready - ${mode}, ${viz_state.row_group_readers.cbg.getNumGenes()} genes`);
   }
 
   // Initialize image row group readers for each channel
@@ -173,18 +154,11 @@ async function initializeRowGroupReaders(viz_state, base_url) {
       const zoomInfo = typeof imageEntry === 'object' ? imageEntry.zoom_info : null;
 
       const imageUrl = `${base_url}/${imagePath}`;
-      console.log(`[landscape_ist] Initializing image reader for ${channelName} from: ${imageUrl}`);
-
       // Pass zoom_info to the reader for row group index computation
       viz_state.row_group_readers.images[channelName] = new ImageRowGroupReader(imageUrl, zoomInfo);
       await viz_state.row_group_readers.images[channelName].initialize();
-
-      const mode = viz_state.row_group_readers.images[channelName].isStreaming() ? 'streaming' : 'fallback';
-      console.log(`[landscape_ist] Image reader (${channelName}) ready - ${mode}`);
     }
   }
-
-  console.log('[landscape_ist] Row group readers initialized successfully');
 }
 
 export const landscape_ist = async (
@@ -978,7 +952,8 @@ export const landscape_ist = async (
         inst_gene,
         viz_state.seg.version,
         viz_state.vector_name_integer,
-        viz_state.aws
+        viz_state.aws,
+        viz_state.row_group_readers?.cbg
       );
 
       viz_state.layers_obj = layers_obj;

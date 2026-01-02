@@ -677,7 +677,8 @@ def _write_tiles_as_row_groups(tile_data_list, output_path, tile_grid_info):
         return
 
     # Write with one row group per tile in order
-    writer = pq.ParquetWriter(output_path, schema)
+    # Disable statistics to reduce footer size for large datasets
+    writer = pq.ParquetWriter(output_path, schema, write_statistics=False)
 
     non_empty_count = 0
     for tile_x, tile_y, tile_df in tile_data_list:

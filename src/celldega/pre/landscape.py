@@ -266,7 +266,8 @@ def save_cbg_gene_parquets_row_groups(
     schema = first_table.schema.with_metadata(metadata)
 
     # Write all genes as row groups
-    writer = pq.ParquetWriter(output_path, schema)
+    # Disable statistics to reduce footer size for large datasets
+    writer = pq.ParquetWriter(output_path, schema, write_statistics=False)
 
     for gene_name, gene_df in gene_tables:
         gene_table = pa.Table.from_pandas(gene_df, preserve_index=False)

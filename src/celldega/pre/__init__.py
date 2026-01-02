@@ -793,7 +793,8 @@ def pack_image_tiles_to_parquet(
     schema = schema.with_metadata(metadata)
 
     # Write each tile as a row group
-    writer = pq.ParquetWriter(output_path, schema)
+    # Disable statistics to reduce footer size for large datasets
+    writer = pq.ParquetWriter(output_path, schema, write_statistics=False)
 
     for zoom, tile_x, tile_y, image_bytes in all_tiles:
         tile_table = pa.table(

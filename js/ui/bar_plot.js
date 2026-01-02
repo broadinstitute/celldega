@@ -111,7 +111,8 @@ export const bar_callback_gene = async (
     inst_gene,
     _viz_state.seg.version,
     _viz_state.vector_name_integer,
-    _viz_state.aws
+    _viz_state.aws,
+    _viz_state.row_group_readers?.cbg
   );
 
   // update selected_cats after update_cell_exp_array has been run

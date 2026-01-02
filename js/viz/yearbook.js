@@ -51,6 +51,91 @@ import { make_yearbook_ui_container } from '../ui/yearbook_ui';
 import { refresh_layer } from '../utils/refresh_layer';
 import { create_scale_bar, PIXEL_SIZE_MICRONS } from '../utils/scale_bar';
 
+// Row group reading support
+import { RowGroupTileReader } from '../read_parquet/row_group_tile_reader';
+import { CBGRowGroupReader } from '../read_parquet/cbg_row_group_reader';
+import { ImageRowGroupReader } from '../read_parquet/image_row_group_reader';
+
+/**
+ * Initialize row group readers for Yearbook if the landscape uses row groups
+ * @param {Object} viz_state - Visualization state
+ * @param {string} base_url - Base URL for the landscape files
+ * @returns {Promise<void>}
+ */
+async function initializeYearbookRowGroupReaders(viz_state, base_url) {
+  const landscapeParams = viz_state.img.landscape_parameters;
+
+  if (!landscapeParams.use_row_groups) {
+    viz_state.use_row_groups = false;
+    return;
+  }
+
+  console.log('[yearbook] Row group mode enabled, initializing readers...');
+
+  const rowGroupFiles = landscapeParams.row_group_files || {};
+  const tileGrid = landscapeParams.tile_grid || {};
+
+  if (!tileGrid.num_tiles_x || !tileGrid.num_tiles_y) {
+    console.error('[yearbook] Missing tile_grid dimensions in landscape_parameters');
+    viz_state.use_row_groups = false;
+    return;
+  }
+
+  viz_state.use_row_groups = true;
+  viz_state.row_group_readers = {};
+  viz_state.tile_grid = tileGrid;
+
+  try {
+    // Initialize transcript row group reader
+    if (rowGroupFiles.transcripts) {
+      const trxUrl = `${base_url}/${rowGroupFiles.transcripts}`;
+      console.log(`[yearbook] Initializing transcript reader from: ${trxUrl}`);
+      viz_state.row_group_readers.trx = new RowGroupTileReader(trxUrl, tileGrid);
+      await viz_state.row_group_readers.trx.initialize();
+      console.log('[yearbook] Transcript reader ready');
+    }
+
+    // Initialize cell segmentation row group reader
+    if (rowGroupFiles.cell_segmentation) {
+      const cellUrl = `${base_url}/${rowGroupFiles.cell_segmentation}`;
+      console.log(`[yearbook] Initializing cell reader from: ${cellUrl}`);
+      viz_state.row_group_readers.cell = new RowGroupTileReader(cellUrl, tileGrid);
+      await viz_state.row_group_readers.cell.initialize();
+      console.log('[yearbook] Cell reader ready');
+    }
+
+    // Initialize CBG row group reader
+    if (rowGroupFiles.cbg) {
+      const cbgUrl = `${base_url}/${rowGroupFiles.cbg}`;
+      console.log(`[yearbook] Initializing CBG reader from: ${cbgUrl}`);
+      viz_state.row_group_readers.cbg = new CBGRowGroupReader(cbgUrl);
+      await viz_state.row_group_readers.cbg.initialize();
+      console.log(`[yearbook] CBG reader ready - ${viz_state.row_group_readers.cbg.getNumGenes()} genes`);
+    }
+
+    // Initialize image row group readers for each channel
+    if (rowGroupFiles.images) {
+      viz_state.row_group_readers.images = {};
+
+      for (const [channelName, imageEntry] of Object.entries(rowGroupFiles.images)) {
+        const imagePath = typeof imageEntry === 'string' ? imageEntry : imageEntry.path;
+        const zoomInfo = typeof imageEntry === 'object' ? imageEntry.zoom_info : null;
+
+        const imageUrl = `${base_url}/${imagePath}`;
+        console.log(`[yearbook] Initializing image reader for ${channelName} from: ${imageUrl}`);
+        viz_state.row_group_readers.images[channelName] = new ImageRowGroupReader(imageUrl, zoomInfo);
+        await viz_state.row_group_readers.images[channelName].initialize();
+        console.log(`[yearbook] Image reader (${channelName}) ready`);
+      }
+    }
+
+    console.log('[yearbook] Row group readers initialized successfully');
+  } catch (error) {
+    console.error('[yearbook] Error initializing row group readers:', error);
+    viz_state.use_row_groups = false;
+  }
+}
+
 /**
  * Calculate initial zoom level based on portrait size in micrometers
  */
@@ -230,6 +315,9 @@ export const yearbook = async (
 
   await set_landscape_parameters(viz_state.img, base_url, viz_state.aws);
   const tech = viz_state.img.landscape_parameters.technology;
+
+  // Initialize row group readers if enabled
+  await initializeYearbookRowGroupReaders(viz_state, base_url);
 
   const tmp_image_info = viz_state.img.landscape_parameters.image_info;
   const image_name_for_dim = tmp_image_info[0].name;

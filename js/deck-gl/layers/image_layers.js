@@ -208,6 +208,25 @@ export const make_yearbook_image_layers = async (
         ? create_simple_render_tile_sublayers(viz_state.dimensions)
         : create_render_tile_sublayers(viz_state.dimensions, info.color, opacity);
 
+      // Check if we should use row group mode for images
+      const useRowGroups = viz_state.use_row_groups;
+      const imageReader = viz_state.row_group_readers?.images?.[info.name];
+
+      // Choose the appropriate getTileData function
+      let getTileData;
+      if (useRowGroups && imageReader) {
+        getTileData = create_get_tile_data_from_parquet(imageReader, max_pyramid_zoom, info.name);
+      } else {
+        getTileData = create_get_tile_data(
+          viz_state.global_base_url,
+          info.name,
+          viz_state.img.image_format,
+          max_pyramid_zoom,
+          options,
+          viz_state.aws
+        );
+      }
+
       const image_layer = new TileLayer({
         id: layerId,
         tileSize: viz_state.dimensions.tileSize,
@@ -217,14 +236,7 @@ export const make_yearbook_image_layers = async (
         maxCacheSize: 50,
         maxRequests: 6,
         extent,
-        getTileData: create_get_tile_data(
-          viz_state.global_base_url,
-          info.name,
-          viz_state.img.image_format,
-          max_pyramid_zoom,
-          options,
-          viz_state.aws
-        ),
+        getTileData,
         renderSubLayers,
         ...getModelMatrixProps(viz_state.rotation),
       });

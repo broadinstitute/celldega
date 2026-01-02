@@ -2,6 +2,7 @@
 Local server module for handling HTTP requests with CORS support.
 """
 
+from functools import lru_cache
 from http.server import HTTPServer, SimpleHTTPRequestHandler, BaseHTTPRequestHandler
 from socketserver import ThreadingMixIn
 import threading as thr
@@ -52,6 +53,10 @@ class ProxyHTTPRequestHandler(BaseHTTPRequestHandler):
     remote_base_url = None
     # Shared session for connection pooling (reuses TCP connections)
     _session = None
+    # Cache for small responses (footers, metadata) - keyed by (url, range_header)
+    _cache = {}
+    _cache_max_size = 100  # Max cached items
+    _cache_max_bytes = 65536  # Only cache responses < 64KB
 
     @classmethod
     def get_session(cls):
@@ -60,13 +65,28 @@ class ProxyHTTPRequestHandler(BaseHTTPRequestHandler):
             cls._session = requests.Session()
             # Increase pool size for concurrent requests
             adapter = requests.adapters.HTTPAdapter(
-                pool_connections=10,
-                pool_maxsize=20,
+                pool_connections=20,
+                pool_maxsize=50,
                 max_retries=3
             )
             cls._session.mount("http://", adapter)
             cls._session.mount("https://", adapter)
         return cls._session
+
+    @classmethod
+    def get_cached(cls, cache_key):
+        """Get a cached response if available."""
+        return cls._cache.get(cache_key)
+
+    @classmethod
+    def set_cached(cls, cache_key, data, headers):
+        """Cache a small response."""
+        if len(cls._cache) >= cls._cache_max_size:
+            # Simple eviction: clear oldest half
+            keys = list(cls._cache.keys())
+            for k in keys[:len(keys) // 2]:
+                del cls._cache[k]
+        cls._cache[cache_key] = (data, headers)
 
     def _send_cors_headers(self):
         """Add CORS headers to allow cross-origin requests."""
@@ -98,6 +118,7 @@ class ProxyHTTPRequestHandler(BaseHTTPRequestHandler):
         Proxy the request to the remote server.
 
         Passes through Range headers for partial content requests.
+        Caches small responses (< 64KB) like Parquet footers for performance.
         """
         # Parse the request path
         path = self.path
@@ -122,6 +143,20 @@ class ProxyHTTPRequestHandler(BaseHTTPRequestHandler):
         range_header = self.headers.get("Range")
         if range_header:
             forward_headers["Range"] = range_header
+
+        # Check cache for small Range requests (like footer reads)
+        cache_key = (remote_url, range_header) if range_header else None
+        if cache_key and method == "GET":
+            cached = self.get_cached(cache_key)
+            if cached:
+                data, headers = cached
+                self.send_response(206 if range_header else 200)
+                self._send_cors_headers()
+                for k, v in headers.items():
+                    self.send_header(k, v)
+                self.end_headers()
+                self.wfile.write(data)
+                return
 
         try:
             # Use shared session for connection pooling
@@ -150,24 +185,36 @@ class ProxyHTTPRequestHandler(BaseHTTPRequestHandler):
             # Add CORS headers
             self._send_cors_headers()
 
-            # Forward relevant response headers
+            # Collect headers to forward
+            response_headers = {}
             if "Content-Type" in response.headers:
-                self.send_header("Content-Type", response.headers["Content-Type"])
+                response_headers["Content-Type"] = response.headers["Content-Type"]
             if "Content-Length" in response.headers:
-                self.send_header("Content-Length", response.headers["Content-Length"])
+                response_headers["Content-Length"] = response.headers["Content-Length"]
             if "Content-Range" in response.headers:
-                self.send_header("Content-Range", response.headers["Content-Range"])
+                response_headers["Content-Range"] = response.headers["Content-Range"]
             if "Accept-Ranges" in response.headers:
-                self.send_header("Accept-Ranges", response.headers["Accept-Ranges"])
+                response_headers["Accept-Ranges"] = response.headers["Accept-Ranges"]
+
+            for k, v in response_headers.items():
+                self.send_header(k, v)
 
             self.end_headers()
 
             # Send the response body (for GET requests)
             if method == "GET":
-                # Stream the response in larger chunks for better throughput
-                for chunk in response.iter_content(chunk_size=262144):  # 256KB chunks
-                    if chunk:
-                        self.wfile.write(chunk)
+                # Check if this is a small response we should cache
+                content_length = int(response.headers.get("Content-Length", 0))
+                if cache_key and content_length > 0 and content_length <= self._cache_max_bytes:
+                    # Small response - read entirely and cache
+                    data = response.content
+                    self.set_cached(cache_key, data, response_headers)
+                    self.wfile.write(data)
+                else:
+                    # Large response - stream in chunks
+                    for chunk in response.iter_content(chunk_size=1048576):  # 1MB chunks
+                        if chunk:
+                            self.wfile.write(chunk)
 
         except requests.exceptions.Timeout:
             self.send_error(504, "Gateway Timeout")

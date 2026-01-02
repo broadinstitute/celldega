@@ -48,8 +48,25 @@ class ProxyHTTPRequestHandler(BaseHTTPRequestHandler):
     Supports Range requests for partial content fetching.
     """
 
-    # Class variable to store the remote base URL
+    # Class variables
     remote_base_url = None
+    # Shared session for connection pooling (reuses TCP connections)
+    _session = None
+
+    @classmethod
+    def get_session(cls):
+        """Get or create a shared requests session for connection pooling."""
+        if cls._session is None:
+            cls._session = requests.Session()
+            # Increase pool size for concurrent requests
+            adapter = requests.adapters.HTTPAdapter(
+                pool_connections=10,
+                pool_maxsize=20,
+                max_retries=3
+            )
+            cls._session.mount("http://", adapter)
+            cls._session.mount("https://", adapter)
+        return cls._session
 
     def _send_cors_headers(self):
         """Add CORS headers to allow cross-origin requests."""
@@ -107,16 +124,19 @@ class ProxyHTTPRequestHandler(BaseHTTPRequestHandler):
             forward_headers["Range"] = range_header
 
         try:
+            # Use shared session for connection pooling
+            session = self.get_session()
+
             # Make the request to the remote server
             if method == "HEAD":
-                response = requests.head(
+                response = session.head(
                     remote_url,
                     headers=forward_headers,
                     allow_redirects=True,
                     timeout=30,
                 )
             else:
-                response = requests.get(
+                response = session.get(
                     remote_url,
                     headers=forward_headers,
                     allow_redirects=True,
@@ -144,8 +164,8 @@ class ProxyHTTPRequestHandler(BaseHTTPRequestHandler):
 
             # Send the response body (for GET requests)
             if method == "GET":
-                # Stream the response in chunks to handle large files
-                for chunk in response.iter_content(chunk_size=65536):
+                # Stream the response in larger chunks for better throughput
+                for chunk in response.iter_content(chunk_size=262144):  # 256KB chunks
                     if chunk:
                         self.wfile.write(chunk)
 

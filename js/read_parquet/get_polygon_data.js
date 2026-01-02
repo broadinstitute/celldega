@@ -1,3 +1,97 @@
+/**
+ * Extract polygon data from a single data chunk
+ * @param {Object} polygonChunk - The polygon level chunk data
+ * @param {Object} ringChunk - The ring level chunk data  
+ * @param {Object} coordChunk - The coordinate level chunk data
+ * @returns {Object|null} - Polygon data object with length, startIndices, and attributes
+ */
+function getPolygonDataFromChunk(polygonChunk, ringChunk, coordChunk) {
+  const polygonOffsets = polygonChunk.valueOffsets;
+  const ringOffsets = ringChunk.valueOffsets;
+  const flatCoordinateArray = coordChunk.values;
+  
+  // Number of polygons is offsets length - 1
+  const numPolygons = polygonOffsets.length - 1;
+  
+  // Build resolved indices: for each polygon, find coordinate start
+  const resolvedIndices = new Int32Array(polygonOffsets.length);
+  for (let i = 0; i < polygonOffsets.length; i++) {
+    const ringIdx = polygonOffsets[i];
+    resolvedIndices[i] = ringOffsets[ringIdx];
+  }
+  
+  return {
+    length: numPolygons,
+    startIndices: resolvedIndices,
+    attributes: {
+      getPolygon: { value: flatCoordinateArray, size: 2 },
+    },
+  };
+}
+
+/**
+ * Concatenate multiple polygon data objects (reusing existing logic)
+ * @param {Array} dataObjects - Array of polygon data objects
+ * @returns {Object} - Combined polygon data
+ */
+function concatenatePolygonDataInternal(dataObjects) {
+  // Filter out undefined or null elements
+  dataObjects = dataObjects.filter(
+    (data) => data !== undefined && data !== null
+  );
+
+  if (dataObjects.length === 0) {
+    return null;
+  }
+  
+  if (dataObjects.length === 1) {
+    return dataObjects[0];
+  }
+
+  // Initialize concatenated data structure
+  const concatenatedData = {
+    length: 0,
+    startIndices: new Int32Array(),
+    attributes: {
+      getPolygon: {
+        value: new Float64Array(),
+        size: 2,
+      },
+    },
+  };
+
+  // Iterate over each data object to combine them
+  dataObjects.forEach((data, index) => {
+    concatenatedData.length += data.length;
+
+    // Handle startIndices - adjust by current coordinate count
+    const lastValue = concatenatedData.attributes.getPolygon.value.length / 2;
+    let adjustedStartIndices = data.startIndices;
+
+    if (index > 0) {
+      // Adjust startIndices (except for the first data object)
+      adjustedStartIndices = new Int32Array(data.startIndices.length);
+      for (let i = 0; i < data.startIndices.length; i++) {
+        adjustedStartIndices[i] = data.startIndices[i] + lastValue;
+      }
+    }
+
+    // Combine startIndices (skip first element for subsequent chunks to avoid duplicate)
+    concatenatedData.startIndices = new Int32Array([
+      ...concatenatedData.startIndices,
+      ...adjustedStartIndices.slice(index > 0 ? 1 : 0),
+    ]);
+    
+    // Combine coordinate values
+    concatenatedData.attributes.getPolygon.value = new Float64Array([
+      ...concatenatedData.attributes.getPolygon.value,
+      ...data.attributes.getPolygon.value,
+    ]);
+  });
+
+  return concatenatedData;
+}
+
 export const get_polygon_data = (arrowTable) => {
   // Get geometry column by name (more robust than index)
   // Try common column names for geometry data
@@ -18,90 +112,39 @@ export const get_polygon_data = (arrowTable) => {
   const dataChunks = geometryColumn.data;
   const numChunks = dataChunks.length;
   
-  // For single chunk (original behavior), use optimized path
+  // Get child columns for ring and coordinate data
+  const ringChild = geometryColumn.getChildAt(0);
+  const coordChild = geometryColumn.getChildAt(0).getChildAt(0).getChildAt(0);
+  
+  // For single chunk (original behavior), use direct extraction
   if (numChunks === 1) {
-    const polygonIndices = dataChunks[0].valueOffsets;
-    const ringIndices = geometryColumn.getChildAt(0).data[0].valueOffsets;
-    const flatCoordinateVector = geometryColumn
-      .getChildAt(0)
-      .getChildAt(0)
-      .getChildAt(0);
-    const flatCoordinateArray = flatCoordinateVector.data[0].values;
-    const resolvedIndices = new Int32Array(polygonIndices.length);
-
-    for (let i = 0; i < resolvedIndices.length; ++i) {
-      resolvedIndices[i] = ringIndices[polygonIndices[i]];
-    }
-
-    return {
-      length: arrowTable.numRows,
-      startIndices: resolvedIndices,
-      attributes: {
-        getPolygon: { value: flatCoordinateArray, size: 2 },
-      },
-    };
+    return getPolygonDataFromChunk(
+      dataChunks[0],
+      ringChild.data[0],
+      coordChild.data[0]
+    );
   }
   
   // Multi-chunk handling (multiple row groups)
-  // We need to process each chunk and accumulate offsets
-  
-  // 1. Merge flat coordinates from all chunks
-  const coordVector = geometryColumn.getChildAt(0).getChildAt(0).getChildAt(0);
-  const flatCoordinateArray = coordVector.data
-    .map((chunk) => chunk.values)
-    .reduce((acc, val) => {
-      const combined = new Float64Array(acc.length + val.length);
-      combined.set(acc);
-      combined.set(val, acc.length);
-      return combined;
-    }, new Float64Array(0));
-  
-  // 2. Build resolved indices for each polygon across all chunks
-  // Process chunk by chunk, tracking global offsets
-  const resolvedIndicesList = [];
-  
-  let globalRingOffset = 0;  // Cumulative ring count from previous chunks
-  let globalCoordOffset = 0; // Cumulative coordinate count from previous chunks
-  
-  const ringChild = geometryColumn.getChildAt(0);
-  const coordChild = geometryColumn.getChildAt(0).getChildAt(0).getChildAt(0);
+  // Process each chunk separately, then concatenate using proven logic
+  const chunkPolygonData = [];
   
   for (let chunkIdx = 0; chunkIdx < numChunks; chunkIdx++) {
     const polygonChunk = dataChunks[chunkIdx];
     const ringChunk = ringChild.data[chunkIdx];
     const coordChunk = coordChild.data[chunkIdx];
     
-    const polygonOffsets = polygonChunk.valueOffsets;
-    const ringOffsets = ringChunk.valueOffsets;
-    
-    // For each polygon in this chunk (excluding the final "end" offset)
-    const numPolygonsInChunk = polygonOffsets.length - 1;
-    for (let i = 0; i < numPolygonsInChunk; i++) {
-      // Get the ring index for this polygon (local to chunk)
-      const localRingIdx = polygonOffsets[i];
-      // Get the coordinate index for this ring (local to chunk)
-      const localCoordIdx = ringOffsets[localRingIdx];
-      // Add global offset to get absolute coordinate index
-      resolvedIndicesList.push(globalCoordOffset + localCoordIdx);
+    // Skip empty chunks
+    if (polygonChunk.length === 0) {
+      continue;
     }
     
-    // Update global offsets for next chunk
-    // The last value in ringOffsets tells us total rings in this chunk
-    globalRingOffset += ringChunk.length;
-    // The last value in coordChunk.values tells us total coords in this chunk
-    globalCoordOffset += coordChunk.values.length;
+    const chunkData = getPolygonDataFromChunk(polygonChunk, ringChunk, coordChunk);
+    if (chunkData && chunkData.length > 0) {
+      chunkPolygonData.push(chunkData);
+    }
   }
   
-  // Add final index (pointing past the last coordinate)
-  resolvedIndicesList.push(flatCoordinateArray.length / 2);
-  
-  const resolvedIndices = new Int32Array(resolvedIndicesList);
-
-  return {
-    length: arrowTable.numRows,
-    startIndices: resolvedIndices,
-    attributes: {
-      getPolygon: { value: flatCoordinateArray, size: 2 },
-    },
-  };
+  // Use the same concatenation logic as the non-row-group approach
+  return concatenatePolygonDataInternal(chunkPolygonData);
 };

@@ -10,6 +10,7 @@ This PR introduces an optional **row group storage mode** for Celldega's Landsca
 - **Efficient partial loading**: HTTP Range Requests fetch only needed data
 - **Backwards compatible**: Opt-in via `use_row_groups=True` parameter
 - **CORS proxy support**: Local Python proxy server for remote data sources without CORS
+- **Full widget support**: Both Landscape and Yearbook visualizations supported
 
 ---
 
@@ -196,6 +197,42 @@ The following files were updated to pass the CBG reader parameter:
 - `js/widget_interactions/update_ist_landscape_from_cgm.js`
 - `js/deck-gl/layers/trx_layer.js`
 
+### Yearbook Widget Support
+
+#### `js/viz/yearbook.js`
+**Purpose**: Cell portrait grid visualization
+
+**Changes**:
+- Imports row group readers (`RowGroupTileReader`, `CBGRowGroupReader`, `ImageRowGroupReader`)
+- New `initializeYearbookRowGroupReaders()` function
+- Initializes readers after `set_landscape_parameters()` is called
+- Sets `viz_state.use_row_groups` and `viz_state.row_group_readers`
+- Reuses existing tile loading functions that are row-group aware
+
+**Usage**:
+```python
+import celldega as dega
+
+# With proxy for remote row-grouped data
+proxy_port = dega.viz.get_proxy_server(
+    "https://huggingface.co/datasets/user/repo/resolve/main/folder"
+)
+
+yb = dega.viz.Yearbook(
+    base_url=f"http://localhost:{proxy_port}",
+    rows=4,
+    cols=4,
+    portrait_size_um=10,
+)
+yb
+```
+
+#### `js/deck-gl/layers/image_layers.js`
+**Additional changes for Yearbook**:
+- Updated `make_yearbook_image_layers()` to detect row group mode
+- Uses `create_get_tile_data_from_parquet()` when image reader is available
+- Falls back to traditional `create_get_tile_data()` otherwise
+
 ### Python Backend (Additional)
 
 #### `src/celldega/viz/local_server.py`
@@ -316,6 +353,8 @@ python -m pytest tests/unit/test_pre/test_row_groups.py -v
 ```
 
 ### Manual Testing Checklist
+
+**Landscape Widget**:
 - [ ] Traditional mode still works (use_row_groups=False)
 - [ ] Row group mode preprocessing completes
 - [ ] Transcript tiles load and display
@@ -325,7 +364,19 @@ python -m pytest tests/unit/test_pre/test_row_groups.py -v
 - [ ] Gene search works
 - [ ] Cluster coloring works
 - [ ] Pan/zoom performance acceptable
-- [ ] Proxy server works for remote data (Hugging Face)
+
+**Yearbook Widget**:
+- [ ] Yearbook loads with row-grouped data
+- [ ] Cell portraits display correctly
+- [ ] Gene coloring works in yearbook
+- [ ] Image tiles load for each portrait
+- [ ] Pagination works
+
+**Proxy Server**:
+- [ ] Proxy server starts successfully
+- [ ] Remote data loads through proxy
+- [ ] Range requests work through proxy
+- [ ] Caching improves repeated access
 
 ### Verification Commands
 ```python
@@ -364,6 +415,18 @@ A local Python proxy server bypasses CORS restrictions by:
 1. Running on `localhost` (same-origin)
 2. Forwarding Range requests to the remote server
 3. Adding proper CORS headers to responses
+
+### Proxy Performance Optimizations
+
+The proxy server includes several performance optimizations:
+
+| Feature | Description |
+|---------|-------------|
+| **Multi-threading** | `ThreadedHTTPServer` handles concurrent requests |
+| **Connection pooling** | `requests.Session` with 20 connections, 50 max pool |
+| **Response caching** | LRU cache for small responses (<64KB) like Parquet footers |
+| **Large chunk streaming** | 1MB chunks for efficient large file transfer |
+| **Keep-alive** | Reuses TCP connections to remote server |
 
 ### Requesting CORS Support from Hugging Face
 

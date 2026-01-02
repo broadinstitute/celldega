@@ -276,11 +276,22 @@ def main(
         print(f"Skipping meta gene file creation, found {paths['meta_gene']}")
 
     # Save CBG gene parquet files
-    cbg_dir = Path(path_landscape_files) / "cbg"
-    if not cbg_dir.exists() or not any(cbg_dir.glob("*.parquet")):
-        dega.pre.save_cbg_gene_parquets(technology, path_landscape_files, cbg, verbose=True)
+    if use_row_groups:
+        # Row group mode: single parquet file with one row group per gene
+        cbg_parquet = Path(path_landscape_files) / "cbg.parquet"
+        if not cbg_parquet.exists():
+            dega.pre.save_cbg_gene_parquets_row_groups(
+                technology, path_landscape_files, cbg, verbose=True
+            )
+        else:
+            print(f"Skipping CBG row groups, file {cbg_parquet} already exists")
     else:
-        print(f"Skipping CBG gene parquets, directory {cbg_dir} already populated")
+        # Traditional mode: one parquet file per gene
+        cbg_dir = Path(path_landscape_files) / "cbg"
+        if not cbg_dir.exists() or not any(cbg_dir.glob("*.parquet")):
+            dega.pre.save_cbg_gene_parquets(technology, path_landscape_files, cbg, verbose=True)
+        else:
+            print(f"Skipping CBG gene parquets, directory {cbg_dir} already populated")
 
     if technology == "Xenium" and not cluster_file.exists():
         # Create cluster and meta cluster files
@@ -293,6 +304,36 @@ def main(
         dega.pre.create_image_tiles(
             technology, str(data_dir), path_landscape_files, image_tile_layer=image_tile_layer
         )
+
+        # Optionally pack image tiles into parquet row groups
+        # Store max_pyramid_zoom before deleting tiles
+        image_tile_info = {}
+        if use_row_groups:
+            print("\n======== Packing Image Tiles to Parquet ========")
+            pyramid_dir = Path(path_landscape_files) / "pyramid_images"
+            image_parquet_dir = Path(path_landscape_files) / "image_parquet"
+            image_parquet_dir.mkdir(exist_ok=True)
+
+            # Determine which channels were created
+            image_info = dega.pre.get_image_info(technology, image_tile_layer)
+            for channel_info in image_info:
+                channel_name = channel_info["name"]
+                output_parquet = image_parquet_dir / f"{channel_name}.parquet"
+
+                if not output_parquet.exists():
+                    try:
+                        tile_info = dega.pre.pack_image_tiles_to_parquet(
+                            str(pyramid_dir),
+                            channel_name,
+                            str(output_parquet),
+                            image_format=".webp",
+                            delete_source_tiles=True,
+                        )
+                        image_tile_info[channel_name] = tile_info
+                    except FileNotFoundError as e:
+                        print(f"Warning: Could not pack {channel_name} tiles: {e}")
+                else:
+                    print(f"Skipping {channel_name} parquet, file already exists")
 
         tile_bounds = None
         tile_grid_info = None
@@ -402,6 +443,7 @@ def main(
         use_int_index=use_int_index,
         use_row_groups=use_row_groups,
         tile_grid_info=tile_grid_info,
+        image_tile_info=image_tile_info if use_row_groups else None,
     )
 
     print("Preprocessing completed successfully.")

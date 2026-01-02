@@ -7,6 +7,25 @@ function processExpression(exp_value, max_exp) {
   return (log_exp_value / log_max_exp) * 255;
 }
 
+/**
+ * Read gene expression from row group reader
+ * @param {Object} cbgReader - CBGRowGroupReader instance
+ * @param {string} geneName - Gene name to read
+ * @returns {Promise<{cell_names: Array, cell_exp: Array}>}
+ */
+async function readGeneFromRowGroups(cbgReader, geneName) {
+  const table = await cbgReader.readGene(geneName);
+
+  if (!table) {
+    return { cell_names: [], cell_exp: [] };
+  }
+
+  const cell_names = table.getChild('cell_id')?.toArray() || [];
+  const cell_exp = table.getChild('expression')?.toArray() || [];
+
+  return { cell_names, cell_exp };
+}
+
 export const update_cell_exp_array = async (
   cats,
   genes,
@@ -14,19 +33,30 @@ export const update_cell_exp_array = async (
   inst_gene,
   version,
   vector_name_integer,
-  aws
+  aws,
+  cbgReader = null // Optional: row group reader for CBG data
 ) => {
-  let file_path;
-  if (version === 'default') {
-    file_path = `${base_url}/cbg/${inst_gene}.parquet`;
+  let cell_names;
+  let cell_exp;
+
+  // Check if using row group mode
+  if (cbgReader) {
+    const result = await readGeneFromRowGroups(cbgReader, inst_gene);
+    cell_names = result.cell_names;
+    cell_exp = result.cell_exp;
   } else {
-    file_path = `${base_url}/cbg_${version}/${inst_gene}.parquet`;
+    // Traditional mode: fetch individual gene file
+    let file_path;
+    if (version === 'default') {
+      file_path = `${base_url}/cbg/${inst_gene}.parquet`;
+    } else {
+      file_path = `${base_url}/cbg_${version}/${inst_gene}.parquet`;
+    }
+
+    const exp_table = await get_arrow_table(file_path, options.fetch, aws);
+    cell_names = exp_table.getChild('__index_level_0__').toArray();
+    cell_exp = exp_table.getChild(inst_gene).toArray();
   }
-
-  const exp_table = await get_arrow_table(file_path, options.fetch, aws);
-  const cell_names = exp_table.getChild('__index_level_0__').toArray();
-  const cell_exp = exp_table.getChild(inst_gene).toArray();
-
   const new_exp_array = new Array(cats.cell_names_array.length).fill(0);
 
   const allowedCellIds =

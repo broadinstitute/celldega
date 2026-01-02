@@ -45,6 +45,30 @@ export class RowGroupTileReader {
   }
 
   /**
+   * Check if the server supports Range requests (needed for streaming)
+   * @returns {Promise<boolean>}
+   */
+  async _checkRangeSupport() {
+    try {
+      // Make a simple HEAD request to check CORS and Range support
+      const response = await fetch(this.url, {
+        method: "HEAD",
+      });
+
+      if (!response.ok) {
+        return false;
+      }
+
+      // Check if server advertises Range request support
+      const acceptRanges = response.headers.get("Accept-Ranges");
+      return acceptRanges === "bytes";
+    } catch (error) {
+      console.log(`[RowGroupTileReader] Range check failed: ${error.message}`);
+      return false;
+    }
+  }
+
+  /**
    * Initialize the reader
    * @returns {Promise<void>}
    */
@@ -60,10 +84,13 @@ export class RowGroupTileReader {
       `[RowGroupTileReader] Grid: ${this.numTilesX}x${this.numTilesY} = ${this.numTilesX * this.numTilesY} tiles`
     );
 
+    // First check if Range requests are supported (also validates CORS)
+    const rangeSupported = await this._checkRangeSupport();
+
     // Try to use ParquetFile for streaming access with range requests
-    if (pq.ParquetFile && typeof pq.ParquetFile.fromUrl === "function") {
+    if (rangeSupported && pq.ParquetFile && typeof pq.ParquetFile.fromUrl === "function") {
       try {
-        console.log(`[RowGroupTileReader] Creating streaming ParquetFile...`);
+        console.log(`[RowGroupTileReader] Range requests supported, creating streaming ParquetFile...`);
         this.parquetFile = await pq.ParquetFile.fromUrl(this.url);
         this.useStreaming = true;
 
@@ -75,15 +102,17 @@ export class RowGroupTileReader {
         );
       } catch (error) {
         console.warn(
-          `[RowGroupTileReader] Streaming not available, falling back to full fetch:`,
+          `[RowGroupTileReader] Streaming failed, falling back to full fetch:`,
           error.message
         );
         this.useStreaming = false;
       }
     } else {
-      console.log(
-        `[RowGroupTileReader] ParquetFile.fromUrl not available, using full fetch mode`
-      );
+      if (!rangeSupported) {
+        console.log(`[RowGroupTileReader] Range requests not supported, using full fetch mode`);
+      } else {
+        console.log(`[RowGroupTileReader] ParquetFile.fromUrl not available, using full fetch mode`);
+      }
       this.useStreaming = false;
     }
 

@@ -494,14 +494,8 @@ def _collect_boundary_tile_data_for_row_groups(
 
                 tile_data_list.append((tile_i, tile_j, tile_df))
             else:
-                # Create empty DataFrame with correct schema
-                empty_df = pd.DataFrame({
-                    "GEOMETRY": pd.Series([], dtype=object),
-                    "name": pd.Series([], dtype=object),
-                    "tile_x": pd.Series([], dtype=int),
-                    "tile_y": pd.Series([], dtype=int),
-                })
-                tile_data_list.append((tile_i, tile_j, empty_df))
+                # Mark as empty - write function will create empty table with correct schema
+                tile_data_list.append((tile_i, tile_j, None))
 
     return tile_data_list
 
@@ -538,7 +532,7 @@ def _write_boundary_tiles_as_row_groups(tile_data_list, output_path, tile_grid_i
     # Get schema from first non-empty tile
     schema = None
     for _, _, tile_df in tile_data_list:
-        if not tile_df.empty:
+        if tile_df is not None:
             first_table = pa.Table.from_pandas(tile_df.reset_index(drop=True), preserve_index=False)
             schema = first_table.schema.with_metadata(metadata)
             break
@@ -552,11 +546,15 @@ def _write_boundary_tiles_as_row_groups(tile_data_list, output_path, tile_grid_i
 
     non_empty_count = 0
     for tile_x, tile_y, tile_df in tile_data_list:
-        # Write each tile as a separate row group (including empty ones)
-        tile_table = pa.Table.from_pandas(tile_df.reset_index(drop=True), preserve_index=False)
-        writer.write_table(tile_table)
-        if not tile_df.empty:
+        if tile_df is not None:
+            # Non-empty tile: convert and write
+            tile_table = pa.Table.from_pandas(tile_df.reset_index(drop=True), preserve_index=False)
+            writer.write_table(tile_table)
             non_empty_count += 1
+        else:
+            # Empty tile: create empty table with correct schema
+            empty_table = schema.empty_table()
+            writer.write_table(empty_table)
 
     writer.close()
 

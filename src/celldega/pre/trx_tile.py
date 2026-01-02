@@ -566,7 +566,7 @@ def _collect_tile_data_for_row_groups(
     - tile_size: Size of each tile
 
     Returns:
-    - List of (tile_x, tile_y, DataFrame) tuples (including empty DataFrames)
+    - List of (tile_x, tile_y, DataFrame or None) tuples
     - tile_grid_info: Dictionary with grid dimensions
     """
     # Calculate the number of tiles
@@ -574,9 +574,6 @@ def _collect_tile_data_for_row_groups(
     n_tiles_y = int(np.ceil((y_max - y_min) / tile_size))
 
     tile_data_list = []
-
-    # Define the schema for empty tiles
-    empty_schema = ["name", "geometry", "tile_x", "tile_y"]
 
     # Column-major order: tile_x varies slowest
     # row_group_index = tile_x * num_tiles_y + tile_y
@@ -622,17 +619,8 @@ def _collect_tile_data_for_row_groups(
 
                 tile_data_list.append((tile_i, tile_j, tile_trx))
             else:
-                # Create empty DataFrame with correct schema for empty tiles
-                # This ensures row_group_index = tile_x * num_tiles_y + tile_y works
-                empty_df = pl.DataFrame(
-                    {
-                        "name": pl.Series([], dtype=pl.Int64),
-                        "geometry": pl.Series([], dtype=pl.List(pl.Float64)),
-                        "tile_x": pl.Series([], dtype=pl.Int32),
-                        "tile_y": pl.Series([], dtype=pl.Int32),
-                    }
-                )
-                tile_data_list.append((tile_i, tile_j, empty_df))
+                # Mark as empty - write function will create empty table with correct schema
+                tile_data_list.append((tile_i, tile_j, None))
 
     tile_grid_info = {
         "tile_size": tile_size,
@@ -679,7 +667,7 @@ def _write_tiles_as_row_groups(tile_data_list, output_path, tile_grid_info):
     # Get schema from first non-empty tile
     schema = None
     for _, _, tile_df in tile_data_list:
-        if not tile_df.is_empty():
+        if tile_df is not None:
             first_table = pa.Table.from_pandas(tile_df.to_pandas(), preserve_index=False)
             schema = first_table.schema.with_metadata(metadata)
             break
@@ -693,11 +681,15 @@ def _write_tiles_as_row_groups(tile_data_list, output_path, tile_grid_info):
 
     non_empty_count = 0
     for tile_x, tile_y, tile_df in tile_data_list:
-        # Write each tile as a separate row group (including empty ones)
-        tile_table = pa.Table.from_pandas(tile_df.to_pandas(), preserve_index=False)
-        writer.write_table(tile_table)
-        if not tile_df.is_empty():
+        if tile_df is not None:
+            # Non-empty tile: convert and write
+            tile_table = pa.Table.from_pandas(tile_df.to_pandas(), preserve_index=False)
+            writer.write_table(tile_table)
             non_empty_count += 1
+        else:
+            # Empty tile: create empty table with correct schema
+            empty_table = schema.empty_table()
+            writer.write_table(empty_table)
 
     writer.close()
 

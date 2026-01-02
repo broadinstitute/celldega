@@ -179,3 +179,101 @@ def save_cbg_gene_parquets(
             inst_df.to_parquet(output_path)
 
     print("All gene-specific parquet files are succesfully saved.")
+
+
+def save_cbg_gene_parquets_row_groups(
+    technology, base_path, cbg, verbose=False, segmentation_approach="default"
+):
+    """
+    Save the cell-by-gene matrix as a single Parquet file with one row group per gene.
+
+    This is an alternative to save_cbg_gene_parquets that creates a single file
+    with row groups instead of many individual gene files.
+
+    Parameters
+    ----------
+    technology : str
+        The technology used for the data.
+    base_path : str
+        The base path to the parent directory containing the landscape_files directory.
+    cbg : pandas.DataFrame
+        A sparse DataFrame with genes as columns and barcodes as rows.
+    verbose : bool, optional
+        Whether to print progress information, by default False.
+    segmentation_approach : str, optional
+        The segmentation approach used, by default "default".
+
+    Returns
+    -------
+    dict
+        Gene index mapping {gene_name: row_group_index}
+    """
+    import json
+
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    segmentation_suffix = f"_{segmentation_approach}" if segmentation_approach != "default" else ""
+    output_path = Path(base_path) / f"cbg{segmentation_suffix}.parquet"
+
+    # Convert cell index from string to integer
+    cell_str_to_int_mapping = _get_name_mapping(
+        base_path, layer="boundary", segmentation=segmentation_approach
+    )
+
+    cbg.index = cbg.index.map(cell_str_to_int_mapping)
+
+    # Prepare gene tables - each gene becomes a row group
+    gene_tables = []
+    gene_to_row_group = {}
+
+    for index, gene in enumerate(cbg.columns):
+        if verbose and index % 1000 == 0:
+            print(f"Processing gene {index}: {gene}")
+
+        # Extract the column as a DataFrame
+        col_df = cbg[[gene]].copy()
+
+        # Create a DataFrame
+        inst_df = pd.DataFrame(col_df.values, columns=[gene], index=col_df.index.tolist())
+
+        # Replace 0 with NA and drop rows where all values are NA
+        inst_df.replace(0, pd.NA, inplace=True)
+        inst_df.dropna(how="all", inplace=True)
+
+        if not inst_df.empty:
+            # Add gene name column for identification
+            inst_df = inst_df.reset_index()
+            inst_df.columns = ["cell_id", "expression"]
+            inst_df["gene"] = gene
+
+            gene_tables.append((gene, inst_df))
+            gene_to_row_group[gene] = len(gene_tables) - 1
+
+    if not gene_tables:
+        print("Warning: No genes with expression data")
+        return {}
+
+    # Get schema from first gene
+    first_table = pa.Table.from_pandas(gene_tables[0][1], preserve_index=False)
+
+    # Create metadata
+    metadata = {
+        b"gene_to_row_group": json.dumps(gene_to_row_group).encode("utf-8"),
+        b"storage_mode": b"row_groups_cbg",
+        b"num_genes": str(len(gene_tables)).encode("utf-8"),
+    }
+    schema = first_table.schema.with_metadata(metadata)
+
+    # Write all genes as row groups
+    writer = pq.ParquetWriter(output_path, schema)
+
+    for gene_name, gene_df in gene_tables:
+        gene_table = pa.Table.from_pandas(gene_df, preserve_index=False)
+        writer.write_table(gene_table)
+
+    writer.close()
+
+    print(f"Wrote {len(gene_tables)} genes as row groups to {output_path}")
+
+    return gene_to_row_group

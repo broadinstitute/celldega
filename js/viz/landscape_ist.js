@@ -76,6 +76,8 @@ import { update_ist_landscape_from_cgm } from '../widget_interactions/update_ist
 // Row group reading support
 import { testRowGroupReading, getVersion as getParquetWasmVersion } from '../read_parquet/row_group_poc';
 import { RowGroupTileReader } from '../read_parquet/row_group_tile_reader';
+import { CBGRowGroupReader } from '../read_parquet/cbg_row_group_reader';
+import { ImageRowGroupReader, createGetTileDataFromParquet } from '../read_parquet/image_row_group_reader';
 
 // Log parquet-wasm version on module load
 console.log(`[landscape_ist] parquet-wasm version: ${getParquetWasmVersion()}`);
@@ -147,6 +149,39 @@ async function initializeRowGroupReaders(viz_state, base_url) {
 
     const mode = viz_state.row_group_readers.cell.isStreaming() ? 'streaming (range requests)' : 'fallback (full fetch)';
     console.log(`[landscape_ist] Cell reader ready - ${mode}`);
+  }
+
+  // Initialize CBG row group reader
+  if (rowGroupFiles.cbg) {
+    const cbgUrl = `${base_url}/${rowGroupFiles.cbg}`;
+    console.log(`[landscape_ist] Initializing CBG reader from: ${cbgUrl}`);
+
+    viz_state.row_group_readers.cbg = new CBGRowGroupReader(cbgUrl);
+    await viz_state.row_group_readers.cbg.initialize();
+
+    const mode = viz_state.row_group_readers.cbg.isStreaming() ? 'streaming' : 'fallback';
+    console.log(`[landscape_ist] CBG reader ready - ${mode}, ${viz_state.row_group_readers.cbg.getNumGenes()} genes`);
+  }
+
+  // Initialize image row group readers for each channel
+  if (rowGroupFiles.images) {
+    viz_state.row_group_readers.images = {};
+
+    for (const [channelName, imageEntry] of Object.entries(rowGroupFiles.images)) {
+      // Handle both old format (string path) and new format (object with path and zoom_info)
+      const imagePath = typeof imageEntry === 'string' ? imageEntry : imageEntry.path;
+      const zoomInfo = typeof imageEntry === 'object' ? imageEntry.zoom_info : null;
+
+      const imageUrl = `${base_url}/${imagePath}`;
+      console.log(`[landscape_ist] Initializing image reader for ${channelName} from: ${imageUrl}`);
+
+      // Pass zoom_info to the reader for row group index computation
+      viz_state.row_group_readers.images[channelName] = new ImageRowGroupReader(imageUrl, zoomInfo);
+      await viz_state.row_group_readers.images[channelName].initialize();
+
+      const mode = viz_state.row_group_readers.images[channelName].isStreaming() ? 'streaming' : 'fallback';
+      console.log(`[landscape_ist] Image reader (${channelName}) ready - ${mode}`);
+    }
   }
 
   console.log('[landscape_ist] Row group readers initialized successfully');

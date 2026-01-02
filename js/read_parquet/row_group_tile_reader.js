@@ -46,23 +46,53 @@ export class RowGroupTileReader {
 
   /**
    * Check if the server supports Range requests (needed for streaming)
+   * This makes actual Range requests to catch CDN redirects that fail CORS
    * @returns {Promise<boolean>}
    */
   async _checkRangeSupport() {
     try {
-      // Make a simple HEAD request to check CORS and Range support
+      // First, try a small Range request
       const response = await fetch(this.url, {
-        method: "HEAD",
+        method: "GET",
+        headers: {
+          Range: "bytes=0-7", // Request first 8 bytes (Parquet magic number)
+        },
       });
 
-      if (!response.ok) {
+      // 206 = Partial Content (Range request worked)
+      // 200 = Server ignored Range header but request succeeded
+      if (!response.ok && response.status !== 206) {
+        console.log(`[RowGroupTileReader] Range check failed with status ${response.status}`);
         return false;
       }
 
-      // Check if server advertises Range request support
+      // Now test a Range request for the END of the file (parquet footer)
+      // This is what parquet-wasm will do, and it may trigger different CDN behavior
+      // Request last 8 bytes using suffix range
+      const footerResponse = await fetch(this.url, {
+        method: "GET",
+        headers: {
+          Range: "bytes=-8", // Request last 8 bytes (footer magic)
+        },
+      });
+
+      if (!footerResponse.ok && footerResponse.status !== 206) {
+        console.log(`[RowGroupTileReader] Footer range check failed with status ${footerResponse.status}`);
+        return false;
+      }
+
+      // Both Range requests succeeded
+      const isPartial = response.status === 206 && footerResponse.status === 206;
       const acceptRanges = response.headers.get("Accept-Ranges");
-      return acceptRanges === "bytes";
+
+      if (isPartial || acceptRanges === "bytes") {
+        console.log(`[RowGroupTileReader] Range requests verified (partial: ${isPartial})`);
+        return true;
+      }
+
+      return false;
     } catch (error) {
+      // CORS errors, network errors, etc. will be caught here
       console.log(`[RowGroupTileReader] Range check failed: ${error.message}`);
       return false;
     }

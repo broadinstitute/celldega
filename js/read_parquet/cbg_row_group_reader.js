@@ -31,9 +31,31 @@ export class CBGRowGroupReader {
    */
   async _checkRangeSupport() {
     try {
-      const response = await fetch(this.url, { method: "HEAD" });
-      if (!response.ok) return false;
-      return response.headers.get("Accept-Ranges") === "bytes";
+      // Test Range requests for both start and end of file
+      // This catches CDN redirects that fail CORS (like Hugging Face)
+      const response = await fetch(this.url, {
+        method: "GET",
+        headers: { Range: "bytes=0-7" },
+      });
+
+      if (!response.ok && response.status !== 206) {
+        console.log(`[CBGRowGroupReader] Range check failed with status ${response.status}`);
+        return false;
+      }
+
+      // Also test suffix range (footer) - this is what parquet-wasm uses
+      const footerResponse = await fetch(this.url, {
+        method: "GET",
+        headers: { Range: "bytes=-8" },
+      });
+
+      if (!footerResponse.ok && footerResponse.status !== 206) {
+        console.log(`[CBGRowGroupReader] Footer range check failed with status ${footerResponse.status}`);
+        return false;
+      }
+
+      const isPartial = response.status === 206 && footerResponse.status === 206;
+      return isPartial || response.headers.get("Accept-Ranges") === "bytes";
     } catch (error) {
       console.log(`[CBGRowGroupReader] Range check failed: ${error.message}`);
       return false;

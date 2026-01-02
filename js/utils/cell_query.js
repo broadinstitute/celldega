@@ -150,11 +150,14 @@ export const load_gene_expression = async (
   }
 
   const cell_names = cell_names_col.toArray();
-  const exp_col = exp_table.getChild(gene_name);
+
+  // Try gene name first (individual files), then 'expression' (row-grouped CBG)
+  const exp_col = exp_table.getChild(gene_name) || exp_table.getChild('expression');
 
   if (!exp_col) {
+    // eslint-disable-next-line no-console
     console.warn(
-      `Gene expression column '${gene_name}' not found. Available columns:`,
+      `Gene expression column '${gene_name}' or 'expression' not found. Available columns:`,
       exp_table.schema.fields.map((f) => f.name)
     );
     return new Map();

@@ -94,22 +94,39 @@ export const load_cluster_data = async (
  * Load gene expression data from cbg parquet files.
  * Returns a Map of cell_name -> expression_value.
  *
+ * Supports both row-grouped CBG files (via cbgReader) and individual gene files.
+ *
  * @param {string} base_url - Base URL for LandscapeFiles
  * @param {string} version - Segmentation version
  * @param {object} aws - AWS client for authenticated requests
  * @param {string} gene_name - Gene name to load expression for
+ * @param {object} cbgReader - Optional CBGRowGroupReader for row-grouped data
  * @returns {Promise<Map<string, number>>} Map of cell_name -> expression_value
  */
 export const load_gene_expression = async (
   base_url,
   version,
   aws,
-  gene_name
+  gene_name,
+  cbgReader = null
 ) => {
-  const version_suffix = version && version !== 'default' ? `_${version}` : '';
-  const gene_url = `${base_url}/cbg${version_suffix}/${gene_name}.parquet`;
+  let exp_table;
 
-  const exp_table = await get_arrow_table(gene_url, options.fetch, aws);
+  // Use CBG row group reader if available
+  if (cbgReader) {
+    try {
+      exp_table = await cbgReader.readGene(gene_name);
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.warn(`Failed to read gene ${gene_name} from CBG reader:`, error);
+      exp_table = null;
+    }
+  } else {
+    // Fall back to individual gene file
+    const version_suffix = version && version !== 'default' ? `_${version}` : '';
+    const gene_url = `${base_url}/cbg${version_suffix}/${gene_name}.parquet`;
+    exp_table = await get_arrow_table(gene_url, options.fetch, aws);
+  }
 
   // Handle null table (file doesn't exist or failed to load)
   if (!exp_table) {
@@ -309,7 +326,8 @@ export const execute_cell_query = async (
         viz_state.global_base_url,
         viz_state.seg.version,
         viz_state.aws,
-        gene_name
+        gene_name,
+        viz_state.row_group_readers?.cbg
       );
 
       // Convert integer indices to cell names if needed

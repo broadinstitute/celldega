@@ -186,6 +186,18 @@ HTTP Range Requests fetch only visible tiles
 - Uses cell segmentation row group reader
 - Maintains backwards compatibility
 
+### Cell Query and Gene Expression
+
+#### `js/utils/cell_query.js`
+**Purpose**: Query cells by gene expression and cluster membership
+
+**Changes**:
+- Updated `load_gene_expression()` to accept optional `cbgReader` parameter
+- Uses `cbgReader.readGene()` when row groups are available
+- Falls back to individual gene file loading otherwise
+- Fixed expression column lookup: tries gene name first (individual files), then `expression` (row-grouped CBG format)
+- Updated `execute_cell_query()` to pass `viz_state.row_group_readers?.cbg`
+
 ### UI Components Updated for CBG Reader
 
 The following files were updated to pass the CBG reader parameter:
@@ -196,6 +208,7 @@ The following files were updated to pass the CBG reader parameter:
 - `js/viz/yearbook.js`
 - `js/widget_interactions/update_ist_landscape_from_cgm.js`
 - `js/deck-gl/layers/trx_layer.js`
+- `js/utils/cell_query.js` (internal call to `load_gene_expression()`)
 
 ### Yearbook Widget Support
 
@@ -366,10 +379,11 @@ python -m pytest tests/unit/test_pre/test_row_groups.py -v
 - [ ] Pan/zoom performance acceptable
 
 **Yearbook Widget**:
-- [ ] Yearbook loads with row-grouped data
-- [ ] Cell portraits display correctly
-- [ ] Gene coloring works in yearbook
-- [ ] Image tiles load for each portrait
+- [x] Yearbook loads with row-grouped data
+- [x] Cell portraits display correctly
+- [x] Gene coloring works in yearbook
+- [x] Image tiles load for each portrait
+- [x] Cell query by gene works (Searching → results)
 - [ ] Pagination works
 
 **Proxy Server**:

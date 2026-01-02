@@ -5,9 +5,9 @@
  * individual gene expression data without loading the entire file.
  */
 
-import * as arrow from "apache-arrow";
+import * as arrow from 'apache-arrow';
 
-import { getPq } from "./pqInitializer";
+import { getPq } from './pqInitializer';
 
 /**
  * CBGRowGroupReader class for efficient gene-based expression data access
@@ -33,33 +33,38 @@ export class CBGRowGroupReader {
     try {
       // For localhost, trust that Range requests work (skip expensive checks)
       const urlObj = new URL(this.url);
-      if (urlObj.hostname === "localhost" || urlObj.hostname === "127.0.0.1") {
+      if (urlObj.hostname === 'localhost' || urlObj.hostname === '127.0.0.1') {
         return true;
       }
 
       // For remote servers, do a full Range request check
       const response = await fetch(this.url, {
-        method: "GET",
-        headers: { Range: "bytes=0-7" },
+        method: 'GET',
+        headers: { Range: 'bytes=0-7' },
       });
 
       if (!response.ok && response.status !== 206) {
-        console.log(`[CBGRowGroupReader] Range check failed with status ${response.status}`);
+        console.log(
+          `[CBGRowGroupReader] Range check failed with status ${response.status}`
+        );
         return false;
       }
 
       const footerResponse = await fetch(this.url, {
-        method: "GET",
-        headers: { Range: "bytes=-8" },
+        method: 'GET',
+        headers: { Range: 'bytes=-8' },
       });
 
       if (!footerResponse.ok && footerResponse.status !== 206) {
-        console.log(`[CBGRowGroupReader] Footer range check failed with status ${footerResponse.status}`);
+        console.log(
+          `[CBGRowGroupReader] Footer range check failed with status ${footerResponse.status}`
+        );
         return false;
       }
 
-      const isPartial = response.status === 206 && footerResponse.status === 206;
-      return isPartial || response.headers.get("Accept-Ranges") === "bytes";
+      const isPartial =
+        response.status === 206 && footerResponse.status === 206;
+      return isPartial || response.headers.get('Accept-Ranges') === 'bytes';
     } catch (error) {
       console.log(`[CBGRowGroupReader] Range check failed: ${error.message}`);
       return false;
@@ -85,25 +90,27 @@ export class CBGRowGroupReader {
     if (!rangeSupported) {
       throw new Error(
         `[CBGRowGroupReader] Range requests not supported for ${this.url}. ` +
-        `Row group mode requires a server that supports HTTP Range requests with CORS.`
+          `Row group mode requires a server that supports HTTP Range requests with CORS.`
       );
     }
 
-    if (!pq.ParquetFile || typeof pq.ParquetFile.fromUrl !== "function") {
+    if (!pq.ParquetFile || typeof pq.ParquetFile.fromUrl !== 'function') {
       throw new Error(
         `[CBGRowGroupReader] ParquetFile.fromUrl not available. ` +
-        `Please ensure parquet-wasm is properly initialized.`
+          `Please ensure parquet-wasm is properly initialized.`
       );
     }
 
     // Use ParquetFile for streaming access
-    console.log(`[CBGRowGroupReader] Range requests supported, creating streaming ParquetFile...`);
+    console.log(
+      `[CBGRowGroupReader] Range requests supported, creating streaming ParquetFile...`
+    );
     this.parquetFile = await pq.ParquetFile.fromUrl(this.url);
     this.useStreaming = true;
 
     // Get metadata to build gene index
     const metadata = this.parquetFile.metadata();
-    const numRowGroups = metadata.numRowGroups;
+    const {numRowGroups} = metadata;
     console.log(
       `[CBGRowGroupReader] Streaming mode enabled, ${numRowGroups} row groups available`
     );
@@ -115,19 +122,26 @@ export class CBGRowGroupReader {
     const arrowTable = arrow.tableFromIPC(arrowIPC);
 
     const schemaMetadata = arrowTable.schema.metadata;
-    if (schemaMetadata && schemaMetadata.has("gene_to_row_group")) {
+    if (schemaMetadata && schemaMetadata.has('gene_to_row_group')) {
       try {
-        this.geneToRowGroup = JSON.parse(schemaMetadata.get("gene_to_row_group"));
+        this.geneToRowGroup = JSON.parse(
+          schemaMetadata.get('gene_to_row_group')
+        );
         console.log(
           `[CBGRowGroupReader] Loaded gene index from metadata: ${Object.keys(this.geneToRowGroup).length} genes`
         );
       } catch (e) {
-        console.warn(`[CBGRowGroupReader] Failed to parse gene_to_row_group:`, e);
+        console.warn(
+          `[CBGRowGroupReader] Failed to parse gene_to_row_group:`,
+          e
+        );
         // Fall back to building index manually
         this.geneToRowGroup = await this._buildGeneIndex(numRowGroups);
       }
     } else {
-      console.log(`[CBGRowGroupReader] No gene_to_row_group in metadata, building index...`);
+      console.log(
+        `[CBGRowGroupReader] No gene_to_row_group in metadata, building index...`
+      );
       this.geneToRowGroup = await this._buildGeneIndex(numRowGroups);
     }
 
@@ -150,17 +164,22 @@ export class CBGRowGroupReader {
         const arrowIPC = table.intoIPCStream();
         const arrowTable = arrow.tableFromIPC(arrowIPC);
 
-        const geneCol = arrowTable.getChild("gene");
+        const geneCol = arrowTable.getChild('gene');
         if (geneCol && geneCol.length > 0) {
           const geneName = geneCol.get(0);
           index[geneName] = i;
         }
       } catch (error) {
-        console.warn(`[CBGRowGroupReader] Error reading row group ${i}:`, error);
+        console.warn(
+          `[CBGRowGroupReader] Error reading row group ${i}:`,
+          error
+        );
       }
     }
 
-    console.log(`[CBGRowGroupReader] Built index for ${Object.keys(index).length} genes`);
+    console.log(
+      `[CBGRowGroupReader] Built index for ${Object.keys(index).length} genes`
+    );
     return index;
   }
 
@@ -175,7 +194,7 @@ export class CBGRowGroupReader {
 
     // Each batch corresponds to a row group
     for (const batch of table.batches) {
-      const geneCol = batch.getChild("gene");
+      const geneCol = batch.getChild('gene');
       if (geneCol && geneCol.length > 0) {
         const geneName = geneCol.get(0);
         index[geneName] = currentRowGroup;
@@ -220,14 +239,20 @@ export class CBGRowGroupReader {
       return null;
     }
 
-    console.log(`[CBGRowGroupReader] Reading gene ${geneName} (row group ${rowGroupIndex})`);
+    console.log(
+      `[CBGRowGroupReader] Reading gene ${geneName} (row group ${rowGroupIndex})`
+    );
 
     // Use streaming mode with HTTP Range Requests
-    const wasmTable = await this.parquetFile.read({ rowGroups: [rowGroupIndex] });
+    const wasmTable = await this.parquetFile.read({
+      rowGroups: [rowGroupIndex],
+    });
     const arrowIPC = wasmTable.intoIPCStream();
     const table = arrow.tableFromIPC(arrowIPC);
 
-    console.log(`[CBGRowGroupReader] Read ${table.numRows} cells for gene ${geneName}`);
+    console.log(
+      `[CBGRowGroupReader] Read ${table.numRows} cells for gene ${geneName}`
+    );
 
     return table;
   }

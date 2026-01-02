@@ -63,6 +63,13 @@ import { set_meta_gene } from '../global_variables/meta_gene';
 import { update_selected_genes } from '../global_variables/selected_genes';
 import { colorToRgba } from '../matrix/cat_data';
 import { create_obs_store } from '../obs_store/obs_store';
+import { CBGRowGroupReader } from '../read_parquet/cbg_row_group_reader';
+import { ImageRowGroupReader } from '../read_parquet/image_row_group_reader';
+import {
+  testRowGroupReading,
+  getVersion as getParquetWasmVersion,
+} from '../read_parquet/row_group_poc';
+import { RowGroupTileReader } from '../read_parquet/row_group_tile_reader';
 import { initialize_nbhd_editor } from '../ui/nbhd_editor';
 import { toggle_slider, set_image_layer_sliders } from '../ui/sliders';
 import { get_img_layer_visible } from '../ui/text_buttons';
@@ -74,17 +81,13 @@ import { update_cell_clusters } from '../widget_interactions/update_cell_cluster
 import { update_ist_landscape_from_cgm } from '../widget_interactions/update_ist_landscape_from_cgm';
 
 // Row group reading support
-import { testRowGroupReading, getVersion as getParquetWasmVersion } from '../read_parquet/row_group_poc';
-import { RowGroupTileReader } from '../read_parquet/row_group_tile_reader';
-import { CBGRowGroupReader } from '../read_parquet/cbg_row_group_reader';
-import { ImageRowGroupReader, createGetTileDataFromParquet } from '../read_parquet/image_row_group_reader';
 
 // Log parquet-wasm version on module load
 console.log(`[landscape_ist] parquet-wasm version: ${getParquetWasmVersion()}`);
 
 // Expose test function globally for browser console testing
 // Usage: window.testRowGroupReading("https://example.com/row_grouped.parquet")
-if (typeof window !== "undefined") {
+if (typeof window !== 'undefined') {
   window.testRowGroupReading = testRowGroupReading;
 }
 
@@ -114,7 +117,9 @@ async function initializeRowGroupReaders(viz_state, base_url) {
   const tileGrid = landscapeParams.tile_grid || {};
 
   if (!tileGrid.num_tiles_x || !tileGrid.num_tiles_y) {
-    console.error('[landscape_ist] Missing tile_grid dimensions in landscape_parameters');
+    console.error(
+      '[landscape_ist] Missing tile_grid dimensions in landscape_parameters'
+    );
     viz_state.use_row_groups = false;
     return;
   }
@@ -133,7 +138,10 @@ async function initializeRowGroupReaders(viz_state, base_url) {
   // Initialize cell segmentation row group reader with grid dimensions
   if (rowGroupFiles.cell_segmentation) {
     const cellUrl = `${base_url}/${rowGroupFiles.cell_segmentation}`;
-    viz_state.row_group_readers.cell = new RowGroupTileReader(cellUrl, tileGrid);
+    viz_state.row_group_readers.cell = new RowGroupTileReader(
+      cellUrl,
+      tileGrid
+    );
     await viz_state.row_group_readers.cell.initialize();
   }
 
@@ -148,14 +156,21 @@ async function initializeRowGroupReaders(viz_state, base_url) {
   if (rowGroupFiles.images) {
     viz_state.row_group_readers.images = {};
 
-    for (const [channelName, imageEntry] of Object.entries(rowGroupFiles.images)) {
+    for (const [channelName, imageEntry] of Object.entries(
+      rowGroupFiles.images
+    )) {
       // Handle both old format (string path) and new format (object with path and zoom_info)
-      const imagePath = typeof imageEntry === 'string' ? imageEntry : imageEntry.path;
-      const zoomInfo = typeof imageEntry === 'object' ? imageEntry.zoom_info : null;
+      const imagePath =
+        typeof imageEntry === 'string' ? imageEntry : imageEntry.path;
+      const zoomInfo =
+        typeof imageEntry === 'object' ? imageEntry.zoom_info : null;
 
       const imageUrl = `${base_url}/${imagePath}`;
       // Pass zoom_info to the reader for row group index computation
-      viz_state.row_group_readers.images[channelName] = new ImageRowGroupReader(imageUrl, zoomInfo);
+      viz_state.row_group_readers.images[channelName] = new ImageRowGroupReader(
+        imageUrl,
+        zoomInfo
+      );
       await viz_state.row_group_readers.images[channelName].initialize();
     }
   }

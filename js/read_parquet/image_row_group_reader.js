@@ -5,9 +5,9 @@
  * Returns Blob URLs that can be used directly with deck.gl BitmapLayer.
  */
 
-import * as arrow from "apache-arrow";
+import * as arrow from 'apache-arrow';
 
-import { getPq } from "./pqInitializer";
+import { getPq } from './pqInitializer';
 
 /**
  * ImageRowGroupReader class for efficient image tile access via parquet
@@ -35,33 +35,38 @@ export class ImageRowGroupReader {
     try {
       // For localhost, trust that Range requests work (skip expensive checks)
       const urlObj = new URL(this.url);
-      if (urlObj.hostname === "localhost" || urlObj.hostname === "127.0.0.1") {
+      if (urlObj.hostname === 'localhost' || urlObj.hostname === '127.0.0.1') {
         return true;
       }
 
       // For remote servers, do a full Range request check
       const response = await fetch(this.url, {
-        method: "GET",
-        headers: { Range: "bytes=0-7" },
+        method: 'GET',
+        headers: { Range: 'bytes=0-7' },
       });
 
       if (!response.ok && response.status !== 206) {
-        console.log(`[ImageRowGroupReader] Range check failed with status ${response.status}`);
+        console.log(
+          `[ImageRowGroupReader] Range check failed with status ${response.status}`
+        );
         return false;
       }
 
       const footerResponse = await fetch(this.url, {
-        method: "GET",
-        headers: { Range: "bytes=-8" },
+        method: 'GET',
+        headers: { Range: 'bytes=-8' },
       });
 
       if (!footerResponse.ok && footerResponse.status !== 206) {
-        console.log(`[ImageRowGroupReader] Footer range check failed with status ${footerResponse.status}`);
+        console.log(
+          `[ImageRowGroupReader] Footer range check failed with status ${footerResponse.status}`
+        );
         return false;
       }
 
-      const isPartial = response.status === 206 && footerResponse.status === 206;
-      return isPartial || response.headers.get("Accept-Ranges") === "bytes";
+      const isPartial =
+        response.status === 206 && footerResponse.status === 206;
+      return isPartial || response.headers.get('Accept-Ranges') === 'bytes';
     } catch (error) {
       console.log(`[ImageRowGroupReader] Range check failed: ${error.message}`);
       return false;
@@ -87,19 +92,21 @@ export class ImageRowGroupReader {
     if (!rangeSupported) {
       throw new Error(
         `[ImageRowGroupReader] Range requests not supported for ${this.url}. ` +
-        `Row group mode requires a server that supports HTTP Range requests with CORS.`
+          `Row group mode requires a server that supports HTTP Range requests with CORS.`
       );
     }
 
-    if (!pq.ParquetFile || typeof pq.ParquetFile.fromUrl !== "function") {
+    if (!pq.ParquetFile || typeof pq.ParquetFile.fromUrl !== 'function') {
       throw new Error(
         `[ImageRowGroupReader] ParquetFile.fromUrl not available. ` +
-        `Please ensure parquet-wasm is properly initialized.`
+          `Please ensure parquet-wasm is properly initialized.`
       );
     }
 
     // Use ParquetFile for streaming access
-    console.log(`[ImageRowGroupReader] Range requests supported, creating streaming ParquetFile...`);
+    console.log(
+      `[ImageRowGroupReader] Range requests supported, creating streaming ParquetFile...`
+    );
     this.parquetFile = await pq.ParquetFile.fromUrl(this.url);
     this.useStreaming = true;
 
@@ -108,7 +115,9 @@ export class ImageRowGroupReader {
       `[ImageRowGroupReader] Streaming mode enabled, ${metadata.numRowGroups} tiles available`
     );
 
-    console.log(`[ImageRowGroupReader] zoomInfo available: ${this.zoomInfo ? Object.keys(this.zoomInfo).join(', ') : 'none'}`);
+    console.log(
+      `[ImageRowGroupReader] zoomInfo available: ${this.zoomInfo ? Object.keys(this.zoomInfo).join(', ') : 'none'}`
+    );
     this.initialized = true;
   }
 
@@ -130,14 +139,21 @@ export class ImageRowGroupReader {
     const zoomData = this.zoomInfo[zoomKey];
 
     if (!zoomData) {
-      console.log(`[ImageRowGroupReader] No zoom data for level ${zoom}, available: ${Object.keys(this.zoomInfo).join(', ')}`);
+      console.log(
+        `[ImageRowGroupReader] No zoom data for level ${zoom}, available: ${Object.keys(this.zoomInfo).join(', ')}`
+      );
       return null;
     }
 
     const { row_group_offset, num_tiles_x, num_tiles_y } = zoomData;
 
     // Check bounds
-    if (tileX < 0 || tileX >= num_tiles_x || tileY < 0 || tileY >= num_tiles_y) {
+    if (
+      tileX < 0 ||
+      tileX >= num_tiles_x ||
+      tileY < 0 ||
+      tileY >= num_tiles_y
+    ) {
       return null;
     }
 
@@ -153,7 +169,7 @@ export class ImageRowGroupReader {
    * @param {string} mimeType - Image MIME type (default: "image/webp")
    * @returns {Promise<string|null>} - Blob URL or null if tile not found
    */
-  async readTile(zoom, tileX, tileY, mimeType = "image/webp") {
+  async readTile(zoom, tileX, tileY, mimeType = 'image/webp') {
     if (!this.initialized) {
       await this.initialize();
     }
@@ -171,12 +187,14 @@ export class ImageRowGroupReader {
 
     try {
       // Use streaming mode with HTTP Range Requests
-      const wasmTable = await this.parquetFile.read({ rowGroups: [rowGroupIndex] });
+      const wasmTable = await this.parquetFile.read({
+        rowGroups: [rowGroupIndex],
+      });
       const arrowIPC = wasmTable.intoIPCStream();
       const table = arrow.tableFromIPC(arrowIPC);
 
       // Get the image data column
-      const imageDataCol = table.getChild("image_data");
+      const imageDataCol = table.getChild('image_data');
       if (!imageDataCol || imageDataCol.length === 0) {
         return null;
       }
@@ -195,7 +213,10 @@ export class ImageRowGroupReader {
 
       return blobUrl;
     } catch (error) {
-      console.warn(`[ImageRowGroupReader] Error reading tile z${zoom} ${tileX}_${tileY}:`, error);
+      console.warn(
+        `[ImageRowGroupReader] Error reading tile z${zoom} ${tileX}_${tileY}:`,
+        error
+      );
       return null;
     }
   }

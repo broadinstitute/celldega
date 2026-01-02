@@ -59,11 +59,12 @@ export const grab_cell_tiles_in_view = async (
   tiles_in_view,
   viz_state
 ) => {
-  let tile_cell_tables;
-
   // Check if using row group mode
   if (viz_state.use_row_groups && viz_state.row_group_readers?.cell) {
-    const cell_table = await grab_cell_tiles_row_groups(tiles_in_view, viz_state);
+    const cell_table = await grab_cell_tiles_row_groups(
+      tiles_in_view,
+      viz_state
+    );
 
     if (!cell_table) {
       viz_state.cats.polygon_cell_names = [];
@@ -100,9 +101,7 @@ export const grab_cell_tiles_in_view = async (
     viz_state.aws
   );
 
-  tile_cell_tables = tile_cell_tables_ini_new.filter(
-    (table) => table !== null
-  );
+  const tile_cell_tables = tile_cell_tables_ini_new.filter((table) => table !== null);
 
   // Handle case where no cell tiles were loaded
   if (tile_cell_tables.length === 0) {
@@ -111,7 +110,10 @@ export const grab_cell_tiles_in_view = async (
   }
 
   // Extract cell names
-  viz_state.cats.polygon_cell_names = extractCellNames(tile_cell_tables, viz_state);
+  viz_state.cats.polygon_cell_names = extractCellNames(
+    tile_cell_tables,
+    viz_state
+  );
 
   const polygon_datas = tile_cell_tables.map((x) => get_polygon_data(x));
 

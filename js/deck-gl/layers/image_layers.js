@@ -20,7 +20,7 @@ import { make_simple_image_layer } from './simple_image_layer';
 const create_get_tile_data_from_parquet = (
   imageReader,
   maxPyramidZoom,
-  channelName = 'unknown'
+  _channelName = 'unknown'
 ) => {
   return async ({ index }) => {
     const { x, y, z } = index;
@@ -58,7 +58,11 @@ const make_image_layer = (viz_state, info, datasetIndex = 0, cacheKey = '') => {
   // Choose the appropriate getTileData function
   let getTileData;
   if (useRowGroups && imageReader) {
-    getTileData = create_get_tile_data_from_parquet(imageReader, max_pyramid_zoom, info.name);
+    getTileData = create_get_tile_data_from_parquet(
+      imageReader,
+      max_pyramid_zoom,
+      info.name
+    );
   } else {
     getTileData = create_get_tile_data(
       viz_state.global_base_url,
@@ -206,7 +210,11 @@ export const make_yearbook_image_layers = async (
       // This preserves the original RGB colors of histology images
       const renderSubLayers = isHnE
         ? create_simple_render_tile_sublayers(viz_state.dimensions)
-        : create_render_tile_sublayers(viz_state.dimensions, info.color, opacity);
+        : create_render_tile_sublayers(
+            viz_state.dimensions,
+            info.color,
+            opacity
+          );
 
       // Check if we should use row group mode for images
       const useRowGroups = viz_state.use_row_groups;
@@ -215,7 +223,11 @@ export const make_yearbook_image_layers = async (
       // Choose the appropriate getTileData function
       let getTileData;
       if (useRowGroups && imageReader) {
-        getTileData = create_get_tile_data_from_parquet(imageReader, max_pyramid_zoom, info.name);
+        getTileData = create_get_tile_data_from_parquet(
+          imageReader,
+          max_pyramid_zoom,
+          info.name
+        );
       } else {
         getTileData = create_get_tile_data(
           viz_state.global_base_url,

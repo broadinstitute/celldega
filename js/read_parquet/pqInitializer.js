@@ -4,6 +4,7 @@ import {
   readParquet,
   readSchema,
   ParquetFile,
+// eslint-disable-next-line import/extensions
 } from 'parquet-wasm/esm/parquet_wasm.js';
 import wasmBinary from 'parquet-wasm/esm/parquet_wasm_bg.wasm';
 

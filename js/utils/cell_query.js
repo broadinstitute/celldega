@@ -7,6 +7,20 @@ import { options } from '../global_variables/fetch_options';
 import { get_arrow_table } from '../read_parquet/get_arrow_table';
 
 /**
+ * Fisher-Yates shuffle for random cell selection.
+ * @param {Array} array - Array to shuffle
+ * @returns {Array} - Shuffled copy of the array
+ */
+const shuffle_array = (array) => {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+};
+
+/**
  * Get the meta_cell key for a given cell name.
  * When cell_name_prefix is enabled, try both the full name and stripped name.
  * @param {string} name - Cell name from cell_names_array
@@ -44,7 +58,12 @@ const get_meta_cell_attrs = (name, meta_cell, cell_name_prefix) => {
  * @param {string} attr - Cluster attribute name (e.g., 'leiden', 'cluster')
  * @returns {Promise<Map<string, string>>} Map of cell_name -> cluster_value
  */
-export const load_cluster_data = async (base_url, version, aws, attr = 'cluster') => {
+export const load_cluster_data = async (
+  base_url,
+  version,
+  aws,
+  attr = 'cluster'
+) => {
   const version_suffix = version && version !== 'default' ? `_${version}` : '';
   const cluster_url = `${base_url}/cell_clusters${version_suffix}/cluster.parquet`;
 
@@ -56,9 +75,12 @@ export const load_cluster_data = async (base_url, version, aws, attr = 'cluster'
     return new Map();
   }
 
-  const cell_names = cluster_table.getChild('__index_level_0__')?.toArray() || [];
-  const cluster_values = cluster_table.getChild(attr)?.toArray() ||
-                         cluster_table.getChild('cluster')?.toArray() || [];
+  const cell_names =
+    cluster_table.getChild('__index_level_0__')?.toArray() || [];
+  const cluster_values =
+    cluster_table.getChild(attr)?.toArray() ||
+    cluster_table.getChild('cluster')?.toArray() ||
+    [];
 
   const cluster_map = new Map();
   cell_names.forEach((name, i) => {
@@ -78,7 +100,12 @@ export const load_cluster_data = async (base_url, version, aws, attr = 'cluster'
  * @param {string} gene_name - Gene name to load expression for
  * @returns {Promise<Map<string, number>>} Map of cell_name -> expression_value
  */
-export const load_gene_expression = async (base_url, version, aws, gene_name) => {
+export const load_gene_expression = async (
+  base_url,
+  version,
+  aws,
+  gene_name
+) => {
   const version_suffix = version && version !== 'default' ? `_${version}` : '';
   const gene_url = `${base_url}/cbg${version_suffix}/${gene_name}.parquet`;
 
@@ -141,7 +168,7 @@ export const convert_exp_map_keys = (exp_map, viz_state) => {
   }
 
   // Convert integer indices to cell names using nameMapping_inv
-  const nameMapping_inv = viz_state.cats.nameMapping_inv;
+  const {nameMapping_inv} = viz_state.cats;
   if (!nameMapping_inv) {
     console.warn('vector_name_integer is true but nameMapping_inv is missing');
     return exp_map;
@@ -177,7 +204,11 @@ export const convert_exp_map_keys = (exp_map, viz_state) => {
  * @param {number} default_cluster_max - Default max cells for cluster-only queries (default: 100)
  * @returns {Promise<string[]>} Array of cell names matching the query
  */
-export const execute_cell_query = async (query, viz_state, default_cluster_max = 100) => {
+export const execute_cell_query = async (
+  query,
+  viz_state,
+  default_cluster_max = 100
+) => {
   if (!query || Object.keys(query).length === 0) {
     return [];
   }
@@ -233,12 +264,19 @@ export const execute_cell_query = async (query, viz_state, default_cluster_max =
           return String(attrs[attr_index]) === cluster_value;
         });
       } else {
-        console.warn(`Cluster attribute '${cluster_attr}' not found in meta_cell_attr`);
+        console.warn(
+          `Cluster attribute '${cluster_attr}' not found in meta_cell_attr`
+        );
       }
-    } else if (viz_state.cats.dict_cell_cats && Object.keys(viz_state.cats.dict_cell_cats).length > 0) {
+    } else if (
+      viz_state.cats.dict_cell_cats &&
+      Object.keys(viz_state.cats.dict_cell_cats).length > 0
+    ) {
       // Use dict_cell_cats if available (loaded from DegaFiles)
       candidate_cells = candidate_cells.filter((cell_name) => {
-        return String(viz_state.cats.dict_cell_cats[cell_name]) === cluster_value;
+        return (
+          String(viz_state.cats.dict_cell_cats[cell_name]) === cluster_value
+        );
       });
     } else {
       // Load cluster data from DegaFiles
@@ -313,16 +351,4 @@ export const execute_cell_query = async (query, viz_state, default_cluster_max =
     return candidate_cells.slice(0, max_cells);
   }
   return candidate_cells;
-};
-
-/**
- * Fisher-Yates shuffle for random cell selection.
- */
-const shuffle_array = (array) => {
-  const shuffled = [...array];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-  }
-  return shuffled;
 };

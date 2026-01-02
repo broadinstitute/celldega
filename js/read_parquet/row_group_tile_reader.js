@@ -10,9 +10,9 @@
  * This requires only the grid dimensions (num_tiles_x, num_tiles_y) - no mapping needed.
  */
 
-import * as arrow from "apache-arrow";
+import * as arrow from 'apache-arrow';
 
-import { getPq } from "./pqInitializer";
+import { getPq } from './pqInitializer';
 
 /**
  * RowGroupTileReader class for efficient streaming tile-based data access
@@ -52,40 +52,45 @@ export class RowGroupTileReader {
     try {
       // For localhost, trust that Range requests work (skip expensive checks)
       const urlObj = new URL(this.url);
-      if (urlObj.hostname === "localhost" || urlObj.hostname === "127.0.0.1") {
+      if (urlObj.hostname === 'localhost' || urlObj.hostname === '127.0.0.1') {
         return true;
       }
 
       // For remote servers, do a full Range request check to catch CDN issues
       const response = await fetch(this.url, {
-        method: "GET",
+        method: 'GET',
         headers: {
-          Range: "bytes=0-7",
+          Range: 'bytes=0-7',
         },
       });
 
       if (!response.ok && response.status !== 206) {
-        console.log(`[RowGroupTileReader] Range check failed with status ${response.status}`);
+        console.log(
+          `[RowGroupTileReader] Range check failed with status ${response.status}`
+        );
         return false;
       }
 
       // Also test suffix range (what parquet-wasm uses for footer)
       const footerResponse = await fetch(this.url, {
-        method: "GET",
+        method: 'GET',
         headers: {
-          Range: "bytes=-8",
+          Range: 'bytes=-8',
         },
       });
 
       if (!footerResponse.ok && footerResponse.status !== 206) {
-        console.log(`[RowGroupTileReader] Footer range check failed with status ${footerResponse.status}`);
+        console.log(
+          `[RowGroupTileReader] Footer range check failed with status ${footerResponse.status}`
+        );
         return false;
       }
 
-      const isPartial = response.status === 206 && footerResponse.status === 206;
-      const acceptRanges = response.headers.get("Accept-Ranges");
+      const isPartial =
+        response.status === 206 && footerResponse.status === 206;
+      const acceptRanges = response.headers.get('Accept-Ranges');
 
-      return isPartial || acceptRanges === "bytes";
+      return isPartial || acceptRanges === 'bytes';
     } catch (error) {
       console.log(`[RowGroupTileReader] Range check failed: ${error.message}`);
       return false;
@@ -112,19 +117,21 @@ export class RowGroupTileReader {
     if (!rangeSupported) {
       throw new Error(
         `[RowGroupTileReader] Range requests not supported for ${this.url}. ` +
-        `Row group mode requires a server that supports HTTP Range requests with CORS.`
+          `Row group mode requires a server that supports HTTP Range requests with CORS.`
       );
     }
 
-    if (!pq.ParquetFile || typeof pq.ParquetFile.fromUrl !== "function") {
+    if (!pq.ParquetFile || typeof pq.ParquetFile.fromUrl !== 'function') {
       throw new Error(
         `[RowGroupTileReader] ParquetFile.fromUrl not available. ` +
-        `Please ensure parquet-wasm is properly initialized.`
+          `Please ensure parquet-wasm is properly initialized.`
       );
     }
 
     // Use ParquetFile for streaming access with range requests
-    console.log(`[RowGroupTileReader] Range requests supported, creating streaming ParquetFile...`);
+    console.log(
+      `[RowGroupTileReader] Range requests supported, creating streaming ParquetFile...`
+    );
     this.parquetFile = await pq.ParquetFile.fromUrl(this.url);
     this.useStreaming = true;
 
@@ -145,7 +152,12 @@ export class RowGroupTileReader {
    * @returns {boolean} - True if within bounds
    */
   isValidTile(tileX, tileY) {
-    return tileX >= 0 && tileX < this.numTilesX && tileY >= 0 && tileY < this.numTilesY;
+    return (
+      tileX >= 0 &&
+      tileX < this.numTilesX &&
+      tileY >= 0 &&
+      tileY < this.numTilesY
+    );
   }
 
   /**
@@ -168,7 +180,10 @@ export class RowGroupTileReader {
     }
 
     if (rowGroupIndices.length === 0) {
-      console.log(`[RowGroupTileReader] No valid tiles in request. Grid: ${this.numTilesX}x${this.numTilesY}, requested:`, tilesInView.slice(0, 5));
+      console.log(
+        `[RowGroupTileReader] No valid tiles in request. Grid: ${this.numTilesX}x${this.numTilesY}, requested:`,
+        tilesInView.slice(0, 5)
+      );
       return null;
     }
 

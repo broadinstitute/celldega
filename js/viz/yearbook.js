@@ -5,7 +5,6 @@ import {
   set_get_tooltip,
   set_views_prop,
 } from '../deck-gl/core/deck_ist';
-import { execute_cell_query } from '../utils/cell_query';
 import {
   create_yearbook_views,
   get_discontiguous_tiles,
@@ -46,15 +45,16 @@ import { set_landscape_parameters } from '../global_variables/landscape_paramete
 import { set_cluster_metadata } from '../global_variables/meta_cluster';
 import { set_meta_gene } from '../global_variables/meta_gene';
 import { create_obs_store } from '../obs_store/obs_store';
+import { CBGRowGroupReader } from '../read_parquet/cbg_row_group_reader';
+import { ImageRowGroupReader } from '../read_parquet/image_row_group_reader';
+import { RowGroupTileReader } from '../read_parquet/row_group_tile_reader';
 import { set_image_layer_sliders } from '../ui/sliders';
 import { make_yearbook_ui_container } from '../ui/yearbook_ui';
+import { execute_cell_query } from '../utils/cell_query';
 import { refresh_layer } from '../utils/refresh_layer';
 import { create_scale_bar, PIXEL_SIZE_MICRONS } from '../utils/scale_bar';
 
 // Row group reading support
-import { RowGroupTileReader } from '../read_parquet/row_group_tile_reader';
-import { CBGRowGroupReader } from '../read_parquet/cbg_row_group_reader';
-import { ImageRowGroupReader } from '../read_parquet/image_row_group_reader';
 
 /**
  * Initialize row group readers for Yearbook if the landscape uses row groups
@@ -76,7 +76,9 @@ async function initializeYearbookRowGroupReaders(viz_state, base_url) {
   const tileGrid = landscapeParams.tile_grid || {};
 
   if (!tileGrid.num_tiles_x || !tileGrid.num_tiles_y) {
-    console.error('[yearbook] Missing tile_grid dimensions in landscape_parameters');
+    console.error(
+      '[yearbook] Missing tile_grid dimensions in landscape_parameters'
+    );
     viz_state.use_row_groups = false;
     return;
   }
@@ -90,7 +92,10 @@ async function initializeYearbookRowGroupReaders(viz_state, base_url) {
     if (rowGroupFiles.transcripts) {
       const trxUrl = `${base_url}/${rowGroupFiles.transcripts}`;
       console.log(`[yearbook] Initializing transcript reader from: ${trxUrl}`);
-      viz_state.row_group_readers.trx = new RowGroupTileReader(trxUrl, tileGrid);
+      viz_state.row_group_readers.trx = new RowGroupTileReader(
+        trxUrl,
+        tileGrid
+      );
       await viz_state.row_group_readers.trx.initialize();
       console.log('[yearbook] Transcript reader ready');
     }
@@ -99,7 +104,10 @@ async function initializeYearbookRowGroupReaders(viz_state, base_url) {
     if (rowGroupFiles.cell_segmentation) {
       const cellUrl = `${base_url}/${rowGroupFiles.cell_segmentation}`;
       console.log(`[yearbook] Initializing cell reader from: ${cellUrl}`);
-      viz_state.row_group_readers.cell = new RowGroupTileReader(cellUrl, tileGrid);
+      viz_state.row_group_readers.cell = new RowGroupTileReader(
+        cellUrl,
+        tileGrid
+      );
       await viz_state.row_group_readers.cell.initialize();
       console.log('[yearbook] Cell reader ready');
     }
@@ -110,20 +118,29 @@ async function initializeYearbookRowGroupReaders(viz_state, base_url) {
       console.log(`[yearbook] Initializing CBG reader from: ${cbgUrl}`);
       viz_state.row_group_readers.cbg = new CBGRowGroupReader(cbgUrl);
       await viz_state.row_group_readers.cbg.initialize();
-      console.log(`[yearbook] CBG reader ready - ${viz_state.row_group_readers.cbg.getNumGenes()} genes`);
+      console.log(
+        `[yearbook] CBG reader ready - ${viz_state.row_group_readers.cbg.getNumGenes()} genes`
+      );
     }
 
     // Initialize image row group readers for each channel
     if (rowGroupFiles.images) {
       viz_state.row_group_readers.images = {};
 
-      for (const [channelName, imageEntry] of Object.entries(rowGroupFiles.images)) {
-        const imagePath = typeof imageEntry === 'string' ? imageEntry : imageEntry.path;
-        const zoomInfo = typeof imageEntry === 'object' ? imageEntry.zoom_info : null;
+      for (const [channelName, imageEntry] of Object.entries(
+        rowGroupFiles.images
+      )) {
+        const imagePath =
+          typeof imageEntry === 'string' ? imageEntry : imageEntry.path;
+        const zoomInfo =
+          typeof imageEntry === 'object' ? imageEntry.zoom_info : null;
 
         const imageUrl = `${base_url}/${imagePath}`;
-        console.log(`[yearbook] Initializing image reader for ${channelName} from: ${imageUrl}`);
-        viz_state.row_group_readers.images[channelName] = new ImageRowGroupReader(imageUrl, zoomInfo);
+        console.log(
+          `[yearbook] Initializing image reader for ${channelName} from: ${imageUrl}`
+        );
+        viz_state.row_group_readers.images[channelName] =
+          new ImageRowGroupReader(imageUrl, zoomInfo);
         await viz_state.row_group_readers.images[channelName].initialize();
         console.log(`[yearbook] Image reader (${channelName}) ready`);
       }
@@ -465,7 +482,10 @@ export const yearbook = async (
       if (all_cells.length > 0) {
         // Shuffle and take a subset
         const shuffled = [...all_cells].sort(() => Math.random() - 0.5);
-        initial_cells = shuffled.slice(0, Math.min(default_count, all_cells.length));
+        initial_cells = shuffled.slice(
+          0,
+          Math.min(default_count, all_cells.length)
+        );
       }
     }
 

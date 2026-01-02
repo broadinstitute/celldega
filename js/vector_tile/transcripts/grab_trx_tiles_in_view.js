@@ -48,7 +48,9 @@ export const grab_trx_tiles_in_view = async (
       viz_state.aws
     );
 
-    const tile_trx_tables = tile_trx_tables_ini.filter((table) => table !== null);
+    const tile_trx_tables = tile_trx_tables_ini.filter(
+      (table) => table !== null
+    );
 
     trx_arrow_table = concatenate_arrow_tables(tile_trx_tables);
   }

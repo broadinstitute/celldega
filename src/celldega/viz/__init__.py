@@ -207,6 +207,7 @@ def landscape_yearbook(
         yearbook = dega.viz.Yearbook(base_url="...", rows=2, cols=4)
         display = dega.viz.landscape_yearbook(landscape, yearbook)
     """
+
     # Link Landscape update_trigger to Yearbook query
     def _on_update_trigger(change):
         info = change["new"] or {}

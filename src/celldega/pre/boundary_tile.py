@@ -561,7 +561,9 @@ def _write_boundary_tiles_as_row_groups(tile_data_list, output_path, tile_grid_i
 
     total_tiles = tile_grid_info["num_tiles_x"] * tile_grid_info["num_tiles_y"]
     print(f"Wrote {len(tile_data_list)} row groups ({non_empty_count} non-empty) to {output_path}")
-    print(f"Tile grid: {tile_grid_info['num_tiles_x']}x{tile_grid_info['num_tiles_y']} = {total_tiles} tiles")
+    print(
+        f"Tile grid: {tile_grid_info['num_tiles_x']}x{tile_grid_info['num_tiles_y']} = {total_tiles} tiles"
+    )
 
 
 def make_cell_boundary_tiles_row_groups(

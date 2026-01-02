@@ -788,9 +788,9 @@ class Clustergram(anywidget.AnyWidget):
 
     # Colors for value (numeric) attributes: {"positive": "#color", "negative": "#color"}
     # Default: gray for positive, orange for negative
-    value_colors = traitlets.Dict(
-        default_value={"positive": "#a9a9a9", "negative": "#ffa500"}
-    ).tag(sync=True)
+    value_colors = traitlets.Dict(default_value={"positive": "#a9a9a9", "negative": "#ffa500"}).tag(
+        sync=True
+    )
 
     # Canonical manual category payload as JSON string.
     manual_cat = traitlets.Unicode("{}").tag(sync=True)

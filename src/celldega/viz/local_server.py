@@ -12,6 +12,7 @@ import requests
 
 class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
     """HTTP server that handles each request in a new thread."""
+
     daemon_threads = True
 
 
@@ -26,7 +27,9 @@ class CORSHTTPRequestHandler(SimpleHTTPRequestHandler):
             "Access-Control-Allow-Headers",
             "Range, X-Requested-With, Content-Type, Authorization",
         )
-        self.send_header("Access-Control-Expose-Headers", "Content-Range, Accept-Ranges, Content-Length")
+        self.send_header(
+            "Access-Control-Expose-Headers", "Content-Range, Accept-Ranges, Content-Length"
+        )
         self.send_header("Access-Control-Allow-Credentials", "true")
         super().end_headers()
 
@@ -65,9 +68,7 @@ class ProxyHTTPRequestHandler(BaseHTTPRequestHandler):
             cls._session = requests.Session()
             # Increase pool size for concurrent requests
             adapter = requests.adapters.HTTPAdapter(
-                pool_connections=20,
-                pool_maxsize=50,
-                max_retries=3
+                pool_connections=20, pool_maxsize=50, max_retries=3
             )
             cls._session.mount("http://", adapter)
             cls._session.mount("https://", adapter)
@@ -84,7 +85,7 @@ class ProxyHTTPRequestHandler(BaseHTTPRequestHandler):
         if len(cls._cache) >= cls._cache_max_size:
             # Simple eviction: clear oldest half
             keys = list(cls._cache.keys())
-            for k in keys[:len(keys) // 2]:
+            for k in keys[: len(keys) // 2]:
                 del cls._cache[k]
         cls._cache[cache_key] = (data, headers)
 
@@ -96,7 +97,9 @@ class ProxyHTTPRequestHandler(BaseHTTPRequestHandler):
             "Access-Control-Allow-Headers",
             "Range, X-Requested-With, Content-Type, Authorization",
         )
-        self.send_header("Access-Control-Expose-Headers", "Content-Range, Accept-Ranges, Content-Length")
+        self.send_header(
+            "Access-Control-Expose-Headers", "Content-Range, Accept-Ranges, Content-Length"
+        )
         self.send_header("Access-Control-Allow-Credentials", "true")
 
     def do_OPTIONS(self) -> None:

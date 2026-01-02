@@ -708,13 +708,17 @@ def pack_image_tiles_to_parquet(
                 image_width = int(size_elem.get("Width"))
                 image_height = int(size_elem.get("Height"))
             else:
-                print(f"Warning: Could not find Size element in DZI. Root tag: {root.tag}, children: {[c.tag for c in root]}")
+                print(
+                    f"Warning: Could not find Size element in DZI. Root tag: {root.tag}, children: {[c.tag for c in root]}"
+                )
 
             # Get tile size from Image element
             if root.get("TileSize"):
                 tile_size = int(root.get("TileSize"))
 
-            print(f"Read image dimensions from DZI: {image_width}x{image_height}, tile_size={tile_size}")
+            print(
+                f"Read image dimensions from DZI: {image_width}x{image_height}, tile_size={tile_size}"
+            )
         except Exception as e:
             print(f"Warning: Could not parse DZI file: {e}")
             import traceback
@@ -1672,12 +1676,14 @@ def add_clustering_from_adata(
 
     # Ensure we have enough colors
     if len(colors) < len(clusters):
-        extra_colors = _create_cluster_colors(clusters[len(colors):])
+        extra_colors = _create_cluster_colors(clusters[len(colors) :])
         colors = list(colors) + extra_colors
 
     # Create meta_cluster DataFrame
     meta_cluster = pd.DataFrame(index=clusters)
-    meta_cluster["color"] = [colors[i] if i < len(colors) else "#808080" for i in range(len(clusters))]
+    meta_cluster["color"] = [
+        colors[i] if i < len(colors) else "#808080" for i in range(len(clusters))
+    ]
     meta_cluster["count"] = cluster_counts.values
     meta_cluster.to_parquet(cluster_dir / "meta_cluster.parquet")
 

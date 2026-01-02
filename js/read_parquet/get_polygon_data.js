@@ -1,3 +1,5 @@
+import { concatenate_polygon_data } from '../vector_tile/concatenate_functions';
+
 /**
  * Extract polygon data from a single data chunk
  * @param {Object} polygonChunk - The polygon level chunk data
@@ -27,69 +29,6 @@ function getPolygonDataFromChunk(polygonChunk, ringChunk, coordChunk) {
       getPolygon: { value: flatCoordinateArray, size: 2 },
     },
   };
-}
-
-/**
- * Concatenate multiple polygon data objects (reusing existing logic)
- * @param {Array} dataObjects - Array of polygon data objects
- * @returns {Object} - Combined polygon data
- */
-function concatenatePolygonDataInternal(dataObjects) {
-  // Filter out undefined or null elements
-  dataObjects = dataObjects.filter(
-    (data) => data !== undefined && data !== null
-  );
-
-  if (dataObjects.length === 0) {
-    return null;
-  }
-  
-  if (dataObjects.length === 1) {
-    return dataObjects[0];
-  }
-
-  // Initialize concatenated data structure
-  const concatenatedData = {
-    length: 0,
-    startIndices: new Int32Array(),
-    attributes: {
-      getPolygon: {
-        value: new Float64Array(),
-        size: 2,
-      },
-    },
-  };
-
-  // Iterate over each data object to combine them
-  dataObjects.forEach((data, index) => {
-    concatenatedData.length += data.length;
-
-    // Handle startIndices - adjust by current coordinate count
-    const lastValue = concatenatedData.attributes.getPolygon.value.length / 2;
-    let adjustedStartIndices = data.startIndices;
-
-    if (index > 0) {
-      // Adjust startIndices (except for the first data object)
-      adjustedStartIndices = new Int32Array(data.startIndices.length);
-      for (let i = 0; i < data.startIndices.length; i++) {
-        adjustedStartIndices[i] = data.startIndices[i] + lastValue;
-      }
-    }
-
-    // Combine startIndices (skip first element for subsequent chunks to avoid duplicate)
-    concatenatedData.startIndices = new Int32Array([
-      ...concatenatedData.startIndices,
-      ...adjustedStartIndices.slice(index > 0 ? 1 : 0),
-    ]);
-    
-    // Combine coordinate values
-    concatenatedData.attributes.getPolygon.value = new Float64Array([
-      ...concatenatedData.attributes.getPolygon.value,
-      ...data.attributes.getPolygon.value,
-    ]);
-  });
-
-  return concatenatedData;
 }
 
 export const get_polygon_data = (arrowTable) => {
@@ -146,5 +85,5 @@ export const get_polygon_data = (arrowTable) => {
   }
   
   // Use the same concatenation logic as the non-row-group approach
-  return concatenatePolygonDataInternal(chunkPolygonData);
+  return concatenate_polygon_data(chunkPolygonData);
 };

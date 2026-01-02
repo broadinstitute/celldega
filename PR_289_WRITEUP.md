@@ -9,6 +9,7 @@ This PR introduces an optional **row group storage mode** for Celldega's Landsca
 - **Cloud hosting compatibility**: Works within GitHub/Hugging Face file limits
 - **Efficient partial loading**: HTTP Range Requests fetch only needed data
 - **Backwards compatible**: Opt-in via `use_row_groups=True` parameter
+- **CORS proxy support**: Local Python proxy server for remote data sources without CORS
 
 ---
 
@@ -195,6 +196,44 @@ The following files were updated to pass the CBG reader parameter:
 - `js/widget_interactions/update_ist_landscape_from_cgm.js`
 - `js/deck-gl/layers/trx_layer.js`
 
+### Python Backend (Additional)
+
+#### `src/celldega/viz/local_server.py`
+**Purpose**: Local HTTP server with CORS support and remote proxy
+
+**Changes**:
+- Added `ThreadedHTTPServer` for multi-threaded request handling
+- Fixed CORS headers for Range requests (`do_OPTIONS`, `Access-Control-Expose-Headers`)
+- New `ProxyHTTPRequestHandler` class for proxying remote requests
+- Connection pooling via `requests.Session` for performance
+- `get_proxy_server()` function to start a local proxy for CORS-restricted remote servers
+
+**Usage**:
+```python
+import celldega as dega
+
+# Start proxy for Hugging Face data
+proxy_port = dega.viz.get_proxy_server(
+    "https://huggingface.co/datasets/user/repo/resolve/main/folder",
+    verbose=True
+)
+
+# Use the proxy URL for the landscape
+landscape = dega.viz.Landscape(
+    technology='Xenium',
+    base_url=f"http://localhost:{proxy_port}"
+)
+```
+
+#### `js/read_parquet/get_polygon_data.js`
+**Purpose**: Extract polygon data from Arrow tables
+
+**Changes**:
+- Added column name lookup (`GEOMETRY`, `geometry`) for robustness
+- Multi-chunk handling for row-grouped data
+- Imports `concatenate_polygon_data` from shared module (no code duplication)
+- Processes each chunk separately, then concatenates using proven logic
+
 ### Build System
 
 #### `package.json`
@@ -261,16 +300,32 @@ Stored in file schema metadata:
 
 ## Testing
 
+### Automated Tests
+
+New test file: `tests/unit/test_pre/test_row_groups.py`
+
+**Test Classes**:
+- `TestRowGroupMetadata`: Parquet metadata storage and retrieval
+- `TestFormulaBasedIndexing`: Index computation formula validation
+- `TestLandscapeParametersRowGroups`: JSON config structure
+- `TestRowGroupReading`: Selective row group reading
+
+**Run tests**:
+```bash
+python -m pytest tests/unit/test_pre/test_row_groups.py -v
+```
+
 ### Manual Testing Checklist
 - [ ] Traditional mode still works (use_row_groups=False)
 - [ ] Row group mode preprocessing completes
 - [ ] Transcript tiles load and display
-- [ ] Cell boundaries load and display
+- [ ] Cell boundaries load and display correctly (multi-chunk concatenation)
 - [ ] Gene selection colors cells correctly
 - [ ] Image tiles display at all zoom levels
 - [ ] Gene search works
 - [ ] Cluster coloring works
 - [ ] Pan/zoom performance acceptable
+- [ ] Proxy server works for remote data (Hugging Face)
 
 ### Verification Commands
 ```python
@@ -287,6 +342,56 @@ import os
 for f in os.listdir('output/'):
     print(f)
 # Expected: transcripts.parquet, cell_segmentation.parquet, cbg.parquet, etc.
+
+# Test proxy server for remote data
+proxy_port = dega.viz.get_proxy_server(
+    "https://huggingface.co/datasets/user/repo/resolve/main/folder"
+)
+print(f"Proxy running on port {proxy_port}")
+```
+
+---
+
+## CORS and Remote Data
+
+### The Challenge
+
+Hugging Face's CDN (`cas-bridge.xethub.hf.co`) does not currently support CORS headers for HTTP Range Requests. This causes browser CORS errors when `parquet-wasm` attempts to stream partial file data.
+
+### The Solution
+
+A local Python proxy server bypasses CORS restrictions by:
+1. Running on `localhost` (same-origin)
+2. Forwarding Range requests to the remote server
+3. Adding proper CORS headers to responses
+
+### Requesting CORS Support from Hugging Face
+
+Post to the [HF Hub Discussion Forum](https://discuss.huggingface.co/c/hub/14):
+
+```
+Title: Request for CORS support for HTTP Range Requests on dataset files
+
+Hi HF team,
+
+I'm building a web-based data visualization tool that uses Parquet files 
+with row groups for efficient partial data loading. The tool needs to make 
+HTTP Range Requests from the browser to fetch only specific portions of 
+large Parquet files.
+
+Current behavior:
+- Simple GET requests work fine through the CDN redirect
+- Range requests fail with CORS preflight errors when redirected
+
+Requested change:
+Add CORS headers to the XetHub CDN:
+- Access-Control-Allow-Origin: *
+- Access-Control-Allow-Methods: GET, HEAD, OPTIONS
+- Access-Control-Allow-Headers: Range, Content-Type
+- Access-Control-Expose-Headers: Content-Range, Accept-Ranges, Content-Length
+
+This would enable browser-based data tools to efficiently read partial data 
+from HF-hosted datasets.
 ```
 
 ---
@@ -297,3 +402,4 @@ for f in os.listdir('output/'):
 - **Opt-in**: Set `use_row_groups=True` to enable
 - **Reprocessing required**: Cannot convert existing files; must rerun preprocessing
 - **Mixed datasets OK**: Different datasets can use different modes
+- **Remote data**: Use `get_proxy_server()` for CORS-restricted hosts

@@ -33,8 +33,13 @@ export class ImageRowGroupReader {
    */
   async _checkRangeSupport() {
     try {
-      // Test Range requests for both start and end of file
-      // This catches CDN redirects that fail CORS (like Hugging Face)
+      // For localhost, trust that Range requests work (skip expensive checks)
+      const urlObj = new URL(this.url);
+      if (urlObj.hostname === "localhost" || urlObj.hostname === "127.0.0.1") {
+        return true;
+      }
+
+      // For remote servers, do a full Range request check
       const response = await fetch(this.url, {
         method: "GET",
         headers: { Range: "bytes=0-7" },
@@ -45,7 +50,6 @@ export class ImageRowGroupReader {
         return false;
       }
 
-      // Also test suffix range (footer) - this is what parquet-wasm uses
       const footerResponse = await fetch(this.url, {
         method: "GET",
         headers: { Range: "bytes=-8" },
@@ -77,68 +81,32 @@ export class ImageRowGroupReader {
 
     // console.log(`[ImageRowGroupReader] Initializing from: ${this.url}`);
 
-    // First check if Range requests are supported (also validates CORS)
+    // Require Range request support - no full file fallback for row groups
     const rangeSupported = await this._checkRangeSupport();
 
-    // Try to use ParquetFile for streaming access
-    if (rangeSupported && pq.ParquetFile && typeof pq.ParquetFile.fromUrl === "function") {
-      try {
-        console.log(`[ImageRowGroupReader] Range requests supported, creating streaming ParquetFile...`);
-        this.parquetFile = await pq.ParquetFile.fromUrl(this.url);
-        this.useStreaming = true;
-
-        const metadata = this.parquetFile.metadata();
-        console.log(
-          `[ImageRowGroupReader] Streaming mode enabled, ${metadata.numRowGroups} tiles available`
-        );
-      } catch (error) {
-        console.warn(
-          `[ImageRowGroupReader] Streaming failed, falling back:`,
-          error.message
-        );
-        this.useStreaming = false;
-      }
-    } else {
-      if (!rangeSupported) {
-        console.log(`[ImageRowGroupReader] Range requests not supported, using full fetch mode`);
-      }
-      this.useStreaming = false;
-    }
-
-    // Fallback: fetch entire file
-    if (!this.useStreaming) {
-      console.log(`[ImageRowGroupReader] Fetching full file...`);
-      const response = await fetch(this.url);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch image parquet: ${response.statusText}`);
-      }
-      const arrayBuffer = await response.arrayBuffer();
-      this.parquetData = new Uint8Array(arrayBuffer);
-      console.log(
-        `[ImageRowGroupReader] Loaded ${(this.parquetData.length / 1024 / 1024).toFixed(2)} MB`
+    if (!rangeSupported) {
+      throw new Error(
+        `[ImageRowGroupReader] Range requests not supported for ${this.url}. ` +
+        `Row group mode requires a server that supports HTTP Range requests with CORS.`
       );
-
-      // If zoomInfo wasn't provided, try to read it from parquet metadata
-      if (!this.zoomInfo || Object.keys(this.zoomInfo).length === 0) {
-        try {
-          const wasmTable = pq.readParquet(this.parquetData);
-          const arrowIPC = wasmTable.intoIPCStream();
-          const table = arrow.tableFromIPC(arrowIPC);
-
-          // Arrow schema metadata is a Map
-          const metadata = table.schema.metadata;
-          if (metadata) {
-            const zoomInfoStr = metadata.get("zoom_info");
-            if (zoomInfoStr) {
-              this.zoomInfo = JSON.parse(zoomInfoStr);
-              console.log(`[ImageRowGroupReader] Read zoom_info from parquet metadata: ${Object.keys(this.zoomInfo).length} zoom levels`);
-            }
-          }
-        } catch (e) {
-          console.warn(`[ImageRowGroupReader] Could not read zoom_info from metadata: ${e.message}`);
-        }
-      }
     }
+
+    if (!pq.ParquetFile || typeof pq.ParquetFile.fromUrl !== "function") {
+      throw new Error(
+        `[ImageRowGroupReader] ParquetFile.fromUrl not available. ` +
+        `Please ensure parquet-wasm is properly initialized.`
+      );
+    }
+
+    // Use ParquetFile for streaming access
+    console.log(`[ImageRowGroupReader] Range requests supported, creating streaming ParquetFile...`);
+    this.parquetFile = await pq.ParquetFile.fromUrl(this.url);
+    this.useStreaming = true;
+
+    const metadata = this.parquetFile.metadata();
+    console.log(
+      `[ImageRowGroupReader] Streaming mode enabled, ${metadata.numRowGroups} tiles available`
+    );
 
     console.log(`[ImageRowGroupReader] zoomInfo available: ${this.zoomInfo ? Object.keys(this.zoomInfo).join(', ') : 'none'}`);
     this.initialized = true;
@@ -202,15 +170,8 @@ export class ImageRowGroupReader {
     }
 
     try {
-      let wasmTable;
-      const pq = await getPq();
-
-      if (this.useStreaming && this.parquetFile) {
-        wasmTable = await this.parquetFile.read({ rowGroups: [rowGroupIndex] });
-      } else {
-        wasmTable = pq.readParquet(this.parquetData, { rowGroups: [rowGroupIndex] });
-      }
-
+      // Use streaming mode with HTTP Range Requests
+      const wasmTable = await this.parquetFile.read({ rowGroups: [rowGroupIndex] });
       const arrowIPC = wasmTable.intoIPCStream();
       const table = arrow.tableFromIPC(arrowIPC);
 

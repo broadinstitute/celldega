@@ -46,33 +46,34 @@ export class RowGroupTileReader {
 
   /**
    * Check if the server supports Range requests (needed for streaming)
-   * This makes actual Range requests to catch CDN redirects that fail CORS
    * @returns {Promise<boolean>}
    */
   async _checkRangeSupport() {
     try {
-      // First, try a small Range request
+      // For localhost, trust that Range requests work (skip expensive checks)
+      const urlObj = new URL(this.url);
+      if (urlObj.hostname === "localhost" || urlObj.hostname === "127.0.0.1") {
+        return true;
+      }
+
+      // For remote servers, do a full Range request check to catch CDN issues
       const response = await fetch(this.url, {
         method: "GET",
         headers: {
-          Range: "bytes=0-7", // Request first 8 bytes (Parquet magic number)
+          Range: "bytes=0-7",
         },
       });
 
-      // 206 = Partial Content (Range request worked)
-      // 200 = Server ignored Range header but request succeeded
       if (!response.ok && response.status !== 206) {
         console.log(`[RowGroupTileReader] Range check failed with status ${response.status}`);
         return false;
       }
 
-      // Now test a Range request for the END of the file (parquet footer)
-      // This is what parquet-wasm will do, and it may trigger different CDN behavior
-      // Request last 8 bytes using suffix range
+      // Also test suffix range (what parquet-wasm uses for footer)
       const footerResponse = await fetch(this.url, {
         method: "GET",
         headers: {
-          Range: "bytes=-8", // Request last 8 bytes (footer magic)
+          Range: "bytes=-8",
         },
       });
 
@@ -81,18 +82,11 @@ export class RowGroupTileReader {
         return false;
       }
 
-      // Both Range requests succeeded
       const isPartial = response.status === 206 && footerResponse.status === 206;
       const acceptRanges = response.headers.get("Accept-Ranges");
 
-      if (isPartial || acceptRanges === "bytes") {
-        console.log(`[RowGroupTileReader] Range requests verified (partial: ${isPartial})`);
-        return true;
-      }
-
-      return false;
+      return isPartial || acceptRanges === "bytes";
     } catch (error) {
-      // CORS errors, network errors, etc. will be caught here
       console.log(`[RowGroupTileReader] Range check failed: ${error.message}`);
       return false;
     }
@@ -114,48 +108,32 @@ export class RowGroupTileReader {
     // First check if Range requests are supported (also validates CORS)
     const rangeSupported = await this._checkRangeSupport();
 
-    // Try to use ParquetFile for streaming access with range requests
-    if (rangeSupported && pq.ParquetFile && typeof pq.ParquetFile.fromUrl === "function") {
-      try {
-        console.log(`[RowGroupTileReader] Range requests supported, creating streaming ParquetFile...`);
-        this.parquetFile = await pq.ParquetFile.fromUrl(this.url);
-        this.useStreaming = true;
-
-        // Get metadata for verification
-        const metadata = this.parquetFile.metadata();
-        const expectedRowGroups = this.numTilesX * this.numTilesY;
-        console.log(
-          `[RowGroupTileReader] Streaming mode enabled, ${metadata.numRowGroups} row groups (expected ${expectedRowGroups})`
-        );
-      } catch (error) {
-        console.warn(
-          `[RowGroupTileReader] Streaming failed, falling back to full fetch:`,
-          error.message
-        );
-        this.useStreaming = false;
-      }
-    } else {
-      if (!rangeSupported) {
-        console.log(`[RowGroupTileReader] Range requests not supported, using full fetch mode`);
-      } else {
-        console.log(`[RowGroupTileReader] ParquetFile.fromUrl not available, using full fetch mode`);
-      }
-      this.useStreaming = false;
-    }
-
-    // Fallback: fetch entire file if streaming not available
-    if (!this.useStreaming) {
-      console.log(`[RowGroupTileReader] Fetching full file...`);
-      const response = await fetch(this.url);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch parquet file: ${response.statusText}`);
-      }
-      const arrayBuffer = await response.arrayBuffer();
-      this.parquetData = new Uint8Array(arrayBuffer);
-      console.log(
-        `[RowGroupTileReader] Loaded ${(this.parquetData.length / 1024).toFixed(2)} KB (fallback mode)`
+    // Require Range request support - no full file fallback for row groups
+    if (!rangeSupported) {
+      throw new Error(
+        `[RowGroupTileReader] Range requests not supported for ${this.url}. ` +
+        `Row group mode requires a server that supports HTTP Range requests with CORS.`
       );
     }
+
+    if (!pq.ParquetFile || typeof pq.ParquetFile.fromUrl !== "function") {
+      throw new Error(
+        `[RowGroupTileReader] ParquetFile.fromUrl not available. ` +
+        `Please ensure parquet-wasm is properly initialized.`
+      );
+    }
+
+    // Use ParquetFile for streaming access with range requests
+    console.log(`[RowGroupTileReader] Range requests supported, creating streaming ParquetFile...`);
+    this.parquetFile = await pq.ParquetFile.fromUrl(this.url);
+    this.useStreaming = true;
+
+    // Get metadata for verification
+    const metadata = this.parquetFile.metadata();
+    const expectedRowGroups = this.numTilesX * this.numTilesY;
+    console.log(
+      `[RowGroupTileReader] Streaming mode enabled, ${metadata.numRowGroups} row groups (expected ${expectedRowGroups})`
+    );
 
     this.initialized = true;
   }
@@ -190,7 +168,7 @@ export class RowGroupTileReader {
     }
 
     if (rowGroupIndices.length === 0) {
-      console.log(`[RowGroupTileReader] No valid tiles in request`);
+      console.log(`[RowGroupTileReader] No valid tiles in request. Grid: ${this.numTilesX}x${this.numTilesY}, requested:`, tilesInView.slice(0, 5));
       return null;
     }
 
@@ -200,21 +178,10 @@ export class RowGroupTileReader {
     // Verbose logging disabled
     // console.log(`[RowGroupTileReader] Reading ${uniqueIndices.length} row groups`);
 
-    let wasmTable;
-    const pq = await getPq();
-
-    if (this.useStreaming && this.parquetFile) {
-      // Streaming mode: use ParquetFile.read() with rowGroups option
-      // This should use HTTP Range Requests to fetch only needed data
-      wasmTable = await this.parquetFile.read({
-        rowGroups: uniqueIndices,
-      });
-    } else {
-      // Fallback mode: read from cached full file
-      wasmTable = pq.readParquet(this.parquetData, {
-        rowGroups: uniqueIndices,
-      });
-    }
+    // Use streaming mode with HTTP Range Requests
+    const wasmTable = await this.parquetFile.read({
+      rowGroups: uniqueIndices,
+    });
 
     // Convert to Arrow Table
     const arrowIPC = wasmTable.intoIPCStream();

@@ -677,21 +677,49 @@ def pack_image_tiles_to_parquet(
 
     if dzi_file.exists():
         try:
+            # Read raw content to check format
+            dzi_content = dzi_file.read_text()
+            print(f"DZI file content preview: {dzi_content[:200]}")
+
             tree = ET.parse(dzi_file)
             root = tree.getroot()
-            # Handle namespace in DZI files
+
+            # Try different ways to find the Size element
+            # Method 1: With namespace
             ns = {"dzi": "http://schemas.microsoft.com/deepzoom/2008"}
-            size_elem = root.find(".//dzi:Size", ns) or root.find(".//Size")
+            size_elem = root.find(".//dzi:Size", ns)
+
+            # Method 2: Without namespace (pyvips may not include namespace)
+            if size_elem is None:
+                size_elem = root.find(".//Size")
+
+            # Method 3: Direct child of root
+            if size_elem is None:
+                size_elem = root.find("Size")
+
+            # Method 4: root might be Image element itself
+            if size_elem is None:
+                for child in root:
+                    if "Size" in child.tag:
+                        size_elem = child
+                        break
+
             if size_elem is not None:
                 image_width = int(size_elem.get("Width"))
                 image_height = int(size_elem.get("Height"))
+            else:
+                print(f"Warning: Could not find Size element in DZI. Root tag: {root.tag}, children: {[c.tag for c in root]}")
+
             # Get tile size from Image element
-            image_elem = root.find(".//dzi:Image", ns) or root.find(".//Image") or root
-            if image_elem is not None and image_elem.get("TileSize"):
-                tile_size = int(image_elem.get("TileSize"))
+            if root.get("TileSize"):
+                tile_size = int(root.get("TileSize"))
+
             print(f"Read image dimensions from DZI: {image_width}x{image_height}, tile_size={tile_size}")
         except Exception as e:
             print(f"Warning: Could not parse DZI file: {e}")
+            import traceback
+
+            traceback.print_exc()
 
     # Discover zoom levels and tiles
     zoom_levels = sorted([int(d.name) for d in tiles_dir.iterdir() if d.is_dir()])
@@ -783,18 +811,15 @@ def pack_image_tiles_to_parquet(
 
     print(f"Wrote {len(all_tiles)} image tiles to {output_path}")
 
-    # Delete source tiles if requested
+    # Delete source tile images if requested (but keep .dzi files for dimension info)
     if delete_source_tiles:
         import shutil
 
-        print(f"Deleting source tiles from {tiles_dir}...")
+        print(f"Deleting source tile images from {tiles_dir}...")
         try:
             shutil.rmtree(tiles_dir)
-            # Also delete the .dzi file if it exists
-            dzi_file = Path(pyramid_dir) / f"{channel_name}.dzi"
-            if dzi_file.exists():
-                dzi_file.unlink()
-            print(f"Deleted source tiles for {channel_name}")
+            # Keep the .dzi file - it's tiny and provides image dimensions
+            print(f"Deleted source tile images for {channel_name} (kept .dzi file)")
         except Exception as e:
             print(f"Warning: Could not delete source tiles: {e}")
 
@@ -1128,13 +1153,14 @@ def save_landscape_parameters(
             }
 
             # Add image parquet files for each channel with zoom info
-            image_parquet_dir = Path(path_landscape_files) / "image_parquet"
-            if image_parquet_dir.exists():
+            # Parquet files are now in pyramid_images/ alongside .dzi files
+            pyramid_images_dir = Path(path_landscape_files) / "pyramid_images"
+            if pyramid_images_dir.exists():
                 image_parquets = {}
-                for pq_file in image_parquet_dir.glob("*.parquet"):
+                for pq_file in pyramid_images_dir.glob("*.parquet"):
                     channel_name = pq_file.stem
                     image_entry = {
-                        "path": f"image_parquet/{pq_file.name}",
+                        "path": f"pyramid_images/{pq_file.name}",
                     }
                     # Add zoom_info if available from image_tile_info
                     if image_tile_info and channel_name in image_tile_info:

@@ -95,8 +95,30 @@ export class ImageRowGroupReader {
       console.log(
         `[ImageRowGroupReader] Loaded ${(this.parquetData.length / 1024 / 1024).toFixed(2)} MB`
       );
+
+      // If zoomInfo wasn't provided, try to read it from parquet metadata
+      if (!this.zoomInfo || Object.keys(this.zoomInfo).length === 0) {
+        try {
+          const wasmTable = pq.readParquet(this.parquetData);
+          const arrowIPC = wasmTable.intoIPCStream();
+          const table = arrow.tableFromIPC(arrowIPC);
+
+          // Arrow schema metadata is a Map
+          const metadata = table.schema.metadata;
+          if (metadata) {
+            const zoomInfoStr = metadata.get("zoom_info");
+            if (zoomInfoStr) {
+              this.zoomInfo = JSON.parse(zoomInfoStr);
+              console.log(`[ImageRowGroupReader] Read zoom_info from parquet metadata: ${Object.keys(this.zoomInfo).length} zoom levels`);
+            }
+          }
+        } catch (e) {
+          console.warn(`[ImageRowGroupReader] Could not read zoom_info from metadata: ${e.message}`);
+        }
+      }
     }
 
+    console.log(`[ImageRowGroupReader] zoomInfo available: ${this.zoomInfo ? Object.keys(this.zoomInfo).join(', ') : 'none'}`);
     this.initialized = true;
   }
 
@@ -113,8 +135,12 @@ export class ImageRowGroupReader {
    * @returns {number|null} - Row group index or null if not found
    */
   computeRowGroupIndex(zoom, tileX, tileY) {
-    const zoomData = this.zoomInfo[zoom];
+    // JSON keys are strings, so convert zoom to string
+    const zoomKey = String(zoom);
+    const zoomData = this.zoomInfo[zoomKey];
+
     if (!zoomData) {
+      console.log(`[ImageRowGroupReader] No zoom data for level ${zoom}, available: ${Object.keys(this.zoomInfo).join(', ')}`);
       return null;
     }
 

@@ -311,14 +311,13 @@ def main(
         if use_row_groups:
             print("\n======== Packing Image Tiles to Parquet ========")
             pyramid_dir = Path(path_landscape_files) / "pyramid_images"
-            image_parquet_dir = Path(path_landscape_files) / "image_parquet"
-            image_parquet_dir.mkdir(exist_ok=True)
 
             # Determine which channels were created
             image_info = dega.pre.get_image_info(technology, image_tile_layer)
             for channel_info in image_info:
                 channel_name = channel_info["name"]
-                output_parquet = image_parquet_dir / f"{channel_name}.parquet"
+                # Put parquet files in pyramid_images/ alongside the .dzi files
+                output_parquet = pyramid_dir / f"{channel_name}.parquet"
 
                 if not output_parquet.exists():
                     try:

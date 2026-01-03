@@ -560,6 +560,9 @@ def _collect_tile_data_for_row_groups(
     This allows the frontend to calculate row group indices directly from
     tile coordinates using just the grid dimensions.
 
+    OPTIMIZED: Calculates tile indices once for all transcripts, then groups.
+    This is O(n) instead of O(tiles × n).
+
     Parameters:
     - trx: Transcript data
     - x_min, y_min, x_max, y_max: Coordinate bounds
@@ -573,54 +576,59 @@ def _collect_tile_data_for_row_groups(
     n_tiles_x = int(np.ceil((x_max - x_min) / tile_size))
     n_tiles_y = int(np.ceil((y_max - y_min) / tile_size))
 
+    print(f"Grid: {n_tiles_x} x {n_tiles_y} = {n_tiles_x * n_tiles_y} tiles")
+    print("Calculating tile indices for all transcripts...")
+
+    # OPTIMIZED: Calculate tile indices for ALL transcripts at once (O(n))
+    trx = trx.with_columns(
+        [
+            ((pl.col("transformed_x") - x_min) / tile_size).floor().cast(pl.Int32).alias("tile_x"),
+            ((pl.col("transformed_y") - y_min) / tile_size).floor().cast(pl.Int32).alias("tile_y"),
+        ]
+    )
+
+    # Clamp to valid range (edge cases)
+    trx = trx.with_columns(
+        [
+            pl.col("tile_x").clip(0, n_tiles_x - 1).alias("tile_x"),
+            pl.col("tile_y").clip(0, n_tiles_y - 1).alias("tile_y"),
+        ]
+    )
+
+    # Add geometry column
+    trx = trx.with_columns(
+        pl.concat_list([pl.col("transformed_x"), pl.col("transformed_y")]).alias("geometry")
+    )
+
+    # Drop original coordinate columns
+    columns_to_drop = [
+        col
+        for col in ["transformed_x", "transformed_y", "cell_id", "transcript_id"]
+        if col in trx.columns
+    ]
+    trx = trx.drop(columns_to_drop)
+
+    print("Grouping transcripts by tile...")
+
+    # Group by tile - this is efficient in Polars
+    grouped = trx.group_by(["tile_x", "tile_y"], maintain_order=False)
+
+    # Convert to dictionary for fast lookup
+    tile_dict = {}
+    for tile_df in tqdm(grouped, desc="Building tile index"):
+        if len(tile_df) > 0:
+            tx = tile_df["tile_x"][0]
+            ty = tile_df["tile_y"][0]
+            tile_dict[(tx, ty)] = tile_df
+
+    print(f"Found {len(tile_dict)} non-empty tiles")
+
+    # Build ordered list with empty tiles included
     tile_data_list = []
-
-    # Column-major order: tile_x varies slowest
-    # row_group_index = tile_x * num_tiles_y + tile_y
-    for tile_i in tqdm(range(n_tiles_x), desc="Collecting tiles (X)"):
-        tile_x_min = x_min + tile_i * tile_size
-        tile_x_max = tile_x_min + tile_size
-
+    for tile_i in tqdm(range(n_tiles_x), desc="Ordering tiles"):
         for tile_j in range(n_tiles_y):
-            tile_y_min = y_min + tile_j * tile_size
-            tile_y_max = tile_y_min + tile_size
-
-            # Filter transcripts for this tile
-            tile_trx = trx.filter(
-                (pl.col("transformed_x") >= tile_x_min)
-                & (pl.col("transformed_x") < tile_x_max)
-                & (pl.col("transformed_y") >= tile_y_min)
-                & (pl.col("transformed_y") < tile_y_max)
-            )
-
-            if not tile_trx.is_empty():
-                # Add geometry column as a list of [x, y] pairs
-                tile_trx = tile_trx.with_columns(
-                    pl.concat_list([pl.col("transformed_x"), pl.col("transformed_y")]).alias(
-                        "geometry"
-                    )
-                )
-
-                # Add tile metadata columns
-                tile_trx = tile_trx.with_columns(
-                    [
-                        pl.lit(tile_i).cast(pl.Int32).alias("tile_x"),
-                        pl.lit(tile_j).cast(pl.Int32).alias("tile_y"),
-                    ]
-                )
-
-                # Drop original coordinate columns
-                columns_to_drop = [
-                    col
-                    for col in ["transformed_x", "transformed_y", "cell_id", "transcript_id"]
-                    if col in tile_trx.columns
-                ]
-                tile_trx = tile_trx.drop(columns_to_drop)
-
-                tile_data_list.append((tile_i, tile_j, tile_trx))
-            else:
-                # Mark as empty - write function will create empty table with correct schema
-                tile_data_list.append((tile_i, tile_j, None))
+            tile_df = tile_dict.get((tile_i, tile_j), None)
+            tile_data_list.append((tile_i, tile_j, tile_df))
 
     tile_grid_info = {
         "tile_size": tile_size,

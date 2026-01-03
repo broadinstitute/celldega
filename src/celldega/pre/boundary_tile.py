@@ -447,6 +447,9 @@ def _collect_boundary_tile_data_for_row_groups(
     ALL tiles are included (even empty ones) so that the formula works:
         row_group_index = tile_x * num_tiles_y + tile_y
 
+    OPTIMIZED: Calculates tile indices once for all cells, then groups.
+    This is O(n) instead of O(tiles × n).
+
     Parameters:
     - gdf_cells: GeoDataFrame with cell boundaries
     - x_min, y_min, x_max, y_max: Coordinate bounds
@@ -458,44 +461,34 @@ def _collect_boundary_tile_data_for_row_groups(
     n_tiles_x = int(np.ceil((x_max - x_min) / tile_size))
     n_tiles_y = int(np.ceil((y_max - y_min) / tile_size))
 
+    print(f"Grid: {n_tiles_x} x {n_tiles_y} = {n_tiles_x * n_tiles_y} tiles")
+    print("Calculating tile indices for all cells...")
+
+    # OPTIMIZED: Calculate tile indices for ALL cells at once (O(n))
+    gdf_cells = gdf_cells.copy()
+    gdf_cells["tile_x"] = ((gdf_cells["center_x"] - x_min) / tile_size).astype(int).clip(0, n_tiles_x - 1)
+    gdf_cells["tile_y"] = ((gdf_cells["center_y"] - y_min) / tile_size).astype(int).clip(0, n_tiles_y - 1)
+
+    # Pre-process: round geometry and add name column
+    print("Processing geometry...")
+    gdf_cells["name"] = gdf_cells.index
+    gdf_cells["GEOMETRY"] = gdf_cells["GEOMETRY"].apply(_round_nested_coord_list)
+
+    print("Grouping cells by tile...")
+
+    # Group by tile - build dictionary for fast lookup
+    tile_dict = {}
+    for (tx, ty), group_df in tqdm(gdf_cells.groupby(["tile_x", "tile_y"]), desc="Building tile index"):
+        tile_dict[(tx, ty)] = group_df[["GEOMETRY", "name", "tile_x", "tile_y"]].copy()
+
+    print(f"Found {len(tile_dict)} non-empty tiles")
+
+    # Build ordered list with empty tiles included
     tile_data_list = []
-
-    # Column-major order: tile_x varies slowest
-    # row_group_index = tile_x * num_tiles_y + tile_y
-    for tile_i in tqdm(range(n_tiles_x), desc="Collecting boundary tiles (X)"):
-        tile_x_min = x_min + tile_i * tile_size
-        tile_x_max = tile_x_min + tile_size
-
+    for tile_i in tqdm(range(n_tiles_x), desc="Ordering tiles"):
         for tile_j in range(n_tiles_y):
-            tile_y_min = y_min + tile_j * tile_size
-            tile_y_max = tile_y_min + tile_size
-
-            # Filter cells for this tile based on centroid
-            tile_filter = (
-                (gdf_cells["center_x"] >= tile_x_min)
-                & (gdf_cells["center_x"] < tile_x_max)
-                & (gdf_cells["center_y"] >= tile_y_min)
-                & (gdf_cells["center_y"] < tile_y_max)
-            )
-
-            tile_cells = gdf_cells[tile_filter].copy()
-
-            if not tile_cells.empty:
-                # Prepare data for output
-                tile_df = tile_cells[["GEOMETRY"]].copy()
-                tile_df["name"] = tile_df.index
-
-                # Apply rounding to the GEOMETRY column
-                tile_df["GEOMETRY"] = tile_df["GEOMETRY"].apply(_round_nested_coord_list)
-
-                # Add tile metadata columns
-                tile_df["tile_x"] = tile_i
-                tile_df["tile_y"] = tile_j
-
-                tile_data_list.append((tile_i, tile_j, tile_df))
-            else:
-                # Mark as empty - write function will create empty table with correct schema
-                tile_data_list.append((tile_i, tile_j, None))
+            tile_df = tile_dict.get((tile_i, tile_j), None)
+            tile_data_list.append((tile_i, tile_j, tile_df))
 
     return tile_data_list
 

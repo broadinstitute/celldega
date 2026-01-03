@@ -610,16 +610,15 @@ def _collect_tile_data_for_row_groups(
 
     print("Grouping transcripts by tile...")
 
-    # Group by tile - this is efficient in Polars
-    grouped = trx.group_by(["tile_x", "tile_y"], maintain_order=False)
+    # Group by tile using partition_by which returns list of DataFrames
+    grouped_dfs = trx.partition_by(["tile_x", "tile_y"], as_dict=True)
 
-    # Convert to dictionary for fast lookup
+    # Convert to dictionary with (tile_x, tile_y) tuple keys
     tile_dict = {}
-    for tile_df in tqdm(grouped, desc="Building tile index"):
+    for key, tile_df in tqdm(grouped_dfs.items(), desc="Building tile index"):
         if len(tile_df) > 0:
-            tx = tile_df["tile_x"][0]
-            ty = tile_df["tile_y"][0]
-            tile_dict[(tx, ty)] = tile_df
+            # key is a tuple of (tile_x, tile_y)
+            tile_dict[key] = tile_df
 
     print(f"Found {len(tile_dict)} non-empty tiles")
 

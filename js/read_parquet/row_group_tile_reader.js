@@ -40,14 +40,23 @@ export class RowGroupTileReader {
       this.url = `${baseUrl}/${fileConfig}`;
       this.parquetFile = null;
     } else if (typeof fileConfig === 'object' && fileConfig.files) {
-      // Chunked mode
-      this.chunkedMode = true;
-      this.directory = fileConfig.directory;
-      this.files = fileConfig.files;
-      this.maxRowGroupsPerFile = fileConfig.max_row_groups_per_file || 10000;
-      this.totalRowGroups = fileConfig.total_row_groups || 0;
-      // Note: We don't cache ParquetFile objects - each read creates a fresh instance
-      // because parquet-wasm's ParquetFile.read() may not be safe for concurrent calls
+      // Check if we can use single-file mode (only 1 chunk file)
+      if (fileConfig.files.length === 1) {
+        // Use single-file mode for simplicity and better compatibility
+        this.chunkedMode = false;
+        this.url = `${baseUrl}/${fileConfig.directory}/${fileConfig.files[0]}`;
+        this.parquetFile = null;
+        console.log(
+          `[RowGroupTileReader] Single chunk file detected, using single-file mode`
+        );
+      } else {
+        // True chunked mode with multiple files
+        this.chunkedMode = true;
+        this.directory = fileConfig.directory;
+        this.files = fileConfig.files;
+        this.maxRowGroupsPerFile = fileConfig.max_row_groups_per_file || 10000;
+        this.totalRowGroups = fileConfig.total_row_groups || 0;
+      }
     } else {
       throw new Error(
         '[RowGroupTileReader] Invalid fileConfig: must be string URL or chunk config object'

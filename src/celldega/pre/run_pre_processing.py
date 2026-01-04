@@ -154,6 +154,7 @@ def main(
     use_int_index=True,
     max_workers=1,
     use_row_groups=False,
+    max_row_groups_per_file=400,
 ):
     """
     Main function to preprocess Xenium or MERSCOPE data and generate landscape files.
@@ -167,8 +168,11 @@ def main(
         image_tile_layer (str): Image layers to be tiled. 'dapi' or 'all'.
         path_landscape_files (str): Directory to save the landscape files.
         use_int_index (bool): Use integer index for smaller files and faster rendering.
-        use_row_groups (bool): If True, save tiles as row groups in a single parquet file
+        use_row_groups (bool): If True, save tiles as row groups in chunked parquet files
             instead of individual tile files. Defaults to False.
+        max_row_groups_per_file (int): Maximum row groups per parquet file when using
+            row groups mode. Lower values create more files but avoid parquet-wasm memory
+            issues with dense datasets. Defaults to 400.
 
     Example:
         change directory to celldega, and run:
@@ -282,7 +286,8 @@ def main(
         cbg_dir = Path(path_landscape_files) / "cbg"
         if not cbg_dir.exists() or not any(cbg_dir.glob("*.parquet")):
             cbg_chunk_info = dega.pre.save_cbg_gene_parquets_row_groups(
-                technology, path_landscape_files, cbg, verbose=True
+                technology, path_landscape_files, cbg, verbose=True,
+                max_row_groups_per_file=max_row_groups_per_file
             )
         else:
             print(f"Skipping CBG row groups, directory {cbg_dir} already exists")
@@ -364,6 +369,7 @@ def main(
                     image_scale=1,
                     max_workers=max_workers,
                     path_landscape_files=path_landscape_files,
+                    max_row_groups_per_file=max_row_groups_per_file,
                 )
                 print(f"tile bounds: {tile_bounds}")
             else:
@@ -382,6 +388,7 @@ def main(
                     tile_bounds=tile_bounds,
                     max_workers=max_workers,
                     path_landscape_files=path_landscape_files,
+                    max_row_groups_per_file=max_row_groups_per_file,
                 )
             else:
                 print("Skipping cell boundary tiles, output already exists")

@@ -115,34 +115,15 @@ export class CBGRowGroupReader {
       `[CBGRowGroupReader] Streaming mode enabled, ${numRowGroups} row groups available`
     );
 
-    // Read row group 0 to get schema metadata with gene_to_row_group
-    console.log(`[CBGRowGroupReader] Reading row group 0 for schema metadata...`);
-    try {
-      const sampleTable = await this.parquetFile.read({rowGroups: [0]});
-      const arrowIPC = sampleTable.intoIPCStream();
-      const arrowTable = arrow.tableFromIPC(arrowIPC);
-
-      const schemaMetadata = arrowTable.schema.metadata;
-      if (schemaMetadata && schemaMetadata.has('gene_to_row_group')) {
-        this.geneToRowGroup = JSON.parse(
-          schemaMetadata.get('gene_to_row_group')
-        );
-        console.log(
-          `[CBGRowGroupReader] Loaded gene index from schema metadata: ${Object.keys(this.geneToRowGroup).length} genes`
-        );
-      } else {
-        console.log(
-          `[CBGRowGroupReader] No gene_to_row_group in metadata, building index...`
-        );
-        this.geneToRowGroup = await this._buildGeneIndex(numRowGroups);
-      }
-    } catch (e) {
-      console.error(`[CBGRowGroupReader] Error reading row group 0:`, e);
-      // Try building index as last resort
-      console.log(`[CBGRowGroupReader] Attempting to build index manually...`);
-      this.geneToRowGroup = await this._buildGeneIndex(numRowGroups);
-    }
-
+    // Store numRowGroups for lazy index building
+    this.numRowGroups = numRowGroups;
+    
+    // Initialize with empty gene index - will be built lazily on first gene request
+    // This avoids reading large metadata that may cause WASM memory issues
+    this.geneToRowGroup = null;
+    this.geneList = null;
+    
+    console.log(`[CBGRowGroupReader] Initialized with lazy gene index loading`);
     this.initialized = true;
   }
 
@@ -204,20 +185,58 @@ export class CBGRowGroupReader {
   }
 
   /**
+   * Ensure gene index is loaded (lazy loading)
+   * @returns {Promise<void>}
+   */
+  async _ensureGeneIndex() {
+    if (this.geneToRowGroup !== null) {
+      return; // Already loaded
+    }
+
+    console.log(`[CBGRowGroupReader] Building gene index lazily...`);
+
+    // Try to read metadata from row group 0
+    try {
+      const sampleTable = await this.parquetFile.read({rowGroups: [0]});
+      const arrowIPC = sampleTable.intoIPCStream();
+      const arrowTable = arrow.tableFromIPC(arrowIPC);
+
+      const schemaMetadata = arrowTable.schema.metadata;
+      if (schemaMetadata && schemaMetadata.has('gene_to_row_group')) {
+        this.geneToRowGroup = JSON.parse(
+          schemaMetadata.get('gene_to_row_group')
+        );
+        console.log(
+          `[CBGRowGroupReader] Loaded gene index from metadata: ${Object.keys(this.geneToRowGroup).length} genes`
+        );
+        return;
+      }
+    } catch (e) {
+      console.warn(`[CBGRowGroupReader] Failed to read metadata from row group 0:`, e);
+    }
+
+    // Fall back to building index by reading each row group
+    console.log(`[CBGRowGroupReader] Building index by scanning row groups...`);
+    this.geneToRowGroup = await this._buildGeneIndex(this.numRowGroups);
+  }
+
+  /**
    * Check if a gene exists in the dataset
    * @param {string} geneName - Gene name
-   * @returns {boolean}
+   * @returns {Promise<boolean>}
    */
-  hasGene(geneName) {
+  async hasGene(geneName) {
+    await this._ensureGeneIndex();
     return geneName in this.geneToRowGroup;
   }
 
   /**
    * Get the row group index for a gene
    * @param {string} geneName - Gene name
-   * @returns {number|null} - Row group index or null if not found
+   * @returns {Promise<number|null>} - Row group index or null if not found
    */
-  getGeneRowGroupIndex(geneName) {
+  async getGeneRowGroupIndex(geneName) {
+    await this._ensureGeneIndex();
     return this.geneToRowGroup[geneName] ?? null;
   }
 
@@ -231,7 +250,7 @@ export class CBGRowGroupReader {
       await this.initialize();
     }
 
-    const rowGroupIndex = this.getGeneRowGroupIndex(geneName);
+    const rowGroupIndex = await this.getGeneRowGroupIndex(geneName);
     if (rowGroupIndex === null) {
       console.log(`[CBGRowGroupReader] Gene not found: ${geneName}`);
       return null;
@@ -257,17 +276,19 @@ export class CBGRowGroupReader {
 
   /**
    * Get the number of genes in the dataset
-   * @returns {number}
+   * @returns {Promise<number>}
    */
-  getNumGenes() {
+  async getNumGenes() {
+    await this._ensureGeneIndex();
     return Object.keys(this.geneToRowGroup).length;
   }
 
   /**
    * Get all gene names
-   * @returns {string[]}
+   * @returns {Promise<string[]>}
    */
-  getGeneNames() {
+  async getGeneNames() {
+    await this._ensureGeneIndex();
     return Object.keys(this.geneToRowGroup);
   }
 

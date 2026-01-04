@@ -20,6 +20,16 @@ function ensureInitialized() {
     initSync(wasmBinary);
     initialized = true;
     console.log(`[parquet-wasm] Initialized version ${PARQUET_WASM_VERSION}`);
+    
+    // Expose globally for debugging
+    if (typeof window !== 'undefined') {
+      window.parquet_wasm = {
+        readParquet,
+        readSchema,
+        ParquetFile,
+        version: PARQUET_WASM_VERSION,
+      };
+    }
   }
 }
 

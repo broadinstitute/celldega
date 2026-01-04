@@ -257,9 +257,17 @@ export class RowGroupTileReader {
           `[RowGroupTileReader] Reading ${uniqueIndices.length} row groups: ${uniqueIndices.slice(0, 5).join(', ')}${uniqueIndices.length > 5 ? '...' : ''}`
         );
 
-        const wasmTable = await this.parquetFile.read({
-          rowGroups: uniqueIndices,
-        });
+        console.log(`[RowGroupTileReader] About to call parquetFile.read() with indices:`, uniqueIndices);
+        let wasmTable;
+        try {
+          wasmTable = await this.parquetFile.read({
+            rowGroups: uniqueIndices,
+          });
+        } catch (readError) {
+          console.error(`[RowGroupTileReader] parquetFile.read() failed:`, readError);
+          throw readError;
+        }
+        console.log(`[RowGroupTileReader] read() succeeded, converting to IPC...`);
         const arrowIPC = wasmTable.intoIPCStream();
         const table = arrow.tableFromIPC(arrowIPC);
 

@@ -191,21 +191,31 @@ export class RowGroupTileReader {
     // Remove duplicates and sort
     const uniqueIndices = [...new Set(rowGroupIndices)].sort((a, b) => a - b);
 
-    // Verbose logging disabled
-    // console.log(`[RowGroupTileReader] Reading ${uniqueIndices.length} row groups`);
+    // Log what we're trying to read
+    console.log(
+      `[RowGroupTileReader] Reading ${uniqueIndices.length} row groups: ${uniqueIndices.slice(0, 5).join(', ')}${uniqueIndices.length > 5 ? '...' : ''}`
+    );
 
-    // Use streaming mode with HTTP Range Requests
-    const wasmTable = await this.parquetFile.read({
-      rowGroups: uniqueIndices,
-    });
+    try {
+      // Use streaming mode with HTTP Range Requests
+      const wasmTable = await this.parquetFile.read({
+        rowGroups: uniqueIndices,
+      });
 
-    // Convert to Arrow Table
-    const arrowIPC = wasmTable.intoIPCStream();
-    const table = arrow.tableFromIPC(arrowIPC);
+      // Convert to Arrow Table
+      const arrowIPC = wasmTable.intoIPCStream();
+      const table = arrow.tableFromIPC(arrowIPC);
 
-    // console.log(`[RowGroupTileReader] Read ${table.numRows} rows`);
+      console.log(`[RowGroupTileReader] Read ${table.numRows} rows`);
 
-    return table;
+      return table;
+    } catch (error) {
+      console.error(
+        `[RowGroupTileReader] Error reading row groups ${uniqueIndices.slice(0, 5).join(', ')}:`,
+        error
+      );
+      return null;
+    }
   }
 
   /**

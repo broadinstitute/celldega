@@ -152,8 +152,10 @@ async function initializeRowGroupReaders(viz_state, base_url) {
 
   // Initialize CBG row group reader
   if (rowGroupFiles.cbg) {
-    const cbgUrl = `${base_url}/${rowGroupFiles.cbg}`;
-    viz_state.row_group_readers.cbg = new CBGRowGroupReader(cbgUrl);
+    viz_state.row_group_readers.cbg = new CBGRowGroupReader(
+      base_url,
+      rowGroupFiles.cbg
+    );
     await viz_state.row_group_readers.cbg.initialize();
   }
 

@@ -116,13 +116,14 @@ async function initializeYearbookRowGroupReaders(viz_state, base_url) {
 
     // Initialize CBG row group reader
     if (rowGroupFiles.cbg) {
-      const cbgUrl = `${base_url}/${rowGroupFiles.cbg}`;
-      console.log(`[yearbook] Initializing CBG reader from: ${cbgUrl}`);
-      viz_state.row_group_readers.cbg = new CBGRowGroupReader(cbgUrl);
-      await viz_state.row_group_readers.cbg.initialize();
-      console.log(
-        `[yearbook] CBG reader ready - ${viz_state.row_group_readers.cbg.getNumGenes()} genes`
+      console.log(`[yearbook] Initializing CBG reader...`);
+      viz_state.row_group_readers.cbg = new CBGRowGroupReader(
+        base_url,
+        rowGroupFiles.cbg
       );
+      await viz_state.row_group_readers.cbg.initialize();
+      const numGenes = await viz_state.row_group_readers.cbg.getNumGenes();
+      console.log(`[yearbook] CBG reader ready - ${numGenes} genes`);
     }
 
     // Initialize image row group readers for each channel

@@ -1,13 +1,14 @@
 /**
- * CBGRowGroupReader - Reads gene expression data from a row-grouped parquet file
+ * CBGRowGroupReader - Reads gene expression data from row-grouped parquet files
  *
+ * Supports both single file mode (legacy) and chunked file mode.
  * Each gene is stored as a separate row group, enabling efficient access to
  * individual gene expression data without loading the entire file.
  */
 
 import * as arrow from 'apache-arrow';
 
-import { getPq } from './pqInitializer';
+import {getPq} from './pqInitializer';
 
 /**
  * CBGRowGroupReader class for efficient gene-based expression data access
@@ -15,32 +16,58 @@ import { getPq } from './pqInitializer';
 export class CBGRowGroupReader {
   /**
    * Create a new CBGRowGroupReader
-   * @param {string} parquetUrl - URL to the cbg.parquet file
+   * @param {string} baseUrl - Base URL for landscape files
+   * @param {string|Object} cbgConfig - Either a URL string (legacy) or chunk config object
    */
-  constructor(parquetUrl) {
-    this.url = parquetUrl;
+  constructor(baseUrl, cbgConfig) {
+    this.baseUrl = baseUrl;
     this.initialized = false;
-    this.parquetFile = null;
-    this.geneToRowGroup = {}; // Will be loaded from parquet metadata
     this.useStreaming = true;
+
+    // Determine mode: chunked or single file
+    if (typeof cbgConfig === 'string') {
+      // Legacy single file mode
+      this.chunkedMode = false;
+      this.url = `${baseUrl}/${cbgConfig}`;
+      this.parquetFile = null;
+      this.geneToRowGroup = null; // Will be loaded from file metadata
+    } else if (typeof cbgConfig === 'object' && cbgConfig.files) {
+      // Chunked mode
+      this.chunkedMode = true;
+      this.directory = cbgConfig.directory || 'cbg';
+      this.files = cbgConfig.files;
+      this.maxRowGroupsPerFile = cbgConfig.max_row_groups_per_file || 2000;
+      this.totalRowGroups = cbgConfig.total_row_groups || 0;
+      // Gene mapping provided in config - no need to read from file!
+      this.geneToRowGroup = cbgConfig.gene_to_row_group || {};
+      this.geneList = Object.keys(this.geneToRowGroup);
+      console.log(
+        `[CBGRowGroupReader] Chunked mode: ${this.files.length} files, ${this.geneList.length} genes`
+      );
+    } else {
+      throw new Error(
+        '[CBGRowGroupReader] Invalid cbgConfig: must be string URL or chunk config object'
+      );
+    }
   }
 
   /**
    * Check if the server supports Range requests (needed for streaming)
+   * @param {string} url - URL to check
    * @returns {Promise<boolean>}
    */
-  async _checkRangeSupport() {
+  async _checkRangeSupport(url) {
     try {
       // For localhost, trust that Range requests work (skip expensive checks)
-      const urlObj = new URL(this.url);
+      const urlObj = new URL(url);
       if (urlObj.hostname === 'localhost' || urlObj.hostname === '127.0.0.1') {
         return true;
       }
 
       // For remote servers, do a full Range request check
-      const response = await fetch(this.url, {
+      const response = await fetch(url, {
         method: 'GET',
-        headers: { Range: 'bytes=0-7' },
+        headers: {Range: 'bytes=0-7'},
       });
 
       if (!response.ok && response.status !== 206) {
@@ -50,9 +77,9 @@ export class CBGRowGroupReader {
         return false;
       }
 
-      const footerResponse = await fetch(this.url, {
+      const footerResponse = await fetch(url, {
         method: 'GET',
-        headers: { Range: 'bytes=-8' },
+        headers: {Range: 'bytes=-8'},
       });
 
       if (!footerResponse.ok && footerResponse.status !== 206) {
@@ -72,7 +99,42 @@ export class CBGRowGroupReader {
   }
 
   /**
-   * Initialize the reader by loading parquet metadata
+   * Compute which chunk file contains a given global row group index
+   * @param {number} globalRowGroupIndex - Global row group index
+   * @returns {{fileIndex: number, localIndex: number}}
+   */
+  computeChunkLocation(globalRowGroupIndex) {
+    const fileIndex = Math.floor(
+      globalRowGroupIndex / this.maxRowGroupsPerFile
+    );
+    const localIndex = globalRowGroupIndex % this.maxRowGroupsPerFile;
+    return {fileIndex, localIndex};
+  }
+
+  /**
+   * Get a ParquetFile for a specific chunk (lazy loading)
+   * @param {number} fileIndex - Index of the chunk file
+   * @returns {Promise<ParquetFile>}
+   */
+  async _getParquetFile(fileIndex) {
+    const fileName = this.files[fileIndex];
+    if (!fileName) {
+      throw new Error(
+        `[CBGRowGroupReader] No file for index ${fileIndex}. Available: ${this.files.length} files`
+      );
+    }
+
+    const fileUrl = `${this.baseUrl}/${this.directory}/${fileName}`;
+    const pq = await getPq();
+
+    console.log(`[CBGRowGroupReader] Loading chunk file: ${fileName}`);
+    const parquetFile = await pq.ParquetFile.fromUrl(fileUrl);
+
+    return parquetFile;
+  }
+
+  /**
+   * Initialize the reader
    * @returns {Promise<void>}
    */
   async initialize() {
@@ -82,49 +144,103 @@ export class CBGRowGroupReader {
 
     const pq = await getPq();
 
-    // console.log(`[CBGRowGroupReader] Initializing from: ${this.url}`);
+    if (!this.chunkedMode) {
+      // Single file mode - check range support and load file
+      const rangeSupported = await this._checkRangeSupport(this.url);
 
-    // Require Range request support - no full file fallback for row groups
-    const rangeSupported = await this._checkRangeSupport();
+      if (!rangeSupported) {
+        throw new Error(
+          `[CBGRowGroupReader] Range requests not supported for ${this.url}. ` +
+            `Row group mode requires a server that supports HTTP Range requests with CORS.`
+        );
+      }
 
-    if (!rangeSupported) {
-      throw new Error(
-        `[CBGRowGroupReader] Range requests not supported for ${this.url}. ` +
-          `Row group mode requires a server that supports HTTP Range requests with CORS.`
+      if (!pq.ParquetFile || typeof pq.ParquetFile.fromUrl !== 'function') {
+        throw new Error(
+          `[CBGRowGroupReader] ParquetFile.fromUrl not available. ` +
+            `Please ensure parquet-wasm is properly initialized.`
+        );
+      }
+
+      console.log(
+        `[CBGRowGroupReader] Range requests supported, creating streaming ParquetFile...`
+      );
+      this.parquetFile = await pq.ParquetFile.fromUrl(this.url);
+      this.useStreaming = true;
+
+      const metadata = this.parquetFile.metadata();
+      const numRowGroups = metadata.numRowGroups();
+      console.log(
+        `[CBGRowGroupReader] Streaming mode enabled, ${numRowGroups} row groups available`
+      );
+
+      this.numRowGroups = numRowGroups;
+      // Gene index will be loaded lazily on first request
+      this.geneToRowGroup = null;
+      this.geneList = null;
+
+      console.log(`[CBGRowGroupReader] Initialized with lazy gene index loading`);
+    } else {
+      // Chunked mode - just check range support on first file
+      const firstFileUrl = `${this.baseUrl}/${this.directory}/${this.files[0]}`;
+      const rangeSupported = await this._checkRangeSupport(firstFileUrl);
+
+      if (!rangeSupported) {
+        throw new Error(
+          `[CBGRowGroupReader] Range requests not supported. ` +
+            `Row group mode requires a server that supports HTTP Range requests with CORS.`
+        );
+      }
+
+      console.log(
+        `[CBGRowGroupReader] Chunked mode enabled: ${this.files.length} files, ` +
+          `${this.geneList.length} genes`
       );
     }
 
-    if (!pq.ParquetFile || typeof pq.ParquetFile.fromUrl !== 'function') {
-      throw new Error(
-        `[CBGRowGroupReader] ParquetFile.fromUrl not available. ` +
-          `Please ensure parquet-wasm is properly initialized.`
-      );
-    }
-
-    // Use ParquetFile for streaming access
-    console.log(
-      `[CBGRowGroupReader] Range requests supported, creating streaming ParquetFile...`
-    );
-    this.parquetFile = await pq.ParquetFile.fromUrl(this.url);
-    this.useStreaming = true;
-
-    // Get metadata to build gene index
-    const metadata = this.parquetFile.metadata();
-    const numRowGroups = metadata.numRowGroups();
-    console.log(
-      `[CBGRowGroupReader] Streaming mode enabled, ${numRowGroups} row groups available`
-    );
-
-    // Store numRowGroups for lazy index building
-    this.numRowGroups = numRowGroups;
-    
-    // Initialize with empty gene index - will be built lazily on first gene request
-    // This avoids reading large metadata that may cause WASM memory issues
-    this.geneToRowGroup = null;
-    this.geneList = null;
-    
-    console.log(`[CBGRowGroupReader] Initialized with lazy gene index loading`);
     this.initialized = true;
+  }
+
+  /**
+   * Ensure gene index is loaded (lazy loading for single file mode)
+   * @returns {Promise<void>}
+   */
+  async _ensureGeneIndex() {
+    if (this.geneToRowGroup !== null) {
+      return; // Already loaded
+    }
+
+    console.log(`[CBGRowGroupReader] Building gene index lazily...`);
+
+    // Try to read metadata from row group 0
+    try {
+      console.log(`[CBGRowGroupReader] Reading row group 0 for schema metadata...`);
+      const wasmTable = await this.parquetFile.read({rowGroups: [0]});
+      const arrowIPC = wasmTable.intoIPCStream();
+      const arrowTable = arrow.tableFromIPC(arrowIPC);
+
+      // Check if schema has gene_to_row_group metadata
+      const schemaMetadata = arrowTable.schema.metadata;
+      if (schemaMetadata && schemaMetadata.has('gene_to_row_group')) {
+        const geneMapJson = schemaMetadata.get('gene_to_row_group');
+        this.geneToRowGroup = JSON.parse(geneMapJson);
+        this.geneList = Object.keys(this.geneToRowGroup);
+        console.log(
+          `[CBGRowGroupReader] Loaded gene index from metadata: ${this.geneList.length} genes`
+        );
+        return;
+      }
+    } catch (error) {
+      console.log(
+        `[CBGRowGroupReader] Could not read metadata from row group 0: ${error.message}`
+      );
+    }
+
+    // Fallback: build index by reading each row group (slow for large files)
+    console.log(`[CBGRowGroupReader] Building gene index manually (this may be slow)...`);
+    this.geneToRowGroup = await this._buildGeneIndex(this.numRowGroups);
+    this.geneList = Object.keys(this.geneToRowGroup);
+    console.log(`[CBGRowGroupReader] Built gene index: ${this.geneList.length} genes`);
   }
 
   /**
@@ -135,11 +251,9 @@ export class CBGRowGroupReader {
   async _buildGeneIndex(numRowGroups) {
     const index = {};
 
-    // Read a sample of row groups to build the index
-    // Each row group should have a consistent gene value
     for (let i = 0; i < numRowGroups; i++) {
       try {
-        const table = await this.parquetFile.read({ rowGroups: [i] });
+        const table = await this.parquetFile.read({rowGroups: [i]});
         const arrowIPC = table.intoIPCStream();
         const arrowTable = arrow.tableFromIPC(arrowIPC);
 
@@ -163,66 +277,8 @@ export class CBGRowGroupReader {
   }
 
   /**
-   * Build gene index from a full Arrow table
-   * @param {arrow.Table} table - Full Arrow table
-   * @returns {Object} - Map from gene name to row group index
-   */
-  _buildGeneIndexFromTable(table) {
-    const index = {};
-    let currentRowGroup = 0;
-
-    // Each batch corresponds to a row group
-    for (const batch of table.batches) {
-      const geneCol = batch.getChild('gene');
-      if (geneCol && geneCol.length > 0) {
-        const geneName = geneCol.get(0);
-        index[geneName] = currentRowGroup;
-      }
-      currentRowGroup++;
-    }
-
-    return index;
-  }
-
-  /**
-   * Ensure gene index is loaded (lazy loading)
-   * @returns {Promise<void>}
-   */
-  async _ensureGeneIndex() {
-    if (this.geneToRowGroup !== null) {
-      return; // Already loaded
-    }
-
-    console.log(`[CBGRowGroupReader] Building gene index lazily...`);
-
-    // Try to read metadata from row group 0
-    try {
-      const sampleTable = await this.parquetFile.read({rowGroups: [0]});
-      const arrowIPC = sampleTable.intoIPCStream();
-      const arrowTable = arrow.tableFromIPC(arrowIPC);
-
-      const schemaMetadata = arrowTable.schema.metadata;
-      if (schemaMetadata && schemaMetadata.has('gene_to_row_group')) {
-        this.geneToRowGroup = JSON.parse(
-          schemaMetadata.get('gene_to_row_group')
-        );
-        console.log(
-          `[CBGRowGroupReader] Loaded gene index from metadata: ${Object.keys(this.geneToRowGroup).length} genes`
-        );
-        return;
-      }
-    } catch (e) {
-      console.warn(`[CBGRowGroupReader] Failed to read metadata from row group 0:`, e);
-    }
-
-    // Fall back to building index by reading each row group
-    console.log(`[CBGRowGroupReader] Building index by scanning row groups...`);
-    this.geneToRowGroup = await this._buildGeneIndex(this.numRowGroups);
-  }
-
-  /**
    * Check if a gene exists in the dataset
-   * @param {string} geneName - Gene name
+   * @param {string} geneName - Gene name to check
    * @returns {Promise<boolean>}
    */
   async hasGene(geneName) {
@@ -242,74 +298,60 @@ export class CBGRowGroupReader {
 
   /**
    * Read expression data for a specific gene
-   * @param {string} geneName - Gene name
-   * @returns {Promise<arrow.Table|null>} - Arrow table with cell_id, expression columns
+   * @param {string} geneName - Gene name to read
+   * @returns {Promise<arrow.Table|null>} - Arrow Table with expression data
    */
   async readGene(geneName) {
     if (!this.initialized) {
       await this.initialize();
     }
 
-    const rowGroupIndex = await this.getGeneRowGroupIndex(geneName);
-    if (rowGroupIndex === null) {
-      console.log(`[CBGRowGroupReader] Gene not found: ${geneName}`);
+    await this._ensureGeneIndex();
+
+    const globalRowGroupIndex = this.geneToRowGroup[geneName];
+    if (globalRowGroupIndex === undefined) {
+      console.warn(`[CBGRowGroupReader] Gene not found: ${geneName}`);
       return null;
     }
 
-    console.log(
-      `[CBGRowGroupReader] Reading gene ${geneName} (row group ${rowGroupIndex})`
-    );
-
-    // Use streaming mode with HTTP Range Requests
-    const wasmTable = await this.parquetFile.read({
-      rowGroups: [rowGroupIndex],
-    });
-    const arrowIPC = wasmTable.intoIPCStream();
-    const table = arrow.tableFromIPC(arrowIPC);
-
-    console.log(
-      `[CBGRowGroupReader] Read ${table.numRows} cells for gene ${geneName}`
-    );
-
-    return table;
+    try {
+      if (!this.chunkedMode) {
+        // Single file mode
+        const wasmTable = await this.parquetFile.read({
+          rowGroups: [globalRowGroupIndex],
+        });
+        const arrowIPC = wasmTable.intoIPCStream();
+        return arrow.tableFromIPC(arrowIPC);
+      } else {
+        // Chunked mode - find the right file
+        const {fileIndex, localIndex} =
+          this.computeChunkLocation(globalRowGroupIndex);
+        const pqFile = await this._getParquetFile(fileIndex);
+        const wasmTable = await pqFile.read({rowGroups: [localIndex]});
+        const arrowIPC = wasmTable.intoIPCStream();
+        return arrow.tableFromIPC(arrowIPC);
+      }
+    } catch (error) {
+      console.error(`[CBGRowGroupReader] Error reading gene ${geneName}:`, error);
+      return null;
+    }
   }
 
   /**
-   * Get the number of genes in the dataset
+   * Get total number of genes
    * @returns {Promise<number>}
    */
   async getNumGenes() {
     await this._ensureGeneIndex();
-    return Object.keys(this.geneToRowGroup).length;
+    return this.geneList.length;
   }
 
   /**
-   * Get all gene names
+   * Get list of all gene names
    * @returns {Promise<string[]>}
    */
   async getGeneNames() {
     await this._ensureGeneIndex();
-    return Object.keys(this.geneToRowGroup);
-  }
-
-  /**
-   * Check if streaming mode is active
-   * @returns {boolean}
-   */
-  isStreaming() {
-    return this.useStreaming && this.parquetFile !== null;
+    return [...this.geneList];
   }
 }
-
-/**
- * Factory function to create and initialize a CBGRowGroupReader
- * @param {string} parquetUrl - URL to the cbg.parquet file
- * @returns {Promise<CBGRowGroupReader>} - Initialized reader
- */
-export async function createCBGRowGroupReader(parquetUrl) {
-  const reader = new CBGRowGroupReader(parquetUrl);
-  await reader.initialize();
-  return reader;
-}
-
-export default CBGRowGroupReader;

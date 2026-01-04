@@ -1086,6 +1086,7 @@ def save_landscape_parameters(
     image_tile_info=None,
     trx_chunk_info=None,
     cell_chunk_info=None,
+    cbg_chunk_info=None,
 ):
     """Saves the landscape parameters to a JSON file.
 
@@ -1102,6 +1103,7 @@ def save_landscape_parameters(
         image_tile_info (dict, optional): Image tile metadata from pack_image_tiles_to_parquet.
         trx_chunk_info (dict, optional): Chunk info for transcript parquet files.
         cell_chunk_info (dict, optional): Chunk info for cell segmentation parquet files.
+        cbg_chunk_info (dict, optional): Chunk info for CBG parquet files.
 
     Returns:
         None
@@ -1155,9 +1157,20 @@ def save_landscape_parameters(
 
         # Add row group specific metadata
         if use_row_groups and tile_grid_info:
-            landscape_parameters["row_group_files"] = {
-                "cbg": "cbg.parquet",
-            }
+            landscape_parameters["row_group_files"] = {}
+
+            # Add chunked CBG files
+            if cbg_chunk_info:
+                landscape_parameters["row_group_files"]["cbg"] = {
+                    "directory": cbg_chunk_info.get("directory", "cbg"),
+                    "files": cbg_chunk_info.get("files", []),
+                    "max_row_groups_per_file": cbg_chunk_info.get("max_row_groups_per_file", 2000),
+                    "total_row_groups": cbg_chunk_info.get("total_row_groups", 0),
+                    "gene_to_row_group": cbg_chunk_info.get("gene_to_row_group", {}),
+                }
+            else:
+                # Legacy single file mode (backwards compatibility)
+                landscape_parameters["row_group_files"]["cbg"] = "cbg.parquet"
 
             # Add chunked transcript files
             if trx_chunk_info:

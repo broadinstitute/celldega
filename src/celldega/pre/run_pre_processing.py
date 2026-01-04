@@ -276,15 +276,16 @@ def main(
         print(f"Skipping meta gene file creation, found {paths['meta_gene']}")
 
     # Save CBG gene parquet files
+    cbg_chunk_info = None
     if use_row_groups:
-        # Row group mode: single parquet file with one row group per gene
-        cbg_parquet = Path(path_landscape_files) / "cbg.parquet"
-        if not cbg_parquet.exists():
-            dega.pre.save_cbg_gene_parquets_row_groups(
+        # Row group mode: chunked parquet files with one row group per gene
+        cbg_dir = Path(path_landscape_files) / "cbg"
+        if not cbg_dir.exists() or not any(cbg_dir.glob("*.parquet")):
+            cbg_chunk_info = dega.pre.save_cbg_gene_parquets_row_groups(
                 technology, path_landscape_files, cbg, verbose=True
             )
         else:
-            print(f"Skipping CBG row groups, file {cbg_parquet} already exists")
+            print(f"Skipping CBG row groups, directory {cbg_dir} already exists")
     else:
         # Traditional mode: one parquet file per gene
         cbg_dir = Path(path_landscape_files) / "cbg"
@@ -449,6 +450,7 @@ def main(
         image_tile_info=image_tile_info if use_row_groups else None,
         trx_chunk_info=trx_chunk_info,
         cell_chunk_info=cell_chunk_info,
+        cbg_chunk_info=cbg_chunk_info,
     )
 
     print("Preprocessing completed successfully.")

@@ -136,7 +136,7 @@ export class RowGroupTileReader {
     }
 
     const fileUrl = `${this.baseUrl}/${this.directory}/${fileName}`;
-    const pq = getPq();
+    const pq = await getPq();
 
     console.log(`[RowGroupTileReader] Loading chunk file: ${fileName}`);
     const parquetFile = await pq.ParquetFile.fromUrl(fileUrl);
@@ -153,7 +153,7 @@ export class RowGroupTileReader {
       return;
     }
 
-    const pq = getPq();
+    const pq = await getPq();
 
     if (!this.chunkedMode) {
       // Single file mode

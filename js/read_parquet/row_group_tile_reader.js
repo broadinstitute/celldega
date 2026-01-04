@@ -46,7 +46,8 @@ export class RowGroupTileReader {
       this.files = fileConfig.files;
       this.maxRowGroupsPerFile = fileConfig.max_row_groups_per_file || 10000;
       this.totalRowGroups = fileConfig.total_row_groups || 0;
-      this.parquetFiles = {}; // Lazy-loaded map of file_index -> ParquetFile
+      // Note: We don't cache ParquetFile objects - each read creates a fresh instance
+      // because parquet-wasm's ParquetFile.read() may not be safe for concurrent calls
     } else {
       throw new Error(
         '[RowGroupTileReader] Invalid fileConfig: must be string URL or chunk config object'
@@ -124,10 +125,9 @@ export class RowGroupTileReader {
    * @returns {Promise<ParquetFile>}
    */
   async _getParquetFile(fileIndex) {
-    if (this.parquetFiles[fileIndex]) {
-      return this.parquetFiles[fileIndex];
-    }
-
+    // Note: We intentionally DON'T cache ParquetFile objects because
+    // parquet-wasm's ParquetFile.read() is not safe for concurrent calls.
+    // Each read gets a fresh ParquetFile instance.
     const fileName = this.files[fileIndex];
     if (!fileName) {
       throw new Error(
@@ -140,7 +140,6 @@ export class RowGroupTileReader {
 
     console.log(`[RowGroupTileReader] Loading chunk file: ${fileName}`);
     const parquetFile = await pq.ParquetFile.fromUrl(fileUrl);
-    this.parquetFiles[fileIndex] = parquetFile;
 
     return parquetFile;
   }

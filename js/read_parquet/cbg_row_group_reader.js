@@ -115,33 +115,31 @@ export class CBGRowGroupReader {
       `[CBGRowGroupReader] Streaming mode enabled, ${numRowGroups} row groups available`
     );
 
-    // Try to get gene_to_row_group from parquet key-value metadata
-    // Read one row group to access schema metadata
-    const sampleTable = await this.parquetFile.read({ rowGroups: [0] });
-    const arrowIPC = sampleTable.intoIPCStream();
-    const arrowTable = arrow.tableFromIPC(arrowIPC);
+    // Read row group 0 to get schema metadata with gene_to_row_group
+    console.log(`[CBGRowGroupReader] Reading row group 0 for schema metadata...`);
+    try {
+      const sampleTable = await this.parquetFile.read({rowGroups: [0]});
+      const arrowIPC = sampleTable.intoIPCStream();
+      const arrowTable = arrow.tableFromIPC(arrowIPC);
 
-    const schemaMetadata = arrowTable.schema.metadata;
-    if (schemaMetadata && schemaMetadata.has('gene_to_row_group')) {
-      try {
+      const schemaMetadata = arrowTable.schema.metadata;
+      if (schemaMetadata && schemaMetadata.has('gene_to_row_group')) {
         this.geneToRowGroup = JSON.parse(
           schemaMetadata.get('gene_to_row_group')
         );
         console.log(
-          `[CBGRowGroupReader] Loaded gene index from metadata: ${Object.keys(this.geneToRowGroup).length} genes`
+          `[CBGRowGroupReader] Loaded gene index from schema metadata: ${Object.keys(this.geneToRowGroup).length} genes`
         );
-      } catch (e) {
-        console.warn(
-          `[CBGRowGroupReader] Failed to parse gene_to_row_group:`,
-          e
+      } else {
+        console.log(
+          `[CBGRowGroupReader] No gene_to_row_group in metadata, building index...`
         );
-        // Fall back to building index manually
         this.geneToRowGroup = await this._buildGeneIndex(numRowGroups);
       }
-    } else {
-      console.log(
-        `[CBGRowGroupReader] No gene_to_row_group in metadata, building index...`
-      );
+    } catch (e) {
+      console.error(`[CBGRowGroupReader] Error reading row group 0:`, e);
+      // Try building index as last resort
+      console.log(`[CBGRowGroupReader] Attempting to build index manually...`);
       this.geneToRowGroup = await this._buildGeneIndex(numRowGroups);
     }
 

@@ -275,7 +275,14 @@ export class RowGroupTileReader {
         // Read from each file and collect tables
         const tables = [];
         for (const [fileIndex, localIndices] of byFile) {
+          console.log(
+            `[RowGroupTileReader] File ${fileIndex}: reading local indices ${localIndices.slice(0, 10).join(', ')}${localIndices.length > 10 ? '...' : ''}`
+          );
           const pqFile = await this._getParquetFile(fileIndex);
+          const metadata = pqFile.metadata();
+          console.log(
+            `[RowGroupTileReader] File ${fileIndex} has ${metadata.numRowGroups()} row groups`
+          );
           const wasmTable = await pqFile.read({rowGroups: localIndices});
           const arrowIPC = wasmTable.intoIPCStream();
           const table = arrow.tableFromIPC(arrowIPC);

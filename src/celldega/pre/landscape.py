@@ -187,7 +187,7 @@ def save_cbg_gene_parquets_row_groups(
     cbg,
     verbose=False,
     segmentation_approach="default",
-    max_row_groups_per_file=2000,
+    max_row_groups_per_file=400,
 ):
     """
     Save the cell-by-gene matrix as chunked Parquet files with one row group per gene.

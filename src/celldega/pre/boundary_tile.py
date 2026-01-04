@@ -493,7 +493,7 @@ def _collect_boundary_tile_data_for_row_groups(
     return tile_data_list
 
 
-def _write_boundary_tiles_as_row_groups(tile_data_list, output_dir, tile_grid_info, max_row_groups_per_file=2000):
+def _write_boundary_tiles_as_row_groups(tile_data_list, output_dir, tile_grid_info, max_row_groups_per_file=400):
     """
     Write boundary tile data as row groups in chunked parquet files.
 
@@ -612,7 +612,7 @@ def make_cell_boundary_tiles_row_groups(
     image_scale=1,
     max_workers=1,
     path_landscape_files=None,
-    max_row_groups_per_file=2000,
+    max_row_groups_per_file=400,
 ):
     """
     Processes cell boundary data and saves all tiles as row groups in chunked parquet files.

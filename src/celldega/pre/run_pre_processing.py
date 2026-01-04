@@ -337,21 +337,25 @@ def main(
         tile_bounds = None
         tile_grid_info = None
 
-        if use_row_groups:
-            # Row group mode: save tiles as row groups in single parquet files
-            trx_output = Path(path_landscape_files) / "transcripts.parquet"
-            cell_output = Path(path_landscape_files) / "cell_segmentation.parquet"
+        # Chunk info for landscape_parameters.json
+        trx_chunk_info = None
+        cell_chunk_info = None
 
-            need_trx_tiles = not trx_output.exists()
-            need_boundaries = not cell_output.exists()
+        if use_row_groups:
+            # Row group mode: save tiles as row groups in chunked parquet files
+            trx_output_dir = Path(path_landscape_files) / "transcripts"
+            cell_output_dir = Path(path_landscape_files) / "cell_segmentation"
+
+            need_trx_tiles = not trx_output_dir.exists()
+            need_boundaries = not cell_output_dir.exists()
 
             if need_trx_tiles:
                 print("\n======== Transcript Tiles (Row Groups) ========")
-                tile_bounds, tile_grid_info = dega.pre.make_trx_tiles_row_groups(
+                tile_bounds, tile_grid_info, trx_chunk_info = dega.pre.make_trx_tiles_row_groups(
                     technology,
                     str(paths["transcripts"]),
                     str(transform_out),
-                    str(trx_output),
+                    str(trx_output_dir),
                     coarse_tile_factor=10,
                     tile_size=tile_size,
                     chunk_size=100000,
@@ -366,10 +370,10 @@ def main(
 
             if need_boundaries:
                 print("\n======== Cell Boundary Tiles (Row Groups) ========")
-                dega.pre.make_cell_boundary_tiles_row_groups(
+                cell_chunk_info = dega.pre.make_cell_boundary_tiles_row_groups(
                     technology,
                     str(paths["cell_boundaries"]),
-                    str(cell_output),
+                    str(cell_output_dir),
                     str(paths.get("meta_cell_micron", "")),
                     str(transform_out),
                     coarse_tile_factor=10,
@@ -443,6 +447,8 @@ def main(
         use_row_groups=use_row_groups,
         tile_grid_info=tile_grid_info,
         image_tile_info=image_tile_info if use_row_groups else None,
+        trx_chunk_info=trx_chunk_info,
+        cell_chunk_info=cell_chunk_info,
     )
 
     print("Preprocessing completed successfully.")

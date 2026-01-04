@@ -1,18 +1,21 @@
 /**
  * RowGroupTileReader - Efficient tile-based data access from row-grouped parquet files
  *
- * Uses HTTP Range Requests to fetch only the needed row groups, providing
- * performance comparable to individual tile files.
+ * Supports both:
+ * - Single file mode (legacy): one parquet file with all row groups
+ * - Chunked mode: multiple parquet files, each with max N row groups
  *
  * Row group indices are computed using a simple formula:
  *   row_group_index = tile_x * num_tiles_y + tile_y
  *
- * This requires only the grid dimensions (num_tiles_x, num_tiles_y) - no mapping needed.
+ * For chunked mode:
+ *   file_index = row_group_index // max_row_groups_per_file
+ *   local_row_group_index = row_group_index % max_row_groups_per_file
  */
 
 import * as arrow from 'apache-arrow';
 
-import { getPq } from './pqInitializer';
+import {getPq} from './pqInitializer';
 
 /**
  * RowGroupTileReader class for efficient streaming tile-based data access
@@ -20,16 +23,35 @@ import { getPq } from './pqInitializer';
 export class RowGroupTileReader {
   /**
    * Create a new RowGroupTileReader
-   * @param {string} parquetUrl - URL to the row-grouped parquet file
+   * @param {string} baseUrl - Base URL for the landscape files
    * @param {Object} tileGrid - Grid dimensions { num_tiles_x, num_tiles_y }
+   * @param {Object|string} fileConfig - Either a URL string (single file) or chunk config object
    */
-  constructor(parquetUrl, tileGrid = null) {
-    this.url = parquetUrl;
+  constructor(baseUrl, tileGrid, fileConfig) {
+    this.baseUrl = baseUrl;
     this.numTilesX = tileGrid?.num_tiles_x || 0;
     this.numTilesY = tileGrid?.num_tiles_y || 0;
     this.initialized = false;
-    this.parquetFile = null;
-    this.useStreaming = true;
+
+    // Determine mode: chunked or single file
+    if (typeof fileConfig === 'string') {
+      // Legacy single file mode
+      this.chunkedMode = false;
+      this.url = `${baseUrl}/${fileConfig}`;
+      this.parquetFile = null;
+    } else if (typeof fileConfig === 'object' && fileConfig.files) {
+      // Chunked mode
+      this.chunkedMode = true;
+      this.directory = fileConfig.directory;
+      this.files = fileConfig.files;
+      this.maxRowGroupsPerFile = fileConfig.max_row_groups_per_file || 10000;
+      this.totalRowGroups = fileConfig.total_row_groups || 0;
+      this.parquetFiles = {}; // Lazy-loaded map of file_index -> ParquetFile
+    } else {
+      throw new Error(
+        '[RowGroupTileReader] Invalid fileConfig: must be string URL or chunk config object'
+      );
+    }
   }
 
   /**
@@ -45,23 +67,31 @@ export class RowGroupTileReader {
   }
 
   /**
+   * For chunked mode: compute which file and local row group index
+   * @param {number} globalRowGroupIndex - Global row group index
+   * @returns {{fileIndex: number, localIndex: number}}
+   */
+  computeChunkLocation(globalRowGroupIndex) {
+    const fileIndex = Math.floor(globalRowGroupIndex / this.maxRowGroupsPerFile);
+    const localIndex = globalRowGroupIndex % this.maxRowGroupsPerFile;
+    return {fileIndex, localIndex};
+  }
+
+  /**
    * Check if the server supports Range requests (needed for streaming)
+   * @param {string} url - URL to check
    * @returns {Promise<boolean>}
    */
-  async _checkRangeSupport() {
+  async _checkRangeSupport(url) {
     try {
-      // For localhost, trust that Range requests work (skip expensive checks)
-      const urlObj = new URL(this.url);
+      const urlObj = new URL(url);
       if (urlObj.hostname === 'localhost' || urlObj.hostname === '127.0.0.1') {
         return true;
       }
 
-      // For remote servers, do a full Range request check to catch CDN issues
-      const response = await fetch(this.url, {
+      const response = await fetch(url, {
         method: 'GET',
-        headers: {
-          Range: 'bytes=0-7',
-        },
+        headers: {Range: 'bytes=0-7'},
       });
 
       if (!response.ok && response.status !== 206) {
@@ -71,26 +101,17 @@ export class RowGroupTileReader {
         return false;
       }
 
-      // Also test suffix range (what parquet-wasm uses for footer)
-      const footerResponse = await fetch(this.url, {
+      const footerResponse = await fetch(url, {
         method: 'GET',
-        headers: {
-          Range: 'bytes=-8',
-        },
+        headers: {Range: 'bytes=-8'},
       });
 
       if (!footerResponse.ok && footerResponse.status !== 206) {
-        console.log(
-          `[RowGroupTileReader] Footer range check failed with status ${footerResponse.status}`
-        );
+        console.log(`[RowGroupTileReader] Footer range check failed`);
         return false;
       }
 
-      const isPartial =
-        response.status === 206 && footerResponse.status === 206;
-      const acceptRanges = response.headers.get('Accept-Ranges');
-
-      return isPartial || acceptRanges === 'bytes';
+      return true;
     } catch (error) {
       console.log(`[RowGroupTileReader] Range check failed: ${error.message}`);
       return false;
@@ -98,50 +119,81 @@ export class RowGroupTileReader {
   }
 
   /**
-   * Initialize the reader
-   * @returns {Promise<void>}
+   * Get or create a ParquetFile for a specific chunk file
+   * @param {number} fileIndex - Index of the chunk file
+   * @returns {Promise<ParquetFile>}
+   */
+  async _getParquetFile(fileIndex) {
+    if (this.parquetFiles[fileIndex]) {
+      return this.parquetFiles[fileIndex];
+    }
+
+    const fileName = this.files[fileIndex];
+    if (!fileName) {
+      throw new Error(
+        `[RowGroupTileReader] No file for index ${fileIndex}. Available: ${this.files.length} files`
+      );
+    }
+
+    const fileUrl = `${this.baseUrl}/${this.directory}/${fileName}`;
+    const pq = getPq();
+
+    console.log(`[RowGroupTileReader] Loading chunk file: ${fileName}`);
+    const parquetFile = await pq.ParquetFile.fromUrl(fileUrl);
+    this.parquetFiles[fileIndex] = parquetFile;
+
+    return parquetFile;
+  }
+
+  /**
+   * Initialize the reader (for single file mode or first access)
    */
   async initialize() {
     if (this.initialized) {
       return;
     }
 
-    const pq = await getPq();
+    const pq = getPq();
 
-    // console.log(`[RowGroupTileReader] Initializing from: ${this.url}`);
+    if (!this.chunkedMode) {
+      // Single file mode
+      const rangeSupported = await this._checkRangeSupport(this.url);
 
-    // First check if Range requests are supported (also validates CORS)
-    const rangeSupported = await this._checkRangeSupport();
+      if (!rangeSupported) {
+        throw new Error(
+          `[RowGroupTileReader] Range requests not supported for ${this.url}. ` +
+            `Row group mode requires a server that supports HTTP Range requests with CORS.`
+        );
+      }
 
-    // Require Range request support - no full file fallback for row groups
-    if (!rangeSupported) {
-      throw new Error(
-        `[RowGroupTileReader] Range requests not supported for ${this.url}. ` +
-          `Row group mode requires a server that supports HTTP Range requests with CORS.`
+      console.log(
+        `[RowGroupTileReader] Range requests supported, creating streaming ParquetFile...`
+      );
+      this.parquetFile = await pq.ParquetFile.fromUrl(this.url);
+
+      const metadata = this.parquetFile.metadata();
+      const expectedRowGroups = this.numTilesX * this.numTilesY;
+      const actualRowGroups = metadata.numRowGroups();
+      console.log(
+        `[RowGroupTileReader] Streaming mode enabled, ${actualRowGroups} row groups (expected ${expectedRowGroups})`
+      );
+    } else {
+      // Chunked mode - check range support on first file
+      const firstFileUrl = `${this.baseUrl}/${this.directory}/${this.files[0]}`;
+      const rangeSupported = await this._checkRangeSupport(firstFileUrl);
+
+      if (!rangeSupported) {
+        throw new Error(
+          `[RowGroupTileReader] Range requests not supported. ` +
+            `Row group mode requires a server that supports HTTP Range requests with CORS.`
+        );
+      }
+
+      console.log(
+        `[RowGroupTileReader] Chunked mode enabled: ${this.files.length} files, ` +
+          `${this.totalRowGroups} total row groups, max ${this.maxRowGroupsPerFile} per file`
       );
     }
-
-    if (!pq.ParquetFile || typeof pq.ParquetFile.fromUrl !== 'function') {
-      throw new Error(
-        `[RowGroupTileReader] ParquetFile.fromUrl not available. ` +
-          `Please ensure parquet-wasm is properly initialized.`
-      );
-    }
-
-    // Use ParquetFile for streaming access with range requests
-    console.log(
-      `[RowGroupTileReader] Range requests supported, creating streaming ParquetFile...`
-    );
-    this.parquetFile = await pq.ParquetFile.fromUrl(this.url);
-    this.useStreaming = true;
-
-    // Get metadata for verification
-    const metadata = this.parquetFile.metadata();
-    const expectedRowGroups = this.numTilesX * this.numTilesY;
-    const actualRowGroups = metadata.numRowGroups();
-    console.log(
-      `[RowGroupTileReader] Streaming mode enabled, ${actualRowGroups} row groups (expected ${expectedRowGroups})`
-    );
 
     this.initialized = true;
   }
@@ -182,8 +234,7 @@ export class RowGroupTileReader {
 
     if (rowGroupIndices.length === 0) {
       console.log(
-        `[RowGroupTileReader] No valid tiles in request. Grid: ${this.numTilesX}x${this.numTilesY}, requested:`,
-        tilesInView.slice(0, 5)
+        `[RowGroupTileReader] No valid tiles in request. Grid: ${this.numTilesX}x${this.numTilesY}`
       );
       return null;
     }
@@ -191,79 +242,83 @@ export class RowGroupTileReader {
     // Remove duplicates and sort
     const uniqueIndices = [...new Set(rowGroupIndices)].sort((a, b) => a - b);
 
-    // Log what we're trying to read
-    console.log(
-      `[RowGroupTileReader] Reading ${uniqueIndices.length} row groups: ${uniqueIndices.slice(0, 5).join(', ')}${uniqueIndices.length > 5 ? '...' : ''}`
-    );
-
     try {
-      // Use streaming mode with HTTP Range Requests
-      const wasmTable = await this.parquetFile.read({
-        rowGroups: uniqueIndices,
-      });
+      if (!this.chunkedMode) {
+        // Single file mode - read all from one file
+        console.log(
+          `[RowGroupTileReader] Reading ${uniqueIndices.length} row groups: ${uniqueIndices.slice(0, 5).join(', ')}${uniqueIndices.length > 5 ? '...' : ''}`
+        );
 
-      // Convert to Arrow Table
-      const arrowIPC = wasmTable.intoIPCStream();
-      const table = arrow.tableFromIPC(arrowIPC);
+        const wasmTable = await this.parquetFile.read({
+          rowGroups: uniqueIndices,
+        });
+        const arrowIPC = wasmTable.intoIPCStream();
+        const table = arrow.tableFromIPC(arrowIPC);
 
-      console.log(`[RowGroupTileReader] Read ${table.numRows} rows`);
+        console.log(`[RowGroupTileReader] Read ${table.numRows} rows`);
+        return table;
+      } else {
+        // Chunked mode - partition by file and read from each
+        const byFile = new Map();
+        for (const globalIndex of uniqueIndices) {
+          const {fileIndex, localIndex} = this.computeChunkLocation(globalIndex);
+          if (!byFile.has(fileIndex)) {
+            byFile.set(fileIndex, []);
+          }
+          byFile.get(fileIndex).push(localIndex);
+        }
 
-      return table;
+        console.log(
+          `[RowGroupTileReader] Reading ${uniqueIndices.length} row groups from ${byFile.size} files`
+        );
+
+        // Read from each file and collect tables
+        const tables = [];
+        for (const [fileIndex, localIndices] of byFile) {
+          const pqFile = await this._getParquetFile(fileIndex);
+          const wasmTable = await pqFile.read({rowGroups: localIndices});
+          const arrowIPC = wasmTable.intoIPCStream();
+          const table = arrow.tableFromIPC(arrowIPC);
+          tables.push(table);
+        }
+
+        // Concatenate all tables
+        if (tables.length === 0) {
+          return null;
+        } else if (tables.length === 1) {
+          console.log(`[RowGroupTileReader] Read ${tables[0].numRows} rows`);
+          return tables[0];
+        } else {
+          // Concatenate multiple tables using Arrow's concat
+          const combined = arrow.tableConcat(tables);
+          console.log(`[RowGroupTileReader] Read ${combined.numRows} rows from ${tables.length} files`);
+          return combined;
+        }
+      }
     } catch (error) {
-      console.error(
-        `[RowGroupTileReader] Error reading row groups ${uniqueIndices.slice(0, 5).join(', ')}:`,
-        error
-      );
+      console.error(`[RowGroupTileReader] Error reading row groups:`, error);
       return null;
     }
   }
 
   /**
-   * Read data for a single tile
-   * @param {number} tileX - Tile X coordinate
-   * @param {number} tileY - Tile Y coordinate
-   * @returns {Promise<arrow.Table|null>} - Arrow Table with tile data
-   */
-  async readTile(tileX, tileY) {
-    return this.readTiles([{ tile_x: tileX, tile_y: tileY }]);
-  }
-
-  /**
-   * Get the total number of tiles in the grid
-   * @returns {number}
-   */
-  getNumTiles() {
-    return this.numTilesX * this.numTilesY;
-  }
-
-  /**
-   * Get grid dimensions
-   * @returns {{num_tiles_x: number, num_tiles_y: number}}
-   */
-  getGridDimensions() {
-    return {
-      num_tiles_x: this.numTilesX,
-      num_tiles_y: this.numTilesY,
-    };
-  }
-
-  /**
-   * Check if streaming mode is active (uses HTTP Range Requests)
+   * Check if streaming mode is active
    * @returns {boolean}
    */
   isStreaming() {
-    return this.useStreaming && this.parquetFile !== null;
+    return this.initialized;
   }
 }
 
 /**
  * Factory function to create and initialize a RowGroupTileReader
- * @param {string} parquetUrl - URL to the row-grouped parquet file
- * @param {Object} tileGrid - Grid dimensions { num_tiles_x, num_tiles_y }
+ * @param {string} baseUrl - Base URL for landscape files
+ * @param {Object} tileGrid - Grid dimensions
+ * @param {Object|string} fileConfig - File configuration
  * @returns {Promise<RowGroupTileReader>} - Initialized reader
  */
-export async function createRowGroupTileReader(parquetUrl, tileGrid = null) {
-  const reader = new RowGroupTileReader(parquetUrl, tileGrid);
+export async function createRowGroupTileReader(baseUrl, tileGrid, fileConfig) {
+  const reader = new RowGroupTileReader(baseUrl, tileGrid, fileConfig);
   await reader.initialize();
   return reader;
 }

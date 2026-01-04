@@ -130,17 +130,22 @@ async function initializeRowGroupReaders(viz_state, base_url) {
 
   // Initialize transcript row group reader with grid dimensions
   if (rowGroupFiles.transcripts) {
-    const trxUrl = `${base_url}/${rowGroupFiles.transcripts}`;
-    viz_state.row_group_readers.trx = new RowGroupTileReader(trxUrl, tileGrid);
+    // Support both chunked (object with files array) and legacy (string path) formats
+    viz_state.row_group_readers.trx = new RowGroupTileReader(
+      base_url,
+      tileGrid,
+      rowGroupFiles.transcripts
+    );
     await viz_state.row_group_readers.trx.initialize();
   }
 
   // Initialize cell segmentation row group reader with grid dimensions
   if (rowGroupFiles.cell_segmentation) {
-    const cellUrl = `${base_url}/${rowGroupFiles.cell_segmentation}`;
+    // Support both chunked (object with files array) and legacy (string path) formats
     viz_state.row_group_readers.cell = new RowGroupTileReader(
-      cellUrl,
-      tileGrid
+      base_url,
+      tileGrid,
+      rowGroupFiles.cell_segmentation
     );
     await viz_state.row_group_readers.cell.initialize();
   }

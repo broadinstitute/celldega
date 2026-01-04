@@ -642,19 +642,27 @@ def _collect_tile_data_for_row_groups(
     return tile_data_list, tile_grid_info
 
 
-def _write_tiles_as_row_groups(tile_data_list, output_path, tile_grid_info):
+def _write_tiles_as_row_groups(tile_data_list, output_dir, tile_grid_info, max_row_groups_per_file=10000):
     """
-    Write tile data as row groups in a single parquet file.
+    Write tile data as row groups in chunked parquet files.
 
     Each tile becomes one row group in deterministic order:
         row_group_index = tile_x * num_tiles_y + tile_y
+
+    Files are chunked to avoid parquet-wasm issues with large footers:
+        file_index = row_group_index // max_row_groups_per_file
+        local_row_group_index = row_group_index % max_row_groups_per_file
 
     Empty tiles are written as empty row groups to maintain index alignment.
 
     Parameters:
     - tile_data_list: List of (tile_x, tile_y, DataFrame) tuples
-    - output_path: Path to output parquet file
+    - output_dir: Path to output directory (will contain transcripts_0.parquet, etc.)
     - tile_grid_info: Dictionary with grid dimensions
+    - max_row_groups_per_file: Maximum row groups per parquet file (default 10000)
+
+    Returns:
+    - dict: Chunk info with file list and metadata
     """
     import json
 
@@ -663,56 +671,89 @@ def _write_tiles_as_row_groups(tile_data_list, output_path, tile_grid_info):
 
     if not tile_data_list:
         print("Warning: No tile data to write")
-        return
+        return {}
 
-    # Create metadata with tile grid info
-    metadata = {
-        b"tile_grid_info": json.dumps(tile_grid_info).encode("utf-8"),
-        b"storage_mode": b"row_groups_formula",
-    }
+    # Create output directory
+    output_path = Path(output_dir)
+    output_path.mkdir(parents=True, exist_ok=True)
+
+    # Calculate number of files needed
+    total_tiles = len(tile_data_list)
+    num_files = (total_tiles + max_row_groups_per_file - 1) // max_row_groups_per_file
+
+    print(f"Chunking {total_tiles} tiles into {num_files} files (max {max_row_groups_per_file} per file)")
 
     # Get schema from first non-empty tile
     schema = None
     for _, _, tile_df in tile_data_list:
         if tile_df is not None:
             first_table = pa.Table.from_pandas(tile_df.to_pandas(), preserve_index=False)
+            # Add metadata to schema
+            metadata = {
+                b"tile_grid_info": json.dumps(tile_grid_info).encode("utf-8"),
+                b"storage_mode": b"row_groups_chunked",
+                b"max_row_groups_per_file": str(max_row_groups_per_file).encode("utf-8"),
+            }
             schema = first_table.schema.with_metadata(metadata)
             break
 
     if schema is None:
         print("Warning: All tiles are empty, cannot determine schema")
-        return
+        return {}
 
-    # Write with one row group per tile in order
-    # Disable statistics to reduce footer size for large datasets
-    writer = pq.ParquetWriter(output_path, schema, write_statistics=False)
-
+    # Write tiles to chunked files
+    file_list = []
     non_empty_count = 0
-    for tile_x, tile_y, tile_df in tile_data_list:
+    current_file_index = -1
+    writer = None
+
+    for i, (tile_x, tile_y, tile_df) in enumerate(tile_data_list):
+        file_index = i // max_row_groups_per_file
+
+        # Start new file if needed
+        if file_index != current_file_index:
+            if writer is not None:
+                writer.close()
+
+            current_file_index = file_index
+            file_name = f"chunk_{file_index}.parquet"
+            file_path = output_path / file_name
+            file_list.append(file_name)
+
+            # Disable statistics to reduce footer size
+            writer = pq.ParquetWriter(file_path, schema, write_statistics=False)
+
+        # Write tile
         if tile_df is not None:
-            # Non-empty tile: convert and write
             tile_table = pa.Table.from_pandas(tile_df.to_pandas(), preserve_index=False)
             writer.write_table(tile_table)
             non_empty_count += 1
         else:
-            # Empty tile: create empty table with correct schema
             empty_table = schema.empty_table()
             writer.write_table(empty_table)
 
-    writer.close()
+    # Close last file
+    if writer is not None:
+        writer.close()
 
-    total_tiles = tile_grid_info["num_tiles_x"] * tile_grid_info["num_tiles_y"]
-    print(f"Wrote {len(tile_data_list)} row groups ({non_empty_count} non-empty) to {output_path}")
+    print(f"Wrote {total_tiles} row groups ({non_empty_count} non-empty) across {len(file_list)} files")
     print(
         f"Tile grid: {tile_grid_info['num_tiles_x']}x{tile_grid_info['num_tiles_y']} = {total_tiles} tiles"
     )
+
+    # Return chunk info for landscape_parameters.json
+    return {
+        "files": file_list,
+        "max_row_groups_per_file": max_row_groups_per_file,
+        "total_row_groups": total_tiles,
+    }
 
 
 def make_trx_tiles_row_groups(
     technology,
     path_trx,
     path_transformation_matrix=None,
-    path_output=None,
+    path_output_dir=None,
     coarse_tile_factor=10,
     tile_size=250,
     chunk_size=1000000,
@@ -720,12 +761,14 @@ def make_trx_tiles_row_groups(
     image_scale=1,
     max_workers=1,
     path_landscape_files=None,
+    max_row_groups_per_file=10000,
 ):
     """
-    Processes transcript data and saves all tiles as row groups in a single parquet file.
+    Processes transcript data and saves all tiles as row groups in chunked parquet files.
 
-    This is an alternative to make_trx_tiles that creates a single file with row groups
-    instead of many individual tile files.
+    This is an alternative to make_trx_tiles that creates chunked parquet files with row groups
+    instead of many individual tile files. Each file contains up to max_row_groups_per_file
+    row groups to avoid parquet-wasm memory issues with large footers.
 
     Parameters
     ----------
@@ -735,8 +778,8 @@ def make_trx_tiles_row_groups(
         Path to the file containing the transcript data.
     path_transformation_matrix : str
         Path to the file containing the transformation matrix (CSV file).
-    path_output : str
-        Path to the output parquet file (single file with row groups).
+    path_output_dir : str
+        Path to the output directory (will contain chunk_0.parquet, chunk_1.parquet, etc.).
     coarse_tile_factor : int, optional
         Not used in row group mode, kept for API compatibility.
     tile_size : int, optional
@@ -751,11 +794,13 @@ def make_trx_tiles_row_groups(
         Not used in row group mode, kept for API compatibility.
     path_landscape_files : str, optional
         Path to landscape files directory for loading gene mapping.
+    max_row_groups_per_file : int, optional
+        Maximum row groups per parquet file (default 10000).
 
     Returns
     -------
     tuple
-        (tile_bounds dict, tile_grid_info dict)
+        (tile_bounds dict, tile_grid_info dict, chunk_info dict)
     """
     if technology == "custom":
         raise NotImplementedError("Row group mode not yet supported for custom technology")
@@ -794,8 +839,10 @@ def make_trx_tiles_row_groups(
         tile_size,
     )
 
-    # Write as row groups
-    _write_tiles_as_row_groups(tile_data_list, path_output, tile_grid_info)
+    # Write as chunked row groups
+    chunk_info = _write_tiles_as_row_groups(
+        tile_data_list, path_output_dir, tile_grid_info, max_row_groups_per_file
+    )
 
     tile_bounds = {
         "x_min": x_min,
@@ -804,4 +851,4 @@ def make_trx_tiles_row_groups(
         "y_max": y_max,
     }
 
-    return tile_bounds, tile_grid_info
+    return tile_bounds, tile_grid_info, chunk_info

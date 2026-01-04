@@ -90,11 +90,12 @@ async function initializeYearbookRowGroupReaders(viz_state, base_url) {
   try {
     // Initialize transcript row group reader
     if (rowGroupFiles.transcripts) {
-      const trxUrl = `${base_url}/${rowGroupFiles.transcripts}`;
-      console.log(`[yearbook] Initializing transcript reader from: ${trxUrl}`);
+      console.log(`[yearbook] Initializing transcript reader`);
+      // Support both chunked (object with files array) and legacy (string path) formats
       viz_state.row_group_readers.trx = new RowGroupTileReader(
-        trxUrl,
-        tileGrid
+        base_url,
+        tileGrid,
+        rowGroupFiles.transcripts
       );
       await viz_state.row_group_readers.trx.initialize();
       console.log('[yearbook] Transcript reader ready');
@@ -102,11 +103,12 @@ async function initializeYearbookRowGroupReaders(viz_state, base_url) {
 
     // Initialize cell segmentation row group reader
     if (rowGroupFiles.cell_segmentation) {
-      const cellUrl = `${base_url}/${rowGroupFiles.cell_segmentation}`;
-      console.log(`[yearbook] Initializing cell reader from: ${cellUrl}`);
+      console.log(`[yearbook] Initializing cell reader`);
+      // Support both chunked (object with files array) and legacy (string path) formats
       viz_state.row_group_readers.cell = new RowGroupTileReader(
-        cellUrl,
-        tileGrid
+        base_url,
+        tileGrid,
+        rowGroupFiles.cell_segmentation
       );
       await viz_state.row_group_readers.cell.initialize();
       console.log('[yearbook] Cell reader ready');

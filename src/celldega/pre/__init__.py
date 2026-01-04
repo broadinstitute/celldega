@@ -1084,6 +1084,8 @@ def save_landscape_parameters(
     use_row_groups=False,
     tile_grid_info=None,
     image_tile_info=None,
+    trx_chunk_info=None,
+    cell_chunk_info=None,
 ):
     """Saves the landscape parameters to a JSON file.
 
@@ -1098,6 +1100,8 @@ def save_landscape_parameters(
         use_row_groups (bool, optional): If True, tiles are stored as row groups. Defaults to False.
         tile_grid_info (dict, optional): Tile grid metadata when using row groups.
         image_tile_info (dict, optional): Image tile metadata from pack_image_tiles_to_parquet.
+        trx_chunk_info (dict, optional): Chunk info for transcript parquet files.
+        cell_chunk_info (dict, optional): Chunk info for cell segmentation parquet files.
 
     Returns:
         None
@@ -1152,10 +1156,32 @@ def save_landscape_parameters(
         # Add row group specific metadata
         if use_row_groups and tile_grid_info:
             landscape_parameters["row_group_files"] = {
-                "transcripts": "transcripts.parquet",
-                "cell_segmentation": "cell_segmentation.parquet",
                 "cbg": "cbg.parquet",
             }
+
+            # Add chunked transcript files
+            if trx_chunk_info:
+                landscape_parameters["row_group_files"]["transcripts"] = {
+                    "directory": "transcripts",
+                    "files": trx_chunk_info.get("files", []),
+                    "max_row_groups_per_file": trx_chunk_info.get("max_row_groups_per_file", 10000),
+                    "total_row_groups": trx_chunk_info.get("total_row_groups", 0),
+                }
+            else:
+                # Legacy single file mode (backwards compatibility)
+                landscape_parameters["row_group_files"]["transcripts"] = "transcripts.parquet"
+
+            # Add chunked cell segmentation files
+            if cell_chunk_info:
+                landscape_parameters["row_group_files"]["cell_segmentation"] = {
+                    "directory": "cell_segmentation",
+                    "files": cell_chunk_info.get("files", []),
+                    "max_row_groups_per_file": cell_chunk_info.get("max_row_groups_per_file", 10000),
+                    "total_row_groups": cell_chunk_info.get("total_row_groups", 0),
+                }
+            else:
+                # Legacy single file mode (backwards compatibility)
+                landscape_parameters["row_group_files"]["cell_segmentation"] = "cell_segmentation.parquet"
 
             # Add image parquet files for each channel with zoom info
             # Parquet files are now in pyramid_images/ alongside .dzi files

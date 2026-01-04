@@ -16,6 +16,7 @@
 import * as arrow from 'apache-arrow';
 
 import {getPq} from './pqInitializer';
+import {concatenate_arrow_tables} from '../vector_tile/concatenate_functions';
 
 /**
  * RowGroupTileReader class for efficient streaming tile-based data access
@@ -312,8 +313,8 @@ export class RowGroupTileReader {
           console.log(`[RowGroupTileReader] Read ${tables[0].numRows} rows`);
           return tables[0];
         } else {
-          // Concatenate multiple tables using Arrow's concat
-          const combined = arrow.tableConcat(tables);
+          // Concatenate multiple tables using existing utility
+          const combined = concatenate_arrow_tables(tables);
           console.log(`[RowGroupTileReader] Read ${combined.numRows} rows from ${tables.length} files`);
           return combined;
         }

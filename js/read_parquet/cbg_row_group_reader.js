@@ -110,7 +110,7 @@ export class CBGRowGroupReader {
 
     // Get metadata to build gene index
     const metadata = this.parquetFile.metadata();
-    const {numRowGroups} = metadata;
+    const numRowGroups = metadata.numRowGroups();
     console.log(
       `[CBGRowGroupReader] Streaming mode enabled, ${numRowGroups} row groups available`
     );

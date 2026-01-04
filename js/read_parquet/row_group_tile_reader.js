@@ -138,8 +138,9 @@ export class RowGroupTileReader {
     // Get metadata for verification
     const metadata = this.parquetFile.metadata();
     const expectedRowGroups = this.numTilesX * this.numTilesY;
+    const actualRowGroups = metadata.numRowGroups();
     console.log(
-      `[RowGroupTileReader] Streaming mode enabled, ${metadata.numRowGroups} row groups (expected ${expectedRowGroups})`
+      `[RowGroupTileReader] Streaming mode enabled, ${actualRowGroups} row groups (expected ${expectedRowGroups})`
     );
 
     this.initialized = true;

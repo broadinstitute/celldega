@@ -111,8 +111,9 @@ export class ImageRowGroupReader {
     this.useStreaming = true;
 
     const metadata = this.parquetFile.metadata();
+    const numRowGroups = metadata.numRowGroups();
     console.log(
-      `[ImageRowGroupReader] Streaming mode enabled, ${metadata.numRowGroups} tiles available`
+      `[ImageRowGroupReader] Streaming mode enabled, ${numRowGroups} tiles available`
     );
 
     console.log(

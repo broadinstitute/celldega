@@ -41,7 +41,7 @@ export class ImageRowGroupReader {
       this.chunkedMode = true;
       this.directory = imageConfig.directory || 'pyramid_images';
       this.files = imageConfig.files;
-      this.maxRowGroupsPerFile = imageConfig.max_row_groups_per_file || 400;
+      this.maxRowGroupsPerFile = imageConfig.max_row_groups_per_file || 2000;
       this.totalRowGroups = imageConfig.total_row_groups || 0;
       this.zoomInfo = imageConfig.zoom_info || zoomInfo || {};
       // eslint-disable-next-line no-console

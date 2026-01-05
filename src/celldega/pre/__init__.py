@@ -645,7 +645,7 @@ def pack_image_tiles_to_parquet(
     output_path,
     image_format=".webp",
     delete_source_tiles=True,
-    max_row_groups_per_file=400,
+    max_row_groups_per_file=2000,
 ):
     """
     Pack all image tiles from a DeepZoom pyramid into chunked parquet files with row groups.
@@ -1244,7 +1244,11 @@ def save_landscape_parameters(
                 # Check for chunked directories (new format)
                 for channel_dir in pyramid_images_dir.iterdir():
                     if channel_dir.is_dir():
-                        chunk_files = sorted(channel_dir.glob("chunk_*.parquet"))
+                        # Sort numerically, not alphabetically (chunk_10 should come after chunk_9)
+                        chunk_files = sorted(
+                            channel_dir.glob("chunk_*.parquet"),
+                            key=lambda f: int(f.stem.split("_")[1]),
+                        )
                         if chunk_files:
                             channel_name = channel_dir.name
                             image_entry = {
@@ -1257,7 +1261,7 @@ def save_landscape_parameters(
                                 image_entry["zoom_info"] = channel_info.get("zoom_info", {})
                                 image_entry["zoom_levels"] = channel_info.get("zoom_levels", [])
                                 image_entry["max_row_groups_per_file"] = channel_info.get(
-                                    "max_row_groups_per_file", 400
+                                    "max_row_groups_per_file", 2000
                                 )
                                 image_entry["total_row_groups"] = channel_info.get(
                                     "total_row_groups", 0

@@ -328,13 +328,14 @@ def main(
                 # Check if already processed (directory with chunk files exists)
                 if not output_dir.exists() or not list(output_dir.glob("chunk_*.parquet")):
                     try:
+                        # Use default max_row_groups_per_file=2000 for images
+                        # (higher than tiles since image tiles are smaller)
                         tile_info = dega.pre.pack_image_tiles_to_parquet(
                             str(pyramid_dir),
                             channel_name,
                             str(output_dir),
                             image_format=".webp",
                             delete_source_tiles=True,
-                            max_row_groups_per_file=max_row_groups_per_file,
                         )
                         image_tile_info[channel_name] = tile_info
                     except FileNotFoundError as e:

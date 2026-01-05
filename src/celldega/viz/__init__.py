@@ -2,7 +2,7 @@
 Module for visualization
 """
 
-from ipywidgets import HBox, VBox, Layout, jslink
+from ipywidgets import HBox, Layout, VBox, jslink
 
 from .local_server import get_local_server, get_proxy_server
 from .widget import Clustergram, Enrich, Landscape, Yearbook

@@ -133,17 +133,14 @@ async function initializeYearbookRowGroupReaders(viz_state, base_url) {
       for (const [channelName, imageEntry] of Object.entries(
         rowGroupFiles.images
       )) {
-        const imagePath =
-          typeof imageEntry === 'string' ? imageEntry : imageEntry.path;
-        const zoomInfo =
-          typeof imageEntry === 'object' ? imageEntry.zoom_info : null;
-
-        const imageUrl = `${base_url}/${imagePath}`;
         console.log(
-          `[yearbook] Initializing image reader for ${channelName} from: ${imageUrl}`
+          `[yearbook] Initializing image reader for ${channelName}...`
         );
+        // Pass imageEntry directly - ImageRowGroupReader handles both:
+        // - Chunked mode: object with { directory, files, zoom_info, ... }
+        // - Legacy mode: string path or object with { path, zoom_info }
         viz_state.row_group_readers.images[channelName] =
-          new ImageRowGroupReader(imageUrl, zoomInfo);
+          new ImageRowGroupReader(base_url, imageEntry);
         await viz_state.row_group_readers.images[channelName].initialize();
         console.log(`[yearbook] Image reader (${channelName}) ready`);
       }

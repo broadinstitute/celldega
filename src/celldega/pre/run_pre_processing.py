@@ -322,23 +322,25 @@ def main(
             image_info = dega.pre.get_image_info(technology, image_tile_layer)
             for channel_info in image_info:
                 channel_name = channel_info["name"]
-                # Put parquet files in pyramid_images/ alongside the .dzi files
-                output_parquet = pyramid_dir / f"{channel_name}.parquet"
+                # Put chunked parquet files in pyramid_images/{channel_name}/ directory
+                output_dir = pyramid_dir / channel_name
 
-                if not output_parquet.exists():
+                # Check if already processed (directory with chunk files exists)
+                if not output_dir.exists() or not list(output_dir.glob("chunk_*.parquet")):
                     try:
                         tile_info = dega.pre.pack_image_tiles_to_parquet(
                             str(pyramid_dir),
                             channel_name,
-                            str(output_parquet),
+                            str(output_dir),
                             image_format=".webp",
                             delete_source_tiles=True,
+                            max_row_groups_per_file=max_row_groups_per_file,
                         )
                         image_tile_info[channel_name] = tile_info
                     except FileNotFoundError as e:
                         print(f"Warning: Could not pack {channel_name} tiles: {e}")
                 else:
-                    print(f"Skipping {channel_name} parquet, file already exists")
+                    print(f"Skipping {channel_name} parquet, directory already exists")
 
         tile_bounds = None
         tile_grid_info = None

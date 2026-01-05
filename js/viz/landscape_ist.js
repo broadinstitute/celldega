@@ -166,17 +166,12 @@ async function initializeRowGroupReaders(viz_state, base_url) {
     for (const [channelName, imageEntry] of Object.entries(
       rowGroupFiles.images
     )) {
-      // Handle both old format (string path) and new format (object with path and zoom_info)
-      const imagePath =
-        typeof imageEntry === 'string' ? imageEntry : imageEntry.path;
-      const zoomInfo =
-        typeof imageEntry === 'object' ? imageEntry.zoom_info : null;
-
-      const imageUrl = `${base_url}/${imagePath}`;
-      // Pass zoom_info to the reader for row group index computation
+      // Pass imageEntry directly - ImageRowGroupReader handles both:
+      // - Chunked mode: object with { directory, files, zoom_info, ... }
+      // - Legacy mode: string path or object with { path, zoom_info }
       viz_state.row_group_readers.images[channelName] = new ImageRowGroupReader(
-        imageUrl,
-        zoomInfo
+        base_url,
+        imageEntry
       );
       await viz_state.row_group_readers.images[channelName].initialize();
     }

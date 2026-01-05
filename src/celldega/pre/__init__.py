@@ -640,21 +640,30 @@ def make_deepzoom_pyramid(
 
 
 def pack_image_tiles_to_parquet(
-    pyramid_dir, channel_name, output_path, image_format=".webp", delete_source_tiles=True
+    pyramid_dir,
+    channel_name,
+    output_path,
+    image_format=".webp",
+    delete_source_tiles=True,
+    max_row_groups_per_file=400,
 ):
     """
-    Pack all image tiles from a DeepZoom pyramid into a single parquet file with row groups.
+    Pack all image tiles from a DeepZoom pyramid into chunked parquet files with row groups.
 
     Each zoom level's tiles are stored as row groups, allowing efficient range-based access.
     The formula for row group index is:
         row_group_index = sum of tiles in previous zoom levels + tile_x * num_tiles_y + tile_y
 
+    For large datasets, tiles are split across multiple parquet files, each containing
+    at most `max_row_groups_per_file` row groups.
+
     Args:
         pyramid_dir (str): Path to the pyramid_images directory.
         channel_name (str): Name of the image channel (e.g., "dapi").
-        output_path (str): Path to the output parquet file.
+        output_path (str): Path to the output directory (will contain chunk_X.parquet files).
         image_format (str): Image file extension (default ".webp").
         delete_source_tiles (bool): If True, delete the original tile files after packing.
+        max_row_groups_per_file (int): Maximum row groups per file (default 400).
 
     Returns:
         dict: Image tile metadata including grid info per zoom level and image dimensions.
@@ -775,7 +784,16 @@ def pack_image_tiles_to_parquet(
     if not all_tiles:
         raise ValueError("No tiles found to pack")
 
-    print(f"Packing {len(all_tiles)} tiles into parquet...")
+    total_tiles = len(all_tiles)
+    num_files = (total_tiles + max_row_groups_per_file - 1) // max_row_groups_per_file
+    print(
+        f"Packing {total_tiles} tiles into {num_files} parquet files "
+        f"(max {max_row_groups_per_file} per file)..."
+    )
+
+    # Create output directory
+    output_dir = Path(output_path)
+    output_dir.mkdir(parents=True, exist_ok=True)
 
     # Create schema
     schema = pa.schema(
@@ -789,18 +807,32 @@ def pack_image_tiles_to_parquet(
 
     # Add metadata
     metadata = {
-        b"storage_mode": b"row_groups_image",
+        b"storage_mode": b"row_groups_image_chunked",
         b"zoom_info": json.dumps(zoom_info).encode("utf-8"),
         b"channel_name": channel_name.encode("utf-8"),
         b"image_format": image_format.encode("utf-8"),
     }
     schema = schema.with_metadata(metadata)
 
-    # Write each tile as a row group
-    # Disable statistics to reduce footer size for large datasets
-    writer = pq.ParquetWriter(output_path, schema, write_statistics=False)
+    # Write tiles to chunked parquet files
+    file_list = []
+    current_file_idx = 0
+    current_row_in_file = 0
+    writer = None
 
-    for zoom, tile_x, tile_y, image_bytes in all_tiles:
+    for tile_idx, (zoom, tile_x, tile_y, image_bytes) in enumerate(all_tiles):
+        # Start a new file if needed
+        if current_row_in_file == 0 or current_row_in_file >= max_row_groups_per_file:
+            if writer is not None:
+                writer.close()
+            file_name = f"chunk_{current_file_idx}.parquet"
+            file_path = output_dir / file_name
+            file_list.append(file_name)
+            writer = pq.ParquetWriter(str(file_path), schema, write_statistics=False)
+            current_file_idx += 1
+            current_row_in_file = 0
+
+        # Write this tile as a row group
         tile_table = pa.table(
             {
                 "zoom": [zoom],
@@ -811,10 +843,12 @@ def pack_image_tiles_to_parquet(
             schema=schema,
         )
         writer.write_table(tile_table)
+        current_row_in_file += 1
 
-    writer.close()
+    if writer is not None:
+        writer.close()
 
-    print(f"Wrote {len(all_tiles)} image tiles to {output_path}")
+    print(f"Wrote {total_tiles} image tiles across {len(file_list)} files to {output_dir}")
 
     # Delete source tile images if requested (but keep .dzi files for dimension info)
     if delete_source_tiles:
@@ -830,12 +864,17 @@ def pack_image_tiles_to_parquet(
 
     return {
         "channel_name": channel_name,
-        "num_tiles": len(all_tiles),
+        "num_tiles": total_tiles,
         "zoom_levels": zoom_levels,
         "zoom_info": zoom_info,
         "image_width": image_width,
         "image_height": image_height,
         "tile_size": tile_size,
+        # Chunk info for frontend
+        "directory": channel_name,
+        "files": file_list,
+        "max_row_groups_per_file": max_row_groups_per_file,
+        "total_row_groups": total_tiles,
     }
 
 
@@ -1197,21 +1236,48 @@ def save_landscape_parameters(
                 landscape_parameters["row_group_files"]["cell_segmentation"] = "cell_segmentation.parquet"
 
             # Add image parquet files for each channel with zoom info
-            # Parquet files are now in pyramid_images/ alongside .dzi files
+            # Parquet files are now in pyramid_images/{channel_name}/ directories (chunked)
             pyramid_images_dir = Path(path_landscape_files) / "pyramid_images"
             if pyramid_images_dir.exists():
                 image_parquets = {}
+
+                # Check for chunked directories (new format)
+                for channel_dir in pyramid_images_dir.iterdir():
+                    if channel_dir.is_dir():
+                        chunk_files = sorted(channel_dir.glob("chunk_*.parquet"))
+                        if chunk_files:
+                            channel_name = channel_dir.name
+                            image_entry = {
+                                "directory": f"pyramid_images/{channel_name}",
+                                "files": [f.name for f in chunk_files],
+                            }
+                            # Add chunk info and zoom_info if available from image_tile_info
+                            if image_tile_info and channel_name in image_tile_info:
+                                channel_info = image_tile_info[channel_name]
+                                image_entry["zoom_info"] = channel_info.get("zoom_info", {})
+                                image_entry["zoom_levels"] = channel_info.get("zoom_levels", [])
+                                image_entry["max_row_groups_per_file"] = channel_info.get(
+                                    "max_row_groups_per_file", 400
+                                )
+                                image_entry["total_row_groups"] = channel_info.get(
+                                    "total_row_groups", 0
+                                )
+                            image_parquets[channel_name] = image_entry
+
+                # Also check for legacy single parquet files (backwards compatibility)
                 for pq_file in pyramid_images_dir.glob("*.parquet"):
                     channel_name = pq_file.stem
-                    image_entry = {
-                        "path": f"pyramid_images/{pq_file.name}",
-                    }
-                    # Add zoom_info if available from image_tile_info
-                    if image_tile_info and channel_name in image_tile_info:
-                        channel_info = image_tile_info[channel_name]
-                        image_entry["zoom_info"] = channel_info.get("zoom_info", {})
-                        image_entry["zoom_levels"] = channel_info.get("zoom_levels", [])
-                    image_parquets[channel_name] = image_entry
+                    if channel_name not in image_parquets:
+                        image_entry = {
+                            "path": f"pyramid_images/{pq_file.name}",
+                        }
+                        # Add zoom_info if available from image_tile_info
+                        if image_tile_info and channel_name in image_tile_info:
+                            channel_info = image_tile_info[channel_name]
+                            image_entry["zoom_info"] = channel_info.get("zoom_info", {})
+                            image_entry["zoom_levels"] = channel_info.get("zoom_levels", [])
+                        image_parquets[channel_name] = image_entry
+
                 if image_parquets:
                     landscape_parameters["row_group_files"]["images"] = image_parquets
 

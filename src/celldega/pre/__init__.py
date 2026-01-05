@@ -1404,12 +1404,14 @@ def add_clustering_from_adata(
 
     # Ensure we have enough colors
     if len(colors) < len(clusters):
-        extra_colors = _create_cluster_colors(clusters[len(colors):])
+        extra_colors = _create_cluster_colors(clusters[len(colors) :])
         colors = list(colors) + extra_colors
 
     # Create meta_cluster DataFrame
     meta_cluster = pd.DataFrame(index=clusters)
-    meta_cluster["color"] = [colors[i] if i < len(colors) else "#808080" for i in range(len(clusters))]
+    meta_cluster["color"] = [
+        colors[i] if i < len(colors) else "#808080" for i in range(len(clusters))
+    ]
     meta_cluster["count"] = cluster_counts.values
     meta_cluster.to_parquet(cluster_dir / "meta_cluster.parquet")
 

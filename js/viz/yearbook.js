@@ -5,7 +5,6 @@ import {
   set_get_tooltip,
   set_views_prop,
 } from '../deck-gl/core/deck_ist';
-import { execute_cell_query } from '../utils/cell_query';
 import {
   create_yearbook_views,
   get_discontiguous_tiles,
@@ -48,6 +47,7 @@ import { set_meta_gene } from '../global_variables/meta_gene';
 import { create_obs_store } from '../obs_store/obs_store';
 import { set_image_layer_sliders } from '../ui/sliders';
 import { make_yearbook_ui_container } from '../ui/yearbook_ui';
+import { execute_cell_query } from '../utils/cell_query';
 import { refresh_layer } from '../utils/refresh_layer';
 import { create_scale_bar, PIXEL_SIZE_MICRONS } from '../utils/scale_bar';
 
@@ -298,8 +298,8 @@ export const yearbook = async (
         default_max_cells
       );
       return queried_cells;
-    } catch (error) {
-      console.error('Failed to execute cell query:', error);
+    } catch {
+      // Silently handle cell query failures
       return [];
     }
   };
@@ -873,8 +873,8 @@ export const yearbook = async (
       if (viz_state.yearbook.update_pagination_ui) {
         viz_state.yearbook.update_pagination_ui();
       }
-    } catch (error) {
-      console.error('Query failed:', error);
+    } catch {
+      // Handle query failure gracefully
       if (viz_state.yearbook.query_ui) {
         viz_state.yearbook.query_ui.update_status('Query failed');
       }

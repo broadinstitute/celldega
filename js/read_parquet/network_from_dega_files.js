@@ -32,7 +32,11 @@ function tableToMatrix(table) {
  * @param {object} [options] - Optional fetch options (e.g., headers for authentication)
  * @returns {Promise<object>} - Network object ready for matrix_viz
  */
-export const networkFromDegaFiles = async (base_url, name = 'default', options = {}) => {
+export const networkFromDegaFiles = async (
+  base_url,
+  name = 'default',
+  options = {}
+) => {
   const cgm_url = `${base_url}/cgm/${name}`;
 
   // Fetch all files in parallel

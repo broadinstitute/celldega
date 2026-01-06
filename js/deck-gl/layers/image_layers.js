@@ -161,7 +161,11 @@ export const make_yearbook_image_layers = async (
       // This preserves the original RGB colors of histology images
       const renderSubLayers = isHnE
         ? create_simple_render_tile_sublayers(viz_state.dimensions)
-        : create_render_tile_sublayers(viz_state.dimensions, info.color, opacity);
+        : create_render_tile_sublayers(
+            viz_state.dimensions,
+            info.color,
+            opacity
+          );
 
       const image_layer = new TileLayer({
         id: layerId,

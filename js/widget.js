@@ -346,10 +346,14 @@ const matrix_from_dega_files = async (
   const model = {
     get: (key) => {
       if (key === 'row_entity') {
-        return JSON.stringify(network.row_entity || { entity: 'gene', attr: 'name' });
+        return JSON.stringify(
+          network.row_entity || { entity: 'gene', attr: 'name' }
+        );
       }
       if (key === 'col_entity') {
-        return JSON.stringify(network.col_entity || { entity: 'cell', attr: 'leiden' });
+        return JSON.stringify(
+          network.col_entity || { entity: 'cell', attr: 'leiden' }
+        );
       }
       return null;
     },

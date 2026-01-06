@@ -108,8 +108,12 @@ export const create_obs_store = () => {
     };
 
     // Subscribe to all relevant state changes
-    store.selected_cats.subscribe(update_viz_image_layers, { immediate: false });
-    store.selected_genes.subscribe(update_viz_image_layers, { immediate: false });
+    store.selected_cats.subscribe(update_viz_image_layers, {
+      immediate: false,
+    });
+    store.selected_genes.subscribe(update_viz_image_layers, {
+      immediate: false,
+    });
     store.close_up.subscribe(update_viz_image_layers, { immediate: false });
 
     // Return the function so it can be called manually if needed

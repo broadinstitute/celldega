@@ -377,7 +377,10 @@ export const yearbook = async (
       if (all_cells.length > 0) {
         // Shuffle and take a subset
         const shuffled = [...all_cells].sort(() => Math.random() - 0.5);
-        initial_cells = shuffled.slice(0, Math.min(default_count, all_cells.length));
+        initial_cells = shuffled.slice(
+          0,
+          Math.min(default_count, all_cells.length)
+        );
       }
     }
 

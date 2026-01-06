@@ -22,5 +22,5 @@ celldega = await import('https://esm.sh/celldega@latest')
 Or by importing it from a local file
 
 ```
-import celldega from 'js/widget.js'
+import celldega from 'js/celldega.js'
 ```

@@ -1,4 +1,4 @@
-import './widget.css';
+import './celldega.css';
 
 import { networkFromDegaFiles } from './read_parquet/network_from_dega_files';
 import { networkFromParquet } from './read_parquet/network_from_parquet';

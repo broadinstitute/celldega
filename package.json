@@ -64,7 +64,7 @@
   "files": [
     "src/celldega/static/*"
   ],
-  "main": "src/celldega/static/widget.js",
+  "main": "src/celldega/static/celldega.js",
   "prettier": {
     "semi": true,
     "trailingComma": "es5",

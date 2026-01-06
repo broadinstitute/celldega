@@ -188,7 +188,7 @@ export const convert_exp_map_keys = (exp_map, viz_state) => {
   }
 
   // Convert integer indices to cell names using nameMapping_inv
-  const {nameMapping_inv} = viz_state.cats;
+  const { nameMapping_inv } = viz_state.cats;
   if (!nameMapping_inv) {
     // console.warn('vector_name_integer is true but nameMapping_inv is missing');
     return exp_map;
@@ -353,7 +353,7 @@ export const execute_cell_query = async (
       } else {
         // Gene expression file not found or empty - fall back to unranked cells
         // console.warn(
-          // `No gene expression data found for ${gene_name}, returning unranked cells`
+        // `No gene expression data found for ${gene_name}, returning unranked cells`
         // );
         // Shuffle since we can't rank by expression
         candidate_cells = shuffle_array(candidate_cells);

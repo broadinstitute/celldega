@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        /* Flexbox container for landscape and matrix */
+        #container {
+            display: flex;
+            width: 100%;
+            height: 100vh; /* Full viewport height */
+        }
+
+        /* Matrix (right) */
+        #matrix {
+            flex: 1; /* Take up equal space */
+            width: 100%; /* Fallback for older browsers */
+            height: 100%;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- <div id="landscape" style="width: 600px; height: 500px; position: relative;"></div>
+    <div id="matrix" style="width: 600px; height: 500px; position: relative; margin-top: 100px"></div> -->
+
+    <!-- Flex container -->
+    <div id="container">
+        <!-- Landscape visualization -->
+        <div id="landscape"></div>
+
+        <!-- Matrix visualization -->
+        <div id="matrix"></div>
+    </div>
+
+
+
+<script type="module">
+    import celldega from '../src/celldega/static/widget.js';
+
+    console.log(celldega);
+
+    let el = document.querySelector("#landscape");
+
+    console.log('before matrix_from_dega_files')
+
+    const matrix = await celldega.matrix_from_dega_files(
+        el,
+        'http://127.0.0.1:8080/celldega_js_examples/data',
+        'test-matrix',
+        500,  // width
+        500   // height
+    );
+
+    console.log('after matrix_from_dega_files', matrix)
+</script>
+</body>
+</html>

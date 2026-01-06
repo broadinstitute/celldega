@@ -403,8 +403,8 @@ export const yearbook = async (
         default_max_cells
       );
       return queried_cells;
-    } catch (error) {
-      console.error('Failed to execute cell query:', error);
+    } catch {
+      // Silently handle cell query failures
       return [];
     }
   };
@@ -982,8 +982,8 @@ export const yearbook = async (
       if (viz_state.yearbook.update_pagination_ui) {
         viz_state.yearbook.update_pagination_ui();
       }
-    } catch (error) {
-      console.error('Query failed:', error);
+    } catch {
+      // Handle query failure gracefully
       if (viz_state.yearbook.query_ui) {
         viz_state.yearbook.query_ui.update_status('Query failed');
       }

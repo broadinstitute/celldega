@@ -71,7 +71,7 @@ export const load_cluster_data = async (
 
   // Handle null table (file doesn't exist or failed to load)
   if (!cluster_table) {
-    console.warn(`Failed to load cluster data from ${cluster_url}`);
+    // console.warn(`Failed to load cluster data from ${cluster_url}`);
     return new Map();
   }
 
@@ -130,7 +130,7 @@ export const load_gene_expression = async (
 
   // Handle null table (file doesn't exist or failed to load)
   if (!exp_table) {
-    console.warn(`Failed to load gene expression from ${gene_url}`);
+    // console.warn(`Failed to load gene expression from ${gene_url}`);
     return new Map();
   }
 
@@ -142,10 +142,10 @@ export const load_gene_expression = async (
     exp_table.getChild('index');
 
   if (!cell_names_col) {
-    console.warn(
-      `Gene expression table has no recognized cell index column. Available columns:`,
-      exp_table.schema.fields.map((f) => f.name)
-    );
+    // console.warn(
+    //   `Gene expression table has no recognized cell index column. Available columns:`,
+    //   exp_table.schema.fields.map((f) => f.name)
+    // );
     return new Map();
   }
 
@@ -190,7 +190,7 @@ export const convert_exp_map_keys = (exp_map, viz_state) => {
   // Convert integer indices to cell names using nameMapping_inv
   const {nameMapping_inv} = viz_state.cats;
   if (!nameMapping_inv) {
-    console.warn('vector_name_integer is true but nameMapping_inv is missing');
+    // console.warn('vector_name_integer is true but nameMapping_inv is missing');
     return exp_map;
   }
 
@@ -240,9 +240,10 @@ export const execute_cell_query = async (
   // - If max_cells is explicitly set in query, use it
   // - For cluster-only queries, default to default_cluster_max (100)
   // - For gene queries, no limit (Infinity) to show full expression range
+  const { max_cells: query_max_cells } = query;
   let max_cells;
-  if (query.max_cells !== undefined) {
-    max_cells = query.max_cells;
+  if (query_max_cells !== undefined) {
+    max_cells = query_max_cells;
   } else if (cluster_query && !gene_name) {
     // Cluster-only: limit to prevent overwhelming the UI
     max_cells = default_cluster_max;
@@ -254,7 +255,7 @@ export const execute_cell_query = async (
   // Get all available cell names from viz_state
   const all_cell_names = viz_state.cats.cell_names_array || [];
   if (all_cell_names.length === 0) {
-    console.warn('No cell names available for query');
+    // console.warn('No cell names available for query');
     return [];
   }
 
@@ -310,8 +311,8 @@ export const execute_cell_query = async (
         candidate_cells = candidate_cells.filter((cell_name) => {
           return cluster_map.get(cell_name) === cluster_value;
         });
-      } catch (error) {
-        console.error('Failed to load cluster data:', error);
+      } catch {
+        // Silently handle cluster data load failures
         return [];
       }
     }
@@ -351,14 +352,13 @@ export const execute_cell_query = async (
         candidate_cells = cells_with_exp.map((c) => c.name);
       } else {
         // Gene expression file not found or empty - fall back to unranked cells
-        console.warn(
-          `No gene expression data found for ${gene_name}, returning unranked cells`
-        );
+        // console.warn(
+          // `No gene expression data found for ${gene_name}, returning unranked cells`
+        // );
         // Shuffle since we can't rank by expression
         candidate_cells = shuffle_array(candidate_cells);
       }
-    } catch (error) {
-      console.error(`Failed to load gene expression for ${gene_name}:`, error);
+    } catch {
       // Fall back to unranked cells if gene data fails
       candidate_cells = shuffle_array(candidate_cells);
     }

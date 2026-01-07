@@ -643,7 +643,9 @@ def _collect_tile_data_for_row_groups(
     return tile_data_list, tile_grid_info
 
 
-def _write_tiles_as_row_groups(tile_data_list, output_dir, tile_grid_info, max_row_groups_per_file=400):
+def _write_tiles_as_row_groups(
+    tile_data_list, output_dir, tile_grid_info, max_row_groups_per_file=400
+):
     """
     Write tile data as row groups in chunked parquet files.
 
@@ -682,7 +684,9 @@ def _write_tiles_as_row_groups(tile_data_list, output_dir, tile_grid_info, max_r
     total_tiles = len(tile_data_list)
     num_files = (total_tiles + max_row_groups_per_file - 1) // max_row_groups_per_file
 
-    print(f"Chunking {total_tiles} tiles into {num_files} files (max {max_row_groups_per_file} per file)")
+    print(
+        f"Chunking {total_tiles} tiles into {num_files} files (max {max_row_groups_per_file} per file)"
+    )
 
     # Get schema from first non-empty tile
     schema = None
@@ -737,7 +741,9 @@ def _write_tiles_as_row_groups(tile_data_list, output_dir, tile_grid_info, max_r
     if writer is not None:
         writer.close()
 
-    print(f"Wrote {total_tiles} row groups ({non_empty_count} non-empty) across {len(file_list)} files")
+    print(
+        f"Wrote {total_tiles} row groups ({non_empty_count} non-empty) across {len(file_list)} files"
+    )
     print(
         f"Tile grid: {tile_grid_info['num_tiles_x']}x{tile_grid_info['num_tiles_y']} = {total_tiles} tiles"
     )

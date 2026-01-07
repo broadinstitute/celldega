@@ -286,8 +286,11 @@ def main(
         cbg_dir = Path(path_landscape_files) / "cbg"
         if not cbg_dir.exists() or not any(cbg_dir.glob("*.parquet")):
             cbg_chunk_info = dega.pre.save_cbg_gene_parquets_row_groups(
-                technology, path_landscape_files, cbg, verbose=True,
-                max_row_groups_per_file=max_row_groups_per_file
+                technology,
+                path_landscape_files,
+                cbg,
+                verbose=True,
+                max_row_groups_per_file=max_row_groups_per_file,
             )
         else:
             print(f"Skipping CBG row groups, directory {cbg_dir} already exists")

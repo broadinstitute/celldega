@@ -466,8 +466,12 @@ def _collect_boundary_tile_data_for_row_groups(
 
     # OPTIMIZED: Calculate tile indices for ALL cells at once (O(n))
     gdf_cells = gdf_cells.copy()
-    gdf_cells["tile_x"] = ((gdf_cells["center_x"] - x_min) / tile_size).astype(int).clip(0, n_tiles_x - 1)
-    gdf_cells["tile_y"] = ((gdf_cells["center_y"] - y_min) / tile_size).astype(int).clip(0, n_tiles_y - 1)
+    gdf_cells["tile_x"] = (
+        ((gdf_cells["center_x"] - x_min) / tile_size).astype(int).clip(0, n_tiles_x - 1)
+    )
+    gdf_cells["tile_y"] = (
+        ((gdf_cells["center_y"] - y_min) / tile_size).astype(int).clip(0, n_tiles_y - 1)
+    )
 
     # Pre-process: round geometry and add name column
     print("Processing geometry...")
@@ -478,7 +482,9 @@ def _collect_boundary_tile_data_for_row_groups(
 
     # Group by tile - build dictionary for fast lookup
     tile_dict = {}
-    for (tx, ty), group_df in tqdm(gdf_cells.groupby(["tile_x", "tile_y"]), desc="Building tile index"):
+    for (tx, ty), group_df in tqdm(
+        gdf_cells.groupby(["tile_x", "tile_y"]), desc="Building tile index"
+    ):
         tile_dict[(tx, ty)] = group_df[["GEOMETRY", "name", "tile_x", "tile_y"]].copy()
 
     print(f"Found {len(tile_dict)} non-empty tiles")
@@ -493,7 +499,9 @@ def _collect_boundary_tile_data_for_row_groups(
     return tile_data_list
 
 
-def _write_boundary_tiles_as_row_groups(tile_data_list, output_dir, tile_grid_info, max_row_groups_per_file=400):
+def _write_boundary_tiles_as_row_groups(
+    tile_data_list, output_dir, tile_grid_info, max_row_groups_per_file=400
+):
     """
     Write boundary tile data as row groups in chunked parquet files.
 
@@ -532,7 +540,9 @@ def _write_boundary_tiles_as_row_groups(tile_data_list, output_dir, tile_grid_in
     total_tiles = len(tile_data_list)
     num_files = (total_tiles + max_row_groups_per_file - 1) // max_row_groups_per_file
 
-    print(f"Chunking {total_tiles} boundary tiles into {num_files} files (max {max_row_groups_per_file} per file)")
+    print(
+        f"Chunking {total_tiles} boundary tiles into {num_files} files (max {max_row_groups_per_file} per file)"
+    )
 
     # Get schema from first non-empty tile
     schema = None
@@ -587,7 +597,9 @@ def _write_boundary_tiles_as_row_groups(tile_data_list, output_dir, tile_grid_in
     if writer is not None:
         writer.close()
 
-    print(f"Wrote {total_tiles} row groups ({non_empty_count} non-empty) across {len(file_list)} files")
+    print(
+        f"Wrote {total_tiles} row groups ({non_empty_count} non-empty) across {len(file_list)} files"
+    )
     print(
         f"Tile grid: {tile_grid_info['num_tiles_x']}x{tile_grid_info['num_tiles_y']} = {total_tiles} tiles"
     )

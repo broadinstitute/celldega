@@ -1228,12 +1228,16 @@ def save_landscape_parameters(
                 landscape_parameters["row_group_files"]["cell_segmentation"] = {
                     "directory": "cell_segmentation",
                     "files": cell_chunk_info.get("files", []),
-                    "max_row_groups_per_file": cell_chunk_info.get("max_row_groups_per_file", 10000),
+                    "max_row_groups_per_file": cell_chunk_info.get(
+                        "max_row_groups_per_file", 10000
+                    ),
                     "total_row_groups": cell_chunk_info.get("total_row_groups", 0),
                 }
             else:
                 # Legacy single file mode (backwards compatibility)
-                landscape_parameters["row_group_files"]["cell_segmentation"] = "cell_segmentation.parquet"
+                landscape_parameters["row_group_files"]["cell_segmentation"] = (
+                    "cell_segmentation.parquet"
+                )
 
             # Add image parquet files for each channel with zoom info
             # Parquet files are now in pyramid_images/{channel_name}/ directories (chunked)

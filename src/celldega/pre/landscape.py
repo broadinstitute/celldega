@@ -272,7 +272,9 @@ def save_cbg_gene_parquets_row_groups(
     num_genes = len(gene_tables)
     num_files = (num_genes + max_row_groups_per_file - 1) // max_row_groups_per_file
 
-    print(f"Chunking {num_genes} genes into {num_files} files (max {max_row_groups_per_file} per file)")
+    print(
+        f"Chunking {num_genes} genes into {num_files} files (max {max_row_groups_per_file} per file)"
+    )
 
     # Create metadata (stored in each chunk file)
     metadata = {

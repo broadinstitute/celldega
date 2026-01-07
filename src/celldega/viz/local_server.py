@@ -2,11 +2,14 @@
 Local server module for handling HTTP requests with CORS support.
 """
 
-from functools import lru_cache
-from http.server import HTTPServer, SimpleHTTPRequestHandler, BaseHTTPRequestHandler
+from http.server import BaseHTTPRequestHandler, HTTPServer, SimpleHTTPRequestHandler
+import ipaddress
+import socket
 from socketserver import ThreadingMixIn
 import threading as thr
-from urllib.parse import urlparse, unquote
+from typing import ClassVar
+from urllib.parse import unquote, urlparse
+
 import requests
 
 
@@ -42,6 +45,27 @@ class CORSHTTPRequestHandler(SimpleHTTPRequestHandler):
         """Override log_message to prevent logging to the console."""
 
 
+def _is_private_ip(ip_str: str) -> bool:
+    """
+    Check if an IP address is private, loopback, or otherwise internal.
+
+    Blocks RFC1918 private ranges, loopback, link-local, and other non-public IPs.
+    """
+    try:
+        ip = ipaddress.ip_address(ip_str)
+        return (
+            ip.is_private
+            or ip.is_loopback
+            or ip.is_link_local
+            or ip.is_multicast
+            or ip.is_reserved
+            or ip.is_unspecified
+        )
+    except ValueError:
+        # If we can't parse it, reject it
+        return True
+
+
 class ProxyHTTPRequestHandler(BaseHTTPRequestHandler):
     """
     HTTP request handler that proxies requests to remote URLs.
@@ -50,6 +74,11 @@ class ProxyHTTPRequestHandler(BaseHTTPRequestHandler):
         /proxy/https://example.com/path/to/file.parquet
 
     Supports Range requests for partial content fetching.
+
+    Security: URLs are validated to prevent SSRF attacks:
+    - Only http/https schemes allowed
+    - Private/loopback IPs are blocked
+    - When remote_base_url is set, /proxy/ requests are constrained to that host
     """
 
     # Class variables
@@ -57,7 +86,7 @@ class ProxyHTTPRequestHandler(BaseHTTPRequestHandler):
     # Shared session for connection pooling (reuses TCP connections)
     _session = None
     # Cache for small responses (footers, metadata) - keyed by (url, range_header)
-    _cache = {}
+    _cache: ClassVar[dict] = {}
     _cache_max_size = 100  # Max cached items
     _cache_max_bytes = 65536  # Only cache responses < 64KB
 
@@ -88,6 +117,56 @@ class ProxyHTTPRequestHandler(BaseHTTPRequestHandler):
             for k in keys[: len(keys) // 2]:
                 del cls._cache[k]
         cls._cache[cache_key] = (data, headers)
+
+    def _validate_remote_url(self, remote_url: str) -> str | None:
+        """
+        Validate a remote URL to prevent SSRF attacks.
+
+        Returns the validated URL if safe, or None if the URL should be rejected.
+
+        Security checks:
+        1. Scheme must be http or https
+        2. Hostname must resolve to a public (non-private) IP
+        3. If remote_base_url is configured and using /proxy/ path,
+           the requested host must match the configured base URL host
+        """
+        try:
+            parsed = urlparse(remote_url)
+        except Exception:
+            return None
+
+        # Check scheme
+        if parsed.scheme not in ("http", "https"):
+            return None
+
+        # Check hostname exists
+        if not parsed.netloc or not parsed.hostname:
+            return None
+
+        # If remote_base_url is configured, enforce host matching for /proxy/ requests
+        # This prevents using /proxy/ to escape to arbitrary hosts
+        if self.remote_base_url and self.path.startswith("/proxy/"):
+            try:
+                base_parsed = urlparse(self.remote_base_url)
+                if parsed.hostname != base_parsed.hostname:
+                    # Reject requests to hosts different from configured base
+                    return None
+            except Exception:
+                return None
+
+        # Resolve hostname and check if IP is private/internal
+        try:
+            # Get all IP addresses for the hostname
+            addr_info = socket.getaddrinfo(parsed.hostname, parsed.port or 80)
+            for _family, _socktype, _proto, _canonname, sockaddr in addr_info:
+                ip_str = sockaddr[0]
+                if _is_private_ip(ip_str):
+                    return None
+        except socket.gaierror:
+            # DNS resolution failed
+            return None
+
+        return remote_url
 
     def _send_cors_headers(self):
         """Add CORS headers to allow cross-origin requests."""
@@ -138,6 +217,13 @@ class ProxyHTTPRequestHandler(BaseHTTPRequestHandler):
         else:
             self.send_error(400, "No remote URL configured")
             return
+
+        # Validate URL to prevent SSRF
+        validated_url = self._validate_remote_url(remote_url)
+        if validated_url is None:
+            self.send_error(400, "Invalid or disallowed URL")
+            return
+        remote_url = validated_url
 
         # Build headers to forward (especially Range for partial content)
         forward_headers = {}
@@ -222,13 +308,12 @@ class ProxyHTTPRequestHandler(BaseHTTPRequestHandler):
         except requests.exceptions.Timeout:
             self.send_error(504, "Gateway Timeout")
         except requests.exceptions.RequestException as e:
-            self.send_error(502, f"Bad Gateway: {str(e)}")
+            self.send_error(502, f"Bad Gateway: {e!s}")
         except Exception as e:
-            self.send_error(500, f"Internal Server Error: {str(e)}")
+            self.send_error(500, f"Internal Server Error: {e!s}")
 
     def log_message(self, format_str: str, *args) -> None:
         """Override log_message to prevent logging to the console."""
-        pass
 
 
 def get_local_server() -> int:
@@ -246,12 +331,17 @@ def get_local_server() -> int:
     return server.server_address[1]
 
 
-def get_proxy_server(remote_base_url: str = None, verbose: bool = False) -> int:
+def get_proxy_server(remote_base_url: str | None = None, verbose: bool = False) -> int:
     """
     Start a local proxy server that forwards requests to a remote URL.
 
     This is useful for bypassing CORS restrictions when the remote server
     (like Hugging Face) doesn't support CORS for Range requests.
+
+    Security: The proxy validates all URLs to prevent SSRF attacks:
+    - Only http/https schemes are allowed
+    - Private/loopback IP addresses are blocked
+    - When remote_base_url is set, /proxy/ requests are constrained to that host
 
     Args:
         remote_base_url: Optional base URL for the remote server.
@@ -265,7 +355,7 @@ def get_proxy_server(remote_base_url: str = None, verbose: bool = False) -> int:
     Example:
         >>> port = get_proxy_server("https://huggingface.co/datasets/user/repo/resolve/main/folder")
         >>> # Now use http://localhost:{port}/file.parquet
-        >>> # Or use http://localhost:{port}/proxy/https://example.com/other/file.parquet
+        >>> # Or use http://localhost:{port}/proxy/https://huggingface.co/.../other/file.parquet
     """
 
     # Create a custom handler class with the remote URL configured

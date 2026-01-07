@@ -448,7 +448,7 @@ def _collect_boundary_tile_data_for_row_groups(
         row_group_index = tile_x * num_tiles_y + tile_y
 
     OPTIMIZED: Calculates tile indices once for all cells, then groups.
-    This is O(n) instead of O(tiles × n).
+    This is O(n) instead of O(tiles x n).
 
     Parameters:
     - gdf_cells: GeoDataFrame with cell boundaries
@@ -558,7 +558,7 @@ def _write_boundary_tiles_as_row_groups(tile_data_list, output_dir, tile_grid_in
     current_file_index = -1
     writer = None
 
-    for i, (tile_x, tile_y, tile_df) in enumerate(tile_data_list):
+    for i, (_tile_x, _tile_y, tile_df) in enumerate(tile_data_list):
         file_index = i // max_row_groups_per_file
 
         # Start new file if needed

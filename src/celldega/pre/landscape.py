@@ -288,7 +288,7 @@ def save_cbg_gene_parquets_row_groups(
     current_file_index = -1
     writer = None
 
-    for i, (gene_name, gene_df) in enumerate(gene_tables):
+    for i, (_gene_name, gene_df) in enumerate(gene_tables):
         file_index = i // max_row_groups_per_file
 
         # Start new file if needed

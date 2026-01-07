@@ -561,7 +561,7 @@ def _collect_tile_data_for_row_groups(
     tile coordinates using just the grid dimensions.
 
     OPTIMIZED: Calculates tile indices once for all transcripts, then groups.
-    This is O(n) instead of O(tiles × n).
+    This is O(n) instead of O(tiles x n).
 
     Parameters:
     - trx: Transcript data
@@ -614,11 +614,12 @@ def _collect_tile_data_for_row_groups(
     grouped_dfs = trx.partition_by(["tile_x", "tile_y"], as_dict=True)
 
     # Convert to dictionary with (tile_x, tile_y) tuple keys
-    tile_dict = {}
-    for key, tile_df in tqdm(grouped_dfs.items(), desc="Building tile index"):
-        if len(tile_df) > 0:
-            # key is a tuple of (tile_x, tile_y)
-            tile_dict[key] = tile_df
+    # key is a tuple of (tile_x, tile_y)
+    tile_dict = {
+        key: tile_df
+        for key, tile_df in tqdm(grouped_dfs.items(), desc="Building tile index")
+        if len(tile_df) > 0
+    }
 
     print(f"Found {len(tile_dict)} non-empty tiles")
 
@@ -707,7 +708,7 @@ def _write_tiles_as_row_groups(tile_data_list, output_dir, tile_grid_info, max_r
     current_file_index = -1
     writer = None
 
-    for i, (tile_x, tile_y, tile_df) in enumerate(tile_data_list):
+    for i, (_tile_x, _tile_y, tile_df) in enumerate(tile_data_list):
         file_index = i // max_row_groups_per_file
 
         # Start new file if needed

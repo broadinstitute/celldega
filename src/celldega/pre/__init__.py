@@ -820,7 +820,7 @@ def pack_image_tiles_to_parquet(
     current_row_in_file = 0
     writer = None
 
-    for tile_idx, (zoom, tile_x, tile_y, image_bytes) in enumerate(all_tiles):
+    for _tile_idx, (zoom, tile_x, tile_y, image_bytes) in enumerate(all_tiles):
         # Start a new file if needed
         if current_row_in_file == 0 or current_row_in_file >= max_row_groups_per_file:
             if writer is not None:

@@ -15,8 +15,9 @@
 
 import * as arrow from 'apache-arrow';
 
-import {getPq} from './pqInitializer';
 import {concatenate_arrow_tables} from '../vector_tile/concatenate_functions';
+
+import {getPq} from './pqInitializer';
 
 /**
  * RowGroupTileReader class for efficient streaming tile-based data access

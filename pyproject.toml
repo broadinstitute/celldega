@@ -26,6 +26,7 @@ dependencies = [
     "polars~=1.10.0",
     "pyarrow",
     "rasterio==1.4.3",
+    "requests",
     "scanpy~=1.10.0",
     "shapely~=2.0.0",
     "spatialdata",

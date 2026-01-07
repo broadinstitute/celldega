@@ -65,10 +65,10 @@ import { colorToRgba } from '../matrix/cat_data';
 import { create_obs_store } from '../obs_store/obs_store';
 import { CBGRowGroupReader } from '../read_parquet/cbg_row_group_reader';
 import { ImageRowGroupReader } from '../read_parquet/image_row_group_reader';
-import {
-  testRowGroupReading,
-  getVersion as getParquetWasmVersion,
-} from '../read_parquet/row_group_poc';
+// import {
+//   testRowGroupReading,
+//   getVersion as getParquetWasmVersion,
+// } from '../read_parquet/row_group_poc';
 import { RowGroupTileReader } from '../read_parquet/row_group_tile_reader';
 import { initialize_nbhd_editor } from '../ui/nbhd_editor';
 import { toggle_slider, set_image_layer_sliders } from '../ui/sliders';
@@ -83,13 +83,13 @@ import { update_ist_landscape_from_cgm } from '../widget_interactions/update_ist
 // Row group reading support
 
 // Log parquet-wasm version on module load
-console.log(`[landscape_ist] parquet-wasm version: ${getParquetWasmVersion()}`);
+// console.log(`[landscape_ist] parquet-wasm version: ${getParquetWasmVersion()}`);
 
 // Expose test function globally for browser console testing
 // Usage: window.testRowGroupReading("https://example.com/row_grouped.parquet")
-if (typeof window !== 'undefined') {
-  window.testRowGroupReading = testRowGroupReading;
-}
+// if (typeof window !== 'undefined') {
+//   window.testRowGroupReading = testRowGroupReading;
+// }
 
 /**
  * Initialize row group readers for tile data if the landscape uses row groups
@@ -111,15 +111,15 @@ async function initializeRowGroupReaders(viz_state, base_url) {
     return;
   }
 
-  console.log('[landscape_ist] Row group mode enabled');
+  // console.log('[landscape_ist] Row group mode enabled');
 
   const rowGroupFiles = landscapeParams.row_group_files || {};
   const tileGrid = landscapeParams.tile_grid || {};
 
   if (!tileGrid.num_tiles_x || !tileGrid.num_tiles_y) {
-    console.error(
-      '[landscape_ist] Missing tile_grid dimensions in landscape_parameters'
-    );
+    // console.error(
+    //   '[landscape_ist] Missing tile_grid dimensions in landscape_parameters'
+    // );
     viz_state.use_row_groups = false;
     return;
   }
@@ -173,6 +173,7 @@ async function initializeRowGroupReaders(viz_state, base_url) {
         base_url,
         imageEntry
       );
+      // eslint-disable-next-line no-await-in-loop
       await viz_state.row_group_readers.images[channelName].initialize();
     }
   }

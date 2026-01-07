@@ -14,7 +14,7 @@ import { extractPolygonPaths } from './extractPolygonPaths';
 async function grab_cell_tiles_row_groups(tiles_in_view, viz_state) {
   const reader = viz_state.row_group_readers?.cell;
   if (!reader) {
-    console.error('[grab_cell_tiles] Row group reader not initialized');
+    // console.error('[grab_cell_tiles] Row group reader not initialized');
     return null;
   }
 
@@ -101,7 +101,9 @@ export const grab_cell_tiles_in_view = async (
     viz_state.aws
   );
 
-  const tile_cell_tables = tile_cell_tables_ini_new.filter((table) => table !== null);
+  const tile_cell_tables = tile_cell_tables_ini_new.filter(
+    (table) => table !== null
+  );
 
   // Handle case where no cell tiles were loaded
   if (tile_cell_tables.length === 0) {

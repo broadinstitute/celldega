@@ -44,11 +44,10 @@ export class ImageRowGroupReader {
       this.maxRowGroupsPerFile = imageConfig.max_row_groups_per_file || 2000;
       this.totalRowGroups = imageConfig.total_row_groups || 0;
       this.zoomInfo = imageConfig.zoom_info || zoomInfo || {};
-      // eslint-disable-next-line no-console
-      console.log(
-        `[ImageRowGroupReader] Chunked mode: ${this.files.length} files, ` +
-          `${this.totalRowGroups} total tiles`
-      );
+      // console.log(
+      //   `[ImageRowGroupReader] Chunked mode: ${this.files.length} files, ` +
+      //     `${this.totalRowGroups} total tiles`
+      // );
     } else if (typeof imageConfig === 'object' && imageConfig.path) {
       // Legacy: object with path property
       this.chunkedMode = false;
@@ -226,9 +225,8 @@ export class ImageRowGroupReader {
     const zoomData = this.zoomInfo[zoomKey];
 
     if (!zoomData) {
-      console.log(
-        `[ImageRowGroupReader] No zoom data for level ${zoom}, available: ${Object.keys(this.zoomInfo).join(', ')}`
-      );
+      // eslint-disable-next-line no-console
+      console.warn(`[ImageRowGroupReader] No zoom data for level ${zoom}`);
       return null;
     }
 
@@ -277,7 +275,8 @@ export class ImageRowGroupReader {
 
       if (this.chunkedMode) {
         // Chunked mode: find the right file and read from it
-        const { fileIndex, localIndex } = this._computeChunkLocation(rowGroupIndex);
+        const { fileIndex, localIndex } =
+          this._computeChunkLocation(rowGroupIndex);
 
         if (fileIndex >= this.files.length) {
           // eslint-disable-next-line no-console
@@ -390,7 +389,11 @@ export function createGetTileDataFromParquet(reader, maxPyramidZoom) {
  * @param {Object} zoomInfo - Zoom level info (optional, can be in imageConfig)
  * @returns {Promise<ImageRowGroupReader>} - Initialized reader
  */
-export async function createImageRowGroupReader(baseUrl, imageConfig, zoomInfo = null) {
+export async function createImageRowGroupReader(
+  baseUrl,
+  imageConfig,
+  zoomInfo = null
+) {
   const reader = new ImageRowGroupReader(baseUrl, imageConfig, zoomInfo);
   await reader.initialize();
   return reader;

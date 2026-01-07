@@ -12,7 +12,7 @@ import { concatenate_arrow_tables } from '../../vector_tile/concatenate_function
 async function grab_trx_tiles_row_groups(tiles_in_view, viz_state) {
   const reader = viz_state.row_group_readers?.trx;
   if (!reader) {
-    console.error('[grab_trx_tiles] Row group reader not initialized');
+    // console.error('[grab_trx_tiles] Row group reader not initialized');
     return null;
   }
 

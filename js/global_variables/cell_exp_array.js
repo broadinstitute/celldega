@@ -41,9 +41,10 @@ export const update_cell_exp_array = async (
 
   // Check if using row group mode
   if (cbgReader) {
-    const result = await readGeneFromRowGroups(cbgReader, inst_gene);
-    cell_names = result.cell_names;
-    cell_exp = result.cell_exp;
+    ({ cell_names, cell_exp } = await readGeneFromRowGroups(
+      cbgReader,
+      inst_gene
+    ));
   } else {
     // Traditional mode: fetch individual gene file
     let file_path;

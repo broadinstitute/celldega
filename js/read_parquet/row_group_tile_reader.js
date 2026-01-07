@@ -15,9 +15,9 @@
 
 import * as arrow from 'apache-arrow';
 
-import {concatenate_arrow_tables} from '../vector_tile/concatenate_functions';
+import { concatenate_arrow_tables } from '../vector_tile/concatenate_functions';
 
-import {getPq} from './pqInitializer';
+import { getPq } from './pqInitializer';
 
 /**
  * RowGroupTileReader class for efficient streaming tile-based data access
@@ -48,9 +48,9 @@ export class RowGroupTileReader {
         this.chunkedMode = false;
         this.url = `${baseUrl}/${fileConfig.directory}/${fileConfig.files[0]}`;
         this.parquetFile = null;
-        console.log(
-          `[RowGroupTileReader] Single chunk file detected, using single-file mode`
-        );
+        // console.log(
+        //   `[RowGroupTileReader] Single chunk file detected, using single-file mode`
+        // );
       } else {
         // True chunked mode with multiple files
         this.chunkedMode = true;
@@ -84,9 +84,11 @@ export class RowGroupTileReader {
    * @returns {{fileIndex: number, localIndex: number}}
    */
   computeChunkLocation(globalRowGroupIndex) {
-    const fileIndex = Math.floor(globalRowGroupIndex / this.maxRowGroupsPerFile);
+    const fileIndex = Math.floor(
+      globalRowGroupIndex / this.maxRowGroupsPerFile
+    );
     const localIndex = globalRowGroupIndex % this.maxRowGroupsPerFile;
-    return {fileIndex, localIndex};
+    return { fileIndex, localIndex };
   }
 
   /**
@@ -103,29 +105,29 @@ export class RowGroupTileReader {
 
       const response = await fetch(url, {
         method: 'GET',
-        headers: {Range: 'bytes=0-7'},
+        headers: { Range: 'bytes=0-7' },
       });
 
       if (!response.ok && response.status !== 206) {
-        console.log(
-          `[RowGroupTileReader] Range check failed with status ${response.status}`
-        );
+        // console.log(
+        //   `[RowGroupTileReader] Range check failed with status ${response.status}`
+        // );
         return false;
       }
 
       const footerResponse = await fetch(url, {
         method: 'GET',
-        headers: {Range: 'bytes=-8'},
+        headers: { Range: 'bytes=-8' },
       });
 
       if (!footerResponse.ok && footerResponse.status !== 206) {
-        console.log(`[RowGroupTileReader] Footer range check failed`);
+        // console.log(`[RowGroupTileReader] Footer range check failed`);
         return false;
       }
 
       return true;
-    } catch (error) {
-      console.log(`[RowGroupTileReader] Range check failed: ${error.message}`);
+    } catch {
+      // Range check failed
       return false;
     }
   }
@@ -149,7 +151,7 @@ export class RowGroupTileReader {
     const fileUrl = `${this.baseUrl}/${this.directory}/${fileName}`;
     const pq = await getPq();
 
-    console.log(`[RowGroupTileReader] Loading chunk file: ${fileName}`);
+    // console.log(`[RowGroupTileReader] Loading chunk file: ${fileName}`);
     const parquetFile = await pq.ParquetFile.fromUrl(fileUrl);
 
     return parquetFile;
@@ -176,17 +178,11 @@ export class RowGroupTileReader {
         );
       }
 
-      console.log(
-        `[RowGroupTileReader] Range requests supported, creating streaming ParquetFile...`
-      );
+      // console.log(
+      //   `[RowGroupTileReader] Range requests supported, creating streaming ParquetFile...`
+      // );
       this.parquetFile = await pq.ParquetFile.fromUrl(this.url);
-
-      const metadata = this.parquetFile.metadata();
-      const expectedRowGroups = this.numTilesX * this.numTilesY;
-      const actualRowGroups = metadata.numRowGroups();
-      console.log(
-        `[RowGroupTileReader] Streaming mode enabled, ${actualRowGroups} row groups (expected ${expectedRowGroups})`
-      );
+      // Metadata available via this.parquetFile.metadata() if needed
     } else {
       // Chunked mode - check range support on first file
       const firstFileUrl = `${this.baseUrl}/${this.directory}/${this.files[0]}`;
@@ -199,10 +195,10 @@ export class RowGroupTileReader {
         );
       }
 
-      console.log(
-        `[RowGroupTileReader] Chunked mode enabled: ${this.files.length} files, ` +
-          `${this.totalRowGroups} total row groups, max ${this.maxRowGroupsPerFile} per file`
-      );
+      // console.log(
+      //   `[RowGroupTileReader] Chunked mode enabled: ${this.files.length} files, ` +
+      //     `${this.totalRowGroups} total row groups, max ${this.maxRowGroupsPerFile} per file`
+      // );
     }
 
     this.initialized = true;
@@ -243,9 +239,9 @@ export class RowGroupTileReader {
     }
 
     if (rowGroupIndices.length === 0) {
-      console.log(
-        `[RowGroupTileReader] No valid tiles in request. Grid: ${this.numTilesX}x${this.numTilesY}`
-      );
+      // console.log(
+      //   `[RowGroupTileReader] No valid tiles in request. Grid: ${this.numTilesX}x${this.numTilesY}`
+      // );
       return null;
     }
 
@@ -255,53 +251,42 @@ export class RowGroupTileReader {
     try {
       if (!this.chunkedMode) {
         // Single file mode - read all from one file
-        console.log(
-          `[RowGroupTileReader] Reading ${uniqueIndices.length} row groups: ${uniqueIndices.slice(0, 5).join(', ')}${uniqueIndices.length > 5 ? '...' : ''}`
-        );
+        // console.log(
+        //   `[RowGroupTileReader] Reading ${uniqueIndices.length} row groups: ${uniqueIndices.slice(0, 5).join(', ')}${uniqueIndices.length > 5 ? '...' : ''}`
+        // );
 
-        console.log(`[RowGroupTileReader] About to call parquetFile.read() with indices:`, uniqueIndices);
-        let wasmTable;
-        try {
-          wasmTable = await this.parquetFile.read({
-            rowGroups: uniqueIndices,
-          });
-        } catch (readError) {
-          console.error(`[RowGroupTileReader] parquetFile.read() failed:`, readError);
-          throw readError;
-        }
-        console.log(`[RowGroupTileReader] read() succeeded, converting to IPC...`);
+        const wasmTable = await this.parquetFile.read({
+          rowGroups: uniqueIndices,
+        });
         const arrowIPC = wasmTable.intoIPCStream();
         const table = arrow.tableFromIPC(arrowIPC);
 
-        console.log(`[RowGroupTileReader] Read ${table.numRows} rows`);
+        // console.log(`[RowGroupTileReader] Read ${table.numRows} rows`);
         return table;
       } else {
         // Chunked mode - partition by file and read from each
         const byFile = new Map();
         for (const globalIndex of uniqueIndices) {
-          const {fileIndex, localIndex} = this.computeChunkLocation(globalIndex);
+          const { fileIndex, localIndex } =
+            this.computeChunkLocation(globalIndex);
           if (!byFile.has(fileIndex)) {
             byFile.set(fileIndex, []);
           }
           byFile.get(fileIndex).push(localIndex);
         }
 
-        console.log(
-          `[RowGroupTileReader] Reading ${uniqueIndices.length} row groups from ${byFile.size} files`
-        );
+        // console.log(
+        //   `[RowGroupTileReader] Reading ${uniqueIndices.length} row groups from ${byFile.size} files`
+        // );
 
         // Read from each file and collect tables
+        // Note: Sequential reads are intentional - each file needs its own ParquetFile handle
         const tables = [];
         for (const [fileIndex, localIndices] of byFile) {
-          console.log(
-            `[RowGroupTileReader] File ${fileIndex}: reading local indices ${localIndices.slice(0, 10).join(', ')}${localIndices.length > 10 ? '...' : ''}`
-          );
+          // eslint-disable-next-line no-await-in-loop
           const pqFile = await this._getParquetFile(fileIndex);
-          const metadata = pqFile.metadata();
-          console.log(
-            `[RowGroupTileReader] File ${fileIndex} has ${metadata.numRowGroups()} row groups`
-          );
-          const wasmTable = await pqFile.read({rowGroups: localIndices});
+          // eslint-disable-next-line no-await-in-loop
+          const wasmTable = await pqFile.read({ rowGroups: localIndices });
           const arrowIPC = wasmTable.intoIPCStream();
           const table = arrow.tableFromIPC(arrowIPC);
           tables.push(table);
@@ -311,17 +296,17 @@ export class RowGroupTileReader {
         if (tables.length === 0) {
           return null;
         } else if (tables.length === 1) {
-          console.log(`[RowGroupTileReader] Read ${tables[0].numRows} rows`);
+          // console.log(`[RowGroupTileReader] Read ${tables[0].numRows} rows`);
           return tables[0];
         } else {
           // Concatenate multiple tables using existing utility
           const combined = concatenate_arrow_tables(tables);
-          console.log(`[RowGroupTileReader] Read ${combined.numRows} rows from ${tables.length} files`);
+          // console.log(`[RowGroupTileReader] Read ${combined.numRows} rows from ${tables.length} files`);
           return combined;
         }
       }
-    } catch (error) {
-      console.error(`[RowGroupTileReader] Error reading row groups:`, error);
+    } catch {
+      // Error reading row groups - return null to indicate failure
       return null;
     }
   }

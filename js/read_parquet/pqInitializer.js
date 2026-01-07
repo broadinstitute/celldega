@@ -4,7 +4,7 @@ import {
   readParquet,
   readSchema,
   ParquetFile,
-// eslint-disable-next-line import/extensions
+  // eslint-disable-next-line import/extensions
 } from 'parquet-wasm/esm/parquet_wasm.js';
 import wasmBinary from 'parquet-wasm/esm/parquet_wasm_bg.wasm';
 
@@ -19,8 +19,8 @@ function ensureInitialized() {
     // initSync accepts an ArrayBuffer or WebAssembly.Module
     initSync(wasmBinary);
     initialized = true;
-    console.log(`[parquet-wasm] Initialized version ${PARQUET_WASM_VERSION}`);
-    
+    // console.log(`[parquet-wasm] Initialized version ${PARQUET_WASM_VERSION}`);
+
     // Expose globally for debugging
     if (typeof window !== 'undefined') {
       window.parquet_wasm = {

@@ -116,14 +116,14 @@ export const load_gene_expression = async (
   if (cbgReader) {
     try {
       exp_table = await cbgReader.readGene(gene_name);
-    } catch (error) {
-      // eslint-disable-next-line no-console
-      console.warn(`Failed to read gene ${gene_name} from CBG reader:`, error);
+    } catch {
+      // Failed to read gene from CBG reader
       exp_table = null;
     }
   } else {
     // Fall back to individual gene file
-    const version_suffix = version && version !== 'default' ? `_${version}` : '';
+    const version_suffix =
+      version && version !== 'default' ? `_${version}` : '';
     const gene_url = `${base_url}/cbg${version_suffix}/${gene_name}.parquet`;
     exp_table = await get_arrow_table(gene_url, options.fetch, aws);
   }
@@ -152,7 +152,8 @@ export const load_gene_expression = async (
   const cell_names = cell_names_col.toArray();
 
   // Try gene name first (individual files), then 'expression' (row-grouped CBG)
-  const exp_col = exp_table.getChild(gene_name) || exp_table.getChild('expression');
+  const exp_col =
+    exp_table.getChild(gene_name) || exp_table.getChild('expression');
 
   if (!exp_col) {
     // eslint-disable-next-line no-console
@@ -285,9 +286,8 @@ export const execute_cell_query = async (
           return String(attrs[attr_index]) === cluster_value;
         });
       } else {
-        console.warn(
-          `Cluster attribute '${cluster_attr}' not found in meta_cell_attr`
-        );
+        // eslint-disable-next-line no-console
+        console.warn(`Cluster attribute '${cluster_attr}' not found`);
       }
     } else if (
       viz_state.cats.dict_cell_cats &&

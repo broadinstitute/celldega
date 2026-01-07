@@ -17,8 +17,8 @@ export const set_dimensions = async (
       viz_state.aws
     );
     return;
-  } catch (error) {
-    console.log(`[image_dimensions] DZI fetch failed: ${error.message}`);
+  } catch {
+    // console.log(`[image_dimensions] DZI fetch failed: ${error.message}`);
   }
 
   // Fallback for row groups mode when DZI is unavailable
@@ -32,9 +32,9 @@ export const set_dimensions = async (
         height: params.image_dimensions.height,
         tileSize: params.image_dimensions.tile_size || 512,
       };
-      console.log(
-        `[image_dimensions] From stored params: ${viz_state.dimensions.width}x${viz_state.dimensions.height}`
-      );
+      // console.log(
+      //   `[image_dimensions] From stored params: ${viz_state.dimensions.width}x${viz_state.dimensions.height}`
+      // );
       return;
     }
 
@@ -54,9 +54,9 @@ export const set_dimensions = async (
           const height = maxZoomInfo.num_tiles_y * tileSize;
 
           viz_state.dimensions = { width, height, tileSize };
-          console.log(
-            `[image_dimensions] Calculated from zoom ${maxZoom}: ${width}x${height}`
-          );
+          // console.log(
+          //   `[image_dimensions] Calculated from zoom ${maxZoom}: ${width}x${height}`
+          // );
           return;
         }
       }
@@ -64,6 +64,6 @@ export const set_dimensions = async (
   }
 
   // Last resort fallback
-  console.error('[image_dimensions] Could not determine image dimensions');
+  // console.error('[image_dimensions] Could not determine image dimensions');
   viz_state.dimensions = { width: 10000, height: 10000, tileSize: 512 };
 };

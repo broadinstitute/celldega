@@ -40,7 +40,7 @@ export const get_polygon_data = (arrowTable) => {
     arrowTable.getChildAt(0);
 
   if (!geometryColumn) {
-    console.warn('[get_polygon_data] No geometry column found');
+    // console.warn('[get_polygon_data] No geometry column found');
     return null;
   }
 

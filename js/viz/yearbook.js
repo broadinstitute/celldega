@@ -70,15 +70,15 @@ async function initializeYearbookRowGroupReaders(viz_state, base_url) {
     return;
   }
 
-  console.log('[yearbook] Row group mode enabled, initializing readers...');
+  // console.log('[yearbook] Row group mode enabled, initializing readers...');
 
   const rowGroupFiles = landscapeParams.row_group_files || {};
   const tileGrid = landscapeParams.tile_grid || {};
 
   if (!tileGrid.num_tiles_x || !tileGrid.num_tiles_y) {
-    console.error(
-      '[yearbook] Missing tile_grid dimensions in landscape_parameters'
-    );
+    // console.error(
+    //   '[yearbook] Missing tile_grid dimensions in landscape_parameters'
+    // );
     viz_state.use_row_groups = false;
     return;
   }
@@ -90,7 +90,7 @@ async function initializeYearbookRowGroupReaders(viz_state, base_url) {
   try {
     // Initialize transcript row group reader
     if (rowGroupFiles.transcripts) {
-      console.log(`[yearbook] Initializing transcript reader`);
+      // console.log(`[yearbook] Initializing transcript reader`);
       // Support both chunked (object with files array) and legacy (string path) formats
       viz_state.row_group_readers.trx = new RowGroupTileReader(
         base_url,
@@ -98,12 +98,12 @@ async function initializeYearbookRowGroupReaders(viz_state, base_url) {
         rowGroupFiles.transcripts
       );
       await viz_state.row_group_readers.trx.initialize();
-      console.log('[yearbook] Transcript reader ready');
+      // console.log('[yearbook] Transcript reader ready');
     }
 
     // Initialize cell segmentation row group reader
     if (rowGroupFiles.cell_segmentation) {
-      console.log(`[yearbook] Initializing cell reader`);
+      // console.log(`[yearbook] Initializing cell reader`);
       // Support both chunked (object with files array) and legacy (string path) formats
       viz_state.row_group_readers.cell = new RowGroupTileReader(
         base_url,
@@ -111,19 +111,17 @@ async function initializeYearbookRowGroupReaders(viz_state, base_url) {
         rowGroupFiles.cell_segmentation
       );
       await viz_state.row_group_readers.cell.initialize();
-      console.log('[yearbook] Cell reader ready');
+      // console.log('[yearbook] Cell reader ready');
     }
 
     // Initialize CBG row group reader
     if (rowGroupFiles.cbg) {
-      console.log(`[yearbook] Initializing CBG reader...`);
+      // console.log(`[yearbook] Initializing CBG reader...`);
       viz_state.row_group_readers.cbg = new CBGRowGroupReader(
         base_url,
         rowGroupFiles.cbg
       );
       await viz_state.row_group_readers.cbg.initialize();
-      const numGenes = await viz_state.row_group_readers.cbg.getNumGenes();
-      console.log(`[yearbook] CBG reader ready - ${numGenes} genes`);
     }
 
     // Initialize image row group readers for each channel
@@ -133,22 +131,20 @@ async function initializeYearbookRowGroupReaders(viz_state, base_url) {
       for (const [channelName, imageEntry] of Object.entries(
         rowGroupFiles.images
       )) {
-        console.log(
-          `[yearbook] Initializing image reader for ${channelName}...`
-        );
+        // console.log(
+        //   `[yearbook] Initializing image reader for ${channelName}...`
+        // );
         // Pass imageEntry directly - ImageRowGroupReader handles both:
         // - Chunked mode: object with { directory, files, zoom_info, ... }
         // - Legacy mode: string path or object with { path, zoom_info }
         viz_state.row_group_readers.images[channelName] =
           new ImageRowGroupReader(base_url, imageEntry);
+        // eslint-disable-next-line no-await-in-loop
         await viz_state.row_group_readers.images[channelName].initialize();
-        console.log(`[yearbook] Image reader (${channelName}) ready`);
       }
     }
-
-    console.log('[yearbook] Row group readers initialized successfully');
-  } catch (error) {
-    console.error('[yearbook] Error initializing row group readers:', error);
+  } catch {
+    // Error initializing row group readers - fall back to non-row-group mode
     viz_state.use_row_groups = false;
   }
 }

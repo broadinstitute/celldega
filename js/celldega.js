@@ -1,5 +1,3 @@
-import './celldega.css';
-
 import { networkFromDegaFiles } from './read_parquet/network_from_dega_files';
 import { networkFromParquet } from './read_parquet/network_from_parquet';
 import { objects_from_parquet } from './read_parquet/objects_from_parquet';

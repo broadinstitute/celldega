@@ -32,10 +32,10 @@ document.addEventListener("DOMContentLoaded", async () => {
             1.4,
             // dataset_name
             '',
-            // width
-            '100%',
-            // height
-            '100%',
+            // width (0 = 100%)
+            0,
+            // height in pixels
+            800,
             // creds
             {},
         );

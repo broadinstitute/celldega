@@ -636,7 +636,9 @@ export const make_ist_ui_container = (
   cell_slider_container.appendChild(viz_state.sliders.cell);
   cell_ctrl_container.appendChild(cell_slider_container);
 
-  if (viz_state.nbhd.is_nbhd) {
+  // Only add the regular nbhd slider when NOT in edit mode
+  // For edit mode, we'll add a separate opacity slider later (after buttons)
+  if (viz_state.nbhd.is_nbhd && !viz_state.nbhd.edit) {
     ini_slider('nbhd', deck_ist, layers_obj, viz_state);
     nbhd_slider_container.appendChild(viz_state.sliders.nbhd);
     nbhd_ctrl_container.appendChild(nbhd_slider_container);

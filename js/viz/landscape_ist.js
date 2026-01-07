@@ -127,27 +127,11 @@ export const landscape_ist = async (
   }
 
   viz_state.max_tiles_to_view = max_tiles_to_view;
-  const update_viz_image_layers = () => {
-    if (!get_img_layer_visible()) {
-      return;
-    }
 
-    const hasCats = viz_state.obs_store.selected_cats.get().length > 0;
-    const hasGenes = viz_state.obs_store.selected_genes.get().length > 0;
-
-    if (hasCats || hasGenes) {
-      viz_state.obs_store.viz_image_layers.set(false);
-    } else {
-      // only do this if not in umap view
-      if (viz_state.obs_store.umap_state.get() === false) {
-        viz_state.obs_store.viz_image_layers.set(true);
-      }
-    }
-  };
-
-  // Subscribe both, but they call the same function
-  viz_state.obs_store.selected_cats.subscribe(update_viz_image_layers);
-  viz_state.obs_store.selected_genes.subscribe(update_viz_image_layers);
+  // Set up centralized image visibility management via obs_store
+  // This handles the logic for showing/hiding images based on gene/cluster selection and zoom level
+  viz_state.update_viz_image_layers =
+    viz_state.obs_store.setup_image_visibility_manager(get_img_layer_visible);
 
   viz_state.seg = {};
   viz_state.seg.version = segmentation;
@@ -200,67 +184,58 @@ export const landscape_ist = async (
     viz_state.aws = null;
   }
 
-  if (viz_state.model?.get) {
-    if (Object.keys(nbhd).length === 0) {
-      viz_state.nbhd.is_nbhd = nbhd_edit;
+  // Set up neighborhood state - this block needs to run regardless of model type
+  // to ensure is_nbhd is set correctly for the UI to create NBHD/SKTCH buttons
+  if (Object.keys(nbhd).length === 0) {
+    viz_state.nbhd.is_nbhd = nbhd_edit;
 
-      viz_state.nbhd.ini_feature_collection = {
-        type: 'FeatureCollection',
-        features: [],
-        inst_alpha: null,
-      };
+    viz_state.nbhd.ini_feature_collection = {
+      type: 'FeatureCollection',
+      features: [],
+      inst_alpha: null,
+    };
 
-      viz_state.nbhd.feature_collection = viz_state.nbhd.ini_feature_collection;
-    } else {
-      viz_state.nbhd.is_nbhd = true;
+    viz_state.nbhd.feature_collection = viz_state.nbhd.ini_feature_collection;
+  } else {
+    viz_state.nbhd.is_nbhd = true;
 
-      viz_state.nbhd.ini_feature_collection = nbhd;
+    viz_state.nbhd.ini_feature_collection = nbhd;
 
-      // viz_state.nbhd.bar_data = nbhd.features
-      //   .map((feature) => {
-      //     return {
-      //       name: feature.properties.cat, // "1_50" → "1"
-      //       value: feature.properties.area, // use area as the value
-      //     };
-      //   })
-      //   .sort((a, b) => b.value - a.value);
+    // find all unique categories in the nbhd features
+    const unique_cats = new Set(
+      nbhd.features.map((feature) => feature.properties.cat)
+    );
 
-      // find all unique categories in the nbhd features
-      const unique_cats = new Set(
-        nbhd.features.map((feature) => feature.properties.cat)
-      );
+    // calculate the area of all unique categories
+    viz_state.nbhd.bar_data = Array.from(unique_cats)
+      .map((cat) => {
+        const features = nbhd.features.filter(
+          (feature) => feature.properties.cat === cat
+        );
+        const area = features.reduce(
+          (acc, feature) => acc + feature.properties.area,
+          0
+        );
 
-      // calculate the area of all unique categories
-      viz_state.nbhd.bar_data = Array.from(unique_cats)
-        .map((cat) => {
-          const features = nbhd.features.filter(
-            (feature) => feature.properties.cat === cat
-          );
-          const area = features.reduce(
-            (acc, feature) => acc + feature.properties.area,
-            0
-          );
+        return {
+          name: cat,
+          value: area,
+        };
+      })
+      .sort((a, b) => b.value - a.value);
 
-          return {
-            name: cat,
-            value: area,
-          };
-        })
-        .sort((a, b) => b.value - a.value);
+    // parse colors from features and make a dictionary with cat name and
+    // color as rgb array that is converted from hex
+    viz_state.nbhd.color_dict = {};
+    nbhd.features.forEach((feature) => {
+      const color = colorToRgba(feature.properties.color);
+      viz_state.nbhd.color_dict[feature.properties.cat] = color;
+    });
 
-      // parse colors from features and make a dictionary with cat name and
-      // color as rgb array that is converted from hex
-      viz_state.nbhd.color_dict = {};
-      nbhd.features.forEach((feature) => {
-        const color = colorToRgba(feature.properties.color);
-        viz_state.nbhd.color_dict[feature.properties.cat] = color;
-      });
-
-      viz_state.nbhd.feature_collection = {
-        type: 'FeatureCollection',
-        features: nbhd.features,
-      };
-    }
+    viz_state.nbhd.feature_collection = {
+      type: 'FeatureCollection',
+      features: nbhd.features,
+    };
   }
 
   viz_state.containers = {};
@@ -839,7 +814,35 @@ export const landscape_ist = async (
     { immediate: false }
   );
 
+  // Callback registries for external listeners
+  const callbacks = {
+    on_gene_select: [],
+    on_cluster_select: [],
+    on_clusters_select: [],
+  };
+
   const landscape = {
+    /**
+     * Register a callback for gene selection events.
+     * @param {function} callback - Function called with (gene_name)
+     */
+    on_gene_select: (callback) => {
+      callbacks.on_gene_select.push(callback);
+    },
+    /**
+     * Register a callback for single cluster selection events.
+     * @param {function} callback - Function called with (cluster_id)
+     */
+    on_cluster_select: (callback) => {
+      callbacks.on_cluster_select.push(callback);
+    },
+    /**
+     * Register a callback for multiple cluster selection (via dendrogram).
+     * @param {function} callback - Function called with (cluster_ids_array)
+     */
+    on_clusters_select: (callback) => {
+      callbacks.on_clusters_select.push(callback);
+    },
     update_matrix_gene: async (inst_gene) => {
       const reset_gene = inst_gene === viz_state.cats.cat;
       const new_cat = reset_gene ? 'cluster' : inst_gene;
@@ -867,6 +870,9 @@ export const landscape_ist = async (
         ...viz_state.obs_store.deck_check.get(),
         cell_layer: true,
       });
+
+      // Notify listeners
+      callbacks.on_gene_select.forEach((cb) => cb(inst_gene));
     },
     update_matrix_col: async (inst_col) => {
       update_cat(viz_state.cats, 'cluster');
@@ -880,6 +886,9 @@ export const landscape_ist = async (
         trx_layer: false,
       });
       viz_state.layers_obj = layers_obj;
+
+      // Notify listeners
+      callbacks.on_cluster_select.forEach((cb) => cb(inst_col));
     },
     update_matrix_dendro_col: async (selected_cols) => {
       // const inst_gene = 'cluster'
@@ -897,6 +906,9 @@ export const landscape_ist = async (
         trx_layer: false,
       });
       viz_state.layers_obj = layers_obj;
+
+      // Notify listeners
+      callbacks.on_clusters_select.forEach((cb) => cb(selected_cols));
     },
     update_view_state: async (new_view_state, close_up, _trx_layer) => {
       viz_state.close_up = close_up;

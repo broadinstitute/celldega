@@ -86,8 +86,8 @@ const restore_persistent_state = async (viz_state, layers_obj, saved_state) => {
     update_selected_genes(viz_state.genes, valid_genes, viz_state.obs_store);
     update_selected_cats(viz_state.cats, valid_genes, viz_state.obs_store);
 
-    // When a gene is selected, images should be hidden (same behavior as clicking a gene)
-    viz_state.obs_store.viz_image_layers.set(false);
+    // Image visibility is automatically updated via obs_store subscription
+    // when selected_genes changes (based on current close_up state)
 
     // Force cell layer to refresh with new expression data
     viz_state.selection_token = (viz_state.selection_token || 0) + 1;
@@ -114,10 +114,15 @@ const restore_persistent_state = async (viz_state, layers_obj, saved_state) => {
       update_cat(viz_state.cats, 'cluster');
       update_selected_cats(viz_state.cats, valid_cats, viz_state.obs_store);
       update_selected_genes(viz_state.genes, [], viz_state.obs_store);
-    }
 
-    // Restore image layer visibility only when NOT showing gene expression
-    viz_state.obs_store.viz_image_layers.set(saved_state.viz_image_layers);
+      // Image visibility is automatically updated via obs_store subscription
+      // when selected_cats changes (based on current close_up state)
+    } else {
+      // No gene or cluster selected - clear selections to restore normal view
+      update_selected_cats(viz_state.cats, [], viz_state.obs_store);
+      update_selected_genes(viz_state.genes, [], viz_state.obs_store);
+      // Image visibility will be restored automatically by the subscriber
+    }
   }
 
   // Update persistent_state observable

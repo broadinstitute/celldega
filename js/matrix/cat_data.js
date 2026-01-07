@@ -37,13 +37,21 @@ export const set_cat_data = (network, viz_state, axis) => {
           if (value === undefined || value === null || isNaN(value)) {
             return null;
           }
-          // dark gray rgba for positive, orange rgba for negative
-          const neg = [255, 165, 0];
-          const pos = [169, 169, 169];
-          const color = value >= 0 ? pos : neg;
+          // Use customizable colors for value attributes
+          // Default: gray for positive, orange for negative
+          const value_colors = viz_state.value_colors || {};
+          const pos_color = colorToRgba(
+            value_colors.positive || '#a9a9a9',
+            255
+          );
+          const neg_color = colorToRgba(
+            value_colors.negative || '#ffa500',
+            255
+          );
+          const color = value >= 0 ? pos_color : neg_color;
           const scale = maxVal === 0 ? 1 : maxVal;
           const alpha = Math.min(1, Math.abs(value) / scale);
-          color_rgba = [...color, Math.round(alpha * 255)];
+          color_rgba = [color[0], color[1], color[2], Math.round(alpha * 255)];
         } else {
           const cat_name = `cat-${attr_index}`;
           value = node[cat_name];

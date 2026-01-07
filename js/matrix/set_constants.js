@@ -73,6 +73,13 @@ export const set_mat_constants = (
   viz_state.model = model;
   viz_state.obs_store = create_clustergram_store();
 
+  // Colors for value (numeric) attributes
+  // Default: gray for positive, orange for negative
+  const default_value_colors = { positive: '#a9a9a9', negative: '#ffa500' };
+  viz_state.value_colors =
+    (model && typeof model.get === 'function' && model.get('value_colors')) ||
+    default_value_colors;
+
   viz_state.custom_callbacks = {};
   viz_state.custom_callbacks.row = row_label_callback;
   viz_state.custom_callbacks.col = col_label_callback;

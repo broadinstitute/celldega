@@ -483,7 +483,6 @@ export const init_matrix_cat_bars = (viz_state, ui_container) => {
     if (row_cats.length > 0) {
       const initial = compute_initial_breakdown(viz_state, 'row');
       if (initial && initial.data.length > 0) {
-        // eslint-disable-next-line no-use-before-define
         const color_dict = get_color_dict(viz_state);
         const { on_hover, on_hover_out } = create_bar_hover_handlers(
           viz_state,
@@ -530,7 +529,6 @@ export const init_matrix_cat_bars = (viz_state, ui_container) => {
     if (col_cats.length > 0) {
       const initial = compute_initial_breakdown(viz_state, 'col');
       if (initial && initial.data.length > 0) {
-        // eslint-disable-next-line no-use-before-define
         const color_dict = get_color_dict(viz_state);
         const { on_hover, on_hover_out } = create_bar_hover_handlers(
           viz_state,
@@ -563,7 +561,6 @@ export const init_matrix_cat_bars = (viz_state, ui_container) => {
   if (viz_state.obs_store?.dendro_selection) {
     viz_state.obs_store.dendro_selection.subscribe(
       (selection) => {
-        // eslint-disable-next-line no-use-before-define
         update_cat_bars_on_selection(viz_state, selection);
       },
       { immediate: false }
@@ -599,7 +596,6 @@ export const init_matrix_cat_bars = (viz_state, ui_container) => {
               axis
             );
             if (breakdown && breakdown.data.length > 0) {
-              // eslint-disable-next-line no-use-before-define
               const color_dict = get_color_dict(viz_state);
               const { on_hover, on_hover_out } = create_bar_hover_handlers(
                 viz_state,

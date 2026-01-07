@@ -1,10 +1,50 @@
 /**
  * Cell query utilities for finding cells based on cluster and gene criteria.
- * Used by Yearbook to find cells from LandscapeFiles based on a query object.
+ * Used by Yearbook to find cells from DegaFiles based on a query object.
  */
 
 import { options } from '../global_variables/fetch_options';
 import { get_arrow_table } from '../read_parquet/get_arrow_table';
+
+/**
+ * Fisher-Yates shuffle for random cell selection.
+ */
+const shuffle_array = (array) => {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+};
+
+/**
+ * Get the meta_cell key for a given cell name.
+ * When cell_name_prefix is enabled, try both the full name and stripped name.
+ * @param {string} name - Cell name from cell_names_array
+ * @param {object} meta_cell - Meta cell data object
+ * @param {boolean} cell_name_prefix - Whether cell_name_prefix mode is enabled
+ * @returns {any[]|undefined} - Meta cell attributes or undefined if not found
+ */
+const get_meta_cell_attrs = (name, meta_cell, cell_name_prefix) => {
+  // First try direct lookup
+  if (meta_cell[name] !== undefined) {
+    return meta_cell[name];
+  }
+
+  // If cell_name_prefix is enabled, try stripping the prefix
+  if (cell_name_prefix && typeof name === 'string') {
+    const idx = name.indexOf('_');
+    if (idx >= 0) {
+      const stripped = name.substring(idx + 1);
+      if (meta_cell[stripped] !== undefined) {
+        return meta_cell[stripped];
+      }
+    }
+  }
+
+  return undefined;
+};
 
 /**
  * Load cluster assignments from LandscapeFiles.
@@ -16,7 +56,12 @@ import { get_arrow_table } from '../read_parquet/get_arrow_table';
  * @param {string} attr - Cluster attribute name (e.g., 'leiden', 'cluster')
  * @returns {Promise<Map<string, string>>} Map of cell_name -> cluster_value
  */
-export const load_cluster_data = async (base_url, version, aws, attr = 'cluster') => {
+export const load_cluster_data = async (
+  base_url,
+  version,
+  aws,
+  attr = 'cluster'
+) => {
   const version_suffix = version && version !== 'default' ? `_${version}` : '';
   const cluster_url = `${base_url}/cell_clusters${version_suffix}/cluster.parquet`;
 
@@ -24,13 +69,16 @@ export const load_cluster_data = async (base_url, version, aws, attr = 'cluster'
 
   // Handle null table (file doesn't exist or failed to load)
   if (!cluster_table) {
-    console.warn(`Failed to load cluster data from ${cluster_url}`);
+    // console.warn(`Failed to load cluster data from ${cluster_url}`);
     return new Map();
   }
 
-  const cell_names = cluster_table.getChild('__index_level_0__')?.toArray() || [];
-  const cluster_values = cluster_table.getChild(attr)?.toArray() ||
-                         cluster_table.getChild('cluster')?.toArray() || [];
+  const cell_names =
+    cluster_table.getChild('__index_level_0__')?.toArray() || [];
+  const cluster_values =
+    cluster_table.getChild(attr)?.toArray() ||
+    cluster_table.getChild('cluster')?.toArray() ||
+    [];
 
   const cluster_map = new Map();
   cell_names.forEach((name, i) => {
@@ -50,7 +98,12 @@ export const load_cluster_data = async (base_url, version, aws, attr = 'cluster'
  * @param {string} gene_name - Gene name to load expression for
  * @returns {Promise<Map<string, number>>} Map of cell_name -> expression_value
  */
-export const load_gene_expression = async (base_url, version, aws, gene_name) => {
+export const load_gene_expression = async (
+  base_url,
+  version,
+  aws,
+  gene_name
+) => {
   const version_suffix = version && version !== 'default' ? `_${version}` : '';
   const gene_url = `${base_url}/cbg${version_suffix}/${gene_name}.parquet`;
 
@@ -58,7 +111,7 @@ export const load_gene_expression = async (base_url, version, aws, gene_name) =>
 
   // Handle null table (file doesn't exist or failed to load)
   if (!exp_table) {
-    console.warn(`Failed to load gene expression from ${gene_url}`);
+    // console.warn(`Failed to load gene expression from ${gene_url}`);
     return new Map();
   }
 
@@ -70,10 +123,10 @@ export const load_gene_expression = async (base_url, version, aws, gene_name) =>
     exp_table.getChild('index');
 
   if (!cell_names_col) {
-    console.warn(
-      `Gene expression table has no recognized cell index column. Available columns:`,
-      exp_table.schema.fields.map((f) => f.name)
-    );
+    // console.warn(
+    //   `Gene expression table has no recognized cell index column. Available columns:`,
+    //   exp_table.schema.fields.map((f) => f.name)
+    // );
     return new Map();
   }
 
@@ -81,10 +134,10 @@ export const load_gene_expression = async (base_url, version, aws, gene_name) =>
   const exp_col = exp_table.getChild(gene_name);
 
   if (!exp_col) {
-    console.warn(
-      `Gene expression column '${gene_name}' not found. Available columns:`,
-      exp_table.schema.fields.map((f) => f.name)
-    );
+    // console.warn(
+    //   `Gene expression column '${gene_name}' not found. Available columns:`,
+    //   exp_table.schema.fields.map((f) => f.name)
+    // );
     return new Map();
   }
 
@@ -113,9 +166,9 @@ export const convert_exp_map_keys = (exp_map, viz_state) => {
   }
 
   // Convert integer indices to cell names using nameMapping_inv
-  const nameMapping_inv = viz_state.cats.nameMapping_inv;
+  const { nameMapping_inv } = viz_state.cats;
   if (!nameMapping_inv) {
-    console.warn('vector_name_integer is true but nameMapping_inv is missing');
+    // console.warn('vector_name_integer is true but nameMapping_inv is missing');
     return exp_map;
   }
 
@@ -149,7 +202,11 @@ export const convert_exp_map_keys = (exp_map, viz_state) => {
  * @param {number} default_cluster_max - Default max cells for cluster-only queries (default: 100)
  * @returns {Promise<string[]>} Array of cell names matching the query
  */
-export const execute_cell_query = async (query, viz_state, default_cluster_max = 100) => {
+export const execute_cell_query = async (
+  query,
+  viz_state,
+  default_cluster_max = 100
+) => {
   if (!query || Object.keys(query).length === 0) {
     return [];
   }
@@ -161,9 +218,10 @@ export const execute_cell_query = async (query, viz_state, default_cluster_max =
   // - If max_cells is explicitly set in query, use it
   // - For cluster-only queries, default to default_cluster_max (100)
   // - For gene queries, no limit (Infinity) to show full expression range
+  const { max_cells: query_max_cells } = query;
   let max_cells;
-  if (query.max_cells !== undefined) {
-    max_cells = query.max_cells;
+  if (query_max_cells !== undefined) {
+    max_cells = query_max_cells;
   } else if (cluster_query && !gene_name) {
     // Cluster-only: limit to prevent overwhelming the UI
     max_cells = default_cluster_max;
@@ -175,7 +233,7 @@ export const execute_cell_query = async (query, viz_state, default_cluster_max =
   // Get all available cell names from viz_state
   const all_cell_names = viz_state.cats.cell_names_array || [];
   if (all_cell_names.length === 0) {
-    console.warn('No cell names available for query');
+    // console.warn('No cell names available for query');
     return [];
   }
 
@@ -186,26 +244,39 @@ export const execute_cell_query = async (query, viz_state, default_cluster_max =
     const cluster_attr = cluster_query.attr || 'leiden';
     const cluster_value = String(cluster_query.value);
 
+    // Get cell_name_prefix setting for name matching
+    const cell_name_prefix = viz_state.cell_name_prefix || false;
+
     // Check if we have meta_cell data (from adata) or need to load from files
     if (viz_state.cats.has_meta_cell && viz_state.cats.meta_cell) {
       // Use meta_cell from adata
       const attr_index = viz_state.cats.meta_cell_attr.indexOf(cluster_attr);
       if (attr_index >= 0) {
         candidate_cells = candidate_cells.filter((cell_name) => {
-          const attrs = viz_state.cats.meta_cell[cell_name];
+          // Use helper to handle cell_name_prefix matching
+          const attrs = get_meta_cell_attrs(
+            cell_name,
+            viz_state.cats.meta_cell,
+            cell_name_prefix
+          );
           if (!attrs) return false;
           return String(attrs[attr_index]) === cluster_value;
         });
       } else {
-        console.warn(`Cluster attribute '${cluster_attr}' not found in meta_cell_attr`);
+        // console.warn(`Cluster attribute '${cluster_attr}' not found in meta_cell_attr`);
       }
-    } else if (viz_state.cats.dict_cell_cats && Object.keys(viz_state.cats.dict_cell_cats).length > 0) {
-      // Use dict_cell_cats if available (loaded from LandscapeFiles)
+    } else if (
+      viz_state.cats.dict_cell_cats &&
+      Object.keys(viz_state.cats.dict_cell_cats).length > 0
+    ) {
+      // Use dict_cell_cats if available (loaded from DegaFiles)
       candidate_cells = candidate_cells.filter((cell_name) => {
-        return String(viz_state.cats.dict_cell_cats[cell_name]) === cluster_value;
+        return (
+          String(viz_state.cats.dict_cell_cats[cell_name]) === cluster_value
+        );
       });
     } else {
-      // Load cluster data from LandscapeFiles
+      // Load cluster data from DegaFiles
       try {
         const cluster_map = await load_cluster_data(
           viz_state.global_base_url,
@@ -216,8 +287,8 @@ export const execute_cell_query = async (query, viz_state, default_cluster_max =
         candidate_cells = candidate_cells.filter((cell_name) => {
           return cluster_map.get(cell_name) === cluster_value;
         });
-      } catch (error) {
-        console.error('Failed to load cluster data:', error);
+      } catch {
+        // Silently handle cluster data load failures
         return [];
       }
     }
@@ -256,14 +327,13 @@ export const execute_cell_query = async (query, viz_state, default_cluster_max =
         candidate_cells = cells_with_exp.map((c) => c.name);
       } else {
         // Gene expression file not found or empty - fall back to unranked cells
-        console.warn(
-          `No gene expression data found for ${gene_name}, returning unranked cells`
-        );
+        // console.warn(
+        // `No gene expression data found for ${gene_name}, returning unranked cells`
+        // );
         // Shuffle since we can't rank by expression
         candidate_cells = shuffle_array(candidate_cells);
       }
-    } catch (error) {
-      console.error(`Failed to load gene expression for ${gene_name}:`, error);
+    } catch {
       // Fall back to unranked cells if gene data fails
       candidate_cells = shuffle_array(candidate_cells);
     }
@@ -277,16 +347,4 @@ export const execute_cell_query = async (query, viz_state, default_cluster_max =
     return candidate_cells.slice(0, max_cells);
   }
   return candidate_cells;
-};
-
-/**
- * Fisher-Yates shuffle for random cell selection.
- */
-const shuffle_array = (array) => {
-  const shuffled = [...array];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-  }
-  return shuffled;
 };

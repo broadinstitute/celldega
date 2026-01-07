@@ -5,7 +5,6 @@ import {
   set_get_tooltip,
   set_views_prop,
 } from '../deck-gl/core/deck_ist';
-import { execute_cell_query } from '../utils/cell_query';
 import {
   create_yearbook_views,
   get_discontiguous_tiles,
@@ -15,7 +14,10 @@ import {
   ini_cell_layer,
   set_cell_layer_onclick,
 } from '../deck-gl/layers/cell_layer';
-import { make_yearbook_image_layers } from '../deck-gl/layers/image_layers';
+import {
+  make_yearbook_image_layers,
+  toggle_visibility_image_layers,
+} from '../deck-gl/layers/image_layers';
 import {
   ini_path_layer,
   set_path_layer_onclick,
@@ -45,6 +47,7 @@ import { set_meta_gene } from '../global_variables/meta_gene';
 import { create_obs_store } from '../obs_store/obs_store';
 import { set_image_layer_sliders } from '../ui/sliders';
 import { make_yearbook_ui_container } from '../ui/yearbook_ui';
+import { execute_cell_query } from '../utils/cell_query';
 import { refresh_layer } from '../utils/refresh_layer';
 import { create_scale_bar, PIXEL_SIZE_MICRONS } from '../utils/scale_bar';
 
@@ -90,7 +93,8 @@ export const yearbook = async (
   creds = {},
   scale_bar_microns_per_pixel = null,
   current_page = 0,
-  query = {}
+  query = {},
+  cell_name_prefix = false
 ) => {
   if (width === 0) {
     width = '100%';
@@ -101,6 +105,9 @@ export const yearbook = async (
   viz_state.obs_store = create_obs_store();
   viz_state.highlighted_cells = new Set();
   viz_state.selection_token = 0;
+
+  // Store cell_name_prefix for cell name matching
+  viz_state.cell_name_prefix = cell_name_prefix;
 
   // Yearbook-specific state
   viz_state.yearbook = {
@@ -291,8 +298,8 @@ export const yearbook = async (
         default_max_cells
       );
       return queried_cells;
-    } catch (error) {
-      console.error('Failed to execute cell query:', error);
+    } catch {
+      // Silently handle cell query failures
       return [];
     }
   };
@@ -370,7 +377,10 @@ export const yearbook = async (
       if (all_cells.length > 0) {
         // Shuffle and take a subset
         const shuffled = [...all_cells].sort(() => Math.random() - 0.5);
-        initial_cells = shuffled.slice(0, Math.min(default_count, all_cells.length));
+        initial_cells = shuffled.slice(
+          0,
+          Math.min(default_count, all_cells.length)
+        );
       }
     }
 
@@ -569,6 +579,11 @@ export const yearbook = async (
       portrait_data_size,
       page_cache_key
     );
+
+    // Apply current image visibility state to the new layers
+    const current_viz_image_layers = viz_state.obs_store.viz_image_layers.get();
+    toggle_visibility_image_layers(layers_obj, current_viz_image_layers);
+
     viz_state.layers_obj = layers_obj;
 
     // Create view states for each portrait and update viewStatesRef
@@ -861,8 +876,8 @@ export const yearbook = async (
       if (viz_state.yearbook.update_pagination_ui) {
         viz_state.yearbook.update_pagination_ui();
       }
-    } catch (error) {
-      console.error('Query failed:', error);
+    } catch {
+      // Handle query failure gracefully
       if (viz_state.yearbook.query_ui) {
         viz_state.yearbook.query_ui.update_status('Query failed');
       }
@@ -1005,6 +1020,48 @@ export const yearbook = async (
     refresh: async () => {
       await update_all_portraits();
       initViewStates();
+    },
+    /**
+     * Update the yearbook query and refresh the display.
+     * @param {Object} new_query - Query object with optional cluster and gene
+     * @param {Object} [new_query.cluster] - Cluster filter { attr: 'leiden', value: '1' }
+     * @param {string} [new_query.gene] - Gene to rank cells by expression
+     * @param {number} [new_query.max_cells] - Maximum cells to return
+     */
+    update_query: async (new_query) => {
+      await handle_query_change(new_query);
+    },
+    /**
+     * Update query to show cells from a specific cluster.
+     * @param {string} cluster_value - Cluster identifier (e.g., '1', '5')
+     * @param {string} [cluster_attr='leiden'] - Cluster attribute name
+     */
+    update_cluster: async (cluster_value, cluster_attr = 'leiden') => {
+      const current_query = viz_state.yearbook.query || {};
+      const new_query = {
+        ...current_query,
+        cluster: { attr: cluster_attr, value: String(cluster_value) },
+      };
+      await handle_query_change(new_query);
+    },
+    /**
+     * Update query to rank cells by gene expression.
+     * @param {string} gene_name - Gene name to rank by
+     */
+    update_gene: async (gene_name) => {
+      const current_query = viz_state.yearbook.query || {};
+      const new_query = {
+        ...current_query,
+        gene: gene_name,
+      };
+      await handle_query_change(new_query);
+    },
+    /**
+     * Get the current query state.
+     * @returns {Object} Current query object
+     */
+    get_query: () => {
+      return viz_state.yearbook.query || {};
     },
     finalize: () => {
       deck_yearbook.finalize();

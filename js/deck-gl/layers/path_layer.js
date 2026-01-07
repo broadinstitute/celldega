@@ -11,9 +11,13 @@ export const get_path_color = (cats, i, d) => {
 
   let inst_color;
 
+  // Convert to string for consistent color lookup
+  // (meta_cell values may be numbers, color_dict keys are always strings)
+  const inst_cat_str = String(inst_cat);
+
   // check if inst_cat is not in cats.color_dict_cluster
-  if (inst_cat in cats.color_dict_cluster) {
-    inst_color = cats.color_dict_cluster[inst_cat];
+  if (inst_cat_str in cats.color_dict_cluster) {
+    inst_color = cats.color_dict_cluster[inst_cat_str];
   } else {
     // default segmentation color
     inst_color = [0, 0, 255];

@@ -67,6 +67,8 @@ export const calc_viewport = async (
     });
 
     viz_state.close_up = true;
+    // Update observable - this triggers the image visibility subscriber
+    viz_state.obs_store.close_up.set(true);
 
     await update_trx_layer_data(
       viz_state.global_base_url,
@@ -169,6 +171,8 @@ export const calc_viewport = async (
       });
 
       viz_state.close_up = false;
+      // Update observable - this triggers the image visibility subscriber
+      viz_state.obs_store.close_up.set(false);
 
       viz_state.obs_store.deck_check.set({
         ...viz_state.obs_store.deck_check.get(),

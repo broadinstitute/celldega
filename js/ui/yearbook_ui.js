@@ -206,8 +206,10 @@ const make_query_container = (viz_state, on_query_change) => {
     const query = {};
 
     if (cluster_value) {
-      // Use the current cluster attribute (default to 'leiden')
-      const cluster_attr = viz_state.cats.inst_cluster_attr || 'leiden';
+      // Use the current cell attribute for cluster filtering (e.g., 'leiden')
+      // inst_cell_attr is the attribute from meta_cell (AnnData obs columns)
+      // inst_cluster_attr is different - it's from meta_cluster which has 'color', 'count'
+      const cluster_attr = viz_state.cats.inst_cell_attr || 'leiden';
       query.cluster = { attr: cluster_attr, value: cluster_value };
     }
 

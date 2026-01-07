@@ -2,13 +2,6 @@
 
 This page includes links to visualizations made with the stand-alone [Celldega JavaScript library](../javascript/index.md).
 
-## Linked Views
-
-Interactive examples showing linked visualizations where clicking in one view updates others.
-
-- [Landscape-Clustergram](gallery_landscape_clustergram.md) - Link a spatial Landscape with a Clustergram heatmap
-- [Landscape-Yearbook](gallery_landscape_yearbook.md) - Link a spatial Landscape with a Yearbook cell gallery
-
 ## Imaging Spatial Transcriptomics
 
 ### Xenium

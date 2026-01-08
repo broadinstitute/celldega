@@ -2,7 +2,7 @@
 
 ## Overview
 
-Celldega supports an optional **row group storage mode** that consolidates tile-based data into single Parquet files using Apache Parquet's row group feature. Instead of storing thousands of individual tile files, this mode stores all tiles as row groups within a single file per data type.
+Celldega supports an optional **row group storage mode** that consolidates tile-based data into single Parquet files/chunked-files using Apache Parquet's row group feature. Instead of storing thousands of individual tile files, this mode stores all tiles as row groups within a single file per data type.
 
 This approach offers significant advantages for cloud hosting platforms that have file count limitations (e.g., GitHub, Hugging Face) while maintaining comparable performance through HTTP Range Requests.
 
@@ -213,13 +213,6 @@ When `use_row_groups=True`, the `landscape_parameters.json` includes additional 
 - `write_statistics=False` reduces footer size by ~50%
 - Deterministic indexing eliminates metadata scanning
 - Automatic fallback ensures compatibility
-
-## Scalability
-
-For very large datasets (>500M transcripts):
-- Consider regional Parquet files (one per section)
-- Use coarser tiles to reduce row group count
-- Host on Range-request-supporting servers for best performance
 
 ## Backwards Compatibility
 

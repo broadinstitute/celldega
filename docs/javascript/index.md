@@ -24,11 +24,7 @@ You can include Celldega in any HTML page by importing the bundled JavaScript mo
     <div id="landscape-container"></div>
 
     <script type="module">
-<<<<<<< HEAD
         import celldega from './celldega.js';
-=======
-        import celldega from './widget.js';
->>>>>>> main
 
         document.addEventListener("DOMContentLoaded", async () => {
             const el = document.getElementById('landscape-container');

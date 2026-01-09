@@ -153,6 +153,8 @@ def main(
     path_landscape_files="",
     use_int_index=True,
     max_workers=1,
+    use_row_groups=False,
+    max_row_groups_per_file=400,
 ):
     """
     Main function to preprocess Xenium or MERSCOPE data and generate landscape files.
@@ -166,6 +168,11 @@ def main(
         image_tile_layer (str): Image layers to be tiled. 'dapi' or 'all'.
         path_landscape_files (str): Directory to save the landscape files.
         use_int_index (bool): Use integer index for smaller files and faster rendering.
+        use_row_groups (bool): If True, save tiles as row groups in chunked parquet files
+            instead of individual tile files. Defaults to False.
+        max_row_groups_per_file (int): Maximum row groups per parquet file when using
+            row groups mode. Lower values create more files but avoid parquet-wasm memory
+            issues with dense datasets. Defaults to 400.
 
     Example:
         change directory to celldega, and run:
@@ -273,11 +280,27 @@ def main(
         print(f"Skipping meta gene file creation, found {paths['meta_gene']}")
 
     # Save CBG gene parquet files
-    cbg_dir = Path(path_landscape_files) / "cbg"
-    if not cbg_dir.exists() or not any(cbg_dir.glob("*.parquet")):
-        dega.pre.save_cbg_gene_parquets(technology, path_landscape_files, cbg, verbose=True)
+    cbg_chunk_info = None
+    if use_row_groups:
+        # Row group mode: chunked parquet files with one row group per gene
+        cbg_dir = Path(path_landscape_files) / "cbg"
+        if not cbg_dir.exists() or not any(cbg_dir.glob("*.parquet")):
+            cbg_chunk_info = dega.pre.save_cbg_gene_parquets_row_groups(
+                technology,
+                path_landscape_files,
+                cbg,
+                verbose=True,
+                max_row_groups_per_file=max_row_groups_per_file,
+            )
+        else:
+            print(f"Skipping CBG row groups, directory {cbg_dir} already exists")
     else:
-        print(f"Skipping CBG gene parquets, directory {cbg_dir} already populated")
+        # Traditional mode: one parquet file per gene
+        cbg_dir = Path(path_landscape_files) / "cbg"
+        if not cbg_dir.exists() or not any(cbg_dir.glob("*.parquet")):
+            dega.pre.save_cbg_gene_parquets(technology, path_landscape_files, cbg, verbose=True)
+        else:
+            print(f"Skipping CBG gene parquets, directory {cbg_dir} already populated")
 
     if technology == "Xenium" and not cluster_file.exists():
         # Create cluster and meta cluster files
@@ -291,43 +314,128 @@ def main(
             technology, str(data_dir), path_landscape_files, image_tile_layer=image_tile_layer
         )
 
-        need_trx_tiles = not _output_exists(paths["transcript_tiles"])
-        need_boundaries = not _output_exists(paths["cell_segmentation"])
+        # Optionally pack image tiles into parquet row groups
+        # Store max_pyramid_zoom before deleting tiles
+        image_tile_info = {}
+        if use_row_groups:
+            print("\n======== Packing Image Tiles to Parquet ========")
+            pyramid_dir = Path(path_landscape_files) / "pyramid_images"
+
+            # Determine which channels were created
+            image_info = dega.pre.get_image_info(technology, image_tile_layer)
+            for channel_info in image_info:
+                channel_name = channel_info["name"]
+                # Put chunked parquet files in pyramid_images/{channel_name}/ directory
+                output_dir = pyramid_dir / channel_name
+
+                # Check if already processed (directory with chunk files exists)
+                if not output_dir.exists() or not list(output_dir.glob("chunk_*.parquet")):
+                    try:
+                        # Use default max_row_groups_per_file=2000 for images
+                        # (higher than tiles since image tiles are smaller)
+                        tile_info = dega.pre.pack_image_tiles_to_parquet(
+                            str(pyramid_dir),
+                            channel_name,
+                            str(output_dir),
+                            image_format=".webp",
+                            delete_source_tiles=True,
+                        )
+                        image_tile_info[channel_name] = tile_info
+                    except FileNotFoundError as e:
+                        print(f"Warning: Could not pack {channel_name} tiles: {e}")
+                else:
+                    print(f"Skipping {channel_name} parquet, directory already exists")
+
         tile_bounds = None
+        tile_grid_info = None
 
-        if need_trx_tiles or need_boundaries:
-            print("\n======== Transcript Tiles========")
-            tile_bounds = dega.pre.make_trx_tiles(
-                technology,
-                str(paths["transcripts"]),
-                str(transform_out),
-                str(paths["transcript_tiles"]),
-                coarse_tile_factor=10,
-                tile_size=tile_size,
-                chunk_size=100000,
-                verbose=False,
-                image_scale=1,
-                max_workers=max_workers,
-            )
-            print(f"tile bounds: {tile_bounds}")
-        else:
-            print("Skipping transcript tiles, output already exists")
+        # Chunk info for landscape_parameters.json
+        trx_chunk_info = None
+        cell_chunk_info = None
 
-        if need_boundaries:
-            print("\n======== Cell Boundary Tiles ========")
-            dega.pre.make_cell_boundary_tiles(
-                technology,
-                str(paths["cell_boundaries"]),
-                str(paths["cell_segmentation"]),
-                str(paths.get("meta_cell_micron", "")),
-                str(transform_out),
-                coarse_tile_factor=10,
-                tile_size=tile_size,
-                tile_bounds=tile_bounds,
-                max_workers=max_workers,
-            )
+        if use_row_groups:
+            # Row group mode: save tiles as row groups in chunked parquet files
+            trx_output_dir = Path(path_landscape_files) / "transcripts"
+            cell_output_dir = Path(path_landscape_files) / "cell_segmentation"
+
+            need_trx_tiles = not trx_output_dir.exists()
+            need_boundaries = not cell_output_dir.exists()
+
+            if need_trx_tiles:
+                print("\n======== Transcript Tiles (Row Groups) ========")
+                tile_bounds, tile_grid_info, trx_chunk_info = dega.pre.make_trx_tiles_row_groups(
+                    technology,
+                    str(paths["transcripts"]),
+                    str(transform_out),
+                    str(trx_output_dir),
+                    coarse_tile_factor=10,
+                    tile_size=tile_size,
+                    chunk_size=100000,
+                    verbose=False,
+                    image_scale=1,
+                    max_workers=max_workers,
+                    path_landscape_files=path_landscape_files,
+                    max_row_groups_per_file=max_row_groups_per_file,
+                )
+                print(f"tile bounds: {tile_bounds}")
+            else:
+                print("Skipping transcript tiles, output already exists")
+
+            if need_boundaries:
+                print("\n======== Cell Boundary Tiles (Row Groups) ========")
+                cell_chunk_info = dega.pre.make_cell_boundary_tiles_row_groups(
+                    technology,
+                    str(paths["cell_boundaries"]),
+                    str(cell_output_dir),
+                    str(paths.get("meta_cell_micron", "")),
+                    str(transform_out),
+                    coarse_tile_factor=10,
+                    tile_size=tile_size,
+                    tile_bounds=tile_bounds,
+                    max_workers=max_workers,
+                    path_landscape_files=path_landscape_files,
+                    max_row_groups_per_file=max_row_groups_per_file,
+                )
+            else:
+                print("Skipping cell boundary tiles, output already exists")
         else:
-            print("Skipping cell boundary tiles, output already exists")
+            # Traditional mode: save individual tile files
+            need_trx_tiles = not _output_exists(paths["transcript_tiles"])
+            need_boundaries = not _output_exists(paths["cell_segmentation"])
+
+            if need_trx_tiles or need_boundaries:
+                print("\n======== Transcript Tiles========")
+                tile_bounds = dega.pre.make_trx_tiles(
+                    technology,
+                    str(paths["transcripts"]),
+                    str(transform_out),
+                    str(paths["transcript_tiles"]),
+                    coarse_tile_factor=10,
+                    tile_size=tile_size,
+                    chunk_size=100000,
+                    verbose=False,
+                    image_scale=1,
+                    max_workers=max_workers,
+                )
+                print(f"tile bounds: {tile_bounds}")
+            else:
+                print("Skipping transcript tiles, output already exists")
+
+            if need_boundaries:
+                print("\n======== Cell Boundary Tiles ========")
+                dega.pre.make_cell_boundary_tiles(
+                    technology,
+                    str(paths["cell_boundaries"]),
+                    str(paths["cell_segmentation"]),
+                    str(paths.get("meta_cell_micron", "")),
+                    str(transform_out),
+                    coarse_tile_factor=10,
+                    tile_size=tile_size,
+                    tile_bounds=tile_bounds,
+                    max_workers=max_workers,
+                )
+            else:
+                print("Skipping cell boundary tiles, output already exists")
     else:
         raise ValueError(
             f"Unsupported technology: {technology}. Supported technologies are 'MERSCOPE' and 'Xenium'."
@@ -350,6 +458,12 @@ def main(
         image_info=dega.pre.get_image_info(technology, image_tile_layer),
         image_format=".webp",
         use_int_index=use_int_index,
+        use_row_groups=use_row_groups,
+        tile_grid_info=tile_grid_info,
+        image_tile_info=image_tile_info if use_row_groups else None,
+        trx_chunk_info=trx_chunk_info,
+        cell_chunk_info=cell_chunk_info,
+        cbg_chunk_info=cbg_chunk_info,
     )
 
     print("Preprocessing completed successfully.")
@@ -395,6 +509,13 @@ def _setup_argument_parser():
         default=True,
         help="Use integer index for smaller files and faster rendering at front end",
     )
+    parser.add_argument(
+        "--use_row_groups",
+        type=bool,
+        required=False,
+        default=False,
+        help="Use row groups in a single parquet file instead of individual tile files",
+    )
 
     return parser
 
@@ -414,4 +535,5 @@ if __name__ == "__main__":
         args.image_tile_layer,
         args.path_landscape_files,
         args.use_int_index,
+        use_row_groups=args.use_row_groups,
     )

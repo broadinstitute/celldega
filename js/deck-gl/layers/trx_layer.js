@@ -43,7 +43,8 @@ const trx_layer_callback = async (
     inst_gene,
     viz_state.seg.version,
     viz_state.vector_name_integer,
-    viz_state.aws
+    viz_state.aws,
+    viz_state.row_group_readers?.cbg
   );
 };
 

@@ -1,4 +1,4 @@
-import celldega from './widget.js';
+import celldega from './celldega.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
 

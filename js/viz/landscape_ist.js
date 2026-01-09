@@ -63,6 +63,13 @@ import { set_meta_gene } from '../global_variables/meta_gene';
 import { update_selected_genes } from '../global_variables/selected_genes';
 import { colorToRgba } from '../matrix/cat_data';
 import { create_obs_store } from '../obs_store/obs_store';
+import { CBGRowGroupReader } from '../read_parquet/cbg_row_group_reader';
+import { ImageRowGroupReader } from '../read_parquet/image_row_group_reader';
+// import {
+//   testRowGroupReading,
+//   getVersion as getParquetWasmVersion,
+// } from '../read_parquet/row_group_poc';
+import { RowGroupTileReader } from '../read_parquet/row_group_tile_reader';
 import { initialize_nbhd_editor } from '../ui/nbhd_editor';
 import { toggle_slider, set_image_layer_sliders } from '../ui/sliders';
 import { get_img_layer_visible } from '../ui/text_buttons';
@@ -72,6 +79,105 @@ import { build_rotation_state } from '../utils/rotation';
 import { create_scale_bar, PIXEL_SIZE_MICRONS } from '../utils/scale_bar';
 import { update_cell_clusters } from '../widget_interactions/update_cell_clusters';
 import { update_ist_landscape_from_cgm } from '../widget_interactions/update_ist_landscape_from_cgm';
+
+// Row group reading support
+
+// Log parquet-wasm version on module load
+// console.log(`[landscape_ist] parquet-wasm version: ${getParquetWasmVersion()}`);
+
+// Expose test function globally for browser console testing
+// Usage: window.testRowGroupReading("https://example.com/row_grouped.parquet")
+// if (typeof window !== 'undefined') {
+//   window.testRowGroupReading = testRowGroupReading;
+// }
+
+/**
+ * Initialize row group readers for tile data if the landscape uses row groups
+ *
+ * Uses formula-based row group indexing:
+ *   row_group_index = tile_x * num_tiles_y + tile_y
+ *
+ * Only requires grid dimensions (num_tiles_x, num_tiles_y) from landscape_parameters.json
+ *
+ * @param {Object} viz_state - Visualization state
+ * @param {string} base_url - Base URL for the landscape files
+ * @returns {Promise<void>}
+ */
+async function initializeRowGroupReaders(viz_state, base_url) {
+  const landscapeParams = viz_state.img.landscape_parameters;
+
+  if (!landscapeParams.use_row_groups) {
+    viz_state.use_row_groups = false;
+    return;
+  }
+
+  // console.log('[landscape_ist] Row group mode enabled');
+
+  const rowGroupFiles = landscapeParams.row_group_files || {};
+  const tileGrid = landscapeParams.tile_grid || {};
+
+  if (!tileGrid.num_tiles_x || !tileGrid.num_tiles_y) {
+    // console.error(
+    //   '[landscape_ist] Missing tile_grid dimensions in landscape_parameters'
+    // );
+    viz_state.use_row_groups = false;
+    return;
+  }
+
+  viz_state.use_row_groups = true;
+  viz_state.row_group_readers = {};
+  viz_state.tile_grid = tileGrid;
+
+  // Initialize transcript row group reader with grid dimensions
+  if (rowGroupFiles.transcripts) {
+    // Support both chunked (object with files array) and legacy (string path) formats
+    viz_state.row_group_readers.trx = new RowGroupTileReader(
+      base_url,
+      tileGrid,
+      rowGroupFiles.transcripts
+    );
+    await viz_state.row_group_readers.trx.initialize();
+  }
+
+  // Initialize cell segmentation row group reader with grid dimensions
+  if (rowGroupFiles.cell_segmentation) {
+    // Support both chunked (object with files array) and legacy (string path) formats
+    viz_state.row_group_readers.cell = new RowGroupTileReader(
+      base_url,
+      tileGrid,
+      rowGroupFiles.cell_segmentation
+    );
+    await viz_state.row_group_readers.cell.initialize();
+  }
+
+  // Initialize CBG row group reader
+  if (rowGroupFiles.cbg) {
+    viz_state.row_group_readers.cbg = new CBGRowGroupReader(
+      base_url,
+      rowGroupFiles.cbg
+    );
+    await viz_state.row_group_readers.cbg.initialize();
+  }
+
+  // Initialize image row group readers for each channel
+  if (rowGroupFiles.images) {
+    viz_state.row_group_readers.images = {};
+
+    for (const [channelName, imageEntry] of Object.entries(
+      rowGroupFiles.images
+    )) {
+      // Pass imageEntry directly - ImageRowGroupReader handles both:
+      // - Chunked mode: object with { directory, files, zoom_info, ... }
+      // - Legacy mode: string path or object with { path, zoom_info }
+      viz_state.row_group_readers.images[channelName] = new ImageRowGroupReader(
+        base_url,
+        imageEntry
+      );
+      // eslint-disable-next-line no-await-in-loop
+      await viz_state.row_group_readers.images[channelName].initialize();
+    }
+  }
+}
 
 export const landscape_ist = async (
   el,
@@ -318,6 +424,9 @@ export const landscape_ist = async (
     viz_state.obs_store.viz_image_layers.set(false);
     viz_state.obs_store.viz_background_layer.set(false);
   }
+
+  // Initialize row group readers if using row group storage mode
+  await initializeRowGroupReaders(viz_state, base_url);
 
   const tmp_image_info = viz_state.img.landscape_parameters.image_info;
 
@@ -861,7 +970,8 @@ export const landscape_ist = async (
         inst_gene,
         viz_state.seg.version,
         viz_state.vector_name_integer,
-        viz_state.aws
+        viz_state.aws,
+        viz_state.row_group_readers?.cbg
       );
 
       viz_state.layers_obj = layers_obj;

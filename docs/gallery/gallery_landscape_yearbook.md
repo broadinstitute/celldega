@@ -28,7 +28,7 @@ The Yearbook provides update methods:
 ## Usage in JavaScript
 
 ```javascript
-import celldega from './widget.js';
+import celldega from './celldega.js';
 
 // Initialize Landscape
 const landscape = await celldega.landscape_ist(el, {}, token, x, y, z, zoom, base_url);

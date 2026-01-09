@@ -45,11 +45,109 @@ import { set_landscape_parameters } from '../global_variables/landscape_paramete
 import { set_cluster_metadata } from '../global_variables/meta_cluster';
 import { set_meta_gene } from '../global_variables/meta_gene';
 import { create_obs_store } from '../obs_store/obs_store';
+import { CBGRowGroupReader } from '../read_parquet/cbg_row_group_reader';
+import { ImageRowGroupReader } from '../read_parquet/image_row_group_reader';
+import { RowGroupTileReader } from '../read_parquet/row_group_tile_reader';
 import { set_image_layer_sliders } from '../ui/sliders';
 import { make_yearbook_ui_container } from '../ui/yearbook_ui';
 import { execute_cell_query } from '../utils/cell_query';
 import { refresh_layer } from '../utils/refresh_layer';
 import { create_scale_bar, PIXEL_SIZE_MICRONS } from '../utils/scale_bar';
+
+// Row group reading support
+
+/**
+ * Initialize row group readers for Yearbook if the landscape uses row groups
+ * @param {Object} viz_state - Visualization state
+ * @param {string} base_url - Base URL for the landscape files
+ * @returns {Promise<void>}
+ */
+async function initializeYearbookRowGroupReaders(viz_state, base_url) {
+  const landscapeParams = viz_state.img.landscape_parameters;
+
+  if (!landscapeParams.use_row_groups) {
+    viz_state.use_row_groups = false;
+    return;
+  }
+
+  // console.log('[yearbook] Row group mode enabled, initializing readers...');
+
+  const rowGroupFiles = landscapeParams.row_group_files || {};
+  const tileGrid = landscapeParams.tile_grid || {};
+
+  if (!tileGrid.num_tiles_x || !tileGrid.num_tiles_y) {
+    // console.error(
+    //   '[yearbook] Missing tile_grid dimensions in landscape_parameters'
+    // );
+    viz_state.use_row_groups = false;
+    return;
+  }
+
+  viz_state.use_row_groups = true;
+  viz_state.row_group_readers = {};
+  viz_state.tile_grid = tileGrid;
+
+  try {
+    // Initialize transcript row group reader
+    if (rowGroupFiles.transcripts) {
+      // console.log(`[yearbook] Initializing transcript reader`);
+      // Support both chunked (object with files array) and legacy (string path) formats
+      viz_state.row_group_readers.trx = new RowGroupTileReader(
+        base_url,
+        tileGrid,
+        rowGroupFiles.transcripts
+      );
+      await viz_state.row_group_readers.trx.initialize();
+      // console.log('[yearbook] Transcript reader ready');
+    }
+
+    // Initialize cell segmentation row group reader
+    if (rowGroupFiles.cell_segmentation) {
+      // console.log(`[yearbook] Initializing cell reader`);
+      // Support both chunked (object with files array) and legacy (string path) formats
+      viz_state.row_group_readers.cell = new RowGroupTileReader(
+        base_url,
+        tileGrid,
+        rowGroupFiles.cell_segmentation
+      );
+      await viz_state.row_group_readers.cell.initialize();
+      // console.log('[yearbook] Cell reader ready');
+    }
+
+    // Initialize CBG row group reader
+    if (rowGroupFiles.cbg) {
+      // console.log(`[yearbook] Initializing CBG reader...`);
+      viz_state.row_group_readers.cbg = new CBGRowGroupReader(
+        base_url,
+        rowGroupFiles.cbg
+      );
+      await viz_state.row_group_readers.cbg.initialize();
+    }
+
+    // Initialize image row group readers for each channel
+    if (rowGroupFiles.images) {
+      viz_state.row_group_readers.images = {};
+
+      for (const [channelName, imageEntry] of Object.entries(
+        rowGroupFiles.images
+      )) {
+        // console.log(
+        //   `[yearbook] Initializing image reader for ${channelName}...`
+        // );
+        // Pass imageEntry directly - ImageRowGroupReader handles both:
+        // - Chunked mode: object with { directory, files, zoom_info, ... }
+        // - Legacy mode: string path or object with { path, zoom_info }
+        viz_state.row_group_readers.images[channelName] =
+          new ImageRowGroupReader(base_url, imageEntry);
+        // eslint-disable-next-line no-await-in-loop
+        await viz_state.row_group_readers.images[channelName].initialize();
+      }
+    }
+  } catch {
+    // Error initializing row group readers - fall back to non-row-group mode
+    viz_state.use_row_groups = false;
+  }
+}
 
 /**
  * Calculate initial zoom level based on portrait size in micrometers
@@ -230,6 +328,9 @@ export const yearbook = async (
 
   await set_landscape_parameters(viz_state.img, base_url, viz_state.aws);
   const tech = viz_state.img.landscape_parameters.technology;
+
+  // Initialize row group readers if enabled
+  await initializeYearbookRowGroupReaders(viz_state, base_url);
 
   const tmp_image_info = viz_state.img.landscape_parameters.image_info;
   const image_name_for_dim = tmp_image_info[0].name;
@@ -826,7 +927,8 @@ export const yearbook = async (
           inst_gene,
           viz_state.seg.version,
           viz_state.vector_name_integer,
-          viz_state.aws
+          viz_state.aws,
+          viz_state.row_group_readers?.cbg
         );
 
         // Force-set selected_cats (bypass toggle behavior)

@@ -201,7 +201,8 @@ export const update_ist_landscape_from_cgm = async (
           inst_gene,
           viz_state.seg.version,
           viz_state.vector_name_integer,
-          viz_state.aws
+          viz_state.aws,
+          viz_state.row_group_readers?.cbg
         );
 
         // Clear selected cells in obs_store (after data is loaded to avoid flash)

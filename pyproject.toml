@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "celldega"
-version = "0.15.1"
+version = "0.16.0a1"
 readme = "README.md"
 dependencies = [
     "anndata~=0.11.0",
@@ -26,6 +26,7 @@ dependencies = [
     "polars~=1.10.0",
     "pyarrow",
     "rasterio==1.4.3",
+    "requests",
     "scanpy~=1.10.0",
     "shapely~=2.0.0",
     "spatialdata",
@@ -71,8 +72,8 @@ artifacts = ["src/celldega/static/*"]
 
 [tool.hatch.build.hooks.jupyter-builder]
 build-function = "hatch_jupyter_builder.npm_builder"
-ensured-targets = ["src/celldega/static/widget.js"]
-skip-if-exists = ["src/celldega/static/widget.js"]
+ensured-targets = ["src/celldega/static/celldega.js"]
+skip-if-exists = ["src/celldega/static/celldega.js"]
 dependencies = ["hatch-jupyter-builder>=0.5.0"]
 
 [tool.hatch.build.hooks.jupyter-builder.build-kwargs]

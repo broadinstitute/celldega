@@ -69,8 +69,7 @@ class Landscape(anywidget.AnyWidget):
     available UMAP coordinates.
     """
 
-    _esm = Path(__file__).parent / "../static" / "widget.js"
-    _css = Path(__file__).parent / "../static" / "widget.css"
+    _esm = Path(__file__).parent / "../static" / "celldega.js"
     component = traitlets.Unicode("Landscape").tag(sync=True)
 
     technology = traitlets.Unicode("Xenium").tag(sync=True)
@@ -418,8 +417,7 @@ class Enrich(anywidget.AnyWidget):
     same name to prevent notebook bloat.
     """
 
-    _esm = Path(__file__).parent / "../static" / "widget.js"
-    _css = Path(__file__).parent / "../static" / "widget.css"
+    _esm = Path(__file__).parent / "../static" / "celldega.js"
 
     value = traitlets.Int(0).tag(sync=True)
     width = traitlets.Int(650).tag(sync=True)
@@ -543,8 +541,7 @@ class Yearbook(anywidget.AnyWidget):
         )
     """
 
-    _esm = Path(__file__).parent / "../static" / "widget.js"
-    _css = Path(__file__).parent / "../static" / "widget.css"
+    _esm = Path(__file__).parent / "../static" / "celldega.js"
     component = traitlets.Unicode("Yearbook").tag(sync=True)
 
     base_url = traitlets.Unicode("").tag(sync=True)
@@ -743,8 +740,7 @@ class Clustergram(anywidget.AnyWidget):
     - All the old DataFrame-based manual_cat plumbing is removed.
     """
 
-    _esm = Path(__file__).parent / "../static" / "widget.js"
-    _css = Path(__file__).parent / "../static" / "widget.css"
+    _esm = Path(__file__).parent / "../static" / "celldega.js"
 
     # --- core traits used by JS -------------------------------------------------
     value = traitlets.Int(0).tag(sync=True)

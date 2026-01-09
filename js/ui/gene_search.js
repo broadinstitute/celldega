@@ -71,7 +71,8 @@ const ist_gene_search_callback = async (deck_ist, layers_obj, viz_state) => {
         inst_gene,
         viz_state.seg.version,
         viz_state.vector_name_integer,
-        viz_state.aws
+        viz_state.aws,
+        viz_state.row_group_readers?.cbg
       );
     }
 

@@ -21,6 +21,7 @@ nav:
       - Getting Started: overview/getting_started.md
       - Installation: overview/installation.md
       - File Formats: overview/file_formats.md
+      - Row Group Storage: overview/row_groups.md
       - Usage: overview/usage.md
   - Python API:
       - python/index.md

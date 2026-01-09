@@ -10,6 +10,39 @@ import {
 
 import { make_simple_image_layer } from './simple_image_layer';
 
+/**
+ * Create a getTileData function that uses the parquet row group reader
+ * @param {Object} imageReader - ImageRowGroupReader instance
+ * @param {number} maxPyramidZoom - Maximum zoom level
+ * @param {string} channelName - Channel name for logging
+ * @returns {Function} - getTileData function for TileLayer
+ */
+const create_get_tile_data_from_parquet = (
+  imageReader,
+  maxPyramidZoom,
+  _channelName = 'unknown'
+) => {
+  return async ({ index }) => {
+    const { x, y, z } = index;
+    // deck.gl uses negative z values, convert to actual zoom level
+    const actualZoom = maxPyramidZoom + z;
+
+    const blobUrl = await imageReader.readTile(actualZoom, x, y);
+
+    if (!blobUrl) {
+      return null;
+    }
+
+    // Load the image from the blob URL
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = blobUrl;
+    });
+  };
+};
+
 const make_image_layer = (viz_state, info, datasetIndex = 0, cacheKey = '') => {
   const { max_pyramid_zoom } = viz_state.img.landscape_parameters;
 
@@ -17,6 +50,29 @@ const make_image_layer = (viz_state, info, datasetIndex = 0, cacheKey = '') => {
 
   // Include dataset index and cache key in ID to force complete layer recreation
   const layerId = `${info.button_name}-ds${datasetIndex}${cacheKey ? `-${cacheKey}` : ''}`;
+
+  // Check if using row group mode and if we have a reader for this channel
+  const useRowGroups = viz_state.use_row_groups;
+  const imageReader = viz_state.row_group_readers?.images?.[info.name];
+
+  // Choose the appropriate getTileData function
+  let getTileData;
+  if (useRowGroups && imageReader) {
+    getTileData = create_get_tile_data_from_parquet(
+      imageReader,
+      max_pyramid_zoom,
+      info.name
+    );
+  } else {
+    getTileData = create_get_tile_data(
+      viz_state.global_base_url,
+      info.name,
+      viz_state.img.image_format,
+      max_pyramid_zoom,
+      options,
+      viz_state.aws
+    );
+  }
 
   const image_layer = new TileLayer({
     id: layerId,
@@ -27,14 +83,7 @@ const make_image_layer = (viz_state, info, datasetIndex = 0, cacheKey = '') => {
     maxCacheSize: 0, // Disable internal tile caching
     maxRequests: 6, // Limit concurrent tile requests
     extent: [0, 0, viz_state.dimensions.width, viz_state.dimensions.height],
-    getTileData: create_get_tile_data(
-      viz_state.global_base_url,
-      info.name,
-      viz_state.img.image_format,
-      max_pyramid_zoom,
-      options,
-      viz_state.aws
-    ),
+    getTileData,
     renderSubLayers: create_render_tile_sublayers(
       viz_state.dimensions,
       info.color,
@@ -167,6 +216,29 @@ export const make_yearbook_image_layers = async (
             opacity
           );
 
+      // Check if we should use row group mode for images
+      const useRowGroups = viz_state.use_row_groups;
+      const imageReader = viz_state.row_group_readers?.images?.[info.name];
+
+      // Choose the appropriate getTileData function
+      let getTileData;
+      if (useRowGroups && imageReader) {
+        getTileData = create_get_tile_data_from_parquet(
+          imageReader,
+          max_pyramid_zoom,
+          info.name
+        );
+      } else {
+        getTileData = create_get_tile_data(
+          viz_state.global_base_url,
+          info.name,
+          viz_state.img.image_format,
+          max_pyramid_zoom,
+          options,
+          viz_state.aws
+        );
+      }
+
       const image_layer = new TileLayer({
         id: layerId,
         tileSize: viz_state.dimensions.tileSize,
@@ -176,14 +248,7 @@ export const make_yearbook_image_layers = async (
         maxCacheSize: 50,
         maxRequests: 6,
         extent,
-        getTileData: create_get_tile_data(
-          viz_state.global_base_url,
-          info.name,
-          viz_state.img.image_format,
-          max_pyramid_zoom,
-          options,
-          viz_state.aws
-        ),
+        getTileData,
         renderSubLayers,
         ...getModelMatrixProps(viz_state.rotation),
       });

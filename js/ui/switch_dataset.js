@@ -78,7 +78,8 @@ const restore_persistent_state = async (viz_state, layers_obj, saved_state) => {
       inst_gene,
       viz_state.seg.version,
       viz_state.vector_name_integer,
-      viz_state.aws
+      viz_state.aws,
+      viz_state.row_group_readers?.cbg
     );
 
     // Now update cat and selections AFTER expression data is loaded

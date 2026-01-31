@@ -35,6 +35,7 @@ import {
   bar_callback_gene,
 } from './bar_plot';
 import { make_dataset_dropdown } from './dataset_dropdown';
+import { make_nbhd_attr_dropdown } from './nbhd_attr_dropdown';
 import { set_gene_search } from './gene_search';
 import { logo } from './logo';
 import { init_matrix_cat_bars } from './matrix_cat_bars';
@@ -1217,6 +1218,14 @@ export const make_ist_ui_container = (
     viz_state.containers.bar_nbhd.style.marginLeft = '0px';
 
     nbhd_container.appendChild(nbhd_ctrl_container);
+
+    // Add GDF attribute dropdown if there are numerical attributes available
+    const gdf_attrs = viz_state.nbhd?.gdf_attrs || [];
+    if (gdf_attrs.length > 0) {
+      const nbhd_attr_dropdown = make_nbhd_attr_dropdown(viz_state, layers_obj);
+      nbhd_container.appendChild(nbhd_attr_dropdown);
+    }
+
     nbhd_container.appendChild(viz_state.containers.bar_nbhd);
 
     ctrl_container.appendChild(nbhd_container);

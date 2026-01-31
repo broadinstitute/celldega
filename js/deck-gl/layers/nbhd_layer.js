@@ -4,29 +4,69 @@ import { hexToRgb } from '../../utils/hexToRgb';
 import { refresh_layer } from '../../utils/refresh_layer';
 import { getModelMatrixProps } from '../../utils/rotation';
 
+/**
+ * Get color for a neighborhood feature based on current color mode
+ *
+ * Supports two color modes:
+ * - 'cluster' (default): Color by categorical attribute (cat/leiden) using the feature's color property
+ * - 'gene': Color by gene expression using red intensity (similar to cell gene coloring)
+ *
+ * @param {object} d - The GeoJSON feature
+ * @param {object} viz_state - The visualization state
+ * @returns {Array<number>} RGBA color array
+ */
 const get_nbhd_color = (d, viz_state) => {
-  const inst_color = hexToRgb(d.properties.color);
+  const colorMode = viz_state.nbhd.color_mode || 'cluster';
+  const selectedNbhds = viz_state.obs_store.selected_nbhds.get();
+  const hasSelection = selectedNbhds.length > 0;
+  const isSelected = hasSelection && selectedNbhds.includes(d.properties.cat);
 
-  let inst_opacity;
-
-  // if viz_state.obs_store.selected_nbhds is not empty
-  // then check if the cat is in the selected_nbhds
-  if (viz_state.obs_store.selected_nbhds.get().length > 0) {
-    if (viz_state.obs_store.selected_nbhds.get().includes(d.properties.cat)) {
-      // if the cat is in the selected_nbhds, set the opacity to 255
-      inst_opacity = 255;
-    } else {
-      // if the cat is not in the selected_nbhds, make fully transparent
-      inst_opacity = 0;
-    }
-  } else {
-    // if selected_nbhds is empty, set the opacity to 255
-    inst_opacity = 255;
+  // Handle selection visibility
+  if (hasSelection && !isSelected) {
+    return [0, 0, 0, 0]; // Fully transparent for non-selected
   }
 
-  // add the opacity to the color
-  inst_color.push(inst_opacity);
+  let inst_color;
+  let inst_opacity = 255;
 
+  if (colorMode === 'gene' && viz_state.nbhd.gene_expression) {
+    // Gene/attribute expression mode: use red intensity like cell layer
+    // Try multiple keys for lookup: cat (primary), name (fallback)
+    const gene_expression = viz_state.nbhd.gene_expression;
+    const cat_key = d.properties.cat;
+    const name_key = d.properties.name;
+
+    // Look up expression value - try cat first (matches bar graph), then name
+    let expression = 0;
+    if (cat_key !== undefined && gene_expression[cat_key] !== undefined) {
+      expression = gene_expression[cat_key];
+    } else if (name_key !== undefined && gene_expression[name_key] !== undefined) {
+      expression = gene_expression[name_key];
+    } else if (cat_key !== undefined && gene_expression[String(cat_key)] !== undefined) {
+      expression = gene_expression[String(cat_key)];
+    }
+
+    const max_exp = viz_state.nbhd.gene_max_exp || 1;
+
+    // Normalize expression to 0-255 range using log scale (similar to cell layer)
+    let normalized_exp;
+    if (expression > 0 && max_exp > 0) {
+      const log_exp = Math.log1p(expression);
+      const log_max = Math.log1p(max_exp);
+      normalized_exp = Math.round((log_exp / log_max) * 255);
+    } else {
+      normalized_exp = 0;
+    }
+
+    // Red color with expression-based intensity
+    inst_color = [255, 0, 0];
+    inst_opacity = Math.max(30, normalized_exp); // Minimum opacity of 30 for visibility
+  } else {
+    // Default cluster/categorical mode
+    inst_color = hexToRgb(d.properties.color);
+  }
+
+  inst_color.push(inst_opacity);
   return inst_color;
 };
 

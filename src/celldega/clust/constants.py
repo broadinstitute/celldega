@@ -110,6 +110,12 @@ def normalize_axis_entity(value: str | tuple | dict | AxisEntity | None) -> Axis
             "nbhd": {"entity": "nbhd", "attr": "name"},
             "cell": {"entity": "cell", "attr": "name"},
             "hextile": {"entity": "hextile", "attr": "name"},
+            # nbhd_var: Rows represent attributes from nbhd_adata.var
+            # Clicking ALWAYS looks up in nbhd_adata and colors neighborhoods
+            "nbhd_var": {"entity": "nbhd_var", "attr": "name"},
+            "nbhd_attr": {"entity": "nbhd_var", "attr": "name"},
+            # Population shorthand - also treated as nbhd_var
+            "population": {"entity": "nbhd_var", "attr": "name"},
         }
         return legacy_mapping.get(value, {"entity": value, "attr": "name"})
 

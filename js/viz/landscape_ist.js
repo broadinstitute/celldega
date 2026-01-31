@@ -858,11 +858,12 @@ export const landscape_ist = async (
           opacity: 1.0,
         });
 
-        // Toggle nbhd_layer false -> true to trigger deck_check subscription
+        // Use same pattern as refresh_layer: toggle + set layers_obj
         viz_state.obs_store.deck_check.set({
           ...viz_state.obs_store.deck_check.get(),
           nbhd_layer: false,
         });
+        viz_state.layers_obj = layers_obj;
         viz_state.obs_store.deck_check.set({
           ...viz_state.obs_store.deck_check.get(),
           nbhd_layer: true,
@@ -893,11 +894,12 @@ export const landscape_ist = async (
           opacity: 1.0,
         });
 
-        // Toggle nbhd_layer false -> true to trigger deck_check subscription
+        // Use same pattern as refresh_layer: toggle + set layers_obj
         viz_state.obs_store.deck_check.set({
           ...viz_state.obs_store.deck_check.get(),
           nbhd_layer: false,
         });
+        viz_state.layers_obj = layers_obj;
         viz_state.obs_store.deck_check.set({
           ...viz_state.obs_store.deck_check.get(),
           nbhd_layer: true,

@@ -42,6 +42,39 @@ const reset_to_cluster_mode = (viz_state, layers_obj) => {
 };
 
 /**
+ * Helper to reset neighborhood layer to categorical cluster coloring.
+ * Call this when selecting neighborhoods from dendrogram (not by attribute).
+ */
+const reset_nbhd_to_cluster_mode = (viz_state) => {
+  if (!viz_state.nbhd) return;
+  
+  // Reset to categorical coloring
+  viz_state.nbhd.color_mode = 'cluster';
+  viz_state.nbhd.gene_expression = null;
+  viz_state.nbhd.current_gene = null;
+  
+  // Show bar graph if it exists
+  if (viz_state.containers?.bar_nbhd) {
+    viz_state.containers.bar_nbhd.style.display = 'flex';
+  }
+  
+  // Show opacity slider
+  if (viz_state.sliders?.nbhd) {
+    // Import toggle_slider dynamically is tricky, so just show the container
+    const slider_container = viz_state.sliders.nbhd?.container;
+    if (slider_container) {
+      slider_container.style.display = 'flex';
+    }
+  }
+  
+  // Reset the dropdown to 'cluster' if it exists
+  const dropdown = document.getElementById('nbhd-attr-dropdown');
+  if (dropdown) {
+    dropdown.value = 'cluster';
+  }
+};
+
+/**
  * Check if a click value represents a cell cluster selection.
  * Supports both legacy format (row_entity === 'cell_cluster') and
  * new format (entity === 'cell' && attr === 'leiden').
@@ -421,6 +454,9 @@ export const update_ist_landscape_from_cgm = async (
       const col_entity_full =
         click_info.value.col_entity_full || click_info.value;
       if (is_neighborhood(col_entity_full)) {
+        // Reset to categorical cluster coloring (not attribute coloring)
+        reset_nbhd_to_cluster_mode(viz_state);
+        
         viz_state.obs_store.selected_nbhds.set(new_cats);
         viz_state.obs_store.viz_nbhd_layer.set(true);
         viz_state.buttons?.buttons?.nbhd?.style?.('color', 'blue');
@@ -499,6 +535,39 @@ export const update_ist_landscape_from_cgm = async (
           viz_state.nbhd.svg_bar_nbhd
             .selectAll('rect')
             .style('opacity', (d) => (new_cats.includes(d.name) ? 1.0 : 0.2));
+        }
+      } else if (is_nbhd_var(row_entity_full)) {
+        // nbhd_var selection from row dendrogram - ALWAYS color neighborhoods
+        const has_nbhd_adata = viz_state.nbhd?.has_nbhd_adata;
+        
+        console.log('row_dendro nbhd_var:', { 
+          attrs: new_cats, 
+          has_nbhd_adata,
+          count: new_cats.length 
+        });
+        
+        if (has_nbhd_adata) {
+          // Send attr names to Python (comma-separated for averaging if multiple)
+          if (viz_state.model && typeof viz_state.model.set === 'function') {
+            console.log('Sending nbhd_attr_request for multiple attrs:', new_cats.join(','));
+            viz_state.model.set('nbhd_attr_request', new_cats.join(','));
+            viz_state.model.save_changes();
+          }
+          
+          // Show neighborhood layer
+          viz_state.obs_store.viz_nbhd_layer.set(true);
+          viz_state.buttons?.buttons?.nbhd?.style?.('color', 'blue');
+          
+          // Update gene display name (for UI purposes)
+          if (viz_state.genes) {
+            viz_state.genes.inst_gene = new_cats.length === 1 
+              ? new_cats[0] 
+              : `avg(${new_cats.length} attrs)`;
+          }
+          
+          // Clear cell selections
+          update_cat(viz_state.cats, 'cluster');
+          update_selected_cats(viz_state.cats, [], viz_state.obs_store);
         }
       } else if (is_cell_cluster(row_entity_full)) {
         viz_state.highlighted_cells = new Set();

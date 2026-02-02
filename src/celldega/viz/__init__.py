@@ -40,9 +40,6 @@ def landscape_clustergram(
     Returns:
         HBox: Visualization display containing the widgets.
     """
-    # Link clustergram click_info to landscape update_trigger
-    jslink((mat, "click_info"), (landscape, "update_trigger"))
-
     # Layouts
     mat.layout = Layout(width=width)
     landscape.layout = Layout(width=width, height=height)
@@ -70,29 +67,9 @@ def landscape_clustergram(
             gene_focus_callback=_forward_gene_to_landscape,
         )
 
-        # WORKAROUND: Since Clustergram's trait sync to Python is broken,
-        # observe the Landscape's update_trigger (which receives click_info via jslink)
-        # and use that to update the Enrich widget
-        def _on_landscape_update_trigger(change):
-            info = change["new"] or {}
-            click_type = (info.get("type") or "").lower()
-            selected_names = (info.get("value") or {}).get("selected_names") or []
-            is_unselecting = (info.get("value") or {}).get("is_unselecting", False)
-
-            print(f"[ENRICH DEBUG] Landscape update_trigger: type={click_type}, names={len(selected_names)}")
-
-            if is_unselecting:
-                enrich_widget.gene_list = []
-                return
-
-            if click_type.startswith("row") and row_enrich and selected_names:
-                print(f"[ENRICH DEBUG] Setting enrich gene_list: {len(selected_names)} genes")
-                enrich_widget.gene_list = list(selected_names)
-            elif click_type.startswith("col") and col_enrich and selected_names:
-                print(f"[ENRICH DEBUG] Setting enrich gene_list: {len(selected_names)} genes")
-                enrich_widget.gene_list = list(selected_names)
-
-        landscape.observe(_on_landscape_update_trigger, names="update_trigger")
+    # Link clustergram click_info to landscape update_trigger AFTER observer registration
+    # Using jslink for JS-side persistence without Python kernel
+    jslink((mat, "click_info"), (landscape, "update_trigger"))
 
     children = [landscape, mat]
     if enrich_widget is not None:
@@ -118,19 +95,14 @@ def _link_clustergram_to_enrich(
     _record_colors()
 
     def _set_gene_list(genes) -> None:
-        print(f"[ENRICH DEBUG] _set_gene_list called with {len(genes) if genes else 0} genes")
         enrich.gene_list = list(genes) if genes else []
-        print(f"[ENRICH DEBUG] enrich.gene_list now has {len(enrich.gene_list)} genes")
 
     def _on_selected_genes(change) -> None:
         genes = change["new"] or []
-        print(f"[ENRICH DEBUG] _on_selected_genes fired: {len(genes)} genes received")
 
         click_info = getattr(cgm, "click_info", {}) or {}
         click_type = (click_info.get("type") or "").lower()
         selected_names = (click_info.get("value") or {}).get("selected_names") or []
-
-        print(f"[ENRICH DEBUG] click_type={click_type}, selected_names count={len(selected_names)}")
 
         is_dendro = click_type.startswith(("row", "col"))
         matches_click = (
@@ -139,25 +111,16 @@ def _link_clustergram_to_enrich(
             and set(selected_names) == set(genes)
         )
 
-        print(f"[ENRICH DEBUG] is_dendro={is_dendro}, matches_click={matches_click}, row_enrich={row_enrich}")
-
         if is_dendro and matches_click:
             if click_type.startswith("row"):
                 if not row_enrich:
-                    print("[ENRICH DEBUG] row_enrich=False, clearing gene list")
                     _set_gene_list([])
                     return
             elif click_type.startswith("col") and not col_enrich:
-                print("[ENRICH DEBUG] col_enrich=False, clearing gene list")
                 _set_gene_list([])
                 return
 
-        print("[ENRICH DEBUG] calling _set_gene_list with genes")
         _set_gene_list(genes)
-
-    # Register observers
-    print(f"[ENRICH DEBUG] Registering observers on cgm: {cgm}")
-    print(f"[ENRICH DEBUG] cgm.selected_genes initial value: {cgm.selected_genes}")
 
     def _on_click_info(change) -> None:
         info = change["new"] or {}
@@ -165,11 +128,7 @@ def _link_clustergram_to_enrich(
         selected_names = (info.get("value") or {}).get("selected_names") or []
         is_unselecting = (info.get("value") or {}).get("is_unselecting", False)
 
-        print(f"[ENRICH DEBUG] _on_click_info: type={click_type}, names={len(selected_names)}, unselecting={is_unselecting}")
-
-        # Handle unselection - clear the gene list
         if is_unselecting:
-            print("[ENRICH DEBUG] Unselecting - clearing gene list")
             _set_gene_list([])
             return
 
@@ -177,16 +136,11 @@ def _link_clustergram_to_enrich(
             if not col_enrich:
                 return
             if selected_names:
-                # Use click_info directly for enrichment since selected_genes 
-                # trait sync from JS→Python is unreliable
-                print(f"[ENRICH DEBUG] Setting gene list from col click: {len(selected_names)} genes")
                 _set_gene_list(selected_names)
         elif click_type.startswith("row"):
             if not row_enrich:
                 _set_gene_list([])
             elif selected_names:
-                # Use click_info directly for row enrichment
-                print(f"[ENRICH DEBUG] Setting gene list from row click: {len(selected_names)} genes")
                 _set_gene_list(selected_names)
 
     def _on_focused_gene(change) -> None:
@@ -198,7 +152,6 @@ def _link_clustergram_to_enrich(
     cgm.observe(_on_selected_genes, names="selected_genes")
     cgm.observe(_on_click_info, names="click_info")
     enrich.observe(_on_focused_gene, names="focused_gene")
-    print(f"[ENRICH DEBUG] Observers registered successfully")
 
 
 def clustergram_enrich(

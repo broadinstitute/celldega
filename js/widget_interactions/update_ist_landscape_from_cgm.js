@@ -182,33 +182,16 @@ export const update_ist_landscape_from_cgm = async (
 
   // add try catch block
   try {
-    console.log('CGM click received:', click_type, click_info.value);
-
     if (click_type === 'row_label') {
-      console.log('row_label click - checking entity:', {
-        is_neighborhood: is_neighborhood(click_info.value),
-        is_nbhd_var: is_nbhd_var(click_info.value),
-        is_cell_cluster: is_cell_cluster(click_info.value),
-        entity: click_info.value?.entity,
-        attr: click_info.value?.attr,
-      });
-
       // Check if this is a nbhd_var/nbhd_gene entity (attribute from nbhd_adata.var)
       // This ALWAYS colors neighborhoods - no fallback to cells
       if (is_nbhd_var(click_info.value)) {
         const attr_name = click_info.value.name;
         const has_nbhd_adata = viz_state.nbhd?.has_nbhd_adata;
 
-        console.log('nbhd_var/nbhd_gene click:', {
-          attr_name,
-          has_nbhd_adata,
-          is_gene_data: is_gene_data(click_info.value)
-        });
-
         if (has_nbhd_adata) {
           // Send request to Python backend to get nbhd attribute data
           if (viz_state.model && typeof viz_state.model.set === 'function') {
-            console.log('Sending nbhd_attr_request:', attr_name);
             viz_state.model.set('nbhd_attr_request', attr_name);
             viz_state.model.save_changes();
           }
@@ -565,17 +548,9 @@ export const update_ist_landscape_from_cgm = async (
         // nbhd_var/nbhd_gene selection from row dendrogram - ALWAYS color neighborhoods
         const has_nbhd_adata = viz_state.nbhd?.has_nbhd_adata;
 
-        console.log('row_dendro nbhd_var/nbhd_gene:', {
-          attrs: new_cats,
-          has_nbhd_adata,
-          count: new_cats.length,
-          is_gene_data: is_gene_data(row_entity_full)
-        });
-
         if (has_nbhd_adata) {
           // Send attr names to Python (comma-separated for averaging if multiple)
           if (viz_state.model && typeof viz_state.model.set === 'function') {
-            console.log('Sending nbhd_attr_request for multiple attrs:', new_cats.join(','));
             viz_state.model.set('nbhd_attr_request', new_cats.join(','));
             viz_state.model.save_changes();
           }

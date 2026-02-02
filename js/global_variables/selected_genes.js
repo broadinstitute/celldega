@@ -31,13 +31,17 @@ const isGeneEntity = (row_entity) => {
 };
 
 export const sync_selected_genes = (viz_state, genes) => {
+  // Get current value before setting to verify sync is working
+  const currentValue = viz_state.model?.get?.('selected_genes');
+  
   console.log('sync_selected_genes called:', {
     genes_count: genes?.length,
     genes_sample: genes?.slice(0, 3),
     has_model: !!viz_state.model,
     has_set: typeof viz_state.model?.set === 'function',
+    has_save_changes: typeof viz_state.model?.save_changes === 'function',
+    current_selected_genes: currentValue?.length ?? 'N/A',
     row_entity: viz_state.row_entity,
-    is_gene_entity: isGeneEntity(viz_state.row_entity),
   });
 
   if (viz_state.model && typeof viz_state.model.set === 'function') {
@@ -49,8 +53,12 @@ export const sync_selected_genes = (viz_state, genes) => {
       viz_state.model.set('selected_rows', genes);
     }
 
-    viz_state.model.save_changes();
-    console.log('sync_selected_genes: saved changes to model');
+    if (typeof viz_state.model.save_changes === 'function') {
+      viz_state.model.save_changes();
+      console.log('sync_selected_genes: saved changes, new value:', viz_state.model.get('selected_genes')?.length);
+    } else {
+      console.warn('sync_selected_genes: model.save_changes is not a function');
+    }
   } else {
     console.warn('sync_selected_genes: model not available or missing set function');
   }

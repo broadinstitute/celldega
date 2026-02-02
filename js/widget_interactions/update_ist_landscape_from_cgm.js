@@ -1,9 +1,6 @@
 import { update_cat, update_selected_cats } from '../global_variables/cat';
 import { update_cell_exp_array } from '../global_variables/cell_exp_array';
-import {
-  update_selected_genes,
-  sync_selected_genes,
-} from '../global_variables/selected_genes';
+import { update_selected_genes } from '../global_variables/selected_genes';
 import { handleAsyncError } from '../temp_utils/errorHandler';
 import { refresh_layer } from '../utils/refresh_layer';
 
@@ -47,17 +44,17 @@ const reset_to_cluster_mode = (viz_state, layers_obj) => {
  */
 const reset_nbhd_to_cluster_mode = (viz_state) => {
   if (!viz_state.nbhd) return;
-  
+
   // Reset to categorical coloring
   viz_state.nbhd.color_mode = 'cluster';
   viz_state.nbhd.gene_expression = null;
   viz_state.nbhd.current_gene = null;
-  
+
   // Show bar graph if it exists
   if (viz_state.containers?.bar_nbhd) {
     viz_state.containers.bar_nbhd.style.display = 'flex';
   }
-  
+
   // Show opacity slider
   if (viz_state.sliders?.nbhd) {
     // Import toggle_slider dynamically is tricky, so just show the container
@@ -66,7 +63,7 @@ const reset_nbhd_to_cluster_mode = (viz_state) => {
       slider_container.style.display = 'flex';
     }
   }
-  
+
   // Reset the dropdown to 'cluster' if it exists
   const dropdown = document.getElementById('nbhd-attr-dropdown');
   if (dropdown) {
@@ -202,8 +199,8 @@ export const update_ist_landscape_from_cgm = async (
         const attr_name = click_info.value.name;
         const has_nbhd_adata = viz_state.nbhd?.has_nbhd_adata;
 
-        console.log('nbhd_var/nbhd_gene click:', { 
-          attr_name, 
+        console.log('nbhd_var/nbhd_gene click:', {
+          attr_name,
           has_nbhd_adata,
           is_gene_data: is_gene_data(click_info.value)
         });
@@ -223,19 +220,19 @@ export const update_ist_landscape_from_cgm = async (
           // Clear cell selections
           update_cat(viz_state.cats, 'cluster');
           update_selected_cats(viz_state.cats, [], viz_state.obs_store);
-          
+
           // Update gene display name (for UI purposes only)
           if (viz_state.genes) {
             viz_state.genes.inst_gene = attr_name;
           }
-          
-          // If this is gene data (nbhd_gene or data_type='gene'), sync for enrichment
-          // This allows enrichment analysis while still coloring neighborhoods
-          if (is_gene_data(click_info.value)) {
-            update_selected_genes(viz_state.genes, [attr_name], viz_state.obs_store);
-            sync_selected_genes(viz_state, viz_state.genes.selected_genes);
+
+          // If this is gene data (nbhd_gene or data_type='gene'), update local state
+          // Note: Don't sync to Python here - the Clustergram handles that
+          if (is_gene_data(click_info.value) && viz_state.genes) {
+            viz_state.genes.selected_genes = [attr_name];
+            viz_state.obs_store.selected_genes.set([attr_name]);
           }
-          
+
           // DON'T refresh layer here - the traitlet handler will do it
           // after data arrives from Python via change:nbhd_attr_data
         }
@@ -484,7 +481,7 @@ export const update_ist_landscape_from_cgm = async (
       if (is_neighborhood(col_entity_full)) {
         // Reset to categorical cluster coloring (not attribute coloring)
         reset_nbhd_to_cluster_mode(viz_state);
-        
+
         viz_state.obs_store.selected_nbhds.set(new_cats);
         viz_state.obs_store.viz_nbhd_layer.set(true);
         viz_state.buttons?.buttons?.nbhd?.style?.('color', 'blue');
@@ -567,14 +564,14 @@ export const update_ist_landscape_from_cgm = async (
       } else if (is_nbhd_var(row_entity_full)) {
         // nbhd_var/nbhd_gene selection from row dendrogram - ALWAYS color neighborhoods
         const has_nbhd_adata = viz_state.nbhd?.has_nbhd_adata;
-        
-        console.log('row_dendro nbhd_var/nbhd_gene:', { 
-          attrs: new_cats, 
+
+        console.log('row_dendro nbhd_var/nbhd_gene:', {
+          attrs: new_cats,
           has_nbhd_adata,
           count: new_cats.length,
           is_gene_data: is_gene_data(row_entity_full)
         });
-        
+
         if (has_nbhd_adata) {
           // Send attr names to Python (comma-separated for averaging if multiple)
           if (viz_state.model && typeof viz_state.model.set === 'function') {
@@ -582,26 +579,27 @@ export const update_ist_landscape_from_cgm = async (
             viz_state.model.set('nbhd_attr_request', new_cats.join(','));
             viz_state.model.save_changes();
           }
-          
+
           // Show neighborhood layer
           viz_state.obs_store.viz_nbhd_layer.set(true);
           viz_state.buttons?.buttons?.nbhd?.style?.('color', 'blue');
-          
+
           // Update gene display name (for UI purposes)
           if (viz_state.genes) {
-            viz_state.genes.inst_gene = new_cats.length === 1 
-              ? new_cats[0] 
+            viz_state.genes.inst_gene = new_cats.length === 1
+              ? new_cats[0]
               : `avg(${new_cats.length} attrs)`;
           }
-          
+
           // Clear cell selections
           update_cat(viz_state.cats, 'cluster');
           update_selected_cats(viz_state.cats, [], viz_state.obs_store);
-          
-          // If this is gene data (nbhd_gene or data_type='gene'), sync for enrichment
-          if (is_gene_data(row_entity_full)) {
-            update_selected_genes(viz_state.genes, new_cats, viz_state.obs_store);
-            sync_selected_genes(viz_state, viz_state.genes.selected_genes);
+
+          // If this is gene data (nbhd_gene or data_type='gene'), update local state
+          // Note: Don't sync to Python here - the Clustergram handles that
+          if (is_gene_data(row_entity_full) && viz_state.genes) {
+            viz_state.genes.selected_genes = new_cats;
+            viz_state.obs_store.selected_genes.set(new_cats);
           }
         }
       } else if (is_cell_cluster(row_entity_full)) {
@@ -617,8 +615,12 @@ export const update_ist_landscape_from_cgm = async (
         refresh_layer(viz_state, layers_obj, 'nbhd_layer');
       } else if (is_gene(row_entity_full)) {
         // Gene selection from row dendrogram
-        update_selected_genes(viz_state.genes, new_cats, viz_state.obs_store);
-        sync_selected_genes(viz_state, viz_state.genes.selected_genes);
+        // Note: Don't use update_selected_genes here as it has toggle behavior
+        // that conflicts with Clustergram's own sync. Instead, just set the genes
+        // directly for visualization purposes. The Clustergram handles syncing
+        // selected_genes to Python.
+        viz_state.genes.selected_genes = new_cats;
+        viz_state.obs_store.selected_genes.set(new_cats);
 
         // Check if NBHD layer is active - mutually exclusive behavior
         const nbhd_is_active = viz_state.obs_store.viz_nbhd_layer.get();

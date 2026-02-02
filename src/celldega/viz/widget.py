@@ -981,6 +981,11 @@ class Clustergram(anywidget.AnyWidget):
     selected_genes = traitlets.List(default_value=[]).tag(sync=True)
     top_n_genes = traitlets.Int(50).tag(sync=True)
 
+    @traitlets.observe("selected_genes")
+    def _debug_selected_genes_change(self, change):
+        """Debug observer to verify trait changes are received from JS."""
+        print(f"[CLUSTERGRAM DEBUG] selected_genes changed: {len(change['old'])} -> {len(change['new'])} genes")
+
     row_names = traitlets.List(default_value=[]).tag(sync=True)
     col_names = traitlets.List(default_value=[]).tag(sync=True)
 

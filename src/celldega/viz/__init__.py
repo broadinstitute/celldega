@@ -53,42 +53,23 @@ def landscape_clustergram(
         config.setdefault("width", 250)
         enrich_widget = Enrich(**config)
 
-    # Create a unified observer that handles both landscape updates and enrichment
-    # Using Python-side observation to ensure trait changes are received
-    def _on_mat_click_info(change):
-        click_info = change["new"]
-        # Forward to landscape (Python-side link)
-        if click_info:
-            landscape.update_trigger = click_info
-        
-        # Handle enrichment if widget exists
-        if enrich_widget is not None:
-            info = click_info or {}
-            click_type = (info.get("type") or "").lower()
-            selected_names = (info.get("value") or {}).get("selected_names") or []
-            is_unselecting = (info.get("value") or {}).get("is_unselecting", False)
-            
-            if is_unselecting:
-                enrich_widget.gene_list = []
-            elif click_type.startswith("row") and row_enrich and selected_names:
-                enrich_widget.gene_list = list(selected_names)
-            elif click_type.startswith("col") and col_enrich and selected_names:
-                enrich_widget.gene_list = list(selected_names)
-    
-    mat.observe(_on_mat_click_info, names="click_info")
-    
+    # Link clustergram click_info to landscape update_trigger using jslink
+    # This works even when Python kernel is not running
+    jslink((mat, "click_info"), (landscape, "update_trigger"))
+
     if enrich_widget is not None:
         def _forward_gene_to_landscape(gene: str) -> None:
             if gene:
                 landscape.trigger_update({"type": "row_label", "value": {"name": gene}})
-        
-        # Set up focused_gene callback from enrich to landscape
-        def _on_focused_gene(change):
-            gene = change["new"]
-            if gene:
-                _forward_gene_to_landscape(gene)
-        
-        enrich_widget.observe(_on_focused_gene, names="focused_gene")
+
+        # Use the same linking function that works in clustergram_enrich
+        _link_clustergram_to_enrich(
+            mat,
+            enrich_widget,
+            row_enrich=row_enrich,
+            col_enrich=col_enrich,
+            gene_focus_callback=_forward_gene_to_landscape,
+        )
 
     children = [landscape, mat]
     if enrich_widget is not None:

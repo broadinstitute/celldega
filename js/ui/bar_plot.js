@@ -119,41 +119,41 @@ export const bar_callback_gene = async (
     // MUTUALLY EXCLUSIVE: Color cells by gene expression
     _viz_state.buttons?.buttons?.trx?.style?.('color', 'blue');
     toggle_slider(_viz_state.sliders.trx, true);
-    toggle_trx_layer_visibility(_layers_obj, true);
+  toggle_trx_layer_visibility(_layers_obj, true);
 
     // Hide neighborhood layer
     if (_viz_state.nbhd?.is_nbhd) {
-      _viz_state.obs_store.viz_nbhd_layer.set(false);
-      _viz_state.obs_store.viz_edit_layer.set(false);
-      try {
-        _viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
-        toggle_slider(_viz_state.sliders.nbhd, false);
-      } catch {
-        // intentionally ignore missing neighborhood button
-      }
+    _viz_state.obs_store.viz_nbhd_layer.set(false);
+    _viz_state.obs_store.viz_edit_layer.set(false);
+    try {
+      _viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
+      toggle_slider(_viz_state.sliders.nbhd, false);
+    } catch {
+      // intentionally ignore missing neighborhood button
     }
+  }
 
     const new_cat = inst_gene;
-    update_cat(_viz_state.cats, new_cat);
+  update_cat(_viz_state.cats, new_cat);
 
-    _viz_state.obs_store.deck_check.set({
-      ..._viz_state.obs_store.deck_check.get(),
-      cell_layer: false,
-      trx_layer: false,
-    });
+  _viz_state.obs_store.deck_check.set({
+    ..._viz_state.obs_store.deck_check.get(),
+    cell_layer: false,
+    trx_layer: false,
+  });
 
-    await update_cell_exp_array(
-      _viz_state.cats,
-      _viz_state.genes,
-      _viz_state.global_base_url,
-      inst_gene,
-      _viz_state.seg.version,
-      _viz_state.vector_name_integer,
-      _viz_state.aws,
-      _viz_state.row_group_readers?.cbg
-    );
+  await update_cell_exp_array(
+    _viz_state.cats,
+    _viz_state.genes,
+    _viz_state.global_base_url,
+    inst_gene,
+    _viz_state.seg.version,
+    _viz_state.vector_name_integer,
+    _viz_state.aws,
+    _viz_state.row_group_readers?.cbg
+  );
 
-    update_selected_cats(_viz_state.cats, [inst_gene], _viz_state.obs_store);
+  update_selected_cats(_viz_state.cats, [inst_gene], _viz_state.obs_store);
   }
 };
 

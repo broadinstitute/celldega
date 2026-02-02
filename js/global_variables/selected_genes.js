@@ -13,17 +13,46 @@ export const update_selected_genes = (genes, new_selected_genes, obs_store) => {
   obs_store.selected_genes.set(genes.selected_genes);
 };
 
+/**
+ * Check if a row entity represents gene data (for enrichment purposes).
+ * This checks both entity === 'gene' and data_type === 'gene'.
+ * The data_type field allows entities like 'nbhd_gene' to enable enrichment
+ * even though their spatial context is neighborhoods.
+ */
+const isGeneEntity = (row_entity) => {
+  if (!row_entity) return false;
+  // Check entity name directly
+  if (row_entity.entity === 'gene') return true;
+  // Check entity names that imply gene data
+  if (row_entity.entity === 'nbhd_gene') return true;
+  // Check explicit data_type field (most flexible)
+  if (row_entity.data_type === 'gene') return true;
+  return false;
+};
+
 export const sync_selected_genes = (viz_state, genes) => {
+  console.log('sync_selected_genes called:', {
+    genes_count: genes?.length,
+    genes_sample: genes?.slice(0, 3),
+    has_model: !!viz_state.model,
+    has_set: typeof viz_state.model?.set === 'function',
+    row_entity: viz_state.row_entity,
+    is_gene_entity: isGeneEntity(viz_state.row_entity),
+  });
+
   if (viz_state.model && typeof viz_state.model.set === 'function') {
     viz_state.model.set('selected_genes', genes);
 
-    // Also sync to selected_rows if row entity is 'gene'
+    // Also sync to selected_rows if row entity represents genes
     const { row_entity } = viz_state;
-    if (row_entity?.entity === 'gene') {
+    if (isGeneEntity(row_entity)) {
       viz_state.model.set('selected_rows', genes);
     }
 
     viz_state.model.save_changes();
+    console.log('sync_selected_genes: saved changes to model');
+  } else {
+    console.warn('sync_selected_genes: model not available or missing set function');
   }
 
   if (viz_state.obs_store && viz_state.obs_store.selected_genes) {
@@ -33,15 +62,16 @@ export const sync_selected_genes = (viz_state, genes) => {
 
 /**
  * Sync selected rows to the Python model.
- * Also syncs to selected_genes if row entity is 'gene'.
+ * Also syncs to selected_genes if row entity represents genes
+ * (entity === 'gene' OR data_type === 'gene').
  */
 export const sync_selected_rows = (viz_state, rows) => {
   if (viz_state.model && typeof viz_state.model.set === 'function') {
     viz_state.model.set('selected_rows', rows);
 
-    // Also sync to selected_genes if row entity is 'gene'
+    // Also sync to selected_genes if row entity represents genes
     const { row_entity } = viz_state;
-    if (row_entity?.entity === 'gene') {
+    if (isGeneEntity(row_entity)) {
       viz_state.model.set('selected_genes', rows);
     }
 

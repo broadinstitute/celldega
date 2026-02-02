@@ -59,8 +59,9 @@ const get_nbhd_color = (d, viz_state) => {
     }
 
     // Red color with expression-based intensity
+    // Zero expression = transparent (no minimum opacity)
     inst_color = [255, 0, 0];
-    inst_opacity = Math.max(30, normalized_exp); // Minimum opacity of 30 for visibility
+    inst_opacity = normalized_exp;
   } else {
     // Default cluster/categorical mode
     inst_color = hexToRgb(d.properties.color);

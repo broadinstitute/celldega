@@ -109,19 +109,37 @@ export const is_neighborhood = (clickValue) => {
 
 
 /**
- * Check if a click value represents a nbhd_var entity.
+ * Check if a click value represents a nbhd_var entity (or nbhd_gene).
  * Rows are attributes from nbhd_adata.var - clicking ALWAYS colors neighborhoods.
+ * nbhd_gene is a special case where rows are genes aggregated at neighborhood level.
  */
 export const is_nbhd_var = (clickValue) => {
   if (!clickValue) return false;
   return (
     clickValue.entity === 'nbhd_var' ||
-    clickValue.entity === 'nbhd_attr'
+    clickValue.entity === 'nbhd_attr' ||
+    clickValue.entity === 'nbhd_gene'
   );
 };
 
 /**
- * Check if a click value represents a gene selection.
+ * Check if a click value represents gene data (for enrichment purposes).
+ * This is true for entity='gene' OR entity='nbhd_gene' OR data_type='gene'.
+ */
+export const is_gene_data = (clickValue) => {
+  if (!clickValue) return false;
+  // Direct gene entity
+  if (clickValue.entity === 'gene') return true;
+  // nbhd_gene - genes at neighborhood level
+  if (clickValue.entity === 'nbhd_gene') return true;
+  // Explicit data_type (most flexible)
+  if (clickValue.data_type === 'gene') return true;
+  return false;
+};
+
+/**
+ * Check if a click value represents a gene entity.
+ * For strict entity check only - use is_gene_data() for enrichment purposes.
  */
 export const is_gene = (clickValue) => {
   if (!clickValue) return false;
@@ -178,17 +196,20 @@ export const update_ist_landscape_from_cgm = async (
         attr: click_info.value?.attr,
       });
 
-      // Check if this is a nbhd_var entity (attribute from nbhd_adata.var)
+      // Check if this is a nbhd_var/nbhd_gene entity (attribute from nbhd_adata.var)
       // This ALWAYS colors neighborhoods - no fallback to cells
       if (is_nbhd_var(click_info.value)) {
         const attr_name = click_info.value.name;
         const has_nbhd_adata = viz_state.nbhd?.has_nbhd_adata;
 
-        console.log('nbhd_var click:', { attr_name, has_nbhd_adata });
+        console.log('nbhd_var/nbhd_gene click:', { 
+          attr_name, 
+          has_nbhd_adata,
+          is_gene_data: is_gene_data(click_info.value)
+        });
 
         if (has_nbhd_adata) {
           // Send request to Python backend to get nbhd attribute data
-          // DO NOT call update_selected_genes - that would trigger cell-by-gene loading
           if (viz_state.model && typeof viz_state.model.set === 'function') {
             console.log('Sending nbhd_attr_request:', attr_name);
             viz_state.model.set('nbhd_attr_request', attr_name);
@@ -206,6 +227,13 @@ export const update_ist_landscape_from_cgm = async (
           // Update gene display name (for UI purposes only)
           if (viz_state.genes) {
             viz_state.genes.inst_gene = attr_name;
+          }
+          
+          // If this is gene data (nbhd_gene or data_type='gene'), sync for enrichment
+          // This allows enrichment analysis while still coloring neighborhoods
+          if (is_gene_data(click_info.value)) {
+            update_selected_genes(viz_state.genes, [attr_name], viz_state.obs_store);
+            sync_selected_genes(viz_state, viz_state.genes.selected_genes);
           }
           
           // DON'T refresh layer here - the traitlet handler will do it
@@ -276,7 +304,7 @@ export const update_ist_landscape_from_cgm = async (
             viz_state.model.save_changes();
           }
 
-          update_cat(viz_state.cats, 'cluster');
+        update_cat(viz_state.cats, 'cluster');
           update_selected_cats(viz_state.cats, [], viz_state.obs_store);
           refresh_layer(viz_state, layers_obj, 'cell_layer');
           refresh_layer(viz_state, layers_obj, 'nbhd_layer');
@@ -284,12 +312,12 @@ export const update_ist_landscape_from_cgm = async (
           // CELL active: Highlight cells with this population/cluster
           update_cat(viz_state.cats, 'cluster');
           update_selected_cats(viz_state.cats, [attr_name], viz_state.obs_store);
-          update_selected_genes(viz_state.genes, [], viz_state.obs_store);
+        update_selected_genes(viz_state.genes, [], viz_state.obs_store);
 
-          viz_state.obs_store.viz_nbhd_layer.set(false);
-          viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
+        viz_state.obs_store.viz_nbhd_layer.set(false);
+        viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
 
-          refresh_layer(viz_state, layers_obj, 'cell_layer');
+        refresh_layer(viz_state, layers_obj, 'cell_layer');
           refresh_layer(viz_state, layers_obj, 'trx_layer');
         }
       } else {
@@ -331,44 +359,44 @@ export const update_ist_landscape_from_cgm = async (
           refresh_layer(viz_state, layers_obj, 'nbhd_layer');
         } else {
           // MUTUALLY EXCLUSIVE: Color cells by gene expression
-          new_cat = inst_gene === viz_state.cats.cat ? 'cluster' : inst_gene;
+        new_cat = inst_gene === viz_state.cats.cat ? 'cluster' : inst_gene;
 
           // Clear highlighted cells immediately
-          viz_state.highlighted_cells = new Set();
+        viz_state.highlighted_cells = new Set();
 
-          update_cat(viz_state.cats, new_cat);
-          update_selected_genes(
-            viz_state.genes,
-            [inst_gene],
-            viz_state.obs_store
-          );
+        update_cat(viz_state.cats, new_cat);
+        update_selected_genes(
+          viz_state.genes,
+          [inst_gene],
+          viz_state.obs_store
+        );
 
           // Load gene expression data for cells
-          await update_cell_exp_array(
-            viz_state.cats,
-            viz_state.genes,
-            viz_state.global_base_url,
-            inst_gene,
-            viz_state.seg.version,
-            viz_state.vector_name_integer,
-            viz_state.aws,
-            viz_state.row_group_readers?.cbg
-          );
+        await update_cell_exp_array(
+          viz_state.cats,
+          viz_state.genes,
+          viz_state.global_base_url,
+          inst_gene,
+          viz_state.seg.version,
+          viz_state.vector_name_integer,
+          viz_state.aws,
+          viz_state.row_group_readers?.cbg
+        );
 
-          viz_state.obs_store.selected_cells.set([]);
+        viz_state.obs_store.selected_cells.set([]);
 
-          update_selected_cats(
-            viz_state.cats,
-            new_cat === 'cluster' ? [] : [inst_gene],
-            viz_state.obs_store
-          );
+        update_selected_cats(
+          viz_state.cats,
+          new_cat === 'cluster' ? [] : [inst_gene],
+          viz_state.obs_store
+        );
 
           // Hide nbhd layer when coloring cells
-          viz_state.obs_store.viz_nbhd_layer.set(false);
-          viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
+        viz_state.obs_store.viz_nbhd_layer.set(false);
+        viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
 
-          refresh_layer(viz_state, layers_obj, 'cell_layer');
-          refresh_layer(viz_state, layers_obj, 'trx_layer');
+        refresh_layer(viz_state, layers_obj, 'cell_layer');
+        refresh_layer(viz_state, layers_obj, 'trx_layer');
         }
       }
     } else if (click_type === 'col_label') {
@@ -537,13 +565,14 @@ export const update_ist_landscape_from_cgm = async (
             .style('opacity', (d) => (new_cats.includes(d.name) ? 1.0 : 0.2));
         }
       } else if (is_nbhd_var(row_entity_full)) {
-        // nbhd_var selection from row dendrogram - ALWAYS color neighborhoods
+        // nbhd_var/nbhd_gene selection from row dendrogram - ALWAYS color neighborhoods
         const has_nbhd_adata = viz_state.nbhd?.has_nbhd_adata;
         
-        console.log('row_dendro nbhd_var:', { 
+        console.log('row_dendro nbhd_var/nbhd_gene:', { 
           attrs: new_cats, 
           has_nbhd_adata,
-          count: new_cats.length 
+          count: new_cats.length,
+          is_gene_data: is_gene_data(row_entity_full)
         });
         
         if (has_nbhd_adata) {
@@ -568,6 +597,12 @@ export const update_ist_landscape_from_cgm = async (
           // Clear cell selections
           update_cat(viz_state.cats, 'cluster');
           update_selected_cats(viz_state.cats, [], viz_state.obs_store);
+          
+          // If this is gene data (nbhd_gene or data_type='gene'), sync for enrichment
+          if (is_gene_data(row_entity_full)) {
+            update_selected_genes(viz_state.genes, new_cats, viz_state.obs_store);
+            sync_selected_genes(viz_state, viz_state.genes.selected_genes);
+          }
         }
       } else if (is_cell_cluster(row_entity_full)) {
         viz_state.highlighted_cells = new Set();
@@ -604,43 +639,43 @@ export const update_ist_landscape_from_cgm = async (
           refresh_layer(viz_state, layers_obj, 'nbhd_layer');
         } else {
           // MUTUALLY EXCLUSIVE: Color cells by gene expression
-          if (new_cats.length === 1) {
-            inst_gene = new_cats[0];
-            new_cat = inst_gene === viz_state.cats.cat ? 'cluster' : inst_gene;
+        if (new_cats.length === 1) {
+          inst_gene = new_cats[0];
+          new_cat = inst_gene === viz_state.cats.cat ? 'cluster' : inst_gene;
 
-            viz_state.highlighted_cells = new Set();
-            update_cat(viz_state.cats, new_cat);
+          viz_state.highlighted_cells = new Set();
+          update_cat(viz_state.cats, new_cat);
 
-            await update_cell_exp_array(
-              viz_state.cats,
-              viz_state.genes,
-              viz_state.global_base_url,
-              inst_gene,
-              viz_state.seg.version,
-              viz_state.vector_name_integer,
-              viz_state.aws
-            );
+          await update_cell_exp_array(
+            viz_state.cats,
+            viz_state.genes,
+            viz_state.global_base_url,
+            inst_gene,
+            viz_state.seg.version,
+            viz_state.vector_name_integer,
+            viz_state.aws
+          );
 
-            viz_state.obs_store.selected_cells.set([]);
-            update_selected_cats(
-              viz_state.cats,
-              new_cat === 'cluster' ? [] : [inst_gene],
-              viz_state.obs_store
-            );
-          } else {
+          viz_state.obs_store.selected_cells.set([]);
+          update_selected_cats(
+            viz_state.cats,
+            new_cat === 'cluster' ? [] : [inst_gene],
+            viz_state.obs_store
+          );
+        } else {
             // Multiple genes - switch to cluster mode for cells
-            viz_state.highlighted_cells = new Set();
-            viz_state.obs_store.selected_cells.set([]);
-            update_cat(viz_state.cats, 'cluster');
-            update_selected_cats(viz_state.cats, [], viz_state.obs_store);
-          }
+          viz_state.highlighted_cells = new Set();
+          viz_state.obs_store.selected_cells.set([]);
+          update_cat(viz_state.cats, 'cluster');
+          update_selected_cats(viz_state.cats, [], viz_state.obs_store);
+        }
 
           // Hide nbhd layer when coloring cells
-          viz_state.obs_store.viz_nbhd_layer.set(false);
-          viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
+        viz_state.obs_store.viz_nbhd_layer.set(false);
+        viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
 
-          refresh_layer(viz_state, layers_obj, 'cell_layer');
-          refresh_layer(viz_state, layers_obj, 'trx_layer');
+        refresh_layer(viz_state, layers_obj, 'cell_layer');
+        refresh_layer(viz_state, layers_obj, 'trx_layer');
         }
       } else {
         // Other entity types (population, etc.) - treat as neighborhood attribute

@@ -5,14 +5,14 @@ import { initialize_attr_state } from './attr_state';
 
 /**
  * Parse entity specification from string or object.
- * Handles both legacy string format and new {entity, attr} format.
+ * Handles both legacy string format and new {entity, attr, data_type} format.
  *
  * @param {string|object} value - Entity specification
- * @returns {{entity: string, attr: string}} Normalized entity object
+ * @returns {{entity: string, attr: string, data_type?: string}} Normalized entity object
  */
 const parseEntitySpec = (value) => {
   if (!value) {
-    return { entity: 'gene', attr: 'name' };
+    return { entity: 'gene', attr: 'name', data_type: 'gene' };
   }
 
   // If it's a string, try to parse as JSON first
@@ -20,20 +20,30 @@ const parseEntitySpec = (value) => {
     try {
       const parsed = JSON.parse(value);
       if (parsed && typeof parsed === 'object') {
-        return {
+        const result = {
           entity: parsed.entity || 'custom',
           attr: parsed.attr || 'name',
         };
+        // Preserve data_type if provided
+        if (parsed.data_type) {
+          result.data_type = parsed.data_type;
+        }
+        return result;
       }
     } catch {
       // Not JSON, handle as legacy string
       const legacyMapping = {
-        gene: { entity: 'gene', attr: 'name' },
+        gene: { entity: 'gene', attr: 'name', data_type: 'gene' },
         cell_cluster: { entity: 'cell', attr: 'leiden' },
         cluster: { entity: 'cell', attr: 'leiden' },
         nbhd: { entity: 'nbhd', attr: 'name' },
         cell: { entity: 'cell', attr: 'name' },
         hextile: { entity: 'hextile', attr: 'name' },
+        // nbhd_gene: gene data at neighborhood level (enables enrichment)
+        nbhd_gene: { entity: 'nbhd_gene', attr: 'name', data_type: 'gene' },
+        // nbhd_var: generic neighborhood variables (no enrichment)
+        nbhd_var: { entity: 'nbhd_var', attr: 'name' },
+        nbhd_attr: { entity: 'nbhd_var', attr: 'name' },
       };
       return legacyMapping[value] || { entity: value, attr: 'name' };
     }
@@ -41,10 +51,15 @@ const parseEntitySpec = (value) => {
 
   // Already an object
   if (typeof value === 'object') {
-    return {
+    const result = {
       entity: value.entity || 'custom',
       attr: value.attr || 'name',
     };
+    // Preserve data_type if provided
+    if (value.data_type) {
+      result.data_type = value.data_type;
+    }
+    return result;
   }
 
   return { entity: 'custom', attr: 'name' };

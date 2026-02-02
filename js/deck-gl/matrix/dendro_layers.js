@@ -277,7 +277,7 @@ const dendro_layer_onclick = (event, deck_mat, layers_mat, viz_state, axis) => {
     }
   }
 
-  if (Object.keys(viz_state.model).length > 0) {
+  if (viz_state.model && typeof viz_state.model.set === 'function') {
     viz_state.model.set('click_info', null);
     viz_state.model.set('click_info', viz_state.click);
     viz_state.model.save_changes();
@@ -286,6 +286,15 @@ const dendro_layer_onclick = (event, deck_mat, layers_mat, viz_state, axis) => {
   // Sync selected rows/cols to Python model
   // If unselecting, clear the selections
   const names_to_sync = is_unselecting ? [] : selected_names;
+  
+  console.log('dendro_layer_onclick sync:', {
+    axis,
+    names_to_sync_count: names_to_sync.length,
+    row_entity: viz_state.row_entity,
+    has_model: !!viz_state.model,
+    has_set: typeof viz_state.model?.set === 'function',
+  });
+  
   if (axis === 'row') {
     sync_selected_rows(viz_state, names_to_sync);
     // Also sync to selected_genes for backwards compatibility

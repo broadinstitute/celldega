@@ -94,14 +94,19 @@ def _link_clustergram_to_enrich(
     _record_colors()
 
     def _set_gene_list(genes) -> None:
+        print(f"[ENRICH DEBUG] _set_gene_list called with {len(genes) if genes else 0} genes")
         enrich.gene_list = list(genes) if genes else []
+        print(f"[ENRICH DEBUG] enrich.gene_list now has {len(enrich.gene_list)} genes")
 
     def _on_selected_genes(change) -> None:
         genes = change["new"] or []
+        print(f"[ENRICH DEBUG] _on_selected_genes fired: {len(genes)} genes received")
 
         click_info = getattr(cgm, "click_info", {}) or {}
         click_type = (click_info.get("type") or "").lower()
         selected_names = (click_info.get("value") or {}).get("selected_names") or []
+
+        print(f"[ENRICH DEBUG] click_type={click_type}, selected_names count={len(selected_names)}")
 
         is_dendro = click_type.startswith(("row", "col"))
         matches_click = (
@@ -110,15 +115,20 @@ def _link_clustergram_to_enrich(
             and set(selected_names) == set(genes)
         )
 
+        print(f"[ENRICH DEBUG] is_dendro={is_dendro}, matches_click={matches_click}, row_enrich={row_enrich}")
+
         if is_dendro and matches_click:
             if click_type.startswith("row"):
                 if not row_enrich:
+                    print("[ENRICH DEBUG] row_enrich=False, clearing gene list")
                     _set_gene_list([])
                     return
             elif click_type.startswith("col") and not col_enrich:
+                print("[ENRICH DEBUG] col_enrich=False, clearing gene list")
                 _set_gene_list([])
                 return
 
+        print("[ENRICH DEBUG] calling _set_gene_list with genes")
         _set_gene_list(genes)
 
     def _on_click_info(change) -> None:

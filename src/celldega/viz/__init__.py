@@ -58,18 +58,9 @@ def landscape_clustergram(
     jslink((mat, "click_info"), (landscape, "update_trigger"))
 
     if enrich_widget is not None:
-        def _forward_gene_to_landscape(gene: str) -> None:
-            if gene:
-                landscape.trigger_update({"type": "row_label", "value": {"name": gene}})
-
-        # Use the same linking function that works in clustergram_enrich
-        _link_clustergram_to_enrich(
-            mat,
-            enrich_widget,
-            row_enrich=row_enrich,
-            col_enrich=col_enrich,
-            gene_focus_callback=_forward_gene_to_landscape,
-        )
+        # Link selected_genes directly to enrich gene_list via jslink
+        # This is more reliable than Python observers
+        jslink((mat, "selected_genes"), (enrich_widget, "gene_list"))
 
     children = [landscape, mat]
     if enrich_widget is not None:
@@ -78,7 +69,7 @@ def landscape_clustergram(
     return HBox(children)
 
 
-def _link_clustergram_to_enrich(
+def link_clustergram_to_enrich(
     cgm: Clustergram,
     enrich: Enrich,
     *,
@@ -86,6 +77,34 @@ def _link_clustergram_to_enrich(
     col_enrich: bool = False,
     gene_focus_callback=None,
 ) -> None:
+    """
+    Link a Clustergram widget to an Enrich widget for gene enrichment analysis.
+
+    When genes are selected in the Clustergram (via row/column dendrogram clicks),
+    the Enrich widget automatically updates to show enrichment results.
+
+    Args:
+        cgm: The Clustergram widget to observe for gene selections.
+        enrich: The Enrich widget to update with selected genes.
+        row_enrich: If True (default), update enrichment when row dendrogram
+            clusters are selected.
+        col_enrich: If True, update enrichment when column dendrogram clusters
+            are selected.
+        gene_focus_callback: Optional callback function that receives a gene name
+            when the user focuses on a gene in the Enrich widget.
+
+    Example::
+
+        cgm = dega.viz.Clustergram(matrix=mat)
+        enrich = dega.viz.Enrich(gene_list=[], width=250)
+        
+        # Link them
+        dega.viz.link_clustergram_to_enrich(cgm, enrich)
+        
+        # Display together
+        from ipywidgets import HBox
+        HBox([cgm, enrich])
+    """
     enrich_colors = {"In term": "#2f74ff", "Out of term": "#ffffff"}
 
     def _record_colors() -> None:
@@ -149,9 +168,15 @@ def _link_clustergram_to_enrich(
         gene = change["new"] or ""
         gene_focus_callback(gene)
 
+    # Register observers
     cgm.observe(_on_selected_genes, names="selected_genes")
     cgm.observe(_on_click_info, names="click_info")
     enrich.observe(_on_focused_gene, names="focused_gene")
+    
+    # Store references to prevent garbage collection of observer closures
+    if not hasattr(cgm, "_enrich_observers"):
+        cgm._enrich_observers = []
+    cgm._enrich_observers.extend([_on_selected_genes, _on_click_info, _on_focused_gene])
 
 
 def clustergram_enrich(
@@ -177,7 +202,7 @@ def clustergram_enrich(
 
     enrich = Enrich(gene_list=[], width=250)
 
-    _link_clustergram_to_enrich(
+    link_clustergram_to_enrich(
         cgm,
         enrich,
         row_enrich=row_enrich,
@@ -342,4 +367,5 @@ __all__ = [
     "landscape_clustergram",
     "landscape_yearbook",
     "landscape_yearbook_clustergram",
+    "link_clustergram_to_enrich",
 ]

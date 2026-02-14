@@ -6,6 +6,7 @@ import concurrent.futures
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 import polars as pl
 from scipy.sparse import csr_matrix
 from tqdm import tqdm
@@ -111,18 +112,25 @@ def _process_fine_tiles_transcripts(
             fine_tile_x_max = fine_tile_x_min + tile_size
 
             # Process only if the fine tile falls within the current coarse tile's bounds
-            if fine_tile_x_min < coarse_tile_x_min or fine_tile_x_max > coarse_tile_x_max:
-                continue
+
+            if fine_tile_x_max <= coarse_tile_x_min or fine_tile_x_min >= coarse_tile_x_max:
+                continue  # no horizontal overlap
+
+            # if fine_tile_x_min < coarse_tile_x_min or fine_tile_x_max > coarse_tile_x_max:
+            #     continue
 
             for fine_j in range(n_fine_tiles_y):
                 fine_tile_y_min = y_min + fine_j * tile_size
                 fine_tile_y_max = fine_tile_y_min + tile_size
 
                 # Process only if the fine tile falls within the current coarse tile's bounds
-                if not (
-                    fine_tile_y_min >= coarse_tile_y_min and fine_tile_y_max <= coarse_tile_y_max
-                ):
-                    continue
+                # if not (
+                #     fine_tile_y_min >= coarse_tile_y_min and fine_tile_y_max <= coarse_tile_y_max
+                # ):
+                #     continue
+
+                if fine_tile_y_max <= coarse_tile_y_min or fine_tile_y_min >= coarse_tile_y_max:
+                    continue  # no vertical overlap
 
                 # Submit the task for each fine tile to process in parallel
                 futures.append(
@@ -195,7 +203,14 @@ def _filter_and_save_fine_tile(
         filename = Path(path_trx_tiles) / f"transcripts_tile_{fine_i}_{fine_j}.parquet"
 
         # Save the filtered DataFrame to a Parquet file
-        fine_tile_trx.to_pandas().to_parquet(filename, index=False)
+        # fine_tile_trx.to_pandas().to_parquet(filename, index=False)
+
+        # filename = Path(path_trx_tiles) / f"transcripts_tile_{fine_i}_{fine_j}.parquet"
+
+        if fine_tile_trx.is_empty():
+            pd.DataFrame(columns=["geometry"]).to_parquet(filename, index=False)
+        else:
+            fine_tile_trx.to_pandas().to_parquet(filename, index=False)
 
 
 def _load_transcript_data_by_technology(technology, path_trx):

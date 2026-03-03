@@ -1,7 +1,7 @@
 """Module for performing neighborhood analysis."""
 
 from .alpha_shapes import alpha_shape, alpha_shape_cell_clusters, filter_alpha_shapes
-from .gradient import calc_grad_nbhd_from_roi
+from .gradient import gradient_from_gdf
 from .hextile import generate_hextile, hextile_niche
 from .neighborhoods import (
     NBHD,
@@ -29,7 +29,6 @@ __all__ = [
     "_get_gdf_trx",
     "alpha_shape",
     "alpha_shape_cell_clusters",
-    "calc_grad_nbhd_from_roi",
     "calc_nbhd_bordering",
     "calc_nbhd_by_gene",
     "calc_nbhd_by_pop",
@@ -37,5 +36,6 @@ __all__ = [
     "filter_alpha_shapes",
     "generate_hextile",
     "get_nbhd_meta",
+    "gradient_from_gdf",
     "hextile_niche",
 ]

@@ -17,6 +17,7 @@ from .utils import (
     _get_df_cell,
     _get_gdf_cell,
     _get_gdf_trx,
+    _get_micron_per_pixel,
 )
 
 
@@ -27,6 +28,7 @@ __all__ = [
     "_get_df_cell",
     "_get_gdf_cell",
     "_get_gdf_trx",
+    "_get_micron_per_pixel",
     "alpha_shape",
     "alpha_shape_cell_clusters",
     "calc_nbhd_bordering",

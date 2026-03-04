@@ -120,6 +120,31 @@ def _get_gdf_trx(data_dir: str) -> gpd.GeoDataFrame:
     return gpd.GeoDataFrame(df_trx[["feature_name", "cell_id"]], geometry=geometry)
 
 
+def _get_micron_per_pixel(technology: str) -> float:
+    """
+    Retrieve the micron-per-pixel conversion factor for a given technology.
+
+    Parameters
+    ----------
+    technology : str
+        The spatial transcriptomics technology (e.g., 'Xenium', 'Merscope').
+
+    Returns
+    -------
+    float
+        The conversion factor in microns per pixel.
+
+    """
+    tech_lower = technology.lower()
+
+    if tech_lower == "xenium":
+        return 0.2125
+    if tech_lower == "merscope":
+        return 0.108
+    supported = ["Xenium", "Merscope"]
+    raise ValueError(f"'{technology}' is not supported. Please select from: {', '.join(supported)}")
+
+
 def _round_coordinates(
     geometry: base.BaseGeometry | None, precision: int = 2
 ) -> base.BaseGeometry | None:

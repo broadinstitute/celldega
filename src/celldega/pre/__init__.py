@@ -330,21 +330,11 @@ def create_cluster_and_meta_cluster(
 
     return clusters
 
-
 def _process_image_channel(path_landscape_files, channel_info, img):
     """
     Process a single image channel for tiling.
-
-    Parameters:
-    - path_landscape_files: Landscape files path
-    - channel_info: Dictionary with channel information (name, index)
-    - img: Optional pre-loaded image array
-
-    Returns:
-    - None
     """
     channel_name = channel_info["name"]
-    channel_index = channel_info.get("index", 0)
 
     print(f"generating {channel_name} image tiles ...")
 
@@ -352,22 +342,41 @@ def _process_image_channel(path_landscape_files, channel_info, img):
     if pyramid_path.exists():
         return
 
-    # Extract and process the channel
-    scale = 1 if channel_name.lower() == "dapi" else 2  # Adjust intensity for better visualization
-    if img.ndim == 3:
-        image_data = img[..., channel_index] * scale
-    elif img.ndim == 2:
-        image_data = img * scale
+    # Ensure we are working with a single 2D channel
+    if img.ndim != 2:
+        raise ValueError(f"Expected a 2D channel image, got shape {img.shape}")
+
+    # Convert to float for safe intensity scaling and normalization
+    channel = img.astype(np.float32)
+
+    # Slightly boost non-DAPI channels for better visibility
+    scale = 1 if channel_name.lower() == "dapi" else 2
+    channel *= scale
+
+    # Compute percentile bounds to identify the useful intensity range
+    lo = np.percentile(channel, 1)
+    hi = np.percentile(channel, 99.8)
+
+    print(f"{channel_name}: p1={lo:.2f}, p99.8={hi:.2f}")
+
+    if hi > lo:
+        # Clip extreme bright outliers (prevents a few pixels dominating contrast)
+        channel = np.clip(channel, lo, hi)
+
+        # Normalize intensities to 0–1 to stretch useful signal range
+        channel = (channel - lo) / (hi - lo)
+
+        # Convert to 8-bit display range for visualization
+        image_data = (channel * 255).astype(np.uint8)
     else:
-        raise ValueError(f"Unsupported image dimensions: {img.ndim}. Expected 2D or 3D image.")
+        # Fallback in case percentile range collapses
+        image_data = np.zeros_like(channel, dtype=np.uint8)
 
     output_path = Path(path_landscape_files) / f"{channel_name}_output_regular.tif"
-    imsave(output_path, image_data)
+    imsave(output_path, image_data, check_contrast=False)
 
-    # Convert the image to PNG format
     image_png = _convert_to_png(str(output_path))
 
-    # Create a DeepZoom pyramid for the channel
     make_deepzoom_pyramid(
         image_png,
         str(Path(path_landscape_files) / "pyramid_images"),
@@ -462,36 +471,64 @@ def create_image_tiles_xenium(data_dir, path_landscape_files, image_tile_layer="
     """
     Creates image tiles for visualization from the Xenium morphology image.
 
-    Args:
-        data_dir (str): Path to the directory containing the data (e.g., morphology_focus_0000.ome.tif).
-        path_landscape_files (str): Path to the directory where the image tiles and pyramid will be saved.
-        image_tile_layer (str, optional): Specifies which image layers to process. Options are 'dapi' (default) or 'all'.
-    Raises:
-        FileNotFoundError: If the required input image file is not found.
+    This version:
+    - finds the OME-TIFF whose name contains '0000'
+    - avoids loading the full OME-TIFF into memory
+    - reads one channel at a time from CYX images
     """
+
     if image_tile_layer not in ["dapi", "all"]:
         raise ValueError(f"Invalid image_tile_layer: {image_tile_layer}. Must be 'dapi' or 'all'.")
 
-    # Define the path to the morphology image
-    file_path = Path(data_dir) / "morphology_focus" / "morphology_focus_0000.ome.tif"
+    morphology_dir = Path(data_dir) / "morphology_focus"
 
-    # Check if the morphology image exists
-    if not file_path.exists():
-        raise FileNotFoundError(
-            f"The file 'morphology_focus_0000.ome.tif' does not exist in directory '{data_dir}'."
+    # New Xenium datasets may use different filenames → search for *0000*.ome.tif
+    matches = sorted(morphology_dir.glob("*0000*.ome.tif"))
+
+    if not matches:
+        raise FileNotFoundError(f"No OME-TIFF containing '0000' found in {morphology_dir}")
+
+    file_path = matches[0]
+    print(f"Using morphology image: {file_path}")
+
+    channel_map = [{"name": "dapi", "index": 0}]
+    if image_tile_layer == "all":
+        channel_map.extend(
+            [
+                {"name": "bound", "index": 1},
+                {"name": "rna", "index": 2},
+                {"name": "prot", "index": 3},
+            ]
         )
 
-    # Load the morphology image once if processing multiple channels
-    img = imread(file_path)
+    # Use tifffile to safely read OME-TIFF without loading the full image
+    with tifffile.TiffFile(file_path) as tif:
+        series = tif.series[0]
 
-    # Process the DAPI channel
-    if image_tile_layer in ["dapi", "all"]:
-        _process_image_channel(path_landscape_files, {"name": "dapi", "index": 0}, img)
+        print(f"OME shape: {series.shape}")
+        print(f"OME axes:  {series.axes}")
+        print(f"OME dtype: {series.dtype}")
 
-    # Process additional channels if image_tile_layer is 'all'
-    if image_tile_layer == "all":
-        for idx, channel in enumerate(["bound", "rna", "prot"]):
-            _process_image_channel(path_landscape_files, {"name": channel, "index": idx + 1}, img)
+        # Ensure expected Xenium morphology layout
+        if series.axes != "CYX":
+            raise ValueError(
+                f"Expected Xenium morphology image axes to be 'CYX', got '{series.axes}'"
+            )
+
+        for channel_info in channel_map:
+            channel_name = channel_info["name"]
+            channel_index = channel_info["index"]
+
+            print(f"Reading channel '{channel_name}' (index {channel_index})")
+
+            # Read one channel at a time to avoid large memory usage
+            channel_2d = series.asarray(key=channel_index)
+
+            _process_image_channel(
+                path_landscape_files,
+                {"name": channel_name, "index": 0},
+                channel_2d,
+            )
 
     remove_intermediate_files(path_landscape_files)
 

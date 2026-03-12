@@ -627,7 +627,7 @@ def _collect_tile_data_for_row_groups(
     tile_data_list = []
     for tile_i in tqdm(range(n_tiles_x), desc="Ordering tiles"):
         for tile_j in range(n_tiles_y):
-            tile_df = tile_dict.get((tile_i, tile_j), None)
+            tile_df = tile_dict.get((tile_i, tile_j))
             tile_data_list.append((tile_i, tile_j, tile_df))
 
     tile_grid_info = {

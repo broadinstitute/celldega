@@ -330,6 +330,7 @@ def create_cluster_and_meta_cluster(
 
     return clusters
 
+
 def _process_image_channel(path_landscape_files, channel_info, img):
     """
     Process a single image channel for tiling.
@@ -363,7 +364,7 @@ def _process_image_channel(path_landscape_files, channel_info, img):
         # Clip extreme bright outliers (prevents a few pixels dominating contrast)
         channel = np.clip(channel, lo, hi)
 
-        # Normalize intensities to 0–1 to stretch useful signal range
+        # Normalize intensities to 0 and 1 to stretch useful signal range
         channel = (channel - lo) / (hi - lo)
 
         # Convert to 8-bit display range for visualization

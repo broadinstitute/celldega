@@ -400,7 +400,9 @@ def _process_image_channel(
     )
 
 
-def create_image_tiles(technology, data_dir, path_landscape_files, image_tile_layer="dapi", upper_percentile=99):
+def create_image_tiles(
+    technology, data_dir, path_landscape_files, image_tile_layer="dapi", upper_percentile=99
+):
     """
     Creates image tiles for visualization from the Xenium morphology image.
 
@@ -418,7 +420,12 @@ def create_image_tiles(technology, data_dir, path_landscape_files, image_tile_la
     print("\n========Generating image tiles========")
     if technology == "Xenium":
         print("------ xenium")
-        create_image_tiles_xenium(data_dir, path_landscape_files, image_tile_layer=image_tile_layer, upper_percentile=upper_percentile)
+        create_image_tiles_xenium(
+            data_dir,
+            path_landscape_files,
+            image_tile_layer=image_tile_layer,
+            upper_percentile=upper_percentile,
+        )
     elif technology == "MERSCOPE":
         print("------ merscope")
         create_image_tiles_merscope(
@@ -482,7 +489,9 @@ def remove_intermediate_files(path_landscape_files):
         file.unlink()
 
 
-def create_image_tiles_xenium(data_dir, path_landscape_files, image_tile_layer="dapi", upper_percentile=99):
+def create_image_tiles_xenium(
+    data_dir, path_landscape_files, image_tile_layer="dapi", upper_percentile=99
+):
     """
     Creates image tiles for visualization from the Xenium morphology image.
 
@@ -543,7 +552,7 @@ def create_image_tiles_xenium(data_dir, path_landscape_files, image_tile_layer="
                 path_landscape_files,
                 {"name": channel_name, "index": 0},
                 channel_2d,
-                upper_percentile
+                upper_percentile,
             )
 
     remove_intermediate_files(path_landscape_files)

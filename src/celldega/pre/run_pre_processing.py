@@ -155,6 +155,7 @@ def main(
     max_workers=1,
     use_row_groups=False,
     max_row_groups_per_file=400,
+    upper_percentile=99
 ):
     """
     Main function to preprocess Xenium or MERSCOPE data and generate landscape files.
@@ -311,7 +312,7 @@ def main(
     if technology in ["MERSCOPE", "Xenium"]:
         print("\n======== Image Tiles========")
         dega.pre.create_image_tiles(
-            technology, str(data_dir), path_landscape_files, image_tile_layer=image_tile_layer
+            technology, str(data_dir), path_landscape_files, image_tile_layer=image_tile_layer, upper_percentile=upper_percentile
         )
 
         # Optionally pack image tiles into parquet row groups

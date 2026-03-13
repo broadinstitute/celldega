@@ -330,10 +330,23 @@ def create_cluster_and_meta_cluster(
 
     return clusters
 
-
-def _process_image_channel(path_landscape_files, channel_info, img):
+def _process_image_channel(
+    path_landscape_files,
+    channel_info,
+    img,
+    upper_percentile=99,
+    gamma=1,
+    scale_non_dapi=1.0,
+    white_level=40
+):
     """
-    Process a single image channel for tiling.
+    Process a single image channel for tiling using simple per-channel windowing,
+    similar to Xenium Explorer:
+    - choose a per-channel upper bound from a high percentile
+    - clip to that range
+    - normalize to 0-1
+    - optionally apply gamma
+    - convert to 8-bit for display
     """
     channel_name = channel_info["name"]
 
@@ -343,34 +356,37 @@ def _process_image_channel(path_landscape_files, channel_info, img):
     if pyramid_path.exists():
         return
 
-    # Ensure we are working with a single 2D channel
     if img.ndim != 2:
         raise ValueError(f"Expected a 2D channel image, got shape {img.shape}")
 
-    # Convert to float for safe intensity scaling and normalization
     channel = img.astype(np.float32)
 
-    # Slightly boost non-DAPI channels for better visibility
-    scale = 1 if channel_name.lower() == "dapi" else 2
+    # Keep scaling neutral unless you intentionally want a boost
+    scale = 1.0 if channel_name.lower() == "dapi" else scale_non_dapi
     channel *= scale
 
-    # Compute percentile bounds to identify the useful intensity range
-    lo = np.percentile(channel, 1)
-    hi = np.percentile(channel, 99.8)
+    # Per-channel display window
+    # lo = float(np.percentile(channel, lower_percentile))
+    lo = float(channel.min())
+    hi = float(np.percentile(channel, upper_percentile))
 
-    print(f"{channel_name}: p1={lo:.2f}, p99.8={hi:.2f}")
+    print(f"{channel_name}: lo={lo:.2f}, p{upper_percentile}={hi:.2f}, gamma={gamma}")
 
     if hi > lo:
-        # Clip extreme bright outliers (prevents a few pixels dominating contrast)
+        # Clip to display range
         channel = np.clip(channel, lo, hi)
 
-        # Normalize intensities to 0 and 1 to stretch useful signal range
+        # Normalize to 0-1
         channel = (channel - lo) / (hi - lo)
 
-        # Convert to 8-bit display range for visualization
-        image_data = (channel * 255).astype(np.uint8)
+        channel = np.clip(channel, 0, 1)
+
+        # Optional gamma correction (gamma < 1 brightens midtones)
+        if gamma != 1.0:
+            channel = np.power(channel, gamma)
+
+        image_data = (channel * white_level).astype(np.uint8)
     else:
-        # Fallback in case percentile range collapses
         image_data = np.zeros_like(channel, dtype=np.uint8)
 
     output_path = Path(path_landscape_files) / f"{channel_name}_output_regular.tif"
@@ -384,7 +400,6 @@ def _process_image_channel(path_landscape_files, channel_info, img):
         channel_name,
         suffix=".webp[Q=100]",
     )
-
 
 def create_image_tiles(technology, data_dir, path_landscape_files, image_tile_layer="dapi"):
     """

@@ -156,6 +156,7 @@ def main(
     use_row_groups=False,
     max_row_groups_per_file=400,
     upper_percentile=99,
+    white_level=40
 ):
     """
     Main function to preprocess Xenium or MERSCOPE data and generate landscape files.
@@ -317,6 +318,7 @@ def main(
             path_landscape_files,
             image_tile_layer=image_tile_layer,
             upper_percentile=upper_percentile,
+            white_level=white_level
         )
 
         # Optionally pack image tiles into parquet row groups

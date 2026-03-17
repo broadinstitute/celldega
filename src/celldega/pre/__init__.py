@@ -330,7 +330,6 @@ def create_cluster_and_meta_cluster(
 
     return clusters
 
-
 def _process_image_channel(
     path_landscape_files,
     channel_info,
@@ -368,7 +367,9 @@ def _process_image_channel(
 
     # Per-channel display window
     lo = float(channel.min())
-    hi = float(np.percentile(channel, upper_percentile))
+
+    sample = channel[::10, ::10]
+    hi = np.percentile(sample, upper_percentile)
 
     print(f"{channel_name}: lo={lo:.2f}, p{upper_percentile}={hi:.2f}, gamma={gamma}")
 
@@ -401,7 +402,7 @@ def _process_image_channel(
 
 
 def create_image_tiles(
-    technology, data_dir, path_landscape_files, image_tile_layer="dapi", upper_percentile=99
+    technology, data_dir, path_landscape_files, image_tile_layer="dapi", upper_percentile=99, white_level=40
 ):
     """
     Creates image tiles for visualization from the Xenium morphology image.
@@ -425,6 +426,7 @@ def create_image_tiles(
             path_landscape_files,
             image_tile_layer=image_tile_layer,
             upper_percentile=upper_percentile,
+            white_level=white_level
         )
     elif technology == "MERSCOPE":
         print("------ merscope")
@@ -490,7 +492,7 @@ def remove_intermediate_files(path_landscape_files):
 
 
 def create_image_tiles_xenium(
-    data_dir, path_landscape_files, image_tile_layer="dapi", upper_percentile=99
+    data_dir, path_landscape_files, image_tile_layer="dapi", upper_percentile=99, white_level=40
 ):
     """
     Creates image tiles for visualization from the Xenium morphology image.
@@ -549,10 +551,11 @@ def create_image_tiles_xenium(
             channel_2d = series.asarray(key=channel_index)
 
             _process_image_channel(
-                path_landscape_files,
-                {"name": channel_name, "index": 0},
-                channel_2d,
-                upper_percentile,
+                path_landscape_files=path_landscape_files,
+                channel_info={"name": channel_name, "index": 0},
+                img=channel_2d,
+                upper_percentile=upper_percentile,
+                white_level=white_level
             )
 
     remove_intermediate_files(path_landscape_files)

@@ -330,6 +330,7 @@ def create_cluster_and_meta_cluster(
 
     return clusters
 
+
 def _process_image_channel(
     path_landscape_files,
     channel_info,
@@ -402,7 +403,12 @@ def _process_image_channel(
 
 
 def create_image_tiles(
-    technology, data_dir, path_landscape_files, image_tile_layer="dapi", upper_percentile=99, white_level=40
+    technology,
+    data_dir,
+    path_landscape_files,
+    image_tile_layer="dapi",
+    upper_percentile=99,
+    white_level=40,
 ):
     """
     Creates image tiles for visualization from the Xenium morphology image.
@@ -426,7 +432,7 @@ def create_image_tiles(
             path_landscape_files,
             image_tile_layer=image_tile_layer,
             upper_percentile=upper_percentile,
-            white_level=white_level
+            white_level=white_level,
         )
     elif technology == "MERSCOPE":
         print("------ merscope")
@@ -555,7 +561,7 @@ def create_image_tiles_xenium(
                 channel_info={"name": channel_name, "index": 0},
                 img=channel_2d,
                 upper_percentile=upper_percentile,
-                white_level=white_level
+                white_level=white_level,
             )
 
     remove_intermediate_files(path_landscape_files)

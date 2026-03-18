@@ -370,6 +370,12 @@ def _process_image_channel(
     lo = float(channel.min())
 
     sample = channel[::10, ::10]
+
+    if not (0 <= upper_percentile <= 100):
+        raise ValueError(
+            f"upper_percentile must be between 0 and 100 (inclusive); got {upper_percentile!r}"
+        )
+
     hi = np.percentile(sample, upper_percentile)
 
     print(f"{channel_name}: lo={lo:.2f}, p{upper_percentile}={hi:.2f}, gamma={gamma}")

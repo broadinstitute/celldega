@@ -380,6 +380,15 @@ def _process_image_channel(
 
     print(f"{channel_name}: lo={lo:.2f}, p{upper_percentile}={hi:.2f}, gamma={gamma}")
 
+    # Validate gamma to avoid infinities/NaNs in np.power
+    if gamma <= 0:
+        warnings.warn(
+            f"Non-positive gamma ({gamma}) is invalid for gamma correction; "
+            "using gamma=1.0 instead.",
+            RuntimeWarning,
+        )
+        gamma = 1.0
+
     if hi > lo:
         # Clip to display range
         channel = np.clip(channel, lo, hi)
@@ -391,7 +400,17 @@ def _process_image_channel(
         if gamma != 1.0:
             channel = np.power(channel, gamma)
 
-        image_data = (channel * white_level).astype(np.uint8)
+        # Clamp white_level to the valid 8-bit display range [0, 255]
+        white_level_safe = float(white_level)
+        if white_level_safe < 0.0 or white_level_safe > 255.0:
+            warnings.warn(
+                f"white_level ({white_level_safe}) is outside [0, 255]; "
+                "clamping to this range for display.",
+                RuntimeWarning,
+            )
+            white_level_safe = min(255.0, max(0.0, white_level_safe))
+
+        image_data = (channel * white_level_safe).astype(np.uint8)
     else:
         image_data = np.zeros_like(channel, dtype=np.uint8)
 

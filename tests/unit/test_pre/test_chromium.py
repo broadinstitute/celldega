@@ -9,14 +9,17 @@ import pytest
 import sys
 import types
 
-fake_module = types.ModuleType("celldega.pre.run_pre_processing")
-fake_module.main = lambda *args, **kwargs: None
-sys.modules["celldega.pre.run_pre_processing"] = fake_module
 
-from celldega.pre import make_chromium_from_anndata
+@pytest.fixture
+def make_chromium_from_anndata(monkeypatch):
+    fake_module = types.ModuleType("celldega.pre.run_pre_processing")
+    fake_module.main = lambda *args, **kwargs: None
+    monkeypatch.setitem(sys.modules, "celldega.pre.run_pre_processing", fake_module)
+    from celldega.pre import make_chromium_from_anndata as _make_chromium_from_anndata
+    return _make_chromium_from_anndata
 
 
-def test_make_chromium_from_anndata(tmp_path):
+def test_make_chromium_from_anndata(tmp_path, make_chromium_from_anndata):
     X = np.array([[1, 2], [3, 0]])
     adata = AnnData(
         X,
@@ -38,7 +41,7 @@ def test_make_chromium_from_anndata(tmp_path):
     assert params["technology"] == "Chromium"
 
 
-def test_make_chromium_requires_integer(tmp_path):
+def test_make_chromium_requires_integer(tmp_path, make_chromium_from_anndata):
     X = np.array([[1.5]])
     adata = AnnData(X, obs=pd.DataFrame(index=["c1"]), var=pd.DataFrame(index=["g1"]))
     with pytest.raises(ValueError):

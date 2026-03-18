@@ -16,6 +16,7 @@ def make_chromium_from_anndata(monkeypatch):
     fake_module.main = lambda *args, **kwargs: None
     monkeypatch.setitem(sys.modules, "celldega.pre.run_pre_processing", fake_module)
     from celldega.pre import make_chromium_from_anndata as _make_chromium_from_anndata
+
     return _make_chromium_from_anndata
 
 

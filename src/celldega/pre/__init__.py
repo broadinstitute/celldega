@@ -444,6 +444,12 @@ def create_image_tiles(
         path_landscape_files (str): Path to the directory where the image tiles and pyramid will be saved.
         image_tile_layer (str, optional): Specifies which image layers to process. Options for Xenium are
         'dapi' (default) or 'all'. Use the filename of the .scn file for h&e Landscapes.
+        upper_percentile (float, optional): Upper intensity percentile used to rescale/clip the image
+            before tile generation. Must be between 0 and 100 (inclusive). Values close to 100 (e.g. 95–99)
+            reduce the influence of very bright outliers while preserving most detail.
+        white_level (float, optional): Factor controlling how intensities are mapped toward white during
+            normalization. Must be non-negative. Higher values produce brighter tiles; typical values are
+            in the range 10–100, with 40 as a reasonable default.
 
     Raises:
         ValueError: If the specified technology is not supported or if the image_tile_layer is invalid.

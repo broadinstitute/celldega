@@ -251,13 +251,7 @@ const cell_button_callback = async (event, deck_ist, layers_obj, viz_state) => {
   toggle_path_layer_visibility(layers_obj, is_visible);
 
   if (is_visible) {
-    toggle_nbhd_layer_visibility(layers_obj, false);
-    viz_state.obs_store.viz_nbhd_layer.set(false);
     viz_state.obs_store.viz_edit_layer.set(false);
-
-    if (viz_state.nbhd.is_nbhd) {
-      viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
-    }
 
     viz_state.cats.svg_bar_cluster.selectAll('rect').style('opacity', 1.0);
   } else {

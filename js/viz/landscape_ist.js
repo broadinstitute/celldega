@@ -14,7 +14,6 @@ import { set_views } from '../deck-gl/core/views';
 import { ini_background_layer } from '../deck-gl/layers/background_layer';
 import {
   ini_cell_layer,
-  new_toggle_cell_layer_visibility,
   set_cell_layer_onclick,
   toggle_spatial_umap,
   update_cell_pickable_state,
@@ -657,35 +656,25 @@ export const landscape_ist = async (
   viz_state.obs_store.viz_nbhd_layer.subscribe(
     (visible) => {
       if (visible) {
-        // set cell layer to not visible
-        new_toggle_cell_layer_visibility(viz_state.layers_obj, false);
-
+        // keep CELL layer independent from NBHD visibility
         // set gene/cat bars to disabled color
         viz_state.genes.svg_bar_gene.selectAll('rect').style('opacity', 0.2);
-        viz_state.cats.svg_bar_cluster.selectAll('rect').style('opacity', 0.2);
         viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', 1.0);
 
-        viz_state.buttons.buttons.cell.style('color', 'gray');
         viz_state.buttons.buttons.trx.style('color', 'gray');
         viz_state.buttons.buttons.nbhd?.style('color', 'blue');
 
-        toggle_slider(viz_state.sliders.cell, false);
         toggle_slider(viz_state.sliders.trx, false);
         if (viz_state.nbhd.is_nbhd) {
           toggle_slider(viz_state.sliders.nbhd, true);
         }
       } else {
-        new_toggle_cell_layer_visibility(viz_state.layers_obj, true);
-
         viz_state.genes.svg_bar_gene.selectAll('rect').style('opacity', 1.0);
-        viz_state.cats.svg_bar_cluster.selectAll('rect').style('opacity', 1.0);
         viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', 0.2);
 
-        viz_state.buttons.buttons.cell.style('color', 'blue');
         viz_state.buttons.buttons.trx.style('color', 'blue');
         viz_state.buttons.buttons.nbhd?.style('color', 'gray');
 
-        toggle_slider(viz_state.sliders.cell, true);
         toggle_slider(viz_state.sliders.trx, true);
         if (viz_state.nbhd.is_nbhd) {
           toggle_slider(viz_state.sliders.nbhd, false);

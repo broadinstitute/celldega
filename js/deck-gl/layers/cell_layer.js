@@ -435,6 +435,9 @@ export const update_cell_layer_radius = (layers_obj, radius, viz_state) => {
     });
   } else {
     layers_obj.cell_layer = layers_obj.cell_layer.clone({
+      // Keep marker size adjustable when zoomed out by tying the
+      // minimum on-screen pixel size to the slider radius.
+      radiusMinPixels: Math.max(1, radius),
       getRadius: radius,
     });
   }

@@ -27,6 +27,7 @@ import {
 } from '../matrix/dendro';
 import { debounce } from '../utils/debounce';
 import { refresh_layer } from '../utils/refresh_layer';
+import { capture_deck_screenshot } from '../utils/screenshot';
 
 import {
   make_bar_graph,
@@ -75,6 +76,26 @@ export const make_ctrl_container = () => {
   ctrl_container.className = 'ctrl_container';
   ctrl_container.style.width = '100%'; // '535px'
   return ctrl_container;
+};
+
+const append_screenshot_button = (container, deck, prefix) => {
+  const button = document.createElement('button');
+  button.textContent = '📷 PNG';
+  button.title = 'Download high-resolution screenshot';
+  button.style.marginTop = '6px';
+  button.style.marginLeft = '8px';
+  button.style.height = '22px';
+  button.style.fontSize = '11px';
+  button.style.cursor = 'pointer';
+  button.style.borderRadius = '6px';
+  button.style.border = '1px solid #d3d3d3';
+  button.style.backgroundColor = '#f8f9fa';
+  button.style.color = '#47515b';
+  button.style.padding = '0 8px';
+  button.addEventListener('click', () =>
+    capture_deck_screenshot(deck, prefix, 3)
+  );
+  container.appendChild(button);
 };
 
 export const flex_container = (class_name, flex_direction, height = null) => {
@@ -303,6 +324,7 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
   slider_container.appendChild(viz_state.dendro.sliders.col);
   slider_container.appendChild(viz_state.dendro.sliders.row);
   slider_container.appendChild(col_attr_width_slider);
+  append_screenshot_button(slider_container, deck_mat, 'clustergram');
 
   // add top margin to ctrl_container and slider_container
   ctrl_container.style.marginTop = '10px';
@@ -396,6 +418,7 @@ export const make_sst_ui_container = (deck_sst, layers_sst, viz_state) => {
   ctrl_container.appendChild(image_container);
   ctrl_container.appendChild(tile_container);
   ctrl_container.appendChild(viz_state.genes.gene_search);
+  append_screenshot_button(ctrl_container, deck_sst, 'landscape');
 
   return ui_container;
 };
@@ -970,6 +993,7 @@ export const make_ist_ui_container = (
   }
   ctrl_container.appendChild(cell_container);
   ctrl_container.appendChild(gene_container);
+  append_screenshot_button(ctrl_container, deck_ist, 'landscape');
 
   viz_state.genes.gene_search.style.width = '160px';
   viz_state.genes.gene_search.style.marginLeft = '5px';

@@ -452,6 +452,10 @@ export const landscape_ist = async (
   const root = document.createElement('div');
   root.style.position = 'relative';
   root.style.height = `${height}px`;
+  root.style.resize = 'both';
+  root.style.overflow = 'auto';
+  root.style.minWidth = '500px';
+  root.style.minHeight = '400px';
   root.style.border = '1px solid #d3d3d3';
 
   const userMicronsPerPixel =

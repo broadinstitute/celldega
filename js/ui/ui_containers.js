@@ -312,11 +312,18 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
   viz_state.dendro.sliders.row.style.marginTop = '10px';
 
   const col_attr_width_slider = document.createElement('input');
+  const row_label_width_slider = document.createElement('input');
   const min_col_attr_width = 40;
   const max_col_attr_width = 220;
+  const min_row_label_width = 60;
+  const max_row_label_width = 320;
   const initial_col_attr_width = Math.max(
     min_col_attr_width,
     Math.min(max_col_attr_width, viz_state.viz.col_attr_label_width || 100)
+  );
+  const initial_row_label_width = Math.max(
+    min_row_label_width,
+    Math.min(max_row_label_width, viz_state.viz.row_label || 75)
   );
 
   ini_slider_params(
@@ -337,6 +344,29 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
     }
   );
   col_attr_width_slider.style.marginTop = '10px';
+
+  ini_slider_params(
+    row_label_width_slider,
+    ((initial_row_label_width - min_row_label_width) * 100) /
+      (max_row_label_width - min_row_label_width),
+    (event) => {
+      const slider_value = Number(event.target.value) || 0;
+      const width_value =
+        min_row_label_width +
+        ((max_row_label_width - min_row_label_width) * slider_value) / 100;
+
+      viz_state.viz.row_label = Math.round(width_value);
+      viz_state.viz.row_region =
+        (viz_state.viz.row_cat_width + viz_state.viz.extra_space.row) *
+          viz_state.attr.num.row +
+        viz_state.viz.row_label;
+      ini_views(viz_state);
+      deck_mat.setProps({
+        views: viz_state.views.views_list,
+      });
+    }
+  );
+  row_label_width_slider.style.marginTop = '6px';
 
   d3.select(slider_container)
     .append('div')
@@ -380,9 +410,29 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
       '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif'
     );
 
+  d3.select(slider_container)
+    .append('div')
+    .text('Row W')
+    .style('width', '40px')
+    .style('height', '14px')
+    .style('display', 'inline-flex')
+    .style('align-items', 'center')
+    .style('justify-content', 'center')
+    .style('text-align', 'center')
+    .style('font-size', '9px')
+    .style('font-weight', 'bold')
+    .style('color', '#47515b')
+    .style('border-color', 'white')
+    .style('margin-left', '10px')
+    .style(
+      'font-family',
+      '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif'
+    );
+
   slider_container.appendChild(viz_state.dendro.sliders.col);
   slider_container.appendChild(viz_state.dendro.sliders.row);
   slider_container.appendChild(col_attr_width_slider);
+  slider_container.appendChild(row_label_width_slider);
   append_size_controls(slider_container, deck_mat, viz_state);
   append_screenshot_button(slider_container, deck_mat, 'clustergram');
 

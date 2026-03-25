@@ -32,6 +32,7 @@ const render_landscape_ist = async ({ model, el }) => {
   const nbhd = model.get('nbhd_geojson');
   const max_tiles_to_view = model.get('max_tiles_to_view');
   const nbhd_edit = model.get('nbhd_edit');
+  const cell_centroid_size = model.get('cell_centroid_size') ?? 5;
   const scale_bar_microns_per_pixel = model.get('scale_bar_microns_per_pixel');
 
   let meta_cell_data = { result: {}, attr: [] };
@@ -90,6 +91,7 @@ const render_landscape_ist = async ({ model, el }) => {
     rotation_x,
     rotate,
     max_tiles_to_view,
+    cell_centroid_size,
     scale_bar_microns_per_pixel,
     base_urls,
     cell_name_prefix

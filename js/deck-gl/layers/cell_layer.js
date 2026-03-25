@@ -391,10 +391,11 @@ export const ini_cell_layer = async (base_url, viz_state) => {
       ...getModelMatrixProps(viz_state.rotation),
     });
   } else {
+    const initial_cell_radius = viz_state.genes?.cell_ini_radius ?? 5;
     cell_layer = new ScatterplotLayer({
       id: 'cell-layer',
-      radiusMinPixels: 1,
-      getRadius: 5.0,
+      radiusMinPixels: Math.max(1, initial_cell_radius),
+      getRadius: initial_cell_radius,
       pickable: true,
       getFillColor: (i, d) =>
         get_cell_color(viz_state.cats, viz_state.highlighted_cells, i, d),

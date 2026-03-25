@@ -14,6 +14,7 @@ import { update_path_pickable_state } from '../deck-gl/layers/path_layer';
 import { update_trx_pickable_state } from '../deck-gl/layers/trx_layer';
 import { update_dendro_layer_data } from '../deck-gl/matrix/dendro_layers';
 import { get_mat_layers_list } from '../deck-gl/matrix/matrix_layers';
+import { ini_views } from '../deck-gl/matrix/views';
 import { get_layers_list } from '../deck-gl/utils/layers_ist';
 import {
   uniprot_data,
@@ -230,6 +231,33 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
   viz_state.dendro.sliders.col.style.marginTop = '3px';
   viz_state.dendro.sliders.row.style.marginTop = '10px';
 
+  const col_attr_width_slider = document.createElement('input');
+  const min_col_attr_width = 40;
+  const max_col_attr_width = 220;
+  const initial_col_attr_width = Math.max(
+    min_col_attr_width,
+    Math.min(max_col_attr_width, viz_state.viz.col_attr_label_width || 100)
+  );
+
+  ini_slider_params(
+    col_attr_width_slider,
+    ((initial_col_attr_width - min_col_attr_width) * 100) /
+      (max_col_attr_width - min_col_attr_width),
+    (event) => {
+      const slider_value = Number(event.target.value) || 0;
+      const width_value =
+        min_col_attr_width +
+        ((max_col_attr_width - min_col_attr_width) * slider_value) / 100;
+
+      viz_state.viz.col_attr_label_width = Math.round(width_value);
+      ini_views(viz_state);
+      deck_mat.setProps({
+        views: viz_state.views.views_list,
+      });
+    }
+  );
+  col_attr_width_slider.style.marginTop = '10px';
+
   d3.select(slider_container)
     .append('div')
     .text('Dendro')
@@ -253,8 +281,28 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
       '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif'
     );
 
+  d3.select(slider_container)
+    .append('div')
+    .text('Attr W')
+    .style('width', '40px')
+    .style('height', '14px')
+    .style('display', 'inline-flex')
+    .style('align-items', 'center')
+    .style('justify-content', 'center')
+    .style('text-align', 'center')
+    .style('font-size', '9px')
+    .style('font-weight', 'bold')
+    .style('color', '#47515b')
+    .style('border-color', 'white')
+    .style('margin-left', '10px')
+    .style(
+      'font-family',
+      '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif'
+    );
+
   slider_container.appendChild(viz_state.dendro.sliders.col);
   slider_container.appendChild(viz_state.dendro.sliders.row);
+  slider_container.appendChild(col_attr_width_slider);
 
   // add top margin to ctrl_container and slider_container
   ctrl_container.style.marginTop = '10px';

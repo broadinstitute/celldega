@@ -178,6 +178,7 @@ export const set_mat_constants = (
   viz_state.viz.cat_shift_row = 30;
 
   viz_state.viz.label_buffer = 1;
+  viz_state.viz.col_attr_label_width = 100;
 
   viz_state.animate = {};
   viz_state.animate.duration = 2500;

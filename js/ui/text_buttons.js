@@ -251,13 +251,7 @@ const cell_button_callback = async (event, deck_ist, layers_obj, viz_state) => {
   toggle_path_layer_visibility(layers_obj, is_visible);
 
   if (is_visible) {
-    toggle_nbhd_layer_visibility(layers_obj, false);
-    viz_state.obs_store.viz_nbhd_layer.set(false);
     viz_state.obs_store.viz_edit_layer.set(false);
-
-    if (viz_state.nbhd.is_nbhd) {
-      viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
-    }
 
     viz_state.cats.svg_bar_cluster.selectAll('rect').style('opacity', 1.0);
   } else {
@@ -285,6 +279,24 @@ const nbhd_button_callback = async (event, deck_ist, layers_obj, viz_state) => {
   toggle_visible_button(event);
 
   toggle_slider(viz_state.sliders.nbhd, is_visible);
+
+  if (is_visible) {
+    const selected_nbhds = viz_state.obs_store.selected_nbhds.get();
+    const available_nbhds = new Set(
+      (viz_state.nbhd?.feature_collection?.features || []).map(
+        (feature) => feature.properties.cat
+      )
+    );
+    const has_matching_selection = selected_nbhds.some((nbhd) =>
+      available_nbhds.has(nbhd)
+    );
+
+    // If a stale neighborhood selection is active, clear it so polygons render.
+    if (selected_nbhds.length > 0 && !has_matching_selection) {
+      viz_state.obs_store.selected_nbhds.set([]);
+      viz_state.nbhd?.svg_bar_nbhd?.selectAll?.('rect')?.style?.('opacity', 1.0);
+    }
+  }
 
   toggle_nbhd_layer_visibility(layers_obj, is_visible);
 

@@ -5,6 +5,9 @@ import { square_scatter_layer_opacity } from '../deck-gl/layers/square_scatter_l
 import { update_trx_layer_radius } from '../deck-gl/layers/trx_layer';
 import { refresh_layer } from '../utils/refresh_layer';
 
+const CELL_RADIUS_SLIDER_SCALE = 5;
+const TRX_RADIUS_SLIDER_SCALE = 100;
+
 const clamp_to_byte = (value) => {
   return Math.max(0, Math.min(255, Math.round(value)));
 };
@@ -208,11 +211,9 @@ const tile_slider_callback = async (deck_sst, viz_state, layers_sst) => {
 };
 
 const cell_slider_callback = async (deck_ist, layers_obj, viz_state) => {
-  const scale_down_cell_radius = 5;
-
   update_cell_layer_radius(
     layers_obj,
-    viz_state.sliders.cell.value / scale_down_cell_radius,
+    viz_state.sliders.cell.value / CELL_RADIUS_SLIDER_SCALE,
     viz_state
   );
 
@@ -220,11 +221,9 @@ const cell_slider_callback = async (deck_ist, layers_obj, viz_state) => {
 };
 
 const trx_slider_callback = async (deck_ist, layers_obj, viz_state) => {
-  const scale_down_trx_radius = 100;
-
   update_trx_layer_radius(
     layers_obj,
-    viz_state.sliders.trx.value / scale_down_trx_radius
+    viz_state.sliders.trx.value / TRX_RADIUS_SLIDER_SCALE
   );
 
   refresh_layer(viz_state, layers_obj, 'trx_layer');
@@ -302,7 +301,7 @@ export const ini_slider = (slider_type, inst_deck, layers_obj, viz_state) => {
       callback = () => tile_slider_callback(inst_deck, viz_state, layers_obj);
       break;
     case 'cell':
-      ini_value = viz_state.genes.trx_ini_raidus * 100;
+      ini_value = viz_state.genes.cell_ini_radius * CELL_RADIUS_SLIDER_SCALE;
       callback = () => cell_slider_callback(inst_deck, layers_obj, viz_state);
       break;
     case 'trx':

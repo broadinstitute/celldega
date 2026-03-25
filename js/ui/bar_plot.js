@@ -127,6 +127,9 @@ export const bar_callback_nbhd = (
   _layers_obj,
   _viz_state
 ) => {
+  const is_multi_select =
+    _event?.type === 'contextmenu' || _event?.button === 2;
+
   if (_viz_state.nbhd.edit) {
     _viz_state.obs_store.viz_edit_layer.set(true);
 
@@ -143,37 +146,46 @@ export const bar_callback_nbhd = (
     toggle_slider(_viz_state.sliders.nbhd, true);
 
     const prev_selected_nbhds = _viz_state.obs_store.selected_nbhds.get();
-    if (
-      prev_selected_nbhds[0] === _d.name &&
-      prev_selected_nbhds.length === 1
-    ) {
-      _viz_state.obs_store.selected_nbhds.set([]);
-      _layers_obj.edit_layer = _layers_obj.edit_layer.clone({
-        selectedFeatureIndexes: [],
-      });
-    } else {
-      _viz_state.obs_store.selected_nbhds.set([_d.name]);
-      // Use edit.feature_collection for edit mode
-      const features = _viz_state.edit?.feature_collection?.features || [];
-      const featureIndex = features.findIndex(
-        (f) => f.properties.name === _d.name || f.properties.cat === _d.name
-      );
-      if (featureIndex >= 0) {
-        _layers_obj.edit_layer = _layers_obj.edit_layer.clone({
-          selectedFeatureIndexes: [featureIndex],
-        });
+    let next_selected_nbhds;
+    if (is_multi_select) {
+      if (prev_selected_nbhds.includes(_d.name)) {
+        next_selected_nbhds = prev_selected_nbhds.filter((n) => n !== _d.name);
+      } else {
+        next_selected_nbhds = [...prev_selected_nbhds, _d.name];
       }
+    } else if (
+      prev_selected_nbhds.length === 1 &&
+      prev_selected_nbhds[0] === _d.name
+    ) {
+      next_selected_nbhds = [];
+    } else {
+      next_selected_nbhds = [_d.name];
     }
+    _viz_state.obs_store.selected_nbhds.set(next_selected_nbhds);
+
+    // Use edit.feature_collection for edit mode
+    const features = _viz_state.edit?.feature_collection?.features || [];
+    const selectedFeatureIndexes = features
+      .map((f, idx) =>
+        next_selected_nbhds.includes(f.properties.name) ||
+        next_selected_nbhds.includes(f.properties.cat)
+          ? idx
+          : -1
+      )
+      .filter((idx) => idx >= 0);
+    _layers_obj.edit_layer = _layers_obj.edit_layer.clone({
+      selectedFeatureIndexes,
+    });
 
     refresh_layer(_viz_state, _layers_obj, 'edit_layer');
 
     if (_viz_state.obs_store.selected_nbhds.get().length > 0) {
+      const selected_nbhds = _viz_state.obs_store.selected_nbhds.get();
       _viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', (d) => {
-        if (d.name === _d.name) {
+        if (selected_nbhds.includes(d.name)) {
           return 1.0;
-        } else {
-          return 0.2;
         }
+        return 0.2;
       });
     } else {
       _viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', 1.0);
@@ -194,7 +206,15 @@ export const bar_callback_nbhd = (
     }
 
     const prev_selected_nbhds = _viz_state.obs_store.selected_nbhds.get();
-    if (
+    if (is_multi_select) {
+      if (prev_selected_nbhds.includes(_d.name)) {
+        _viz_state.obs_store.selected_nbhds.set(
+          prev_selected_nbhds.filter((n) => n !== _d.name)
+        );
+      } else {
+        _viz_state.obs_store.selected_nbhds.set([...prev_selected_nbhds, _d.name]);
+      }
+    } else if (
       prev_selected_nbhds[0] === _d.name &&
       prev_selected_nbhds.length === 1
     ) {
@@ -206,12 +226,12 @@ export const bar_callback_nbhd = (
     refresh_layer(_viz_state, _layers_obj, 'nbhd_layer');
 
     if (_viz_state.obs_store.selected_nbhds.get().length > 0) {
+      const selected_nbhds = _viz_state.obs_store.selected_nbhds.get();
       _viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', (d) => {
-        if (d.name === _d.name) {
+        if (selected_nbhds.includes(d.name)) {
           return 1.0;
-        } else {
-          return 0.2;
         }
+        return 0.2;
       });
     } else {
       _viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', 1.0);
@@ -279,7 +299,14 @@ export const make_bar_graph = (
     .attr('transform', (d, i) => `translate(2,${y_new(i) + 2})`)
     .on('click', (event, d) =>
       click_callback(event, d, deck_ist, layers_obj, viz_state)
-    );
+    )
+    .on('contextmenu', (event, d) => {
+      // Right-click multi-select for neighborhood bar controls.
+      if (click_callback === bar_callback_nbhd) {
+        event.preventDefault();
+        click_callback(event, d, deck_ist, layers_obj, viz_state);
+      }
+    });
 
   bar
     .append('rect')

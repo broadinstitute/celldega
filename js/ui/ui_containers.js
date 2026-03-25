@@ -14,6 +14,7 @@ import { update_path_pickable_state } from '../deck-gl/layers/path_layer';
 import { update_trx_pickable_state } from '../deck-gl/layers/trx_layer';
 import { update_dendro_layer_data } from '../deck-gl/matrix/dendro_layers';
 import { get_mat_layers_list } from '../deck-gl/matrix/matrix_layers';
+import { ini_views } from '../deck-gl/matrix/views';
 import { get_layers_list } from '../deck-gl/utils/layers_ist';
 import {
   uniprot_data,
@@ -26,6 +27,7 @@ import {
 } from '../matrix/dendro';
 import { debounce } from '../utils/debounce';
 import { refresh_layer } from '../utils/refresh_layer';
+import { capture_deck_screenshot } from '../utils/screenshot';
 
 import {
   make_bar_graph,
@@ -74,6 +76,85 @@ export const make_ctrl_container = () => {
   ctrl_container.className = 'ctrl_container';
   ctrl_container.style.width = '100%'; // '535px'
   return ctrl_container;
+};
+
+const append_screenshot_button = (container, deck, prefix) => {
+  const button = document.createElement('button');
+  button.textContent = '📷 PNG';
+  button.title = 'Download high-resolution screenshot';
+  button.style.marginTop = '6px';
+  button.style.marginLeft = '8px';
+  button.style.height = '22px';
+  button.style.fontSize = '11px';
+  button.style.cursor = 'pointer';
+  button.style.borderRadius = '6px';
+  button.style.border = '1px solid #d3d3d3';
+  button.style.backgroundColor = '#f8f9fa';
+  button.style.color = '#47515b';
+  button.style.padding = '0 8px';
+  button.addEventListener('click', () =>
+    capture_deck_screenshot(deck, prefix, 3)
+  );
+  container.appendChild(button);
+};
+
+const append_size_controls = (container, deck, viz_state) => {
+  if (!viz_state?.root) {
+    return;
+  }
+
+  const controls = document.createElement('div');
+  controls.style.display = 'flex';
+  controls.style.flexDirection = 'column';
+  controls.style.marginLeft = '8px';
+  controls.style.marginTop = '4px';
+  controls.style.gap = '4px';
+
+  const width_slider = document.createElement('input');
+  const height_slider = document.createElement('input');
+
+  const current_width = Math.round(viz_state.root.clientWidth || 900);
+  const current_height = Math.round(viz_state.root.clientHeight || 700);
+
+  const setup_slider = (slider, initial_value) => {
+    ini_slider_params(slider, initial_value, () => {});
+    slider.min = '300';
+    slider.max = '2000';
+    slider.value = String(initial_value);
+    slider.style.width = '85px';
+  };
+
+  setup_slider(width_slider, current_width);
+  setup_slider(height_slider, current_height);
+
+  const apply_size = () => {
+    const new_width = Number(width_slider.value) || current_width;
+    const new_height = Number(height_slider.value) || current_height;
+    viz_state.root.style.width = `${new_width}px`;
+    viz_state.root.style.height = `${new_height}px`;
+    deck.setProps({
+      width: new_width,
+      height: new_height,
+    });
+  };
+
+  width_slider.addEventListener('input', apply_size);
+  height_slider.addEventListener('input', apply_size);
+
+  const w_label = document.createElement('div');
+  w_label.textContent = 'W';
+  w_label.style.fontSize = '10px';
+  w_label.style.color = '#47515b';
+  const h_label = document.createElement('div');
+  h_label.textContent = 'H';
+  h_label.style.fontSize = '10px';
+  h_label.style.color = '#47515b';
+
+  controls.appendChild(w_label);
+  controls.appendChild(width_slider);
+  controls.appendChild(h_label);
+  controls.appendChild(height_slider);
+  container.appendChild(controls);
 };
 
 export const flex_container = (class_name, flex_direction, height = null) => {
@@ -230,6 +311,37 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
   viz_state.dendro.sliders.col.style.marginTop = '3px';
   viz_state.dendro.sliders.row.style.marginTop = '10px';
 
+  const row_label_width_slider = document.createElement('input');
+  const min_row_label_width = 60;
+  const max_row_label_width = 320;
+  const initial_row_label_width = Math.max(
+    min_row_label_width,
+    Math.min(max_row_label_width, viz_state.viz.row_label || 75)
+  );
+
+  ini_slider_params(
+    row_label_width_slider,
+    ((initial_row_label_width - min_row_label_width) * 100) /
+      (max_row_label_width - min_row_label_width),
+    (event) => {
+      const slider_value = Number(event.target.value) || 0;
+      const width_value =
+        min_row_label_width +
+        ((max_row_label_width - min_row_label_width) * slider_value) / 100;
+
+      viz_state.viz.row_label = Math.round(width_value);
+      viz_state.viz.row_region =
+        (viz_state.viz.row_cat_width + viz_state.viz.extra_space.row) *
+          viz_state.attr.num.row +
+        viz_state.viz.row_label;
+      ini_views(viz_state);
+      deck_mat.setProps({
+        views: viz_state.views.views_list,
+      });
+    }
+  );
+  row_label_width_slider.style.marginTop = '6px';
+
   d3.select(slider_container)
     .append('div')
     .text('Dendro')
@@ -253,8 +365,28 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
       '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif'
     );
 
+  d3.select(slider_container)
+    .append('div')
+    .text('Row W')
+    .style('width', '40px')
+    .style('height', '14px')
+    .style('display', 'inline-flex')
+    .style('align-items', 'center')
+    .style('justify-content', 'center')
+    .style('text-align', 'center')
+    .style('font-size', '9px')
+    .style('font-weight', 'bold')
+    .style('color', '#47515b')
+    .style('border-color', 'white')
+    .style('margin-left', '10px')
+    .style(
+      'font-family',
+      '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif'
+    );
+
   slider_container.appendChild(viz_state.dendro.sliders.col);
   slider_container.appendChild(viz_state.dendro.sliders.row);
+  slider_container.appendChild(row_label_width_slider);
 
   // add top margin to ctrl_container and slider_container
   ctrl_container.style.marginTop = '10px';
@@ -348,6 +480,8 @@ export const make_sst_ui_container = (deck_sst, layers_sst, viz_state) => {
   ctrl_container.appendChild(image_container);
   ctrl_container.appendChild(tile_container);
   ctrl_container.appendChild(viz_state.genes.gene_search);
+  append_size_controls(ctrl_container, deck_sst, viz_state);
+  append_screenshot_button(ctrl_container, deck_sst, 'landscape');
 
   return ui_container;
 };
@@ -922,6 +1056,8 @@ export const make_ist_ui_container = (
   }
   ctrl_container.appendChild(cell_container);
   ctrl_container.appendChild(gene_container);
+  append_size_controls(ctrl_container, deck_ist, viz_state);
+  append_screenshot_button(ctrl_container, deck_ist, 'landscape');
 
   viz_state.genes.gene_search.style.width = '160px';
   viz_state.genes.gene_search.style.marginLeft = '5px';

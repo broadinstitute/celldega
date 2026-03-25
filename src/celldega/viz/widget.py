@@ -93,6 +93,7 @@ class Landscape(anywidget.AnyWidget):
     scale_bar_microns_per_pixel = traitlets.Float(default_value=None, allow_none=True).tag(
         sync=True
     )
+    cell_centroid_size = traitlets.Float(5.0).tag(sync=True)
 
     nbhd = traitlets.Instance(gpd.GeoDataFrame, allow_none=True)
     nbhd_geojson = traitlets.Dict({}).tag(sync=True)

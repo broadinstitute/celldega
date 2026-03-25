@@ -78,7 +78,7 @@ export const ini_views = (viz_state) => {
       id: 'col_attr_labels',
       x: `${viz_state.viz.row_region + viz_state.viz.label_buffer + viz_state.viz.mat_width}px`,
       y: '0px',
-      width: `${viz_state.viz.dendrogram_width + 60}px`,
+      width: `${viz_state.viz.dendrogram_width + viz_state.viz.col_attr_label_width}px`,
       height: `${viz_state.viz.col_region}px`,
       controller: false,
     }),

@@ -14,7 +14,6 @@ import { set_views } from '../deck-gl/core/views';
 import { ini_background_layer } from '../deck-gl/layers/background_layer';
 import {
   ini_cell_layer,
-  new_toggle_cell_layer_visibility,
   set_cell_layer_onclick,
   toggle_spatial_umap,
   update_cell_pickable_state,
@@ -207,6 +206,7 @@ export const landscape_ist = async (
   rotation_x = 0,
   rotate = 0,
   max_tiles_to_view = 50,
+  cell_centroid_size = 5,
   scale_bar_microns_per_pixel = null,
   base_urls = [],
   cell_name_prefix = false
@@ -402,6 +402,7 @@ export const landscape_ist = async (
   viz_state.genes.gene_counts = [];
   viz_state.genes.selected_genes = [];
   viz_state.genes.trx_ini_radius = trx_radius;
+  viz_state.genes.cell_ini_radius = cell_centroid_size;
   viz_state.genes.trx_names_array = [];
   viz_state.genes.trx_data = [];
   viz_state.genes.gene_text_box = '';
@@ -451,6 +452,10 @@ export const landscape_ist = async (
   const root = document.createElement('div');
   root.style.position = 'relative';
   root.style.height = `${height}px`;
+  root.style.resize = 'both';
+  root.style.overflow = 'auto';
+  root.style.minWidth = '500px';
+  root.style.minHeight = '400px';
   root.style.border = '1px solid #d3d3d3';
 
   const userMicronsPerPixel =
@@ -657,35 +662,25 @@ export const landscape_ist = async (
   viz_state.obs_store.viz_nbhd_layer.subscribe(
     (visible) => {
       if (visible) {
-        // set cell layer to not visible
-        new_toggle_cell_layer_visibility(viz_state.layers_obj, false);
-
+        // keep CELL layer independent from NBHD visibility
         // set gene/cat bars to disabled color
         viz_state.genes.svg_bar_gene.selectAll('rect').style('opacity', 0.2);
-        viz_state.cats.svg_bar_cluster.selectAll('rect').style('opacity', 0.2);
         viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', 1.0);
 
-        viz_state.buttons.buttons.cell.style('color', 'gray');
         viz_state.buttons.buttons.trx.style('color', 'gray');
         viz_state.buttons.buttons.nbhd?.style('color', 'blue');
 
-        toggle_slider(viz_state.sliders.cell, false);
         toggle_slider(viz_state.sliders.trx, false);
         if (viz_state.nbhd.is_nbhd) {
           toggle_slider(viz_state.sliders.nbhd, true);
         }
       } else {
-        new_toggle_cell_layer_visibility(viz_state.layers_obj, true);
-
         viz_state.genes.svg_bar_gene.selectAll('rect').style('opacity', 1.0);
-        viz_state.cats.svg_bar_cluster.selectAll('rect').style('opacity', 1.0);
         viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', 0.2);
 
-        viz_state.buttons.buttons.cell.style('color', 'blue');
         viz_state.buttons.buttons.trx.style('color', 'blue');
         viz_state.buttons.buttons.nbhd?.style('color', 'gray');
 
-        toggle_slider(viz_state.sliders.cell, true);
         toggle_slider(viz_state.sliders.trx, true);
         if (viz_state.nbhd.is_nbhd) {
           toggle_slider(viz_state.sliders.nbhd, false);

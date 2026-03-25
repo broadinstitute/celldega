@@ -20,6 +20,9 @@ export const ini_deck = (root, width, height) => {
     getCursor,
     width,
     height,
+    glOptions: {
+      preserveDrawingBuffer: true,
+    },
   });
 
   return deck_ist;

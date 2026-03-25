@@ -81,10 +81,6 @@ export const matrix_viz = async (
 ) => {
   const root = document.createElement('div');
   root.style.border = '1px solid #d3d3d3';
-  root.style.resize = 'both';
-  root.style.overflow = 'auto';
-  root.style.minWidth = '500px';
-  root.style.minHeight = '500px';
   const deck_mat = ini_deck(root, width, height);
 
   const row_entity = model.get('row_entity');

@@ -18,22 +18,27 @@ export const capture_deck_screenshot = (
     return;
   }
 
-  ctx.setTransform(safe_scale, 0, 0, safe_scale, 0, 0);
-  ctx.drawImage(canvas, 0, 0);
+  deck.redraw(true);
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      ctx.setTransform(safe_scale, 0, 0, safe_scale, 0, 0);
+      ctx.drawImage(canvas, 0, 0);
 
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const filename = `${file_prefix}-${timestamp}.png`;
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const filename = `${file_prefix}-${timestamp}.png`;
 
-  export_canvas.toBlob((blob) => {
-    if (!blob) {
-      return;
-    }
+      export_canvas.toBlob((blob) => {
+        if (!blob) {
+          return;
+        }
 
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  }, 'image/png');
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }, 'image/png');
+    });
+  });
 };

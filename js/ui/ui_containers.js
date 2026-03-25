@@ -98,6 +98,65 @@ const append_screenshot_button = (container, deck, prefix) => {
   container.appendChild(button);
 };
 
+const append_size_controls = (container, deck, viz_state) => {
+  if (!viz_state?.root) {
+    return;
+  }
+
+  const controls = document.createElement('div');
+  controls.style.display = 'flex';
+  controls.style.flexDirection = 'column';
+  controls.style.marginLeft = '8px';
+  controls.style.marginTop = '4px';
+  controls.style.gap = '4px';
+
+  const width_slider = document.createElement('input');
+  const height_slider = document.createElement('input');
+
+  const current_width = Math.round(viz_state.root.clientWidth || 900);
+  const current_height = Math.round(viz_state.root.clientHeight || 700);
+
+  const setup_slider = (slider, initial_value) => {
+    ini_slider_params(slider, initial_value, () => {});
+    slider.min = '300';
+    slider.max = '2000';
+    slider.value = String(initial_value);
+    slider.style.width = '85px';
+  };
+
+  setup_slider(width_slider, current_width);
+  setup_slider(height_slider, current_height);
+
+  const apply_size = () => {
+    const new_width = Number(width_slider.value) || current_width;
+    const new_height = Number(height_slider.value) || current_height;
+    viz_state.root.style.width = `${new_width}px`;
+    viz_state.root.style.height = `${new_height}px`;
+    deck.setProps({
+      width: new_width,
+      height: new_height,
+    });
+  };
+
+  width_slider.addEventListener('input', apply_size);
+  height_slider.addEventListener('input', apply_size);
+
+  const w_label = document.createElement('div');
+  w_label.textContent = 'W';
+  w_label.style.fontSize = '10px';
+  w_label.style.color = '#47515b';
+  const h_label = document.createElement('div');
+  h_label.textContent = 'H';
+  h_label.style.fontSize = '10px';
+  h_label.style.color = '#47515b';
+
+  controls.appendChild(w_label);
+  controls.appendChild(width_slider);
+  controls.appendChild(h_label);
+  controls.appendChild(height_slider);
+  container.appendChild(controls);
+};
+
 export const flex_container = (class_name, flex_direction, height = null) => {
   const container = document.createElement('div');
   container.className = class_name;
@@ -324,6 +383,7 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
   slider_container.appendChild(viz_state.dendro.sliders.col);
   slider_container.appendChild(viz_state.dendro.sliders.row);
   slider_container.appendChild(col_attr_width_slider);
+  append_size_controls(slider_container, deck_mat, viz_state);
   append_screenshot_button(slider_container, deck_mat, 'clustergram');
 
   // add top margin to ctrl_container and slider_container
@@ -418,6 +478,7 @@ export const make_sst_ui_container = (deck_sst, layers_sst, viz_state) => {
   ctrl_container.appendChild(image_container);
   ctrl_container.appendChild(tile_container);
   ctrl_container.appendChild(viz_state.genes.gene_search);
+  append_size_controls(ctrl_container, deck_sst, viz_state);
   append_screenshot_button(ctrl_container, deck_sst, 'landscape');
 
   return ui_container;
@@ -993,6 +1054,7 @@ export const make_ist_ui_container = (
   }
   ctrl_container.appendChild(cell_container);
   ctrl_container.appendChild(gene_container);
+  append_size_controls(ctrl_container, deck_ist, viz_state);
   append_screenshot_button(ctrl_container, deck_ist, 'landscape');
 
   viz_state.genes.gene_search.style.width = '160px';

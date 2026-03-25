@@ -50,6 +50,20 @@ const parseEntitySpec = (value) => {
   return { entity: 'custom', attr: 'name' };
 };
 
+const estimate_row_label_width = (row_nodes = []) => {
+  const min_width = 75;
+  const max_width = 260;
+  const avg_char_width_px = 7;
+
+  const max_label_length = row_nodes.reduce((max_len, node) => {
+    const name = String(node?.name ?? '');
+    return Math.max(max_len, name.length);
+  }, 0);
+
+  const estimated_width = Math.ceil(max_label_length * avg_char_width_px);
+  return Math.max(min_width, Math.min(max_width, estimated_width));
+};
+
 export const set_mat_constants = (
   model,
   network,
@@ -141,7 +155,7 @@ export const set_mat_constants = (
   viz_state.viz.base_font_size = 125;
 
   viz_state.viz.col_label = 75; // 40
-  viz_state.viz.row_label = 75; // 35
+  viz_state.viz.row_label = estimate_row_label_width(network.row_nodes);
 
   viz_state.viz.extra_space = {};
   viz_state.viz.extra_space.row = 5; // 10;

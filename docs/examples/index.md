@@ -10,6 +10,7 @@ Comprehensive tutorials that walk through complete workflows:
 - [Chromium Pre-process](tutorial_notebooks/Scanpy_Chromium.ipynb) - Pre-processing Chromium single-cell RNA-seq data
 - [Single-cell Clustergram Chromium](tutorial_notebooks/Single-Cell_Clustergram_Chromium.ipynb) - Creating clustergram visualizations for single-cell data
 - [Visium-HD Landscape Pre-process](tutorial_notebooks/Visium-HD_Landscape_Pre-process.ipynb) - Pre-processing Visium HD data for Landscape visualization
+- [Comparison of domain identification algorithms in Celldega](tutorial_notebooks/domain_comparison-Celldega_w_external_algorithms.ipynb) - Comparison of domain identification algorithms in Celldega's Landscape visualization
 
 ## Brief Notebooks
 

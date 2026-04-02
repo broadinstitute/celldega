@@ -14,9 +14,9 @@ Celldega provides:
 
 ## Key Concepts
 
-### LandscapeFiles
+### DegaFiles
 
-LandscapeFiles is the file format used by Celldega to store pre-processed data for fast web-based visualization. These files include:
+DegaFiles is the file format used by Celldega to store pre-processed data for fast web-based visualization. These files include:
 
 - Image pyramids (for efficient zooming)
 - Cell metadata and boundaries

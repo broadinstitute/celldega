@@ -1721,6 +1721,7 @@ def _xenium_unzipper(target_dir):
         # Restore the original working directory
         os.chdir(original_dir)
 
+
 def _check_required_files(technology, data_dir):
     """
     Checks if all required files or directories exist for the specified technology.
@@ -1769,7 +1770,8 @@ def _check_required_files(technology, data_dir):
 
     # Standard checks (skip morphology file for Xenium)
     missing_files_or_dir = [
-        file for file in required_files_or_dir
+        file
+        for file in required_files_or_dir
         if file != "morphology_focus/morphology_focus_0000.ome.tif"
         and not (data_path / file).exists()
     ]

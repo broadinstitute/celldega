@@ -6,22 +6,22 @@ These example notebooks demonstrate how to use Celldega for spatial transcriptom
 
 Comprehensive tutorials that walk through complete workflows:
 
-- [Scanpy-Squidpy Xenium Pancreas](tutorial_notebooks/Scanpy-Squidpy_Xenium_Pancreas.ipynb) - Full analysis workflow using Scanpy and Squidpy with Xenium data
-- [Chromium Pre-process](tutorial_notebooks/Scanpy_Chromium.ipynb) - Pre-processing Chromium single-cell RNA-seq data
-- [Single-cell Clustergram Chromium](tutorial_notebooks/Single-Cell_Clustergram_Chromium.ipynb) - Creating clustergram visualizations for single-cell data
-- [Visium-HD Landscape Pre-process](tutorial_notebooks/Visium-HD_Landscape_Pre-process.ipynb) - Pre-processing Visium HD data for Landscape visualization
-- [Comparison of domain identification algorithms in Celldega](tutorial_notebooks/domain_comparison-Celldega_w_external_algorithms.ipynb) - Comparison of domain identification algorithms in Celldega's Landscape visualization
+- [Scanpy-Squidpy Xenium Pancreas](guided_notebooks/Scanpy-Squidpy_Xenium_Pancreas.ipynb) - Full analysis workflow using Scanpy and Squidpy with Xenium data
+- [Chromium Pre-process](guided_notebooks/Scanpy_Chromium.ipynb) - Pre-processing Chromium single-cell RNA-seq data
+- [Single-cell Clustergram Chromium](guided_notebooks/Single-Cell_Clustergram_Chromium.ipynb) - Creating clustergram visualizations for single-cell data
+- [Visium-HD Landscape Pre-process](guided_notebooks/Visium-HD_Landscape_Pre-process.ipynb) - Pre-processing Visium HD data for Landscape visualization
+- [Comparison of domain identification algorithms in Celldega](guided_notebooks/domain_comparison-Celldega_w_external_algorithms.ipynb) - Comparison of domain identification algorithms in Celldega's Landscape visualization
 
 ## Brief Notebooks
 
 Focused examples demonstrating specific features:
 
-- [Landscape View Xenium](brief_notebooks/Landscape_View_Xenium.ipynb) - Basic Landscape visualization of Xenium data
-- [Landscape-Heatmap Visium-HD](brief_notebooks/Landscape-Heatmap-Visium-HD.ipynb) - Combined Landscape and heatmap visualization
-- [UMAP-Cluster Pancreas Xenium](brief_notebooks/UMAP-Cluster_Pancreas_Xenium.ipynb) - UMAP clustering with Xenium pancreas data
-- [Visium-HD Landscape Mouse Lung](brief_notebooks/Visium-HD_Landscape_Mouse_Lung_FF.ipynb) - Visium HD visualization example
-- [Custom Segmentation](brief_notebooks/Custom_Segmentation.ipynb) - Using custom cell segmentation with Celldega
-- [Yearbook-Query](brief_notebooks/Yearbook_Query.ipynb) - Using single-cell Yearbook view
+- [Landscape View Xenium](quick_notebooks/Landscape_View_Xenium.ipynb) - Basic Landscape visualization of Xenium data
+- [Landscape-Heatmap Visium-HD](quick_notebooks/Landscape-Heatmap-Visium-HD.ipynb) - Combined Landscape and heatmap visualization
+- [UMAP-Cluster Pancreas Xenium](quick_notebooks/UMAP-Cluster_Pancreas_Xenium.ipynb) - UMAP clustering with Xenium pancreas data
+- [Visium-HD Landscape Mouse Lung](quick_notebooks/Visium-HD_Landscape_Mouse_Lung_FF.ipynb) - Visium HD visualization example
+- [Custom Segmentation](quick_notebooks/Custom_Segmentation.ipynb) - Using custom cell segmentation with Celldega
+- [Yearbook-Query](quick_notebooks/Yearbook_Query.ipynb) - Using single-cell Yearbook view
 
 ## Running the Notebooks
 

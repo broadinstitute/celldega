@@ -76,7 +76,7 @@ For standalone JavaScript visualizations, your data must be hosted publicly (e.g
 - `trx_tiles/` - Transcript location tiles
 - `meta_gene.parquet` - Gene metadata
 
-See the [File Formats](../file_formats.md) documentation for details.
+See the [File Formats](../file_formats/index.md) documentation for details.
 
 ## API Reference
 

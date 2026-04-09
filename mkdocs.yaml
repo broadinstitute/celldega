@@ -18,8 +18,9 @@ nav:
   - Home: index.md
   - Getting Started: getting_started.md
   - Installation: installation.md
-  - File Formats: file_formats.md
-  - Row Group Storage: row_groups.md
+  - File Formats:
+      - file_formats/index.md
+      - file_formats/row_groups.md
   - Usage: usage.md
   - Python API:
       - python/index.md
@@ -27,7 +28,6 @@ nav:
       - clust: python/clust/api.md
       - nbhd: python/nbhd/api.md
       - viz: python/viz/api.md
-
   - JavaScript API:
       - javascript/index.md
       - API: javascript/api.md

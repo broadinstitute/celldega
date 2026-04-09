@@ -10,9 +10,9 @@
 
 Celldega is a spatial analysis and visualization library that is being developed by the [Spatial Technology Platform](https://www.broadinstitute.org/spatial-technology-platform) at the [Broad Institute of MIT and Harvard](https://www.broadinstitute.org/spatial-technology-platform). This project enables researchers to easily visualize large ST datasets (e.g., datasets with >100M transcripts) alongside single-cell and spatial analysis notebook workflows (e.g., [sverse](https://scverse.org/) tools and novel spatial analysis approaches).
 
-- [Getting Started](overview/getting_started.md)
-- [Installation](overview/installation.md)
-- [Usage](overview/usage.md)
+- [Getting Started](getting_started.md)
+- [Installation](installation.md)
+- [Usage](usage.md)
 
 ## What's New
 The project was recently presented at the Broad Retreat Data Visualization Breakout Session -

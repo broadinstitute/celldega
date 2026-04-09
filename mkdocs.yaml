@@ -16,13 +16,11 @@ extra:
 
 nav:
   - Home: index.md
-  - Overview:
-      - overview/index.md
-      - Getting Started: overview/getting_started.md
-      - Installation: overview/installation.md
-      - File Formats: overview/file_formats.md
-      - Row Group Storage: overview/row_groups.md
-      - Usage: overview/usage.md
+  - Getting Started: getting_started.md
+  - Installation: installation.md
+  - File Formats: file_formats.md
+  - Row Group Storage: row_groups.md
+  - Usage: usage.md
   - Python API:
       - python/index.md
       - pre: python/pre/api.md

@@ -1,3 +1,9 @@
+import {
+  buildCellSlice,
+  buildColAxisSlice,
+  buildRowAxisSlice,
+  emitMatrixSliceRequest,
+} from './matrix/matrix_axis_slice';
 import { networkFromDegaFiles } from './read_parquet/network_from_dega_files';
 import { networkFromParquet } from './read_parquet/network_from_parquet';
 import { objects_from_parquet } from './read_parquet/objects_from_parquet';
@@ -388,4 +394,8 @@ export default {
   render_yearbook,
   render_matrix_new,
   render_enrich,
+  buildRowAxisSlice,
+  buildColAxisSlice,
+  buildCellSlice,
+  emitMatrixSliceRequest,
 };

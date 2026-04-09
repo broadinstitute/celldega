@@ -589,7 +589,12 @@ class Matrix:
         if self.data is None:
             raise ValueError(ERRORS["no_data"])
 
-        # Use cached dat structure (triggers lazy loading)
+        # Rebuild node_info from current row_attr/col_attr and metadata. Without this,
+        # cached dat can stay stale after mutating attr lists (e.g. appending a column
+        # name after add_category), so exported row_nodes/col_nodes miss cat-* keys.
+        self._dat_cache = None
+        self._dirty_flags[CacheLevel.DATA.value] = True
+
         _ = self.dat
 
         # Update rankings

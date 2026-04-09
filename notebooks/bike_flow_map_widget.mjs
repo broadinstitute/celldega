@@ -33,11 +33,48 @@ const createStore = () => ({
   deck_check: Observable({ inputs: true, computed: true, layers: true }),
   deck_ready: Observable(false),
   palette_rgb: Observable([]),
+  matrix_axis_slice: Observable({}),
 });
 
 const log = (store, ...args) => {
   if (store.debug.get()) console.log('[bike-map]', ...args);
 };
+
+/** Map station click: keep top-K neighbors per direction (row + col slices) for readability. */
+const MAP_STATION_SLICE_TOP_K = 25;
+
+/**
+ * Ask the Clustergram for a normal row-axis + col-axis slice (same station on both axes).
+ */
+function pushRowColMatrixSliceRequest(model, rowIndex, colIndex) {
+  if (!model?.set) return;
+  const req_id =
+    typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `r${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  model.set('matrix_slice_request_out', {});
+  model.set('matrix_slice_request_out', {
+    req_id,
+    op: 'row_col',
+    row_index: Number(rowIndex),
+    col_index: Number(colIndex),
+    max_entries: MAP_STATION_SLICE_TOP_K,
+  });
+  model.save_changes();
+}
+
+function findAxisIndex(names, raw) {
+  const want = String(raw || '').trim();
+  if (!want || !Array.isArray(names)) return -1;
+  let i = names.findIndex((x) => String(x).trim() === want);
+  if (i >= 0) return i;
+  if (want.includes('|')) {
+    const rhs = want.split('|', 2)[1].trim();
+    i = names.findIndex((x) => String(x).trim() === rhs);
+    if (i >= 0) return i;
+  }
+  return -1;
+}
 
 const sameList = (a, b) => {
   if (!Array.isArray(a) || !Array.isArray(b)) return false;
@@ -208,21 +245,28 @@ function render({ model, el }) {
   let deck = null;
   let raf = 0;
   let renderVersion = 0;
-  let lastSig = "";
   let lastActionKey = null;
   let lastActionSeq = -1;
-  /** Increments when linked Clustergram traits change (jslink / static HTML); drives label+mat toggle. */
+  /**
+   * Increments on each `click_info` comm update from the Clustergram (including the null-then-set pair).
+   * Used for label/mat/cat toggle detection. Intentionally not tied to `matrix_slice_result` alone so
+   * slice-only updates do not spuriously toggle the map off.
+   */
   let linkInteractionSeq = 0;
-  let linkSnap = { ci: '', rows: '', cols: '' };
+  let linkSnap = { ci: '', rows: '', cols: '', sl: '' };
 
   const getLinkedWeights = () => {
     const focus = store.focus.get();
-    const idx = store.edge_index.get() || {};
     const out = new Map();
     const inn = new Map();
-    if (!focus || !idx[focus]) return { out, inn };
-    for (const e of idx[focus].out || []) out.set(e.name, Number(e.w) || 0);
-    for (const e of idx[focus].in || []) inn.set(e.name, Number(e.w) || 0);
+    if (!focus) return { out, inn };
+    for (const e of store.edges.get() || []) {
+      if (e.direction === 'out' && e.source_name === focus) {
+        out.set(e.target_name, Number(e.weight) || 0);
+      } else if (e.direction === 'in' && e.target_name === focus) {
+        inn.set(e.source_name, Number(e.weight) || 0);
+      }
+    }
     return { out, inn };
   };
 
@@ -232,17 +276,6 @@ function render({ model, el }) {
     const v = info.value || {};
     const idx = store.edge_index.get() || {};
     const seq = linkInteractionSeq;
-    const sig = JSON.stringify({
-      t,
-      v,
-      rows: store.selected_rows.get() || [],
-      cols: store.selected_cols.get() || [],
-    });
-    if (sig === lastSig) {
-      log(store, 'compute skip (same signature)', t);
-      return;
-    }
-    lastSig = sig;
     log(store, 'compute start', t, 'rows', (store.selected_rows.get()||[]).length, 'cols', (store.selected_cols.get()||[]).length);
 
     const setState = (focus, highlights, edges) =>
@@ -258,6 +291,15 @@ function render({ model, el }) {
       return txt;
     };
 
+    const coordMap = {};
+    for (const s of store.stations.get() || []) {
+      const k = stationFrom(String(s.name || ''));
+      if (k && s.lng != null && s.lat != null) {
+        coordMap[k] = [Number(s.lng), Number(s.lat)];
+      }
+    }
+    const acoord = (n) => (n && idx[n]?.coord) || (n ? coordMap[n] : undefined);
+
     if (t === 'row_label' || t === 'col_label') {
       const name = stationFrom(v.name);
       const actionKey = `${t}:${name}`;
@@ -267,6 +309,52 @@ function render({ model, el }) {
         lastActionSeq = seq;
         log(store, 'label toggle off', t, name);
         return;
+      }
+      const sl = store.matrix_axis_slice.get() || {};
+      const entries = sl.entries;
+      const rowAxis = t === 'row_label' && sl.slice_kind === 'row_axis';
+      const colAxis = t === 'col_label' && sl.slice_kind === 'col_axis';
+      if (Array.isArray(entries) && (rowAxis || colAxis)) {
+        const primary = stationFrom(sl.primary_name);
+        if (primary === name && entries.length) {
+          const edges = [];
+          for (const e of entries) {
+            const other = stationFrom(e.counterpart_name);
+            const cs = acoord(other);
+            const ct = acoord(name);
+            if (!other || !cs || !ct) continue;
+            const w = Number(e.value) || 0;
+            const geom = Math.sqrt(Math.max(0, w));
+            if (rowAxis) {
+              edges.push({
+                source_name: other,
+                target_name: name,
+                direction: 'in',
+                opacity: Math.max(0.15, Math.min(0.98, w * 3)),
+                weight: w,
+                geom_share: geom,
+                source: cs,
+                target: ct,
+              });
+            } else {
+              edges.push({
+                source_name: name,
+                target_name: other,
+                direction: 'out',
+                opacity: Math.max(0.15, Math.min(0.98, w * 3)),
+                weight: w,
+                geom_share: geom,
+                source: ct,
+                target: cs,
+              });
+            }
+          }
+          setState(name, name ? [name] : [], edges);
+          lastActionKey = actionKey;
+          lastActionSeq = seq;
+          log(store, 'label+axis_slice', t, name, sl.slice_kind, 'edges', edges.length);
+          return;
+        }
       }
       const bucket = idx[name] || { out: [], in: [] };
       const edges = [
@@ -312,8 +400,8 @@ function render({ model, el }) {
         return;
       }
       const p = Number(v.value || 0);
-      const src = idx[col]?.coord;
-      const dst = idx[row]?.coord;
+      const src = acoord(col);
+      const dst = acoord(row);
       const outEdge = (idx[col]?.out || []).find((e) => e.name === row);
       const g = outEdge != null ? Number(outEdge.geom_share) : NaN;
       const geom = Number.isFinite(g) && g > 0 ? g : Math.sqrt(Math.max(0, p));
@@ -338,9 +426,10 @@ function render({ model, el }) {
     }
 
     if (t === 'row_dendro' || t === 'col_dendro') {
-      const fromClick = (v.selected_names || []).map(stationFrom).filter((n) => idx[n]);
-      const rows = (store.selected_rows.get() || []).map(stationFrom).filter((n) => idx[n]);
-      const cols = (store.selected_cols.get() || []).map(stationFrom).filter((n) => idx[n]);
+      const hasStation = (n) => Boolean(n && (idx[n] || coordMap[n]));
+      const fromClick = (v.selected_names || []).map(stationFrom).filter(hasStation);
+      const rows = (store.selected_rows.get() || []).map(stationFrom).filter(hasStation);
+      const cols = (store.selected_cols.get() || []).map(stationFrom).filter(hasStation);
 
       if (v.is_unselecting || (Array.isArray(v.selected_names) && v.selected_names.length === 0 && rows.length === 0 && cols.length === 0)) {
         setState('', [], []);
@@ -371,7 +460,7 @@ function render({ model, el }) {
       const attrIndex = v.attr_index;
       const catVal = v.value;
       const rawNames = Array.isArray(v.node_names) ? v.node_names : [];
-      const names = [...new Set(rawNames.map(stationFrom).filter((n) => idx[n]))];
+      const names = [...new Set(rawNames.map(stationFrom).filter((n) => idx[n] || coordMap[n]))];
       const actionKey = `cat:${axis}:${attrIndex}:${String(catVal)}`;
       if (actionKey === lastActionKey && seq !== lastActionSeq) {
         setState('', [], []);
@@ -384,6 +473,63 @@ function render({ model, el }) {
       lastActionKey = actionKey;
       lastActionSeq = seq;
       log(store, 'cat', axis, 'value', catVal, 'stations', names.length);
+      return;
+    }
+
+    const slPair = store.matrix_axis_slice.get() || {};
+    if (slPair.slice_kind === 'row_col') {
+      const primaryRaw =
+        slPair.row_axis?.primary_name ?? slPair.col_axis?.primary_name ?? null;
+      if (!primaryRaw) return;
+      const focusName = stationFrom(primaryRaw);
+      const focusNow = store.focus.get() || '';
+      if (focusNow && focusName !== focusNow) {
+        log(store, 'row_col slice skip (stale vs map focus)', focusName, focusNow);
+        return;
+      }
+      const incoming = slPair.row_axis?.entries || [];
+      const outgoing = slPair.col_axis?.entries || [];
+      const edges = [];
+      for (const e of incoming) {
+        const other = stationFrom(e.counterpart_name);
+        const cs = acoord(other);
+        const ct = acoord(focusName);
+        if (!other || !cs || !ct) continue;
+        const w = Number(e.value) || 0;
+        const geom = Math.sqrt(Math.max(0, w));
+        edges.push({
+          source_name: other,
+          target_name: focusName,
+          direction: 'in',
+          opacity: Math.max(0.15, Math.min(0.98, w * 3)),
+          weight: w,
+          geom_share: geom,
+          source: cs,
+          target: ct,
+        });
+      }
+      for (const e of outgoing) {
+        const other = stationFrom(e.counterpart_name);
+        const cs = acoord(focusName);
+        const ct = acoord(other);
+        if (!other || !cs || !ct) continue;
+        const w = Number(e.value) || 0;
+        const geom = Math.sqrt(Math.max(0, w));
+        edges.push({
+          source_name: focusName,
+          target_name: other,
+          direction: 'out',
+          opacity: Math.max(0.15, Math.min(0.98, w * 3)),
+          weight: w,
+          geom_share: geom,
+          source: cs,
+          target: ct,
+        });
+      }
+      setState(focusName, focusName ? [focusName] : [], edges);
+      lastActionKey = `row_col:${focusName}`;
+      lastActionSeq = seq;
+      log(store, 'row_col slice', focusName, 'edges', edges.length);
       return;
     }
   };
@@ -473,7 +619,7 @@ function render({ model, el }) {
           }
           return TRAFFIC_UNCONNECTED_RGBA;
         }
-        // Dendrogram / matrix highlights (no focus): keep dendrogram cluster colors
+        // Dendrogram / matrix highlights (no focus): cluster colors from palette_rgb
         if (highlights.size > 0) {
           const c = clusterFillColor(d.cluster_id, palRgb);
           if (highlights.has(n)) return [c[0], c[1], c[2], 242];
@@ -487,44 +633,33 @@ function render({ model, el }) {
       },
       onClick: (info) => {
         if (!info.object) return;
-        const n = info.object.name;
+        const n = String(info.object.name || '').trim();
         if (store.focus.get() === n) {
           setDerivedState(store, { focus: '', highlights: [], edges: [] });
           lastActionKey = null;
+          model.set('click_info', {});
+          model.set('matrix_axis_slice', {});
+          model.save_changes();
           scheduleRender();
           log(store, 'map toggle off', n);
           return;
         }
-        const idx = store.edge_index.get() || {};
-        const bucket = idx[n] || { out: [], in: [] };
-        const e = [
-          ...(bucket.out || []).map((x) => ({
-            source_name: n,
-            target_name: x.name,
-            direction: 'out',
-            opacity: x.opacity,
-            weight: x.w,
-            geom_share: x.geom_share,
-            trips: x.trips,
-            source: x.source,
-            target: x.target,
-          })),
-          ...(bucket.in || []).map((x) => ({
-            source_name: x.name,
-            target_name: n,
-            direction: 'in',
-            opacity: x.opacity,
-            weight: x.w,
-            geom_share: x.geom_share,
-            trips: x.trips,
-            source: x.source,
-            target: x.target,
-          })),
-        ];
-        setDerivedState(store, { focus: n, highlights: [n], edges: e });
+        const rowNames = model.get('cg_row_names') || [];
+        const colNames = model.get('cg_col_names') || [];
+        const rowIx = findAxisIndex(rowNames, n);
+        const colIx = findAxisIndex(colNames, n);
+        if (rowIx < 0 || colIx < 0) {
+          log(store, 'map click: missing matrix axis index', n, 'row', rowIx, 'col', colIx);
+          return;
+        }
+        model.set('click_info', {});
+        model.set('matrix_axis_slice', {});
+        model.save_changes();
+        pushRowColMatrixSliceRequest(model, rowIx, colIx);
+        setDerivedState(store, { focus: n, highlights: [n], edges: [] });
         lastActionKey = null;
         scheduleRender();
-        log(store, 'map click', n, 'edges', e.length);
+        log(store, 'map click -> row_col request', n, rowIx, colIx);
       },
     });
 
@@ -674,15 +809,16 @@ function render({ model, el }) {
     store.width,
     store.height,
     store.palette_rgb,
+    store.matrix_axis_slice,
   ].forEach((obs) => obs.subscribe(() => scheduleRender(), { immediate: false }));
 
   const syncFromModel = () => {
     const ci = JSON.stringify(model.get('click_info') || {});
     const rows = JSON.stringify(model.get('selected_rows') || []);
     const cols = JSON.stringify(model.get('selected_cols') || []);
-    if (ci !== linkSnap.ci || rows !== linkSnap.rows || cols !== linkSnap.cols) {
-      linkSnap = { ci, rows, cols };
-      linkInteractionSeq += 1;
+    const sl = JSON.stringify(model.get('matrix_axis_slice') || {});
+    if (ci !== linkSnap.ci || rows !== linkSnap.rows || cols !== linkSnap.cols || sl !== linkSnap.sl) {
+      linkSnap = { ci, rows, cols, sl };
     }
     log(store, 'syncFromModel start');
     store.stations.set(model.get('stations') || []);
@@ -691,6 +827,7 @@ function render({ model, el }) {
     store.click_info.set(model.get('click_info') || {});
     store.selected_rows.set(model.get('selected_rows') || []);
     store.selected_cols.set(model.get('selected_cols') || []);
+    store.matrix_axis_slice.set(model.get('matrix_axis_slice') || {});
     store.width.set(model.get('width') || 560);
     store.height.set(model.get('height') || 800);
     store.debug.set(Boolean(model.get('debug')));
@@ -703,17 +840,25 @@ function render({ model, el }) {
     scheduleRender();
   };
 
+  model.on('change:click_info', () => {
+    linkInteractionSeq += 1;
+    syncFromModel();
+  });
+
   [
     'stations',
     'edge_index',
-    'click_info',
     'selected_rows',
     'selected_cols',
     'width',
     'height',
     'debug',
     'palette_rgb',
+    'matrix_axis_slice',
   ].forEach((name) => model.on(`change:${name}`, syncFromModel));
+
+  model.on('change:cg_row_names', () => scheduleRender());
+  model.on('change:cg_col_names', () => scheduleRender());
 
   syncFromModel();
 

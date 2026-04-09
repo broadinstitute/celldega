@@ -4,6 +4,8 @@ import colorsys
 from contextlib import suppress
 from copy import deepcopy
 import json
+import time
+import uuid
 from pathlib import Path
 import urllib.error
 import warnings
@@ -16,6 +18,7 @@ import pandas as pd
 import scanpy as sc
 from shapely.affinity import affine_transform
 import traitlets
+from typing import Literal
 
 
 _clustergram_registry = {}  # maps names to widget instances
@@ -738,6 +741,24 @@ class Clustergram(anywidget.AnyWidget):
       manual_cat_config, etc.
     - Manual categories are treated as a simple JSON string.
     - All the old DataFrame-based manual_cat plumbing is removed.
+
+    Matrix slices (browser is source of truth for ``net_mat``)
+        On row/column label and matrix-cell clicks, the front-end first updates
+        ``click_info`` (interaction only), then emits :attr:`matrix_slice_request` so
+        the handler fills :attr:`matrix_slice_result` with axis or cell data
+        (``slice_kind``, ``entries``, ``matrix_convention``, etc.). Link another
+        widget's trait with ``jslink((cgm, "matrix_slice_result"), ...)`` to consume
+        slices without a Python round-trip.
+
+        Use :meth:`request_matrix_slice` from Python when you need an explicit pull
+        (requires a **live kernel**).
+
+        **jslink:** Only traits sync between models. For linked custom widgets, mirror
+        ``matrix_slice_result``; Python does not run in standalone exported HTML.
+
+    Python access to the same matrix
+        If constructed with ``matrix=``, use :meth:`matrix_dataframe` for the underlying
+        ``pandas.DataFrame``.
     """
 
     _esm = Path(__file__).parent / "../static" / "celldega.js"
@@ -753,6 +774,15 @@ class Clustergram(anywidget.AnyWidget):
     height = traitlets.Int(500).tag(sync=True)
 
     click_info = traitlets.Dict({}).tag(sync=True)
+
+    #: Set by Python (or another front-end) to request ``{req_id, op, ...}``:
+    #: ``row``/``col`` use ``index``; ``cell`` uses ``row``/``col``; ``row_col``
+    #: uses ``row_index``/``col_index`` and optional ``max_entries``. The Matrix
+    #: front-end writes the slice into :attr:`matrix_slice_result`.
+    matrix_slice_request = traitlets.Dict(default_value={}).tag(sync=True)
+
+    #: Populated by the Matrix front-end in response to :attr:`matrix_slice_request`.
+    matrix_slice_result = traitlets.Dict(default_value={}).tag(sync=True)
 
     # Generic row/col selection traitlets
     selected_rows = traitlets.List(default_value=[]).tag(sync=True)
@@ -988,6 +1018,85 @@ class Clustergram(anywidget.AnyWidget):
 
             setattr(self, f"{axis}_manual_df", manual_df)
             setattr(self, f"{axis}_manual_colors_df", colors_df)
+
+    def request_matrix_slice(
+        self,
+        op: Literal["row", "col", "cell", "row_col"],
+        *,
+        index: int | None = None,
+        row: int | None = None,
+        col: int | None = None,
+        row_index: int | None = None,
+        col_index: int | None = None,
+        max_entries: int | None = None,
+        timeout: float = 5.0,
+        poll_interval: float = 0.02,
+    ) -> dict | None:
+        """
+        Ask the browser Matrix to return a slice from ``net_mat`` (blocking).
+
+        Requires a running Jupyter kernel and an active widget comm. Not available in
+        standalone exported HTML without a kernel.
+
+        Parameters
+        ----------
+        op
+            ``row`` or ``col``: pass ``index`` (matrix axis index). ``cell``: pass
+            ``row`` and ``col`` matrix indices. ``row_col``: pass ``row_index`` and
+            ``col_index`` to get both axis slices in one result; optional
+            ``max_entries`` (negative means all, subject to a browser-side cap).
+        timeout
+            Seconds to wait for :attr:`matrix_slice_result` to match ``req_id``.
+
+        Returns
+        -------
+        dict | None
+            The front-end payload (includes ``req_id``), or ``None`` on timeout.
+        """
+        if op not in ("row", "col", "cell", "row_col"):
+            raise ValueError("op must be 'row', 'col', 'cell', or 'row_col'")
+
+        req_id = str(uuid.uuid4())
+        payload: dict[str, Any] = {"req_id": req_id, "op": op}
+        if op in ("row", "col"):
+            if index is None:
+                raise ValueError("index is required when op is 'row' or 'col'")
+            payload["index"] = int(index)
+        elif op == "cell":
+            if row is None or col is None:
+                raise ValueError("row and col are required when op is 'cell'")
+            payload["row"] = int(row)
+            payload["col"] = int(col)
+        else:
+            if row_index is None or col_index is None:
+                raise ValueError(
+                    "row_index and col_index are required when op is 'row_col'"
+                )
+            payload["row_index"] = int(row_index)
+            payload["col_index"] = int(col_index)
+        if max_entries is not None:
+            payload["max_entries"] = int(max_entries)
+
+        self.matrix_slice_result = {}
+        self.matrix_slice_request = {}
+        self.matrix_slice_request = payload
+
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            res = dict(self.matrix_slice_result or {})
+            if res.get("req_id") == req_id:
+                return res
+            time.sleep(poll_interval)
+
+        return None
+
+    def matrix_dataframe(self) -> pd.DataFrame | None:
+        """Return a copy of the Matrix ``data`` when this widget was created with ``matrix=``."""
+        m = getattr(self, "_matrix", None)
+        if m is None:
+            return None
+        data = getattr(m, "data", None)
+        return data.copy() if data is not None else None
 
     def close(self):  # pragma: no cover - cleanup depends on JS
         """Close the widget and notify the frontend to release resources."""

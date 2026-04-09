@@ -1,2 +1,2 @@
 *.ipynb filter=lfs diff=lfs merge=lfs -text
-docs/examples/tutorial_notebooks/domain_comparison-Celldega_w_external_algorithms.ipynb filter=lfs diff=lfs merge=lfs -text
+docs/tutorials/guided_notebooks/domain_comparison-Celldega_w_external_algorithms.ipynb filter=lfs diff=lfs merge=lfs -text

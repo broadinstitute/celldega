@@ -193,6 +193,6 @@ Explore Celldega as a standalone JavaScript library:
 - [Installation](installation.md) - Detailed installation instructions
 - [Usage](usage.md) - In-depth usage guide
 - [File Formats](file_formats.md) - DegaFiles format specification
-- [Python API](../python/index.md) - Full Python API reference
-- [JavaScript API](../javascript/index.md) - JavaScript API for web applications
-- [Example Notebooks](../examples/index.md) - Jupyter notebook tutorials
+- [Python API](python/index.md) - Full Python API reference
+- [JavaScript API](javascript/index.md) - JavaScript API for web applications
+- [Tutorials](tutorials/index.md) - Jupyter notebook tutorials

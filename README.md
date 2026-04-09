@@ -118,7 +118,7 @@ We welcome contributions from the bio community! Whether you're a:
 
 - 💬 [Discussions](https://github.com/broadinstitute/celldega/discussions) - Ask the community
 - 📖 [Documentation](https://broadinstitute.github.io/celldega/) - Comprehensive guides
-- 📓 [Examples](examples/) - Working code you can adapt
+- 📓 [Tutorials](tutorials/) - Working code you can adapt
 
 **Found a bug or want a feature?**
 

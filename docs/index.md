@@ -8,7 +8,7 @@
     Celldega Landscape visualization of a human skin cancer Xenium dataset obtained from <a href='https://www.10xgenomics.com/datasets' target='_blank'>10X Genomics</a>.
 </div>
 
-Celldega is a spatial analysis and visualization library that is being developed by the [Spatial Technology Platform](https://www.broadinstitute.org/spatial-technology-platform) at the [Broad Institute of MIT and Harvard](https://www.broadinstitute.org/spatial-technology-platform). This project enables researchers to easily visualize large ST datasets (e.g., datasets with >100M transcripts) alongside single-cell and spatial analysis notebook workflows (e.g., [sverse](https://scverse.org/) tools and novel spatial analysis approaches).
+Celldega is a spatial analysis and visualization library that is being developed by the [Spatial Technology Platform](https://www.broadinstitute.org/spatial-technology-platform) at the [Broad Institute of MIT and Harvard](https://www.broadinstitute.org). This project enables researchers to easily visualize large ST datasets (e.g., datasets with >100M transcripts) alongside single-cell and spatial analysis notebook workflows (e.g., [sverse](https://scverse.org/) tools and novel spatial analysis approaches).
 
 - [Getting Started](getting_started.md)
 - [Installation](installation.md)

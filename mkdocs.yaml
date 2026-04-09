@@ -33,13 +33,13 @@ nav:
       - API: javascript/api.md
   - Technologies:
       - technologies/index.md
-  - Cloud:
-    - cloud/index.md
-    - Manifold:
-        - Tutorial for generating LandscapeFiles: cloud/Manifold/Tutorial_for_generating_LandscapeFiles.md
-    - Terra:
-        - Tutorial for generating LandscapeFiles: cloud/Terra/Tutorial_for_generating_LandscapeFiles.md
-        - Cell Segmentation on Terra: cloud/Terra/Cell_Segmentation_on_Terra.md
+      - Cloud:
+        - cloud/index.md
+        - Manifold:
+            - Tutorial for generating LandscapeFiles: cloud/Manifold/Tutorial_for_generating_LandscapeFiles.md
+        - Terra:
+            - Tutorial for generating LandscapeFiles: cloud/Terra/Tutorial_for_generating_LandscapeFiles.md
+            - Cell Segmentation on Terra: cloud/Terra/Cell_Segmentation_on_Terra.md
   - Gallery:
       - gallery/index.md
       - Xenium:

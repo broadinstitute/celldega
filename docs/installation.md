@@ -6,7 +6,6 @@ Celldega can be installed using pip:
 curl -LsSf https://astral.sh/uv/install.sh | sh
 source $HOME/.local/bin/env
 uv pip install --system celldega
-
 ```
 
 Celldega can also be installed with the optional pre-processing requirements (e.g., vips for image pre-processing) using:

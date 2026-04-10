@@ -15723,13 +15723,13 @@ function cross3(out, u, v, w) {
   const E = v[1] * w[3] - v[3] * w[1];
   const F = v[2] * w[3] - v[3] * w[2];
   const G = u[0];
-  const H = u[1];
+  const H2 = u[1];
   const I = u[2];
   const J = u[3];
-  out[0] = H * F - I * E + J * D;
+  out[0] = H2 * F - I * E + J * D;
   out[1] = -(G * F) + I * C - J * B;
-  out[2] = G * E - H * C + J * A;
-  out[3] = -(G * D) + H * B - I * A;
+  out[2] = G * E - H2 * C + J * A;
+  out[3] = -(G * D) + H2 * B - I * A;
   return out;
 }
 function lerp4(out, a, b, t) {
@@ -19557,13 +19557,13 @@ function cross6(out, u, v, w) {
   const E = v[1] * w[3] - v[3] * w[1];
   const F = v[2] * w[3] - v[3] * w[2];
   const G = u[0];
-  const H = u[1];
+  const H2 = u[1];
   const I = u[2];
   const J = u[3];
-  out[0] = H * F - I * E + J * D;
+  out[0] = H2 * F - I * E + J * D;
   out[1] = -(G * F) + I * C - J * B;
-  out[2] = G * E - H * C + J * A;
-  out[3] = -(G * D) + H * B - I * A;
+  out[2] = G * E - H2 * C + J * A;
+  out[3] = -(G * D) + H2 * B - I * A;
   return out;
 }
 function lerp7(out, a, b, t) {
@@ -32127,8 +32127,31 @@ function compareConstantArrayValues2(v1, v2) {
   return true;
 }
 
-// node_modules/mjolnir.js/dist/esm/utils/hammer.browser.js
-var hammerjs = __toESM(require_hammer());
+// notebooks/shims/hammerjs.mjs
+var hammerjs_exports = {};
+__export(hammerjs_exports, {
+  Manager: () => Manager,
+  MouseInput: () => MouseInput,
+  Pan: () => Pan,
+  Pinch: () => Pinch,
+  PointerEventInput: () => PointerEventInput,
+  Press: () => Press,
+  Rotate: () => Rotate,
+  Swipe: () => Swipe,
+  Tap: () => Tap,
+  default: () => hammerjs_default
+});
+var import_hammer = __toESM(require_hammer(), 1);
+var PointerEventInput = import_hammer.default.PointerEventInput;
+var MouseInput = import_hammer.default.MouseInput;
+var Manager = import_hammer.default.Manager;
+var Pan = import_hammer.default.Pan;
+var Rotate = import_hammer.default.Rotate;
+var Pinch = import_hammer.default.Pinch;
+var Swipe = import_hammer.default.Swipe;
+var Press = import_hammer.default.Press;
+var Tap = import_hammer.default.Tap;
+var hammerjs_default = import_hammer.default;
 
 // node_modules/mjolnir.js/dist/esm/utils/hammer-overrides.js
 var INPUT_START = 1;
@@ -32184,10 +32207,10 @@ function enhanceMouseInput(MouseInput2) {
 }
 
 // node_modules/mjolnir.js/dist/esm/utils/hammer.browser.js
-enhancePointerEventInput(hammerjs.PointerEventInput);
-enhanceMouseInput(hammerjs.MouseInput);
-var Manager2 = hammerjs.Manager;
-var hammer_browser_default = hammerjs;
+enhancePointerEventInput(PointerEventInput);
+enhanceMouseInput(MouseInput);
+var Manager2 = Manager;
+var hammer_browser_default = hammerjs_exports;
 
 // node_modules/mjolnir.js/dist/esm/inputs/input.js
 var Input = class {

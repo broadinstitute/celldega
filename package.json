@@ -26,7 +26,8 @@
     "format:js:check": "prettier --check js/ --ignore-path .prettierignore",
     "format:py": "ruff format src/",
     "check:js": "npm run lint:js && npm run format:js:check",
-    "fix:js": "npm run lint:js:fix && npm run format:js"
+    "fix:js": "npm run lint:js:fix && npm run format:js",
+    "build:bike-map": "esbuild notebooks/bike_flow_map_widget.mjs --bundle --format=esm --platform=browser --target=es2022 --outfile=notebooks/bike_flow_map.widget.js --legal-comments=none --alias:hammerjs=./notebooks/shims/hammerjs.mjs"
   },
   "dependencies": {
     "@deck.gl-community/editable-layers": "^9.0.3",

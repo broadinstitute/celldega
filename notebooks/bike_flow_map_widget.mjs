@@ -141,7 +141,7 @@ function basemapLayer() {
   });
 }
 
-/** Okabe–Ito (colorblind-safe) first, then Celldega `clust.constants._COLOR_PALETTE` — keep in sync with notebook `STATION_PALETTE_HEX`. */
+/** Okabe-Ito (colorblind-safe) first, then Celldega `clust.constants._COLOR_PALETTE` - keep in sync with notebook `STATION_PALETTE_HEX`. */
 const STATION_PALETTE_HEX = [
   '#E69F00', '#56B4E9', '#009E73', '#F0E442', '#0072B2', '#D55E00', '#CC79A7',
   '#393b79', '#aec7e8', '#ff7f0e', '#ffbb78', '#98df8a', '#bcbd22', '#404040',

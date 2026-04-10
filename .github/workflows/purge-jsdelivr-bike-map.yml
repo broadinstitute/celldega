@@ -1,0 +1,17 @@
+# jsDelivr can keep serving an older `bikes` branch file after GitHub updates; purge on bundle changes.
+name: Purge jsDelivr bike map cache
+
+on:
+  push:
+    branches:
+      - bikes
+    paths:
+      - notebooks/bike_flow_map.widget.js
+
+jobs:
+  purge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Purge branch-based jsDelivr URL
+        run: |
+          curl -fsS "https://purge.jsdelivr.net/gh/${{ github.repository }}@bikes/notebooks/bike_flow_map.widget.js"

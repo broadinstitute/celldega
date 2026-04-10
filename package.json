@@ -27,7 +27,7 @@
     "format:py": "ruff format src/",
     "check:js": "npm run lint:js && npm run format:js:check",
     "fix:js": "npm run lint:js:fix && npm run format:js",
-    "build:bike-map": "esbuild notebooks/bike_flow_map_widget.mjs --bundle --format=esm --platform=browser --target=es2022 --outfile=notebooks/bike_flow_map.widget.js --legal-comments=none --alias:hammerjs=./notebooks/shims/hammerjs.mjs"
+    "build:bike-map": "esbuild notebooks/bike_flow_map_widget.mjs --bundle --format=esm --platform=browser --target=es2022 --outfile=notebooks/bike_flow_map.widget.js --legal-comments=none --alias:hammerjs=./notebooks/shims/hammerjs.mjs && node -e \"const {execSync}=require('child_process');const h=execSync('git rev-parse HEAD',{encoding:'utf8'}).trim();console.log('\\n[bike-map] Pin notebooks to this jsDelivr URL after you commit the bundle:\\nhttps://cdn.jsdelivr.net/gh/broadinstitute/celldega@'+h+'/notebooks/bike_flow_map.widget.js\\n');\""
   },
   "dependencies": {
     "@deck.gl-community/editable-layers": "^9.0.3",

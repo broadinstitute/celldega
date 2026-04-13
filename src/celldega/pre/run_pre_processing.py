@@ -156,7 +156,7 @@ def main(
     use_row_groups=False,
     max_row_groups_per_file=400,
     upper_percentile=99,
-    white_level=40,
+    white_level=100,
 ):
     """
     Main function to preprocess Xenium or MERSCOPE data and generate landscape files.
@@ -180,7 +180,7 @@ def main(
         upper_percentile (float): Upper percentile used for image intensity clipping when
             generating image tiles. Defaults to 99.
         white_level (float): White level (intensity scale) used when normalizing images
-             for tiling and visualization. Defaults to 40.
+             for tiling and visualization. Defaults to 100.
 
     Example:
         change directory to celldega, and run:

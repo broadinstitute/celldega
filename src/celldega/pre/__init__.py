@@ -336,17 +336,15 @@ def _process_image_channel(
     channel_info,
     img,
     upper_percentile=99,
-    gamma=1,
     scale_non_dapi=1.0,
-    white_level=40,
+    white_level=100,
 ):
     """
     Process a single image channel for tiling using simple per-channel windowing,
     similar to Xenium Explorer:
     - choose a per-channel upper bound from a high percentile
-    - clip to that range
+    - clip to [0, upper_bound]
     - normalize to 0-1
-    - optionally apply gamma
     - convert to 8-bit for display
     """
     channel_name = channel_info["name"]
@@ -366,9 +364,7 @@ def _process_image_channel(
     scale = 1.0 if channel_name.lower() == "dapi" else scale_non_dapi
     channel *= scale
 
-    # Per-channel display window
-    lo = float(channel.min())
-
+    # Per-channel display window (high-percentile upper bound)
     sample = channel[::10, ::10]
 
     if not (0 <= upper_percentile <= 100):
@@ -378,27 +374,12 @@ def _process_image_channel(
 
     hi = np.percentile(sample, upper_percentile)
 
-    print(f"{channel_name}: lo={lo:.2f}, p{upper_percentile}={hi:.2f}, gamma={gamma}")
+    print(f"{channel_name}: p{upper_percentile}={hi:.2f}")
 
-    # Validate gamma to avoid infinities/NaNs in np.power
-    if gamma <= 0:
-        warnings.warn(
-            f"Non-positive gamma ({gamma}) is invalid for gamma correction; "
-            "using gamma=1.0 instead.",
-            stacklevel=2,
-        )
-        gamma = 1.0
-
-    if hi > lo:
-        # Clip to display range
-        channel = np.clip(channel, lo, hi)
-
-        # Normalize
-        channel = (channel - lo) / (hi - lo)
-
-        # Optional gamma correction (gamma < 1 brightens midtones)
-        if gamma != 1.0:
-            channel = np.power(channel, gamma)
+    if hi > 0:
+        # Clip to display range and normalize from zero.
+        channel = np.clip(channel, 0.0, hi)
+        channel = channel / hi
 
         # Clamp white_level to the valid 8-bit display range [0, 255]
         white_level_safe = float(white_level)
@@ -433,7 +414,7 @@ def create_image_tiles(
     path_landscape_files,
     image_tile_layer="dapi",
     upper_percentile=99,
-    white_level=40,
+    white_level=100,
 ):
     """
     Creates image tiles for visualization from the Xenium morphology image.
@@ -449,7 +430,7 @@ def create_image_tiles(
             reduce the influence of very bright outliers while preserving most detail.
         white_level (float, optional): Factor controlling how intensities are mapped toward white during
             normalization. Must be non-negative. Higher values produce brighter tiles; typical values are
-            in the range 10-100, with 40 as a reasonable default.
+            in the range 40-255, with 100 as a balanced default.
 
     Raises:
         ValueError: If the specified technology is not supported or if the image_tile_layer is invalid.
@@ -529,7 +510,7 @@ def remove_intermediate_files(path_landscape_files):
 
 
 def create_image_tiles_xenium(
-    data_dir, path_landscape_files, image_tile_layer="dapi", upper_percentile=99, white_level=40
+    data_dir, path_landscape_files, image_tile_layer="dapi", upper_percentile=99, white_level=100
 ):
     """
     Creates image tiles for visualization from the Xenium morphology image.

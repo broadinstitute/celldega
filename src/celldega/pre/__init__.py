@@ -1749,14 +1749,27 @@ def _check_required_files(technology, data_dir):
     required_files_or_dir = required_files_mapping[technology]
     data_path = Path(data_dir)
 
-    # Raise an error if any files or directories are missing
-    if missing_files_or_dir := [
-        file for file in required_files_or_dir if not (data_path / file).exists()
-    ]:
+    # Standard checks (skip morphology file for Xenium)
+    missing_files_or_dir = [
+        file
+        for file in required_files_or_dir
+        if file != "morphology_focus/morphology_focus_0000.ome.tif"
+        and not (data_path / file).exists()
+    ]
+
+    # 🔹 Special Xenium morphology check (pattern-based)
+    if technology == "Xenium":
+        morphology_dir = data_path / "morphology_focus"
+        matches = sorted(morphology_dir.glob("*0000*.ome.tif")) if morphology_dir.exists() else []
+        if not matches:
+            missing_files_or_dir.append("morphology_focus/*0000*.ome.tif")
+
+    if missing_files_or_dir:
         raise FileNotFoundError(
             f"The following required files or directories are missing in directory '{data_dir}' "
             f"for technology '{technology}': {', '.join(missing_files_or_dir)}"
         )
+
     print(
         f"All required files or directories for technology '{technology}' are present in '{data_dir}'."
     )

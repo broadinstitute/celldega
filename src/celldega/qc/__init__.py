@@ -6,10 +6,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
-from shapely.geometry import MultiPolygon
+from shapely import points
+from shapely.geometry import MultiPolygon, Point
 
 from ..pre import write_xenium_transform
-from ..pre.boundary_tile import get_cell_polygons
+from ..pre.boundary_tile import get_cell_polygons, batch_transform_geometries
 from ..pre.landscape import read_cbg_mtx
 
 
@@ -129,21 +130,29 @@ def _process_xenium_technology(base_path, segmentation_parameters):
 
     transformation_matrix = write_xenium_transform(base_path, base_path)
 
+    trx_gdf = gpd.GeoDataFrame(trx,
+                    geometry=points(trx["x_location"].to_numpy(),
+                                    trx["y_location"].to_numpy()),)
+
+    trx_gdf.rename(columns={"geometry":"geometry_micron"}, inplace=True)
+    trx_gdf["GEOMETRY"] = batch_transform_geometries(trx_gdf["geometry_micron"], transformation_matrix, scale=1)
+    trx_gdf["geometry"] = trx_gdf["GEOMETRY"].apply(lambda x: Point(x))
+
     cell_gdf = get_cell_polygons(
         technology=segmentation_parameters["technology"],
         path_cell_boundaries=Path(base_path) / "cell_boundaries.parquet",
         transformation_matrix=transformation_matrix,
     )
 
-    cell_gdf = gpd.GeoDataFrame(geometry=cell_gdf["geometry_micron"])
+    # cell_gdf = gpd.GeoDataFrame(geometry=cell_gdf["geometry_micron"])
 
-    cell_gdf["geometry"] = cell_gdf["geometry"].apply(_get_largest_polygon)
+    cell_gdf["geometry_micron"] = cell_gdf["geometry_micron"].apply(_get_largest_polygon)
     cell_gdf.reset_index(inplace=True)
-    cell_gdf["area"] = cell_gdf["geometry"].area
-    cell_gdf["centroid"] = cell_gdf["geometry"].centroid
+    cell_gdf["area"] = cell_gdf["geometry_micron"].area
+    cell_gdf["centroid"] = cell_gdf["geometry_micron"].centroid
     cell_meta_gdf = cell_gdf[["cell_id", "area", "centroid"]]
 
-    return cell_index, gene, transcript_index, trx_meta, cell_gdf, cell_meta_gdf
+    return cell_index, gene, transcript_index, transformation_matrix, trx_gdf, trx_meta, cell_gdf, cell_meta_gdf
 
 
 def _process_merscope_technology(base_path, segmentation_parameters):

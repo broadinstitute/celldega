@@ -10,7 +10,7 @@ from shapely import points
 from shapely.geometry import MultiPolygon, Point
 
 from ..pre import write_xenium_transform
-from ..pre.boundary_tile import get_cell_polygons, batch_transform_geometries
+from ..pre.boundary_tile import batch_transform_geometries, get_cell_polygons
 from ..pre.landscape import read_cbg_mtx
 
 
@@ -130,12 +130,15 @@ def _process_xenium_technology(base_path, segmentation_parameters):
 
     transformation_matrix = write_xenium_transform(base_path, base_path)
 
-    trx_gdf = gpd.GeoDataFrame(trx,
-                    geometry=points(trx["x_location"].to_numpy(),
-                                    trx["y_location"].to_numpy()),)
+    trx_gdf = gpd.GeoDataFrame(
+        trx,
+        geometry=points(trx["x_location"].to_numpy(), trx["y_location"].to_numpy()),
+    )
 
-    trx_gdf.rename(columns={"geometry":"geometry_micron"}, inplace=True)
-    trx_gdf["GEOMETRY"] = batch_transform_geometries(trx_gdf["geometry_micron"], transformation_matrix, scale=1)
+    trx_gdf.rename(columns={"geometry": "geometry_micron"}, inplace=True)
+    trx_gdf["GEOMETRY"] = batch_transform_geometries(
+        trx_gdf["geometry_micron"], transformation_matrix, scale=1
+    )
     trx_gdf["geometry"] = trx_gdf["GEOMETRY"].apply(lambda x: Point(x))
 
     cell_gdf = get_cell_polygons(
@@ -152,7 +155,16 @@ def _process_xenium_technology(base_path, segmentation_parameters):
     cell_gdf["centroid"] = cell_gdf["geometry_micron"].centroid
     cell_meta_gdf = cell_gdf[["cell_id", "area", "centroid"]]
 
-    return cell_index, gene, transcript_index, transformation_matrix, trx_gdf, trx_meta, cell_gdf, cell_meta_gdf
+    return (
+        cell_index,
+        gene,
+        transcript_index,
+        transformation_matrix,
+        trx_gdf,
+        trx_meta,
+        cell_gdf,
+        cell_meta_gdf,
+    )
 
 
 def _process_merscope_technology(base_path, segmentation_parameters):

@@ -30,7 +30,7 @@ from .boundary_tile import (
     make_cell_boundary_tiles,
     make_cell_boundary_tiles_row_groups,
 )
-from .image_info import get_image_info
+from .image_info import get_image_info, resolve_xenium_morphology_ome_path
 from .landscape import (
     calc_meta_gene_data,
     read_cbg_mtx,
@@ -472,17 +472,17 @@ def create_image_tiles_xenium(data_dir, path_landscape_files, image_tile_layer="
     if image_tile_layer not in ["dapi", "all"]:
         raise ValueError(f"Invalid image_tile_layer: {image_tile_layer}. Must be 'dapi' or 'all'.")
 
-    # Define the path to the morphology image
-    file_path = Path(data_dir) / "morphology_focus" / "morphology_focus_0000.ome.tif"
-
-    # Check if the morphology image exists
-    if not file_path.exists():
-        raise FileNotFoundError(
-            f"The file 'morphology_focus_0000.ome.tif' does not exist in directory '{data_dir}'."
-        )
+    file_path = resolve_xenium_morphology_ome_path(data_dir)
 
     # Load the morphology image once if processing multiple channels
     img = imread(file_path)
+
+    if image_tile_layer == "all" and file_path.name == "morphology.ome.tif":
+        raise ValueError(
+            "image_tile_layer='all' needs a multi-channel morphology_focus OME-TIFF; "
+            "this bundle only has morphology.ome.tif. Use image_tile_layer='dapi' or "
+            "supply morphology_focus/*.ome.tif from the instrument output."
+        )
 
     # Process the DAPI channel
     if image_tile_layer in ["dapi", "all"]:
@@ -1637,7 +1637,6 @@ def _check_required_files(technology, data_dir):
     # Define required files or directories for each technology
     required_files_mapping = {
         "Xenium": [
-            "morphology_focus/morphology_focus_0000.ome.tif",
             "cells.zarr",
             "cells.csv",
             "cells.csv.gz",
@@ -1666,10 +1665,18 @@ def _check_required_files(technology, data_dir):
     required_files_or_dir = required_files_mapping[technology]
     data_path = Path(data_dir)
 
-    # Raise an error if any files or directories are missing
-    if missing_files_or_dir := [
+    missing_files_or_dir = [
         file for file in required_files_or_dir if not (data_path / file).exists()
-    ]:
+    ]
+    if technology == "Xenium":
+        try:
+            resolve_xenium_morphology_ome_path(data_path)
+        except FileNotFoundError:
+            missing_files_or_dir.append(
+                "morphology OME-TIFF (morphology_focus/… or morphology.ome.tif)"
+            )
+
+    if missing_files_or_dir:
         raise FileNotFoundError(
             f"The following required files or directories are missing in directory '{data_dir}' "
             f"for technology '{technology}': {', '.join(missing_files_or_dir)}"
@@ -1808,6 +1815,7 @@ __all__ = [
     "add_clustering_from_adata",
     "boundary_tile",
     "get_image_info",
+    "resolve_xenium_morphology_ome_path",
     "landscape",
     "main",
     "make_trx_tiles",

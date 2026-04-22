@@ -515,6 +515,12 @@ export const landscape_ist = async (
   viz_state.cache.trx = await ini_cache();
 
   viz_state.combo_data = {};
+  viz_state.combo_data.trx = [];
+  viz_state.combo_data.trx_compact = {
+    names: [],
+    x: new Float32Array(),
+    y: new Float32Array(),
+  };
 
   viz_state.tooltip_cat_cell = '';
 

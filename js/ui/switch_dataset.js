@@ -410,6 +410,11 @@ export const switch_dataset = async (
     viz_state.genes.trx_names_array = [];
     viz_state.cats.polygon_cell_names = [];
     viz_state.combo_data.trx = [];
+    viz_state.combo_data.trx_compact = {
+      names: [],
+      x: new Float32Array(),
+      y: new Float32Array(),
+    };
 
     layers_obj.trx_layer = layers_obj.trx_layer.clone({
       id: `trx-layer-dataset-${new_index}`,

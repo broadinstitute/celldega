@@ -59,6 +59,11 @@ export const grab_trx_tiles_in_view = async (
   if (!trx_arrow_table) {
     viz_state.genes.trx_names_array = [];
     viz_state.combo_data.trx = [];
+    viz_state.combo_data.trx_compact = {
+      names: [],
+      x: new Float32Array(),
+      y: new Float32Array(),
+    };
     return {
       length: 0,
       attributes: {
@@ -85,15 +90,24 @@ export const grab_trx_tiles_in_view = async (
 
   const trx_scatter_data = get_scatter_data(trx_arrow_table);
 
-  // Combine names and positions into a single array of objects
+  // Keep compact transcript buffers for viewport filtering/aggregation.
+  // This avoids allocating one JS object per transcript in hot update paths.
   const flatCoordinateArray = trx_scatter_data.attributes.getPosition.value;
-  viz_state.combo_data.trx = viz_state.genes.trx_names_array.map(
-    (name, index) => ({
-      name,
-      x: flatCoordinateArray[index * 2],
-      y: flatCoordinateArray[index * 2 + 1],
-    })
-  );
+  const trxCount = viz_state.genes.trx_names_array.length;
+  const xPositions = new Float32Array(trxCount);
+  const yPositions = new Float32Array(trxCount);
+  for (let i = 0; i < trxCount; i++) {
+    xPositions[i] = flatCoordinateArray[i * 2];
+    yPositions[i] = flatCoordinateArray[i * 2 + 1];
+  }
+
+  viz_state.combo_data.trx_compact = {
+    names: viz_state.genes.trx_names_array,
+    x: xPositions,
+    y: yPositions,
+  };
+  // Backward-compatible field retained for any external consumers.
+  viz_state.combo_data.trx = [];
 
   return trx_scatter_data;
 };

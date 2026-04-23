@@ -21,7 +21,7 @@ async function grab_trx_tiles_row_groups(tiles_in_view, viz_state) {
     tile_y: tile.tileY,
   }));
 
-  return reader.readTiles(tilesForReader);
+  return reader.readTiles(tilesForReader, { returnTablesArray: true });
 }
 
 const materializeTranscriptBuffers = (tables, viz_state) => {

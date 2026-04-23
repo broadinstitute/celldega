@@ -90,13 +90,16 @@ export class RowGroupTileReader {
     return readPromise;
   }
 
-  async _readRowGroups(uniqueIndices) {
+  async _readRowGroups(uniqueIndices, options = {}) {
+    const returnTablesArray = options.returnTablesArray === true;
+
     if (!this.chunkedMode) {
       const wasmTable = await this.parquetFile.read({
         rowGroups: uniqueIndices,
       });
       const arrowIPC = wasmTable.intoIPCStream();
-      return arrow.tableFromIPC(arrowIPC);
+      const table = arrow.tableFromIPC(arrowIPC);
+      return returnTablesArray ? [table] : table;
     }
 
     const byFile = new Map();
@@ -108,19 +111,21 @@ export class RowGroupTileReader {
       byFile.get(fileIndex).push(localIndex);
     }
 
-    const tables = [];
-    for (const [fileIndex, localIndices] of byFile) {
-      // eslint-disable-next-line no-await-in-loop
-      const pqFile = await this._getParquetFile(fileIndex);
-      // eslint-disable-next-line no-await-in-loop
-      const wasmTable = await pqFile.read({ rowGroups: localIndices });
-      const arrowIPC = wasmTable.intoIPCStream();
-      const table = arrow.tableFromIPC(arrowIPC);
-      tables.push(table);
-    }
+    const tables = await Promise.all(
+      [...byFile.entries()].map(async ([fileIndex, localIndices]) => {
+        const pqFile = await this._getParquetFile(fileIndex);
+        const wasmTable = await pqFile.read({ rowGroups: localIndices });
+        const arrowIPC = wasmTable.intoIPCStream();
+        return arrow.tableFromIPC(arrowIPC);
+      })
+    );
 
     if (tables.length === 0) {
       return null;
+    }
+
+    if (returnTablesArray) {
+      return tables;
     }
 
     if (tables.length === 1) {
@@ -288,7 +293,7 @@ export class RowGroupTileReader {
    * @param {Array<{tile_x: number, tile_y: number}>} tilesInView - Array of tile coordinates
    * @returns {Promise<arrow.Table|null>} - Arrow Table with data for requested tiles
    */
-  async readTiles(tilesInView) {
+  async readTiles(tilesInView, options = {}) {
     if (!this.initialized) {
       await this.initialize();
     }
@@ -311,13 +316,14 @@ export class RowGroupTileReader {
 
     // Remove duplicates and sort
     const uniqueIndices = [...new Set(rowGroupIndices)].sort((a, b) => a - b);
-    const cacheKey = uniqueIndices.join(',');
+    const returnTablesArray = options.returnTablesArray === true;
+    const cacheKey = `${returnTablesArray ? 'tables' : 'table'}:${uniqueIndices.join(',')}`;
     const cachedRead = this._getCachedRead(cacheKey);
     if (cachedRead) {
       return cachedRead;
     }
 
-    const readPromise = this._readRowGroups(uniqueIndices).catch(() => {
+    const readPromise = this._readRowGroups(uniqueIndices, options).catch(() => {
       this.requestCache.delete(cacheKey);
       return null;
     });

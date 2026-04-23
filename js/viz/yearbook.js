@@ -51,6 +51,11 @@ import { RowGroupTileReader } from '../read_parquet/row_group_tile_reader';
 import { set_image_layer_sliders } from '../ui/sliders';
 import { make_yearbook_ui_container } from '../ui/yearbook_ui';
 import { execute_cell_query } from '../utils/cell_query';
+import {
+  areBarDataEqual,
+  createEmptyCellCompact,
+  createEmptyTrxCompact,
+} from '../utils/compact_data';
 import { refresh_layer } from '../utils/refresh_layer';
 import { create_scale_bar, PIXEL_SIZE_MICRONS } from '../utils/scale_bar';
 
@@ -218,6 +223,12 @@ export const yearbook = async (
     zoom_level: 0,
     portrait_centers: [], // Will store the center coordinates for each portrait
     query, // Query object for finding cells from LandscapeFiles
+    lastGeneBarData: null,
+    lastCellBarData: null,
+    geneCountScratch: null,
+    activeGeneIds: [],
+    cellCountScratch: null,
+    activeCellIds: [],
   };
 
   viz_state.max_tiles_to_view = 50;
@@ -278,8 +289,9 @@ export const yearbook = async (
   viz_state.genes.meta_gene = {};
   viz_state.genes.gene_counts = [];
   viz_state.genes.selected_genes = [];
+  viz_state.genes.selected_gene_ids = new Set();
   viz_state.genes.trx_ini_radius = 0.25;
-  viz_state.genes.trx_names_array = [];
+  viz_state.genes.trx_gene_ids = new Int32Array();
   viz_state.genes.trx_data = [];
   viz_state.genes.gene_text_box = '';
   viz_state.genes.trx_slider = document.createElement('input');
@@ -412,12 +424,8 @@ export const yearbook = async (
 
   viz_state.combo_data = {};
   viz_state.combo_data.trx = [];
-  viz_state.combo_data.trx_compact = {
-    names: [],
-    x: new Float32Array(),
-    y: new Float32Array(),
-  };
-  viz_state.combo_data.cell = [];
+  viz_state.combo_data.trx_compact = createEmptyTrxCompact();
+  viz_state.combo_data.cell_compact = createEmptyCellCompact();
   viz_state.tooltip_cat_cell = '';
 
   // Edit state (not used in yearbook but needed for layer compatibility)
@@ -554,15 +562,26 @@ export const yearbook = async (
     const half_view_size = portrait_data_size / 2;
 
     // Filter transcripts visible in any portrait using compact buffers
-    const trxCompact = viz_state.combo_data.trx_compact || {
-      names: [],
-      x: new Float32Array(),
-      y: new Float32Array(),
-    };
-    const geneCounts = new Map();
-    for (let i = 0; i < trxCompact.names.length; i++) {
-      const x = trxCompact.x[i];
-      const y = trxCompact.y[i];
+    const trxCompact =
+      viz_state.combo_data.trx_compact || createEmptyTrxCompact();
+    const geneCountLength = viz_state.genes.gene_names.length;
+
+    if (
+      !viz_state.yearbook.geneCountScratch ||
+      viz_state.yearbook.geneCountScratch.length !== geneCountLength
+    ) {
+      viz_state.yearbook.geneCountScratch = new Uint32Array(geneCountLength);
+      viz_state.yearbook.activeGeneIds = [];
+    }
+
+    const geneCounts = viz_state.yearbook.geneCountScratch;
+    const activeGeneIds = viz_state.yearbook.activeGeneIds;
+    activeGeneIds.length = 0;
+
+    for (let i = 0; i < trxCompact.geneIds.length; i++) {
+      const positions = trxCompact.positions;
+      const x = positions[i * trxCompact.size];
+      const y = positions[i * trxCompact.size + 1];
       const inPortrait = centers.some((center) => {
         return (
           x >= center.x - half_view_size &&
@@ -575,42 +594,88 @@ export const yearbook = async (
         continue;
       }
 
-      const name = trxCompact.names[i];
-      geneCounts.set(name, (geneCounts.get(name) || 0) + 1);
+      const geneId = trxCompact.geneIds[i];
+      if (geneId < 0) {
+        continue;
+      }
+
+      if (geneCounts[geneId] === 0) {
+        activeGeneIds.push(geneId);
+      }
+      geneCounts[geneId] += 1;
     }
 
-    const new_bar_data = Array.from(geneCounts, ([name, value]) => ({
-      name,
-      value,
-    }))
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 100);
+    activeGeneIds.sort((a, b) => geneCounts[b] - geneCounts[a]);
+    const new_bar_data = activeGeneIds.slice(0, 100).map((geneId) => ({
+      name: viz_state.genes.g_nameMapping_inv?.[geneId] ?? String(geneId),
+      value: geneCounts[geneId],
+    }));
 
-    viz_state.obs_store.new_gene_bar_data.set(new_bar_data);
+    for (const geneId of activeGeneIds) {
+      geneCounts[geneId] = 0;
+    }
+
+    if (!areBarDataEqual(viz_state.yearbook.lastGeneBarData, new_bar_data)) {
+      viz_state.yearbook.lastGeneBarData = new_bar_data;
+      viz_state.obs_store.new_gene_bar_data.set(new_bar_data);
+    }
 
     // Filter cells visible in any portrait
-    const filtered_cells = (viz_state.combo_data.cell || []).filter((pos) => {
-      return centers.some((center) => {
-        return (
-          pos.x >= center.x - half_view_size &&
-          pos.x <= center.x + half_view_size &&
-          pos.y >= center.y - half_view_size &&
-          pos.y <= center.y + half_view_size
-        );
-      });
-    });
+    const cellCompact =
+      viz_state.combo_data.cell_compact || createEmptyCellCompact();
+    const categoryCountLength = cellCompact.categoryNames.length;
 
-    const cellCounts = new Map();
-    for (const cell of filtered_cells) {
-      cellCounts.set(cell.cat, (cellCounts.get(cell.cat) || 0) + 1);
+    if (
+      !viz_state.yearbook.cellCountScratch ||
+      viz_state.yearbook.cellCountScratch.length !== categoryCountLength
+    ) {
+      viz_state.yearbook.cellCountScratch = new Uint32Array(categoryCountLength);
+      viz_state.yearbook.activeCellIds = [];
     }
 
-    const new_bar_data_cell = Array.from(cellCounts, ([name, value]) => ({
-      name,
-      value,
-    })).sort((a, b) => b.value - a.value);
+    const cellCounts = viz_state.yearbook.cellCountScratch;
+    const activeCellIds = viz_state.yearbook.activeCellIds;
+    activeCellIds.length = 0;
 
-    viz_state.obs_store.new_cell_bar_data.set(new_bar_data_cell);
+    for (let i = 0; i < cellCompact.categoryIds.length; i++) {
+      const positions = cellCompact.positions;
+      const x = positions[i * cellCompact.size];
+      const y = positions[i * cellCompact.size + 1];
+      const inPortrait = centers.some((center) => {
+        return (
+          x >= center.x - half_view_size &&
+          x <= center.x + half_view_size &&
+          y >= center.y - half_view_size &&
+          y <= center.y + half_view_size
+        );
+      });
+      if (!inPortrait) {
+        continue;
+      }
+
+      const categoryId = cellCompact.categoryIds[i];
+      if (cellCounts[categoryId] === 0) {
+        activeCellIds.push(categoryId);
+      }
+      cellCounts[categoryId] += 1;
+    }
+
+    activeCellIds.sort((a, b) => cellCounts[b] - cellCounts[a]);
+    const new_bar_data_cell = activeCellIds.map((categoryId) => ({
+      name: cellCompact.categoryNames[categoryId],
+      value: cellCounts[categoryId],
+    }));
+
+    for (const categoryId of activeCellIds) {
+      cellCounts[categoryId] = 0;
+    }
+
+    if (
+      !areBarDataEqual(viz_state.yearbook.lastCellBarData, new_bar_data_cell)
+    ) {
+      viz_state.yearbook.lastCellBarData = new_bar_data_cell;
+      viz_state.obs_store.new_cell_bar_data.set(new_bar_data_cell);
+    }
   };
 
   // Calculate portrait centers based on cell positions

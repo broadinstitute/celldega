@@ -8,6 +8,11 @@ export const update_selected_genes = (genes, new_selected_genes, obs_store) => {
 
   // Use the ternary operator to update selected_genes
   genes.selected_genes = areArraysEqual ? [] : new_selected_genes;
+  genes.selected_gene_ids = new Set(
+    genes.selected_genes
+      .map((gene) => genes.g_nameMapping?.[gene])
+      .filter((geneId) => geneId !== undefined)
+  );
 
   // Update obs_store
   obs_store.selected_genes.set(genes.selected_genes);
@@ -27,6 +32,11 @@ export const sync_selected_genes = (viz_state, genes) => {
   }
 
   if (viz_state.obs_store && viz_state.obs_store.selected_genes) {
+    viz_state.genes.selected_gene_ids = new Set(
+      genes
+        .map((gene) => viz_state.genes.g_nameMapping?.[gene])
+        .filter((geneId) => geneId !== undefined)
+    );
     viz_state.obs_store.selected_genes.set(genes);
   }
 };

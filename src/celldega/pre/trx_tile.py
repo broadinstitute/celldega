@@ -396,6 +396,37 @@ def _spill_one_transform_shard_to_tiles(
         tile_df.write_parquet(out_dir / f"part_{shard_idx:06d}.parquet")
 
 
+def _write_traditional_transcript_tiles_from_spill(
+    spill_root, n_tiles_x, n_tiles_y, path_trx_tiles
+):
+    """
+    Merge per-shard spill parts into one ``transcripts_tile_{i}_{j}.parquet`` per spatial tile
+    (legacy layout expected by the frontend). Drops spill-only tile index columns.
+    """
+    spill_root = Path(spill_root)
+    out_dir = Path(path_trx_tiles)
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    written = 0
+    for tile_i in tqdm(range(n_tiles_x), desc="Writing transcript tile parquets"):
+        for tile_j in range(n_tiles_y):
+            d = spill_root / f"{tile_i}_{tile_j}"
+            if not d.is_dir():
+                continue
+            parts = sorted(d.glob("part_*.parquet"))
+            if not parts:
+                continue
+            tile_df = pl.concat([pl.read_parquet(p) for p in parts])
+            drop_cols = [c for c in ("tile_x", "tile_y") if c in tile_df.columns]
+            if drop_cols:
+                tile_df = tile_df.drop(drop_cols)
+            outfile = out_dir / f"transcripts_tile_{tile_i}_{tile_j}.parquet"
+            tile_df.to_pandas().to_parquet(outfile, index=False)
+            written += 1
+
+    print(f"Wrote {written} non-empty transcript tile parquet files")
+
+
 def _arrow_schema_from_spill_sample(spill_root, n_tiles_x, n_tiles_y):
     """Load one non-empty spill part to build a PyArrow schema for the row-group writer."""
     import pyarrow as pa
@@ -656,6 +687,7 @@ def make_trx_tiles(
     verbose=False,
     image_scale=1,
     max_workers=1,
+    streaming_tile_assignment=None,
 ):
     """
     Processes transcript data by dividing it into coarse-grain and fine-grain tiles,
@@ -683,6 +715,11 @@ def make_trx_tiles(
         Scale factor to apply to the transcript coordinates (default is 0.5).
     max_workers : int, optional
         Maximum number of parallel workers for processing tiles (default is 1).
+    streaming_tile_assignment : bool or None, optional
+        If True, stream transformed coordinates to Parquet shards and spill per spatial tile
+        (same strategy as row-group mode) instead of concatenating all rows and using
+        ``partition_by`` / coarse filters on one huge frame. If None, enable automatically
+        when row count is at least ``STREAMING_TILE_ASSIGN_ROW_THRESHOLD``.
 
     Returns
     -------
@@ -703,30 +740,87 @@ def make_trx_tiles(
             layer="transcript",
         )
 
-        trx = transform_transcript_coordinates(
-            technology,
-            path_trx,
-            chunk_size,
-            transformation_matrix,
-            image_scale,
-            gene_str_to_int_mapping=gene_str_to_int_mapping,
-        )
+        trx_ini = _load_transcript_data_by_technology(technology, path_trx)
+        trx_ini = _apply_gene_mapping(trx_ini, gene_str_to_int_mapping)
 
-        # Get min and max x, y values
-        x_min, y_min, x_max, y_max = _get_transformed_tile_bounds(trx)
+        use_streaming = streaming_tile_assignment
+        if use_streaming is None:
+            use_streaming = trx_ini.height >= STREAMING_TILE_ASSIGN_ROW_THRESHOLD
 
-        # Process tiles in parallel
-        _process_transcript_tiles_parallel(
-            trx,
-            x_min,
-            y_min,
-            x_max,
-            y_max,
-            tile_size,
-            coarse_tile_factor,
-            path_trx_tiles,
-            max_workers,
-        )
+        if use_streaming:
+            print(
+                f"Using disk-backed traditional transcript tiles ({trx_ini.height:,} rows; "
+                f"threshold {STREAMING_TILE_ASSIGN_ROW_THRESHOLD:,})."
+            )
+            tmp_root = tiles_path / "_tmp_trx_traditional_build"
+            try:
+                shards_dir = tmp_root / "shards"
+                spill_dir = tmp_root / "spill"
+                shards_dir.mkdir(parents=True, exist_ok=True)
+                spill_dir.mkdir(parents=True, exist_ok=True)
+
+                max_x, max_y = _transform_coordinates_to_parquet_shards(
+                    trx_ini,
+                    chunk_size,
+                    transformation_matrix,
+                    image_scale,
+                    shards_dir,
+                )
+                trx_ini = None
+                gc.collect()
+
+                x_min, y_min = 0.0, 0.0
+                x_max, y_max = max_x, max_y
+                n_tiles_x = int(np.ceil((x_max - x_min) / tile_size))
+                n_tiles_y = int(np.ceil((y_max - y_min) / tile_size))
+                print(
+                    f"Grid: {n_tiles_x} x {n_tiles_y} = {n_tiles_x * n_tiles_y} tiles "
+                    "(streaming → per-tile parquets)"
+                )
+                print("Spilling per-tile transcript batches (streaming)...")
+
+                for shard_idx, shard_path in enumerate(
+                    tqdm(sorted(shards_dir.glob("shard_*.parquet")), desc="Tile spill")
+                ):
+                    _spill_one_transform_shard_to_tiles(
+                        shard_path,
+                        shard_idx,
+                        x_min,
+                        y_min,
+                        n_tiles_x,
+                        n_tiles_y,
+                        tile_size,
+                        spill_dir,
+                    )
+
+                shutil.rmtree(shards_dir, ignore_errors=True)
+                _write_traditional_transcript_tiles_from_spill(
+                    spill_dir, n_tiles_x, n_tiles_y, path_trx_tiles
+                )
+            finally:
+                if tmp_root.exists():
+                    shutil.rmtree(tmp_root, ignore_errors=True)
+        else:
+            trx = _transform_coordinates_in_chunks(
+                trx_ini, chunk_size, transformation_matrix, image_scale
+            )
+            trx_ini = None
+
+            # Get min and max x, y values
+            x_min, y_min, x_max, y_max = _get_transformed_tile_bounds(trx)
+
+            # Process tiles in parallel
+            _process_transcript_tiles_parallel(
+                trx,
+                x_min,
+                y_min,
+                x_max,
+                y_max,
+                tile_size,
+                coarse_tile_factor,
+                path_trx_tiles,
+                max_workers,
+            )
 
     # Return the tile bounds
     return {

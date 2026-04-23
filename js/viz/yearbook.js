@@ -412,6 +412,11 @@ export const yearbook = async (
 
   viz_state.combo_data = {};
   viz_state.combo_data.trx = [];
+  viz_state.combo_data.trx_compact = {
+    names: [],
+    x: new Float32Array(),
+    y: new Float32Array(),
+  };
   viz_state.combo_data.cell = [];
   viz_state.tooltip_cat_cell = '';
 
@@ -548,33 +553,36 @@ export const yearbook = async (
     // Use half the portrait data size as the radius for filtering
     const half_view_size = portrait_data_size / 2;
 
-    // Filter transcripts visible in any portrait
-    const filtered_transcripts = (viz_state.combo_data.trx || []).filter(
-      (pos) => {
-        return centers.some((center) => {
-          return (
-            pos.x >= center.x - half_view_size &&
-            pos.x <= center.x + half_view_size &&
-            pos.y >= center.y - half_view_size &&
-            pos.y <= center.y + half_view_size
-          );
-        });
+    // Filter transcripts visible in any portrait using compact buffers
+    const trxCompact = viz_state.combo_data.trx_compact || {
+      names: [],
+      x: new Float32Array(),
+      y: new Float32Array(),
+    };
+    const geneCounts = new Map();
+    for (let i = 0; i < trxCompact.names.length; i++) {
+      const x = trxCompact.x[i];
+      const y = trxCompact.y[i];
+      const inPortrait = centers.some((center) => {
+        return (
+          x >= center.x - half_view_size &&
+          x <= center.x + half_view_size &&
+          y >= center.y - half_view_size &&
+          y <= center.y + half_view_size
+        );
+      });
+      if (!inPortrait) {
+        continue;
       }
-    );
 
-    const filtered_gene_names = filtered_transcripts.map((t) => t.name);
+      const name = trxCompact.names[i];
+      geneCounts.set(name, (geneCounts.get(name) || 0) + 1);
+    }
 
-    const new_bar_data = filtered_gene_names
-      .reduce((acc, gene) => {
-        const existingGene = acc.find((item) => item.name === gene);
-        if (existingGene) {
-          existingGene.value += 1;
-        } else {
-          acc.push({ name: gene, value: 1 });
-        }
-        return acc;
-      }, [])
-      .filter((item) => item.value > 0)
+    const new_bar_data = Array.from(geneCounts, ([name, value]) => ({
+      name,
+      value,
+    }))
       .sort((a, b) => b.value - a.value)
       .slice(0, 100);
 
@@ -592,20 +600,15 @@ export const yearbook = async (
       });
     });
 
-    const filtered_cell_cats = filtered_cells.map((cell) => cell.cat);
+    const cellCounts = new Map();
+    for (const cell of filtered_cells) {
+      cellCounts.set(cell.cat, (cellCounts.get(cell.cat) || 0) + 1);
+    }
 
-    const new_bar_data_cell = filtered_cell_cats
-      .reduce((acc, cat) => {
-        const existing_cat = acc.find((item) => item.name === cat);
-        if (existing_cat) {
-          existing_cat.value += 1;
-        } else {
-          acc.push({ name: cat, value: 1 });
-        }
-        return acc;
-      }, [])
-      .filter((item) => item.value > 0)
-      .sort((a, b) => b.value - a.value);
+    const new_bar_data_cell = Array.from(cellCounts, ([name, value]) => ({
+      name,
+      value,
+    })).sort((a, b) => b.value - a.value);
 
     viz_state.obs_store.new_cell_bar_data.set(new_bar_data_cell);
   };

@@ -85,41 +85,42 @@ export const calc_viewport = async (
     );
 
     // gene bar graph update
-    const filtered_transcripts = viz_state.combo_data.trx.filter((pos) => {
+    const trxCompact = viz_state.combo_data.trx_compact || {
+      names: [],
+      x: new Float32Array(),
+      y: new Float32Array(),
+    };
+    const geneCounts = new Map();
+    for (let i = 0; i < trxCompact.names.length; i++) {
+      const x = trxCompact.x[i];
+      const y = trxCompact.y[i];
+      let inView;
       if (!viz_state.rotation?.hasRotation) {
-        return (
-          pos.x >= viz_state.bounds.min_x &&
-          pos.x <= viz_state.bounds.max_x &&
-          pos.y >= viz_state.bounds.min_y &&
-          pos.y <= viz_state.bounds.max_y
-        );
+        inView =
+          x >= viz_state.bounds.min_x &&
+          x <= viz_state.bounds.max_x &&
+          y >= viz_state.bounds.min_y &&
+          y <= viz_state.bounds.max_y;
+      } else {
+        const [rotX, rotY] = rotate_point(x, y, viz_state.rotation);
+        inView =
+          rotX >= viz_state.bounds.min_x &&
+          rotX <= viz_state.bounds.max_x &&
+          rotY >= viz_state.bounds.min_y &&
+          rotY <= viz_state.bounds.max_y;
+      }
+      if (!inView) {
+        continue;
       }
 
-      const [rotX, rotY] = rotate_point(pos.x, pos.y, viz_state.rotation);
+      const name = trxCompact.names[i];
+      geneCounts.set(name, (geneCounts.get(name) || 0) + 1);
+    }
 
-      return (
-        rotX >= viz_state.bounds.min_x &&
-        rotX <= viz_state.bounds.max_x &&
-        rotY >= viz_state.bounds.min_y &&
-        rotY <= viz_state.bounds.max_y
-      );
-    });
-
-    const filtered_gene_names = filtered_transcripts.map(
-      (transcript) => transcript.name
-    );
-
-    const new_bar_data = filtered_gene_names
-      .reduce((acc, gene) => {
-        const existingGene = acc.find((item) => item.name === gene);
-        if (existingGene) {
-          existingGene.value += 1;
-        } else {
-          acc.push({ name: gene, value: 1 });
-        }
-        return acc;
-      }, [])
-      .filter((item) => item.value > 0)
+    const new_bar_data = Array.from(geneCounts, ([name, value]) => ({
+      name,
+      value,
+    }))
       .sort((a, b) => b.value - a.value)
       .slice(0, 100);
 
@@ -146,20 +147,15 @@ export const calc_viewport = async (
       );
     });
 
-    const filtered_cell_names = filtered_cells.map((cell) => cell.cat);
+    const cellCounts = new Map();
+    for (const cell of filtered_cells) {
+      cellCounts.set(cell.cat, (cellCounts.get(cell.cat) || 0) + 1);
+    }
 
-    const new_bar_data_cell = filtered_cell_names
-      .reduce((acc, cat) => {
-        const existing_cat = acc.find((item) => item.name === cat);
-        if (existing_cat) {
-          existing_cat.value += 1;
-        } else {
-          acc.push({ name: cat, value: 1 });
-        }
-        return acc;
-      }, [])
-      .filter((item) => item.value > 0)
-      .sort((a, b) => b.value - a.value);
+    const new_bar_data_cell = Array.from(cellCounts, ([name, value]) => ({
+      name,
+      value,
+    })).sort((a, b) => b.value - a.value);
 
     viz_state.obs_store.new_cell_bar_data.set(new_bar_data_cell);
   } else {

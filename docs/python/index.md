@@ -77,6 +77,36 @@ gdf_hex = dega.nbhd.generate_hextile(adata, diameter=100)
 adata_nbg = dega.nbhd.calc_nbhd_by_gene(gdf_alpha, by="cell", adata=adata)
 ```
 
+### [Select Module](select/api.md)
+
+The `select` module provides a composable query and sampling layer over AnnData:
+
+- Metadata attributes from `obs`
+- Gene expression attributes
+- Boolean query expressions
+- Random and quantile-bin samplers for representative entity inspection
+
+```python
+import celldega as dega
+
+selector = dega.select.Selector(adata)
+
+q = (
+    (selector.attr("cluster") == "B cell")
+    & (selector.attr("sample_id").isin(["S1", "S2"]))
+)
+
+selection = selector.select(
+    query=q,
+    sampler=selector.samplers.quantile_bin(
+        attr=selector.gene("MS4A1"),
+        bin="high",
+        n=24,
+        seed=1,
+    ),
+)
+```
+
 ### [Viz Module](viz/api.md)
 
 The `viz` module provides Jupyter Widget classes for interactive visualization:
@@ -125,4 +155,5 @@ dega.viz      # Visualization widgets
 | `dega.pre` | `main()`, `create_image_tiles()`, `make_meta_gene()` |
 | `dega.clust` | `Matrix` |
 | `dega.nbhd` | `alpha_shape_cell_clusters()`, `generate_hextile()`, `calc_nbhd_by_gene()`, `NBHD` |
+| `dega.select` | `Selector` |
 | `dega.viz` | `Landscape`, `Clustergram`, `Yearbook`, `Enrich`, `landscape_clustergram()` |

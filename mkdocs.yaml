@@ -28,6 +28,7 @@ nav:
       - pre: python/pre/api.md
       - clust: python/clust/api.md
       - nbhd: python/nbhd/api.md
+      - select: python/select/api.md
       - viz: python/viz/api.md
 
   - JavaScript API:

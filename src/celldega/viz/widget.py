@@ -1,6 +1,7 @@
 """Widget module for interactive visualization components."""
 
 import colorsys
+from collections.abc import Sequence
 from contextlib import suppress
 from copy import deepcopy
 import json
@@ -32,6 +33,36 @@ def _hsv_to_hex(h: float) -> str:
     """Convert HSV color to hex string."""
     r, g, b = colorsys.hsv_to_rgb(h, 0.65, 0.9)
     return f"#{int(r * 255):02x}{int(g * 255):02x}{int(b * 255):02x}"
+
+
+def _selection_to_payload(selection) -> dict:
+    """Normalize a selector result into a JSON-ready payload with ordered ids."""
+    if hasattr(selection, "to_json"):
+        payload = selection.to_json()
+    elif hasattr(selection, "to_dict"):
+        payload = selection.to_dict()
+    elif isinstance(selection, dict):
+        payload = dict(selection)
+    else:
+        payload = {}
+
+    if "ids" not in payload:
+        if hasattr(selection, "names"):
+            payload["ids"] = selection.names()
+        elif isinstance(selection, Sequence) and not isinstance(selection, str):
+            payload["ids"] = list(selection)
+        else:
+            raise TypeError(
+                "`selection` must be a celldega.select.SelectionResult, "
+                "a JSON-like selection dict, or a sequence of cell ids."
+            )
+
+    ids = payload["ids"]
+    if isinstance(ids, str) or not isinstance(ids, Sequence):
+        raise TypeError("`selection` ids must be a sequence of cell ids.")
+
+    payload["ids"] = [str(name) for name in ids]
+    return payload
 
 
 class Landscape(anywidget.AnyWidget):
@@ -483,6 +514,10 @@ class Yearbook(anywidget.AnyWidget):
         base_url (str): The base URL for the dataset.
         cells (list, optional): List of cell identifiers to display as portraits.
             If not provided and no query is given, random cells will be selected.
+        selection (SelectionResult or dict or list, optional): Ordered selection
+            returned by ``dega.select.Selector.select``. Yearbook uses its ids as
+            the portrait cell order and stores the JSON-ready selection payload
+            for provenance. Pass either ``selection`` or ``cells``, not both.
         query (dict, optional): Query for finding cells from LandscapeFiles.
             Supports the following formats:
 
@@ -539,6 +574,16 @@ class Yearbook(anywidget.AnyWidget):
             cols=2,
             portrait_size_um=100,
         )
+
+        # Using a Python selector result
+        selector = dega.select.Selector(adata)
+        selection = selector.select(query=selector.attr("leiden") == "5")
+        yb = Yearbook(
+            base_url="https://path-to-dataset",
+            selection=selection,
+            rows=2,
+            cols=2,
+        )
     """
 
     _esm = Path(__file__).parent / "../static" / "celldega.js"
@@ -550,6 +595,9 @@ class Yearbook(anywidget.AnyWidget):
 
     # Cell list to display as portraits
     cells = traitlets.List(trait=traitlets.Unicode(), default_value=[]).tag(sync=True)
+
+    # JSON-ready selector output used to populate cells and preserve provenance.
+    selection = traitlets.Dict({}).tag(sync=True)
 
     # Grid configuration
     num_rows = traitlets.Int(2).tag(sync=True)
@@ -609,6 +657,16 @@ class Yearbook(anywidget.AnyWidget):
             kwargs["num_cols"] = kwargs.pop("cols")
         elif "cols" in kwargs:
             kwargs.pop("cols")  # Remove duplicate
+
+        selection = kwargs.pop("selection", None)
+        if selection is not None:
+            if kwargs.get("cells"):
+                raise ValueError("Pass either `selection` or `cells`, not both.")
+
+            selection_payload = _selection_to_payload(selection)
+            kwargs["cells"] = [str(name) for name in selection_payload["ids"]]
+            kwargs["selection"] = selection_payload
+            kwargs["current_page"] = 0
 
         adata = kwargs.pop("adata", None) or kwargs.pop("AnnData", None)
         pq_meta_cell = kwargs.pop("meta_cell_parquet", None)

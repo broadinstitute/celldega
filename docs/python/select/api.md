@@ -21,7 +21,7 @@ selector = dega.select.Selector(adata)
 | Concept | API | Purpose |
 | --- | --- | --- |
 | Attribute | `selector.attr(...)`, `selector.gene(...)` | Reference per-entity values from `adata.obs` or gene expression |
-| Query | `(selector.attr("cluster") == "B cell")` | Define the candidate set with boolean logic |
+| Query | `(selector.attr("cluster") == "B cell")` | Define the candidate set with categorical, numeric, and gene-expression predicates combined with boolean logic. |
 | Sampler | `selector.samplers.random(...)` | Choose or rank cells from the candidate set |
 
 This keeps the backend responsible for producing a stable ordered list of ids plus provenance. Widgets such as `Yearbook` can then paginate over that ordered list.

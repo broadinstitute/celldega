@@ -12,11 +12,11 @@ against one AnnData object and returns a :class:`Selection`.
 
 from __future__ import annotations
 
-import warnings
 from collections.abc import Sequence
 from dataclasses import dataclass
 from numbers import Integral
 from typing import Any, Literal, Protocol
+import warnings
 
 import numpy as np
 import pandas as pd

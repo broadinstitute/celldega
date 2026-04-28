@@ -12,11 +12,11 @@ against one AnnData object and returns a :class:`Selection`.
 
 from __future__ import annotations
 
-import warnings
 from collections.abc import Sequence
 from dataclasses import dataclass
 from numbers import Integral
 from typing import Any, Literal, Protocol
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -730,8 +730,7 @@ class Selector:
             sampler_provenance = {"type": "identity", "sampled": len(selected_ids)}
         elif isinstance(sampler, bool):
             raise ValueError(
-                "sampler must be 'all', None, an integer count, or a sampler "
-                "from selector.samplers"
+                "sampler must be 'all', None, an integer count, or a sampler from selector.samplers"
             )
         elif isinstance(sampler, Integral):
             random_sampler = RandomSampler(n=int(sampler), seed=self.default_preview_seed)

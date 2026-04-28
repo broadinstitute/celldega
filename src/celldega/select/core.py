@@ -730,8 +730,7 @@ class Selector:
             sampler_provenance = {"type": "identity", "sampled": len(selected_ids)}
         elif isinstance(sampler, bool):
             raise ValueError(
-                "sampler must be 'all', None, an integer count, or a sampler "
-                "from selector.samplers"
+                "sampler must be 'all', None, an integer count, or a sampler from selector.samplers"
             )
         elif isinstance(sampler, Integral):
             random_sampler = RandomSampler(n=int(sampler), seed=self.default_preview_seed)

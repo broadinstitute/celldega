@@ -47,6 +47,7 @@ dev = [
     "pytest-html",       # HTML coverage reports
     "pytest-mock",       # Mocking utilities
     "pre-commit",        # Git hooks automation
+    "setuptools",
     "build",             # Package building
     "twine",             # PyPI publishing
     # Documentation dependencies

@@ -749,7 +749,9 @@ class Selector:
             raise KeyError(f"Attribute '{name}' not found in adata.obs")
         return pd.Series(self.adata.obs[name], index=self.ids, name=name)
 
-    def _gene_attribute(self, name: str, *, layer: str | None = None, raw: bool = False) -> pd.Series:
+    def _gene_attribute(
+        self, name: str, *, layer: str | None = None, raw: bool = False
+    ) -> pd.Series:
         data = self.adata.raw if raw else self.adata
         if data is None:
             raise ValueError("adata.raw is not available")

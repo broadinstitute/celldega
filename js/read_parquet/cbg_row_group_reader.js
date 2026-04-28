@@ -116,7 +116,10 @@ export class CBGRowGroupReader {
 
     let maxRowGroupsPerFile = 2000;
     if (schemaMetadata.has('max_row_groups_per_file')) {
-      const parsed = parseInt(schemaMetadata.get('max_row_groups_per_file'), 10);
+      const parsed = parseInt(
+        schemaMetadata.get('max_row_groups_per_file'),
+        10
+      );
       if (!Number.isNaN(parsed) && parsed > 0) {
         maxRowGroupsPerFile = parsed;
       }
@@ -234,7 +237,8 @@ export class CBGRowGroupReader {
     if (!this.chunkedMode) {
       const legacyExists = await this._resourceExists(this.url);
       if (!legacyExists) {
-        const discovered = await this._discoverChunkedCbgFromDefaultDirectory(pq);
+        const discovered =
+          await this._discoverChunkedCbgFromDefaultDirectory(pq);
         if (discovered) {
           this.chunkedMode = true;
           this.directory = discovered.directory;

@@ -240,7 +240,9 @@ export class ImageRowGroupReader {
         return null;
       }
       const raw = md.get('zoom_info');
-      return typeof raw === 'string' ? JSON.parse(raw) : JSON.parse(String(raw));
+      return typeof raw === 'string'
+        ? JSON.parse(raw)
+        : JSON.parse(String(raw));
     } catch {
       return null;
     }

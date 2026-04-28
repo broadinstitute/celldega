@@ -28,7 +28,10 @@ export const areBarDataEqual = (left = [], right = []) => {
   }
 
   for (let i = 0; i < left.length; i++) {
-    if (left[i]?.name !== right[i]?.name || left[i]?.value !== right[i]?.value) {
+    if (
+      left[i]?.name !== right[i]?.name ||
+      left[i]?.value !== right[i]?.value
+    ) {
       return false;
     }
   }

@@ -29,7 +29,9 @@ const ensureViewportCache = (viz_state) => {
     !viz_state.viewport_cache.geneCountScratch ||
     viz_state.viewport_cache.geneCountScratch.length !== geneCountLength
   ) {
-    viz_state.viewport_cache.geneCountScratch = new Uint32Array(geneCountLength);
+    viz_state.viewport_cache.geneCountScratch = new Uint32Array(
+      geneCountLength
+    );
     viz_state.viewport_cache.activeGeneIds = [];
   }
 
@@ -48,7 +50,12 @@ const ensureViewportCache = (viz_state) => {
   return viz_state.viewport_cache;
 };
 
-const publishBarDataIfChanged = (viewportCache, cacheKey, observable, nextData) => {
+const publishBarDataIfChanged = (
+  viewportCache,
+  cacheKey,
+  observable,
+  nextData
+) => {
   if (areBarDataEqual(viewportCache[cacheKey], nextData)) {
     return;
   }

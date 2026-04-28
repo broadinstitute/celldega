@@ -629,7 +629,9 @@ export const yearbook = async (
       !viz_state.yearbook.cellCountScratch ||
       viz_state.yearbook.cellCountScratch.length !== categoryCountLength
     ) {
-      viz_state.yearbook.cellCountScratch = new Uint32Array(categoryCountLength);
+      viz_state.yearbook.cellCountScratch = new Uint32Array(
+        categoryCountLength
+      );
       viz_state.yearbook.activeCellIds = [];
     }
 

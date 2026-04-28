@@ -323,10 +323,12 @@ export class RowGroupTileReader {
       return cachedRead;
     }
 
-    const readPromise = this._readRowGroups(uniqueIndices, options).catch(() => {
-      this.requestCache.delete(cacheKey);
-      return null;
-    });
+    const readPromise = this._readRowGroups(uniqueIndices, options).catch(
+      () => {
+        this.requestCache.delete(cacheKey);
+        return null;
+      }
+    );
 
     return this._setCachedRead(cacheKey, readPromise);
   }

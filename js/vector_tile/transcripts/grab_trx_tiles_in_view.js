@@ -25,7 +25,9 @@ async function grab_trx_tiles_row_groups(tiles_in_view, viz_state) {
 }
 
 const materializeTranscriptBuffers = (tables, viz_state) => {
-  const tableArray = (Array.isArray(tables) ? tables : [tables]).filter(Boolean);
+  const tableArray = (Array.isArray(tables) ? tables : [tables]).filter(
+    Boolean
+  );
 
   if (tableArray.length === 0) {
     return {
@@ -147,10 +149,7 @@ export const grab_trx_tiles_in_view = async (
   }
 
   // Handle case where no transcript tiles were loaded
-  if (
-    !trx_tables ||
-    (Array.isArray(trx_tables) && trx_tables.length === 0)
-  ) {
+  if (!trx_tables || (Array.isArray(trx_tables) && trx_tables.length === 0)) {
     viz_state.genes.trx_gene_ids = new Int32Array();
     viz_state.combo_data.trx = [];
     viz_state.combo_data.trx_compact = createEmptyTrxCompact();
@@ -162,10 +161,8 @@ export const grab_trx_tiles_in_view = async (
     };
   }
 
-  const { geneIds, scatterData: trx_scatter_data } = materializeTranscriptBuffers(
-    trx_tables,
-    viz_state
-  );
+  const { geneIds, scatterData: trx_scatter_data } =
+    materializeTranscriptBuffers(trx_tables, viz_state);
 
   viz_state.genes.trx_gene_ids = geneIds;
   viz_state.combo_data.trx_compact = {

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+import warnings
 from pathlib import Path
 
 import numpy as np
@@ -110,25 +111,80 @@ def test_random_sampler_is_seeded(adata: AnnData, selector_cls) -> None:
     assert set(result_a.ids).issubset({"c1", "c2", "c4", "c5", "c6"})
 
 
-def test_selection_result_pages_and_frame(adata: AnnData, selector_cls) -> None:
+def test_selection_pages_and_frame(adata: AnnData, selector_cls) -> None:
     selector = selector_cls(adata)
 
-    result = selector.select(limit=4)
+    result = selector.select(sampler="all")
 
-    assert len(result) == 4
-    assert list(result) == ["c1", "c2", "c3", "c4"]
+    assert len(result) == 6
+    assert list(result) == ["c1", "c2", "c3", "c4", "c5", "c6"]
     assert result[0] == "c1"
     assert result[:2] == ["c1", "c2"]
-    assert result.names() == ["c1", "c2", "c3", "c4"]
+    assert result.names() == ["c1", "c2", "c3", "c4", "c5", "c6"]
     assert result.page(0, 2) == ["c1", "c2"]
     assert result.page(1, 2) == ["c3", "c4"]
     assert result.to_frame().to_dict("list") == {
-        "id": ["c1", "c2", "c3", "c4"],
-        "rank": [0, 1, 2, 3],
+        "id": ["c1", "c2", "c3", "c4", "c5", "c6"],
+        "rank": [0, 1, 2, 3, 4, 5],
     }
     assert result.to_dataframe().equals(result.to_frame())
     assert result.to_json() == result.to_dict()
     assert result.to_json()["provenance"]["candidate_count"] == 6
+
+
+def test_integer_sampler_shorthand_uses_default_seed(adata: AnnData, selector_cls) -> None:
+    selector = selector_cls(adata)
+
+    selection = selector.select(sampler=3)
+    explicit_random = selector.select(sampler=selector.samplers.random(n=3, seed=0))
+
+    assert len(selection) == 3
+    assert selection.ids == explicit_random.ids
+    assert selection.sampler == {"type": "random", "n": 3, "seed": 0, "replace": False}
+    assert selection.provenance["sampler"]["shorthand"] == "integer"
+
+
+def test_bool_is_not_treated_as_integer_sampler(adata: AnnData, selector_cls) -> None:
+    selector = selector_cls(adata)
+
+    with pytest.raises(ValueError, match="sampler must be 'all'"):
+        selector.select(sampler=True)
+
+
+def test_default_preview_warns_for_large_unsampled_selection(selector_cls) -> None:
+    obs = pd.DataFrame(index=[f"c{i}" for i in range(1005)])
+    var = pd.DataFrame(index=["MS4A1"])
+    adata = AnnData(X=np.ones((1005, 1)), obs=obs, var=var)
+    selector = selector_cls(adata)
+
+    with pytest.warns(UserWarning, match="Returning a deterministic random preview"):
+        selection = selector.select()
+
+    explicit_random = selector.select(
+        sampler=selector.samplers.random(n=1000, seed=0),
+    )
+
+    assert len(selection) == 1000
+    assert selection.candidate_count == 1005
+    assert selection.sampler == {"type": "default_random_preview", "n": 1000, "seed": 0}
+    assert selection.provenance["sampler"]["type"] == "default_random_preview"
+    assert selection.ids == explicit_random.ids
+
+
+def test_sampler_all_returns_large_selection_without_preview_warning(selector_cls) -> None:
+    obs = pd.DataFrame(index=[f"c{i}" for i in range(1005)])
+    var = pd.DataFrame(index=["MS4A1"])
+    adata = AnnData(X=np.ones((1005, 1)), obs=obs, var=var)
+    selector = selector_cls(adata)
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        selection = selector.select(sampler="all")
+
+    assert len(caught) == 0
+    assert len(selection) == 1005
+    assert selection.sampler == {"type": "all"}
+    assert selection.provenance["sampler"]["type"] == "all"
 
 
 def test_missing_attribute_and_gene_errors_are_clear(adata: AnnData, selector_cls) -> None:

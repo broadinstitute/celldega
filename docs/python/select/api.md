@@ -2,8 +2,8 @@
 
 The `select` module provides a small query and sampling layer over AnnData. It is designed to answer questions like:
 
-- Which cells match this metadata/gene filter?
-- In what stable order should those cells be shown?
+- Which entities match this metadata/gene filter?
+- In what stable order should those ids be shown?
 - What query and sampler produced that order?
 
 The main class is `Selector`, used from the `dega.select` namespace:
@@ -22,7 +22,7 @@ selector = dega.select.Selector(adata)
 | --- | --- | --- |
 | Attribute | `selector.attr(...)`, `selector.gene(...)` | Reference per-entity values from `adata.obs` or gene expression |
 | Query | `(selector.attr("cluster") == "B cell")` | Define the candidate set with categorical, numeric, and gene-expression predicates combined with boolean logic. |
-| Sampler | `selector.samplers.random(...)` | Choose or rank cells from the candidate set |
+| Sampler | `selector.samplers.random(...)` or `sampler=3000` | Choose or rank ids from the candidate set |
 
 This keeps the backend responsible for producing a stable ordered list of ids plus provenance. Widgets such as `Yearbook` can then paginate over that ordered list.
 
@@ -40,7 +40,50 @@ selection = selector.select(query=query)
 selection.names()
 ```
 
-`selection.names()` returns the ordered ids, usually cell names from `adata.obs_names`.
+`selection.names()` returns the ordered ids, usually names from `adata.obs_names`.
+
+## Safe Default Preview
+
+If a query matches a very large number of entities and no sampler is provided, `Selector` returns a deterministic random preview instead of accidentally handing a widget or notebook hundreds of thousands of ids.
+
+By default:
+
+- candidate sets up to 1,000 ids are returned in full;
+- candidate sets over 1,000 ids return a deterministic random preview of 1,000 ids;
+- a warning explains that previewing happened and how to request all matches.
+
+```python
+selection = selector.select(query=query)
+```
+
+To intentionally return every matching id, pass `sampler="all"`:
+
+```python
+selection = selector.select(query=query, sampler="all")
+```
+
+For the common case of "give me N random ids", pass an integer. This uses the selector's `default_preview_seed` so the shorthand is reproducible:
+
+```python
+selection = selector.select(query=query, sampler=3000)
+```
+
+To make sampling explicit and reproducible, pass a sampler:
+
+```python
+selection = selector.select(
+    query=query,
+    sampler=selector.samplers.random(n=5000, seed=1),
+)
+```
+
+The default preview size can be changed when the selector is created:
+
+```python
+selector = dega.select.Selector(adata, default_preview_n=2000)
+```
+
+Set `default_preview_n=None` to disable the preview guard.
 
 ## Sampling And Ranking
 
@@ -67,7 +110,7 @@ selection = selector.select(
 )
 ```
 
-The returned ids preserve the sampler's order. For `bin="high"`, selected cells are ordered from higher to lower expression after sampling.
+The returned ids preserve the sampler's order. For `bin="high"`, selected ids are ordered from higher to lower expression after sampling.
 
 ## Result Objects
 
@@ -145,7 +188,7 @@ yearbook = dega.viz.Yearbook(
 )
 ```
 
-Internally, Yearbook uses `selection.names()` as its ordered `cells` list and stores `selection.to_json()` for provenance. The frontend can paginate over the ordered cells without needing to understand the query machinery.
+Internally, Yearbook uses `selection.names()` as its ordered `cells` list and stores `selection.to_json()` for provenance. The frontend can paginate over the ordered ids without needing to understand the query machinery.
 
 Pass either `selection=` or `cells=`, not both.
 

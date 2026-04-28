@@ -12,8 +12,10 @@ against one AnnData object and returns a :class:`Selection`.
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Sequence
 from dataclasses import dataclass
+from numbers import Integral
 from typing import Any, Literal, Protocol
 
 import numpy as np
@@ -279,15 +281,15 @@ class Selection:
     Attributes
     ----------
     ids
-        Ordered selected entity ids. For cell AnnData objects these are usually
-        cell names from ``adata.obs_names``.
+        Ordered selected entity ids. For AnnData objects these are usually
+        names from ``adata.obs_names``.
     query
         JSON-ready query representation, or ``None`` when no query was used.
     sampler
         JSON-ready sampler representation, or ``None`` when ids were returned in
         source order.
     candidate_count
-        Number of entities matching the query before sampling or limiting.
+        Number of entities matching the query before sampling.
     selected_count
         Number of ids returned in :attr:`ids`.
     provenance
@@ -318,7 +320,7 @@ class Selection:
         """Return selected entity names in stable result order.
 
         This is the most direct way to pass a selection to code that expects a
-        plain list of cell ids.
+        plain list of ids.
         """
         return list(self.ids)
 
@@ -455,8 +457,8 @@ class QuantileBinSampler:
     """Sample ids from a low/mid/high quantile bin for an attribute.
 
     This sampler is useful for representative inspection, for example selecting
-    high-expressing cells for a gene while preserving a stable ranked order in
-    the returned selection.
+    high-valued entities for an attribute while preserving a stable ranked
+    order in the returned selection.
     """
 
     attr: Attribute
@@ -611,6 +613,13 @@ class Selector:
         AnnData-like object. The first implementation selects over ``adata.obs``
         rows and can resolve metadata attributes from ``obs`` plus gene
         expression vectors from ``X`` or a named layer.
+    default_preview_n
+        Maximum number of ids to return when no sampler is provided and the
+        candidate set is larger than this value. Set to ``None`` to disable the
+        preview guard.
+    default_preview_seed
+        Seed used for the deterministic random preview when ``default_preview_n``
+        is triggered.
 
     Examples
     --------
@@ -631,12 +640,22 @@ class Selector:
     >>> selection.names()
     """
 
-    def __init__(self, adata: Any):
+    def __init__(
+        self,
+        adata: Any,
+        *,
+        default_preview_n: int | None = 1000,
+        default_preview_seed: int = 0,
+    ):
         if not hasattr(adata, "obs") or not hasattr(adata, "obs_names"):
             raise TypeError("Selector requires an AnnData-like object with obs and obs_names")
+        if default_preview_n is not None and default_preview_n <= 0:
+            raise ValueError("default_preview_n must be positive or None")
 
         self.adata = adata
         self.samplers = SamplerFactory()
+        self.default_preview_n = default_preview_n
+        self.default_preview_seed = default_preview_seed
 
     @property
     def ids(self) -> pd.Index:
@@ -673,9 +692,7 @@ class Selector:
     def select(
         self,
         query: Query | None = None,
-        sampler: Sampler | None = None,
-        *,
-        limit: int | None = None,
+        sampler: Sampler | Literal["all"] | int | None = None,
     ) -> Selection:
         """Evaluate a query and optionally sample/rank the matching ids.
 
@@ -686,10 +703,12 @@ class Selector:
             boolean operators. If omitted, every AnnData observation is a
             candidate.
         sampler
-            Optional sampler/ranker from ``selector.samplers``. If omitted,
-            candidate ids are returned in ``adata.obs_names`` order.
-        limit
-            Optional cap on the number of returned ids after sampling/ranking.
+            Optional sampler/ranker from ``selector.samplers``. Passing an
+            integer is shorthand for a deterministic random sampler returning
+            that many ids. If omitted and the candidate set is larger than
+            ``default_preview_n``, a deterministic random preview is returned
+            with a warning. Use ``sampler="all"`` to intentionally return every
+            matching id.
 
         Returns
         -------
@@ -697,24 +716,49 @@ class Selector:
             Stable ordered selected ids plus JSON-ready query, sampler, scores,
             and provenance.
         """
-        _validate_count(limit, "limit")
-
         candidate_ids = self._candidate_ids(query)
         query_dict = query.to_dict() if query is not None else None
 
-        if sampler is None:
-            selected_index = candidate_ids if limit is None else candidate_ids[:limit]
-            selected_ids = [str(index) for index in selected_index]
+        if sampler is None and self._should_preview(candidate_ids):
+            selected_ids, sampler_dict, scores, sampler_provenance = self._preview_selection(
+                candidate_ids
+            )
+        elif sampler is None:
+            selected_ids = [str(index) for index in candidate_ids]
             sampler_dict = None
             scores = None
             sampler_provenance = {"type": "identity", "sampled": len(selected_ids)}
+        elif isinstance(sampler, bool):
+            raise ValueError(
+                "sampler must be 'all', None, an integer count, or a sampler "
+                "from selector.samplers"
+            )
+        elif isinstance(sampler, Integral):
+            random_sampler = RandomSampler(n=int(sampler), seed=self.default_preview_seed)
+            sampled = random_sampler.apply(self, candidate_ids)
+            selected_ids = sampled.ids
+            sampler_dict = random_sampler.to_dict()
+            scores = None
+            sampler_provenance = {
+                **sampled.provenance,
+                "type": "random",
+                "shorthand": "integer",
+            }
+        elif sampler == "all":
+            selected_ids = [str(index) for index in candidate_ids]
+            sampler_dict = {"type": "all"}
+            scores = None
+            sampler_provenance = {"type": "all", "sampled": len(selected_ids)}
         else:
+            if isinstance(sampler, str):
+                raise ValueError(
+                    "sampler must be 'all', None, an integer count, or a sampler "
+                    "from selector.samplers"
+                )
             sampled = sampler.apply(self, candidate_ids)
-            selected_ids = sampled.ids if limit is None else sampled.ids[:limit]
+            selected_ids = sampled.ids
             sampler_dict = sampler.to_dict()
             scores = _stable_scores_dict(sampled.scores)
-            if scores is not None and limit is not None:
-                scores = {inst_id: scores[inst_id] for inst_id in selected_ids if inst_id in scores}
             sampler_provenance = sampled.provenance
 
         provenance = {
@@ -723,7 +767,6 @@ class Selector:
             "n_vars": int(self.adata.n_vars),
             "candidate_count": len(candidate_ids),
             "selected_count": len(selected_ids),
-            "limit": limit,
             "sampler": sampler_provenance,
         }
 
@@ -736,6 +779,42 @@ class Selector:
             provenance=provenance,
             scores=scores,
         )
+
+    def _should_preview(self, candidate_ids: pd.Index) -> bool:
+        return self.default_preview_n is not None and len(candidate_ids) > self.default_preview_n
+
+    def _preview_selection(
+        self,
+        candidate_ids: pd.Index,
+    ) -> tuple[list[str], dict[str, Any], None, dict[str, Any]]:
+        assert self.default_preview_n is not None
+        preview_n = self.default_preview_n
+        warnings.warn(
+            (
+                f"Query matched {len(candidate_ids):,} entities. Returning a deterministic "
+                f"random preview of {preview_n:,} ids because no sampler "
+                "was provided. Use sampler='all' to return all matches, pass "
+                "an integer count such as sampler=3000, or pass selector.samplers.* "
+                "for explicit sampling."
+            ),
+            UserWarning,
+            stacklevel=3,
+        )
+
+        preview_sampler = RandomSampler(n=preview_n, seed=self.default_preview_seed)
+        sampled = preview_sampler.apply(self, candidate_ids)
+        selected_ids = sampled.ids
+        sampler_dict = {
+            "type": "default_random_preview",
+            "n": preview_n,
+            "seed": self.default_preview_seed,
+        }
+        sampler_provenance = {
+            **sampled.provenance,
+            "type": "default_random_preview",
+            "reason": "no sampler provided",
+        }
+        return selected_ids, sampler_dict, None, sampler_provenance
 
     def _candidate_ids(self, query: Query | None) -> pd.Index:
         if query is None:

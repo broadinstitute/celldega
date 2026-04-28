@@ -2,8 +2,8 @@
 
 from .core import (
     Attribute,
-    Query,
     QuantileBinSampler,
+    Query,
     RandomSampler,
     Sampler,
     Selection,
@@ -13,8 +13,8 @@ from .core import (
 
 __all__ = [
     "Attribute",
-    "Query",
     "QuantileBinSampler",
+    "Query",
     "RandomSampler",
     "Sampler",
     "Selection",

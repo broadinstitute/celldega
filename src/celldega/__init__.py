@@ -1,6 +1,6 @@
+from importlib import import_module
 import importlib.metadata  # temporary fix for libpysal warning
 import warnings
-from importlib import import_module
 
 
 warnings.filterwarnings("ignore", category=FutureWarning)

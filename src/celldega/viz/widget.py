@@ -53,7 +53,7 @@ def _selection_to_payload(selection) -> dict:
             payload["ids"] = list(selection)
         else:
             raise TypeError(
-                "`selection` must be a celldega.select.SelectionResult, "
+                "`selection` must be a celldega.select.Selection, "
                 "a JSON-like selection dict, or a sequence of cell ids."
             )
 
@@ -514,7 +514,7 @@ class Yearbook(anywidget.AnyWidget):
         base_url (str): The base URL for the dataset.
         cells (list, optional): List of cell identifiers to display as portraits.
             If not provided and no query is given, random cells will be selected.
-        selection (SelectionResult or dict or list, optional): Ordered selection
+        selection (Selection or dict or list, optional): Ordered selection
             returned by ``dega.select.Selector.select``. Yearbook uses its ids as
             the portrait cell order and stores the JSON-ready selection payload
             for provenance. Pass either ``selection`` or ``cells``, not both.

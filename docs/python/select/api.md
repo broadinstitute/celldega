@@ -71,7 +71,7 @@ The returned ids preserve the sampler's order. For `bin="high"`, selected cells 
 
 ## Result Objects
 
-`selector.select(...)` returns a `SelectionResult`. It behaves like an ordered list of selected ids and also carries provenance.
+`selector.select(...)` returns a `Selection`. It behaves like an ordered list of selected ids and also carries provenance.
 
 ```python
 len(selection)

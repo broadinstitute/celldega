@@ -7,7 +7,7 @@ The :mod:`celldega.select` module separates three related ideas:
 - samplers/rankers, such as random sampling or high-expression quantile bins.
 
 The main entry point is :class:`Selector`, which evaluates these expressions
-against one AnnData object and returns a :class:`SelectionResult`.
+against one AnnData object and returns a :class:`Selection`.
 """
 
 from __future__ import annotations
@@ -268,12 +268,12 @@ class BooleanQuery(Query):
 
 
 @dataclass(frozen=True)
-class SelectionResult:
+class Selection:
     """Ordered ids selected from a :class:`Selector`.
 
-    ``SelectionResult`` stores the stable ordered ids returned by
-    :meth:`Selector.select` plus the query, sampler, scores, and provenance used
-    to create that order. It is intentionally list-like, so it can be iterated,
+    ``Selection`` is the object returned by :meth:`Selector.select`. It stores
+    stable ordered ids plus the query, sampler, scores, and provenance used to
+    create that order. It is intentionally list-like, so it can be iterated,
     indexed, and passed to consumers such as :class:`celldega.viz.Yearbook`.
 
     Attributes
@@ -676,7 +676,7 @@ class Selector:
         sampler: Sampler | None = None,
         *,
         limit: int | None = None,
-    ) -> SelectionResult:
+    ) -> Selection:
         """Evaluate a query and optionally sample/rank the matching ids.
 
         Parameters
@@ -693,7 +693,7 @@ class Selector:
 
         Returns
         -------
-        SelectionResult
+        Selection
             Stable ordered selected ids plus JSON-ready query, sampler, scores,
             and provenance.
         """
@@ -727,7 +727,7 @@ class Selector:
             "sampler": sampler_provenance,
         }
 
-        return SelectionResult(
+        return Selection(
             ids=selected_ids,
             query=query_dict,
             sampler=sampler_dict,

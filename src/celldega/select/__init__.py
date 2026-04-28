@@ -6,7 +6,7 @@ from .core import (
     QuantileBinSampler,
     RandomSampler,
     Sampler,
-    SelectionResult,
+    Selection,
     Selector,
 )
 
@@ -17,6 +17,6 @@ __all__ = [
     "QuantileBinSampler",
     "RandomSampler",
     "Sampler",
-    "SelectionResult",
+    "Selection",
     "Selector",
 ]

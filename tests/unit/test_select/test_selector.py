@@ -46,9 +46,7 @@ def selector_cls():
 def test_selector_filters_obs_attributes(adata: AnnData, selector_cls) -> None:
     selector = selector_cls(adata)
 
-    query = (selector.attr("cluster") == "B cell") & (
-        selector.attr("sample_id").isin(["S1", "S2"])
-    )
+    query = (selector.attr("cluster") == "B cell") & (selector.attr("sample_id").isin(["S1", "S2"]))
     result = selector.select(query=query)
 
     assert result.ids == ["c1", "c4", "c5"]

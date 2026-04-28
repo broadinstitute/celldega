@@ -1,7 +1,7 @@
 """Widget module for interactive visualization components."""
 
-import colorsys
 from collections.abc import Sequence
+import colorsys
 from contextlib import suppress
 from copy import deepcopy
 import json

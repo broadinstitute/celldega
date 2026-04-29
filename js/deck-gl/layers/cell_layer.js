@@ -55,6 +55,8 @@ const get_meta_cell_attrs = (name, meta_cell, cell_name_prefix) => {
 const is_point_cloud_viz = (viz_state) =>
   is_point_cloud_technology(viz_state.img?.landscape_parameters?.technology);
 
+const is_cluster_color_mode = (cats) => !cats.cat || cats.cat === 'cluster';
+
 const toByte = (value) => {
   const numericValue = Number(value);
   if (!Number.isFinite(numericValue)) {
@@ -205,7 +207,7 @@ export const update_cell_color_buffer = (viz_state) => {
   const selectedCats = cats.selected_cats || [];
   const selectedCatSet = new Set(selectedCats);
   const colorDict = cats.color_dict_cluster || {};
-  const isClusterMode = cats.cat === 'cluster';
+  const isClusterMode = is_cluster_color_mode(cats);
   const hasClusterFilter =
     !isClusterMode &&
     selectedCats.length > 0 &&
@@ -332,7 +334,7 @@ export const get_cell_color = (cats, highlighted_cells, i, d) => {
 
   let base_color;
 
-  if (cats.cat === 'cluster') {
+  if (is_cluster_color_mode(cats)) {
     try {
       const inst_cat = cats.cell_cats[d.index];
 

@@ -5,6 +5,7 @@ import {
 } from '@deck.gl-community/editable-layers';
 import * as d3 from 'd3';
 
+import { is_point_cloud_technology } from '../../global_variables/image_info';
 import { handleValidationWarning } from '../../temp_utils/errorHandler';
 import { make_bar_graph, bar_callback_nbhd } from '../../ui/bar_plot';
 import { hexToRgb, randomHexColor } from '../../utils/hexToRgb';
@@ -15,8 +16,15 @@ import { update_cell_pickable_state } from './cell_layer';
 import { update_path_pickable_state } from './path_layer';
 import { update_trx_pickable_state } from './trx_layer';
 
+const has_edit_layer = (layers_obj) =>
+  layers_obj?.edit_layer && typeof layers_obj.edit_layer.clone === 'function';
+
 // Forward declaration for function used before definition
 function update_edit_layer_mode(layers_obj, mode) {
+  if (!has_edit_layer(layers_obj)) {
+    return;
+  }
+
   layers_obj.edit_layer = layers_obj.edit_layer.clone({
     mode,
   });
@@ -275,6 +283,14 @@ const edit_layer_on_click = async (event, deck_ist, layers_obj, viz_state) => {
 };
 
 export const ini_edit_layer = (viz_state) => {
+  if (
+    is_point_cloud_technology(viz_state.img?.landscape_parameters?.technology)
+  ) {
+    // EditableGeoJsonLayer expects 2D view coordinates; OrbitView point clouds
+    // can throw during its global pointermove handler even when hidden.
+    return null;
+  }
+
   const edit_layer = new EditableGeoJsonLayer({
     id: 'edit-layer',
     data: viz_state.edit.feature_collection,
@@ -308,6 +324,10 @@ export const ini_edit_layer = (viz_state) => {
 };
 
 export const set_edit_layer_on_edit = (deck_ist, layers_obj, viz_state) => {
+  if (!has_edit_layer(layers_obj)) {
+    return;
+  }
+
   layers_obj.edit_layer = layers_obj.edit_layer.clone({
     onEdit: (edit_info) =>
       edit_layer_on_edit(deck_ist, layers_obj, viz_state, edit_info),
@@ -315,6 +335,10 @@ export const set_edit_layer_on_edit = (deck_ist, layers_obj, viz_state) => {
 };
 
 export const set_edit_layer_on_click = (deck_ist, layers_obj, viz_state) => {
+  if (!has_edit_layer(layers_obj)) {
+    return;
+  }
+
   // Track double-click timing
   let lastClickTime = 0;
   let lastClickIndex = -1;
@@ -380,12 +404,20 @@ export const set_edit_layer_on_click = (deck_ist, layers_obj, viz_state) => {
 export { update_edit_layer_mode };
 
 export const update_edit_visitility = (layers_obj, visible) => {
+  if (!has_edit_layer(layers_obj)) {
+    return;
+  }
+
   layers_obj.edit_layer = layers_obj.edit_layer.clone({
     visible,
   });
 };
 
 export const update_edit_layer_opacity = (layers_obj, opacity) => {
+  if (!has_edit_layer(layers_obj)) {
+    return;
+  }
+
   layers_obj.edit_layer = layers_obj.edit_layer.clone({
     opacity,
   });

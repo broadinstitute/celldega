@@ -37,9 +37,12 @@ import { set_options } from '../global_variables/fetch_options';
 import { set_global_base_url } from '../global_variables/global_base_url';
 import { set_dimensions } from '../global_variables/image_dimensions';
 import {
+  get_landscape_image_info,
+  get_primary_image_name,
   set_image_info,
   set_image_layer_colors,
   set_image_format,
+  technology_has_image_layer,
 } from '../global_variables/image_info';
 import { set_landscape_parameters } from '../global_variables/landscape_parameters';
 import { set_cluster_metadata } from '../global_variables/meta_cluster';
@@ -327,21 +330,28 @@ export const yearbook = async (
   set_options(token);
 
   await set_landscape_parameters(viz_state.img, base_url, viz_state.aws);
-  const tech = viz_state.img.landscape_parameters.technology;
+  const { landscape_parameters } = viz_state.img;
+  const {
+    technology: tech,
+    use_int_index,
+    image_format,
+  } = landscape_parameters;
+  const has_image_layer = technology_has_image_layer(tech);
+
+  if (!has_image_layer) {
+    viz_state.obs_store.viz_image_layers.set(false);
+    viz_state.obs_store.viz_background_layer.set(false);
+  }
 
   // Initialize row group readers if enabled
   await initializeYearbookRowGroupReaders(viz_state, base_url);
 
-  const tmp_image_info = viz_state.img.landscape_parameters.image_info;
-  const image_name_for_dim = tmp_image_info[0].name;
+  const tmp_image_info = get_landscape_image_info(landscape_parameters);
+  const image_name_for_dim = get_primary_image_name(landscape_parameters);
 
-  viz_state.vector_name_integer =
-    viz_state.img.landscape_parameters.use_int_index;
+  viz_state.vector_name_integer = use_int_index;
 
-  set_image_format(
-    viz_state.img,
-    viz_state.img.landscape_parameters.image_format
-  );
+  set_image_format(viz_state.img, image_format);
   set_image_info(viz_state.img, tmp_image_info);
   set_image_layer_sliders(viz_state.img);
   set_image_layer_colors(
@@ -372,7 +382,11 @@ export const yearbook = async (
     root.appendChild(viz_state.scale_bar.container);
   }
 
-  await set_dimensions(viz_state, base_url, image_name_for_dim);
+  if (has_image_layer) {
+    await set_dimensions(viz_state, base_url, image_name_for_dim);
+  } else {
+    viz_state.dimensions = { width: 1, height: 1, tileSize: 1 };
+  }
 
   await set_meta_gene(
     viz_state.genes,

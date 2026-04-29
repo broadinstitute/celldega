@@ -13,12 +13,16 @@ import {
 } from '../../global_variables/cell_names_array';
 import { set_color_dict_gene } from '../../global_variables/color_dict_gene';
 import { options } from '../../global_variables/fetch_options';
+import { is_point_cloud_technology } from '../../global_variables/image_info';
 import { update_selected_genes } from '../../global_variables/selected_genes';
 import { get_arrow_table } from '../../read_parquet/get_arrow_table';
 import { get_scatter_data } from '../../read_parquet/get_scatter_data';
 import { scale_umap_data } from '../../umap/scale_umap_data';
 import { buildCellCompactData } from '../../utils/compact_data';
 import { getModelMatrixProps } from '../../utils/rotation';
+
+const POINT_CLOUD_POSITION_SIZE = 3;
+const POINT_CLOUD_TRANSITION_LIMIT = 100000;
 
 /**
  * Get the meta_cell key for a given cell name.
@@ -48,20 +52,264 @@ const get_meta_cell_attrs = (name, meta_cell, cell_name_prefix) => {
   return undefined;
 };
 
-const cell_layer_onclick = async (info, d, deck_ist, layers_obj, viz_state) => {
-  // Check if the device is a touch device
-  const isTouchDevice =
-    'ontouchstart' in window || navigator.maxTouchPoints > 0;
+const is_point_cloud_viz = (viz_state) =>
+  is_point_cloud_technology(viz_state.img?.landscape_parameters?.technology);
 
-  let inst_cat;
-
-  if (isTouchDevice) {
-    // Fallback on the previous method for touch devices
-    inst_cat = viz_state.cats.cell_cats[info.index];
-  } else {
-    // Use the tooltip category for non-touch devices
-    inst_cat = viz_state.tooltip_cat_cell;
+const toByte = (value) => {
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue)) {
+    return 0;
   }
+
+  return Math.max(0, Math.min(255, Math.round(numericValue)));
+};
+
+const setColor = (colors, offset, r, g, b, a) => {
+  colors[offset] = toByte(r);
+  colors[offset + 1] = toByte(g);
+  colors[offset + 2] = toByte(b);
+  colors[offset + 3] = toByte(a);
+};
+
+export const set_spatial_bounds_from_flat_coordinates = (
+  viz_state,
+  flatCoordinateArray,
+  dim,
+  numRows
+) => {
+  if (numRows === 0) {
+    viz_state.spatial.x_min = 0;
+    viz_state.spatial.x_max = 0;
+    viz_state.spatial.y_min = 0;
+    viz_state.spatial.y_max = 0;
+    viz_state.spatial.z_min = 0;
+    viz_state.spatial.z_max = 0;
+    return;
+  }
+
+  let xMin = Infinity;
+  let xMax = -Infinity;
+  let yMin = Infinity;
+  let yMax = -Infinity;
+  let zMin = Infinity;
+  let zMax = -Infinity;
+
+  for (let i = 0; i < numRows; i++) {
+    const offset = i * dim;
+    const x = flatCoordinateArray[offset];
+    const y = flatCoordinateArray[offset + 1];
+    xMin = Math.min(xMin, x);
+    xMax = Math.max(xMax, x);
+    yMin = Math.min(yMin, y);
+    yMax = Math.max(yMax, y);
+
+    if (dim === 3) {
+      const z = flatCoordinateArray[offset + 2];
+      zMin = Math.min(zMin, z);
+      zMax = Math.max(zMax, z);
+    }
+  }
+
+  viz_state.spatial.x_min = xMin;
+  viz_state.spatial.x_max = xMax;
+  viz_state.spatial.y_min = yMin;
+  viz_state.spatial.y_max = yMax;
+
+  viz_state.spatial.z_min = dim === 3 ? zMin : 0;
+  viz_state.spatial.z_max = dim === 3 ? zMax : 0;
+};
+
+const build_point_cloud_position_buffer = (
+  flatCoordinateArray,
+  dim,
+  numRows
+) => {
+  if (dim === POINT_CLOUD_POSITION_SIZE) {
+    return new Float32Array(flatCoordinateArray);
+  }
+
+  const positions = new Float32Array(numRows * POINT_CLOUD_POSITION_SIZE);
+  for (let i = 0; i < numRows; i++) {
+    const sourceOffset = i * dim;
+    const targetOffset = i * POINT_CLOUD_POSITION_SIZE;
+    positions[targetOffset] = flatCoordinateArray[sourceOffset];
+    positions[targetOffset + 1] = flatCoordinateArray[sourceOffset + 1];
+    positions[targetOffset + 2] =
+      dim > 2 ? flatCoordinateArray[sourceOffset + 2] : 0;
+  }
+
+  return positions;
+};
+
+export const set_point_cloud_cell_position_buffers = (
+  viz_state,
+  flatCoordinateArray,
+  dim,
+  numRows
+) => {
+  viz_state.spatial.cell_point_count = numRows;
+  viz_state.spatial.cell_position_size = POINT_CLOUD_POSITION_SIZE;
+  viz_state.spatial.cell_positions = build_point_cloud_position_buffer(
+    flatCoordinateArray,
+    dim,
+    numRows
+  );
+  viz_state.spatial.cell_umap_positions = null;
+};
+
+export const set_point_cloud_umap_positions = (
+  viz_state,
+  cell_scatter_data_objects
+) => {
+  const positions = new Float32Array(
+    cell_scatter_data_objects.length * POINT_CLOUD_POSITION_SIZE
+  );
+
+  cell_scatter_data_objects.forEach((cell, index) => {
+    const offset = index * POINT_CLOUD_POSITION_SIZE;
+    positions[offset] = cell.umap[0];
+    positions[offset + 1] = cell.umap[1];
+    positions[offset + 2] = 0;
+  });
+
+  viz_state.spatial.cell_umap_positions = positions;
+};
+
+const get_point_cloud_positions = (viz_state) => {
+  if (
+    viz_state.obs_store?.umap_state?.get() &&
+    viz_state.spatial.cell_umap_positions
+  ) {
+    return viz_state.spatial.cell_umap_positions;
+  }
+
+  return viz_state.spatial.cell_positions;
+};
+
+export const update_cell_color_buffer = (viz_state) => {
+  const { cats } = viz_state;
+  const cellNames = cats.cell_names_array || [];
+  const numCells = cellNames.length;
+  const requiredLength = numCells * 4;
+
+  if (
+    !viz_state.spatial.cell_colors ||
+    viz_state.spatial.cell_colors.length !== requiredLength
+  ) {
+    viz_state.spatial.cell_colors = new Uint8Array(requiredLength);
+  }
+
+  const colors = viz_state.spatial.cell_colors;
+  const highlightedCells = viz_state.highlighted_cells ?? new Set();
+  const hasHighlights = highlightedCells.size > 0;
+  const selectedCats = cats.selected_cats || [];
+  const selectedCatSet = new Set(selectedCats);
+  const colorDict = cats.color_dict_cluster || {};
+  const isClusterMode = cats.cat === 'cluster';
+  const hasClusterFilter =
+    !isClusterMode &&
+    selectedCats.length > 0 &&
+    selectedCats.some((cat) =>
+      Object.prototype.hasOwnProperty.call(colorDict, cat)
+    );
+
+  for (let i = 0; i < numCells; i++) {
+    const offset = i * 4;
+
+    if (hasHighlights) {
+      if (highlightedCells.has(cellNames[i])) {
+        setColor(colors, offset, 0, 0, 255, 255);
+      } else {
+        setColor(colors, offset, 0, 0, 0, 0);
+      }
+      continue;
+    }
+
+    if (isClusterMode) {
+      const instCat = cats.cell_cats?.[i];
+      const instColor = colorDict[String(instCat)];
+      const instOpacity =
+        selectedCats.length === 0 || selectedCatSet.has(instCat) ? 255 : 0;
+
+      if (Array.isArray(instColor)) {
+        setColor(
+          colors,
+          offset,
+          instColor[0],
+          instColor[1],
+          instColor[2],
+          instOpacity
+        );
+      } else {
+        setColor(colors, offset, 0, 0, 0, 0);
+      }
+    } else {
+      const instCat = cats.cell_cats?.[i];
+      const shouldShowExpression =
+        !hasClusterFilter || selectedCatSet.has(instCat);
+      const instExp = shouldShowExpression ? cats.cell_exp_array?.[i] : 0;
+      setColor(colors, offset, 255, 0, 0, instExp);
+    }
+  }
+
+  return colors;
+};
+
+export const get_point_cloud_cell_data = (viz_state) => {
+  const positions = get_point_cloud_positions(viz_state) || new Float32Array();
+  const colors =
+    viz_state.spatial.cell_colors || update_cell_color_buffer(viz_state);
+
+  return {
+    length: viz_state.spatial.cell_point_count || 0,
+    attributes: {
+      getPosition: {
+        value: positions,
+        size: POINT_CLOUD_POSITION_SIZE,
+      },
+      getColor: {
+        value: colors,
+        size: 4,
+        type: 'unorm8',
+      },
+    },
+  };
+};
+
+export const refresh_point_cloud_cell_layer_data = (
+  layers_obj,
+  viz_state,
+  layerProps = {}
+) => {
+  if (!is_point_cloud_viz(viz_state)) {
+    return false;
+  }
+
+  update_cell_color_buffer(viz_state);
+  layers_obj.cell_layer = layers_obj.cell_layer.clone({
+    data: get_point_cloud_cell_data(viz_state),
+    updateTriggers: {
+      ...layers_obj.cell_layer.props.updateTriggers,
+      getColor: [viz_state.selection_token],
+    },
+    ...layerProps,
+  });
+
+  return true;
+};
+
+const cell_layer_onclick = async (
+  info,
+  _d,
+  deck_ist,
+  layers_obj,
+  viz_state
+) => {
+  if (info.index === undefined || info.index < 0) {
+    return;
+  }
+
+  const inst_cat = viz_state.cats.cell_cats[info.index];
 
   update_cat(viz_state.cats, 'cluster');
 
@@ -212,6 +460,8 @@ export const ini_cell_layer = async (base_url, viz_state) => {
     viz_state.spatial.cell_scatter_data.attributes.getPosition.value;
   const dim =
     viz_state.spatial.cell_scatter_data.attributes.getPosition.size || 2;
+  const numRows = viz_state.spatial.cell_scatter_data.length;
+  const pointCloud = is_point_cloud_viz(viz_state);
 
   viz_state.combo_data.cell_compact = buildCellCompactData(
     new_cell_names_array,
@@ -219,6 +469,22 @@ export const ini_cell_layer = async (base_url, viz_state) => {
     dim,
     viz_state.cats.dict_cell_cats
   );
+
+  set_spatial_bounds_from_flat_coordinates(
+    viz_state,
+    flatCoordinateArray,
+    dim,
+    numRows
+  );
+
+  if (pointCloud) {
+    set_point_cloud_cell_position_buffers(
+      viz_state,
+      flatCoordinateArray,
+      dim,
+      numRows
+    );
+  }
 
   let cell_scatter_data_objects;
   if (viz_state.umap.has_umap) {
@@ -236,7 +502,6 @@ export const ini_cell_layer = async (base_url, viz_state) => {
     );
 
     // convert to easier to use objects
-    const numRows = viz_state.spatial.cell_scatter_data.length; // Replace with arrow_table.numRows
     cell_scatter_data_objects = Array.from({ length: numRows }, (_, i) => ({
       name: viz_state.cats.cell_names_array[i],
       position:
@@ -253,33 +518,15 @@ export const ini_cell_layer = async (base_url, viz_state) => {
       ],
     }));
 
-    viz_state.spatial.x_min = d3.min(
-      cell_scatter_data_objects.map((d) => d.position[0])
-    );
-    viz_state.spatial.x_max = d3.max(
-      cell_scatter_data_objects.map((d) => d.position[0])
-    );
-    viz_state.spatial.y_min = d3.min(
-      cell_scatter_data_objects.map((d) => d.position[1])
-    );
-    viz_state.spatial.y_max = d3.max(
-      cell_scatter_data_objects.map((d) => d.position[1])
-    );
-    if (dim === 3) {
-      viz_state.spatial.z_min = d3.min(
-        cell_scatter_data_objects.map((d) => d.position[2])
-      );
-      viz_state.spatial.z_max = d3.max(
-        cell_scatter_data_objects.map((d) => d.position[2])
-      );
-    }
-
     cell_scatter_data_objects = scale_umap_data(
       viz_state,
       cell_scatter_data_objects
     );
-  } else {
-    const numRows = viz_state.spatial.cell_scatter_data.length; // Replace with arrow_table.numRows
+
+    if (pointCloud) {
+      set_point_cloud_umap_positions(viz_state, cell_scatter_data_objects);
+    }
+  } else if (!pointCloud) {
     cell_scatter_data_objects = Array.from({ length: numRows }, (_, i) => ({
       name: viz_state.cats.cell_names_array[i],
       position:
@@ -291,27 +538,8 @@ export const ini_cell_layer = async (base_url, viz_state) => {
             ]
           : [flatCoordinateArray[i * dim], flatCoordinateArray[i * dim + 1]],
     }));
-
-    viz_state.spatial.x_min = d3.min(
-      cell_scatter_data_objects.map((d) => d.position[0])
-    );
-    viz_state.spatial.x_max = d3.max(
-      cell_scatter_data_objects.map((d) => d.position[0])
-    );
-    viz_state.spatial.y_min = d3.min(
-      cell_scatter_data_objects.map((d) => d.position[1])
-    );
-    viz_state.spatial.y_max = d3.max(
-      cell_scatter_data_objects.map((d) => d.position[1])
-    );
-    if (dim === 3) {
-      viz_state.spatial.z_min = d3.min(
-        cell_scatter_data_objects.map((d) => d.position[2])
-      );
-      viz_state.spatial.z_max = d3.max(
-        cell_scatter_data_objects.map((d) => d.position[2])
-      );
-    }
+  } else {
+    cell_scatter_data_objects = null;
   }
 
   viz_state.spatial.center_x =
@@ -360,29 +588,29 @@ export const ini_cell_layer = async (base_url, viz_state) => {
 
   viz_state.spatial.cell_scatter_data_objects = cell_scatter_data_objects;
 
-  const transitions = {
-    getPosition: {
-      duration: 3000,
-      easing: d3.easeCubic,
-    },
-  };
+  const transitions =
+    !pointCloud || numRows < POINT_CLOUD_TRANSITION_LIMIT
+      ? {
+          getPosition: {
+            duration: 3000,
+            easing: d3.easeCubic,
+          },
+        }
+      : undefined;
 
   let cell_layer;
-  if (viz_state.img.landscape_parameters.technology === 'point-cloud') {
+  if (pointCloud) {
+    update_cell_color_buffer(viz_state);
     cell_layer = new PointCloudLayer({
       id: 'cell-layer',
       sizeUnits: 'meters',
       pointSize: 5,
       pickable: true,
-      getColor: (i, d) =>
-        get_cell_color(viz_state.cats, viz_state.highlighted_cells, i, d),
-      data: viz_state.spatial.cell_scatter_data_objects,
+      data: get_point_cloud_cell_data(viz_state),
       transitions,
-      getPosition: (d) =>
-        viz_state.obs_store.umap_state.get() ? d.umap : d.position,
       updateTriggers: {
         getPosition: [viz_state.obs_store.umap_state.get()],
-        getFillColor: [viz_state.selection_token],
+        getColor: [viz_state.selection_token],
       },
       opacity: 1,
       ...getModelMatrixProps(viz_state.rotation),
@@ -426,7 +654,7 @@ export const new_toggle_cell_layer_visibility = (layers_obj, visible) => {
 const POINT_SIZE_SCALE_FACTOR = 2;
 
 export const update_cell_layer_radius = (layers_obj, radius, viz_state) => {
-  if (viz_state.img.landscape_parameters.technology === 'point-cloud') {
+  if (is_point_cloud_viz(viz_state)) {
     layers_obj.cell_layer = layers_obj.cell_layer.clone({
       pointSize: radius / POINT_SIZE_SCALE_FACTOR,
     });
@@ -444,6 +672,17 @@ export const update_cell_pickable_state = (layers_obj, pickable) => {
 };
 
 export const toggle_spatial_umap = (_deck_ist, layers_obj, viz_state) => {
+  if (is_point_cloud_viz(viz_state)) {
+    layers_obj.cell_layer = layers_obj.cell_layer.clone({
+      data: get_point_cloud_cell_data(viz_state),
+      updateTriggers: {
+        ...layers_obj.cell_layer.props.updateTriggers,
+        getPosition: [viz_state.obs_store.umap_state.get()],
+      },
+    });
+    return;
+  }
+
   layers_obj.cell_layer = layers_obj.cell_layer.clone({
     updateTriggers: {
       getPosition: [viz_state.obs_store.umap_state.get()],

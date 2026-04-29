@@ -1,5 +1,7 @@
 import * as d3 from 'd3';
 
+import { is_point_cloud_technology } from '../global_variables/image_info';
+
 export const scale_umap_data = (viz_state, cell_scatter_data_objects) => {
   // scale umap values to be centered around the middle of the image x and y positions (max - min / 2)
   // use d3 to find the min and max of the flatCoordinateArray
@@ -9,11 +11,8 @@ export const scale_umap_data = (viz_state, cell_scatter_data_objects) => {
   let x_max;
   let y_min;
   let y_max;
-  if (
-    ['Chromium', 'point-cloud'].includes(
-      viz_state.img.landscape_parameters.technology
-    )
-  ) {
+  const { technology } = viz_state.img.landscape_parameters;
+  if (technology === 'Chromium' || is_point_cloud_technology(technology)) {
     x_min = 0;
     x_max = 10000;
     y_min = 0;

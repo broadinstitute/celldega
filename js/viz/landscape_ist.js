@@ -15,6 +15,7 @@ import { ini_background_layer } from '../deck-gl/layers/background_layer';
 import {
   ini_cell_layer,
   new_toggle_cell_layer_visibility,
+  refresh_point_cloud_cell_layer_data,
   set_cell_layer_onclick,
   toggle_spatial_umap,
   update_cell_pickable_state,
@@ -53,9 +54,13 @@ import { set_options } from '../global_variables/fetch_options';
 import { set_global_base_url } from '../global_variables/global_base_url';
 import { set_dimensions } from '../global_variables/image_dimensions';
 import {
+  get_landscape_image_info,
+  get_primary_image_name,
+  is_point_cloud_technology,
   set_image_info,
   set_image_layer_colors,
   set_image_format,
+  technology_has_image_layer,
 } from '../global_variables/image_info';
 import { set_landscape_parameters } from '../global_variables/landscape_parameters';
 import { set_cluster_metadata } from '../global_variables/meta_cluster';
@@ -424,8 +429,15 @@ export const landscape_ist = async (
   set_options(token);
 
   await set_landscape_parameters(viz_state.img, base_url, viz_state.aws);
-  const tech = viz_state.img.landscape_parameters.technology;
-  if (tech === 'Chromium' || tech === 'point-cloud') {
+  const { landscape_parameters } = viz_state.img;
+  const {
+    technology: tech,
+    use_int_index,
+    image_format,
+  } = landscape_parameters;
+  const has_image_layer = technology_has_image_layer(tech);
+
+  if (!has_image_layer) {
     viz_state.obs_store.viz_image_layers.set(false);
     viz_state.obs_store.viz_background_layer.set(false);
   }
@@ -433,18 +445,12 @@ export const landscape_ist = async (
   // Initialize row group readers if using row group storage mode
   await initializeRowGroupReaders(viz_state, base_url);
 
-  const tmp_image_info = viz_state.img.landscape_parameters.image_info;
+  const tmp_image_info = get_landscape_image_info(landscape_parameters);
+  const image_name_for_dim = get_primary_image_name(landscape_parameters);
 
-  // set image_name_for_dim using the first image info name
-  const image_name_for_dim = tmp_image_info[0].name;
+  viz_state.vector_name_integer = use_int_index;
 
-  viz_state.vector_name_integer =
-    viz_state.img.landscape_parameters.use_int_index;
-
-  set_image_format(
-    viz_state.img,
-    viz_state.img.landscape_parameters.image_format
-  );
+  set_image_format(viz_state.img, image_format);
   set_image_info(viz_state.img, tmp_image_info);
   set_image_layer_sliders(viz_state.img);
   set_image_layer_colors(
@@ -484,7 +490,7 @@ export const landscape_ist = async (
     );
   }
 
-  if (tech === 'Chromium' || tech === 'point-cloud') {
+  if (!has_image_layer) {
     viz_state.dimensions = { width: 1, height: 1, tileSize: 1 };
   } else {
     await set_dimensions(viz_state, base_url, image_name_for_dim);
@@ -630,14 +636,24 @@ export const landscape_ist = async (
   const refresh_cell_layer = () => {
     const selected_cats_name = viz_state.cats.selected_cats.join('-');
 
-    layers_obj.cell_layer = layers_obj.cell_layer.clone({
-      id: `cell-layer-${selected_cats_name}-sel-${viz_state.selection_token}`,
-      updateTriggers: {
-        ...layers_obj.cell_layer.props.updateTriggers,
-        getPosition: [viz_state.obs_store.umap_state.get()],
-        getFillColor: [viz_state.selection_token],
-      },
-    });
+    const refreshedPointCloud = refresh_point_cloud_cell_layer_data(
+      layers_obj,
+      viz_state,
+      {
+        id: `cell-layer-${selected_cats_name}-sel-${viz_state.selection_token}`,
+      }
+    );
+
+    if (!refreshedPointCloud) {
+      layers_obj.cell_layer = layers_obj.cell_layer.clone({
+        id: `cell-layer-${selected_cats_name}-sel-${viz_state.selection_token}`,
+        updateTriggers: {
+          ...layers_obj.cell_layer.props.updateTriggers,
+          getPosition: [viz_state.obs_store.umap_state.get()],
+          getFillColor: [viz_state.selection_token],
+        },
+      });
+    }
 
     // Toggle cell layer readiness so deck.gl re-renders when selections arrive
     // from the Python backend.
@@ -865,9 +881,10 @@ export const landscape_ist = async (
     );
   }
 
-  const isChromium = ['Chromium', 'point-cloud'].includes(
-    viz_state.img.landscape_parameters.technology
-  );
+  const currentTechnology = viz_state.img.landscape_parameters.technology;
+  const isChromium =
+    currentTechnology === 'Chromium' ||
+    is_point_cloud_technology(currentTechnology);
   viz_state.obs_store.landscape_view.subscribe(
     (view) => {
       const isUmap = view === 'umap';

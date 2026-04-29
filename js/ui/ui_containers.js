@@ -19,6 +19,7 @@ import {
   uniprot_data,
   uniprot_get_request,
 } from '../external_apis/uniprot_api';
+import { is_point_cloud_technology } from '../global_variables/image_info';
 import {
   calc_dendro_triangles,
   calc_dendro_polygons,
@@ -416,7 +417,7 @@ export const make_ist_ui_container = (
 
   const { technology } = viz_state.img.landscape_parameters;
   const isChromium = technology === 'Chromium';
-  const isPointCloud = technology === 'point-cloud';
+  const isPointCloud = is_point_cloud_technology(technology);
 
   if (!isPointCloud) {
     const spatial_toggle_container = flex_container(

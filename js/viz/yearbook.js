@@ -788,10 +788,18 @@ export const yearbook = async (
     // Use a unique timestamp to force layer recreation
     const timestamp = Date.now();
 
-    // Clone layers with new IDs to force refresh
-    layers_obj.cell_layer = layers_obj.cell_layer.clone({
-      id: `cell-layer-page-${viz_state.yearbook.current_page}-${timestamp}`,
-    });
+    // Clone layers with new IDs to force refresh. Point-cloud layers keep a
+    // stable ID so deck.gl only updates the binary attributes.
+    const refreshedPointCloud = refresh_point_cloud_cell_layer_data(
+      layers_obj,
+      viz_state
+    );
+
+    if (!refreshedPointCloud) {
+      layers_obj.cell_layer = layers_obj.cell_layer.clone({
+        id: `cell-layer-page-${viz_state.yearbook.current_page}-${timestamp}`,
+      });
+    }
     layers_obj.path_layer = layers_obj.path_layer.clone({
       id: `path-layer-page-${viz_state.yearbook.current_page}-${timestamp}`,
     });

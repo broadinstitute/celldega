@@ -287,6 +287,8 @@ export const refresh_point_cloud_cell_layer_data = (
     return false;
   }
 
+  const { id: _ignoredId, ...stableLayerProps } = layerProps;
+
   update_cell_color_buffer(viz_state);
   layers_obj.cell_layer = layers_obj.cell_layer.clone({
     data: get_point_cloud_cell_data(viz_state),
@@ -294,7 +296,7 @@ export const refresh_point_cloud_cell_layer_data = (
       ...layers_obj.cell_layer.props.updateTriggers,
       getColor: [viz_state.selection_token],
     },
-    ...layerProps,
+    ...stableLayerProps,
   });
 
   return true;

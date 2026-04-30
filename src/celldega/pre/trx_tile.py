@@ -4,8 +4,8 @@ Transcript tile processing module for spatial transcriptomics data.
 
 import concurrent.futures
 import gc
-import shutil
 from pathlib import Path
+import shutil
 
 import numpy as np
 import polars as pl
@@ -13,6 +13,7 @@ from scipy.sparse import csr_matrix
 from tqdm import tqdm
 
 from .boundary_tile import _get_name_mapping
+
 
 # Above this row count, row-group transcript tiling spills to disk during tile assignment
 # to avoid OOM from ``partition_by`` materializing every non-empty tile at once.

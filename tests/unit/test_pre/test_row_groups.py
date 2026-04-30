@@ -17,17 +17,21 @@ class TestRowGroupMetadata:
 
     def test_storage_mode_in_metadata(self, tmp_path):
         """Test that storage_mode is correctly stored in Parquet schema metadata."""
-        schema = pa.schema([
-            ("id", pa.int64()),
-            ("value", pa.float64()),
-        ])
+        schema = pa.schema(
+            [
+                ("id", pa.int64()),
+                ("value", pa.float64()),
+            ]
+        )
 
         metadata = {
             b"storage_mode": b"row_groups_formula",
-            b"tile_grid_info": json.dumps({
-                "num_tiles_x": 10,
-                "num_tiles_y": 20,
-            }).encode("utf-8"),
+            b"tile_grid_info": json.dumps(
+                {
+                    "num_tiles_x": 10,
+                    "num_tiles_y": 20,
+                }
+            ).encode("utf-8"),
         }
 
         schema_with_metadata = schema.with_metadata(metadata)
@@ -51,11 +55,13 @@ class TestRowGroupMetadata:
 
     def test_multiple_row_groups_written(self, tmp_path):
         """Test that multiple row groups can be written to a single file."""
-        schema = pa.schema([
-            ("tile_x", pa.int64()),
-            ("tile_y", pa.int64()),
-            ("data", pa.float64()),
-        ])
+        schema = pa.schema(
+            [
+                ("tile_x", pa.int64()),
+                ("tile_y", pa.int64()),
+                ("data", pa.float64()),
+            ]
+        )
 
         output_path = tmp_path / "multi_row_groups.parquet"
 
@@ -63,11 +69,16 @@ class TestRowGroupMetadata:
             # Write 6 row groups (simulating a 3x2 tile grid)
             for tile_x in range(3):
                 for tile_y in range(2):
-                    table = pa.Table.from_pydict({
-                        "tile_x": [tile_x, tile_x],
-                        "tile_y": [tile_y, tile_y],
-                        "data": [float(tile_x * 10 + tile_y), float(tile_x * 10 + tile_y + 0.5)],
-                    })
+                    table = pa.Table.from_pydict(
+                        {
+                            "tile_x": [tile_x, tile_x],
+                            "tile_y": [tile_y, tile_y],
+                            "data": [
+                                float(tile_x * 10 + tile_y),
+                                float(tile_x * 10 + tile_y + 0.5),
+                            ],
+                        }
+                    )
                     writer.write_table(table)
 
         # Verify row group count
@@ -76,28 +87,26 @@ class TestRowGroupMetadata:
 
     def test_empty_row_groups(self, tmp_path):
         """Test that empty row groups can be written to maintain index alignment."""
-        schema = pa.schema([
-            ("tile_x", pa.int64()),
-            ("tile_y", pa.int64()),
-            ("data", pa.float64()),
-        ])
+        schema = pa.schema(
+            [
+                ("tile_x", pa.int64()),
+                ("tile_y", pa.int64()),
+                ("data", pa.float64()),
+            ]
+        )
 
         output_path = tmp_path / "with_empty_row_groups.parquet"
 
         with pq.ParquetWriter(str(output_path), schema, write_statistics=False) as writer:
             # Write 4 row groups, 2 empty
             # Row group 0: has data
-            writer.write_table(pa.Table.from_pydict({
-                "tile_x": [0], "tile_y": [0], "data": [1.0]
-            }))
+            writer.write_table(pa.Table.from_pydict({"tile_x": [0], "tile_y": [0], "data": [1.0]}))
             # Row group 1: empty
             writer.write_table(schema.empty_table())
-            # Row group 2: empty  
+            # Row group 2: empty
             writer.write_table(schema.empty_table())
             # Row group 3: has data
-            writer.write_table(pa.Table.from_pydict({
-                "tile_x": [1], "tile_y": [1], "data": [2.0]
-            }))
+            writer.write_table(pa.Table.from_pydict({"tile_x": [1], "tile_y": [1], "data": [2.0]}))
 
         # Verify structure
         pf = pq.ParquetFile(output_path)
@@ -114,10 +123,12 @@ class TestRowGroupMetadata:
         genes = ["ACTB", "BRCA1", "CFTR"]
         gene_to_row_group = {gene: idx for idx, gene in enumerate(sorted(genes))}
 
-        schema = pa.schema([
-            ("cell_id", pa.int64()),
-            ("expression", pa.float64()),
-        ])
+        schema = pa.schema(
+            [
+                ("cell_id", pa.int64()),
+                ("expression", pa.float64()),
+            ]
+        )
 
         metadata = {
             b"storage_mode": b"row_groups_cbg",
@@ -127,12 +138,16 @@ class TestRowGroupMetadata:
         schema_with_metadata = schema.with_metadata(metadata)
         output_path = tmp_path / "cbg.parquet"
 
-        with pq.ParquetWriter(str(output_path), schema_with_metadata, write_statistics=False) as writer:
+        with pq.ParquetWriter(
+            str(output_path), schema_with_metadata, write_statistics=False
+        ) as writer:
             for gene in sorted(genes):
-                table = pa.Table.from_pydict({
-                    "cell_id": [1, 2, 3],
-                    "expression": [0.1, 0.2, 0.3],
-                })
+                table = pa.Table.from_pydict(
+                    {
+                        "cell_id": [1, 2, 3],
+                        "expression": [0.1, 0.2, 0.3],
+                    }
+                )
                 writer.write_table(table)
 
         # Read back and verify
@@ -198,7 +213,9 @@ class TestFormulaBasedIndexing:
 
         for tile_x, tile_y, expected_index in test_cases:
             computed = tile_x * num_tiles_y + tile_y
-            assert computed == expected_index, f"({tile_x}, {tile_y}) -> {computed}, expected {expected_index}"
+            assert computed == expected_index, (
+                f"({tile_x}, {tile_y}) -> {computed}, expected {expected_index}"
+            )
 
         # Verify max index
         assert (num_tiles_x - 1) * num_tiles_y + (num_tiles_y - 1) == total_tiles - 1
@@ -265,20 +282,24 @@ class TestRowGroupReading:
 
     def test_read_specific_row_groups(self, tmp_path):
         """Test that specific row groups can be read efficiently."""
-        schema = pa.schema([
-            ("tile_id", pa.int64()),
-            ("value", pa.float64()),
-        ])
+        schema = pa.schema(
+            [
+                ("tile_id", pa.int64()),
+                ("value", pa.float64()),
+            ]
+        )
 
         output_path = tmp_path / "tiles.parquet"
 
         # Write 10 row groups
         with pq.ParquetWriter(str(output_path), schema) as writer:
             for i in range(10):
-                table = pa.Table.from_pydict({
-                    "tile_id": [i] * 5,
-                    "value": [float(i * 10 + j) for j in range(5)],
-                })
+                table = pa.Table.from_pydict(
+                    {
+                        "tile_id": [i] * 5,
+                        "value": [float(i * 10 + j) for j in range(5)],
+                    }
+                )
                 writer.write_table(table)
 
         # Read only specific row groups
@@ -294,9 +315,11 @@ class TestRowGroupReading:
 
     def test_read_multiple_row_groups_at_once(self, tmp_path):
         """Test reading multiple row groups in a single call."""
-        schema = pa.schema([
-            ("tile_id", pa.int64()),
-        ])
+        schema = pa.schema(
+            [
+                ("tile_id", pa.int64()),
+            ]
+        )
 
         output_path = tmp_path / "tiles.parquet"
 

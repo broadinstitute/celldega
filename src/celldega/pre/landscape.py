@@ -176,7 +176,13 @@ def save_cbg_gene_parquets(
         # Save to Parquet if DataFrame is not empty
         if not inst_df.empty:
             output_path = output_dir / f"{gene}.parquet"
-            inst_df.to_parquet(output_path)
+
+            # Store cell index as a normal column named __index_level_0__
+            inst_df.index.name = "__index_level_0__"
+            inst_df = inst_df.reset_index()
+
+            # Avoid writing an additional pandas index
+            inst_df.to_parquet(output_path, index=False)
 
     print("All gene-specific parquet files are succesfully saved.")
 

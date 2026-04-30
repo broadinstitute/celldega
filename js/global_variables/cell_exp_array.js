@@ -118,12 +118,17 @@ export const update_cell_exp_array = async (
         missingCellNames1.add(name);
       }
     } else {
-      if (name in cats.nameMapping_inv) {
-        const cellName = String(cats.nameMapping_inv[name]);
+      const cellIndex = Number(name);
+      if (
+        Number.isInteger(cellIndex) &&
+        cellIndex >= 0 &&
+        cellIndex < cats.nameMapping_inv.length
+      ) {
+        const cellName = String(cats.nameMapping_inv[cellIndex]);
         const shouldInclude = !allowedCellIds || allowedCellIds.has(cellName);
 
         if (shouldInclude) {
-          new_exp_array[Number(name)] = toExpressionByte(exp_value, max_exp);
+          new_exp_array[cellIndex] = toExpressionByte(exp_value, max_exp);
         }
       } else {
         missingCellNames2.add(name);

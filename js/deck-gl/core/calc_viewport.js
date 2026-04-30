@@ -242,6 +242,28 @@ export const calc_viewport = async (
 
   const viewportCache = ensureViewportCache(viz_state);
 
+  if (isPointCloud) {
+    viz_state.close_up = false;
+    viz_state.obs_store.close_up.set(false);
+    viewportCache.visibleTileKey = null;
+
+    publishBarDataIfChanged(
+      viewportCache,
+      'lastGeneBarData',
+      viz_state.obs_store.new_gene_bar_data,
+      getPointCloudGeneBars(viz_state)
+    );
+
+    publishBarDataIfChanged(
+      viewportCache,
+      'lastCellBarData',
+      viz_state.obs_store.new_cell_bar_data,
+      viz_state.cats.cluster_counts
+    );
+
+    return;
+  }
+
   const tile_bounds = (() => {
     if (!viz_state.rotation?.hasRotation) {
       return viz_state.bounds;

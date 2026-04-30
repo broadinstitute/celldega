@@ -3,7 +3,7 @@ import {
   get_point_cloud_cell_data,
   refresh_point_cloud_cell_layer_data,
   set_point_cloud_cell_position_buffers,
-  set_point_cloud_umap_positions,
+  set_point_cloud_umap_positions_from_names,
   set_spatial_bounds_from_flat_coordinates,
 } from '../deck-gl/layers/cell_layer';
 import { make_image_layers } from '../deck-gl/layers/image_layers';
@@ -311,12 +311,14 @@ export const switch_dataset = async (
     const numRows = viz_state.spatial.cell_scatter_data.length;
     const pointCloud = is_point_cloud_technology(tech);
 
-    viz_state.combo_data.cell_compact = buildCellCompactData(
-      new_cell_names_array,
-      flatCoordinateArray,
-      dim,
-      viz_state.cats.dict_cell_cats
-    );
+    viz_state.combo_data.cell_compact = pointCloud
+      ? createEmptyCellCompact()
+      : buildCellCompactData(
+          new_cell_names_array,
+          flatCoordinateArray,
+          dim,
+          viz_state.cats.dict_cell_cats
+        );
 
     set_spatial_bounds_from_flat_coordinates(
       viz_state,
@@ -337,39 +339,47 @@ export const switch_dataset = async (
     // Build cell scatter data objects
     let cell_scatter_data_objects;
     if (viz_state.umap.has_umap) {
-      const flatCoordinateArray_umap = new Float64Array(
-        viz_state.cats.cell_names_array.flatMap((cell_id) => {
-          let coords = viz_state.umap.umap[cell_id];
-          if (!coords) {
-            coords = [0, 0];
-          }
-          return coords;
-        })
-      );
-
-      cell_scatter_data_objects = Array.from({ length: numRows }, (_, i) => ({
-        name: viz_state.cats.cell_names_array[i],
-        position:
-          dim === 3
-            ? [
-                flatCoordinateArray[i * dim],
-                flatCoordinateArray[i * dim + 1],
-                flatCoordinateArray[i * dim + 2],
-              ]
-            : [flatCoordinateArray[i * dim], flatCoordinateArray[i * dim + 1]],
-        umap: [
-          flatCoordinateArray_umap[i * 2],
-          flatCoordinateArray_umap[i * 2 + 1],
-        ],
-      }));
-
-      cell_scatter_data_objects = scale_umap_data(
-        viz_state,
-        cell_scatter_data_objects
-      );
-
       if (pointCloud) {
-        set_point_cloud_umap_positions(viz_state, cell_scatter_data_objects);
+        set_point_cloud_umap_positions_from_names(
+          viz_state,
+          viz_state.cats.cell_names_array,
+          numRows
+        );
+        cell_scatter_data_objects = null;
+      } else {
+        const flatCoordinateArray_umap = new Float64Array(
+          viz_state.cats.cell_names_array.flatMap((cell_id) => {
+            let coords = viz_state.umap.umap[cell_id];
+            if (!coords) {
+              coords = [0, 0];
+            }
+            return coords;
+          })
+        );
+
+        cell_scatter_data_objects = Array.from({ length: numRows }, (_, i) => ({
+          name: viz_state.cats.cell_names_array[i],
+          position:
+            dim === 3
+              ? [
+                  flatCoordinateArray[i * dim],
+                  flatCoordinateArray[i * dim + 1],
+                  flatCoordinateArray[i * dim + 2],
+                ]
+              : [
+                  flatCoordinateArray[i * dim],
+                  flatCoordinateArray[i * dim + 1],
+                ],
+          umap: [
+            flatCoordinateArray_umap[i * 2],
+            flatCoordinateArray_umap[i * 2 + 1],
+          ],
+        }));
+
+        cell_scatter_data_objects = scale_umap_data(
+          viz_state,
+          cell_scatter_data_objects
+        );
       }
     } else if (!pointCloud) {
       cell_scatter_data_objects = Array.from({ length: numRows }, (_, i) => ({

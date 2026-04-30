@@ -57,13 +57,21 @@ const publishBarDataIfChanged = (
   observable,
   nextData
 ) => {
-  if (areBarDataEqual(viewportCache[cacheKey], nextData)) {
+  if (
+    areBarDataEqual(viewportCache[cacheKey], nextData) &&
+    areBarDataEqual(observable.get?.(), nextData)
+  ) {
     return;
   }
 
   viewportCache[cacheKey] = nextData;
   observable.set(nextData);
 };
+
+const getPointCloudGeneBars = (viz_state) =>
+  Array.isArray(viz_state.genes.top_gene_counts)
+    ? viz_state.genes.top_gene_counts
+    : [];
 
 const computeViewportGeneBars = (viz_state, viewportCache) => {
   const trxCompact =
@@ -300,7 +308,9 @@ export const calc_viewport = async (
       viewportCache,
       'lastGeneBarData',
       viz_state.obs_store.new_gene_bar_data,
-      computeViewportGeneBars(viz_state, viewportCache)
+      isPointCloud
+        ? getPointCloudGeneBars(viz_state)
+        : computeViewportGeneBars(viz_state, viewportCache)
     );
 
     publishBarDataIfChanged(

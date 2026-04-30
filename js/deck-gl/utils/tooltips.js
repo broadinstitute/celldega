@@ -1,5 +1,7 @@
 import * as d3 from 'd3';
 
+import { get_point_cloud_source_index } from './point_cloud_indices';
+
 /**
  * Creates tooltips for tile layers showing category information
  * @param {Object} info - Layer interaction info with index and layer data
@@ -40,9 +42,15 @@ export const make_tooltip = (viz_state, info) => {
     info.layer.id.startsWith('cell-layer') ||
     info.layer.id.startsWith('path-layer')
   ) {
-    inst_name = info.layer.id.startsWith('cell-layer')
-      ? viz_state.cats.cell_names_array[info.index]
-      : viz_state.cats.polygon_cell_names[info.index];
+    if (info.layer.id.startsWith('cell-layer')) {
+      const sourceIndex = get_point_cloud_source_index(viz_state, info.index);
+      if (sourceIndex < 0) {
+        return null;
+      }
+      inst_name = viz_state.cats.cell_names_array[sourceIndex];
+    } else {
+      inst_name = viz_state.cats.polygon_cell_names[info.index];
+    }
     inst_cat = viz_state.cats.dict_cell_cats[inst_name];
     inst_html = `<div>cell: ${inst_name}</div><div>cluster: ${inst_cat}</div>`;
 

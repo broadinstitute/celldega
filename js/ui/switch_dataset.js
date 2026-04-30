@@ -5,7 +5,6 @@ import {
   set_point_cloud_cell_position_buffers,
   set_point_cloud_umap_positions,
   set_spatial_bounds_from_flat_coordinates,
-  update_cell_color_buffer,
 } from '../deck-gl/layers/cell_layer';
 import { make_image_layers } from '../deck-gl/layers/image_layers';
 import { get_layers_list } from '../deck-gl/utils/layers_ist';
@@ -402,7 +401,6 @@ export const switch_dataset = async (
     // Update cell layer with new data (clone, don't recreate)
     // Disable transitions for instant dataset switching
     if (pointCloud) {
-      update_cell_color_buffer(viz_state);
       layers_obj.cell_layer = layers_obj.cell_layer.clone({
         id: `cell-layer-dataset-${new_index}`,
         data: get_point_cloud_cell_data(viz_state),

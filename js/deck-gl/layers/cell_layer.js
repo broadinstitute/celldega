@@ -20,6 +20,7 @@ import { get_scatter_data } from '../../read_parquet/get_scatter_data';
 import { scale_umap_data } from '../../umap/scale_umap_data';
 import { buildCellCompactData } from '../../utils/compact_data';
 import { getModelMatrixProps } from '../../utils/rotation';
+import { get_point_cloud_source_index } from '../utils/point_cloud_indices';
 
 const POINT_CLOUD_POSITION_SIZE = 3;
 const POINT_CLOUD_TRANSITION_LIMIT = 100000;
@@ -71,6 +72,96 @@ const setColor = (colors, offset, r, g, b, a) => {
   colors[offset + 1] = toByte(g);
   colors[offset + 2] = toByte(b);
   colors[offset + 3] = toByte(a);
+};
+
+const getPointCloudColorContext = (viz_state) => {
+  const { cats } = viz_state;
+  const highlightedCells = viz_state.highlighted_cells ?? new Set();
+  const selectedCats = cats.selected_cats || [];
+  const colorDict = cats.color_dict_cluster || {};
+  const isClusterMode = is_cluster_color_mode(cats);
+
+  return {
+    cats,
+    cellNames: cats.cell_names_array || [],
+    highlightedCells,
+    hasHighlights: highlightedCells.size > 0,
+    selectedCats,
+    selectedCatSet: new Set(selectedCats),
+    colorDict,
+    isClusterMode,
+    hasClusterFilter:
+      !isClusterMode &&
+      selectedCats.length > 0 &&
+      selectedCats.some((cat) =>
+        Object.prototype.hasOwnProperty.call(colorDict, cat)
+      ),
+  };
+};
+
+const isPointCloudCellVisible = (context, index) => {
+  const {
+    cats,
+    cellNames,
+    highlightedCells,
+    hasHighlights,
+    selectedCats,
+    selectedCatSet,
+    colorDict,
+    isClusterMode,
+    hasClusterFilter,
+  } = context;
+
+  if (hasHighlights) {
+    return highlightedCells.has(cellNames[index]);
+  }
+
+  const instCat = cats.cell_cats?.[index];
+  if (isClusterMode) {
+    return (
+      Array.isArray(colorDict[String(instCat)]) &&
+      (selectedCats.length === 0 || selectedCatSet.has(instCat))
+    );
+  }
+
+  if (hasClusterFilter && !selectedCatSet.has(instCat)) {
+    return false;
+  }
+
+  return toByte(cats.cell_exp_array?.[index]) > 0;
+};
+
+const writePointCloudCellColor = (context, index, colors, offset) => {
+  const {
+    cats,
+    cellNames,
+    highlightedCells,
+    hasHighlights,
+    colorDict,
+    isClusterMode,
+  } = context;
+
+  if (hasHighlights) {
+    if (highlightedCells.has(cellNames[index])) {
+      setColor(colors, offset, 0, 0, 255, 255);
+    } else {
+      setColor(colors, offset, 0, 0, 0, 0);
+    }
+    return;
+  }
+
+  if (isClusterMode) {
+    const instCat = cats.cell_cats?.[index];
+    const instColor = colorDict[String(instCat)];
+    if (Array.isArray(instColor)) {
+      setColor(colors, offset, instColor[0], instColor[1], instColor[2], 255);
+    } else {
+      setColor(colors, offset, 0, 0, 0, 0);
+    }
+    return;
+  }
+
+  setColor(colors, offset, 255, 0, 0, cats.cell_exp_array?.[index] || 0);
 };
 
 export const set_spatial_bounds_from_flat_coordinates = (
@@ -189,9 +280,8 @@ const get_point_cloud_positions = (viz_state) => {
 };
 
 export const update_cell_color_buffer = (viz_state) => {
-  const { cats } = viz_state;
-  const cellNames = cats.cell_names_array || [];
-  const numCells = cellNames.length;
+  const context = getPointCloudColorContext(viz_state);
+  const numCells = context.cellNames.length;
   const requiredLength = numCells * 4;
 
   if (
@@ -202,75 +292,169 @@ export const update_cell_color_buffer = (viz_state) => {
   }
 
   const colors = viz_state.spatial.cell_colors;
-  const highlightedCells = viz_state.highlighted_cells ?? new Set();
-  const hasHighlights = highlightedCells.size > 0;
-  const selectedCats = cats.selected_cats || [];
-  const selectedCatSet = new Set(selectedCats);
-  const colorDict = cats.color_dict_cluster || {};
-  const isClusterMode = is_cluster_color_mode(cats);
-  const hasClusterFilter =
-    !isClusterMode &&
-    selectedCats.length > 0 &&
-    selectedCats.some((cat) =>
-      Object.prototype.hasOwnProperty.call(colorDict, cat)
-    );
 
   for (let i = 0; i < numCells; i++) {
     const offset = i * 4;
-
-    if (hasHighlights) {
-      if (highlightedCells.has(cellNames[i])) {
-        setColor(colors, offset, 0, 0, 255, 255);
-      } else {
-        setColor(colors, offset, 0, 0, 0, 0);
-      }
-      continue;
-    }
-
-    if (isClusterMode) {
-      const instCat = cats.cell_cats?.[i];
-      const instColor = colorDict[String(instCat)];
-      const instOpacity =
-        selectedCats.length === 0 || selectedCatSet.has(instCat) ? 255 : 0;
-
-      if (Array.isArray(instColor)) {
-        setColor(
-          colors,
-          offset,
-          instColor[0],
-          instColor[1],
-          instColor[2],
-          instOpacity
-        );
-      } else {
-        setColor(colors, offset, 0, 0, 0, 0);
-      }
+    if (isPointCloudCellVisible(context, i)) {
+      writePointCloudCellColor(context, i, colors, offset);
     } else {
-      const instCat = cats.cell_cats?.[i];
-      const shouldShowExpression =
-        !hasClusterFilter || selectedCatSet.has(instCat);
-      const instExp = shouldShowExpression ? cats.cell_exp_array?.[i] : 0;
-      setColor(colors, offset, 255, 0, 0, instExp);
+      setColor(colors, offset, 0, 0, 0, 0);
     }
   }
 
   return colors;
 };
 
-export const get_point_cloud_cell_data = (viz_state) => {
-  const positions = get_point_cloud_positions(viz_state) || new Float32Array();
-  const colors =
-    viz_state.spatial.cell_colors || update_cell_color_buffer(viz_state);
+const shouldCompactPointCloudCells = (context) => {
+  if (context.hasHighlights) {
+    return true;
+  }
+
+  if (context.isClusterMode) {
+    return context.selectedCats.length > 0;
+  }
+
+  return true;
+};
+
+const ensureCompactBuffer = (spatial, key, Type, requiredLength) => {
+  const bufferKey = `${key}_buffer`;
+  if (!spatial[bufferKey] || spatial[bufferKey].length !== requiredLength) {
+    spatial[bufferKey] = new Type(requiredLength);
+  }
+
+  spatial[key] = spatial[bufferKey].subarray(0, requiredLength);
+  return spatial[key];
+};
+
+const clearPointCloudVisibleCellIndices = (viz_state, visibleCount) => {
+  viz_state.spatial.visible_cell_positions = null;
+  viz_state.spatial.visible_cell_positions_buffer = null;
+  viz_state.spatial.visible_cell_colors = null;
+  viz_state.spatial.visible_cell_colors_buffer = null;
+  viz_state.spatial.visible_cell_indices = null;
+  viz_state.spatial.visible_cell_indices_buffer = null;
+  viz_state.spatial.visible_cell_count = visibleCount;
+};
+
+const get_compact_point_cloud_cell_data = (viz_state, positions, context) => {
+  const fullCount = Math.min(
+    viz_state.spatial.cell_point_count || 0,
+    context.cellNames.length,
+    Math.floor(positions.length / POINT_CLOUD_POSITION_SIZE)
+  );
+  let visibleCount = 0;
+
+  for (let i = 0; i < fullCount; i++) {
+    if (isPointCloudCellVisible(context, i)) {
+      visibleCount += 1;
+    }
+  }
+
+  if (visibleCount === fullCount) {
+    clearPointCloudVisibleCellIndices(viz_state, fullCount);
+    return {
+      length: fullCount,
+      attributes: {
+        getPosition: {
+          value: positions,
+          size: POINT_CLOUD_POSITION_SIZE,
+        },
+        getColor: {
+          value: update_cell_color_buffer(viz_state).subarray(0),
+          size: 4,
+          type: 'unorm8',
+        },
+      },
+    };
+  }
+
+  const compactPositions = ensureCompactBuffer(
+    viz_state.spatial,
+    'visible_cell_positions',
+    Float32Array,
+    visibleCount * POINT_CLOUD_POSITION_SIZE
+  );
+  const compactColors = ensureCompactBuffer(
+    viz_state.spatial,
+    'visible_cell_colors',
+    Uint8Array,
+    visibleCount * 4
+  );
+  const visibleCellIndices = ensureCompactBuffer(
+    viz_state.spatial,
+    'visible_cell_indices',
+    Uint32Array,
+    visibleCount
+  );
+
+  let targetIndex = 0;
+  for (let sourceIndex = 0; sourceIndex < fullCount; sourceIndex++) {
+    if (!isPointCloudCellVisible(context, sourceIndex)) {
+      continue;
+    }
+
+    const sourcePositionOffset = sourceIndex * POINT_CLOUD_POSITION_SIZE;
+    const targetPositionOffset = targetIndex * POINT_CLOUD_POSITION_SIZE;
+    compactPositions[targetPositionOffset] = positions[sourcePositionOffset];
+    compactPositions[targetPositionOffset + 1] =
+      positions[sourcePositionOffset + 1];
+    compactPositions[targetPositionOffset + 2] =
+      positions[sourcePositionOffset + 2];
+
+    writePointCloudCellColor(
+      context,
+      sourceIndex,
+      compactColors,
+      targetIndex * 4
+    );
+    visibleCellIndices[targetIndex] = sourceIndex;
+    targetIndex += 1;
+  }
+
+  viz_state.spatial.visible_cell_count = visibleCount;
 
   return {
-    length: viz_state.spatial.cell_point_count || 0,
+    length: visibleCount,
+    attributes: {
+      getPosition: {
+        value: compactPositions,
+        size: POINT_CLOUD_POSITION_SIZE,
+      },
+      getColor: {
+        value: compactColors,
+        size: 4,
+        type: 'unorm8',
+      },
+    },
+  };
+};
+
+export const get_point_cloud_cell_data = (viz_state) => {
+  const positions = get_point_cloud_positions(viz_state) || new Float32Array();
+  const context = getPointCloudColorContext(viz_state);
+  const fullCount = Math.min(
+    viz_state.spatial.cell_point_count || 0,
+    context.cellNames.length,
+    Math.floor(positions.length / POINT_CLOUD_POSITION_SIZE)
+  );
+
+  if (shouldCompactPointCloudCells(context)) {
+    return get_compact_point_cloud_cell_data(viz_state, positions, context);
+  }
+
+  const colors = update_cell_color_buffer(viz_state);
+  clearPointCloudVisibleCellIndices(viz_state, fullCount);
+
+  return {
+    length: fullCount,
     attributes: {
       getPosition: {
         value: positions,
         size: POINT_CLOUD_POSITION_SIZE,
       },
       getColor: {
-        value: colors,
+        value: colors.subarray(0),
         size: 4,
         type: 'unorm8',
       },
@@ -289,7 +473,6 @@ export const refresh_point_cloud_cell_layer_data = (
 
   const { id: _ignoredId, ...stableLayerProps } = layerProps;
 
-  update_cell_color_buffer(viz_state);
   layers_obj.cell_layer = layers_obj.cell_layer.clone({
     data: get_point_cloud_cell_data(viz_state),
     updateTriggers: {
@@ -313,7 +496,12 @@ const cell_layer_onclick = async (
     return;
   }
 
-  const inst_cat = viz_state.cats.cell_cats[info.index];
+  const sourceIndex = get_point_cloud_source_index(viz_state, info.index);
+  if (sourceIndex < 0) {
+    return;
+  }
+
+  const inst_cat = viz_state.cats.cell_cats[sourceIndex];
 
   update_cat(viz_state.cats, 'cluster');
 
@@ -604,7 +792,6 @@ export const ini_cell_layer = async (base_url, viz_state) => {
 
   let cell_layer;
   if (pointCloud) {
-    update_cell_color_buffer(viz_state);
     cell_layer = new PointCloudLayer({
       id: 'cell-layer',
       sizeUnits: 'meters',

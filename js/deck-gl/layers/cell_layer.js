@@ -6,6 +6,7 @@ import {
   set_dict_cell_cats,
   update_selected_cats,
   update_cat,
+  is_selected_cat,
 } from '../../global_variables/cat';
 import {
   set_cell_names_array,
@@ -23,7 +24,6 @@ import { getModelMatrixProps } from '../../utils/rotation';
 import { get_point_cloud_source_index } from '../utils/point_cloud_indices';
 
 const POINT_CLOUD_POSITION_SIZE = 3;
-const POINT_CLOUD_TRANSITION_LIMIT = 100000;
 
 /**
  * Get the meta_cell key for a given cell name.
@@ -74,6 +74,13 @@ const setColor = (colors, offset, r, g, b, a) => {
   colors[offset + 3] = toByte(a);
 };
 
+const get_cluster_cell_color = (cats, cellIndex, opacity = 255) => {
+  const instCat = cats.cell_cats?.[cellIndex];
+  const instColor = cats.color_dict_cluster?.[String(instCat)];
+
+  return Array.isArray(instColor) ? [...instColor, opacity] : [0, 0, 0, 0];
+};
+
 const getPointCloudColorContext = (viz_state) => {
   const { cats } = viz_state;
   const highlightedCells = viz_state.highlighted_cells ?? new Set();
@@ -87,14 +94,13 @@ const getPointCloudColorContext = (viz_state) => {
     highlightedCells,
     hasHighlights: highlightedCells.size > 0,
     selectedCats,
-    selectedCatSet: new Set(selectedCats),
     colorDict,
     isClusterMode,
     hasClusterFilter:
       !isClusterMode &&
       selectedCats.length > 0 &&
       selectedCats.some((cat) =>
-        Object.prototype.hasOwnProperty.call(colorDict, cat)
+        Object.prototype.hasOwnProperty.call(colorDict, String(cat))
       ),
   };
 };
@@ -106,7 +112,6 @@ const isPointCloudCellVisible = (context, index) => {
     highlightedCells,
     hasHighlights,
     selectedCats,
-    selectedCatSet,
     colorDict,
     isClusterMode,
     hasClusterFilter,
@@ -120,11 +125,11 @@ const isPointCloudCellVisible = (context, index) => {
   if (isClusterMode) {
     return (
       Array.isArray(colorDict[String(instCat)]) &&
-      (selectedCats.length === 0 || selectedCatSet.has(instCat))
+      (selectedCats.length === 0 || is_selected_cat(selectedCats, instCat))
     );
   }
 
-  if (hasClusterFilter && !selectedCatSet.has(instCat)) {
+  if (hasClusterFilter && !is_selected_cat(selectedCats, instCat)) {
     return false;
   }
 
@@ -525,58 +530,18 @@ export const get_cell_color = (cats, highlighted_cells, i, d) => {
   let base_color;
 
   if (is_cluster_color_mode(cats)) {
-    try {
-      const inst_cat = cats.cell_cats[d.index];
-
-      // Convert to string for consistent color lookup
-      // (meta_cell values may be numbers, color_dict keys are always strings)
-      let inst_color = cats.color_dict_cluster[String(inst_cat)];
-
-      let inst_opacity =
-        cats.selected_cats.length === 0 || cats.selected_cats.includes(inst_cat)
-          ? 255
-          : 0;
-
-      // Check if inst_color is an array and log an error if it's not
-      if (!Array.isArray(inst_color)) {
-        inst_color = [0, 0, 0];
-        inst_opacity = 0;
-      }
-
-      base_color = [...inst_color, inst_opacity];
-    } catch {
-      base_color = [0, 0, 0, 0]; // Return a default color with some opacity to handle the error gracefully
-    }
+    base_color = get_cluster_cell_color(cats, d.index);
   } else {
     // color cells based on gene expression
     try {
       const inst_exp = cats.cell_exp_array[d.index];
 
-      // Check if we should filter to specific clusters (gene+cluster combination)
-      // Only apply cluster filter if selected_cats contains actual cluster names
-      // (not the gene name itself, which happens during normal gene selection)
-      const has_cluster_filter =
-        cats.selected_cats &&
-        cats.selected_cats.length > 0 &&
-        cats.selected_cats.some(
-          (cat) => cats.color_dict_cluster && cat in cats.color_dict_cluster
-        );
-
-      if (has_cluster_filter) {
-        const inst_cat = cats.cell_cats[d.index];
-        if (!cats.selected_cats.includes(inst_cat)) {
-          // Cell is not in the selected cluster(s) - make transparent
-          base_color = [0, 0, 0, 0];
-        } else {
-          // Cell is in the selected cluster - show gene expression
-          base_color = [255, 0, 0, inst_exp];
-        }
-      } else {
-        // No cluster filter - show all cells with expression
-        base_color = [255, 0, 0, inst_exp];
-      }
+      base_color =
+        inst_exp > 0
+          ? [255, 0, 0, inst_exp]
+          : get_cluster_cell_color(cats, d.index);
     } catch {
-      base_color = [255, 0, 0, 10]; // Return a default color with some opacity to handle the error gracefully
+      base_color = get_cluster_cell_color(cats, d.index);
     }
   }
 
@@ -588,8 +553,7 @@ export const get_cell_color = (cats, highlighted_cells, i, d) => {
     return [0, 0, 255, 255];
   }
 
-  // Non-selected cells are fully transparent when there are selected cells
-  return [0, 0, 0, 0];
+  return base_color;
 };
 
 export const ini_cell_layer = async (base_url, viz_state) => {
@@ -780,15 +744,14 @@ export const ini_cell_layer = async (base_url, viz_state) => {
 
   viz_state.spatial.cell_scatter_data_objects = cell_scatter_data_objects;
 
-  const transitions =
-    !pointCloud || numRows < POINT_CLOUD_TRANSITION_LIMIT
-      ? {
-          getPosition: {
-            duration: 3000,
-            easing: d3.easeCubic,
-          },
-        }
-      : undefined;
+  const transitions = pointCloud
+    ? undefined
+    : {
+        getPosition: {
+          duration: 3000,
+          easing: d3.easeCubic,
+        },
+      };
 
   let cell_layer;
   if (pointCloud) {

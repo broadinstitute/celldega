@@ -1815,11 +1815,11 @@ __all__ = [
     "add_clustering_from_adata",
     "boundary_tile",
     "get_image_info",
-    "resolve_xenium_morphology_ome_path",
     "landscape",
     "main",
     "make_trx_tiles",
     "read_cbg_mtx",
+    "resolve_xenium_morphology_ome_path",
     "trx_tile",
     "write_identity_transform",
 ]

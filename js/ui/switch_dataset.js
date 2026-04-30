@@ -502,7 +502,11 @@ export const switch_dataset = async (
     });
 
     // Force deck to update with new layers
-    const layers_list = get_layers_list(layers_obj, viz_state.close_up);
+    const layers_list = get_layers_list(
+      layers_obj,
+      viz_state.close_up,
+      viz_state
+    );
     deck_ist.setProps({ layers: layers_list });
 
     // Restore persistent state (selected clusters, genes, UMAP view, image visibility)
@@ -512,7 +516,8 @@ export const switch_dataset = async (
     // Force deck to update with restored layers (especially if gene expression was restored)
     const final_layers_list = get_layers_list(
       viz_state.layers_obj,
-      viz_state.close_up
+      viz_state.close_up,
+      viz_state
     );
     deck_ist.setProps({ layers: final_layers_list });
 

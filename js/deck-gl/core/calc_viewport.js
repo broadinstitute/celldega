@@ -1,3 +1,4 @@
+import { is_point_cloud_technology } from '../../global_variables/image_info';
 import {
   areBarDataEqual,
   createEmptyCellCompact,
@@ -212,6 +213,9 @@ export const calc_viewport = async (
 ) => {
   const wasCloseUp = viz_state.close_up;
   const { tile_size } = viz_state.img.landscape_parameters;
+  const isPointCloud = is_point_cloud_technology(
+    viz_state.img?.landscape_parameters?.technology
+  );
   const zoomFactor = Math.pow(2, zoom);
   const [targetX, targetY] = target;
   const halfWidthZoomed = width / (2 * zoomFactor);
@@ -267,25 +271,27 @@ export const calc_viewport = async (
     viz_state.obs_store.close_up.set(true);
 
     if (viewportCache.visibleTileKey !== visibleTileKey) {
-      viz_state.obs_store.deck_check.set({
-        ...viz_state.obs_store.deck_check.get(),
-        trx_data: false,
-        path_data: false,
-      });
+      if (!isPointCloud) {
+        viz_state.obs_store.deck_check.set({
+          ...viz_state.obs_store.deck_check.get(),
+          trx_data: false,
+          path_data: false,
+        });
 
-      await update_trx_layer_data(
-        viz_state.global_base_url,
-        tiles_in_view,
-        layers_obj,
-        viz_state
-      );
+        await update_trx_layer_data(
+          viz_state.global_base_url,
+          tiles_in_view,
+          layers_obj,
+          viz_state
+        );
 
-      await update_path_layer_data(
-        viz_state.global_base_url,
-        tiles_in_view,
-        layers_obj,
-        viz_state
-      );
+        await update_path_layer_data(
+          viz_state.global_base_url,
+          tiles_in_view,
+          layers_obj,
+          viz_state
+        );
+      }
 
       viewportCache.visibleTileKey = visibleTileKey;
     }

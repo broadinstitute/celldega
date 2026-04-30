@@ -1039,7 +1039,11 @@ export const make_ist_ui_container = (
       selectedFeatureIndexes: [],
     });
 
-    const layers_list = get_layers_list(_layers_obj, _viz_state.close_up);
+    const layers_list = get_layers_list(
+      _layers_obj,
+      _viz_state.close_up,
+      _viz_state
+    );
     _deck_ist.setProps({ layers: layers_list });
 
     // hide the DEL button
@@ -1162,7 +1166,11 @@ export const make_ist_ui_container = (
         update_trx_pickable_state(_layers_obj, true);
       }
 
-      const layers_list = get_layers_list(_layers_obj, _viz_state.close_up);
+      const layers_list = get_layers_list(
+        _layers_obj,
+        _viz_state.close_up,
+        _viz_state
+      );
       _deck_ist.setProps({ layers: layers_list });
     };
 

@@ -206,7 +206,8 @@ const edit_layer_on_edit = async (
 
           const layers_list_updated = get_layers_list(
             layers_obj,
-            viz_state.close_up
+            viz_state.close_up,
+            viz_state
           );
           deck_ist.setProps({ layers: layers_list_updated });
         },
@@ -217,7 +218,11 @@ const edit_layer_on_edit = async (
     sync_region_to_model(viz_state);
   }
 
-  const layers_list = get_layers_list(layers_obj, viz_state.close_up);
+  const layers_list = get_layers_list(
+    layers_obj,
+    viz_state.close_up,
+    viz_state
+  );
   deck_ist.setProps({ layers: layers_list });
   await calc_and_update_rgn_bar_graph(viz_state, deck_ist, layers_obj);
   sync_region_to_model(viz_state);
@@ -236,7 +241,11 @@ const edit_layer_on_click = async (event, deck_ist, layers_obj, viz_state) => {
       },
     });
 
-    const layers_list = await get_layers_list(layers_obj, viz_state.close_up);
+    const layers_list = await get_layers_list(
+      layers_obj,
+      viz_state.close_up,
+      viz_state
+    );
     deck_ist.setProps({ layers: layers_list });
 
     viz_state.edit.mode = 'modify';
@@ -263,7 +272,11 @@ const edit_layer_on_click = async (event, deck_ist, layers_obj, viz_state) => {
       selectedFeatureIndexes: [],
     });
 
-    const layers_list = await get_layers_list(layers_obj, viz_state.close_up);
+    const layers_list = await get_layers_list(
+      layers_obj,
+      viz_state.close_up,
+      viz_state
+    );
     deck_ist.setProps({ layers: layers_list });
 
     viz_state.edit.mode = 'view';
@@ -385,7 +398,11 @@ export const set_edit_layer_on_click = (deck_ist, layers_obj, viz_state) => {
             calc_and_update_rgn_bar_graph(viz_state, deck_ist, layers_obj);
             sync_region_to_model(viz_state);
 
-            const layers_list = get_layers_list(layers_obj, viz_state.close_up);
+            const layers_list = get_layers_list(
+              layers_obj,
+              viz_state.close_up,
+              viz_state
+            );
             deck_ist.setProps({ layers: layers_list });
           },
         });

@@ -741,7 +741,11 @@ export const landscape_ist = async (
 
   viz_state.obs_store.deck_ready.subscribe((ready) => {
     if (ready) {
-      const list = get_layers_list(viz_state.layers_obj, viz_state.close_up);
+      const list = get_layers_list(
+        viz_state.layers_obj,
+        viz_state.close_up,
+        viz_state
+      );
       deck_ist.setProps({ layers: list });
     }
   });

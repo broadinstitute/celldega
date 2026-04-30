@@ -800,9 +800,11 @@ export const yearbook = async (
     });
 
     // Get the updated layers list (filter out null layers for yearbook)
-    const layers_list = get_layers_list(layers_obj, viz_state.close_up).filter(
-      (l) => l !== null
-    );
+    const layers_list = get_layers_list(
+      layers_obj,
+      viz_state.close_up,
+      viz_state
+    ).filter((l) => l !== null);
 
     // Apply all changes at once
     deck_yearbook.setProps({
@@ -837,7 +839,8 @@ export const yearbook = async (
     if (ready) {
       const list = get_layers_list(
         viz_state.layers_obj,
-        viz_state.close_up
+        viz_state.close_up,
+        viz_state
       ).filter((l) => l !== null);
       deck_yearbook.setProps({ layers: list });
     }

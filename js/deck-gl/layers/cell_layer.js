@@ -348,7 +348,7 @@ const shouldCompactPointCloudCells = (context) => {
     return context.selectedCats.length > 0;
   }
 
-  return false;
+  return true;
 };
 
 const ensureCompactBuffer = (spatial, key, Type, requiredLength) => {

@@ -37,9 +37,14 @@ from .landscape import (
     save_cbg_gene_parquets,
     save_cbg_gene_parquets_row_groups,
 )
-from .run_pre_processing import main
 from .sbg_tile import write_pseudotranscripts_from_sbg
 from .trx_tile import make_trx_tiles, make_trx_tiles_row_groups
+
+
+def main(*args, **kwargs):
+    from .run_pre_processing import main as _main
+
+    return _main(*args, **kwargs)
 
 
 def _load_xenium_cluster_data(data_dir, meta_cell):

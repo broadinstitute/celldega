@@ -1,4 +1,5 @@
 import { options } from '../global_variables/fetch_options';
+import { getGeneExpressionColumns } from '../read_parquet/gene_expression_columns';
 import { get_arrow_table } from '../read_parquet/get_arrow_table';
 
 function processExpression(exp_value, max_exp) {
@@ -52,10 +53,7 @@ async function readGeneFromRowGroups(cbgReader, geneName) {
     return { cell_names: [], cell_exp: [] };
   }
 
-  const cell_names = table.getChild('cell_id')?.toArray() || [];
-  const cell_exp = table.getChild('expression')?.toArray() || [];
-
-  return { cell_names, cell_exp };
+  return getGeneExpressionColumns(table, geneName);
 }
 
 export const update_cell_exp_array = async (
@@ -87,8 +85,10 @@ export const update_cell_exp_array = async (
     }
 
     const exp_table = await get_arrow_table(file_path, options.fetch, aws);
-    cell_names = exp_table.getChild('__index_level_0__').toArray();
-    cell_exp = exp_table.getChild(inst_gene).toArray();
+    ({ cell_names, cell_exp } = getGeneExpressionColumns(
+      exp_table,
+      inst_gene
+    ));
   }
   const new_exp_array = ensureExpressionArray(cats);
   const max_exp = Number(genes.meta_gene[inst_gene].max);

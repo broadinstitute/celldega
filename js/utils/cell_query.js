@@ -274,7 +274,7 @@ export const execute_cell_query = async (
       }
     } else if (
       viz_state.cats.dict_cell_cats &&
-      Object.keys(viz_state.cats.dict_cell_cats).length > 0
+      viz_state.cats.has_dict_cell_cats
     ) {
       // Use dict_cell_cats if available (loaded from DegaFiles)
       candidate_cells = candidate_cells.filter((cell_name) => {

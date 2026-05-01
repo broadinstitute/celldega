@@ -48,10 +48,13 @@ export const make_tooltip = (viz_state, info) => {
         return null;
       }
       inst_name = viz_state.cats.cell_names_array[sourceIndex];
+      inst_cat =
+        viz_state.cats.cell_cats?.[sourceIndex] ??
+        viz_state.cats.dict_cell_cats?.[inst_name];
     } else {
       inst_name = viz_state.cats.polygon_cell_names[info.index];
+      inst_cat = viz_state.cats.dict_cell_cats?.[inst_name];
     }
-    inst_cat = viz_state.cats.dict_cell_cats[inst_name];
     inst_html = `<div>cell: ${inst_name}</div><div>cluster: ${inst_cat}</div>`;
 
     viz_state.tooltip_cat_cell = inst_cat;

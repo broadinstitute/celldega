@@ -141,6 +141,7 @@ export const landscape_sst = async (
   viz_state.cats.selected_cats = [];
   viz_state.cats.cell_cats = [];
   viz_state.cats.dict_cell_cats = {};
+  viz_state.cats.has_dict_cell_cats = false;
   viz_state.cats.color_dict_cluster = {};
   viz_state.cats.cluster_counts = [];
   viz_state.cats.polygon_cell_names = [];

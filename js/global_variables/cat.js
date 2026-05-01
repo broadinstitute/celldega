@@ -25,9 +25,11 @@ export const is_selected_cat = (selected_cats = [], cat) => {
 };
 
 export const set_dict_cell_cats = (cats) => {
+  cats.dict_cell_cats = {};
   cats.cell_names_array.forEach((name, index) => {
     cats.dict_cell_cats[name] = cats.cell_cats[index];
   });
+  cats.has_dict_cell_cats = true;
 };
 
 export const update_selected_cats = (cats, new_selected_cats, obs_store) => {

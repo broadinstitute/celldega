@@ -587,6 +587,8 @@ export const get_cell_color = (cats, highlighted_cells, i, d) => {
 
 export const ini_cell_layer = async (base_url, viz_state) => {
   let cell_url;
+  const pointCloud = is_point_cloud_viz(viz_state);
+
   if (viz_state.seg.version === 'default') {
     cell_url = `${base_url}/cell_metadata.parquet`;
   } else {
@@ -610,7 +612,11 @@ export const ini_cell_layer = async (base_url, viz_state) => {
     viz_state.aws
   );
 
-  set_cell_name_to_index_map(viz_state.cats);
+  if (pointCloud && viz_state.vector_name_integer) {
+    viz_state.cats.cell_name_to_index_map = new Map();
+  } else {
+    set_cell_name_to_index_map(viz_state.cats);
+  }
 
   if (viz_state.cats.has_meta_cell) {
     // look up the index of the inst_cell_attr in the meta_cell_attr array
@@ -638,7 +644,12 @@ export const ini_cell_layer = async (base_url, viz_state) => {
     set_cell_cats(viz_state.cats, cluster_arrow_table, 'cluster');
   }
 
-  set_dict_cell_cats(viz_state.cats);
+  if (pointCloud) {
+    viz_state.cats.dict_cell_cats = {};
+    viz_state.cats.has_dict_cell_cats = false;
+  } else {
+    set_dict_cell_cats(viz_state.cats);
+  }
 
   const new_cell_names_array = cell_arrow_table.getChild('name').toArray();
   const flatCoordinateArray =
@@ -646,7 +657,6 @@ export const ini_cell_layer = async (base_url, viz_state) => {
   const dim =
     viz_state.spatial.cell_scatter_data.attributes.getPosition.size || 2;
   const numRows = viz_state.spatial.cell_scatter_data.length;
-  const pointCloud = is_point_cloud_viz(viz_state);
 
   viz_state.combo_data.cell_compact = pointCloud
     ? createEmptyCellCompact()

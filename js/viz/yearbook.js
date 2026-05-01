@@ -262,20 +262,18 @@ export const yearbook = async (
   viz_state.cats.selected_cats = [];
   viz_state.cats.cell_cats = [];
   viz_state.cats.dict_cell_cats = {};
+  viz_state.cats.has_dict_cell_cats = false;
   viz_state.cats.color_dict_cluster = {};
   viz_state.cats.cluster_counts = [];
   viz_state.cats.polygon_cell_names = [];
 
-  if (Object.keys(meta_cell).length === 0) {
-    viz_state.cats.has_meta_cell = false;
-  } else {
-    viz_state.cats.has_meta_cell = true;
-  }
+  viz_state.cats.has_meta_cell =
+    Boolean(meta_cell) &&
+    typeof meta_cell === 'object' &&
+    meta_cell_attr.length > 0;
   viz_state.cats.meta_cell = meta_cell;
   viz_state.cats.meta_cell_attr = meta_cell_attr;
-  viz_state.cats.meta_cell_id_set = new Set(
-    Object.keys(meta_cell || {}).map((cell_id) => String(cell_id))
-  );
+  viz_state.cats.meta_cell_id_set = null;
   viz_state.cats.inst_cell_attr = meta_cell_attr[0] || 'N.A.';
 
   if (Object.keys(meta_cluster).length === 0) {

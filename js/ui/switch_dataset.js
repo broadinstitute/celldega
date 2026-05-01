@@ -209,6 +209,7 @@ export const switch_dataset = async (
 
     const { landscape_parameters } = viz_state.img;
     const { technology: tech, image_format } = landscape_parameters;
+    const pointCloud = is_point_cloud_technology(tech);
     const has_image_layer = technology_has_image_layer(tech);
     const tmp_image_info = get_landscape_image_info(landscape_parameters);
     const image_name_for_dim = get_primary_image_name(landscape_parameters);
@@ -272,7 +273,11 @@ export const switch_dataset = async (
     set_cell_names_array(viz_state.cats, cell_arrow_table);
     viz_state.spatial.cell_scatter_data = get_scatter_data(cell_arrow_table);
 
-    set_cell_name_to_index_map(viz_state.cats);
+    if (pointCloud && viz_state.vector_name_integer) {
+      viz_state.cats.cell_name_to_index_map = new Map();
+    } else {
+      set_cell_name_to_index_map(viz_state.cats);
+    }
 
     // Load cluster data
     if (viz_state.cats.has_meta_cell) {
@@ -292,7 +297,12 @@ export const switch_dataset = async (
       set_cell_cats(viz_state.cats, cluster_arrow_table, 'cluster');
     }
 
-    set_dict_cell_cats(viz_state.cats);
+    if (pointCloud) {
+      viz_state.cats.dict_cell_cats = {};
+      viz_state.cats.has_dict_cell_cats = false;
+    } else {
+      set_dict_cell_cats(viz_state.cats);
+    }
 
     // Reset cluster metadata and counts
     viz_state.cats.color_dict_cluster = {};
@@ -309,8 +319,6 @@ export const switch_dataset = async (
     const dim =
       viz_state.spatial.cell_scatter_data.attributes.getPosition.size || 2;
     const numRows = viz_state.spatial.cell_scatter_data.length;
-    const pointCloud = is_point_cloud_technology(tech);
-
     viz_state.combo_data.cell_compact = pointCloud
       ? createEmptyCellCompact()
       : buildCellCompactData(

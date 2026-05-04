@@ -19,11 +19,6 @@ export const update_cell_cats = (cats, new_cell_cats) => {
   cats.cell_cats = new_cell_cats.map((cat) => (cat === 'nan' ? null : cat));
 };
 
-export const is_selected_cat = (selected_cats = [], cat) => {
-  const cat_key = String(cat);
-  return selected_cats.some((selected_cat) => String(selected_cat) === cat_key);
-};
-
 export const set_dict_cell_cats = (cats) => {
   cats.dict_cell_cats = {};
   cats.cell_names_array.forEach((name, index) => {

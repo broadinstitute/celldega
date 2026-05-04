@@ -37,6 +37,36 @@ export { get_cell_color, update_cell_color_buffer } from './cell_color';
 
 const POINT_CLOUD_POSITION_SIZE = 3;
 
+const assert_binary_attribute_lengths = (label, data) => {
+  const rows_for = (attr) => {
+    if (!attr?.value) return Infinity
+    const size = attr.size || 1
+    return Math.floor(attr.value.length / size)
+  }
+
+  const rows = Object.entries(data.attributes || {}).map(([name, attr]) => ({
+    name,
+    rows: rows_for(attr),
+    items: attr?.value?.length,
+    size: attr?.size || 1,
+    data_length: data.length,
+  }))
+
+  const too_short = rows.filter((row) => row.rows < data.length)
+
+  if (too_short.length > 0) {
+    console.error(`[${label}] binary attribute shorter than data.length`, {
+      data,
+      rows,
+      too_short,
+    })
+    throw new Error(`[${label}] binary attribute shorter than data.length`)
+  }
+
+  console.table(rows)
+  return data
+}
+
 /**
  * Get the meta_cell key for a given cell name.
  * When cell_name_prefix is enabled, try both the full name and stripped name.
@@ -407,6 +437,34 @@ const get_scatterplot_positions = (viz_state) => {
   );
 };
 
+// export const get_scatterplot_cell_data = (viz_state) => {
+//   const positions = get_scatterplot_positions(viz_state);
+//   const positionSize = positions.size || 2;
+//   const fullCount = Math.min(
+//     viz_state.spatial.cell_scatter_data?.length || 0,
+//     viz_state.cats.cell_names_array?.length || 0,
+//     Math.floor(positions.value.length / positionSize)
+//   );
+
+//   return {
+//     length: fullCount,
+//     attributes: {
+//       getPosition: {
+//         value: positions.value,
+//         size: positionSize,
+//       },
+//       getFillColor: {
+//         value: update_cell_color_buffer(viz_state).subarray(
+//           0,
+//           fullCount * CELL_COLOR_SIZE
+//         ),
+//         size: CELL_COLOR_SIZE,
+//         type: 'unorm8',
+//       },
+//     },
+//   };
+// };
+
 export const get_scatterplot_cell_data = (viz_state) => {
   const positions = get_scatterplot_positions(viz_state);
   const positionSize = positions.size || 2;
@@ -416,12 +474,18 @@ export const get_scatterplot_cell_data = (viz_state) => {
     Math.floor(positions.value.length / positionSize)
   );
 
-  return {
+  const position_values =
+    positions.value instanceof Float32Array
+      ? positions.value
+      : new Float32Array(positions.value);
+
+  return assert_binary_attribute_lengths('scatterplot-cell', {
     length: fullCount,
     attributes: {
       getPosition: {
-        value: positions.value,
+        value: position_values,
         size: positionSize,
+        type: 'float32',
       },
       getFillColor: {
         value: update_cell_color_buffer(viz_state).subarray(
@@ -432,7 +496,7 @@ export const get_scatterplot_cell_data = (viz_state) => {
         type: 'unorm8',
       },
     },
-  };
+  });
 };
 
 export const refresh_cell_layer_data = (

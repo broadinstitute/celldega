@@ -437,34 +437,6 @@ const get_scatterplot_positions = (viz_state) => {
   );
 };
 
-// export const get_scatterplot_cell_data = (viz_state) => {
-//   const positions = get_scatterplot_positions(viz_state);
-//   const positionSize = positions.size || 2;
-//   const fullCount = Math.min(
-//     viz_state.spatial.cell_scatter_data?.length || 0,
-//     viz_state.cats.cell_names_array?.length || 0,
-//     Math.floor(positions.value.length / positionSize)
-//   );
-
-//   return {
-//     length: fullCount,
-//     attributes: {
-//       getPosition: {
-//         value: positions.value,
-//         size: positionSize,
-//       },
-//       getFillColor: {
-//         value: update_cell_color_buffer(viz_state).subarray(
-//           0,
-//           fullCount * CELL_COLOR_SIZE
-//         ),
-//         size: CELL_COLOR_SIZE,
-//         type: 'unorm8',
-//       },
-//     },
-//   };
-// };
-
 export const get_scatterplot_cell_data = (viz_state) => {
   const positions = get_scatterplot_positions(viz_state);
   const positionSize = positions.size || 2;

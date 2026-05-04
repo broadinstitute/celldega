@@ -63,9 +63,9 @@ const assert_binary_attribute_lengths = (label, data) => {
     throw new Error(`[${label}] binary attribute shorter than data.length`)
   }
 
-  console.table(rows)
+  // console.table(rows)
   return data
-}
+};
 
 /**
  * Get the meta_cell key for a given cell name.
@@ -509,6 +509,7 @@ export const refresh_cell_layer_data = (
   const isPointCloud = is_point_cloud_viz(viz_state);
 
   layers_obj.cell_layer = layers_obj.cell_layer.clone({
+    transitions: false,
     ...stableLayerProps,
     data: isPointCloud
       ? get_point_cloud_cell_data(viz_state)
@@ -730,14 +731,16 @@ export const ini_cell_layer = async (base_url, viz_state) => {
 
   viz_state.spatial.cell_scatter_data_objects = null;
 
-  const transitions = pointCloud
-    ? undefined
-    : {
-        getPosition: {
-          duration: 3000,
-          easing: d3.easeCubic,
-        },
-      };
+  // const transitions = pointCloud
+  //   ? undefined
+  //   : {
+  //       getPosition: {
+  //         duration: 3000,
+  //         easing: d3.easeCubic,
+  //       },
+  //     };
+
+  const transitions = false;
 
   let cell_layer;
   if (pointCloud) {
@@ -807,10 +810,44 @@ export const update_cell_pickable_state = (layers_obj, pickable) => {
   });
 };
 
+// export const toggle_spatial_umap = (_deck_ist, layers_obj, viz_state) => {
+//   if (is_point_cloud_viz(viz_state)) {
+//     layers_obj.cell_layer = layers_obj.cell_layer.clone({
+//       data: get_point_cloud_cell_data(viz_state),
+//       updateTriggers: {
+//         ...layers_obj.cell_layer.props.updateTriggers,
+//         getPosition: [viz_state.obs_store.umap_state.get()],
+//       },
+//     });
+//     return;
+//   }
+
+//   layers_obj.cell_layer = layers_obj.cell_layer.clone({
+//     data: get_scatterplot_cell_data(viz_state),
+//     updateTriggers: {
+//       ...layers_obj.cell_layer.props.updateTriggers,
+//       getPosition: [viz_state.obs_store.umap_state.get()],
+//     },
+//   });
+// };
+
+const spatial_umap_transitions = (viz_state) =>
+  viz_state.umap?.has_umap
+    ? {
+        getPosition: {
+          duration: 3000,
+          easing: d3.easeCubic,
+        },
+      }
+    : false;
+
 export const toggle_spatial_umap = (_deck_ist, layers_obj, viz_state) => {
+  const transitions = spatial_umap_transitions(viz_state);
+
   if (is_point_cloud_viz(viz_state)) {
     layers_obj.cell_layer = layers_obj.cell_layer.clone({
       data: get_point_cloud_cell_data(viz_state),
+      transitions,
       updateTriggers: {
         ...layers_obj.cell_layer.props.updateTriggers,
         getPosition: [viz_state.obs_store.umap_state.get()],
@@ -821,6 +858,7 @@ export const toggle_spatial_umap = (_deck_ist, layers_obj, viz_state) => {
 
   layers_obj.cell_layer = layers_obj.cell_layer.clone({
     data: get_scatterplot_cell_data(viz_state),
+    transitions,
     updateTriggers: {
       ...layers_obj.cell_layer.props.updateTriggers,
       getPosition: [viz_state.obs_store.umap_state.get()],

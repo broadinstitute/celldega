@@ -582,7 +582,7 @@ export const get_cell_color = (cats, highlighted_cells, i, d) => {
     return [0, 0, 255, 255];
   }
 
-  return base_color;
+  return [0, 0, 0, 0];
 };
 
 export const ini_cell_layer = async (base_url, viz_state) => {

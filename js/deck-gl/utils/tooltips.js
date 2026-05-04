@@ -1,25 +1,4 @@
-import * as d3 from 'd3';
-
 import { get_point_cloud_source_index } from './point_cloud_indices';
-
-/**
- * Creates tooltips for tile layers showing category information
- * @param {Object} info - Layer interaction info with index and layer data
- * @param {Object} viz_state - Application visualization state
- * @returns {Object|null} Tooltip configuration object or null if invalid
- */
-export const make_tile_tooltip = (info, viz_state) => {
-  if (info.index === -1 || !info.layer) return null;
-
-  const inst_cat = viz_state.cats.tile_cats_array[info.index];
-
-  viz_state.tooltip_cat_cell = inst_cat;
-
-  d3.selectAll('.deck-tooltip').style('margin-top', '75px');
-  return {
-    html: `<div>${inst_cat}</div>`,
-  };
-};
 
 /**
  * Creates tooltips for various layer types with detailed information

@@ -83,7 +83,7 @@ The `viz` module provides Jupyter Widget classes for interactive visualization:
 
 | Widget | Description |
 |--------|-------------|
-| `Landscape` | Main spatial visualization for IST/SST data |
+| `Landscape` | Main spatial visualization for segmented spatial data |
 | `Clustergram` | Hierarchical clustering heatmap |
 | `Yearbook` | Grid of cell "portraits" |
 | `Enrich` | Gene enrichment analysis |

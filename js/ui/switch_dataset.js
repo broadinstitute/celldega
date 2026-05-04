@@ -1,9 +1,9 @@
 import { ini_background_layer } from '../deck-gl/layers/background_layer';
 import {
-  get_point_cloud_cell_data,
-  refresh_point_cloud_cell_layer_data,
+  refresh_cell_layer_data,
   set_point_cloud_cell_position_buffers,
   set_point_cloud_umap_positions_from_names,
+  set_scatterplot_umap_positions_from_names,
   set_spatial_bounds_from_flat_coordinates,
 } from '../deck-gl/layers/cell_layer';
 import { make_image_layers } from '../deck-gl/layers/image_layers';
@@ -38,7 +38,6 @@ import { set_meta_gene } from '../global_variables/meta_gene';
 import { update_selected_genes } from '../global_variables/selected_genes';
 import { get_arrow_table } from '../read_parquet/get_arrow_table';
 import { get_scatter_data } from '../read_parquet/get_scatter_data';
-import { scale_umap_data } from '../umap/scale_umap_data';
 import {
   buildCellCompactData,
   createEmptyCellCompact,
@@ -106,22 +105,9 @@ const restore_persistent_state = async (viz_state, layers_obj, saved_state) => {
 
     // Force cell layer to refresh with new expression data
     viz_state.selection_token = (viz_state.selection_token || 0) + 1;
-    const refreshedPointCloud = refresh_point_cloud_cell_layer_data(
-      layers_obj,
-      viz_state,
-      {
-        id: `cell-layer-gene-${inst_gene}-${viz_state.selection_token}`,
-      }
-    );
-
-    if (!refreshedPointCloud) {
-      layers_obj.cell_layer = layers_obj.cell_layer.clone({
-        id: `cell-layer-gene-${inst_gene}-${viz_state.selection_token}`,
-        updateTriggers: {
-          getFillColor: [viz_state.selection_token, inst_gene],
-        },
-      });
-    }
+    refresh_cell_layer_data(layers_obj, viz_state, {
+      id: `cell-layer-gene-${inst_gene}-${viz_state.selection_token}`,
+    });
     viz_state.layers_obj = layers_obj;
   } else {
     // No valid gene selection, check for cluster selection
@@ -344,8 +330,7 @@ export const switch_dataset = async (
       );
     }
 
-    // Build cell scatter data objects
-    let cell_scatter_data_objects;
+    // Build optional UMAP position buffers for cell rendering
     if (viz_state.umap.has_umap) {
       if (pointCloud) {
         set_point_cloud_umap_positions_from_names(
@@ -353,59 +338,18 @@ export const switch_dataset = async (
           viz_state.cats.cell_names_array,
           numRows
         );
-        cell_scatter_data_objects = null;
       } else {
-        const flatCoordinateArray_umap = new Float64Array(
-          viz_state.cats.cell_names_array.flatMap((cell_id) => {
-            let coords = viz_state.umap.umap[cell_id];
-            if (!coords) {
-              coords = [0, 0];
-            }
-            return coords;
-          })
-        );
-
-        cell_scatter_data_objects = Array.from({ length: numRows }, (_, i) => ({
-          name: viz_state.cats.cell_names_array[i],
-          position:
-            dim === 3
-              ? [
-                  flatCoordinateArray[i * dim],
-                  flatCoordinateArray[i * dim + 1],
-                  flatCoordinateArray[i * dim + 2],
-                ]
-              : [
-                  flatCoordinateArray[i * dim],
-                  flatCoordinateArray[i * dim + 1],
-                ],
-          umap: [
-            flatCoordinateArray_umap[i * 2],
-            flatCoordinateArray_umap[i * 2 + 1],
-          ],
-        }));
-
-        cell_scatter_data_objects = scale_umap_data(
+        set_scatterplot_umap_positions_from_names(
           viz_state,
-          cell_scatter_data_objects
+          viz_state.cats.cell_names_array,
+          numRows
         );
       }
-    } else if (!pointCloud) {
-      cell_scatter_data_objects = Array.from({ length: numRows }, (_, i) => ({
-        name: viz_state.cats.cell_names_array[i],
-        position:
-          dim === 3
-            ? [
-                flatCoordinateArray[i * dim],
-                flatCoordinateArray[i * dim + 1],
-                flatCoordinateArray[i * dim + 2],
-              ]
-            : [flatCoordinateArray[i * dim], flatCoordinateArray[i * dim + 1]],
-      }));
     } else {
-      cell_scatter_data_objects = null;
+      viz_state.spatial.cell_umap_scatter_positions = null;
     }
 
-    viz_state.spatial.cell_scatter_data_objects = cell_scatter_data_objects;
+    viz_state.spatial.cell_scatter_data_objects = null;
 
     viz_state.spatial.center_x =
       (viz_state.spatial.x_max + viz_state.spatial.x_min) / 2;
@@ -418,27 +362,10 @@ export const switch_dataset = async (
 
     // Update cell layer with new data (clone, don't recreate)
     // Disable transitions for instant dataset switching
-    if (pointCloud) {
-      layers_obj.cell_layer = layers_obj.cell_layer.clone({
-        id: `cell-layer-dataset-${new_index}`,
-        data: get_point_cloud_cell_data(viz_state),
-        transitions: false,
-        updateTriggers: {
-          getPosition: [viz_state.obs_store.umap_state.get(), new_index],
-          getColor: [viz_state.selection_token, new_index],
-        },
-      });
-    } else {
-      layers_obj.cell_layer = layers_obj.cell_layer.clone({
-        id: `cell-layer-dataset-${new_index}`,
-        data: cell_scatter_data_objects,
-        transitions: false,
-        updateTriggers: {
-          getPosition: [viz_state.obs_store.umap_state.get(), new_index],
-          getFillColor: [viz_state.selection_token, new_index],
-        },
-      });
-    }
+    refresh_cell_layer_data(layers_obj, viz_state, {
+      id: `cell-layer-dataset-${new_index}`,
+      transitions: false,
+    });
 
     // Dispose of old image layers to clear any cached tile data
     if (layers_obj.image_layers && Array.isArray(layers_obj.image_layers)) {

@@ -15,7 +15,7 @@ import { ini_background_layer } from '../deck-gl/layers/background_layer';
 import {
   ini_cell_layer,
   new_toggle_cell_layer_visibility,
-  refresh_point_cloud_cell_layer_data,
+  refresh_cell_layer_data,
   set_cell_layer_onclick,
   toggle_spatial_umap,
   update_cell_pickable_state,
@@ -634,24 +634,9 @@ export const landscape_ist = async (
   const refresh_cell_layer = () => {
     const selected_cats_name = viz_state.cats.selected_cats.join('-');
 
-    const refreshedPointCloud = refresh_point_cloud_cell_layer_data(
-      layers_obj,
-      viz_state,
-      {
-        id: `cell-layer-${selected_cats_name}-sel-${viz_state.selection_token}`,
-      }
-    );
-
-    if (!refreshedPointCloud) {
-      layers_obj.cell_layer = layers_obj.cell_layer.clone({
-        id: `cell-layer-${selected_cats_name}-sel-${viz_state.selection_token}`,
-        updateTriggers: {
-          ...layers_obj.cell_layer.props.updateTriggers,
-          getPosition: [viz_state.obs_store.umap_state.get()],
-          getFillColor: [viz_state.selection_token],
-        },
-      });
-    }
+    refresh_cell_layer_data(layers_obj, viz_state, {
+      id: `cell-layer-${selected_cats_name}-sel-${viz_state.selection_token}`,
+    });
 
     // Toggle cell layer readiness so deck.gl re-renders when selections arrive
     // from the Python backend.

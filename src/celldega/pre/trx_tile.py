@@ -713,7 +713,7 @@ def make_trx_tiles(
     verbose : bool, optional
         Flag to enable verbose output (default is False).
     image_scale : float, optional
-        Scale factor to apply to the transcript coordinates (default is 0.5).
+        Scale factor to apply to the transcript coordinates (default is 1.0).
     max_workers : int, optional
         Maximum number of parallel workers for processing tiles (default is 1).
     streaming_tile_assignment : bool or None, optional
@@ -957,7 +957,7 @@ def _write_tiles_as_row_groups(
     - tile_data_list: List of (tile_x, tile_y, DataFrame) tuples
     - output_dir: Path to output directory (will contain transcripts_0.parquet, etc.)
     - tile_grid_info: Dictionary with grid dimensions
-    - max_row_groups_per_file: Maximum row groups per parquet file (default 10000)
+    - max_row_groups_per_file: Maximum row groups per parquet file (default 400)
 
     Returns:
     - dict: Chunk info with file list and metadata
@@ -1098,7 +1098,7 @@ def make_trx_tiles_row_groups(
     path_landscape_files : str, optional
         Path to landscape files directory for loading gene mapping.
     max_row_groups_per_file : int, optional
-        Maximum row groups per parquet file (default 10000).
+        Maximum row groups per parquet file (default 400).
     streaming_tile_assignment : bool or None, optional
         If True, use disk-backed tile grouping (lower peak RAM). If False, use in-memory
         ``partition_by``. If None (default), enable automatically when row count is at least

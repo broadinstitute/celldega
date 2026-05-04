@@ -180,7 +180,7 @@ def save_cbg_gene_parquets(
             inst_df.index.name = None
             inst_df.to_parquet(output_path, index=True)
 
-    print("All gene-specific parquet files are succesfully saved.")
+    print("All gene-specific parquet files are successfully saved.")
 
 
 def save_cbg_gene_parquets_row_groups(

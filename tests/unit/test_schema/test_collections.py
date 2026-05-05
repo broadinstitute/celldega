@@ -11,6 +11,7 @@ from celldega.collections import (
     HierarchyResult,
     NeighborhoodCollection,
 )
+from celldega.datasets import calc_dataset_by_pop, dataset_collection_from_adata
 
 
 def test_dataset_collection_holds_aligned_spaces_relations_and_hierarchies():
@@ -99,3 +100,41 @@ def test_dataset_collection_can_link_neighborhood_collections():
     )
 
     assert datasets.neighborhood_collections["manual_regions"] is neighborhoods
+
+
+def test_calc_dataset_by_pop_builds_dataset_population_space():
+    adata = AnnData(X=np.ones((6, 1)))
+    adata.obs["sample_id"] = ["s1", "s1", "s1", "s2", "s2", "s2"]
+    adata.obs["cell_type"] = ["T", "B", "T", "B", "B", "T"]
+
+    population = calc_dataset_by_pop(
+        adata,
+        dataset_col="sample_id",
+        category="cell_type",
+        output="counts",
+    )
+
+    assert population.shape == (2, 2)
+    assert list(population.obs_names) == ["s1", "s2"]
+    assert list(population.var_names) == ["B", "T"]
+    np.testing.assert_array_equal(population.X, np.array([[1, 2], [2, 1]]))
+
+
+def test_dataset_collection_from_adata_attaches_population_space():
+    adata = AnnData(X=np.ones((4, 1)))
+    adata.obs["sample_id"] = ["s1", "s1", "s2", "s2"]
+    adata.obs["patient_id"] = ["p1", "p1", "p2", "p2"]
+    adata.obs["cell_type"] = ["T", "B", "B", "B"]
+
+    collection = dataset_collection_from_adata(
+        adata,
+        dataset_col="sample_id",
+        obs_columns=["patient_id"],
+        population_category="cell_type",
+    )
+
+    assert isinstance(collection, DatasetCollection)
+    assert list(collection.obs.index) == ["s1", "s2"]
+    assert collection.obs.loc["s1", "patient_id"] == "p1"
+    assert "population" in collection.spaces
+    assert list(collection.spaces["population"].obs_names) == ["s1", "s2"]

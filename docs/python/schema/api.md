@@ -1,9 +1,9 @@
 # Collection Schema API Reference
 
 Celldega collection schemas define lightweight containers for aligned
-dataset-level and neighborhood-level data. These classes document the expected
-in-memory shape only. They do not run neighborhood computations, validate
-alignment, or read and write files.
+dataset-level and neighborhood-level data. The collection classes document the
+expected in-memory shape; constructor helpers and `NBHD` methods can populate
+spaces and relations into those containers.
 
 ## Core Model
 
@@ -28,6 +28,23 @@ Recommended relations include `similarity`, `distance`, `matched_pair`,
 `patient_pairing`, `population_knn`, `expression_knn`, and
 `neighborhood_knn`.
 
+Use `calc_dataset_by_pop` to construct the first dataset-level space:
+
+```python
+import celldega as dega
+
+population = dega.calc_dataset_by_pop(
+    adata,
+    dataset_col="sample_id",
+    category="cell_type",
+)
+datasets = dega.dataset_collection_from_adata(
+    adata,
+    dataset_col="sample_id",
+    population_category="cell_type",
+)
+```
+
 ## NeighborhoodCollection
 
 `NeighborhoodCollection` observations are neighborhoods or spatial regions such
@@ -44,4 +61,12 @@ Recommended memberships include `cell_to_neighborhood`,
 `transcript_to_neighborhood`, `spot_to_neighborhood`, and
 `pixel_to_neighborhood`.
 
+`NBHD` now owns a `NeighborhoodCollection` under `nbhd.collection` and attaches
+feature spaces and sparse relations with methods such as
+`construct_gene_space`, `construct_population_space`,
+`construct_image_space`, `construct_overlap_relation`, and
+`construct_bordering_relation`.
+
 ::: celldega.collections
+
+::: celldega.datasets

@@ -8,9 +8,12 @@ from anndata import AnnData
 
 # Third-party imports
 import geopandas as gpd
+import numpy as np
 import pandas as pd
+from scipy import sparse
 from skimage.io import imread
 
+from celldega.collections import NeighborhoodCollection
 from celldega.pre.boundary_tile import batch_transform_geometries
 from celldega.pre.image_info import resolve_xenium_morphology_ome_path
 
@@ -201,6 +204,7 @@ def calc_nbhd_by_image(
     file_path: str,
     path_landscape_files: str,
     gdf_nbhd: gpd.GeoDataFrame,
+    nbhd_col: str = "name",
 ) -> pd.DataFrame:
     """
     Calculate neighborhood image-based indices (NBI) given paths and a GeoDataFrame.
@@ -220,7 +224,7 @@ def calc_nbhd_by_image(
         calc_img_zonal_stats(
             gdf_nbhd_pixel,
             img,
-            unique_polygon_col_name="name",
+            unique_polygon_col_name=nbhd_col,
             channel_names={0: "dapi", 1: "bound", 2: "rna", 3: "prot"},
             stats_funcs=["mean", "median", "std"],
         )
@@ -229,19 +233,157 @@ def calc_nbhd_by_image(
     )
 
 
+def _resolve_nbhd_col(gdf: gpd.GeoDataFrame, nbhd_col: str = "name") -> str:
+    if nbhd_col in gdf.columns:
+        return nbhd_col
+
+    for candidate in ("neighborhood_id", "nbhd_id"):
+        if candidate in gdf.columns:
+            return candidate
+
+    raise ValueError(
+        f"gdf must include '{nbhd_col}', 'neighborhood_id', or 'nbhd_id' "
+        "to identify neighborhoods"
+    )
+
+
+def _collection_from_gdf(
+    gdf: gpd.GeoDataFrame,
+    nbhd_type: str,
+    nbhd_col: str = "name",
+    provenance: dict[str, Any] | None = None,
+    uns: dict[str, Any] | None = None,
+) -> NeighborhoodCollection:
+    resolved_nbhd_col = _resolve_nbhd_col(gdf, nbhd_col)
+    geometry = gdf.copy()
+    geometry.index = geometry[resolved_nbhd_col].astype(str)
+
+    if not geometry.index.is_unique:
+        raise ValueError(f"Neighborhood IDs in '{resolved_nbhd_col}' must be unique")
+
+    obs = pd.DataFrame(geometry.drop(columns="geometry", errors="ignore"))
+    obs.index = geometry.index.copy()
+    obs.index.name = "neighborhood_id"
+
+    if "neighborhood_id" not in obs.columns:
+        obs.insert(0, "neighborhood_id", obs.index)
+    if "neighborhood_type" not in obs.columns:
+        obs["neighborhood_type"] = nbhd_type
+    if "method" not in obs.columns:
+        obs["method"] = nbhd_type
+
+    geom = geometry.geometry
+    if "area" not in obs.columns:
+        obs["area"] = geom.area
+    if "area_um2" not in obs.columns:
+        obs["area_um2"] = geom.area
+    if "centroid_x" not in obs.columns:
+        obs["centroid_x"] = geom.centroid.x
+    if "centroid_y" not in obs.columns:
+        obs["centroid_y"] = geom.centroid.y
+
+    return NeighborhoodCollection(
+        obs=obs,
+        geometry=geometry,
+        provenance=provenance or {},
+        uns=uns or {},
+    )
+
+
+def _align_space_to_collection(
+    adata: AnnData,
+    collection: NeighborhoodCollection,
+) -> AnnData:
+    target_index = collection.obs.index.astype(str)
+    source_index = pd.Index(adata.obs_names.astype(str))
+
+    if list(source_index) == list(target_index):
+        return adata
+
+    shape = (len(target_index), adata.n_vars)
+    source_lookup = {name: i for i, name in enumerate(source_index)}
+    target_rows = [i for i, name in enumerate(target_index) if name in source_lookup]
+    source_rows = [source_lookup[name] for name in target_index if name in source_lookup]
+
+    if sparse.issparse(adata.X):
+        X = sparse.lil_matrix(shape, dtype=adata.X.dtype)
+        if source_rows:
+            X[target_rows, :] = adata.X[source_rows, :]
+        X = X.tocsr()
+    else:
+        X = np.zeros(shape, dtype=adata.X.dtype)
+        if source_rows:
+            X[target_rows, :] = np.asarray(adata.X[source_rows, :])
+
+    obs = collection.obs.copy()
+    space_obs = adata.obs.copy()
+    space_obs.index = source_index
+
+    for col in space_obs.columns:
+        values = space_obs[col].reindex(target_index)
+        if pd.api.types.is_numeric_dtype(space_obs[col]) or col.startswith("n_"):
+            values = values.fillna(0)
+        obs[col] = values
+
+    return AnnData(X=X, obs=obs, var=adata.var.copy(), uns=dict(adata.uns))
+
+
+def _dataframe_to_space(
+    df: pd.DataFrame,
+    collection: NeighborhoodCollection,
+    uns: dict[str, Any] | None = None,
+) -> AnnData:
+    feature_df = df.drop(columns="geometry", errors="ignore").copy()
+    feature_df.index = feature_df.index.astype(str)
+    adata = AnnData(
+        X=feature_df.fillna(0).values,
+        obs=pd.DataFrame(index=feature_df.index),
+        var=pd.DataFrame(index=feature_df.columns.astype(str)),
+        uns=uns or {},
+    )
+    return _align_space_to_collection(adata, collection)
+
+
+def _relation_from_square_adata(
+    adata: AnnData,
+    collection: NeighborhoodCollection,
+) -> sparse.csr_matrix:
+    target_index = collection.obs.index.astype(str)
+    values = adata.X.toarray() if sparse.issparse(adata.X) else np.asarray(adata.X)
+    matrix = pd.DataFrame(
+        values,
+        index=pd.Index(adata.obs_names.astype(str)),
+        columns=pd.Index(adata.var_names.astype(str)),
+    )
+    matrix = matrix.reindex(index=target_index, columns=target_index).fillna(0)
+    return sparse.csr_matrix(matrix.values)
+
+
 class NBHD:
-    """A class representing neighborhoods with associated derived data matrices."""
+    """Neighborhood geometry plus collection-backed feature spaces.
+
+    ``NBHD`` keeps the existing convenience API for derived matrices while also
+    maintaining a ``NeighborhoodCollection`` in ``collection``. New feature
+    constructors attach aligned spaces and relations to that collection:
+
+    - ``construct_gene_space`` stores neighborhood-by-gene data.
+    - ``construct_population_space`` stores neighborhood-by-population data.
+    - ``construct_image_space`` stores neighborhood-by-image-feature data.
+    - ``construct_overlap_relation`` and ``construct_bordering_relation`` store
+      neighborhood-by-neighborhood sparse relations.
+    """
 
     def __init__(
         self,
         gdf: gpd.GeoDataFrame,
         nbhd_type: str,
-        adata: AnnData,
-        data_dir: str,
-        path_landscape_files: str,
+        adata: AnnData | None = None,
+        data_dir: str | None = None,
+        path_landscape_files: str | None = None,
         source: str | dict[str, Any] | None = None,
         name: str | None = None,
         meta: dict[str, Any] | None = None,
+        nbhd_col: str = "name",
     ) -> None:
         self.gdf = gdf.copy()
         self.nbhd_type = nbhd_type
@@ -251,6 +393,15 @@ class NBHD:
         self.source = source
         self.name = name
         self.meta = meta or {}
+        self.nbhd_col = _resolve_nbhd_col(self.gdf, nbhd_col)
+        provenance = {"source": source} if source is not None else {}
+        self.collection = _collection_from_gdf(
+            self.gdf,
+            nbhd_type=nbhd_type,
+            nbhd_col=self.nbhd_col,
+            provenance=provenance,
+            uns={"name": name, **self.meta},
+        )
 
         self.derived: dict[str, Any] = {
             "NBI": None,
@@ -261,43 +412,193 @@ class NBHD:
             "NBN-B": None,
         }
 
+    @property
+    def neighborhood_collection(self) -> NeighborhoodCollection:
+        """Alias for ``collection`` for explicit call sites."""
+        return self.collection
+
+    def to_collection(self) -> NeighborhoodCollection:
+        """Return the underlying ``NeighborhoodCollection``."""
+        return self.collection
+
+    def construct_gene_space(
+        self,
+        by: str = "cell",
+        key: str | None = None,
+        min_cells: int = 1,
+    ) -> AnnData:
+        """Construct and attach a neighborhood-by-gene space.
+
+        Args:
+            by: ``"cell"`` for cell-derived mean expression or
+                ``"cell-free"`` for transcript counts.
+            key: Space key in ``collection.spaces``. Defaults to ``"gene"`` for
+                cell-derived expression and ``"gene_cell_free"`` for
+                transcript-derived counts.
+            min_cells: Minimum cells or transcripts required by the legacy
+                calculator before alignment back to the collection.
+        """
+        if by == "cell" and self.adata is None:
+            raise ValueError("adata is required to construct a cell-derived gene space")
+        if by == "cell-free" and self.data_dir is None:
+            raise ValueError("data_dir is required to construct a cell-free gene space")
+
+        space_key = key or ("gene" if by == "cell" else "gene_cell_free")
+        adata = calc_nbhd_by_gene(
+            self.gdf,
+            by=by,
+            adata=self.adata,
+            data_dir=self.data_dir,
+            nbhd_col=self.nbhd_col,
+            min_cells=min_cells,
+        )
+        adata = _align_space_to_collection(adata, self.collection)
+        self.collection.spaces[space_key] = adata
+        return adata
+
+    def construct_population_space(
+        self,
+        category: str = "leiden",
+        key: str = "population",
+        min_cells: int = 5,
+        output: str = "percentage",
+    ) -> AnnData:
+        """Construct and attach a neighborhood-by-population space."""
+        if self.adata is None:
+            raise ValueError("adata is required to construct a population space")
+
+        adata = calc_nbhd_by_pop(
+            self.adata,
+            self.gdf,
+            category=category,
+            nbhd_col=self.nbhd_col,
+            min_cells=min_cells,
+            output=output,
+        )
+        adata = _align_space_to_collection(adata, self.collection)
+        self.collection.spaces[key] = adata
+        return adata
+
+    def construct_image_space(self, key: str = "image") -> AnnData:
+        """Construct and attach a neighborhood-by-image-feature space."""
+        if self.data_dir is None:
+            raise ValueError("data_dir is required to resolve the morphology image")
+        if self.path_landscape_files is None:
+            raise ValueError("path_landscape_files is required to construct an image space")
+
+        df = calc_nbhd_by_image(
+            str(resolve_xenium_morphology_ome_path(self.data_dir)),
+            self.path_landscape_files,
+            self.gdf,
+            nbhd_col=self.nbhd_col,
+        )
+        adata = _dataframe_to_space(df, self.collection, uns={"feature_type": "image"})
+        self.collection.spaces[key] = adata
+        return adata
+
+    def construct_overlap_relation(
+        self,
+        metric: str = "iou",
+        key: str = "overlap",
+        category: str = "leiden",
+    ) -> sparse.csr_matrix:
+        """Construct and attach a neighborhood-by-neighborhood overlap relation."""
+        relation_adata = calc_nbhd_overlap(
+            self.gdf[[self.nbhd_col, "geometry"]],
+            metric=metric,
+            name_col=self.nbhd_col,
+            category=category,
+        )
+        relation = _relation_from_square_adata(relation_adata, self.collection)
+        self.collection.relations[key] = relation
+        return relation
+
+    def construct_bordering_relation(
+        self,
+        metric: str = "border_ratio",
+        key: str = "bordering",
+        category: str = "leiden",
+    ) -> sparse.csr_matrix:
+        """Construct and attach a neighborhood-by-neighborhood bordering relation."""
+        relation_adata = calc_nbhd_bordering(
+            self.gdf[[self.nbhd_col, "geometry"]],
+            metric=metric,
+            name_col=self.nbhd_col,
+            category=category,
+        )
+        relation = _relation_from_square_adata(relation_adata, self.collection)
+        self.collection.relations[key] = relation
+        return relation
+
     def set_derived(self, key: str, subkey: str | None = None) -> None:
         """
-        Set a derived data matrix.
+        Set a derived data matrix and attach it to the collection when possible.
         """
         if key == "NBG-CD":
-            data = calc_nbhd_by_gene(self.gdf, by="cell", adata=self.adata)
+            data = self.construct_gene_space(by="cell", key="gene")
         elif key == "NBG-CF":
-            data = calc_nbhd_by_gene(self.gdf, by="cell-free", data_dir=self.data_dir)
+            data = self.construct_gene_space(by="cell-free", key="gene_cell_free")
         elif key == "NBP":
             data = {
-                "pct": calc_nbhd_by_pop(
-                    self.adata, self.gdf, category="leiden", output="percentage"
+                "pct": self.construct_population_space(
+                    category="leiden",
+                    key="population",
+                    output="percentage",
                 )
             }
-            data["abs"] = calc_nbhd_by_pop(self.adata, self.gdf, category="leiden", output="counts")
+            data["abs"] = self.construct_population_space(
+                category="leiden",
+                key="population_counts",
+                output="counts",
+            )
         elif key == "NBM":
+            if self.data_dir is None or self.adata is None:
+                raise ValueError("data_dir and adata are required to derive NBM")
             gdf_trx = _get_gdf_trx(self.data_dir)
             gdf_cell = _get_gdf_cell(self.adata)
-            data = get_nbhd_meta(self.gdf, "name", gdf_trx, gdf_cell)
+            data = get_nbhd_meta(self.gdf, self.nbhd_col, gdf_trx, gdf_cell)
+            data.index = data.index.astype(str)
+            self.collection.obs = self.collection.obs.join(data, how="left")
         elif key == "NBN-O":
             if self.nbhd_type == "ALPH":
-                nb = self.gdf[["name", "geometry"]]
                 print("Calculating neighborhood overlap")
-                data = calc_nbhd_overlap(nb)
+                data = calc_nbhd_overlap(
+                    self.gdf[[self.nbhd_col, "geometry"]],
+                    name_col=self.nbhd_col,
+                )
+                self.collection.relations["overlap"] = _relation_from_square_adata(
+                    data,
+                    self.collection,
+                )
             else:
                 raise ValueError("NBN-O can be derived for ALPH only")
         elif key == "NBN-B":
             if self.nbhd_type == "ALPH":
                 raise ValueError("NBN-B can not be derived for nbhd having overlap")
-            nb = self.gdf[["name", "geometry"]]
             print("Calculating neighborhood bordering")
-            data = calc_nbhd_bordering(nb)
+            data = calc_nbhd_bordering(
+                self.gdf[[self.nbhd_col, "geometry"]],
+                name_col=self.nbhd_col,
+            )
+            self.collection.relations["bordering"] = _relation_from_square_adata(
+                data,
+                self.collection,
+            )
         elif key == "NBI":
+            if self.data_dir is None:
+                raise ValueError("data_dir is required to resolve the morphology image")
+            if self.path_landscape_files is None:
+                raise ValueError("path_landscape_files is required to derive NBI")
             data = calc_nbhd_by_image(
                 str(resolve_xenium_morphology_ome_path(self.data_dir)),
                 self.path_landscape_files,
                 self.gdf,
+                nbhd_col=self.nbhd_col,
+            )
+            self.collection.spaces["image"] = _dataframe_to_space(
+                data,
+                self.collection,
+                uns={"feature_type": "image"},
             )
         else:
             raise ValueError(f"Unknown derived key: {key}")
@@ -311,13 +612,18 @@ class NBHD:
         print(f"{key} is derived and attached to nbhd")
 
     def _add_geo(self, df: pd.DataFrame) -> pd.DataFrame:
+        if isinstance(df, AnnData):
+            X = df.X.toarray() if sparse.issparse(df.X) else df.X
+            df = pd.DataFrame(X, index=df.obs_names, columns=df.var_names)
+        elif sparse.issparse(df):
+            df = pd.DataFrame(df.toarray(), index=self.collection.obs.index)
         return (
-            self.gdf[["name", "geometry"]]
-            .set_index("name")
+            self.gdf[[self.nbhd_col, "geometry"]]
+            .set_index(self.nbhd_col)
             .join(df, how="left")
             .fillna(0)
             .reset_index()
-            .rename(columns={"name": "nbhd_id"})
+            .rename(columns={self.nbhd_col: "nbhd_id"})
         )
 
     def get_derived(self, key: str, subkey: str | None = None) -> pd.DataFrame:
@@ -336,6 +642,8 @@ class NBHD:
             "type": self.nbhd_type,
             "n_regions": len(self.gdf),
             "derived": {k: self._derived_summary(k) for k in self.derived},
+            "spaces": {k: v.shape for k, v in self.collection.spaces.items()},
+            "relations": {k: v.shape for k, v in self.collection.relations.items()},
             "meta": self.meta,
         }
 
@@ -691,7 +999,7 @@ def calc_nbhd_bordering(
     category: str = "leiden",
 ) -> AnnData:
     """
-    Calculate pairwise border relationships between neighborhoods as a neighborhood-by-neighborhood matrix.
+    Calculate pairwise border relationships between neighborhoods.
 
     Parameters
     ----------

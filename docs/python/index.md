@@ -1,6 +1,8 @@
 # Python API Overview
 
-The Celldega Python API provides modules for collection schemas, pre-processing spatial transcriptomics data, clustering analysis, neighborhood computation, and interactive visualization.
+The Celldega Python API provides modules for collection schemas,
+pre-processing spatial transcriptomics data, clustering analysis, neighborhood
+computation, and interactive visualization.
 
 ## Installation
 
@@ -18,17 +20,20 @@ dataset-level and neighborhood-level data:
 - `DatasetCollection` for dataset, sample, tissue section, or patient observations
 - `NeighborhoodCollection` for neighborhood or spatial-region observations
 - `HierarchyResult` for clustering or tree outputs derived from a space or relation
+- `calc_dataset_by_pop` for the first dataset-by-population space constructor
 
 ```python
 import celldega as dega
 
 datasets = dega.DatasetCollection(obs=dataset_obs)
 neighborhoods = dega.NeighborhoodCollection(obs=neighborhood_obs, geometry=neighborhood_gdf)
+population = dega.calc_dataset_by_pop(adata, dataset_col="sample_id", category="cell_type")
 ```
 
 ### [Pre Module](pre/api.md)
 
-The `pre` module contains functions for pre-processing raw spatial transcriptomics data into LandscapeFiles format. This includes:
+The `pre` module contains functions for pre-processing raw spatial
+transcriptomics data into LandscapeFiles format. This includes:
 
 - Creating image tile pyramids for efficient zooming
 - Generating cell metadata and boundary tiles
@@ -49,7 +54,8 @@ dega.pre.main(
 
 ### [Clust Module](clust/api.md)
 
-The `clust` module provides the `Matrix` class for hierarchical clustering and heatmap visualization. It supports:
+The `clust` module provides the `Matrix` class for hierarchical clustering and
+heatmap visualization. It supports:
 
 - Automatic data processing pipelines
 - Multiple normalization methods (zscore, quantile, total)
@@ -75,6 +81,7 @@ The `nbhd` module contains functions for computing and analyzing tissue neighbor
 - Hexagonal tiling for regular neighborhood grids
 - Neighborhood-by-gene expression analysis
 - Neighborhood overlap and bordering calculations
+- Collection-backed `NBHD` methods for constructing gene, population, image, and relation data
 
 ```python
 import celldega as dega
@@ -91,6 +98,11 @@ gdf_hex = dega.nbhd.generate_hextile(adata, diameter=100)
 
 # Calculate neighborhood-by-gene expression
 adata_nbg = dega.nbhd.calc_nbhd_by_gene(gdf_alpha, by="cell", adata=adata)
+
+# Attach spaces to a NeighborhoodCollection through NBHD
+nbhd = dega.nbhd.NBHD(gdf_alpha, "alpha_shape", adata=adata)
+nbhd.construct_gene_space()
+nbhd.construct_population_space(category="leiden")
 ```
 
 ### [Viz Module](viz/api.md)
@@ -139,7 +151,8 @@ dega.viz      # Visualization widgets
 | Module | Key Components |
 |--------|---------------|
 | `dega` | `DatasetCollection`, `NeighborhoodCollection`, `HierarchyResult` |
+| `dega.datasets` | `calc_dataset_by_pop`, `dataset_collection_from_adata` |
 | `dega.pre` | `main()`, `create_image_tiles()`, `make_meta_gene()` |
 | `dega.clust` | `Matrix` |
-| `dega.nbhd` | `alpha_shape_cell_clusters()`, `generate_hextile()`, `calc_nbhd_by_gene()`, `NBHD`, `NeighborhoodCollection` |
+| `dega.nbhd` | `NBHD`, `NeighborhoodCollection`, construction and feature functions |
 | `dega.viz` | `Landscape`, `Clustergram`, `Yearbook`, `Enrich`, `landscape_clustergram()` |

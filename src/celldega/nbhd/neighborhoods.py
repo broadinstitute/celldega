@@ -12,6 +12,7 @@ import pandas as pd
 from skimage.io import imread
 
 from celldega.pre.boundary_tile import batch_transform_geometries
+from celldega.pre.image_info import resolve_xenium_morphology_ome_path
 
 from .utils import _get_gdf_cell, _get_gdf_trx
 from .zonal_stats import calc_img_zonal_stats
@@ -294,7 +295,7 @@ class NBHD:
             data = calc_nbhd_bordering(nb)
         elif key == "NBI":
             data = calc_nbhd_by_image(
-                f"{self.data_dir}/morphology_focus/morphology_focus_0000.ome.tif",
+                str(resolve_xenium_morphology_ome_path(self.data_dir)),
                 self.path_landscape_files,
                 self.gdf,
             )

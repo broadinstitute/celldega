@@ -34,8 +34,16 @@ export const set_color_dict_gene = async (
     colors = colorColumn.toArray();
   }
 
+  genes.g_colorMapping_inv = [];
+
   gene_names.forEach((geneName, index) => {
-    genes.color_dict_gene[geneName] = hexToRgb(colors[index]);
+    const rgb = hexToRgb(colors[index]);
+    genes.color_dict_gene[geneName] = rgb;
+
+    const geneId = genes.g_nameMapping?.[geneName];
+    if (geneId !== undefined) {
+      genes.g_colorMapping_inv[geneId] = rgb;
+    }
   });
 
   genes.gene_names = gene_names;

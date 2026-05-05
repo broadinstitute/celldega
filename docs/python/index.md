@@ -1,6 +1,6 @@
 # Python API Overview
 
-The Celldega Python API provides modules for pre-processing spatial transcriptomics data, clustering analysis, neighborhood computation, and interactive visualization.
+The Celldega Python API provides modules for collection schemas, pre-processing spatial transcriptomics data, clustering analysis, neighborhood computation, and interactive visualization.
 
 ## Installation
 
@@ -9,6 +9,22 @@ pip install celldega
 ```
 
 ## Core Modules
+
+### [Schema Module](schema/api.md)
+
+The collection schema module defines lightweight containers for aligned
+dataset-level and neighborhood-level data:
+
+- `DatasetCollection` for dataset, sample, tissue section, or patient observations
+- `NeighborhoodCollection` for neighborhood or spatial-region observations
+- `HierarchyResult` for clustering or tree outputs derived from a space or relation
+
+```python
+import celldega as dega
+
+datasets = dega.DatasetCollection(obs=dataset_obs)
+neighborhoods = dega.NeighborhoodCollection(obs=neighborhood_obs, geometry=neighborhood_gdf)
+```
 
 ### [Pre Module](pre/api.md)
 
@@ -122,7 +138,8 @@ dega.viz      # Visualization widgets
 
 | Module | Key Components |
 |--------|---------------|
+| `dega` | `DatasetCollection`, `NeighborhoodCollection`, `HierarchyResult` |
 | `dega.pre` | `main()`, `create_image_tiles()`, `make_meta_gene()` |
 | `dega.clust` | `Matrix` |
-| `dega.nbhd` | `alpha_shape_cell_clusters()`, `generate_hextile()`, `calc_nbhd_by_gene()`, `NBHD` |
+| `dega.nbhd` | `alpha_shape_cell_clusters()`, `generate_hextile()`, `calc_nbhd_by_gene()`, `NBHD`, `NeighborhoodCollection` |
 | `dega.viz` | `Landscape`, `Clustergram`, `Yearbook`, `Enrich`, `landscape_clustergram()` |

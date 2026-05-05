@@ -1,5 +1,7 @@
 """Module for performing neighborhood analysis."""
 
+from celldega.collections import NeighborhoodCollection
+
 from .alpha_shapes import alpha_shape, alpha_shape_cell_clusters, filter_alpha_shapes
 from .gradient import calc_grad_nbhd_from_roi
 from .hextile import generate_hextile, hextile_niche
@@ -22,6 +24,7 @@ from .utils import (
 
 __all__ = [
     "NBHD",
+    "NeighborhoodCollection",
     "_add_centroids_to_obsm",
     "_dissolve_by_category",
     "_get_df_cell",

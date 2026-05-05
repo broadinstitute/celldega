@@ -149,11 +149,11 @@ const summarize_point_cloud_data = (viz_state, data, context, positions) => {
 };
 
 const log_point_cloud_debug = (label, details) => {
-  console.log(`[celldega point-cloud] ${label}`, details);
+  // console.log(`[celldega point-cloud] ${label}`, details);
 };
 
 const warn_point_cloud_debug = (label, details) => {
-  console.warn(`[celldega point-cloud] ${label}`, details);
+  // console.warn(`[celldega point-cloud] ${label}`, details);
 };
 
 const percentile = (sortedValues, fraction) => {

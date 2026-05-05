@@ -52,6 +52,96 @@ export class CBGRowGroupReader {
   }
 
   /**
+   * Lightweight existence check for a URL (HEAD, or ranged GET fallback).
+   * @param {string} url
+   * @returns {Promise<boolean>}
+   */
+  async _resourceExists(url) {
+    try {
+      let response = await fetch(url, { method: 'HEAD', cache: 'no-store' });
+      if (response.status === 405 || response.status === 501) {
+        response = await fetch(url, {
+          method: 'GET',
+          headers: { Range: 'bytes=0-0' },
+          cache: 'no-store',
+        });
+      }
+      return response.ok || response.status === 206;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * When landscape_parameters points at a legacy single file (e.g. cbg.parquet) but
+   * preprocessing only produced chunked row-group files under cbg/, discover layout
+   * from cbg/chunk_0.parquet schema metadata (same keys as Python writer).
+   * @param {*} pq - parquet-wasm module from getPq()
+   * @returns {Promise<null|{
+   *   directory: string,
+   *   files: string[],
+   *   maxRowGroupsPerFile: number,
+   *   totalRowGroups: number,
+   *   geneToRowGroup: Record<string, number>,
+   *   geneList: string[],
+   * }>}
+   */
+  async _discoverChunkedCbgFromDefaultDirectory(pq) {
+    const probeUrl = `${this.baseUrl}/cbg/chunk_0.parquet`;
+    if (!(await this._resourceExists(probeUrl))) {
+      return null;
+    }
+
+    const parquetFile = await pq.ParquetFile.fromUrl(probeUrl);
+    const wasmTable = await parquetFile.read({ rowGroups: [0] });
+    const arrowIPC = wasmTable.intoIPCStream();
+    const arrowTable = arrow.tableFromIPC(arrowIPC);
+    const schemaMetadata = arrowTable.schema.metadata;
+
+    if (!schemaMetadata || !schemaMetadata.has('gene_to_row_group')) {
+      return null;
+    }
+
+    const geneMapJson = schemaMetadata.get('gene_to_row_group');
+    const geneToRowGroup = JSON.parse(geneMapJson);
+    const geneList = Object.keys(geneToRowGroup);
+
+    let numGenes = geneList.length;
+    if (schemaMetadata.has('num_genes')) {
+      const parsed = parseInt(schemaMetadata.get('num_genes'), 10);
+      if (!Number.isNaN(parsed) && parsed > 0) {
+        numGenes = parsed;
+      }
+    }
+
+    let maxRowGroupsPerFile = 2000;
+    if (schemaMetadata.has('max_row_groups_per_file')) {
+      const parsed = parseInt(
+        schemaMetadata.get('max_row_groups_per_file'),
+        10
+      );
+      if (!Number.isNaN(parsed) && parsed > 0) {
+        maxRowGroupsPerFile = parsed;
+      }
+    }
+
+    const numFiles = Math.max(1, Math.ceil(numGenes / maxRowGroupsPerFile));
+    const files = Array.from(
+      { length: numFiles },
+      (_, i) => `chunk_${i}.parquet`
+    );
+
+    return {
+      directory: 'cbg',
+      files,
+      maxRowGroupsPerFile,
+      totalRowGroups: numGenes,
+      geneToRowGroup,
+      geneList,
+    };
+  }
+
+  /**
    * Check if the server supports Range requests (needed for streaming)
    * @param {string} url - URL to check
    * @returns {Promise<boolean>}
@@ -143,6 +233,31 @@ export class CBGRowGroupReader {
     }
 
     const pq = await getPq();
+
+    if (!this.chunkedMode) {
+      const legacyExists = await this._resourceExists(this.url);
+      if (!legacyExists) {
+        const discovered =
+          await this._discoverChunkedCbgFromDefaultDirectory(pq);
+        if (discovered) {
+          this.chunkedMode = true;
+          this.directory = discovered.directory;
+          this.files = discovered.files;
+          this.maxRowGroupsPerFile = discovered.maxRowGroupsPerFile;
+          this.totalRowGroups = discovered.totalRowGroups;
+          this.geneToRowGroup = discovered.geneToRowGroup;
+          this.geneList = discovered.geneList;
+          this.url = null;
+          this.parquetFile = null;
+        } else {
+          throw new Error(
+            `[CBGRowGroupReader] CBG not found at ${this.url} and could not find ` +
+              `chunked data at ${this.baseUrl}/cbg/chunk_0.parquet. ` +
+              `Fix landscape_parameters row_group_files.cbg or add the missing file.`
+          );
+        }
+      }
+    }
 
     if (!this.chunkedMode) {
       // Single file mode - check range support and load file

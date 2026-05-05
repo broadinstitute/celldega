@@ -29,6 +29,7 @@ dependencies = [
     "requests",
     "scanpy~=1.10.0",
     "shapely~=2.0.0",
+    "setuptools",
     "spatialdata",
     "spatialdata_io~=0.1.0",
     "squidpy~=1.6.0",

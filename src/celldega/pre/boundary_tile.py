@@ -518,7 +518,7 @@ def _write_boundary_tiles_as_row_groups(
     - tile_data_list: List of (tile_x, tile_y, DataFrame) tuples
     - output_dir: Path to output directory (will contain chunk_0.parquet, etc.)
     - tile_grid_info: Dictionary with grid dimensions
-    - max_row_groups_per_file: Maximum row groups per parquet file (default 10000)
+    - max_row_groups_per_file: Maximum row groups per parquet file (default 400)
 
     Returns:
     - dict: Chunk info with file list and metadata
@@ -658,7 +658,7 @@ def make_cell_boundary_tiles_row_groups(
     path_landscape_files : str, optional
         Path to landscape files directory for loading cell mapping.
     max_row_groups_per_file : int, optional
-        Maximum row groups per parquet file (default 10000).
+        Maximum row groups per parquet file (default 400).
 
     Returns
     -------

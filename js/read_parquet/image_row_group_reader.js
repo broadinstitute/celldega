@@ -177,6 +177,19 @@ export class ImageRowGroupReader {
       );
     }
 
+    const zoomInfoEmpty =
+      !this.zoomInfo || Object.keys(this.zoomInfo).length === 0;
+    if (zoomInfoEmpty) {
+      const fromParquet = await this._loadZoomInfoFromParquetMetadata(pq);
+      if (fromParquet && Object.keys(fromParquet).length > 0) {
+        this.zoomInfo = fromParquet;
+        // eslint-disable-next-line no-console
+        console.log(
+          `[ImageRowGroupReader] Loaded zoom_info from parquet metadata (${Object.keys(fromParquet).length} levels)`
+        );
+      }
+    }
+
     if (this.chunkedMode) {
       // Chunked mode: files are loaded lazily
       // eslint-disable-next-line no-console
@@ -202,9 +215,37 @@ export class ImageRowGroupReader {
 
     // eslint-disable-next-line no-console
     console.log(
-      `[ImageRowGroupReader] zoomInfo available: ${this.zoomInfo ? Object.keys(this.zoomInfo).join(', ') : 'none'}`
+      `[ImageRowGroupReader] zoomInfo available: ${this.zoomInfo && Object.keys(this.zoomInfo).length ? Object.keys(this.zoomInfo).join(', ') : 'none'}`
     );
     this.initialized = true;
+  }
+
+  /**
+   * When landscape_parameters omits zoom_info (e.g. packing was skipped on re-run),
+   * recover the map from parquet file schema metadata (written by pack_image_tiles_to_parquet).
+   * @param {*} pq - parquet-wasm from getPq()
+   * @returns {Promise<Record<string, { row_group_offset: number, num_tiles_x: number, num_tiles_y: number }>|null>}
+   */
+  async _loadZoomInfoFromParquetMetadata(pq) {
+    try {
+      const url = this.chunkedMode ? this._getFileUrl(0) : this.url;
+      if (!url) {
+        return null;
+      }
+      const parquetFile = await pq.ParquetFile.fromUrl(url);
+      const wasmTable = await parquetFile.read({ rowGroups: [0] });
+      const arrowTable = arrow.tableFromIPC(wasmTable.intoIPCStream());
+      const md = arrowTable.schema.metadata;
+      if (!md || !md.has('zoom_info')) {
+        return null;
+      }
+      const raw = md.get('zoom_info');
+      return typeof raw === 'string'
+        ? JSON.parse(raw)
+        : JSON.parse(String(raw));
+    } catch {
+      return null;
+    }
   }
 
   /**

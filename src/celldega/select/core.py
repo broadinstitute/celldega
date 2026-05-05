@@ -37,6 +37,7 @@ QueryOp = Literal[
 ]
 BooleanOp = Literal["and", "or", "not"]
 QuantileBin = Literal["low", "mid", "high"]
+RankDirection = Literal["high", "low"]
 
 
 def _json_value(value: Any) -> Any:
@@ -467,6 +468,8 @@ class QuantileBinSampler:
     seed: int | None = None
     q_low: float = 1 / 3
     q_high: float = 2 / 3
+    proportion: float | None = None
+    percentile: float | None = None
 
     def __post_init__(self) -> None:
         _validate_count(self.n)
@@ -474,6 +477,12 @@ class QuantileBinSampler:
             raise ValueError("bin must be one of 'low', 'mid', or 'high'")
         if not 0 <= self.q_low <= self.q_high <= 1:
             raise ValueError("q_low and q_high must satisfy 0 <= q_low <= q_high <= 1")
+        if self.proportion is not None and self.percentile is not None:
+            raise ValueError("proportion and percentile are mutually exclusive")
+        if self.proportion is not None and not 0 < self.proportion <= 1:
+            raise ValueError("proportion must satisfy 0 < proportion <= 1")
+        if self.percentile is not None and not 0 < self.percentile <= 100:
+            raise ValueError("percentile must satisfy 0 < percentile <= 100")
 
     def apply(self, selector: Selector, candidate_ids: pd.Index) -> SamplingResult:
         values = self.attr.evaluate(selector).reindex(candidate_ids)
@@ -491,8 +500,9 @@ class QuantileBinSampler:
                 },
             )
 
-        low_cut = float(numeric.quantile(self.q_low))
-        high_cut = float(numeric.quantile(self.q_high))
+        q_low, q_high = self._selection_quantiles()
+        low_cut = float(numeric.quantile(q_low))
+        high_cut = float(numeric.quantile(q_high))
 
         if self.bin == "low":
             binned = numeric[numeric <= low_cut]
@@ -520,13 +530,31 @@ class QuantileBinSampler:
                 "available": len(candidate_ids),
                 "bin_available": len(binned),
                 "sampled": len(ids),
-                "q_low": self.q_low,
-                "q_high": self.q_high,
+                "q_low": q_low,
+                "q_high": q_high,
                 "low_cut": low_cut,
                 "high_cut": high_cut,
                 "seed": self.seed,
             },
         )
+
+    def _selection_quantiles(self) -> tuple[float, float]:
+        if self.proportion is not None or self.percentile is not None:
+            proportion = self.proportion
+            if proportion is None:
+                assert self.percentile is not None
+                proportion = self.percentile / 100
+
+            if self.bin == "low":
+                return proportion, proportion
+            if self.bin == "high":
+                cutoff = 1 - proportion
+                return cutoff, cutoff
+
+            half_width = proportion / 2
+            return 0.5 - half_width, 0.5 + half_width
+
+        return self.q_low, self.q_high
 
     def _sort_sampled_bin(self, values: pd.Series, all_values: pd.Series) -> pd.Series:
         if self.bin == "low":
@@ -537,7 +565,7 @@ class QuantileBinSampler:
         return values.sort_values(ascending=False, kind="mergesort")
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        result = {
             "type": "quantile_bin",
             "attr": self.attr.to_dict(),
             "bin": self.bin,
@@ -546,6 +574,254 @@ class QuantileBinSampler:
             "q_low": self.q_low,
             "q_high": self.q_high,
         }
+        if self.proportion is not None:
+            result["proportion"] = self.proportion
+        if self.percentile is not None:
+            result["percentile"] = self.percentile
+        return result
+
+
+@dataclass(frozen=True)
+class GaussianSampler:
+    """Sample ids with Gaussian weighting around a numeric attribute value."""
+
+    attr: Attribute
+    center: float
+    std: float
+    n: int | None = None
+    seed: int | None = None
+
+    def __post_init__(self) -> None:
+        _validate_count(self.n)
+        if self.std <= 0:
+            raise ValueError("std must be positive")
+
+    def apply(self, selector: Selector, candidate_ids: pd.Index) -> SamplingResult:
+        values = self.attr.evaluate(selector).reindex(candidate_ids)
+        numeric = pd.to_numeric(values, errors="coerce").dropna()
+
+        if numeric.empty:
+            return SamplingResult(
+                ids=[],
+                scores=None,
+                provenance={
+                    "available": len(candidate_ids),
+                    "weighted_available": 0,
+                    "sampled": 0,
+                    "reason": "attribute had no numeric values",
+                },
+            )
+
+        distances = (numeric - self.center).abs()
+        weights = np.exp(-0.5 * np.square((numeric - self.center) / self.std))
+        weight_series = pd.Series(weights, index=numeric.index, name="weight")
+
+        if self.n is None or self.n >= len(weight_series):
+            ordered = weight_series.loc[
+                distances.sort_values(ascending=True, kind="mergesort").index
+            ]
+        else:
+            rng = np.random.default_rng(self.seed)
+            probabilities = weight_series / weight_series.sum()
+            sampled_positions = rng.choice(
+                len(probabilities),
+                size=self.n,
+                replace=False,
+                p=probabilities.to_numpy(),
+            )
+            sampled_index = probabilities.index.take(sampled_positions)
+            ordered = weight_series.reindex(sampled_index)
+            ordered = ordered.loc[
+                distances.reindex(sampled_index).sort_values(ascending=True, kind="mergesort").index
+            ]
+
+        ids = [str(index) for index in ordered.index]
+        return SamplingResult(
+            ids=ids,
+            scores=ordered,
+            provenance={
+                "available": len(candidate_ids),
+                "weighted_available": len(weight_series),
+                "sampled": len(ids),
+                "center": self.center,
+                "std": self.std,
+                "seed": self.seed,
+            },
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "type": "gaussian",
+            "attr": self.attr.to_dict(),
+            "center": self.center,
+            "std": self.std,
+            "n": self.n,
+            "seed": self.seed,
+        }
+
+
+@dataclass(frozen=True)
+class RankSampler:
+    """Return the highest or lowest ids for a numeric attribute."""
+
+    attr: Attribute
+    n: int | None = None
+    by: RankDirection = "high"
+
+    def __post_init__(self) -> None:
+        _validate_count(self.n)
+        if self.by not in {"high", "low"}:
+            raise ValueError("by must be 'high' or 'low'")
+
+    def apply(self, selector: Selector, candidate_ids: pd.Index) -> SamplingResult:
+        values = self.attr.evaluate(selector).reindex(candidate_ids)
+        numeric = pd.to_numeric(values, errors="coerce").dropna()
+
+        if numeric.empty:
+            return SamplingResult(
+                ids=[],
+                scores=None,
+                provenance={
+                    "available": len(candidate_ids),
+                    "rankable_available": 0,
+                    "sampled": 0,
+                    "reason": "attribute had no numeric values",
+                },
+            )
+
+        ascending = self.by == "low"
+        ordered = numeric.sort_values(ascending=ascending, kind="mergesort")
+        if self.n is not None:
+            ordered = ordered.iloc[: self.n]
+
+        ids = [str(index) for index in ordered.index]
+        return SamplingResult(
+            ids=ids,
+            scores=ordered,
+            provenance={
+                "available": len(candidate_ids),
+                "rankable_available": len(numeric),
+                "sampled": len(ids),
+                "by": self.by,
+            },
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "type": "rank",
+            "attr": self.attr.to_dict(),
+            "n": self.n,
+            "by": self.by,
+        }
+
+
+@dataclass(frozen=True)
+class StratifiedSampler:
+    """Sample evenly across categories from a categorical attribute."""
+
+    attr: Attribute
+    n_per_category: int | None = None
+    n: int | None = None
+    seed: int | None = None
+    categories: tuple[Any, ...] | None = None
+
+    def __post_init__(self) -> None:
+        _validate_count(self.n_per_category, "n_per_category")
+        _validate_count(self.n, "n")
+        if self.n is None and self.n_per_category is None:
+            raise ValueError("either n or n_per_category must be provided")
+        if self.n is not None and self.n_per_category is not None:
+            raise ValueError("n and n_per_category are mutually exclusive")
+
+    def apply(self, selector: Selector, candidate_ids: pd.Index) -> SamplingResult:
+        values = self.attr.evaluate(selector).reindex(candidate_ids)
+        non_missing = values.dropna()
+
+        if self.categories is None:
+            categories = list(pd.unique(non_missing))
+        else:
+            categories = list(self.categories)
+
+        rng = np.random.default_rng(self.seed)
+        group_ids_by_category: dict[Any, pd.Index] = {}
+        sample_counts: dict[Any, int] = {}
+        selected_ids: list[str] = []
+        per_category: dict[str, dict[str, Any]] = {}
+
+        for category in categories:
+            group_ids = non_missing.index[non_missing == category]
+            group_ids_by_category[category] = group_ids
+            sample_counts[category] = 0
+
+        if self.n_per_category is not None:
+            for category in categories:
+                sample_counts[category] = min(self.n_per_category, len(group_ids_by_category[category]))
+        else:
+            assert self.n is not None
+            remaining = self.n
+            available_categories = [
+                category for category in categories if len(group_ids_by_category[category]) > 0
+            ]
+            while remaining > 0 and available_categories:
+                progressed = False
+                for category in available_categories:
+                    if remaining == 0:
+                        break
+                    if sample_counts[category] < len(group_ids_by_category[category]):
+                        sample_counts[category] += 1
+                        remaining -= 1
+                        progressed = True
+                if not progressed:
+                    break
+                available_categories = [
+                    category
+                    for category in available_categories
+                    if sample_counts[category] < len(group_ids_by_category[category])
+                ]
+
+        for category in categories:
+            group_ids = group_ids_by_category[category]
+            available = len(group_ids)
+            count = sample_counts[category]
+
+            if count == 0:
+                sampled_ids: list[str] = []
+            else:
+                positions = rng.permutation(available)[:count]
+                sampled_ids = [str(value) for value in group_ids.take(positions)]
+
+            selected_ids.extend(sampled_ids)
+            per_category[str(category)] = {
+                "value": _json_value(category),
+                "available": available,
+                "sampled": len(sampled_ids),
+            }
+
+        return SamplingResult(
+            ids=selected_ids,
+            scores=None,
+            provenance={
+                "available": len(candidate_ids),
+                "strata": per_category,
+                "sampled": len(selected_ids),
+                "seed": self.seed,
+                "mode": "per_category" if self.n_per_category is not None else "total",
+            },
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        result = {
+            "type": "stratified",
+            "attr": self.attr.to_dict(),
+            "seed": self.seed,
+        }
+        if self.n_per_category is not None:
+            result["n_per_category"] = self.n_per_category
+        if self.n is not None:
+            result["n"] = self.n
+        if self.categories is not None:
+            result["categories"] = _json_value(list(self.categories))
+        return result
 
 
 class SamplerFactory:
@@ -578,6 +854,8 @@ class SamplerFactory:
         *,
         q_low: float = 1 / 3,
         q_high: float = 2 / 3,
+        proportion: float | None = None,
+        percentile: float | None = None,
     ) -> QuantileBinSampler:
         """Return a sampler for a low/mid/high quantile bin.
 
@@ -595,7 +873,61 @@ class SamplerFactory:
         """
         if not isinstance(attr, Attribute):
             raise TypeError("attr must be created by Selector.attr(...) or Selector.gene(...)")
-        return QuantileBinSampler(attr=attr, bin=bin, n=n, seed=seed, q_low=q_low, q_high=q_high)
+        return QuantileBinSampler(
+            attr=attr,
+            bin=bin,
+            n=n,
+            seed=seed,
+            q_low=q_low,
+            q_high=q_high,
+            proportion=proportion,
+            percentile=percentile,
+        )
+
+    def gaussian(
+        self,
+        attr: Attribute,
+        center: float,
+        std: float,
+        n: int | None = None,
+        seed: int | None = None,
+    ) -> GaussianSampler:
+        """Return a sampler with Gaussian weighting around a numeric center."""
+        if not isinstance(attr, Attribute):
+            raise TypeError("attr must be created by Selector.attr(...) or Selector.gene(...)")
+        return GaussianSampler(attr=attr, center=center, std=std, n=n, seed=seed)
+
+    def rank(
+        self,
+        attr: Attribute,
+        n: int | None = None,
+        *,
+        by: RankDirection = "high",
+    ) -> RankSampler:
+        """Return the highest or lowest ids for a numeric attribute."""
+        if not isinstance(attr, Attribute):
+            raise TypeError("attr must be created by Selector.attr(...) or Selector.gene(...)")
+        return RankSampler(attr=attr, n=n, by=by)
+
+    def stratified(
+        self,
+        attr: Attribute,
+        n_per_category: int | None = None,
+        n: int | None = None,
+        seed: int | None = None,
+        *,
+        categories: Sequence[Any] | None = None,
+    ) -> StratifiedSampler:
+        """Return a sampler that draws evenly across categorical strata."""
+        if not isinstance(attr, Attribute):
+            raise TypeError("attr must be created by Selector.attr(...) or Selector.gene(...)")
+        return StratifiedSampler(
+            attr=attr,
+            n_per_category=n_per_category,
+            n=n,
+            seed=seed,
+            categories=None if categories is None else tuple(categories),
+        )
 
 
 class Selector:

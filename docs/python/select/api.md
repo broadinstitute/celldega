@@ -22,7 +22,7 @@ selector = dega.select.Selector(adata)
 | --- | --- | --- |
 | Attribute | `selector.attr(...)`, `selector.gene(...)` | Reference per-entity values from `adata.obs` or gene expression |
 | Query | `(selector.attr("cluster") == "B cell")` | Define the candidate set with categorical, numeric, and gene-expression predicates combined with boolean logic. |
-| Sampler | `selector.samplers.random(...)` or `sampler=3000` | Choose or rank ids from the candidate set |
+| Sampler | `selector.samplers.random(...)`, `selector.samplers.quantile_bin(...)`, or `sampler=3000` | Choose or rank ids from the candidate set |
 
 This keeps the backend responsible for producing a stable ordered list of ids plus provenance. Widgets such as `Yearbook` can then paginate over that ordered list.
 
@@ -89,10 +89,36 @@ Set `default_preview_n=None` to disable the preview guard.
 
 Sampler constructors are grouped under `selector.samplers`.
 
+Each built-in sampler is backed by a concrete sampler class such as `RandomSampler`, `QuantileBinSampler`, `RankSampler`, `GaussianSampler`, or `StratifiedSampler`. `selector.samplers.*` is the notebook-friendly constructor namespace for creating those objects.
+
+## Built-In Samplers
+
+| Sampler | API | Behavior | Good for |
+| --- | --- | --- | --- |
+| Random | `selector.samplers.random(n=..., seed=...)` or `sampler=3000` | Random sample, optionally reproducible with `seed` | Quick representative subsets |
+| Rank | `selector.samplers.rank(attr=..., n=..., by="high")` | Deterministic top or bottom ids by attribute value | Highest-expression or lowest-QC examples |
+| Quantile Bin | `selector.samplers.quantile_bin(attr=..., bin="high", ...)` | Sample from a low/mid/high region of a distribution | Representative sampling from tails or the middle |
+| Gaussian | `selector.samplers.gaussian(attr=..., center=..., std=..., n=...)` | Bias samples toward a numeric target value | “Near this score” or “around this expression level” |
+| Stratified | `selector.samplers.stratified(attr=..., n_per_category=...)` or `n=...` | Evenly distribute samples across categories | Balanced cluster/sample selections |
+
 ```python
 selection = selector.select(
     query=query,
     sampler=selector.samplers.random(n=24, seed=1),
+)
+```
+
+Random sampling is the simplest exploratory sampler. If you just want a bounded subset and do not care about an attribute-specific distribution, this is usually the right default.
+
+For deterministic top or bottom ids by an attribute:
+
+```python
+selection = selector.select(
+    sampler=selector.samplers.rank(
+        attr=selector.gene("MS4A1"),
+        n=24,
+        by="high",
+    ),
 )
 ```
 
@@ -111,6 +137,57 @@ selection = selector.select(
 ```
 
 The returned ids preserve the sampler's order. For `bin="high"`, selected ids are ordered from higher to lower expression after sampling.
+
+For narrower tails such as "top 5%", use `proportion` or `percentile`:
+
+```python
+selection = selector.select(
+    query=query,
+    sampler=selector.samplers.quantile_bin(
+        attr=selector.gene("MS4A1"),
+        bin="high",
+        percentile=5,
+    ),
+)
+```
+
+For Gaussian-weighted sampling around a target value:
+
+```python
+selection = selector.select(
+    sampler=selector.samplers.gaussian(
+        attr=selector.attr("qc_score"),
+        center=0.8,
+        std=0.05,
+        n=24,
+        seed=1,
+    ),
+)
+```
+
+For even sampling across categories:
+
+```python
+selection = selector.select(
+    sampler=selector.samplers.stratified(
+        attr=selector.attr("cluster"),
+        n_per_category=10,
+        seed=1,
+    ),
+)
+```
+
+For a total quota distributed as evenly as possible across categories:
+
+```python
+selection = selector.select(
+    sampler=selector.samplers.stratified(
+        attr=selector.attr("cluster"),
+        n=100,
+        seed=1,
+    ),
+)
+```
 
 ## Result Objects
 

@@ -1,0 +1,27 @@
+site_name: Celldega Select Docs Preview
+docs_dir: .docs-select-preview
+site_dir: site-select-preview
+
+theme:
+  name: material
+
+nav:
+  - Python API:
+      - select: python/select/api.md
+
+markdown_extensions:
+  - toc
+  - tables
+  - admonition
+  - attr_list
+  - md_in_html
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: google
+            show_root_toc_entry: true
+            show_source: false

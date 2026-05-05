@@ -2,21 +2,27 @@
 
 from .core import (
     Attribute,
+    GaussianSampler,
     QuantileBinSampler,
     Query,
     RandomSampler,
+    RankSampler,
     Sampler,
     Selection,
     Selector,
+    StratifiedSampler,
 )
 
 
 __all__ = [
     "Attribute",
+    "GaussianSampler",
     "QuantileBinSampler",
     "Query",
     "RandomSampler",
+    "RankSampler",
     "Sampler",
     "Selection",
     "Selector",
+    "StratifiedSampler",
 ]

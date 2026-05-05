@@ -79,6 +79,7 @@ plugins:
           options:
             docstring_style: google
             show_root_toc_entry: true
+            show_source: false
   - mkdocs-jupyter:
       include_source: true
       include_requirejs: true

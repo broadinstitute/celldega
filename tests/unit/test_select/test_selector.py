@@ -39,9 +39,9 @@ def adata() -> AnnData:
 
 @pytest.fixture
 def selector_cls():
-    import celldega as dega
+    from celldega.select import Selector
 
-    return dega.select.Selector
+    return Selector
 
 
 def test_selector_filters_obs_attributes(adata: AnnData, selector_cls) -> None:
@@ -92,6 +92,35 @@ def test_selector_quantile_bin_sampler_over_gene(adata: AnnData, selector_cls) -
     assert result.provenance["sampler"]["bin_available"] == 2
 
 
+def test_selector_quantile_bin_supports_percentile_shortcut(
+    adata: AnnData, selector_cls
+) -> None:
+    selector = selector_cls(adata)
+
+    result = selector.select(
+        query=selector.attr("cluster") == "B cell",
+        sampler=selector.samplers.quantile_bin(
+            attr=selector.gene("MS4A1"),
+            bin="high",
+            percentile=25,
+        ),
+    )
+
+    assert result.ids == ["c5"]
+    assert result.scores == {"c5": 10.0}
+    assert result.sampler == {
+        "type": "quantile_bin",
+        "attr": {"type": "gene", "name": "MS4A1"},
+        "bin": "high",
+        "n": None,
+        "seed": None,
+        "q_low": 1 / 3,
+        "q_high": 2 / 3,
+        "percentile": 25,
+    }
+    assert result.provenance["sampler"]["q_high"] == 0.75
+
+
 def test_random_sampler_is_seeded(adata: AnnData, selector_cls) -> None:
     selector = selector_cls(adata)
 
@@ -107,6 +136,139 @@ def test_random_sampler_is_seeded(adata: AnnData, selector_cls) -> None:
 
     assert result_a.ids == result_b.ids
     assert set(result_a.ids).issubset({"c1", "c2", "c4", "c5", "c6"})
+
+
+def test_rank_sampler_returns_top_and_bottom_by_attribute(
+    adata: AnnData, selector_cls
+) -> None:
+    selector = selector_cls(adata)
+
+    top = selector.select(
+        sampler=selector.samplers.rank(
+            attr=selector.gene("MS4A1"),
+            n=3,
+            by="high",
+        )
+    )
+    bottom = selector.select(
+        sampler=selector.samplers.rank(
+            attr=selector.attr("qc"),
+            n=2,
+            by="low",
+        )
+    )
+
+    assert top.ids == ["c5", "c6", "c4"]
+    assert top.sampler == {
+        "type": "rank",
+        "attr": {"type": "gene", "name": "MS4A1"},
+        "n": 3,
+        "by": "high",
+    }
+    assert top.scores == {"c5": 10.0, "c6": 8.0, "c4": 3.0}
+    assert top.provenance["sampler"]["rankable_available"] == 6
+
+    assert bottom.ids == ["c2", "c3"]
+    assert bottom.sampler == {
+        "type": "rank",
+        "attr": {"type": "obs", "name": "qc"},
+        "n": 2,
+        "by": "low",
+    }
+    assert bottom.scores == {"c2": 0.2, "c3": 0.5}
+
+
+def test_gaussian_sampler_orders_by_distance_to_center(adata: AnnData, selector_cls) -> None:
+    selector = selector_cls(adata)
+
+    result = selector.select(
+        sampler=selector.samplers.gaussian(
+            attr=selector.attr("qc"),
+            center=0.8,
+            std=0.1,
+            n=5,
+        )
+    )
+
+    assert result.ids == ["c4", "c1", "c5", "c3", "c2"]
+    assert result.sampler == {
+        "type": "gaussian",
+        "attr": {"type": "obs", "name": "qc"},
+        "center": 0.8,
+        "std": 0.1,
+        "n": 5,
+        "seed": None,
+    }
+    assert result.provenance["sampler"]["weighted_available"] == 5
+    assert result.scores is not None
+    assert result.scores["c4"] > result.scores["c5"]
+
+
+def test_stratified_sampler_draws_evenly_across_categories(
+    adata: AnnData, selector_cls
+) -> None:
+    selector = selector_cls(adata)
+
+    result = selector.select(
+        sampler=selector.samplers.stratified(
+            attr=selector.attr("sample_id"),
+            n_per_category=1,
+            seed=3,
+        )
+    )
+
+    selected_samples = adata.obs.loc[result.ids, "sample_id"].tolist()
+
+    assert len(result) == 3
+    assert sorted(selected_samples) == ["S1", "S2", "S3"]
+    assert result.sampler == {
+        "type": "stratified",
+        "attr": {"type": "obs", "name": "sample_id"},
+        "n_per_category": 1,
+        "seed": 3,
+    }
+    assert result.provenance["sampler"]["strata"]["S1"]["sampled"] == 1
+    assert result.provenance["sampler"]["strata"]["S2"]["sampled"] == 1
+    assert result.provenance["sampler"]["strata"]["S3"]["sampled"] == 1
+    assert result.provenance["sampler"]["mode"] == "per_category"
+
+
+def test_stratified_sampler_supports_total_quota(
+    adata: AnnData, selector_cls
+) -> None:
+    selector = selector_cls(adata)
+
+    result = selector.select(
+        sampler=selector.samplers.stratified(
+            attr=selector.attr("sample_id"),
+            n=4,
+            seed=3,
+        )
+    )
+
+    sampled_counts = adata.obs.loc[result.ids, "sample_id"].value_counts().to_dict()
+
+    assert len(result) == 4
+    assert sampled_counts == {"S1": 2, "S2": 1, "S3": 1}
+    assert result.sampler == {
+        "type": "stratified",
+        "attr": {"type": "obs", "name": "sample_id"},
+        "n": 4,
+        "seed": 3,
+    }
+    assert result.provenance["sampler"]["mode"] == "total"
+
+
+def test_stratified_sampler_requires_exactly_one_quota_argument(
+    adata: AnnData, selector_cls
+) -> None:
+    selector = selector_cls(adata)
+
+    with pytest.raises(ValueError, match="either n or n_per_category"):
+        selector.samplers.stratified(attr=selector.attr("sample_id"))
+
+    with pytest.raises(ValueError, match="mutually exclusive"):
+        selector.samplers.stratified(attr=selector.attr("sample_id"), n=4, n_per_category=1)
 
 
 def test_selection_pages_and_frame(adata: AnnData, selector_cls) -> None:

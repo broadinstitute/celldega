@@ -976,9 +976,25 @@ export const ini_cell_layer = async (base_url, viz_state) => {
     (viz_state.spatial.x_max + viz_state.spatial.x_min) / 2;
   viz_state.spatial.center_y =
     (viz_state.spatial.y_max + viz_state.spatial.y_min) / 2;
+  // if (dim === 3) {
+  //   viz_state.spatial.center_z =
+  //     (viz_state.spatial.z_max + viz_state.spatial.z_min) / 2;
+  //   viz_state.spatial.data_depth =
+  //     viz_state.spatial.z_max - viz_state.spatial.z_min;
+  // }
   if (dim === 3) {
-    viz_state.spatial.center_z =
+    const rawCenterZ =
       (viz_state.spatial.z_max + viz_state.spatial.z_min) / 2;
+
+    const robustCenterZ =
+      is_point_cloud_viz(viz_state) &&
+      Number.isFinite(viz_state.spatial.z_center_robust)
+        ? viz_state.spatial.z_center_robust
+        : rawCenterZ;
+
+    viz_state.spatial.center_z = robustCenterZ;
+
+    // Keep raw depth for diagnostics, but do not let it drive camera target.
     viz_state.spatial.data_depth =
       viz_state.spatial.z_max - viz_state.spatial.z_min;
   }

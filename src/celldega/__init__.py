@@ -8,6 +8,7 @@ from celldega.pre import landscape
 from celldega.qc import qc_segmentation
 from celldega.viz import Clustergram, Landscape, Yearbook
 
+
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 try:

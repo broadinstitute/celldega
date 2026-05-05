@@ -6,17 +6,32 @@
 
 // import { obs_store } from '../obs_store/obs_store.js';
 
+import { getAlignedColumnArray } from '../read_parquet/table_accessors';
+
 export const update_cat = (cats, new_cat) => {
   cats.cat = new_cat;
 };
 
+const normalizeCellCat = (cat) => {
+  if (cat === 'nan' || cat === undefined) {
+    return null;
+  }
+
+  return cat;
+};
+
 export const set_cell_cats = (cats, cell_arrow_table, column_name) => {
-  cats.cell_cats = cell_arrow_table.getChild(column_name).toArray();
+  cats.cell_cats = getAlignedColumnArray(
+    cell_arrow_table,
+    column_name,
+    cats.cell_names_array,
+    ['name', 'cell_id', '__index_level_0__', 'index']
+  ).map(normalizeCellCat);
 };
 
 export const update_cell_cats = (cats, new_cell_cats) => {
   // swap 'nan' for null in new cats
-  cats.cell_cats = new_cell_cats.map((cat) => (cat === 'nan' ? null : cat));
+  cats.cell_cats = new_cell_cats.map(normalizeCellCat);
 };
 
 export const set_dict_cell_cats = (cats) => {

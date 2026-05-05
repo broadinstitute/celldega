@@ -299,7 +299,7 @@ export const switch_dataset = async (
     viz_state.obs_store.new_cell_bar_data.set(viz_state.cats.cluster_counts);
 
     // Rebuild cell scatter data objects
-    const new_cell_names_array = cell_arrow_table.getChild('name').toArray();
+    const new_cell_names_array = viz_state.cats.cell_names_array;
     const flatCoordinateArray =
       viz_state.spatial.cell_scatter_data.attributes.getPosition.value;
     const dim =

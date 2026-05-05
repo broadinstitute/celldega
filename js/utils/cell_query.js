@@ -6,6 +6,10 @@
 import { options } from '../global_variables/fetch_options';
 import { getGeneExpressionColumns } from '../read_parquet/gene_expression_columns';
 import { get_arrow_table } from '../read_parquet/get_arrow_table';
+import {
+  getRowKeyArray,
+  getTableColumnArray,
+} from '../read_parquet/table_accessors';
 
 /**
  * Fisher-Yates shuffle for random cell selection.
@@ -76,12 +80,14 @@ export const load_cluster_data = async (
     return new Map();
   }
 
-  const cell_names =
-    cluster_table.getChild('__index_level_0__')?.toArray() || [];
-  const cluster_values =
-    cluster_table.getChild(attr)?.toArray() ||
-    cluster_table.getChild('cluster')?.toArray() ||
-    [];
+  const cell_names = getRowKeyArray(
+    cluster_table,
+    ['name', 'cell_id', '__index_level_0__', 'index'],
+    {
+      fallbackToRangeIndex: false,
+    }
+  );
+  const cluster_values = getTableColumnArray(cluster_table, [attr, 'cluster']);
 
   const cluster_map = new Map();
   cell_names.forEach((name, i) => {

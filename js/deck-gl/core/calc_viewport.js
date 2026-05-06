@@ -10,7 +10,7 @@ import { visibleTiles } from '../../vector_tile/visibleTiles';
 import { update_path_layer_data } from '../layers/path_layer';
 import { update_trx_layer_data } from '../layers/trx_layer';
 
-const VIEWPORT_GENE_BAR_LIMIT = 100;
+const VIEWPORT_GENE_BAR_LIMIT = 200;
 
 const ensureViewportCache = (viz_state) => {
   if (!viz_state.viewport_cache) {

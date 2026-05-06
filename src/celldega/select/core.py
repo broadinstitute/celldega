@@ -755,7 +755,9 @@ class StratifiedSampler:
 
         if self.n_per_category is not None:
             for category in categories:
-                sample_counts[category] = min(self.n_per_category, len(group_ids_by_category[category]))
+                sample_counts[category] = min(
+                    self.n_per_category, len(group_ids_by_category[category])
+                )
         else:
             assert self.n is not None
             remaining = self.n

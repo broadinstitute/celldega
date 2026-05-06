@@ -85,10 +85,7 @@ export const update_cell_exp_array = async (
     }
 
     const exp_table = await get_arrow_table(file_path, options.fetch, aws);
-    ({ cell_names, cell_exp } = getGeneExpressionColumns(
-      exp_table,
-      inst_gene
-    ));
+    ({ cell_names, cell_exp } = getGeneExpressionColumns(exp_table, inst_gene));
   }
   const new_exp_array = ensureExpressionArray(cats);
   const max_exp = Number(genes.meta_gene[inst_gene].max);

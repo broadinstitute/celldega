@@ -983,8 +983,7 @@ export const ini_cell_layer = async (base_url, viz_state) => {
   //     viz_state.spatial.z_max - viz_state.spatial.z_min;
   // }
   if (dim === 3) {
-    const rawCenterZ =
-      (viz_state.spatial.z_max + viz_state.spatial.z_min) / 2;
+    const rawCenterZ = (viz_state.spatial.z_max + viz_state.spatial.z_min) / 2;
 
     const robustCenterZ =
       is_point_cloud_viz(viz_state) &&

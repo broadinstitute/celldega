@@ -27,7 +27,9 @@ export const get_path_color = (cats, i, d) => {
     ? cats.selected_cats.map((cat) => String(cat))
     : [];
   const alpha =
-    selected_cats.length === 0 || selected_cats.includes(inst_cat_str) ? 255 : 0;
+    selected_cats.length === 0 || selected_cats.includes(inst_cat_str)
+      ? 255
+      : 0;
 
   return [...inst_color, alpha];
 };

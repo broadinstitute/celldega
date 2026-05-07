@@ -14,7 +14,7 @@ readonly VENV_PATH="${VENV_BASE_DIR}/${VENV_NAME}"
 # =============================================================================
 # Version Requirements
 # =============================================================================
-readonly PYTHON_MIN_VERSION="3.10"
+readonly PYTHON_MIN_VERSION="3.11"
 readonly NODE_MIN_VERSION="16"
 readonly NPM_MIN_VERSION="8"
 
@@ -31,7 +31,7 @@ readonly GIT_DOWNLOAD_URL="https://git-scm.com/"
 # =============================================================================
 readonly PIP_INSTALL_ARGS="--upgrade pip --quiet"
 readonly NPM_INSTALL_ARGS="--silent"
-readonly PYTHON_PACKAGE_SPEC=".[dev]"
+readonly PYTHON_PACKAGE_SPEC=".[dev,pre,multimodal]"
 
 # =============================================================================
 # Test Configuration

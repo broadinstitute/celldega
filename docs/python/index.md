@@ -1,8 +1,8 @@
 # Python API Overview
 
-The Celldega Python API provides modules for collection schemas,
-pre-processing spatial transcriptomics data, clustering analysis, neighborhood
-computation, and interactive visualization.
+The Celldega Python API provides modules for collection schemas, dataset-level
+feature spaces, pre-processing spatial transcriptomics data, clustering
+analysis, neighborhood computation, and interactive visualization.
 
 ## Installation
 
@@ -20,14 +20,38 @@ dataset-level and neighborhood-level data:
 - `DatasetCollection` for dataset, sample, tissue section, or patient observations
 - `NeighborhoodCollection` for neighborhood or spatial-region observations
 - `HierarchyResult` for clustering or tree outputs derived from a space or relation
-- `calc_dataset_by_pop` for the first dataset-by-population space constructor
 
 ```python
 import celldega as dega
 
 datasets = dega.DatasetCollection(obs=dataset_obs)
 neighborhoods = dega.NeighborhoodCollection(obs=neighborhood_obs, geometry=neighborhood_gdf)
-population = dega.calc_dataset_by_pop(adata, dataset_col="sample_id", category="cell_type")
+```
+
+### [Datasets Module](datasets/api.md)
+
+The `datasets` module contains dataset-level space constructors and helpers for
+building `DatasetCollection` objects:
+
+- Dataset-by-population spaces from cell-level `AnnData.obs`
+- Dataset/sample metadata aggregation into `DatasetCollection.obs`
+- Optional attachment of aligned spaces to a `DatasetCollection`
+
+```python
+import celldega as dega
+
+population = dega.datasets.calc_dataset_by_pop(
+    adata,
+    dataset_col="sample_id",
+    category="cell_type",
+)
+
+datasets = dega.datasets.dataset_collection_from_adata(
+    adata,
+    dataset_col="sample_id",
+    obs_columns=["patient_id", "condition"],
+    population_category="cell_type",
+)
 ```
 
 ### [Pre Module](pre/api.md)
@@ -142,6 +166,7 @@ import celldega as dega
 # Access submodules
 dega.pre      # Pre-processing functions
 dega.clust    # Clustering (Matrix class)
+dega.datasets # Dataset-level collection and space constructors
 dega.nbhd     # Neighborhood analysis
 dega.viz      # Visualization widgets
 ```

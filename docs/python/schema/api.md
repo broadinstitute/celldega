@@ -2,8 +2,8 @@
 
 Celldega collection schemas define lightweight containers for aligned
 dataset-level and neighborhood-level data. The collection classes document the
-expected in-memory shape; constructor helpers and `NBHD` methods can populate
-spaces and relations into those containers.
+expected in-memory shape; [`datasets`](../datasets/api.md) helpers and `NBHD`
+methods can populate spaces and relations into those containers.
 
 ## Core Model
 
@@ -28,7 +28,8 @@ Recommended relations include `similarity`, `distance`, `matched_pair`,
 `patient_pairing`, `population_knn`, `expression_knn`, and
 `neighborhood_knn`.
 
-Use `calc_dataset_by_pop` to construct the first dataset-level space:
+Use [`calc_dataset_by_pop`](../datasets/api.md#celldega.datasets.calc_dataset_by_pop)
+to construct the first dataset-level space:
 
 ```python
 import celldega as dega
@@ -68,5 +69,3 @@ feature spaces and sparse relations with methods such as
 `construct_bordering_relation`.
 
 ::: celldega.collections
-
-::: celldega.datasets

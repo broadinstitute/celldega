@@ -26,6 +26,7 @@ nav:
   - Python API:
       - python/index.md
       - schema: python/schema/api.md
+      - datasets: python/datasets/api.md
       - pre: python/pre/api.md
       - clust: python/clust/api.md
       - nbhd: python/nbhd/api.md

@@ -1,9 +1,25 @@
 # Collection Schema API Reference
 
 Celldega collection schemas define lightweight containers for aligned
-dataset-level and neighborhood-level data. The collection classes document the
-expected in-memory shape; [`datasets`](../datasets/api.md) helpers and `NBHD`
-methods can populate spaces and relations into those containers.
+dataset-level and neighborhood-level data.
+
+## Motivation
+
+`AnnData` is excellent for one observation-by-variable matrix plus annotations.
+Celldega workflows often need a stable biological row axis with several aligned
+feature spaces, pairwise relations, clustering results, geometry, and
+provenance. For example, the same datasets may have population fractions,
+expression summaries, image features, clinical annotations, and similarity
+graphs. Keeping those as unrelated `AnnData` objects makes it easy for row order
+or metadata to drift.
+
+The collection schema is a coordination layer around those objects. It does not
+replace `AnnData`; spaces inside a collection are still `AnnData` matrices.
+Instead, a collection defines one canonical `obs` table and stores aligned
+spaces, relations, hierarchy results, and metadata around that axis.
+
+[`dataset`](../dataset/api.md) helpers and `NBHD` methods can populate spaces
+and relations into these containers.
 
 ## Core Model
 
@@ -16,10 +32,12 @@ methods can populate spaces and relations into those containers.
 | `provenance` | Free-form metadata describing where the collection came from. |
 | `uns` | Free-form collection metadata. |
 
-## DatasetCollection
+## Dataset
 
-`DatasetCollection` observations are datasets, samples, tissue sections,
-patients, or other dataset-level units.
+`dega.dataset.Dataset` observations are datasets, samples, tissue sections,
+patients, or other dataset-level units. A `Dataset` is the object that stores
+the dataset-level `obs`, spaces, relations, provenance, and linked
+neighborhood-level collections.
 
 Recommended spaces include `population`, `expression`, `image`, `neighborhood`,
 `clinical`, and `joint`.
@@ -28,23 +46,30 @@ Recommended relations include `similarity`, `distance`, `matched_pair`,
 `patient_pairing`, `population_knn`, `expression_knn`, and
 `neighborhood_knn`.
 
-Use [`calc_dataset_by_pop`](../datasets/api.md#celldega.datasets.calc_dataset_by_pop)
-to construct the first dataset-level space:
+Use
+[`dega.dataset.construct_population_space`](../dataset/api.md#celldega.dataset.construct_population_space)
+or `dega.dataset.Dataset(...).construct_population_space(...)` to construct and
+attach a dataset-level population space:
 
 ```python
 import celldega as dega
 
-population = dega.calc_dataset_by_pop(
+dataset = dega.dataset.Dataset(
     adata,
     dataset_col="sample_id",
-    category="cell_type",
 )
-datasets = dega.dataset_collection_from_adata(
-    adata,
-    dataset_col="sample_id",
-    population_category="cell_type",
-)
+population = dataset.construct_population_space(category="cell_type")
+assert dataset.spaces["population"] is population
 ```
+
+## On-Disk Direction
+
+For storage, `Dataset.write("dataset.h5ad")` uses H5AD as the preferred
+single-file representation. The root AnnData stores the dataset-level `obs`
+table, while Celldega reserves `uns` keys for the named spaces, relations,
+provenance, and schema metadata. This keeps the file compatible with
+`anndata.read_h5ad` while allowing `dega.dataset.read` to reconstruct the full
+`Dataset`.
 
 ## NeighborhoodCollection
 

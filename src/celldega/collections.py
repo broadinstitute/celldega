@@ -1,4 +1,4 @@
-"""Schema containers for dataset- and neighborhood-level Celldega objects.
+"""Schema containers for Celldega collection objects.
 
 The collection schema is intentionally lightweight. These dataclasses describe
 the canonical in-memory structure for aligned observations, feature spaces,
@@ -7,8 +7,8 @@ analysis, validation, or file I/O.
 
 Core concepts:
     Observation unit:
-        The canonical row axis stored in ``obs``. In a ``DatasetCollection`` the
-        rows are datasets, samples, tissue sections, patients, or similar
+        The canonical row axis stored in ``obs``. In a dataset object the rows
+        are datasets, samples, tissue sections, patients, or similar
         dataset-level units. In a ``NeighborhoodCollection`` the rows are
         neighborhoods or spatial regions.
     Space:
@@ -43,7 +43,6 @@ from scipy import sparse
 
 __all__ = [
     "CelldegaCollection",
-    "DatasetCollection",
     "HierarchyResult",
     "NeighborhoodCollection",
 ]
@@ -96,9 +95,9 @@ class HierarchyResult:
 class CelldegaCollection:
     """Base schema for collection objects with a canonical observation axis.
 
-    The base class does not know whether observations are datasets,
-    samples, neighborhoods, or spatial regions. It only defines the shared
-    structure used by higher-level collection types.
+    The base class does not know whether observations are datasets, samples,
+    neighborhoods, or spatial regions. It only defines the shared structure
+    used by higher-level collection types.
 
     Attributes:
         obs: Canonical observation table. The index is the expected row axis for
@@ -123,40 +122,6 @@ class CelldegaCollection:
 
     provenance: dict[str, Any] = field(default_factory=dict)
     uns: dict[str, Any] = field(default_factory=dict)
-
-
-@dataclass
-class DatasetCollection(CelldegaCollection):
-    """Dataset-level or sample-level collection schema.
-
-    Observations are datasets, samples, tissue sections, patients, or other
-    dataset-level units. The canonical ``obs.index`` should contain globally
-    unique dataset or sample IDs.
-
-    Recommended ``obs`` columns include:
-        ``dataset_id``, ``sample_id``, ``patient_id``, ``cohort_id``,
-        ``tissue``, ``condition``, ``assay``, ``platform``, ``species``,
-        ``batch``, ``n_cells``, ``n_neighborhoods``, and ``source``.
-
-    Recommended space names include:
-        ``population``, ``expression``, ``image``, ``neighborhood``,
-        ``clinical``, and ``joint``.
-
-    Recommended relation names include:
-        ``similarity``, ``distance``, ``matched_pair``, ``patient_pairing``,
-        ``population_knn``, ``expression_knn``, and ``neighborhood_knn``.
-
-    Attributes:
-        collection_type: Literal collection type marker, defaulting to
-            ``"dataset"``.
-        neighborhood_collections: Optional linked neighborhood-level
-            collections. Linked ``NeighborhoodCollection.obs`` tables should
-            include ``dataset_id`` or ``sample_id`` values that map back to this
-            collection's ``obs.index``.
-    """
-
-    collection_type: str = "dataset"
-    neighborhood_collections: dict[str, "NeighborhoodCollection"] = field(default_factory=dict)
 
 
 @dataclass

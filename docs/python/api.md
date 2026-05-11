@@ -1,7 +1,7 @@
 # Python API Reference
 
 ::: celldega.collections
-::: celldega.datasets
+::: celldega.dataset
 ::: celldega.nbhd
 ::: celldega.pre
 ::: celldega.viz

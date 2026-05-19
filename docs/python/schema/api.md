@@ -28,7 +28,7 @@ and relations into these containers.
 | `obs` | Canonical observation table and row axis. |
 | `spaces` | Named observation-by-feature `AnnData` matrices aligned to `obs`. |
 | `relations` | Named observation-by-observation sparse matrices. |
-| `hierarchies` | Clustering or tree results derived from a space or relation. |
+| `hierarchies` | Clustering or tree results uniquely tied to a space or relation. |
 | `provenance` | Free-form metadata describing where the collection came from. |
 | `uns` | Free-form collection metadata. |
 
@@ -46,10 +46,8 @@ Recommended relations include `similarity`, `distance`, `matched_pair`,
 `patient_pairing`, `population_knn`, `expression_knn`, and
 `neighborhood_knn`.
 
-Use
-[`dega.dataset.construct_population_space`](../dataset/api.md#celldega.dataset.construct_population_space)
-or `dega.dataset.Dataset(...).construct_population_space(...)` to construct and
-attach a dataset-level population space:
+Use `dega.dataset.Dataset(...).construct_population_space(...)` to construct
+and attach a dataset-level population space:
 
 ```python
 import celldega as dega
@@ -62,14 +60,16 @@ population = dataset.construct_population_space(category="cell_type")
 assert dataset.spaces["population"] is population
 ```
 
-## On-Disk Direction
+## Hierarchies
 
-For storage, `Dataset.write("dataset.h5ad")` uses H5AD as the preferred
-single-file representation. The root AnnData stores the dataset-level `obs`
-table, while Celldega reserves `uns` keys for the named spaces, relations,
-provenance, and schema metadata. This keeps the file compatible with
-`anndata.read_h5ad` while allowing `dega.dataset.read` to reconstruct the full
-`Dataset`.
+`HierarchyResult` stores clustering state for a specific input using
+`input_kind` and `input_key`, such as `space:population` or
+`relation:similarity`. Hierarchical biclustering can store both the observation
+axis and the feature/entity axis through the `obs_*` and `entity_*` fields.
+
+Flat cluster assignments, such as Leiden labels, should usually live as columns
+in the collection `obs` table. Method metadata for those labels can live in
+`uns` or `provenance`.
 
 ## NeighborhoodCollection
 

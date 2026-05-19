@@ -12,13 +12,7 @@ from celldega.collections import (
     HierarchyResult,
     NeighborhoodCollection,
 )
-from celldega.dataset import (
-    Dataset,
-    calc_dataset_by_pop,
-    construct_population_space,
-    from_adata,
-    read,
-)
+from celldega.dataset import Dataset, from_adata
 
 
 def test_dataset_holds_aligned_spaces_relations_and_hierarchies():
@@ -33,12 +27,14 @@ def test_dataset_holds_aligned_spaces_relations_and_hierarchies():
     )
     relation = sparse.csr_matrix([[1.0, 0.2], [0.2, 1.0]])
     hierarchy = HierarchyResult(
-        id="population__hierarchical",
+        id="space:population__hierarchical",
         input_kind="space",
         input_key="population",
         method="hierarchical",
-        labels=pd.Series(["left", "right"], index=dataset_ids),
-        leaf_order=list(dataset_ids),
+        axis="bicluster",
+        obs_labels=pd.Series(["left", "right"], index=dataset_ids),
+        obs_leaf_order=list(dataset_ids),
+        entity_leaf_order=["B cell", "T cell"],
     )
 
     dataset = Dataset(
@@ -55,7 +51,9 @@ def test_dataset_holds_aligned_spaces_relations_and_hierarchies():
     assert dataset.collection_type == "dataset"
     assert list(dataset.spaces["population"].obs_names) == list(dataset.obs.index)
     assert dataset.relations["similarity"].shape == (2, 2)
-    assert dataset.hierarchies["population__hierarchical"].input_key == "population"
+    assert dataset.hierarchies[hierarchy.id].source_key == "space:population"
+    assert dataset.hierarchies[hierarchy.id].axis == "bicluster"
+    assert dataset.hierarchies[hierarchy.id].entity_leaf_order == ["B cell", "T cell"]
     assert dataset.neighborhood_collections == {}
 
 
@@ -113,24 +111,6 @@ def test_dataset_can_link_neighborhood_collections():
     assert dataset.neighborhood_collections["manual_regions"] is neighborhoods
 
 
-def test_calc_dataset_by_pop_builds_dataset_population_space():
-    adata = AnnData(X=np.ones((6, 1)))
-    adata.obs["sample_id"] = ["s1", "s1", "s1", "s2", "s2", "s2"]
-    adata.obs["cell_type"] = ["T", "B", "T", "B", "B", "T"]
-
-    population = calc_dataset_by_pop(
-        adata,
-        dataset_col="sample_id",
-        category="cell_type",
-        output="counts",
-    )
-
-    assert population.shape == (2, 2)
-    assert list(population.obs_names) == ["s1", "s2"]
-    assert list(population.var_names) == ["B", "T"]
-    np.testing.assert_array_equal(population.X, np.array([[1, 2], [2, 1]]))
-
-
 def test_from_adata_attaches_population_space():
     adata = AnnData(X=np.ones((4, 1)))
     adata.obs["sample_id"] = ["s1", "s1", "s2", "s2"]
@@ -151,24 +131,6 @@ def test_from_adata_attaches_population_space():
     assert list(dataset.spaces["population"].obs_names) == ["s1", "s2"]
 
 
-def test_construct_population_space_attaches_to_existing_dataset_collection():
-    adata = AnnData(X=np.ones((4, 1)))
-    adata.obs["sample_id"] = ["s1", "s1", "s2", "s2"]
-    adata.obs["cell_type"] = ["T", "B", "B", "B"]
-    dataset = from_adata(adata, dataset_col="sample_id")
-
-    population = construct_population_space(
-        dataset,
-        adata,
-        category="cell_type",
-        output="counts",
-    )
-
-    assert dataset.spaces["population"] is population
-    assert list(population.obs_names) == ["s1", "s2"]
-    np.testing.assert_array_equal(population.X, np.array([[1, 1], [2, 0]]))
-
-
 def test_dataset_helper_constructs_population_space():
     adata = AnnData(X=np.ones((4, 1)))
     adata.obs["sample_id"] = ["s1", "s1", "s2", "s2"]
@@ -181,44 +143,20 @@ def test_dataset_helper_constructs_population_space():
     assert dataset.obs.loc["s1", "condition"] == "a"
     assert dataset.spaces["population"] is population
     assert list(population.obs_names) == ["s1", "s2"]
-
-
-def test_dataset_write_read_round_trips_spaces(tmp_path):
-    adata = AnnData(X=np.ones((4, 1)))
-    adata.obs["sample_id"] = ["s1", "s1", "s2", "s2"]
-    adata.obs["condition"] = ["a", "a", "b", "b"]
-    adata.obs["cell_type"] = ["T", "B", "B", "B"]
-
-    dataset = Dataset(adata, dataset_col="sample_id", obs_columns=["condition"])
-    dataset.construct_population_space(category="cell_type", output="counts")
-    dataset.relations["similarity"] = sparse.csr_matrix([[1.0, 0.2], [0.2, 1.0]])
-    dataset.hierarchies["population__manual"] = HierarchyResult(
-        id="population__manual",
-        input_kind="space",
-        input_key="population",
-        method="manual",
-        labels=pd.Series(["left", "right"], index=["s1", "s2"]),
-        leaf_order=["s1", "s2"],
-    )
-    path = tmp_path / "dataset.h5ad"
-
-    dataset.write(path)
-    loaded = read(path)
-
-    assert isinstance(loaded, Dataset)
-    assert list(loaded.obs.index) == ["s1", "s2"]
-    assert loaded.obs.loc["s2", "condition"] == "b"
-    assert list(loaded.spaces) == ["population"]
-    assert loaded.relations["similarity"].shape == (2, 2)
-    assert loaded.hierarchies["population__manual"].input_key == "population"
-    np.testing.assert_array_equal(loaded.spaces["population"].X, np.array([[1, 1], [2, 0]]))
+    np.testing.assert_array_equal(population.X, np.array([[1, 1], [2, 0]]))
 
 
 def test_dataset_methods_are_not_exposed_at_package_root():
     import celldega as dega
+    import celldega.dataset as dataset_module
 
     assert hasattr(dega, "dataset")
     assert not hasattr(dega, "calc_dataset_by_pop")
+    assert not hasattr(dega, "construct_population_space")
     assert not hasattr(dega, "from_adata")
     assert not hasattr(dega, "DatasetCollection")
+    assert not hasattr(dataset_module, "calc_dataset_by_pop")
+    assert not hasattr(dataset_module, "construct_population_space")
+    assert not hasattr(dataset_module, "read")
+    assert not hasattr(Dataset, "write")
     assert importlib.util.find_spec("celldega.datasets") is None

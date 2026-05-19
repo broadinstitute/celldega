@@ -54,20 +54,28 @@ class HierarchyResult:
 
     This is a lightweight result container, not a live matrix object. It stores
     the identity of the input that produced the result, the method and
-    parameters used, optional labels or tree ordering, and any method-specific
-    payloads.
+    parameters used, optional observation/entity tree state, and any
+    method-specific payloads.
 
     Attributes:
-        id: Stable result identifier, often ``"<input_key>__<method>"``.
+        id: Stable result identifier, often
+            ``"<input_kind>:<input_key>__<method>"``.
         input_kind: Source type, expected to be ``"space"`` or ``"relation"``.
         input_key: Key in the parent collection's ``spaces`` or ``relations``.
-        method: Method name, such as ``"hierarchical"`` or ``"leiden"``.
+        method: Method name, such as ``"hierarchical"`` or
+            ``"matrix_biclustering"``.
+        axis: Clustered axis. Use ``"obs"`` for observation-only results,
+            ``"entity"`` for feature/entity-only results, and ``"bicluster"``
+            when both axes are clustered.
         params: Method parameters.
         preprocessing: Preprocessing steps used before clustering.
-        labels: Optional observation-level labels indexed by observation ID.
-        leaf_order: Optional ordered list of observation IDs.
-        linkage_matrix: Optional linkage/tree payload, such as a SciPy linkage
-            matrix.
+        obs_labels: Optional observation-level labels indexed by observation ID.
+        obs_leaf_order: Optional ordered list of observation IDs.
+        obs_linkage_matrix: Optional observation-axis linkage/tree payload.
+        entity_labels: Optional feature/entity-level labels indexed by entity ID.
+        entity_leaf_order: Optional ordered list of feature/entity IDs.
+        entity_linkage_matrix: Optional feature/entity-axis linkage/tree
+            payload.
         graph_key: Optional graph identifier when the result was derived from a
             graph stored elsewhere.
         provenance: Free-form provenance metadata for this result.
@@ -78,17 +86,26 @@ class HierarchyResult:
     input_kind: str
     input_key: str
     method: str
+    axis: str = "obs"
 
     params: dict[str, Any] = field(default_factory=dict)
     preprocessing: dict[str, Any] = field(default_factory=dict)
 
-    labels: pd.Series | None = None
-    leaf_order: list[str] | None = None
-    linkage_matrix: Any | None = None
+    obs_labels: pd.Series | None = None
+    obs_leaf_order: list[str] | None = None
+    obs_linkage_matrix: Any | None = None
+    entity_labels: pd.Series | None = None
+    entity_leaf_order: list[str] | None = None
+    entity_linkage_matrix: Any | None = None
     graph_key: str | None = None
 
     provenance: dict[str, Any] = field(default_factory=dict)
     uns: dict[str, Any] = field(default_factory=dict)
+
+    @property
+    def source_key(self) -> str:
+        """Unique source reference for the result within a collection."""
+        return f"{self.input_kind}:{self.input_key}"
 
 
 @dataclass

@@ -36,7 +36,6 @@ building `Dataset` objects:
 - Dataset-by-population spaces from cell-level `AnnData.obs`
 - Dataset/sample metadata aggregation into `Dataset.obs`
 - Attachment of aligned spaces to `Dataset.spaces`
-- H5AD read/write for dataset objects and their spaces
 
 ```python
 import celldega as dega
@@ -49,7 +48,6 @@ dataset = dega.dataset.Dataset(
 
 population = dataset.construct_population_space(category="cell_type")
 assert dataset.spaces["population"] is population
-dataset.write("dataset.h5ad")
 ```
 
 ### [Pre Module](pre/api.md)
@@ -174,7 +172,7 @@ dega.viz      # Visualization widgets
 | Module | Key Components |
 |--------|---------------|
 | `dega` | `NeighborhoodCollection`, `HierarchyResult` |
-| `dega.dataset` | `Dataset`, `construct_population_space`, `calc_dataset_by_pop`, `from_adata`, `read` |
+| `dega.dataset` | `Dataset`, `from_adata` |
 | `dega.pre` | `main()`, `create_image_tiles()`, `make_meta_gene()` |
 | `dega.clust` | `Matrix` |
 | `dega.nbhd` | `NBHD`, `NeighborhoodCollection`, construction and feature functions |

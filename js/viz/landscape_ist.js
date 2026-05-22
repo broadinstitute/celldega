@@ -1064,6 +1064,7 @@ export const landscape_ist = async (
     },
     update_layers: () => {},
     finalize: () => {
+      viz_state.edit?.cleanup_shortcuts?.();
       deck_ist.finalize();
     },
   };

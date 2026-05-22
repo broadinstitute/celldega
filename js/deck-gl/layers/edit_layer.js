@@ -16,9 +16,10 @@ import { update_path_pickable_state } from './path_layer';
 import { update_trx_pickable_state } from './trx_layer';
 
 // Forward declaration for function used before definition
-function update_edit_layer_mode(layers_obj, mode) {
+function update_edit_layer_mode(layers_obj, mode, modeConfig = null) {
   layers_obj.edit_layer = layers_obj.edit_layer.clone({
     mode,
+    ...(modeConfig ? { modeConfig } : {}),
   });
 }
 
@@ -139,6 +140,12 @@ const edit_layer_on_edit = async (
   layers_obj.edit_layer = layers_obj.edit_layer.clone({
     data: viz_state.edit.feature_collection,
   });
+
+  if (editType === 'addTentativePosition' || editType === 'cancelFeature') {
+    const layers_list = get_layers_list(layers_obj, viz_state.close_up);
+    deck_ist.setProps({ layers: layers_list });
+    return;
+  }
 
   if (editType === 'addFeature') {
     update_edit_layer_mode(layers_obj, ViewMode);

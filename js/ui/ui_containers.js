@@ -1,4 +1,7 @@
-import { DrawPolygonMode, ViewMode } from '@deck.gl-community/editable-layers';
+import {
+  DrawPolygonByDraggingMode,
+  ViewMode,
+} from '@deck.gl-community/editable-layers';
 import * as d3 from 'd3';
 
 import { toggle_background_layer_visibility } from '../deck-gl/layers/background_layer';
@@ -1146,7 +1149,9 @@ export const make_ist_ui_container = (
 
         _viz_state.edit.mode = 'sktch';
 
-        update_edit_layer_mode(_layers_obj, DrawPolygonMode);
+        update_edit_layer_mode(_layers_obj, DrawPolygonByDraggingMode, {
+          throttleMs: 16,
+        });
         update_cell_pickable_state(_layers_obj, false);
         update_path_pickable_state(_layers_obj, false);
         update_trx_pickable_state(_layers_obj, false);

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "celldega"
-version = "0.16.0a1"
+version = "0.16.0a8"
 readme = "README.md"
 dependencies = [
     "anndata~=0.11.0",

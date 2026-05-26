@@ -74,15 +74,20 @@ def test_nbhd_constructor_builds_collection_from_geometry():
     assert nbhd.to_collection() is nbhd.collection
 
 
-def test_nbhd_space_constructors_attach_aligned_spaces():
+def test_nbhd_modality_constructors_attach_aligned_modalities():
     gdf, adata = _synthetic_nbhd_inputs()
     nbhd = NBHD(gdf, "manual", adata=adata)
 
     gene = nbhd.construct_gene_space(min_cells=1)
     population = nbhd.construct_population_space(min_cells=1, output="counts")
 
-    assert nbhd.collection.spaces["gene"] is gene
-    assert nbhd.collection.spaces["population"] is population
+    assert nbhd.collection.mod["gene"] is gene
+    assert nbhd.collection.mod["population"] is population
+    assert list(gene.var["entity_type"]) == ["gene", "gene"]
+    assert list(population.var["entity_type"]) == [
+        "cell_population",
+        "cell_population",
+    ]
     assert list(gene.obs_names) == ["A", "B"]
     assert list(population.obs_names) == ["A", "B"]
     np.testing.assert_allclose(gene.X, np.array([[0.5, 1.0], [3.0, 1.0]]))
@@ -96,9 +101,9 @@ def test_nbhd_set_derived_populates_legacy_and_collection_storage():
     nbhd.set_derived("NBG-CD")
     nbhd.set_derived("NBP")
 
-    assert nbhd.derived["NBG-CD"] is nbhd.collection.spaces["gene"]
-    assert nbhd.derived["NBP"]["pct"] is nbhd.collection.spaces["population"]
-    assert nbhd.derived["NBP"]["abs"] is nbhd.collection.spaces["population_counts"]
+    assert nbhd.derived["NBG-CD"] is nbhd.collection.mod["gene"]
+    assert nbhd.derived["NBP"]["pct"] is nbhd.collection.mod["population"]
+    assert nbhd.derived["NBP"]["abs"] is nbhd.collection.mod["population_counts"]
 
 
 def test_nbhd_relation_constructor_attaches_sparse_relation():

@@ -1,7 +1,7 @@
 # Python API Overview
 
-The Celldega Python API provides modules for collection schemas, dataset-level
-feature spaces, pre-processing spatial transcriptomics data, clustering
+The Celldega Python API provides modules for MuData-backed collection schemas,
+dataset-level feature spaces, pre-processing spatial transcriptomics data, clustering
 analysis, neighborhood computation, and interactive visualization.
 
 ## Installation
@@ -14,12 +14,12 @@ pip install celldega
 
 ### [Schema Module](schema/api.md)
 
-The collection schema module defines lightweight containers for aligned
+The collection schema module defines typed MuData profiles for aligned
 dataset-level and neighborhood-level data:
 
 - `dega.dataset.Dataset` for dataset, sample, tissue section, or patient observations
 - `NeighborhoodCollection` for neighborhood or spatial-region observations
-- `HierarchyResult` for clustering or tree outputs derived from a space or relation
+- `HierarchyResult` for clustering or tree outputs derived from a modality or relation
 
 ```python
 import celldega as dega
@@ -30,12 +30,13 @@ neighborhoods = dega.NeighborhoodCollection(obs=neighborhood_obs, geometry=neigh
 
 ### [Dataset Module](dataset/api.md)
 
-The `dataset` module contains dataset-level space constructors and helpers for
+The `dataset` module contains dataset-level modality constructors and helpers for
 building `Dataset` objects:
 
-- Dataset-by-population spaces from cell-level `AnnData.obs`
+- Dataset-by-population modalities from cell-level `AnnData.obs`
 - Dataset/sample metadata aggregation into `Dataset.obs`
-- Attachment of aligned spaces to `Dataset.spaces`
+- Attachment of aligned modalities to `Dataset.mod`
+- H5MU writing through the underlying MuData object
 
 ```python
 import celldega as dega
@@ -47,7 +48,8 @@ dataset = dega.dataset.Dataset(
 )
 
 population = dataset.construct_population_space(category="cell_type")
-assert dataset.spaces["population"] is population
+assert dataset.mod["population"] is population
+dataset.write("dataset.h5mu")
 ```
 
 ### [Pre Module](pre/api.md)
@@ -119,7 +121,7 @@ gdf_hex = dega.nbhd.generate_hextile(adata, diameter=100)
 # Calculate neighborhood-by-gene expression
 adata_nbg = dega.nbhd.calc_nbhd_by_gene(gdf_alpha, by="cell", adata=adata)
 
-# Attach spaces to a NeighborhoodCollection through NBHD
+# Attach modalities to a NeighborhoodCollection through NBHD
 nbhd = dega.nbhd.NBHD(gdf_alpha, "alpha_shape", adata=adata)
 nbhd.construct_gene_space()
 nbhd.construct_population_space(category="leiden")
@@ -162,7 +164,7 @@ import celldega as dega
 # Access submodules
 dega.pre      # Pre-processing functions
 dega.clust    # Clustering (Matrix class)
-dega.dataset  # Dataset-level collection and space constructors
+dega.dataset  # Dataset-level collection and modality constructors
 dega.nbhd     # Neighborhood analysis
 dega.viz      # Visualization widgets
 ```

@@ -1,53 +1,45 @@
 # Collection Schema API Reference
 
-Celldega collection schemas define lightweight containers for aligned
-dataset-level and neighborhood-level data.
+Celldega collections are typed MuData profiles. AnnData is the unit of a
+feature space; MuData is the unit of a multimodal Celldega collection.
 
 ## Motivation
 
-`AnnData` is excellent for one observation-by-variable matrix plus annotations.
-Celldega workflows often need a stable biological row axis with several aligned
-feature spaces, pairwise relations, clustering results, geometry, and
-provenance. For example, the same datasets may have population fractions,
-expression summaries, image features, clinical annotations, and similarity
-graphs. Keeping those as unrelated `AnnData` objects makes it easy for row order
-or metadata to drift.
+AnnData is an excellent representation for one observation-by-feature matrix
+plus aligned annotations, graphs, and metadata. Celldega collections need
+several independently clusterable feature spaces over the same biological
+observation axis: genes, populations, image features, morphology features,
+clinical variables, and derived joint spaces.
 
-The collection schema is a coordination layer around those objects. It does not
-replace `AnnData`; spaces inside a collection are still `AnnData` matrices.
-Instead, a collection defines one canonical `obs` table and stores aligned
-spaces, relations, hierarchy results, and metadata around that axis.
-
-[`dataset`](../dataset/api.md) helpers and `NBHD` methods can populate spaces
-and relations into these containers.
+MuData provides that collection layer by storing each feature space as its own
+AnnData modality while preserving shared observation metadata. Celldega adds a
+thin schema convention on top for biological entity typing, hierarchy results,
+provenance, geometry, and view-linking metadata.
 
 ## Core Model
 
-| Concept | Meaning |
+| Concept | Storage |
 |---|---|
-| `obs` | Canonical observation table and row axis. |
-| `spaces` | Named observation-by-feature `AnnData` matrices aligned to `obs`. |
-| `relations` | Named observation-by-observation sparse matrices. |
-| `hierarchies` | Clustering or tree results uniquely tied to a space or relation. |
-| `provenance` | Free-form metadata describing where the collection came from. |
-| `uns` | Free-form collection metadata. |
+| Canonical observations | `collection.mdata.obs` / `collection.obs` |
+| Feature spaces | `collection.mdata.mod[name]` / `collection.mod[name]` |
+| Observation relations | `collection.mdata.obsp[name]` / `collection.relations[name]` |
+| Celldega metadata | `collection.mdata.uns["celldega"]` / `collection.uns` |
+| Hierarchy registry | `collection.mdata.uns["celldega"]["hierarchies"]` |
+
+Each modality is a normal AnnData object. Its `X` is the clusterable matrix and
+its `var` table describes the local feature/entity axis. Celldega stores the
+global row entity type in `mdata.uns["celldega"]["obs_entity_type"]` and stores
+modality-local entity types in `mdata.mod[name].var["entity_type"]`.
 
 ## Dataset
 
 `dega.dataset.Dataset` observations are datasets, samples, tissue sections,
-patients, or other dataset-level units. A `Dataset` is the object that stores
-the dataset-level `obs`, spaces, relations, provenance, and linked
-neighborhood-level collections.
-
-Recommended spaces include `population`, `expression`, `image`, `neighborhood`,
-`clinical`, and `joint`.
-
-Recommended relations include `similarity`, `distance`, `matched_pair`,
-`patient_pairing`, `population_knn`, `expression_knn`, and
-`neighborhood_knn`.
+patients, or other dataset-level units. Dataset-level feature spaces are MuData
+modalities such as `population`, `expression`, `image`, `clinical`, and
+`joint`.
 
 Use `dega.dataset.Dataset(...).construct_population_space(...)` to construct
-and attach a dataset-level population space:
+and attach a dataset-level population modality:
 
 ```python
 import celldega as dega
@@ -57,40 +49,63 @@ dataset = dega.dataset.Dataset(
     dataset_col="sample_id",
 )
 population = dataset.construct_population_space(category="cell_type")
-assert dataset.spaces["population"] is population
+
+assert dataset.mod["population"] is population
+assert dataset.mod["population"].var["entity_type"].iloc[0] == "cell_population"
+```
+
+Collections write through MuData:
+
+```python
+dataset.write("dataset.h5mu")
+loaded = dega.dataset.Dataset.read("dataset.h5mu")
 ```
 
 ## Hierarchies
 
-`HierarchyResult` stores clustering state for a specific input using
-`input_kind` and `input_key`, such as `space:population` or
-`relation:similarity`. Hierarchical biclustering can store both the observation
-axis and the feature/entity axis through the `obs_*` and `entity_*` fields.
+`HierarchyResult` is a convenience wrapper for adding serializable hierarchy
+metadata to `mdata.uns["celldega"]["hierarchies"]`. Hierarchies point to the
+MuData source they came from, such as `input_mod="population"` or
+`input_relation="similarity"`.
+
+Hierarchical biclustering can store both axes:
+
+```python
+dataset.add_hierarchy(
+    dega.HierarchyResult(
+        id="mod:population__hierarchical",
+        input_mod="population",
+        method="hierarchical",
+        axis="bicluster",
+        obs_leaf_order=["sample_1", "sample_2"],
+        var_leaf_order=["B cell", "T cell"],
+    )
+)
+```
 
 Flat cluster assignments, such as Leiden labels, should usually live as columns
-in the collection `obs` table. Method metadata for those labels can live in
-`uns` or `provenance`.
+in `collection.obs`. Method metadata for those labels can live in
+`collection.uns` or `collection.provenance`.
 
 ## NeighborhoodCollection
 
 `NeighborhoodCollection` observations are neighborhoods or spatial regions such
 as hex tiles, alpha-shape regions, manual regions, or gradient rings.
 
-Recommended spaces include `gene`, `population`, `image`, `morphology`,
+Recommended modalities include `gene`, `population`, `image`, `morphology`,
 `gradient`, and `joint`.
 
 Recommended relations include `adjacency`, `bordering`, `overlap`, `distance`,
 `gene_knn`, `population_knn`, and `image_knn`. Use `bordering` for
 shared-boundary relationships.
 
-Recommended memberships include `cell_to_neighborhood`,
-`transcript_to_neighborhood`, `spot_to_neighborhood`, and
-`pixel_to_neighborhood`.
+`NBHD` owns a `NeighborhoodCollection` under `nbhd.collection` and attaches
+feature modalities and sparse relations with methods such as
+`construct_gene_space`, `construct_population_space`, `construct_image_space`,
+`construct_overlap_relation`, and `construct_bordering_relation`.
 
-`NBHD` now owns a `NeighborhoodCollection` under `nbhd.collection` and attaches
-feature spaces and sparse relations with methods such as
-`construct_gene_space`, `construct_population_space`,
-`construct_image_space`, `construct_overlap_relation`, and
-`construct_bordering_relation`.
+Geometry is kept as a live `GeoDataFrame` on `NeighborhoodCollection.geometry`
+for now. Durable geometry storage can be added later with WKB columns or
+GeoParquet sidecars keyed by `obs_names`.
 
 ::: celldega.collections

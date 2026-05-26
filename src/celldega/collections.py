@@ -1,91 +1,75 @@
-"""Schema containers for Celldega collection objects.
+"""MuData-backed schema containers for Celldega collection objects.
 
-The collection schema is intentionally lightweight. These dataclasses describe
-the canonical in-memory structure for aligned observations, feature spaces,
-pairwise relations, hierarchy results, and metadata. They do not perform
-analysis, validation, or file I/O.
-
-Core concepts:
-    Observation unit:
-        The canonical row axis stored in ``obs``. In a dataset object the rows
-        are datasets, samples, tissue sections, patients, or similar
-        dataset-level units. In a ``NeighborhoodCollection`` the rows are
-        neighborhoods or spatial regions.
-    Space:
-        An observation-by-feature ``AnnData`` whose ``obs_names`` are expected
-        to match the parent collection's ``obs.index``.
-    Relation:
-        An observation-by-observation sparse matrix. Relations are separate from
-        spaces because both axes are observations.
-    Hierarchy:
-        A lightweight result container for clustering or tree results derived
-        from a named space or relation.
-
-Expected invariants:
-    - ``obs.index`` is unique and stable.
-    - Every space has ``n_obs == len(obs)`` and ``obs_names == obs.index``.
-    - Every relation has shape ``(len(obs), len(obs))``.
-    - Every hierarchy references an existing space or relation by key.
-    - ``NeighborhoodCollection.geometry``, when present, has the same index as
-      ``obs``.
+Celldega treats ``AnnData`` as the unit of a feature space and ``MuData`` as
+the unit of a collection. The classes in this module are thin typed wrappers
+around a ``MuData`` object, plus Celldega conventions for entity typing,
+hierarchies, provenance, geometry, and view-linking metadata.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
+import warnings
 
 from anndata import AnnData
 import geopandas as gpd
+from mudata import MuData, read_h5mu
+import numpy as np
 import pandas as pd
 from scipy import sparse
 
 
 __all__ = [
+    "CELLDEGA_SCHEMA_VERSION",
+    "CELLDEGA_UNS_KEY",
     "CelldegaCollection",
     "HierarchyResult",
     "NeighborhoodCollection",
 ]
 
 
+CELLDEGA_UNS_KEY = "celldega"
+CELLDEGA_SCHEMA_VERSION = "0.1.0"
+_EMPTY_MODALITY_KEY = "_celldega_obs"
+
+
 @dataclass
 class HierarchyResult:
-    """Clustering or hierarchy result derived from a collection input.
+    """Serializable clustering or hierarchy result metadata.
 
-    This is a lightweight result container, not a live matrix object. It stores
-    the identity of the input that produced the result, the method and
-    parameters used, optional observation/entity tree state, and any
-    method-specific payloads.
+    The result is tied to either a MuData modality, a global observation
+    relation, or a modality-specific relation. Tree state for biclustering can
+    store both the observation axis and the modality variable axis.
 
     Attributes:
-        id: Stable result identifier, often
-            ``"<input_kind>:<input_key>__<method>"``.
-        input_kind: Source type, expected to be ``"space"`` or ``"relation"``.
-        input_key: Key in the parent collection's ``spaces`` or ``relations``.
+        id: Stable result identifier, often ``"mod:<input_mod>__<method>"``.
+        input_mod: Source modality key in ``mdata.mod`` when the hierarchy is
+            derived from a feature space.
+        input_relation: Source relation key in ``mdata.obsp`` or in
+            ``mdata.mod[input_mod].obsp``.
         method: Method name, such as ``"hierarchical"`` or
             ``"matrix_biclustering"``.
         axis: Clustered axis. Use ``"obs"`` for observation-only results,
-            ``"entity"`` for feature/entity-only results, and ``"bicluster"``
+            ``"var"`` for feature/entity-only results, and ``"bicluster"``
             when both axes are clustered.
         params: Method parameters.
         preprocessing: Preprocessing steps used before clustering.
         obs_labels: Optional observation-level labels indexed by observation ID.
         obs_leaf_order: Optional ordered list of observation IDs.
         obs_linkage_matrix: Optional observation-axis linkage/tree payload.
-        entity_labels: Optional feature/entity-level labels indexed by entity ID.
-        entity_leaf_order: Optional ordered list of feature/entity IDs.
-        entity_linkage_matrix: Optional feature/entity-axis linkage/tree
-            payload.
-        graph_key: Optional graph identifier when the result was derived from a
-            graph stored elsewhere.
+        var_labels: Optional feature/entity-level labels indexed by variable ID.
+        var_leaf_order: Optional ordered list of feature/entity IDs.
+        var_linkage_matrix: Optional feature/entity-axis linkage/tree payload.
         provenance: Free-form provenance metadata for this result.
         uns: Free-form method-specific metadata.
     """
 
     id: str
-    input_kind: str
-    input_key: str
     method: str
+    input_mod: str | None = None
+    input_relation: str | None = None
     axis: str = "obs"
 
     params: dict[str, Any] = field(default_factory=dict)
@@ -94,10 +78,9 @@ class HierarchyResult:
     obs_labels: pd.Series | None = None
     obs_leaf_order: list[str] | None = None
     obs_linkage_matrix: Any | None = None
-    entity_labels: pd.Series | None = None
-    entity_leaf_order: list[str] | None = None
-    entity_linkage_matrix: Any | None = None
-    graph_key: str | None = None
+    var_labels: pd.Series | None = None
+    var_leaf_order: list[str] | None = None
+    var_linkage_matrix: Any | None = None
 
     provenance: dict[str, Any] = field(default_factory=dict)
     uns: dict[str, Any] = field(default_factory=dict)
@@ -105,80 +88,283 @@ class HierarchyResult:
     @property
     def source_key(self) -> str:
         """Unique source reference for the result within a collection."""
-        return f"{self.input_kind}:{self.input_key}"
+        if self.input_mod is not None and self.input_relation is not None:
+            return f"mod:{self.input_mod}.obsp:{self.input_relation}"
+        if self.input_mod is not None:
+            return f"mod:{self.input_mod}"
+        if self.input_relation is not None:
+            return f"obsp:{self.input_relation}"
+        return "unknown"
+
+    def to_dict(self) -> dict[str, Any]:
+        """Return a MuData-serializable hierarchy registry payload."""
+        payload: dict[str, Any] = {
+            "id": self.id,
+            "method": self.method,
+            "axis": self.axis,
+            "params": self.params,
+            "preprocessing": self.preprocessing,
+            "provenance": self.provenance,
+            "uns": self.uns,
+        }
+        optional = {
+            "input_mod": self.input_mod,
+            "input_relation": self.input_relation,
+            "obs_leaf_order": self.obs_leaf_order,
+            "obs_linkage": self.obs_linkage_matrix,
+            "var_leaf_order": self.var_leaf_order,
+            "var_linkage": self.var_linkage_matrix,
+        }
+        payload.update({key: value for key, value in optional.items() if value is not None})
+        if self.obs_labels is not None:
+            payload["obs_labels"] = self.obs_labels.astype(str).to_dict()
+        if self.var_labels is not None:
+            payload["var_labels"] = self.var_labels.astype(str).to_dict()
+        return payload
 
 
-@dataclass
+def _with_mudata_warnings_suppressed(func: Any, *args: Any, **kwargs: Any) -> Any:
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            message="From 0.4 .update\\(\\) will not pull obs/var columns",
+            category=FutureWarning,
+        )
+        return func(*args, **kwargs)
+
+
+def _create_mudata(mod: dict[str, AnnData]) -> MuData:
+    return _with_mudata_warnings_suppressed(MuData, mod)
+
+
+def _empty_mudata(obs: pd.DataFrame) -> MuData:
+    placeholder = AnnData(
+        X=np.empty((len(obs), 0)),
+        obs=obs.copy(),
+        var=pd.DataFrame(index=pd.Index([], name="feature")),
+    )
+    mdata = _create_mudata({_EMPTY_MODALITY_KEY: placeholder})
+    mdata.obs = obs.copy()
+    del mdata.mod[_EMPTY_MODALITY_KEY]
+    mdata.obsm.clear()
+    mdata.varm.clear()
+    return mdata
+
+
+def _align_mod_to_obs(adata: AnnData, obs: pd.DataFrame) -> AnnData:
+    target_index = obs.index.astype(str)
+    source_index = pd.Index(adata.obs_names.astype(str))
+
+    if list(source_index) == list(target_index):
+        aligned = adata.copy()
+        aligned.obs = obs.copy()
+        return aligned
+
+    shape = (len(target_index), adata.n_vars)
+    source_lookup = {name: i for i, name in enumerate(source_index)}
+    target_rows = [i for i, name in enumerate(target_index) if name in source_lookup]
+    source_rows = [source_lookup[name] for name in target_index if name in source_lookup]
+
+    if sparse.issparse(adata.X):
+        X = sparse.lil_matrix(shape, dtype=adata.X.dtype)
+        if source_rows:
+            X[target_rows, :] = adata.X[source_rows, :]
+        X = X.tocsr()
+    else:
+        X = np.zeros(shape, dtype=adata.X.dtype)
+        if source_rows:
+            X[target_rows, :] = np.asarray(adata.X[source_rows, :])
+
+    return AnnData(X=X, obs=obs.copy(), var=adata.var.copy(), uns=dict(adata.uns))
+
+
+def _coerce_hierarchy(value: HierarchyResult | dict[str, Any]) -> dict[str, Any]:
+    if isinstance(value, HierarchyResult):
+        return value.to_dict()
+    return dict(value)
+
+
 class CelldegaCollection:
-    """Base schema for collection objects with a canonical observation axis.
-
-    The base class does not know whether observations are datasets, samples,
-    neighborhoods, or spatial regions. It only defines the shared structure
-    used by higher-level collection types.
+    """Base Celldega collection profile backed by ``MuData``.
 
     Attributes:
-        obs: Canonical observation table. The index is the expected row axis for
-            every space and relation.
-        spaces: Named observation-by-feature ``AnnData`` objects aligned to
-            ``obs``. Examples include ``"gene"``, ``"population"``,
-            ``"expression"``, ``"image"``, and ``"joint"``.
-        relations: Named observation-by-observation sparse matrices. Examples
-            include ``"similarity"``, ``"distance"``, ``"adjacency"``,
-            ``"bordering"``, and ``"overlap"``.
-        hierarchies: Named clustering/tree results derived from spaces or
-            relations.
-        provenance: Free-form collection-level provenance metadata.
-        uns: Free-form collection-level metadata.
+        mdata: The underlying multimodal object.
+        mod: MuData modalities. Each modality is a clusterable ``AnnData``
+            feature space.
+        obs: Canonical biological observation axis shared by modalities.
+        relations: Global observation-by-observation relations stored in
+            ``mdata.obsp``.
+        uns: Celldega schema metadata stored in ``mdata.uns["celldega"]``.
     """
 
-    obs: pd.DataFrame
+    def __init__(
+        self,
+        obs: pd.DataFrame | None = None,
+        mod: dict[str, AnnData] | None = None,
+        mdata: MuData | None = None,
+        relations: dict[str, sparse.spmatrix] | None = None,
+        hierarchies: dict[str, HierarchyResult | dict[str, Any]] | None = None,
+        provenance: dict[str, Any] | None = None,
+        uns: dict[str, Any] | None = None,
+        collection_type: str | None = None,
+        obs_entity_type: str | None = None,
+    ) -> None:
+        if mdata is not None:
+            self.mdata = mdata
+            if obs is not None:
+                self.mdata.obs = obs.copy()
+        else:
+            mod = mod or {}
+            if obs is None:
+                if not mod:
+                    raise ValueError("obs, mod, or mdata is required")
+                obs = next(iter(mod.values())).obs.copy()
+            obs = obs.copy()
+            obs.index = obs.index.astype(str)
+            if mod:
+                aligned_mod = {
+                    key: _align_mod_to_obs(adata, obs) for key, adata in mod.items()
+                }
+                self.mdata = _create_mudata(aligned_mod)
+                self.mdata.obs = obs.copy()
+            else:
+                self.mdata = _empty_mudata(obs)
 
-    spaces: dict[str, AnnData] = field(default_factory=dict)
-    relations: dict[str, sparse.spmatrix] = field(default_factory=dict)
-    hierarchies: dict[str, HierarchyResult] = field(default_factory=dict)
+        self._init_celldega_metadata(
+            collection_type=collection_type,
+            obs_entity_type=obs_entity_type,
+            provenance=provenance,
+            uns=uns,
+        )
 
-    provenance: dict[str, Any] = field(default_factory=dict)
-    uns: dict[str, Any] = field(default_factory=dict)
+        for key, relation in (relations or {}).items():
+            self.relations[key] = relation
+        for key, hierarchy in (hierarchies or {}).items():
+            self.hierarchies[key] = _coerce_hierarchy(hierarchy)
+
+    @property
+    def obs(self) -> pd.DataFrame:
+        """Canonical collection observation table."""
+        return self.mdata.obs
+
+    @obs.setter
+    def obs(self, value: pd.DataFrame) -> None:
+        self.mdata.obs = value.copy()
+
+    @property
+    def mod(self) -> dict[str, AnnData]:
+        """Named feature-space modalities."""
+        return self.mdata.mod
+
+    @property
+    def relations(self) -> Any:
+        """Global observation-by-observation relations."""
+        return self.mdata.obsp
+
+    @property
+    def hierarchies(self) -> dict[str, dict[str, Any]]:
+        """Celldega hierarchy registry stored in MuData metadata."""
+        return self.uns.setdefault("hierarchies", {})
+
+    @property
+    def provenance(self) -> dict[str, Any]:
+        """Collection-level provenance metadata."""
+        return self.uns.setdefault("provenance", {})
+
+    @property
+    def uns(self) -> dict[str, Any]:
+        """Celldega schema metadata namespace."""
+        return self.mdata.uns.setdefault(CELLDEGA_UNS_KEY, {})
+
+    @property
+    def collection_type(self) -> str | None:
+        """Celldega collection type, such as ``"dataset"`` or ``"neighborhood"``."""
+        return self.uns.get("collection_type")
+
+    def _init_celldega_metadata(
+        self,
+        collection_type: str | None,
+        obs_entity_type: str | None,
+        provenance: dict[str, Any] | None,
+        uns: dict[str, Any] | None,
+    ) -> None:
+        celldega = self.uns
+        celldega.setdefault("schema_version", CELLDEGA_SCHEMA_VERSION)
+        if collection_type is None:
+            celldega.setdefault("collection_type", "collection")
+        else:
+            celldega["collection_type"] = collection_type
+        if obs_entity_type is not None:
+            celldega["obs_entity_type"] = obs_entity_type
+        celldega.setdefault("hierarchies", {})
+        celldega.setdefault("provenance", {})
+        celldega["provenance"].update(provenance or {})
+        celldega.update(uns or {})
+
+    def add_mod(
+        self,
+        key: str,
+        adata: AnnData,
+        entity_type: str | None = None,
+    ) -> AnnData:
+        """Add an aligned modality and return the stored ``AnnData`` object."""
+        aligned = _align_mod_to_obs(adata, self.obs)
+        if entity_type is not None:
+            aligned.var["entity_type"] = entity_type
+
+        obs = self.obs.copy()
+        self.mdata.mod[key] = aligned
+        _with_mudata_warnings_suppressed(self.mdata.update)
+        self.mdata.obs = obs
+        return self.mdata.mod[key]
+
+    def add_hierarchy(self, hierarchy: HierarchyResult | dict[str, Any]) -> dict[str, Any]:
+        """Add hierarchy metadata to the Celldega registry."""
+        payload = _coerce_hierarchy(hierarchy)
+        self.hierarchies[str(payload["id"])] = payload
+        return payload
+
+    def write(self, filename: str | Path, **kwargs: Any) -> None:
+        """Write the underlying ``MuData`` object to disk."""
+        _with_mudata_warnings_suppressed(self.mdata.write, filename, **kwargs)
+
+    @classmethod
+    def read(cls, filename: str | Path) -> CelldegaCollection:
+        """Read a Celldega ``MuData`` collection from disk."""
+        return cls(mdata=_with_mudata_warnings_suppressed(read_h5mu, filename))
 
 
-@dataclass
 class NeighborhoodCollection(CelldegaCollection):
-    """Neighborhood-level or spatial-region collection schema.
+    """Neighborhood-level or spatial-region MuData collection.
 
-    Observations are neighborhoods or spatial regions. A neighborhood may be a
-    hex tile, alpha-shape region, manual region, gradient ring, or another
-    spatial unit with geometry and associated features.
-
-    Recommended ``obs`` columns include:
-        ``neighborhood_id``, ``sample_id``, ``dataset_id``, ``cohort_id``,
-        ``neighborhood_type``, ``method``, ``area``, ``area_um2``,
-        ``centroid_x``, ``centroid_y``, ``n_cells``, ``n_transcripts``,
-        ``annotation``, and ``qc_pass``.
-
-    Recommended space names include:
-        ``gene``, ``population``, ``image``, ``morphology``, ``gradient``, and
-        ``joint``.
-
-    Recommended relation names include:
-        ``adjacency``, ``bordering``, ``overlap``, ``distance``, ``gene_knn``,
-        ``population_knn``, and ``image_knn``. Use ``bordering`` for
-        boundary-sharing relationships.
-
-    Recommended membership names include:
-        ``cell_to_neighborhood``, ``transcript_to_neighborhood``,
-        ``spot_to_neighborhood``, and ``pixel_to_neighborhood``.
-
-    Attributes:
-        collection_type: Literal collection type marker, defaulting to
-            ``"neighborhood"``.
-        geometry: Optional ``GeoDataFrame`` aligned to ``obs.index``. The
-            geometry column may contain polygons, multipolygons, or points,
-            depending on the neighborhood type.
-        memberships: Optional sparse matrices mapping lower-level entities to
-            neighborhoods. For example, ``cell_to_neighborhood`` has shape
-            ``n_cells x n_neighborhoods``.
+    Observations are neighborhoods or spatial regions. Feature spaces live in
+    ``mod`` and global observation relations live in ``relations``/``mdata.obsp``.
+    Geometry is kept as a live ``GeoDataFrame`` in memory; durable geometry
+    storage can be layered on later with WKB columns or GeoParquet sidecars.
     """
 
-    collection_type: str = "neighborhood"
-    geometry: gpd.GeoDataFrame | None = None
-    memberships: dict[str, sparse.spmatrix] = field(default_factory=dict)
+    def __init__(
+        self,
+        obs: pd.DataFrame | None = None,
+        mod: dict[str, AnnData] | None = None,
+        mdata: MuData | None = None,
+        geometry: gpd.GeoDataFrame | None = None,
+        relations: dict[str, sparse.spmatrix] | None = None,
+        hierarchies: dict[str, HierarchyResult | dict[str, Any]] | None = None,
+        provenance: dict[str, Any] | None = None,
+        uns: dict[str, Any] | None = None,
+        memberships: dict[str, sparse.spmatrix] | None = None,
+    ) -> None:
+        self.geometry = geometry
+        self.memberships = memberships or {}
+        super().__init__(
+            obs=obs,
+            mod=mod,
+            mdata=mdata,
+            relations=relations,
+            hierarchies=hierarchies,
+            provenance=provenance,
+            uns=uns,
+            collection_type="neighborhood",
+            obs_entity_type="neighborhood",
+        )

@@ -360,11 +360,12 @@ def _relation_from_square_adata(
 
 
 class NBHD:
-    """Neighborhood geometry plus collection-backed feature spaces.
+    """Neighborhood geometry plus collection-backed modalities.
 
     ``NBHD`` keeps the existing convenience API for derived matrices while also
-    maintaining a ``NeighborhoodCollection`` in ``collection``. New feature
-    constructors attach aligned spaces and relations to that collection:
+    maintaining a MuData-backed ``NeighborhoodCollection`` in ``collection``.
+    New feature constructors attach aligned modalities and relations to that
+    collection:
 
     - ``construct_gene_space`` stores neighborhood-by-gene data.
     - ``construct_population_space`` stores neighborhood-by-population data.
@@ -432,7 +433,7 @@ class NBHD:
         Args:
             by: ``"cell"`` for cell-derived mean expression or
                 ``"cell-free"`` for transcript counts.
-            key: Space key in ``collection.spaces``. Defaults to ``"gene"`` for
+            key: Modality key in ``collection.mod``. Defaults to ``"gene"`` for
                 cell-derived expression and ``"gene_cell_free"`` for
                 transcript-derived counts.
             min_cells: Minimum cells or transcripts required by the legacy
@@ -453,8 +454,7 @@ class NBHD:
             min_cells=min_cells,
         )
         adata = _align_space_to_collection(adata, self.collection)
-        self.collection.spaces[space_key] = adata
-        return adata
+        return self.collection.add_mod(space_key, adata, entity_type="gene")
 
     def construct_population_space(
         self,
@@ -476,8 +476,7 @@ class NBHD:
             output=output,
         )
         adata = _align_space_to_collection(adata, self.collection)
-        self.collection.spaces[key] = adata
-        return adata
+        return self.collection.add_mod(key, adata, entity_type="cell_population")
 
     def construct_image_space(self, key: str = "image") -> AnnData:
         """Construct and attach a neighborhood-by-image-feature space."""
@@ -493,8 +492,7 @@ class NBHD:
             nbhd_col=self.nbhd_col,
         )
         adata = _dataframe_to_space(df, self.collection, uns={"feature_type": "image"})
-        self.collection.spaces[key] = adata
-        return adata
+        return self.collection.add_mod(key, adata, entity_type="image_feature")
 
     def construct_overlap_relation(
         self,
@@ -595,10 +593,10 @@ class NBHD:
                 self.gdf,
                 nbhd_col=self.nbhd_col,
             )
-            self.collection.spaces["image"] = _dataframe_to_space(
-                data,
-                self.collection,
-                uns={"feature_type": "image"},
+            self.collection.add_mod(
+                "image",
+                _dataframe_to_space(data, self.collection, uns={"feature_type": "image"}),
+                entity_type="image_feature",
             )
         else:
             raise ValueError(f"Unknown derived key: {key}")
@@ -642,7 +640,7 @@ class NBHD:
             "type": self.nbhd_type,
             "n_regions": len(self.gdf),
             "derived": {k: self._derived_summary(k) for k in self.derived},
-            "spaces": {k: v.shape for k, v in self.collection.spaces.items()},
+            "modalities": {k: v.shape for k, v in self.collection.mod.items()},
             "relations": {k: v.shape for k, v in self.collection.relations.items()},
             "meta": self.meta,
         }

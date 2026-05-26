@@ -1,10 +1,11 @@
-"""Dataset-level collection and feature-space constructors."""
+"""Dataset-level collection and modality constructors."""
 
 from __future__ import annotations
 
 from typing import Any
 
 from anndata import AnnData
+from mudata import MuData
 import numpy as np
 import pandas as pd
 
@@ -35,7 +36,7 @@ def _category_colors(adata: AnnData, category: str) -> dict[str, str]:
     }
 
 
-def _align_space_to_dataset(adata: AnnData, dataset: CelldegaCollection) -> AnnData:
+def _align_mod_to_dataset(adata: AnnData, dataset: CelldegaCollection) -> AnnData:
     target_index = dataset.obs.index.astype(str)
     source_index = pd.Index(adata.obs_names.astype(str))
 
@@ -112,11 +113,11 @@ def _dataset_obs_from_adata(
 
 
 class Dataset(CelldegaCollection):
-    """Dataset-level collection with convenience space constructors.
+    """Dataset-level collection with convenience modality constructors.
 
     ``Dataset`` is the dataset-level Celldega collection. Its ``obs`` table is
-    the canonical dataset/sample axis, and feature constructors attach aligned
-    ``AnnData`` spaces directly to ``self.spaces``.
+    the canonical dataset/sample axis, and feature constructors attach
+    clusterable ``AnnData`` modalities directly to ``self.mod``.
     """
 
     def __init__(
@@ -125,17 +126,26 @@ class Dataset(CelldegaCollection):
         dataset_col: str = "sample_id",
         obs_columns: list[str] | None = None,
         obs: pd.DataFrame | None = None,
+        mdata: MuData | None = None,
         source: str | dict[str, Any] | None = None,
         name: str | None = None,
         meta: dict[str, Any] | None = None,
-        spaces: dict[str, AnnData] | None = None,
+        mod: dict[str, AnnData] | None = None,
         relations: dict[str, Any] | None = None,
         hierarchies: dict[str, Any] | None = None,
         provenance: dict[str, Any] | None = None,
         uns: dict[str, Any] | None = None,
         neighborhood_collections: dict[str, Any] | None = None,
     ) -> None:
-        if obs is None:
+        if mdata is not None:
+            obs = obs.copy() if obs is not None else None
+            dataset_col = str(
+                mdata.uns.get("celldega", {}).get(
+                    "dataset_col",
+                    dataset_col,
+                )
+            )
+        elif obs is None:
             if adata is None:
                 raise ValueError("adata is required when obs is not provided")
             obs = _dataset_obs_from_adata(
@@ -154,7 +164,6 @@ class Dataset(CelldegaCollection):
         self.source = source
         self.name = name
         self.meta = meta or {}
-        self.collection_type = "dataset"
         self.neighborhood_collections = neighborhood_collections or {}
 
         collection_provenance = {"source": source} if source is not None else {}
@@ -167,11 +176,14 @@ class Dataset(CelldegaCollection):
 
         super().__init__(
             obs=obs,
-            spaces=spaces or {},
+            mod=mod or {},
+            mdata=mdata,
             relations=relations or {},
             hierarchies=hierarchies or {},
             provenance=collection_provenance,
             uns=collection_uns,
+            collection_type="dataset",
+            obs_entity_type="dataset",
         )
 
     def construct_population_space(
@@ -182,7 +194,7 @@ class Dataset(CelldegaCollection):
         min_cells: int = 1,
         adata: AnnData | None = None,
     ) -> AnnData:
-        """Construct and attach a dataset-by-population space to ``self.spaces``."""
+        """Construct and attach a dataset-by-population modality to ``self.mod``."""
         source_adata = adata if adata is not None else self.adata
         if source_adata is None:
             raise ValueError("adata is required to construct a population space")
@@ -194,9 +206,8 @@ class Dataset(CelldegaCollection):
             output=output,
             min_cells=min_cells,
         )
-        space = _align_space_to_dataset(space, self)
-        self.spaces[key] = space
-        return space
+        space = _align_mod_to_dataset(space, self)
+        return self.add_mod(key, space, entity_type="cell_population")
 
 
 def _population_space_from_adata(

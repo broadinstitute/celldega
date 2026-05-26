@@ -2,6 +2,7 @@ import importlib.util
 
 from anndata import AnnData
 import geopandas as gpd
+from mudata import MuData
 import numpy as np
 import pandas as pd
 from scipy import sparse
@@ -15,7 +16,7 @@ from celldega.collections import (
 from celldega.dataset import Dataset, from_adata
 
 
-def test_dataset_holds_aligned_spaces_relations_and_hierarchies():
+def test_dataset_holds_aligned_modalities_relations_and_hierarchies():
     adata = AnnData(X=np.ones((2, 1)))
     adata.obs["sample_id"] = ["sample_001", "sample_002"]
     adata.obs["condition"] = ["a", "b"]
@@ -27,37 +28,37 @@ def test_dataset_holds_aligned_spaces_relations_and_hierarchies():
     )
     relation = sparse.csr_matrix([[1.0, 0.2], [0.2, 1.0]])
     hierarchy = HierarchyResult(
-        id="space:population__hierarchical",
-        input_kind="space",
-        input_key="population",
+        id="mod:population__hierarchical",
+        input_mod="population",
         method="hierarchical",
         axis="bicluster",
         obs_labels=pd.Series(["left", "right"], index=dataset_ids),
         obs_leaf_order=list(dataset_ids),
-        entity_leaf_order=["B cell", "T cell"],
+        var_leaf_order=["B cell", "T cell"],
     )
 
     dataset = Dataset(
         adata,
         dataset_col="sample_id",
         obs_columns=["condition"],
-        spaces={"population": population},
+        mod={"population": population},
         relations={"similarity": relation},
         hierarchies={hierarchy.id: hierarchy},
         provenance={"source": "unit-test"},
     )
 
     assert isinstance(dataset, CelldegaCollection)
+    assert isinstance(dataset.mdata, MuData)
     assert dataset.collection_type == "dataset"
-    assert list(dataset.spaces["population"].obs_names) == list(dataset.obs.index)
+    assert list(dataset.mod["population"].obs_names) == list(dataset.obs.index)
     assert dataset.relations["similarity"].shape == (2, 2)
-    assert dataset.hierarchies[hierarchy.id].source_key == "space:population"
-    assert dataset.hierarchies[hierarchy.id].axis == "bicluster"
-    assert dataset.hierarchies[hierarchy.id].entity_leaf_order == ["B cell", "T cell"]
+    assert dataset.hierarchies[hierarchy.id]["input_mod"] == "population"
+    assert dataset.hierarchies[hierarchy.id]["axis"] == "bicluster"
+    assert dataset.hierarchies[hierarchy.id]["var_leaf_order"] == ["B cell", "T cell"]
     assert dataset.neighborhood_collections == {}
 
 
-def test_neighborhood_collection_holds_geometry_spaces_relations_and_memberships():
+def test_neighborhood_collection_holds_geometry_modalities_relations_and_memberships():
     obs = pd.DataFrame(
         {
             "sample_id": ["sample_001", "sample_001"],
@@ -81,14 +82,15 @@ def test_neighborhood_collection_holds_geometry_spaces_relations_and_memberships
     collection = NeighborhoodCollection(
         obs=obs,
         geometry=geometry,
-        spaces={"gene": gene},
+        mod={"gene": gene},
         relations={"bordering": bordering},
         memberships={"cell_to_neighborhood": cell_membership},
     )
 
     assert collection.collection_type == "neighborhood"
+    assert isinstance(collection.mdata, MuData)
     assert list(collection.geometry.index) == list(obs.index)
-    assert list(collection.spaces["gene"].obs_names) == list(obs.index)
+    assert list(collection.mod["gene"].obs_names) == list(obs.index)
     assert collection.relations["bordering"].shape == (2, 2)
     assert collection.memberships["cell_to_neighborhood"].shape == (3, 2)
 
@@ -111,7 +113,7 @@ def test_dataset_can_link_neighborhood_collections():
     assert dataset.neighborhood_collections["manual_regions"] is neighborhoods
 
 
-def test_from_adata_attaches_population_space():
+def test_from_adata_attaches_population_modality():
     adata = AnnData(X=np.ones((4, 1)))
     adata.obs["sample_id"] = ["s1", "s1", "s2", "s2"]
     adata.obs["patient_id"] = ["p1", "p1", "p2", "p2"]
@@ -127,11 +129,11 @@ def test_from_adata_attaches_population_space():
     assert isinstance(dataset, Dataset)
     assert list(dataset.obs.index) == ["s1", "s2"]
     assert dataset.obs.loc["s1", "patient_id"] == "p1"
-    assert "population" in dataset.spaces
-    assert list(dataset.spaces["population"].obs_names) == ["s1", "s2"]
+    assert "population" in dataset.mod
+    assert list(dataset.mod["population"].obs_names) == ["s1", "s2"]
 
 
-def test_dataset_helper_constructs_population_space():
+def test_dataset_helper_constructs_population_modality():
     adata = AnnData(X=np.ones((4, 1)))
     adata.obs["sample_id"] = ["s1", "s1", "s2", "s2"]
     adata.obs["condition"] = ["a", "a", "b", "b"]
@@ -141,9 +143,42 @@ def test_dataset_helper_constructs_population_space():
     population = dataset.construct_population_space(category="cell_type", output="counts")
 
     assert dataset.obs.loc["s1", "condition"] == "a"
-    assert dataset.spaces["population"] is population
+    assert dataset.mod["population"] is population
     assert list(population.obs_names) == ["s1", "s2"]
+    assert list(population.var["entity_type"]) == ["cell_population", "cell_population"]
     np.testing.assert_array_equal(population.X, np.array([[1, 1], [2, 0]]))
+
+
+def test_dataset_write_read_round_trips_mudata(tmp_path):
+    adata = AnnData(X=np.ones((4, 1)))
+    adata.obs["sample_id"] = ["s1", "s1", "s2", "s2"]
+    adata.obs["condition"] = ["a", "a", "b", "b"]
+    adata.obs["cell_type"] = ["T", "B", "B", "B"]
+
+    dataset = Dataset(adata, dataset_col="sample_id", obs_columns=["condition"])
+    dataset.construct_population_space(category="cell_type", output="counts")
+    dataset.relations["similarity"] = sparse.csr_matrix([[1.0, 0.2], [0.2, 1.0]])
+    dataset.add_hierarchy(
+        HierarchyResult(
+            id="mod:population__hierarchical",
+            input_mod="population",
+            method="hierarchical",
+            axis="bicluster",
+            obs_leaf_order=["s1", "s2"],
+            var_leaf_order=["B", "T"],
+        )
+    )
+
+    path = tmp_path / "dataset.h5mu"
+    dataset.write(path)
+    loaded = Dataset.read(path)
+
+    assert isinstance(loaded.mdata, MuData)
+    assert list(loaded.obs.index) == ["s1", "s2"]
+    assert list(loaded.mod) == ["population"]
+    assert loaded.relations["similarity"].shape == (2, 2)
+    assert loaded.hierarchies["mod:population__hierarchical"]["input_mod"] == "population"
+    np.testing.assert_array_equal(loaded.mod["population"].X, np.array([[1, 1], [2, 0]]))
 
 
 def test_dataset_methods_are_not_exposed_at_package_root():
@@ -158,5 +193,6 @@ def test_dataset_methods_are_not_exposed_at_package_root():
     assert not hasattr(dataset_module, "calc_dataset_by_pop")
     assert not hasattr(dataset_module, "construct_population_space")
     assert not hasattr(dataset_module, "read")
-    assert not hasattr(Dataset, "write")
+    assert hasattr(Dataset, "write")
+    assert not hasattr(Dataset(obs=pd.DataFrame(index=["s1"])), "spaces")
     assert importlib.util.find_spec("celldega.datasets") is None

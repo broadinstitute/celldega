@@ -13,7 +13,7 @@ from celldega.collections import CelldegaCollection
 
 
 __all__ = [
-    "Dataset",
+    "DatasetCollection",
     "from_adata",
 ]
 
@@ -106,11 +106,11 @@ def _dataset_obs_from_adata(
     return dataset_obs
 
 
-class Dataset(CelldegaCollection):
+class DatasetCollection(CelldegaCollection):
     """Dataset-level collection with convenience modality constructors.
 
-    ``Dataset`` is the dataset-level Celldega collection. Its ``obs`` table is
-    the canonical dataset/sample axis, and feature constructors attach
+    ``DatasetCollection`` is the dataset-level Celldega collection. Its ``obs``
+    table is the canonical dataset/sample axis, and feature constructors attach
     clusterable ``AnnData`` modalities directly to ``self.mod``.
     """
 
@@ -291,14 +291,14 @@ def from_adata(
     min_cells: int = 1,
     provenance: dict[str, Any] | None = None,
     uns: dict[str, Any] | None = None,
-) -> Dataset:
-    """Create a ``Dataset`` from cell-level AnnData metadata.
+) -> DatasetCollection:
+    """Create a ``DatasetCollection`` from cell-level AnnData metadata.
 
     This constructor builds the canonical dataset ``obs`` table. When
     ``population_category`` is provided, it also attaches a dataset-by-population
     space under ``population_key``.
     """
-    dataset = Dataset(
+    dataset = DatasetCollection(
         adata,
         dataset_col=dataset_col,
         obs_columns=obs_columns,

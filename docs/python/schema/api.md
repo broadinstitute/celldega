@@ -43,18 +43,18 @@ assert collection.mod["similarity_relation"] is relation_mod
 
 ## Dataset
 
-`dega.dataset.Dataset` observations are datasets, samples, tissue sections,
-patients, or other dataset-level units. Dataset-level feature spaces are MuData
-modalities such as `population`, `expression`, `image`, `clinical`, and
-`joint`.
+`dega.dataset.DatasetCollection` observations are datasets, samples, tissue
+sections, patients, or other dataset-level units. Dataset-level feature spaces
+are MuData modalities such as `population`, `expression`, `image`, `clinical`,
+and `joint`.
 
-Use `dega.dataset.Dataset(...).construct_population_space(...)` to construct
-and attach a dataset-level population modality:
+Use `dega.dataset.DatasetCollection(...).construct_population_space(...)` to
+construct and attach a dataset-level population modality:
 
 ```python
 import celldega as dega
 
-dataset = dega.dataset.Dataset(
+dataset = dega.dataset.DatasetCollection(
     adata,
     dataset_col="sample_id",
 )
@@ -68,7 +68,7 @@ Collections write through MuData:
 
 ```python
 dataset.write("dataset.h5mu")
-loaded = dega.dataset.Dataset.read("dataset.h5mu")
+loaded = dega.dataset.DatasetCollection.read("dataset.h5mu")
 ```
 
 ## Hierarchies
@@ -115,10 +115,25 @@ Recommended relations include `adjacency`, `bordering`, `overlap`, `distance`,
 `gene_knn`, `population_knn`, and `image_knn`. Use `bordering` for
 shared-boundary relationships.
 
-`NBHD` owns a `NeighborhoodCollection` under `nbhd.collection` and attaches
-feature modalities and sparse relations with methods such as
-`construct_gene_space`, `construct_population_space`, `construct_image_space`,
-`construct_overlap_relation`, and `construct_bordering_relation`.
+`NeighborhoodCollection` can be constructed directly from a neighborhood
+GeoDataFrame and cell-level AnnData, then used to attach a population modality:
+
+```python
+nbhd = dega.nbhd.NeighborhoodCollection(
+    gdf=gdf_hex,
+    nbhd_type="hextile",
+    adata=adata,
+)
+population = nbhd.construct_population_space(category="cell_type")
+
+assert nbhd.mod["population"] is population
+```
+
+The legacy `NBHD` helper still owns a `NeighborhoodCollection` under
+`nbhd.collection` and attaches feature modalities and sparse relations with
+methods such as `construct_gene_space`, `construct_population_space`,
+`construct_image_space`, `construct_overlap_relation`, and
+`construct_bordering_relation`.
 
 Geometry is kept as a live `GeoDataFrame` on `NeighborhoodCollection.geometry`
 for now. Durable geometry storage can be added later with WKB columns or

@@ -284,6 +284,8 @@ def _collection_from_gdf(
     return NeighborhoodCollection(
         obs=obs,
         geometry=geometry,
+        nbhd_type=nbhd_type,
+        nbhd_col=resolved_nbhd_col,
         provenance=provenance or {},
         uns=uns or {},
     )

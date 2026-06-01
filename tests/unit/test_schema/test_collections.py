@@ -13,7 +13,7 @@ from celldega.collections import (
     HierarchyResult,
     NeighborhoodCollection,
 )
-from celldega.dataset import Dataset, from_adata
+from celldega.dataset import DatasetCollection, from_adata
 
 
 def test_dataset_holds_aligned_modalities_relations_and_hierarchies():
@@ -38,7 +38,7 @@ def test_dataset_holds_aligned_modalities_relations_and_hierarchies():
         var_linkage_matrix=np.array([[0.0, 1.0, 0.5, 2.0]]),
     )
 
-    dataset = Dataset(
+    dataset = DatasetCollection(
         adata,
         dataset_col="sample_id",
         obs_columns=["condition"],
@@ -103,7 +103,7 @@ def test_neighborhood_collection_holds_geometry_modalities_relations_and_members
 def test_relation_can_be_materialized_as_clusterable_modality():
     obs = pd.DataFrame(index=pd.Index(["sample_001", "sample_002"], name="sample_id"))
     relation = sparse.csr_matrix([[1.0, 0.2], [0.2, 1.0]])
-    dataset = Dataset(obs=obs, relations={"similarity": relation})
+    dataset = DatasetCollection(obs=obs, relations={"similarity": relation})
 
     relation_mod = dataset.add_relation_modality("similarity")
 
@@ -125,7 +125,7 @@ def test_dataset_can_link_neighborhood_collections():
     )
     neighborhoods = NeighborhoodCollection(obs=neighborhood_obs)
 
-    dataset = Dataset(
+    dataset = DatasetCollection(
         adata,
         dataset_col="sample_id",
         neighborhood_collections={"manual_regions": neighborhoods},
@@ -147,7 +147,7 @@ def test_from_adata_attaches_population_modality():
         population_category="cell_type",
     )
 
-    assert isinstance(dataset, Dataset)
+    assert isinstance(dataset, DatasetCollection)
     assert list(dataset.obs.index) == ["s1", "s2"]
     assert dataset.obs.loc["s1", "patient_id"] == "p1"
     assert "population" in dataset.mod
@@ -160,7 +160,7 @@ def test_dataset_helper_constructs_population_modality():
     adata.obs["condition"] = ["a", "a", "b", "b"]
     adata.obs["cell_type"] = ["T", "B", "B", "B"]
 
-    dataset = Dataset(adata, dataset_col="sample_id", obs_columns=["condition"])
+    dataset = DatasetCollection(adata, dataset_col="sample_id", obs_columns=["condition"])
     population = dataset.construct_population_space(category="cell_type", output="counts")
 
     assert dataset.obs.loc["s1", "condition"] == "a"
@@ -176,7 +176,7 @@ def test_dataset_write_read_round_trips_mudata(tmp_path):
     adata.obs["condition"] = ["a", "a", "b", "b"]
     adata.obs["cell_type"] = ["T", "B", "B", "B"]
 
-    dataset = Dataset(adata, dataset_col="sample_id", obs_columns=["condition"])
+    dataset = DatasetCollection(adata, dataset_col="sample_id", obs_columns=["condition"])
     dataset.construct_population_space(category="cell_type", output="counts")
     dataset.relations["similarity"] = sparse.csr_matrix([[1.0, 0.2], [0.2, 1.0]])
     dataset.add_hierarchy(
@@ -194,7 +194,7 @@ def test_dataset_write_read_round_trips_mudata(tmp_path):
 
     path = tmp_path / "dataset.h5mu"
     dataset.write(path)
-    loaded = Dataset.read(path)
+    loaded = DatasetCollection.read(path)
 
     assert isinstance(loaded.mdata, MuData)
     assert list(loaded.obs.index) == ["s1", "s2"]
@@ -216,10 +216,13 @@ def test_dataset_methods_are_not_exposed_at_package_root():
     assert not hasattr(dega, "calc_dataset_by_pop")
     assert not hasattr(dega, "construct_population_space")
     assert not hasattr(dega, "from_adata")
-    assert not hasattr(dega, "DatasetCollection")
+    assert hasattr(dega, "DatasetCollection")
+    assert not hasattr(dega, "Dataset")
     assert not hasattr(dataset_module, "calc_dataset_by_pop")
     assert not hasattr(dataset_module, "construct_population_space")
     assert not hasattr(dataset_module, "read")
-    assert hasattr(Dataset, "write")
-    assert not hasattr(Dataset(obs=pd.DataFrame(index=["s1"])), "spaces")
+    assert not hasattr(dataset_module, "Dataset")
+    assert hasattr(dataset_module, "DatasetCollection")
+    assert hasattr(DatasetCollection, "write")
+    assert not hasattr(DatasetCollection(obs=pd.DataFrame(index=["s1"])), "spaces")
     assert importlib.util.find_spec("celldega.datasets") is None

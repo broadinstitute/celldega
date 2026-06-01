@@ -200,6 +200,53 @@ def _coerce_linkage_matrix(linkage_matrix: Any | None) -> np.ndarray | None:
     return linkage
 
 
+def _resolve_neighborhood_col(gdf: gpd.GeoDataFrame, nbhd_col: str = "name") -> str:
+    if nbhd_col in gdf.columns:
+        return nbhd_col
+    for candidate in ("neighborhood_id", "nbhd_id"):
+        if candidate in gdf.columns:
+            return candidate
+    raise ValueError(
+        f"gdf must include '{nbhd_col}', 'neighborhood_id', or 'nbhd_id' to identify neighborhoods"
+    )
+
+
+def _neighborhood_obs_geometry_from_gdf(
+    gdf: gpd.GeoDataFrame,
+    nbhd_type: str,
+    nbhd_col: str = "name",
+) -> tuple[pd.DataFrame, gpd.GeoDataFrame, str]:
+    resolved_nbhd_col = _resolve_neighborhood_col(gdf, nbhd_col)
+    geometry = gdf.copy()
+    geometry.index = geometry[resolved_nbhd_col].astype(str)
+
+    if not geometry.index.is_unique:
+        raise ValueError(f"Neighborhood IDs in '{resolved_nbhd_col}' must be unique")
+
+    obs = pd.DataFrame(geometry.drop(columns="geometry", errors="ignore"))
+    obs.index = geometry.index.copy()
+    obs.index.name = "neighborhood_id"
+
+    if "neighborhood_id" not in obs.columns:
+        obs.insert(0, "neighborhood_id", obs.index)
+    if "neighborhood_type" not in obs.columns:
+        obs["neighborhood_type"] = nbhd_type
+    if "method" not in obs.columns:
+        obs["method"] = nbhd_type
+
+    geom = geometry.geometry
+    if "area" not in obs.columns:
+        obs["area"] = geom.area
+    if "area_um2" not in obs.columns:
+        obs["area_um2"] = geom.area
+    if "centroid_x" not in obs.columns:
+        obs["centroid_x"] = geom.centroid.x
+    if "centroid_y" not in obs.columns:
+        obs["centroid_y"] = geom.centroid.y
+
+    return obs, geometry, resolved_nbhd_col
+
+
 class CelldegaCollection:
     """Base Celldega collection profile backed by ``MuData``.
 
@@ -402,6 +449,15 @@ class NeighborhoodCollection(CelldegaCollection):
         obs: pd.DataFrame | None = None,
         mod: dict[str, AnnData] | None = None,
         mdata: MuData | None = None,
+        gdf: gpd.GeoDataFrame | None = None,
+        nbhd_type: str | None = None,
+        adata: AnnData | None = None,
+        data_dir: str | None = None,
+        path_landscape_files: str | None = None,
+        source: str | dict[str, Any] | None = None,
+        name: str | None = None,
+        meta: dict[str, Any] | None = None,
+        nbhd_col: str = "name",
         geometry: gpd.GeoDataFrame | None = None,
         relations: dict[str, sparse.spmatrix] | None = None,
         hierarchies: dict[str, HierarchyResult | dict[str, Any]] | None = None,
@@ -409,16 +465,93 @@ class NeighborhoodCollection(CelldegaCollection):
         uns: dict[str, Any] | None = None,
         memberships: dict[str, sparse.spmatrix] | None = None,
     ) -> None:
+        if gdf is not None:
+            if obs is not None:
+                raise ValueError("obs cannot be provided when gdf is provided")
+            if geometry is not None:
+                raise ValueError("geometry cannot be provided separately when gdf is provided")
+            resolved_nbhd_type = nbhd_type or "neighborhood"
+            obs, geometry, nbhd_col = _neighborhood_obs_geometry_from_gdf(
+                gdf,
+                nbhd_type=resolved_nbhd_type,
+                nbhd_col=nbhd_col,
+            )
+            self.gdf = geometry.copy()
+        else:
+            resolved_nbhd_type = nbhd_type or "neighborhood"
+            self.gdf = geometry.copy() if geometry is not None else None
+
+        self.nbhd_type = resolved_nbhd_type
+        self.adata = adata
+        self.data_dir = data_dir
+        self.path_landscape_files = path_landscape_files
+        self.source = source
+        self.name = name
+        self.meta = meta or {}
+        self.nbhd_col = nbhd_col
         self.geometry = geometry
         self.memberships = memberships or {}
+
+        collection_provenance = {"source": source} if source is not None else {}
+        collection_provenance.update(provenance or {})
+        collection_uns = {"name": name, **self.meta}
+        collection_uns.update(uns or {})
+
         super().__init__(
             obs=obs,
             mod=mod,
             mdata=mdata,
             relations=relations,
             hierarchies=hierarchies,
-            provenance=provenance,
-            uns=uns,
+            provenance=collection_provenance,
+            uns=collection_uns,
             collection_type="neighborhood",
             obs_entity_type="neighborhood",
         )
+
+    @classmethod
+    def from_gdf(
+        cls,
+        gdf: gpd.GeoDataFrame,
+        nbhd_type: str = "neighborhood",
+        **kwargs: Any,
+    ) -> NeighborhoodCollection:
+        """Create a ``NeighborhoodCollection`` from a neighborhood GeoDataFrame."""
+        return cls(gdf=gdf, nbhd_type=nbhd_type, **kwargs)
+
+    @property
+    def neighborhood_collection(self) -> NeighborhoodCollection:
+        """Return ``self`` for API symmetry with legacy neighborhood helpers."""
+        return self
+
+    def to_collection(self) -> NeighborhoodCollection:
+        """Return ``self``."""
+        return self
+
+    def construct_population_space(
+        self,
+        category: str = "leiden",
+        key: str = "population",
+        min_cells: int = 5,
+        output: str = "percentage",
+        adata: AnnData | None = None,
+    ) -> AnnData:
+        """Construct and attach a neighborhood-by-population modality."""
+        source_adata = adata if adata is not None else self.adata
+        if source_adata is None:
+            raise ValueError("adata is required to construct a population space")
+        if self.gdf is None:
+            raise ValueError("gdf or geometry is required to construct a population space")
+
+        from celldega.nbhd.neighborhoods import _align_space_to_collection, calc_nbhd_by_pop
+
+        space = calc_nbhd_by_pop(
+            source_adata,
+            self.gdf,
+            category=category,
+            nbhd_col=self.nbhd_col,
+            min_cells=min_cells,
+            output=output,
+        )
+        space = _align_space_to_collection(space, self)
+        return self.add_mod(key, space, entity_type="cell_population")

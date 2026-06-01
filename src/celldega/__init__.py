@@ -7,6 +7,7 @@ from celldega.collections import (
     HierarchyResult,
     NeighborhoodCollection,
 )
+from celldega.dataset import DatasetCollection
 from celldega.nbhd import alpha_shape
 from celldega.pre import landscape
 from celldega.qc import qc_segmentation
@@ -23,6 +24,7 @@ except importlib.metadata.PackageNotFoundError:
 __all__ = [
     "CelldegaCollection",
     "Clustergram",
+    "DatasetCollection",
     "HierarchyResult",
     "Landscape",
     "NeighborhoodCollection",

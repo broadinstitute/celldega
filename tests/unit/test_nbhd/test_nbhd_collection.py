@@ -30,6 +30,7 @@ sys.modules["celldega.nbhd.neighborhoods"] = neighborhoods
 spec.loader.exec_module(neighborhoods)
 
 NBHD = neighborhoods.NBHD
+from celldega.collections import NeighborhoodCollection
 
 
 def _synthetic_nbhd_inputs():
@@ -91,6 +92,23 @@ def test_nbhd_modality_constructors_attach_aligned_modalities():
     assert list(gene.obs_names) == ["A", "B"]
     assert list(population.obs_names) == ["A", "B"]
     np.testing.assert_allclose(gene.X, np.array([[0.5, 1.0], [3.0, 1.0]]))
+    np.testing.assert_array_equal(population.X, np.array([[1, 1], [0, 1]]))
+
+
+def test_neighborhood_collection_constructs_population_modality_directly():
+    gdf, adata = _synthetic_nbhd_inputs()
+    collection = NeighborhoodCollection(gdf=gdf, nbhd_type="manual", adata=adata)
+
+    population = collection.construct_population_space(min_cells=1, output="counts")
+
+    assert collection.to_collection() is collection
+    assert collection.mod["population"] is population
+    assert collection.nbhd_type == "manual"
+    assert list(population.obs_names) == ["A", "B"]
+    assert list(population.var["entity_type"]) == [
+        "cell_population",
+        "cell_population",
+    ]
     np.testing.assert_array_equal(population.X, np.array([[1, 1], [0, 1]]))
 
 

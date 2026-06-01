@@ -9,6 +9,8 @@ dist
 .DS_Store
 # So that notebooks are only included _intentionally_
 *.ipynb
+!docs/examples/brief_notebooks/DatasetCollection_Population_Space.ipynb
+!docs/examples/brief_notebooks/NeighborhoodCollection_Population_Space.ipynb
 .cache
 site
 secret_*

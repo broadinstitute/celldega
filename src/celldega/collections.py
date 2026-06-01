@@ -56,12 +56,12 @@ class HierarchyResult:
             when both axes are clustered.
         params: Method parameters.
         preprocessing: Preprocessing steps used before clustering.
-        obs_labels: Optional observation-level labels indexed by observation ID.
         obs_leaf_order: Optional ordered list of observation IDs.
-        obs_linkage_matrix: Optional observation-axis linkage/tree payload.
-        var_labels: Optional feature/entity-level labels indexed by variable ID.
+        obs_linkage_matrix: Optional observation-axis SciPy linkage matrix with
+            shape ``(n_obs - 1, 4)``.
         var_leaf_order: Optional ordered list of feature/entity IDs.
-        var_linkage_matrix: Optional feature/entity-axis linkage/tree payload.
+        var_linkage_matrix: Optional feature/entity-axis SciPy linkage matrix
+            with shape ``(n_vars - 1, 4)``.
         provenance: Free-form provenance metadata for this result.
         uns: Free-form method-specific metadata.
     """
@@ -75,10 +75,8 @@ class HierarchyResult:
     params: dict[str, Any] = field(default_factory=dict)
     preprocessing: dict[str, Any] = field(default_factory=dict)
 
-    obs_labels: pd.Series | None = None
     obs_leaf_order: list[str] | None = None
     obs_linkage_matrix: Any | None = None
-    var_labels: pd.Series | None = None
     var_leaf_order: list[str] | None = None
     var_linkage_matrix: Any | None = None
 
@@ -97,7 +95,12 @@ class HierarchyResult:
         return "unknown"
 
     def to_dict(self) -> dict[str, Any]:
-        """Return a MuData-serializable hierarchy registry payload."""
+        """Return a MuData-serializable hierarchy registry payload.
+
+        Hierarchical state is stored as plain SciPy-compatible linkage matrices
+        under ``obs_linkage`` and ``var_linkage``. Flat cluster labels should be
+        mirrored to ``obs`` or modality ``var`` instead of stored here.
+        """
         payload: dict[str, Any] = {
             "id": self.id,
             "method": self.method,
@@ -111,15 +114,11 @@ class HierarchyResult:
             "input_mod": self.input_mod,
             "input_relation": self.input_relation,
             "obs_leaf_order": self.obs_leaf_order,
-            "obs_linkage": self.obs_linkage_matrix,
+            "obs_linkage": _coerce_linkage_matrix(self.obs_linkage_matrix),
             "var_leaf_order": self.var_leaf_order,
-            "var_linkage": self.var_linkage_matrix,
+            "var_linkage": _coerce_linkage_matrix(self.var_linkage_matrix),
         }
         payload.update({key: value for key, value in optional.items() if value is not None})
-        if self.obs_labels is not None:
-            payload["obs_labels"] = self.obs_labels.astype(str).to_dict()
-        if self.var_labels is not None:
-            payload["var_labels"] = self.var_labels.astype(str).to_dict()
         return payload
 
 
@@ -181,7 +180,24 @@ def _align_mod_to_obs(adata: AnnData, obs: pd.DataFrame) -> AnnData:
 def _coerce_hierarchy(value: HierarchyResult | dict[str, Any]) -> dict[str, Any]:
     if isinstance(value, HierarchyResult):
         return value.to_dict()
-    return dict(value)
+    payload = dict(value)
+    if "obs_linkage" in payload:
+        payload["obs_linkage"] = _coerce_linkage_matrix(payload["obs_linkage"])
+    if "var_linkage" in payload:
+        payload["var_linkage"] = _coerce_linkage_matrix(payload["var_linkage"])
+    return payload
+
+
+def _coerce_linkage_matrix(linkage_matrix: Any | None) -> np.ndarray | None:
+    if linkage_matrix is None:
+        return None
+
+    linkage = np.asarray(linkage_matrix, dtype=float)
+    if linkage.size == 0:
+        return linkage.reshape((0, 4))
+    if linkage.ndim != 2 or linkage.shape[1] != 4:
+        raise ValueError("linkage matrices must have shape (n - 1, 4)")
+    return linkage
 
 
 class CelldegaCollection:
@@ -317,6 +333,49 @@ class CelldegaCollection:
         _with_mudata_warnings_suppressed(self.mdata.update)
         self.mdata.obs = obs
         return self.mdata.mod[key]
+
+    def add_relation_modality(
+        self,
+        relation_key: str,
+        key: str | None = None,
+        entity_type: str | None = None,
+    ) -> AnnData:
+        """Materialize a square observation relation as a clusterable modality.
+
+        Relations belong canonically in ``mdata.obsp``. Use this method when a
+        workflow needs the relation matrix to be an ``AnnData.X`` matrix, such
+        as Matrix-style heatmap clustering of an observation-by-observation
+        similarity or distance matrix.
+        """
+        if relation_key not in self.relations:
+            raise KeyError(f"relation '{relation_key}' not found")
+
+        relation = self.relations[relation_key]
+        if relation.shape != (len(self.obs), len(self.obs)):
+            raise ValueError(
+                f"relation '{relation_key}' must have shape "
+                f"({len(self.obs)}, {len(self.obs)})"
+            )
+
+        X = relation.copy() if sparse.issparse(relation) else np.asarray(relation).copy()
+        var = pd.DataFrame(index=self.obs.index.copy())
+        var.index.name = self.obs.index.name
+        var["related_obs_id"] = var.index.astype(str)
+
+        resolved_entity_type = entity_type or str(
+            self.uns.get("obs_entity_type", "observation")
+        )
+        adata = AnnData(
+            X=X,
+            obs=self.obs.copy(),
+            var=var,
+            uns={"feature_type": "relation", "relation_key": relation_key},
+        )
+        return self.add_mod(
+            key or f"{relation_key}_relation",
+            adata,
+            entity_type=resolved_entity_type,
+        )
 
     def add_hierarchy(self, hierarchy: HierarchyResult | dict[str, Any]) -> dict[str, Any]:
         """Add hierarchy metadata to the Celldega registry."""

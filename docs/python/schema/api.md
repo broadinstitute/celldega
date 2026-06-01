@@ -31,6 +31,16 @@ its `var` table describes the local feature/entity axis. Celldega stores the
 global row entity type in `mdata.uns["celldega"]["obs_entity_type"]` and stores
 modality-local entity types in `mdata.mod[name].var["entity_type"]`.
 
+Observation relations should live canonically in `mdata.obsp`. This is the
+right native location for graph-like or distance-like observation pairs. When a
+workflow needs to treat a square relation matrix as `AnnData.X` for heatmap or
+Matrix-style clustering, materialize it as a modality:
+
+```python
+relation_mod = collection.add_relation_modality("similarity")
+assert collection.mod["similarity_relation"] is relation_mod
+```
+
 ## Dataset
 
 `dega.dataset.Dataset` observations are datasets, samples, tissue sections,
@@ -71,6 +81,8 @@ MuData source they came from, such as `input_mod="population"` or
 Hierarchical biclustering can store both axes:
 
 ```python
+import numpy as np
+
 dataset.add_hierarchy(
     dega.HierarchyResult(
         id="mod:population__hierarchical",
@@ -78,13 +90,17 @@ dataset.add_hierarchy(
         method="hierarchical",
         axis="bicluster",
         obs_leaf_order=["sample_1", "sample_2"],
+        obs_linkage_matrix=np.array([[0, 1, 0.3, 2]]),
         var_leaf_order=["B cell", "T cell"],
+        var_linkage_matrix=np.array([[0, 1, 0.5, 2]]),
     )
 )
 ```
 
-Flat cluster assignments, such as Leiden labels, should usually live as columns
-in `collection.obs`. Method metadata for those labels can live in
+Linkage payloads are stored as plain SciPy-compatible `(n - 1, 4)` arrays under
+`obs_linkage` and `var_linkage`. Flat cluster assignments, such as Leiden
+labels, should usually live as columns in `collection.obs` or in the relevant
+modality `var` table. Method metadata for those labels can live in
 `collection.uns` or `collection.provenance`.
 
 ## NeighborhoodCollection

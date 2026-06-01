@@ -32,9 +32,10 @@ def test_dataset_holds_aligned_modalities_relations_and_hierarchies():
         input_mod="population",
         method="hierarchical",
         axis="bicluster",
-        obs_labels=pd.Series(["left", "right"], index=dataset_ids),
         obs_leaf_order=list(dataset_ids),
+        obs_linkage_matrix=np.array([[0.0, 1.0, 0.3, 2.0]]),
         var_leaf_order=["B cell", "T cell"],
+        var_linkage_matrix=np.array([[0.0, 1.0, 0.5, 2.0]]),
     )
 
     dataset = Dataset(
@@ -55,6 +56,10 @@ def test_dataset_holds_aligned_modalities_relations_and_hierarchies():
     assert dataset.hierarchies[hierarchy.id]["input_mod"] == "population"
     assert dataset.hierarchies[hierarchy.id]["axis"] == "bicluster"
     assert dataset.hierarchies[hierarchy.id]["var_leaf_order"] == ["B cell", "T cell"]
+    np.testing.assert_array_equal(
+        dataset.hierarchies[hierarchy.id]["obs_linkage"],
+        np.array([[0.0, 1.0, 0.3, 2.0]]),
+    )
     assert dataset.neighborhood_collections == {}
 
 
@@ -93,6 +98,22 @@ def test_neighborhood_collection_holds_geometry_modalities_relations_and_members
     assert list(collection.mod["gene"].obs_names) == list(obs.index)
     assert collection.relations["bordering"].shape == (2, 2)
     assert collection.memberships["cell_to_neighborhood"].shape == (3, 2)
+
+
+def test_relation_can_be_materialized_as_clusterable_modality():
+    obs = pd.DataFrame(index=pd.Index(["sample_001", "sample_002"], name="sample_id"))
+    relation = sparse.csr_matrix([[1.0, 0.2], [0.2, 1.0]])
+    dataset = Dataset(obs=obs, relations={"similarity": relation})
+
+    relation_mod = dataset.add_relation_modality("similarity")
+
+    assert dataset.mod["similarity_relation"] is relation_mod
+    assert relation_mod.shape == (2, 2)
+    assert list(relation_mod.obs_names) == ["sample_001", "sample_002"]
+    assert list(relation_mod.var_names) == ["sample_001", "sample_002"]
+    assert list(relation_mod.var["entity_type"]) == ["dataset", "dataset"]
+    assert relation_mod.uns["relation_key"] == "similarity"
+    np.testing.assert_array_equal(relation_mod.X.toarray(), relation.toarray())
 
 
 def test_dataset_can_link_neighborhood_collections():
@@ -165,7 +186,9 @@ def test_dataset_write_read_round_trips_mudata(tmp_path):
             method="hierarchical",
             axis="bicluster",
             obs_leaf_order=["s1", "s2"],
+            obs_linkage_matrix=np.array([[0.0, 1.0, 0.3, 2.0]]),
             var_leaf_order=["B", "T"],
+            var_linkage_matrix=np.array([[0.0, 1.0, 0.5, 2.0]]),
         )
     )
 
@@ -178,6 +201,10 @@ def test_dataset_write_read_round_trips_mudata(tmp_path):
     assert list(loaded.mod) == ["population"]
     assert loaded.relations["similarity"].shape == (2, 2)
     assert loaded.hierarchies["mod:population__hierarchical"]["input_mod"] == "population"
+    np.testing.assert_array_equal(
+        loaded.hierarchies["mod:population__hierarchical"]["obs_linkage"],
+        np.array([[0.0, 1.0, 0.3, 2.0]]),
+    )
     np.testing.assert_array_equal(loaded.mod["population"].X, np.array([[1, 1], [2, 0]]))
 
 

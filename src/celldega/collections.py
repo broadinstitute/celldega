@@ -238,9 +238,7 @@ class CelldegaCollection:
             obs = obs.copy()
             obs.index = obs.index.astype(str)
             if mod:
-                aligned_mod = {
-                    key: _align_mod_to_obs(adata, obs) for key, adata in mod.items()
-                }
+                aligned_mod = {key: _align_mod_to_obs(adata, obs) for key, adata in mod.items()}
                 self.mdata = _create_mudata(aligned_mod)
                 self.mdata.obs = obs.copy()
             else:
@@ -353,8 +351,7 @@ class CelldegaCollection:
         relation = self.relations[relation_key]
         if relation.shape != (len(self.obs), len(self.obs)):
             raise ValueError(
-                f"relation '{relation_key}' must have shape "
-                f"({len(self.obs)}, {len(self.obs)})"
+                f"relation '{relation_key}' must have shape ({len(self.obs)}, {len(self.obs)})"
             )
 
         X = relation.copy() if sparse.issparse(relation) else np.asarray(relation).copy()
@@ -362,9 +359,7 @@ class CelldegaCollection:
         var.index.name = self.obs.index.name
         var["related_obs_id"] = var.index.astype(str)
 
-        resolved_entity_type = entity_type or str(
-            self.uns.get("obs_entity_type", "observation")
-        )
+        resolved_entity_type = entity_type or str(self.uns.get("obs_entity_type", "observation"))
         adata = AnnData(
             X=X,
             obs=self.obs.copy(),

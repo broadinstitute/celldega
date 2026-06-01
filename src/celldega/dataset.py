@@ -29,11 +29,7 @@ def _category_colors(adata: AnnData, category: str) -> dict[str, str]:
     else:
         src_categories = list(adata.obs[category].unique().astype(str))
 
-    return {
-        str(cat): src_colors[i]
-        for i, cat in enumerate(src_categories)
-        if i < len(src_colors)
-    }
+    return {str(cat): src_colors[i] for i, cat in enumerate(src_categories) if i < len(src_colors)}
 
 
 def _align_mod_to_dataset(adata: AnnData, dataset: CelldegaCollection) -> AnnData:
@@ -74,9 +70,7 @@ def _resolve_dataset_col(dataset: CelldegaCollection, dataset_col: str | None) -
         return "sample_id"
     if "dataset_id" in dataset.obs.columns:
         return "dataset_id"
-    raise ValueError(
-        "dataset_col must be provided when it cannot be inferred from the dataset"
-    )
+    raise ValueError("dataset_col must be provided when it cannot be inferred from the dataset")
 
 
 def _dataset_obs_from_adata(
@@ -281,12 +275,8 @@ def _population_space_from_adata(
     color_dict = _category_colors(adata, category)
     if color_dict:
         color_key = f"{category}_colors"
-        adata_pop.var["color"] = [
-            color_dict.get(str(c), "#808080") for c in adata_pop.var_names
-        ]
-        adata_pop.uns[color_key] = [
-            color_dict.get(str(c), "#808080") for c in adata_pop.var_names
-        ]
+        adata_pop.var["color"] = [color_dict.get(str(c), "#808080") for c in adata_pop.var_names]
+        adata_pop.uns[color_key] = [color_dict.get(str(c), "#808080") for c in adata_pop.var_names]
 
     return adata_pop
 

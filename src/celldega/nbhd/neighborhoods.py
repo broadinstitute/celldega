@@ -242,8 +242,7 @@ def _resolve_nbhd_col(gdf: gpd.GeoDataFrame, nbhd_col: str = "name") -> str:
             return candidate
 
     raise ValueError(
-        f"gdf must include '{nbhd_col}', 'neighborhood_id', or 'nbhd_id' "
-        "to identify neighborhoods"
+        f"gdf must include '{nbhd_col}', 'neighborhood_id', or 'nbhd_id' to identify neighborhoods"
     )
 
 

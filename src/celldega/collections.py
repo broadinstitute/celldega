@@ -366,12 +366,12 @@ class CelldegaCollection:
         self,
         key: str,
         adata: AnnData,
-        entity_type: str | None = None,
+        var_entity_type: str | None = None,
     ) -> AnnData:
         """Add an aligned modality and return the stored ``AnnData`` object."""
         aligned = _align_mod_to_obs(adata, self.obs)
-        if entity_type is not None:
-            aligned.var["entity_type"] = entity_type
+        if var_entity_type is not None:
+            aligned.var["entity_type"] = var_entity_type
 
         obs = self.obs.copy()
         self.mdata.mod[key] = aligned
@@ -383,7 +383,7 @@ class CelldegaCollection:
         self,
         relation_key: str,
         key: str | None = None,
-        entity_type: str | None = None,
+        var_entity_type: str | None = None,
     ) -> AnnData:
         """Materialize a square observation relation as a clusterable modality.
 
@@ -406,7 +406,9 @@ class CelldegaCollection:
         var.index.name = self.obs.index.name
         var["related_obs_id"] = var.index.astype(str)
 
-        resolved_entity_type = entity_type or str(self.uns.get("obs_entity_type", "observation"))
+        resolved_var_entity_type = var_entity_type or str(
+            self.uns.get("obs_entity_type", "observation")
+        )
         adata = AnnData(
             X=X,
             obs=self.obs.copy(),
@@ -416,7 +418,7 @@ class CelldegaCollection:
         return self.add_mod(
             key or f"{relation_key}_relation",
             adata,
-            entity_type=resolved_entity_type,
+            var_entity_type=resolved_var_entity_type,
         )
 
     def add_hierarchy(self, hierarchy: HierarchyResult | dict[str, Any]) -> dict[str, Any]:
@@ -528,25 +530,28 @@ class NeighborhoodCollection(CelldegaCollection):
         """Return ``self``."""
         return self
 
-    def construct_population_space(
+    def calc_nbhd_by_pop(
         self,
         category: str = "leiden",
         key: str = "population",
         min_cells: int = 5,
         output: str = "percentage",
         adata: AnnData | None = None,
-    ) -> AnnData:
-        """Construct and attach a neighborhood-by-population modality."""
-        source_adata = adata if adata is not None else self.adata
-        if source_adata is None:
-            raise ValueError("adata is required to construct a population space")
-        if self.gdf is None:
-            raise ValueError("gdf or geometry is required to construct a population space")
-
+    ) -> None:
+        """Calculate and attach a neighborhood-by-population modality to ``self.mod``."""
         from celldega.nbhd.neighborhoods import _align_space_to_collection, calc_nbhd_by_pop
 
+        if adata is None:
+            calc_nbhd_by_pop(
+                self,
+                category=category,
+                key=key,
+                min_cells=min_cells,
+                output=output,
+            )
+            return
         space = calc_nbhd_by_pop(
-            source_adata,
+            adata,
             self.gdf,
             category=category,
             nbhd_col=self.nbhd_col,
@@ -554,4 +559,4 @@ class NeighborhoodCollection(CelldegaCollection):
             output=output,
         )
         space = _align_space_to_collection(space, self)
-        return self.add_mod(key, space, entity_type="cell_population")
+        self.add_mod(key, space, var_entity_type="cell_population")

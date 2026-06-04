@@ -30,6 +30,9 @@ Each modality is a normal AnnData object. Its `X` is the clusterable matrix and
 its `var` table describes the local feature/entity axis. Celldega stores the
 global row entity type in `mdata.uns["celldega"]["obs_entity_type"]` and stores
 modality-local entity types in `mdata.mod[name].var["entity_type"]`.
+Higher-order collections do not embed lower-level source objects such as
+single-cell AnnData. Source data can be linked through lightweight metadata in
+`collection.uns["sources"]` and recorded in modality provenance.
 
 Observation relations should live canonically in `mdata.obsp`. This is the
 right native location for graph-like or distance-like observation pairs. When a
@@ -48,26 +51,26 @@ sections, patients, or other dataset-level units. Dataset-level feature spaces
 are MuData modalities such as `population`, `expression`, `image`, `clinical`,
 and `joint`.
 
-Use `dega.dataset.DatasetCollection(...).construct_population_space(...)` to
-construct and attach a dataset-level population modality:
+Use `dega.dataset.DatasetCollection(...).calc_dataset_by_pop(...)` to calculate
+and attach a dataset-level population modality:
 
 ```python
 import celldega as dega
 
-dataset = dega.dataset.DatasetCollection(
+dset = dega.dataset.DatasetCollection(
     adata,
     dataset_col="sample_id",
 )
-population = dataset.construct_population_space(category="cell_type")
+dset.calc_dataset_by_pop(adata, category="cell_type")
+population = dset.mod["population"]
 
-assert dataset.mod["population"] is population
-assert dataset.mod["population"].var["entity_type"].iloc[0] == "cell_population"
+assert population.var["entity_type"].iloc[0] == "cell_population"
 ```
 
 Collections write through MuData:
 
 ```python
-dataset.write("dataset.h5mu")
+dset.write("dataset.h5mu")
 loaded = dega.dataset.DatasetCollection.read("dataset.h5mu")
 ```
 
@@ -83,7 +86,7 @@ Hierarchical biclustering can store both axes:
 ```python
 import numpy as np
 
-dataset.add_hierarchy(
+dset.add_hierarchy(
     dega.HierarchyResult(
         id="mod:population__hierarchical",
         input_mod="population",
@@ -124,14 +127,15 @@ nbhd = dega.nbhd.NeighborhoodCollection(
     nbhd_type="hextile",
     adata=adata,
 )
-population = nbhd.construct_population_space(category="cell_type")
+nbhd.calc_nbhd_by_pop(category="cell_type")
+population = nbhd.mod["population"]
 
 assert nbhd.mod["population"] is population
 ```
 
 The legacy `NBHD` helper still owns a `NeighborhoodCollection` under
 `nbhd.collection` and attaches feature modalities and sparse relations with
-methods such as `construct_gene_space`, `construct_population_space`,
+methods such as `construct_gene_space`, `calc_nbhd_by_pop`,
 `construct_image_space`, `construct_overlap_relation`, and
 `construct_bordering_relation`.
 

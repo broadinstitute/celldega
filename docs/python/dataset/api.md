@@ -6,27 +6,39 @@ helpers for building MuData-backed `DatasetCollection` objects from cell-level
 
 `DatasetCollection` is the dataset-level collection object: its `obs` table is
 the canonical dataset/sample axis, and derived feature spaces are stored
-directly as MuData modalities in `dataset.mod`. Dataset-specific feature
+directly as MuData modalities in `dset.mod`. Dataset-specific feature
 calculation should happen through methods on this object so the result is
-attached to the collection that owns the dataset axis.
+attached to the collection that owns the dataset axis. Cell-level AnnData is
+used as an input to constructors and calculations, but it is not stored on the
+dataset-level collection.
 
 ```python
 import celldega as dega
 
-dataset = dega.dataset.DatasetCollection(
+dset = dega.dataset.DatasetCollection(
     adata,
     dataset_col="sample_id",
     obs_columns=["patient_id", "condition"],
 )
 
-population = dataset.construct_population_space(
+dset.calc_dataset_by_pop(
+    adata,
     category="cell_type",
     output="percentage",
 )
 
-assert dataset.mod["population"] is population
+population = dset.mod["population"]
 
-dataset.write("dataset.h5mu")
+dset.calc_category_signature(
+    adata,
+    category="cell_type",
+    value="CD8 T",
+    key="cd8_t_expression",
+)
+
+cd8_t_expression = dset.mod["cd8_t_expression"]
+
+dset.write("dataset.h5mu")
 loaded = dega.dataset.DatasetCollection.read("dataset.h5mu")
 ```
 

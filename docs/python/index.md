@@ -24,7 +24,7 @@ dataset-level and neighborhood-level data:
 ```python
 import celldega as dega
 
-dataset = dega.dataset.DatasetCollection(adata, dataset_col="sample_id")
+dset = dega.dataset.DatasetCollection(adata, dataset_col="sample_id")
 neighborhoods = dega.NeighborhoodCollection(obs=neighborhood_obs, geometry=neighborhood_gdf)
 ```
 
@@ -41,15 +41,15 @@ building `DatasetCollection` objects:
 ```python
 import celldega as dega
 
-dataset = dega.dataset.DatasetCollection(
+dset = dega.dataset.DatasetCollection(
     adata,
     dataset_col="sample_id",
     obs_columns=["patient_id", "condition"],
 )
 
-population = dataset.construct_population_space(category="cell_type")
-assert dataset.mod["population"] is population
-dataset.write("dataset.h5mu")
+dset.calc_dataset_by_pop(adata, category="cell_type")
+population = dset.mod["population"]
+dset.write("dataset.h5mu")
 ```
 
 ### [Pre Module](pre/api.md)
@@ -123,7 +123,7 @@ adata_nbg = dega.nbhd.calc_nbhd_by_gene(gdf_alpha, by="cell", adata=adata)
 
 # Attach modalities to a NeighborhoodCollection
 nbhd = dega.nbhd.NeighborhoodCollection(gdf=gdf_alpha, nbhd_type="alpha_shape", adata=adata)
-nbhd.construct_population_space(category="leiden")
+nbhd.calc_nbhd_by_pop(category="leiden")
 ```
 
 ### [Viz Module](viz/api.md)
@@ -173,7 +173,7 @@ dega.viz      # Visualization widgets
 | Module | Key Components |
 |--------|---------------|
 | `dega` | `DatasetCollection`, `NeighborhoodCollection`, `HierarchyResult` |
-| `dega.dataset` | `DatasetCollection`, `from_adata` |
+| `dega.dataset` | `DatasetCollection` |
 | `dega.pre` | `main()`, `create_image_tiles()`, `make_meta_gene()` |
 | `dega.clust` | `Matrix` |
 | `dega.nbhd` | `NBHD`, `NeighborhoodCollection`, construction and feature functions |

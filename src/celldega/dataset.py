@@ -14,7 +14,6 @@ from celldega.collections import CelldegaCollection
 
 __all__ = [
     "DatasetCollection",
-    "from_adata",
 ]
 
 
@@ -106,6 +105,125 @@ def _dataset_obs_from_adata(
     return dataset_obs
 
 
+def _source_payload(source: str | dict[str, Any], dataset_col: str) -> dict[str, Any]:
+    payload = dict(source) if isinstance(source, dict) else {"uri": str(source)}
+    payload.setdefault("obs_entity_type", "cell")
+    payload.setdefault("source_obs_key", dataset_col)
+    payload.setdefault("collection_obs_key", dataset_col)
+    return payload
+
+
+def _slug(value: Any) -> str:
+    text = str(value).strip().lower()
+    chars = [char if char.isalnum() else "_" for char in text]
+    slug = "_".join(part for part in "".join(chars).split("_") if part)
+    return slug or "category"
+
+
+def _matrix_from_adata(adata: AnnData, layer: str | None) -> Any:
+    if layer is None:
+        return adata.X
+    if layer not in adata.layers:
+        raise ValueError(f"adata.layers missing requested layer '{layer}'")
+    return adata.layers[layer]
+
+
+def _as_1d(values: Any) -> np.ndarray:
+    return np.asarray(values).ravel()
+
+
+def _normalize_rows(values: np.ndarray, normalization: str | None) -> np.ndarray:
+    if normalization is None:
+        return values
+
+    norm = normalization.lower().replace("-", "_").replace(" ", "_")
+    if norm in {"none", "raw"}:
+        return values
+    if norm not in {"cpm", "log1p_cpm"}:
+        raise ValueError("normalization must be None, 'cpm', or 'log1p_cpm'")
+
+    normalized = values.astype(float, copy=True)
+    library_size = normalized.sum(axis=1)
+    valid = library_size > 0
+    normalized[~valid, :] = 0
+    if valid.any():
+        normalized[valid, :] = normalized[valid, :] / library_size[valid, None] * 1_000_000
+    if norm == "log1p_cpm":
+        normalized = np.log1p(normalized)
+    return normalized
+
+
+def _category_signature_from_adata(
+    adata: AnnData,
+    dataset_col: str,
+    category: str,
+    value: Any,
+    layer: str | None = None,
+    aggregate: str = "sum",
+    normalization: str | None = "log1p_cpm",
+    min_cells: int = 1,
+) -> AnnData:
+    if dataset_col not in adata.obs.columns:
+        raise ValueError(f"adata.obs missing required '{dataset_col}' column")
+    if category not in adata.obs.columns:
+        raise ValueError(f"adata.obs missing required '{category}' column")
+    if aggregate not in {"sum", "mean"}:
+        raise ValueError("aggregate must be 'sum' or 'mean'")
+
+    category_values = adata.obs[category].astype(str)
+    selected = category_values == str(value)
+    if not selected.any():
+        raise ValueError(f"No cells found where adata.obs['{category}'] == {value!r}")
+
+    target = adata[selected.to_numpy(), :]
+    matrix = _matrix_from_adata(target, layer)
+    dataset_labels = target.obs[dataset_col].astype(str).to_numpy()
+    dataset_ids = pd.Index(pd.unique(dataset_labels), name=dataset_col)
+
+    kept_ids: list[str] = []
+    vectors: list[np.ndarray] = []
+    n_cells: list[int] = []
+    for dataset_id in dataset_ids:
+        mask = dataset_labels == dataset_id
+        count = int(mask.sum())
+        if count < min_cells:
+            continue
+
+        group = matrix[mask, :]
+        vector = group.sum(axis=0) if aggregate == "sum" else group.mean(axis=0)
+        kept_ids.append(str(dataset_id))
+        vectors.append(_as_1d(vector))
+        n_cells.append(count)
+
+    values = np.vstack(vectors) if vectors else np.zeros((0, target.n_vars), dtype=float)
+    values = _normalize_rows(values, normalization)
+
+    obs = pd.DataFrame(index=pd.Index(kept_ids, name=dataset_col))
+    obs[dataset_col] = obs.index.astype(str)
+    cell_counts_by_dataset = dict(zip(kept_ids, n_cells, strict=False))
+
+    var = target.var.copy()
+    var.index = target.var_names.astype(str)
+    if "gene" not in var.columns:
+        var["gene"] = var.index.astype(str)
+
+    return AnnData(
+        X=values,
+        obs=obs,
+        var=var,
+        uns={
+            "feature_type": "category_signature",
+            "dataset_col": dataset_col,
+            "category": category,
+            "value": str(value),
+            "layer": layer,
+            "aggregate": aggregate,
+            "normalization": normalization,
+            "cell_counts_by_dataset": cell_counts_by_dataset,
+        },
+    )
+
+
 class DatasetCollection(CelldegaCollection):
     """Dataset-level collection with convenience modality constructors.
 
@@ -152,7 +270,6 @@ class DatasetCollection(CelldegaCollection):
             if obs.index.name is None:
                 obs.index.name = dataset_col
 
-        self.adata = adata
         self.dataset_col = dataset_col
         self.obs_columns = obs_columns or []
         self.source = source
@@ -167,6 +284,9 @@ class DatasetCollection(CelldegaCollection):
             collection_uns["name"] = name
         collection_uns.update(self.meta)
         collection_uns.update(uns or {})
+        if source is not None:
+            collection_uns.setdefault("sources", {})
+            collection_uns["sources"].setdefault("cells", _source_payload(source, dataset_col))
 
         super().__init__(
             obs=obs,
@@ -180,28 +300,57 @@ class DatasetCollection(CelldegaCollection):
             obs_entity_type="dataset",
         )
 
-    def construct_population_space(
+    def calc_dataset_by_pop(
         self,
+        adata: AnnData,
         category: str = "leiden",
         key: str = "population",
         output: str = "percentage",
         min_cells: int = 1,
-        adata: AnnData | None = None,
-    ) -> AnnData:
-        """Construct and attach a dataset-by-population modality to ``self.mod``."""
-        source_adata = adata if adata is not None else self.adata
-        if source_adata is None:
-            raise ValueError("adata is required to construct a population space")
-        resolved_dataset_col = _resolve_dataset_col(self, self.dataset_col)
-        space = _population_space_from_adata(
-            source_adata,
-            dataset_col=resolved_dataset_col,
+        dataset_col: str | None = None,
+    ) -> None:
+        """Calculate and attach a dataset-by-population modality to ``self.mod``."""
+        _calc_dataset_by_pop(
+            self,
+            adata=adata,
+            dataset_col=dataset_col,
             category=category,
+            key=key,
             output=output,
             min_cells=min_cells,
         )
+
+    def calc_category_signature(
+        self,
+        adata: AnnData,
+        category: str,
+        value: Any,
+        key: str | None = None,
+        layer: str | None = None,
+        aggregate: str = "sum",
+        normalization: str | None = "log1p_cpm",
+        min_cells: int = 1,
+        dataset_col: str | None = None,
+        var_entity_type: str = "gene",
+    ) -> None:
+        """Calculate and attach a dataset-by-feature signature for one category value."""
+        resolved_dataset_col = _resolve_dataset_col(self, dataset_col or self.dataset_col)
+        space = _category_signature_from_adata(
+            adata,
+            dataset_col=resolved_dataset_col,
+            category=category,
+            value=value,
+            layer=layer,
+            aggregate=aggregate,
+            normalization=normalization,
+            min_cells=min_cells,
+        )
         space = _align_mod_to_dataset(space, self)
-        return self.add_mod(key, space, entity_type="cell_population")
+        self.add_mod(
+            key or f"{_slug(value)}_signature",
+            space,
+            var_entity_type=var_entity_type,
+        )
 
 
 def _population_space_from_adata(
@@ -281,37 +430,27 @@ def _population_space_from_adata(
     return adata_pop
 
 
-def from_adata(
+def _calc_dataset_by_pop(
+    dataset: DatasetCollection,
     adata: AnnData,
-    dataset_col: str = "sample_id",
-    obs_columns: list[str] | None = None,
-    population_category: str | None = None,
-    population_output: str = "percentage",
-    population_key: str = "population",
+    dataset_col: str | None = None,
+    category: str = "leiden",
+    output: str = "percentage",
     min_cells: int = 1,
-    provenance: dict[str, Any] | None = None,
-    uns: dict[str, Any] | None = None,
-) -> DatasetCollection:
-    """Create a ``DatasetCollection`` from cell-level AnnData metadata.
+    key: str = "population",
+) -> None:
+    """Calculate a dataset-by-population feature space.
 
-    This constructor builds the canonical dataset ``obs`` table. When
-    ``population_category`` is provided, it also attaches a dataset-by-population
-    space under ``population_key``.
+    The result is attached to ``dataset.mod[key]`` and the function returns
+    ``None``.
     """
-    dataset = DatasetCollection(
+    resolved_dataset_col = _resolve_dataset_col(dataset, dataset_col or dataset.dataset_col)
+    space = _population_space_from_adata(
         adata,
-        dataset_col=dataset_col,
-        obs_columns=obs_columns,
-        provenance=provenance or {},
-        uns=uns,
+        dataset_col=resolved_dataset_col,
+        category=category,
+        output=output,
+        min_cells=min_cells,
     )
-
-    if population_category is not None:
-        dataset.construct_population_space(
-            category=population_category,
-            key=population_key,
-            output=population_output,
-            min_cells=min_cells,
-        )
-
-    return dataset
+    space = _align_mod_to_dataset(space, dataset)
+    dataset.add_mod(key, space, var_entity_type="cell_population")

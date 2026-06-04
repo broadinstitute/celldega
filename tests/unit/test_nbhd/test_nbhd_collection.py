@@ -80,8 +80,10 @@ def test_nbhd_modality_constructors_attach_aligned_modalities():
     nbhd = NBHD(gdf, "manual", adata=adata)
 
     gene = nbhd.construct_gene_space(min_cells=1)
-    population = nbhd.construct_population_space(min_cells=1, output="counts")
+    result = nbhd.calc_nbhd_by_pop(min_cells=1, output="counts")
+    population = nbhd.collection.mod["population"]
 
+    assert result is None
     assert nbhd.collection.mod["gene"] is gene
     assert nbhd.collection.mod["population"] is population
     assert list(gene.var["entity_type"]) == ["gene", "gene"]
@@ -95,12 +97,14 @@ def test_nbhd_modality_constructors_attach_aligned_modalities():
     np.testing.assert_array_equal(population.X, np.array([[1, 1], [0, 1]]))
 
 
-def test_neighborhood_collection_constructs_population_modality_directly():
+def test_neighborhood_collection_calculates_population_modality_directly():
     gdf, adata = _synthetic_nbhd_inputs()
     collection = NeighborhoodCollection(gdf=gdf, nbhd_type="manual", adata=adata)
 
-    population = collection.construct_population_space(min_cells=1, output="counts")
+    result = collection.calc_nbhd_by_pop(min_cells=1, output="counts")
+    population = collection.mod["population"]
 
+    assert result is None
     assert collection.to_collection() is collection
     assert collection.mod["population"] is population
     assert collection.nbhd_type == "manual"
@@ -110,6 +114,7 @@ def test_neighborhood_collection_constructs_population_modality_directly():
         "cell_population",
     ]
     np.testing.assert_array_equal(population.X, np.array([[1, 1], [0, 1]]))
+    assert not hasattr(collection, "construct_population_space")
 
 
 def test_nbhd_set_derived_populates_legacy_and_collection_storage():

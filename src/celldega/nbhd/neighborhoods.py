@@ -21,6 +21,10 @@ from .utils import _get_gdf_cell, _get_gdf_trx
 from .zonal_stats import calc_img_zonal_stats
 
 
+def _nbhd_geometry_for_join(gdf_nbhd: gpd.GeoDataFrame, nbhd_col: str) -> gpd.GeoDataFrame:
+    return gdf_nbhd[[nbhd_col, "geometry"]].reset_index(drop=True)
+
+
 def calc_nbhd_by_gene(
     gdf_nbhd: gpd.GeoDataFrame,
     by: str = "cell",
@@ -104,7 +108,7 @@ def calc_nbhd_by_gene(
 
         # Spatial join cells to neighborhoods
         joined = gdf_cell.sjoin(
-            gdf_nbhd[[nbhd_col, "geometry"]],
+            _nbhd_geometry_for_join(gdf_nbhd, nbhd_col),
             how="left",
             predicate="within",
         )
@@ -147,7 +151,11 @@ def calc_nbhd_by_gene(
         )
         geometry = gpd.points_from_xy(df_trx["x_location"], df_trx["y_location"])
         gdf_trx = gpd.GeoDataFrame(df_trx[["feature_name"]], geometry=geometry)
-        gdf_trx = gdf_trx.sjoin(gdf_nbhd[[nbhd_col, "geometry"]], how="left", predicate="within")
+        gdf_trx = gdf_trx.sjoin(
+            _nbhd_geometry_for_join(gdf_nbhd, nbhd_col),
+            how="left",
+            predicate="within",
+        )
 
         df_result = (
             gdf_trx.groupby([nbhd_col, "feature_name"])
@@ -369,7 +377,6 @@ class NBHD:
     collection:
 
     - ``construct_gene_space`` stores neighborhood-by-gene data.
-    - ``construct_population_space`` stores neighborhood-by-population data.
     - ``construct_image_space`` stores neighborhood-by-image-feature data.
     - ``construct_overlap_relation`` and ``construct_bordering_relation`` store
       neighborhood-by-neighborhood sparse relations.
@@ -404,6 +411,9 @@ class NBHD:
             provenance=provenance,
             uns={"name": name, **self.meta},
         )
+        self.collection.adata = adata
+        self.collection.gdf = self.gdf.copy()
+        self.collection.nbhd_col = self.nbhd_col
 
         self.derived: dict[str, Any] = {
             "NBI": None,
@@ -422,6 +432,22 @@ class NBHD:
     def to_collection(self) -> NeighborhoodCollection:
         """Return the underlying ``NeighborhoodCollection``."""
         return self.collection
+
+    def calc_nbhd_by_pop(
+        self,
+        category: str = "leiden",
+        key: str = "population",
+        min_cells: int = 5,
+        output: str = "percentage",
+    ) -> None:
+        """Calculate and attach a neighborhood-by-population modality."""
+        calc_nbhd_by_pop(
+            self.collection,
+            category=category,
+            key=key,
+            min_cells=min_cells,
+            output=output,
+        )
 
     def construct_gene_space(
         self,
@@ -455,29 +481,7 @@ class NBHD:
             min_cells=min_cells,
         )
         adata = _align_space_to_collection(adata, self.collection)
-        return self.collection.add_mod(space_key, adata, entity_type="gene")
-
-    def construct_population_space(
-        self,
-        category: str = "leiden",
-        key: str = "population",
-        min_cells: int = 5,
-        output: str = "percentage",
-    ) -> AnnData:
-        """Construct and attach a neighborhood-by-population space."""
-        if self.adata is None:
-            raise ValueError("adata is required to construct a population space")
-
-        adata = calc_nbhd_by_pop(
-            self.adata,
-            self.gdf,
-            category=category,
-            nbhd_col=self.nbhd_col,
-            min_cells=min_cells,
-            output=output,
-        )
-        adata = _align_space_to_collection(adata, self.collection)
-        return self.collection.add_mod(key, adata, entity_type="cell_population")
+        return self.collection.add_mod(space_key, adata, var_entity_type="gene")
 
     def construct_image_space(self, key: str = "image") -> AnnData:
         """Construct and attach a neighborhood-by-image-feature space."""
@@ -493,7 +497,7 @@ class NBHD:
             nbhd_col=self.nbhd_col,
         )
         adata = _dataframe_to_space(df, self.collection, uns={"feature_type": "image"})
-        return self.collection.add_mod(key, adata, entity_type="image_feature")
+        return self.collection.add_mod(key, adata, var_entity_type="image_feature")
 
     def construct_overlap_relation(
         self,
@@ -538,18 +542,22 @@ class NBHD:
         elif key == "NBG-CF":
             data = self.construct_gene_space(by="cell-free", key="gene_cell_free")
         elif key == "NBP":
-            data = {
-                "pct": self.construct_population_space(
-                    category="leiden",
-                    key="population",
-                    output="percentage",
-                )
-            }
-            data["abs"] = self.construct_population_space(
+            calc_nbhd_by_pop(
+                self.collection,
+                category="leiden",
+                key="population",
+                output="percentage",
+            )
+            calc_nbhd_by_pop(
+                self.collection,
                 category="leiden",
                 key="population_counts",
                 output="counts",
             )
+            data = {
+                "pct": self.collection.mod["population"],
+                "abs": self.collection.mod["population_counts"],
+            }
         elif key == "NBM":
             if self.data_dir is None or self.adata is None:
                 raise ValueError("data_dir and adata are required to derive NBM")
@@ -597,7 +605,7 @@ class NBHD:
             self.collection.add_mod(
                 "image",
                 _dataframe_to_space(data, self.collection, uns={"feature_type": "image"}),
-                entity_type="image_feature",
+                var_entity_type="image_feature",
             )
         else:
             raise ValueError(f"Unknown derived key: {key}")
@@ -661,13 +669,14 @@ class NBHD:
 
 
 def calc_nbhd_by_pop(
-    adata: AnnData,
-    gdf_nbhd: gpd.GeoDataFrame,
+    adata: AnnData | NeighborhoodCollection | Any,
+    gdf_nbhd: gpd.GeoDataFrame | None = None,
     category: str = "leiden",
     nbhd_col: str = "name",
     min_cells: int = 5,
     output: str = "percentage",
-) -> AnnData:
+    key: str = "population",
+) -> AnnData | None:
     """
     Calculate cell-level population distribution of neighborhoods.
 
@@ -676,12 +685,13 @@ def calc_nbhd_by_pop(
 
     Parameters
     ----------
-    adata : AnnData
-        AnnData object containing cell data. Must have spatial coordinates in
-        `obsm["spatial"]` and the category column in `obs`.
-    gdf_nbhd : gpd.GeoDataFrame
-        GeoDataFrame containing neighborhood geometries. Must have a geometry column
-        and a column specified by `nbhd_col` for neighborhood identifiers.
+    adata : AnnData or NeighborhoodCollection
+        AnnData object containing cell data, or a NeighborhoodCollection with
+        ``adata`` and ``gdf`` attached. Cell-level AnnData must have spatial
+        coordinates in `obsm["spatial"]` and the category column in `obs`.
+    gdf_nbhd : gpd.GeoDataFrame, optional
+        GeoDataFrame containing neighborhood geometries. Required when ``adata``
+        is a cell-level AnnData.
     category : str, default "leiden"
         Column name in `adata.obs` containing cell category labels (e.g., "leiden",
         "cell_type", "cluster").
@@ -694,10 +704,14 @@ def calc_nbhd_by_pop(
         Type of values in the output matrix:
         - "percentage": Fraction of cells per category (sums to 1 per neighborhood)
         - "counts": Raw cell counts per category
+    key : str, default "population"
+        Modality key when attaching to a NeighborhoodCollection.
 
     Returns
     -------
-    AnnData
+    AnnData or None
+        Passing a collection attaches the modality to ``collection.mod[key]``
+        and returns ``None``. Passing raw AnnData and a GeoDataFrame returns an
         AnnData object with shape (n_neighborhoods, n_categories) where:
         - `X`: Matrix of population distributions (percentages or counts)
         - `obs`: DataFrame indexed by neighborhood names
@@ -712,26 +726,48 @@ def calc_nbhd_by_pop(
     """
     print("Calculating NBP")
 
+    collection: NeighborhoodCollection | None = None
+    source_adata = adata
+    if isinstance(adata, NeighborhoodCollection):
+        collection = adata
+        source_adata = collection.adata
+        gdf_nbhd = collection.gdf
+        nbhd_col = collection.nbhd_col
+    elif hasattr(adata, "collection") and isinstance(adata.collection, NeighborhoodCollection):
+        collection = adata.collection
+        source_adata = getattr(adata, "adata", None)
+        gdf_nbhd = getattr(adata, "gdf", None)
+        nbhd_col = getattr(adata, "nbhd_col", nbhd_col)
+
+    if source_adata is None:
+        raise ValueError("adata is required to calculate a neighborhood population space")
+    if gdf_nbhd is None:
+        raise ValueError("gdf_nbhd is required when adata is not a NeighborhoodCollection")
+
     # Validate inputs
     required_nbhd = {"geometry", nbhd_col}
     if not required_nbhd.issubset(gdf_nbhd.columns):
         raise ValueError(
             f"gdf_nbhd missing required columns: {required_nbhd - set(gdf_nbhd.columns)}"
         )
-    if category not in adata.obs.columns:
+    if category not in source_adata.obs.columns:
         raise ValueError(f"adata.obs missing required '{category}' column")
-    if "spatial" not in adata.obsm:
+    if "spatial" not in source_adata.obsm:
         raise ValueError("adata.obsm missing 'spatial' coordinates")
 
     # Build GeoDataFrame from adata with the specified category
     # No CRS set - using micron imaging coordinates, not geospatial
     gdf_cell = gpd.GeoDataFrame(
-        {category: adata.obs[category].values},
-        geometry=gpd.points_from_xy(*adata.obsm["spatial"].T[:2]),
+        {category: source_adata.obs[category].values},
+        geometry=gpd.points_from_xy(*source_adata.obsm["spatial"].T[:2]),
     )
 
     # Spatial join: assign each cell to a neighborhood
-    sjoin_df = gdf_cell.sjoin(gdf_nbhd[[nbhd_col, "geometry"]], how="left", predicate="within")
+    sjoin_df = gdf_cell.sjoin(
+        _nbhd_geometry_for_join(gdf_nbhd, nbhd_col),
+        how="left",
+        predicate="within",
+    )
 
     # Filter neighborhoods with at least min_cells
     cell_counts_per_nbhd = sjoin_df[nbhd_col].value_counts()
@@ -782,13 +818,13 @@ def calc_nbhd_by_pop(
     # Copy colors from source adata if available
     color_key = f"{category}_colors"
     color_dict: dict[str, str] = {}
-    if color_key in adata.uns:
+    if color_key in source_adata.uns:
         # Map colors to the category values
-        src_colors = adata.uns[color_key]
-        if hasattr(adata.obs[category], "cat"):
-            src_categories = list(adata.obs[category].cat.categories.astype(str))
+        src_colors = source_adata.uns[color_key]
+        if hasattr(source_adata.obs[category], "cat"):
+            src_categories = list(source_adata.obs[category].cat.categories.astype(str))
         else:
-            src_categories = list(adata.obs[category].unique().astype(str))
+            src_categories = list(source_adata.obs[category].unique().astype(str))
 
         color_dict = {
             str(cat): src_colors[i] for i, cat in enumerate(src_categories) if i < len(src_colors)
@@ -802,6 +838,11 @@ def calc_nbhd_by_pop(
         adata_nbp.obs["color"] = [
             color_dict.get(str(c), "#808080") for c in adata_nbp.obs[category]
         ]
+
+    if collection is not None:
+        adata_nbp = _align_space_to_collection(adata_nbp, collection)
+        collection.add_mod(key, adata_nbp, var_entity_type="cell_population")
+        return None
 
     return adata_nbp
 
@@ -824,7 +865,11 @@ def get_nbhd_meta(
     summary.index.name = "nbhd_id"
     summary["area_squm"] = gdf_nbhd.geometry.area.round(2)
     summary["perimeter_um"] = gdf_nbhd.geometry.length.round(2)
-    gdf_trx = gdf_trx.sjoin(gdf_nbhd[[unique_nbhd_col, "geometry"]], how="left", predicate="within")
+    gdf_trx = gdf_trx.sjoin(
+        _nbhd_geometry_for_join(gdf_nbhd, unique_nbhd_col),
+        how="left",
+        predicate="within",
+    )
     trx_summary = gdf_trx.groupby(unique_nbhd_col).agg(
         total_trx=("cell_id", "size"),
         unassigned_trx_count=("cell_id", lambda x: (x == "UNASSIGNED").sum()),
@@ -838,7 +883,7 @@ def get_nbhd_meta(
         "total_trx"
     ].replace(0, 1)
     gdf_c = gdf_cell[["geometry"]].sjoin(
-        gdf_nbhd[[unique_nbhd_col, "geometry"]], how="left", predicate="within"
+        _nbhd_geometry_for_join(gdf_nbhd, unique_nbhd_col), how="left", predicate="within"
     )
     cell_counts = gdf_c.groupby(unique_nbhd_col).size().rename("cell_count")
     cell_counts = cell_counts.reindex(gdf_nbhd.index).fillna(0)

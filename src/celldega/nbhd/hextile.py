@@ -70,6 +70,7 @@ def generate_hextile(
         {"name": names, "geometry": hexagons},
     )
     gdf_hex = gdf_hex.set_index("name")
+    gdf_hex.index.name = None
     gdf_hex["name"] = names  # Keep name as both index and column
 
     return gdf_hex

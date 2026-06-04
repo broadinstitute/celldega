@@ -13,7 +13,7 @@ from celldega.collections import (
     HierarchyResult,
     NeighborhoodCollection,
 )
-from celldega.dataset import DatasetCollection, from_adata
+from celldega.dataset import DatasetCollection
 
 
 def test_dataset_holds_aligned_modalities_relations_and_hierarchies():
@@ -51,6 +51,7 @@ def test_dataset_holds_aligned_modalities_relations_and_hierarchies():
     assert isinstance(dataset, CelldegaCollection)
     assert isinstance(dataset.mdata, MuData)
     assert dataset.collection_type == "dataset"
+    assert not hasattr(dataset, "adata")
     assert list(dataset.mod["population"].obs_names) == list(dataset.obs.index)
     assert dataset.relations["similarity"].shape == (2, 2)
     assert dataset.hierarchies[hierarchy.id]["input_mod"] == "population"
@@ -134,40 +135,82 @@ def test_dataset_can_link_neighborhood_collections():
     assert dataset.neighborhood_collections["manual_regions"] is neighborhoods
 
 
-def test_from_adata_attaches_population_modality():
+def test_dataset_constructor_uses_cell_adata_without_storing_it():
     adata = AnnData(X=np.ones((4, 1)))
     adata.obs["sample_id"] = ["s1", "s1", "s2", "s2"]
     adata.obs["patient_id"] = ["p1", "p1", "p2", "p2"]
     adata.obs["cell_type"] = ["T", "B", "B", "B"]
 
-    dataset = from_adata(
+    dataset = DatasetCollection(
         adata,
         dataset_col="sample_id",
         obs_columns=["patient_id"],
-        population_category="cell_type",
     )
 
     assert isinstance(dataset, DatasetCollection)
     assert list(dataset.obs.index) == ["s1", "s2"]
     assert dataset.obs.loc["s1", "patient_id"] == "p1"
-    assert "population" in dataset.mod
-    assert list(dataset.mod["population"].obs_names) == ["s1", "s2"]
+    assert not hasattr(dataset, "adata")
 
 
-def test_dataset_helper_constructs_population_modality():
+def test_calc_dataset_by_pop_attaches_population_modality():
     adata = AnnData(X=np.ones((4, 1)))
     adata.obs["sample_id"] = ["s1", "s1", "s2", "s2"]
     adata.obs["condition"] = ["a", "a", "b", "b"]
     adata.obs["cell_type"] = ["T", "B", "B", "B"]
 
     dataset = DatasetCollection(adata, dataset_col="sample_id", obs_columns=["condition"])
-    population = dataset.construct_population_space(category="cell_type", output="counts")
+    result = dataset.calc_dataset_by_pop(adata, category="cell_type", output="counts")
+    population = dataset.mod["population"]
 
+    assert result is None
     assert dataset.obs.loc["s1", "condition"] == "a"
     assert dataset.mod["population"] is population
     assert list(population.obs_names) == ["s1", "s2"]
     assert list(population.var["entity_type"]) == ["cell_population", "cell_population"]
     np.testing.assert_array_equal(population.X, np.array([[1, 1], [2, 0]]))
+
+
+def test_calc_category_signature_attaches_gene_modality():
+    adata = AnnData(
+        X=np.array(
+            [
+                [10, 0, 0],
+                [0, 5, 5],
+                [4, 0, 6],
+                [0, 7, 3],
+                [2, 2, 2],
+            ],
+            dtype=float,
+        ),
+        var=pd.DataFrame(index=["CD3D", "GZMB", "IFNG"]),
+    )
+    adata.obs["sample_id"] = ["s1", "s1", "s2", "s2", "s2"]
+    adata.obs["condition"] = ["a", "a", "b", "b", "b"]
+    adata.obs["cell_type"] = ["CD8 T", "B", "CD8 T", "CD8 T", "B"]
+
+    dataset = DatasetCollection(adata, dataset_col="sample_id", obs_columns=["condition"])
+    result = dataset.calc_category_signature(
+        adata,
+        category="cell_type",
+        value="CD8 T",
+        key="cd8_t_expression",
+    )
+    signature = dataset.mod["cd8_t_expression"]
+
+    expected_counts = np.array([[10, 0, 0], [4, 7, 9]], dtype=float)
+    expected = np.log1p(expected_counts / expected_counts.sum(axis=1, keepdims=True) * 1_000_000)
+
+    assert result is None
+    assert list(signature.obs_names) == ["s1", "s2"]
+    assert list(signature.obs.columns) == list(dataset.obs.columns)
+    assert list(signature.var_names) == ["CD3D", "GZMB", "IFNG"]
+    assert list(signature.var["entity_type"]) == ["gene", "gene", "gene"]
+    assert signature.uns["feature_type"] == "category_signature"
+    assert signature.uns["category"] == "cell_type"
+    assert signature.uns["value"] == "CD8 T"
+    assert signature.uns["cell_counts_by_dataset"] == {"s1": 1, "s2": 2}
+    np.testing.assert_allclose(signature.X, expected)
 
 
 def test_dataset_write_read_round_trips_mudata(tmp_path):
@@ -177,7 +220,7 @@ def test_dataset_write_read_round_trips_mudata(tmp_path):
     adata.obs["cell_type"] = ["T", "B", "B", "B"]
 
     dataset = DatasetCollection(adata, dataset_col="sample_id", obs_columns=["condition"])
-    dataset.construct_population_space(category="cell_type", output="counts")
+    assert dataset.calc_dataset_by_pop(adata, category="cell_type", output="counts") is None
     dataset.relations["similarity"] = sparse.csr_matrix([[1.0, 0.2], [0.2, 1.0]])
     dataset.add_hierarchy(
         HierarchyResult(
@@ -220,9 +263,11 @@ def test_dataset_methods_are_not_exposed_at_package_root():
     assert not hasattr(dega, "Dataset")
     assert not hasattr(dataset_module, "calc_dataset_by_pop")
     assert not hasattr(dataset_module, "construct_population_space")
+    assert not hasattr(dataset_module, "from_adata")
     assert not hasattr(dataset_module, "read")
     assert not hasattr(dataset_module, "Dataset")
     assert hasattr(dataset_module, "DatasetCollection")
     assert hasattr(DatasetCollection, "write")
+    assert not hasattr(DatasetCollection, "construct_population_space")
     assert not hasattr(DatasetCollection(obs=pd.DataFrame(index=["s1"])), "spaces")
     assert importlib.util.find_spec("celldega.datasets") is None

@@ -82,6 +82,18 @@ def test_calc_nbhd_by_pop_with_lower_min_cells(synthetic_data):
     assert isinstance(adata_nbp, AnnData)
 
 
+def test_calc_nbhd_by_pop_allows_index_name_matching_nbhd_column(synthetic_data):
+    """Test GeoDataFrames that keep the identifier as both index name and column."""
+    gdf_nbhd, adata = synthetic_data
+    gdf_nbhd = gdf_nbhd.set_index("name")
+    gdf_nbhd["name"] = gdf_nbhd.index
+
+    adata_nbp = calc_nbhd_by_pop(adata, gdf_nbhd, category="leiden", min_cells=3)
+
+    assert adata_nbp.shape[0] == 2
+    assert list(adata_nbp.obs_names) == ["A", "B"]
+
+
 def test_calc_nbhd_by_pop_raises_on_missing_columns(synthetic_data):
     """Test that calc_nbhd_by_pop raises appropriate errors for missing columns."""
     gdf_nbhd, adata = synthetic_data
@@ -94,11 +106,11 @@ def test_calc_nbhd_by_pop_raises_on_missing_columns(synthetic_data):
     # Test missing category in adata.obs
     bad_adata = adata.copy()
     del bad_adata.obs["leiden"]
-    with pytest.raises(ValueError, match="adata.obs missing required 'leiden' column"):
+    with pytest.raises(ValueError, match=r"adata\.obs missing required 'leiden' column"):
         calc_nbhd_by_pop(bad_adata, gdf_nbhd, category="leiden")
 
     # Test missing spatial coordinates
     bad_adata2 = adata.copy()
     del bad_adata2.obsm["spatial"]
-    with pytest.raises(ValueError, match="adata.obsm missing 'spatial' coordinates"):
+    with pytest.raises(ValueError, match=r"adata\.obsm missing 'spatial' coordinates"):
         calc_nbhd_by_pop(bad_adata2, gdf_nbhd, category="leiden")

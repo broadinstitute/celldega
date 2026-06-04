@@ -25,7 +25,6 @@ dependencies = [
     "pandas~=2.2.0",
     "polars~=1.10.0",
     "pyarrow",
-    "pygments<2.20",
     "rasterio==1.4.3",
     "requests",
     "scanpy~=1.10.0",

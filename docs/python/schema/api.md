@@ -136,8 +136,7 @@ assert nbhd.mod["population"] is population
 The legacy `NBHD` helper still owns a `NeighborhoodCollection` under
 `nbhd.collection` and attaches feature modalities and sparse relations with
 methods such as `construct_gene_space`, `calc_nbhd_by_pop`,
-`construct_image_space`, `construct_overlap_relation`, and
-`construct_bordering_relation`.
+`construct_overlap_relation`, and `construct_bordering_relation`.
 
 Geometry is kept as a live `GeoDataFrame` on `NeighborhoodCollection.geometry`
 for now. Durable geometry storage can be added later with WKB columns or

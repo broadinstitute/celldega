@@ -117,6 +117,36 @@ def test_neighborhood_collection_calculates_population_modality_directly():
     assert not hasattr(collection, "construct_population_space")
 
 
+def test_neighborhood_collection_min_cells_filters_collection_axis():
+    gdf, adata = _synthetic_nbhd_inputs()
+    collection = NeighborhoodCollection(gdf=gdf, nbhd_type="manual", adata=adata)
+
+    result = collection.calc_nbhd_by_pop(min_cells=2, output="counts")
+    population = collection.mod["population"]
+
+    assert result is None
+    assert list(collection.obs.index) == ["A"]
+    assert list(collection.gdf.index) == ["A"]
+    assert list(collection.geometry.index) == ["A"]
+    assert list(population.obs_names) == ["A"]
+    np.testing.assert_array_equal(population.X, np.array([[1, 1]]))
+
+
+def test_nbhd_min_cells_filters_collection_axis_and_existing_modalities():
+    gdf, adata = _synthetic_nbhd_inputs()
+    nbhd = NBHD(gdf, "manual", adata=adata)
+
+    nbhd.construct_gene_space(min_cells=1)
+    result = nbhd.calc_nbhd_by_pop(min_cells=2, output="counts")
+
+    assert result is None
+    assert list(nbhd.collection.obs.index) == ["A"]
+    assert list(nbhd.gdf.index) == ["A"]
+    assert list(nbhd.collection.mod["gene"].obs_names) == ["A"]
+    assert list(nbhd.collection.mod["population"].obs_names) == ["A"]
+    np.testing.assert_array_equal(nbhd.collection.mod["population"].X, np.array([[1, 1]]))
+
+
 def test_nbhd_set_derived_populates_legacy_and_collection_storage():
     gdf, adata = _synthetic_nbhd_inputs()
     nbhd = NBHD(gdf, "manual", adata=adata)
@@ -125,7 +155,7 @@ def test_nbhd_set_derived_populates_legacy_and_collection_storage():
     nbhd.set_derived("NBP")
 
     assert nbhd.derived["NBG-CD"] is nbhd.collection.mod["gene"]
-    assert nbhd.derived["NBP"]["pct"] is nbhd.collection.mod["population"]
+    assert nbhd.derived["NBP"]["prop"] is nbhd.collection.mod["population"]
     assert nbhd.derived["NBP"]["abs"] is nbhd.collection.mod["population_counts"]
 
 

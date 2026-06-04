@@ -170,8 +170,14 @@ def test_calc_dataset_by_pop_attaches_population_modality():
     assert list(population.var["entity_type"]) == ["cell_population", "cell_population"]
     np.testing.assert_array_equal(population.X, np.array([[1, 1], [2, 0]]))
 
+    proportion_dataset = DatasetCollection(adata, dataset_col="sample_id", obs_columns=["condition"])
+    assert proportion_dataset.calc_dataset_by_pop(adata, category="cell_type") is None
+    population_proportion = proportion_dataset.mod["population"]
+    assert population_proportion.uns["output"] == "proportion"
+    np.testing.assert_allclose(population_proportion.X, np.array([[0.5, 0.5], [1.0, 0.0]]))
 
-def test_calc_category_signature_attaches_gene_modality():
+
+def test_calc_dataset_signature_attaches_gene_modality():
     adata = AnnData(
         X=np.array(
             [
@@ -190,7 +196,7 @@ def test_calc_category_signature_attaches_gene_modality():
     adata.obs["cell_type"] = ["CD8 T", "B", "CD8 T", "CD8 T", "B"]
 
     dataset = DatasetCollection(adata, dataset_col="sample_id", obs_columns=["condition"])
-    result = dataset.calc_category_signature(
+    result = dataset.calc_dataset_signature(
         adata,
         category="cell_type",
         value="CD8 T",
@@ -203,13 +209,13 @@ def test_calc_category_signature_attaches_gene_modality():
 
     assert result is None
     assert list(signature.obs_names) == ["s1", "s2"]
-    assert list(signature.obs.columns) == list(dataset.obs.columns)
+    assert signature.obs.loc["s1", "condition"] == "a"
+    assert list(signature.obs["cell_count"]) == [1, 2]
     assert list(signature.var_names) == ["CD3D", "GZMB", "IFNG"]
     assert list(signature.var["entity_type"]) == ["gene", "gene", "gene"]
-    assert signature.uns["feature_type"] == "category_signature"
+    assert signature.uns["feature_type"] == "dataset_signature"
     assert signature.uns["category"] == "cell_type"
     assert signature.uns["value"] == "CD8 T"
-    assert signature.uns["cell_counts_by_dataset"] == {"s1": 1, "s2": 2}
     np.testing.assert_allclose(signature.X, expected)
 
 

@@ -153,10 +153,21 @@ def _empty_mudata(obs: pd.DataFrame) -> MuData:
 def _align_mod_to_obs(adata: AnnData, obs: pd.DataFrame) -> AnnData:
     target_index = obs.index.astype(str)
     source_index = pd.Index(adata.obs_names.astype(str))
+    source_obs = adata.obs.copy()
+    source_obs.index = source_index
+
+    aligned_obs = obs.copy()
+    for col in source_obs.columns:
+        if col in aligned_obs.columns:
+            continue
+        values = source_obs[col].reindex(target_index)
+        if pd.api.types.is_numeric_dtype(source_obs[col]) or col.endswith("count"):
+            values = values.fillna(0)
+        aligned_obs[col] = values
 
     if list(source_index) == list(target_index):
         aligned = adata.copy()
-        aligned.obs = obs.copy()
+        aligned.obs = aligned_obs
         return aligned
 
     shape = (len(target_index), adata.n_vars)
@@ -174,7 +185,7 @@ def _align_mod_to_obs(adata: AnnData, obs: pd.DataFrame) -> AnnData:
         if source_rows:
             X[target_rows, :] = np.asarray(adata.X[source_rows, :])
 
-    return AnnData(X=X, obs=obs.copy(), var=adata.var.copy(), uns=dict(adata.uns))
+    return AnnData(X=X, obs=aligned_obs, var=adata.var.copy(), uns=dict(adata.uns))
 
 
 def _coerce_hierarchy(value: HierarchyResult | dict[str, Any]) -> dict[str, Any]:
@@ -455,7 +466,6 @@ class NeighborhoodCollection(CelldegaCollection):
         nbhd_type: str | None = None,
         adata: AnnData | None = None,
         data_dir: str | None = None,
-        path_landscape_files: str | None = None,
         source: str | dict[str, Any] | None = None,
         name: str | None = None,
         meta: dict[str, Any] | None = None,
@@ -486,7 +496,6 @@ class NeighborhoodCollection(CelldegaCollection):
         self.nbhd_type = resolved_nbhd_type
         self.adata = adata
         self.data_dir = data_dir
-        self.path_landscape_files = path_landscape_files
         self.source = source
         self.name = name
         self.meta = meta or {}
@@ -535,11 +544,14 @@ class NeighborhoodCollection(CelldegaCollection):
         category: str = "leiden",
         key: str = "population",
         min_cells: int = 5,
-        output: str = "percentage",
+        output: str = "proportion",
         adata: AnnData | None = None,
     ) -> None:
         """Calculate and attach a neighborhood-by-population modality to ``self.mod``."""
-        from celldega.nbhd.neighborhoods import _align_space_to_collection, calc_nbhd_by_pop
+        from celldega.nbhd.neighborhoods import (
+            _subset_neighborhood_collection_to_obs,
+            calc_nbhd_by_pop,
+        )
 
         if adata is None:
             calc_nbhd_by_pop(
@@ -558,5 +570,5 @@ class NeighborhoodCollection(CelldegaCollection):
             min_cells=min_cells,
             output=output,
         )
-        space = _align_space_to_collection(space, self)
+        _subset_neighborhood_collection_to_obs(self, pd.Index(space.obs_names.astype(str)))
         self.add_mod(key, space, var_entity_type="cell_population")

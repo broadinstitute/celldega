@@ -24,12 +24,12 @@ dset = dega.dataset.DatasetCollection(
 dset.calc_dataset_by_pop(
     adata,
     category="cell_type",
-    output="percentage",
+    output="proportion",
 )
 
 population = dset.mod["population"]
 
-dset.calc_category_signature(
+dset.calc_dataset_signature(
     adata,
     category="cell_type",
     value="CD8 T",

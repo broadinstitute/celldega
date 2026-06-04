@@ -103,7 +103,7 @@ The `nbhd` module contains functions for computing and analyzing tissue neighbor
 - Hexagonal tiling for regular neighborhood grids
 - Neighborhood-by-gene expression analysis
 - Neighborhood overlap and bordering calculations
-- Collection-backed methods for constructing gene, population, image, and relation data
+- Collection-backed methods for constructing gene, population, and relation data
 
 ```python
 import celldega as dega

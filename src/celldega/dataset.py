@@ -200,7 +200,7 @@ def _category_signature_from_adata(
 
     obs = pd.DataFrame(index=pd.Index(kept_ids, name=dataset_col))
     obs[dataset_col] = obs.index.astype(str)
-    cell_counts_by_dataset = dict(zip(kept_ids, n_cells, strict=False))
+    obs["cell_count"] = n_cells
 
     var = target.var.copy()
     var.index = target.var_names.astype(str)
@@ -212,14 +212,13 @@ def _category_signature_from_adata(
         obs=obs,
         var=var,
         uns={
-            "feature_type": "category_signature",
+            "feature_type": "dataset_signature",
             "dataset_col": dataset_col,
             "category": category,
             "value": str(value),
             "layer": layer,
             "aggregate": aggregate,
             "normalization": normalization,
-            "cell_counts_by_dataset": cell_counts_by_dataset,
         },
     )
 
@@ -305,7 +304,7 @@ class DatasetCollection(CelldegaCollection):
         adata: AnnData,
         category: str = "leiden",
         key: str = "population",
-        output: str = "percentage",
+        output: str = "proportion",
         min_cells: int = 1,
         dataset_col: str | None = None,
     ) -> None:
@@ -320,7 +319,7 @@ class DatasetCollection(CelldegaCollection):
             min_cells=min_cells,
         )
 
-    def calc_category_signature(
+    def calc_dataset_signature(
         self,
         adata: AnnData,
         category: str,
@@ -357,7 +356,7 @@ def _population_space_from_adata(
     adata: AnnData,
     dataset_col: str = "sample_id",
     category: str = "leiden",
-    output: str = "percentage",
+    output: str = "proportion",
     min_cells: int = 1,
 ) -> AnnData:
     """Calculate a dataset-by-population feature space from cell metadata.
@@ -369,15 +368,15 @@ def _population_space_from_adata(
             section, patient, or other dataset-level unit.
         category: Observation column identifying the cell population, cell type,
             cell state, or cluster.
-        output: ``"percentage"`` for within-dataset fractions or ``"counts"``
+        output: ``"proportion"`` for within-dataset fractions or ``"counts"``
             for raw cell counts.
         min_cells: Minimum number of cells required to keep a dataset row.
 
     Returns:
         AnnData with datasets as observations and populations as variables.
     """
-    if output not in {"percentage", "counts"}:
-        raise ValueError("output must be 'percentage' or 'counts'")
+    if output not in {"proportion", "counts"}:
+        raise ValueError("output must be 'proportion' or 'counts'")
     if dataset_col not in adata.obs.columns:
         raise ValueError(f"adata.obs missing required '{dataset_col}' column")
     if category not in adata.obs.columns:
@@ -402,7 +401,7 @@ def _population_space_from_adata(
     )
     counts = counts[counts.sum(axis=1) >= min_cells]
 
-    if output == "percentage":
+    if output == "proportion":
         values = counts.div(counts.sum(axis=1), axis=0).fillna(0).values
     else:
         values = counts.values
@@ -435,7 +434,7 @@ def _calc_dataset_by_pop(
     adata: AnnData,
     dataset_col: str | None = None,
     category: str = "leiden",
-    output: str = "percentage",
+    output: str = "proportion",
     min_cells: int = 1,
     key: str = "population",
 ) -> None:

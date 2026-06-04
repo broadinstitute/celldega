@@ -15,7 +15,6 @@ from skimage.io import imread
 
 from celldega.collections import NeighborhoodCollection
 from celldega.pre.boundary_tile import batch_transform_geometries
-from celldega.pre.image_info import resolve_xenium_morphology_ome_path
 
 from .utils import _get_gdf_cell, _get_gdf_trx
 from .zonal_stats import calc_img_zonal_stats
@@ -337,20 +336,72 @@ def _align_space_to_collection(
     return AnnData(X=X, obs=obs, var=adata.var.copy(), uns=dict(adata.uns))
 
 
-def _dataframe_to_space(
-    df: pd.DataFrame,
+def _subset_gdf_to_obs(
+    gdf: gpd.GeoDataFrame | None,
+    obs_names: pd.Index,
+    id_col: str,
+) -> gpd.GeoDataFrame | None:
+    if gdf is None:
+        return None
+
+    subset = gdf.copy()
+    subset.index = subset.index.astype(str)
+    if obs_names.isin(subset.index).all():
+        return subset.loc[obs_names].copy()
+
+    if id_col in subset.columns:
+        subset["_celldega_obs_id"] = subset[id_col].astype(str)
+        subset = subset.set_index("_celldega_obs_id", drop=False)
+        result = subset.loc[obs_names].copy()
+        return result.drop(columns="_celldega_obs_id", errors="ignore")
+
+    missing = obs_names.difference(subset.index)
+    raise ValueError(f"Cannot subset neighborhood geometry; missing IDs: {list(missing)}")
+
+
+def _subset_neighborhood_collection_to_obs(
     collection: NeighborhoodCollection,
-    uns: dict[str, Any] | None = None,
-) -> AnnData:
-    feature_df = df.drop(columns="geometry", errors="ignore").copy()
-    feature_df.index = feature_df.index.astype(str)
-    adata = AnnData(
-        X=feature_df.fillna(0).values,
-        obs=pd.DataFrame(index=feature_df.index),
-        var=pd.DataFrame(index=feature_df.columns.astype(str)),
-        uns=uns or {},
-    )
-    return _align_space_to_collection(adata, collection)
+    obs_names: pd.Index,
+) -> None:
+    obs_names = pd.Index(obs_names.astype(str))
+    current_index = pd.Index(collection.obs.index.astype(str))
+    if list(obs_names) == list(current_index):
+        return
+
+    missing = obs_names.difference(current_index)
+    if len(missing):
+        raise ValueError(f"Cannot subset collection; missing observation IDs: {list(missing)}")
+
+    keep_positions = [current_index.get_loc(name) for name in obs_names]
+    if collection.mod:
+        collection.mdata = collection.mdata[obs_names, :].copy()
+    else:
+        from celldega.collections import _empty_mudata
+
+        obs = collection.obs.loc[obs_names].copy()
+        uns = dict(collection.mdata.uns)
+        relations = list(collection.relations.items())
+        collection.mdata = _empty_mudata(obs)
+        collection.mdata.uns.update(uns)
+        for key, relation in relations:
+            if relation.shape != (len(current_index), len(current_index)):
+                continue
+            if sparse.issparse(relation):
+                collection.relations[key] = relation[keep_positions, :][:, keep_positions]
+            else:
+                values = np.asarray(relation)
+                collection.relations[key] = values[np.ix_(keep_positions, keep_positions)]
+
+    collection.gdf = _subset_gdf_to_obs(collection.gdf, obs_names, collection.nbhd_col)
+    collection.geometry = _subset_gdf_to_obs(collection.geometry, obs_names, collection.nbhd_col)
+
+    for key, membership in list(collection.memberships.items()):
+        if membership.shape[1] != len(current_index):
+            continue
+        if sparse.issparse(membership):
+            collection.memberships[key] = membership[:, keep_positions]
+        else:
+            collection.memberships[key] = np.asarray(membership)[:, keep_positions]
 
 
 def _relation_from_square_adata(
@@ -377,7 +428,6 @@ class NBHD:
     collection:
 
     - ``construct_gene_space`` stores neighborhood-by-gene data.
-    - ``construct_image_space`` stores neighborhood-by-image-feature data.
     - ``construct_overlap_relation`` and ``construct_bordering_relation`` store
       neighborhood-by-neighborhood sparse relations.
     """
@@ -388,7 +438,6 @@ class NBHD:
         nbhd_type: str,
         adata: AnnData | None = None,
         data_dir: str | None = None,
-        path_landscape_files: str | None = None,
         source: str | dict[str, Any] | None = None,
         name: str | None = None,
         meta: dict[str, Any] | None = None,
@@ -398,7 +447,6 @@ class NBHD:
         self.nbhd_type = nbhd_type
         self.adata = adata
         self.data_dir = data_dir
-        self.path_landscape_files = path_landscape_files
         self.source = source
         self.name = name
         self.meta = meta or {}
@@ -416,7 +464,6 @@ class NBHD:
         self.collection.nbhd_col = self.nbhd_col
 
         self.derived: dict[str, Any] = {
-            "NBI": None,
             "NBG-CF": None,
             "NBG-CD": None,
             "NBP": {},
@@ -433,12 +480,28 @@ class NBHD:
         """Return the underlying ``NeighborhoodCollection``."""
         return self.collection
 
+    def _sync_derived_modalities(self) -> None:
+        """Refresh legacy derived references after collection-level subsetting."""
+        derived_mods = {
+            "NBG-CD": "gene",
+            "NBG-CF": "gene_cell_free",
+        }
+        for derived_key, mod_key in derived_mods.items():
+            if self.derived.get(derived_key) is not None and mod_key in self.collection.mod:
+                self.derived[derived_key] = self.collection.mod[mod_key]
+
+        if self.derived.get("NBP"):
+            if "population" in self.collection.mod:
+                self.derived["NBP"]["prop"] = self.collection.mod["population"]
+            if "population_counts" in self.collection.mod:
+                self.derived["NBP"]["abs"] = self.collection.mod["population_counts"]
+
     def calc_nbhd_by_pop(
         self,
         category: str = "leiden",
         key: str = "population",
         min_cells: int = 5,
-        output: str = "percentage",
+        output: str = "proportion",
     ) -> None:
         """Calculate and attach a neighborhood-by-population modality."""
         calc_nbhd_by_pop(
@@ -448,6 +511,8 @@ class NBHD:
             min_cells=min_cells,
             output=output,
         )
+        self.gdf = self.collection.gdf.copy()
+        self._sync_derived_modalities()
 
     def construct_gene_space(
         self,
@@ -482,22 +547,6 @@ class NBHD:
         )
         adata = _align_space_to_collection(adata, self.collection)
         return self.collection.add_mod(space_key, adata, var_entity_type="gene")
-
-    def construct_image_space(self, key: str = "image") -> AnnData:
-        """Construct and attach a neighborhood-by-image-feature space."""
-        if self.data_dir is None:
-            raise ValueError("data_dir is required to resolve the morphology image")
-        if self.path_landscape_files is None:
-            raise ValueError("path_landscape_files is required to construct an image space")
-
-        df = calc_nbhd_by_image(
-            str(resolve_xenium_morphology_ome_path(self.data_dir)),
-            self.path_landscape_files,
-            self.gdf,
-            nbhd_col=self.nbhd_col,
-        )
-        adata = _dataframe_to_space(df, self.collection, uns={"feature_type": "image"})
-        return self.collection.add_mod(key, adata, var_entity_type="image_feature")
 
     def construct_overlap_relation(
         self,
@@ -546,7 +595,7 @@ class NBHD:
                 self.collection,
                 category="leiden",
                 key="population",
-                output="percentage",
+                output="proportion",
             )
             calc_nbhd_by_pop(
                 self.collection,
@@ -555,9 +604,10 @@ class NBHD:
                 output="counts",
             )
             data = {
-                "pct": self.collection.mod["population"],
+                "prop": self.collection.mod["population"],
                 "abs": self.collection.mod["population_counts"],
             }
+            self.gdf = self.collection.gdf.copy()
         elif key == "NBM":
             if self.data_dir is None or self.adata is None:
                 raise ValueError("data_dir and adata are required to derive NBM")
@@ -591,22 +641,6 @@ class NBHD:
                 data,
                 self.collection,
             )
-        elif key == "NBI":
-            if self.data_dir is None:
-                raise ValueError("data_dir is required to resolve the morphology image")
-            if self.path_landscape_files is None:
-                raise ValueError("path_landscape_files is required to derive NBI")
-            data = calc_nbhd_by_image(
-                str(resolve_xenium_morphology_ome_path(self.data_dir)),
-                self.path_landscape_files,
-                self.gdf,
-                nbhd_col=self.nbhd_col,
-            )
-            self.collection.add_mod(
-                "image",
-                _dataframe_to_space(data, self.collection, uns={"feature_type": "image"}),
-                var_entity_type="image_feature",
-            )
         else:
             raise ValueError(f"Unknown derived key: {key}")
 
@@ -616,6 +650,7 @@ class NBHD:
         else:
             self.derived[key] = data
 
+        self._sync_derived_modalities()
         print(f"{key} is derived and attached to nbhd")
 
     def _add_geo(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -659,7 +694,7 @@ class NBHD:
         if val is None:
             return None
         if key == "NBP":
-            subkeys = ["abs", "pct"]
+            subkeys = ["abs", "prop"]
             summary = {}
             for subkey in subkeys:
                 subval = val.get(subkey)
@@ -674,7 +709,7 @@ def calc_nbhd_by_pop(
     category: str = "leiden",
     nbhd_col: str = "name",
     min_cells: int = 5,
-    output: str = "percentage",
+    output: str = "proportion",
     key: str = "population",
 ) -> AnnData | None:
     """
@@ -700,9 +735,9 @@ def calc_nbhd_by_pop(
     min_cells : int, default 5
         Minimum number of cells required within a neighborhood to include it in
         the output. Neighborhoods with fewer cells are filtered out.
-    output : str, default "percentage"
+    output : str, default "proportion"
         Type of values in the output matrix:
-        - "percentage": Fraction of cells per category (sums to 1 per neighborhood)
+        - "proportion": Fraction of cells per category (sums to 1 per neighborhood)
         - "counts": Raw cell counts per category
     key : str, default "population"
         Modality key when attaching to a NeighborhoodCollection.
@@ -713,7 +748,7 @@ def calc_nbhd_by_pop(
         Passing a collection attaches the modality to ``collection.mod[key]``
         and returns ``None``. Passing raw AnnData and a GeoDataFrame returns an
         AnnData object with shape (n_neighborhoods, n_categories) where:
-        - `X`: Matrix of population distributions (percentages or counts)
+        - `X`: Matrix of population distributions (proportions or counts)
         - `obs`: DataFrame indexed by neighborhood names
         - `var`: DataFrame indexed by category names
         - `obs["n_cells"]`: Total cell count per neighborhood
@@ -754,6 +789,8 @@ def calc_nbhd_by_pop(
         raise ValueError(f"adata.obs missing required '{category}' column")
     if "spatial" not in source_adata.obsm:
         raise ValueError("adata.obsm missing 'spatial' coordinates")
+    if output not in {"proportion", "counts"}:
+        raise ValueError("output must be 'proportion' or 'counts'")
 
     # Build GeoDataFrame from adata with the specified category
     # No CRS set - using micron imaging coordinates, not geospatial
@@ -787,7 +824,7 @@ def calc_nbhd_by_pop(
     counts = counts.reindex(filtered_gdf_nbhd[nbhd_col]).fillna(0).astype(int)
 
     # Calculate output values
-    if output == "percentage":
+    if output == "proportion":
         values = counts.div(counts.sum(axis=1), axis=0).fillna(0).values
     else:
         values = counts.values
@@ -800,6 +837,7 @@ def calc_nbhd_by_pop(
     )
     adata_nbp.obs["n_cells"] = counts.sum(axis=1).values
     adata_nbp.uns["category"] = category
+    adata_nbp.uns["output"] = output
 
     # Add category as a var column (columns represent categories)
     adata_nbp.var[category] = adata_nbp.var.index.astype(str)
@@ -840,7 +878,7 @@ def calc_nbhd_by_pop(
         ]
 
     if collection is not None:
-        adata_nbp = _align_space_to_collection(adata_nbp, collection)
+        _subset_neighborhood_collection_to_obs(collection, pd.Index(adata_nbp.obs_names.astype(str)))
         collection.add_mod(key, adata_nbp, var_entity_type="cell_population")
         return None
 

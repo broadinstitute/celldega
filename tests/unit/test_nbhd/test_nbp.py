@@ -68,6 +68,7 @@ def test_calc_nbhd_by_pop_basic(synthetic_data):
     assert "A" in adata_nbp.obs.index, "Neighborhood A should be included"
     assert isinstance(adata_nbp, AnnData)
     assert adata_nbp.shape[1] == 2, "Should have 2 categories (X and Y)"
+    assert adata_nbp.uns["output"] == "proportion"
     np.testing.assert_array_equal(sorted(adata_nbp.var.index), ["X", "Y"])
 
 
@@ -114,3 +115,6 @@ def test_calc_nbhd_by_pop_raises_on_missing_columns(synthetic_data):
     del bad_adata2.obsm["spatial"]
     with pytest.raises(ValueError, match=r"adata\.obsm missing 'spatial' coordinates"):
         calc_nbhd_by_pop(bad_adata2, gdf_nbhd, category="leiden")
+
+    with pytest.raises(ValueError, match="output must be 'proportion' or 'counts'"):
+        calc_nbhd_by_pop(adata, gdf_nbhd, category="leiden", output="percentage")

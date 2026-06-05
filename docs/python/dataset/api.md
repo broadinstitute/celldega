@@ -33,7 +33,8 @@ dset.calc_dataset_signature(
     adata,
     category="cell_type",
     value="CD8 T",
-    key="cd8_t_expression",
+    modality_name="cd8_t_expression",
+    missing_datasets="nan",
 )
 
 cd8_t_expression = dset.mod["cd8_t_expression"]

@@ -5,6 +5,7 @@ import geopandas as gpd
 from mudata import MuData
 import numpy as np
 import pandas as pd
+import pytest
 from scipy import sparse
 from shapely.geometry import Point
 
@@ -176,6 +177,17 @@ def test_calc_dataset_by_pop_attaches_population_modality():
     assert population_proportion.uns["output"] == "proportion"
     np.testing.assert_allclose(population_proportion.X, np.array([[0.5, 0.5], [1.0, 0.0]]))
 
+    named_dataset = DatasetCollection(adata, dataset_col="sample_id", obs_columns=["condition"])
+    assert (
+        named_dataset.calc_dataset_by_pop(
+            adata,
+            category="cell_type",
+            modality_name="cell_type_population",
+        )
+        is None
+    )
+    assert "cell_type_population" in named_dataset.mod
+
 
 def test_calc_dataset_signature_attaches_gene_modality():
     adata = AnnData(
@@ -186,21 +198,22 @@ def test_calc_dataset_signature_attaches_gene_modality():
                 [4, 0, 6],
                 [0, 7, 3],
                 [2, 2, 2],
+                [0, 1, 1],
             ],
             dtype=float,
         ),
         var=pd.DataFrame(index=["CD3D", "GZMB", "IFNG"]),
     )
-    adata.obs["sample_id"] = ["s1", "s1", "s2", "s2", "s2"]
-    adata.obs["condition"] = ["a", "a", "b", "b", "b"]
-    adata.obs["cell_type"] = ["CD8 T", "B", "CD8 T", "CD8 T", "B"]
+    adata.obs["sample_id"] = ["s1", "s1", "s2", "s2", "s2", "s3"]
+    adata.obs["condition"] = ["a", "a", "b", "b", "b", "c"]
+    adata.obs["cell_type"] = ["CD8 T", "B", "CD8 T", "CD8 T", "B", "B"]
 
     dataset = DatasetCollection(adata, dataset_col="sample_id", obs_columns=["condition"])
     result = dataset.calc_dataset_signature(
         adata,
         category="cell_type",
         value="CD8 T",
-        key="cd8_t_expression",
+        modality_name="cd8_t_expression",
     )
     signature = dataset.mod["cd8_t_expression"]
 
@@ -208,15 +221,102 @@ def test_calc_dataset_signature_attaches_gene_modality():
     expected = np.log1p(expected_counts / expected_counts.sum(axis=1, keepdims=True) * 1_000_000)
 
     assert result is None
-    assert list(signature.obs_names) == ["s1", "s2"]
+    assert list(signature.obs_names) == ["s1", "s2", "s3"]
     assert signature.obs.loc["s1", "condition"] == "a"
-    assert list(signature.obs["cell_count"]) == [1, 2]
+    assert list(signature.obs["cell_count"]) == [1, 2, 0]
     assert list(signature.var_names) == ["CD3D", "GZMB", "IFNG"]
     assert list(signature.var["entity_type"]) == ["gene", "gene", "gene"]
     assert signature.uns["feature_type"] == "dataset_signature"
     assert signature.uns["category"] == "cell_type"
     assert signature.uns["value"] == "CD8 T"
-    np.testing.assert_allclose(signature.X, expected)
+    assert signature.uns["missing_datasets"] == "nan"
+    np.testing.assert_allclose(signature.X[:2], expected)
+    assert np.isnan(signature.X[2]).all()
+
+
+def test_calc_dataset_signature_adds_nan_rows_when_category_value_is_absent():
+    adata = AnnData(X=np.ones((3, 2)), var=pd.DataFrame(index=["GeneA", "GeneB"]))
+    adata.obs["sample_id"] = ["s1", "s1", "s2"]
+    adata.obs["cell_type"] = ["B", "T", "B"]
+
+    dataset = DatasetCollection(adata, dataset_col="sample_id")
+
+    result = dataset.calc_dataset_signature(
+        adata,
+        category="cell_type",
+        value="CD8 T",
+        modality_name="cd8_t_expression",
+    )
+    signature = dataset.mod["cd8_t_expression"]
+
+    assert result is None
+    assert list(signature.obs_names) == ["s1", "s2"]
+    assert list(signature.obs["cell_count"]) == [0, 0]
+    assert np.isnan(signature.X).all()
+    assert signature.uns["available_values"] == ["B", "T"]
+
+
+def test_calc_dataset_signature_can_raise_when_category_value_is_absent():
+    adata = AnnData(X=np.ones((3, 2)), var=pd.DataFrame(index=["GeneA", "GeneB"]))
+    adata.obs["sample_id"] = ["s1", "s1", "s2"]
+    adata.obs["cell_type"] = ["B", "T", "B"]
+
+    dataset = DatasetCollection(adata, dataset_col="sample_id")
+
+    with pytest.raises(
+        ValueError,
+        match=r"No cells found where adata\.obs\['cell_type'\] == 'CD8 T'",
+    ):
+        dataset.calc_dataset_signature(
+            adata,
+            category="cell_type",
+            value="CD8 T",
+            modality_name="cd8_t_expression",
+            missing_datasets="raise",
+        )
+
+    assert "cd8_t_expression" not in dataset.mod
+
+
+def test_calc_dataset_signature_adds_nan_rows_when_no_dataset_passes_min_cells():
+    adata = AnnData(X=np.ones((2, 2)), var=pd.DataFrame(index=["GeneA", "GeneB"]))
+    adata.obs["sample_id"] = ["s1", "s2"]
+    adata.obs["cell_type"] = ["CD8 T", "CD8 T"]
+
+    dataset = DatasetCollection(adata, dataset_col="sample_id")
+
+    result = dataset.calc_dataset_signature(
+        adata,
+        category="cell_type",
+        value="CD8 T",
+        modality_name="cd8_t_expression",
+        min_cells=2,
+    )
+    signature = dataset.mod["cd8_t_expression"]
+
+    assert result is None
+    assert list(signature.obs["cell_count"]) == [1, 1]
+    assert np.isnan(signature.X).all()
+
+
+def test_calc_dataset_signature_can_raise_when_dataset_is_below_min_cells():
+    adata = AnnData(X=np.ones((2, 2)), var=pd.DataFrame(index=["GeneA", "GeneB"]))
+    adata.obs["sample_id"] = ["s1", "s2"]
+    adata.obs["cell_type"] = ["CD8 T", "CD8 T"]
+
+    dataset = DatasetCollection(adata, dataset_col="sample_id")
+
+    with pytest.raises(ValueError, match="Some datasets have fewer than 2 cells"):
+        dataset.calc_dataset_signature(
+            adata,
+            category="cell_type",
+            value="CD8 T",
+            modality_name="cd8_t_expression",
+            min_cells=2,
+            missing_datasets="raise",
+        )
+
+    assert "cd8_t_expression" not in dataset.mod
 
 
 def test_dataset_write_read_round_trips_mudata(tmp_path):

@@ -143,13 +143,15 @@ def _normalize_rows(values: np.ndarray, normalization: str | None) -> np.ndarray
         raise ValueError("normalization must be None, 'cpm', or 'log1p_cpm'")
 
     normalized = values.astype(float, copy=True)
+    missing_rows = np.isnan(normalized).all(axis=1)
     library_size = normalized.sum(axis=1)
-    valid = library_size > 0
-    normalized[~valid, :] = 0
+    valid = (library_size > 0) & ~missing_rows
+    normalized[(~valid) & ~missing_rows, :] = 0
     if valid.any():
         normalized[valid, :] = normalized[valid, :] / library_size[valid, None] * 1_000_000
     if norm == "log1p_cpm":
         normalized = np.log1p(normalized)
+    normalized[missing_rows, :] = np.nan
     return normalized
 
 
@@ -162,6 +164,8 @@ def _category_signature_from_adata(
     aggregate: str = "sum",
     normalization: str | None = "log1p_cpm",
     min_cells: int = 1,
+    dataset_ids: pd.Index | None = None,
+    missing_datasets: str = "nan",
 ) -> AnnData:
     if dataset_col not in adata.obs.columns:
         raise ValueError(f"adata.obs missing required '{dataset_col}' column")
@@ -169,21 +173,69 @@ def _category_signature_from_adata(
         raise ValueError(f"adata.obs missing required '{category}' column")
     if aggregate not in {"sum", "mean"}:
         raise ValueError("aggregate must be 'sum' or 'mean'")
+    if missing_datasets not in {"nan", "raise"}:
+        raise ValueError("missing_datasets must be 'nan' or 'raise'")
 
-    category_values = adata.obs[category].astype(str)
+    if dataset_ids is None:
+        dataset_ids = pd.Index(pd.unique(adata.obs[dataset_col].astype(str)), name=dataset_col)
+    else:
+        dataset_ids = pd.Index(dataset_ids.astype(str), name=dataset_col)
+
+    raw_category_values = adata.obs[category]
+    category_values = raw_category_values.astype(str)
     selected = category_values == str(value)
     if not selected.any():
-        raise ValueError(f"No cells found where adata.obs['{category}'] == {value!r}")
+        available = sorted(raw_category_values.dropna().astype(str).unique())
+        preview = ", ".join(repr(item) for item in available[:10]) or "<none>"
+        suffix = "" if len(available) <= 10 else f", ... ({len(available)} total)"
+        if missing_datasets == "raise":
+            raise ValueError(
+                f"No cells found where adata.obs['{category}'] == {value!r}. "
+                f"Available values: {preview}{suffix}"
+            )
+
+        obs = pd.DataFrame(index=dataset_ids)
+        obs[dataset_col] = obs.index.astype(str)
+        obs["cell_count"] = 0
+        var = adata.var.copy()
+        var.index = adata.var_names.astype(str)
+        if "gene" not in var.columns:
+            var["gene"] = var.index.astype(str)
+        return AnnData(
+            X=np.full((len(dataset_ids), adata.n_vars), np.nan, dtype=float),
+            obs=obs,
+            var=var,
+            uns={
+                "feature_type": "dataset_signature",
+                "dataset_col": dataset_col,
+                "category": category,
+                "value": str(value),
+                "layer": layer,
+                "aggregate": aggregate,
+                "normalization": normalization,
+                "missing_datasets": missing_datasets,
+                "available_values": available,
+            },
+        )
 
     target = adata[selected.to_numpy(), :]
     matrix = _matrix_from_adata(target, layer)
     dataset_labels = target.obs[dataset_col].astype(str).to_numpy()
-    dataset_ids = pd.Index(pd.unique(dataset_labels), name=dataset_col)
+    counts_by_dataset = (
+        pd.Series(dataset_labels).value_counts().reindex(dataset_ids).fillna(0).astype(int)
+    )
 
-    kept_ids: list[str] = []
-    vectors: list[np.ndarray] = []
-    n_cells: list[int] = []
-    for dataset_id in dataset_ids:
+    missing_ids = counts_by_dataset[counts_by_dataset < min_cells].index
+    if len(missing_ids) and missing_datasets == "raise":
+        preview = ", ".join(map(str, missing_ids[:10]))
+        suffix = "" if len(missing_ids) <= 10 else f", ... ({len(missing_ids)} total)"
+        raise ValueError(
+            f"Some datasets have fewer than {min_cells} cells where "
+            f"adata.obs['{category}'] == {value!r}: {preview}{suffix}"
+        )
+
+    values = np.full((len(dataset_ids), target.n_vars), np.nan, dtype=float)
+    for row_idx, dataset_id in enumerate(dataset_ids):
         mask = dataset_labels == dataset_id
         count = int(mask.sum())
         if count < min_cells:
@@ -191,16 +243,12 @@ def _category_signature_from_adata(
 
         group = matrix[mask, :]
         vector = group.sum(axis=0) if aggregate == "sum" else group.mean(axis=0)
-        kept_ids.append(str(dataset_id))
-        vectors.append(_as_1d(vector))
-        n_cells.append(count)
-
-    values = np.vstack(vectors) if vectors else np.zeros((0, target.n_vars), dtype=float)
+        values[row_idx, :] = _as_1d(vector)
     values = _normalize_rows(values, normalization)
 
-    obs = pd.DataFrame(index=pd.Index(kept_ids, name=dataset_col))
+    obs = pd.DataFrame(index=dataset_ids)
     obs[dataset_col] = obs.index.astype(str)
-    obs["cell_count"] = n_cells
+    obs["cell_count"] = counts_by_dataset.values
 
     var = target.var.copy()
     var.index = target.var_names.astype(str)
@@ -219,6 +267,7 @@ def _category_signature_from_adata(
             "layer": layer,
             "aggregate": aggregate,
             "normalization": normalization,
+            "missing_datasets": missing_datasets,
         },
     )
 
@@ -303,7 +352,7 @@ class DatasetCollection(CelldegaCollection):
         self,
         adata: AnnData,
         category: str = "leiden",
-        key: str = "population",
+        modality_name: str = "population",
         output: str = "proportion",
         min_cells: int = 1,
         dataset_col: str | None = None,
@@ -314,7 +363,7 @@ class DatasetCollection(CelldegaCollection):
             adata=adata,
             dataset_col=dataset_col,
             category=category,
-            key=key,
+            modality_name=modality_name,
             output=output,
             min_cells=min_cells,
         )
@@ -324,15 +373,21 @@ class DatasetCollection(CelldegaCollection):
         adata: AnnData,
         category: str,
         value: Any,
-        key: str | None = None,
+        modality_name: str | None = None,
         layer: str | None = None,
         aggregate: str = "sum",
         normalization: str | None = "log1p_cpm",
         min_cells: int = 1,
+        missing_datasets: str = "nan",
         dataset_col: str | None = None,
         var_entity_type: str = "gene",
     ) -> None:
-        """Calculate and attach a dataset-by-feature signature for one category value."""
+        """Calculate and attach a dataset-by-feature signature for one category value.
+
+        ``missing_datasets="nan"`` keeps the full collection observation axis
+        and marks datasets with fewer than ``min_cells`` selected cells as
+        ``NaN`` rows. Use ``"raise"`` to reject missing dataset signatures.
+        """
         resolved_dataset_col = _resolve_dataset_col(self, dataset_col or self.dataset_col)
         space = _category_signature_from_adata(
             adata,
@@ -343,10 +398,12 @@ class DatasetCollection(CelldegaCollection):
             aggregate=aggregate,
             normalization=normalization,
             min_cells=min_cells,
+            dataset_ids=self.obs.index,
+            missing_datasets=missing_datasets,
         )
         space = _align_mod_to_dataset(space, self)
         self.add_mod(
-            key or f"{_slug(value)}_signature",
+            modality_name or f"{_slug(value)}_signature",
             space,
             var_entity_type=var_entity_type,
         )
@@ -436,12 +493,12 @@ def _calc_dataset_by_pop(
     category: str = "leiden",
     output: str = "proportion",
     min_cells: int = 1,
-    key: str = "population",
+    modality_name: str = "population",
 ) -> None:
     """Calculate a dataset-by-population feature space.
 
-    The result is attached to ``dataset.mod[key]`` and the function returns
-    ``None``.
+    The result is attached to ``dataset.mod[modality_name]`` and the function
+    returns ``None``.
     """
     resolved_dataset_col = _resolve_dataset_col(dataset, dataset_col or dataset.dataset_col)
     space = _population_space_from_adata(
@@ -452,4 +509,4 @@ def _calc_dataset_by_pop(
         min_cells=min_cells,
     )
     space = _align_mod_to_dataset(space, dataset)
-    dataset.add_mod(key, space, var_entity_type="cell_population")
+    dataset.add_mod(modality_name, space, var_entity_type="cell_population")

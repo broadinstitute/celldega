@@ -1,4 +1,5 @@
 import importlib.util
+import sys
 
 from anndata import AnnData
 import geopandas as gpd
@@ -358,6 +359,9 @@ def test_dataset_write_read_round_trips_mudata(tmp_path):
 
 
 def test_dataset_methods_are_not_exposed_at_package_root():
+    for module in ("celldega", "celldega.nbhd", "celldega.nbhd.neighborhoods"):
+        sys.modules.pop(module, None)
+
     import celldega as dega
     import celldega.dataset as dataset_module
 

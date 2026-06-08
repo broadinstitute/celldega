@@ -422,10 +422,11 @@ def _relation_from_square_adata(
 class NBHD:
     """Neighborhood geometry plus collection-backed modalities.
 
-    ``NBHD`` keeps the existing convenience API for derived matrices while also
-    maintaining a MuData-backed ``NeighborhoodCollection`` in ``collection``.
-    New feature constructors attach aligned modalities and relations to that
-    collection:
+    ``NBHD`` is a legacy helper that maintains a MuData-backed
+    ``NeighborhoodCollection`` in ``collection``. Cell-level AnnData is not
+    stored on the helper or collection; pass it to feature constructors that
+    need single-cell data. New feature constructors attach aligned modalities
+    and relations to that collection:
 
     - ``construct_gene_space`` stores neighborhood-by-gene data.
     - ``construct_overlap_relation`` and ``construct_bordering_relation`` store
@@ -436,7 +437,6 @@ class NBHD:
         self,
         gdf: gpd.GeoDataFrame,
         nbhd_type: str,
-        adata: AnnData | None = None,
         data_dir: str | None = None,
         source: str | dict[str, Any] | None = None,
         name: str | None = None,
@@ -445,7 +445,6 @@ class NBHD:
     ) -> None:
         self.gdf = gdf.copy()
         self.nbhd_type = nbhd_type
-        self.adata = adata
         self.data_dir = data_dir
         self.source = source
         self.name = name
@@ -459,7 +458,6 @@ class NBHD:
             provenance=provenance,
             uns={"name": name, **self.meta},
         )
-        self.collection.adata = adata
         self.collection.gdf = self.gdf.copy()
         self.collection.nbhd_col = self.nbhd_col
 
@@ -498,19 +496,26 @@ class NBHD:
 
     def calc_nbhd_by_pop(
         self,
+        adata: AnnData,
         category: str = "leiden",
         key: str = "population",
         min_cells: int = 5,
         output: str = "proportion",
     ) -> None:
         """Calculate and attach a neighborhood-by-population modality."""
-        calc_nbhd_by_pop(
-            self.collection,
+        space = calc_nbhd_by_pop(
+            adata,
+            self.gdf,
             category=category,
-            key=key,
+            nbhd_col=self.nbhd_col,
             min_cells=min_cells,
             output=output,
         )
+        _subset_neighborhood_collection_to_obs(
+            self.collection,
+            pd.Index(space.obs_names.astype(str)),
+        )
+        self.collection.add_mod(key, space, var_entity_type="cell_population")
         self.gdf = self.collection.gdf.copy()
         self._sync_derived_modalities()
 
@@ -519,6 +524,7 @@ class NBHD:
         by: str = "cell",
         key: str | None = None,
         min_cells: int = 1,
+        adata: AnnData | None = None,
     ) -> AnnData:
         """Construct and attach a neighborhood-by-gene space.
 
@@ -530,23 +536,25 @@ class NBHD:
                 transcript-derived counts.
             min_cells: Minimum cells or transcripts required by the legacy
                 calculator before alignment back to the collection.
+            adata: Cell-level AnnData required when ``by="cell"``.
         """
-        if by == "cell" and self.adata is None:
+        source_adata = adata
+        if by == "cell" and source_adata is None:
             raise ValueError("adata is required to construct a cell-derived gene space")
         if by == "cell-free" and self.data_dir is None:
             raise ValueError("data_dir is required to construct a cell-free gene space")
 
         space_key = key or ("gene" if by == "cell" else "gene_cell_free")
-        adata = calc_nbhd_by_gene(
+        space = calc_nbhd_by_gene(
             self.gdf,
             by=by,
-            adata=self.adata,
+            adata=source_adata,
             data_dir=self.data_dir,
             nbhd_col=self.nbhd_col,
             min_cells=min_cells,
         )
-        adata = _align_space_to_collection(adata, self.collection)
-        return self.collection.add_mod(space_key, adata, var_entity_type="gene")
+        space = _align_space_to_collection(space, self.collection)
+        return self.collection.add_mod(space_key, space, var_entity_type="gene")
 
     def construct_overlap_relation(
         self,
@@ -582,23 +590,30 @@ class NBHD:
         self.collection.relations[key] = relation
         return relation
 
-    def set_derived(self, key: str, subkey: str | None = None) -> None:
+    def set_derived(
+        self,
+        key: str,
+        subkey: str | None = None,
+        adata: AnnData | None = None,
+    ) -> None:
         """
         Set a derived data matrix and attach it to the collection when possible.
         """
         if key == "NBG-CD":
-            data = self.construct_gene_space(by="cell", key="gene")
+            data = self.construct_gene_space(by="cell", key="gene", adata=adata)
         elif key == "NBG-CF":
             data = self.construct_gene_space(by="cell-free", key="gene_cell_free")
         elif key == "NBP":
-            calc_nbhd_by_pop(
-                self.collection,
+            if adata is None:
+                raise ValueError("adata is required to derive NBP")
+            self.calc_nbhd_by_pop(
+                adata,
                 category="leiden",
                 key="population",
                 output="proportion",
             )
-            calc_nbhd_by_pop(
-                self.collection,
+            self.calc_nbhd_by_pop(
+                adata,
                 category="leiden",
                 key="population_counts",
                 output="counts",
@@ -609,10 +624,10 @@ class NBHD:
             }
             self.gdf = self.collection.gdf.copy()
         elif key == "NBM":
-            if self.data_dir is None or self.adata is None:
+            if self.data_dir is None or adata is None:
                 raise ValueError("data_dir and adata are required to derive NBM")
             gdf_trx = _get_gdf_trx(self.data_dir)
-            gdf_cell = _get_gdf_cell(self.adata)
+            gdf_cell = _get_gdf_cell(adata)
             data = get_nbhd_meta(self.gdf, self.nbhd_col, gdf_trx, gdf_cell)
             data.index = data.index.astype(str)
             self.collection.obs = self.collection.obs.join(data, how="left")
@@ -704,14 +719,13 @@ class NBHD:
 
 
 def calc_nbhd_by_pop(
-    adata: AnnData | NeighborhoodCollection | Any,
-    gdf_nbhd: gpd.GeoDataFrame | None = None,
+    adata: AnnData,
+    gdf_nbhd: gpd.GeoDataFrame,
     category: str = "leiden",
     nbhd_col: str = "name",
     min_cells: int = 5,
     output: str = "proportion",
-    key: str = "population",
-) -> AnnData | None:
+) -> AnnData:
     """
     Calculate cell-level population distribution of neighborhoods.
 
@@ -720,13 +734,11 @@ def calc_nbhd_by_pop(
 
     Parameters
     ----------
-    adata : AnnData or NeighborhoodCollection
-        AnnData object containing cell data, or a NeighborhoodCollection with
-        ``adata`` and ``gdf`` attached. Cell-level AnnData must have spatial
-        coordinates in `obsm["spatial"]` and the category column in `obs`.
-    gdf_nbhd : gpd.GeoDataFrame, optional
-        GeoDataFrame containing neighborhood geometries. Required when ``adata``
-        is a cell-level AnnData.
+    adata : AnnData
+        Cell-level AnnData containing spatial coordinates in `obsm["spatial"]`
+        and the category column in `obs`.
+    gdf_nbhd : gpd.GeoDataFrame
+        GeoDataFrame containing neighborhood geometries.
     category : str, default "leiden"
         Column name in `adata.obs` containing cell category labels (e.g., "leiden",
         "cell_type", "cluster").
@@ -739,14 +751,9 @@ def calc_nbhd_by_pop(
         Type of values in the output matrix:
         - "proportion": Fraction of cells per category (sums to 1 per neighborhood)
         - "counts": Raw cell counts per category
-    key : str, default "population"
-        Modality key when attaching to a NeighborhoodCollection.
-
     Returns
     -------
-    AnnData or None
-        Passing a collection attaches the modality to ``collection.mod[key]``
-        and returns ``None``. Passing raw AnnData and a GeoDataFrame returns an
+    AnnData
         AnnData object with shape (n_neighborhoods, n_categories) where:
         - `X`: Matrix of population distributions (proportions or counts)
         - `obs`: DataFrame indexed by neighborhood names
@@ -761,23 +768,10 @@ def calc_nbhd_by_pop(
     """
     print("Calculating NBP")
 
-    collection: NeighborhoodCollection | None = None
     source_adata = adata
-    if isinstance(adata, NeighborhoodCollection):
-        collection = adata
-        source_adata = collection.adata
-        gdf_nbhd = collection.gdf
-        nbhd_col = collection.nbhd_col
-    elif hasattr(adata, "collection") and isinstance(adata.collection, NeighborhoodCollection):
-        collection = adata.collection
-        source_adata = getattr(adata, "adata", None)
-        gdf_nbhd = getattr(adata, "gdf", None)
-        nbhd_col = getattr(adata, "nbhd_col", nbhd_col)
 
-    if source_adata is None:
-        raise ValueError("adata is required to calculate a neighborhood population space")
     if gdf_nbhd is None:
-        raise ValueError("gdf_nbhd is required when adata is not a NeighborhoodCollection")
+        raise ValueError("gdf_nbhd is required to calculate a neighborhood population space")
 
     # Validate inputs
     required_nbhd = {"geometry", nbhd_col}
@@ -876,11 +870,6 @@ def calc_nbhd_by_pop(
         adata_nbp.obs["color"] = [
             color_dict.get(str(c), "#808080") for c in adata_nbp.obs[category]
         ]
-
-    if collection is not None:
-        _subset_neighborhood_collection_to_obs(collection, pd.Index(adata_nbp.obs_names.astype(str)))
-        collection.add_mod(key, adata_nbp, var_entity_type="cell_population")
-        return None
 
     return adata_nbp
 

@@ -122,8 +122,8 @@ gdf_hex = dega.nbhd.generate_hextile(adata, diameter=100)
 adata_nbg = dega.nbhd.calc_nbhd_by_gene(gdf_alpha, by="cell", adata=adata)
 
 # Attach modalities to a NeighborhoodCollection
-nbhd = dega.nbhd.NeighborhoodCollection(gdf=gdf_alpha, nbhd_type="alpha_shape", adata=adata)
-nbhd.calc_nbhd_by_pop(category="leiden")
+nbhd = dega.nbhd.NeighborhoodCollection(gdf=gdf_alpha, nbhd_type="alpha_shape")
+nbhd.calc_nbhd_by_pop(adata, category="leiden")
 ```
 
 ### [Viz Module](viz/api.md)

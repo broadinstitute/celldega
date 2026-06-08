@@ -65,22 +65,24 @@ def _synthetic_nbhd_inputs():
 
 
 def test_nbhd_constructor_builds_collection_from_geometry():
-    gdf, adata = _synthetic_nbhd_inputs()
+    gdf, _adata = _synthetic_nbhd_inputs()
 
-    nbhd = NBHD(gdf, "manual", adata=adata)
+    nbhd = NBHD(gdf, "manual")
 
     assert list(nbhd.collection.obs.index) == ["A", "B"]
     assert list(nbhd.collection.geometry.index) == ["A", "B"]
     assert nbhd.collection.obs.loc["A", "neighborhood_type"] == "manual"
     assert nbhd.to_collection() is nbhd.collection
+    assert not hasattr(nbhd, "adata")
+    assert not hasattr(nbhd.collection, "adata")
 
 
 def test_nbhd_modality_constructors_attach_aligned_modalities():
     gdf, adata = _synthetic_nbhd_inputs()
-    nbhd = NBHD(gdf, "manual", adata=adata)
+    nbhd = NBHD(gdf, "manual")
 
-    gene = nbhd.construct_gene_space(min_cells=1)
-    result = nbhd.calc_nbhd_by_pop(min_cells=1, output="counts")
+    gene = nbhd.construct_gene_space(min_cells=1, adata=adata)
+    result = nbhd.calc_nbhd_by_pop(adata, min_cells=1, output="counts")
     population = nbhd.collection.mod["population"]
 
     assert result is None
@@ -99,15 +101,16 @@ def test_nbhd_modality_constructors_attach_aligned_modalities():
 
 def test_neighborhood_collection_calculates_population_modality_directly():
     gdf, adata = _synthetic_nbhd_inputs()
-    collection = NeighborhoodCollection(gdf=gdf, nbhd_type="manual", adata=adata)
+    collection = NeighborhoodCollection(gdf=gdf, nbhd_type="manual")
 
-    result = collection.calc_nbhd_by_pop(min_cells=1, output="counts")
+    result = collection.calc_nbhd_by_pop(adata, min_cells=1, output="counts")
     population = collection.mod["population"]
 
     assert result is None
     assert collection.to_collection() is collection
     assert collection.mod["population"] is population
     assert collection.nbhd_type == "manual"
+    assert not hasattr(collection, "adata")
     assert list(population.obs_names) == ["A", "B"]
     assert list(population.var["entity_type"]) == [
         "cell_population",
@@ -119,9 +122,9 @@ def test_neighborhood_collection_calculates_population_modality_directly():
 
 def test_neighborhood_collection_min_cells_filters_collection_axis():
     gdf, adata = _synthetic_nbhd_inputs()
-    collection = NeighborhoodCollection(gdf=gdf, nbhd_type="manual", adata=adata)
+    collection = NeighborhoodCollection(gdf=gdf, nbhd_type="manual")
 
-    result = collection.calc_nbhd_by_pop(min_cells=2, output="counts")
+    result = collection.calc_nbhd_by_pop(adata, min_cells=2, output="counts")
     population = collection.mod["population"]
 
     assert result is None
@@ -134,10 +137,10 @@ def test_neighborhood_collection_min_cells_filters_collection_axis():
 
 def test_nbhd_min_cells_filters_collection_axis_and_existing_modalities():
     gdf, adata = _synthetic_nbhd_inputs()
-    nbhd = NBHD(gdf, "manual", adata=adata)
+    nbhd = NBHD(gdf, "manual")
 
-    nbhd.construct_gene_space(min_cells=1)
-    result = nbhd.calc_nbhd_by_pop(min_cells=2, output="counts")
+    nbhd.construct_gene_space(min_cells=1, adata=adata)
+    result = nbhd.calc_nbhd_by_pop(adata, min_cells=2, output="counts")
 
     assert result is None
     assert list(nbhd.collection.obs.index) == ["A"]
@@ -149,10 +152,10 @@ def test_nbhd_min_cells_filters_collection_axis_and_existing_modalities():
 
 def test_nbhd_set_derived_populates_legacy_and_collection_storage():
     gdf, adata = _synthetic_nbhd_inputs()
-    nbhd = NBHD(gdf, "manual", adata=adata)
+    nbhd = NBHD(gdf, "manual")
 
-    nbhd.set_derived("NBG-CD")
-    nbhd.set_derived("NBP")
+    nbhd.set_derived("NBG-CD", adata=adata)
+    nbhd.set_derived("NBP", adata=adata)
 
     assert nbhd.derived["NBG-CD"] is nbhd.collection.mod["gene"]
     assert nbhd.derived["NBP"]["prop"] is nbhd.collection.mod["population"]
@@ -160,8 +163,8 @@ def test_nbhd_set_derived_populates_legacy_and_collection_storage():
 
 
 def test_nbhd_relation_constructor_attaches_sparse_relation():
-    gdf, adata = _synthetic_nbhd_inputs()
-    nbhd = NBHD(gdf, "manual", adata=adata)
+    gdf, _adata = _synthetic_nbhd_inputs()
+    nbhd = NBHD(gdf, "manual")
 
     bordering = nbhd.construct_bordering_relation(metric="binary")
 

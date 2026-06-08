@@ -464,7 +464,6 @@ class NeighborhoodCollection(CelldegaCollection):
         mdata: MuData | None = None,
         gdf: gpd.GeoDataFrame | None = None,
         nbhd_type: str | None = None,
-        adata: AnnData | None = None,
         data_dir: str | None = None,
         source: str | dict[str, Any] | None = None,
         name: str | None = None,
@@ -494,7 +493,6 @@ class NeighborhoodCollection(CelldegaCollection):
             self.gdf = geometry.copy() if geometry is not None else None
 
         self.nbhd_type = resolved_nbhd_type
-        self.adata = adata
         self.data_dir = data_dir
         self.source = source
         self.name = name
@@ -541,11 +539,11 @@ class NeighborhoodCollection(CelldegaCollection):
 
     def calc_nbhd_by_pop(
         self,
+        adata: AnnData,
         category: str = "leiden",
         key: str = "population",
         min_cells: int = 5,
         output: str = "proportion",
-        adata: AnnData | None = None,
     ) -> None:
         """Calculate and attach a neighborhood-by-population modality to ``self.mod``."""
         from celldega.nbhd.neighborhoods import (
@@ -553,15 +551,9 @@ class NeighborhoodCollection(CelldegaCollection):
             calc_nbhd_by_pop,
         )
 
-        if adata is None:
-            calc_nbhd_by_pop(
-                self,
-                category=category,
-                key=key,
-                min_cells=min_cells,
-                output=output,
-            )
-            return
+        if self.gdf is None:
+            raise ValueError("gdf or geometry is required to calculate a population modality")
+
         space = calc_nbhd_by_pop(
             adata,
             self.gdf,

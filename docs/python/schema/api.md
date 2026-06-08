@@ -119,15 +119,14 @@ Recommended relations include `adjacency`, `bordering`, `overlap`, `distance`,
 shared-boundary relationships.
 
 `NeighborhoodCollection` can be constructed directly from a neighborhood
-GeoDataFrame and cell-level AnnData, then used to attach a population modality:
+GeoDataFrame. Cell-level AnnData is passed only to calculations that need it:
 
 ```python
 nbhd = dega.nbhd.NeighborhoodCollection(
     gdf=gdf_hex,
     nbhd_type="hextile",
-    adata=adata,
 )
-nbhd.calc_nbhd_by_pop(category="cell_type")
+nbhd.calc_nbhd_by_pop(adata, category="cell_type")
 population = nbhd.mod["population"]
 
 assert nbhd.mod["population"] is population

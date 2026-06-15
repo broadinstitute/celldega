@@ -13,7 +13,7 @@ import pandas as pd
 from scipy import sparse
 from skimage.io import imread
 
-from celldega.collection import NeighborhoodCollection
+from celldega.nbhd.collection import NeighborhoodCollection
 from celldega.pre.boundary_tile import batch_transform_geometries
 
 from .utils import _get_gdf_cell, _get_gdf_trx

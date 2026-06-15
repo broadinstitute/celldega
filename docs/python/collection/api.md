@@ -1,6 +1,6 @@
 # CelldegaCollection API Reference
 
-Celldega collections are typed MuData profiles. AnnData is the unit of a
+A Celldega collection is the base Class that is used to build Celldega's dataset-level ([DatasetCollection](../dataset/api.md)) and neighborhood-level ([NeighborhoodCollection](../nbhd/api.md)) data structures. Celldega collections are typed MuData profiles. AnnData is the unit of a
 feature space; MuData is the unit of a multimodal Celldega collection.
 
 ## Motivation
@@ -20,11 +20,11 @@ provenance, geometry, and view-linking metadata.
 
 | Concept | Storage |
 |---|---|
-| Canonical observations | `collection.mdata.obs` / `collection.obs` |
-| Feature spaces | `collection.mdata.mod[name]` / `collection.mod[name]` |
-| Observation relations | `collection.mdata.obsp[name]` / `collection.relations[name]` |
-| Celldega metadata | `collection.mdata.uns["celldega"]` / `collection.uns` |
-| Hierarchy registry | `collection.mdata.uns["celldega"]["hierarchies"]` |
+| Canonical observations | `collection.obs` |
+| Feature spaces | `collection.mod[name]` |
+| Observation relations | `collection.relations[name]` |
+| Celldega metadata | `collection.uns` |
+| Hierarchy registry | `collection.uns["celldega"]["hierarchies"]` |
 
 Each modality is a normal AnnData object. Its `X` is the clusterable matrix and
 its `var` table describes the local feature/entity axis. Celldega stores the
@@ -40,38 +40,11 @@ workflow needs to treat a square relation matrix as `AnnData.X` for heatmap or
 Matrix-style clustering, materialize it as a modality:
 
 ```python
-relation_mod = collection.add_relation_modality("similarity")
-assert collection.mod["similarity_relation"] is relation_mod
-```
+# make a new modality from a pre-existing relationship obsp
+collection.add_relation_modality("similarity")
 
-## Dataset
-
-`dega.dataset.DatasetCollection` observations are datasets, samples, tissue
-sections, patients, or other dataset-level units. Dataset-level feature spaces
-are MuData modalities such as `population`, `expression`, `image`, `clinical`,
-and `joint`.
-
-Use `dega.dataset.DatasetCollection(...).calc_dataset_by_pop(...)` to calculate
-and attach a dataset-level population modality:
-
-```python
-import celldega as dega
-
-dset = dega.dataset.DatasetCollection(
-    adata,
-    dataset_col="sample_id",
-)
-dset.calc_dataset_by_pop(adata, category="cell_type")
-population = dset.mod["population"]
-
-assert population.var["entity_type"].iloc[0] == "cell_population"
-```
-
-Collections write through MuData:
-
-```python
-dset.write("dataset.h5mu")
-loaded = dega.dataset.DatasetCollection.read("dataset.h5mu")
+# view new modality
+collection.mod["similarity_relation"]
 ```
 
 ## Hierarchies
@@ -106,39 +79,6 @@ labels, should usually live as columns in `collection.obs` or in the relevant
 modality `var` table. Method metadata for those labels can live in
 `collection.uns` or `collection.provenance`.
 
-## NeighborhoodCollection
-
-`NeighborhoodCollection` observations are neighborhoods or spatial regions such
-as hex tiles, alpha-shape regions, manual regions, or gradient rings.
-
-Recommended modalities include `gene`, `population`, `image`, `morphology`,
-`gradient`, and `joint`.
-
-Recommended relations include `adjacency`, `bordering`, `overlap`, `distance`,
-`gene_knn`, `population_knn`, and `image_knn`. Use `bordering` for
-shared-boundary relationships.
-
-`NeighborhoodCollection` can be constructed directly from a neighborhood
-GeoDataFrame. Cell-level AnnData is passed only to calculations that need it:
-
-```python
-nbhd = dega.nbhd.NeighborhoodCollection(
-    gdf=gdf_hex,
-    nbhd_type="hextile",
-)
-nbhd.calc_nbhd_by_pop(adata, category="cell_type")
-population = nbhd.mod["population"]
-
-assert nbhd.mod["population"] is population
-```
-
-The legacy `NBHD` helper still owns a `NeighborhoodCollection` under
-`nbhd.collection` and attaches feature modalities and sparse relations with
-methods such as `construct_gene_space`, `calc_nbhd_by_pop`,
-`construct_overlap_relation`, and `construct_bordering_relation`.
-
-Geometry is kept as a live `GeoDataFrame` on `NeighborhoodCollection.geometry`
-for now. Durable geometry storage can be added later with WKB columns or
-GeoParquet sidecars keyed by `obs_names`.
+## API
 
 ::: celldega.collection

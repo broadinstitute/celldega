@@ -55,7 +55,7 @@ dset.write("dataset.h5mu")
 ### [Pre Module](pre/api.md)
 
 The `pre` module contains functions for pre-processing raw spatial
-transcriptomics data into LandscapeFiles format. This includes:
+transcriptomics data into DegaFiles format. This includes:
 
 - Creating image tile pyramids for efficient zooming
 - Generating cell metadata and boundary tiles
@@ -110,8 +110,8 @@ import celldega as dega
 
 # Compute alpha shapes for cell clusters
 gdf_alpha = dega.nbhd.alpha_shape_cell_clusters(
-    adata, 
-    cat="leiden", 
+    adata,
+    cat="leiden",
     alphas=[100, 150, 200]
 )
 
@@ -152,31 +152,3 @@ landscape = dega.viz.Landscape(
 # Display linked Landscape and Clustergram
 display = dega.viz.landscape_clustergram(landscape, cgm)
 ```
-
-## Quick Reference
-
-### Common Imports
-
-```python
-import celldega as dega
-
-# Access submodules
-dega.pre      # Pre-processing functions
-dega.clust    # Clustering (Matrix class)
-dega.collection  # Base CelldegaCollection schema objects
-dega.dataset  # Dataset-level collection and modality constructors
-dega.nbhd     # Neighborhood analysis
-dega.viz      # Visualization widgets
-```
-
-### Key Classes and Functions
-
-| Module | Key Components |
-|--------|---------------|
-| `dega` | `DatasetCollection`, `NeighborhoodCollection`, `HierarchyResult` |
-| `dega.collection` | `CelldegaCollection`, `HierarchyResult`, `NeighborhoodCollection` |
-| `dega.dataset` | `DatasetCollection` |
-| `dega.pre` | `main()`, `create_image_tiles()`, `make_meta_gene()` |
-| `dega.clust` | `Matrix` |
-| `dega.nbhd` | `NBHD`, `NeighborhoodCollection`, construction and feature functions |
-| `dega.viz` | `Landscape`, `Clustergram`, `Yearbook`, `Enrich`, `landscape_clustergram()` |

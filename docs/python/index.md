@@ -12,9 +12,9 @@ pip install celldega
 
 ## Core Modules
 
-### [Schema Module](schema/api.md)
+### [Collections Module](collections/api.md)
 
-The collection schema module defines typed MuData profiles for aligned
+The `collections` module defines typed MuData profiles for aligned
 dataset-level and neighborhood-level data:
 
 - `dega.dataset.DatasetCollection` for dataset, sample, tissue section, or patient observations

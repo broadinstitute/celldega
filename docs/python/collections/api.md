@@ -1,4 +1,4 @@
-# Collection Schema API Reference
+# Collections API Reference
 
 Celldega collections are typed MuData profiles. AnnData is the unit of a
 feature space; MuData is the unit of a multimodal Celldega collection.

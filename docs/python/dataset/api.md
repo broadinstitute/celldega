@@ -1,6 +1,6 @@
 # Dataset Module API Reference
 
-The singular `dataset` module contains dataset-level modality constructors and
+The `dataset` module contains dataset-level modality constructors and
 helpers for building MuData-backed `DatasetCollection` objects from cell-level
 `AnnData` metadata.
 

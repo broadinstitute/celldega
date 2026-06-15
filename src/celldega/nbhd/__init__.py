@@ -1,6 +1,6 @@
 """Module for performing neighborhood analysis."""
 
-from celldega.collections import NeighborhoodCollection
+from celldega.collection import NeighborhoodCollection
 
 from .alpha_shapes import alpha_shape, alpha_shape_cell_clusters, filter_alpha_shapes
 from .gradient import calc_grad_nbhd_from_roi

@@ -1,4 +1,4 @@
-# Collections API Reference
+# CelldegaCollection API Reference
 
 Celldega collections are typed MuData profiles. AnnData is the unit of a
 feature space; MuData is the unit of a multimodal Celldega collection.
@@ -141,4 +141,4 @@ Geometry is kept as a live `GeoDataFrame` on `NeighborhoodCollection.geometry`
 for now. Durable geometry storage can be added later with WKB columns or
 GeoParquet sidecars keyed by `obs_names`.
 
-::: celldega.collections
+::: celldega.collection

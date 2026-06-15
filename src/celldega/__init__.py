@@ -1,8 +1,8 @@
 import importlib.metadata  # temporary fix for libpysal warning
 import warnings
 
-from celldega import clust, dataset
-from celldega.collections import (
+from celldega import clust, collection, dataset
+from celldega.collection import (
     CelldegaCollection,
     HierarchyResult,
     NeighborhoodCollection,
@@ -31,6 +31,7 @@ __all__ = [
     "Yearbook",
     "alpha_shape",
     "clust",
+    "collection",
     "dataset",
     "landscape",
     "qc_segmentation",

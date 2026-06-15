@@ -30,7 +30,7 @@ sys.modules["celldega.nbhd.neighborhoods"] = neighborhoods
 spec.loader.exec_module(neighborhoods)
 
 NBHD = neighborhoods.NBHD
-from celldega.collections import NeighborhoodCollection
+from celldega.collection import NeighborhoodCollection
 
 
 def _synthetic_nbhd_inputs():

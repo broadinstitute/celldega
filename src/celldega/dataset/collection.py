@@ -9,7 +9,7 @@ from mudata import MuData
 import numpy as np
 import pandas as pd
 
-from celldega.collections import CelldegaCollection
+from celldega.collection import CelldegaCollection
 
 
 __all__ = [

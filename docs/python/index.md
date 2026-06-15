@@ -12,9 +12,9 @@ pip install celldega
 
 ## Core Modules
 
-### [Collections Module](collections/api.md)
+### [CelldegaCollection](collection/api.md)
 
-The `collections` module defines typed MuData profiles for aligned
+The `collection` module defines typed MuData profiles for aligned
 dataset-level and neighborhood-level data:
 
 - `dega.dataset.DatasetCollection` for dataset, sample, tissue section, or patient observations
@@ -163,6 +163,7 @@ import celldega as dega
 # Access submodules
 dega.pre      # Pre-processing functions
 dega.clust    # Clustering (Matrix class)
+dega.collection  # Base CelldegaCollection schema objects
 dega.dataset  # Dataset-level collection and modality constructors
 dega.nbhd     # Neighborhood analysis
 dega.viz      # Visualization widgets
@@ -173,6 +174,7 @@ dega.viz      # Visualization widgets
 | Module | Key Components |
 |--------|---------------|
 | `dega` | `DatasetCollection`, `NeighborhoodCollection`, `HierarchyResult` |
+| `dega.collection` | `CelldegaCollection`, `HierarchyResult`, `NeighborhoodCollection` |
 | `dega.dataset` | `DatasetCollection` |
 | `dega.pre` | `main()`, `create_image_tiles()`, `make_meta_gene()` |
 | `dega.clust` | `Matrix` |

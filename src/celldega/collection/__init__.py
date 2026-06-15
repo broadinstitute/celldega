@@ -1,6 +1,6 @@
 """MuData-backed Celldega collection schema objects."""
 
-from celldega.collections.collection import (
+from celldega.collection.collection import (
     CELLDEGA_SCHEMA_VERSION,
     CELLDEGA_UNS_KEY,
     CelldegaCollection,

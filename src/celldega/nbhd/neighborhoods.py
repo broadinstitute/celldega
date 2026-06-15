@@ -13,7 +13,7 @@ import pandas as pd
 from scipy import sparse
 from skimage.io import imread
 
-from celldega.collections import NeighborhoodCollection
+from celldega.collection import NeighborhoodCollection
 from celldega.pre.boundary_tile import batch_transform_geometries
 
 from .utils import _get_gdf_cell, _get_gdf_trx
@@ -376,7 +376,7 @@ def _subset_neighborhood_collection_to_obs(
     if collection.mod:
         collection.mdata = collection.mdata[obs_names, :].copy()
     else:
-        from celldega.collections import _empty_mudata
+        from celldega.collection import _empty_mudata
 
         obs = collection.obs.loc[obs_names].copy()
         uns = dict(collection.mdata.uns)

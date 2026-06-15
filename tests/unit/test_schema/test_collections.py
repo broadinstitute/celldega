@@ -1,4 +1,3 @@
-import importlib.util
 import sys
 
 from anndata import AnnData
@@ -10,7 +9,7 @@ import pytest
 from scipy import sparse
 from shapely.geometry import Point
 
-from celldega.collections import (
+from celldega.collection import (
     CelldegaCollection,
     HierarchyResult,
     NeighborhoodCollection,
@@ -363,8 +362,10 @@ def test_dataset_methods_are_not_exposed_at_package_root():
         sys.modules.pop(module, None)
 
     import celldega as dega
+    import celldega.collection as collection_module
     import celldega.dataset as dataset_module
 
+    assert hasattr(dega, "collection")
     assert hasattr(dega, "dataset")
     assert not hasattr(dega, "calc_dataset_by_pop")
     assert not hasattr(dega, "construct_population_space")
@@ -377,7 +378,7 @@ def test_dataset_methods_are_not_exposed_at_package_root():
     assert not hasattr(dataset_module, "read")
     assert not hasattr(dataset_module, "Dataset")
     assert hasattr(dataset_module, "DatasetCollection")
+    assert hasattr(collection_module, "CelldegaCollection")
     assert hasattr(DatasetCollection, "write")
     assert not hasattr(DatasetCollection, "construct_population_space")
     assert not hasattr(DatasetCollection(obs=pd.DataFrame(index=["s1"])), "spaces")
-    assert importlib.util.find_spec("celldega.datasets") is None

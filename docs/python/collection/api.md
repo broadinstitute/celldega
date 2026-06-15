@@ -1,6 +1,6 @@
 # CelldegaCollection API Reference
 
-A Celldega collection is the base Class that is used to build Celldega's dataset-level ([DatasetCollection](../dataset/api.md)) and neighborhood-level ([NeighborhoodCollection](../nbhd/api.md)) data structures. Celldega collections are typed MuData profiles. AnnData is the unit of a
+A CelldegaCollection is the base Class that is used to build Celldega's dataset-level ([DatasetCollection](../dataset/api.md)) and neighborhood-level ([NeighborhoodCollection](../nbhd/api.md)) data structures. Celldega collections are typed MuData profiles. AnnData is the unit of a
 feature space; MuData is the unit of a multimodal Celldega collection.
 
 ## Motivation
@@ -40,7 +40,8 @@ workflow needs to treat a square relation matrix as `AnnData.X` for heatmap or
 Matrix-style clustering, materialize it as a modality:
 
 ```python
-# make a new modality from a pre-existing relationship obsp
+# make a new modality from a pre-existing relationship
+# collections.relations['name']
 collection.add_relation_modality("similarity")
 
 # view new modality

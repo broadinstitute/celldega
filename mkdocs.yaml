@@ -25,7 +25,7 @@ nav:
       - Usage: overview/usage.md
   - Python API:
       - python/index.md
-      - CelldegaCollection: python/collection/api.md
+      - collection: python/collection/api.md
       - dataset: python/dataset/api.md
       - pre: python/pre/api.md
       - clust: python/clust/api.md

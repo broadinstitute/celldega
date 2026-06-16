@@ -48,7 +48,6 @@ Matrix-style clustering, materialize it as a modality:
 
 ```python
 # make a new modality from a pre-existing relationship
-# collections.relations['name']
 collection.add_relation_modality("similarity")
 
 # view new modality

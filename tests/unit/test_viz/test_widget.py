@@ -13,7 +13,7 @@ try:
     from shapely.geometry import Polygon
 
     from celldega.clust import Matrix
-    from celldega.collections import NeighborhoodCollection
+    from celldega.nbhd import NeighborhoodCollection
     from celldega.viz import (
         Clustergram,
         Landscape,

@@ -49,6 +49,80 @@ _distance_cache = weakref.WeakKeyDictionary()
 _ranking_cache = weakref.WeakKeyDictionary()
 
 
+def _is_default_entity_pair(
+    row_entity: str | dict | AxisEntity | None,
+    col_entity: str | dict | AxisEntity | None,
+) -> bool:
+    """Return True when the caller is using Matrix's default entity pair."""
+    return row_entity == "gene" and col_entity == "cell_cluster"
+
+
+def _axis_entities_from_uns(adata: AnnData) -> tuple[AxisEntity, AxisEntity] | None:
+    """Read Matrix row/column entities from AnnData metadata when available."""
+    candidates = [
+        adata.uns.get("axis_entities"),
+        adata.uns.get("matrix_axis_entities"),
+        adata.uns.get("celldega", {}).get("axis_entities")
+        if isinstance(adata.uns.get("celldega"), dict)
+        else None,
+    ]
+
+    for payload in candidates:
+        if not isinstance(payload, dict):
+            continue
+
+        row_entity = payload.get("row_entity") or payload.get("row")
+        col_entity = payload.get("col_entity") or payload.get("col")
+        if row_entity is not None and col_entity is not None:
+            return normalize_axis_entity(row_entity), normalize_axis_entity(col_entity)
+
+    if "row_entity" in adata.uns and "col_entity" in adata.uns:
+        return (
+            normalize_axis_entity(adata.uns["row_entity"]),
+            normalize_axis_entity(adata.uns["col_entity"]),
+        )
+
+    return None
+
+
+def _infer_axis_entities_from_adata(adata: AnnData) -> tuple[AxisEntity, AxisEntity] | None:
+    """Infer Matrix row/column entity specs for known AnnData modality shapes."""
+    metadata_entities = _axis_entities_from_uns(adata)
+    if metadata_entities is not None:
+        return metadata_entities
+
+    var_entity_type = adata.var.get("entity_type")
+    if var_entity_type is None:
+        return None
+
+    var_entity_values = pd.Series(var_entity_type).dropna().astype(str).unique()
+    category = adata.uns.get("category")
+
+    if (
+        len(var_entity_values) == 1
+        and var_entity_values[0] == "cell_population"
+        and category is not None
+    ):
+        row_entity: AxisEntity = {"entity": "cell", "attr": str(category)}
+
+        if "dataset_col" in adata.uns:
+            col_entity: AxisEntity = {"entity": "dataset", "attr": str(adata.uns["dataset_col"])}
+        elif (
+            "neighborhood_id" in adata.obs.columns
+            or "neighborhood_type" in adata.obs.columns
+            or adata.obs.index.name == "neighborhood_id"
+        ):
+            col_entity = {"entity": "nbhd", "attr": "name"}
+        else:
+            # Neighborhood population modalities created before collection alignment
+            # still have the same AnnData shape but may lack collection obs metadata.
+            col_entity = {"entity": "nbhd", "attr": "name"}
+
+        return row_entity, col_entity
+
+    return None
+
+
 def quick_hash_data(data: pd.DataFrame | AnnData, max_rows=100, max_cols=100) -> str:
     try:
         if isinstance(data, pd.DataFrame):
@@ -168,6 +242,12 @@ class Matrix:
                 row_entity={"entity": "cell", "attr": "leiden"},
                 col_entity={"entity": "nbhd", "attr": "name"})
         """
+        axis_entities_defaulted = _is_default_entity_pair(row_entity, col_entity)
+        if isinstance(data, AnnData) and axis_entities_defaulted:
+            inferred_entities = _infer_axis_entities_from_adata(data)
+            if inferred_entities is not None:
+                row_entity, col_entity = inferred_entities
+
         # Core data storage
         self.data: pd.DataFrame | None = None
         self.meta_col: pd.DataFrame = pd.DataFrame()

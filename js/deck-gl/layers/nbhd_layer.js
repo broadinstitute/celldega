@@ -4,21 +4,25 @@ import { hexToRgb } from '../../utils/hexToRgb';
 import { refresh_layer } from '../../utils/refresh_layer';
 import { getModelMatrixProps } from '../../utils/rotation';
 
+const get_nbhd_identity = (feature) =>
+  feature?.properties?.name ?? feature?.properties?.cat;
+
+const selected_nbhds_include = (selected_nbhds, feature) => {
+  const name = feature?.properties?.name;
+  const cat = feature?.properties?.cat;
+  return selected_nbhds.includes(name) || selected_nbhds.includes(cat);
+};
+
 const get_nbhd_color = (d, viz_state) => {
   const inst_color = hexToRgb(d.properties.color);
+  const selected_nbhds = viz_state.obs_store.selected_nbhds.get();
 
   let inst_opacity;
 
   // if viz_state.obs_store.selected_nbhds is not empty
-  // then check if the cat is in the selected_nbhds
-  if (viz_state.obs_store.selected_nbhds.get().length > 0) {
-    if (viz_state.obs_store.selected_nbhds.get().includes(d.properties.cat)) {
-      // if the cat is in the selected_nbhds, set the opacity to 255
-      inst_opacity = 255;
-    } else {
-      // if the cat is not in the selected_nbhds, make fully transparent
-      inst_opacity = 0;
-    }
+  // then check if the neighborhood identity is in the selected_nbhds
+  if (selected_nbhds.length > 0) {
+    inst_opacity = selected_nbhds_include(selected_nbhds, d) ? 255 : 0;
   } else {
     // if selected_nbhds is empty, set the opacity to 255
     inst_opacity = 255;
@@ -82,7 +86,7 @@ const nbhd_layer_onclick = async (
   layers_obj,
   viz_state
 ) => {
-  const inst_nbhd = info.object.properties.cat;
+  const inst_nbhd = get_nbhd_identity(info.object);
 
   // update selected_nbhds observable with the clicked nbhd unless
   // the clicked nbhd is already equal to selected_nbhds

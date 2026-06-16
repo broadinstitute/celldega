@@ -63,7 +63,7 @@ def _neighborhood_obs_geometry_from_gdf(
 class NeighborhoodCollection(CelldegaCollection):
     """Neighborhood-level or spatial-region MuData collection.
 
-    Observations are neighborhoods or spatial regions. Feature spaces live in
+    Observations are neighborhoods or spatial regions. Feature modalities live in
     ``mod`` and global observation relations live in ``relations``/``mdata.obsp``.
     Geometry is kept as a live ``GeoDataFrame`` in memory; durable geometry
     storage can be layered on later with WKB columns or GeoParquet sidecars.
@@ -138,24 +138,25 @@ class NeighborhoodCollection(CelldegaCollection):
         """Create a ``NeighborhoodCollection`` from a neighborhood GeoDataFrame."""
         return cls(gdf=gdf, nbhd_type=nbhd_type, **kwargs)
 
-    @property
-    def neighborhood_collection(self) -> NeighborhoodCollection:
-        """Return ``self`` for API symmetry with legacy neighborhood helpers."""
-        return self
-
-    def to_collection(self) -> NeighborhoodCollection:
-        """Return ``self``."""
-        return self
-
     def calc_nbhd_by_pop(
         self,
         adata: AnnData,
         category: str = "leiden",
         modality_name: str = "population",
-        min_cells: int = 5,
         output: str = "proportion",
+        min_cells: int = 5,
+        drop_missing: bool = True,
     ) -> None:
-        """Calculate and attach a neighborhood-by-population modality to ``self.mod``."""
+        """Calculate and attach a neighborhood-by-population modality to ``self.mod``.
+
+        Args:
+            drop_missing: When ``True`` (default), neighborhoods with fewer than
+                ``min_cells`` cells are removed from the collection entirely so
+                the observation axis only contains neighborhoods with data. When
+                ``False``, the collection keeps all neighborhoods and the
+                modality is attached with zero-filled rows for those that fall
+                below ``min_cells``.
+        """
         from celldega.nbhd.neighborhoods import (
             _subset_neighborhood_collection_to_obs,
             calc_nbhd_by_pop,
@@ -164,7 +165,7 @@ class NeighborhoodCollection(CelldegaCollection):
         if self.gdf is None:
             raise ValueError("gdf or geometry is required to calculate a population modality")
 
-        space = calc_nbhd_by_pop(
+        modality = calc_nbhd_by_pop(
             adata,
             self.gdf,
             category=category,
@@ -172,8 +173,9 @@ class NeighborhoodCollection(CelldegaCollection):
             min_cells=min_cells,
             output=output,
         )
-        _subset_neighborhood_collection_to_obs(self, pd.Index(space.obs_names.astype(str)))
-        self.add_mod(modality_name, space, var_entity_type="cell_population")
+        if drop_missing:
+            _subset_neighborhood_collection_to_obs(self, pd.Index(modality.obs_names.astype(str)))
+        self.add_mod(modality_name, modality, var_entity_type="cell_population")
 
     def calc_nbhd_by_gene(
         self,
@@ -182,8 +184,17 @@ class NeighborhoodCollection(CelldegaCollection):
         modality_name: str | None = None,
         min_cells: int = 1,
         data_dir: str | None = None,
+        drop_missing: bool = True,
     ) -> None:
-        """Calculate and attach a neighborhood-by-gene modality to ``self.mod``."""
+        """Calculate and attach a neighborhood-by-gene modality to ``self.mod``.
+
+        Args:
+            drop_missing: When ``True`` (default), neighborhoods with fewer than
+                ``min_cells`` cells (or transcripts) are removed from the
+                collection entirely. When ``False``, the collection keeps all
+                neighborhoods and the modality is attached with zero-filled rows
+                for those that fall below ``min_cells``.
+        """
         from celldega.nbhd.neighborhoods import (
             _subset_neighborhood_collection_to_obs,
             calc_nbhd_by_gene,
@@ -198,7 +209,7 @@ class NeighborhoodCollection(CelldegaCollection):
         if by == "cell-free" and resolved_data_dir is None:
             raise ValueError("data_dir is required when by='cell-free'")
 
-        space = calc_nbhd_by_gene(
+        modality = calc_nbhd_by_gene(
             self.gdf,
             by=by,
             adata=adata,
@@ -206,10 +217,11 @@ class NeighborhoodCollection(CelldegaCollection):
             nbhd_col=self.nbhd_col,
             min_cells=min_cells,
         )
-        _subset_neighborhood_collection_to_obs(self, pd.Index(space.obs_names.astype(str)))
+        if drop_missing:
+            _subset_neighborhood_collection_to_obs(self, pd.Index(modality.obs_names.astype(str)))
         self.add_mod(
             modality_name or ("gene" if by == "cell" else "gene_cell_free"),
-            space,
+            modality,
             var_entity_type="gene",
         )
 

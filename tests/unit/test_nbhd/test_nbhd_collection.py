@@ -81,7 +81,7 @@ def test_nbhd_modality_constructors_attach_aligned_modalities():
     gdf, adata = _synthetic_nbhd_inputs()
     nbhd = NBHD(gdf, "manual")
 
-    gene = nbhd.construct_gene_space(min_cells=1, adata=adata)
+    gene = nbhd.calc_nbhd_by_gene(min_cells=1, adata=adata)
     result = nbhd.calc_nbhd_by_pop(adata, min_cells=1, output="counts")
     population = nbhd.collection.mod["population"]
 
@@ -112,7 +112,6 @@ def test_neighborhood_collection_calculates_population_modality_directly():
     population = collection.mod["cell_type_population"]
 
     assert result is None
-    assert collection.to_collection() is collection
     assert collection.mod["cell_type_population"] is population
     assert collection.nbhd_type == "manual"
     assert not hasattr(collection, "adata")
@@ -123,6 +122,7 @@ def test_neighborhood_collection_calculates_population_modality_directly():
     ]
     np.testing.assert_array_equal(population.X, np.array([[1, 1], [0, 1]]))
     assert not hasattr(collection, "construct_population_space")
+    assert not hasattr(collection, "to_collection")
 
 
 def test_neighborhood_collection_calculates_gene_modality_directly():
@@ -158,11 +158,30 @@ def test_neighborhood_collection_min_cells_filters_collection_axis():
     np.testing.assert_array_equal(population.X, np.array([[1, 1]]))
 
 
+def test_neighborhood_collection_keeps_axis_when_drop_missing_false():
+    gdf, adata = _synthetic_nbhd_inputs()
+    collection = NeighborhoodCollection(gdf=gdf, nbhd_type="manual")
+
+    result = collection.calc_nbhd_by_pop(
+        adata,
+        min_cells=2,
+        output="counts",
+        drop_missing=False,
+    )
+    population = collection.mod["population"]
+
+    assert result is None
+    assert list(collection.obs.index) == ["A", "B"]
+    assert list(collection.gdf.index) == ["A", "B"]
+    assert list(population.obs_names) == ["A", "B"]
+    np.testing.assert_array_equal(population.X, np.array([[1, 1], [0, 0]]))
+
+
 def test_nbhd_min_cells_filters_collection_axis_and_existing_modalities():
     gdf, adata = _synthetic_nbhd_inputs()
     nbhd = NBHD(gdf, "manual")
 
-    nbhd.construct_gene_space(min_cells=1, adata=adata)
+    nbhd.calc_nbhd_by_gene(min_cells=1, adata=adata)
     result = nbhd.calc_nbhd_by_pop(adata, min_cells=2, output="counts")
 
     assert result is None

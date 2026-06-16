@@ -1,9 +1,9 @@
 """MuData-backed schema containers for Celldega collection objects.
 
-Celldega treats ``AnnData`` as the unit of a feature space and ``MuData`` as
-the unit of a collection. The classes in this module are thin typed wrappers
+Celldega treats each ``AnnData`` modality as one feature matrix and ``MuData``
+as the unit of a collection. The classes in this module are thin typed wrappers
 around a ``MuData`` object, plus Celldega conventions for entity typing,
-hierarchies, provenance, geometry, and view-linking metadata.
+provenance, geometry, and view-linking metadata.
 """
 
 from __future__ import annotations
@@ -59,7 +59,25 @@ def _empty_mudata(obs: pd.DataFrame) -> MuData:
     return mdata
 
 
+def _is_count_like(series: pd.Series, col: str) -> bool:
+    """Whether a missing value in this column should be filled with zero."""
+    return (
+        pd.api.types.is_numeric_dtype(series)
+        or col.endswith("count")
+        or col.startswith("n_")
+    )
+
+
 def _align_mod_to_obs(adata: AnnData, obs: pd.DataFrame) -> AnnData:
+    """Align a modality ``AnnData`` to a collection's canonical ``obs`` axis.
+
+    This is the single alignment helper for every Celldega collection. Rows
+    present in ``adata`` but absent from ``obs`` are dropped; rows present in
+    ``obs`` but absent from ``adata`` are added with a zero-filled ``X`` row.
+    Modality ``obs`` columns are merged in without overwriting canonical
+    collection columns, and count-like columns are zero-filled when missing.
+    Sparse ``X`` is preserved as sparse.
+    """
     target_index = obs.index.astype(str)
     source_index = pd.Index(adata.obs_names.astype(str))
     source_obs = adata.obs.copy()
@@ -70,7 +88,7 @@ def _align_mod_to_obs(adata: AnnData, obs: pd.DataFrame) -> AnnData:
         if col in aligned_obs.columns:
             continue
         values = source_obs[col].reindex(target_index)
-        if pd.api.types.is_numeric_dtype(source_obs[col]) or col.endswith("count"):
+        if _is_count_like(source_obs[col], col):
             values = values.fillna(0)
         aligned_obs[col] = values
 
@@ -103,7 +121,7 @@ class CelldegaCollection:
     Attributes:
         mdata: The underlying multimodal object.
         mod: MuData modalities. Each modality is a clusterable ``AnnData``
-            feature space.
+            feature matrix.
         obs: Canonical biological observation axis shared by modalities.
         relations: Global observation-by-observation relations stored in
             ``mdata.obsp``.
@@ -161,7 +179,7 @@ class CelldegaCollection:
 
     @property
     def mod(self) -> dict[str, AnnData]:
-        """Named feature-space modalities."""
+        """Named feature modalities."""
         return self.mdata.mod
 
     @property

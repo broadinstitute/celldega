@@ -31,33 +31,6 @@ def _category_colors(adata: AnnData, category: str) -> dict[str, str]:
     return {str(cat): src_colors[i] for i, cat in enumerate(src_categories) if i < len(src_colors)}
 
 
-def _align_mod_to_dataset(adata: AnnData, dataset: CelldegaCollection) -> AnnData:
-    target_index = dataset.obs.index.astype(str)
-    source_index = pd.Index(adata.obs_names.astype(str))
-
-    if list(source_index) == list(target_index):
-        return adata
-
-    source_lookup = {name: i for i, name in enumerate(source_index)}
-    target_rows = [i for i, name in enumerate(target_index) if name in source_lookup]
-    source_rows = [source_lookup[name] for name in target_index if name in source_lookup]
-
-    X = np.zeros((len(target_index), adata.n_vars), dtype=adata.X.dtype)
-    if source_rows:
-        X[target_rows, :] = np.asarray(adata.X[source_rows, :])
-
-    obs = dataset.obs.copy()
-    space_obs = adata.obs.copy()
-    space_obs.index = source_index
-    for col in space_obs.columns:
-        values = space_obs[col].reindex(target_index)
-        if pd.api.types.is_numeric_dtype(space_obs[col]) or col.startswith("n_"):
-            values = values.fillna(0)
-        obs[col] = values
-
-    return AnnData(X=X, obs=obs, var=adata.var.copy(), uns=dict(adata.uns))
-
-
 def _resolve_dataset_col(dataset: CelldegaCollection, dataset_col: str | None) -> str:
     if dataset_col is not None:
         return dataset_col
@@ -387,7 +360,7 @@ class DatasetCollection(CelldegaCollection):
         ``NaN`` rows. Use ``"raise"`` to reject missing dataset signatures.
         """
         resolved_dataset_col = _resolve_dataset_col(self, dataset_col or self.dataset_col)
-        space = _category_signature_from_adata(
+        modality = _category_signature_from_adata(
             adata,
             dataset_col=resolved_dataset_col,
             category=category,
@@ -399,22 +372,21 @@ class DatasetCollection(CelldegaCollection):
             dataset_ids=self.obs.index,
             missing_datasets=missing_datasets,
         )
-        space = _align_mod_to_dataset(space, self)
         self.add_mod(
             modality_name or f"{_slug(value)}_signature",
-            space,
+            modality,
             var_entity_type=var_entity_type,
         )
 
 
-def _population_space_from_adata(
+def _population_modality_from_adata(
     adata: AnnData,
     dataset_col: str = "sample_id",
     category: str = "leiden",
     output: str = "proportion",
     min_cells: int = 1,
 ) -> AnnData:
-    """Calculate a dataset-by-population feature space from cell metadata.
+    """Calculate a dataset-by-population modality from cell metadata.
 
     Args:
         adata: Cell-level AnnData. ``adata.obs`` must contain ``dataset_col``
@@ -493,18 +465,17 @@ def _calc_dataset_by_pop(
     min_cells: int = 1,
     modality_name: str = "population",
 ) -> None:
-    """Calculate a dataset-by-population feature space.
+    """Calculate a dataset-by-population modality.
 
     The result is attached to ``dataset.mod[modality_name]`` and the function
     returns ``None``.
     """
     resolved_dataset_col = _resolve_dataset_col(dataset, dataset_col or dataset.dataset_col)
-    space = _population_space_from_adata(
+    modality = _population_modality_from_adata(
         adata,
         dataset_col=resolved_dataset_col,
         category=category,
         output=output,
         min_cells=min_cells,
     )
-    space = _align_mod_to_dataset(space, dataset)
-    dataset.add_mod(modality_name, space, var_entity_type="cell_population")
+    dataset.add_mod(modality_name, modality, var_entity_type="cell_population")

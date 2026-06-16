@@ -241,44 +241,6 @@ def calc_nbhd_by_image(
 
 
 
-def _align_space_to_collection(
-    adata: AnnData,
-    collection: NeighborhoodCollection,
-) -> AnnData:
-    target_index = collection.obs.index.astype(str)
-    source_index = pd.Index(adata.obs_names.astype(str))
-
-    if list(source_index) == list(target_index):
-        return adata
-
-    shape = (len(target_index), adata.n_vars)
-    source_lookup = {name: i for i, name in enumerate(source_index)}
-    target_rows = [i for i, name in enumerate(target_index) if name in source_lookup]
-    source_rows = [source_lookup[name] for name in target_index if name in source_lookup]
-
-    if sparse.issparse(adata.X):
-        X = sparse.lil_matrix(shape, dtype=adata.X.dtype)
-        if source_rows:
-            X[target_rows, :] = adata.X[source_rows, :]
-        X = X.tocsr()
-    else:
-        X = np.zeros(shape, dtype=adata.X.dtype)
-        if source_rows:
-            X[target_rows, :] = np.asarray(adata.X[source_rows, :])
-
-    obs = collection.obs.copy()
-    space_obs = adata.obs.copy()
-    space_obs.index = source_index
-
-    for col in space_obs.columns:
-        values = space_obs[col].reindex(target_index)
-        if pd.api.types.is_numeric_dtype(space_obs[col]) or col.startswith("n_"):
-            values = values.fillna(0)
-        obs[col] = values
-
-    return AnnData(X=X, obs=obs, var=adata.var.copy(), uns=dict(adata.uns))
-
-
 def _subset_gdf_to_obs(
     gdf: gpd.GeoDataFrame | None,
     obs_names: pd.Index,
@@ -371,7 +333,8 @@ class NBHD:
     need single-cell data. New feature constructors attach aligned modalities
     and relations to that collection:
 
-    - ``construct_gene_space`` stores neighborhood-by-gene data.
+    - ``calc_nbhd_by_pop`` and ``calc_nbhd_by_gene`` store neighborhood
+      feature modalities.
     - ``construct_overlap_relation`` and ``construct_bordering_relation`` store
       neighborhood-by-neighborhood sparse relations.
     """
@@ -440,34 +403,39 @@ class NBHD:
         adata: AnnData,
         category: str = "leiden",
         modality_name: str = "population",
-        min_cells: int = 5,
         output: str = "proportion",
+        min_cells: int = 5,
+        drop_missing: bool = True,
     ) -> None:
-        """Calculate and attach a neighborhood-by-population modality."""
-        space = calc_nbhd_by_pop(
+        """Calculate and attach a neighborhood-by-population modality.
+
+        Delegates to :meth:`NeighborhoodCollection.calc_nbhd_by_pop` on the
+        wrapped collection and refreshes the legacy ``gdf`` and ``derived``
+        references afterwards.
+        """
+        self.collection.calc_nbhd_by_pop(
             adata,
-            self.gdf,
             category=category,
-            nbhd_col=self.nbhd_col,
-            min_cells=min_cells,
+            modality_name=modality_name,
             output=output,
+            min_cells=min_cells,
+            drop_missing=drop_missing,
         )
-        _subset_neighborhood_collection_to_obs(
-            self.collection,
-            pd.Index(space.obs_names.astype(str)),
-        )
-        self.collection.add_mod(modality_name, space, var_entity_type="cell_population")
         self.gdf = self.collection.gdf.copy()
         self._sync_derived_modalities()
 
-    def construct_gene_space(
+    def calc_nbhd_by_gene(
         self,
         by: str = "cell",
         key: str | None = None,
         min_cells: int = 1,
         adata: AnnData | None = None,
     ) -> AnnData:
-        """Construct and attach a neighborhood-by-gene space.
+        """Calculate and attach a neighborhood-by-gene modality.
+
+        Delegates to :meth:`NeighborhoodCollection.calc_nbhd_by_gene` and
+        returns the attached modality. The legacy helper keeps the full
+        neighborhood axis (``drop_missing=False``).
 
         Args:
             by: ``"cell"`` for cell-derived mean expression or
@@ -475,27 +443,21 @@ class NBHD:
             key: Modality key in ``collection.mod``. Defaults to ``"gene"`` for
                 cell-derived expression and ``"gene_cell_free"`` for
                 transcript-derived counts.
-            min_cells: Minimum cells or transcripts required by the legacy
-                calculator before alignment back to the collection.
+            min_cells: Minimum cells or transcripts required by the calculator.
             adata: Cell-level AnnData required when ``by="cell"``.
         """
-        source_adata = adata
-        if by == "cell" and source_adata is None:
-            raise ValueError("adata is required to construct a cell-derived gene space")
-        if by == "cell-free" and self.data_dir is None:
-            raise ValueError("data_dir is required to construct a cell-free gene space")
-
-        space_key = key or ("gene" if by == "cell" else "gene_cell_free")
-        space = calc_nbhd_by_gene(
-            self.gdf,
+        modality_key = key or ("gene" if by == "cell" else "gene_cell_free")
+        self.collection.calc_nbhd_by_gene(
+            adata=adata,
             by=by,
-            adata=source_adata,
-            data_dir=self.data_dir,
-            nbhd_col=self.nbhd_col,
+            modality_name=modality_key,
             min_cells=min_cells,
+            data_dir=self.data_dir,
+            drop_missing=False,
         )
-        space = _align_space_to_collection(space, self.collection)
-        return self.collection.add_mod(space_key, space, var_entity_type="gene")
+        self.gdf = self.collection.gdf.copy()
+        self._sync_derived_modalities()
+        return self.collection.mod[modality_key]
 
     def construct_overlap_relation(
         self,
@@ -541,9 +503,9 @@ class NBHD:
         Set a derived data matrix and attach it to the collection when possible.
         """
         if key == "NBG-CD":
-            data = self.construct_gene_space(by="cell", key="gene", adata=adata)
+            data = self.calc_nbhd_by_gene(by="cell", key="gene", adata=adata)
         elif key == "NBG-CF":
-            data = self.construct_gene_space(by="cell-free", key="gene_cell_free")
+            data = self.calc_nbhd_by_gene(by="cell-free", key="gene_cell_free")
         elif key == "NBP":
             if adata is None:
                 raise ValueError("adata is required to derive NBP")
@@ -712,7 +674,7 @@ def calc_nbhd_by_pop(
     source_adata = adata
 
     if gdf_nbhd is None:
-        raise ValueError("gdf_nbhd is required to calculate a neighborhood population space")
+        raise ValueError("gdf_nbhd is required to calculate a neighborhood population modality")
 
     # Validate inputs
     required_nbhd = {"geometry", nbhd_col}

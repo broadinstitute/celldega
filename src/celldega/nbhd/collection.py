@@ -177,5 +177,43 @@ class NeighborhoodCollection(CelldegaCollection):
         _subset_neighborhood_collection_to_obs(self, pd.Index(space.obs_names.astype(str)))
         self.add_mod(modality_name, space, var_entity_type="cell_population")
 
+    def calc_nbhd_by_gene(
+        self,
+        adata: AnnData | None = None,
+        by: str = "cell",
+        modality_name: str | None = None,
+        min_cells: int = 1,
+        data_dir: str | None = None,
+    ) -> None:
+        """Calculate and attach a neighborhood-by-gene modality to ``self.mod``."""
+        from celldega.nbhd.neighborhoods import (
+            _subset_neighborhood_collection_to_obs,
+            calc_nbhd_by_gene,
+        )
+
+        if self.gdf is None:
+            raise ValueError("gdf or geometry is required to calculate a gene modality")
+
+        resolved_data_dir = data_dir if data_dir is not None else self.data_dir
+        if by == "cell" and adata is None:
+            raise ValueError("adata is required when by='cell'")
+        if by == "cell-free" and resolved_data_dir is None:
+            raise ValueError("data_dir is required when by='cell-free'")
+
+        space = calc_nbhd_by_gene(
+            self.gdf,
+            by=by,
+            adata=adata,
+            data_dir=resolved_data_dir,
+            nbhd_col=self.nbhd_col,
+            min_cells=min_cells,
+        )
+        _subset_neighborhood_collection_to_obs(self, pd.Index(space.obs_names.astype(str)))
+        self.add_mod(
+            modality_name or ("gene" if by == "cell" else "gene_cell_free"),
+            space,
+            var_entity_type="gene",
+        )
+
 
 __all__ = ["NeighborhoodCollection"]

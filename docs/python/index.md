@@ -14,10 +14,9 @@ pip install celldega
 
 ### [Clust Module](clust/api.md)
 
-The `clust` module provides the `Matrix` class for hierarchical clustering and
-heatmap visualization. It supports:
+The `clust` module provides the `Matrix` class for hierarchical bi-clustering as a
+precursor to interactive clustergram visualization. It supports:
 
-- Automatic data processing pipelines
 - Multiple normalization methods (zscore, quantile, total)
 - Hierarchical clustering with dendrograms
 - Integration with Clustergram widget
@@ -46,7 +45,7 @@ dataset-level and neighborhood-level data:
 import celldega as dega
 
 dset = dega.dataset.DatasetCollection(adata, dataset_col="sample_id")
-neighborhoods = dega.NeighborhoodCollection(obs=neighborhood_obs, geometry=neighborhood_gdf)
+nbhd = dega.NeighborhoodCollection(obs=neighborhood_obs, geometry=neighborhood_gdf)
 ```
 
 ### [Dataset Module](dataset/api.md)
@@ -54,8 +53,9 @@ neighborhoods = dega.NeighborhoodCollection(obs=neighborhood_obs, geometry=neigh
 The `dataset` module contains dataset-level modality constructors and helpers for
 building `DatasetCollection` objects:
 
-- Dataset-by-population modalities from cell-level `AnnData.obs`
+- Dataset-by-population modality
 - Dataset/sample metadata aggregation into `DatasetCollection.obs`
+- Dataset-by-signature modality
 - Attachment of aligned modalities to `DatasetCollection.mod`
 - H5MU writing through the underlying MuData object
 
@@ -77,9 +77,10 @@ dset.write("dataset.h5mu")
 
 The `nbhd` module contains functions for computing and analyzing tissue neighborhoods:
 
-- Alpha shape computation for cluster-based neighborhoods
 - Hexagonal tiling for regular neighborhood grids
-- Neighborhood-by-gene expression analysis
+- Alpha shape computation for cluster-based neighborhoods
+- Gradient neighborhoods derived from initial region/neighborhood
+- Collection-backed neighborhood-by-gene and neighborhood-by-population modalities
 - Neighborhood overlap and bordering calculations
 - Collection-backed methods for constructing gene, population, and relation data
 
@@ -96,11 +97,9 @@ gdf_alpha = dega.nbhd.alpha_shape_cell_clusters(
 # Generate hexagonal tiles
 gdf_hex = dega.nbhd.generate_hextile(adata, diameter=100)
 
-# Calculate neighborhood-by-gene expression
-adata_nbg = dega.nbhd.calc_nbhd_by_gene(gdf_alpha, by="cell", adata=adata)
-
-# Attach modalities to a NeighborhoodCollection
+# Attach feature-space modalities to a NeighborhoodCollection
 nbhd = dega.nbhd.NeighborhoodCollection(gdf=gdf_alpha, nbhd_type="alpha_shape")
+nbhd.calc_nbhd_by_gene(adata=adata, by="cell", modality_name="gene")
 nbhd.calc_nbhd_by_pop(adata, category="leiden", modality_name="population")
 ```
 

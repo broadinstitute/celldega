@@ -125,6 +125,24 @@ def test_neighborhood_collection_calculates_population_modality_directly():
     assert not hasattr(collection, "construct_population_space")
 
 
+def test_neighborhood_collection_calculates_gene_modality_directly():
+    gdf, adata = _synthetic_nbhd_inputs()
+    collection = NeighborhoodCollection(gdf=gdf, nbhd_type="manual")
+
+    result = collection.calc_nbhd_by_gene(
+        adata=adata,
+        modality_name="expression",
+        min_cells=1,
+    )
+    expression = collection.mod["expression"]
+
+    assert result is None
+    assert collection.mod["expression"] is expression
+    assert list(expression.obs_names) == ["A", "B"]
+    assert list(expression.var["entity_type"]) == ["gene", "gene"]
+    np.testing.assert_allclose(expression.X, np.array([[0.5, 1.0], [3.0, 1.0]]))
+
+
 def test_neighborhood_collection_min_cells_filters_collection_axis():
     gdf, adata = _synthetic_nbhd_inputs()
     collection = NeighborhoodCollection(gdf=gdf, nbhd_type="manual")

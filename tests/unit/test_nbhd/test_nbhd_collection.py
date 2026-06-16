@@ -152,3 +152,30 @@ def test_neighborhood_collection_calculates_bordering_relation():
     assert collection.relations["bordering"] is bordering
     assert bordering.shape == (2, 2)
     assert bordering[0, 1] == 1
+
+
+def test_neighborhood_collection_transforms_geometry_to_pixel_space():
+    gdf, _adata = _synthetic_nbhd_inputs()
+    matrix = np.array([[0.5, 0.0, 10.0], [0.0, 0.5, 20.0], [0.0, 0.0, 1.0]])
+
+    collection = NeighborhoodCollection(gdf=gdf, nbhd_type="manual", transformation_matrix=matrix)
+    viz = collection.to_pixel_gdf()
+
+    # micron geometry is preserved; pixel geometry is added for visualization
+    assert "geometry_pixel" in viz.columns
+    assert viz.geometry.iloc[0].equals(gdf.geometry.iloc[0])
+    # square A spans micron (0,0)-(10,10) -> pixel (10,20)-(15,25) under this affine
+    minx, miny, maxx, maxy = viz["geometry_pixel"].iloc[0].bounds
+    assert (minx, miny, maxx, maxy) == (10.0, 20.0, 15.0, 25.0)
+
+
+def test_transformation_matrix_round_trips_through_uns():
+    gdf, _adata = _synthetic_nbhd_inputs()
+    matrix = np.array([[0.5, 0.0, 10.0], [0.0, 0.5, 20.0], [0.0, 0.0, 1.0]])
+
+    collection = NeighborhoodCollection(gdf=gdf, nbhd_type="manual")
+    collection.set_transformation_matrix(matrix)
+    assert "transformation_matrix" in collection.uns
+
+    restored = NeighborhoodCollection(mdata=collection.mdata)
+    np.testing.assert_array_equal(restored.transformation_matrix, matrix)

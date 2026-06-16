@@ -2,15 +2,20 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 from anndata import AnnData
 import geopandas as gpd
 from mudata import MuData
+import numpy as np
 import pandas as pd
 from scipy import sparse
 
 from celldega.collection.collection import CelldegaCollection
+
+
+_TRANSFORM_FILENAME = "micron_to_image_transform.csv"
 
 
 def _resolve_neighborhood_col(gdf: gpd.GeoDataFrame, nbhd_col: str = "name") -> str:
@@ -86,6 +91,7 @@ class NeighborhoodCollection(CelldegaCollection):
         provenance: dict[str, Any] | None = None,
         uns: dict[str, Any] | None = None,
         memberships: dict[str, sparse.spmatrix] | None = None,
+        transformation_matrix: Any | None = None,
     ) -> None:
         if gdf is not None:
             if obs is not None:
@@ -127,6 +133,16 @@ class NeighborhoodCollection(CelldegaCollection):
             obs_entity_type="neighborhood",
         )
 
+        # Micron-to-pixel affine. Set explicitly here, restored from a reloaded
+        # MuData's uns, or loaded later from DegaFiles via
+        # ``load_transformation_matrix``. Mirrored into uns so it round-trips.
+        if transformation_matrix is not None:
+            self.set_transformation_matrix(transformation_matrix)
+        elif "transformation_matrix" in self.uns:
+            self.transformation_matrix = np.asarray(self.uns["transformation_matrix"], dtype=float)
+        else:
+            self.transformation_matrix = None
+
     @classmethod
     def from_gdf(
         cls,
@@ -141,6 +157,58 @@ class NeighborhoodCollection(CelldegaCollection):
     def geometry(self) -> gpd.GeoDataFrame | None:
         """Neighborhood geometry. Alias of :attr:`gdf` (single source of truth)."""
         return self.gdf
+
+    def set_transformation_matrix(self, matrix: Any) -> np.ndarray:
+        """Set the micron-to-pixel affine transformation matrix.
+
+        ``matrix`` is the affine that maps micron coordinates (the geometry's
+        native space) to image/pixel space, as a ``(2, 3)`` or ``(3, 3)`` array.
+        It is mirrored into ``uns`` so it round-trips with ``write``/``read``.
+        """
+        self.transformation_matrix = np.asarray(matrix, dtype=float)
+        self.uns["transformation_matrix"] = self.transformation_matrix.tolist()
+        return self.transformation_matrix
+
+    def load_transformation_matrix(self, data_dir: str | None = None) -> np.ndarray:
+        """Load the micron-to-pixel transformation matrix from DegaFiles.
+
+        Reads ``micron_to_image_transform.csv`` from ``data_dir`` (falling back
+        to ``self.data_dir``). Later this can instead be supplied directly via
+        :meth:`set_transformation_matrix` (e.g. from SpatialData).
+        """
+        resolved_data_dir = data_dir if data_dir is not None else self.data_dir
+        if resolved_data_dir is None:
+            raise ValueError("data_dir is required to load a transformation matrix")
+        path = Path(resolved_data_dir) / _TRANSFORM_FILENAME
+        matrix = pd.read_csv(path, header=None, sep=" ").values
+        return self.set_transformation_matrix(matrix)
+
+    def to_pixel_gdf(self) -> gpd.GeoDataFrame:
+        """Return the neighborhood geometry ready for pixel-space visualization.
+
+        Adds a ``geometry_pixel`` column (micron geometry transformed to image
+        space via the stored transformation matrix) and leaves the original
+        micron ``geometry`` intact. The result can be passed straight to
+        ``Landscape(nbhd=...)``, which renders ``geometry_pixel`` directly when
+        present rather than applying its own transform.
+        """
+        from shapely.affinity import affine_transform
+
+        if self.gdf is None:
+            raise ValueError("gdf or geometry is required to produce pixel geometry")
+        if self.transformation_matrix is None:
+            raise ValueError(
+                "transformation_matrix is not set; pass it to the constructor, call "
+                "set_transformation_matrix(), or load_transformation_matrix(data_dir=...)"
+            )
+
+        a, b, tx = self.transformation_matrix[0]
+        c, d, ty = self.transformation_matrix[1]
+        coeffs = [a, b, c, d, tx, ty]
+
+        gdf = self.gdf.copy()
+        gdf["geometry_pixel"] = gdf.geometry.apply(lambda geom: affine_transform(geom, coeffs))
+        return gdf
 
     def calc_nbhd_by_pop(
         self,

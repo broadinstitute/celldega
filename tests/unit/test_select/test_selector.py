@@ -92,9 +92,7 @@ def test_selector_quantile_bin_sampler_over_gene(adata: AnnData, selector_cls) -
     assert result.provenance["sampler"]["bin_available"] == 2
 
 
-def test_selector_quantile_bin_supports_percentile_shortcut(
-    adata: AnnData, selector_cls
-) -> None:
+def test_selector_quantile_bin_supports_percentile_shortcut(adata: AnnData, selector_cls) -> None:
     selector = selector_cls(adata)
 
     result = selector.select(
@@ -138,9 +136,7 @@ def test_random_sampler_is_seeded(adata: AnnData, selector_cls) -> None:
     assert set(result_a.ids).issubset({"c1", "c2", "c4", "c5", "c6"})
 
 
-def test_rank_sampler_returns_top_and_bottom_by_attribute(
-    adata: AnnData, selector_cls
-) -> None:
+def test_rank_sampler_returns_top_and_bottom_by_attribute(adata: AnnData, selector_cls) -> None:
     selector = selector_cls(adata)
 
     top = selector.select(
@@ -204,9 +200,7 @@ def test_gaussian_sampler_orders_by_distance_to_center(adata: AnnData, selector_
     assert result.scores["c4"] > result.scores["c5"]
 
 
-def test_stratified_sampler_draws_evenly_across_categories(
-    adata: AnnData, selector_cls
-) -> None:
+def test_stratified_sampler_draws_evenly_across_categories(adata: AnnData, selector_cls) -> None:
     selector = selector_cls(adata)
 
     result = selector.select(
@@ -233,9 +227,7 @@ def test_stratified_sampler_draws_evenly_across_categories(
     assert result.provenance["sampler"]["mode"] == "per_category"
 
 
-def test_stratified_sampler_supports_total_quota(
-    adata: AnnData, selector_cls
-) -> None:
+def test_stratified_sampler_supports_total_quota(adata: AnnData, selector_cls) -> None:
     selector = selector_cls(adata)
 
     result = selector.select(
@@ -345,6 +337,43 @@ def test_sampler_all_returns_large_selection_without_preview_warning(selector_cl
     assert len(selection) == 1005
     assert selection.sampler == {"type": "all"}
     assert selection.provenance["sampler"]["type"] == "all"
+
+
+def test_quantile_bins_do_not_overlap_at_boundaries(selector_cls) -> None:
+    # Tie-heavy integer data: many values sit exactly on the quantile cuts.
+    obs = pd.DataFrame(index=[f"c{i}" for i in range(9)])
+    var = pd.DataFrame(index=["G"])
+    counts = np.array([0, 0, 0, 1, 1, 1, 2, 2, 2], dtype=float).reshape(-1, 1)
+    adata = AnnData(X=counts, obs=obs, var=var)
+    selector = selector_cls(adata)
+
+    low = selector.select(sampler=selector.samplers.quantile_bin(selector.gene("G"), bin="low"))
+    mid = selector.select(sampler=selector.samplers.quantile_bin(selector.gene("G"), bin="mid"))
+    high = selector.select(sampler=selector.samplers.quantile_bin(selector.gene("G"), bin="high"))
+
+    low_ids, mid_ids, high_ids = set(low.ids), set(mid.ids), set(high.ids)
+    assert low_ids.isdisjoint(mid_ids)
+    assert mid_ids.isdisjoint(high_ids)
+    assert low_ids.isdisjoint(high_ids)
+
+
+def test_selector_rejects_duplicate_obs_names(selector_cls) -> None:
+    obs = pd.DataFrame({"cluster": ["B", "T", "B"]}, index=["c1", "c1", "c2"])
+    var = pd.DataFrame(index=["G"])
+    adata = AnnData(X=np.ones((3, 1)), obs=obs, var=var)
+
+    with pytest.raises(ValueError, match="requires unique obs_names"):
+        selector_cls(adata)
+
+
+def test_gene_attribute_rejects_duplicate_var_names(selector_cls) -> None:
+    obs = pd.DataFrame({"cluster": ["B", "T"]}, index=["c1", "c2"])
+    var = pd.DataFrame(index=["G", "G"])
+    adata = AnnData(X=np.ones((2, 2)), obs=obs, var=var)
+    selector = selector_cls(adata)
+
+    with pytest.raises(ValueError, match="not unique in adata.var_names"):
+        selector.select(query=selector.gene("G") > 0)
 
 
 def test_missing_attribute_and_gene_errors_are_clear(adata: AnnData, selector_cls) -> None:

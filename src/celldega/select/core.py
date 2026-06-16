@@ -504,11 +504,15 @@ class QuantileBinSampler:
         low_cut = float(numeric.quantile(q_low))
         high_cut = float(numeric.quantile(q_high))
 
+        # Bins partition the values: the interior boundaries are half-open so a
+        # value equal to a cut lands in exactly one bin (important for tie-heavy
+        # data such as raw counts). low: <= low_cut, mid: (low_cut, high_cut),
+        # high: >= high_cut.
         if self.bin == "low":
             binned = numeric[numeric <= low_cut]
             ordered = binned.sort_values(ascending=True, kind="mergesort")
         elif self.bin == "mid":
-            binned = numeric[(numeric >= low_cut) & (numeric <= high_cut)]
+            binned = numeric[(numeric > low_cut) & (numeric < high_cut)]
             median = float(numeric.median())
             ordered = binned.loc[(binned - median).abs().sort_values(kind="mergesort").index]
         else:
@@ -986,6 +990,16 @@ class Selector:
         if default_preview_n is not None and default_preview_n <= 0:
             raise ValueError("default_preview_n must be positive or None")
 
+        obs_names = pd.Index(adata.obs_names)
+        if obs_names.has_duplicates:
+            dups = obs_names[obs_names.duplicated()].unique().tolist()
+            shown = ", ".join(repr(d) for d in dups[:5])
+            suffix = ", ..." if len(dups) > 5 else ""
+            raise ValueError(
+                "Selector requires unique obs_names because they are used as selection "
+                f"ids; found {len(dups)} duplicated name(s): {shown}{suffix}"
+            )
+
         self.adata = adata
         self.samplers = SamplerFactory()
         self.default_preview_n = default_preview_n
@@ -1169,6 +1183,11 @@ class Selector:
             raise ValueError("adata.raw is not available")
         if name not in data.var_names:
             raise KeyError(f"Gene '{name}' not found in adata.var_names")
+        if np.count_nonzero(np.asarray(data.var_names) == name) > 1:
+            raise ValueError(
+                f"Gene '{name}' is not unique in adata.var_names; gene selection "
+                "requires unique gene names"
+            )
 
         if raw:
             matrix = data[:, name].X

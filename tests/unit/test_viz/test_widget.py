@@ -230,3 +230,28 @@ def test_yearbook_accepts_selection_result() -> None:
 def test_yearbook_rejects_cells_and_selection() -> None:
     with pytest.raises(ValueError, match="either `selection` or `cells`"):
         Yearbook(base_url="https://example.org/data", cells=["cell_1"], selection=["cell_2"])
+
+
+def test_yearbook_accepts_explicit_cell_list() -> None:
+    widget = Yearbook(base_url="https://example.org/data", cells=["cell_1", "cell_2"])
+
+    assert widget.cells == ["cell_1", "cell_2"]
+
+
+def test_yearbook_query_argument_maps_to_front_end_query() -> None:
+    with pytest.warns(DeprecationWarning, match="`query` is deprecated"):
+        widget = Yearbook(
+            base_url="https://example.org/data",
+            query={"gene": "BRCA1"},
+        )
+
+    assert widget.front_end_query == {"gene": "BRCA1"}
+
+
+def test_yearbook_front_end_query_is_accepted_directly() -> None:
+    widget = Yearbook(
+        base_url="https://example.org/data",
+        front_end_query={"cluster": {"attr": "leiden", "value": "5"}},
+    )
+
+    assert widget.front_end_query == {"cluster": {"attr": "leiden", "value": "5"}}

@@ -252,9 +252,42 @@ lymph_selection = lymph_selector.select(
 
 Spelling out `selector` and `selection` is recommended for real notebooks because the two concepts are easy to confuse if abbreviated.
 
+## Backend vs. Front-End Selection
+
+There are two complementary ways to decide which cells a `Yearbook` shows. They
+solve the same problem — "which cells, in what order" — but run in different
+places and have different requirements.
+
+| | Back-end selection (`select` module) | Front-end query (`front_end_query`) |
+| --- | --- | --- |
+| Runs in | Python, before the widget renders | The browser, against LandscapeFiles |
+| Requires | An in-memory `AnnData` object | Only `base_url` (no Python `AnnData`) |
+| Expressiveness | Full query algebra + five samplers/rankers | Single cluster filter and/or single-gene ranking |
+| Reproducibility | Seeded, serialized query + sampler + scores | Stateless; recomputed in the browser each time |
+| Provenance | `selection.to_json()` captured on the widget | Query dict only |
+| Pass to Yearbook as | `selection=` (or a plain id list via `cells=`) | `front_end_query=` |
+
+Use the **back-end** path when you have an `AnnData` object and want rich,
+reproducible queries (boolean logic across obs columns and genes, quantile-bin
+or Gaussian sampling, stratified balancing, captured scores and provenance).
+
+Use the **front-end** path for lightweight, AnnData-free browsing directly from
+a dataset URL — for example "show cells in cluster 8" or "rank cells by `BRCA1`
+expression". See the [Front-End Query](../viz/api.md#front-end-query) section
+of the viz docs for the supported dict shapes.
+
+The two map onto each other. A single-gene front-end query
+`{"gene": "MS4A1"}` is the in-browser equivalent of the back-end rank sampler:
+
+```python
+selection = selector.select(
+    sampler=selector.samplers.rank(attr=selector.gene("MS4A1"), by="high"),
+)
+```
+
 ## Yearbook Integration
 
-`Yearbook` can render a selection directly:
+`Yearbook` can render a back-end selection directly:
 
 ```python
 yearbook = dega.viz.Yearbook(
@@ -265,9 +298,12 @@ yearbook = dega.viz.Yearbook(
 )
 ```
 
-Internally, Yearbook uses `selection.names()` as its ordered `cells` list and stores `selection.to_json()` for provenance. The frontend can paginate over the ordered ids without needing to understand the query machinery.
+Internally, Yearbook uses `selection.names()` as its ordered `cells` list and
+stores `selection.to_json()` for provenance. The frontend can paginate over the
+ordered ids without needing to understand the query machinery.
 
-Pass either `selection=` or `cells=`, not both.
+`selection=` accepts a `Selection`, a JSON-ready selection dict, or a plain list
+of cell ids. Pass either `selection=` or `cells=`, not both.
 
 ## API Reference
 

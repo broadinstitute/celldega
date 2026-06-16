@@ -267,7 +267,6 @@ class DatasetCollection(CelldegaCollection):
         relations: dict[str, Any] | None = None,
         provenance: dict[str, Any] | None = None,
         uns: dict[str, Any] | None = None,
-        neighborhood_collections: dict[str, Any] | None = None,
     ) -> None:
         if mdata is not None:
             obs = obs.copy() if obs is not None else None
@@ -295,7 +294,6 @@ class DatasetCollection(CelldegaCollection):
         self.source = source
         self.name = name
         self.meta = meta or {}
-        self.neighborhood_collections = neighborhood_collections or {}
 
         collection_provenance = {"source": source} if source is not None else {}
         collection_provenance.update(provenance or {})

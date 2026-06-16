@@ -1,37 +1,10 @@
-import importlib.util
-from pathlib import Path
-import sys
-import types
-
 from anndata import AnnData
 import geopandas as gpd
 import numpy as np
 import pytest
 from shapely.geometry import Polygon
 
-
-# --- Dynamic Import Setup ---
-ROOT_DIR = Path(__file__).resolve().parents[3]
-NBHD_ROOT = ROOT_DIR / "src" / "celldega" / "nbhd"
-
-CELLPKG = types.ModuleType("celldega")
-CELLPKG.__path__ = [str(ROOT_DIR / "src" / "celldega")]
-sys.modules.setdefault("celldega", CELLPKG)
-
-NBHDPKG = types.ModuleType("celldega.nbhd")
-NBHDPKG.__path__ = [str(NBHD_ROOT)]
-sys.modules.setdefault("celldega.nbhd", NBHDPKG)
-
-spec = importlib.util.spec_from_file_location(
-    "celldega.nbhd.neighborhoods", NBHD_ROOT / "neighborhoods.py"
-)
-neighborhoods = importlib.util.module_from_spec(spec)
-neighborhoods.__package__ = "celldega.nbhd"
-sys.modules["celldega.nbhd.neighborhoods"] = neighborhoods
-spec.loader.exec_module(neighborhoods)
-
-# --- Load function ---
-calc_nbhd_by_pop = neighborhoods.calc_nbhd_by_pop
+from celldega.nbhd.neighborhoods import _calc_nbhd_by_pop as calc_nbhd_by_pop
 
 
 # --- Fixtures and Tests ---

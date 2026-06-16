@@ -5,6 +5,14 @@ feature space; MuData is the unit of a multimodal Celldega collection.
 
 ## Motivation
 
+Celldega defines new biological entities — datasets, neighborhoods, and more in
+the future — which requires both *constructing* the entity and *calculating* its
+feature spaces, neither of which is free for entities above the single-cell
+level. For single-cell gene expression and spatial data, both come straight off
+the instrument; for higher-order entities, `DatasetCollection` and
+`NeighborhoodCollection` construct the observation axis and attach the feature
+modalities themselves.
+
 AnnData is an excellent representation for one observation-by-feature matrix
 plus aligned annotations, graphs, and metadata. Celldega collections need
 several independently clusterable feature spaces over the same biological

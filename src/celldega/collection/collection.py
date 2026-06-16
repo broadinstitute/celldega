@@ -118,6 +118,14 @@ def _align_mod_to_obs(adata: AnnData, obs: pd.DataFrame) -> AnnData:
 class CelldegaCollection:
     """Base Celldega collection profile backed by ``MuData``.
 
+    Celldega defines new biological entities (datasets, neighborhoods, and more
+    in the future), which requires both *constructing* the entity and
+    *calculating* its feature spaces — neither of which is free for entities
+    above the single-cell level. For single-cell data both steps come straight
+    off the instrument; for higher-order entities ``DatasetCollection`` and
+    ``NeighborhoodCollection`` build the observation axis and attach the feature
+    modalities themselves.
+
     Attributes:
         mdata: The underlying multimodal object.
         mod: MuData modalities. Each modality is a clusterable ``AnnData``

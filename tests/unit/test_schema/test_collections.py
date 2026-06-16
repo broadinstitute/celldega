@@ -41,7 +41,6 @@ def test_dataset_holds_aligned_modalities_and_relations():
     assert not hasattr(dataset, "adata")
     assert list(dataset.mod["population"].obs_names) == list(dataset.obs.index)
     assert dataset.relations["similarity"].shape == (2, 2)
-    assert dataset.neighborhood_collections == {}
 
 
 def test_neighborhood_collection_holds_geometry_modalities_relations_and_memberships():
@@ -95,24 +94,6 @@ def test_relation_can_be_materialized_as_clusterable_modality():
     assert list(relation_mod.var["entity_type"]) == ["dataset", "dataset"]
     assert relation_mod.uns["relation_key"] == "similarity"
     np.testing.assert_array_equal(relation_mod.X.toarray(), relation.toarray())
-
-
-def test_dataset_can_link_neighborhood_collections():
-    adata = AnnData(X=np.ones((1, 1)))
-    adata.obs["sample_id"] = ["sample_001"]
-    neighborhood_obs = pd.DataFrame(
-        {"sample_id": ["sample_001"]},
-        index=["sample_001::nbhd_00001"],
-    )
-    neighborhoods = NeighborhoodCollection(obs=neighborhood_obs)
-
-    dataset = DatasetCollection(
-        adata,
-        dataset_col="sample_id",
-        neighborhood_collections={"manual_regions": neighborhoods},
-    )
-
-    assert dataset.neighborhood_collections["manual_regions"] is neighborhoods
 
 
 def test_dataset_constructor_uses_cell_adata_without_storing_it():

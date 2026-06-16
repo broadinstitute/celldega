@@ -109,7 +109,6 @@ class NeighborhoodCollection(CelldegaCollection):
         self.name = name
         self.meta = meta or {}
         self.nbhd_col = nbhd_col
-        self.geometry = geometry
         self.memberships = memberships or {}
 
         collection_provenance = {"source": source} if source is not None else {}
@@ -138,6 +137,11 @@ class NeighborhoodCollection(CelldegaCollection):
         """Create a ``NeighborhoodCollection`` from a neighborhood GeoDataFrame."""
         return cls(gdf=gdf, nbhd_type=nbhd_type, **kwargs)
 
+    @property
+    def geometry(self) -> gpd.GeoDataFrame | None:
+        """Neighborhood geometry. Alias of :attr:`gdf` (single source of truth)."""
+        return self.gdf
+
     def calc_nbhd_by_pop(
         self,
         adata: AnnData,
@@ -158,14 +162,14 @@ class NeighborhoodCollection(CelldegaCollection):
                 below ``min_cells``.
         """
         from celldega.nbhd.neighborhoods import (
+            _calc_nbhd_by_pop,
             _subset_neighborhood_collection_to_obs,
-            calc_nbhd_by_pop,
         )
 
         if self.gdf is None:
             raise ValueError("gdf or geometry is required to calculate a population modality")
 
-        modality = calc_nbhd_by_pop(
+        modality = _calc_nbhd_by_pop(
             adata,
             self.gdf,
             category=category,
@@ -196,8 +200,8 @@ class NeighborhoodCollection(CelldegaCollection):
                 for those that fall below ``min_cells``.
         """
         from celldega.nbhd.neighborhoods import (
+            _calc_nbhd_by_gene,
             _subset_neighborhood_collection_to_obs,
-            calc_nbhd_by_gene,
         )
 
         if self.gdf is None:
@@ -209,7 +213,7 @@ class NeighborhoodCollection(CelldegaCollection):
         if by == "cell-free" and resolved_data_dir is None:
             raise ValueError("data_dir is required when by='cell-free'")
 
-        modality = calc_nbhd_by_gene(
+        modality = _calc_nbhd_by_gene(
             self.gdf,
             by=by,
             adata=adata,
@@ -224,6 +228,76 @@ class NeighborhoodCollection(CelldegaCollection):
             modality,
             var_entity_type="gene",
         )
+
+    def calc_nbhd_overlap(
+        self,
+        metric: str = "iou",
+        key: str = "overlap",
+        category: str = "leiden",
+    ) -> sparse.spmatrix:
+        """Calculate a neighborhood-by-neighborhood overlap relation in ``relations``."""
+        from celldega.nbhd.neighborhoods import _calc_nbhd_overlap, _relation_from_square_adata
+
+        if self.gdf is None:
+            raise ValueError("gdf or geometry is required to calculate an overlap relation")
+
+        relation_adata = _calc_nbhd_overlap(
+            self.gdf[[self.nbhd_col, "geometry"]],
+            metric=metric,
+            name_col=self.nbhd_col,
+            category=category,
+        )
+        relation = _relation_from_square_adata(relation_adata, self)
+        self.relations[key] = relation
+        return relation
+
+    def calc_nbhd_bordering(
+        self,
+        metric: str = "border_ratio",
+        key: str = "bordering",
+        category: str = "leiden",
+    ) -> sparse.spmatrix:
+        """Calculate a neighborhood-by-neighborhood bordering relation in ``relations``."""
+        from celldega.nbhd.neighborhoods import _calc_nbhd_bordering, _relation_from_square_adata
+
+        if self.gdf is None:
+            raise ValueError("gdf or geometry is required to calculate a bordering relation")
+
+        relation_adata = _calc_nbhd_bordering(
+            self.gdf[[self.nbhd_col, "geometry"]],
+            metric=metric,
+            name_col=self.nbhd_col,
+            category=category,
+        )
+        relation = _relation_from_square_adata(relation_adata, self)
+        self.relations[key] = relation
+        return relation
+
+    def calc_nbhd_meta(
+        self,
+        adata: AnnData,
+        data_dir: str | None = None,
+    ) -> None:
+        """Calculate neighborhood metadata and join it into ``obs``.
+
+        Computes transcript/cell assignment counts and geometry summaries per
+        neighborhood (requires a ``data_dir`` containing ``transcripts.parquet``
+        and a cell-level ``adata``).
+        """
+        from celldega.nbhd.neighborhoods import _get_nbhd_meta
+        from celldega.nbhd.utils import _get_gdf_cell, _get_gdf_trx
+
+        if self.gdf is None:
+            raise ValueError("gdf or geometry is required to calculate neighborhood metadata")
+        resolved_data_dir = data_dir if data_dir is not None else self.data_dir
+        if resolved_data_dir is None:
+            raise ValueError("data_dir is required to calculate neighborhood metadata")
+
+        gdf_trx = _get_gdf_trx(resolved_data_dir)
+        gdf_cell = _get_gdf_cell(adata)
+        meta = _get_nbhd_meta(self.gdf, self.nbhd_col, gdf_trx, gdf_cell)
+        meta.index = meta.index.astype(str)
+        self.obs = self.obs.join(meta, how="left")
 
 
 __all__ = ["NeighborhoodCollection"]

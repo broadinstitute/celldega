@@ -2,7 +2,6 @@
 
 # Standard library imports
 from itertools import combinations
-from typing import Any
 
 from anndata import AnnData
 
@@ -16,7 +15,6 @@ from skimage.io import imread
 from celldega.nbhd.collection import NeighborhoodCollection
 from celldega.pre.boundary_tile import batch_transform_geometries
 
-from .utils import _get_gdf_cell, _get_gdf_trx
 from .zonal_stats import calc_img_zonal_stats
 
 
@@ -24,7 +22,7 @@ def _nbhd_geometry_for_join(gdf_nbhd: gpd.GeoDataFrame, nbhd_col: str) -> gpd.Ge
     return gdf_nbhd[[nbhd_col, "geometry"]].reset_index(drop=True)
 
 
-def calc_nbhd_by_gene(
+def _calc_nbhd_by_gene(
     gdf_nbhd: gpd.GeoDataFrame,
     by: str = "cell",
     adata: AnnData | None = None,
@@ -34,6 +32,9 @@ def calc_nbhd_by_gene(
 ) -> AnnData:
     """
     Calculate neighborhood-by-gene expression matrix.
+
+    Internal spatial-computation kernel. The public entry point is
+    :meth:`NeighborhoodCollection.calc_nbhd_by_gene`.
 
     Computes gene expression values for each neighborhood, either from cell-level
     expression data (mean expression of cells within each neighborhood) or from
@@ -69,18 +70,6 @@ def calc_nbhd_by_gene(
         - `var`: DataFrame indexed by gene names
         - `obs["n_cells"]`: Cell count per neighborhood (when `by="cell"`)
         - `uns["by"]`: Method used ("cell" or "cell-free")
-
-    Examples
-    --------
-    >>> # Cell-derived gene expression per neighborhood
-    >>> adata_nbg = dega.nbhd.calc_nbhd_by_gene(gdf_alpha, by="cell", adata=adata)
-    >>>
-    >>> # Cell-free transcript counts per neighborhood
-    >>> adata_nbg = dega.nbhd.calc_nbhd_by_gene(gdf_alpha, by="cell-free", data_dir="./data")
-    >>>
-    >>> # For cluster-specific analysis, pre-filter the AnnData
-    >>> adata_cluster0 = adata[adata.obs["leiden"] == "0"]
-    >>> adata_nbg = dega.nbhd.calc_nbhd_by_gene(gdf_alpha, by="cell", adata=adata_cluster0)
 
     Notes
     -----
@@ -298,7 +287,6 @@ def _subset_neighborhood_collection_to_obs(
                 collection.relations[key] = values[np.ix_(keep_positions, keep_positions)]
 
     collection.gdf = _subset_gdf_to_obs(collection.gdf, obs_names, collection.nbhd_col)
-    collection.geometry = _subset_gdf_to_obs(collection.geometry, obs_names, collection.nbhd_col)
 
     for key, membership in list(collection.memberships.items()):
         if membership.shape[1] != len(current_index):
@@ -324,304 +312,7 @@ def _relation_from_square_adata(
     return sparse.csr_matrix(matrix.values)
 
 
-class NBHD:
-    """Neighborhood geometry plus collection-backed modalities.
-
-    ``NBHD`` is a legacy helper that maintains a MuData-backed
-    ``NeighborhoodCollection`` in ``collection``. Cell-level AnnData is not
-    stored on the helper or collection; pass it to feature constructors that
-    need single-cell data. New feature constructors attach aligned modalities
-    and relations to that collection:
-
-    - ``calc_nbhd_by_pop`` and ``calc_nbhd_by_gene`` store neighborhood
-      feature modalities.
-    - ``construct_overlap_relation`` and ``construct_bordering_relation`` store
-      neighborhood-by-neighborhood sparse relations.
-    """
-
-    def __init__(
-        self,
-        gdf: gpd.GeoDataFrame,
-        nbhd_type: str,
-        data_dir: str | None = None,
-        source: str | dict[str, Any] | None = None,
-        name: str | None = None,
-        meta: dict[str, Any] | None = None,
-        nbhd_col: str = "name",
-    ) -> None:
-        self.gdf = gdf.copy()
-        self.nbhd_type = nbhd_type
-        self.data_dir = data_dir
-        self.source = source
-        self.name = name
-        self.meta = meta or {}
-        provenance = {"source": source} if source is not None else {}
-        self.collection = NeighborhoodCollection(
-            gdf=self.gdf,
-            nbhd_type=nbhd_type,
-            nbhd_col=nbhd_col,
-            provenance=provenance,
-            uns={"name": name, **self.meta},
-        )
-        self.nbhd_col = self.collection.nbhd_col
-
-        self.derived: dict[str, Any] = {
-            "NBG-CF": None,
-            "NBG-CD": None,
-            "NBP": {},
-            "NBN-O": None,
-            "NBN-B": None,
-        }
-
-    @property
-    def neighborhood_collection(self) -> NeighborhoodCollection:
-        """Alias for ``collection`` for explicit call sites."""
-        return self.collection
-
-    def to_collection(self) -> NeighborhoodCollection:
-        """Return the underlying ``NeighborhoodCollection``."""
-        return self.collection
-
-    def _sync_derived_modalities(self) -> None:
-        """Refresh legacy derived references after collection-level subsetting."""
-        derived_mods = {
-            "NBG-CD": "gene",
-            "NBG-CF": "gene_cell_free",
-        }
-        for derived_key, mod_key in derived_mods.items():
-            if self.derived.get(derived_key) is not None and mod_key in self.collection.mod:
-                self.derived[derived_key] = self.collection.mod[mod_key]
-
-        if self.derived.get("NBP"):
-            if "population" in self.collection.mod:
-                self.derived["NBP"]["prop"] = self.collection.mod["population"]
-            if "population_counts" in self.collection.mod:
-                self.derived["NBP"]["abs"] = self.collection.mod["population_counts"]
-
-    def calc_nbhd_by_pop(
-        self,
-        adata: AnnData,
-        category: str = "leiden",
-        modality_name: str = "population",
-        output: str = "proportion",
-        min_cells: int = 5,
-        drop_missing: bool = True,
-    ) -> None:
-        """Calculate and attach a neighborhood-by-population modality.
-
-        Delegates to :meth:`NeighborhoodCollection.calc_nbhd_by_pop` on the
-        wrapped collection and refreshes the legacy ``gdf`` and ``derived``
-        references afterwards.
-        """
-        self.collection.calc_nbhd_by_pop(
-            adata,
-            category=category,
-            modality_name=modality_name,
-            output=output,
-            min_cells=min_cells,
-            drop_missing=drop_missing,
-        )
-        self.gdf = self.collection.gdf.copy()
-        self._sync_derived_modalities()
-
-    def calc_nbhd_by_gene(
-        self,
-        by: str = "cell",
-        key: str | None = None,
-        min_cells: int = 1,
-        adata: AnnData | None = None,
-    ) -> AnnData:
-        """Calculate and attach a neighborhood-by-gene modality.
-
-        Delegates to :meth:`NeighborhoodCollection.calc_nbhd_by_gene` and
-        returns the attached modality. The legacy helper keeps the full
-        neighborhood axis (``drop_missing=False``).
-
-        Args:
-            by: ``"cell"`` for cell-derived mean expression or
-                ``"cell-free"`` for transcript counts.
-            key: Modality key in ``collection.mod``. Defaults to ``"gene"`` for
-                cell-derived expression and ``"gene_cell_free"`` for
-                transcript-derived counts.
-            min_cells: Minimum cells or transcripts required by the calculator.
-            adata: Cell-level AnnData required when ``by="cell"``.
-        """
-        modality_key = key or ("gene" if by == "cell" else "gene_cell_free")
-        self.collection.calc_nbhd_by_gene(
-            adata=adata,
-            by=by,
-            modality_name=modality_key,
-            min_cells=min_cells,
-            data_dir=self.data_dir,
-            drop_missing=False,
-        )
-        self.gdf = self.collection.gdf.copy()
-        self._sync_derived_modalities()
-        return self.collection.mod[modality_key]
-
-    def construct_overlap_relation(
-        self,
-        metric: str = "iou",
-        key: str = "overlap",
-        category: str = "leiden",
-    ) -> sparse.csr_matrix:
-        """Construct and attach a neighborhood-by-neighborhood overlap relation."""
-        relation_adata = calc_nbhd_overlap(
-            self.gdf[[self.nbhd_col, "geometry"]],
-            metric=metric,
-            name_col=self.nbhd_col,
-            category=category,
-        )
-        relation = _relation_from_square_adata(relation_adata, self.collection)
-        self.collection.relations[key] = relation
-        return relation
-
-    def construct_bordering_relation(
-        self,
-        metric: str = "border_ratio",
-        key: str = "bordering",
-        category: str = "leiden",
-    ) -> sparse.csr_matrix:
-        """Construct and attach a neighborhood-by-neighborhood bordering relation."""
-        relation_adata = calc_nbhd_bordering(
-            self.gdf[[self.nbhd_col, "geometry"]],
-            metric=metric,
-            name_col=self.nbhd_col,
-            category=category,
-        )
-        relation = _relation_from_square_adata(relation_adata, self.collection)
-        self.collection.relations[key] = relation
-        return relation
-
-    def set_derived(
-        self,
-        key: str,
-        subkey: str | None = None,
-        adata: AnnData | None = None,
-    ) -> None:
-        """
-        Set a derived data matrix and attach it to the collection when possible.
-        """
-        if key == "NBG-CD":
-            data = self.calc_nbhd_by_gene(by="cell", key="gene", adata=adata)
-        elif key == "NBG-CF":
-            data = self.calc_nbhd_by_gene(by="cell-free", key="gene_cell_free")
-        elif key == "NBP":
-            if adata is None:
-                raise ValueError("adata is required to derive NBP")
-            self.calc_nbhd_by_pop(
-                adata,
-                category="leiden",
-                modality_name="population",
-                output="proportion",
-            )
-            self.calc_nbhd_by_pop(
-                adata,
-                category="leiden",
-                modality_name="population_counts",
-                output="counts",
-            )
-            data = {
-                "prop": self.collection.mod["population"],
-                "abs": self.collection.mod["population_counts"],
-            }
-            self.gdf = self.collection.gdf.copy()
-        elif key == "NBM":
-            if self.data_dir is None or adata is None:
-                raise ValueError("data_dir and adata are required to derive NBM")
-            gdf_trx = _get_gdf_trx(self.data_dir)
-            gdf_cell = _get_gdf_cell(adata)
-            data = get_nbhd_meta(self.gdf, self.nbhd_col, gdf_trx, gdf_cell)
-            data.index = data.index.astype(str)
-            self.collection.obs = self.collection.obs.join(data, how="left")
-        elif key == "NBN-O":
-            if self.nbhd_type == "ALPH":
-                print("Calculating neighborhood overlap")
-                data = calc_nbhd_overlap(
-                    self.gdf[[self.nbhd_col, "geometry"]],
-                    name_col=self.nbhd_col,
-                )
-                self.collection.relations["overlap"] = _relation_from_square_adata(
-                    data,
-                    self.collection,
-                )
-            else:
-                raise ValueError("NBN-O can be derived for ALPH only")
-        elif key == "NBN-B":
-            if self.nbhd_type == "ALPH":
-                raise ValueError("NBN-B can not be derived for nbhd having overlap")
-            print("Calculating neighborhood bordering")
-            data = calc_nbhd_bordering(
-                self.gdf[[self.nbhd_col, "geometry"]],
-                name_col=self.nbhd_col,
-            )
-            self.collection.relations["bordering"] = _relation_from_square_adata(
-                data,
-                self.collection,
-            )
-        else:
-            raise ValueError(f"Unknown derived key: {key}")
-
-        if key == "NBP":
-            for subkey in data:
-                self.derived[key][subkey] = data[subkey]
-        else:
-            self.derived[key] = data
-
-        self._sync_derived_modalities()
-        print(f"{key} is derived and attached to nbhd")
-
-    def _add_geo(self, df: pd.DataFrame) -> pd.DataFrame:
-        if isinstance(df, AnnData):
-            X = df.X.toarray() if sparse.issparse(df.X) else df.X
-            df = pd.DataFrame(X, index=df.obs_names, columns=df.var_names)
-        elif sparse.issparse(df):
-            df = pd.DataFrame(df.toarray(), index=self.collection.obs.index)
-        return (
-            self.gdf[[self.nbhd_col, "geometry"]]
-            .set_index(self.nbhd_col)
-            .join(df, how="left")
-            .fillna(0)
-            .reset_index()
-            .rename(columns={self.nbhd_col: "nbhd_id"})
-        )
-
-    def get_derived(self, key: str, subkey: str | None = None) -> pd.DataFrame:
-        if key == "NBP":
-            df = self.derived[key].get(subkey)
-            return self._add_geo(df)
-        df = self.derived.get(key)
-        return self._add_geo(df)
-
-    def to_geodataframe(self) -> gpd.GeoDataFrame:
-        return self.gdf
-
-    def summary(self) -> dict[str, Any]:
-        return {
-            "name": self.name,
-            "type": self.nbhd_type,
-            "n_regions": len(self.gdf),
-            "derived": {k: self._derived_summary(k) for k in self.derived},
-            "modalities": {k: v.shape for k, v in self.collection.mod.items()},
-            "relations": {k: v.shape for k, v in self.collection.relations.items()},
-            "meta": self.meta,
-        }
-
-    def _derived_summary(self, key: str) -> tuple | dict[str, tuple] | None:
-        val = self.derived.get(key)
-        if val is None:
-            return None
-        if key == "NBP":
-            subkeys = ["abs", "prop"]
-            summary = {}
-            for subkey in subkeys:
-                subval = val.get(subkey)
-                summary[subkey] = subval.shape if hasattr(subval, "shape") else None
-            return summary
-        return val.shape if hasattr(val, "shape") else None
-
-
-def calc_nbhd_by_pop(
+def _calc_nbhd_by_pop(
     adata: AnnData,
     gdf_nbhd: gpd.GeoDataFrame,
     category: str = "leiden",
@@ -631,6 +322,9 @@ def calc_nbhd_by_pop(
 ) -> AnnData:
     """
     Calculate cell-level population distribution of neighborhoods.
+
+    Internal spatial-computation kernel. The public entry point is
+    :meth:`NeighborhoodCollection.calc_nbhd_by_pop`.
 
     Computes a neighborhood-by-population matrix showing the distribution of cell
     categories (e.g., clusters, cell types) within each neighborhood.
@@ -663,11 +357,8 @@ def calc_nbhd_by_pop(
         - `var`: DataFrame indexed by category names
         - `obs["n_cells"]`: Total cell count per neighborhood
 
-    Examples
-    --------
-    >>> adata_nbp = dega.nbhd.calc_nbhd_by_pop(adata, gdf_alpha, category="leiden")
-    >>> adata_nbp.shape
-    (42, 18)  # 42 neighborhoods, 18 clusters
+    Internal spatial-computation kernel. The public entry point is
+    :meth:`NeighborhoodCollection.calc_nbhd_by_pop`.
     """
     print("Calculating NBP")
 
@@ -777,7 +468,7 @@ def calc_nbhd_by_pop(
     return adata_nbp
 
 
-def get_nbhd_meta(
+def _get_nbhd_meta(
     gdf_nbhd: gpd.GeoDataFrame,
     unique_nbhd_col: str,
     gdf_trx: gpd.GeoDataFrame,
@@ -820,7 +511,7 @@ def get_nbhd_meta(
     return summary.join(trx_summary).join(cell_counts)
 
 
-def calc_nbhd_overlap(
+def _calc_nbhd_overlap(
     gdf_nbhd: gpd.GeoDataFrame,
     metric: str = "iou",
     name_col: str = "name",
@@ -861,8 +552,8 @@ def calc_nbhd_overlap(
 
     Examples
     --------
-    >>> adata_iou = dega.nbhd.calc_nbhd_overlap(gdf_nbhd, metric="iou")
-    >>> adata_ioa = dega.nbhd.calc_nbhd_overlap(gdf_nbhd, metric="ioa")
+    Internal spatial-computation kernel. The public entry point is
+    :meth:`NeighborhoodCollection.calc_nbhd_overlap`.
     >>> mat = dega.clust.Matrix(adata_iou, row_entity="nbhd", col_entity="nbhd")
     """
     print(f"Calculating NBN-O ({metric})")
@@ -966,7 +657,7 @@ def calc_nbhd_overlap(
     return adata_nbn
 
 
-def calc_nbhd_bordering(
+def _calc_nbhd_bordering(
     gdf_nbhd: gpd.GeoDataFrame,
     metric: str = "border_ratio",
     name_col: str = "name",
@@ -1012,12 +703,12 @@ def calc_nbhd_bordering(
     Shared border length is computed as the length of the intersection of the
     two neighborhood boundaries (perimeters). This works for neighborhoods that
     touch but don't overlap. For overlapping neighborhoods, consider using
-    `calc_nbhd_overlap` instead.
+    `_calc_nbhd_overlap` instead.
 
     Examples
     --------
-    >>> adata_border = dega.nbhd.calc_nbhd_bordering(gdf_nbhd, metric="border_ratio")
-    >>> adata_adj = dega.nbhd.calc_nbhd_bordering(gdf_nbhd, metric="binary")
+    Internal spatial-computation kernel. The public entry point is
+    :meth:`NeighborhoodCollection.calc_nbhd_bordering`.
     >>> mat = dega.clust.Matrix(adata_border, row_entity="nbhd", col_entity="nbhd")
     """
     print(f"Calculating NBN-B ({metric})")

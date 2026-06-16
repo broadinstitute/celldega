@@ -1,7 +1,7 @@
 # Python API Overview
 
-The Celldega Python API provides modules for MuData-backed collection schemas,
-dataset-level feature spaces, pre-processing spatial transcriptomics data, clustering
+The Celldega Python API provides modules for collection schemas,
+dataset-level feature spaces, pre-processing spatial transcriptomics data, hierarchical bi-clustering
 analysis, neighborhood computation, and interactive visualization.
 
 ## Installation

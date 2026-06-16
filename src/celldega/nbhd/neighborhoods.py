@@ -271,15 +271,36 @@ def _relation_from_square_adata(
     adata: AnnData,
     collection: NeighborhoodCollection,
 ) -> sparse.csr_matrix:
+    """Align a square (obs-by-obs) relation matrix to the collection obs axis.
+
+    Both axes are reindexed to ``collection.obs.index``; neighborhoods absent
+    from ``adata`` become all-zero rows/columns. The reindex is done by mapping
+    source positions to target positions on the sparse COO triplets, so the
+    matrix is never densified.
+    """
     target_index = collection.obs.index.astype(str)
-    values = adata.X.toarray() if sparse.issparse(adata.X) else np.asarray(adata.X)
-    matrix = pd.DataFrame(
-        values,
-        index=pd.Index(adata.obs_names.astype(str)),
-        columns=pd.Index(adata.var_names.astype(str)),
+    target_pos = {name: i for i, name in enumerate(target_index)}
+    n = len(target_index)
+
+    src = adata.X.tocoo() if sparse.issparse(adata.X) else sparse.coo_matrix(np.asarray(adata.X))
+    obs_to_target = np.fromiter(
+        (target_pos.get(name, -1) for name in adata.obs_names.astype(str)),
+        dtype=int,
+        count=adata.n_obs,
     )
-    matrix = matrix.reindex(index=target_index, columns=target_index).fillna(0)
-    return sparse.csr_matrix(matrix.values)
+    var_to_target = np.fromiter(
+        (target_pos.get(name, -1) for name in adata.var_names.astype(str)),
+        dtype=int,
+        count=adata.n_vars,
+    )
+
+    rows = obs_to_target[src.row]
+    cols = var_to_target[src.col]
+    keep = (rows >= 0) & (cols >= 0)
+    return sparse.csr_matrix(
+        (src.data[keep], (rows[keep], cols[keep])),
+        shape=(n, n),
+    )
 
 
 def _calc_nbhd_by_pop(

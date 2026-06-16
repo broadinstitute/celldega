@@ -26,12 +26,25 @@ geometry, and view-linking metadata.
 
 ## Core Model
 
-| Concept | Storage |
-|---|---|
-| Canonical observations | `collection.obs` |
-| Feature spaces | `collection.mod[name]` |
-| Observation relations | `collection.relations[name]` |
-| Celldega metadata | `collection.uns` |
+A `CelldegaCollection` is a thin wrapper over a `MuData` (`collection.mdata`).
+Its core accessors are convenience aliases that proxy directly to attributes of
+the underlying `MuData` — they are not separate storage:
+
+| Concept | Accessor | Is exactly |
+|---|---|---|
+| Canonical observations | `collection.obs` | `collection.mdata.obs` |
+| Feature spaces | `collection.mod[name]` | `collection.mdata.mod[name]` |
+| Observation relations | `collection.relations[name]` | `collection.mdata.obsp[name]` |
+| Celldega metadata | `collection.uns` | `collection.mdata.uns["celldega"]` |
+
+In particular, `collection.relations` **is** `collection.mdata.obsp` (the same
+object): `collection.relations["x"] is collection.mdata.obsp["x"]`. The
+`relations` name is just Celldega vocabulary for MuData's `obsp` ("observation
+pairwise") store — use whichever you prefer. Relations live in `obsp` (the
+shared, collection-level observation axis) rather than inside a single
+modality's `obsp` because they are modality-independent properties of the
+observations themselves; feature-by-feature relations belong in a modality's
+`varp`.
 
 Each modality is a normal AnnData object. Its `X` is the clusterable matrix and
 its `var` table describes the local feature/entity axis. Celldega stores the
@@ -41,10 +54,9 @@ Higher-order collections do not embed lower-level source objects such as
 single-cell AnnData. Source data can be linked through lightweight metadata in
 `collection.uns["sources"]` and recorded in modality provenance.
 
-Observation relations should live canonically in `mdata.obsp`. This is the
-right native location for graph-like or distance-like observation pairs. When a
-workflow needs to treat a square relation matrix as `AnnData.X` for heatmap or
-Matrix-style clustering, materialize it as a modality:
+`obsp` is the right native location for graph-like or distance-like observation
+pairs. When a workflow needs to treat a square relation matrix as `AnnData.X`
+for heatmap or Matrix-style clustering, materialize it as a modality:
 
 ```python
 # make a new modality from a pre-existing relationship

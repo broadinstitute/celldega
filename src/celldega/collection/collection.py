@@ -192,7 +192,16 @@ class CelldegaCollection:
 
     @property
     def relations(self) -> Any:
-        """Global observation-by-observation relations."""
+        """Global observation-by-observation relations.
+
+        This is a named accessor for ``mdata.obsp`` (not a separate store):
+        relations are square matrices over the *collection's* observation axis,
+        shared across all modalities. They live here rather than inside a single
+        modality's ``obsp`` because they are properties of the observations
+        themselves (e.g. neighborhood overlap or bordering, derived from
+        geometry) and are modality-independent. Feature-by-feature relations
+        belong in a modality's ``varp`` instead.
+        """
         return self.mdata.obsp
 
     @property

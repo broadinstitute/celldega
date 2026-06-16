@@ -1,4 +1,11 @@
-"""Module for NBHD class and related calculations."""
+"""Spatial computation kernels and helpers for neighborhood feature calculation.
+
+Public neighborhood feature/relation calculation lives on
+:class:`celldega.nbhd.collection.NeighborhoodCollection`; the functions here are
+its internal spatial kernels (``_calc_nbhd_by_pop``, ``_calc_nbhd_by_gene``,
+``_calc_nbhd_overlap``, ``_calc_nbhd_bordering``, ``_get_nbhd_meta``) plus
+geometry/subsetting helpers.
+"""
 
 # Standard library imports
 from itertools import combinations
@@ -10,12 +17,8 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 from scipy import sparse
-from skimage.io import imread
 
 from celldega.nbhd.collection import NeighborhoodCollection
-from celldega.pre.boundary_tile import batch_transform_geometries
-
-from .zonal_stats import calc_img_zonal_stats
 
 
 def _nbhd_geometry_for_join(gdf_nbhd: gpd.GeoDataFrame, nbhd_col: str) -> gpd.GeoDataFrame:
@@ -194,39 +197,6 @@ def _calc_nbhd_by_gene(
         ]
 
     return adata_nbg
-
-
-def calc_nbhd_by_image(
-    file_path: str,
-    path_dega_files: str,
-    gdf_nbhd: gpd.GeoDataFrame,
-    nbhd_col: str = "name",
-) -> pd.DataFrame:
-    """
-    Calculate neighborhood image-based indices (NBI) given paths and a GeoDataFrame.
-    """
-    print("Calculating NBI...")
-
-    img = imread(file_path)
-    path_transformation_matrix = f"{path_dega_files}/micron_to_image_transform.csv"
-    transformation_matrix = pd.read_csv(path_transformation_matrix, header=None, sep=" ").values
-
-    gdf_nbhd_pixel = gdf_nbhd.copy()
-    gdf_nbhd_pixel["geometry"] = batch_transform_geometries(
-        gdf_nbhd_pixel["geometry"], transformation_matrix, 1
-    )
-
-    return (
-        calc_img_zonal_stats(
-            gdf_nbhd_pixel,
-            img,
-            unique_polygon_col_name=nbhd_col,
-            channel_names={0: "dapi", 1: "bound", 2: "rna", 3: "prot"},
-            stats_funcs=["mean", "median", "std"],
-        )
-        .rename(columns={"polygon_id": "nbhd_id"})
-        .set_index("nbhd_id")
-    )
 
 
 

@@ -12,7 +12,28 @@ pip install celldega
 
 ## Core Modules
 
-### [CelldegaCollection](collection/api.md)
+### [Clust Module](clust/api.md)
+
+The `clust` module provides the `Matrix` class for hierarchical clustering and
+heatmap visualization. It supports:
+
+- Automatic data processing pipelines
+- Multiple normalization methods (zscore, quantile, total)
+- Hierarchical clustering with dendrograms
+- Integration with Clustergram widget
+
+```python
+import celldega as dega
+
+# Create and cluster a matrix
+mat = dega.clust.Matrix(adata, filter_genes=5000)
+mat.cluster()
+
+# Export for visualization
+cgm = dega.viz.Clustergram(matrix=mat)
+```
+
+### [Collection Module](collection/api.md)
 
 The `collection` module defines typed MuData profiles for aligned
 dataset-level and neighborhood-level data:
@@ -52,49 +73,6 @@ population = dset.mod["population"]
 dset.write("dataset.h5mu")
 ```
 
-### [Pre Module](pre/api.md)
-
-The `pre` module contains functions for pre-processing raw spatial
-transcriptomics data into DegaFiles format. This includes:
-
-- Creating image tile pyramids for efficient zooming
-- Generating cell metadata and boundary tiles
-- Processing transcript data
-- Building cluster assignments and gene expression signatures
-
-```python
-import celldega as dega
-
-# Pre-process Xenium data
-dega.pre.main(
-    technology="Xenium",
-    data_dir="/path/to/xenium_outs",
-    path_landscape_files="/path/to/output",
-    tile_size=250
-)
-```
-
-### [Clust Module](clust/api.md)
-
-The `clust` module provides the `Matrix` class for hierarchical clustering and
-heatmap visualization. It supports:
-
-- Automatic data processing pipelines
-- Multiple normalization methods (zscore, quantile, total)
-- Hierarchical clustering with dendrograms
-- Integration with Clustergram widget
-
-```python
-import celldega as dega
-
-# Create and cluster a matrix
-mat = dega.clust.Matrix(adata, filter_genes=5000)
-mat.cluster()
-
-# Export for visualization
-cgm = dega.viz.Clustergram(matrix=mat)
-```
-
 ### [Nbhd Module](nbhd/api.md)
 
 The `nbhd` module contains functions for computing and analyzing tissue neighborhoods:
@@ -124,6 +102,29 @@ adata_nbg = dega.nbhd.calc_nbhd_by_gene(gdf_alpha, by="cell", adata=adata)
 # Attach modalities to a NeighborhoodCollection
 nbhd = dega.nbhd.NeighborhoodCollection(gdf=gdf_alpha, nbhd_type="alpha_shape")
 nbhd.calc_nbhd_by_pop(adata, category="leiden")
+```
+
+
+### [Pre Module](pre/api.md)
+
+The `pre` module contains functions for pre-processing raw spatial
+transcriptomics data into DegaFiles format. This includes:
+
+- Creating image tile pyramids for efficient zooming
+- Generating cell metadata and boundary tiles
+- Processing transcript data
+- Building cluster assignments and gene expression signatures
+
+```python
+import celldega as dega
+
+# Pre-process Xenium data
+dega.pre.main(
+    technology="Xenium",
+    data_dir="/path/to/xenium_outs",
+    path_landscape_files="/path/to/output",
+    tile_size=250
+)
 ```
 
 ### [Viz Module](viz/api.md)

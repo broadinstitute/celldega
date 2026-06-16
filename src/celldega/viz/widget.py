@@ -5,6 +5,7 @@ from contextlib import suppress
 from copy import deepcopy
 import json
 from pathlib import Path
+from typing import Any
 import urllib.error
 import warnings
 
@@ -26,12 +27,108 @@ _DEFAULT_MANUAL_ATTRIBUTE_TITLES = {
     "col": "manual_cat",
 }
 _MANUAL_FILL_VALUE = "N.A."
+_DEFAULT_NBHD_COLOR = "#4f80ff"
 
 
 def _hsv_to_hex(h: float) -> str:
     """Convert HSV color to hex string."""
     r, g, b = colorsys.hsv_to_rgb(h, 0.65, 0.9)
     return f"#{int(r * 255):02x}{int(g * 255):02x}{int(b * 255):02x}"
+
+
+def _coerce_transform_matrix(transform: Any) -> np.ndarray:
+    matrix = np.asarray(transform, dtype=float)
+    if matrix.shape == (2, 3):
+        matrix = np.vstack([matrix, [0.0, 0.0, 1.0]])
+    if matrix.shape != (3, 3):
+        raise ValueError("transform must be a 3x3 homogeneous matrix or a 2x3 affine matrix")
+    return matrix
+
+
+def _metadata_from_nbhd_like(nbhd_like: Any) -> pd.DataFrame | None:
+    obs = getattr(nbhd_like, "obs", None)
+    if isinstance(obs, pd.DataFrame):
+        meta = obs.copy()
+        meta.index = meta.index.astype(str)
+        return meta
+    return None
+
+
+def _geometry_from_nbhd_like(nbhd_like: Any) -> gpd.GeoDataFrame | None:
+    geometry = getattr(nbhd_like, "geometry", None)
+    if isinstance(geometry, gpd.GeoDataFrame):
+        return geometry.copy()
+
+    gdf = getattr(nbhd_like, "gdf", None)
+    if isinstance(gdf, gpd.GeoDataFrame):
+        return gdf.copy()
+
+    return None
+
+
+def _coerce_nbhd_for_landscape(
+    nbhd_like: Any,
+    meta_nbhd: pd.DataFrame | None = None,
+) -> tuple[gpd.GeoDataFrame | None, pd.DataFrame | None]:
+    """Coerce GeoDataFrame, NeighborhoodCollection, or legacy NBHD inputs."""
+    if nbhd_like is None:
+        return None, meta_nbhd
+
+    collection = getattr(nbhd_like, "collection", None)
+    if collection is not None:
+        nbhd_like = collection
+
+    if isinstance(nbhd_like, gpd.GeoDataFrame):
+        gdf = nbhd_like.copy()
+        inferred_meta = None
+        prefer_meta_columns = False
+    else:
+        gdf = _geometry_from_nbhd_like(nbhd_like)
+        inferred_meta = _metadata_from_nbhd_like(nbhd_like)
+        prefer_meta_columns = True
+        if gdf is None:
+            raise TypeError(
+                "nbhd must be a GeoDataFrame, NeighborhoodCollection, or legacy NBHD object"
+            )
+
+    if meta_nbhd is None and inferred_meta is not None:
+        meta_nbhd = inferred_meta
+
+    gdf = gdf.copy()
+    if gdf.index is not None:
+        gdf.index = gdf.index.astype(str)
+
+    if "name" not in gdf.columns:
+        if "neighborhood_id" in gdf.columns:
+            gdf["name"] = gdf["neighborhood_id"].astype(str)
+        elif "nbhd_id" in gdf.columns:
+            gdf["name"] = gdf["nbhd_id"].astype(str)
+        else:
+            gdf["name"] = gdf.index.astype(str)
+    else:
+        gdf["name"] = gdf["name"].astype(str)
+
+    if isinstance(meta_nbhd, pd.DataFrame):
+        meta_nbhd = meta_nbhd.copy()
+        meta_nbhd.index = meta_nbhd.index.astype(str)
+        meta_by_name = meta_nbhd.reindex(gdf["name"].astype(str))
+        for col in meta_by_name.columns:
+            if prefer_meta_columns or col not in gdf.columns:
+                gdf[col] = meta_by_name[col].to_numpy()
+
+    if "cat" not in gdf.columns:
+        gdf["cat"] = gdf["name"]
+    gdf["cat"] = gdf["cat"].fillna(gdf["name"]).astype(str)
+
+    if "color" not in gdf.columns:
+        gdf["color"] = _DEFAULT_NBHD_COLOR
+    gdf["color"] = gdf["color"].fillna(_DEFAULT_NBHD_COLOR).astype(str)
+
+    if "area" not in gdf.columns:
+        gdf["area"] = gdf.geometry.area
+    gdf["area"] = pd.to_numeric(gdf["area"], errors="coerce").fillna(0)
+
+    return gdf, meta_nbhd
 
 
 class Landscape(anywidget.AnyWidget):
@@ -132,10 +229,14 @@ class Landscape(anywidget.AnyWidget):
         umap_df = kwargs.pop("umap", None)
         nbhd_gdf = kwargs.pop("nbhd", None)
         meta_nbhd_df = kwargs.pop("meta_nbhd", None)
+        transform = kwargs.pop("transform", None)
+        image_scale = kwargs.pop("image_scale", None)
         nbhd_edit = kwargs.pop("nbhd_edit", False)
         meta_cluster_df = None
         # cell_attr = kwargs.pop("cell_attr", ["leiden"])
         cell_attr = list(kwargs.pop("cell_attr", ["leiden"]))
+
+        nbhd_gdf, meta_nbhd_df = _coerce_nbhd_for_landscape(nbhd_gdf, meta_nbhd_df)
 
         # nbhd_edit can now be True even when nbhd data is provided,
         # allowing users to edit pre-loaded neighborhood polygons
@@ -190,16 +291,26 @@ class Landscape(anywidget.AnyWidget):
         base_path = (kwargs.get("base_url") or "") + "/"
         path_transformation_matrix = base_path + "micron_to_image_transform.csv"
 
-        try:
-            transformation_matrix = pd.read_csv(
-                path_transformation_matrix, header=None, sep=" "
-            ).values
-        except (FileNotFoundError, urllib.error.HTTPError, urllib.error.URLError):
-            transformation_matrix = np.eye(3)  # Fallback for testing
-            warnings.warn(
-                f"Transformation matrix not found at {path_transformation_matrix}. Using identity.",
-                stacklevel=2,
-            )
+        if transform is not None:
+            transformation_matrix = _coerce_transform_matrix(transform)
+        else:
+            try:
+                transformation_matrix = pd.read_csv(
+                    path_transformation_matrix, header=None, sep=r"\s+"
+                ).values
+                transformation_matrix = _coerce_transform_matrix(transformation_matrix)
+            except (FileNotFoundError, urllib.error.HTTPError, urllib.error.URLError):
+                transformation_matrix = np.eye(3)  # Fallback for testing
+                warnings.warn(
+                    f"Transformation matrix not found at {path_transformation_matrix}. "
+                    "Using identity.",
+                    stacklevel=2,
+                )
+
+        if image_scale is not None:
+            scale = float(image_scale)
+            scale_matrix = np.array([[scale, 0.0, 0.0], [0.0, scale, 0.0], [0.0, 0.0, 1.0]])
+            transformation_matrix = scale_matrix @ transformation_matrix
 
         self._transformation_matrix = transformation_matrix
         try:
@@ -222,6 +333,12 @@ class Landscape(anywidget.AnyWidget):
             buf = io.BytesIO()
             pq.write_table(pa.Table.from_pandas(df), buf, compression="zstd")
             return buf.getvalue()
+
+        def _reset_index_for_parquet(df):
+            index_name = df.index.name or "index"
+            if index_name in df.columns:
+                return df.reset_index(drop=True)
+            return df.reset_index()
 
         # Get cell_name_prefix setting
         cell_name_prefix_setting = kwargs.get("cell_name_prefix", False)
@@ -290,10 +407,10 @@ class Landscape(anywidget.AnyWidget):
                 pq_umap = _df_to_bytes(umap_df)
 
         if isinstance(meta_cell_df, pd.DataFrame):
-            pq_meta_cell = _df_to_bytes(meta_cell_df.reset_index())
+            pq_meta_cell = _df_to_bytes(_reset_index_for_parquet(meta_cell_df))
 
         if isinstance(meta_cluster, pd.DataFrame):
-            pq_meta_cluster = _df_to_bytes(meta_cluster.reset_index())
+            pq_meta_cluster = _df_to_bytes(_reset_index_for_parquet(meta_cluster))
             kwargs.pop("meta_cluster")
             meta_cluster_df = meta_cluster
 
@@ -301,7 +418,7 @@ class Landscape(anywidget.AnyWidget):
             pq_umap = _df_to_bytes(umap_df)
 
         if isinstance(meta_nbhd_df, pd.DataFrame):
-            pq_meta_nbhd = _df_to_bytes(meta_nbhd_df.reset_index())
+            pq_meta_nbhd = _df_to_bytes(_reset_index_for_parquet(meta_nbhd_df))
 
         parquet_traits = {}
         if pq_meta_cell is not None:

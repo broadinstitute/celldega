@@ -12,9 +12,9 @@ from shapely.geometry import Point
 from celldega.collection import (
     CelldegaCollection,
     HierarchyResult,
-    NeighborhoodCollection,
 )
 from celldega.dataset import DatasetCollection
+from celldega.nbhd import NeighborhoodCollection
 
 
 def test_dataset_holds_aligned_modalities_relations_and_hierarchies():

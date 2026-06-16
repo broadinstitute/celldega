@@ -498,7 +498,7 @@ class NBHD:
         self,
         adata: AnnData,
         category: str = "leiden",
-        key: str = "population",
+        modality_name: str = "population",
         min_cells: int = 5,
         output: str = "proportion",
     ) -> None:
@@ -515,7 +515,7 @@ class NBHD:
             self.collection,
             pd.Index(space.obs_names.astype(str)),
         )
-        self.collection.add_mod(key, space, var_entity_type="cell_population")
+        self.collection.add_mod(modality_name, space, var_entity_type="cell_population")
         self.gdf = self.collection.gdf.copy()
         self._sync_derived_modalities()
 
@@ -609,13 +609,13 @@ class NBHD:
             self.calc_nbhd_by_pop(
                 adata,
                 category="leiden",
-                key="population",
+                modality_name="population",
                 output="proportion",
             )
             self.calc_nbhd_by_pop(
                 adata,
                 category="leiden",
-                key="population_counts",
+                modality_name="population_counts",
                 output="counts",
             )
             data = {

@@ -103,12 +103,17 @@ def test_neighborhood_collection_calculates_population_modality_directly():
     gdf, adata = _synthetic_nbhd_inputs()
     collection = NeighborhoodCollection(gdf=gdf, nbhd_type="manual")
 
-    result = collection.calc_nbhd_by_pop(adata, min_cells=1, output="counts")
-    population = collection.mod["population"]
+    result = collection.calc_nbhd_by_pop(
+        adata,
+        modality_name="cell_type_population",
+        min_cells=1,
+        output="counts",
+    )
+    population = collection.mod["cell_type_population"]
 
     assert result is None
     assert collection.to_collection() is collection
-    assert collection.mod["population"] is population
+    assert collection.mod["cell_type_population"] is population
     assert collection.nbhd_type == "manual"
     assert not hasattr(collection, "adata")
     assert list(population.obs_names) == ["A", "B"]

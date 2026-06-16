@@ -101,7 +101,7 @@ adata_nbg = dega.nbhd.calc_nbhd_by_gene(gdf_alpha, by="cell", adata=adata)
 
 # Attach modalities to a NeighborhoodCollection
 nbhd = dega.nbhd.NeighborhoodCollection(gdf=gdf_alpha, nbhd_type="alpha_shape")
-nbhd.calc_nbhd_by_pop(adata, category="leiden")
+nbhd.calc_nbhd_by_pop(adata, category="leiden", modality_name="population")
 ```
 
 

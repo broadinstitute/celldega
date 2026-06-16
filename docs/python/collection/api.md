@@ -13,8 +13,8 @@ clinical variables, and derived joint spaces.
 
 MuData provides that collection layer by storing each feature space as its own
 AnnData modality while preserving shared observation metadata. Celldega adds a
-thin schema convention on top for biological entity typing, hierarchy results,
-provenance, geometry, and view-linking metadata.
+thin schema convention on top for biological entity typing, provenance,
+geometry, and view-linking metadata.
 
 ## Core Model
 
@@ -24,7 +24,6 @@ provenance, geometry, and view-linking metadata.
 | Feature spaces | `collection.mod[name]` |
 | Observation relations | `collection.relations[name]` |
 | Celldega metadata | `collection.uns` |
-| Hierarchy registry | `collection.uns["celldega"]["hierarchies"]` |
 
 Each modality is a normal AnnData object. Its `X` is the clusterable matrix and
 its `var` table describes the local feature/entity axis. Celldega stores the
@@ -47,38 +46,6 @@ collection.add_relation_modality("similarity")
 # view new modality
 collection.mod["similarity_relation"]
 ```
-
-## Hierarchies
-
-`HierarchyResult` is a convenience wrapper for adding serializable hierarchy
-metadata to `mdata.uns["celldega"]["hierarchies"]`. Hierarchies point to the
-MuData source they came from, such as `input_mod="population"` or
-`input_relation="similarity"`.
-
-Hierarchical biclustering can store both axes:
-
-```python
-import numpy as np
-
-dset.add_hierarchy(
-    dega.HierarchyResult(
-        id="mod:population__hierarchical",
-        input_mod="population",
-        method="hierarchical",
-        axis="bicluster",
-        obs_leaf_order=["sample_1", "sample_2"],
-        obs_linkage_matrix=np.array([[0, 1, 0.3, 2]]),
-        var_leaf_order=["B cell", "T cell"],
-        var_linkage_matrix=np.array([[0, 1, 0.5, 2]]),
-    )
-)
-```
-
-Linkage payloads are stored as plain SciPy-compatible `(n - 1, 4)` arrays under
-`obs_linkage` and `var_linkage`. Flat cluster assignments, such as Leiden
-labels, should usually live as columns in `collection.obs` or in the relevant
-modality `var` table. Method metadata for those labels can live in
-`collection.uns` or `collection.provenance`.
 
 ## API
 

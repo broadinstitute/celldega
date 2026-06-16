@@ -10,7 +10,7 @@ from mudata import MuData
 import pandas as pd
 from scipy import sparse
 
-from celldega.collection.collection import CelldegaCollection, HierarchyResult
+from celldega.collection.collection import CelldegaCollection
 
 
 def _resolve_neighborhood_col(gdf: gpd.GeoDataFrame, nbhd_col: str = "name") -> str:
@@ -83,7 +83,6 @@ class NeighborhoodCollection(CelldegaCollection):
         nbhd_col: str = "name",
         geometry: gpd.GeoDataFrame | None = None,
         relations: dict[str, sparse.spmatrix] | None = None,
-        hierarchies: dict[str, HierarchyResult | dict[str, Any]] | None = None,
         provenance: dict[str, Any] | None = None,
         uns: dict[str, Any] | None = None,
         memberships: dict[str, sparse.spmatrix] | None = None,
@@ -123,7 +122,6 @@ class NeighborhoodCollection(CelldegaCollection):
             mod=mod,
             mdata=mdata,
             relations=relations,
-            hierarchies=hierarchies,
             provenance=collection_provenance,
             uns=collection_uns,
             collection_type="neighborhood",

@@ -9,15 +9,12 @@ import pytest
 from scipy import sparse
 from shapely.geometry import Point
 
-from celldega.collection import (
-    CelldegaCollection,
-    HierarchyResult,
-)
+from celldega.collection import CelldegaCollection
 from celldega.dataset import DatasetCollection
 from celldega.nbhd import NeighborhoodCollection
 
 
-def test_dataset_holds_aligned_modalities_relations_and_hierarchies():
+def test_dataset_holds_aligned_modalities_and_relations():
     adata = AnnData(X=np.ones((2, 1)))
     adata.obs["sample_id"] = ["sample_001", "sample_002"]
     adata.obs["condition"] = ["a", "b"]
@@ -28,16 +25,6 @@ def test_dataset_holds_aligned_modalities_relations_and_hierarchies():
         var=pd.DataFrame(index=["T cell", "B cell"]),
     )
     relation = sparse.csr_matrix([[1.0, 0.2], [0.2, 1.0]])
-    hierarchy = HierarchyResult(
-        id="mod:population__hierarchical",
-        input_mod="population",
-        method="hierarchical",
-        axis="bicluster",
-        obs_leaf_order=list(dataset_ids),
-        obs_linkage_matrix=np.array([[0.0, 1.0, 0.3, 2.0]]),
-        var_leaf_order=["B cell", "T cell"],
-        var_linkage_matrix=np.array([[0.0, 1.0, 0.5, 2.0]]),
-    )
 
     dataset = DatasetCollection(
         adata,
@@ -45,7 +32,6 @@ def test_dataset_holds_aligned_modalities_relations_and_hierarchies():
         obs_columns=["condition"],
         mod={"population": population},
         relations={"similarity": relation},
-        hierarchies={hierarchy.id: hierarchy},
         provenance={"source": "unit-test"},
     )
 
@@ -55,13 +41,6 @@ def test_dataset_holds_aligned_modalities_relations_and_hierarchies():
     assert not hasattr(dataset, "adata")
     assert list(dataset.mod["population"].obs_names) == list(dataset.obs.index)
     assert dataset.relations["similarity"].shape == (2, 2)
-    assert dataset.hierarchies[hierarchy.id]["input_mod"] == "population"
-    assert dataset.hierarchies[hierarchy.id]["axis"] == "bicluster"
-    assert dataset.hierarchies[hierarchy.id]["var_leaf_order"] == ["B cell", "T cell"]
-    np.testing.assert_array_equal(
-        dataset.hierarchies[hierarchy.id]["obs_linkage"],
-        np.array([[0.0, 1.0, 0.3, 2.0]]),
-    )
     assert dataset.neighborhood_collections == {}
 
 
@@ -328,18 +307,6 @@ def test_dataset_write_read_round_trips_mudata(tmp_path):
     dataset = DatasetCollection(adata, dataset_col="sample_id", obs_columns=["condition"])
     assert dataset.calc_dataset_by_pop(adata, category="cell_type", output="counts") is None
     dataset.relations["similarity"] = sparse.csr_matrix([[1.0, 0.2], [0.2, 1.0]])
-    dataset.add_hierarchy(
-        HierarchyResult(
-            id="mod:population__hierarchical",
-            input_mod="population",
-            method="hierarchical",
-            axis="bicluster",
-            obs_leaf_order=["s1", "s2"],
-            obs_linkage_matrix=np.array([[0.0, 1.0, 0.3, 2.0]]),
-            var_leaf_order=["B", "T"],
-            var_linkage_matrix=np.array([[0.0, 1.0, 0.5, 2.0]]),
-        )
-    )
 
     path = tmp_path / "dataset.h5mu"
     dataset.write(path)
@@ -349,11 +316,6 @@ def test_dataset_write_read_round_trips_mudata(tmp_path):
     assert list(loaded.obs.index) == ["s1", "s2"]
     assert list(loaded.mod) == ["population"]
     assert loaded.relations["similarity"].shape == (2, 2)
-    assert loaded.hierarchies["mod:population__hierarchical"]["input_mod"] == "population"
-    np.testing.assert_array_equal(
-        loaded.hierarchies["mod:population__hierarchical"]["obs_linkage"],
-        np.array([[0.0, 1.0, 0.3, 2.0]]),
-    )
     np.testing.assert_array_equal(loaded.mod["population"].X, np.array([[1, 1], [2, 0]]))
 
 

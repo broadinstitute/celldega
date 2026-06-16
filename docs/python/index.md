@@ -39,7 +39,6 @@ dataset-level and neighborhood-level data:
 
 - `dega.dataset.DatasetCollection` for dataset, sample, tissue section, or patient observations
 - `NeighborhoodCollection` for neighborhood or spatial-region observations
-- `HierarchyResult` for clustering or tree outputs derived from a modality or relation
 
 ```python
 import celldega as dega

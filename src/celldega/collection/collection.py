@@ -8,7 +8,6 @@ hierarchies, provenance, geometry, and view-linking metadata.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 import warnings
@@ -24,100 +23,12 @@ __all__ = [
     "CELLDEGA_SCHEMA_VERSION",
     "CELLDEGA_UNS_KEY",
     "CelldegaCollection",
-    "HierarchyResult",
 ]
 
 
 CELLDEGA_UNS_KEY = "celldega"
 CELLDEGA_SCHEMA_VERSION = "0.1.0"
 _EMPTY_MODALITY_KEY = "_celldega_obs"
-
-
-@dataclass
-class HierarchyResult:
-    """Serializable clustering or hierarchy result metadata.
-
-    The result is tied to either a MuData modality, a global observation
-    relation, or a modality-specific relation. Tree state for biclustering can
-    store both the observation axis and the modality variable axis.
-
-    Attributes:
-        id: Stable result identifier, often ``"mod:<input_mod>__<method>"``.
-        input_mod: Source modality key in ``mdata.mod`` when the hierarchy is
-            derived from a feature space.
-        input_relation: Source relation key in ``mdata.obsp`` or in
-            ``mdata.mod[input_mod].obsp``.
-        method: Method name, such as ``"hierarchical"`` or
-            ``"matrix_biclustering"``.
-        axis: Clustered axis. Use ``"obs"`` for observation-only results,
-            ``"var"`` for feature/entity-only results, and ``"bicluster"``
-            when both axes are clustered.
-        params: Method parameters.
-        preprocessing: Preprocessing steps used before clustering.
-        obs_leaf_order: Optional ordered list of observation IDs.
-        obs_linkage_matrix: Optional observation-axis SciPy linkage matrix with
-            shape ``(n_obs - 1, 4)``.
-        var_leaf_order: Optional ordered list of feature/entity IDs.
-        var_linkage_matrix: Optional feature/entity-axis SciPy linkage matrix
-            with shape ``(n_vars - 1, 4)``.
-        provenance: Free-form provenance metadata for this result.
-        uns: Free-form method-specific metadata.
-    """
-
-    id: str
-    method: str
-    input_mod: str | None = None
-    input_relation: str | None = None
-    axis: str = "obs"
-
-    params: dict[str, Any] = field(default_factory=dict)
-    preprocessing: dict[str, Any] = field(default_factory=dict)
-
-    obs_leaf_order: list[str] | None = None
-    obs_linkage_matrix: Any | None = None
-    var_leaf_order: list[str] | None = None
-    var_linkage_matrix: Any | None = None
-
-    provenance: dict[str, Any] = field(default_factory=dict)
-    uns: dict[str, Any] = field(default_factory=dict)
-
-    @property
-    def source_key(self) -> str:
-        """Unique source reference for the result within a collection."""
-        if self.input_mod is not None and self.input_relation is not None:
-            return f"mod:{self.input_mod}.obsp:{self.input_relation}"
-        if self.input_mod is not None:
-            return f"mod:{self.input_mod}"
-        if self.input_relation is not None:
-            return f"obsp:{self.input_relation}"
-        return "unknown"
-
-    def to_dict(self) -> dict[str, Any]:
-        """Return a MuData-serializable hierarchy registry payload.
-
-        Hierarchical state is stored as plain SciPy-compatible linkage matrices
-        under ``obs_linkage`` and ``var_linkage``. Flat cluster labels should be
-        mirrored to ``obs`` or modality ``var`` instead of stored here.
-        """
-        payload: dict[str, Any] = {
-            "id": self.id,
-            "method": self.method,
-            "axis": self.axis,
-            "params": self.params,
-            "preprocessing": self.preprocessing,
-            "provenance": self.provenance,
-            "uns": self.uns,
-        }
-        optional = {
-            "input_mod": self.input_mod,
-            "input_relation": self.input_relation,
-            "obs_leaf_order": self.obs_leaf_order,
-            "obs_linkage": _coerce_linkage_matrix(self.obs_linkage_matrix),
-            "var_leaf_order": self.var_leaf_order,
-            "var_linkage": _coerce_linkage_matrix(self.var_linkage_matrix),
-        }
-        payload.update({key: value for key, value in optional.items() if value is not None})
-        return payload
 
 
 def _with_mudata_warnings_suppressed(func: Any, *args: Any, **kwargs: Any) -> Any:
@@ -186,29 +97,6 @@ def _align_mod_to_obs(adata: AnnData, obs: pd.DataFrame) -> AnnData:
     return AnnData(X=X, obs=aligned_obs, var=adata.var.copy(), uns=dict(adata.uns))
 
 
-def _coerce_hierarchy(value: HierarchyResult | dict[str, Any]) -> dict[str, Any]:
-    if isinstance(value, HierarchyResult):
-        return value.to_dict()
-    payload = dict(value)
-    if "obs_linkage" in payload:
-        payload["obs_linkage"] = _coerce_linkage_matrix(payload["obs_linkage"])
-    if "var_linkage" in payload:
-        payload["var_linkage"] = _coerce_linkage_matrix(payload["var_linkage"])
-    return payload
-
-
-def _coerce_linkage_matrix(linkage_matrix: Any | None) -> np.ndarray | None:
-    if linkage_matrix is None:
-        return None
-
-    linkage = np.asarray(linkage_matrix, dtype=float)
-    if linkage.size == 0:
-        return linkage.reshape((0, 4))
-    if linkage.ndim != 2 or linkage.shape[1] != 4:
-        raise ValueError("linkage matrices must have shape (n - 1, 4)")
-    return linkage
-
-
 class CelldegaCollection:
     """Base Celldega collection profile backed by ``MuData``.
 
@@ -228,7 +116,6 @@ class CelldegaCollection:
         mod: dict[str, AnnData] | None = None,
         mdata: MuData | None = None,
         relations: dict[str, sparse.spmatrix] | None = None,
-        hierarchies: dict[str, HierarchyResult | dict[str, Any]] | None = None,
         provenance: dict[str, Any] | None = None,
         uns: dict[str, Any] | None = None,
         collection_type: str | None = None,
@@ -262,8 +149,6 @@ class CelldegaCollection:
 
         for key, relation in (relations or {}).items():
             self.relations[key] = relation
-        for key, hierarchy in (hierarchies or {}).items():
-            self.hierarchies[key] = _coerce_hierarchy(hierarchy)
 
     @property
     def obs(self) -> pd.DataFrame:
@@ -283,11 +168,6 @@ class CelldegaCollection:
     def relations(self) -> Any:
         """Global observation-by-observation relations."""
         return self.mdata.obsp
-
-    @property
-    def hierarchies(self) -> dict[str, dict[str, Any]]:
-        """Celldega hierarchy registry stored in MuData metadata."""
-        return self.uns.setdefault("hierarchies", {})
 
     @property
     def provenance(self) -> dict[str, Any]:
@@ -319,7 +199,6 @@ class CelldegaCollection:
             celldega["collection_type"] = collection_type
         if obs_entity_type is not None:
             celldega["obs_entity_type"] = obs_entity_type
-        celldega.setdefault("hierarchies", {})
         celldega.setdefault("provenance", {})
         celldega["provenance"].update(provenance or {})
         celldega.update(uns or {})
@@ -382,12 +261,6 @@ class CelldegaCollection:
             adata,
             var_entity_type=resolved_var_entity_type,
         )
-
-    def add_hierarchy(self, hierarchy: HierarchyResult | dict[str, Any]) -> dict[str, Any]:
-        """Add hierarchy metadata to the Celldega registry."""
-        payload = _coerce_hierarchy(hierarchy)
-        self.hierarchies[str(payload["id"])] = payload
-        return payload
 
     def write(self, filename: str | Path, **kwargs: Any) -> None:
         """Write the underlying ``MuData`` object to disk."""

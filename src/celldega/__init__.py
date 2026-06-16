@@ -2,10 +2,7 @@ import importlib.metadata  # temporary fix for libpysal warning
 import warnings
 
 from celldega import clust, collection, dataset
-from celldega.collection import (
-    CelldegaCollection,
-    HierarchyResult,
-)
+from celldega.collection import CelldegaCollection
 from celldega.dataset import DatasetCollection
 from celldega.nbhd import alpha_shape
 from celldega.nbhd.collection import NeighborhoodCollection
@@ -25,7 +22,6 @@ __all__ = [
     "CelldegaCollection",
     "Clustergram",
     "DatasetCollection",
-    "HierarchyResult",
     "Landscape",
     "NeighborhoodCollection",
     "Yearbook",

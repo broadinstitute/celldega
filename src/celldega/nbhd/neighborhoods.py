@@ -201,7 +201,6 @@ def _calc_nbhd_by_gene(
     return adata_nbg
 
 
-
 def _subset_gdf_to_obs(
     gdf: gpd.GeoDataFrame | None,
     obs_names: pd.Index,
@@ -510,9 +509,11 @@ def _calc_nbhd_transcript_assignment(
     total = grouped.size()
     unassigned = grouped.apply(lambda ids: (ids == "UNASSIGNED").sum())
 
-    stats = pd.DataFrame(
-        {"total_transcripts": total, "unassigned_transcripts": unassigned}
-    ).reindex(nbhd_ids).fillna(0)
+    stats = (
+        pd.DataFrame({"total_transcripts": total, "unassigned_transcripts": unassigned})
+        .reindex(nbhd_ids)
+        .fillna(0)
+    )
     stats = stats.astype({"total_transcripts": int, "unassigned_transcripts": int})
 
     assigned = stats["total_transcripts"] - stats["unassigned_transcripts"]

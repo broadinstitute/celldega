@@ -28,9 +28,7 @@ def _get_name_mapping(path_dega_files, layer, segmentation="default"):
         # Load gene metadata
         df_meta_gene = pd.read_parquet(f"{path_dega_files}/meta_gene.parquet")
         if segmentation != "default":
-            df_meta_gene = pd.read_parquet(
-                f"{path_dega_files}/meta_gene_{segmentation}.parquet"
-            )
+            df_meta_gene = pd.read_parquet(f"{path_dega_files}/meta_gene_{segmentation}.parquet")
         df_meta_gene["name"] = df_meta_gene.index
         df_meta_gene = df_meta_gene.reset_index(drop=True)
         return {str(name): idx for idx, name in df_meta_gene["name"].items()}

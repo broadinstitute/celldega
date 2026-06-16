@@ -189,9 +189,7 @@ def cluster_gene_expression(
 
     elif technology == "custom":
         df_cluster = pd.read_parquet(
-            Path(path_dega_files)
-            / f"cell_clusters_{segmentation_approach}"
-            / "cluster.parquet"
+            Path(path_dega_files) / f"cell_clusters_{segmentation_approach}" / "cluster.parquet"
         )
         clusters = df_cluster["cluster"].unique().tolist()
 
@@ -402,14 +400,10 @@ def create_image_tiles(technology, data_dir, path_dega_files, image_tile_layer="
         create_image_tiles_xenium(data_dir, path_dega_files, image_tile_layer=image_tile_layer)
     elif technology == "MERSCOPE":
         print("------ merscope")
-        create_image_tiles_merscope(
-            data_dir, path_dega_files, image_tile_layer=image_tile_layer
-        )
+        create_image_tiles_merscope(data_dir, path_dega_files, image_tile_layer=image_tile_layer)
     elif technology == "h&e":
         print("------ h&e")
-        create_image_tiles_h_and_e(
-            data_dir, path_dega_files, image_tile_layer=image_tile_layer
-        )
+        create_image_tiles_h_and_e(data_dir, path_dega_files, image_tile_layer=image_tile_layer)
 
     print("Image tiles created successfully.")
 
@@ -1358,9 +1352,7 @@ def add_custom_segmentation(
 
     make_meta_cell_image_coord(
         technology=segmentation_parameters["technology"],
-        path_transformation_matrix=str(
-            Path(path_dega_files) / "micron_to_image_transform.csv"
-        ),
+        path_transformation_matrix=str(Path(path_dega_files) / "micron_to_image_transform.csv"),
         path_meta_cell_micron=str(
             Path(path_segmentation_files) / "cell_metadata_micron_space.parquet"
         ),

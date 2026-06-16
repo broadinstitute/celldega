@@ -61,11 +61,7 @@ def _empty_mudata(obs: pd.DataFrame) -> MuData:
 
 def _is_count_like(series: pd.Series, col: str) -> bool:
     """Whether a missing value in this column should be filled with zero."""
-    return (
-        pd.api.types.is_numeric_dtype(series)
-        or col.endswith("count")
-        or col.startswith("n_")
-    )
+    return pd.api.types.is_numeric_dtype(series) or col.endswith("count") or col.startswith("n_")
 
 
 def _align_mod_to_obs(adata: AnnData, obs: pd.DataFrame) -> AnnData:

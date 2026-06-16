@@ -111,8 +111,7 @@ transcriptomics data into DegaFiles format. This includes:
 
 - Creating image tile pyramids for efficient zooming
 - Generating cell metadata and boundary tiles
-- Processing transcript data
-- Building cluster assignments and gene expression signatures
+- Processing transcript tiles
 
 ```python
 import celldega as dega
@@ -144,9 +143,6 @@ import celldega as dega
 landscape = dega.viz.Landscape(
     base_url="https://your-landscape-files-url",
     adata=adata,
-    ini_x=10000,
-    ini_y=10000,
-    ini_zoom=-5
 )
 
 # Display linked Landscape and Clustergram

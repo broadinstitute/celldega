@@ -120,7 +120,7 @@ import celldega as dega
 dega.pre.main(
     technology="Xenium",
     data_dir="/path/to/xenium_outs",
-    path_landscape_files="/path/to/output",
+    path_dega_files="/path/to/output",
     tile_size=250
 )
 ```

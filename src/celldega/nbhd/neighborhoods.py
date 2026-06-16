@@ -209,7 +209,7 @@ def calc_nbhd_by_gene(
 
 def calc_nbhd_by_image(
     file_path: str,
-    path_landscape_files: str,
+    path_dega_files: str,
     gdf_nbhd: gpd.GeoDataFrame,
     nbhd_col: str = "name",
 ) -> pd.DataFrame:
@@ -219,7 +219,7 @@ def calc_nbhd_by_image(
     print("Calculating NBI...")
 
     img = imread(file_path)
-    path_transformation_matrix = f"{path_landscape_files}/micron_to_image_transform.csv"
+    path_transformation_matrix = f"{path_dega_files}/micron_to_image_transform.csv"
     transformation_matrix = pd.read_csv(path_transformation_matrix, header=None, sep=" ").values
 
     gdf_nbhd_pixel = gdf_nbhd.copy()
@@ -239,63 +239,6 @@ def calc_nbhd_by_image(
         .set_index("nbhd_id")
     )
 
-
-def _resolve_nbhd_col(gdf: gpd.GeoDataFrame, nbhd_col: str = "name") -> str:
-    if nbhd_col in gdf.columns:
-        return nbhd_col
-
-    for candidate in ("neighborhood_id", "nbhd_id"):
-        if candidate in gdf.columns:
-            return candidate
-
-    raise ValueError(
-        f"gdf must include '{nbhd_col}', 'neighborhood_id', or 'nbhd_id' to identify neighborhoods"
-    )
-
-
-def _collection_from_gdf(
-    gdf: gpd.GeoDataFrame,
-    nbhd_type: str,
-    nbhd_col: str = "name",
-    provenance: dict[str, Any] | None = None,
-    uns: dict[str, Any] | None = None,
-) -> NeighborhoodCollection:
-    resolved_nbhd_col = _resolve_nbhd_col(gdf, nbhd_col)
-    geometry = gdf.copy()
-    geometry.index = geometry[resolved_nbhd_col].astype(str)
-
-    if not geometry.index.is_unique:
-        raise ValueError(f"Neighborhood IDs in '{resolved_nbhd_col}' must be unique")
-
-    obs = pd.DataFrame(geometry.drop(columns="geometry", errors="ignore"))
-    obs.index = geometry.index.copy()
-    obs.index.name = "neighborhood_id"
-
-    if "neighborhood_id" not in obs.columns:
-        obs.insert(0, "neighborhood_id", obs.index)
-    if "neighborhood_type" not in obs.columns:
-        obs["neighborhood_type"] = nbhd_type
-    if "method" not in obs.columns:
-        obs["method"] = nbhd_type
-
-    geom = geometry.geometry
-    if "area" not in obs.columns:
-        obs["area"] = geom.area
-    if "area_um2" not in obs.columns:
-        obs["area_um2"] = geom.area
-    if "centroid_x" not in obs.columns:
-        obs["centroid_x"] = geom.centroid.x
-    if "centroid_y" not in obs.columns:
-        obs["centroid_y"] = geom.centroid.y
-
-    return NeighborhoodCollection(
-        obs=obs,
-        geometry=geometry,
-        nbhd_type=nbhd_type,
-        nbhd_col=resolved_nbhd_col,
-        provenance=provenance or {},
-        uns=uns or {},
-    )
 
 
 def _align_space_to_collection(
@@ -449,17 +392,15 @@ class NBHD:
         self.source = source
         self.name = name
         self.meta = meta or {}
-        self.nbhd_col = _resolve_nbhd_col(self.gdf, nbhd_col)
         provenance = {"source": source} if source is not None else {}
-        self.collection = _collection_from_gdf(
-            self.gdf,
+        self.collection = NeighborhoodCollection(
+            gdf=self.gdf,
             nbhd_type=nbhd_type,
-            nbhd_col=self.nbhd_col,
+            nbhd_col=nbhd_col,
             provenance=provenance,
             uns={"name": name, **self.meta},
         )
-        self.collection.gdf = self.gdf.copy()
-        self.collection.nbhd_col = self.nbhd_col
+        self.nbhd_col = self.collection.nbhd_col
 
         self.derived: dict[str, Any] = {
             "NBG-CF": None,

@@ -341,31 +341,40 @@ class NeighborhoodCollection(CelldegaCollection):
         self.relations[key] = relation
         return relation
 
-    def calc_nbhd_meta(
+    def calc_nbhd_transcript_assignment(
         self,
-        adata: AnnData,
         data_dir: str | None = None,
     ) -> None:
-        """Calculate neighborhood metadata and join it into ``obs``.
+        """Add per-neighborhood transcript-assignment columns to ``obs``.
 
-        Computes transcript/cell assignment counts and geometry summaries per
-        neighborhood (requires a ``data_dir`` containing ``transcripts.parquet``
-        and a cell-level ``adata``).
+        From ``transcripts.parquet`` in ``data_dir``, adds three ``obs`` columns
+        (on the underlying MuData) for each neighborhood:
+
+        - ``total_transcripts`` — transcripts falling inside the neighborhood.
+        - ``unassigned_transcripts`` — those with ``cell_id == "UNASSIGNED"``.
+        - ``transcript_assignment_proportion`` — assigned / total (``0.0`` when
+          the neighborhood has no transcripts).
+
+        The assigned/unassigned status comes from the upstream instrument
+        segmentation (the transcripts' ``cell_id``), not from Celldega. Only
+        transcripts are needed — no ``adata`` or cell polygons.
         """
-        from celldega.nbhd.neighborhoods import _get_nbhd_meta
-        from celldega.nbhd.utils import _get_gdf_cell, _get_gdf_trx
+        from celldega.nbhd.neighborhoods import _calc_nbhd_transcript_assignment
+        from celldega.nbhd.utils import _get_gdf_trx
 
         if self.gdf is None:
-            raise ValueError("gdf or geometry is required to calculate neighborhood metadata")
+            raise ValueError("gdf or geometry is required to calculate transcript assignment")
         resolved_data_dir = data_dir if data_dir is not None else self.data_dir
         if resolved_data_dir is None:
-            raise ValueError("data_dir is required to calculate neighborhood metadata")
+            raise ValueError("data_dir is required to calculate transcript assignment")
 
         gdf_trx = _get_gdf_trx(resolved_data_dir)
-        gdf_cell = _get_gdf_cell(adata)
-        meta = _get_nbhd_meta(self.gdf, self.nbhd_col, gdf_trx, gdf_cell)
-        meta.index = meta.index.astype(str)
-        self.obs = self.obs.join(meta, how="left")
+        stats = _calc_nbhd_transcript_assignment(self.gdf, self.nbhd_col, gdf_trx)
+        stats = stats.reindex(self.obs.index.astype(str))
+        obs = self.obs.copy()
+        for col in stats.columns:
+            obs[col] = stats[col].to_numpy()
+        self.obs = obs
 
 
 __all__ = ["NeighborhoodCollection"]

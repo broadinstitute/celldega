@@ -169,6 +169,30 @@ def test_neighborhood_collection_transforms_geometry_to_pixel_space():
     assert (minx, miny, maxx, maxy) == (10.0, 20.0, 15.0, 25.0)
 
 
+def test_neighborhood_collection_transcript_assignment(tmp_path):
+    gdf, _adata = _synthetic_nbhd_inputs()
+    # A (x 0-10): 3 total, 1 unassigned -> 2/3; B (x 10-20): 2 total, 2 unassigned -> 0.0
+    trx = pd.DataFrame(
+        {
+            "feature_name": ["g"] * 5,
+            "x_location": [1, 2, 3, 11, 12],
+            "y_location": [1, 2, 3, 1, 2],
+            "cell_id": ["c1", "c2", "UNASSIGNED", "UNASSIGNED", "UNASSIGNED"],
+        }
+    )
+    trx.to_parquet(tmp_path / "transcripts.parquet")
+
+    collection = NeighborhoodCollection(gdf=gdf, nbhd_type="manual")
+    result = collection.calc_nbhd_transcript_assignment(data_dir=str(tmp_path))
+
+    assert result is None
+    obs = collection.obs
+    assert list(obs["total_transcripts"]) == [3, 2]
+    assert list(obs["unassigned_transcripts"]) == [1, 2]
+    assert np.isclose(obs["transcript_assignment_proportion"].loc["A"], 2 / 3)
+    assert obs["transcript_assignment_proportion"].loc["B"] == 0.0
+
+
 def test_transformation_matrix_round_trips_through_uns():
     gdf, _adata = _synthetic_nbhd_inputs()
     matrix = np.array([[0.5, 0.0, 10.0], [0.0, 0.5, 20.0], [0.0, 0.0, 1.0]])

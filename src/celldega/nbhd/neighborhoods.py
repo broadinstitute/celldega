@@ -3,7 +3,8 @@
 Public neighborhood feature/relation calculation lives on
 :class:`celldega.nbhd.collection.NeighborhoodCollection`; the functions here are
 its internal spatial kernels (``_calc_nbhd_by_pop``, ``_calc_nbhd_by_gene``,
-``_calc_nbhd_overlap``, ``_calc_nbhd_bordering``, ``_get_nbhd_meta``) plus
+``_calc_nbhd_overlap``, ``_calc_nbhd_bordering``,
+``_calc_nbhd_transcript_assignment``) plus
 geometry/subsetting helpers.
 """
 
@@ -459,47 +460,44 @@ def _calc_nbhd_by_pop(
     return adata_nbp
 
 
-def _get_nbhd_meta(
+def _calc_nbhd_transcript_assignment(
     gdf_nbhd: gpd.GeoDataFrame,
     unique_nbhd_col: str,
     gdf_trx: gpd.GeoDataFrame,
-    gdf_cell: gpd.GeoDataFrame,
 ) -> pd.DataFrame:
+    """Per-neighborhood transcript counts and cell-assignment proportion.
+
+    A transcript counts as assigned when its ``cell_id`` is not ``"UNASSIGNED"``
+    (the assignment itself comes from the upstream instrument segmentation, not
+    from Celldega). Returns a DataFrame indexed by neighborhood id with columns
+    ``total_transcripts``, ``unassigned_transcripts``, and
+    ``transcript_assignment_proportion`` (assigned / total; ``0.0`` when a
+    neighborhood has no transcripts).
+
+    Internal spatial-computation kernel. The public entry point is
+    :meth:`NeighborhoodCollection.calc_nbhd_transcript_assignment`.
     """
-    Compute neighborhood-level summary statistics including transcript and cell assignments,
-    along with area and perimeter from geometry.
-    """
-    print("Calculating NBM")
-    gdf_nbhd = gdf_nbhd.copy()
-    gdf_nbhd = gdf_nbhd.set_index(unique_nbhd_col)
-    gdf_nbhd[unique_nbhd_col] = gdf_nbhd.index
-    summary = pd.DataFrame(index=gdf_nbhd.index)
-    summary.index.name = "nbhd_id"
-    summary["area_squm"] = gdf_nbhd.geometry.area.round(2)
-    summary["perimeter_um"] = gdf_nbhd.geometry.length.round(2)
-    gdf_trx = gdf_trx.sjoin(
+    nbhd_ids = pd.Index(gdf_nbhd[unique_nbhd_col].astype(str))
+    joined = gdf_trx.sjoin(
         _nbhd_geometry_for_join(gdf_nbhd, unique_nbhd_col),
         how="left",
         predicate="within",
     )
-    trx_summary = gdf_trx.groupby(unique_nbhd_col).agg(
-        total_trx=("cell_id", "size"),
-        unassigned_trx_count=("cell_id", lambda x: (x == "UNASSIGNED").sum()),
-        assigned_trx_count=("cell_id", lambda x: (x != "UNASSIGNED").sum()),
+    grouped = joined.groupby(unique_nbhd_col)["cell_id"]
+    total = grouped.size()
+    unassigned = grouped.apply(lambda ids: (ids == "UNASSIGNED").sum())
+
+    stats = pd.DataFrame(
+        {"total_transcripts": total, "unassigned_transcripts": unassigned}
+    ).reindex(nbhd_ids).fillna(0)
+    stats = stats.astype({"total_transcripts": int, "unassigned_transcripts": int})
+
+    assigned = stats["total_transcripts"] - stats["unassigned_transcripts"]
+    stats["transcript_assignment_proportion"] = assigned / stats["total_transcripts"].where(
+        stats["total_transcripts"] > 0, 1
     )
-    trx_summary = trx_summary.reindex(gdf_nbhd.index).fillna(0)
-    trx_summary["assigned_trx_pct"] = trx_summary["assigned_trx_count"] / trx_summary[
-        "total_trx"
-    ].replace(0, 1)
-    trx_summary["unassigned_trx_pct"] = trx_summary["unassigned_trx_count"] / trx_summary[
-        "total_trx"
-    ].replace(0, 1)
-    gdf_c = gdf_cell[["geometry"]].sjoin(
-        _nbhd_geometry_for_join(gdf_nbhd, unique_nbhd_col), how="left", predicate="within"
-    )
-    cell_counts = gdf_c.groupby(unique_nbhd_col).size().rename("cell_count")
-    cell_counts = cell_counts.reindex(gdf_nbhd.index).fillna(0)
-    return summary.join(trx_summary).join(cell_counts)
+    stats.index = stats.index.astype(str)
+    return stats
 
 
 def _calc_nbhd_overlap(

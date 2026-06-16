@@ -355,9 +355,12 @@ class NeighborhoodCollection(CelldegaCollection):
         - ``transcript_assignment_proportion`` — assigned / total (``0.0`` when
           the neighborhood has no transcripts).
 
-        The assigned/unassigned status comes from the upstream instrument
-        segmentation (the transcripts' ``cell_id``), not from Celldega. Only
-        transcripts are needed — no ``adata`` or cell polygons.
+        Assumption: the transcript-to-cell assignment is **not computed here** —
+        it must already be present in the instrument data, with unassigned
+        transcripts marked by the ``"UNASSIGNED"`` sentinel (Xenium convention).
+        A missing ``cell_id`` column raises ``ValueError``; a complete absence of
+        the sentinel warns. Only transcripts are needed — no ``adata`` or cell
+        polygons.
         """
         from celldega.nbhd.neighborhoods import _calc_nbhd_transcript_assignment
         from celldega.nbhd.utils import _get_gdf_trx

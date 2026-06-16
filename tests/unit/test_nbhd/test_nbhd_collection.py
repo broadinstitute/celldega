@@ -2,6 +2,7 @@ from anndata import AnnData
 import geopandas as gpd
 import numpy as np
 import pandas as pd
+import pytest
 from shapely.geometry import Polygon
 
 from celldega.nbhd import NeighborhoodCollection
@@ -191,6 +192,28 @@ def test_neighborhood_collection_transcript_assignment(tmp_path):
     assert list(obs["unassigned_transcripts"]) == [1, 2]
     assert np.isclose(obs["transcript_assignment_proportion"].loc["A"], 2 / 3)
     assert obs["transcript_assignment_proportion"].loc["B"] == 0.0
+
+
+def test_transcript_assignment_warns_when_no_unassigned_sentinel(tmp_path):
+    gdf, _adata = _synthetic_nbhd_inputs()
+    # cell_id present but no "UNASSIGNED" sentinel -> warns (may be fully assigned)
+    trx = pd.DataFrame(
+        {
+            "feature_name": ["g"] * 3,
+            "x_location": [1, 2, 3],
+            "y_location": [1, 2, 3],
+            "cell_id": ["c1", "c2", "c3"],
+        }
+    )
+    trx.to_parquet(tmp_path / "transcripts.parquet")
+
+    collection = NeighborhoodCollection(gdf=gdf, nbhd_type="manual")
+    with pytest.warns(UserWarning, match="UNASSIGNED"):
+        collection.calc_nbhd_transcript_assignment(data_dir=str(tmp_path))
+
+    # still computes: A has 3 transcripts, all assigned -> proportion 1.0
+    assert collection.obs["transcript_assignment_proportion"].loc["A"] == 1.0
+    assert collection.obs["unassigned_transcripts"].loc["A"] == 0
 
 
 def test_transformation_matrix_round_trips_through_uns():

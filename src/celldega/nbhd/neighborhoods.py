@@ -10,6 +10,7 @@ geometry/subsetting helpers.
 
 # Standard library imports
 from itertools import combinations
+import warnings
 
 from anndata import AnnData
 
@@ -467,9 +468,15 @@ def _calc_nbhd_transcript_assignment(
 ) -> pd.DataFrame:
     """Per-neighborhood transcript counts and cell-assignment proportion.
 
-    A transcript counts as assigned when its ``cell_id`` is not ``"UNASSIGNED"``
-    (the assignment itself comes from the upstream instrument segmentation, not
-    from Celldega). Returns a DataFrame indexed by neighborhood id with columns
+    A transcript counts as assigned when its ``cell_id`` is not ``"UNASSIGNED"``.
+
+    Assumption: transcript-to-cell assignment is **not computed here** — it must
+    already be present in the instrument data, with unassigned transcripts marked
+    by the ``"UNASSIGNED"`` sentinel (Xenium convention). A missing ``cell_id``
+    column raises ``ValueError``; a complete absence of the sentinel warns (it may
+    be genuinely fully assigned, or use a different convention).
+
+    Returns a DataFrame indexed by neighborhood id with columns
     ``total_transcripts``, ``unassigned_transcripts``, and
     ``transcript_assignment_proportion`` (assigned / total; ``0.0`` when a
     neighborhood has no transcripts).
@@ -477,6 +484,22 @@ def _calc_nbhd_transcript_assignment(
     Internal spatial-computation kernel. The public entry point is
     :meth:`NeighborhoodCollection.calc_nbhd_transcript_assignment`.
     """
+    if "cell_id" not in gdf_trx.columns:
+        raise ValueError(
+            "transcripts have no 'cell_id' column. Transcript-to-cell assignment is "
+            "not computed by Celldega; it must already be present in the instrument "
+            "data before calculating neighborhood transcript assignment."
+        )
+    if not (gdf_trx["cell_id"].astype(str) == "UNASSIGNED").any():
+        warnings.warn(
+            "no transcripts are labeled 'UNASSIGNED' in 'cell_id'. This method assumes "
+            "transcript-to-cell assignment is pre-calculated in the instrument data, "
+            "with unassigned transcripts marked by the 'UNASSIGNED' sentinel (Xenium "
+            "convention). If the data is genuinely fully assigned this is fine; "
+            "otherwise verify the assignment is present and uses this sentinel.",
+            stacklevel=2,
+        )
+
     nbhd_ids = pd.Index(gdf_nbhd[unique_nbhd_col].astype(str))
     joined = gdf_trx.sjoin(
         _nbhd_geometry_for_join(gdf_nbhd, unique_nbhd_col),

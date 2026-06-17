@@ -143,6 +143,36 @@ class CelldegaCollection:
         collection_type: str | None = None,
         obs_entity_type: str | None = None,
     ) -> None:
+        """Build a collection from an observation table, modalities, or a MuData.
+
+        Exactly one of three construction paths is taken, in priority order:
+
+        1. ``mdata`` given — wrap an existing (e.g. freshly read) ``MuData``; if
+           ``obs`` is also given it replaces the top-level observation table.
+        2. ``mod`` given (no ``mdata``) — each modality is aligned to ``obs``
+           (or, when ``obs`` is omitted, to the first modality's own ``obs``) and
+           the modalities become the collection's feature spaces.
+        3. neither — an empty collection carrying only the ``obs`` axis is built;
+           modalities are attached later via ``add_mod`` / ``calc_*`` methods.
+
+        Args:
+            obs: Canonical observation table; its index becomes the collection's
+                observation axis.
+            mod: Named feature-space modalities to attach, each aligned to ``obs``.
+            mdata: A pre-built ``MuData`` to wrap directly.
+            relations: Square observation-by-observation matrices stored in
+                ``mdata.obsp`` (see :attr:`relations`).
+            provenance: Free-form provenance merged into
+                ``uns["celldega"]["provenance"]``.
+            uns: Extra Celldega metadata merged into ``uns["celldega"]``.
+            collection_type: Schema tag such as ``"dataset"`` or
+                ``"neighborhood"``; defaults to ``"collection"``.
+            obs_entity_type: Biological type of each observation (e.g.
+                ``"dataset"``, ``"neighborhood"``), recorded in the metadata.
+
+        Raises:
+            ValueError: If none of ``obs``, ``mod``, or ``mdata`` is provided.
+        """
         if mdata is not None:
             self.mdata = mdata
             if obs is not None:
@@ -240,7 +270,23 @@ class CelldegaCollection:
         adata: AnnData,
         var_entity_type: str | None = None,
     ) -> AnnData:
-        """Add an aligned modality and return the stored ``AnnData`` object."""
+        """Attach a feature-space modality, aligned to the collection axis.
+
+        ``adata`` is aligned to the collection's ``obs`` index via
+        :func:`_align_mod_to_obs` (observations missing from ``adata`` become
+        zero-filled rows, extras are dropped, sparse ``X`` stays sparse), stored
+        under ``key`` in ``mod``, and the underlying ``MuData`` is refreshed.
+
+        Args:
+            key: Modality name (key in ``collection.mod``).
+            adata: Feature matrix to attach; it need not already match the axis.
+            var_entity_type: If given, written to the stored modality's
+                ``var["entity_type"]``. Used downstream by ``Matrix`` to infer
+                axis entities (e.g. ``"gene"`` or ``"cell_population"``).
+
+        Returns:
+            The aligned ``AnnData`` exactly as stored in ``collection.mod[key]``.
+        """
         aligned = _align_mod_to_obs(adata, self.obs)
         if var_entity_type is not None:
             aligned.var["entity_type"] = var_entity_type
@@ -259,10 +305,25 @@ class CelldegaCollection:
     ) -> AnnData:
         """Materialize a square observation relation as a clusterable modality.
 
-        Relations belong canonically in ``mdata.obsp``. Use this method when a
-        workflow needs the relation matrix to be an ``AnnData.X`` matrix, such
-        as Matrix-style heatmap clustering of an observation-by-observation
-        similarity or distance matrix.
+        Relations live canonically in ``mdata.obsp``. Use this when a workflow
+        needs the relation as an ``AnnData.X`` matrix — e.g. Matrix-style heatmap
+        clustering of an observation-by-observation similarity/distance matrix.
+        The resulting modality is labelled by the observation index on both axes
+        (``var`` carries a ``related_obs_id`` column).
+
+        Args:
+            relation_key: Key of the relation in ``relations`` (``mdata.obsp``).
+            key: Name for the new modality; defaults to
+                ``f"{relation_key}_relation"``.
+            var_entity_type: Entity type for the modality's ``var`` axis;
+                defaults to the collection's ``obs_entity_type``.
+
+        Returns:
+            The stored relation modality ``AnnData``.
+
+        Raises:
+            KeyError: If ``relation_key`` is not present in ``relations``.
+            ValueError: If the relation is not square over the observation axis.
         """
         if relation_key not in self.relations:
             raise KeyError(f"relation '{relation_key}' not found")
@@ -294,10 +355,28 @@ class CelldegaCollection:
         )
 
     def write(self, filename: str | Path, **kwargs: Any) -> None:
-        """Write the underlying ``MuData`` object to disk."""
+        """Write the underlying ``MuData`` to an ``.h5mu`` file.
+
+        Args:
+            filename: Destination path.
+            **kwargs: Forwarded to ``MuData.write``.
+
+        Note:
+            Only the ``MuData`` is persisted. In-memory-only state not stored in
+            ``mdata`` — e.g. a ``NeighborhoodCollection``'s ``gdf`` geometry and
+            ``memberships`` — does not round-trip through ``write``/``read``.
+        """
         _with_mudata_warnings_suppressed(self.mdata.write, filename, **kwargs)
 
     @classmethod
     def read(cls, filename: str | Path) -> CelldegaCollection:
-        """Read a Celldega ``MuData`` collection from disk."""
+        """Read a Celldega ``MuData`` collection from an ``.h5mu`` file.
+
+        Args:
+            filename: Path to the ``.h5mu`` file.
+
+        Returns:
+            An instance of the calling class wrapping the loaded ``MuData``
+            (subclasses restore their own metadata from ``uns`` in ``__init__``).
+        """
         return cls(mdata=_with_mudata_warnings_suppressed(read_h5mu, filename))

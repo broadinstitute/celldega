@@ -268,6 +268,35 @@ class DatasetCollection(CelldegaCollection):
         provenance: dict[str, Any] | None = None,
         uns: dict[str, Any] | None = None,
     ) -> None:
+        """Build a dataset-level collection.
+
+        The dataset/sample observation axis is established one of three ways:
+        from a pre-built ``mdata`` (``dataset_col`` recovered from its metadata),
+        from an explicit ``obs`` table, or — most commonly — by **binning
+        cell-level ``adata`` over ``dataset_col``** (one row per unique dataset,
+        with an ``n_cells`` count and the first value of each ``obs_columns``).
+
+        Args:
+            adata: Cell-level ``AnnData`` to derive the dataset axis from
+                (required when neither ``obs`` nor ``mdata`` is given).
+            dataset_col: ``adata.obs`` column identifying the dataset/sample/
+                patient unit; becomes the collection's observation index.
+            obs_columns: Per-dataset metadata columns to carry over from
+                ``adata.obs`` (first value per dataset).
+            obs: Pre-built dataset observation table (alternative to ``adata``).
+            mdata: Pre-built ``MuData`` to wrap (e.g. from ``read``).
+            source: Source descriptor recorded in provenance and
+                ``uns["sources"]["cells"]``.
+            name: Optional collection name (stored in metadata).
+            meta: Extra metadata merged into ``uns["celldega"]``.
+            mod: Feature-space modalities to attach up front.
+            relations: Square dataset-by-dataset matrices for ``mdata.obsp``.
+            provenance: Free-form provenance metadata.
+            uns: Extra Celldega metadata.
+
+        Raises:
+            ValueError: If ``adata`` is missing when ``obs``/``mdata`` are absent.
+        """
         if mdata is not None:
             obs = obs.copy() if obs is not None else None
             dataset_col = str(
@@ -326,7 +355,24 @@ class DatasetCollection(CelldegaCollection):
         min_cells: int = 1,
         dataset_col: str | None = None,
     ) -> None:
-        """Calculate and attach a dataset-by-population modality to ``self.mod``."""
+        """Calculate a dataset-by-population modality and attach it to ``self.mod``.
+
+        For each dataset, counts cells per ``category`` value and stores the
+        result as a dataset (rows) by population (columns) feature matrix.
+
+        Args:
+            adata: Cell-level ``AnnData`` containing ``dataset_col`` and
+                ``category`` in ``obs``.
+            category: ``obs`` column naming the population/cell-type/cluster.
+            modality_name: Key for the modality in ``self.mod``.
+            output: ``"proportion"`` (within-dataset fractions) or ``"counts"``.
+            min_cells: Minimum cells for a dataset row to be kept.
+            dataset_col: Override the collection's dataset column; defaults to
+                ``self.dataset_col``.
+
+        Returns:
+            ``None`` — the modality is attached to ``self.mod[modality_name]``.
+        """
         _calc_dataset_by_pop(
             self,
             adata=adata,
@@ -353,9 +399,32 @@ class DatasetCollection(CelldegaCollection):
     ) -> None:
         """Calculate and attach a dataset-by-feature signature for one category value.
 
-        ``missing_datasets="nan"`` keeps the full collection observation axis
-        and marks datasets with fewer than ``min_cells`` selected cells as
-        ``NaN`` rows. Use ``"raise"`` to reject missing dataset signatures.
+        Selects the cells where ``adata.obs[category] == value`` and aggregates
+        their expression per dataset into a dataset (rows) by gene (columns)
+        signature modality (a pseudobulk profile for that one population).
+
+        Args:
+            adata: Cell-level ``AnnData`` with ``dataset_col``, ``category``, and
+                an expression matrix (``X`` or ``layer``).
+            category: ``obs`` column to select on (e.g. ``"cell_type"``).
+            value: The ``category`` value whose cells form the signature (e.g.
+                ``"CD8 T"``).
+            modality_name: Key for the modality; defaults to
+                ``f"{slug(value)}_signature"``.
+            layer: ``adata`` layer to aggregate; ``None`` uses ``adata.X``.
+            aggregate: ``"sum"`` or ``"mean"`` across the selected cells.
+            normalization: ``None``, ``"cpm"``, or ``"log1p_cpm"`` applied per
+                dataset row.
+            min_cells: Minimum selected cells for a dataset to get a real row.
+            missing_datasets: ``"nan"`` keeps the full observation axis and marks
+                datasets below ``min_cells`` (or with no selected cells) as
+                ``NaN`` rows; ``"raise"`` rejects them instead.
+            dataset_col: Override the collection's dataset column.
+            var_entity_type: Entity type written to the modality's
+                ``var["entity_type"]`` (default ``"gene"``).
+
+        Returns:
+            ``None`` — the modality is attached to ``self.mod``.
         """
         resolved_dataset_col = _resolve_dataset_col(self, dataset_col or self.dataset_col)
         modality = _category_signature_from_adata(

@@ -93,6 +93,45 @@ class NeighborhoodCollection(CelldegaCollection):
         memberships: dict[str, sparse.spmatrix] | None = None,
         transformation_matrix: Any | None = None,
     ) -> None:
+        """Build a neighborhood / spatial-region collection.
+
+        The observation axis (one row per neighborhood) is established from a
+        neighborhood ``GeoDataFrame`` (``gdf`` — the usual path, produced by
+        ``alpha_shape`` / ``generate_hextile`` / etc.), from an explicit ``obs``
+        table paired with ``geometry``, or from a pre-built ``mdata``. When built
+        from ``gdf``, per-neighborhood ``area``/``area_um2`` and centroid columns
+        are derived and the neighborhood-id column is normalized.
+
+        Args:
+            obs: Pre-built neighborhood observation table (use with ``geometry``,
+                not with ``gdf``).
+            mod: Feature-space modalities to attach up front.
+            mdata: Pre-built ``MuData`` to wrap (e.g. from ``read``).
+            gdf: Neighborhood geometry; each row becomes an observation. Mutually
+                exclusive with ``obs``/``geometry``.
+            nbhd_type: Label for how the neighborhoods were made (e.g.
+                ``"hextile"``, ``"alpha_shape"``); defaults to ``"neighborhood"``.
+            data_dir: DegaFiles/instrument directory used as the default source
+                for the transcript- and transform-loading methods.
+            source: Source descriptor recorded in provenance.
+            name: Optional collection name.
+            meta: Extra metadata merged into ``uns["celldega"]``.
+            nbhd_col: Column in ``gdf`` identifying each neighborhood (falls back
+                to ``neighborhood_id`` / ``nbhd_id``).
+            geometry: Neighborhood geometry paired with an explicit ``obs``
+                (alternative to ``gdf``).
+            relations: Square neighborhood-by-neighborhood matrices for
+                ``mdata.obsp``.
+            provenance: Free-form provenance metadata.
+            uns: Extra Celldega metadata.
+            memberships: Membership matrices (e.g. cell-to-neighborhood); kept in
+                memory only (not persisted by ``write``).
+            transformation_matrix: Optional micron-to-pixel affine (see
+                :meth:`set_transformation_matrix`).
+
+        Raises:
+            ValueError: If ``gdf`` is combined with ``obs`` or ``geometry``.
+        """
         if gdf is not None:
             if obs is not None:
                 raise ValueError("obs cannot be provided when gdf is provided")
@@ -150,7 +189,19 @@ class NeighborhoodCollection(CelldegaCollection):
         nbhd_type: str = "neighborhood",
         **kwargs: Any,
     ) -> NeighborhoodCollection:
-        """Create a ``NeighborhoodCollection`` from a neighborhood GeoDataFrame."""
+        """Create a ``NeighborhoodCollection`` from a neighborhood GeoDataFrame.
+
+        Convenience wrapper for ``NeighborhoodCollection(gdf=gdf,
+        nbhd_type=nbhd_type, **kwargs)``.
+
+        Args:
+            gdf: Neighborhood geometry; each row becomes an observation.
+            nbhd_type: Label for how the neighborhoods were made.
+            **kwargs: Forwarded to the constructor.
+
+        Returns:
+            A new ``NeighborhoodCollection``.
+        """
         return cls(gdf=gdf, nbhd_type=nbhd_type, **kwargs)
 
     @property
@@ -161,9 +212,13 @@ class NeighborhoodCollection(CelldegaCollection):
     def set_transformation_matrix(self, matrix: Any) -> np.ndarray:
         """Set the micron-to-pixel affine transformation matrix.
 
-        ``matrix`` is the affine that maps micron coordinates (the geometry's
-        native space) to image/pixel space, as a ``(2, 3)`` or ``(3, 3)`` array.
-        It is mirrored into ``uns`` so it round-trips with ``write``/``read``.
+        Args:
+            matrix: Affine mapping micron coordinates (the geometry's native
+                space) to image/pixel space, as a ``(2, 3)`` or ``(3, 3)`` array.
+
+        Returns:
+            The stored matrix as a float ``ndarray``. It is also mirrored into
+            ``uns`` so it round-trips through ``write``/``read``.
         """
         self.transformation_matrix = np.asarray(matrix, dtype=float)
         self.uns["transformation_matrix"] = self.transformation_matrix.tolist()
@@ -172,9 +227,19 @@ class NeighborhoodCollection(CelldegaCollection):
     def load_transformation_matrix(self, data_dir: str | None = None) -> np.ndarray:
         """Load the micron-to-pixel transformation matrix from DegaFiles.
 
-        Reads ``micron_to_image_transform.csv`` from ``data_dir`` (falling back
-        to ``self.data_dir``). Later this can instead be supplied directly via
-        :meth:`set_transformation_matrix` (e.g. from SpatialData).
+        Reads ``micron_to_image_transform.csv`` and stores it via
+        :meth:`set_transformation_matrix`. Later this matrix can instead be
+        supplied directly (e.g. from SpatialData).
+
+        Args:
+            data_dir: Directory containing the transform CSV; defaults to
+                ``self.data_dir``.
+
+        Returns:
+            The loaded matrix as a float ``ndarray``.
+
+        Raises:
+            ValueError: If no ``data_dir`` is available.
         """
         resolved_data_dir = data_dir if data_dir is not None else self.data_dir
         if resolved_data_dir is None:
@@ -191,6 +256,12 @@ class NeighborhoodCollection(CelldegaCollection):
         micron ``geometry`` intact. The result can be passed straight to
         ``Landscape(nbhd=...)``, which renders ``geometry_pixel`` directly when
         present rather than applying its own transform.
+
+        Returns:
+            A copy of ``gdf`` with an added ``geometry_pixel`` column.
+
+        Raises:
+            ValueError: If geometry or the transformation matrix is not set.
         """
         from shapely.affinity import affine_transform
 
@@ -219,15 +290,29 @@ class NeighborhoodCollection(CelldegaCollection):
         min_cells: int = 5,
         drop_missing: bool = True,
     ) -> None:
-        """Calculate and attach a neighborhood-by-population modality to ``self.mod``.
+        """Calculate a neighborhood-by-population modality and attach it to ``self.mod``.
+
+        Spatially assigns cells to neighborhoods and, per neighborhood, counts
+        cells per ``category`` value to form a neighborhood (rows) by population
+        (columns) feature matrix.
 
         Args:
+            adata: Cell-level ``AnnData`` with spatial coordinates in
+                ``obsm["spatial"]`` and ``category`` in ``obs``.
+            category: ``obs`` column naming the population/cell-type/cluster.
+            modality_name: Key for the modality in ``self.mod``.
+            output: ``"proportion"`` (within-neighborhood fractions) or
+                ``"counts"``.
+            min_cells: Minimum cells for a neighborhood to be included.
             drop_missing: When ``True`` (default), neighborhoods with fewer than
                 ``min_cells`` cells are removed from the collection entirely so
                 the observation axis only contains neighborhoods with data. When
                 ``False``, the collection keeps all neighborhoods and the
                 modality is attached with zero-filled rows for those that fall
                 below ``min_cells``.
+
+        Returns:
+            ``None`` — the modality is attached to ``self.mod[modality_name]``.
         """
         from celldega.nbhd.neighborhoods import (
             _calc_nbhd_by_pop,
@@ -258,14 +343,33 @@ class NeighborhoodCollection(CelldegaCollection):
         data_dir: str | None = None,
         drop_missing: bool = True,
     ) -> None:
-        """Calculate and attach a neighborhood-by-gene modality to ``self.mod``.
+        """Calculate a neighborhood-by-gene modality and attach it to ``self.mod``.
+
+        Builds per-neighborhood gene expression — mean expression of contained
+        cells (``by="cell"``) or transcript counts (``by="cell-free"``).
 
         Args:
+            adata: Cell-level ``AnnData`` (required when ``by="cell"``); needs
+                spatial coordinates in ``obsm["spatial"]``.
+            by: ``"cell"`` for cell-derived mean expression or ``"cell-free"``
+                for transcript counts.
+            modality_name: Key for the modality; defaults to ``"gene"``
+                (cell-derived) or ``"gene_cell_free"`` (transcript-derived).
+            min_cells: Minimum cells/transcripts for a neighborhood to be kept.
+            data_dir: Transcript directory for ``by="cell-free"``; defaults to
+                ``self.data_dir``.
             drop_missing: When ``True`` (default), neighborhoods with fewer than
                 ``min_cells`` cells (or transcripts) are removed from the
                 collection entirely. When ``False``, the collection keeps all
                 neighborhoods and the modality is attached with zero-filled rows
                 for those that fall below ``min_cells``.
+
+        Returns:
+            ``None`` — the modality is attached to ``self.mod``.
+
+        Raises:
+            ValueError: If ``adata`` is missing for ``by="cell"``, or ``data_dir``
+                is missing for ``by="cell-free"``.
         """
         from celldega.nbhd.neighborhoods import (
             _calc_nbhd_by_gene,
@@ -303,7 +407,24 @@ class NeighborhoodCollection(CelldegaCollection):
         key: str = "overlap",
         category: str = "leiden",
     ) -> sparse.spmatrix:
-        """Calculate a neighborhood-by-neighborhood overlap relation in ``relations``."""
+        """Calculate a neighborhood-by-neighborhood overlap relation.
+
+        Computes pairwise geometric overlap between neighborhoods and stores the
+        square matrix in ``relations[key]`` (``mdata.obsp``).
+
+        Args:
+            metric: Overlap metric — ``"iou"`` (intersection over union),
+                ``"ioa"`` (intersection over the row neighborhood's area), or
+                ``"intersection"`` (raw intersection area).
+            key: Name for the relation in ``relations``.
+            category: Neighborhood category recorded on the computed result.
+
+        Returns:
+            The stored sparse relation matrix.
+
+        Raises:
+            ValueError: If geometry is not set.
+        """
         from celldega.nbhd.neighborhoods import _calc_nbhd_overlap, _relation_from_square_adata
 
         if self.gdf is None:
@@ -325,7 +446,22 @@ class NeighborhoodCollection(CelldegaCollection):
         key: str = "bordering",
         category: str = "leiden",
     ) -> sparse.spmatrix:
-        """Calculate a neighborhood-by-neighborhood bordering relation in ``relations``."""
+        """Calculate a neighborhood-by-neighborhood bordering relation.
+
+        Computes pairwise border relationships between neighborhoods and stores
+        the square matrix in ``relations[key]`` (``mdata.obsp``).
+
+        Args:
+            metric: Border metric (e.g. ``"border_ratio"``, ``"binary"``).
+            key: Name for the relation in ``relations``.
+            category: Neighborhood category recorded on the computed result.
+
+        Returns:
+            The stored sparse relation matrix.
+
+        Raises:
+            ValueError: If geometry is not set.
+        """
         from celldega.nbhd.neighborhoods import _calc_nbhd_bordering, _relation_from_square_adata
 
         if self.gdf is None:
@@ -358,9 +494,19 @@ class NeighborhoodCollection(CelldegaCollection):
         Assumption: the transcript-to-cell assignment is **not computed here** —
         it must already be present in the instrument data, with unassigned
         transcripts marked by the ``"UNASSIGNED"`` sentinel (Xenium convention).
-        A missing ``cell_id`` column raises ``ValueError``; a complete absence of
-        the sentinel warns. Only transcripts are needed — no ``adata`` or cell
-        polygons.
+        Only transcripts are needed — no ``adata`` or cell polygons.
+
+        Args:
+            data_dir: Directory containing ``transcripts.parquet``; defaults to
+                ``self.data_dir``.
+
+        Returns:
+            ``None`` — the three columns are added to ``self.obs``.
+
+        Raises:
+            ValueError: If geometry or a usable ``data_dir`` is missing, or the
+                transcripts lack a ``cell_id`` column. A complete absence of the
+                ``"UNASSIGNED"`` sentinel only warns.
         """
         from celldega.nbhd.neighborhoods import _calc_nbhd_transcript_assignment
         from celldega.nbhd.utils import _get_gdf_trx

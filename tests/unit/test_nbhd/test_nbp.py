@@ -18,23 +18,6 @@ CELLPKG = types.ModuleType("celldega")
 CELLPKG.__path__ = [str(ROOT_DIR / "src" / "celldega")]
 sys.modules.setdefault("celldega", CELLPKG)
 
-# --- Stub celldega.pre to avoid heavy imports ---
-PREPKG = types.ModuleType("celldega.pre")
-PREPKG.__path__ = [str(ROOT_DIR / "src" / "celldega" / "pre")]
-sys.modules["celldega.pre"] = PREPKG
-
-# Also stub the specific module used
-boundary_tile_stub = types.ModuleType("celldega.pre.boundary_tile")
-
-
-def _dummy_batch_transform_geometries(*args, **kwargs):
-    raise NotImplementedError("Stubbed in tests")
-
-
-boundary_tile_stub.batch_transform_geometries = _dummy_batch_transform_geometries
-
-sys.modules["celldega.pre.boundary_tile"] = boundary_tile_stub
-
 NBHDPKG = types.ModuleType("celldega.nbhd")
 NBHDPKG.__path__ = [str(NBHD_ROOT)]
 sys.modules.setdefault("celldega.nbhd", NBHDPKG)
@@ -46,10 +29,6 @@ neighborhoods = importlib.util.module_from_spec(spec)
 neighborhoods.__package__ = "celldega.nbhd"
 sys.modules["celldega.nbhd.neighborhoods"] = neighborhoods
 spec.loader.exec_module(neighborhoods)
-
-# Clean up stubs so other tests can import the real celldega.pre package
-sys.modules.pop("celldega.pre.boundary_tile", None)
-sys.modules.pop("celldega.pre", None)
 
 # --- Load function ---
 calc_nbhd_by_pop = neighborhoods.calc_nbhd_by_pop

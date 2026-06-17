@@ -8,6 +8,34 @@ The :mod:`celldega.select` module separates three related ideas:
 
 The main entry point is :class:`Selector`, which evaluates these expressions
 against one AnnData object and returns a :class:`Selection`.
+
+Pipeline
+--------
+A selection flows through four composable stages, each of which is independently
+serializable so the whole result can be reproduced or shipped to a frontend as
+JSON::
+
+    selector.attr("x") / selector.gene("G")   -> Attribute   (lazy value reference)
+    Attribute compared with ==, .isin(), & |  -> Query        (boolean expression)
+    selector.select(query, sampler)           -> Selector     (orchestrator)
+        query.evaluate -> candidate ids       -> pd.Index
+        sampler.apply(candidate_ids)          -> SamplingResult (ordered ids + scores)
+                                              -> Selection    (ordered ids + provenance)
+
+Design notes
+------------
+- **Lazy attributes.** :class:`Attribute` objects are plain references; they
+  resolve to concrete values only when a :class:`Selector` evaluates them, so a
+  query can be built before its AnnData even exists.
+- **Axis-agnostic core.** :class:`Query` and the samplers operate on a
+  ``pd.Series`` / ``pd.Index`` keyed by the entity axis and do not care what the
+  entities are. The current :class:`Selector` binds that axis to
+  ``adata.obs_names`` (cells), but the same machinery generalizes to other axes.
+- **Everything serializes.** Queries, samplers, and selections all expose
+  ``to_dict`` / ``to_json``, and provenance is coerced to JSON-friendly types via
+  :func:`_json_value`. Entity ids are stringified at the boundary so they survive
+  the Python -> JSON -> JavaScript round-trip used by widgets such as
+  :class:`celldega.viz.Yearbook`.
 """
 
 from __future__ import annotations
@@ -41,7 +69,22 @@ RankDirection = Literal["high", "low"]
 
 
 def _json_value(value: Any) -> Any:
-    """Convert common scientific Python values to JSON-friendly objects."""
+    """Convert common scientific Python values to JSON-friendly objects.
+
+    Provenance and serialized queries routinely contain numpy scalars,
+    timestamps, and pandas missing values, none of which the ``json`` module
+    handles natively. This helper recursively normalizes them:
+
+    - numpy scalars (``np.generic``) become native Python scalars via ``.item()``;
+    - ``pd.Timestamp`` becomes an ISO-8601 string;
+    - tuples and lists are converted element-wise (tuples become lists, since
+      JSON has no tuple type);
+    - dict keys are stringified and values converted recursively;
+    - ``None``, ``pd.NA``, and other missing scalars become ``None``.
+
+    Anything already JSON-native is returned unchanged. The ``pd.isna`` check is
+    guarded because it raises on array-like inputs, which should pass through.
+    """
     if isinstance(value, np.generic):
         return value.item()
     if isinstance(value, pd.Timestamp):
@@ -62,6 +105,14 @@ def _json_value(value: Any) -> Any:
 
 
 def _as_1d_array(matrix: Any) -> np.ndarray:
+    """Flatten a (possibly sparse) single-gene expression slice to a 1-D array.
+
+    Slicing an AnnData by one gene yields an ``n_obs x 1`` matrix that may be a
+    scipy sparse matrix, a ``np.matrix``, or a dense array. This densifies sparse
+    inputs (``toarray``/``todense``) and reshapes to a flat vector aligned with
+    the observation axis. It is the single place gene expression is materialized,
+    so backend-specific handling stays contained here.
+    """
     if hasattr(matrix, "toarray"):
         matrix = matrix.toarray()
     elif hasattr(matrix, "todense"):
@@ -70,11 +121,27 @@ def _as_1d_array(matrix: Any) -> np.ndarray:
 
 
 def _validate_count(n: int | None, name: str = "n") -> None:
+    """Raise ``ValueError`` if a count argument is negative.
+
+    ``None`` is allowed (it means "no limit" for most samplers); only an explicit
+    negative value is rejected. ``name`` is used in the message so callers can
+    report the offending argument (e.g. ``"n_per_category"``).
+    """
     if n is not None and n < 0:
         raise ValueError(f"{name} must be non-negative")
 
 
 def _stable_scores_dict(scores: pd.Series | None) -> dict[str, float] | None:
+    """Convert a per-id score Series into a JSON-stable ``{id: score}`` dict.
+
+    Keys (entity ids) are stringified and values are coerced to native ``float``.
+    Both are required for a stable JSON object: JSON keys must be strings, and a
+    raw ``numpy.float64`` is not JSON-serializable. Returns ``None`` for a
+    ``None`` input so samplers that produce no scores propagate cleanly.
+
+    Note that stringified keys collide if two ids map to the same string; the
+    :class:`Selector` guards against this by rejecting duplicate ``obs_names``.
+    """
     if scores is None:
         return None
     return {str(index): float(value) for index, value in scores.items()}
@@ -83,29 +150,51 @@ def _stable_scores_dict(scores: pd.Series | None) -> dict[str, float] | None:
 class Query:
     """Base class for boolean query expressions.
 
-    Query objects are usually created by comparing attributes returned by
-    :meth:`Selector.attr` or :meth:`Selector.gene`.
+    A query is a small, immutable expression tree. Leaves are
+    :class:`PredicateQuery` nodes (one comparison on one attribute) and internal
+    nodes are :class:`BooleanQuery` combinators. Query objects are normally
+    created by comparing attributes from :meth:`Selector.attr` or
+    :meth:`Selector.gene` rather than constructed directly, and combined with the
+    Python boolean operators below::
+
+        (selector.attr("cluster") == "B cell") & selector.gene("MS4A1") > 2
+
+    Evaluation is deferred: a query holds no data until :meth:`evaluate` runs it
+    against a :class:`Selector`.
     """
 
     def evaluate(self, selector: Selector) -> pd.Series:
-        """Evaluate this query against a selector and return a boolean mask."""
+        """Evaluate this query against ``selector`` and return a boolean mask.
+
+        The returned ``pd.Series`` is indexed by the selector's entity ids, with
+        ``True`` for entities that match. Subclasses implement the actual logic.
+        """
         raise NotImplementedError
 
     def to_dict(self) -> dict[str, Any]:
-        """Return a serializable representation of this query."""
+        """Return a JSON-ready representation of this query expression."""
         raise NotImplementedError
 
     def __and__(self, other: Query) -> Query:
+        """Combine with ``other`` using logical AND (``q1 & q2``)."""
         return BooleanQuery("and", (self, _coerce_query(other)))
 
     def __or__(self, other: Query) -> Query:
+        """Combine with ``other`` using logical OR (``q1 | q2``)."""
         return BooleanQuery("or", (self, _coerce_query(other)))
 
     def __invert__(self) -> Query:
+        """Negate this query using logical NOT (``~q``)."""
         return BooleanQuery("not", (self,))
 
 
 def _coerce_query(value: Any) -> Query:
+    """Validate that ``value`` is a query before combining it with another.
+
+    Guards the ``&`` / ``|`` operators so that mixing a query with a non-query
+    (e.g. ``query & "B cell"``) fails fast with a clear ``TypeError`` instead of
+    producing a confusing expression.
+    """
     if not isinstance(value, Query):
         raise TypeError("Can only combine celldega.select query expressions")
     return value
@@ -115,11 +204,27 @@ def _coerce_query(value: Any) -> Query:
 class Attribute:
     """Reference to an AnnData-backed attribute.
 
-    Attributes are lazy references. They become concrete values only when a
-    query or sampler is evaluated by a :class:`Selector`.
+    An ``Attribute`` is a lazy reference to one column of per-entity values: an
+    ``adata.obs`` column (``kind="obs"``) or a gene's expression vector
+    (``kind="gene"``, optionally from a named ``layer`` or from ``adata.raw``). It
+    becomes concrete only when a query or sampler is evaluated by a
+    :class:`Selector`.
 
     Attributes are usually created through :meth:`Selector.attr` or
     :meth:`Selector.gene` rather than instantiated directly.
+
+    Comparison operators build queries, they do not return booleans. Because the
+    operators (``==``, ``!=``, ``<``, ``<=``, ``>``, ``>=``) and the helper
+    methods (:meth:`isin`, :meth:`between`, ...) return :class:`PredicateQuery`
+    objects, an ``Attribute`` reads like a value but composes like an expression::
+
+        selector.attr("qc") >= 0.8            # PredicateQuery, not a bool
+        selector.attr("cluster").isin(["B", "T"])
+
+    The dataclass is declared ``frozen=True, eq=False``: ``frozen`` makes it an
+    immutable value object, and ``eq=False`` is required so that overriding
+    ``__eq__`` to return a query does not clash with dataclass value-equality
+    (it keeps the default identity-based ``__hash__``).
     """
 
     kind: Literal["obs", "gene"]
@@ -128,7 +233,12 @@ class Attribute:
     raw: bool = False
 
     def evaluate(self, selector: Selector) -> pd.Series:
-        """Return this attribute as a Series aligned to ``selector.ids``."""
+        """Resolve this reference to a concrete Series aligned to ``selector.ids``.
+
+        Dispatches to the selector's private resolver for the attribute kind:
+        ``obs`` columns via :meth:`Selector._obs_attribute`, gene expression via
+        :meth:`Selector._gene_attribute` (honoring ``layer`` and ``raw``).
+        """
         if self.kind == "obs":
             return selector._obs_attribute(self.name)
         if self.kind == "gene":
@@ -136,6 +246,11 @@ class Attribute:
         raise ValueError(f"Unknown attribute kind: {self.kind}")
 
     def to_dict(self) -> dict[str, Any]:
+        """Return a JSON-ready description of this reference.
+
+        Always includes ``type`` (the kind) and ``name``; ``layer`` and ``raw``
+        are included only when set, so the serialized form stays minimal.
+        """
         result: dict[str, Any] = {"type": self.kind, "name": self.name}
         if self.layer is not None:
             result["layer"] = self.layer
@@ -144,19 +259,19 @@ class Attribute:
         return result
 
     def isin(self, values: Sequence[Any]) -> Query:
-        """Match values contained in ``values``."""
+        """Build a query matching entities whose value is in ``values``."""
         return PredicateQuery("isin", self, tuple(values))
 
     def notin(self, values: Sequence[Any]) -> Query:
-        """Match values not contained in ``values``."""
+        """Build a query matching entities whose value is not in ``values``."""
         return PredicateQuery("notin", self, tuple(values))
 
     def isna(self) -> Query:
-        """Match missing values."""
+        """Build a query matching entities with a missing value."""
         return PredicateQuery("isna", self)
 
     def notna(self) -> Query:
-        """Match non-missing values."""
+        """Build a query matching entities with a non-missing value."""
         return PredicateQuery("notna", self)
 
     def between(
@@ -165,36 +280,73 @@ class Attribute:
         right: Any,
         inclusive: Literal["both", "neither", "left", "right"] = "both",
     ) -> Query:
-        """Match values between ``left`` and ``right``."""
+        """Build a query matching values in the range ``[left, right]``.
+
+        ``inclusive`` controls which endpoints count, mirroring
+        ``pandas.Series.between`` (``"both"``, ``"neither"``, ``"left"``,
+        ``"right"``).
+        """
         return PredicateQuery("between", self, (left, right), {"inclusive": inclusive})
 
     def __eq__(self, other: Any) -> Query:  # type: ignore[override]
+        """Build an equality query (``attr == value``)."""
         return PredicateQuery("eq", self, other)
 
     def __ne__(self, other: Any) -> Query:  # type: ignore[override]
+        """Build an inequality query (``attr != value``)."""
         return PredicateQuery("ne", self, other)
 
     def __lt__(self, other: Any) -> Query:
+        """Build a less-than query (``attr < value``)."""
         return PredicateQuery("lt", self, other)
 
     def __le__(self, other: Any) -> Query:
+        """Build a less-than-or-equal query (``attr <= value``)."""
         return PredicateQuery("le", self, other)
 
     def __gt__(self, other: Any) -> Query:
+        """Build a greater-than query (``attr > value``)."""
         return PredicateQuery("gt", self, other)
 
     def __ge__(self, other: Any) -> Query:
+        """Build a greater-than-or-equal query (``attr >= value``)."""
         return PredicateQuery("ge", self, other)
 
 
 @dataclass(frozen=True)
 class PredicateQuery(Query):
+    """A single comparison of one :class:`Attribute` against a value.
+
+    This is the leaf node of a query expression. It is normally produced by the
+    operators and helpers on :class:`Attribute` (e.g. ``attr == x`` builds
+    ``PredicateQuery("eq", attr, x)``) rather than constructed directly.
+
+    Attributes
+    ----------
+    op
+        The comparison operator (see :data:`QueryOp`).
+    attr
+        The attribute being tested.
+    value
+        The comparison operand. Unused for ``isna``/``notna``; a 2-tuple
+        ``(left, right)`` for ``between``; a tuple of members for ``isin``/``notin``.
+    options
+        Operator-specific options, e.g. ``{"inclusive": ...}`` for ``between``.
+    """
+
     op: QueryOp
     attr: Attribute
     value: Any = None
     options: dict[str, Any] | None = None
 
     def evaluate(self, selector: Selector) -> pd.Series:
+        """Resolve the attribute and apply the operator, returning a boolean mask.
+
+        The attribute is materialized to a Series, the operator is applied with
+        pandas semantics, and the result is normalized to a clean boolean mask:
+        missing comparisons (e.g. ``NaN > 2``) are filled with ``False`` so they
+        never match, and the dtype is forced to ``bool``.
+        """
         values = self.attr.evaluate(selector)
 
         if self.op == "eq":
@@ -227,6 +379,12 @@ class PredicateQuery(Query):
         return pd.Series(mask, index=values.index).fillna(False).astype(bool)
 
     def to_dict(self) -> dict[str, Any]:
+        """Return a JSON-ready ``{op, attr, [value], [options]}`` description.
+
+        ``value`` is omitted for the unary ``isna``/``notna`` operators, and
+        ``options`` only appears when present. Operands are passed through
+        :func:`_json_value` so numpy/tuple operands serialize cleanly.
+        """
         result = {
             "op": self.op,
             "attr": self.attr.to_dict(),
@@ -240,10 +398,23 @@ class PredicateQuery(Query):
 
 @dataclass(frozen=True)
 class BooleanQuery(Query):
+    """A logical combination of child queries (``and`` / ``or`` / ``not``).
+
+    Produced by the :class:`Query` operators (``&``, ``|``, ``~``). ``not`` holds
+    exactly one child; ``and``/``or`` hold two or more and fold left-to-right.
+    """
+
     op: BooleanOp
     queries: tuple[Query, ...]
 
     def evaluate(self, selector: Selector) -> pd.Series:
+        """Evaluate each child and combine the masks with the boolean operator.
+
+        ``not`` inverts its single child. ``and``/``or`` evaluate every child and
+        reduce them with ``&`` / ``|``. Arity is validated (``not`` needs exactly
+        one child, ``and``/``or`` need at least two), and the combined result is
+        normalized to a clean boolean mask (NaN -> ``False``).
+        """
         if self.op == "not":
             if len(self.queries) != 1:
                 raise ValueError("NOT queries must contain exactly one child query")
@@ -264,6 +435,7 @@ class BooleanQuery(Query):
         return result.fillna(False).astype(bool)
 
     def to_dict(self) -> dict[str, Any]:
+        """Return a JSON-ready ``{op, queries}`` tree, recursing into children."""
         return {
             "op": self.op,
             "queries": [query.to_dict() for query in self.queries],
@@ -309,12 +481,15 @@ class Selection:
     scores: dict[str, float] | None = None
 
     def __iter__(self):
+        """Iterate over the ordered ids, so a ``Selection`` works like a list."""
         return iter(self.ids)
 
     def __len__(self) -> int:
+        """Return the number of selected ids."""
         return len(self.ids)
 
     def __getitem__(self, index):
+        """Index or slice the ordered ids (e.g. ``selection[0]``, ``selection[:5]``)."""
         return self.ids[index]
 
     def names(self) -> list[str]:
@@ -333,7 +508,14 @@ class Selection:
         return self.to_json()
 
     def to_json(self) -> dict[str, Any]:
-        """Return a JSON-ready object including query, sampler, and provenance."""
+        """Return a JSON-ready object including query, sampler, and provenance.
+
+        The payload contains ``ids``, the serialized ``query`` and ``sampler``
+        (each ``None`` when unused), ``candidate_count``, ``selected_count``,
+        JSON-coerced ``provenance``, and ``scores`` when the sampler produced
+        them. This is exactly what :class:`celldega.viz.Yearbook` stores to
+        record how a portrait set was chosen.
+        """
         result = {
             "ids": self.ids,
             "query": self.query,
@@ -357,7 +539,10 @@ class Selection:
         """Return selected ids as a ranking DataFrame.
 
         The returned frame always contains ``id`` and zero-based ``rank``
-        columns. If the sampler produced scores, a ``score`` column is included.
+        columns, with rows in result order. If the sampler produced scores, a
+        ``score`` column is included (aligned by id; entries default to ``None``
+        for any id without a score). Handy for inspecting a selection in a
+        notebook or joining it back onto other per-entity tables.
         """
         frame = pd.DataFrame({"id": self.ids, "rank": np.arange(len(self.ids))})
         if self.scores is not None:
@@ -367,12 +552,16 @@ class Selection:
     def page(self, page: int, per_page: int) -> list[str]:
         """Return one zero-based page of ids.
 
+        Slices the ordered ids into fixed-size pages, e.g. for paginating a
+        portrait grid. ``page(0, 24)`` returns the first 24 ids, ``page(1, 24)``
+        the next 24, and so on. A page past the end returns an empty list.
+
         Parameters
         ----------
         page
-            Zero-based page index.
+            Zero-based page index. Must be non-negative.
         per_page
-            Number of ids to return.
+            Number of ids per page. Must be positive.
         """
         _validate_count(page, "page")
         if per_page <= 0:
@@ -383,24 +572,49 @@ class Selection:
 
 @dataclass(frozen=True)
 class SamplingResult:
+    """Internal return value of :meth:`Sampler.apply`.
+
+    Bundles the ordered string ``ids`` chosen by a sampler with an optional
+    per-id score ``Series`` (ranking samplers populate this; others leave it
+    ``None``) and a ``provenance`` dict describing how the sampling ran. The
+    :class:`Selector` unpacks this into the public :class:`Selection`.
+    """
+
     ids: list[str]
     scores: pd.Series | None
     provenance: dict[str, Any]
 
 
 class Sampler(Protocol):
-    """Protocol implemented by sampler/ranker objects."""
+    """Structural protocol implemented by every sampler/ranker.
+
+    A sampler turns a candidate ``pd.Index`` into an ordered subset. Anything
+    with the two methods below satisfies the protocol, so :meth:`Selector.select`
+    accepts the built-in samplers (and any duck-typed equivalent) uniformly.
+    """
 
     def apply(self, selector: Selector, candidate_ids: pd.Index) -> SamplingResult:
-        """Select and order ids from the candidate ids."""
+        """Choose and order ids from ``candidate_ids``, returning a SamplingResult.
+
+        Receives the bound ``selector`` (so attribute-based samplers can resolve
+        their values) and the already-narrowed candidate index, so the sampler
+        only ever does work proportional to the candidate set, not the full
+        AnnData.
+        """
 
     def to_dict(self) -> dict[str, Any]:
-        """Return a serializable sampler description."""
+        """Return a JSON-ready description of the sampler and its parameters."""
 
 
 @dataclass(frozen=True)
 class RandomSampler:
     """Randomly order or sample candidate ids.
+
+    With ``n=None`` this is a shuffle: it returns all candidates in random order.
+    With an ``n``, it draws that many. Without ``replace`` the draw is a subset
+    (``n`` is clamped to the number of candidates); with ``replace=True`` ids may
+    repeat and the result can be longer than the candidate set. A ``seed`` makes
+    the draw reproducible. This sampler attaches no scores.
 
     Parameters
     ----------
@@ -417,9 +631,17 @@ class RandomSampler:
     replace: bool = False
 
     def __post_init__(self) -> None:
+        """Validate that ``n`` is non-negative (or ``None``)."""
         _validate_count(self.n)
 
     def apply(self, selector: Selector, candidate_ids: pd.Index) -> SamplingResult:
+        """Draw (or shuffle) ids with a seeded NumPy generator.
+
+        Returns an empty result when there are no candidates or ``n == 0``.
+        Without replacement, uses a permutation truncated to ``min(n, len)``;
+        with replacement, uses ``rng.choice`` so ids may repeat. ``selector`` is
+        unused (the draw needs no attribute values).
+        """
         del selector
         count = len(candidate_ids) if self.n is None else self.n
         if len(candidate_ids) == 0 or count == 0:
@@ -455,11 +677,60 @@ class RandomSampler:
 
 @dataclass(frozen=True)
 class QuantileBinSampler:
-    """Sample ids from a low/mid/high quantile bin for an attribute.
+    """Sample ids from a low/mid/high quantile bin for a numeric attribute.
 
-    This sampler is useful for representative inspection, for example selecting
-    high-valued entities for an attribute while preserving a stable ranked
-    order in the returned selection.
+    The attribute's values define two cut points at quantiles ``q_low`` and
+    ``q_high``, splitting entities into three bins. ``bin`` selects which one to
+    draw from:
+
+    - ``"low"``  -> values ``<= low_cut``, ordered ascending;
+    - ``"mid"``  -> values strictly between the cuts, ordered by closeness to the
+      median;
+    - ``"high"`` -> values ``>= high_cut``, ordered descending.
+
+    The interior boundaries are half-open so the bins partition cleanly (a value
+    sitting exactly on a cut lands in one bin only) -- this matters for tie-heavy
+    data such as raw counts.
+
+    Useful for representative inspection: e.g. "show me high-expressing cells for
+    this gene" while preserving a stable ranked order in the returned selection.
+
+    Specifying the band
+    -------------------
+    The band width can be given three ways (mutually exclusive forms of the same
+    idea):
+
+    - ``q_low`` / ``q_high`` directly (default thirds: ``1/3`` and ``2/3``);
+    - ``proportion`` -- a fraction in ``(0, 1]`` giving the tail/center size;
+    - ``percentile`` -- the same as ``proportion`` but on a 0-100 scale.
+
+    With ``proportion``/``percentile`` the cut(s) are derived per bin: ``"low"``
+    takes the bottom fraction, ``"high"`` the top fraction, and ``"mid"`` a
+    centered band of that width around the median.
+
+    Sampling vs ranking
+    -------------------
+    If ``n`` is ``None`` or the bin has ``<= n`` members, the whole bin is
+    returned in ranked order. If the bin is larger than ``n``, a seeded random
+    subset of size ``n`` is drawn and then re-sorted into the bin's natural order.
+    The per-id value is attached as the selection's score.
+
+    Parameters
+    ----------
+    attr
+        Numeric attribute to bin (an ``obs`` column or a gene).
+    bin
+        Which bin to draw from: ``"low"``, ``"mid"``, or ``"high"``.
+    n
+        Maximum number of ids to return. ``None`` returns the whole bin.
+    seed
+        Random seed used only when the bin is subsampled.
+    q_low, q_high
+        Lower/upper quantile cut points in ``[0, 1]`` with ``q_low <= q_high``.
+    proportion
+        Alternative band specification as a fraction in ``(0, 1]``.
+    percentile
+        Alternative band specification as a percentage in ``(0, 100]``.
     """
 
     attr: Attribute
@@ -472,6 +743,11 @@ class QuantileBinSampler:
     percentile: float | None = None
 
     def __post_init__(self) -> None:
+        """Validate ``n``, the bin name, the quantile order, and the band specs.
+
+        Enforces ``0 <= q_low <= q_high <= 1``, that ``proportion`` and
+        ``percentile`` are not both set, and that each falls in its valid range.
+        """
         _validate_count(self.n)
         if self.bin not in {"low", "mid", "high"}:
             raise ValueError("bin must be one of 'low', 'mid', or 'high'")
@@ -485,6 +761,15 @@ class QuantileBinSampler:
             raise ValueError("percentile must satisfy 0 < percentile <= 100")
 
     def apply(self, selector: Selector, candidate_ids: pd.Index) -> SamplingResult:
+        """Bin the candidates by quantile, then rank or subsample the chosen bin.
+
+        Resolves the attribute over the candidates, drops non-numeric/missing
+        values, computes the two quantile cuts, selects the requested bin in its
+        natural order, and (if larger than ``n``) draws a seeded random subset
+        that is then re-sorted. Returns an empty result with a ``reason`` when no
+        numeric values are available. Provenance records the cut points, bin
+        size, and seed.
+        """
         values = self.attr.evaluate(selector).reindex(candidate_ids)
         numeric = pd.to_numeric(values, errors="coerce").dropna()
 
@@ -520,6 +805,8 @@ class QuantileBinSampler:
             ordered = binned.sort_values(ascending=False, kind="mergesort")
 
         if self.n is not None and len(ordered) > self.n:
+            # Bin is bigger than the quota: draw a random subset, then restore the
+            # bin's natural order (the random draw scrambled it).
             rng = np.random.default_rng(self.seed)
             sampled_positions = rng.choice(len(ordered), size=self.n, replace=False)
             sampled_index = ordered.index.take(sampled_positions)
@@ -543,6 +830,13 @@ class QuantileBinSampler:
         )
 
     def _selection_quantiles(self) -> tuple[float, float]:
+        """Resolve the effective ``(q_low, q_high)`` cut points for this bin.
+
+        When ``proportion``/``percentile`` is given it overrides ``q_low``/
+        ``q_high``: ``"low"`` returns the bottom fraction (both cuts equal),
+        ``"high"`` the top fraction, and ``"mid"`` a centered band of that width
+        around the median. Otherwise the configured ``q_low``/``q_high`` are used.
+        """
         if self.proportion is not None or self.percentile is not None:
             proportion = self.proportion
             if proportion is None:
@@ -561,6 +855,12 @@ class QuantileBinSampler:
         return self.q_low, self.q_high
 
     def _sort_sampled_bin(self, values: pd.Series, all_values: pd.Series) -> pd.Series:
+        """Re-sort a randomly subsampled bin back into the bin's natural order.
+
+        After random subsampling scrambles the order, this restores it: ascending
+        for ``"low"``, descending for ``"high"``, and by distance to the median
+        (computed over ``all_values``) for ``"mid"``.
+        """
         if self.bin == "low":
             return values.sort_values(ascending=True, kind="mergesort")
         if self.bin == "mid":
@@ -569,6 +869,12 @@ class QuantileBinSampler:
         return values.sort_values(ascending=False, kind="mergesort")
 
     def to_dict(self) -> dict[str, Any]:
+        """Return a JSON-ready description, including the band specification.
+
+        Always includes the attribute, ``bin``, ``n``, ``seed``, and the
+        ``q_low``/``q_high`` cuts; ``proportion``/``percentile`` are added only
+        when they were supplied.
+        """
         result = {
             "type": "quantile_bin",
             "attr": self.attr.to_dict(),
@@ -587,7 +893,47 @@ class QuantileBinSampler:
 
 @dataclass(frozen=True)
 class GaussianSampler:
-    """Sample ids with Gaussian weighting around a numeric attribute value."""
+    """Select ids whose numeric attribute value is near a target ``center``.
+
+    Each candidate gets a Gaussian weight ``exp(-0.5 * ((value - center) / std)
+    ** 2)``: a value exactly at ``center`` scores ``1.0`` and the weight falls
+    off with distance. ``std`` controls the tolerance -- small ``std`` is a sharp
+    peak (only very close values matter), large ``std`` is broad. (The usual
+    ``1 / (std * sqrt(2*pi))`` normalizing constant is omitted because it cancels
+    when sorting and when normalizing the sampling probabilities.)
+
+    Two modes
+    ---------
+    - **Rank everything** (``n`` is ``None`` or ``>=`` the candidate count):
+      return all candidates ordered by closeness to ``center`` (closest first).
+    - **Weighted subsample** (``n`` smaller than the candidate count): draw ``n``
+      ids without replacement using the Gaussian weights as probabilities
+      (seeded via ``seed``), then re-order the draw closest-first.
+
+    In both modes the per-id weight is attached as the selection's score.
+
+    Use for "around this value" inspection -- e.g. cells near a particular QC
+    score or expression level.
+
+    Parameters
+    ----------
+    attr
+        Numeric attribute to weight on.
+    center
+        Target value the sampler is biased toward.
+    std
+        Standard deviation of the Gaussian; must be positive. Larger = broader.
+    n
+        Number of ids to draw. ``None`` ranks all candidates by closeness.
+    seed
+        Random seed used only in the weighted-subsample mode.
+
+    Notes
+    -----
+    In the subsample mode, an aggressively small ``std`` can drive many weights to
+    underflow to exactly ``0``. If fewer than ``n`` candidates retain a positive
+    weight, the underlying ``rng.choice(replace=False, p=...)`` will raise.
+    """
 
     attr: Attribute
     center: float
@@ -596,11 +942,20 @@ class GaussianSampler:
     seed: int | None = None
 
     def __post_init__(self) -> None:
+        """Validate that ``n`` is non-negative and ``std`` is strictly positive."""
         _validate_count(self.n)
         if self.std <= 0:
             raise ValueError("std must be positive")
 
     def apply(self, selector: Selector, candidate_ids: pd.Index) -> SamplingResult:
+        """Weight candidates by a Gaussian and either rank or weighted-sample them.
+
+        Resolves the attribute, drops non-numeric/missing values, computes the
+        Gaussian weights, and either returns all candidates ordered by closeness
+        (when ``n`` covers them all) or draws a seeded weighted subset that is
+        then re-ordered closest-first. Returns an empty result with a ``reason``
+        when no numeric values are available.
+        """
         values = self.attr.evaluate(selector).reindex(candidate_ids)
         numeric = pd.to_numeric(values, errors="coerce").dropna()
 
@@ -617,14 +972,21 @@ class GaussianSampler:
             )
 
         distances = (numeric - self.center).abs()
+        # Unnormalized Gaussian kernel: weight 1.0 at the center, decaying with
+        # distance. The 1/(std*sqrt(2*pi)) constant is dropped because it cancels
+        # under both sorting and probability normalization below.
         weights = np.exp(-0.5 * np.square((numeric - self.center) / self.std))
         weight_series = pd.Series(weights, index=numeric.index, name="weight")
 
         if self.n is None or self.n >= len(weight_series):
+            # Rank mode: keep everyone, ordered closest-to-center first (sorting
+            # by distance ascending == sorting by weight descending).
             ordered = weight_series.loc[
                 distances.sort_values(ascending=True, kind="mergesort").index
             ]
         else:
+            # Subsample mode: weighted draw favoring the center, then re-order the
+            # drawn ids closest-first.
             rng = np.random.default_rng(self.seed)
             probabilities = weight_series / weight_series.sum()
             sampled_positions = rng.choice(
@@ -654,6 +1016,7 @@ class GaussianSampler:
         )
 
     def to_dict(self) -> dict[str, Any]:
+        """Return a JSON-ready ``{type, attr, center, std, n, seed}`` description."""
         return {
             "type": "gaussian",
             "attr": self.attr.to_dict(),
@@ -666,18 +1029,43 @@ class GaussianSampler:
 
 @dataclass(frozen=True)
 class RankSampler:
-    """Return the highest or lowest ids for a numeric attribute."""
+    """Deterministically return the highest- or lowest-valued ids for an attribute.
+
+    Sorts the candidates by a numeric attribute and takes the top (``by="high"``)
+    or bottom (``by="low"``) ``n``. Unlike the random/Gaussian samplers this is
+    fully deterministic (no seed): a stable mergesort is used so ties keep their
+    original relative order. The per-id value is attached as the score.
+
+    Good for "top markers" style inspection -- e.g. the highest-expressing cells
+    for a gene, or the lowest-QC cells.
+
+    Parameters
+    ----------
+    attr
+        Numeric attribute to rank by.
+    n
+        Number of ids to return. ``None`` returns all candidates, ranked.
+    by
+        ``"high"`` for descending (largest first), ``"low"`` for ascending.
+    """
 
     attr: Attribute
     n: int | None = None
     by: RankDirection = "high"
 
     def __post_init__(self) -> None:
+        """Validate that ``n`` is non-negative and ``by`` is ``"high"`` or ``"low"``."""
         _validate_count(self.n)
         if self.by not in {"high", "low"}:
             raise ValueError("by must be 'high' or 'low'")
 
     def apply(self, selector: Selector, candidate_ids: pd.Index) -> SamplingResult:
+        """Sort candidates by value and take the top/bottom ``n``.
+
+        Resolves the attribute, drops non-numeric/missing values, sorts in the
+        requested direction, and truncates to ``n``. Returns an empty result with
+        a ``reason`` when no numeric values are available.
+        """
         values = self.attr.evaluate(selector).reindex(candidate_ids)
         numeric = pd.to_numeric(values, errors="coerce").dropna()
 
@@ -711,6 +1099,7 @@ class RankSampler:
         )
 
     def to_dict(self) -> dict[str, Any]:
+        """Return a JSON-ready ``{type, attr, n, by}`` description."""
         return {
             "type": "rank",
             "attr": self.attr.to_dict(),
@@ -721,7 +1110,37 @@ class RankSampler:
 
 @dataclass(frozen=True)
 class StratifiedSampler:
-    """Sample evenly across categories from a categorical attribute."""
+    """Draw a balanced sample across the categories of a categorical attribute.
+
+    Provide exactly one of two quota modes:
+
+    - ``n_per_category`` -- take up to this many ids from *each* category
+      (capped by how many that category actually has);
+    - ``n`` -- a total quota distributed as evenly as possible across categories,
+      via round-robin allocation (categories that run out are skipped, so larger
+      categories absorb the remainder).
+
+    Within each category the ids are drawn at random (seeded via ``seed``). The
+    result is grouped by category in the order the categories are processed
+    (i.e. not interleaved across categories). No scores are attached.
+
+    Good for balanced inspection -- e.g. an equal number of cells per cluster.
+
+    Parameters
+    ----------
+    attr
+        Categorical attribute to stratify on.
+    n_per_category
+        Per-category quota. Mutually exclusive with ``n``.
+    n
+        Total quota spread evenly across categories. Mutually exclusive with
+        ``n_per_category``.
+    seed
+        Random seed for the within-category draws.
+    categories
+        Optional explicit category order/subset. When ``None``, categories are
+        discovered from the data in first-seen order.
+    """
 
     attr: Attribute
     n_per_category: int | None = None
@@ -730,6 +1149,7 @@ class StratifiedSampler:
     categories: tuple[Any, ...] | None = None
 
     def __post_init__(self) -> None:
+        """Validate the quotas: non-negative, and exactly one of ``n`` / ``n_per_category``."""
         _validate_count(self.n_per_category, "n_per_category")
         _validate_count(self.n, "n")
         if self.n is None and self.n_per_category is None:
@@ -738,6 +1158,14 @@ class StratifiedSampler:
             raise ValueError("n and n_per_category are mutually exclusive")
 
     def apply(self, selector: Selector, candidate_ids: pd.Index) -> SamplingResult:
+        """Allocate per-category quotas, then draw that many ids from each category.
+
+        Resolves the attribute and drops missing values, groups candidates by
+        category, computes each category's quota (fixed per-category, or
+        round-robin for a total ``n``), draws ids at random within each, and
+        concatenates the groups. Provenance records per-stratum availability and
+        sampled counts plus the quota ``mode``.
+        """
         values = self.attr.evaluate(selector).reindex(candidate_ids)
         non_missing = values.dropna()
 
@@ -758,11 +1186,15 @@ class StratifiedSampler:
             sample_counts[category] = 0
 
         if self.n_per_category is not None:
+            # Fixed per-category quota, capped by what each category actually has.
             for category in categories:
                 sample_counts[category] = min(
                     self.n_per_category, len(group_ids_by_category[category])
                 )
         else:
+            # Total quota: hand out one slot per category per pass (round-robin)
+            # until the quota is met or every category is exhausted. This spreads
+            # the total as evenly as possible; categories that run out are skipped.
             assert self.n is not None
             remaining = self.n
             available_categories = [
@@ -778,7 +1210,10 @@ class StratifiedSampler:
                         remaining -= 1
                         progressed = True
                 if not progressed:
+                    # Every remaining category is full but quota is unmet (n
+                    # exceeds the available pool): stop instead of looping forever.
                     break
+                # Drop categories that just filled up so later passes skip them.
                 available_categories = [
                     category
                     for category in available_categories
@@ -816,6 +1251,7 @@ class StratifiedSampler:
         )
 
     def to_dict(self) -> dict[str, Any]:
+        """Return a JSON-ready description; includes whichever quota and categories were set."""
         result = {
             "type": "stratified",
             "attr": self.attr.to_dict(),
@@ -831,7 +1267,16 @@ class StratifiedSampler:
 
 
 class SamplerFactory:
-    """Namespace for sampler constructors exposed as ``selector.samplers``."""
+    """Notebook-friendly constructors for samplers, exposed as ``selector.samplers``.
+
+    Each method builds and returns one of the sampler dataclasses
+    (:class:`RandomSampler`, :class:`QuantileBinSampler`, :class:`GaussianSampler`,
+    :class:`RankSampler`, :class:`StratifiedSampler`). The methods add light
+    type-checking (attribute-based samplers verify their ``attr`` came from
+    :meth:`Selector.attr` / :meth:`Selector.gene`) and otherwise just forward
+    their arguments, so ``selector.samplers.rank(...)`` reads naturally inside a
+    :meth:`Selector.select` call.
+    """
 
     def random(
         self,
@@ -898,7 +1343,12 @@ class SamplerFactory:
         n: int | None = None,
         seed: int | None = None,
     ) -> GaussianSampler:
-        """Return a sampler with Gaussian weighting around a numeric center."""
+        """Return a sampler biased toward a numeric ``center`` value.
+
+        ``std`` sets the Gaussian width (tolerance). With ``n`` set, draws a
+        seeded weighted subset; otherwise ranks all candidates by closeness. See
+        :class:`GaussianSampler` for the weighting and the two modes.
+        """
         if not isinstance(attr, Attribute):
             raise TypeError("attr must be created by Selector.attr(...) or Selector.gene(...)")
         return GaussianSampler(attr=attr, center=center, std=std, n=n, seed=seed)
@@ -910,7 +1360,11 @@ class SamplerFactory:
         *,
         by: RankDirection = "high",
     ) -> RankSampler:
-        """Return the highest or lowest ids for a numeric attribute."""
+        """Return a deterministic top/bottom-``n`` ranker for a numeric attribute.
+
+        ``by="high"`` takes the largest values, ``by="low"`` the smallest. See
+        :class:`RankSampler`.
+        """
         if not isinstance(attr, Attribute):
             raise TypeError("attr must be created by Selector.attr(...) or Selector.gene(...)")
         return RankSampler(attr=attr, n=n, by=by)
@@ -924,7 +1378,12 @@ class SamplerFactory:
         *,
         categories: Sequence[Any] | None = None,
     ) -> StratifiedSampler:
-        """Return a sampler that draws evenly across categorical strata."""
+        """Return a sampler that draws evenly across categorical strata.
+
+        Provide exactly one of ``n_per_category`` (a per-category quota) or ``n``
+        (a total spread evenly across categories). ``categories`` optionally fixes
+        the category order/subset. See :class:`StratifiedSampler`.
+        """
         if not isinstance(attr, Attribute):
             raise TypeError("attr must be created by Selector.attr(...) or Selector.gene(...)")
         return StratifiedSampler(
@@ -1051,18 +1510,32 @@ class Selector:
             boolean operators. If omitted, every AnnData observation is a
             candidate.
         sampler
-            Optional sampler/ranker from ``selector.samplers``. Passing an
-            integer is shorthand for a deterministic random sampler returning
-            that many ids. If omitted and the candidate set is larger than
-            ``default_preview_n``, a deterministic random preview is returned
-            with a warning. Use ``sampler="all"`` to intentionally return every
-            matching id.
+            How to order/subset the candidates. Accepts several forms, dispatched
+            in this order:
+
+            - ``None`` -- return candidates in source order, unless the candidate
+              set exceeds ``default_preview_n``, in which case a deterministic
+              random preview is returned with a warning (the guard against
+              accidentally materializing a huge selection);
+            - a ``bool`` -- rejected with a clear error (guards against
+              ``sampler=True`` being silently treated as the integer ``1``);
+            - an ``int`` -- shorthand for a deterministic random sample of that
+              many ids, seeded with ``default_preview_seed``;
+            - ``"all"`` -- explicitly return every matching id, no preview guard;
+            - a sampler from ``selector.samplers`` -- applied to the candidates.
 
         Returns
         -------
         Selection
             Stable ordered selected ids plus JSON-ready query, sampler, scores,
-            and provenance.
+            and provenance (source shape, candidate/selected counts, and the
+            sampler's own provenance).
+
+        Notes
+        -----
+        The query is evaluated first to narrow the candidate set, and the sampler
+        only ever sees that narrowed index -- so expensive samplers do work
+        proportional to the matches, not the whole AnnData.
         """
         candidate_ids = self._candidate_ids(query)
         query_dict = query.to_dict() if query is not None else None
@@ -1077,6 +1550,8 @@ class Selector:
             scores = None
             sampler_provenance = {"type": "identity", "sampled": len(selected_ids)}
         elif isinstance(sampler, bool):
+            # Must precede the Integral check: bool is a subclass of int, so this
+            # rejects sampler=True/False instead of silently treating it as 1/0.
             raise ValueError(
                 "sampler must be 'all', None, an integer count, or a sampler from selector.samplers"
             )
@@ -1128,12 +1603,25 @@ class Selector:
         )
 
     def _should_preview(self, candidate_ids: pd.Index) -> bool:
+        """Return ``True`` when an unsampled selection should fall back to a preview.
+
+        True only when the preview guard is enabled (``default_preview_n`` is not
+        ``None``) and the candidate set exceeds it.
+        """
         return self.default_preview_n is not None and len(candidate_ids) > self.default_preview_n
 
     def _preview_selection(
         self,
         candidate_ids: pd.Index,
     ) -> tuple[list[str], dict[str, Any], None, dict[str, Any]]:
+        """Build the deterministic random preview for an oversized unsampled query.
+
+        Warns the user (explaining how to opt into ``"all"``, an integer count,
+        or an explicit sampler), then draws ``default_preview_n`` ids with a
+        seeded :class:`RandomSampler`. Returns the tuple
+        ``(ids, sampler_dict, scores, sampler_provenance)`` consumed by
+        :meth:`select`; ``scores`` is always ``None`` for a preview.
+        """
         assert self.default_preview_n is not None
         preview_n = self.default_preview_n
         warnings.warn(
@@ -1164,6 +1652,12 @@ class Selector:
         return selected_ids, sampler_dict, None, sampler_provenance
 
     def _candidate_ids(self, query: Query | None) -> pd.Index:
+        """Return the ids matching ``query`` (all ids when ``query`` is ``None``).
+
+        Evaluates the query to a boolean mask, reindexes it onto the full id
+        index filling any gaps with ``False`` (a safety net so the mask always
+        aligns), and returns the matching ids in source order.
+        """
         if query is None:
             return self.ids
 
@@ -1171,6 +1665,10 @@ class Selector:
         return self.ids[mask.to_numpy(dtype=bool)]
 
     def _obs_attribute(self, name: str) -> pd.Series:
+        """Resolve an ``adata.obs`` column to a Series indexed by the entity ids.
+
+        Raises ``KeyError`` with a clear message if the column is missing.
+        """
         if name not in self.adata.obs.columns:
             raise KeyError(f"Attribute '{name}' not found in adata.obs")
         return pd.Series(self.adata.obs[name], index=self.ids, name=name)
@@ -1178,6 +1676,17 @@ class Selector:
     def _gene_attribute(
         self, name: str, *, layer: str | None = None, raw: bool = False
     ) -> pd.Series:
+        """Resolve a gene's expression vector to a Series indexed by the entity ids.
+
+        Reads from ``adata.raw`` when ``raw=True``, a named ``layer`` when given,
+        or ``adata.X`` otherwise. The single-gene slice is densified and flattened
+        via :func:`_as_1d_array`, so sparse matrices are handled transparently.
+
+        Raises ``KeyError`` for a missing gene or layer, ``ValueError`` when
+        ``raw`` is requested but ``adata.raw`` is absent, and ``ValueError`` when
+        the gene name is not unique in ``var_names`` (which would make the slice
+        ambiguous).
+        """
         data = self.adata.raw if raw else self.adata
         if data is None:
             raise ValueError("adata.raw is not available")

@@ -44,7 +44,7 @@ dataset-level and neighborhood-level data:
 import celldega as dega
 
 dset = dega.dataset.DatasetCollection(adata, dataset_col="sample_id")
-nbhd = dega.NeighborhoodCollection(obs=neighborhood_obs, geometry=neighborhood_gdf)
+nbhd = dega.nbhd.NeighborhoodCollection(obs=neighborhood_obs, geometry=neighborhood_gdf)
 ```
 
 ### [Dataset Module](dataset/api.md)

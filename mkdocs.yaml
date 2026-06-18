@@ -1,4 +1,12 @@
 site_name: Celldega Documentation
+
+# Keep large/data artifacts out of the built site (and off the gh-pages branch).
+# mkdocs copies everything under docs/ into site/ regardless of .gitignore,
+# so notebook data dirs and large files must be excluded here.
+exclude_docs: |
+  examples/**/data/
+  **/*.h5ad
+
 theme:
   name: material
   favicon: assets/img/celldega_logo_32x32_transparent.png

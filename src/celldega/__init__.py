@@ -1,7 +1,8 @@
+from importlib import import_module
 import importlib.metadata  # temporary fix for libpysal warning
 import warnings
 
-from celldega import clust, collection, dataset
+from celldega import clust, collection, dataset, select, viz
 from celldega.collection import CelldegaCollection
 from celldega.dataset import DatasetCollection
 from celldega.nbhd import alpha_shape
@@ -18,6 +19,11 @@ try:
 except importlib.metadata.PackageNotFoundError:
     __version__ = "unknown"
 
+
+def __dir__() -> list[str]:
+    return sorted([*globals(), *__all__])
+
+
 __all__ = [
     "CelldegaCollection",
     "Clustergram",
@@ -31,4 +37,5 @@ __all__ = [
     "dataset",
     "landscape",
     "qc_segmentation",
+    "select",
 ]

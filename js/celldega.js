@@ -183,7 +183,7 @@ const render_yearbook = async ({ model, el }) => {
   const segmentation = model.get('segmentation') || 'default';
   const scale_bar_microns_per_pixel = model.get('scale_bar_microns_per_pixel');
   const current_page = model.get('current_page') || 0;
-  const query = model.get('query') || {};
+  const query = model.get('front_end_query') || {};
   const cell_name_prefix = model.get('cell_name_prefix') || false;
 
   let meta_cell_data = { result: {}, attr: [] };

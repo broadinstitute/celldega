@@ -30,6 +30,7 @@ nav:
       - dataset: python/dataset/api.md
       - nbhd: python/nbhd/api.md
       - pre: python/pre/api.md
+      - select: python/select/api.md
       - viz: python/viz/api.md
 
   - JavaScript API:
@@ -82,6 +83,7 @@ plugins:
           options:
             docstring_style: google
             show_root_toc_entry: true
+            show_source: false
   - mkdocs-jupyter:
       include_source: true
       include_requirejs: true

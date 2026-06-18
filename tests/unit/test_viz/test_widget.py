@@ -17,6 +17,7 @@ try:
     from celldega.viz import (
         Clustergram,
         Landscape,
+        Yearbook,
     )
 except Exception as e:  # pragma: no cover - if deps missing skip
     pytest.skip(f"celldega modules unavailable: {e}", allow_module_level=True)
@@ -274,3 +275,54 @@ def test_landscape_nbhd_edit_syncs_geojson() -> None:
     widget.nbhd_geojson = geojson
     assert isinstance(widget.nbhd, gpd.GeoDataFrame)
     assert list(widget.nbhd["name"]) == ["a"]
+
+
+def test_yearbook_accepts_selection_result() -> None:
+    from anndata import AnnData
+
+    from celldega.select import Selector
+
+    obs = pd.DataFrame(
+        {"cluster": ["B cell", "T cell", "B cell"]},
+        index=["cell_1", "cell_2", "cell_3"],
+    )
+    adata = AnnData(np.ones((3, 1)), obs=obs, var=pd.DataFrame(index=["MS4A1"]))
+    selector = Selector(adata)
+    selection = selector.select(query=selector.attr("cluster") == "B cell")
+
+    widget = Yearbook(base_url="https://example.org/data", selection=selection, current_page=4)
+
+    assert widget.cells == ["cell_1", "cell_3"]
+    assert widget.current_page == 0
+    assert widget.selection["query"] == selection.to_json()["query"]
+    assert widget.selection["candidate_count"] == 2
+
+
+def test_yearbook_rejects_cells_and_selection() -> None:
+    with pytest.raises(ValueError, match="either `selection` or `cells`"):
+        Yearbook(base_url="https://example.org/data", cells=["cell_1"], selection=["cell_2"])
+
+
+def test_yearbook_accepts_explicit_cell_list() -> None:
+    widget = Yearbook(base_url="https://example.org/data", cells=["cell_1", "cell_2"])
+
+    assert widget.cells == ["cell_1", "cell_2"]
+
+
+def test_yearbook_query_argument_maps_to_front_end_query() -> None:
+    with pytest.warns(DeprecationWarning, match="`query` is deprecated"):
+        widget = Yearbook(
+            base_url="https://example.org/data",
+            query={"gene": "BRCA1"},
+        )
+
+    assert widget.front_end_query == {"gene": "BRCA1"}
+
+
+def test_yearbook_front_end_query_is_accepted_directly() -> None:
+    widget = Yearbook(
+        base_url="https://example.org/data",
+        front_end_query={"cluster": {"attr": "leiden", "value": "5"}},
+    )
+
+    assert widget.front_end_query == {"cluster": {"attr": "leiden", "value": "5"}}

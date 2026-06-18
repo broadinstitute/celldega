@@ -1,5 +1,6 @@
 """Widget module for interactive visualization components."""
 
+from collections.abc import Sequence
 import colorsys
 from contextlib import suppress
 from copy import deepcopy
@@ -34,6 +35,36 @@ def _hsv_to_hex(h: float) -> str:
     """Convert HSV color to hex string."""
     r, g, b = colorsys.hsv_to_rgb(h, 0.65, 0.9)
     return f"#{int(r * 255):02x}{int(g * 255):02x}{int(b * 255):02x}"
+
+
+def _selection_to_payload(selection) -> dict:
+    """Normalize a selector result into a JSON-ready payload with ordered ids."""
+    if hasattr(selection, "to_json"):
+        payload = selection.to_json()
+    elif hasattr(selection, "to_dict"):
+        payload = selection.to_dict()
+    elif isinstance(selection, dict):
+        payload = dict(selection)
+    else:
+        payload = {}
+
+    if "ids" not in payload:
+        if hasattr(selection, "names"):
+            payload["ids"] = selection.names()
+        elif isinstance(selection, Sequence) and not isinstance(selection, str):
+            payload["ids"] = list(selection)
+        else:
+            raise TypeError(
+                "`selection` must be a celldega.select.Selection, "
+                "a JSON-like selection dict, or a sequence of cell ids."
+            )
+
+    ids = payload["ids"]
+    if isinstance(ids, str) or not isinstance(ids, Sequence):
+        raise TypeError("`selection` ids must be a sequence of cell ids.")
+
+    payload["ids"] = [str(name) for name in ids]
+    return payload
 
 
 def _coerce_transform_matrix(transform: Any) -> np.ndarray:
@@ -600,8 +631,16 @@ class Yearbook(anywidget.AnyWidget):
         base_url (str): The base URL for the dataset.
         cells (list, optional): List of cell identifiers to display as portraits.
             If not provided and no query is given, random cells will be selected.
-        query (dict, optional): Query for finding cells from LandscapeFiles.
-            Supports the following formats:
+        selection (Selection or dict or list, optional): Ordered selection of
+            cells to display as portraits. Accepts a ``celldega.select.Selection``
+            returned by ``dega.select.Selector.select``, a JSON-ready selection
+            dict, or a plain list of cell ids. Yearbook uses its ids as the
+            portrait cell order and stores the JSON-ready payload for provenance.
+            Pass either ``selection`` or ``cells``, not both.
+        front_end_query (dict, optional): Stateless query evaluated in the browser
+            against LandscapeFiles (no Python/AnnData required). This is separate
+            from the Python-side ``celldega.select`` query module. Supports the
+            following formats:
 
             - Cluster only: ``{"cluster": {"attr": "leiden", "value": "8"}}``
               Returns random cells from the specified cluster.
@@ -612,8 +651,8 @@ class Yearbook(anywidget.AnyWidget):
             - Max cells: ``{"max_cells": 100}``
               Limits the number of cells returned (default: num_rows * num_cols * 10).
 
-            The query uses LandscapeFiles data (or adata if provided) to find cells.
-            This is an alternative to providing an explicit ``cells`` list.
+            (The former ``query`` argument is deprecated; it now maps to
+            ``front_end_query``.)
         num_rows (int): Number of rows in the portrait grid. Alias: ``rows``.
         num_cols (int): Number of columns in the portrait grid. Alias: ``cols``.
         portrait_size_um (float): Size of each portrait in micrometers.
@@ -630,7 +669,7 @@ class Yearbook(anywidget.AnyWidget):
 
     Example::
 
-        # Using explicit cell list
+        # Using an explicit list of cell ids
         yb = Yearbook(
             base_url="https://path-to-dataset",
             cells=["cell_1", "cell_2", "cell_3", "cell_4"],
@@ -639,19 +678,20 @@ class Yearbook(anywidget.AnyWidget):
             portrait_size_um=100,
         )
 
-        # Using query to find cells from a cluster
+        # Using a Python selector result
+        selector = dega.select.Selector(adata)
+        selection = selector.select(query=selector.attr("leiden") == "5")
         yb = Yearbook(
             base_url="https://path-to-dataset",
-            query={"cluster": {"attr": "leiden", "value": "5"}},
+            selection=selection,
             rows=2,
             cols=2,
-            portrait_size_um=100,
         )
 
-        # Using query for cells ranked by gene expression
+        # Using a stateless front-end query (no AnnData needed)
         yb = Yearbook(
             base_url="https://path-to-dataset",
-            query={"gene": "BRCA1", "max_cells": 50},
+            front_end_query={"gene": "BRCA1", "max_cells": 50},
             rows=2,
             cols=2,
             portrait_size_um=100,
@@ -667,6 +707,9 @@ class Yearbook(anywidget.AnyWidget):
 
     # Cell list to display as portraits
     cells = traitlets.List(trait=traitlets.Unicode(), default_value=[]).tag(sync=True)
+
+    # JSON-ready selector output used to populate cells and preserve provenance.
+    selection = traitlets.Dict({}).tag(sync=True)
 
     # Grid configuration
     num_rows = traitlets.Int(2).tag(sync=True)
@@ -708,12 +751,14 @@ class Yearbook(anywidget.AnyWidget):
         default_value=["leiden"],
     ).tag(sync=True)
 
-    # Query for finding cells from LandscapeFiles
-    # Supports: {"cluster": {"attr": "leiden", "value": "8"}} - cells from cluster
-    #           {"gene": "BRCA1"} - cells ranked by gene expression
-    #           {"cluster": {"attr": "leiden", "value": "8"}, "gene": "BRCA1"} - cluster cells ranked by gene
-    #           {"max_cells": 100} - limit number of cells returned (default: num_rows * num_cols * 10)
-    query = traitlets.Dict({}).tag(sync=True)
+    # Stateless front-end query, evaluated in the browser against LandscapeFiles
+    # (no Python/AnnData required). Distinct from the Python-side
+    # ``celldega.select`` query module. Supports:
+    #   {"cluster": {"attr": "leiden", "value": "8"}} - cells from cluster
+    #   {"gene": "BRCA1"} - cells ranked by gene expression
+    #   {"cluster": {"attr": "leiden", "value": "8"}, "gene": "BRCA1"} - cluster cells ranked by gene
+    #   {"max_cells": 100} - limit number of cells returned (default: num_rows * num_cols * 10)
+    front_end_query = traitlets.Dict({}).tag(sync=True)
 
     def __init__(self, **kwargs):
         # Support 'rows' and 'cols' as aliases for 'num_rows' and 'num_cols'
@@ -726,6 +771,29 @@ class Yearbook(anywidget.AnyWidget):
             kwargs["num_cols"] = kwargs.pop("cols")
         elif "cols" in kwargs:
             kwargs.pop("cols")  # Remove duplicate
+
+        # `query` was renamed to `front_end_query` to disambiguate the stateless
+        # browser query from the Python-side celldega.select query module.
+        if "query" in kwargs:
+            if "front_end_query" not in kwargs:
+                warnings.warn(
+                    "`query` is deprecated and was renamed to `front_end_query`.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+                kwargs["front_end_query"] = kwargs.pop("query")
+            else:
+                kwargs.pop("query")
+
+        selection = kwargs.pop("selection", None)
+        if selection is not None:
+            if kwargs.get("cells"):
+                raise ValueError("Pass either `selection` or `cells`, not both.")
+
+            selection_payload = _selection_to_payload(selection)
+            kwargs["cells"] = [str(name) for name in selection_payload["ids"]]
+            kwargs["selection"] = selection_payload
+            kwargs["current_page"] = 0
 
         adata = kwargs.pop("adata", None) or kwargs.pop("AnnData", None)
         pq_meta_cell = kwargs.pop("meta_cell_parquet", None)

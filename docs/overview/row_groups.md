@@ -40,7 +40,7 @@ dega.pre.main(
     sample='Xenium_Sample',
     data_root_dir='data/xenium_data/',
     tile_size=250,
-    path_landscape_files='data/landscape_files/my_sample_row_groups',
+    path_dega_files='data/landscape_files/my_sample_row_groups',
     use_int_index=True,
     use_row_groups=True  # Enable row group mode
 )
@@ -52,7 +52,7 @@ dega.pre.main(
 python -m celldega.pre.run_pre_processing \
     --sample Xenium_Sample \
     --data_root_dir data/xenium_data/ \
-    --path_landscape_files data/landscape_files/my_sample_row_groups \
+    --path_dega_files data/landscape_files/my_sample_row_groups \
     --use_row_groups True
 ```
 

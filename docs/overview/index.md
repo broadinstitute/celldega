@@ -46,7 +46,7 @@ import celldega as dega
 import scanpy as sc
 
 # Pre-process data
-dega.pre.main(technology="Xenium", data_dir="./data", path_landscape_files="./output")
+dega.pre.main(technology="Xenium", data_dir="./data", path_dega_files="./output")
 
 # Load and cluster
 adata = sc.read_h5ad("processed.h5ad")

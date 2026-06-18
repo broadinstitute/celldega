@@ -1062,7 +1062,7 @@ def make_trx_tiles_row_groups(
     verbose=False,
     image_scale=1,
     max_workers=1,
-    path_landscape_files=None,
+    path_dega_files=None,
     max_row_groups_per_file=400,
     streaming_tile_assignment=None,
 ):
@@ -1095,7 +1095,7 @@ def make_trx_tiles_row_groups(
         Scale factor to apply to the transcript coordinates (default is 1).
     max_workers : int, optional
         Not used in row group mode, kept for API compatibility.
-    path_landscape_files : str, optional
+    path_dega_files : str, optional
         Path to landscape files directory for loading gene mapping.
     max_row_groups_per_file : int, optional
         Maximum row groups per parquet file (default 400).
@@ -1115,9 +1115,9 @@ def make_trx_tiles_row_groups(
     transformation_matrix = np.loadtxt(path_transformation_matrix)
 
     # Get gene mapping from landscape files
-    if path_landscape_files:
+    if path_dega_files:
         gene_str_to_int_mapping = _get_name_mapping(
-            path_landscape_files,
+            path_dega_files,
             layer="transcript",
         )
     else:

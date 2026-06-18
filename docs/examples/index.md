@@ -20,6 +20,8 @@ Focused examples demonstrating specific features:
 - [UMAP-Cluster Pancreas Xenium](brief_notebooks/UMAP-Cluster_Pancreas_Xenium.ipynb) - UMAP clustering with Xenium pancreas data
 - [Visium-HD Landscape Mouse Lung](brief_notebooks/Visium-HD_Landscape_Mouse_Lung_FF.ipynb) - Visium HD visualization example
 - [Custom Segmentation](brief_notebooks/Custom_Segmentation.ipynb) - Using custom cell segmentation with Celldega
+- [NeighborhoodCollection Population Space](brief_notebooks/NeighborhoodCollection_Population_Space.ipynb) - Creating a neighborhood collection and calculating a neighborhood-by-population modality
+- [DatasetCollection Population Space](brief_notebooks/DatasetCollection_Population_Space.ipynb) - Creating toy dataset-level data and calculating dataset-by-population modalities
 - [Yearbook-Query](brief_notebooks/Yearbook_Query.ipynb) - Using single-cell Yearbook view
 
 ## Running the Notebooks

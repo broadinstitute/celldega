@@ -34,19 +34,19 @@ def _output_exists(path):
     return p.exists() and (p.is_file() or any(p.iterdir()))
 
 
-def create_dummy_clusters(path_landscape_files, cbg):
-    _create_directories([f"{path_landscape_files}/cell_clusters"])
+def create_dummy_clusters(path_dega_files, cbg):
+    _create_directories([f"{path_dega_files}/cell_clusters"])
 
     inst_index = [str(x) for x in cbg.index.tolist()]
     meta_cell = pd.DataFrame(index=inst_index)
     meta_cell["cluster"] = "0"
     meta_cell.index = meta_cell.index.astype(str)
-    meta_cell.to_parquet(f"{path_landscape_files}/cell_clusters/cluster.parquet")
+    meta_cell.to_parquet(f"{path_dega_files}/cell_clusters/cluster.parquet")
 
     meta_cluster = pd.DataFrame(index=["0"], columns=["color", "count"])
     meta_cluster.loc["0", "color"] = "#1f77b4"
     meta_cluster.loc["0", "count"] = len(meta_cell)
-    meta_cluster.to_parquet(f"{path_landscape_files}/cell_clusters/meta_cluster.parquet")
+    meta_cluster.to_parquet(f"{path_dega_files}/cell_clusters/meta_cluster.parquet")
 
 
 def _determine_technology(data_dir):
@@ -74,19 +74,19 @@ def _determine_technology(data_dir):
     )
 
 
-def _setup_preprocessing_paths(technology, path_landscape_files, data_dir, sample=None):
+def _setup_preprocessing_paths(technology, path_dega_files, data_dir, sample=None):
     """
     Setup preprocessing file paths.
 
     Parameters:
     - technology: Technology type (e.g., 'Xenium', 'MERSCOPE')
-    - path_landscape_files: Base landscape files path
+    - path_dega_files: Base landscape files path
     - data_dir: Data directory path
 
     Returns:
     - Dictionary of file paths
     """
-    landscape_path = Path(path_landscape_files)
+    landscape_path = Path(path_dega_files)
     data_path = Path(data_dir)
     if technology == "Xenium":
         return {
@@ -118,11 +118,11 @@ def _setup_preprocessing_paths(technology, path_landscape_files, data_dir, sampl
     )
 
 
-def _make_xenium_anndata(data_dir, path_landscape_files, write=True):
-    path_landscape_files = Path(path_landscape_files)
-    sample = path_landscape_files.name
+def _make_xenium_anndata(data_dir, path_dega_files, write=True):
+    path_dega_files = Path(path_dega_files)
+    sample = path_dega_files.name
 
-    zarr_path = path_landscape_files / f"{sample}.zarr"
+    zarr_path = path_dega_files / f"{sample}.zarr"
 
     # check if the zarr file already exists
     if zarr_path.exists():
@@ -138,7 +138,7 @@ def _make_xenium_anndata(data_dir, path_landscape_files, write=True):
     adata = sdata.tables["table"]
 
     if write:
-        h5ad_path = path_landscape_files / f"{sample}.h5ad"
+        h5ad_path = path_dega_files / f"{sample}.h5ad"
         adata.write_h5ad(h5ad_path)
         print(f"AnnData written to {h5ad_path}")
 
@@ -150,7 +150,7 @@ def main(
     data_root_dir,
     tile_size,
     image_tile_layer="all",
-    path_landscape_files="",
+    path_dega_files="",
     use_int_index=True,
     max_workers=1,
     use_row_groups=False,
@@ -166,7 +166,7 @@ def main(
             specific dataset.
         tile_size (int): Size of the tiles for transcript and boundary tiles.
         image_tile_layer (str): Image layers to be tiled. 'dapi' or 'all'.
-        path_landscape_files (str): Directory to save the landscape files.
+        path_dega_files (str): Directory to save the landscape files.
         use_int_index (bool): Use integer index for smaller files and faster rendering.
         use_row_groups (bool): If True, save tiles as row groups in chunked parquet files
             instead of individual tile files. Defaults to False.
@@ -182,7 +182,7 @@ def main(
             --data_root_dir data \
             --tile_size 250 \
             --image_tile_layer 'dapi' \
-            --path_landscape_files notebooks/Xenium_V1_human_Pancreas_FFPE_outs
+            --path_dega_files notebooks/Xenium_V1_human_Pancreas_FFPE_outs
 
     """
     print(f"Starting preprocessing for sample: {sample}")
@@ -191,21 +191,21 @@ def main(
     data_dir = Path(data_root_dir) / sample
 
     # Create necessary directories if they don't exist
-    _create_directories([data_dir, path_landscape_files])
+    _create_directories([data_dir, path_dega_files])
 
     # Determine technology
     technology = _determine_technology(data_dir)
 
     # Setup file paths
-    paths = _setup_preprocessing_paths(technology, path_landscape_files, data_dir, sample=sample)
+    paths = _setup_preprocessing_paths(technology, path_dega_files, data_dir, sample=sample)
 
     # Transformation matrix
-    transform_out = Path(path_landscape_files) / "micron_to_image_transform.csv"
+    transform_out = Path(path_dega_files) / "micron_to_image_transform.csv"
 
     if not transform_out.exists():
         if technology == "Xenium":
             dega.pre._xenium_unzipper(str(data_dir))
-            dega.pre.write_xenium_transform(str(data_dir), path_landscape_files)
+            dega.pre.write_xenium_transform(str(data_dir), path_dega_files)
         elif technology == "MERSCOPE":
             source_path = Path(paths["transformation_matrix"])
             shutil.copy(source_path, transform_out)
@@ -261,17 +261,17 @@ def main(
         cbg = make_column_names_unique_fast(cbg)
 
     # Cell and Cluster Metadata
-    cluster_file = Path(path_landscape_files) / "cell_clusters/cluster.parquet"
-    df_sig_file = Path(path_landscape_files) / "df_sig.parquet"
+    cluster_file = Path(path_dega_files) / "cell_clusters/cluster.parquet"
+    df_sig_file = Path(path_dega_files) / "df_sig.parquet"
 
     if technology == "Xenium":
         if not df_sig_file.exists():
-            dega.pre.cluster_gene_expression(technology, path_landscape_files, cbg, str(data_dir))
+            dega.pre.cluster_gene_expression(technology, path_dega_files, cbg, str(data_dir))
         else:
             print(f"Skipping cluster gene expression, found {df_sig_file}")
     else:
         if not cluster_file.exists():
-            create_dummy_clusters(path_landscape_files, cbg)
+            create_dummy_clusters(path_dega_files, cbg)
 
     # Make meta gene files
     if not Path(paths["meta_gene"]).exists():
@@ -283,11 +283,11 @@ def main(
     cbg_chunk_info = None
     if use_row_groups:
         # Row group mode: chunked parquet files with one row group per gene
-        cbg_dir = Path(path_landscape_files) / "cbg"
+        cbg_dir = Path(path_dega_files) / "cbg"
         if not cbg_dir.exists() or not any(cbg_dir.glob("*.parquet")):
             cbg_chunk_info = dega.pre.save_cbg_gene_parquets_row_groups(
                 technology,
-                path_landscape_files,
+                path_dega_files,
                 cbg,
                 verbose=True,
                 max_row_groups_per_file=max_row_groups_per_file,
@@ -296,22 +296,22 @@ def main(
             print(f"Skipping CBG row groups, directory {cbg_dir} already exists")
     else:
         # Traditional mode: one parquet file per gene
-        cbg_dir = Path(path_landscape_files) / "cbg"
+        cbg_dir = Path(path_dega_files) / "cbg"
         if not cbg_dir.exists() or not any(cbg_dir.glob("*.parquet")):
-            dega.pre.save_cbg_gene_parquets(technology, path_landscape_files, cbg, verbose=True)
+            dega.pre.save_cbg_gene_parquets(technology, path_dega_files, cbg, verbose=True)
         else:
             print(f"Skipping CBG gene parquets, directory {cbg_dir} already populated")
 
     if technology == "Xenium" and not cluster_file.exists():
         # Create cluster and meta cluster files
-        dega.pre.create_cluster_and_meta_cluster(technology, path_landscape_files, str(data_dir))
+        dega.pre.create_cluster_and_meta_cluster(technology, path_dega_files, str(data_dir))
 
     # Image, Cell Boundary, and Transcript Tiles
     # Xenium and MERSCOPE
     if technology in ["MERSCOPE", "Xenium"]:
         print("\n======== Image Tiles========")
         dega.pre.create_image_tiles(
-            technology, str(data_dir), path_landscape_files, image_tile_layer=image_tile_layer
+            technology, str(data_dir), path_dega_files, image_tile_layer=image_tile_layer
         )
 
         # Optionally pack image tiles into parquet row groups
@@ -319,7 +319,7 @@ def main(
         image_tile_info = {}
         if use_row_groups:
             print("\n======== Packing Image Tiles to Parquet ========")
-            pyramid_dir = Path(path_landscape_files) / "pyramid_images"
+            pyramid_dir = Path(path_dega_files) / "pyramid_images"
 
             # Determine which channels were created
             image_info = dega.pre.get_image_info(technology, image_tile_layer)
@@ -355,8 +355,8 @@ def main(
 
         if use_row_groups:
             # Row group mode: save tiles as row groups in chunked parquet files
-            trx_output_dir = Path(path_landscape_files) / "transcripts"
-            cell_output_dir = Path(path_landscape_files) / "cell_segmentation"
+            trx_output_dir = Path(path_dega_files) / "transcripts"
+            cell_output_dir = Path(path_dega_files) / "cell_segmentation"
 
             need_trx_tiles = not trx_output_dir.exists()
             need_boundaries = not cell_output_dir.exists()
@@ -374,7 +374,7 @@ def main(
                     verbose=False,
                     image_scale=1,
                     max_workers=max_workers,
-                    path_landscape_files=path_landscape_files,
+                    path_dega_files=path_dega_files,
                     max_row_groups_per_file=max_row_groups_per_file,
                 )
                 print(f"tile bounds: {tile_bounds}")
@@ -393,7 +393,7 @@ def main(
                     tile_size=tile_size,
                     tile_bounds=tile_bounds,
                     max_workers=max_workers,
-                    path_landscape_files=path_landscape_files,
+                    path_dega_files=path_dega_files,
                     max_row_groups_per_file=max_row_groups_per_file,
                 )
             else:
@@ -452,7 +452,7 @@ def main(
     # Save landscape parameters
     dega.pre.save_landscape_parameters(
         technology,
-        path_landscape_files,
+        path_dega_files,
         check_img_directory,
         tile_size=tile_size,
         image_info=dega.pre.get_image_info(technology, image_tile_layer),
@@ -500,7 +500,7 @@ def _setup_argument_parser():
         "--image_tile_layer", type=str, required=True, help="Image layers for tiling."
     )
     parser.add_argument(
-        "--path_landscape_files", required=True, help="Directory to save the landscape files."
+        "--path_dega_files", required=True, help="Directory to save the landscape files."
     )
     parser.add_argument(
         "--use_int_index",
@@ -533,7 +533,7 @@ if __name__ == "__main__":
         args.data_root_dir,
         args.tile_size,
         args.image_tile_layer,
-        args.path_landscape_files,
+        args.path_dega_files,
         args.use_int_index,
         use_row_groups=args.use_row_groups,
     )

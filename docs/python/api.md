@@ -1,7 +1,7 @@
 # Python API Reference
 
-::: celldega.nbhd
-::: celldega.pre
-::: celldega.viz
-    handler: python
-
+- [collection](collection/api.md)
+- [dataset](dataset/api.md)
+- [nbhd](nbhd/api.md)
+- [pre](pre/api.md)
+- [viz](viz/api.md)

@@ -1,8 +1,11 @@
 import importlib.metadata  # temporary fix for libpysal warning
 import warnings
 
-from celldega import clust
+from celldega import clust, collection, dataset
+from celldega.collection import CelldegaCollection
+from celldega.dataset import DatasetCollection
 from celldega.nbhd import alpha_shape
+from celldega.nbhd.collection import NeighborhoodCollection
 from celldega.pre import landscape
 from celldega.qc import qc_segmentation
 from celldega.viz import Clustergram, Landscape, Yearbook
@@ -16,11 +19,16 @@ except importlib.metadata.PackageNotFoundError:
     __version__ = "unknown"
 
 __all__ = [
+    "CelldegaCollection",
     "Clustergram",
+    "DatasetCollection",
     "Landscape",
+    "NeighborhoodCollection",
     "Yearbook",
     "alpha_shape",
     "clust",
+    "collection",
+    "dataset",
     "landscape",
     "qc_segmentation",
 ]

@@ -2,6 +2,7 @@
 
 import json
 
+from anndata import AnnData
 import numpy as np
 import pandas as pd
 import pytest
@@ -12,6 +13,7 @@ try:
     from shapely.geometry import Polygon
 
     from celldega.clust import Matrix
+    from celldega.nbhd import NeighborhoodCollection
     from celldega.viz import (
         Clustergram,
         Landscape,
@@ -106,6 +108,47 @@ def test_matrix_with_custom_entity_spec() -> None:
     assert pq["col_entity"]["attr"] == "name"
 
 
+def test_matrix_infers_population_ann_data_entities() -> None:
+    population = AnnData(
+        X=np.array([[2, 1], [0, 3]]),
+        obs=pd.DataFrame(
+            {"neighborhood_id": ["n1", "n2"], "n_cells": [3, 3]},
+            index=["n1", "n2"],
+        ),
+        var=pd.DataFrame(
+            {"entity_type": ["cell_population", "cell_population"]},
+            index=["T cell", "B cell"],
+        ),
+        uns={"category": "cell_type", "output": "counts"},
+    )
+
+    mat = Matrix(population, disable_processing=True)
+
+    assert mat.row_entity == {"entity": "cell", "attr": "cell_type"}
+    assert mat.col_entity == {"entity": "nbhd", "attr": "name"}
+    assert list(mat.data.index) == ["T cell", "B cell"]
+    assert list(mat.data.columns) == ["n1", "n2"]
+
+
+def test_matrix_custom_entities_override_population_inference() -> None:
+    population = AnnData(
+        X=np.array([[1]]),
+        obs=pd.DataFrame({"neighborhood_id": ["n1"]}, index=["n1"]),
+        var=pd.DataFrame({"entity_type": ["cell_population"]}, index=["T cell"]),
+        uns={"category": "cell_type"},
+    )
+
+    mat = Matrix(
+        population,
+        row_entity={"entity": "custom_row", "attr": "id"},
+        col_entity={"entity": "custom_col", "attr": "id"},
+        disable_processing=True,
+    )
+
+    assert mat.row_entity == {"entity": "custom_row", "attr": "id"}
+    assert mat.col_entity == {"entity": "custom_col", "attr": "id"}
+
+
 def test_clustergram_initializes_with_parquet() -> None:
     mat = make_simple_matrix()
     pq = mat.export_viz_parquet()
@@ -154,9 +197,12 @@ def test_landscape_nbhd_geojson_and_metadata() -> None:
     )
     meta_nbhd = pd.DataFrame({"area": [1]}, index=["a"])
 
-    widget = Landscape(nbhd=gdf, meta_nbhd=meta_nbhd)
+    widget = Landscape(nbhd=gdf, meta_nbhd=meta_nbhd, transform=np.eye(3))
 
     # drop geometry_pixel column from gdf
+    gdf = gdf.copy()
+    gdf["color"] = "#4f80ff"
+    gdf["area"] = gdf.geometry.area
     gdf = gdf.drop(columns=["geometry_pixel"], errors="ignore")
 
     assert widget.nbhd_geojson == json.loads(gdf.to_json())
@@ -183,6 +229,31 @@ def test_landscape_nbhd_edit_with_preloaded_data() -> None:
     # Verify that nbhd_geojson is populated with the neighborhood data
     assert "features" in widget.nbhd_geojson
     assert len(widget.nbhd_geojson["features"]) == 1
+
+
+def test_landscape_accepts_neighborhood_collection() -> None:
+    gdf = gpd.GeoDataFrame(
+        {"name": ["a", "b"]},
+        geometry=[
+            Polygon([(0, 0), (1, 0), (1, 1), (0, 1)]),
+            Polygon([(2, 0), (3, 0), (3, 1), (2, 1)]),
+        ],
+    )
+    collection = NeighborhoodCollection(gdf=gdf, nbhd_type="hextile")
+    collection.obs["cat"] = ["0", "1"]
+    collection.obs["color"] = ["#ff0000", "#00ff00"]
+
+    widget = Landscape(nbhd=collection, transform=np.eye(3))
+
+    features = widget.nbhd_geojson["features"]
+    properties = [feature["properties"] for feature in features]
+
+    assert [prop["name"] for prop in properties] == ["a", "b"]
+    assert [prop["cat"] for prop in properties] == ["0", "1"]
+    assert [prop["color"] for prop in properties] == ["#ff0000", "#00ff00"]
+    assert hasattr(widget, "meta_nbhd_parquet")
+    assert isinstance(widget.meta_nbhd_parquet, bytes | bytearray)
+    assert len(widget.nbhd) == 2
 
 
 def test_landscape_nbhd_edit_syncs_geojson() -> None:

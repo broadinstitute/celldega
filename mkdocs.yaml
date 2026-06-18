@@ -25,9 +25,11 @@ nav:
       - Usage: overview/usage.md
   - Python API:
       - python/index.md
-      - pre: python/pre/api.md
       - clust: python/clust/api.md
+      - collection: python/collection/api.md
+      - dataset: python/dataset/api.md
       - nbhd: python/nbhd/api.md
+      - pre: python/pre/api.md
       - viz: python/viz/api.md
 
   - JavaScript API:
@@ -60,6 +62,8 @@ nav:
       - UMAP-Cluster Pancreas Xenium: examples/brief_notebooks/UMAP-Cluster_Pancreas_Xenium.ipynb
       - Visium-HD Landscape Mouse Lung: examples/brief_notebooks/Visium-HD_Landscape_Mouse_Lung_FF.ipynb
       - Custom Segmentation: examples/brief_notebooks/Custom_Segmentation.ipynb
+      - NeighborhoodCollection Population Space: examples/brief_notebooks/NeighborhoodCollection_Population_Space.ipynb
+      - DatasetCollection Population Space: examples/brief_notebooks/DatasetCollection_Population_Space.ipynb
 
 markdown_extensions:
   - toc

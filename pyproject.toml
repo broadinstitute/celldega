@@ -22,7 +22,7 @@ dependencies = [
     "matplotlib",
     "mudata==0.3.1",
     "muon==0.1.7",
-    "pandas~=2.2.0",
+    "pandas>=2.2,<2.4",
     "polars~=1.10.0",
     "pyarrow",
     "rasterio==1.4.3",

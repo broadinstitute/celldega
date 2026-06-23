@@ -21,6 +21,7 @@ Focused examples demonstrating specific features:
 - [Visium-HD Landscape Mouse Lung](brief_notebooks/Visium-HD_Landscape_Mouse_Lung_FF.ipynb) - Visium HD visualization example
 - [Custom Segmentation](brief_notebooks/Custom_Segmentation.ipynb) - Using custom cell segmentation with Celldega
 - [NeighborhoodCollection Population Space](brief_notebooks/NeighborhoodCollection_Population_Space.ipynb) - Creating a neighborhood collection and calculating a neighborhood-by-population modality
+- [Gradient Neighborhood Pancreas Islets](brief_notebooks/Gradient-Neighborhood_Pancreas_Islets.ipynb) - Building inward/outward gradient rings around pancreatic islets and profiling cell-type proportion and hormone expression with distance from the islet edge
 - [DatasetCollection Population Space](brief_notebooks/DatasetCollection_Population_Space.ipynb) - Creating toy dataset-level data and calculating dataset-by-population modalities
 - [Yearbook-Query](brief_notebooks/Yearbook_Query.ipynb) - Using single-cell Yearbook view
 

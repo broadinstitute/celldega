@@ -204,6 +204,92 @@ class NeighborhoodCollection(CelldegaCollection):
         """
         return cls(gdf=gdf, nbhd_type=nbhd_type, **kwargs)
 
+    @classmethod
+    def from_gradient(
+        cls,
+        source: gpd.GeoDataFrame | Any,
+        direction: str = "both",
+        bin_width: float = 10,
+        max_dist: float = 50,
+        nbhd_type: str = "gradient",
+        *,
+        technology: str | None = None,
+        scale_um_per_pixel: float | None = None,
+        is_pixel_space: bool = False,
+        clip_boundary: Any | None = None,
+        clip_reference: Any | None = None,
+        clip_alpha: float = 100,
+        **kwargs: Any,
+    ) -> NeighborhoodCollection:
+        """Build a gradient ``NeighborhoodCollection`` of concentric rings from an ROI.
+
+        Computes fixed-width bands expanding outward from and/or eroding inward
+        into the ``source`` region of interest (see
+        :func:`~celldega.nbhd.gradient.calculate_gradient`) and wraps the
+        resulting rings as a collection — one neighborhood (observation) per
+        ring, ordered inner-most to outer-most. From there the usual
+        ``calc_nbhd_by_*`` methods summarize cell composition or expression per
+        ring, letting you profile how the tissue changes with distance from the
+        ROI boundary.
+
+        Args:
+            source: The ROI — a ``GeoDataFrame``/``GeoSeries`` (dissolved into one
+                shape), another ``NeighborhoodCollection`` (its ``gdf`` is used),
+                or a bare shapely ``(Multi)Polygon``.
+            direction: ``"outward"``, ``"inward"``, or ``"both"`` (default).
+            bin_width: Width of each ring in microns (default ``10``).
+            max_dist: Maximum distance from the ROI boundary in microns (default
+                ``50``).
+            nbhd_type: Label recorded on the collection (default ``"gradient"``).
+            technology: Imaging platform used to look up ``scale_um_per_pixel``
+                for pixel-space geometry (e.g. ``"Xenium"``).
+            scale_um_per_pixel: Microns per pixel; required (directly or via
+                ``technology``) when ``is_pixel_space=True``.
+            is_pixel_space: ``True`` if ``source`` is in pixel units; ``False``
+                (default) if already in microns.
+            clip_boundary: Optional precomputed tissue boundary to clip outward
+                rings to (takes precedence over ``clip_reference``).
+            clip_reference: Optional point cloud (cells) from which a tissue alpha
+                shape is computed on the fly to clip outward rings.
+            clip_alpha: Inverse-alpha for the on-the-fly alpha shape (default
+                ``100``).
+            **kwargs: Forwarded to the :class:`NeighborhoodCollection`
+                constructor (e.g. ``name``, ``data_dir``, ``transformation_matrix``).
+
+        Returns:
+            A new ``NeighborhoodCollection`` whose observations are the gradient
+            rings.
+
+        Examples:
+            >>> import celldega as dega
+            >>> nbhd = dega.nbhd.NeighborhoodCollection.from_gradient(
+            ...     gdf_tumor, direction="both", bin_width=10, max_dist=50
+            ... )
+            >>> nbhd.calc_nbhd_by_pop(adata, category="cell_type")
+            >>> nbhd.obs[["direction", "dist_start_um"]].head(3)
+        """
+        from celldega.nbhd.gradient import calculate_gradient
+
+        # Carry a source collection's micron->pixel transform forward so the
+        # resulting rings can be rendered with ``to_pixel_gdf()``.
+        source_matrix = getattr(source, "transformation_matrix", None)
+        if source_matrix is not None and "transformation_matrix" not in kwargs:
+            kwargs["transformation_matrix"] = source_matrix
+
+        gdf_rings = calculate_gradient(
+            source,
+            direction=direction,
+            bin_width=bin_width,
+            max_dist=max_dist,
+            technology=technology,
+            scale_um_per_pixel=scale_um_per_pixel,
+            is_pixel_space=is_pixel_space,
+            clip_boundary=clip_boundary,
+            clip_reference=clip_reference,
+            clip_alpha=clip_alpha,
+        )
+        return cls(gdf=gdf_rings, nbhd_type=nbhd_type, **kwargs)
+
     @property
     def geometry(self) -> gpd.GeoDataFrame | None:
         """Neighborhood geometry. Alias of :attr:`gdf` (single source of truth)."""

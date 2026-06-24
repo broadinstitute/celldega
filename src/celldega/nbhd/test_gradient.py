@@ -65,11 +65,29 @@ def test_gradient_pixel_space_reports_both_unit_areas():
     assert (gdf["area_um2"] < gdf["area_px2"]).all()
 
 
-def test_from_gradient_builds_collection():
-    """The classmethod constructor yields one observation per ring."""
-    nbhd = NeighborhoodCollection.from_gradient(
-        _circle_roi(radius=100), direction="both", bin_width=10, max_dist=50
+def test_calc_gradient_from_named_observation():
+    """calc_gradient anchors on a named neighborhood and yields one obs per ring."""
+    source = NeighborhoodCollection(
+        gdf=gpd.GeoDataFrame({"name": ["islet"]}, geometry=[Point(0, 0).buffer(100)]),
+        nbhd_type="alpha_shape",
     )
-    assert nbhd.nbhd_type == "gradient"
-    assert nbhd.obs.shape[0] == 10
-    assert "direction" in nbhd.obs.columns
+    grad_nbhd = source.calc_gradient(
+        obs_name="islet", direction="both", bin_width=10, max_dist=50
+    )
+    assert grad_nbhd.nbhd_type == "gradient"
+    assert grad_nbhd.obs.shape[0] == 10
+    assert "direction" in grad_nbhd.obs.columns
+
+
+def test_calc_gradient_unknown_obs_name_raises():
+    """An unknown obs_name raises KeyError."""
+    source = NeighborhoodCollection(
+        gdf=gpd.GeoDataFrame({"name": ["islet"]}, geometry=[Point(0, 0).buffer(100)]),
+        nbhd_type="alpha_shape",
+    )
+    try:
+        source.calc_gradient(obs_name="missing")
+    except KeyError:
+        pass
+    else:
+        raise AssertionError("expected KeyError for unknown obs_name")

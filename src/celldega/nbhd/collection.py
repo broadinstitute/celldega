@@ -204,10 +204,9 @@ class NeighborhoodCollection(CelldegaCollection):
         """
         return cls(gdf=gdf, nbhd_type=nbhd_type, **kwargs)
 
-    @classmethod
-    def from_gradient(
-        cls,
-        source: gpd.GeoDataFrame | Any,
+    def calc_gradient(
+        self,
+        obs_name: str,
         direction: str = "both",
         bin_width: float = 10,
         max_dist: float = 50,
@@ -221,63 +220,85 @@ class NeighborhoodCollection(CelldegaCollection):
         clip_alpha: float = 100,
         **kwargs: Any,
     ) -> NeighborhoodCollection:
-        """Build a gradient ``NeighborhoodCollection`` of concentric rings from an ROI.
+        """Calculate a gradient collection around one neighborhood in this collection.
 
-        Computes fixed-width bands expanding outward from and/or eroding inward
-        into the ``source`` region of interest (see
-        :func:`~celldega.nbhd.gradient.calculate_gradient`) and wraps the
-        resulting rings as a collection — one neighborhood (observation) per
+        Picks the neighborhood identified by ``obs_name`` and grows fixed-width
+        bands outward from and/or inward into it (see
+        :func:`~celldega.nbhd.gradient.calculate_gradient`), returning a **new**
+        gradient ``NeighborhoodCollection`` — one neighborhood (observation) per
         ring, ordered inner-most to outer-most. From there the usual
         ``calc_nbhd_by_*`` methods summarize cell composition or expression per
-        ring, letting you profile how the tissue changes with distance from the
-        ROI boundary.
+        ring, profiling how the tissue changes with distance from that
+        neighborhood's boundary. A gradient is therefore always anchored to a
+        concrete neighborhood (e.g. a per-cluster alpha shape) rather than a
+        loose geometry.
 
         Args:
-            source: The ROI — a ``GeoDataFrame``/``GeoSeries`` (dissolved into one
-                shape), another ``NeighborhoodCollection`` (its ``gdf`` is used),
-                or a bare shapely ``(Multi)Polygon``.
+            obs_name: Identifier of the source neighborhood to anchor the gradient
+                on — matched against the collection's observation index (and, as a
+                fallback, the ``name`` column). Its geometry is the ROI.
             direction: ``"outward"``, ``"inward"``, or ``"both"`` (default).
             bin_width: Width of each ring in microns (default ``10``).
-            max_dist: Maximum distance from the ROI boundary in microns (default
-                ``50``).
-            nbhd_type: Label recorded on the collection (default ``"gradient"``).
+            max_dist: Maximum distance from the neighborhood boundary in microns
+                (default ``50``).
+            nbhd_type: Label recorded on the new collection (default
+                ``"gradient"``).
             technology: Imaging platform used to look up ``scale_um_per_pixel``
                 for pixel-space geometry (e.g. ``"Xenium"``).
             scale_um_per_pixel: Microns per pixel; required (directly or via
                 ``technology``) when ``is_pixel_space=True``.
-            is_pixel_space: ``True`` if ``source`` is in pixel units; ``False``
-                (default) if already in microns.
+            is_pixel_space: ``True`` if this collection's geometry is in pixel
+                units; ``False`` (default) if already in microns.
             clip_boundary: Optional precomputed tissue boundary to clip outward
                 rings to (takes precedence over ``clip_reference``).
             clip_reference: Optional point cloud (cells) from which a tissue alpha
                 shape is computed on the fly to clip outward rings.
             clip_alpha: Inverse-alpha for the on-the-fly alpha shape (default
                 ``100``).
-            **kwargs: Forwarded to the :class:`NeighborhoodCollection`
-                constructor (e.g. ``name``, ``data_dir``, ``transformation_matrix``).
+            **kwargs: Forwarded to the new :class:`NeighborhoodCollection`
+                (e.g. ``name``, ``data_dir``).
 
         Returns:
             A new ``NeighborhoodCollection`` whose observations are the gradient
-            rings.
+            rings around ``obs_name``.
+
+        Raises:
+            ValueError: If this collection has no geometry.
+            KeyError: If ``obs_name`` is not found.
 
         Examples:
-            >>> import celldega as dega
-            >>> nbhd = dega.nbhd.NeighborhoodCollection.from_gradient(
-            ...     gdf_tumor, direction="both", bin_width=10, max_dist=50
-            ... )
-            >>> nbhd.calc_nbhd_by_pop(adata, category="cell_type")
-            >>> nbhd.obs[["direction", "dist_start_um"]].head(3)
+            >>> # nbhd holds one alpha-shape neighborhood per cell-type cluster
+            >>> grad_nbhd = nbhd.calc_gradient(obs_name="9", direction="both",
+            ...                                bin_width=50, max_dist=200)
+            >>> grad_nbhd.calc_nbhd_by_gene(adata, by="cell")
+            >>> grad_nbhd.obs[["direction", "dist_start_um"]].head(3)
         """
         from celldega.nbhd.gradient import calculate_gradient
 
-        # Carry a source collection's micron->pixel transform forward so the
-        # resulting rings can be rendered with ``to_pixel_gdf()``.
-        source_matrix = getattr(source, "transformation_matrix", None)
-        if source_matrix is not None and "transformation_matrix" not in kwargs:
-            kwargs["transformation_matrix"] = source_matrix
+        if self.gdf is None:
+            raise ValueError("gdf or geometry is required to calculate a gradient")
+
+        gdf = self.gdf
+        key = str(obs_name)
+        mask = gdf.index.astype(str) == key
+        if not mask.any() and self.nbhd_col in gdf.columns:
+            mask = gdf[self.nbhd_col].astype(str) == key
+        if not mask.any():
+            available = list(gdf.index.astype(str)[:10])
+            raise KeyError(
+                f"obs_name {obs_name!r} not found in this collection. "
+                f"Available (first 10): {available}"
+            )
+
+        roi_geometry = gdf.loc[mask].geometry.unary_union
+
+        # Carry this collection's micron->pixel transform forward so the gradient
+        # rings can be rendered with ``to_pixel_gdf()``.
+        if self.transformation_matrix is not None and "transformation_matrix" not in kwargs:
+            kwargs["transformation_matrix"] = self.transformation_matrix
 
         gdf_rings = calculate_gradient(
-            source,
+            roi_geometry,
             direction=direction,
             bin_width=bin_width,
             max_dist=max_dist,
@@ -288,7 +309,7 @@ class NeighborhoodCollection(CelldegaCollection):
             clip_reference=clip_reference,
             clip_alpha=clip_alpha,
         )
-        return cls(gdf=gdf_rings, nbhd_type=nbhd_type, **kwargs)
+        return type(self)(gdf=gdf_rings, nbhd_type=nbhd_type, **kwargs)
 
     @property
     def geometry(self) -> gpd.GeoDataFrame | None:

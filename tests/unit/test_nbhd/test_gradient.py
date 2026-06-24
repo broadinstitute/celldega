@@ -2,8 +2,8 @@ import geopandas as gpd
 import numpy as np
 from shapely.geometry import Point
 
-from . import NeighborhoodCollection
-from .gradient import _calc_gradient
+from celldega.nbhd import NeighborhoodCollection
+from celldega.nbhd.gradient import _calc_gradient
 
 
 def _circle_roi(radius=30):

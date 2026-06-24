@@ -400,7 +400,8 @@ export const landscape_ist = async (
   // 'nbhd' is not a spatial/umap view; keep landscape_view valid and remember to
   // reveal the neighborhood layer once the UI (buttons/sliders/bars) is built.
   viz_state.nbhd.show_on_init = landscape_state === 'nbhd';
-  const base_landscape_view = landscape_state === 'nbhd' ? 'spatial' : landscape_state;
+  const base_landscape_view =
+    landscape_state === 'nbhd' ? 'spatial' : landscape_state;
   viz_state.obs_store.landscape_view.set(base_landscape_view);
 
   viz_state.genes = {};

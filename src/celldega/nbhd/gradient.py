@@ -96,6 +96,33 @@ def _resolve_roi_geometry(source: Any, nbhd_col: str = "name") -> tuple[BaseGeom
     )
 
 
+def _points_from_reference(clip_reference: Any) -> np.ndarray:
+    """Extract an ``(N, 2)`` point cloud from a flexible ``clip_reference``.
+
+    Accepts an ``AnnData`` (uses ``obsm["spatial"]`` or x/y centroid ``obs``
+    columns), a ``GeoDataFrame``/``GeoSeries`` (geometry centroids), or an array.
+    """
+    # AnnData: pull spatial coordinates so callers can just pass their adata.
+    obsm = getattr(clip_reference, "obsm", None)
+    if obsm is not None:
+        if "spatial" in obsm:
+            return np.asarray(obsm["spatial"], dtype=float)[:, :2]
+        obs = getattr(clip_reference, "obs", None)
+        if obs is not None:
+            for x_col, y_col in (("x_centroid", "y_centroid"), ("x_location", "y_location"), ("x", "y")):
+                if x_col in obs and y_col in obs:
+                    return obs[[x_col, y_col]].to_numpy(dtype=float)
+        raise ValueError(
+            "clip_reference AnnData needs obsm['spatial'] or x/y centroid columns in obs"
+        )
+
+    if isinstance(clip_reference, (gpd.GeoDataFrame, gpd.GeoSeries)):
+        geom = clip_reference.geometry if isinstance(clip_reference, gpd.GeoDataFrame) else clip_reference
+        return np.column_stack([geom.centroid.x.to_numpy(), geom.centroid.y.to_numpy()])
+
+    return np.asarray(clip_reference, dtype=float)
+
+
 def _resolve_clip_boundary(
     clip_boundary: Any,
     clip_reference: Any,
@@ -120,15 +147,7 @@ def _resolve_clip_boundary(
         )
 
     if clip_reference is not None:
-        if isinstance(clip_reference, (gpd.GeoDataFrame, gpd.GeoSeries)):
-            geom = (
-                clip_reference.geometry
-                if isinstance(clip_reference, gpd.GeoDataFrame)
-                else clip_reference
-            )
-            points = np.column_stack([geom.centroid.x.to_numpy(), geom.centroid.y.to_numpy()])
-        else:
-            points = np.asarray(clip_reference, dtype=float)
+        points = _points_from_reference(clip_reference)
         if points.shape[0] < 4:
             raise ValueError("clip_reference needs at least 4 points to build an alpha shape")
         return alpha_shape(points, clip_alpha)
@@ -200,10 +219,11 @@ def calculate_gradient(
             (``GeoDataFrame``/``GeoSeries``/geometry) to clip **outward** rings
             to. Takes precedence over ``clip_reference``. Use this to pass your
             own whole-tissue alpha shape at an alpha of your choosing.
-        clip_reference: Optional point cloud (``GeoDataFrame`` of cells, a
-            ``GeoSeries``, or an ``(N, 2)`` array) from which a tissue alpha
-            shape is computed on the fly to clip outward rings. Must be in the
-            same coordinate space as ``source``.
+        clip_reference: Optional source of cell positions from which a tissue
+            alpha shape is computed on the fly to clip outward rings. Accepts an
+            ``AnnData`` (uses ``obsm["spatial"]`` or x/y centroid ``obs``
+            columns), a ``GeoDataFrame``/``GeoSeries`` of cells, or an
+            ``(N, 2)`` array. Must be in the same coordinate space as ``source``.
         clip_alpha: Inverse-alpha value for the on-the-fly alpha shape (default
             ``100``). Larger values trace tissue boundaries more loosely.
         add_colors: If ``True`` (default), add a ``color`` column (Blues for

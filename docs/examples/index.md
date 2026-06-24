@@ -41,6 +41,38 @@ For full analysis workflows, you may also need:
 pip install scanpy squidpy
 ```
 
+### Embedding interactive widgets in the docs
+
+The docs are rendered statically by `mkdocs-jupyter`, which **displays saved widget state but does
+not execute notebooks**. For an interactive `Landscape` / `Clustergram` (anywidget) to appear on the
+docs site, the notebook's saved widget state must be complete and its model IDs must match the cell
+outputs.
+
+A plain "Run All + Save" in Jupyter Lab is unreliable for this: each `Landscape` streams a large
+message (the embedded JS bundle plus the data parquet), and the state is only captured if the widget
+has *fully* finished rendering in the browser before you save. Editing a cell and saving without a
+full re-execution leaves stale or missing state, and the widgets render blank.
+
+The reliable way to (re)build a docs notebook so its widgets embed is to execute it headless with a
+raised `iopub_timeout` so those large messages aren't dropped:
+
+```bash
+jupyter nbconvert --to notebook --execute --inplace \
+  --ExecutePreprocessor.timeout=900 \
+  --ExecutePreprocessor.iopub_timeout=120 \
+  docs/examples/brief_notebooks/<Notebook>.ipynb
+```
+
+Tips:
+
+- Put each widget as the **only expression in its own cell** (separate from its construction) —
+  anywidget embeds most reliably that way.
+- Don't add `%env ANYWIDGET_HMR=1` to a docs notebook. That dev-time hot-reload watches and reloads
+  the widget's frontend module; running it while the frontend bundle is being rebuilt can desync the
+  saved model IDs from the cell outputs.
+- To confirm a notebook is good, check that every `application/vnd.jupyter.widget-view+json`
+  `model_id` in the cell outputs also exists in `metadata.widgets["application/vnd.jupyter.widget-state+json"].state`.
+
 ### Online Resources
 
 You can also run Celldega notebooks in the cloud:

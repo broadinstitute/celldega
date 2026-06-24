@@ -251,8 +251,10 @@ class NeighborhoodCollection(CelldegaCollection):
                 units; ``False`` (default) if already in microns.
             clip_boundary: Optional precomputed tissue boundary to clip outward
                 rings to (takes precedence over ``clip_reference``).
-            clip_reference: Optional point cloud (cells) from which a tissue alpha
-                shape is computed on the fly to clip outward rings.
+            clip_reference: Optional source of cell positions (an ``AnnData``,
+                a ``GeoDataFrame``/``GeoSeries`` of cells, or an ``(N, 2)``
+                array) from which a tissue alpha shape is computed on the fly to
+                clip outward rings.
             clip_alpha: Inverse-alpha for the on-the-fly alpha shape (default
                 ``100``).
             **kwargs: Forwarded to the new :class:`NeighborhoodCollection`

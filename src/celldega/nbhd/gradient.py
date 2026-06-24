@@ -367,8 +367,3 @@ def calculate_gradient(
         gdf_rings["color"] = gdf_rings["ring_range_um"].map(color_map).fillna("#cccccc")
 
     return gdf_rings
-
-
-# Backwards-compatible aliases for prior names. Prefer ``calculate_gradient``.
-calc_gradient_from_roi = calculate_gradient
-calc_grad_nbhd_from_roi = calculate_gradient

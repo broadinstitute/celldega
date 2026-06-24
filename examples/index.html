@@ -1982,6 +1982,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#embedding-interactive-widgets-in-the-docs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Embedding interactive widgets in the docs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#online-resources" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2045,6 +2056,32 @@
 <p>For full analysis workflows, you may also need:</p>
 <pre><code class="language-bash">pip install scanpy squidpy
 </code></pre>
+<h3 id="embedding-interactive-widgets-in-the-docs">Embedding interactive widgets in the docs</h3>
+<p>The docs are rendered statically by <code>mkdocs-jupyter</code>, which <strong>displays saved widget state but does
+not execute notebooks</strong>. For an interactive <code>Landscape</code> / <code>Clustergram</code> (anywidget) to appear on the
+docs site, the notebook's saved widget state must be complete and its model IDs must match the cell
+outputs.</p>
+<p>A plain "Run All + Save" in Jupyter Lab is unreliable for this: each <code>Landscape</code> streams a large
+message (the embedded JS bundle plus the data parquet), and the state is only captured if the widget
+has <em>fully</em> finished rendering in the browser before you save. Editing a cell and saving without a
+full re-execution leaves stale or missing state, and the widgets render blank.</p>
+<p>The reliable way to (re)build a docs notebook so its widgets embed is to execute it headless with a
+raised <code>iopub_timeout</code> so those large messages aren't dropped:</p>
+<pre><code class="language-bash">jupyter nbconvert --to notebook --execute --inplace \
+  --ExecutePreprocessor.timeout=900 \
+  --ExecutePreprocessor.iopub_timeout=120 \
+  docs/examples/brief_notebooks/&lt;Notebook&gt;.ipynb
+</code></pre>
+<p>Tips:</p>
+<ul>
+<li>Put each widget as the <strong>only expression in its own cell</strong> (separate from its construction) —
+  anywidget embeds most reliably that way.</li>
+<li>Don't add <code>%env ANYWIDGET_HMR=1</code> to a docs notebook. That dev-time hot-reload watches and reloads
+  the widget's frontend module; running it while the frontend bundle is being rebuilt can desync the
+  saved model IDs from the cell outputs.</li>
+<li>To confirm a notebook is good, check that every <code>application/vnd.jupyter.widget-view+json</code>
+  <code>model_id</code> in the cell outputs also exists in <code>metadata.widgets["application/vnd.jupyter.widget-state+json"].state</code>.</li>
+</ul>
 <h3 id="online-resources">Online Resources</h3>
 <p>You can also run Celldega notebooks in the cloud:</p>
 <ul>

@@ -3450,8 +3450,10 @@ rings to (takes precedence over <code>clip_reference</code>).</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Optional point cloud (cells) from which a tissue alpha
-shape is computed on the fly to clip outward rings.</p>
+                <p>Optional source of cell positions (an <code>AnnData</code>,
+a <code>GeoDataFrame</code>/<code>GeoSeries</code> of cells, or an <code>(N, 2)</code>
+array) from which a tissue alpha shape is computed on the fly to
+clip outward rings.</p>
               </div>
             </td>
             <td>
@@ -4883,10 +4885,11 @@ own whole-tissue alpha shape at an alpha of your choosing.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Optional point cloud (<code>GeoDataFrame</code> of cells, a
-<code>GeoSeries</code>, or an <code>(N, 2)</code> array) from which a tissue alpha
-shape is computed on the fly to clip outward rings. Must be in the
-same coordinate space as <code>source</code>.</p>
+                <p>Optional source of cell positions from which a tissue
+alpha shape is computed on the fly to clip outward rings. Accepts an
+<code>AnnData</code> (uses <code>obsm["spatial"]</code> or x/y centroid <code>obs</code>
+columns), a <code>GeoDataFrame</code>/<code>GeoSeries</code> of cells, or an
+<code>(N, 2)</code> array. Must be in the same coordinate space as <code>source</code>.</p>
               </div>
             </td>
             <td>

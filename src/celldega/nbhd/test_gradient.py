@@ -72,9 +72,7 @@ def test_calc_gradient_from_named_observation():
         gdf=gpd.GeoDataFrame({"name": ["islet"]}, geometry=[Point(0, 0).buffer(100)]),
         nbhd_type="alpha_shape",
     )
-    grad_nbhd = source.calc_gradient(
-        obs_name="islet", direction="both", bin_width=10, max_dist=50
-    )
+    grad_nbhd = source.calc_gradient(obs_name="islet", direction="both", bin_width=10, max_dist=50)
     assert grad_nbhd.nbhd_type == "gradient"
     assert grad_nbhd.obs.shape[0] == 10
     assert "direction" in grad_nbhd.obs.columns

@@ -109,7 +109,11 @@ def _points_from_reference(clip_reference: Any) -> np.ndarray:
             return np.asarray(obsm["spatial"], dtype=float)[:, :2]
         obs = getattr(clip_reference, "obs", None)
         if obs is not None:
-            for x_col, y_col in (("x_centroid", "y_centroid"), ("x_location", "y_location"), ("x", "y")):
+            for x_col, y_col in (
+                ("x_centroid", "y_centroid"),
+                ("x_location", "y_location"),
+                ("x", "y"),
+            ):
                 if x_col in obs and y_col in obs:
                     return obs[[x_col, y_col]].to_numpy(dtype=float)
         raise ValueError(
@@ -117,7 +121,11 @@ def _points_from_reference(clip_reference: Any) -> np.ndarray:
         )
 
     if isinstance(clip_reference, (gpd.GeoDataFrame, gpd.GeoSeries)):
-        geom = clip_reference.geometry if isinstance(clip_reference, gpd.GeoDataFrame) else clip_reference
+        geom = (
+            clip_reference.geometry
+            if isinstance(clip_reference, gpd.GeoDataFrame)
+            else clip_reference
+        )
         return np.column_stack([geom.centroid.x.to_numpy(), geom.centroid.y.to_numpy()])
 
     return np.asarray(clip_reference, dtype=float)
@@ -136,9 +144,11 @@ def _resolve_clip_boundary(
     """
     if clip_boundary is not None:
         if isinstance(clip_boundary, (gpd.GeoDataFrame, gpd.GeoSeries)):
-            return clip_boundary.geometry.unary_union if isinstance(
-                clip_boundary, gpd.GeoDataFrame
-            ) else clip_boundary.unary_union
+            return (
+                clip_boundary.geometry.unary_union
+                if isinstance(clip_boundary, gpd.GeoDataFrame)
+                else clip_boundary.unary_union
+            )
         if isinstance(clip_boundary, BaseGeometry):
             return clip_boundary
         raise TypeError(
@@ -267,9 +277,7 @@ def _calc_gradient(
     if scale_um_per_pixel is None and technology is not None:
         scale_um_per_pixel = _get_micron_per_pixel(technology)
     if is_pixel_space and scale_um_per_pixel is None:
-        raise ValueError(
-            "scale_um_per_pixel (or technology) is required when is_pixel_space=True"
-        )
+        raise ValueError("scale_um_per_pixel (or technology) is required when is_pixel_space=True")
     effective_scale = scale_um_per_pixel if is_pixel_space else 1.0
 
     # Band edges in microns, e.g. [0, 10, 20, 30, 40, 50] -> five bands.

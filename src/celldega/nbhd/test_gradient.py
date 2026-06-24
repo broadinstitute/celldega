@@ -2,7 +2,8 @@ import geopandas as gpd
 import numpy as np
 from shapely.geometry import Point
 
-from . import NeighborhoodCollection, calculate_gradient
+from . import NeighborhoodCollection
+from .gradient import _calc_gradient
 
 
 def _circle_roi(radius=30):
@@ -12,7 +13,7 @@ def _circle_roi(radius=30):
 
 def test_gradient_both_directions_ordered_inner_to_outer():
     """Both directions produce ordered inward-then-outward bands with signed distances."""
-    gdf = calculate_gradient(_circle_roi(radius=100), direction="both", bin_width=10, max_dist=50)
+    gdf = _calc_gradient(_circle_roi(radius=100), direction="both", bin_width=10, max_dist=50)
 
     assert list(gdf["direction"]) == ["inward"] * 5 + ["outward"] * 5
     # Distances increase monotonically from inner-most to outer-most band.
@@ -25,8 +26,8 @@ def test_gradient_both_directions_ordered_inner_to_outer():
 def test_gradient_direction_filters():
     """direction selects only outward or only inward bands."""
     roi = Point(0, 0).buffer(100)  # bare geometry input
-    out = calculate_gradient(roi, direction="outward", bin_width=10, max_dist=50)
-    inn = calculate_gradient(roi, direction="inward", bin_width=10, max_dist=50)
+    out = _calc_gradient(roi, direction="outward", bin_width=10, max_dist=50)
+    inn = _calc_gradient(roi, direction="inward", bin_width=10, max_dist=50)
 
     assert set(out["direction"]) == {"outward"}
     assert set(inn["direction"]) == {"inward"}
@@ -36,7 +37,7 @@ def test_gradient_direction_filters():
 
 def test_gradient_inward_stops_when_eroded():
     """Inward erosion stops once the geometry erodes away (radius < max_dist)."""
-    gdf = calculate_gradient(_circle_roi(radius=25), direction="inward", bin_width=10, max_dist=50)
+    gdf = _calc_gradient(_circle_roi(radius=25), direction="inward", bin_width=10, max_dist=50)
     # A radius-25 circle cannot yield bands beyond ~25 um of erosion.
     assert len(gdf) < 5
     assert not gdf.empty
@@ -48,8 +49,8 @@ def test_gradient_clip_reference_shrinks_outward_rings():
     pts = np.random.RandomState(0).uniform(-60, 60, size=(500, 2))
     ref = gpd.GeoDataFrame(geometry=[Point(p) for p in pts])
 
-    clipped = calculate_gradient(roi, direction="outward", clip_reference=ref, clip_alpha=100)
-    unclipped = calculate_gradient(roi, direction="outward")
+    clipped = _calc_gradient(roi, direction="outward", clip_reference=ref, clip_alpha=100)
+    unclipped = _calc_gradient(roi, direction="outward")
 
     assert clipped.area.sum() < unclipped.area.sum()
 
@@ -57,7 +58,7 @@ def test_gradient_clip_reference_shrinks_outward_rings():
 def test_gradient_pixel_space_reports_both_unit_areas():
     """Pixel-space input converts widths via technology and reports both areas."""
     roi = Point(0, 0).buffer(300)
-    gdf = calculate_gradient(
+    gdf = _calc_gradient(
         roi, direction="outward", technology="Xenium", is_pixel_space=True, max_dist=20
     )
     assert not gdf.empty

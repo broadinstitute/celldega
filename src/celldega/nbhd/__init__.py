@@ -2,7 +2,7 @@
 
 from .alpha_shapes import alpha_shape, alpha_shape_cell_clusters, filter_alpha_shapes
 from .collection import NeighborhoodCollection
-from .gradient import _get_micron_per_pixel, calculate_gradient
+from .gradient import _get_micron_per_pixel
 from .hextile import generate_hextile, hextile_niche
 from .utils import (
     _add_centroids_to_obsm,
@@ -22,7 +22,6 @@ __all__ = [
     "_get_gdf_trx",
     "alpha_shape",
     "alpha_shape_cell_clusters",
-    "calculate_gradient",
     "filter_alpha_shapes",
     "generate_hextile",
     "hextile_niche",

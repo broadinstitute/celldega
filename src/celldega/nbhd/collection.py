@@ -224,7 +224,7 @@ class NeighborhoodCollection(CelldegaCollection):
 
         Picks the neighborhood identified by ``obs_name`` and grows fixed-width
         bands outward from and/or inward into it (see
-        :func:`~celldega.nbhd.gradient.calculate_gradient`), returning a **new**
+        the gradient engine), returning a **new**
         gradient ``NeighborhoodCollection`` — one neighborhood (observation) per
         ring, ordered inner-most to outer-most. From there the usual
         ``calc_nbhd_by_*`` methods summarize cell composition or expression per
@@ -275,7 +275,7 @@ class NeighborhoodCollection(CelldegaCollection):
             >>> grad_nbhd.calc_nbhd_by_gene(adata, by="cell")
             >>> grad_nbhd.obs[["direction", "dist_start_um"]].head(3)
         """
-        from celldega.nbhd.gradient import calculate_gradient
+        from celldega.nbhd.gradient import _calc_gradient
 
         if self.gdf is None:
             raise ValueError("gdf or geometry is required to calculate a gradient")
@@ -299,7 +299,7 @@ class NeighborhoodCollection(CelldegaCollection):
         if self.transformation_matrix is not None and "transformation_matrix" not in kwargs:
             kwargs["transformation_matrix"] = self.transformation_matrix
 
-        gdf_rings = calculate_gradient(
+        gdf_rings = _calc_gradient(
             roi_geometry,
             direction=direction,
             bin_width=bin_width,

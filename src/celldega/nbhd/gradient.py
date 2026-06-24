@@ -166,7 +166,7 @@ def _ring_colors(cmap_name: str, n: int) -> list[str]:
     return [mcolors.to_hex(cmap(v)) for v in np.linspace(0.8, 0.3, n)]
 
 
-def calculate_gradient(
+def _calc_gradient(
     source: gpd.GeoDataFrame | gpd.GeoSeries | BaseGeometry | NeighborhoodCollection,
     direction: str = "both",
     bin_width: float = 10,
@@ -181,7 +181,11 @@ def calculate_gradient(
     add_colors: bool = True,
     nbhd_col: str = "name",
 ) -> gpd.GeoDataFrame:
-    """Generate concentric gradient rings outward from and/or inward into an ROI.
+    """Engine behind :meth:`NeighborhoodCollection.calc_gradient`.
+
+    Generates concentric gradient rings outward from and/or inward into an ROI.
+    This is internal; use ``NeighborhoodCollection.calc_gradient(obs_name=...)``
+    as the public entry point.
 
     Starting from the boundary of the merged ``source`` geometry, this builds
     fixed-width bands every ``bin_width`` microns out to ``max_dist``:
@@ -247,33 +251,11 @@ def calculate_gradient(
             without a resolvable ``scale_um_per_pixel``.
 
     Examples:
-        Inward and outward micron-space rings straight into a collection-ready
-        ``GeoDataFrame``::
+        Prefer the public method, which anchors on a named neighborhood and
+        returns a new gradient collection::
 
-            >>> import celldega as dega
-            >>> gdf_rings = dega.nbhd.calculate_gradient(
-            ...     gdf_tumor, direction="both", bin_width=10, max_dist=50
-            ... )
-            >>> gdf_rings[["name", "direction", "dist_start_um"]].head(3)
-
-        Outward-only rings from pixel-space geometry, clipped to a tissue alpha
-        shape computed on the fly from cell centroids so the rings cannot run off
-        the tissue::
-
-            >>> gdf_rings = dega.nbhd.calculate_gradient(
-            ...     gdf_tumor,
-            ...     direction="outward",
-            ...     technology="Xenium",
-            ...     is_pixel_space=True,
-            ...     clip_reference=gdf_cells,
-            ...     clip_alpha=100,
-            ... )
-
-        Tag cells with the band they fall in for downstream gradient analysis::
-
-            >>> joined = gpd.sjoin(
-            ...     gdf_cells, gdf_rings[["ring_range_um", "geometry"]],
-            ...     how="left", predicate="within",
+            >>> grad_nbhd = nbhd.calc_gradient(
+            ...     obs_name="9", direction="both", bin_width=50, max_dist=200
             ... )
     """
     if direction not in _VALID_DIRECTIONS:

@@ -117,9 +117,7 @@ def _membership_from_labels(labels: pd.Series, set_col: str) -> tuple[pd.Index, 
     return set_ids, membership
 
 
-def _resolve_feature_adata(
-    data: AnnData | MuData, feature_type: str | None
-) -> tuple[AnnData, str]:
+def _resolve_feature_adata(data: AnnData | MuData, feature_type: str | None) -> tuple[AnnData, str]:
     """Resolve the per-cell feature matrix and its label.
 
     ``feature_type`` is only required when ``data`` is a ``MuData`` — there it
@@ -382,8 +380,12 @@ class SetCollection(CelldegaCollection):
 
         var = pd.DataFrame(index=populations)
         var[category] = var.index.astype(str)
-        population = AnnData(X=counts, obs=self.obs.copy(), var=var,
-                             uns={"feature_type": "cell_population", "category": category, "output": output})
+        population = AnnData(
+            X=counts,
+            obs=self.obs.copy(),
+            var=var,
+            uns={"feature_type": "cell_population", "category": category, "output": output},
+        )
         self.add_mod(modality_name, population, var_entity_type="cell_population")
 
     def calc_overlap(
@@ -457,8 +459,11 @@ class SetCollection(CelldegaCollection):
                 var=var,
                 uns={"feature_type": "set_overlap", "metric": metric},
             )
-            self.add_mod(modality_name or f"{target.name or 'other'}_overlap", adata_overlap,
-                         var_entity_type=var_entity_type)
+            self.add_mod(
+                modality_name or f"{target.name or 'other'}_overlap",
+                adata_overlap,
+                var_entity_type=var_entity_type,
+            )
         return overlap
 
     def to_nbhd(self, method: str = "points", **kwargs: Any) -> Any:
@@ -527,5 +532,9 @@ def concat_sets(
     var = pd.DataFrame(index=union)
     var[collections[0].element_type] = union.astype(str)
     membership = AnnData(X=sparse.vstack(blocks).tocsr(), obs=combined_obs.copy(), var=var)
-    return SetCollection(obs=combined_obs, membership=membership,
-                         element_type=collections[0].element_type, name="concat")
+    return SetCollection(
+        obs=combined_obs,
+        membership=membership,
+        element_type=collections[0].element_type,
+        name="concat",
+    )

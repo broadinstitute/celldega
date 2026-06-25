@@ -323,6 +323,14 @@ class SetCollection(CelldegaCollection):
                 "layer": layer,
             },
         )
+        # Hint Matrix's axis-entity inference so a Clustergram of this signature
+        # (rows=features, cols=sets after transpose) links to a Landscape/Yearbook
+        # by the right cell attribute (the set_col), not the hardcoded "leiden".
+        if self.set_col is not None:
+            signature.uns["axis_entities"] = {
+                "row_entity": {"entity": feature_type, "attr": "name"},
+                "col_entity": {"entity": self.element_type, "attr": self.set_col},
+            }
         resolved_name = modality_name or ("expression" if feature_type == "gene" else feature_type)
         self.add_mod(resolved_name, signature, var_entity_type=feature_type)
 

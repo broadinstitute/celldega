@@ -59,6 +59,22 @@ def test_calc_signature_gene_default_and_protein_mudata():
     assert clust.mod["protein"].var["entity_type"].iloc[0] == "protein"
 
 
+def test_calc_signature_stamps_axis_entities_for_landscape_linking():
+    adata = _adata()
+    clust = SetCollection(adata, set_col="cell_type", name="rctd")
+    clust.calc_signature(adata, normalization=None)
+    axis = clust.mod["expression"].uns.get("axis_entities")
+    assert axis is not None
+    assert axis["row_entity"] == {"entity": "gene", "attr": "name"}
+    assert axis["col_entity"] == {"entity": "cell", "attr": "cell_type"}
+
+    # Matrix should auto-infer the non-leiden col_entity from the stamped hint
+    from celldega.clust import Matrix
+
+    mat = Matrix(clust.mod["expression"])
+    assert mat.col_entity == {"entity": "cell", "attr": "cell_type"}
+
+
 def test_calc_signature_requires_feature_type_for_mudata():
     adata = _adata()
     clust = SetCollection(adata, set_col="leiden", name="leiden")

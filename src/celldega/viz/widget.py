@@ -266,6 +266,12 @@ class Landscape(anywidget.AnyWidget):
         meta_cluster_df = None
         # cell_attr = kwargs.pop("cell_attr", ["leiden"])
         cell_attr = list(kwargs.pop("cell_attr", ["leiden"]))
+        # Attribute (obs column) that drives the cluster color legend. Defaults to
+        # "leiden" for backward compatibility; set e.g. cluster_attr="cell_type" to
+        # color by any categorical attribute.
+        cluster_attr = kwargs.pop("cluster_attr", "leiden")
+        if cluster_attr not in cell_attr:
+            cell_attr.append(cluster_attr)
 
         nbhd_gdf, meta_nbhd_df = _coerce_nbhd_for_landscape(nbhd_gdf, meta_nbhd_df)
 
@@ -398,15 +404,15 @@ class Landscape(anywidget.AnyWidget):
 
             pq_meta_cell = _df_to_bytes(meta_cell_df)
 
-            if "leiden" in adata.obs.columns:
-                cluster_counts = adata.obs["leiden"].value_counts().sort_index()
-                colors = adata.uns.get("leiden_colors")
+            if cluster_attr in adata.obs.columns:
+                cluster_counts = adata.obs[cluster_attr].value_counts().sort_index()
+                colors = adata.uns.get(f"{cluster_attr}_colors")
 
                 if colors is None:
                     with suppress(Exception):
-                        sc.pl.umap(adata, color="leiden", show=False)
+                        sc.pl.umap(adata, color=cluster_attr, show=False)
                         plt.close()
-                        colors = adata.uns.get("leiden_colors")
+                        colors = adata.uns.get(f"{cluster_attr}_colors")
 
                 # backup color definition
                 if colors is None:
@@ -802,7 +808,11 @@ class Yearbook(anywidget.AnyWidget):
         meta_cell_df = kwargs.pop("meta_cell", None)
         meta_cluster = kwargs.pop("meta_cluster", None)
         meta_cluster_df = None
-        cell_attr = kwargs.pop("cell_attr", ["leiden"])
+        cell_attr = list(kwargs.pop("cell_attr", ["leiden"]))
+        # Attribute (obs column) driving the cluster legend; default "leiden".
+        cluster_attr = kwargs.pop("cluster_attr", "leiden")
+        if cluster_attr not in cell_attr:
+            cell_attr.append(cluster_attr)
 
         # Get cell_name_prefix setting (same as Landscape)
         cell_name_prefix_setting = kwargs.get("cell_name_prefix", False)
@@ -839,15 +849,15 @@ class Yearbook(anywidget.AnyWidget):
 
             pq_meta_cell = _df_to_bytes(meta_cell_df)
 
-            if "leiden" in adata.obs.columns:
-                cluster_counts = adata.obs["leiden"].value_counts().sort_index()
-                colors = adata.uns.get("leiden_colors")
+            if cluster_attr in adata.obs.columns:
+                cluster_counts = adata.obs[cluster_attr].value_counts().sort_index()
+                colors = adata.uns.get(f"{cluster_attr}_colors")
 
                 if colors is None:
                     with suppress(Exception):
-                        sc.pl.umap(adata, color="leiden", show=False)
+                        sc.pl.umap(adata, color=cluster_attr, show=False)
                         plt.close()
-                        colors = adata.uns.get("leiden_colors")
+                        colors = adata.uns.get(f"{cluster_attr}_colors")
 
                 # backup color definition
                 if colors is None:

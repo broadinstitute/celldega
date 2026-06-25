@@ -119,7 +119,8 @@ def hextile_niche(
     --------
     >>> # Generate hexagons and compute population distribution
     >>> gdf_hex = dega.nbhd.generate_hextile(adata, diameter=100)
-    >>> adata_hex = dega.nbhd.calc_nbhd_by_pop(adata, gdf_hex, category="leiden")
+    >>> nbhd = dega.nbhd.NeighborhoodCollection(gdf=gdf_hex)
+    >>> nbhd.calc_population(adata, category="leiden")
     >>>
     >>> # Cluster hexagons by population similarity (e.g., using scanpy)
     >>> import scanpy as sc

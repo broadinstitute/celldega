@@ -272,7 +272,7 @@ class NeighborhoodCollection(CelldegaCollection):
             >>> # nbhd holds one alpha-shape neighborhood per cell-type cluster
             >>> grad_nbhd = nbhd.calc_gradient(obs_name="9", direction="both",
             ...                                bin_width=50, max_dist=200)
-            >>> grad_nbhd.calc_nbhd_by_gene(adata, by="cell")
+            >>> grad_nbhd.calc_signature(adata, by="cell")
             >>> grad_nbhd.obs[["direction", "dist_start_um"]].head(3)
         """
         from celldega.nbhd.gradient import _calc_gradient
@@ -390,7 +390,7 @@ class NeighborhoodCollection(CelldegaCollection):
         gdf["geometry_pixel"] = gdf.geometry.apply(lambda geom: affine_transform(geom, coeffs))
         return gdf
 
-    def calc_nbhd_by_pop(
+    def calc_population(
         self,
         adata: AnnData,
         category: str = "leiden",
@@ -443,7 +443,7 @@ class NeighborhoodCollection(CelldegaCollection):
             _subset_neighborhood_collection_to_obs(self, pd.Index(modality.obs_names.astype(str)))
         self.add_mod(modality_name, modality, var_entity_type="cell_population")
 
-    def calc_nbhd_by_gene(
+    def calc_signature(
         self,
         adata: AnnData | None = None,
         by: str = "cell",
@@ -510,7 +510,7 @@ class NeighborhoodCollection(CelldegaCollection):
             var_entity_type="gene",
         )
 
-    def calc_nbhd_overlap(
+    def calc_overlap(
         self,
         metric: str = "iou",
         key: str = "overlap",
@@ -549,7 +549,7 @@ class NeighborhoodCollection(CelldegaCollection):
         self.relations[key] = relation
         return relation
 
-    def calc_nbhd_bordering(
+    def calc_bordering(
         self,
         metric: str = "border_ratio",
         key: str = "bordering",
@@ -586,7 +586,7 @@ class NeighborhoodCollection(CelldegaCollection):
         self.relations[key] = relation
         return relation
 
-    def calc_nbhd_transcript_assignment(
+    def calc_transcript_assignment(
         self,
         data_dir: str | None = None,
     ) -> None:

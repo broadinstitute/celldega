@@ -39,7 +39,7 @@ def _calc_nbhd_by_gene(
     Calculate neighborhood-by-gene expression matrix.
 
     Internal spatial-computation kernel. The public entry point is
-    :meth:`NeighborhoodCollection.calc_nbhd_by_gene`.
+    :meth:`NeighborhoodCollection.calc_signature`.
 
     Computes gene expression values for each neighborhood, either from cell-level
     expression data (mean expression of cells within each neighborhood) or from
@@ -316,7 +316,7 @@ def _calc_nbhd_by_pop(
     Calculate cell-level population distribution of neighborhoods.
 
     Internal spatial-computation kernel. The public entry point is
-    :meth:`NeighborhoodCollection.calc_nbhd_by_pop`.
+    :meth:`NeighborhoodCollection.calc_population`.
 
     Computes a neighborhood-by-population matrix showing the distribution of cell
     categories (e.g., clusters, cell types) within each neighborhood.
@@ -350,7 +350,7 @@ def _calc_nbhd_by_pop(
         - `obs["n_cells"]`: Total cell count per neighborhood
 
     Internal spatial-computation kernel. The public entry point is
-    :meth:`NeighborhoodCollection.calc_nbhd_by_pop`.
+    :meth:`NeighborhoodCollection.calc_population`.
     """
     print("Calculating NBP")
 
@@ -481,7 +481,7 @@ def _calc_nbhd_transcript_assignment(
     neighborhood has no transcripts).
 
     Internal spatial-computation kernel. The public entry point is
-    :meth:`NeighborhoodCollection.calc_nbhd_transcript_assignment`.
+    :meth:`NeighborhoodCollection.calc_transcript_assignment`.
     """
     if "cell_id" not in gdf_trx.columns:
         raise ValueError(
@@ -566,7 +566,7 @@ def _calc_nbhd_overlap(
     Examples
     --------
     Internal spatial-computation kernel. The public entry point is
-    :meth:`NeighborhoodCollection.calc_nbhd_overlap`.
+    :meth:`NeighborhoodCollection.calc_overlap`.
     >>> mat = dega.clust.Matrix(adata_iou, row_entity="nbhd", col_entity="nbhd")
     """
     print(f"Calculating NBN-O ({metric})")
@@ -721,7 +721,7 @@ def _calc_nbhd_bordering(
     Examples
     --------
     Internal spatial-computation kernel. The public entry point is
-    :meth:`NeighborhoodCollection.calc_nbhd_bordering`.
+    :meth:`NeighborhoodCollection.calc_bordering`.
     >>> mat = dega.clust.Matrix(adata_border, row_entity="nbhd", col_entity="nbhd")
     """
     print(f"Calculating NBN-B ({metric})")

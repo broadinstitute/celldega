@@ -939,6 +939,11 @@ class Clustergram(anywidget.AnyWidget):
 
     click_info = traitlets.Dict({}).tag(sync=True)
 
+    # Dendrogram-cut state driven by the front-end slider, keyed by axis, e.g.
+    # {"row": {"n_clusters": 5}} or {"col": {"threshold": 0.42}}. Read by
+    # `to_cluster` to turn the interactive slider position into flat labels.
+    dendro_cut = traitlets.Dict({}).tag(sync=True)
+
     # Generic row/col selection traitlets
     selected_rows = traitlets.List(default_value=[]).tag(sync=True)
     selected_cols = traitlets.List(default_value=[]).tag(sync=True)
@@ -1092,6 +1097,50 @@ class Clustergram(anywidget.AnyWidget):
             base_colors.update(self.category_colors)
         self._category_colors = base_colors
         self.category_colors = deepcopy(self._category_colors)
+
+    def to_cluster(
+        self,
+        axis: str = "row",
+        n_clusters: int | None = None,
+        threshold: float | None = None,
+        criterion: str | None = None,
+    ) -> pd.Series:
+        """Cut the dendrogram into flat cluster labels via the underlying Matrix.
+
+        Thin wrapper over :meth:`celldega.clust.Matrix.to_cluster`. When neither
+        ``n_clusters`` nor ``threshold`` is passed, the cut is read from the
+        front-end dendrogram slider state in ``dendro_cut[axis]`` — a dict of
+        ``{"n_clusters": int}`` or ``{"threshold": float}`` that the JS widget
+        writes as the user drags the slider. Passing an explicit value overrides
+        the slider.
+
+        Args:
+            axis: ``"row"`` or ``"col"`` — which dendrogram to cut.
+            n_clusters: Target number of flat clusters (overrides the slider).
+            threshold: Linkage-distance cutoff (overrides the slider).
+            criterion: Explicit ``scipy`` ``fcluster`` criterion.
+
+        Returns:
+            A ``pd.Series`` of cluster labels indexed by the axis names.
+
+        Raises:
+            ValueError: If no Matrix is attached, or no cut is available from
+                either the arguments or the front-end slider.
+        """
+        if self._matrix is None:
+            raise ValueError("Clustergram has no Matrix reference; construct with matrix=...")
+        if n_clusters is None and threshold is None:
+            cut = (self.dendro_cut or {}).get(axis, {})
+            n_clusters = cut.get("n_clusters")
+            threshold = cut.get("threshold")
+            if n_clusters is None and threshold is None:
+                raise ValueError(
+                    f"no cut for axis '{axis}': move the dendrogram slider or pass "
+                    "n_clusters / threshold explicitly"
+                )
+        return self._matrix.to_cluster(
+            axis=axis, n_clusters=n_clusters, threshold=threshold, criterion=criterion
+        )
 
     @property
     def manual_cat_dict(self) -> dict:

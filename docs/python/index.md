@@ -67,7 +67,7 @@ dset = dega.dataset.DatasetCollection(
     obs_columns=["patient_id", "condition"],
 )
 
-dset.calc_dataset_by_pop(adata, category="cell_type")
+dset.calc_population(adata, category="cell_type")
 population = dset.mod["population"]
 dset.write("dataset.h5mu")
 ```
@@ -98,8 +98,8 @@ gdf_hex = dega.nbhd.generate_hextile(adata, diameter=100)
 
 # Attach feature-space modalities to a NeighborhoodCollection
 nbhd = dega.nbhd.NeighborhoodCollection(gdf=gdf_alpha, nbhd_type="alpha_shape")
-nbhd.calc_nbhd_by_gene(adata=adata, by="cell", modality_name="gene")
-nbhd.calc_nbhd_by_pop(adata, category="leiden", modality_name="population")
+nbhd.calc_signature(adata=adata, by="cell", modality_name="gene")
+nbhd.calc_population(adata, category="leiden", modality_name="population")
 ```
 
 

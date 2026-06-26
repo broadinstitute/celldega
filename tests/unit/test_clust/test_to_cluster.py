@@ -42,7 +42,7 @@ def test_to_cluster_threshold_and_axis():
 
 def test_to_cluster_requires_clustering():
     mat = _two_block_matrix()
-    with pytest.raises(ValueError, match="call .clust()"):
+    with pytest.raises(ValueError, match="no linkage for axis"):
         mat.to_cluster(axis="row", n_clusters=2)
 
 

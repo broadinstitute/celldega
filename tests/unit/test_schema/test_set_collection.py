@@ -1,10 +1,10 @@
 """Tests for the set-level SetCollection and its derived modalities."""
 
+from anndata import AnnData
+from mudata import MuData
 import numpy as np
 import pandas as pd
 import pytest
-from anndata import AnnData
-from mudata import MuData
 
 from celldega.set import SetCollection, concat_sets
 

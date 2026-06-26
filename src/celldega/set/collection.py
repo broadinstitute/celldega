@@ -391,7 +391,7 @@ class SetCollection(CelldegaCollection):
             raise ValueError("output must be 'proportion' or 'counts'")
         if weights not in self.mod:
             raise KeyError(f"membership modality '{weights}' not found")
-        obs = data.obs if isinstance(data, MuData) else data.obs
+        obs = data.obs  # both AnnData and MuData expose the shared obs table
         if category not in obs.columns:
             raise ValueError(f"obs missing required '{category}' column")
 
@@ -424,7 +424,7 @@ class SetCollection(CelldegaCollection):
 
     def calc_overlap(
         self,
-        other: "SetCollection | None" = None,
+        other: SetCollection | None = None,
         weights: str = "membership",
         metric: str = "iou",
         key: str = "overlap",
@@ -547,7 +547,7 @@ def concat_sets(
         union = union.union(pd.Index(coll.mod[weights].var_names.astype(str)))
 
     blocks, obs_frames = [], []
-    for label, coll in zip(labels, collections):
+    for label, coll in zip(labels, collections, strict=True):
         mod = coll.mod[weights]
         cells = pd.Index(mod.var_names.astype(str))
         col_map = union.get_indexer(cells)  # every cell is in the union, so all >= 0

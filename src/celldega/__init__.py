@@ -7,9 +7,9 @@ from celldega.collection import CelldegaCollection
 from celldega.dataset import DatasetCollection
 from celldega.nbhd import alpha_shape
 from celldega.nbhd.collection import NeighborhoodCollection
-from celldega.set import SetCollection, concat_sets
 from celldega.pre import landscape
 from celldega.qc import qc_segmentation
+from celldega.set import SetCollection, concat_sets
 from celldega.viz import Clustergram, Landscape, Yearbook
 
 

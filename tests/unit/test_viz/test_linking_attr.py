@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+
 try:
     from celldega.clust import Matrix
     from celldega.viz import (

@@ -4,8 +4,11 @@ from collections.abc import Sequence
 import colorsys
 from contextlib import suppress
 from copy import deepcopy
+import importlib.metadata
 import json
+import os
 from pathlib import Path
+import re
 from typing import Any
 import urllib.error
 import warnings
@@ -22,6 +25,43 @@ import traitlets
 
 _clustergram_registry = {}  # maps names to widget instances
 _enrich_registry = {}  # maps names to widget instances
+
+_LOCAL_ESM = Path(__file__).parent / "../static" / "celldega.js"
+_ESM_CDN = "https://cdn.jsdelivr.net/npm/celldega@{version}/src/celldega/static/celldega.js"
+
+
+def _resolve_widget_esm() -> "Path | str":
+    """Front-end module for the celldega anywidgets.
+
+    Returns the local ``celldega.js`` for development (anywidget inlines it into
+    the widget state on save), or a tiny ESM shim that imports the published
+    bundle from jsdelivr otherwise. The shim is what lets saved widget state stay
+    small: instead of embedding the ~10 MB bundle once per widget, each widget
+    stores ~80 bytes and the browser fetches/caches the CDN bundle a single time,
+    reused across every widget and notebook.
+
+    Resolution order:
+      1. ``CELLDEGA_LOCAL_ESM`` or ``ANYWIDGET_HMR`` set -> local file (dev / HMR).
+      2. ``CELLDEGA_ESM_VERSION`` env var               -> CDN at that version.
+      3. installed version, if a clean ``X.Y.Z`` release -> CDN at that version.
+      4. otherwise (dev / unpublished, e.g. ``0.16.0a1``) -> local file (safe,
+         self-contained, since that version may not be on the CDN).
+    """
+    if os.environ.get("CELLDEGA_LOCAL_ESM") or os.environ.get("ANYWIDGET_HMR"):
+        return _LOCAL_ESM
+    version = os.environ.get("CELLDEGA_ESM_VERSION", "")
+    if not version:
+        try:
+            candidate = importlib.metadata.version("celldega")
+        except importlib.metadata.PackageNotFoundError:
+            candidate = ""
+        version = candidate if re.fullmatch(r"\d+\.\d+\.\d+", candidate) else ""
+    if not version:
+        return _LOCAL_ESM
+    return f"export {{ default }} from '{_ESM_CDN.format(version=version)}';"
+
+
+_WIDGET_ESM = _resolve_widget_esm()
 
 _DEFAULT_MANUAL_ATTRIBUTE_TITLES = {
     "row": "manual_cat",
@@ -197,7 +237,7 @@ class Landscape(anywidget.AnyWidget):
     available UMAP coordinates.
     """
 
-    _esm = Path(__file__).parent / "../static" / "celldega.js"
+    _esm = _WIDGET_ESM
     component = traitlets.Unicode("Landscape").tag(sync=True)
 
     technology = traitlets.Unicode("Xenium").tag(sync=True)
@@ -572,7 +612,7 @@ class Enrich(anywidget.AnyWidget):
     same name to prevent notebook bloat.
     """
 
-    _esm = Path(__file__).parent / "../static" / "celldega.js"
+    _esm = _WIDGET_ESM
 
     value = traitlets.Int(0).tag(sync=True)
     width = traitlets.Int(650).tag(sync=True)
@@ -705,7 +745,7 @@ class Yearbook(anywidget.AnyWidget):
         )
     """
 
-    _esm = Path(__file__).parent / "../static" / "celldega.js"
+    _esm = _WIDGET_ESM
     component = traitlets.Unicode("Yearbook").tag(sync=True)
 
     base_url = traitlets.Unicode("").tag(sync=True)
@@ -937,7 +977,7 @@ class Clustergram(anywidget.AnyWidget):
     - All the old DataFrame-based manual_cat plumbing is removed.
     """
 
-    _esm = Path(__file__).parent / "../static" / "celldega.js"
+    _esm = _WIDGET_ESM
 
     # --- core traits used by JS -------------------------------------------------
     value = traitlets.Int(0).tag(sync=True)

@@ -464,6 +464,8 @@
       
         
       
+        
+      
     
     
     
@@ -668,6 +670,34 @@
     
   
     select
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../python/set/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    set
   
 
     
@@ -1633,6 +1663,8 @@
       
         
       
+        
+      
     
     
     
@@ -1942,6 +1974,34 @@
     
   
     DatasetCollection population and expression feature spaces
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../SetCollection_Cluster_Space/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SetCollection: cluster / set space
   
 
     
@@ -3029,7 +3089,7 @@ gdf_hex.head()</div>
     <span class="n">nbhd_type</span><span class="o">=</span><span class="s2">"hextile"</span><span class="p">,</span>
 <span class="p">)</span>
 
-<span class="n">nbhd</span><span class="o">.</span><span class="n">calc_nbhd_by_pop</span><span class="p">(</span>
+<span class="n">nbhd</span><span class="o">.</span><span class="n">calc_population</span><span class="p">(</span>
     <span class="n">adata</span><span class="p">,</span>
     <span class="n">category</span><span class="o">=</span><span class="n">population_col</span><span class="p">,</span>
     <span class="n">modality_name</span><span class="o">=</span><span class="s2">"population"</span><span class="p">,</span>
@@ -3045,7 +3105,7 @@ gdf_hex.head()</div>
     nbhd_type="hextile",
 )
 
-nbhd.calc_nbhd_by_pop(
+nbhd.calc_population(
     adata,
     category=population_col,
     modality_name="population",
@@ -3645,7 +3705,7 @@ cgm</div>
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h2 id="neighborhood-by-gene-signature">Neighborhood-by-gene signature<a class="anchor-link" href="#neighborhood-by-gene-signature">¶</a></h2><p>The same hextile neighborhoods can also carry a gene-expression feature space. <code>calc_nbhd_by_gene</code> computes mean expression per neighborhood from the cell-level <code>adata</code> and attaches it as a second modality alongside <code>population</code>, sharing the same <code>nbhd.obs</code> observation axis. We pass <code>drop_missing=False</code> so the neighborhood axis is unchanged (zero-filled rows for any neighborhood below <code>min_cells</code>), keeping the two modalities aligned.</p>
+<h2 id="neighborhood-by-gene-signature">Neighborhood-by-gene signature<a class="anchor-link" href="#neighborhood-by-gene-signature">¶</a></h2><p>The same hextile neighborhoods can also carry a gene-expression feature space. <code>calc_signature</code> computes mean expression per neighborhood from the cell-level <code>adata</code> and attaches it as a second modality alongside <code>population</code>, sharing the same <code>nbhd.obs</code> observation axis. We pass <code>drop_missing=False</code> so the neighborhood axis is unchanged (zero-filled rows for any neighborhood below <code>min_cells</code>), keeping the two modalities aligned.</p>
 </div>
 </div>
 </div>
@@ -3668,7 +3728,7 @@ cgm</div>
 </div>
 </clipboard-copy>
 </div>
-<div class="highlight-ipynb hl-python"><pre><span></span><span class="n">nbhd</span><span class="o">.</span><span class="n">calc_nbhd_by_gene</span><span class="p">(</span>
+<div class="highlight-ipynb hl-python"><pre><span></span><span class="n">nbhd</span><span class="o">.</span><span class="n">calc_signature</span><span class="p">(</span>
     <span class="n">adata</span><span class="o">=</span><span class="n">adata</span><span class="p">,</span>
     <span class="n">by</span><span class="o">=</span><span class="s2">"cell"</span><span class="p">,</span>
     <span class="n">modality_name</span><span class="o">=</span><span class="s2">"gene"</span><span class="p">,</span>
@@ -3679,7 +3739,7 @@ cgm</div>
 <span class="n">gene</span> <span class="o">=</span> <span class="n">nbhd</span><span class="o">.</span><span class="n">mod</span><span class="p">[</span><span class="s2">"gene"</span><span class="p">]</span>
 <span class="n">gene</span>
 </pre></div>
-<div class="clipboard-copy-txt" id="cell-19">nbhd.calc_nbhd_by_gene(
+<div class="clipboard-copy-txt" id="cell-19">nbhd.calc_signature(
     adata=adata,
     by="cell",
     modality_name="gene",

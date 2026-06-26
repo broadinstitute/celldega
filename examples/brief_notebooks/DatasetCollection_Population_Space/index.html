@@ -12,6 +12,8 @@
         <link rel="prev" href="../Gradient_Neighborhood_Pancreas_Islets/">
       
       
+        <link rel="next" href="../SetCollection_Cluster_Space/">
+      
       
         
       
@@ -462,6 +464,8 @@
       
         
       
+        
+      
     
     
     
@@ -666,6 +670,34 @@
     
   
     select
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../python/set/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    set
   
 
     
@@ -1631,6 +1663,8 @@
       
         
       
+        
+      
     
     
     
@@ -1900,6 +1934,34 @@
 
       </a>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../SetCollection_Cluster_Space/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SetCollection: cluster / set space
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -3116,14 +3178,14 @@ dset.obs.head()</div>
 </div>
 </clipboard-copy>
 </div>
-<div class="highlight-ipynb hl-python"><pre><span></span><span class="n">dset</span><span class="o">.</span><span class="n">calc_dataset_by_pop</span><span class="p">(</span>
+<div class="highlight-ipynb hl-python"><pre><span></span><span class="n">dset</span><span class="o">.</span><span class="n">calc_population</span><span class="p">(</span>
     <span class="n">adata</span><span class="p">,</span>
     <span class="n">category</span><span class="o">=</span><span class="s2">"cell_type"</span><span class="p">,</span>
     <span class="n">modality_name</span><span class="o">=</span><span class="s2">"cell_type_population"</span><span class="p">,</span>
     <span class="n">output</span><span class="o">=</span><span class="s2">"proportion"</span><span class="p">,</span>
 <span class="p">)</span>
 
-<span class="n">dset</span><span class="o">.</span><span class="n">calc_dataset_by_pop</span><span class="p">(</span>
+<span class="n">dset</span><span class="o">.</span><span class="n">calc_population</span><span class="p">(</span>
     <span class="n">adata</span><span class="p">,</span>
     <span class="n">category</span><span class="o">=</span><span class="s2">"immune_group"</span><span class="p">,</span>
     <span class="n">modality_name</span><span class="o">=</span><span class="s2">"immune_group_population"</span><span class="p">,</span>
@@ -3135,14 +3197,14 @@ dset.obs.head()</div>
 
 <span class="nb">list</span><span class="p">(</span><span class="n">dset</span><span class="o">.</span><span class="n">mod</span><span class="p">)</span>
 </pre></div>
-<div class="clipboard-copy-txt" id="cell-6">dset.calc_dataset_by_pop(
+<div class="clipboard-copy-txt" id="cell-6">dset.calc_population(
     adata,
     category="cell_type",
     modality_name="cell_type_population",
     output="proportion",
 )
 
-dset.calc_dataset_by_pop(
+dset.calc_population(
     adata,
     category="immune_group",
     modality_name="immune_group_population",
@@ -3262,7 +3324,7 @@ plt.tight_layout()</div>
 </div>
 <div class="highlight-ipynb hl-python"><pre><span></span><span class="n">target_cell_type</span> <span class="o">=</span> <span class="s2">"CD8 T"</span>
 
-<span class="n">dset</span><span class="o">.</span><span class="n">calc_dataset_signature</span><span class="p">(</span>
+<span class="n">dset</span><span class="o">.</span><span class="n">calc_signature</span><span class="p">(</span>
     <span class="n">adata</span><span class="p">,</span>
     <span class="n">category</span><span class="o">=</span><span class="s2">"cell_type"</span><span class="p">,</span>
     <span class="n">value</span><span class="o">=</span><span class="n">target_cell_type</span><span class="p">,</span>
@@ -3275,7 +3337,7 @@ plt.tight_layout()</div>
 </pre></div>
 <div class="clipboard-copy-txt" id="cell-9">target_cell_type = "CD8 T"
 
-dset.calc_dataset_signature(
+dset.calc_signature(
     adata,
     category="cell_type",
     value=target_cell_type,

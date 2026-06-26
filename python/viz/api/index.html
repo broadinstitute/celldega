@@ -9,7 +9,7 @@
       
       
       
-        <link rel="prev" href="../../select/api/">
+        <link rel="prev" href="../../set/api/">
       
       
         <link rel="next" href="../../../javascript/">
@@ -466,6 +466,8 @@
       
         
       
+        
+      
     
     
     
@@ -687,6 +689,34 @@
                 
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../../set/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    set
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
     
   
   
@@ -855,6 +885,17 @@
     <span class="md-ellipsis">
       
         close
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#celldega.viz.Clustergram.to_cluster" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        to_cluster
       
     </span>
   </a>
@@ -2033,6 +2074,8 @@
       
         
       
+        
+      
     
     
     
@@ -2297,6 +2340,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../examples/brief_notebooks/SetCollection_Cluster_Space/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SetCollection: cluster / set space
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -2444,6 +2515,17 @@
     <span class="md-ellipsis">
       
         close
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#celldega.viz.Clustergram.to_cluster" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        to_cluster
       
     </span>
   </a>
@@ -2912,6 +2994,156 @@ network : dict, optional
     <div class="doc doc-contents ">
 
         <p>Close the widget and notify the frontend to release resources.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="celldega.viz.Clustergram.to_cluster" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">to_cluster</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="s1">&#39;row&#39;</span><span class="p">,</span> <span class="n">n_clusters</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">criterion</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Cut the dendrogram into flat cluster labels via the underlying Matrix.</p>
+<p>Thin wrapper over :meth:<code>celldega.clust.Matrix.to_cluster</code>. When neither
+<code>n_clusters</code> nor <code>threshold</code> is passed, the cut is read from the
+front-end dendrogram slider state in <code>dendro_cut[axis]</code> — a dict of
+<code>{"n_clusters": int}</code> or <code>{"threshold": float}</code> that the JS widget
+writes as the user drags the slider. Passing an explicit value overrides
+the slider.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>axis</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><code>"row"</code> or <code>"col"</code> — which dendrogram to cut.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;row&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>n_clusters</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Target number of flat clusters (overrides the slider).</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>threshold</code>
+            </td>
+            <td>
+                  <code><span title="float">float</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Linkage-distance cutoff (overrides the slider).</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>criterion</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Explicit <code>scipy</code> <code>fcluster</code> criterion.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="pandas.Series">Series</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A <code>pd.Series</code> of cluster labels indexed by the axis names.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="ValueError">ValueError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If no Matrix is attached, or no cut is available from
+either the arguments or the front-end slider.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
 
     </div>
@@ -4237,7 +4469,7 @@ dendrogram clusters are selected.</p>
 
 
 <h2 id="celldega.viz.landscape_yearbook" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">landscape_yearbook</span><span class="p">(</span><span class="n">landscape</span><span class="p">,</span> <span class="n">yearbook</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="s1">&#39;100%&#39;</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="s1">&#39;400px&#39;</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">landscape_yearbook</span><span class="p">(</span><span class="n">landscape</span><span class="p">,</span> <span class="n">yearbook</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="s1">&#39;100%&#39;</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="s1">&#39;400px&#39;</span><span class="p">,</span> <span class="n">cluster_attr</span><span class="o">=</span><span class="s1">&#39;leiden&#39;</span><span class="p">)</span></code>
 
 </h2>
 
@@ -4325,6 +4557,25 @@ ranked by gene expression.</p>
                   <code>&#39;400px&#39;</code>
             </td>
           </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>cluster_attr</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The cell attribute (<code>adata.obs</code> column) a clicked
+cluster value refers to (default <code>"leiden"</code>). If the click payload
+carries its own <code>attr</code> it takes precedence, so linked Clustergrams
+over non-leiden sets (cell types, domains) color the right cells.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;leiden&#39;</code>
+            </td>
+          </tr>
       </tbody>
     </table>
 
@@ -4365,7 +4616,7 @@ display = dega.viz.landscape_yearbook(landscape, yearbook)
 
 
 <h2 id="celldega.viz.landscape_yearbook_clustergram" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">landscape_yearbook_clustergram</span><span class="p">(</span><span class="n">landscape</span><span class="p">,</span> <span class="n">yearbook</span><span class="p">,</span> <span class="n">cgm</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="s1">&#39;600px&#39;</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="s1">&#39;400px&#39;</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">landscape_yearbook_clustergram</span><span class="p">(</span><span class="n">landscape</span><span class="p">,</span> <span class="n">yearbook</span><span class="p">,</span> <span class="n">cgm</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="s1">&#39;600px&#39;</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="s1">&#39;400px&#39;</span><span class="p">,</span> <span class="n">cluster_attr</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 </h2>
 

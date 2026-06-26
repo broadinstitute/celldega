@@ -466,6 +466,8 @@
       
         
       
+        
+      
     
     
     
@@ -1141,6 +1143,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#celldega.clust.Matrix.to_cluster" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        to_cluster
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#celldega.clust.Matrix.to_df" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1420,6 +1433,34 @@
     
   
     select
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../set/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    set
   
 
     
@@ -2381,6 +2422,8 @@
       
         
       
+        
+      
     
     
     
@@ -2632,6 +2675,34 @@
     
   
     DatasetCollection population and expression feature spaces
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../examples/brief_notebooks/SetCollection_Cluster_Space/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SetCollection: cluster / set space
   
 
     
@@ -3239,6 +3310,17 @@
     <span class="md-ellipsis">
       
         to_adata
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#celldega.clust.Matrix.to_cluster" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        to_cluster
       
     </span>
   </a>
@@ -5309,6 +5391,171 @@ mat.process(filter_genes=5000, norm_row='qn')  # Custom processing</p>
     <div class="doc doc-contents ">
 
         <p>Convert to AnnData object.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="celldega.clust.Matrix.to_cluster" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">to_cluster</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="s1">&#39;row&#39;</span><span class="p">,</span> <span class="n">n_clusters</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">criterion</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Cut the dendrogram into flat cluster labels.</p>
+<p>Cuts the hierarchical clustering linkage (computed by :meth:<code>clust</code>) along
+one axis and returns a label per row/column. Use <code>n_clusters</code> to request
+a fixed number of clusters (<code>fcluster</code> with <code>criterion="maxclust"</code>) or
+<code>threshold</code> to cut at a linkage distance (<code>criterion="distance"</code>).
+Exactly one of the two must be given unless <code>criterion</code> is set explicitly.</p>
+<p>This is the programmatic counterpart to the Clustergram's interactive
+dendrogram slider: it turns a clustered Matrix into discrete groups (e.g.
+consensus domains, meta-clusters) that can be attached back to a
+collection's <code>obs</code> / <code>var</code>.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>axis</code>
+            </td>
+            <td>
+                  <code><span title="celldega.clust.constants.AxisInput">AxisInput</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><code>"row"</code>/<code>"col"</code> (or <code>0</code>/<code>1</code>) — which dendrogram to cut.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;row&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>n_clusters</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Target number of flat clusters (<code>maxclust</code> criterion).</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>threshold</code>
+            </td>
+            <td>
+                  <code><span title="float">float</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Linkage-distance cutoff (<code>distance</code> criterion).</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>criterion</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Explicit <code>scipy</code> <code>fcluster</code> criterion; overrides the
+<code>n_clusters</code>/<code>threshold</code> inference when given (paired with
+whichever of the two is supplied as <code>t</code>).</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="pandas.Series">Series</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A <code>pd.Series</code> of integer cluster labels indexed by the axis names</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="pandas.Series">Series</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>(<code>data.index</code> for rows, <code>data.columns</code> for columns), in data order.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="ValueError">ValueError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If the matrix is unclustered, the linkage is empty, or
+neither <code>n_clusters</code> nor <code>threshold</code> is provided.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
 
     </div>

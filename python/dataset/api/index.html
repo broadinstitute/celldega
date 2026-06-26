@@ -466,6 +466,8 @@
       
         
       
+        
+      
     
     
     
@@ -672,10 +674,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#celldega.dataset.DatasetCollection.calc_dataset_by_pop" class="md-nav__link">
+  <a href="#celldega.dataset.DatasetCollection.calc_population" class="md-nav__link">
     <span class="md-ellipsis">
       
-        calc_dataset_by_pop
+        calc_population
       
     </span>
   </a>
@@ -683,10 +685,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#celldega.dataset.DatasetCollection.calc_dataset_signature" class="md-nav__link">
+  <a href="#celldega.dataset.DatasetCollection.calc_signature" class="md-nav__link">
     <span class="md-ellipsis">
       
-        calc_dataset_signature
+        calc_signature
       
     </span>
   </a>
@@ -778,6 +780,34 @@
     
   
     select
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../set/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    set
   
 
     
@@ -1739,6 +1769,8 @@
       
         
       
+        
+      
     
     
     
@@ -2003,6 +2035,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../examples/brief_notebooks/SetCollection_Cluster_Space/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SetCollection: cluster / set space
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -2079,10 +2139,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#celldega.dataset.DatasetCollection.calc_dataset_by_pop" class="md-nav__link">
+  <a href="#celldega.dataset.DatasetCollection.calc_population" class="md-nav__link">
     <span class="md-ellipsis">
       
-        calc_dataset_by_pop
+        calc_population
       
     </span>
   </a>
@@ -2090,10 +2150,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#celldega.dataset.DatasetCollection.calc_dataset_signature" class="md-nav__link">
+  <a href="#celldega.dataset.DatasetCollection.calc_signature" class="md-nav__link">
     <span class="md-ellipsis">
       
-        calc_dataset_signature
+        calc_signature
       
     </span>
   </a>
@@ -2141,7 +2201,7 @@ dset = dega.dataset.DatasetCollection(
     obs_columns=[&quot;patient_id&quot;, &quot;condition&quot;],
 )
 
-dset.calc_dataset_by_pop(
+dset.calc_population(
     adata,
     category=&quot;cell_type&quot;,
     output=&quot;proportion&quot;,
@@ -2149,7 +2209,7 @@ dset.calc_dataset_by_pop(
 
 population = dset.mod[&quot;population&quot;]
 
-dset.calc_dataset_signature(
+dset.calc_signature(
     adata,
     category=&quot;cell_type&quot;,
     value=&quot;CD8 T&quot;,
@@ -2495,8 +2555,8 @@ patient unit; becomes the collection's observation index.</p>
 <div class="doc doc-object doc-function">
 
 
-<h3 id="celldega.dataset.DatasetCollection.calc_dataset_by_pop" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">calc_dataset_by_pop</span><span class="p">(</span><span class="n">adata</span><span class="p">,</span> <span class="n">category</span><span class="o">=</span><span class="s1">&#39;leiden&#39;</span><span class="p">,</span> <span class="n">modality_name</span><span class="o">=</span><span class="s1">&#39;population&#39;</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="s1">&#39;proportion&#39;</span><span class="p">,</span> <span class="n">min_cells</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">dataset_col</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+<h3 id="celldega.dataset.DatasetCollection.calc_population" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">calc_population</span><span class="p">(</span><span class="n">adata</span><span class="p">,</span> <span class="n">category</span><span class="o">=</span><span class="s1">&#39;leiden&#39;</span><span class="p">,</span> <span class="n">modality_name</span><span class="o">=</span><span class="s1">&#39;population&#39;</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="s1">&#39;proportion&#39;</span><span class="p">,</span> <span class="n">min_cells</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">dataset_col</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 </h3>
 
@@ -2651,8 +2711,8 @@ result as a dataset (rows) by population (columns) feature matrix.</p>
 <div class="doc doc-object doc-function">
 
 
-<h3 id="celldega.dataset.DatasetCollection.calc_dataset_signature" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">calc_dataset_signature</span><span class="p">(</span><span class="n">adata</span><span class="p">,</span> <span class="n">category</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">modality_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">layer</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">aggregate</span><span class="o">=</span><span class="s1">&#39;sum&#39;</span><span class="p">,</span> <span class="n">normalization</span><span class="o">=</span><span class="s1">&#39;log1p_cpm&#39;</span><span class="p">,</span> <span class="n">min_cells</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">missing_datasets</span><span class="o">=</span><span class="s1">&#39;nan&#39;</span><span class="p">,</span> <span class="n">dataset_col</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">var_entity_type</span><span class="o">=</span><span class="s1">&#39;gene&#39;</span><span class="p">)</span></code>
+<h3 id="celldega.dataset.DatasetCollection.calc_signature" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">calc_signature</span><span class="p">(</span><span class="n">adata</span><span class="p">,</span> <span class="n">category</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">modality_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">layer</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">aggregate</span><span class="o">=</span><span class="s1">&#39;sum&#39;</span><span class="p">,</span> <span class="n">normalization</span><span class="o">=</span><span class="s1">&#39;log1p_cpm&#39;</span><span class="p">,</span> <span class="n">min_cells</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">missing_datasets</span><span class="o">=</span><span class="s1">&#39;nan&#39;</span><span class="p">,</span> <span class="n">dataset_col</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">var_entity_type</span><span class="o">=</span><span class="s1">&#39;gene&#39;</span><span class="p">)</span></code>
 
 </h3>
 

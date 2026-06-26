@@ -466,6 +466,8 @@
       
         
       
+        
+      
     
     
     
@@ -670,6 +672,34 @@
     
   
     select
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="set/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    set
   
 
     
@@ -1631,6 +1661,8 @@
       
         
       
+        
+      
     
     
     
@@ -1895,6 +1927,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../examples/brief_notebooks/SetCollection_Cluster_Space/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SetCollection: cluster / set space
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -2113,7 +2173,7 @@ dset = dega.dataset.DatasetCollection(
     obs_columns=[&quot;patient_id&quot;, &quot;condition&quot;],
 )
 
-dset.calc_dataset_by_pop(adata, category=&quot;cell_type&quot;)
+dset.calc_population(adata, category=&quot;cell_type&quot;)
 population = dset.mod[&quot;population&quot;]
 dset.write(&quot;dataset.h5mu&quot;)
 </code></pre>
@@ -2141,8 +2201,8 @@ gdf_hex = dega.nbhd.generate_hextile(adata, diameter=100)
 
 # Attach feature-space modalities to a NeighborhoodCollection
 nbhd = dega.nbhd.NeighborhoodCollection(gdf=gdf_alpha, nbhd_type=&quot;alpha_shape&quot;)
-nbhd.calc_nbhd_by_gene(adata=adata, by=&quot;cell&quot;, modality_name=&quot;gene&quot;)
-nbhd.calc_nbhd_by_pop(adata, category=&quot;leiden&quot;, modality_name=&quot;population&quot;)
+nbhd.calc_signature(adata=adata, by=&quot;cell&quot;, modality_name=&quot;gene&quot;)
+nbhd.calc_population(adata, category=&quot;leiden&quot;, modality_name=&quot;population&quot;)
 </code></pre>
 <h3 id="pre-module"><a href="pre/api/">Pre Module</a></h3>
 <p>The <code>pre</code> module contains functions for pre-processing raw spatial

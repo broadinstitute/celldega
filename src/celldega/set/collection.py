@@ -129,8 +129,10 @@ def _category_colors(adata: AnnData, category: str) -> dict[str, str]:
     if colors is None or category not in adata.obs:
         return {}
     series = adata.obs[category]
-    cats = list(series.cat.categories.astype(str)) if hasattr(series, "cat") else list(
-        pd.unique(series.astype(str))
+    cats = (
+        list(series.cat.categories.astype(str))
+        if hasattr(series, "cat")
+        else list(pd.unique(series.astype(str)))
     )
     return {str(cat): colors[i] for i, cat in enumerate(cats) if i < len(colors)}
 

@@ -388,6 +388,7 @@ class Landscape(anywidget.AnyWidget):
             if "cell_id" in adata.obs.columns:
                 adata.obs.set_index("cell_id", inplace=True)
 
+            cell_attr = [c for c in cell_attr if c in adata.obs.columns]
             meta_cell_df = adata.obs[cell_attr].copy()
 
             if meta_cell_df.index.name is None:
@@ -833,6 +834,7 @@ class Yearbook(anywidget.AnyWidget):
             if "cell_id" in adata.obs.columns:
                 adata.obs.set_index("cell_id", inplace=True)
 
+            cell_attr = [c for c in cell_attr if c in adata.obs.columns]
             meta_cell_df = adata.obs[cell_attr].copy()
 
             if meta_cell_df.index.name is None:

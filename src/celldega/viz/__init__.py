@@ -240,26 +240,26 @@ def landscape_yearbook(
         value = info.get("value") or {}
         attr = value.get("attr") or cluster_attr
 
-        current_query = dict(yearbook.query or {})
+        current_query = dict(yearbook.front_end_query or {})
 
         if click_type == "col_label":
             # Cluster selected
             cluster_name = value.get("name", "")
             if cluster_name:
                 current_query["cluster"] = {"attr": attr, "value": str(cluster_name)}
-                yearbook.query = current_query
+                yearbook.front_end_query = current_query
         elif click_type == "row_label":
             # Gene selected
             gene_name = value.get("name", "")
             if gene_name:
                 current_query["gene"] = gene_name
-                yearbook.query = current_query
+                yearbook.front_end_query = current_query
         elif click_type == "col_dendro":
             # Multiple clusters selected via dendrogram
             selected_names = value.get("selected_names", [])
             if selected_names and len(selected_names) == 1:
                 current_query["cluster"] = {"attr": attr, "value": str(selected_names[0])}
-                yearbook.query = current_query
+                yearbook.front_end_query = current_query
 
     landscape.observe(_on_update_trigger, names="update_trigger")
 
@@ -315,32 +315,32 @@ def landscape_yearbook_clustergram(
         click_type = (info.get("type") or "").lower()
         value = info.get("value") or {}
 
-        current_query = dict(yearbook.query or {})
+        current_query = dict(yearbook.front_end_query or {})
 
         if click_type == "col_label":
             # Cluster selected
             cluster_name = value.get("name", "")
             if cluster_name:
                 current_query["cluster"] = {"attr": attr, "value": str(cluster_name)}
-                yearbook.query = current_query
+                yearbook.front_end_query = current_query
         elif click_type == "row_label":
             # Gene selected
             gene_name = value.get("name", "")
             if gene_name:
                 current_query["gene"] = gene_name
-                yearbook.query = current_query
+                yearbook.front_end_query = current_query
         elif click_type.startswith("col_dendro"):
             # Multiple clusters selected via dendrogram
             selected_names = value.get("selected_names", [])
             if selected_names and len(selected_names) == 1:
                 current_query["cluster"] = {"attr": attr, "value": str(selected_names[0])}
-                yearbook.query = current_query
+                yearbook.front_end_query = current_query
         elif click_type.startswith("row_dendro"):
             # Multiple genes selected - use first one
             selected_names = value.get("selected_names", [])
             if selected_names:
                 current_query["gene"] = selected_names[0]
-                yearbook.query = current_query
+                yearbook.front_end_query = current_query
 
     cgm.observe(_on_click_info, names="click_info")
 

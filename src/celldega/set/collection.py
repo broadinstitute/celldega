@@ -117,6 +117,24 @@ def _membership_from_labels(labels: pd.Series, set_col: str) -> tuple[pd.Index, 
     return set_ids, membership
 
 
+def _category_colors(adata: AnnData, category: str) -> dict[str, str]:
+    """Map each ``category`` value to its color from ``adata.uns[f"{category}_colors"]``.
+
+    Colors align to the categorical's ``categories`` order (scanpy convention), so
+    this stays correct even for >9 clusters where a lexicographic string sort would
+    not. Falls back to first-appearance order for non-categorical columns; returns
+    ``{}`` when no colors are stored.
+    """
+    colors = adata.uns.get(f"{category}_colors")
+    if colors is None or category not in adata.obs:
+        return {}
+    series = adata.obs[category]
+    cats = list(series.cat.categories.astype(str)) if hasattr(series, "cat") else list(
+        pd.unique(series.astype(str))
+    )
+    return {str(cat): colors[i] for i, cat in enumerate(cats) if i < len(colors)}
+
+
 def _resolve_feature_adata(data: AnnData | MuData, feature_type: str | None) -> tuple[AnnData, str]:
     """Resolve the per-cell feature matrix and its label.
 
@@ -202,6 +220,12 @@ class SetCollection(CelldegaCollection):
             obs["n_cells"] = np.asarray(matrix.sum(axis=1)).ravel().astype(int)
             if name is not None:
                 obs["set_source"] = name
+            # Carry the preferred per-set color (e.g. adata.uns["leiden_colors"]) so it
+            # persists with the collection and downstream views (Clustergram via the
+            # signature modality's metadata, Landscape) can share one consistent palette.
+            colors = _category_colors(adata, set_col)
+            if colors:
+                obs["color"] = [colors.get(str(s), "#808080") for s in obs.index]
 
             cell_var = pd.DataFrame(index=pd.Index(adata.obs_names.astype(str), name=element_type))
             cell_var[element_type] = cell_var.index.astype(str)

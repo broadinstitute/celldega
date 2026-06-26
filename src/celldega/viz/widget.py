@@ -489,7 +489,6 @@ class Landscape(anywidget.AnyWidget):
 
         if isinstance(meta_cluster, pd.DataFrame):
             pq_meta_cluster = _df_to_bytes(_reset_index_for_parquet(meta_cluster))
-            kwargs.pop("meta_cluster")
             meta_cluster_df = meta_cluster
 
         if isinstance(umap_df, pd.DataFrame):

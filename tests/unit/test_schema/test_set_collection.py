@@ -59,6 +59,30 @@ def test_calc_signature_gene_default_and_protein_mudata():
     assert clust.mod["protein"].var["entity_type"].iloc[0] == "protein"
 
 
+def test_obs_color_stored_from_category_colors():
+    adata = _adata()
+    # categorical labels + a scanpy-style colors palette aligned to categories
+    adata.obs["leiden"] = adata.obs["leiden"].astype("category")
+    cats = list(adata.obs["leiden"].cat.categories)
+    palette = ["#111111", "#222222", "#333333", "#444444"][: len(cats)]
+    adata.uns["leiden_colors"] = palette
+    expected = {str(c): palette[i] for i, c in enumerate(cats)}
+
+    clust = SetCollection(adata, set_col="leiden", name="leiden")
+    assert "color" in clust.obs.columns
+    assert all(clust.obs.loc[s, "color"] == expected[s] for s in clust.obs.index)
+
+    # color travels into the signature modality so Matrix can auto-color the Clustergram
+    clust.calc_signature(adata, normalization=None)
+    assert "color" in clust.mod["expression"].obs.columns
+
+
+def test_obs_has_no_color_without_palette():
+    adata = _adata()  # no *_colors in uns
+    clust = SetCollection(adata, set_col="leiden", name="leiden")
+    assert "color" not in clust.obs.columns
+
+
 def test_calc_signature_stamps_axis_entities_for_landscape_linking():
     adata = _adata()
     clust = SetCollection(adata, set_col="cell_type", name="rctd")

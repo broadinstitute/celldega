@@ -72,6 +72,7 @@ nav:
       - Visium-HD Landscape Mouse Lung: examples/brief_notebooks/Visium-HD_Landscape_Mouse_Lung_FF.ipynb
       - Custom Segmentation: examples/brief_notebooks/Custom_Segmentation.ipynb
       - NeighborhoodCollection Population Space: examples/brief_notebooks/NeighborhoodCollection_Population_Space.ipynb
+      - Gradient Neighborhood Pancreas Islets: examples/brief_notebooks/Gradient_Neighborhood_Pancreas_Islets.ipynb
       - DatasetCollection Population Space: examples/brief_notebooks/DatasetCollection_Population_Space.ipynb
 
 markdown_extensions:

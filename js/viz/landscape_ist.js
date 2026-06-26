@@ -397,7 +397,12 @@ export const landscape_ist = async (
 
   const isUmapInit = landscape_state === 'umap';
   viz_state.obs_store.umap_state.set(isUmapInit);
-  viz_state.obs_store.landscape_view.set(landscape_state);
+  // 'nbhd' is not a spatial/umap view; keep landscape_view valid and remember to
+  // reveal the neighborhood layer once the UI (buttons/sliders/bars) is built.
+  viz_state.nbhd.show_on_init = landscape_state === 'nbhd';
+  const base_landscape_view =
+    landscape_state === 'nbhd' ? 'spatial' : landscape_state;
+  viz_state.obs_store.landscape_view.set(base_landscape_view);
 
   viz_state.genes = {};
   viz_state.genes.color_dict_gene = {};
@@ -855,6 +860,14 @@ export const landscape_ist = async (
   // UI and Viz Container
   el.appendChild(ui_container);
   el.appendChild(root);
+
+  // Reveal the neighborhood layer in the initial view when landscape_state='nbhd'.
+  // Done after the UI is built so the viz_nbhd_layer subscription can update the
+  // buttons, sliders, and category bars.
+  if (viz_state.nbhd.show_on_init && viz_state.nbhd.is_nbhd) {
+    toggle_nbhd_layer_visibility(layers_obj, true);
+    viz_state.obs_store.viz_nbhd_layer.set(true);
+  }
 
   // Initialize neighborhood editor dialog if nbhd_edit mode is enabled
   if (viz_state.nbhd.edit) {

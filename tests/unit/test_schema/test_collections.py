@@ -131,7 +131,9 @@ def test_calc_dataset_by_pop_attaches_population_modality():
     assert list(population.var["entity_type"]) == ["cell_population", "cell_population"]
     np.testing.assert_array_equal(population.X, np.array([[1, 1], [2, 0]]))
 
-    proportion_dataset = DatasetCollection(adata, dataset_col="sample_id", obs_columns=["condition"])
+    proportion_dataset = DatasetCollection(
+        adata, dataset_col="sample_id", obs_columns=["condition"]
+    )
     assert proportion_dataset.calc_population(adata, category="cell_type") is None
     population_proportion = proportion_dataset.mod["population"]
     assert population_proportion.uns["output"] == "proportion"

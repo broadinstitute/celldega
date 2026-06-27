@@ -56,7 +56,7 @@ def test_neighborhood_collection_calculates_population_modality_directly():
     gdf, adata = _synthetic_nbhd_inputs()
     collection = NeighborhoodCollection(gdf=gdf, nbhd_type="manual")
 
-    result = collection.calc_nbhd_by_pop(
+    result = collection.calc_population(
         adata,
         modality_name="cell_type_population",
         min_cells=1,
@@ -81,7 +81,7 @@ def test_neighborhood_collection_calculates_gene_modality_directly():
     gdf, adata = _synthetic_nbhd_inputs()
     collection = NeighborhoodCollection(gdf=gdf, nbhd_type="manual")
 
-    result = collection.calc_nbhd_by_gene(
+    result = collection.calc_signature(
         adata=adata,
         modality_name="expression",
         min_cells=1,
@@ -99,7 +99,7 @@ def test_neighborhood_collection_min_cells_filters_collection_axis():
     gdf, adata = _synthetic_nbhd_inputs()
     collection = NeighborhoodCollection(gdf=gdf, nbhd_type="manual")
 
-    result = collection.calc_nbhd_by_pop(adata, min_cells=2, output="counts")
+    result = collection.calc_population(adata, min_cells=2, output="counts")
     population = collection.mod["population"]
 
     assert result is None
@@ -114,7 +114,7 @@ def test_neighborhood_collection_keeps_axis_when_drop_missing_false():
     gdf, adata = _synthetic_nbhd_inputs()
     collection = NeighborhoodCollection(gdf=gdf, nbhd_type="manual")
 
-    result = collection.calc_nbhd_by_pop(
+    result = collection.calc_population(
         adata,
         min_cells=2,
         output="counts",
@@ -133,8 +133,8 @@ def test_neighborhood_collection_min_cells_subsets_existing_modalities():
     gdf, adata = _synthetic_nbhd_inputs()
     collection = NeighborhoodCollection(gdf=gdf, nbhd_type="manual")
 
-    collection.calc_nbhd_by_gene(adata=adata, modality_name="gene", min_cells=1, drop_missing=False)
-    result = collection.calc_nbhd_by_pop(adata, min_cells=2, output="counts")
+    collection.calc_signature(adata=adata, modality_name="gene", min_cells=1, drop_missing=False)
+    result = collection.calc_population(adata, min_cells=2, output="counts")
 
     assert result is None
     assert list(collection.obs.index) == ["A"]
@@ -148,7 +148,7 @@ def test_neighborhood_collection_calculates_bordering_relation():
     gdf, _adata = _synthetic_nbhd_inputs()
     collection = NeighborhoodCollection(gdf=gdf, nbhd_type="manual")
 
-    bordering = collection.calc_nbhd_bordering(metric="binary")
+    bordering = collection.calc_bordering(metric="binary")
 
     assert collection.relations["bordering"] is bordering
     assert bordering.shape == (2, 2)
@@ -184,7 +184,7 @@ def test_neighborhood_collection_transcript_assignment(tmp_path):
     trx.to_parquet(tmp_path / "transcripts.parquet")
 
     collection = NeighborhoodCollection(gdf=gdf, nbhd_type="manual")
-    result = collection.calc_nbhd_transcript_assignment(data_dir=str(tmp_path))
+    result = collection.calc_transcript_assignment(data_dir=str(tmp_path))
 
     assert result is None
     obs = collection.obs
@@ -209,7 +209,7 @@ def test_transcript_assignment_warns_when_no_unassigned_sentinel(tmp_path):
 
     collection = NeighborhoodCollection(gdf=gdf, nbhd_type="manual")
     with pytest.warns(UserWarning, match="UNASSIGNED"):
-        collection.calc_nbhd_transcript_assignment(data_dir=str(tmp_path))
+        collection.calc_transcript_assignment(data_dir=str(tmp_path))
 
     # still computes: A has 3 transcripts, all assigned -> proportion 1.0
     assert collection.obs["transcript_assignment_proportion"].loc["A"] == 1.0

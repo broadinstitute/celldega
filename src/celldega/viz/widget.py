@@ -4,8 +4,11 @@ from collections.abc import Sequence
 import colorsys
 from contextlib import suppress
 from copy import deepcopy
+import importlib.metadata
 import json
+import os
 from pathlib import Path
+import re
 from typing import Any
 import urllib.error
 import warnings
@@ -22,6 +25,43 @@ import traitlets
 
 _clustergram_registry = {}  # maps names to widget instances
 _enrich_registry = {}  # maps names to widget instances
+
+_LOCAL_ESM = Path(__file__).parent / "../static" / "celldega.js"
+_ESM_CDN = "https://cdn.jsdelivr.net/npm/celldega@{version}/src/celldega/static/celldega.js"
+
+
+def _resolve_widget_esm() -> "Path | str":
+    """Front-end module for the celldega anywidgets.
+
+    Returns the local ``celldega.js`` for development (anywidget inlines it into
+    the widget state on save), or a tiny ESM shim that imports the published
+    bundle from jsdelivr otherwise. The shim is what lets saved widget state stay
+    small: instead of embedding the ~10 MB bundle once per widget, each widget
+    stores ~80 bytes and the browser fetches/caches the CDN bundle a single time,
+    reused across every widget and notebook.
+
+    Resolution order:
+      1. ``CELLDEGA_LOCAL_ESM`` or ``ANYWIDGET_HMR`` set -> local file (dev / HMR).
+      2. ``CELLDEGA_ESM_VERSION`` env var               -> CDN at that version.
+      3. installed version, if a clean ``X.Y.Z`` release -> CDN at that version.
+      4. otherwise (dev / unpublished, e.g. ``0.16.0a1``) -> local file (safe,
+         self-contained, since that version may not be on the CDN).
+    """
+    if os.environ.get("CELLDEGA_LOCAL_ESM") or os.environ.get("ANYWIDGET_HMR"):
+        return _LOCAL_ESM
+    version = os.environ.get("CELLDEGA_ESM_VERSION", "")
+    if not version:
+        try:
+            candidate = importlib.metadata.version("celldega")
+        except importlib.metadata.PackageNotFoundError:
+            candidate = ""
+        version = candidate if re.fullmatch(r"\d+\.\d+\.\d+", candidate) else ""
+    if not version:
+        return _LOCAL_ESM
+    return f"export {{ default }} from '{_ESM_CDN.format(version=version)}';"
+
+
+_WIDGET_ESM = _resolve_widget_esm()
 
 _DEFAULT_MANUAL_ATTRIBUTE_TITLES = {
     "row": "manual_cat",
@@ -197,7 +237,7 @@ class Landscape(anywidget.AnyWidget):
     available UMAP coordinates.
     """
 
-    _esm = Path(__file__).parent / "../static" / "celldega.js"
+    _esm = _WIDGET_ESM
     component = traitlets.Unicode("Landscape").tag(sync=True)
 
     technology = traitlets.Unicode("Xenium").tag(sync=True)
@@ -266,6 +306,12 @@ class Landscape(anywidget.AnyWidget):
         meta_cluster_df = None
         # cell_attr = kwargs.pop("cell_attr", ["leiden"])
         cell_attr = list(kwargs.pop("cell_attr", ["leiden"]))
+        # Attribute (obs column) that drives the cluster color legend. Defaults to
+        # "leiden" for backward compatibility; set e.g. cluster_attr="cell_type" to
+        # color by any categorical attribute.
+        cluster_attr = kwargs.pop("cluster_attr", "leiden")
+        if cluster_attr not in cell_attr:
+            cell_attr.append(cluster_attr)
 
         nbhd_gdf, meta_nbhd_df = _coerce_nbhd_for_landscape(nbhd_gdf, meta_nbhd_df)
 
@@ -382,6 +428,7 @@ class Landscape(anywidget.AnyWidget):
             if "cell_id" in adata.obs.columns:
                 adata.obs.set_index("cell_id", inplace=True)
 
+            cell_attr = [c for c in cell_attr if c in adata.obs.columns]
             meta_cell_df = adata.obs[cell_attr].copy()
 
             if meta_cell_df.index.name is None:
@@ -398,15 +445,15 @@ class Landscape(anywidget.AnyWidget):
 
             pq_meta_cell = _df_to_bytes(meta_cell_df)
 
-            if "leiden" in adata.obs.columns:
-                cluster_counts = adata.obs["leiden"].value_counts().sort_index()
-                colors = adata.uns.get("leiden_colors")
+            if cluster_attr in adata.obs.columns:
+                cluster_counts = adata.obs[cluster_attr].value_counts().sort_index()
+                colors = adata.uns.get(f"{cluster_attr}_colors")
 
                 if colors is None:
                     with suppress(Exception):
-                        sc.pl.umap(adata, color="leiden", show=False)
+                        sc.pl.umap(adata, color=cluster_attr, show=False)
                         plt.close()
-                        colors = adata.uns.get("leiden_colors")
+                        colors = adata.uns.get(f"{cluster_attr}_colors")
 
                 # backup color definition
                 if colors is None:
@@ -442,7 +489,6 @@ class Landscape(anywidget.AnyWidget):
 
         if isinstance(meta_cluster, pd.DataFrame):
             pq_meta_cluster = _df_to_bytes(_reset_index_for_parquet(meta_cluster))
-            kwargs.pop("meta_cluster")
             meta_cluster_df = meta_cluster
 
         if isinstance(umap_df, pd.DataFrame):
@@ -565,7 +611,7 @@ class Enrich(anywidget.AnyWidget):
     same name to prevent notebook bloat.
     """
 
-    _esm = Path(__file__).parent / "../static" / "celldega.js"
+    _esm = _WIDGET_ESM
 
     value = traitlets.Int(0).tag(sync=True)
     width = traitlets.Int(650).tag(sync=True)
@@ -698,7 +744,7 @@ class Yearbook(anywidget.AnyWidget):
         )
     """
 
-    _esm = Path(__file__).parent / "../static" / "celldega.js"
+    _esm = _WIDGET_ESM
     component = traitlets.Unicode("Yearbook").tag(sync=True)
 
     base_url = traitlets.Unicode("").tag(sync=True)
@@ -802,7 +848,11 @@ class Yearbook(anywidget.AnyWidget):
         meta_cell_df = kwargs.pop("meta_cell", None)
         meta_cluster = kwargs.pop("meta_cluster", None)
         meta_cluster_df = None
-        cell_attr = kwargs.pop("cell_attr", ["leiden"])
+        cell_attr = list(kwargs.pop("cell_attr", ["leiden"]))
+        # Attribute (obs column) driving the cluster legend; default "leiden".
+        cluster_attr = kwargs.pop("cluster_attr", "leiden")
+        if cluster_attr not in cell_attr:
+            cell_attr.append(cluster_attr)
 
         # Get cell_name_prefix setting (same as Landscape)
         cell_name_prefix_setting = kwargs.get("cell_name_prefix", False)
@@ -823,6 +873,7 @@ class Yearbook(anywidget.AnyWidget):
             if "cell_id" in adata.obs.columns:
                 adata.obs.set_index("cell_id", inplace=True)
 
+            cell_attr = [c for c in cell_attr if c in adata.obs.columns]
             meta_cell_df = adata.obs[cell_attr].copy()
 
             if meta_cell_df.index.name is None:
@@ -839,15 +890,15 @@ class Yearbook(anywidget.AnyWidget):
 
             pq_meta_cell = _df_to_bytes(meta_cell_df)
 
-            if "leiden" in adata.obs.columns:
-                cluster_counts = adata.obs["leiden"].value_counts().sort_index()
-                colors = adata.uns.get("leiden_colors")
+            if cluster_attr in adata.obs.columns:
+                cluster_counts = adata.obs[cluster_attr].value_counts().sort_index()
+                colors = adata.uns.get(f"{cluster_attr}_colors")
 
                 if colors is None:
                     with suppress(Exception):
-                        sc.pl.umap(adata, color="leiden", show=False)
+                        sc.pl.umap(adata, color=cluster_attr, show=False)
                         plt.close()
-                        colors = adata.uns.get("leiden_colors")
+                        colors = adata.uns.get(f"{cluster_attr}_colors")
 
                 # backup color definition
                 if colors is None:
@@ -925,7 +976,7 @@ class Clustergram(anywidget.AnyWidget):
     - All the old DataFrame-based manual_cat plumbing is removed.
     """
 
-    _esm = Path(__file__).parent / "../static" / "celldega.js"
+    _esm = _WIDGET_ESM
 
     # --- core traits used by JS -------------------------------------------------
     value = traitlets.Int(0).tag(sync=True)
@@ -938,6 +989,11 @@ class Clustergram(anywidget.AnyWidget):
     height = traitlets.Int(500).tag(sync=True)
 
     click_info = traitlets.Dict({}).tag(sync=True)
+
+    # Dendrogram-cut state driven by the front-end slider, keyed by axis, e.g.
+    # {"row": {"n_clusters": 5}} or {"col": {"threshold": 0.42}}. Read by
+    # `to_cluster` to turn the interactive slider position into flat labels.
+    dendro_cut = traitlets.Dict({}).tag(sync=True)
 
     # Generic row/col selection traitlets
     selected_rows = traitlets.List(default_value=[]).tag(sync=True)
@@ -1092,6 +1148,50 @@ class Clustergram(anywidget.AnyWidget):
             base_colors.update(self.category_colors)
         self._category_colors = base_colors
         self.category_colors = deepcopy(self._category_colors)
+
+    def to_cluster(
+        self,
+        axis: str = "row",
+        n_clusters: int | None = None,
+        threshold: float | None = None,
+        criterion: str | None = None,
+    ) -> pd.Series:
+        """Cut the dendrogram into flat cluster labels via the underlying Matrix.
+
+        Thin wrapper over :meth:`celldega.clust.Matrix.to_cluster`. When neither
+        ``n_clusters`` nor ``threshold`` is passed, the cut is read from the
+        front-end dendrogram slider state in ``dendro_cut[axis]`` — a dict of
+        ``{"n_clusters": int}`` or ``{"threshold": float}`` that the JS widget
+        writes as the user drags the slider. Passing an explicit value overrides
+        the slider.
+
+        Args:
+            axis: ``"row"`` or ``"col"`` — which dendrogram to cut.
+            n_clusters: Target number of flat clusters (overrides the slider).
+            threshold: Linkage-distance cutoff (overrides the slider).
+            criterion: Explicit ``scipy`` ``fcluster`` criterion.
+
+        Returns:
+            A ``pd.Series`` of cluster labels indexed by the axis names.
+
+        Raises:
+            ValueError: If no Matrix is attached, or no cut is available from
+                either the arguments or the front-end slider.
+        """
+        if self._matrix is None:
+            raise ValueError("Clustergram has no Matrix reference; construct with matrix=...")
+        if n_clusters is None and threshold is None:
+            cut = (self.dendro_cut or {}).get(axis, {})
+            n_clusters = cut.get("n_clusters")
+            threshold = cut.get("threshold")
+            if n_clusters is None and threshold is None:
+                raise ValueError(
+                    f"no cut for axis '{axis}': move the dendrogram slider or pass "
+                    "n_clusters / threshold explicitly"
+                )
+        return self._matrix.to_cluster(
+            axis=axis, n_clusters=n_clusters, threshold=threshold, criterion=criterion
+        )
 
     @property
     def manual_cat_dict(self) -> dict:

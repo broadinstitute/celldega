@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 from typing import Any
@@ -282,8 +283,9 @@ class Matrix:
         self._data_hash: int | None = None
         self._dirty_flags: dict[str, bool] = dict.fromkeys(CACHE_HIERARCHY, True)
 
-        # Visualization structure
-        self.viz: dict[str, Any] = DEFAULT_VIZ.copy()
+        # Visualization structure. Deep copy so each Matrix gets its own nested
+        # ``linkage``/node dicts — a shallow copy would share them across instances.
+        self.viz: dict[str, Any] = copy.deepcopy(DEFAULT_VIZ)
 
         # if name is None, generate a quick hash-based name from the data content
         if name is None:
@@ -688,6 +690,64 @@ class Matrix:
 
         self._viz_json(dendro=self._clustered)
         self._dirty_flags[CacheLevel.VIZ.value] = False
+
+    def to_cluster(
+        self,
+        axis: AxisInput = "row",
+        n_clusters: int | None = None,
+        threshold: float | None = None,
+        criterion: str | None = None,
+    ) -> pd.Series:
+        """Cut the dendrogram into flat cluster labels.
+
+        Cuts the hierarchical clustering linkage (computed by :meth:`clust`) along
+        one axis and returns a label per row/column. Use ``n_clusters`` to request
+        a fixed number of clusters (``fcluster`` with ``criterion="maxclust"``) or
+        ``threshold`` to cut at a linkage distance (``criterion="distance"``).
+        Exactly one of the two must be given unless ``criterion`` is set explicitly.
+
+        This is the programmatic counterpart to the Clustergram's interactive
+        dendrogram slider: it turns a clustered Matrix into discrete groups (e.g.
+        consensus domains, meta-clusters) that can be attached back to a
+        collection's ``obs`` / ``var``.
+
+        Args:
+            axis: ``"row"``/``"col"`` (or ``0``/``1``) — which dendrogram to cut.
+            n_clusters: Target number of flat clusters (``maxclust`` criterion).
+            threshold: Linkage-distance cutoff (``distance`` criterion).
+            criterion: Explicit ``scipy`` ``fcluster`` criterion; overrides the
+                ``n_clusters``/``threshold`` inference when given (paired with
+                whichever of the two is supplied as ``t``).
+
+        Returns:
+            A ``pd.Series`` of integer cluster labels indexed by the axis names
+            (``data.index`` for rows, ``data.columns`` for columns), in data order.
+
+        Raises:
+            ValueError: If the matrix is unclustered, the linkage is empty, or
+                neither ``n_clusters`` nor ``threshold`` is provided.
+        """
+        from scipy.cluster.hierarchy import fcluster
+
+        if self.data is None:
+            raise ValueError(ERRORS["no_data"])
+        axis_enum = Axis.normalize(axis)
+        linkage_data = self.viz["linkage"].get(axis_enum.value)
+        if not linkage_data:
+            raise ValueError(
+                f"no linkage for axis '{axis_enum.value}'; call .clust() before .to_cluster()"
+            )
+
+        linkage_matrix = np.array(linkage_data)
+        if n_clusters is not None:
+            labels = fcluster(linkage_matrix, t=n_clusters, criterion=criterion or "maxclust")
+        elif threshold is not None:
+            labels = fcluster(linkage_matrix, t=threshold, criterion=criterion or "distance")
+        else:
+            raise ValueError("provide n_clusters or threshold to cut the dendrogram")
+
+        names = self.data.index if axis_enum == Axis.ROW else self.data.columns
+        return pd.Series(labels, index=names.copy(), name="cluster")
 
     def downsample_to(
         self,

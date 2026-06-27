@@ -4,6 +4,55 @@ All notable changes to Celldega are documented here. This project follows
 [Keep a Changelog](https://keepachangelog.com/) conventions and
 [semantic versioning](https://semver.org/).
 
+## [0.18.0] - 2026-06-26
+
+Adds a set-level Collection entity, harmonizes the collection feature-calculation
+API, adds programmatic dendrogram cutting, lets linked views color cells by any
+attribute, and makes widget-bearing docs notebooks dramatically smaller by loading
+the front-end bundle from a CDN. ([#307](https://github.com/broadinstitute/celldega/pull/307))
+
+### Added
+
+- **`dega.set.SetCollection`** — a MuData-backed set-level entity (sets as `obs`,
+  elements/cells as a sparse `membership` `var` modality) for clustering results,
+  spatial-domain algorithm outputs, and manual annotations. Methods: `calc_signature`
+  (gene by default; `feature_type` selects a `MuData` modality, e.g. protein),
+  `calc_population`, `calc_overlap` (square set-by-set relation on self, rectangular
+  modality across collections), and `concat_sets`; plus a stubbed `to_nbhd`. A
+  preferred per-set color is stored in `obs["color"]` and reused by the Clustergram
+  and Landscape.
+- **`Matrix.to_cluster` / `Clustergram.to_cluster`** — cut a dendrogram into flat
+  cluster labels (`fcluster`); the Clustergram reads the front-end slider via a new
+  `dendro_cut` trait.
+- `SetCollection` docs page, a `SetCollection_Cluster_Space` example notebook, and a
+  CONTRIBUTING section on rendering docs notebooks with embedded widget state.
+
+### Changed
+
+- **Harmonized collection API (breaking)** — the entity prefix is dropped now that
+  the instance carries it: `calc_dataset_signature`/`calc_nbhd_by_gene` →
+  `calc_signature`; `*_by_pop` → `calc_population`; `calc_nbhd_overlap` →
+  `calc_overlap`; `calc_nbhd_bordering` → `calc_bordering`;
+  `calc_nbhd_transcript_assignment` → `calc_transcript_assignment`.
+- **Widget front-end loading** — anywidgets load `celldega.js` from jsdelivr via a
+  small `_esm` shim instead of inlining the ~10 MB bundle once per widget, so saved
+  widget state stays small (`CELLDEGA_LOCAL_ESM=1`/`ANYWIDGET_HMR` keep the local
+  bundle for development).
+- Linked Clustergram↔Landscape/Yearbook views color cells by the Clustergram's
+  `col_entity` attribute instead of a hard-coded `"leiden"`; `Landscape`/`Yearbook`
+  gained a `cluster_attr` kwarg, and `calc_signature` stamps `uns["axis_entities"]`
+  so a `Matrix` over a signature auto-infers its linking attribute.
+
+### Fixed
+
+- `Matrix.viz` is now deep-copied from the default, fixing `linkage` state leaking
+  across `Matrix` instances.
+- Linked-view helpers wrote to the removed `Yearbook.query` trait (now
+  `front_end_query`), so cluster/gene selections were silently dropped.
+- `Landscape`/`Yearbook` `cell_attr` selection no longer raises when a default
+  column is absent; passing `meta_cluster` as a `DataFrame` no longer raises a
+  double-`pop` `KeyError`.
+
 ## [0.16.0] - 2026-06-18
 
 This release introduces two major capabilities — a MuData-backed **Collection

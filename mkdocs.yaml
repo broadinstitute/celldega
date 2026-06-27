@@ -39,6 +39,7 @@ nav:
       - nbhd: python/nbhd/api.md
       - pre: python/pre/api.md
       - select: python/select/api.md
+      - set: python/set/api.md
       - viz: python/viz/api.md
 
   - JavaScript API:
@@ -74,6 +75,7 @@ nav:
       - NeighborhoodCollection Population Space: examples/brief_notebooks/NeighborhoodCollection_Population_Space.ipynb
       - Gradient Neighborhood Pancreas Islets: examples/brief_notebooks/Gradient_Neighborhood_Pancreas_Islets.ipynb
       - DatasetCollection Population Space: examples/brief_notebooks/DatasetCollection_Population_Space.ipynb
+      - SetCollection Cluster Space: examples/brief_notebooks/SetCollection_Cluster_Space.ipynb
 
 markdown_extensions:
   - toc

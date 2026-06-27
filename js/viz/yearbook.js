@@ -1069,7 +1069,7 @@ export const yearbook = async (
       // Sync to model if available
       if (viz_state.model && typeof viz_state.model.set === 'function') {
         viz_state.model.set('cells', queried_cells);
-        viz_state.model.set('query', new_query);
+        viz_state.model.set('front_end_query', new_query);
         viz_state.model.set('current_page', 0);
         viz_state.model.save_changes();
       }
@@ -1122,8 +1122,8 @@ export const yearbook = async (
       }
     });
 
-    viz_state.model.on('change:query', async () => {
-      const new_query = viz_state.model.get('query') || {};
+    viz_state.model.on('change:front_end_query', async () => {
+      const new_query = viz_state.model.get('front_end_query') || {};
       viz_state.yearbook.query = new_query;
 
       // Update query UI inputs to reflect the new query

@@ -10,11 +10,17 @@
 readonly VENV_BASE_DIR="."
 readonly VENV_NAME="dega"
 readonly VENV_PATH="${VENV_BASE_DIR}/${VENV_NAME}"
+# Display name for the registered Jupyter kernel so notebooks run on this env.
+readonly KERNEL_DISPLAY_NAME="Python (${VENV_NAME})"
 
 # =============================================================================
 # Version Requirements
 # =============================================================================
+# Matches requires-python>=3.11 in pyproject.toml (point-cloud dependency stack).
 readonly PYTHON_MIN_VERSION="3.11"
+# Python the uv-managed env is built on. uv fetches a standalone CPython for
+# this version (never Anaconda's), avoiding native-library (GLib/GDAL) clashes.
+readonly PYTHON_VERSION="3.12"
 readonly NODE_MIN_VERSION="16"
 readonly NPM_MIN_VERSION="8"
 
@@ -22,6 +28,7 @@ readonly NPM_MIN_VERSION="8"
 # Download URLs
 # =============================================================================
 readonly PYTHON_DOWNLOAD_URL="https://python.org/downloads/"
+readonly UV_DOWNLOAD_URL="https://docs.astral.sh/uv/getting-started/installation/"
 readonly NODE_DOWNLOAD_URL="https://nodejs.org/"
 readonly NPM_DOWNLOAD_URL="https://docs.npmjs.com/downloading-and-installing-node-js-and-npm"
 readonly GIT_DOWNLOAD_URL="https://git-scm.com/"
@@ -68,6 +75,11 @@ readonly MSG_CODE_QUALITY="Checking code quality..."
 # Error Messages
 # =============================================================================
 readonly ERR_PYTHON_NOT_FOUND="Python not found. Please install Python ${PYTHON_MIN_VERSION}+ from ${PYTHON_DOWNLOAD_URL}"
+readonly ERR_UV_NOT_FOUND="uv not found. Install it with one of:
+  curl -LsSf https://astral.sh/uv/install.sh | sh
+  brew install uv
+  pipx install uv
+  More info: ${UV_DOWNLOAD_URL}"
 readonly ERR_NODE_NOT_FOUND="Node.js not found. Please install Node.js ${NODE_MIN_VERSION}+ from ${NODE_DOWNLOAD_URL}"
 readonly ERR_NPM_NOT_FOUND="npm not found. Please install npm:
   npm comes with Node.js installation

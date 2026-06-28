@@ -1,7 +1,6 @@
 import { options } from '../../global_variables/fetch_options';
 import { fetch_all_tables_new } from '../../read_parquet/fetch_all_tables';
-import { get_scatter_data } from '../../read_parquet/get_scatter_data';
-import { concatenate_arrow_tables } from '../../vector_tile/concatenate_functions';
+import { createEmptyTrxCompact } from '../../utils/compact_data';
 
 /**
  * Fetch transcript tiles from row group reader
@@ -22,19 +21,117 @@ async function grab_trx_tiles_row_groups(tiles_in_view, viz_state) {
     tile_y: tile.tileY,
   }));
 
-  return reader.readTiles(tilesForReader);
+  return reader.readTiles(tilesForReader, { returnTablesArray: true });
 }
+
+const materializeTranscriptBuffers = (tables, viz_state) => {
+  const tableArray = (Array.isArray(tables) ? tables : [tables]).filter(
+    Boolean
+  );
+
+  if (tableArray.length === 0) {
+    return {
+      geneIds: new Int32Array(),
+      scatterData: {
+        length: 0,
+        attributes: {
+          getPosition: { value: new Float32Array(), size: 2 },
+        },
+      },
+    };
+  }
+
+  let totalRows = 0;
+  let totalCoordinates = 0;
+
+  for (const table of tableArray) {
+    totalRows += table.numRows;
+
+    const geometryColumn = table.getChild('geometry')?.getChildAt(0);
+    const chunks = geometryColumn?.data || [];
+    for (const chunk of chunks) {
+      totalCoordinates += chunk.values.length;
+    }
+  }
+
+  if (totalRows === 0 || totalCoordinates === 0) {
+    return {
+      geneIds: new Int32Array(),
+      scatterData: {
+        length: 0,
+        attributes: {
+          getPosition: { value: new Float32Array(), size: 2 },
+        },
+      },
+    };
+  }
+
+  const positions = new Float64Array(totalCoordinates);
+  const geneIds = new Int32Array(totalRows);
+  const geneIdByName = viz_state.genes.g_nameMapping || {};
+
+  let coordinateOffset = 0;
+  let rowOffset = 0;
+
+  const normalizeGeneId = (value) => {
+    if (typeof value === 'bigint') {
+      return Number(value);
+    }
+
+    const numericValue = Number(value);
+    return Number.isFinite(numericValue) ? numericValue : -1;
+  };
+
+  for (const table of tableArray) {
+    const geometryColumn = table.getChild('geometry')?.getChildAt(0);
+    const chunks = geometryColumn?.data || [];
+
+    for (const chunk of chunks) {
+      positions.set(chunk.values, coordinateOffset);
+      coordinateOffset += chunk.values.length;
+    }
+
+    const nameColumn = table.getChild('name');
+    const nameValues = nameColumn ? nameColumn.toArray() : [];
+
+    if (viz_state.vector_name_integer) {
+      for (let i = 0; i < nameValues.length; i++) {
+        geneIds[rowOffset + i] = normalizeGeneId(nameValues[i]);
+      }
+    } else {
+      for (let i = 0; i < nameValues.length; i++) {
+        const geneId = geneIdByName[nameValues[i]];
+        geneIds[rowOffset + i] = geneId === undefined ? -1 : geneId;
+      }
+    }
+
+    rowOffset += table.numRows;
+  }
+
+  return {
+    geneIds,
+    scatterData: {
+      length: totalRows,
+      attributes: {
+        getPosition: {
+          value: positions,
+          size: totalCoordinates / totalRows,
+        },
+      },
+    },
+  };
+};
 
 export const grab_trx_tiles_in_view = async (
   base_url,
   tiles_in_view,
   viz_state
 ) => {
-  let trx_arrow_table;
+  let trx_tables;
 
   // Check if using row group mode
   if (viz_state.use_row_groups && viz_state.row_group_readers?.trx) {
-    trx_arrow_table = await grab_trx_tiles_row_groups(tiles_in_view, viz_state);
+    trx_tables = await grab_trx_tiles_row_groups(tiles_in_view, viz_state);
   } else {
     // Traditional mode: fetch individual tile files
     const tile_trx_urls = tiles_in_view.map((tile) => {
@@ -48,17 +145,14 @@ export const grab_trx_tiles_in_view = async (
       viz_state.aws
     );
 
-    const tile_trx_tables = tile_trx_tables_ini.filter(
-      (table) => table !== null
-    );
-
-    trx_arrow_table = concatenate_arrow_tables(tile_trx_tables);
+    trx_tables = tile_trx_tables_ini.filter((table) => table !== null);
   }
 
   // Handle case where no transcript tiles were loaded
-  if (!trx_arrow_table) {
-    viz_state.genes.trx_names_array = [];
+  if (!trx_tables || (Array.isArray(trx_tables) && trx_tables.length === 0)) {
+    viz_state.genes.trx_gene_ids = new Int32Array();
     viz_state.combo_data.trx = [];
+    viz_state.combo_data.trx_compact = createEmptyTrxCompact();
     return {
       length: 0,
       attributes: {
@@ -67,33 +161,17 @@ export const grab_trx_tiles_in_view = async (
     };
   }
 
-  let new_trx_names_array = [];
-  if (!viz_state.vector_name_integer) {
-    // extract names directly.
-    new_trx_names_array = trx_arrow_table.getChild('name')?.toArray() || [];
-  } else {
-    // map integer values to strings.
-    const names_child = trx_arrow_table.getChild('name');
-    new_trx_names_array = names_child
-      ? Array.from(names_child.toArray()).map(
-          (num) => viz_state.genes.g_nameMapping_inv[num]
-        )
-      : [];
-  }
+  const { geneIds, scatterData: trx_scatter_data } =
+    materializeTranscriptBuffers(trx_tables, viz_state);
 
-  viz_state.genes.trx_names_array = new_trx_names_array;
-
-  const trx_scatter_data = get_scatter_data(trx_arrow_table);
-
-  // Combine names and positions into a single array of objects
-  const flatCoordinateArray = trx_scatter_data.attributes.getPosition.value;
-  viz_state.combo_data.trx = viz_state.genes.trx_names_array.map(
-    (name, index) => ({
-      name,
-      x: flatCoordinateArray[index * 2],
-      y: flatCoordinateArray[index * 2 + 1],
-    })
-  );
+  viz_state.genes.trx_gene_ids = geneIds;
+  viz_state.combo_data.trx_compact = {
+    geneIds,
+    positions: trx_scatter_data.attributes.getPosition.value,
+    size: trx_scatter_data.attributes.getPosition.size || 2,
+  };
+  // Backward-compatible field retained for any external consumers.
+  viz_state.combo_data.trx = [];
 
   return trx_scatter_data;
 };

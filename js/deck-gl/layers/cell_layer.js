@@ -17,6 +17,7 @@ import { update_selected_genes } from '../../global_variables/selected_genes';
 import { get_arrow_table } from '../../read_parquet/get_arrow_table';
 import { get_scatter_data } from '../../read_parquet/get_scatter_data';
 import { scale_umap_data } from '../../umap/scale_umap_data';
+import { buildCellCompactData } from '../../utils/compact_data';
 import { getModelMatrixProps } from '../../utils/rotation';
 
 /**
@@ -206,22 +207,18 @@ export const ini_cell_layer = async (base_url, viz_state) => {
 
   set_dict_cell_cats(viz_state.cats);
 
-  // Combine names and positions into a single array of objects
   const new_cell_names_array = cell_arrow_table.getChild('name').toArray();
-
   const flatCoordinateArray =
     viz_state.spatial.cell_scatter_data.attributes.getPosition.value;
   const dim =
     viz_state.spatial.cell_scatter_data.attributes.getPosition.size || 2;
 
-  // save cell positions and categories in one place for updating cluster bar plot
-  viz_state.combo_data.cell = new_cell_names_array.map((name, index) => ({
-    name,
-    cat: viz_state.cats.dict_cell_cats[name],
-    x: flatCoordinateArray[index * dim],
-    y: flatCoordinateArray[index * dim + 1],
-    z: dim === 3 ? flatCoordinateArray[index * dim + 2] : 0,
-  }));
+  viz_state.combo_data.cell_compact = buildCellCompactData(
+    new_cell_names_array,
+    flatCoordinateArray,
+    dim,
+    viz_state.cats.dict_cell_cats
+  );
 
   let cell_scatter_data_objects;
   if (viz_state.umap.has_umap) {

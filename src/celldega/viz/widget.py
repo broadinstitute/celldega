@@ -7,12 +7,12 @@ from copy import deepcopy
 import importlib.metadata
 import json
 import os
-import time
-import uuid
 from pathlib import Path
 import re
-from typing import Any
+import time
+from typing import Any, Literal
 import urllib.error
+import uuid
 import warnings
 
 import anywidget
@@ -23,7 +23,6 @@ import pandas as pd
 import scanpy as sc
 from shapely.affinity import affine_transform
 import traitlets
-from typing import Literal
 
 
 _clustergram_registry = {}  # maps names to widget instances

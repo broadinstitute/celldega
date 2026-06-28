@@ -128,13 +128,7 @@ const ignores_sketch_shortcut = (event) => {
   );
 };
 
-const set_sketch_mode = (
-  active,
-  deck_ist,
-  layers_obj,
-  viz_state,
-  refresh = true
-) => {
+const set_sketch_mode = (active, deck_ist, layers_obj, viz_state) => {
   const sketch_button = viz_state.edit?.buttons?.sktch;
   if (!sketch_button) return;
 
@@ -162,10 +156,8 @@ const set_sketch_mode = (
     update_trx_pickable_state(layers_obj, true);
   }
 
-  if (refresh) {
-    const layers_list = get_layers_list(layers_obj, viz_state.close_up);
-    deck_ist.setProps({ layers: layers_list });
-  }
+  const layers_list = get_layers_list(layers_obj, viz_state.close_up);
+  deck_ist.setProps({ layers: layers_list });
 };
 
 /**
@@ -1240,10 +1232,42 @@ export const make_ist_ui_container = (
     d3.select(viz_state.edit.buttons.sktch).style('display', 'none');
 
     if (viz_state.nbhd.edit) {
+      // Tear down any listeners left by a previous call on this viz_state before
+      // re-registering, so re-running make_ist_ui_container can't orphan them.
+      viz_state.edit.cleanup_shortcuts?.();
+
+      // The keydown listener is global, but the shortcut is scoped to this
+      // widget by tracking whether the pointer is over this Landscape's root.
+      // Without this, pressing 's' would toggle every Landscape on the page
+      // (e.g. multiple widgets in a notebook) at once.
+      const root_el = viz_state.root;
+      let pointer_inside = false;
+      const on_pointer_enter = () => {
+        pointer_inside = true;
+      };
+      const on_pointer_leave = () => {
+        pointer_inside = false;
+      };
+      root_el?.addEventListener('mouseenter', on_pointer_enter);
+      root_el?.addEventListener('mouseleave', on_pointer_leave);
+
       const sketch_keydown_callback = (event) => {
-        if (event.key?.toLowerCase() !== 's') return;
+        if (!pointer_inside) return;
+
+        const key = event.key?.toLowerCase();
+        if (key !== 's' && event.key !== 'Escape') return;
         if (ignores_sketch_shortcut(event)) return;
         if (!viz_state.obs_store.viz_edit_layer.get()) return;
+
+        // Escape exits sketch mode; 's' enters it. (Completing a stroke also
+        // auto-exits via the addFeature handler, so sketch mode is single-shot.)
+        if (event.key === 'Escape') {
+          if (viz_state.edit.mode !== 'sktch') return;
+          event.preventDefault();
+          set_sketch_mode(false, deck_ist, layers_obj, viz_state);
+          return;
+        }
+
         if (viz_state.edit.mode === 'sktch') return;
         if (viz_state.edit.mode === 'modify') return;
 
@@ -1254,6 +1278,8 @@ export const make_ist_ui_container = (
       document.addEventListener('keydown', sketch_keydown_callback);
       viz_state.edit.cleanup_shortcuts = () => {
         document.removeEventListener('keydown', sketch_keydown_callback);
+        root_el?.removeEventListener('mouseenter', on_pointer_enter);
+        root_el?.removeEventListener('mouseleave', on_pointer_leave);
       };
     }
 

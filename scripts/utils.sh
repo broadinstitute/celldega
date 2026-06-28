@@ -186,6 +186,7 @@ next_steps() {
     echo "  1. Activate environment:  $ACTIVATION_COMMAND"
     echo "  2. Start developing:      npm run dev"
     echo "  3. Open notebooks:        jupyter lab notebooks/"
+    echo "     In the notebook, select the '${KERNEL_DISPLAY_NAME}' kernel."
     echo
     echo "Need help? Run: ./scripts/setup.sh --help"
 }

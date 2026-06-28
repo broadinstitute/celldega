@@ -48,8 +48,14 @@ export const set_meta_gene = async (
     return acc;
   }, {});
 
+  const g_nameMapping = gene_names.reduce((acc, name, idx) => {
+    acc[name] = idx;
+    return acc;
+  }, {});
+
   // Save the mapping as cats.nameMapping_inv
   genes.g_nameMapping_inv = g_nameMapping_inv;
+  genes.g_nameMapping = g_nameMapping;
 
   genes.gene_names = gene_names;
 };

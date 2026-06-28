@@ -165,7 +165,12 @@ export function buildCellSlice(rowIndex, colIndex, value) {
  * @param {number} [maxEntries]  Passed through to both axis builders.
  * @returns {object|null}
  */
-export function buildRowColPairSlice(viz_state, rowIndex, colIndex, maxEntries) {
+export function buildRowColPairSlice(
+  viz_state,
+  rowIndex,
+  colIndex,
+  maxEntries
+) {
   const rowSlice = buildRowAxisSlice(viz_state, rowIndex, maxEntries);
   const colSlice = buildColAxisSlice(viz_state, colIndex, maxEntries);
   if (!rowSlice && !colSlice) return null;

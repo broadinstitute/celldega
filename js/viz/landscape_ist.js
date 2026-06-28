@@ -74,6 +74,10 @@ import { initialize_nbhd_editor } from '../ui/nbhd_editor';
 import { toggle_slider, set_image_layer_sliders } from '../ui/sliders';
 import { get_img_layer_visible } from '../ui/text_buttons';
 import { make_ist_ui_container } from '../ui/ui_containers';
+import {
+  createEmptyCellCompact,
+  createEmptyTrxCompact,
+} from '../utils/compact_data';
 import { refresh_layer } from '../utils/refresh_layer';
 import { build_rotation_state } from '../utils/rotation';
 import { create_scale_bar, PIXEL_SIZE_MICRONS } from '../utils/scale_bar';
@@ -393,7 +397,12 @@ export const landscape_ist = async (
 
   const isUmapInit = landscape_state === 'umap';
   viz_state.obs_store.umap_state.set(isUmapInit);
-  viz_state.obs_store.landscape_view.set(landscape_state);
+  // 'nbhd' is not a spatial/umap view; keep landscape_view valid and remember to
+  // reveal the neighborhood layer once the UI (buttons/sliders/bars) is built.
+  viz_state.nbhd.show_on_init = landscape_state === 'nbhd';
+  const base_landscape_view =
+    landscape_state === 'nbhd' ? 'spatial' : landscape_state;
+  viz_state.obs_store.landscape_view.set(base_landscape_view);
 
   viz_state.genes = {};
   viz_state.genes.color_dict_gene = {};
@@ -401,8 +410,9 @@ export const landscape_ist = async (
   viz_state.genes.meta_gene = {};
   viz_state.genes.gene_counts = [];
   viz_state.genes.selected_genes = [];
+  viz_state.genes.selected_gene_ids = new Set();
   viz_state.genes.trx_ini_radius = trx_radius;
-  viz_state.genes.trx_names_array = [];
+  viz_state.genes.trx_gene_ids = new Int32Array();
   viz_state.genes.trx_data = [];
   viz_state.genes.gene_text_box = '';
   viz_state.genes.trx_slider = document.createElement('input');
@@ -515,6 +525,18 @@ export const landscape_ist = async (
   viz_state.cache.trx = await ini_cache();
 
   viz_state.combo_data = {};
+  viz_state.combo_data.trx = [];
+  viz_state.combo_data.trx_compact = createEmptyTrxCompact();
+  viz_state.combo_data.cell_compact = createEmptyCellCompact();
+  viz_state.viewport_cache = {
+    visibleTileKey: null,
+    lastGeneBarData: null,
+    lastCellBarData: null,
+    geneCountScratch: null,
+    activeGeneIds: [],
+    cellCountScratch: null,
+    activeCellIds: [],
+  };
 
   viz_state.tooltip_cat_cell = '';
 
@@ -838,6 +860,14 @@ export const landscape_ist = async (
   // UI and Viz Container
   el.appendChild(ui_container);
   el.appendChild(root);
+
+  // Reveal the neighborhood layer in the initial view when landscape_state='nbhd'.
+  // Done after the UI is built so the viz_nbhd_layer subscription can update the
+  // buttons, sliders, and category bars.
+  if (viz_state.nbhd.show_on_init && viz_state.nbhd.is_nbhd) {
+    toggle_nbhd_layer_visibility(layers_obj, true);
+    viz_state.obs_store.viz_nbhd_layer.set(true);
+  }
 
   // Initialize neighborhood editor dialog if nbhd_edit mode is enabled
   if (viz_state.nbhd.edit) {

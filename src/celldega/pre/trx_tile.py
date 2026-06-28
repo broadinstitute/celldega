@@ -3,7 +3,9 @@ Transcript tile processing module for spatial transcriptomics data.
 """
 
 import concurrent.futures
+import gc
 from pathlib import Path
+import shutil
 
 import numpy as np
 import polars as pl
@@ -11,6 +13,11 @@ from scipy.sparse import csr_matrix
 from tqdm import tqdm
 
 from .boundary_tile import _get_name_mapping
+
+
+# Above this row count, row-group transcript tiling spills to disk during tile assignment
+# to avoid OOM from ``partition_by`` materializing every non-empty tile at once.
+STREAMING_TILE_ASSIGN_ROW_THRESHOLD = 500_000
 
 
 def _process_coarse_tile_transcripts(
@@ -303,6 +310,231 @@ def _transform_coordinates_in_chunks(trx_ini, chunk_size, transformation_matrix,
     return pl.concat(all_chunks)
 
 
+def _transform_coordinates_to_parquet_shards(
+    trx_ini, chunk_size, transformation_matrix, image_scale, shard_dir
+):
+    """
+    Transform transcripts in chunks and write each chunk to a Parquet shard (no full concat).
+
+    Returns global max transformed x/y for tile grid sizing (x_min/y_min assumed 0 as elsewhere).
+    """
+    shard_dir = Path(shard_dir)
+    shard_dir.mkdir(parents=True, exist_ok=True)
+    sparse_matrix = csr_matrix(transformation_matrix)
+    max_x = 0.0
+    max_y = 0.0
+
+    for shard_idx, start_row in enumerate(
+        tqdm(range(0, trx_ini.height, chunk_size), desc="Processing chunks")
+    ):
+        chunk = trx_ini.slice(start_row, chunk_size)
+        points = np.hstack([chunk.select(["x", "y"]).to_numpy(), np.ones((chunk.height, 1))])
+        transformed_points = sparse_matrix.dot(points.T).T[:, :2]
+
+        transformed_chunk = chunk.with_columns(
+            [
+                (pl.Series(transformed_points[:, 0]) * image_scale).round(2).alias("transformed_x"),
+                (pl.Series(transformed_points[:, 1]) * image_scale).round(2).alias("transformed_y"),
+            ]
+        ).drop(["x", "y"])
+
+        row = transformed_chunk.select(
+            [
+                pl.col("transformed_x").max().alias("mx"),
+                pl.col("transformed_y").max().alias("my"),
+            ]
+        ).row(0)
+        max_x = max(max_x, float(row[0]))
+        max_y = max(max_y, float(row[1]))
+
+        transformed_chunk.write_parquet(shard_dir / f"shard_{shard_idx:06d}.parquet")
+
+    return max_x, max_y
+
+
+def _spill_one_transform_shard_to_tiles(
+    shard_path,
+    shard_idx,
+    x_min,
+    y_min,
+    n_tiles_x,
+    n_tiles_y,
+    tile_size,
+    spill_root,
+):
+    """Read one transform shard, partition by tile, append parts under spill_root/{tx}_{ty}/."""
+    spill_root = Path(spill_root)
+    trx = pl.read_parquet(shard_path)
+
+    trx = trx.with_columns(
+        [
+            ((pl.col("transformed_x") - x_min) / tile_size).floor().cast(pl.Int32).alias("tile_x"),
+            ((pl.col("transformed_y") - y_min) / tile_size).floor().cast(pl.Int32).alias("tile_y"),
+        ]
+    )
+    trx = trx.with_columns(
+        [
+            pl.col("tile_x").clip(0, n_tiles_x - 1).alias("tile_x"),
+            pl.col("tile_y").clip(0, n_tiles_y - 1).alias("tile_y"),
+        ]
+    )
+    trx = trx.with_columns(
+        pl.concat_list([pl.col("transformed_x"), pl.col("transformed_y")]).alias("geometry")
+    )
+    columns_to_drop = [
+        col
+        for col in ["transformed_x", "transformed_y", "cell_id", "transcript_id"]
+        if col in trx.columns
+    ]
+    trx = trx.drop(columns_to_drop)
+
+    grouped = trx.partition_by(["tile_x", "tile_y"], as_dict=True)
+    for (tx, ty), tile_df in grouped.items():
+        if tile_df.is_empty():
+            continue
+        out_dir = spill_root / f"{tx}_{ty}"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        tile_df.write_parquet(out_dir / f"part_{shard_idx:06d}.parquet")
+
+
+def _write_traditional_transcript_tiles_from_spill(
+    spill_root, n_tiles_x, n_tiles_y, path_trx_tiles
+):
+    """
+    Merge per-shard spill parts into one ``transcripts_tile_{i}_{j}.parquet`` per spatial tile
+    (legacy layout expected by the frontend). Drops spill-only tile index columns.
+    """
+    spill_root = Path(spill_root)
+    out_dir = Path(path_trx_tiles)
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    written = 0
+    for tile_i in tqdm(range(n_tiles_x), desc="Writing transcript tile parquets"):
+        for tile_j in range(n_tiles_y):
+            d = spill_root / f"{tile_i}_{tile_j}"
+            if not d.is_dir():
+                continue
+            parts = sorted(d.glob("part_*.parquet"))
+            if not parts:
+                continue
+            tile_df = pl.concat([pl.read_parquet(p) for p in parts])
+            drop_cols = [c for c in ("tile_x", "tile_y") if c in tile_df.columns]
+            if drop_cols:
+                tile_df = tile_df.drop(drop_cols)
+            outfile = out_dir / f"transcripts_tile_{tile_i}_{tile_j}.parquet"
+            tile_df.to_pandas().to_parquet(outfile, index=False)
+            written += 1
+
+    print(f"Wrote {written} non-empty transcript tile parquet files")
+
+
+def _arrow_schema_from_spill_sample(spill_root, n_tiles_x, n_tiles_y):
+    """Load one non-empty spill part to build a PyArrow schema for the row-group writer."""
+    import pyarrow as pa
+
+    spill_root = Path(spill_root)
+    for tile_i in range(n_tiles_x):
+        for tile_j in range(n_tiles_y):
+            d = spill_root / f"{tile_i}_{tile_j}"
+            if not d.is_dir():
+                continue
+            for part in sorted(d.glob("part_*.parquet")):
+                sample = pl.read_parquet(part)
+                if not sample.is_empty():
+                    return pa.Table.from_pandas(sample.to_pandas(), preserve_index=False).schema
+    return None
+
+
+def _write_tiles_as_row_groups_streaming(
+    output_dir, tile_grid_info, spill_root, max_row_groups_per_file=400
+):
+    """
+    Write chunked row-group parquet by loading one spatial tile at a time from spill parts.
+    Avoids holding all tile DataFrames in memory (unlike partition_by on the full table).
+    """
+    import json
+
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    n_tiles_x = tile_grid_info["num_tiles_x"]
+    n_tiles_y = tile_grid_info["num_tiles_y"]
+    total_tiles = n_tiles_x * n_tiles_y
+    spill_root = Path(spill_root)
+    output_path = Path(output_dir)
+    output_path.mkdir(parents=True, exist_ok=True)
+
+    schema = _arrow_schema_from_spill_sample(spill_root, n_tiles_x, n_tiles_y)
+    if schema is None:
+        print("Warning: All tiles are empty, cannot determine schema")
+        return {}
+
+    metadata = {
+        b"tile_grid_info": json.dumps(tile_grid_info).encode("utf-8"),
+        b"storage_mode": b"row_groups_chunked",
+        b"max_row_groups_per_file": str(max_row_groups_per_file).encode("utf-8"),
+    }
+    schema = schema.with_metadata(metadata)
+
+    num_files = (total_tiles + max_row_groups_per_file - 1) // max_row_groups_per_file
+    print(
+        f"Chunking {total_tiles} tiles into {num_files} files (max {max_row_groups_per_file} per file)"
+    )
+
+    file_list = []
+    non_empty_count = 0
+    current_file_index = -1
+    writer = None
+    idx = 0
+
+    for tile_i in tqdm(range(n_tiles_x), desc="Writing row groups"):
+        for tile_j in range(n_tiles_y):
+            d = spill_root / f"{tile_i}_{tile_j}"
+            if d.is_dir():
+                parts = sorted(d.glob("part_*.parquet"))
+                tile_df = pl.concat([pl.read_parquet(p) for p in parts]) if parts else None
+            else:
+                tile_df = None
+
+            if tile_df is not None and not tile_df.is_empty():
+                non_empty_count += 1
+            else:
+                tile_df = None
+
+            file_index = idx // max_row_groups_per_file
+            if file_index != current_file_index:
+                if writer is not None:
+                    writer.close()
+                current_file_index = file_index
+                file_name = f"chunk_{file_index}.parquet"
+                file_path = output_path / file_name
+                file_list.append(file_name)
+                writer = pq.ParquetWriter(file_path, schema, write_statistics=False)
+
+            if tile_df is not None:
+                tile_table = pa.Table.from_pandas(tile_df.to_pandas(), preserve_index=False)
+                writer.write_table(tile_table)
+            else:
+                writer.write_table(schema.empty_table())
+            idx += 1
+
+    if writer is not None:
+        writer.close()
+
+    print(
+        f"Wrote {total_tiles} row groups ({non_empty_count} non-empty) across {len(file_list)} files"
+    )
+    print(
+        f"Tile grid: {tile_grid_info['num_tiles_x']}x{tile_grid_info['num_tiles_y']} = {total_tiles} tiles"
+    )
+
+    return {
+        "files": file_list,
+        "max_row_groups_per_file": max_row_groups_per_file,
+        "total_row_groups": total_tiles,
+    }
+
+
 def transform_transcript_coordinates(
     technology,
     path_trx,
@@ -456,6 +688,7 @@ def make_trx_tiles(
     verbose=False,
     image_scale=1,
     max_workers=1,
+    streaming_tile_assignment=None,
 ):
     """
     Processes transcript data by dividing it into coarse-grain and fine-grain tiles,
@@ -480,9 +713,14 @@ def make_trx_tiles(
     verbose : bool, optional
         Flag to enable verbose output (default is False).
     image_scale : float, optional
-        Scale factor to apply to the transcript coordinates (default is 0.5).
+        Scale factor to apply to the transcript coordinates (default is 1.0).
     max_workers : int, optional
         Maximum number of parallel workers for processing tiles (default is 1).
+    streaming_tile_assignment : bool or None, optional
+        If True, stream transformed coordinates to Parquet shards and spill per spatial tile
+        (same strategy as row-group mode) instead of concatenating all rows and using
+        ``partition_by`` / coarse filters on one huge frame. If None, enable automatically
+        when row count is at least ``STREAMING_TILE_ASSIGN_ROW_THRESHOLD``.
 
     Returns
     -------
@@ -503,30 +741,87 @@ def make_trx_tiles(
             layer="transcript",
         )
 
-        trx = transform_transcript_coordinates(
-            technology,
-            path_trx,
-            chunk_size,
-            transformation_matrix,
-            image_scale,
-            gene_str_to_int_mapping=gene_str_to_int_mapping,
-        )
+        trx_ini = _load_transcript_data_by_technology(technology, path_trx)
+        trx_ini = _apply_gene_mapping(trx_ini, gene_str_to_int_mapping)
 
-        # Get min and max x, y values
-        x_min, y_min, x_max, y_max = _get_transformed_tile_bounds(trx)
+        use_streaming = streaming_tile_assignment
+        if use_streaming is None:
+            use_streaming = trx_ini.height >= STREAMING_TILE_ASSIGN_ROW_THRESHOLD
 
-        # Process tiles in parallel
-        _process_transcript_tiles_parallel(
-            trx,
-            x_min,
-            y_min,
-            x_max,
-            y_max,
-            tile_size,
-            coarse_tile_factor,
-            path_trx_tiles,
-            max_workers,
-        )
+        if use_streaming:
+            print(
+                f"Using disk-backed traditional transcript tiles ({trx_ini.height:,} rows; "
+                f"threshold {STREAMING_TILE_ASSIGN_ROW_THRESHOLD:,})."
+            )
+            tmp_root = tiles_path / "_tmp_trx_traditional_build"
+            try:
+                shards_dir = tmp_root / "shards"
+                spill_dir = tmp_root / "spill"
+                shards_dir.mkdir(parents=True, exist_ok=True)
+                spill_dir.mkdir(parents=True, exist_ok=True)
+
+                max_x, max_y = _transform_coordinates_to_parquet_shards(
+                    trx_ini,
+                    chunk_size,
+                    transformation_matrix,
+                    image_scale,
+                    shards_dir,
+                )
+                trx_ini = None
+                gc.collect()
+
+                x_min, y_min = 0.0, 0.0
+                x_max, y_max = max_x, max_y
+                n_tiles_x = int(np.ceil((x_max - x_min) / tile_size))
+                n_tiles_y = int(np.ceil((y_max - y_min) / tile_size))
+                print(
+                    f"Grid: {n_tiles_x} x {n_tiles_y} = {n_tiles_x * n_tiles_y} tiles "
+                    "(streaming → per-tile parquets)"
+                )
+                print("Spilling per-tile transcript batches (streaming)...")
+
+                for shard_idx, shard_path in enumerate(
+                    tqdm(sorted(shards_dir.glob("shard_*.parquet")), desc="Tile spill")
+                ):
+                    _spill_one_transform_shard_to_tiles(
+                        shard_path,
+                        shard_idx,
+                        x_min,
+                        y_min,
+                        n_tiles_x,
+                        n_tiles_y,
+                        tile_size,
+                        spill_dir,
+                    )
+
+                shutil.rmtree(shards_dir, ignore_errors=True)
+                _write_traditional_transcript_tiles_from_spill(
+                    spill_dir, n_tiles_x, n_tiles_y, path_trx_tiles
+                )
+            finally:
+                if tmp_root.exists():
+                    shutil.rmtree(tmp_root, ignore_errors=True)
+        else:
+            trx = _transform_coordinates_in_chunks(
+                trx_ini, chunk_size, transformation_matrix, image_scale
+            )
+            trx_ini = None
+
+            # Get min and max x, y values
+            x_min, y_min, x_max, y_max = _get_transformed_tile_bounds(trx)
+
+            # Process tiles in parallel
+            _process_transcript_tiles_parallel(
+                trx,
+                x_min,
+                y_min,
+                x_max,
+                y_max,
+                tile_size,
+                coarse_tile_factor,
+                path_trx_tiles,
+                max_workers,
+            )
 
     # Return the tile bounds
     return {
@@ -541,3 +836,385 @@ def make_trx_tiles(
 process_coarse_tile = _process_coarse_tile_transcripts
 process_fine_tiles = _process_fine_tiles_transcripts
 filter_and_save_fine_tile = _filter_and_save_fine_tile
+
+
+def _collect_tile_data_for_row_groups(
+    trx,
+    x_min,
+    y_min,
+    x_max,
+    y_max,
+    tile_size,
+):
+    """
+    Collect all tile data for row group output in deterministic order.
+
+    ALL tiles are included (even empty ones) so that the formula works:
+        row_group_index = tile_x * num_tiles_y + tile_y
+
+    This allows the frontend to calculate row group indices directly from
+    tile coordinates using just the grid dimensions.
+
+    OPTIMIZED: Calculates tile indices once for all transcripts, then groups.
+    This is O(n) instead of O(tiles x n).
+
+    Parameters:
+    - trx: Transcript data
+    - x_min, y_min, x_max, y_max: Coordinate bounds
+    - tile_size: Size of each tile
+
+    Returns:
+    - List of (tile_x, tile_y, DataFrame or None) tuples
+    - tile_grid_info: Dictionary with grid dimensions
+    """
+    # Calculate the number of tiles
+    n_tiles_x = int(np.ceil((x_max - x_min) / tile_size))
+    n_tiles_y = int(np.ceil((y_max - y_min) / tile_size))
+
+    print(f"Grid: {n_tiles_x} x {n_tiles_y} = {n_tiles_x * n_tiles_y} tiles")
+    print("Calculating tile indices for all transcripts...")
+
+    # OPTIMIZED: Calculate tile indices for ALL transcripts at once (O(n))
+    trx = trx.with_columns(
+        [
+            ((pl.col("transformed_x") - x_min) / tile_size).floor().cast(pl.Int32).alias("tile_x"),
+            ((pl.col("transformed_y") - y_min) / tile_size).floor().cast(pl.Int32).alias("tile_y"),
+        ]
+    )
+
+    # Clamp to valid range (edge cases)
+    trx = trx.with_columns(
+        [
+            pl.col("tile_x").clip(0, n_tiles_x - 1).alias("tile_x"),
+            pl.col("tile_y").clip(0, n_tiles_y - 1).alias("tile_y"),
+        ]
+    )
+
+    # Add geometry column
+    trx = trx.with_columns(
+        pl.concat_list([pl.col("transformed_x"), pl.col("transformed_y")]).alias("geometry")
+    )
+
+    # Drop original coordinate columns
+    columns_to_drop = [
+        col
+        for col in ["transformed_x", "transformed_y", "cell_id", "transcript_id"]
+        if col in trx.columns
+    ]
+    trx = trx.drop(columns_to_drop)
+
+    print("Grouping transcripts by tile...")
+
+    # Group by tile using partition_by which returns list of DataFrames
+    grouped_dfs = trx.partition_by(["tile_x", "tile_y"], as_dict=True)
+
+    # Convert to dictionary with (tile_x, tile_y) tuple keys
+    # key is a tuple of (tile_x, tile_y)
+    tile_dict = {
+        key: tile_df
+        for key, tile_df in tqdm(grouped_dfs.items(), desc="Building tile index")
+        if len(tile_df) > 0
+    }
+
+    print(f"Found {len(tile_dict)} non-empty tiles")
+
+    # Build ordered list with empty tiles included
+    tile_data_list = []
+    for tile_i in tqdm(range(n_tiles_x), desc="Ordering tiles"):
+        for tile_j in range(n_tiles_y):
+            tile_df = tile_dict.get((tile_i, tile_j))
+            tile_data_list.append((tile_i, tile_j, tile_df))
+
+    tile_grid_info = {
+        "tile_size": tile_size,
+        "num_tiles_x": n_tiles_x,
+        "num_tiles_y": n_tiles_y,
+        "x_min": float(x_min),
+        "x_max": float(x_max),
+        "y_min": float(y_min),
+        "y_max": float(y_max),
+    }
+
+    return tile_data_list, tile_grid_info
+
+
+def _write_tiles_as_row_groups(
+    tile_data_list, output_dir, tile_grid_info, max_row_groups_per_file=400
+):
+    """
+    Write tile data as row groups in chunked parquet files.
+
+    Each tile becomes one row group in deterministic order:
+        row_group_index = tile_x * num_tiles_y + tile_y
+
+    Files are chunked to avoid parquet-wasm issues with large footers:
+        file_index = row_group_index // max_row_groups_per_file
+        local_row_group_index = row_group_index % max_row_groups_per_file
+
+    Empty tiles are written as empty row groups to maintain index alignment.
+
+    Parameters:
+    - tile_data_list: List of (tile_x, tile_y, DataFrame) tuples
+    - output_dir: Path to output directory (will contain transcripts_0.parquet, etc.)
+    - tile_grid_info: Dictionary with grid dimensions
+    - max_row_groups_per_file: Maximum row groups per parquet file (default 400)
+
+    Returns:
+    - dict: Chunk info with file list and metadata
+    """
+    import json
+
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    if not tile_data_list:
+        print("Warning: No tile data to write")
+        return {}
+
+    # Create output directory
+    output_path = Path(output_dir)
+    output_path.mkdir(parents=True, exist_ok=True)
+
+    # Calculate number of files needed
+    total_tiles = len(tile_data_list)
+    num_files = (total_tiles + max_row_groups_per_file - 1) // max_row_groups_per_file
+
+    print(
+        f"Chunking {total_tiles} tiles into {num_files} files (max {max_row_groups_per_file} per file)"
+    )
+
+    # Get schema from first non-empty tile
+    schema = None
+    for _, _, tile_df in tile_data_list:
+        if tile_df is not None:
+            first_table = pa.Table.from_pandas(tile_df.to_pandas(), preserve_index=False)
+            # Add metadata to schema
+            metadata = {
+                b"tile_grid_info": json.dumps(tile_grid_info).encode("utf-8"),
+                b"storage_mode": b"row_groups_chunked",
+                b"max_row_groups_per_file": str(max_row_groups_per_file).encode("utf-8"),
+            }
+            schema = first_table.schema.with_metadata(metadata)
+            break
+
+    if schema is None:
+        print("Warning: All tiles are empty, cannot determine schema")
+        return {}
+
+    # Write tiles to chunked files
+    file_list = []
+    non_empty_count = 0
+    current_file_index = -1
+    writer = None
+
+    for i, (_tile_x, _tile_y, tile_df) in enumerate(tile_data_list):
+        file_index = i // max_row_groups_per_file
+
+        # Start new file if needed
+        if file_index != current_file_index:
+            if writer is not None:
+                writer.close()
+
+            current_file_index = file_index
+            file_name = f"chunk_{file_index}.parquet"
+            file_path = output_path / file_name
+            file_list.append(file_name)
+
+            # Disable statistics to reduce footer size
+            writer = pq.ParquetWriter(file_path, schema, write_statistics=False)
+
+        # Write tile
+        if tile_df is not None:
+            tile_table = pa.Table.from_pandas(tile_df.to_pandas(), preserve_index=False)
+            writer.write_table(tile_table)
+            non_empty_count += 1
+        else:
+            empty_table = schema.empty_table()
+            writer.write_table(empty_table)
+
+    # Close last file
+    if writer is not None:
+        writer.close()
+
+    print(
+        f"Wrote {total_tiles} row groups ({non_empty_count} non-empty) across {len(file_list)} files"
+    )
+    print(
+        f"Tile grid: {tile_grid_info['num_tiles_x']}x{tile_grid_info['num_tiles_y']} = {total_tiles} tiles"
+    )
+
+    # Return chunk info for landscape_parameters.json
+    return {
+        "files": file_list,
+        "max_row_groups_per_file": max_row_groups_per_file,
+        "total_row_groups": total_tiles,
+    }
+
+
+def make_trx_tiles_row_groups(
+    technology,
+    path_trx,
+    path_transformation_matrix=None,
+    path_output_dir=None,
+    coarse_tile_factor=10,
+    tile_size=250,
+    chunk_size=1000000,
+    verbose=False,
+    image_scale=1,
+    max_workers=1,
+    path_dega_files=None,
+    max_row_groups_per_file=400,
+    streaming_tile_assignment=None,
+):
+    """
+    Processes transcript data and saves all tiles as row groups in chunked parquet files.
+
+    This is an alternative to make_trx_tiles that creates chunked parquet files with row groups
+    instead of many individual tile files. Each file contains up to max_row_groups_per_file
+    row groups to avoid parquet-wasm memory issues with large footers.
+
+    Parameters
+    ----------
+    technology : str
+        The technology used for generating the transcript data (e.g., "MERSCOPE" or "Xenium").
+    path_trx : str
+        Path to the file containing the transcript data.
+    path_transformation_matrix : str
+        Path to the file containing the transformation matrix (CSV file).
+    path_output_dir : str
+        Path to the output directory (will contain chunk_0.parquet, chunk_1.parquet, etc.).
+    coarse_tile_factor : int, optional
+        Not used in row group mode, kept for API compatibility.
+    tile_size : int, optional
+        Size of each tile in pixels (default is 250).
+    chunk_size : int, optional
+        Number of rows to process per chunk for memory efficiency (default is 1000000).
+    verbose : bool, optional
+        Flag to enable verbose output (default is False).
+    image_scale : float, optional
+        Scale factor to apply to the transcript coordinates (default is 1).
+    max_workers : int, optional
+        Not used in row group mode, kept for API compatibility.
+    path_dega_files : str, optional
+        Path to landscape files directory for loading gene mapping.
+    max_row_groups_per_file : int, optional
+        Maximum row groups per parquet file (default 400).
+    streaming_tile_assignment : bool or None, optional
+        If True, use disk-backed tile grouping (lower peak RAM). If False, use in-memory
+        ``partition_by``. If None (default), enable automatically when row count is at least
+        ``STREAMING_TILE_ASSIGN_ROW_THRESHOLD``.
+
+    Returns
+    -------
+    tuple
+        (tile_bounds dict, tile_grid_info dict, chunk_info dict)
+    """
+    if technology == "custom":
+        raise NotImplementedError("Row group mode not yet supported for custom technology")
+
+    transformation_matrix = np.loadtxt(path_transformation_matrix)
+
+    # Get gene mapping from landscape files
+    if path_dega_files:
+        gene_str_to_int_mapping = _get_name_mapping(
+            path_dega_files,
+            layer="transcript",
+        )
+    else:
+        gene_str_to_int_mapping = {}
+
+    trx_ini = _load_transcript_data_by_technology(technology, path_trx)
+    trx_ini = _apply_gene_mapping(trx_ini, gene_str_to_int_mapping)
+
+    use_streaming = streaming_tile_assignment
+    if use_streaming is None:
+        use_streaming = trx_ini.height >= STREAMING_TILE_ASSIGN_ROW_THRESHOLD
+
+    tmp_root = None
+    try:
+        if use_streaming:
+            print(
+                f"Using disk-backed tile assignment ({trx_ini.height:,} rows; "
+                f"threshold {STREAMING_TILE_ASSIGN_ROW_THRESHOLD:,})."
+            )
+            tmp_root = Path(path_output_dir) / "_tmp_trx_row_group_build"
+            shards_dir = tmp_root / "shards"
+            spill_dir = tmp_root / "spill"
+            shards_dir.mkdir(parents=True, exist_ok=True)
+            spill_dir.mkdir(parents=True, exist_ok=True)
+
+            max_x, max_y = _transform_coordinates_to_parquet_shards(
+                trx_ini,
+                chunk_size,
+                transformation_matrix,
+                image_scale,
+                shards_dir,
+            )
+            trx_ini = None
+            gc.collect()
+
+            x_min, y_min = 0.0, 0.0
+            x_max, y_max = max_x, max_y
+            n_tiles_x = int(np.ceil((x_max - x_min) / tile_size))
+            n_tiles_y = int(np.ceil((y_max - y_min) / tile_size))
+            print(f"Grid: {n_tiles_x} x {n_tiles_y} = {n_tiles_x * n_tiles_y} tiles")
+            print("Spilling per-tile transcript batches (streaming)...")
+
+            for shard_idx, shard_path in enumerate(
+                tqdm(sorted(shards_dir.glob("shard_*.parquet")), desc="Tile spill")
+            ):
+                _spill_one_transform_shard_to_tiles(
+                    shard_path,
+                    shard_idx,
+                    x_min,
+                    y_min,
+                    n_tiles_x,
+                    n_tiles_y,
+                    tile_size,
+                    spill_dir,
+                )
+
+            shutil.rmtree(shards_dir, ignore_errors=True)
+
+            tile_grid_info = {
+                "tile_size": tile_size,
+                "num_tiles_x": n_tiles_x,
+                "num_tiles_y": n_tiles_y,
+                "x_min": float(x_min),
+                "x_max": float(x_max),
+                "y_min": float(y_min),
+                "y_max": float(y_max),
+            }
+
+            chunk_info = _write_tiles_as_row_groups_streaming(
+                path_output_dir, tile_grid_info, spill_dir, max_row_groups_per_file
+            )
+        else:
+            trx = _transform_coordinates_in_chunks(
+                trx_ini, chunk_size, transformation_matrix, image_scale
+            )
+            trx_ini = None
+            x_min, y_min, x_max, y_max = _get_transformed_tile_bounds(trx)
+            tile_data_list, tile_grid_info = _collect_tile_data_for_row_groups(
+                trx,
+                x_min,
+                y_min,
+                x_max,
+                y_max,
+                tile_size,
+            )
+            chunk_info = _write_tiles_as_row_groups(
+                tile_data_list, path_output_dir, tile_grid_info, max_row_groups_per_file
+            )
+    finally:
+        if tmp_root is not None and tmp_root.exists():
+            shutil.rmtree(tmp_root, ignore_errors=True)
+
+    tile_bounds = {
+        "x_min": x_min,
+        "x_max": x_max,
+        "y_min": y_min,
+        "y_max": y_max,
+    }
+
+    return tile_bounds, tile_grid_info, chunk_info

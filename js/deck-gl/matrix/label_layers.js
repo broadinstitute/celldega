@@ -1,7 +1,11 @@
 import * as d3 from 'd3';
 import { TextLayer } from 'deck.gl';
 
-import { sync_selected_genes } from '../../global_variables/selected_genes';
+import {
+  sync_selected_genes,
+  sync_selected_rows,
+  sync_selected_cols,
+} from '../../global_variables/selected_genes';
 
 import { toggle_dendro_layer_visibility } from './dendro_layers';
 import { get_mat_layers_list } from './matrix_layers';
@@ -50,7 +54,7 @@ export const ini_row_label_layer = (viz_state) => {
     id: 'row-label-layer',
     data: viz_state.labels.row_label_data,
     getPosition: (d, index) => row_label_get_position(d, index, viz_state),
-    getText: (d) => d.name,
+    getText: (d) => d.display_name || d.name,
     getSize: viz_state.viz.font_size.rows,
     getColor: [0, 0, 0],
     getAngle: 0,
@@ -90,7 +94,7 @@ export const ini_col_label_layer = (viz_state) => {
     id: 'col-label-layer',
     data: viz_state.labels.col_label_data,
     getPosition: (d, index) => col_label_get_position(d, index, viz_state),
-    getText: (d) => d.name,
+    getText: (d) => d.display_name || d.name,
     getSize: viz_state.viz.font_size.cols,
     getColor: [0, 0, 0],
     getAngle: 45, // Optional: Text angle in degrees
@@ -211,22 +215,34 @@ const row_label_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
 
   if (viz_state.labels.clicks.row === 1) {
     viz_state.click.type = 'row_label';
+    const { name } = event.object;
+    // Include full entity info (entity type + attribute)
     viz_state.click.value = {
-      name: event.object.name,
+      name,
+      // New structured entity info
+      entity: viz_state.row_entity.entity,
+      attr: viz_state.row_entity.attr,
+      // Legacy field for backwards compatibility
+      row_entity: viz_state.row_entity.entity,
     };
 
     setTimeout(() => {
       viz_state.labels.clicks.row = 0;
     }, DOUBLE_CLICK_DELAY);
 
-    if (Object.keys(viz_state.model).length > 0) {
+    if (viz_state.model?.set) {
       viz_state.model.set('click_info', null);
       viz_state.model.set('click_info', viz_state.click);
       viz_state.model.save_changes();
     }
 
+    // Sync selected row to Python model
+    sync_selected_rows(viz_state, [name]);
+    // Also sync to selected_genes for backwards compatibility
+    sync_selected_genes(viz_state, [name]);
+
     if (typeof viz_state.custom_callbacks.row === 'function') {
-      viz_state.custom_callbacks.row(event.object.name);
+      viz_state.custom_callbacks.row(name);
     }
   } else if (viz_state.labels.clicks.row === 2) {
     viz_state.labels.clicks.row = 0;
@@ -247,19 +263,29 @@ const col_label_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
 
   if (viz_state.labels.clicks.col === 1) {
     viz_state.click.type = 'col_label';
+    const { name } = event.object;
+    // Include full entity info (entity type + attribute)
     viz_state.click.value = {
-      name: event.object.name,
+      name,
+      // New structured entity info
+      entity: viz_state.col_entity.entity,
+      attr: viz_state.col_entity.attr,
+      // Legacy field for backwards compatibility
+      col_entity: viz_state.col_entity.entity,
     };
 
     setTimeout(() => {
       viz_state.labels.clicks.col = 0;
     }, DOUBLE_CLICK_DELAY);
 
-    if (Object.keys(viz_state.model).length > 0) {
+    if (viz_state.model?.set) {
       viz_state.model.set('click_info', null);
       viz_state.model.set('click_info', viz_state.click);
       viz_state.model.save_changes();
     }
+
+    // Sync selected column to Python model
+    sync_selected_cols(viz_state, [name]);
 
     const col_index = event.object.index;
     const values = viz_state.mat.net_mat.map((row) => row[col_index]);
@@ -273,7 +299,7 @@ const col_label_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
     sync_selected_genes(viz_state, gene_names);
 
     if (typeof viz_state.custom_callbacks.col === 'function') {
-      viz_state.custom_callbacks.col(event.object.name);
+      viz_state.custom_callbacks.col(name);
     }
   } else if (viz_state.labels.clicks.col === 2) {
     viz_state.labels.clicks.col = 0;

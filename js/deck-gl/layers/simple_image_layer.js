@@ -1,24 +1,33 @@
 import { TileLayer } from 'deck.gl';
 
 import { options } from '../../global_variables/fetch_options';
+import { getModelMatrixProps } from '../../utils/rotation';
 import {
   create_simple_render_tile_sublayers,
   create_get_tile_data,
 } from '../utils/tiles';
 
-export const make_simple_image_layer = async (viz_state, info) => {
+export const make_simple_image_layer = async (
+  viz_state,
+  info,
+  datasetIndex = 0,
+  cacheKey = ''
+) => {
   const { global_base_url } = viz_state;
   const { dimensions } = viz_state;
   const { landscape_parameters } = viz_state.img;
   const { image_format } = viz_state.img.landscape_parameters;
 
+  // Include dataset index and cache key in ID to force complete layer recreation
+  const layerId = `global-simple-image-layer-ds${datasetIndex}${cacheKey ? `-${cacheKey}` : ''}`;
+
   const simple_image_layer = new TileLayer({
-    id: 'global-simple-image-layer',
+    id: layerId,
     tileSize: dimensions.tileSize,
     refinementStrategy: 'no-overlap',
     minZoom: -7,
     maxZoom: 0,
-    maxCacheSize: 20,
+    maxCacheSize: 0, // Disable internal tile caching
     extent: [0, 0, dimensions.width, dimensions.height],
     getTileData: create_get_tile_data(
       global_base_url,
@@ -30,6 +39,7 @@ export const make_simple_image_layer = async (viz_state, info) => {
     ),
     renderSubLayers: create_simple_render_tile_sublayers(dimensions),
     visible: true,
+    ...getModelMatrixProps(viz_state.rotation),
   });
 
   return simple_image_layer;

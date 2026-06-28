@@ -7,11 +7,11 @@ const isWatchMode = process.argv.includes('--watch');
 
 async function main() {
   try {
-    const srcPath = path.resolve('src/celldega/static/widget.js');
-    const destPath = path.resolve('docs/assets/js/widget.js');
+    const srcPath = path.resolve('src/celldega/static/celldega.js');
+    const destPath = path.resolve('docs/assets/js/celldega.js');
 
     const context = await esbuild.context({
-      entryPoints: ['js/widget.js'],
+      entryPoints: ['js/celldega.js'],
       bundle: true,
       minify: true,
       target: ['es2020'],

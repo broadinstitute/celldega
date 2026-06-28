@@ -28,6 +28,26 @@ def _get_largest_polygon(geometry):
     return geometry
 
 
+def _get_ranked_genes_df(adata, n_genes=100):
+    # Convert the results to a pandas DataFrame
+    result = adata.uns["rank_genes_groups"]
+    groups = result["names"].dtype.names
+    dfs = []
+    for group in groups:
+        df = pd.DataFrame(
+            {
+                "gene": result["names"][group][:n_genes],
+                "logfoldchanges": result["logfoldchanges"][group][:n_genes],
+                "pvals": result["pvals"][group][:n_genes],
+                "pvals_adj": result["pvals_adj"][group][:n_genes],
+                "scores": result["scores"][group][:n_genes],
+                "cluster": group,
+            }
+        )
+        dfs.append(df)
+    return pd.concat(dfs)
+
+
 def _write_default_seg_json(parameters_file, technology, dataset_name):
     segmentation_parameters = {
         "technology": technology,

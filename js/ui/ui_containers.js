@@ -34,8 +34,10 @@ import {
   make_bar_container,
   bar_callback_gene,
 } from './bar_plot';
+import { make_dataset_dropdown } from './dataset_dropdown';
 import { set_gene_search } from './gene_search';
 import { logo } from './logo';
+import { init_matrix_cat_bars } from './matrix_cat_bars';
 import {
   make_img_layer_slider_callback,
   toggle_slider,
@@ -98,13 +100,48 @@ export const make_slider_container = (class_name) => {
   return slider_container;
 };
 
+/**
+ * Get a short display name for an axis entity.
+ * Returns "Row" or "Col" if no entity is specified or if entity is "N.A.".
+ */
+const get_axis_display_name = (viz_state, axis) => {
+  const entity_info =
+    axis === 'row' ? viz_state.row_entity : viz_state.col_entity;
+
+  // Default to "Row" or "Col" if no entity or if entity is "N.A."
+  const default_name = axis === 'row' ? 'Row' : 'Col';
+
+  if (entity_info && entity_info.entity) {
+    const { entity } = entity_info;
+
+    // If entity is "N.A." or empty, use default axis name
+    if (!entity || entity === 'N.A.' || entity === 'n.a.') {
+      return default_name;
+    }
+
+    // Use abbreviated entity name for known types
+    const abbrev = {
+      gene: 'Gene',
+      cell: 'Cell',
+      nbhd: 'Nbhd',
+      cluster: 'Clust',
+      hextile: 'Hex',
+    };
+    return abbrev[entity] || entity.substring(0, 4).toUpperCase();
+  }
+
+  return default_name;
+};
+
 export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
   const ui_container = make_ui_container();
   const ctrl_container = flex_container('button_container', 'column');
 
   const slider_container = flex_container('slider_container', 'column');
 
-  const button_width = 33;
+  // Button widths for reorder controls (compact sizing)
+  const button_width = 34;
+  const label_width = 28;
 
   const axes = ['col', 'row'];
 
@@ -113,25 +150,28 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
   axes.forEach((axis) => {
     const inst_container = flex_container(axis, 'row');
 
+    // Use entity name if available
+    const axis_label = get_axis_display_name(viz_state, axis);
+
     d3.select(inst_container)
       .append('div')
-      .text(axis.toUpperCase())
-      .style('width', `${button_width}px`)
-      .style('height', '20px') // Adjust height for button padding
+      .text(axis_label)
+      .style('width', `${label_width}px`)
+      .style('height', '16px')
       .style('display', 'inline-flex')
       .style('align-items', 'center')
       .style('justify-content', 'center')
       .style('text-align', 'center')
       .style('cursor', 'pointer')
-      .style('font-size', '12px')
+      .style('font-size', '9px')
       .style('font-weight', 'bold')
       .style('color', '#47515b')
-      .style('border', '3px solid') // Light gray border
-      .style('border-color', 'white') // Light gray border
-      .style('border-radius', '12px') // Rounded corners
-      .style('margin-top', '5px')
-      .style('margin-left', '5px')
-      .style('padding', '4px 10px') // Padding inside the button
+      .style('border', '2px solid')
+      .style('border-color', 'white')
+      .style('border-radius', '8px')
+      .style('margin-top', '4px')
+      .style('margin-left', '3px')
+      .style('padding', '2px 2px')
       .style('user-select', 'none')
       .style(
         'font-family',
@@ -187,28 +227,26 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
     );
   });
 
-  viz_state.dendro.sliders.col.style.marginTop = '5px';
-  viz_state.dendro.sliders.row.style.marginTop = '20px';
+  viz_state.dendro.sliders.col.style.marginTop = '3px';
+  viz_state.dendro.sliders.row.style.marginTop = '10px';
 
   d3.select(slider_container)
     .append('div')
-    .text('DENDRO')
-    .style('width', `${button_width}px`)
-    .style('height', '20px') // Adjust height for button padding
+    .text('Dendro')
+    .style('width', '40px')
+    .style('height', '16px')
     .style('display', 'inline-flex')
     .style('align-items', 'center')
     .style('justify-content', 'center')
     .style('text-align', 'center')
     .style('cursor', 'pointer')
-    .style('font-size', '12px')
+    .style('font-size', '10px')
     .style('font-weight', 'bold')
     .style('color', '#47515b')
-    .style('border', '3px solid') // Light gray border
-    .style('border-color', 'white') // Light gray border
-    .style('border-radius', '12px') // Rounded corners
-    // .style('margin-top', '5px')
-    .style('margin-left', '20px')
-    // .style('padding', '4px 10px')  // Padding inside the button
+    .style('border', '2px solid')
+    .style('border-color', 'white')
+    .style('border-radius', '8px')
+    .style('margin-left', '10px')
     .style('user-select', 'none')
     .style(
       'font-family',
@@ -219,12 +257,15 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
   slider_container.appendChild(viz_state.dendro.sliders.row);
 
   // add top margin to ctrl_container and slider_container
-  ctrl_container.style.marginTop = '15px';
+  ctrl_container.style.marginTop = '10px';
   slider_container.style.marginTop = '0px';
-  slider_container.style.marginLeft = '10px';
+  slider_container.style.marginLeft = '5px';
 
   ui_container.appendChild(ctrl_container);
   ui_container.appendChild(slider_container);
+
+  // Initialize category bar graphs (shown on dendro click)
+  init_matrix_cat_bars(viz_state, ui_container);
 
   return ui_container;
 };
@@ -368,6 +409,10 @@ export const make_ist_ui_container = (
 
   const cell_slider_container = make_slider_container('cell_slider_container');
   const trx_slider_container = make_slider_container('trx_slider_container');
+  let nbhd_slider_container;
+  if (viz_state.nbhd.is_nbhd) {
+    nbhd_slider_container = make_slider_container('nbhd_slider_container');
+  }
 
   const { technology } = viz_state.img.landscape_parameters;
   const isChromium = technology === 'Chromium';
@@ -443,6 +488,16 @@ export const make_ist_ui_container = (
     }
 
     viz_state.containers.image.appendChild(spatial_toggle_container);
+
+    // Add dataset dropdown if multiple datasets are available
+    const dataset_dropdown = make_dataset_dropdown(
+      viz_state,
+      deck_ist,
+      layers_obj
+    );
+    if (dataset_dropdown) {
+      spatial_toggle_container.appendChild(dataset_dropdown);
+    }
 
     const get_slider_by_name = (img, name) => {
       return img.image_layer_sliders.filter((slider) => slider.name === name);
@@ -626,6 +681,18 @@ export const make_ist_ui_container = (
 
   cell_slider_container.appendChild(viz_state.sliders.cell);
   cell_ctrl_container.appendChild(cell_slider_container);
+
+  // Only add the regular nbhd slider when NOT in edit mode
+  // For edit mode, we'll add a separate opacity slider later (after buttons)
+  if (viz_state.nbhd.is_nbhd && !viz_state.nbhd.edit) {
+    ini_slider('nbhd', deck_ist, layers_obj, viz_state);
+    nbhd_slider_container.appendChild(viz_state.sliders.nbhd);
+    nbhd_ctrl_container.appendChild(nbhd_slider_container);
+    toggle_slider(
+      viz_state.sliders.nbhd,
+      viz_state.obs_store.viz_nbhd_layer.get()
+    );
+  }
 
   viz_state.containers.bar_cluster = make_bar_container();
 
@@ -816,7 +883,7 @@ export const make_ist_ui_container = (
       bars.exit().transition().duration(750).attr('opacity', 0).remove();
 
       // Optional: scroll container to top
-      if (container) {
+      if (container && !viz_state.close_up) {
         container.scrollTo({
           top: 0,
           behavior: 'smooth',
@@ -1105,7 +1172,13 @@ export const make_ist_ui_container = (
     viz_state.edit.buttons = {};
     viz_state.edit.mode = 'view';
 
-    const nbhd_edit_callback = (_event, _deck_ist, _layers_obj, _viz_state) => {
+    // Callback for NBHD button - toggles the edit layer visibility
+    const nbhd_toggle_callback = (
+      _event,
+      _deck_ist,
+      _layers_obj,
+      _viz_state
+    ) => {
       const visible = _viz_state.obs_store.viz_edit_layer.get();
       _viz_state.obs_store.viz_edit_layer.set(!visible);
     };
@@ -1138,15 +1211,19 @@ export const make_ist_ui_container = (
       _deck_ist.setProps({ layers: layers_list });
     };
 
-    make_edit_button(
-      deck_ist,
-      layers_obj,
-      viz_state,
-      nbhd_ctrl_container,
-      'EDIT',
-      40,
-      nbhd_edit_callback
-    );
+    // Create NBHD button when nbhd_edit is true (replaces the old EDIT button)
+    // This button toggles edit mode for neighborhoods
+    if (viz_state.nbhd.edit) {
+      make_edit_button(
+        deck_ist,
+        layers_obj,
+        viz_state,
+        nbhd_ctrl_container,
+        'NBHD',
+        40,
+        nbhd_toggle_callback
+      );
+    }
 
     make_edit_button(
       deck_ist,
@@ -1158,11 +1235,7 @@ export const make_ist_ui_container = (
       sketch_callback
     );
 
-    // hide edit button if not in viz_state.nbhd.edit
-    if (!viz_state.nbhd.edit) {
-      d3.select(viz_state.edit.buttons.edit).style('display', 'none');
-    }
-
+    // SKTCH button is hidden initially, shown when NBHD edit mode is active
     d3.select(viz_state.edit.buttons.sktch).style('display', 'none');
 
     make_edit_button(
@@ -1179,7 +1252,10 @@ export const make_ist_ui_container = (
       .style('color', 'red')
       .style('display', 'none');
 
-    viz_state.buttons.buttons.nbhd = viz_state.edit.buttons.nbhd;
+    // Set the nbhd button reference if it was created
+    if (viz_state.edit.buttons.nbhd) {
+      viz_state.buttons.buttons.nbhd = viz_state.edit.buttons.nbhd;
+    }
   }
 
   if (viz_state.nbhd.is_nbhd) {

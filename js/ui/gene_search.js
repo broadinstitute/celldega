@@ -7,6 +7,7 @@ import { update_tile_exp_array } from '../global_variables/tile_exp_array';
 import { set_gene_search_input } from './gene_search_input';
 
 let gene_search_options = [];
+let gene_datalist_counter = 0;
 
 const sst_gene_search_callback = async (deck_sst, viz_state, layers_sst) => {
   const inst_gene = viz_state.genes.gene_search_input.value;
@@ -70,7 +71,8 @@ const ist_gene_search_callback = async (deck_ist, layers_obj, viz_state) => {
         inst_gene,
         viz_state.seg.version,
         viz_state.vector_name_integer,
-        viz_state.aws
+        viz_state.aws,
+        viz_state.row_group_readers?.cbg
       );
     }
 
@@ -101,7 +103,9 @@ export const set_gene_search = async (
   set_gene_search_input(viz_state.genes);
 
   const dataList = document.createElement('datalist');
-  dataList.id = 'genes_datalist';
+  // Use unique ID to prevent contamination between multiple Landscape instances
+  gene_datalist_counter += 1;
+  dataList.id = `genes_datalist_${gene_datalist_counter}_${Date.now()}`;
   viz_state.genes.gene_search_input.setAttribute('list', dataList.id);
 
   // Populate the datalist with gene names

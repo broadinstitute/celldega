@@ -16,6 +16,23 @@ export const render_enrich = async ({ model, el }) => {
   const cache = {};
   let paragraphElement = null;
 
+  const highlightGeneSelection = (gene) => {
+    if (!paragraphElement) return;
+
+    const spans = paragraphElement.querySelectorAll('span');
+    const normalized = (gene || '').toLowerCase();
+
+    spans.forEach((span) => {
+      const text = (span.textContent || '').replace(', ', '').toLowerCase();
+      span.style.fontWeight =
+        normalized && text === normalized ? 'bold' : '550';
+    });
+
+    paragraphElement.value = gene
+      ? gene
+      : 'Click on a gene to obtain detailed information';
+  };
+
   const container = document.createElement('div');
   const select = document.createElement('select');
   const layout = document.createElement('div');
@@ -34,17 +51,16 @@ export const render_enrich = async ({ model, el }) => {
   infoHolder.appendChild(geneInfoHolder);
   el.appendChild(container);
 
-  // const width = 350;
-  // get width from traitlet
-  const width = model.get('width') - 5 || 350;
+  // get width/height from traitlets
+  const width = (model.get('width') || 350) - 5;
   const height = model.get('height') || 500;
 
   container.style.width = `${width}px`;
   container.style.height = `${height}px`;
-  container.overflowX = 'scroll';
-  select.style.marginTop = '5px';
+  container.style.overflowX = 'scroll';
   container.style.marginLeft = '5px';
 
+  select.style.marginTop = '5px';
   select.style.width = `${width}px`;
 
   layout.style.width = `${width}px`;
@@ -74,8 +90,9 @@ export const render_enrich = async ({ model, el }) => {
 
   linkHolder.style.display = 'block';
   linkHolder.style.marginTop = '5px';
-  linkHolder.textContent = '';
+  linkHolder.style.color = '#47515b';
   linkHolder.target = '_blank';
+  linkHolder.textContent = '';
 
   paragraphHolder.textContent = 'Paragraph view';
   geneInfoHolder.textContent = 'Gene info';
@@ -114,12 +131,18 @@ export const render_enrich = async ({ model, el }) => {
 
   store.term_genes.subscribe(
     (tg) => {
-      updateParagraphColors(paragraphElement, tg);
+      if (paragraphElement) {
+        updateParagraphColors(paragraphElement, tg);
+      }
     },
     { immediate: false }
   );
+
   store.gene_of_interest.subscribe(
-    (gene) => updateGeneInfo(gene, geneInfoHolder),
+    (gene) => {
+      updateGeneInfo(gene, geneInfoHolder);
+      highlightGeneSelection(gene);
+    },
     { immediate: false }
   );
 
@@ -129,17 +152,22 @@ export const render_enrich = async ({ model, el }) => {
     const numTerms = model.get('num_terms') || 10;
     const background = model.get('background_list') || null;
 
-    if (genes.length === 0) {
+    if (!genes.length) {
       barHolder.textContent = 'No genes provided.';
+      paragraphHolder.textContent = 'Paragraph view';
       geneInfoHolder.textContent = '';
       linkHolder.textContent = '';
+      linkHolder.removeAttribute('href');
       return;
     }
 
     barHolder.textContent = 'Loading...';
 
     try {
-      const cacheKey = `${genes.join(',')}__${lib}__${background ? background.join(',') : 'none'}`;
+      const cacheKey = `${genes.join(',')}__${lib}__${
+        background ? background.join(',') : 'none'
+      }`;
+
       let data;
       let shortId;
 
@@ -196,7 +224,7 @@ export const render_enrich = async ({ model, el }) => {
         .data(bar_data)
         .join('g')
         .attr('transform', (d, i) => `translate(0,${y_new(i)})`)
-        .on('click', function (event, d) {
+        .on('click', function (_event, d) {
           const isSelected = store.selected_term.get() === d.name;
 
           const value_dict = isSelected
@@ -211,7 +239,6 @@ export const render_enrich = async ({ model, el }) => {
 
           if (!isSelected) {
             svg.selectAll('text').attr('fill', 'gray');
-
             d3.select(this).select('text').attr('fill', 'black');
           } else {
             svg.selectAll('text').attr('fill', 'black');
@@ -222,10 +249,7 @@ export const render_enrich = async ({ model, el }) => {
         .append('rect')
         .attr('fill', 'steelblue')
         .attr('opacity', 0.25)
-        .attr('width', (d) => {
-          const inst_width = x_new(d.score);
-          return inst_width;
-        })
+        .attr('width', (d) => x_new(d.score))
         .attr('height', y_new.bandwidth() - 1);
 
       bar
@@ -243,10 +267,9 @@ export const render_enrich = async ({ model, el }) => {
 
       const element = document.createElement('div');
       element.style.userSelect = 'none';
+      element.value = 'Click on a gene to obtain detailed information';
 
       paragraphElement = element;
-
-      element.value = 'Click on a gene to obtain detailed information';
 
       d3.select(element)
         .selectAll('div')
@@ -260,7 +283,7 @@ export const render_enrich = async ({ model, el }) => {
           '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif'
         )
         .style('color', () => 'black')
-        .on('click', function (event, d) {
+        .on('click', function (_event, d) {
           const gene = d.replace(', ', '');
           const current = store.gene_of_interest.get();
 
@@ -275,6 +298,8 @@ export const render_enrich = async ({ model, el }) => {
             element.value = gene;
           }
 
+          model.set('focused_gene', store.gene_of_interest.get() || '');
+          model.save_changes();
           element.dispatchEvent(new CustomEvent('input'));
         });
 
@@ -282,34 +307,66 @@ export const render_enrich = async ({ model, el }) => {
       paragraphHolder.innerHTML = '';
       paragraphHolder.appendChild(element);
 
+      highlightGeneSelection(store.gene_of_interest.get());
+
       new_chart.addEventListener('input', () => {
         const val = new_chart.value || {};
-        store.term_genes.set(val.term_genes || []);
-        store.selected_term.set(val.term_name);
-        updateParagraphColors(element, store.term_genes.get());
+        const inst_genes = val.term_genes || [];
+        const termName = val.term_name || 'Select Term';
+
+        store.term_genes.set(inst_genes);
+        store.selected_term.set(termName);
+        model.set('term_genes', inst_genes);
+        model.set('selected_term', termName);
+        model.save_changes();
+
+        updateParagraphColors(element, inst_genes);
       });
 
       updateParagraphColors(element, store.term_genes.get());
+
       if (shortId) {
         linkHolder.href = `https://maayanlab.cloud/Enrichr/enrich?dataset=${shortId}`;
         linkHolder.textContent = 'View full results on Enrichr';
-        linkHolder.target = '_blank';
-        // make the text this color '#47515b'
-        // linkHolder.textContent.style.color = '#47515b';
       } else {
         linkHolder.textContent = '';
+        linkHolder.removeAttribute('href');
       }
     } catch (error) {
       handleAsyncError(error, { context: 'render_enrich' });
       barHolder.textContent = 'Error loading enrichment data.';
       geneInfoHolder.textContent = '';
       linkHolder.textContent = '';
+      linkHolder.removeAttribute('href');
     }
   };
 
+  // Traitlet listeners
   model.on('change:gene_list', update);
   model.on('change:inst_lib', update);
   model.on('change:num_terms', update);
   model.on('change:background_list', update);
+
+  model.on('change:focused_gene', () => {
+    const gene = model.get('focused_gene') || '';
+    if (store.gene_of_interest.get() !== gene) {
+      store.gene_of_interest.set(gene);
+    }
+    highlightGeneSelection(gene);
+  });
+
+  model.on('change:term_genes', () => {
+    const incoming = model.get('term_genes') || [];
+    store.term_genes.set(incoming);
+    if (paragraphElement) {
+      updateParagraphColors(paragraphElement, incoming);
+    }
+  });
+
+  model.on('change:selected_term', () => {
+    const nextTerm = model.get('selected_term') || 'Select Term';
+    store.selected_term.set(nextTerm);
+  });
+
   await update();
 };

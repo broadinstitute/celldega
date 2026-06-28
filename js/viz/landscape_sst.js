@@ -126,8 +126,9 @@ export const landscape_sst = async (
   viz_state.genes.meta_gene = {};
   viz_state.genes.gene_counts = [];
   viz_state.genes.selected_genes = [];
+  viz_state.genes.selected_gene_ids = new Set();
   viz_state.genes.trx_ini_radius = 1;
-  viz_state.genes.trx_names_array = [];
+  viz_state.genes.trx_gene_ids = new Int32Array();
   viz_state.genes.trx_data = [];
   viz_state.genes.gene_text_box = '';
   viz_state.genes.trx_slider = document.createElement('input');
@@ -209,7 +210,7 @@ export const landscape_sst = async (
     initialViewState: initial_view_state,
   });
 
-  if (Object.keys(viz_state.model).length > 0) {
+  if (viz_state.model?.on) {
     // ist version
     viz_state.model.on('change:update_trigger', () =>
       update_tile_landscape_from_cgm(deck_sst, layers_sst, viz_state)

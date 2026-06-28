@@ -1,5 +1,6 @@
 import { update_cell_layer_radius } from '../deck-gl/layers/cell_layer';
 import { update_opacity_single_image_layer } from '../deck-gl/layers/image_layers';
+import { update_nbhd_layer_opacity } from '../deck-gl/layers/nbhd_layer';
 import { square_scatter_layer_opacity } from '../deck-gl/layers/square_scatter_layer';
 import { update_trx_layer_radius } from '../deck-gl/layers/trx_layer';
 import { refresh_layer } from '../utils/refresh_layer';
@@ -229,6 +230,14 @@ const trx_slider_callback = async (deck_ist, layers_obj, viz_state) => {
   refresh_layer(viz_state, layers_obj, 'trx_layer');
 };
 
+const nbhd_slider_callback = async (_deck_ist, layers_obj, viz_state) => {
+  const opacity = viz_state.sliders.nbhd.value / 100;
+
+  update_nbhd_layer_opacity(layers_obj, opacity);
+
+  refresh_layer(viz_state, layers_obj, 'nbhd_layer');
+};
+
 export const make_img_layer_slider_callback = (
   name,
   deck_ist,
@@ -299,6 +308,10 @@ export const ini_slider = (slider_type, inst_deck, layers_obj, viz_state) => {
     case 'trx':
       ini_value = viz_state.genes.trx_ini_raidus * 100;
       callback = () => trx_slider_callback(inst_deck, layers_obj, viz_state);
+      break;
+    case 'nbhd':
+      ini_value = layers_obj.nbhd_layer.props.opacity * 100;
+      callback = () => nbhd_slider_callback(inst_deck, layers_obj, viz_state);
       break;
 
     default:

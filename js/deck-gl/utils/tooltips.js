@@ -28,6 +28,9 @@ export const make_tile_tooltip = (info, viz_state) => {
 export const make_tooltip = (viz_state, info) => {
   if (info.index === -1 || !info.layer) return null;
 
+  // Disable tooltips when in sketch mode to avoid interference while drawing
+  if (viz_state.edit?.mode === 'sktch') return null;
+
   let inst_html = '';
   let inst_name = '';
   let inst_cat = '';
@@ -47,7 +50,11 @@ export const make_tooltip = (viz_state, info) => {
   }
   // Handle transcript layer tooltips
   else if (info.layer.id.startsWith('trx-layer')) {
-    inst_name = viz_state.genes.trx_names_array[info.index];
+    const geneId = viz_state.genes.trx_gene_ids?.[info.index];
+    inst_name =
+      geneId === undefined || geneId < 0
+        ? ''
+        : viz_state.genes.g_nameMapping_inv?.[geneId] || '';
     inst_html = `<div>transcript: ${inst_name}</div>`;
   }
   // Handle neighborhood layer tooltips
@@ -56,7 +63,16 @@ export const make_tooltip = (viz_state, info) => {
       viz_state.nbhd.feature_collection.features[info.index].properties.name;
     inst_cat =
       viz_state.nbhd.feature_collection.features[info.index].properties.cat;
-    inst_html = `<div>neighborhood: ${inst_name}</div><div>cluster: ${inst_cat}</div>`;
+    inst_html = `<div>neighborhood: ${inst_name}</div><div>category: ${inst_cat}</div>`;
+  }
+  // Handle edit layer tooltips (for editable neighborhoods)
+  else if (info.layer.id.startsWith('edit-layer')) {
+    const feature = viz_state.edit?.feature_collection?.features?.[info.index];
+    if (feature) {
+      inst_name = feature.properties.name || `nbhd_${info.index + 1}`;
+      inst_cat = feature.properties.cat || inst_name;
+      inst_html = `<div>neighborhood: ${inst_name}</div>`;
+    }
   }
 
   // Configure tooltip positioning and styling

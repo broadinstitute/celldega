@@ -17,6 +17,36 @@ import { update_selected_genes } from '../../global_variables/selected_genes';
 import { get_arrow_table } from '../../read_parquet/get_arrow_table';
 import { get_scatter_data } from '../../read_parquet/get_scatter_data';
 import { scale_umap_data } from '../../umap/scale_umap_data';
+import { buildCellCompactData } from '../../utils/compact_data';
+import { getModelMatrixProps } from '../../utils/rotation';
+
+/**
+ * Get the meta_cell key for a given cell name.
+ * When cell_name_prefix is enabled, try both the full name and stripped name.
+ * @param {string} name - Cell name from cell_names_array
+ * @param {object} meta_cell - Meta cell data object
+ * @param {boolean} cell_name_prefix - Whether cell_name_prefix mode is enabled
+ * @returns {any[]|undefined} - Meta cell attributes or undefined if not found
+ */
+const get_meta_cell_attrs = (name, meta_cell, cell_name_prefix) => {
+  // First try direct lookup
+  if (meta_cell[name] !== undefined) {
+    return meta_cell[name];
+  }
+
+  // If cell_name_prefix is enabled, try stripping the prefix
+  if (cell_name_prefix && typeof name === 'string') {
+    const idx = name.indexOf('_');
+    if (idx >= 0) {
+      const stripped = name.substring(idx + 1);
+      if (meta_cell[stripped] !== undefined) {
+        return meta_cell[stripped];
+      }
+    }
+  }
+
+  return undefined;
+};
 
 const cell_layer_onclick = async (info, d, deck_ist, layers_obj, viz_state) => {
   // Check if the device is a touch device
@@ -46,17 +76,26 @@ const cell_layer_onclick = async (info, d, deck_ist, layers_obj, viz_state) => {
 };
 
 // transparent to red
-export const get_cell_color = (cats, i, d) => {
+export const get_cell_color = (cats, highlighted_cells, i, d) => {
+  const highlight_set = highlighted_cells ?? new Set();
+  const has_highlights = highlight_set.size > 0;
+  const inst_cell = cats.cell_names_array[d.index];
+  const is_highlighted = has_highlights && highlight_set.has(inst_cell);
+
+  let base_color;
+
   if (cats.cat === 'cluster') {
     try {
       const inst_cat = cats.cell_cats[d.index];
 
-      let inst_color = cats.color_dict_cluster[inst_cat];
+      // Convert to string for consistent color lookup
+      // (meta_cell values may be numbers, color_dict keys are always strings)
+      let inst_color = cats.color_dict_cluster[String(inst_cat)];
 
       let inst_opacity =
         cats.selected_cats.length === 0 || cats.selected_cats.includes(inst_cat)
           ? 255
-          : 10;
+          : 0;
 
       // Check if inst_color is an array and log an error if it's not
       if (!Array.isArray(inst_color)) {
@@ -64,19 +103,53 @@ export const get_cell_color = (cats, i, d) => {
         inst_opacity = 0;
       }
 
-      return [...inst_color, inst_opacity];
+      base_color = [...inst_color, inst_opacity];
     } catch {
-      return [0, 0, 0, 50]; // Return a default color with some opacity to handle the error gracefully
+      base_color = [0, 0, 0, 0]; // Return a default color with some opacity to handle the error gracefully
     }
   } else {
     // color cells based on gene expression
     try {
-      const inst_exp = cats.cell_exp_array[d.index]; //
-      return [255, 0, 0, inst_exp];
+      const inst_exp = cats.cell_exp_array[d.index];
+
+      // Check if we should filter to specific clusters (gene+cluster combination)
+      // Only apply cluster filter if selected_cats contains actual cluster names
+      // (not the gene name itself, which happens during normal gene selection)
+      const has_cluster_filter =
+        cats.selected_cats &&
+        cats.selected_cats.length > 0 &&
+        cats.selected_cats.some(
+          (cat) => cats.color_dict_cluster && cat in cats.color_dict_cluster
+        );
+
+      if (has_cluster_filter) {
+        const inst_cat = cats.cell_cats[d.index];
+        if (!cats.selected_cats.includes(inst_cat)) {
+          // Cell is not in the selected cluster(s) - make transparent
+          base_color = [0, 0, 0, 0];
+        } else {
+          // Cell is in the selected cluster - show gene expression
+          base_color = [255, 0, 0, inst_exp];
+        }
+      } else {
+        // No cluster filter - show all cells with expression
+        base_color = [255, 0, 0, inst_exp];
+      }
     } catch {
-      return [255, 0, 0, 50]; // Return a default color with some opacity to handle the error gracefully
+      base_color = [255, 0, 0, 10]; // Return a default color with some opacity to handle the error gracefully
     }
   }
+
+  if (!has_highlights) {
+    return base_color;
+  }
+
+  if (is_highlighted) {
+    return [0, 0, 255, 255];
+  }
+
+  // Non-selected cells are fully transparent when there are selected cells
+  return [0, 0, 0, 0];
 };
 
 export const ini_cell_layer = async (base_url, viz_state) => {
@@ -112,8 +185,15 @@ export const ini_cell_layer = async (base_url, viz_state) => {
       viz_state.cats.inst_cell_attr
     );
 
+    // Use helper to handle cell_name_prefix matching
+    const cell_name_prefix = viz_state.cell_name_prefix || false;
+
     viz_state.cats.cell_cats = viz_state.cats.cell_names_array.map((name) => {
-      const attrs = viz_state.cats.meta_cell[name];
+      const attrs = get_meta_cell_attrs(
+        name,
+        viz_state.cats.meta_cell,
+        cell_name_prefix
+      );
       return attrs?.[inst_index] ?? 'N.A.';
     });
   } else {
@@ -127,22 +207,18 @@ export const ini_cell_layer = async (base_url, viz_state) => {
 
   set_dict_cell_cats(viz_state.cats);
 
-  // Combine names and positions into a single array of objects
   const new_cell_names_array = cell_arrow_table.getChild('name').toArray();
-
   const flatCoordinateArray =
     viz_state.spatial.cell_scatter_data.attributes.getPosition.value;
   const dim =
     viz_state.spatial.cell_scatter_data.attributes.getPosition.size || 2;
 
-  // save cell positions and categories in one place for updating cluster bar plot
-  viz_state.combo_data.cell = new_cell_names_array.map((name, index) => ({
-    name,
-    cat: viz_state.cats.dict_cell_cats[name],
-    x: flatCoordinateArray[index * dim],
-    y: flatCoordinateArray[index * dim + 1],
-    z: dim === 3 ? flatCoordinateArray[index * dim + 2] : 0,
-  }));
+  viz_state.combo_data.cell_compact = buildCellCompactData(
+    new_cell_names_array,
+    flatCoordinateArray,
+    dim,
+    viz_state.cats.dict_cell_cats
+  );
 
   let cell_scatter_data_objects;
   if (viz_state.umap.has_umap) {
@@ -162,6 +238,7 @@ export const ini_cell_layer = async (base_url, viz_state) => {
     // convert to easier to use objects
     const numRows = viz_state.spatial.cell_scatter_data.length; // Replace with arrow_table.numRows
     cell_scatter_data_objects = Array.from({ length: numRows }, (_, i) => ({
+      name: viz_state.cats.cell_names_array[i],
       position:
         dim === 3
           ? [
@@ -204,6 +281,7 @@ export const ini_cell_layer = async (base_url, viz_state) => {
   } else {
     const numRows = viz_state.spatial.cell_scatter_data.length; // Replace with arrow_table.numRows
     cell_scatter_data_objects = Array.from({ length: numRows }, (_, i) => ({
+      name: viz_state.cats.cell_names_array[i],
       position:
         dim === 3
           ? [
@@ -296,15 +374,18 @@ export const ini_cell_layer = async (base_url, viz_state) => {
       sizeUnits: 'meters',
       pointSize: 5,
       pickable: true,
-      getColor: (i, d) => get_cell_color(viz_state.cats, i, d),
+      getColor: (i, d) =>
+        get_cell_color(viz_state.cats, viz_state.highlighted_cells, i, d),
       data: viz_state.spatial.cell_scatter_data_objects,
       transitions,
       getPosition: (d) =>
         viz_state.obs_store.umap_state.get() ? d.umap : d.position,
       updateTriggers: {
         getPosition: [viz_state.obs_store.umap_state.get()],
+        getFillColor: [viz_state.selection_token],
       },
       opacity: 1,
+      ...getModelMatrixProps(viz_state.rotation),
     });
   } else {
     cell_layer = new ScatterplotLayer({
@@ -312,14 +393,17 @@ export const ini_cell_layer = async (base_url, viz_state) => {
       radiusMinPixels: 1,
       getRadius: 5.0,
       pickable: true,
-      getFillColor: (i, d) => get_cell_color(viz_state.cats, i, d),
+      getFillColor: (i, d) =>
+        get_cell_color(viz_state.cats, viz_state.highlighted_cells, i, d),
       data: viz_state.spatial.cell_scatter_data_objects,
       transitions,
       getPosition: (d) =>
         viz_state.obs_store.umap_state.get() ? d.umap : d.position,
       updateTriggers: {
         getPosition: [viz_state.obs_store.umap_state.get()],
+        getFillColor: [viz_state.selection_token],
       },
+      ...getModelMatrixProps(viz_state.rotation),
     });
   }
 

@@ -83,12 +83,49 @@ def alpha_shape_cell_clusters(
 ) -> gpd.GeoDataFrame:
     """
     Compute alpha shapes for each cluster in the cell metadata.
+
+    Parameters
+    ----------
+    adata : AnnData
+        AnnData object with cell metadata in obs and spatial coordinates in obsm["spatial"].
+    cat : str
+        Column name in adata.obs containing cluster/category labels.
+    alphas : Sequence[float]
+        List of inverse alpha values to compute shapes for.
+    meta_cluster : pd.DataFrame | None
+        Optional DataFrame with cluster metadata including 'color' column.
+        If not provided, colors will be extracted from adata.uns[f'{cat}_colors']
+        if available, otherwise defaults to black.
+
+    Returns
+    -------
+    gpd.GeoDataFrame
+        GeoDataFrame with alpha shapes for each cluster at each alpha value.
     """
 
-    meta_cell = adata.obs
+    # Copy so we don't add a 'geometry' column to the caller's adata.obs (which
+    # would otherwise leak into downstream serialization, e.g. Landscape parquet).
+    meta_cell = adata.obs.copy()
 
     coords = adata.obsm["spatial"]
     meta_cell["geometry"] = list(coords)
+
+    # Build color lookup from adata.uns if meta_cluster not provided
+    adata_color_dict: dict[str, str] = {}
+    if meta_cluster is None:
+        color_key = f"{cat}_colors"
+        if color_key in adata.uns:
+            # Get categories and their corresponding colors
+            categories = (
+                adata.obs[cat].cat.categories
+                if hasattr(adata.obs[cat], "cat")
+                else adata.obs[cat].unique()
+            )
+            colors = adata.uns[color_key]
+            # Map categories to colors (colors are in same order as categories)
+            for i, category in enumerate(categories):
+                if i < len(colors):
+                    adata_color_dict[str(category)] = colors[i]
 
     gdf_alpha = gpd.GeoDataFrame()
 
@@ -107,9 +144,12 @@ def alpha_shape_cell_clusters(
                 gdf_alpha.loc[inst_name, "geometry"] = inst_shape
                 gdf_alpha.loc[inst_name, "inv_alpha"] = int(inv_alpha)
 
-                # look up color using meta_cluster if provided
+                # Look up color: meta_cluster > adata.uns colors > default black
+                inst_cluster_str = str(inst_cluster)
                 if meta_cluster is not None and inst_cluster in meta_cluster.index:
                     gdf_alpha.loc[inst_name, "color"] = meta_cluster.loc[inst_cluster, "color"]
+                elif inst_cluster_str in adata_color_dict:
+                    gdf_alpha.loc[inst_name, "color"] = adata_color_dict[inst_cluster_str]
                 else:
                     gdf_alpha.loc[inst_name, "color"] = "#000000"
 
@@ -119,6 +159,63 @@ def alpha_shape_cell_clusters(
     gdf_alpha["area"] = gdf_alpha.area
 
     return gdf_alpha.loc[gdf_alpha.area.sort_values(ascending=False).index.tolist()]
+
+
+def filter_alpha_shapes(
+    gdf_alpha: gpd.GeoDataFrame,
+    alpha: float,
+    min_area: float = 0,
+    clean_names: bool = True,
+) -> gpd.GeoDataFrame:
+    """
+    Filter alpha shapes by a specific alpha value and optionally clean up names.
+
+    Alpha shapes computed by `alpha_shape_cell_clusters` have names in the format
+    `{category}_{alpha}` (e.g., "cluster_0_150"). This function filters to a specific
+    alpha value and removes the trailing `_{alpha}` suffix from names.
+
+    Parameters
+    ----------
+    gdf_alpha : gpd.GeoDataFrame
+        GeoDataFrame of alpha shapes with 'inv_alpha', 'area', 'name', and 'cat' columns.
+        Typically the output of `alpha_shape_cell_clusters`.
+    alpha : float
+        The inverse alpha value to filter for (must match values in 'inv_alpha' column).
+    min_area : float, default 0
+        Minimum area threshold. Shapes with area <= min_area are excluded.
+    clean_names : bool, default True
+        If True, removes the trailing `_{alpha}` suffix from the 'name' column,
+        leaving just the category name (e.g., "cluster_0" instead of "cluster_0_150").
+
+    Returns
+    -------
+    gpd.GeoDataFrame
+        Filtered GeoDataFrame with optionally cleaned names.
+
+    Examples
+    --------
+    >>> gdf_alpha = dega.nbhd.alpha_shape_cell_clusters(adata, cat="leiden")
+    >>> gdf_filtered = dega.nbhd.filter_alpha_shapes(gdf_alpha, alpha=150)
+    >>> # Names are now just category names without the alpha suffix
+    >>> print(gdf_filtered["name"].tolist()[:3])
+    ['0', '1', '2']
+    """
+    # Filter by alpha value
+    gdf_filtered = gdf_alpha[gdf_alpha["inv_alpha"] == alpha].copy()
+
+    # Filter by minimum area
+    gdf_filtered = gdf_filtered[gdf_filtered["area"] > min_area]
+
+    if clean_names:
+        # Remove the trailing _{alpha} suffix from names
+        # Names are in format "{cat}_{alpha}", we want just "{cat}"
+        alpha_suffix = f"_{int(alpha)}"
+        gdf_filtered["name"] = gdf_filtered["name"].apply(
+            lambda x: x[: -len(alpha_suffix)] if x.endswith(alpha_suffix) else x
+        )
+
+    # Reset index for clean output
+    return gdf_filtered.reset_index(drop=True)
 
 
 def alpha_shape_geojson(

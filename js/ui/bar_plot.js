@@ -20,7 +20,7 @@ export const bar_callback_cat = (
   _viz_state
 ) => {
   // ensure that cell button, slider and bars are active
-  _viz_state.buttons.buttons.cell.style('color', 'blue');
+  _viz_state.buttons?.buttons?.cell?.style?.('color', 'blue');
 
   toggle_slider(_viz_state.sliders.cell, true);
   _viz_state.cats.svg_bar_cluster.selectAll('rect').style('opacity', 1.0);
@@ -31,7 +31,8 @@ export const bar_callback_cat = (
     _viz_state.obs_store.viz_edit_layer.set(false);
     // wrap in try
     try {
-      _viz_state.buttons.buttons.nbhd.style('color', 'gray');
+      _viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
+      toggle_slider(_viz_state.sliders.nbhd, false);
     } catch {
       // intentionally ignore missing neighborhood button
     }
@@ -65,7 +66,7 @@ export const bar_callback_gene = async (
   _viz_state
 ) => {
   // ensure that trx button, slider, and bars are active
-  _viz_state.buttons.buttons.trx.style('color', 'blue');
+  _viz_state.buttons?.buttons?.trx?.style?.('color', 'blue');
 
   toggle_slider(_viz_state.sliders.trx, true);
   _viz_state.genes.svg_bar_gene.selectAll('rect').style('opacity', 1.0);
@@ -77,7 +78,8 @@ export const bar_callback_gene = async (
     _viz_state.obs_store.viz_edit_layer.set(false);
     // wrap in try
     try {
-      _viz_state.buttons.buttons.nbhd.style('color', 'gray');
+      _viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
+      toggle_slider(_viz_state.sliders.nbhd, false);
     } catch {
       // intentionally ignore missing neighborhood button
     }
@@ -109,7 +111,8 @@ export const bar_callback_gene = async (
     inst_gene,
     _viz_state.seg.version,
     _viz_state.vector_name_integer,
-    _viz_state.aws
+    _viz_state.aws,
+    _viz_state.row_group_readers?.cbg
   );
 
   // update selected_cats after update_cell_exp_array has been run
@@ -127,7 +130,17 @@ export const bar_callback_nbhd = (
   if (_viz_state.nbhd.edit) {
     _viz_state.obs_store.viz_edit_layer.set(true);
 
-    _viz_state.buttons.buttons.nbhd.style('color', 'blue');
+    // Safely style the NBHD button if it exists
+    // Note: edit buttons are DOM nodes, regular buttons are d3 selections
+    if (_viz_state.buttons?.buttons?.nbhd) {
+      const btn = _viz_state.buttons.buttons.nbhd;
+      if (typeof btn.style === 'function') {
+        btn.style('color', 'blue');
+      } else {
+        d3.select(btn).style('color', 'blue');
+      }
+    }
+    toggle_slider(_viz_state.sliders.nbhd, true);
 
     const prev_selected_nbhds = _viz_state.obs_store.selected_nbhds.get();
     if (
@@ -140,13 +153,16 @@ export const bar_callback_nbhd = (
       });
     } else {
       _viz_state.obs_store.selected_nbhds.set([_d.name]);
-      const featureIndex =
-        _viz_state.nbhd.feature_collection.features.findIndex(
-          (f) => f.properties.name === _d.name
-        );
-      _layers_obj.edit_layer = _layers_obj.edit_layer.clone({
-        selectedFeatureIndexes: [featureIndex],
-      });
+      // Use edit.feature_collection for edit mode
+      const features = _viz_state.edit?.feature_collection?.features || [];
+      const featureIndex = features.findIndex(
+        (f) => f.properties.name === _d.name || f.properties.cat === _d.name
+      );
+      if (featureIndex >= 0) {
+        _layers_obj.edit_layer = _layers_obj.edit_layer.clone({
+          selectedFeatureIndexes: [featureIndex],
+        });
+      }
     }
 
     refresh_layer(_viz_state, _layers_obj, 'edit_layer');
@@ -166,7 +182,16 @@ export const bar_callback_nbhd = (
     _viz_state.obs_store.viz_nbhd_layer.set(true);
     _viz_state.obs_store.viz_edit_layer.set(false);
 
-    _viz_state.buttons.buttons.nbhd.style('color', 'blue');
+    // Safely style the NBHD button if it exists
+    // Note: edit buttons are DOM nodes, regular buttons are d3 selections
+    if (_viz_state.buttons?.buttons?.nbhd) {
+      const btn = _viz_state.buttons.buttons.nbhd;
+      if (typeof btn.style === 'function') {
+        btn.style('color', 'blue');
+      } else {
+        d3.select(btn).style('color', 'blue');
+      }
+    }
 
     const prev_selected_nbhds = _viz_state.obs_store.selected_nbhds.get();
     if (

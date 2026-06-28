@@ -60,7 +60,7 @@ export default [
         }
       ],
       'import/no-unresolved': ['error', {
-        'ignore': ['^@/'] // Ignore alias imports if you use them
+        'ignore': ['^@/', '^parquet-wasm'] // Ignore alias imports if you use them
       }],
       'import/no-duplicates': 'error',
       'import/first': 'error',

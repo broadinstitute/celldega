@@ -171,7 +171,12 @@ export const on_view_state_change = (
   }
 
   // Recreate each view with updated zoomAxis in controller
+  // Preserve controller: false for static views (attribute labels)
   viz_state.views.views_list = viz_state.views.views_list.map((view) => {
+    // Don't modify controller for static views
+    if (view.props.controller === false) {
+      return view;
+    }
     return new OrthographicView({
       ...view.props,
       controller: {

@@ -30,16 +30,21 @@ from .boundary_tile import (
     make_cell_boundary_tiles,
     make_cell_boundary_tiles_row_groups,
 )
-from .image_info import get_image_info
+from .image_info import get_image_info, resolve_xenium_morphology_ome_path
 from .landscape import (
     calc_meta_gene_data,
     read_cbg_mtx,
     save_cbg_gene_parquets,
     save_cbg_gene_parquets_row_groups,
 )
-from .run_pre_processing import main
 from .sbg_tile import write_pseudotranscripts_from_sbg
 from .trx_tile import make_trx_tiles, make_trx_tiles_row_groups
+
+
+def main(*args, **kwargs):
+    from .run_pre_processing import main as _main
+
+    return _main(*args, **kwargs)
 
 
 def _load_xenium_cluster_data(data_dir, meta_cell):
@@ -124,7 +129,7 @@ def _save_cluster_data(cell_clusters_dir, default_clustering, clusters, ser_coun
 
 def cluster_gene_expression(
     technology,
-    path_landscape_files,
+    path_dega_files,
     cbg,
     data_dir=None,
     segmentation_approach="default",
@@ -135,7 +140,7 @@ def cluster_gene_expression(
     Args:
         technology (str): The technology used (e.g., "Xenium" or "MERSCOPE"). Currently, only "Xenium" is supported.
         data_dir (str): Path to the directory containing the Xenium data.
-        path_landscape_files (str): Path to the directory where the gene expression signature file will be saved.
+        path_dega_files (str): Path to the directory where the gene expression signature file will be saved.
         cbg (pd.DataFrame): A cell-by-gene matrix where rows represent cells and columns represent genes.
                             The index of the DataFrame should match the cell IDs in the Xenium metadata.
 
@@ -184,9 +189,7 @@ def cluster_gene_expression(
 
     elif technology == "custom":
         df_cluster = pd.read_parquet(
-            Path(path_landscape_files)
-            / f"cell_clusters_{segmentation_approach}"
-            / "cluster.parquet"
+            Path(path_dega_files) / f"cell_clusters_{segmentation_approach}" / "cluster.parquet"
         )
         clusters = df_cluster["cluster"].unique().tolist()
 
@@ -228,7 +231,7 @@ def cluster_gene_expression(
 
     # Save the gene expression signatures
     segmentation_suffix = f"_{segmentation_approach}" if segmentation_approach != "default" else ""
-    output_path = Path(path_landscape_files) / f"df_sig{segmentation_suffix}.parquet"
+    output_path = Path(path_dega_files) / f"df_sig{segmentation_suffix}.parquet"
 
     if any(isinstance(dtype, pd.SparseDtype) for dtype in df_sig.dtypes):
         df_sig.sparse.to_dense().to_parquet(output_path)
@@ -270,7 +273,7 @@ def _convert_long_id_to_short(df):
 
 
 def create_cluster_and_meta_cluster(
-    technology, path_landscape_files, data_dir=None, segmentation_approach="default"
+    technology, path_dega_files, data_dir=None, segmentation_approach="default"
 ):
     """
     Creates cell clusters and meta cluster files for visualization.
@@ -279,7 +282,7 @@ def create_cluster_and_meta_cluster(
     Args:
         technology (str): The technology used (e.g., "Xenium" or "MERSCOPE"). Currently, only "Xenium" is supported.
         data_dir (str): Path to the directory containing the Xenium data.
-        path_landscape_files (str): Path to the directory where the cluster and meta cluster files will be saved.
+        path_dega_files (str): Path to the directory where the cluster and meta cluster files will be saved.
 
     Raises:
         ValueError: If the specified technology is not supported.
@@ -294,15 +297,15 @@ def create_cluster_and_meta_cluster(
 
     # Check if the cell metadata file exists
     segmentation_suffix = f"_{segmentation_approach}" if segmentation_approach != "default" else ""
-    cell_metadata_path = Path(path_landscape_files) / f"cell_metadata{segmentation_suffix}.parquet"
+    cell_metadata_path = Path(path_dega_files) / f"cell_metadata{segmentation_suffix}.parquet"
 
     if not cell_metadata_path.exists():
         raise FileNotFoundError(
-            f"The file '{cell_metadata_path.name}' does not exist in directory '{path_landscape_files}'."
+            f"The file '{cell_metadata_path.name}' does not exist in directory '{path_dega_files}'."
         )
 
     # Create the cell_clusters directory if it doesn't exist
-    cell_clusters_dir = Path(path_landscape_files) / f"cell_clusters{segmentation_suffix}"
+    cell_clusters_dir = Path(path_dega_files) / f"cell_clusters{segmentation_suffix}"
     cell_clusters_dir.mkdir(exist_ok=True)
 
     # Load the cell metadata
@@ -332,7 +335,7 @@ def create_cluster_and_meta_cluster(
 
 
 def _process_image_channel(
-    path_landscape_files,
+    path_dega_files,
     channel_info,
     img,
     upper_percentile=99,
@@ -351,7 +354,7 @@ def _process_image_channel(
 
     print(f"generating {channel_name} image tiles ...")
 
-    pyramid_path = Path(path_landscape_files) / "pyramid_images" / f"{channel_name}_files"
+    pyramid_path = Path(path_dega_files) / "pyramid_images" / f"{channel_name}_files"
     if pyramid_path.exists():
         return
 
@@ -395,14 +398,14 @@ def _process_image_channel(
     else:
         image_data = np.zeros_like(channel, dtype=np.uint8)
 
-    output_path = Path(path_landscape_files) / f"{channel_name}_output_regular.tif"
+    output_path = Path(path_dega_files) / f"{channel_name}_output_regular.tif"
     imsave(output_path, image_data, check_contrast=False)
 
     image_png = _convert_to_png(str(output_path))
 
     make_deepzoom_pyramid(
         image_png,
-        str(Path(path_landscape_files) / "pyramid_images"),
+        str(Path(path_dega_files) / "pyramid_images"),
         channel_name,
         suffix=".webp[Q=100]",
     )
@@ -411,7 +414,7 @@ def _process_image_channel(
 def create_image_tiles(
     technology,
     data_dir,
-    path_landscape_files,
+    path_dega_files,
     image_tile_layer="dapi",
     upper_percentile=99,
     white_level=100,
@@ -422,7 +425,7 @@ def create_image_tiles(
     Args:
         technology (str): The technology used (e.g., "Xenium", "MERSCOPE", "VisiumHD", "H&E").
         data_dir (str): Path to the directory containing the data (e.g., morphology_focus_0000.ome.tif).
-        path_landscape_files (str): Path to the directory where the image tiles and pyramid will be saved.
+        path_dega_files (str): Path to the directory where the image tiles and pyramid will be saved.
         image_tile_layer (str, optional): Specifies which image layers to process. Options for Xenium are
         'dapi' (default) or 'all'. Use the filename of the .scn file for h&e Landscapes.
         upper_percentile (float, optional): Upper intensity percentile used to rescale/clip the image
@@ -441,32 +444,28 @@ def create_image_tiles(
         print("------ xenium")
         create_image_tiles_xenium(
             data_dir,
-            path_landscape_files,
+            path_dega_files,
             image_tile_layer=image_tile_layer,
             upper_percentile=upper_percentile,
             white_level=white_level,
         )
     elif technology == "MERSCOPE":
         print("------ merscope")
-        create_image_tiles_merscope(
-            data_dir, path_landscape_files, image_tile_layer=image_tile_layer
-        )
+        create_image_tiles_merscope(data_dir, path_dega_files, image_tile_layer=image_tile_layer)
     elif technology == "h&e":
         print("------ h&e")
-        create_image_tiles_h_and_e(
-            data_dir, path_landscape_files, image_tile_layer=image_tile_layer
-        )
+        create_image_tiles_h_and_e(data_dir, path_dega_files, image_tile_layer=image_tile_layer)
 
     print("Image tiles created successfully.")
 
 
-def create_image_tiles_h_and_e(data_dir, path_landscape_files, image_tile_layer):
+def create_image_tiles_h_and_e(data_dir, path_dega_files, image_tile_layer):
     """
     Creates image tiles for visualization from the H&E image.
 
     Args:
         data_dir (str): Path to the directory containing the data (e.g., morphology_focus_0000.ome.tif).
-        path_landscape_files (str): Path to the directory where the image tiles and pyramid will be saved.
+        path_dega_files (str): Path to the directory where the image tiles and pyramid will be saved.
         image_tile_layer (str, optional): Specifies the name of the h&e image to process.
     Raises:
         FileNotFoundError: If the required input image file is not found.
@@ -475,8 +474,8 @@ def create_image_tiles_h_and_e(data_dir, path_landscape_files, image_tile_layer)
         print(tif.pages)  # Show available pages
         image = tif.pages[0].asarray()
 
-        # make this directory, path_landscape_files, if it does not exist
-        landscape_path = Path(path_landscape_files)
+        # make this directory, path_dega_files, if it does not exist
+        landscape_path = Path(path_dega_files)
         landscape_path.mkdir(exist_ok=True)
 
         temp_tiff_path = landscape_path / image_tile_layer.replace(".scn", "_output_regular.tif")
@@ -493,46 +492,39 @@ def create_image_tiles_h_and_e(data_dir, path_landscape_files, image_tile_layer)
             suffix=".webp[Q=100]",
         )
 
-        remove_intermediate_files(path_landscape_files)
+        remove_intermediate_files(path_dega_files)
 
 
-def remove_intermediate_files(path_landscape_files):
+def remove_intermediate_files(path_dega_files):
     """
     Remove intermediate image files.
 
     Parameters:
-    - path_landscape_files: Path to landscape files directory
+    - path_dega_files: Path to landscape files directory
     """
     # Remove intermediate files
-    intermediate_image_files = list(Path(path_landscape_files).glob("*output_regular*"))
+    intermediate_image_files = list(Path(path_dega_files).glob("*output_regular*"))
     for file in intermediate_image_files:
         file.unlink()
 
 
 def create_image_tiles_xenium(
-    data_dir, path_landscape_files, image_tile_layer="dapi", upper_percentile=99, white_level=100
+    data_dir, path_dega_files, image_tile_layer="dapi", upper_percentile=99, white_level=100
 ):
     """
     Creates image tiles for visualization from the Xenium morphology image.
 
     This version:
-    - finds the OME-TIFF whose name contains '0000'
+    - resolves the morphology OME-TIFF via resolve_xenium_morphology_ome_path
     - avoids loading the full OME-TIFF into memory
     - reads one channel at a time from CYX images
+    - applies per-channel intensity windowing (upper_percentile / white_level)
     """
 
     if image_tile_layer not in ["dapi", "all"]:
         raise ValueError(f"Invalid image_tile_layer: {image_tile_layer}. Must be 'dapi' or 'all'.")
 
-    morphology_dir = Path(data_dir) / "morphology_focus"
-
-    # New Xenium datasets may use different filenames → search for *0000*.ome.tif
-    matches = sorted(morphology_dir.glob("*0000*.ome.tif"))
-
-    if not matches:
-        raise FileNotFoundError(f"No OME-TIFF containing '0000' found in {morphology_dir}")
-
-    file_path = matches[0]
+    file_path = resolve_xenium_morphology_ome_path(data_dir)
     print(f"Using morphology image: {file_path}")
 
     channel_map = [{"name": "dapi", "index": 0}]
@@ -569,23 +561,23 @@ def create_image_tiles_xenium(
             channel_2d = series.asarray(key=channel_index)
 
             _process_image_channel(
-                path_landscape_files=path_landscape_files,
+                path_dega_files=path_dega_files,
                 channel_info={"name": channel_name, "index": 0},
                 img=channel_2d,
                 upper_percentile=upper_percentile,
                 white_level=white_level,
             )
 
-    remove_intermediate_files(path_landscape_files)
+    remove_intermediate_files(path_dega_files)
 
 
-def create_image_tiles_merscope(data_dir, path_landscape_files, image_tile_layer="dapi"):
+def create_image_tiles_merscope(data_dir, path_dega_files, image_tile_layer="dapi"):
     """
     Creates image tiles for visualization from the Xenium morphology image.
 
     Args:
         data_dir (str): Path to the directory containing the data (e.g., morphology_focus_0000.ome.tif).
-        path_landscape_files (str): Path to the directory where the image tiles and pyramid will be saved.
+        path_dega_files (str): Path to the directory where the image tiles and pyramid will be saved.
         image_tile_layer (str, optional): Specifies which image layers to process. Options are 'dapi' (default) or 'all'.
     Raises:
         FileNotFoundError: If the required input image file is not found.
@@ -606,7 +598,7 @@ def create_image_tiles_merscope(data_dir, path_landscape_files, image_tile_layer
     img_dapi = imread(dapi_file_path)
 
     # Process the DAPI channel
-    _process_image_channel(path_landscape_files, {"name": "dapi", "index": 0}, img_dapi)
+    _process_image_channel(path_dega_files, {"name": "dapi", "index": 0}, img_dapi)
 
     # Process additional channels if image_tile_layer is 'all'
     if image_tile_layer == "all":
@@ -623,18 +615,18 @@ def create_image_tiles_merscope(data_dir, path_landscape_files, image_tile_layer
         img_bound = imread(bounda_file_path)
 
         # Process the boundary channel
-        _process_image_channel(path_landscape_files, {"name": "bound", "index": 0}, img_bound)
+        _process_image_channel(path_dega_files, {"name": "bound", "index": 0}, img_bound)
 
-    remove_intermediate_files(path_landscape_files)
+    remove_intermediate_files(path_dega_files)
 
 
-def _reduce_image_size(image_path, scale_image=0.5, path_landscape_files=""):
+def _reduce_image_size(image_path, scale_image=0.5, path_dega_files=""):
     """Reduces the size of an image by a specified scale factor.
 
     Args:
         image_path (str): Path to the image file.
         scale_image (float, optional): Scale factor for the image resize. Defaults to 0.5.
-        path_landscape_files (str, optional): Directory to save the resized image. Defaults to "".
+        path_dega_files (str, optional): Directory to save the resized image. Defaults to "".
 
     Returns:
         str: Path to the resized image file.
@@ -643,7 +635,7 @@ def _reduce_image_size(image_path, scale_image=0.5, path_landscape_files=""):
     resized_image = image.resize(scale_image)
 
     new_image_name = Path(image_path).name.replace(".tif", "_downsize.tif")
-    new_image_path = Path(path_landscape_files) / new_image_name
+    new_image_path = Path(path_dega_files) / new_image_name
     resized_image.write_to_file(str(new_image_path))
 
     return str(new_image_path)
@@ -1128,14 +1120,14 @@ def make_meta_gene(cbg, path_output):
     print("All meta gene files are succesfully saved.")
 
 
-def make_chromium_from_anndata(adata, path_landscape_files):
+def make_chromium_from_anndata(adata, path_dega_files):
     """Generate minimal LandscapeFiles from a Chromium AnnData object.
 
     Parameters
     ----------
     adata : anndata.AnnData
         AnnData object containing scRNA-seq count data.
-    path_landscape_files : str or Path
+    path_dega_files : str or Path
         Directory where LandscapeFiles will be written.
 
     Raises
@@ -1145,8 +1137,8 @@ def make_chromium_from_anndata(adata, path_landscape_files):
     """
 
     print("\n========Process Chromium AnnData========")
-    path_landscape_files = Path(path_landscape_files)
-    path_landscape_files.mkdir(parents=True, exist_ok=True)
+    path_dega_files = Path(path_dega_files)
+    path_dega_files.mkdir(parents=True, exist_ok=True)
 
     X = adata.layers.get("counts", adata.X)
 
@@ -1161,17 +1153,17 @@ def make_chromium_from_anndata(adata, path_landscape_files):
         cbg = pd.DataFrame(X, index=adata.obs_names, columns=adata.var_names)
 
     cell_meta = pd.DataFrame({"name": adata.obs_names, "geometry": [[0.0, 0.0]] * adata.n_obs})
-    cell_meta.to_parquet(path_landscape_files / "cell_metadata.parquet", index=False)
+    cell_meta.to_parquet(path_dega_files / "cell_metadata.parquet", index=False)
 
-    save_cbg_gene_parquets("Chromium", path_landscape_files, cbg)
+    save_cbg_gene_parquets("Chromium", path_dega_files, cbg)
 
-    make_meta_gene(cbg, path_landscape_files / "meta_gene.parquet")
+    make_meta_gene(cbg, path_dega_files / "meta_gene.parquet")
 
-    (path_landscape_files / "pyramid_images").mkdir(exist_ok=True)
+    (path_dega_files / "pyramid_images").mkdir(exist_ok=True)
 
     save_landscape_parameters(
         technology="Chromium",
-        path_landscape_files=path_landscape_files,
+        path_dega_files=path_dega_files,
         image_name="",
         tile_size=1,
         image_info=[],
@@ -1196,7 +1188,7 @@ def get_max_zoom_level(path_image_pyramid):
 
 def save_landscape_parameters(
     technology,
-    path_landscape_files,
+    path_dega_files,
     image_name="dapi_files",
     tile_size=1000,
     image_info=None,
@@ -1214,7 +1206,7 @@ def save_landscape_parameters(
 
     Args:
         technology (str): The technology used to generate the data.
-        path_landscape_files (str): Path to the directory where landscape files are stored.
+        path_dega_files (str): Path to the directory where landscape files are stored.
         image_name (str, optional): Name of the image directory. Defaults to "dapi_files".
         tile_size (int, optional): Tile size for the image pyramid. Defaults to 1000.
         image_info (dict, optional): Additional image metadata. Defaults to None.
@@ -1249,10 +1241,10 @@ def save_landscape_parameters(
         else:
             max_pyramid_zoom = None
     else:
-        path_image_pyramid = Path(path_landscape_files) / "pyramid_images" / image_name
+        path_image_pyramid = Path(path_dega_files) / "pyramid_images" / image_name
         max_pyramid_zoom = get_max_zoom_level(path_image_pyramid)
 
-    path_landscape_parameters = Path(path_landscape_files) / "landscape_parameters.json"
+    path_landscape_parameters = Path(path_dega_files) / "landscape_parameters.json"
 
     # if technology is 'h&e' set parameters
     if technology == "h&e":
@@ -1324,7 +1316,7 @@ def save_landscape_parameters(
 
             # Add image parquet files for each channel with zoom info
             # Parquet files are now in pyramid_images/{channel_name}/ directories (chunked)
-            pyramid_images_dir = Path(path_landscape_files) / "pyramid_images"
+            pyramid_images_dir = Path(path_dega_files) / "pyramid_images"
             if pyramid_images_dir.exists():
                 image_parquets = {}
 
@@ -1405,14 +1397,14 @@ def save_landscape_parameters(
 
 
 def add_custom_segmentation(
-    technology, path_landscape_files, path_segmentation_files, image_scale=1, tile_size=250
+    technology, path_dega_files, path_segmentation_files, image_scale=1, tile_size=250
 ):
     """
     Add custom segmentation to existing landscape files.
 
     Parameters:
     - technology: Technology type (e.g., "Xenium", "MERSCOPE", "custom")
-    - path_landscape_files: Path to landscape files
+    - path_dega_files: Path to landscape files
     - path_segmentation_files: Path to segmentation files
     - image_scale: Image scale factor
     - tile_size: Tile size for processing
@@ -1423,27 +1415,25 @@ def add_custom_segmentation(
     cbg_custom = pd.read_parquet(Path(path_segmentation_files) / "cell_by_gene_matrix.parquet")
 
     # make sure all genes are present in cbg_custom
-    meta_gene = pd.read_parquet(Path(path_landscape_files) / "meta_gene.parquet")
+    meta_gene = pd.read_parquet(Path(path_dega_files) / "meta_gene.parquet")
     missing_cols = meta_gene.index.difference(cbg_custom.columns)
     for col in missing_cols:
         cbg_custom[col] = 0
 
     make_meta_gene(
         cbg=cbg_custom,
-        path_output=Path(path_landscape_files)
+        path_output=Path(path_dega_files)
         / f"meta_gene_{segmentation_parameters['segmentation_approach']}.parquet",
     )
 
     make_meta_cell_image_coord(
         technology=segmentation_parameters["technology"],
-        path_transformation_matrix=str(
-            Path(path_landscape_files) / "micron_to_image_transform.csv"
-        ),
+        path_transformation_matrix=str(Path(path_dega_files) / "micron_to_image_transform.csv"),
         path_meta_cell_micron=str(
             Path(path_segmentation_files) / "cell_metadata_micron_space.parquet"
         ),
         path_meta_cell_image=str(
-            Path(path_landscape_files)
+            Path(path_dega_files)
             / f"cell_metadata_{segmentation_parameters['segmentation_approach']}.parquet"
         ),
         image_scale=image_scale,
@@ -1451,7 +1441,7 @@ def add_custom_segmentation(
 
     save_cbg_gene_parquets(
         technology=technology,
-        base_path=path_landscape_files,
+        base_path=path_dega_files,
         cbg=cbg_custom,
         verbose=True,
         segmentation_approach=segmentation_parameters["segmentation_approach"],
@@ -1459,12 +1449,12 @@ def add_custom_segmentation(
 
     create_cluster_and_meta_cluster(
         technology=segmentation_parameters["technology"],
-        path_landscape_files=path_landscape_files,
+        path_dega_files=path_dega_files,
         segmentation_approach=segmentation_parameters["segmentation_approach"],
     )
 
     # Get the first .dzi file in sorted order
-    dzi_files = sorted((Path(path_landscape_files) / "pyramid_images").glob("*.dzi"))
+    dzi_files = sorted((Path(path_dega_files) / "pyramid_images").glob("*.dzi"))
     if not dzi_files:
         raise FileNotFoundError("No .dzi files found in pyramid_images.")
 
@@ -1480,7 +1470,7 @@ def add_custom_segmentation(
         technology=segmentation_parameters["technology"],
         path_cell_boundaries=str(Path(path_segmentation_files) / "cell_polygons.parquet"),
         path_output=str(
-            Path(path_landscape_files)
+            Path(path_dega_files)
             / f"cell_segmentation_{segmentation_parameters['segmentation_approach']}"
         ),
         tile_size=tile_size,
@@ -1490,14 +1480,14 @@ def add_custom_segmentation(
 
     cluster_gene_expression(
         technology=segmentation_parameters["technology"],
-        path_landscape_files=path_landscape_files,
+        path_dega_files=path_dega_files,
         cbg=cbg_custom,
         segmentation_approach=segmentation_parameters["segmentation_approach"],
     )
 
     save_landscape_parameters(
         technology=segmentation_parameters["technology"],
-        path_landscape_files=path_landscape_files,
+        path_dega_files=path_dega_files,
         image_name="dapi_files",
         tile_size=tile_size,
         image_format=".webp",
@@ -1590,14 +1580,14 @@ def _to_coords(geom):
 
 
 def write_xenium_transform(
-    data_dir, path_landscape_files, transform_fname="micron_to_image_transform.csv"
+    data_dir, path_dega_files, transform_fname="micron_to_image_transform.csv"
 ):
     """
     Extracts the transformation matrix from the Xenium cells.zarr.zip file and saves it as a CSV file.
 
     Args:
         data_dir (str): Path to the directory containing the Xenium data (e.g., cells.zarr.zip).
-        path_landscape_files (str): Path to the directory where the transformation matrix CSV will be saved.
+        path_dega_files (str): Path to the directory where the transformation matrix CSV will be saved.
         transform_fname (str, optional): Name of the output CSV file. Defaults to "micron_to_image_transform.csv".
 
     Returns:
@@ -1633,7 +1623,7 @@ def write_xenium_transform(
         transformation_matrix = root["masks"]["homogeneous_transform"][:]
 
         # Save the transformation matrix as a CSV file
-        output_path = Path(path_landscape_files) / transform_fname
+        output_path = Path(path_dega_files) / transform_fname
         pd.DataFrame(transformation_matrix[:3, :3]).to_csv(
             output_path, sep=" ", header=False, index=False
         )
@@ -1720,7 +1710,6 @@ def _check_required_files(technology, data_dir):
     # Define required files or directories for each technology
     required_files_mapping = {
         "Xenium": [
-            "morphology_focus/morphology_focus_0000.ome.tif",
             "cells.zarr",
             "cells.csv",
             "cells.csv.gz",
@@ -1749,20 +1738,16 @@ def _check_required_files(technology, data_dir):
     required_files_or_dir = required_files_mapping[technology]
     data_path = Path(data_dir)
 
-    # Standard checks (skip morphology file for Xenium)
     missing_files_or_dir = [
-        file
-        for file in required_files_or_dir
-        if file != "morphology_focus/morphology_focus_0000.ome.tif"
-        and not (data_path / file).exists()
+        file for file in required_files_or_dir if not (data_path / file).exists()
     ]
-
-    # 🔹 Special Xenium morphology check (pattern-based)
     if technology == "Xenium":
-        morphology_dir = data_path / "morphology_focus"
-        matches = sorted(morphology_dir.glob("*0000*.ome.tif")) if morphology_dir.exists() else []
-        if not matches:
-            missing_files_or_dir.append("morphology_focus/*0000*.ome.tif")
+        try:
+            resolve_xenium_morphology_ome_path(data_path)
+        except FileNotFoundError:
+            missing_files_or_dir.append(
+                "morphology OME-TIFF (morphology_focus/… or morphology.ome.tif)"
+            )
 
     if missing_files_or_dir:
         raise FileNotFoundError(
@@ -1775,16 +1760,16 @@ def _check_required_files(technology, data_dir):
     )
 
 
-def write_identity_transform(path_landscape_files: str) -> None:
+def write_identity_transform(path_dega_files: str) -> None:
     """Write an identity transform matrix for IST data."""
-    path = Path(path_landscape_files) / "micron_to_image_transform.csv"
+    path = Path(path_dega_files) / "micron_to_image_transform.csv"
     if not path.exists():
         pd.DataFrame(np.eye(3)).to_csv(path, sep=" ", header=False, index=False)
 
 
 def add_clustering_from_adata(
     adata,
-    path_landscape_files: str,
+    path_dega_files: str,
     cluster_key: str = "leiden",
     segmentation_name: str | None = None,
 ) -> None:
@@ -1800,7 +1785,7 @@ def add_clustering_from_adata(
     adata : AnnData
         AnnData object containing clustering results in `obs[cluster_key]`.
         Colors can be provided in `uns[f"{cluster_key}_colors"]`.
-    path_landscape_files : str or Path
+    path_dega_files : str or Path
         Path to the LandscapeFiles directory.
     cluster_key : str, default "leiden"
         Column name in `adata.obs` containing cluster assignments.
@@ -1825,14 +1810,14 @@ def add_clustering_from_adata(
     >>> # Add clustering to LandscapeFiles
     >>> dega.pre.add_clustering_from_adata(
     ...     adata,
-    ...     path_landscape_files="./my_landscape_files",
+    ...     path_dega_files="./my_landscape_files",
     ...     cluster_key="leiden"
     ... )
     >>>
     >>> # For a custom segmentation with a specific name
     >>> dega.pre.add_clustering_from_adata(
     ...     adata,
-    ...     path_landscape_files="./my_landscape_files",
+    ...     path_dega_files="./my_landscape_files",
     ...     cluster_key="leiden",
     ...     segmentation_name="cellpose2"
     ... )
@@ -1846,7 +1831,7 @@ def add_clustering_from_adata(
 
     import scanpy as sc
 
-    path_lf = Path(path_landscape_files)
+    path_lf = Path(path_dega_files)
 
     # Determine output directory
     if segmentation_name:
@@ -1908,6 +1893,7 @@ __all__ = [
     "main",
     "make_trx_tiles",
     "read_cbg_mtx",
+    "resolve_xenium_morphology_ome_path",
     "trx_tile",
     "write_identity_transform",
 ]

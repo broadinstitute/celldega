@@ -30,6 +30,11 @@ import { update_selected_genes } from '../global_variables/selected_genes';
 import { get_arrow_table } from '../read_parquet/get_arrow_table';
 import { get_scatter_data } from '../read_parquet/get_scatter_data';
 import { scale_umap_data } from '../umap/scale_umap_data';
+import {
+  buildCellCompactData,
+  createEmptyCellCompact,
+  createEmptyTrxCompact,
+} from '../utils/compact_data';
 
 import { set_image_layer_sliders } from './sliders';
 
@@ -279,14 +284,12 @@ export const switch_dataset = async (
     const dim =
       viz_state.spatial.cell_scatter_data.attributes.getPosition.size || 2;
 
-    // Update combo_data.cell
-    viz_state.combo_data.cell = new_cell_names_array.map((name, index) => ({
-      name,
-      cat: viz_state.cats.dict_cell_cats[name],
-      x: flatCoordinateArray[index * dim],
-      y: flatCoordinateArray[index * dim + 1],
-      z: dim === 3 ? flatCoordinateArray[index * dim + 2] : 0,
-    }));
+    viz_state.combo_data.cell_compact = buildCellCompactData(
+      new_cell_names_array,
+      flatCoordinateArray,
+      dim,
+      viz_state.cats.dict_cell_cats
+    );
 
     // Build cell scatter data objects
     let cell_scatter_data_objects;
@@ -407,9 +410,16 @@ export const switch_dataset = async (
 
     // Clear transcript and path data for the new dataset
     viz_state.genes.trx_data = [];
-    viz_state.genes.trx_names_array = [];
+    viz_state.genes.trx_gene_ids = new Int32Array();
     viz_state.cats.polygon_cell_names = [];
     viz_state.combo_data.trx = [];
+    viz_state.combo_data.trx_compact = createEmptyTrxCompact();
+    viz_state.combo_data.cell_compact = createEmptyCellCompact();
+    if (viz_state.viewport_cache) {
+      viz_state.viewport_cache.visibleTileKey = null;
+      viz_state.viewport_cache.lastGeneBarData = null;
+      viz_state.viewport_cache.lastCellBarData = null;
+    }
 
     layers_obj.trx_layer = layers_obj.trx_layer.clone({
       id: `trx-layer-dataset-${new_index}`,

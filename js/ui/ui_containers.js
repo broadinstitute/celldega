@@ -837,7 +837,7 @@ export const make_ist_ui_container = (
       bars.exit().transition().duration(750).attr('opacity', 0).remove();
 
       // Optional: scroll container to top
-      if (container) {
+      if (container && !viz_state.close_up) {
         container.scrollTo({
           top: 0,
           behavior: 'smooth',

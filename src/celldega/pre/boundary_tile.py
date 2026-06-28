@@ -8,12 +8,12 @@ from shapely.geometry import MultiPolygon, Point, Polygon
 from tqdm import tqdm
 
 
-def _get_name_mapping(path_landscape_files, layer, segmentation="default"):
+def _get_name_mapping(path_dega_files, layer, segmentation="default"):
     """
     Generates mappings from gene and cell names to unique integer identifiers.
 
     Args:
-        path_landscape_files (str): Path to the directory containing the metadata files.
+        path_dega_files (str): Path to the directory containing the metadata files.
             Expected files:
             - `meta_gene.parquet`: Contains gene metadata with gene names as the index.
             - `cell_metadata.parquet`: Contains cell metadata with a 'name' column.
@@ -26,21 +26,19 @@ def _get_name_mapping(path_landscape_files, layer, segmentation="default"):
 
     if layer == "transcript":
         # Load gene metadata
-        df_meta_gene = pd.read_parquet(f"{path_landscape_files}/meta_gene.parquet")
+        df_meta_gene = pd.read_parquet(f"{path_dega_files}/meta_gene.parquet")
         if segmentation != "default":
-            df_meta_gene = pd.read_parquet(
-                f"{path_landscape_files}/meta_gene_{segmentation}.parquet"
-            )
+            df_meta_gene = pd.read_parquet(f"{path_dega_files}/meta_gene_{segmentation}.parquet")
         df_meta_gene["name"] = df_meta_gene.index
         df_meta_gene = df_meta_gene.reset_index(drop=True)
         return {str(name): idx for idx, name in df_meta_gene["name"].items()}
 
     if layer == "boundary":
         # Load cell metadata
-        df_meta_cell = pd.read_parquet(f"{path_landscape_files}/cell_metadata.parquet")
+        df_meta_cell = pd.read_parquet(f"{path_dega_files}/cell_metadata.parquet")
         if segmentation != "default":
             df_meta_cell = pd.read_parquet(
-                f"{path_landscape_files}/cell_metadata_{segmentation}.parquet"
+                f"{path_dega_files}/cell_metadata_{segmentation}.parquet"
             )
         df_meta_cell = df_meta_cell.reset_index(drop=True)
         return {str(name): idx for idx, name in df_meta_cell["name"].items()}
@@ -518,7 +516,7 @@ def _write_boundary_tiles_as_row_groups(
     - tile_data_list: List of (tile_x, tile_y, DataFrame) tuples
     - output_dir: Path to output directory (will contain chunk_0.parquet, etc.)
     - tile_grid_info: Dictionary with grid dimensions
-    - max_row_groups_per_file: Maximum row groups per parquet file (default 10000)
+    - max_row_groups_per_file: Maximum row groups per parquet file (default 400)
 
     Returns:
     - dict: Chunk info with file list and metadata
@@ -623,7 +621,7 @@ def make_cell_boundary_tiles_row_groups(
     tile_bounds=None,
     image_scale=1,
     max_workers=1,
-    path_landscape_files=None,
+    path_dega_files=None,
     max_row_groups_per_file=400,
 ):
     """
@@ -655,10 +653,10 @@ def make_cell_boundary_tiles_row_groups(
         Scale factor to apply to the geometry data (default is 1).
     max_workers : int, optional
         Not used in row group mode, kept for API compatibility.
-    path_landscape_files : str, optional
+    path_dega_files : str, optional
         Path to landscape files directory for loading cell mapping.
     max_row_groups_per_file : int, optional
-        Maximum row groups per parquet file (default 10000).
+        Maximum row groups per parquet file (default 400).
 
     Returns
     -------
@@ -687,9 +685,9 @@ def make_cell_boundary_tiles_row_groups(
     )
 
     # Convert string index to integer index
-    if path_landscape_files:
+    if path_dega_files:
         cell_str_to_int_mapping = _get_name_mapping(
-            path_landscape_files,
+            path_dega_files,
             layer="boundary",
         )
     else:

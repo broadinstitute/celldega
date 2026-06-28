@@ -48,8 +48,12 @@ nav:
   - Technologies:
       - technologies/index.md
   - Cloud Environments:
-    - Terra.bio:
-        - cloud_env/Terra-segment.md
+      - cloud_env/index.md
+      - Terra.bio:
+          - Cell Segmentation: cloud_env/Terra/Cell_Segmentation_on_Terra.md
+          - Generating LandscapeFiles: cloud_env/Terra/Generating_LandscapeFiles.md
+      - Manifold.ai:
+          - Generating LandscapeFiles: cloud_env/Manifold/Generating_LandscapeFiles.md
   - Gallery:
       - gallery/index.md
       - Xenium:

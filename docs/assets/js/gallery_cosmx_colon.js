@@ -7,10 +7,13 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         // Use the imported functions
         const token = '';
-        const ini_x = 30970;
-        const ini_y = 76771;
+        // All zeros => landscape_ist auto-centers and auto-fits the whole sample
+        // (same behavior as dega.viz.Landscape in the notebook). The ini_x/ini_y
+        // target is in deck.gl's transformed data frame, not raw global pixels.
+        const ini_x = 0;
+        const ini_y = 0;
         const ini_z = 0;
-        const ini_zoom = -6;
+        const ini_zoom = 0;
         const base_url = 'https://raw.githubusercontent.com/cornhundred/celldega_cosmx_human_colon_wt/main';
 
         const landscape = await celldega.landscape_ist(

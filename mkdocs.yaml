@@ -56,6 +56,8 @@ nav:
           - Xenium Prime Mouse Brain: gallery/gallery_xenium_mouse_brain.md
           - Xenium Prime Human Skin: gallery/gallery_xenium_skin_cancer.md
           - Xenium Multi Dataset: gallery/gallery_xenium_multi.md
+      - CosMx:
+          - CosMx Human Colon CRC: gallery/gallery_cosmx_human_colon.md
       - Linked Views:
           - Landscape-Clustergram: gallery/gallery_landscape_clustergram.md
           - Landscape-Yearbook: gallery/gallery_landscape_yearbook.md
@@ -106,6 +108,8 @@ extra_javascript:
   - path: assets/js/gallery_mouse_brain.js
     type: module
   - path: assets/js/gallery_skin_cancer.js
+    type: module
+  - path: assets/js/gallery_cosmx_colon.js
     type: module
   - path: assets/js/google-analytics.js
   - path: assets/js/hide_notebook_sidebar.js

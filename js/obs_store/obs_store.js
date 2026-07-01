@@ -36,6 +36,7 @@ export const create_obs_store = () => {
     viz_edit_layer: Observable(false),
     landscape_view: Observable('spatial'),
     umap_state: Observable(false),
+    focused_image_layer: Observable(null),
     scale_bar_view_state: Observable(null),
     // Zoom state - true when zoomed in enough to see transcripts
     close_up: Observable(false),

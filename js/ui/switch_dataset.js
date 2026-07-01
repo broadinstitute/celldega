@@ -168,6 +168,12 @@ export const switch_dataset = async (
   // Mark that we're switching datasets
   viz_state.obs_store.dataset_switching.set(true);
 
+  // Exit image-layer focus mode: the focused layer name may not exist in the
+  // new dataset, which would leave every image button non-interactive.
+  if (viz_state.obs_store.focused_image_layer.get()) {
+    viz_state.obs_store.focused_image_layer.set(null);
+  }
+
   // Temporarily disable deck rendering updates
   viz_state.obs_store.deck_check.set({
     ...viz_state.obs_store.deck_check.get(),

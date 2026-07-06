@@ -473,7 +473,11 @@ export const landscape_ist = async (
   const defaultMicronsPerPixel = PIXEL_SIZE_MICRONS[tech];
   const micronsPerPixel = defaultMicronsPerPixel ?? userMicronsPerPixel;
 
-  if (micronsPerPixel) {
+  // Only show the scale bar when explicitly enabled. Defaults to the value the
+  // Python widget resolves from whether a real transformation matrix was passed
+  // (identity fallback => hidden, since the pixel->micron scale is unknown).
+  const display_scalebar = ini_model.get('display_scalebar');
+  if (micronsPerPixel && display_scalebar !== false) {
     viz_state.scale_bar = create_scale_bar(micronsPerPixel, tech);
     root.appendChild(viz_state.scale_bar.container);
   }

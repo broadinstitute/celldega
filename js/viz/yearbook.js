@@ -379,7 +379,8 @@ export const yearbook = async (
   const micronsPerPixel = defaultMicronsPerPixel ?? userMicronsPerPixel;
   viz_state.yearbook.micronsPerPixel = micronsPerPixel;
 
-  if (micronsPerPixel) {
+  const display_scalebar = ini_model.get('display_scalebar');
+  if (micronsPerPixel && display_scalebar !== false) {
     viz_state.scale_bar = create_scale_bar(micronsPerPixel, tech);
     root.appendChild(viz_state.scale_bar.container);
   }

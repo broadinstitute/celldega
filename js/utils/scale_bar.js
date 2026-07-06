@@ -26,6 +26,7 @@ export const create_scale_bar = (micronsPerPixel, tech) => {
   const rev_labelColor = labelColor === 'white' ? 'black' : 'white';
 
   const container = document.createElement('div');
+  container.className = 'celldega-scale-bar';
   container.style.position = 'absolute';
   container.style.bottom = '10px';
   container.style.left = '10px';

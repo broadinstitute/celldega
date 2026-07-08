@@ -231,6 +231,11 @@ class Landscape(anywidget.AnyWidget):
         cell_name_prefix (bool, optional): If True, cell names in adata.obs.index
             are assumed to have a dataset prefix (e.g., "dataset-name_cell-name")
             that should be trimmed when mapping to LandscapeFiles. Default: False.
+        display_scalebar (bool, optional): Whether to show the scale bar. If omitted,
+            it is shown only when a real transformation matrix is passed (via
+            ``transform``) or loaded from ``micron_to_image_transform.csv`` — when the
+            identity fallback is used the pixel-to-micron scale is unknown, so the bar
+            is hidden. Pass True/False to force it on or off.
 
     The AnnData input automatically extracts cell attributes (e.g., ``leiden``
     clusters), the corresponding colors (or derives them when missing), and any
@@ -261,6 +266,10 @@ class Landscape(anywidget.AnyWidget):
     scale_bar_microns_per_pixel = traitlets.Float(default_value=None, allow_none=True).tag(
         sync=True
     )
+    # Whether to show the scale bar. Resolved in __init__: defaults to True only
+    # when a real transformation matrix is passed/loaded (identity fallback => False),
+    # and can be overridden explicitly via the ``display_scalebar`` kwarg.
+    display_scalebar = traitlets.Bool(True).tag(sync=True)
 
     nbhd = traitlets.Instance(gpd.GeoDataFrame, allow_none=True)
     nbhd_geojson = traitlets.Dict({}).tag(sync=True)
@@ -301,6 +310,8 @@ class Landscape(anywidget.AnyWidget):
         nbhd_gdf = kwargs.pop("nbhd", None)
         meta_nbhd_df = kwargs.pop("meta_nbhd", None)
         transform = kwargs.pop("transform", None)
+        # None => auto (show only when a real transform is resolved); True/False => force.
+        display_scalebar = kwargs.pop("display_scalebar", None)
         image_scale = kwargs.pop("image_scale", None)
         nbhd_edit = kwargs.pop("nbhd_edit", False)
         meta_cluster_df = None
@@ -368,16 +379,22 @@ class Landscape(anywidget.AnyWidget):
         base_path = (kwargs.get("base_url") or "") + "/"
         path_transformation_matrix = base_path + "micron_to_image_transform.csv"
 
+        # Explicit signal for whether a real transform was resolved (vs. the identity
+        # fallback). Drives the scale bar default so it isn't shown against an unknown
+        # pixel->micron scale.
         if transform is not None:
             transformation_matrix = _coerce_transform_matrix(transform)
+            has_transform = True
         else:
             try:
                 transformation_matrix = pd.read_csv(
                     path_transformation_matrix, header=None, sep=r"\s+"
                 ).values
                 transformation_matrix = _coerce_transform_matrix(transformation_matrix)
+                has_transform = True
             except (FileNotFoundError, urllib.error.HTTPError, urllib.error.URLError):
                 transformation_matrix = np.eye(3)  # Fallback for testing
+                has_transform = False
                 warnings.warn(
                     f"Transformation matrix not found at {path_transformation_matrix}. "
                     "Using identity.",
@@ -511,6 +528,11 @@ class Landscape(anywidget.AnyWidget):
             self.add_traits(**parquet_traits)
 
         super().__init__(**kwargs)
+
+        # Auto (None) => show only when a real transform was resolved; else honor the override.
+        self.display_scalebar = (
+            has_transform if display_scalebar is None else bool(display_scalebar)
+        )
 
         self.cell_attr = cell_attr
 
@@ -769,6 +791,9 @@ class Yearbook(anywidget.AnyWidget):
     scale_bar_microns_per_pixel = traitlets.Float(default_value=None, allow_none=True).tag(
         sync=True
     )
+    # Show the scale bar (Yearbook portraits use a fixed micron size, so this defaults
+    # to True). Set ``display_scalebar=False`` to hide it.
+    display_scalebar = traitlets.Bool(True).tag(sync=True)
 
     # Pagination
     current_page = traitlets.Int(0).tag(sync=True)

@@ -14,15 +14,18 @@ const ENRICHR_TERMS = 8;
  * (gene list + Enrichr terms), and hands it to the Python side (which calls Claude).
  */
 export const render_clerk = async ({ model, el }) => {
-  const width = (model.get('width') || 650) - 5;
-  const height = model.get('height') || 650;
+  // width 0 (or unset) => full width of the container (wide standalone panel).
+  const rawWidth = model.get('width');
+  const fullWidth = !rawWidth;
+  const width = fullWidth ? null : rawWidth - 5;
+  const height = model.get('height') || 450;
 
   const enrichrCache = {};
   let requestCounter = 0;
 
   // ---- layout ------------------------------------------------------------
   const container = document.createElement('div');
-  container.style.width = `${width}px`;
+  container.style.width = fullWidth ? '100%' : `${width}px`;
   container.style.height = `${height}px`;
   container.style.marginLeft = '5px';
   container.style.display = 'flex';

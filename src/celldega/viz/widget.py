@@ -294,6 +294,9 @@ class Landscape(anywidget.AnyWidget):
     # ``raster_png``. Kept in memory only -- nothing is written to disk.
     raster_request = traitlets.Int(0).tag(sync=True)
     raster_png = traitlets.Unicode("").tag(sync=True)
+    # The exact deck.gl view state (zoom/pan/rotation) at capture time, for
+    # reproducibility -- pairs with ``raster_png``.
+    raster_view_state = traitlets.Dict(default_value={}).tag(sync=True)
 
     def request_raster(self):
         """Ask the frontend to capture the current view as a PNG.
@@ -693,13 +696,24 @@ class Clerk(anywidget.AnyWidget):
     Reads as both a *law clerk* (gathers evidence, drafts reasoning, the human decides)
     and a *bodega clerk* (fetches what you ask for).
 
+    Clerk is standalone and wide by default. Link it to other widgets (which can live in
+    other notebook cells) either from the constructor or via ``dega.viz.link_clerk``::
+
+        clerk = dega.viz.Clerk(landscape=ls, clustergram=cgm, enrich=en)
+
     Args:
+        landscape (Landscape): Optional. Link a Landscape; its raster + zoom/pan flow in
+            as image evidence.
+        clustergram (Clustergram): Optional. Link a Clustergram; selected genes flow into
+            ``gene_list``.
+        enrich (Enrich): Optional. Remembered for enrichment-term evidence sharing
+            (roadmap).
         gene_list (list): Marker / DE genes for the selection.
         context_info (str): Free-text context (dataset, cluster id, notes).
         model (str): Optional Claude model id/alias (e.g. ``"sonnet"``,
             ``"claude-haiku-4-5"``). Empty inherits the CLI default. A smaller model is
             cheaper/faster for routine annotation.
-        image_b64 (str): Base64 PNG evidence. Usually populated by ``landscape_clerk``.
+        width (int): Widget width in px; 0 (default) means full container width.
         name (str): Registry key; creating a new Clerk with the same name closes the old.
     """
 
@@ -707,13 +721,17 @@ class Clerk(anywidget.AnyWidget):
 
     component = traitlets.Unicode("Clerk").tag(sync=True)
 
-    width = traitlets.Int(650).tag(sync=True)
-    height = traitlets.Int(650).tag(sync=True)
+    # Wide by default (0 -> 100% of the container, like Landscape). Clerk is meant to be
+    # a standalone wide panel, linked to widgets that live elsewhere in the notebook.
+    width = traitlets.Int(0).tag(sync=True)
+    height = traitlets.Int(450).tag(sync=True)
 
     # Evidence
     gene_list = traitlets.List(default_value=[]).tag(sync=True)
     context_info = traitlets.Unicode("").tag(sync=True)
     image_b64 = traitlets.Unicode("").tag(sync=True)
+    # View state (zoom/pan) paired with image_b64, captured from the linked Landscape.
+    image_view_state = traitlets.Dict(default_value={}).tag(sync=True)
 
     # Model config
     model = traitlets.Unicode("").tag(sync=True)
@@ -729,6 +747,15 @@ class Clerk(anywidget.AnyWidget):
 
     def __init__(self, **kwargs):
         name = kwargs.pop("name", "default")
+        # Widgets can be linked straight from the constructor:
+        # ``Clerk(landscape=ls, clustergram=cgm, enrich=en)``. Pop them before
+        # super().__init__ since they are not traits.
+        link_targets = {
+            key: kwargs.pop(key, None)
+            for key in ("landscape", "clustergram", "enrich")
+        }
+        capture_on_select = kwargs.pop("capture_on_select", True)
+
         old_widget = _clerk_registry.get(name)
         if old_widget:
             with suppress(Exception):
@@ -738,7 +765,13 @@ class Clerk(anywidget.AnyWidget):
         super().__init__(**kwargs)
         _clerk_registry[name] = self
         self._last_request_id = None
+        self._linked_widgets = {}
         self.observe(self._on_request, names="request")
+
+        if any(w is not None for w in link_targets.values()):
+            from . import link_clerk
+
+            link_clerk(self, capture_on_select=capture_on_select, **link_targets)
 
     def _on_request(self, change):
         """Handle an ``ask`` triggered from the chat UI (single-shot, no tools)."""
@@ -816,11 +849,16 @@ class Clerk(anywidget.AnyWidget):
         """
         from .. import clerk
 
+        prov = dict(provenance or {})
+        if self.image_view_state and "landscape_view_state" not in prov:
+            # Record the exact zoom/pan the raster was captured at, for reproducibility.
+            prov["landscape_view_state"] = dict(self.image_view_state)
+
         return clerk.CaseFile(
             entity_id=str(entity_id),
             entity_attr=entity_attr,
             dataset=dataset,
-            provenance=dict(provenance or {}),
+            provenance=prov,
             gene_list=list(self.gene_list),
             context=self.context_info,
             image_b64=self.image_b64,
@@ -832,6 +870,9 @@ class Clerk(anywidget.AnyWidget):
         self.gene_list = list(casefile.gene_list)
         self.context_info = casefile.context
         self.image_b64 = casefile.image_b64
+        view_state = (casefile.provenance or {}).get("landscape_view_state")
+        if view_state:
+            self.image_view_state = dict(view_state)
         self.messages = [dict(m) for m in casefile.messages]
         return self
 

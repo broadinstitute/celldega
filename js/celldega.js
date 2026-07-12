@@ -174,9 +174,13 @@ const render_landscape = async ({ model, el }) => {
   if (landscape && typeof landscape.captureRaster === 'function') {
     model.on('change:raster_request', () => {
       try {
-        const b64 = landscape.captureRaster();
-        if (b64 != null) {
-          model.set('raster_png', b64);
+        const capture = landscape.captureRaster();
+        if (capture && capture.png != null) {
+          model.set('raster_png', capture.png);
+          // Record the exact zoom/pan so a capture is reproducible.
+          if (capture.view_state) {
+            model.set('raster_view_state', capture.view_state);
+          }
           model.save_changes();
         }
       } catch (e) {

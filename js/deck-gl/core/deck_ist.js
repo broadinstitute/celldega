@@ -50,6 +50,9 @@ export const set_deck_on_view_state_change = (
 ) => {
   deck_ist.setProps({
     onViewStateChange: (params) => {
+      // Track the latest view state (synchronously, before the debounced handler) so
+      // raster capture can record the exact zoom/pan for reproducibility.
+      viz_state.current_view_state = params.viewState;
       on_view_state_change(params, deck_ist, layers_obj, viz_state);
     },
   });
@@ -92,6 +95,9 @@ export const set_initial_view_state = (
   deck_ist.setProps({
     initialViewState: initial_view_state,
   });
+
+  // Seed the tracked view state so a capture before any pan/zoom still records it.
+  viz_state.current_view_state = initial_view_state;
 
   if (viz_state.scale_bar) {
     viz_state.obs_store.scale_bar_view_state.set(initial_view_state);

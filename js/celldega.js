@@ -10,6 +10,7 @@ import { landscape_ist } from './viz/landscape_ist';
 import { landscape_sst } from './viz/landscape_sst';
 import { matrix_viz } from './viz/matrix_viz';
 import { yearbook } from './viz/yearbook';
+import { render_clerk } from './widgets/clerk_widget';
 import { render_enrich } from './widgets/enrich_widget';
 
 // Remove export keywords from render functions
@@ -155,17 +156,38 @@ const render_landscape_h_e = async ({ model, el }) => {
 const render_landscape = async ({ model, el }) => {
   const technology = model.get('technology');
 
+  let landscape;
   if (
     ['MERSCOPE', 'Xenium', 'Chromium', 'point-cloud', 'Visium-HD'].includes(
       technology
     )
   ) {
-    return render_landscape_ist({ model, el });
+    landscape = await render_landscape_ist({ model, el });
   } else if (['Visium-HD-no-jitter'].includes(technology)) {
-    return render_landscape_sst({ model, el });
+    landscape = await render_landscape_sst({ model, el });
   } else if (['h&e'].includes(technology)) {
-    return render_landscape_h_e({ model, el });
+    landscape = await render_landscape_h_e({ model, el });
   }
+
+  // Raster capture: when Python increments raster_request, snapshot the deck.gl
+  // canvas to a base64 PNG and write it back to raster_png (kept in memory).
+  if (landscape && typeof landscape.captureRaster === 'function') {
+    model.on('change:raster_request', () => {
+      try {
+        const b64 = landscape.captureRaster();
+        if (b64 != null) {
+          model.set('raster_png', b64);
+          model.save_changes();
+        }
+      } catch (e) {
+        handleValidationWarning('Raster capture failed', {
+          data: { error: e.message },
+        });
+      }
+    });
+  }
+
+  return landscape;
 };
 
 const render_yearbook = async ({ model, el }) => {
@@ -275,6 +297,9 @@ async function render({ model, el }) {
         break;
       case 'Enrich':
         cleanup = await render_enrich({ model, el });
+        break;
+      case 'Clerk':
+        cleanup = await render_clerk({ model, el });
         break;
       default:
         handleValidationWarning(`Unknown component type: ${componentType}`, {
@@ -388,4 +413,5 @@ export default {
   render_yearbook,
   render_matrix_new,
   render_enrich,
+  render_clerk,
 };

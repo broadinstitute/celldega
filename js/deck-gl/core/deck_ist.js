@@ -23,6 +23,9 @@ export const ini_deck = (root, width, height, technology = '') => {
     getCursor,
     width,
     height,
+    // preserveDrawingBuffer lets us read the canvas back as a PNG (raster capture)
+    // at any time via canvas.toDataURL(); see landscape captureRaster().
+    deviceProps: { type: 'webgl', preserveDrawingBuffer: true },
   });
 
   return deck_ist;

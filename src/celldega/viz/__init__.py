@@ -2,12 +2,13 @@
 Module for visualization
 """
 
+import contextlib
 import json
 
 from ipywidgets import HBox, Layout, VBox, jslink
 
 from .local_server import get_local_server, get_proxy_server
-from .widget import Clustergram, Enrich, Landscape, Yearbook
+from .widget import Clerk, Clustergram, Enrich, Landscape, Yearbook
 
 
 def _clustergram_col_attr(cgm: "Clustergram", default: str = "leiden") -> str:
@@ -353,14 +354,101 @@ def landscape_yearbook_clustergram(
     return VBox([top_row, yearbook])
 
 
+def landscape_clerk(
+    landscape: Landscape,
+    clerk: Clerk,
+    width: str = "600px",
+    height: str = "650px",
+    *,
+    capture_on_select: bool = True,
+) -> HBox:
+    """Display a `Landscape` beside a `Clerk`, feeding the Landscape raster to Clerk.
+
+    Whenever the Landscape captures its view, the base64 PNG is copied into
+    ``clerk.image_b64`` so Clerk's next question includes the current view as image
+    evidence. When ``capture_on_select`` is True (default), a fresh capture is requested
+    each time the Landscape selection changes (a cluster/gene click), so the attached
+    raster reflects what the user is inspecting. You can also refresh manually with
+    ``landscape.request_raster()``.
+
+    Args:
+        landscape (Landscape): A `Landscape` widget.
+        clerk (Clerk): A `Clerk` widget.
+        width (str): Width of the Landscape widget.
+        height (str): Height of both widgets.
+        capture_on_select (bool): Re-capture the raster on each Landscape selection.
+
+    Returns:
+        HBox: Visualization display containing both widgets side by side.
+    """
+
+    def _copy_raster(change):
+        png = change["new"] or ""
+        if png:
+            clerk.image_b64 = png
+
+    landscape.observe(_copy_raster, names="raster_png")
+
+    if capture_on_select:
+
+        def _capture(_change):
+            with contextlib.suppress(Exception):
+                landscape.request_raster()
+
+        landscape.observe(_capture, names="update_trigger")
+
+    # Request an initial capture so the first question can include an image.
+    with contextlib.suppress(Exception):
+        landscape.request_raster()
+
+    landscape.layout = Layout(width=width, height=height)
+    clerk.layout = Layout(height=height)
+    return HBox([landscape, clerk])
+
+
+def clustergram_clerk(
+    cgm: Clustergram,
+    clerk: Clerk,
+    width: str = "600px",
+    height: str = "650px",
+) -> HBox:
+    """Display a `Clustergram` beside a `Clerk`, feeding selected genes to Clerk.
+
+    Selecting a row/column dendrogram cluster in the Clustergram flows the resulting
+    gene list into ``clerk.gene_list`` so Clerk (and its Enrichr evidence) is scoped to
+    that selection.
+
+    Args:
+        cgm (Clustergram): A `Clustergram` widget.
+        clerk (Clerk): A `Clerk` widget.
+        width (str): Width of the Clustergram widget.
+        height (str): Height of both widgets.
+
+    Returns:
+        HBox: Visualization display containing both widgets side by side.
+    """
+
+    def _on_selected_genes(change):
+        clerk.gene_list = list(change["new"] or [])
+
+    cgm.observe(_on_selected_genes, names="selected_genes")
+
+    cgm.layout = Layout(width=width, height=height)
+    clerk.layout = Layout(height=height)
+    return HBox([cgm, clerk])
+
+
 __all__ = [
+    "Clerk",
     "Clustergram",
     "Enrich",
     "Landscape",
     "Yearbook",
+    "clustergram_clerk",
     "clustergram_enrich",
     "get_local_server",
     "get_proxy_server",
+    "landscape_clerk",
     "landscape_clustergram",
     "landscape_yearbook",
     "landscape_yearbook_clustergram",

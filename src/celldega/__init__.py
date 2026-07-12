@@ -2,7 +2,7 @@ from importlib import import_module
 import importlib.metadata  # temporary fix for libpysal warning
 import warnings
 
-from celldega import clust, collection, dataset, select, set, viz
+from celldega import clerk, clust, collection, dataset, select, set, viz
 from celldega.collection import CelldegaCollection
 from celldega.dataset import DatasetCollection
 from celldega.nbhd import alpha_shape
@@ -10,7 +10,7 @@ from celldega.nbhd.collection import NeighborhoodCollection
 from celldega.pre import landscape
 from celldega.qc import qc_segmentation
 from celldega.set import SetCollection, concat_sets
-from celldega.viz import Clustergram, Landscape, Yearbook
+from celldega.viz import Clerk, Clustergram, Landscape, Yearbook
 
 
 warnings.filterwarnings("ignore", category=FutureWarning)
@@ -27,6 +27,7 @@ def __dir__() -> list[str]:
 
 __all__ = [
     "CelldegaCollection",
+    "Clerk",
     "Clustergram",
     "DatasetCollection",
     "Landscape",
@@ -34,6 +35,7 @@ __all__ = [
     "SetCollection",
     "Yearbook",
     "alpha_shape",
+    "clerk",
     "clust",
     "collection",
     "concat_sets",

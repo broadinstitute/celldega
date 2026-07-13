@@ -8,6 +8,7 @@ except ImportError:
     pyvips = None
 
 import base64
+import colorsys
 import hashlib
 import json
 from pathlib import Path
@@ -15,8 +16,6 @@ import subprocess
 import warnings
 import xml.etree.ElementTree as ET
 
-from matplotlib.colors import to_hex
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from scipy.sparse import csr_matrix, issparse
@@ -82,6 +81,12 @@ def _load_xenium_cluster_data(data_dir, meta_cell):
     return default_clustering, clusters, ser_counts
 
 
+def _hsv_to_hex(h: float) -> str:
+    """Convert HSV color to hex string."""
+    r, g, b = colorsys.hsv_to_rgb(h, 0.65, 0.9)
+    return f"#{int(r * 255):02x}{int(g * 255):02x}{int(b * 255):02x}"
+
+
 def _create_cluster_colors(clusters):
     """
     Create color mapping for clusters.
@@ -92,13 +97,11 @@ def _create_cluster_colors(clusters):
     Returns:
     - List of colors for clusters
     """
-    palettes = [plt.get_cmap(name).colors for name in plt.colormaps() if "tab" in name]
-    flat_colors = [color for palette in palettes for color in palette]
-    flat_colors_hex = [to_hex(color) for color in flat_colors]
+    n = len(clusters)
+    palette = [_hsv_to_hex(i / n) for i in range(n)]
 
     return [
-        (flat_colors_hex[i % len(flat_colors_hex)] if "Blank" not in cluster else "#FFFFFF")
-        for i, cluster in enumerate(clusters)
+        (palette[i] if "Blank" not in cluster else "#FFFFFF") for i, cluster in enumerate(clusters)
     ]
 
 
@@ -1021,14 +1024,7 @@ def make_meta_gene(cbg, path_output):
     print("\n========Write meta gene files========")
     genes = cbg.columns.tolist()
 
-    palettes = [plt.get_cmap(name).colors for name in plt.colormaps() if "tab" in name]
-    flat_colors = [color for palette in palettes for color in palette]
-    flat_colors_hex = [to_hex(color) for color in flat_colors]
-
-    colors = [
-        flat_colors_hex[i % len(flat_colors_hex)] if "Blank" not in gene else "#FFFFFF"
-        for i, gene in enumerate(genes)
-    ]
+    colors = _create_cluster_colors(genes)
 
     ser_color = pd.Series(colors, index=genes)
     meta_gene = calc_meta_gene_data(cbg)
@@ -1750,10 +1746,6 @@ def add_clustering_from_adata(
     The Landscape widget can use the custom clustering by setting the
     `segmentation` parameter to match the `segmentation_name`.
     """
-    from contextlib import suppress
-
-    import scanpy as sc
-
     path_lf = Path(path_dega_files)
 
     # Determine output directory
@@ -1777,15 +1769,7 @@ def add_clustering_from_adata(
     clusters = cluster_counts.index.tolist()
 
     color_key = f"{cluster_key}_colors"
-    colors = None
-    if color_key in adata.uns:
-        colors = adata.uns[color_key]
-    else:
-        # Try to generate colors using scanpy
-        with suppress(Exception):
-            sc.pl.umap(adata, color=cluster_key, show=False)
-            plt.close()
-            colors = adata.uns.get(color_key)
+    colors = adata.uns.get(color_key)
 
     # Fallback to generated colors
     if colors is None:

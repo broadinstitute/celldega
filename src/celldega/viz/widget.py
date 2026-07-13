@@ -15,10 +15,8 @@ import warnings
 
 import anywidget
 import geopandas as gpd
-from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
-import scanpy as sc
 from shapely.affinity import affine_transform
 import traitlets
 
@@ -449,16 +447,11 @@ class Landscape(anywidget.AnyWidget):
                 cluster_counts = adata.obs[cluster_attr].value_counts().sort_index()
                 colors = adata.uns.get(f"{cluster_attr}_colors")
 
-                if colors is None:
-                    with suppress(Exception):
-                        sc.pl.umap(adata, color=cluster_attr, show=False)
-                        plt.close()
-                        colors = adata.uns.get(f"{cluster_attr}_colors")
-
                 # backup color definition
                 if colors is None:
                     n = len(cluster_counts)
                     colors = [_hsv_to_hex(i / n) for i in range(n)]
+                    adata.uns[f"{cluster_attr}_colors"] = colors
 
                 meta_cluster_df = pd.DataFrame(
                     {
@@ -894,16 +887,11 @@ class Yearbook(anywidget.AnyWidget):
                 cluster_counts = adata.obs[cluster_attr].value_counts().sort_index()
                 colors = adata.uns.get(f"{cluster_attr}_colors")
 
-                if colors is None:
-                    with suppress(Exception):
-                        sc.pl.umap(adata, color=cluster_attr, show=False)
-                        plt.close()
-                        colors = adata.uns.get(f"{cluster_attr}_colors")
-
                 # backup color definition
                 if colors is None:
                     n = len(cluster_counts)
                     colors = [_hsv_to_hex(i / n) for i in range(n)]
+                    adata.uns[f"{cluster_attr}_colors"] = colors
 
                 meta_cluster_df = pd.DataFrame(
                     {

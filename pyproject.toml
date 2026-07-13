@@ -12,27 +12,21 @@ dependencies = [
     "dask~=2024.11.0",
     "geopandas~=0.14.0",
     "imagecodecs",
-    "igraph~=0.11.8",
     "ipykernel",
     "ipywidgets>=8.0.0",
     "jupyterlab>=4.0",
     "jupyterlab-widgets>=3.0.0",
-    "leidenalg~=0.10.2",
     "libpysal~=4.8.0",
-    "matplotlib",
     "mudata==0.3.1",
-    "muon==0.1.7",
     "pandas~=2.2.0",
     "polars~=1.10.0",
     "pyarrow",
     "rasterio==1.4.3",
     "requests",
-    "scanpy~=1.10.0",
     "shapely~=2.0.0",
     "setuptools",
     "spatialdata",
     "spatialdata_io~=0.1.0",
-    "squidpy~=1.6.0",
     "statsmodels~=0.14.5",
     "tifffile~=2024.4.0",
     "watchfiles",
@@ -45,7 +39,6 @@ dev = [
     "ruff",              # Linting & formatting
     "pytest",            # Unit testing
     "pytest-cov",        # Coverage support
-    "pytest-html",       # HTML coverage reports
     "pytest-mock",       # Mocking utilities
     "pre-commit",        # Git hooks automation
     "setuptools",
@@ -62,6 +55,10 @@ dev = [
 # optional dependencies for pre-processing
 pre = [
     "pyvips~=2.2.2"
+]
+# optional dependency for celldega.clust.Matrix.downsample_to()
+scanpy = [
+    "scanpy~=1.10.0"
 ]
 
 # Automatically add the dev feature to the default env (e.g., hatch shell)
@@ -168,8 +165,8 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 [tool.ruff.lint.isort]
 known-first-party = ["celldega"]
 known-third-party = [
-    "pandas", "numpy", "matplotlib", "seaborn",
-    "scanpy", "squidpy", "anndata", "spatialdata",
+    "pandas", "numpy",
+    "scanpy", "anndata", "spatialdata",
     "geopandas", "shapely", "zarr", "dask", "polars"
 ]
 lines-after-imports = 2

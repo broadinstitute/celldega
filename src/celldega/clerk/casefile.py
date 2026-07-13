@@ -12,6 +12,14 @@ attached to a cluster / biological entity (e.g. leiden ``"5"``), so the evidence
 ruling survive re-clustering, merges, and reloads. It is durable state, not chat
 scrollback.
 
+Design choice -- **a CaseFile is a human-readable store of results and decisions, not a
+dump of AI/model state.** It records the evidence, the reasoning as readable prose, and
+the human's ruling -- the curated scientific artifact an expert reviews and cites. It
+deliberately does *not* store Claude/model internal state (session ids, raw
+``stream-json``, token-level scratchpad, conversation-resume blobs). Resuming a *Claude*
+conversation, if ever needed, is a separate ephemeral concern. This keeps CaseFiles
+durable and reviewable even as the model/backend changes underneath.
+
 Example::
 
     import celldega as dega

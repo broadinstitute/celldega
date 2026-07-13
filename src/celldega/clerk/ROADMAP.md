@@ -57,6 +57,16 @@ Clerk builds the case by reading (and later writing) state across the full works
 - **Stateful save/load of the whole session** (Docket of CaseFiles), beyond per-CaseFile
   JSON.
 
+## CaseFile philosophy
+
+A `CaseFile` is a **human-readable store of results and decisions**, not a serialization
+of AI/model state. It holds the evidence, the reasoning as readable prose, and the
+human's ruling -- the curated artifact an expert reviews and cites. It deliberately keeps
+Claude/model internal state out (no session ids, raw `stream-json`, token scratchpad, or
+conversation-resume blobs). Resuming a Claude conversation, if ever needed, is a separate
+ephemeral concern. This keeps CaseFiles durable and reviewable even as the backend model
+changes.
+
 ## Notes for building
 
 - Cross-widget coordination is orchestrated in Python via `observe` (widgets can't call

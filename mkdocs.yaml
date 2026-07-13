@@ -31,8 +31,11 @@ nav:
       - File Formats: overview/file_formats.md
       - Row Group Storage: overview/row_groups.md
       - Usage: overview/usage.md
+  - Clerk:
+      - clerk/index.md
   - Python API:
       - python/index.md
+      - clerk: python/clerk/api.md
       - clust: python/clust/api.md
       - collection: python/collection/api.md
       - dataset: python/dataset/api.md

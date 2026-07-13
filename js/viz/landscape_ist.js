@@ -1076,6 +1076,20 @@ export const landscape_ist = async (
       viz_state.layers_obj = layers_obj;
     },
     update_layers: () => {},
+    /**
+     * Capture the current deck.gl view as a base64 PNG plus the exact view state
+     * (zoom/pan/rotation) for reproducibility. Relies on preserveDrawingBuffer being
+     * enabled on the Deck (see deck_ist.js).
+     * @returns {{png: string, view_state: object|null}|null} capture, or null if no
+     *   canvas is found.
+     */
+    captureRaster: () => {
+      const canvas = root.querySelector('canvas');
+      if (!canvas) return null;
+      const dataUrl = canvas.toDataURL('image/png');
+      const png = dataUrl.includes(',') ? dataUrl.split(',')[1] : dataUrl;
+      return { png, view_state: viz_state.current_view_state || null };
+    },
     finalize: () => {
       deck_ist.finalize();
     },

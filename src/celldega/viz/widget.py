@@ -25,6 +25,7 @@ import traitlets
 
 _clustergram_registry = {}  # maps names to widget instances
 _enrich_registry = {}  # maps names to widget instances
+_clerk_registry = {}  # maps names to widget instances
 
 _LOCAL_ESM = Path(__file__).parent / "../static" / "celldega.js"
 _ESM_CDN = "https://cdn.jsdelivr.net/npm/celldega@{version}/src/celldega/static/celldega.js"
@@ -287,6 +288,25 @@ class Landscape(anywidget.AnyWidget):
 
     width = traitlets.Int(0).tag(sync=True)
     height = traitlets.Int(600).tag(sync=True)
+
+    # Raster capture: incrementing ``raster_request`` asks the frontend to snapshot the
+    # deck.gl canvas; the base64 PNG (no ``data:`` prefix) is written back to
+    # ``raster_png``. Kept in memory only -- nothing is written to disk.
+    raster_request = traitlets.Int(0).tag(sync=True)
+    raster_png = traitlets.Unicode("").tag(sync=True)
+    # The exact deck.gl view state (zoom/pan/rotation) at capture time, for
+    # reproducibility -- pairs with ``raster_png``.
+    raster_view_state = traitlets.Dict(default_value={}).tag(sync=True)
+
+    def request_raster(self):
+        """Ask the frontend to capture the current view as a PNG.
+
+        Capture is asynchronous: the browser writes the base64 payload to
+        ``raster_png``. Read that trait (or ``observe`` it) once the frontend has
+        responded. Returns the request id that was sent.
+        """
+        self.raster_request += 1
+        return self.raster_request
 
     def __init__(self, **kwargs):
         adata = kwargs.pop("adata", None) or kwargs.pop("AnnData", None)
@@ -657,6 +677,204 @@ class Enrich(anywidget.AnyWidget):
         kwargs["name"] = name
         super().__init__(**kwargs)
         _enrich_registry[name] = self
+
+    def close(self):  # pragma: no cover - cleanup depends on JS
+        with suppress(Exception):
+            self.send({"event": "finalize"})
+        super().close()
+
+
+class Clerk(anywidget.AnyWidget):
+    """Celldega Clerk -- an LLM assistant for interpreting a cluster or region.
+
+    Works like :class:`Enrich`, but instead of the Enrichr API it talks to Claude via
+    the local ``claude`` CLI (kernel-side, no API key). The scientist asks free-form
+    questions in a chat box; Celldega bundles the available evidence -- the gene list,
+    pre-fetched Enrichr terms, a captured Landscape raster, and any free-text context --
+    into a single-shot prompt so Claude reasons only from what it is shown.
+
+    Reads as both a *law clerk* (gathers evidence, drafts reasoning, the human decides)
+    and a *bodega clerk* (fetches what you ask for).
+
+    Clerk is standalone and wide by default. Link it to other widgets (which can live in
+    other notebook cells) either from the constructor or via ``dega.viz.link_clerk``::
+
+        clerk = dega.viz.Clerk(landscape=ls, clustergram=cgm, enrich=en)
+
+    Args:
+        landscape (Landscape): Optional. Link a Landscape; its raster + zoom/pan flow in
+            as image evidence.
+        clustergram (Clustergram): Optional. Link a Clustergram; selected genes flow into
+            ``gene_list``.
+        enrich (Enrich): Optional. Remembered for enrichment-term evidence sharing
+            (roadmap).
+        gene_list (list): Marker / DE genes for the selection.
+        context_info (str): Free-text context (dataset, cluster id, notes).
+        model (str): Optional Claude model id/alias (e.g. ``"sonnet"``,
+            ``"claude-haiku-4-5"``). Empty inherits the CLI default. A smaller model is
+            cheaper/faster for routine annotation.
+        width (int): Widget width in px; 0 (default) means full container width.
+        name (str): Registry key; creating a new Clerk with the same name closes the old.
+    """
+
+    _esm = _WIDGET_ESM
+
+    component = traitlets.Unicode("Clerk").tag(sync=True)
+
+    # Wide by default (0 -> 100% of the container, like Landscape). Clerk is meant to be
+    # a standalone wide panel, linked to widgets that live elsewhere in the notebook.
+    width = traitlets.Int(0).tag(sync=True)
+    height = traitlets.Int(450).tag(sync=True)
+
+    # Evidence
+    gene_list = traitlets.List(default_value=[]).tag(sync=True)
+    context_info = traitlets.Unicode("").tag(sync=True)
+    image_b64 = traitlets.Unicode("").tag(sync=True)
+    # View state (zoom/pan) paired with image_b64, captured from the linked Landscape.
+    image_view_state = traitlets.Dict(default_value={}).tag(sync=True)
+
+    # Model config
+    model = traitlets.Unicode("").tag(sync=True)
+    timeout = traitlets.Int(180).tag(sync=True)
+
+    # Chat state (kept in memory only)
+    messages = traitlets.List(default_value=[]).tag(sync=True)
+    pending = traitlets.Bool(False).tag(sync=True)
+    error = traitlets.Unicode("").tag(sync=True)
+
+    # JS sets this dict (with a unique ``id``) to trigger a single-shot call.
+    request = traitlets.Dict(default_value={}).tag(sync=True)
+
+    def __init__(self, **kwargs):
+        name = kwargs.pop("name", "default")
+        # Widgets can be linked straight from the constructor:
+        # ``Clerk(landscape=ls, clustergram=cgm, enrich=en)``. Pop them before
+        # super().__init__ since they are not traits.
+        link_targets = {
+            key: kwargs.pop(key, None)
+            for key in ("landscape", "clustergram", "enrich")
+        }
+        capture_on_select = kwargs.pop("capture_on_select", True)
+
+        old_widget = _clerk_registry.get(name)
+        if old_widget:
+            with suppress(Exception):
+                old_widget.close()
+
+        kwargs["name"] = name
+        super().__init__(**kwargs)
+        _clerk_registry[name] = self
+        self._last_request_id = None
+        self._linked_widgets = {}
+        self.observe(self._on_request, names="request")
+
+        if any(w is not None for w in link_targets.values()):
+            from . import link_clerk
+
+            link_clerk(self, capture_on_select=capture_on_select, **link_targets)
+
+    def _on_request(self, change):
+        """Handle an ``ask`` triggered from the chat UI (single-shot, no tools)."""
+        from .. import clerk
+
+        req = change["new"] or {}
+        req_id = req.get("id")
+        if not req_id or req_id == self._last_request_id:
+            return
+        self._last_request_id = req_id
+
+        question = req.get("question", "")
+        genes = req.get("gene_list") or list(self.gene_list)
+        enrichr_terms = req.get("enrichr_terms") or []
+
+        # Append the user's message so it renders immediately.
+        self.messages = [*self.messages, {"role": "user", "content": question}]
+        self.error = ""
+        self.pending = True
+        try:
+            answer = clerk.ask(
+                question,
+                gene_list=genes,
+                enrichr_terms=enrichr_terms,
+                info=self.context_info,
+                image_b64=self.image_b64 or None,
+                model=self.model,
+                timeout=self.timeout,
+            )
+            self.messages = [*self.messages, {"role": "assistant", "content": answer}]
+        except clerk.ClerkBackendError as exc:
+            self.error = str(exc)
+            self.messages = [
+                *self.messages,
+                {"role": "error", "content": str(exc)},
+            ]
+        finally:
+            self.pending = False
+
+    def ask(self, question, **kwargs):
+        """Ask a question from Python (bypasses the chat UI). Returns the answer text."""
+        from .. import clerk
+
+        genes = kwargs.pop("gene_list", None) or list(self.gene_list)
+        self.messages = [*self.messages, {"role": "user", "content": question}]
+        self.pending = True
+        self.error = ""
+        try:
+            answer = clerk.ask(
+                question,
+                gene_list=genes,
+                enrichr_terms=kwargs.pop("enrichr_terms", None) or [],
+                info=kwargs.pop("info", None) or self.context_info,
+                image_b64=kwargs.pop("image_b64", None) or self.image_b64 or None,
+                model=kwargs.pop("model", None) or self.model,
+                timeout=kwargs.pop("timeout", None) or self.timeout,
+            )
+            self.messages = [*self.messages, {"role": "assistant", "content": answer}]
+            return answer
+        except clerk.ClerkBackendError as exc:
+            self.error = str(exc)
+            raise
+        finally:
+            self.pending = False
+
+    def to_casefile(
+        self, entity_id, entity_attr="leiden", *, dataset="", provenance=None
+    ):
+        """Snapshot the current evidence and transcript into a ``CaseFile``.
+
+        The CaseFile keys off ``entity_id`` (the biological entity, e.g. a cluster), so
+        the annotation state is durable across re-clustering/reloads. It captures the
+        full argument -- raw data/provenance, evidence, reasoning, conclusions. Save it
+        with ``casefile.save(path)`` and restore later with :meth:`load_casefile`.
+        """
+        from .. import clerk
+
+        prov = dict(provenance or {})
+        if self.image_view_state and "landscape_view_state" not in prov:
+            # Record the exact zoom/pan the raster was captured at, for reproducibility.
+            prov["landscape_view_state"] = dict(self.image_view_state)
+
+        return clerk.CaseFile(
+            entity_id=str(entity_id),
+            entity_attr=entity_attr,
+            dataset=dataset,
+            provenance=prov,
+            gene_list=list(self.gene_list),
+            context=self.context_info,
+            image_b64=self.image_b64,
+            messages=[dict(m) for m in self.messages],
+        )
+
+    def load_casefile(self, casefile):
+        """Restore evidence and transcript from a ``CaseFile`` to resume a case."""
+        self.gene_list = list(casefile.gene_list)
+        self.context_info = casefile.context
+        self.image_b64 = casefile.image_b64
+        view_state = (casefile.provenance or {}).get("landscape_view_state")
+        if view_state:
+            self.image_view_state = dict(view_state)
+        self.messages = [dict(m) for m in casefile.messages]
+        return self
 
     def close(self):  # pragma: no cover - cleanup depends on JS
         with suppress(Exception):

@@ -33,6 +33,7 @@ nav:
       - Usage: overview/usage.md
   - Python API:
       - python/index.md
+      - align: python/align/api.md
       - clust: python/clust/api.md
       - collection: python/collection/api.md
       - dataset: python/dataset/api.md

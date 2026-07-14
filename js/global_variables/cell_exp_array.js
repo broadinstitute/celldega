@@ -1,10 +1,43 @@
 import { options } from '../global_variables/fetch_options';
+import { getGeneExpressionColumns } from '../read_parquet/gene_expression_columns';
 import { get_arrow_table } from '../read_parquet/get_arrow_table';
 
 function processExpression(exp_value, max_exp) {
   const log_exp_value = Math.log1p(exp_value);
   const log_max_exp = Math.log1p(max_exp);
   return (log_exp_value / log_max_exp) * 255;
+}
+
+function ensureExpressionArray(cats) {
+  const requiredLength = cats.cell_names_array.length;
+
+  if (
+    !(cats.cell_exp_array instanceof Uint8Array) ||
+    cats.cell_exp_array.length !== requiredLength
+  ) {
+    cats.cell_exp_array = new Uint8Array(requiredLength);
+  } else {
+    cats.cell_exp_array.fill(0);
+  }
+
+  return cats.cell_exp_array;
+}
+
+function toExpressionByte(exp_value, max_exp) {
+  if (
+    !Number.isFinite(exp_value) ||
+    !Number.isFinite(max_exp) ||
+    max_exp <= 0
+  ) {
+    return 0;
+  }
+
+  const normalized = processExpression(exp_value, max_exp);
+  if (!Number.isFinite(normalized)) {
+    return 0;
+  }
+
+  return Math.max(0, Math.min(255, Math.round(normalized)));
 }
 
 /**
@@ -20,10 +53,7 @@ async function readGeneFromRowGroups(cbgReader, geneName) {
     return { cell_names: [], cell_exp: [] };
   }
 
-  const cell_names = table.getChild('cell_id')?.toArray() || [];
-  const cell_exp = table.getChild('expression')?.toArray() || [];
-
-  return { cell_names, cell_exp };
+  return getGeneExpressionColumns(table, geneName);
 }
 
 export const update_cell_exp_array = async (
@@ -55,10 +85,10 @@ export const update_cell_exp_array = async (
     }
 
     const exp_table = await get_arrow_table(file_path, options.fetch, aws);
-    cell_names = exp_table.getChild('__index_level_0__').toArray();
-    cell_exp = exp_table.getChild(inst_gene).toArray();
+    ({ cell_names, cell_exp } = getGeneExpressionColumns(exp_table, inst_gene));
   }
-  const new_exp_array = new Array(cats.cell_names_array.length).fill(0);
+  const new_exp_array = ensureExpressionArray(cats);
+  const max_exp = Number(genes.meta_gene[inst_gene].max);
 
   const allowedCellIds =
     cats.meta_cell_id_set && cats.meta_cell_id_set.size > 0
@@ -72,7 +102,6 @@ export const update_cell_exp_array = async (
   cell_names.forEach((name, i) => {
     name = String(name);
     const exp_value = Number(cell_exp[i]);
-    const max_exp = Number(genes.meta_gene[inst_gene].max);
 
     if (!vector_name_integer) {
       if (cats.cell_name_to_index_map.has(name)) {
@@ -80,18 +109,23 @@ export const update_cell_exp_array = async (
         const shouldInclude = !allowedCellIds || allowedCellIds.has(name);
 
         if (shouldInclude) {
-          new_exp_array[index] = processExpression(exp_value, max_exp);
+          new_exp_array[index] = toExpressionByte(exp_value, max_exp);
         }
       } else {
         missingCellNames1.add(name);
       }
     } else {
-      if (name in cats.nameMapping_inv) {
-        const cellName = String(cats.nameMapping_inv[name]);
+      const cellIndex = Number(name);
+      if (
+        Number.isInteger(cellIndex) &&
+        cellIndex >= 0 &&
+        cellIndex < cats.nameMapping_inv.length
+      ) {
+        const cellName = String(cats.nameMapping_inv[cellIndex]);
         const shouldInclude = !allowedCellIds || allowedCellIds.has(cellName);
 
         if (shouldInclude) {
-          new_exp_array[name] = processExpression(exp_value, max_exp);
+          new_exp_array[cellIndex] = toExpressionByte(exp_value, max_exp);
         }
       } else {
         missingCellNames2.add(name);

@@ -2,7 +2,17 @@ import { handleAsyncError } from '../temp_utils/errorHandler';
 
 export const uniprot_data = {};
 
+const is_mock_gene = (gene_symbol) => /^MockGene\d+$/i.test(gene_symbol);
+
 export const uniprot_get_request = async (gene_symbol) => {
+  if (is_mock_gene(gene_symbol)) {
+    uniprot_data[gene_symbol] = {
+      name: '',
+      description: '',
+    };
+    return;
+  }
+
   if (!(gene_symbol in uniprot_data)) {
     let gene_data = {
       name: '',

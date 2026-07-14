@@ -1,44 +1,11 @@
-import { update_square_scatter_layer } from '../deck-gl/layers/square_scatter_layer';
 import { update_cat, update_selected_cats } from '../global_variables/cat';
 import { update_cell_exp_array } from '../global_variables/cell_exp_array';
 import { update_selected_genes } from '../global_variables/selected_genes';
-import { update_tile_exp_array } from '../global_variables/tile_exp_array';
 
 import { set_gene_search_input } from './gene_search_input';
 
 let gene_search_options = [];
 let gene_datalist_counter = 0;
-
-const sst_gene_search_callback = async (deck_sst, viz_state, layers_sst) => {
-  const inst_gene = viz_state.genes.gene_search_input.value;
-
-  const new_cat = inst_gene === '' ? 'cluster' : inst_gene;
-
-  if (inst_gene === '' || viz_state.genes.gene_names.includes(inst_gene)) {
-    update_cat(viz_state.cats, new_cat);
-
-    viz_state.obs_store.deck_check.set({
-      ...viz_state.obs_store.deck_check.get(),
-      square_scatter_layer: false,
-    });
-
-    update_selected_genes(
-      viz_state.genes,
-      inst_gene === '' ? [] : [inst_gene],
-      viz_state.obs_store
-    );
-    update_selected_cats(viz_state.cats, [], viz_state.obs_store);
-
-    if (inst_gene !== '' && gene_search_options.includes(inst_gene)) {
-      await update_tile_exp_array(viz_state, inst_gene);
-    }
-
-    update_square_scatter_layer(viz_state, layers_sst);
-    deck_sst.setProps({
-      layers: [layers_sst.simple_image_layer, layers_sst.square_scatter_layer],
-    });
-  }
-};
 
 const ist_gene_search_callback = async (deck_ist, layers_obj, viz_state) => {
   const inst_gene = viz_state.genes.gene_search_input.value;
@@ -91,7 +58,7 @@ const ist_gene_search_callback = async (deck_ist, layers_obj, viz_state) => {
 };
 
 export const set_gene_search = async (
-  tech_type,
+  _tech_type,
   inst_deck,
   layers_obj,
   viz_state
@@ -162,15 +129,9 @@ export const set_gene_search = async (
   update_cat(viz_state.cats, 'cluster');
 
   // Event listener when an option is selected or the input is cleared
-  let callback;
-  if (tech_type === 'sst') {
-    callback = () => sst_gene_search_callback(inst_deck, viz_state, layers_obj);
-    viz_state.genes.gene_search_input.style.marginTop = '10px';
-    viz_state.genes.gene_search.style.height = '50px';
-  } else {
-    callback = () => ist_gene_search_callback(inst_deck, layers_obj, viz_state);
-    viz_state.genes.gene_search_input.style.marginTop = '5px';
-  }
+  const callback = () =>
+    ist_gene_search_callback(inst_deck, layers_obj, viz_state);
+  viz_state.genes.gene_search_input.style.marginTop = '5px';
 
   viz_state.genes.gene_search_input.addEventListener('input', callback);
 };

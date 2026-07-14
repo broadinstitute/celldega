@@ -1,70 +1,104 @@
 [build-system]
-requires = ["hatchling>=1.26.1"]
+requires = [
+    "hatchling>=1.26.1",
+    "hatch-jupyter-builder>=0.5.0",
+]
 build-backend = "hatchling.build"
 
 [project]
 name = "celldega"
 version = "0.18.0"
 readme = "README.md"
+requires-python = ">=3.11,<3.13"
 dependencies = [
-    "anndata~=0.11.0",
-    "anywidget~=0.9.18",
-    "dask~=2024.11.0",
-    "geopandas~=0.14.0",
-    "imagecodecs",
-    "igraph~=0.11.8",
-    "ipykernel",
-    "ipywidgets>=8.0.0",
-    "jupyterlab>=4.0",
-    "jupyterlab-widgets>=3.0.0",
-    "leidenalg~=0.10.2",
-    "libpysal~=4.8.0",
-    "matplotlib",
-    "mudata==0.3.1",
-    "muon==0.1.7",
-    "pandas~=2.2.0",
-    "polars~=1.10.0",
+    "anndata>=0.12,<0.13",
+    "scanpy[leiden]>=1.11,<1.12",
+    "squidpy>=1.6,<1.7",
+    "spatialdata>=0.2,<0.3",
+    "spatialdata-io>=0.1,<0.2",
+    "ome-zarr<0.10",
+    "mudata",
+
+    # xarray_schema still imports pkg_resources
+    "setuptools<81",
+
+    # Keep Zarr 2 because ome-zarr/spatialdata stack still expects FSStore
+    "zarr>=2.18,<3",
+
+    "numpy",
+    "pandas>=2.2,<2.4",
+    "scipy",
+    "dask",
+    "datashader",
+    "polars>=1.10,<2",
     "pyarrow",
-    "rasterio==1.4.3",
+    "statsmodels>=0.14,<0.15",
+
+    "igraph",
+    "leidenalg",
+
+    "geopandas",
+    "libpysal",
+    "shapely>=2.0,<2.2",
+    "rasterio",
+    "imagecodecs",
+    "tifffile",
+
+    "anywidget~=0.9.18",
+    "ipywidgets>=8.0.0",
+    "matplotlib",
     "requests",
-    "scanpy~=1.10.0",
-    "shapely~=2.0.0",
-    "setuptools",
-    "spatialdata",
-    "spatialdata_io~=0.1.0",
-    "squidpy~=1.6.0",
-    "statsmodels~=0.14.5",
-    "tifffile~=2024.4.0",
     "watchfiles",
-    "zarr~=2.17.0; python_version<'3.11'",
-    "zarr~=2.18.3; python_version>='3.11'",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "ruff",              # Linting & formatting
-    "pytest",            # Unit testing
-    "pytest-cov",        # Coverage support
-    "pytest-html",       # HTML coverage reports
-    "pytest-mock",       # Mocking utilities
-    "pre-commit",        # Git hooks automation
-    "setuptools",
-    "build",             # Package building
-    "twine",             # PyPI publishing
-    # Documentation dependencies
+    # Development environment / package workflow
+    "hatch",
+    "ipykernel",
+    "jupyterlab>=4.0",
+    "jupyterlab-widgets>=3.0.0",
+    "ipywidgets>=8.0.0",
+
+    # Linting & formatting
+    "ruff",
+
+    # Unit testing
+    "pytest",
+    "pytest-cov",
+    "pytest-html",
+    "pytest-mock",
+
+    # Git hooks automation
+    "pre-commit",
+
+    # Package building / publishing
+    "build",
+    "twine",
+
+    # Documentation
     "mkdocs",
     "mkdocs-material",
     "mkdocstrings[python]",
     "mkdocstrings[javascript]",
     "mkdocs-jupyter",
-    "mkdocs-open-in-new-tab"
-]
-# optional dependencies for pre-processing
-pre = [
-    "pyvips~=2.2.2"
+    "mkdocs-open-in-new-tab",
+    "pymdown-extensions",
+    "jupytext",
+    "nbconvert",
+    "nbformat",
 ]
 
-# Automatically add the dev feature to the default env (e.g., hatch shell)
+# Optional dependencies for pre-processing
+pre = [
+    "pyvips~=2.2.2",
+]
+
+multimodal = [
+    "muon==0.1.7",
+]
+
+# Automatically add the dev feature to the default env, e.g. hatch shell
 [tool.hatch.envs.default]
 features = ["dev"]
 
@@ -84,7 +118,6 @@ build_cmd = "build"
 
 # Ruff configuration
 [tool.ruff]
-# Exclude a variety of commonly ignored directories
 exclude = [
     ".bzr",
     ".direnv",
@@ -112,92 +145,83 @@ exclude = [
     "node_modules",
     "site-packages",
     "venv",
-    # Additional project-specific excludes
     ".history",
     "notebooks",
     "js",
 ]
 
-# Line length to match your JavaScript setup
 line-length = 100
 indent-width = 4
-
-# Target Python 3.11
 target-version = "py311"
 
 [tool.ruff.lint]
-# Enable comprehensive rule sets
 select = [
-    "E4", "E7", "E9",  # pycodestyle errors (from Ruff defaults)
-    "F",               # Pyflakes
-    "B",               # flake8-bugbear (common bugs)
-    "I",               # isort (import sorting)
-    "N",               # pep8-naming
-    "UP",              # pyupgrade (modern Python syntax)
-    "C4",              # flake8-comprehensions
-    "SIM",             # flake8-simplify
-    "PIE",             # flake8-pie
-    "Q",               # flake8-quotes
-    "RET",             # flake8-return
-    "PTH",             # flake8-use-pathlib
-    "PERF",            # Performance anti-patterns
-    "RUF",             # Ruff-specific rules
+    "E4",
+    "E7",
+    "E9",
+    "F",
+    "B",
+    "I",
+    "N",
+    "UP",
+    "C4",
+    "SIM",
+    "PIE",
+    "Q",
+    "RET",
+    "PTH",
+    "PERF",
+    "RUF",
 ]
 
-# Ignore specific rules
 ignore = [
-    "E501",            # Line too long (handled by formatter)
-    "N806",            # Variable in function should be lowercase (conflicts with scientific naming)
-    "N803",            # Argument name should be lowercase (conflicts with scientific naming)
+    "E501", # Line too long; handled by formatter
+    "N806", # Variable in function should be lowercase; conflicts with scientific naming
+    "N803", # Argument name should be lowercase; conflicts with scientific naming
 ]
 
-# Allow fix for all enabled rules when using --fix
 fixable = ["ALL"]
 unfixable = []
 
-# Allow unused variables when underscore-prefixed (like your ESLint config)
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
-# Per-file ignores
 [tool.ruff.lint.per-file-ignores]
-"__init__.py" = ["F401"]           # Allow unused imports in __init__.py
-"**/tests/*" = ["E402", "N802"]    # Allow import violations and naming in tests
-"notebooks/*" = ["E402", "F401"]   # Relaxed rules for notebooks
+"__init__.py" = ["F401"]
+"**/tests/*" = ["E402", "N802"]
+"notebooks/*" = ["E402", "F401"]
 
-# Import sorting configuration (enhanced)
 [tool.ruff.lint.isort]
 known-first-party = ["celldega"]
 known-third-party = [
-    "pandas", "numpy", "matplotlib", "seaborn",
-    "scanpy", "squidpy", "anndata", "spatialdata",
-    "geopandas", "shapely", "zarr", "dask", "polars"
+    "anndata",
+    "dask",
+    "geopandas",
+    "matplotlib",
+    "numpy",
+    "pandas",
+    "polars",
+    "scanpy",
+    "scipy",
+    "seaborn",
+    "shapely",
+    "spatialdata",
+    "squidpy",
+    "zarr",
 ]
 lines-after-imports = 2
 force-single-line = false
 combine-as-imports = true
 force-sort-within-sections = true
 
-# Quote style configuration
 [tool.ruff.lint.flake8-quotes]
 docstring-quotes = "double"
 
 [tool.ruff.format]
-# Use double quotes for strings (matching your JavaScript setup)
 quote-style = "double"
-
-# Use spaces for indentation (matching your JavaScript setup)
 indent-style = "space"
-
-# Respect magic trailing commas
 skip-magic-trailing-comma = false
-
-# Automatically detect the appropriate line ending
 line-ending = "auto"
-
-# Enable auto-formatting of code examples in docstrings
 docstring-code-format = false
-
-# Set the line length limit for docstring code snippets
 docstring-code-line-length = "dynamic"
 
 # pytest configuration
@@ -212,6 +236,6 @@ addopts = [
     "--cov-report=term-missing",
     "--cov-report=xml",
     "-v",
-    "--tb=short"
+    "--tb=short",
 ]
 minversion = "6.0"

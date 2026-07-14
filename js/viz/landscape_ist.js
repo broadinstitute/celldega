@@ -896,6 +896,12 @@ export const landscape_ist = async (
 
       toggle_spatial_umap(deck_ist, layers_obj, viz_state);
 
+      // The subscription fires immediately with the initial view; that first
+      // call runs with position transitions disabled (duration 0) so cells
+      // appear in place instead of flying in from the origin. Every later view
+      // change is user-driven and should animate.
+      viz_state.spatial.position_transitions_ready = true;
+
       if (isUmap) {
         viz_state.buttons.buttons.umap.style('color', 'blue');
         if (!isChromium) {

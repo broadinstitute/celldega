@@ -524,6 +524,33 @@ export const get_scatterplot_cell_data = (viz_state) => {
   });
 };
 
+// Spatial<->UMAP position transition, kept as a stable prop across the initial
+// layer, data/color refreshes, and view toggles. Returns false when there is no
+// UMAP so no transition is attached.
+//
+// The first getPosition transition deck.gl runs for a layer fires on mount,
+// before the position buffer has been uploaded, so it animates every cell from
+// the origin — this can't be avoided with `enter` because the "to" buffer read
+// at that moment is still zero. deck.gl cancels any transition whose duration is
+// <= 0 (GPUInterpolationTransition.start) while still creating the transition
+// object and recording currentLength. So we run duration 0 until the view is
+// interactive (`position_transitions_ready`, set once the initial view has been
+// committed): no fly-in on load, but the transition baseline is primed so the
+// first real spatial<->UMAP toggle interpolates from the current positions.
+//
+// `enter` covers the other growth case (dataset/page changes, fromLength <
+// toLength) by starting entering vertices at their target instead of the origin.
+const spatial_umap_transitions = (viz_state) =>
+  viz_state.umap?.has_umap
+    ? {
+        getPosition: {
+          duration: viz_state.spatial?.position_transitions_ready ? 3000 : 0,
+          easing: d3.easeCubic,
+          enter: (toValue) => toValue,
+        },
+      }
+    : false;
+
 export const refresh_cell_layer_data = (
   layers_obj,
   viz_state,
@@ -534,7 +561,7 @@ export const refresh_cell_layer_data = (
   const isPointCloud = is_point_cloud_viz(viz_state);
 
   layers_obj.cell_layer = layers_obj.cell_layer.clone({
-    transitions: false,
+    transitions: spatial_umap_transitions(viz_state),
     ...stableLayerProps,
     data: isPointCloud
       ? get_point_cloud_cell_data(viz_state)
@@ -776,16 +803,10 @@ export const ini_cell_layer = async (base_url, viz_state) => {
 
   viz_state.spatial.cell_scatter_data_objects = null;
 
-  // const transitions = pointCloud
-  //   ? undefined
-  //   : {
-  //       getPosition: {
-  //         duration: 3000,
-  //         easing: d3.easeCubic,
-  //       },
-  //     };
-
-  const transitions = false;
+  // Enable transitions on the initial layer so the first UMAP<->spatial toggle
+  // animates from the current positions rather than the origin. See
+  // spatial_umap_transitions.
+  const transitions = spatial_umap_transitions(viz_state);
 
   let cell_layer;
   if (pointCloud) {
@@ -876,16 +897,6 @@ export const update_cell_pickable_state = (layers_obj, pickable) => {
 //     },
 //   });
 // };
-
-const spatial_umap_transitions = (viz_state) =>
-  viz_state.umap?.has_umap
-    ? {
-        getPosition: {
-          duration: 3000,
-          easing: d3.easeCubic,
-        },
-      }
-    : false;
 
 export const toggle_spatial_umap = (_deck_ist, layers_obj, viz_state) => {
   const transitions = spatial_umap_transitions(viz_state);

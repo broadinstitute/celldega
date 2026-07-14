@@ -13,6 +13,14 @@ This page includes links to visualizations made with the stand-alone [Celldega J
 
 </div>
 
+### CosMx
+
+<div class="grid cards" markdown>
+
+- [CosMx Human Colon CRC (WTx) ![](../assets/img/cosmx_human_colon.jpg)](gallery_cosmx_human_colon.md)
+
+</div>
+
 ## Sequencing Spatial Transcriptomics
 
 ### Visium HD

@@ -15,7 +15,9 @@ import { ini_background_layer } from '../deck-gl/layers/background_layer';
 import {
   ini_cell_layer,
   new_toggle_cell_layer_visibility,
+  prime_cell_layer_transitions,
   refresh_cell_layer_data,
+  reveal_cell_layer_after_prime,
   set_cell_layer_onclick,
   toggle_spatial_umap,
   update_cell_pickable_state,
@@ -896,12 +898,6 @@ export const landscape_ist = async (
 
       toggle_spatial_umap(deck_ist, layers_obj, viz_state);
 
-      // The subscription fires immediately with the initial view; that first
-      // call runs with position transitions disabled (duration 0) so cells
-      // appear in place instead of flying in from the origin. Every later view
-      // change is user-driven and should animate.
-      viz_state.spatial.position_transitions_ready = true;
-
       if (isUmap) {
         viz_state.buttons.buttons.umap.style('color', 'blue');
         if (!isChromium) {
@@ -962,6 +958,26 @@ export const landscape_ist = async (
     },
     { immediate: false }
   );
+
+  // Prime deck.gl's position-transition baseline while the cell layer is hidden,
+  // so the first user spatial<->UMAP toggle animates from the current positions
+  // instead of the origin. deck.gl's first getPosition transition is unavoidably
+  // from the origin (stale binary-buffer read), so we run it at opacity 0 and
+  // near-instant, then reveal once it has settled. Done a frame after init so the
+  // position buffer has been uploaded.
+  if (viz_state.umap?.has_umap) {
+    requestAnimationFrame(() => {
+      prime_cell_layer_transitions(layers_obj, viz_state);
+      // Re-render through the canonical deck_check path (same as every other
+      // layer refresh) rather than a raw setProps, so the image-layer visibility
+      // managed on that path is preserved.
+      refresh_layer(viz_state, layers_obj, 'cell_layer');
+      setTimeout(() => {
+        reveal_cell_layer_after_prime(layers_obj, viz_state);
+        refresh_layer(viz_state, layers_obj, 'cell_layer');
+      }, 40);
+    });
+  }
 
   // Callback registries for external listeners
   const callbacks = {

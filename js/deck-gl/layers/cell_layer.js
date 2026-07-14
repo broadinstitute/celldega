@@ -524,29 +524,30 @@ export const get_scatterplot_cell_data = (viz_state) => {
   });
 };
 
-// Spatial<->UMAP position transition, kept as a stable prop across the initial
-// layer, data/color refreshes, and view toggles. Returns false when there is no
-// UMAP so no transition is attached.
-//
-// The first getPosition transition deck.gl runs for a layer fires on mount,
-// before the position buffer has been uploaded, so it animates every cell from
-// the origin — this can't be avoided with `enter` because the "to" buffer read
-// at that moment is still zero. deck.gl cancels any transition whose duration is
-// <= 0 (GPUInterpolationTransition.start) while still creating the transition
-// object and recording currentLength. So we run duration 0 until the view is
-// interactive (`position_transitions_ready`, set once the initial view has been
-// committed): no fly-in on load, but the transition baseline is primed so the
-// first real spatial<->UMAP toggle interpolates from the current positions.
-//
-// `enter` covers the other growth case (dataset/page changes, fromLength <
-// toLength) by starting entering vertices at their target instead of the origin.
+const FULL_TRANSITION_MS = 3000;
+// deck.gl's first getPosition transition on a (re)mounted layer is unavoidably
+// from the origin: with binary attributes it builds the "from" buffer by reading
+// the attribute's GPU buffer, which is still stale on that first run. There is no
+// way to make that first run invisible, so instead we make it near-instant — it
+// exists only to record the transition baseline (currentLength). Every later
+// toggle then animates over the full duration from the current positions.
+// `position_transitions_ready` is set true once primed (see
+// prime_cell_layer_transitions, run hidden at init) and reset to false whenever
+// the layer is rebuilt under a new id (see refresh_cell_layer_data), so the
+// fallback near-instant transition covers any un-primed first toggle.
+const FIRST_TRANSITION_MS = 1;
+// Duration of the hidden priming transition (see prime_cell_layer_transitions).
+const PRIME_TRANSITION_MS = 10;
+
+// Spatial<->UMAP position transition. Returns false when there is no UMAP.
 const spatial_umap_transitions = (viz_state) =>
   viz_state.umap?.has_umap
     ? {
         getPosition: {
-          duration: viz_state.spatial?.position_transitions_ready ? 3000 : 0,
+          duration: viz_state.spatial?.position_transitions_ready
+            ? FULL_TRANSITION_MS
+            : FIRST_TRANSITION_MS,
           easing: d3.easeCubic,
-          enter: (toValue) => toValue,
         },
       }
     : false;
@@ -560,8 +561,16 @@ export const refresh_cell_layer_data = (
     layerProps;
   const isPointCloud = is_point_cloud_viz(viz_state);
 
+  // A refresh rebuilds the layer (often under a new id from the selection-keyed
+  // layerProps.id), which drops deck.gl's transition baseline. Reset the flag so
+  // the next toggle re-primes with the near-instant first transition instead of
+  // animating from the origin.
+  if (viz_state.spatial) {
+    viz_state.spatial.position_transitions_ready = false;
+  }
+
   layers_obj.cell_layer = layers_obj.cell_layer.clone({
-    transitions: spatial_umap_transitions(viz_state),
+    transitions: false,
     ...stableLayerProps,
     data: isPointCloud
       ? get_point_cloud_cell_data(viz_state)
@@ -803,10 +812,7 @@ export const ini_cell_layer = async (base_url, viz_state) => {
 
   viz_state.spatial.cell_scatter_data_objects = null;
 
-  // Enable transitions on the initial layer so the first UMAP<->spatial toggle
-  // animates from the current positions rather than the origin. See
-  // spatial_umap_transitions.
-  const transitions = spatial_umap_transitions(viz_state);
+  const transitions = false;
 
   let cell_layer;
   if (pointCloud) {
@@ -899,6 +905,8 @@ export const update_cell_pickable_state = (layers_obj, pickable) => {
 // };
 
 export const toggle_spatial_umap = (_deck_ist, layers_obj, viz_state) => {
+  // Reads position_transitions_ready: the first toggle after a (re)mount runs
+  // the near-instant priming transition; later toggles get the full animation.
   const transitions = spatial_umap_transitions(viz_state);
 
   if (is_point_cloud_viz(viz_state)) {
@@ -910,15 +918,52 @@ export const toggle_spatial_umap = (_deck_ist, layers_obj, viz_state) => {
         getPosition: [viz_state.obs_store.umap_state.get()],
       },
     });
-    return;
+  } else {
+    layers_obj.cell_layer = layers_obj.cell_layer.clone({
+      data: get_scatterplot_cell_data(viz_state),
+      transitions,
+      updateTriggers: {
+        ...layers_obj.cell_layer.props.updateTriggers,
+        getPosition: [viz_state.obs_store.umap_state.get()],
+      },
+    });
   }
 
+  // deck.gl now has a transition baseline for this layer, so the next toggle
+  // animates over the full duration from the current positions.
+  if (viz_state.spatial) {
+    viz_state.spatial.position_transitions_ready = true;
+  }
+};
+
+// Prime deck.gl's transition state while the layer is hidden. deck.gl's first
+// getPosition transition is unavoidably from the origin (the binary "from"
+// buffer is read stale off the GPU on that first run). We run it here at
+// opacity 0 with a near-instant duration so it's never seen; it exists only to
+// record the transition baseline. The first real toggle is then the *second*
+// transition and animates smoothly from the current positions. Bumping the
+// getPosition updateTrigger is what makes deck.gl actually process the attribute
+// and start the transition. Call after the layer has rendered once, then reveal
+// with reveal_cell_layer_after_prime once it has settled.
+export const prime_cell_layer_transitions = (layers_obj, viz_state) => {
   layers_obj.cell_layer = layers_obj.cell_layer.clone({
-    data: get_scatterplot_cell_data(viz_state),
-    transitions,
+    opacity: 0,
+    transitions: {
+      getPosition: { duration: PRIME_TRANSITION_MS, easing: d3.easeCubic },
+    },
     updateTriggers: {
       ...layers_obj.cell_layer.props.updateTriggers,
-      getPosition: [viz_state.obs_store.umap_state.get()],
+      getPosition: [viz_state.obs_store.umap_state.get(), 'prime'],
     },
   });
+};
+
+// Reveal the cell layer after the hidden priming transition has settled, and
+// mark transitions ready so the first user toggle animates over the full
+// duration.
+export const reveal_cell_layer_after_prime = (layers_obj, viz_state) => {
+  if (viz_state.spatial) {
+    viz_state.spatial.position_transitions_ready = true;
+  }
+  layers_obj.cell_layer = layers_obj.cell_layer.clone({ opacity: 1 });
 };

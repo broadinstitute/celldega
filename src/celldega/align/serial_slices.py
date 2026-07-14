@@ -1,26 +1,30 @@
-"""Procrustes alignment of serial 3D slices at single-cell resolution.
+"""Alignment of serial 3D slices at single-cell resolution.
 
 Serial tissue sections are typically imaged and segmented independently, so
-even adjacent slices can be offset, rotated, or slightly rescaled relative to
-each other. :func:`align_serial_slices` in-plane registers a series of
-slices by fitting a similarity transform (rotation + uniform scale +
-translation) between the centroids of clusters shared by neighboring slices,
-then applies that transform to every cell in the slice. Slices are aligned in
-a chain outward from a chosen reference slice, since physical section-to-
+even adjacent slices can be offset, rotated, warped, or slightly rescaled
+relative to each other. :func:`align_serial_slices` in-plane registers a
+series of slices by fitting a transform between the centroids of clusters
+shared by neighboring slices, then applying that transform to every cell in
+the slice — not just the centroids used to fit it. Slices are aligned in a
+chain outward from a chosen reference slice, since physical section-to-
 section deformation accumulates between neighbors rather than between a
-slice and a distant reference.
+slice and a distant reference. The fitting algorithm itself (rigid Procrustes
+by default, thin-plate-spline, or any other ``fit(source, target) ->
+Transform`` callable) is injected via ``fit_transform``, so it plugs in
+without changing this orchestration.
 """
 
 from __future__ import annotations
 
-from typing import Any
+import dataclasses
+from typing import Any, Callable
 
 import anndata as ad
 from anndata import AnnData
 import numpy as np
 import pandas as pd
 
-from celldega.align._transform import fit_similarity_transform
+from celldega.align._transform import Transform, fit_similarity_transform
 
 
 __all__ = ["align_serial_slices"]
@@ -71,6 +75,27 @@ def _cluster_centroids(adata: AnnData, cluster_key: str) -> pd.DataFrame:
     return df.groupby("cluster")[["x", "y"]].mean()
 
 
+def _callable_name(fn: Callable) -> str:
+    return getattr(fn, "__name__", None) or getattr(getattr(fn, "func", None), "__name__", None) or repr(fn)
+
+
+def _transform_summary(transform: Transform) -> dict[str, Any]:
+    """Best-effort, serialization-safe snapshot of a fitted transform's numeric fields.
+
+    Different fit strategies expose different fields (rotation/scale/translation
+    for a rigid fit, an opaque interpolator object for a spline) — only include
+    fields that are safe to stash in ``uns`` (and skip the rest) rather than
+    hardcoding knowledge of any one strategy here.
+    """
+    if not dataclasses.is_dataclass(transform):
+        return {}
+    return {
+        f.name: getattr(transform, f.name)
+        for f in dataclasses.fields(transform)
+        if isinstance(getattr(transform, f.name), (int, float, str, bool, np.ndarray))
+    }
+
+
 def _z_offsets(n: int, reference: int, z_spacing: float | list[float]) -> np.ndarray:
     if isinstance(z_spacing, (int, float)):
         return (np.arange(n) - reference) * float(z_spacing)
@@ -91,26 +116,25 @@ def align_serial_slices(
     z_spacing: float | list[float] = 1.0,
     reference: int = 0,
     min_shared_clusters: int = 3,
-    allow_scaling: bool = True,
-    allow_reflection: bool = False,
+    fit_transform: Callable[[np.ndarray, np.ndarray], Transform] = fit_similarity_transform,
     key_added: str = "Z",
 ) -> AnnData:
-    """In-plane align serial slices via Procrustes on shared cluster centroids.
+    """In-plane align serial slices from shared cluster centroids.
 
     Each slice is registered onto its already-aligned neighbor by fitting a
-    similarity transform (rotation, uniform scale, translation) between the
-    centroids of clusters the two slices have in common, then applying that
-    transform to every cell in the slice — not just the centroids used to fit
-    it. Alignment proceeds as a chain outward from ``reference`` in both
-    directions along the slice order, so deformation is modeled between
-    physical neighbors rather than against a single distant reference.
+    transform between the centroids of clusters the two slices have in
+    common, then applying that transform to every cell in the slice — not
+    just the centroids used to fit it. Alignment proceeds as a chain outward
+    from ``reference`` in both directions along the slice order, so
+    deformation is modeled between physical neighbors rather than against a
+    single distant reference.
 
     Args:
         adatas: Either a list of per-slice ``AnnData`` (list order is slice
             order), or a single ``AnnData`` combining all slices, in which
             case ``slice_key`` is required to split it into slices.
         cluster_key: ``obs`` column with cluster labels used to compute the
-            per-slice, per-cluster centroids that drive the Procrustes fit.
+            per-slice, per-cluster centroids used as landmarks for the fit.
             Labels must be comparable across slices (e.g. a joint clustering).
         slice_key: For a single combined ``AnnData``, the ``obs`` column
             identifying each cell's slice (required in that case). For a list
@@ -124,9 +148,16 @@ def align_serial_slices(
             untransformed; other slices are aligned outward from it.
         min_shared_clusters: Minimum number of cluster labels two neighboring
             slices must share to fit a transform between them.
-        allow_scaling: If ``False``, force rigid (no rescaling) alignment.
-        allow_reflection: If ``False`` (default), disallow mirrored fits,
-            since flipping a tissue section is not physically valid.
+        fit_transform: A ``fit(source, target) -> Transform`` callable used to
+            register each slice onto its neighbor, where ``source``/``target``
+            are ``(n, 2)`` arrays of corresponding cluster centroids and the
+            returned object implements ``.apply(points)``. Defaults to
+            :func:`~celldega.align._transform.fit_similarity_transform`
+            (rigid rotation + uniform scale + translation). Pass
+            :func:`~celldega.align._transform.fit_thin_plate_spline` for a
+            non-rigid warp instead, or bind either one's extra keyword
+            arguments with :func:`functools.partial` (e.g.
+            ``partial(fit_similarity_transform, allow_scaling=False)``).
         key_added: Name of the new per-cell ``obs`` column holding the
             assigned Z position.
 
@@ -141,8 +172,10 @@ def align_serial_slices(
             ``slice_key``, if fewer than 2 slices are given, if a slice is
             missing ``cluster_key`` or ``obsm["spatial"]``, if ``reference``
             is out of range, if ``z_spacing`` is a list of the wrong length,
-            or if two neighboring slices share fewer than
-            ``min_shared_clusters`` cluster labels.
+            if two neighboring slices share fewer than
+            ``min_shared_clusters`` cluster labels, or if ``fit_transform``
+            itself rejects the shared centroids (e.g. a degenerate landmark
+            configuration).
     """
     slice_ids, slices, slice_key = _ordered_slices(adatas, slice_key)
     n = len(slices)
@@ -172,11 +205,9 @@ def align_serial_slices(
                     f"'{cluster_key}' labels are consistent across slices."
                 )
 
-            transform = fit_similarity_transform(
+            transform = fit_transform(
                 current_centroids.loc[shared].to_numpy(),
                 prev_centroids.loc[shared].to_numpy(),
-                allow_scaling=allow_scaling,
-                allow_reflection=allow_reflection,
             )
 
             spatial = np.asarray(current.obsm["spatial"], dtype=float).copy()
@@ -191,10 +222,8 @@ def align_serial_slices(
             )
             transform_log[str(slice_ids[idx])] = {
                 "aligned_to": str(slice_ids[prev_idx]),
-                "rotation": transform.rotation,
-                "scale": transform.scale,
-                "translation": transform.translation,
                 "n_shared_clusters": len(shared),
+                **_transform_summary(transform),
             }
             prev_idx = idx
 
@@ -208,8 +237,7 @@ def align_serial_slices(
         "cluster_key": cluster_key,
         "slice_key": slice_key,
         "reference": str(slice_ids[reference]),
-        "allow_scaling": allow_scaling,
-        "allow_reflection": allow_reflection,
+        "fit_transform": _callable_name(fit_transform),
         "transforms": transform_log,
     }
     return combined

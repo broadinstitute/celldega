@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from celldega.align import align_serial_slices
+from celldega.align import align_serial_slices, fit_thin_plate_spline
 
 
 _TRUE_CENTERS = {
@@ -30,6 +30,22 @@ def _make_slice(
         pts = np.asarray(center) + rng.normal(scale=noise, size=(n_per_cluster, 2))
         pts = scale * pts @ rotation.T + translation
         coords.append(pts)
+        labels += [label] * n_per_cluster
+    coords = np.concatenate(coords, axis=0)
+    n = coords.shape[0]
+    obs = pd.DataFrame({"cluster": labels})
+    var = pd.DataFrame(index=[f"gene{i}" for i in range(5)])
+    adata = AnnData(X=rng.poisson(1.0, size=(n, 5)).astype(float), obs=obs, var=var)
+    adata.obsm["spatial"] = coords
+    return adata
+
+
+def _make_warped_slice(rng, warp, n_per_cluster=20, noise=1e-6):
+    """Like _make_slice, but apply an arbitrary (possibly non-affine) warp."""
+    labels, coords = [], []
+    for label, center in _TRUE_CENTERS.items():
+        pts = np.asarray(center) + rng.normal(scale=noise, size=(n_per_cluster, 2))
+        coords.append(warp(pts))
         labels += [label] * n_per_cluster
     coords = np.concatenate(coords, axis=0)
     n = coords.shape[0]
@@ -126,3 +142,30 @@ def test_single_anndata_without_slice_key_raises():
 
     with pytest.raises(ValueError, match="slice_key is required"):
         align_serial_slices(slice0, cluster_key="cluster")
+
+
+def test_fit_transform_tps_recovers_non_affine_warp_that_rigid_cannot():
+    rng = np.random.default_rng(6)
+    slice0 = _make_slice(rng)
+
+    def bend(pts):
+        # A local, non-affine bend: no single rotation/scale/translation undoes this.
+        return pts + np.column_stack([0.08 * pts[:, 1] ** 2, np.zeros(len(pts))])
+
+    slice1 = _make_warped_slice(rng, bend)
+
+    rigid = align_serial_slices([slice0, slice1], cluster_key="cluster")
+    tps = align_serial_slices([slice0, slice1], cluster_key="cluster", fit_transform=fit_thin_plate_spline)
+
+    def total_residual(combined):
+        return sum(
+            np.linalg.norm(_centroid(combined, "slice", 0, label) - _centroid(combined, "slice", 1, label))
+            for label in _TRUE_CENTERS
+        )
+
+    rigid_residual = total_residual(rigid)
+    tps_residual = total_residual(tps)
+
+    assert rigid_residual > 0.5  # a global rigid fit leaves visible residual on a local bend
+    assert tps_residual < 1e-3  # TPS interpolates exactly through the landmark centroids
+    assert tps_residual < rigid_residual

@@ -70,6 +70,7 @@ nav:
       - Visium-HD Landscape Pre-process: examples/tutorial_notebooks/Visium-HD_Landscape_Pre-process.ipynb
     - Brief Notebooks:
       - Landscape View Xenium: examples/brief_notebooks/Landscape_View_Xenium.ipynb
+      - Landscape 3D Thick MERFISH: examples/brief_notebooks/Landscape-3D_thick_MERFISH.ipynb
       - Landscape-Heatmap Visium-HD: examples/brief_notebooks/Landscape-Heatmap-Visium-HD.ipynb
       - UMAP-Cluster Pancreas Xenium: examples/brief_notebooks/UMAP-Cluster_Pancreas_Xenium.ipynb
       - Visium-HD Landscape Mouse Lung: examples/brief_notebooks/Visium-HD_Landscape_Mouse_Lung_FF.ipynb

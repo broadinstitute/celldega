@@ -7,9 +7,9 @@ so the same fit/apply code can be reused across alignment contexts, and from
 *which orchestration* calls it (chain-walking slices, atlas registration,
 modality registration), so new fitting algorithms plug in as another
 ``fit(source, target) -> Transform`` callable rather than requiring changes
-to the callers. Two fitters are provided: :func:`fit_similarity_transform`
+to the callers. Two fitters are provided: :func:`fit_transform_procrustes`
 (rigid/similarity Procrustes: one global rotation, scale, and translation)
-and :func:`fit_thin_plate_spline` (non-rigid: a smooth deformation that
+and :func:`fit_transform_tps` (non-rigid: a smooth deformation that
 matches the landmarks locally, for cases a single global transform can't
 capture, e.g. section-to-section warping).
 """
@@ -28,8 +28,8 @@ __all__ = [
     "SimilarityTransform",
     "ThinPlateSplineTransform",
     "Transform",
-    "fit_similarity_transform",
-    "fit_thin_plate_spline",
+    "fit_transform_procrustes",
+    "fit_transform_tps",
     "leave_one_out_residuals",
 ]
 
@@ -79,7 +79,7 @@ class SimilarityTransform:
         return self.scale * points @ self.rotation.T + self.translation
 
 
-def fit_similarity_transform(
+def fit_transform_procrustes(
     source: np.ndarray,
     target: np.ndarray,
     weights: np.ndarray | None = None,
@@ -150,7 +150,7 @@ class ThinPlateSplineTransform:
         return self.interpolator(np.asarray(points, dtype=float))
 
 
-def fit_thin_plate_spline(
+def fit_transform_tps(
     source: np.ndarray,
     target: np.ndarray,
     weights: np.ndarray | None = None,
@@ -159,7 +159,7 @@ def fit_thin_plate_spline(
 ) -> ThinPlateSplineTransform:
     """Fit a thin-plate-spline warp that maps ``source`` landmarks onto ``target`` landmarks.
 
-    Unlike :func:`fit_similarity_transform`, this fits a smooth *non-rigid*
+    Unlike :func:`fit_transform_procrustes`, this fits a smooth *non-rigid*
     deformation: it matches the landmarks locally rather than one global
     rotation/scale/translation, so it can recover warps a rigid fit cannot
     (e.g. non-uniform section stretching). Points far from every landmark
@@ -219,7 +219,7 @@ def leave_one_out_residuals(
     *other* landmarks predict this one?
 
     In-sample residual is a poor diagnostic for an interpolating fit (e.g.
-    :func:`fit_thin_plate_spline` at ``smoothing=0`` matches every landmark
+    :func:`fit_transform_tps` at ``smoothing=0`` matches every landmark
     exactly by construction, regardless of whether the landmarks are actually
     consistent). Leave-one-out residual instead measures, for each landmark,
     whether it agrees with a fit built from everything *except* it — a large
@@ -230,8 +230,8 @@ def leave_one_out_residuals(
         source: ``(n, 2)`` landmark points.
         target: ``(n, 2)`` corresponding landmark points.
         fit_transform: A ``fit(source, target, weights=None) -> Transform``
-            callable, e.g. :func:`fit_similarity_transform` or
-            :func:`fit_thin_plate_spline` (bind extra keyword arguments with
+            callable, e.g. :func:`fit_transform_procrustes` or
+            :func:`fit_transform_tps` (bind extra keyword arguments with
             :func:`functools.partial`).
         weights: Optional ``(n,)`` positive per-point weights, passed through
             to ``fit_transform`` for both the leave-one-out fits.

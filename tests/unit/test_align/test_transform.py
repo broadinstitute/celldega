@@ -2,8 +2,8 @@ import numpy as np
 import pytest
 
 from celldega.align._transform import (
-    fit_similarity_transform,
-    fit_thin_plate_spline,
+    fit_transform_procrustes,
+    fit_transform_tps,
     leave_one_out_residuals,
 )
 
@@ -20,7 +20,7 @@ def test_fit_recovers_known_rotation_scale_translation():
     scale, translation = 1.7, np.array([5.0, -3.0])
     target = scale * source @ rotation.T + translation
 
-    transform = fit_similarity_transform(source, target)
+    transform = fit_transform_procrustes(source, target)
 
     assert transform.scale == pytest.approx(scale, abs=1e-8)
     assert np.allclose(transform.rotation, rotation, atol=1e-8)
@@ -34,7 +34,7 @@ def test_allow_scaling_false_forces_unit_scale():
     rotation = _rotation_matrix(-45)
     target = 3.0 * source @ rotation.T + np.array([1.0, 1.0])
 
-    transform = fit_similarity_transform(source, target, allow_scaling=False)
+    transform = fit_transform_procrustes(source, target, allow_scaling=False)
 
     assert transform.scale == 1.0
 
@@ -45,10 +45,10 @@ def test_allow_reflection_false_forces_proper_rotation():
     reflection = np.array([[1.0, 0.0], [0.0, -1.0]])
     target = source @ reflection.T
 
-    transform = fit_similarity_transform(source, target, allow_reflection=False)
+    transform = fit_transform_procrustes(source, target, allow_reflection=False)
     assert np.linalg.det(transform.rotation) == pytest.approx(1.0)
 
-    transform_reflected = fit_similarity_transform(source, target, allow_reflection=True)
+    transform_reflected = fit_transform_procrustes(source, target, allow_reflection=True)
     assert np.linalg.det(transform_reflected.rotation) == pytest.approx(-1.0)
     assert np.allclose(transform_reflected.apply(source), target, atol=1e-8)
 
@@ -57,7 +57,7 @@ def test_identity_when_source_equals_target():
     rng = np.random.default_rng(3)
     points = rng.uniform(-5, 5, size=(4, 2))
 
-    transform = fit_similarity_transform(points, points)
+    transform = fit_transform_procrustes(points, points)
 
     assert np.allclose(transform.rotation, np.eye(2), atol=1e-8)
     assert transform.scale == pytest.approx(1.0)
@@ -66,12 +66,12 @@ def test_identity_when_source_equals_target():
 
 def test_requires_at_least_two_points():
     with pytest.raises(ValueError, match="n >= 2"):
-        fit_similarity_transform(np.zeros((1, 2)), np.zeros((1, 2)))
+        fit_transform_procrustes(np.zeros((1, 2)), np.zeros((1, 2)))
 
 
 def test_requires_matching_shapes():
     with pytest.raises(ValueError, match="same shape"):
-        fit_similarity_transform(np.zeros((3, 2)), np.zeros((4, 2)))
+        fit_transform_procrustes(np.zeros((3, 2)), np.zeros((4, 2)))
 
 
 def test_tps_recovers_landmarks_exactly_by_default():
@@ -80,7 +80,7 @@ def test_tps_recovers_landmarks_exactly_by_default():
     # A non-affine warp (quadratic in x) a rigid/affine fit cannot represent.
     target = source + np.column_stack([0.05 * source[:, 0] ** 2, np.zeros(6)])
 
-    transform = fit_thin_plate_spline(source, target)
+    transform = fit_transform_tps(source, target)
 
     assert np.allclose(transform.apply(source), target, atol=1e-6)
 
@@ -90,8 +90,8 @@ def test_tps_smoothing_relaxes_exact_interpolation():
     source = rng.uniform(-10, 10, size=(8, 2))
     target = source + rng.normal(scale=0.5, size=source.shape)  # noisy correspondences
 
-    exact = fit_thin_plate_spline(source, target, smoothing=0.0)
-    smoothed = fit_thin_plate_spline(source, target, smoothing=10.0)
+    exact = fit_transform_tps(source, target, smoothing=0.0)
+    smoothed = fit_transform_tps(source, target, smoothing=10.0)
 
     exact_residual = np.linalg.norm(exact.apply(source) - target)
     smoothed_residual = np.linalg.norm(smoothed.apply(source) - target)
@@ -105,7 +105,7 @@ def test_tps_affine_consistent_data_extrapolates_like_affine():
     rotation = _rotation_matrix(15)
     target = 1.3 * source @ rotation.T + np.array([2.0, -1.0])
 
-    transform = fit_thin_plate_spline(source, target)
+    transform = fit_transform_tps(source, target)
 
     far_points = rng.uniform(-50, 50, size=(5, 2))
     expected = 1.3 * far_points @ rotation.T + np.array([2.0, -1.0])
@@ -114,7 +114,7 @@ def test_tps_affine_consistent_data_extrapolates_like_affine():
 
 def test_tps_requires_at_least_three_points():
     with pytest.raises(ValueError, match="n >= 3"):
-        fit_thin_plate_spline(np.zeros((2, 2)), np.zeros((2, 2)))
+        fit_transform_tps(np.zeros((2, 2)), np.zeros((2, 2)))
 
 
 def test_tps_rejects_collinear_landmarks():
@@ -122,7 +122,7 @@ def test_tps_rejects_collinear_landmarks():
     target = np.array([[0.0, 0.0], [1.0, 1.0], [2.0, 2.0]])
 
     with pytest.raises(ValueError, match="collinear"):
-        fit_thin_plate_spline(source, target)
+        fit_transform_tps(source, target)
 
 
 def test_similarity_uniform_weights_match_unweighted():
@@ -131,8 +131,8 @@ def test_similarity_uniform_weights_match_unweighted():
     rotation = _rotation_matrix(30)
     target = 1.7 * source @ rotation.T + np.array([5.0, -3.0])
 
-    unweighted = fit_similarity_transform(source, target)
-    weighted = fit_similarity_transform(source, target, weights=np.ones(6))
+    unweighted = fit_transform_procrustes(source, target)
+    weighted = fit_transform_procrustes(source, target, weights=np.ones(6))
 
     assert np.allclose(unweighted.rotation, weighted.rotation, atol=1e-8)
     assert unweighted.scale == pytest.approx(weighted.scale)
@@ -150,8 +150,8 @@ def test_similarity_down_weighting_noisy_points_recovers_true_transform():
     noisy_target[4:] += rng.normal(scale=5.0, size=(4, 2))
     weights = np.array([1.0, 1.0, 1.0, 1.0, 0.001, 0.001, 0.001, 0.001])
 
-    weighted = fit_similarity_transform(source, noisy_target, weights=weights)
-    unweighted = fit_similarity_transform(source, noisy_target)
+    weighted = fit_transform_procrustes(source, noisy_target, weights=weights)
+    unweighted = fit_transform_procrustes(source, noisy_target)
 
     weighted_error = np.abs(weighted.rotation - rotation).max()
     unweighted_error = np.abs(unweighted.rotation - rotation).max()
@@ -162,9 +162,9 @@ def test_similarity_down_weighting_noisy_points_recovers_true_transform():
 def test_similarity_weights_validation():
     source = np.zeros((3, 2))
     with pytest.raises(ValueError, match="shape"):
-        fit_similarity_transform(source, source, weights=np.ones(2))
+        fit_transform_procrustes(source, source, weights=np.ones(2))
     with pytest.raises(ValueError, match="positive"):
-        fit_similarity_transform(source, source, weights=np.array([1.0, 0.0, -1.0]))
+        fit_transform_procrustes(source, source, weights=np.array([1.0, 0.0, -1.0]))
 
 
 def test_tps_weights_are_noop_at_zero_smoothing():
@@ -172,8 +172,8 @@ def test_tps_weights_are_noop_at_zero_smoothing():
     source = rng.uniform(-10, 10, size=(6, 2))
     target = source + np.column_stack([0.05 * source[:, 0] ** 2, np.zeros(6)])
 
-    unweighted = fit_thin_plate_spline(source, target, smoothing=0.0)
-    weighted = fit_thin_plate_spline(
+    unweighted = fit_transform_tps(source, target, smoothing=0.0)
+    weighted = fit_transform_tps(
         source, target, weights=np.array([1, 1000, 1, 1, 1, 1], dtype=float), smoothing=0.0
     )
 
@@ -185,10 +185,10 @@ def test_tps_weights_take_effect_when_smoothing_positive():
     source = rng.uniform(-10, 10, size=(6, 2))
     target = source + rng.normal(scale=1.0, size=source.shape)
 
-    low_weight_first = fit_thin_plate_spline(
+    low_weight_first = fit_transform_tps(
         source, target, weights=np.array([0.01, 1, 1, 1, 1, 1]), smoothing=1.0
     )
-    high_weight_first = fit_thin_plate_spline(
+    high_weight_first = fit_transform_tps(
         source, target, weights=np.array([100.0, 1, 1, 1, 1, 1]), smoothing=1.0
     )
 
@@ -206,7 +206,7 @@ def test_leave_one_out_residuals_flags_the_mismatched_landmark():
     bad_target = target.copy()
     bad_target[3] += np.array([20.0, 0.0])
 
-    residuals = leave_one_out_residuals(source, bad_target, fit_similarity_transform)
+    residuals = leave_one_out_residuals(source, bad_target, fit_transform_procrustes)
 
     assert np.argmax(residuals) == 3
     assert residuals[3] > 2 * np.median(np.delete(residuals, 3))
@@ -218,6 +218,6 @@ def test_leave_one_out_residuals_small_for_consistent_landmarks():
     rotation = _rotation_matrix(-10)
     target = 0.9 * source @ rotation.T + np.array([1.0, 1.0])
 
-    residuals = leave_one_out_residuals(source, target, fit_similarity_transform)
+    residuals = leave_one_out_residuals(source, target, fit_transform_procrustes)
 
     assert np.all(residuals < 1e-6)

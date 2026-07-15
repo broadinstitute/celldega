@@ -77,7 +77,11 @@ def _cluster_centroids(adata: AnnData, cluster_key: str) -> pd.DataFrame:
 
 
 def _callable_name(fn: Callable) -> str:
-    return getattr(fn, "__name__", None) or getattr(getattr(fn, "func", None), "__name__", None) or repr(fn)
+    return (
+        getattr(fn, "__name__", None)
+        or getattr(getattr(fn, "func", None), "__name__", None)
+        or repr(fn)
+    )
 
 
 def _transform_summary(transform: Transform) -> dict[str, Any]:

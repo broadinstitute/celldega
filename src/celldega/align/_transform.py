@@ -38,7 +38,9 @@ class Transform(Protocol):
     def apply(self, points: np.ndarray) -> np.ndarray: ...
 
 
-def _validate_point_pairs(source: np.ndarray, target: np.ndarray, min_points: int) -> tuple[np.ndarray, np.ndarray]:
+def _validate_point_pairs(
+    source: np.ndarray, target: np.ndarray, min_points: int
+) -> tuple[np.ndarray, np.ndarray]:
     source = np.asarray(source, dtype=float)
     target = np.asarray(target, dtype=float)
     if source.shape != target.shape:
@@ -46,9 +48,7 @@ def _validate_point_pairs(source: np.ndarray, target: np.ndarray, min_points: in
             f"source and target must have the same shape, got {source.shape} vs {target.shape}"
         )
     if source.shape[0] < min_points or source.shape[1] != 2:
-        raise ValueError(
-            f"source/target must be (n, 2) with n >= {min_points}, got {source.shape}"
-        )
+        raise ValueError(f"source/target must be (n, 2) with n >= {min_points}, got {source.shape}")
     return source, target
 
 

@@ -35,6 +35,7 @@ from anndata import AnnData
 import numpy as np
 import pandas as pd
 
+from celldega.align._slices import _ordered_slices
 from celldega.align._transform import (
     Transform,
     fit_transform_procrustes,
@@ -46,33 +47,6 @@ from celldega.align._transform import (
 __all__ = ["align_serial_slices"]
 
 _METHODS = ("procrustes", "tps")
-
-
-def _ordered_slices(
-    adatas: AnnData | list[AnnData], slice_key: str | None
-) -> tuple[list[Any], list[AnnData], str]:
-    if isinstance(adatas, AnnData):
-        if slice_key is None:
-            raise ValueError(
-                "slice_key is required when 'adatas' is a single combined AnnData, "
-                "so slices can be identified from an obs column"
-            )
-        if slice_key not in adatas.obs.columns:
-            raise ValueError(f"'{slice_key}' is not a column in adatas.obs")
-
-        column = adatas.obs[slice_key]
-        if isinstance(column.dtype, pd.CategoricalDtype) and column.dtype.ordered:
-            slice_ids = [c for c in column.dtype.categories if c in column.unique()]
-        else:
-            slice_ids = sorted(column.unique().tolist())
-        slices = [adatas[column == slice_id].copy() for slice_id in slice_ids]
-        return slice_ids, slices, slice_key
-
-    slices = list(adatas)
-    if len(slices) < 2:
-        raise ValueError("align_serial_slices requires at least 2 slices")
-    slice_ids = list(range(len(slices)))
-    return slice_ids, [s.copy() for s in slices], slice_key or "slice"
 
 
 def _validate_slices(slices: list[AnnData], slice_ids: list[Any]) -> None:
@@ -330,6 +304,8 @@ def align_serial_slices(
     """
     slice_ids, slices, slice_key = _ordered_slices(adatas, slice_key)
     n = len(slices)
+    if n < 2:
+        raise ValueError("align_serial_slices requires at least 2 slices")
     if not 0 <= reference < n:
         raise ValueError(f"reference must be in [0, {n - 1}], got {reference}")
     if alignment_window < 1:

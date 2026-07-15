@@ -1,3 +1,4 @@
+import anndata as ad
 from anndata import AnnData
 import numpy as np
 import pandas as pd
@@ -54,3 +55,47 @@ def test_calc_landmarks_requires_spatial():
 
     with pytest.raises(ValueError, match="spatial"):
         calc_landmarks(adata, "cluster")
+
+
+def test_calc_landmarks_list_mode_tags_slice_column():
+    rng = np.random.default_rng(3)
+    adata0 = _make_adata(rng, {"a": 5, "b": 8, "c": 3})
+    adata1 = _make_adata(rng, {"a": 4, "b": 6, "c": 2})
+
+    landmarks = calc_landmarks([adata0, adata1], "cluster")
+
+    assert set(landmarks.columns) == {"label", "x", "y", "count", "slice"}
+    assert sorted(landmarks["slice"].unique().tolist()) == [0, 1]
+    assert len(landmarks) == 2 * len(_CENTERS)
+
+
+def test_calc_landmarks_combined_anndata_mode_matches_list_mode():
+    rng = np.random.default_rng(4)
+    adata0 = _make_adata(rng, {"a": 5, "b": 8, "c": 3})
+    adata1 = _make_adata(rng, {"a": 4, "b": 6, "c": 2})
+
+    from_list = calc_landmarks([adata0, adata1], "cluster")
+
+    adata0 = adata0.copy()
+    adata1 = adata1.copy()
+    adata0.obs["batch"] = "x"
+    adata1.obs["batch"] = "y"
+    combined = ad.concat([adata0, adata1])
+    from_combined = calc_landmarks(combined, "cluster", slice_key="batch")
+
+    assert set(from_combined.columns) == {"label", "x", "y", "count", "batch"}
+    assert sorted(from_combined["batch"].unique().tolist()) == ["x", "y"]
+    for label in _CENTERS:
+        list_row = from_list.loc[(from_list["slice"] == 0) & (from_list["label"] == label)].iloc[0]
+        combined_row = from_combined.loc[
+            (from_combined["batch"] == "x") & (from_combined["label"] == label)
+        ].iloc[0]
+        assert np.allclose([list_row["x"], list_row["y"]], [combined_row["x"], combined_row["y"]])
+
+
+def test_calc_landmarks_single_anndata_missing_slice_key_column_raises():
+    rng = np.random.default_rng(5)
+    adata = _make_adata(rng, {"a": 2, "b": 2, "c": 2})  # has no "batch" column
+
+    with pytest.raises(ValueError, match="not a column"):
+        calc_landmarks(adata, "cluster", slice_key="batch")

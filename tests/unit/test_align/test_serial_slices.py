@@ -77,18 +77,6 @@ def _make_slice_with_counts(rng, counts, rotation_deg=0.0, translation=(0.0, 0.0
     return adata
 
 
-def _landmarks(slices, slice_ids=None, slice_key="slice", cluster_key="cluster"):
-    """Build a concatenated landmarks table (via calc_landmarks) tagged by slice id."""
-    if slice_ids is None:
-        slice_ids = list(range(len(slices)))
-    frames = []
-    for slice_id, adata in zip(slice_ids, slices, strict=True):
-        df = calc_landmarks(adata, cluster_key)
-        df[slice_key] = slice_id
-        frames.append(df)
-    return pd.concat(frames, ignore_index=True)
-
-
 def _centroid(adata, slice_key, slice_id, label):
     mask = (adata.obs[slice_key] == slice_id).to_numpy() & (
         adata.obs["cluster"] == label
@@ -100,7 +88,7 @@ def test_align_recovers_known_transform_from_list_input():
     rng = np.random.default_rng(0)
     slice0 = _make_slice(rng)
     slice1 = _make_slice(rng, rotation_deg=25, translation=(8.0, -6.0))
-    landmarks = _landmarks([slice0, slice1])
+    landmarks = calc_landmarks([slice0, slice1], "cluster")
 
     combined = align_serial_slices([slice0, slice1], landmarks=landmarks, reference=0)
 
@@ -117,12 +105,11 @@ def test_align_from_single_combined_anndata_matches_list_input():
     rng = np.random.default_rng(1)
     slice0 = _make_slice(rng)
     slice1 = _make_slice(rng, rotation_deg=-40, translation=(-3.0, 4.0))
-    landmarks = _landmarks([slice0, slice1], slice_ids=["a", "b"], slice_key="batch")
-
     slice0.obs["batch"] = "a"
     slice1.obs["batch"] = "b"
 
     manual = ad.concat([slice0, slice1], join="outer")
+    landmarks = calc_landmarks(manual, "cluster", slice_key="batch")
 
     combined = align_serial_slices(manual, landmarks=landmarks, slice_key="batch", reference=0)
 
@@ -136,7 +123,7 @@ def test_align_serial_slices_never_rescales():
     rng = np.random.default_rng(26)
     slice0 = _make_slice(rng)
     slice1 = _make_slice(rng, scale=1.4, translation=(3.0, -2.0))
-    landmarks = _landmarks([slice0, slice1])
+    landmarks = calc_landmarks([slice0, slice1], "cluster")
 
     combined = align_serial_slices([slice0, slice1], landmarks=landmarks)
 
@@ -150,7 +137,7 @@ def test_z_coord_sets_explicit_absolute_values_per_slice():
         _make_slice(rng, rotation_deg=10, translation=(1.0, 1.0)),
         _make_slice(rng, rotation_deg=-15, translation=(-2.0, 3.0)),
     ]
-    landmarks = _landmarks(slices)
+    landmarks = calc_landmarks(slices, "cluster")
 
     combined = align_serial_slices(
         slices, landmarks=landmarks, reference=1, z_coord=[-2.0, 0.0, 5.0]
@@ -165,7 +152,7 @@ def test_z_coord_sets_explicit_absolute_values_per_slice():
 def test_z_coord_wrong_length_raises():
     rng = np.random.default_rng(2)
     slices = [_make_slice(rng), _make_slice(rng), _make_slice(rng)]
-    landmarks = _landmarks(slices)
+    landmarks = calc_landmarks(slices, "cluster")
 
     with pytest.raises(ValueError, match="length 3"):
         align_serial_slices(slices, landmarks=landmarks, z_coord=[0.0, 1.0])
@@ -174,7 +161,7 @@ def test_z_coord_wrong_length_raises():
 def test_scalar_z_space_is_uniform_offset_from_reference():
     rng = np.random.default_rng(3)
     slices = [_make_slice(rng) for _ in range(3)]
-    landmarks = _landmarks(slices)
+    landmarks = calc_landmarks(slices, "cluster")
 
     combined = align_serial_slices(slices, landmarks=landmarks, reference=0, z_space=2.5)
 
@@ -189,7 +176,7 @@ def test_insufficient_shared_landmarks_raises():
     slice0 = _make_slice(rng)
     slice1 = _make_slice(rng)
     slice1.obs["cluster"] = slice1.obs["cluster"].map(lambda c: f"other_{c}")
-    landmarks = _landmarks([slice0, slice1])
+    landmarks = calc_landmarks([slice0, slice1], "cluster")
 
     with pytest.raises(ValueError, match="shares only 0 landmark"):
         align_serial_slices([slice0, slice1], landmarks=landmarks)
@@ -213,7 +200,7 @@ def test_method_tps_recovers_non_affine_warp_that_procrustes_cannot():
         return pts + np.column_stack([0.08 * pts[:, 1] ** 2, np.zeros(len(pts))])
 
     slice1 = _make_warped_slice(rng, bend)
-    landmarks = _landmarks([slice0, slice1])
+    landmarks = calc_landmarks([slice0, slice1], "cluster")
 
     rigid = align_serial_slices([slice0, slice1], landmarks=landmarks)
     tps = align_serial_slices([slice0, slice1], landmarks=landmarks, method="tps")
@@ -238,7 +225,7 @@ def test_invalid_method_raises():
     rng = np.random.default_rng(28)
     slice0 = _make_slice(rng)
     slice1 = _make_slice(rng)
-    landmarks = _landmarks([slice0, slice1])
+    landmarks = calc_landmarks([slice0, slice1], "cluster")
 
     with pytest.raises(ValueError, match="method"):
         align_serial_slices([slice0, slice1], landmarks=landmarks, method="bogus")
@@ -255,7 +242,7 @@ def test_weight_by_adjacent_counts_downweights_small_mislabeled_cluster():
     spatial = np.asarray(slice1.obsm["spatial"]).copy()
     spatial[mask4] += np.array([15.0, 15.0])
     slice1.obsm["spatial"] = spatial
-    landmarks = _landmarks([slice0, slice1])
+    landmarks = calc_landmarks([slice0, slice1], "cluster")
 
     def large_cluster_residual(combined):
         return sum(
@@ -282,7 +269,7 @@ def test_alignment_window_reduces_sensitivity_to_one_noisy_neighbor():
     slice2 = _make_slice(rng, rotation_deg=20, translation=(2.0, -1.0), noise=1.5)
     slice3 = _make_slice(rng, rotation_deg=30, translation=(-1.0, 2.0))
     slices = [slice0, slice1, slice2, slice3]
-    landmarks = _landmarks(slices)
+    landmarks = calc_landmarks(slices, "cluster")
 
     def residual_vs_reference(combined):
         return sum(
@@ -306,7 +293,7 @@ def test_alignment_window_must_be_at_least_one():
     rng = np.random.default_rng(23)
     slice0 = _make_slice(rng)
     slice1 = _make_slice(rng)
-    landmarks = _landmarks([slice0, slice1])
+    landmarks = calc_landmarks([slice0, slice1], "cluster")
 
     with pytest.raises(ValueError, match="alignment_window"):
         align_serial_slices([slice0, slice1], landmarks=landmarks, alignment_window=0)
@@ -316,7 +303,7 @@ def test_leave_one_out_residual_recorded_in_uns_by_default():
     rng = np.random.default_rng(24)
     slice0 = _make_slice(rng)
     slice1 = _make_slice(rng, rotation_deg=10, translation=(1.0, 1.0))
-    landmarks = _landmarks([slice0, slice1])
+    landmarks = calc_landmarks([slice0, slice1], "cluster")
 
     combined = align_serial_slices([slice0, slice1], landmarks=landmarks)
 
@@ -330,7 +317,7 @@ def test_compute_residuals_false_skips_leave_one_out_residual():
     rng = np.random.default_rng(25)
     slice0 = _make_slice(rng)
     slice1 = _make_slice(rng, rotation_deg=10, translation=(1.0, 1.0))
-    landmarks = _landmarks([slice0, slice1])
+    landmarks = calc_landmarks([slice0, slice1], "cluster")
 
     combined = align_serial_slices([slice0, slice1], landmarks=landmarks, compute_residuals=False)
 
@@ -347,7 +334,7 @@ def test_appending_manual_landmark_satisfies_min_shared_landmarks():
     slice1.obs["cluster"] = slice1.obs["cluster"].map(
         lambda c: c if c in ("0", "1") else f"other_{c}"
     )
-    landmarks = _landmarks([slice0, slice1])
+    landmarks = calc_landmarks([slice0, slice1], "cluster")
 
     with pytest.raises(ValueError, match="shares only 2 landmark"):
         align_serial_slices([slice0.copy(), slice1.copy()], landmarks=landmarks)
@@ -386,7 +373,7 @@ def test_landmarks_missing_rows_for_a_slice_raises():
     rng = np.random.default_rng(33)
     slice0 = _make_slice(rng)
     slice1 = _make_slice(rng)
-    landmarks = _landmarks([slice0])  # slice 1 has no rows at all
+    landmarks = calc_landmarks([slice0], "cluster")  # slice 1 has no rows at all
 
     with pytest.raises(ValueError, match="no rows for slice"):
         align_serial_slices([slice0, slice1], landmarks=landmarks)
@@ -396,7 +383,7 @@ def test_duplicate_landmark_label_raises():
     rng = np.random.default_rng(32)
     slice0 = _make_slice(rng)
     slice1 = _make_slice(rng)
-    landmarks = _landmarks([slice0, slice1])
+    landmarks = calc_landmarks([slice0, slice1], "cluster")
     duplicate_row = landmarks[(landmarks["slice"] == 0) & (landmarks["label"] == "0")]
     landmarks = pd.concat([landmarks, duplicate_row], ignore_index=True)
 
@@ -408,7 +395,7 @@ def test_landmarks_initial_and_aligned_recorded_in_uns():
     rng = np.random.default_rng(34)
     slice0 = _make_slice(rng)
     slice1 = _make_slice(rng, rotation_deg=10, translation=(1.0, 1.0))
-    landmarks = _landmarks([slice0, slice1])
+    landmarks = calc_landmarks([slice0, slice1], "cluster")
 
     combined = align_serial_slices([slice0, slice1], landmarks=landmarks)
 

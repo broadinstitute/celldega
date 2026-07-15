@@ -18,9 +18,11 @@ scaling — see :mod:`celldega.align.serial_slices`) or a non-rigid
 thin-plate-spline warp (:func:`fit_transform_tps`), both in
 :mod:`celldega.align._transform`. Landmarks are always built by the caller,
 never computed implicitly: :func:`calc_landmarks`
-(:mod:`celldega.align.landmarks`) computes them from shared cluster labels
-(one call per slice, then ``pandas.concat``-ed together), and a
-manually-placed landmark table in the same shape (a plain ``DataFrame``, not
+(:mod:`celldega.align.landmarks`) computes them from shared cluster labels,
+accepting the same list-of-``AnnData``-or-one-combined-``AnnData``
+input shapes as :func:`align_serial_slices` itself (no manual per-slice loop
+needed), and a manually-placed landmark table in the same shape (a plain
+``DataFrame``, not
 a ``GeoDataFrame`` of shapely geometry, so it stays trivially disk-portable;
 e.g. from a future point-drawing widget, tentatively named ``Landmark`` —
 pairs with ``Landscape``) can be used instead, or concatenated alongside it

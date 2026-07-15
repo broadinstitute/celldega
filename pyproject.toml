@@ -7,7 +7,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "celldega"
-version = "0.18.0"
+version = "0.18.1"
 readme = "README.md"
 requires-python = ">=3.11,<3.13"
 dependencies = [
@@ -25,7 +25,8 @@ dependencies = [
     # Keep Zarr 2 because ome-zarr/spatialdata stack still expects FSStore
     "zarr>=2.18,<3",
 
-    "numpy",
+    # Pin <2: avoids numpy2/numpy1-ABI binary mismatches (e.g. h5py) in envs with preinstalled numpy1 wheels
+    "numpy>=1.23,<2",
     "pandas>=2.2,<2.4",
     "scipy",
     "dask",

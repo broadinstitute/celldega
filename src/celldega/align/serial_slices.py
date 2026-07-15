@@ -16,8 +16,9 @@ without changing this orchestration.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 import dataclasses
-from typing import Any, Callable
+from typing import Any
 
 import anndata as ad
 from anndata import AnnData

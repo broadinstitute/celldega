@@ -43,14 +43,26 @@ const render_landscape_ist = async ({ model, el }) => {
     meta_cell_data = await objects_from_parquet(metaCellBytes, 'cell_id');
   }
 
+  const clusterAttr = model.get('cluster_attr') || 'leiden';
   const metaClusterBytes = model.get('meta_cluster_parquet');
   if (metaClusterBytes && metaClusterBytes.byteLength > 0) {
-    meta_cluster_data = await objects_from_parquet(metaClusterBytes, 'leiden');
+    meta_cluster_data = await objects_from_parquet(
+      metaClusterBytes,
+      clusterAttr
+    );
   }
 
   const umapBytes = model.get('umap_parquet');
   if (umapBytes && umapBytes.byteLength > 0) {
     umap_data = (await objects_from_parquet(umapBytes, 'cell_id')).result;
+  }
+
+  let centroids_data = {};
+  const use_adata_3d_centroids = model.get('use_adata_3d_centroids') || false;
+  const centroidsBytes = model.get('centroids_parquet');
+  if (centroidsBytes && centroidsBytes.byteLength > 0) {
+    centroids_data = (await objects_from_parquet(centroidsBytes, 'cell_id'))
+      .result;
   }
 
   const technology = model.get('technology');
@@ -92,7 +104,9 @@ const render_landscape_ist = async ({ model, el }) => {
     max_tiles_to_view,
     scale_bar_microns_per_pixel,
     base_urls,
-    cell_name_prefix
+    cell_name_prefix,
+    centroids_data,
+    use_adata_3d_centroids
   );
 };
 
@@ -194,9 +208,13 @@ const render_yearbook = async ({ model, el }) => {
     meta_cell_data = await objects_from_parquet(metaCellBytes, 'cell_id');
   }
 
+  const clusterAttr = model.get('cluster_attr') || 'leiden';
   const metaClusterBytes = model.get('meta_cluster_parquet');
   if (metaClusterBytes && metaClusterBytes.byteLength > 0) {
-    meta_cluster_data = await objects_from_parquet(metaClusterBytes, 'leiden');
+    meta_cluster_data = await objects_from_parquet(
+      metaClusterBytes,
+      clusterAttr
+    );
   }
 
   return yearbook(

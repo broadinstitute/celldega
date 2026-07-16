@@ -345,7 +345,7 @@ export const yearbook = async (
   await initializeYearbookRowGroupReaders(viz_state, base_url);
 
   const tmp_image_info = viz_state.img.landscape_parameters.image_info;
-  const image_name_for_dim = tmp_image_info[0].name;
+  const image_name_for_dim = tmp_image_info[0]?.name;
 
   viz_state.vector_name_integer =
     viz_state.img.landscape_parameters.use_int_index;

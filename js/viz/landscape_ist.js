@@ -213,7 +213,9 @@ export const landscape_ist = async (
   max_tiles_to_view = 50,
   scale_bar_microns_per_pixel = null,
   base_urls = [],
-  cell_name_prefix = false
+  cell_name_prefix = false,
+  centroids = {},
+  use_adata_3d_centroids = false
 ) => {
   if (width === 0) {
     width = '100%';
@@ -395,6 +397,12 @@ export const landscape_ist = async (
   }
   viz_state.umap.umap = umap;
 
+  viz_state.centroids3d = {
+    has_centroids: Object.keys(centroids).length > 0,
+    centroids,
+    requested: use_adata_3d_centroids,
+  };
+
   const isUmapInit = landscape_state === 'umap';
   viz_state.obs_store.umap_state.set(isUmapInit);
   // 'nbhd' is not a spatial/umap view; keep landscape_view valid and remember to
@@ -440,8 +448,10 @@ export const landscape_ist = async (
 
   const tmp_image_info = viz_state.img.landscape_parameters.image_info;
 
-  // set image_name_for_dim using the first image info name
-  const image_name_for_dim = tmp_image_info[0].name;
+  // set image_name_for_dim using the first image info name (point-cloud/Chromium
+  // datasets legitimately have an empty image_info, and don't need this value —
+  // see the tech === 'Chromium' || tech === 'point-cloud' branch below)
+  const image_name_for_dim = tmp_image_info[0]?.name;
 
   viz_state.vector_name_integer =
     viz_state.img.landscape_parameters.use_int_index;

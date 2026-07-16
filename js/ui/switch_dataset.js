@@ -189,7 +189,7 @@ export const switch_dataset = async (
     await set_landscape_parameters(viz_state.img, new_base_url, viz_state.aws);
 
     const tmp_image_info = viz_state.img.landscape_parameters.image_info;
-    const image_name_for_dim = tmp_image_info[0].name;
+    const image_name_for_dim = tmp_image_info[0]?.name;
 
     // Update image format and info
     set_image_format(

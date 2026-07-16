@@ -213,6 +213,24 @@ export const ini_cell_layer = async (base_url, viz_state) => {
   const dim =
     viz_state.spatial.cell_scatter_data.attributes.getPosition.size || 2;
 
+  const use_centroids =
+    Boolean(viz_state.centroids3d?.requested) &&
+    Boolean(viz_state.centroids3d?.has_centroids) &&
+    viz_state.img.landscape_parameters.technology === 'point-cloud';
+
+  const get_cell_position = (i, name) => {
+    if (use_centroids) {
+      return viz_state.centroids3d.centroids[name] ?? [0, 0, 0];
+    }
+    return dim === 3
+      ? [
+          flatCoordinateArray[i * dim],
+          flatCoordinateArray[i * dim + 1],
+          flatCoordinateArray[i * dim + 2],
+        ]
+      : [flatCoordinateArray[i * dim], flatCoordinateArray[i * dim + 1]];
+  };
+
   viz_state.combo_data.cell_compact = buildCellCompactData(
     new_cell_names_array,
     flatCoordinateArray,
@@ -239,14 +257,7 @@ export const ini_cell_layer = async (base_url, viz_state) => {
     const numRows = viz_state.spatial.cell_scatter_data.length; // Replace with arrow_table.numRows
     cell_scatter_data_objects = Array.from({ length: numRows }, (_, i) => ({
       name: viz_state.cats.cell_names_array[i],
-      position:
-        dim === 3
-          ? [
-              flatCoordinateArray[i * dim],
-              flatCoordinateArray[i * dim + 1],
-              flatCoordinateArray[i * dim + 2],
-            ]
-          : [flatCoordinateArray[i * dim], flatCoordinateArray[i * dim + 1]],
+      position: get_cell_position(i, viz_state.cats.cell_names_array[i]),
       umap: [
         flatCoordinateArray_umap[i * 2],
         flatCoordinateArray_umap[i * 2 + 1],
@@ -282,14 +293,7 @@ export const ini_cell_layer = async (base_url, viz_state) => {
     const numRows = viz_state.spatial.cell_scatter_data.length; // Replace with arrow_table.numRows
     cell_scatter_data_objects = Array.from({ length: numRows }, (_, i) => ({
       name: viz_state.cats.cell_names_array[i],
-      position:
-        dim === 3
-          ? [
-              flatCoordinateArray[i * dim],
-              flatCoordinateArray[i * dim + 1],
-              flatCoordinateArray[i * dim + 2],
-            ]
-          : [flatCoordinateArray[i * dim], flatCoordinateArray[i * dim + 1]],
+      position: get_cell_position(i, viz_state.cats.cell_names_array[i]),
     }));
 
     viz_state.spatial.x_min = d3.min(

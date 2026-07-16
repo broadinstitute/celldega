@@ -1,10 +1,12 @@
 """Tests for Clustergram widget with Parquet input."""
 
+import io
 import json
 
 from anndata import AnnData
 import numpy as np
 import pandas as pd
+import pyarrow.parquet as pq
 import pytest
 
 
@@ -275,6 +277,55 @@ def test_landscape_nbhd_edit_syncs_geojson() -> None:
     widget.nbhd_geojson = geojson
     assert isinstance(widget.nbhd, gpd.GeoDataFrame)
     assert list(widget.nbhd["name"]) == ["a"]
+
+
+def _make_spatial_adata() -> AnnData:
+    obs = pd.DataFrame({"Z": [10.0, 20.0, 30.0]}, index=["cell_1", "cell_2", "cell_3"])
+    adata = AnnData(np.zeros((3, 0)), obs=obs)
+    adata.obsm["spatial"] = np.array([[0.0, 0.0], [1.0, 1.0], [2.0, 2.0]])
+    return adata
+
+
+def test_landscape_cluster_attr_synced_for_custom_cluster_key() -> None:
+    """meta_cluster_parquet's key field must match cluster_attr, not a hardcoded
+    'leiden' — the frontend reads this back via `model.get('cluster_attr')`."""
+    obs = pd.DataFrame({"my_cluster": ["a", "b", "a"]}, index=["cell_1", "cell_2", "cell_3"])
+    adata = AnnData(np.zeros((3, 0)), obs=obs)
+
+    widget = Landscape(adata=adata, transform=np.eye(3), cluster_attr="my_cluster")
+
+    assert widget.cluster_attr == "my_cluster"
+
+    # Check the raw Arrow schema (what the JS frontend keys off of via
+    # `objects_from_parquet`), not `pd.read_parquet`, which would silently
+    # restore "my_cluster" as the DataFrame index instead of a column.
+    table = pq.read_table(io.BytesIO(widget.meta_cluster_parquet))
+    assert "my_cluster" in table.schema.names
+
+
+def test_landscape_use_adata_3d_centroids_default_true() -> None:
+    adata = _make_spatial_adata()
+
+    widget = Landscape(adata=adata, transform=np.eye(3))
+
+    assert widget.use_adata_3d_centroids is True
+    assert hasattr(widget, "centroids_parquet")
+
+    centroid_df = pd.read_parquet(io.BytesIO(widget.centroids_parquet))
+    centroid_df = centroid_df.set_index("cell_id").loc[["cell_1", "cell_2", "cell_3"]]
+
+    assert list(centroid_df["x"]) == [0.0, 1.0, 2.0]
+    assert list(centroid_df["y"]) == [0.0, 1.0, 2.0]
+    assert list(centroid_df["z"]) == [10.0, 20.0, 30.0]
+
+
+def test_landscape_use_adata_3d_centroids_disabled() -> None:
+    adata = _make_spatial_adata()
+
+    widget = Landscape(adata=adata, transform=np.eye(3), use_adata_3d_centroids=False)
+
+    assert widget.use_adata_3d_centroids is False
+    assert not hasattr(widget, "centroids_parquet")
 
 
 def test_yearbook_accepts_selection_result() -> None:

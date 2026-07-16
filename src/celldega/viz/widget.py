@@ -231,6 +231,15 @@ class Landscape(anywidget.AnyWidget):
         cell_name_prefix (bool, optional): If True, cell names in adata.obs.index
             are assumed to have a dataset prefix (e.g., "dataset-name_cell-name")
             that should be trimmed when mapping to LandscapeFiles. Default: False.
+        use_adata_3d_centroids (bool, optional): For ``technology="point-cloud"``
+            views given an ``adata``, render that AnnData's
+            ``obsm["spatial"]``/``obs[z_key]`` centroids instead of the geometry
+            baked into ``cell_metadata.parquet`` — no DegaFiles rewrite needed to
+            preview a candidate alignment. Has no effect on 2D (non point-cloud)
+            views, which always use the on-disk x/y. Default: True.
+        z_key (str, optional): ``adata.obs`` column holding the Z coordinate used
+            for ``use_adata_3d_centroids`` (falls back to 0 if absent). Default:
+            "Z".
 
     The AnnData input automatically extracts cell attributes (e.g., ``leiden``
     clusters), the corresponding colors (or derives them when missing), and any
@@ -283,10 +292,15 @@ class Landscape(anywidget.AnyWidget):
         default_value=["leiden"],
     ).tag(sync=True)
 
+    # obs column driving the cluster color legend/meta_cluster_parquet key field
+    cluster_attr = traitlets.Unicode("leiden").tag(sync=True)
+
     segmentation = traitlets.Unicode("default").tag(sync=True)
 
     width = traitlets.Int(0).tag(sync=True)
     height = traitlets.Int(600).tag(sync=True)
+
+    use_adata_3d_centroids = traitlets.Bool(True).tag(sync=True)
 
     def __init__(self, **kwargs):
         adata = kwargs.pop("adata", None) or kwargs.pop("AnnData", None)
@@ -294,6 +308,7 @@ class Landscape(anywidget.AnyWidget):
         pq_meta_cluster = kwargs.pop("meta_cluster_parquet", None)
         pq_umap = kwargs.pop("umap_parquet", None)
         pq_meta_nbhd = kwargs.pop("meta_nbhd_parquet", None)
+        pq_centroids = kwargs.pop("centroids_parquet", None)
 
         meta_cell_df = kwargs.pop("meta_cell", None)
         meta_cluster = kwargs.pop("meta_cluster", None)
@@ -303,6 +318,8 @@ class Landscape(anywidget.AnyWidget):
         transform = kwargs.pop("transform", None)
         image_scale = kwargs.pop("image_scale", None)
         nbhd_edit = kwargs.pop("nbhd_edit", False)
+        use_adata_3d_centroids = kwargs.get("use_adata_3d_centroids", True)
+        z_key = kwargs.pop("z_key", "Z")
         meta_cluster_df = None
         # cell_attr = kwargs.pop("cell_attr", ["leiden"])
         cell_attr = list(kwargs.pop("cell_attr", ["leiden"]))
@@ -484,6 +501,26 @@ class Landscape(anywidget.AnyWidget):
                 )
                 pq_umap = _df_to_bytes(umap_df)
 
+            if use_adata_3d_centroids and "spatial" in adata.obsm:
+                spatial_xy = np.asarray(adata.obsm["spatial"])[:, :2]
+                z_values = (
+                    adata.obs[z_key].to_numpy(dtype=float)
+                    if z_key in adata.obs.columns
+                    else np.zeros(adata.n_obs)
+                )
+                centroid_df = pd.DataFrame(
+                    {"x": spatial_xy[:, 0], "y": spatial_xy[:, 1], "z": z_values},
+                    index=adata.obs.index,
+                )
+
+                if cell_name_prefix_setting:
+                    centroid_df.index = centroid_df.index.map(
+                        lambda x: x.split("_", 1)[1] if "_" in str(x) else x
+                    )
+
+                centroid_df = centroid_df.reset_index().rename(columns={"index": "cell_id"})
+                pq_centroids = _df_to_bytes(centroid_df)
+
         if isinstance(meta_cell_df, pd.DataFrame):
             pq_meta_cell = _df_to_bytes(_reset_index_for_parquet(meta_cell_df))
 
@@ -506,6 +543,8 @@ class Landscape(anywidget.AnyWidget):
             parquet_traits["umap_parquet"] = traitlets.Bytes(pq_umap).tag(sync=True)
         if pq_meta_nbhd is not None:
             parquet_traits["meta_nbhd_parquet"] = traitlets.Bytes(pq_meta_nbhd).tag(sync=True)
+        if pq_centroids is not None:
+            parquet_traits["centroids_parquet"] = traitlets.Bytes(pq_centroids).tag(sync=True)
 
         if parquet_traits:
             self.add_traits(**parquet_traits)
@@ -513,6 +552,7 @@ class Landscape(anywidget.AnyWidget):
         super().__init__(**kwargs)
 
         self.cell_attr = cell_attr
+        self.cluster_attr = cluster_attr
 
         # store DataFrames locally without syncing to the frontend
         self.meta_cell = meta_cell_df

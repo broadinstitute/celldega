@@ -328,6 +328,33 @@ def test_landscape_use_adata_3d_centroids_disabled() -> None:
     assert not hasattr(widget, "centroids_parquet")
 
 
+def test_landscape_use_adata_3d_centroids_serves_file_for_local_base_url(
+    tmp_path, monkeypatch
+) -> None:
+    """For a local (get_local_server-style) base_url, centroids should be written
+    to a small sidecar file and served by URL — not synced through the comm
+    channel, which doesn't scale to millions of per-cell rows."""
+    monkeypatch.chdir(tmp_path)
+    dega_files_dir = tmp_path / "some_dataset_point-cloud"
+    dega_files_dir.mkdir()
+
+    adata = _make_spatial_adata()
+    base_url = "http://localhost:1234/some_dataset_point-cloud"
+
+    widget = Landscape(adata=adata, transform=np.eye(3), base_url=base_url)
+
+    assert widget.centroids_url.startswith(f"{base_url}/.celldega_centroids_")
+    assert not hasattr(widget, "centroids_parquet")
+
+    written_files = list(dega_files_dir.glob(".celldega_centroids_*.parquet"))
+    assert len(written_files) == 1
+
+    centroid_df = pd.read_parquet(written_files[0]).set_index("cell_id")
+    centroid_df = centroid_df.loc[["cell_1", "cell_2", "cell_3"]]
+    assert list(centroid_df["x"]) == [0.0, 1.0, 2.0]
+    assert list(centroid_df["z"]) == [10.0, 20.0, 30.0]
+
+
 def test_yearbook_accepts_selection_result() -> None:
     from anndata import AnnData
 

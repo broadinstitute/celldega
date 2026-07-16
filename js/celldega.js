@@ -59,10 +59,21 @@ const render_landscape_ist = async ({ model, el }) => {
 
   let centroids_data = {};
   const use_adata_3d_centroids = model.get('use_adata_3d_centroids') || false;
-  const centroidsBytes = model.get('centroids_parquet');
-  if (centroidsBytes && centroidsBytes.byteLength > 0) {
+  const centroidsUrl = model.get('centroids_url') || '';
+  if (centroidsUrl) {
+    // Millions of per-cell centroids don't fit through the widget comm
+    // channel, so they're served as a plain file (same as cell_metadata.parquet)
+    // instead of synced through model state — see `centroids_url` in widget.py.
+    const response = await fetch(centroidsUrl);
+    const centroidsBytes = new Uint8Array(await response.arrayBuffer());
     centroids_data = (await objects_from_parquet(centroidsBytes, 'cell_id'))
       .result;
+  } else {
+    const centroidsBytes = model.get('centroids_parquet');
+    if (centroidsBytes && centroidsBytes.byteLength > 0) {
+      centroids_data = (await objects_from_parquet(centroidsBytes, 'cell_id'))
+        .result;
+    }
   }
 
   const technology = model.get('technology');

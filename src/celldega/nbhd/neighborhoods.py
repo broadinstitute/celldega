@@ -35,6 +35,8 @@ def _calc_nbhd_by_gene(
     data_dir: str | None = None,
     gdf_trx: gpd.GeoDataFrame | None = None,
     feature_col: str = "feature_name",
+    x_col: str = "x_location",
+    y_col: str = "y_location",
     nbhd_col: str = "name",
     min_cells: int = 1,
 ) -> AnnData:
@@ -46,7 +48,7 @@ def _calc_nbhd_by_gene(
 
     `by="cell"` averages cell-level expression per neighborhood; `by="cell-free"`
     counts transcripts per neighborhood, streamed in batches from `data_dir`'s
-    Xenium-convention `transcripts.parquet`, or from a pre-loaded `gdf_trx`.
+    `transcripts.parquet`, or from a pre-loaded `gdf_trx`.
 
     Parameters
     ----------
@@ -58,15 +60,18 @@ def _calc_nbhd_by_gene(
         Cell-level data with spatial coordinates in `obsm["spatial"]`; required
         for `by="cell"`.
     data_dir : str, optional
-        Directory with a Xenium-convention `transcripts.parquet`
-        (`feature_name`/`x_location`/`y_location`). Used for `by="cell-free"`
+        Directory with a `transcripts.parquet` (columns named `feature_col`/
+        `x_col`/`y_col`, Xenium convention by default). Used for `by="cell-free"`
         when `gdf_trx` isn't given.
     gdf_trx : gpd.GeoDataFrame, optional
         Pre-loaded transcript points for `by="cell-free"` (custom column
         names/paths); a `geometry` column plus a gene column named `feature_col`.
         Takes precedence over `data_dir`.
     feature_col : str, default "feature_name"
-        Gene/feature column in `gdf_trx`.
+        Gene/feature column — in `gdf_trx`, or in `data_dir`'s `transcripts.parquet`.
+    x_col, y_col : str, default "x_location", "y_location"
+        Transcript coordinate columns in `data_dir`'s `transcripts.parquet`
+        (ignored for `gdf_trx`, which is already point geometry).
     nbhd_col : str, default "name"
         Neighborhood id column in `gdf_nbhd`.
     min_cells : int, default 1
@@ -145,9 +150,9 @@ def _calc_nbhd_by_gene(
                     f"{data_dir}/transcripts.parquet",
                     gdf_nbhd,
                     id_col=nbhd_col,
-                    x_col="x_location",
-                    y_col="y_location",
-                    gene_col="feature_name",
+                    x_col=x_col,
+                    y_col=y_col,
+                    gene_col=feature_col,
                 )
                 .reindex(gdf_nbhd[nbhd_col])
                 .fillna(0)

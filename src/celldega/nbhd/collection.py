@@ -545,6 +545,8 @@ class NeighborhoodCollection(CelldegaCollection):
         data_dir: str | None = None,
         gdf_trx: gpd.GeoDataFrame | None = None,
         feature_col: str = "feature_name",
+        x_col: str = "x_location",
+        y_col: str = "y_location",
         drop_missing: bool = True,
     ) -> None:
         """Calculate a neighborhood-by-gene modality and attach it to ``self.mod``.
@@ -560,13 +562,21 @@ class NeighborhoodCollection(CelldegaCollection):
             modality_name: Key for the modality; defaults to ``"gene"``
                 (cell-derived) or ``"gene_cell_free"`` (transcript-derived).
             min_cells: Minimum cells/transcripts for a neighborhood to be kept.
-            data_dir: Directory with a Xenium-convention ``transcripts.parquet``
-                (streamed in batches); defaults to ``self.data_dir``. Used for
-                ``by="cell-free"`` when ``gdf_trx`` isn't given.
+            data_dir: Directory with a ``transcripts.parquet`` (columns named
+                ``feature_col``/``x_col``/``y_col``, Xenium convention by
+                default; streamed in batches); defaults to ``self.data_dir``.
+                Used for ``by="cell-free"`` when ``gdf_trx`` isn't given.
             gdf_trx: Pre-loaded transcript points for ``by="cell-free"`` (custom
                 column names/paths); takes precedence over ``data_dir``.
-            feature_col: Gene/feature column in ``gdf_trx`` (default
+            feature_col: Gene/feature column — in ``gdf_trx``, or in
+                ``data_dir``'s ``transcripts.parquet`` (default
                 ``"feature_name"``).
+            x_col: Transcript x-coordinate column in ``data_dir``'s
+                ``transcripts.parquet`` (default ``"x_location"``; ignored for
+                ``gdf_trx``).
+            y_col: Transcript y-coordinate column in ``data_dir``'s
+                ``transcripts.parquet`` (default ``"y_location"``; ignored for
+                ``gdf_trx``).
             drop_missing: When ``True`` (default), neighborhoods with fewer than
                 ``min_cells`` cells (or transcripts) are removed from the
                 collection entirely. When ``False``, the collection keeps all
@@ -601,6 +611,8 @@ class NeighborhoodCollection(CelldegaCollection):
             data_dir=resolved_data_dir,
             gdf_trx=gdf_trx,
             feature_col=feature_col,
+            x_col=x_col,
+            y_col=y_col,
             nbhd_col=self.nbhd_col,
             min_cells=min_cells,
         )

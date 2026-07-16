@@ -146,33 +146,65 @@ def test_z_coord_sets_explicit_absolute_values_per_slice():
         _make_slice(rng, rotation_deg=-15, translation=(-2.0, 3.0)),
     ]
     landmarks = calc_landmarks(slices, "cluster")
+    transform = calc_alignment_transform(landmarks, reference=1)
 
-    transform = calc_alignment_transform(landmarks, reference=1, z_coord=[-2.0, 0.0, 5.0])
+    combined = align_serial_slices(slices, transform, z_coord=[-2.0, 0.0, 5.0])
 
-    assert transform.z_values[0] == pytest.approx(-2.0)
-    assert transform.z_values[1] == pytest.approx(0.0)
-    assert transform.z_values[2] == pytest.approx(5.0)
+    z_by_slice = combined.obs.groupby("slice")["Z"].first()
+    assert z_by_slice.loc[0] == pytest.approx(-2.0)
+    assert z_by_slice.loc[1] == pytest.approx(0.0)
+    assert z_by_slice.loc[2] == pytest.approx(5.0)
 
 
 def test_z_coord_wrong_length_raises():
     rng = np.random.default_rng(2)
     slices = [_make_slice(rng), _make_slice(rng), _make_slice(rng)]
     landmarks = calc_landmarks(slices, "cluster")
+    transform = calc_alignment_transform(landmarks)
 
     with pytest.raises(ValueError, match="length 3"):
-        calc_alignment_transform(landmarks, z_coord=[0.0, 1.0])
+        align_serial_slices(slices, transform, z_coord=[0.0, 1.0])
 
 
 def test_scalar_z_space_is_uniform_offset_from_reference():
     rng = np.random.default_rng(3)
     slices = [_make_slice(rng) for _ in range(3)]
     landmarks = calc_landmarks(slices, "cluster")
+    transform = calc_alignment_transform(landmarks, reference=0)
 
-    transform = calc_alignment_transform(landmarks, reference=0, z_space=2.5)
+    combined = align_serial_slices(slices, transform, z_space=2.5)
 
-    assert transform.z_values[0] == pytest.approx(0.0)
-    assert transform.z_values[1] == pytest.approx(2.5)
-    assert transform.z_values[2] == pytest.approx(5.0)
+    z_by_slice = combined.obs.groupby("slice")["Z"].first()
+    assert z_by_slice.loc[0] == pytest.approx(0.0)
+    assert z_by_slice.loc[1] == pytest.approx(2.5)
+    assert z_by_slice.loc[2] == pytest.approx(5.0)
+
+
+def test_same_transform_reused_with_different_z_schemes():
+    """Z assignment is decided at apply time, so the identical fitted transform
+    can be applied twice with different z_space/z_coord, without refitting."""
+    rng = np.random.default_rng(42)
+    slices = [_make_slice(rng) for _ in range(3)]
+    landmarks = calc_landmarks(slices, "cluster")
+    transform = calc_alignment_transform(landmarks, reference=1)
+
+    uniform = (
+        align_serial_slices([s.copy() for s in slices], transform, z_space=5.0)
+        .obs.groupby("slice")["Z"]
+        .first()
+    )
+    explicit = (
+        align_serial_slices([s.copy() for s in slices], transform, z_coord=[0.0, 10.0, 20.0])
+        .obs.groupby("slice")["Z"]
+        .first()
+    )
+
+    assert uniform.loc[0] == pytest.approx(-5.0)
+    assert uniform.loc[1] == pytest.approx(0.0)
+    assert uniform.loc[2] == pytest.approx(5.0)
+    assert explicit.loc[0] == pytest.approx(0.0)
+    assert explicit.loc[1] == pytest.approx(10.0)
+    assert explicit.loc[2] == pytest.approx(20.0)
 
 
 def test_calc_alignment_transform_requires_at_least_two_slices():
@@ -514,7 +546,7 @@ def test_serial_alignment_transform_save_load_round_trip(tmp_path, method):
     )
     assert reloaded.slice_attr == transform.slice_attr
     assert reloaded.slice_ids == transform.slice_ids
-    assert reloaded.z_values == transform.z_values
+    assert reloaded.reference == transform.reference
     assert reloaded.landmarks_initial.equals(transform.landmarks_initial)
     assert reloaded.landmarks_aligned.equals(transform.landmarks_aligned)
 

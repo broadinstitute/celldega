@@ -217,18 +217,19 @@ class SerialAlignmentTransform:
 
     Returned by :func:`calc_alignment_transform`; consumed by
     :func:`align_serial_slices`. Holds one :class:`~celldega.align._transform.Transform`
-    per slice (the reference slice's is an identity transform) plus the Z
-    position assigned to each slice and provenance from the fit. Persist it
-    with :meth:`save`/:meth:`load` — everything here is plain data or a
-    picklable-but-not-pickled ``RBFInterpolator``, so it also survives a
-    plain :mod:`pickle` round-trip if that's more convenient.
+    per slice (the reference slice's is an identity transform) and provenance
+    from the fit — no Z information, since Z assignment doesn't affect the
+    spatial fit at all and is decided when *applying* the transform (see
+    :func:`align_serial_slices`'s ``z_space``/``z_coord``), not when fitting
+    it. Persist it with :meth:`save`/:meth:`load` — everything here is plain
+    data or a picklable-but-not-pickled ``RBFInterpolator``, so it also
+    survives a plain :mod:`pickle` round-trip if that's more convenient.
     """
 
     slice_attr: str
     slice_ids: list[Any]
     reference: Any
     transforms: dict[Any, Transform]
-    z_values: dict[Any, float]
     transform_log: dict[str, dict]
     landmarks_initial: pd.DataFrame
     landmarks_aligned: pd.DataFrame
@@ -250,7 +251,7 @@ class SerialAlignmentTransform:
     def save(self, path: str | Path) -> None:
         """Save this transform to a directory of plain files — no ``pickle``.
 
-        Layout: ``metadata.json`` (fit parameters, slice ids, Z values),
+        Layout: ``metadata.json`` (fit parameters, slice ids),
         ``transform_log.json`` (per-slice diagnostics), ``landmarks_initial
         .parquet``/``landmarks_aligned.parquet``, and one ``transforms/<slice
         id>.npz`` per slice (see :func:`~celldega.align._transform.save_transform`).
@@ -266,7 +267,6 @@ class SerialAlignmentTransform:
             "smoothing": self.smoothing,
             "weight_by_adjacent_counts": self.weight_by_adjacent_counts,
             "alignment_window": self.alignment_window,
-            "z_values": {str(k): v for k, v in self.z_values.items()},
         }
         (path / "metadata.json").write_text(json.dumps(metadata, indent=2))
         (path / "transform_log.json").write_text(
@@ -292,14 +292,12 @@ class SerialAlignmentTransform:
         transforms = {
             slice_id: load_transform(transforms_dir / f"{slice_id}.npz") for slice_id in slice_ids
         }
-        z_values = {slice_id: metadata["z_values"][str(slice_id)] for slice_id in slice_ids}
 
         return cls(
             slice_attr=metadata["slice_attr"],
             slice_ids=slice_ids,
             reference=metadata["reference"],
             transforms=transforms,
-            z_values=z_values,
             transform_log=transform_log,
             landmarks_initial=pd.read_parquet(path / "landmarks_initial.parquet"),
             landmarks_aligned=pd.read_parquet(path / "landmarks_aligned.parquet"),
@@ -314,8 +312,6 @@ class SerialAlignmentTransform:
 def calc_alignment_transform(
     landmarks: pd.DataFrame,
     slice_attr: str | None = None,
-    z_space: float = 1.0,
-    z_coord: list[float] | None = None,
     reference: int = 0,
     min_shared_landmarks: int = 3,
     alignment_window: int = 1,
@@ -334,7 +330,9 @@ def calc_alignment_transform(
     neighbors rather than against a single distant reference. This function
     only touches ``landmarks`` — no cell data — so the returned transform
     can be fit once and reused (see :func:`align_serial_slices` and
-    :meth:`SerialAlignmentTransform.apply_to_points`).
+    :meth:`SerialAlignmentTransform.apply_to_points`). Z assignment isn't
+    part of this fit — it doesn't affect the spatial transform at all — see
+    :func:`align_serial_slices`'s ``z_space``/``z_coord`` instead.
 
     Args:
         landmarks: A plain ``DataFrame`` of landmarks to fit against, with
@@ -349,15 +347,6 @@ def calc_alignment_transform(
         slice_attr: The column in ``landmarks`` identifying each row's slice
             (default ``"slice"``). Slice order is that column's categories
             if it's an ordered categorical, else sorted unique values.
-        z_space: Uniform distance between consecutive slices, applied
-            outward from ``reference`` (so the reference slice is ``Z = 0``).
-            Ignored if ``z_coord`` is given.
-        z_coord: Explicit absolute Z value for each slice (length
-            ``n_slices``, matching slice order) — use this when slices have
-            known, unevenly spaced, or non-reference-relative Z positions
-            (e.g. from instrument metadata). Overrides ``z_space`` entirely
-            when given; ``reference`` still controls which slice anchors the
-            spatial-alignment chain, but no longer shifts Z.
         reference: Index (into the slice order) of the slice whose transform
             is the identity; other slices are aligned outward from it.
         min_shared_landmarks: Minimum number of landmark labels a slice and
@@ -401,7 +390,6 @@ def calc_alignment_transform(
     Raises:
         ValueError: If ``landmarks`` is missing a required column or has
             fewer than 2 slices, if ``reference`` is out of range, if
-            ``z_coord`` is given with the wrong length, if
             ``alignment_window`` is less than 1, if ``method`` is not
             recognized, if a slice's landmarks contain duplicate labels, if
             a slice shares fewer than ``min_shared_landmarks`` labels with
@@ -488,9 +476,6 @@ def calc_alignment_transform(
             transform_log[str(slice_ids[idx])] = entry
             processed.append(idx)
 
-    z_values_arr = _z_values(n, reference, z_space, z_coord)
-    z_values = dict(zip(slice_ids, z_values_arr, strict=True))
-
     aligned_frames = []
     for idx, stats in enumerate(centroids_cache):
         frame = stats.reset_index()
@@ -505,7 +490,6 @@ def calc_alignment_transform(
         slice_ids=slice_ids,
         reference=slice_ids[reference],
         transforms=transforms,
-        z_values=z_values,
         transform_log=transform_log,
         landmarks_initial=landmarks.copy(),
         landmarks_aligned=landmarks_aligned,
@@ -520,9 +504,15 @@ def calc_alignment_transform(
 def align_serial_slices(
     adatas: AnnData | list[AnnData],
     transform: SerialAlignmentTransform,
+    z_space: float = 1.0,
+    z_coord: list[float] | None = None,
     key_added: str = "Z",
 ) -> AnnData:
     """Apply a fitted :class:`SerialAlignmentTransform` to a set of ``AnnData``.
+
+    Z assignment lives here, not in :func:`calc_alignment_transform` — it
+    doesn't affect the spatial fit at all, so the same fitted transform can
+    be applied with different Z choices without refitting anything.
 
     Args:
         adatas: Either a list of per-slice ``AnnData`` (list order must
@@ -533,6 +523,14 @@ def align_serial_slices(
         transform: A :class:`SerialAlignmentTransform` from
             :func:`calc_alignment_transform` (or reloaded via
             :meth:`SerialAlignmentTransform.load`).
+        z_space: Uniform distance between consecutive slices, applied
+            outward from ``transform.reference`` (so that slice is
+            ``Z = 0``). Ignored if ``z_coord`` is given.
+        z_coord: Explicit absolute Z value for each slice (length
+            ``n_slices``, matching slice order) — use this when slices have
+            known, unevenly spaced, or non-reference-relative Z positions
+            (e.g. from instrument metadata). Overrides ``z_space`` entirely
+            when given.
         key_added: Name of the new per-cell ``obs`` column holding the
             assigned Z position.
 
@@ -547,8 +545,9 @@ def align_serial_slices(
 
     Raises:
         ValueError: If ``adatas`` resolves to a different set or order of
-            slices than ``transform`` was fit with, or if a slice is
-            missing ``obsm["spatial"]``.
+            slices than ``transform`` was fit with, if a slice is missing
+            ``obsm["spatial"]``, or if ``z_coord`` is given with the wrong
+            length.
     """
     slice_ids, slices, slice_attr = _ordered_slices(adatas, transform.slice_attr)
     if slice_ids != transform.slice_ids:
@@ -558,12 +557,16 @@ def align_serial_slices(
         )
     _validate_slices(slices, slice_ids)
 
+    reference_index = transform.slice_ids.index(transform.reference)
+    z_values_arr = _z_values(len(slice_ids), reference_index, z_space, z_coord)
+    z_values = dict(zip(slice_ids, z_values_arr, strict=True))
+
     aligned_slices = []
     for slice_id, adata in zip(slice_ids, slices, strict=True):
         spatial = np.asarray(adata.obsm["spatial"], dtype=float).copy()
         spatial[:, :2] = transform.apply_to_points(slice_id, spatial[:, :2])
         adata.obsm["spatial"] = spatial
-        adata.obs[key_added] = transform.z_values[slice_id]
+        adata.obs[key_added] = z_values[slice_id]
         adata.obs[slice_attr] = slice_id
         aligned_slices.append(adata)
 
@@ -576,6 +579,8 @@ def align_serial_slices(
         "allow_reflection": transform.allow_reflection,
         "smoothing": transform.smoothing,
         "weight_by_adjacent_counts": transform.weight_by_adjacent_counts,
+        "z_space": z_space,
+        "z_coord": z_coord,
         "transforms": transform.transform_log,
         "landmarks_initial": transform.landmarks_initial.copy(),
         "landmarks_aligned": transform.landmarks_aligned,

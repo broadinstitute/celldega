@@ -4,7 +4,12 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from celldega.align import align_serial_slices, calc_landmarks
+from celldega.align import (
+    SerialAlignmentTransform,
+    align_serial_slices,
+    calc_alignment_transform,
+    calc_landmarks,
+)
 
 
 _TRUE_CENTERS = {
@@ -84,50 +89,53 @@ def _centroid(adata, slice_attr, slice_id, label):
     return np.asarray(adata.obsm["spatial"])[mask].mean(axis=0)
 
 
-def test_align_recovers_known_transform_from_list_input():
+def _landmark_xy(landmarks, slice_attr, slice_id, label):
+    row = landmarks.loc[(landmarks[slice_attr] == slice_id) & (landmarks["label"] == label)].iloc[0]
+    return np.array([row["x"], row["y"]])
+
+
+# ---------------------------------------------------------------------------
+# calc_alignment_transform: fitting only, never touches an AnnData's cells.
+# ---------------------------------------------------------------------------
+
+
+def test_calc_alignment_transform_recovers_known_transform():
     rng = np.random.default_rng(0)
     slice0 = _make_slice(rng)
     slice1 = _make_slice(rng, rotation_deg=25, translation=(8.0, -6.0))
     landmarks = calc_landmarks([slice0, slice1], "cluster")
 
-    combined = align_serial_slices([slice0, slice1], landmarks=landmarks, reference=0)
-
-    assert combined.n_obs == slice0.n_obs + slice1.n_obs
-    assert list(combined.obs["Z"].unique()) == [0.0, 1.0]
+    transform = calc_alignment_transform(landmarks, reference=0)
 
     for label in _TRUE_CENTERS:
-        c_ref = _centroid(combined, "slice", 0, label)
-        c_aligned = _centroid(combined, "slice", 1, label)
-        assert np.allclose(c_ref, c_aligned, atol=1e-3)
+        ref_xy = _landmark_xy(landmarks, "slice", 0, label)
+        aligned_xy = _landmark_xy(transform.landmarks_aligned, "slice", 1, label)
+        assert np.allclose(ref_xy, aligned_xy, atol=1e-3)
 
 
-def test_align_from_single_combined_anndata_matches_list_input():
+def test_calc_alignment_transform_reference_is_identity():
     rng = np.random.default_rng(1)
     slice0 = _make_slice(rng)
     slice1 = _make_slice(rng, rotation_deg=-40, translation=(-3.0, 4.0))
-    slice0.obs["batch"] = "a"
-    slice1.obs["batch"] = "b"
+    landmarks = calc_landmarks([slice0, slice1], "cluster")
 
-    manual = ad.concat([slice0, slice1], join="outer")
-    landmarks = calc_landmarks(manual, "cluster", slice_attr="batch")
+    transform = calc_alignment_transform(landmarks, reference=0)
 
-    combined = align_serial_slices(manual, landmarks=landmarks, slice_attr="batch", reference=0)
-
-    for label in _TRUE_CENTERS:
-        c_ref = _centroid(combined, "batch", "a", label)
-        c_aligned = _centroid(combined, "batch", "b", label)
-        assert np.allclose(c_ref, c_aligned, atol=1e-3)
+    identity = transform.transforms[0]
+    assert np.allclose(identity.rotation, np.eye(2))
+    assert identity.scale == 1.0
+    assert np.allclose(identity.translation, np.zeros(2))
 
 
-def test_align_serial_slices_never_rescales():
+def test_calc_alignment_transform_never_rescales():
     rng = np.random.default_rng(26)
     slice0 = _make_slice(rng)
     slice1 = _make_slice(rng, scale=1.4, translation=(3.0, -2.0))
     landmarks = calc_landmarks([slice0, slice1], "cluster")
 
-    combined = align_serial_slices([slice0, slice1], landmarks=landmarks)
+    transform = calc_alignment_transform(landmarks)
 
-    assert combined.uns["align_serial_slices"]["transforms"]["1"]["scale"] == 1.0
+    assert transform.transforms[1].scale == 1.0
 
 
 def test_z_coord_sets_explicit_absolute_values_per_slice():
@@ -139,14 +147,11 @@ def test_z_coord_sets_explicit_absolute_values_per_slice():
     ]
     landmarks = calc_landmarks(slices, "cluster")
 
-    combined = align_serial_slices(
-        slices, landmarks=landmarks, reference=1, z_coord=[-2.0, 0.0, 5.0]
-    )
+    transform = calc_alignment_transform(landmarks, reference=1, z_coord=[-2.0, 0.0, 5.0])
 
-    z_by_slice = combined.obs.groupby("slice")["Z"].first()
-    assert z_by_slice.loc[0] == pytest.approx(-2.0)
-    assert z_by_slice.loc[1] == pytest.approx(0.0)
-    assert z_by_slice.loc[2] == pytest.approx(5.0)
+    assert transform.z_values[0] == pytest.approx(-2.0)
+    assert transform.z_values[1] == pytest.approx(0.0)
+    assert transform.z_values[2] == pytest.approx(5.0)
 
 
 def test_z_coord_wrong_length_raises():
@@ -155,7 +160,7 @@ def test_z_coord_wrong_length_raises():
     landmarks = calc_landmarks(slices, "cluster")
 
     with pytest.raises(ValueError, match="length 3"):
-        align_serial_slices(slices, landmarks=landmarks, z_coord=[0.0, 1.0])
+        calc_alignment_transform(landmarks, z_coord=[0.0, 1.0])
 
 
 def test_scalar_z_space_is_uniform_offset_from_reference():
@@ -163,12 +168,20 @@ def test_scalar_z_space_is_uniform_offset_from_reference():
     slices = [_make_slice(rng) for _ in range(3)]
     landmarks = calc_landmarks(slices, "cluster")
 
-    combined = align_serial_slices(slices, landmarks=landmarks, reference=0, z_space=2.5)
+    transform = calc_alignment_transform(landmarks, reference=0, z_space=2.5)
 
-    z_by_slice = combined.obs.groupby("slice")["Z"].first()
-    assert z_by_slice.loc[0] == pytest.approx(0.0)
-    assert z_by_slice.loc[1] == pytest.approx(2.5)
-    assert z_by_slice.loc[2] == pytest.approx(5.0)
+    assert transform.z_values[0] == pytest.approx(0.0)
+    assert transform.z_values[1] == pytest.approx(2.5)
+    assert transform.z_values[2] == pytest.approx(5.0)
+
+
+def test_calc_alignment_transform_requires_at_least_two_slices():
+    rng = np.random.default_rng(35)
+    slice0 = _make_slice(rng)
+    landmarks = calc_landmarks([slice0], "cluster")
+
+    with pytest.raises(ValueError, match="at least 2 slices"):
+        calc_alignment_transform(landmarks)
 
 
 def test_insufficient_shared_landmarks_raises():
@@ -179,16 +192,7 @@ def test_insufficient_shared_landmarks_raises():
     landmarks = calc_landmarks([slice0, slice1], "cluster")
 
     with pytest.raises(ValueError, match="shares only 0 landmark"):
-        align_serial_slices([slice0, slice1], landmarks=landmarks)
-
-
-def test_single_anndata_without_slice_attr_raises():
-    rng = np.random.default_rng(5)
-    slice0 = _make_slice(rng)
-    placeholder_landmarks = pd.DataFrame({"slice": [0], "label": ["0"], "x": [0.0], "y": [0.0]})
-
-    with pytest.raises(ValueError, match="slice_attr is required"):
-        align_serial_slices(slice0, landmarks=placeholder_landmarks)
+        calc_alignment_transform(landmarks)
 
 
 def test_method_tps_recovers_non_affine_warp_that_procrustes_cannot():
@@ -202,13 +206,14 @@ def test_method_tps_recovers_non_affine_warp_that_procrustes_cannot():
     slice1 = _make_warped_slice(rng, bend)
     landmarks = calc_landmarks([slice0, slice1], "cluster")
 
-    rigid = align_serial_slices([slice0, slice1], landmarks=landmarks)
-    tps = align_serial_slices([slice0, slice1], landmarks=landmarks, method="tps")
+    rigid = calc_alignment_transform(landmarks)
+    tps = calc_alignment_transform(landmarks, method="tps")
 
-    def total_residual(combined):
+    def total_residual(transform):
         return sum(
             np.linalg.norm(
-                _centroid(combined, "slice", 0, label) - _centroid(combined, "slice", 1, label)
+                _landmark_xy(landmarks, "slice", 0, label)
+                - _landmark_xy(transform.landmarks_aligned, "slice", 1, label)
             )
             for label in _TRUE_CENTERS
         )
@@ -228,7 +233,7 @@ def test_invalid_method_raises():
     landmarks = calc_landmarks([slice0, slice1], "cluster")
 
     with pytest.raises(ValueError, match="method"):
-        align_serial_slices([slice0, slice1], landmarks=landmarks, method="bogus")
+        calc_alignment_transform(landmarks, method="bogus")
 
 
 def test_weight_by_adjacent_counts_downweights_small_mislabeled_cluster():
@@ -244,18 +249,17 @@ def test_weight_by_adjacent_counts_downweights_small_mislabeled_cluster():
     slice1.obsm["spatial"] = spatial
     landmarks = calc_landmarks([slice0, slice1], "cluster")
 
-    def large_cluster_residual(combined):
+    def large_cluster_residual(transform):
         return sum(
             np.linalg.norm(
-                _centroid(combined, "slice", 0, label) - _centroid(combined, "slice", 1, label)
+                _landmark_xy(landmarks, "slice", 0, label)
+                - _landmark_xy(transform.landmarks_aligned, "slice", 1, label)
             )
             for label in ["0", "1", "2", "3"]
         )
 
-    unweighted = align_serial_slices(
-        [slice0, slice1], landmarks=landmarks, weight_by_adjacent_counts=False
-    )
-    weighted = align_serial_slices([slice0, slice1], landmarks=landmarks)  # default: True
+    unweighted = calc_alignment_transform(landmarks, weight_by_adjacent_counts=False)
+    weighted = calc_alignment_transform(landmarks)  # default: True
 
     assert large_cluster_residual(unweighted) > 10.0
     assert large_cluster_residual(weighted) < 5.0
@@ -268,23 +272,19 @@ def test_alignment_window_reduces_sensitivity_to_one_noisy_neighbor():
     slice1 = _make_slice(rng, rotation_deg=10, translation=(1.0, 1.0))
     slice2 = _make_slice(rng, rotation_deg=20, translation=(2.0, -1.0), noise=1.5)
     slice3 = _make_slice(rng, rotation_deg=30, translation=(-1.0, 2.0))
-    slices = [slice0, slice1, slice2, slice3]
-    landmarks = calc_landmarks(slices, "cluster")
+    landmarks = calc_landmarks([slice0, slice1, slice2, slice3], "cluster")
 
-    def residual_vs_reference(combined):
+    def residual_vs_reference(transform):
         return sum(
             np.linalg.norm(
-                _centroid(combined, "slice", 0, label) - _centroid(combined, "slice", 3, label)
+                _landmark_xy(landmarks, "slice", 0, label)
+                - _landmark_xy(transform.landmarks_aligned, "slice", 3, label)
             )
             for label in _TRUE_CENTERS
         )
 
-    window1 = align_serial_slices(
-        [s.copy() for s in slices], landmarks=landmarks, alignment_window=1
-    )
-    window2 = align_serial_slices(
-        [s.copy() for s in slices], landmarks=landmarks, alignment_window=2
-    )
+    window1 = calc_alignment_transform(landmarks, alignment_window=1)
+    window2 = calc_alignment_transform(landmarks, alignment_window=2)
 
     assert residual_vs_reference(window2) < residual_vs_reference(window1)
 
@@ -296,18 +296,18 @@ def test_alignment_window_must_be_at_least_one():
     landmarks = calc_landmarks([slice0, slice1], "cluster")
 
     with pytest.raises(ValueError, match="alignment_window"):
-        align_serial_slices([slice0, slice1], landmarks=landmarks, alignment_window=0)
+        calc_alignment_transform(landmarks, alignment_window=0)
 
 
-def test_leave_one_out_residual_recorded_in_uns_by_default():
+def test_leave_one_out_residual_recorded_by_default():
     rng = np.random.default_rng(24)
     slice0 = _make_slice(rng)
     slice1 = _make_slice(rng, rotation_deg=10, translation=(1.0, 1.0))
     landmarks = calc_landmarks([slice0, slice1], "cluster")
 
-    combined = align_serial_slices([slice0, slice1], landmarks=landmarks)
+    transform = calc_alignment_transform(landmarks)
 
-    entry = combined.uns["align_serial_slices"]["transforms"]["1"]
+    entry = transform.transform_log["1"]
     assert "leave_one_out_residual" in entry
     assert set(entry["leave_one_out_residual"]["per_landmark"]) == set(_TRUE_CENTERS)
     assert entry["leave_one_out_residual"]["mean"] < 1e-2
@@ -319,10 +319,9 @@ def test_compute_residuals_false_skips_leave_one_out_residual():
     slice1 = _make_slice(rng, rotation_deg=10, translation=(1.0, 1.0))
     landmarks = calc_landmarks([slice0, slice1], "cluster")
 
-    combined = align_serial_slices([slice0, slice1], landmarks=landmarks, compute_residuals=False)
+    transform = calc_alignment_transform(landmarks, compute_residuals=False)
 
-    entry = combined.uns["align_serial_slices"]["transforms"]["1"]
-    assert "leave_one_out_residual" not in entry
+    assert "leave_one_out_residual" not in transform.transform_log["1"]
 
 
 def test_appending_manual_landmark_satisfies_min_shared_landmarks():
@@ -337,7 +336,7 @@ def test_appending_manual_landmark_satisfies_min_shared_landmarks():
     landmarks = calc_landmarks([slice0, slice1], "cluster")
 
     with pytest.raises(ValueError, match="shares only 2 landmark"):
-        align_serial_slices([slice0.copy(), slice1.copy()], landmarks=landmarks)
+        calc_alignment_transform(landmarks)
 
     # The caller appends one manually-matched landmark (true center of cluster "4" in both
     # slices), tipping the shared count to 3 -- exactly the workflow a semi-manual mix expects.
@@ -353,30 +352,15 @@ def test_appending_manual_landmark_satisfies_min_shared_landmarks():
     )
     landmarks_plus_manual = pd.concat([landmarks, manual_landmark], ignore_index=True)
 
-    combined = align_serial_slices([slice0.copy(), slice1.copy()], landmarks=landmarks_plus_manual)
-    entry = combined.uns["align_serial_slices"]["transforms"]["1"]
-    assert entry["n_shared_landmarks"] == 3
+    transform = calc_alignment_transform(landmarks_plus_manual)
+    assert transform.transform_log["1"]["n_shared_landmarks"] == 3
 
 
 def test_landmarks_missing_required_column_raises():
-    rng = np.random.default_rng(31)
-    slice0 = _make_slice(rng)
-    slice1 = _make_slice(rng)
-
     landmarks = pd.DataFrame({"slice": [0]})
 
     with pytest.raises(ValueError, match="missing required column"):
-        align_serial_slices([slice0, slice1], landmarks=landmarks)
-
-
-def test_landmarks_missing_rows_for_a_slice_raises():
-    rng = np.random.default_rng(33)
-    slice0 = _make_slice(rng)
-    slice1 = _make_slice(rng)
-    landmarks = calc_landmarks([slice0], "cluster")  # slice 1 has no rows at all
-
-    with pytest.raises(ValueError, match="no rows for slice"):
-        align_serial_slices([slice0, slice1], landmarks=landmarks)
+        calc_alignment_transform(landmarks)
 
 
 def test_duplicate_landmark_label_raises():
@@ -388,32 +372,186 @@ def test_duplicate_landmark_label_raises():
     landmarks = pd.concat([landmarks, duplicate_row], ignore_index=True)
 
     with pytest.raises(ValueError, match="duplicate landmark label"):
-        align_serial_slices([slice0, slice1], landmarks=landmarks)
+        calc_alignment_transform(landmarks)
 
 
-def test_landmarks_initial_and_aligned_recorded_in_uns():
+# ---------------------------------------------------------------------------
+# align_serial_slices: applies a fitted SerialAlignmentTransform to AnnData.
+# ---------------------------------------------------------------------------
+
+
+def test_align_serial_slices_applies_transform_to_cell_coordinates():
+    rng = np.random.default_rng(0)
+    slice0 = _make_slice(rng)
+    slice1 = _make_slice(rng, rotation_deg=25, translation=(8.0, -6.0))
+    landmarks = calc_landmarks([slice0, slice1], "cluster")
+    transform = calc_alignment_transform(landmarks, reference=0)
+
+    combined = align_serial_slices([slice0, slice1], transform)
+
+    assert combined.n_obs == slice0.n_obs + slice1.n_obs
+    assert list(combined.obs["Z"].unique()) == [0.0, 1.0]
+    for label in _TRUE_CENTERS:
+        c_ref = _centroid(combined, "slice", 0, label)
+        c_aligned = _centroid(combined, "slice", 1, label)
+        assert np.allclose(c_ref, c_aligned, atol=1e-3)
+
+
+def test_align_from_single_combined_anndata_matches_list_input():
+    rng = np.random.default_rng(1)
+    slice0 = _make_slice(rng)
+    slice1 = _make_slice(rng, rotation_deg=-40, translation=(-3.0, 4.0))
+    slice0.obs["batch"] = "a"
+    slice1.obs["batch"] = "b"
+
+    manual = ad.concat([slice0, slice1], join="outer")
+    landmarks = calc_landmarks(manual, "cluster", slice_attr="batch")
+    transform = calc_alignment_transform(landmarks, slice_attr="batch", reference=0)
+
+    combined = align_serial_slices(manual, transform)
+
+    for label in _TRUE_CENTERS:
+        c_ref = _centroid(combined, "batch", "a", label)
+        c_aligned = _centroid(combined, "batch", "b", label)
+        assert np.allclose(c_ref, c_aligned, atol=1e-3)
+
+
+def test_align_serial_slices_missing_spatial_raises():
+    rng = np.random.default_rng(36)
+    slice0 = _make_slice(rng)
+    slice1 = _make_slice(rng)
+    landmarks = calc_landmarks([slice0, slice1], "cluster")
+    transform = calc_alignment_transform(landmarks)
+    del slice1.obsm["spatial"]
+
+    with pytest.raises(ValueError, match="obsm\\['spatial'\\]"):
+        align_serial_slices([slice0, slice1], transform)
+
+
+def test_align_serial_slices_single_anndata_missing_slice_attr_column_raises():
+    rng = np.random.default_rng(5)
+    slice0 = _make_slice(rng)
+    slice1 = _make_slice(rng)
+    landmarks = calc_landmarks([slice0, slice1], "cluster")
+    transform = calc_alignment_transform(landmarks)  # slice_attr defaults to "slice"
+
+    lone_slice = _make_slice(rng)  # has no "slice" obs column
+
+    with pytest.raises(ValueError, match="not a column"):
+        align_serial_slices(lone_slice, transform)
+
+
+def test_align_serial_slices_slice_order_mismatch_raises():
+    rng = np.random.default_rng(37)
+    slice0 = _make_slice(rng)
+    slice1 = _make_slice(rng, rotation_deg=10, translation=(1.0, 1.0))
+    slice0.obs["batch"] = "a"
+    slice1.obs["batch"] = "b"
+    manual = ad.concat([slice0, slice1], join="outer")
+    landmarks = calc_landmarks(manual, "cluster", slice_attr="batch")
+    transform = calc_alignment_transform(landmarks, slice_attr="batch")
+
+    other = manual.copy()
+    other.obs["batch"] = other.obs["batch"].map({"a": "a", "b": "c"})  # "b" -> "c"
+
+    with pytest.raises(ValueError, match="doesn't match the slices"):
+        align_serial_slices(other, transform)
+
+
+def test_align_serial_slices_uns_provenance_matches_transform():
     rng = np.random.default_rng(34)
     slice0 = _make_slice(rng)
     slice1 = _make_slice(rng, rotation_deg=10, translation=(1.0, 1.0))
     landmarks = calc_landmarks([slice0, slice1], "cluster")
+    transform = calc_alignment_transform(landmarks)
 
-    combined = align_serial_slices([slice0, slice1], landmarks=landmarks)
+    combined = align_serial_slices([slice0, slice1], transform)
 
-    stored_initial = combined.uns["align_serial_slices"]["landmarks_initial"]
-    assert stored_initial.equals(landmarks)
+    uns = combined.uns["align_serial_slices"]
+    assert uns["landmarks_initial"].equals(transform.landmarks_initial)
+    assert uns["landmarks_aligned"].equals(transform.landmarks_aligned)
+    assert uns["transforms"] == transform.transform_log
+    assert uns["method"] == transform.method
 
-    aligned = combined.uns["align_serial_slices"]["landmarks_aligned"]
-    assert set(aligned.columns) == {"slice", "label", "x", "y", "count"}
-    assert set(aligned["label"]) == set(_TRUE_CENTERS)
 
-    # The reference slice (0) is untransformed, so its aligned positions match the input exactly.
-    ref_aligned = aligned.loc[aligned["slice"] == 0].set_index("label")[["x", "y"]]
-    ref_initial = landmarks.loc[landmarks["slice"] == 0].set_index("label")[["x", "y"]]
+# ---------------------------------------------------------------------------
+# Reuse on arbitrary point data, and save/load persistence.
+# ---------------------------------------------------------------------------
+
+
+def test_apply_to_points_reused_on_arbitrary_points():
+    """The same fitted transform applies to any (n, 2) array -- e.g. standing in
+    for segmentation-polygon vertices or transcript coordinates, not just cells."""
+    rng = np.random.default_rng(38)
+    slice0 = _make_slice(rng)
+    slice1 = _make_slice(rng, rotation_deg=25, translation=(8.0, -6.0))
+    landmarks = calc_landmarks([slice0, slice1], "cluster")
+    transform = calc_alignment_transform(landmarks, reference=0)
+
+    fake_polygon_vertices = np.array([[1.0, 1.0], [2.0, 1.0], [2.0, 2.0], [1.0, 2.0]])
+    aligned_vertices = transform.apply_to_points(1, fake_polygon_vertices)
+
+    # Applying the identical transform directly should match.
+    expected = transform.transforms[1].apply(fake_polygon_vertices)
+    assert np.allclose(aligned_vertices, expected)
+
+
+@pytest.mark.parametrize("method", ["procrustes", "tps"])
+def test_serial_alignment_transform_save_load_round_trip(tmp_path, method):
+    rng = np.random.default_rng(39)
+    slice0 = _make_slice(rng)
+    slice1 = _make_slice(rng, rotation_deg=15, translation=(4.0, -3.0))
+    landmarks = calc_landmarks([slice0, slice1], "cluster")
+    transform = calc_alignment_transform(landmarks, method=method)
+
+    save_dir = tmp_path / "transform"
+    transform.save(save_dir)
+    reloaded = SerialAlignmentTransform.load(save_dir)
+
+    fake_points = np.array([[1.0, 1.0], [2.0, 3.0], [-1.0, 4.0]])
     assert np.allclose(
-        ref_aligned.loc[list(_TRUE_CENTERS)], ref_initial.loc[list(_TRUE_CENTERS)], atol=1e-6
+        transform.apply_to_points(1, fake_points), reloaded.apply_to_points(1, fake_points)
     )
-    # slice 1's aligned positions should now coincide with the reference slice's.
-    other_aligned = aligned.loc[aligned["slice"] == 1].set_index("label")[["x", "y"]]
-    assert np.allclose(
-        other_aligned.loc[list(_TRUE_CENTERS)], ref_initial.loc[list(_TRUE_CENTERS)], atol=1e-3
-    )
+    assert reloaded.slice_attr == transform.slice_attr
+    assert reloaded.slice_ids == transform.slice_ids
+    assert reloaded.z_values == transform.z_values
+    assert reloaded.landmarks_initial.equals(transform.landmarks_initial)
+    assert reloaded.landmarks_aligned.equals(transform.landmarks_aligned)
+
+
+def test_serial_alignment_transform_tps_save_load_preserves_exact_interpolation(tmp_path):
+    """Before this split, a TPS transform's spline was discarded entirely -- this
+    is the concrete fix: it survives a save/load round trip and still
+    interpolates its own landmarks exactly."""
+    rng = np.random.default_rng(40)
+    slice0 = _make_slice(rng)
+    slice1 = _make_slice(rng, rotation_deg=15, translation=(4.0, -3.0))
+    landmarks = calc_landmarks([slice0, slice1], "cluster")
+    transform = calc_alignment_transform(landmarks, method="tps")
+
+    transform.save(tmp_path / "transform")
+    reloaded = SerialAlignmentTransform.load(tmp_path / "transform")
+
+    source = landmarks.loc[landmarks["slice"] == 1, ["x", "y"]].to_numpy()
+    target = transform.landmarks_aligned.loc[
+        transform.landmarks_aligned["slice"] == 1, ["x", "y"]
+    ].to_numpy()
+
+    assert np.allclose(reloaded.apply_to_points(1, source), target, atol=1e-6)
+
+
+def test_align_serial_slices_works_with_reloaded_transform(tmp_path):
+    rng = np.random.default_rng(41)
+    slice0 = _make_slice(rng)
+    slice1 = _make_slice(rng, rotation_deg=25, translation=(8.0, -6.0))
+    landmarks = calc_landmarks([slice0, slice1], "cluster")
+    transform = calc_alignment_transform(landmarks, reference=0)
+
+    transform.save(tmp_path / "transform")
+    reloaded = SerialAlignmentTransform.load(tmp_path / "transform")
+
+    expected = align_serial_slices([slice0.copy(), slice1.copy()], transform)
+    actual = align_serial_slices([slice0.copy(), slice1.copy()], reloaded)
+
+    assert np.allclose(np.asarray(expected.obsm["spatial"]), np.asarray(actual.obsm["spatial"]))
+    assert (expected.obs["Z"].to_numpy() == actual.obs["Z"].to_numpy()).all()

@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Protocol
 
 import numpy as np
@@ -31,6 +32,8 @@ __all__ = [
     "fit_transform_procrustes",
     "fit_transform_tps",
     "leave_one_out_residuals",
+    "load_transform",
+    "save_transform",
 ]
 
 
@@ -255,3 +258,83 @@ def leave_one_out_residuals(
         residuals[i] = np.linalg.norm(transform.apply(source[i : i + 1])[0] - target[i])
         mask[i] = True
     return residuals
+
+
+def save_transform(transform: Transform, path: str | Path) -> None:
+    """Save a fitted :class:`SimilarityTransform` or :class:`ThinPlateSplineTransform`
+    to a plain ``.npz`` file — no ``pickle`` involved, so the result is portable,
+    inspectable with any numpy install, and doesn't depend on matching library
+    versions the way a pickled object graph would. A :class:`ThinPlateSplineTransform`
+    is saved as the plain-array inputs (landmark positions, per-point smoothing,
+    kernel, epsilon, degree) that reconstruct an equivalent ``RBFInterpolator``,
+    not the fitted object itself.
+
+    Args:
+        transform: The transform to save.
+        path: Destination ``.npz`` file path.
+
+    Raises:
+        TypeError: If ``transform`` is neither a :class:`SimilarityTransform`
+            nor a :class:`ThinPlateSplineTransform`.
+    """
+    if isinstance(transform, SimilarityTransform):
+        np.savez(
+            path,
+            kind="procrustes",
+            rotation=transform.rotation,
+            scale=np.asarray(transform.scale),
+            translation=transform.translation,
+        )
+        return
+    if isinstance(transform, ThinPlateSplineTransform):
+        interpolator = transform.interpolator
+        powers = interpolator.powers
+        degree = int(powers.sum(axis=1).max()) if powers.size else -1
+        np.savez(
+            path,
+            kind="tps",
+            y=interpolator.y,
+            d=interpolator.d,
+            smoothing=interpolator.smoothing,
+            epsilon=np.asarray(interpolator.epsilon),
+            kernel=np.asarray(interpolator.kernel),
+            degree=np.asarray(degree),
+        )
+        return
+    raise TypeError(f"don't know how to save a transform of type {type(transform)!r}")
+
+
+def load_transform(path: str | Path) -> Transform:
+    """Load a transform previously saved with :func:`save_transform`.
+
+    Args:
+        path: Path to the ``.npz`` file.
+
+    Returns:
+        The reconstructed :class:`SimilarityTransform` or
+        :class:`ThinPlateSplineTransform` — for the latter, a fresh
+        ``RBFInterpolator`` rebuilt from the saved plain-array inputs,
+        numerically equivalent to the one originally fitted.
+
+    Raises:
+        ValueError: If the file's ``kind`` is not recognized.
+    """
+    with np.load(path, allow_pickle=False) as data:
+        kind = str(data["kind"])
+        if kind == "procrustes":
+            return SimilarityTransform(
+                rotation=data["rotation"],
+                scale=float(data["scale"]),
+                translation=data["translation"],
+            )
+        if kind == "tps":
+            interpolator = RBFInterpolator(
+                data["y"],
+                data["d"],
+                smoothing=data["smoothing"],
+                kernel=str(data["kernel"]),
+                epsilon=float(data["epsilon"]),
+                degree=int(data["degree"]),
+            )
+            return ThinPlateSplineTransform(interpolator=interpolator)
+        raise ValueError(f"unknown transform kind {kind!r} in {path}")

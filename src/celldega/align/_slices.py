@@ -16,7 +16,15 @@ from anndata import AnnData
 import pandas as pd
 
 
-__all__ = ["_ordered_slices"]
+__all__ = ["_ordered_slices", "_resolve_slice_order"]
+
+
+def _resolve_slice_order(column: pd.Series) -> list[Any]:
+    """Slice order from a slice-tagging column: ordered-categorical order if
+    it is one, else sorted unique values."""
+    if isinstance(column.dtype, pd.CategoricalDtype) and column.dtype.ordered:
+        return [c for c in column.dtype.categories if c in column.unique()]
+    return sorted(column.unique().tolist())
 
 
 def _ordered_slices(
@@ -59,12 +67,8 @@ def _ordered_slices(
         if slice_attr not in adatas.obs.columns:
             raise ValueError(f"'{slice_attr}' is not a column in adatas.obs")
 
-        column = adatas.obs[slice_attr]
-        if isinstance(column.dtype, pd.CategoricalDtype) and column.dtype.ordered:
-            slice_ids = [c for c in column.dtype.categories if c in column.unique()]
-        else:
-            slice_ids = sorted(column.unique().tolist())
-        slices = [adatas[column == slice_id] for slice_id in slice_ids]
+        slice_ids = _resolve_slice_order(adatas.obs[slice_attr])
+        slices = [adatas[adatas.obs[slice_attr] == slice_id] for slice_id in slice_ids]
         if copy:
             slices = [s.copy() for s in slices]
         return slice_ids, slices, slice_attr

@@ -2,32 +2,39 @@
 
 Serial tissue sections are typically imaged and segmented independently, so
 even adjacent slices can be offset, rotated, or warped relative to each
-other. :func:`align_serial_slices` in-plane registers a series of slices by
-fitting a transform between corresponding landmarks, then applying that
-transform to every cell in the slice — not just the landmarks used to fit
-it. Slices are aligned in a chain outward from a chosen reference slice,
-since physical section-to-section deformation accumulates between
-neighbors rather than between a slice and a distant reference. Because
-these are physical sections of the same tissue block, alignment is always
-rigid — any apparent size difference between slices is a measurement or
-segmentation artifact, not something to correct for, so scaling is never
-applied.
+other. This module splits registering them into three composable steps:
 
-:func:`align_serial_slices` itself knows nothing about cell metadata — only
-each cell's physical location (``obsm["spatial"]``) and a ``landmarks``
-table of corresponding points to fit against. Landmarks are always built by
-the caller: :func:`~celldega.align.landmarks.calc_landmarks` computes them
-from shared cluster labels, and manually-placed landmarks (e.g. from a
-future point-drawing widget) use the same shape — the two are directly
-``pandas.concat``-able for a semi-manual mix, before either is passed in
-here. This keeps landmarks a visible, inspectable, disk-portable artifact
-of the workflow rather than something hidden inside the alignment call.
+1. :func:`~celldega.align.landmarks.calc_landmarks` — corresponding points
+   per slice, from shared cluster labels (or manually placed, or both).
+2. :func:`calc_alignment_transform` — fits a transform between corresponding
+   landmarks (chain-walking outward from a reference slice, since physical
+   section-to-section deformation accumulates between neighbors rather than
+   between a slice and a distant reference) and returns a
+   :class:`SerialAlignmentTransform` — a first-class, reusable object, not a
+   byproduct that only lives inside one alignment call.
+3. :func:`align_serial_slices` — applies a given :class:`SerialAlignmentTransform`
+   to a specific set of ``AnnData``, aligning ``obsm["spatial"]`` and
+   assigning a Z coordinate.
+
+Splitting fit from apply means the fitted transform can be reused directly
+on *other* point data tied to the same slices (segmentation-polygon
+vertices, transcript coordinates, eventually raster image sampling grids —
+anything reducible to an ``(n, 2)`` array of points), and persisted
+independently of any one ``AnnData`` (:meth:`SerialAlignmentTransform.save`/
+:meth:`~SerialAlignmentTransform.load`).
+
+Because these are physical sections of the same tissue block, alignment is
+always rigid when ``method="procrustes"`` — any apparent size difference
+between slices is a measurement or segmentation artifact, not something to
+correct for, so scaling is never applied.
 """
 
 from __future__ import annotations
 
 from collections.abc import Callable
 import dataclasses
+import json
+from pathlib import Path
 from typing import Any
 
 import anndata as ad
@@ -35,18 +42,23 @@ from anndata import AnnData
 import numpy as np
 import pandas as pd
 
-from celldega.align._slices import _ordered_slices
+from celldega.align._slices import _ordered_slices, _resolve_slice_order
 from celldega.align._transform import (
+    SimilarityTransform,
     Transform,
     fit_transform_procrustes,
     fit_transform_tps,
     leave_one_out_residuals,
+    load_transform,
+    save_transform,
 )
 
 
-__all__ = ["align_serial_slices"]
+__all__ = ["SerialAlignmentTransform", "align_serial_slices", "calc_alignment_transform"]
 
 _METHODS = ("procrustes", "tps")
+
+_IDENTITY_TRANSFORM = SimilarityTransform(rotation=np.eye(2), scale=1.0, translation=np.zeros(2))
 
 
 def _validate_slices(slices: list[AnnData], slice_ids: list[Any]) -> None:
@@ -66,10 +78,13 @@ def _validate_landmarks(landmarks: pd.DataFrame, slice_attr: str) -> None:
 
 
 def _slice_landmarks(landmarks: pd.DataFrame, slice_id: Any, slice_attr: str) -> pd.DataFrame:
-    """One slice's landmarks as a ``label``-indexed ``x``/``y``/``count`` table."""
+    """One slice's landmarks as a ``label``-indexed ``x``/``y``/``count`` table.
+
+    ``slice_id`` always comes from resolving slice order directly out of
+    ``landmarks[slice_attr]`` (see :func:`calc_alignment_transform`), so
+    ``subset`` is guaranteed non-empty here by construction.
+    """
     subset = landmarks.loc[landmarks[slice_attr] == slice_id]
-    if subset.empty:
-        raise ValueError(f"landmarks has no rows for slice {slice_id!r}")
     if subset["label"].duplicated().any():
         dupes = sorted(subset.loc[subset["label"].duplicated(), "label"].unique())
         raise ValueError(
@@ -158,7 +173,7 @@ def _transform_summary(transform: Transform) -> dict[str, Any]:
 
     Different fit strategies expose different fields (rotation/scale/translation
     for a rigid fit, an opaque interpolator object for a spline) — only include
-    fields that are safe to stash in ``uns`` (and skip the rest) rather than
+    fields that are safe to stash in ``uns``/JSON (and skip the rest) rather than
     hardcoding knowledge of any one strategy here.
     """
     if not dataclasses.is_dataclass(transform):
@@ -168,6 +183,20 @@ def _transform_summary(transform: Transform) -> dict[str, Any]:
         for f in dataclasses.fields(transform)
         if isinstance(getattr(transform, f.name), (int, float, str, bool, np.ndarray))
     }
+
+
+def _json_safe(value: Any) -> Any:
+    """Recursively convert numpy arrays/scalars in a nested dict/list into plain
+    JSON-serializable Python types."""
+    if isinstance(value, np.ndarray):
+        return value.tolist()
+    if isinstance(value, (np.floating, np.integer)):
+        return value.item()
+    if isinstance(value, dict):
+        return {k: _json_safe(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_json_safe(v) for v in value]
+    return value
 
 
 def _z_values(n: int, reference: int, z_space: float, z_coord: list[float] | None) -> np.ndarray:
@@ -182,8 +211,107 @@ def _z_values(n: int, reference: int, z_space: float, z_coord: list[float] | Non
     return z_coord
 
 
-def align_serial_slices(
-    adatas: AnnData | list[AnnData],
+@dataclasses.dataclass(frozen=True)
+class SerialAlignmentTransform:
+    """A fitted, reusable serial-slice alignment.
+
+    Returned by :func:`calc_alignment_transform`; consumed by
+    :func:`align_serial_slices`. Holds one :class:`~celldega.align._transform.Transform`
+    per slice (the reference slice's is an identity transform) plus the Z
+    position assigned to each slice and provenance from the fit. Persist it
+    with :meth:`save`/:meth:`load` — everything here is plain data or a
+    picklable-but-not-pickled ``RBFInterpolator``, so it also survives a
+    plain :mod:`pickle` round-trip if that's more convenient.
+    """
+
+    slice_attr: str
+    slice_ids: list[Any]
+    reference: Any
+    transforms: dict[Any, Transform]
+    z_values: dict[Any, float]
+    transform_log: dict[str, dict]
+    landmarks_initial: pd.DataFrame
+    landmarks_aligned: pd.DataFrame
+    method: str
+    allow_reflection: bool
+    smoothing: float
+    weight_by_adjacent_counts: bool
+    alignment_window: int
+
+    def apply_to_points(self, slice_id: Any, points: np.ndarray) -> np.ndarray:
+        """Apply the fitted transform for ``slice_id`` to an ``(n, 2)`` array of points.
+
+        The general reuse primitive: works identically for cell coordinates,
+        segmentation-polygon vertices, transcript coordinates, or any other
+        point data tied to that slice.
+        """
+        return self.transforms[slice_id].apply(points)
+
+    def save(self, path: str | Path) -> None:
+        """Save this transform to a directory of plain files — no ``pickle``.
+
+        Layout: ``metadata.json`` (fit parameters, slice ids, Z values),
+        ``transform_log.json`` (per-slice diagnostics), ``landmarks_initial
+        .parquet``/``landmarks_aligned.parquet``, and one ``transforms/<slice
+        id>.npz`` per slice (see :func:`~celldega.align._transform.save_transform`).
+        """
+        path = Path(path)
+        path.mkdir(parents=True, exist_ok=True)
+        metadata = {
+            "slice_attr": self.slice_attr,
+            "slice_ids": self.slice_ids,
+            "reference": self.reference,
+            "method": self.method,
+            "allow_reflection": self.allow_reflection,
+            "smoothing": self.smoothing,
+            "weight_by_adjacent_counts": self.weight_by_adjacent_counts,
+            "alignment_window": self.alignment_window,
+            "z_values": {str(k): v for k, v in self.z_values.items()},
+        }
+        (path / "metadata.json").write_text(json.dumps(metadata, indent=2))
+        (path / "transform_log.json").write_text(
+            json.dumps(_json_safe(self.transform_log), indent=2)
+        )
+        self.landmarks_initial.to_parquet(path / "landmarks_initial.parquet")
+        self.landmarks_aligned.to_parquet(path / "landmarks_aligned.parquet")
+
+        transforms_dir = path / "transforms"
+        transforms_dir.mkdir(exist_ok=True)
+        for slice_id in self.slice_ids:
+            save_transform(self.transforms[slice_id], transforms_dir / f"{slice_id}.npz")
+
+    @classmethod
+    def load(cls, path: str | Path) -> SerialAlignmentTransform:
+        """Load a transform previously saved with :meth:`save`."""
+        path = Path(path)
+        metadata = json.loads((path / "metadata.json").read_text())
+        transform_log = json.loads((path / "transform_log.json").read_text())
+        slice_ids = metadata["slice_ids"]
+
+        transforms_dir = path / "transforms"
+        transforms = {
+            slice_id: load_transform(transforms_dir / f"{slice_id}.npz") for slice_id in slice_ids
+        }
+        z_values = {slice_id: metadata["z_values"][str(slice_id)] for slice_id in slice_ids}
+
+        return cls(
+            slice_attr=metadata["slice_attr"],
+            slice_ids=slice_ids,
+            reference=metadata["reference"],
+            transforms=transforms,
+            z_values=z_values,
+            transform_log=transform_log,
+            landmarks_initial=pd.read_parquet(path / "landmarks_initial.parquet"),
+            landmarks_aligned=pd.read_parquet(path / "landmarks_aligned.parquet"),
+            method=metadata["method"],
+            allow_reflection=metadata["allow_reflection"],
+            smoothing=metadata["smoothing"],
+            weight_by_adjacent_counts=metadata["weight_by_adjacent_counts"],
+            alignment_window=metadata["alignment_window"],
+        )
+
+
+def calc_alignment_transform(
     landmarks: pd.DataFrame,
     slice_attr: str | None = None,
     z_space: float = 1.0,
@@ -196,41 +324,31 @@ def align_serial_slices(
     smoothing: float = 0.0,
     weight_by_adjacent_counts: bool = True,
     compute_residuals: bool = True,
-    key_added: str = "Z",
-) -> AnnData:
-    """In-plane align serial slices from corresponding landmarks.
+) -> SerialAlignmentTransform:
+    """Fit a serial-slice alignment transform from corresponding landmarks.
 
     Each slice is registered onto a window of its already-aligned neighbors
-    by fitting a transform between corresponding landmarks, then applying
-    that transform to every cell in the slice — not just the landmarks used
-    to fit it. Alignment proceeds as a chain outward from ``reference`` in
-    both directions along the slice order, so deformation is modeled
-    between nearby physical neighbors rather than against a single distant
-    reference. Rescaling is never applied (see module docstring).
+    by fitting a transform between corresponding landmarks. Alignment
+    proceeds as a chain outward from ``reference`` in both directions along
+    the slice order, so deformation is modeled between nearby physical
+    neighbors rather than against a single distant reference. This function
+    only touches ``landmarks`` — no cell data — so the returned transform
+    can be fit once and reused (see :func:`align_serial_slices` and
+    :meth:`SerialAlignmentTransform.apply_to_points`).
 
     Args:
-        adatas: Either a list of per-slice ``AnnData`` (list order is slice
-            order), or a single ``AnnData`` combining all slices, in which
-            case ``slice_attr`` is required to split it into slices. Only
-            ``obsm["spatial"]`` is used — this function has no knowledge of
-            cell metadata; landmarks are supplied separately.
         landmarks: A plain ``DataFrame`` of landmarks to fit against, with
-            columns ``slice_attr`` (values matching the resolved slice ids),
+            columns ``slice_attr`` (values defining slice order — see below),
             ``label`` (matches a landmark across slices; unique per slice),
-            ``x``/``y`` (in that slice's own ``obsm["spatial"]`` coordinate
-            space), and optionally ``count`` (omit or leave ``NaN`` for a
-            landmark with no natural cell count, e.g. a manually-placed
+            ``x``/``y``, and optionally ``count`` (omit or leave ``NaN`` for
+            a landmark with no natural cell count, e.g. a manually-placed
             one). Build this with
-            :func:`~celldega.align.landmarks.calc_landmarks` (one call per
-            slice, then ``pandas.concat``), a manually-placed landmark
-            table in the same shape, or both concatenated together for a
-            semi-manual mix.
-        slice_attr: For a single combined ``AnnData``, the ``obs`` column
-            identifying each cell's slice (required in that case). For a
-            list of ``AnnData``, the name to give the new ``obs`` column
-            recording each cell's origin slice index in the output, and the
-            column ``landmarks`` uses to identify each row's slice (default
-            ``"slice"``).
+            :func:`~celldega.align.landmarks.calc_landmarks`, a
+            manually-placed landmark table in the same shape, or both
+            concatenated together for a semi-manual mix.
+        slice_attr: The column in ``landmarks`` identifying each row's slice
+            (default ``"slice"``). Slice order is that column's categories
+            if it's an ordered categorical, else sorted unique values.
         z_space: Uniform distance between consecutive slices, applied
             outward from ``reference`` (so the reference slice is ``Z = 0``).
             Ignored if ``z_coord`` is given.
@@ -240,8 +358,8 @@ def align_serial_slices(
             (e.g. from instrument metadata). Overrides ``z_space`` entirely
             when given; ``reference`` still controls which slice anchors the
             spatial-alignment chain, but no longer shifts Z.
-        reference: Index (into the slice order) of the slice that is left
-            untransformed; other slices are aligned outward from it.
+        reference: Index (into the slice order) of the slice whose transform
+            is the identity; other slices are aligned outward from it.
         min_shared_landmarks: Minimum number of landmark labels a slice and
             its neighbor window must share to fit a transform between them.
         alignment_window: Number of already-aligned neighboring slices (in
@@ -276,57 +394,42 @@ def align_serial_slices(
             unlike in-sample residual, this is meaningful even for an
             exactly-interpolating fit like TPS. Set ``False`` to skip the
             extra refits if landmark counts ever make it costly.
-        key_added: Name of the new per-cell ``obs`` column holding the
-            assigned Z position.
 
     Returns:
-        A new ``AnnData`` concatenating all slices, with ``obsm["spatial"]``
-        x/y columns replaced by the aligned coordinates, a new
-        ``obs[key_added]`` Z column, and provenance recorded in
-        ``uns["align_serial_slices"]``: the fit parameters, per-slice
-        transform details (including leave-one-out residuals, if computed),
-        the ``landmarks`` given (``"landmarks_initial"``), and every
-        landmark's final aligned position (``"landmarks_aligned"``) — useful
-        for reproducibility and for deciding where to add further manual
-        landmarks in a follow-up, iterative pass.
+        The fitted :class:`SerialAlignmentTransform`.
 
     Raises:
-        ValueError: If ``adatas`` is a single ``AnnData`` without
-            ``slice_attr``, if fewer than 2 slices are given, if a slice is
-            missing ``obsm["spatial"]``, if ``landmarks`` is missing a
-            required column or has no rows for some slice, if ``reference``
-            is out of range, if ``z_coord`` is given with the wrong length,
-            if ``alignment_window`` is less than 1, if ``method`` is not
+        ValueError: If ``landmarks`` is missing a required column or has
+            fewer than 2 slices, if ``reference`` is out of range, if
+            ``z_coord`` is given with the wrong length, if
+            ``alignment_window`` is less than 1, if ``method`` is not
             recognized, if a slice's landmarks contain duplicate labels, if
             a slice shares fewer than ``min_shared_landmarks`` labels with
             its neighbor window, or if the fit itself rejects the shared
             landmarks (e.g. a degenerate configuration for TPS).
     """
-    slice_ids, slices, slice_attr = _ordered_slices(adatas, slice_attr)
-    n = len(slices)
+    slice_attr = slice_attr or "slice"
+    _validate_landmarks(landmarks, slice_attr)
+    slice_ids = _resolve_slice_order(landmarks[slice_attr])
+    n = len(slice_ids)
     if n < 2:
-        raise ValueError("align_serial_slices requires at least 2 slices")
+        raise ValueError("calc_alignment_transform requires at least 2 slices")
     if not 0 <= reference < n:
         raise ValueError(f"reference must be in [0, {n - 1}], got {reference}")
     if alignment_window < 1:
         raise ValueError(f"alignment_window must be >= 1, got {alignment_window}")
-    _validate_landmarks(landmarks, slice_attr)
     fit_transform = _resolve_fit_function(method, allow_reflection, smoothing)
-    _validate_slices(slices, slice_ids)
 
     all_stats = [_slice_landmarks(landmarks, slice_id, slice_attr) for slice_id in slice_ids]
 
-    aligned_slices: list[AnnData | None] = [None] * n
+    transforms: dict[Any, Transform] = {slice_ids[reference]: _IDENTITY_TRANSFORM}
     centroids_cache: list[pd.DataFrame | None] = [None] * n
-    transform_log: dict[str, Any] = {}
-
-    aligned_slices[reference] = slices[reference]
     centroids_cache[reference] = all_stats[reference]
+    transform_log: dict[str, Any] = {}
 
     for chain in (range(reference - 1, -1, -1), range(reference + 1, n)):
         processed = [reference]
         for idx in chain:
-            current = slices[idx]
             current_stats = all_stats[idx]
             window_idxs = processed[-alignment_window:]
             neighbor_stats = _pooled_neighbor_stats(centroids_cache, window_idxs)
@@ -349,11 +452,7 @@ def align_serial_slices(
             source = current_stats.loc[shared, ["x", "y"]].to_numpy()
             target = neighbor_stats.loc[shared, ["x", "y"]].to_numpy()
             transform = fit_transform(source, target, weights=weights)
-
-            spatial = np.asarray(current.obsm["spatial"], dtype=float).copy()
-            spatial[:, :2] = transform.apply(spatial[:, :2])
-            current.obsm["spatial"] = spatial
-            aligned_slices[idx] = current
+            transforms[slice_ids[idx]] = transform
 
             aligned_xy = transform.apply(current_stats[["x", "y"]].to_numpy())
             centroids_cache[idx] = pd.DataFrame(
@@ -389,10 +488,8 @@ def align_serial_slices(
             transform_log[str(slice_ids[idx])] = entry
             processed.append(idx)
 
-    z_values = _z_values(n, reference, z_space, z_coord)
-    for idx, adata in enumerate(aligned_slices):
-        adata.obs[key_added] = z_values[idx]
-        adata.obs[slice_attr] = slice_ids[idx]
+    z_values_arr = _z_values(n, reference, z_space, z_coord)
+    z_values = dict(zip(slice_ids, z_values_arr, strict=True))
 
     aligned_frames = []
     for idx, stats in enumerate(centroids_cache):
@@ -403,17 +500,84 @@ def align_serial_slices(
         [slice_attr, "label", "x", "y", "count"]
     ]
 
+    return SerialAlignmentTransform(
+        slice_attr=slice_attr,
+        slice_ids=slice_ids,
+        reference=slice_ids[reference],
+        transforms=transforms,
+        z_values=z_values,
+        transform_log=transform_log,
+        landmarks_initial=landmarks.copy(),
+        landmarks_aligned=landmarks_aligned,
+        method=method,
+        allow_reflection=allow_reflection,
+        smoothing=smoothing,
+        weight_by_adjacent_counts=weight_by_adjacent_counts,
+        alignment_window=alignment_window,
+    )
+
+
+def align_serial_slices(
+    adatas: AnnData | list[AnnData],
+    transform: SerialAlignmentTransform,
+    key_added: str = "Z",
+) -> AnnData:
+    """Apply a fitted :class:`SerialAlignmentTransform` to a set of ``AnnData``.
+
+    Args:
+        adatas: Either a list of per-slice ``AnnData`` (list order must
+            match the slice order ``transform`` was fit with), or a single
+            ``AnnData`` combining all slices, split by the ``obs`` column
+            named ``transform.slice_attr``. Only ``obsm["spatial"]`` is
+            used — this function has no knowledge of cell metadata.
+        transform: A :class:`SerialAlignmentTransform` from
+            :func:`calc_alignment_transform` (or reloaded via
+            :meth:`SerialAlignmentTransform.load`).
+        key_added: Name of the new per-cell ``obs`` column holding the
+            assigned Z position.
+
+    Returns:
+        A new ``AnnData`` concatenating all slices, with ``obsm["spatial"]``
+        x/y columns replaced by the aligned coordinates, a new
+        ``obs[key_added]`` Z column, and ``transform``'s fit parameters and
+        landmark provenance recorded in ``uns["align_serial_slices"]``
+        (plain, h5ad-safe data — the live ``transform`` object itself is
+        not stored there; keep or persist it separately, see
+        :meth:`SerialAlignmentTransform.save`).
+
+    Raises:
+        ValueError: If ``adatas`` resolves to a different set or order of
+            slices than ``transform`` was fit with, or if a slice is
+            missing ``obsm["spatial"]``.
+    """
+    slice_ids, slices, slice_attr = _ordered_slices(adatas, transform.slice_attr)
+    if slice_ids != transform.slice_ids:
+        raise ValueError(
+            f"adatas resolve to slices {slice_ids!r}, which doesn't match the slices "
+            f"{transform.slice_ids!r} that 'transform' was fit with"
+        )
+    _validate_slices(slices, slice_ids)
+
+    aligned_slices = []
+    for slice_id, adata in zip(slice_ids, slices, strict=True):
+        spatial = np.asarray(adata.obsm["spatial"], dtype=float).copy()
+        spatial[:, :2] = transform.apply_to_points(slice_id, spatial[:, :2])
+        adata.obsm["spatial"] = spatial
+        adata.obs[key_added] = transform.z_values[slice_id]
+        adata.obs[slice_attr] = slice_id
+        aligned_slices.append(adata)
+
     adata_aligned = ad.concat(aligned_slices, join="outer")
     adata_aligned.uns["align_serial_slices"] = {
-        "slice_attr": slice_attr,
-        "reference": str(slice_ids[reference]),
-        "alignment_window": alignment_window,
-        "method": method,
-        "allow_reflection": allow_reflection,
-        "smoothing": smoothing,
-        "weight_by_adjacent_counts": weight_by_adjacent_counts,
-        "transforms": transform_log,
-        "landmarks_initial": landmarks.copy(),
-        "landmarks_aligned": landmarks_aligned,
+        "slice_attr": transform.slice_attr,
+        "reference": str(transform.reference),
+        "alignment_window": transform.alignment_window,
+        "method": transform.method,
+        "allow_reflection": transform.allow_reflection,
+        "smoothing": transform.smoothing,
+        "weight_by_adjacent_counts": transform.weight_by_adjacent_counts,
+        "transforms": transform.transform_log,
+        "landmarks_initial": transform.landmarks_initial.copy(),
+        "landmarks_aligned": transform.landmarks_aligned,
     }
     return adata_aligned

@@ -771,6 +771,16 @@ export const ini_cell_layer = async (base_url, viz_state) => {
         viz_state.cats.cell_names_array,
         numRows
       );
+
+      // The bounds/center/zoom computed above reflect the on-disk backdrop's
+      // geometry, not the centroid positions actually being rendered — recompute
+      // from the centroid buffer so the initial camera frames the real data.
+      set_spatial_bounds_from_flat_coordinates(
+        viz_state,
+        viz_state.spatial.cell_centroid_positions,
+        POINT_CLOUD_POSITION_SIZE,
+        numRows
+      );
     } else {
       viz_state.spatial.cell_centroid_positions = null;
     }

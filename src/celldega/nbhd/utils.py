@@ -1,6 +1,7 @@
 """Helper and utility functions."""
 
 # Standard library imports
+from collections import defaultdict
 from collections.abc import Sequence
 from typing import Any
 
@@ -150,58 +151,51 @@ def _round_coordinates(
     return transform(round_coords, geometry)
 
 
-def gdf_from_contour_coords(
-    df_contours: pd.DataFrame,
-    id_col: str = "cell_id",
-    x_col: str = "vertex_x",
-    y_col: str = "vertex_y",
-) -> gpd.GeoDataFrame:
-    """
-    Build a polygon GeoDataFrame from a long-format vertex-coordinate table.
+def safe_polygon(row: pd.Series) -> Polygon:
+    """Build a `Polygon` from a row's `vertex_x`/`vertex_y` coordinate lists; empty on failure."""
+    try:
+        return Polygon(zip(row["vertex_x"], row["vertex_y"], strict=True))
+    except Exception:
+        return Polygon()
 
-    Each row of `df_contours` is one polygon vertex, in order; rows sharing the
-    same `id_col` value become one polygon -- the shape produced by exporting a
-    segmentation mask's contours to CSV (e.g. a `*_nuclei_contour_coords.csv` /
-    `*_cell_contour_coords.csv` pair, one row per `(id_col, x_col, y_col)`
-    vertex). A group that fails to form a valid polygon (e.g. fewer than 3
-    vertices) becomes an empty geometry rather than raising, so one malformed
-    entity doesn't break the whole batch.
 
-    Any coordinate offsetting/rescaling (e.g. converting instrument microns to
-    a registered image's pixel space) should be applied to `df_contours[x_col]`/
-    `df_contours[y_col]` before calling this function.
+def simple_format(geometry: Sequence[Sequence[Sequence[float]]], image_scale: float) -> list:
+    """Rescale a nested polygon-ring coordinate list by dividing by `image_scale`."""
+    return [
+        [[coord[0] / image_scale, coord[1] / image_scale] for coord in polygon]
+        for polygon in geometry
+    ]
 
-    Parameters
-    ----------
-    df_contours : pd.DataFrame
-        Long-format vertex table with `id_col`, `x_col`, `y_col` columns.
-    id_col : str, default "cell_id"
-        Column identifying which polygon each vertex belongs to.
-    x_col, y_col : str, default "vertex_x", "vertex_y"
-        Vertex coordinate columns.
 
-    Returns
-    -------
-    gpd.GeoDataFrame
-        One row per id, with `id_col`, `geometry`, `center_x`, `center_y`
-        columns -- ready to pass to `NeighborhoodCollection(gdf=..., nbhd_col=id_col)`
-        or as the `gdf_source`/`gdf_bounds` of `calc_expansion`.
-    """
+def transform_polygon(polygon: Polygon) -> np.ndarray:
+    """Convert a `Polygon`'s exterior ring into a `[1, n_points, 2]` object array."""
+    exterior_coords = polygon.exterior.coords
+    original_format_coords = np.array([np.array(coord) for coord in exterior_coords])
+    return np.array([original_format_coords], dtype=object)
 
-    def _safe_polygon(row: pd.Series) -> Polygon:
-        try:
-            return Polygon(zip(row[x_col], row[y_col], strict=True))
-        except Exception:
-            return Polygon()
 
-    grouped = df_contours.groupby(id_col).agg(list)
-    gdf = gpd.GeoDataFrame(
-        {id_col: grouped.index},
-        geometry=grouped.apply(_safe_polygon, axis=1).to_numpy(),
-    ).reset_index(drop=True)
-    gdf["center_x"] = gdf.centroid.x
-    gdf["center_y"] = gdf.centroid.y
-    return gdf
+def make_column_names_unique_fast(df: pd.DataFrame) -> pd.DataFrame:
+    """Rename duplicate columns in place (`col`, `col_1`, `col_2`, ...) and return `df`."""
+    counts: dict[str, int] = defaultdict(int)
+    used: set[str] = set()
+    new_cols = []
+
+    for col in df.columns:
+        if col not in used:
+            new_cols.append(col)
+            used.add(col)
+            counts[col] += 1
+        else:
+            while True:
+                new_name = f"{col}_{counts[col]}"
+                counts[col] += 1
+                if new_name not in used:
+                    new_cols.append(new_name)
+                    used.add(new_name)
+                    break
+
+    df.columns = new_cols
+    return df
 
 
 def df_to_anndata(df: pd.DataFrame) -> AnnData:

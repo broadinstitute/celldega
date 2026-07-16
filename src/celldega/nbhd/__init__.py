@@ -11,7 +11,10 @@ from .utils import (
     _get_gdf_cell,
     _get_gdf_trx,
     df_to_anndata,
-    gdf_from_contour_coords,
+    make_column_names_unique_fast,
+    safe_polygon,
+    simple_format,
+    transform_polygon,
 )
 
 
@@ -26,7 +29,10 @@ __all__ = [
     "alpha_shape_cell_clusters",
     "df_to_anndata",
     "filter_alpha_shapes",
-    "gdf_from_contour_coords",
     "generate_hextile",
     "hextile_niche",
+    "make_column_names_unique_fast",
+    "safe_polygon",
+    "simple_format",
+    "transform_polygon",
 ]

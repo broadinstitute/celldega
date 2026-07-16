@@ -1,15 +1,10 @@
 """Expansion: per-entity buffering clipped to a matching bounding geometry.
 
-Unlike :mod:`celldega.nbhd.gradient` — which grows concentric rings outward from and
-inward into ONE dissolved region of interest (e.g. a tumor alpha shape) — this grows
-**every** neighborhood in a collection independently, using each one as its own tiny
-ROI. Each buffered entity is clipped to a matching row of a per-entity bounding
-GeoDataFrame, so the expansion never grows past that entity's own outer limit. The
-canonical use case is growing a segmented nucleus outward until it reaches its
-corresponding cell boundary (to profile how nuclear vs. cytoplasmic transcript
-capture changes with the working boundary), but the same mechanics apply to any
-pair of nested per-entity geometries — e.g. a core region expanding into a parent
-tissue domain, or a seed point buffer expanding into a Voronoi/tile boundary.
+Unlike :mod:`celldega.nbhd.gradient` (concentric rings from ONE dissolved ROI),
+this grows **every** entity in a collection independently, clipping each to a
+matching row of a per-entity bounding GeoDataFrame so it never grows past its
+own outer limit — e.g. a segmented nucleus growing outward until it reaches its
+corresponding cell boundary.
 """
 
 from __future__ import annotations
@@ -42,68 +37,54 @@ def _calc_expansion(
 ) -> dict[float, gpd.GeoDataFrame]:
     """Engine behind :meth:`NeighborhoodCollection.calc_expansion`.
 
-    For each radius in ``radii_um``, buffers every entity in ``gdf_source`` outward
-    by that distance and intersects the result with the matching row (by
-    ``id_col``) in ``gdf_bounds``, so growth stops at that entity's own bounding
-    geometry (e.g. a nucleus growing into its cell, or any other per-entity
-    container). Invalid input geometries are repaired with ``shapely.make_valid``
-    first.
+    For each radius in ``radii_um``, buffers every entity in ``gdf_source``
+    outward and intersects the result with the matching row (by ``id_col``) in
+    ``gdf_bounds``, so growth stops at that entity's own bound. Invalid input
+    geometries are repaired with ``shapely.make_valid`` first.
 
     Args:
-        gdf_source: One row per entity to expand (e.g. a nucleus), with an
+        gdf_source: One row per entity to expand, with an ``id_col`` column and
+            a ``geometry`` column.
+        gdf_bounds: One row per entity's clipping boundary, with a matching
             ``id_col`` column and a ``geometry`` column.
-        gdf_bounds: One row per entity's clipping boundary (e.g. its cell), with
-            an ``id_col`` column matching ``gdf_source`` and a ``geometry``
-            column. Must have exactly one row per id.
         radii_um: Buffer distances in microns. ``0`` returns the original
             (validity-repaired) source geometry, clipped to its bound.
-        id_col: Column identifying each entity, shared by both frames (default
-            ``"id"``).
+        id_col: Column identifying each entity, shared by both frames.
         technology: Imaging platform (e.g. ``"Xenium"``) used to look up
-            ``scale_um_per_pixel`` when the geometry is in pixel space. Ignored if
-            ``scale_um_per_pixel`` is given.
-        scale_um_per_pixel: Microns per pixel — the factor a micron distance is
-            *divided* by to get pixels (e.g. an OME-XML ``PhysicalSizeX``).
-            Required (directly, via ``technology``, or via ``pixels_per_micron``)
-            when ``is_pixel_space=True``. Takes precedence over
-            ``pixels_per_micron`` if both are given.
-        pixels_per_micron: Pixels per micron — the reciprocal convention, where a
-            micron distance is *multiplied* by this factor to get pixels (e.g. a
-            notebook's own ``buffer_dist = expand_um * high_res_scale``). Only
-            used when ``scale_um_per_pixel`` is not resolved some other way;
-            equivalent to passing ``scale_um_per_pixel=1 / pixels_per_micron``.
-        is_pixel_space: ``True`` if ``gdf_source``/``gdf_bounds`` geometry is in
-            pixel units; ``False`` (default) if already in microns.
-        join_style: Shapely buffer join style (``1``=round, ``2``=mitre (default,
-            matches sharp polygon corners), ``3``=bevel).
+            ``scale_um_per_pixel`` for pixel-space geometry.
+        scale_um_per_pixel: Microns per pixel (divide a micron distance by this
+            to get pixels). Required, directly or via ``technology``/
+            ``pixels_per_micron``, when ``is_pixel_space=True``; takes
+            precedence over ``pixels_per_micron`` if both are given.
+        pixels_per_micron: Pixels per micron — the reciprocal convention
+            (multiply a micron distance by this to get pixels, e.g. a
+            notebook's own ``high_res_scale``); equivalent to
+            ``scale_um_per_pixel=1 / pixels_per_micron``.
+        is_pixel_space: ``True`` if the geometry is in pixel units; ``False``
+            (default) if already in microns.
+        join_style: Shapely buffer join style (``1``=round, ``2``=mitre
+            (default), ``3``=bevel).
         mitre_limit: Shapely mitre limit, used when ``join_style=2``.
-        add_colors: If ``True`` (default), add a ``color`` column — one shade per
-            radius (dark to light) — for visualization.
+        add_colors: If ``True`` (default), add a ``color`` column — one shade
+            per radius — for visualization.
 
     Returns:
-        A dict mapping each radius in ``radii_um`` (in microns, ascending) to a
-        ``GeoDataFrame`` of that radius's buffered, clipped entities, with columns
-        ``id_col``, ``geometry``, ``radius_um``, ``center_x``, ``center_y``,
-        ``area``/``area_um2``/``area_px2``, and (when ``add_colors``) ``color``.
-        Entities that vanish entirely at a given radius (empty intersection) are
+        A dict mapping each radius to a ``GeoDataFrame`` of that radius's
+        buffered, clipped entities (``id_col``, ``geometry``, ``radius_um``,
+        ``center_x``/``center_y``, ``area``/``area_um2``/``area_px2``, and
+        ``color`` if requested). Entities that vanish at a given radius are
         dropped from that radius's frame.
 
     Raises:
         KeyError: If ``id_col`` is missing from either frame.
-        ValueError: If ids are duplicated in ``gdf_bounds``, if any source id is
-            missing from ``gdf_bounds``, or if ``is_pixel_space=True`` without a
-            resolvable scale (``scale_um_per_pixel``, ``pixels_per_micron``, or
-            ``technology``).
+        ValueError: If ids are duplicated or fail to match between frames, or
+            if ``is_pixel_space=True`` without a resolvable scale.
 
     Examples:
-        Prefer the public method, which anchors on a collection of entities and
-        returns one new collection per radius (pass ``pixels_per_micron=`` for
-        pixel-space geometry, e.g. a notebook's own ``high_res_scale``)::
-
-            >>> series = nbhd_nuclei.calc_expansion(
-            ...     gdf_cells, radii_um=[0, 1, 2, 3],
-            ...     is_pixel_space=True, pixels_per_micron=high_res_scale,
-            ... )
+        >>> series = nbhd_nuclei.calc_expansion(
+        ...     gdf_cells, radii_um=[0, 1, 2, 3],
+        ...     is_pixel_space=True, pixels_per_micron=high_res_scale,
+        ... )
     """
     if id_col not in gdf_source.columns:
         raise KeyError(f"gdf_source missing '{id_col}'")

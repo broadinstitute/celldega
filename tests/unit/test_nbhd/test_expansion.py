@@ -237,31 +237,27 @@ def test_calc_signature_cell_free_requires_data_dir_or_gdf_trx():
     gdf_nuclei, _gdf_cells = _synthetic_nucleus_cell_inputs()
     nbhd = NeighborhoodCollection(gdf=gdf_nuclei, nbhd_type="nucleus", nbhd_col="cell_id")
 
-    with pytest.raises(ValueError, match="data_dir, gdf_trx, or trx_parquet_path"):
+    with pytest.raises(ValueError, match="data_dir or gdf_trx"):
         nbhd.calc_signature(by="cell-free")
 
 
-def test_calc_signature_cell_free_streams_from_parquet_across_radii(tmp_path):
+def test_calc_signature_cell_free_streams_from_data_dir_across_radii(tmp_path):
     gdf_nuclei, gdf_cells = _synthetic_nucleus_cell_inputs()
     nbhd_nuclei = NeighborhoodCollection(gdf=gdf_nuclei, nbhd_type="nucleus", nbhd_col="cell_id")
     series = nbhd_nuclei.calc_expansion(gdf_cells, radii_um=[0, 5])
 
-    trx_path = tmp_path / "transcripts.parquet"
+    # data_dir's cell-free path is now backed by the streaming engine internally,
+    # using the Xenium transcripts.parquet convention.
     pd.DataFrame(
         {
-            "x": [5, 1, 25],
-            "y": [5, 1, 25],
-            "name": ["GeneA", "GeneB", "GeneA"],
+            "feature_name": ["GeneA", "GeneB", "GeneA"],
+            "x_location": [5, 1, 25],
+            "y_location": [5, 1, 25],
         }
-    ).to_parquet(trx_path)
+    ).to_parquet(tmp_path / "transcripts.parquet")
 
     nbhd_r0 = series[0.0]
-    nbhd_r0.calc_signature(
-        by="cell-free",
-        trx_parquet_path=str(trx_path),
-        feature_col="name",
-        drop_missing=False,
-    )
+    nbhd_r0.calc_signature(by="cell-free", data_dir=str(tmp_path), drop_missing=False)
     df_r0 = pd.DataFrame(
         nbhd_r0.mod["gene_cell_free"].X,
         index=nbhd_r0.mod["gene_cell_free"].obs_names,
@@ -271,12 +267,7 @@ def test_calc_signature_cell_free_streams_from_parquet_across_radii(tmp_path):
     assert "GeneB" not in df_r0.columns
 
     nbhd_r5 = series[5.0]
-    nbhd_r5.calc_signature(
-        by="cell-free",
-        trx_parquet_path=str(trx_path),
-        feature_col="name",
-        drop_missing=False,
-    )
+    nbhd_r5.calc_signature(by="cell-free", data_dir=str(tmp_path), drop_missing=False)
     df_r5 = pd.DataFrame(
         nbhd_r5.mod["gene_cell_free"].X,
         index=nbhd_r5.mod["gene_cell_free"].obs_names,
@@ -284,33 +275,3 @@ def test_calc_signature_cell_free_streams_from_parquet_across_radii(tmp_path):
     )
     assert df_r5.loc["c1", "GeneA"] == 1
     assert df_r5.loc["c1", "GeneB"] == 1
-
-
-def test_calc_transcript_assignment_streaming_mode_computes_totals(tmp_path):
-    gdf_nuclei, gdf_cells = _synthetic_nucleus_cell_inputs()
-    nbhd_nuclei = NeighborhoodCollection(gdf=gdf_nuclei, nbhd_type="nucleus", nbhd_col="cell_id")
-    series = nbhd_nuclei.calc_expansion(gdf_cells, radii_um=[5])
-
-    trx_path = tmp_path / "transcripts.parquet"
-    pd.DataFrame(
-        {
-            "x": [5, 1, 25],
-            "y": [5, 1, 25],
-            "name": ["GeneA", "GeneB", "GeneA"],
-        }
-    ).to_parquet(trx_path)
-
-    nbhd_r5 = series[5.0]
-    nbhd_r5.calc_transcript_assignment(trx_parquet_path=str(trx_path), gene_col="name")
-
-    assert nbhd_r5.obs.loc["c1", "total_transcripts"] == 2
-    assert nbhd_r5.obs.loc["c2", "total_transcripts"] == 1
-    assert "unassigned_transcripts" not in nbhd_r5.obs.columns
-
-
-def test_calc_transcript_assignment_requires_data_dir_or_trx_parquet_path():
-    gdf_nuclei, _gdf_cells = _synthetic_nucleus_cell_inputs()
-    nbhd = NeighborhoodCollection(gdf=gdf_nuclei, nbhd_type="nucleus", nbhd_col="cell_id")
-
-    with pytest.raises(ValueError, match="data_dir or trx_parquet_path"):
-        nbhd.calc_transcript_assignment()

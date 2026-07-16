@@ -1,54 +1,41 @@
 import pandas as pd
-import pytest
+from shapely.geometry import Polygon
 
-from celldega.nbhd import df_to_anndata, gdf_from_contour_coords
-
-
-def test_gdf_from_contour_coords_builds_polygons():
-    df_contours = pd.DataFrame(
-        {
-            "cell_id": [1, 1, 1, 1, 2, 2, 2],
-            "vertex_x": [0, 10, 10, 0, 20, 30, 25],
-            "vertex_y": [0, 0, 10, 10, 0, 0, 10],
-        }
-    )
-
-    gdf = gdf_from_contour_coords(df_contours)
-
-    assert list(gdf["cell_id"]) == [1, 2]
-    assert list(gdf.geometry.area) == [100.0, 50.0]
-    assert {"center_x", "center_y"}.issubset(gdf.columns)
+from celldega.nbhd import (
+    df_to_anndata,
+    make_column_names_unique_fast,
+    safe_polygon,
+    simple_format,
+    transform_polygon,
+)
 
 
-def test_gdf_from_contour_coords_custom_columns():
-    df_contours = pd.DataFrame(
-        {
-            "id": ["a", "a", "a"],
-            "x": [0, 4, 2],
-            "y": [0, 0, 4],
-        }
-    )
-
-    gdf = gdf_from_contour_coords(df_contours, id_col="id", x_col="x", y_col="y")
-
-    assert list(gdf["id"]) == ["a"]
-    assert gdf.geometry.iloc[0].area == pytest.approx(8.0)
+def test_safe_polygon_builds_from_vertex_columns():
+    row = pd.Series({"vertex_x": [0, 10, 10, 0], "vertex_y": [0, 0, 10, 10]})
+    assert safe_polygon(row).area == 100.0
 
 
-def test_gdf_from_contour_coords_malformed_group_becomes_empty_geometry():
-    # a group with only 2 vertices can't form a polygon
-    df_contours = pd.DataFrame(
-        {
-            "cell_id": [1, 1, 2, 2, 2],
-            "vertex_x": [0, 1, 0, 4, 2],
-            "vertex_y": [0, 1, 0, 0, 4],
-        }
-    )
+def test_safe_polygon_returns_empty_on_malformed_row():
+    row = pd.Series({"vertex_x": [0, 1], "vertex_y": [0]})
+    assert safe_polygon(row).is_empty
 
-    gdf = gdf_from_contour_coords(df_contours)
 
-    assert gdf.set_index("cell_id").loc[1, "geometry"].is_empty
-    assert not gdf.set_index("cell_id").loc[2, "geometry"].is_empty
+def test_simple_format_rescales_coordinates():
+    geometry = [[[10, 20], [30, 40]]]
+    assert simple_format(geometry, image_scale=2) == [[[5.0, 10.0], [15.0, 20.0]]]
+
+
+def test_transform_polygon_returns_exterior_as_object_array():
+    poly = Polygon([(0, 0), (1, 0), (1, 1)])
+    result = transform_polygon(poly)
+    assert result.shape == (1, 4, 2)
+    assert list(result[0][0]) == [0, 0]
+
+
+def test_make_column_names_unique_fast_dedupes_columns():
+    df = pd.DataFrame([[1, 2, 3]], columns=["gene", "gene", "gene"])
+    result = make_column_names_unique_fast(df)
+    assert list(result.columns) == ["gene", "gene_1", "gene_2"]
 
 
 def test_df_to_anndata_wraps_matrix_without_extra_computation():

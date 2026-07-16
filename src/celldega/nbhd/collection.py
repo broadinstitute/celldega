@@ -331,61 +331,46 @@ class NeighborhoodCollection(CelldegaCollection):
     ) -> dict[float, NeighborhoodCollection]:
         """Buffer every entity in this collection outward, clipped to its own bound.
 
-        Unlike :meth:`calc_gradient` — which grows concentric rings from ONE
-        dissolved region of interest — this grows **every** neighborhood in this
-        collection independently, using each one as its own tiny ROI, and clips
-        the result to a matching row in ``gdf_bounds`` (joined by
-        ``self.nbhd_col``). One new ``NeighborhoodCollection`` is returned per
-        radius, all sharing the same observation axis so ``calc_signature``/
-        ``calc_population`` results stay directly comparable across radii.
-
-        The canonical use case is a segmented nucleus growing outward until it
-        reaches its corresponding cell boundary, but ``gdf_bounds`` can be any
-        per-entity containing geometry (this collection's entities need not be
-        nuclei, and ``gdf_bounds`` need not be cells).
+        Unlike :meth:`calc_gradient` (concentric rings from ONE dissolved ROI),
+        this grows **every** neighborhood independently — e.g. a segmented
+        nucleus growing into its cell — clipping each to a matching row in
+        ``gdf_bounds`` (joined by ``self.nbhd_col``). Returns one new
+        ``NeighborhoodCollection`` per radius, sharing the same observation axis
+        so downstream results stay comparable across radii.
 
         Args:
-            gdf_bounds: Per-entity clipping boundary (e.g. a cell segmentation
-                polygon for each nucleus), with a column named ``self.nbhd_col``
-                and a ``geometry`` column. Every buffered entity is intersected
-                with its matching row.
-            radii_um: Buffer distances in microns (default ``0`` through ``3`` in
-                ``0.5`` steps). ``0`` returns the original (validity-repaired)
-                entity geometry, clipped to its bound.
-            nbhd_type: Label recorded on each returned collection (default
-                ``"expansion"``).
+            gdf_bounds: Per-entity clipping boundary, with a column named
+                ``self.nbhd_col`` and a ``geometry`` column.
+            radii_um: Buffer distances in microns. ``0`` returns the original
+                (validity-repaired) entity geometry, clipped to its bound.
+            nbhd_type: Label recorded on each returned collection.
             technology: Imaging platform used to look up ``scale_um_per_pixel``
                 for pixel-space geometry (e.g. ``"Xenium"``).
-            scale_um_per_pixel: Microns per pixel (a micron distance is
-                *divided* by this to get pixels). Required (directly, via
-                ``technology``, or via ``pixels_per_micron``) when
-                ``is_pixel_space=True``; takes precedence over
-                ``pixels_per_micron`` if both are given.
+            scale_um_per_pixel: Microns per pixel (divide a micron distance by
+                this to get pixels). Required, directly or via ``technology``/
+                ``pixels_per_micron``, when ``is_pixel_space=True``; takes
+                precedence over ``pixels_per_micron`` if both are given.
             pixels_per_micron: Pixels per micron — the reciprocal convention
-                (a micron distance is *multiplied* by this to get pixels, e.g. a
-                notebook's own ``buffer_dist = expand_um * high_res_scale``).
-                Equivalent to ``scale_um_per_pixel=1 / pixels_per_micron``.
+                (multiply a micron distance by this to get pixels, e.g. a
+                notebook's own ``high_res_scale``); equivalent to
+                ``scale_um_per_pixel=1 / pixels_per_micron``.
             is_pixel_space: ``True`` if this collection's geometry is in pixel
                 units; ``False`` (default) if already in microns.
             join_style: Shapely buffer join style (``1``=round, ``2``=mitre
                 (default), ``3``=bevel).
             mitre_limit: Shapely mitre limit, used when ``join_style=2``.
             add_colors: If ``True`` (default), add a ``color`` column — one
-                shade per radius (dark to light) — for visualization.
-            **kwargs: Forwarded to each new ``NeighborhoodCollection`` (e.g.
-                ``name``, ``data_dir``).
+                shade per radius — for visualization.
+            **kwargs: Forwarded to each new ``NeighborhoodCollection``.
 
         Returns:
-            A dict mapping each radius in ``radii_um`` (in microns) to a new
-            ``NeighborhoodCollection`` of that radius's buffered, clipped
-            geometries.
+            A dict mapping each radius to a new ``NeighborhoodCollection`` of
+            that radius's buffered, clipped geometries.
 
         Raises:
-            ValueError: If this collection has no geometry, if ids are not
-                unique or fail to match between this collection and
-                ``gdf_bounds``, or if ``is_pixel_space=True`` without a
-                resolvable scale (``scale_um_per_pixel``, ``pixels_per_micron``,
-                or ``technology``).
+            ValueError: If this collection has no geometry, if ids fail to
+                match ``gdf_bounds``, or if ``is_pixel_space=True`` without a
+                resolvable scale.
 
         Examples:
             >>> nbhd_nuclei = NeighborhoodCollection(gdf=gdf_nuclei, nbhd_col="cell_id")
@@ -560,10 +545,6 @@ class NeighborhoodCollection(CelldegaCollection):
         data_dir: str | None = None,
         gdf_trx: gpd.GeoDataFrame | None = None,
         feature_col: str = "feature_name",
-        trx_parquet_path: str | None = None,
-        x_col: str = "x",
-        y_col: str = "y",
-        batch_size: int = 1_000_000,
         drop_missing: bool = True,
     ) -> None:
         """Calculate a neighborhood-by-gene modality and attach it to ``self.mod``.
@@ -579,27 +560,13 @@ class NeighborhoodCollection(CelldegaCollection):
             modality_name: Key for the modality; defaults to ``"gene"``
                 (cell-derived) or ``"gene_cell_free"`` (transcript-derived).
             min_cells: Minimum cells/transcripts for a neighborhood to be kept.
-            data_dir: Transcript directory for ``by="cell-free"`` (Xenium
-                convention: `transcripts.parquet` with `feature_name`/
-                `x_location`/`y_location` columns); defaults to ``self.data_dir``.
-                Used only when neither ``gdf_trx`` nor ``trx_parquet_path`` is
-                given.
+            data_dir: Directory with a Xenium-convention ``transcripts.parquet``
+                (streamed in batches); defaults to ``self.data_dir``. Used for
+                ``by="cell-free"`` when ``gdf_trx`` isn't given.
             gdf_trx: Pre-loaded transcript points for ``by="cell-free"`` (custom
-                paths/column names); loads the whole frame into memory for one
-                spatial join. Takes precedence over ``trx_parquet_path`` and
-                ``data_dir``.
-            feature_col: Gene/feature column name (default ``"feature_name"``),
-                used with ``gdf_trx`` or as the gene column when streaming from
-                ``trx_parquet_path``.
-            trx_parquet_path: Transcripts parquet path to stream in batches
-                instead of loading into memory — for transcript files too large
-                for an in-memory join (e.g. a whole-tile file streamed once per
-                radius across a :meth:`calc_expansion` series). Takes precedence
-                over ``data_dir`` but not ``gdf_trx``.
-            x_col: Transcript x-coordinate column in ``trx_parquet_path``.
-            y_col: Transcript y-coordinate column in ``trx_parquet_path``.
-            batch_size: Rows read per streamed batch when using
-                ``trx_parquet_path``.
+                column names/paths); takes precedence over ``data_dir``.
+            feature_col: Gene/feature column in ``gdf_trx`` (default
+                ``"feature_name"``).
             drop_missing: When ``True`` (default), neighborhoods with fewer than
                 ``min_cells`` cells (or transcripts) are removed from the
                 collection entirely. When ``False``, the collection keeps all
@@ -610,9 +577,8 @@ class NeighborhoodCollection(CelldegaCollection):
             ``None`` — the modality is attached to ``self.mod``.
 
         Raises:
-            ValueError: If ``adata`` is missing for ``by="cell"``, or none of
-                ``data_dir``, ``gdf_trx``, or ``trx_parquet_path`` is given for
-                ``by="cell-free"``.
+            ValueError: If ``adata`` is missing for ``by="cell"``, or neither
+                ``data_dir`` nor ``gdf_trx`` is given for ``by="cell-free"``.
         """
         from celldega.nbhd.neighborhoods import (
             _calc_nbhd_by_gene,
@@ -625,15 +591,8 @@ class NeighborhoodCollection(CelldegaCollection):
         resolved_data_dir = data_dir if data_dir is not None else self.data_dir
         if by == "cell" and adata is None:
             raise ValueError("adata is required when by='cell'")
-        if (
-            by == "cell-free"
-            and gdf_trx is None
-            and trx_parquet_path is None
-            and resolved_data_dir is None
-        ):
-            raise ValueError(
-                "data_dir, gdf_trx, or trx_parquet_path is required when by='cell-free'"
-            )
+        if by == "cell-free" and gdf_trx is None and resolved_data_dir is None:
+            raise ValueError("data_dir or gdf_trx is required when by='cell-free'")
 
         modality = _calc_nbhd_by_gene(
             self.gdf,
@@ -642,10 +601,6 @@ class NeighborhoodCollection(CelldegaCollection):
             data_dir=resolved_data_dir,
             gdf_trx=gdf_trx,
             feature_col=feature_col,
-            trx_parquet_path=trx_parquet_path,
-            x_col=x_col,
-            y_col=y_col,
-            batch_size=batch_size,
             nbhd_col=self.nbhd_col,
             min_cells=min_cells,
         )
@@ -736,84 +691,47 @@ class NeighborhoodCollection(CelldegaCollection):
     def calc_transcript_assignment(
         self,
         data_dir: str | None = None,
-        *,
-        trx_parquet_path: str | None = None,
-        x_col: str = "x",
-        y_col: str = "y",
-        gene_col: str = "gene",
-        batch_size: int = 1_000_000,
     ) -> None:
-        """Add per-neighborhood transcript-count columns to ``obs``.
+        """Add per-neighborhood transcript-assignment columns to ``obs``.
 
-        Default (audit) mode reads a Xenium-convention ``transcripts.parquet``
-        that already carries a per-transcript ``cell_id`` column (unassigned
-        transcripts marked ``"UNASSIGNED"``) and adds ``total_transcripts``,
-        ``unassigned_transcripts``, and ``transcript_assignment_proportion`` —
-        assignment isn't computed here, just audited.
+        From ``transcripts.parquet`` in ``data_dir``, adds three ``obs`` columns
+        (on the underlying MuData) for each neighborhood:
 
-        Pass ``trx_parquet_path`` instead to compute ``total_transcripts`` from
-        geometry via the same streaming, spatial-index-accelerated join as
-        ``calc_signature(trx_parquet_path=...)``, for transcripts with no
-        pre-existing ``cell_id`` (e.g. a custom pipeline's own ``x``/``y``/gene
-        file). Only ``total_transcripts`` is added in this mode; use
-        ``calc_signature`` for a full gene expression matrix.
+        - ``total_transcripts`` — transcripts falling inside the neighborhood.
+        - ``unassigned_transcripts`` — those with ``cell_id == "UNASSIGNED"``.
+        - ``transcript_assignment_proportion`` — assigned / total (``0.0`` when
+          the neighborhood has no transcripts).
+
+        Assumption: the transcript-to-cell assignment is **not computed here** —
+        it must already be present in the instrument data, with unassigned
+        transcripts marked by the ``"UNASSIGNED"`` sentinel (Xenium convention).
+        Only transcripts are needed — no ``adata`` or cell polygons.
 
         Args:
-            data_dir: Directory with a Xenium-convention ``transcripts.parquet``
-                (audit mode); defaults to ``self.data_dir``. Ignored when
-                ``trx_parquet_path`` is given.
-            trx_parquet_path: Transcripts parquet path to stream for
-                geometry-based counting instead of audit mode.
-            x_col: Transcript x-coordinate column (streaming mode only).
-            y_col: Transcript y-coordinate column (streaming mode only).
-            gene_col: Transcript gene column (streaming mode only) — only used
-                to batch the join; the per-gene breakdown is discarded.
-            batch_size: Rows read per streamed batch (streaming mode only).
+            data_dir: Directory containing ``transcripts.parquet``; defaults to
+                ``self.data_dir``.
 
         Returns:
-            ``None`` — the columns are added to ``self.obs``.
+            ``None`` — the three columns are added to ``self.obs``.
 
         Raises:
-            ValueError: If geometry is missing, transcripts lack ``cell_id`` in
-                audit mode, or neither transcript source is given. Audit mode
-                only warns if the ``"UNASSIGNED"`` sentinel is entirely absent.
+            ValueError: If geometry or a usable ``data_dir`` is missing, or the
+                transcripts lack a ``cell_id`` column. A complete absence of the
+                ``"UNASSIGNED"`` sentinel only warns.
         """
-        if self.gdf is None:
-            raise ValueError("gdf or geometry is required to calculate transcript assignment")
-
-        obs = self.obs.copy()
-
-        if trx_parquet_path is not None:
-            from celldega.nbhd.trx_streaming import _assign_trx_to_entity_streaming_parquet
-
-            counts = _assign_trx_to_entity_streaming_parquet(
-                trx_parquet_path,
-                self.gdf,
-                id_col=self.nbhd_col,
-                x_col=x_col,
-                y_col=y_col,
-                gene_col=gene_col,
-                batch_size=batch_size,
-            )
-            total_transcripts = (
-                counts.sum(axis=1).reindex(self.obs.index.astype(str)).fillna(0).astype(int)
-            )
-            obs["total_transcripts"] = total_transcripts.to_numpy()
-            self.obs = obs
-            return
-
         from celldega.nbhd.neighborhoods import _calc_nbhd_transcript_assignment
         from celldega.nbhd.utils import _get_gdf_trx
 
+        if self.gdf is None:
+            raise ValueError("gdf or geometry is required to calculate transcript assignment")
         resolved_data_dir = data_dir if data_dir is not None else self.data_dir
         if resolved_data_dir is None:
-            raise ValueError(
-                "data_dir or trx_parquet_path is required to calculate transcript assignment"
-            )
+            raise ValueError("data_dir is required to calculate transcript assignment")
 
         gdf_trx = _get_gdf_trx(resolved_data_dir)
         stats = _calc_nbhd_transcript_assignment(self.gdf, self.nbhd_col, gdf_trx)
         stats = stats.reindex(self.obs.index.astype(str))
+        obs = self.obs.copy()
         for col in stats.columns:
             obs[col] = stats[col].to_numpy()
         self.obs = obs

@@ -205,8 +205,8 @@ def _coerce_nbhd_for_landscape(
 class Landscape(anywidget.AnyWidget):
     """
     A widget for interactive visualization of spatial omics data. This widget
-    currently supports iST (Xenium and MERSCOPE) and sST (Visium HD data, with and
-    without cell segmentation).
+    currently supports segmented spatial transcriptomics data (Xenium, MERSCOPE,
+    Visium HD) and H&E image data.
 
     Args:
         ini_x (float): The initial x-coordinate of the view.
@@ -264,7 +264,6 @@ class Landscape(anywidget.AnyWidget):
     rotation_orbit = traitlets.Float(0).tag(sync=True)
     rotation_x = traitlets.Float(0).tag(sync=True)
     rotate = traitlets.Float(0).tag(sync=True)
-    square_tile_size = traitlets.Float(1.4).tag(sync=True)
     dataset_name = traitlets.Unicode("").tag(sync=True)
     region = traitlets.Dict({}).tag(sync=True)
     scale_bar_microns_per_pixel = traitlets.Float(default_value=None, allow_none=True).tag(

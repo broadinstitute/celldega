@@ -4,6 +4,15 @@ All notable changes to Celldega are documented here. This project follows
 [Keep a Changelog](https://keepachangelog.com/) conventions and
 [semantic versioning](https://semver.org/).
 
+## [0.18.1] - 2026-07-15
+
+### Fixed
+
+- **Pinned `numpy<2`** — the previously unconstrained `numpy` dependency let
+  pip resolve numpy 2.x in environments that already had numpy1-ABI binary
+  wheels (e.g. `h5py`) installed, causing `ValueError: numpy.dtype size
+  changed, may indicate binary incompatibility` on `import celldega`.
+
 ## [0.18.0] - 2026-06-26
 
 Adds a set-level Collection entity, harmonizes the collection feature-calculation

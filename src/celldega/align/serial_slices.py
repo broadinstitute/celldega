@@ -58,16 +58,16 @@ def _validate_slices(slices: list[AnnData], slice_ids: list[Any]) -> None:
             )
 
 
-def _validate_landmarks(landmarks: pd.DataFrame, slice_key: str) -> None:
-    required = {slice_key, "label", "x", "y"}
+def _validate_landmarks(landmarks: pd.DataFrame, slice_attr: str) -> None:
+    required = {slice_attr, "label", "x", "y"}
     missing = required - set(landmarks.columns)
     if missing:
         raise ValueError(f"landmarks is missing required column(s): {sorted(missing)}")
 
 
-def _slice_landmarks(landmarks: pd.DataFrame, slice_id: Any, slice_key: str) -> pd.DataFrame:
+def _slice_landmarks(landmarks: pd.DataFrame, slice_id: Any, slice_attr: str) -> pd.DataFrame:
     """One slice's landmarks as a ``label``-indexed ``x``/``y``/``count`` table."""
-    subset = landmarks.loc[landmarks[slice_key] == slice_id]
+    subset = landmarks.loc[landmarks[slice_attr] == slice_id]
     if subset.empty:
         raise ValueError(f"landmarks has no rows for slice {slice_id!r}")
     if subset["label"].duplicated().any():
@@ -185,7 +185,7 @@ def _z_values(n: int, reference: int, z_space: float, z_coord: list[float] | Non
 def align_serial_slices(
     adatas: AnnData | list[AnnData],
     landmarks: pd.DataFrame,
-    slice_key: str | None = None,
+    slice_attr: str | None = None,
     z_space: float = 1.0,
     z_coord: list[float] | None = None,
     reference: int = 0,
@@ -211,11 +211,11 @@ def align_serial_slices(
     Args:
         adatas: Either a list of per-slice ``AnnData`` (list order is slice
             order), or a single ``AnnData`` combining all slices, in which
-            case ``slice_key`` is required to split it into slices. Only
+            case ``slice_attr`` is required to split it into slices. Only
             ``obsm["spatial"]`` is used — this function has no knowledge of
             cell metadata; landmarks are supplied separately.
         landmarks: A plain ``DataFrame`` of landmarks to fit against, with
-            columns ``slice_key`` (values matching the resolved slice ids),
+            columns ``slice_attr`` (values matching the resolved slice ids),
             ``label`` (matches a landmark across slices; unique per slice),
             ``x``/``y`` (in that slice's own ``obsm["spatial"]`` coordinate
             space), and optionally ``count`` (omit or leave ``NaN`` for a
@@ -225,7 +225,7 @@ def align_serial_slices(
             slice, then ``pandas.concat``), a manually-placed landmark
             table in the same shape, or both concatenated together for a
             semi-manual mix.
-        slice_key: For a single combined ``AnnData``, the ``obs`` column
+        slice_attr: For a single combined ``AnnData``, the ``obs`` column
             identifying each cell's slice (required in that case). For a
             list of ``AnnData``, the name to give the new ``obs`` column
             recording each cell's origin slice index in the output, and the
@@ -292,7 +292,7 @@ def align_serial_slices(
 
     Raises:
         ValueError: If ``adatas`` is a single ``AnnData`` without
-            ``slice_key``, if fewer than 2 slices are given, if a slice is
+            ``slice_attr``, if fewer than 2 slices are given, if a slice is
             missing ``obsm["spatial"]``, if ``landmarks`` is missing a
             required column or has no rows for some slice, if ``reference``
             is out of range, if ``z_coord`` is given with the wrong length,
@@ -302,7 +302,7 @@ def align_serial_slices(
             its neighbor window, or if the fit itself rejects the shared
             landmarks (e.g. a degenerate configuration for TPS).
     """
-    slice_ids, slices, slice_key = _ordered_slices(adatas, slice_key)
+    slice_ids, slices, slice_attr = _ordered_slices(adatas, slice_attr)
     n = len(slices)
     if n < 2:
         raise ValueError("align_serial_slices requires at least 2 slices")
@@ -310,11 +310,11 @@ def align_serial_slices(
         raise ValueError(f"reference must be in [0, {n - 1}], got {reference}")
     if alignment_window < 1:
         raise ValueError(f"alignment_window must be >= 1, got {alignment_window}")
-    _validate_landmarks(landmarks, slice_key)
+    _validate_landmarks(landmarks, slice_attr)
     fit_transform = _resolve_fit_function(method, allow_reflection, smoothing)
     _validate_slices(slices, slice_ids)
 
-    all_stats = [_slice_landmarks(landmarks, slice_id, slice_key) for slice_id in slice_ids]
+    all_stats = [_slice_landmarks(landmarks, slice_id, slice_attr) for slice_id in slice_ids]
 
     aligned_slices: list[AnnData | None] = [None] * n
     centroids_cache: list[pd.DataFrame | None] = [None] * n
@@ -392,20 +392,20 @@ def align_serial_slices(
     z_values = _z_values(n, reference, z_space, z_coord)
     for idx, adata in enumerate(aligned_slices):
         adata.obs[key_added] = z_values[idx]
-        adata.obs[slice_key] = slice_ids[idx]
+        adata.obs[slice_attr] = slice_ids[idx]
 
     aligned_frames = []
     for idx, stats in enumerate(centroids_cache):
         frame = stats.reset_index()
-        frame[slice_key] = slice_ids[idx]
+        frame[slice_attr] = slice_ids[idx]
         aligned_frames.append(frame)
     landmarks_aligned = pd.concat(aligned_frames, ignore_index=True)[
-        [slice_key, "label", "x", "y", "count"]
+        [slice_attr, "label", "x", "y", "count"]
     ]
 
     adata_aligned = ad.concat(aligned_slices, join="outer")
     adata_aligned.uns["align_serial_slices"] = {
-        "slice_key": slice_key,
+        "slice_attr": slice_attr,
         "reference": str(slice_ids[reference]),
         "alignment_window": alignment_window,
         "method": method,

@@ -81,7 +81,7 @@ def test_calc_landmarks_combined_anndata_mode_matches_list_mode():
     adata0.obs["batch"] = "x"
     adata1.obs["batch"] = "y"
     combined = ad.concat([adata0, adata1])
-    from_combined = calc_landmarks(combined, "cluster", slice_key="batch")
+    from_combined = calc_landmarks(combined, "cluster", slice_attr="batch")
 
     assert set(from_combined.columns) == {"label", "x", "y", "count", "batch"}
     assert sorted(from_combined["batch"].unique().tolist()) == ["x", "y"]
@@ -93,9 +93,9 @@ def test_calc_landmarks_combined_anndata_mode_matches_list_mode():
         assert np.allclose([list_row["x"], list_row["y"]], [combined_row["x"], combined_row["y"]])
 
 
-def test_calc_landmarks_single_anndata_missing_slice_key_column_raises():
+def test_calc_landmarks_single_anndata_missing_slice_attr_column_raises():
     rng = np.random.default_rng(5)
     adata = _make_adata(rng, {"a": 2, "b": 2, "c": 2})  # has no "batch" column
 
     with pytest.raises(ValueError, match="not a column"):
-        calc_landmarks(adata, "cluster", slice_key="batch")
+        calc_landmarks(adata, "cluster", slice_attr="batch")

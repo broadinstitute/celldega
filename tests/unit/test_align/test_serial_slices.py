@@ -77,8 +77,8 @@ def _make_slice_with_counts(rng, counts, rotation_deg=0.0, translation=(0.0, 0.0
     return adata
 
 
-def _centroid(adata, slice_key, slice_id, label):
-    mask = (adata.obs[slice_key] == slice_id).to_numpy() & (
+def _centroid(adata, slice_attr, slice_id, label):
+    mask = (adata.obs[slice_attr] == slice_id).to_numpy() & (
         adata.obs["cluster"] == label
     ).to_numpy()
     return np.asarray(adata.obsm["spatial"])[mask].mean(axis=0)
@@ -109,9 +109,9 @@ def test_align_from_single_combined_anndata_matches_list_input():
     slice1.obs["batch"] = "b"
 
     manual = ad.concat([slice0, slice1], join="outer")
-    landmarks = calc_landmarks(manual, "cluster", slice_key="batch")
+    landmarks = calc_landmarks(manual, "cluster", slice_attr="batch")
 
-    combined = align_serial_slices(manual, landmarks=landmarks, slice_key="batch", reference=0)
+    combined = align_serial_slices(manual, landmarks=landmarks, slice_attr="batch", reference=0)
 
     for label in _TRUE_CENTERS:
         c_ref = _centroid(combined, "batch", "a", label)
@@ -182,12 +182,12 @@ def test_insufficient_shared_landmarks_raises():
         align_serial_slices([slice0, slice1], landmarks=landmarks)
 
 
-def test_single_anndata_without_slice_key_raises():
+def test_single_anndata_without_slice_attr_raises():
     rng = np.random.default_rng(5)
     slice0 = _make_slice(rng)
     placeholder_landmarks = pd.DataFrame({"slice": [0], "label": ["0"], "x": [0.0], "y": [0.0]})
 
-    with pytest.raises(ValueError, match="slice_key is required"):
+    with pytest.raises(ValueError, match="slice_attr is required"):
         align_serial_slices(slice0, landmarks=placeholder_landmarks)
 
 

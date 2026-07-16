@@ -13,7 +13,7 @@ from a drawing widget) is a small ``x``/``y`` extraction away from this shape.
 
 Accepts the same two multi-slice input shapes as
 :func:`~celldega.align.serial_slices.align_serial_slices` (a list of
-``AnnData``, or one combined ``AnnData`` + ``slice_key``), so building a
+``AnnData``, or one combined ``AnnData`` + ``slice_attr``), so building a
 multi-slice landmarks table doesn't require a manual per-slice loop.
 """
 
@@ -46,7 +46,7 @@ def _one_slice_landmarks(adata: AnnData, cluster_key: str) -> pd.DataFrame:
 
 
 def calc_landmarks(
-    adatas: AnnData | list[AnnData], cluster_key: str, slice_key: str | None = None
+    adatas: AnnData | list[AnnData], cluster_key: str, slice_attr: str | None = None
 ) -> pd.DataFrame:
     """Compute one landmark per cluster label, at that cluster's centroid.
 
@@ -55,14 +55,14 @@ def calc_landmarks(
             ``obsm["spatial"]`` (returns landmarks with no slice tagging,
             matching the ``landmarks`` shape for a single dataset), a list
             of per-slice ``AnnData`` (list order is slice order), or a
-            single combined ``AnnData`` with ``slice_key`` given, to be
+            single combined ``AnnData`` with ``slice_attr`` given, to be
             split into slices by that ``obs`` column. In the latter two
-            cases the result is tagged with a ``slice_key`` column so it can
+            cases the result is tagged with a ``slice_attr`` column so it can
             be passed straight to
             :func:`~celldega.align.serial_slices.align_serial_slices`.
         cluster_key: ``obs`` column with cluster labels to compute
             centroids for.
-        slice_key: For a single combined ``AnnData``, the ``obs`` column
+        slice_attr: For a single combined ``AnnData``, the ``obs`` column
             identifying each cell's slice (required in that case, and
             triggers multi-slice output). For a list of ``AnnData``, the
             name to give the output's slice-tagging column (default
@@ -72,7 +72,7 @@ def calc_landmarks(
         A ``DataFrame`` with columns ``label`` (cluster label, as ``str``),
         ``x``/``y`` (the cluster's centroid, in each slice's own
         ``obsm["spatial"]`` coordinate space), and ``count`` (number of
-        cells in that cluster) — plus a ``slice_key`` column when computed
+        cells in that cluster) — plus a ``slice_attr`` column when computed
         over multiple slices. This is the shape
         :func:`~celldega.align.serial_slices.align_serial_slices`'s
         ``landmarks`` parameter expects, so manually-defined landmarks (same
@@ -83,15 +83,15 @@ def calc_landmarks(
         ValueError: If ``cluster_key`` is not a column in some slice's
             ``obs``, if some slice is missing ``obsm["spatial"]`` or has
             fewer than 2 columns there, or (multi-slice mode) if ``adatas``
-            is a single ``AnnData`` without ``slice_key``.
+            is a single ``AnnData`` without ``slice_attr``.
     """
-    if isinstance(adatas, AnnData) and slice_key is None:
+    if isinstance(adatas, AnnData) and slice_attr is None:
         return _one_slice_landmarks(adatas, cluster_key)
 
-    slice_ids, slices, slice_key = _ordered_slices(adatas, slice_key, copy=False)
+    slice_ids, slices, slice_attr = _ordered_slices(adatas, slice_attr, copy=False)
     frames = []
     for slice_id, adata in zip(slice_ids, slices, strict=True):
         frame = _one_slice_landmarks(adata, cluster_key)
-        frame[slice_key] = slice_id
+        frame[slice_attr] = slice_id
         frames.append(frame)
     return pd.concat(frames, ignore_index=True)

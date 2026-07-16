@@ -61,9 +61,7 @@ def test_streaming_assignment_batches_across_multiple_reads(tmp_path):
 def test_streaming_assignment_custom_column_names(tmp_path):
     gdf_entity = _synthetic_entities()
     path = tmp_path / "custom_trx.parquet"
-    pd.DataFrame(
-        {"xx": [1, 2], "yy": [1, 2], "name": ["GeneA", "GeneA"]}
-    ).to_parquet(path)
+    pd.DataFrame({"xx": [1, 2], "yy": [1, 2], "name": ["GeneA", "GeneA"]}).to_parquet(path)
 
     counts = _assign_trx_to_entity_streaming_parquet(
         str(path), gdf_entity, id_col="cell_id", x_col="xx", y_col="yy", gene_col="name"

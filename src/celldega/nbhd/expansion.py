@@ -1,4 +1,4 @@
-"""Radial expansion: per-entity buffering clipped to a matching bounding geometry.
+"""Expansion: per-entity buffering clipped to a matching bounding geometry.
 
 Unlike :mod:`celldega.nbhd.gradient` — which grows concentric rings outward from and
 inward into ONE dissolved region of interest (e.g. a tumor alpha shape) — this grows
@@ -26,7 +26,7 @@ from .gradient import _get_micron_per_pixel, _ring_colors
 _DEFAULT_RADII_UM: tuple[float, ...] = (0, 0.5, 1, 1.5, 2, 2.5, 3)
 
 
-def _calc_radial_expansion(
+def _calc_expansion(
     gdf_source: gpd.GeoDataFrame,
     gdf_bounds: gpd.GeoDataFrame,
     radii_um: Sequence[float] = _DEFAULT_RADII_UM,
@@ -40,7 +40,7 @@ def _calc_radial_expansion(
     mitre_limit: float = 5.0,
     add_colors: bool = True,
 ) -> dict[float, gpd.GeoDataFrame]:
-    """Engine behind :meth:`NeighborhoodCollection.calc_radial_expansion`.
+    """Engine behind :meth:`NeighborhoodCollection.calc_expansion`.
 
     For each radius in ``radii_um``, buffers every entity in ``gdf_source`` outward
     by that distance and intersects the result with the matching row (by
@@ -97,16 +97,10 @@ def _calc_radial_expansion(
 
     Examples:
         Prefer the public method, which anchors on a collection of entities and
-        returns one new collection per radius::
+        returns one new collection per radius (pass ``pixels_per_micron=`` for
+        pixel-space geometry, e.g. a notebook's own ``high_res_scale``)::
 
-            >>> series = nbhd_nuclei.calc_radial_expansion(gdf_cells, radii_um=[0, 1, 2, 3])
-
-        If geometry is in pixel space (e.g. built with a ``high_res_scale =
-        1 / scaling_factor`` px/micron factor, so ``buffer_dist = expand_um *
-        high_res_scale``), pass that same factor directly as
-        ``pixels_per_micron`` instead of inverting it yourself::
-
-            >>> series = nbhd_nuclei.calc_radial_expansion(
+            >>> series = nbhd_nuclei.calc_expansion(
             ...     gdf_cells, radii_um=[0, 1, 2, 3],
             ...     is_pixel_space=True, pixels_per_micron=high_res_scale,
             ... )
@@ -150,7 +144,9 @@ def _calc_radial_expansion(
         )
 
     radii_sorted = sorted({float(r) for r in radii_um})
-    colors = _ring_colors("viridis", len(radii_sorted)) if add_colors else [None] * len(radii_sorted)
+    colors = (
+        _ring_colors("viridis", len(radii_sorted)) if add_colors else [None] * len(radii_sorted)
+    )
     color_by_radius = dict(zip(radii_sorted, colors, strict=True))
 
     results: dict[float, gpd.GeoDataFrame] = {}

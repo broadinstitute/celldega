@@ -6,7 +6,7 @@ geometries and run a single :meth:`geopandas.GeoDataFrame.sjoin`. For a
 whole-tile ``transcripts.parquet`` (tens of millions of rows, e.g. covering a
 55,000 x 55,000 micron tile) that is more memory than is comfortable to hold —
 especially when the same file is assigned once per radius in a
-:meth:`~celldega.nbhd.collection.NeighborhoodCollection.calc_radial_expansion`
+:meth:`~celldega.nbhd.collection.NeighborhoodCollection.calc_expansion`
 series.
 
 This module instead streams the parquet file in batches via ``pyarrow``, and for
@@ -50,8 +50,8 @@ def _assign_trx_to_entity_streaming_parquet(
             ``gene_col``.
         gdf_entity: One row per entity to assign transcripts to — e.g. a nucleus,
             cell, or a single radius's buffered polygons from
-            :meth:`NeighborhoodCollection.calc_radial_expansion` — with an
-            ``id_col`` column and a ``geometry`` column.
+            :meth:`NeighborhoodCollection.calc_expansion` — with an ``id_col``
+            column and a ``geometry`` column.
         id_col: Column in ``gdf_entity`` identifying each entity.
         x_col: Transcript x-coordinate column in the parquet file.
         y_col: Transcript y-coordinate column in the parquet file.
@@ -143,7 +143,9 @@ def _assign_trx_to_entity_streaming_parquet(
         columns=[id_col, gene_col, "count"],
     )
     return (
-        df_long.pivot_table(index=id_col, columns=gene_col, values="count", fill_value=0, aggfunc="sum")
+        df_long.pivot_table(
+            index=id_col, columns=gene_col, values="count", fill_value=0, aggfunc="sum"
+        )
         .rename_axis(None, axis=1)
         .astype(int)
     )

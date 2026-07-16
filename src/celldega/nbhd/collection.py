@@ -314,11 +314,11 @@ class NeighborhoodCollection(CelldegaCollection):
         )
         return type(self)(gdf=gdf_rings, nbhd_type=nbhd_type, **kwargs)
 
-    def calc_radial_expansion(
+    def calc_expansion(
         self,
         gdf_bounds: gpd.GeoDataFrame,
         radii_um: Sequence[float] = (0, 0.5, 1, 1.5, 2, 2.5, 3),
-        nbhd_type: str = "radial_expansion",
+        nbhd_type: str = "expansion",
         *,
         technology: str | None = None,
         scale_um_per_pixel: float | None = None,
@@ -336,40 +336,35 @@ class NeighborhoodCollection(CelldegaCollection):
         collection independently, using each one as its own tiny ROI, and clips
         the result to a matching row in ``gdf_bounds`` (joined by
         ``self.nbhd_col``). One new ``NeighborhoodCollection`` is returned per
-        radius, all sharing the same observation axis (the entity ids) so
-        ``calc_signature``/``calc_population`` results stay directly comparable
-        across radii.
+        radius, all sharing the same observation axis so ``calc_signature``/
+        ``calc_population`` results stay directly comparable across radii.
 
         The canonical use case is a segmented nucleus growing outward until it
-        reaches its corresponding cell boundary — e.g. to see how nuclear vs.
-        cytoplasmic transcript capture changes as the working boundary is
-        expanded toward the true cell membrane — but ``gdf_bounds`` can be any
+        reaches its corresponding cell boundary, but ``gdf_bounds`` can be any
         per-entity containing geometry (this collection's entities need not be
         nuclei, and ``gdf_bounds`` need not be cells).
 
         Args:
             gdf_bounds: Per-entity clipping boundary (e.g. a cell segmentation
                 polygon for each nucleus), with a column named ``self.nbhd_col``
-                matching this collection's neighborhood ids and a ``geometry``
-                column. Every buffered entity is intersected with its matching
-                row.
+                and a ``geometry`` column. Every buffered entity is intersected
+                with its matching row.
             radii_um: Buffer distances in microns (default ``0`` through ``3`` in
                 ``0.5`` steps). ``0`` returns the original (validity-repaired)
                 entity geometry, clipped to its bound.
             nbhd_type: Label recorded on each returned collection (default
-                ``"radial_expansion"``).
+                ``"expansion"``).
             technology: Imaging platform used to look up ``scale_um_per_pixel``
                 for pixel-space geometry (e.g. ``"Xenium"``).
-            scale_um_per_pixel: Microns per pixel — the factor a micron distance
-                is *divided* by to get pixels. Required (directly, via
+            scale_um_per_pixel: Microns per pixel (a micron distance is
+                *divided* by this to get pixels). Required (directly, via
                 ``technology``, or via ``pixels_per_micron``) when
-                ``is_pixel_space=True``. Takes precedence over
+                ``is_pixel_space=True``; takes precedence over
                 ``pixels_per_micron`` if both are given.
-            pixels_per_micron: Pixels per micron — the reciprocal convention,
-                where a micron distance is *multiplied* by this factor to get
-                pixels (e.g. a notebook's own ``buffer_dist = expand_um *
-                high_res_scale``). Equivalent to passing
-                ``scale_um_per_pixel=1 / pixels_per_micron``.
+            pixels_per_micron: Pixels per micron — the reciprocal convention
+                (a micron distance is *multiplied* by this to get pixels, e.g. a
+                notebook's own ``buffer_dist = expand_um * high_res_scale``).
+                Equivalent to ``scale_um_per_pixel=1 / pixels_per_micron``.
             is_pixel_space: ``True`` if this collection's geometry is in pixel
                 units; ``False`` (default) if already in microns.
             join_style: Shapely buffer join style (``1``=round, ``2``=mitre
@@ -394,31 +389,19 @@ class NeighborhoodCollection(CelldegaCollection):
 
         Examples:
             >>> nbhd_nuclei = NeighborhoodCollection(gdf=gdf_nuclei, nbhd_col="cell_id")
-            >>> series = nbhd_nuclei.calc_radial_expansion(gdf_cells, radii_um=[0, 1, 2, 3])
+            >>> series = nbhd_nuclei.calc_expansion(gdf_cells, radii_um=[0, 1, 2, 3])
             >>> for radius, nbhd in series.items():
             ...     nbhd.calc_signature(by="cell-free", gdf_trx=gdf_trx, drop_missing=False)
-
-            If this collection's geometry is in pixel space, pass whichever
-            scale factor your pipeline already computes — e.g. a
-            ``high_res_scale`` (pixels/micron) straight from a notebook, with no
-            need to invert it into microns/pixel first::
-
-            >>> series = nbhd_nuclei.calc_radial_expansion(
-            ...     gdf_cells, radii_um=[0, 1, 2, 3],
-            ...     is_pixel_space=True, pixels_per_micron=high_res_scale,
-            ... )
         """
-        from celldega.nbhd.radial_expansion import _calc_radial_expansion
+        from celldega.nbhd.expansion import _calc_expansion
 
         if self.gdf is None:
-            raise ValueError(
-                "gdf or geometry is required to calculate a radial expansion series"
-            )
+            raise ValueError("gdf or geometry is required to calculate an expansion series")
 
         if self.transformation_matrix is not None and "transformation_matrix" not in kwargs:
             kwargs["transformation_matrix"] = self.transformation_matrix
 
-        per_radius_gdf = _calc_radial_expansion(
+        per_radius_gdf = _calc_expansion(
             self.gdf,
             gdf_bounds,
             radii_um=radii_um,
@@ -601,26 +584,22 @@ class NeighborhoodCollection(CelldegaCollection):
                 `x_location`/`y_location` columns); defaults to ``self.data_dir``.
                 Used only when neither ``gdf_trx`` nor ``trx_parquet_path`` is
                 given.
-            gdf_trx: Pre-loaded transcript points for ``by="cell-free"``, for
-                transcript sources that don't follow the ``data_dir`` convention
-                (custom paths, column names, or pre-filtering). Loads the whole
-                frame into memory for one spatial join; takes precedence over
-                ``trx_parquet_path`` and ``data_dir``.
-            feature_col: Gene/feature column name (default ``"feature_name"``).
-                Used as the column in ``gdf_trx`` when given, or as the gene
-                column when streaming from ``trx_parquet_path``.
-            trx_parquet_path: Path to a transcripts parquet file (or dataset) to
-                stream in batches instead of loading into memory — for transcript
-                files too large for an in-memory ``gdf_trx``/``data_dir`` join
-                (e.g. a whole-tile file streamed once per radius across a
-                :meth:`calc_radial_expansion` series). Requires
-                ``x_col``/``y_col``/``feature_col`` to match its columns. Takes
-                precedence over ``data_dir`` but not ``gdf_trx``.
+            gdf_trx: Pre-loaded transcript points for ``by="cell-free"`` (custom
+                paths/column names); loads the whole frame into memory for one
+                spatial join. Takes precedence over ``trx_parquet_path`` and
+                ``data_dir``.
+            feature_col: Gene/feature column name (default ``"feature_name"``),
+                used with ``gdf_trx`` or as the gene column when streaming from
+                ``trx_parquet_path``.
+            trx_parquet_path: Transcripts parquet path to stream in batches
+                instead of loading into memory — for transcript files too large
+                for an in-memory join (e.g. a whole-tile file streamed once per
+                radius across a :meth:`calc_expansion` series). Takes precedence
+                over ``data_dir`` but not ``gdf_trx``.
             x_col: Transcript x-coordinate column in ``trx_parquet_path``.
             y_col: Transcript y-coordinate column in ``trx_parquet_path``.
             batch_size: Rows read per streamed batch when using
-                ``trx_parquet_path``. Bounds peak memory use; does not affect the
-                result.
+                ``trx_parquet_path``.
             drop_missing: When ``True`` (default), neighborhoods with fewer than
                 ``min_cells`` cells (or transcripts) are removed from the
                 collection entirely. When ``False``, the collection keeps all
@@ -766,60 +745,38 @@ class NeighborhoodCollection(CelldegaCollection):
     ) -> None:
         """Add per-neighborhood transcript-count columns to ``obs``.
 
-        Two mutually exclusive modes:
+        Default (audit) mode reads a Xenium-convention ``transcripts.parquet``
+        that already carries a per-transcript ``cell_id`` column (unassigned
+        transcripts marked ``"UNASSIGNED"``) and adds ``total_transcripts``,
+        ``unassigned_transcripts``, and ``transcript_assignment_proportion`` —
+        assignment isn't computed here, just audited.
 
-        - **Audit mode** (default, ``data_dir``): reads a Xenium-convention
-          ``transcripts.parquet`` that already carries a per-transcript
-          ``cell_id`` column (unassigned transcripts marked by the
-          ``"UNASSIGNED"`` sentinel) and adds ``total_transcripts``,
-          ``unassigned_transcripts``, and ``transcript_assignment_proportion``.
-          The transcript-to-cell assignment is **not computed** in this mode —
-          it must already be present in the instrument data.
-        - **Streaming mode** (``trx_parquet_path``): computes transcript-to-
-          neighborhood assignment from geometry — via the same batched,
-          spatial-index-accelerated point-in-polygon join used by
-          ``calc_signature(trx_parquet_path=...)`` — for transcript files that
-          don't carry a pre-existing per-transcript assignment (e.g. a custom
-          pipeline's ``x``/``y``/gene ``transcripts.parquet`` with no
-          ``cell_id`` column, or a radius from
-          :meth:`calc_radial_expansion`). Adds only ``total_transcripts`` —
-          there's no pre-existing assignment to compare against, so
-          ``unassigned_transcripts``/``transcript_assignment_proportion`` don't
-          apply. For a full gene expression matrix (not just totals) in this
-          mode, use ``calc_signature(by="cell-free", trx_parquet_path=...)``
-          instead.
+        Pass ``trx_parquet_path`` instead to compute ``total_transcripts`` from
+        geometry via the same streaming, spatial-index-accelerated join as
+        ``calc_signature(trx_parquet_path=...)``, for transcripts with no
+        pre-existing ``cell_id`` (e.g. a custom pipeline's own ``x``/``y``/gene
+        file). Only ``total_transcripts`` is added in this mode; use
+        ``calc_signature`` for a full gene expression matrix.
 
         Args:
-            data_dir: Directory containing a Xenium-convention
-                ``transcripts.parquet`` for audit mode; defaults to
-                ``self.data_dir``. Ignored when ``trx_parquet_path`` is given.
-            trx_parquet_path: Path to a transcripts parquet file (or dataset) to
-                stream in batches for streaming mode, instead of audit mode.
-            x_col: Transcript x-coordinate column in ``trx_parquet_path``
-                (streaming mode only).
-            y_col: Transcript y-coordinate column in ``trx_parquet_path``
-                (streaming mode only).
-            gene_col: Transcript gene/feature column in ``trx_parquet_path``
-                (streaming mode only) — only used to batch the point-in-polygon
-                join; the per-gene breakdown itself is discarded here.
+            data_dir: Directory with a Xenium-convention ``transcripts.parquet``
+                (audit mode); defaults to ``self.data_dir``. Ignored when
+                ``trx_parquet_path`` is given.
+            trx_parquet_path: Transcripts parquet path to stream for
+                geometry-based counting instead of audit mode.
+            x_col: Transcript x-coordinate column (streaming mode only).
+            y_col: Transcript y-coordinate column (streaming mode only).
+            gene_col: Transcript gene column (streaming mode only) — only used
+                to batch the join; the per-gene breakdown is discarded.
             batch_size: Rows read per streamed batch (streaming mode only).
-                Bounds peak memory use; does not affect the result.
 
         Returns:
             ``None`` — the columns are added to ``self.obs``.
 
         Raises:
-            ValueError: If geometry is missing, the transcripts lack a
-                ``cell_id`` column in audit mode, or neither ``data_dir`` nor
-                ``trx_parquet_path`` resolves to a usable transcript source. A
-                complete absence of the ``"UNASSIGNED"`` sentinel in audit mode
-                only warns.
-
-        Examples:
-            >>> nbhd.calc_transcript_assignment(
-            ...     trx_parquet_path="dataset_transcripts.parquet",
-            ...     x_col="x", y_col="y", gene_col="name",
-            ... )
+            ValueError: If geometry is missing, transcripts lack ``cell_id`` in
+                audit mode, or neither transcript source is given. Audit mode
+                only warns if the ``"UNASSIGNED"`` sentinel is entirely absent.
         """
         if self.gdf is None:
             raise ValueError("gdf or geometry is required to calculate transcript assignment")

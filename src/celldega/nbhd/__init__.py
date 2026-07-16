@@ -10,6 +10,8 @@ from .utils import (
     _get_df_cell,
     _get_gdf_cell,
     _get_gdf_trx,
+    df_to_anndata,
+    gdf_from_contour_coords,
 )
 
 
@@ -22,7 +24,9 @@ __all__ = [
     "_get_gdf_trx",
     "alpha_shape",
     "alpha_shape_cell_clusters",
+    "df_to_anndata",
     "filter_alpha_shapes",
+    "gdf_from_contour_coords",
     "generate_hextile",
     "hextile_niche",
 ]

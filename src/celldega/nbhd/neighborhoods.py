@@ -21,38 +21,11 @@ import pandas as pd
 from scipy import sparse
 
 from celldega.nbhd.collection import NeighborhoodCollection
+from celldega.nbhd.utils import df_to_anndata
 
 
 def _nbhd_geometry_for_join(gdf_nbhd: gpd.GeoDataFrame, nbhd_col: str) -> gpd.GeoDataFrame:
     return gdf_nbhd[[nbhd_col, "geometry"]].reset_index(drop=True)
-
-
-def _pivot_trx_counts_by_sjoin(
-    gdf_trx_pts: gpd.GeoDataFrame,
-    feature_col: str,
-    nbhd_col: str,
-    gdf_nbhd: gpd.GeoDataFrame,
-) -> pd.DataFrame:
-    """In-memory transcript-to-neighborhood counts via a single spatial join.
-
-    Shared by the ``gdf_trx=`` and ``data_dir=`` cell-free code paths. For
-    transcript files too large to hold in memory this way, see
-    :mod:`celldega.nbhd.trx_streaming` (``trx_parquet_path=``) instead.
-    """
-    joined = gdf_trx_pts.sjoin(
-        _nbhd_geometry_for_join(gdf_nbhd, nbhd_col),
-        how="left",
-        predicate="within",
-    )
-    return (
-        joined.groupby([nbhd_col, feature_col])
-        .size()
-        .unstack(fill_value=0)
-        .rename_axis(None, axis=1)
-        .reindex(gdf_nbhd[nbhd_col])
-        .fillna(0)
-        .astype(int)
-    )
 
 
 def _calc_nbhd_by_gene(
@@ -76,8 +49,8 @@ def _calc_nbhd_by_gene(
     :meth:`NeighborhoodCollection.calc_signature`.
 
     Computes gene expression values for each neighborhood, either from cell-level
-    expression data (mean expression of cells within each neighborhood) or from
-    raw transcript counts (cell-free mode).
+    expression data (mean expression of cells within each neighborhood, `by="cell"`)
+    or from raw transcript counts (`by="cell-free"`).
 
     Parameters
     ----------
@@ -85,59 +58,43 @@ def _calc_nbhd_by_gene(
         GeoDataFrame containing neighborhood geometries. Must have a geometry column
         and a column specified by `nbhd_col` for neighborhood identifiers.
     by : str, default "cell"
-        Method for calculating gene expression:
-        - "cell": Mean expression of cells within each neighborhood (requires `adata`)
-        - "cell-free": Transcript counts within each neighborhood (requires `data_dir`
-          or a pre-loaded `gdf_trx`)
+        "cell" (requires `adata`) or "cell-free" (requires one of `gdf_trx`,
+        `trx_parquet_path`, `data_dir`).
     adata : AnnData, optional
         AnnData object with cell data. Required when `by="cell"`. Must have spatial
         coordinates in `obsm["spatial"]`.
     data_dir : str, optional
-        Path to a directory containing a Xenium-convention `transcripts.parquet`
-        (`feature_name`/`x_location`/`y_location` columns). Used when
-        `by="cell-free"` and neither `gdf_trx` nor `trx_parquet_path` is given.
+        Directory with a Xenium-convention `transcripts.parquet`
+        (`feature_name`/`x_location`/`y_location` columns). Used for `by="cell-free"`
+        when neither `gdf_trx` nor `trx_parquet_path` is given.
     gdf_trx : gpd.GeoDataFrame, optional
-        Pre-loaded transcript points, for transcript sources that don't follow the
-        `data_dir` convention (custom file paths, column names, or pre-filtering).
-        Must have a `geometry` column of transcript points and a gene/feature
-        column named `feature_col`. Takes precedence over `trx_parquet_path` and
-        `data_dir`.
+        Pre-loaded transcript points for `by="cell-free"` (custom paths/column
+        names); a `geometry` column plus a gene column named `feature_col`. Takes
+        precedence over `trx_parquet_path` and `data_dir`.
     feature_col : str, default "feature_name"
-        Gene/feature column name. Used as the column in `gdf_trx` when it is
-        given, or as `gene_col` when streaming from `trx_parquet_path` (transcripts
-        loaded from `data_dir` always use the Xenium `feature_name` column).
+        Gene/feature column name, used with `gdf_trx` or as `gene_col` when
+        streaming from `trx_parquet_path` (`data_dir` always uses `feature_name`).
     trx_parquet_path : str, optional
-        Path to a transcripts parquet file (or dataset) to stream in batches
-        instead of loading into memory — for transcript files too large for an
-        in-memory `gdf_trx`/`data_dir` join. Requires `x_col`/`y_col`/`feature_col`
-        to match its columns. Takes precedence over `data_dir` but not `gdf_trx`.
-    x_col : str, default "x"
-        Transcript x-coordinate column in `trx_parquet_path`.
-    y_col : str, default "y"
-        Transcript y-coordinate column in `trx_parquet_path`.
+        Transcripts parquet path to stream in batches for `by="cell-free"`
+        instead of loading into memory (see `celldega.nbhd.trx_streaming`); takes
+        precedence over `data_dir` but not `gdf_trx`.
+    x_col, y_col : str, default "x", "y"
+        Transcript coordinate columns in `trx_parquet_path`.
     batch_size : int, default 1_000_000
-        Rows read per streamed batch when using `trx_parquet_path`. Bounds peak
-        memory use; does not affect the result.
+        Rows read per streamed batch when using `trx_parquet_path`.
     nbhd_col : str, default "name"
         Column in `gdf_nbhd` containing neighborhood identifiers.
     min_cells : int, default 1
         Minimum number of cells/transcripts required within a neighborhood to
-        include it in the output. Only applies when `by="cell"`.
+        include it in the output.
 
     Returns
     -------
     AnnData
-        AnnData object with shape (n_neighborhoods, n_genes) where:
-        - `X`: Matrix of gene expression values (mean for cell-derived, counts for cell-free)
-        - `obs`: DataFrame indexed by neighborhood names
-        - `var`: DataFrame indexed by gene names
-        - `obs["n_cells"]`: Cell count per neighborhood (when `by="cell"`)
-        - `uns["by"]`: Method used ("cell" or "cell-free")
-
-    Notes
-    -----
-    For cluster-specific gene expression analysis, filter your AnnData object
-    to include only cells from the desired cluster before calling this function.
+        Shape (n_neighborhoods, n_genes): `X` = expression values (mean for
+        cell-derived, counts for cell-free), `obs`/`var` indexed by neighborhood/
+        gene, plus `obs["n_cells"]` (`by="cell"`) or `obs["n_transcripts"]`
+        (`by="cell-free"`) and `uns["by"]`.
     """
     if by == "cell":
         if adata is None:
@@ -179,21 +136,23 @@ def _calc_nbhd_by_gene(
         # Reindex to preserve order
         df_result = df_result.reindex(filtered_gdf[nbhd_col]).fillna(0)
 
-        # Build AnnData
-        adata_nbg = AnnData(
-            X=df_result.values,
-            obs=pd.DataFrame(index=df_result.index),
-            var=pd.DataFrame(index=df_result.columns),
-        )
-
-        # Add cell counts
+        adata_nbg = df_to_anndata(df_result)
         adata_nbg.obs["n_cells"] = [cell_counts.get(n, 0) for n in adata_nbg.obs.index]
 
     elif by == "cell-free":
         if gdf_trx is not None:
             print("Calculating neighborhood-by-gene (cell-free, provided gdf_trx)")
-            df_result = _pivot_trx_counts_by_sjoin(
-                gdf_trx[[feature_col, "geometry"]], feature_col, nbhd_col, gdf_nbhd
+            joined = gdf_trx[[feature_col, "geometry"]].sjoin(
+                _nbhd_geometry_for_join(gdf_nbhd, nbhd_col), how="left", predicate="within"
+            )
+            df_result = (
+                joined.groupby([nbhd_col, feature_col])
+                .size()
+                .unstack(fill_value=0)
+                .rename_axis(None, axis=1)
+                .reindex(gdf_nbhd[nbhd_col])
+                .fillna(0)
+                .astype(int)
             )
         elif trx_parquet_path is not None:
             print("Calculating neighborhood-by-gene (cell-free, streaming parquet)")
@@ -222,9 +181,19 @@ def _calc_nbhd_by_gene(
                 engine="pyarrow",
             )
             geometry = gpd.points_from_xy(df_trx["x_location"], df_trx["y_location"])
-            gdf_trx_xenium = gpd.GeoDataFrame(df_trx[["feature_name"]], geometry=geometry)
             feature_col = "feature_name"
-            df_result = _pivot_trx_counts_by_sjoin(gdf_trx_xenium, feature_col, nbhd_col, gdf_nbhd)
+            joined = gpd.GeoDataFrame(df_trx[[feature_col]], geometry=geometry).sjoin(
+                _nbhd_geometry_for_join(gdf_nbhd, nbhd_col), how="left", predicate="within"
+            )
+            df_result = (
+                joined.groupby([nbhd_col, feature_col])
+                .size()
+                .unstack(fill_value=0)
+                .rename_axis(None, axis=1)
+                .reindex(gdf_nbhd[nbhd_col])
+                .fillna(0)
+                .astype(int)
+            )
         else:
             raise ValueError(
                 "data_dir, gdf_trx, or trx_parquet_path is required when by='cell-free'"
@@ -237,14 +206,7 @@ def _calc_nbhd_by_gene(
 
         filtered_gdf = gdf_nbhd[gdf_nbhd[nbhd_col].isin(valid_nbhds)].reset_index(drop=True)
 
-        # Build AnnData
-        adata_nbg = AnnData(
-            X=df_result.values,
-            obs=pd.DataFrame(index=df_result.index),
-            var=pd.DataFrame(index=df_result.columns),
-        )
-
-        # Add transcript counts
+        adata_nbg = df_to_anndata(df_result)
         adata_nbg.obs["n_transcripts"] = trx_counts.loc[valid_nbhds].values
 
     else:

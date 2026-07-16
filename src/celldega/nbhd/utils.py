@@ -5,10 +5,11 @@ from collections.abc import Sequence
 from typing import Any
 
 # Third-party imports
+from anndata import AnnData
 import geopandas as gpd
 import numpy as np
 import pandas as pd
-from shapely.geometry import Point, base
+from shapely.geometry import Point, Polygon, base
 from shapely.ops import transform
 
 
@@ -147,3 +148,72 @@ def _round_coordinates(
         return (round(x, precision), round(y, precision))
 
     return transform(round_coords, geometry)
+
+
+def gdf_from_contour_coords(
+    df_contours: pd.DataFrame,
+    id_col: str = "cell_id",
+    x_col: str = "vertex_x",
+    y_col: str = "vertex_y",
+) -> gpd.GeoDataFrame:
+    """
+    Build a polygon GeoDataFrame from a long-format vertex-coordinate table.
+
+    Each row of `df_contours` is one polygon vertex, in order; rows sharing the
+    same `id_col` value become one polygon -- the shape produced by exporting a
+    segmentation mask's contours to CSV (e.g. a `*_nuclei_contour_coords.csv` /
+    `*_cell_contour_coords.csv` pair, one row per `(id_col, x_col, y_col)`
+    vertex). A group that fails to form a valid polygon (e.g. fewer than 3
+    vertices) becomes an empty geometry rather than raising, so one malformed
+    entity doesn't break the whole batch.
+
+    Any coordinate offsetting/rescaling (e.g. converting instrument microns to
+    a registered image's pixel space) should be applied to `df_contours[x_col]`/
+    `df_contours[y_col]` before calling this function.
+
+    Parameters
+    ----------
+    df_contours : pd.DataFrame
+        Long-format vertex table with `id_col`, `x_col`, `y_col` columns.
+    id_col : str, default "cell_id"
+        Column identifying which polygon each vertex belongs to.
+    x_col, y_col : str, default "vertex_x", "vertex_y"
+        Vertex coordinate columns.
+
+    Returns
+    -------
+    gpd.GeoDataFrame
+        One row per id, with `id_col`, `geometry`, `center_x`, `center_y`
+        columns -- ready to pass to `NeighborhoodCollection(gdf=..., nbhd_col=id_col)`
+        or as the `gdf_source`/`gdf_bounds` of `calc_expansion`.
+    """
+
+    def _safe_polygon(row: pd.Series) -> Polygon:
+        try:
+            return Polygon(zip(row[x_col], row[y_col], strict=True))
+        except Exception:
+            return Polygon()
+
+    grouped = df_contours.groupby(id_col).agg(list)
+    gdf = gpd.GeoDataFrame(
+        {id_col: grouped.index},
+        geometry=grouped.apply(_safe_polygon, axis=1).to_numpy(),
+    ).reset_index(drop=True)
+    gdf["center_x"] = gdf.centroid.x
+    gdf["center_y"] = gdf.centroid.y
+    return gdf
+
+
+def df_to_anndata(df: pd.DataFrame) -> AnnData:
+    """
+    Wrap a matrix DataFrame as a plain AnnData: `obs` = `df.index`, `var` =
+    `df.columns`, `X` = `df.values`. No normalization, filtering, or clustering
+    is computed -- just the container, e.g. for an entity-by-gene count table
+    (obs = neighborhoods/nuclei, var = genes) so you can run your own scanpy
+    pipeline from there.
+    """
+    return AnnData(
+        X=df.values,
+        obs=pd.DataFrame(index=df.index),
+        var=pd.DataFrame(index=df.columns),
+    )

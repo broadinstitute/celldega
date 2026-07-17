@@ -21,7 +21,6 @@ import pandas as pd
 from scipy import sparse
 
 from celldega.nbhd.collection import NeighborhoodCollection
-from celldega.nbhd.utils import df_to_anndata
 
 
 def _nbhd_geometry_for_join(gdf_nbhd: gpd.GeoDataFrame, nbhd_col: str) -> gpd.GeoDataFrame:
@@ -123,7 +122,14 @@ def _calc_nbhd_by_gene(
         # Reindex to preserve order
         df_result = df_result.reindex(filtered_gdf[nbhd_col]).fillna(0)
 
-        adata_nbg = df_to_anndata(df_result)
+        # Build AnnData
+        adata_nbg = AnnData(
+            X=df_result.values,
+            obs=pd.DataFrame(index=df_result.index),
+            var=pd.DataFrame(index=df_result.columns),
+        )
+
+        # Add cell counts
         adata_nbg.obs["n_cells"] = [cell_counts.get(n, 0) for n in adata_nbg.obs.index]
 
     elif by == "cell-free":
@@ -168,7 +174,14 @@ def _calc_nbhd_by_gene(
 
         filtered_gdf = gdf_nbhd[gdf_nbhd[nbhd_col].isin(valid_nbhds)].reset_index(drop=True)
 
-        adata_nbg = df_to_anndata(df_result)
+        # Build AnnData
+        adata_nbg = AnnData(
+            X=df_result.values,
+            obs=pd.DataFrame(index=df_result.index),
+            var=pd.DataFrame(index=df_result.columns),
+        )
+
+        # Add transcript counts
         adata_nbg.obs["n_transcripts"] = trx_counts.loc[valid_nbhds].values
 
     else:

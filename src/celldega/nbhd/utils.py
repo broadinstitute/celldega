@@ -6,7 +6,6 @@ from collections.abc import Sequence
 from typing import Any
 
 # Third-party imports
-from anndata import AnnData
 import geopandas as gpd
 import numpy as np
 import pandas as pd
@@ -196,18 +195,3 @@ def make_column_names_unique_fast(df: pd.DataFrame) -> pd.DataFrame:
 
     df.columns = new_cols
     return df
-
-
-def df_to_anndata(df: pd.DataFrame) -> AnnData:
-    """
-    Wrap a matrix DataFrame as a plain AnnData: `obs` = `df.index`, `var` =
-    `df.columns`, `X` = `df.values`. No normalization, filtering, or clustering
-    is computed -- just the container, e.g. for an entity-by-gene count table
-    (obs = neighborhoods/nuclei, var = genes) so you can run your own scanpy
-    pipeline from there.
-    """
-    return AnnData(
-        X=df.values,
-        obs=pd.DataFrame(index=df.index),
-        var=pd.DataFrame(index=df.columns),
-    )

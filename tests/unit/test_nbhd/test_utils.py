@@ -2,7 +2,6 @@ import pandas as pd
 from shapely.geometry import Polygon
 
 from celldega.nbhd import (
-    df_to_anndata,
     make_column_names_unique_fast,
     safe_polygon,
     simple_format,
@@ -36,19 +35,3 @@ def test_make_column_names_unique_fast_dedupes_columns():
     df = pd.DataFrame([[1, 2, 3]], columns=["gene", "gene", "gene"])
     result = make_column_names_unique_fast(df)
     assert list(result.columns) == ["gene", "gene_1", "gene_2"]
-
-
-def test_df_to_anndata_wraps_matrix_without_extra_computation():
-    df = pd.DataFrame(
-        [[1, 2], [3, 4]],
-        index=["nbhd_1", "nbhd_2"],
-        columns=["GeneA", "GeneB"],
-    )
-
-    adata = df_to_anndata(df)
-
-    assert list(adata.obs_names) == ["nbhd_1", "nbhd_2"]
-    assert list(adata.var_names) == ["GeneA", "GeneB"]
-    assert adata.X.tolist() == [[1, 2], [3, 4]]
-    assert "X_pca" not in adata.obsm
-    assert "neighbors" not in adata.uns

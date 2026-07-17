@@ -107,9 +107,7 @@ def test_calc_expansion_raises_when_pixel_space_scale_missing():
     gdf_nuclei, gdf_cells = _synthetic_nucleus_cell_inputs()
 
     with pytest.raises(ValueError, match="scale_um_per_pixel, pixels_per_micron, or technology"):
-        _calc_expansion(
-            gdf_nuclei, gdf_cells, radii_um=[1], id_col="cell_id", is_pixel_space=True
-        )
+        _calc_expansion(gdf_nuclei, gdf_cells, radii_um=[1], id_col="cell_id", is_pixel_space=True)
 
 
 def test_neighborhood_collection_calc_expansion_accepts_pixels_per_micron():
@@ -157,9 +155,7 @@ def test_calc_expansion_works_for_non_nucleus_entities():
 def test_calc_expansion_add_colors():
     gdf_nuclei, gdf_cells = _synthetic_nucleus_cell_inputs()
 
-    with_colors = _calc_expansion(
-        gdf_nuclei, gdf_cells, radii_um=[0, 1, 2], id_col="cell_id"
-    )
+    with_colors = _calc_expansion(gdf_nuclei, gdf_cells, radii_um=[0, 1, 2], id_col="cell_id")
     assert all("color" in gdf.columns for gdf in with_colors.values())
     # one shade per radius, shared across entities within that radius
     assert with_colors[0.0]["color"].nunique() == 1
@@ -219,7 +215,11 @@ def test_calc_signature_cell_free_accepts_custom_columns_across_radii(tmp_path):
 
     nbhd_r0 = series[0.0]
     nbhd_r0.calc_signature(
-        by="cell-free", data_dir=str(tmp_path), feature_col="name", x_col="x", y_col="y",
+        by="cell-free",
+        data_dir=str(tmp_path),
+        feature_col="name",
+        x_col="x",
+        y_col="y",
         drop_missing=False,
     )
     modality_r0 = nbhd_r0.mod["gene_cell_free"]
@@ -232,7 +232,11 @@ def test_calc_signature_cell_free_accepts_custom_columns_across_radii(tmp_path):
 
     nbhd_r5 = series[5.0]
     nbhd_r5.calc_signature(
-        by="cell-free", data_dir=str(tmp_path), feature_col="name", x_col="x", y_col="y",
+        by="cell-free",
+        data_dir=str(tmp_path),
+        feature_col="name",
+        x_col="x",
+        y_col="y",
         drop_missing=False,
     )
     modality_r5 = nbhd_r5.mod["gene_cell_free"]

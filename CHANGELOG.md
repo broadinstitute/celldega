@@ -4,6 +4,23 @@ All notable changes to Celldega are documented here. This project follows
 [Keep a Changelog](https://keepachangelog.com/) conventions and
 [semantic versioning](https://semver.org/).
 
+## [0.19.0a2] - 2026-07-17
+
+### Fixed
+
+- **Unsigned `landscape_parameters.json` fetch with private-bucket creds** —
+  `set_landscape_parameters` accepted an `aws` client (for SigV4-signed S3
+  requests) but never actually used it, always issuing a plain unsigned
+  `fetch`. Against a private bucket this 403s, and the XML error body then
+  fails `response.json()` with a confusing `SyntaxError: Unexpected token
+  '<'`. A redundant signed "warm-up" fetch to the same URL earlier in init
+  likely masked this via browser HTTP caching in some environments. Now
+  `set_landscape_parameters` uses `aws.fetch(...)` when creds are provided
+  (matching the pattern already used for parquet/arrow requests) and throws
+  a clear error on a non-2xx response instead of trying to parse it as JSON.
+  Also fixes `landscape_h_e.js`, which never passed `viz_state.aws` through
+  to this call at all.
+
 ## [0.19.0a1] - 2026-07-17
 
 Alpha pre-release: a new serial-slice alignment module, plus small front-end

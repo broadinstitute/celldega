@@ -317,13 +317,11 @@ class NeighborhoodCollection(CelldegaCollection):
     def calc_expansion(
         self,
         gdf_bounds: gpd.GeoDataFrame,
-        radii_um: Sequence[float] = (0, 0.5, 1, 1.5, 2, 2.5, 3),
+        radii_um: Sequence[float] = (0.5, 1, 1.5, 2, 2.5),
         nbhd_type: str = "expansion",
         *,
         technology: str | None = None,
         scale_um_per_pixel: float | None = None,
-        pixels_per_micron: float | None = None,
-        is_pixel_space: bool = False,
         join_style: int = 2,
         mitre_limit: float = 5.0,
         add_colors: bool = True,
@@ -345,17 +343,13 @@ class NeighborhoodCollection(CelldegaCollection):
                 (validity-repaired) entity geometry, clipped to its bound.
             nbhd_type: Label recorded on each returned collection.
             technology: Imaging platform used to look up ``scale_um_per_pixel``
-                for pixel-space geometry (e.g. ``"Xenium"``).
-            scale_um_per_pixel: Microns per pixel (divide a micron distance by
-                this to get pixels). Required, directly or via ``technology``/
-                ``pixels_per_micron``, when ``is_pixel_space=True``; takes
-                precedence over ``pixels_per_micron`` if both are given.
-            pixels_per_micron: Pixels per micron — the reciprocal convention
-                (multiply a micron distance by this to get pixels, e.g. a
-                notebook's own ``high_res_scale``); equivalent to
-                ``scale_um_per_pixel=1 / pixels_per_micron``.
-            is_pixel_space: ``True`` if this collection's geometry is in pixel
-                units; ``False`` (default) if already in microns.
+                (e.g. ``"Xenium"``). Ignored if ``scale_um_per_pixel`` is given.
+            scale_um_per_pixel: Microns per pixel — a micron distance is
+                *divided* by this to get the geometry's native units. Defaults
+                to ``1.0`` (geometry already in microns, i.e. no conversion).
+                If this collection's geometry is in pixel space and you only
+                have a pixels-per-micron factor, pass its reciprocal
+                (``1 / pixels_per_micron``).
             join_style: Shapely buffer join style (``1``=round, ``2``=mitre
                 (default), ``3``=bevel).
             mitre_limit: Shapely mitre limit, used when ``join_style=2``.
@@ -368,13 +362,12 @@ class NeighborhoodCollection(CelldegaCollection):
             that radius's buffered, clipped geometries.
 
         Raises:
-            ValueError: If this collection has no geometry, if ids fail to
-                match ``gdf_bounds``, or if ``is_pixel_space=True`` without a
-                resolvable scale.
+            ValueError: If this collection has no geometry, or if ids fail to
+                match ``gdf_bounds``.
 
         Examples:
             >>> nbhd_nuclei = NeighborhoodCollection(gdf=gdf_nuclei, nbhd_col="cell_id")
-            >>> series = nbhd_nuclei.calc_expansion(gdf_cells, radii_um=[0, 1, 2, 3])
+            >>> series = nbhd_nuclei.calc_expansion(gdf_cells, radii_um=[1, 2, 3])
             >>> for radius, nbhd in series.items():
             ...     nbhd.calc_signature(by="cell-free", data_dir=data_dir, drop_missing=False)
         """
@@ -393,8 +386,6 @@ class NeighborhoodCollection(CelldegaCollection):
             id_col=self.nbhd_col,
             technology=technology,
             scale_um_per_pixel=scale_um_per_pixel,
-            pixels_per_micron=pixels_per_micron,
-            is_pixel_space=is_pixel_space,
             join_style=join_style,
             mitre_limit=mitre_limit,
             add_colors=add_colors,

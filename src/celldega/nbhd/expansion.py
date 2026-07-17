@@ -12,13 +12,12 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 import geopandas as gpd
-import numpy as np
 from shapely.validation import make_valid
 
 from .gradient import _get_micron_per_pixel, _ring_colors
 
 
-_DEFAULT_RADII_UM: tuple[float, ...] = (0, 0.5, 1, 1.5, 2, 2.5, 3)
+_DEFAULT_RADII_UM: tuple[float, ...] = (0.5, 1, 1.5, 2, 2.5)
 
 
 def _calc_expansion(
@@ -29,8 +28,6 @@ def _calc_expansion(
     id_col: str = "id",
     technology: str | None = None,
     scale_um_per_pixel: float | None = None,
-    pixels_per_micron: float | None = None,
-    is_pixel_space: bool = False,
     join_style: int = 2,
     mitre_limit: float = 5.0,
     add_colors: bool = True,
@@ -51,17 +48,12 @@ def _calc_expansion(
             (validity-repaired) source geometry, clipped to its bound.
         id_col: Column identifying each entity, shared by both frames.
         technology: Imaging platform (e.g. ``"Xenium"``) used to look up
-            ``scale_um_per_pixel`` for pixel-space geometry.
-        scale_um_per_pixel: Microns per pixel (divide a micron distance by this
-            to get pixels). Required, directly or via ``technology``/
-            ``pixels_per_micron``, when ``is_pixel_space=True``; takes
-            precedence over ``pixels_per_micron`` if both are given.
-        pixels_per_micron: Pixels per micron — the reciprocal convention
-            (multiply a micron distance by this to get pixels, e.g. a
-            notebook's own ``high_res_scale``); equivalent to
-            ``scale_um_per_pixel=1 / pixels_per_micron``.
-        is_pixel_space: ``True`` if the geometry is in pixel units; ``False``
-            (default) if already in microns.
+            ``scale_um_per_pixel``. Ignored if ``scale_um_per_pixel`` is given.
+        scale_um_per_pixel: Microns per pixel — a micron distance is *divided*
+            by this to get the geometry's native units. Defaults to ``1.0``
+            (geometry already in microns, i.e. no conversion). If your
+            geometry is in pixel space and you only have a pixels-per-micron
+            factor, pass its reciprocal (``1 / pixels_per_micron``).
         join_style: Shapely buffer join style (``1``=round, ``2``=mitre
             (default), ``3``=bevel).
         mitre_limit: Shapely mitre limit, used when ``join_style=2``.
@@ -77,30 +69,26 @@ def _calc_expansion(
 
     Raises:
         KeyError: If ``id_col`` is missing from either frame.
-        ValueError: If ids are duplicated or fail to match between frames, or
-            if ``is_pixel_space=True`` without a resolvable scale.
+        ValueError: If ids are duplicated in ``gdf_bounds`` or fail to match
+            between frames.
 
     Examples:
-        >>> series = nbhd_nuclei.calc_expansion(
-        ...     gdf_cells, radii_um=[0, 1, 2, 3],
-        ...     is_pixel_space=True, pixels_per_micron=high_res_scale,
-        ... )
+        >>> series = nbhd_nuclei.calc_expansion(gdf_cells, radii_um=[1, 2, 3])
+
+        If geometry is in pixel space (e.g. an OME-XML ``PhysicalSizeX``, or
+        the reciprocal of a notebook's own ``high_res_scale``)::
+
+            >>> series = nbhd_nuclei.calc_expansion(
+            ...     gdf_cells, radii_um=[1, 2, 3], scale_um_per_pixel=1 / high_res_scale,
+            ... )
     """
     if id_col not in gdf_source.columns:
         raise KeyError(f"gdf_source missing '{id_col}'")
     if id_col not in gdf_bounds.columns:
         raise KeyError(f"gdf_bounds missing '{id_col}'")
 
-    if scale_um_per_pixel is None and technology is not None:
-        scale_um_per_pixel = _get_micron_per_pixel(technology)
-    if scale_um_per_pixel is None and pixels_per_micron is not None:
-        scale_um_per_pixel = 1.0 / pixels_per_micron
-    if is_pixel_space and scale_um_per_pixel is None:
-        raise ValueError(
-            "scale_um_per_pixel, pixels_per_micron, or technology is required "
-            "when is_pixel_space=True"
-        )
-    effective_scale = scale_um_per_pixel if is_pixel_space else 1.0
+    if scale_um_per_pixel is None:
+        scale_um_per_pixel = _get_micron_per_pixel(technology) if technology is not None else 1.0
 
     source = gdf_source[[id_col, "geometry"]].copy()
     source[id_col] = source[id_col].astype(str)
@@ -132,7 +120,7 @@ def _calc_expansion(
 
     results: dict[float, gpd.GeoDataFrame] = {}
     for radius_um in radii_sorted:
-        radius_native = radius_um / effective_scale
+        radius_native = radius_um / scale_um_per_pixel
 
         buffered = source["geometry"].buffer(
             radius_native, join_style=join_style, mitre_limit=mitre_limit
@@ -152,15 +140,11 @@ def _calc_expansion(
         gdf_radius["center_x"] = gdf_radius.centroid.x
         gdf_radius["center_y"] = gdf_radius.centroid.y
 
+        # area_native is in the geometry's own (native/pixel) units; scale_um_per_pixel
+        # converts to microns (identity when geometry is already in microns).
         area_native = gdf_radius.geometry.area
-        if is_pixel_space:
-            gdf_radius["area_px2"] = area_native
-            gdf_radius["area_um2"] = area_native * (scale_um_per_pixel**2)
-        else:
-            gdf_radius["area_um2"] = area_native
-            gdf_radius["area_px2"] = (
-                area_native / (scale_um_per_pixel**2) if scale_um_per_pixel else np.nan
-            )
+        gdf_radius["area_px2"] = area_native
+        gdf_radius["area_um2"] = area_native * (scale_um_per_pixel**2)
         gdf_radius["area"] = gdf_radius["area_um2"]
 
         if add_colors:

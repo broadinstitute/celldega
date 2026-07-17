@@ -53,70 +53,56 @@ def test_calc_expansion_grows_and_clips_to_bound():
     np.testing.assert_allclose(sorted(gdf_5["area_um2"]), [100.0, 100.0])
 
 
-def test_calc_expansion_pixels_per_micron_matches_scale_um_per_pixel():
+def test_calc_expansion_scale_um_per_pixel_converts_pixel_space_geometry():
     gdf_nuclei, gdf_cells = _synthetic_nucleus_cell_inputs()
     high_res_scale = 2.0  # pixels per micron, e.g. a notebook's own scale variable
-    scaling_factor = 1.0 / high_res_scale  # microns per pixel
-
-    via_pixels_per_micron = _calc_expansion(
-        gdf_nuclei,
-        gdf_cells,
-        radii_um=[1],
-        id_col="cell_id",
-        is_pixel_space=True,
-        pixels_per_micron=high_res_scale,
-    )
-    via_scale_um_per_pixel = _calc_expansion(
-        gdf_nuclei,
-        gdf_cells,
-        radii_um=[1],
-        id_col="cell_id",
-        is_pixel_space=True,
-        scale_um_per_pixel=scaling_factor,
-    )
-
-    pd.testing.assert_frame_equal(
-        via_pixels_per_micron[1.0].drop(columns="color"),
-        via_scale_um_per_pixel[1.0].drop(columns="color"),
-    )
-
-    # matches `buffer_dist = expand_um * high_res_scale`: a 2x2 nucleus buffered by
-    # 1um * 2px/um = 2px on each side -> 6x6 = 36 px^2, well inside the 10x10 bound
-    gdf_1 = via_pixels_per_micron[1.0]
-    np.testing.assert_allclose(sorted(gdf_1["area_px2"]), [36.0, 36.0])
-    # area_um2 = area_px2 * scale_um_per_pixel**2 = 36 * 0.25 = 9
-    np.testing.assert_allclose(sorted(gdf_1["area_um2"]), [9.0, 9.0])
-
-
-def test_calc_expansion_scale_um_per_pixel_takes_precedence():
-    gdf_nuclei, gdf_cells = _synthetic_nucleus_cell_inputs()
+    scale_um_per_pixel = 1.0 / high_res_scale  # microns per pixel -- what calc_expansion wants
 
     result = _calc_expansion(
         gdf_nuclei,
         gdf_cells,
         radii_um=[1],
         id_col="cell_id",
-        is_pixel_space=True,
-        scale_um_per_pixel=0.5,
-        pixels_per_micron=999,  # should be ignored since scale_um_per_pixel is given
+        scale_um_per_pixel=scale_um_per_pixel,
     )
-    np.testing.assert_allclose(sorted(result[1.0]["area_px2"]), [36.0, 36.0])
+
+    # matches `buffer_dist = expand_um * high_res_scale`: a 2x2 nucleus buffered by
+    # 1um * 2px/um = 2px on each side -> 6x6 = 36 px^2, well inside the 10x10 bound
+    gdf_1 = result[1.0]
+    np.testing.assert_allclose(sorted(gdf_1["area_px2"]), [36.0, 36.0])
+    # area_um2 = area_px2 * scale_um_per_pixel**2 = 36 * 0.25 = 9
+    np.testing.assert_allclose(sorted(gdf_1["area_um2"]), [9.0, 9.0])
 
 
-def test_calc_expansion_raises_when_pixel_space_scale_missing():
+def test_calc_expansion_default_scale_treats_geometry_as_microns():
     gdf_nuclei, gdf_cells = _synthetic_nucleus_cell_inputs()
 
-    with pytest.raises(ValueError, match="scale_um_per_pixel, pixels_per_micron, or technology"):
-        _calc_expansion(gdf_nuclei, gdf_cells, radii_um=[1], id_col="cell_id", is_pixel_space=True)
+    result = _calc_expansion(gdf_nuclei, gdf_cells, radii_um=[1], id_col="cell_id")
+
+    # no conversion: a 2x2 nucleus buffered by 1um -> 4x4 = 16 um^2
+    gdf_1 = result[1.0]
+    np.testing.assert_allclose(sorted(gdf_1["area_um2"]), [16.0, 16.0])
 
 
-def test_neighborhood_collection_calc_expansion_accepts_pixels_per_micron():
+def test_calc_expansion_resolves_scale_from_technology():
+    gdf_nuclei, gdf_cells = _synthetic_nucleus_cell_inputs()
+
+    result = _calc_expansion(
+        gdf_nuclei, gdf_cells, radii_um=[1], id_col="cell_id", technology="Xenium"
+    )
+    expected = _calc_expansion(
+        gdf_nuclei, gdf_cells, radii_um=[1], id_col="cell_id", scale_um_per_pixel=0.2125
+    )
+    pd.testing.assert_frame_equal(
+        result[1.0].drop(columns="color"), expected[1.0].drop(columns="color")
+    )
+
+
+def test_neighborhood_collection_calc_expansion_accepts_scale_um_per_pixel():
     gdf_nuclei, gdf_cells = _synthetic_nucleus_cell_inputs()
     nbhd_nuclei = NeighborhoodCollection(gdf=gdf_nuclei, nbhd_type="nucleus", nbhd_col="cell_id")
 
-    series = nbhd_nuclei.calc_expansion(
-        gdf_cells, radii_um=[1], is_pixel_space=True, pixels_per_micron=2.0
-    )
+    series = nbhd_nuclei.calc_expansion(gdf_cells, radii_um=[1], scale_um_per_pixel=0.5)
 
     np.testing.assert_allclose(sorted(series[1.0].gdf["area_px2"]), [36.0, 36.0])
 

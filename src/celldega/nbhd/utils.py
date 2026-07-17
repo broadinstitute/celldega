@@ -3,6 +3,7 @@
 # Standard library imports
 from collections import defaultdict
 from collections.abc import Sequence
+from pathlib import Path
 from typing import Any
 
 # Third-party imports
@@ -106,6 +107,27 @@ def _get_gdf_cell(adata: Any) -> gpd.GeoDataFrame:
     )
 
 
+def _find_transcripts_parquet(data_dir: str) -> str:
+    """
+    Find the transcripts parquet file in `data_dir`.
+
+    Matches any file whose name ends with `transcripts.parquet` (e.g.
+    `transcripts.parquet`, `data1_transcripts.parquet`,
+    `aziz_1_20260217_5_transcripts.parquet`), not just the literal Xenium
+    convention `transcripts.parquet`.
+    """
+    candidates = sorted(p for p in Path(data_dir).iterdir() if p.name.endswith("transcripts.parquet"))
+    if not candidates:
+        raise FileNotFoundError(f"No file ending with 'transcripts.parquet' found in '{data_dir}'")
+    if len(candidates) > 1:
+        raise ValueError(
+            f"Multiple files ending with 'transcripts.parquet' found in '{data_dir}': "
+            f"{[p.name for p in candidates]}. Keep only one, or point data_dir at a "
+            "directory containing a single transcripts file."
+        )
+    return str(candidates[0])
+
+
 def _get_gdf_trx(data_dir: str) -> gpd.GeoDataFrame:
     """
     Load transcript data as a GeoDataFrame with spatial coordinates.
@@ -113,7 +135,7 @@ def _get_gdf_trx(data_dir: str) -> gpd.GeoDataFrame:
     No CRS is set since coordinates are in micron imaging space, not geospatial.
     """
     df_trx = pd.read_parquet(
-        f"{data_dir}/transcripts.parquet",
+        _find_transcripts_parquet(data_dir),
         columns=["feature_name", "x_location", "y_location", "cell_id"],
         engine="pyarrow",
     )

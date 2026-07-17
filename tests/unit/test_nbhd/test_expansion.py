@@ -276,6 +276,31 @@ def test_calc_signature_cell_free_streams_from_data_dir_across_radii(tmp_path):
     assert df_r5.loc["c1", "GeneB"] == 1
 
 
+def test_calc_signature_cell_free_finds_prefixed_transcripts_filename(tmp_path):
+    gdf_nuclei, gdf_cells = _synthetic_nucleus_cell_inputs()
+    nbhd_nuclei = NeighborhoodCollection(gdf=gdf_nuclei, nbhd_type="nucleus", nbhd_col="cell_id")
+    series = nbhd_nuclei.calc_expansion(gdf_cells, radii_um=[5])
+
+    # not every transcripts file is literally named "transcripts.parquet"
+    pd.DataFrame(
+        {
+            "feature_name": ["GeneA", "GeneA"],
+            "x_location": [5, 25],
+            "y_location": [5, 25],
+        }
+    ).to_parquet(tmp_path / "aziz_1_20260217_5_transcripts.parquet")
+
+    nbhd_r5 = series[5.0]
+    nbhd_r5.calc_signature(by="cell-free", data_dir=str(tmp_path), drop_missing=False)
+    df_r5 = pd.DataFrame(
+        nbhd_r5.mod["gene_cell_free"].X,
+        index=nbhd_r5.mod["gene_cell_free"].obs_names,
+        columns=nbhd_r5.mod["gene_cell_free"].var_names,
+    )
+    assert df_r5.loc["c1", "GeneA"] == 1
+    assert df_r5.loc["c2", "GeneA"] == 1
+
+
 def test_calc_signature_cell_free_data_dir_accepts_custom_columns(tmp_path):
     gdf_nuclei, gdf_cells = _synthetic_nucleus_cell_inputs()
     nbhd_nuclei = NeighborhoodCollection(gdf=gdf_nuclei, nbhd_type="nucleus", nbhd_col="cell_id")

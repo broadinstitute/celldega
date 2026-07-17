@@ -58,10 +58,12 @@ def _calc_nbhd_by_gene(
         Cell-level data with spatial coordinates in `obsm["spatial"]`; required
         for `by="cell"`.
     data_dir : str, optional
-        Directory with a `transcripts.parquet` (columns named `feature_col`/
-        `x_col`/`y_col`, Xenium convention by default). Required for `by="cell-free"`.
+        Directory containing a transcripts parquet file — any file whose name
+        ends with `transcripts.parquet` (e.g. `transcripts.parquet`,
+        `data1_transcripts.parquet`), with columns named `feature_col`/
+        `x_col`/`y_col` (Xenium convention by default). Required for `by="cell-free"`.
     feature_col : str, default "feature_name"
-        Gene/feature column in `data_dir`'s `transcripts.parquet`.
+        Gene/feature column in `data_dir`'s transcripts parquet file.
     x_col, y_col : str, default "x_location", "y_location"
         Transcript coordinate columns in `data_dir`'s `transcripts.parquet`.
     nbhd_col : str, default "name"
@@ -131,10 +133,11 @@ def _calc_nbhd_by_gene(
 
         print("Calculating neighborhood-by-gene (cell-free, streaming)")
         from celldega.nbhd.trx_streaming import _assign_trx_to_entity_streaming_parquet
+        from celldega.nbhd.utils import _find_transcripts_parquet
 
         df_result = (
             _assign_trx_to_entity_streaming_parquet(
-                f"{data_dir}/transcripts.parquet",
+                _find_transcripts_parquet(data_dir),
                 gdf_nbhd,
                 id_col=nbhd_col,
                 x_col=x_col,

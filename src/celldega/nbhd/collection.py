@@ -552,10 +552,12 @@ class NeighborhoodCollection(CelldegaCollection):
             modality_name: Key for the modality; defaults to ``"gene"``
                 (cell-derived) or ``"gene_cell_free"`` (transcript-derived).
             min_cells: Minimum cells/transcripts for a neighborhood to be kept.
-            data_dir: Directory with a ``transcripts.parquet`` (columns named
-                ``feature_col``/``x_col``/``y_col``, Xenium convention by
-                default), streamed in batches; defaults to ``self.data_dir``.
-                Required for ``by="cell-free"``.
+            data_dir: Directory containing a transcripts parquet file — any
+                file whose name ends with ``transcripts.parquet`` (e.g.
+                ``transcripts.parquet``, ``data1_transcripts.parquet``), with
+                columns named ``feature_col``/``x_col``/``y_col`` (Xenium
+                convention by default), streamed in batches; defaults to
+                ``self.data_dir``. Required for ``by="cell-free"``.
             feature_col: Gene/feature column in ``data_dir``'s
                 ``transcripts.parquet`` (default ``"feature_name"``).
             x_col: Transcript x-coordinate column in ``data_dir``'s
@@ -690,8 +692,10 @@ class NeighborhoodCollection(CelldegaCollection):
     ) -> None:
         """Add per-neighborhood transcript-assignment columns to ``obs``.
 
-        From ``transcripts.parquet`` in ``data_dir``, adds three ``obs`` columns
-        (on the underlying MuData) for each neighborhood:
+        From the transcripts parquet file in ``data_dir`` (any file whose name
+        ends with ``transcripts.parquet``, e.g. ``transcripts.parquet`` or
+        ``data1_transcripts.parquet``), adds three ``obs`` columns (on the
+        underlying MuData) for each neighborhood:
 
         - ``total_transcripts`` — transcripts falling inside the neighborhood.
         - ``unassigned_transcripts`` — those with ``cell_id == "UNASSIGNED"``.
@@ -704,7 +708,8 @@ class NeighborhoodCollection(CelldegaCollection):
         Only transcripts are needed — no ``adata`` or cell polygons.
 
         Args:
-            data_dir: Directory containing ``transcripts.parquet``; defaults to
+            data_dir: Directory containing a transcripts parquet file (any
+                name ending with ``transcripts.parquet``); defaults to
                 ``self.data_dir``.
 
         Returns:

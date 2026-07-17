@@ -4,6 +4,35 @@ All notable changes to Celldega are documented here. This project follows
 [Keep a Changelog](https://keepachangelog.com/) conventions and
 [semantic versioning](https://semver.org/).
 
+## [0.19.0a1] - 2026-07-17
+
+Alpha pre-release: a new serial-slice alignment module, plus small front-end
+fixes needed to render stacked 2D alpha shapes in the 3D point-cloud
+`Landscape` view.
+
+### Added
+
+- **`celldega.align`** — registration of serial 3D tissue slices into a
+  shared coordinate frame. `calc_landmarks` derives per-slice landmarks from
+  shared cluster labels (or accepts manually-placed ones);
+  `calc_alignment_transform` chain-walk fits a rigid Procrustes or non-rigid
+  thin-plate-spline transform outward from a reference slice, returning a
+  reusable, persistable `SerialAlignmentTransform`
+  (`.save()`/`.load()`, `.apply_to_points()`); `align_serial_slices` applies
+  a fitted transform to a set of `AnnData`, aligning `obsm["spatial"]` and
+  assigning each slice a `Z` coordinate (`z_space` or explicit `z_coord`).
+
+### Fixed
+
+- **Widget crash on gene-less datasets** — `set_meta_gene`/
+  `set_color_dict_gene` called `.getChild(...)` directly on the result of a
+  failed `meta_gene.parquet` fetch (e.g. point-cloud datasets with no
+  expression data), throwing `TypeError: n.getChild is not a function` and
+  aborting the entire `Landscape` render. Both now go through the same
+  null-safe `table_accessors` helpers already used for cluster metadata, so
+  a missing `meta_gene.parquet` degrades to an empty gene list instead of
+  crashing.
+
 ## [0.18.1] - 2026-07-15
 
 ### Fixed

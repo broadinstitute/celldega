@@ -59,6 +59,8 @@ nav:
           - Xenium Multi Dataset: gallery/gallery_xenium_multi.md
       - CosMx:
           - CosMx Human Colon CRC: gallery/gallery_cosmx_human_colon.md
+      - Point Cloud:
+          - Mouse Cranium E14 (local): gallery/gallery_mouse_cranium_e14.md
       - Linked Views:
           - Landscape-Clustergram: gallery/gallery_landscape_clustergram.md
           - Landscape-Yearbook: gallery/gallery_landscape_yearbook.md
@@ -119,6 +121,8 @@ extra_javascript:
   - path: assets/js/gallery_visium_hd_cell_segmentation_mouse_brain.js
     type: module
   - path: assets/js/gallery_landscape_clustergram.js
+    type: module
+  - path: assets/js/gallery_mouse_cranium_e14.js
     type: module
   - path: assets/js/gallery_landscape_yearbook.js
     type: module

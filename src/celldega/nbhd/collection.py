@@ -376,7 +376,7 @@ class NeighborhoodCollection(CelldegaCollection):
             >>> nbhd_nuclei = NeighborhoodCollection(gdf=gdf_nuclei, nbhd_col="cell_id")
             >>> series = nbhd_nuclei.calc_expansion(gdf_cells, radii_um=[0, 1, 2, 3])
             >>> for radius, nbhd in series.items():
-            ...     nbhd.calc_signature(by="cell-free", gdf_trx=gdf_trx, drop_missing=False)
+            ...     nbhd.calc_signature(by="cell-free", data_dir=data_dir, drop_missing=False)
         """
         from celldega.nbhd.expansion import _calc_expansion
 
@@ -543,7 +543,6 @@ class NeighborhoodCollection(CelldegaCollection):
         modality_name: str | None = None,
         min_cells: int = 1,
         data_dir: str | None = None,
-        gdf_trx: gpd.GeoDataFrame | None = None,
         feature_col: str = "feature_name",
         x_col: str = "x_location",
         y_col: str = "y_location",
@@ -564,19 +563,14 @@ class NeighborhoodCollection(CelldegaCollection):
             min_cells: Minimum cells/transcripts for a neighborhood to be kept.
             data_dir: Directory with a ``transcripts.parquet`` (columns named
                 ``feature_col``/``x_col``/``y_col``, Xenium convention by
-                default; streamed in batches); defaults to ``self.data_dir``.
-                Used for ``by="cell-free"`` when ``gdf_trx`` isn't given.
-            gdf_trx: Pre-loaded transcript points for ``by="cell-free"`` (custom
-                column names/paths); takes precedence over ``data_dir``.
-            feature_col: Gene/feature column — in ``gdf_trx``, or in
-                ``data_dir``'s ``transcripts.parquet`` (default
-                ``"feature_name"``).
+                default), streamed in batches; defaults to ``self.data_dir``.
+                Required for ``by="cell-free"``.
+            feature_col: Gene/feature column in ``data_dir``'s
+                ``transcripts.parquet`` (default ``"feature_name"``).
             x_col: Transcript x-coordinate column in ``data_dir``'s
-                ``transcripts.parquet`` (default ``"x_location"``; ignored for
-                ``gdf_trx``).
+                ``transcripts.parquet`` (default ``"x_location"``).
             y_col: Transcript y-coordinate column in ``data_dir``'s
-                ``transcripts.parquet`` (default ``"y_location"``; ignored for
-                ``gdf_trx``).
+                ``transcripts.parquet`` (default ``"y_location"``).
             drop_missing: When ``True`` (default), neighborhoods with fewer than
                 ``min_cells`` cells (or transcripts) are removed from the
                 collection entirely. When ``False``, the collection keeps all
@@ -587,8 +581,8 @@ class NeighborhoodCollection(CelldegaCollection):
             ``None`` — the modality is attached to ``self.mod``.
 
         Raises:
-            ValueError: If ``adata`` is missing for ``by="cell"``, or neither
-                ``data_dir`` nor ``gdf_trx`` is given for ``by="cell-free"``.
+            ValueError: If ``adata`` is missing for ``by="cell"``, or
+                ``data_dir`` is missing for ``by="cell-free"``.
         """
         from celldega.nbhd.neighborhoods import (
             _calc_nbhd_by_gene,
@@ -601,15 +595,14 @@ class NeighborhoodCollection(CelldegaCollection):
         resolved_data_dir = data_dir if data_dir is not None else self.data_dir
         if by == "cell" and adata is None:
             raise ValueError("adata is required when by='cell'")
-        if by == "cell-free" and gdf_trx is None and resolved_data_dir is None:
-            raise ValueError("data_dir or gdf_trx is required when by='cell-free'")
+        if by == "cell-free" and resolved_data_dir is None:
+            raise ValueError("data_dir is required when by='cell-free'")
 
         modality = _calc_nbhd_by_gene(
             self.gdf,
             by=by,
             adata=adata,
             data_dir=resolved_data_dir,
-            gdf_trx=gdf_trx,
             feature_col=feature_col,
             x_col=x_col,
             y_col=y_col,

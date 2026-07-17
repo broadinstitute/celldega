@@ -2,7 +2,7 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 import pytest
-from shapely.geometry import Point, Polygon
+from shapely.geometry import Polygon
 
 from celldega.nbhd import NeighborhoodCollection
 from celldega.nbhd.expansion import _calc_expansion
@@ -202,20 +202,26 @@ def test_neighborhood_collection_calc_expansion_returns_series():
         assert nbhd.nbhd_type == "expansion"
 
 
-def test_calc_signature_cell_free_accepts_custom_gdf_trx():
+def test_calc_signature_cell_free_accepts_custom_columns_across_radii(tmp_path):
     gdf_nuclei, gdf_cells = _synthetic_nucleus_cell_inputs()
     nbhd_nuclei = NeighborhoodCollection(gdf=gdf_nuclei, nbhd_type="nucleus", nbhd_col="cell_id")
     series = nbhd_nuclei.calc_expansion(gdf_cells, radii_um=[0, 5])
 
-    # Custom transcript format: "name" for gene, arbitrary x/y columns already
-    # converted to points -- exercises the feature_col override end to end.
-    gdf_trx = gpd.GeoDataFrame(
-        {"name": ["GeneA", "GeneB", "GeneA"]},
-        geometry=[Point(5, 5), Point(1, 1), Point(25, 25)],
-    )
+    # Custom transcript format: "name" for gene, arbitrary x/y columns --
+    # exercises the feature_col/x_col/y_col overrides end to end.
+    pd.DataFrame(
+        {
+            "name": ["GeneA", "GeneB", "GeneA"],
+            "x": [5, 1, 25],
+            "y": [5, 1, 25],
+        }
+    ).to_parquet(tmp_path / "transcripts.parquet")
 
     nbhd_r0 = series[0.0]
-    nbhd_r0.calc_signature(by="cell-free", gdf_trx=gdf_trx, feature_col="name", drop_missing=False)
+    nbhd_r0.calc_signature(
+        by="cell-free", data_dir=str(tmp_path), feature_col="name", x_col="x", y_col="y",
+        drop_missing=False,
+    )
     modality_r0 = nbhd_r0.mod["gene_cell_free"]
     df_r0 = pd.DataFrame(modality_r0.X, index=modality_r0.obs_names, columns=modality_r0.var_names)
     # at radius 0 the source polygon doesn't reach (1, 1); only the point inside it counts
@@ -225,7 +231,10 @@ def test_calc_signature_cell_free_accepts_custom_gdf_trx():
     assert df_r0.loc["c2", "GeneA"] == 1
 
     nbhd_r5 = series[5.0]
-    nbhd_r5.calc_signature(by="cell-free", gdf_trx=gdf_trx, feature_col="name", drop_missing=False)
+    nbhd_r5.calc_signature(
+        by="cell-free", data_dir=str(tmp_path), feature_col="name", x_col="x", y_col="y",
+        drop_missing=False,
+    )
     modality_r5 = nbhd_r5.mod["gene_cell_free"]
     df_r5 = pd.DataFrame(modality_r5.X, index=modality_r5.obs_names, columns=modality_r5.var_names)
     # at radius 5 the source polygon has expanded to the full bound, now capturing (1, 1) too
@@ -233,11 +242,11 @@ def test_calc_signature_cell_free_accepts_custom_gdf_trx():
     assert df_r5.loc["c1", "GeneB"] == 1
 
 
-def test_calc_signature_cell_free_requires_data_dir_or_gdf_trx():
+def test_calc_signature_cell_free_requires_data_dir():
     gdf_nuclei, _gdf_cells = _synthetic_nucleus_cell_inputs()
     nbhd = NeighborhoodCollection(gdf=gdf_nuclei, nbhd_type="nucleus", nbhd_col="cell_id")
 
-    with pytest.raises(ValueError, match="data_dir or gdf_trx"):
+    with pytest.raises(ValueError, match="data_dir is required"):
         nbhd.calc_signature(by="cell-free")
 
 

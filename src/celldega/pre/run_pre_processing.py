@@ -3,7 +3,6 @@ Main preprocessing script for Xenium data processing.
 """
 
 import argparse
-from collections import defaultdict
 from pathlib import Path
 import shutil
 
@@ -234,31 +233,9 @@ def main(
     elif technology == "MERSCOPE":
         cbg = pd.read_csv(str(paths["cbg_csv"]), index_col=0)
 
-    def make_column_names_unique_fast(df):
-        counts = defaultdict(int)
-        used = set()
-        new_cols = []
-
-        for col in df.columns:
-            if col not in used:
-                new_cols.append(col)
-                used.add(col)
-                counts[col] += 1
-            else:
-                while True:
-                    new_name = f"{col}_{counts[col]}"
-                    counts[col] += 1
-                    if new_name not in used:
-                        new_cols.append(new_name)
-                        used.add(new_name)
-                        break
-
-        df.columns = new_cols
-        return df
-
     if cbg.columns.duplicated().any():
         print("Duplicate columns found in CBG matrix. Making column names unique.")
-        cbg = make_column_names_unique_fast(cbg)
+        cbg = dega.pre.make_column_names_unique(cbg)
 
     # Cell and Cluster Metadata
     cluster_file = Path(path_dega_files) / "cell_clusters/cluster.parquet"

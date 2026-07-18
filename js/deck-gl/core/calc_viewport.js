@@ -1,3 +1,4 @@
+import { is_point_cloud_technology } from '../../global_variables/image_info';
 import {
   areBarDataEqual,
   createEmptyCellCompact,
@@ -9,7 +10,7 @@ import { visibleTiles } from '../../vector_tile/visibleTiles';
 import { update_path_layer_data } from '../layers/path_layer';
 import { update_trx_layer_data } from '../layers/trx_layer';
 
-const VIEWPORT_GENE_BAR_LIMIT = 100;
+const VIEWPORT_GENE_BAR_LIMIT = 200;
 
 const ensureViewportCache = (viz_state) => {
   if (!viz_state.viewport_cache) {
@@ -56,13 +57,21 @@ const publishBarDataIfChanged = (
   observable,
   nextData
 ) => {
-  if (areBarDataEqual(viewportCache[cacheKey], nextData)) {
+  if (
+    areBarDataEqual(viewportCache[cacheKey], nextData) &&
+    areBarDataEqual(observable.get?.(), nextData)
+  ) {
     return;
   }
 
   viewportCache[cacheKey] = nextData;
   observable.set(nextData);
 };
+
+const getPointCloudGeneBars = (viz_state) =>
+  Array.isArray(viz_state.genes.top_gene_counts)
+    ? viz_state.genes.top_gene_counts
+    : [];
 
 const computeViewportGeneBars = (viz_state, viewportCache) => {
   const trxCompact =
@@ -212,6 +221,9 @@ export const calc_viewport = async (
 ) => {
   const wasCloseUp = viz_state.close_up;
   const { tile_size } = viz_state.img.landscape_parameters;
+  const isPointCloud = is_point_cloud_technology(
+    viz_state.img?.landscape_parameters?.technology
+  );
   const zoomFactor = Math.pow(2, zoom);
   const [targetX, targetY] = target;
   const halfWidthZoomed = width / (2 * zoomFactor);
@@ -229,6 +241,28 @@ export const calc_viewport = async (
   }
 
   const viewportCache = ensureViewportCache(viz_state);
+
+  if (isPointCloud) {
+    viz_state.close_up = false;
+    viz_state.obs_store.close_up.set(false);
+    viewportCache.visibleTileKey = null;
+
+    publishBarDataIfChanged(
+      viewportCache,
+      'lastGeneBarData',
+      viz_state.obs_store.new_gene_bar_data,
+      getPointCloudGeneBars(viz_state)
+    );
+
+    publishBarDataIfChanged(
+      viewportCache,
+      'lastCellBarData',
+      viz_state.obs_store.new_cell_bar_data,
+      viz_state.cats.cluster_counts
+    );
+
+    return;
+  }
 
   const tile_bounds = (() => {
     if (!viz_state.rotation?.hasRotation) {
@@ -267,25 +301,27 @@ export const calc_viewport = async (
     viz_state.obs_store.close_up.set(true);
 
     if (viewportCache.visibleTileKey !== visibleTileKey) {
-      viz_state.obs_store.deck_check.set({
-        ...viz_state.obs_store.deck_check.get(),
-        trx_data: false,
-        path_data: false,
-      });
+      if (!isPointCloud) {
+        viz_state.obs_store.deck_check.set({
+          ...viz_state.obs_store.deck_check.get(),
+          trx_data: false,
+          path_data: false,
+        });
 
-      await update_trx_layer_data(
-        viz_state.global_base_url,
-        tiles_in_view,
-        layers_obj,
-        viz_state
-      );
+        await update_trx_layer_data(
+          viz_state.global_base_url,
+          tiles_in_view,
+          layers_obj,
+          viz_state
+        );
 
-      await update_path_layer_data(
-        viz_state.global_base_url,
-        tiles_in_view,
-        layers_obj,
-        viz_state
-      );
+        await update_path_layer_data(
+          viz_state.global_base_url,
+          tiles_in_view,
+          layers_obj,
+          viz_state
+        );
+      }
 
       viewportCache.visibleTileKey = visibleTileKey;
     }
@@ -294,7 +330,9 @@ export const calc_viewport = async (
       viewportCache,
       'lastGeneBarData',
       viz_state.obs_store.new_gene_bar_data,
-      computeViewportGeneBars(viz_state, viewportCache)
+      isPointCloud
+        ? getPointCloudGeneBars(viz_state)
+        : computeViewportGeneBars(viz_state, viewportCache)
     );
 
     publishBarDataIfChanged(

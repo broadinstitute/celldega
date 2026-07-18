@@ -731,6 +731,11 @@ def _calc_nbhd_bordering(
         raise ValueError(f"metric must be one of {valid_metrics}, got '{metric}'")
 
     gdf_nbhd = gdf_nbhd.copy()
+    # Drop the index before the self-join: gdf_nbhd is keyed off name_col (a
+    # column), and a named index (e.g. one named "name" mirroring name_col)
+    # collides with that column during geopandas' internal reset_index in
+    # newer geopandas, raising "cannot insert <name>, already exists".
+    gdf_nbhd = gdf_nbhd.reset_index(drop=True)
     gdf_nbhd["geometry"] = gdf_nbhd["geometry"].buffer(0)
 
     names = gdf_nbhd[name_col].tolist()

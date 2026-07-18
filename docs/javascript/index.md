@@ -60,7 +60,6 @@ Celldega exports the following main visualization functions:
 | Function | Description |
 |----------|-------------|
 | `landscape_ist` | Create an interactive spatial transcriptomics (IST) landscape visualization |
-| `landscape_sst` | Create a spatial spot transcriptomics (SST) visualization for Visium HD |
 | `landscape_h_e` | Create an H&E image visualization |
 | `matrix_viz` | Create a Clustergrammer-style matrix/heatmap visualization |
 | `yearbook` | Create a yearbook-style grid of cell portraits |

@@ -56,6 +56,8 @@ nav:
           - Xenium Prime Mouse Brain: gallery/gallery_xenium_mouse_brain.md
           - Xenium Prime Human Skin: gallery/gallery_xenium_skin_cancer.md
           - Xenium Multi Dataset: gallery/gallery_xenium_multi.md
+      - CosMx:
+          - CosMx Human Colon CRC: gallery/gallery_cosmx_human_colon.md
       - Linked Views:
           - Landscape-Clustergram: gallery/gallery_landscape_clustergram.md
           - Landscape-Yearbook: gallery/gallery_landscape_yearbook.md
@@ -68,6 +70,7 @@ nav:
       - Visium-HD Landscape Pre-process: examples/tutorial_notebooks/Visium-HD_Landscape_Pre-process.ipynb
     - Brief Notebooks:
       - Landscape View Xenium: examples/brief_notebooks/Landscape_View_Xenium.ipynb
+      - Landscape 3D Thick MERFISH: examples/brief_notebooks/Landscape-3D_thick_MERFISH.ipynb
       - Landscape-Heatmap Visium-HD: examples/brief_notebooks/Landscape-Heatmap-Visium-HD.ipynb
       - UMAP-Cluster Pancreas Xenium: examples/brief_notebooks/UMAP-Cluster_Pancreas_Xenium.ipynb
       - Visium-HD Landscape Mouse Lung: examples/brief_notebooks/Visium-HD_Landscape_Mouse_Lung_FF.ipynb
@@ -107,14 +110,12 @@ extra_javascript:
     type: module
   - path: assets/js/gallery_skin_cancer.js
     type: module
+  - path: assets/js/gallery_cosmx_colon.js
+    type: module
   - path: assets/js/google-analytics.js
   - path: assets/js/hide_notebook_sidebar.js
     type: module
   - path: assets/js/gallery_visium_hd_cell_segmentation_mouse_brain.js
-    type: module
-  - path: assets/js/gallery_visium_hd_human_kidney.js
-    type: module
-  - path: assets/js/gallery_visium_hd_pancreas.js
     type: module
   - path: assets/js/gallery_landscape_clustergram.js
     type: module

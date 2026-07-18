@@ -1,3 +1,4 @@
+import { is_point_cloud_technology } from './global_variables/image_info';
 import { networkFromDegaFiles } from './read_parquet/network_from_dega_files';
 import { networkFromParquet } from './read_parquet/network_from_parquet';
 import { objects_from_parquet } from './read_parquet/objects_from_parquet';
@@ -7,7 +8,6 @@ import {
 } from './temp_utils/errorHandler';
 import { landscape_h_e } from './viz/landscape_h_e';
 import { landscape_ist } from './viz/landscape_ist';
-import { landscape_sst } from './viz/landscape_sst';
 import { matrix_viz } from './viz/matrix_viz';
 import { yearbook } from './viz/yearbook';
 import { render_enrich } from './widgets/enrich_widget';
@@ -57,7 +57,7 @@ const render_landscape_ist = async ({ model, el }) => {
   let landscape_state = model.get('landscape_state');
   if (technology === 'Chromium') {
     landscape_state = 'umap';
-  } else if (technology === 'point-cloud') {
+  } else if (is_point_cloud_technology(technology)) {
     landscape_state = 'spatial';
   }
   const segmentation = model.get('segmentation');
@@ -96,34 +96,6 @@ const render_landscape_ist = async ({ model, el }) => {
   );
 };
 
-const render_landscape_sst = async ({ model, el }) => {
-  const token = model.get('token');
-  const ini_x = model.get('ini_x');
-  const ini_y = model.get('ini_y');
-  const ini_z = model.get('ini_z');
-  const ini_zoom = model.get('ini_zoom');
-  const base_url = model.get('base_url');
-  const dataset_name = model.get('dataset_name');
-  const square_tile_size = model.get('square_tile_size');
-  const width = model.get('width');
-  const height = model.get('height');
-
-  landscape_sst(
-    model,
-    el,
-    base_url,
-    token,
-    ini_x,
-    ini_y,
-    ini_z,
-    ini_zoom,
-    square_tile_size,
-    dataset_name,
-    width,
-    height
-  );
-};
-
 const render_landscape_h_e = async ({ model, el }) => {
   const token = model.get('token');
   const ini_x = model.get('ini_x');
@@ -156,13 +128,10 @@ const render_landscape = async ({ model, el }) => {
   const technology = model.get('technology');
 
   if (
-    ['MERSCOPE', 'Xenium', 'Chromium', 'point-cloud', 'Visium-HD'].includes(
-      technology
-    )
+    ['MERSCOPE', 'Xenium', 'Chromium', 'Visium-HD'].includes(technology) ||
+    is_point_cloud_technology(technology)
   ) {
     return render_landscape_ist({ model, el });
-  } else if (['Visium-HD-no-jitter'].includes(technology)) {
-    return render_landscape_sst({ model, el });
   } else if (['h&e'].includes(technology)) {
     return render_landscape_h_e({ model, el });
   }
@@ -374,7 +343,6 @@ const matrix_from_dega_files = async (
 
 export default {
   landscape_ist,
-  landscape_sst,
   landscape_h_e,
   matrix_viz,
   matrix_from_dega_files,
@@ -382,7 +350,6 @@ export default {
   yearbook,
   render,
   render_landscape_ist,
-  render_landscape_sst,
   render_landscape_h_e,
   render_landscape,
   render_yearbook,

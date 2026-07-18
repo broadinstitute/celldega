@@ -116,7 +116,9 @@ def _find_transcripts_parquet(data_dir: str) -> str:
     `aziz_1_20260217_5_transcripts.parquet`), not just the literal Xenium
     convention `transcripts.parquet`.
     """
-    candidates = sorted(p for p in Path(data_dir).iterdir() if p.name.endswith("transcripts.parquet"))
+    candidates = sorted(
+        p for p in Path(data_dir).iterdir() if p.name.endswith("transcripts.parquet")
+    )
     if not candidates:
         raise FileNotFoundError(f"No file ending with 'transcripts.parquet' found in '{data_dir}'")
     if len(candidates) > 1:

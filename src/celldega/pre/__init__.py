@@ -33,6 +33,7 @@ from .boundary_tile import (
 from .image_info import get_image_info, resolve_xenium_morphology_ome_path
 from .landscape import (
     calc_meta_gene_data,
+    make_column_names_unique,
     read_cbg_mtx,
     save_cbg_gene_parquets,
     save_cbg_gene_parquets_row_groups,

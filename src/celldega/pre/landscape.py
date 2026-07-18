@@ -2,6 +2,7 @@
 Landscape processing module for handling gene expression data.
 """
 
+from collections import defaultdict
 from pathlib import Path
 
 import numpy as np
@@ -15,9 +16,45 @@ from .boundary_tile import _get_name_mapping
 # Function List:
 # -----------------------------------------------------------------------------
 # calc_meta_gene_data : Calculate gene metadata from the cell-by-gene matrix.
+# make_column_names_unique : Rename duplicate DataFrame column names so all are unique.
 # read_cbg_mtx         : Read the cell-by-gene matrix from the mtx files.
 # save_cbg_gene_parquets : Save the cell-by-gene matrix as gene-specific Parquet files.
 # =============================================================================
+
+
+def make_column_names_unique(df):
+    """
+    Rename duplicate column names in a DataFrame so every column name is unique.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+
+    Returns
+    -------
+    pandas.DataFrame
+        The same DataFrame, with duplicate column names suffixed (e.g. "gene", "gene_1").
+    """
+    counts = defaultdict(int)
+    used = set()
+    new_cols = []
+
+    for col in df.columns:
+        if col not in used:
+            new_cols.append(col)
+            used.add(col)
+            counts[col] += 1
+        else:
+            while True:
+                new_name = f"{col}_{counts[col]}"
+                counts[col] += 1
+                if new_name not in used:
+                    new_cols.append(new_name)
+                    used.add(new_name)
+                    break
+
+    df.columns = new_cols
+    return df
 
 
 def _convert_to_dense(series):

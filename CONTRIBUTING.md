@@ -121,6 +121,59 @@ test('should handle basic case', () => {
 });
 ```
 
+## 📓 Rendering Docs Notebooks (Widget Embedding)
+
+The example notebooks under `docs/examples/` render their interactive widgets
+(`Landscape`, `Clustergram`, …) statically in the built docs by **embedding the
+widget state** into the notebook. `mkdocs-jupyter` renders that saved state — it
+does **not** execute notebooks at build time — so the state must be present in
+the committed `.ipynb`.
+
+Render a notebook with embedded widget state using `nbconvert`:
+
+```bash
+# In place — re-executes the notebook and embeds widget state
+CELLDEGA_ESM_VERSION=<released-version> jupyter nbconvert \
+  --to notebook --execute --inplace \
+  --ExecutePreprocessor.timeout=900 \
+  --ExecutePreprocessor.iopub_timeout=120 \
+  docs/examples/brief_notebooks/YourNotebook.ipynb
+
+# Standalone HTML export (writes YourNotebook.html next to it)
+CELLDEGA_ESM_VERSION=<released-version> jupyter nbconvert --to html --execute \
+  --ExecutePreprocessor.timeout=900 \
+  --ExecutePreprocessor.iopub_timeout=120 \
+  docs/examples/brief_notebooks/YourNotebook.ipynb
+```
+
+Two flags/vars matter:
+
+- **`CELLDEGA_ESM_VERSION=<released-version>`** (e.g. `0.17.0`) — makes each
+  widget load `celldega.js` from jsdelivr via a tiny `_esm` shim instead of
+  inlining the ~10 MB bundle once per widget. The pinned version **must be
+  published to npm**. Without it (or with `CELLDEGA_LOCAL_ESM=1`) the local
+  bundle is inlined: self-contained and offline-capable, but ~10 MB per widget.
+  For local JS development (`npm run dev`/HMR), set `CELLDEGA_LOCAL_ESM=1` so the
+  widget uses your working `celldega.js` rather than the CDN.
+- **`--ExecutePreprocessor.iopub_timeout=120`** — the `Landscape` emits large
+  (10 MB+) messages; the default 4 s timeout drops them, leaving blank widgets.
+  (`store_widget_state` is already `True` by default, so widget state is embedded
+  automatically.)
+
+Notes:
+
+- nbconvert runs the kernel in the **notebook's own directory**, so a notebook
+  with a repo-root-relative data path will resolve it relative to that directory.
+- Sanity-check that the bundle wasn't inlined (shim ≈ 105 bytes, inlined ≈ 10 MB):
+
+  ```bash
+  python -c "import json,sys; s=json.load(open(sys.argv[1]))['metadata'].get('widgets',{}).get('application/vnd.jupyter.widget-state+json',{}).get('state',{}); print('max _esm bytes:', max((len(json.dumps(m['state']['_esm'])) for m in s.values() if '_esm' in m.get('state',{})), default=0))" \
+    docs/examples/brief_notebooks/YourNotebook.ipynb
+  ```
+
+- These notebooks are matched by the `*.ipynb` rule in `.gitignore`, so commit a
+  new one explicitly with `git add -f docs/examples/.../YourNotebook.ipynb`.
+
 ## 🎨 Code Style
 
 **No need to worry about formatting!** Our pre-commit hooks automatically:

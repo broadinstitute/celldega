@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 from typing import Any
@@ -47,6 +48,80 @@ from .utils import (
 # Global caches with size limits
 _distance_cache = weakref.WeakKeyDictionary()
 _ranking_cache = weakref.WeakKeyDictionary()
+
+
+def _is_default_entity_pair(
+    row_entity: str | dict | AxisEntity | None,
+    col_entity: str | dict | AxisEntity | None,
+) -> bool:
+    """Return True when the caller is using Matrix's default entity pair."""
+    return row_entity == "gene" and col_entity == "cell_cluster"
+
+
+def _axis_entities_from_uns(adata: AnnData) -> tuple[AxisEntity, AxisEntity] | None:
+    """Read Matrix row/column entities from AnnData metadata when available."""
+    candidates = [
+        adata.uns.get("axis_entities"),
+        adata.uns.get("matrix_axis_entities"),
+        adata.uns.get("celldega", {}).get("axis_entities")
+        if isinstance(adata.uns.get("celldega"), dict)
+        else None,
+    ]
+
+    for payload in candidates:
+        if not isinstance(payload, dict):
+            continue
+
+        row_entity = payload.get("row_entity") or payload.get("row")
+        col_entity = payload.get("col_entity") or payload.get("col")
+        if row_entity is not None and col_entity is not None:
+            return normalize_axis_entity(row_entity), normalize_axis_entity(col_entity)
+
+    if "row_entity" in adata.uns and "col_entity" in adata.uns:
+        return (
+            normalize_axis_entity(adata.uns["row_entity"]),
+            normalize_axis_entity(adata.uns["col_entity"]),
+        )
+
+    return None
+
+
+def _infer_axis_entities_from_adata(adata: AnnData) -> tuple[AxisEntity, AxisEntity] | None:
+    """Infer Matrix row/column entity specs for known AnnData modality shapes."""
+    metadata_entities = _axis_entities_from_uns(adata)
+    if metadata_entities is not None:
+        return metadata_entities
+
+    var_entity_type = adata.var.get("entity_type")
+    if var_entity_type is None:
+        return None
+
+    var_entity_values = pd.Series(var_entity_type).dropna().astype(str).unique()
+    category = adata.uns.get("category")
+
+    if (
+        len(var_entity_values) == 1
+        and var_entity_values[0] == "cell_population"
+        and category is not None
+    ):
+        row_entity: AxisEntity = {"entity": "cell", "attr": str(category)}
+
+        if "dataset_col" in adata.uns:
+            col_entity: AxisEntity = {"entity": "dataset", "attr": str(adata.uns["dataset_col"])}
+        elif (
+            "neighborhood_id" in adata.obs.columns
+            or "neighborhood_type" in adata.obs.columns
+            or adata.obs.index.name == "neighborhood_id"
+        ):
+            col_entity = {"entity": "nbhd", "attr": "name"}
+        else:
+            # Neighborhood population modalities created before collection alignment
+            # still have the same AnnData shape but may lack collection obs metadata.
+            col_entity = {"entity": "nbhd", "attr": "name"}
+
+        return row_entity, col_entity
+
+    return None
 
 
 def quick_hash_data(data: pd.DataFrame | AnnData, max_rows=100, max_cols=100) -> str:
@@ -168,6 +243,12 @@ class Matrix:
                 row_entity={"entity": "cell", "attr": "leiden"},
                 col_entity={"entity": "nbhd", "attr": "name"})
         """
+        axis_entities_defaulted = _is_default_entity_pair(row_entity, col_entity)
+        if isinstance(data, AnnData) and axis_entities_defaulted:
+            inferred_entities = _infer_axis_entities_from_adata(data)
+            if inferred_entities is not None:
+                row_entity, col_entity = inferred_entities
+
         # Core data storage
         self.data: pd.DataFrame | None = None
         self.meta_col: pd.DataFrame = pd.DataFrame()
@@ -202,8 +283,9 @@ class Matrix:
         self._data_hash: int | None = None
         self._dirty_flags: dict[str, bool] = dict.fromkeys(CACHE_HIERARCHY, True)
 
-        # Visualization structure
-        self.viz: dict[str, Any] = DEFAULT_VIZ.copy()
+        # Visualization structure. Deep copy so each Matrix gets its own nested
+        # ``linkage``/node dicts — a shallow copy would share them across instances.
+        self.viz: dict[str, Any] = copy.deepcopy(DEFAULT_VIZ)
 
         # if name is None, generate a quick hash-based name from the data content
         if name is None:
@@ -636,6 +718,64 @@ class Matrix:
 
         self._viz_json(dendro=self._clustered)
         self._dirty_flags[CacheLevel.VIZ.value] = False
+
+    def to_cluster(
+        self,
+        axis: AxisInput = "row",
+        n_clusters: int | None = None,
+        threshold: float | None = None,
+        criterion: str | None = None,
+    ) -> pd.Series:
+        """Cut the dendrogram into flat cluster labels.
+
+        Cuts the hierarchical clustering linkage (computed by :meth:`clust`) along
+        one axis and returns a label per row/column. Use ``n_clusters`` to request
+        a fixed number of clusters (``fcluster`` with ``criterion="maxclust"``) or
+        ``threshold`` to cut at a linkage distance (``criterion="distance"``).
+        Exactly one of the two must be given unless ``criterion`` is set explicitly.
+
+        This is the programmatic counterpart to the Clustergram's interactive
+        dendrogram slider: it turns a clustered Matrix into discrete groups (e.g.
+        consensus domains, meta-clusters) that can be attached back to a
+        collection's ``obs`` / ``var``.
+
+        Args:
+            axis: ``"row"``/``"col"`` (or ``0``/``1``) — which dendrogram to cut.
+            n_clusters: Target number of flat clusters (``maxclust`` criterion).
+            threshold: Linkage-distance cutoff (``distance`` criterion).
+            criterion: Explicit ``scipy`` ``fcluster`` criterion; overrides the
+                ``n_clusters``/``threshold`` inference when given (paired with
+                whichever of the two is supplied as ``t``).
+
+        Returns:
+            A ``pd.Series`` of integer cluster labels indexed by the axis names
+            (``data.index`` for rows, ``data.columns`` for columns), in data order.
+
+        Raises:
+            ValueError: If the matrix is unclustered, the linkage is empty, or
+                neither ``n_clusters`` nor ``threshold`` is provided.
+        """
+        from scipy.cluster.hierarchy import fcluster
+
+        if self.data is None:
+            raise ValueError(ERRORS["no_data"])
+        axis_enum = Axis.normalize(axis)
+        linkage_data = self.viz["linkage"].get(axis_enum.value)
+        if not linkage_data:
+            raise ValueError(
+                f"no linkage for axis '{axis_enum.value}'; call .clust() before .to_cluster()"
+            )
+
+        linkage_matrix = np.array(linkage_data)
+        if n_clusters is not None:
+            labels = fcluster(linkage_matrix, t=n_clusters, criterion=criterion or "maxclust")
+        elif threshold is not None:
+            labels = fcluster(linkage_matrix, t=threshold, criterion=criterion or "distance")
+        else:
+            raise ValueError("provide n_clusters or threshold to cut the dendrogram")
+
+        names = self.data.index if axis_enum == Axis.ROW else self.data.columns
+        return pd.Series(labels, index=names.copy(), name="cluster")
 
     def downsample_to(
         self,

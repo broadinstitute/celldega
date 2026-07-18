@@ -23,12 +23,15 @@ export const get_path_color = (cats, i, d) => {
     inst_color = [0, 0, 255];
   }
 
-  const inst_opacity =
-    cats.selected_cats.length === 0 || cats.selected_cats.includes(inst_cat)
+  const selected_cats = Array.isArray(cats.selected_cats)
+    ? cats.selected_cats.map((cat) => String(cat))
+    : [];
+  const alpha =
+    selected_cats.length === 0 || selected_cats.includes(inst_cat_str)
       ? 255
-      : 50;
+      : 0;
 
-  return [...inst_color, inst_opacity];
+  return [...inst_color, alpha];
 };
 
 export const ini_path_layer = (viz_state) => {

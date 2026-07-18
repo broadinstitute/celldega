@@ -4,7 +4,12 @@
  */
 
 import { options } from '../global_variables/fetch_options';
+import { getGeneExpressionColumns } from '../read_parquet/gene_expression_columns';
 import { get_arrow_table } from '../read_parquet/get_arrow_table';
+import {
+  getRowKeyArray,
+  getTableColumnArray,
+} from '../read_parquet/table_accessors';
 
 /**
  * Fisher-Yates shuffle for random cell selection.
@@ -75,12 +80,14 @@ export const load_cluster_data = async (
     return new Map();
   }
 
-  const cell_names =
-    cluster_table.getChild('__index_level_0__')?.toArray() || [];
-  const cluster_values =
-    cluster_table.getChild(attr)?.toArray() ||
-    cluster_table.getChild('cluster')?.toArray() ||
-    [];
+  const cell_names = getRowKeyArray(
+    cluster_table,
+    ['name', 'cell_id', '__index_level_0__', 'index'],
+    {
+      fallbackToRangeIndex: false,
+    }
+  );
+  const cluster_values = getTableColumnArray(cluster_table, [attr, 'cluster']);
 
   const cluster_map = new Map();
   cell_names.forEach((name, i) => {
@@ -134,41 +141,23 @@ export const load_gene_expression = async (
     return new Map();
   }
 
-  // Try multiple possible column names for cell index
-  const cell_names_col =
-    exp_table.getChild('__index_level_0__') ||
-    exp_table.getChild('cell_id') ||
-    exp_table.getChild('cell_name') ||
-    exp_table.getChild('index');
+  const { cell_names, cell_exp } = getGeneExpressionColumns(
+    exp_table,
+    gene_name
+  );
 
-  if (!cell_names_col) {
-    // console.warn(
-    //   `Gene expression table has no recognized cell index column. Available columns:`,
-    //   exp_table.schema.fields.map((f) => f.name)
-    // );
-    return new Map();
-  }
-
-  const cell_names = cell_names_col.toArray();
-
-  // Try gene name first (individual files), then 'expression' (row-grouped CBG)
-  const exp_col =
-    exp_table.getChild(gene_name) || exp_table.getChild('expression');
-
-  if (!exp_col) {
+  if (cell_names.length === 0 || cell_exp.length === 0) {
     // eslint-disable-next-line no-console
     console.warn(
-      `Gene expression column '${gene_name}' or 'expression' not found. Available columns:`,
+      `Gene expression columns for '${gene_name}' not found. Available columns:`,
       exp_table.schema.fields.map((f) => f.name)
     );
     return new Map();
   }
 
-  const exp_values = exp_col.toArray();
-
   const exp_map = new Map();
   cell_names.forEach((name, i) => {
-    exp_map.set(String(name), Number(exp_values[i]));
+    exp_map.set(String(name), Number(cell_exp[i]));
   });
 
   return exp_map;
@@ -291,7 +280,7 @@ export const execute_cell_query = async (
       }
     } else if (
       viz_state.cats.dict_cell_cats &&
-      Object.keys(viz_state.cats.dict_cell_cats).length > 0
+      viz_state.cats.has_dict_cell_cats
     ) {
       // Use dict_cell_cats if available (loaded from DegaFiles)
       candidate_cells = candidate_cells.filter((cell_name) => {

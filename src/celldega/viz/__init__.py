@@ -2,10 +2,30 @@
 Module for visualization
 """
 
+import json
+
 from ipywidgets import HBox, Layout, VBox, jslink
 
 from .local_server import get_local_server, get_proxy_server
 from .widget import Clustergram, Enrich, Landscape, Yearbook
+
+
+def _clustergram_col_attr(cgm: "Clustergram", default: str = "leiden") -> str:
+    """The cell attribute a Clustergram's columns represent (e.g. ``leiden``, ``cell_type``).
+
+    Read from the Clustergram's ``col_entity`` (``{"entity": ..., "attr": ...}``) so
+    linked Landscape/Yearbook queries color cells by whatever attribute the columns
+    actually encode, rather than assuming ``leiden``.
+    """
+    raw = getattr(cgm, "col_entity", None)
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw)
+        except (ValueError, TypeError):
+            raw = None
+    if isinstance(raw, dict):
+        return raw.get("attr") or default
+    return default
 
 
 def landscape_clustergram(
@@ -94,6 +114,7 @@ def landscape_yearbook(
     yearbook: Yearbook,
     width: str = "100%",
     height: str = "400px",
+    cluster_attr: str = "leiden",
 ) -> "VBox":
     """
     Display a `Landscape` widget above a `Yearbook` widget with linked queries.
@@ -107,6 +128,10 @@ def landscape_yearbook(
         yearbook (Yearbook): A `Yearbook` widget.
         width (str): The width of the widgets.
         height (str): The height of each widget.
+        cluster_attr (str): The cell attribute (``adata.obs`` column) a clicked
+            cluster value refers to (default ``"leiden"``). If the click payload
+            carries its own ``attr`` it takes precedence, so linked Clustergrams
+            over non-leiden sets (cell types, domains) color the right cells.
 
     Returns:
         VBox: Visualization display containing both widgets stacked vertically.
@@ -123,27 +148,28 @@ def landscape_yearbook(
         info = change["new"] or {}
         click_type = (info.get("type") or "").lower()
         value = info.get("value") or {}
+        attr = value.get("attr") or cluster_attr
 
-        current_query = dict(yearbook.query or {})
+        current_query = dict(yearbook.front_end_query or {})
 
         if click_type == "col_label":
             # Cluster selected
             cluster_name = value.get("name", "")
             if cluster_name:
-                current_query["cluster"] = {"attr": "leiden", "value": str(cluster_name)}
-                yearbook.query = current_query
+                current_query["cluster"] = {"attr": attr, "value": str(cluster_name)}
+                yearbook.front_end_query = current_query
         elif click_type == "row_label":
             # Gene selected
             gene_name = value.get("name", "")
             if gene_name:
                 current_query["gene"] = gene_name
-                yearbook.query = current_query
+                yearbook.front_end_query = current_query
         elif click_type == "col_dendro":
             # Multiple clusters selected via dendrogram
             selected_names = value.get("selected_names", [])
             if selected_names and len(selected_names) == 1:
-                current_query["cluster"] = {"attr": "leiden", "value": str(selected_names[0])}
-                yearbook.query = current_query
+                current_query["cluster"] = {"attr": attr, "value": str(selected_names[0])}
+                yearbook.front_end_query = current_query
 
     landscape.observe(_on_update_trigger, names="update_trigger")
 
@@ -160,6 +186,7 @@ def landscape_yearbook_clustergram(
     cgm: Clustergram,
     width: str = "600px",
     height: str = "400px",
+    cluster_attr: str | None = None,
 ) -> "VBox":
     """
     Display a `Landscape` and `Clustergram` side by side, with a `Yearbook` below.
@@ -189,38 +216,41 @@ def landscape_yearbook_clustergram(
     # Link clustergram click_info to landscape update_trigger
     jslink((cgm, "click_info"), (landscape, "update_trigger"))
 
+    # Attribute the Clustergram's columns encode (e.g. leiden, cell_type, domain)
+    attr = cluster_attr or _clustergram_col_attr(cgm)
+
     # Link Clustergram to Yearbook
     def _on_click_info(change):
         info = change["new"] or {}
         click_type = (info.get("type") or "").lower()
         value = info.get("value") or {}
 
-        current_query = dict(yearbook.query or {})
+        current_query = dict(yearbook.front_end_query or {})
 
         if click_type == "col_label":
             # Cluster selected
             cluster_name = value.get("name", "")
             if cluster_name:
-                current_query["cluster"] = {"attr": "leiden", "value": str(cluster_name)}
-                yearbook.query = current_query
+                current_query["cluster"] = {"attr": attr, "value": str(cluster_name)}
+                yearbook.front_end_query = current_query
         elif click_type == "row_label":
             # Gene selected
             gene_name = value.get("name", "")
             if gene_name:
                 current_query["gene"] = gene_name
-                yearbook.query = current_query
+                yearbook.front_end_query = current_query
         elif click_type.startswith("col_dendro"):
             # Multiple clusters selected via dendrogram
             selected_names = value.get("selected_names", [])
             if selected_names and len(selected_names) == 1:
-                current_query["cluster"] = {"attr": "leiden", "value": str(selected_names[0])}
-                yearbook.query = current_query
+                current_query["cluster"] = {"attr": attr, "value": str(selected_names[0])}
+                yearbook.front_end_query = current_query
         elif click_type.startswith("row_dendro"):
             # Multiple genes selected - use first one
             selected_names = value.get("selected_names", [])
             if selected_names:
                 current_query["gene"] = selected_names[0]
-                yearbook.query = current_query
+                yearbook.front_end_query = current_query
 
     cgm.observe(_on_click_info, names="click_info")
 

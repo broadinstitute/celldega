@@ -860,7 +860,7 @@ export const make_yearbook_ui_container = (
 
       bars.exit().transition().duration(750).attr('opacity', 0).remove();
 
-      if (container) {
+      if (container && !viz_state.close_up) {
         container.scrollTo({ top: 0, behavior: 'smooth' });
       }
     };

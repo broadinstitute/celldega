@@ -122,3 +122,5 @@ ENV/
 
 # Conda environments
 .conda/
+
+*.chat

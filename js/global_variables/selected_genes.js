@@ -1,16 +1,36 @@
+const updateSelectedGeneState = (genes, selectedGenes) => {
+  if (!genes) {
+    return;
+  }
+
+  genes.selected_genes = selectedGenes;
+  genes.selected_gene_ids = new Set(
+    selectedGenes
+      .map((gene) => genes.g_nameMapping?.[gene])
+      .filter((geneId) => geneId !== undefined)
+  );
+};
+
 export const update_selected_genes = (genes, new_selected_genes, obs_store) => {
-  // Check if the arrays are equal
+  const currentSelectedGenes = Array.isArray(genes?.selected_genes)
+    ? genes.selected_genes
+    : [];
+  const nextSelectedGenes = Array.isArray(new_selected_genes)
+    ? new_selected_genes
+    : [];
+
   const areArraysEqual =
-    new_selected_genes.length === genes.selected_genes.length &&
-    new_selected_genes.every(
-      (value, index) => value === genes.selected_genes[index]
+    nextSelectedGenes.length === currentSelectedGenes.length &&
+    nextSelectedGenes.every(
+      (value, index) => value === currentSelectedGenes[index]
     );
 
-  // Use the ternary operator to update selected_genes
-  genes.selected_genes = areArraysEqual ? [] : new_selected_genes;
+  const selectedGenes = areArraysEqual ? [] : nextSelectedGenes;
+  updateSelectedGeneState(genes, selectedGenes);
 
-  // Update obs_store
-  obs_store.selected_genes.set(genes.selected_genes);
+  if (obs_store?.selected_genes) {
+    obs_store.selected_genes.set(selectedGenes);
+  }
 };
 
 /**
@@ -31,13 +51,15 @@ const isGeneEntity = (row_entity) => {
 };
 
 export const sync_selected_genes = (viz_state, genes) => {
+  const selectedGenes = Array.isArray(genes) ? genes : [];
+
   if (viz_state.model && typeof viz_state.model.set === 'function') {
-    viz_state.model.set('selected_genes', genes);
+    viz_state.model.set('selected_genes', selectedGenes);
 
     // Also sync to selected_rows if row entity represents genes
     const { row_entity } = viz_state;
     if (isGeneEntity(row_entity)) {
-      viz_state.model.set('selected_rows', genes);
+      viz_state.model.set('selected_rows', selectedGenes);
     }
 
     if (typeof viz_state.model.save_changes === 'function') {
@@ -45,8 +67,10 @@ export const sync_selected_genes = (viz_state, genes) => {
     }
   }
 
-  if (viz_state.obs_store && viz_state.obs_store.selected_genes) {
-    viz_state.obs_store.selected_genes.set(genes);
+  updateSelectedGeneState(viz_state.genes, selectedGenes);
+
+  if (viz_state.obs_store?.selected_genes) {
+    viz_state.obs_store.selected_genes.set(selectedGenes);
   }
 };
 

@@ -4,6 +4,15 @@ import { hexToRgb } from '../../utils/hexToRgb';
 import { refresh_layer } from '../../utils/refresh_layer';
 import { getModelMatrixProps } from '../../utils/rotation';
 
+const get_nbhd_identity = (feature) =>
+  feature?.properties?.name ?? feature?.properties?.cat;
+
+const selected_nbhds_include = (selected_nbhds, feature) => {
+  const name = feature?.properties?.name;
+  const cat = feature?.properties?.cat;
+  return selected_nbhds.includes(name) || selected_nbhds.includes(cat);
+};
+
 /**
  * Get color for a neighborhood feature based on current color mode
  *
@@ -17,12 +26,11 @@ import { getModelMatrixProps } from '../../utils/rotation';
  */
 const get_nbhd_color = (d, viz_state) => {
   const colorMode = viz_state.nbhd.color_mode || 'cluster';
-  const selectedNbhds = viz_state.obs_store.selected_nbhds.get();
-  const hasSelection = selectedNbhds.length > 0;
-  const isSelected = hasSelection && selectedNbhds.includes(d.properties.cat);
+  const selected_nbhds = viz_state.obs_store.selected_nbhds.get();
 
-  // Handle selection visibility
-  if (hasSelection && !isSelected) {
+  // if viz_state.obs_store.selected_nbhds is not empty
+  // then check if the neighborhood identity is in the selected_nbhds
+  if (selected_nbhds.length > 0 && !selected_nbhds_include(selected_nbhds, d)) {
     return [0, 0, 0, 0]; // Fully transparent for non-selected
   }
 
@@ -123,7 +131,7 @@ const nbhd_layer_onclick = async (
   layers_obj,
   viz_state
 ) => {
-  const inst_nbhd = info.object.properties.cat;
+  const inst_nbhd = get_nbhd_identity(info.object);
 
   // update selected_nbhds observable with the clicked nbhd unless
   // the clicked nbhd is already equal to selected_nbhds

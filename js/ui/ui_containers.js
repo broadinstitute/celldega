@@ -1,4 +1,7 @@
-import { DrawPolygonMode, ViewMode } from '@deck.gl-community/editable-layers';
+import {
+  DrawPolygonByDraggingMode,
+  ViewMode,
+} from '@deck.gl-community/editable-layers';
 import * as d3 from 'd3';
 
 import { toggle_background_layer_visibility } from '../deck-gl/layers/background_layer';
@@ -99,6 +102,67 @@ export const make_slider_container = (class_name) => {
   slider_container.style.marginLeft = '2px';
   slider_container.style.marginTop = '2px';
   return slider_container;
+};
+
+const SKETCH_MODE_CONFIG = {
+  throttleMs: 16,
+};
+
+const ignores_sketch_shortcut = (event) => {
+  if (
+    event.defaultPrevented ||
+    event.metaKey ||
+    event.ctrlKey ||
+    event.altKey
+  ) {
+    return true;
+  }
+
+  const { target } = event;
+  const tag_name = target?.tagName?.toLowerCase();
+  return (
+    target?.isContentEditable ||
+    tag_name === 'input' ||
+    tag_name === 'textarea' ||
+    tag_name === 'select' ||
+    tag_name === 'button'
+  );
+};
+
+const set_sketch_mode = (active, deck_ist, layers_obj, viz_state) => {
+  const sketch_button = viz_state.edit?.buttons?.sktch;
+  if (!sketch_button) return;
+
+  const button = d3.select(sketch_button);
+
+  if (active) {
+    button.classed('active', true).style('color', 'blue');
+    viz_state.edit.mode = 'sktch';
+
+    update_edit_layer_mode(
+      layers_obj,
+      DrawPolygonByDraggingMode,
+      SKETCH_MODE_CONFIG
+    );
+    update_cell_pickable_state(layers_obj, false);
+    update_path_pickable_state(layers_obj, false);
+    update_trx_pickable_state(layers_obj, false);
+  } else {
+    button.classed('active', false).style('color', 'gray');
+    viz_state.edit.mode = 'view';
+
+    update_edit_layer_mode(layers_obj, ViewMode);
+    update_cell_pickable_state(layers_obj, true);
+    update_path_pickable_state(layers_obj, true);
+    update_trx_pickable_state(layers_obj, true);
+  }
+
+  const layers_list = get_layers_list(
+    layers_obj,
+    viz_state.close_up,
+    viz_state
+  );
+  deck_ist.setProps({ layers: layers_list });
 };
 
 /**
@@ -1064,32 +1128,7 @@ export const make_ist_ui_container = (
       const current = d3.select(event.currentTarget);
       const is_active = current.classed('active');
 
-      if (is_active === false) {
-        current.classed('active', true).style('color', 'blue');
-
-        _viz_state.edit.mode = 'sktch';
-
-        update_edit_layer_mode(_layers_obj, DrawPolygonMode);
-        update_cell_pickable_state(_layers_obj, false);
-        update_path_pickable_state(_layers_obj, false);
-        update_trx_pickable_state(_layers_obj, false);
-      } else {
-        _viz_state.edit.mode = 'view';
-
-        current.classed('active', false).style('color', 'gray');
-
-        update_edit_layer_mode(_layers_obj, ViewMode);
-        update_cell_pickable_state(_layers_obj, true);
-        update_path_pickable_state(_layers_obj, true);
-        update_trx_pickable_state(_layers_obj, true);
-      }
-
-      const layers_list = get_layers_list(
-        _layers_obj,
-        _viz_state.close_up,
-        _viz_state
-      );
-      _deck_ist.setProps({ layers: layers_list });
+      set_sketch_mode(!is_active, _deck_ist, _layers_obj, _viz_state);
     };
 
     // Create NBHD button when nbhd_edit is true (replaces the old EDIT button)
@@ -1118,6 +1157,53 @@ export const make_ist_ui_container = (
 
     // SKTCH button is hidden initially, shown when NBHD edit mode is active
     d3.select(viz_state.edit.buttons.sktch).style('display', 'none');
+
+    // Tear down any listeners left by a previous call on this viz_state before
+    // possibly re-registering below, so re-running make_ist_ui_container can't
+    // orphan them (including when nbhd.edit has flipped to false since then).
+    viz_state.edit.cleanup_shortcuts?.();
+
+    if (viz_state.nbhd.edit) {
+      // The keydown listener is global, but the shortcut is scoped to this
+      // widget by checking whether the pointer is over this Landscape's root
+      // at keydown time. Without this, pressing 's' would toggle every
+      // Landscape on the page (e.g. multiple widgets in a notebook) at once.
+      const root_el = viz_state.root;
+
+      const sketch_keydown_callback = (event) => {
+        if (!root_el?.matches(':hover')) return;
+
+        const key = event.key?.toLowerCase();
+        if (key !== 's' && event.key !== 'Escape') return;
+        if (ignores_sketch_shortcut(event)) return;
+        if (!viz_state.obs_store.viz_edit_layer.get()) return;
+
+        // Escape exits sketch mode; 's' enters it. (Completing a stroke also
+        // auto-exits via the addFeature handler, so sketch mode is single-shot.)
+        if (event.key === 'Escape') {
+          if (viz_state.edit.mode !== 'sktch') return;
+          event.preventDefault();
+          event.stopPropagation();
+          set_sketch_mode(false, deck_ist, layers_obj, viz_state);
+          return;
+        }
+
+        if (viz_state.edit.mode === 'sktch') return;
+        if (viz_state.edit.mode === 'modify') return;
+
+        event.preventDefault();
+        event.stopPropagation();
+        set_sketch_mode(true, deck_ist, layers_obj, viz_state);
+      };
+
+      // Capture phase so this scoped shortcut can claim the keystroke (via
+      // stopPropagation) before page-level handlers like Jupyter's own
+      // command-mode 's'-to-save binding see it.
+      document.addEventListener('keydown', sketch_keydown_callback, true);
+      viz_state.edit.cleanup_shortcuts = () => {
+        document.removeEventListener('keydown', sketch_keydown_callback, true);
+      };
+    }
 
     make_edit_button(
       deck_ist,

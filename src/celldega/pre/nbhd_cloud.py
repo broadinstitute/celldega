@@ -25,6 +25,7 @@ from pathlib import Path
 import anndata as ad
 import numpy as np
 import pandas as pd
+from scipy.sparse import issparse
 from shapely.geometry import mapping
 
 from celldega.nbhd.collection import NeighborhoodCollection
@@ -378,6 +379,37 @@ def _write_nbhd_cloud_landscape_parameters(
         json.dump(landscape_parameters, f, indent=2)
 
 
+def write_meta_gene_for_nbhd_cloud(adata: ad.AnnData, path_dega_files: str | Path) -> None:
+    """Write a dataset-root `meta_gene.parquet` (`mean`, `std`, `max`, `non-zero`, `color`).
+
+    Every technology's gene search box and gene bar graph fetch this file
+    unconditionally (`set_meta_gene`/`set_color_dict_gene`, neither gated on
+    technology) — neighborhood-cloud is no exception, even though its actual
+    gene-expression *coloring* comes from the per-neighborhood
+    `expression/<gene>.parquet` files (§`write_nbhd_cloud_shapes_and_features`),
+    not this file. Reuses the existing `make_meta_gene` writer (same one every
+    other technology uses) rather than duplicating its color-palette logic.
+    """
+    # Deferred import: `celldega.pre.make_meta_gene` lives in this package's
+    # own `__init__.py`, which imports this module — importing it at module
+    # load time would be circular.
+    from celldega.pre import make_meta_gene
+
+    if issparse(adata.X):
+        # Keep it sparse end to end -- calc_meta_gene_data has a sparse-aware
+        # path, and densifying here would otherwise materialize a
+        # cells x genes dense array for the *entire* dataset (unlike the
+        # per-slice nbhd-by-gene computation, which only ever densifies one
+        # slice at a time).
+        cbg = pd.DataFrame.sparse.from_spmatrix(
+            adata.X.tocsr(), index=adata.obs_names, columns=adata.var_names
+        )
+    else:
+        cbg = pd.DataFrame(np.asarray(adata.X), index=adata.obs_names, columns=adata.var_names)
+
+    make_meta_gene(cbg, Path(path_dega_files) / "meta_gene.parquet")
+
+
 def write_nbhd_cloud_dataset(
     adata: ad.AnnData,
     nbhd: NeighborhoodCollection,
@@ -425,4 +457,5 @@ def write_nbhd_cloud_dataset(
     write_nbhd_cloud_shapes_and_features(
         adata, nbhd, path_dega_files, cluster_attr=cluster_attr, slice_attr=slice_attr
     )
+    write_meta_gene_for_nbhd_cloud(adata, path_dega_files)
     _write_nbhd_cloud_landscape_parameters(path_dega_files, nearest_n_slices_default)

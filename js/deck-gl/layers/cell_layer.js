@@ -13,7 +13,10 @@ import {
 } from '../../global_variables/cell_names_array';
 import { set_color_dict_gene } from '../../global_variables/color_dict_gene';
 import { options } from '../../global_variables/fetch_options';
-import { is_orbit_technology } from '../../global_variables/image_info';
+import {
+  is_neighborhood_cloud_technology,
+  is_orbit_technology,
+} from '../../global_variables/image_info';
 import { update_selected_genes } from '../../global_variables/selected_genes';
 import { get_arrow_table } from '../../read_parquet/get_arrow_table';
 import { get_scatter_data } from '../../read_parquet/get_scatter_data';
@@ -660,7 +663,115 @@ const cell_layer_onclick = async (
   update_selected_genes(viz_state.genes, [], viz_state.obs_store);
 };
 
+// `neighborhood-cloud` has no whole-dataset `cell_metadata.parquet` /
+// `cell_clusters/cluster.parquet` (unlike point-cloud, which this function was
+// originally written for) — real cells stream in later, scoped to the
+// nearest slices, via `nbhd_cloud_cell_layer.js`. Fetching those files here
+// would 404 and, worse, `set_spatial_bounds_from_flat_coordinates` would then
+// compute an initial camera from zero cells (zero-width bounds -> `Infinity`
+// zoom), breaking OrbitView's projection entirely. Instead, derive sane
+// initial spatial bounds from `nbhd_cloud.meta_slice` (already fetched at
+// init) and return an inert, empty `PointCloudLayer` — a placeholder until
+// the first `calc_nbhd_cloud_viewport` call populates the real one.
+const ini_neighborhood_cloud_inert_cell_layer = async (base_url, viz_state) => {
+  // `set_color_dict_gene` fetches meta_gene.parquet and builds
+  // `genes.color_dict_gene` -- normally called from the point-cloud branch
+  // below (which this technology skips entirely), but the gene *bar graph*
+  // (built unconditionally in ui_containers.js from `genes.top_gene_counts`,
+  // itself populated by `set_meta_gene` regardless of technology) needs it
+  // too, or every bar's fill accessor reads `color_dict_gene[d.name][0]` on
+  // undefined and throws.
+  await set_color_dict_gene(
+    viz_state.genes,
+    base_url,
+    viz_state.seg.version,
+    viz_state.aws
+  );
+
+  const metaSlice = viz_state.nbhd_cloud?.meta_slice || [];
+
+  if (metaSlice.length > 0) {
+    const xs = metaSlice.map((s) => s.centroid_x);
+    const ys = metaSlice.map((s) => s.centroid_y);
+    const zs = metaSlice.map((s) => s.centroid_z);
+    viz_state.spatial.x_min = Math.min(...xs);
+    viz_state.spatial.x_max = Math.max(...xs);
+    viz_state.spatial.y_min = Math.min(...ys);
+    viz_state.spatial.y_max = Math.max(...ys);
+    viz_state.spatial.z_min = Math.min(...zs);
+    viz_state.spatial.z_max = Math.max(...zs);
+  } else {
+    viz_state.spatial.x_min = 0;
+    viz_state.spatial.x_max = 1;
+    viz_state.spatial.y_min = 0;
+    viz_state.spatial.y_max = 1;
+    viz_state.spatial.z_min = 0;
+    viz_state.spatial.z_max = 1;
+  }
+
+  viz_state.spatial.center_x =
+    (viz_state.spatial.x_max + viz_state.spatial.x_min) / 2;
+  viz_state.spatial.center_y =
+    (viz_state.spatial.y_max + viz_state.spatial.y_min) / 2;
+  viz_state.spatial.center_z =
+    (viz_state.spatial.z_max + viz_state.spatial.z_min) / 2;
+  // Guard against a degenerate (zero-width) extent producing an Infinity
+  // zoom below -- the exact failure mode this whole function exists to avoid.
+  viz_state.spatial.data_width = Math.max(
+    viz_state.spatial.x_max - viz_state.spatial.x_min,
+    1
+  );
+  viz_state.spatial.data_height = Math.max(
+    viz_state.spatial.y_max - viz_state.spatial.y_min,
+    1
+  );
+
+  const canvas_width = viz_state.root.clientWidth;
+  const canvas_height = viz_state.containers.root_dim.height;
+  viz_state.spatial.scale_x = canvas_width / viz_state.spatial.data_width;
+  viz_state.spatial.scale_y = canvas_height / viz_state.spatial.data_height;
+  viz_state.spatial.scale = Math.min(
+    viz_state.spatial.scale_x,
+    viz_state.spatial.scale_y
+  );
+
+  viz_state.spatial.ini_zoom = Math.log2(viz_state.spatial.scale) * 1.01;
+  viz_state.spatial.ini_x = viz_state.spatial.center_x;
+  viz_state.spatial.ini_y = viz_state.spatial.center_y;
+  viz_state.spatial.ini_z = viz_state.spatial.center_z;
+
+  viz_state.cats.cell_names_array = [];
+  viz_state.cats.cell_name_to_index_map = new Map();
+  viz_state.cats.dict_cell_cats = {};
+  viz_state.cats.has_dict_cell_cats = false;
+  viz_state.combo_data.cell_compact = createEmptyCellCompact();
+
+  return new PointCloudLayer({
+    id: 'cell-layer',
+    sizeUnits: 'meters',
+    pointSize: 5,
+    pickable: false,
+    data: {
+      length: 0,
+      attributes: {
+        getPosition: { value: new Float32Array(0), size: 3 },
+        getColor: { value: new Uint8Array(0), size: 4, type: 'unorm8' },
+      },
+    },
+    opacity: 0,
+    ...getModelMatrixProps(viz_state.rotation),
+  });
+};
+
 export const ini_cell_layer = async (base_url, viz_state) => {
+  if (
+    is_neighborhood_cloud_technology(
+      viz_state.img?.landscape_parameters?.technology
+    )
+  ) {
+    return ini_neighborhood_cloud_inert_cell_layer(base_url, viz_state);
+  }
+
   let cell_url;
   const pointCloud = is_point_cloud_viz(viz_state);
 

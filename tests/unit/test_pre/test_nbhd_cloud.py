@@ -8,6 +8,7 @@ import pytest
 from celldega.nbhd import NeighborhoodCollection, alpha_shape_cell_clusters_by_slice
 from celldega.pre import (
     write_cell_clusters_meta,
+    write_meta_gene_for_nbhd_cloud,
     write_meta_slice,
     write_nbhd_cloud_cells,
     write_nbhd_cloud_dataset,
@@ -226,6 +227,7 @@ def test_write_nbhd_cloud_dataset_end_to_end(tmp_path):
     assert (tmp_path / "nbhd_cloud" / "shapes" / "slice_s0.parquet").exists()
     assert (tmp_path / "nbhd_cloud" / "expression" / "Gene0.parquet").exists()
     assert (tmp_path / "cell_clusters" / "meta_cluster.parquet").exists()
+    assert (tmp_path / "meta_gene.parquet").exists()
 
     with (tmp_path / "landscape_parameters.json").open() as f:
         landscape_parameters = json.load(f)
@@ -233,3 +235,27 @@ def test_write_nbhd_cloud_dataset_end_to_end(tmp_path):
     assert landscape_parameters["technology"] == "neighborhood-cloud"
     assert landscape_parameters["nbhd_cloud"]["directory"] == "nbhd_cloud"
     assert landscape_parameters["nbhd_cloud"]["nearest_n_slices_default"] == {"cells": 5}
+
+
+def test_write_meta_gene_for_nbhd_cloud(tmp_path):
+    adata = _synthetic_dataset(n_genes=3)
+
+    write_meta_gene_for_nbhd_cloud(adata, tmp_path)
+
+    df_meta_gene = pd.read_parquet(tmp_path / "meta_gene.parquet")
+    assert set(df_meta_gene.index) == {"Gene0", "Gene1", "Gene2"}
+    assert {"mean", "std", "max", "non-zero", "color"}.issubset(df_meta_gene.columns)
+    assert df_meta_gene["color"].notna().all()
+
+
+def test_write_meta_gene_for_nbhd_cloud_accepts_sparse_x(tmp_path):
+    import scipy.sparse as sp
+
+    adata = _synthetic_dataset(n_genes=3)
+    adata.X = sp.csr_matrix(adata.X)
+
+    write_meta_gene_for_nbhd_cloud(adata, tmp_path)
+
+    df_meta_gene = pd.read_parquet(tmp_path / "meta_gene.parquet")
+    assert set(df_meta_gene.index) == {"Gene0", "Gene1", "Gene2"}
+    assert {"mean", "std", "max", "non-zero", "color"}.issubset(df_meta_gene.columns)

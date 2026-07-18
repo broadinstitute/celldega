@@ -355,7 +355,11 @@ export const make_bar_graph = (
   bar
     .append('rect')
     .attr('fill', (d) => {
-      const inst_rgb = color_dict[d.name];
+      // Fall back to a neutral gray instead of throwing when a bar's name has
+      // no entry in color_dict (e.g. a data-source mismatch between what
+      // populates the bar list and what populates its color lookup) --
+      // a missing color shouldn't crash the whole bar graph.
+      const inst_rgb = color_dict[d.name] || [128, 128, 128];
       return `rgb(${inst_rgb[0]}, ${inst_rgb[1]}, ${inst_rgb[2]})`;
     })
     .attr('width', (d) => x_new(d.value))

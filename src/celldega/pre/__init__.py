@@ -39,6 +39,7 @@ from .landscape import (
 )
 from .nbhd_cloud import (
     write_cell_clusters_meta,
+    write_meta_gene_for_nbhd_cloud,
     write_meta_slice,
     write_nbhd_cloud_cells,
     write_nbhd_cloud_dataset,
@@ -1828,6 +1829,7 @@ __all__ = [
     "trx_tile",
     "write_cell_clusters_meta",
     "write_identity_transform",
+    "write_meta_gene_for_nbhd_cloud",
     "write_meta_slice",
     "write_nbhd_cloud_cells",
     "write_nbhd_cloud_dataset",

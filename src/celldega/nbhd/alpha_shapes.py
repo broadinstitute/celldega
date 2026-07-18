@@ -48,7 +48,18 @@ def _verify_polygons_with_alpha_bulk(
             continue
 
         coords = np.array([p.coords[0] for p in contained_points.geometry])
-        recalculated_alpha = libpysal_alpha_shape(coords, alpha)
+        try:
+            recalculated_alpha = libpysal_alpha_shape(coords, alpha)
+        except Exception:
+            # A small fraction of point configurations produce a
+            # self-intersecting triangulation that trips GEOS's spatial-index
+            # query inside libpysal's alpha_shape (e.g. GEOSException:
+            # "side location conflict" / "TopologyException") — a libpysal/GEOS
+            # fragility, not specific to any one dataset. Treat this candidate
+            # as failing verification (same as the area-tolerance/min-points
+            # checks below) rather than aborting the whole batch over one
+            # unverifiable polygon.
+            continue
 
         if recalculated_alpha.shape[0] > 0:
             recalculated_area = recalculated_alpha.area.values[0]

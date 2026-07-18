@@ -1,5 +1,7 @@
 import * as d3 from 'd3';
 
+import { emitMatrixSliceRequest } from '../../matrix/matrix_axis_slice';
+
 import { CustomMatrixLayer } from './custom_matrix_layer';
 
 const mat_layer_get_position = (d, viz_state) => {
@@ -56,24 +58,18 @@ const mat_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
     row: {
       name: row_name,
       index: row_index,
-      // New structured entity info
       entity: viz_state.row_entity.entity,
       attr: viz_state.row_entity.attr,
-      // Legacy field for backwards compatibility
       row_entity: viz_state.row_entity.entity,
     },
     col: {
       name: col_name,
       index: col_index,
-      // New structured entity info
       entity: viz_state.col_entity.entity,
       attr: viz_state.col_entity.attr,
-      // Legacy field for backwards compatibility
       col_entity: viz_state.col_entity.entity,
     },
-    // The actual matrix cell value
     value: mat_value,
-    // Full entity info for both axes
     row_entity_full: viz_state.row_entity,
     col_entity_full: viz_state.col_entity,
   };
@@ -93,6 +89,10 @@ const mat_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
     viz_state.model.set('click_info', null);
     viz_state.model.set('click_info', viz_state.click);
     viz_state.model.save_changes();
+    emitMatrixSliceRequest(viz_state.model, 'cell', {
+      row: row_index,
+      col: col_index,
+    });
   }
 
   // Close the attribute editor on matrix click

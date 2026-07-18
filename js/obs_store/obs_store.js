@@ -62,7 +62,6 @@ export const create_obs_store = () => {
       edit_layer: true,
       trx_data: true,
       path_data: true,
-      square_scatter_data: true,
     }),
     deck_ready: Observable(false),
   };

@@ -283,6 +283,23 @@ class Landscape(anywidget.AnyWidget):
     token = traitlets.Unicode("").tag(sync=True)
     creds = traitlets.Dict({}).tag(sync=True)
     max_tiles_to_view = traitlets.Int(50).tag(sync=True)
+
+    # neighborhood-cloud only: nearest-slice count per data tier (currently
+    # just "cells"; a future subcellular-transcript tier would add its own
+    # key here, e.g. {"cells": 3, "transcripts": 1}, rather than needing a
+    # second traitlet) and the zoom-driven crossfade hysteresis thresholds.
+    # Both are per-dataset tuning knobs (like max_tiles_to_view above), not
+    # data, since the right values depend on each dataset's spatial extent
+    # and slice spacing.
+    nbhd_cloud_nearest_n_slices = traitlets.Dict({"cells": 3}).tag(sync=True)
+    nbhd_cloud_zoom_thresholds = traitlets.Dict(
+        {
+            "fade_in_start": 2.0,
+            "fade_in_end": 4.0,
+            "fade_out_start": 3.0,
+            "fade_out_end": 1.0,
+        }
+    ).tag(sync=True)
     ini_x = traitlets.Float().tag(sync=True)
     ini_y = traitlets.Float().tag(sync=True)
     ini_z = traitlets.Float().tag(sync=True)

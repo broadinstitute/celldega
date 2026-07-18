@@ -13,7 +13,7 @@ import {
 } from '../../global_variables/cell_names_array';
 import { set_color_dict_gene } from '../../global_variables/color_dict_gene';
 import { options } from '../../global_variables/fetch_options';
-import { is_point_cloud_technology } from '../../global_variables/image_info';
+import { is_orbit_technology } from '../../global_variables/image_info';
 import { update_selected_genes } from '../../global_variables/selected_genes';
 import { get_arrow_table } from '../../read_parquet/get_arrow_table';
 import { get_scatter_data } from '../../read_parquet/get_scatter_data';
@@ -111,7 +111,7 @@ const get_meta_cell_attrs = (name, meta_cell, cell_name_prefix) => {
 };
 
 const is_point_cloud_viz = (viz_state) =>
-  is_point_cloud_technology(viz_state.img?.landscape_parameters?.technology);
+  is_orbit_technology(viz_state.img?.landscape_parameters?.technology);
 
 export const set_spatial_bounds_from_flat_coordinates = (
   viz_state,

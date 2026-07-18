@@ -5,7 +5,7 @@ import {
 } from '@deck.gl-community/editable-layers';
 import * as d3 from 'd3';
 
-import { is_point_cloud_technology } from '../../global_variables/image_info';
+import { is_orbit_technology } from '../../global_variables/image_info';
 import { handleValidationWarning } from '../../temp_utils/errorHandler';
 import { make_bar_graph, bar_callback_nbhd } from '../../ui/bar_plot';
 import { hexToRgb, randomHexColor } from '../../utils/hexToRgb';
@@ -296,9 +296,7 @@ const edit_layer_on_click = async (event, deck_ist, layers_obj, viz_state) => {
 };
 
 export const ini_edit_layer = (viz_state) => {
-  if (
-    is_point_cloud_technology(viz_state.img?.landscape_parameters?.technology)
-  ) {
+  if (is_orbit_technology(viz_state.img?.landscape_parameters?.technology)) {
     // EditableGeoJsonLayer expects 2D view coordinates; OrbitView point clouds
     // can throw during its global pointermove handler even when hidden.
     return null;

@@ -1,4 +1,7 @@
-import { is_point_cloud_technology } from '../../global_variables/image_info';
+import {
+  is_neighborhood_cloud_technology,
+  is_orbit_technology,
+} from '../../global_variables/image_info';
 import {
   areBarDataEqual,
   createEmptyCellCompact,
@@ -9,6 +12,8 @@ import { rotate_point, rotate_point_inverse } from '../../utils/rotation';
 import { visibleTiles } from '../../vector_tile/visibleTiles';
 import { update_path_layer_data } from '../layers/path_layer';
 import { update_trx_layer_data } from '../layers/trx_layer';
+
+import { calc_nbhd_cloud_viewport } from './calc_nbhd_cloud_viewport';
 
 const VIEWPORT_GENE_BAR_LIMIT = 200;
 
@@ -77,14 +82,14 @@ const computeViewportGeneBars = (viz_state, viewportCache) => {
   const trxCompact =
     viz_state.combo_data.trx_compact || createEmptyTrxCompact();
   const geneCounts = viewportCache.geneCountScratch;
-  const activeGeneIds = viewportCache.activeGeneIds;
+  const { activeGeneIds } = viewportCache;
   activeGeneIds.length = 0;
 
   const stride = trxCompact.size || 2;
 
   if (!viz_state.rotation?.hasRotation) {
     for (let i = 0; i < trxCompact.geneIds.length; i++) {
-      const positions = trxCompact.positions;
+      const { positions } = trxCompact;
       const x = positions[i * stride];
       const y = positions[i * stride + 1];
       if (
@@ -152,14 +157,14 @@ const computeViewportCellBars = (viz_state, viewportCache) => {
   const cellCompact =
     viz_state.combo_data.cell_compact || createEmptyCellCompact();
   const cellCounts = viewportCache.cellCountScratch;
-  const activeCellIds = viewportCache.activeCellIds;
+  const { activeCellIds } = viewportCache;
   activeCellIds.length = 0;
 
   const stride = cellCompact.size || 2;
 
   if (!viz_state.rotation?.hasRotation) {
     for (let i = 0; i < cellCompact.categoryIds.length; i++) {
-      const positions = cellCompact.positions;
+      const { positions } = cellCompact;
       const x = positions[i * stride];
       const y = positions[i * stride + 1];
       if (
@@ -221,9 +226,23 @@ export const calc_viewport = async (
 ) => {
   const wasCloseUp = viz_state.close_up;
   const { tile_size } = viz_state.img.landscape_parameters;
-  const isPointCloud = is_point_cloud_technology(
+  const isPointCloud = is_orbit_technology(
     viz_state.img?.landscape_parameters?.technology
   );
+  const isNeighborhoodCloud = is_neighborhood_cloud_technology(
+    viz_state.img?.landscape_parameters?.technology
+  );
+
+  if (isNeighborhoodCloud) {
+    await calc_nbhd_cloud_viewport(
+      { height, width, zoom, target },
+      deck_ist,
+      layers_obj,
+      viz_state
+    );
+    return;
+  }
+
   const zoomFactor = Math.pow(2, zoom);
   const [targetX, targetY] = target;
   const halfWidthZoomed = width / (2 * zoomFactor);

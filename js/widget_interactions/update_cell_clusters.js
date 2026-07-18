@@ -1,11 +1,11 @@
 import { set_dict_cell_cats, update_cell_cats } from '../global_variables/cat';
-import { is_point_cloud_technology } from '../global_variables/image_info';
+import { is_orbit_technology } from '../global_variables/image_info';
 import { update_meta_cluster } from '../global_variables/meta_cluster';
 import { buildCellCompactData } from '../utils/compact_data';
 
 export const update_cell_clusters = (deck_ist, layers_obj, viz_state) => {
   const new_cluster_info = viz_state.model.get('cell_clusters');
-  const pointCloud = is_point_cloud_technology(
+  const pointCloud = is_orbit_technology(
     viz_state.img?.landscape_parameters?.technology
   );
 

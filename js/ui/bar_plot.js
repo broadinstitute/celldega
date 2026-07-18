@@ -1,6 +1,10 @@
 import * as d3 from 'd3';
 
 import { new_toggle_cell_layer_visibility } from '../deck-gl/layers/cell_layer';
+import {
+  select_nbhd_cloud_gene,
+  toggle_nbhd_cloud_neighborhood_selection,
+} from '../deck-gl/layers/nbhd_cloud_shapes_layer';
 import { toggle_trx_layer_visibility } from '../deck-gl/layers/trx_layer';
 import { update_cat, update_selected_cats } from '../global_variables/cat';
 import { update_cell_exp_array } from '../global_variables/cell_exp_array';
@@ -65,6 +69,16 @@ export const bar_callback_gene = async (
   _layers_obj,
   _viz_state
 ) => {
+  if (_viz_state.nbhd_cloud?.is_nbhd_cloud) {
+    const isReset = d.name === _viz_state.nbhd_cloud.selected_gene;
+    await select_nbhd_cloud_gene(d.name, _viz_state, _layers_obj);
+
+    _viz_state.genes.svg_bar_gene
+      .selectAll('rect')
+      .style('opacity', (bar) => (isReset || bar.name === d.name ? 1.0 : 0.2));
+    return;
+  }
+
   // ensure that trx button, slider, and bars are active
   _viz_state.buttons?.buttons?.trx?.style?.('color', 'blue');
 
@@ -217,6 +231,63 @@ export const bar_callback_nbhd = (
       _viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', 1.0);
     }
   }
+};
+
+// Per-slice bar graph (neighborhood-cloud MVP): count-only, click just
+// highlights the clicked bar and records it in `selected_slice_ids` — no
+// camera recentering (would need a verified controlled-viewState path in
+// deck_ist.js) and no multi-select (deferred, shift-click follow-up).
+export const bar_callback_nbhd_cloud_slice = (
+  _event,
+  d,
+  _deck_ist,
+  _layers_obj,
+  _viz_state
+) => {
+  const { nbhd_cloud } = _viz_state;
+  nbhd_cloud.selected_slice_ids ??= new Set();
+
+  if (
+    nbhd_cloud.selected_slice_ids.size === 1 &&
+    nbhd_cloud.selected_slice_ids.has(d.name)
+  ) {
+    nbhd_cloud.selected_slice_ids.clear();
+  } else {
+    nbhd_cloud.selected_slice_ids.clear();
+    nbhd_cloud.selected_slice_ids.add(d.name);
+  }
+
+  const hasSelection = nbhd_cloud.selected_slice_ids.size > 0;
+  nbhd_cloud.svg_bar_slice
+    .selectAll('rect')
+    .style('opacity', (bar) =>
+      !hasSelection || nbhd_cloud.selected_slice_ids.has(bar.name) ? 1.0 : 0.2
+    );
+};
+
+// Per-neighborhood bar graph (reuses the same generic bar component the
+// legacy 2D `nbhd` feature uses, fed from `meta_neighborhood.parquet`
+// instead). Click toggles that neighborhood's cells/shape into "revealed"
+// (full opacity regardless of the ambient zoom crossfade) via
+// `toggle_nbhd_cloud_neighborhood_selection`.
+export const bar_callback_nbhd_cloud_neighborhood = (
+  _event,
+  d,
+  _deck_ist,
+  _layers_obj,
+  _viz_state
+) => {
+  const { nbhd_cloud } = _viz_state;
+  toggle_nbhd_cloud_neighborhood_selection(d.name, _viz_state, _layers_obj);
+
+  nbhd_cloud.svg_bar_neighborhood
+    .selectAll('rect')
+    .style('opacity', (bar) =>
+      nbhd_cloud.selected_neighborhood_ids.size === 0 ||
+      nbhd_cloud.selected_neighborhood_ids.has(bar.name)
+        ? 1.0
+        : 0.2
+    );
 };
 
 export const make_bar_graph = (

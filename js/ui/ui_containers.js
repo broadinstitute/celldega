@@ -19,18 +19,21 @@ import {
   uniprot_data,
   uniprot_get_request,
 } from '../external_apis/uniprot_api';
-import { is_point_cloud_technology } from '../global_variables/image_info';
+import { is_orbit_technology } from '../global_variables/image_info';
 import {
   calc_dendro_triangles,
   calc_dendro_polygons,
   alt_slice_linkage,
 } from '../matrix/dendro';
 import { debounce } from '../utils/debounce';
+import { hexToRgb } from '../utils/hexToRgb';
 import { refresh_layer } from '../utils/refresh_layer';
 
 import {
   make_bar_graph,
   bar_callback_nbhd,
+  bar_callback_nbhd_cloud_neighborhood,
+  bar_callback_nbhd_cloud_slice,
   bar_callback_cat,
   make_bar_container,
   bar_callback_gene,
@@ -326,6 +329,22 @@ export const make_ist_ui_container = (
     nbhd_ctrl_container.style.height = '22.5px';
   }
 
+  let nbhd_cloud_slice_container;
+  let nbhd_cloud_neighborhood_container;
+  if (viz_state.nbhd_cloud?.is_nbhd_cloud) {
+    nbhd_cloud_slice_container = flex_container(
+      'nbhd_cloud_slice_container',
+      'column'
+    );
+    nbhd_cloud_slice_container.style.width = bar_container_width;
+
+    nbhd_cloud_neighborhood_container = flex_container(
+      'nbhd_cloud_neighborhood_container',
+      'column'
+    );
+    nbhd_cloud_neighborhood_container.style.width = bar_container_width;
+  }
+
   const cell_slider_container = make_slider_container('cell_slider_container');
   const trx_slider_container = make_slider_container('trx_slider_container');
   let nbhd_slider_container;
@@ -335,7 +354,7 @@ export const make_ist_ui_container = (
 
   const { technology } = viz_state.img.landscape_parameters;
   const isChromium = technology === 'Chromium';
-  const isPointCloud = is_point_cloud_technology(technology);
+  const isPointCloud = is_orbit_technology(technology);
 
   if (!isPointCloud) {
     const spatial_toggle_container = flex_container(
@@ -605,6 +624,54 @@ export const make_ist_ui_container = (
     layers_obj,
     viz_state
   );
+
+  if (viz_state.nbhd_cloud?.is_nbhd_cloud) {
+    viz_state.nbhd_cloud.svg_bar_slice = d3.create('svg');
+    viz_state.containers.bar_slice = make_bar_container();
+
+    const sliceBarData = viz_state.nbhd_cloud.meta_slice.map((s) => ({
+      name: s.slice_id,
+      value: s.cell_count,
+    }));
+    const sliceColorDict = Object.fromEntries(
+      sliceBarData.map((bar) => [bar.name, [136, 136, 136]])
+    );
+
+    make_bar_graph(
+      viz_state.containers.bar_slice,
+      bar_callback_nbhd_cloud_slice,
+      viz_state.nbhd_cloud.svg_bar_slice,
+      sliceBarData,
+      sliceColorDict,
+      deck_ist,
+      layers_obj,
+      viz_state
+    );
+
+    viz_state.nbhd_cloud.svg_bar_neighborhood = d3.create('svg');
+    viz_state.containers.bar_nbhd_cloud_neighborhood = make_bar_container();
+
+    const neighborhoodBarData = viz_state.nbhd_cloud.meta_neighborhood.map(
+      (n) => ({ name: n.neighborhood_id, value: n.cell_count })
+    );
+    const neighborhoodColorDict = Object.fromEntries(
+      viz_state.nbhd_cloud.meta_neighborhood.map((n) => [
+        n.neighborhood_id,
+        hexToRgb(n.color),
+      ])
+    );
+
+    make_bar_graph(
+      viz_state.containers.bar_nbhd_cloud_neighborhood,
+      bar_callback_nbhd_cloud_neighborhood,
+      viz_state.nbhd_cloud.svg_bar_neighborhood,
+      neighborhoodBarData,
+      neighborhoodColorDict,
+      deck_ist,
+      layers_obj,
+      viz_state
+    );
+  }
 
   const make_bar_cat_subscriber = (svg, container) => {
     return (selected_cats) => {
@@ -1162,6 +1229,16 @@ export const make_ist_ui_container = (
 
       viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', 0.2);
     }
+  }
+
+  if (viz_state.nbhd_cloud?.is_nbhd_cloud) {
+    nbhd_cloud_slice_container.appendChild(viz_state.containers.bar_slice);
+    ctrl_container.appendChild(nbhd_cloud_slice_container);
+
+    nbhd_cloud_neighborhood_container.appendChild(
+      viz_state.containers.bar_nbhd_cloud_neighborhood
+    );
+    ctrl_container.appendChild(nbhd_cloud_neighborhood_container);
   }
 
   ctrl_container.appendChild(viz_state.genes.gene_search);

@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 from shapely.geometry import MultiPolygon, Point, base, shape
 
-from .utils import _classify_polygons_contains_check, _round_coordinates
+from .utils import _classify_polygons_contains_check, _round_coordinates, _stamp_z
 
 
 def _verify_polygons_with_alpha_bulk(
@@ -159,6 +159,107 @@ def alpha_shape_cell_clusters(
     gdf_alpha["area"] = gdf_alpha.area
 
     return gdf_alpha.loc[gdf_alpha.area.sort_values(ascending=False).index.tolist()]
+
+
+def alpha_shape_cell_clusters_by_slice(
+    adata: ad.AnnData,
+    cluster_attr: str = "cluster",
+    slice_attr: str = "slice_id",
+    z_attr: str | None = None,
+    alphas: Sequence[float] = (150,),
+    meta_cluster: pd.DataFrame | None = None,
+    z_jitter: float = 2.0,
+) -> gpd.GeoDataFrame:
+    """
+    Compute one alpha shape per (slice, cluster) pair, each stamped with its slice's Z.
+
+    Mirrors the approach validated in
+    `notebooks/Serial_Slice_Alpha_Shapes_3D_Demo.ipynb`: for each slice, builds a
+    throwaway per-slice `AnnData` and reuses `alpha_shape_cell_clusters` /
+    `filter_alpha_shapes` at a single alpha resolution, then stamps every
+    resulting polygon with that slice's Z (from `z_attr`, or 0.0 if not given)
+    plus a small per-cluster jitter (via `_stamp_z`) so overlapping, coplanar
+    cluster polygons within a slice don't z-fight.
+
+    Parameters
+    ----------
+    adata : AnnData
+        Cell-level AnnData with spatial coordinates in `obsm["spatial"]` and
+        `cluster_attr` / `slice_attr` (and, if given, `z_attr`) columns in `obs`.
+    cluster_attr : str
+        Column in `adata.obs` with cluster/category labels.
+    slice_attr : str
+        Column in `adata.obs` identifying each slice.
+    z_attr : str | None
+        Column in `adata.obs` with each cell's Z coordinate (expected to be one
+        constant value per slice, e.g. from `celldega.align.serial_slices`). If
+        None, every slice is stamped at Z=0 (e.g. for a future 2D
+        "neighborhood-scape" use where "slice" means "dataset").
+    alphas : Sequence[float]
+        Must contain exactly one inverse-alpha resolution (see `alpha_shape`) —
+        this function computes a single resolution per (slice, cluster), unlike
+        `alpha_shape_cell_clusters` which can sweep several.
+    meta_cluster : pd.DataFrame | None
+        Optional cluster color/metadata lookup, forwarded to
+        `alpha_shape_cell_clusters`.
+    z_jitter : float
+        Per-cluster Z offset within a slice, to avoid z-fighting between
+        coplanar cluster polygons that would otherwise sit at the exact same Z.
+
+    Returns
+    -------
+    gpd.GeoDataFrame
+        One row per (slice, cluster) neighborhood, with columns `name`
+        (`f"{slice_id}__{cluster_id}"`), `cluster_id`, `slice_id`, `geometry`
+        (3D), `color`, `area`, `inv_alpha`, `cell_count`.
+    """
+    if len(alphas) != 1:
+        raise ValueError(
+            "alpha_shape_cell_clusters_by_slice computes a single alpha-shape "
+            "resolution per (slice, cluster); pass exactly one value in `alphas`"
+        )
+    alpha = alphas[0]
+
+    obs = adata.obs
+    coords = np.asarray(adata.obsm["spatial"])
+
+    gdfs: list[gpd.GeoDataFrame] = []
+    for slice_id in obs[slice_attr].unique():
+        mask = (obs[slice_attr] == slice_id).to_numpy()
+        cluster_values = obs.loc[mask, cluster_attr].to_numpy()
+
+        adata_slice = ad.AnnData(
+            obs=pd.DataFrame({cluster_attr: cluster_values}),
+            obsm={"spatial": coords[mask, :2].astype(float)},
+        )
+
+        gdf_alpha = alpha_shape_cell_clusters(
+            adata_slice, cat=cluster_attr, alphas=[alpha], meta_cluster=meta_cluster
+        )
+        if gdf_alpha.empty:
+            continue
+        gdf_alpha = filter_alpha_shapes(gdf_alpha, alpha=alpha).reset_index(drop=True)
+        if gdf_alpha.empty:
+            continue
+
+        z_val = float(obs.loc[mask, z_attr].iloc[0]) if z_attr is not None else 0.0
+        z_per_cluster = z_val + gdf_alpha.index.to_numpy(dtype=float) * z_jitter
+        gdf_alpha["geometry"] = [
+            _stamp_z(geom, z) for geom, z in zip(gdf_alpha["geometry"], z_per_cluster, strict=True)
+        ]
+
+        cell_counts = pd.Series(cluster_values).astype(str).value_counts()
+        gdf_alpha["cluster_id"] = gdf_alpha["name"].astype(str)
+        gdf_alpha["slice_id"] = slice_id
+        gdf_alpha["cell_count"] = gdf_alpha["cluster_id"].map(cell_counts).fillna(0).astype(int)
+        gdf_alpha["name"] = gdf_alpha["slice_id"].astype(str) + "__" + gdf_alpha["cluster_id"]
+
+        gdfs.append(gdf_alpha)
+
+    if not gdfs:
+        raise ValueError("no alpha shapes could be computed for any slice")
+
+    return gpd.GeoDataFrame(pd.concat(gdfs, ignore_index=True), geometry="geometry")
 
 
 def filter_alpha_shapes(

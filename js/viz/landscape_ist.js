@@ -30,6 +30,8 @@ import {
   update_edit_layer_mode,
 } from '../deck-gl/layers/edit_layer';
 import { make_image_layers } from '../deck-gl/layers/image_layers';
+import { ini_nbhd_cloud_cell_layer } from '../deck-gl/layers/nbhd_cloud_cell_layer';
+import { ini_nbhd_cloud_shapes_layer } from '../deck-gl/layers/nbhd_cloud_shapes_layer';
 import {
   ini_nbhd_layer,
   set_nbhd_layer_onclick,
@@ -52,13 +54,14 @@ import { get_layers_list } from '../deck-gl/utils/layers_ist';
 import { ini_cache } from '../global_variables/cache';
 import { update_cat, update_selected_cats } from '../global_variables/cat';
 import { update_cell_exp_array } from '../global_variables/cell_exp_array';
-import { set_options } from '../global_variables/fetch_options';
+import { options, set_options } from '../global_variables/fetch_options';
 import { set_global_base_url } from '../global_variables/global_base_url';
 import { set_dimensions } from '../global_variables/image_dimensions';
 import {
   get_landscape_image_info,
   get_primary_image_name,
-  is_point_cloud_technology,
+  is_neighborhood_cloud_technology,
+  is_orbit_technology,
   set_image_info,
   set_image_layer_colors,
   set_image_format,
@@ -71,7 +74,14 @@ import { update_selected_genes } from '../global_variables/selected_genes';
 import { colorToRgba } from '../matrix/cat_data';
 import { create_obs_store } from '../obs_store/obs_store';
 import { CBGRowGroupReader } from '../read_parquet/cbg_row_group_reader';
+import { get_arrow_table } from '../read_parquet/get_arrow_table';
 import { ImageRowGroupReader } from '../read_parquet/image_row_group_reader';
+import {
+  parse_meta_neighborhood_table,
+  parse_meta_slice_table,
+  parse_population_table,
+  parse_shapes_table_to_features,
+} from '../read_parquet/nbhd_cloud_tables';
 // import {
 //   testRowGroupReading,
 //   getVersion as getParquetWasmVersion,
@@ -526,6 +536,82 @@ export const landscape_ist = async (
 
   await set_cluster_metadata(viz_state);
 
+  viz_state.nbhd_cloud = {
+    is_nbhd_cloud: is_neighborhood_cloud_technology(tech),
+  };
+
+  if (viz_state.nbhd_cloud.is_nbhd_cloud) {
+    const [metaSliceTable, metaNeighborhoodTable, populationTable] =
+      await Promise.all([
+        get_arrow_table(
+          `${base_url}/nbhd_cloud/meta_slice.parquet`,
+          options.fetch,
+          viz_state.aws
+        ),
+        get_arrow_table(
+          `${base_url}/nbhd_cloud/meta_neighborhood.parquet`,
+          options.fetch,
+          viz_state.aws
+        ),
+        get_arrow_table(
+          `${base_url}/nbhd_cloud/population.parquet`,
+          options.fetch,
+          viz_state.aws
+        ),
+      ]);
+
+    viz_state.nbhd_cloud.meta_slice = parse_meta_slice_table(metaSliceTable);
+    viz_state.nbhd_cloud.meta_neighborhood = parse_meta_neighborhood_table(
+      metaNeighborhoodTable
+    );
+    viz_state.nbhd_cloud.population = parse_population_table(populationTable);
+
+    // Shapes load in full up front (neighborhood counts are small — dozens
+    // to hundreds, unlike cells), one parquet file per slice.
+    const shapeTables = await Promise.all(
+      viz_state.nbhd_cloud.meta_slice.map((s) =>
+        get_arrow_table(
+          `${base_url}/nbhd_cloud/shapes/slice_${s.slice_id}.parquet`,
+          options.fetch,
+          viz_state.aws
+        )
+      )
+    );
+    viz_state.nbhd_cloud.shapes_features = shapeTables.flatMap((table) =>
+      parse_shapes_table_to_features(table)
+    );
+
+    const nearestNSlicesFromModel =
+      typeof ini_model?.get === 'function'
+        ? ini_model.get('nbhd_cloud_nearest_n_slices')
+        : null;
+    viz_state.nbhd_cloud.nearest_n_slices =
+      nearestNSlicesFromModel && Object.keys(nearestNSlicesFromModel).length > 0
+        ? nearestNSlicesFromModel
+        : { cells: 3 };
+
+    const zoomThresholdsFromModel =
+      typeof ini_model?.get === 'function'
+        ? ini_model.get('nbhd_cloud_zoom_thresholds')
+        : null;
+    viz_state.nbhd_cloud.zoom_thresholds =
+      zoomThresholdsFromModel && Object.keys(zoomThresholdsFromModel).length > 0
+        ? zoomThresholdsFromModel
+        : {
+            fade_in_start: 2.0,
+            fade_in_end: 4.0,
+            fade_out_start: 3.0,
+            fade_out_end: 1.0,
+          };
+
+    viz_state.nbhd_cloud.lod_state = { band: 'shapes' };
+    viz_state.nbhd_cloud.loaded_slice_ids = new Set();
+    viz_state.nbhd_cloud.loaded_slice_set_key = null;
+    viz_state.nbhd_cloud.selected_gene = null;
+    viz_state.nbhd_cloud.gene_stats = null;
+    viz_state.nbhd_cloud.selected_gene_max_mean = 0;
+  }
+
   viz_state.views = set_views(tech);
 
   const deck_ist = await ini_deck(root, width, height, tech);
@@ -634,6 +720,15 @@ export const landscape_ist = async (
   const trx_layer = ini_trx_layer(viz_state);
   const edit_layer = ini_edit_layer(viz_state);
   const nbhd_layer = ini_nbhd_layer(viz_state, true);
+  const nbhd_cloud_shapes_layer = viz_state.nbhd_cloud.is_nbhd_cloud
+    ? ini_nbhd_cloud_shapes_layer(
+        viz_state,
+        viz_state.nbhd_cloud.shapes_features
+      )
+    : null;
+  const nbhd_cloud_cell_layer = viz_state.nbhd_cloud.is_nbhd_cloud
+    ? ini_nbhd_cloud_cell_layer(viz_state)
+    : null;
 
   // make layers object
   const layers_obj = {
@@ -643,6 +738,8 @@ export const landscape_ist = async (
     path_layer,
     trx_layer,
     nbhd_layer,
+    nbhd_cloud_shapes_layer,
+    nbhd_cloud_cell_layer,
     edit_layer,
   };
 
@@ -893,8 +990,7 @@ export const landscape_ist = async (
 
   const currentTechnology = viz_state.img.landscape_parameters.technology;
   const isChromium =
-    currentTechnology === 'Chromium' ||
-    is_point_cloud_technology(currentTechnology);
+    currentTechnology === 'Chromium' || is_orbit_technology(currentTechnology);
   viz_state.obs_store.landscape_view.subscribe(
     (view) => {
       const isUmap = view === 'umap';

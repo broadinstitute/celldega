@@ -1,6 +1,6 @@
 import * as d3 from 'd3';
 
-import { is_point_cloud_technology } from '../global_variables/image_info';
+import { is_orbit_technology } from '../global_variables/image_info';
 
 const getUmapTarget = (viz_state) => {
   let x_min;
@@ -8,7 +8,7 @@ const getUmapTarget = (viz_state) => {
   let y_min;
   let y_max;
   const { technology } = viz_state.img.landscape_parameters;
-  if (technology === 'Chromium' || is_point_cloud_technology(technology)) {
+  if (technology === 'Chromium' || is_orbit_technology(technology)) {
     x_min = 0;
     x_max = 10000;
     y_min = 0;

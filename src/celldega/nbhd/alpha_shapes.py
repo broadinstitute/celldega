@@ -103,7 +103,9 @@ def alpha_shape_cell_clusters(
         GeoDataFrame with alpha shapes for each cluster at each alpha value.
     """
 
-    meta_cell = adata.obs
+    # Copy so we don't add a 'geometry' column to the caller's adata.obs (which
+    # would otherwise leak into downstream serialization, e.g. Landscape parquet).
+    meta_cell = adata.obs.copy()
 
     coords = adata.obsm["spatial"]
     meta_cell["geometry"] = list(coords)

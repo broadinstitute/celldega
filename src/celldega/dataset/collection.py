@@ -346,7 +346,7 @@ class DatasetCollection(CelldegaCollection):
             obs_entity_type="dataset",
         )
 
-    def calc_dataset_by_pop(
+    def calc_population(
         self,
         adata: AnnData,
         category: str = "leiden",
@@ -383,7 +383,7 @@ class DatasetCollection(CelldegaCollection):
             min_cells=min_cells,
         )
 
-    def calc_dataset_signature(
+    def calc_signature(
         self,
         adata: AnnData,
         category: str,

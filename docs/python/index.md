@@ -67,7 +67,7 @@ dset = dega.dataset.DatasetCollection(
     obs_columns=["patient_id", "condition"],
 )
 
-dset.calc_dataset_by_pop(adata, category="cell_type")
+dset.calc_population(adata, category="cell_type")
 population = dset.mod["population"]
 dset.write("dataset.h5mu")
 ```
@@ -98,8 +98,8 @@ gdf_hex = dega.nbhd.generate_hextile(adata, diameter=100)
 
 # Attach feature-space modalities to a NeighborhoodCollection
 nbhd = dega.nbhd.NeighborhoodCollection(gdf=gdf_alpha, nbhd_type="alpha_shape")
-nbhd.calc_nbhd_by_gene(adata=adata, by="cell", modality_name="gene")
-nbhd.calc_nbhd_by_pop(adata, category="leiden", modality_name="population")
+nbhd.calc_signature(adata=adata, by="cell", modality_name="gene")
+nbhd.calc_population(adata, category="leiden", modality_name="population")
 ```
 
 
@@ -124,13 +124,43 @@ dega.pre.main(
 )
 ```
 
+### [Select Module](select/api.md)
+
+The `select` module provides a composable query and sampling layer over AnnData:
+
+- Metadata attributes from `obs`
+- Gene expression attributes
+- Boolean query expressions
+- Random and quantile-bin samplers for representative entity inspection
+
+```python
+import celldega as dega
+
+selector = dega.select.Selector(adata)
+
+q = (
+    (selector.attr("cluster") == "B cell")
+    & (selector.attr("sample_id").isin(["S1", "S2"]))
+)
+
+selection = selector.select(
+    query=q,
+    sampler=selector.samplers.quantile_bin(
+        attr=selector.gene("MS4A1"),
+        bin="high",
+        n=24,
+        seed=1,
+    ),
+)
+```
+
 ### [Viz Module](viz/api.md)
 
 The `viz` module provides Jupyter Widget classes for interactive visualization:
 
 | Widget | Description |
 |--------|-------------|
-| `Landscape` | Main spatial visualization for IST/SST data |
+| `Landscape` | Main spatial visualization for segmented spatial data |
 | `Clustergram` | Hierarchical clustering heatmap |
 | `Yearbook` | Grid of cell "portraits" |
 | `Enrich` | Gene enrichment analysis |

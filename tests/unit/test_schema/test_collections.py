@@ -121,7 +121,7 @@ def test_calc_dataset_by_pop_attaches_population_modality():
     adata.obs["cell_type"] = ["T", "B", "B", "B"]
 
     dataset = DatasetCollection(adata, dataset_col="sample_id", obs_columns=["condition"])
-    result = dataset.calc_dataset_by_pop(adata, category="cell_type", output="counts")
+    result = dataset.calc_population(adata, category="cell_type", output="counts")
     population = dataset.mod["population"]
 
     assert result is None
@@ -131,15 +131,17 @@ def test_calc_dataset_by_pop_attaches_population_modality():
     assert list(population.var["entity_type"]) == ["cell_population", "cell_population"]
     np.testing.assert_array_equal(population.X, np.array([[1, 1], [2, 0]]))
 
-    proportion_dataset = DatasetCollection(adata, dataset_col="sample_id", obs_columns=["condition"])
-    assert proportion_dataset.calc_dataset_by_pop(adata, category="cell_type") is None
+    proportion_dataset = DatasetCollection(
+        adata, dataset_col="sample_id", obs_columns=["condition"]
+    )
+    assert proportion_dataset.calc_population(adata, category="cell_type") is None
     population_proportion = proportion_dataset.mod["population"]
     assert population_proportion.uns["output"] == "proportion"
     np.testing.assert_allclose(population_proportion.X, np.array([[0.5, 0.5], [1.0, 0.0]]))
 
     named_dataset = DatasetCollection(adata, dataset_col="sample_id", obs_columns=["condition"])
     assert (
-        named_dataset.calc_dataset_by_pop(
+        named_dataset.calc_population(
             adata,
             category="cell_type",
             modality_name="cell_type_population",
@@ -169,7 +171,7 @@ def test_calc_dataset_signature_attaches_gene_modality():
     adata.obs["cell_type"] = ["CD8 T", "B", "CD8 T", "CD8 T", "B", "B"]
 
     dataset = DatasetCollection(adata, dataset_col="sample_id", obs_columns=["condition"])
-    result = dataset.calc_dataset_signature(
+    result = dataset.calc_signature(
         adata,
         category="cell_type",
         value="CD8 T",
@@ -201,7 +203,7 @@ def test_calc_dataset_signature_adds_nan_rows_when_category_value_is_absent():
 
     dataset = DatasetCollection(adata, dataset_col="sample_id")
 
-    result = dataset.calc_dataset_signature(
+    result = dataset.calc_signature(
         adata,
         category="cell_type",
         value="CD8 T",
@@ -227,7 +229,7 @@ def test_calc_dataset_signature_can_raise_when_category_value_is_absent():
         ValueError,
         match=r"No cells found where adata\.obs\['cell_type'\] == 'CD8 T'",
     ):
-        dataset.calc_dataset_signature(
+        dataset.calc_signature(
             adata,
             category="cell_type",
             value="CD8 T",
@@ -245,7 +247,7 @@ def test_calc_dataset_signature_adds_nan_rows_when_no_dataset_passes_min_cells()
 
     dataset = DatasetCollection(adata, dataset_col="sample_id")
 
-    result = dataset.calc_dataset_signature(
+    result = dataset.calc_signature(
         adata,
         category="cell_type",
         value="CD8 T",
@@ -267,7 +269,7 @@ def test_calc_dataset_signature_can_raise_when_dataset_is_below_min_cells():
     dataset = DatasetCollection(adata, dataset_col="sample_id")
 
     with pytest.raises(ValueError, match="Some datasets have fewer than 2 cells"):
-        dataset.calc_dataset_signature(
+        dataset.calc_signature(
             adata,
             category="cell_type",
             value="CD8 T",
@@ -286,7 +288,7 @@ def test_dataset_write_read_round_trips_mudata(tmp_path):
     adata.obs["cell_type"] = ["T", "B", "B", "B"]
 
     dataset = DatasetCollection(adata, dataset_col="sample_id", obs_columns=["condition"])
-    assert dataset.calc_dataset_by_pop(adata, category="cell_type", output="counts") is None
+    assert dataset.calc_population(adata, category="cell_type", output="counts") is None
     dataset.relations["similarity"] = sparse.csr_matrix([[1.0, 0.2], [0.2, 1.0]])
 
     path = tmp_path / "dataset.h5mu"
@@ -310,12 +312,12 @@ def test_dataset_methods_are_not_exposed_at_package_root():
 
     assert hasattr(dega, "collection")
     assert hasattr(dega, "dataset")
-    assert not hasattr(dega, "calc_dataset_by_pop")
+    assert not hasattr(dega, "calc_population")
     assert not hasattr(dega, "construct_population_space")
     assert not hasattr(dega, "from_adata")
     assert hasattr(dega, "DatasetCollection")
     assert not hasattr(dega, "Dataset")
-    assert not hasattr(dataset_module, "calc_dataset_by_pop")
+    assert not hasattr(dataset_module, "calc_population")
     assert not hasattr(dataset_module, "construct_population_space")
     assert not hasattr(dataset_module, "from_adata")
     assert not hasattr(dataset_module, "read")

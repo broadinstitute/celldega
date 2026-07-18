@@ -21,7 +21,7 @@ dset = dega.dataset.DatasetCollection(
     obs_columns=["patient_id", "condition"],
 )
 
-dset.calc_dataset_by_pop(
+dset.calc_population(
     adata,
     category="cell_type",
     output="proportion",
@@ -29,7 +29,7 @@ dset.calc_dataset_by_pop(
 
 population = dset.mod["population"]
 
-dset.calc_dataset_signature(
+dset.calc_signature(
     adata,
     category="cell_type",
     value="CD8 T",

@@ -15,6 +15,9 @@ import { ini_background_layer } from '../deck-gl/layers/background_layer';
 import {
   ini_cell_layer,
   new_toggle_cell_layer_visibility,
+  prime_cell_layer_transitions,
+  refresh_cell_layer_data,
+  reveal_cell_layer_after_prime,
   set_cell_layer_onclick,
   toggle_spatial_umap,
   update_cell_pickable_state,
@@ -53,9 +56,13 @@ import { set_options } from '../global_variables/fetch_options';
 import { set_global_base_url } from '../global_variables/global_base_url';
 import { set_dimensions } from '../global_variables/image_dimensions';
 import {
+  get_landscape_image_info,
+  get_primary_image_name,
+  is_point_cloud_technology,
   set_image_info,
   set_image_layer_colors,
   set_image_format,
+  technology_has_image_layer,
 } from '../global_variables/image_info';
 import { set_landscape_parameters } from '../global_variables/landscape_parameters';
 import { set_cluster_metadata } from '../global_variables/meta_cluster';
@@ -362,20 +369,18 @@ export const landscape_ist = async (
   viz_state.cats.selected_cats = [];
   viz_state.cats.cell_cats = [];
   viz_state.cats.dict_cell_cats = {};
+  viz_state.cats.has_dict_cell_cats = false;
   viz_state.cats.color_dict_cluster = {};
   viz_state.cats.cluster_counts = [];
   viz_state.cats.polygon_cell_names = [];
 
-  if (Object.keys(meta_cell).length === 0) {
-    viz_state.cats.has_meta_cell = false;
-  } else {
-    viz_state.cats.has_meta_cell = true;
-  }
+  viz_state.cats.has_meta_cell =
+    Boolean(meta_cell) &&
+    typeof meta_cell === 'object' &&
+    meta_cell_attr.length > 0;
   viz_state.cats.meta_cell = meta_cell;
   viz_state.cats.meta_cell_attr = meta_cell_attr;
-  viz_state.cats.meta_cell_id_set = new Set(
-    Object.keys(meta_cell || {}).map((cell_id) => String(cell_id))
-  );
+  viz_state.cats.meta_cell_id_set = null;
   viz_state.cats.inst_cell_attr = meta_cell_attr[0] || 'N.A.';
 
   if (Object.keys(meta_cluster).length === 0) {
@@ -397,7 +402,12 @@ export const landscape_ist = async (
 
   const isUmapInit = landscape_state === 'umap';
   viz_state.obs_store.umap_state.set(isUmapInit);
-  viz_state.obs_store.landscape_view.set(landscape_state);
+  // 'nbhd' is not a spatial/umap view; keep landscape_view valid and remember to
+  // reveal the neighborhood layer once the UI (buttons/sliders/bars) is built.
+  viz_state.nbhd.show_on_init = landscape_state === 'nbhd';
+  const base_landscape_view =
+    landscape_state === 'nbhd' ? 'spatial' : landscape_state;
+  viz_state.obs_store.landscape_view.set(base_landscape_view);
 
   viz_state.genes = {};
   viz_state.genes.color_dict_gene = {};
@@ -424,8 +434,15 @@ export const landscape_ist = async (
   set_options(token);
 
   await set_landscape_parameters(viz_state.img, base_url, viz_state.aws);
-  const tech = viz_state.img.landscape_parameters.technology;
-  if (tech === 'Chromium' || tech === 'point-cloud') {
+  const { landscape_parameters } = viz_state.img;
+  const {
+    technology: tech,
+    use_int_index,
+    image_format,
+  } = landscape_parameters;
+  const has_image_layer = technology_has_image_layer(tech);
+
+  if (!has_image_layer) {
     viz_state.obs_store.viz_image_layers.set(false);
     viz_state.obs_store.viz_background_layer.set(false);
   }
@@ -433,18 +450,12 @@ export const landscape_ist = async (
   // Initialize row group readers if using row group storage mode
   await initializeRowGroupReaders(viz_state, base_url);
 
-  const tmp_image_info = viz_state.img.landscape_parameters.image_info;
+  const tmp_image_info = get_landscape_image_info(landscape_parameters);
+  const image_name_for_dim = get_primary_image_name(landscape_parameters);
 
-  // set image_name_for_dim using the first image info name
-  const image_name_for_dim = tmp_image_info[0].name;
+  viz_state.vector_name_integer = use_int_index;
 
-  viz_state.vector_name_integer =
-    viz_state.img.landscape_parameters.use_int_index;
-
-  set_image_format(
-    viz_state.img,
-    viz_state.img.landscape_parameters.image_format
-  );
+  set_image_format(viz_state.img, image_format);
   set_image_info(viz_state.img, tmp_image_info);
   set_image_layer_sliders(viz_state.img);
   set_image_layer_colors(
@@ -484,7 +495,7 @@ export const landscape_ist = async (
     );
   }
 
-  if (tech === 'Chromium' || tech === 'point-cloud') {
+  if (!has_image_layer) {
     viz_state.dimensions = { width: 1, height: 1, tileSize: 1 };
   } else {
     await set_dimensions(viz_state, base_url, image_name_for_dim);
@@ -630,13 +641,8 @@ export const landscape_ist = async (
   const refresh_cell_layer = () => {
     const selected_cats_name = viz_state.cats.selected_cats.join('-');
 
-    layers_obj.cell_layer = layers_obj.cell_layer.clone({
+    refresh_cell_layer_data(layers_obj, viz_state, {
       id: `cell-layer-${selected_cats_name}-sel-${viz_state.selection_token}`,
-      updateTriggers: {
-        ...layers_obj.cell_layer.props.updateTriggers,
-        getPosition: [viz_state.obs_store.umap_state.get()],
-        getFillColor: [viz_state.selection_token],
-      },
     });
 
     // Toggle cell layer readiness so deck.gl re-renders when selections arrive
@@ -725,7 +731,11 @@ export const landscape_ist = async (
 
   viz_state.obs_store.deck_ready.subscribe((ready) => {
     if (ready) {
-      const list = get_layers_list(viz_state.layers_obj, viz_state.close_up);
+      const list = get_layers_list(
+        viz_state.layers_obj,
+        viz_state.close_up,
+        viz_state
+      );
       deck_ist.setProps({ layers: list });
     }
   });
@@ -856,6 +866,14 @@ export const landscape_ist = async (
   el.appendChild(ui_container);
   el.appendChild(root);
 
+  // Reveal the neighborhood layer in the initial view when landscape_state='nbhd'.
+  // Done after the UI is built so the viz_nbhd_layer subscription can update the
+  // buttons, sliders, and category bars.
+  if (viz_state.nbhd.show_on_init && viz_state.nbhd.is_nbhd) {
+    toggle_nbhd_layer_visibility(layers_obj, true);
+    viz_state.obs_store.viz_nbhd_layer.set(true);
+  }
+
   // Initialize neighborhood editor dialog if nbhd_edit mode is enabled
   if (viz_state.nbhd.edit) {
     viz_state.nbhd_editor = initialize_nbhd_editor(
@@ -865,9 +883,10 @@ export const landscape_ist = async (
     );
   }
 
-  const isChromium = ['Chromium', 'point-cloud'].includes(
-    viz_state.img.landscape_parameters.technology
-  );
+  const currentTechnology = viz_state.img.landscape_parameters.technology;
+  const isChromium =
+    currentTechnology === 'Chromium' ||
+    is_point_cloud_technology(currentTechnology);
   viz_state.obs_store.landscape_view.subscribe(
     (view) => {
       const isUmap = view === 'umap';
@@ -939,6 +958,26 @@ export const landscape_ist = async (
     },
     { immediate: false }
   );
+
+  // Prime deck.gl's position-transition baseline while the cell layer is hidden,
+  // so the first user spatial<->UMAP toggle animates from the current positions
+  // instead of the origin. deck.gl's first getPosition transition is unavoidably
+  // from the origin (stale binary-buffer read), so we run it at opacity 0 and
+  // near-instant, then reveal once it has settled. Done a frame after init so the
+  // position buffer has been uploaded.
+  if (viz_state.umap?.has_umap) {
+    requestAnimationFrame(() => {
+      prime_cell_layer_transitions(layers_obj, viz_state);
+      // Re-render through the canonical deck_check path (same as every other
+      // layer refresh) rather than a raw setProps, so the image-layer visibility
+      // managed on that path is preserved.
+      refresh_layer(viz_state, layers_obj, 'cell_layer');
+      setTimeout(() => {
+        reveal_cell_layer_after_prime(layers_obj, viz_state);
+        refresh_layer(viz_state, layers_obj, 'cell_layer');
+      }, 40);
+    });
+  }
 
   // Callback registries for external listeners
   const callbacks = {

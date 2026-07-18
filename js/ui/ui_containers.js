@@ -1158,28 +1158,20 @@ export const make_ist_ui_container = (
     // SKTCH button is hidden initially, shown when NBHD edit mode is active
     d3.select(viz_state.edit.buttons.sktch).style('display', 'none');
 
-    if (viz_state.nbhd.edit) {
-      // Tear down any listeners left by a previous call on this viz_state before
-      // re-registering, so re-running make_ist_ui_container can't orphan them.
-      viz_state.edit.cleanup_shortcuts?.();
+    // Tear down any listeners left by a previous call on this viz_state before
+    // possibly re-registering below, so re-running make_ist_ui_container can't
+    // orphan them (including when nbhd.edit has flipped to false since then).
+    viz_state.edit.cleanup_shortcuts?.();
 
+    if (viz_state.nbhd.edit) {
       // The keydown listener is global, but the shortcut is scoped to this
-      // widget by tracking whether the pointer is over this Landscape's root.
-      // Without this, pressing 's' would toggle every Landscape on the page
-      // (e.g. multiple widgets in a notebook) at once.
+      // widget by checking whether the pointer is over this Landscape's root
+      // at keydown time. Without this, pressing 's' would toggle every
+      // Landscape on the page (e.g. multiple widgets in a notebook) at once.
       const root_el = viz_state.root;
-      let pointer_inside = false;
-      const on_pointer_enter = () => {
-        pointer_inside = true;
-      };
-      const on_pointer_leave = () => {
-        pointer_inside = false;
-      };
-      root_el?.addEventListener('mouseenter', on_pointer_enter);
-      root_el?.addEventListener('mouseleave', on_pointer_leave);
 
       const sketch_keydown_callback = (event) => {
-        if (!pointer_inside) return;
+        if (!root_el?.matches(':hover')) return;
 
         const key = event.key?.toLowerCase();
         if (key !== 's' && event.key !== 'Escape') return;
@@ -1191,6 +1183,7 @@ export const make_ist_ui_container = (
         if (event.key === 'Escape') {
           if (viz_state.edit.mode !== 'sktch') return;
           event.preventDefault();
+          event.stopPropagation();
           set_sketch_mode(false, deck_ist, layers_obj, viz_state);
           return;
         }
@@ -1199,14 +1192,16 @@ export const make_ist_ui_container = (
         if (viz_state.edit.mode === 'modify') return;
 
         event.preventDefault();
+        event.stopPropagation();
         set_sketch_mode(true, deck_ist, layers_obj, viz_state);
       };
 
-      document.addEventListener('keydown', sketch_keydown_callback);
+      // Capture phase so this scoped shortcut can claim the keystroke (via
+      // stopPropagation) before page-level handlers like Jupyter's own
+      // command-mode 's'-to-save binding see it.
+      document.addEventListener('keydown', sketch_keydown_callback, true);
       viz_state.edit.cleanup_shortcuts = () => {
-        document.removeEventListener('keydown', sketch_keydown_callback);
-        root_el?.removeEventListener('mouseenter', on_pointer_enter);
-        root_el?.removeEventListener('mouseleave', on_pointer_leave);
+        document.removeEventListener('keydown', sketch_keydown_callback, true);
       };
     }
 

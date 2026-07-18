@@ -150,7 +150,11 @@ const edit_layer_on_edit = async (
   });
 
   if (editType === 'addTentativePosition' || editType === 'cancelFeature') {
-    const layers_list = get_layers_list(layers_obj, viz_state.close_up);
+    const layers_list = get_layers_list(
+      layers_obj,
+      viz_state.close_up,
+      viz_state
+    );
     deck_ist.setProps({ layers: layers_list });
     return;
   }

@@ -1,7 +1,6 @@
 import { update_cell_layer_radius } from '../deck-gl/layers/cell_layer';
 import { update_opacity_single_image_layer } from '../deck-gl/layers/image_layers';
 import { update_nbhd_layer_opacity } from '../deck-gl/layers/nbhd_layer';
-import { square_scatter_layer_opacity } from '../deck-gl/layers/square_scatter_layer';
 import { update_trx_layer_radius } from '../deck-gl/layers/trx_layer';
 import { refresh_layer } from '../utils/refresh_layer';
 
@@ -200,13 +199,6 @@ export const set_image_layer_sliders = (img) => {
   });
 };
 
-const tile_slider_callback = async (deck_sst, viz_state, layers_sst) => {
-  square_scatter_layer_opacity(layers_sst, viz_state.sliders.tile.value / 100);
-  deck_sst.setProps({
-    layers: [layers_sst.simple_image_layer, layers_sst.square_scatter_layer],
-  });
-};
-
 const cell_slider_callback = async (deck_ist, layers_obj, viz_state) => {
   const scale_down_cell_radius = 5;
 
@@ -296,11 +288,6 @@ export const ini_slider = (slider_type, inst_deck, layers_obj, viz_state) => {
   const slider = make_slider();
 
   switch (slider_type) {
-    case 'tile':
-      ini_value = 100;
-      // may want to debouce later
-      callback = () => tile_slider_callback(inst_deck, viz_state, layers_obj);
-      break;
     case 'cell':
       ini_value = viz_state.genes.trx_ini_raidus * 100;
       callback = () => cell_slider_callback(inst_deck, layers_obj, viz_state);

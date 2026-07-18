@@ -4,8 +4,6 @@ import { new_toggle_cell_layer_visibility } from '../deck-gl/layers/cell_layer';
 import { toggle_visibility_single_image_layer } from '../deck-gl/layers/image_layers';
 import { toggle_nbhd_layer_visibility } from '../deck-gl/layers/nbhd_layer';
 import { toggle_path_layer_visibility } from '../deck-gl/layers/path_layer';
-import { simple_image_layer_visibility } from '../deck-gl/layers/simple_image_layer';
-import { square_scatter_layer_visibility } from '../deck-gl/layers/square_scatter_layer';
 import { toggle_trx_layer_visibility } from '../deck-gl/layers/trx_layer';
 import { toggle_dendro_layer_visibility } from '../deck-gl/matrix/dendro_layers';
 import { get_mat_layers_list } from '../deck-gl/matrix/matrix_layers';
@@ -165,16 +163,6 @@ export const make_reorder_button = (
     );
 };
 
-const sst_img_button_callback = async (event, deck_sst, layers_sst) => {
-  toggle_visible_button(event);
-
-  simple_image_layer_visibility(layers_sst, is_visible);
-
-  deck_sst.setProps({
-    layers: [layers_sst.simple_image_layer, layers_sst.square_scatter_layer],
-  });
-};
-
 const ist_img_button_callback = async (
   event,
   _deck_ist,
@@ -192,18 +180,6 @@ const ist_img_button_callback = async (
   }
 
   set_img_layer_visible(show);
-};
-
-const tile_button_callback = async (event, deck_sst, layers_sst, viz_state) => {
-  toggle_visible_button(event);
-
-  toggle_slider(viz_state.sliders.tile, is_visible);
-
-  square_scatter_layer_visibility(layers_sst, is_visible);
-
-  deck_sst.setProps({
-    layers: [layers_sst.simple_image_layer, layers_sst.square_scatter_layer],
-  });
 };
 
 const trx_button_callback_ist = async (
@@ -375,7 +351,7 @@ const make_ist_img_layer_button_callback = (
 
 export const make_button = (
   container,
-  technology,
+  _technology,
   text,
   color = 'blue',
   width = 40,
@@ -387,16 +363,8 @@ export const make_button = (
   let callback;
 
   if (text === 'IMG') {
-    if (technology === 'sst') {
-      callback = (event) =>
-        sst_img_button_callback(event, inst_deck, layers_obj);
-    } else {
-      callback = (event) =>
-        ist_img_button_callback(event, inst_deck, layers_obj, viz_state);
-    }
-  } else if (text === 'TILE') {
     callback = (event) =>
-      tile_button_callback(event, inst_deck, layers_obj, viz_state);
+      ist_img_button_callback(event, inst_deck, layers_obj, viz_state);
   } else if (text === 'TRX') {
     callback = (event) =>
       trx_button_callback_ist(event, inst_deck, layers_obj, viz_state);

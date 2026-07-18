@@ -22,6 +22,7 @@ import {
   uniprot_data,
   uniprot_get_request,
 } from '../external_apis/uniprot_api';
+import { is_point_cloud_technology } from '../global_variables/image_info';
 import {
   calc_dendro_triangles,
   calc_dendro_polygons,
@@ -156,7 +157,11 @@ const set_sketch_mode = (active, deck_ist, layers_obj, viz_state) => {
     update_trx_pickable_state(layers_obj, true);
   }
 
-  const layers_list = get_layers_list(layers_obj, viz_state.close_up);
+  const layers_list = get_layers_list(
+    layers_obj,
+    viz_state.close_up,
+    viz_state
+  );
   deck_ist.setProps({ layers: layers_list });
 };
 
@@ -330,88 +335,6 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
   return ui_container;
 };
 
-export const make_sst_ui_container = (deck_sst, layers_sst, viz_state) => {
-  const ui_container = make_ui_container();
-  const ctrl_container = make_ctrl_container();
-  const image_container = flex_container('image_container', 'row');
-  const tile_container = flex_container('tile_container', 'row');
-  const tile_slider_container = make_slider_container('tile_slider_container');
-
-  make_button(
-    image_container,
-    'sst',
-    'IMG',
-    'blue',
-    50,
-    'button',
-    deck_sst,
-    layers_sst,
-    viz_state
-  );
-  make_button(
-    tile_container,
-    'sst',
-    'TILE',
-    'blue',
-    50,
-    'button',
-    deck_sst,
-    layers_sst,
-    viz_state
-  );
-
-  viz_state.sliders = {};
-
-  ini_slider('tile', deck_sst, layers_sst, viz_state);
-
-  tile_slider_container.appendChild(viz_state.sliders.tile);
-
-  ui_container.appendChild(ctrl_container);
-
-  tile_container.appendChild(tile_slider_container);
-
-  set_gene_search('sst', deck_sst, layers_sst, viz_state);
-
-  // add subscriber for gene search and gene_text_box
-  viz_state.obs_store.selected_genes.subscribe(async (selected_genes) => {
-    if (selected_genes.length === 1) {
-      const inst_gene = selected_genes[0];
-
-      viz_state.genes.gene_search_input.value = inst_gene;
-
-      if (inst_gene !== '') {
-        if (viz_state.genes.gene_names.includes(inst_gene)) {
-          viz_state.genes.gene_text_box.textContent = 'loading';
-          await uniprot_get_request(inst_gene);
-          const gene_data = uniprot_data[inst_gene];
-
-          if (gene_data && gene_data.name && gene_data.description) {
-            viz_state.genes.gene_text_box.innerHTML = `<span style="color: blue;">${gene_data.name}</span><br>${gene_data.description}`;
-          } else {
-            viz_state.genes.gene_text_box.textContent = '';
-          }
-        }
-      } else {
-        viz_state.genes.gene_text_box.textContent = '';
-      }
-
-      viz_state.genes.gene_text_box.scrollTo({
-        top: 0,
-        behavior: 'smooth',
-      });
-    } else if (selected_genes.length === 0) {
-      viz_state.genes.gene_search_input.value = '';
-      viz_state.genes.gene_text_box.textContent = '';
-    }
-  });
-
-  ctrl_container.appendChild(image_container);
-  ctrl_container.appendChild(tile_container);
-  ctrl_container.appendChild(viz_state.genes.gene_search);
-
-  return ui_container;
-};
-
 export const make_ist_ui_container = (
   dataset_name,
   deck_ist,
@@ -476,7 +399,7 @@ export const make_ist_ui_container = (
 
   const { technology } = viz_state.img.landscape_parameters;
   const isChromium = technology === 'Chromium';
-  const isPointCloud = technology === 'point-cloud';
+  const isPointCloud = is_point_cloud_technology(technology);
 
   if (!isPointCloud) {
     const spatial_toggle_container = flex_container(
@@ -1098,7 +1021,11 @@ export const make_ist_ui_container = (
       selectedFeatureIndexes: [],
     });
 
-    const layers_list = get_layers_list(_layers_obj, _viz_state.close_up);
+    const layers_list = get_layers_list(
+      _layers_obj,
+      _viz_state.close_up,
+      _viz_state
+    );
     _deck_ist.setProps({ layers: layers_list });
 
     // hide the DEL button

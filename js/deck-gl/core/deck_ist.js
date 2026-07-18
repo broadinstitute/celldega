@@ -1,7 +1,12 @@
 import { Deck, OrbitController } from 'deck.gl';
 
+import { is_point_cloud_technology } from '../../global_variables/image_info';
 import { make_tooltip } from '../utils/tooltips';
 
+import {
+  pause_point_cloud_pickability,
+  setup_point_cloud_pickability_events,
+} from './interaction_pickability';
 import { on_view_state_change } from './on_view_state_change';
 
 const getCursor = ({ isDragging }) => {
@@ -13,7 +18,7 @@ const getCursor = ({ isDragging }) => {
 
 export const ini_deck = (root, width, height, technology = '') => {
   const controller = { doubleClickZoom: false };
-  if (technology === 'point-cloud') {
+  if (is_point_cloud_technology(technology)) {
     controller.type = OrbitController;
   }
 
@@ -38,6 +43,7 @@ export const set_get_tooltip = (deck_ist, viz_state) => {
   deck_ist.setProps({
     getTooltip: (info) => make_tooltip(viz_state, info),
   });
+  setup_point_cloud_pickability_events(deck_ist, viz_state);
 };
 
 export const set_deck_on_view_state_change = (
@@ -47,6 +53,7 @@ export const set_deck_on_view_state_change = (
 ) => {
   deck_ist.setProps({
     onViewStateChange: (params) => {
+      pause_point_cloud_pickability(deck_ist, layers_obj, viz_state);
       on_view_state_change(params, deck_ist, layers_obj, viz_state);
     },
   });
@@ -81,7 +88,9 @@ export const set_initial_view_state = (
     zoom: ini_zoom,
   };
 
-  if (viz_state.img.landscape_parameters.technology === 'point-cloud') {
+  if (
+    is_point_cloud_technology(viz_state.img.landscape_parameters.technology)
+  ) {
     initial_view_state.rotationOrbit = rotation_orbit;
     initial_view_state.rotationX = rotation_x;
   }

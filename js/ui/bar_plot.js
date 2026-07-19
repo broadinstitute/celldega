@@ -1,7 +1,10 @@
 import * as d3 from 'd3';
 
 import { new_toggle_cell_layer_visibility } from '../deck-gl/layers/cell_layer';
-import { refresh_nbhd_cloud_cluster_cells } from '../deck-gl/layers/nbhd_cloud_cell_layer';
+import {
+  refresh_nbhd_cloud_cluster_cells,
+  refresh_nbhd_cloud_gene_cells,
+} from '../deck-gl/layers/nbhd_cloud_cell_layer';
 import {
   apply_nbhd_cloud_slice_filter,
   select_nbhd_cloud_gene,
@@ -302,7 +305,16 @@ export const bar_callback_nbhd_cloud_slice = async (
   apply_nbhd_cloud_slice_filter(viz_state, layers_obj);
   refresh_layer(viz_state, layers_obj, 'nbhd_cloud_shapes_layer');
 
-  await refresh_nbhd_cloud_cluster_cells(viz_state, layers_obj);
+  // Same "whichever is currently relevant" split for cells -- gene mode's
+  // peppered cells live in a different per-gene cache than cluster cells, so
+  // re-filtering cluster cells here would silently do nothing while gene
+  // mode is active (the bug: slice isolation had no visible effect on
+  // peppered cells).
+  if (nbhd_cloud.gene_shapes_mode) {
+    await refresh_nbhd_cloud_gene_cells(viz_state, layers_obj);
+  } else {
+    await refresh_nbhd_cloud_cluster_cells(viz_state, layers_obj);
+  }
   refresh_layer(viz_state, layers_obj, 'nbhd_cloud_cell_layer');
 };
 

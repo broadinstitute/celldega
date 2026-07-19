@@ -147,3 +147,26 @@ export const parse_cells_tables = (tables) => {
 
   return { length: totalLength, positions, clusterIds, sliceIds };
 };
+
+// Parses one `cells/by_gene/<gene>.parquet` table (already capped/subsampled
+// server-side -- see write_gene_shapes_from_cbg's max_cells) into flat typed
+// arrays ready for a PointCloudLayer's binary `data` prop. Single table, not
+// a list -- unlike cluster cells (loaded once per slice historically), a
+// gene's cells file already covers every slice on its own.
+export const parse_gene_cells_table = (table) => {
+  const x = toNumberArray(getTableColumnArray(table, 'x'));
+  const y = toNumberArray(getTableColumnArray(table, 'y'));
+  const z = toNumberArray(getTableColumnArray(table, 'z'));
+  const sliceIds = getTableColumnArray(table, 'slice_id');
+  const expressions = toNumberArray(getTableColumnArray(table, 'expression'));
+
+  const { length } = x;
+  const positions = new Float32Array(length * 3);
+  for (let i = 0; i < length; i++) {
+    positions[i * 3] = x[i];
+    positions[i * 3 + 1] = y[i];
+    positions[i * 3 + 2] = z[i];
+  }
+
+  return { length, positions, sliceIds, expressions };
+};

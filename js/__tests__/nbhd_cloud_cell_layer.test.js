@@ -136,3 +136,159 @@ describe('neighborhood-cloud cluster-selected cell centroid loading', () => {
     expect(fetchedUrls).toEqual([]);
   });
 });
+
+describe('neighborhood-cloud gene-selected cell centroid loading ("peppering")', () => {
+  let refresh_nbhd_cloud_gene_cells;
+  let update_nbhd_cloud_cell_layer_opacity;
+  const fetchedUrls = [];
+  const cellsBox = { value: null };
+
+  beforeAll(() => {
+    const fs = require('fs');
+    const path = require('path');
+
+    const readStripped = (relPath) =>
+      fs
+        .readFileSync(path.join(__dirname, relPath), 'utf8')
+        .replace(/^import[\s\S]*?from\s+['"][^'"]+['"];$/gm, '')
+        .replace(/^export const /gm, 'const ')
+        .replace(/^export function /gm, 'function ');
+
+    // Real toExpressionByte (not shimmed) -- the actual normalization logic
+    // is exactly what's under test for gene-cell coloring.
+    const source = [
+      readStripped('../global_variables/cell_exp_array.js'),
+      readStripped('../deck-gl/layers/nbhd_cloud_cell_layer.js'),
+    ].join('\n');
+
+    const shims = `
+      const options = { fetch: {} };
+      const get_arrow_table = async (url) => { fetchedUrls.push(url); return { url }; };
+      const parse_cells_tables = () => cellsBox.value;
+      const parse_gene_cells_table = () => cellsBox.value;
+      const getModelMatrixProps = () => ({});
+    `;
+
+    const code = `${shims}\n${source}\nmodule.exports = { refresh_nbhd_cloud_gene_cells, update_nbhd_cloud_cell_layer_opacity };`;
+    const module = { exports: {} };
+    new Function('module', 'exports', 'fetchedUrls', 'cellsBox', code)(
+      module,
+      module.exports,
+      fetchedUrls,
+      cellsBox
+    );
+    ({ refresh_nbhd_cloud_gene_cells, update_nbhd_cloud_cell_layer_opacity } =
+      module.exports);
+  });
+
+  beforeEach(() => {
+    fetchedUrls.length = 0;
+  });
+
+  const makeViewState = (nbhd_cloud_overrides = {}) => ({
+    nbhd_cloud: { gene_shapes_mode: true, ...nbhd_cloud_overrides },
+    global_base_url: 'http://example.test',
+    aws: null,
+  });
+
+  const makeLayersObj = () => ({
+    nbhd_cloud_cell_layer: {
+      clone(props) {
+        return { ...this, ...props };
+      },
+    },
+  });
+
+  test('no gene selected -> clears the layer without fetching', async () => {
+    const viz_state = makeViewState({ selected_gene: null });
+    const layers_obj = makeLayersObj();
+
+    await refresh_nbhd_cloud_gene_cells(viz_state, layers_obj);
+
+    expect(fetchedUrls).toEqual([]);
+    expect(layers_obj.nbhd_cloud_cell_layer.data.length).toBe(0);
+  });
+
+  test('fetches cells/by_gene and colors each cell red, alpha by its own expression', async () => {
+    cellsBox.value = {
+      length: 2,
+      positions: new Float32Array([1, 1, 1, 2, 2, 2]),
+      sliceIds: ['s0', 's1'],
+      expressions: [10, 0],
+    };
+
+    const viz_state = makeViewState({
+      selected_gene: 'Matn1',
+      available_gene_shapes: new Map([['Matn1', 10]]),
+    });
+    const layers_obj = makeLayersObj();
+
+    await refresh_nbhd_cloud_gene_cells(viz_state, layers_obj);
+
+    expect(fetchedUrls).toEqual([
+      'http://example.test/nbhd_cloud/cells/by_gene/Matn1.parquet',
+    ]);
+
+    const { data } = layers_obj.nbhd_cloud_cell_layer;
+    expect(data.length).toBe(2);
+    const colors = Array.from(data.attributes.getColor.value);
+    // log1p(10)/log1p(10) * 255 = 255 at the manifest max.
+    expect(colors.slice(0, 4)).toEqual([255, 0, 0, 255]);
+    // 0 expression -> 0 alpha regardless of max.
+    expect(colors.slice(4, 8)).toEqual([255, 0, 0, 0]);
+  });
+
+  test('an active slice selection narrows the gene-cell fetch to that slice, client-side', async () => {
+    cellsBox.value = {
+      length: 3,
+      positions: new Float32Array([1, 1, 1, 2, 2, 2, 3, 3, 3]),
+      sliceIds: ['s0', 's1', 's0'],
+      expressions: [5, 5, 5],
+    };
+
+    const viz_state = makeViewState({
+      selected_gene: 'Matn1',
+      available_gene_shapes: new Map([['Matn1', 10]]),
+      selected_slice_ids: new Set(['s0']),
+    });
+    const layers_obj = makeLayersObj();
+
+    await refresh_nbhd_cloud_gene_cells(viz_state, layers_obj);
+
+    const { data } = layers_obj.nbhd_cloud_cell_layer;
+    expect(data.length).toBe(2);
+    expect(Array.from(data.attributes.getPosition.value)).toEqual([
+      1, 1, 1, 3, 3, 3,
+    ]);
+  });
+
+  test('a second call for the same gene reuses the cached fetch', async () => {
+    cellsBox.value = {
+      length: 1,
+      positions: new Float32Array([5, 5, 5]),
+      sliceIds: ['s0'],
+      expressions: [5],
+    };
+
+    const viz_state = makeViewState({
+      selected_gene: 'Matn1',
+      available_gene_shapes: new Map([['Matn1', 10]]),
+    });
+    const layers_obj = makeLayersObj();
+
+    await refresh_nbhd_cloud_gene_cells(viz_state, layers_obj);
+    fetchedUrls.length = 0;
+    await refresh_nbhd_cloud_gene_cells(viz_state, layers_obj);
+
+    expect(fetchedUrls).toEqual([]);
+  });
+
+  test('gene-mode opacity comes straight from gene_fill_opacity, no cluster-mode dampening', () => {
+    const viz_state = makeViewState({ gene_fill_opacity: 0.5 });
+    const layers_obj = makeLayersObj();
+
+    update_nbhd_cloud_cell_layer_opacity(layers_obj, viz_state);
+
+    expect(layers_obj.nbhd_cloud_cell_layer.opacity).toBe(0.5);
+  });
+});

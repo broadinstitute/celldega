@@ -10,11 +10,16 @@ chunking) — that mode isn't proven to work against AWS-hosted buckets yet.
 `shapes/` holds all alpha-shape geometry, split by partition axis rather than
 by directory-per-concept: `shapes/by_slice/` (one file per slice, every
 cluster's polygon) and `shapes/by_gene/` (one file per gene, every slice's
-polygon — mirrors `cells/by_cluster/`'s naming). `cells/by_cluster/` and
-`meta_*` stay in the dozens of files (one per slice/cluster). `shapes/by_gene/`
-is the exception: it's one file per *gene*, and `write_gene_shapes_streaming`
-is meant to scale that to a whole gene panel (~40k files) — see its
-docstring for why the streaming form exists alongside `write_gene_shapes`.
+polygon). `cells/` mirrors that same by_cluster/by_gene split for actual
+per-cell data: `cells/by_cluster/` (every cell in a cluster, all slices) and
+`cells/by_gene/` (up to `max_cells` of a gene's own highest-expressing
+cells — real centroids to "pepper" that gene's alpha shape with in the
+frontend, see `write_gene_shapes_from_cbg`). `cells/by_cluster/` and `meta_*`
+stay in the dozens of files (one per slice/cluster). `shapes/by_gene/` and
+`cells/by_gene/` are the exception: one file per *gene*, and
+`write_gene_shapes_streaming`/`write_gene_shapes_from_cbg` are meant to scale
+that to a whole gene panel (~40k files) — see their docstrings for why the
+streaming form exists alongside `write_gene_shapes`.
 
 Not wired into `run_pre_processing.main()`: that pipeline only supports
 Xenium/MERSCOPE and assumes an image-pyramid tree exists. Point-cloud-family
@@ -300,34 +305,50 @@ def write_gene_shapes(gdf_gene_alpha: gpd.GeoDataFrame, path_dega_files: str | P
 
 
 def _write_gene_shapes_from_iter(
-    gene_shape_iter: Iterator[tuple[str, gpd.GeoDataFrame]],
+    gene_shape_iter: Iterator[tuple[str, gpd.GeoDataFrame, pd.DataFrame]],
     n_genes: int,
-    out_dir: Path,
+    shapes_out_dir: Path,
+    cells_out_dir: Path,
     progress_every: int,
 ) -> int:
     """Shared write loop behind both streaming gene-shapes writers below --
-    the only difference between them is how each `(gene, gdf_gene)` pair is
-    produced (from an in-memory `AnnData` column vs. a freshly-read
-    `cbg/<gene>.parquet`), not what happens with it once produced."""
-    out_dir.mkdir(parents=True, exist_ok=True)
+    the only difference between them is how each `(gene, gdf_gene, df_cells)`
+    triple is produced (from an in-memory `AnnData` column vs. a freshly-read
+    `cbg/<gene>.parquet`), not what happens with it once produced.
+
+    `df_cells` (up to `max_cells` of that gene's top-expressing cells, see
+    `celldega.nbhd.iter_gene_alpha_shapes`) is only written when the gene
+    also produced a shape -- a gene with no shape has no `available_genes
+    .json` entry either, so its cells file would be orphaned (the frontend
+    only ever fetches a gene's cells after confirming it has a shape)."""
+    shapes_out_dir.mkdir(parents=True, exist_ok=True)
+    cells_out_dir.mkdir(parents=True, exist_ok=True)
 
     available_genes: dict[str, float] = {}
     n_written = 0
-    for i, (gene, gdf_gene) in enumerate(gene_shape_iter, start=1):
+    n_cells_written = 0
+    for i, (gene, gdf_gene, df_cells) in enumerate(gene_shape_iter, start=1):
         if not gdf_gene.empty:
             df_shape = pd.DataFrame(gdf_gene.drop(columns="geometry"))
             df_shape["geometry_geojson"] = [json.dumps(mapping(geom)) for geom in gdf_gene.geometry]
-            df_shape.to_parquet(out_dir / f"{gene}.parquet", index=False)
+            df_shape.to_parquet(shapes_out_dir / f"{gene}.parquet", index=False)
             available_genes[str(gene)] = float(gdf_gene["max_expression"].iloc[0])
             n_written += 1
+
+            if not df_cells.empty:
+                df_cells.to_parquet(cells_out_dir / f"{gene}.parquet", index=False)
+                n_cells_written += 1
 
         if progress_every and i % progress_every == 0:
             print(f"gene shapes: {i}/{n_genes} genes processed, {n_written} written")
 
-    with (out_dir / "available_genes.json").open("w") as f:
+    with (shapes_out_dir / "available_genes.json").open("w") as f:
         json.dump(available_genes, f, indent=2)
 
-    print(f"gene shapes: wrote {n_written}/{n_genes} genes to {out_dir}")
+    print(
+        f"gene shapes: wrote {n_written}/{n_genes} genes to {shapes_out_dir} "
+        f"({n_cells_written} with a cells file in {cells_out_dir})"
+    )
     return n_written
 
 
@@ -341,6 +362,7 @@ def write_gene_shapes_streaming(
     min_expression: float = 2.0,
     min_cells: int = 4,
     z_jitter: float = 0.1,
+    max_cells: int = 50_000,
     progress_every: int = 500,
 ) -> int:
     """Whole-transcriptome variant of `write_gene_shapes` — writes as it computes.
@@ -362,12 +384,14 @@ def write_gene_shapes_streaming(
     `write_gene_shapes_from_cbg` instead, which reads and processes one
     gene's file at a time and never assembles a combined matrix.
 
-    Writes the same `nbhd_cloud/shapes/by_gene/<gene>.parquet` files (one per
-    gene, same schema) and `available_genes.json` manifest as
-    `write_gene_shapes`. Genes with no usable shape in any slice (below
-    `min_cells` everywhere, or every candidate shape failed verification /
-    GEOS choked — see `celldega.nbhd.alpha_shape`) are silently skipped, same
-    as the non-streaming path.
+    Writes the same `nbhd_cloud/shapes/by_gene/<gene>.parquet` files and
+    `available_genes.json` manifest as `write_gene_shapes`, plus
+    `nbhd_cloud/cells/by_gene/<gene>.parquet` — up to `max_cells` of that
+    gene's own highest-expressing cells (real centroids to "pepper" the
+    alpha shape with in the frontend). Genes with no usable shape in any
+    slice (below `min_cells` everywhere, or every candidate shape failed
+    verification / GEOS choked — see `celldega.nbhd.alpha_shape`) are
+    silently skipped, same as the non-streaming path.
 
     Parameters
     ----------
@@ -379,7 +403,7 @@ def write_gene_shapes_streaming(
         whole-transcriptome run.
     path_dega_files : str | Path
         DegaFiles root directory.
-    slice_attr, z_attr, alphas, min_expression, min_cells, z_jitter :
+    slice_attr, z_attr, alphas, min_expression, min_cells, z_jitter, max_cells :
         Forwarded to `iter_gene_alpha_shapes_by_slice` — see its docstring.
     progress_every : int
         Print a progress line every this many genes processed (0 disables).
@@ -389,6 +413,7 @@ def write_gene_shapes_streaming(
     int
         Number of genes that produced at least one shape and were written.
     """
+    out_dir = Path(path_dega_files) / "nbhd_cloud"
     return _write_gene_shapes_from_iter(
         iter_gene_alpha_shapes_by_slice(
             adata,
@@ -399,9 +424,11 @@ def write_gene_shapes_streaming(
             min_expression=min_expression,
             min_cells=min_cells,
             z_jitter=z_jitter,
+            max_cells=max_cells,
         ),
         len(gene_list),
-        Path(path_dega_files) / "nbhd_cloud" / "shapes" / "by_gene",
+        out_dir / "shapes" / "by_gene",
+        out_dir / "cells" / "by_gene",
         progress_every,
     )
 
@@ -418,6 +445,7 @@ def write_gene_shapes_from_cbg(
     min_expression: float = 2.0,
     min_cells: int = 4,
     z_jitter: float = 0.1,
+    max_cells: int = 50_000,
     progress_every: int = 500,
 ) -> int:
     """Gene-shapes writer that reads each gene's expression directly from
@@ -437,7 +465,9 @@ def write_gene_shapes_from_cbg(
 
     Writes the same `nbhd_cloud/shapes/by_gene/<gene>.parquet` files and
     `available_genes.json` manifest as `write_gene_shapes`/
-    `write_gene_shapes_streaming`.
+    `write_gene_shapes_streaming`, plus `nbhd_cloud/cells/by_gene/<gene>
+    .parquet` — up to `max_cells` of that gene's own highest-expressing
+    cells (real centroids to "pepper" the alpha shape with in the frontend).
 
     Parameters
     ----------
@@ -455,7 +485,7 @@ def write_gene_shapes_from_cbg(
         `(n_cells, >=2)`.
     path_dega_files : str | Path
         DegaFiles root directory.
-    slice_attr, z_attr, alphas, min_expression, min_cells, z_jitter :
+    slice_attr, z_attr, alphas, min_expression, min_cells, z_jitter, max_cells :
         Forwarded to `celldega.nbhd.iter_gene_alpha_shapes` — see its
         docstring.
     progress_every : int
@@ -470,6 +500,7 @@ def write_gene_shapes_from_cbg(
     cell_index = pd.Index(obs.index.astype(str))
     slice_ids = obs[slice_attr].to_numpy()
     z_values = obs[z_attr].to_numpy(dtype=float) if z_attr is not None else np.zeros(len(obs))
+    cell_ids = cell_index.to_numpy()
     n_cells = len(obs)
 
     def _gene_expression() -> Iterator[tuple[str, np.ndarray]]:
@@ -481,19 +512,23 @@ def write_gene_shapes_from_cbg(
             expr[row_idx[valid]] = col.to_numpy()[valid]
             yield gene, expr
 
+    out_dir = Path(path_dega_files) / "nbhd_cloud"
     return _write_gene_shapes_from_iter(
         iter_gene_alpha_shapes(
             coords,
             slice_ids,
             z_values,
             _gene_expression(),
+            cell_ids=cell_ids,
             alphas=alphas,
             min_expression=min_expression,
             min_cells=min_cells,
             z_jitter=z_jitter,
+            max_cells=max_cells,
         ),
         len(gene_list),
-        Path(path_dega_files) / "nbhd_cloud" / "shapes" / "by_gene",
+        out_dir / "shapes" / "by_gene",
+        out_dir / "cells" / "by_gene",
         progress_every,
     )
 

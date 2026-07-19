@@ -26,6 +26,7 @@ describe('neighborhood-cloud shapes fill color', () => {
     const shims = `
       const refresh_layer = () => {};
       const refresh_nbhd_cloud_cluster_cells = async () => {};
+      const refresh_nbhd_cloud_gene_cells = async () => {};
     `;
 
     const code = `${shims}\n${source}\nmodule.exports = { get_nbhd_cloud_fill_color };`;
@@ -127,6 +128,7 @@ describe('neighborhood-cloud cluster-select / gene-select mutual exclusion', () 
       const get_arrow_table = async (url) => { fetchedUrls.push(url); return { url }; };
       const parse_gene_shapes_table_to_features = () => geneShapeFeatures;
       const refresh_nbhd_cloud_cluster_cells = async () => {};
+      const refresh_nbhd_cloud_gene_cells = async () => {};
     `;
 
     const code = `${shims}\n${source}\nmodule.exports = { toggle_nbhd_cloud_cluster_selection, select_nbhd_cloud_gene };`;
@@ -219,6 +221,7 @@ describe('neighborhood-cloud gene-shapes mode (curated marker-gene list)', () =>
       const get_arrow_table = async (url) => { fetchedUrls.push(url); return { url }; };
       const parse_gene_shapes_table_to_features = () => geneShapeFeatures;
       const refresh_nbhd_cloud_cluster_cells = async () => {};
+      const refresh_nbhd_cloud_gene_cells = async () => {};
     `;
 
     const code = `${shims}\n${source}\nmodule.exports = { select_nbhd_cloud_gene };`;

@@ -9,6 +9,7 @@ import { getModelMatrixProps } from '../../utils/rotation';
 
 import {
   refresh_nbhd_cloud_cluster_cells,
+  refresh_nbhd_cloud_gene_cells,
   update_nbhd_cloud_cell_layer_opacity,
 } from './nbhd_cloud_cell_layer';
 
@@ -289,8 +290,12 @@ export const set_nbhd_cloud_shapes_layer_onclick = (layers_obj, viz_state) => {
 // fetched, nothing changed.
 //
 // Selecting a gene-shapes gene always clears any active cluster selection
-// and its cell centroids -- gene view is tissue-wide, not filtered to (or
-// occluded from above by) one cluster's cells.
+// -- gene view is tissue-wide, not filtered to (or occluded from above by)
+// one cluster's cells. Its own cells (a bounded, expression-colored subset
+// of that gene's own highest-expressing cells -- see
+// refresh_nbhd_cloud_gene_cells) replace the cluster cells in the same
+// layer; resetting back out of gene mode restores cluster-cell display
+// (empty, since cluster selection was cleared on entry).
 export const select_nbhd_cloud_gene = async (gene, viz_state, layers_obj) => {
   const { nbhd_cloud } = viz_state;
   const isReset = gene === nbhd_cloud.selected_gene;
@@ -299,6 +304,8 @@ export const select_nbhd_cloud_gene = async (gene, viz_state, layers_obj) => {
     nbhd_cloud.selected_gene = null;
     nbhd_cloud.gene_shapes_mode = false;
     restore_cluster_shapes_data(viz_state, layers_obj);
+    nbhd_cloud.selected_cluster_ids?.clear();
+    await refresh_nbhd_cloud_cluster_cells(viz_state, layers_obj);
   } else if (nbhd_cloud.available_gene_shapes?.has(gene)) {
     nbhd_cloud.gene_shapes_cache ??= new Map();
     let features = nbhd_cloud.gene_shapes_cache.get(gene);
@@ -315,15 +322,15 @@ export const select_nbhd_cloud_gene = async (gene, viz_state, layers_obj) => {
     nbhd_cloud.selected_gene = gene;
     nbhd_cloud.gene_shapes_mode = true;
     apply_nbhd_cloud_slice_filter(viz_state, layers_obj);
+
+    nbhd_cloud.selected_cluster_ids?.clear();
+    await refresh_nbhd_cloud_gene_cells(viz_state, layers_obj);
   } else {
     // No precomputed shapes for this gene -- nothing to show, so leave
     // whatever was already displayed alone rather than clearing a valid
     // selection out from under the user.
     return;
   }
-
-  nbhd_cloud.selected_cluster_ids?.clear();
-  await refresh_nbhd_cloud_cluster_cells(viz_state, layers_obj);
 
   update_nbhd_cloud_shapes_fill_color(layers_obj, viz_state);
 };
@@ -347,7 +354,11 @@ export const update_nbhd_cloud_manual_fill_opacity = (
 // Backs the repurposed TRX slider (sliders.js) -- an independent 0-1
 // multiplier for gene-shapes mode's fill opacity, so cluster-color and
 // gene-shapes opacity can be tuned separately rather than sharing one
-// slider whose meaning changes depending on mode.
+// slider whose meaning changes depending on mode. Also drives the gene's
+// peppered cell centroids' opacity (their per-cell expression-based alpha
+// is baked into the color buffer already -- this multiplies on top via the
+// cell layer's own `opacity` prop, same mechanism as the NBHD slider does
+// for cluster-mode cells).
 export const update_nbhd_cloud_gene_fill_opacity = (
   viz_state,
   layers_obj,
@@ -355,6 +366,7 @@ export const update_nbhd_cloud_gene_fill_opacity = (
 ) => {
   viz_state.nbhd_cloud.gene_fill_opacity = opacity;
   update_nbhd_cloud_shapes_fill_color(layers_obj, viz_state);
+  update_nbhd_cloud_cell_layer_opacity(layers_obj, viz_state);
 };
 
 export const toggle_nbhd_cloud_shapes_layer_visibility = (

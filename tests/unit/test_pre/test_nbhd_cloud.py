@@ -296,6 +296,59 @@ def test_write_gene_shapes_streaming_skips_genes_with_no_shape(tmp_path):
         manifest = json.load(f)
     assert set(manifest) == {"Gene0"}
 
+    # Gene1 has no shape (and thus no manifest entry, so it's unreachable
+    # from the frontend) -- its cells file must not exist either.
+    gene_cells_dir = tmp_path / "nbhd_cloud" / "cells" / "by_gene"
+    assert {p.name for p in gene_cells_dir.glob("*.parquet")} == {"Gene0.parquet"}
+
+
+def test_write_gene_shapes_streaming_writes_top_expressing_cells(tmp_path):
+    adata = _synthetic_multi_gene_adata(n_slices=2, n_cells=20, gene_names=("Gene0",))
+    # Distinct expression values on the "expressing" cells so the top-K
+    # selection is unambiguous.
+    gene_col = adata.var_names.get_loc("Gene0")
+    expressing_mask = adata.X[:, gene_col] != 0
+    adata.X[expressing_mask, gene_col] = np.arange(1, expressing_mask.sum() + 1)
+
+    write_gene_shapes_streaming(
+        adata,
+        ["Gene0"],
+        tmp_path,
+        slice_attr="slice_id",
+        z_attr="z",
+        alphas=(150,),
+        min_cells=4,
+        max_cells=5,
+        progress_every=0,
+    )
+
+    df_cells = pd.read_parquet(tmp_path / "nbhd_cloud" / "cells" / "by_gene" / "Gene0.parquet")
+    assert len(df_cells) == 5
+    assert {"cell_id", "gene", "slice_id", "x", "y", "z", "expression"}.issubset(df_cells.columns)
+    assert (df_cells["gene"] == "Gene0").all()
+    # Top-5 expressing cells across both slices are the 5 highest values.
+    max_expr = expressing_mask.sum()
+    assert set(df_cells["expression"]) == set(range(max_expr - 4, max_expr + 1))
+
+
+def test_write_gene_shapes_streaming_max_cells_zero_writes_no_cells_files(tmp_path):
+    adata = _synthetic_multi_gene_adata()
+
+    write_gene_shapes_streaming(
+        adata,
+        ["Gene0", "Gene1", "Gene2"],
+        tmp_path,
+        slice_attr="slice_id",
+        z_attr="z",
+        alphas=(150,),
+        min_cells=4,
+        max_cells=0,
+        progress_every=0,
+    )
+
+    gene_cells_dir = tmp_path / "nbhd_cloud" / "cells" / "by_gene"
+    assert not any(gene_cells_dir.glob("*.parquet"))
+
 
 def test_write_gene_shapes_streaming_matches_non_streaming_output(tmp_path):
     """The streaming and non-streaming writers must produce the same files
@@ -412,6 +465,17 @@ def test_write_gene_shapes_from_cbg_matches_streaming_output(tmp_path):
             df_streaming.sort_values("slice_id").reset_index(drop=True),
         )
 
+        df_cells_from_cbg = pd.read_parquet(
+            from_cbg_dir / "nbhd_cloud" / "cells" / "by_gene" / f"{gene}.parquet"
+        )
+        df_cells_streaming = pd.read_parquet(
+            streaming_dir / "nbhd_cloud" / "cells" / "by_gene" / f"{gene}.parquet"
+        )
+        pd.testing.assert_frame_equal(
+            df_cells_from_cbg.sort_values("cell_id").reset_index(drop=True),
+            df_cells_streaming.sort_values("cell_id").reset_index(drop=True),
+        )
+
 
 def test_write_gene_shapes_from_cbg_skips_genes_with_no_shape(tmp_path):
     adata = _synthetic_multi_gene_adata(gene_names=("Gene0", "Gene1"))
@@ -440,6 +504,38 @@ def test_write_gene_shapes_from_cbg_skips_genes_with_no_shape(tmp_path):
     with (gene_shapes_dir / "available_genes.json").open() as f:
         manifest = json.load(f)
     assert set(manifest) == {"Gene0"}
+
+    gene_cells_dir = tmp_path / "nbhd_cloud" / "cells" / "by_gene"
+    assert {p.name for p in gene_cells_dir.glob("*.parquet")} == {"Gene0.parquet"}
+
+
+def test_write_gene_shapes_from_cbg_caps_cells_at_max_cells(tmp_path):
+    adata = _synthetic_multi_gene_adata(n_slices=2, n_cells=20, gene_names=("Gene0",))
+    gene_col = adata.var_names.get_loc("Gene0")
+    expressing_mask = adata.X[:, gene_col] != 0
+    adata.X[expressing_mask, gene_col] = np.arange(1, expressing_mask.sum() + 1)
+
+    cbg_dir = tmp_path / "cbg"
+    _write_fake_cbg_dir(cbg_dir, adata)
+
+    write_gene_shapes_from_cbg(
+        cbg_dir,
+        ["Gene0"],
+        adata.obs,
+        adata.obsm["spatial"],
+        tmp_path,
+        slice_attr="slice_id",
+        z_attr="z",
+        alphas=(150,),
+        min_cells=4,
+        max_cells=5,
+        progress_every=0,
+    )
+
+    df_cells = pd.read_parquet(tmp_path / "nbhd_cloud" / "cells" / "by_gene" / "Gene0.parquet")
+    assert len(df_cells) == 5
+    max_expr = expressing_mask.sum()
+    assert set(df_cells["expression"]) == set(range(max_expr - 4, max_expr + 1))
 
 
 def test_write_cell_clusters_meta_requires_gdf_columns():

@@ -322,20 +322,49 @@ _GENE_SHAPE_COLUMNS = [
     "max_expression",
 ]
 
+# `cells/by_gene/<gene>.parquet` schema -- mirrors `cells/by_cluster/<id>
+# .parquet`'s cell_id/x/y/z/slice_id columns, with `expression` standing in
+# for `cluster_id` since these cells are selected/colored by expression, not
+# category.
+_GENE_CELL_COLUMNS = ["cell_id", "gene", "slice_id", "x", "y", "z", "expression"]
+
+
+def _select_top_expressing_cells(
+    expr: np.ndarray,
+    min_expression: float,
+    max_cells: int,
+) -> np.ndarray:
+    """Indices of up to `max_cells` highest-`expr` cells among those with
+    `expr >= min_expression` (the same "expressing" population the alpha
+    shape itself is built from) -- an O(n) top-K selection (argpartition),
+    not a full sort, since `max_cells` is meant to bound a per-gene cell
+    file to a small fraction of a whole-tissue cell count regardless of how
+    broadly the gene is actually expressed."""
+    candidate_idx = np.flatnonzero(expr >= min_expression)
+    if max_cells <= 0 or candidate_idx.size == 0:
+        return candidate_idx[:0]
+    if candidate_idx.size <= max_cells:
+        return candidate_idx
+    top_within = np.argpartition(expr[candidate_idx], -max_cells)[-max_cells:]
+    return candidate_idx[top_within]
+
 
 def iter_gene_alpha_shapes(
     coords: np.ndarray,
     slice_ids: np.ndarray,
     z_values: np.ndarray,
     gene_expression: Iterable[tuple[str, np.ndarray]],
+    cell_ids: np.ndarray | None = None,
     alphas: Sequence[float] = (150,),
     min_expression: float = 2.0,
     min_cells: int = 4,
     z_jitter: float = 0.1,
-) -> Iterator[tuple[str, gpd.GeoDataFrame]]:
+    max_cells: int = 50_000,
+) -> Iterator[tuple[str, gpd.GeoDataFrame, pd.DataFrame]]:
     """
-    Yield `(gene, gdf_gene)` one gene at a time, from a caller-supplied
-    stream of `(gene, expression_array)` pairs — no `AnnData` involved.
+    Yield `(gene, gdf_gene, df_cells)` one gene at a time, from a
+    caller-supplied stream of `(gene, expression_array)` pairs — no
+    `AnnData` involved.
 
     This is the AnnData-free core `iter_gene_alpha_shapes_by_slice` wraps:
     that function exists for the interactive-analysis case where you
@@ -352,6 +381,15 @@ def iter_gene_alpha_shapes(
     `AnnData` wrapper around it — pure overhead when nothing downstream
     ever needs more than one gene's expression at a time.
 
+    Alongside each gene's shape, also selects up to `max_cells` of that
+    gene's own highest-expressing cells (same `min_expression` threshold as
+    the shape) — real cell centroids to "pepper" the alpha shape with in
+    the frontend, grounding the coarse polygon in actual single-cell
+    positions. Capped rather than exhaustive because an unbounded per-gene
+    cell file would scale with how many cells express the gene, not with
+    dataset size in general — a broadly-expressed gene could otherwise mean
+    a cell file sized like the whole dataset.
+
     Parameters
     ----------
     coords : np.ndarray
@@ -367,13 +405,25 @@ def iter_gene_alpha_shapes(
         `coords`/`slice_ids`/`z_values` (same order, same length). Genes are
         processed in the order this iterable yields them (and that order is
         what `_gene_z_offset` derives each gene's Z bucket from).
+    cell_ids : np.ndarray | None
+        Per-cell identifier, shape `(n_cells,)`, aligned like `coords`. If
+        None, `df_cells` is always empty (no cell selection performed) --
+        e.g. when a caller only wants shapes and doesn't have cell ids handy.
     alphas, min_expression, min_cells, z_jitter :
         Same meaning as `alpha_shape_gene_expression_by_slice`.
+    max_cells : int
+        Cap on the number of top-expressing cells selected per gene (across
+        all slices combined). 0 (or `cell_ids=None`) skips cell selection
+        entirely, yielding an always-empty `df_cells`.
 
     Yields
     ------
-    tuple[str, gpd.GeoDataFrame]
-        Same shape as `iter_gene_alpha_shapes_by_slice`'s yield — see there.
+    tuple[str, gpd.GeoDataFrame, pd.DataFrame]
+        `(gene, gdf_gene, df_cells)` — `gdf_gene` as documented on
+        `iter_gene_alpha_shapes_by_slice`. `df_cells` has columns
+        `cell_id`, `gene`, `slice_id`, `x`, `y`, `z`, `expression` — one row
+        per selected cell, empty (zero rows, same columns) if no cells were
+        selected (no `cell_ids`, `max_cells <= 0`, or no expressing cells).
     """
     if len(alphas) != 1:
         raise ValueError(
@@ -385,6 +435,7 @@ def iter_gene_alpha_shapes(
     coords = np.asarray(coords)
     slice_ids = np.asarray(slice_ids)
     z_values = np.asarray(z_values, dtype=float)
+    cell_ids_arr = np.asarray(cell_ids) if cell_ids is not None else None
     unique_slice_ids = pd.unique(slice_ids)
 
     # Each slice's Z stamped once, up front -- cheap (one value per slice),
@@ -428,8 +479,31 @@ def iter_gene_alpha_shapes(
                 }
             )
 
+        if cell_ids_arr is not None:
+            top_idx = _select_top_expressing_cells(expr, min_expression, max_cells)
+        else:
+            top_idx = np.empty(0, dtype=int)
+
+        if top_idx.size:
+            # Real cell Z (not jittered) -- cell centroids render in a
+            # separate depth-test-disabled PointCloudLayer, so they don't
+            # need the shapes' anti-z-fighting jitter (see nbhd_cloud_cell_layer.js).
+            df_cells = pd.DataFrame(
+                {
+                    "cell_id": cell_ids_arr[top_idx],
+                    "gene": gene,
+                    "slice_id": slice_ids[top_idx],
+                    "x": coords[top_idx, 0].astype(float),
+                    "y": coords[top_idx, 1].astype(float),
+                    "z": z_values[top_idx],
+                    "expression": expr[top_idx].astype(float),
+                }
+            )[_GENE_CELL_COLUMNS]
+        else:
+            df_cells = pd.DataFrame(columns=_GENE_CELL_COLUMNS)
+
         if not rows:
-            yield gene, gpd.GeoDataFrame(columns=_GENE_SHAPE_COLUMNS, geometry="geometry")
+            yield gene, gpd.GeoDataFrame(columns=_GENE_SHAPE_COLUMNS, geometry="geometry"), df_cells
             continue
 
         df_gene = pd.DataFrame(rows)
@@ -439,7 +513,7 @@ def iter_gene_alpha_shapes(
         gdf_gene["area"] = gdf_gene.area
         gdf_gene["max_expression"] = max_expression
 
-        yield gene, gdf_gene[_GENE_SHAPE_COLUMNS]
+        yield gene, gdf_gene[_GENE_SHAPE_COLUMNS], df_cells
 
 
 def iter_gene_alpha_shapes_by_slice(
@@ -451,15 +525,18 @@ def iter_gene_alpha_shapes_by_slice(
     min_expression: float = 2.0,
     min_cells: int = 4,
     z_jitter: float = 0.1,
-) -> Iterator[tuple[str, gpd.GeoDataFrame]]:
+    max_cells: int = 50_000,
+) -> Iterator[tuple[str, gpd.GeoDataFrame, pd.DataFrame]]:
     """
-    Yield `(gene, gdf_gene)` one gene at a time, instead of building the
-    whole (slice, gene) result set in memory before returning anything.
+    Yield `(gene, gdf_gene, df_cells)` one gene at a time, instead of
+    building the whole (slice, gene) result set in memory before returning
+    anything.
 
     An `AnnData`-sourcing wrapper around `iter_gene_alpha_shapes`: for each
     gene in `gene_list`, densifies that one column from `adata.X` and hands
-    it to `iter_gene_alpha_shapes`. Convenient when you already have (or are
-    willing to build) an `AnnData` with every gene in `gene_list` loaded —
+    it to `iter_gene_alpha_shapes` (along with `adata.obs_names` as cell
+    ids). Convenient when you already have (or are willing to build) an
+    `AnnData` with every gene in `gene_list` loaded —
     `alpha_shape_gene_expression_by_slice` (a thin eager wrapper around this
     generator) is the interactive/analysis entry point for that case. If
     your genes instead come from per-gene files (e.g. `cbg/<gene>.parquet`)
@@ -475,17 +552,22 @@ def iter_gene_alpha_shapes_by_slice(
     gene_list : Sequence[str]
         Genes to compute shapes for, in the order they'll be processed (and
         the order `_gene_z_offset` derives each gene's Z bucket from).
+    max_cells : int
+        Forwarded to `iter_gene_alpha_shapes` — cap on top-expressing cells
+        selected per gene (0 skips cell selection).
 
     Yields
     ------
-    tuple[str, gpd.GeoDataFrame]
-        `(gene, gdf_gene)` — `gdf_gene` has columns `name`
+    tuple[str, gpd.GeoDataFrame, pd.DataFrame]
+        `(gene, gdf_gene, df_cells)` — `gdf_gene` has columns `name`
         (`f"{slice_id}__{gene}"`), `gene`, `slice_id`, `geometry` (3D),
         `area`, `inv_alpha`, `cell_count`, `mean_expression`,
         `max_expression` (whole-tissue single-cell max for that gene). Empty
         (zero rows, same columns) if the gene produced no usable shape in
         any slice -- below `min_cells` everywhere, or every candidate shape
-        failed verification / GEOS choked (see `alpha_shape`).
+        failed verification / GEOS choked (see `alpha_shape`). `df_cells`
+        has columns `cell_id`, `gene`, `slice_id`, `x`, `y`, `z`,
+        `expression` — see `iter_gene_alpha_shapes`.
     """
     missing = [gene for gene in gene_list if gene not in adata.var_names]
     if missing:
@@ -495,6 +577,7 @@ def iter_gene_alpha_shapes_by_slice(
     coords = np.asarray(adata.obsm["spatial"])
     slice_ids = obs[slice_attr].to_numpy()
     z_values = obs[z_attr].to_numpy(dtype=float) if z_attr is not None else np.zeros(len(obs))
+    cell_ids = adata.obs_names.astype(str).to_numpy()
     gene_positions = {gene: adata.var_names.get_loc(gene) for gene in gene_list}
 
     def _gene_column(gene: str) -> np.ndarray:
@@ -515,10 +598,12 @@ def iter_gene_alpha_shapes_by_slice(
         slice_ids,
         z_values,
         _gene_expression(),
+        cell_ids=cell_ids,
         alphas=alphas,
         min_expression=min_expression,
         min_cells=min_cells,
         z_jitter=z_jitter,
+        max_cells=max_cells,
     )
 
 
@@ -585,7 +670,9 @@ def alpha_shape_gene_expression_by_slice(
     """
     dfs = [
         gdf_gene
-        for _, gdf_gene in iter_gene_alpha_shapes_by_slice(
+        # max_cells=0: this function only ever returns shapes, so skip the
+        # (otherwise wasted) top-expressing-cell selection entirely.
+        for _, gdf_gene, _ in iter_gene_alpha_shapes_by_slice(
             adata,
             gene_list,
             slice_attr=slice_attr,
@@ -594,6 +681,7 @@ def alpha_shape_gene_expression_by_slice(
             min_expression=min_expression,
             min_cells=min_cells,
             z_jitter=z_jitter,
+            max_cells=0,
         )
         if not gdf_gene.empty
     ]

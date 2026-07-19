@@ -6,6 +6,7 @@ describe('neighborhood-cloud parquet table parsing', () => {
   let parse_shapes_table_to_features;
   let parse_gene_shapes_table_to_features;
   let parse_cells_tables;
+  let parse_gene_cells_table;
 
   beforeAll(() => {
     const fs = require('fs');
@@ -22,7 +23,7 @@ describe('neighborhood-cloud parquet table parsing', () => {
       readStripped('../read_parquet/nbhd_cloud_tables.js'),
     ].join('\n');
 
-    const code = `${source}\nmodule.exports = { parse_meta_slice_table, parse_meta_neighborhood_table, parse_shapes_table_to_features, parse_gene_shapes_table_to_features, parse_cells_tables };`;
+    const code = `${source}\nmodule.exports = { parse_meta_slice_table, parse_meta_neighborhood_table, parse_shapes_table_to_features, parse_gene_shapes_table_to_features, parse_cells_tables, parse_gene_cells_table };`;
     const module = { exports: {} };
     new Function('module', 'exports', code)(module, module.exports);
     ({
@@ -31,6 +32,7 @@ describe('neighborhood-cloud parquet table parsing', () => {
       parse_shapes_table_to_features,
       parse_gene_shapes_table_to_features,
       parse_cells_tables,
+      parse_gene_cells_table,
     } = module.exports);
   });
 
@@ -204,5 +206,24 @@ describe('neighborhood-cloud parquet table parsing', () => {
     const merged = parse_cells_tables([]);
     expect(merged.length).toBe(0);
     expect(merged.positions.length).toBe(0);
+  });
+
+  test('parse_gene_cells_table parses a cells/by_gene/<gene>.parquet table into flat arrays', () => {
+    const table = makeTable({
+      cell_id: ['c0', 'c1'],
+      gene: ['Matn1', 'Matn1'],
+      slice_id: ['s0', 's1'],
+      x: [1, 2],
+      y: [3, 4],
+      z: [0, 100],
+      expression: [5.5, 10],
+    });
+
+    const parsed = parse_gene_cells_table(table);
+
+    expect(parsed.length).toBe(2);
+    expect(Array.from(parsed.positions)).toEqual([1, 3, 0, 2, 4, 100]);
+    expect(parsed.sliceIds).toEqual(['s0', 's1']);
+    expect(parsed.expressions).toEqual([5.5, 10]);
   });
 });

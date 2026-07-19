@@ -1,6 +1,5 @@
 import { GeoJsonLayer } from 'deck.gl';
 
-import { toExpressionByte } from '../../global_variables/cell_exp_array';
 import { options } from '../../global_variables/fetch_options';
 import { get_arrow_table } from '../../read_parquet/get_arrow_table';
 import { parse_gene_shapes_table_to_features } from '../../read_parquet/nbhd_cloud_tables';
@@ -62,19 +61,20 @@ export const get_nbhd_cloud_fill_color = (feature, viz_state) => {
   const { nbhd_cloud } = viz_state;
 
   // Gene-shapes mode: a different feature set entirely (one polygon per
-  // (slice, gene) from a curated marker-gene list, see write_gene_shapes),
-  // each carrying its own `mean_expression` directly -- no cluster_id, no
-  // cluster-selection dimming (there's no cluster concept here to dim
-  // against). Opacity is its own independent slider (the repurposed TRX
-  // slider, sliders.js), not the cluster-mode one.
+  // (slice, gene) from a curated marker-gene list, see write_gene_shapes) --
+  // no cluster_id, no cluster-selection dimming (there's no cluster concept
+  // here to dim against). Flat alpha, not scaled by the shape's own
+  // mean_expression: the shape's boundary already encodes "cells expressing
+  // >= min_expression here" (see alpha_shape_gene_expression_by_slice), so
+  // also fading the fill by mean_expression layers a second, easily
+  // misread signal ("why is this region fainter?") on top of a boundary
+  // that's already binary. mean_expression/max_expression are still
+  // computed and written (cheap, and may be useful for a tooltip or later
+  // query) -- just no longer used for opacity. Opacity is its own
+  // independent slider (the repurposed TRX slider, sliders.js), not the
+  // cluster-mode one.
   if (nbhd_cloud.gene_shapes_mode) {
-    const maxExpression =
-      nbhd_cloud.available_gene_shapes?.get(feature.properties.gene) ?? 0;
-    const baseAlpha = toExpressionByte(
-      feature.properties.mean_expression ?? 0,
-      maxExpression
-    );
-    const alpha = Math.round(baseAlpha * (nbhd_cloud.gene_fill_opacity ?? 1));
+    const alpha = Math.round(255 * (nbhd_cloud.gene_fill_opacity ?? 1));
     return [...GENE_COLOR_RGB, alpha];
   }
 

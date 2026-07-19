@@ -67,7 +67,7 @@ describe('neighborhood-cloud shapes fill color', () => {
     ).toEqual([255, 0, 0, 0]);
   });
 
-  test("gene-shapes mode: alpha comes from the feature's own mean_expression via the manifest max, not a neighborhood lookup", () => {
+  test("gene-shapes mode: flat alpha from gene_fill_opacity, regardless of the feature's own mean_expression", () => {
     const geneFeature = (mean_expression) => ({
       properties: { gene: 'Matn1', slice_id: 's0', mean_expression },
     });
@@ -78,35 +78,20 @@ describe('neighborhood-cloud shapes fill color', () => {
       },
     };
 
-    // log1p(10)/log1p(10) * 255 = 255 at the manifest max
+    // Full opacity regardless of mean_expression -- the shape's boundary
+    // already encodes "expressing >= min_expression", so alpha doesn't
+    // additionally scale with how strongly a shape expresses.
     expect(get_nbhd_cloud_fill_color(geneFeature(10), viz_state)).toEqual([
       255, 0, 0, 255,
     ]);
-    // 0 expression -> 0 alpha regardless of max
     expect(get_nbhd_cloud_fill_color(geneFeature(0), viz_state)).toEqual([
-      255, 0, 0, 0,
+      255, 0, 0, 255,
     ]);
 
     viz_state.nbhd_cloud.gene_fill_opacity = 0.5;
-    const halfOpacityAlpha = get_nbhd_cloud_fill_color(
-      geneFeature(10),
-      viz_state
-    )[3];
-    expect(halfOpacityAlpha).toBeLessThan(255);
-    expect(halfOpacityAlpha).toBeGreaterThan(0);
-  });
-
-  test('gene-shapes mode: an unlisted gene (no manifest entry) gets zero alpha', () => {
-    const viz_state = {
-      nbhd_cloud: { gene_shapes_mode: true, available_gene_shapes: new Map() },
-    };
-
-    expect(
-      get_nbhd_cloud_fill_color(
-        { properties: { gene: 'Unknown', mean_expression: 5 } },
-        viz_state
-      )
-    ).toEqual([255, 0, 0, 0]);
+    expect(get_nbhd_cloud_fill_color(geneFeature(10), viz_state)).toEqual([
+      255, 0, 0, 128,
+    ]);
   });
 });
 

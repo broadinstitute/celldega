@@ -292,6 +292,7 @@ def write_nbhd_cloud_shapes_and_features(
     # a parquet column instead of a synced trait) needs no new JS parsing.
     for slice_id, gdf_slice in gdf.groupby("slice_id"):
         df_shape_slice = pd.DataFrame(gdf_slice.drop(columns="geometry"))
+        df_shape_slice.insert(0, "neighborhood_id", gdf_slice[nbhd_col].astype(str).to_numpy())
         df_shape_slice["geometry_geojson"] = [
             json.dumps(mapping(geom)) for geom in gdf_slice.geometry
         ]

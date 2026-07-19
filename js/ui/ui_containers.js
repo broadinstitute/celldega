@@ -26,13 +26,11 @@ import {
   alt_slice_linkage,
 } from '../matrix/dendro';
 import { debounce } from '../utils/debounce';
-import { hexToRgb } from '../utils/hexToRgb';
 import { refresh_layer } from '../utils/refresh_layer';
 
 import {
   make_bar_graph,
   bar_callback_nbhd,
-  bar_callback_nbhd_cloud_neighborhood,
   bar_callback_nbhd_cloud_slice,
   bar_callback_cat,
   make_bar_container,
@@ -319,6 +317,12 @@ export const make_ist_ui_container = (
   gene_container.style.width = bar_container_width;
   const trx_container = flex_container('trx_container', 'row');
 
+  // neighborhood-cloud repurposes the CELL slot itself (button relabeled
+  // "NBHD", radius slider dropped in favor of the opacity slider) rather
+  // than building a separate NBHD section -- see the cell_ctrl_container
+  // block below. The legacy 2D nbhd feature still gets its own section.
+  const nbhdControlsEnabled = viz_state.nbhd.is_nbhd && !viz_state.nbhd.edit;
+
   let nbhd_container;
   let nbhd_ctrl_container;
   if (viz_state.nbhd.is_nbhd) {
@@ -330,31 +334,36 @@ export const make_ist_ui_container = (
   }
 
   let nbhd_cloud_slice_container;
-  let nbhd_cloud_neighborhood_container;
   if (viz_state.nbhd_cloud?.is_nbhd_cloud) {
     nbhd_cloud_slice_container = flex_container(
       'nbhd_cloud_slice_container',
       'column'
     );
     nbhd_cloud_slice_container.style.width = bar_container_width;
-
-    nbhd_cloud_neighborhood_container = flex_container(
-      'nbhd_cloud_neighborhood_container',
-      'column'
-    );
-    nbhd_cloud_neighborhood_container.style.width = bar_container_width;
   }
 
   const cell_slider_container = make_slider_container('cell_slider_container');
   const trx_slider_container = make_slider_container('trx_slider_container');
   let nbhd_slider_container;
-  if (viz_state.nbhd.is_nbhd) {
+  if (nbhdControlsEnabled) {
     nbhd_slider_container = make_slider_container('nbhd_slider_container');
   }
 
   const { technology } = viz_state.img.landscape_parameters;
   const isChromium = technology === 'Chromium';
   const isPointCloud = is_orbit_technology(technology);
+
+  // Registered unconditionally (not just for non-orbit technologies) so that
+  // `viz_state.obs_store.viz_background_layer.set(false)` (set early in
+  // landscape_ist.js for any technology without an image layer, including
+  // point-cloud/neighborhood-cloud) actually takes effect. Without this, the
+  // background layer's default `visible: true` stands, and its solid black
+  // fill polygon (background_layer.js) never gets hidden for orbit
+  // technologies.
+  viz_state.obs_store.viz_background_layer.subscribe((visible) => {
+    toggle_background_layer_visibility(layers_obj, visible);
+    refresh_layer(viz_state, layers_obj, 'background_layer');
+  });
 
   if (!isPointCloud) {
     const spatial_toggle_container = flex_container(
@@ -516,11 +525,6 @@ export const make_ist_ui_container = (
       }
     });
 
-    viz_state.obs_store.viz_background_layer.subscribe((visible) => {
-      toggle_background_layer_visibility(layers_obj, visible);
-      refresh_layer(viz_state, layers_obj, 'background_layer');
-    });
-
     viz_state.obs_store.viz_nbhd_layer.subscribe((visible) => {
       toggle_nbhd_layer_visibility(layers_obj, visible);
       refresh_layer(viz_state, layers_obj, 'nbhd_layer');
@@ -529,11 +533,14 @@ export const make_ist_ui_container = (
     viz_state.containers.image.appendChild(img_layers_container);
   }
 
+  // neighborhood-cloud repurposes this slot: "NBHD" (shapes show/hide)
+  // instead of "CELL" (per-cell radius, meaningless here since cells stream
+  // in separately via nbhd_cloud_cell_layer).
   make_button(
     cell_ctrl_container,
     'ist',
-    'CELL',
-    'blue',
+    viz_state.nbhd_cloud?.is_nbhd_cloud ? 'NBHD' : 'CELL',
+    viz_state.nbhd_cloud?.is_nbhd_cloud ? 'gray' : 'blue',
     40,
     'button',
     deck_ist,
@@ -541,7 +548,7 @@ export const make_ist_ui_container = (
     viz_state
   );
 
-  if (viz_state.nbhd.is_nbhd && !viz_state.nbhd.edit) {
+  if (nbhdControlsEnabled) {
     make_button(
       nbhd_ctrl_container,
       'ist',
@@ -569,20 +576,33 @@ export const make_ist_ui_container = (
 
   viz_state.sliders = {};
 
-  ini_slider('cell', deck_ist, layers_obj, viz_state);
-
-  cell_slider_container.appendChild(viz_state.sliders.cell);
-  cell_ctrl_container.appendChild(cell_slider_container);
+  if (viz_state.nbhd_cloud?.is_nbhd_cloud) {
+    // No per-cell radius control here (cells stream in separately via
+    // nbhd_cloud_cell_layer) -- the opacity slider takes this slot instead.
+    ini_slider('nbhd', deck_ist, layers_obj, viz_state);
+    cell_slider_container.appendChild(viz_state.sliders.nbhd);
+    cell_ctrl_container.appendChild(cell_slider_container);
+    toggle_slider(viz_state.sliders.nbhd, true);
+  } else {
+    ini_slider('cell', deck_ist, layers_obj, viz_state);
+    cell_slider_container.appendChild(viz_state.sliders.cell);
+    cell_ctrl_container.appendChild(cell_slider_container);
+  }
 
   // Only add the regular nbhd slider when NOT in edit mode
   // For edit mode, we'll add a separate opacity slider later (after buttons)
-  if (viz_state.nbhd.is_nbhd && !viz_state.nbhd.edit) {
+  if (nbhdControlsEnabled) {
     ini_slider('nbhd', deck_ist, layers_obj, viz_state);
     nbhd_slider_container.appendChild(viz_state.sliders.nbhd);
     nbhd_ctrl_container.appendChild(nbhd_slider_container);
+    // neighborhood-cloud has no "exclusive active layer" concept (shapes and
+    // cells coexist via the continuous zoom crossfade) -- the slider should
+    // just start enabled, not tied to the legacy viz_nbhd_layer toggle.
     toggle_slider(
       viz_state.sliders.nbhd,
-      viz_state.obs_store.viz_nbhd_layer.get()
+      viz_state.nbhd_cloud?.is_nbhd_cloud
+        ? true
+        : viz_state.obs_store.viz_nbhd_layer.get()
     );
   }
 
@@ -643,30 +663,6 @@ export const make_ist_ui_container = (
       viz_state.nbhd_cloud.svg_bar_slice,
       sliceBarData,
       sliceColorDict,
-      deck_ist,
-      layers_obj,
-      viz_state
-    );
-
-    viz_state.nbhd_cloud.svg_bar_neighborhood = d3.create('svg');
-    viz_state.containers.bar_nbhd_cloud_neighborhood = make_bar_container();
-
-    const neighborhoodBarData = viz_state.nbhd_cloud.meta_neighborhood.map(
-      (n) => ({ name: n.neighborhood_id, value: n.cell_count })
-    );
-    const neighborhoodColorDict = Object.fromEntries(
-      viz_state.nbhd_cloud.meta_neighborhood.map((n) => [
-        n.neighborhood_id,
-        hexToRgb(n.color),
-      ])
-    );
-
-    make_bar_graph(
-      viz_state.containers.bar_nbhd_cloud_neighborhood,
-      bar_callback_nbhd_cloud_neighborhood,
-      viz_state.nbhd_cloud.svg_bar_neighborhood,
-      neighborhoodBarData,
-      neighborhoodColorDict,
       deck_ist,
       layers_obj,
       viz_state
@@ -1215,30 +1211,42 @@ export const make_ist_ui_container = (
 
     ctrl_container.appendChild(nbhd_container);
 
-    if (viz_state.nbhd.is_nbhd) {
-      make_bar_graph(
-        viz_state.containers.bar_nbhd,
-        bar_callback_nbhd,
-        viz_state.nbhd.svg_bar_nbhd,
-        viz_state.nbhd.bar_data,
-        viz_state.nbhd.color_dict,
-        deck_ist,
-        layers_obj,
-        viz_state
-      );
+    make_bar_graph(
+      viz_state.containers.bar_nbhd,
+      bar_callback_nbhd,
+      viz_state.nbhd.svg_bar_nbhd,
+      viz_state.nbhd.bar_data,
+      viz_state.nbhd.color_dict,
+      deck_ist,
+      layers_obj,
+      viz_state
+    );
 
-      viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', 0.2);
-    }
+    viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', 0.2);
   }
 
   if (viz_state.nbhd_cloud?.is_nbhd_cloud) {
+    // Plain black text, not a button -- there's no on/off toggle for the
+    // slice bar graph the way CELL/TRX/NBHD toggle their layers.
+    const slice_label_container = flex_container(
+      'nbhd_cloud_slice_label_container',
+      'row'
+    );
+    slice_label_container.style.marginLeft = '0px';
+    slice_label_container.style.height = '22.5px';
+
+    d3.select(slice_label_container)
+      .append('div')
+      .text('SLICE')
+      .style('width', '40px')
+      .style('text-align', 'left')
+      .style('font-size', '12px')
+      .style('font-weight', 'bold')
+      .style('color', 'black');
+
+    nbhd_cloud_slice_container.appendChild(slice_label_container);
     nbhd_cloud_slice_container.appendChild(viz_state.containers.bar_slice);
     ctrl_container.appendChild(nbhd_cloud_slice_container);
-
-    nbhd_cloud_neighborhood_container.appendChild(
-      viz_state.containers.bar_nbhd_cloud_neighborhood
-    );
-    ctrl_container.appendChild(nbhd_cloud_neighborhood_container);
   }
 
   ctrl_container.appendChild(viz_state.genes.gene_search);

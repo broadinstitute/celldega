@@ -2,11 +2,13 @@ import * as d3 from 'd3';
 
 import { new_toggle_cell_layer_visibility } from '../deck-gl/layers/cell_layer';
 import { toggle_visibility_single_image_layer } from '../deck-gl/layers/image_layers';
+import { toggle_nbhd_cloud_shapes_layer_visibility } from '../deck-gl/layers/nbhd_cloud_shapes_layer';
 import { toggle_nbhd_layer_visibility } from '../deck-gl/layers/nbhd_layer';
 import { toggle_path_layer_visibility } from '../deck-gl/layers/path_layer';
 import { toggle_trx_layer_visibility } from '../deck-gl/layers/trx_layer';
 import { toggle_dendro_layer_visibility } from '../deck-gl/matrix/dendro_layers';
 import { get_mat_layers_list } from '../deck-gl/matrix/matrix_layers';
+import { refresh_layer } from '../utils/refresh_layer';
 
 import { toggle_slider } from './sliders';
 
@@ -261,6 +263,16 @@ const nbhd_button_callback = async (event, deck_ist, layers_obj, viz_state) => {
   toggle_visible_button(event);
 
   toggle_slider(viz_state.sliders.nbhd, is_visible);
+
+  if (viz_state.nbhd_cloud?.is_nbhd_cloud) {
+    // neighborhood-cloud has no exclusive "active layer" concept -- shapes
+    // and cells coexist via the zoom crossfade, so this only needs to
+    // show/hide the shapes layer itself, not juggle image/cell/path/trx
+    // layer visibility the way the legacy 2D nbhd feature does below.
+    toggle_nbhd_cloud_shapes_layer_visibility(layers_obj, is_visible);
+    refresh_layer(viz_state, layers_obj, 'nbhd_cloud_shapes_layer');
+    return;
+  }
 
   toggle_nbhd_layer_visibility(layers_obj, is_visible);
 

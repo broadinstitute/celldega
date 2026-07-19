@@ -120,6 +120,10 @@ def test_write_nbhd_cloud_shapes_and_features(tmp_path):
     assert len(df_shape_s0) == 2  # one polygon per cluster in this slice
     assert "geometry_geojson" in df_shape_s0.columns
     assert "geometry" not in df_shape_s0.columns
+    # The JS parser (parse_shapes_table_to_features) keys off `neighborhood_id`
+    # specifically -- without it, rows silently parse to zero features.
+    assert "neighborhood_id" in df_shape_s0.columns
+    assert df_shape_s0["neighborhood_id"].notna().all()
     parsed_geometries = [json.loads(g) for g in df_shape_s0["geometry_geojson"]]
     assert all(g["type"] == "MultiPolygon" for g in parsed_geometries)
     # Z should have been stamped onto every vertex by alpha_shape_cell_clusters_by_slice

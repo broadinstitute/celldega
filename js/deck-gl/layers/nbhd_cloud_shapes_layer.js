@@ -33,7 +33,12 @@ export const get_nbhd_cloud_fill_color = (
   const isSelected = nbhd_cloud.selected_neighborhood_ids?.has(
     feature.properties.neighborhood_id
   );
-  const effectiveFraction = isSelected ? 1 : fillOpacityFraction;
+  const zoomFraction = isSelected ? 1 : fillOpacityFraction;
+  // The NBHD slider (reused from the legacy 2D nbhd feature) is a manual
+  // multiplier on top of the zoom-driven crossfade fraction, not a
+  // replacement for it -- at the default 100% it's a no-op.
+  const effectiveFraction =
+    zoomFraction * (nbhd_cloud.manual_fill_opacity ?? 1);
 
   if (is_nbhd_cloud_gene_color_mode(nbhd_cloud)) {
     const stats = nbhd_cloud.gene_stats?.get(
@@ -88,7 +93,12 @@ export const update_nbhd_cloud_shapes_fill_opacity = (
       getFillColor: (d) =>
         get_nbhd_cloud_fill_color(d, viz_state, fillOpacityFraction),
       updateTriggers: {
-        getFillColor: [fillOpacityFraction, viz_state.nbhd_cloud.selected_gene],
+        getFillColor: [
+          fillOpacityFraction,
+          viz_state.nbhd_cloud.selected_gene,
+          viz_state.nbhd_cloud.manual_fill_opacity,
+          viz_state.nbhd_cloud.selected_neighborhood_ids?.size ?? 0,
+        ],
       },
     }
   );
@@ -157,6 +167,23 @@ export const select_nbhd_cloud_gene = async (gene, viz_state, layers_obj) => {
     layers_obj,
     viz_state,
     nbhd_cloud.last_fill_opacity ?? 1
+  );
+};
+
+// Backs the reused NBHD slider's is_nbhd_cloud branch (sliders.js) -- a
+// manual 0-1 multiplier applied on top of whatever the zoom crossfade is
+// currently showing, so sliding it to 0 hides shapes regardless of zoom and
+// 100% (the default) reproduces the zoom-only behavior exactly.
+export const update_nbhd_cloud_manual_fill_opacity = (
+  viz_state,
+  layers_obj,
+  manualOpacity
+) => {
+  viz_state.nbhd_cloud.manual_fill_opacity = manualOpacity;
+  update_nbhd_cloud_shapes_fill_opacity(
+    layers_obj,
+    viz_state,
+    viz_state.nbhd_cloud.last_fill_opacity ?? 1
   );
 };
 

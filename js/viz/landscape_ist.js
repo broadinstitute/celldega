@@ -581,6 +581,16 @@ export const landscape_ist = async (
       parse_shapes_table_to_features(table)
     );
 
+    if (
+      viz_state.nbhd_cloud.shapes_features.length === 0 &&
+      shapeTables.some((table) => (table?.numRows || 0) > 0)
+    ) {
+      // eslint-disable-next-line no-console -- silent-empty-render invariant
+      console.warn(
+        '[neighborhood-cloud] shapes/*.parquet had rows but parsed to zero features -- check schema/column names against parse_shapes_table_to_features (js/read_parquet/nbhd_cloud_tables.js).'
+      );
+    }
+
     const nearestNSlicesFromModel =
       typeof ini_model?.get === 'function'
         ? ini_model.get('nbhd_cloud_nearest_n_slices')

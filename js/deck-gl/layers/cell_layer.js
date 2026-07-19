@@ -688,23 +688,57 @@ const ini_neighborhood_cloud_inert_cell_layer = async (base_url, viz_state) => {
     viz_state.aws
   );
 
+  // Slice *centroids* cluster tightly near the tissue's middle (they're each
+  // slice's mean cell position) and badly underestimate the true spatial
+  // extent -- for this dataset, ~221x470 units vs. the real ~2550x4168 unit
+  // shape geometry, an order of magnitude off. That made the initial camera
+  // frame a tiny sliver of empty space. Use the actual alpha-shape geometry
+  // (already fetched into `nbhd_cloud.shapes_features`) for the X/Y extent
+  // instead; slice Z values are still a reliable, cheap source for the Z
+  // extent (each slice's Z genuinely is a single constant coordinate).
+  const shapeFeatures = viz_state.nbhd_cloud?.shapes_features || [];
   const metaSlice = viz_state.nbhd_cloud?.meta_slice || [];
 
-  if (metaSlice.length > 0) {
-    const xs = metaSlice.map((s) => s.centroid_x);
-    const ys = metaSlice.map((s) => s.centroid_y);
-    const zs = metaSlice.map((s) => s.centroid_z);
-    viz_state.spatial.x_min = Math.min(...xs);
-    viz_state.spatial.x_max = Math.max(...xs);
-    viz_state.spatial.y_min = Math.min(...ys);
-    viz_state.spatial.y_max = Math.max(...ys);
-    viz_state.spatial.z_min = Math.min(...zs);
-    viz_state.spatial.z_max = Math.max(...zs);
+  let xMin = Infinity;
+  let xMax = -Infinity;
+  let yMin = Infinity;
+  let yMax = -Infinity;
+
+  const walkCoords = (coords) => {
+    if (typeof coords[0] === 'number') {
+      const [x, y] = coords;
+      if (x < xMin) xMin = x;
+      if (x > xMax) xMax = x;
+      if (y < yMin) yMin = y;
+      if (y > yMax) yMax = y;
+      return;
+    }
+    coords.forEach(walkCoords);
+  };
+
+  shapeFeatures.forEach((feature) => {
+    if (feature.geometry?.coordinates) {
+      walkCoords(feature.geometry.coordinates);
+    }
+  });
+
+  if (Number.isFinite(xMin) && Number.isFinite(xMax)) {
+    viz_state.spatial.x_min = xMin;
+    viz_state.spatial.x_max = xMax;
+    viz_state.spatial.y_min = yMin;
+    viz_state.spatial.y_max = yMax;
   } else {
     viz_state.spatial.x_min = 0;
     viz_state.spatial.x_max = 1;
     viz_state.spatial.y_min = 0;
     viz_state.spatial.y_max = 1;
+  }
+
+  if (metaSlice.length > 0) {
+    const zs = metaSlice.map((s) => s.centroid_z);
+    viz_state.spatial.z_min = Math.min(...zs);
+    viz_state.spatial.z_max = Math.max(...zs);
+  } else {
     viz_state.spatial.z_min = 0;
     viz_state.spatial.z_max = 1;
   }

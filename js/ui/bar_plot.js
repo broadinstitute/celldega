@@ -1,10 +1,7 @@
 import * as d3 from 'd3';
 
 import { new_toggle_cell_layer_visibility } from '../deck-gl/layers/cell_layer';
-import {
-  select_nbhd_cloud_gene,
-  toggle_nbhd_cloud_neighborhood_selection,
-} from '../deck-gl/layers/nbhd_cloud_shapes_layer';
+import { select_nbhd_cloud_gene } from '../deck-gl/layers/nbhd_cloud_shapes_layer';
 import { toggle_trx_layer_visibility } from '../deck-gl/layers/trx_layer';
 import { update_cat, update_selected_cats } from '../global_variables/cat';
 import { update_cell_exp_array } from '../global_variables/cell_exp_array';
@@ -262,31 +259,6 @@ export const bar_callback_nbhd_cloud_slice = (
     .selectAll('rect')
     .style('opacity', (bar) =>
       !hasSelection || nbhd_cloud.selected_slice_ids.has(bar.name) ? 1.0 : 0.2
-    );
-};
-
-// Per-neighborhood bar graph (reuses the same generic bar component the
-// legacy 2D `nbhd` feature uses, fed from `meta_neighborhood.parquet`
-// instead). Click toggles that neighborhood's cells/shape into "revealed"
-// (full opacity regardless of the ambient zoom crossfade) via
-// `toggle_nbhd_cloud_neighborhood_selection`.
-export const bar_callback_nbhd_cloud_neighborhood = (
-  _event,
-  d,
-  _deck_ist,
-  _layers_obj,
-  _viz_state
-) => {
-  const { nbhd_cloud } = _viz_state;
-  toggle_nbhd_cloud_neighborhood_selection(d.name, _viz_state, _layers_obj);
-
-  nbhd_cloud.svg_bar_neighborhood
-    .selectAll('rect')
-    .style('opacity', (bar) =>
-      nbhd_cloud.selected_neighborhood_ids.size === 0 ||
-      nbhd_cloud.selected_neighborhood_ids.has(bar.name)
-        ? 1.0
-        : 0.2
     );
 };
 

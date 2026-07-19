@@ -1,5 +1,6 @@
 import { update_cell_layer_radius } from '../deck-gl/layers/cell_layer';
 import { update_opacity_single_image_layer } from '../deck-gl/layers/image_layers';
+import { update_nbhd_cloud_manual_fill_opacity } from '../deck-gl/layers/nbhd_cloud_shapes_layer';
 import { update_nbhd_layer_opacity } from '../deck-gl/layers/nbhd_layer';
 import { update_trx_layer_radius } from '../deck-gl/layers/trx_layer';
 import { refresh_layer } from '../utils/refresh_layer';
@@ -225,6 +226,11 @@ const trx_slider_callback = async (deck_ist, layers_obj, viz_state) => {
 const nbhd_slider_callback = async (_deck_ist, layers_obj, viz_state) => {
   const opacity = viz_state.sliders.nbhd.value / 100;
 
+  if (viz_state.nbhd_cloud?.is_nbhd_cloud) {
+    update_nbhd_cloud_manual_fill_opacity(viz_state, layers_obj, opacity);
+    return;
+  }
+
   update_nbhd_layer_opacity(layers_obj, opacity);
 
   refresh_layer(viz_state, layers_obj, 'nbhd_layer');
@@ -297,7 +303,13 @@ export const ini_slider = (slider_type, inst_deck, layers_obj, viz_state) => {
       callback = () => trx_slider_callback(inst_deck, layers_obj, viz_state);
       break;
     case 'nbhd':
-      ini_value = layers_obj.nbhd_layer.props.opacity * 100;
+      // neighborhood-cloud's manual multiplier defaults to 100% (a no-op on
+      // top of the zoom crossfade) -- match that here rather than reading
+      // the unrelated legacy nbhd_layer's opacity, so the slider's initial
+      // position doesn't lie about the actual starting opacity.
+      ini_value = viz_state.nbhd_cloud?.is_nbhd_cloud
+        ? 100
+        : layers_obj.nbhd_layer.props.opacity * 100;
       callback = () => nbhd_slider_callback(inst_deck, layers_obj, viz_state);
       break;
 

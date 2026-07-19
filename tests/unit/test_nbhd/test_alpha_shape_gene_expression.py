@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 import anndata as ad
 import numpy as np
 import pandas as pd
@@ -113,3 +115,50 @@ def test_alpha_shape_gene_expression_by_slice_rejects_multiple_alphas():
 
     with pytest.raises(ValueError, match="single alpha-shape"):
         alpha_shape_gene_expression_by_slice(adata, ["Gene0"], alphas=(100, 150))
+
+
+def test_alpha_shape_gene_expression_by_slice_skips_a_gene_whose_shape_fails():
+    """A libpysal/GEOS failure (e.g. GEOSException: "side location conflict"
+    on a self-intersecting triangulation) computing one gene's shape must not
+    abort shapes for the other genes in the same batch -- seen in practice
+    when scaling the curated gene list up from a handful to ~150 genes."""
+    from celldega.nbhd.alpha_shapes import libpysal_alpha_shape as real_libpysal_alpha_shape
+
+    adata = _synthetic_gene_expression_adata(n_slices=1, n_genes=2)
+
+    call_count = {"n": 0}
+
+    def fake_alpha_shape(coords, alpha):
+        call_count["n"] += 1
+        if call_count["n"] == 1:
+            # Gene0 is processed first (gene_list order) -- fail only this call.
+            raise Exception("GEOSException: TopologyException: side location conflict")
+        return real_libpysal_alpha_shape(coords, alpha)
+
+    with patch("celldega.nbhd.alpha_shapes.libpysal_alpha_shape", side_effect=fake_alpha_shape):
+        gdf = alpha_shape_gene_expression_by_slice(
+            adata,
+            ["Gene0", "Gene1"],
+            slice_attr="slice_id",
+            z_attr="z",
+            alphas=(150,),
+            min_cells=4,
+        )
+
+    # Gene0's shape failed and was skipped; Gene1's still computed normally.
+    assert list(gdf["gene"]) == ["Gene1"]
+
+
+def test_alpha_shape_gene_expression_by_slice_raises_when_every_shape_fails():
+    adata = _synthetic_gene_expression_adata(n_slices=1, n_genes=1)
+
+    def always_raises(_coords, _alpha):
+        raise Exception("GEOSException: TopologyException: side location conflict")
+
+    with (
+        patch("celldega.nbhd.alpha_shapes.libpysal_alpha_shape", side_effect=always_raises),
+        pytest.raises(ValueError, match="no gene alpha shapes"),
+    ):
+        alpha_shape_gene_expression_by_slice(
+            adata, ["Gene0"], slice_attr="slice_id", z_attr="z", alphas=(150,), min_cells=4
+        )

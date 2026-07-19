@@ -76,7 +76,17 @@ def alpha_shape(
     points: np.ndarray,
     inv_alpha: float,
 ) -> MultiPolygon:
-    poly = libpysal_alpha_shape(points, 1 / inv_alpha)
+    try:
+        poly = libpysal_alpha_shape(points, 1 / inv_alpha)
+    except Exception:
+        # Same libpysal/GEOS fragility handled below in
+        # `_verify_polygons_with_alpha_bulk` (e.g. GEOSException: "side
+        # location conflict" from a self-intersecting triangulation) -- a
+        # small fraction of point configurations trip GEOS's spatial-index
+        # query inside libpysal's alpha_shape itself, before verification
+        # even runs. Treat this point set as producing no shape rather than
+        # aborting the whole batch over one unrepresentable configuration.
+        return MultiPolygon()
     gdf_curated = _classify_polygons_contains_check(poly.values, points)
     validated_poly = _verify_polygons_with_alpha_bulk(
         gdf_curated.geometry.values,
@@ -372,10 +382,18 @@ def alpha_shape_gene_expression_by_slice(
                 continue
 
             points = coords[gene_mask, :2].astype(float)
+            geometry = alpha_shape(points, alpha)
+            if geometry.is_empty:
+                # Either GEOS choked on this point configuration (see
+                # `alpha_shape`) or every candidate triangle failed
+                # verification -- either way, no representable shape for
+                # this (slice, gene) pair, so skip it like a below-`min_cells`
+                # pair rather than writing a degenerate empty geometry.
+                continue
             rows.append(
                 {
                     "gene": gene,
-                    "geometry": alpha_shape(points, alpha),
+                    "geometry": geometry,
                     "mean_expression": float(expr[gene_mask].mean()),
                     "cell_count": int(gene_mask.sum()),
                 }

@@ -1,9 +1,9 @@
 from unittest.mock import patch
 
 import numpy as np
-from shapely.geometry import Polygon
+from shapely.geometry import MultiPolygon, Polygon
 
-from celldega.nbhd.alpha_shapes import _verify_polygons_with_alpha_bulk
+from celldega.nbhd.alpha_shapes import _verify_polygons_with_alpha_bulk, alpha_shape
 
 
 def _square_points(n_per_side=4):
@@ -54,3 +54,20 @@ def test_verify_polygons_returns_empty_when_all_recomputes_raise():
         result = _verify_polygons_with_alpha_bulk([poly], points, alpha=0.1)
 
     assert len(result) == 0
+
+
+def test_alpha_shape_returns_empty_multipolygon_when_libpysal_raises():
+    """The initial libpysal_alpha_shape call (not just the later
+    verification recompute) can itself raise a GEOSException on a
+    self-intersecting triangulation for some point configurations -- this
+    must not propagate out of alpha_shape and abort the whole batch."""
+    points = _square_points()
+
+    def always_raises(_coords, _alpha):
+        raise Exception("GEOSException: TopologyException: side location conflict")
+
+    with patch("celldega.nbhd.alpha_shapes.libpysal_alpha_shape", side_effect=always_raises):
+        result = alpha_shape(points, inv_alpha=150)
+
+    assert isinstance(result, MultiPolygon)
+    assert result.is_empty

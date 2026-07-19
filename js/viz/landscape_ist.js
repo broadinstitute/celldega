@@ -567,7 +567,7 @@ export const landscape_ist = async (
     const shapeTables = await Promise.all(
       viz_state.nbhd_cloud.meta_slice.map((s) =>
         get_arrow_table(
-          `${base_url}/nbhd_cloud/shapes/slice_${s.slice_id}.parquet`,
+          `${base_url}/nbhd_cloud/shapes/by_slice/slice_${s.slice_id}.parquet`,
           options.fetch,
           viz_state.aws
         )

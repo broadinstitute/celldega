@@ -6,10 +6,15 @@ matching cell-level `AnnData` to the flat parquet layout the JS
 `neighborhood-cloud` widget fetches directly.
 
 Every file written here is a single, traditional parquet file (no row-group
-chunking) — that mode isn't proven to work against AWS-hosted buckets yet, and
-neighborhood/slice counts are small enough that per-slice/per-cluster/per-gene
-files stay in the dozens, not the many-tiny-files territory row-group chunking
-exists to avoid.
+chunking) — that mode isn't proven to work against AWS-hosted buckets yet.
+`shapes/` holds all alpha-shape geometry, split by partition axis rather than
+by directory-per-concept: `shapes/by_slice/` (one file per slice, every
+cluster's polygon) and `shapes/by_gene/` (one file per gene, every slice's
+polygon — mirrors `cells/by_cluster/`'s naming). `cells/by_cluster/` and
+`meta_*` stay in the dozens of files (one per slice/cluster). `shapes/by_gene/`
+is the exception: it's one file per *gene*, and `write_gene_shapes_streaming`
+is meant to scale that to a whole gene panel (~40k files) — see its
+docstring for why the streaming form exists alongside `write_gene_shapes`.
 
 Not wired into `run_pre_processing.main()`: that pipeline only supports
 Xenium/MERSCOPE and assumes an image-pyramid tree exists. Point-cloud-family
@@ -19,6 +24,7 @@ prior writer in `run_pre_processing.py` to extend.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 import json
 from pathlib import Path
 
@@ -29,6 +35,7 @@ import pandas as pd
 from scipy.sparse import issparse
 from shapely.geometry import mapping
 
+from celldega.nbhd.alpha_shapes import iter_gene_alpha_shapes_by_slice
 from celldega.nbhd.collection import NeighborhoodCollection
 
 
@@ -177,11 +184,15 @@ def write_nbhd_cloud_shapes_and_features(
 ) -> None:
     """Write shapes and neighborhood metadata:
 
-    - `nbhd_cloud/shapes/slice_<id>.parquet` — one file per slice, every
-      cluster's polygon, with a `geometry_geojson` string column (a JSON
-      geometry, e.g. `MultiPolygon` with XYZ coordinates) rather than
+    - `nbhd_cloud/shapes/by_slice/slice_<id>.parquet` — one file per slice,
+      every cluster's polygon, with a `geometry_geojson` string column (a
+      JSON geometry, e.g. `MultiPolygon` with XYZ coordinates) rather than
       GeoParquet/WKB, since it's fed straight into a deck.gl `GeoJsonLayer`
       the same way the legacy 2D `nbhd` feature's GeoJSON already is.
+      Sibling to `shapes/by_gene/` (see `write_gene_shapes`) — both are
+      alpha-shape geometry, partitioned along different axes (this one by
+      slice, the other by gene), grouped under one `shapes/` parent rather
+      than as unrelated-looking top-level directories.
     - `nbhd_cloud/meta_neighborhood.parquet` — `neighborhood_id`, `cluster_id`,
       `slice_id`, `color`, `area`, `cell_count`, `inv_alpha`.
     - `cell_clusters/meta_cluster.parquet` (via `write_cell_clusters_meta`).
@@ -210,7 +221,7 @@ def write_nbhd_cloud_shapes_and_features(
     nbhd_col = nbhd.nbhd_col
 
     out_dir = Path(path_dega_files) / "nbhd_cloud"
-    shapes_dir = out_dir / "shapes"
+    shapes_dir = out_dir / "shapes" / "by_slice"
     shapes_dir.mkdir(parents=True, exist_ok=True)
 
     # Written as a plain JSON-geometry string column, not GeoParquet/WKB: the
@@ -240,24 +251,32 @@ def write_nbhd_cloud_shapes_and_features(
 
 
 def write_gene_shapes(gdf_gene_alpha: gpd.GeoDataFrame, path_dega_files: str | Path) -> None:
-    """Write `nbhd_cloud/gene_shapes/<gene>.parquet`, one file per gene (every slice).
+    """Write `nbhd_cloud/shapes/by_gene/<gene>.parquet`, one file per gene (every slice).
 
     A curated-gene-list companion to `write_nbhd_cloud_shapes_and_features` —
     same `geometry_geojson` string-column convention (no GeoParquet/WKB), but
     keyed by gene instead of (slice, cluster), and one file per *gene*
     (covering every slice) rather than one file per *slice* (covering every
     cluster), since the frontend always wants "this gene's shapes across the
-    whole tissue" as a unit, never a single-slice subset. Deliberately not
-    scaled to the whole gene panel: a real alpha shape per gene is expensive
-    to compute, so this is meant for a small, hand-picked marker gene list,
-    not routine use.
+    whole tissue" as a unit, never a single-slice subset. Sibling to
+    `shapes/by_slice/` (see `write_nbhd_cloud_shapes_and_features`) — both are
+    alpha-shape geometry, grouped under one `shapes/` parent, partitioned
+    along different axes. Takes an already fully-materialized
+    `gdf_gene_alpha` (the output of `alpha_shape_gene_expression_by_slice`),
+    so it's meant for a small, curated/bounded gene list where holding every
+    gene's shapes for every slice in memory at once is fine. For a
+    whole-transcriptome gene list (~40k genes), use
+    `write_gene_shapes_streaming` instead, which writes each gene's parquet
+    as soon as it's computed rather than requiring the whole result set up
+    front.
 
     Each row: `gene`, `slice_id`, `mean_expression`, `max_expression`,
     `area`, `cell_count`, `inv_alpha`, `geometry_geojson`. Also writes
-    `nbhd_cloud/gene_shapes/available_genes.json` — `{gene: max_expression}`,
-    both the manifest the frontend checks before treating a selected gene as
-    having its own alpha shapes, and the normalization reference for that
-    gene's fill opacity (mirroring the per-cell gene-coloring convention).
+    `nbhd_cloud/shapes/by_gene/available_genes.json` — `{gene:
+    max_expression}`, both the manifest the frontend checks before treating a
+    selected gene as having its own alpha shapes, and the normalization
+    reference for that gene's fill opacity (mirroring the per-cell
+    gene-coloring convention).
 
     Parameters
     ----------
@@ -266,7 +285,7 @@ def write_gene_shapes(gdf_gene_alpha: gpd.GeoDataFrame, path_dega_files: str | P
     path_dega_files : str | Path
         DegaFiles root directory.
     """
-    out_dir = Path(path_dega_files) / "nbhd_cloud" / "gene_shapes"
+    out_dir = Path(path_dega_files) / "nbhd_cloud" / "shapes" / "by_gene"
     out_dir.mkdir(parents=True, exist_ok=True)
 
     available_genes: dict[str, float] = {}
@@ -278,6 +297,92 @@ def write_gene_shapes(gdf_gene_alpha: gpd.GeoDataFrame, path_dega_files: str | P
 
     with (out_dir / "available_genes.json").open("w") as f:
         json.dump(available_genes, f, indent=2)
+
+
+def write_gene_shapes_streaming(
+    adata: ad.AnnData,
+    gene_list: Sequence[str],
+    path_dega_files: str | Path,
+    slice_attr: str = "slice_id",
+    z_attr: str | None = None,
+    alphas: Sequence[float] = (150,),
+    min_expression: float = 2.0,
+    min_cells: int = 4,
+    z_jitter: float = 0.1,
+    progress_every: int = 500,
+) -> int:
+    """Whole-transcriptome variant of `write_gene_shapes` — writes as it computes.
+
+    `alpha_shape_gene_expression_by_slice` + `write_gene_shapes` together
+    require every gene's shapes for every slice to be held in memory before
+    a single file is written — fine for a small curated marker-gene list,
+    not for a whole gene panel (~40k genes). This streams
+    `celldega.nbhd.iter_gene_alpha_shapes_by_slice` one gene at a time:
+    as soon as a gene's shapes across every slice are ready, its parquet is
+    written and that gene's in-memory result is dropped before moving to
+    the next gene, so peak memory is bounded by one gene's shapes, not
+    `len(gene_list)` genes' worth.
+
+    Writes the same `nbhd_cloud/shapes/by_gene/<gene>.parquet` files (one per
+    gene, same schema) and `available_genes.json` manifest as
+    `write_gene_shapes`. Genes with no usable shape in any slice (below
+    `min_cells` everywhere, or every candidate shape failed verification /
+    GEOS choked — see `celldega.nbhd.alpha_shape`) are silently skipped, same
+    as the non-streaming path.
+
+    Parameters
+    ----------
+    adata : AnnData
+        Cell-level AnnData, same requirements as
+        `celldega.nbhd.alpha_shape_gene_expression_by_slice`.
+    gene_list : Sequence[str]
+        Genes to compute shapes for — pass the full gene panel for a
+        whole-transcriptome run.
+    path_dega_files : str | Path
+        DegaFiles root directory.
+    slice_attr, z_attr, alphas, min_expression, min_cells, z_jitter :
+        Forwarded to `iter_gene_alpha_shapes_by_slice` — see its docstring.
+    progress_every : int
+        Print a progress line every this many genes processed (0 disables).
+
+    Returns
+    -------
+    int
+        Number of genes that produced at least one shape and were written.
+    """
+    out_dir = Path(path_dega_files) / "nbhd_cloud" / "shapes" / "by_gene"
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    available_genes: dict[str, float] = {}
+    n_written = 0
+    for i, (gene, gdf_gene) in enumerate(
+        iter_gene_alpha_shapes_by_slice(
+            adata,
+            gene_list,
+            slice_attr=slice_attr,
+            z_attr=z_attr,
+            alphas=alphas,
+            min_expression=min_expression,
+            min_cells=min_cells,
+            z_jitter=z_jitter,
+        ),
+        start=1,
+    ):
+        if not gdf_gene.empty:
+            df_shape = pd.DataFrame(gdf_gene.drop(columns="geometry"))
+            df_shape["geometry_geojson"] = [json.dumps(mapping(geom)) for geom in gdf_gene.geometry]
+            df_shape.to_parquet(out_dir / f"{gene}.parquet", index=False)
+            available_genes[str(gene)] = float(gdf_gene["max_expression"].iloc[0])
+            n_written += 1
+
+        if progress_every and i % progress_every == 0:
+            print(f"gene shapes: {i}/{len(gene_list)} genes processed, {n_written} written")
+
+    with (out_dir / "available_genes.json").open("w") as f:
+        json.dump(available_genes, f, indent=2)
+
+    print(f"gene shapes: wrote {n_written}/{len(gene_list)} genes to {out_dir}")
+    return n_written
 
 
 def _write_nbhd_cloud_landscape_parameters(path_dega_files: str | Path) -> None:

@@ -6,6 +6,7 @@ from .alpha_shapes import (
     alpha_shape_cell_clusters_by_slice,
     alpha_shape_gene_expression_by_slice,
     filter_alpha_shapes,
+    iter_gene_alpha_shapes_by_slice,
 )
 from .collection import NeighborhoodCollection
 from .gradient import _get_micron_per_pixel
@@ -35,4 +36,5 @@ __all__ = [
     "filter_alpha_shapes",
     "generate_hextile",
     "hextile_niche",
+    "iter_gene_alpha_shapes_by_slice",
 ]

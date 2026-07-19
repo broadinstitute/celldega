@@ -43,7 +43,7 @@ const UNSELECTED_DIM_FACTOR = 0;
 // Missing for most datasets -- that's the normal case, not an error, so this
 // resolves to an empty Map rather than throwing on a 404/network failure.
 export const fetch_available_gene_shapes = async (base_url, aws) => {
-  const url = `${base_url}/nbhd_cloud/gene_shapes/available_genes.json`;
+  const url = `${base_url}/nbhd_cloud/shapes/by_gene/available_genes.json`;
   try {
     const response = aws
       ? await aws.fetch(url)
@@ -304,7 +304,7 @@ export const select_nbhd_cloud_gene = async (gene, viz_state, layers_obj) => {
     let features = nbhd_cloud.gene_shapes_cache.get(gene);
     if (!features) {
       const table = await get_arrow_table(
-        `${viz_state.global_base_url}/nbhd_cloud/gene_shapes/${gene}.parquet`,
+        `${viz_state.global_base_url}/nbhd_cloud/shapes/by_gene/${gene}.parquet`,
         options.fetch,
         viz_state.aws ?? null
       );

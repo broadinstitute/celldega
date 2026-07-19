@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from celldega.nbhd import alpha_shape_gene_expression_by_slice
+from celldega.nbhd import alpha_shape_gene_expression_by_slice, iter_gene_alpha_shapes_by_slice
 
 
 def _synthetic_gene_expression_adata(seed=0, n_slices=2, n_cells=60, n_genes=2):
@@ -162,3 +162,84 @@ def test_alpha_shape_gene_expression_by_slice_raises_when_every_shape_fails():
         alpha_shape_gene_expression_by_slice(
             adata, ["Gene0"], slice_attr="slice_id", z_attr="z", alphas=(150,), min_cells=4
         )
+
+
+def test_iter_gene_alpha_shapes_by_slice_yields_one_gene_at_a_time():
+    adata = _synthetic_gene_expression_adata(n_slices=2, n_genes=2)
+
+    genes_seen = []
+    for gene, gdf_gene in iter_gene_alpha_shapes_by_slice(
+        adata, ["Gene0", "Gene1"], slice_attr="slice_id", z_attr="z", alphas=(150,), min_cells=4
+    ):
+        genes_seen.append(gene)
+        assert set(gdf_gene["gene"]) == {gene}
+        assert set(gdf_gene["slice_id"]) == {"s0", "s1"}
+        assert (gdf_gene["cell_count"] == 30).all()
+
+    assert genes_seen == ["Gene0", "Gene1"]
+
+
+def test_iter_gene_alpha_shapes_by_slice_yields_empty_for_a_gene_with_no_shapes():
+    adata = _synthetic_gene_expression_adata(n_slices=1, n_cells=10, n_genes=1)
+
+    results = list(
+        iter_gene_alpha_shapes_by_slice(
+            adata, ["Gene0"], slice_attr="slice_id", z_attr="z", alphas=(150,), min_cells=6
+        )
+    )
+
+    assert len(results) == 1
+    gene, gdf_gene = results[0]
+    assert gene == "Gene0"
+    assert gdf_gene.empty
+
+
+def test_iter_gene_alpha_shapes_by_slice_is_lazy():
+    """Validation errors (unknown gene, multiple alphas) must only surface
+    once the generator is actually iterated, not when it's merely called --
+    calling a generator function never runs its body up to the first
+    `yield`."""
+    adata = _synthetic_gene_expression_adata(n_slices=1, n_genes=1)
+
+    generator = iter_gene_alpha_shapes_by_slice(adata, ["NotAGene"], slice_attr="slice_id")
+    with pytest.raises(ValueError, match=r"not found in adata\.var_names"):
+        next(generator)
+
+
+def test_iter_gene_alpha_shapes_by_slice_rejects_multiple_alphas_on_first_iteration():
+    adata = _synthetic_gene_expression_adata(n_slices=1, n_genes=1)
+
+    generator = iter_gene_alpha_shapes_by_slice(adata, ["Gene0"], alphas=(100, 150))
+    with pytest.raises(ValueError, match="single alpha-shape"):
+        next(generator)
+
+
+def test_iter_gene_alpha_shapes_by_slice_gives_different_genes_distinct_z_offsets():
+    """Different genes' shapes landing in the same slice need distinct Z so
+    they don't z-fight -- `_gene_z_offset` derives this from each gene's
+    position in `gene_list` rather than a per-slice running count, since the
+    streaming writer processes one gene (across all its slices) at a time
+    and never has a "how many other genes already succeeded in this slice"
+    count available."""
+    adata = _synthetic_gene_expression_adata(n_slices=1, n_genes=2)
+
+    results = dict(
+        iter_gene_alpha_shapes_by_slice(
+            adata, ["Gene0", "Gene1"], slice_attr="slice_id", z_attr="z", alphas=(150,), min_cells=4
+        )
+    )
+
+    z0 = {
+        round(c[2], 6)
+        for g in results["Gene0"]["geometry"].iloc[0].geoms
+        for c in g.exterior.coords
+    }
+    z1 = {
+        round(c[2], 6)
+        for g in results["Gene1"]["geometry"].iloc[0].geoms
+        for c in g.exterior.coords
+    }
+    assert z0 != z1
+    # Gene0 is index 0 -- its offset is always exactly 0 (matches the
+    # single-gene z-stamping test's exact-z-val expectation).
+    assert z0 == {0.0}

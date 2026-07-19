@@ -275,7 +275,7 @@ describe('neighborhood-cloud gene-shapes mode (curated marker-gene list)', () =>
     await select_nbhd_cloud_gene('Matn1', viz_state, layers_obj);
 
     expect(fetchedUrls).toEqual([
-      'http://example.test/nbhd_cloud/gene_shapes/Matn1.parquet',
+      'http://example.test/nbhd_cloud/shapes/by_gene/Matn1.parquet',
     ]);
     expect(viz_state.nbhd_cloud.gene_shapes_mode).toBe(true);
     expect(layers_obj.nbhd_cloud_shapes_layer.data.features).toBe(

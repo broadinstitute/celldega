@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator, Sequence
+from collections.abc import Iterable, Iterator, Sequence
 import json
 from typing import Any
 
@@ -323,81 +323,84 @@ _GENE_SHAPE_COLUMNS = [
 ]
 
 
-def iter_gene_alpha_shapes_by_slice(
-    adata: ad.AnnData,
-    gene_list: Sequence[str],
-    slice_attr: str = "slice_id",
-    z_attr: str | None = None,
+def iter_gene_alpha_shapes(
+    coords: np.ndarray,
+    slice_ids: np.ndarray,
+    z_values: np.ndarray,
+    gene_expression: Iterable[tuple[str, np.ndarray]],
     alphas: Sequence[float] = (150,),
     min_expression: float = 2.0,
     min_cells: int = 4,
     z_jitter: float = 0.1,
 ) -> Iterator[tuple[str, gpd.GeoDataFrame]]:
     """
-    Yield `(gene, gdf_gene)` one gene at a time, instead of building the
-    whole (slice, gene) result set in memory before returning anything.
+    Yield `(gene, gdf_gene)` one gene at a time, from a caller-supplied
+    stream of `(gene, expression_array)` pairs — no `AnnData` involved.
 
-    Same computation as `alpha_shape_gene_expression_by_slice` (which is a
-    thin eager wrapper around this generator, for interactive/analysis use
-    on a bounded gene list) — generalized to a memory-bounded streaming
-    form. This is what lets `celldega.pre.nbhd_cloud.write_gene_shapes_streaming`
-    write each gene's parquet as soon as that gene's shapes across every
-    slice are ready and then drop them, so peak memory is bounded by one
-    gene's data rather than `len(gene_list)` genes' data — the difference
-    that matters at whole-transcriptome scale (~40k genes), where holding
-    every gene's shapes for every slice in memory at once is no longer a
-    small amount of data.
+    This is the AnnData-free core `iter_gene_alpha_shapes_by_slice` wraps:
+    that function exists for the interactive-analysis case where you
+    already have (or are willing to build) an `AnnData` with every gene in
+    `gene_list` loaded into `.X`. This function instead takes a plain
+    per-cell coordinate/slice/Z array plus an *iterable* of
+    `(gene, expression_array)` — the caller decides how each gene's
+    expression array is produced, which matters when the source is
+    per-gene files (e.g. `cbg/<gene>.parquet`, see
+    `celldega.pre.nbhd_cloud.write_gene_shapes_from_cbg`): a plain
+    generator can read one gene's file, hand back its array, and let the
+    caller's reference to it drop before the next gene is read, without
+    ever assembling a combined multi-gene matrix (dense or sparse) or an
+    `AnnData` wrapper around it — pure overhead when nothing downstream
+    ever needs more than one gene's expression at a time.
 
     Parameters
     ----------
-    adata, slice_attr, z_attr, alphas, min_expression, min_cells, z_jitter :
+    coords : np.ndarray
+        Per-cell spatial coordinates, shape `(n_cells, >=2)` — only the
+        first two columns are used for the alpha shape itself.
+    slice_ids : np.ndarray
+        Per-cell slice identifier, shape `(n_cells,)`.
+    z_values : np.ndarray
+        Per-cell Z coordinate, shape `(n_cells,)` (all zeros for a 2D run).
+        Expected constant within a slice, like elsewhere in this module.
+    gene_expression : Iterable[tuple[str, np.ndarray]]
+        Yields `(gene, expr)` pairs, `expr` a per-cell array aligned to
+        `coords`/`slice_ids`/`z_values` (same order, same length). Genes are
+        processed in the order this iterable yields them (and that order is
+        what `_gene_z_offset` derives each gene's Z bucket from).
+    alphas, min_expression, min_cells, z_jitter :
         Same meaning as `alpha_shape_gene_expression_by_slice`.
-    gene_list : Sequence[str]
-        Genes to compute shapes for, in the order they'll be processed (and
-        the order `_gene_z_offset` derives each gene's Z bucket from).
 
     Yields
     ------
     tuple[str, gpd.GeoDataFrame]
-        `(gene, gdf_gene)` — `gdf_gene` has columns `name`
-        (`f"{slice_id}__{gene}"`), `gene`, `slice_id`, `geometry` (3D),
-        `area`, `inv_alpha`, `cell_count`, `mean_expression`,
-        `max_expression` (whole-tissue single-cell max for that gene). Empty
-        (zero rows, same columns) if the gene produced no usable shape in
-        any slice -- below `min_cells` everywhere, or every candidate shape
-        failed verification / GEOS choked (see `alpha_shape`).
+        Same shape as `iter_gene_alpha_shapes_by_slice`'s yield — see there.
     """
     if len(alphas) != 1:
         raise ValueError(
-            "iter_gene_alpha_shapes_by_slice computes a single alpha-shape "
-            "resolution per (slice, gene); pass exactly one value in `alphas`"
+            "iter_gene_alpha_shapes computes a single alpha-shape resolution "
+            "per (slice, gene); pass exactly one value in `alphas`"
         )
     alpha = alphas[0]
 
-    missing = [gene for gene in gene_list if gene not in adata.var_names]
-    if missing:
-        raise ValueError(f"genes not found in adata.var_names: {missing}")
+    coords = np.asarray(coords)
+    slice_ids = np.asarray(slice_ids)
+    z_values = np.asarray(z_values, dtype=float)
+    unique_slice_ids = pd.unique(slice_ids)
 
-    obs = adata.obs
-    coords = np.asarray(adata.obsm["spatial"])
-    gene_positions = {gene: adata.var_names.get_loc(gene) for gene in gene_list}
-    slice_ids = obs[slice_attr].unique()
+    # Each slice's Z stamped once, up front -- cheap (one value per slice),
+    # and avoids recomputing it for every gene.
+    slice_masks = {slice_id: slice_ids == slice_id for slice_id in unique_slice_ids}
+    slice_z = {
+        slice_id: float(z_values[mask][0]) if mask.any() else 0.0
+        for slice_id, mask in slice_masks.items()
+    }
 
-    def _gene_column(gene: str) -> np.ndarray:
-        col = adata.X[:, gene_positions[gene]]
-        col = col.toarray() if hasattr(col, "toarray") else np.asarray(col)
-        return col.ravel()
-
-    for gene_index, gene in enumerate(gene_list):
-        # Densified once per gene and reused across every slice below -- a
-        # CSR column slice is an O(nnz) scan, so re-fetching it per slice
-        # would mean re-scanning the whole matrix once per slice per gene.
-        expr = _gene_column(gene)
-        max_expression = float(expr.max())
+    for gene_index, (gene, expr) in enumerate(gene_expression):
+        expr = np.asarray(expr)
+        max_expression = float(expr.max()) if expr.size else 0.0
 
         rows: list[dict[str, Any]] = []
-        for slice_id in slice_ids:
-            slice_mask = (obs[slice_attr] == slice_id).to_numpy()
+        for slice_id, slice_mask in slice_masks.items():
             gene_mask = slice_mask & (expr >= min_expression)
             if gene_mask.sum() < min_cells:
                 continue
@@ -412,8 +415,7 @@ def iter_gene_alpha_shapes_by_slice(
                 # pair rather than writing a degenerate empty geometry.
                 continue
 
-            z_val = float(obs.loc[slice_mask, z_attr].iloc[0]) if z_attr is not None else 0.0
-            z = z_val + _gene_z_offset(gene_index, z_jitter)
+            z = slice_z[slice_id] + _gene_z_offset(gene_index, z_jitter)
             geometry = _round_coordinates(_stamp_z(geometry, z), precision=2)
 
             rows.append(
@@ -438,6 +440,86 @@ def iter_gene_alpha_shapes_by_slice(
         gdf_gene["max_expression"] = max_expression
 
         yield gene, gdf_gene[_GENE_SHAPE_COLUMNS]
+
+
+def iter_gene_alpha_shapes_by_slice(
+    adata: ad.AnnData,
+    gene_list: Sequence[str],
+    slice_attr: str = "slice_id",
+    z_attr: str | None = None,
+    alphas: Sequence[float] = (150,),
+    min_expression: float = 2.0,
+    min_cells: int = 4,
+    z_jitter: float = 0.1,
+) -> Iterator[tuple[str, gpd.GeoDataFrame]]:
+    """
+    Yield `(gene, gdf_gene)` one gene at a time, instead of building the
+    whole (slice, gene) result set in memory before returning anything.
+
+    An `AnnData`-sourcing wrapper around `iter_gene_alpha_shapes`: for each
+    gene in `gene_list`, densifies that one column from `adata.X` and hands
+    it to `iter_gene_alpha_shapes`. Convenient when you already have (or are
+    willing to build) an `AnnData` with every gene in `gene_list` loaded —
+    `alpha_shape_gene_expression_by_slice` (a thin eager wrapper around this
+    generator) is the interactive/analysis entry point for that case. If
+    your genes instead come from per-gene files (e.g. `cbg/<gene>.parquet`)
+    and you don't want to assemble a combined multi-gene `AnnData` just to
+    call this, use `iter_gene_alpha_shapes` directly with a generator that
+    reads one file per gene — see
+    `celldega.pre.nbhd_cloud.write_gene_shapes_from_cbg`.
+
+    Parameters
+    ----------
+    adata, slice_attr, z_attr, alphas, min_expression, min_cells, z_jitter :
+        Same meaning as `alpha_shape_gene_expression_by_slice`.
+    gene_list : Sequence[str]
+        Genes to compute shapes for, in the order they'll be processed (and
+        the order `_gene_z_offset` derives each gene's Z bucket from).
+
+    Yields
+    ------
+    tuple[str, gpd.GeoDataFrame]
+        `(gene, gdf_gene)` — `gdf_gene` has columns `name`
+        (`f"{slice_id}__{gene}"`), `gene`, `slice_id`, `geometry` (3D),
+        `area`, `inv_alpha`, `cell_count`, `mean_expression`,
+        `max_expression` (whole-tissue single-cell max for that gene). Empty
+        (zero rows, same columns) if the gene produced no usable shape in
+        any slice -- below `min_cells` everywhere, or every candidate shape
+        failed verification / GEOS choked (see `alpha_shape`).
+    """
+    missing = [gene for gene in gene_list if gene not in adata.var_names]
+    if missing:
+        raise ValueError(f"genes not found in adata.var_names: {missing}")
+
+    obs = adata.obs
+    coords = np.asarray(adata.obsm["spatial"])
+    slice_ids = obs[slice_attr].to_numpy()
+    z_values = obs[z_attr].to_numpy(dtype=float) if z_attr is not None else np.zeros(len(obs))
+    gene_positions = {gene: adata.var_names.get_loc(gene) for gene in gene_list}
+
+    def _gene_column(gene: str) -> np.ndarray:
+        col = adata.X[:, gene_positions[gene]]
+        col = col.toarray() if hasattr(col, "toarray") else np.asarray(col)
+        return col.ravel()
+
+    def _gene_expression() -> Iterator[tuple[str, np.ndarray]]:
+        for gene in gene_list:
+            # Densified once per gene, reused across every slice inside
+            # `iter_gene_alpha_shapes` -- a CSR column slice is an O(nnz)
+            # scan, so re-fetching it per slice would mean re-scanning the
+            # whole matrix once per slice per gene.
+            yield gene, _gene_column(gene)
+
+    yield from iter_gene_alpha_shapes(
+        coords,
+        slice_ids,
+        z_values,
+        _gene_expression(),
+        alphas=alphas,
+        min_expression=min_expression,
+        min_cells=min_cells,
+        z_jitter=z_jitter,
+    )
 
 
 def alpha_shape_gene_expression_by_slice(

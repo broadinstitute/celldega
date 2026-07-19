@@ -13,6 +13,7 @@ from celldega.nbhd import (
 from celldega.pre import (
     write_cell_clusters_meta,
     write_gene_shapes,
+    write_gene_shapes_from_cbg,
     write_gene_shapes_streaming,
     write_meta_gene_for_nbhd_cloud,
     write_meta_slice,
@@ -340,6 +341,105 @@ def test_write_gene_shapes_streaming_matches_non_streaming_output(tmp_path):
             df_streaming.sort_values("slice_id").reset_index(drop=True),
             df_non_streaming.sort_values("slice_id").reset_index(drop=True),
         )
+
+
+def _write_fake_cbg_dir(cbg_dir, adata):
+    """One `<gene>.parquet` per gene -- a single-column sparse series indexed
+    by cell id, zeros dropped, mirroring the real `cbg/` layout
+    `write_gene_shapes_from_cbg` reads from."""
+    cbg_dir.mkdir(parents=True, exist_ok=True)
+    X = np.asarray(adata.X)
+    for j, gene in enumerate(adata.var_names):
+        col = pd.Series(X[:, j], index=adata.obs_names.astype(str), name=gene)
+        col = col[col != 0]
+        col.to_frame().to_parquet(cbg_dir / f"{gene}.parquet")
+
+
+def test_write_gene_shapes_from_cbg_matches_streaming_output(tmp_path):
+    """Reading each gene's expression on-the-fly from `cbg/<gene>.parquet`
+    (no combined AnnData ever built) must produce the same shapes as the
+    AnnData-based streaming writer, for the same underlying data."""
+    adata = _synthetic_multi_gene_adata()
+    gene_list = ["Gene0", "Gene1", "Gene2"]
+
+    cbg_dir = tmp_path / "cbg"
+    _write_fake_cbg_dir(cbg_dir, adata)
+
+    from_cbg_dir = tmp_path / "from_cbg"
+    n_written = write_gene_shapes_from_cbg(
+        cbg_dir,
+        gene_list,
+        adata.obs,
+        adata.obsm["spatial"],
+        from_cbg_dir,
+        slice_attr="slice_id",
+        z_attr="z",
+        alphas=(150,),
+        min_cells=4,
+        progress_every=0,
+    )
+    assert n_written == 3
+
+    streaming_dir = tmp_path / "streaming"
+    write_gene_shapes_streaming(
+        adata,
+        gene_list,
+        streaming_dir,
+        slice_attr="slice_id",
+        z_attr="z",
+        alphas=(150,),
+        min_cells=4,
+        progress_every=0,
+    )
+
+    from_cbg_files = {
+        p.name for p in (from_cbg_dir / "nbhd_cloud" / "shapes" / "by_gene").glob("*")
+    }
+    streaming_files = {
+        p.name for p in (streaming_dir / "nbhd_cloud" / "shapes" / "by_gene").glob("*")
+    }
+    assert from_cbg_files == streaming_files
+
+    for gene in gene_list:
+        df_from_cbg = pd.read_parquet(
+            from_cbg_dir / "nbhd_cloud" / "shapes" / "by_gene" / f"{gene}.parquet"
+        )
+        df_streaming = pd.read_parquet(
+            streaming_dir / "nbhd_cloud" / "shapes" / "by_gene" / f"{gene}.parquet"
+        )
+        pd.testing.assert_frame_equal(
+            df_from_cbg.sort_values("slice_id").reset_index(drop=True),
+            df_streaming.sort_values("slice_id").reset_index(drop=True),
+        )
+
+
+def test_write_gene_shapes_from_cbg_skips_genes_with_no_shape(tmp_path):
+    adata = _synthetic_multi_gene_adata(gene_names=("Gene0", "Gene1"))
+    adata.X[:, adata.var_names.get_loc("Gene1")] = 0
+
+    cbg_dir = tmp_path / "cbg"
+    _write_fake_cbg_dir(cbg_dir, adata)
+
+    n_written = write_gene_shapes_from_cbg(
+        cbg_dir,
+        ["Gene0", "Gene1"],
+        adata.obs,
+        adata.obsm["spatial"],
+        tmp_path,
+        slice_attr="slice_id",
+        z_attr="z",
+        alphas=(150,),
+        min_cells=4,
+        progress_every=0,
+    )
+
+    assert n_written == 1
+    gene_shapes_dir = tmp_path / "nbhd_cloud" / "shapes" / "by_gene"
+    assert {p.name for p in gene_shapes_dir.glob("*.parquet")} == {"Gene0.parquet"}
+
+    with (gene_shapes_dir / "available_genes.json").open() as f:
+        manifest = json.load(f)
+    assert set(manifest) == {"Gene0"}
 
 
 def test_write_cell_clusters_meta_requires_gdf_columns():

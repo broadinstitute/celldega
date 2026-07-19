@@ -24,7 +24,7 @@ prior writer in `run_pre_processing.py` to extend.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
 import json
 from pathlib import Path
 
@@ -35,7 +35,7 @@ import pandas as pd
 from scipy.sparse import issparse
 from shapely.geometry import mapping
 
-from celldega.nbhd.alpha_shapes import iter_gene_alpha_shapes_by_slice
+from celldega.nbhd.alpha_shapes import iter_gene_alpha_shapes, iter_gene_alpha_shapes_by_slice
 from celldega.nbhd.collection import NeighborhoodCollection
 
 
@@ -299,6 +299,38 @@ def write_gene_shapes(gdf_gene_alpha: gpd.GeoDataFrame, path_dega_files: str | P
         json.dump(available_genes, f, indent=2)
 
 
+def _write_gene_shapes_from_iter(
+    gene_shape_iter: Iterator[tuple[str, gpd.GeoDataFrame]],
+    n_genes: int,
+    out_dir: Path,
+    progress_every: int,
+) -> int:
+    """Shared write loop behind both streaming gene-shapes writers below --
+    the only difference between them is how each `(gene, gdf_gene)` pair is
+    produced (from an in-memory `AnnData` column vs. a freshly-read
+    `cbg/<gene>.parquet`), not what happens with it once produced."""
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    available_genes: dict[str, float] = {}
+    n_written = 0
+    for i, (gene, gdf_gene) in enumerate(gene_shape_iter, start=1):
+        if not gdf_gene.empty:
+            df_shape = pd.DataFrame(gdf_gene.drop(columns="geometry"))
+            df_shape["geometry_geojson"] = [json.dumps(mapping(geom)) for geom in gdf_gene.geometry]
+            df_shape.to_parquet(out_dir / f"{gene}.parquet", index=False)
+            available_genes[str(gene)] = float(gdf_gene["max_expression"].iloc[0])
+            n_written += 1
+
+        if progress_every and i % progress_every == 0:
+            print(f"gene shapes: {i}/{n_genes} genes processed, {n_written} written")
+
+    with (out_dir / "available_genes.json").open("w") as f:
+        json.dump(available_genes, f, indent=2)
+
+    print(f"gene shapes: wrote {n_written}/{n_genes} genes to {out_dir}")
+    return n_written
+
+
 def write_gene_shapes_streaming(
     adata: ad.AnnData,
     gene_list: Sequence[str],
@@ -322,6 +354,13 @@ def write_gene_shapes_streaming(
     written and that gene's in-memory result is dropped before moving to
     the next gene, so peak memory is bounded by one gene's shapes, not
     `len(gene_list)` genes' worth.
+
+    Requires an `AnnData` with every gene in `gene_list` already loaded into
+    `.X` — if your genes instead live in per-gene files (e.g.
+    `cbg/<gene>.parquet`) and building a combined multi-gene `AnnData` just
+    for this would itself be the expensive/wasteful step, use
+    `write_gene_shapes_from_cbg` instead, which reads and processes one
+    gene's file at a time and never assembles a combined matrix.
 
     Writes the same `nbhd_cloud/shapes/by_gene/<gene>.parquet` files (one per
     gene, same schema) and `available_genes.json` manifest as
@@ -350,12 +389,7 @@ def write_gene_shapes_streaming(
     int
         Number of genes that produced at least one shape and were written.
     """
-    out_dir = Path(path_dega_files) / "nbhd_cloud" / "shapes" / "by_gene"
-    out_dir.mkdir(parents=True, exist_ok=True)
-
-    available_genes: dict[str, float] = {}
-    n_written = 0
-    for i, (gene, gdf_gene) in enumerate(
+    return _write_gene_shapes_from_iter(
         iter_gene_alpha_shapes_by_slice(
             adata,
             gene_list,
@@ -366,23 +400,102 @@ def write_gene_shapes_streaming(
             min_cells=min_cells,
             z_jitter=z_jitter,
         ),
-        start=1,
-    ):
-        if not gdf_gene.empty:
-            df_shape = pd.DataFrame(gdf_gene.drop(columns="geometry"))
-            df_shape["geometry_geojson"] = [json.dumps(mapping(geom)) for geom in gdf_gene.geometry]
-            df_shape.to_parquet(out_dir / f"{gene}.parquet", index=False)
-            available_genes[str(gene)] = float(gdf_gene["max_expression"].iloc[0])
-            n_written += 1
+        len(gene_list),
+        Path(path_dega_files) / "nbhd_cloud" / "shapes" / "by_gene",
+        progress_every,
+    )
 
-        if progress_every and i % progress_every == 0:
-            print(f"gene shapes: {i}/{len(gene_list)} genes processed, {n_written} written")
 
-    with (out_dir / "available_genes.json").open("w") as f:
-        json.dump(available_genes, f, indent=2)
+def write_gene_shapes_from_cbg(
+    cbg_dir: str | Path,
+    gene_list: Sequence[str],
+    obs: pd.DataFrame,
+    coords: np.ndarray,
+    path_dega_files: str | Path,
+    slice_attr: str = "slice_id",
+    z_attr: str | None = None,
+    alphas: Sequence[float] = (150,),
+    min_expression: float = 2.0,
+    min_cells: int = 4,
+    z_jitter: float = 0.1,
+    progress_every: int = 500,
+) -> int:
+    """Gene-shapes writer that reads each gene's expression directly from
+    `cbg_dir/<gene>.parquet`, one gene at a time — no combined multi-gene
+    matrix or `AnnData` is ever assembled.
 
-    print(f"gene shapes: wrote {n_written}/{len(gene_list)} genes to {out_dir}")
-    return n_written
+    `write_gene_shapes_streaming` still needs an `AnnData` with every gene
+    already loaded into `.X` — building that from per-gene `cbg/` files (read
+    each file, align to a shared cell index, stack into one combined sparse
+    matrix, wrap in an `AnnData` that duplicates `obs`/`obsm`) is itself
+    real, avoidable work when nothing downstream ever needs more than one
+    gene's expression in memory at a time. This function does the per-gene
+    `cbg/` read + cell-index alignment inline, one gene per iteration of
+    `iter_gene_alpha_shapes`, so a gene's expression array exists in memory
+    only for as long as it takes to compute (and write) that one gene's
+    shapes — no per-gene reconstruction cache file needed either.
+
+    Writes the same `nbhd_cloud/shapes/by_gene/<gene>.parquet` files and
+    `available_genes.json` manifest as `write_gene_shapes`/
+    `write_gene_shapes_streaming`.
+
+    Parameters
+    ----------
+    cbg_dir : str | Path
+        Directory of per-gene `<gene>.parquet` files (a single-column sparse
+        series indexed by cell id), e.g. `<point_cloud_dir>/cbg`.
+    gene_list : Sequence[str]
+        Genes to compute shapes for — each must have a `cbg_dir/<gene>.parquet`.
+    obs : pd.DataFrame
+        Cell-level metadata, indexed by cell id (matching the index used in
+        `cbg_dir`'s per-gene files), with `slice_attr` (and, if given,
+        `z_attr`) columns.
+    coords : np.ndarray
+        Per-cell spatial coordinates, same row order as `obs`, shape
+        `(n_cells, >=2)`.
+    path_dega_files : str | Path
+        DegaFiles root directory.
+    slice_attr, z_attr, alphas, min_expression, min_cells, z_jitter :
+        Forwarded to `celldega.nbhd.iter_gene_alpha_shapes` — see its
+        docstring.
+    progress_every : int
+        Print a progress line every this many genes processed (0 disables).
+
+    Returns
+    -------
+    int
+        Number of genes that produced at least one shape and were written.
+    """
+    cbg_dir = Path(cbg_dir)
+    cell_index = pd.Index(obs.index.astype(str))
+    slice_ids = obs[slice_attr].to_numpy()
+    z_values = obs[z_attr].to_numpy(dtype=float) if z_attr is not None else np.zeros(len(obs))
+    n_cells = len(obs)
+
+    def _gene_expression() -> Iterator[tuple[str, np.ndarray]]:
+        for gene in gene_list:
+            col = pd.read_parquet(cbg_dir / f"{gene}.parquet").iloc[:, 0]
+            row_idx = cell_index.get_indexer(col.index.astype(str))
+            valid = row_idx >= 0
+            expr = np.zeros(n_cells, dtype=np.float32)
+            expr[row_idx[valid]] = col.to_numpy()[valid]
+            yield gene, expr
+
+    return _write_gene_shapes_from_iter(
+        iter_gene_alpha_shapes(
+            coords,
+            slice_ids,
+            z_values,
+            _gene_expression(),
+            alphas=alphas,
+            min_expression=min_expression,
+            min_cells=min_cells,
+            z_jitter=z_jitter,
+        ),
+        len(gene_list),
+        Path(path_dega_files) / "nbhd_cloud" / "shapes" / "by_gene",
+        progress_every,
+    )
 
 
 def _write_nbhd_cloud_landscape_parameters(path_dega_files: str | Path) -> None:

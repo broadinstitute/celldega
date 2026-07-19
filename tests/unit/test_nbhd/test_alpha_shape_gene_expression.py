@@ -5,7 +5,11 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from celldega.nbhd import alpha_shape_gene_expression_by_slice, iter_gene_alpha_shapes_by_slice
+from celldega.nbhd import (
+    alpha_shape_gene_expression_by_slice,
+    iter_gene_alpha_shapes,
+    iter_gene_alpha_shapes_by_slice,
+)
 
 
 def _synthetic_gene_expression_adata(seed=0, n_slices=2, n_cells=60, n_genes=2):
@@ -243,3 +247,82 @@ def test_iter_gene_alpha_shapes_by_slice_gives_different_genes_distinct_z_offset
     # Gene0 is index 0 -- its offset is always exactly 0 (matches the
     # single-gene z-stamping test's exact-z-val expectation).
     assert z0 == {0.0}
+
+
+def _synthetic_gene_expression_arrays(seed=0, n_slices=2, n_cells=60):
+    """Plain coords/slice_ids/z_values arrays, no AnnData -- the shape
+    `iter_gene_alpha_shapes` (the AnnData-free core) actually takes."""
+    rng = np.random.RandomState(seed)
+    slice_ids = []
+    z_values = []
+    xy = []
+    for slice_idx in range(n_slices):
+        center = np.array([slice_idx * 300.0, 0.0])
+        pts = rng.normal(loc=center, scale=10.0, size=(n_cells, 2))
+        xy.append(pts)
+        slice_ids.extend([f"s{slice_idx}"] * n_cells)
+        z_values.extend([float(slice_idx) * 100.0] * n_cells)
+    return np.vstack(xy), np.array(slice_ids), np.array(z_values)
+
+
+def test_iter_gene_alpha_shapes_matches_the_annData_wrapper():
+    """`iter_gene_alpha_shapes_by_slice` is documented as a thin AnnData-
+    sourcing wrapper around `iter_gene_alpha_shapes` -- feeding the same
+    coords/slice/expression data through both paths must produce the same
+    result, since this is exactly the guarantee
+    `write_gene_shapes_from_cbg` relies on to skip the AnnData step
+    entirely."""
+    adata = _synthetic_gene_expression_adata(n_slices=2, n_genes=2)
+    coords = np.asarray(adata.obsm["spatial"])
+    slice_ids = adata.obs["slice_id"].to_numpy()
+    z_values = adata.obs["z"].to_numpy(dtype=float)
+
+    def gene_expression():
+        for gene in ["Gene0", "Gene1"]:
+            col = adata.X[:, adata.var_names.get_loc(gene)]
+            yield gene, np.asarray(col).ravel()
+
+    via_low_level = dict(
+        iter_gene_alpha_shapes(
+            coords, slice_ids, z_values, gene_expression(), alphas=(150,), min_cells=4
+        )
+    )
+    via_annData = dict(
+        iter_gene_alpha_shapes_by_slice(
+            adata, ["Gene0", "Gene1"], slice_attr="slice_id", z_attr="z", alphas=(150,), min_cells=4
+        )
+    )
+
+    assert set(via_low_level) == set(via_annData)
+    for gene in via_low_level:
+        pd.testing.assert_frame_equal(
+            pd.DataFrame(via_low_level[gene].drop(columns="geometry")),
+            pd.DataFrame(via_annData[gene].drop(columns="geometry")),
+        )
+
+
+def test_iter_gene_alpha_shapes_yields_empty_for_a_gene_with_no_shapes():
+    coords, slice_ids, z_values = _synthetic_gene_expression_arrays(n_slices=1, n_cells=10)
+    expr = np.zeros(10)
+    expr[::2] = 5.0  # 5 expressing cells, below min_cells=6
+
+    results = list(
+        iter_gene_alpha_shapes(
+            coords, slice_ids, z_values, [("Gene0", expr)], alphas=(150,), min_cells=6
+        )
+    )
+
+    assert len(results) == 1
+    gene, gdf_gene = results[0]
+    assert gene == "Gene0"
+    assert gdf_gene.empty
+
+
+def test_iter_gene_alpha_shapes_is_lazy():
+    coords, slice_ids, z_values = _synthetic_gene_expression_arrays(n_slices=1, n_cells=10)
+
+    generator = iter_gene_alpha_shapes(
+        coords, slice_ids, z_values, [("Gene0", np.zeros(10))], alphas=(100, 150)
+    )
+    with pytest.raises(ValueError, match="single alpha-shape"):
+        next(generator)

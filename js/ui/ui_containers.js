@@ -26,13 +26,12 @@ import {
   alt_slice_linkage,
 } from '../matrix/dendro';
 import { debounce } from '../utils/debounce';
-import { hexToRgb } from '../utils/hexToRgb';
 import { refresh_layer } from '../utils/refresh_layer';
 
 import {
   make_bar_graph,
   bar_callback_nbhd,
-  bar_callback_nbhd_cloud_neighborhood,
+  bar_callback_nbhd_cloud_cluster,
   bar_callback_nbhd_cloud_slice,
   bar_callback_cat,
   make_bar_container,
@@ -623,33 +622,32 @@ export const make_ist_ui_container = (
   if (viz_state.nbhd_cloud?.is_nbhd_cloud) {
     // Repurposes the CELL slot's bar graph (the per-cell cluster-count bar
     // makes no sense here -- there's no per-cell data loaded up front) into
-    // a per-neighborhood bar: one bar per (slice, cluster) alpha shape,
-    // sized by area, colored by that neighborhood's real cluster color.
-    // Extra `slice_id`/`cluster_id` fields ride along on each bar datum so
-    // the click callback can identify exactly which neighborhood was picked.
-    viz_state.nbhd_cloud.svg_bar_neighborhood = d3.create('svg');
+    // a per-cluster bar: one bar per cluster, area summed across every
+    // slice's instance of it, colored by that cluster's real color.
+    // Selecting a cluster (bar click or shape click) applies across every
+    // slice at once, not just one (slice, cluster) instance.
+    viz_state.nbhd_cloud.svg_bar_cluster = d3.create('svg');
 
-    const neighborhoodBarData = viz_state.nbhd_cloud.meta_neighborhood.map(
-      (nb) => ({
-        name: nb.neighborhood_id,
-        value: nb.area,
-        slice_id: nb.slice_id,
-        cluster_id: nb.cluster_id,
-      })
-    );
-    const neighborhoodColorDict = Object.fromEntries(
-      viz_state.nbhd_cloud.meta_neighborhood.map((nb) => [
-        nb.neighborhood_id,
-        hexToRgb(nb.color),
-      ])
-    );
+    const areaByCluster = new Map();
+    viz_state.nbhd_cloud.meta_neighborhood.forEach((nb) => {
+      const clusterId = String(nb.cluster_id);
+      areaByCluster.set(
+        clusterId,
+        (areaByCluster.get(clusterId) ?? 0) + nb.area
+      );
+    });
+    const clusterBarData = Array.from(areaByCluster, ([clusterId, area]) => ({
+      name: clusterId,
+      value: area,
+    }));
+    const clusterColorDict = viz_state.cats.color_dict_cluster;
 
     make_bar_graph(
       viz_state.containers.bar_cluster,
-      bar_callback_nbhd_cloud_neighborhood,
-      viz_state.nbhd_cloud.svg_bar_neighborhood,
-      neighborhoodBarData,
-      neighborhoodColorDict,
+      bar_callback_nbhd_cloud_cluster,
+      viz_state.nbhd_cloud.svg_bar_cluster,
+      clusterBarData,
+      clusterColorDict,
       deck_ist,
       layers_obj,
       viz_state

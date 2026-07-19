@@ -4,6 +4,7 @@ from .alpha_shapes import (
     alpha_shape,
     alpha_shape_cell_clusters,
     alpha_shape_cell_clusters_by_slice,
+    alpha_shape_gene_expression_by_slice,
     filter_alpha_shapes,
 )
 from .collection import NeighborhoodCollection
@@ -30,6 +31,7 @@ __all__ = [
     "alpha_shape",
     "alpha_shape_cell_clusters",
     "alpha_shape_cell_clusters_by_slice",
+    "alpha_shape_gene_expression_by_slice",
     "filter_alpha_shapes",
     "generate_hextile",
     "hextile_niche",

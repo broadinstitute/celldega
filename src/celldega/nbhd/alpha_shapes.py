@@ -179,7 +179,7 @@ def alpha_shape_cell_clusters_by_slice(
     z_attr: str | None = None,
     alphas: Sequence[float] = (150,),
     meta_cluster: pd.DataFrame | None = None,
-    z_jitter: float = 2.0,
+    z_jitter: float = 0.1,
 ) -> gpd.GeoDataFrame:
     """
     Compute one alpha shape per (slice, cluster) pair, each stamped with its slice's Z.
@@ -271,6 +271,128 @@ def alpha_shape_cell_clusters_by_slice(
         raise ValueError("no alpha shapes could be computed for any slice")
 
     return gpd.GeoDataFrame(pd.concat(gdfs, ignore_index=True), geometry="geometry")
+
+
+def alpha_shape_gene_expression_by_slice(
+    adata: ad.AnnData,
+    gene_list: Sequence[str],
+    slice_attr: str = "slice_id",
+    z_attr: str | None = None,
+    alphas: Sequence[float] = (150,),
+    min_expression: float = 2.0,
+    min_cells: int = 4,
+    z_jitter: float = 0.1,
+) -> gpd.GeoDataFrame:
+    """
+    Compute one alpha shape per (slice, gene) pair, built from expressing cells.
+
+    Generalizes `alpha_shape_cell_clusters_by_slice` — instead of grouping
+    cells by a cluster label, each shape is built from whichever cells have
+    `adata[:, gene].X >= min_expression` within that slice. This is meant for
+    a small, curated set of marker genes (unlike per-neighborhood mean
+    expression in `expression/<gene>.parquet`, which is cheap for any number
+    of genes, computing a real alpha shape per gene is not — see
+    `write_gene_shapes`'s docstring for why this isn't meant to scale to the
+    whole gene panel yet).
+
+    Parameters
+    ----------
+    adata : AnnData
+        Cell-level AnnData with spatial coordinates in `obsm["spatial"]`,
+        `slice_attr` (and, if given, `z_attr`) columns in `obs`, and `gene_list`
+        present in `adata.var_names`.
+    gene_list : Sequence[str]
+        Genes to compute shapes for. Must all be present in `adata.var_names`.
+    slice_attr : str
+        Column in `adata.obs` identifying each slice.
+    z_attr : str | None
+        Column in `adata.obs` with each cell's Z coordinate. If None, every
+        slice is stamped at Z=0.
+    alphas : Sequence[float]
+        Must contain exactly one inverse-alpha resolution — one resolution
+        per (slice, gene), same restriction as `alpha_shape_cell_clusters_by_slice`.
+    min_expression : float
+        A cell counts as "expressing" a gene when its value is at least this
+        (default: 2 counts).
+    min_cells : int
+        Minimum number of expressing cells required to compute a shape for a
+        (slice, gene) pair; pairs with fewer are silently skipped.
+    z_jitter : float
+        Per-gene Z offset within a slice, to avoid z-fighting between
+        coplanar gene shapes that would otherwise sit at the exact same Z.
+
+    Returns
+    -------
+    gpd.GeoDataFrame
+        One row per (slice, gene) shape, with columns `name`
+        (`f"{slice_id}__{gene}"`), `gene`, `slice_id`, `geometry` (3D),
+        `area`, `inv_alpha`, `cell_count`, `mean_expression`.
+    """
+    if len(alphas) != 1:
+        raise ValueError(
+            "alpha_shape_gene_expression_by_slice computes a single alpha-shape "
+            "resolution per (slice, gene); pass exactly one value in `alphas`"
+        )
+    alpha = alphas[0]
+
+    missing = [gene for gene in gene_list if gene not in adata.var_names]
+    if missing:
+        raise ValueError(f"genes not found in adata.var_names: {missing}")
+
+    obs = adata.obs
+    coords = np.asarray(adata.obsm["spatial"])
+    gene_positions = {gene: adata.var_names.get_loc(gene) for gene in gene_list}
+
+    def _gene_column(gene: str) -> np.ndarray:
+        col = adata.X[:, gene_positions[gene]]
+        col = col.toarray() if hasattr(col, "toarray") else np.asarray(col)
+        return col.ravel()
+
+    dfs: list[pd.DataFrame] = []
+    for slice_id in obs[slice_attr].unique():
+        slice_mask = (obs[slice_attr] == slice_id).to_numpy()
+        z_val = float(obs.loc[slice_mask, z_attr].iloc[0]) if z_attr is not None else 0.0
+
+        rows: list[dict[str, Any]] = []
+        for gene in gene_list:
+            expr = _gene_column(gene)
+            gene_mask = slice_mask & (expr >= min_expression)
+            if gene_mask.sum() < min_cells:
+                continue
+
+            points = coords[gene_mask, :2].astype(float)
+            rows.append(
+                {
+                    "gene": gene,
+                    "geometry": alpha_shape(points, alpha),
+                    "mean_expression": float(expr[gene_mask].mean()),
+                    "cell_count": int(gene_mask.sum()),
+                }
+            )
+
+        if not rows:
+            continue
+
+        df_slice = pd.DataFrame(rows)
+        z_per_gene = z_val + np.arange(len(df_slice), dtype=float) * z_jitter
+        df_slice["geometry"] = [
+            _stamp_z(geom, z) for geom, z in zip(df_slice["geometry"], z_per_gene, strict=True)
+        ]
+        df_slice["geometry"] = df_slice["geometry"].apply(
+            lambda geom: _round_coordinates(geom, precision=2)
+        )
+        df_slice["slice_id"] = slice_id
+        df_slice["inv_alpha"] = int(alpha)
+        df_slice["name"] = df_slice["slice_id"].astype(str) + "__" + df_slice["gene"].astype(str)
+
+        dfs.append(df_slice)
+
+    if not dfs:
+        raise ValueError("no gene alpha shapes could be computed for any slice")
+
+    gdf = gpd.GeoDataFrame(pd.concat(dfs, ignore_index=True), geometry="geometry")
+    gdf["area"] = gdf.area
+    return gdf
 
 
 def filter_alpha_shapes(

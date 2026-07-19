@@ -4,6 +4,7 @@ describe('neighborhood-cloud parquet table parsing', () => {
   let parse_meta_slice_table;
   let parse_meta_neighborhood_table;
   let parse_shapes_table_to_features;
+  let parse_gene_shapes_table_to_features;
   let parse_cells_tables;
   let parse_gene_expression_table;
   let parse_population_table;
@@ -15,7 +16,7 @@ describe('neighborhood-cloud parquet table parsing', () => {
     const readStripped = (relPath) =>
       fs
         .readFileSync(path.join(__dirname, relPath), 'utf8')
-        .replace(/^import .*$/gm, '')
+        .replace(/^import[\s\S]*?from\s+['"][^'"]+['"];$/gm, '')
         .replace(/^export const /gm, 'const ');
 
     const source = [
@@ -23,13 +24,14 @@ describe('neighborhood-cloud parquet table parsing', () => {
       readStripped('../read_parquet/nbhd_cloud_tables.js'),
     ].join('\n');
 
-    const code = `${source}\nmodule.exports = { parse_meta_slice_table, parse_meta_neighborhood_table, parse_shapes_table_to_features, parse_cells_tables, parse_gene_expression_table, parse_population_table };`;
+    const code = `${source}\nmodule.exports = { parse_meta_slice_table, parse_meta_neighborhood_table, parse_shapes_table_to_features, parse_gene_shapes_table_to_features, parse_cells_tables, parse_gene_expression_table, parse_population_table };`;
     const module = { exports: {} };
     new Function('module', 'exports', code)(module, module.exports);
     ({
       parse_meta_slice_table,
       parse_meta_neighborhood_table,
       parse_shapes_table_to_features,
+      parse_gene_shapes_table_to_features,
       parse_cells_tables,
       parse_gene_expression_table,
       parse_population_table,
@@ -138,6 +140,44 @@ describe('neighborhood-cloud parquet table parsing', () => {
     const features = parse_shapes_table_to_features(table);
     expect(features).toHaveLength(1);
     expect(features[0].properties.neighborhood_id).toBe('b');
+  });
+
+  test('parse_gene_shapes_table_to_features parses geometry_geojson into GeoJSON features', () => {
+    const geometry = { type: 'Point', coordinates: [1, 2, 3] };
+    const table = makeTable({
+      gene: ['Matn1'],
+      slice_id: ['s0'],
+      mean_expression: [4.5],
+      cell_count: [12],
+      geometry_geojson: [JSON.stringify(geometry)],
+    });
+
+    expect(parse_gene_shapes_table_to_features(table)).toEqual([
+      {
+        type: 'Feature',
+        properties: {
+          gene: 'Matn1',
+          slice_id: 's0',
+          mean_expression: 4.5,
+          cell_count: 12,
+        },
+        geometry,
+      },
+    ]);
+  });
+
+  test('parse_gene_shapes_table_to_features skips rows with unparsable geometry', () => {
+    const table = makeTable({
+      gene: ['Matn1', 'Matn1'],
+      slice_id: ['s0', 's1'],
+      mean_expression: [1, 2],
+      cell_count: [5, 6],
+      geometry_geojson: ['not json', '{"type":"Point","coordinates":[0,0]}'],
+    });
+
+    const features = parse_gene_shapes_table_to_features(table);
+    expect(features).toHaveLength(1);
+    expect(features[0].properties.slice_id).toBe('s1');
   });
 
   test('parse_cells_tables merges multiple per-slice tables into flat typed arrays', () => {

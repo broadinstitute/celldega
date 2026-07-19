@@ -39,6 +39,7 @@ from .landscape import (
 )
 from .nbhd_cloud import (
     write_cell_clusters_meta,
+    write_gene_shapes,
     write_meta_gene_for_nbhd_cloud,
     write_meta_slice,
     write_nbhd_cloud_cells,
@@ -1828,6 +1829,7 @@ __all__ = [
     "resolve_xenium_morphology_ome_path",
     "trx_tile",
     "write_cell_clusters_meta",
+    "write_gene_shapes",
     "write_identity_transform",
     "write_meta_gene_for_nbhd_cloud",
     "write_meta_slice",

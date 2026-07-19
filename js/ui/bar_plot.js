@@ -1,10 +1,10 @@
 import * as d3 from 'd3';
 
 import { new_toggle_cell_layer_visibility } from '../deck-gl/layers/cell_layer';
-import { select_nbhd_cloud_neighborhood_cells } from '../deck-gl/layers/nbhd_cloud_cell_layer';
+import { refresh_nbhd_cloud_cluster_cells } from '../deck-gl/layers/nbhd_cloud_cell_layer';
 import {
   select_nbhd_cloud_gene,
-  toggle_nbhd_cloud_neighborhood_selection,
+  toggle_nbhd_cloud_cluster_selection,
   update_nbhd_cloud_shapes_data,
 } from '../deck-gl/layers/nbhd_cloud_shapes_layer';
 import { toggle_trx_layer_visibility } from '../deck-gl/layers/trx_layer';
@@ -74,10 +74,18 @@ export const bar_callback_gene = async (
   if (_viz_state.nbhd_cloud?.is_nbhd_cloud) {
     const isReset = d.name === _viz_state.nbhd_cloud.selected_gene;
     await select_nbhd_cloud_gene(d.name, _viz_state, _layers_obj);
+    refresh_layer(_viz_state, _layers_obj, 'nbhd_cloud_shapes_layer');
+    refresh_layer(_viz_state, _layers_obj, 'nbhd_cloud_cell_layer');
 
     _viz_state.genes.svg_bar_gene
       .selectAll('rect')
       .style('opacity', (bar) => (isReset || bar.name === d.name ? 1.0 : 0.2));
+    // Gene mode just cleared any cluster selection (select_nbhd_cloud_gene)
+    // -- the cluster bar's own highlight is this handler's responsibility,
+    // same as the gene bar's above.
+    _viz_state.nbhd_cloud.svg_bar_cluster
+      ?.selectAll('rect')
+      .style('opacity', 1.0);
     return;
   }
 
@@ -237,8 +245,11 @@ export const bar_callback_nbhd = (
 
 // Per-slice bar graph: clicking a slice isolates the 3D view to that
 // slice's shapes (every other slice's neighborhoods disappear entirely,
-// not just dimmed) -- click again to show every slice.
-export const bar_callback_nbhd_cloud_slice = (
+// not just dimmed) -- click again to show every slice. A cluster selection
+// (NBHD bar / shape click) stays active across slices, so re-run the cell
+// display against whichever cluster is currently selected, narrowed to the
+// new slice filter.
+export const bar_callback_nbhd_cloud_slice = async (
   _event,
   d,
   _deck_ist,
@@ -273,39 +284,43 @@ export const bar_callback_nbhd_cloud_slice = (
 
   update_nbhd_cloud_shapes_data(layers_obj, visibleFeatures);
   refresh_layer(viz_state, layers_obj, 'nbhd_cloud_shapes_layer');
+
+  await refresh_nbhd_cloud_cluster_cells(viz_state, layers_obj);
+  refresh_layer(viz_state, layers_obj, 'nbhd_cloud_cell_layer');
 };
 
-// Per-neighborhood bar graph (one bar per (slice, cluster) alpha shape,
-// sized by area): click highlights just that neighborhood's shape (others
-// dim) and loads its cell centroids on demand -- click again to clear both.
-export const bar_callback_nbhd_cloud_neighborhood = async (
+// Per-cluster bar graph (one bar per cluster, area summed across every
+// slice's instance of it): click highlights that cluster's shapes across
+// every slice (others dim) and loads its cell centroids on demand -- click
+// again to clear both. Same effect as clicking one of that cluster's shapes
+// directly (nbhd_cloud_shapes_layer.js's onClick).
+export const bar_callback_nbhd_cloud_cluster = async (
   _event,
   d,
   _deck_ist,
   layers_obj,
   viz_state
 ) => {
-  toggle_nbhd_cloud_neighborhood_selection(d.name, viz_state, layers_obj);
+  const clusterId = String(d.name);
+  toggle_nbhd_cloud_cluster_selection(clusterId, viz_state, layers_obj);
   refresh_layer(viz_state, layers_obj, 'nbhd_cloud_shapes_layer');
 
   const hasSelection =
-    (viz_state.nbhd_cloud.selected_neighborhood_ids?.size ?? 0) > 0;
-  viz_state.nbhd_cloud.svg_bar_neighborhood
+    (viz_state.nbhd_cloud.selected_cluster_ids?.size ?? 0) > 0;
+  viz_state.nbhd_cloud.svg_bar_cluster
     .selectAll('rect')
     .style('opacity', (bar) =>
       !hasSelection ||
-      viz_state.nbhd_cloud.selected_neighborhood_ids.has(bar.name)
+      viz_state.nbhd_cloud.selected_cluster_ids.has(String(bar.name))
         ? 1.0
         : 0.2
     );
+  // Cluster selection just cleared gene mode (toggle_nbhd_cloud_cluster_selection)
+  // -- the gene bar's own highlight is this handler's responsibility, same
+  // as the cluster bar's above.
+  viz_state.genes.svg_bar_gene.selectAll('rect').style('opacity', 1.0);
 
-  await select_nbhd_cloud_neighborhood_cells(
-    d.name,
-    d.slice_id,
-    d.cluster_id,
-    viz_state,
-    layers_obj
-  );
+  await refresh_nbhd_cloud_cluster_cells(viz_state, layers_obj);
   refresh_layer(viz_state, layers_obj, 'nbhd_cloud_cell_layer');
 };
 

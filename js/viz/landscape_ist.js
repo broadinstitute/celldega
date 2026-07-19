@@ -31,7 +31,11 @@ import {
 } from '../deck-gl/layers/edit_layer';
 import { make_image_layers } from '../deck-gl/layers/image_layers';
 import { ini_nbhd_cloud_cell_layer } from '../deck-gl/layers/nbhd_cloud_cell_layer';
-import { ini_nbhd_cloud_shapes_layer } from '../deck-gl/layers/nbhd_cloud_shapes_layer';
+import {
+  fetch_available_gene_shapes,
+  ini_nbhd_cloud_shapes_layer,
+  set_nbhd_cloud_shapes_layer_onclick,
+} from '../deck-gl/layers/nbhd_cloud_shapes_layer';
 import {
   ini_nbhd_layer,
   set_nbhd_layer_onclick,
@@ -595,6 +599,10 @@ export const landscape_ist = async (
     viz_state.nbhd_cloud.selected_gene = null;
     viz_state.nbhd_cloud.gene_stats = null;
     viz_state.nbhd_cloud.selected_gene_max_mean = 0;
+    viz_state.nbhd_cloud.gene_shapes_mode = false;
+    viz_state.nbhd_cloud.gene_shapes_max_mean = 0;
+    viz_state.nbhd_cloud.available_gene_shapes =
+      await fetch_available_gene_shapes(base_url, viz_state.aws);
   }
 
   viz_state.views = set_views(tech);
@@ -818,6 +826,9 @@ export const landscape_ist = async (
   set_edit_layer_on_edit(deck_ist, layers_obj, viz_state);
   set_edit_layer_on_click(deck_ist, layers_obj, viz_state);
   set_nbhd_layer_onclick(deck_ist, layers_obj, viz_state);
+  if (viz_state.nbhd_cloud.is_nbhd_cloud) {
+    set_nbhd_cloud_shapes_layer_onclick(layers_obj, viz_state);
+  }
 
   viz_state.obs_store.deck_ready.subscribe((ready) => {
     if (ready) {

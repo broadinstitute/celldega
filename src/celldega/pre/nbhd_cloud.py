@@ -23,6 +23,7 @@ import json
 from pathlib import Path
 
 import anndata as ad
+import geopandas as gpd
 import numpy as np
 import pandas as pd
 from scipy.sparse import issparse
@@ -100,13 +101,14 @@ def write_nbhd_cloud_cells(
     slice_attr: str = "slice_id",
     z_attr: str | None = None,
 ) -> None:
-    """Write `nbhd_cloud/cells/by_slice/slice_<id>.parquet`, one file per slice.
+    """Write `nbhd_cloud/cells/by_cluster/cluster_<id>.parquet`, one file per cluster.
 
-    Each row: `cell_id`, `x`, `y`, `z`, `cluster_id`, `slice_id`. The frontend
-    only ever needs cells for one selected neighborhood (one slice, one
-    cluster) at a time, so a per-slice file (fetched on demand, filtered to
-    the picked cluster client-side) is all that's needed — no per-cluster
-    (cross-slice) layout.
+    Each row: `cell_id`, `x`, `y`, `z`, `cluster_id`, `slice_id`. Cluster
+    selection (not per-neighborhood) is the frontend's cell-display trigger —
+    picking a cluster shows its cells across every slice, optionally narrowed
+    to one slice client-side (the `slice_id` column is already there) when
+    the slice bar has isolated one slice. A per-cluster file is the natural
+    fit for that: one bounded fetch per selection, not one per slice.
 
     Parameters
     ----------
@@ -133,11 +135,11 @@ def write_nbhd_cloud_cells(
         }
     )
 
-    by_slice_dir = Path(path_dega_files) / "nbhd_cloud" / "cells" / "by_slice"
-    by_slice_dir.mkdir(parents=True, exist_ok=True)
+    by_cluster_dir = Path(path_dega_files) / "nbhd_cloud" / "cells" / "by_cluster"
+    by_cluster_dir.mkdir(parents=True, exist_ok=True)
 
-    for slice_id, df_slice in df_cells.groupby("slice_id"):
-        df_slice.to_parquet(by_slice_dir / f"slice_{slice_id}.parquet", index=False)
+    for cluster_id, df_cluster in df_cells.groupby("cluster_id"):
+        df_cluster.to_parquet(by_cluster_dir / f"cluster_{cluster_id}.parquet", index=False)
 
 
 def _slice_scoped_features(
@@ -343,6 +345,47 @@ def write_nbhd_cloud_shapes_and_features(
         id_vars="neighborhood_id", var_name="category", value_name="proportion"
     )
     df_population.to_parquet(out_dir / "population.parquet", index=False)
+
+
+def write_gene_shapes(gdf_gene_alpha: gpd.GeoDataFrame, path_dega_files: str | Path) -> None:
+    """Write `nbhd_cloud/gene_shapes/<gene>.parquet`, one file per gene (every slice).
+
+    A curated-gene-list companion to `write_nbhd_cloud_shapes_and_features` —
+    same `geometry_geojson` string-column convention (no GeoParquet/WKB), but
+    keyed by gene instead of (slice, cluster), and one file per *gene*
+    (covering every slice) rather than one file per *slice* (covering every
+    cluster), since the frontend always wants "this gene's shapes across the
+    whole tissue" as a unit, never a single-slice subset. Deliberately not
+    scaled to the whole gene panel: a real alpha shape per gene is much more
+    expensive to compute than the per-neighborhood *mean* expression in
+    `expression/<gene>.parquet` (cheap for any number of genes), so this is
+    meant for a small, hand-picked marker gene list, not routine use.
+
+    Each row: `gene`, `slice_id`, `mean_expression`, `area`, `cell_count`,
+    `inv_alpha`, `geometry_geojson`. Also writes
+    `nbhd_cloud/gene_shapes/available_genes.json` — the manifest the
+    frontend checks before treating a selected gene as having its own alpha
+    shapes (vs. falling back to recoloring the cluster shapes by mean
+    expression, as it does for any gene without precomputed shapes).
+
+    Parameters
+    ----------
+    gdf_gene_alpha : gpd.GeoDataFrame
+        Output of `celldega.nbhd.alpha_shape_gene_expression_by_slice`.
+    path_dega_files : str | Path
+        DegaFiles root directory.
+    """
+    out_dir = Path(path_dega_files) / "nbhd_cloud" / "gene_shapes"
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    for gene, gdf_gene in gdf_gene_alpha.groupby("gene"):
+        df_shape = pd.DataFrame(gdf_gene.drop(columns="geometry"))
+        df_shape["geometry_geojson"] = [json.dumps(mapping(geom)) for geom in gdf_gene.geometry]
+        df_shape.to_parquet(out_dir / f"{gene}.parquet", index=False)
+
+    available_genes = sorted(gdf_gene_alpha["gene"].unique().tolist())
+    with (out_dir / "available_genes.json").open("w") as f:
+        json.dump(available_genes, f, indent=2)
 
 
 def _write_nbhd_cloud_landscape_parameters(path_dega_files: str | Path) -> None:

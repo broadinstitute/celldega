@@ -25,15 +25,28 @@ export const ini_nbhd_cloud_cell_layer = (viz_state) => {
     pickable: false,
     data: emptyPointCloudData(),
     opacity: 1,
+    // deck.gl enables WebGL depth testing globally (Deck._setDevice), so
+    // two semi-transparent surfaces at different Z depth-fight: whichever
+    // is closer to the camera wins outright (the other's fragment is
+    // discarded, not blended) -- and which one that is flips with camera
+    // angle. A per-layer `parameters` override skips depth testing just for
+    // this layer's draw call, so cell centroids always render on top of
+    // the shapes layer (drawn earlier -- see get_layers_list) regardless of
+    // viewing direction, at their true spatial position (no Z offset
+    // needed to fake visibility from one side).
+    parameters: { depthTest: false },
     ...getModelMatrixProps(viz_state.rotation),
   });
 };
 
-const filterPositionsByCluster = (mergedCells, clusterId) => {
+// Optionally narrows to one or more slices (client-side -- the by_cluster
+// file already carries `slice_id`). `sliceIdFilter` is null/empty to mean
+// "every slice".
+const buildFilteredPositions = (mergedCells, sliceIdFilter) => {
   const positions = new Float32Array(mergedCells.length * POSITION_SIZE);
   let count = 0;
   for (let i = 0; i < mergedCells.length; i++) {
-    if (String(mergedCells.clusterIds[i]) !== clusterId) {
+    if (sliceIdFilter && !sliceIdFilter.has(mergedCells.sliceIds[i])) {
       continue;
     }
     positions[count * POSITION_SIZE] = mergedCells.positions[i * POSITION_SIZE];
@@ -60,48 +73,47 @@ const buildConstantColorBuffer = (length, rgb) => {
   return colors;
 };
 
-// Backs the per-neighborhood bar's click (bar_plot.js). A neighborhood is
-// one (slice, cluster) pair, so showing its cells is always a small, bounded
-// fetch+filter -- never the whole dataset: fetch (and cache, per slice)
-// `cells/by_slice/slice_<id>.parquet`, then filter to the picked cluster
-// client-side. Clicking the same neighborhood again clears the layer.
-export const select_nbhd_cloud_neighborhood_cells = async (
-  neighborhoodId,
-  sliceId,
-  clusterId,
+// Cluster selection (not per-neighborhood) drives cell display -- called
+// after `viz_state.nbhd_cloud.selected_cluster_ids` changes (bar click or
+// shape click) *and* after `selected_slice_ids` changes (slice bar), since
+// an active slice isolation should narrow whichever cluster is already
+// selected. Reads current state rather than taking params, so either
+// trigger can call it without needing to know about the other.
+export const refresh_nbhd_cloud_cluster_cells = async (
   viz_state,
   layers_obj
 ) => {
   const { nbhd_cloud } = viz_state;
-  const isReset = neighborhoodId === nbhd_cloud.selected_cell_neighborhood_id;
+  const clusterId = [...(nbhd_cloud.selected_cluster_ids ?? [])][0];
 
-  if (isReset) {
-    nbhd_cloud.selected_cell_neighborhood_id = null;
+  if (clusterId == null) {
     layers_obj.nbhd_cloud_cell_layer = layers_obj.nbhd_cloud_cell_layer.clone({
       data: emptyPointCloudData(),
     });
     return;
   }
 
-  nbhd_cloud.cell_cache_by_slice ??= new Map();
-  let mergedCells = nbhd_cloud.cell_cache_by_slice.get(sliceId);
+  nbhd_cloud.cell_cache_by_cluster ??= new Map();
+  let mergedCells = nbhd_cloud.cell_cache_by_cluster.get(clusterId);
   if (!mergedCells) {
     const table = await get_arrow_table(
-      `${viz_state.global_base_url}/nbhd_cloud/cells/by_slice/slice_${sliceId}.parquet`,
+      `${viz_state.global_base_url}/nbhd_cloud/cells/by_cluster/cluster_${clusterId}.parquet`,
       options.fetch,
       viz_state.aws ?? null
     );
     mergedCells = parse_cells_tables([table]);
-    nbhd_cloud.cell_cache_by_slice.set(sliceId, mergedCells);
+    nbhd_cloud.cell_cache_by_cluster.set(clusterId, mergedCells);
   }
 
-  const filtered = filterPositionsByCluster(mergedCells, String(clusterId));
+  const sliceIdFilter =
+    nbhd_cloud.selected_slice_ids?.size > 0
+      ? nbhd_cloud.selected_slice_ids
+      : null;
+  const filtered = buildFilteredPositions(mergedCells, sliceIdFilter);
   const rgb =
-    viz_state.cats?.color_dict_cluster?.[String(clusterId)] ||
-    DEFAULT_CLUSTER_RGB;
+    viz_state.cats?.color_dict_cluster?.[clusterId] || DEFAULT_CLUSTER_RGB;
   const colors = buildConstantColorBuffer(filtered.length, rgb);
 
-  nbhd_cloud.selected_cell_neighborhood_id = neighborhoodId;
   layers_obj.nbhd_cloud_cell_layer = layers_obj.nbhd_cloud_cell_layer.clone({
     data: {
       length: filtered.length,

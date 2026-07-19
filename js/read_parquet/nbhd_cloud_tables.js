@@ -77,6 +77,43 @@ export const parse_shapes_table_to_features = (table) => {
   return features;
 };
 
+// Builds one GeoJSON Feature per row from a `gene_shapes/<gene>.parquet`
+// table (every slice's shape for one gene) -- same `geometry_geojson`
+// convention as `parse_shapes_table_to_features`. Rows with unparsable
+// geometry are skipped.
+export const parse_gene_shapes_table_to_features = (table) => {
+  const genes = getTableColumnArray(table, 'gene');
+  const sliceIds = getTableColumnArray(table, 'slice_id');
+  const meanExpressions = toNumberArray(
+    getTableColumnArray(table, 'mean_expression')
+  );
+  const cellCounts = toNumberArray(getTableColumnArray(table, 'cell_count'));
+  const geojsonStrings = getTableColumnArray(table, 'geometry_geojson');
+
+  const features = [];
+  for (let i = 0; i < genes.length; i++) {
+    let geometry;
+    try {
+      geometry = JSON.parse(geojsonStrings[i]);
+    } catch {
+      continue;
+    }
+
+    features.push({
+      type: 'Feature',
+      properties: {
+        gene: genes[i],
+        slice_id: sliceIds[i],
+        mean_expression: meanExpressions[i],
+        cell_count: cellCounts[i],
+      },
+      geometry,
+    });
+  }
+
+  return features;
+};
+
 // Merges per-slice `cells/by_slice/slice_<id>.parquet` tables into flat
 // typed arrays ready for a PointCloudLayer's binary `data` prop.
 export const parse_cells_tables = (tables) => {

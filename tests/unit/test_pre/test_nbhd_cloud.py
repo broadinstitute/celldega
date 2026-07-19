@@ -5,9 +5,14 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from celldega.nbhd import NeighborhoodCollection, alpha_shape_cell_clusters_by_slice
+from celldega.nbhd import (
+    NeighborhoodCollection,
+    alpha_shape_cell_clusters_by_slice,
+    alpha_shape_gene_expression_by_slice,
+)
 from celldega.pre import (
     write_cell_clusters_meta,
+    write_gene_shapes,
     write_meta_gene_for_nbhd_cloud,
     write_meta_slice,
     write_nbhd_cloud_cells,
@@ -74,24 +79,23 @@ def test_write_meta_slice(tmp_path):
     pd.testing.assert_frame_equal(df_on_disk, df_meta_slice)
 
 
-def test_write_nbhd_cloud_cells_by_slice(tmp_path):
+def test_write_nbhd_cloud_cells_by_cluster(tmp_path):
     adata = _synthetic_dataset()
 
     write_nbhd_cloud_cells(
         adata, tmp_path, cluster_attr="cluster", slice_attr="slice_id", z_attr="z"
     )
 
-    by_slice_dir = tmp_path / "nbhd_cloud" / "cells" / "by_slice"
-    assert {p.name for p in by_slice_dir.glob("*.parquet")} == {
-        "slice_s0.parquet",
-        "slice_s1.parquet",
+    by_cluster_dir = tmp_path / "nbhd_cloud" / "cells" / "by_cluster"
+    assert {p.name for p in by_cluster_dir.glob("*.parquet")} == {
+        "cluster_0.parquet",
+        "cluster_1.parquet",
     }
 
-    df_slice_s0 = pd.read_parquet(by_slice_dir / "slice_s0.parquet")
-    assert len(df_slice_s0) == 60  # slice s0, both clusters, 30 cells each
-    assert set(df_slice_s0["cluster_id"]) == {"0", "1"}
-    assert (df_slice_s0["z"] == 0.0).all()
-    assert {"cell_id", "x", "y", "z", "cluster_id", "slice_id"}.issubset(df_slice_s0.columns)
+    df_cluster_0 = pd.read_parquet(by_cluster_dir / "cluster_0.parquet")
+    assert len(df_cluster_0) == 60  # cluster 0, both slices, 30 cells each
+    assert set(df_cluster_0["slice_id"]) == {"s0", "s1"}
+    assert {"cell_id", "x", "y", "z", "cluster_id", "slice_id"}.issubset(df_cluster_0.columns)
 
 
 def test_write_nbhd_cloud_shapes_and_features(tmp_path):
@@ -173,6 +177,55 @@ def test_write_nbhd_cloud_shapes_and_features(tmp_path):
     assert (df_meta_cluster["count"] == 60).all()
 
 
+def test_write_gene_shapes(tmp_path):
+    rng = np.random.RandomState(0)
+    rows = []
+    xy = []
+    X = []
+    for slice_idx in range(2):
+        center = np.array([slice_idx * 300.0, 0.0])
+        pts = rng.normal(loc=center, scale=10.0, size=(20, 2))
+        xy.append(pts)
+        rows.extend([{"slice_id": f"s{slice_idx}", "z": float(slice_idx) * 100.0}] * 20)
+        slice_expr = np.zeros((20, 1))
+        slice_expr[::2, :] = 5.0
+        X.append(slice_expr)
+
+    obs = pd.DataFrame(rows)
+    obs.index = [f"cell_{i}" for i in range(len(obs))]
+    adata = ad.AnnData(X=np.vstack(X), obs=obs, var=pd.DataFrame(index=["Matn1"]))
+    adata.obsm["spatial"] = np.vstack(xy)
+
+    gdf = alpha_shape_gene_expression_by_slice(
+        adata, ["Matn1"], slice_attr="slice_id", z_attr="z", alphas=(150,), min_cells=4
+    )
+
+    write_gene_shapes(gdf, tmp_path)
+
+    gene_shapes_dir = tmp_path / "nbhd_cloud" / "gene_shapes"
+    assert {p.name for p in gene_shapes_dir.glob("*")} == {
+        "Matn1.parquet",
+        "available_genes.json",
+    }
+
+    df_matn1 = pd.read_parquet(gene_shapes_dir / "Matn1.parquet")
+    assert len(df_matn1) == 2  # one shape per slice
+    assert set(df_matn1["slice_id"]) == {"s0", "s1"}
+    assert "geometry_geojson" in df_matn1.columns
+    assert "geometry" not in df_matn1.columns
+    parsed_geometries = [json.loads(g) for g in df_matn1["geometry_geojson"]]
+    assert all(
+        len(coord) == 3
+        for g in parsed_geometries
+        for poly in g["coordinates"]
+        for ring in poly
+        for coord in ring
+    )
+
+    with (gene_shapes_dir / "available_genes.json").open() as f:
+        assert json.load(f) == ["Matn1"]
+
+
 def test_write_cell_clusters_meta_requires_gdf_columns():
     import geopandas as gpd
     from shapely.geometry import Point
@@ -216,7 +269,7 @@ def test_write_nbhd_cloud_dataset_end_to_end(tmp_path):
     assert (tmp_path / "nbhd_cloud" / "meta_slice.parquet").exists()
     assert (tmp_path / "nbhd_cloud" / "meta_neighborhood.parquet").exists()
     assert (tmp_path / "nbhd_cloud" / "population.parquet").exists()
-    assert (tmp_path / "nbhd_cloud" / "cells" / "by_slice" / "slice_s0.parquet").exists()
+    assert (tmp_path / "nbhd_cloud" / "cells" / "by_cluster" / "cluster_0.parquet").exists()
     assert (tmp_path / "nbhd_cloud" / "shapes" / "slice_s0.parquet").exists()
     assert (tmp_path / "nbhd_cloud" / "expression" / "Gene0.parquet").exists()
     assert (tmp_path / "cell_clusters" / "meta_cluster.parquet").exists()

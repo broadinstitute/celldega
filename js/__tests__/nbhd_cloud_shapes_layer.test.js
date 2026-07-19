@@ -41,20 +41,23 @@ describe('neighborhood-cloud shapes fill color', () => {
     );
   });
 
-  test('cluster-color mode: fill uses the neighborhood color with crossfade alpha baked in', () => {
-    const viz_state = { nbhd_cloud: {} };
-    expect(get_nbhd_cloud_fill_color(feature('#ff0000'), viz_state, 1)).toEqual(
-      [255, 0, 0, 255]
-    );
+  test('cluster-color mode: fill uses the neighborhood color, alpha scaled by manual_fill_opacity', () => {
     expect(
-      get_nbhd_cloud_fill_color(feature('#ff0000'), viz_state, 0.5)
+      get_nbhd_cloud_fill_color(feature('#ff0000'), { nbhd_cloud: {} })
+    ).toEqual([255, 0, 0, 255]);
+    expect(
+      get_nbhd_cloud_fill_color(feature('#ff0000'), {
+        nbhd_cloud: { manual_fill_opacity: 0.5 },
+      })
     ).toEqual([255, 0, 0, 128]);
-    expect(get_nbhd_cloud_fill_color(feature('#ff0000'), viz_state, 0)).toEqual(
-      [255, 0, 0, 0]
-    );
+    expect(
+      get_nbhd_cloud_fill_color(feature('#ff0000'), {
+        nbhd_cloud: { manual_fill_opacity: 0 },
+      })
+    ).toEqual([255, 0, 0, 0]);
   });
 
-  test('gene-color mode: alpha is expression fraction times the crossfade fraction', () => {
+  test('gene-color mode: alpha is expression fraction times manual_fill_opacity', () => {
     const viz_state = {
       nbhd_cloud: {
         selected_gene: 'Gene0',
@@ -63,13 +66,15 @@ describe('neighborhood-cloud shapes fill color', () => {
       },
     };
 
-    // fully faded in (fillOpacityFraction=1): alpha = 255 * (5/10) * 1
+    // manual_fill_opacity defaults to 1: alpha = 255 * (5/10) * 1
     expect(
-      get_nbhd_cloud_fill_color(feature('#00ff00', 'n1'), viz_state, 1)
+      get_nbhd_cloud_fill_color(feature('#00ff00', 'n1'), viz_state)
     ).toEqual([255, 0, 0, 128]);
-    // mid-crossfade (fillOpacityFraction=0.5): alpha = 255 * (5/10) * 0.5
+
+    viz_state.nbhd_cloud.manual_fill_opacity = 0.5;
+    // alpha = 255 * (5/10) * 0.5
     expect(
-      get_nbhd_cloud_fill_color(feature('#00ff00', 'n1'), viz_state, 0.5)
+      get_nbhd_cloud_fill_color(feature('#00ff00', 'n1'), viz_state)
     ).toEqual([255, 0, 0, 64]);
   });
 
@@ -83,21 +88,21 @@ describe('neighborhood-cloud shapes fill color', () => {
     };
 
     expect(
-      get_nbhd_cloud_fill_color(feature('#00ff00', 'missing'), viz_state, 1)
+      get_nbhd_cloud_fill_color(feature('#00ff00', 'missing'), viz_state)
     ).toEqual([255, 0, 0, 0]);
   });
 
-  test('a selected neighborhood stays fully opaque regardless of the ambient crossfade fraction', () => {
+  test('a selected neighborhood stays fully opaque; unselected ones dim instead of vanishing', () => {
     const viz_state = {
       nbhd_cloud: { selected_neighborhood_ids: new Set(['n1']) },
     };
 
     expect(
-      get_nbhd_cloud_fill_color(feature('#ff0000', 'n1'), viz_state, 0)
+      get_nbhd_cloud_fill_color(feature('#ff0000', 'n1'), viz_state)
     ).toEqual([255, 0, 0, 255]);
-    // an unselected neighborhood still respects the crossfade fraction
+    // an unselected neighborhood is dimmed (not hidden) while a selection is active
     expect(
-      get_nbhd_cloud_fill_color(feature('#ff0000', 'n2'), viz_state, 0)
-    ).toEqual([255, 0, 0, 0]);
+      get_nbhd_cloud_fill_color(feature('#ff0000', 'n2'), viz_state)
+    ).toEqual([255, 0, 0, 38]);
   });
 });

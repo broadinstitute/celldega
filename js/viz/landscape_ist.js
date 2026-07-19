@@ -591,32 +591,7 @@ export const landscape_ist = async (
       );
     }
 
-    const nearestNSlicesFromModel =
-      typeof ini_model?.get === 'function'
-        ? ini_model.get('nbhd_cloud_nearest_n_slices')
-        : null;
-    viz_state.nbhd_cloud.nearest_n_slices =
-      nearestNSlicesFromModel && Object.keys(nearestNSlicesFromModel).length > 0
-        ? nearestNSlicesFromModel
-        : { cells: 3 };
-
-    const zoomThresholdsFromModel =
-      typeof ini_model?.get === 'function'
-        ? ini_model.get('nbhd_cloud_zoom_thresholds')
-        : null;
-    viz_state.nbhd_cloud.zoom_thresholds =
-      zoomThresholdsFromModel && Object.keys(zoomThresholdsFromModel).length > 0
-        ? zoomThresholdsFromModel
-        : {
-            fade_in_start: 2.0,
-            fade_in_end: 4.0,
-            fade_out_start: 3.0,
-            fade_out_end: 1.0,
-          };
-
-    viz_state.nbhd_cloud.lod_state = { band: 'shapes' };
-    viz_state.nbhd_cloud.loaded_slice_ids = new Set();
-    viz_state.nbhd_cloud.loaded_slice_set_key = null;
+    viz_state.nbhd_cloud.manual_fill_opacity = 1;
     viz_state.nbhd_cloud.selected_gene = null;
     viz_state.nbhd_cloud.gene_stats = null;
     viz_state.nbhd_cloud.selected_gene_max_mean = 0;

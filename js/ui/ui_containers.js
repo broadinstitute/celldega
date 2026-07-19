@@ -26,11 +26,13 @@ import {
   alt_slice_linkage,
 } from '../matrix/dendro';
 import { debounce } from '../utils/debounce';
+import { hexToRgb } from '../utils/hexToRgb';
 import { refresh_layer } from '../utils/refresh_layer';
 
 import {
   make_bar_graph,
   bar_callback_nbhd,
+  bar_callback_nbhd_cloud_neighborhood,
   bar_callback_nbhd_cloud_slice,
   bar_callback_cat,
   make_bar_container,
@@ -534,13 +536,15 @@ export const make_ist_ui_container = (
   }
 
   // neighborhood-cloud repurposes this slot: "NBHD" (shapes show/hide)
-  // instead of "CELL" (per-cell radius, meaningless here since cells stream
-  // in separately via nbhd_cloud_cell_layer).
+  // instead of "CELL" (per-cell radius, meaningless here -- cells only ever
+  // appear on demand for one selected neighborhood, via nbhd_cloud_cell_layer).
+  // Starts blue/active either way, matching each layer's actual starting
+  // visibility (shapes visible by default, same as the legacy CELL layer).
   make_button(
     cell_ctrl_container,
     'ist',
     viz_state.nbhd_cloud?.is_nbhd_cloud ? 'NBHD' : 'CELL',
-    viz_state.nbhd_cloud?.is_nbhd_cloud ? 'gray' : 'blue',
+    'blue',
     40,
     'button',
     deck_ist,
@@ -577,8 +581,9 @@ export const make_ist_ui_container = (
   viz_state.sliders = {};
 
   if (viz_state.nbhd_cloud?.is_nbhd_cloud) {
-    // No per-cell radius control here (cells stream in separately via
-    // nbhd_cloud_cell_layer) -- the opacity slider takes this slot instead.
+    // No per-cell radius control here (cells only appear on demand, per
+    // selected neighborhood, via nbhd_cloud_cell_layer) -- the opacity
+    // slider takes this slot instead.
     ini_slider('nbhd', deck_ist, layers_obj, viz_state);
     cell_slider_container.appendChild(viz_state.sliders.nbhd);
     cell_ctrl_container.appendChild(cell_slider_container);
@@ -615,16 +620,52 @@ export const make_ist_ui_container = (
     viz_state.nbhd.svg_bar_nbhd = d3.create('svg');
   }
 
-  make_bar_graph(
-    viz_state.containers.bar_cluster,
-    bar_callback_cat,
-    viz_state.cats.svg_bar_cluster,
-    viz_state.cats.cluster_counts,
-    viz_state.cats.color_dict_cluster,
-    deck_ist,
-    layers_obj,
-    viz_state
-  );
+  if (viz_state.nbhd_cloud?.is_nbhd_cloud) {
+    // Repurposes the CELL slot's bar graph (the per-cell cluster-count bar
+    // makes no sense here -- there's no per-cell data loaded up front) into
+    // a per-neighborhood bar: one bar per (slice, cluster) alpha shape,
+    // sized by area, colored by that neighborhood's real cluster color.
+    // Extra `slice_id`/`cluster_id` fields ride along on each bar datum so
+    // the click callback can identify exactly which neighborhood was picked.
+    viz_state.nbhd_cloud.svg_bar_neighborhood = d3.create('svg');
+
+    const neighborhoodBarData = viz_state.nbhd_cloud.meta_neighborhood.map(
+      (nb) => ({
+        name: nb.neighborhood_id,
+        value: nb.area,
+        slice_id: nb.slice_id,
+        cluster_id: nb.cluster_id,
+      })
+    );
+    const neighborhoodColorDict = Object.fromEntries(
+      viz_state.nbhd_cloud.meta_neighborhood.map((nb) => [
+        nb.neighborhood_id,
+        hexToRgb(nb.color),
+      ])
+    );
+
+    make_bar_graph(
+      viz_state.containers.bar_cluster,
+      bar_callback_nbhd_cloud_neighborhood,
+      viz_state.nbhd_cloud.svg_bar_neighborhood,
+      neighborhoodBarData,
+      neighborhoodColorDict,
+      deck_ist,
+      layers_obj,
+      viz_state
+    );
+  } else {
+    make_bar_graph(
+      viz_state.containers.bar_cluster,
+      bar_callback_cat,
+      viz_state.cats.svg_bar_cluster,
+      viz_state.cats.cluster_counts,
+      viz_state.cats.color_dict_cluster,
+      deck_ist,
+      layers_obj,
+      viz_state
+    );
+  }
 
   viz_state.containers.bar_gene = make_bar_container();
 

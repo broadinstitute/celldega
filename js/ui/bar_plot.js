@@ -1,7 +1,12 @@
 import * as d3 from 'd3';
 
 import { new_toggle_cell_layer_visibility } from '../deck-gl/layers/cell_layer';
-import { select_nbhd_cloud_gene } from '../deck-gl/layers/nbhd_cloud_shapes_layer';
+import { select_nbhd_cloud_neighborhood_cells } from '../deck-gl/layers/nbhd_cloud_cell_layer';
+import {
+  select_nbhd_cloud_gene,
+  toggle_nbhd_cloud_neighborhood_selection,
+  update_nbhd_cloud_shapes_data,
+} from '../deck-gl/layers/nbhd_cloud_shapes_layer';
 import { toggle_trx_layer_visibility } from '../deck-gl/layers/trx_layer';
 import { update_cat, update_selected_cats } from '../global_variables/cat';
 import { update_cell_exp_array } from '../global_variables/cell_exp_array';
@@ -230,18 +235,17 @@ export const bar_callback_nbhd = (
   }
 };
 
-// Per-slice bar graph (neighborhood-cloud MVP): count-only, click just
-// highlights the clicked bar and records it in `selected_slice_ids` — no
-// camera recentering (would need a verified controlled-viewState path in
-// deck_ist.js) and no multi-select (deferred, shift-click follow-up).
+// Per-slice bar graph: clicking a slice isolates the 3D view to that
+// slice's shapes (every other slice's neighborhoods disappear entirely,
+// not just dimmed) -- click again to show every slice.
 export const bar_callback_nbhd_cloud_slice = (
   _event,
   d,
   _deck_ist,
-  _layers_obj,
-  _viz_state
+  layers_obj,
+  viz_state
 ) => {
-  const { nbhd_cloud } = _viz_state;
+  const { nbhd_cloud } = viz_state;
   nbhd_cloud.selected_slice_ids ??= new Set();
 
   if (
@@ -260,6 +264,49 @@ export const bar_callback_nbhd_cloud_slice = (
     .style('opacity', (bar) =>
       !hasSelection || nbhd_cloud.selected_slice_ids.has(bar.name) ? 1.0 : 0.2
     );
+
+  const visibleFeatures = hasSelection
+    ? nbhd_cloud.shapes_features.filter((feature) =>
+        nbhd_cloud.selected_slice_ids.has(feature.properties.slice_id)
+      )
+    : nbhd_cloud.shapes_features;
+
+  update_nbhd_cloud_shapes_data(layers_obj, visibleFeatures);
+  refresh_layer(viz_state, layers_obj, 'nbhd_cloud_shapes_layer');
+};
+
+// Per-neighborhood bar graph (one bar per (slice, cluster) alpha shape,
+// sized by area): click highlights just that neighborhood's shape (others
+// dim) and loads its cell centroids on demand -- click again to clear both.
+export const bar_callback_nbhd_cloud_neighborhood = async (
+  _event,
+  d,
+  _deck_ist,
+  layers_obj,
+  viz_state
+) => {
+  toggle_nbhd_cloud_neighborhood_selection(d.name, viz_state, layers_obj);
+  refresh_layer(viz_state, layers_obj, 'nbhd_cloud_shapes_layer');
+
+  const hasSelection =
+    (viz_state.nbhd_cloud.selected_neighborhood_ids?.size ?? 0) > 0;
+  viz_state.nbhd_cloud.svg_bar_neighborhood
+    .selectAll('rect')
+    .style('opacity', (bar) =>
+      !hasSelection ||
+      viz_state.nbhd_cloud.selected_neighborhood_ids.has(bar.name)
+        ? 1.0
+        : 0.2
+    );
+
+  await select_nbhd_cloud_neighborhood_cells(
+    d.name,
+    d.slice_id,
+    d.cluster_id,
+    viz_state,
+    layers_obj
+  );
+  refresh_layer(viz_state, layers_obj, 'nbhd_cloud_cell_layer');
 };
 
 export const make_bar_graph = (

@@ -100,12 +100,13 @@ def write_nbhd_cloud_cells(
     slice_attr: str = "slice_id",
     z_attr: str | None = None,
 ) -> None:
-    """Write the dual redundant cell-centroid layout.
+    """Write `nbhd_cloud/cells/by_slice/slice_<id>.parquet`, one file per slice.
 
-    `nbhd_cloud/cells/by_cluster/cluster_<id>.parquet` (one file per cluster,
-    every slice) and `nbhd_cloud/cells/by_slice/slice_<id>.parquet` (one file
-    per slice, every cluster) — each row: `cell_id`, `x`, `y`, `z`,
-    `cluster_id`, `slice_id`, so either layout can filter on the other axis.
+    Each row: `cell_id`, `x`, `y`, `z`, `cluster_id`, `slice_id`. The frontend
+    only ever needs cells for one selected neighborhood (one slice, one
+    cluster) at a time, so a per-slice file (fetched on demand, filtered to
+    the picked cluster client-side) is all that's needed — no per-cluster
+    (cross-slice) layout.
 
     Parameters
     ----------
@@ -132,13 +133,8 @@ def write_nbhd_cloud_cells(
         }
     )
 
-    by_cluster_dir = Path(path_dega_files) / "nbhd_cloud" / "cells" / "by_cluster"
     by_slice_dir = Path(path_dega_files) / "nbhd_cloud" / "cells" / "by_slice"
-    by_cluster_dir.mkdir(parents=True, exist_ok=True)
     by_slice_dir.mkdir(parents=True, exist_ok=True)
-
-    for cluster_id, df_cluster in df_cells.groupby("cluster_id"):
-        df_cluster.to_parquet(by_cluster_dir / f"cluster_{cluster_id}.parquet", index=False)
 
     for slice_id, df_slice in df_cells.groupby("slice_id"):
         df_slice.to_parquet(by_slice_dir / f"slice_{slice_id}.parquet", index=False)
@@ -349,10 +345,7 @@ def write_nbhd_cloud_shapes_and_features(
     df_population.to_parquet(out_dir / "population.parquet", index=False)
 
 
-def _write_nbhd_cloud_landscape_parameters(
-    path_dega_files: str | Path,
-    nearest_n_slices_default: int,
-) -> None:
+def _write_nbhd_cloud_landscape_parameters(path_dega_files: str | Path) -> None:
     """Write a minimal `landscape_parameters.json` for `technology="neighborhood-cloud"`.
 
     Deliberately not routed through `save_landscape_parameters` — that
@@ -370,10 +363,6 @@ def _write_nbhd_cloud_landscape_parameters(
         "image_format": ".webp",
         "use_int_index": True,
         "use_row_groups": False,
-        "nbhd_cloud": {
-            "directory": "nbhd_cloud",
-            "nearest_n_slices_default": {"cells": nearest_n_slices_default},
-        },
     }
     path_landscape_parameters = Path(path_dega_files) / "landscape_parameters.json"
     with path_landscape_parameters.open("w") as f:
@@ -418,7 +407,6 @@ def write_nbhd_cloud_dataset(
     cluster_attr: str = "cluster",
     slice_attr: str = "slice_id",
     z_attr: str | None = None,
-    nearest_n_slices_default: int = 3,
 ) -> None:
     """Write the full `neighborhood-cloud` DegaFile layout for one dataset.
 
@@ -441,11 +429,6 @@ def write_nbhd_cloud_dataset(
         Output DegaFiles root directory.
     cluster_attr, slice_attr, z_attr
         See `write_meta_slice` / `write_nbhd_cloud_cells`.
-    nearest_n_slices_default : int
-        Default nearest-slice count recorded in `landscape_parameters.json`'s
-        `nbhd_cloud.nearest_n_slices_default.cells` (the frontend can still
-        override per-widget via the `nbhd_cloud_nearest_n_slices` constructor
-        kwarg).
     """
     write_meta_slice(adata, path_dega_files, slice_attr=slice_attr, z_attr=z_attr)
     write_nbhd_cloud_cells(
@@ -459,4 +442,4 @@ def write_nbhd_cloud_dataset(
         adata, nbhd, path_dega_files, cluster_attr=cluster_attr, slice_attr=slice_attr
     )
     write_meta_gene_for_nbhd_cloud(adata, path_dega_files)
-    _write_nbhd_cloud_landscape_parameters(path_dega_files, nearest_n_slices_default)
+    _write_nbhd_cloud_landscape_parameters(path_dega_files)

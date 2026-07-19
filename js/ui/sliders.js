@@ -228,6 +228,7 @@ const nbhd_slider_callback = async (_deck_ist, layers_obj, viz_state) => {
 
   if (viz_state.nbhd_cloud?.is_nbhd_cloud) {
     update_nbhd_cloud_manual_fill_opacity(viz_state, layers_obj, opacity);
+    refresh_layer(viz_state, layers_obj, 'nbhd_cloud_shapes_layer');
     return;
   }
 

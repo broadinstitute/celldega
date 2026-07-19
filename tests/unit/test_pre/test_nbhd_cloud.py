@@ -74,33 +74,24 @@ def test_write_meta_slice(tmp_path):
     pd.testing.assert_frame_equal(df_on_disk, df_meta_slice)
 
 
-def test_write_nbhd_cloud_cells_dual_layout(tmp_path):
+def test_write_nbhd_cloud_cells_by_slice(tmp_path):
     adata = _synthetic_dataset()
 
     write_nbhd_cloud_cells(
         adata, tmp_path, cluster_attr="cluster", slice_attr="slice_id", z_attr="z"
     )
 
-    by_cluster_dir = tmp_path / "nbhd_cloud" / "cells" / "by_cluster"
     by_slice_dir = tmp_path / "nbhd_cloud" / "cells" / "by_slice"
-    assert {p.name for p in by_cluster_dir.glob("*.parquet")} == {
-        "cluster_0.parquet",
-        "cluster_1.parquet",
-    }
     assert {p.name for p in by_slice_dir.glob("*.parquet")} == {
         "slice_s0.parquet",
         "slice_s1.parquet",
     }
 
-    df_cluster_0 = pd.read_parquet(by_cluster_dir / "cluster_0.parquet")
-    assert len(df_cluster_0) == 60  # cluster 0, both slices, 30 cells each
-    assert set(df_cluster_0["slice_id"]) == {"s0", "s1"}
-    assert {"cell_id", "x", "y", "z", "cluster_id", "slice_id"}.issubset(df_cluster_0.columns)
-
     df_slice_s0 = pd.read_parquet(by_slice_dir / "slice_s0.parquet")
     assert len(df_slice_s0) == 60  # slice s0, both clusters, 30 cells each
     assert set(df_slice_s0["cluster_id"]) == {"0", "1"}
     assert (df_slice_s0["z"] == 0.0).all()
+    assert {"cell_id", "x", "y", "z", "cluster_id", "slice_id"}.issubset(df_slice_s0.columns)
 
 
 def test_write_nbhd_cloud_shapes_and_features(tmp_path):
@@ -220,13 +211,11 @@ def test_write_nbhd_cloud_dataset_end_to_end(tmp_path):
         cluster_attr="cluster",
         slice_attr="slice_id",
         z_attr="z",
-        nearest_n_slices_default=5,
     )
 
     assert (tmp_path / "nbhd_cloud" / "meta_slice.parquet").exists()
     assert (tmp_path / "nbhd_cloud" / "meta_neighborhood.parquet").exists()
     assert (tmp_path / "nbhd_cloud" / "population.parquet").exists()
-    assert (tmp_path / "nbhd_cloud" / "cells" / "by_cluster" / "cluster_0.parquet").exists()
     assert (tmp_path / "nbhd_cloud" / "cells" / "by_slice" / "slice_s0.parquet").exists()
     assert (tmp_path / "nbhd_cloud" / "shapes" / "slice_s0.parquet").exists()
     assert (tmp_path / "nbhd_cloud" / "expression" / "Gene0.parquet").exists()
@@ -237,8 +226,6 @@ def test_write_nbhd_cloud_dataset_end_to_end(tmp_path):
         landscape_parameters = json.load(f)
 
     assert landscape_parameters["technology"] == "neighborhood-cloud"
-    assert landscape_parameters["nbhd_cloud"]["directory"] == "nbhd_cloud"
-    assert landscape_parameters["nbhd_cloud"]["nearest_n_slices_default"] == {"cells": 5}
 
 
 def test_write_meta_gene_for_nbhd_cloud(tmp_path):

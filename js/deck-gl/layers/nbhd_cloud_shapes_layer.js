@@ -12,33 +12,26 @@ import { getModelMatrixProps } from '../../utils/rotation';
 // crossfades into cells at the same zoom level.
 const GENE_COLOR_RGB = [255, 0, 0];
 
+// Applied to every neighborhood except the one explicitly selected (NBHD bar
+// click) when a selection is active -- not full transparency, so the overall
+// tissue shape stays visible for context.
+const UNSELECTED_DIM_FACTOR = 0.15;
+
 export const is_nbhd_cloud_gene_color_mode = (nbhd_cloud) =>
   nbhd_cloud?.selected_gene != null;
 
-// `fillOpacityFraction` is the zoom-driven crossfade fraction (1 = fully
-// opaque "shapes" tier, 0 = fully faded into cells) — gene-mode alpha is the
-// product of that fraction and the expression-driven alpha, so gene
-// coloring still respects the ambient crossfade instead of overriding it.
-export const get_nbhd_cloud_fill_color = (
-  feature,
-  viz_state,
-  fillOpacityFraction
-) => {
+export const get_nbhd_cloud_fill_color = (feature, viz_state) => {
   const { nbhd_cloud } = viz_state;
 
-  // A neighborhood the user explicitly selected (nbhd bar / shape click)
-  // stays fully opaque regardless of the ambient zoom-driven fade — a
-  // bounded, explicit override that composes with (doesn't replace) the
-  // continuous crossfade.
+  const hasSelection = (nbhd_cloud.selected_neighborhood_ids?.size ?? 0) > 0;
   const isSelected = nbhd_cloud.selected_neighborhood_ids?.has(
     feature.properties.neighborhood_id
   );
-  const zoomFraction = isSelected ? 1 : fillOpacityFraction;
-  // The NBHD slider (reused from the legacy 2D nbhd feature) is a manual
-  // multiplier on top of the zoom-driven crossfade fraction, not a
-  // replacement for it -- at the default 100% it's a no-op.
+  const selectionFactor =
+    !hasSelection || isSelected ? 1 : UNSELECTED_DIM_FACTOR;
+
   const effectiveFraction =
-    zoomFraction * (nbhd_cloud.manual_fill_opacity ?? 1);
+    (nbhd_cloud.manual_fill_opacity ?? 1) * selectionFactor;
 
   if (is_nbhd_cloud_gene_color_mode(nbhd_cloud)) {
     const stats = nbhd_cloud.gene_stats?.get(
@@ -55,22 +48,25 @@ export const get_nbhd_cloud_fill_color = (
   return [...rgb, Math.round(255 * effectiveFraction)];
 };
 
+// No outline -- with dozens to hundreds of overlapping-in-projection
+// polygons across slices, a stroke on every one reads as visual noise more
+// than as useful structure.
 export const ini_nbhd_cloud_shapes_layer = (viz_state, features = []) => {
   return new GeoJsonLayer({
     id: 'nbhd-cloud-shapes-layer',
     data: { type: 'FeatureCollection', features },
     pickable: true,
-    stroked: true,
+    stroked: false,
     filled: true,
-    getLineWidth: 1,
-    lineWidthMinPixels: 1,
-    getFillColor: (d) => get_nbhd_cloud_fill_color(d, viz_state, 1),
-    getLineColor: (d) => [...hexToRgb(d.properties.color), 255],
+    getFillColor: (d) => get_nbhd_cloud_fill_color(d, viz_state),
     opacity: 1,
     ...getModelMatrixProps(viz_state.rotation),
   });
 };
 
+// Backs the SLICE bar's isolate behavior (bar_plot.js) -- swaps the
+// rendered feature set rather than dimming, so an unselected slice's shapes
+// are genuinely gone (not just faint).
 export const update_nbhd_cloud_shapes_data = (layers_obj, features) => {
   layers_obj.nbhd_cloud_shapes_layer = layers_obj.nbhd_cloud_shapes_layer.clone(
     {
@@ -79,22 +75,12 @@ export const update_nbhd_cloud_shapes_data = (layers_obj, features) => {
   );
 };
 
-// Drives the crossfade (§ nbhd_cloud_lod.js) and, when a gene is selected,
-// the expression-driven alpha — both live in the same accessor since the
-// spec calls for gene alpha to be multiplied by the ambient fade fraction,
-// not to replace it.
-export const update_nbhd_cloud_shapes_fill_opacity = (
-  layers_obj,
-  viz_state,
-  fillOpacityFraction
-) => {
+export const update_nbhd_cloud_shapes_fill_color = (layers_obj, viz_state) => {
   layers_obj.nbhd_cloud_shapes_layer = layers_obj.nbhd_cloud_shapes_layer.clone(
     {
-      getFillColor: (d) =>
-        get_nbhd_cloud_fill_color(d, viz_state, fillOpacityFraction),
+      getFillColor: (d) => get_nbhd_cloud_fill_color(d, viz_state),
       updateTriggers: {
         getFillColor: [
-          fillOpacityFraction,
           viz_state.nbhd_cloud.selected_gene,
           viz_state.nbhd_cloud.manual_fill_opacity,
           viz_state.nbhd_cloud.selected_neighborhood_ids?.size ?? 0,
@@ -104,9 +90,8 @@ export const update_nbhd_cloud_shapes_fill_opacity = (
   );
 };
 
-// Toggles a single neighborhood's "revealed" state (nbhd bar click, or a
-// future shape click) — bounded to one neighborhood, additive to the
-// zoom-driven crossfade rather than a mode switch.
+// Backs the per-neighborhood bar's click (bar_plot.js) -- single-select:
+// clicking the already-selected neighborhood clears the selection.
 export const toggle_nbhd_cloud_neighborhood_selection = (
   neighborhoodId,
   viz_state,
@@ -115,22 +100,18 @@ export const toggle_nbhd_cloud_neighborhood_selection = (
   const { nbhd_cloud } = viz_state;
   nbhd_cloud.selected_neighborhood_ids ??= new Set();
 
-  if (nbhd_cloud.selected_neighborhood_ids.has(neighborhoodId)) {
-    nbhd_cloud.selected_neighborhood_ids.delete(neighborhoodId);
-  } else {
+  const isReset = nbhd_cloud.selected_neighborhood_ids.has(neighborhoodId);
+  nbhd_cloud.selected_neighborhood_ids.clear();
+  if (!isReset) {
     nbhd_cloud.selected_neighborhood_ids.add(neighborhoodId);
   }
 
-  update_nbhd_cloud_shapes_fill_opacity(
-    layers_obj,
-    viz_state,
-    nbhd_cloud.last_fill_opacity ?? 1
-  );
+  update_nbhd_cloud_shapes_fill_color(layers_obj, viz_state);
 };
 
 // Toggles gene-based neighborhood coloring on/off, mirroring the cell-level
 // cluster-vs-gene toggle (cell_color.js's `cats.cat`) but scoped to
-// `viz_state.nbhd_cloud` — clicking the same gene bar again reverts to
+// `viz_state.nbhd_cloud` -- clicking the same gene bar again reverts to
 // cluster color, same as the existing gene bar click behavior elsewhere.
 // `expression/<gene>.parquet` is fetched lazily (once per gene, cached) only
 // when that gene is actually selected.
@@ -163,28 +144,19 @@ export const select_nbhd_cloud_gene = async (gene, viz_state, layers_obj) => {
     );
   }
 
-  update_nbhd_cloud_shapes_fill_opacity(
-    layers_obj,
-    viz_state,
-    nbhd_cloud.last_fill_opacity ?? 1
-  );
+  update_nbhd_cloud_shapes_fill_color(layers_obj, viz_state);
 };
 
 // Backs the reused NBHD slider's is_nbhd_cloud branch (sliders.js) -- a
-// manual 0-1 multiplier applied on top of whatever the zoom crossfade is
-// currently showing, so sliding it to 0 hides shapes regardless of zoom and
-// 100% (the default) reproduces the zoom-only behavior exactly.
+// manual 0-1 multiplier applied on top of the base fill alpha, so sliding it
+// to 0 hides shapes and 100% (the default) is a no-op.
 export const update_nbhd_cloud_manual_fill_opacity = (
   viz_state,
   layers_obj,
   manualOpacity
 ) => {
   viz_state.nbhd_cloud.manual_fill_opacity = manualOpacity;
-  update_nbhd_cloud_shapes_fill_opacity(
-    layers_obj,
-    viz_state,
-    viz_state.nbhd_cloud.last_fill_opacity ?? 1
-  );
+  update_nbhd_cloud_shapes_fill_color(layers_obj, viz_state);
 };
 
 export const toggle_nbhd_cloud_shapes_layer_visibility = (

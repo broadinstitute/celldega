@@ -665,14 +665,15 @@ const cell_layer_onclick = async (
 
 // `neighborhood-cloud` has no whole-dataset `cell_metadata.parquet` /
 // `cell_clusters/cluster.parquet` (unlike point-cloud, which this function was
-// originally written for) — real cells stream in later, scoped to the
-// nearest slices, via `nbhd_cloud_cell_layer.js`. Fetching those files here
-// would 404 and, worse, `set_spatial_bounds_from_flat_coordinates` would then
-// compute an initial camera from zero cells (zero-width bounds -> `Infinity`
-// zoom), breaking OrbitView's projection entirely. Instead, derive sane
-// initial spatial bounds from `nbhd_cloud.meta_slice` (already fetched at
+// originally written for) — real cells only ever load on demand, for one
+// selected neighborhood at a time, via `nbhd_cloud_cell_layer.js`. Fetching
+// those files here would 404 and, worse,
+// `set_spatial_bounds_from_flat_coordinates` would then compute an initial
+// camera from zero cells (zero-width bounds -> `Infinity` zoom), breaking
+// OrbitView's projection entirely. Instead, derive sane initial spatial
+// bounds from `nbhd_cloud.shapes_features`/`meta_slice` (already fetched at
 // init) and return an inert, empty `PointCloudLayer` — a placeholder until
-// the first `calc_nbhd_cloud_viewport` call populates the real one.
+// a neighborhood bar click populates it.
 const ini_neighborhood_cloud_inert_cell_layer = async (base_url, viz_state) => {
   // `set_color_dict_gene` fetches meta_gene.parquet and builds
   // `genes.color_dict_gene` -- normally called from the point-cloud branch

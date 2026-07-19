@@ -318,20 +318,22 @@ export const ini_slider = (slider_type, inst_deck, layers_obj, viz_state) => {
       break;
     case 'trx':
       // Repurposed as neighborhood-cloud's gene-shapes opacity control --
-      // matches gene_fill_opacity's default (1 = 100%, a no-op) rather than
-      // the unrelated legacy per-transcript radius default.
+      // matches gene_fill_opacity's default (0.75 = 75%, see landscape_ist.js)
+      // rather than the unrelated legacy per-transcript radius default.
       ini_value = viz_state.nbhd_cloud?.is_nbhd_cloud
-        ? 100
+        ? 75
         : viz_state.genes.trx_ini_raidus * 100;
       callback = () => trx_slider_callback(inst_deck, layers_obj, viz_state);
       break;
     case 'nbhd':
-      // neighborhood-cloud's manual multiplier defaults to 100% (a no-op on
-      // top of the zoom crossfade) -- match that here rather than reading
-      // the unrelated legacy nbhd_layer's opacity, so the slider's initial
-      // position doesn't lie about the actual starting opacity.
+      // neighborhood-cloud's manual multiplier defaults to 75% (see
+      // landscape_ist.js -- less than fully opaque so cell centroids and
+      // overlapping slices stay visible underneath) -- match that here
+      // rather than reading the unrelated legacy nbhd_layer's opacity, so
+      // the slider's initial position doesn't lie about the actual
+      // starting opacity.
       ini_value = viz_state.nbhd_cloud?.is_nbhd_cloud
-        ? 100
+        ? 75
         : layers_obj.nbhd_layer.props.opacity * 100;
       callback = () => nbhd_slider_callback(inst_deck, layers_obj, viz_state);
       break;

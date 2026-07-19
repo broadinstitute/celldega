@@ -587,8 +587,10 @@ export const landscape_ist = async (
       );
     }
 
-    viz_state.nbhd_cloud.manual_fill_opacity = 1;
-    viz_state.nbhd_cloud.gene_fill_opacity = 1;
+    // Default to 75%, not 100% -- fully opaque shapes make it harder to see
+    // cell centroids and overlapping slices underneath.
+    viz_state.nbhd_cloud.manual_fill_opacity = 0.75;
+    viz_state.nbhd_cloud.gene_fill_opacity = 0.75;
     viz_state.nbhd_cloud.selected_gene = null;
     viz_state.nbhd_cloud.gene_shapes_mode = false;
     viz_state.nbhd_cloud.available_gene_shapes =

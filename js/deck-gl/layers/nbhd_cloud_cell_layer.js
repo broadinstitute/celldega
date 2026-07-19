@@ -8,6 +8,14 @@ import { getModelMatrixProps } from '../../utils/rotation';
 const POSITION_SIZE = 3;
 const COLOR_SIZE = 4;
 const DEFAULT_CLUSTER_RGB = [128, 128, 128];
+// Cell centroids sit on top of (and can visually crowd) the shape they
+// belong to -- scaling the NBHD slider's value down a bit even at 100%
+// keeps them legible against the shape underneath, while still tracking
+// the same slider so they dim/brighten together.
+const CELL_OPACITY_SCALE = 0.7;
+
+const get_cell_layer_opacity = (viz_state) =>
+  (viz_state.nbhd_cloud.manual_fill_opacity ?? 1) * CELL_OPACITY_SCALE;
 
 const emptyPointCloudData = () => ({
   length: 0,
@@ -24,7 +32,7 @@ export const ini_nbhd_cloud_cell_layer = (viz_state) => {
     pointSize: 5,
     pickable: false,
     data: emptyPointCloudData(),
-    opacity: 1,
+    opacity: get_cell_layer_opacity(viz_state),
     // deck.gl enables WebGL depth testing globally (Deck._setDevice), so
     // two semi-transparent surfaces at different Z depth-fight: whichever
     // is closer to the camera wins outright (the other's fragment is
@@ -89,6 +97,7 @@ export const refresh_nbhd_cloud_cluster_cells = async (
   if (clusterId == null) {
     layers_obj.nbhd_cloud_cell_layer = layers_obj.nbhd_cloud_cell_layer.clone({
       data: emptyPointCloudData(),
+      opacity: get_cell_layer_opacity(viz_state),
     });
     return;
   }
@@ -122,5 +131,15 @@ export const refresh_nbhd_cloud_cluster_cells = async (
         getColor: { value: colors, size: COLOR_SIZE, type: 'unorm8' },
       },
     },
+    opacity: get_cell_layer_opacity(viz_state),
+  });
+};
+
+// Lets the NBHD slider update cell centroid opacity immediately, without
+// waiting on a full cell-data refresh (which only runs on selection/slice
+// changes, not on every slider tick).
+export const update_nbhd_cloud_cell_layer_opacity = (layers_obj, viz_state) => {
+  layers_obj.nbhd_cloud_cell_layer = layers_obj.nbhd_cloud_cell_layer.clone({
+    opacity: get_cell_layer_opacity(viz_state),
   });
 };

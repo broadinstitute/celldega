@@ -8,7 +8,10 @@ import { hexToRgb } from '../../utils/hexToRgb';
 import { refresh_layer } from '../../utils/refresh_layer';
 import { getModelMatrixProps } from '../../utils/rotation';
 
-import { refresh_nbhd_cloud_cluster_cells } from './nbhd_cloud_cell_layer';
+import {
+  refresh_nbhd_cloud_cluster_cells,
+  update_nbhd_cloud_cell_layer_opacity,
+} from './nbhd_cloud_cell_layer';
 
 // Reuses the same red hue already used for per-cell gene coloring
 // (cell_color.js) rather than a separate colormap.
@@ -177,7 +180,11 @@ export const update_nbhd_cloud_shapes_fill_color = (layers_obj, viz_state) => {
           viz_state.nbhd_cloud.gene_shapes_mode,
           viz_state.nbhd_cloud.gene_fill_opacity,
           viz_state.nbhd_cloud.manual_fill_opacity,
-          viz_state.nbhd_cloud.selected_cluster_ids?.size ?? 0,
+          // Not just `.size` -- switching from cluster A to cluster B is a
+          // same-size (1 -> 1) change that `.size` can't see, so deck.gl
+          // would never recompute colors and the newly selected cluster's
+          // shape would silently keep rendering as "not selected" (dimmed).
+          [...(viz_state.nbhd_cloud.selected_cluster_ids ?? [])].join(','),
         ],
       },
     }
@@ -325,6 +332,8 @@ export const select_nbhd_cloud_gene = async (gene, viz_state, layers_obj) => {
 // manual 0-1 multiplier applied on top of the base fill alpha for
 // cluster-color mode. Disabled (sliders.js) while gene-shapes mode is
 // active, since that mode has its own independent opacity control below.
+// Also drives cell centroid opacity, since centroids sit on top of the
+// shape they belong to and should dim/brighten together with it.
 export const update_nbhd_cloud_manual_fill_opacity = (
   viz_state,
   layers_obj,
@@ -332,6 +341,7 @@ export const update_nbhd_cloud_manual_fill_opacity = (
 ) => {
   viz_state.nbhd_cloud.manual_fill_opacity = manualOpacity;
   update_nbhd_cloud_shapes_fill_color(layers_obj, viz_state);
+  update_nbhd_cloud_cell_layer_opacity(layers_obj, viz_state);
 };
 
 // Backs the repurposed TRX slider (sliders.js) -- an independent 0-1

@@ -64,6 +64,24 @@ export const make_tooltip = (viz_state, info) => {
       inst_html = `<div>neighborhood: ${inst_name}</div>`;
     }
   }
+  // Handle neighborhood-cloud shape tooltips -- GeoJsonLayer hands back the
+  // picked feature directly as info.object (not indexed into a separate
+  // array like the layers above), and properties differ by mode: gene-shapes
+  // features carry gene/mean_expression, cluster shapes carry cluster_id.
+  else if (info.layer.id.startsWith('nbhd-cloud-shapes-layer')) {
+    const properties = info.object?.properties;
+    if (properties) {
+      inst_html =
+        properties.gene !== undefined
+          ? `<div>gene: ${properties.gene}</div><div>slice: ${properties.slice_id}</div><div>mean expression: ${Number(properties.mean_expression).toFixed(2)}</div>`
+          : `<div>cluster: ${properties.cluster_id}</div><div>slice: ${properties.slice_id}</div>`;
+    }
+  }
+
+  // No branch above produced content for this layer (e.g. an unhandled or
+  // future layer type) -- return null rather than an empty-but-present
+  // tooltip box, which otherwise renders as a small blank/black square.
+  if (!inst_html) return null;
 
   // Configure tooltip positioning and styling
   const tooltipContainer = viz_state.root.querySelector('.deck-tooltip');

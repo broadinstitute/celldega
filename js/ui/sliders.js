@@ -1,6 +1,9 @@
 import { update_cell_layer_radius } from '../deck-gl/layers/cell_layer';
 import { update_opacity_single_image_layer } from '../deck-gl/layers/image_layers';
-import { update_nbhd_cloud_manual_fill_opacity } from '../deck-gl/layers/nbhd_cloud_shapes_layer';
+import {
+  update_nbhd_cloud_gene_fill_opacity,
+  update_nbhd_cloud_manual_fill_opacity,
+} from '../deck-gl/layers/nbhd_cloud_shapes_layer';
 import { update_nbhd_layer_opacity } from '../deck-gl/layers/nbhd_layer';
 import { update_trx_layer_radius } from '../deck-gl/layers/trx_layer';
 import { refresh_layer } from '../utils/refresh_layer';
@@ -213,6 +216,20 @@ const cell_slider_callback = async (deck_ist, layers_obj, viz_state) => {
 };
 
 const trx_slider_callback = async (deck_ist, layers_obj, viz_state) => {
+  // Repurposed for neighborhood-cloud only: an independent opacity control
+  // for gene-shapes mode (disabled/enabled opposite the NBHD slider, see
+  // sync_nbhd_cloud_opacity_sliders in bar_plot.js), not the legacy
+  // per-transcript radius this slot controls for every other technology.
+  if (viz_state.nbhd_cloud?.is_nbhd_cloud) {
+    update_nbhd_cloud_gene_fill_opacity(
+      viz_state,
+      layers_obj,
+      viz_state.sliders.trx.value / 100
+    );
+    refresh_layer(viz_state, layers_obj, 'nbhd_cloud_shapes_layer');
+    return;
+  }
+
   const scale_down_trx_radius = 100;
 
   update_trx_layer_radius(
@@ -300,7 +317,12 @@ export const ini_slider = (slider_type, inst_deck, layers_obj, viz_state) => {
       callback = () => cell_slider_callback(inst_deck, layers_obj, viz_state);
       break;
     case 'trx':
-      ini_value = viz_state.genes.trx_ini_raidus * 100;
+      // Repurposed as neighborhood-cloud's gene-shapes opacity control --
+      // matches gene_fill_opacity's default (1 = 100%, a no-op) rather than
+      // the unrelated legacy per-transcript radius default.
+      ini_value = viz_state.nbhd_cloud?.is_nbhd_cloud
+        ? 100
+        : viz_state.genes.trx_ini_raidus * 100;
       callback = () => trx_slider_callback(inst_deck, layers_obj, viz_state);
       break;
     case 'nbhd':

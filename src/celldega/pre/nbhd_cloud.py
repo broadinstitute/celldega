@@ -142,62 +142,6 @@ def write_nbhd_cloud_cells(
         df_cluster.to_parquet(by_cluster_dir / f"cluster_{cluster_id}.parquet", index=False)
 
 
-def _slice_scoped_features(
-    adata: ad.AnnData,
-    nbhd: NeighborhoodCollection,
-    cluster_attr: str,
-    slice_attr: str,
-) -> tuple[ad.AnnData, ad.AnnData]:
-    """Per-slice `calc_signature`/`calc_population`, concatenated to the full neighborhood axis.
-
-    `calc_signature`/`calc_population` do a plain 2D spatial join with no
-    slice-awareness — joining cells against every slice's neighborhoods at once
-    would let a cell in one slice fall inside an overlapping neighborhood from
-    a *different* slice (serial tissue sections routinely share similar XY
-    layout). Looping per slice keeps each spatial join scoped to that slice's
-    own cells and neighborhoods only.
-    """
-    if nbhd.gdf is None:
-        raise ValueError("nbhd must have geometry (gdf) set")
-    if "slice_id" not in nbhd.gdf.columns:
-        raise ValueError("nbhd.gdf must have a 'slice_id' column")
-
-    obs = adata.obs
-    gene_mods = []
-    pop_mods = []
-
-    for slice_id in nbhd.gdf["slice_id"].unique():
-        gdf_slice = nbhd.gdf[nbhd.gdf["slice_id"] == slice_id]
-        mask = (obs[slice_attr] == slice_id).to_numpy()
-        adata_slice = adata[mask].copy()
-
-        slice_collection = NeighborhoodCollection(
-            gdf=gdf_slice, nbhd_type=nbhd.nbhd_type, nbhd_col=nbhd.nbhd_col
-        )
-        slice_collection.calc_signature(
-            adata_slice,
-            by="cell",
-            modality_name="gene",
-            min_cells=1,
-            drop_missing=False,
-            include_variance=True,
-        )
-        slice_collection.calc_population(
-            adata_slice,
-            category=cluster_attr,
-            modality_name="population",
-            min_cells=1,
-            output="proportion",
-            drop_missing=False,
-        )
-        gene_mods.append(slice_collection.mod["gene"])
-        pop_mods.append(slice_collection.mod["population"])
-
-    gene_full = ad.concat(gene_mods, join="outer", fill_value=0)
-    pop_full = ad.concat(pop_mods, join="outer", fill_value=0)
-    return gene_full, pop_full
-
-
 def write_cell_clusters_meta(nbhd: NeighborhoodCollection, path_dega_files: str | Path) -> None:
     """Write `cell_clusters/meta_cluster.parquet` (`cluster`, `color`, `count`).
 
@@ -228,18 +172,10 @@ def write_cell_clusters_meta(nbhd: NeighborhoodCollection, path_dega_files: str 
 
 
 def write_nbhd_cloud_shapes_and_features(
-    adata: ad.AnnData,
     nbhd: NeighborhoodCollection,
     path_dega_files: str | Path,
-    cluster_attr: str = "cluster",
-    slice_attr: str = "slice_id",
 ) -> None:
-    """Write shapes, neighborhood metadata, and gene/population feature tables.
-
-    Computes nbhd-by-gene (mean + variance, via
-    `NeighborhoodCollection.calc_signature`) and nbhd-by-population (via
-    `.calc_population`) with a slice-scoped spatial join (`_slice_scoped_features`),
-    attaches them to `nbhd`, then writes:
+    """Write shapes and neighborhood metadata:
 
     - `nbhd_cloud/shapes/slice_<id>.parquet` — one file per slice, every
       cluster's polygon, with a `geometry_geojson` string column (a JSON
@@ -248,25 +184,22 @@ def write_nbhd_cloud_shapes_and_features(
       the same way the legacy 2D `nbhd` feature's GeoJSON already is.
     - `nbhd_cloud/meta_neighborhood.parquet` — `neighborhood_id`, `cluster_id`,
       `slice_id`, `color`, `area`, `cell_count`, `inv_alpha`.
-    - `nbhd_cloud/expression/<gene>.parquet` — `neighborhood_id`, `mean`,
-      `variance` (one file per gene, fetched lazily by the frontend only when
-      that gene is selected).
-    - `nbhd_cloud/population.parquet` — `neighborhood_id`, `category`,
-      `proportion` (long format).
+    - `cell_clusters/meta_cluster.parquet` (via `write_cell_clusters_meta`).
+
+    Per-neighborhood gene expression and population proportions are
+    intentionally not computed/written here: gene coloring comes from the
+    curated marker-gene alpha shapes instead (`alpha_shape_gene_expression_by_slice`
+    / `write_gene_shapes`), and population proportions were never surfaced in
+    the frontend. Both would need the same expensive per-slice spatial join
+    this writer used to do just to produce data nothing read.
 
     Parameters
     ----------
-    adata : AnnData
-        Aligned 3D cell-level AnnData (spatial coords, cluster/slice columns,
-        gene expression matrix).
     nbhd : NeighborhoodCollection
         Caller-built neighborhood collection spanning all slices, e.g. from
         `NeighborhoodCollection.from_gdf(alpha_shape_cell_clusters_by_slice(adata, ...))`.
     path_dega_files : str | Path
         DegaFiles root directory.
-    cluster_attr, slice_attr : str
-        Columns in `adata.obs` used for the population modality and the
-        per-slice spatial-join scoping, respectively.
     """
     if nbhd.gdf is None:
         raise ValueError("nbhd must have geometry (gdf) set")
@@ -278,9 +211,7 @@ def write_nbhd_cloud_shapes_and_features(
 
     out_dir = Path(path_dega_files) / "nbhd_cloud"
     shapes_dir = out_dir / "shapes"
-    expression_dir = out_dir / "expression"
     shapes_dir.mkdir(parents=True, exist_ok=True)
-    expression_dir.mkdir(parents=True, exist_ok=True)
 
     # Written as a plain JSON-geometry string column, not GeoParquet/WKB: the
     # JS frontend has no WKB decoder, but every other neighborhood shape it
@@ -307,45 +238,6 @@ def write_nbhd_cloud_shapes_and_features(
 
     write_cell_clusters_meta(nbhd, path_dega_files)
 
-    gene_mod, pop_mod = _slice_scoped_features(adata, nbhd, cluster_attr, slice_attr)
-    nbhd.add_mod("gene", gene_mod, var_entity_type="gene")
-    nbhd.add_mod("population", pop_mod, var_entity_type="cell_population")
-
-    def _dense(matrix: object) -> np.ndarray:
-        return matrix.toarray() if hasattr(matrix, "toarray") else np.asarray(matrix)
-
-    gene_mean = pd.DataFrame(
-        _dense(gene_mod.X), index=gene_mod.obs_names, columns=gene_mod.var_names
-    )
-    gene_variance = None
-    if "variance" in gene_mod.layers:
-        gene_variance = pd.DataFrame(
-            _dense(gene_mod.layers["variance"]),
-            index=gene_mod.obs_names,
-            columns=gene_mod.var_names,
-        )
-
-    for gene in gene_mean.columns:
-        df_gene = pd.DataFrame(
-            {
-                "neighborhood_id": gene_mean.index.astype(str),
-                "mean": gene_mean[gene].to_numpy(),
-                "variance": (
-                    gene_variance[gene].to_numpy()
-                    if gene_variance is not None
-                    else np.zeros(len(gene_mean))
-                ),
-            }
-        )
-        df_gene.to_parquet(expression_dir / f"{gene}.parquet", index=False)
-
-    pop_matrix = pd.DataFrame(_dense(pop_mod.X), index=pop_mod.obs_names, columns=pop_mod.var_names)
-    pop_matrix.index.name = "neighborhood_id"
-    df_population = pop_matrix.reset_index().melt(
-        id_vars="neighborhood_id", var_name="category", value_name="proportion"
-    )
-    df_population.to_parquet(out_dir / "population.parquet", index=False)
-
 
 def write_gene_shapes(gdf_gene_alpha: gpd.GeoDataFrame, path_dega_files: str | Path) -> None:
     """Write `nbhd_cloud/gene_shapes/<gene>.parquet`, one file per gene (every slice).
@@ -356,17 +248,16 @@ def write_gene_shapes(gdf_gene_alpha: gpd.GeoDataFrame, path_dega_files: str | P
     (covering every slice) rather than one file per *slice* (covering every
     cluster), since the frontend always wants "this gene's shapes across the
     whole tissue" as a unit, never a single-slice subset. Deliberately not
-    scaled to the whole gene panel: a real alpha shape per gene is much more
-    expensive to compute than the per-neighborhood *mean* expression in
-    `expression/<gene>.parquet` (cheap for any number of genes), so this is
-    meant for a small, hand-picked marker gene list, not routine use.
+    scaled to the whole gene panel: a real alpha shape per gene is expensive
+    to compute, so this is meant for a small, hand-picked marker gene list,
+    not routine use.
 
-    Each row: `gene`, `slice_id`, `mean_expression`, `area`, `cell_count`,
-    `inv_alpha`, `geometry_geojson`. Also writes
-    `nbhd_cloud/gene_shapes/available_genes.json` — the manifest the
-    frontend checks before treating a selected gene as having its own alpha
-    shapes (vs. falling back to recoloring the cluster shapes by mean
-    expression, as it does for any gene without precomputed shapes).
+    Each row: `gene`, `slice_id`, `mean_expression`, `max_expression`,
+    `area`, `cell_count`, `inv_alpha`, `geometry_geojson`. Also writes
+    `nbhd_cloud/gene_shapes/available_genes.json` — `{gene: max_expression}`,
+    both the manifest the frontend checks before treating a selected gene as
+    having its own alpha shapes, and the normalization reference for that
+    gene's fill opacity (mirroring the per-cell gene-coloring convention).
 
     Parameters
     ----------
@@ -378,12 +269,13 @@ def write_gene_shapes(gdf_gene_alpha: gpd.GeoDataFrame, path_dega_files: str | P
     out_dir = Path(path_dega_files) / "nbhd_cloud" / "gene_shapes"
     out_dir.mkdir(parents=True, exist_ok=True)
 
+    available_genes: dict[str, float] = {}
     for gene, gdf_gene in gdf_gene_alpha.groupby("gene"):
         df_shape = pd.DataFrame(gdf_gene.drop(columns="geometry"))
         df_shape["geometry_geojson"] = [json.dumps(mapping(geom)) for geom in gdf_gene.geometry]
         df_shape.to_parquet(out_dir / f"{gene}.parquet", index=False)
+        available_genes[str(gene)] = float(gdf_gene["max_expression"].iloc[0])
 
-    available_genes = sorted(gdf_gene_alpha["gene"].unique().tolist())
     with (out_dir / "available_genes.json").open("w") as f:
         json.dump(available_genes, f, indent=2)
 
@@ -462,8 +354,7 @@ def write_nbhd_cloud_dataset(
     adata : AnnData
         Aligned 3D cell-level AnnData: `obsm["spatial"]` (x, y), `obs[cluster_attr]`,
         `obs[slice_attr]`, optionally `obs[z_attr]` (e.g. from
-        `celldega.align.serial_slices.align_serial_slices`), and `X` = gene
-        expression (used for nbhd-by-gene mean/variance).
+        `celldega.align.serial_slices.align_serial_slices`).
     nbhd : NeighborhoodCollection
         Caller-built neighborhood collection spanning all slices — e.g.
         `NeighborhoodCollection.from_gdf(alpha_shape_cell_clusters_by_slice(adata, ...))`.
@@ -481,8 +372,6 @@ def write_nbhd_cloud_dataset(
         slice_attr=slice_attr,
         z_attr=z_attr,
     )
-    write_nbhd_cloud_shapes_and_features(
-        adata, nbhd, path_dega_files, cluster_attr=cluster_attr, slice_attr=slice_attr
-    )
+    write_nbhd_cloud_shapes_and_features(nbhd, path_dega_files)
     write_meta_gene_for_nbhd_cloud(adata, path_dega_files)
     _write_nbhd_cloud_landscape_parameters(path_dega_files)

@@ -326,7 +326,9 @@ def alpha_shape_gene_expression_by_slice(
     gpd.GeoDataFrame
         One row per (slice, gene) shape, with columns `name`
         (`f"{slice_id}__{gene}"`), `gene`, `slice_id`, `geometry` (3D),
-        `area`, `inv_alpha`, `cell_count`, `mean_expression`.
+        `area`, `inv_alpha`, `cell_count`, `mean_expression`, and
+        `max_expression` (whole-tissue single-cell max for that gene,
+        repeated across every row of that gene — see `write_gene_shapes`).
     """
     if len(alphas) != 1:
         raise ValueError(
@@ -347,6 +349,15 @@ def alpha_shape_gene_expression_by_slice(
         col = adata.X[:, gene_positions[gene]]
         col = col.toarray() if hasattr(col, "toarray") else np.asarray(col)
         return col.ravel()
+
+    # Whole-tissue single-cell max per gene (every cell, every slice) — not
+    # the same thing as `mean_expression` below, which is a per-(slice, gene)
+    # average over just the expressing cells. This is what the frontend
+    # normalizes fill opacity against (mirroring the same convention used for
+    # per-cell gene coloring elsewhere), so a shape's alpha reflects how
+    # strongly it expresses relative to the single most extreme cell for that
+    # gene anywhere in the tissue, not just within its own slice.
+    gene_max_expression = {gene: float(_gene_column(gene).max()) for gene in gene_list}
 
     dfs: list[pd.DataFrame] = []
     for slice_id in obs[slice_attr].unique():
@@ -392,6 +403,7 @@ def alpha_shape_gene_expression_by_slice(
 
     gdf = gpd.GeoDataFrame(pd.concat(dfs, ignore_index=True), geometry="geometry")
     gdf["area"] = gdf.area
+    gdf["max_expression"] = gdf["gene"].map(gene_max_expression)
     return gdf
 
 

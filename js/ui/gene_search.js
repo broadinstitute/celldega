@@ -1,13 +1,57 @@
+import { select_nbhd_cloud_gene } from '../deck-gl/layers/nbhd_cloud_shapes_layer';
 import { update_cat, update_selected_cats } from '../global_variables/cat';
 import { update_cell_exp_array } from '../global_variables/cell_exp_array';
 import { update_selected_genes } from '../global_variables/selected_genes';
+import { sync_nbhd_cloud_opacity_sliders } from '../ui/bar_plot';
+import { refresh_layer } from '../utils/refresh_layer';
 
 import { set_gene_search_input } from './gene_search_input';
 
 let gene_search_options = [];
 let gene_datalist_counter = 0;
 
+// neighborhood-cloud's gene search is entirely separate from the legacy
+// per-cell path below: there's no cell_exp_array to update, and typing a
+// gene selects/clears its gene-shapes the same way clicking its bar does
+// (bar_callback_gene, bar_plot.js) -- this just drives the same underlying
+// function from the text input instead.
+const ist_gene_search_callback_nbhd_cloud = async (layers_obj, viz_state) => {
+  const inst_gene = viz_state.genes.gene_search_input.value;
+  // '' (cleared) and the literal 'cluster' option both mean "go back to
+  // cluster color" -- re-selecting the already-selected gene is exactly
+  // select_nbhd_cloud_gene's own reset case.
+  const isReset =
+    inst_gene === '' ||
+    inst_gene === 'cluster' ||
+    inst_gene === viz_state.nbhd_cloud.selected_gene;
+  const gene = isReset ? viz_state.nbhd_cloud.selected_gene : inst_gene;
+
+  if (gene == null) {
+    return;
+  }
+
+  await select_nbhd_cloud_gene(gene, viz_state, layers_obj);
+  refresh_layer(viz_state, layers_obj, 'nbhd_cloud_shapes_layer');
+  refresh_layer(viz_state, layers_obj, 'nbhd_cloud_cell_layer');
+  sync_nbhd_cloud_opacity_sliders(viz_state);
+
+  const hasSelection = viz_state.nbhd_cloud.selected_gene != null;
+  viz_state.genes.svg_bar_gene
+    ?.selectAll('rect')
+    .style('opacity', (bar) =>
+      !hasSelection || bar.name === viz_state.nbhd_cloud.selected_gene
+        ? 1.0
+        : 0.2
+    );
+  viz_state.nbhd_cloud.svg_bar_cluster?.selectAll('rect').style('opacity', 1.0);
+};
+
 const ist_gene_search_callback = async (deck_ist, layers_obj, viz_state) => {
+  if (viz_state.nbhd_cloud?.is_nbhd_cloud) {
+    await ist_gene_search_callback_nbhd_cloud(layers_obj, viz_state);
+    return;
+  }
+
   const inst_gene = viz_state.genes.gene_search_input.value;
 
   const new_cat = inst_gene === '' ? 'cluster' : inst_gene;
@@ -63,7 +107,12 @@ export const set_gene_search = async (
   layers_obj,
   viz_state
 ) => {
-  gene_search_options = ['cluster', ...viz_state.genes.gene_names];
+  // neighborhood-cloud only ever responds to the curated gene-shapes list
+  // (see select_nbhd_cloud_gene) -- listing the full gene panel here would
+  // mean most entries silently do nothing when picked.
+  gene_search_options = viz_state.nbhd_cloud?.is_nbhd_cloud
+    ? ['cluster', ...(viz_state.nbhd_cloud.available_gene_shapes?.keys() ?? [])]
+    : ['cluster', ...viz_state.genes.gene_names];
 
   viz_state.genes.gene_search.style.width = '115px';
 

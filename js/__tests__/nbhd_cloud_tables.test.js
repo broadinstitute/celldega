@@ -6,8 +6,6 @@ describe('neighborhood-cloud parquet table parsing', () => {
   let parse_shapes_table_to_features;
   let parse_gene_shapes_table_to_features;
   let parse_cells_tables;
-  let parse_gene_expression_table;
-  let parse_population_table;
 
   beforeAll(() => {
     const fs = require('fs');
@@ -24,7 +22,7 @@ describe('neighborhood-cloud parquet table parsing', () => {
       readStripped('../read_parquet/nbhd_cloud_tables.js'),
     ].join('\n');
 
-    const code = `${source}\nmodule.exports = { parse_meta_slice_table, parse_meta_neighborhood_table, parse_shapes_table_to_features, parse_gene_shapes_table_to_features, parse_cells_tables, parse_gene_expression_table, parse_population_table };`;
+    const code = `${source}\nmodule.exports = { parse_meta_slice_table, parse_meta_neighborhood_table, parse_shapes_table_to_features, parse_gene_shapes_table_to_features, parse_cells_tables };`;
     const module = { exports: {} };
     new Function('module', 'exports', code)(module, module.exports);
     ({
@@ -33,8 +31,6 @@ describe('neighborhood-cloud parquet table parsing', () => {
       parse_shapes_table_to_features,
       parse_gene_shapes_table_to_features,
       parse_cells_tables,
-      parse_gene_expression_table,
-      parse_population_table,
     } = module.exports);
   });
 
@@ -208,29 +204,5 @@ describe('neighborhood-cloud parquet table parsing', () => {
     const merged = parse_cells_tables([]);
     expect(merged.length).toBe(0);
     expect(merged.positions.length).toBe(0);
-  });
-
-  test('parse_gene_expression_table builds a neighborhood_id -> {mean, variance} map', () => {
-    const table = makeTable({
-      neighborhood_id: ['s0__0', 's0__1'],
-      mean: [1.5, 2.5],
-      variance: [0.1, 0.2],
-    });
-
-    const map = parse_gene_expression_table(table);
-    expect(map.get('s0__0')).toEqual({ mean: 1.5, variance: 0.1 });
-    expect(map.get('s0__1')).toEqual({ mean: 2.5, variance: 0.2 });
-  });
-
-  test('parse_population_table zips columns into row objects', () => {
-    const table = makeTable({
-      neighborhood_id: ['s0__0'],
-      category: ['0'],
-      proportion: [1.0],
-    });
-
-    expect(parse_population_table(table)).toEqual([
-      { neighborhood_id: 's0__0', category: '0', proportion: 1.0 },
-    ]);
   });
 });

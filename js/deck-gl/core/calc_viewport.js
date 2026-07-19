@@ -7,6 +7,7 @@ import {
 } from '../../utils/compact_data';
 import { rotate_point, rotate_point_inverse } from '../../utils/rotation';
 import { visibleTiles } from '../../vector_tile/visibleTiles';
+import { build_nbhd_cloud_gene_bar_data } from '../layers/nbhd_cloud_shapes_layer';
 import { update_path_layer_data } from '../layers/path_layer';
 import { update_trx_layer_data } from '../layers/trx_layer';
 
@@ -68,10 +69,14 @@ const publishBarDataIfChanged = (
   observable.set(nextData);
 };
 
-const getPointCloudGeneBars = (viz_state) =>
-  Array.isArray(viz_state.genes.top_gene_counts)
+const getPointCloudGeneBars = (viz_state) => {
+  if (viz_state.nbhd_cloud?.is_nbhd_cloud) {
+    return build_nbhd_cloud_gene_bar_data(viz_state.nbhd_cloud);
+  }
+  return Array.isArray(viz_state.genes.top_gene_counts)
     ? viz_state.genes.top_gene_counts
     : [];
+};
 
 const computeViewportGeneBars = (viz_state, viewportCache) => {
   const trxCompact =

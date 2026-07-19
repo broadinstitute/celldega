@@ -147,32 +147,3 @@ export const parse_cells_tables = (tables) => {
 
   return { length: totalLength, positions, clusterIds, sliceIds };
 };
-
-// `expression/<gene>.parquet`: neighborhood_id, mean, variance -> a lookup
-// map, fetched and parsed lazily only when that gene is selected.
-export const parse_gene_expression_table = (table) => {
-  const neighborhoodIds = getTableColumnArray(table, 'neighborhood_id');
-  const means = toNumberArray(getTableColumnArray(table, 'mean'));
-  const variances = toNumberArray(getTableColumnArray(table, 'variance'));
-
-  const byNeighborhood = new Map();
-  neighborhoodIds.forEach((neighborhood_id, i) => {
-    byNeighborhood.set(neighborhood_id, {
-      mean: means[i],
-      variance: variances[i],
-    });
-  });
-  return byNeighborhood;
-};
-
-export const parse_population_table = (table) => {
-  const neighborhoodIds = getTableColumnArray(table, 'neighborhood_id');
-  const categories = getTableColumnArray(table, 'category');
-  const proportions = toNumberArray(getTableColumnArray(table, 'proportion'));
-
-  return neighborhoodIds.map((neighborhood_id, i) => ({
-    neighborhood_id,
-    category: categories[i],
-    proportion: proportions[i],
-  }));
-};

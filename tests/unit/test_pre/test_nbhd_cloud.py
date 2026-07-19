@@ -102,9 +102,7 @@ def test_write_nbhd_cloud_shapes_and_features(tmp_path):
     adata = _synthetic_dataset()
     nbhd = _build_nbhd(adata)
 
-    write_nbhd_cloud_shapes_and_features(
-        adata, nbhd, tmp_path, cluster_attr="cluster", slice_attr="slice_id"
-    )
+    write_nbhd_cloud_shapes_and_features(nbhd, tmp_path)
 
     shapes_dir = tmp_path / "nbhd_cloud" / "shapes"
     assert {p.name for p in shapes_dir.glob("*.parquet")} == {
@@ -143,29 +141,14 @@ def test_write_nbhd_cloud_shapes_and_features(tmp_path):
     }.issubset(df_meta_nbhd.columns)
     assert (df_meta_nbhd["cell_count"] == 30).all()
 
-    expression_dir = tmp_path / "nbhd_cloud" / "expression"
-    assert {p.name for p in expression_dir.glob("*.parquet")} == {
-        "Gene0.parquet",
-        "Gene1.parquet",
-    }
-    df_gene0 = pd.read_parquet(expression_dir / "Gene0.parquet")
-    assert len(df_gene0) == 4
-    assert set(df_gene0.columns) == {"neighborhood_id", "mean", "variance"}
-    assert (df_gene0["variance"] >= 0).all()
-
-    df_population = pd.read_parquet(tmp_path / "nbhd_cloud" / "population.parquet")
-    assert set(df_population.columns) == {"neighborhood_id", "category", "proportion"}
-    # each neighborhood's own cluster should be ~100% of its population, since
-    # alpha shapes are tight blobs around a single cluster in this fixture
-    per_neighborhood = df_population.pivot(
-        index="neighborhood_id", columns="category", values="proportion"
-    )
-    assert np.isclose(per_neighborhood.sum(axis=1), 1.0).all()
-
-    # feature spaces are also attached to the NeighborhoodCollection itself
-    assert "gene" in nbhd.mod
-    assert "population" in nbhd.mod
-    assert "variance" in nbhd.mod["gene"].layers
+    # Per-neighborhood gene expression / population are no longer computed or
+    # written here -- gene coloring comes from the curated gene-shapes
+    # feature instead (see write_gene_shapes), and population was never
+    # surfaced in the frontend.
+    assert not (tmp_path / "nbhd_cloud" / "expression").exists()
+    assert not (tmp_path / "nbhd_cloud" / "population.parquet").exists()
+    assert "gene" not in nbhd.mod
+    assert "population" not in nbhd.mod
 
     # cell_clusters/meta_cluster.parquet is also written so the existing
     # cluster-color/cluster-bar machinery (shared by every technology) works
@@ -223,7 +206,9 @@ def test_write_gene_shapes(tmp_path):
     )
 
     with (gene_shapes_dir / "available_genes.json").open() as f:
-        assert json.load(f) == ["Matn1"]
+        manifest = json.load(f)
+    assert set(manifest) == {"Matn1"}
+    assert manifest["Matn1"] == pytest.approx(5.0)
 
 
 def test_write_cell_clusters_meta_requires_gdf_columns():
@@ -243,14 +228,13 @@ def test_write_nbhd_cloud_shapes_and_features_requires_slice_id_column():
     import geopandas as gpd
     from shapely.geometry import Point
 
-    adata = _synthetic_dataset(n_slices=1, n_clusters=1)
     bare_nbhd = NeighborhoodCollection(
         gdf=gpd.GeoDataFrame({"name": ["x"]}, geometry=[Point(0, 0).buffer(10)]),
         nbhd_type="manual",
     )
 
     with pytest.raises(ValueError, match="slice_id"):
-        write_nbhd_cloud_shapes_and_features(adata, bare_nbhd, "unused")
+        write_nbhd_cloud_shapes_and_features(bare_nbhd, "unused")
 
 
 def test_write_nbhd_cloud_dataset_end_to_end(tmp_path):
@@ -268,10 +252,10 @@ def test_write_nbhd_cloud_dataset_end_to_end(tmp_path):
 
     assert (tmp_path / "nbhd_cloud" / "meta_slice.parquet").exists()
     assert (tmp_path / "nbhd_cloud" / "meta_neighborhood.parquet").exists()
-    assert (tmp_path / "nbhd_cloud" / "population.parquet").exists()
+    assert not (tmp_path / "nbhd_cloud" / "population.parquet").exists()
+    assert not (tmp_path / "nbhd_cloud" / "expression").exists()
     assert (tmp_path / "nbhd_cloud" / "cells" / "by_cluster" / "cluster_0.parquet").exists()
     assert (tmp_path / "nbhd_cloud" / "shapes" / "slice_s0.parquet").exists()
-    assert (tmp_path / "nbhd_cloud" / "expression" / "Gene0.parquet").exists()
     assert (tmp_path / "cell_clusters" / "meta_cluster.parquet").exists()
     assert (tmp_path / "meta_gene.parquet").exists()
 

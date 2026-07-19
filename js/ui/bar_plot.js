@@ -3,9 +3,9 @@ import * as d3 from 'd3';
 import { new_toggle_cell_layer_visibility } from '../deck-gl/layers/cell_layer';
 import { refresh_nbhd_cloud_cluster_cells } from '../deck-gl/layers/nbhd_cloud_cell_layer';
 import {
+  apply_nbhd_cloud_slice_filter,
   select_nbhd_cloud_gene,
   toggle_nbhd_cloud_cluster_selection,
-  update_nbhd_cloud_shapes_data,
 } from '../deck-gl/layers/nbhd_cloud_shapes_layer';
 import { toggle_trx_layer_visibility } from '../deck-gl/layers/trx_layer';
 import { update_cat, update_selected_cats } from '../global_variables/cat';
@@ -16,6 +16,17 @@ import { refresh_layer } from '../utils/refresh_layer';
 
 export const make_bar_container = () => {
   return document.createElement('div');
+};
+
+// The NBHD slider controls cluster-color opacity; the repurposed TRX slider
+// controls gene-shapes opacity (sliders.js) -- only one mode is ever active
+// at a time, so only one slider should ever be enabled. Called after any
+// action that can change `nbhd_cloud.gene_shapes_mode` (cluster select, gene
+// select, shape click).
+export const sync_nbhd_cloud_opacity_sliders = (viz_state) => {
+  const geneMode = Boolean(viz_state.nbhd_cloud.gene_shapes_mode);
+  toggle_slider(viz_state.sliders.nbhd, !geneMode);
+  toggle_slider(viz_state.sliders.trx, geneMode);
 };
 
 export const bar_callback_cat = (
@@ -76,6 +87,14 @@ export const bar_callback_gene = async (
     await select_nbhd_cloud_gene(d.name, _viz_state, _layers_obj);
     refresh_layer(_viz_state, _layers_obj, 'nbhd_cloud_shapes_layer');
     refresh_layer(_viz_state, _layers_obj, 'nbhd_cloud_cell_layer');
+    sync_nbhd_cloud_opacity_sliders(_viz_state);
+
+    // A gene without precomputed shapes is a no-op (select_nbhd_cloud_gene
+    // leaves state untouched) -- don't relabel this bar as "selected" for a
+    // click that didn't actually do anything.
+    if (!isReset && !_viz_state.nbhd_cloud.available_gene_shapes?.has(d.name)) {
+      return;
+    }
 
     _viz_state.genes.svg_bar_gene
       .selectAll('rect')
@@ -276,13 +295,11 @@ export const bar_callback_nbhd_cloud_slice = async (
       !hasSelection || nbhd_cloud.selected_slice_ids.has(bar.name) ? 1.0 : 0.2
     );
 
-  const visibleFeatures = hasSelection
-    ? nbhd_cloud.shapes_features.filter((feature) =>
-        nbhd_cloud.selected_slice_ids.has(feature.properties.slice_id)
-      )
-    : nbhd_cloud.shapes_features;
-
-  update_nbhd_cloud_shapes_data(layers_obj, visibleFeatures);
+  // Filters whichever feature set is currently relevant -- cluster shapes,
+  // or the selected gene's own shapes if gene-shapes mode is active -- so
+  // isolating a slice while viewing a gene doesn't silently swap back to
+  // (filtered) cluster shapes while leaving gene-shapes mode's state stuck on.
+  apply_nbhd_cloud_slice_filter(viz_state, layers_obj);
   refresh_layer(viz_state, layers_obj, 'nbhd_cloud_shapes_layer');
 
   await refresh_nbhd_cloud_cluster_cells(viz_state, layers_obj);
@@ -304,6 +321,7 @@ export const bar_callback_nbhd_cloud_cluster = async (
   const clusterId = String(d.name);
   toggle_nbhd_cloud_cluster_selection(clusterId, viz_state, layers_obj);
   refresh_layer(viz_state, layers_obj, 'nbhd_cloud_shapes_layer');
+  sync_nbhd_cloud_opacity_sliders(viz_state);
 
   const hasSelection =
     (viz_state.nbhd_cloud.selected_cluster_ids?.size ?? 0) > 0;

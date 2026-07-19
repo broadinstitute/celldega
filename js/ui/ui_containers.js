@@ -9,6 +9,7 @@ import {
   sync_region_to_model,
 } from '../deck-gl/layers/edit_layer';
 import { toggle_visibility_image_layers } from '../deck-gl/layers/image_layers';
+import { build_nbhd_cloud_gene_bar_data } from '../deck-gl/layers/nbhd_cloud_shapes_layer';
 import { toggle_nbhd_layer_visibility } from '../deck-gl/layers/nbhd_layer';
 import { update_path_pickable_state } from '../deck-gl/layers/path_layer';
 import { update_trx_pickable_state } from '../deck-gl/layers/trx_layer';
@@ -673,16 +674,38 @@ export const make_ist_ui_container = (
     .sort((a, b) => b.value - a.value)
     .slice(0, max_num_gene_bars);
 
-  make_bar_graph(
-    viz_state.containers.bar_gene,
-    bar_callback_gene,
-    viz_state.genes.svg_bar_gene,
-    viz_state.genes.top_gene_counts,
-    viz_state.genes.color_dict_gene,
-    deck_ist,
-    layers_obj,
-    viz_state
-  );
+  if (viz_state.nbhd_cloud?.is_nbhd_cloud) {
+    // Only the curated gene-shapes list actually does anything when
+    // selected (select_nbhd_cloud_gene) -- listing the generic top-gene
+    // panel here would give ~100 bars that are all silent no-ops.
+    const geneColorDict = Object.fromEntries(
+      [...(viz_state.nbhd_cloud.available_gene_shapes ?? new Map())].map(
+        ([gene]) => [gene, [255, 0, 0]]
+      )
+    );
+
+    make_bar_graph(
+      viz_state.containers.bar_gene,
+      bar_callback_gene,
+      viz_state.genes.svg_bar_gene,
+      build_nbhd_cloud_gene_bar_data(viz_state.nbhd_cloud),
+      geneColorDict,
+      deck_ist,
+      layers_obj,
+      viz_state
+    );
+  } else {
+    make_bar_graph(
+      viz_state.containers.bar_gene,
+      bar_callback_gene,
+      viz_state.genes.svg_bar_gene,
+      viz_state.genes.top_gene_counts,
+      viz_state.genes.color_dict_gene,
+      deck_ist,
+      layers_obj,
+      viz_state
+    );
+  }
 
   if (viz_state.nbhd_cloud?.is_nbhd_cloud) {
     viz_state.nbhd_cloud.svg_bar_slice = d3.create('svg');
@@ -894,6 +917,14 @@ export const make_ist_ui_container = (
   ini_slider('trx', deck_ist, layers_obj, viz_state);
   trx_container.appendChild(trx_slider_container);
   trx_slider_container.appendChild(viz_state.sliders.trx);
+
+  if (viz_state.nbhd_cloud?.is_nbhd_cloud) {
+    // Cluster-color mode is the initial state -- the repurposed TRX slider
+    // (gene-shapes opacity) has nothing to control until a gene is
+    // selected, so it starts disabled (sync_nbhd_cloud_opacity_sliders,
+    // bar_plot.js, flips this once a gene is picked).
+    toggle_slider(viz_state.sliders.trx, false);
+  }
 
   gene_container.appendChild(trx_container);
   gene_container.appendChild(viz_state.containers.bar_gene);

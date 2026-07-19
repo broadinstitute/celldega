@@ -83,7 +83,6 @@ import { ImageRowGroupReader } from '../read_parquet/image_row_group_reader';
 import {
   parse_meta_neighborhood_table,
   parse_meta_slice_table,
-  parse_population_table,
   parse_shapes_table_to_features,
 } from '../read_parquet/nbhd_cloud_tables';
 // import {
@@ -545,30 +544,23 @@ export const landscape_ist = async (
   };
 
   if (viz_state.nbhd_cloud.is_nbhd_cloud) {
-    const [metaSliceTable, metaNeighborhoodTable, populationTable] =
-      await Promise.all([
-        get_arrow_table(
-          `${base_url}/nbhd_cloud/meta_slice.parquet`,
-          options.fetch,
-          viz_state.aws
-        ),
-        get_arrow_table(
-          `${base_url}/nbhd_cloud/meta_neighborhood.parquet`,
-          options.fetch,
-          viz_state.aws
-        ),
-        get_arrow_table(
-          `${base_url}/nbhd_cloud/population.parquet`,
-          options.fetch,
-          viz_state.aws
-        ),
-      ]);
+    const [metaSliceTable, metaNeighborhoodTable] = await Promise.all([
+      get_arrow_table(
+        `${base_url}/nbhd_cloud/meta_slice.parquet`,
+        options.fetch,
+        viz_state.aws
+      ),
+      get_arrow_table(
+        `${base_url}/nbhd_cloud/meta_neighborhood.parquet`,
+        options.fetch,
+        viz_state.aws
+      ),
+    ]);
 
     viz_state.nbhd_cloud.meta_slice = parse_meta_slice_table(metaSliceTable);
     viz_state.nbhd_cloud.meta_neighborhood = parse_meta_neighborhood_table(
       metaNeighborhoodTable
     );
-    viz_state.nbhd_cloud.population = parse_population_table(populationTable);
 
     // Shapes load in full up front (neighborhood counts are small — dozens
     // to hundreds, unlike cells), one parquet file per slice.
@@ -596,11 +588,9 @@ export const landscape_ist = async (
     }
 
     viz_state.nbhd_cloud.manual_fill_opacity = 1;
+    viz_state.nbhd_cloud.gene_fill_opacity = 1;
     viz_state.nbhd_cloud.selected_gene = null;
-    viz_state.nbhd_cloud.gene_stats = null;
-    viz_state.nbhd_cloud.selected_gene_max_mean = 0;
     viz_state.nbhd_cloud.gene_shapes_mode = false;
-    viz_state.nbhd_cloud.gene_shapes_max_mean = 0;
     viz_state.nbhd_cloud.available_gene_shapes =
       await fetch_available_gene_shapes(base_url, viz_state.aws);
   }

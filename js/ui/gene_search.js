@@ -30,10 +30,27 @@ const ist_gene_search_callback_nbhd_cloud = async (layers_obj, viz_state) => {
     return;
   }
 
+  const previousSelectedGene = viz_state.nbhd_cloud.selected_gene;
   await select_nbhd_cloud_gene(gene, viz_state, layers_obj);
   refresh_layer(viz_state, layers_obj, 'nbhd_cloud_shapes_layer');
   refresh_layer(viz_state, layers_obj, 'nbhd_cloud_cell_layer');
   sync_nbhd_cloud_opacity_sliders(viz_state);
+
+  // Drives the Uniprot gene-info panel (ui_containers.js's
+  // obs_store.selected_genes subscriber) -- only when the gene actually
+  // changed (an unavailable gene is a no-op in select_nbhd_cloud_gene, so
+  // `selected_gene` is unchanged; re-pushing the same value would trip
+  // update_selected_genes' own same-array-means-toggle-off heuristic and
+  // incorrectly clear the panel).
+  if (viz_state.nbhd_cloud.selected_gene !== previousSelectedGene) {
+    update_selected_genes(
+      viz_state.genes,
+      viz_state.nbhd_cloud.selected_gene != null
+        ? [viz_state.nbhd_cloud.selected_gene]
+        : [],
+      viz_state.obs_store
+    );
+  }
 
   const hasSelection = viz_state.nbhd_cloud.selected_gene != null;
   viz_state.genes.svg_bar_gene

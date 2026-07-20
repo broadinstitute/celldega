@@ -99,6 +99,16 @@ export const bar_callback_gene = async (
       return;
     }
 
+    // Drives the Uniprot gene-info panel (ui_containers.js's
+    // obs_store.selected_genes subscriber) -- nbhd-cloud's gene selection
+    // is otherwise entirely separate from this shared store, so without
+    // this the panel never updated for a gene picked via the gene bar.
+    update_selected_genes(
+      _viz_state.genes,
+      isReset ? [] : [d.name],
+      _viz_state.obs_store
+    );
+
     _viz_state.genes.svg_bar_gene
       .selectAll('rect')
       .style('opacity', (bar) => (isReset || bar.name === d.name ? 1.0 : 0.2));

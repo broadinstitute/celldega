@@ -2,8 +2,8 @@
 
 Deliberately decoupled from *how* the paired points were obtained (shared
 cluster centroids in :mod:`celldega.align.serial_slices` today; manually
-placed landmarks in a future paired multi-Z/multi-modality Landscape view)
-so the same fit/apply code can be reused across alignment contexts, and from
+placed landmarks from :class:`~celldega.align.widget.Landmark` also) so the
+same fit/apply code can be reused across alignment contexts, and from
 *which orchestration* calls it (chain-walking slices, atlas registration,
 modality registration), so new fitting algorithms plug in as another
 ``fit(source, target) -> Transform`` callable rather than requiring changes

@@ -3,7 +3,7 @@ import importlib.metadata  # temporary fix for libpysal warning
 import warnings
 
 from celldega import align, clust, collection, dataset, select, set, viz
-from celldega.align import align_serial_slices
+from celldega.align import Landmark, align_serial_slices
 from celldega.collection import CelldegaCollection
 from celldega.dataset import DatasetCollection
 from celldega.nbhd import alpha_shape
@@ -30,6 +30,7 @@ __all__ = [
     "CelldegaCollection",
     "Clustergram",
     "DatasetCollection",
+    "Landmark",
     "Landscape",
     "NeighborhoodCollection",
     "SetCollection",

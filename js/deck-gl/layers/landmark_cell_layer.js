@@ -56,7 +56,7 @@ export const ini_landmark_cell_layer = (
     getFillColor: (d) => {
       const rgb = d.color ? hexToRgb(d.color) : DEFAULT_COLOR;
       if (highlight_cluster && d.cluster !== highlight_cluster) {
-        return [...rgb, 50];
+        return [...rgb, 10];
       }
       return [...rgb, 220];
     },

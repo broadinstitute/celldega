@@ -72,18 +72,24 @@ export const landmark_ist = async (model, el) => {
     rows: { a: [], b: [] },
     features: { a: [], b: [] },
     highlight_cluster: { a: null, b: null },
-    rotation_deg: { a: 0, b: 0 },
+    // Rotation is remembered per *slice id*, not per side, so swapping away
+    // and back to a slice restores the angle you left it at.
+    rotation_deg_by_slice: {},
     centroid: { a: [0, 0], b: [0, 0] },
     rotation_state: {
       a: build_rotation_state(0, [0, 0]),
       b: build_rotation_state(0, [0, 0]),
     },
+    view_states: {},
   };
+
+  const rotation_deg_for_side = (side) =>
+    state.rotation_deg_by_slice[model.get(`slice_id_${side}`)] ?? 0;
 
   const recompute_rotation_state = (side) => {
     state.centroid[side] = centroid_of(state.rows[side]);
     state.rotation_state[side] = build_rotation_state(
-      state.rotation_deg[side],
+      rotation_deg_for_side(side),
       state.centroid[side]
     );
   };
@@ -127,20 +133,45 @@ export const landmark_ist = async (model, el) => {
     return side ? layer.id.endsWith(`-${side}`) : true;
   };
 
+  state.view_states = {
+    [view_id_for_side('a')]: initial_view_state_for_centroids(
+      state.rows.a,
+      panel_width,
+      height
+    ),
+    [view_id_for_side('b')]: initial_view_state_for_centroids(
+      state.rows.b,
+      panel_width,
+      height
+    ),
+  };
+
+  // Zoom is kept in sync across both views (translation/target is not) —
+  // requires staying fully controlled (`viewState`, not `initialViewState`)
+  // so a slice swap can also force a camera jump to the new slice's centroid.
+  const other_view_id = (view_id) =>
+    view_id === view_id_for_side('a')
+      ? view_id_for_side('b')
+      : view_id_for_side('a');
+
+  const sync_zoom_from = (view_id, zoom) => {
+    const partner = other_view_id(view_id);
+    state.view_states = {
+      ...state.view_states,
+      [partner]: { ...state.view_states[partner], zoom },
+    };
+  };
+
+  const handle_view_state_change = ({ viewId, viewState }) => {
+    state.view_states = { ...state.view_states, [viewId]: viewState };
+    sync_zoom_from(viewId, viewState.zoom);
+    deck_ist.setProps({ viewState: state.view_states });
+  };
+
   deck_ist.setProps({
     layerFilter: layer_filter,
-    initialViewState: {
-      [view_id_for_side('a')]: initial_view_state_for_centroids(
-        state.rows.a,
-        panel_width,
-        height
-      ),
-      [view_id_for_side('b')]: initial_view_state_for_centroids(
-        state.rows.b,
-        panel_width,
-        height
-      ),
-    },
+    viewState: state.view_states,
+    onViewStateChange: handle_view_state_change,
     layers: build_layers(),
   });
 
@@ -355,7 +386,7 @@ export const landmark_ist = async (model, el) => {
     container.style.gap = '6px';
 
     const rotation_slider = make_rotation_slider((degrees) => {
-      state.rotation_deg[side] = degrees;
+      state.rotation_deg_by_slice[model.get(`slice_id_${side}`)] = degrees;
       recompute_rotation_state(side);
       refresh();
     });
@@ -390,16 +421,27 @@ export const landmark_ist = async (model, el) => {
 
   const on_side_swapped = async (side) => {
     state.rows[side] = await decode_centroids(model, side);
-    state.rotation_deg[side] = 0;
     recompute_rotation_state(side);
-    set_rotation_slider_value(rotation_sliders[side], 0);
+    set_rotation_slider_value(
+      rotation_sliders[side],
+      rotation_deg_for_side(side)
+    );
     state.features[side] = geojson_to_features(
       model.get(`landmark_geojson_${side}`)
     );
     state.draft[side] = null;
     state.highlight_cluster[side] = null;
     rebuild_legend();
-    refresh();
+
+    const view_id = view_id_for_side(side);
+    const new_view_state = initial_view_state_for_centroids(
+      state.rows[side],
+      panel_width,
+      height
+    );
+    state.view_states = { ...state.view_states, [view_id]: new_view_state };
+    sync_zoom_from(view_id, new_view_state.zoom);
+    deck_ist.setProps({ viewState: state.view_states, layers: build_layers() });
   };
 
   model.on('change:slice_id_a', () => on_side_swapped('a'));

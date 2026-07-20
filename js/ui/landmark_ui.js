@@ -151,50 +151,69 @@ export const set_rotation_slider_value = ({ slider, label }, degrees) => {
   label.textContent = `${degrees}°`;
 };
 
-export const make_cluster_legend = (categories, on_select) => {
+/** A CELL/TRX-style label + pill toggle switch, mirroring Landscape's
+ * layer-visibility toggles. `on_change(checked)` fires on click. */
+export const make_toggle_button = (
+  label_text,
+  { checked = true, disabled = false } = {}
+) => {
+  const container = document.createElement('label');
+  container.style.display = 'inline-flex';
+  container.style.alignItems = 'center';
+  container.style.gap = '4px';
+  container.style.fontSize = '11px';
+  container.style.fontWeight = '700';
+  container.style.color = disabled ? '#b0b0b0' : 'blue';
+  container.style.cursor = disabled ? 'default' : 'pointer';
+  container.style.userSelect = 'none';
+
+  const label = document.createElement('span');
+  label.textContent = label_text;
+
+  const input = document.createElement('input');
+  input.type = 'checkbox';
+  input.checked = checked;
+  input.disabled = disabled;
+  input.style.accentColor = 'blue';
+  input.style.cursor = disabled ? 'default' : 'pointer';
+
+  container.append(label, input);
+  return { container, input };
+};
+
+/** A small labeled range slider, matching `make_rotation_slider`'s shape —
+ * used for cell-point-radius control. */
+export const make_range_slider = (
+  { min, max, step, value, format, title },
+  on_change
+) => {
   const container = document.createElement('div');
-  container.className = 'landmark-cluster-legend';
   container.style.display = 'flex';
-  container.style.flexWrap = 'wrap';
-  container.style.gap = '3px';
-  container.style.padding = '2px 4px';
+  container.style.alignItems = 'center';
+  container.style.gap = '4px';
   container.style.fontSize = '9px';
 
-  let selected = null;
-  const items = [];
+  const label = document.createElement('span');
+  label.textContent = format(value);
+  label.style.width = '20px';
+  label.style.textAlign = 'right';
 
-  categories.forEach(({ cluster, color }) => {
-    const item = document.createElement('span');
-    item.style.display = 'inline-flex';
-    item.style.alignItems = 'center';
-    item.style.cursor = 'pointer';
-    item.style.padding = '1px 4px';
-    item.style.borderRadius = '3px';
-    item.style.border = '1px solid transparent';
+  const slider = document.createElement('input');
+  slider.type = 'range';
+  slider.min = String(min);
+  slider.max = String(max);
+  slider.step = String(step);
+  slider.value = String(value);
+  slider.style.width = '60px';
+  slider.title = title || '';
 
-    const swatch = document.createElement('span');
-    swatch.style.width = '8px';
-    swatch.style.height = '8px';
-    swatch.style.borderRadius = '50%';
-    swatch.style.backgroundColor = color;
-    swatch.style.marginRight = '3px';
-
-    const label = document.createElement('span');
-    label.textContent = cluster;
-
-    item.append(swatch, label);
-    item.addEventListener('click', () => {
-      selected = selected === cluster ? null : cluster;
-      items.forEach((entry) => {
-        entry.el.style.borderColor =
-          entry.cluster === selected ? '#8797ff' : 'transparent';
-      });
-      on_select(selected);
-    });
-
-    container.appendChild(item);
-    items.push({ cluster, el: item });
+  slider.addEventListener('input', () => {
+    const numeric = Number(slider.value);
+    label.textContent = format(numeric);
+    on_change(numeric);
   });
 
-  return container;
+  container.append(slider, label);
+  return { container, slider, label };
 };
+

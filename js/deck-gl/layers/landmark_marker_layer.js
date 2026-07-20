@@ -41,11 +41,12 @@ export const PENTAGON_ICON_MAPPING = {
 export const ini_landmark_marker_layer = (
   side,
   features,
-  { selected_label, rotation_state } = {}
+  { selected_label, rotation_state, visible = true } = {}
 ) =>
   new IconLayer({
     id: `landmark-icon-${side}`,
     data: features,
+    visible,
     iconAtlas: PENTAGON_ICON_ATLAS,
     iconMapping: PENTAGON_ICON_MAPPING,
     getIcon: () => 'pentagon',

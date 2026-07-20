@@ -175,3 +175,70 @@ def test_calc_alignment_transform_forwards_to_module_function():
 
     transform = lm.calc_alignment_transform(min_shared_landmarks=2)
     assert set(transform.slice_ids) == {0, 1}
+
+
+def test_slice_cell_counts():
+    rng = np.random.default_rng(9)
+    lm = Landmark(adatas=[_make_slice(rng, n=7), _make_slice(rng, n=13)])
+    assert lm.slice_cell_counts == {"0": 7, "1": 13}
+
+
+def test_cluster_counts_and_colors_are_summed_and_consistent_across_slices():
+    rng = np.random.default_rng(10)
+    adata_0 = _make_slice(rng, n=10, cluster=True)
+    adata_1 = _make_slice(rng, n=10, cluster=True)
+    lm = Landmark(adatas=[adata_0, adata_1], cluster_key="cluster")
+
+    assert set(lm.cluster_counts) == {"a", "b"}
+    assert lm.cluster_counts["a"] + lm.cluster_counts["b"] == 20
+    assert set(lm.cluster_colors) == {"a", "b"}
+    # Same global color dict backs every slice's centroid parquet, so label
+    # "a" is the same color regardless of which slice is currently shown.
+    assert lm.cluster_colors["a"] != lm.cluster_colors["b"]
+
+
+def test_cluster_key_missing_from_some_slice_raises():
+    rng = np.random.default_rng(11)
+    adatas = [_make_slice(rng, cluster=True), _make_slice(rng, cluster=False)]
+    with pytest.raises(ValueError, match="cluster"):
+        Landmark(adatas=adatas, cluster_key="cluster")
+
+
+def test_no_cluster_key_leaves_cluster_counts_empty():
+    rng = np.random.default_rng(12)
+    lm = Landmark(adatas=_make_two_slices(rng))
+    assert lm.cluster_counts == {}
+    assert lm.cluster_colors == {}
+
+
+def test_landmark_coverage_counts_distinct_slices_per_label():
+    rng = np.random.default_rng(12)
+    adatas = [_make_slice(rng) for _ in range(3)]
+    lm = Landmark(adatas=adatas)  # initial pair 0, 1
+
+    lm.landmark_geojson_a = {
+        "type": "FeatureCollection",
+        "features": [_pair_feature("1", 1.0, 1.0)],
+    }
+    lm.landmark_geojson_b = {
+        "type": "FeatureCollection",
+        "features": [_pair_feature("1", 2.0, 2.0)],
+    }
+    assert lm.landmark_coverage == {"1": 2}
+
+    # Extend label "1" onto slice 2 by swapping side a there and saving the
+    # same label again — slice 0's and slice 1's "1" rows are untouched
+    # (commits only ever replace the currently-shown side's own slice), so
+    # this adds a third slice to label "1"'s coverage rather than moving it.
+    lm.slice_id_a = "2"
+    lm.landmark_geojson_a = {
+        "type": "FeatureCollection",
+        "features": [_pair_feature("1", 9.0, 9.0)],
+    }
+    assert lm.landmark_coverage == {"1": 3}
+
+    lm.landmark_geojson_b = {
+        "type": "FeatureCollection",
+        "features": [*lm.landmark_geojson_b["features"], _pair_feature("2", 3.0, 3.0)],
+    }
+    assert lm.landmark_coverage == {"1": 3, "2": 1}

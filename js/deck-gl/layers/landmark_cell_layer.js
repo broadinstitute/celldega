@@ -26,32 +26,24 @@ export const centroid_rows_from_parquet = (parsed) => {
   }));
 };
 
-/** Distinct (cluster, color) pairs present in a side's centroid rows, for the legend. */
-export const cluster_categories = (rows) => {
-  const seen = new Map();
-  rows.forEach((row) => {
-    if (row.cluster != null && !seen.has(row.cluster)) {
-      seen.set(row.cluster, row.color || '#4f80ff');
-    }
-  });
-  return Array.from(seen, ([cluster, color]) => ({ cluster, color }));
-};
-
 /**
  * Cell rows keep their true (data-space) x/y; `rotation_state` (from
  * `build_rotation_state`, same helper Landscape's `rotate` uses) is applied
  * as a GPU `modelMatrix`, not a per-point transform, so a coarse manual
  * rotation can assist visual alignment without touching the coordinates
- * landmarks get stored in.
+ * landmarks get stored in. `highlight_cluster` is shared across both sides
+ * (one CELL bar, not per-side), so selecting a cluster dims non-matching
+ * cells identically on both views.
  */
 export const ini_landmark_cell_layer = (
   side,
   rows,
-  { highlight_cluster, rotation_state } = {}
+  { highlight_cluster, rotation_state, visible = true, radius = 3 } = {}
 ) =>
   new ScatterplotLayer({
     id: `landmark-cell-${side}`,
     data: rows,
+    visible,
     getPosition: (d) => [d.x, d.y],
     getFillColor: (d) => {
       const rgb = d.color ? hexToRgb(d.color) : DEFAULT_COLOR;
@@ -60,12 +52,13 @@ export const ini_landmark_cell_layer = (
       }
       return [...rgb, 220];
     },
-    getRadius: 3,
+    getRadius: radius,
     radiusUnits: 'pixels',
     radiusMinPixels: 1.5,
     pickable: true,
     updateTriggers: {
       getFillColor: [highlight_cluster],
+      getRadius: [radius],
     },
     ...getModelMatrixProps(rotation_state),
   });

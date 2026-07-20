@@ -52,7 +52,64 @@ def _df_to_parquet_bytes(df: pd.DataFrame) -> bytes:
     return buf.getvalue()
 
 
-def _slice_centroids(adata: AnnData, cluster_key: str | None) -> pd.DataFrame:
+def _slice_categories(adata: AnnData, cluster_key: str) -> list[str]:
+    series = adata.obs[cluster_key]
+    if isinstance(series.dtype, pd.CategoricalDtype):
+        return [str(c) for c in series.dtype.categories]
+    return sorted(series.astype(str).unique())
+
+
+def _global_cluster_colors(all_slices: list[AnnData], cluster_key: str) -> dict[str, str]:
+    """One color per cluster label, consistent across every slice.
+
+    Splitting a single combined ``AnnData`` by ``slice_attr`` already shares
+    one categorical dtype/colors across every split, so this only matters
+    for a list of genuinely separate ``AnnData`` — reuses the first slice's
+    own ``uns[f"{cluster_key}_colors"]`` if present, falling back to an
+    evenly-spaced HSV palette over the pooled category list otherwise, so a
+    given cluster label never gets a different color depending on which
+    slice happens to be showing.
+    """
+    categories: list[str] = []
+    seen: set[str] = set()
+    colors_source: tuple[list[str], list[str]] | None = None
+
+    for adata in all_slices:
+        cats = _slice_categories(adata, cluster_key)
+        for cat in cats:
+            if cat not in seen:
+                seen.add(cat)
+                categories.append(cat)
+        if colors_source is None:
+            colors = adata.uns.get(f"{cluster_key}_colors")
+            if colors is not None:
+                colors_source = (cats, list(colors))
+
+    if colors_source is not None:
+        cats, colors = colors_source
+        color_by_category = dict(zip(cats, colors, strict=False))
+    else:
+        color_by_category = {}
+
+    n = max(len(categories), 1)
+    for i, cat in enumerate(categories):
+        color_by_category.setdefault(cat, _hsv_to_hex(i / n))
+    return color_by_category
+
+
+def _global_cluster_counts(all_slices: list[AnnData], cluster_key: str) -> dict[str, int]:
+    """Cluster label -> cell count, summed across every slice in the dataset
+    (not just the two currently shown), for the shared CELL bar graph."""
+    counts: dict[str, int] = {}
+    for adata in all_slices:
+        for cat, count in adata.obs[cluster_key].astype(str).value_counts().items():
+            counts[cat] = counts.get(cat, 0) + int(count)
+    return counts
+
+
+def _slice_centroids(
+    adata: AnnData, cluster_key: str | None, color_by_category: dict[str, str] | None
+) -> pd.DataFrame:
     """One slice's cell centroids (+ optional cluster/color) for a Landmark viewport."""
     spatial = adata.obsm.get("spatial")
     if spatial is None or np.asarray(spatial).shape[1] < 2:
@@ -66,22 +123,8 @@ def _slice_centroids(adata: AnnData, cluster_key: str | None) -> pd.DataFrame:
         df["color"] = _DEFAULT_MARKER_COLOR
         return df.reset_index()
 
-    if cluster_key not in adata.obs.columns:
-        raise ValueError(f"'{cluster_key}' is not a column in adata.obs")
-
-    series = adata.obs[cluster_key]
-    categories = (
-        list(series.dtype.categories)
-        if isinstance(series.dtype, pd.CategoricalDtype)
-        else sorted(series.astype(str).unique())
-    )
-    colors = adata.uns.get(f"{cluster_key}_colors")
-    if colors is None:
-        colors = [_hsv_to_hex(i / len(categories)) for i in range(len(categories))]
-    color_by_category = {str(cat): color for cat, color in zip(categories, colors, strict=False)}
-
-    df["cluster"] = series.astype(str).to_numpy()
-    df["color"] = df["cluster"].map(color_by_category).fillna(_DEFAULT_MARKER_COLOR)
+    df["cluster"] = adata.obs[cluster_key].astype(str).to_numpy()
+    df["color"] = df["cluster"].map(color_by_category or {}).fillna(_DEFAULT_MARKER_COLOR)
     return df.reset_index()
 
 
@@ -145,6 +188,18 @@ class Landmark(anywidget.AnyWidget):
     # so labels never collide even across many slice swaps.
     next_landmark_label = traitlets.Int(1).tag(sync=True)
 
+    # Static per-slice cell counts (for a "SLICE" bar graph), and per-label
+    # count of distinct slices a landmark has a saved point in (for a
+    # "LNDMRK" bar graph) — the latter recomputed whenever `landmarks` changes.
+    slice_cell_counts = traitlets.Dict({}).tag(sync=True)
+    landmark_coverage = traitlets.Dict({}).tag(sync=True)
+
+    # Cluster label -> cell count summed across every slice (not just the
+    # two currently shown) and -> color, for the single shared CELL bar
+    # graph. Static; empty if no `cluster_key` was given.
+    cluster_counts = traitlets.Dict({}).tag(sync=True)
+    cluster_colors = traitlets.Dict({}).tag(sync=True)
+
     # Python-only materialized table, spanning every slice visited so far.
     landmarks = traitlets.Instance(pd.DataFrame, allow_none=True)
 
@@ -181,6 +236,16 @@ class Landmark(anywidget.AnyWidget):
         self._slices_by_str = {str(s): a for s, a in zip(all_slice_ids, all_slices, strict=True)}
         self._centroid_cache: dict[str, bytes] = {}
 
+        if cluster_key is not None:
+            missing_cluster_key = [a for a in all_slices if cluster_key not in a.obs.columns]
+            if missing_cluster_key:
+                raise ValueError(f"'{cluster_key}' is not a column in every slice's adata.obs")
+            self._cluster_colors = _global_cluster_colors(all_slices, cluster_key)
+            cluster_counts = _global_cluster_counts(all_slices, cluster_key)
+        else:
+            self._cluster_colors = {}
+            cluster_counts = {}
+
         if slices is not None:
             if len(slices) != 2:
                 raise ValueError(f"slices must select exactly 2 slice ids, got {len(slices)}")
@@ -199,6 +264,12 @@ class Landmark(anywidget.AnyWidget):
         )
         kwargs.setdefault("slice_id_a", str(initial_a))
         kwargs.setdefault("slice_id_b", str(initial_b))
+        kwargs.setdefault(
+            "slice_cell_counts",
+            {str(s): int(a.n_obs) for s, a in zip(all_slice_ids, all_slices, strict=True)},
+        )
+        kwargs.setdefault("cluster_counts", cluster_counts)
+        kwargs.setdefault("cluster_colors", dict(self._cluster_colors))
 
         self.add_traits(
             centroids_parquet_a=traitlets.Bytes(b"").tag(sync=True),
@@ -214,7 +285,7 @@ class Landmark(anywidget.AnyWidget):
         if slice_id_str not in self._centroid_cache:
             adata = self._slices_by_str[slice_id_str]
             self._centroid_cache[slice_id_str] = _df_to_parquet_bytes(
-                _slice_centroids(adata, self._cluster_key)
+                _slice_centroids(adata, self._cluster_key, self._cluster_colors)
             )
         return self._centroid_cache[slice_id_str]
 
@@ -289,6 +360,16 @@ class Landmark(anywidget.AnyWidget):
         new_rows = pd.DataFrame(rows, columns=["label", "x", "y", self._slice_attr])
         self.landmarks = pd.concat([others, new_rows], ignore_index=True)
         self._bump_label_counter(row["label"] for row in rows)
+        self._recompute_landmark_coverage()
+
+    def _recompute_landmark_coverage(self) -> None:
+        """Number of distinct slices each landmark label has a saved point in,
+        for the front end's LNDMRK bar graph (bar length = this count)."""
+        if self.landmarks is None or self.landmarks.empty:
+            self.landmark_coverage = {}
+            return
+        counts = self.landmarks.groupby("label")[self._slice_attr].nunique()
+        self.landmark_coverage = {str(label): int(count) for label, count in counts.items()}
 
     def _bump_label_counter(self, labels) -> None:
         numeric = []

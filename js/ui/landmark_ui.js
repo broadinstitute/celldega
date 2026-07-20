@@ -111,6 +111,46 @@ export const register_landmark_keyboard_shortcuts = ({
   return () => document.removeEventListener('keydown', handler);
 };
 
+/** A coarse manual-rotation slider for one side, to assist visually lining
+ * up features before precisely placing landmarks. Purely a display aid —
+ * see `rotation_state`/`getModelMatrixProps` in the landmark layers. */
+export const make_rotation_slider = (on_change) => {
+  const container = document.createElement('div');
+  container.className = 'landmark-rotation-slider';
+  container.style.display = 'flex';
+  container.style.alignItems = 'center';
+  container.style.gap = '4px';
+  container.style.fontSize = '9px';
+
+  const label = document.createElement('span');
+  label.textContent = '0°';
+  label.style.width = '28px';
+  label.style.textAlign = 'right';
+
+  const slider = document.createElement('input');
+  slider.type = 'range';
+  slider.min = '-180';
+  slider.max = '180';
+  slider.step = '1';
+  slider.value = '0';
+  slider.style.width = '90px';
+  slider.title = 'Rotate this slice (display only)';
+
+  slider.addEventListener('input', () => {
+    const degrees = Number(slider.value);
+    label.textContent = `${degrees}°`;
+    on_change(degrees);
+  });
+
+  container.append(slider, label);
+  return { container, slider, label };
+};
+
+export const set_rotation_slider_value = ({ slider, label }, degrees) => {
+  slider.value = String(degrees);
+  label.textContent = `${degrees}°`;
+};
+
 export const make_cluster_legend = (categories, on_select) => {
   const container = document.createElement('div');
   container.className = 'landmark-cluster-legend';

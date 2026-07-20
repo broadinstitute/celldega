@@ -1,5 +1,7 @@
 import { IconLayer } from 'deck.gl';
 
+import { getModelMatrixProps } from '../../utils/rotation';
+
 const ICON_SIZE = 64;
 
 const DRAFT_COLOR = [255, 165, 0];
@@ -29,10 +31,17 @@ export const PENTAGON_ICON_MAPPING = {
   pentagon: { x: 0, y: 0, width: ICON_SIZE, height: ICON_SIZE, mask: true },
 };
 
+/**
+ * Features keep their true (data-space) coordinates in `geometry.coordinates`
+ * — `rotation_state` is applied as a GPU `modelMatrix`, mirroring
+ * `ini_landmark_cell_layer`. Picked/dragged screen coordinates must be
+ * unrotated (see `rotate_point_inverse` in `utils/rotation`) before being
+ * written back into a feature's geometry.
+ */
 export const ini_landmark_marker_layer = (
   side,
   features,
-  { selected_label } = {}
+  { selected_label, rotation_state } = {}
 ) =>
   new IconLayer({
     id: `landmark-icon-${side}`,
@@ -51,6 +60,7 @@ export const ini_landmark_marker_layer = (
     updateTriggers: {
       getColor: [selected_label],
     },
+    ...getModelMatrixProps(rotation_state),
   });
 
 /** Committed-only (never drafts) GeoJSON FeatureCollection, matching the

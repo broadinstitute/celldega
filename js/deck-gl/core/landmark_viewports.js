@@ -53,9 +53,23 @@ export const side_for_viewport_id = (viewport_id) => {
 export const view_id_for_side = (side) =>
   side === 'a' ? LANDMARK_VIEW_ID_A : LANDMARK_VIEW_ID_B;
 
+/** Mean position — also the pivot `build_rotation_state` should rotate around. */
+export const centroid_of = (rows) => {
+  if (!rows.length) return [0, 0];
+  let sum_x = 0;
+  let sum_y = 0;
+  rows.forEach((row) => {
+    sum_x += row.x;
+    sum_y += row.y;
+  });
+  return [sum_x / rows.length, sum_y / rows.length];
+};
+
 /**
- * Center + zoom that fits a slice's centroids inside one panel, so swapping
- * to a very differently-scaled slice starts from a sane view.
+ * Camera centered on a slice's own centroid (mean position) rather than its
+ * bounding-box midpoint, with zoom fit from the bounding-box span — so
+ * swapping to a very differently-scaled/offset slice starts from a sane,
+ * centered view.
  */
 export const initial_view_state_for_centroids = (
   rows,
@@ -82,9 +96,10 @@ export const initial_view_state_for_centroids = (
   const span_y = Math.max(max_y - min_y, 1e-6);
   const zoom =
     Math.log2(Math.min(panel_width / span_x, panel_height / span_y)) - 0.2;
+  const [cx, cy] = centroid_of(rows);
 
   return {
-    target: [(min_x + max_x) / 2, (min_y + max_y) / 2, 0],
+    target: [cx, cy, 0],
     zoom,
   };
 };

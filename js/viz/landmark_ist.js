@@ -4,6 +4,7 @@ import {
   landmark_panel_width,
   side_for_viewport_id,
   view_id_for_side,
+  centroid_of,
   initial_view_state_for_centroids,
 } from '../deck-gl/core/landmark_viewports';
 import {
@@ -24,7 +25,10 @@ import {
   set_del_button_visible,
   register_landmark_keyboard_shortcuts,
   make_cluster_legend,
+  make_rotation_slider,
+  set_rotation_slider_value,
 } from '../ui/landmark_ui';
+import { build_rotation_state, rotate_point_inverse } from '../utils/rotation';
 
 const SIDES = ['a', 'b'];
 
@@ -68,6 +72,20 @@ export const landmark_ist = async (model, el) => {
     rows: { a: [], b: [] },
     features: { a: [], b: [] },
     highlight_cluster: { a: null, b: null },
+    rotation_deg: { a: 0, b: 0 },
+    centroid: { a: [0, 0], b: [0, 0] },
+    rotation_state: {
+      a: build_rotation_state(0, [0, 0]),
+      b: build_rotation_state(0, [0, 0]),
+    },
+  };
+
+  const recompute_rotation_state = (side) => {
+    state.centroid[side] = centroid_of(state.rows[side]);
+    state.rotation_state[side] = build_rotation_state(
+      state.rotation_deg[side],
+      state.centroid[side]
+    );
   };
 
   const [rows_a, rows_b] = await Promise.all(
@@ -75,6 +93,7 @@ export const landmark_ist = async (model, el) => {
   );
   state.rows.a = rows_a;
   state.rows.b = rows_b;
+  SIDES.forEach(recompute_rotation_state);
   state.features.a = geojson_to_features(model.get('landmark_geojson_a'));
   state.features.b = geojson_to_features(model.get('landmark_geojson_b'));
 
@@ -91,9 +110,11 @@ export const landmark_ist = async (model, el) => {
     SIDES.flatMap((side) => [
       ini_landmark_cell_layer(side, state.rows[side], {
         highlight_cluster: state.highlight_cluster[side],
+        rotation_state: state.rotation_state[side],
       }),
       ini_landmark_marker_layer(side, combined_features(side), {
         selected_label: state.selected_label,
+        rotation_state: state.rotation_state[side],
       }),
     ]);
 
@@ -153,10 +174,10 @@ export const landmark_ist = async (model, el) => {
     }
   }
 
-  function place_draft(side, coordinate) {
+  function place_draft(side, true_coordinate) {
     state.draft[side] = {
       type: 'Feature',
-      geometry: { type: 'Point', coordinates: [coordinate[0], coordinate[1]] },
+      geometry: { type: 'Point', coordinates: true_coordinate },
       properties: { label: String(state.next_label), draft: true },
     };
     refresh();
@@ -212,6 +233,19 @@ export const landmark_ist = async (model, el) => {
   }
 
   // --- Pointer interaction ---------------------------------------------------
+  // `info.coordinate` is in display (post-rotation) space — every place a
+  // picked/dragged point gets written into draft/feature geometry, it must
+  // first go through `rotate_point_inverse` to land back in the slice's
+  // true data-space coordinates (same contract as `calc_viewport.js`).
+
+  const to_true_coordinate = (side, coordinate) => {
+    const [x, y] = rotate_point_inverse(
+      coordinate[0],
+      coordinate[1],
+      state.rotation_state[side]
+    );
+    return [x, y];
+  };
 
   let dragging = null; // { side, label, is_draft }
 
@@ -230,7 +264,7 @@ export const landmark_ist = async (model, el) => {
     }
 
     if (state.mark_mode && !state.draft[side] && info.coordinate) {
-      place_draft(side, info.coordinate);
+      place_draft(side, to_true_coordinate(side, info.coordinate));
     }
   };
 
@@ -248,7 +282,7 @@ export const landmark_ist = async (model, el) => {
   const handle_drag = (info) => {
     if (!dragging || !info.coordinate) return;
     const { side, label, is_draft } = dragging;
-    const coordinates = [info.coordinate[0], info.coordinate[1]];
+    const coordinates = to_true_coordinate(side, info.coordinate);
     if (is_draft) {
       state.draft[side] = {
         ...state.draft[side],
@@ -296,7 +330,7 @@ export const landmark_ist = async (model, el) => {
     on_delete: () => delete_selected(),
   });
 
-  // --- Slice-swap dropdowns ---------------------------------------------------
+  // --- Slice-swap dropdowns + rotation sliders --------------------------------
 
   const slice_ids = model.get('slice_ids') || [];
   const slice_labels = model.get('slice_labels') || {};
@@ -312,11 +346,26 @@ export const landmark_ist = async (model, el) => {
       }
     );
 
-  const header_a = document.createElement('div');
-  header_a.appendChild(make_side_dropdown('a'));
-  const header_b = document.createElement('div');
-  header_b.appendChild(make_side_dropdown('b'));
-  header_row.append(header_a, header_b);
+  const rotation_sliders = {};
+
+  const make_side_header = (side) => {
+    const container = document.createElement('div');
+    container.style.display = 'flex';
+    container.style.alignItems = 'center';
+    container.style.gap = '6px';
+
+    const rotation_slider = make_rotation_slider((degrees) => {
+      state.rotation_deg[side] = degrees;
+      recompute_rotation_state(side);
+      refresh();
+    });
+    rotation_sliders[side] = rotation_slider;
+
+    container.append(make_side_dropdown(side), rotation_slider.container);
+    return container;
+  };
+
+  header_row.append(make_side_header('a'), make_side_header('b'));
 
   // --- Cluster legends ---------------------------------------------------------
 
@@ -341,6 +390,9 @@ export const landmark_ist = async (model, el) => {
 
   const on_side_swapped = async (side) => {
     state.rows[side] = await decode_centroids(model, side);
+    state.rotation_deg[side] = 0;
+    recompute_rotation_state(side);
+    set_rotation_slider_value(rotation_sliders[side], 0);
     state.features[side] = geojson_to_features(
       model.get(`landmark_geojson_${side}`)
     );

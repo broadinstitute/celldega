@@ -53,6 +53,7 @@ from celldega.align._transform import (
     load_transform,
     save_transform,
 )
+from celldega.align.plot import plot_alignment
 
 
 __all__ = ["SerialAlignmentTransform", "align_serial_slices", "calc_alignment_transform"]
@@ -248,6 +249,13 @@ class SerialAlignmentTransform:
         point data tied to that slice.
         """
         return self.transforms[slice_id].apply(points)
+
+    def plot(self, **kwargs) -> tuple[Any, Any]:
+        """2D before/after scatter of this alignment's landmarks — a quick
+        visual check of fit quality. See :func:`~celldega.align.plot.plot_alignment`
+        for the ``color_by``/``figsize`` options accepted here.
+        """
+        return plot_alignment(self, **kwargs)
 
     def save(self, path: str | Path) -> None:
         """Save this transform to a directory of plain files — no ``pickle``.

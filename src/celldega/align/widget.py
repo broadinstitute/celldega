@@ -107,6 +107,36 @@ def _global_cluster_counts(all_slices: list[AnnData], cluster_key: str) -> dict[
     return counts
 
 
+def _geojson_from_landmarks(landmarks: pd.DataFrame | None, slice_attr: str, slice_id: Any) -> dict:
+    """One slice's landmark rows as a GeoJSON FeatureCollection — a free
+    function (no `self`) so it's usable from `__init__` to seed
+    `landmark_geojson_a`/`_b` for a caller-supplied initial `landmarks`
+    table, before the instance's own traits exist to hang a method off of.
+    """
+    if landmarks is None or landmarks.empty:
+        return dict(_EMPTY_FEATURE_COLLECTION)
+    subset = landmarks.loc[landmarks[slice_attr] == slice_id]
+    features = [
+        {
+            "type": "Feature",
+            "geometry": {"type": "Point", "coordinates": [row.x, row.y]},
+            "properties": {"label": row.label},
+        }
+        for row in subset.itertuples()
+    ]
+    return {"type": "FeatureCollection", "features": features}
+
+
+def _next_label_after(labels: Any) -> int:
+    """The smallest auto-numbered label guaranteed not to collide with any
+    numeric label already in `labels` — `1` if there are none."""
+    numeric = []
+    for label in labels:
+        with suppress(ValueError):
+            numeric.append(int(label))
+    return max(numeric) + 1 if numeric else 1
+
+
 def _slice_centroids(
     adata: AnnData, cluster_key: str | None, color_by_category: dict[str, str] | None
 ) -> pd.DataFrame:
@@ -150,6 +180,16 @@ class Landmark(anywidget.AnyWidget):
         slice_labels: Optional ``{slice_id: display_name}`` overrides for the
             dropdown/panel labels. Slices not present default to
             ``str(slice_id)``.
+        landmarks: An optional pre-existing landmark table to load —
+            :func:`~celldega.align.landmarks.calc_landmarks`'s output shape
+            (columns ``label``, ``x``, ``y``, and a slice-tagging column
+            matching ``slice_attr``), or this widget's own ``.landmarks``
+            from a previous session. Immediately visible on whichever of
+            the initial pair already has points, reviewable/editable via
+            MARK and MODIFY exactly like anything marked in this session,
+            and safe to append new landmark sets onto (the auto-numbered
+            label counter starts past whatever numeric labels are already
+            present).
         landscapes: Not implemented yet — planned future alternative to
             ``adatas`` that would point Landmark directly at two
             :class:`~celldega.viz.widget.Landscape` instances.
@@ -157,8 +197,10 @@ class Landmark(anywidget.AnyWidget):
     Raises:
         NotImplementedError: If ``landscapes`` is given.
         ValueError: If ``adatas`` is missing, resolves to fewer than 2
-            slices, if a ``slices`` id isn't found among them, or if a
-            selected slice is missing ``obsm["spatial"]``.
+            slices, if a ``slices`` id isn't found among them, if a selected
+            slice is missing ``obsm["spatial"]``, or if ``landmarks`` is
+            missing a required column or references a slice id not among
+            ``adatas``.
     """
 
     _esm = _WIDGET_ESM
@@ -220,7 +262,15 @@ class Landmark(anywidget.AnyWidget):
     # (that's what DEL already does; see `_commit_side_landmarks`'s caller).
     delete_landmark = traitlets.Unicode("").tag(sync=True)
 
-    # Python-only materialized table, spanning every slice visited so far.
+    # One-shot batched-add request: {"label": "3", "points": [{"slice_id":
+    # "0", "x":.., "y":..}, ...]} — decoupled from which side happens to be
+    # displaying which slice, so MARK can drop points across many slices
+    # (swapping either view between them) and commit all of them in one
+    # SAVE, instead of being limited to whatever's on screen right now.
+    add_landmark_points = traitlets.Dict({}).tag(sync=True)
+
+    # Python-only materialized table, spanning every slice visited so far —
+    # optionally seeded from the constructor's `landmarks` argument.
     landmarks = traitlets.Instance(pd.DataFrame, allow_none=True)
 
     def __init__(
@@ -230,6 +280,7 @@ class Landmark(anywidget.AnyWidget):
         slices: Sequence[Any] | None = None,
         cluster_key: str | None = None,
         slice_labels: dict[Any, str] | None = None,
+        landmarks: pd.DataFrame | None = None,
         landscapes: Any = None,
         **kwargs,
     ):
@@ -277,6 +328,29 @@ class Landmark(anywidget.AnyWidget):
         if missing:
             raise ValueError(f"slice id(s) {missing!r} not found among {all_slice_ids!r}")
 
+        if landmarks is not None:
+            required_columns = {"label", "x", "y", resolved_slice_attr}
+            missing_columns = required_columns - set(landmarks.columns)
+            if missing_columns:
+                raise ValueError(
+                    f"landmarks is missing column(s) {sorted(missing_columns)} — expected "
+                    f"'label', 'x', 'y', and {resolved_slice_attr!r} (matching "
+                    "calc_landmarks' output shape)"
+                )
+            unknown_slices = sorted(
+                {str(s) for s in landmarks[resolved_slice_attr].unique()}
+                - set(self._slice_id_by_str)
+            )
+            if unknown_slices:
+                raise ValueError(
+                    f"landmarks references slice id(s) {unknown_slices} not found among "
+                    f"this Landmark's slices ({sorted(self._slice_id_by_str)})"
+                )
+            landmarks_df = landmarks[["label", "x", "y", resolved_slice_attr]].copy()
+            landmarks_df["label"] = landmarks_df["label"].astype(str)
+        else:
+            landmarks_df = pd.DataFrame(columns=["label", "x", "y", resolved_slice_attr])
+
         resolved_labels = dict(slice_labels) if slice_labels else {}
         kwargs.setdefault("slice_ids", [str(s) for s in all_slice_ids])
         kwargs.setdefault(
@@ -298,8 +372,18 @@ class Landmark(anywidget.AnyWidget):
 
         super().__init__(**kwargs)
 
-        if self.landmarks is None:
-            self.landmarks = pd.DataFrame(columns=["label", "x", "y", resolved_slice_attr])
+        self.landmarks = landmarks_df
+        self._recompute_landmark_coverage()
+        self._bump_label_counter(landmarks_df["label"])
+        # Re-derive landmark_geojson_a/_b for the initial pair now that
+        # `self.landmarks` actually holds the caller-supplied table — the
+        # kwargs constructor gave to `super().__init__()` above can't be
+        # relied on for this: setting `slice_id_a`/`_b` there can itself
+        # trigger `_switch_side`, which would recompute landmark_geojson_*
+        # from `self.landmarks` while it was still `None`, clobbering
+        # whatever the kwargs also tried to seed it with.
+        self._switch_side("a", self.slice_id_a)
+        self._switch_side("b", self.slice_id_b)
 
     def _get_centroids(self, slice_id_str: str) -> bytes:
         if slice_id_str not in self._centroid_cache:
@@ -311,20 +395,7 @@ class Landmark(anywidget.AnyWidget):
 
     def _geojson_for_slice(self, slice_id_str: str) -> dict:
         slice_id = self._slice_id_by_str[slice_id_str]
-        landmarks = self.landmarks
-        if landmarks is None or landmarks.empty:
-            return dict(_EMPTY_FEATURE_COLLECTION)
-
-        subset = landmarks.loc[landmarks[self._slice_attr] == slice_id]
-        features = [
-            {
-                "type": "Feature",
-                "geometry": {"type": "Point", "coordinates": [row.x, row.y]},
-                "properties": {"label": row.label},
-            }
-            for row in subset.itertuples()
-        ]
-        return {"type": "FeatureCollection", "features": features}
+        return _geojson_from_landmarks(self.landmarks, self._slice_attr, slice_id)
 
     @traitlets.observe("slice_id_a")
     def _on_slice_id_a_change(self, change: dict) -> None:
@@ -381,6 +452,56 @@ class Landmark(anywidget.AnyWidget):
         self.landmarks = pd.concat([others, new_rows], ignore_index=True)
         self._bump_label_counter(row["label"] for row in rows)
         self._recompute_landmark_coverage()
+
+    @traitlets.observe("add_landmark_points")
+    def _on_add_landmark_points_change(self, change: dict) -> None:
+        payload = change["new"] or {}
+        label = payload.get("label")
+        points = payload.get("points") or []
+        if not label or not points:
+            return
+        self._add_landmark_points(str(label), points)
+
+    def _add_landmark_points(self, label: str, points: list[dict]) -> None:
+        """Add/replace one instance of `label` per slice in `points` — for
+        slices not currently shown on either side, not just whichever pair
+        happens to be on screen (that's `_commit_side_landmarks`'s job)."""
+        rows = []
+        for point in points:
+            slice_id_str = str(point.get("slice_id"))
+            if slice_id_str not in self._slice_id_by_str:
+                continue
+            rows.append(
+                {
+                    "label": label,
+                    "x": float(point["x"]),
+                    "y": float(point["y"]),
+                    self._slice_attr: self._slice_id_by_str[slice_id_str],
+                }
+            )
+        if not rows:
+            self.add_landmark_points = {}
+            return
+
+        existing = (
+            self.landmarks
+            if self.landmarks is not None
+            else pd.DataFrame(columns=["label", "x", "y", self._slice_attr])
+        )
+        touched_slices = {row[self._slice_attr] for row in rows}
+        # A slice only ever holds one instance of a given landmark -- replace
+        # rather than append if this label already had a point there.
+        mask = (existing["label"] == label) & (existing[self._slice_attr].isin(touched_slices))
+        new_rows = pd.DataFrame(rows, columns=["label", "x", "y", self._slice_attr])
+        self.landmarks = pd.concat([existing.loc[~mask], new_rows], ignore_index=True)
+        self._bump_label_counter([label])
+        self._recompute_landmark_coverage()
+
+        for side in ("a", "b"):
+            slice_id_str = getattr(self, f"slice_id_{side}")
+            setattr(self, f"landmark_geojson_{side}", self._geojson_for_slice(slice_id_str))
+
+        self.add_landmark_points = {}
 
     @traitlets.observe("rename_landmark")
     def _on_rename_landmark_change(self, change: dict) -> None:
@@ -470,12 +591,7 @@ class Landmark(anywidget.AnyWidget):
         }
 
     def _bump_label_counter(self, labels) -> None:
-        numeric = []
-        for label in labels:
-            with suppress(ValueError):
-                numeric.append(int(label))
-        if numeric:
-            self.next_landmark_label = max(self.next_landmark_label, max(numeric) + 1)
+        self.next_landmark_label = max(self.next_landmark_label, _next_label_after(labels))
 
     def calc_alignment_transform(self, **kwargs):
         """Fit a transform directly from the currently-marked landmarks.

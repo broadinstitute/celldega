@@ -8,28 +8,35 @@ const ICON_SIZE = 64;
 const MODIFY_TARGET_SIZE = 22;
 const DEFAULT_SIZE = 18;
 const DRAFT_ALPHA = 170;
+// In MODIFY, every landmark other than the one being targeted dims out, so
+// the one you're actually dragging/renaming/deleting stands out.
+const DIMMED_ALPHA = 90;
 
 /**
- * A single-icon hexagon atlas (mask:true so IconLayer tints it via getColor)
- * — landmarks need a shape distinct from the circular cell/vertex markers
- * used everywhere else (cells, NBHD polygon vertices).
+ * A single-icon map-pin atlas (mask:true so IconLayer tints it via
+ * getColor) — same silhouette as deck.gl's own IconLayer example marker,
+ * self-generated (rather than fetched from an external atlas image) so a
+ * pin still gets a distinct per-landmark tint. The pin's tip -- not its
+ * center -- is the anchor (see `PIN_ICON_MAPPING`'s anchorY), so it points
+ * exactly at the marked coordinate the way a map pin should.
  */
-const build_hexagon_svg = () => {
-  const cx = ICON_SIZE / 2;
-  const cy = ICON_SIZE / 2;
-  const r = ICON_SIZE / 2 - 4;
-  const points = Array.from({ length: 6 }, (_, i) => {
-    const angle = -Math.PI / 2 + (i * 2 * Math.PI) / 6;
-    const x = cx + r * Math.cos(angle);
-    const y = cy + r * Math.sin(angle);
-    return `${x.toFixed(2)},${y.toFixed(2)}`;
-  }).join(' ');
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${ICON_SIZE}" height="${ICON_SIZE}"><polygon points="${points}" fill="white"/></svg>`;
+const build_pin_svg = () => {
+  const path =
+    'M12 2C8.13 2 5 5.13 5 9c0 4.5 5.5 10.5 6.3 11.34a1 1 0 0 0 1.4 0C13.5 19.5 19 13.5 19 9c0-3.87-3.13-7-7-7z';
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="${ICON_SIZE}" height="${ICON_SIZE}"><path d="${path}" fill="white"/></svg>`;
 };
 
-export const HEXAGON_ICON_ATLAS = `data:image/svg+xml;base64,${btoa(build_hexagon_svg())}`;
-export const HEXAGON_ICON_MAPPING = {
-  hexagon: { x: 0, y: 0, width: ICON_SIZE, height: ICON_SIZE, mask: true },
+export const PIN_ICON_ATLAS = `data:image/svg+xml;base64,${btoa(build_pin_svg())}`;
+export const PIN_ICON_MAPPING = {
+  pin: {
+    x: 0,
+    y: 0,
+    width: ICON_SIZE,
+    height: ICON_SIZE,
+    anchorX: ICON_SIZE / 2,
+    anchorY: ICON_SIZE,
+    mask: true,
+  },
 };
 
 // The golden angle spaces consecutive hues maximally far apart around the
@@ -77,8 +84,9 @@ export const resolve_landmark_color = (label, color_overrides = {}) => {
  * written back into a feature's geometry.
  *
  * Every label gets its own distinct, stable color (`color_for_label`);
- * an unsaved draft is a translucent preview of that same color, and the
- * landmark currently targeted in MODIFY renders larger for emphasis.
+ * an unsaved draft is a translucent preview of that same color; the
+ * landmark currently targeted in MODIFY renders larger, and every *other*
+ * landmark dims out so the targeted one stands out.
  */
 export const ini_landmark_marker_layer = (
   side,
@@ -94,9 +102,9 @@ export const ini_landmark_marker_layer = (
     id: `landmark-icon-${side}`,
     data: features,
     visible,
-    iconAtlas: HEXAGON_ICON_ATLAS,
-    iconMapping: HEXAGON_ICON_MAPPING,
-    getIcon: () => 'hexagon',
+    iconAtlas: PIN_ICON_ATLAS,
+    iconMapping: PIN_ICON_MAPPING,
+    getIcon: () => 'pin',
     getPosition: (f) => f.geometry.coordinates,
     getSize: (f) =>
       f.properties.label === modify_target ? MODIFY_TARGET_SIZE : DEFAULT_SIZE,
@@ -106,12 +114,15 @@ export const ini_landmark_marker_layer = (
         f.properties.label,
         color_overrides
       );
-      return [r, g, b, f.properties.draft ? DRAFT_ALPHA : 255];
+      if (f.properties.draft) return [r, g, b, DRAFT_ALPHA];
+      const dimmed =
+        modify_target != null && f.properties.label !== modify_target;
+      return [r, g, b, dimmed ? DIMMED_ALPHA : 255];
     },
     pickable: true,
     updateTriggers: {
       getSize: [modify_target],
-      getColor: [color_overrides],
+      getColor: [color_overrides, modify_target],
     },
     ...getModelMatrixProps(rotation_state),
   });

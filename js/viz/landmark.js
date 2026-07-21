@@ -114,7 +114,12 @@ export const landmark = async (model, el) => {
     // three, so button visuals and the label textbox never drift out of sync
     // with what's actually happening.
     ui_mode: 'browse',
-    draft: { a: null, b: null },
+    // Unsaved MARK points, keyed by *slice id* (not view side) so a
+    // landmark can be marked across many slices -- swapping either view to
+    // a different slice in between -- and committed all at once on SAVE,
+    // rather than being wiped by every slice swap. True (data-space)
+    // coordinates, same as `state.features`.
+    pending_points: new Map(),
     // The label textbox's value: null in browse; in 'mark' it's the target
     // name (null = not-yet-saved auto-numbered new landmark); in 'modify'
     // it's always the landmark currently targeted.
@@ -178,7 +183,7 @@ export const landmark = async (model, el) => {
   // Disabling the *dragged* side's camera-pan controller while a marker is
   // being dragged — otherwise deck.gl's controller and the custom onDrag
   // handler below both respond to the same pointer gesture, and dragging a
-  // hexagon also pans the view underneath it.
+  // pin also pans the view underneath it.
   const apply_views = (drag_pan_disabled_side) => {
     set_views_prop(
       deck_ist,
@@ -192,13 +197,15 @@ export const landmark = async (model, el) => {
   // live-updates the preview before SAVE.
   const combined_features = (side) => {
     const committed = state.features[side].filter((f) => !f.properties.draft);
-    if (!state.draft[side]) return committed;
+    const pending = state.pending_points.get(model.get(`slice_id_${side}`));
+    if (!pending) return committed;
     const draft_label = String(state.active_label ?? state.next_label);
     return [
       ...committed,
       {
-        ...state.draft[side],
-        properties: { ...state.draft[side].properties, label: draft_label },
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: pending },
+        properties: { label: draft_label, draft: true },
       },
     ];
   };
@@ -407,7 +414,7 @@ export const landmark = async (model, el) => {
   // drawn; in 'modify', it's always the (non-destructive) way out.
   const is_save_active = () =>
     state.ui_mode === 'modify' ||
-    (state.ui_mode === 'mark' && Boolean(state.draft.a || state.draft.b));
+    (state.ui_mode === 'mark' && state.pending_points.size > 0);
 
   function apply_ui_mode() {
     set_mark_button_mode(toolbar.buttons, state.ui_mode);
@@ -423,8 +430,7 @@ export const landmark = async (model, el) => {
     state.active_label = null;
     state.mark_target_label = null;
     state.pending_rename = null;
-    state.draft.a = null;
-    state.draft.b = null;
+    state.pending_points = new Map();
     sync_label_input();
     sync_color_input();
     apply_ui_mode();
@@ -441,8 +447,7 @@ export const landmark = async (model, el) => {
     // landmark" apart from "name the new one about to be created."
     state.mark_target_label = label;
     state.pending_rename = null;
-    state.draft.a = null;
-    state.draft.b = null;
+    state.pending_points = new Map();
     sync_label_input();
     sync_color_input();
     apply_ui_mode();
@@ -456,8 +461,7 @@ export const landmark = async (model, el) => {
     state.ui_mode = 'modify';
     state.active_label = label;
     state.pending_rename = null;
-    state.draft.a = null;
-    state.draft.b = null;
+    state.pending_points = new Map();
     sync_label_input();
     sync_color_input();
     apply_ui_mode();
@@ -468,32 +472,46 @@ export const landmark = async (model, el) => {
 
   function place_draft(side, true_coordinate) {
     if (state.ui_mode !== 'mark') return;
-    state.draft[side] = {
-      type: 'Feature',
-      geometry: { type: 'Point', coordinates: true_coordinate },
-      properties: { draft: true },
-    };
+    state.pending_points.set(model.get(`slice_id_${side}`), true_coordinate);
     set_save_button_active(toolbar.buttons, is_save_active());
     refresh();
   }
 
   function save_mark() {
-    if (!state.draft.a && !state.draft.b) return;
+    if (state.pending_points.size === 0) return;
     const label = String(state.active_label ?? state.next_label);
     const is_new_label = state.active_label == null;
-    const saved_sides = [];
+
+    // Optimistically promote any pending point whose slice happens to be
+    // showing on a side right now, from draft to committed, so the view
+    // doesn't wait on the round trip to stop looking like a draft. Python
+    // will independently confirm this (and every other slice's point, shown
+    // or not) via `add_landmark_points` -> `landmark_geojson_*`.
     SIDES.forEach((side) => {
-      if (!state.draft[side]) return;
+      const slice_id = model.get(`slice_id_${side}`);
+      const coordinates = state.pending_points.get(slice_id);
+      if (!coordinates) return;
       state.features[side].push({
         type: 'Feature',
-        geometry: state.draft[side].geometry,
+        geometry: { type: 'Point', coordinates },
         properties: { label, draft: false },
       });
-      state.draft[side] = null;
-      saved_sides.push(side);
     });
+
+    const points = Array.from(state.pending_points.entries()).map(
+      ([slice_id, coordinates]) => ({
+        slice_id,
+        x: coordinates[0],
+        y: coordinates[1],
+      })
+    );
     if (is_new_label) state.next_label += 1;
-    saved_sides.forEach(sync_side_to_model);
+    state.pending_points = new Map();
+
+    model.set('add_landmark_points', {});
+    model.set('add_landmark_points', { label, points });
+    model.save_changes();
+
     enter_browse();
   }
 
@@ -560,12 +578,12 @@ export const landmark = async (model, el) => {
 
   let dragging = null; // { side, label, is_draft }
 
-  // A slice can only hold one instance of a given landmark — once this side
-  // already has a draft, or already has a committed instance of the label
-  // being marked, there's nowhere left to place another one on this side.
+  // A slice can only hold one instance of a given landmark — once this
+  // side's current slice already has a pending or committed instance of
+  // the label being marked, there's nowhere left to place another one here.
   const is_placement_blocked = (side) => {
     if (state.ui_mode !== 'mark') return true;
-    if (state.draft[side]) return true;
+    if (state.pending_points.has(model.get(`slice_id_${side}`))) return true;
     const label = String(state.active_label ?? state.next_label);
     return state.features[side].some(
       (f) => !f.properties.draft && f.properties.label === label
@@ -577,13 +595,13 @@ export const landmark = async (model, el) => {
     if (!side) return;
     set_active_side(side);
 
-    const clicked_hexagon =
+    const clicked_pin =
       info.object && info.layer?.id?.startsWith('landmark-icon-')
         ? info.object
         : null;
-    if (clicked_hexagon) {
-      if (clicked_hexagon.properties.draft) return; // reposition via drag, not click
-      const { label } = clicked_hexagon.properties;
+    if (clicked_pin) {
+      if (clicked_pin.properties.draft) return; // reposition via drag, not click
+      const { label } = clicked_pin.properties;
       if (state.ui_mode === 'modify' && state.active_label === label) {
         enter_browse();
       } else {
@@ -625,10 +643,7 @@ export const landmark = async (model, el) => {
     const { side, label, is_draft } = dragging;
     const coordinates = to_true_coordinate(side, info.coordinate);
     if (is_draft) {
-      state.draft[side] = {
-        ...state.draft[side],
-        geometry: { type: 'Point', coordinates },
-      };
+      state.pending_points.set(model.get(`slice_id_${side}`), coordinates);
     } else {
       state.features[side] = state.features[side].map((f) =>
         f.properties.label === label
@@ -696,11 +711,12 @@ export const landmark = async (model, el) => {
       else if (state.ui_mode === 'modify') save_modify();
     },
     on_cancel: () => {
-      // Escape is a finer-grained undo than CANCEL: clear an in-progress
-      // draft first (staying in 'mark') before falling back to a full exit.
-      if (state.ui_mode === 'mark' && (state.draft.a || state.draft.b)) {
-        state.draft.a = null;
-        state.draft.b = null;
+      // Escape is a finer-grained undo than CANCEL: clear every pending
+      // (unsaved, across however many slices) point first, staying in
+      // 'mark', before falling back to a full exit.
+      if (state.ui_mode === 'mark' && state.pending_points.size > 0) {
+        state.pending_points = new Map();
+        set_save_button_active(toolbar.buttons, is_save_active());
         refresh();
         return;
       }
@@ -869,11 +885,11 @@ export const landmark = async (model, el) => {
 
   const size_slider = make_range_slider(
     {
-      min: 1,
-      max: 10,
-      step: 1,
+      min: 0.1,
+      max: 5,
+      step: 0.1,
       value: state.cell_radius,
-      format: (v) => `${v}px`,
+      format: (v) => `${v.toFixed(1)}px`,
     },
     (value) => {
       state.cell_radius = value;
@@ -1043,7 +1059,9 @@ export const landmark = async (model, el) => {
       rotation_sliders[side],
       rotation_deg_for_side(side)
     );
-    state.draft[side] = null;
+    // Pending MARK points are kept by slice id, not side, so they're left
+    // alone here -- swapping this side to a different slice is exactly how
+    // you mark another instance of the same landmark elsewhere.
     set_save_button_active(toolbar.buttons, is_save_active());
   };
 

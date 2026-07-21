@@ -117,6 +117,68 @@ def test_marking_a_pair_updates_landmarks_table():
     assert lm.next_landmark_label == 2
 
 
+def test_landmark_accepts_initial_landmarks_table():
+    rng = np.random.default_rng(23)
+    adatas = _make_two_slices(rng)  # initial pair 0, 1
+    initial = pd.DataFrame({"label": ["3", "3"], "x": [1.0, 2.0], "y": [1.5, 2.5], "slice": [0, 1]})
+
+    lm = Landmark(adatas=adatas, landmarks=initial)
+
+    # Visible immediately on both initial sides, without needing to swap
+    # away and back first.
+    assert lm.landmark_geojson_a["features"][0]["properties"]["label"] == "3"
+    assert lm.landmark_geojson_b["features"][0]["properties"]["label"] == "3"
+    assert lm.landmark_coverage == {"3": 2}
+    assert lm.landmark_slices == {"3": ["0", "1"]}
+    # Auto-numbering continues past the highest pre-loaded numeric label.
+    assert lm.next_landmark_label == 4
+
+
+def test_landmark_initial_landmarks_covers_slice_not_currently_shown():
+    rng = np.random.default_rng(24)
+    adatas = [_make_slice(rng) for _ in range(3)]  # initial pair 0, 1
+    initial = pd.DataFrame({"label": ["5"], "x": [1.0], "y": [1.0], "slice": [2]})
+
+    lm = Landmark(adatas=adatas, landmarks=initial)
+
+    assert lm.landmark_geojson_a == {"type": "FeatureCollection", "features": []}
+    assert lm.landmark_geojson_b == {"type": "FeatureCollection", "features": []}
+    assert lm.landmark_coverage == {"5": 1}
+    assert lm.landmark_slices == {"5": ["2"]}
+
+
+def test_landmark_initial_landmarks_can_be_appended_to():
+    rng = np.random.default_rng(25)
+    adatas = _make_two_slices(rng)
+    initial = pd.DataFrame({"label": ["3"], "x": [1.0], "y": [1.0], "slice": [0]})
+    lm = Landmark(adatas=adatas, landmarks=initial)
+
+    lm.add_landmark_points = {
+        "label": str(lm.next_landmark_label),
+        "points": [{"slice_id": "1", "x": 9.0, "y": 9.0}],
+    }
+
+    assert set(lm.landmarks["label"]) == {"3", "4"}
+
+
+def test_landmark_initial_landmarks_validates_required_columns():
+    rng = np.random.default_rng(26)
+    adatas = _make_two_slices(rng)
+    missing_y = pd.DataFrame({"label": ["1"], "x": [1.0], "slice": [0]})
+
+    with pytest.raises(ValueError, match="missing column"):
+        Landmark(adatas=adatas, landmarks=missing_y)
+
+
+def test_landmark_initial_landmarks_validates_slice_ids():
+    rng = np.random.default_rng(27)
+    adatas = _make_two_slices(rng)
+    unknown_slice = pd.DataFrame({"label": ["1"], "x": [1.0], "y": [1.0], "slice": [99]})
+
+    with pytest.raises(ValueError, match="not found"):
+        Landmark(adatas=adatas, landmarks=unknown_slice)
+
+
 def test_swapping_side_preserves_other_slices_landmarks():
     rng = np.random.default_rng(6)
     adatas = [_make_slice(rng) for _ in range(3)]
@@ -358,3 +420,72 @@ def test_delete_landmark_ignores_unknown_label():
     lm.delete_landmark = "not_a_label"
     assert set(lm.landmarks["label"]) == {"1"}
     assert lm.delete_landmark == ""
+
+
+def test_add_landmark_points_covers_slices_not_currently_on_screen():
+    rng = np.random.default_rng(19)
+    adatas = [_make_slice(rng) for _ in range(4)]
+    lm = Landmark(adatas=adatas)  # initial pair is slices 0, 1
+
+    # Slices "2" and "3" are shown on neither side.
+    lm.add_landmark_points = {
+        "label": "tongue",
+        "points": [
+            {"slice_id": "0", "x": 1.0, "y": 1.0},
+            {"slice_id": "2", "x": 2.0, "y": 2.0},
+            {"slice_id": "3", "x": 3.0, "y": 3.0},
+        ],
+    }
+
+    assert lm.landmark_coverage == {"tongue": 3}
+    assert lm.landmark_slices == {"tongue": ["0", "2", "3"]}
+    # Side a is showing slice "0", which was among the points -- picks it up.
+    assert lm.landmark_geojson_a["features"][0]["properties"]["label"] == "tongue"
+    # One-shot trigger resets itself.
+    assert lm.add_landmark_points == {}
+
+
+def test_add_landmark_points_replaces_existing_point_for_the_same_slice():
+    rng = np.random.default_rng(20)
+    lm = Landmark(adatas=_make_two_slices(rng))
+    lm.add_landmark_points = {
+        "label": "1",
+        "points": [{"slice_id": "0", "x": 1.0, "y": 1.0}],
+    }
+
+    lm.add_landmark_points = {
+        "label": "1",
+        "points": [{"slice_id": "0", "x": 9.0, "y": 9.0}],
+    }
+
+    subset = lm.landmarks.loc[lm.landmarks["label"] == "1"]
+    assert len(subset) == 1
+    assert subset.iloc[0]["x"] == 9.0
+    assert subset.iloc[0]["y"] == 9.0
+
+
+def test_add_landmark_points_bumps_the_label_counter():
+    rng = np.random.default_rng(21)
+    lm = Landmark(adatas=_make_two_slices(rng))
+
+    lm.add_landmark_points = {
+        "label": "5",
+        "points": [{"slice_id": "0", "x": 1.0, "y": 1.0}],
+    }
+
+    assert lm.next_landmark_label == 6
+
+
+def test_add_landmark_points_ignores_empty_or_unknown_slice_payloads():
+    rng = np.random.default_rng(22)
+    lm = Landmark(adatas=_make_two_slices(rng))
+
+    lm.add_landmark_points = {"label": "", "points": [{"slice_id": "0", "x": 1, "y": 1}]}
+    assert lm.landmarks.empty
+
+    lm.add_landmark_points = {"label": "1", "points": []}
+    assert lm.landmarks.empty
+
+    lm.add_landmark_points = {"label": "1", "points": [{"slice_id": "not_a_slice", "x": 1, "y": 1}]}
+    assert lm.landmarks.empty
+    assert lm.add_landmark_points == {}

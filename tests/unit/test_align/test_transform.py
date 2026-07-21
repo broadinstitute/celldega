@@ -5,6 +5,8 @@ from celldega.align._transform import (
     fit_transform_procrustes,
     fit_transform_tps,
     leave_one_out_residuals,
+    load_transform,
+    save_transform,
 )
 
 
@@ -97,6 +99,45 @@ def test_tps_smoothing_relaxes_exact_interpolation():
     smoothed_residual = np.linalg.norm(smoothed.apply(source) - target)
     assert exact_residual < 1e-6
     assert smoothed_residual > exact_residual
+
+
+def test_tps_smoothing_is_scale_free_with_normalization():
+    rng = np.random.default_rng(30)
+    source = rng.uniform(-10, 10, size=(10, 2))
+    target = source + rng.normal(scale=0.3, size=source.shape)  # noisy correspondences
+    scale = 1000.0  # e.g. microns vs the small "unit" version
+
+    small = fit_transform_tps(source, target, smoothing=1.0)
+    big = fit_transform_tps(source * scale, target * scale, smoothing=1.0)
+
+    # The same `smoothing` relaxes the fit by the same *relative* amount at
+    # both coordinate scales, because the domain is normalized before fitting.
+    small_resid = np.linalg.norm(small.apply(source) - target)
+    big_resid = np.linalg.norm(big.apply(source * scale) - target * scale) / scale
+    assert np.isclose(small_resid, big_resid, rtol=1e-5)
+
+    # Without normalization, smoothing=1.0 is negligible against the large
+    # micron-scale kernel, so the big-scale fit stays essentially exact
+    # (much smaller residual) -- the footgun this normalization fixes.
+    big_unnorm = fit_transform_tps(source * scale, target * scale, smoothing=1.0, normalize=False)
+    big_unnorm_resid = np.linalg.norm(big_unnorm.apply(source * scale) - target * scale) / scale
+    assert big_unnorm_resid < 0.1 * big_resid
+
+
+def test_tps_save_load_round_trips_normalization(tmp_path):
+    rng = np.random.default_rng(31)
+    source = rng.uniform(-5000, 5000, size=(8, 2))  # micron-scale
+    target = source + rng.normal(scale=50.0, size=source.shape)
+    transform = fit_transform_tps(source, target, smoothing=1.0)
+    assert transform.source_scale > 1.0  # normalization actually kicked in
+
+    path = tmp_path / "tps.npz"
+    save_transform(transform, path)
+    reloaded = load_transform(path)
+
+    query = rng.uniform(-5000, 5000, size=(6, 2))
+    assert np.allclose(transform.apply(query), reloaded.apply(query))
+    assert np.isclose(reloaded.source_scale, transform.source_scale)
 
 
 def test_tps_affine_consistent_data_extrapolates_like_affine():

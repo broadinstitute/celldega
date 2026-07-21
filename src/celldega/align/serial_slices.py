@@ -388,8 +388,14 @@ def calc_alignment_transform(
             (default), disallow mirrored fits, since flipping a tissue
             section is not physically valid.
         smoothing: ``method="tps"`` only. Bending-energy penalty passed to
-            the thin-plate-spline fit; ``0`` (default) interpolates
-            landmarks exactly.
+            the thin-plate-spline fit; ``0`` (default) interpolates landmarks
+            exactly (which *overfits* noisy centroid landmarks — the warp
+            contorts the tissue to hit each one), and raising it relaxes
+            toward a stiffer, more affine warp that preserves each slice's
+            shape. The fit normalizes the domain first, so this is scale-free
+            (comparable across datasets): useful values are roughly ``0`` to
+            ``~0.1`` to ``1`` (light local warp) up to ``~10``+ (nearly rigid).
+            See :func:`~celldega.align._transform.fit_transform_tps`.
         degree: ``method="tps"`` only. Degree of the polynomial term added
             to the spline (see :func:`~celldega.align._transform.fit_transform_tps`).
             ``1`` (default) includes a full affine fallback (translation,

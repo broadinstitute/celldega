@@ -170,6 +170,7 @@ def fit_transform_tps(
     weights: np.ndarray | None = None,
     smoothing: float = 0.0,
     degree: int = 1,
+    normalize: bool = True,
 ) -> ThinPlateSplineTransform:
     """Fit a thin-plate-spline warp that maps ``source`` landmarks onto ``target`` landmarks.
 
@@ -192,12 +193,27 @@ def fit_transform_tps(
             ``smoothing > 0`` — at ``smoothing = 0`` the spline interpolates
             every landmark exactly regardless of weight, since there's no
             such thing as a weighted *exact* interpolation.
-        smoothing: Bending-energy penalty. ``0`` (default) interpolates the
-            landmarks exactly; increase it to relax exact matching, which is
-            useful here since landmarks are noisy cluster-centroid estimates
-            rather than exact manual clicks.
+        smoothing: Bending-energy penalty trading exact landmark matching
+            (``0``, the default — the spline passes through every landmark,
+            which *overfits* noisy cluster-centroid landmarks by contorting
+            the tissue to hit each one) against a smoother, stiffer warp
+            (higher values relax the fit toward the plain affine transform,
+            preserving each slice's own shape). With ``normalize=True`` this
+            is measured in *normalized* domain units, so it's comparable
+            across datasets regardless of coordinate scale — useful values
+            are roughly ``0`` (exact) through ``~0.1`` to ``1`` (light local
+            warp) to ``~10``+ (nearly rigid/affine). Without normalization it
+            is in raw kernel units (``~distance² · log distance``), so for
+            micron coordinates it would need to be enormous (``~1e6``+) to
+            have any effect at all.
         degree: Degree of the polynomial term added to the spline (``1``
             gives an affine fallback away from the landmarks).
+        normalize: If ``True`` (default), the source (domain) is recentered
+            and scaled to unit RMS radius before fitting, and query points
+            are normalized the same way on apply. This makes ``smoothing``
+            scale-free (see above) and improves numerical conditioning. It
+            does *not* change a ``smoothing=0`` fit (exact interpolation is
+            exact in any units) — only the meaning of a nonzero ``smoothing``.
 
     Returns:
         The fitted :class:`ThinPlateSplineTransform`.
@@ -209,10 +225,24 @@ def fit_transform_tps(
     """
     source, target = _validate_point_pairs(source, target, min_points=3)
     weights = _validate_weights(weights, source.shape[0])
+
+    if normalize:
+        source_center = source.mean(axis=0)
+        rms_radius = float(np.sqrt(np.mean(((source - source_center) ** 2).sum(axis=1))))
+        source_scale = rms_radius if rms_radius > 0 else 1.0
+    else:
+        source_center = np.zeros(source.shape[1])
+        source_scale = 1.0
+    source_normalized = (source - source_center) / source_scale
+
     effective_smoothing = smoothing / weights
     try:
         interpolator = RBFInterpolator(
-            source, target, kernel="thin_plate_spline", smoothing=effective_smoothing, degree=degree
+            source_normalized,
+            target,
+            kernel="thin_plate_spline",
+            smoothing=effective_smoothing,
+            degree=degree,
         )
     except np.linalg.LinAlgError as exc:
         raise ValueError(
@@ -220,7 +250,9 @@ def fit_transform_tps(
             "or otherwise degenerate. Add more spatially spread-out landmarks."
         ) from exc
 
-    return ThinPlateSplineTransform(interpolator=interpolator)
+    return ThinPlateSplineTransform(
+        interpolator=interpolator, source_center=source_center, source_scale=source_scale
+    )
 
 
 def leave_one_out_residuals(
@@ -277,8 +309,8 @@ def save_transform(transform: Transform, path: str | Path) -> None:
     inspectable with any numpy install, and doesn't depend on matching library
     versions the way a pickled object graph would. A :class:`ThinPlateSplineTransform`
     is saved as the plain-array inputs (landmark positions, per-point smoothing,
-    kernel, epsilon, degree) that reconstruct an equivalent ``RBFInterpolator``,
-    not the fitted object itself.
+    kernel, epsilon, degree, plus the source normalization center/scale) that
+    reconstruct an equivalent ``RBFInterpolator``, not the fitted object itself.
 
     Args:
         transform: The transform to save.
@@ -301,6 +333,11 @@ def save_transform(transform: Transform, path: str | Path) -> None:
         interpolator = transform.interpolator
         powers = interpolator.powers
         degree = int(powers.sum(axis=1).max()) if powers.size else -1
+        source_center = (
+            transform.source_center
+            if transform.source_center is not None
+            else np.zeros(interpolator.y.shape[1])
+        )
         np.savez(
             path,
             kind="tps",
@@ -310,6 +347,8 @@ def save_transform(transform: Transform, path: str | Path) -> None:
             epsilon=np.asarray(interpolator.epsilon),
             kernel=np.asarray(interpolator.kernel),
             degree=np.asarray(degree),
+            source_center=np.asarray(source_center),
+            source_scale=np.asarray(transform.source_scale),
         )
         return
     raise TypeError(f"don't know how to save a transform of type {type(transform)!r}")
@@ -347,5 +386,17 @@ def load_transform(path: str | Path) -> Transform:
                 epsilon=float(data["epsilon"]),
                 degree=int(data["degree"]),
             )
-            return ThinPlateSplineTransform(interpolator=interpolator)
+            # `source_center`/`source_scale` postdate this format — older
+            # saves (no normalization) default to the identity normalization.
+            source_center = (
+                data["source_center"]
+                if "source_center" in data
+                else np.zeros(interpolator.y.shape[1])
+            )
+            source_scale = float(data["source_scale"]) if "source_scale" in data else 1.0
+            return ThinPlateSplineTransform(
+                interpolator=interpolator,
+                source_center=source_center,
+                source_scale=source_scale,
+            )
         raise ValueError(f"unknown transform kind {kind!r} in {path}")

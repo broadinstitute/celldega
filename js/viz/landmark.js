@@ -508,6 +508,18 @@ export const landmark = async (model, el) => {
 
   let dragging = null; // { side, label, is_draft }
 
+  // A slice can only hold one instance of a given landmark — once this side
+  // already has a draft, or already has a committed instance of the label
+  // being marked, there's nowhere left to place another one on this side.
+  const is_placement_blocked = (side) => {
+    if (state.ui_mode !== 'mark') return true;
+    if (state.draft[side]) return true;
+    const label = String(state.active_label ?? state.next_label);
+    return state.features[side].some(
+      (f) => !f.properties.draft && f.properties.label === label
+    );
+  };
+
   const handle_click = (info) => {
     const side = info.viewport && side_for_viewport_id(info.viewport.id);
     if (!side) return;
@@ -528,7 +540,11 @@ export const landmark = async (model, el) => {
       return;
     }
 
-    if (state.ui_mode === 'mark' && !state.draft[side] && info.coordinate) {
+    if (
+      state.ui_mode === 'mark' &&
+      !is_placement_blocked(side) &&
+      info.coordinate
+    ) {
       place_draft(side, to_true_coordinate(side, info.coordinate));
       return;
     }
@@ -579,14 +595,25 @@ export const landmark = async (model, el) => {
     apply_views(null);
   };
 
+  let hover_side = null;
+
   deck_ist.setProps({
     onClick: handle_click,
     onDragStart: handle_drag_start,
     onDrag: handle_drag,
     onDragEnd: handle_drag_end,
+    onHover: (info) => {
+      hover_side = info.viewport
+        ? side_for_viewport_id(info.viewport.id)
+        : null;
+    },
     getCursor: ({ isDragging }) => {
       if (isDragging) return 'grabbing';
-      return state.ui_mode === 'mark' ? 'crosshair' : 'grab';
+      if (state.ui_mode !== 'mark') return 'grab';
+      // No crosshair once this side can't take another instance of the
+      // targeted landmark — a slice only ever holds one.
+      if (hover_side && is_placement_blocked(hover_side)) return 'not-allowed';
+      return 'crosshair';
     },
     // Available in any state — a quick way to check a cell's cluster or a
     // landmark's name without clicking (which would change state).

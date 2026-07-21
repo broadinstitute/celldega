@@ -45,9 +45,10 @@ export const make_landmark_toolbar = ({
   container.style.alignItems = 'flex-start';
   container.style.gap = '2px';
   container.style.padding = '2px 4px';
-  // Fixed width so buttons appearing/disappearing changes only this column's
-  // height, never its width — the sections to the right stay put.
-  container.style.width = '58px';
+  // Fixed width (sized for the label textbox, the widest child) so buttons
+  // and the textbox/color swatch appearing/disappearing changes only this
+  // column's height, never its width — the sections to the right stay put.
+  container.style.width = '78px';
 
   const mark_button = make_button('MARK');
   const modify_button = make_button('MODIFY');
@@ -288,10 +289,12 @@ export const make_range_slider = (
 export const make_label_input = (on_commit) => {
   const input = document.createElement('input');
   input.type = 'text';
-  input.style.width = '70px';
+  input.style.width = '60px';
   input.style.height = '18px';
   input.style.fontSize = '10px';
   input.style.padding = '1px 4px';
+  input.style.marginTop = '3px';
+  input.style.boxSizing = 'border-box';
   input.style.border = '1px solid #d3d3d3';
   input.style.borderRadius = '3px';
   input.style.display = 'none';

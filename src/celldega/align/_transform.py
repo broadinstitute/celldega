@@ -144,13 +144,24 @@ def fit_transform_procrustes(
 
 @dataclass(frozen=True)
 class ThinPlateSplineTransform:
-    """A non-rigid warp mapping source landmarks onto target landmarks."""
+    """A non-rigid warp mapping source landmarks onto target landmarks.
+
+    The source (domain) is normalized by ``source_center``/``source_scale``
+    before the spline is evaluated — see :func:`fit_transform_tps` for why
+    (it makes ``smoothing`` scale-free). ``source_center = [0, 0]`` and
+    ``source_scale = 1`` reproduce an un-normalized fit.
+    """
 
     interpolator: RBFInterpolator
+    source_center: np.ndarray = None
+    source_scale: float = 1.0
 
     def apply(self, points: np.ndarray) -> np.ndarray:
         """Apply this warp to an ``(n, 2)`` array of points."""
-        return self.interpolator(np.asarray(points, dtype=float))
+        points = np.asarray(points, dtype=float)
+        if self.source_center is not None:
+            points = (points - self.source_center) / self.source_scale
+        return self.interpolator(points)
 
 
 def fit_transform_tps(

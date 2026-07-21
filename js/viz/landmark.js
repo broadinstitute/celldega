@@ -441,15 +441,15 @@ export const landmark = async (model, el) => {
   };
 
   const toolbar = make_landmark_toolbar({
-    // MARK (browse's primary button) starts a fresh landmark; while marking
-    // it reads CANCEL and returns to browse.
+    // MARK (browse's primary button) starts a fresh landmark; a toggle, so
+    // clicking it again while marking returns to browse.
     on_mark_toggle: () => {
       if (state.ui_mode === 'browse') enter_mark(null);
       else enter_browse();
     },
     // MODIFY only shows once a landmark is selected: from MARK (a targeted
-    // existing landmark) it jumps into drag/edit mode for it; in modify it
-    // reads CANCEL and returns to browse.
+    // existing landmark) it jumps into drag/edit mode for it; in modify it's
+    // a toggle back to browse.
     on_modify_toggle: () => {
       if (state.ui_mode === 'modify') enter_browse();
       else if (state.ui_mode === 'mark') enter_modify(state.mark_target_label);
@@ -462,6 +462,12 @@ export const landmark = async (model, el) => {
       if (state.ui_mode === 'modify') delete_modify();
     },
   });
+
+  // The landmark-name textbox and color swatch live at the bottom of the
+  // toolbar column, below the MARK/MODIFY/SAVE/DEL buttons — they're editing
+  // controls for the current landmark, so they belong with the mode buttons
+  // rather than over in the LNDMRK bar section.
+  toolbar.container.append(label_input.container, color_input.container);
 
   // In 'mark', SAVE only has something to commit once at least one draft is
   // drawn; in 'modify', it commits a staged rename (or is a no-op exit) once
@@ -1152,14 +1158,10 @@ export const landmark = async (model, el) => {
   };
 
   control_row.append(
+    // The label textbox + color swatch are appended into `toolbar.container`
+    // above, so they sit under the buttons here.
     make_section([toolbar.container], null),
-    make_section(
-      [lndmrk_toggle, label_input.container, color_input.container],
-      lndmrk_bar_container,
-      // Fixed width so the label box + color swatch appearing/disappearing
-      // (mark/modify vs browse) doesn't shift the CELL/TRX/SLICE sections.
-      { top_width: 118 }
-    ),
+    make_section([lndmrk_toggle], lndmrk_bar_container),
     make_section([cell_toggle, opacity_slider.container], cell_bar_container),
     make_section([trx_toggle], trx_bar_container),
     make_section([make_tag('SLICE')], slice_bar_container)

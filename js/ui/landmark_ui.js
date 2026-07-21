@@ -1,11 +1,10 @@
-import * as d3 from 'd3';
-
 import { create_color_input } from './editor_common';
 
 // Outline-free text buttons (matching the CELL/LNDMRK toggle look) — the
 // color carries the meaning, no border/background box, to keep the toolbar
-// compact.
-const CANCEL_COLOR = '#8a6d3b';
+// compact. Blue = ready to engage; green = the mode is currently engaged
+// (click again to leave it — there's no separate CANCEL button).
+const ACTIVE_COLOR = 'green';
 
 const make_button = (label) => {
   const button = document.createElement('button');
@@ -14,24 +13,24 @@ const make_button = (label) => {
   button.type = 'button';
   button.style.fontSize = '11px';
   button.style.fontWeight = '700';
-  button.style.padding = '2px 6px';
-  button.style.marginRight = '2px';
+  button.style.padding = '1px 2px';
   button.style.border = 'none';
   button.style.background = 'none';
   button.style.color = 'blue';
   button.style.cursor = 'pointer';
   button.style.userSelect = 'none';
+  button.style.textAlign = 'left';
   return button;
 };
 
 /**
  * MARK/MODIFY/SAVE/DEL adapt to celldega's three landmark states — browse,
- * mark, modify (see `set_toolbar_mode`) — mirroring NBHD's
- * SKTCH/EDIT/SAVE/DELETE pattern of showing only the buttons relevant to the
- * current state. Browse shows just MARK; MODIFY surfaces only once a specific
- * landmark is selected. Whichever of MARK/MODIFY started the current sub-mode
- * reads CANCEL. DEL is always red, since deleting a landmark here is a
- * whole-landmark action.
+ * mark, modify (see `set_toolbar_mode`). The buttons stack vertically and
+ * appear/disappear in place (below one another) so showing/hiding them never
+ * shifts the rest of the control panel sideways. Browse shows just MARK;
+ * MODIFY surfaces only once a specific landmark is selected. MARK/MODIFY are
+ * toggles — blue when available, green while their mode is engaged, clicked
+ * again to leave (so no CANCEL button is needed). DEL is always red.
  */
 export const make_landmark_toolbar = ({
   on_mark_toggle,
@@ -42,8 +41,13 @@ export const make_landmark_toolbar = ({
   const container = document.createElement('div');
   container.className = 'landmark-toolbar';
   container.style.display = 'flex';
-  container.style.alignItems = 'center';
-  container.style.padding = '4px';
+  container.style.flexDirection = 'column';
+  container.style.alignItems = 'flex-start';
+  container.style.gap = '2px';
+  container.style.padding = '2px 4px';
+  // Fixed width so buttons appearing/disappearing changes only this column's
+  // height, never its width — the sections to the right stay put.
+  container.style.width = '58px';
 
   const mark_button = make_button('MARK');
   const modify_button = make_button('MODIFY');
@@ -72,15 +76,15 @@ export const make_landmark_toolbar = ({
 };
 
 const show = (button, visible) => {
-  button.style.display = visible ? 'inline-flex' : 'none';
+  button.style.display = visible ? 'block' : 'none';
 };
 
 /** `mode` is 'browse' | 'mark' | 'modify' — see `landmark.js`'s state
- * machine. MARK is the primary browse button and swaps to CANCEL while
- * marking. MODIFY only appears once a specific landmark is selected: while
- * marking a targeted existing landmark (`mark_has_target`) it offers a jump
- * into drag/edit mode, and in modify itself it's the CANCEL/exit. It's
- * hidden in browse and in a fresh (untargeted) MARK. */
+ * machine. MARK is the primary browse button; MODIFY only appears once a
+ * specific landmark is selected (while marking a targeted existing landmark,
+ * `mark_has_target`, or in modify). Both are toggles: blue when available,
+ * green while engaged. Exit their mode by clicking them again (or the
+ * targeted landmark) — no CANCEL button. */
 export const set_toolbar_mode = (
   buttons,
   mode,
@@ -91,14 +95,10 @@ export const set_toolbar_mode = (
   const modify = mode === 'modify';
 
   show(buttons.mark, browse || mark);
-  d3.select(buttons.mark)
-    .text(mark ? 'CANCEL' : 'MARK')
-    .style('color', mark ? CANCEL_COLOR : 'blue');
+  buttons.mark.style.color = mark ? ACTIVE_COLOR : 'blue';
 
   show(buttons.modify, modify || (mark && mark_has_target));
-  d3.select(buttons.modify)
-    .text(modify ? 'CANCEL' : 'MODIFY')
-    .style('color', modify ? CANCEL_COLOR : 'blue');
+  buttons.modify.style.color = modify ? ACTIVE_COLOR : 'blue';
 
   show(buttons.save, mark || modify);
 };

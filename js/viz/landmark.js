@@ -89,7 +89,7 @@ export const landmark = async (model, el) => {
   control_row.style.flexWrap = 'wrap';
   control_row.style.padding = '4px 0';
 
-  const make_section = (top_els, bar_el) => {
+  const make_section = (top_els, bar_el, { top_width = null } = {}) => {
     const section = document.createElement('div');
     section.style.display = 'flex';
     section.style.flexDirection = 'column';
@@ -100,6 +100,13 @@ export const landmark = async (model, el) => {
     top.style.display = 'flex';
     top.style.alignItems = 'center';
     top.style.gap = '4px';
+    // A fixed-width, wrapping top row keeps the section from changing width
+    // as its controls (e.g. the LNDMRK label box + color swatch) show/hide,
+    // so the rest of the panel doesn't shift sideways.
+    if (top_width != null) {
+      top.style.width = `${top_width}px`;
+      top.style.flexWrap = 'wrap';
+    }
     top.append(...top_els);
 
     section.appendChild(top);
@@ -247,7 +254,10 @@ export const landmark = async (model, el) => {
         opacity: state.cell_opacity,
         highlighted_cell: state.highlighted_cell[side],
       }),
-      ini_landmark_marker_layer(side, combined_features(side), {
+      // `ini_landmark_marker_layer` returns [hit_disc, reticle] — the hit
+      // disc (pickable) must render/pick above the cells, the reticle above
+      // that.
+      ...ini_landmark_marker_layer(side, combined_features(side), {
         rotation_state: state.rotation_state[side],
         visible: state.marker_visible,
         modify_target: state.ui_mode === 'modify' ? state.active_label : null,
@@ -677,20 +687,18 @@ export const landmark = async (model, el) => {
     set_active_side(side);
 
     const clicked_marker =
-      info.object && info.layer?.id?.startsWith('landmark-icon-')
+      info.object && info.layer?.id?.startsWith('landmark-marker-')
         ? info.object
         : null;
     if (clicked_marker) {
       if (clicked_marker.properties.draft) return; // reposition via drag, not click
       const { label } = clicked_marker.properties;
+      // Clicking a landmark toggles editing it: click once to enter modify
+      // (drag/rename/delete) for it; click the same one again to exit back to
+      // browse. This is the way out of modify (there's no CANCEL button).
       if (state.ui_mode === 'modify' && state.active_label === label) {
-        // Clicking the already-targeted landmark again clears the target
-        // (stays in modify, ready to pick another) rather than exiting.
-        enter_modify(null);
+        enter_browse();
       } else {
-        // A pure click (no drag) enters/retargets modify safely — the drag
-        // race only bites a click-drag gesture, which `can_drag_marker` blocks
-        // outside modify.
         enter_modify(label);
       }
       return;
@@ -715,7 +723,7 @@ export const landmark = async (model, el) => {
   // you enter modify first, by button or by clicking the marker, then drag. A
   // draft marker is draggable while marking, to refine its position.
   const can_drag_marker = (info) => {
-    if (!info.object || !info.layer?.id?.startsWith('landmark-icon-')) {
+    if (!info.object || !info.layer?.id?.startsWith('landmark-marker-')) {
       return false;
     }
     if (info.object.properties.draft) return state.ui_mode === 'mark';
@@ -788,7 +796,7 @@ export const landmark = async (model, el) => {
     // landmark's name without clicking (which would change state).
     getTooltip: ({ object, layer }) => {
       if (!object) return null;
-      if (layer?.id?.startsWith('landmark-icon-')) {
+      if (layer?.id?.startsWith('landmark-marker-')) {
         return { html: `landmark: ${object.properties.label}` };
       }
       if (layer?.id?.startsWith('landmark-cell-')) {
@@ -943,9 +951,10 @@ export const landmark = async (model, el) => {
       lndmrk_bar_container,
       (event, d) => {
         // Shift-click: delete the landmark entirely (every slice it's in).
-        // Plain click: target it in MARK, ready to add another instance (or
-        // rename it via the textbox — no instance needs to be on-screen for
-        // that, so there's no separate shortcut into MODIFY from here).
+        // Plain click: toggle targeting it in MARK — ready to add another
+        // instance, rename it via the textbox, or jump to drag/edit via the
+        // MODIFY button (which appears once a landmark is targeted). Click
+        // the same bar again to return to browse.
         if (event.shiftKey) {
           const confirmed = window.confirm(
             `Delete landmark "${d.name}" entirely, across every slice it appears in? This can't be undone.`
@@ -1149,7 +1158,10 @@ export const landmark = async (model, el) => {
     make_section([toolbar.container], null),
     make_section(
       [lndmrk_toggle, label_input.container, color_input.container],
-      lndmrk_bar_container
+      lndmrk_bar_container,
+      // Fixed width so the label box + color swatch appearing/disappearing
+      // (mark/modify vs browse) doesn't shift the CELL/TRX/SLICE sections.
+      { top_width: 118 }
     ),
     make_section([cell_toggle, opacity_slider.container], cell_bar_container),
     make_section([trx_toggle], trx_bar_container),

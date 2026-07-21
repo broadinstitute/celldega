@@ -9,16 +9,17 @@ export const LANDMARK_VIEW_ID_B = 'landmark-view-b';
  * Two side-by-side OrthographicViews, each independently pannable/zoomable
  * (unlike Yearbook's portrait grid, where only one portrait can pan).
  *
- * `drag_pan_disabled_side` ('a'/'b'/null) turns off that one view's
- * camera-pan controller — needed while a marker is being dragged, since
- * deck.gl's controller and a custom `onDrag` handler both respond to the
- * same pointer gesture: without this, dragging a pin also pans the
- * camera underneath it.
+ * `drag_pan_disabled_sides` is an array of sides ('a'/'b') whose camera-pan
+ * controller is turned off — needed while a marker is being dragged (or for
+ * the whole of MODIFY mode), since deck.gl's controller and a custom
+ * `onDrag` handler both respond to the same pointer gesture: without this,
+ * dragging a marker also pans the camera underneath it. Zoom stays enabled
+ * either way.
  */
 export const create_landmark_views = (
   width,
   height,
-  drag_pan_disabled_side = null
+  drag_pan_disabled_sides = []
 ) => {
   const panel_width = (width - GAP) / 2;
 
@@ -31,7 +32,7 @@ export const create_landmark_views = (
       height,
       controller: {
         doubleClickZoom: false,
-        dragPan: drag_pan_disabled_side !== 'a',
+        dragPan: !drag_pan_disabled_sides.includes('a'),
         scrollZoom: true,
         touchZoom: true,
       },
@@ -44,7 +45,7 @@ export const create_landmark_views = (
       height,
       controller: {
         doubleClickZoom: false,
-        dragPan: drag_pan_disabled_side !== 'b',
+        dragPan: !drag_pan_disabled_sides.includes('b'),
         scrollZoom: true,
         touchZoom: true,
       },

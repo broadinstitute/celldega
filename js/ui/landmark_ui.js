@@ -2,33 +2,39 @@ import * as d3 from 'd3';
 
 import { create_color_input } from './editor_common';
 
+// Outline-free text buttons (matching the CELL/LNDMRK toggle look) — the
+// color carries the meaning, no border/background box, to keep the toolbar
+// compact.
+const CANCEL_COLOR = '#8a6d3b';
+
 const make_button = (label) => {
   const button = document.createElement('button');
   button.textContent = label;
   button.className = 'landmark-button';
   button.type = 'button';
-  button.style.fontSize = '10px';
-  button.style.fontWeight = '600';
-  button.style.padding = '3px 10px';
-  button.style.marginRight = '4px';
-  button.style.border = '1px solid #d3d3d3';
-  button.style.borderRadius = '3px';
-  button.style.backgroundColor = 'white';
-  button.style.color = 'gray';
+  button.style.fontSize = '11px';
+  button.style.fontWeight = '700';
+  button.style.padding = '2px 6px';
+  button.style.marginRight = '2px';
+  button.style.border = 'none';
+  button.style.background = 'none';
+  button.style.color = 'blue';
   button.style.cursor = 'pointer';
+  button.style.userSelect = 'none';
   return button;
 };
 
 /**
- * MARK/SAVE/DEL adapt to celldega's three landmark states — browse, mark,
- * modify (see `set_mark_button_mode`/`set_save_button_visible`/
- * `set_del_button_visible`) — mirroring NBHD's SKTCH/EDIT/SAVE/DELETE
- * pattern of showing only the buttons relevant to the current state.
- * SAVE starts hidden (browse has nothing to save yet); DEL is always red,
- * since deleting a landmark here is a whole-landmark, unconfirmable action.
+ * MARK/MODIFY/SAVE/DEL adapt to celldega's three landmark states — browse,
+ * mark, modify (see `set_toolbar_mode`) — mirroring NBHD's
+ * SKTCH/EDIT/SAVE/DELETE pattern of showing only the buttons relevant to the
+ * current state. From browse both MARK and MODIFY show; whichever you click
+ * becomes CANCEL for that sub-mode while the other hides. DEL is always red,
+ * since deleting a landmark here is a whole-landmark action.
  */
 export const make_landmark_toolbar = ({
   on_mark_toggle,
+  on_modify_toggle,
   on_save,
   on_delete,
 }) => {
@@ -39,55 +45,70 @@ export const make_landmark_toolbar = ({
   container.style.padding = '4px';
 
   const mark_button = make_button('MARK');
+  const modify_button = make_button('MODIFY');
   const save_button = make_button('SAVE');
   const del_button = make_button('DEL');
   save_button.style.display = 'none';
   del_button.style.display = 'none';
   del_button.style.color = 'red';
-  del_button.style.borderColor = '#f0b8b8';
 
   mark_button.addEventListener('click', () => on_mark_toggle());
+  modify_button.addEventListener('click', () => on_modify_toggle());
   save_button.addEventListener('click', () => on_save());
   del_button.addEventListener('click', () => on_delete());
 
-  container.append(mark_button, save_button, del_button);
+  container.append(mark_button, modify_button, save_button, del_button);
 
   return {
     container,
-    buttons: { mark: mark_button, save: save_button, del: del_button },
+    buttons: {
+      mark: mark_button,
+      modify: modify_button,
+      save: save_button,
+      del: del_button,
+    },
   };
 };
 
-/** `mode` is one of 'browse' | 'mark' | 'modify' — see `landmark.js`'s state
- * machine. Rather than leaving MARK on-screen (disabled/relabeled) once
- * you're already mid-action, the same button slot swaps to CANCEL — a
- * single, always-clickable way back to 'browse' from either 'mark' or
- * 'modify', discarding anything not yet saved. */
-export const set_mark_button_mode = (buttons, mode) => {
-  const is_browse = mode === 'browse';
+const show = (button, visible) => {
+  button.style.display = visible ? 'inline-flex' : 'none';
+};
+
+/** `mode` is 'browse' | 'mark' | 'modify' — see `landmark.js`'s state
+ * machine. The MARK and MODIFY slots each swap to CANCEL while their own
+ * sub-mode is active (and the other slot hides), so there's always a single
+ * obvious way back to browse discarding anything unsaved. */
+export const set_toolbar_mode = (buttons, mode) => {
+  const browse = mode === 'browse';
+  const mark = mode === 'mark';
+  const modify = mode === 'modify';
+
+  show(buttons.mark, browse || mark);
   d3.select(buttons.mark)
-    .text(is_browse ? 'MARK' : 'CANCEL')
-    .style('color', is_browse ? 'blue' : '#8a6d3b')
-    .style('border-color', is_browse ? '#d3d3d3' : '#e0c28a')
-    .property('disabled', false)
-    .style('cursor', 'pointer');
+    .text(mark ? 'CANCEL' : 'MARK')
+    .style('color', mark ? CANCEL_COLOR : 'blue');
+
+  show(buttons.modify, browse || modify);
+  d3.select(buttons.modify)
+    .text(modify ? 'CANCEL' : 'MODIFY')
+    .style('color', modify ? CANCEL_COLOR : 'blue');
+
+  show(buttons.save, mark || modify);
 };
 
 export const set_save_button_visible = (buttons, visible) => {
-  d3.select(buttons.save).style('display', visible ? 'inline-flex' : 'none');
+  show(buttons.save, visible);
 };
 
 /** Blue once there's something for SAVE to actually commit (e.g. a drawn-but-
  * unsaved landmark instance in 'mark'); the default gray otherwise, so the
  * button visually confirms "yes, this click will do something." */
 export const set_save_button_active = (buttons, active) => {
-  d3.select(buttons.save)
-    .style('color', active ? 'blue' : 'gray')
-    .style('border-color', active ? '#a9c6ff' : '#d3d3d3');
+  buttons.save.style.color = active ? 'blue' : 'gray';
 };
 
 export const set_del_button_visible = (buttons, visible) => {
-  d3.select(buttons.del).style('display', visible ? 'inline-flex' : 'none');
+  show(buttons.del, visible);
 };
 
 const ignores_landmark_shortcut = (event) => {

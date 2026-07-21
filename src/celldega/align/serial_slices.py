@@ -254,9 +254,11 @@ class SerialAlignmentTransform:
         return self.transforms[slice_id].apply(points)
 
     def plot(self, **kwargs) -> tuple[Any, Any]:
-        """2D before/after scatter of this alignment's landmarks — a quick
-        visual check of fit quality. See :func:`~celldega.align.plot.plot_alignment`
-        for the ``color_by``/``figsize`` options accepted here.
+        """2D before/after scatter of this alignment — a quick visual check
+        of fit quality. Pass ``adatas=`` (the slices this was fit from) to
+        overlay the actual cell centroids, which is what really shows whether
+        the tissue aligns; see :func:`~celldega.align.plot.plot_alignment`
+        for all accepted options.
         """
         return plot_alignment(self, **kwargs)
 

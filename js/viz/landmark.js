@@ -28,8 +28,7 @@ import {
 } from '../ui/landmark_dropdown';
 import {
   make_landmark_toolbar,
-  set_mark_button_mode,
-  set_save_button_visible,
+  set_toolbar_mode,
   set_save_button_active,
   set_del_button_visible,
   register_landmark_keyboard_shortcuts,
@@ -181,17 +180,31 @@ export const landmark = async (model, el) => {
   panels_row.style.height = `${height}px`;
   const deck_ist = ini_deck(panels_row, width, height);
 
-  // Disabling the *dragged* side's camera-pan controller while a marker is
-  // being dragged — otherwise deck.gl's controller and the custom onDrag
-  // handler below both respond to the same pointer gesture, and dragging a
-  // pin also pans the view underneath it.
-  const apply_views = (drag_pan_disabled_side) => {
+  // deck.gl's camera-pan controller and the custom onDrag handler below both
+  // respond to the same pointer gesture, so a marker drag also pans the view
+  // underneath it. Reactively toggling dragPan *during* a drag loses a race
+  // with the controller, so instead pan is turned off for whole *modes*:
+  // MODIFY (dragging existing landmarks is the entire point of that mode) is
+  // pan-free start to finish, and a MARK draft-drag disables just its side.
+  const apply_views = (disabled_sides = []) => {
     set_views_prop(
       deck_ist,
-      create_landmark_views(width, height, drag_pan_disabled_side)
+      create_landmark_views(width, height, disabled_sides)
     );
   };
-  apply_views(null);
+
+  let dragging = null; // { side, label, is_draft }
+
+  function refresh_view_controllers() {
+    if (state.ui_mode === 'modify') {
+      apply_views(['a', 'b']);
+    } else if (dragging?.is_draft) {
+      apply_views([dragging.side]);
+    } else {
+      apply_views([]);
+    }
+  }
+  apply_views([]);
 
   // A draft's displayed label always reflects the *current* textbox value
   // (not whatever it was when the point was placed), so editing the name
@@ -408,15 +421,16 @@ export const landmark = async (model, el) => {
   };
 
   const toolbar = make_landmark_toolbar({
-    // Browse: MARK, starts a fresh landmark. Mark/modify: the same slot is
-    // now CANCEL (see `set_mark_button_mode`) — always available, discards
-    // whatever's unsaved and returns to browse.
+    // From browse, MARK starts a fresh landmark and MODIFY enters
+    // drag/edit-existing mode; in either sub-mode that same button reads
+    // CANCEL and returns to browse, discarding anything unsaved.
     on_mark_toggle: () => {
-      if (state.ui_mode === 'browse') {
-        enter_mark(null);
-      } else {
-        enter_browse();
-      }
+      if (state.ui_mode === 'browse') enter_mark(null);
+      else enter_browse();
+    },
+    on_modify_toggle: () => {
+      if (state.ui_mode === 'browse') enter_modify(null);
+      else enter_browse();
     },
     on_save: () => {
       if (state.ui_mode === 'mark') save_mark();
@@ -428,18 +442,34 @@ export const landmark = async (model, el) => {
   });
 
   // In 'mark', SAVE only has something to commit once at least one draft is
-  // drawn; in 'modify', it's always the (non-destructive) way out.
-  const is_save_active = () =>
-    state.ui_mode === 'modify' ||
-    (state.ui_mode === 'mark' && state.pending_points.size > 0);
+  // drawn; in 'modify', it commits a staged rename (or is a no-op exit) once
+  // a landmark is targeted.
+  const is_save_active = () => {
+    if (state.ui_mode === 'mark') return state.pending_points.size > 0;
+    if (state.ui_mode === 'modify') return state.active_label != null;
+    return false;
+  };
 
   function apply_ui_mode() {
-    set_mark_button_mode(toolbar.buttons, state.ui_mode);
-    set_save_button_visible(toolbar.buttons, state.ui_mode !== 'browse');
+    set_toolbar_mode(toolbar.buttons, state.ui_mode);
     set_save_button_active(toolbar.buttons, is_save_active());
-    set_del_button_visible(toolbar.buttons, state.ui_mode === 'modify');
+    set_del_button_visible(
+      toolbar.buttons,
+      state.ui_mode === 'modify' && state.active_label != null
+    );
     set_label_input_visible(label_input, state.ui_mode !== 'browse');
-    set_color_input_visible(color_input, state.ui_mode !== 'browse');
+    set_color_input_visible(
+      color_input,
+      state.ui_mode !== 'browse' && current_target_label() != null
+    );
+  }
+
+  // Make sure landmarks are actually visible when entering an edit mode —
+  // marking/modifying against a hidden LNDMRK layer makes no sense.
+  function ensure_landmarks_visible() {
+    if (state.marker_visible) return;
+    state.marker_visible = true;
+    set_toggle_active(lndmrk_toggle, true);
   }
 
   function enter_browse() {
@@ -453,6 +483,7 @@ export const landmark = async (model, el) => {
     apply_ui_mode();
     rebuild_lndmrk_bar();
     rebuild_slice_bar();
+    refresh_view_controllers();
     refresh();
   }
 
@@ -465,29 +496,35 @@ export const landmark = async (model, el) => {
     state.mark_target_label = label;
     state.pending_rename = null;
     state.pending_points = new Map();
-    if (!state.marker_visible) {
-      state.marker_visible = true;
-      set_toggle_active(lndmrk_toggle, true);
-    }
+    ensure_landmarks_visible();
     sync_label_input();
     sync_color_input();
     apply_ui_mode();
     rebuild_lndmrk_bar();
     rebuild_slice_bar();
+    refresh_view_controllers();
     refresh();
   }
 
-  function ensure_modify(label) {
-    if (state.ui_mode === 'modify' && state.active_label === label) return;
+  // Enter (or retarget within) MODIFY. `label` is the landmark to edit, or
+  // null to enter the mode with nothing targeted yet (via the MODIFY button —
+  // then click a landmark to target it). Pan is turned off for the whole
+  // mode by `refresh_view_controllers`, so dragging a landmark can't fight
+  // the camera.
+  function enter_modify(label) {
+    const was_modify = state.ui_mode === 'modify';
+    if (was_modify && state.active_label === label) return;
     state.ui_mode = 'modify';
     state.active_label = label;
     state.pending_rename = null;
     state.pending_points = new Map();
+    ensure_landmarks_visible();
     sync_label_input();
     sync_color_input();
     apply_ui_mode();
     rebuild_lndmrk_bar();
     rebuild_slice_bar();
+    if (!was_modify) refresh_view_controllers();
     refresh();
   }
 
@@ -495,6 +532,7 @@ export const landmark = async (model, el) => {
     if (state.ui_mode !== 'mark') return;
     state.pending_points.set(model.get(`slice_id_${side}`), true_coordinate);
     set_save_button_active(toolbar.buttons, is_save_active());
+    rebuild_slice_bar();
     refresh();
   }
 
@@ -597,15 +635,8 @@ export const landmark = async (model, el) => {
     refresh();
   };
 
-  let dragging = null; // { side, label, is_draft }
+  // Tracks which side the pointer is over, for the mark-mode cursor only.
   let hover_side = null;
-  // dragPan is disabled as soon as the pointer is *hovering* a draggable
-  // pin, not only once onDragStart fires. deck.gl's controller and this
-  // layer's own onDrag both react to the same low-level pointer gesture,
-  // and the controller can latch onto "panning" before onDragStart's own
-  // `apply_views` call takes effect — disabling reactively there is one
-  // step too late. Pre-arming it on hover closes that race.
-  let disabled_side_for_hover = null;
 
   // A slice can only hold one instance of a given landmark — once this
   // side's current slice already has a pending or committed instance of
@@ -632,9 +663,14 @@ export const landmark = async (model, el) => {
       if (clicked_pin.properties.draft) return; // reposition via drag, not click
       const { label } = clicked_pin.properties;
       if (state.ui_mode === 'modify' && state.active_label === label) {
-        enter_browse();
+        // Clicking the already-targeted landmark again clears the target
+        // (stays in modify, ready to pick another) rather than exiting.
+        enter_modify(null);
       } else {
-        ensure_modify(label);
+        // A pure click (no drag) enters/retargets modify safely — the drag
+        // race only bites a click-drag gesture, which `can_drag_pin` blocks
+        // outside modify.
+        enter_modify(label);
       }
       return;
     }
@@ -653,23 +689,27 @@ export const landmark = async (model, el) => {
     }
   };
 
-  // Whether a hovered/dragged pin can actually be dragged right now — a
-  // draft pin only while in 'mark', a committed one always (dragging it
-  // jumps straight into 'modify', from any state).
+  // Whether a pin can be dragged right now. A committed pin is draggable
+  // only *in* modify mode (where pan is already off, so no camera fight) —
+  // you enter modify first, by button or by clicking the pin, then drag. A
+  // draft pin is draggable while marking, to refine its position.
   const can_drag_pin = (info) => {
     if (!info.object || !info.layer?.id?.startsWith('landmark-icon-')) {
       return false;
     }
-    return !info.object.properties.draft || state.ui_mode === 'mark';
+    if (info.object.properties.draft) return state.ui_mode === 'mark';
+    return state.ui_mode === 'modify';
   };
 
   const handle_drag_start = (info) => {
     const side = info.viewport && side_for_viewport_id(info.viewport.id);
     if (!side || !can_drag_pin(info)) return;
     const { label, draft: is_draft } = info.object.properties;
-    if (!is_draft) ensure_modify(label);
+    // In modify, targeting/retargeting a committed pin as the drag begins
+    // (mode + pan state are already set, so no view re-init mid-gesture).
+    if (!is_draft && state.active_label !== label) enter_modify(label);
     dragging = { side, label, is_draft };
-    apply_views(side);
+    refresh_view_controllers();
   };
 
   const handle_drag = (info) => {
@@ -693,8 +733,7 @@ export const landmark = async (model, el) => {
       sync_side_to_model(dragging.side);
     }
     dragging = null;
-    disabled_side_for_hover = null;
-    apply_views(null);
+    refresh_view_controllers();
   };
 
   deck_ist.setProps({
@@ -706,15 +745,10 @@ export const landmark = async (model, el) => {
       hover_side = info.viewport
         ? side_for_viewport_id(info.viewport.id)
         : null;
-      if (dragging) return;
-      const next_disabled = can_drag_pin(info) ? hover_side : null;
-      if (next_disabled !== disabled_side_for_hover) {
-        disabled_side_for_hover = next_disabled;
-        apply_views(next_disabled);
-      }
     },
     getCursor: ({ isDragging }) => {
       if (isDragging) return 'grabbing';
+      if (state.ui_mode === 'modify') return 'move';
       if (state.ui_mode !== 'mark') return 'grab';
       // No crosshair once this side can't take another instance of the
       // targeted landmark — a slice only ever holds one.
@@ -1027,19 +1061,29 @@ export const landmark = async (model, el) => {
           (landmark_count_by_slice[slice_id] || 0) + 1;
       });
     });
+    // Unsaved MARK points count too, so the SLICE bar grows live as you drop
+    // a new landmark's points across slices, before SAVE writes them back.
+    const target = current_target_label();
+    const covered = new Set(target ? landmark_slices[target] || [] : []);
+    if (state.ui_mode === 'mark') {
+      state.pending_points.forEach((_coord, slice_id) => {
+        if (!covered.has(slice_id)) {
+          landmark_count_by_slice[slice_id] =
+            (landmark_count_by_slice[slice_id] || 0) + 1;
+        }
+        covered.add(slice_id);
+      });
+    }
     const slice_bar_data = slice_id_order.map((name) => ({
       name,
       value: landmark_count_by_slice[name] || 0,
     }));
-    const covered = new Set(
-      state.active_label ? landmark_slices[state.active_label] || [] : []
-    );
     const color_overrides = model.get('landmark_colors') || {};
     const color_dict = Object.fromEntries(
       slice_bar_data.map((d) => [
         d.name,
-        covered.has(d.name)
-          ? resolve_landmark_color(state.active_label, color_overrides)
+        covered.has(d.name) && target
+          ? resolve_landmark_color(target, color_overrides)
           : GRAY_RGB,
       ])
     );

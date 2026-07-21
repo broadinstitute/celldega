@@ -37,12 +37,18 @@ def _make_slice(rng, rotation_deg=0.0, translation=(0.0, 0.0)):
     return adata
 
 
-def _make_transform():
+def _make_transform_and_slices():
     rng = np.random.default_rng(0)
     slice0 = _make_slice(rng)
     slice1 = _make_slice(rng, rotation_deg=20, translation=(5.0, -3.0))
     landmarks = calc_landmarks([slice0, slice1], "cluster")
-    return calc_alignment_transform(landmarks, reference=0)
+    transform = calc_alignment_transform(landmarks, reference=0)
+    return transform, [slice0, slice1]
+
+
+def _make_transform():
+    transform, _ = _make_transform_and_slices()
+    return transform
 
 
 def test_plot_alignment_returns_figure_with_two_axes():
@@ -79,4 +85,41 @@ def test_transform_plot_method_delegates_to_plot_alignment():
 
     assert isinstance(fig, plt.Figure)
     assert len(axes) == 2
+    plt.close(fig)
+
+
+def test_plot_alignment_overlays_cell_centroids_when_adatas_given():
+    transform, slices = _make_transform_and_slices()
+
+    # color_by="label" gives one landmark collection per label; cells add one
+    # more collection per slice, drawn first (underneath).
+    fig, (ax_before, ax_after) = plot_alignment(transform, adatas=slices, color_by="label")
+
+    assert len(ax_after.collections) == len(slices) + len(_CENTERS)
+    assert len(ax_before.collections) == len(slices) + len(_CENTERS)
+    plt.close(fig)
+
+
+def test_plot_alignment_landmarks_only_when_no_adatas():
+    transform = _make_transform()
+
+    fig, (_, ax_after) = plot_alignment(transform, color_by="label")
+
+    # No adatas -> no cell-centroid collections, only the landmark ones.
+    assert len(ax_after.collections) == len(_CENTERS)
+    plt.close(fig)
+
+
+def test_plot_alignment_subsamples_cells():
+    transform, slices = _make_transform_and_slices()
+
+    # The cell-centroid collections (drawn first) are capped at
+    # max_cells_per_slice.
+    fig, (_, ax_after) = plot_alignment(
+        transform, adatas=slices, color_by="label", max_cells_per_slice=5
+    )
+
+    cell_collections = ax_after.collections[: len(slices)]
+    for collection in cell_collections:
+        assert collection.get_offsets().shape[0] <= 5
     plt.close(fig)

@@ -1,5 +1,7 @@
 import * as d3 from 'd3';
 
+import { create_color_input } from './editor_common';
+
 const make_button = (label) => {
   const button = document.createElement('button');
   button.textContent = label;
@@ -56,26 +58,32 @@ export const make_landmark_toolbar = ({
   };
 };
 
-const MARK_BUTTON_STYLE = {
-  browse: { color: 'blue', border_color: '#d3d3d3', disabled: false },
-  mark: { color: 'green', border_color: '#7ec488', disabled: false },
-  modify: { color: 'gray', border_color: '#d3d3d3', disabled: true },
-};
-
-/** `mode` is one of 'browse' | 'mark' | 'modify' — see `landmark.js`'s
- * state machine. MARK is disabled in 'modify' (the only ways out are
- * SAVE/DELETE), matching its grayed-out look. */
+/** `mode` is one of 'browse' | 'mark' | 'modify' — see `landmark.js`'s state
+ * machine. Rather than leaving MARK on-screen (disabled/relabeled) once
+ * you're already mid-action, the same button slot swaps to CANCEL — a
+ * single, always-clickable way back to 'browse' from either 'mark' or
+ * 'modify', discarding anything not yet saved. */
 export const set_mark_button_mode = (buttons, mode) => {
-  const style = MARK_BUTTON_STYLE[mode] || MARK_BUTTON_STYLE.browse;
+  const is_browse = mode === 'browse';
   d3.select(buttons.mark)
-    .style('color', style.color)
-    .style('border-color', style.border_color)
-    .property('disabled', style.disabled)
-    .style('cursor', style.disabled ? 'default' : 'pointer');
+    .text(is_browse ? 'MARK' : 'CANCEL')
+    .style('color', is_browse ? 'blue' : '#8a6d3b')
+    .style('border-color', is_browse ? '#d3d3d3' : '#e0c28a')
+    .property('disabled', false)
+    .style('cursor', 'pointer');
 };
 
 export const set_save_button_visible = (buttons, visible) => {
   d3.select(buttons.save).style('display', visible ? 'inline-flex' : 'none');
+};
+
+/** Blue once there's something for SAVE to actually commit (e.g. a drawn-but-
+ * unsaved landmark instance in 'mark'); the default gray otherwise, so the
+ * button visually confirms "yes, this click will do something." */
+export const set_save_button_active = (buttons, active) => {
+  d3.select(buttons.save)
+    .style('color', active ? 'blue' : 'gray')
+    .style('border-color', active ? '#a9c6ff' : '#d3d3d3');
 };
 
 export const set_del_button_visible = (buttons, visible) => {
@@ -280,4 +288,29 @@ export const set_label_input_value = (label_input, value) => {
 
 export const set_label_input_visible = (label_input, visible) => {
   label_input.input.style.display = visible ? 'inline-block' : 'none';
+};
+
+/** A color swatch next to the label textbox — same NBHD sketch/modify
+ * pattern (`create_color_input`, a native color picker) for overriding a
+ * landmark's default (computed) color. Hidden in 'browse'; shown for
+ * whichever landmark is targeted in 'mark'/'modify'. `on_change(hex)` fires
+ * as the user picks, same as the native input's own live-preview behavior. */
+export const make_landmark_color_input = (on_change) => {
+  const input = create_color_input('#4f80ff');
+  input.style.width = '20px';
+  input.style.height = '18px';
+  input.style.display = 'none';
+  input.title = 'Landmark color';
+
+  input.addEventListener('input', () => on_change(input.value));
+
+  return { container: input, input };
+};
+
+export const set_color_input_value = (color_input, hex) => {
+  color_input.input.value = hex;
+};
+
+export const set_color_input_visible = (color_input, visible) => {
+  color_input.input.style.display = visible ? 'inline-block' : 'none';
 };

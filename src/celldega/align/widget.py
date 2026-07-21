@@ -203,6 +203,13 @@ class Landmark(anywidget.AnyWidget):
     cluster_counts = traitlets.Dict({}).tag(sync=True)
     cluster_colors = traitlets.Dict({}).tag(sync=True)
 
+    # User-picked color overrides ({label: "#rrggbb"}) for the LNDMRK/SLICE
+    # bars and hexagon markers -- a landmark with no entry here just uses
+    # the front end's computed default. Pure passthrough state (the front
+    # end reads/writes it directly); kept in sync with rename/delete below
+    # so a color override follows a rename and doesn't outlive a delete.
+    landmark_colors = traitlets.Dict({}).tag(sync=True)
+
     # One-shot rename request from the front end: {"old": "3", "new": "tongue"}
     # — lets a landmark's label be a human-readable name (e.g. matching NBHD's
     # name-entry dialog) instead of just its auto-incremented number.
@@ -396,6 +403,11 @@ class Landmark(anywidget.AnyWidget):
         self.landmarks = updated
         self._recompute_landmark_coverage()
 
+        if old_label in self.landmark_colors:
+            colors = dict(self.landmark_colors)
+            colors[new_label] = colors.pop(old_label)
+            self.landmark_colors = colors
+
         # Re-sending (not clear-then-resend) matters here: `landmark_geojson_*`
         # round-trips through `_commit_side_landmarks`, which rebuilds this
         # slice's rows in `self.landmarks` from whatever it's handed — an
@@ -428,6 +440,11 @@ class Landmark(anywidget.AnyWidget):
 
         self.landmarks = self.landmarks.loc[~mask].reset_index(drop=True)
         self._recompute_landmark_coverage()
+
+        if label in self.landmark_colors:
+            colors = dict(self.landmark_colors)
+            del colors[label]
+            self.landmark_colors = colors
 
         for side in ("a", "b"):
             slice_id_str = getattr(self, f"slice_id_{side}")

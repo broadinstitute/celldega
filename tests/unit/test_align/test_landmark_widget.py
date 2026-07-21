@@ -319,6 +319,34 @@ def test_delete_landmark_removes_every_instance_across_slices():
     assert labels_on_b == {"2"}
 
 
+def test_rename_landmark_carries_its_color_override_to_the_new_label():
+    rng = np.random.default_rng(17)
+    lm = Landmark(adatas=_make_two_slices(rng))
+    lm.landmark_geojson_a = {
+        "type": "FeatureCollection",
+        "features": [_pair_feature("1", 1.0, 1.0)],
+    }
+    lm.landmark_colors = {"1": "#ff0000"}
+
+    lm.rename_landmark = {"old": "1", "new": "tongue"}
+
+    assert lm.landmark_colors == {"tongue": "#ff0000"}
+
+
+def test_delete_landmark_removes_its_color_override():
+    rng = np.random.default_rng(18)
+    lm = Landmark(adatas=_make_two_slices(rng))
+    lm.landmark_geojson_a = {
+        "type": "FeatureCollection",
+        "features": [_pair_feature("1", 1.0, 1.0)],
+    }
+    lm.landmark_colors = {"1": "#ff0000"}
+
+    lm.delete_landmark = "1"
+
+    assert lm.landmark_colors == {}
+
+
 def test_delete_landmark_ignores_unknown_label():
     rng = np.random.default_rng(16)
     lm = Landmark(adatas=_make_two_slices(rng))

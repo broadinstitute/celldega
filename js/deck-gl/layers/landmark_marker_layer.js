@@ -1,6 +1,7 @@
 import * as d3 from 'd3';
 import { IconLayer } from 'deck.gl';
 
+import { hexToRgb } from '../../utils/hexToRgb';
 import { getModelMatrixProps } from '../../utils/rotation';
 
 const ICON_SIZE = 64;
@@ -31,6 +32,13 @@ export const HEXAGON_ICON_MAPPING = {
   hexagon: { x: 0, y: 0, width: ICON_SIZE, height: ICON_SIZE, mask: true },
 };
 
+// The golden angle spaces consecutive hues maximally far apart around the
+// wheel (unlike a plain modulo step, it never falls into a short repeating
+// cycle) -- landmarks default to auto-incrementing numeric labels, so this
+// gives sequentially-created landmarks (1, 2, 3, ...) reliably distinct
+// colors instead of a hash's occasional near-collisions.
+const GOLDEN_ANGLE_DEGREES = 137.50776;
+
 const hash_string_to_hue = (value) => {
   let hash = 0;
   for (let i = 0; i < value.length; i++) {
@@ -39,13 +47,26 @@ const hash_string_to_hue = (value) => {
   return hash % 360;
 };
 
-/** A deterministic, distinct color per landmark label — same label always
- * gets the same color, with no coordination needed between the marker
- * layer and the LNDMRK/SLICE bar graphs (they call this too). */
+/** A deterministic, distinct default color per landmark label — same label
+ * always gets the same color, with no coordination needed between the
+ * marker layer and the LNDMRK/SLICE bar graphs (they call this too).
+ * Numeric labels (the common case -- landmarks are auto-numbered unless
+ * renamed) use golden-angle hue spacing; non-numeric custom names fall back
+ * to a hash, since there's no "index" to space them by. */
 export const color_for_label = (label) => {
-  const hue = hash_string_to_hue(String(label));
+  const numeric = Number(label);
+  const hue = Number.isFinite(numeric)
+    ? (numeric * GOLDEN_ANGLE_DEGREES) % 360
+    : hash_string_to_hue(String(label));
   const { r, g, b } = d3.hsl(hue, 0.65, 0.5).rgb();
   return [Math.round(r), Math.round(g), Math.round(b)];
+};
+
+/** `color_overrides` is the `landmark_colors` trait (`{label: "#rrggbb"}`)
+ * — a user-picked color always wins over the computed default. */
+export const resolve_landmark_color = (label, color_overrides = {}) => {
+  const override = color_overrides[String(label)];
+  return override ? hexToRgb(override) : color_for_label(label);
 };
 
 /**
@@ -62,7 +83,12 @@ export const color_for_label = (label) => {
 export const ini_landmark_marker_layer = (
   side,
   features,
-  { rotation_state, visible = true, modify_target = null } = {}
+  {
+    rotation_state,
+    visible = true,
+    modify_target = null,
+    color_overrides = {},
+  } = {}
 ) =>
   new IconLayer({
     id: `landmark-icon-${side}`,
@@ -76,12 +102,16 @@ export const ini_landmark_marker_layer = (
       f.properties.label === modify_target ? MODIFY_TARGET_SIZE : DEFAULT_SIZE,
     sizeUnits: 'pixels',
     getColor: (f) => {
-      const [r, g, b] = color_for_label(f.properties.label);
+      const [r, g, b] = resolve_landmark_color(
+        f.properties.label,
+        color_overrides
+      );
       return [r, g, b, f.properties.draft ? DRAFT_ALPHA : 255];
     },
     pickable: true,
     updateTriggers: {
       getSize: [modify_target],
+      getColor: [color_overrides],
     },
     ...getModelMatrixProps(rotation_state),
   });

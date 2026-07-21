@@ -17,18 +17,20 @@ import {
   ini_landmark_marker_layer,
   features_to_geojson,
   geojson_to_features,
-  color_for_label,
+  resolve_landmark_color,
 } from '../deck-gl/layers/landmark_marker_layer';
 import { objects_from_parquet } from '../read_parquet/objects_from_parquet';
 import { make_bar_container, make_bar_graph } from '../ui/bar_plot';
 import {
   make_landmark_dropdown,
   set_landmark_dropdown_value,
+  set_landmark_dropdown_disabled_option,
 } from '../ui/landmark_dropdown';
 import {
   make_landmark_toolbar,
   set_mark_button_mode,
   set_save_button_visible,
+  set_save_button_active,
   set_del_button_visible,
   register_landmark_keyboard_shortcuts,
   make_rotation_slider,
@@ -38,8 +40,11 @@ import {
   make_label_input,
   set_label_input_value,
   set_label_input_visible,
+  make_landmark_color_input,
+  set_color_input_value,
+  set_color_input_visible,
 } from '../ui/landmark_ui';
-import { hexToRgb } from '../utils/hexToRgb';
+import { hexToRgb, rgbToHex } from '../utils/hexToRgb';
 import { build_rotation_state, rotate_point_inverse } from '../utils/rotation';
 import { create_scale_bar } from '../utils/scale_bar';
 
@@ -211,6 +216,7 @@ export const landmark = async (model, el) => {
         rotation_state: state.rotation_state[side],
         visible: state.marker_visible,
         modify_target: state.ui_mode === 'modify' ? state.active_label : null,
+        color_overrides: model.get('landmark_colors') || {},
       }),
     ]);
 
@@ -330,6 +336,37 @@ export const landmark = async (model, el) => {
     }
   }
 
+  // The landmark the color swatch (and the rename logic above) currently
+  // applies to — null in 'browse', where nothing is targeted.
+  const current_target_label = () => {
+    if (state.ui_mode === 'mark')
+      return String(state.active_label ?? state.next_label);
+    if (state.ui_mode === 'modify') return state.active_label;
+    return null;
+  };
+
+  const color_input = make_landmark_color_input((hex) => {
+    const label = current_target_label();
+    if (!label) return;
+    const overrides = { ...(model.get('landmark_colors') || {}) };
+    overrides[label] = hex;
+    model.set('landmark_colors', overrides);
+    model.save_changes();
+    rebuild_lndmrk_bar();
+    rebuild_slice_bar();
+    refresh();
+  });
+
+  function sync_color_input() {
+    const label = current_target_label();
+    if (!label) return; // hidden anyway
+    const overrides = model.get('landmark_colors') || {};
+    const hex =
+      overrides[String(label)] ||
+      rgbToHex(resolve_landmark_color(label, overrides));
+    set_color_input_value(color_input, hex);
+  }
+
   const sync_side_to_model = (side) => {
     // Captured *before* the empty-first set below: that intermediate write
     // fires our own `change:landmark_geojson_*` listener synchronously
@@ -347,12 +384,14 @@ export const landmark = async (model, el) => {
   };
 
   const toolbar = make_landmark_toolbar({
+    // Browse: MARK, starts a fresh landmark. Mark/modify: the same slot is
+    // now CANCEL (see `set_mark_button_mode`) — always available, discards
+    // whatever's unsaved and returns to browse.
     on_mark_toggle: () => {
-      if (state.ui_mode === 'modify') return; // disabled — save/delete only
-      if (state.ui_mode === 'mark') {
-        enter_browse();
-      } else {
+      if (state.ui_mode === 'browse') {
         enter_mark(null);
+      } else {
+        enter_browse();
       }
     },
     on_save: () => {
@@ -364,11 +403,19 @@ export const landmark = async (model, el) => {
     },
   });
 
+  // In 'mark', SAVE only has something to commit once at least one draft is
+  // drawn; in 'modify', it's always the (non-destructive) way out.
+  const is_save_active = () =>
+    state.ui_mode === 'modify' ||
+    (state.ui_mode === 'mark' && Boolean(state.draft.a || state.draft.b));
+
   function apply_ui_mode() {
     set_mark_button_mode(toolbar.buttons, state.ui_mode);
     set_save_button_visible(toolbar.buttons, state.ui_mode !== 'browse');
+    set_save_button_active(toolbar.buttons, is_save_active());
     set_del_button_visible(toolbar.buttons, state.ui_mode === 'modify');
     set_label_input_visible(label_input, state.ui_mode !== 'browse');
+    set_color_input_visible(color_input, state.ui_mode !== 'browse');
   }
 
   function enter_browse() {
@@ -379,6 +426,7 @@ export const landmark = async (model, el) => {
     state.draft.a = null;
     state.draft.b = null;
     sync_label_input();
+    sync_color_input();
     apply_ui_mode();
     rebuild_lndmrk_bar();
     rebuild_slice_bar();
@@ -396,6 +444,7 @@ export const landmark = async (model, el) => {
     state.draft.a = null;
     state.draft.b = null;
     sync_label_input();
+    sync_color_input();
     apply_ui_mode();
     rebuild_lndmrk_bar();
     rebuild_slice_bar();
@@ -410,6 +459,7 @@ export const landmark = async (model, el) => {
     state.draft.a = null;
     state.draft.b = null;
     sync_label_input();
+    sync_color_input();
     apply_ui_mode();
     rebuild_lndmrk_bar();
     rebuild_slice_bar();
@@ -423,6 +473,7 @@ export const landmark = async (model, el) => {
       geometry: { type: 'Point', coordinates: true_coordinate },
       properties: { draft: true },
     };
+    set_save_button_active(toolbar.buttons, is_save_active());
     refresh();
   }
 
@@ -472,6 +523,7 @@ export const landmark = async (model, el) => {
   }
 
   sync_label_input();
+  sync_color_input();
   apply_ui_mode();
 
   // --- Pointer interaction ---------------------------------------------------
@@ -633,11 +685,10 @@ export const landmark = async (model, el) => {
 
   const cleanup_shortcuts = register_landmark_keyboard_shortcuts({
     on_mark_toggle: () => {
-      if (state.ui_mode === 'modify') return;
-      if (state.ui_mode === 'mark') {
-        enter_browse();
-      } else {
+      if (state.ui_mode === 'browse') {
         enter_mark(null);
+      } else {
+        enter_browse();
       }
     },
     on_save: () => {
@@ -645,9 +696,8 @@ export const landmark = async (model, el) => {
       else if (state.ui_mode === 'modify') save_modify();
     },
     on_cancel: () => {
-      // Not in the original spec ("only way out of modify is save/delete")
-      // — kept as a safety valve so an accidental click doesn't force a
-      // destructive choice. Clears an in-progress draft first if there is one.
+      // Escape is a finer-grained undo than CANCEL: clear an in-progress
+      // draft first (staying in 'mark') before falling back to a full exit.
       if (state.ui_mode === 'mark' && (state.draft.a || state.draft.b)) {
         state.draft.a = null;
         state.draft.b = null;
@@ -667,6 +717,20 @@ export const landmark = async (model, el) => {
   const slice_labels = model.get('slice_labels') || {};
   const rotation_sliders = {};
   const dropdowns = {};
+
+  const other_side = (side) => (side === 'a' ? 'b' : 'a');
+
+  // The two views only ever show different slices — if the requested slice
+  // is already on the other side, swap instead of leaving both sides on the
+  // same (useless-to-align) slice.
+  const request_slice_change = (side, new_slice_id) => {
+    const opposite = other_side(side);
+    if (new_slice_id === model.get(`slice_id_${opposite}`)) {
+      model.set(`slice_id_${opposite}`, model.get(`slice_id_${side}`));
+    }
+    model.set(`slice_id_${side}`, new_slice_id);
+    model.save_changes();
+  };
 
   const panels_shell = document.createElement('div');
   panels_shell.style.position = 'relative';
@@ -695,10 +759,7 @@ export const landmark = async (model, el) => {
       slice_ids,
       slice_labels,
       model.get(`slice_id_${side}`),
-      (value) => {
-        model.set(`slice_id_${side}`, value);
-        model.save_changes();
-      }
+      (value) => request_slice_change(side, value)
     );
     dropdowns[side] = dropdown;
 
@@ -735,6 +796,8 @@ export const landmark = async (model, el) => {
 
   panels_shell.appendChild(make_inset_controls('a', 0));
   panels_shell.appendChild(make_inset_controls('b', panel_width + 4));
+  set_landmark_dropdown_disabled_option(dropdowns.a, model.get('slice_id_b'));
+  set_landmark_dropdown_disabled_option(dropdowns.b, model.get('slice_id_a'));
 
   // --- Shared control panel: LNDMRK / CELL / TRX / SLICE ----------------------
 
@@ -756,8 +819,12 @@ export const landmark = async (model, el) => {
     }));
     lndmrk_bar_svg.selectAll('*').remove();
     if (!bar_data.length) return;
+    const color_overrides = model.get('landmark_colors') || {};
     const color_dict = Object.fromEntries(
-      bar_data.map((d) => [d.name, color_for_label(d.name)])
+      bar_data.map((d) => [
+        d.name,
+        resolve_landmark_color(d.name, color_overrides),
+      ])
     );
     make_bar_graph(
       lndmrk_bar_container,
@@ -873,30 +940,44 @@ export const landmark = async (model, el) => {
   const slice_bar_container = make_bar_container();
   style_bar_box(slice_bar_container);
   const slice_bar_svg = d3.create('svg');
-  const slice_cell_counts = model.get('slice_cell_counts') || {};
-  const slice_bar_data = Object.entries(slice_cell_counts)
-    .sort((a, b) => Number(a[0]) - Number(b[0]))
-    .map(([name, value]) => ({ name, value }));
+  // The static, complete, already-numerically-ordered list of every slice —
+  // used only for row order/labels, so a slice with zero landmarks still
+  // gets its own (zero-length, but clickable) row.
+  const slice_id_order = model.get('slice_ids') || [];
 
   function rebuild_slice_bar() {
     slice_bar_svg.selectAll('*').remove();
-    if (!slice_bar_data.length) return;
+    if (!slice_id_order.length) return;
     const landmark_slices = model.get('landmark_slices') || {};
+    // Bar length = how many distinct landmarks have an instance in that
+    // slice (the inverse of landmark_slices' label -> slice ids mapping) —
+    // not cell count.
+    const landmark_count_by_slice = {};
+    Object.values(landmark_slices).forEach((slices_for_label) => {
+      slices_for_label.forEach((slice_id) => {
+        landmark_count_by_slice[slice_id] =
+          (landmark_count_by_slice[slice_id] || 0) + 1;
+      });
+    });
+    const slice_bar_data = slice_id_order.map((name) => ({
+      name,
+      value: landmark_count_by_slice[name] || 0,
+    }));
     const covered = new Set(
       state.active_label ? landmark_slices[state.active_label] || [] : []
     );
+    const color_overrides = model.get('landmark_colors') || {};
     const color_dict = Object.fromEntries(
       slice_bar_data.map((d) => [
         d.name,
-        covered.has(d.name) ? color_for_label(state.active_label) : GRAY_RGB,
+        covered.has(d.name)
+          ? resolve_landmark_color(state.active_label, color_overrides)
+          : GRAY_RGB,
       ])
     );
     make_bar_graph(
       slice_bar_container,
-      (_event, d) => {
-        model.set(`slice_id_${state.active_side}`, d.name);
-        model.save_changes();
-      },
+      (_event, d) => request_slice_change(state.active_side, d.name),
       slice_bar_svg,
       slice_bar_data,
       color_dict,
@@ -907,6 +988,12 @@ export const landmark = async (model, el) => {
   }
   rebuild_slice_bar();
   model.on('change:landmark_slices', rebuild_slice_bar);
+  model.on('change:landmark_colors', () => {
+    rebuild_lndmrk_bar();
+    rebuild_slice_bar();
+    sync_color_input();
+    refresh();
+  });
 
   const make_tag = (text) => {
     const tag = document.createElement('span');
@@ -920,7 +1007,7 @@ export const landmark = async (model, el) => {
   control_row.append(
     make_section([toolbar.container], null),
     make_section(
-      [lndmrk_toggle.container, label_input.container],
+      [lndmrk_toggle.container, label_input.container, color_input.container],
       lndmrk_bar_container
     ),
     make_section(
@@ -935,19 +1022,34 @@ export const landmark = async (model, el) => {
 
   // --- React to Python-driven slice swaps ---------------------------------------
 
-  const on_side_swapped = async (side) => {
-    set_landmark_dropdown_value(dropdowns[side], model.get(`slice_id_${side}`));
+  // `slice_id_{side}` changing is a *request* — the front-end model updates
+  // it optimistically the instant `model.set` runs, well before Python's
+  // `_switch_side` observer has actually recomputed and sent back this new
+  // slice's `centroids_parquet_{side}`/`landmark_geojson_{side}`. Decoding
+  // centroids here (keyed off `change:slice_id_*`) would grab whatever the
+  // *previous* slice's bytes still were — the view would silently keep
+  // showing the old slice. So this only does the cheap, immediately-correct
+  // UI sync; the actual data refresh below is keyed off the data traits
+  // themselves, which Python only touches once the new values are ready.
+  const on_slice_id_changed = (side) => {
+    const new_slice_id = model.get(`slice_id_${side}`);
+    set_landmark_dropdown_value(dropdowns[side], new_slice_id);
+    set_landmark_dropdown_disabled_option(
+      dropdowns[other_side(side)],
+      new_slice_id
+    );
     state.highlighted_cell[side] = null;
-    state.rows[side] = await decode_centroids(model, side);
-    recompute_rotation_state(side);
     set_rotation_slider_value(
       rotation_sliders[side],
       rotation_deg_for_side(side)
     );
-    state.features[side] = geojson_to_features(
-      model.get(`landmark_geojson_${side}`)
-    );
     state.draft[side] = null;
+    set_save_button_active(toolbar.buttons, is_save_active());
+  };
+
+  const on_centroids_changed = async (side) => {
+    state.rows[side] = await decode_centroids(model, side);
+    recompute_rotation_state(side);
 
     const view_id = view_id_for_side(side);
     const new_view_state = initial_view_state_for_centroids(
@@ -964,9 +1066,10 @@ export const landmark = async (model, el) => {
     deck_ist.setProps({ viewState: state.view_states, layers: build_layers() });
   };
 
-  // Picking up a landmark rename (Python-driven, not JS-initiated) for
-  // whichever side happens to be showing an affected slice. Harmless no-op
-  // re-sync when this fires from our *own* SAVE/DEL writes.
+  // Picking up a landmark rename/slice-switch/etc. (Python-driven, not
+  // JS-initiated) for whichever side happens to be showing an affected
+  // slice. Harmless no-op re-sync when this fires from our *own* SAVE/DEL
+  // writes.
   const on_landmark_geojson_changed = (side) => {
     state.features[side] = geojson_to_features(
       model.get(`landmark_geojson_${side}`)
@@ -974,8 +1077,10 @@ export const landmark = async (model, el) => {
     refresh();
   };
 
-  model.on('change:slice_id_a', () => on_side_swapped('a'));
-  model.on('change:slice_id_b', () => on_side_swapped('b'));
+  model.on('change:slice_id_a', () => on_slice_id_changed('a'));
+  model.on('change:slice_id_b', () => on_slice_id_changed('b'));
+  model.on('change:centroids_parquet_a', () => on_centroids_changed('a'));
+  model.on('change:centroids_parquet_b', () => on_centroids_changed('b'));
   model.on('change:landmark_geojson_a', () => on_landmark_geojson_changed('a'));
   model.on('change:landmark_geojson_b', () => on_landmark_geojson_changed('b'));
 

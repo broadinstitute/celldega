@@ -38,3 +38,15 @@ export const make_landmark_dropdown = (
 export const set_landmark_dropdown_value = (select, value) => {
   select.value = value;
 };
+
+/** Grays out whichever option matches `disabled_value` (typically the other
+ * side's current slice) — the two views only ever show different slices, so
+ * there's no point offering the option that would collide. */
+export const set_landmark_dropdown_disabled_option = (
+  select,
+  disabled_value
+) => {
+  Array.from(select.options).forEach((option) => {
+    option.disabled = option.value === disabled_value;
+  });
+};

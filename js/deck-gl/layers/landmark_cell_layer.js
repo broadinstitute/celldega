@@ -26,6 +26,8 @@ export const centroid_rows_from_parquet = (parsed) => {
   }));
 };
 
+const HIGHLIGHT_RING_COLOR = [0, 0, 0, 255];
+
 /**
  * Cell rows keep their true (data-space) x/y; `rotation_state` (from
  * `build_rotation_state`, same helper Landscape's `rotate` uses) is applied
@@ -33,12 +35,20 @@ export const centroid_rows_from_parquet = (parsed) => {
  * rotation can assist visual alignment without touching the coordinates
  * landmarks get stored in. `highlight_cluster` is shared across both sides
  * (one CELL bar, not per-side), so selecting a cluster dims non-matching
- * cells identically on both views.
+ * cells identically on both views. `highlighted_cell` is a per-side pick (a
+ * single `cell_id`), drawn with a dark outline ring as a visual anchor while
+ * placing a nearby landmark — independent of cluster highlighting.
  */
 export const ini_landmark_cell_layer = (
   side,
   rows,
-  { highlight_cluster, rotation_state, visible = true, radius = 3 } = {}
+  {
+    highlight_cluster,
+    rotation_state,
+    visible = true,
+    radius = 3,
+    highlighted_cell = null,
+  } = {}
 ) =>
   new ScatterplotLayer({
     id: `landmark-cell-${side}`,
@@ -55,10 +65,16 @@ export const ini_landmark_cell_layer = (
     getRadius: radius,
     radiusUnits: 'pixels',
     radiusMinPixels: 1.5,
+    stroked: true,
+    getLineColor: (d) =>
+      d.cell_id === highlighted_cell ? HIGHLIGHT_RING_COLOR : [0, 0, 0, 0],
+    getLineWidth: 1,
+    lineWidthUnits: 'pixels',
     pickable: true,
     updateTriggers: {
       getFillColor: [highlight_cluster],
       getRadius: [radius],
+      getLineColor: [highlighted_cell],
     },
     ...getModelMatrixProps(rotation_state),
   });

@@ -200,6 +200,11 @@ class Landmark(anywidget.AnyWidget):
     cluster_counts = traitlets.Dict({}).tag(sync=True)
     cluster_colors = traitlets.Dict({}).tag(sync=True)
 
+    # One-shot rename request from the front end: {"old": "3", "new": "tongue"}
+    # — lets a landmark's label be a human-readable name (e.g. matching NBHD's
+    # name-entry dialog) instead of just its auto-incremented number.
+    rename_landmark = traitlets.Dict({}).tag(sync=True)
+
     # Python-only materialized table, spanning every slice visited so far.
     landmarks = traitlets.Instance(pd.DataFrame, allow_none=True)
 
@@ -361,6 +366,38 @@ class Landmark(anywidget.AnyWidget):
         self.landmarks = pd.concat([others, new_rows], ignore_index=True)
         self._bump_label_counter(row["label"] for row in rows)
         self._recompute_landmark_coverage()
+
+    @traitlets.observe("rename_landmark")
+    def _on_rename_landmark_change(self, change: dict) -> None:
+        payload = change["new"] or {}
+        old_label = payload.get("old")
+        new_label = payload.get("new")
+        if not old_label or not new_label or old_label == new_label:
+            return
+        self._rename_landmark(str(old_label), str(new_label))
+
+    def _rename_landmark(self, old_label: str, new_label: str) -> None:
+        if self.landmarks is None or self.landmarks.empty:
+            return
+        mask = self.landmarks["label"] == old_label
+        if not mask.any():
+            return
+
+        updated = self.landmarks.copy()
+        updated.loc[mask, "label"] = new_label
+        self.landmarks = updated
+        self._recompute_landmark_coverage()
+
+        # Re-sending (not clear-then-resend) matters here: `landmark_geojson_*`
+        # round-trips through `_commit_side_landmarks`, which rebuilds this
+        # slice's rows in `self.landmarks` from whatever it's handed — an
+        # empty-first send would wipe this slice's (already-renamed) rows
+        # before the real value arrived.
+        for side in ("a", "b"):
+            slice_id_str = getattr(self, f"slice_id_{side}")
+            setattr(self, f"landmark_geojson_{side}", self._geojson_for_slice(slice_id_str))
+
+        self.rename_landmark = {}
 
     def _recompute_landmark_coverage(self) -> None:
         """Number of distinct slices each landmark label has a saved point in,

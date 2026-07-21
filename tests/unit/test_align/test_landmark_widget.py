@@ -242,3 +242,41 @@ def test_landmark_coverage_counts_distinct_slices_per_label():
         "features": [*lm.landmark_geojson_b["features"], _pair_feature("2", 3.0, 3.0)],
     }
     assert lm.landmark_coverage == {"1": 3, "2": 1}
+
+
+def test_rename_landmark_updates_table_coverage_and_visible_geojson():
+    rng = np.random.default_rng(13)
+    lm = Landmark(adatas=_make_two_slices(rng))  # initial pair 0, 1
+
+    lm.landmark_geojson_a = {
+        "type": "FeatureCollection",
+        "features": [_pair_feature("1", 1.0, 1.0)],
+    }
+    lm.landmark_geojson_b = {
+        "type": "FeatureCollection",
+        "features": [_pair_feature("1", 2.0, 2.0)],
+    }
+
+    lm.rename_landmark = {"old": "1", "new": "tongue"}
+
+    assert set(lm.landmarks["label"]) == {"tongue"}
+    assert lm.landmark_coverage == {"tongue": 2}
+    assert lm.landmark_geojson_a["features"][0]["properties"]["label"] == "tongue"
+    assert lm.landmark_geojson_b["features"][0]["properties"]["label"] == "tongue"
+    # One-shot trigger resets itself so the same rename can't accidentally replay.
+    assert lm.rename_landmark == {}
+
+
+def test_rename_landmark_ignores_unknown_or_noop_requests():
+    rng = np.random.default_rng(14)
+    lm = Landmark(adatas=_make_two_slices(rng))
+    lm.landmark_geojson_a = {
+        "type": "FeatureCollection",
+        "features": [_pair_feature("1", 1.0, 1.0)],
+    }
+
+    lm.rename_landmark = {"old": "not_a_label", "new": "tongue"}
+    assert set(lm.landmarks["label"]) == {"1"}
+
+    lm.rename_landmark = {"old": "1", "new": "1"}
+    assert set(lm.landmarks["label"]) == {"1"}

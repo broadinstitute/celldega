@@ -216,4 +216,3 @@ export const make_range_slider = (
   container.append(slider, label);
   return { container, slider, label };
 };
-

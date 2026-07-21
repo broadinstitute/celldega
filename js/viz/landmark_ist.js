@@ -12,8 +12,6 @@ import {
 import {
   ini_landmark_cell_layer,
   centroid_rows_from_parquet,
-  gene_expression_map_from_parquet,
-  cluster_bar_data,
 } from '../deck-gl/layers/landmark_cell_layer';
 import {
   ini_landmark_marker_layer,
@@ -22,7 +20,10 @@ import {
 } from '../deck-gl/layers/landmark_marker_layer';
 import { objects_from_parquet } from '../read_parquet/objects_from_parquet';
 import { make_bar_container, make_bar_graph } from '../ui/bar_plot';
-import { make_landmark_dropdown } from '../ui/landmark_dropdown';
+import {
+  make_landmark_dropdown,
+  set_landmark_dropdown_value,
+} from '../ui/landmark_dropdown';
 import {
   make_landmark_toolbar,
   set_mark_button_active,
@@ -32,7 +33,6 @@ import {
   set_rotation_slider_value,
   make_toggle_button,
   make_range_slider,
-  make_gene_search_input,
 } from '../ui/landmark_ui';
 import { hexToRgb } from '../utils/hexToRgb';
 import { build_rotation_state, rotate_point_inverse } from '../utils/rotation';
@@ -49,11 +49,12 @@ const decode_centroids = async (model, side) => {
   return centroid_rows_from_parquet(parsed);
 };
 
-const decode_gene_expression = async (model, side) => {
-  const bytes = model.get(`gene_exp_parquet_${side}`);
-  if (!bytes || bytes.byteLength === 0) return new Map();
-  const parsed = await objects_from_parquet(bytes, 'cell_id');
-  return gene_expression_map_from_parquet(parsed);
+const style_bar_box = (container) => {
+  container.style.width = '107px';
+  container.style.height = '72px';
+  container.style.marginLeft = '5px';
+  container.style.overflowY = 'auto';
+  container.style.border = '1px solid #d3d3d3';
 };
 
 export const landmark_ist = async (model, el) => {
@@ -68,11 +69,13 @@ export const landmark_ist = async (model, el) => {
   root_container.className = 'landmark-root';
   el.appendChild(root_container);
 
-  const shared_toolbar_row = document.createElement('div');
-  shared_toolbar_row.style.display = 'flex';
-  shared_toolbar_row.style.alignItems = 'center';
-  shared_toolbar_row.style.gap = '8px';
-  shared_toolbar_row.style.width = `${width}px`;
+  const control_row = document.createElement('div');
+  control_row.style.display = 'flex';
+  control_row.style.alignItems = 'center';
+  control_row.style.gap = '8px';
+  control_row.style.width = `${width}px`;
+  control_row.style.flexWrap = 'wrap';
+  control_row.style.padding = '4px 0';
 
   const columns_row = document.createElement('div');
   columns_row.style.display = 'flex';
@@ -88,11 +91,14 @@ export const landmark_ist = async (model, el) => {
     next_label: model.get('next_landmark_label') || 1,
     rows: { a: [], b: [] },
     features: { a: [], b: [] },
-    highlight_cluster: { a: null, b: null },
-    cell_visible: { a: true, b: true },
-    cell_radius: { a: 3, b: 3 },
-    gene_active: { a: false, b: false },
-    gene_exp: { a: new Map(), b: new Map() },
+    // Shared across both views — one CELL/LNDMRK control panel, not one per side.
+    highlight_cluster: null,
+    cell_visible: true,
+    cell_radius: 2,
+    marker_visible: true,
+    // Per-side single-cell pick (a visual anchor while placing a nearby
+    // landmark) — independent of cluster highlighting.
+    highlighted_cell: { a: null, b: null },
     // Rotation is remembered per *slice id*, not per side, so swapping away
     // and back to a slice restores the angle you left it at.
     rotation_deg_by_slice: {},
@@ -124,14 +130,24 @@ export const landmark_ist = async (model, el) => {
   state.features.a = geojson_to_features(model.get('landmark_geojson_a'));
   state.features.b = geojson_to_features(model.get('landmark_geojson_b'));
 
-  const panels_wrap = { a: null, b: null }; // filled in once panel wrappers exist, for active-side border styling
+  const panels_wrap = { a: null, b: null };
 
-  const views = create_landmark_views(width, height);
   const panels_row = document.createElement('div');
   panels_row.style.width = `${width}px`;
   panels_row.style.height = `${height}px`;
   const deck_ist = ini_deck(panels_row, width, height);
-  set_views_prop(deck_ist, views);
+
+  // Disabling the *dragged* side's camera-pan controller while a marker is
+  // being dragged — otherwise deck.gl's controller and the custom onDrag
+  // handler below both respond to the same pointer gesture, and dragging a
+  // pentagon also pans the view underneath it.
+  const apply_views = (drag_pan_disabled_side) => {
+    set_views_prop(
+      deck_ist,
+      create_landmark_views(width, height, drag_pan_disabled_side)
+    );
+  };
+  apply_views(null);
 
   const combined_features = (side) => {
     const committed = state.features[side].filter((f) => !f.properties.draft);
@@ -141,16 +157,16 @@ export const landmark_ist = async (model, el) => {
   const build_layers = () =>
     SIDES.flatMap((side) => [
       ini_landmark_cell_layer(side, state.rows[side], {
-        highlight_cluster: state.highlight_cluster[side],
+        highlight_cluster: state.highlight_cluster,
         rotation_state: state.rotation_state[side],
-        visible: state.cell_visible[side],
-        radius: state.cell_radius[side],
-        gene_active: state.gene_active[side],
-        gene_exp_map: state.gene_exp[side],
+        visible: state.cell_visible,
+        radius: state.cell_radius,
+        highlighted_cell: state.highlighted_cell[side],
       }),
       ini_landmark_marker_layer(side, combined_features(side), {
         selected_label: state.selected_label,
         rotation_state: state.rotation_state[side],
+        visible: state.marker_visible,
       }),
     ]);
 
@@ -343,6 +359,12 @@ export const landmark_ist = async (model, el) => {
     });
   };
 
+  const toggle_highlighted_cell = (side, cell_id) => {
+    state.highlighted_cell[side] =
+      state.highlighted_cell[side] === cell_id ? null : cell_id;
+    refresh();
+  };
+
   let dragging = null; // { side, label, is_draft }
 
   const handle_click = (info) => {
@@ -362,6 +384,11 @@ export const landmark_ist = async (model, el) => {
 
     if (state.mark_mode && !state.draft[side] && info.coordinate) {
       place_draft(side, to_true_coordinate(side, info.coordinate));
+      return;
+    }
+
+    if (info.object && info.layer?.id?.startsWith('landmark-cell-')) {
+      toggle_highlighted_cell(side, info.object.cell_id);
     }
   };
 
@@ -374,6 +401,7 @@ export const landmark_ist = async (model, el) => {
       label: info.object.properties.label,
       is_draft: info.object.properties.draft,
     };
+    apply_views(side);
   };
 
   const handle_drag = (info) => {
@@ -400,6 +428,7 @@ export const landmark_ist = async (model, el) => {
       sync_side_to_model(dragging.side);
     }
     dragging = null;
+    apply_views(null);
   };
 
   deck_ist.setProps({
@@ -427,59 +456,20 @@ export const landmark_ist = async (model, el) => {
     on_delete: () => delete_selected(),
   });
 
-  // --- Per-side controls: dropdown, rotation, CELL/TRX, gene search, size ----
+  // --- Per-side header: slice dropdown + rotation slider ----------------------
 
   const slice_ids = model.get('slice_ids') || [];
   const slice_labels = model.get('slice_labels') || {};
-
   const rotation_sliders = {};
-  const cell_bar_containers = {};
-  const cell_bar_svgs = {};
-  const gene_searches = {};
-
-  const rebuild_cell_bar = (side) => {
-    const bar_data = cluster_bar_data(state.rows[side]);
-    const svg_bar = cell_bar_svgs[side];
-    svg_bar.selectAll('*').remove();
-    if (!bar_data.length) return;
-    const color_dict = Object.fromEntries(
-      bar_data.map((d) => [d.name, hexToRgb(d.color)])
-    );
-    make_bar_graph(
-      cell_bar_containers[side],
-      (_event, d) => {
-        state.highlight_cluster[side] =
-          state.highlight_cluster[side] === d.name ? null : d.name;
-        rebuild_cell_bar(side);
-        refresh();
-      },
-      svg_bar,
-      bar_data,
-      color_dict,
-      null,
-      null,
-      null
-    );
-    svg_bar
-      .selectAll('g')
-      .style('opacity', (d) =>
-        !state.highlight_cluster[side] ||
-        d.name === state.highlight_cluster[side]
-          ? 1
-          : 0.3
-      );
-  };
+  const dropdowns = {};
 
   const make_side_column = (side) => {
     const column = document.createElement('div');
     column.style.width = `${column_width}px`;
+    column.style.display = 'flex';
+    column.style.alignItems = 'center';
+    column.style.gap = '6px';
     column.addEventListener('click', () => set_active_side(side));
-
-    const header = document.createElement('div');
-    header.style.display = 'flex';
-    header.style.alignItems = 'center';
-    header.style.gap = '6px';
-    header.style.marginBottom = '4px';
 
     const dropdown = make_landmark_dropdown(
       slice_ids,
@@ -490,6 +480,7 @@ export const landmark_ist = async (model, el) => {
         model.save_changes();
       }
     );
+    dropdowns[side] = dropdown;
 
     const rotation_slider = make_rotation_slider((degrees) => {
       state.rotation_deg_by_slice[model.get(`slice_id_${side}`)] = degrees;
@@ -498,88 +489,14 @@ export const landmark_ist = async (model, el) => {
     });
     rotation_sliders[side] = rotation_slider;
 
-    header.append(dropdown, rotation_slider.container);
-
-    const controls_top = document.createElement('div');
-    controls_top.style.display = 'flex';
-    controls_top.style.alignItems = 'center';
-    controls_top.style.gap = '8px';
-    controls_top.style.marginBottom = '2px';
-
-    const cell_toggle = make_toggle_button('CELL', { checked: true });
-    cell_toggle.input.addEventListener('change', () => {
-      state.cell_visible[side] = cell_toggle.input.checked;
-      refresh();
-    });
-
-    const size_slider = make_range_slider(
-      {
-        min: 1,
-        max: 10,
-        step: 1,
-        value: state.cell_radius[side],
-        format: (v) => `${v}px`,
-      },
-      (value) => {
-        state.cell_radius[side] = value;
-        refresh();
-      }
-    );
-
-    // No transcript data is loaded for Landmark (no base_url/tiles) — kept
-    // visible-but-disabled for layout parity with Landscape's control bar.
-    const trx_toggle = make_toggle_button('TRX', {
-      checked: false,
-      disabled: true,
-    });
-
-    const gene_search = make_gene_search_input((gene) => {
-      model.set(`gene_query_${side}`, gene);
-      model.save_changes();
-    });
-    gene_search.set_genes(model.get(`available_genes_${side}`) || []);
-    gene_searches[side] = gene_search;
-
-    controls_top.append(
-      cell_toggle.container,
-      size_slider.container,
-      trx_toggle.container,
-      gene_search.container
-    );
-
-    const bars_row = document.createElement('div');
-    bars_row.style.display = 'flex';
-
-    const cell_bar_container = make_bar_container();
-    cell_bar_containers[side] = cell_bar_container;
-    cell_bar_svgs[side] = d3.create('svg');
-
-    const trx_bar_container = make_bar_container();
-    trx_bar_container.style.width = '107px';
-    trx_bar_container.style.height = '72px';
-    trx_bar_container.style.marginLeft = '5px';
-    trx_bar_container.style.border = '1px solid #e8e8e8';
-    trx_bar_container.style.color = '#b0b0b0';
-    trx_bar_container.style.fontSize = '9px';
-    trx_bar_container.style.padding = '4px';
-    trx_bar_container.textContent = 'no transcript data';
-
-    bars_row.append(cell_bar_container, trx_bar_container);
-
-    column.append(header, controls_top, bars_row);
+    column.append(dropdown, rotation_slider.container);
     return column;
   };
 
-  const column_a = make_side_column('a');
-  const column_b = make_side_column('b');
-  columns_row.append(column_a, column_b);
+  columns_row.append(make_side_column('a'), make_side_column('b'));
 
-  rebuild_cell_bar('a');
-  rebuild_cell_bar('b');
+  // --- One shared canvas + per-side "active" border overlay -------------------
 
-  // One shared canvas renders both views (deck.gl positions them internally
-  // via each view's own `x`/`width`) — a per-side "active" border is drawn
-  // as a non-interactive overlay rather than splitting the canvas itself.
   const panels_shell = document.createElement('div');
   panels_shell.style.position = 'relative';
   panels_shell.style.width = `${width}px`;
@@ -607,31 +524,16 @@ export const landmark_ist = async (model, el) => {
   panels_shell.appendChild(scale_bars.a.container);
   panels_shell.appendChild(scale_bars.b.container);
 
-  // --- Shared SLICE / LNDMRK bar graphs ---------------------------------------
+  // --- Shared control panel: LNDMRK / CELL / TRX / SLICE ----------------------
 
-  const slice_bar_container = make_bar_container();
-  const slice_bar_svg = d3.create('svg');
-  const slice_cell_counts = model.get('slice_cell_counts') || {};
-  const slice_bar_data = Object.entries(slice_cell_counts)
-    .sort((a, b) => Number(a[0]) - Number(b[0]))
-    .map(([name, value]) => ({ name, value }));
-  if (slice_bar_data.length) {
-    make_bar_graph(
-      slice_bar_container,
-      (_event, d) => {
-        model.set(`slice_id_${state.active_side}`, d.name);
-        model.save_changes();
-      },
-      slice_bar_svg,
-      slice_bar_data,
-      Object.fromEntries(slice_bar_data.map((d) => [d.name, GRAY_RGB])),
-      null,
-      null,
-      null
-    );
-  }
+  const lndmrk_toggle = make_toggle_button('LNDMRK', { checked: true });
+  lndmrk_toggle.input.addEventListener('change', () => {
+    state.marker_visible = lndmrk_toggle.input.checked;
+    refresh();
+  });
 
   const lndmrk_bar_container = make_bar_container();
+  style_bar_box(lndmrk_bar_container);
   const lndmrk_bar_svg = d3.create('svg');
 
   const rebuild_lndmrk_bar = () => {
@@ -661,35 +563,147 @@ export const landmark_ist = async (model, el) => {
       null,
       null
     );
+    // Double-click to give a landmark a human-readable name (e.g. "tongue")
+    // — mirrors NBHD's name-entry dialog, just via a plain prompt() for now.
+    lndmrk_bar_svg.selectAll('g').on('dblclick', (_event, d) => {
+      const next = window.prompt(`Rename landmark "${d.name}" to:`, d.name);
+      if (!next || next === d.name) return;
+      model.set('rename_landmark', {});
+      model.set('rename_landmark', { old: d.name, new: next });
+      model.save_changes();
+    });
   };
   rebuild_lndmrk_bar();
   model.on('change:landmark_coverage', rebuild_lndmrk_bar);
 
-  const slice_label_tag = document.createElement('span');
-  slice_label_tag.textContent = 'SLICE';
-  slice_label_tag.style.fontSize = '11px';
-  slice_label_tag.style.fontWeight = '700';
-  slice_label_tag.style.color = 'blue';
+  const cell_toggle = make_toggle_button('CELL', { checked: true });
+  cell_toggle.input.addEventListener('change', () => {
+    state.cell_visible = cell_toggle.input.checked;
+    refresh();
+  });
 
-  const lndmrk_label_tag = document.createElement('span');
-  lndmrk_label_tag.textContent = 'LNDMRK';
-  lndmrk_label_tag.style.fontSize = '11px';
-  lndmrk_label_tag.style.fontWeight = '700';
-  lndmrk_label_tag.style.color = 'blue';
-
-  shared_toolbar_row.append(
-    toolbar.container,
-    slice_label_tag,
-    slice_bar_container,
-    lndmrk_label_tag,
-    lndmrk_bar_container
+  const size_slider = make_range_slider(
+    {
+      min: 1,
+      max: 10,
+      step: 1,
+      value: state.cell_radius,
+      format: (v) => `${v}px`,
+    },
+    (value) => {
+      state.cell_radius = value;
+      refresh();
+    }
   );
 
-  root_container.append(shared_toolbar_row, columns_row, panels_shell);
+  const cell_bar_container = make_bar_container();
+  style_bar_box(cell_bar_container);
+  const cell_bar_svg = d3.create('svg');
+
+  const cluster_counts = model.get('cluster_counts') || {};
+  const cluster_colors = model.get('cluster_colors') || {};
+  const cell_bar_data = Object.entries(cluster_counts)
+    .map(([name, value]) => ({ name, value }))
+    .sort((a, b) => b.value - a.value);
+
+  const rebuild_cell_bar = () => {
+    cell_bar_svg.selectAll('*').remove();
+    if (!cell_bar_data.length) return;
+    const color_dict = Object.fromEntries(
+      cell_bar_data.map((d) => [
+        d.name,
+        hexToRgb(cluster_colors[d.name] || '#4f80ff'),
+      ])
+    );
+    make_bar_graph(
+      cell_bar_container,
+      (_event, d) => {
+        state.highlight_cluster =
+          state.highlight_cluster === d.name ? null : d.name;
+        rebuild_cell_bar();
+        refresh();
+      },
+      cell_bar_svg,
+      cell_bar_data,
+      color_dict,
+      null,
+      null,
+      null
+    );
+    cell_bar_svg
+      .selectAll('g')
+      .style('opacity', (d) =>
+        !state.highlight_cluster || d.name === state.highlight_cluster ? 1 : 0.3
+      );
+  };
+  rebuild_cell_bar(); // cluster_counts/cluster_colors are static — no need to rebuild on slice swap
+
+  // No transcript data is loaded for Landmark (no base_url/tiles) — kept
+  // visible-but-disabled for layout parity with Landscape's control bar.
+  const trx_toggle = make_toggle_button('TRX', {
+    checked: false,
+    disabled: true,
+  });
+  const trx_bar_container = make_bar_container();
+  style_bar_box(trx_bar_container);
+  trx_bar_container.style.border = '1px solid #e8e8e8';
+  trx_bar_container.style.color = '#b0b0b0';
+  trx_bar_container.style.fontSize = '9px';
+  trx_bar_container.style.padding = '4px';
+  trx_bar_container.textContent = 'no transcript data';
+
+  const slice_bar_container = make_bar_container();
+  style_bar_box(slice_bar_container);
+  const slice_bar_svg = d3.create('svg');
+  const slice_cell_counts = model.get('slice_cell_counts') || {};
+  const slice_bar_data = Object.entries(slice_cell_counts)
+    .sort((a, b) => Number(a[0]) - Number(b[0]))
+    .map(([name, value]) => ({ name, value }));
+  if (slice_bar_data.length) {
+    make_bar_graph(
+      slice_bar_container,
+      (_event, d) => {
+        model.set(`slice_id_${state.active_side}`, d.name);
+        model.save_changes();
+      },
+      slice_bar_svg,
+      slice_bar_data,
+      Object.fromEntries(slice_bar_data.map((d) => [d.name, GRAY_RGB])),
+      null,
+      null,
+      null
+    );
+  }
+
+  const make_tag = (text) => {
+    const tag = document.createElement('span');
+    tag.textContent = text;
+    tag.style.fontSize = '11px';
+    tag.style.fontWeight = '700';
+    tag.style.color = 'blue';
+    return tag;
+  };
+
+  control_row.append(
+    toolbar.container,
+    lndmrk_toggle.container,
+    lndmrk_bar_container,
+    cell_toggle.container,
+    size_slider.container,
+    cell_bar_container,
+    trx_toggle.container,
+    trx_bar_container,
+    make_tag('SLICE'),
+    slice_bar_container
+  );
+
+  root_container.append(control_row, columns_row, panels_shell);
 
   // --- React to Python-driven slice swaps ---------------------------------------
 
   const on_side_swapped = async (side) => {
+    set_landmark_dropdown_value(dropdowns[side], model.get(`slice_id_${side}`));
+    state.highlighted_cell[side] = null;
     state.rows[side] = await decode_centroids(model, side);
     recompute_rotation_state(side);
     set_rotation_slider_value(
@@ -700,12 +714,6 @@ export const landmark_ist = async (model, el) => {
       model.get(`landmark_geojson_${side}`)
     );
     state.draft[side] = null;
-    state.highlight_cluster[side] = null;
-    state.gene_active[side] = false;
-    state.gene_exp[side] = new Map();
-    gene_searches[side].clear();
-    gene_searches[side].set_genes(model.get(`available_genes_${side}`) || []);
-    rebuild_cell_bar(side);
 
     const view_id = view_id_for_side(side);
     const new_view_state = initial_view_state_for_centroids(
@@ -722,17 +730,20 @@ export const landmark_ist = async (model, el) => {
     deck_ist.setProps({ viewState: state.view_states, layers: build_layers() });
   };
 
-  const on_gene_expression_changed = async (side) => {
-    const map = await decode_gene_expression(model, side);
-    state.gene_exp[side] = map;
-    state.gene_active[side] = map.size > 0;
+  // Picking up a landmark rename (Python-driven, not JS-initiated) for
+  // whichever side happens to be showing an affected slice. Harmless no-op
+  // re-sync when this fires from our *own* SAVE/DEL writes.
+  const on_landmark_geojson_changed = (side) => {
+    state.features[side] = geojson_to_features(
+      model.get(`landmark_geojson_${side}`)
+    );
     refresh();
   };
 
   model.on('change:slice_id_a', () => on_side_swapped('a'));
   model.on('change:slice_id_b', () => on_side_swapped('b'));
-  model.on('change:gene_exp_parquet_a', () => on_gene_expression_changed('a'));
-  model.on('change:gene_exp_parquet_b', () => on_gene_expression_changed('b'));
+  model.on('change:landmark_geojson_a', () => on_landmark_geojson_changed('a'));
+  model.on('change:landmark_geojson_b', () => on_landmark_geojson_changed('b'));
 
   return {
     finalize: () => {

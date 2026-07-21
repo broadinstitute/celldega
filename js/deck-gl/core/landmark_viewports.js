@@ -8,8 +8,18 @@ export const LANDMARK_VIEW_ID_B = 'landmark-view-b';
 /**
  * Two side-by-side OrthographicViews, each independently pannable/zoomable
  * (unlike Yearbook's portrait grid, where only one portrait can pan).
+ *
+ * `drag_pan_disabled_side` ('a'/'b'/null) turns off that one view's
+ * camera-pan controller — needed while a marker is being dragged, since
+ * deck.gl's controller and a custom `onDrag` handler both respond to the
+ * same pointer gesture: without this, dragging a pentagon also pans the
+ * camera underneath it.
  */
-export const create_landmark_views = (width, height) => {
+export const create_landmark_views = (
+  width,
+  height,
+  drag_pan_disabled_side = null
+) => {
   const panel_width = (width - GAP) / 2;
 
   return [
@@ -21,7 +31,7 @@ export const create_landmark_views = (width, height) => {
       height,
       controller: {
         doubleClickZoom: false,
-        dragPan: true,
+        dragPan: drag_pan_disabled_side !== 'a',
         scrollZoom: true,
         touchZoom: true,
       },
@@ -34,7 +44,7 @@ export const create_landmark_views = (width, height) => {
       height,
       controller: {
         doubleClickZoom: false,
-        dragPan: true,
+        dragPan: drag_pan_disabled_side !== 'b',
         scrollZoom: true,
         touchZoom: true,
       },

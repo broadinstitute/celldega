@@ -36,6 +36,7 @@ import dataclasses
 import json
 from pathlib import Path
 from typing import Any
+import warnings
 
 import anndata as ad
 from anndata import AnnData
@@ -507,6 +508,7 @@ def align_serial_slices(
     z_space: float = 1.0,
     z_coord: list[float] | None = None,
     key_added: str = "Z",
+    cell_name_prefix: bool = False,
 ) -> AnnData:
     """Apply a fitted :class:`SerialAlignmentTransform` to a set of ``AnnData``.
 
@@ -533,6 +535,16 @@ def align_serial_slices(
             when given.
         key_added: Name of the new per-cell ``obs`` column holding the
             assigned Z position.
+        cell_name_prefix: If ``True``, prefix each slice's ``obs_names`` with
+            its slice id (``f"{slice_id}_{name}"``) before concatenating, so
+            cells stay uniquely named even when two slices reuse the same
+            per-slice barcode convention. Matches
+            :class:`~celldega.viz.widget.Landscape`'s ``cell_name_prefix``
+            convention (a dataset/slice id, then the original cell name,
+            split at the first ``_``), so the same aligned ``AnnData`` can be
+            visualized there with ``cell_name_prefix=True``. Default
+            ``False`` for backward compatibility — a uniqueness warning
+            fires either way if names collide.
 
     Returns:
         A new ``AnnData`` concatenating all slices, with ``obsm["spatial"]``
@@ -568,9 +580,19 @@ def align_serial_slices(
         adata.obsm["spatial"] = spatial
         adata.obs[key_added] = z_values[slice_id]
         adata.obs[slice_attr] = slice_id
+        if cell_name_prefix:
+            adata.obs_names = [f"{slice_id}_{name}" for name in adata.obs_names]
         aligned_slices.append(adata)
 
     adata_aligned = ad.concat(aligned_slices, join="outer")
+    if not adata_aligned.obs_names.is_unique:
+        warnings.warn(
+            "obs_names are not unique after concatenating slices; downstream indexing by "
+            "cell name may behave unexpectedly. Pass cell_name_prefix=True to prefix each "
+            "cell with its slice id (matching celldega.viz.widget.Landscape's "
+            "cell_name_prefix convention) to keep names unique.",
+            stacklevel=2,
+        )
     adata_aligned.uns["align_serial_slices"] = {
         "slice_attr": transform.slice_attr,
         "reference": str(transform.reference),

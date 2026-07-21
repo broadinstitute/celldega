@@ -9,16 +9,16 @@ const DEFAULT_SIZE = 18;
 const DRAFT_ALPHA = 170;
 
 /**
- * A single-icon pentagon atlas (mask:true so IconLayer tints it via getColor)
+ * A single-icon hexagon atlas (mask:true so IconLayer tints it via getColor)
  * — landmarks need a shape distinct from the circular cell/vertex markers
  * used everywhere else (cells, NBHD polygon vertices).
  */
-const build_pentagon_svg = () => {
+const build_hexagon_svg = () => {
   const cx = ICON_SIZE / 2;
   const cy = ICON_SIZE / 2;
   const r = ICON_SIZE / 2 - 4;
-  const points = Array.from({ length: 5 }, (_, i) => {
-    const angle = -Math.PI / 2 + (i * 2 * Math.PI) / 5;
+  const points = Array.from({ length: 6 }, (_, i) => {
+    const angle = -Math.PI / 2 + (i * 2 * Math.PI) / 6;
     const x = cx + r * Math.cos(angle);
     const y = cy + r * Math.sin(angle);
     return `${x.toFixed(2)},${y.toFixed(2)}`;
@@ -26,9 +26,9 @@ const build_pentagon_svg = () => {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${ICON_SIZE}" height="${ICON_SIZE}"><polygon points="${points}" fill="white"/></svg>`;
 };
 
-export const PENTAGON_ICON_ATLAS = `data:image/svg+xml;base64,${btoa(build_pentagon_svg())}`;
-export const PENTAGON_ICON_MAPPING = {
-  pentagon: { x: 0, y: 0, width: ICON_SIZE, height: ICON_SIZE, mask: true },
+export const HEXAGON_ICON_ATLAS = `data:image/svg+xml;base64,${btoa(build_hexagon_svg())}`;
+export const HEXAGON_ICON_MAPPING = {
+  hexagon: { x: 0, y: 0, width: ICON_SIZE, height: ICON_SIZE, mask: true },
 };
 
 const hash_string_to_hue = (value) => {
@@ -68,9 +68,9 @@ export const ini_landmark_marker_layer = (
     id: `landmark-icon-${side}`,
     data: features,
     visible,
-    iconAtlas: PENTAGON_ICON_ATLAS,
-    iconMapping: PENTAGON_ICON_MAPPING,
-    getIcon: () => 'pentagon',
+    iconAtlas: HEXAGON_ICON_ATLAS,
+    iconMapping: HEXAGON_ICON_MAPPING,
+    getIcon: () => 'hexagon',
     getPosition: (f) => f.geometry.coordinates,
     getSize: (f) =>
       f.properties.label === modify_target ? MODIFY_TARGET_SIZE : DEFAULT_SIZE,

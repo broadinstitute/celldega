@@ -12,7 +12,7 @@ export const LANDMARK_VIEW_ID_B = 'landmark-view-b';
  * `drag_pan_disabled_side` ('a'/'b'/null) turns off that one view's
  * camera-pan controller — needed while a marker is being dragged, since
  * deck.gl's controller and a custom `onDrag` handler both respond to the
- * same pointer gesture: without this, dragging a pentagon also pans the
+ * same pointer gesture: without this, dragging a hexagon also pans the
  * camera underneath it.
  */
 export const create_landmark_views = (

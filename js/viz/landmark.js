@@ -114,6 +114,9 @@ export const landmark = async (model, el) => {
     // name (null = not-yet-saved auto-numbered new landmark); in 'modify'
     // it's always the landmark currently targeted.
     active_label: null,
+    // In 'mark', the existing label a bar-click targeted (null if this mark
+    // was started fresh from the MARK button, with nothing existing yet).
+    mark_target_label: null,
     // A typed-but-not-yet-committed rename while in 'modify' — applied on
     // SAVE, not on every keystroke (modify's only way out is save/delete).
     pending_rename: null,
@@ -170,7 +173,7 @@ export const landmark = async (model, el) => {
   // Disabling the *dragged* side's camera-pan controller while a marker is
   // being dragged — otherwise deck.gl's controller and the custom onDrag
   // handler below both respond to the same pointer gesture, and dragging a
-  // pentagon also pans the view underneath it.
+  // hexagon also pans the view underneath it.
   const apply_views = (drag_pan_disabled_side) => {
     set_views_prop(
       deck_ist,
@@ -289,8 +292,20 @@ export const landmark = async (model, el) => {
   // save/delete).
   const label_input = make_label_input((value) => {
     if (state.ui_mode === 'mark') {
-      state.active_label =
-        value && value !== String(state.next_label) ? value : null;
+      const original = state.mark_target_label;
+      if (original && value && value !== original) {
+        // Renaming an existing landmark right from MARK's textbox — no
+        // instance needs to be visible/draggable (i.e. no need to go
+        // through MODIFY) just to rename it.
+        model.set('rename_landmark', {});
+        model.set('rename_landmark', { old: original, new: value });
+        model.save_changes();
+        state.mark_target_label = value;
+        state.active_label = value;
+      } else {
+        state.active_label =
+          value && value !== String(state.next_label) ? value : null;
+      }
       rebuild_lndmrk_bar();
       rebuild_slice_bar();
       refresh();
@@ -359,6 +374,7 @@ export const landmark = async (model, el) => {
   function enter_browse() {
     state.ui_mode = 'browse';
     state.active_label = null;
+    state.mark_target_label = null;
     state.pending_rename = null;
     state.draft.a = null;
     state.draft.b = null;
@@ -372,6 +388,10 @@ export const landmark = async (model, el) => {
   function enter_mark(label) {
     state.ui_mode = 'mark';
     state.active_label = label;
+    // The label a bar-click targeted (vs. null for a fresh MARK-button
+    // click) — kept around so the textbox can tell "rename this existing
+    // landmark" apart from "name the new one about to be created."
+    state.mark_target_label = label;
     state.pending_rename = null;
     state.draft.a = null;
     state.draft.b = null;
@@ -493,13 +513,13 @@ export const landmark = async (model, el) => {
     if (!side) return;
     set_active_side(side);
 
-    const clicked_pentagon =
+    const clicked_hexagon =
       info.object && info.layer?.id?.startsWith('landmark-icon-')
         ? info.object
         : null;
-    if (clicked_pentagon) {
-      if (clicked_pentagon.properties.draft) return; // reposition via drag, not click
-      const { label } = clicked_pentagon.properties;
+    if (clicked_hexagon) {
+      if (clicked_hexagon.properties.draft) return; // reposition via drag, not click
+      const { label } = clicked_hexagon.properties;
       if (state.ui_mode === 'modify' && state.active_label === label) {
         enter_browse();
       } else {
@@ -716,9 +736,9 @@ export const landmark = async (model, el) => {
       lndmrk_bar_container,
       (event, d) => {
         // Shift-click: delete the landmark entirely (every slice it's in).
-        // Double-click: jump straight to MODIFY (rename/delete) without
-        // needing a visible instance. Plain click: target it in MARK, ready
-        // to add another instance.
+        // Plain click: target it in MARK, ready to add another instance (or
+        // rename it via the textbox — no instance needs to be on-screen for
+        // that, so there's no separate shortcut into MODIFY from here).
         if (event.shiftKey) {
           const confirmed = window.confirm(
             `Delete landmark "${d.name}" entirely, across every slice it appears in? This can't be undone.`
@@ -743,9 +763,6 @@ export const landmark = async (model, el) => {
       null,
       null
     );
-    lndmrk_bar_svg
-      .selectAll('g')
-      .on('dblclick', (_event, d) => ensure_modify(d.name));
   }
   rebuild_lndmrk_bar();
   model.on('change:landmark_coverage', rebuild_lndmrk_bar);

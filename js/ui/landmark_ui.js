@@ -246,7 +246,7 @@ export const make_range_slider = (
 /** The label of whatever's currently being placed (MARK) or edited (MODIFY)
  * — the LNDMRK equivalent of a gene-search box: hidden in 'browse', shown
  * and editable in 'mark'/'modify', and updated when a LNDMRK bar or an
- * existing pentagon is clicked to target a landmark. `on_commit(value)`
+ * existing hexagon is clicked to target a landmark. `on_commit(value)`
  * fires on Enter/blur (an empty value means "back to auto-numbering", only
  * meaningful in 'mark'). */
 export const make_label_input = (on_commit) => {
@@ -260,7 +260,7 @@ export const make_label_input = (on_commit) => {
   input.style.borderRadius = '3px';
   input.style.display = 'none';
   input.title =
-    'Landmark name — click a LNDMRK bar or an existing pentagon to target one';
+    'Landmark name — click a LNDMRK bar or an existing hexagon to target one';
 
   const commit = () => on_commit(input.value.trim());
   input.addEventListener('keydown', (event) => {

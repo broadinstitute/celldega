@@ -28,9 +28,10 @@ const make_button = (label) => {
  * MARK/MODIFY/SAVE/DEL adapt to celldega's three landmark states — browse,
  * mark, modify (see `set_toolbar_mode`) — mirroring NBHD's
  * SKTCH/EDIT/SAVE/DELETE pattern of showing only the buttons relevant to the
- * current state. From browse both MARK and MODIFY show; whichever you click
- * becomes CANCEL for that sub-mode while the other hides. DEL is always red,
- * since deleting a landmark here is a whole-landmark action.
+ * current state. Browse shows just MARK; MODIFY surfaces only once a specific
+ * landmark is selected. Whichever of MARK/MODIFY started the current sub-mode
+ * reads CANCEL. DEL is always red, since deleting a landmark here is a
+ * whole-landmark action.
  */
 export const make_landmark_toolbar = ({
   on_mark_toggle,
@@ -75,10 +76,16 @@ const show = (button, visible) => {
 };
 
 /** `mode` is 'browse' | 'mark' | 'modify' — see `landmark.js`'s state
- * machine. The MARK and MODIFY slots each swap to CANCEL while their own
- * sub-mode is active (and the other slot hides), so there's always a single
- * obvious way back to browse discarding anything unsaved. */
-export const set_toolbar_mode = (buttons, mode) => {
+ * machine. MARK is the primary browse button and swaps to CANCEL while
+ * marking. MODIFY only appears once a specific landmark is selected: while
+ * marking a targeted existing landmark (`mark_has_target`) it offers a jump
+ * into drag/edit mode, and in modify itself it's the CANCEL/exit. It's
+ * hidden in browse and in a fresh (untargeted) MARK. */
+export const set_toolbar_mode = (
+  buttons,
+  mode,
+  { mark_has_target = false } = {}
+) => {
   const browse = mode === 'browse';
   const mark = mode === 'mark';
   const modify = mode === 'modify';
@@ -88,16 +95,12 @@ export const set_toolbar_mode = (buttons, mode) => {
     .text(mark ? 'CANCEL' : 'MARK')
     .style('color', mark ? CANCEL_COLOR : 'blue');
 
-  show(buttons.modify, browse || modify);
+  show(buttons.modify, modify || (mark && mark_has_target));
   d3.select(buttons.modify)
     .text(modify ? 'CANCEL' : 'MODIFY')
     .style('color', modify ? CANCEL_COLOR : 'blue');
 
   show(buttons.save, mark || modify);
-};
-
-export const set_save_button_visible = (buttons, visible) => {
-  show(buttons.save, visible);
 };
 
 /** Blue once there's something for SAVE to actually commit (e.g. a drawn-but-
@@ -279,7 +282,7 @@ export const make_range_slider = (
 /** The label of whatever's currently being placed (MARK) or edited (MODIFY)
  * — the LNDMRK equivalent of a gene-search box: hidden in 'browse', shown
  * and editable in 'mark'/'modify', and updated when a LNDMRK bar or an
- * existing pin is clicked to target a landmark. `on_commit(value)`
+ * existing landmark marker is clicked to target a landmark. `on_commit(value)`
  * fires on Enter/blur (an empty value means "back to auto-numbering", only
  * meaningful in 'mark'). */
 export const make_label_input = (on_commit) => {
@@ -293,7 +296,7 @@ export const make_label_input = (on_commit) => {
   input.style.borderRadius = '3px';
   input.style.display = 'none';
   input.title =
-    'Landmark name — click a LNDMRK bar or an existing pin to target one';
+    'Landmark name — click a LNDMRK bar or an existing marker to target one';
 
   const commit = () => on_commit(input.value.trim());
   input.addEventListener('keydown', (event) => {

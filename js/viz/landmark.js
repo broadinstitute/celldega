@@ -110,7 +110,7 @@ export const landmark = async (model, el) => {
   const state = {
     // 'browse' (initial; nothing editable) | 'mark' (adding new instances) |
     // 'modify' (drag/rename/delete an existing landmark). See `enter_browse`/
-    // `enter_mark`/`ensure_modify` — all state transitions go through those
+    // `enter_mark`/`enter_modify` — all state transitions go through those
     // three, so button visuals and the label textbox never drift out of sync
     // with what's actually happening.
     ui_mode: 'browse',
@@ -195,14 +195,27 @@ export const landmark = async (model, el) => {
 
   let dragging = null; // { side, label, is_draft }
 
+  // Recreating the views (to toggle dragPan) *during* a drag cancels the
+  // in-progress gesture — that's why marker dragging wasn't working. So the
+  // controllers are only ever set at discrete, non-drag moments (mode
+  // changes, placing a draft, swapping a slice), never inside a drag handler.
+  // MODIFY: pan off on both views for the whole mode. MARK: pan off only on a
+  // side already showing a pending point, so a just-placed draft can be
+  // dragged to refine it without the camera panning too.
   function refresh_view_controllers() {
     if (state.ui_mode === 'modify') {
       apply_views(['a', 'b']);
-    } else if (dragging?.is_draft) {
-      apply_views([dragging.side]);
-    } else {
-      apply_views([]);
+      return;
     }
+    if (state.ui_mode === 'mark') {
+      apply_views(
+        SIDES.filter((side) =>
+          state.pending_points.has(model.get(`slice_id_${side}`))
+        )
+      );
+      return;
+    }
+    apply_views([]);
   }
   apply_views([]);
 
@@ -421,16 +434,18 @@ export const landmark = async (model, el) => {
   };
 
   const toolbar = make_landmark_toolbar({
-    // From browse, MARK starts a fresh landmark and MODIFY enters
-    // drag/edit-existing mode; in either sub-mode that same button reads
-    // CANCEL and returns to browse, discarding anything unsaved.
+    // MARK (browse's primary button) starts a fresh landmark; while marking
+    // it reads CANCEL and returns to browse.
     on_mark_toggle: () => {
       if (state.ui_mode === 'browse') enter_mark(null);
       else enter_browse();
     },
+    // MODIFY only shows once a landmark is selected: from MARK (a targeted
+    // existing landmark) it jumps into drag/edit mode for it; in modify it
+    // reads CANCEL and returns to browse.
     on_modify_toggle: () => {
-      if (state.ui_mode === 'browse') enter_modify(null);
-      else enter_browse();
+      if (state.ui_mode === 'modify') enter_browse();
+      else if (state.ui_mode === 'mark') enter_modify(state.mark_target_label);
     },
     on_save: () => {
       if (state.ui_mode === 'mark') save_mark();
@@ -451,7 +466,10 @@ export const landmark = async (model, el) => {
   };
 
   function apply_ui_mode() {
-    set_toolbar_mode(toolbar.buttons, state.ui_mode);
+    set_toolbar_mode(toolbar.buttons, state.ui_mode, {
+      mark_has_target:
+        state.ui_mode === 'mark' && state.mark_target_label != null,
+    });
     set_save_button_active(toolbar.buttons, is_save_active());
     set_del_button_visible(
       toolbar.buttons,
@@ -533,6 +551,9 @@ export const landmark = async (model, el) => {
     state.pending_points.set(model.get(`slice_id_${side}`), true_coordinate);
     set_save_button_active(toolbar.buttons, is_save_active());
     rebuild_slice_bar();
+    // This side now has a draft — turn its pan off so the draft can be
+    // dragged to refine it (done here, not mid-drag, to avoid the race).
+    refresh_view_controllers();
     refresh();
   }
 
@@ -655,20 +676,20 @@ export const landmark = async (model, el) => {
     if (!side) return;
     set_active_side(side);
 
-    const clicked_pin =
+    const clicked_marker =
       info.object && info.layer?.id?.startsWith('landmark-icon-')
         ? info.object
         : null;
-    if (clicked_pin) {
-      if (clicked_pin.properties.draft) return; // reposition via drag, not click
-      const { label } = clicked_pin.properties;
+    if (clicked_marker) {
+      if (clicked_marker.properties.draft) return; // reposition via drag, not click
+      const { label } = clicked_marker.properties;
       if (state.ui_mode === 'modify' && state.active_label === label) {
         // Clicking the already-targeted landmark again clears the target
         // (stays in modify, ready to pick another) rather than exiting.
         enter_modify(null);
       } else {
         // A pure click (no drag) enters/retargets modify safely — the drag
-        // race only bites a click-drag gesture, which `can_drag_pin` blocks
+        // race only bites a click-drag gesture, which `can_drag_marker` blocks
         // outside modify.
         enter_modify(label);
       }
@@ -689,11 +710,11 @@ export const landmark = async (model, el) => {
     }
   };
 
-  // Whether a pin can be dragged right now. A committed pin is draggable
+  // Whether a marker can be dragged right now. A committed marker is draggable
   // only *in* modify mode (where pan is already off, so no camera fight) —
-  // you enter modify first, by button or by clicking the pin, then drag. A
-  // draft pin is draggable while marking, to refine its position.
-  const can_drag_pin = (info) => {
+  // you enter modify first, by button or by clicking the marker, then drag. A
+  // draft marker is draggable while marking, to refine its position.
+  const can_drag_marker = (info) => {
     if (!info.object || !info.layer?.id?.startsWith('landmark-icon-')) {
       return false;
     }
@@ -703,13 +724,22 @@ export const landmark = async (model, el) => {
 
   const handle_drag_start = (info) => {
     const side = info.viewport && side_for_viewport_id(info.viewport.id);
-    if (!side || !can_drag_pin(info)) return;
+    if (!side || !can_drag_marker(info)) return;
     const { label, draft: is_draft } = info.object.properties;
-    // In modify, targeting/retargeting a committed pin as the drag begins
-    // (mode + pan state are already set, so no view re-init mid-gesture).
-    if (!is_draft && state.active_label !== label) enter_modify(label);
+    // Retarget within modify (a different committed marker) if needed. Pan is
+    // already off for the whole mode, so this doesn't re-init the views
+    // mid-gesture — critically, no `apply_views`/`refresh_view_controllers`
+    // is called from any drag handler, which is what was cancelling drags.
+    if (!is_draft && state.active_label !== label) {
+      state.active_label = label;
+      state.pending_rename = null;
+      sync_label_input();
+      sync_color_input();
+      apply_ui_mode();
+      rebuild_lndmrk_bar();
+      rebuild_slice_bar();
+    }
     dragging = { side, label, is_draft };
-    refresh_view_controllers();
   };
 
   const handle_drag = (info) => {
@@ -733,7 +763,6 @@ export const landmark = async (model, el) => {
       sync_side_to_model(dragging.side);
     }
     dragging = null;
-    refresh_view_controllers();
   };
 
   deck_ist.setProps({
@@ -1156,6 +1185,10 @@ export const landmark = async (model, el) => {
     // alone here -- swapping this side to a different slice is exactly how
     // you mark another instance of the same landmark elsewhere.
     set_save_button_active(toolbar.buttons, is_save_active());
+    // This side may now show a slice that does/doesn't have a pending point,
+    // so its pan-enabled state can change (see `refresh_view_controllers`).
+    refresh_view_controllers();
+    rebuild_slice_bar();
   };
 
   const on_centroids_changed = async (side) => {

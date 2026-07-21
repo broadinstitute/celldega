@@ -37,9 +37,11 @@ def _one_slice_landmarks(adata: AnnData, cluster_key: str) -> pd.DataFrame:
     if spatial is None or np.asarray(spatial).shape[1] < 2:
         raise ValueError("adata must have obsm['spatial'] with at least 2 columns (x, y)")
 
-    xy = np.asarray(spatial)[:, :2]
-    df = pd.DataFrame(xy, columns=["x", "y"], index=adata.obs_names)
-    df["label"] = adata.obs[cluster_key].astype(str).to_numpy()
+    labels = adata.obs[cluster_key]
+    mask = labels.notna().to_numpy()
+    xy = np.asarray(spatial)[mask, :2]
+    df = pd.DataFrame(xy, columns=["x", "y"], index=adata.obs_names[mask])
+    df["label"] = labels[mask].astype(str).to_numpy()
     grouped = df.groupby("label")
     stats = grouped[["x", "y"]].mean()
     stats["count"] = grouped.size()
@@ -62,7 +64,9 @@ def calc_landmarks(
             be passed straight to
             :func:`~celldega.align.serial_slices.align_serial_slices`.
         cluster_key: ``obs`` column with cluster labels to compute
-            centroids for.
+            centroids for. Cells with a ``NaN`` label (e.g. unclustered/QC-
+            filtered cells) are excluded rather than pooled into a spurious
+            ``"nan"`` landmark.
         slice_attr: For a single combined ``AnnData``, the ``obs`` column
             identifying each cell's slice (required in that case, and
             triggers multi-slice output). For a list of ``AnnData``, the

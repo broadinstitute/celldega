@@ -17,6 +17,14 @@ const make_button = (label) => {
   return button;
 };
 
+/**
+ * MARK/SAVE/DEL adapt to celldega's three landmark states — browse, mark,
+ * modify (see `set_mark_button_mode`/`set_save_button_visible`/
+ * `set_del_button_visible`) — mirroring NBHD's SKTCH/EDIT/SAVE/DELETE
+ * pattern of showing only the buttons relevant to the current state.
+ * SAVE starts hidden (browse has nothing to save yet); DEL is always red,
+ * since deleting a landmark here is a whole-landmark, unconfirmable action.
+ */
 export const make_landmark_toolbar = ({
   on_mark_toggle,
   on_save,
@@ -31,7 +39,10 @@ export const make_landmark_toolbar = ({
   const mark_button = make_button('MARK');
   const save_button = make_button('SAVE');
   const del_button = make_button('DEL');
+  save_button.style.display = 'none';
   del_button.style.display = 'none';
+  del_button.style.color = 'red';
+  del_button.style.borderColor = '#f0b8b8';
 
   mark_button.addEventListener('click', () => on_mark_toggle());
   save_button.addEventListener('click', () => on_save());
@@ -45,11 +56,26 @@ export const make_landmark_toolbar = ({
   };
 };
 
-export const set_mark_button_active = (buttons, active) => {
+const MARK_BUTTON_STYLE = {
+  browse: { color: 'blue', border_color: '#d3d3d3', disabled: false },
+  mark: { color: 'green', border_color: '#7ec488', disabled: false },
+  modify: { color: 'gray', border_color: '#d3d3d3', disabled: true },
+};
+
+/** `mode` is one of 'browse' | 'mark' | 'modify' — see `landmark.js`'s
+ * state machine. MARK is disabled in 'modify' (the only ways out are
+ * SAVE/DELETE), matching its grayed-out look. */
+export const set_mark_button_mode = (buttons, mode) => {
+  const style = MARK_BUTTON_STYLE[mode] || MARK_BUTTON_STYLE.browse;
   d3.select(buttons.mark)
-    .classed('active', active)
-    .style('color', active ? 'blue' : 'gray')
-    .style('border-color', active ? '#8797ff' : '#d3d3d3');
+    .style('color', style.color)
+    .style('border-color', style.border_color)
+    .property('disabled', style.disabled)
+    .style('cursor', style.disabled ? 'default' : 'pointer');
+};
+
+export const set_save_button_visible = (buttons, visible) => {
+  d3.select(buttons.save).style('display', visible ? 'inline-flex' : 'none');
 };
 
 export const set_del_button_visible = (buttons, visible) => {
@@ -217,11 +243,12 @@ export const make_range_slider = (
   return { container, slider, label };
 };
 
-/** The label that will be used for the next SAVEd pair — the LNDMRK
- * equivalent of a gene-search box: it always shows the current "what am I
- * placing/targeting" value, editable directly, and updates when a LNDMRK
- * bar is clicked to target an existing landmark. `on_commit(value)` fires
- * on Enter/blur (an empty value means "back to auto-numbering"). */
+/** The label of whatever's currently being placed (MARK) or edited (MODIFY)
+ * — the LNDMRK equivalent of a gene-search box: hidden in 'browse', shown
+ * and editable in 'mark'/'modify', and updated when a LNDMRK bar or an
+ * existing pentagon is clicked to target a landmark. `on_commit(value)`
+ * fires on Enter/blur (an empty value means "back to auto-numbering", only
+ * meaningful in 'mark'). */
 export const make_label_input = (on_commit) => {
   const input = document.createElement('input');
   input.type = 'text';
@@ -231,8 +258,9 @@ export const make_label_input = (on_commit) => {
   input.style.padding = '1px 4px';
   input.style.border = '1px solid #d3d3d3';
   input.style.borderRadius = '3px';
+  input.style.display = 'none';
   input.title =
-    'Label for the next SAVEd pair — click a LNDMRK bar to target an existing one';
+    'Landmark name — click a LNDMRK bar or an existing pentagon to target one';
 
   const commit = () => on_commit(input.value.trim());
   input.addEventListener('keydown', (event) => {
@@ -248,4 +276,8 @@ export const make_label_input = (on_commit) => {
 
 export const set_label_input_value = (label_input, value) => {
   label_input.input.value = value;
+};
+
+export const set_label_input_visible = (label_input, visible) => {
+  label_input.input.style.display = visible ? 'inline-block' : 'none';
 };

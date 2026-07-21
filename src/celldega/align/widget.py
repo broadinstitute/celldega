@@ -190,9 +190,12 @@ class Landmark(anywidget.AnyWidget):
 
     # Static per-slice cell counts (for a "SLICE" bar graph), and per-label
     # count of distinct slices a landmark has a saved point in (for a
-    # "LNDMRK" bar graph) — the latter recomputed whenever `landmarks` changes.
+    # "LNDMRK" bar graph) — the latter two recomputed whenever `landmarks`
+    # changes. `landmark_slices` is which slice ids (not just how many) each
+    # label has an instance in, so the SLICE bar can highlight them.
     slice_cell_counts = traitlets.Dict({}).tag(sync=True)
     landmark_coverage = traitlets.Dict({}).tag(sync=True)
+    landmark_slices = traitlets.Dict({}).tag(sync=True)
 
     # Cluster label -> cell count summed across every slice (not just the
     # two currently shown) and -> color, for the single shared CELL bar
@@ -433,13 +436,21 @@ class Landmark(anywidget.AnyWidget):
         self.delete_landmark = ""
 
     def _recompute_landmark_coverage(self) -> None:
-        """Number of distinct slices each landmark label has a saved point in,
-        for the front end's LNDMRK bar graph (bar length = this count)."""
+        """Per-label slice coverage: distinct-slice counts (for the LNDMRK
+        bar's length) and the actual slice ids (so the SLICE bar can
+        highlight which slices already have an instance of the landmark
+        currently being marked/modified)."""
         if self.landmarks is None or self.landmarks.empty:
             self.landmark_coverage = {}
+            self.landmark_slices = {}
             return
-        counts = self.landmarks.groupby("label")[self._slice_attr].nunique()
-        self.landmark_coverage = {str(label): int(count) for label, count in counts.items()}
+        grouped = self.landmarks.groupby("label")[self._slice_attr]
+        self.landmark_coverage = {
+            str(label): int(count) for label, count in grouped.nunique().items()
+        }
+        self.landmark_slices = {
+            str(label): sorted({str(s) for s in slices}) for label, slices in grouped
+        }
 
     def _bump_label_counter(self, labels) -> None:
         numeric = []

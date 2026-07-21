@@ -242,6 +242,7 @@ def test_landmark_coverage_counts_distinct_slices_per_label():
         "features": [*lm.landmark_geojson_b["features"], _pair_feature("2", 3.0, 3.0)],
     }
     assert lm.landmark_coverage == {"1": 3, "2": 1}
+    assert lm.landmark_slices == {"1": ["0", "1", "2"], "2": ["1"]}
 
 
 def test_rename_landmark_updates_table_coverage_and_visible_geojson():

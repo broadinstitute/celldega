@@ -17,6 +17,7 @@ import {
   ini_landmark_marker_layer,
   features_to_geojson,
   geojson_to_features,
+  color_for_label,
 } from '../deck-gl/layers/landmark_marker_layer';
 import { objects_from_parquet } from '../read_parquet/objects_from_parquet';
 import { make_bar_container, make_bar_graph } from '../ui/bar_plot';
@@ -26,7 +27,8 @@ import {
 } from '../ui/landmark_dropdown';
 import {
   make_landmark_toolbar,
-  set_mark_button_active,
+  set_mark_button_mode,
+  set_save_button_visible,
   set_del_button_visible,
   register_landmark_keyboard_shortcuts,
   make_rotation_slider,
@@ -35,6 +37,7 @@ import {
   make_range_slider,
   make_label_input,
   set_label_input_value,
+  set_label_input_visible,
 } from '../ui/landmark_ui';
 import { hexToRgb } from '../utils/hexToRgb';
 import { build_rotation_state, rotate_point_inverse } from '../utils/rotation';
@@ -42,7 +45,6 @@ import { create_scale_bar } from '../utils/scale_bar';
 
 const SIDES = ['a', 'b'];
 const GRAY_RGB = [160, 160, 160];
-const ACTIVE_RGB = [40, 80, 220];
 
 const decode_centroids = async (model, side) => {
   const bytes = model.get(`centroids_parquet_${side}`);
@@ -59,7 +61,7 @@ const style_bar_box = (container) => {
   container.style.border = '1px solid #d3d3d3';
 };
 
-export const landmark_ist = async (model, el) => {
+export const landmark = async (model, el) => {
   el.innerHTML = '';
 
   const width = model.get('width') || el.clientWidth || 900;
@@ -101,10 +103,20 @@ export const landmark_ist = async (model, el) => {
   };
 
   const state = {
-    mark_mode: false,
+    // 'browse' (initial; nothing editable) | 'mark' (adding new instances) |
+    // 'modify' (drag/rename/delete an existing landmark). See `enter_browse`/
+    // `enter_mark`/`ensure_modify` — all state transitions go through those
+    // three, so button visuals and the label textbox never drift out of sync
+    // with what's actually happening.
+    ui_mode: 'browse',
     draft: { a: null, b: null },
-    selected_label: null,
+    // The label textbox's value: null in browse; in 'mark' it's the target
+    // name (null = not-yet-saved auto-numbered new landmark); in 'modify'
+    // it's always the landmark currently targeted.
     active_label: null,
+    // A typed-but-not-yet-committed rename while in 'modify' — applied on
+    // SAVE, not on every keystroke (modify's only way out is save/delete).
+    pending_rename: null,
     active_side: 'a',
     next_label: model.get('next_landmark_label') || 1,
     rows: { a: [], b: [] },
@@ -167,9 +179,20 @@ export const landmark_ist = async (model, el) => {
   };
   apply_views(null);
 
+  // A draft's displayed label always reflects the *current* textbox value
+  // (not whatever it was when the point was placed), so editing the name
+  // live-updates the preview before SAVE.
   const combined_features = (side) => {
     const committed = state.features[side].filter((f) => !f.properties.draft);
-    return state.draft[side] ? [...committed, state.draft[side]] : committed;
+    if (!state.draft[side]) return committed;
+    const draft_label = String(state.active_label ?? state.next_label);
+    return [
+      ...committed,
+      {
+        ...state.draft[side],
+        properties: { ...state.draft[side].properties, label: draft_label },
+      },
+    ];
   };
 
   const build_layers = () =>
@@ -182,9 +205,9 @@ export const landmark_ist = async (model, el) => {
         highlighted_cell: state.highlighted_cell[side],
       }),
       ini_landmark_marker_layer(side, combined_features(side), {
-        selected_label: state.selected_label,
         rotation_state: state.rotation_state[side],
         visible: state.marker_visible,
+        modify_target: state.ui_mode === 'modify' ? state.active_label : null,
       }),
     ]);
 
@@ -257,7 +280,40 @@ export const landmark_ist = async (model, el) => {
     layers: build_layers(),
   });
 
-  // --- MARK / SAVE / DEL state machine --------------------------------------
+  // --- browse / mark / modify state machine -----------------------------------
+
+  // The label textbox: hidden in 'browse'; in 'mark' it's the target name
+  // (editable, committing a custom name for the pending draft(s)); in
+  // 'modify' it's the targeted landmark's name (editing stages a rename,
+  // applied on SAVE — not immediately, since modify's only way out is
+  // save/delete).
+  const label_input = make_label_input((value) => {
+    if (state.ui_mode === 'mark') {
+      state.active_label =
+        value && value !== String(state.next_label) ? value : null;
+      rebuild_lndmrk_bar();
+      rebuild_slice_bar();
+      refresh();
+    } else if (state.ui_mode === 'modify') {
+      state.pending_rename =
+        value && value !== state.active_label ? value : null;
+    }
+  });
+  function sync_label_input() {
+    if (state.ui_mode === 'browse') {
+      set_label_input_value(label_input, '');
+    } else if (state.ui_mode === 'mark') {
+      set_label_input_value(
+        label_input,
+        state.active_label ?? String(state.next_label)
+      );
+    } else {
+      set_label_input_value(
+        label_input,
+        state.pending_rename ?? state.active_label ?? ''
+      );
+    }
+  }
 
   const sync_side_to_model = (side) => {
     // Captured *before* the empty-first set below: that intermediate write
@@ -265,8 +321,7 @@ export const landmark_ist = async (model, el) => {
     // (see `on_landmark_geojson_changed`), which reacts by rebuilding
     // `state.features[side]` from the (momentarily empty) model value. If
     // the real payload were computed *after* that set, it would compute
-    // from the just-wiped state and permanently save an empty collection —
-    // this was silently deleting every previously-saved landmark on SAVE/DEL.
+    // from the just-wiped state and permanently save an empty collection.
     const real_value = features_to_geojson(state.features[side]);
     model.set(`landmark_geojson_${side}`, {
       type: 'FeatureCollection',
@@ -277,85 +332,127 @@ export const landmark_ist = async (model, el) => {
   };
 
   const toolbar = make_landmark_toolbar({
-    on_mark_toggle: () => set_mark_mode(!state.mark_mode),
-    on_save: () => save_pair(),
-    on_delete: () => delete_selected(),
+    on_mark_toggle: () => {
+      if (state.ui_mode === 'modify') return; // disabled — save/delete only
+      if (state.ui_mode === 'mark') {
+        enter_browse();
+      } else {
+        enter_mark(null);
+      }
+    },
+    on_save: () => {
+      if (state.ui_mode === 'mark') save_mark();
+      else if (state.ui_mode === 'modify') save_modify();
+    },
+    on_delete: () => {
+      if (state.ui_mode === 'modify') delete_modify();
+    },
   });
 
-  function set_mark_mode(active) {
-    state.mark_mode = active;
-    set_mark_button_active(toolbar.buttons, active);
-    if (!active) {
-      state.draft.a = null;
-      state.draft.b = null;
-      refresh();
-    }
+  function apply_ui_mode() {
+    set_mark_button_mode(toolbar.buttons, state.ui_mode);
+    set_save_button_visible(toolbar.buttons, state.ui_mode !== 'browse');
+    set_del_button_visible(toolbar.buttons, state.ui_mode === 'modify');
+    set_label_input_visible(label_input, state.ui_mode !== 'browse');
+  }
+
+  function enter_browse() {
+    state.ui_mode = 'browse';
+    state.active_label = null;
+    state.pending_rename = null;
+    state.draft.a = null;
+    state.draft.b = null;
+    sync_label_input();
+    apply_ui_mode();
+    rebuild_lndmrk_bar();
+    rebuild_slice_bar();
+    refresh();
+  }
+
+  function enter_mark(label) {
+    state.ui_mode = 'mark';
+    state.active_label = label;
+    state.pending_rename = null;
+    state.draft.a = null;
+    state.draft.b = null;
+    sync_label_input();
+    apply_ui_mode();
+    rebuild_lndmrk_bar();
+    rebuild_slice_bar();
+    refresh();
+  }
+
+  function ensure_modify(label) {
+    if (state.ui_mode === 'modify' && state.active_label === label) return;
+    state.ui_mode = 'modify';
+    state.active_label = label;
+    state.pending_rename = null;
+    state.draft.a = null;
+    state.draft.b = null;
+    sync_label_input();
+    apply_ui_mode();
+    rebuild_lndmrk_bar();
+    rebuild_slice_bar();
+    refresh();
   }
 
   function place_draft(side, true_coordinate) {
+    if (state.ui_mode !== 'mark') return;
     state.draft[side] = {
       type: 'Feature',
       geometry: { type: 'Point', coordinates: true_coordinate },
-      properties: {
-        label: String(state.active_label ?? state.next_label),
-        draft: true,
-      },
+      properties: { draft: true },
     };
     refresh();
   }
 
-  function cancel_draft() {
-    state.draft.a = null;
-    state.draft.b = null;
-    refresh();
-  }
-
-  function save_pair() {
-    if (!state.draft.a || !state.draft.b) return;
+  function save_mark() {
+    if (!state.draft.a && !state.draft.b) return;
     const label = String(state.active_label ?? state.next_label);
+    const is_new_label = state.active_label == null;
+    const saved_sides = [];
     SIDES.forEach((side) => {
+      if (!state.draft[side]) return;
       state.features[side].push({
         type: 'Feature',
         geometry: state.draft[side].geometry,
         properties: { label, draft: false },
       });
       state.draft[side] = null;
+      saved_sides.push(side);
     });
-    if (state.active_label == null) {
-      state.next_label += 1;
+    if (is_new_label) state.next_label += 1;
+    saved_sides.forEach(sync_side_to_model);
+    enter_browse();
+  }
+
+  function save_modify() {
+    if (state.pending_rename) {
+      model.set('rename_landmark', {});
+      model.set('rename_landmark', {
+        old: state.active_label,
+        new: state.pending_rename,
+      });
+      model.save_changes();
     }
-    state.active_label = null;
-    sync_label_input();
-    refresh();
-    SIDES.forEach(sync_side_to_model);
+    enter_browse();
   }
 
-  function clear_selection() {
-    if (!state.selected_label) return;
-    state.selected_label = null;
-    set_del_button_visible(toolbar.buttons, false);
-    refresh();
+  function delete_modify() {
+    const label = state.active_label;
+    if (!label) return;
+    const confirmed = window.confirm(
+      `Delete landmark "${label}" entirely, across every slice it appears in? This can't be undone.`
+    );
+    if (!confirmed) return;
+    model.set('delete_landmark', '');
+    model.set('delete_landmark', label);
+    model.save_changes();
+    enter_browse();
   }
 
-  function select_landmark(label) {
-    state.selected_label = label;
-    set_del_button_visible(toolbar.buttons, true);
-    refresh();
-  }
-
-  function delete_selected() {
-    if (!state.selected_label) return;
-    const label = state.selected_label;
-    SIDES.forEach((side) => {
-      state.features[side] = state.features[side].filter(
-        (f) => f.properties.label !== label
-      );
-    });
-    state.selected_label = null;
-    set_del_button_visible(toolbar.buttons, false);
-    refresh();
-    SIDES.forEach(sync_side_to_model);
-  }
+  sync_label_input();
+  apply_ui_mode();
 
   // --- Pointer interaction ---------------------------------------------------
   // `info.coordinate` is in display (post-rotation) space — every place a
@@ -396,17 +493,22 @@ export const landmark_ist = async (model, el) => {
     if (!side) return;
     set_active_side(side);
 
-    if (info.object && info.layer?.id?.startsWith('landmark-icon-')) {
-      select_landmark(info.object.properties.label);
+    const clicked_pentagon =
+      info.object && info.layer?.id?.startsWith('landmark-icon-')
+        ? info.object
+        : null;
+    if (clicked_pentagon) {
+      if (clicked_pentagon.properties.draft) return; // reposition via drag, not click
+      const { label } = clicked_pentagon.properties;
+      if (state.ui_mode === 'modify' && state.active_label === label) {
+        enter_browse();
+      } else {
+        ensure_modify(label);
+      }
       return;
     }
 
-    if (state.selected_label) {
-      clear_selection();
-      return;
-    }
-
-    if (state.mark_mode && !state.draft[side] && info.coordinate) {
+    if (state.ui_mode === 'mark' && !state.draft[side] && info.coordinate) {
       place_draft(side, to_true_coordinate(side, info.coordinate));
       return;
     }
@@ -420,11 +522,13 @@ export const landmark_ist = async (model, el) => {
     const side = info.viewport && side_for_viewport_id(info.viewport.id);
     if (!side || !info.object || !info.layer?.id?.startsWith('landmark-icon-'))
       return;
-    dragging = {
-      side,
-      label: info.object.properties.label,
-      is_draft: info.object.properties.draft,
-    };
+    const { label, draft: is_draft } = info.object.properties;
+    if (!is_draft) {
+      ensure_modify(label);
+    } else if (state.ui_mode !== 'mark') {
+      return;
+    }
+    dragging = { side, label, is_draft };
     apply_views(side);
   };
 
@@ -462,30 +566,52 @@ export const landmark_ist = async (model, el) => {
     onDragEnd: handle_drag_end,
     getCursor: ({ isDragging }) => {
       if (isDragging) return 'grabbing';
-      return state.mark_mode ? 'crosshair' : 'grab';
+      return state.ui_mode === 'mark' ? 'crosshair' : 'grab';
     },
-    // Available regardless of MARK mode — a quick way to check a cell's
-    // cluster without needing to click it.
+    // Available in any state — a quick way to check a cell's cluster or a
+    // landmark's name without clicking (which would change state).
     getTooltip: ({ object, layer }) => {
-      if (!object || !layer?.id?.startsWith('landmark-cell-')) return null;
-      const cluster_line =
-        object.cluster != null ? `cluster: ${object.cluster}<br/>` : '';
-      return { html: `${cluster_line}cell: ${object.cell_id}` };
+      if (!object) return null;
+      if (layer?.id?.startsWith('landmark-icon-')) {
+        return { html: `landmark: ${object.properties.label}` };
+      }
+      if (layer?.id?.startsWith('landmark-cell-')) {
+        const cluster_line =
+          object.cluster != null ? `cluster: ${object.cluster}<br/>` : '';
+        return { html: `${cluster_line}cell: ${object.cell_id}` };
+      }
+      return null;
     },
   });
 
   const cleanup_shortcuts = register_landmark_keyboard_shortcuts({
-    on_mark_toggle: () => set_mark_mode(!state.mark_mode),
-    on_save: () => save_pair(),
-    on_cancel: () => {
-      if (state.draft.a || state.draft.b) {
-        cancel_draft();
+    on_mark_toggle: () => {
+      if (state.ui_mode === 'modify') return;
+      if (state.ui_mode === 'mark') {
+        enter_browse();
       } else {
-        set_mark_mode(false);
+        enter_mark(null);
       }
-      clear_selection();
     },
-    on_delete: () => delete_selected(),
+    on_save: () => {
+      if (state.ui_mode === 'mark') save_mark();
+      else if (state.ui_mode === 'modify') save_modify();
+    },
+    on_cancel: () => {
+      // Not in the original spec ("only way out of modify is save/delete")
+      // — kept as a safety valve so an accidental click doesn't force a
+      // destructive choice. Clears an in-progress draft first if there is one.
+      if (state.ui_mode === 'mark' && (state.draft.a || state.draft.b)) {
+        state.draft.a = null;
+        state.draft.b = null;
+        refresh();
+        return;
+      }
+      enter_browse();
+    },
+    on_delete: () => {
+      if (state.ui_mode === 'modify') delete_modify();
+    },
   });
 
   // --- One shared canvas + per-side "active" border overlay -------------------
@@ -571,21 +697,6 @@ export const landmark_ist = async (model, el) => {
     refresh();
   });
 
-  // The label the next SAVE will use — mirrors `state.active_label ?? state.next_label`,
-  // editable directly, and kept in sync wherever either of those changes.
-  const label_input = make_label_input((value) => {
-    state.active_label =
-      value && value !== String(state.next_label) ? value : null;
-    rebuild_lndmrk_bar();
-  });
-  function sync_label_input() {
-    set_label_input_value(
-      label_input,
-      state.active_label ?? String(state.next_label)
-    );
-  }
-  sync_label_input();
-
   const lndmrk_bar_container = make_bar_container();
   style_bar_box(lndmrk_bar_container);
   const lndmrk_bar_svg = d3.create('svg');
@@ -599,31 +710,31 @@ export const landmark_ist = async (model, el) => {
     lndmrk_bar_svg.selectAll('*').remove();
     if (!bar_data.length) return;
     const color_dict = Object.fromEntries(
-      bar_data.map((d) => [
-        d.name,
-        d.name === state.active_label ? ACTIVE_RGB : GRAY_RGB,
-      ])
+      bar_data.map((d) => [d.name, color_for_label(d.name)])
     );
     make_bar_graph(
       lndmrk_bar_container,
       (event, d) => {
-        // Shift-click deletes the landmark entirely (every slice it's in) —
-        // plain click just targets it as the active editing label.
+        // Shift-click: delete the landmark entirely (every slice it's in).
+        // Double-click: jump straight to MODIFY (rename/delete) without
+        // needing a visible instance. Plain click: target it in MARK, ready
+        // to add another instance.
         if (event.shiftKey) {
           const confirmed = window.confirm(
             `Delete landmark "${d.name}" entirely, across every slice it appears in? This can't be undone.`
           );
           if (!confirmed) return;
-          if (state.active_label === d.name) state.active_label = null;
-          sync_label_input();
           model.set('delete_landmark', '');
           model.set('delete_landmark', d.name);
           model.save_changes();
+          enter_browse();
           return;
         }
-        state.active_label = state.active_label === d.name ? null : d.name;
-        sync_label_input();
-        rebuild_lndmrk_bar();
+        if (state.ui_mode === 'mark' && state.active_label === d.name) {
+          enter_browse();
+        } else {
+          enter_mark(d.name);
+        }
       },
       lndmrk_bar_svg,
       bar_data,
@@ -632,19 +743,9 @@ export const landmark_ist = async (model, el) => {
       null,
       null
     );
-    // Double-click to give a landmark a human-readable name (e.g. "tongue")
-    // — mirrors NBHD's name-entry dialog, just via a plain prompt() for now.
-    lndmrk_bar_svg.selectAll('g').on('dblclick', (_event, d) => {
-      const next = window.prompt(`Rename landmark "${d.name}" to:`, d.name);
-      if (!next || next === d.name) return;
-      model.set('rename_landmark', {});
-      model.set('rename_landmark', { old: d.name, new: next });
-      model.save_changes();
-      if (state.active_label === d.name) {
-        state.active_label = next;
-        sync_label_input();
-      }
-    });
+    lndmrk_bar_svg
+      .selectAll('g')
+      .on('dblclick', (_event, d) => ensure_modify(d.name));
   }
   rebuild_lndmrk_bar();
   model.on('change:landmark_coverage', rebuild_lndmrk_bar);
@@ -732,7 +833,20 @@ export const landmark_ist = async (model, el) => {
   const slice_bar_data = Object.entries(slice_cell_counts)
     .sort((a, b) => Number(a[0]) - Number(b[0]))
     .map(([name, value]) => ({ name, value }));
-  if (slice_bar_data.length) {
+
+  function rebuild_slice_bar() {
+    slice_bar_svg.selectAll('*').remove();
+    if (!slice_bar_data.length) return;
+    const landmark_slices = model.get('landmark_slices') || {};
+    const covered = new Set(
+      state.active_label ? landmark_slices[state.active_label] || [] : []
+    );
+    const color_dict = Object.fromEntries(
+      slice_bar_data.map((d) => [
+        d.name,
+        covered.has(d.name) ? color_for_label(state.active_label) : GRAY_RGB,
+      ])
+    );
     make_bar_graph(
       slice_bar_container,
       (_event, d) => {
@@ -741,12 +855,14 @@ export const landmark_ist = async (model, el) => {
       },
       slice_bar_svg,
       slice_bar_data,
-      Object.fromEntries(slice_bar_data.map((d) => [d.name, GRAY_RGB])),
+      color_dict,
       null,
       null,
       null
     );
   }
+  rebuild_slice_bar();
+  model.on('change:landmark_slices', rebuild_slice_bar);
 
   const make_tag = (text) => {
     const tag = document.createElement('span');

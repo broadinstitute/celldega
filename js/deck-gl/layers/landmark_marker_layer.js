@@ -8,35 +8,41 @@ const ICON_SIZE = 64;
 const MODIFY_TARGET_SIZE = 22;
 const DEFAULT_SIZE = 18;
 const DRAFT_ALPHA = 170;
-// In MODIFY, every landmark other than the one being targeted dims out, so
-// the one you're actually dragging/renaming/deleting stands out.
-const DIMMED_ALPHA = 90;
+// Every landmark other than the one actively being placed/dragged/renamed
+// dims out, so it's obvious which one you're working on.
+const DIMMED_ALPHA = 128;
 
 /**
- * A single-icon map-pin atlas (mask:true so IconLayer tints it via
- * getColor) — same silhouette as deck.gl's own IconLayer example marker,
- * self-generated (rather than fetched from an external atlas image) so a
- * pin still gets a distinct per-landmark tint. The pin's tip -- not its
- * center -- is the anchor (see `PIN_ICON_MAPPING`'s anchorY), so it points
- * exactly at the marked coordinate the way a map pin should.
+ * A single-icon target-reticle atlas (mask:true so IconLayer tints it via
+ * getColor): a ring with four short inward-pointing ticks, self-generated
+ * as an SVG data URI. Unlike a pin (asymmetric, tip-anchored) this is
+ * rotationally symmetric about the marked coordinate — which sits exactly
+ * at its open center, never obscured by the icon itself — and doesn't need
+ * an anchor offset (IconLayer's default anchor is already the icon center).
  */
-const build_pin_svg = () => {
-  const path =
-    'M12 2C8.13 2 5 5.13 5 9c0 4.5 5.5 10.5 6.3 11.34a1 1 0 0 0 1.4 0C13.5 19.5 19 13.5 19 9c0-3.87-3.13-7-7-7z';
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="${ICON_SIZE}" height="${ICON_SIZE}"><path d="${path}" fill="white"/></svg>`;
+const build_target_svg = () => {
+  const cx = ICON_SIZE / 2;
+  const cy = ICON_SIZE / 2;
+  const outer_r = ICON_SIZE * 0.375;
+  const tick_inner_r = ICON_SIZE * 0.21;
+  const stroke_width = ICON_SIZE * 0.08;
+  const ticks = [
+    [cx, cy - outer_r, cx, cy - tick_inner_r],
+    [cx, cy + outer_r, cx, cy + tick_inner_r],
+    [cx - outer_r, cy, cx - tick_inner_r, cy],
+    [cx + outer_r, cy, cx + tick_inner_r, cy],
+  ]
+    .map(
+      ([x1, y1, x2, y2]) =>
+        `<line x1="${x1.toFixed(2)}" y1="${y1.toFixed(2)}" x2="${x2.toFixed(2)}" y2="${y2.toFixed(2)}" stroke="white" stroke-width="${stroke_width.toFixed(2)}" stroke-linecap="round"/>`
+    )
+    .join('');
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${ICON_SIZE}" height="${ICON_SIZE}"><circle cx="${cx}" cy="${cy}" r="${outer_r.toFixed(2)}" fill="none" stroke="white" stroke-width="${stroke_width.toFixed(2)}"/>${ticks}</svg>`;
 };
 
-export const PIN_ICON_ATLAS = `data:image/svg+xml;base64,${btoa(build_pin_svg())}`;
-export const PIN_ICON_MAPPING = {
-  pin: {
-    x: 0,
-    y: 0,
-    width: ICON_SIZE,
-    height: ICON_SIZE,
-    anchorX: ICON_SIZE / 2,
-    anchorY: ICON_SIZE,
-    mask: true,
-  },
+export const TARGET_ICON_ATLAS = `data:image/svg+xml;base64,${btoa(build_target_svg())}`;
+export const TARGET_ICON_MAPPING = {
+  target: { x: 0, y: 0, width: ICON_SIZE, height: ICON_SIZE, mask: true },
 };
 
 // The golden angle spaces consecutive hues maximally far apart around the
@@ -83,10 +89,11 @@ export const resolve_landmark_color = (label, color_overrides = {}) => {
  * unrotated (see `rotate_point_inverse` in `utils/rotation`) before being
  * written back into a feature's geometry.
  *
- * Every label gets its own distinct, stable color (`color_for_label`);
- * an unsaved draft is a translucent preview of that same color; the
- * landmark currently targeted in MODIFY renders larger, and every *other*
- * landmark dims out so the targeted one stands out.
+ * Every label gets its own distinct, stable color (`color_for_label`); an
+ * unsaved draft is a translucent preview of that same color; the landmark
+ * currently targeted in MODIFY renders larger; and every *other* landmark
+ * dims out whenever there's a `focus_label` (the one being placed in MARK,
+ * or dragged/renamed/deleted in MODIFY), so it stands out from the rest.
  */
 export const ini_landmark_marker_layer = (
   side,
@@ -95,6 +102,7 @@ export const ini_landmark_marker_layer = (
     rotation_state,
     visible = true,
     modify_target = null,
+    focus_label = null,
     color_overrides = {},
   } = {}
 ) =>
@@ -102,9 +110,9 @@ export const ini_landmark_marker_layer = (
     id: `landmark-icon-${side}`,
     data: features,
     visible,
-    iconAtlas: PIN_ICON_ATLAS,
-    iconMapping: PIN_ICON_MAPPING,
-    getIcon: () => 'pin',
+    iconAtlas: TARGET_ICON_ATLAS,
+    iconMapping: TARGET_ICON_MAPPING,
+    getIcon: () => 'target',
     getPosition: (f) => f.geometry.coordinates,
     getSize: (f) =>
       f.properties.label === modify_target ? MODIFY_TARGET_SIZE : DEFAULT_SIZE,
@@ -115,14 +123,13 @@ export const ini_landmark_marker_layer = (
         color_overrides
       );
       if (f.properties.draft) return [r, g, b, DRAFT_ALPHA];
-      const dimmed =
-        modify_target != null && f.properties.label !== modify_target;
+      const dimmed = focus_label != null && f.properties.label !== focus_label;
       return [r, g, b, dimmed ? DIMMED_ALPHA : 255];
     },
     pickable: true,
     updateTriggers: {
       getSize: [modify_target],
-      getColor: [color_overrides, modify_target],
+      getColor: [color_overrides, focus_label],
     },
     ...getModelMatrixProps(rotation_state),
   });

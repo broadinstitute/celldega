@@ -37,7 +37,9 @@ const HIGHLIGHT_RING_COLOR = [0, 0, 0, 255];
  * (one CELL bar, not per-side), so selecting a cluster dims non-matching
  * cells identically on both views. `highlighted_cell` is a per-side pick (a
  * single `cell_id`), drawn with a dark outline ring as a visual anchor while
- * placing a nearby landmark — independent of cluster highlighting.
+ * placing a nearby landmark — independent of cluster highlighting. `radius`
+ * is the widget's fixed `cell_radius` trait (not runtime-adjustable);
+ * `opacity` is what the CELL control's slider actually drives.
  */
 export const ini_landmark_cell_layer = (
   side,
@@ -47,6 +49,7 @@ export const ini_landmark_cell_layer = (
     rotation_state,
     visible = true,
     radius = 3,
+    opacity = 0.86,
     highlighted_cell = null,
   } = {}
 ) =>
@@ -57,10 +60,11 @@ export const ini_landmark_cell_layer = (
     getPosition: (d) => [d.x, d.y],
     getFillColor: (d) => {
       const rgb = d.color ? hexToRgb(d.color) : DEFAULT_COLOR;
+      const alpha = Math.round(255 * opacity);
       if (highlight_cluster && d.cluster !== highlight_cluster) {
-        return [...rgb, 10];
+        return [...rgb, Math.round(alpha * 0.05)];
       }
-      return [...rgb, 220];
+      return [...rgb, alpha];
     },
     getRadius: radius,
     radiusUnits: 'pixels',
@@ -72,7 +76,7 @@ export const ini_landmark_cell_layer = (
     lineWidthUnits: 'pixels',
     pickable: true,
     updateTriggers: {
-      getFillColor: [highlight_cluster],
+      getFillColor: [highlight_cluster, opacity],
       getRadius: [radius],
       getLineColor: [highlighted_cell],
     },

@@ -65,6 +65,14 @@ def test_landmark_defaults_from_list_of_two():
     assert lm.landmarks is not None
     assert list(lm.landmarks.columns) == ["label", "x", "y", "slice"]
     assert lm.landmarks.empty
+    assert lm.cell_radius == 2.0
+
+
+def test_landmark_cell_radius_is_settable_like_width_and_height():
+    rng = np.random.default_rng(28)
+    lm = Landmark(adatas=_make_two_slices(rng), cell_radius=4.5)
+
+    assert lm.cell_radius == 4.5
 
 
 def test_landmark_picks_initial_pair_from_larger_pool():

@@ -1,3 +1,4 @@
+import json
 import warnings
 
 import anndata as ad
@@ -583,6 +584,44 @@ def test_serial_alignment_transform_save_load_round_trip(tmp_path, method):
     assert reloaded.reference == transform.reference
     assert reloaded.landmarks_initial.equals(transform.landmarks_initial)
     assert reloaded.landmarks_aligned.equals(transform.landmarks_aligned)
+    assert reloaded.degree == transform.degree
+
+
+def test_serial_alignment_transform_load_defaults_degree_for_older_saves(tmp_path):
+    rng = np.random.default_rng(40)
+    slice0 = _make_slice(rng)
+    slice1 = _make_slice(rng, rotation_deg=10, translation=(2.0, -1.0))
+    landmarks = calc_landmarks([slice0, slice1], "cluster")
+    transform = calc_alignment_transform(landmarks, method="tps")
+
+    save_dir = tmp_path / "transform"
+    transform.save(save_dir)
+    # Simulate a transform saved before `degree` existed.
+    metadata_path = save_dir / "metadata.json"
+    metadata = json.loads(metadata_path.read_text())
+    del metadata["degree"]
+    metadata_path.write_text(json.dumps(metadata))
+
+    reloaded = SerialAlignmentTransform.load(save_dir)
+    assert reloaded.degree == 1
+
+
+def test_calc_alignment_transform_degree_changes_the_tps_fit():
+    rng = np.random.default_rng(41)
+    slice0 = _make_slice(rng)
+    slice1 = _make_slice(rng, rotation_deg=15, translation=(4.0, -3.0))
+    landmarks = calc_landmarks([slice0, slice1], "cluster")
+
+    transform_degree_1 = calc_alignment_transform(landmarks, method="tps", degree=1)
+    transform_degree_0 = calc_alignment_transform(landmarks, method="tps", degree=0)
+
+    assert transform_degree_1.degree == 1
+    assert transform_degree_0.degree == 0
+    far_point = np.array([[500.0, 500.0]])
+    assert not np.allclose(
+        transform_degree_1.apply_to_points(1, far_point),
+        transform_degree_0.apply_to_points(1, far_point),
+    )
 
 
 def test_serial_alignment_transform_tps_save_load_preserves_exact_interpolation(tmp_path):

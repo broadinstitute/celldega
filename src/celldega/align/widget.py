@@ -190,6 +190,12 @@ class Landmark(anywidget.AnyWidget):
             and safe to append new landmark sets onto (the auto-numbered
             label counter starts past whatever numeric labels are already
             present).
+        cell_radius: Cell-point display radius in pixels (``width``/
+            ``height``/``cell_radius`` are all plain synced traits, so this
+            can also be set as ``Landmark(..., cell_radius=3.0)`` or
+            afterward via ``lm.cell_radius = 3.0``). The CELL control has a
+            runtime *opacity* slider instead — radius rarely needs
+            mid-session adjustment once set.
         landscapes: Not implemented yet — planned future alternative to
             ``adatas`` that would point Landmark directly at two
             :class:`~celldega.viz.widget.Landscape` instances.
@@ -208,6 +214,12 @@ class Landmark(anywidget.AnyWidget):
 
     width = traitlets.Int(0).tag(sync=True)
     height = traitlets.Int(600).tag(sync=True)
+
+    # Cell-point radius (display pixels) -- fixed per-widget rather than a
+    # runtime slider, since it rarely needs adjusting mid-session once set;
+    # the CELL control instead has an opacity slider (frequently useful to
+    # adjust while marking, to see landmarks/cells underneath each other).
+    cell_radius = traitlets.Float(2.0).tag(sync=True)
 
     # Full pool of slice ids (as str) available to swap between, in resolved
     # order, and their display labels — drive the front-end dropdowns.

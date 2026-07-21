@@ -36,6 +36,7 @@ import {
   make_rotation_slider,
   set_rotation_slider_value,
   make_toggle_button,
+  set_toggle_active,
   make_range_slider,
   make_label_input,
   set_label_input_value,
@@ -137,7 +138,7 @@ export const landmark = async (model, el) => {
     // Shared across both views — one CELL/LNDMRK control panel, not one per side.
     highlight_cluster: null,
     cell_visible: true,
-    cell_radius: 2,
+    cell_opacity: 0.86,
     marker_visible: true,
     // Per-side single-cell pick (a visual anchor while placing a nearby
     // landmark) — independent of cluster highlighting.
@@ -216,13 +217,15 @@ export const landmark = async (model, el) => {
         highlight_cluster: state.highlight_cluster,
         rotation_state: state.rotation_state[side],
         visible: state.cell_visible,
-        radius: state.cell_radius,
+        radius: model.get('cell_radius'),
+        opacity: state.cell_opacity,
         highlighted_cell: state.highlighted_cell[side],
       }),
       ini_landmark_marker_layer(side, combined_features(side), {
         rotation_state: state.rotation_state[side],
         visible: state.marker_visible,
         modify_target: state.ui_mode === 'modify' ? state.active_label : null,
+        focus_label: current_target_label(),
         color_overrides: model.get('landmark_colors') || {},
       }),
     ]);
@@ -343,14 +346,15 @@ export const landmark = async (model, el) => {
     }
   }
 
-  // The landmark the color swatch (and the rename logic above) currently
-  // applies to — null in 'browse', where nothing is targeted.
-  const current_target_label = () => {
+  // The landmark currently targeted/focused — null in 'browse'. Used by the
+  // color swatch, the rename logic below, `build_layers`' marker dimming,
+  // and the LNDMRK bar's dimming.
+  function current_target_label() {
     if (state.ui_mode === 'mark')
       return String(state.active_label ?? state.next_label);
     if (state.ui_mode === 'modify') return state.active_label;
     return null;
-  };
+  }
 
   const color_input = make_landmark_color_input((hex) => {
     const label = current_target_label();
@@ -373,6 +377,19 @@ export const landmark = async (model, el) => {
       rgbToHex(resolve_landmark_color(label, overrides));
     set_color_input_value(color_input, hex);
   }
+
+  // Declared here (before the state machine below, not down with the rest
+  // of the control panel) so `enter_mark` can reactivate it directly —
+  // clicking MARK should make sure landmarks are actually visible, since
+  // marking against a hidden layer doesn't make much sense.
+  const lndmrk_toggle = make_toggle_button('LNDMRK', {
+    active: state.marker_visible,
+    on_toggle: (active) => {
+      state.marker_visible = active;
+      refresh();
+      rebuild_lndmrk_bar();
+    },
+  });
 
   const sync_side_to_model = (side) => {
     // Captured *before* the empty-first set below: that intermediate write
@@ -448,6 +465,10 @@ export const landmark = async (model, el) => {
     state.mark_target_label = label;
     state.pending_rename = null;
     state.pending_points = new Map();
+    if (!state.marker_visible) {
+      state.marker_visible = true;
+      set_toggle_active(lndmrk_toggle, true);
+    }
     sync_label_input();
     sync_color_input();
     apply_ui_mode();
@@ -577,6 +598,14 @@ export const landmark = async (model, el) => {
   };
 
   let dragging = null; // { side, label, is_draft }
+  let hover_side = null;
+  // dragPan is disabled as soon as the pointer is *hovering* a draggable
+  // pin, not only once onDragStart fires. deck.gl's controller and this
+  // layer's own onDrag both react to the same low-level pointer gesture,
+  // and the controller can latch onto "panning" before onDragStart's own
+  // `apply_views` call takes effect — disabling reactively there is one
+  // step too late. Pre-arming it on hover closes that race.
+  let disabled_side_for_hover = null;
 
   // A slice can only hold one instance of a given landmark — once this
   // side's current slice already has a pending or committed instance of
@@ -624,16 +653,21 @@ export const landmark = async (model, el) => {
     }
   };
 
+  // Whether a hovered/dragged pin can actually be dragged right now — a
+  // draft pin only while in 'mark', a committed one always (dragging it
+  // jumps straight into 'modify', from any state).
+  const can_drag_pin = (info) => {
+    if (!info.object || !info.layer?.id?.startsWith('landmark-icon-')) {
+      return false;
+    }
+    return !info.object.properties.draft || state.ui_mode === 'mark';
+  };
+
   const handle_drag_start = (info) => {
     const side = info.viewport && side_for_viewport_id(info.viewport.id);
-    if (!side || !info.object || !info.layer?.id?.startsWith('landmark-icon-'))
-      return;
+    if (!side || !can_drag_pin(info)) return;
     const { label, draft: is_draft } = info.object.properties;
-    if (!is_draft) {
-      ensure_modify(label);
-    } else if (state.ui_mode !== 'mark') {
-      return;
-    }
+    if (!is_draft) ensure_modify(label);
     dragging = { side, label, is_draft };
     apply_views(side);
   };
@@ -659,10 +693,9 @@ export const landmark = async (model, el) => {
       sync_side_to_model(dragging.side);
     }
     dragging = null;
+    disabled_side_for_hover = null;
     apply_views(null);
   };
-
-  let hover_side = null;
 
   deck_ist.setProps({
     onClick: handle_click,
@@ -673,6 +706,12 @@ export const landmark = async (model, el) => {
       hover_side = info.viewport
         ? side_for_viewport_id(info.viewport.id)
         : null;
+      if (dragging) return;
+      const next_disabled = can_drag_pin(info) ? hover_side : null;
+      if (next_disabled !== disabled_side_for_hover) {
+        disabled_side_for_hover = next_disabled;
+        apply_views(next_disabled);
+      }
     },
     getCursor: ({ isDragging }) => {
       if (isDragging) return 'grabbing';
@@ -816,12 +855,7 @@ export const landmark = async (model, el) => {
   set_landmark_dropdown_disabled_option(dropdowns.b, model.get('slice_id_a'));
 
   // --- Shared control panel: LNDMRK / CELL / TRX / SLICE ----------------------
-
-  const lndmrk_toggle = make_toggle_button('LNDMRK', { checked: true });
-  lndmrk_toggle.input.addEventListener('change', () => {
-    state.marker_visible = lndmrk_toggle.input.checked;
-    refresh();
-  });
+  // (`lndmrk_toggle` itself is declared earlier, before the state machine.)
 
   const lndmrk_bar_container = make_bar_container();
   style_bar_box(lndmrk_bar_container);
@@ -873,26 +907,43 @@ export const landmark = async (model, el) => {
       null,
       null
     );
+    // A dimmed bar is a display of state too: hidden layer -> every bar
+    // dims uniformly; otherwise, whichever landmark is currently targeted
+    // (in mark or modify) stays full-opacity and every other one dims, the
+    // same visual cue clicking a bar gives on the map itself.
+    const target = current_target_label();
+    lndmrk_bar_svg.selectAll('g').style('opacity', (d) => {
+      if (!state.marker_visible) return 0.2;
+      if (!target) return 1;
+      return d.name === target ? 1 : 0.4;
+    });
   }
   rebuild_lndmrk_bar();
   model.on('change:landmark_coverage', rebuild_lndmrk_bar);
 
-  const cell_toggle = make_toggle_button('CELL', { checked: true });
-  cell_toggle.input.addEventListener('change', () => {
-    state.cell_visible = cell_toggle.input.checked;
-    refresh();
+  const cell_toggle = make_toggle_button('CELL', {
+    active: state.cell_visible,
+    on_toggle: (active) => {
+      state.cell_visible = active;
+      refresh();
+      rebuild_cell_bar();
+    },
   });
 
-  const size_slider = make_range_slider(
+  // Radius is a fixed widget-construction setting (`cell_radius`, a synced
+  // trait) rather than a runtime control -- it rarely needs mid-session
+  // adjustment, unlike opacity (frequently useful to turn down to see
+  // landmarks/other cells underneath).
+  const opacity_slider = make_range_slider(
     {
-      min: 0.1,
-      max: 5,
-      step: 0.1,
-      value: state.cell_radius,
-      format: (v) => `${v.toFixed(1)}px`,
+      min: 0,
+      max: 1,
+      step: 0.05,
+      value: state.cell_opacity,
+      format: (v) => v.toFixed(2),
     },
     (value) => {
-      state.cell_radius = value;
+      state.cell_opacity = value;
       refresh();
     }
   );
@@ -907,7 +958,7 @@ export const landmark = async (model, el) => {
     .map(([name, value]) => ({ name, value }))
     .sort((a, b) => b.value - a.value);
 
-  const rebuild_cell_bar = () => {
+  function rebuild_cell_bar() {
     cell_bar_svg.selectAll('*').remove();
     if (!cell_bar_data.length) return;
     const color_dict = Object.fromEntries(
@@ -931,18 +982,19 @@ export const landmark = async (model, el) => {
       null,
       null
     );
-    cell_bar_svg
-      .selectAll('g')
-      .style('opacity', (d) =>
-        !state.highlight_cluster || d.name === state.highlight_cluster ? 1 : 0.3
-      );
-  };
+    cell_bar_svg.selectAll('g').style('opacity', (d) => {
+      if (!state.cell_visible) return 0.2;
+      return !state.highlight_cluster || d.name === state.highlight_cluster
+        ? 1
+        : 0.3;
+    });
+  }
   rebuild_cell_bar(); // cluster_counts/cluster_colors are static — no need to rebuild on slice swap
 
   // No transcript data is loaded for Landmark (no base_url/tiles) — kept
   // visible-but-disabled for layout parity with Landscape's control bar.
   const trx_toggle = make_toggle_button('TRX', {
-    checked: false,
+    active: false,
     disabled: true,
   });
   const trx_bar_container = make_bar_container();
@@ -1023,14 +1075,11 @@ export const landmark = async (model, el) => {
   control_row.append(
     make_section([toolbar.container], null),
     make_section(
-      [lndmrk_toggle.container, label_input.container, color_input.container],
+      [lndmrk_toggle, label_input.container, color_input.container],
       lndmrk_bar_container
     ),
-    make_section(
-      [cell_toggle.container, size_slider.container],
-      cell_bar_container
-    ),
-    make_section([trx_toggle.container], trx_bar_container),
+    make_section([cell_toggle, opacity_slider.container], cell_bar_container),
+    make_section([trx_toggle], trx_bar_container),
     make_section([make_tag('SLICE')], slice_bar_container)
   );
 

@@ -185,35 +185,39 @@ export const set_rotation_slider_value = ({ slider, label }, degrees) => {
   label.textContent = `${degrees}°`;
 };
 
-/** A CELL/TRX-style label + pill toggle switch, mirroring Landscape's
- * layer-visibility toggles. `on_change(checked)` fires on click. */
+/** A CELL/LNDMRK/TRX-style layer-visibility toggle — copied directly from
+ * Landscape's own button pattern (`js/ui/text_buttons.js`'s `make_button`/
+ * `toggle_visible_button`): a plain clickable text label, blue when active
+ * and gray when not, with no separate checkbox/checkmark — the text color
+ * *is* the state, read directly off the element by whatever else needs to
+ * sync with it (see `set_toggle_active`). `on_toggle(active)` fires on click
+ * with the new state. */
 export const make_toggle_button = (
   label_text,
-  { checked = true, disabled = false } = {}
+  { active = true, disabled = false, on_toggle } = {}
 ) => {
-  const container = document.createElement('label');
-  container.style.display = 'inline-flex';
-  container.style.alignItems = 'center';
-  container.style.gap = '4px';
-  container.style.fontSize = '11px';
-  container.style.fontWeight = '700';
-  container.style.color = disabled ? '#b0b0b0' : 'blue';
-  container.style.cursor = disabled ? 'default' : 'pointer';
-  container.style.userSelect = 'none';
+  const button = document.createElement('div');
+  button.textContent = label_text;
+  button.style.fontSize = '11px';
+  button.style.fontWeight = '700';
+  button.style.userSelect = 'none';
+  button.style.cursor = disabled ? 'default' : 'pointer';
+  button.style.color = disabled ? '#d3d3d3' : active ? 'blue' : 'gray';
 
-  const label = document.createElement('span');
-  label.textContent = label_text;
+  if (!disabled) {
+    button.addEventListener('click', () => {
+      const next_active = button.style.color !== 'blue';
+      set_toggle_active(button, next_active);
+      on_toggle?.(next_active);
+    });
+  }
 
-  const input = document.createElement('input');
-  input.type = 'checkbox';
-  input.checked = checked;
-  input.disabled = disabled;
-  input.style.accentColor = 'blue';
-  input.style.cursor = disabled ? 'default' : 'pointer';
-
-  container.append(label, input);
-  return { container, input };
+  return button;
 };
+
+export function set_toggle_active(button, active) {
+  button.style.color = active ? 'blue' : 'gray';
+}
 
 /** A small labeled range slider, matching `make_rotation_slider`'s shape —
  * used for cell-point-radius control. */

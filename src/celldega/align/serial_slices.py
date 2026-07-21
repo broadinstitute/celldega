@@ -143,7 +143,7 @@ def _pooled_neighbor_stats(
 
 
 def _resolve_fit_function(
-    method: str, allow_reflection: bool, smoothing: float
+    method: str, allow_reflection: bool, smoothing: float, degree: int
 ) -> Callable[..., Transform]:
     if method == "procrustes":
 
@@ -164,7 +164,9 @@ def _resolve_fit_function(
         def _fit(
             source: np.ndarray, target: np.ndarray, weights: np.ndarray | None = None
         ) -> Transform:
-            return fit_transform_tps(source, target, weights=weights, smoothing=smoothing)
+            return fit_transform_tps(
+                source, target, weights=weights, smoothing=smoothing, degree=degree
+            )
 
         return _fit
     raise ValueError(f"method must be one of {_METHODS}, got {method!r}")
@@ -238,6 +240,7 @@ class SerialAlignmentTransform:
     method: str
     allow_reflection: bool
     smoothing: float
+    degree: int
     weight_by_adjacent_counts: bool
     alignment_window: int
 
@@ -274,6 +277,7 @@ class SerialAlignmentTransform:
             "method": self.method,
             "allow_reflection": self.allow_reflection,
             "smoothing": self.smoothing,
+            "degree": self.degree,
             "weight_by_adjacent_counts": self.weight_by_adjacent_counts,
             "alignment_window": self.alignment_window,
         }
@@ -313,6 +317,9 @@ class SerialAlignmentTransform:
             method=metadata["method"],
             allow_reflection=metadata["allow_reflection"],
             smoothing=metadata["smoothing"],
+            # `degree` postdates this field's introduction -- default `1`
+            # (the fit's own previous hardcoded behavior) for older saves.
+            degree=metadata.get("degree", 1),
             weight_by_adjacent_counts=metadata["weight_by_adjacent_counts"],
             alignment_window=metadata["alignment_window"],
         )
@@ -327,6 +334,7 @@ def calc_alignment_transform(
     method: str = "procrustes",
     allow_reflection: bool = False,
     smoothing: float = 0.0,
+    degree: int = 1,
     weight_by_adjacent_counts: bool = True,
     compute_residuals: bool = True,
 ) -> SerialAlignmentTransform:
@@ -380,6 +388,17 @@ def calc_alignment_transform(
         smoothing: ``method="tps"`` only. Bending-energy penalty passed to
             the thin-plate-spline fit; ``0`` (default) interpolates
             landmarks exactly.
+        degree: ``method="tps"`` only. Degree of the polynomial term added
+            to the spline (see :func:`~celldega.align._transform.fit_transform_tps`).
+            ``1`` (default) includes a full affine fallback (translation,
+            rotation, *and scale*) away from the landmarks — the scale
+            component is exactly what lets area expand/shrink globally.
+            ``0`` drops it for a constant-offset fallback instead, which
+            tends to change area less overall, though TPS has no parameter
+            that *exactly* constrains area/Jacobian the way
+            ``method="procrustes"`` (always rigid, scale disabled — see
+            above) does; this only shifts the fit's default behavior, it
+            doesn't hard-enforce anything.
         weight_by_adjacent_counts: If ``True`` (default), weight each shared
             landmark by the geometric mean of its cell count in the current
             slice and its neighbor window (a centroid from more cells is a
@@ -415,7 +434,7 @@ def calc_alignment_transform(
         raise ValueError(f"reference must be in [0, {n - 1}], got {reference}")
     if alignment_window < 1:
         raise ValueError(f"alignment_window must be >= 1, got {alignment_window}")
-    fit_transform = _resolve_fit_function(method, allow_reflection, smoothing)
+    fit_transform = _resolve_fit_function(method, allow_reflection, smoothing, degree)
 
     all_stats = [_slice_landmarks(landmarks, slice_id, slice_attr) for slice_id in slice_ids]
 
@@ -505,6 +524,7 @@ def calc_alignment_transform(
         method=method,
         allow_reflection=allow_reflection,
         smoothing=smoothing,
+        degree=degree,
         weight_by_adjacent_counts=weight_by_adjacent_counts,
         alignment_window=alignment_window,
     )
